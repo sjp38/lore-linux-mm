@@ -2,84 +2,86 @@ Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 33DE4C76194
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 15:42:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6EDF6C76194
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 15:42:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E6E6721985
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 15:42:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6E6721985
+	by mail.kernel.org (Postfix) with ESMTP id 3270622387
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 15:42:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3270622387
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 80DA96B0007; Mon, 22 Jul 2019 11:42:26 -0400 (EDT)
+	id CEF3D6B000A; Mon, 22 Jul 2019 11:42:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7BFB38E0003; Mon, 22 Jul 2019 11:42:26 -0400 (EDT)
+	id CA2288E0003; Mon, 22 Jul 2019 11:42:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6AE798E0001; Mon, 22 Jul 2019 11:42:26 -0400 (EDT)
+	id BB7298E0001; Mon, 22 Jul 2019 11:42:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1C83A6B0007
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 11:42:26 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id z20so26562473edr.15
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 08:42:26 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6CE666B000A
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 11:42:28 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id f19so26545326edv.16
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 08:42:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=r3kG0u5QV/VGvCumlfyd7rw0Az2AtVGkpUikzEsFTGI=;
-        b=Q7oJgoYFvAgMg7r2CHKAWWfX1ZDp7s7NF7fLS+MnlDTqygczLjsl/4jZw4i9TeXeTC
-         aFqsssBopEuS9sn1sHbsbRME5jPAigFjlPpFsR6sKDwAgKIaFkpE6OvOFw2VNH7nUe1P
-         E7UkfL0hfhRDKzKwnQhLLurIjbRqqcr0C9NW5jC1KOrjGi6bYBLGNhBQZpFZYvA7/SHM
-         zbjdi4m5d+EaVe5HWxn0LeEBL3buG1zQLAE59lsyPDjXei5GsfC9/WlaRwpUm/FPQ2Mv
-         GTlR8kHge4EZ7FUjF7KYNtK6GpNCWDvSIU+gYF/UAazeEko+nRGjntECqJaQCgHjs+Ly
-         2o8g==
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=tw4JZILHpRw8yw2ivWns3JMulA885A2eTY+XMl6s8Qw=;
+        b=p1Bd/Psxp7yr0EqYF855+lUYWP1KKw5xc0hhZnKCFe0iSUKFB8KbWwJF0lJ6kS6xOG
+         F3gT7xiZs2g5aTF7ErIzr8AxlXxjgZFNEPpyOEiCFMywofKwpqA8bXnjtbSxPCeRcl+4
+         fKbZPcIpl00EcOjmF99FQ/CPz7GFwm39mXFsJ/bg6tqwOxCns80JIgYamP9Za/7fY/gq
+         I4bs/2TgxjuMLT+MoVM9vLkjNMhgTSz5e5/QS4tizAQF7m6/DdvAKK60ajuxKlNgl/o7
+         dlwgZEWq7Fql+jkBSdXr3fRkf+gBml/hjn5UgM+0hIlQ8WGqRDHOKKUm2HcvKK1ONnNw
+         z+RQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAXfmSdJFGw57RqMQfEFN35oLlJlAjg4DFa1lzTRW1eX+5us3aO4
-	o9SHFCrvBs77vj4Vtgr4+L/G1NitethBC6ZEo4Ig8mnTJ6bXCl4D4mNMxxwSPTHouArwc1fBzz5
-	xCCoqU9A8S2kHEwuRh5xJXqPMTnVpFc83OdjLPAj/RNjP/W9DWfoLO1CIxpVE29jAbA==
-X-Received: by 2002:a17:906:40c:: with SMTP id d12mr53010350eja.29.1563810145649;
-        Mon, 22 Jul 2019 08:42:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy/ey5OhOhXiuYVIXmc47+YQDv8mWksoEirYYsOd7C1QBt29XRoc7gpqEguBdiWckj+cKc5
-X-Received: by 2002:a17:906:40c:: with SMTP id d12mr53010294eja.29.1563810144557;
-        Mon, 22 Jul 2019 08:42:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563810144; cv=none;
+X-Gm-Message-State: APjAAAWsQYjrGU/X2GbfaJTmx27abkV80V2hcGdh6sZTIfHFdHq7zlZr
+	wyIPGSVfdh7BS8yrqGCigh/C8u0fUx5ey5Lq5b084S0f207G/K8JDXvbt4AETwoJsWiQzo5t+Lq
+	Xot4l9TdQVeLivws6RiwQG8z0sbU2gZ/qDqbwbR7FP0cwcSPLjSFVvW2klorDKwjTug==
+X-Received: by 2002:a50:e619:: with SMTP id y25mr61053893edm.247.1563810148041;
+        Mon, 22 Jul 2019 08:42:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzeaVhxn0lS6d30mhvxSJ1/T6C84rH+XhTt+WeaNGGC596vBIxzCPSQEYjDodWGUhBC00OK
+X-Received: by 2002:a50:e619:: with SMTP id y25mr61053849edm.247.1563810147379;
+        Mon, 22 Jul 2019 08:42:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563810147; cv=none;
         d=google.com; s=arc-20160816;
-        b=tUqkZfJKMR6ZAVdmQiLnb5Z1UZ+BlIYwLCXs88aFnfV/KMHXHZjnwWL04bFruZXdX5
-         uOq5U6bFrwB496KOXWiyjtoAw/yStppcbZQ0538H4D170dM7hQy4rjzXVATfxiX4fCU7
-         xw7hxEvWLvHvLEYRNRDTVaWcBhwIScR3RLsq0U1hf8Flwbuit03q/z0/II1sKVPDgHEg
-         eDGgwdcCmQK3rBHUL7Dp8faJcW3VuyUtI8R7YSNPU4AoC3U5WX7lQhvj9lzBRyloMP+z
-         hslNa8KvI3YLgHjCHS6iQ8+w1c2XMQR2NIe1yP8aBqQ5HVN157OWLE807Yc8dUaVx796
-         AAUg==
+        b=RvEsnAumwbwNE1rLO/db7AaX88WvYWvmNSTrUIxKGIsmZCFLDApbEND+5MtFT4q7+n
+         elS6PrCKDIoHa0pNPt/poOaQgHJ/PwXvb//CaEGlg2CIwSFzwlxN8PIWwfbPE4mnq5Ux
+         xUmqOS+hwyaEO41OwKH5ZzP9S+6iJYok9PKGzh0REnts2axO/VO+k9Pge+Ynl67E0a8Y
+         rCo7ZxuueDEg+S8oIJ1sxmv9i8jZdvGmhjyhtWj3hIc/YNblcOSslsDDX8suftoh9lj3
+         YyL3zTesA/HCx/Olph8KzDkE+3Kq6+KBX3AYwz70wme78P0/Vz7khTcuwE5/PlwZNK+8
+         6ZKA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=r3kG0u5QV/VGvCumlfyd7rw0Az2AtVGkpUikzEsFTGI=;
-        b=yJvj34aZv9T+UETeLXAsnlTgf597lTic+UB18pITiHSe4/5hle73QJ+wB3vD7EKUPz
-         Vl/9K+DDhDPi6SMU6irOLGfj/6/Bgn0NpxJ9aWo1JaLHVdybSmFdh+sfL2mfz/FMDpUa
-         0UIh83nUlZXEovtY/Tmz24BYjL8AWElN96byZZrEzUhkkoYRM52V6U2iiEddJkZd/bFL
-         nr9YeuyiAN0q2r16bhiq0DAZhyYbf0OXGpC5EWCNshw+XDuI3RXU5BRybN+SIsi27T9u
-         u6xxDQ0sfxpcZyq7YxeMZnUrV2nvwly4xw59aT6iLJMIi+ACIN2U84LdW8XC+F6o3ykf
-         D7fQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=tw4JZILHpRw8yw2ivWns3JMulA885A2eTY+XMl6s8Qw=;
+        b=m61HElqydZdtDaIghOJ1qzNCArznnaQC31pDmmhw88ChtXM2CFlyQ2+PLaR9N//JU/
+         JbWY3FqSynpyJ6s1p3zcY5MO9n1NT/nYTM2hlfTVCMmiM+RA+OZiL4kiU8wd+rOkStKz
+         1TsEIFQa8ilbCi9KgYqP9n7hsXi4LbhIF/XGpsv2lI2NOBDvVbAyaKCNBXMySqlxtWmG
+         +S+x+glc9YCmgKE+slIWlVQB2A2fRxn3LRTsh8+TM62dL6F+/iX1ChNnMfErteAa6qcv
+         EHUE7aiPEJuXnjNt7Sm6Vrwojcp76dWI6ualLpS5PDQ6JMu+R01vA6eWlJjJulj6+iQU
+         UDoQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id a5si4453581eje.74.2019.07.22.08.42.24
+        by mx.google.com with ESMTP id m44si5104896edc.110.2019.07.22.08.42.27
         for <linux-mm@kvack.org>;
-        Mon, 22 Jul 2019 08:42:24 -0700 (PDT)
+        Mon, 22 Jul 2019 08:42:27 -0700 (PDT)
 Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 8591528;
-	Mon, 22 Jul 2019 08:42:23 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 86D4E1509;
+	Mon, 22 Jul 2019 08:42:26 -0700 (PDT)
 Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.133])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id EE6093F694;
-	Mon, 22 Jul 2019 08:42:20 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id BA1883F694;
+	Mon, 22 Jul 2019 08:42:23 -0700 (PDT)
 From: Steven Price <steven.price@arm.com>
 To: linux-mm@kvack.org
 Cc: Steven Price <steven.price@arm.com>,
@@ -101,11 +103,15 @@ Cc: Steven Price <steven.price@arm.com>,
 	linux-kernel@vger.kernel.org,
 	Mark Rutland <Mark.Rutland@arm.com>,
 	"Liang, Kan" <kan.liang@linux.intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: [PATCH v9 00/21] Generic page walk and ptdump
-Date: Mon, 22 Jul 2019 16:41:49 +0100
-Message-Id: <20190722154210.42799-1-steven.price@arm.com>
+	Andrew Morton <akpm@linux-foundation.org>,
+	Vineet Gupta <vgupta@synopsys.com>,
+	linux-snps-arc@lists.infradead.org
+Subject: [PATCH v9 01/21] arc: mm: Add p?d_leaf() definitions
+Date: Mon, 22 Jul 2019 16:41:50 +0100
+Message-Id: <20190722154210.42799-2-steven.price@arm.com>
 X-Mailer: git-send-email 2.20.1
+In-Reply-To: <20190722154210.42799-1-steven.price@arm.com>
+References: <20190722154210.42799-1-steven.price@arm.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -114,111 +120,32 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is a slight reworking and extension of my previous patch set
-(Convert x86 & arm64 to use generic page walk), but I've continued the
-version numbering as most of the changes are the same. In particular
-this series ends with a generic PTDUMP implemention for arm64 and x86.
+walk_page_range() is going to be allowed to walk page tables other than
+those of user space. For this it needs to know when it has reached a
+'leaf' entry in the page tables. This information will be provided by the
+p?d_leaf() functions/macros.
 
-Many architectures current have a debugfs file for dumping the kernel
-page tables. Currently each architecture has to implement custom
-functions for this because the details of walking the page tables used
-by the kernel are different between architectures.
+For arc, we only have two levels, so only pmd_leaf() is needed.
 
-This series extends the capabilities of walk_page_range() so that it can
-deal with the page tables of the kernel (which have no VMAs and can
-contain larger huge pages than exist for user space). A generic PTDUMP
-implementation is the implemented making use of the new functionality of
-walk_page_range() and finally arm64 and x86 are switch to using it,
-removing the custom table walkers.
+CC: Vineet Gupta <vgupta@synopsys.com>
+CC: linux-snps-arc@lists.infradead.org
+Signed-off-by: Steven Price <steven.price@arm.com>
+---
+ arch/arc/include/asm/pgtable.h | 1 +
+ 1 file changed, 1 insertion(+)
 
-To enable a generic page table walker to walk the unusual mappings of
-the kernel we need to implement a set of functions which let us know
-when the walker has reached the leaf entry. After a suggestion from Will
-Deacon I've chosen the name p?d_leaf() as this (hopefully) describes
-the purpose (and is a new name so has no historic baggage). Some
-architectures have p?d_large macros but this is easily confused with
-"large pages".
-
-Mostly this is a clean up and there should be very little functional
-change. The exceptions are:
-
-* x86 PTDUMP debugfs output no longer display pages which aren't
-  present (patch 14).
-
-* arm64 has the ability to efficiently process KASAN pages (which
-  previously only x86 implemented). This means that the combination of
-  KASAN and DEBUG_WX is now useable.
-
-Also available as a git tree:
-git://linux-arm.org/linux-sp.git walk_page_range/v9
-
-Changes since v8:
-https://lore.kernel.org/lkml/20190403141627.11664-1-steven.price@arm.com/
- * Rename from p?d_large() to p?d_leaf()
- * Dropped patches migrating arm64/x86 custom walkers to
-   walk_page_range() in favour of adding a generic PTDUMP implementation
-   and migrating arm64/x86 to that instead.
- * Rebased to v5.3-rc1
-
-Steven Price (21):
-  arc: mm: Add p?d_leaf() definitions
-  arm: mm: Add p?d_leaf() definitions
-  arm64: mm: Add p?d_leaf() definitions
-  mips: mm: Add p?d_leaf() definitions
-  powerpc: mm: Add p?d_leaf() definitions
-  riscv: mm: Add p?d_leaf() definitions
-  s390: mm: Add p?d_leaf() definitions
-  sparc: mm: Add p?d_leaf() definitions
-  x86: mm: Add p?d_leaf() definitions
-  mm: Add generic p?d_leaf() macros
-  mm: pagewalk: Add p4d_entry() and pgd_entry()
-  mm: pagewalk: Allow walking without vma
-  mm: pagewalk: Add test_p?d callbacks
-  x86: mm: Don't display pages which aren't present in debugfs
-  x86: mm: Point to struct seq_file from struct pg_state
-  x86: mm+efi: Convert ptdump_walk_pgd_level() to take a mm_struct
-  x86: mm: Convert ptdump_walk_pgd_level_debugfs() to take an mm_struct
-  x86: mm: Convert ptdump_walk_pgd_level_core() to take an mm_struct
-  mm: Add generic ptdump
-  x86: mm: Convert dump_pagetables to use walk_page_range
-  arm64: mm: Convert mm/dump.c to use walk_page_range()
-
- arch/arc/include/asm/pgtable.h               |   1 +
- arch/arm/include/asm/pgtable-2level.h        |   1 +
- arch/arm/include/asm/pgtable-3level.h        |   1 +
- arch/arm64/Kconfig                           |   1 +
- arch/arm64/Kconfig.debug                     |  19 +-
- arch/arm64/include/asm/pgtable.h             |   2 +
- arch/arm64/include/asm/ptdump.h              |   8 +-
- arch/arm64/mm/Makefile                       |   4 +-
- arch/arm64/mm/dump.c                         | 117 +++----
- arch/arm64/mm/ptdump_debugfs.c               |   2 +-
- arch/mips/include/asm/pgtable-64.h           |   8 +
- arch/powerpc/include/asm/book3s/64/pgtable.h |  30 +-
- arch/riscv/include/asm/pgtable-64.h          |   7 +
- arch/riscv/include/asm/pgtable.h             |   7 +
- arch/s390/include/asm/pgtable.h              |   2 +
- arch/sparc/include/asm/pgtable_64.h          |   2 +
- arch/x86/Kconfig                             |   1 +
- arch/x86/Kconfig.debug                       |  20 +-
- arch/x86/include/asm/pgtable.h               |  10 +-
- arch/x86/mm/Makefile                         |   4 +-
- arch/x86/mm/debug_pagetables.c               |   8 +-
- arch/x86/mm/dump_pagetables.c                | 339 +++++--------------
- arch/x86/platform/efi/efi_32.c               |   2 +-
- arch/x86/platform/efi/efi_64.c               |   4 +-
- drivers/firmware/efi/arm-runtime.c           |   2 +-
- include/asm-generic/pgtable.h                |  19 ++
- include/linux/mm.h                           |  26 +-
- include/linux/ptdump.h                       |  19 ++
- mm/Kconfig.debug                             |  21 ++
- mm/Makefile                                  |   1 +
- mm/pagewalk.c                                |  76 +++--
- mm/ptdump.c                                  | 161 +++++++++
- 32 files changed, 507 insertions(+), 418 deletions(-)
- create mode 100644 include/linux/ptdump.h
- create mode 100644 mm/ptdump.c
-
+diff --git a/arch/arc/include/asm/pgtable.h b/arch/arc/include/asm/pgtable.h
+index 1d87c18a2976..8c425cf796db 100644
+--- a/arch/arc/include/asm/pgtable.h
++++ b/arch/arc/include/asm/pgtable.h
+@@ -274,6 +274,7 @@ static inline void pmd_set(pmd_t *pmdp, pte_t *ptep)
+ #define pmd_none(x)			(!pmd_val(x))
+ #define	pmd_bad(x)			((pmd_val(x) & ~PAGE_MASK))
+ #define pmd_present(x)			(pmd_val(x))
++#define pmd_leaf(x)			(pmd_val(pmd) & _PAGE_HW_SZ)
+ #define pmd_clear(xp)			do { pmd_val(*(xp)) = 0; } while (0)
+ 
+ #define pte_page(pte)		pfn_to_page(pte_pfn(pte))
 -- 
 2.20.1
 
