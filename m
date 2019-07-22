@@ -2,133 +2,153 @@ Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D64AC76195
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 09:34:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4375DC76188
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 09:36:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E2CDB21993
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 09:34:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E2CDB21993
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 9FBBD21993
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 09:36:12 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="C4FclbtD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9FBBD21993
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 85CCD6B0007; Mon, 22 Jul 2019 05:34:35 -0400 (EDT)
+	id 43CC56B000A; Mon, 22 Jul 2019 05:36:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 80D926B0008; Mon, 22 Jul 2019 05:34:35 -0400 (EDT)
+	id 3EDA38E0001; Mon, 22 Jul 2019 05:36:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6FC276B000A; Mon, 22 Jul 2019 05:34:35 -0400 (EDT)
+	id 329E96B000D; Mon, 22 Jul 2019 05:36:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 262846B0007
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 05:34:35 -0400 (EDT)
-Received: by mail-wm1-f72.google.com with SMTP id f189so8791685wme.5
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 02:34:35 -0700 (PDT)
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C46166B000A
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 05:36:11 -0400 (EDT)
+Received: by mail-lf1-f70.google.com with SMTP id p9so3528673lfo.16
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 02:36:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=JLIqc4ok0KFH4hHynCXkcM5xSPPn+/DWBah11nXcUBM=;
-        b=h24FAq+1KW4BkdiMKsn2W9e77vMLbhv+jCnbeIbhy0VKTcB9P2HeGgv9lzR4qeHcli
-         uRip2M7g45rmQaThT0+SxLFK1qSbwljkndQHKpFib3fGneiFWVUFZSsIZ3eP6mmOKn9S
-         j0IpVclR1kGFBfqCSG3iZEr+16XhgZ+lFCpzWrgXPtb61/c4OdBZn8xvMzToyB0cpeTO
-         QfHMkm//InUlTNCyKUV8byeeqp6Khr6SghZVn04EtGq85Uyk+QfxQFo/9CO7vfvKWQwq
-         Dvhq5uAaTaWcOhWX+S8uIeaMrBY1HhrIau7eYnBARSjoJbUjJR2094HHxvgaAkNk7twn
-         kIlw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAUseK2SpdBfgzqQ2HXbGm1VusuZa9iuvYi07V9XSqXCoBlGcdya
-	uWYxSoFvQGbXK8EC+IeSr7tPOepI7mf0lkhBiDKy5fmT4HHKozWJLpBTYRLKh8BBDA9ECGPD9tH
-	+XOorF2imf8mtAyPiteD82FyYabtP7ssl7c39PcXEvqQZ+ctmmNFA2ju6H+Y82v3pXQ==
-X-Received: by 2002:a5d:428b:: with SMTP id k11mr42457139wrq.174.1563788074710;
-        Mon, 22 Jul 2019 02:34:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw06oR9JTnWSoRZXS4CfFbdNE7fzcLUlk/ZUoxiYCJ10I4tIQWc1GD+9ObKIvuzHCLLhlIX
-X-Received: by 2002:a5d:428b:: with SMTP id k11mr42456381wrq.174.1563788069138;
-        Mon, 22 Jul 2019 02:34:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563788069; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
+         :message-id:user-agent:mime-version:content-transfer-encoding;
+        bh=DL5UzA+B5XRB4qh0F2iWC5P1iVbcg0/rElIhEVtbXfg=;
+        b=ZakYmBXiNF4VWxl4IkPVdhH6ik3JBM2vwPzyvSah5rq+Gl6EkJUrn1xC7pY63Ksg0q
+         wgElowHUki+sOAsOfW13gfjvINYHxERguHjj2wTpfiRVOOzfstZs51jBro8LmWX2M5a0
+         kMpvAOVIOiPHmLRel9nCg/4YaXXYVThvtXjGiAbJgr7Gi1qxYtNZle7LWipalVBZ0KZS
+         RTT03H4nXDU6nN6T0T7UTVgNL817tVA+lcB6FqkJC1ghmqcQS34SCCbGYSUPBsAId+eV
+         6u1uUVyW9KwoVHRT0cJJ2htBb2zjBSNTgTKpr49fBekJL+8a+oUSEd2mos45fUaqN40K
+         1Tmw==
+X-Gm-Message-State: APjAAAUC535k5nzZTueztlyilS3rj7zCFNkubV15b1TFTFjfPa2RVfQ0
+	T6/kHobhWmaXomwBGFwckZjEl8SCvyZZz1OO1ps4j4h6LkRNJjdeA6vZoejGxs5ywhYsgQEDRou
+	IHOXD3IA3NeAvwhdjo3Ch66TonWzFZ+Mschchmnvehaqf7L1KbdmJnymyyjJqum/Dvw==
+X-Received: by 2002:a2e:b0f0:: with SMTP id h16mr11773623ljl.21.1563788170981;
+        Mon, 22 Jul 2019 02:36:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxKKPn9+VpjLb+PAEsfoizk2FhsF/nva3EhZBTRj3nkW9LyO8WmKsiLq1kBs2+XoA3vFwkw
+X-Received: by 2002:a2e:b0f0:: with SMTP id h16mr11773582ljl.21.1563788170235;
+        Mon, 22 Jul 2019 02:36:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563788170; cv=none;
         d=google.com; s=arc-20160816;
-        b=W9uRHLzZ5sD9wrK4ZRpJbMI33hz/ei4WWBjeDp7eD7H4qN4ZLDM8q/AHxXdks+XzDv
-         t6SQADTXjmlDS/27tNJaxlerRgt29XH/J7wzvHQcZzh0MHNvmAw4GbFAbK6lvtBiTZI7
-         ZVU4SKbfIhxnH8UfVDyTVQaaKlPI1dkGeDi87kXDxjkca/sND5NKy83ciLrJrmfEvJMK
-         rlZyIR0nz2ZFYpOrlEoBAk4nXeA+ssMQTahn2Z8nUlhwIjjyjiq82MdAgMzr5JOlp5pL
-         9ZHGIGYIy65xol9eHfsPEprlq8sdVvLA79/rRbuDc54tyafu/EDR1I/N5jON4Jh4XZR+
-         fgAQ==
+        b=A4MyiougDIQf0GkQk7impwfPXxI5/ZEaGJe0aHmftt4ii3qZANGH8VvmmFATuQuQgy
+         EdPhk713lZBRcE3BgPuGFdbMMtQy2NlRr53cJj3E94pMDlge4HhMAPuDnGrq60jZWJvs
+         o57xvOWQ6DFUP0MDa/swNoojI8VWdXzjHLu7VCjUr9wEnMRgv/jTEYImoPmxPOzJeav+
+         +BeMr8xC42v1RT5l0AulBxihho+mNcV1u/oMvwdlK12bOWtzOFYgcWSsJiNFu8inWdvv
+         WeDbYgPJX8eGuN00DrQTD/qRa+UqGktY3h8o3zIFwsy8A06O0jcJiDmygDlPpU0kZ4sr
+         4y9w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=JLIqc4ok0KFH4hHynCXkcM5xSPPn+/DWBah11nXcUBM=;
-        b=YF2bEbFoRMRlyx3bIRi6degDe9axkXIXcTyIHfhzKYF9GIgRrA5w+qEb/sMFJVaMC6
-         Qr/j0o2RzASEDinepVtqJBdZd0JeNqnLHr2vsPMAW1oFnhhc+rRKWyY+eAumICqRlYxj
-         /8dTJWnU/hgbC2d9jbch2pptI6TpyMtHNygoXhqqyh211LhaUBCIRYHgTom228/J6WD7
-         yu4Ex18XeP6XWgOYaAuJbYGrVRXyVQsGMuYGNt1LIS+T/H3wLOqI3ztPdHxPYGS3sLjw
-         q++3vw3f2wDoxYIuffUH0KpMZJJUWHdFa2QBXb1ZUi+DkgINh0LHeX4bYsMwilUqVa69
-         RGoA==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :cc:to:from:subject:dkim-signature;
+        bh=DL5UzA+B5XRB4qh0F2iWC5P1iVbcg0/rElIhEVtbXfg=;
+        b=ABC0KeZyD2Z2JhgkkvtO0tmiBd6Kh5pMjRg9dGabDQsJuyLPq4REw4RP27bTMG+2C4
+         dvpNupPNe8bqXtOc4b56MbozsIoMvnwT0rqFNKeGU7Sg7M4+/6lrF+vWEUF1N4jVF6a0
+         DEe16opJceY+ET/xFRD+15EI/1BMXPuS1qNnK40vK4ztFByraCmWvom0YZillVRQ675p
+         mrmLFcKKr2hcHcGF0wBHVAmvnqnG7FtTWyXAQWAbYhTp49MStGorBZGhvCaVD1o9JmY+
+         GmBwBP9CzVnIfl+92dU35afTSL7WB/kycS1w3I0WTrN//lZjiY0W7jKngXiJu+1RmcVf
+         X6tg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id m8si38094500wrn.174.2019.07.22.02.34.28
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=C4FclbtD;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from forwardcorp1o.mail.yandex.net (forwardcorp1o.mail.yandex.net. [95.108.205.193])
+        by mx.google.com with ESMTPS id z4si30232701lfj.82.2019.07.22.02.36.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jul 2019 02:34:29 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Mon, 22 Jul 2019 02:36:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) client-ip=95.108.205.193;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by verein.lst.de (Postfix, from userid 2407)
-	id 5F1B668B20; Mon, 22 Jul 2019 11:34:28 +0200 (CEST)
-Date: Mon, 22 Jul 2019 11:34:28 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: john.hubbard@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	=?iso-8859-1?Q?Bj=F6rn_T=F6pel?= <bjorn.topel@intel.com>,
-	Boaz Harrosh <boaz@plexistor.com>, Christoph Hellwig <hch@lst.de>,
-	Daniel Vetter <daniel@ffwll.ch>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>, David Airlie <airlied@linux.ie>,
-	"David S . Miller" <davem@davemloft.net>,
-	Ilya Dryomov <idryomov@gmail.com>, Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Jens Axboe <axboe@kernel.dk>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Johannes Thumshirn <jthumshirn@suse.de>,
-	Magnus Karlsson <magnus.karlsson@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Miklos Szeredi <miklos@szeredi.hu>, Ming Lei <ming.lei@redhat.com>,
-	Sage Weil <sage@redhat.com>,
-	Santosh Shilimkar <santosh.shilimkar@oracle.com>,
-	Yan Zheng <zyan@redhat.com>, netdev@vger.kernel.org,
-	dri-devel@lists.freedesktop.org, linux-mm@kvack.org,
-	linux-rdma@vger.kernel.org, bpf@vger.kernel.org,
-	LKML <linux-kernel@vger.kernel.org>,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH 2/3] net/xdp: convert put_page() to put_user_page*()
-Message-ID: <20190722093428.GC29538@lst.de>
-References: <20190722043012.22945-1-jhubbard@nvidia.com> <20190722043012.22945-3-jhubbard@nvidia.com>
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=C4FclbtD;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from mxbackcorp2j.mail.yandex.net (mxbackcorp2j.mail.yandex.net [IPv6:2a02:6b8:0:1619::119])
+	by forwardcorp1o.mail.yandex.net (Yandex) with ESMTP id 8EF252E1251;
+	Mon, 22 Jul 2019 12:36:09 +0300 (MSK)
+Received: from smtpcorp1o.mail.yandex.net (smtpcorp1o.mail.yandex.net [2a02:6b8:0:1a2d::30])
+	by mxbackcorp2j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id piK2rewsgT-a8Nmo53U;
+	Mon, 22 Jul 2019 12:36:09 +0300
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
+	t=1563788169; bh=DL5UzA+B5XRB4qh0F2iWC5P1iVbcg0/rElIhEVtbXfg=;
+	h=Message-ID:Date:To:From:Subject:Cc;
+	b=C4FclbtDQ5b7smwavzXfTwnAGBDtyvoKz3qJxF/M76PisgHI1mGKIvG4cGohU069H
+	 I+8pkq99Gy18EG8atUE+4MtHJf7ZK+4vWOcIFCuhSSGHIaGhFtECkYzI0ajGXe82Ox
+	 ixtwBZaI7SGYRKn+koCY2zzBmM5SBCVGXhL8BdLI=
+Authentication-Results: mxbackcorp2j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
+Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:38b3:1cdf:ad1a:1fe1])
+	by smtpcorp1o.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id tCVKM0ss34-a8I48tMX;
+	Mon, 22 Jul 2019 12:36:08 +0300
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(Client certificate not present)
+Subject: [PATCH 1/2] mm/filemap: don't initiate writeback if mapping has no
+ dirty pages
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+To: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+ linux-kernel@vger.kernel.org
+Cc: Tejun Heo <tj@kernel.org>, Jens Axboe <axboe@kernel.dk>,
+ Johannes Weiner <hannes@cmpxchg.org>
+Date: Mon, 22 Jul 2019 12:36:08 +0300
+Message-ID: <156378816804.1087.8607636317907921438.stgit@buzz>
+User-Agent: StGit/0.17.1-dirty
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190722043012.22945-3-jhubbard@nvidia.com>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> diff --git a/net/xdp/xdp_umem.c b/net/xdp/xdp_umem.c
-> index 83de74ca729a..9cbbb96c2a32 100644
-> --- a/net/xdp/xdp_umem.c
-> +++ b/net/xdp/xdp_umem.c
-> @@ -171,8 +171,7 @@ static void xdp_umem_unpin_pages(struct xdp_umem *umem)
->  	for (i = 0; i < umem->npgs; i++) {
->  		struct page *page = umem->pgs[i];
->  
-> -		set_page_dirty_lock(page);
-> -		put_page(page);
-> +		put_user_pages_dirty_lock(&page, 1);
+Functions like filemap_write_and_wait_range() should do nothing if inode
+has no dirty pages or pages currently under writeback. But they anyway
+construct struct writeback_control and this does some atomic operations
+if CONFIG_CGROUP_WRITEBACK=y - on fast path it locks inode->i_lock and
+updates state of writeback ownership, on slow path might be more work.
+Current this path is safely avoided only when inode mapping has no pages.
 
-Same here, we really should avoid the need for the loop here and
-do the looping inside the helper.
+For example generic_file_read_iter() calls filemap_write_and_wait_range()
+at each O_DIRECT read - pretty hot path.
+
+This patch skips starting new writeback if mapping has no dirty tags set.
+If writeback is already in progress filemap_write_and_wait_range() will
+wait for it.
+
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+---
+ mm/filemap.c |    3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/mm/filemap.c b/mm/filemap.c
+index d0cf700bf201..d9572593e5c7 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -408,7 +408,8 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
+ 		.range_end = end,
+ 	};
+ 
+-	if (!mapping_cap_writeback_dirty(mapping))
++	if (!mapping_cap_writeback_dirty(mapping) ||
++	    !mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
+ 		return 0;
+ 
+ 	wbc_attach_fdatawrite_inode(&wbc, mapping->host);
 
