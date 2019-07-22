@@ -6,182 +6,160 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F2C9C76196
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 07:52:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AF854C76196
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 07:53:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EBC7B21BE6
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 07:52:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EBC7B21BE6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 8361E21911
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 07:53:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8361E21911
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 834266B0003; Mon, 22 Jul 2019 03:52:17 -0400 (EDT)
+	id 0E0946B0006; Mon, 22 Jul 2019 03:53:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7BF6D6B0006; Mon, 22 Jul 2019 03:52:17 -0400 (EDT)
+	id 06B746B0008; Mon, 22 Jul 2019 03:53:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 684A08E0003; Mon, 22 Jul 2019 03:52:17 -0400 (EDT)
+	id E9D536B000A; Mon, 22 Jul 2019 03:53:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 43F856B0003
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 03:52:17 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id g30so34816528qtm.17
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 00:52:17 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AF7D76B0006
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 03:53:05 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id 145so23335847pfw.16
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 00:53:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to;
-        bh=wYyXdvJ27O2FTyENDZboMSuBZ4fFOoN7k0htsw1kQ74=;
-        b=ordC9Df1GZgg2K5eaUcjJNSew4U16/HfP59LHSuOn71pd0XdUPZHej/jeyeGtbRzVf
-         wLAb9xTOMVO+4Z92GhZINiA+NffxsQUs5CfWutV0x3nCE63iIWfJiWe1LT+XKVOqLqma
-         iAxpF9Ilqi7sVJwhDGuLzgp1UrZOdK2KicQ5+IloYNiKcCjZWZCqcg2ZLOwfJrbWgkea
-         v+iRjqd6RoJpNOuJvvN8maLGVeTDcCQFyuUFA5Q+So2K4N0zf6ONcUiZE6BHaMGU4/NE
-         x9AeFcMqDW1CRSoOLZjAuHa5X26M6FpZQOpNAdMEnI52rV60B/DNGOBtJhqtMqtm02wj
-         ixwQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWQdwLC6qKFNWAo90CmYP9gx1ZsRMPKjmizgKRB6kCKI5jNV4QI
-	GO/+HmVTguP9/QNxGPQK8oYJ+H8e4A2PovZKiTPCiuqdBYN/mjkT2WFJ5AyQ734VaVyLrCe1iEy
-	xyGRS+JWx9tpmwOahf7O7wStdRZIEKRiKjlCOMGvTV/9yNQ1ijAroJgyGM02GSOlDYw==
-X-Received: by 2002:a37:ac1a:: with SMTP id e26mr46932932qkm.231.1563781937006;
-        Mon, 22 Jul 2019 00:52:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxT5GjewzEWseFF+KZ0hXC9H+Fw4dhqApSTEOHPrbTt2i+EAFJlWb3yJkUNuMaGvTdhwXH0
-X-Received: by 2002:a37:ac1a:: with SMTP id e26mr46932906qkm.231.1563781936355;
-        Mon, 22 Jul 2019 00:52:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563781936; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=qYEjQIUXKnmIer9RQ7tvy8ZB3LufG5iVl43w8nguQ9A=;
+        b=rkRRwv2C7gOewOiK52XYT0bcTymrf6BO6qH6LoEP4r4VQtvpJbD86UIs99S0AHxwc/
+         OwK7fbQNQYvxAx8awwpqQw9nIMTLqlxBlSrp9jL6m6c17tNhs5FOEilraseC4/4P6iF7
+         MrxPknlxkKWtQNzLwD4TAJZfQ3rCPdYeHfn9COmrMvYNzls8GjCM8HSbxPfS6f32Q07L
+         oVkL78KkazkFPC/u417wVwHLeUt6IlH9YqUH1uaHdMkCNUm4SMpNxhYokftwV1gjtFI7
+         nYEnE13U8vQyxwelgY3Jm0kF3FMtitjwaWp2C2ZQz+ZdLzzDNLxEjTIbTLwGE3zyxs/Q
+         jIbw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAV1EZHMXUqsxJBIGk/xKr1O8wmp46Bg/4NX20zDFk5wWXQhHhhv
+	TGlrZyNKKTPOAlQu7ARFhK9fotAFxOPXsQ4Uol8RdPWoTMvmH1lZb8xrb77bXuuV6NC7H7hJAfs
+	guxq1oDwg76C6cacN/tsrAmUjKcDyvpDW5+2nYVn1YswJAHbTAfOcPOirXdzWrl/jAg==
+X-Received: by 2002:a63:e14d:: with SMTP id h13mr70355870pgk.431.1563781985307;
+        Mon, 22 Jul 2019 00:53:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyLK5qAh+/krjOwPMgm+RPLFP0zL4z/hLf7aGYgCCgc4/U2YWvkSt4o39bBHIsF8h36wX3X
+X-Received: by 2002:a63:e14d:: with SMTP id h13mr70355824pgk.431.1563781984541;
+        Mon, 22 Jul 2019 00:53:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563781984; cv=none;
         d=google.com; s=arc-20160816;
-        b=IUSHD/HMUjfGkgEkmkFH7cU4/xXzp1sMbEs3o7wmmTTmAxU0sMg29uPSEqWtbOpjsj
-         Dcj4AQe4KHQzWWN6lO4gb6PXFKizt5Ou4ClyukPTvwo/KarOKAYrRY+yA57z06ruAvkB
-         ryokjgpvAkpbMQwSKPVkq3T7bEy89CF6XRbVZwiWnR00lNfcNUTIQi+ZpCPW5NjL7a6D
-         Yv9uo/lbsgS2ibH83iSw3Kx+P1m+K98If3CwTPXBl4S3M+gwbCPkgQqwbRqNYp4Xn7RT
-         pi2zrMcloFqJVa0epXa4WmosWYJlK9QsHCYJvr1zdXilapZzKS/x1g3khaPrGQ/pj9Bp
-         IPWA==
+        b=YX3sO54qe5iIwy06EW0uenjtEvI053iy45U4MQ5/3tQJUfdm0bwr1Y2ns9cEKlUGFA
+         y+Mv/BFngV1epNFLDiB+GAzGOqiclCLzvJj9GHgedR/6bwRLAanfpzgTVzJIv9tg8jC8
+         g0Z3hBr0tymm+F9bEdLSsMcCaQyQS/f6gq4+lI39czyJfbCnd4YQDdZproteFSqAPFtF
+         znVX0AS0+qyPyoJ18Bf9vOpWl3zWpQBFiaDMXnf15JSeuulBd2yNnnYqjZmsTIIRDPmV
+         6GQwow0kxS9gcQpHQwUpdYTSIuv18+B1EVI+RiSrFj9HZrWOFMUlI2bbOfvShl4t+MZt
+         DViQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date;
-        bh=wYyXdvJ27O2FTyENDZboMSuBZ4fFOoN7k0htsw1kQ74=;
-        b=BC2oI1fCETrp1jaBc79uVBR5DY1ZmdxYHfd/G1gFF/SKZ+SwT6EKV/J9s/J3CJvH9r
-         rifmRSWWo9/Da10efCAc89GoSFU9RhAXPbyx0sL+dv1SQAmzYVGdVNlmmYh89aTbjgiN
-         5D4vD99ezOoX0h67Y3bUpGYRawGMJW00b9UD/xMaZUg5IWIUbbmqtpzG20LdxnEAJu8E
-         MpPKlpxV46dSnALw9hnrNqUfrweqqN2vBO3dddKgmrn63NHG4FTWpbZ3HzIjdfzENzHX
-         GYX0qbeDHFN7cjgBszpJBeA2ujKwsAWXf7Syc1+R27KIfFY8Ywj3g+drNkdjXePvIXeG
-         0XyQ==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=qYEjQIUXKnmIer9RQ7tvy8ZB3LufG5iVl43w8nguQ9A=;
+        b=zZc2M/bOrBB09z0msyP17DUe6yEqx/nm1A3FA0CHwRxWuft1aRCRERi5jHVU0Zf4f4
+         do8KCymR95ZcMcIVy7lOdrxWYsfk+71lPeyXmA+ZHkWFDIOWQ4v0eyoOmNUnMTS/zrZ0
+         nW0STxH9pKQwzIWtfswGE1HIaYJCsb1h4JRRXpuXRnnZzkcOqvA0CeoxS7oijl5W76Nd
+         XnYyY8vx3SSInmS7OSQ0a5PTBiPXhV/4DB2zeFdo5HzYSKWnOXpyQn+WwNZ7pxKAkDEu
+         6gkNj8iUdl8BrLSkoa2Y0kcu1hTOQVTBA5YDGIRJrHnkp6Sa/OY+ghOaGvNXgGYlTiq7
+         KbNA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y7si24804534qvp.116.2019.07.22.00.52.16
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id e96si7820885plb.123.2019.07.22.00.53.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jul 2019 00:52:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 22 Jul 2019 00:53:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 1176F86668;
-	Mon, 22 Jul 2019 07:52:15 +0000 (UTC)
-Received: from redhat.com (ovpn-120-233.rdu2.redhat.com [10.10.120.233])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 5B9085C221;
-	Mon, 22 Jul 2019 07:52:06 +0000 (UTC)
-Date: Mon, 22 Jul 2019 03:52:05 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: "Paul E. McKenney" <paulmck@linux.ibm.com>
-Cc: Matthew Wilcox <willy@infradead.org>, aarcange@redhat.com,
-	akpm@linux-foundation.org, christian@brauner.io,
-	davem@davemloft.net, ebiederm@xmission.com,
-	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
-	james.bottomley@hansenpartnership.com, jasowang@redhat.com,
-	jglisse@redhat.com, keescook@chromium.org, ldv@altlinux.org,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, linux-parisc@vger.kernel.org,
-	luto@amacapital.net, mhocko@suse.com, mingo@kernel.org,
-	namit@vmware.com, peterz@infradead.org,
-	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
-	wad@chromium.org
-Subject: Re: RFC: call_rcu_outstanding (was Re: WARNING in __mmdrop)
-Message-ID: <20190722035042-mutt-send-email-mst@kernel.org>
-References: <0000000000008dd6bb058e006938@google.com>
- <000000000000964b0d058e1a0483@google.com>
- <20190721044615-mutt-send-email-mst@kernel.org>
- <20190721081933-mutt-send-email-mst@kernel.org>
- <20190721131725.GR14271@linux.ibm.com>
- <20190721210837.GC363@bombadil.infradead.org>
- <20190721233113.GV14271@linux.ibm.com>
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 22 Jul 2019 00:53:03 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,294,1559545200"; 
+   d="scan'208";a="180323256"
+Received: from unknown (HELO yhuang-dev) ([10.239.159.29])
+  by orsmga002.jf.intel.com with ESMTP; 22 Jul 2019 00:53:02 -0700
+From: "Huang\, Ying" <ying.huang@intel.com>
+To: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Cc: huang ying <huang.ying.caritas@gmail.com>,  Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,  <linux-mm@kvack.org>
+Subject: Re: kernel BUG at mm/swap_state.c:170!
+References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
+	<CAC=cRTMz5S636Wfqdn3UGbzwzJ+v_M46_juSfoouRLS1H62orQ@mail.gmail.com>
+	<CABXGCsOo-4CJicvTQm4jF4iDSqM8ic+0+HEEqP+632KfCntU+w@mail.gmail.com>
+Date: Mon, 22 Jul 2019 15:52:53 +0800
+In-Reply-To: <CABXGCsOo-4CJicvTQm4jF4iDSqM8ic+0+HEEqP+632KfCntU+w@mail.gmail.com>
+	(Mikhail Gavrilov's message of "Mon, 22 Jul 2019 12:31:36 +0500")
+Message-ID: <878ssqbj56.fsf@yhuang-dev.intel.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190721233113.GV14271@linux.ibm.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Mon, 22 Jul 2019 07:52:15 +0000 (UTC)
+Content-Type: text/plain; charset=ascii
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 21, 2019 at 04:31:13PM -0700, Paul E. McKenney wrote:
-> On Sun, Jul 21, 2019 at 02:08:37PM -0700, Matthew Wilcox wrote:
-> > On Sun, Jul 21, 2019 at 06:17:25AM -0700, Paul E. McKenney wrote:
-> > > Also, the overhead is important.  For example, as far as I know,
-> > > current RCU gracefully handles close(open(...)) in a tight userspace
-> > > loop.  But there might be trouble due to tight userspace loops around
-> > > lighter-weight operations.
-> > 
-> > I thought you believed that RCU was antifragile, in that it would scale
-> > better as it was used more heavily?
-> 
-> You are referring to this?  https://paulmck.livejournal.com/47933.html
-> 
-> If so, the last few paragraphs might be worth re-reading.   ;-)
-> 
-> And in this case, the heuristics RCU uses to decide when to schedule
-> invocation of the callbacks needs some help.  One component of that help
-> is a time-based limit to the number of consecutive callback invocations
-> (see my crude prototype and Eric Dumazet's more polished patch).  Another
-> component is an overload warning.
-> 
-> Why would an overload warning be needed if RCU's callback-invocation
-> scheduling heurisitics were upgraded?  Because someone could boot a
-> 100-CPU system with the rcu_nocbs=0-99, bind all of the resulting
-> rcuo kthreads to (say) CPU 0, and then run a callback-heavy workload
-> on all of the CPUs.  Given the constraints, CPU 0 cannot keep up.
-> 
-> So warnings are required as well.
-> 
-> > Would it make sense to have call_rcu() check to see if there are many
-> > outstanding requests on this CPU and if so process them before returning?
-> > That would ensure that frequent callers usually ended up doing their
-> > own processing.
-> 
-> Unfortunately, no.  Here is a code fragment illustrating why:
-> 
-> 	void my_cb(struct rcu_head *rhp)
-> 	{
-> 		unsigned long flags;
-> 
-> 		spin_lock_irqsave(&my_lock, flags);
-> 		handle_cb(rhp);
-> 		spin_unlock_irqrestore(&my_lock, flags);
-> 	}
-> 
-> 	. . .
-> 
-> 	spin_lock_irqsave(&my_lock, flags);
-> 	p = look_something_up();
-> 	remove_that_something(p);
-> 	call_rcu(p, my_cb);
-> 	spin_unlock_irqrestore(&my_lock, flags);
-> 
-> Invoking the extra callbacks directly from call_rcu() would thus result
-> in self-deadlock.  Documentation/RCU/UP.txt contains a few more examples
-> along these lines.
+Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com> writes:
 
-We could add an option that simply fails if overloaded, right?
-Have caller recover...
+> On Mon, 22 Jul 2019 at 06:37, huang ying <huang.ying.caritas@gmail.com> wrote:
+>>
+>> I am trying to reproduce this bug.  Can you give me some information
+>> about your test case?
+>
+> It not easy, but I try to explain:
+>
+> 1. I have the system with 32Gb RAM, 64GB swap and after boot, I always
+> launch follow applications:
+>     a. Google Chrome dev channel
+>         Note: here you should have 3 windows full of tabs on my
+> monitor 118 tabs in each window.
+>         Don't worry modern Chrome browser is wise and load tabs only on demand.
+>         We will use this feature later (on the last step).
+>     b. Firefox Nightly ASAN this build with enabled address sanitizer.
+>     c. Virtual Machine Manager (virt-manager) and start a virtual
+> machine with Windows 10 (2048 MiB RAM allocated)
+>     d. Evolution
+>     e. Steam client
+>     f. Telegram client
+>     g. DeadBeef music player
+>
+> After all launched applications 15GB RAM should be allocated.
+>
+> 2. This step the most difficult, because we should by using Firefox
+> allocated 27-28GB RAM.
+>     I use the infinite scroll on sites Facebook, VK, Pinterest, Tumblr
+> and open many tabs in Firefox as I could.
+>     Note: our goal is 27-28GB allocated RAM in the system.
+>
+> 3. When we hit our goal in the second step now go to Google Chrome and
+> click as fast as you can on all unloaded tabs.
+>     As usual, after 60 tabs this issue usually happens. 100%
+> reproducible for me.
+>
+> Of course, I tried to simplify my workflow case by using stress-ng but
+> without success.
+>
+> I hope it will help to make autotests.
 
--- 
-MST
+Yes.  This is quite complex.  Is the transparent huge page enabled in
+your system?  You can check the output of
+
+$ cat /sys/kernel/mm/transparent_hugepage/enabled
+
+And, whether is the swap device you use a SSD or NVMe disk (not HDD)?
+
+Best Regards,
+Huang, Ying
+
+> --
+> Best Regards,
+> Mike Gavrilov.
 
