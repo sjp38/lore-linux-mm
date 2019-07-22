@@ -2,242 +2,440 @@ Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CF2FBC7618F
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 21:47:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88DCCC76194
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 22:06:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 719A721951
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 21:47:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 33688219BE
+	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 22:06:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=wavecomp.com header.i=@wavecomp.com header.b="n1JrOcpa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 719A721951
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mips.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="yjFwYyL/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 33688219BE
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC3D76B0003; Mon, 22 Jul 2019 17:47:33 -0400 (EDT)
+	id AE3B76B0003; Mon, 22 Jul 2019 18:06:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E73CA6B0005; Mon, 22 Jul 2019 17:47:33 -0400 (EDT)
+	id A94C66B0005; Mon, 22 Jul 2019 18:06:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D3A9D8E0001; Mon, 22 Jul 2019 17:47:33 -0400 (EDT)
+	id 934698E0001; Mon, 22 Jul 2019 18:06:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B182B6B0003
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 17:47:33 -0400 (EDT)
-Received: by mail-vk1-f197.google.com with SMTP id v135so18604779vke.4
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 14:47:33 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 57F116B0003
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 18:06:43 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id x19so24540380pgx.1
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 15:06:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:user-agent:content-id:content-transfer-encoding
-         :mime-version;
-        bh=fqBjQrpDj0OJH8VKBImffIK2WtKZNDhu+QZ0zckAMDA=;
-        b=m3yJDTAw1+IudUk7SXF/Oh20MtbrkDiTfpLxE6a2x1wCguJVh/eUbUAai0NTBkcA7o
-         BH+XzKvJMCHymR4YYzCBnl7lPRZglnPLqcR/2b1ObJ6eqXvRCNjJPZiV5WIv6NmjQmoh
-         TgvVZcBTpSDCaAHgVGIw4PF5sdwbOGbWC5rd+DlT9Ay3sFN4RPHUAezRYFuyNkx0ZrnW
-         zzDJcw/GwW/6p4k23nQw5PA39RqNdODFZRTCxkE5bwj5R73u8MJ+LoTT/GjRENCoFb3A
-         yS6onL14B+qJDwwfaWbqsn9/PE2j+HwrJX701dr8cCJD3Ygbaw8/5g7ka0HBJEaDZx7V
-         CXkA==
-X-Gm-Message-State: APjAAAUnHjDLOs+9pHivzYgDeBrpmxvEtl+tsQdPftFlfXwGaEmFcear
-	3zxs7ETznITUtBeAbGxcCBnIAsKl6eTZqd39YnibgE2kq6+LtdYbeLu8U2DDEfI2PPdz4AL3QQ4
-	W/g4YFjh7GDkLp4ck10vVLzGr0xTNHmhgZ14BpzMzf63UjegpeMs2hB7JJkme9cM=
-X-Received: by 2002:a67:ff0b:: with SMTP id v11mr12097358vsp.14.1563832053470;
-        Mon, 22 Jul 2019 14:47:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyxDYepzt4Ag9ksvxOxqYmRTMhT8v39nxWeTKYWXgOGOdxVzPnualz4YcN9g+Vpb7PW7E5z
-X-Received: by 2002:a67:ff0b:: with SMTP id v11mr12097303vsp.14.1563832052676;
-        Mon, 22 Jul 2019 14:47:32 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1563832052; cv=pass;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=eBWpO5JL209DsW6FsRi0hCq7puZqZU3/GKSiuaypbDI=;
+        b=tThATQs9qBtjwy2v4pEz8/gdFY2w9yi9YQ/r146cOI7lnhvTkuq+heURnHKcSu5UAn
+         tTk8b8HUWwFaBLuUw+GjuqbH+bIgbVqAoUTR8iCpK0uyeB/nGYSXgy5bL5dB4a7qGVop
+         ZiqXSHtbLBk2+f8aRkp79KLNgVCV0TTefZVX2EMlB7WdktQuy09dmumf2QBkGTgn+GeX
+         J8zgbK5b6hypOP/uXJuA0IrJjxJ//2H/jfKPgAugvX5xfQmA9MaI5gaIQN+Fc7Sg9l7Y
+         9kBrM3Vu0xyZAoFmRJ69FGuO0WdcXwwKDz9BHbPm9XS1Ll+FWuxfl3gvT6cfg93w4Fgd
+         CVvA==
+X-Gm-Message-State: APjAAAV1jKsMvPvi0mdusytYw9rDk7QW/8s1uoHnQ7dAITy31q4jmqfZ
+	8/5jNopiZkT0RaYPJx21OT5tHCleIoTDsCEPvFDyl8A81QON4uLbWT8ySmQ3/xe0+T9bxe1UGfO
+	7HplqifUMzoqkv2P7YGPxuPkjStZ+/6V+1WXmQkvnDNO8CSv4yxrrNhCiAnGqlSC8Xw==
+X-Received: by 2002:a17:902:29a7:: with SMTP id h36mr79364877plb.158.1563833202856;
+        Mon, 22 Jul 2019 15:06:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwMixKAfBRBsB5SCBeigkYnrUSLEHjxXoQR4FPFT5YLPBHLRVN8SUQER8LBUBn50R6NZlv1
+X-Received: by 2002:a17:902:29a7:: with SMTP id h36mr79364782plb.158.1563833201341;
+        Mon, 22 Jul 2019 15:06:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563833201; cv=none;
         d=google.com; s=arc-20160816;
-        b=rtZxXdV4HGgzYWiZWxcrOZGXeYhspb42yGvwiMp8peDmVDqV7Ns8VYQK3PAUXwuchD
-         e/ORudf/9KBdXuFaQw/T2nsoNaK46ILOYZU1k32zx0EX+XBXPlrgZRElGPHcx1Rqqt7U
-         d44aKYM4a7vfoa/KDxg0BRIRCbnmkSZ0sIb28TwghR/CktKI3t+rsMqgyz7aw7U/+2nU
-         BjUqi4fDn58m1az81Sp9JMQS28YSKxbK9BcQ9XhxqctMvbjMJYc4bvZH9kXyiKYEPDPg
-         tMvYU7ewSCSfPwRnGJtzi6pOyhL7kqX/3DKSGOsPwPQEVwiLfyvllN74+MocUeye6liP
-         2fTg==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:in-reply-to:references:message-id
-         :date:thread-index:thread-topic:subject:cc:to:from:dkim-signature;
-        bh=fqBjQrpDj0OJH8VKBImffIK2WtKZNDhu+QZ0zckAMDA=;
-        b=DxdVnqQjqUuYhbkw1g1Z4nnSphPIJPrIpdJRue9MGUGZCMKD4xaVQ3oCzYPYV1c/UA
-         XaPBakfxouQBCI6vRVYjysZD91jOloMUVccaBUW96FkV9pmtD4Cc/2+VlGSmsH/W/ZRO
-         evN/f5FqjdKLrunj09TQN/4gik4RKvgFKcu8ISS6hDSFIthVygvknSZOkOFneLdemp+s
-         EtQauwIfCdoNlOTsSMSHkbis6vJjsGl1KZ5qU3rrr9tIdO3JL34GSy70+OHUuNW/1dpA
-         Uh2R74P2mVMYhq6iQEXiwIalkfRBckTeB0rrYjb2zLv4aBtscYp/sij41EHuTa/CBRE1
-         fb6g==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@wavecomp.com header.s=selector1 header.b=n1JrOcpa;
-       arc=pass (i=1 spf=pass spfdomain=wavecomp.com dkim=pass dkdomain=mips.com dmarc=pass fromdomain=mips.com);
-       spf=pass (google.com: domain of pburton@wavecomp.com designates 40.107.79.120 as permitted sender) smtp.mailfrom=pburton@wavecomp.com
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (mail-eopbgr790120.outbound.protection.outlook.com. [40.107.79.120])
-        by mx.google.com with ESMTPS id r5si10011794vsr.127.2019.07.22.14.47.32
+        b=tbmD2GENgNWad8Bp88UCapRuIZy2arkiy4WB15vIKrORFKBlsw9LfY3yspC+MWI4Sk
+         jJHv6enx+itb597gBuKTHlI0k+s6Q43Ey94StqagJoK5VkN6mQwuGj++QVsoW2lXOGrm
+         ZTXqv9wW9k2OqPwLk6kprgp3BDRGxk2T0eJsZ0up6zMmejnkRK687v/dQCkz5cjtrJZh
+         M+dm1aALwJGbpyUBdN6ApierfgImTyX8oGC++H47weqGCKy7nnul7MIWLtQWq5PfNykr
+         GqRAd4nBVNknPnlHT7YfgzUrPXvs0hpJUyWEm+DL2MmX+zvLfYKxeaaafjduDwb0hjfh
+         hoAg==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=eBWpO5JL209DsW6FsRi0hCq7puZqZU3/GKSiuaypbDI=;
+        b=BlSenwmJ4nkYKpnm6Z78YzfBqNhY9M8qQLUFudeOmJMsGM1Gv7nWrJzfgCWn3sGmSb
+         2OmUAK5DxRLn/kopzMqHBzrvSANoL4EluvNwPcFhltC+HSXd6Vb9PsB6D/8NJjkbcmxm
+         pq4k/C1R5E95JGDwV+X67b1OzmzPXD7sjfGX/5If55FzTwxMAtTYwtED+lce7zcDFHMK
+         qi+jaHpTiW3hfvNCNYndCL0fxm3eqC3avoxX/Zhnp9/UbrdmincT2oBu2e38oQbmOLbz
+         WeW5gk5r9U8D0EGZhpsIZSc1Ji0n3qmfp8/eqhGfE7EnhZa501yLvJJykxVWUZYisN6j
+         3XDg==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@kernel.org header.s=default header.b="yjFwYyL/";
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id w1si11115590pll.257.2019.07.22.15.06.41
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Mon, 22 Jul 2019 14:47:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of pburton@wavecomp.com designates 40.107.79.120 as permitted sender) client-ip=40.107.79.120;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Jul 2019 15:06:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@wavecomp.com header.s=selector1 header.b=n1JrOcpa;
-       arc=pass (i=1 spf=pass spfdomain=wavecomp.com dkim=pass dkdomain=mips.com dmarc=pass fromdomain=mips.com);
-       spf=pass (google.com: domain of pburton@wavecomp.com designates 40.107.79.120 as permitted sender) smtp.mailfrom=pburton@wavecomp.com
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=andbjAkycuIAq+jVLf3aCclsAbk7WVwQjCcVaiuDP/HsEoiKx0/Bbq/iaRHONuJrDk2Q5v4OvcdIdY+mAl3AmR87tcVv4ASvck876xSTgmR9TD1GRFvH+HCWK3ZT7/gFaZW69AFvp7yBmzEpUiQoYYDz2x71OQ4eDvRKdOQbfI8vIAO6qOFjTAp/2V+BRG/neYsMAW9R7/Dirrdxq05cn5TrDqk+l95S5UGG/9a+UVs3MkcHGHuf5om0rw/wAOPc9KVbH8wAJjK4p4ozXESvK5eXk/cGe1ar+nXVlUijdAeIE9dLXYqjX6r5dfL8cElP9cZDOyElIWgXTRGjYxLvHw==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=fqBjQrpDj0OJH8VKBImffIK2WtKZNDhu+QZ0zckAMDA=;
- b=foOq2wsemfDZqvZZzniKrRIqCPqvCdm32SbWGVsIMhXGboYkR072Z4ziK5AVEmah8GA65fw8LpzM++KCGJPxhuGg38QOMG/RkipcK5jDXDgcRRt6t1ndsl0lWKkeRIADcv3P/7vbE4Sbyy3+iFbnrRhk9oeWgCrJQgHD4Cy8rT6b3boCQXFNw1x+feo/iJhsyofnvJR4RkP9hgR3bYwzz0Z6Zr/5+Dd5AJgQGy0Q2nLqiMLEU7FMrf7JbEUToKrI+4wnnpxAVJpr+iJxqGhfSAKLZZq+nI+6S3MxiN3KOVfkaeouwZfk4NyE7SZs1+njrKp0TSXT7HJ8pcHHCyBGng==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=wavecomp.com;dmarc=pass action=none
- header.from=mips.com;dkim=pass header.d=mips.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=wavecomp.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=fqBjQrpDj0OJH8VKBImffIK2WtKZNDhu+QZ0zckAMDA=;
- b=n1JrOcpanq9drJqqKfsJSMbu6RdUsaoMd/1M+WqSd56uURdmU9Wn8YGyZwTE5Hkc9zC/743UenmspllAeUFeXzINpmXYCF49ZAxVQdl7+HLCB2MKYP55jZA2LAXXfXiRne9LPlDL8zJ4EaNt/JmLf0UHOIR3EDSYNn9FZYpGd4M=
-Received: from MWHPR2201MB1277.namprd22.prod.outlook.com (10.172.60.12) by
- MWHPR2201MB1760.namprd22.prod.outlook.com (10.164.206.163) with Microsoft
- SMTP Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2094.14; Mon, 22 Jul 2019 21:47:25 +0000
-Received: from MWHPR2201MB1277.namprd22.prod.outlook.com
- ([fe80::49d3:37f8:217:c83]) by MWHPR2201MB1277.namprd22.prod.outlook.com
- ([fe80::49d3:37f8:217:c83%6]) with mapi id 15.20.2094.017; Mon, 22 Jul 2019
- 21:47:25 +0000
-From: Paul Burton <paul.burton@mips.com>
-To: Steven Price <steven.price@arm.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andy Lutomirski
-	<luto@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Arnd Bergmann
-	<arnd@arndb.de>, Borislav Petkov <bp@alien8.de>, Catalin Marinas
-	<catalin.marinas@arm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo
- Molnar <mingo@redhat.com>, James Morse <james.morse@arm.com>,
-	=?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Peter Zijlstra
-	<peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Will Deacon
-	<will@kernel.org>, "x86@kernel.org" <x86@kernel.org>, "H. Peter Anvin"
-	<hpa@zytor.com>, "linux-arm-kernel@lists.infradead.org"
-	<linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, Mark Rutland <Mark.Rutland@arm.com>, "Liang,
- Kan" <kan.liang@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>,
-	Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>,
-	"linux-mips@vger.kernel.org" <linux-mips@vger.kernel.org>
-Subject: Re: [PATCH v9 04/21] mips: mm: Add p?d_leaf() definitions
-Thread-Topic: [PATCH v9 04/21] mips: mm: Add p?d_leaf() definitions
-Thread-Index: AQHVQKQWHhmeZU4KlE2qPPJZI7g5vqbXLM0A
-Date: Mon, 22 Jul 2019 21:47:24 +0000
-Message-ID: <20190722214722.wdlj6a3der3r2oro@pburton-laptop>
-References: <20190722154210.42799-1-steven.price@arm.com>
- <20190722154210.42799-5-steven.price@arm.com>
-In-Reply-To: <20190722154210.42799-5-steven.price@arm.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: BYAPR05CA0001.namprd05.prod.outlook.com
- (2603:10b6:a03:c0::14) To MWHPR2201MB1277.namprd22.prod.outlook.com
- (2603:10b6:301:18::12)
-user-agent: NeoMutt/20180716
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=pburton@wavecomp.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [12.94.197.246]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 924f2cf9-abad-44f0-9daa-08d70eee2e91
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:MWHPR2201MB1760;
-x-ms-traffictypediagnostic: MWHPR2201MB1760:
-x-microsoft-antispam-prvs:
- <MWHPR2201MB1760DD96341A807B6A561F8EC1C40@MWHPR2201MB1760.namprd22.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:4303;
-x-forefront-prvs: 01068D0A20
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(7916004)(366004)(136003)(376002)(396003)(346002)(39850400004)(199004)(189003)(256004)(81166006)(81156014)(186003)(478600001)(11346002)(44832011)(64756008)(102836004)(486006)(8936002)(42882007)(68736007)(25786009)(6116002)(66556008)(66476007)(66946007)(3846002)(66446008)(1076003)(446003)(71190400001)(476003)(386003)(99286004)(71200400001)(6486002)(6506007)(7736002)(229853002)(316002)(305945005)(9686003)(54906003)(58126008)(6436002)(53936002)(76176011)(6246003)(7416002)(6512007)(8676002)(2906002)(6916009)(26005)(5660300002)(66066001)(52116002)(33716001)(14454004)(4326008);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR2201MB1760;H:MWHPR2201MB1277.namprd22.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: wavecomp.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- lFHgvB4Ko+ICPs6Xu+lunbkR+AMez0bOGRh1cLmdoO8sc9nERXWg3+T4OLnNTogn9Hb5iNM8qFzfNT2ZleyE+pK/9sfYemk17y8dyG4HBZLR8KvtPfDOjFnBCmQhskRe1RwFdlUOVbyGMmOEqZoGThuHHDIQK0HUMdT4SYgSlOi9L980gYJ/xWC+aBDnGMaCtuIFb5IxNMtG9aR6ZxdjhJBOcruSrTOh+X18vzQsQYenaqiLmkFREPD1q2u/poq+cmSawqF4AevyqyZjy9zjCzrrkCwFlqYTYsIjyrRURug1PFxH9GeCZoJIRtFJVyFFsVyLHpeTkzIjI/Pw8W3oaWjwxQXedOKId/lQiHul+yhi1mV6yf0CaqGecJgUzz5cic9D7OG7YVdiPzZ5pWsUnciIRv0N2xkbImU4nPk7L0U=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <DF7AB4FF039DED40B7A6B5AE3E6E451D@namprd22.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
-X-OriginatorOrg: mips.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 924f2cf9-abad-44f0-9daa-08d70eee2e91
-X-MS-Exchange-CrossTenant-originalarrivaltime: 22 Jul 2019 21:47:24.8429
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 463607d3-1db3-40a0-8a29-970c56230104
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: pburton@wavecomp.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR2201MB1760
+       dkim=pass header.i=@kernel.org header.s=default header.b="yjFwYyL/";
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-231-172-41.hsd1.ca.comcast.net [73.231.172.41])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id DB32621951;
+	Mon, 22 Jul 2019 22:06:39 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1563833201;
+	bh=5nheXJfXZh9EGYJuVoeoWKzlKFQQiAFCcmnXbSdqDj4=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=yjFwYyL/Ej+x5/qE+N0sSypFnxT4FSjAd5oLBXthEuf5i0r6YVoXroFynVCgaf8SO
+	 pNM5YtoMaWuf5zjfL/f4zS6MWzDpAGqZwbT1H7HiBib16vXplUS5i7hIkEDqFyLHw+
+	 3U5KyMZ0rFPwYPPo9mSwzftMxKZc+zo9KuXE0ieA=
+Date: Mon, 22 Jul 2019 15:06:39 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
+Cc: linux-kernel@vger.kernel.org, vdavydov.dev@gmail.com, Brendan Gregg
+ <bgregg@netflix.com>, kernel-team@android.com, Alexey Dobriyan
+ <adobriyan@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>,
+ carmenjackson@google.com, Christian Hansen <chansen3@cisco.com>, Colin Ian
+ King <colin.king@canonical.com>, dancol@google.com, David Howells
+ <dhowells@redhat.com>, fmayer@google.com, joaodias@google.com,
+ joelaf@google.com, Jonathan Corbet <corbet@lwn.net>, Kees Cook
+ <keescook@chromium.org>, Kirill Tkhai <ktkhai@virtuozzo.com>, Konstantin
+ Khlebnikov <khlebnikov@yandex-team.ru>, linux-doc@vger.kernel.org,
+ linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko
+ <mhocko@suse.com>, Mike Rapoport <rppt@linux.ibm.com>, minchan@google.com,
+ minchan@kernel.org, namhyung@google.com, sspatil@google.com,
+ surenb@google.com, Thomas Gleixner <tglx@linutronix.de>,
+ timmurray@google.com, tkjos@google.com, Vlastimil Babka <vbabka@suse.cz>,
+ wvw@google.com
+Subject: Re: [PATCH v1 1/2] mm/page_idle: Add support for per-pid page_idle
+ using virtual indexing
+Message-Id: <20190722150639.27641c63b003dd04e187fd96@linux-foundation.org>
+In-Reply-To: <20190722213205.140845-1-joel@joelfernandes.org>
+References: <20190722213205.140845-1-joel@joelfernandes.org>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Steven,
+On Mon, 22 Jul 2019 17:32:04 -0400 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
 
-On Mon, Jul 22, 2019 at 04:41:53PM +0100, Steven Price wrote:
-> walk_page_range() is going to be allowed to walk page tables other than
-> those of user space. For this it needs to know when it has reached a
-> 'leaf' entry in the page tables. This information is provided by the
-> p?d_leaf() functions/macros.
->=20
-> For mips, we only support large pages on 64 bit.
+> The page_idle tracking feature currently requires looking up the pagemap
+> for a process followed by interacting with /sys/kernel/mm/page_idle.
+> This is quite cumbersome and can be error-prone too. If between
+> accessing the per-PID pagemap and the global page_idle bitmap, if
+> something changes with the page then the information is not accurate.
 
-That ceases to be true with commit 35476311e529 ("MIPS: Add partial
-32-bit huge page support") in mips-next, so I think it may be best to
-move the definition to asm/pgtable.h so that both 32b & 64b kernels can
-pick it up.
+Well, it's never going to be "accurate" - something could change one
+nanosecond after userspace has read the data...
 
-Thanks,
-    Paul
+Presumably with this approach the data will be "more" accurate.  How
+big a problem has this inaccuracy proven to be in real-world usage?
 
-> For 64 bit if _PAGE_HUGE is defined we can simply look for it. When not
-> defined we can be confident that there are no leaf pages in existence
-> and fall back on the generic implementation (added in a later patch)
-> which returns 0.
->=20
-> CC: Ralf Baechle <ralf@linux-mips.org>
-> CC: Paul Burton <paul.burton@mips.com>
-> CC: James Hogan <jhogan@kernel.org>
-> CC: linux-mips@vger.kernel.org
-> Signed-off-by: Steven Price <steven.price@arm.com>
-> ---
->  arch/mips/include/asm/pgtable-64.h | 8 ++++++++
->  1 file changed, 8 insertions(+)
->=20
-> diff --git a/arch/mips/include/asm/pgtable-64.h b/arch/mips/include/asm/p=
-gtable-64.h
-> index 93a9dce31f25..2bdbf8652b5f 100644
-> --- a/arch/mips/include/asm/pgtable-64.h
-> +++ b/arch/mips/include/asm/pgtable-64.h
-> @@ -273,6 +273,10 @@ static inline int pmd_present(pmd_t pmd)
->  	return pmd_val(pmd) !=3D (unsigned long) invalid_pte_table;
->  }
-> =20
-> +#ifdef _PAGE_HUGE
-> +#define pmd_leaf(pmd)	((pmd_val(pmd) & _PAGE_HUGE) !=3D 0)
-> +#endif
-> +
->  static inline void pmd_clear(pmd_t *pmdp)
+> More over looking up PFN from pagemap in Android devices is not
+> supported by unprivileged process and requires SYS_ADMIN and gives 0 for
+> the PFN.
+> 
+> This patch adds support to directly interact with page_idle tracking at
+> the PID level by introducing a /proc/<pid>/page_idle file. This
+> eliminates the need for userspace to calculate the mapping of the page.
+> It follows the exact same semantics as the global
+> /sys/kernel/mm/page_idle, however it is easier to use for some usecases
+> where looking up PFN is not needed and also does not require SYS_ADMIN.
+> It ended up simplifying userspace code, solving the security issue
+> mentioned and works quite well. SELinux does not need to be turned off
+> since no pagemap look up is needed.
+> 
+> In Android, we are using this for the heap profiler (heapprofd) which
+> profiles and pin points code paths which allocates and leaves memory
+> idle for long periods of time.
+> 
+> Documentation material:
+> The idle page tracking API for virtual address indexing using virtual page
+> frame numbers (VFN) is located at /proc/<pid>/page_idle. It is a bitmap
+> that follows the same semantics as /sys/kernel/mm/page_idle/bitmap
+> except that it uses virtual instead of physical frame numbers.
+> 
+> This idle page tracking API can be simpler to use than physical address
+> indexing, since the pagemap for a process does not need to be looked up
+> to mark or read a page's idle bit. It is also more accurate than
+> physical address indexing since in physical address indexing, address
+> space changes can occur between reading the pagemap and reading the
+> bitmap. In virtual address indexing, the process's mmap_sem is held for
+> the duration of the access.
+> 
+> ...
+>
+> --- a/mm/page_idle.c
+> +++ b/mm/page_idle.c
+> @@ -11,6 +11,7 @@
+>  #include <linux/mmu_notifier.h>
+>  #include <linux/page_ext.h>
+>  #include <linux/page_idle.h>
+> +#include <linux/sched/mm.h>
+>  
+>  #define BITMAP_CHUNK_SIZE	sizeof(u64)
+>  #define BITMAP_CHUNK_BITS	(BITMAP_CHUNK_SIZE * BITS_PER_BYTE)
+> @@ -28,15 +29,12 @@
+>   *
+>   * This function tries to get a user memory page by pfn as described above.
+>   */
+
+Above comment needs updating or moving?
+
+> -static struct page *page_idle_get_page(unsigned long pfn)
+> +static struct page *page_idle_get_page(struct page *page_in)
 >  {
->  	pmd_val(*pmdp) =3D ((unsigned long) invalid_pte_table);
-> @@ -297,6 +301,10 @@ static inline int pud_present(pud_t pud)
->  	return pud_val(pud) !=3D (unsigned long) invalid_pmd_table;
->  }
-> =20
-> +#ifdef _PAGE_HUGE
-> +#define pud_leaf(pud)	((pud_val(pud) & _PAGE_HUGE) !=3D 0)
-> +#endif
+>  	struct page *page;
+>  	pg_data_t *pgdat;
+>  
+> -	if (!pfn_valid(pfn))
+> -		return NULL;
+> -
+> -	page = pfn_to_page(pfn);
+> +	page = page_in;
+>  	if (!page || !PageLRU(page) ||
+>  	    !get_page_unless_zero(page))
+>  		return NULL;
+>
+> ...
+>
+> +static int page_idle_get_frames(loff_t pos, size_t count, struct mm_struct *mm,
+> +				unsigned long *start, unsigned long *end)
+> +{
+> +	unsigned long max_frame;
 > +
->  static inline void pud_clear(pud_t *pudp)
+> +	/* If an mm is not given, assume we want physical frames */
+> +	max_frame = mm ? (mm->task_size >> PAGE_SHIFT) : max_pfn;
+> +
+> +	if (pos % BITMAP_CHUNK_SIZE || count % BITMAP_CHUNK_SIZE)
+> +		return -EINVAL;
+> +
+> +	*start = pos * BITS_PER_BYTE;
+> +	if (*start >= max_frame)
+> +		return -ENXIO;
+
+Is said to mean "The system tried to use the device represented by a
+file you specified, and it couldnt find the device.  This can mean that
+the device file was installed incorrectly, or that the physical device
+is missing or not correctly attached to the computer."
+
+This doesn't seem appropriate in this usage and is hence possibly
+misleading.  Someone whose application fails with ENXIO will be
+scratching their heads.
+
+> +	*end = *start + count * BITS_PER_BYTE;
+> +	if (*end > max_frame)
+> +		*end = max_frame;
+> +	return 0;
+> +}
+> +
+>
+> ...
+>
+> +static void add_page_idle_list(struct page *page,
+> +			       unsigned long addr, struct mm_walk *walk)
+> +{
+> +	struct page *page_get;
+> +	struct page_node *pn;
+> +	int bit;
+> +	unsigned long frames;
+> +	struct page_idle_proc_priv *priv = walk->private;
+> +	u64 *chunk = (u64 *)priv->buffer;
+> +
+> +	if (priv->write) {
+> +		/* Find whether this page was asked to be marked */
+> +		frames = (addr - priv->start_addr) >> PAGE_SHIFT;
+> +		bit = frames % BITMAP_CHUNK_BITS;
+> +		chunk = &chunk[frames / BITMAP_CHUNK_BITS];
+> +		if (((*chunk >> bit) & 1) == 0)
+> +			return;
+> +	}
+> +
+> +	page_get = page_idle_get_page(page);
+> +	if (!page_get)
+> +		return;
+> +
+> +	pn = kmalloc(sizeof(*pn), GFP_ATOMIC);
+
+I'm not liking this GFP_ATOMIC.  If I'm reading the code correctly,
+userspace can ask for an arbitrarily large number of GFP_ATOMIC
+allocations by doing a large read.  This can potentially exhaust page
+reserves which things like networking Rx interrupts need and can make
+this whole feature less reliable.
+
+> +	if (!pn)
+> +		return;
+> +
+> +	pn->page = page_get;
+> +	pn->addr = addr;
+> +	list_add(&pn->list, &idle_page_list);
+> +}
+> +
+> +static int pte_page_idle_proc_range(pmd_t *pmd, unsigned long addr,
+> +				    unsigned long end,
+> +				    struct mm_walk *walk)
+> +{
+> +	struct vm_area_struct *vma = walk->vma;
+> +	pte_t *pte;
+> +	spinlock_t *ptl;
+> +	struct page *page;
+> +
+> +	ptl = pmd_trans_huge_lock(pmd, vma);
+> +	if (ptl) {
+> +		if (pmd_present(*pmd)) {
+> +			page = follow_trans_huge_pmd(vma, addr, pmd,
+> +						     FOLL_DUMP|FOLL_WRITE);
+> +			if (!IS_ERR_OR_NULL(page))
+> +				add_page_idle_list(page, addr, walk);
+> +		}
+> +		spin_unlock(ptl);
+> +		return 0;
+> +	}
+> +
+> +	if (pmd_trans_unstable(pmd))
+> +		return 0;
+> +
+> +	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> +	for (; addr != end; pte++, addr += PAGE_SIZE) {
+> +		if (!pte_present(*pte))
+> +			continue;
+> +
+> +		page = vm_normal_page(vma, addr, *pte);
+> +		if (page)
+> +			add_page_idle_list(page, addr, walk);
+> +	}
+> +
+> +	pte_unmap_unlock(pte - 1, ptl);
+> +	return 0;
+> +}
+> +
+> +ssize_t page_idle_proc_generic(struct file *file, char __user *ubuff,
+> +			       size_t count, loff_t *pos,
+> +			       struct task_struct *tsk, int write)
+> +{
+> +	int ret;
+> +	char *buffer;
+> +	u64 *out;
+> +	unsigned long start_addr, end_addr, start_frame, end_frame;
+> +	struct mm_struct *mm = file->private_data;
+> +	struct mm_walk walk = { .pmd_entry = pte_page_idle_proc_range, };
+> +	struct page_node *cur, *next;
+> +	struct page_idle_proc_priv priv;
+> +	bool walk_error = false;
+> +
+> +	if (!mm || !mmget_not_zero(mm))
+> +		return -EINVAL;
+> +
+> +	if (count > PAGE_SIZE)
+> +		count = PAGE_SIZE;
+> +
+> +	buffer = kzalloc(PAGE_SIZE, GFP_KERNEL);
+> +	if (!buffer) {
+> +		ret = -ENOMEM;
+> +		goto out_mmput;
+> +	}
+> +	out = (u64 *)buffer;
+> +
+> +	if (write && copy_from_user(buffer, ubuff, count)) {
+> +		ret = -EFAULT;
+> +		goto out;
+> +	}
+> +
+> +	ret = page_idle_get_frames(*pos, count, mm, &start_frame, &end_frame);
+> +	if (ret)
+> +		goto out;
+> +
+> +	start_addr = (start_frame << PAGE_SHIFT);
+> +	end_addr = (end_frame << PAGE_SHIFT);
+> +	priv.buffer = buffer;
+> +	priv.start_addr = start_addr;
+> +	priv.write = write;
+> +	walk.private = &priv;
+> +	walk.mm = mm;
+> +
+> +	down_read(&mm->mmap_sem);
+> +
+> +	/*
+> +	 * Protects the idle_page_list which is needed because
+> +	 * walk_page_vma() holds ptlock which deadlocks with
+> +	 * page_idle_clear_pte_refs(). So we have to collect all
+> +	 * pages first, and then call page_idle_clear_pte_refs().
+> +	 */
+> +	spin_lock(&idle_page_list_lock);
+> +	ret = walk_page_range(start_addr, end_addr, &walk);
+> +	if (ret)
+> +		walk_error = true;
+> +
+> +	list_for_each_entry_safe(cur, next, &idle_page_list, list) {
+> +		int bit, index;
+> +		unsigned long off;
+> +		struct page *page = cur->page;
+> +
+> +		if (unlikely(walk_error))
+> +			goto remove_page;
+> +
+> +		if (write) {
+> +			page_idle_clear_pte_refs(page);
+> +			set_page_idle(page);
+> +		} else {
+> +			if (page_really_idle(page)) {
+> +				off = ((cur->addr) >> PAGE_SHIFT) - start_frame;
+> +				bit = off % BITMAP_CHUNK_BITS;
+> +				index = off / BITMAP_CHUNK_BITS;
+> +				out[index] |= 1ULL << bit;
+> +			}
+> +		}
+> +remove_page:
+> +		put_page(page);
+> +		list_del(&cur->list);
+> +		kfree(cur);
+> +	}
+> +	spin_unlock(&idle_page_list_lock);
+> +
+> +	if (!write && !walk_error)
+> +		ret = copy_to_user(ubuff, buffer, count);
+> +
+> +	up_read(&mm->mmap_sem);
+> +out:
+> +	kfree(buffer);
+> +out_mmput:
+> +	mmput(mm);
+> +	if (!ret)
+> +		ret = count;
+> +	return ret;
+> +
+> +}
+> +
+> +ssize_t page_idle_proc_read(struct file *file, char __user *ubuff,
+> +			    size_t count, loff_t *pos, struct task_struct *tsk)
+> +{
+> +	return page_idle_proc_generic(file, ubuff, count, pos, tsk, 0);
+> +}
+> +
+> +ssize_t page_idle_proc_write(struct file *file, char __user *ubuff,
+> +			     size_t count, loff_t *pos, struct task_struct *tsk)
+> +{
+> +	return page_idle_proc_generic(file, ubuff, count, pos, tsk, 1);
+> +}
+> +
+>  static int __init page_idle_init(void)
 >  {
->  	pud_val(*pudp) =3D ((unsigned long) invalid_pmd_table);
-> --=20
-> 2.20.1
->=20
+>  	int err;
+>  
+> +	INIT_LIST_HEAD(&idle_page_list);
+> +
+>  	err = sysfs_create_group(mm_kobj, &page_idle_attr_group);
+>  	if (err) {
+>  		pr_err("page_idle: register sysfs failed\n");
+> -- 
+>
+> ...
+>
 
