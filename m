@@ -2,230 +2,209 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,URIBL_SBL,URIBL_SBL_A,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C694C7618B
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 07:57:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A3401C7618B
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:08:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 015162239E
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 07:57:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 015162239E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 37F73223A0
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:08:43 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ylt8+rC8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 37F73223A0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 92A066B0003; Tue, 23 Jul 2019 03:57:07 -0400 (EDT)
+	id 9E4C16B0003; Tue, 23 Jul 2019 04:08:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8DB5C8E0003; Tue, 23 Jul 2019 03:57:07 -0400 (EDT)
+	id 995E36B0005; Tue, 23 Jul 2019 04:08:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7A2618E0001; Tue, 23 Jul 2019 03:57:07 -0400 (EDT)
+	id 8ABAA8E0002; Tue, 23 Jul 2019 04:08:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F9F96B0003
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 03:57:07 -0400 (EDT)
-Received: by mail-wm1-f71.google.com with SMTP id v125so9055410wme.5
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 00:57:07 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 56E976B0003
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 04:08:42 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id x19so25483307pgx.1
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 01:08:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to;
-        bh=NuBuDWbWdf8l32+iu6ukRfvQ2sFsDsKWrnzqVzUjoWY=;
-        b=jYP0vSwfXBEPcsglQiLgLqDS7xwg3ZkG8WZTU1HXLCBiHLWjoeFZzpDi5S8i3NsgfV
-         fJS8unOp7x9UNWUAax+zAXgcp9udh/Ft5hG3HrbpmPahi8NYu0VgPNDII86rrF5pQ+3x
-         z64XcBwshbpjeKSCI2FYOywI6hN7p9BYVWK62IXa3lB2LRY+h7OroJB8mzvogfR+6mrY
-         ugLXPQylJ6sxP1QWjmDD18JdCjt9SKHuu7Rb26+9OExnpCl1zKpEOkL4QdB/DNQWo9Y9
-         HWDX5QEfOHI1EizjTiPPN0xV7CMckBa8Q7KLs2y55DqNUvyqqXWWYj6N0dyGTOclFteQ
-         KgBQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVnrE+W3/2twu/e+BW7iRqrTwqdSvZ45GuPdOhZrZ+CT4ZwxhDK
-	70qR8eNGfo6JZOU6K1p3TcDVf1NsFIjHDzRCNTAxb82p9GTPCJIwQgHqz2ErATPE6UHUU+2r0V9
-	tlyEXveIvlq2hU81IBl4cxnixDlDW2GOSCQD+uVC6jNCB9BXv9yHR6u4WQC9Dmg+zxQ==
-X-Received: by 2002:adf:9f0e:: with SMTP id l14mr74172435wrf.23.1563868626677;
-        Tue, 23 Jul 2019 00:57:06 -0700 (PDT)
-X-Received: by 2002:adf:9f0e:: with SMTP id l14mr74172386wrf.23.1563868625765;
-        Tue, 23 Jul 2019 00:57:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563868625; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=5Ljakoy2txq+LWSZiGJ2ER6jX3S3ukmTQZERAI/EP28=;
+        b=ioiyUdy59/f627IgHeFuVOjEkyizxE+jFS3gbVtB70zG2byGsvhqUfSPkn+vCzZcvQ
+         DMXM0A8mfICPW3ive43eXR7dnWf4haNjCSV0plX+zYwkqNXOJdf/406vh3NUc2cCkJKj
+         m7gOsT/m4oYvl+e3o/77MO2X+buWz5DqfegMDyxY19zsw6dDTFBYKLoL+UYA4eFtXwlS
+         gQ1PRMiO83HDsx3w0XtAkK6dfEPPLN5eaR9kb8uurG+zwanalhHmAZHK/Jtao/UM/GTh
+         N+5CC2lxUrh1upDQxXhVXJBRf/PGxie1CopDr6XxkA+qvj1AaCSNV7Sn14/EYyvIFYBX
+         J5Dw==
+X-Gm-Message-State: APjAAAVU5XYoUd1JjvmDdIztEjUdqau83+E1F4/60pSHUTwz89U9PKs6
+	DjlMGqjs+FpXRKzLcYBwrg/EQPw/F0W+gkUeMfD20EQ3pmZolDThborZ5w+TjI6OjJH/oy+2nO5
+	BDvk7ge2G1FK0jp/Rqqp6QIFTeBxctXboyp+XTc3YpYY7D3QlsHOD4OHq7iWgl4PP/g==
+X-Received: by 2002:a62:5c3:: with SMTP id 186mr4509653pff.144.1563869321936;
+        Tue, 23 Jul 2019 01:08:41 -0700 (PDT)
+X-Received: by 2002:a62:5c3:: with SMTP id 186mr4509586pff.144.1563869320845;
+        Tue, 23 Jul 2019 01:08:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563869320; cv=none;
         d=google.com; s=arc-20160816;
-        b=0khQISGOryxbm9ufC300FvxPtOYPnFLJhnc9fevt2gTuVXbCaN/0Sgpl8p/nyP/Jn6
-         udrOUS6sPqtiKBJbhqWa1rCYl4wRHqWnfoOk0js/5rLtsWrhq+H2lcMuc+L6M0yYFUkp
-         bOxOUym7f5v0MNfkD+A4smCW0tduK5JmBQ4B8keAqaKr7m/uanHG/LqKXBJy8NhjYBYG
-         NCuRKiwAnBQ5d0eYVKnF4OLgcaVK2DIQBMitP2Mo3D+IxENurZTcVtfJOq8I6wryoPMa
-         S3ZIzGl7p54wuyehP3YshrmCDH17+Yk3SDHL2xTSJyRFtbpsKr8s8PDqqNrGb4jDddgr
-         CYVw==
+        b=Ijr/93YT/7Io7mNYZKyxGcu4IjJourMGxfNkt6k+qjaVIqTUXcsVXZvu+HXZUu8Pt5
+         rSKSkxhXMn7IK7w9eOFBRBofykcBkWqT4yXoyRh1eLPUEipGVuSpC9XDPLiLytkBb6Jg
+         ZCw5c5b02deO/h9rNv6J5DC+YiSfLJhJDPxIL2tRIFbcJGQozFpBIDaGjpPxBYtS4hUg
+         HOhwgcDC2Dn78N6/+JCE5i9OxU1uOKbVlu2lnliXGPuEyMGd3hcbrWdPXrsJnwXSGsjM
+         g0poEo/w3YXQ9To6+ySPW6lvBES/mrNET2+c38+AzxbUb2H9ZG9vDXRpGEU5pI9I86uB
+         RIwQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :mime-version:references:message-id:subject:cc:to:from:date;
-        bh=NuBuDWbWdf8l32+iu6ukRfvQ2sFsDsKWrnzqVzUjoWY=;
-        b=KMVJWrisZhgOkuYR9zzWx9drPu/ILw4WC2uDjA4mpFL3fPvskuRldHnLymQu2PYmuR
-         PdLG4sWMRHkV84+D2P0MPrwzg1nm/Ti2qGo3YMrCE+9nCNUMRahA3nJgDMwEbxp5AOI8
-         hiCkwsAmGbOeuylD5Hn8LD8UecFe/qLvLedKmzQGBJoOD4IB/ybYQIwk1fceUbP83m0c
-         pDCoZU0PM8cgOtXI0oUohx7azYbS29gHILiVbsXJj4rN1QqTeoIx5pObsptwzHPbRPTt
-         8aHtrwn9mOd9F7GnmaksLeGKIEu/0StNlrgF+SYAEUbyVxYQ8/zX6IhT/JH/IhuqpARg
-         Kz2w==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=5Ljakoy2txq+LWSZiGJ2ER6jX3S3ukmTQZERAI/EP28=;
+        b=kbQnBmJY7Q3WFy0n09gxoyyJRYDJMBLLwH3FnbxGf+ya7zPGh9nhj7DNlxZGvxNUms
+         sg4Q9/1gnr50UxHMLjF7hqvffJaKUBaEvvtMpkctjlbodEvBbxo0tr4n+aU//wR2h+f2
+         l5g/SeMN98YZsWh4xe3sTPkCFwmXZCo3Gecl77EHVnX36lCEF0gbn/b/ROXUJKcJ1aYS
+         AfnmPz6T4UAZoAnFx98AsppFtRNHMYqdZoJ7JjlIHAuwZeQNFPdmYYmaKzZMWKK/kmS7
+         Gb6i1dcUFsTsnulaMfm3jgrRRUdvaHA++btCs/pMFNcNVkgOlrR9chyxjucz5ZOSPibL
+         GCLQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ylt8+rC8;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u12sor23722385wmj.16.2019.07.23.00.57.05
+        by mx.google.com with SMTPS id t4sor51994064plq.45.2019.07.23.01.08.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 23 Jul 2019 00:57:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 23 Jul 2019 01:08:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqwC6nxHFSKANPxUR95/LMIHBztJQp0xUlXaK+OKZPP7Be9c6QxkDQQUebiClFlcOPoFVqhw9g==
-X-Received: by 2002:a1c:f415:: with SMTP id z21mr69969515wma.34.1563868625384;
-        Tue, 23 Jul 2019 00:57:05 -0700 (PDT)
-Received: from redhat.com ([185.120.125.30])
-        by smtp.gmail.com with ESMTPSA id t13sm51368730wrr.0.2019.07.23.00.57.01
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 23 Jul 2019 00:57:04 -0700 (PDT)
-Date: Tue, 23 Jul 2019 03:56:59 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Jason Wang <jasowang@redhat.com>
-Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
-	aarcange@redhat.com, akpm@linux-foundation.org,
-	christian@brauner.io, davem@davemloft.net, ebiederm@xmission.com,
-	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
-	james.bottomley@hansenpartnership.com, jglisse@redhat.com,
-	keescook@chromium.org, ldv@altlinux.org,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, linux-parisc@vger.kernel.org,
-	luto@amacapital.net, mhocko@suse.com, mingo@kernel.org,
-	namit@vmware.com, peterz@infradead.org,
-	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
-	wad@chromium.org
-Subject: Re: WARNING in __mmdrop
-Message-ID: <20190723032800-mutt-send-email-mst@kernel.org>
-References: <0000000000008dd6bb058e006938@google.com>
- <000000000000964b0d058e1a0483@google.com>
- <20190721044615-mutt-send-email-mst@kernel.org>
- <75c43998-3a1c-676f-99ff-3d04663c3fcc@redhat.com>
- <20190722035657-mutt-send-email-mst@kernel.org>
- <cfcd330d-5f4a-835a-69f7-c342d5d0d52d@redhat.com>
- <20190723010156-mutt-send-email-mst@kernel.org>
- <124be1a2-1c53-8e65-0f06-ee2294710822@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <124be1a2-1c53-8e65-0f06-ee2294710822@redhat.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ylt8+rC8;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id;
+        bh=5Ljakoy2txq+LWSZiGJ2ER6jX3S3ukmTQZERAI/EP28=;
+        b=Ylt8+rC8069E6u8FyqM4uLSgJV2dx50fDtx2PKFYgu991k+51qr2rst+T1N5E4gMQ8
+         3DvUSqIV7Qlqd7uigoRUK+uyvEbdFRfEcuLX7bd9blVutAR8SrpO4MgPdU+pDD9Zj0ti
+         aY5QrJWV+xGpOH39Y3G5NhBUlx6Qf9cjOjazqESQONe8AZqDSAYss4Wor7odYQhhusSl
+         WCaKMK+mbuj0iOzCGsXO7cR7fnF+M53slnOGnnBEK87+hZdXZOzMCoYe3CS72OUjhVXn
+         bwQS73yPASt7NrWsHVU/kz/6CQI0AgPPhghKenj2+dwVgshD+OOTQ01wUUIugA/XPP2a
+         D1Xw==
+X-Google-Smtp-Source: APXvYqzMNT4Z0OsD+gSwEN8VCppNjNaEtTnQnh6+l6V9MHIVLJm2mRvaq241ptJi6+/DeMba4j+Efw==
+X-Received: by 2002:a17:902:1004:: with SMTP id b4mr80629421pla.325.1563869320530;
+        Tue, 23 Jul 2019 01:08:40 -0700 (PDT)
+Received: from bogon.localdomain ([203.100.54.194])
+        by smtp.gmail.com with ESMTPSA id q4sm39271136pjq.27.2019.07.23.01.08.38
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Jul 2019 01:08:39 -0700 (PDT)
+From: Yafang Shao <laoar.shao@gmail.com>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org,
+	Yafang Shao <laoar.shao@gmail.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Yafang Shao <shaoyafang@didiglobal.com>
+Subject: [PATCH] mm/compaction: introduce a helper compact_zone_counters_init()
+Date: Tue, 23 Jul 2019 04:08:15 -0400
+Message-Id: <1563869295-25748-1-git-send-email-laoar.shao@gmail.com>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 23, 2019 at 01:48:52PM +0800, Jason Wang wrote:
-> 
-> On 2019/7/23 下午1:02, Michael S. Tsirkin wrote:
-> > On Tue, Jul 23, 2019 at 11:55:28AM +0800, Jason Wang wrote:
-> > > On 2019/7/22 下午4:02, Michael S. Tsirkin wrote:
-> > > > On Mon, Jul 22, 2019 at 01:21:59PM +0800, Jason Wang wrote:
-> > > > > On 2019/7/21 下午6:02, Michael S. Tsirkin wrote:
-> > > > > > On Sat, Jul 20, 2019 at 03:08:00AM -0700, syzbot wrote:
-> > > > > > > syzbot has bisected this bug to:
-> > > > > > > 
-> > > > > > > commit 7f466032dc9e5a61217f22ea34b2df932786bbfc
-> > > > > > > Author: Jason Wang <jasowang@redhat.com>
-> > > > > > > Date:   Fri May 24 08:12:18 2019 +0000
-> > > > > > > 
-> > > > > > >        vhost: access vq metadata through kernel virtual address
-> > > > > > > 
-> > > > > > > bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=149a8a20600000
-> > > > > > > start commit:   6d21a41b Add linux-next specific files for 20190718
-> > > > > > > git tree:       linux-next
-> > > > > > > final crash:    https://syzkaller.appspot.com/x/report.txt?x=169a8a20600000
-> > > > > > > console output: https://syzkaller.appspot.com/x/log.txt?x=129a8a20600000
-> > > > > > > kernel config:  https://syzkaller.appspot.com/x/.config?x=3430a151e1452331
-> > > > > > > dashboard link: https://syzkaller.appspot.com/bug?extid=e58112d71f77113ddb7b
-> > > > > > > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=10139e68600000
-> > > > > > > 
-> > > > > > > Reported-by: syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com
-> > > > > > > Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual
-> > > > > > > address")
-> > > > > > > 
-> > > > > > > For information about bisection process see: https://goo.gl/tpsmEJ#bisection
-> > > > > > OK I poked at this for a bit, I see several things that
-> > > > > > we need to fix, though I'm not yet sure it's the reason for
-> > > > > > the failures:
-> > > > > > 
-> > > > > > 
-> > > > > > 1. mmu_notifier_register shouldn't be called from vhost_vring_set_num_addr
-> > > > > >       That's just a bad hack,
-> > > > > This is used to avoid holding lock when checking whether the addresses are
-> > > > > overlapped. Otherwise we need to take spinlock for each invalidation request
-> > > > > even if it was the va range that is not interested for us. This will be very
-> > > > > slow e.g during guest boot.
-> > > > KVM seems to do exactly that.
-> > > > I tried and guest does not seem to boot any slower.
-> > > > Do you observe any slowdown?
-> > > 
-> > > Yes I do.
-> > > 
-> > > 
-> > > > Now I took a hard look at the uaddr hackery it really makes
-> > > > me nervious. So I think for this release we want something
-> > > > safe, and optimizations on top. As an alternative revert the
-> > > > optimization and try again for next merge window.
-> > > 
-> > > Will post a series of fixes, let me know if you're ok with that.
-> > > 
-> > > Thanks
-> > I'd prefer you to take a hard look at the patch I posted
-> > which makes code cleaner,
-> 
-> 
-> I did. But it looks to me a series that is only about 60 lines of code can
-> fix all the issues we found without reverting the uaddr optimization.
+This is the follow-up of the
+commit "mm/compaction.c: clear total_{migrate,free}_scanned before scanning a new zone".
 
-Another thing I like about the patch I posted is that
-it removes 60 lines of code, instead of adding more :)
-Mostly because of unifying everything into
-a single cleanup function and using kfree_rcu.
+These counters are used to track activities during compacting a zone,
+and they will be set to zero before compacting a new zone in all compact
+paths. Move all these common settings into compact_zone() for better
+management. A new helper compact_zone_counters_init() is introduced for
+this purpose.
 
-So how about this: do exactly what you propose but as a 2 patch series:
-start with the slow safe patch, and add then return uaddr optimizations
-on top. We can then more easily reason about whether they are safe.
+Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Yafang Shao <shaoyafang@didiglobal.com>
+---
+ mm/compaction.c | 28 ++++++++++++++--------------
+ 1 file changed, 14 insertions(+), 14 deletions(-)
 
-Basically you are saying this:
-	- notifiers are only needed to invalidate maps
-	- we make sure any uaddr change invalidates maps anyway
-	- thus it's ok not to have notifiers since we do
-	  not have maps
-
-All this looks ok but the question is why do we
-bother unregistering them. And the answer seems to
-be that this is so we can start with a balanced
-counter: otherwise we can be between _start and
-_end calls.
-
-I also wonder about ordering. kvm has this:
-       /*
-         * Used to check for invalidations in progress, of the pfn that is
-         * returned by pfn_to_pfn_prot below.
-         */
-        mmu_seq = kvm->mmu_notifier_seq;
-        /*
-         * Ensure the read of mmu_notifier_seq isn't reordered with PTE reads in
-         * gfn_to_pfn_prot() (which calls get_user_pages()), so that we don't
-         * risk the page we get a reference to getting unmapped before we have a
-         * chance to grab the mmu_lock without mmu_notifier_retry() noticing.
-         *
-         * This smp_rmb() pairs with the effective smp_wmb() of the combination
-         * of the pte_unmap_unlock() after the PTE is zapped, and the
-         * spin_lock() in kvm_mmu_notifier_invalidate_<page|range_end>() before
-         * mmu_notifier_seq is incremented.
-         */
-        smp_rmb();
-
-does this apply to us? Can't we use a seqlock instead so we do
-not need to worry?
-
+diff --git a/mm/compaction.c b/mm/compaction.c
+index a109b45..356348b 100644
+--- a/mm/compaction.c
++++ b/mm/compaction.c
+@@ -2065,6 +2065,19 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+ 	return false;
+ }
+ 
++
++/*
++ * Bellow counters are used to track activities during compacting a zone.
++ * Before compacting a new zone, we should init these counters first.
++ */
++static void compact_zone_counters_init(struct compact_control *cc)
++{
++	cc->total_migrate_scanned = 0;
++	cc->total_free_scanned = 0;
++	cc->nr_migratepages = 0;
++	cc->nr_freepages = 0;
++}
++
+ static enum compact_result
+ compact_zone(struct compact_control *cc, struct capture_control *capc)
+ {
+@@ -2075,6 +2088,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+ 	const bool sync = cc->mode != MIGRATE_ASYNC;
+ 	bool update_cached;
+ 
++	compact_zone_counters_init(cc);
+ 	cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
+ 	ret = compaction_suitable(cc->zone, cc->order, cc->alloc_flags,
+ 							cc->classzone_idx);
+@@ -2278,10 +2292,6 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
+ {
+ 	enum compact_result ret;
+ 	struct compact_control cc = {
+-		.nr_freepages = 0,
+-		.nr_migratepages = 0,
+-		.total_migrate_scanned = 0,
+-		.total_free_scanned = 0,
+ 		.order = order,
+ 		.search_order = order,
+ 		.gfp_mask = gfp_mask,
+@@ -2418,10 +2428,6 @@ static void compact_node(int nid)
+ 		if (!populated_zone(zone))
+ 			continue;
+ 
+-		cc.nr_freepages = 0;
+-		cc.nr_migratepages = 0;
+-		cc.total_migrate_scanned = 0;
+-		cc.total_free_scanned = 0;
+ 		cc.zone = zone;
+ 		INIT_LIST_HEAD(&cc.freepages);
+ 		INIT_LIST_HEAD(&cc.migratepages);
+@@ -2526,8 +2532,6 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 	struct compact_control cc = {
+ 		.order = pgdat->kcompactd_max_order,
+ 		.search_order = pgdat->kcompactd_max_order,
+-		.total_migrate_scanned = 0,
+-		.total_free_scanned = 0,
+ 		.classzone_idx = pgdat->kcompactd_classzone_idx,
+ 		.mode = MIGRATE_SYNC_LIGHT,
+ 		.ignore_skip_hint = false,
+@@ -2551,10 +2555,6 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+ 							COMPACT_CONTINUE)
+ 			continue;
+ 
+-		cc.nr_freepages = 0;
+-		cc.nr_migratepages = 0;
+-		cc.total_migrate_scanned = 0;
+-		cc.total_free_scanned = 0;
+ 		cc.zone = zone;
+ 		INIT_LIST_HEAD(&cc.freepages);
+ 		INIT_LIST_HEAD(&cc.migratepages);
 -- 
-MST
+1.8.3.1
 
