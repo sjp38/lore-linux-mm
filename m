@@ -2,240 +2,268 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B511C76188
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 04:43:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E255EC76188
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 05:01:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0318420449
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 04:43:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="Qa3lZLE8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0318420449
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 8116F2229A
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 05:01:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8116F2229A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 48AED6B0003; Tue, 23 Jul 2019 00:43:05 -0400 (EDT)
+	id 0FA156B0003; Tue, 23 Jul 2019 01:01:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 43C706B0005; Tue, 23 Jul 2019 00:43:05 -0400 (EDT)
+	id 0ACB16B0005; Tue, 23 Jul 2019 01:01:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3026D8E0001; Tue, 23 Jul 2019 00:43:05 -0400 (EDT)
+	id EDB528E0001; Tue, 23 Jul 2019 01:01:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 0C2F56B0003
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 00:43:05 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id 77so31429698ywp.14
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 21:43:05 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A27826B0003
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 01:01:56 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id y127so9518470wmd.0
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 22:01:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=6Lt/z2MUaW0HLuGN6nPZXpx+R7NECtbBk4FafHzD+OU=;
-        b=bVL2W508jcZK3GXFE1lHV9/X532ZhCDtPo6xAsQe0XH31Vkv/Zh+3RILDBLQC+Xido
-         l/UaaNmOW1HPx+DRDWnBxdbdOhhea7wC7VycyqxM6PwDsm/vR+RXWsA/N2UEN5gf0Zgh
-         U3vsUd/iaSWeYr1imLLcrDSA9QppxRiAT/Jf2hYAUsqZ3JHP1W32C5W3NKH73c6ICfgr
-         FnIzwF6dvMQYfKUvYvqcYUwSpOblIQNj4JRMGIXa+Ozi9CGeW+bKL+EsHqurlxwUQKBE
-         wLpLGO+IW7rVOPRzeUmeRCM1hpb76a7gJnnivTYBErUyLydjoznY9bHE4jMpC5VpT1OB
-         KXqg==
-X-Gm-Message-State: APjAAAVS50kbhUMWT3FSXXxZflUBhdQJgIw/OmT8NagUJlKpyxxMpOoq
-	qZqu6WSjXVZE4JHYGH6R285K1/bV6+ObTf11SAMgN3yMRh8Y8oVLNINYib71YxtOSshdWXXeqFz
-	mf4eL7esNi+qCpBnTlj/DLNPo+G29swm7HAPLsDo904nEUIfqJrkNBDy4aWAgltzl0w==
-X-Received: by 2002:a81:9a93:: with SMTP id r141mr39140952ywg.469.1563856984728;
-        Mon, 22 Jul 2019 21:43:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzm2mxAOO55p/u1ZVpXFOTaFb+uBi9euY/Csl24QR8vvSC88PqJ+Un43KVJNoj2GfYlUQ5b
-X-Received: by 2002:a81:9a93:: with SMTP id r141mr39140942ywg.469.1563856984082;
-        Mon, 22 Jul 2019 21:43:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563856984; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to;
+        bh=+GkhoIBN4zKH4Fj0ifhxLJj0Z5XtAt4wUMTn1vnNHYo=;
+        b=ZwK5X0r4e/Bik6sTHvgFVv4IC/axUPDyL1LnaEK2sOR8kBQ2zjffYi/qqhIIjsGV9B
+         8gQXVpQIRttrDbyo5k54bNNERncLuFhUMBnEn+yAfnld4xcdDwuyi5mHO730P4Q2VwgY
+         kBupDTGbx08D58fHh40U91QPDCDKBuZq/6p9nRWNoRsSmm/aB2ZvLbXI5G4Q8vldnhLZ
+         Eo1g6PXNG+fySPAq/XO1uHxoq0aMl+XkymJpkD7rGjAxs7pzByMmyO4PbM+SYjLLjGj0
+         OpVmBxSKDWf6jnP2oUXRrI7j31oFhM8/xWWYsuRAXZxR/ibDuP5ZUZCsqd66fIHs2WKi
+         5CYQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWxsqQ0h21reK5QkU9XLqgeCqKjAFK8E2n22sceqaMJhudxy8Z1
+	eMvvqJ9s60P8g4acTaXIq7EddANJGg3GGsZUJAt3JKbyVD+0WxtEY7zhVABosdqy2I+uq+HLm3k
+	NvZjJvn2EAyE0azYsWY0cLMSSqJDgfe0+gKa3n89b+LoF0bDmlDNAh8uB5reEQRE+hw==
+X-Received: by 2002:a5d:4a49:: with SMTP id v9mr76990859wrs.44.1563858116042;
+        Mon, 22 Jul 2019 22:01:56 -0700 (PDT)
+X-Received: by 2002:a5d:4a49:: with SMTP id v9mr76990788wrs.44.1563858114939;
+        Mon, 22 Jul 2019 22:01:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563858114; cv=none;
         d=google.com; s=arc-20160816;
-        b=R9py645FmwNYHGgHizDa1FrurxcmlR2Wpc6eu8iwvjpG63lHHUkMdkXdstcfYEqC+G
-         m6eVKxpjtU0BXx11R525oGJFEctGcFV+kAzCHPQcQK/4TI47lVx07Iinv0lZvBx3+JrS
-         U5dBnnr8/O9j+lwbPBw1LxHCIprWgFx2cCpLJbBXcr7e9NeKrCWWrGKm5Sz/C4t2u7kJ
-         FeYcwKr0ozLzXwFZymxML3c2TxRZLLVjPqb2xpsZ61w8f+DwnAaS2iUiEsXZUhXtDhpn
-         r8J7VcSE4ap6I4ZrJ8MZtdgJBZAI4N9ycQ7/X/+F5icn+R9JA8+Oaxblx/Ovh+FeDKdP
-         Ufag==
+        b=miK20rm1M4rZUxDb/z5n+/ERM6QBaXYmXaPCb5PN0A8Jzd1/fJu9CZVNaBnhywTtUR
+         4+mBCAcgufU36NS/9mwIKFm55ushsEKpvmzncgkrU/AOy/5brzr4eeEnbhSbw0RlDeFN
+         LzFX1p+Qu7EpYPEKEMtqU0XWb60WSgstacEOJJnrZvE16gvaYkD1/1GAF+F1lkin9njg
+         Tf5y9ldEpVZVvXBga/4bc3TmK1UFNQ8nAXn7FLdNi4N8GHtCXB698Z/sPcJJO00VTMl7
+         MbFbDnZtiLdkz8avp5ukiqaZzdqZ/Hmrml8tl99VzaTjvd+ffJnuHCx9l5MY+k+NLLo9
+         b1Ew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=6Lt/z2MUaW0HLuGN6nPZXpx+R7NECtbBk4FafHzD+OU=;
-        b=lcB2s073Hefrqiw1ZStIuY1A6J8FX4eB1cxqKTvhJh1UDZe8RM5L6BbEcC+P2e9I3Z
-         8b48xvmJXsF6OB2h2wjDuDfmrMwdn41ldhC7zUMbCr1Wq2wBmefCU38/n4yVUmUrVs4Z
-         R1U36wIF9N8LDq4HvzhScMZrjy3D9Fvhxo04c4qMkOayE5v/bkXqQmIB3lz7HoFWWnCn
-         VNLfyG2LfdYSdR9tjuQ1ypx9tSErnUmWQa7xjlcJfJ88sJuaAMUxJSKtuC5pdFzXUM9n
-         0XYpJw+ikobF/97s+ToOO/X0BhZJSIxUHyNYFhyygLY4VUGcEwS36/efePjmSIzyzOfT
-         NzGA==
+        h=in-reply-to:content-transfer-encoding:content-disposition
+         :mime-version:references:message-id:subject:cc:to:from:date;
+        bh=+GkhoIBN4zKH4Fj0ifhxLJj0Z5XtAt4wUMTn1vnNHYo=;
+        b=jJxMH30MbSWJZ9kuYiWGnJUnbV6NO+LFzeDOuYNoIMs5NUW/ZwodSRBv3BCY/KI8oK
+         Qh726huzbVNHoleC98WckhrkQeOzb8xR+EkdW3jDCngyTs4p2ZDClaaEZnsBZtvI/vmC
+         HNeH9Wm1LRf3xskjn6uV4R5Udnad4E+58CblwvjDYAtOMG6BaOB9Ty5YAzZrDinBbb1W
+         c51j/ZpPu3y22t7lBUXfGFCN9d+nSzSGEtfHMTBS+4G3aLudDm5jtOUg0PMqdFadxUvi
+         r6b/+jiAKJOO6jjOg8NILM9CS7Hb8KNgOgJss3wVuwlL58a/l3f1AU59xAzv1V/YmCgd
+         YAiw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Qa3lZLE8;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id a18si6668996ybn.357.2019.07.22.21.43.03
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y65sor23959601wmg.29.2019.07.22.22.01.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jul 2019 21:43:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+        (Google Transport Security);
+        Mon, 22 Jul 2019 22:01:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Qa3lZLE8;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d3690560000>; Mon, 22 Jul 2019 21:43:02 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Mon, 22 Jul 2019 21:43:02 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Mon, 22 Jul 2019 21:43:02 -0700
-Received: from [10.2.164.38] (172.20.13.39) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Tue, 23 Jul
- 2019 04:43:01 +0000
-Subject: Re: [PATCH 3/3] net/xdp: convert put_page() to put_user_page*()
-To: Ira Weiny <ira.weiny@intel.com>, <john.hubbard@gmail.com>
-CC: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro
-	<viro@zeniv.linux.org.uk>, =?UTF-8?B?QmrDtnJuIFTDtnBlbA==?=
-	<bjorn.topel@intel.com>, Boaz Harrosh <boaz@plexistor.com>, Christoph Hellwig
-	<hch@lst.de>, Daniel Vetter <daniel@ffwll.ch>, Dan Williams
-	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, David Airlie
-	<airlied@linux.ie>, "David S . Miller" <davem@davemloft.net>, Ilya Dryomov
-	<idryomov@gmail.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
-	<jgg@ziepe.ca>, Jens Axboe <axboe@kernel.dk>,
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Johannes Thumshirn
-	<jthumshirn@suse.de>, Magnus Karlsson <magnus.karlsson@intel.com>, Matthew
- Wilcox <willy@infradead.org>, Miklos Szeredi <miklos@szeredi.hu>, Ming Lei
-	<ming.lei@redhat.com>, Sage Weil <sage@redhat.com>, Santosh Shilimkar
-	<santosh.shilimkar@oracle.com>, Yan Zheng <zyan@redhat.com>,
-	<netdev@vger.kernel.org>, <dri-devel@lists.freedesktop.org>,
-	<linux-mm@kvack.org>, <linux-rdma@vger.kernel.org>, <bpf@vger.kernel.org>,
-	LKML <linux-kernel@vger.kernel.org>
-References: <20190722223415.13269-1-jhubbard@nvidia.com>
- <20190722223415.13269-4-jhubbard@nvidia.com>
- <20190723002534.GA10284@iweiny-DESK2.sc.intel.com>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <a4e9b293-11f8-6b3c-cf4d-308e3b32df34@nvidia.com>
-Date: Mon, 22 Jul 2019 21:41:34 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqzMrWrj9NjXakyiVzcyJ6rRsEcFXFH6p99kaIf0uv2Ksm8d9SHaEyv3pZRViZQZ/4k36hbViQ==
+X-Received: by 2002:a05:600c:224d:: with SMTP id a13mr23179912wmm.62.1563858114502;
+        Mon, 22 Jul 2019 22:01:54 -0700 (PDT)
+Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
+        by smtp.gmail.com with ESMTPSA id r5sm44467914wmh.35.2019.07.22.22.01.50
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 22 Jul 2019 22:01:53 -0700 (PDT)
+Date: Tue, 23 Jul 2019 01:01:49 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Jason Wang <jasowang@redhat.com>
+Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
+	aarcange@redhat.com, akpm@linux-foundation.org,
+	christian@brauner.io, davem@davemloft.net, ebiederm@xmission.com,
+	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
+	james.bottomley@hansenpartnership.com, jglisse@redhat.com,
+	keescook@chromium.org, ldv@altlinux.org,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, linux-parisc@vger.kernel.org,
+	luto@amacapital.net, mhocko@suse.com, mingo@kernel.org,
+	namit@vmware.com, peterz@infradead.org,
+	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
+	wad@chromium.org
+Subject: Re: WARNING in __mmdrop
+Message-ID: <20190723010019-mutt-send-email-mst@kernel.org>
+References: <0000000000008dd6bb058e006938@google.com>
+ <000000000000964b0d058e1a0483@google.com>
+ <20190721044615-mutt-send-email-mst@kernel.org>
+ <20190721081447-mutt-send-email-mst@kernel.org>
+ <85dd00e2-37a6-72b7-5d5a-8bf46a3526cf@redhat.com>
+ <20190722040230-mutt-send-email-mst@kernel.org>
+ <4bd2ff78-6871-55f2-44dc-0982ffef3337@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20190723002534.GA10284@iweiny-DESK2.sc.intel.com>
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1563856982; bh=6Lt/z2MUaW0HLuGN6nPZXpx+R7NECtbBk4FafHzD+OU=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=Qa3lZLE8Kf/RL8KhFgPo9Jkt7HFiKw1Is4rV87XoFGEKvWzwvIu+hxfTzr2uraY59
-	 XErNMpPf1Qu2zCNLtYfVRqCa3/zsPozeqvDkM44qxxIpWE47R8YoLoPjAb9uunMk0+
-	 2+b5UcPkOzZtt+IdgVMrvpTMyr/Pdu3kowZiYCl3u00yAyQSmsitBmCoJle4OhJXpe
-	 bMuJ8grmilp9xNLC2hggYcxZ/uAvyWeQge9toK1cze9EOdK1UUkTm+VI05DdS87kNs
-	 cGOrzWdia2G/F74bOT0v75OXAOE8VdSB9dSxGpUKwW6BkxObVy2erx/jSiG+ZKKb1I
-	 5O4vdoqzeZX4g==
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <4bd2ff78-6871-55f2-44dc-0982ffef3337@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/22/19 5:25 PM, Ira Weiny wrote:
-> On Mon, Jul 22, 2019 at 03:34:15PM -0700, john.hubbard@gmail.com wrote:
->> From: John Hubbard <jhubbard@nvidia.com>
->>
->> For pages that were retained via get_user_pages*(), release those pages
->> via the new put_user_page*() routines, instead of via put_page() or
->> release_pages().
->>
->> This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
->> ("mm: introduce put_user_page*(), placeholder versions").
->>
->> Cc: Bj=C3=B6rn T=C3=B6pel <bjorn.topel@intel.com>
->> Cc: Magnus Karlsson <magnus.karlsson@intel.com>
->> Cc: David S. Miller <davem@davemloft.net>
->> Cc: netdev@vger.kernel.org
->> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
->> ---
->>   net/xdp/xdp_umem.c | 9 +--------
->>   1 file changed, 1 insertion(+), 8 deletions(-)
->>
->> diff --git a/net/xdp/xdp_umem.c b/net/xdp/xdp_umem.c
->> index 83de74ca729a..0325a17915de 100644
->> --- a/net/xdp/xdp_umem.c
->> +++ b/net/xdp/xdp_umem.c
->> @@ -166,14 +166,7 @@ void xdp_umem_clear_dev(struct xdp_umem *umem)
->>  =20
->>   static void xdp_umem_unpin_pages(struct xdp_umem *umem)
->>   {
->> -	unsigned int i;
->> -
->> -	for (i =3D 0; i < umem->npgs; i++) {
->> -		struct page *page =3D umem->pgs[i];
->> -
->> -		set_page_dirty_lock(page);
->> -		put_page(page);
->> -	}
->> +	put_user_pages_dirty_lock(umem->pgs, umem->npgs);
->=20
-> What is the difference between this and
->=20
-> __put_user_pages(umem->pgs, umem->npgs, PUP_FLAGS_DIRTY_LOCK);
->=20
-> ?
+On Tue, Jul 23, 2019 at 12:01:40PM +0800, Jason Wang wrote:
+> 
+> On 2019/7/22 下午4:08, Michael S. Tsirkin wrote:
+> > On Mon, Jul 22, 2019 at 01:24:24PM +0800, Jason Wang wrote:
+> > > On 2019/7/21 下午8:18, Michael S. Tsirkin wrote:
+> > > > On Sun, Jul 21, 2019 at 06:02:52AM -0400, Michael S. Tsirkin wrote:
+> > > > > On Sat, Jul 20, 2019 at 03:08:00AM -0700, syzbot wrote:
+> > > > > > syzbot has bisected this bug to:
+> > > > > > 
+> > > > > > commit 7f466032dc9e5a61217f22ea34b2df932786bbfc
+> > > > > > Author: Jason Wang<jasowang@redhat.com>
+> > > > > > Date:   Fri May 24 08:12:18 2019 +0000
+> > > > > > 
+> > > > > >       vhost: access vq metadata through kernel virtual address
+> > > > > > 
+> > > > > > bisection log:https://syzkaller.appspot.com/x/bisect.txt?x=149a8a20600000
+> > > > > > start commit:   6d21a41b Add linux-next specific files for 20190718
+> > > > > > git tree:       linux-next
+> > > > > > final crash:https://syzkaller.appspot.com/x/report.txt?x=169a8a20600000
+> > > > > > console output:https://syzkaller.appspot.com/x/log.txt?x=129a8a20600000
+> > > > > > kernel config:https://syzkaller.appspot.com/x/.config?x=3430a151e1452331
+> > > > > > dashboard link:https://syzkaller.appspot.com/bug?extid=e58112d71f77113ddb7b
+> > > > > > syz repro:https://syzkaller.appspot.com/x/repro.syz?x=10139e68600000
+> > > > > > 
+> > > > > > Reported-by:syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com
+> > > > > > Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual
+> > > > > > address")
+> > > > > > 
+> > > > > > For information about bisection process see:https://goo.gl/tpsmEJ#bisection
+> > > > > OK I poked at this for a bit, I see several things that
+> > > > > we need to fix, though I'm not yet sure it's the reason for
+> > > > > the failures:
+> > > > > 
+> > > > > 
+> > > > > 1. mmu_notifier_register shouldn't be called from vhost_vring_set_num_addr
+> > > > >      That's just a bad hack, in particular I don't think device
+> > > > >      mutex is taken and so poking at two VQs will corrupt
+> > > > >      memory.
+> > > > >      So what to do? How about a per vq notifier?
+> > > > >      Of course we also have synchronize_rcu
+> > > > >      in the notifier which is slow and is now going to be called twice.
+> > > > >      I think call_rcu would be more appropriate here.
+> > > > >      We then need rcu_barrier on module unload.
+> > > > >      OTOH if we make pages linear with map then we are good
+> > > > >      with kfree_rcu which is even nicer.
+> > > > > 
+> > > > > 2. Doesn't map leak after vhost_map_unprefetch?
+> > > > >      And why does it poke at contents of the map?
+> > > > >      No one should use it right?
+> > > > > 
+> > > > > 3. notifier unregister happens last in vhost_dev_cleanup,
+> > > > >      but register happens first. This looks wrong to me.
+> > > > > 
+> > > > > 4. OK so we use the invalidate count to try and detect that
+> > > > >      some invalidate is in progress.
+> > > > >      I am not 100% sure why do we care.
+> > > > >      Assuming we do, uaddr can change between start and end
+> > > > >      and then the counter can get negative, or generally
+> > > > >      out of sync.
+> > > > > 
+> > > > > So what to do about all this?
+> > > > > I am inclined to say let's just drop the uaddr optimization
+> > > > > for now. E.g. kvm invalidates unconditionally.
+> > > > > 3 should be fixed independently.
+> > > > Above implements this but is only build-tested.
+> > > > Jason, pls take a look. If you like the approach feel
+> > > > free to take it from here.
+> > > > 
+> > > > One thing the below does not have is any kind of rate-limiting.
+> > > > Given it's so easy to restart I'm thinking it makes sense
+> > > > to add a generic infrastructure for this.
+> > > > Can be a separate patch I guess.
+> > > 
+> > > I don't get why must use kfree_rcu() instead of synchronize_rcu() here.
+> > synchronize_rcu has very high latency on busy systems.
+> > It is not something that should be used on a syscall path.
+> > KVM had to switch to SRCU to keep it sane.
+> > Otherwise one guest can trivially slow down another one.
+> 
+> 
+> I think you mean the synchronize_rcu_expedited()? Rethink of the code, the
+> synchronize_rcu() in ioctl() could be removed, since it was serialized with
+> memory accessor.
 
-No difference.
 
->=20
-> I'm a bit concerned with adding another form of the same interface.  We s=
-hould
-> either have 1 call with flags (enum in this case) or multiple calls.  Giv=
-en the
-> previous discussion lets move in the direction of having the enum but don=
-'t
-> introduce another caller of the "old" interface.
+Really let's just use kfree_rcu. It's way cleaner: fire and forget.
 
-I disagree that this is a "problem". There is no maintenance pitfall here; =
-there
-are merely two ways to call the put_user_page*() API. Both are correct, and
-neither one will get you into trouble.
+> 
+> Btw, for kvm ioctl it still uses synchronize_rcu() in kvm_vcpu_ioctl(),
+> (just a little bit more hard to trigger):
 
-Not only that, but there is ample precedent for this approach in other
-kernel APIs.
 
->=20
-> So I think on this patch NAK from me.
->=20
-> I also don't like having a __* call in the exported interface but there i=
-s a
-> __get_user_pages_fast() call so I guess there is precedent.  :-/
->=20
+AFAIK these never run in response to guest events.
+So they can take very long and guests still won't crash.
 
-I thought about this carefully, and looked at other APIs. And I noticed tha=
-t
-things like __get_user_pages*() are how it's often done:
 
-* The leading underscores are often used for the more elaborate form of the
-call (as oppposed to decorating the core function name with "_flags", for
-example).
-
-* There are often calls in which you can either call the simpler form, or t=
-he
-form with flags and additional options, and yes, you'll get the same result=
-.
-
-Obviously, this stuff is all subject to a certain amount of opinion, but I
-think I'm on really solid ground as far as precedent goes. So I'm pushing
-back on the NAK... :)
-
-thanks,
---=20
-John Hubbard
-NVIDIA
+> 
+>     case KVM_RUN: {
+> ...
+>         if (unlikely(oldpid != task_pid(current))) {
+>             /* The thread running this VCPU changed. */
+>             struct pid *newpid;
+> 
+>             r = kvm_arch_vcpu_run_pid_change(vcpu);
+>             if (r)
+>                 break;
+> 
+>             newpid = get_task_pid(current, PIDTYPE_PID);
+>             rcu_assign_pointer(vcpu->pid, newpid);
+>             if (oldpid)
+>                 synchronize_rcu();
+>             put_pid(oldpid);
+>         }
+> ...
+>         break;
+> 
+> 
+> > 
+> > > > Signed-off-by: Michael S. Tsirkin<mst@redhat.com>
+> > > 
+> > > Let me try to figure out the root cause then decide whether or not to go for
+> > > this way.
+> > > 
+> > > Thanks
+> > The root cause of the crash is relevant, but we still need
+> > to fix issues 1-4.
+> > 
+> > More issues (my patch tries to fix them too):
+> > 
+> > 5. page not dirtied when mappings are torn down outside
+> >     of invalidate callback
+> 
+> 
+> Yes.
+> 
+> 
+> > 
+> > 6. potential cross-VM DOS by one guest keeping system busy
+> >     and increasing synchronize_rcu latency to the point where
+> >     another guest stars timing out and crashes
+> > 
+> > 
+> > 
+> 
+> This will be addressed after I remove the synchronize_rcu() from ioctl path.
+> 
+> Thanks
 
