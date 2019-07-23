@@ -2,165 +2,111 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 90DC4C7618B
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 13:13:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 39915C7618E
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 13:14:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4E08E218BE
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 13:13:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E08E218BE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 04348218BE
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 13:14:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 04348218BE
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E56496B0005; Tue, 23 Jul 2019 09:13:49 -0400 (EDT)
+	id 974646B0006; Tue, 23 Jul 2019 09:14:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E067A8E0003; Tue, 23 Jul 2019 09:13:49 -0400 (EDT)
+	id 8FC468E0003; Tue, 23 Jul 2019 09:14:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CF57B8E0002; Tue, 23 Jul 2019 09:13:49 -0400 (EDT)
+	id 79F0D8E0002; Tue, 23 Jul 2019 09:14:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B07CB6B0005
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 09:13:49 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id l9so38351630qtu.12
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 06:13:49 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4122A6B0006
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 09:14:15 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id b12so28224891eds.14
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 06:14:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=pB1taFW4NnrVOYxMCFYlmIXGTpEWibG8n32nX3NWsJA=;
-        b=feEc6NdFcu4JXoGie5rqE7eIFzv4BcBUeGvBI+GIpE6/sgWssaUmXowIraCNv3NZP1
-         XcZjF04SpmDzw1huuLht28ZTirFv20CA8YJIV19TyibG0gDrS571wF227yN1CSQGbO7p
-         OUr2Dhpn31TsQ6bOlQ9MaYHsUCH8I4vHZxWnIukKgdE8d4NjF+hqlYx/GDcYsoqspj5P
-         e+UjtCnJEXOAhrSb+gxajNP1q5GUzanV6orDEf5RoLKNjo43zb7jzo/Or5G1OLKRHe2r
-         u2OzPwWFkZmnfmdopYfhZ/OlWvWY33YXGJgHw17FK683f+fhrYZD9JQagbrmIydwJmFz
-         3hhg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVueQjP8yIv9W9PpqRy6mSQo52GSTRtRhrcvMVfFScHXZzl9T9N
-	o3sxPP+kYLdfln3Ww/Hc7ozGqX9bhszPtV3jkS7EOe7oPw93kNtYkavCjDnGAE56znysBNlFXQJ
-	HgOQ9ugSmLaoaVGfQESIx+enNagNJjVNEhsLReKw+GBZyk7VL8m5WroTQ9LO3Pky42Q==
-X-Received: by 2002:a37:4043:: with SMTP id n64mr51197836qka.392.1563887629533;
-        Tue, 23 Jul 2019 06:13:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyub7ZFFs03GnPmKJBxRtrptyC2esKhoXeJbhxpORxKDl1EUpWaO1KG67TCBQpdbmESF87m
-X-Received: by 2002:a37:4043:: with SMTP id n64mr51197802qka.392.1563887629096;
-        Tue, 23 Jul 2019 06:13:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563887629; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=2cYVhZNWCxiy6NlWCFG9LBYYQKisgo+/o33vSvTyrLs=;
+        b=Fn9kxqEaI7xA/nMvpvtb5uF1VDyorVQQZdg6zVBlaF+QwJHus993RgHp+tHNiX96ig
+         StUdeQxdmnEd28sc7JBxxk0/ycrxtbkylqo5n+spZl/hXaw+zStSsnPqbu7LQK8GWek4
+         H8DQwohboZhlsZwvddW9fQu7tHuxQfqcyOSkF0aWl3UCRntNtaOanu50dSZNs0eeW4Hz
+         lfjC2pWjMRJny+yrbC7MOVGAghcHKlSAc+E50fLRTfm/Q3hh3vtQ537MYtwFyHNipwgZ
+         pe7+WqWcRrto7oBH2IcVGEN0X/65XME7oYbU8N6f8vsrVx+byVgnv57A1kaMtK3x1kMk
+         Sqxg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAVoVUTQQIY3mgBwTgD8/c4eZ8jfZ+H/GmEU2pUR9Sh0zzld5Onu
+	l2TkKsV/HjO+Se47K6oLjZjwYI96cj8eskTMJQkFaFCre4fMvb0H2hucPXcG9cLBCFuu9h9pBBX
+	m2Y5LCW1Rg+1eCsIz3FjepSP2DCFXdrrW4G3NHWZz0VQObE4H70LqeZs1QNHSqAv93w==
+X-Received: by 2002:a50:fa96:: with SMTP id w22mr66705934edr.45.1563887654839;
+        Tue, 23 Jul 2019 06:14:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwfgV6qw5udXrIOLplloyCOgMiohG/j1Z9nbqfVrIMZgvne7IJJxfvPI1ppwDj0D4My+hcv
+X-Received: by 2002:a50:fa96:: with SMTP id w22mr66705882edr.45.1563887654268;
+        Tue, 23 Jul 2019 06:14:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563887654; cv=none;
         d=google.com; s=arc-20160816;
-        b=fQw9ksLhPOl7ULkMnVwHqdwe4I0ryGjn1ga39BZ6Fozxh5D09GMkKonu9vG4bALLvl
-         qkZJMFB+jAeALs0AZBQJYRGRBOMbEUotXtcaP4m0FgUYhBJBNFDTuC6xVIE2LFTtipNR
-         J/JVcV3kRhCkXbtjCnBkUjptAowmHLOEf3sMog5Ab76ONj+MFlkSuVUt0rrfonXssDaP
-         U8z6+daZPS6pzmRqvNl5KYfQxRT2v+O8CxzzREPfyAeCxltQPI/rHZwc6hwYQ6bCmAF9
-         yLWUClZCIqXN+Ox5C3NQRpC5RJocsv1/w4dRIU3Qx9kZ7qVyRveyPcss0MkMikuzYeye
-         diXQ==
+        b=GkBA2iXIO6SQ5wg8jwmiq694RAUj/8VGCFpAfWe9dsc+Lo0pwz7iedXps1k6/LWVEa
+         ijTKc4UYNeQaZl/TjsTuIigJ14MJku0p8WUiWwjS+Bpk4Miy+1HFqfvt7Y7Pbc87KvNK
+         Sy7eNvChy9BbMA6v9Vtn6psFGpsnJ3xxOJMJ/Dz/hfVUp6mVhD+Bj5725mrj3frMmFbG
+         YhvcWw+0AC4/gmrBm8vGjiOaFlyhFJB1Yg1m2a0esnRGd+Yd4LOCBLxbfXuOwFGM/qL4
+         OPf2sUeNIpKXZQKSG8UfaCQYW1OUfAMyqK/FQOhcyFAEePgdT+gu3NjdSefHNiroe0cU
+         6Emw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=pB1taFW4NnrVOYxMCFYlmIXGTpEWibG8n32nX3NWsJA=;
-        b=aHcFcARvT4dAyEkCz32//S+4L0bVCCQ2S7ZIBgpkMXFeSPT5Rb+KuXqATmN/JO638b
-         YEyCN098qKMuW6bIrSFmdFsL9A1EEAA4oPTE7fSSgDiwpeElkHZ61g9ZPjnuYRsP94TC
-         /ulGCTVkJ/8JXhDcTXONp77sx6MMGivRrKPgXXZ6vFJceevYH7uULsWi4cgXyDmwx3gA
-         H7mZzBL8Zjh6eo2XGbZ02FPNkjIxmdjSMBwW0vUek09UxqE3Vgm2s5MXJuLteETByX6H
-         nyapCw57WJ5rJQrRIhD4VOKZjvrAHEkBmUHBbG5GLJ2dHi+n9XZOJGahZ6EoYW9Eobnz
-         j8UA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=2cYVhZNWCxiy6NlWCFG9LBYYQKisgo+/o33vSvTyrLs=;
+        b=Z2RF/KHj1XjdWOnjLo8vidPNTbSxCpNBP4fhsdIlbNqJEza1Z5HxeM0LNd+At1kPi9
+         9xD1eMjMhXzyiEw8NZTkNj/uDR8xjNhpVe4uVue7Xyu9Lv6kWAqDjoPqzBMSoEeX/3bH
+         uOBvIVvmFALGmWL+GNjiIAe9IyaN1jpjqInHOkf017/dDWmTxeQZCyty5Rt9AAevnkkU
+         mPdDxpDIawZUKi04j5GQbwV0kh1gAPKuWkIvN2EJQ7RX8Y56xPfxVslxRdrUBHsNR/nQ
+         v7O2p63g5cxD9F41UsZx6uHkVWPlyFxc+fHUigSZjBaMQiueqllsE6hLr3ixpOvLmSW5
+         X1Aw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id h36si27710345qvc.41.2019.07.23.06.13.48
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id w23si5571466eju.93.2019.07.23.06.14.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jul 2019 06:13:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 23 Jul 2019 06:14:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 26FE8A3B46;
-	Tue, 23 Jul 2019 13:13:48 +0000 (UTC)
-Received: from [10.36.117.59] (ovpn-117-59.ams2.redhat.com [10.36.117.59])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 4E7EF60BEC;
-	Tue, 23 Jul 2019 13:13:46 +0000 (UTC)
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id C11D4AC47;
+	Tue, 23 Jul 2019 13:14:13 +0000 (UTC)
+Date: Tue, 23 Jul 2019 15:14:10 +0200
+From: Oscar Salvador <osalvador@suse.de>
+To: Weitao Hou <houweitaoo@gmail.com>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, david@redhat.com,
+	pasha.tatashin@soleen.com, dan.j.williams@intel.com,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Subject: Re: [PATCH] mm/hotplug: remove unneeded return for void function
-To: Weitao Hou <houweitaoo@gmail.com>, akpm@linux-foundation.org,
- osalvador@suse.de, mhocko@suse.com, pasha.tatashin@soleen.com,
- dan.j.williams@intel.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Message-ID: <20190723131401.GA24690@linux>
 References: <20190723130814.21826-1-houweitaoo@gmail.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <287d5f14-2400-dc7f-7c90-11fa52d6a49d@redhat.com>
-Date: Tue, 23 Jul 2019 15:13:45 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <20190723130814.21826-1-houweitaoo@gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Tue, 23 Jul 2019 13:13:48 +0000 (UTC)
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 23.07.19 15:08, Weitao Hou wrote:
+On Tue, Jul 23, 2019 at 09:08:14PM +0800, Weitao Hou wrote:
 > return is unneeded in void function
 > 
 > Signed-off-by: Weitao Hou <houweitaoo@gmail.com>
+
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
+
 > ---
 >  mm/memory_hotplug.c | 2 --
 >  1 file changed, 2 deletions(-)
@@ -185,13 +131,11 @@ On 23.07.19 15:08, Weitao Hou wrote:
 >  }
 >  
 >  
+> -- 
+> 2.18.0
 > 
 
-Reviewed-by: David Hildenbrand <david@redhat.com>
-
 -- 
-
-Thanks,
-
-David / dhildenb
+Oscar Salvador
+SUSE L3
 
