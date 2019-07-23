@@ -2,250 +2,690 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 07CB6C7618B
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:42:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8081CC7618B
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:43:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9F4352253E
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:42:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F4352253E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id C9B27223DD
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:43:43 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="yUNWJ4kK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C9B27223DD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 22B386B000A; Tue, 23 Jul 2019 04:42:33 -0400 (EDT)
+	id 6BCAF6B000C; Tue, 23 Jul 2019 04:43:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1DB268E0003; Tue, 23 Jul 2019 04:42:33 -0400 (EDT)
+	id 646858E0003; Tue, 23 Jul 2019 04:43:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0CA5F8E0002; Tue, 23 Jul 2019 04:42:33 -0400 (EDT)
+	id 50E9A8E0002; Tue, 23 Jul 2019 04:43:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E2E016B000A
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 04:42:32 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id e39so37799802qte.8
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 01:42:32 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C63F66B000C
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 04:43:42 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id t2so9088905ljj.13
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 01:43:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=uGGixrVX39bMz6z2pl330D6fM43fnXqlK5xcSlglNq0=;
-        b=gtDKBhiCDjXoTtxliPs32aSdoylLlYJUrcpKV93JwEgrojIYVAM4aQ37VtFUHNt15i
-         ra6lI0UvOVN9A8Y4JzuhG7MG15na057Oe69/0+R+D/hHmL6Pt1wZSACQzOdnqmc4Skqe
-         sj6f5+RoS7CwFhtCmVPHNPvs/tLjCIRpkka7wJ/dBvwbZc50Erg5JS/+N6cUJECjIMkR
-         vX4IkjbXkVWeEUQMU5nYRh4PGYZjz/h2IkJbqn8qvH/90pfZaLrMn+UQJGDPlk5rXSj9
-         bgg3egCvTFtIo1suA83V0KBzEgSeFXVHk78GJtJz9HFCE+VDAqXs/nw6c6vlxJc6I+Ho
-         UIuA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUwqee0jq2pPPHVnHy/0A50T1EXgSWBNixWgSpudBoGR7HdE5WY
-	dYCuWF4tkME5gDzrhS3KCJrA21htYX7l7JZzWdDOhlTzKryhlZdRb2WvZPj30Oyn89P27K9jew0
-	OaJExawbW7BnxcWE02EW8IBj9HpMYO6CRMR5tjAFD2a5VujXcgOV6LXjmg+RLykhMXg==
-X-Received: by 2002:a05:620a:166a:: with SMTP id d10mr46782525qko.195.1563871352670;
-        Tue, 23 Jul 2019 01:42:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyTQCQ9cAZMDJ0tgl2NndXA1j1L2XsoUIYAlEnoyrI0wsQN26jDlSppVbcqHKzWo6+tL4HE
-X-Received: by 2002:a05:620a:166a:: with SMTP id d10mr46782494qko.195.1563871351844;
-        Tue, 23 Jul 2019 01:42:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563871351; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=kJjDfW2jbWun5ntculbfawTZ5djmL30Et1L76no3MsM=;
+        b=Pt/y5ON6SZBvZq7e4kybOChRmEZsJ3iD4EyfflinzhmMaMWgpJXnBkxaNqWqCHnyje
+         RVueEn6vdCuzkb/Gwry/HgU4ZTeceDx8LDnZfFTx2f7G5i0bzq9fXY14MAQpRLKw+I1i
+         5JjqtHTTvorXEMJ6/Zfp+ozRsPGWjDrrAx0Ire55GGc+GBlg0RtEmwDXBBNAEFpkgmja
+         eDXVg2+Gva4As2hBPPRPksysvhtW6PUaYJAk8Qv1Vq7TyX/rug3a+bfArYQiSVyDDHZG
+         0NcRSHlQXjU7g6pR/cHj+mpxt3vJ1DO5Cb8NlnGrEGJ48Whwoc+6EocSsLWcjHp+aVQ+
+         Bljg==
+X-Gm-Message-State: APjAAAUpcsWd/bwGYVB8Xc2NuX8hZRHK2s1ioF4F9I/ZhpdfM5iRnvOZ
+	mXkjn2WRWyrX/R98Mk719P0Z9VJ2ygn0+JkxIeXockh4GE9MR3v6a9Dv8tsoe+nh6fZIHgOtl5r
+	wwI5ViGHgQLlf0Vml2tgoMK7XOf6qjPRnCE+CELcBjQxMzJVD3CQRYzDqVRAizf5BEA==
+X-Received: by 2002:a2e:8944:: with SMTP id b4mr14706347ljk.154.1563871422198;
+        Tue, 23 Jul 2019 01:43:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyvpI1glVBang57X9st8iYpVt0XJ2GehECj2ioEN38Ov3TWSRltvH8TWSOVmFLgXWZmzlC1
+X-Received: by 2002:a2e:8944:: with SMTP id b4mr14706298ljk.154.1563871421104;
+        Tue, 23 Jul 2019 01:43:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563871421; cv=none;
         d=google.com; s=arc-20160816;
-        b=cjcMh+2Q793+bpYIZOO6Qnu5NYeKkVFBCwpJVoX/S8atG+5W4/RWxR9lYBkIULmA9p
-         CiFed0O1whwhBXBkID0fS3v0MQoP04tVQWygQPqrfa4gukjl3QkBT0njeVPnJFeakbJK
-         RGvVkduuLepYLRrzztFTl4YbskZ0msXrU+j3pOOcqBy9Z7u9g2viUKpeQ1wFulA8dEVN
-         vQy7D0KeU1biGY+cRfMa3L+pjrnplYrfeuXxPUfc4+G756h3H70h6FvSat19EPeQnCTd
-         n+dnRzZVdtooCmc6Syp8/w1gwiO2hGPORT5Lyutf79DP96rAY/SUQKtSVnIhRP/mBChX
-         7ALg==
+        b=WV/YH9n/uWZ077S/PFr31joT+S8Kr139erwPMngjEo23qJuualB6FIaRCYzXEw8tKR
+         8KCFky+ZyAOtKNS/0Gy0BDMBy+0C5Ub++pa1V6NxF9OZrQxS6zXOl3kBnGvekAtm6dqV
+         lgRd6m5ulCqbki3sHybqYJ4efQH9U2Sw8Cydt/tEko0ocZ3wkeVeOsVnlRcptzTKeaQf
+         jayyJdQQYLt6y10LA+Y6Up7HtlgE5al2UGWywd2ViRNK5yWAwuhFcXyd27znJieYmf3V
+         0iww/snkgkR3aBByppq6ObpmDmdEznKWbSxEVCP3PiFsDhbfhU66pEch8+ZDhWhpbtzy
+         6nvw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=uGGixrVX39bMz6z2pl330D6fM43fnXqlK5xcSlglNq0=;
-        b=QTedPWQ6GFPeZu/z0W/6gIlhYd/tJK3Ct/QqzABkIMaj5ICaQmRmzo2GVWj8Jf3NFA
-         IvSyGST6Stbr4O5p5yFTcurjFsln/ACENCttWPxlxaD+XScdLWYJfKKioFDQvDpsD8GW
-         k8kvY4qtKVxPG3csMgg7yymPkPMK6tspMeSioz4FXH40uepX0RNzUohQQyipO1ygfVqj
-         cmSOcH/C8Hby3JxY8osRkKA6KKfhDXEZtdObhdn24EqoAlDH6pHD8kRBY5Ii7B9k66+4
-         iRUf78YBE2WSB8JEodGSQ2ZNoKvkSPDpW+D6eTiijhSxbeaRqmxrennldxVb+6/Rveqc
-         o8Wg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=kJjDfW2jbWun5ntculbfawTZ5djmL30Et1L76no3MsM=;
+        b=WsDdECE92smW1uEjKTD61cdJr8Q3DNiXLmj4NL2IMxnp3qdeSkEe1ZY777aZ0Ka3DG
+         f0N8Mv3HqiKZ1F6yTmGCP8r8XJODmXAtgdhP+0S6A1CMOf4zVcYAs+6GMnHOtokyfO7t
+         VQoNI2OamrEVk8z+H1Vip602H4VpOqVDObDeqkzlly5xUlyof7RL4drgdbX0VOkdW5fO
+         ccjtw7WXxvyhLMlWPZ189VEBHyVNIo+WwNJCNwpxX9T+C/U/LV3/VPnd8ed6gdBV/mQV
+         nQgSFBAS8p/UnLBoaUrISpF1iHS2eSrb4yiKsDx/euac01htGlUMVWPSRk3ylACBoaY0
+         nggA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q20si27083744qke.380.2019.07.23.01.42.31
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=yUNWJ4kK;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from forwardcorp1j.mail.yandex.net (forwardcorp1j.mail.yandex.net. [2a02:6b8:0:1619::183])
+        by mx.google.com with ESMTPS id m123si32653208lfa.30.2019.07.23.01.43.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jul 2019 01:42:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 23 Jul 2019 01:43:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) client-ip=2a02:6b8:0:1619::183;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id A801B59455;
-	Tue, 23 Jul 2019 08:42:30 +0000 (UTC)
-Received: from [10.72.12.26] (ovpn-12-26.pek2.redhat.com [10.72.12.26])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id BA57B608A5;
-	Tue, 23 Jul 2019 08:42:18 +0000 (UTC)
-Subject: Re: WARNING in __mmdrop
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
- aarcange@redhat.com, akpm@linux-foundation.org, christian@brauner.io,
- davem@davemloft.net, ebiederm@xmission.com, elena.reshetova@intel.com,
- guro@fb.com, hch@infradead.org, james.bottomley@hansenpartnership.com,
- jglisse@redhat.com, keescook@chromium.org, ldv@altlinux.org,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, linux-parisc@vger.kernel.org, luto@amacapital.net,
- mhocko@suse.com, mingo@kernel.org, namit@vmware.com, peterz@infradead.org,
- syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk, wad@chromium.org
-References: <0000000000008dd6bb058e006938@google.com>
- <000000000000964b0d058e1a0483@google.com>
- <20190721044615-mutt-send-email-mst@kernel.org>
- <75c43998-3a1c-676f-99ff-3d04663c3fcc@redhat.com>
- <20190722035657-mutt-send-email-mst@kernel.org>
- <cfcd330d-5f4a-835a-69f7-c342d5d0d52d@redhat.com>
- <20190723010156-mutt-send-email-mst@kernel.org>
- <124be1a2-1c53-8e65-0f06-ee2294710822@redhat.com>
- <20190723032800-mutt-send-email-mst@kernel.org>
-From: Jason Wang <jasowang@redhat.com>
-Message-ID: <e2e01a05-63d8-4388-2bcd-b2be3c865486@redhat.com>
-Date: Tue, 23 Jul 2019 16:42:19 +0800
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=yUNWJ4kK;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from mxbackcorp2j.mail.yandex.net (mxbackcorp2j.mail.yandex.net [IPv6:2a02:6b8:0:1619::119])
+	by forwardcorp1j.mail.yandex.net (Yandex) with ESMTP id 287D02E14A8;
+	Tue, 23 Jul 2019 11:43:40 +0300 (MSK)
+Received: from smtpcorp1o.mail.yandex.net (smtpcorp1o.mail.yandex.net [2a02:6b8:0:1a2d::30])
+	by mxbackcorp2j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id 6g9JfPN1os-hbNm51pw;
+	Tue, 23 Jul 2019 11:43:40 +0300
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
+	t=1563871420; bh=kJjDfW2jbWun5ntculbfawTZ5djmL30Et1L76no3MsM=;
+	h=In-Reply-To:Message-ID:From:Date:References:To:Subject:Cc;
+	b=yUNWJ4kKUrADsQhRS7ZBT7v7MO1HGsNkMCN5V9lBj9tdC/Z4gnmyy2jR3NPldiDoO
+	 VoUYgzEX3dDipPoib2M9yfMjROOYBeoDy04iG457OISqwgfY2N7Wb9GF4Cf78m4ccw
+	 aBaKAjO63/G+Sg2OCoToKpjxhDBrqFL/lsyX3rno=
+Authentication-Results: mxbackcorp2j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
+Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:38b3:1cdf:ad1a:1fe1])
+	by smtpcorp1o.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id CsOBXfodge-hbI8TO1x;
+	Tue, 23 Jul 2019 11:43:37 +0300
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(Client certificate not present)
+Subject: Re: [PATCH v1 1/2] mm/page_idle: Add support for per-pid page_idle
+ using virtual indexing
+To: "Joel Fernandes (Google)" <joel@joelfernandes.org>,
+ linux-kernel@vger.kernel.org
+Cc: vdavydov.dev@gmail.com, Brendan Gregg <bgregg@netflix.com>,
+ kernel-team@android.com, Alexey Dobriyan <adobriyan@gmail.com>,
+ Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton
+ <akpm@linux-foundation.org>, carmenjackson@google.com,
+ Christian Hansen <chansen3@cisco.com>,
+ Colin Ian King <colin.king@canonical.com>, dancol@google.com,
+ David Howells <dhowells@redhat.com>, fmayer@google.com, joaodias@google.com,
+ joelaf@google.com, Jonathan Corbet <corbet@lwn.net>,
+ Kees Cook <keescook@chromium.org>, Kirill Tkhai <ktkhai@virtuozzo.com>,
+ linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>,
+ Mike Rapoport <rppt@linux.ibm.com>, minchan@google.com, minchan@kernel.org,
+ namhyung@google.com, sspatil@google.com, surenb@google.com,
+ Thomas Gleixner <tglx@linutronix.de>, timmurray@google.com,
+ tkjos@google.com, Vlastimil Babka <vbabka@suse.cz>, wvw@google.com
+References: <20190722213205.140845-1-joel@joelfernandes.org>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <01568524-ed97-36c9-61f7-e95084658f5b@yandex-team.ru>
+Date: Tue, 23 Jul 2019 11:43:36 +0300
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <20190723032800-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20190722213205.140845-1-joel@joelfernandes.org>
 Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Tue, 23 Jul 2019 08:42:31 +0000 (UTC)
+Content-Language: en-CA
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 23.07.2019 0:32, Joel Fernandes (Google) wrote:
+> The page_idle tracking feature currently requires looking up the pagemap
+> for a process followed by interacting with /sys/kernel/mm/page_idle.
+> This is quite cumbersome and can be error-prone too. If between
+> accessing the per-PID pagemap and the global page_idle bitmap, if
+> something changes with the page then the information is not accurate.
+> More over looking up PFN from pagemap in Android devices is not
+> supported by unprivileged process and requires SYS_ADMIN and gives 0 for
+> the PFN.
+> 
+> This patch adds support to directly interact with page_idle tracking at
+> the PID level by introducing a /proc/<pid>/page_idle file. This
+> eliminates the need for userspace to calculate the mapping of the page.
+> It follows the exact same semantics as the global
+> /sys/kernel/mm/page_idle, however it is easier to use for some usecases
+> where looking up PFN is not needed and also does not require SYS_ADMIN.
+> It ended up simplifying userspace code, solving the security issue
+> mentioned and works quite well. SELinux does not need to be turned off
+> since no pagemap look up is needed.
+> 
+> In Android, we are using this for the heap profiler (heapprofd) which
+> profiles and pin points code paths which allocates and leaves memory
+> idle for long periods of time.
+> 
+> Documentation material:
+> The idle page tracking API for virtual address indexing using virtual page
+> frame numbers (VFN) is located at /proc/<pid>/page_idle. It is a bitmap
+> that follows the same semantics as /sys/kernel/mm/page_idle/bitmap
+> except that it uses virtual instead of physical frame numbers.
+> 
+> This idle page tracking API can be simpler to use than physical address
+> indexing, since the pagemap for a process does not need to be looked up
+> to mark or read a page's idle bit. It is also more accurate than
+> physical address indexing since in physical address indexing, address
+> space changes can occur between reading the pagemap and reading the
+> bitmap. In virtual address indexing, the process's mmap_sem is held for
+> the duration of the access.
 
-On 2019/7/23 下午3:56, Michael S. Tsirkin wrote:
-> On Tue, Jul 23, 2019 at 01:48:52PM +0800, Jason Wang wrote:
->> On 2019/7/23 下午1:02, Michael S. Tsirkin wrote:
->>> On Tue, Jul 23, 2019 at 11:55:28AM +0800, Jason Wang wrote:
->>>> On 2019/7/22 下午4:02, Michael S. Tsirkin wrote:
->>>>> On Mon, Jul 22, 2019 at 01:21:59PM +0800, Jason Wang wrote:
->>>>>> On 2019/7/21 下午6:02, Michael S. Tsirkin wrote:
->>>>>>> On Sat, Jul 20, 2019 at 03:08:00AM -0700, syzbot wrote:
->>>>>>>> syzbot has bisected this bug to:
->>>>>>>>
->>>>>>>> commit 7f466032dc9e5a61217f22ea34b2df932786bbfc
->>>>>>>> Author: Jason Wang <jasowang@redhat.com>
->>>>>>>> Date:   Fri May 24 08:12:18 2019 +0000
->>>>>>>>
->>>>>>>>         vhost: access vq metadata through kernel virtual address
->>>>>>>>
->>>>>>>> bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=149a8a20600000
->>>>>>>> start commit:   6d21a41b Add linux-next specific files for 20190718
->>>>>>>> git tree:       linux-next
->>>>>>>> final crash:    https://syzkaller.appspot.com/x/report.txt?x=169a8a20600000
->>>>>>>> console output: https://syzkaller.appspot.com/x/log.txt?x=129a8a20600000
->>>>>>>> kernel config:  https://syzkaller.appspot.com/x/.config?x=3430a151e1452331
->>>>>>>> dashboard link: https://syzkaller.appspot.com/bug?extid=e58112d71f77113ddb7b
->>>>>>>> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=10139e68600000
->>>>>>>>
->>>>>>>> Reported-by: syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com
->>>>>>>> Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual
->>>>>>>> address")
->>>>>>>>
->>>>>>>> For information about bisection process see: https://goo.gl/tpsmEJ#bisection
->>>>>>> OK I poked at this for a bit, I see several things that
->>>>>>> we need to fix, though I'm not yet sure it's the reason for
->>>>>>> the failures:
->>>>>>>
->>>>>>>
->>>>>>> 1. mmu_notifier_register shouldn't be called from vhost_vring_set_num_addr
->>>>>>>        That's just a bad hack,
->>>>>> This is used to avoid holding lock when checking whether the addresses are
->>>>>> overlapped. Otherwise we need to take spinlock for each invalidation request
->>>>>> even if it was the va range that is not interested for us. This will be very
->>>>>> slow e.g during guest boot.
->>>>> KVM seems to do exactly that.
->>>>> I tried and guest does not seem to boot any slower.
->>>>> Do you observe any slowdown?
->>>> Yes I do.
->>>>
->>>>
->>>>> Now I took a hard look at the uaddr hackery it really makes
->>>>> me nervious. So I think for this release we want something
->>>>> safe, and optimizations on top. As an alternative revert the
->>>>> optimization and try again for next merge window.
->>>> Will post a series of fixes, let me know if you're ok with that.
->>>>
->>>> Thanks
->>> I'd prefer you to take a hard look at the patch I posted
->>> which makes code cleaner,
->>
->> I did. But it looks to me a series that is only about 60 lines of code can
->> fix all the issues we found without reverting the uaddr optimization.
-> Another thing I like about the patch I posted is that
-> it removes 60 lines of code, instead of adding more :)
-> Mostly because of unifying everything into
-> a single cleanup function and using kfree_rcu.
+Maybe integrate this into existing interface: /proc/pid/clear_refs and
+/proc/pid/pagemap ?
 
+I.e.  echo X > /proc/pid/clear_refs clears reference bits in ptes and
+marks pages idle only for pages mapped in this process.
+And idle bit in /proc/pid/pagemap tells that page is still idle in this process.
+This is faster - we don't need to walk whole rmap for that.
 
-Yes.
-
-
->
-> So how about this: do exactly what you propose but as a 2 patch series:
-> start with the slow safe patch, and add then return uaddr optimizations
-> on top. We can then more easily reason about whether they are safe.
-
-
-If you stick, I can do this.
-
-
-> Basically you are saying this:
-> 	- notifiers are only needed to invalidate maps
-> 	- we make sure any uaddr change invalidates maps anyway
-> 	- thus it's ok not to have notifiers since we do
-> 	  not have maps
->
-> All this looks ok but the question is why do we
-> bother unregistering them. And the answer seems to
-> be that this is so we can start with a balanced
-> counter: otherwise we can be between _start and
-> _end calls.
-
-
-Yes, since there could be multiple co-current invalidation requests. We 
-need count them to make sure we don't pin wrong pages.
-
-
->
-> I also wonder about ordering. kvm has this:
->         /*
->           * Used to check for invalidations in progress, of the pfn that is
->           * returned by pfn_to_pfn_prot below.
->           */
->          mmu_seq = kvm->mmu_notifier_seq;
->          /*
->           * Ensure the read of mmu_notifier_seq isn't reordered with PTE reads in
->           * gfn_to_pfn_prot() (which calls get_user_pages()), so that we don't
->           * risk the page we get a reference to getting unmapped before we have a
->           * chance to grab the mmu_lock without mmu_notifier_retry() noticing.
->           *
->           * This smp_rmb() pairs with the effective smp_wmb() of the combination
->           * of the pte_unmap_unlock() after the PTE is zapped, and the
->           * spin_lock() in kvm_mmu_notifier_invalidate_<page|range_end>() before
->           * mmu_notifier_seq is incremented.
->           */
->          smp_rmb();
->
-> does this apply to us? Can't we use a seqlock instead so we do
-> not need to worry?
-
-
-I'm not familiar with kvm MMU internals, but we do everything under of 
-mmu_lock.
-
-Thanks
-
+> 
+> Cc: vdavydov.dev@gmail.com
+> Cc: Brendan Gregg <bgregg@netflix.com>
+> Cc: kernel-team@android.com
+> Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+> 
+> ---
+> Internal review -> v1:
+> Fixes from Suren.
+> Corrections to change log, docs (Florian, Sandeep)
+> 
+>   fs/proc/base.c            |   3 +
+>   fs/proc/internal.h        |   1 +
+>   fs/proc/task_mmu.c        |  57 +++++++
+>   include/linux/page_idle.h |   4 +
+>   mm/page_idle.c            | 305 +++++++++++++++++++++++++++++++++-----
+>   5 files changed, 330 insertions(+), 40 deletions(-)
+> 
+> diff --git a/fs/proc/base.c b/fs/proc/base.c
+> index 77eb628ecc7f..a58dd74606e9 100644
+> --- a/fs/proc/base.c
+> +++ b/fs/proc/base.c
+> @@ -3021,6 +3021,9 @@ static const struct pid_entry tgid_base_stuff[] = {
+>   	REG("smaps",      S_IRUGO, proc_pid_smaps_operations),
+>   	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
+>   	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
+> +#ifdef CONFIG_IDLE_PAGE_TRACKING
+> +	REG("page_idle", S_IRUSR|S_IWUSR, proc_page_idle_operations),
+> +#endif
+>   #endif
+>   #ifdef CONFIG_SECURITY
+>   	DIR("attr",       S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
+> diff --git a/fs/proc/internal.h b/fs/proc/internal.h
+> index cd0c8d5ce9a1..bc9371880c63 100644
+> --- a/fs/proc/internal.h
+> +++ b/fs/proc/internal.h
+> @@ -293,6 +293,7 @@ extern const struct file_operations proc_pid_smaps_operations;
+>   extern const struct file_operations proc_pid_smaps_rollup_operations;
+>   extern const struct file_operations proc_clear_refs_operations;
+>   extern const struct file_operations proc_pagemap_operations;
+> +extern const struct file_operations proc_page_idle_operations;
+>   
+>   extern unsigned long task_vsize(struct mm_struct *);
+>   extern unsigned long task_statm(struct mm_struct *,
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 4d2b860dbc3f..11ccc53da38e 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -1642,6 +1642,63 @@ const struct file_operations proc_pagemap_operations = {
+>   	.open		= pagemap_open,
+>   	.release	= pagemap_release,
+>   };
+> +
+> +#ifdef CONFIG_IDLE_PAGE_TRACKING
+> +static ssize_t proc_page_idle_read(struct file *file, char __user *buf,
+> +				   size_t count, loff_t *ppos)
+> +{
+> +	int ret;
+> +	struct task_struct *tsk = get_proc_task(file_inode(file));
+> +
+> +	if (!tsk)
+> +		return -EINVAL;
+> +	ret = page_idle_proc_read(file, buf, count, ppos, tsk);
+> +	put_task_struct(tsk);
+> +	return ret;
+> +}
+> +
+> +static ssize_t proc_page_idle_write(struct file *file, const char __user *buf,
+> +				 size_t count, loff_t *ppos)
+> +{
+> +	int ret;
+> +	struct task_struct *tsk = get_proc_task(file_inode(file));
+> +
+> +	if (!tsk)
+> +		return -EINVAL;
+> +	ret = page_idle_proc_write(file, (char __user *)buf, count, ppos, tsk);
+> +	put_task_struct(tsk);
+> +	return ret;
+> +}
+> +
+> +static int proc_page_idle_open(struct inode *inode, struct file *file)
+> +{
+> +	struct mm_struct *mm;
+> +
+> +	mm = proc_mem_open(inode, PTRACE_MODE_READ);
+> +	if (IS_ERR(mm))
+> +		return PTR_ERR(mm);
+> +	file->private_data = mm;
+> +	return 0;
+> +}
+> +
+> +static int proc_page_idle_release(struct inode *inode, struct file *file)
+> +{
+> +	struct mm_struct *mm = file->private_data;
+> +
+> +	if (mm)
+> +		mmdrop(mm);
+> +	return 0;
+> +}
+> +
+> +const struct file_operations proc_page_idle_operations = {
+> +	.llseek		= mem_lseek, /* borrow this */
+> +	.read		= proc_page_idle_read,
+> +	.write		= proc_page_idle_write,
+> +	.open		= proc_page_idle_open,
+> +	.release	= proc_page_idle_release,
+> +};
+> +#endif /* CONFIG_IDLE_PAGE_TRACKING */
+> +
+>   #endif /* CONFIG_PROC_PAGE_MONITOR */
+>   
+>   #ifdef CONFIG_NUMA
+> diff --git a/include/linux/page_idle.h b/include/linux/page_idle.h
+> index 1e894d34bdce..f1bc2640d85e 100644
+> --- a/include/linux/page_idle.h
+> +++ b/include/linux/page_idle.h
+> @@ -106,6 +106,10 @@ static inline void clear_page_idle(struct page *page)
+>   }
+>   #endif /* CONFIG_64BIT */
+>   
+> +ssize_t page_idle_proc_write(struct file *file,
+> +	char __user *buf, size_t count, loff_t *ppos, struct task_struct *tsk);
+> +ssize_t page_idle_proc_read(struct file *file,
+> +	char __user *buf, size_t count, loff_t *ppos, struct task_struct *tsk);
+>   #else /* !CONFIG_IDLE_PAGE_TRACKING */
+>   
+>   static inline bool page_is_young(struct page *page)
+> diff --git a/mm/page_idle.c b/mm/page_idle.c
+> index 295512465065..874a60c41fef 100644
+> --- a/mm/page_idle.c
+> +++ b/mm/page_idle.c
+> @@ -11,6 +11,7 @@
+>   #include <linux/mmu_notifier.h>
+>   #include <linux/page_ext.h>
+>   #include <linux/page_idle.h>
+> +#include <linux/sched/mm.h>
+>   
+>   #define BITMAP_CHUNK_SIZE	sizeof(u64)
+>   #define BITMAP_CHUNK_BITS	(BITMAP_CHUNK_SIZE * BITS_PER_BYTE)
+> @@ -28,15 +29,12 @@
+>    *
+>    * This function tries to get a user memory page by pfn as described above.
+>    */
+> -static struct page *page_idle_get_page(unsigned long pfn)
+> +static struct page *page_idle_get_page(struct page *page_in)
+>   {
+>   	struct page *page;
+>   	pg_data_t *pgdat;
+>   
+> -	if (!pfn_valid(pfn))
+> -		return NULL;
+> -
+> -	page = pfn_to_page(pfn);
+> +	page = page_in;
+>   	if (!page || !PageLRU(page) ||
+>   	    !get_page_unless_zero(page))
+>   		return NULL;
+> @@ -51,6 +49,15 @@ static struct page *page_idle_get_page(unsigned long pfn)
+>   	return page;
+>   }
+>   
+> +static struct page *page_idle_get_page_pfn(unsigned long pfn)
+> +{
+> +
+> +	if (!pfn_valid(pfn))
+> +		return NULL;
+> +
+> +	return page_idle_get_page(pfn_to_page(pfn));
+> +}
+> +
+>   static bool page_idle_clear_pte_refs_one(struct page *page,
+>   					struct vm_area_struct *vma,
+>   					unsigned long addr, void *arg)
+> @@ -118,6 +125,47 @@ static void page_idle_clear_pte_refs(struct page *page)
+>   		unlock_page(page);
+>   }
+>   
+> +/* Helper to get the start and end frame given a pos and count */
+> +static int page_idle_get_frames(loff_t pos, size_t count, struct mm_struct *mm,
+> +				unsigned long *start, unsigned long *end)
+> +{
+> +	unsigned long max_frame;
+> +
+> +	/* If an mm is not given, assume we want physical frames */
+> +	max_frame = mm ? (mm->task_size >> PAGE_SHIFT) : max_pfn;
+> +
+> +	if (pos % BITMAP_CHUNK_SIZE || count % BITMAP_CHUNK_SIZE)
+> +		return -EINVAL;
+> +
+> +	*start = pos * BITS_PER_BYTE;
+> +	if (*start >= max_frame)
+> +		return -ENXIO;
+> +
+> +	*end = *start + count * BITS_PER_BYTE;
+> +	if (*end > max_frame)
+> +		*end = max_frame;
+> +	return 0;
+> +}
+> +
+> +static bool page_really_idle(struct page *page)
+> +{
+> +	if (!page)
+> +		return false;
+> +
+> +	if (page_is_idle(page)) {
+> +		/*
+> +		 * The page might have been referenced via a
+> +		 * pte, in which case it is not idle. Clear
+> +		 * refs and recheck.
+> +		 */
+> +		page_idle_clear_pte_refs(page);
+> +		if (page_is_idle(page))
+> +			return true;
+> +	}
+> +
+> +	return false;
+> +}
+> +
+>   static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
+>   				     struct bin_attribute *attr, char *buf,
+>   				     loff_t pos, size_t count)
+> @@ -125,35 +173,21 @@ static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
+>   	u64 *out = (u64 *)buf;
+>   	struct page *page;
+>   	unsigned long pfn, end_pfn;
+> -	int bit;
+> -
+> -	if (pos % BITMAP_CHUNK_SIZE || count % BITMAP_CHUNK_SIZE)
+> -		return -EINVAL;
+> -
+> -	pfn = pos * BITS_PER_BYTE;
+> -	if (pfn >= max_pfn)
+> -		return 0;
+> +	int bit, ret;
+>   
+> -	end_pfn = pfn + count * BITS_PER_BYTE;
+> -	if (end_pfn > max_pfn)
+> -		end_pfn = max_pfn;
+> +	ret = page_idle_get_frames(pos, count, NULL, &pfn, &end_pfn);
+> +	if (ret == -ENXIO)
+> +		return 0;  /* Reads beyond max_pfn do nothing */
+> +	else if (ret)
+> +		return ret;
+>   
+>   	for (; pfn < end_pfn; pfn++) {
+>   		bit = pfn % BITMAP_CHUNK_BITS;
+>   		if (!bit)
+>   			*out = 0ULL;
+> -		page = page_idle_get_page(pfn);
+> -		if (page) {
+> -			if (page_is_idle(page)) {
+> -				/*
+> -				 * The page might have been referenced via a
+> -				 * pte, in which case it is not idle. Clear
+> -				 * refs and recheck.
+> -				 */
+> -				page_idle_clear_pte_refs(page);
+> -				if (page_is_idle(page))
+> -					*out |= 1ULL << bit;
+> -			}
+> +		page = page_idle_get_page_pfn(pfn);
+> +		if (page && page_really_idle(page)) {
+> +			*out |= 1ULL << bit;
+>   			put_page(page);
+>   		}
+>   		if (bit == BITMAP_CHUNK_BITS - 1)
+> @@ -170,23 +204,16 @@ static ssize_t page_idle_bitmap_write(struct file *file, struct kobject *kobj,
+>   	const u64 *in = (u64 *)buf;
+>   	struct page *page;
+>   	unsigned long pfn, end_pfn;
+> -	int bit;
+> +	int bit, ret;
+>   
+> -	if (pos % BITMAP_CHUNK_SIZE || count % BITMAP_CHUNK_SIZE)
+> -		return -EINVAL;
+> -
+> -	pfn = pos * BITS_PER_BYTE;
+> -	if (pfn >= max_pfn)
+> -		return -ENXIO;
+> -
+> -	end_pfn = pfn + count * BITS_PER_BYTE;
+> -	if (end_pfn > max_pfn)
+> -		end_pfn = max_pfn;
+> +	ret = page_idle_get_frames(pos, count, NULL, &pfn, &end_pfn);
+> +	if (ret)
+> +		return ret;
+>   
+>   	for (; pfn < end_pfn; pfn++) {
+>   		bit = pfn % BITMAP_CHUNK_BITS;
+>   		if ((*in >> bit) & 1) {
+> -			page = page_idle_get_page(pfn);
+> +			page = page_idle_get_page_pfn(pfn);
+>   			if (page) {
+>   				page_idle_clear_pte_refs(page);
+>   				set_page_idle(page);
+> @@ -224,10 +251,208 @@ struct page_ext_operations page_idle_ops = {
+>   };
+>   #endif
+>   
+> +/*  page_idle tracking for /proc/<pid>/page_idle */
+> +
+> +static DEFINE_SPINLOCK(idle_page_list_lock);
+> +struct list_head idle_page_list;
+> +
+> +struct page_node {
+> +	struct page *page;
+> +	unsigned long addr;
+> +	struct list_head list;
+> +};
+> +
+> +struct page_idle_proc_priv {
+> +	unsigned long start_addr;
+> +	char *buffer;
+> +	int write;
+> +};
+> +
+> +static void add_page_idle_list(struct page *page,
+> +			       unsigned long addr, struct mm_walk *walk)
+> +{
+> +	struct page *page_get;
+> +	struct page_node *pn;
+> +	int bit;
+> +	unsigned long frames;
+> +	struct page_idle_proc_priv *priv = walk->private;
+> +	u64 *chunk = (u64 *)priv->buffer;
+> +
+> +	if (priv->write) {
+> +		/* Find whether this page was asked to be marked */
+> +		frames = (addr - priv->start_addr) >> PAGE_SHIFT;
+> +		bit = frames % BITMAP_CHUNK_BITS;
+> +		chunk = &chunk[frames / BITMAP_CHUNK_BITS];
+> +		if (((*chunk >> bit) & 1) == 0)
+> +			return;
+> +	}
+> +
+> +	page_get = page_idle_get_page(page);
+> +	if (!page_get)
+> +		return;
+> +
+> +	pn = kmalloc(sizeof(*pn), GFP_ATOMIC);
+> +	if (!pn)
+> +		return;
+> +
+> +	pn->page = page_get;
+> +	pn->addr = addr;
+> +	list_add(&pn->list, &idle_page_list);
+> +}
+> +
+> +static int pte_page_idle_proc_range(pmd_t *pmd, unsigned long addr,
+> +				    unsigned long end,
+> +				    struct mm_walk *walk)
+> +{
+> +	struct vm_area_struct *vma = walk->vma;
+> +	pte_t *pte;
+> +	spinlock_t *ptl;
+> +	struct page *page;
+> +
+> +	ptl = pmd_trans_huge_lock(pmd, vma);
+> +	if (ptl) {
+> +		if (pmd_present(*pmd)) {
+> +			page = follow_trans_huge_pmd(vma, addr, pmd,
+> +						     FOLL_DUMP|FOLL_WRITE);
+> +			if (!IS_ERR_OR_NULL(page))
+> +				add_page_idle_list(page, addr, walk);
+> +		}
+> +		spin_unlock(ptl);
+> +		return 0;
+> +	}
+> +
+> +	if (pmd_trans_unstable(pmd))
+> +		return 0;
+> +
+> +	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> +	for (; addr != end; pte++, addr += PAGE_SIZE) {
+> +		if (!pte_present(*pte))
+> +			continue;
+> +
+> +		page = vm_normal_page(vma, addr, *pte);
+> +		if (page)
+> +			add_page_idle_list(page, addr, walk);
+> +	}
+> +
+> +	pte_unmap_unlock(pte - 1, ptl);
+> +	return 0;
+> +}
+> +
+> +ssize_t page_idle_proc_generic(struct file *file, char __user *ubuff,
+> +			       size_t count, loff_t *pos,
+> +			       struct task_struct *tsk, int write)
+> +{
+> +	int ret;
+> +	char *buffer;
+> +	u64 *out;
+> +	unsigned long start_addr, end_addr, start_frame, end_frame;
+> +	struct mm_struct *mm = file->private_data;
+> +	struct mm_walk walk = { .pmd_entry = pte_page_idle_proc_range, };
+> +	struct page_node *cur, *next;
+> +	struct page_idle_proc_priv priv;
+> +	bool walk_error = false;
+> +
+> +	if (!mm || !mmget_not_zero(mm))
+> +		return -EINVAL;
+> +
+> +	if (count > PAGE_SIZE)
+> +		count = PAGE_SIZE;
+> +
+> +	buffer = kzalloc(PAGE_SIZE, GFP_KERNEL);
+> +	if (!buffer) {
+> +		ret = -ENOMEM;
+> +		goto out_mmput;
+> +	}
+> +	out = (u64 *)buffer;
+> +
+> +	if (write && copy_from_user(buffer, ubuff, count)) {
+> +		ret = -EFAULT;
+> +		goto out;
+> +	}
+> +
+> +	ret = page_idle_get_frames(*pos, count, mm, &start_frame, &end_frame);
+> +	if (ret)
+> +		goto out;
+> +
+> +	start_addr = (start_frame << PAGE_SHIFT);
+> +	end_addr = (end_frame << PAGE_SHIFT);
+> +	priv.buffer = buffer;
+> +	priv.start_addr = start_addr;
+> +	priv.write = write;
+> +	walk.private = &priv;
+> +	walk.mm = mm;
+> +
+> +	down_read(&mm->mmap_sem);
+> +
+> +	/*
+> +	 * Protects the idle_page_list which is needed because
+> +	 * walk_page_vma() holds ptlock which deadlocks with
+> +	 * page_idle_clear_pte_refs(). So we have to collect all
+> +	 * pages first, and then call page_idle_clear_pte_refs().
+> +	 */
+> +	spin_lock(&idle_page_list_lock);
+> +	ret = walk_page_range(start_addr, end_addr, &walk);
+> +	if (ret)
+> +		walk_error = true;
+> +
+> +	list_for_each_entry_safe(cur, next, &idle_page_list, list) {
+> +		int bit, index;
+> +		unsigned long off;
+> +		struct page *page = cur->page;
+> +
+> +		if (unlikely(walk_error))
+> +			goto remove_page;
+> +
+> +		if (write) {
+> +			page_idle_clear_pte_refs(page);
+> +			set_page_idle(page);
+> +		} else {
+> +			if (page_really_idle(page)) {
+> +				off = ((cur->addr) >> PAGE_SHIFT) - start_frame;
+> +				bit = off % BITMAP_CHUNK_BITS;
+> +				index = off / BITMAP_CHUNK_BITS;
+> +				out[index] |= 1ULL << bit;
+> +			}
+> +		}
+> +remove_page:
+> +		put_page(page);
+> +		list_del(&cur->list);
+> +		kfree(cur);
+> +	}
+> +	spin_unlock(&idle_page_list_lock);
+> +
+> +	if (!write && !walk_error)
+> +		ret = copy_to_user(ubuff, buffer, count);
+> +
+> +	up_read(&mm->mmap_sem);
+> +out:
+> +	kfree(buffer);
+> +out_mmput:
+> +	mmput(mm);
+> +	if (!ret)
+> +		ret = count;
+> +	return ret;
+> +
+> +}
+> +
+> +ssize_t page_idle_proc_read(struct file *file, char __user *ubuff,
+> +			    size_t count, loff_t *pos, struct task_struct *tsk)
+> +{
+> +	return page_idle_proc_generic(file, ubuff, count, pos, tsk, 0);
+> +}
+> +
+> +ssize_t page_idle_proc_write(struct file *file, char __user *ubuff,
+> +			     size_t count, loff_t *pos, struct task_struct *tsk)
+> +{
+> +	return page_idle_proc_generic(file, ubuff, count, pos, tsk, 1);
+> +}
+> +
+>   static int __init page_idle_init(void)
+>   {
+>   	int err;
+>   
+> +	INIT_LIST_HEAD(&idle_page_list);
+> +
+>   	err = sysfs_create_group(mm_kobj, &page_idle_attr_group);
+>   	if (err) {
+>   		pr_err("page_idle: register sysfs failed\n");
+> 
 
