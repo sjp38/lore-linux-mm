@@ -2,156 +2,293 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 368CBC7618B
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 12:47:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5EBD6C7618B
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 12:49:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ED71D2239D
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 12:47:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AA8F421903
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 12:49:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="AIBWSs3L"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED71D2239D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="SxAiEfbM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AA8F421903
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8020C6B0003; Tue, 23 Jul 2019 08:47:10 -0400 (EDT)
+	id 4CB916B0007; Tue, 23 Jul 2019 08:49:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7B1FB6B0005; Tue, 23 Jul 2019 08:47:10 -0400 (EDT)
+	id 453978E0003; Tue, 23 Jul 2019 08:49:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6A23A8E0002; Tue, 23 Jul 2019 08:47:10 -0400 (EDT)
+	id 2CE548E0002; Tue, 23 Jul 2019 08:49:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 4BC086B0003
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 08:47:10 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id t124so36402533qkh.3
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 05:47:10 -0700 (PDT)
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B70426B0007
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 08:49:35 -0400 (EDT)
+Received: by mail-lj1-f197.google.com with SMTP id 17so9299139ljc.20
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 05:49:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=piZ8i8TowZ2SsXDzt8tX5OF8nKyYqoULcyfh5zRNZ38=;
-        b=qilStfCWDjF//rsjuYiQpmn+OtyZM/MtlDuu85LpHx9sQYZhoZ/CmAuOBU7HWuHanK
-         RYLiaCqIoFeeBiX3g2fohq22Ey6wLUZ3nyCDam2+FjpCBtJNGZTSnkFG+DbF8FPBPhbh
-         7Cvi3Jl1bluWUIhXgQ4G7v8EHszqMQqNUI/aerwfIM1m6liHQDVr5ODe22Abw2EAiwWV
-         ewUOt2KMgNHbZw1A0Lc5j1xB78UUY4ar/1jBDgAFLpSe33lGQpnnMfly2mka7Vyl9Gya
-         D57hMxTzhZ9w9JcMp7ogY2lCziXjgmAVPbKo8w7lspLXflOsP3rSU6elcf96a9KHiX21
-         C9uA==
-X-Gm-Message-State: APjAAAUNrfwS60m92mmpFWtRZ1zsOF2zeepVrHDTAkKgYITOMgBNUYni
-	Kp94TbasUOXq1nG2GMz+Mpp/pMG+t1uctonQyCq9Ay/i1k89XrZYZEo2+Oq8A20ngc0/2cPXQqq
-	ZUIrgfSEhqBbOOSeS6rN7ZJs2SVHSVc3iEMDeoHMXltMpxxK/1r0lW3G71Zeq5Pyo3Q==
-X-Received: by 2002:a05:620a:1228:: with SMTP id v8mr5564971qkj.357.1563886030072;
-        Tue, 23 Jul 2019 05:47:10 -0700 (PDT)
-X-Received: by 2002:a05:620a:1228:: with SMTP id v8mr5564926qkj.357.1563886029465;
-        Tue, 23 Jul 2019 05:47:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563886029; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:date:message-id
+         :user-agent:mime-version:content-transfer-encoding;
+        bh=zurua77u+0xi6TbhWif5eKYYbACOpA6ckuYdIyXtbcw=;
+        b=MlLZAZRYBsGZCmmH7h1WsyMUIlFFL9VcJXbqZHBKrT9+Y+4unZFEoPinUfzZZA+GuQ
+         nC6/fSTXXj0anOX7zZIWksZNgCU/wGmeRiBkGpBG71kdf0nplnVluM8Nvp9mYyUJFfDs
+         VON+mCy9El+2DOfZJyKHaNBwb0mepNC/IecHymVsreiiIMlmeIMy7ItsH7c5x4rj8kdQ
+         c9A7afRca1Pq0fSY6VEyEoXtDr5znizuJ2UEoNZXxObAoSdH6Q9jKFHPGeQMoHIf1UFT
+         PMSmE9ECBuwh1LrGVNNt7LzsvHmhLcIKpSpYMCigNqdxRj/2Yv9ZnDIohEdRg+qgXX5G
+         FNzw==
+X-Gm-Message-State: APjAAAUg9+zRZcTgDKexHPbjNMq3zd+YpDcJQx+xM6Zbv56dvRgvD+Ab
+	M7bRogyeB47c4sBGZ0tdUSb4Z0eMXl9vAnJlAEzVudah0vmja7GOlzTkb5cpLVNd/9342g9zx8f
+	u38PbcNuK7nkw6Meu8ZNHEmaw8JAlvA71DXaWkAn6hosmqaaCLBORif07tK89Eeql9A==
+X-Received: by 2002:a2e:8944:: with SMTP id b4mr15309609ljk.154.1563886175001;
+        Tue, 23 Jul 2019 05:49:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx828/Bqgzo0fCO/OHHGt4UIIV1UWstyH/ca5DCvHnlwirUie/J3DJgJvdYMb9BYoewU1oz
+X-Received: by 2002:a2e:8944:: with SMTP id b4mr15309563ljk.154.1563886173780;
+        Tue, 23 Jul 2019 05:49:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563886173; cv=none;
         d=google.com; s=arc-20160816;
-        b=JmpBf0sx2fuvCqXY0vqYeAKhM3BPZ7UPrkwrzBxScjOahKTZWQbPk8GgfSkGWfLa7y
-         TICLO1xhaouwHjEl2W3Tx9MreXM5DtUywxX4ObNlFcHxZRlYBxVEGaSPjIppP/wQitK8
-         dr9pU5zCOeJxZFq3NFzD9qo5zXTxlMR+ccv5wr+bFQ6dhrhUZcRGKZTUSjcUB9GdTmel
-         PKKQiop49Ku031FmTGWF7k5LDHOJUOhN9nB6xDikNdyfQQsRrrUyiOQpsYSqemlKf+5e
-         bXZELPKuYMp6EpJndCWBW5nTzyPYMiz8sgHKsvA0wi4iKvK4aPhLUmfQWzwcpni/WssC
-         0+Ww==
+        b=LBORbf7GQTGtdm/4nR2lMpGfSiQknX4ANETb7jBfd1R8pR2zhnpbrCX/1elj8IPVP0
+         +wy+T4IdYFMA1BLH825+xlTUAeUdTYqTz3gudq+Ovj/AbzJQC1Xuv/9qwQlrOtuVocPr
+         htTDHWRROEikJsGs2hY9DcsaApyJEXQOZTnDyFhsTSWabNrsWD6O7pQKOyxltUywpGCL
+         s8ZxWxuBcgYvYxTyAxly4laiaO5Uo4s+XS1vw0YJFipQoIibjq7T6hBGseW7MuszjyUU
+         OwSJZtVj+Rh7VEf76+1jRrH++hHTs4lGf8D0fpAsiqUQ8oWpNGlZ4CwLILOZxDshqSyv
+         SLlg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=piZ8i8TowZ2SsXDzt8tX5OF8nKyYqoULcyfh5zRNZ38=;
-        b=gH5oEBq+3zztOD6ILfAtycu8YnPJrbs25ByWf7zYpDiAAaNUr5yolafjqNINY6l8pN
-         hWioMvwEWQoU+6ZFSWalckcrsLaC1ysJjTW4sbYFzh0V+YirbkB8pCHNCvL1+FIxAmxl
-         X4RSFGTeu58xbgflEy+ctsiX6jHRqlYMfanc3NBvOYuPm5dhP6GMwflyuLt55W2zyWIp
-         9Jt7nufknGDDPel7BXxMGkc1bwo9E8Ygcp0+CbsZt4s5A+84ENp+28JfjRbfMbKuV446
-         0JsYBHgk/GYbUJ2orMhox8tX1zt1M3qcNtsDBPpT6x2ihnyeUgsi4CvBj4bVTzSg1xJ2
-         Vq/A==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :to:from:subject:dkim-signature;
+        bh=zurua77u+0xi6TbhWif5eKYYbACOpA6ckuYdIyXtbcw=;
+        b=o7GmUVc2w/SrP7c3c/U12daFQBB7FWTlIK9g2OBv1vJGgg6KqdNDrK4y3MLItQb1ON
+         lh+pCgnC1eq1FAnE3s4fzeIjj3EB4WkYE0sXeomZ8LLBXXCxXOuVdPJtwcYsZzc3iEai
+         tQJtlh2v/b4Q2XY3wern2ASGsxawKhh7xLA9uGo6umnLyaKvzdjsrd15bMlMHmKHeZDx
+         N0JxvhTaS1tYO0EGObo+g1KdYxVsFnh0XDu1d8bBYQigieI3ISpIEA1DjbBf7qHOu+nD
+         H8TAcBkCHPQFqDRhQH7Ztp1dV3AwNEzFJS2Qkse0Vo73Sth9PDK6u+I1DJWJ1HfcI6gV
+         K/+g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=AIBWSs3L;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v5sor56344787qtk.73.2019.07.23.05.47.09
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=SxAiEfbM;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from forwardcorp1o.mail.yandex.net (forwardcorp1o.mail.yandex.net. [95.108.205.193])
+        by mx.google.com with ESMTPS id o194si32322909lfa.67.2019.07.23.05.49.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 23 Jul 2019 05:47:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Jul 2019 05:49:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) client-ip=95.108.205.193;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=AIBWSs3L;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=piZ8i8TowZ2SsXDzt8tX5OF8nKyYqoULcyfh5zRNZ38=;
-        b=AIBWSs3L6TMrqR1kjSjiMOoco1Jvz8sMlyjAm/koUlgASb3F1pge4pF62yhgDzaLyN
-         8W6kJiJVRv2Ltl10P0KJ3h4Rxv4Sqan/wDHsLcdXsjf9MrtAiVLfb6MvuqzOUpw1Pvo5
-         nfDvSBFzcy4NTtXExC58RlVhp7zb6QbnLZPrvQwNNigrLSQSCT0Y7gE3jAYG9SExooUW
-         JtXIQ7nuInz2UXqhOw5OA3nFxJXlzY3ERVxPfPBlTt9/UEojN9Wnpkk9roKmmsv/AIWs
-         aeioIMb0c14NQnQgfwpCWB/P0nQs5B9LzMw6NDgi8cvJhVre3EHc/K68PAB7f3zGy6Lb
-         WGNw==
-X-Google-Smtp-Source: APXvYqyDweYbQsaT3Kt4MRrQs5/v1m87TpQW/FZm/84f2JQiv3oW3vaHuL2MCkVEVWkDHF7BwFh/Mg==
-X-Received: by 2002:ac8:877:: with SMTP id x52mr53156167qth.328.1563886029140;
-        Tue, 23 Jul 2019 05:47:09 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id q3sm19357570qkq.133.2019.07.23.05.47.08
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 23 Jul 2019 05:47:08 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hpuCB-0004tl-I7; Tue, 23 Jul 2019 09:47:07 -0300
-Date: Tue, 23 Jul 2019 09:47:07 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: Ira Weiny <ira.weiny@intel.com>, john.hubbard@gmail.com,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	=?utf-8?B?QmrDtnJuIFTDtnBlbA==?= <bjorn.topel@intel.com>,
-	Boaz Harrosh <boaz@plexistor.com>, Christoph Hellwig <hch@lst.de>,
-	Daniel Vetter <daniel@ffwll.ch>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>, David Airlie <airlied@linux.ie>,
-	"David S . Miller" <davem@davemloft.net>,
-	Ilya Dryomov <idryomov@gmail.com>, Jan Kara <jack@suse.cz>,
-	Jens Axboe <axboe@kernel.dk>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	Johannes Thumshirn <jthumshirn@suse.de>,
-	Magnus Karlsson <magnus.karlsson@intel.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Miklos Szeredi <miklos@szeredi.hu>, Ming Lei <ming.lei@redhat.com>,
-	Sage Weil <sage@redhat.com>,
-	Santosh Shilimkar <santosh.shilimkar@oracle.com>,
-	Yan Zheng <zyan@redhat.com>, netdev@vger.kernel.org,
-	dri-devel@lists.freedesktop.org, linux-mm@kvack.org,
-	linux-rdma@vger.kernel.org, bpf@vger.kernel.org,
-	LKML <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 3/3] net/xdp: convert put_page() to put_user_page*()
-Message-ID: <20190723124707.GB15357@ziepe.ca>
-References: <20190722223415.13269-1-jhubbard@nvidia.com>
- <20190722223415.13269-4-jhubbard@nvidia.com>
- <20190723002534.GA10284@iweiny-DESK2.sc.intel.com>
- <a4e9b293-11f8-6b3c-cf4d-308e3b32df34@nvidia.com>
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=SxAiEfbM;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from mxbackcorp2j.mail.yandex.net (mxbackcorp2j.mail.yandex.net [IPv6:2a02:6b8:0:1619::119])
+	by forwardcorp1o.mail.yandex.net (Yandex) with ESMTP id 1C2922E14BD;
+	Tue, 23 Jul 2019 15:49:33 +0300 (MSK)
+Received: from smtpcorp1p.mail.yandex.net (smtpcorp1p.mail.yandex.net [2a02:6b8:0:1472:2741:0:8b6:10])
+	by mxbackcorp2j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id fmQPnrek3M-nWNePTP1;
+	Tue, 23 Jul 2019 15:49:33 +0300
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
+	t=1563886173; bh=zurua77u+0xi6TbhWif5eKYYbACOpA6ckuYdIyXtbcw=;
+	h=Message-ID:Date:To:From:Subject;
+	b=SxAiEfbMTe6g9rgjKAYpYyEw55A0/Cpf/8g/VkVC2mITNAE9pvdqSLU2VYWVp8Lkl
+	 0Pbz4BSHklhJhaDSvJbL/2kwJxymf9bSMWsd/Qj9XGAs1qI+mLpTe+FsKgU2gWpDM7
+	 PWIgws5dlKgyWtMCh/8WPswvwbcAOiLtGgIAc8wg=
+Authentication-Results: mxbackcorp2j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
+Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:38b3:1cdf:ad1a:1fe1])
+	by smtpcorp1p.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id TrvRdaTa6V-nW6KTqe5;
+	Tue, 23 Jul 2019 15:49:32 +0300
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(Client certificate not present)
+Subject: [PATCH] mm/backing-dev: show state of all bdi_writeback in debugfs
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+To: linux-kernel@vger.kernel.org, linux-mm@kvack.org, cgroups@vger.kernel.org,
+ linux-fsdevel@vger.kernel.org, Tejun Heo <tj@kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>
+Date: Tue, 23 Jul 2019 15:49:32 +0300
+Message-ID: <156388617236.3608.2194886130557491278.stgit@buzz>
+User-Agent: StGit/0.17.1-dirty
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a4e9b293-11f8-6b3c-cf4d-308e3b32df34@nvidia.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 22, 2019 at 09:41:34PM -0700, John Hubbard wrote:
+Currently /sys/kernel/debug/bdi/$maj:$min/stats shows only root bdi wb.
+With CONFIG_CGROUP_WRITEBACK=y there is one for each memory cgroup.
 
-> * The leading underscores are often used for the more elaborate form of the
-> call (as oppposed to decorating the core function name with "_flags", for
-> example).
+This patch shows here state of each bdi_writeback in form:
 
-IMHO usually the __ version of a public symbol means something like
-'why are you using this? you probably should not'
+<global state>
 
-Often because the __ version has no locking or some other dangerous
-configuration like that.
+Id: 1
+Cgroup: /
+<root wb state>
 
-Jason
+Id: xxx
+Cgroup: /path
+<cgroup wb state>
+
+Id: yyy
+Cgroup: /path2
+<cgroup wb state>
+
+...
+
+Signed-off-by: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+---
+ mm/backing-dev.c |  106 +++++++++++++++++++++++++++++++++++++++++++++++-------
+ 1 file changed, 93 insertions(+), 13 deletions(-)
+
+diff --git a/mm/backing-dev.c b/mm/backing-dev.c
+index e8e89158adec..3e752c4bafaf 100644
+--- a/mm/backing-dev.c
++++ b/mm/backing-dev.c
+@@ -45,7 +45,7 @@ static void bdi_debug_init(void)
+ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ {
+ 	struct backing_dev_info *bdi = m->private;
+-	struct bdi_writeback *wb = &bdi->wb;
++	struct bdi_writeback *wb = v;
+ 	unsigned long background_thresh;
+ 	unsigned long dirty_thresh;
+ 	unsigned long wb_thresh;
+@@ -65,43 +65,123 @@ static int bdi_debug_stats_show(struct seq_file *m, void *v)
+ 			nr_dirty_time++;
+ 	spin_unlock(&wb->list_lock);
+ 
+-	global_dirty_limits(&background_thresh, &dirty_thresh);
+-	wb_thresh = wb_calc_thresh(wb, dirty_thresh);
+-
+ #define K(x) ((x) << (PAGE_SHIFT - 10))
++
++	/* global state */
++	if (wb == &bdi->wb) {
++		global_dirty_limits(&background_thresh, &dirty_thresh);
++		wb_thresh = wb_calc_thresh(wb, dirty_thresh);
++		seq_printf(m,
++			   "BdiDirtyThresh:     %10lu kB\n"
++			   "DirtyThresh:        %10lu kB\n"
++			   "BackgroundThresh:   %10lu kB\n"
++			   "bdi_list:           %10u\n",
++			   K(wb_thresh),
++			   K(dirty_thresh),
++			   K(background_thresh),
++			   !list_empty(&bdi->bdi_list));
++	}
++
++	/* cgroup header */
++#ifdef CONFIG_CGROUP_WRITEBACK
++	if (bdi->capabilities & BDI_CAP_CGROUP_WRITEBACK) {
++		size_t buflen, len;
++		char *buf;
++
++		seq_printf(m, "\nId: %d\nCgroup: ", wb->memcg_css->id);
++		buflen = seq_get_buf(m, &buf);
++		if (buf) {
++			len = cgroup_path(wb->memcg_css->cgroup, buf, buflen);
++			seq_commit(m, len <= buflen ? len : -1);
++			seq_putc(m, '\n');
++		}
++	}
++#endif /* CONFIG_CGROUP_WRITEBACK */
++
+ 	seq_printf(m,
+ 		   "BdiWriteback:       %10lu kB\n"
+ 		   "BdiReclaimable:     %10lu kB\n"
+-		   "BdiDirtyThresh:     %10lu kB\n"
+-		   "DirtyThresh:        %10lu kB\n"
+-		   "BackgroundThresh:   %10lu kB\n"
+ 		   "BdiDirtied:         %10lu kB\n"
+ 		   "BdiWritten:         %10lu kB\n"
+ 		   "BdiWriteBandwidth:  %10lu kBps\n"
++		   "BdiAvgWriteBwidth:  %10lu kBps\n"
+ 		   "b_dirty:            %10lu\n"
+ 		   "b_io:               %10lu\n"
+ 		   "b_more_io:          %10lu\n"
+ 		   "b_dirty_time:       %10lu\n"
+-		   "bdi_list:           %10u\n"
+ 		   "state:              %10lx\n",
+ 		   (unsigned long) K(wb_stat(wb, WB_WRITEBACK)),
+ 		   (unsigned long) K(wb_stat(wb, WB_RECLAIMABLE)),
+-		   K(wb_thresh),
+-		   K(dirty_thresh),
+-		   K(background_thresh),
+ 		   (unsigned long) K(wb_stat(wb, WB_DIRTIED)),
+ 		   (unsigned long) K(wb_stat(wb, WB_WRITTEN)),
+ 		   (unsigned long) K(wb->write_bandwidth),
++		   (unsigned long) K(wb->avg_write_bandwidth),
+ 		   nr_dirty,
+ 		   nr_io,
+ 		   nr_more_io,
+ 		   nr_dirty_time,
+-		   !list_empty(&bdi->bdi_list), bdi->wb.state);
++		   wb->state);
+ #undef K
+ 
+ 	return 0;
+ }
+-DEFINE_SHOW_ATTRIBUTE(bdi_debug_stats);
++
++static void *bdi_debug_stats_start(struct seq_file *m, loff_t *ppos)
++{
++	struct backing_dev_info *bdi = m->private;
++	struct bdi_writeback *wb;
++	loff_t pos = *ppos;
++
++	rcu_read_lock();
++	list_for_each_entry_rcu(wb, &bdi->wb_list, bdi_node)
++		if (pos-- == 0)
++			return wb;
++	return NULL;
++}
++
++static void *bdi_debug_stats_next(struct seq_file *m, void *v, loff_t *ppos)
++{
++	struct backing_dev_info *bdi = m->private;
++	struct bdi_writeback *wb = v;
++
++	list_for_each_entry_continue_rcu(wb, &bdi->wb_list, bdi_node) {
++		++*ppos;
++		return wb;
++	}
++	return NULL;
++}
++
++static void bdi_debug_stats_stop(struct seq_file *m, void *v)
++{
++	rcu_read_unlock();
++}
++
++static const struct seq_operations bdi_debug_stats_seq_ops = {
++	.start	= bdi_debug_stats_start,
++	.next	= bdi_debug_stats_next,
++	.stop	= bdi_debug_stats_stop,
++	.show	= bdi_debug_stats_show,
++};
++
++static int bdi_debug_stats_open(struct inode *inode, struct file *file)
++{
++	struct seq_file *m;
++	int ret;
++
++	ret = seq_open(file, &bdi_debug_stats_seq_ops);
++	if (!ret) {
++		m = file->private_data;
++		m->private = inode->i_private;
++	}
++	return ret;
++}
++
++static const struct file_operations bdi_debug_stats_fops = {
++	.open		= bdi_debug_stats_open,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= seq_release,
++};
+ 
+ static void bdi_debug_register(struct backing_dev_info *bdi, const char *name)
+ {
 
