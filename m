@@ -2,207 +2,144 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DA7BC7618F
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 00:03:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2AA86C7618F
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 00:17:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CEA48218BE
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 00:03:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CEA48218BE
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id CAC0F21BE6
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 00:17:03 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="RcjKdLTG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CAC0F21BE6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 422EB6B0005; Mon, 22 Jul 2019 20:03:38 -0400 (EDT)
+	id 614D86B0003; Mon, 22 Jul 2019 20:17:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3D5118E0003; Mon, 22 Jul 2019 20:03:38 -0400 (EDT)
+	id 5C5876B0005; Mon, 22 Jul 2019 20:17:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2C3A58E0001; Mon, 22 Jul 2019 20:03:38 -0400 (EDT)
+	id 48F448E0001; Mon, 22 Jul 2019 20:17:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E937D6B0005
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 20:03:37 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id t2so20828390plo.10
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 17:03:37 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 153EE6B0003
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 20:17:03 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id 71so20862539pld.1
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 17:17:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=G2KDi8J+eLxk9PnNxZ4AOboVee294jxqoOE5+8lh0u8=;
-        b=NlzsQkSF8b7SMiH+P5Bbbc1TseykwDhTttEXur7qqxW0WdGEg7Rrn6OfeR9T3hHgSv
-         qWIuJkjtihXScqhhQqjI7Ov+F2lwdNO7knOtwqBHVI05k3GE4knoozBVs7yodwavf8vJ
-         xczyu1ce5V1kbuKXvjVUBsUlCn0uDXigGmul6tUPNRIGrsVL5opGqydpAtxMGXK8Sgu8
-         GEF7vVad0o0JdOGGV4cq5p1OQ5cQbpYPrfjPo7ZiLBNLLBiR3qc6F3f82nwxVu1AWtsm
-         oEq3c98jg4f5bC1cY0aAuJiwDC63bZb0Tm/Q1FpQZhcy8WyYJmJRe0odK34boEOlisL+
-         O5nw==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAWFNXvfz3O7xMuWCvXmjYOqvX2xgJLpsetYRZjZVBaffmTae2lA
-	lH5czGVpQ64wQYPBWWeIeasjhoQMp0G6Vos0iMvQlI/Zyi+l/WROkvD8zWfdO9Y4VRzFfYKM/DO
-	3dqVw4ckEUGJ6Bup0dO3y7xEa0arf3YKPHLycjNiozYHg0xBKNNNuKwNIL52rmdg=
-X-Received: by 2002:a17:902:aa41:: with SMTP id c1mr77216740plr.201.1563840217560;
-        Mon, 22 Jul 2019 17:03:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzcQi9h8r98urp/UzzwtcK05s197cFh1uCsVseA8I4RS9icJX8ois4Yuzu3jUwe+2UajhAt
-X-Received: by 2002:a17:902:aa41:: with SMTP id c1mr77216683plr.201.1563840216713;
-        Mon, 22 Jul 2019 17:03:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563840216; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=tsC0A1CH1U9O8xNQgvl6L4AJAPrF2xKc99GA6nm0iPE=;
+        b=FEq3DCGezPF1XN/yjQWvcDbIEXhkir0AJA+SIl7773H8ErxLIjCxZR4CV9JJmLTuSY
+         YdyveosXQrCJbg7LwkZX9si8ALcypnCKOqQ7vaMCgwd/nlBZdYoSyCUAz0Gtd07jmrSb
+         p9B74O0exz+vNd5NouDLoH16409GtDsA3bxUyK+4DhtR/moT8AGhiAQTapoBoSHl9nYG
+         6v3eR+JezqiJQVHsT0op7yE90LI4/YiHHrjTHMxStIU0UjyosGBCyw/ZVKuzXSO7VGpk
+         0hmyNdTl3UjxeJ5bnee1bSTLX0RgADi2x8uSF/ogcAJWZ0kL0bow7WjyTWvn/l6AvdWC
+         SLfQ==
+X-Gm-Message-State: APjAAAUTw5mNFPtFpEi/ixamATtlxVqG4MnNFCLyZD8GIWFM8RuoN8WI
+	HA96D/HW5IWmIVZGcHaIckz4NvhnHpc8SbA7C7xAWSn4T9+bT6sO1SZVQcoe0f42uD4fXiSHulh
+	PwJvSCjahc0Gi1nNHOMQyQcwIgII59pNF3zoMeUsm3HR+s93irPRnyqJKa/91aUWz1A==
+X-Received: by 2002:a62:2784:: with SMTP id n126mr2911166pfn.61.1563841022633;
+        Mon, 22 Jul 2019 17:17:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxlqF5FtOy3bO7kC6aLIebS8DKv3UioRo1+LRVvhYVsYWltZhbsXT138jNRVxVmNbHn75uB
+X-Received: by 2002:a62:2784:: with SMTP id n126mr2911127pfn.61.1563841022009;
+        Mon, 22 Jul 2019 17:17:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563841022; cv=none;
         d=google.com; s=arc-20160816;
-        b=buL2jD+gaAS/h84Qs4JPgMxlXw5bBwQGr+U43vixgB5kzZ8Tv5oYTD/2n5CUtfKJT7
-         3Cg7xqi7+iObndsjShZc6YWRGK9+0X747Qstjp5lDz2xmyGu08z1A3ofJj1mT7vHLSqn
-         Ndt+fGG3O7V5qBGClRHQ+qWRYirVycktPA54VKZsiLIi4pPI4lesnyy1nRzAB3wo5LUj
-         5fVm0NKB2uKQr+iHc0KN/g4H8LlupKYIYBV4RA2PJV4Br1LJa74YSsjeqcdbkIQQz1TR
-         VWfXMVtPoMY2wBHMOQ5kyFsas/3VNJwVxjVrkPXzHIUqnOEFYDtCSrSYrxSHpqwPgApX
-         aJiw==
+        b=WHTkrW8kzJ4gL3MUKDv4+5kdkm46+2n3koyuFCbvc3JrdD38P1kQ0bQ9HppCQX3tf5
+         07zinLgoQQr360ELRess05git/1tZPtGQuzqmbL9urQ0TnXVMQ9CW+pFBba+OGFaxaLV
+         86mLspXFKtO7hdLQnjIHMlAa6jfeLL0ss/OzOhJUIqYPhRiOVU+wjnBuWanT5FaaFVA8
+         RkGQClSpOWHLWG+d/YSDWLR4I3Cv/tLBxcB1VXruOUa+TjIC7DTlcaeQf6+RmE6BMDDv
+         RWuOmX7/4BPVuUzxs/K6fsi8wARh59wo9SeAvCaXzrQBiYHYq7Hvxh8jOdA4TA5Qlq+q
+         bjmA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=G2KDi8J+eLxk9PnNxZ4AOboVee294jxqoOE5+8lh0u8=;
-        b=afcfheBSC2WwdUedZkRHrf6iwYcjF64DWRTsKS3jD138bCB5LxnVDNYgBEJNQs+siN
-         LvAbtFtn0mYeOf5k9LBeXJX92panWmjps7PZ1ZTmnC2WkBpjsiPThJxDi1PDf+t6mzWa
-         ZHKauPPUa5J7enbuqaV8Dgl2PuW/5E/Qm1aYioSIb2u5UdD32OYBIxr8EDqBdhNjMoqc
-         wzyiQcr5lXU6aFwCkvgm94Ca+r3cU+DzYDA/CMFlgrSFZasj44SGXFK1zkjHMZCcymbr
-         wEOI5pZ2abrYQcvUyCoMz+OhsTMrLle5+JhMnjpmz6ChjEjpjfm80Esp4OBEUSbmXbP7
-         3Uqw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=tsC0A1CH1U9O8xNQgvl6L4AJAPrF2xKc99GA6nm0iPE=;
+        b=sUDfjpYda7Idq6jspgM6rZx56ViiYLBhHgV51sLupodB1o8094WIm1YZH9fX2lkyIV
+         b0U3uHhNUTPscR6C3JcxCOB8PfKK2RpuTJjyRFS5YmjsjaHjZoNypFJYlnCvsromGQGR
+         iTNKvu/qnuXOtlc7oHRqf8GbJWZWJhzqH/uoQEK6N5ITx8/gEuIpB4Zd+mDrVHNJVWJV
+         uhd/uvtlqAI6Gw1I93/gx3spU8U9Np7zeOj8/muM1Wu5vdun9iP/DtuXoQWbLb5Ym74L
+         5uEmZ5OY8uYgxyblnfvjeNAO/awdMTni9jqQA0i74t01u3AMcrbIH+hRjA7p5c7dMjnz
+         5kuw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au. [211.29.132.246])
-        by mx.google.com with ESMTP id w18si10933809pgi.37.2019.07.22.17.03.36
-        for <linux-mm@kvack.org>;
-        Mon, 22 Jul 2019 17:03:36 -0700 (PDT)
-Received-SPF: neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.246;
+       dkim=pass header.i=@kernel.org header.s=default header.b=RcjKdLTG;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id a14si9988225pjo.40.2019.07.22.17.17.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Jul 2019 17:17:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from dread.disaster.area (pa49-195-139-63.pa.nsw.optusnet.com.au [49.195.139.63])
-	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id 4C6C843B788;
-	Tue, 23 Jul 2019 10:03:33 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1hpiGA-0001mL-5I; Tue, 23 Jul 2019 10:02:26 +1000
-Date: Tue, 23 Jul 2019 10:02:26 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] psi: annotate refault stalls from IO submission
-Message-ID: <20190723000226.GV7777@dread.disaster.area>
-References: <20190722201337.19180-1-hannes@cmpxchg.org>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190722201337.19180-1-hannes@cmpxchg.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0 cx=a_idp_d
-	a=fNT+DnnR6FjB+3sUuX8HHA==:117 a=fNT+DnnR6FjB+3sUuX8HHA==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=0o9FgrsRnhwA:10
-	a=ufHFDILaAAAA:8 a=7-415B0cAAAA:8 a=o-jcnmsilH93K4pHmdQA:9
-	a=EdKfoW5OtvoDdtON:21 a=SJvZlBx9A85TV0R8:21 a=CjuIK1q_8ugA:10
-	a=ZmIg1sZ3JBWsdXgziEIF:22 a=biEYGPWJfzWAr4FL6Ov7:22
+       dkim=pass header.i=@kernel.org header.s=default header.b=RcjKdLTG;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-231-172-41.hsd1.ca.comcast.net [73.231.172.41])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 63FC72199C;
+	Tue, 23 Jul 2019 00:17:01 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1563841021;
+	bh=6sNYOmPiY7UCw0exdP/b63K7iFz93gz485PsRBuq5N4=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=RcjKdLTGcrDx+vgVAg1mB93hVglku8cYcZmOEtJOpvP9q93LXrkwicwguFm8j4KAb
+	 eKQaZShqEm2iXJvp4y9cuNM9z918HPN8OCIRrJ7+woPXdtzyUYg4sj9Qeko2YCSgSU
+	 t1/OHQk/3doElaOra5SAYzHAVUaKH6NuGE4fHsyg=
+Date: Mon, 22 Jul 2019 17:17:00 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: linux-mm@kvack.org, David Rientjes <rientjes@google.com>, Vlastimil
+ Babka <vbabka@suse.cz>, Yafang Shao <shaoyafang@didiglobal.com>, Mel Gorman
+ <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm/compaction: clear total_{migrate,free}_scanned
+ before scanning a new zone
+Message-Id: <20190722171700.399bf6353fb06ee1a82ffaa5@linux-foundation.org>
+In-Reply-To: <1563789275-9639-1-git-send-email-laoar.shao@gmail.com>
+References: <1563789275-9639-1-git-send-email-laoar.shao@gmail.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 22, 2019 at 04:13:37PM -0400, Johannes Weiner wrote:
-> psi tracks the time tasks wait for refaulting pages to become
-> uptodate, but it does not track the time spent submitting the IO. The
-> submission part can be significant if backing storage is contended or
-> when cgroup throttling (io.latency) is in effect - a lot of time is
-> spent in submit_bio(). In that case, we underreport memory pressure.
-> 
-> Annotate the submit_bio() paths (or the indirection through readpage)
-> for refaults and swapin to get proper psi coverage of delays there.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> ---
->  fs/btrfs/extent_io.c | 14 ++++++++++++--
->  fs/ext4/readpage.c   |  9 +++++++++
->  fs/f2fs/data.c       |  8 ++++++++
->  fs/mpage.c           |  9 +++++++++
->  mm/filemap.c         | 20 ++++++++++++++++++++
->  mm/page_io.c         | 11 ++++++++---
->  mm/readahead.c       | 24 +++++++++++++++++++++++-
->  7 files changed, 89 insertions(+), 6 deletions(-)
-> 
-> diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
-> index 1eb671c16ff1..2d2b3239965a 100644
-> --- a/fs/btrfs/extent_io.c
-> +++ b/fs/btrfs/extent_io.c
-> @@ -13,6 +13,7 @@
->  #include <linux/pagevec.h>
->  #include <linux/prefetch.h>
->  #include <linux/cleancache.h>
-> +#include <linux/psi.h>
->  #include "extent_io.h"
->  #include "extent_map.h"
->  #include "ctree.h"
-> @@ -4267,6 +4268,9 @@ int extent_readpages(struct address_space *mapping, struct list_head *pages,
->  	struct extent_io_tree *tree = &BTRFS_I(mapping->host)->io_tree;
->  	int nr = 0;
->  	u64 prev_em_start = (u64)-1;
-> +	int ret = 0;
-> +	bool refault = false;
-> +	unsigned long pflags;
+On Mon, 22 Jul 2019 05:54:35 -0400 Yafang Shao <laoar.shao@gmail.com> wrote:
+
+> total_{migrate,free}_scanned will be added to COMPACTMIGRATE_SCANNED and
+> COMPACTFREE_SCANNED in compact_zone(). We should clear them before scanning
+> a new zone.
+> In the proc triggered compaction, we forgot clearing them.
+
+It isn't the worst bug we've ever had, but I'm thinking we should
+backport the fix into -stable kernels?
+
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -2405,8 +2405,6 @@ static void compact_node(int nid)
+>  	struct zone *zone;
+>  	struct compact_control cc = {
+>  		.order = -1,
+> -		.total_migrate_scanned = 0,
+> -		.total_free_scanned = 0,
+>  		.mode = MIGRATE_SYNC,
+>  		.ignore_skip_hint = true,
+>  		.whole_zone = true,
+> @@ -2422,6 +2420,8 @@ static void compact_node(int nid)
 >  
->  	while (!list_empty(pages)) {
->  		u64 contig_end = 0;
-> @@ -4281,6 +4285,10 @@ int extent_readpages(struct address_space *mapping, struct list_head *pages,
->  				put_page(page);
->  				break;
->  			}
-> +			if (PageWorkingset(page) && !refault) {
-> +				psi_memstall_enter(&pflags);
-> +				refault = true;
-> +			}
->  
->  			pagepool[nr++] = page;
->  			contig_end = page_offset(page) + PAGE_SIZE - 1;
-> @@ -4301,8 +4309,10 @@ int extent_readpages(struct address_space *mapping, struct list_head *pages,
->  		free_extent_map(em_cached);
->  
->  	if (bio)
-> -		return submit_one_bio(bio, 0, bio_flags);
-> -	return 0;
-> +		ret = submit_one_bio(bio, 0, bio_flags);
-> +	if (refault)
-> +		psi_memstall_leave(&pflags);
-> +	return ret;
-
-This all seems extremely fragile to me. Sprinkling magic,
-undocumented pixie dust through the IO paths to account for
-something nobody can actually determine is working correctly is a
-bad idea.  People are going to break this without knowing it, nobody
-is going to notice because there are no regression tests for it,
-and this will all end up in frustration for users because it
-constantly gets broken and doesn't work reliably.
-
-e.g. If this is needed around all calls to ->readpage(), then please
-write a readpage wrapper function and convert all the callers to use
-that wrapper.
-
-Even better: If this memstall and "refault" check is needed to
-account for bio submission blocking, then page cache iteration is
-the wrong place to be doing this check. It should be done entirely
-in the bio code when adding pages to the bio because we'll only ever
-be doing page cache read IO on page cache misses. i.e. this isn't
-dependent on adding a new page to the LRU or not - if we add a new
-page then we are going to be doing IO and so this does not require
-magic pixie dust at the page cache iteration level
-
-e.g. bio_add_page_memstall() can do the working set check and then
-set a flag on the bio to say it contains a memstall page. Then on
-submission of the bio the memstall condition can be cleared.
-
-Cheers,
-
--Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+>  		cc.nr_freepages = 0;
+>  		cc.nr_migratepages = 0;
+> +		cc.total_migrate_scanned = 0;
+> +		cc.total_free_scanned = 0;
+>  		cc.zone = zone;
+>  		INIT_LIST_HEAD(&cc.freepages);
+>  		INIT_LIST_HEAD(&cc.migratepages);
 
