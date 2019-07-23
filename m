@@ -2,180 +2,230 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,URIBL_SBL,URIBL_SBL_A autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4233AC7618B
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:16:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5EA51C7618B
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:25:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A2D99223BE
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:16:55 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0F6A521BF6
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:25:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="M0CVenrM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A2D99223BE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="FbkIwlIl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F6A521BF6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3C3E96B000A; Tue, 23 Jul 2019 04:16:55 -0400 (EDT)
+	id 8C6D36B000A; Tue, 23 Jul 2019 04:25:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 374D38E0003; Tue, 23 Jul 2019 04:16:55 -0400 (EDT)
+	id 877898E0003; Tue, 23 Jul 2019 04:25:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 28B1A8E0002; Tue, 23 Jul 2019 04:16:55 -0400 (EDT)
+	id 765D88E0002; Tue, 23 Jul 2019 04:25:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BA8B26B000A
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 04:16:54 -0400 (EDT)
-Received: by mail-lj1-f200.google.com with SMTP id 9so9065554ljp.7
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 01:16:54 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 57DED6B000A
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 04:25:04 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id f22so46397517ioj.9
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 01:25:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=OCdChmHdfM6D9uf2VkQAqf8PnxrZ5zOIH6aLjOH+qUU=;
-        b=EbRliGmC/eyuqpgxqV0algIUUF/yw2nPOYYbv42AhYpCUncZnU7xcN/U4uOP2uenM3
-         8hh4+BUOv2UkNxd6ra2PhHSZLpCa8WCoY3CQ9VjULbyv47EmjzODGt+PMDzYawwIcT8p
-         eCt/ucmTXCv0YpKL3X4FaaS/xM/c49xtAvD/oKiZU4til5cyk23dJEzmWrd3ZF8ClRRj
-         Eqm2ePUMMBgGrZJFUyawx4BzDjMn06ETKeg4uMefH0Y84ERCcg7EW040C0g62VrsCTAh
-         GvdSHZdaaYO8t++ZIhdiw+nL6xjdJBY2m5Lw/46WYo4Sn6797ws4lJs9+ki94qH3E/3+
-         QTpw==
-X-Gm-Message-State: APjAAAUM/uoyzg39gIV6z3+0ZWnzmk2SjtnSeHTFu+Wc1W6ClzrdmEDD
-	l/K9RVGtEqIXECVT64obPknwh6Al644hLbVBzzh4BCoEoeYMr3E8KKg3MeslsC8p+bUpOn9kOp/
-	Qeccmavu2dY5Dyscsy1TRTtyDMU2aiJqSCqGdNDJnT0cECBQq/GmtlpXIpbUbUDtr6Q==
-X-Received: by 2002:a2e:7315:: with SMTP id o21mr31058556ljc.3.1563869814039;
-        Tue, 23 Jul 2019 01:16:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzd5V2FHclaW5NOudFWHyFDs9G+cGZotGJbGInW//HGAagac2X4g7hGdPJ/WxB08tJWyRbN
-X-Received: by 2002:a2e:7315:: with SMTP id o21mr31058528ljc.3.1563869813303;
-        Tue, 23 Jul 2019 01:16:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563869813; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=QvEjpb8VOGWRfWV86Nfrv4SSQrXAdSVN2AFcK7xH6a8=;
+        b=ERDPqyUwi7etjDSLFQPq/ZZRK6AisGdgTUDxpnqhhVnxCHMV8kda0NYUAQn1hSctLT
+         OkDT2d+eDEbajELwNcpzCOQ8uhjGMOOjOLvYNUc/Ze14ecr+456sLtUtIt2immYtOCm+
+         Xd1PGJHkz1yDhY13wh7jnJF/AQO8Uwm6h8oZ3NQjv7g1WqeZfgWIl65yw/KjYtAKebJH
+         AJLBsdwKJLaMqPrmxzyerb3fKQe5af3J68gjGM/x3tY1T5QPZs90XAYg2TmCb/ZcKl0O
+         VveBgIF2VwYuWEOocub65XG6E8Qz4eEbTUwsCMcPznBsnlNaYk6SeaRBJ07xPDjzjfQo
+         3Bqw==
+X-Gm-Message-State: APjAAAWVXrGc5ktIhUonLAgJ3jrup8mpaTlGUH4k12SJ2vb09OPL0Oxx
+	YQXd0PxnbyMQLFwk6RDhqjiMleHeSFvpCmoaiws4DGN0Fy6JyFp3eN6EJYi5+7O3dzewpz46oNE
+	OrgGS+eKjM8SK+TAhEZYofOsw8ZFwXx80AWyjO8JfVwihWwL5SldwiTlnS71tJBSBSQ==
+X-Received: by 2002:a02:3904:: with SMTP id l4mr77203895jaa.81.1563870304071;
+        Tue, 23 Jul 2019 01:25:04 -0700 (PDT)
+X-Received: by 2002:a02:3904:: with SMTP id l4mr77203864jaa.81.1563870303492;
+        Tue, 23 Jul 2019 01:25:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563870303; cv=none;
         d=google.com; s=arc-20160816;
-        b=oKAf8g0V2yaazTB8PTdNxRfXYJ8JZsvWx0kWq4XaO5wEq3rVKN2V/6my4N2xUKfjVa
-         Rrys8G0vZX5iWYyWidA2Uev+z9otU75aXUcJ3agpK5Lyx0oCdEf0EUgAXdlo1X8e3g+J
-         7oS0DEdjziMDUEOMTcPU1fu+X8ry5D+tmmbIiQgQWMlEZJjT8+FQuXh7ho/kq8cz15pH
-         AqDwhl1wPLGe3jcxqYUhxnNtnQI2vZN4/mzkQwuDEu0K9etYMd9eP1Jj4cJHVZkkHmkg
-         iuEGfC1K0+jdm7Ao7l8V55X0e3d8aBrjmxlm/dz6gw5pcEzDa+tB2hlJMx5b+QF/tBZS
-         jQkA==
+        b=sgbiYdMRQTrD8DxW0eVapgFCwqbmFi32+Fd3VUC9gA1NhALrBcrqcyOi3focWpb8FT
+         Q3VAkZiW9dK9Cfphug5gFEnEIvt44JgKnIe0FVwwk3zXEXJU8Kc/3CbyRyNdYDy4o8sq
+         YjHWDnd50Mf2soIbYTASEuu8be8MViPyg6YkyTyxs1Z/rw9tsE9Xtwq5SN28k0zuiaiW
+         J8vSDbt2To2t9qAUU02sDXyMVtk8DzHYfkqPSUfePMMa9bfSLU3mFQn3RPpQvlq6W9nd
+         OxMIBku58V7cFynZZZOG8vfwic7E61poHuMHuXU1UWwTyoAQkOBxKWcqoAONVevBCODs
+         zLqg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=OCdChmHdfM6D9uf2VkQAqf8PnxrZ5zOIH6aLjOH+qUU=;
-        b=z8kwvPDFmCNBDT/CbQzBdWsao29lwh+Xi/V8Rv311pmYACcnG472Oo8W7AQRkvxS80
-         1i/u/UMBj3qu76szHgmgDzX6Uw2tNuCEm8A0GmxlxA5PS4Xz7Nk66v9EjTVcLPsYq/Yj
-         C0osDSzE3sCOZnUH30I9u0a0saQOnbUR8QX2VFTAwGk8QNOCdrjjqOrFPu2vXTxbzz59
-         xi9e63DcuXcYR0r1keU9LVb6oCNx4j/n7t2u6NIfUTMldiUZfwTTNVk4424rHExlGCdK
-         7hwbtg1a4zar1hWlsLKDTauvg3F58prCYUABCX4IQvSX3XrCC1D/rZeWTFUXMBCladRq
-         p/Zg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=QvEjpb8VOGWRfWV86Nfrv4SSQrXAdSVN2AFcK7xH6a8=;
+        b=ADWTCDKq1ljkDG8rxYpKAOWKmUXLfRLCb9otuRLEIwFC9TjSUso1VK+aFwiovtctDW
+         EONmM25gVD7AWhAXtjZ4Sdhowrv5wT1ygRWojnPLyY3NmK2PzKSPmSofcJAR6011IJda
+         ctDUIk9p9E8/xFD/1wSVZzWO1adjVVOtGIkgst1ernUsA9QsOftVU/jBTUB8V5/FhQmA
+         imY9/zM94EuwxuDcwrqn97Dnqh3Wt6x4GocKOMYiZe7Z6x2ZaTADr6SuMuvktYw5Bo6B
+         G3Yxz2cps6Ao+KXkYt9b2/NmCCUo7uKPMXbWJl5O+6QP6WKy3Q91+f4UyTW4TJ+WZtae
+         IY5Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=M0CVenrM;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from forwardcorp1o.mail.yandex.net (forwardcorp1o.mail.yandex.net. [95.108.205.193])
-        by mx.google.com with ESMTPS id x14si33316085ljb.80.2019.07.23.01.16.53
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=FbkIwlIl;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f6sor28905808ion.28.2019.07.23.01.25.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jul 2019 01:16:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) client-ip=95.108.205.193;
+        (Google Transport Security);
+        Tue, 23 Jul 2019 01:25:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=M0CVenrM;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from mxbackcorp2j.mail.yandex.net (mxbackcorp2j.mail.yandex.net [IPv6:2a02:6b8:0:1619::119])
-	by forwardcorp1o.mail.yandex.net (Yandex) with ESMTP id 94D392E1485;
-	Tue, 23 Jul 2019 11:16:52 +0300 (MSK)
-Received: from smtpcorp1j.mail.yandex.net (smtpcorp1j.mail.yandex.net [2a02:6b8:0:1619::137])
-	by mxbackcorp2j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id zrWDbtFrST-GqNCGMan;
-	Tue, 23 Jul 2019 11:16:52 +0300
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
-	t=1563869812; bh=OCdChmHdfM6D9uf2VkQAqf8PnxrZ5zOIH6aLjOH+qUU=;
-	h=In-Reply-To:Message-ID:From:Date:References:To:Subject:Cc;
-	b=M0CVenrM9AC4JpNV2SXPm4QsXi07w0FwQKWvlGVbaH2JKs/RvqeojUHoTdlkMrkb6
-	 8CFoIYQtsn4RsPg8zd58p/Jtt/lPbqhJ2HhpLnLHI+NTKbR3m6d3bthLrDf6ZFMmun
-	 vcG5SDSMKJo7nRP3Se9wk2sTAFGcYTucOwL1nvjM=
-Authentication-Results: mxbackcorp2j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
-Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:38b3:1cdf:ad1a:1fe1])
-	by smtpcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id 7w6wmPdkO2-GpAejdNM;
-	Tue, 23 Jul 2019 11:16:52 +0300
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(Client certificate not present)
-Subject: Re: [PATCH 1/2] mm/filemap: don't initiate writeback if mapping has
- no dirty pages
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Tejun Heo <tj@kernel.org>, Jens Axboe <axboe@kernel.dk>,
- Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org,
- Jan Kara <jack@suse.cz>
-References: <156378816804.1087.8607636317907921438.stgit@buzz>
- <20190722175230.d357d52c3e86dc87efbd4243@linux-foundation.org>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <bdc6c53d-a7bb-dcc4-20ba-6c7fa5c57dbd@yandex-team.ru>
-Date: Tue, 23 Jul 2019 11:16:51 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=FbkIwlIl;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=QvEjpb8VOGWRfWV86Nfrv4SSQrXAdSVN2AFcK7xH6a8=;
+        b=FbkIwlIlS1TYUcHILFMb5YLK00mcGuAH729yUplJEqQZK6NnQTF/h6WI1TbgE9HeEn
+         eQZO7eUePNnQGS3hXyPg9/zCgKS8zpmhBErkEx+qReti8weQDHG3Xp0q+8zscNj4Aq94
+         i/7XmZ/n5hgdYGTpo7CSAoRa6ERTbdkjKiGwnMt6R4zrJZfB/t/obd1iRRSDlEqlWirk
+         +ZtyTq1Ol3Aq/jDy4KOn28d2D2oPTuofxm6F9EKTQjJ++hbLOtCMedY6w1MmmTJtHJdx
+         DN7HdehDoQy2KPbqLouF0NhNBQ02A4usNRkqruZdiz35ULWDd2DozzIKKZf7EtLwTaKC
+         cTPA==
+X-Google-Smtp-Source: APXvYqytNEQRHhDgLnZhvVouGpdBq2X63wEu+gHSTSv/O/F/wJL6CllQdNI0cLECF87DxXkAq35STZhiCQHW+1ecIxQ=
+X-Received: by 2002:a5d:8702:: with SMTP id u2mr50058963iom.228.1563870303256;
+ Tue, 23 Jul 2019 01:25:03 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190722175230.d357d52c3e86dc87efbd4243@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
+References: <1563869295-25748-1-git-send-email-laoar.shao@gmail.com> <20190723081218.GD4552@dhcp22.suse.cz>
+In-Reply-To: <20190723081218.GD4552@dhcp22.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Tue, 23 Jul 2019 16:24:27 +0800
+Message-ID: <CALOAHbCmE+hznGdZB9SyPdqN9WV8hvfMMqxZSN5vXHnn4oarzw@mail.gmail.com>
+Subject: Re: [PATCH] mm/compaction: introduce a helper compact_zone_counters_init()
+To: Michal Hocko <mhocko@suse.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	Mel Gorman <mgorman@techsingularity.net>, Yafang Shao <shaoyafang@didiglobal.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 23.07.2019 3:52, Andrew Morton wrote:
-> 
-> (cc linux-fsdevel and Jan)
-> 
-> On Mon, 22 Jul 2019 12:36:08 +0300 Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
-> 
->> Functions like filemap_write_and_wait_range() should do nothing if inode
->> has no dirty pages or pages currently under writeback. But they anyway
->> construct struct writeback_control and this does some atomic operations
->> if CONFIG_CGROUP_WRITEBACK=y - on fast path it locks inode->i_lock and
->> updates state of writeback ownership, on slow path might be more work.
->> Current this path is safely avoided only when inode mapping has no pages.
->>
->> For example generic_file_read_iter() calls filemap_write_and_wait_range()
->> at each O_DIRECT read - pretty hot path.
->>
->> This patch skips starting new writeback if mapping has no dirty tags set.
->> If writeback is already in progress filemap_write_and_wait_range() will
->> wait for it.
->>
->> ...
->>
->> --- a/mm/filemap.c
->> +++ b/mm/filemap.c
->> @@ -408,7 +408,8 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
->>   		.range_end = end,
->>   	};
->>   
->> -	if (!mapping_cap_writeback_dirty(mapping))
->> +	if (!mapping_cap_writeback_dirty(mapping) ||
->> +	    !mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
->>   		return 0;
->>   
->>   	wbc_attach_fdatawrite_inode(&wbc, mapping->host);
-> 
-> How does this play with tagged_writepages?  We assume that no tagging
-> has been performed by any __filemap_fdatawrite_range() caller?
+On Tue, Jul 23, 2019 at 4:12 PM Michal Hocko <mhocko@suse.com> wrote:
+>
+> On Tue 23-07-19 04:08:15, Yafang Shao wrote:
+> > This is the follow-up of the
+> > commit "mm/compaction.c: clear total_{migrate,free}_scanned before scanning a new zone".
+> >
+> > These counters are used to track activities during compacting a zone,
+> > and they will be set to zero before compacting a new zone in all compact
+> > paths. Move all these common settings into compact_zone() for better
+> > management. A new helper compact_zone_counters_init() is introduced for
+> > this purpose.
+>
+> The helper seems excessive a bit because we have a single call site but
+> other than that this is an improvement to the current fragile and
+> duplicated code.
 >
 
-Checking also PAGECACHE_TAG_TOWRITE is cheap but seems redundant.
+Understood.
 
-To-write tags are supposed to be a subset of dirty tags:
-to-write is set only when dirty is set and cleared after starting writeback.
+> I would just get rid of the helper and squash it to your previous patch
+> which Andrew already took to the mm tree.
+>
 
-Special case set_page_writeback_keepwrite() which does not clear to-write
-should be for dirty page thus dirty tag is not going to be cleared either.
-Ext4 calls it after redirty_page_for_writepage()
-XFS even without clear_page_dirty_for_io()
+I appreciate it.
 
-Anyway to-write tag without dirty tag or at clear page is confusing.
+Thanks
+Yafang
+
+> > Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Cc: Mel Gorman <mgorman@techsingularity.net>
+> > Cc: Yafang Shao <shaoyafang@didiglobal.com>
+> > ---
+> >  mm/compaction.c | 28 ++++++++++++++--------------
+> >  1 file changed, 14 insertions(+), 14 deletions(-)
+> >
+> > diff --git a/mm/compaction.c b/mm/compaction.c
+> > index a109b45..356348b 100644
+> > --- a/mm/compaction.c
+> > +++ b/mm/compaction.c
+> > @@ -2065,6 +2065,19 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+> >       return false;
+> >  }
+> >
+> > +
+> > +/*
+> > + * Bellow counters are used to track activities during compacting a zone.
+> > + * Before compacting a new zone, we should init these counters first.
+> > + */
+> > +static void compact_zone_counters_init(struct compact_control *cc)
+> > +{
+> > +     cc->total_migrate_scanned = 0;
+> > +     cc->total_free_scanned = 0;
+> > +     cc->nr_migratepages = 0;
+> > +     cc->nr_freepages = 0;
+> > +}
+> > +
+> >  static enum compact_result
+> >  compact_zone(struct compact_control *cc, struct capture_control *capc)
+> >  {
+> > @@ -2075,6 +2088,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
+> >       const bool sync = cc->mode != MIGRATE_ASYNC;
+> >       bool update_cached;
+> >
+> > +     compact_zone_counters_init(cc);
+> >       cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
+> >       ret = compaction_suitable(cc->zone, cc->order, cc->alloc_flags,
+> >                                                       cc->classzone_idx);
+> > @@ -2278,10 +2292,6 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
+> >  {
+> >       enum compact_result ret;
+> >       struct compact_control cc = {
+> > -             .nr_freepages = 0,
+> > -             .nr_migratepages = 0,
+> > -             .total_migrate_scanned = 0,
+> > -             .total_free_scanned = 0,
+> >               .order = order,
+> >               .search_order = order,
+> >               .gfp_mask = gfp_mask,
+> > @@ -2418,10 +2428,6 @@ static void compact_node(int nid)
+> >               if (!populated_zone(zone))
+> >                       continue;
+> >
+> > -             cc.nr_freepages = 0;
+> > -             cc.nr_migratepages = 0;
+> > -             cc.total_migrate_scanned = 0;
+> > -             cc.total_free_scanned = 0;
+> >               cc.zone = zone;
+> >               INIT_LIST_HEAD(&cc.freepages);
+> >               INIT_LIST_HEAD(&cc.migratepages);
+> > @@ -2526,8 +2532,6 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+> >       struct compact_control cc = {
+> >               .order = pgdat->kcompactd_max_order,
+> >               .search_order = pgdat->kcompactd_max_order,
+> > -             .total_migrate_scanned = 0,
+> > -             .total_free_scanned = 0,
+> >               .classzone_idx = pgdat->kcompactd_classzone_idx,
+> >               .mode = MIGRATE_SYNC_LIGHT,
+> >               .ignore_skip_hint = false,
+> > @@ -2551,10 +2555,6 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+> >                                                       COMPACT_CONTINUE)
+> >                       continue;
+> >
+> > -             cc.nr_freepages = 0;
+> > -             cc.nr_migratepages = 0;
+> > -             cc.total_migrate_scanned = 0;
+> > -             cc.total_free_scanned = 0;
+> >               cc.zone = zone;
+> >               INIT_LIST_HEAD(&cc.freepages);
+> >               INIT_LIST_HEAD(&cc.migratepages);
+> > --
+> > 1.8.3.1
+>
+> --
+> Michal Hocko
+> SUSE Labs
 
