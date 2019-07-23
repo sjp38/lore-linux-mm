@@ -2,164 +2,126 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.4 required=3.0 tests=FROM_LOCAL_HEX,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30D5CC76186
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 22:11:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DA7EBC76186
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 22:17:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB42F218D4
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 22:11:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB42F218D4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id A1A8A21926
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 22:17:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A1A8A21926
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8CC436B0006; Tue, 23 Jul 2019 18:11:48 -0400 (EDT)
+	id 25E076B0006; Tue, 23 Jul 2019 18:17:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8A4138E0003; Tue, 23 Jul 2019 18:11:48 -0400 (EDT)
+	id 1E97E6B0007; Tue, 23 Jul 2019 18:17:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7B8E08E0002; Tue, 23 Jul 2019 18:11:48 -0400 (EDT)
+	id 0834A8E0002; Tue, 23 Jul 2019 18:17:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4440D6B0006
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 18:11:48 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id d190so27068462pfa.0
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 15:11:48 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CD6126B0006
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 18:17:01 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id f22so48765908ioh.22
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 15:17:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=wWUWqMB+sxzUrOj2hwcNcJgBnFaIDbzdce5wlkTDShI=;
-        b=Xi+7QGWaF3nfUO+AYr9YNGoBQYk0pwv4yYFlkybm7EScSFAadwrzak8APMUHVfbAoB
-         np5B2dg8IdSVx+w08nx9gy8JNjV9Ta6i++nLzC99J2sjng1s8s952jPjVwPoIuM3Y/8U
-         U8kDt0EEiHQTmO6BoJlgIZp8kmy2lznjPE4sZ96rp4V2gmzNbLH0+oejQ5Pc4aePYqM/
-         gZ4JLWgQlrtb7n/RhbCmVGgcMt/B7lBuPPsFrTRjKwQHoT+t/VEdWdNsdZJcwmAaMHVZ
-         zhxzeCHR/4XbXIf87D5mwCloBhb090s+aTB228HWs/mg7uIG/24bx8dTCAy4+KRuvFOM
-         AZ/g==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAXfL5sq9mCwsE8rlLigdUbPgSkSqU9RQVWqp5k5WhKDzFF/iELq
-	CfH9lHoZuQ8k/skNxcCrkF9IJLKaDZzagZs5tXeeZjFmpxLH16eyWXdjfmFSszAJ8CVhyuazqYX
-	WvmwdmvroBhLLg37ml4i87VyccZPciAnzze263jpAtZx4UsUezqDmI5G7o3AIeAM=
-X-Received: by 2002:a65:63cd:: with SMTP id n13mr78027018pgv.153.1563919907833;
-        Tue, 23 Jul 2019 15:11:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzU0UP1421Z/xVG0AGdsr3ZVeQ0aQsxFbdo5nOZMFUny5oxxwQHfk39DI9K0ePyAgzqEGIu
-X-Received: by 2002:a65:63cd:: with SMTP id n13mr78026965pgv.153.1563919907068;
-        Tue, 23 Jul 2019 15:11:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563919907; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :date:in-reply-to:message-id:subject:from:to;
+        bh=Wc2GRQ8gP6XwuqazuIoFspLdgI5vGhNFmUdsnDHhoCY=;
+        b=oyfMyttqJB3Y3Rm1AGYNxCrmaZSi+fIVv1vSYY5Ofxyp3tbvCCjZUGG86B3Ygo6q+W
+         Ze/eW+Pej+dAHu+4Tgo+U88KGvjoR6yuCcZI/7AdBt2IYDbAcMiBBWkSRb211T/MKmq7
+         gigvfs7LbXr1R8jsV6/AOBaOsizEc4jR94jNnGJtTKjTxTh95hKTQJrFFtHfEl7X4zSZ
+         xKy2t9mkSEv5cxsjFABlsX3SrhvBVOr9Bq1ss+yXXbhiozKWVWcDiTa9qVewpjJS0rsL
+         bYO9y3thdcc90GQpzTfkEXD09RkQsHekw9P73oapc064EeUts+OG9EnMpaCZteSRQAkS
+         Flwg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3xic3xqkbadkntufvggzmvkkdy.bjjbgzpnzmxjiozio.xjh@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3XIc3XQkbADkntufVggZmVkkdY.bjjbgZpnZmXjioZio.Xjh@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Gm-Message-State: APjAAAUBNo2ytMldDEEPlfbRTetYzPhQcCLb3OmVQAQXJ+/ItpRslGUl
+	CpGHAdsu1rtibAlD9f4WyOKLnXO9gDHkdD3EhMTSTuXV22FwXs2ng6bCNzx6CIzc+VdOdfjS0fV
+	+/ie+65/+yDQWQ9ayNjcr1LQ8UagTIAL2AU7V9yvq1tksIyg+LirVqfFYTWb1wMc=
+X-Received: by 2002:a5e:c24b:: with SMTP id w11mr63381876iop.111.1563920221589;
+        Tue, 23 Jul 2019 15:17:01 -0700 (PDT)
+X-Received: by 2002:a5e:c24b:: with SMTP id w11mr63381832iop.111.1563920220892;
+        Tue, 23 Jul 2019 15:17:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563920220; cv=none;
         d=google.com; s=arc-20160816;
-        b=bJRLfmzTX7E4PrGT43mERrLBCn7BanjYf9biV2FmnhPawHwtRwNAZtlUxeepmQBKV9
-         b8CvZBbCJ8HGJYRzTI1H0Ff1KY02SudRjqFQpifcHwyQb701UoR/fcJ+TGcRVnNrLdkw
-         cqoYF0WNq/JVQcmKM6ag8AKRRtJ6jSM8uW0E9fjkI8FWxoOJKcsAEUopVyWPNAsYbr9A
-         CYKzuEruW1BF/7VP+9Ds2R8X9a1xEjmPeNxrMiZuATM0wFPFHIcQo2aCyVJcoGJFIZcl
-         6LfvA7qzjEdiK0Lzvp+8GEdeOQnUpJjfvh2m8Qi+PhN6cRhCeqo0OT9H9bA9ODlMyUWu
-         bDzw==
+        b=HBAq1n+gKSQnopqtxD2TzOho4cAf0BzOFlZn3UN1lTL/2xceFPlzdHCQEl19xQG3Cm
+         1mxr5D/D3zAzSH083vgCewmxXVXmvgpAt8GPODAG7X/YAyVITmBGpWf6Uzt4xLl8xJ7Q
+         JUdMsE6pR9Z+eS+1SebFyCRCksVmGn5rHNsRw3NeY5CRq8EdvjEvgTMexZPXVI3wC02q
+         HSVcQzKXdcMSympXz6jqARPI83UtikFqQWK9ZtoLEVPB1vwj2Jrx2kvTlNpmSUT4cIID
+         1Na9PD2JrJ4swvmkKz91cU9AW8+RJqm+MfjPyOWcvCUjaAFIjJ/OlujqcM+R4WKYwCVy
+         OSew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=wWUWqMB+sxzUrOj2hwcNcJgBnFaIDbzdce5wlkTDShI=;
-        b=UPlq97btNUOGEE/20vwWqYu6bRHzfbXUxa4Wn8RAXG7JUvlgeNd7fqJzbdlOW9iYky
-         VJDV11ejCZXfs+WyOPHEWPZqasm/dabKPSUAZXmSkTiojmGhEqgWbiY4Ufi7SW2MK9EN
-         eO3IB9BcNaZeVAC7L1Akgxl0wpXQffnUCVB7h1n2xqovdW7xHA6+Wb5WAwE6Tzb26Y4F
-         w8Gtb+cBnxE99RZcyRjavsO4AsA86/MJpRx3h2HgoTJ84rXz6PUWJZMGu32T5PqTLqL/
-         ClrG1Nc0zsncvHxtzJdEMBMqpPuqmuRvnJ8kXem8KwIMjalsvNSdK5DxPoLBkLJSyxLI
-         +vNw==
+        h=to:from:subject:message-id:in-reply-to:date:mime-version;
+        bh=Wc2GRQ8gP6XwuqazuIoFspLdgI5vGhNFmUdsnDHhoCY=;
+        b=sA43BTuFsPiKKvaeslBKSv6+ysSpGeFZj9/VeAzt/HFVMLY70QnRZvuKbDt9x6JqUd
+         I5fc1PWVIQVNtNc1mI0ZkgzvSxFRW0jkoWAo5swZUrwn3SOqg9nA0rYCsCZPgHkH1hh/
+         P6QroyzwfkPQi0TAY6jp8g29hpGwGwOnqjt2F9glHRB9CGjm+sfC+RfytSQFo1yC3UfW
+         BK/9idYvzbd9GmRKg9ouJzZgaqg9y3jKDCu2P1rEIDexF0ENoZZui8QfRFMfZlGJliVR
+         qeLasCRUPk7qNxhl2v+xNCuxhV6Amis5/LNqiv+OnZywzm/tgtpU1UEr+vL23oBiWDVb
+         T6/w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
-        by mx.google.com with ESMTP id o7si16678288pgq.459.2019.07.23.15.11.46
-        for <linux-mm@kvack.org>;
-        Tue, 23 Jul 2019 15:11:47 -0700 (PDT)
-Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
+       spf=pass (google.com: domain of 3xic3xqkbadkntufvggzmvkkdy.bjjbgzpnzmxjiozio.xjh@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3XIc3XQkbADkntufVggZmVkkdY.bjjbgZpnZmXjioZio.Xjh@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id x4sor30364965iob.40.2019.07.23.15.17.00
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Tue, 23 Jul 2019 15:17:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3xic3xqkbadkntufvggzmvkkdy.bjjbgzpnzmxjiozio.xjh@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from dread.disaster.area (pa49-195-139-63.pa.nsw.optusnet.com.au [49.195.139.63])
-	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id E2B522AA6CE;
-	Wed, 24 Jul 2019 08:11:43 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1hq2zU-0003lk-Ea; Wed, 24 Jul 2019 08:10:36 +1000
-Date: Wed, 24 Jul 2019 08:10:36 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Jens Axboe <axboe@kernel.dk>
-Cc: Johannes Weiner <hannes@cmpxchg.org>,
-	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] psi: annotate refault stalls from IO submission
-Message-ID: <20190723221036.GY7777@dread.disaster.area>
-References: <20190722201337.19180-1-hannes@cmpxchg.org>
- <20190723000226.GV7777@dread.disaster.area>
- <20190723190438.GA22541@cmpxchg.org>
- <2d80cfdb-f5e0-54f1-29a3-a05dee5b94eb@kernel.dk>
+       spf=pass (google.com: domain of 3xic3xqkbadkntufvggzmvkkdy.bjjbgzpnzmxjiozio.xjh@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3XIc3XQkbADkntufVggZmVkkdY.bjjbgZpnZmXjioZio.Xjh@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Google-Smtp-Source: APXvYqynAoeiP6otUFVILsXnOFuFz0uSuLj1NQooZi4V+EzbzIGh6v4AwqOrxFa7CDpPfgeCk6q5DDGEZIUetLOW5G1d8Jhge8u1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <2d80cfdb-f5e0-54f1-29a3-a05dee5b94eb@kernel.dk>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0 cx=a_idp_d
-	a=fNT+DnnR6FjB+3sUuX8HHA==:117 a=fNT+DnnR6FjB+3sUuX8HHA==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=0o9FgrsRnhwA:10
-	a=7-415B0cAAAA:8 a=RvhrQjGMwq6Bl1CCUxgA:9 a=CjuIK1q_8ugA:10
-	a=biEYGPWJfzWAr4FL6Ov7:22
+X-Received: by 2002:a6b:6310:: with SMTP id p16mr73998019iog.118.1563920220602;
+ Tue, 23 Jul 2019 15:17:00 -0700 (PDT)
+Date: Tue, 23 Jul 2019 15:17:00 -0700
+In-Reply-To: <000000000000ad1dfe058e5b89ab@google.com>
+X-Google-Appengine-App-Id: s~syzkaller
+X-Google-Appengine-App-Id-Alias: syzkaller
+Message-ID: <00000000000034c84a058e608d45@google.com>
+Subject: Re: memory leak in rds_send_probe
+From: syzbot <syzbot+5134cdf021c4ed5aaa5f@syzkaller.appspotmail.com>
+To: akpm@linux-foundation.org, catalin.marinas@arm.com, davem@davemloft.net, 
+	dvyukov@google.com, jack@suse.com, kirill.shutemov@linux.intel.com, 
+	koct9i@gmail.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+	linux-rdma@vger.kernel.org, neilb@suse.de, netdev@vger.kernel.org, 
+	rds-devel@oss.oracle.com, ross.zwisler@linux.intel.com, 
+	santosh.shilimkar@oracle.com, syzkaller-bugs@googlegroups.com, 
+	torvalds@linux-foundation.org, willy@linux.intel.com
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 23, 2019 at 01:34:50PM -0600, Jens Axboe wrote:
-> On 7/23/19 1:04 PM, Johannes Weiner wrote:
-> > CCing Jens for bio layer stuff
-> > 
-> > On Tue, Jul 23, 2019 at 10:02:26AM +1000, Dave Chinner wrote:
-> >> Even better: If this memstall and "refault" check is needed to
-> >> account for bio submission blocking, then page cache iteration is
-> >> the wrong place to be doing this check. It should be done entirely
-> >> in the bio code when adding pages to the bio because we'll only ever
-> >> be doing page cache read IO on page cache misses. i.e. this isn't
-> >> dependent on adding a new page to the LRU or not - if we add a new
-> >> page then we are going to be doing IO and so this does not require
-> >> magic pixie dust at the page cache iteration level
-> > 
-> > That could work. I had it at the page cache level because that's
-> > logically where the refault occurs. But PG_workingset encodes
-> > everything we need from the page cache layer and is available where
-> > the actual stall occurs, so we should be able to push it down.
-> > 
-> >> e.g. bio_add_page_memstall() can do the working set check and then
-> >> set a flag on the bio to say it contains a memstall page. Then on
-> >> submission of the bio the memstall condition can be cleared.
-> > 
-> > A separate bio_add_page_memstall() would have all the problems you
-> > pointed out with the original patch: it's magic, people will get it
-> > wrong, and it'll be hard to verify and notice regressions.
-> > 
-> > How about just doing it in __bio_add_page()? PG_workingset is not
-> > overloaded - when we see it set, we can generally and unconditionally
-> > flag the bio as containing userspace workingset pages.
-> > 
-> > At submission time, in conjunction with the IO direction, we can
-> > clearly tell whether we are reloading userspace workingset data,
-> > i.e. stalling on memory.
-> > 
-> > This?
-> 
-> Not vehemently opposed to it, even if it sucks having to test page flags
-> in the hot path.
+syzbot has bisected this bug to:
 
-That's kinda why I suggested the bio_add_page_memstall() variant for
-the page cache read IO paths where this check would be required.
+commit af49a63e101eb62376cc1d6bd25b97eb8c691d54
+Author: Matthew Wilcox <willy@linux.intel.com>
+Date:   Sat May 21 00:03:33 2016 +0000
 
-Not fussed either way, this is much cleaner and easier to maintain
-IMO....
+     radix-tree: change naming conventions in radix_tree_shrink
 
--Dave.
--- 
-Dave Chinner
-david@fromorbit.com
+bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=176528c8600000
+start commit:   c6dd78fc Merge branch 'x86-urgent-for-linus' of git://git...
+git tree:       upstream
+final crash:    https://syzkaller.appspot.com/x/report.txt?x=14e528c8600000
+console output: https://syzkaller.appspot.com/x/log.txt?x=10e528c8600000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=8de7d700ea5ac607
+dashboard link: https://syzkaller.appspot.com/bug?extid=5134cdf021c4ed5aaa5f
+syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=145df0c8600000
+C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=170001f4600000
+
+Reported-by: syzbot+5134cdf021c4ed5aaa5f@syzkaller.appspotmail.com
+Fixes: af49a63e101e ("radix-tree: change naming conventions in  
+radix_tree_shrink")
+
+For information about bisection process see: https://goo.gl/tpsmEJ#bisection
 
