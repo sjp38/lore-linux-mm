@@ -2,155 +2,154 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DCEAC76186
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 17:30:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0FC56C76186
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 17:52:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 313D7218B0
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 17:30:35 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C5CBE223BA
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 17:52:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="O9hWpCDR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 313D7218B0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="rduY142V"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C5CBE223BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A60D18E0009; Tue, 23 Jul 2019 13:30:34 -0400 (EDT)
+	id 631CF6B000D; Tue, 23 Jul 2019 13:52:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A117E8E0002; Tue, 23 Jul 2019 13:30:34 -0400 (EDT)
+	id 5E2E28E0003; Tue, 23 Jul 2019 13:52:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8B2358E0009; Tue, 23 Jul 2019 13:30:34 -0400 (EDT)
+	id 4D1658E0002; Tue, 23 Jul 2019 13:52:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 643688E0002
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 13:30:34 -0400 (EDT)
-Received: by mail-vs1-f70.google.com with SMTP id v9so11669214vsq.7
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 10:30:34 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 16ECC6B000D
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 13:52:40 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id d6so22377041pls.17
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 10:52:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=RbhpiDasw1Ewe5g+7weE9TXbMjL8KAWk+B3qwXxWc/M=;
-        b=LrYHnubuNqH7D+F9kXiV42Pax0X7ynzTxH6CdUJeDpWMJvfW3gwRXmgEnW5sLzBDlr
-         NANjpdoIlB7brc5GEN7PK/BZ6BbM8GGlQ+BztcsKlvr4XhRpALJqGCP49dR9GQhcYWpu
-         e9M8Z5k7Z+CzYEWKMf8EkQq8RbT8Zpk+UmOo7vNVH80wBDLBb40PVHP+Qky5iZ/KrPQC
-         2/U+vYKc3BaMdxpAPV7+S701MgrSiX3JZIw9FGCEdbTgBwz+MENQnRe2GWJIJ1E0VUWK
-         wv9TeobhuPSjiEL85UrCgVoONrZ4rtI7EnCuXEmzVRdJC/1KxTT+6/J+y4hcao00oLyz
-         fLDw==
-X-Gm-Message-State: APjAAAVHoboy7d4OYGYiqT6HmmPAKnl4PI3OJXJ1AT6lQs8zeT8dmaNu
-	FHrD40OvSJ6aJPH2OcbbnNDLRfs0PCQl2iAkZRrg57G2XMgRd8ytzhRq27TJLmnVQSAi4N+Gd1G
-	UbC6HhOHOUa5q/kITF23NGF8WaqvKWdKY1zZ6OERq+hUpnkyaLxJRaepJksuRrqxQvA==
-X-Received: by 2002:ab0:36:: with SMTP id 51mr50010526uai.105.1563903034128;
-        Tue, 23 Jul 2019 10:30:34 -0700 (PDT)
-X-Received: by 2002:ab0:36:: with SMTP id 51mr50010436uai.105.1563903033588;
-        Tue, 23 Jul 2019 10:30:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563903033; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=KTvDsWJ9nFqYJQpibABtOedABuJ1+9nvhoR6NWwgftM=;
+        b=VBG3BEmUnhRqmge7FzhpgK3BN1z15OPFVhAdGZHo/qsXrlLfvXITzrGjekg7As5d3A
+         8HbWX7TBuedCFlbpsAxsvq09pBHoTv72JnqadcfNMEPTbCr9E9QBK0T9Jf40a5Rgs47n
+         l/LY4hzUY3j4KD4zumr14bRmMyqm4DFIpCFWvMzcRm3T0+gTOa/QerLCjJcidU9F+eSA
+         YMaT7RZkqkwDKiR3Nl4ChovSOETsuAsTCINV0Nfnq31QyZNrQUpmywDRyQL/0mrkAbYi
+         K92ThlBnpfzHK4iCs1H59SPCoHwx9H+kLCN1Cw710YCI3CdfEM2tlCVImMz1RrW4fe6z
+         if4A==
+X-Gm-Message-State: APjAAAWVr/jN2C6AJhL/4EOCJrZkR37XiLNC8rKKtbBFapUaUoIjVUYv
+	aXz0jz+RpDpJMpjbPqT83JS4JO1wpbwgEyfHkoX9YX2E3oPCy/4RWEpC/VcZQgjlNG+u0N/iK7k
+	+u1M/EpwxdMZqR8Z0PRoD1vkaDB5x6KDxO5lJAVHNNwkN1HA0Bkg98jmT6X6EUpEEaA==
+X-Received: by 2002:a65:6288:: with SMTP id f8mr72214695pgv.292.1563904359507;
+        Tue, 23 Jul 2019 10:52:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqznjR7xUEfpmeAX0HRuIEkc87uJaj4cwD7tLqz3C+Jl6D01sR/ObUzxjelDX1+8DQhJBXqF
+X-Received: by 2002:a65:6288:: with SMTP id f8mr72214650pgv.292.1563904358683;
+        Tue, 23 Jul 2019 10:52:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563904358; cv=none;
         d=google.com; s=arc-20160816;
-        b=C95zhJtRzerQKjXP7gz2n96vm78OajVXKGsgguSa/dWmA0Ulyb1zLeVM6mezsAA000
-         XrVWUWymjSyEx7jILlCKGfIlrXB+FWTq96kJxZaZGgVSHHwmAHMmHtEk+xdSzZIwlb8v
-         1Z2FyVkiabIcKZNOT0fQb3YrDm+or6eljeZxpKYfsiTNv+UdCh/MFqSIBY4TzLXRVCTZ
-         O2hB/HW8AdxFqDhaG+aAmBS0EK3pSWOMcVgloa0okrdSyiwXtk//S8rNvH8bAbkyWIv8
-         k74dI8kN8Ay2Leeyfa+gBrTLjA0YIxsB3NBVvPhXRkw2PO+RmjCdh1ciHF9p2HexzlY3
-         TauQ==
+        b=u4blS7UOwOBhZ5n2tlVmuK3iq0E8NH4LSVzyjKyEr6VyB4xkceyQqMHwl7Nm1M03Gl
+         G5N5n3zxy0s52AP0c7vNRacM/bleTWpOQpjwXAaksvnxpw1bYqnDj/EpW+YszYVpxDZJ
+         Vxa8vA55tIXyKqu8VoFPRSQry+zD7q+FfS2I94ytwgLBayKpcdRxEHofOKnYtfJkzd9e
+         Yj5O7FcYnN6w+ivB7e66kKGRK5n1tglS0Acgp18l7km40h7vP297FLDIn90emBPRnXxB
+         4w8Q3WBy6SkjlAy60vqh3Y3AV9DLNJv8Mg0e3aR60Uzrar6nanlPJzveBzSXKQiBojoV
+         8wWg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=RbhpiDasw1Ewe5g+7weE9TXbMjL8KAWk+B3qwXxWc/M=;
-        b=m5lVZ3Cv1sqy+JqOrvWdGUJG368+9mgzdDAGrV5SPE6O5Vj/JKjSmeJzQcjugx5Lhw
-         BD/Oggn40OBSMB1xO0Lx9Oe+vvatpYAPHbLuC3uM3mBNA87txRzZQI+gqr9fiGIXHOIr
-         2MtHXjjIwHbqEebnMzJzIf1ENbKdRHjYbbUthii3YuI7YW8hr+lDnRKfqyGXwcncHvqk
-         0KhwrPDsfiKSGvKjaOTvb9ZTugfYBCo5gJEI2tlf//g0WIwqYvccVkjH1UNFU1nCDCHf
-         mgkTMtGcP9LoRwfCtrS2u0xil83gfv0IdILo9diDV52OHSBG5HKZnwO2qWfNFo5naphB
-         3KpA==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:date:cc:to:from:subject:message-id:dkim-signature;
+        bh=KTvDsWJ9nFqYJQpibABtOedABuJ1+9nvhoR6NWwgftM=;
+        b=habWYOjsu1LHTBHE1PKgIezux2GR5tx16xt3T6a5EXCflVVWGC393qJMGHag/8gB2I
+         uiEvCNOkvuSVE+vR8RDN16+OPT5Y7X22lWuR18Ipx3FVvMUABH3WG8HUgqdbrx+MW7z9
+         RvOpoRQdelPJZjkbZtkkqImQWQmajRk1mTTbJZnROxQS/3HJnv8m5E4tcL+r4dVvmOfX
+         0LJTq3SDRDYZnXPrXGxBM1YMambUxEgF20+iKuvGHDQJHD2W6LjZRWBb3MVC4VIDeyFK
+         N//0Es9nEKjYmxbbQlIbs1yzV8I6TGbQ/d64K7RPWwv4Iph5XkVFyPDc3xBiSe65Pn81
+         cI0w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=O9hWpCDR;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p10sor21370069uap.25.2019.07.23.10.30.33
+       dkim=pass header.i=@kernel.org header.s=default header.b=rduY142V;
+       spf=pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jlayton@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id n128si12027715pgn.82.2019.07.23.10.52.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 23 Jul 2019 10:30:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Jul 2019 10:52:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=O9hWpCDR;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=RbhpiDasw1Ewe5g+7weE9TXbMjL8KAWk+B3qwXxWc/M=;
-        b=O9hWpCDR380rbhw90TNwrzp28pNffEoS4Us5UckcJaWEOyzBJaUbrQSE98N+ymjxQW
-         oiBk973xZ6ORiEBiV9Zx6YM5f6Q32IYj0/SyGtmDoGFY8uMFYwt3mdlZ97s5C49fnMui
-         2OTpVNIjIGGJAlPoeE+X847UupJo0ZA8rnMsUoH0URd6UnZ19b2YDamDSx3OJSe3EMOb
-         Kt2uJ7zSPkpnVExd29sGDon2CJhSCEdXgWKiUUomK2L0M/1EIgZbY6L4agXTd7JVcj3V
-         AkElcQgYYmWIkQrV6d6fmuAyO9EgG8sewHhTtRGw4oqVCiwsjjyyZ/Ue6PsPkX8h/K78
-         iXYw==
-X-Google-Smtp-Source: APXvYqwgXpmyPlVv/AMR8i5yc7RI1B7//ksxiY/lelX41GFnDNSTYMBLZpaY2My1r5ik6s2sxtfhhQ==
-X-Received: by 2002:ab0:60ad:: with SMTP id f13mr37669182uam.129.1563903033250;
-        Tue, 23 Jul 2019 10:30:33 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id d3sm4771548uaq.20.2019.07.23.10.30.32
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 23 Jul 2019 10:30:32 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hpycS-0002gy-4J; Tue, 23 Jul 2019 14:30:32 -0300
-Date: Tue, 23 Jul 2019 14:30:32 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Christoph Hellwig <hch@lst.de>
-Cc: =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	Ben Skeggs <bskeggs@redhat.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 4/6] nouveau: unlock mmap_sem on all errors from
- nouveau_range_fault
-Message-ID: <20190723173032.GF15357@ziepe.ca>
-References: <20190722094426.18563-1-hch@lst.de>
- <20190722094426.18563-5-hch@lst.de>
- <20190723151824.GL15331@mellanox.com>
- <20190723163048.GD1655@lst.de>
- <20190723171731.GD15357@ziepe.ca>
- <20190723172335.GA2846@lst.de>
+       dkim=pass header.i=@kernel.org header.s=default header.b=rduY142V;
+       spf=pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jlayton@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from tleilax.poochiereds.net (cpe-71-70-156-158.nc.res.rr.com [71.70.156.158])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 74E752229A;
+	Tue, 23 Jul 2019 17:52:37 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1563904358;
+	bh=nmc8uaRDy6gzgZmALXLogPzoQsDDnnuylDBBg1jtn1c=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=rduY142VQa1IsnoNlMdQo6TGmPN6qSG3GZUkSwSTd6A59arYA0evBnpSt3fmDAemz
+	 CkugF3lhK7nLyByuBN8u6yAmLgwlLNa501KqRSNFgeI5W55M+Tw7sOQqUQ4mptCv23
+	 hbqbBoA5xQYu9iVktqkbMIy0z5Q0SabAWFEhYJvw=
+Message-ID: <3622a5fe9f13ddfd15b262dbeda700a26c395c2a.camel@kernel.org>
+Subject: Re: [PATCH] mm: check for sleepable context in kvfree
+From: Jeff Layton <jlayton@kernel.org>
+To: akpm@linux-foundation.org
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ viro@zeniv.linux.org.uk,  lhenriques@suse.com, cmaiolino@redhat.com,
+ Christoph Hellwig <hch@lst.de>
+Date: Tue, 23 Jul 2019 13:52:36 -0400
+In-Reply-To: <20190723131212.445-1-jlayton@kernel.org>
+References: <20190723131212.445-1-jlayton@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.32.4 (3.32.4-1.fc30) 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190723172335.GA2846@lst.de>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 23, 2019 at 07:23:35PM +0200, Christoph Hellwig wrote:
-> On Tue, Jul 23, 2019 at 02:17:31PM -0300, Jason Gunthorpe wrote:
-> > That reminds me, this code is also leaking hmm_range_unregister() in
-> > the success path, right?
+On Tue, 2019-07-23 at 09:12 -0400, Jeff Layton wrote:
+> A lot of callers of kvfree only go down the vfree path under very rare
+> circumstances, and so may never end up hitting the might_sleep_if in it.
+> Ensure that when kvfree is called, that it is operating in a context
+> where it is allowed to sleep.
 > 
-> No, that is done by hmm_vma_range_done / nouveau_range_done for the
-> success path.
-
-.. which is done with the mmap_sem held :(
-
-> > I think the right way to structure this is to move the goto again and
-> > related into the nouveau_range_fault() so the whole retry algorithm is
-> > sensibly self contained.
+> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+> Cc: Luis Henriques <lhenriques@suse.com>
+> Signed-off-by: Jeff Layton <jlayton@kernel.org>
+> ---
+>  mm/util.c | 2 ++
+>  1 file changed, 2 insertions(+)
 > 
-> Then we'd take svmm->mutex inside the helper and let the caller
-> unlock that.  Either way it is a bit of a mess, and I'd rather prefer
-> if someone has the hardware would do a grand rewrite of this path
-> eventually.  Alternatively if no one signs up to mainain this code
-> we should eventually drop it given the staging status.
 
-I tend to agree with the sentiment, it just makes me sad that all the
-examples we have of these APIs are so troubled.
+FWIW, I started looking at this after Luis sent me some ceph patches
+that fixed a few of these problems. I have not done extensive testing
+with this patch, so maybe consider this an RFC for now.
 
-Jason
+HCH points out that xfs uses kvfree as a generic "free this no matter
+what it is" sort of wrapper and expects the callers to work out whether
+they might be freeing a vmalloc'ed address. If that sort of usage turns
+out to be prevalent, then we may need another approach to clean this up.
+
+> diff --git a/mm/util.c b/mm/util.c
+> index e6351a80f248..81ec2a003c86 100644
+> --- a/mm/util.c
+> +++ b/mm/util.c
+> @@ -482,6 +482,8 @@ EXPORT_SYMBOL(kvmalloc_node);
+>   */
+>  void kvfree(const void *addr)
+>  {
+> +	might_sleep_if(!in_interrupt());
+> +
+>  	if (is_vmalloc_addr(addr))
+>  		vfree(addr);
+>  	else
+
+-- 
+Jeff Layton <jlayton@kernel.org>
 
