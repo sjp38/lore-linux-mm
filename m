@@ -2,109 +2,106 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4A0F4C76186
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 21:40:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 00528C76186
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 22:05:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 00BA2229EB
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 21:40:09 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="xHY7KZzG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00BA2229EB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 9223B218F0
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 22:05:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9223B218F0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A6AD96B0003; Tue, 23 Jul 2019 17:40:09 -0400 (EDT)
+	id E75C26B0003; Tue, 23 Jul 2019 18:05:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A1A896B0006; Tue, 23 Jul 2019 17:40:09 -0400 (EDT)
+	id E27C96B0005; Tue, 23 Jul 2019 18:05:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 931508E0002; Tue, 23 Jul 2019 17:40:09 -0400 (EDT)
+	id D3D398E0002; Tue, 23 Jul 2019 18:05:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6293D6B0003
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 17:40:09 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id y22so22747423plr.20
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 14:40:09 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E1156B0003
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 18:05:28 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id h3so26837640pgc.19
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 15:05:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=L0Jlil94VkLt502zM+ZMPJ76q3F8rDbyXUBeAm9kIlc=;
-        b=hFsMDUvKoR5aKK1iUsRItxxQJ5sDGk1UlDGF2KX+7qAtw45MLH0+Hn6TB5L5fXyoVC
-         rl4OQcMGw0yLmgyS7rItp+mItRCuJbHiNVIVt6IxYodXeDN66P2Mv5q+Xp6cEFdl/BQO
-         B6V83bY/nCrvuESwyTR1kNwLKFbWXsa8TpKtlVh9/kF6no/yq0l6UbRovNlQxAkgCvVM
-         A1K2C8dLvjlhEro1CqAGFG2yjc0jpJKy71AbXuzFrRJQ/oicw/U9+dDxHGcSBudAMpdr
-         aqa8Y/ZVNa+k4yEyeKjp36rjgv4gSXbevx7mUEzBXugClM3M9HWY2Y+3ahFm3FBaifhP
-         IH/w==
-X-Gm-Message-State: APjAAAVQYK4tVnun4B6OEfrp/jKhFifzzenMCzlBPWwwGgslnRQFzPZE
-	MXzxd3ml6WP9lSe9oZeg2FjDnAjGfpe5+OBlqDtjFSZ37TWNKNx4twOPWOVoT8i/IxPMhkav//b
-	L91ZExGPrkv9fFbECaZpEH4NE/b1dvZweUaaMBw1pdSXXhHMPUVTcMQ7dsM/nQ3qw2w==
-X-Received: by 2002:a17:90a:2343:: with SMTP id f61mr85283327pje.130.1563918009021;
-        Tue, 23 Jul 2019 14:40:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy+MK6ipZLb4tJXlZ9Jg89lzaw3KdNCrcVJvPpFuSoZW+TZeJJcAzOa5qiH74HGgAzqng44
-X-Received: by 2002:a17:90a:2343:: with SMTP id f61mr85283287pje.130.1563918008264;
-        Tue, 23 Jul 2019 14:40:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563918008; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:user-agent
+         :mime-version:content-transfer-encoding;
+        bh=IUz6GcA5PHYQHFCwePQ31D0jtUoh0a1ZGkBkp/aZ+Q4=;
+        b=pNb5jgTQTStuLo7vN1pXwB7C6dPXZTwmpVl0EL1ASRNUTgHhZxbtu+zUGFsSR8iU3R
+         pYGxH9C8aTwIhJASn/tujVtdg1bmqEK4NNYOTRbS/yv2yEEkvTzEiWYqxhGbvzSmZfWF
+         MXhVEWLO5ED3szXTkUEjk1JMDS0gn3WSz6bg1iKHUGAtpVigdCkFrOkeSIWQKxczciIN
+         6xSi831j71GMfYzBnGBLdoXe+Vm8nqen4jrnExSIhnmV7jfMsOXf8zapXP75CQPnv8dD
+         7JSBlP6T/TCY1l97Z8VlIlREOZ6Qdeo8Cf53Ft5kzQFXBj5ePDNUFOn2if85ZjOg5C4M
+         Zy8A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAW6ixmYVVxqLTxcJyHl8IVsnqKdOpN8MJoIR8dKcUz9f+6W7GAa
+	zhU8zuT1Gp4+H4VF1Da0WSfv+xKXxlA4YwGEszGOPNkQCWBpdROzwARx6yYreuGybPiBBqsRICt
+	rtfK6IaF8TnHPsNHQQo4M0TqMMP5TAw2W9DOgP3EQd8z3XH0RY7f180Ca21oGB/O8bw==
+X-Received: by 2002:a17:902:2aa8:: with SMTP id j37mr78773442plb.316.1563919528243;
+        Tue, 23 Jul 2019 15:05:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxchl0PetBC+DHeYqMGTFPOff3b/NPsVVAZvBK4SfeRdJP/RwX4NA+sb81MiqOUn05AAl8F
+X-Received: by 2002:a17:902:2aa8:: with SMTP id j37mr78773376plb.316.1563919527328;
+        Tue, 23 Jul 2019 15:05:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563919527; cv=none;
         d=google.com; s=arc-20160816;
-        b=lrUQmmdwoCmH6Jje5I0E5cm8U7N6xdMXFrCeBE2Eo1Ku3C6m626tfKmQwb9aakSrkJ
-         fr6CNPgpnFnlhlyfD82J7KFnOQw2E0rnMCUfMBKmrN9ZvVzzPqY2ND0V92qVMQSvUdTn
-         fG+LUYPznSOqoe6eXM+lQ/0p4972675r/71u4yyJ8Djn43ppf8pz1hyNtmSklc83lmOv
-         V46XzADgKMUpu4c5uUGdM6ZvAs0ap4VNOJEoLUbOMzhbgUVk1xPl8m6+4fLYH3AYbaLk
-         XgBSllUAd2csvhFcXZv+AVH6UKuhv3V+Qb5WnZqW0YCQ8x05bV1QFkS3l7NaZIpeVsDm
-         VDoA==
+        b=dV4KCThY+s7p+I7jmsvfWP2Rx14PUy0+K7zos2D1/BzxXmX2r5172DQlTSEyS5grPk
+         nXyumlLJjmq2AQb+6ZMunvGOSSDnze9sZ3KLY7YUUmWQMvrCTTjuai9YT4+vlNHCFq1J
+         PmVC+67YCzAZYPgpmP1Yr/teEjGO1Y0LDK6AeQGXDZU5f9zXsIbWcNpCOSgY7786lRB7
+         uc/1+oixxK0E0O+cqfuWxxAJi13AT7tPU0ow0j70eDgt4+8HzOqQyN5YYuPv93SizNiM
+         xjoxz0L9OPszg8uydyFHRmBbq46cGEh4bYyVrsb1t8onfa0pN8tEtGE+8KK5e5ZBZXEt
+         Zz3A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=L0Jlil94VkLt502zM+ZMPJ76q3F8rDbyXUBeAm9kIlc=;
-        b=ysbfRgXMP8G/CsgOuC6FzVpkiOX0SHiTNhxihSZTr8XnYtJA3oquUeO8PH8d2GYc6N
-         RRC5/oP+sET3+PXWcNGyTlx5zEOAtgoYK2Dm/J6XAeSie96j2SI0vBMeUyToETXb67UR
-         19QOZXp8WofxB+sCBmtLI3rS34xDmx2sKTpKuVBLwFewREJ+J1uXEmnoa9YSNGK9WmP/
-         VMLLN+UeGVIEKlC3btt2nfUAlZCknFkMi44fWFYqGJjzg7xa4GL3TaC87xswuh7+5YSp
-         ZYq9sr0+w/gDiqX6qPyNjTsRSLi1Q8spwCqxmqTSvfUFNl3u5Xgp3MTV/JPEe+5v+/89
-         bBmQ==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:date:cc:to:from:subject:message-id;
+        bh=IUz6GcA5PHYQHFCwePQ31D0jtUoh0a1ZGkBkp/aZ+Q4=;
+        b=wXPWB+/FAYvMRTu+7Lf5nDSngm+r5JAGlBLfUfJZUptl87SCDvpgc7it0XnLDugv0X
+         n2Ittx13Eo0RRccTBW44FLtJazem+qofmlPXy6/r4ZnoCiFOBgKAdk6qo8haakBY/h7Z
+         76nlVf3QFOEN36M5uCa5mi/2/evziD/CIq87qw9vUMgnBka0j3PVrQARCgsPR1SXLPGK
+         j5z8UQcNO1ma5jtFQ1Mfx1TCjIoH+rKeKWKSWwUuuToZSWMhkh/1xG+FwbwtTnMssC55
+         LrzA/iraty6HcGGdoF1zvLDUHTcSWucgqmdnAqwZwwU4x9hPQZt5o861tnraSJ7qfDla
+         lYNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=xHY7KZzG;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id g94si39010640plb.142.2019.07.23.14.40.08
+       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id y8si12760613pgr.89.2019.07.23.15.05.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jul 2019 14:40:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Tue, 23 Jul 2019 15:05:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=xHY7KZzG;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.64])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id B25322253D;
-	Tue, 23 Jul 2019 21:40:07 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1563918007;
-	bh=M+0jZRNec2kYgBhUlCTZ6xhzUORSrzgFEY/0rUC4FDA=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=xHY7KZzGgPlgJRPYSPpdIy0PXNS/cVB3IDriPis8s3heiFZad2UZaTStT+fkq4ZKg
-	 x042oWhlspkN4vzGDXM9SBzZEbY5NNAj1m4O/D/N+kqpWhffdayGjj/vO+JjVrbCr/
-	 jF9hhYpDnt2UQkBMfEfilGXMKzeCt0ngDdqyk+68=
-Date: Tue, 23 Jul 2019 14:40:07 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Yafang Shao <laoar.shao@gmail.com>, linux-mm@kvack.org, Mel Gorman
- <mgorman@techsingularity.net>, Yafang Shao <shaoyafang@didiglobal.com>
-Subject: Re: [PATCH] mm/compaction: introduce a helper
- compact_zone_counters_init()
-Message-Id: <20190723144007.9660c3c98068caeba2109ded@linux-foundation.org>
-In-Reply-To: <20190723081218.GD4552@dhcp22.suse.cz>
-References: <1563869295-25748-1-git-send-email-laoar.shao@gmail.com>
-	<20190723081218.GD4552@dhcp22.suse.cz>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga006.fm.intel.com ([10.253.24.20])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 23 Jul 2019 15:05:26 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,300,1559545200"; 
+   d="scan'208";a="369056989"
+Received: from sai-dev-mach.sc.intel.com ([143.183.140.153])
+  by fmsmga006.fm.intel.com with ESMTP; 23 Jul 2019 15:05:26 -0700
+Message-ID: <180ae7c8af18d7a73cd8ba18e8fe2aa7ef562fd3.camel@intel.com>
+Subject: Re: Why does memblock only refer to E820 table and not EFI Memory
+ Map?
+From: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
+To: Ricardo Neri <ricardo.neri-calderon@linux.intel.com>
+Cc: linux-mm@kvack.org, linux-efi@vger.kernel.org, mingo@kernel.org,
+ bp@alien8.de,  peterz@infradead.org, ard.biesheuvel@linaro.org,
+ rppt@linux.ibm.com, pj@sgi.com
+Date: Tue, 23 Jul 2019 15:01:57 -0700
+In-Reply-To: <20190723213821.GA3311@ranerica-svr.sc.intel.com>
+References: <cfee410c5dd4b359ee395ad075f31133387def70.camel@intel.com>
+	 <20190723213821.GA3311@ranerica-svr.sc.intel.com>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5-0ubuntu0.18.10.1 
+MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -112,63 +109,76 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Jul 2019 10:12:18 +0200 Michal Hocko <mhocko@suse.com> wrote:
 
-> On Tue 23-07-19 04:08:15, Yafang Shao wrote:
-> > This is the follow-up of the
-> > commit "mm/compaction.c: clear total_{migrate,free}_scanned before scanning a new zone".
+> > On x86 platforms, there are two sources through which kernel learns about
+> > physical memory in the system namely E820 table and EFI Memory Map. Each
+> > table
+> > describes which regions of system memory is usable by kernel and which
+> > regions
+> > should be preserved (i.e. reserved regions that typically have BIOS
+> > code/data)
+> > so that no other component in the system could read/write to these
+> > regions. I
+> > think they are duplicating the information and hence I have couple of
+> > questions regarding these
+> 
+> But isn't it true that in x86 systems the E820 table is populated from the
+> EFI memory map?
+
+I don't know that it happens.. :(
+
+> At least in systems with EFI firmware and a Linux which understands
+> EFI. If booting from the EFI stub, the stub will take the EFI memory map and
+> assemble the E820 table passed as part of the boot params [4]. It also
+> considers the case when there are more than 128 entries in the table [5].
+> Thus, if booting as an EFI application it will definitely use the EFI memory
+> map. If Linux' EFI entry point is not used the bootloader should to the
+> same. For instance, grub also reads the EFI memory map to assemble the E820
+> memory map [6], [7], [8].
+
+Thanks a lot! for the pointers Ricardo :)
+I haven't looked at EFI stub and Grub code and hence didn't knew this was
+happening. It does make me feel better that EFI Memory Map is indeed being
+used to generate e820 in EFI stub case, so at-least it's getting consumed
+indirectly.
+
+> > 1. I see that only E820 table is being consumed by kernel [1] (i.e.
+> > memblock
+> > subsystem in kernel) to distinguish between "usable" vs "reserved"
+> > regions.
+> > Assume someone has called memblock_alloc(), the memblock subsystem would
+> > service the caller by allocating memory from "usable" regions and it knows
+> > this *only* from E820 table [2] (it does not check if EFI Memory Map also
+> > says
+> > that this region is usable as well). So, why isn't the kernel taking EFI
+> > Memory Map into consideration? (I see that it does happen only when
+> > "add_efi_memmap" kernel command line arg is passed i.e. passing this
+> > argument
+> > updates E820 table based on EFI Memory Map) [3]. The problem I see with
+> > memblock not taking EFI Memory Map into consideration is that, we are
+> > ignoring
+> > the main purpose for which EFI Memory Map exists.
 > > 
-> > These counters are used to track activities during compacting a zone,
-> > and they will be set to zero before compacting a new zone in all compact
-> > paths. Move all these common settings into compact_zone() for better
-> > management. A new helper compact_zone_counters_init() is introduced for
-> > this purpose.
+> > 2. Why doesn't the kernel have "add_efi_memmap" by default? From the
+> > commit
+> > "200001eb140e: x86 boot: only pick up additional EFI memmap if
+> > add_efi_memmap
+> > flag", I didn't understand why the decision was made so. Shouldn't we give
+> > more preference to EFI Memory map rather than E820 table as it's the
+> > latest
+> > and E820 is legacy?
 > 
-> The helper seems excessive a bit because we have a single call site but
-> other than that this is an improvement to the current fragile and
-> duplicated code.
-> 
-> I would just get rid of the helper and squash it to your previous patch
-> which Andrew already took to the mm tree.
+> I did a a quick experiment with and without add_efi_memmmap. the e820
+> table looked exactly the same. I guess this shows that what I wrote
+> above makes sense ;) . Have you observed difference?
 
---- a/mm/compaction.c~mm-compaction-clear-total_migratefree_scanned-before-scanning-a-new-zone-fix-fix
-+++ a/mm/compaction.c
-@@ -2068,19 +2068,6 @@ bool compaction_zonelist_suitable(struct
- 	return false;
- }
- 
--
--/*
-- * Bellow counters are used to track activities during compacting a zone.
-- * Before compacting a new zone, we should init these counters first.
-- */
--static void compact_zone_counters_init(struct compact_control *cc)
--{
--	cc->total_migrate_scanned = 0;
--	cc->total_free_scanned = 0;
--	cc->nr_migratepages = 0;
--	cc->nr_freepages = 0;
--}
--
- static enum compact_result
- compact_zone(struct compact_control *cc, struct capture_control *capc)
- {
-@@ -2091,7 +2078,15 @@ compact_zone(struct compact_control *cc,
- 	const bool sync = cc->mode != MIGRATE_ASYNC;
- 	bool update_cached;
- 
--	compact_zone_counters_init(cc);
-+	/*
-+	 * These counters track activities during zone compaction.  Initialize
-+	 * them before compacting a new zone.
-+	 */
-+	cc->total_migrate_scanned = 0;
-+	cc->total_free_scanned = 0;
-+	cc->nr_migratepages = 0;
-+	cc->nr_freepages = 0;
-+
- 	cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
- 	ret = compaction_suitable(cc->zone, cc->order, cc->alloc_flags,
- 							cc->classzone_idx);
-_
+When I did a quick test, I didn't notice any difference (with and without
+add_efi_memap) because both e820 and EFI Memory Map were reporting regions in
+sync. So, "add_efi_memmap" didn't have to add any new regions into e820. Hence
+my last question, what if both the tables (EFI Memory Map and e820) are out of
+sync? Shouldn't happen in Grub and EFI stub because they generate e820 from
+EFI Memory Map, as pointed by you.
+
+Regards,
+Sai
 
