@@ -2,146 +2,162 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CF47DC76190
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 18:14:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88DB0C41517
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 18:19:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7C21C20665
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 18:14:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4EB0E218B0
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 18:19:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="JCBoGa/9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C21C20665
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="pAq+kDaH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4EB0E218B0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0072D8E0018; Tue, 23 Jul 2019 14:14:16 -0400 (EDT)
+	id CFC4B8E0019; Tue, 23 Jul 2019 14:19:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EFA118E0002; Tue, 23 Jul 2019 14:14:15 -0400 (EDT)
+	id CAC7B8E0002; Tue, 23 Jul 2019 14:19:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DC2F58E0018; Tue, 23 Jul 2019 14:14:15 -0400 (EDT)
+	id BC1608E0019; Tue, 23 Jul 2019 14:19:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A6EEF8E0002
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 14:14:15 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id f25so26665572pfk.14
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 11:14:15 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 89D4D8E0002
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 14:19:06 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id i27so26747223pfk.12
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 11:19:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=meFPjAHnVpkx5LzG9td2xbKYymV0m46R0toM8uhLgg4=;
-        b=C279xrggYAhAbnSk8jM9fQ7pubaKjrKwkj8qBwN2Jl8hxbNRtAf5O3kabGeuT3g2gx
-         vRTozCgHoE0thBlJ1OlTrVHNa7NV8qY6ipGirJMCoe1aSnd1NySn83/vCUISTH41YM4z
-         +NQ8RNW7bFMO/0Nqk0Mdq9ClsEdTpcajnLRV7A7t2Arcy+fIG9ePw3qRYyEvYsU69bHT
-         pTryrrhN6ILJHHqx5WW1X3bKmV6ATZVcOuM6jffxHNcC4VvW3cJLKOSLsqnA+iiiNCn5
-         ZwQYuOgLw2Z87zaT7KRqBZagNALAKOdJBb6y99yhNRjhiJ1O75FN5Z3QPL5+v0P/mA+q
-         cuFA==
-X-Gm-Message-State: APjAAAVCqqQxF83HkdC27aiei5H9rPO4GtGriwdiCTRtS6JVATKnVYM9
-	3VZYFv/X2Jhmxv2DLTZhnBsjxkzpAHfUte0BLsNDhR8PgN+5ozmR1ih73cmuMzoKdHWRxl7Wccw
-	UAG/j86UIe4giTehf83ErAMZzgl7tCWZq2+WhqMrMn7C6oJomi2cpe0UvX8cfSYQjCg==
-X-Received: by 2002:a65:6406:: with SMTP id a6mr40966175pgv.393.1563905655201;
-        Tue, 23 Jul 2019 11:14:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzN4PQilaUG4Ai1XNpValfs674eL4FHG3CIThCnO+x54yOmpp5FSdEw0wb8Musof7PYnu4q
-X-Received: by 2002:a65:6406:: with SMTP id a6mr40966126pgv.393.1563905654477;
-        Tue, 23 Jul 2019 11:14:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563905654; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=Ijp19dCgszxKeKL+XBVnkeWJUgHPZc8389ax86PIYT8=;
+        b=S3d5J938cXTnmYIU5PCfZhQXJBYGASc+xzvVL4MKFNC7OJKfnfbijCc4QY+NNTJKOW
+         xV6D/COwHxU25QN4+tZd6/CJ7OYvIlmkr1HapM963EJ/R/gTX02Bxv2e3QOtiPOalO/T
+         Gmz5QkXT91l/+HJOhDgTXnN7GX+2yWg3UNrKAjgs+/ucCUvtuSYYW30CWWNJFx09yU5d
+         Soay8HclEvQqjJx4DtOMMHhnvptBdZ1sT95jIOuiDDpVknNI/B1z77mrfXvVuiDL4T+w
+         82LTtbmO1nLshNegmRZyMTLdlDCikWNSssbNbQ/bYMqrqqjRYG9/aVjgSqC/fejcYOAO
+         5j8g==
+X-Gm-Message-State: APjAAAWliuC8CVhqVbWCuiMnH0vV0dlr0G/tkKKRR/uvlbkFOZFmtIGq
+	ktat/UgE9YCiMjF45BDfD3ok86brc1GDc0OTYFQfsimDLf8+HCvS0jTxIqAucGVbpoYuM+9n6sf
+	NHOFRstxBv5a08mkXr6qv7ltR2gJtT2HL6oF+V6OJKgkpDBVjUhS5bNn/gdwXQouUog==
+X-Received: by 2002:a62:5c01:: with SMTP id q1mr7172695pfb.53.1563905946244;
+        Tue, 23 Jul 2019 11:19:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwojOuqwr6MRCFm3XHp2pGmsEnVNbQkiwFVKpqFokYqwWUl21yfITQ7OCggHp5y4IqQys/U
+X-Received: by 2002:a62:5c01:: with SMTP id q1mr7172667pfb.53.1563905945620;
+        Tue, 23 Jul 2019 11:19:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563905945; cv=none;
         d=google.com; s=arc-20160816;
-        b=JOU8J+sB5EirklQLTs9DX6dHAD9+R6pw4cekseywxtz6jjgavJuIK4SrhU1KfofZRB
-         8JySXG/ks3cBXiivkmWYm9HQcTDtnQMk/YmS21w3yL+4tULJvBt5VR9zG+G6PhhsPESe
-         ar7iF+b9HKZYxASSD/GXro1SENeSEPYEWZnaKKbvnVWeD28P8nVrzSOIbRUGGiWn/tah
-         XpdTWEejwUvePXWVyVLwUwYeYSPUoXJ0IHTcj6WebRNIaNTTVfSnrFLS2ZNuZqZiUSlq
-         xZSq1Ucycdh1bfbcg0xRVAp+3DpKZPFw1BIXQ3jQ8JnA0diM+fn28BAmVRvFzPoYzG6F
-         ReQg==
+        b=H34WHW9I9NzLUFl3jWtwP34VpHQEG4Q2+yiwdzE/OOwKOIVqfTm3fjVjcQpYBFfcR+
+         aTQOF/RdSrMduyaebJNgFM4k+K2LecOtmtEz9aOZ7uZl/Q7f7yIP10+9psVxURxMF41Q
+         2HQPETTAZNq0AwOWCTG8AEh+eBLuS8e7UWaODR/VX3KEeMoXiuNNRuz9W62DWAB82Mp2
+         T33LX4KTna5h6kF84WNR94c14wKcHKIa67d8SmTLXHLOut8GukwdrxmApT40JElwk0LO
+         XaTVpvr1FDp0ibMgfx7Bu1yTYk2BRnJ/z1F4fS+S1RszXmEKlU6y2ieoOr7RErQbKLXc
+         U2Fw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=meFPjAHnVpkx5LzG9td2xbKYymV0m46R0toM8uhLgg4=;
-        b=TH5ve2COxSxFsY7z5RTZ93YeHMMVsKzLfQdTxb7fAjrKSeex7LjGMMJDY4+WHIte0P
-         VHSPu7LN1HOpOtN8pRzZegs6JPp97nzXVx0v0kZIa4MZ7wynobNvHkKhEBIl9kUY3xI0
-         vwSAvrso2K0tJ/SIDXFYJYVr5PJaLqsvTyH7HYwHGGPOUY94uXrIUoB4lp6kdcQG41/P
-         ofJ0SAqozxWMvaYpUYw9qIw6U98jAISUNmngEUbbcLvM9p1v+0UEpuXfVx8UQH6B7jN4
-         N9M59bUNwWPJNsuK3DadPVvunyk4G90JJl0JNoud5I3UqTBvtb/l996fm/SGTAP78v1Y
-         2XJQ==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:date:cc:to:from:subject:message-id:dkim-signature;
+        bh=Ijp19dCgszxKeKL+XBVnkeWJUgHPZc8389ax86PIYT8=;
+        b=PwIGFL0xfnhyp/mEGwdk5ETfv3ndVtKfu0TUSXJ5tFOZvOj2GC7kYOZpLit30WIg/4
+         FgmMozjJkRMqo6mTpk4+QNT869yWiSsLaZlmV59HTE6fH4v6exZtBBhfu5Rr5cWlvaoO
+         MC3y/Y2B+2KwuBrcZAFqD4TrByAsb+mvgXlKyIUrLGMg3plqOvQ0A8HJVrObhqwMg24K
+         dm8PH47pzpBH6uCd6vRLBvScdiLlQsOWKMQF42+MK27Z99fT3RlkAt4XzA852ylxPmkG
+         yNSCQiwC9wnIyoezQsoPSaE3KUaafEfw596HSW8OdtyAm3yTSlLMvzLEOnWvXNW8hE7N
+         7trQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="JCBoGa/9";
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 67si14583086plf.400.2019.07.23.11.14.14
+       dkim=pass header.i=@kernel.org header.s=default header.b=pAq+kDaH;
+       spf=pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jlayton@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id c11si13127281pjq.0.2019.07.23.11.19.05
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 23 Jul 2019 11:14:14 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Jul 2019 11:19:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="JCBoGa/9";
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=meFPjAHnVpkx5LzG9td2xbKYymV0m46R0toM8uhLgg4=; b=JCBoGa/9fMlH12kemgaHenbGi
-	Y4ZMyaL5fQuZnEcxRikVrj03Lz0tgfVMCuczzN07zpVBD0rNInixq1H9UAaW6FSvOqwF11DL7A4fo
-	CfObJnXMtoO3//rBTxCSrSu/pCnlVVWIYTXirei8pOS7LsJcimLotK/Oy9EcFQTrrTHg+pTQaDFsm
-	D4vP8YZnwRIeci4FPJgi976tbB2AVhRiwW/sIREyXx23Xj3gW5lvMlYV4bGksXwIZAdbK7CtbgMyr
-	G3cz7l2Kig4hHN7JNCmZNWvVb07hCTvLGJgOL6sgItjf/8EYQjF8uss8/NDmslnZgsdZ9tDkucoHA
-	9xe/HMC/A==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hpzIj-00021d-9d; Tue, 23 Jul 2019 18:14:13 +0000
-Date: Tue, 23 Jul 2019 11:14:13 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	Atul Gupta <atul.gupta@chelsio.com>, linux-crypto@vger.kernel.org
-Subject: Re: [PATCH v2 1/3] mm: Introduce page_size()
-Message-ID: <20190723181413.GN363@bombadil.infradead.org>
-References: <20190721104612.19120-1-willy@infradead.org>
- <20190721104612.19120-2-willy@infradead.org>
- <20190723004307.GB10284@iweiny-DESK2.sc.intel.com>
- <20190723160248.GK363@bombadil.infradead.org>
- <20190723175838.GA29729@iweiny-DESK2.sc.intel.com>
+       dkim=pass header.i=@kernel.org header.s=default header.b=pAq+kDaH;
+       spf=pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jlayton@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from tleilax.poochiereds.net (cpe-71-70-156-158.nc.res.rr.com [71.70.156.158])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 624C62084D;
+	Tue, 23 Jul 2019 18:19:04 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1563905945;
+	bh=Awat9gsewjbgPYbV/sg1258A8MvYYSlvsfznyoqnKc8=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=pAq+kDaHErUf7z0A9YeuslsNjOOpqTeBmy2yWZ/WPZnlJXKuWhoBj4PA0sRvyshLP
+	 rBChVn4/w7vvs9e33FUkKT96KV42rbexeF9eW4c084faYM+yuugLVh0sxDslZE8WMd
+	 CiJwB7vdVBFo4aBCYavOSAWt1sD0ejfSPloUQMLU=
+Message-ID: <d7cd46333eb1a29fb7e0e078dc4fef7646fe2a8c.camel@kernel.org>
+Subject: Re: [PATCH] mm: check for sleepable context in kvfree
+From: Jeff Layton <jlayton@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org,  viro@zeniv.linux.org.uk,
+ lhenriques@suse.com, cmaiolino@redhat.com, Christoph Hellwig <hch@lst.de>
+Date: Tue, 23 Jul 2019 14:19:03 -0400
+In-Reply-To: <20190723181124.GM363@bombadil.infradead.org>
+References: <20190723131212.445-1-jlayton@kernel.org>
+	 <3622a5fe9f13ddfd15b262dbeda700a26c395c2a.camel@kernel.org>
+	 <20190723175543.GL363@bombadil.infradead.org>
+	 <f43c131d9b635994aafed15cb72308b32d2eef67.camel@kernel.org>
+	 <20190723181124.GM363@bombadil.infradead.org>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.32.4 (3.32.4-1.fc30) 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190723175838.GA29729@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 23, 2019 at 10:58:38AM -0700, Ira Weiny wrote:
-> > @@ -1092,7 +1092,7 @@ int chtls_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
-> >  			if (page && off == pg_size) {
-> >  				put_page(page);
-> >  				TCP_PAGE(sk) = page = NULL;
-> > -				pg_size = PAGE_SIZE;
-> > +				pg_size = 0;
+On Tue, 2019-07-23 at 11:11 -0700, Matthew Wilcox wrote:
+> On Tue, Jul 23, 2019 at 02:05:11PM -0400, Jeff Layton wrote:
+> > On Tue, 2019-07-23 at 10:55 -0700, Matthew Wilcox wrote:
+> > > > HCH points out that xfs uses kvfree as a generic "free this no matter
+> > > > what it is" sort of wrapper and expects the callers to work out whether
+> > > > they might be freeing a vmalloc'ed address. If that sort of usage turns
+> > > > out to be prevalent, then we may need another approach to clean this up.
+> > > 
+> > > I think it's a bit of a landmine, to be honest.  How about we have kvfree()
+> > > call vfree_atomic() instead?
+> > 
+> > Not a bad idea, though it means more overhead for the vfree case.
+> > 
+> > Since we're spitballing here...could we have kvfree figure out whether
+> > it's running in a context where it would need to queue it instead and
+> > only do it in that case?
+> > 
+> > We currently have to figure that out for the might_sleep_if anyway. We
+> > could just have it DTRT instead of printk'ing and dumping the stack in
+> > that case.
 > 
-> Yea...  I was not sure about this one at first...  :-/
-
-I'm not sure we actually need to change pg_size here, but it seemed
-appropriate to set it back to 0.
-
-> >  							   __GFP_NORETRY,
-> >  							   order);
-> > -					if (page)
-> > -						pg_size <<= order;
-> >  				}
-> >  				if (!page) {
-> >  					page = alloc_page(gfp);
-> > -					pg_size = PAGE_SIZE;
-> >  				}
-> >  				if (!page)
-> >  					goto wait_for_memory;
+> I don't think we have a generic way to determine if we're currently
+> holding a spinlock.  ie this can fail:
 > 
-> Side note: why 2 checks for !page?
+> spin_lock(&my_lock);
+> kvfree(p);
+> spin_unlock(&my_lock);
+> 
+> If we're preemptible, we can check the preempt count, but !CONFIG_PREEMPT
+> doesn't record the number of spinlocks currently taken.
 
-Because page is assigned to after the first check ...
+
+Ahh right...that makes sense.
+
+Al also suggested on IRC that we could add a kvfree_atomic if that were
+useful. That might be good for new callers, but we'd probably need a
+patch like this one to suss out which of the existing kvfree callers
+would need to switch to using it.
+
+I think you're quite right that this is a landmine. That said, this
+seems like something we ought to try to clean up.
+-- 
+Jeff Layton <jlayton@kernel.org>
 
