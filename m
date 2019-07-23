@@ -2,209 +2,170 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,URIBL_SBL,URIBL_SBL_A,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A3401C7618B
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:08:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E847DC7618B
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:10:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 37F73223A0
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:08:43 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ylt8+rC8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 37F73223A0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 9F054223A0
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 08:10:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F054223A0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9E4C16B0003; Tue, 23 Jul 2019 04:08:42 -0400 (EDT)
+	id 292626B0003; Tue, 23 Jul 2019 04:10:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 995E36B0005; Tue, 23 Jul 2019 04:08:42 -0400 (EDT)
+	id 21ADF8E0002; Tue, 23 Jul 2019 04:10:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8ABAA8E0002; Tue, 23 Jul 2019 04:08:42 -0400 (EDT)
+	id 0E2E96B0007; Tue, 23 Jul 2019 04:10:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 56E976B0003
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 04:08:42 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id x19so25483307pgx.1
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 01:08:42 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E08FD6B0003
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 04:10:00 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id x1so35746784qkn.6
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 01:10:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=5Ljakoy2txq+LWSZiGJ2ER6jX3S3ukmTQZERAI/EP28=;
-        b=ioiyUdy59/f627IgHeFuVOjEkyizxE+jFS3gbVtB70zG2byGsvhqUfSPkn+vCzZcvQ
-         DMXM0A8mfICPW3ive43eXR7dnWf4haNjCSV0plX+zYwkqNXOJdf/406vh3NUc2cCkJKj
-         m7gOsT/m4oYvl+e3o/77MO2X+buWz5DqfegMDyxY19zsw6dDTFBYKLoL+UYA4eFtXwlS
-         gQ1PRMiO83HDsx3w0XtAkK6dfEPPLN5eaR9kb8uurG+zwanalhHmAZHK/Jtao/UM/GTh
-         N+5CC2lxUrh1upDQxXhVXJBRf/PGxie1CopDr6XxkA+qvj1AaCSNV7Sn14/EYyvIFYBX
-         J5Dw==
-X-Gm-Message-State: APjAAAVU5XYoUd1JjvmDdIztEjUdqau83+E1F4/60pSHUTwz89U9PKs6
-	DjlMGqjs+FpXRKzLcYBwrg/EQPw/F0W+gkUeMfD20EQ3pmZolDThborZ5w+TjI6OjJH/oy+2nO5
-	BDvk7ge2G1FK0jp/Rqqp6QIFTeBxctXboyp+XTc3YpYY7D3QlsHOD4OHq7iWgl4PP/g==
-X-Received: by 2002:a62:5c3:: with SMTP id 186mr4509653pff.144.1563869321936;
-        Tue, 23 Jul 2019 01:08:41 -0700 (PDT)
-X-Received: by 2002:a62:5c3:: with SMTP id 186mr4509586pff.144.1563869320845;
-        Tue, 23 Jul 2019 01:08:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563869320; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=bqql16DCdU54/p4Rr6Lj7mTG66zanflGix1IvjfI88E=;
+        b=J6bSlUshi2ZlI0cNsf/ucg4hZhayYb2jEXKjugx03/ZizGkC6hEYHksle35HRbhr3L
+         GzqVvibzn5fWpavmQxemDJQfZxalSkk/adCfqDFW2jsdNMbEN4ntG5O5CJ6HjD+AB5zf
+         RYrIdAPn0K9bEjceDgoFZ6Xq4syfL85g6Tds2mBMI0fM6BZS9RFIO2kxpIM5IS54JfcD
+         T1INYeJXtDy/WPQae71yazUm0XMBhiV/NfbMYojv9LdDOgw/FPaZ75/yHimmiT5mrOBb
+         Js7IQ4Nl4ufaGgpDmIY3P9zoT3mo7djZCr8133eAKfxqkarRrQW+kAa7Vcy15GQ+LNMl
+         CieQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dyoung@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dyoung@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAW9ObRGc0C5xpQY1/2+1bxq6XZ1odA2FNqRBNn+4+eLR7QCNtRP
+	FAQbhzrbT15UqU5Bldr16xZn+HO+eTocGSR/lxDo8DFONl9Lopn7F0u/Ghhr8hKXefofhDeijOU
+	w2r01Ey0ozVQxd55lCB+5mvAB4tmglSRo/e8vxQrAMkpz7nseHbIvH48hAA4EcjyYtQ==
+X-Received: by 2002:ad4:498b:: with SMTP id t11mr55167602qvx.139.1563869400661;
+        Tue, 23 Jul 2019 01:10:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzhBXsSTnLudjCpGzOzCITyaIvLP/D1p85KV1T55wUCA/o+3wrSQaepw0WdbESkDJPT4Ddh
+X-Received: by 2002:ad4:498b:: with SMTP id t11mr55167573qvx.139.1563869400040;
+        Tue, 23 Jul 2019 01:10:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563869400; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ijr/93YT/7Io7mNYZKyxGcu4IjJourMGxfNkt6k+qjaVIqTUXcsVXZvu+HXZUu8Pt5
-         rSKSkxhXMn7IK7w9eOFBRBofykcBkWqT4yXoyRh1eLPUEipGVuSpC9XDPLiLytkBb6Jg
-         ZCw5c5b02deO/h9rNv6J5DC+YiSfLJhJDPxIL2tRIFbcJGQozFpBIDaGjpPxBYtS4hUg
-         HOhwgcDC2Dn78N6/+JCE5i9OxU1uOKbVlu2lnliXGPuEyMGd3hcbrWdPXrsJnwXSGsjM
-         g0poEo/w3YXQ9To6+ySPW6lvBES/mrNET2+c38+AzxbUb2H9ZG9vDXRpGEU5pI9I86uB
-         RIwQ==
+        b=HoIcrAyvxu92eSdp015GVsmZbC7gck1TcABvk2v8cBZqu7A4brChKn1XRt7q5NtzlE
+         u3cGZ0/12FcLXPuFLrLBUeHRnwuEZLbX2b5yA92G9s6aUC6kwhI9z3P7zr4E27x/OQXV
+         GH9uiGIgAv4J5d5BssFZKPptFBprejoXNp4Rch3E8HpLMgZo4r8sNAsFtr3W8+RIR95W
+         pyhg+3MyH7T221Irqp9nVeGgRxDsStIFqZkQvZMthhFKsxKvKGaQ9gYA7iVO/Ou8oiXL
+         7+H1zcHbPWmd9kboOMDHxpt8yByUgk5oBjLQ3yUr6RMgtWvScUJtPltG5/IrOPDbO3jQ
+         W8ew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=5Ljakoy2txq+LWSZiGJ2ER6jX3S3ukmTQZERAI/EP28=;
-        b=kbQnBmJY7Q3WFy0n09gxoyyJRYDJMBLLwH3FnbxGf+ya7zPGh9nhj7DNlxZGvxNUms
-         sg4Q9/1gnr50UxHMLjF7hqvffJaKUBaEvvtMpkctjlbodEvBbxo0tr4n+aU//wR2h+f2
-         l5g/SeMN98YZsWh4xe3sTPkCFwmXZCo3Gecl77EHVnX36lCEF0gbn/b/ROXUJKcJ1aYS
-         AfnmPz6T4UAZoAnFx98AsppFtRNHMYqdZoJ7JjlIHAuwZeQNFPdmYYmaKzZMWKK/kmS7
-         Gb6i1dcUFsTsnulaMfm3jgrRRUdvaHA++btCs/pMFNcNVkgOlrR9chyxjucz5ZOSPibL
-         GCLQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=bqql16DCdU54/p4Rr6Lj7mTG66zanflGix1IvjfI88E=;
+        b=E0LvKUvOVKDh57lWqPW7XjnNRmwbfvfoIHomWX/Rd5FbImb7Bu1KlfgatbLPakn0me
+         FhKjemI1h7XoN/I7FQjadiqJLrQDeHIhG1PUfifeiYBwIMvtWWfmwBNS0owDclRFItB6
+         pY6ENBRSMHv8/Tl806cEhTFP8eIm6ZuJr9Oeb7+k+G8eKrgm5K3mwXqZFUFpTJZOhhfS
+         jySkQPAtvH7wVE9iAs5CXfU3XWlYkKuUOCDlWeL59whmNVdXp+trf1VnSsoASkT4IyRI
+         NVfWvGtnN6XSigi6nINZomABKN0c12yNrhnyjUrnvfolhqETQN2JL4qF1PK/xiauTKWf
+         zegQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ylt8+rC8;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t4sor51994064plq.45.2019.07.23.01.08.40
+       spf=pass (google.com: domain of dyoung@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dyoung@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a38si28566792qvd.50.2019.07.23.01.09.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 23 Jul 2019 01:08:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ylt8+rC8;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=5Ljakoy2txq+LWSZiGJ2ER6jX3S3ukmTQZERAI/EP28=;
-        b=Ylt8+rC8069E6u8FyqM4uLSgJV2dx50fDtx2PKFYgu991k+51qr2rst+T1N5E4gMQ8
-         3DvUSqIV7Qlqd7uigoRUK+uyvEbdFRfEcuLX7bd9blVutAR8SrpO4MgPdU+pDD9Zj0ti
-         aY5QrJWV+xGpOH39Y3G5NhBUlx6Qf9cjOjazqESQONe8AZqDSAYss4Wor7odYQhhusSl
-         WCaKMK+mbuj0iOzCGsXO7cR7fnF+M53slnOGnnBEK87+hZdXZOzMCoYe3CS72OUjhVXn
-         bwQS73yPASt7NrWsHVU/kz/6CQI0AgPPhghKenj2+dwVgshD+OOTQ01wUUIugA/XPP2a
-         D1Xw==
-X-Google-Smtp-Source: APXvYqzMNT4Z0OsD+gSwEN8VCppNjNaEtTnQnh6+l6V9MHIVLJm2mRvaq241ptJi6+/DeMba4j+Efw==
-X-Received: by 2002:a17:902:1004:: with SMTP id b4mr80629421pla.325.1563869320530;
-        Tue, 23 Jul 2019 01:08:40 -0700 (PDT)
-Received: from bogon.localdomain ([203.100.54.194])
-        by smtp.gmail.com with ESMTPSA id q4sm39271136pjq.27.2019.07.23.01.08.38
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jul 2019 01:08:39 -0700 (PDT)
-From: Yafang Shao <laoar.shao@gmail.com>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org,
-	Yafang Shao <laoar.shao@gmail.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Mel Gorman <mgorman@techsingularity.net>,
-	Yafang Shao <shaoyafang@didiglobal.com>
-Subject: [PATCH] mm/compaction: introduce a helper compact_zone_counters_init()
-Date: Tue, 23 Jul 2019 04:08:15 -0400
-Message-Id: <1563869295-25748-1-git-send-email-laoar.shao@gmail.com>
-X-Mailer: git-send-email 1.8.3.1
+        Tue, 23 Jul 2019 01:10:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dyoung@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of dyoung@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dyoung@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 36B3C308FE8D;
+	Tue, 23 Jul 2019 08:09:59 +0000 (UTC)
+Received: from dhcp-128-65.nay.redhat.com (ovpn-12-90.pek2.redhat.com [10.72.12.90])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 6705B60606;
+	Tue, 23 Jul 2019 08:09:55 +0000 (UTC)
+Date: Tue, 23 Jul 2019 16:09:49 +0800
+From: Dave Young <dyoung@redhat.com>
+To: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
+Cc: linux-mm@kvack.org, linux-efi@vger.kernel.org, mingo@kernel.org,
+	bp@alien8.de, peterz@infradead.org, ard.biesheuvel@linaro.org,
+	rppt@linux.ibm.com, pj@sgi.com
+Subject: Re: Why does memblock only refer to E820 table and not EFI Memory
+ Map?
+Message-ID: <20190723080949.GB9859@dhcp-128-65.nay.redhat.com>
+References: <cfee410c5dd4b359ee395ad075f31133387def70.camel@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <cfee410c5dd4b359ee395ad075f31133387def70.camel@intel.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Tue, 23 Jul 2019 08:09:59 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This is the follow-up of the
-commit "mm/compaction.c: clear total_{migrate,free}_scanned before scanning a new zone".
+Hi,
+On 07/20/19 at 03:52pm, Sai Praneeth Prakhya wrote:
+> Hi All,
+> 
+> Disclaimer:
+> 1. Please note that this discussion is x86 specific
+> 2. Below stated things are my understanding about kernel and I could have
+> missed somethings, so please let me know if I understood something wrong.
+> 3. I have focused only on memblock here because if I understand correctly,
+> memblock is the base that feeds other memory management subsystems in kernel
+> (like the buddy allocator).
+> 
+> On x86 platforms, there are two sources through which kernel learns about
+> physical memory in the system namely E820 table and EFI Memory Map. Each table
+> describes which regions of system memory is usable by kernel and which regions
+> should be preserved (i.e. reserved regions that typically have BIOS code/data)
+> so that no other component in the system could read/write to these regions. I
+> think they are duplicating the information and hence I have couple of
+> questions regarding these
+> 
+> 1. I see that only E820 table is being consumed by kernel [1] (i.e. memblock
+> subsystem in kernel) to distinguish between "usable" vs "reserved" regions.
+> Assume someone has called memblock_alloc(), the memblock subsystem would
+> service the caller by allocating memory from "usable" regions and it knows
+> this *only* from E820 table [2] (it does not check if EFI Memory Map also says
+> that this region is usable as well). So, why isn't the kernel taking EFI
+> Memory Map into consideration? (I see that it does happen only when
+> "add_efi_memmap" kernel command line arg is passed i.e. passing this argument
+> updates E820 table based on EFI Memory Map) [3]. The problem I see with
+> memblock not taking EFI Memory Map into consideration is that, we are ignoring
+> the main purpose for which EFI Memory Map exists.
 
-These counters are used to track activities during compacting a zone,
-and they will be set to zero before compacting a new zone in all compact
-paths. Move all these common settings into compact_zone() for better
-management. A new helper compact_zone_counters_init() is introduced for
-this purpose.
+https://blog.fpmurphy.com/2012/08/uefi-memory-v-e820-memory.html
+Probably above blog can explain some background.
 
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Cc: Yafang Shao <shaoyafang@didiglobal.com>
----
- mm/compaction.c | 28 ++++++++++++++--------------
- 1 file changed, 14 insertions(+), 14 deletions(-)
+> 
+> 2. Why doesn't the kernel have "add_efi_memmap" by default? From the commit
+> "200001eb140e: x86 boot: only pick up additional EFI memmap if add_efi_memmap
+> flag", I didn't understand why the decision was made so. Shouldn't we give
+> more preference to EFI Memory map rather than E820 table as it's the latest
+> and E820 is legacy?
+> 
+> 3. Why isn't kernel checking that both the tables E820 table and EFI Memory
+> Map are in sync i.e. is there any *possibility* that a buggy BIOS could report
+> a region as usable in E820 table and as reserved in EFI Memory Map?
+> 
+> [1] 
+> https://elixir.bootlin.com/linux/latest/source/arch/x86/kernel/setup.c#L1106
+> [2] 
+> https://elixir.bootlin.com/linux/latest/source/arch/x86/kernel/e820.c#L1265
+> [3] 
+> https://elixir.bootlin.com/linux/latest/source/arch/x86/platform/efi/efi.c#L129
+> 
+> Regards,
+> Sai
+> 
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index a109b45..356348b 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -2065,6 +2065,19 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
- 	return false;
- }
- 
-+
-+/*
-+ * Bellow counters are used to track activities during compacting a zone.
-+ * Before compacting a new zone, we should init these counters first.
-+ */
-+static void compact_zone_counters_init(struct compact_control *cc)
-+{
-+	cc->total_migrate_scanned = 0;
-+	cc->total_free_scanned = 0;
-+	cc->nr_migratepages = 0;
-+	cc->nr_freepages = 0;
-+}
-+
- static enum compact_result
- compact_zone(struct compact_control *cc, struct capture_control *capc)
- {
-@@ -2075,6 +2088,7 @@ bool compaction_zonelist_suitable(struct alloc_context *ac, int order,
- 	const bool sync = cc->mode != MIGRATE_ASYNC;
- 	bool update_cached;
- 
-+	compact_zone_counters_init(cc);
- 	cc->migratetype = gfpflags_to_migratetype(cc->gfp_mask);
- 	ret = compaction_suitable(cc->zone, cc->order, cc->alloc_flags,
- 							cc->classzone_idx);
-@@ -2278,10 +2292,6 @@ static enum compact_result compact_zone_order(struct zone *zone, int order,
- {
- 	enum compact_result ret;
- 	struct compact_control cc = {
--		.nr_freepages = 0,
--		.nr_migratepages = 0,
--		.total_migrate_scanned = 0,
--		.total_free_scanned = 0,
- 		.order = order,
- 		.search_order = order,
- 		.gfp_mask = gfp_mask,
-@@ -2418,10 +2428,6 @@ static void compact_node(int nid)
- 		if (!populated_zone(zone))
- 			continue;
- 
--		cc.nr_freepages = 0;
--		cc.nr_migratepages = 0;
--		cc.total_migrate_scanned = 0;
--		cc.total_free_scanned = 0;
- 		cc.zone = zone;
- 		INIT_LIST_HEAD(&cc.freepages);
- 		INIT_LIST_HEAD(&cc.migratepages);
-@@ -2526,8 +2532,6 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 	struct compact_control cc = {
- 		.order = pgdat->kcompactd_max_order,
- 		.search_order = pgdat->kcompactd_max_order,
--		.total_migrate_scanned = 0,
--		.total_free_scanned = 0,
- 		.classzone_idx = pgdat->kcompactd_classzone_idx,
- 		.mode = MIGRATE_SYNC_LIGHT,
- 		.ignore_skip_hint = false,
-@@ -2551,10 +2555,6 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 							COMPACT_CONTINUE)
- 			continue;
- 
--		cc.nr_freepages = 0;
--		cc.nr_migratepages = 0;
--		cc.total_migrate_scanned = 0;
--		cc.total_free_scanned = 0;
- 		cc.zone = zone;
- 		INIT_LIST_HEAD(&cc.freepages);
- 		INIT_LIST_HEAD(&cc.migratepages);
--- 
-1.8.3.1
+Thanks
+Dave
 
