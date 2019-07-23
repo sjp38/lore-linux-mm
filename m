@@ -2,148 +2,141 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F8C5C76190
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 13:08:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CA87AC7618B
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 13:12:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E6A98218BE
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 13:08:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8C9F1218BE
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 13:12:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="hRi655oh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6A98218BE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="THmUzDON"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C9F1218BE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6E2808E0002; Tue, 23 Jul 2019 09:08:22 -0400 (EDT)
+	id 137676B0003; Tue, 23 Jul 2019 09:12:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6B00A6B000C; Tue, 23 Jul 2019 09:08:22 -0400 (EDT)
+	id 0E9B48E0003; Tue, 23 Jul 2019 09:12:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 582668E0002; Tue, 23 Jul 2019 09:08:22 -0400 (EDT)
+	id F19218E0002; Tue, 23 Jul 2019 09:12:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FA776B0006
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 09:08:22 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id d6so21902547pls.17
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 06:08:22 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id CB0986B0003
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 09:12:15 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id j12so21915276pll.14
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 06:12:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=mMJGMBwbdv3BuUIrB2fh3trkXMpns9zS+fKqqtIDYso=;
-        b=FVzM9WKtorRVnYXe+DdYWc+8Lhd9cvqlBrKoIGnnIp6XZ/JBuuFOsLZPXGPywG7PAE
-         ld1ExKXk4usHudrhGscN6PZ2n64B0IlPWk6aAjIoA1ljBz27sW/+ZtKE4/MCEbx55q/d
-         hByxo6Q44hXS8P86QisWLiY8Noai0Cviidu0ZC12f2h+YzuzhrYWiRbXUEwr+dV9FQhd
-         j+poZ0OtJXaFu8f1pYSCwq5ja4YAo1z0+kMbv7MT0De2frzbPh8Mnd+2uQ+cpppjVyUF
-         qdoLTmXP+Yc7IvfbZwdxjR3G2/1mlL8xN747fTABxjcx+dzzNzOXtt9DKJjF1/6zC5OP
-         h9UQ==
-X-Gm-Message-State: APjAAAX5e6YkU2Jk4Ncs6rP9FC0ze7u5qZBZe4iS5HN4Fg262wvMiWdo
-	T+BJV+4oUlK+JTvyQ5ZRyE4o+9xBU7depIOyCVfzZZr2ETrSbOBVgI5Rf5V34XDN8l34rGFt0bQ
-	/HNM6IXog8clugYDJLY6DoGM3YaYSLKevNeJvD/4WYgFW6DPNNgpbsnisu7WJyZIuDA==
-X-Received: by 2002:a17:902:be12:: with SMTP id r18mr76488633pls.341.1563887301863;
-        Tue, 23 Jul 2019 06:08:21 -0700 (PDT)
-X-Received: by 2002:a17:902:be12:: with SMTP id r18mr76488551pls.341.1563887300730;
-        Tue, 23 Jul 2019 06:08:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563887300; cv=none;
+         :message-id:mime-version:content-transfer-encoding;
+        bh=5Xxj9U/zS83HJV13Ata/50176YxMYH+7D4lSiJVniWQ=;
+        b=FXPP1/YFtNQ7ilxzmuWZfL5U7LTg3mXMeCrE0HG8Mi7vRLBHH86TinOrgTw6MV7xXY
+         V0ZXFnxzkjOQxwRQI9oC4kpjLFKinDj97g55Xc2SCWwzk29vghFKOrpHMGbX9uXXuyNK
+         Qw6MWcUBtyWHy/t2oY1lrUwOoqPT7mNFrtJOqVo96RUimW+EtJfVxfZUPq1wrIpxrnbC
+         6BFaaaxFvNmDCDCw5s2HdmMTL2j74aWYbwUm6c9VQkZZ3i45YObGPyqhlVaHJRqnPfzC
+         d8jSQaWnoXjhjdnKGFkFb4i/M9d62p724bXdNfzUao1SXWOR8eGEFyEBK5KrX1j9Hunp
+         dOFg==
+X-Gm-Message-State: APjAAAUoUbO0mfHg8bjLqlHfPnVRB3jSN186ETiHAJOrrkX7U3jIgdDx
+	cbPdA7Y1ieodCWM0oxDUijD7meVTn5TtQg6Hov54n2U9Kg9cG3zs4tJTxHUcaJLbytiDnMeXKmo
+	HN9idxWfv+Y1c62wVJ3JfUK4TZ7qYu4TCxlJpOj7NtU++lNG5DgMTQ+upBIRmWxkSjA==
+X-Received: by 2002:a17:902:e202:: with SMTP id ce2mr77620390plb.272.1563887535483;
+        Tue, 23 Jul 2019 06:12:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyMkrzEAFJmtZtvq1YoYMqC5i/PuwnTsfwU6LXA92Sv6N6O71lOYNTNluxfH+GTJlOyDQPp
+X-Received: by 2002:a17:902:e202:: with SMTP id ce2mr77620351plb.272.1563887534911;
+        Tue, 23 Jul 2019 06:12:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563887534; cv=none;
         d=google.com; s=arc-20160816;
-        b=P5WT1Feghk1fszvtL+xxtgCLfTFOFqitknf/h1mr9K+y76Wsw61JDMt2V3NSP7Xk/r
-         KwCoMvp9FHTwu+H7OjgLvuMTB5I7eYQOKtIQXciF8+hUdzvLyrD19EyJ345R+mU37YQS
-         zKsg8+8TEWlIzJX+Wu5/bhh889WcXQm3NenUMeRJjI9UeCuz/QFxkr1f9dOe27U5T8Wb
-         SxI2dFDJDw2vQY8sXTBDOfiHYln0VI5RqqNs2UyEjhLKrQoUX6HEwNEoc77jU/mfDhBq
-         CKoXOO45mN2U8ZPAyEcP0rJruTAOJmP0U5Y2tVLWgZVTSRz3FgoY86rnFjjpjjWMCsxX
-         qUqA==
+        b=ILQNLOVK3gOHqSHt3JhrqgTba8qqCoGSkJUh6HVSg1gSyXJRp8PDu4feHIXpV81JQZ
+         G0mPvWY3/dz/oSNgrDTvqOrr8bGzdIyQhlcRV0OadMuT5k/JklSjAryCIS3cH2qpH6bi
+         0r+olINtdL1JcaMq/X197G3P35GypTkVW62xM9/4cGNcBD4J5mwRmCOE++Q9mxbpb7uI
+         gYl5Z7Re1ZuXOTugzyQdRyKLytyw80tGWhWcO/8rsE9Ijfl67PPjNaCDZnsdoFo5BX4o
+         6nh/FpRXcdwY7hYr6ngnoIOO8bZXHeXie6qBqk4ft4lklwvy8xG+lmMDdZ1HhcC3x/G6
+         VbHw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=mMJGMBwbdv3BuUIrB2fh3trkXMpns9zS+fKqqtIDYso=;
-        b=qz1/o/pl80YxONFJirLdg+4P3l+dN5CsS9hTRevLvi8bypUYDjthdKPLLRN1r6CJrU
-         +YqO/uWqGy/Uix2jPyrAI7QKuu8TnjM13MAz5Qi6oDdzPToaJO6QHpEzuiJGrdSxEKXH
-         YRhIPuP8VgzJAEPuAdr3QsnOJRT9xhuiDpqZXJhHqdgCBxHPGUlUsY7OBqZBiII0F+pB
-         R4v3Ws+6lu+5UrejGCGmryiXDJvnkwZuxtDqbe0kXLNXSbth7mpHI2gbffRCoDEG+JKi
-         GKFYpFIQgOkZqyv2HqW7RPRyZckmzRAknTsMm08d7TW5b7JUUiHQMXQjhkuuBuBesATV
-         KRTA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=5Xxj9U/zS83HJV13Ata/50176YxMYH+7D4lSiJVniWQ=;
+        b=gtotzeyL1X8vmUSizSNKsxyGANZ/aXQM3LyxJt3YOUpulQPUHwPLq9Q9glF+PJNC27
+         DYTjboJz+IFyWBOwlBI2DRKedMrQBv1ATSX4Gfe9Nyi0X1dtUrHJGGsMb8vd1zHeAb+3
+         JvEhJlS7Kz3GuLHUafnBcHQ7atpRheIxYbAvrAS+r8akyeKgcHhFLlcC7DF97MY0ZLCx
+         7cinM/3bX0pb7ij9pbtk9bkDKG3SPVF7rKcZSp9Dpk/YmnIyQnwh6ijZ5H9nT32LAE2e
+         XgOS4hLgxvY0OJUrcwHKrMhyP4EdEWDpzcHeZxFiGdBmYFwKpqujG9z1uj7W6X7G9QcZ
+         yeZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hRi655oh;
-       spf=pass (google.com: domain of houweitaoo@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=houweitaoo@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h2sor52069431plr.53.2019.07.23.06.08.20
+       dkim=pass header.i=@kernel.org header.s=default header.b=THmUzDON;
+       spf=pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jlayton@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id r190si11530453pfr.102.2019.07.23.06.12.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 23 Jul 2019 06:08:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of houweitaoo@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hRi655oh;
-       spf=pass (google.com: domain of houweitaoo@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=houweitaoo@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=mMJGMBwbdv3BuUIrB2fh3trkXMpns9zS+fKqqtIDYso=;
-        b=hRi655ohdlnFYbeJACxTYv4WXDTzYM6muo+fQ0W+9swzRbEC7whe7L3x9g32g/hhgs
-         FOFAtZGhZ7Br9Gn+HA0jF78wSvG99IiJ3YuANkCoB7L5DbI91alE1V0JI4ZkQJfFBq5Y
-         k/k2hEvsSaom9j+dXabOqm14XrLUCDPWGkPhDV0fLeuQzdi/Aa2cPG4m+i5XDM9Z3RES
-         zgaGcscpo3/b589RlE8M5NazmIvL0BTxFYRKmU+8NZaT/IMzpVeQXj8F+/kksyCZ3dEj
-         qyQwY1ixuMDC0Y97X2wxJ0nxggbFTKck4L2WG9UqymiYN/KL91OpdcwcBP0tOH2FIer9
-         rUAg==
-X-Google-Smtp-Source: APXvYqwmCu4VygQO+Rx9bAtrtscNWk4NIlhSZPtvsVz1VJIBxtoVYfY0lrSZLTcdwQEQ3YSz/ESs3w==
-X-Received: by 2002:a17:902:28c9:: with SMTP id f67mr41262500plb.19.1563887300481;
-        Tue, 23 Jul 2019 06:08:20 -0700 (PDT)
-Received: from localhost ([43.224.245.179])
-        by smtp.gmail.com with ESMTPSA id r2sm58250026pfl.67.2019.07.23.06.08.19
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jul 2019 06:08:19 -0700 (PDT)
-From: Weitao Hou <houweitaoo@gmail.com>
-To: akpm@linux-foundation.org,
-	osalvador@suse.de,
-	mhocko@suse.com,
-	david@redhat.com,
-	pasha.tatashin@soleen.com,
-	dan.j.williams@intel.com
+        Tue, 23 Jul 2019 06:12:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@kernel.org header.s=default header.b=THmUzDON;
+       spf=pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jlayton@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from tleilax.poochiereds.net (cpe-71-70-156-158.nc.res.rr.com [71.70.156.158])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id DE4EF21734;
+	Tue, 23 Jul 2019 13:12:13 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1563887534;
+	bh=ZO1wGUmWSLKPo9gdfNOhIY94diLFMvhRrwi5O5KH5Dg=;
+	h=From:To:Cc:Subject:Date:From;
+	b=THmUzDONEyO1NATBaw9+6OuqUfeHe4ipWbIjPLQ/NzvjO64hlY6DK00Xr6DbflX6/
+	 eHD8o9DGxDG+tvbB3DbKvPaYfgNXokZExapLeFB4tkEYOMhESeYkqjI4FrdIWuKFlk
+	 zZ2HUxyee8m9rj9ugWJbnV5Hxpfrdt9Qq08x0uwQ=
+From: Jeff Layton <jlayton@kernel.org>
+To: akpm@linux-foundation.org
 Cc: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org,
-	Weitao Hou <houweitaoo@gmail.com>
-Subject: [PATCH] mm/hotplug: remove unneeded return for void function
-Date: Tue, 23 Jul 2019 21:08:14 +0800
-Message-Id: <20190723130814.21826-1-houweitaoo@gmail.com>
-X-Mailer: git-send-email 2.18.0
+	viro@zeniv.linux.org.uk,
+	lhenriques@suse.com,
+	cmaiolino@redhat.com
+Subject: [PATCH] mm: check for sleepable context in kvfree
+Date: Tue, 23 Jul 2019 09:12:12 -0400
+Message-Id: <20190723131212.445-1-jlayton@kernel.org>
+X-Mailer: git-send-email 2.21.0
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-return is unneeded in void function
+A lot of callers of kvfree only go down the vfree path under very rare
+circumstances, and so may never end up hitting the might_sleep_if in it.
+Ensure that when kvfree is called, that it is operating in a context
+where it is allowed to sleep.
 
-Signed-off-by: Weitao Hou <houweitaoo@gmail.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Luis Henriques <lhenriques@suse.com>
+Signed-off-by: Jeff Layton <jlayton@kernel.org>
 ---
- mm/memory_hotplug.c | 2 --
- 1 file changed, 2 deletions(-)
+ mm/util.c | 2 ++
+ 1 file changed, 2 insertions(+)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 2a9bbddb0e55..c73f09913165 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -132,7 +132,6 @@ static void release_memory_resource(struct resource *res)
- 		return;
- 	release_resource(res);
- 	kfree(res);
--	return;
- }
- 
- #ifdef CONFIG_MEMORY_HOTPLUG_SPARSE
-@@ -979,7 +978,6 @@ static void rollback_node_hotadd(int nid)
- 	arch_refresh_nodedata(nid, NULL);
- 	free_percpu(pgdat->per_cpu_nodestats);
- 	arch_free_nodedata(pgdat);
--	return;
- }
- 
- 
+diff --git a/mm/util.c b/mm/util.c
+index e6351a80f248..81ec2a003c86 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -482,6 +482,8 @@ EXPORT_SYMBOL(kvmalloc_node);
+  */
+ void kvfree(const void *addr)
+ {
++	might_sleep_if(!in_interrupt());
++
+ 	if (is_vmalloc_addr(addr))
+ 		vfree(addr);
+ 	else
 -- 
-2.18.0
+2.21.0
 
