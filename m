@@ -2,158 +2,171 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7AF53C76194
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 21:07:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 57781C76190
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 21:24:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3D4692238C
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 21:07:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0F47E218D4
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 21:24:52 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="krorYgFC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3D4692238C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="QGJNkRZs"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0F47E218D4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 070AC6B000C; Tue, 23 Jul 2019 17:07:49 -0400 (EDT)
+	id 9DA856B0003; Tue, 23 Jul 2019 17:24:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 048F66B000D; Tue, 23 Jul 2019 17:07:48 -0400 (EDT)
+	id 98AD16B0005; Tue, 23 Jul 2019 17:24:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E79C98E0002; Tue, 23 Jul 2019 17:07:48 -0400 (EDT)
+	id 878778E0002; Tue, 23 Jul 2019 17:24:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B3BE76B000C
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 17:07:48 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id d6so22667161pls.17
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 14:07:48 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 68E9D6B0003
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 17:24:52 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id k21so48648858ioj.3
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 14:24:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:user-agent;
-        bh=eXdJyX/5y1/FGa+5JWyiUL+IHdXyD6YsS6A0RC/riP0=;
-        b=sRVsqG2WL0icjFSVNVcrz5uizmsF0bp0yqxtrE71WXJ/nlt42K0cRE8pXr/WKUMrCL
-         2pbcw+zijBSK3tJky5SogzG5R0DU3nNMoNVjSvR7rs016LDF1nemFo/pt2Z486wuDNhu
-         nVAN7sRzwEzC0dH0hr588AyMIU5Dre1x+OyNNLIBdhsA7VVCBoG1fq+UFnnEWtrWGjXL
-         2ztpc1CGdcRGqoLJNQOz6QmCCQ58WY5XLX4pZwqPRSQHGaTdf5zAxVyCMyW8ONqXfs/z
-         EFgQYUo1Exuqcgs5ykU0qKHkQwAJ4ZyV7h9sFJZcXHXayWnBZs6CLdpw0+ivMwMjFdyO
-         sjmg==
-X-Gm-Message-State: APjAAAWyFGM1oYhiEoQxS9F5lOGRpqjlGvaC55YzY8dfIT1ilLceNmYZ
-	tmq0UbStsvNv7oJ444EPPQqMBulcmWxjYAeSKNbImtXqGenVp8GpZo1KJK+CpYCK8lXGpfrtQUb
-	qHEoAJy7GwlvCtSZaUFxjCpSQkvK6fFjtQcP0It6Y1+1dKMQtPDP/+f+vNRk5S+rABA==
-X-Received: by 2002:a17:90a:1b4c:: with SMTP id q70mr81786939pjq.69.1563916068422;
-        Tue, 23 Jul 2019 14:07:48 -0700 (PDT)
-X-Received: by 2002:a17:90a:1b4c:: with SMTP id q70mr81786888pjq.69.1563916067585;
-        Tue, 23 Jul 2019 14:07:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563916067; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=M6w3AQT/kAXXnbql10OE6lR9hDAhCRnli8EPorWLJVk=;
+        b=gnpSqHjF+GyP2fOwlrhvjfiJHvhFBJiZzCJURyvax4uxisG8Pn3TKibRMxoLtHnPmR
+         +BzmsKVT4o2rT8s2J2KZL+pdglwlb25StoIOL4ZTajymclJlSrI/d3rH8H17j8207c8u
+         XaoKXYo68r2Z3iNNXTwg/7XDeb4vS3bH6LZoxj72qAFlAFfjFCUWhEQ1fINKQJm8N2yN
+         cJMbojp+Tlej1qjq4LEDhibsUkssjf/zO4hSVk/hwLe6LAQMp6BngNbXUB1O/r+bK7Al
+         krXWDVmxciKq1wRj8tuTRZua+0r3cBbrodcNvrqVIBBv5GGTAv+J0zIEWuSCCmuZ3UBa
+         YEWw==
+X-Gm-Message-State: APjAAAXh1qxceWGW4bLWG1EZB31d/mBwolbnC2IMdGWmtMvgRT+Q+A8S
+	XClD/lZh2p6z5UNuryYGMmn+l5gtXCGnStIPG653W6qyVTnrlQHANYSYeZBf6YciEOVpRQj9obX
+	4uUiqNQBrRsZW16RFbpgE6nGxddr5aM/cS+c3ScUsKfV4ue1zV5OUx4J+rMfpsujMWg==
+X-Received: by 2002:a02:bb08:: with SMTP id y8mr36785353jan.51.1563917092100;
+        Tue, 23 Jul 2019 14:24:52 -0700 (PDT)
+X-Received: by 2002:a02:bb08:: with SMTP id y8mr36785322jan.51.1563917091403;
+        Tue, 23 Jul 2019 14:24:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563917091; cv=none;
         d=google.com; s=arc-20160816;
-        b=rLSihJ/VoGaxqtCHf+H6+ZSI8XSH6Q8LIjNS4kw5geQBsXdvMwO35eBA4bXlsHuvxC
-         Uq/mff7T4dFiy0775iUKYUeapZvOCLKKpYtEzdE+z+zNsCk0PR3evG3raYZSt49zbwvK
-         tywsMrqgnzXbvgeBsFUvgs7Yo8zkD4vX9Xy4B+bDNOgpi6+RDiHq0EgF2PQmb+CdMe7H
-         K0Kx5NKDcLsc95/cYn0VZMqLgdHPU4+3J2SDeZZnbYc57ySc2NweEGX5dObv7tzgAoZ5
-         PfuraWXY2YEKp6eAuniYk7Us2kHXJp3EjUDbOMy/GQgGqOXaRXG3d+e3S+I836e+iuXP
-         Hn1g==
+        b=NLIYxqoZ1xyyGPlL3465fmUj/DGREZp48s94D/Kd9DRIiD8qXxqnW8KNC2nB5fMz+u
+         JnbCMoFb2hTzDVev8z1TLKABO+fs21b0bGtVQi5D0ytRf2HxrMZg6X8pOTyRlpRR1R+e
+         +3syTfVpD/fMse/QtkHMzVAyvbt+HPFKaRxFFahrDuzOWRad7C5qdwPVZYJm/B2MY76h
+         Ijs6J5Xru3r6azciypOVLn7LfubPIpnEG+EeAPaE6whYq/X9NXGJ9p64YIIoZlqmQkPx
+         V7zLLS5vZ1J4Gm3EImmfXYBcduoKdY0LtfE13yokqbMowPy/soCgcRrl5HRsHrCBg/uo
+         JkXw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=eXdJyX/5y1/FGa+5JWyiUL+IHdXyD6YsS6A0RC/riP0=;
-        b=XpR18DNlIksSDII+O6dR5NF9ICQxsHwEp0sbk/m8T9BkVwaLzXL5e+akjHgqxjKV8Z
-         3qRm2MBOyYuOL4zLjU6OjoISBWFVMpxV7fuMgSpc7TbyyQ5dezzSWjUXeXNMnLRi67Mb
-         x49OCH3uliODbiGIHITAuH587z35LQ4YJocvY25LQZyaxm3tH0U4K/mRobKVAdtkwhk5
-         Gf9cbSh2gjqrjYsrkRBR/i9JeHVym9C70LXAwicLv2JS9Jn7jI2tkJHmV5/9nxujIzb7
-         Ea32yNpcekSZBEwM0a8x/NMFqTDaZNdzHTBy+guhXpZTD+MpcR5KGDkFSrIaL+FZJeFS
-         ldzw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=M6w3AQT/kAXXnbql10OE6lR9hDAhCRnli8EPorWLJVk=;
+        b=QIbboc11OoWb6uBoxAwvdSJmKzIpcXlnTPH12Juf6WR83YXSGSFh8gUIfxAM0JARUT
+         g0tCqxobbEfU0KgsgT/b4cymEekDfqwENbk2karn3XdrSXyRdhiCIQAHYKzq8+rY35xM
+         uSVZBCj7QH3jvn1bffX2oml2JRiGKA27dmUl34CL41Cwu8HAB5JcGtNfvEFt2TEo3fVO
+         wE4Q1Ns9rkK2xz+HUfjXaH0xoxipn2ctK7tVsp2UvGiTPDe0omuqx/HUvKmoqu4IDWA1
+         gcBnAKsRFpRQr8N7NvZFDAJuipdm+8kSHNdoOx4Hz8rvt+TAu61StSsaRdZT9Xzrou8S
+         M4Ng==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=krorYgFC;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QGJNkRZs;
+       spf=pass (google.com: domain of koct9i@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=koct9i@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f16sor24116960pgn.77.2019.07.23.14.07.47
+        by mx.google.com with SMTPS id u3sor105773238jam.9.2019.07.23.14.24.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 23 Jul 2019 14:07:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 23 Jul 2019 14:24:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of koct9i@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=krorYgFC;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=QGJNkRZs;
+       spf=pass (google.com: domain of koct9i@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=koct9i@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chrisdown.name; s=google;
-        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
-         :user-agent;
-        bh=eXdJyX/5y1/FGa+5JWyiUL+IHdXyD6YsS6A0RC/riP0=;
-        b=krorYgFC8c4EEHktVPMM8Uc7p10JFe0m3Uh5Z7ygeHlBHaZoO9KsDsqrGfKaOQ5n45
-         Uu4t0n4z/SGQkouCaz5dv002xNN8r2wM56rDbp6+ZTVvamypB6MVSsqNBUzlCunbD8JI
-         DmdBacuJcpJxjt2ybAFvHIpYgMHnUYIG12DWQ=
-X-Google-Smtp-Source: APXvYqx+RlfYYF9BsUFYetL+eK6XXW+0RaA14tPNlGA5LsYqVrZUzX7sAKiZK0j2exSKPYRkMQRd9Q==
-X-Received: by 2002:a63:c008:: with SMTP id h8mr75676650pgg.427.1563916066868;
-        Tue, 23 Jul 2019 14:07:46 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::1:48f4])
-        by smtp.gmail.com with ESMTPSA id l31sm69890987pgm.63.2019.07.23.14.07.46
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 23 Jul 2019 14:07:46 -0700 (PDT)
-Date: Tue, 23 Jul 2019 17:07:37 -0400
-From: Chris Down <chris@chrisdown.name>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
-	Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org,
-	cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
-Subject: [PATCH] cgroup: kselftest: Relax fs_spec checks
-Message-ID: <20190723210737.GA487@chrisdown.name>
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=M6w3AQT/kAXXnbql10OE6lR9hDAhCRnli8EPorWLJVk=;
+        b=QGJNkRZsxv5Zuf3BgPCZSqKQFZGj+62TufloKtPG2MZHXVGH1Gd0Lp6K2ETJIbCSjh
+         9H8asFqfqbKMBBxMrqWl9WTuBXgxsHM7Hvujxd7Mwzg0TCSP+fQqr1kIT1Sb984JAHC3
+         KFRtHdL8Nomx/M8Jrwx69IAiJJZKW1vawnwm6x6dcOqS/ZUdTMSZsXPw0d+5Z9j5hIlq
+         rVAmZv0JRn+cBmfh4L4vnMcFIHHYgRJg/C2jixIYFE5ZqVpGxI5UgWCGqmddrraX8EbC
+         V9YLC2jwBhDTpcvB8SfLT3PTMul+gIi/+9fKTr0YhWbOURJVhIsrLU0TaeW1+B7rgdxl
+         DK5Q==
+X-Google-Smtp-Source: APXvYqxKr4HupaYHi34Ne4j7ZwGE2Zn3T5z4Jpb3W+1WmUklRBx1IuSc0txOT2Cv/XB1evJIt72QfM/euePyWkorYTY=
+X-Received: by 2002:a05:6638:cf:: with SMTP id w15mr3101134jao.136.1563917090945;
+ Tue, 23 Jul 2019 14:24:50 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: Mutt/1.12.1 (2019-06-15)
+References: <156388617236.3608.2194886130557491278.stgit@buzz> <20190723130729.522976a1f075d748fc946ff6@linux-foundation.org>
+In-Reply-To: <20190723130729.522976a1f075d748fc946ff6@linux-foundation.org>
+From: Konstantin Khlebnikov <koct9i@gmail.com>
+Date: Wed, 24 Jul 2019 00:24:41 +0300
+Message-ID: <CALYGNiMw_9MKxfCxq9QsXi3PbwQMwKmLufQqUnhYdt8C+sR2rA@mail.gmail.com>
+Subject: Re: [PATCH] mm/backing-dev: show state of all bdi_writeback in debugfs
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, 
+	Cgroups <cgroups@vger.kernel.org>, linux-fsdevel <linux-fsdevel@vger.kernel.org>, 
+	Tejun Heo <tj@kernel.org>, Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>, 
+	Michal Hocko <mhocko@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On my laptop most memcg kselftests were being skipped because it claimed
-cgroup v2 hierarchy wasn't mounted, but this isn't correct. Instead, it
-seems current systemd HEAD mounts it with the name "cgroup2" instead of
-"cgroup":
+On Tue, Jul 23, 2019 at 11:07 PM Andrew Morton
+<akpm@linux-foundation.org> wrote:
+>
+> On Tue, 23 Jul 2019 15:49:32 +0300 Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
+>
+> > Currently /sys/kernel/debug/bdi/$maj:$min/stats shows only root bdi wb.
+> > With CONFIG_CGROUP_WRITEBACK=y there is one for each memory cgroup.
+> >
+> > This patch shows here state of each bdi_writeback in form:
+> >
+> > <global state>
+> >
+> > Id: 1
+> > Cgroup: /
+> > <root wb state>
+> >
+> > Id: xxx
+> > Cgroup: /path
+> > <cgroup wb state>
+> >
+> > Id: yyy
+> > Cgroup: /path2
+> > <cgroup wb state>
+>
+> Why is this considered useful?  What are the use cases.  ie, why should
+> we add this to Linux?
+>
+> > mm/backing-dev.c |  106 +++++++++++++++++++++++++++++++++++++++++++++++-------
+> > 1 file changed, 93 insertions(+), 13 deletions(-)
+>
+> No documentation because it's debugfs, right?
+>
+> I'm struggling to understand why this is a good thing :(.  If it's
+> there and people use it then we should document it for them.  If it's
+> there and people don't use it then we should delete the code.
+>
 
-    % grep cgroup /proc/mounts
-    cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec,relatime,nsdelegate 0 0
+Well. Cgroup writeback has huge internal state:
+bdi_writeback for each pair (bdi, memory cgroup ) which refers to some
+blkio cgroup.
+Each of them has writeback rate estimation, bunch of counters for
+pages and flows and so on.
+All this rich state almost completely hidden and gives no clue when
+something goes wrong.
+Debugging such dynamic structure with gdb is a pain.
 
-I can't think of a reason to need to check fs_spec explicitly
-since it's arbitrary, so we can just rely on fs_vfstype.
+Also all these features are artificially tied with cgroup2 interface
+so almost nobody use them right now.
 
-After these changes, `make TARGETS=cgroup kselftest` actually runs the
-cgroup v2 tests in more cases.
+This patch extends legacy debug manhole to expose bit of actual state.
+Alternative is exactly removing this debugfs file.
 
-Signed-off-by: Chris Down <chris@chrisdown.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Roman Gushchin <guro@fb.com>
-Cc: linux-kernel@vger.kernel.org
-Cc: cgroups@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: kernel-team@fb.com
----
- tools/testing/selftests/cgroup/cgroup_util.c | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
-
-diff --git a/tools/testing/selftests/cgroup/cgroup_util.c b/tools/testing/selftests/cgroup/cgroup_util.c
-index 4c223266299a..bdb69599c4bd 100644
---- a/tools/testing/selftests/cgroup/cgroup_util.c
-+++ b/tools/testing/selftests/cgroup/cgroup_util.c
-@@ -191,8 +191,7 @@ int cg_find_unified_root(char *root, size_t len)
- 		strtok(NULL, delim);
- 		strtok(NULL, delim);
- 
--		if (strcmp(fs, "cgroup") == 0 &&
--		    strcmp(type, "cgroup2") == 0) {
-+		if (strcmp(type, "cgroup2") == 0) {
- 			strncpy(root, mount, len);
- 			return 0;
- 		}
--- 
-2.22.0
+I'm using this debugfs interface for croups and find it very useful:
+https://lore.kernel.org/patchwork/patch/973846/
+but writeback has another dimension so needs own interface.
 
