@@ -2,278 +2,158 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E969CC76186
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 21:05:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7AF53C76194
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 21:07:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9F29E229ED
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 21:05:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3D4692238C
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 21:07:49 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="clAJYjoG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F29E229ED
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="krorYgFC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3D4692238C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 220A46B000C; Tue, 23 Jul 2019 17:05:21 -0400 (EDT)
+	id 070AC6B000C; Tue, 23 Jul 2019 17:07:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1D0F26B000D; Tue, 23 Jul 2019 17:05:21 -0400 (EDT)
+	id 048F66B000D; Tue, 23 Jul 2019 17:07:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0C0DB8E0002; Tue, 23 Jul 2019 17:05:21 -0400 (EDT)
+	id E79C98E0002; Tue, 23 Jul 2019 17:07:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E261B6B000C
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 17:05:20 -0400 (EDT)
-Received: by mail-yb1-f198.google.com with SMTP id x203so6387243ybg.9
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 14:05:20 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B3BE76B000C
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 17:07:48 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id d6so22667161pls.17
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 14:07:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding:dkim-signature;
-        bh=rjC23JCqCu60sr5rHPIEAf4LwcRnQlVgUeBq46RAZu0=;
-        b=YBrEnnRxQBraydbt99y8of2wbm63PbcyzA3tXOcwfPL4FQ5iX7m5UA5iOn6mou8WNF
-         OLpvVTZCRM/hCj80Iwk4UhpJeFqfKA3Z5tP2mYB7ipllYm4MY/NIcHiijtvqv+7KZzBd
-         oqwD7S54Bb8jtqqrzXdYqXHE431xCw0TLmwYnf47dDA3ZC5Yn1oWsqIMvTu3TckWMtV8
-         lFTXbdnKA69Znx+aCvpZKpu3xIVlUSUiq8lIzZVEbQtQPbM2shZIMqGnEbRUdwzLdWlM
-         9D21odpdyml3/Z2adWzLmZ023ReDcDZb90M++7Jg2A06TY/DEHXpuSMWkX/ayWt7ojfG
-         4tMQ==
-X-Gm-Message-State: APjAAAXfBRJl+gy57xceRNhGq/c6SI7y/89zREIzZ+hBZPUi0RiIwr7w
-	LnMxumKQkJsevOyk3TtHrL1CIgCnaZEjOvFTXqV5mPPE/7txC+wTG8W1NWvoLClXAaMIZnogUiG
-	x02IClu+BKi3Ma9F+MXI0WRFVBiiLHS/D9s97K2WGL6qsbreHIIB6tfwrMAYs+3tWog==
-X-Received: by 2002:a25:d9d3:: with SMTP id q202mr49597731ybg.496.1563915920616;
-        Tue, 23 Jul 2019 14:05:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxATOF6EQPh4KaGRnsGQk4NC9dwG6rwBuLr4zz5ARiviQK8Ws1q+FFfBaM5jg8TMRGH0OYP
-X-Received: by 2002:a25:d9d3:: with SMTP id q202mr49597696ybg.496.1563915920022;
-        Tue, 23 Jul 2019 14:05:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563915920; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:mime-version:content-disposition:user-agent;
+        bh=eXdJyX/5y1/FGa+5JWyiUL+IHdXyD6YsS6A0RC/riP0=;
+        b=sRVsqG2WL0icjFSVNVcrz5uizmsF0bp0yqxtrE71WXJ/nlt42K0cRE8pXr/WKUMrCL
+         2pbcw+zijBSK3tJky5SogzG5R0DU3nNMoNVjSvR7rs016LDF1nemFo/pt2Z486wuDNhu
+         nVAN7sRzwEzC0dH0hr588AyMIU5Dre1x+OyNNLIBdhsA7VVCBoG1fq+UFnnEWtrWGjXL
+         2ztpc1CGdcRGqoLJNQOz6QmCCQ58WY5XLX4pZwqPRSQHGaTdf5zAxVyCMyW8ONqXfs/z
+         EFgQYUo1Exuqcgs5ykU0qKHkQwAJ4ZyV7h9sFJZcXHXayWnBZs6CLdpw0+ivMwMjFdyO
+         sjmg==
+X-Gm-Message-State: APjAAAWyFGM1oYhiEoQxS9F5lOGRpqjlGvaC55YzY8dfIT1ilLceNmYZ
+	tmq0UbStsvNv7oJ444EPPQqMBulcmWxjYAeSKNbImtXqGenVp8GpZo1KJK+CpYCK8lXGpfrtQUb
+	qHEoAJy7GwlvCtSZaUFxjCpSQkvK6fFjtQcP0It6Y1+1dKMQtPDP/+f+vNRk5S+rABA==
+X-Received: by 2002:a17:90a:1b4c:: with SMTP id q70mr81786939pjq.69.1563916068422;
+        Tue, 23 Jul 2019 14:07:48 -0700 (PDT)
+X-Received: by 2002:a17:90a:1b4c:: with SMTP id q70mr81786888pjq.69.1563916067585;
+        Tue, 23 Jul 2019 14:07:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563916067; cv=none;
         d=google.com; s=arc-20160816;
-        b=OQKeWd3+SBpE9Ew5zDGLFidpOBuRtgJ/+oI8577Ur6YW5cobfmWiaYW6NM83lykmta
-         vWjxc2v8XB9DJzNEktOjVlxZrFTDRPDF4J3pAWZ59PtphTY606pDJxZSV5T32F2CCaOQ
-         yOS9bnQmrIAkjxH5OwzjWCx2dNiVLIFypjAV6wovUZmACzL/TE71iIkWFAUpHeFSUMNS
-         IJxWDK/1ZzzCoCoerv3/pSIO8ShIXrhlfiw3AKdiewPwdLVW6UmMgpuKj8CEqbsyZqR3
-         2QT5XhkkexfN0jX7eGNVhjjfVwqhlw3XJ2lj3CXpLtt4mz7vnhc7fjUzHkJOLzwzz4xs
-         4oAw==
+        b=rLSihJ/VoGaxqtCHf+H6+ZSI8XSH6Q8LIjNS4kw5geQBsXdvMwO35eBA4bXlsHuvxC
+         Uq/mff7T4dFiy0775iUKYUeapZvOCLKKpYtEzdE+z+zNsCk0PR3evG3raYZSt49zbwvK
+         tywsMrqgnzXbvgeBsFUvgs7Yo8zkD4vX9Xy4B+bDNOgpi6+RDiHq0EgF2PQmb+CdMe7H
+         K0Kx5NKDcLsc95/cYn0VZMqLgdHPU4+3J2SDeZZnbYc57ySc2NweEGX5dObv7tzgAoZ5
+         PfuraWXY2YEKp6eAuniYk7Us2kHXJp3EjUDbOMy/GQgGqOXaRXG3d+e3S+I836e+iuXP
+         Hn1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:mime-version:message-id
-         :date:subject:cc:to:from;
-        bh=rjC23JCqCu60sr5rHPIEAf4LwcRnQlVgUeBq46RAZu0=;
-        b=cvAdZCHJZUSBeCT6R8pZwLimO6DAvEa/iXJA+Ec4zyUnnl4sfF/rdh0AktllmEOrh2
-         wg1JVgcwxk0J/4eOYgMfL+WXsVbZ3rViTQnIBsViuY4xlbdzvv7WkUvyxB1HaVQH0Wj3
-         G7thTVY6GTy7VpHfpNHcrb/lnwiKpCTdvSSua98pYzzyqanf4/xXW2Rw8DDJSaGvL8Lo
-         feVMdNE0UcNgPVCla6NjodL1b8x1IosaMqr0PtMmVBnkLl8d9HYLGOwEbGftaBn45N0X
-         9usTTpi3tqW/xKbOYywJ2CKFct0ErIvqjVHjwJkHTvNN/XtYpMJ+bhzYjv3xZ5M4eQIM
-         1sHA==
+        h=user-agent:content-disposition:mime-version:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=eXdJyX/5y1/FGa+5JWyiUL+IHdXyD6YsS6A0RC/riP0=;
+        b=XpR18DNlIksSDII+O6dR5NF9ICQxsHwEp0sbk/m8T9BkVwaLzXL5e+akjHgqxjKV8Z
+         3qRm2MBOyYuOL4zLjU6OjoISBWFVMpxV7fuMgSpc7TbyyQ5dezzSWjUXeXNMnLRi67Mb
+         x49OCH3uliODbiGIHITAuH587z35LQ4YJocvY25LQZyaxm3tH0U4K/mRobKVAdtkwhk5
+         Gf9cbSh2gjqrjYsrkRBR/i9JeHVym9C70LXAwicLv2JS9Jn7jI2tkJHmV5/9nxujIzb7
+         Ea32yNpcekSZBEwM0a8x/NMFqTDaZNdzHTBy+guhXpZTD+MpcR5KGDkFSrIaL+FZJeFS
+         ldzw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=clAJYjoG;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id y11si5501421ybr.200.2019.07.23.14.05.19
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=krorYgFC;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f16sor24116960pgn.77.2019.07.23.14.07.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jul 2019 14:05:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        (Google Transport Security);
+        Tue, 23 Jul 2019 14:07:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=clAJYjoG;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d3776960000>; Tue, 23 Jul 2019 14:05:26 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Tue, 23 Jul 2019 14:05:19 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Tue, 23 Jul 2019 14:05:19 -0700
-Received: from HQMAIL107.nvidia.com (172.20.187.13) by HQMAIL108.nvidia.com
- (172.18.146.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Tue, 23 Jul
- 2019 21:05:15 +0000
-Received: from hqnvemgw01.nvidia.com (172.20.150.20) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
- Transport; Tue, 23 Jul 2019 21:05:15 +0000
-Received: from rcampbell-dev.nvidia.com (Not Verified[10.110.48.66]) by hqnvemgw01.nvidia.com with Trustwave SEG (v7,5,8,10121)
-	id <B5d37768b0007>; Tue, 23 Jul 2019 14:05:15 -0700
-From: Ralph Campbell <rcampbell@nvidia.com>
-To: <linux-mm@kvack.org>
-CC: <linux-kernel@vger.kernel.org>, <nouveau@lists.freedesktop.org>,
-	<dri-devel@lists.freedesktop.org>, Ralph Campbell <rcampbell@nvidia.com>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>, Jason Gunthorpe
-	<jgg@mellanox.com>, Christoph Hellwig <hch@lst.de>, Ben Skeggs
-	<bskeggs@redhat.com>
-Subject: [PATCH] mm/hmm: replace hmm_update with mmu_notifier_range
-Date: Tue, 23 Jul 2019 14:05:06 -0700
-Message-ID: <20190723210506.25127-1-rcampbell@nvidia.com>
-X-Mailer: git-send-email 2.20.1
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=krorYgFC;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chrisdown.name; s=google;
+        h=date:from:to:cc:subject:message-id:mime-version:content-disposition
+         :user-agent;
+        bh=eXdJyX/5y1/FGa+5JWyiUL+IHdXyD6YsS6A0RC/riP0=;
+        b=krorYgFC8c4EEHktVPMM8Uc7p10JFe0m3Uh5Z7ygeHlBHaZoO9KsDsqrGfKaOQ5n45
+         Uu4t0n4z/SGQkouCaz5dv002xNN8r2wM56rDbp6+ZTVvamypB6MVSsqNBUzlCunbD8JI
+         DmdBacuJcpJxjt2ybAFvHIpYgMHnUYIG12DWQ=
+X-Google-Smtp-Source: APXvYqx+RlfYYF9BsUFYetL+eK6XXW+0RaA14tPNlGA5LsYqVrZUzX7sAKiZK0j2exSKPYRkMQRd9Q==
+X-Received: by 2002:a63:c008:: with SMTP id h8mr75676650pgg.427.1563916066868;
+        Tue, 23 Jul 2019 14:07:46 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::1:48f4])
+        by smtp.gmail.com with ESMTPSA id l31sm69890987pgm.63.2019.07.23.14.07.46
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 23 Jul 2019 14:07:46 -0700 (PDT)
+Date: Tue, 23 Jul 2019 17:07:37 -0400
+From: Chris Down <chris@chrisdown.name>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, Tejun Heo <tj@kernel.org>,
+	Roman Gushchin <guro@fb.com>, linux-kernel@vger.kernel.org,
+	cgroups@vger.kernel.org, linux-mm@kvack.org, kernel-team@fb.com
+Subject: [PATCH] cgroup: kselftest: Relax fs_spec checks
+Message-ID: <20190723210737.GA487@chrisdown.name>
 MIME-Version: 1.0
-X-NVConfidentiality: public
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1563915926; bh=rjC23JCqCu60sr5rHPIEAf4LwcRnQlVgUeBq46RAZu0=;
-	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
-	 MIME-Version:X-NVConfidentiality:Content-Type:
-	 Content-Transfer-Encoding;
-	b=clAJYjoGcvm398sj1Wc6QXusiqBt2h19IERPM5F4BhNYeDY+Dl6DDwBYlRyMojqx+
-	 c78VwtXD7Iv1yCqHRNgQfoil9L/CJeqNtFHc0X0XyG4GXjuYaz5gBl8CGO4s+5vG2n
-	 CX4bMazKSJZNVT4zgw9o4KOsejlQxYkY51ka1c/w525wmDsg+GvZ+2iOtPZAAycHW2
-	 PuiTQhdhxPI00ooFnzLrElgS9azGgL4fNNdFxjrfi/lWQQuJwmNmhB+gI8is6+btQD
-	 GoBt7AUMqR++W4l1w/ceYVCZpevJIRWuq+JMZmaIj+nNc1TdjVpENd0m3IS25SlgiQ
-	 WmQGHhmhtcnBQ==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+User-Agent: Mutt/1.12.1 (2019-06-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The hmm_mirror_ops callback function sync_cpu_device_pagetables() passes
-a struct hmm_update which is a simplified version of struct
-mmu_notifier_range. This is unnecessary so replace hmm_update with
-mmu_notifier_range directly.
+On my laptop most memcg kselftests were being skipped because it claimed
+cgroup v2 hierarchy wasn't mounted, but this isn't correct. Instead, it
+seems current systemd HEAD mounts it with the name "cgroup2" instead of
+"cgroup":
 
-Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
-Cc: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Ben Skeggs <bskeggs@redhat.com>
+    % grep cgroup /proc/mounts
+    cgroup2 /sys/fs/cgroup cgroup2 rw,nosuid,nodev,noexec,relatime,nsdelegate 0 0
+
+I can't think of a reason to need to check fs_spec explicitly
+since it's arbitrary, so we can just rely on fs_vfstype.
+
+After these changes, `make TARGETS=cgroup kselftest` actually runs the
+cgroup v2 tests in more cases.
+
+Signed-off-by: Chris Down <chris@chrisdown.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Roman Gushchin <guro@fb.com>
+Cc: linux-kernel@vger.kernel.org
+Cc: cgroups@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: kernel-team@fb.com
 ---
+ tools/testing/selftests/cgroup/cgroup_util.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-This is based on 5.3.0-rc1 plus Christoph Hellwig's 6 patches
-("hmm_range_fault related fixes and legacy API removal v2").
-Jason, I believe this is the patch you were requesting.
-
- drivers/gpu/drm/nouveau/nouveau_svm.c |  4 ++--
- include/linux/hmm.h                   | 31 ++++-----------------------
- mm/hmm.c                              | 13 ++++-------
- 3 files changed, 10 insertions(+), 38 deletions(-)
-
-diff --git a/drivers/gpu/drm/nouveau/nouveau_svm.c b/drivers/gpu/drm/nouvea=
-u/nouveau_svm.c
-index a9c5c58d425b..6298d2dadb55 100644
---- a/drivers/gpu/drm/nouveau/nouveau_svm.c
-+++ b/drivers/gpu/drm/nouveau/nouveau_svm.c
-@@ -252,13 +252,13 @@ nouveau_svmm_invalidate(struct nouveau_svmm *svmm, u6=
-4 start, u64 limit)
-=20
- static int
- nouveau_svmm_sync_cpu_device_pagetables(struct hmm_mirror *mirror,
--					const struct hmm_update *update)
-+					const struct mmu_notifier_range *update)
- {
- 	struct nouveau_svmm *svmm =3D container_of(mirror, typeof(*svmm), mirror)=
-;
- 	unsigned long start =3D update->start;
- 	unsigned long limit =3D update->end;
-=20
--	if (!update->blockable)
-+	if (!mmu_notifier_range_blockable(update))
- 		return -EAGAIN;
-=20
- 	SVMM_DBG(svmm, "invalidate %016lx-%016lx", start, limit);
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 9f32586684c9..659e25a15700 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -340,29 +340,6 @@ static inline uint64_t hmm_device_entry_from_pfn(const=
- struct hmm_range *range,
-=20
- struct hmm_mirror;
-=20
--/*
-- * enum hmm_update_event - type of update
-- * @HMM_UPDATE_INVALIDATE: invalidate range (no indication as to why)
-- */
--enum hmm_update_event {
--	HMM_UPDATE_INVALIDATE,
--};
--
--/*
-- * struct hmm_update - HMM update information for callback
-- *
-- * @start: virtual start address of the range to update
-- * @end: virtual end address of the range to update
-- * @event: event triggering the update (what is happening)
-- * @blockable: can the callback block/sleep ?
-- */
--struct hmm_update {
--	unsigned long start;
--	unsigned long end;
--	enum hmm_update_event event;
--	bool blockable;
--};
--
- /*
-  * struct hmm_mirror_ops - HMM mirror device operations callback
-  *
-@@ -383,9 +360,9 @@ struct hmm_mirror_ops {
- 	/* sync_cpu_device_pagetables() - synchronize page tables
- 	 *
- 	 * @mirror: pointer to struct hmm_mirror
--	 * @update: update information (see struct hmm_update)
--	 * Return: -EAGAIN if update.blockable false and callback need to
--	 *          block, 0 otherwise.
-+	 * @update: update information (see struct mmu_notifier_range)
-+	 * Return: -EAGAIN if mmu_notifier_range_blockable(update) is false
-+	 * and callback needs to block, 0 otherwise.
- 	 *
- 	 * This callback ultimately originates from mmu_notifiers when the CPU
- 	 * page table is updated. The device driver must update its page table
-@@ -397,7 +374,7 @@ struct hmm_mirror_ops {
- 	 * synchronous call.
- 	 */
- 	int (*sync_cpu_device_pagetables)(struct hmm_mirror *mirror,
--					  const struct hmm_update *update);
-+				const struct mmu_notifier_range *update);
- };
-=20
- /*
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 16b6731a34db..b810a4fa3de9 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -165,7 +165,6 @@ static int hmm_invalidate_range_start(struct mmu_notifi=
-er *mn,
- {
- 	struct hmm *hmm =3D container_of(mn, struct hmm, mmu_notifier);
- 	struct hmm_mirror *mirror;
--	struct hmm_update update;
- 	struct hmm_range *range;
- 	unsigned long flags;
- 	int ret =3D 0;
-@@ -173,15 +172,10 @@ static int hmm_invalidate_range_start(struct mmu_noti=
-fier *mn,
- 	if (!kref_get_unless_zero(&hmm->kref))
- 		return 0;
-=20
--	update.start =3D nrange->start;
--	update.end =3D nrange->end;
--	update.event =3D HMM_UPDATE_INVALIDATE;
--	update.blockable =3D mmu_notifier_range_blockable(nrange);
--
- 	spin_lock_irqsave(&hmm->ranges_lock, flags);
- 	hmm->notifiers++;
- 	list_for_each_entry(range, &hmm->ranges, list) {
--		if (update.end < range->start || update.start >=3D range->end)
-+		if (nrange->end < range->start || nrange->start >=3D range->end)
- 			continue;
-=20
- 		range->valid =3D false;
-@@ -198,9 +192,10 @@ static int hmm_invalidate_range_start(struct mmu_notif=
-ier *mn,
- 	list_for_each_entry(mirror, &hmm->mirrors, list) {
- 		int rc;
-=20
--		rc =3D mirror->ops->sync_cpu_device_pagetables(mirror, &update);
-+		rc =3D mirror->ops->sync_cpu_device_pagetables(mirror, nrange);
- 		if (rc) {
--			if (WARN_ON(update.blockable || rc !=3D -EAGAIN))
-+			if (WARN_ON(mmu_notifier_range_blockable(nrange) ||
-+			    rc !=3D -EAGAIN))
- 				continue;
- 			ret =3D -EAGAIN;
- 			break;
---=20
-2.20.1
+diff --git a/tools/testing/selftests/cgroup/cgroup_util.c b/tools/testing/selftests/cgroup/cgroup_util.c
+index 4c223266299a..bdb69599c4bd 100644
+--- a/tools/testing/selftests/cgroup/cgroup_util.c
++++ b/tools/testing/selftests/cgroup/cgroup_util.c
+@@ -191,8 +191,7 @@ int cg_find_unified_root(char *root, size_t len)
+ 		strtok(NULL, delim);
+ 		strtok(NULL, delim);
+ 
+-		if (strcmp(fs, "cgroup") == 0 &&
+-		    strcmp(type, "cgroup2") == 0) {
++		if (strcmp(type, "cgroup2") == 0) {
+ 			strncpy(root, mount, len);
+ 			return 0;
+ 		}
+-- 
+2.22.0
 
