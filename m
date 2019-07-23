@@ -2,412 +2,198 @@ Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.7 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E3BC7C76188
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 05:47:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 528E1C76190
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 05:49:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 898352239E
-	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 05:47:39 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="LTv+NTfd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 898352239E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 1401D2239F
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 05:49:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1401D2239F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 322976B0005; Tue, 23 Jul 2019 01:47:39 -0400 (EDT)
+	id 9FE336B0003; Tue, 23 Jul 2019 01:49:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2D1CE8E0003; Tue, 23 Jul 2019 01:47:39 -0400 (EDT)
+	id 9B0378E0003; Tue, 23 Jul 2019 01:49:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1C3708E0001; Tue, 23 Jul 2019 01:47:39 -0400 (EDT)
+	id 8C52F8E0001; Tue, 23 Jul 2019 01:49:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D847E6B0005
-	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 01:47:38 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id i26so25383564pfo.22
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 22:47:38 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6BB056B0003
+	for <linux-mm@kvack.org>; Tue, 23 Jul 2019 01:49:05 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id v4so35465737qkj.10
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 22:49:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=3cXYdkJu4Ln2/55L4Htzkw7XiZlPUrceVQ4reuZLMzA=;
-        b=TmhtmfewVHgWQf+JzQrRl4Rzob3PXbXawSgNzj6gtVNn2vjNtc6ky+vF1sZ/oCVE5w
-         LjLrbCji5yFeuT5F8rb9Bsy0rEy46dC6uoW/OoghLSblJbkpO9Jj+m8PH1ItqcOm2zCn
-         TuCVyuKekJUtzqsqBNBtiJLwzgaUiP/SfrMq4ZVm7JRANAJTBd4r0CQW5ykt/V8I7Fvo
-         8wuAJI2ETU/Mg4h6/yFhzlAOioh1tS4+UlJ6Dem7LJyLkudZjUZz0qr9sJEcpLdRhMHj
-         /dViVI/L7qv/aIrqqTfaR7caY6LWS4iKnpPUfL7GO16YC9mQmfmLXn5QQuym1eN239In
-         IREw==
-X-Gm-Message-State: APjAAAUSptKvmnqfSo7Y/u21X3NHG9vMPd6vtOmPpAWDTFc2dYps+sby
-	2u5NmurzeyCoircjts84B06hPYorzuv94uQPHRjZPPFmgzeNFt8c14sgG4ZCZVpt6G4Uef4wZt9
-	nnk0nwMtTy6PcCu50UVhD+vaGKq1i0+M820/IhKJBg0GVOEqYl7v8rZwKG8kcRJc=
-X-Received: by 2002:a17:902:29e6:: with SMTP id h93mr21819267plb.297.1563860858467;
-        Mon, 22 Jul 2019 22:47:38 -0700 (PDT)
-X-Received: by 2002:a17:902:29e6:: with SMTP id h93mr21819208plb.297.1563860857413;
-        Mon, 22 Jul 2019 22:47:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563860857; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=Or5ymMU2ZX0t65ewBs9K5gpk86QVVFaxAwUvurUjTZQ=;
+        b=Ow8s0ZUR/doxed2Bn/yAHojye/YyH/bftOMCSwymXeNAAxy/bbxV42T65BI8lq+NZh
+         uZSOzp9CLRwnIF5+do2NDHgQCLURVpB2wHtPMZvTa/GfrbavOGMoHgdgisy58Q1J4/Pr
+         Vyy7S3mpx2sL/6Hj/47qaB3ui6Bns4dPr6p17XGpXQjd6EM5xoP/KDymrYbXpAhS9rCB
+         3MClUW+JZCPvW8g/Wr76iPkl4SOyPF2j4Z6hs7oL5/4luyMgleoMONqkEs1sTfIGOp8r
+         4HxX4e9olCzNogFUKY4zkEWgNcyENEANLkBhdheKfcUZ/P63SgNhyYJr365BLLmngP3F
+         FPjA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUla8FFNB5wOUv1vGKZsCre+mc3fokYZZuCsgO3ZWyxv7Xu5EWN
+	jDkFWj4ZbRP2DMpiHSvcA3KZJ0SRoIG10bVgwbO12c3e5iT8gS2QuQqeCSWFmrfjOR1s8twZXXc
+	tyIn2M+mizD+/vBrIj5fP4S6OGMkhZ4yKcOdRnCLcHWKRpvXtgXXmcLbpj3iFkVHFqA==
+X-Received: by 2002:aed:37a1:: with SMTP id j30mr52320386qtb.367.1563860945195;
+        Mon, 22 Jul 2019 22:49:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxHRr9bEtZcNsZltPedxm3IT68n3j8GLZX+SzJwF72J4AukhmcGjx+w1wYvK7v5nZw5yFRt
+X-Received: by 2002:aed:37a1:: with SMTP id j30mr52320363qtb.367.1563860944516;
+        Mon, 22 Jul 2019 22:49:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563860944; cv=none;
         d=google.com; s=arc-20160816;
-        b=qFh3rrGJt+N4kdIFY+yHtSkOljVe+UqdHwMPPFNIaKQox8qr842NJg8LarEGJTc2TM
-         mzUYjywQQQ2V9XszOYLihO2bl5kBfyPr4SPXJHibRRwIz3/EXjD0TkYOAqLfKN0CAT78
-         GWZz5c4bubhWjapx35HJGbihIAzqg3sLvthQAGAaXnHDeQ2OegMKWKInZidXS3xB/Hd1
-         APNKtbf21X9/oWKhOaTLr8fLKityHaWhSRv7Q2B1/8A9OGt12OQJ7t+vZXdTee3W9wVx
-         5ja7n6PL8bv4Ptv9lBFjRaUEFxghZiEUOBBBZ+k+/2M8n9/hQvc0E2ylsk+p45x56DzH
-         cVMw==
+        b=H19UBsJWxAvSrPghFpQnnVIeOxv/8IlU0T2+5hRP26W9QC1Z/aPGNyv6SNTZ8n3jsR
+         Z2zfAZq6+jubM9j9cBqEwUsci7EY30hBOixEJ8iwXaQt95NX9jNFiA/LrU1vfY5vpGSA
+         ddMqobw8GW6k8eZs4ONhSKtpv+9OePlVYnLr5J90Ab4+xLZcLKigKlJwiZNZOMPqnlSK
+         RLH6+V6bcvQTWd0egH7nlrBRp9LFW5mmIg0NxVNg9E90G7qrcaQZlIiu8iIoMLpFpc+d
+         81oY1MyqCIvxH9x+h6ywfAo9wqWl6ktQQ1dpwKU63urig1lh5cERU6dOwW/tebvMU652
+         3h6A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=3cXYdkJu4Ln2/55L4Htzkw7XiZlPUrceVQ4reuZLMzA=;
-        b=BZyexxY3AGQLlXq2fEIjtQAxzpnOGwRqAJyAeNsPFvON8C7l1fZF1nbw7LaMdhL2Jn
-         b1kPRyBLtDTFhFLKczGoKtZ4Z0EDSMz2td16ZP0mS02OO+OChNhbahZoExIeo2bgdqxe
-         Bgtz2JO583v++SAKlIsMZyirHsriLnZ54zKvH/Xu7dci7f0SK86JYMTG80ZRa6xUBoEr
-         MerEyUV5amMY3vQUBegxY14I7HBlujZNnMOg938b7UNg3AYSwgGreO2m8bZ4nmH54xEm
-         VmBXmO6IQIaLuaeS32GF6adBzL56RO64OqhaXAiLw+WJ+g6TKaakW0UjEEJ9h+HRecef
-         hYZA==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=Or5ymMU2ZX0t65ewBs9K5gpk86QVVFaxAwUvurUjTZQ=;
+        b=dPrEI4cvVEA1JGsyQP3OgmxLmb6nqtWFR9Y7iZpHzh5bbTeRNcp4iPjD3Dg6eQeppj
+         dg0nQcBEEOCz3tI12mMapO3TX4vm+Ub4sWVIObxxhsB7fgepJn5uY4PiXdcLhTxYdoLr
+         svpfB44EuG4SS4sPv37K3MBJdqYzC77fjyNTBf/S67h1LqkKpFw2FlR6wx4qzyEoUHCH
+         gjgfPCrJZANypiBb/8Y38yxLLhTa92dE4unS3oSi59K4BqXaXegAtbhJsxBWe4efjZeZ
+         kKE/EJGyl5iX3EQiCaueA99HNLnG9lJm6D4Es5q6e/M3NXKoiwC21S6+Co+KILdWoeOM
+         xZbQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=LTv+NTfd;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j8sor51368469pjz.15.2019.07.22.22.47.37
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p125si24678346qkc.197.2019.07.22.22.49.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 22 Jul 2019 22:47:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 22 Jul 2019 22:49:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=LTv+NTfd;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=3cXYdkJu4Ln2/55L4Htzkw7XiZlPUrceVQ4reuZLMzA=;
-        b=LTv+NTfdGKnOx/ilEL1XtPlomMC5SHSrbwoiBqNVqMsiy2brYATDKKqUPopJQGY+aM
-         v2ol8XYJcwV4isNDxChR0SF5qQkQygt5CaJ4Q5UPg2LmrL9/0PBsx/2IE1X/utmhjJwK
-         meMtcRo0cnvF8obblJGN1KIqRZ5ZByKTqemHEcNi8uHb6+STmgBFLqtofSoxqnJdYFt3
-         yj0YjO7XJ3Aef9e89lXDCcIC4V/OPnDBSwspXZheEjp3qGP5AkW+jCaWB35x2gC1/8ER
-         QcF7r49dxH2xzAOrE3/t1PixQPSAR/auai65DPPMSpE0C8wxNmKgWof31+ZIRUbW9C6s
-         qEwQ==
-X-Google-Smtp-Source: APXvYqyYe/3rz9xBUXLNERR+e5KdXyWi4mtihGNQRWxsbU72wlnwYwEKAlT9HNtS4qwpBKqtQY1vLg==
-X-Received: by 2002:a17:90a:8c18:: with SMTP id a24mr78356191pjo.111.1563860856821;
-        Mon, 22 Jul 2019 22:47:36 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id s5sm15801131pfm.97.2019.07.22.22.47.31
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 22 Jul 2019 22:47:35 -0700 (PDT)
-Date: Tue, 23 Jul 2019 14:47:29 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	oleksandr@redhat.com, hdanton@sina.com,
-	Benoit Lize <lizeb@google.com>, Dave Hansen <dave.hansen@intel.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH v5 1/5] mm: introduce MADV_COLD
-Message-ID: <20190723054729.GC128252@google.com>
-References: <20190714233401.36909-1-minchan@kernel.org>
- <20190714233401.36909-2-minchan@kernel.org>
- <CAJuCfpFqnXshLH=sW4GLEFixjTWNSh0Dap3Qt-E-Ho2uy-R43w@mail.gmail.com>
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 8462F3083339;
+	Tue, 23 Jul 2019 05:49:03 +0000 (UTC)
+Received: from [10.72.12.26] (ovpn-12-26.pek2.redhat.com [10.72.12.26])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 07AAE5B684;
+	Tue, 23 Jul 2019 05:48:52 +0000 (UTC)
+Subject: Re: WARNING in __mmdrop
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
+ aarcange@redhat.com, akpm@linux-foundation.org, christian@brauner.io,
+ davem@davemloft.net, ebiederm@xmission.com, elena.reshetova@intel.com,
+ guro@fb.com, hch@infradead.org, james.bottomley@hansenpartnership.com,
+ jglisse@redhat.com, keescook@chromium.org, ldv@altlinux.org,
+ linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, linux-parisc@vger.kernel.org, luto@amacapital.net,
+ mhocko@suse.com, mingo@kernel.org, namit@vmware.com, peterz@infradead.org,
+ syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk, wad@chromium.org
+References: <0000000000008dd6bb058e006938@google.com>
+ <000000000000964b0d058e1a0483@google.com>
+ <20190721044615-mutt-send-email-mst@kernel.org>
+ <75c43998-3a1c-676f-99ff-3d04663c3fcc@redhat.com>
+ <20190722035657-mutt-send-email-mst@kernel.org>
+ <cfcd330d-5f4a-835a-69f7-c342d5d0d52d@redhat.com>
+ <20190723010156-mutt-send-email-mst@kernel.org>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <124be1a2-1c53-8e65-0f06-ee2294710822@redhat.com>
+Date: Tue, 23 Jul 2019 13:48:52 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJuCfpFqnXshLH=sW4GLEFixjTWNSh0Dap3Qt-E-Ho2uy-R43w@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190723010156-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Tue, 23 Jul 2019 05:49:03 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 17, 2019 at 03:14:57PM -0700, Suren Baghdasaryan wrote:
-> Hi Minchan,
-> Couple comments inline.
-> Thanks!
-> 
-> On Sun, Jul 14, 2019 at 4:34 PM Minchan Kim <minchan@kernel.org> wrote:
-> >
-> > When a process expects no accesses to a certain memory range, it could
-> > give a hint to kernel that the pages can be reclaimed when memory pressure
-> > happens but data should be preserved for future use.  This could reduce
-> > workingset eviction so it ends up increasing performance.
-> >
-> > This patch introduces the new MADV_COLD hint to madvise(2) syscall.
-> > MADV_COLD can be used by a process to mark a memory range as not expected
-> > to be used in the near future. The hint can help kernel in deciding which
-> > pages to evict early during memory pressure.
-> >
-> > It works for every LRU pages like MADV_[DONTNEED|FREE]. IOW, It moves
-> >
-> >         active file page -> inactive file LRU
-> >         active anon page -> inacdtive anon LRU
-> >
-> > Unlike MADV_FREE, it doesn't move active anonymous pages to inactive
-> > file LRU's head because MADV_COLD is a little bit different symantic.
-> > MADV_FREE means it's okay to discard when the memory pressure because
-> > the content of the page is *garbage* so freeing such pages is almost zero
-> > overhead since we don't need to swap out and access afterward causes just
-> > minor fault. Thus, it would make sense to put those freeable pages in
-> > inactive file LRU to compete other used-once pages. It makes sense for
-> > implmentaion point of view, too because it's not swapbacked memory any
-> > longer until it would be re-dirtied. Even, it could give a bonus to make
-> > them be reclaimed on swapless system. However, MADV_COLD doesn't mean
-> > garbage so reclaiming them requires swap-out/in in the end so it's bigger
-> > cost. Since we have designed VM LRU aging based on cost-model, anonymous
-> > cold pages would be better to position inactive anon's LRU list, not file
-> > LRU. Furthermore, it would help to avoid unnecessary scanning if system
-> > doesn't have a swap device. Let's start simpler way without adding
-> > complexity at this moment. However, keep in mind, too that it's a caveat
-> > that workloads with a lot of pages cache are likely to ignore MADV_COLD
-> > on anonymous memory because we rarely age anonymous LRU lists.
-> >
-> > * man-page material
-> >
-> > MADV_COLD (since Linux x.x)
-> >
-> > Pages in the specified regions will be treated as less-recently-accessed
-> > compared to pages in the system with similar access frequencies.
-> > In contrast to MADV_FREE, the contents of the region are preserved
-> > regardless of subsequent writes to pages.
-> >
-> > MADV_COLD cannot be applied to locked pages, Huge TLB pages, or VM_PFNMAP
-> > pages.
-> >
-> > * v2
-> >  * add up the warn with lots of page cache workload - mhocko
-> >  * add man page stuff - dave
-> >
-> > * v1
-> >  * remove page_mapcount filter - hannes, mhocko
-> >  * remove idle page handling - joelaf
-> >
-> > * RFCv2
-> >  * add more description - mhocko
-> >
-> > * RFCv1
-> >  * renaming from MADV_COOL to MADV_COLD - hannes
-> >
-> > * internal review
-> >  * use clear_page_youn in deactivate_page - joelaf
-> >  * Revise the description - surenb
-> >  * Renaming from MADV_WARM to MADV_COOL - surenb
-> >
-> > Acked-by: Michal Hocko <mhocko@suse.com>
-> > Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-> > Signed-off-by: Minchan Kim <minchan@kernel.org>
-> > ---
-> >  include/linux/swap.h                   |   1 +
-> >  include/uapi/asm-generic/mman-common.h |   1 +
-> >  mm/internal.h                          |   2 +-
-> >  mm/madvise.c                           | 180 ++++++++++++++++++++++++-
-> >  mm/oom_kill.c                          |   2 +-
-> >  mm/swap.c                              |  42 ++++++
-> >  6 files changed, 224 insertions(+), 4 deletions(-)
-> >
-> > diff --git a/include/linux/swap.h b/include/linux/swap.h
-> > index de2c67a33b7e..0ce997edb8bb 100644
-> > --- a/include/linux/swap.h
-> > +++ b/include/linux/swap.h
-> > @@ -340,6 +340,7 @@ extern void lru_add_drain_cpu(int cpu);
-> >  extern void lru_add_drain_all(void);
-> >  extern void rotate_reclaimable_page(struct page *page);
-> >  extern void deactivate_file_page(struct page *page);
-> > +extern void deactivate_page(struct page *page);
-> >  extern void mark_page_lazyfree(struct page *page);
-> >  extern void swap_setup(void);
-> >
-> > diff --git a/include/uapi/asm-generic/mman-common.h b/include/uapi/asm-generic/mman-common.h
-> > index 63b1f506ea67..ef8a56927b12 100644
-> > --- a/include/uapi/asm-generic/mman-common.h
-> > +++ b/include/uapi/asm-generic/mman-common.h
-> > @@ -45,6 +45,7 @@
-> >  #define MADV_SEQUENTIAL        2               /* expect sequential page references */
-> >  #define MADV_WILLNEED  3               /* will need these pages */
-> >  #define MADV_DONTNEED  4               /* don't need these pages */
-> > +#define MADV_COLD      5               /* deactivatie these pages */
-> 
-> s/deactivatie/deactivate
 
-Fixed.
+On 2019/7/23 下午1:02, Michael S. Tsirkin wrote:
+> On Tue, Jul 23, 2019 at 11:55:28AM +0800, Jason Wang wrote:
+>> On 2019/7/22 下午4:02, Michael S. Tsirkin wrote:
+>>> On Mon, Jul 22, 2019 at 01:21:59PM +0800, Jason Wang wrote:
+>>>> On 2019/7/21 下午6:02, Michael S. Tsirkin wrote:
+>>>>> On Sat, Jul 20, 2019 at 03:08:00AM -0700, syzbot wrote:
+>>>>>> syzbot has bisected this bug to:
+>>>>>>
+>>>>>> commit 7f466032dc9e5a61217f22ea34b2df932786bbfc
+>>>>>> Author: Jason Wang <jasowang@redhat.com>
+>>>>>> Date:   Fri May 24 08:12:18 2019 +0000
+>>>>>>
+>>>>>>        vhost: access vq metadata through kernel virtual address
+>>>>>>
+>>>>>> bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=149a8a20600000
+>>>>>> start commit:   6d21a41b Add linux-next specific files for 20190718
+>>>>>> git tree:       linux-next
+>>>>>> final crash:    https://syzkaller.appspot.com/x/report.txt?x=169a8a20600000
+>>>>>> console output: https://syzkaller.appspot.com/x/log.txt?x=129a8a20600000
+>>>>>> kernel config:  https://syzkaller.appspot.com/x/.config?x=3430a151e1452331
+>>>>>> dashboard link: https://syzkaller.appspot.com/bug?extid=e58112d71f77113ddb7b
+>>>>>> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=10139e68600000
+>>>>>>
+>>>>>> Reported-by: syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com
+>>>>>> Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual
+>>>>>> address")
+>>>>>>
+>>>>>> For information about bisection process see: https://goo.gl/tpsmEJ#bisection
+>>>>> OK I poked at this for a bit, I see several things that
+>>>>> we need to fix, though I'm not yet sure it's the reason for
+>>>>> the failures:
+>>>>>
+>>>>>
+>>>>> 1. mmu_notifier_register shouldn't be called from vhost_vring_set_num_addr
+>>>>>       That's just a bad hack,
+>>>> This is used to avoid holding lock when checking whether the addresses are
+>>>> overlapped. Otherwise we need to take spinlock for each invalidation request
+>>>> even if it was the va range that is not interested for us. This will be very
+>>>> slow e.g during guest boot.
+>>> KVM seems to do exactly that.
+>>> I tried and guest does not seem to boot any slower.
+>>> Do you observe any slowdown?
+>>
+>> Yes I do.
+>>
+>>
+>>> Now I took a hard look at the uaddr hackery it really makes
+>>> me nervious. So I think for this release we want something
+>>> safe, and optimizations on top. As an alternative revert the
+>>> optimization and try again for next merge window.
+>>
+>> Will post a series of fixes, let me know if you're ok with that.
+>>
+>> Thanks
+> I'd prefer you to take a hard look at the patch I posted
+> which makes code cleaner,
 
-> 
-> >
-> >  /* common parameters: try to keep these consistent across architectures */
-> >  #define MADV_FREE      8               /* free pages only if memory pressure */
-> > diff --git a/mm/internal.h b/mm/internal.h
-> > index f53a14d67538..c61b215ff265 100644
-> > --- a/mm/internal.h
-> > +++ b/mm/internal.h
-> > @@ -39,7 +39,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf);
-> >  void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
-> >                 unsigned long floor, unsigned long ceiling);
-> >
-> > -static inline bool can_madv_dontneed_vma(struct vm_area_struct *vma)
-> > +static inline bool can_madv_lru_vma(struct vm_area_struct *vma)
-> >  {
-> >         return !(vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP));
-> >  }
-> > diff --git a/mm/madvise.c b/mm/madvise.c
-> > index 968df3aa069f..bae0055f9724 100644
-> > --- a/mm/madvise.c
-> > +++ b/mm/madvise.c
-> > @@ -40,6 +40,7 @@ static int madvise_need_mmap_write(int behavior)
-> >         case MADV_REMOVE:
-> >         case MADV_WILLNEED:
-> >         case MADV_DONTNEED:
-> > +       case MADV_COLD:
-> >         case MADV_FREE:
-> >                 return 0;
-> >         default:
-> > @@ -307,6 +308,178 @@ static long madvise_willneed(struct vm_area_struct *vma,
-> >         return 0;
-> >  }
-> >
-> > +static int madvise_cold_pte_range(pmd_t *pmd, unsigned long addr,
-> > +                               unsigned long end, struct mm_walk *walk)
-> > +{
-> > +       struct mmu_gather *tlb = walk->private;
-> > +       struct mm_struct *mm = tlb->mm;
-> > +       struct vm_area_struct *vma = walk->vma;
-> > +       pte_t *orig_pte, *pte, ptent;
-> > +       spinlock_t *ptl;
-> > +       struct page *page;
-> > +       unsigned long next;
-> > +
-> > +       next = pmd_addr_end(addr, end);
-> > +       if (pmd_trans_huge(*pmd)) {
-> > +               pmd_t orig_pmd;
-> > +
-> > +               tlb_change_page_size(tlb, HPAGE_PMD_SIZE);
-> > +               ptl = pmd_trans_huge_lock(pmd, vma);
-> > +               if (!ptl)
-> > +                       return 0;
-> > +
-> > +               orig_pmd = *pmd;
-> > +               if (is_huge_zero_pmd(orig_pmd))
-> > +                       goto huge_unlock;
-> > +
-> > +               if (unlikely(!pmd_present(orig_pmd))) {
-> > +                       VM_BUG_ON(thp_migration_supported() &&
-> > +                                       !is_pmd_migration_entry(orig_pmd));
-> > +                       goto huge_unlock;
-> > +               }
-> > +
-> > +               page = pmd_page(orig_pmd);
-> > +               if (next - addr != HPAGE_PMD_SIZE) {
-> > +                       int err;
-> > +
-> > +                       if (page_mapcount(page) != 1)
-> > +                               goto huge_unlock;
-> > +
-> > +                       get_page(page);
-> > +                       spin_unlock(ptl);
-> > +                       lock_page(page);
-> > +                       err = split_huge_page(page);
-> > +                       unlock_page(page);
-> > +                       put_page(page);
-> > +                       if (!err)
-> > +                               goto regular_page;
-> > +                       return 0;
-> > +               }
-> > +
-> > +               if (pmd_young(orig_pmd)) {
-> > +                       pmdp_invalidate(vma, addr, pmd);
-> > +                       orig_pmd = pmd_mkold(orig_pmd);
-> > +
-> > +                       set_pmd_at(mm, addr, pmd, orig_pmd);
-> > +                       tlb_remove_pmd_tlb_entry(tlb, pmd, addr);
-> > +               }
-> > +
-> > +               test_and_clear_page_young(page);
-> > +               deactivate_page(page);
-> > +huge_unlock:
-> > +               spin_unlock(ptl);
-> > +               return 0;
-> > +       }
-> > +
-> > +       if (pmd_trans_unstable(pmd))
-> > +               return 0;
-> > +
-> > +regular_page:
-> > +       tlb_change_page_size(tlb, PAGE_SIZE);
-> > +       orig_pte = pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
-> > +       flush_tlb_batched_pending(mm);
-> > +       arch_enter_lazy_mmu_mode();
-> > +       for (; addr < end; pte++, addr += PAGE_SIZE) {
-> > +               ptent = *pte;
-> > +
-> > +               if (pte_none(ptent))
-> > +                       continue;
-> > +
-> > +               if (!pte_present(ptent))
-> > +                       continue;
-> > +
-> > +               page = vm_normal_page(vma, addr, ptent);
-> > +               if (!page)
-> > +                       continue;
-> > +
-> > +               /*
-> > +                * Creating a THP page is expensive so split it only if we
-> > +                * are sure it's worth. Split it if we are only owner.
-> > +                */
-> > +               if (PageTransCompound(page)) {
-> > +                       if (page_mapcount(page) != 1)
-> > +                               break;
-> > +                       get_page(page);
-> > +                       if (!trylock_page(page)) {
-> > +                               put_page(page);
-> > +                               break;
-> > +                       }
-> > +                       pte_unmap_unlock(orig_pte, ptl);
-> > +                       if (split_huge_page(page)) {
-> > +                               unlock_page(page);
-> > +                               put_page(page);
-> > +                               pte_offset_map_lock(mm, pmd, addr, &ptl);
-> > +                               break;
-> > +                       }
-> > +                       unlock_page(page);
-> > +                       put_page(page);
-> > +                       pte = pte_offset_map_lock(mm, pmd, addr, &ptl);
-> > +                       pte--;
-> > +                       addr -= PAGE_SIZE;
-> > +                       continue;
-> > +               }
-> > +
-> > +               VM_BUG_ON_PAGE(PageTransCompound(page), page);
-> > +
-> > +               if (pte_young(ptent)) {
-> > +                       ptent = ptep_get_and_clear_full(mm, addr, pte,
-> > +                                                       tlb->fullmm);
-> > +                       ptent = pte_mkold(ptent);
-> > +                       set_pte_at(mm, addr, pte, ptent);
-> > +                       tlb_remove_tlb_entry(tlb, pte, addr);
-> > +               }
-> > +
-> > +               /*
-> > +                * We are deactivating a page for accelerating reclaiming.
-> > +                * VM couldn't reclaim the page unless we clear PG_young.
-> > +                * As a side effect, it makes confuse idle-page tracking
-> > +                * because they will miss recent referenced history.
-> > +                */
-> > +               test_and_clear_page_young(page);
-> > +               deactivate_page(page);
-> > +       }
-> > +
-> > +       arch_enter_lazy_mmu_mode();
-> 
-> Did you mean to say arch_leave_lazy_mmu_mode() ?
 
-Oops, Fixed.
+I did. But it looks to me a series that is only about 60 lines of code 
+can fix all the issues we found without reverting the uaddr optimization.
 
-Thanks, Suren!
+
+>   and ad optimizations on top.
+> But other ways could be ok too.
+
+
+I'm waiting for the test result from syzbot and will post. Let's see if 
+you are OK with that.
+
+Thanks
+
+
+>>>
 
