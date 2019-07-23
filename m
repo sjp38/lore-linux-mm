@@ -1,351 +1,208 @@
-Return-Path: <SRS0=80m6=VT=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=2U+7=VU=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 73B61C76194
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 23:41:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2DA7BC7618F
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 00:03:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E88922199C
-	for <linux-mm@archiver.kernel.org>; Mon, 22 Jul 2019 23:41:31 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="bWB5wfGe";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="h1jpRJOs"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E88922199C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id CEA48218BE
+	for <linux-mm@archiver.kernel.org>; Tue, 23 Jul 2019 00:03:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CEA48218BE
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8A1D36B000A; Mon, 22 Jul 2019 19:41:31 -0400 (EDT)
+	id 422EB6B0005; Mon, 22 Jul 2019 20:03:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8794E8E0003; Mon, 22 Jul 2019 19:41:31 -0400 (EDT)
+	id 3D5118E0003; Mon, 22 Jul 2019 20:03:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 71AB38E0001; Mon, 22 Jul 2019 19:41:31 -0400 (EDT)
+	id 2C3A58E0001; Mon, 22 Jul 2019 20:03:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DE8F6B000A
-	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 19:41:31 -0400 (EDT)
-Received: by mail-vs1-f71.google.com with SMTP id k10so10977816vso.5
-        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 16:41:31 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E937D6B0005
+	for <linux-mm@kvack.org>; Mon, 22 Jul 2019 20:03:37 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id t2so20828390plo.10
+        for <linux-mm@kvack.org>; Mon, 22 Jul 2019 17:03:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=I6NfZ/h0TqHGegpRPCubSw7E1tnooAbYDeoRHVtw884=;
-        b=Q6uwk7Ec2bexY0MCACRhoew1lK+ah/9GrqoNapOI8ZAdI/bjEMZo3HyttWX4p70xZv
-         EaOl8ZpJed0ZyyB1V5AGMG8TaDtHLa8T023p8EwsmlMxZ9gw33ml7tKbeGjjsUY1ulEC
-         EPbE9fLrIiuEduyvI7Ci40+0N6sxu3Ie1Ry0/46w2gH650GderYChT93Y7KU9tezvLQT
-         5K5i+xVbcnJLVUT9eihil8QdOigQxwG+iZwc4cvOkt1GBSQj44tTmcPJm2gBv96FWyCy
-         KE7rEe9mIDcH8AuT/JgRI6zjvOjkRblH760Smbpohe5nQGR/IoYVfArZdV8EIGhS+Bol
-         tLJg==
-X-Gm-Message-State: APjAAAVJfUJrei2hivGtz+qA1jTc5MwSMKYtAyiQrHP4z439zbrYsG8d
-	p5luIOSz/mZIRVOLYTk0ASJJsjqGWAZ1ioBvwjehd4eruaRqlrHaPrDULaKSONX6p2mh1pIwCgN
-	QHc+0/bj7DsVHkRGMaC8sqcmm8+dxeDFiowPId0POlgwthluEVbywJWzeT+tMU5JXXg==
-X-Received: by 2002:ab0:142d:: with SMTP id b42mr31488524uae.124.1563838890976;
-        Mon, 22 Jul 2019 16:41:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxc9PDKtJ5yN13yXhF6O6qG4A6s11IRSU7r8ZMz3MexhUEYtW1ry1pxCS3qxoSsdg5tuzC9
-X-Received: by 2002:ab0:142d:: with SMTP id b42mr31488462uae.124.1563838889758;
-        Mon, 22 Jul 2019 16:41:29 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1563838889; cv=pass;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=G2KDi8J+eLxk9PnNxZ4AOboVee294jxqoOE5+8lh0u8=;
+        b=NlzsQkSF8b7SMiH+P5Bbbc1TseykwDhTttEXur7qqxW0WdGEg7Rrn6OfeR9T3hHgSv
+         qWIuJkjtihXScqhhQqjI7Ov+F2lwdNO7knOtwqBHVI05k3GE4knoozBVs7yodwavf8vJ
+         xczyu1ce5V1kbuKXvjVUBsUlCn0uDXigGmul6tUPNRIGrsVL5opGqydpAtxMGXK8Sgu8
+         GEF7vVad0o0JdOGGV4cq5p1OQ5cQbpYPrfjPo7ZiLBNLLBiR3qc6F3f82nwxVu1AWtsm
+         oEq3c98jg4f5bC1cY0aAuJiwDC63bZb0Tm/Q1FpQZhcy8WyYJmJRe0odK34boEOlisL+
+         O5nw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAWFNXvfz3O7xMuWCvXmjYOqvX2xgJLpsetYRZjZVBaffmTae2lA
+	lH5czGVpQ64wQYPBWWeIeasjhoQMp0G6Vos0iMvQlI/Zyi+l/WROkvD8zWfdO9Y4VRzFfYKM/DO
+	3dqVw4ckEUGJ6Bup0dO3y7xEa0arf3YKPHLycjNiozYHg0xBKNNNuKwNIL52rmdg=
+X-Received: by 2002:a17:902:aa41:: with SMTP id c1mr77216740plr.201.1563840217560;
+        Mon, 22 Jul 2019 17:03:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzcQi9h8r98urp/UzzwtcK05s197cFh1uCsVseA8I4RS9icJX8ois4Yuzu3jUwe+2UajhAt
+X-Received: by 2002:a17:902:aa41:: with SMTP id c1mr77216683plr.201.1563840216713;
+        Mon, 22 Jul 2019 17:03:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563840216; cv=none;
         d=google.com; s=arc-20160816;
-        b=zsHR/B4/Shnp++jZZt45tyl/0gGdUfkn508nVRKdnS/qBi3cXuW2s97hGabij0aozX
-         xC23bQnmyqveBuymdgfY0Sp9yoNLZjTRBef6F3Wl9oXK0p5QnBZgkyux/oscWCJDi6wJ
-         6MSwbjbv3WBywzUCSQEOy3jIHBLWwopn0Zz/wwXg+pLWyqZ+12sWFnIhx71aEFEzU1d5
-         5Dvdw+03MOx4pOas7/zmNgGA5fRSfK6De34/SdF8k1UtQd0MoiBjDq8t1VspPzk/wGzQ
-         kAeNEUhn7oYXwLyfoMYQIDrfTijW/HVZyQHUy13Nl2QIm77z8rsVpLVN6URcayiQ7rw4
-         +g6Q==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=I6NfZ/h0TqHGegpRPCubSw7E1tnooAbYDeoRHVtw884=;
-        b=rlPv7N4xMj3Ph5TEObJbi9kO0yz1GtUT2BxdjZKp9625mVcwpDkD3qEKKLl09COTnL
-         ckaEGH9pwH4AzPBiZEgid6/p7gSianGd6Zf8SDgjkQGcOR3vn1bctAPgTNKJ5ZlU6cQx
-         dc5ZtjFN5Uugv5ko6VD66rGki+HlyKpAedaVvSRAbNBUluZIR7thondT8N3GHks6EiZs
-         fTahFm7pldzqfSp7xLorEAJC05j3N3EqhdjX1BP+eTh2iwbvQdc98vRvdcwTu2jhNvOI
-         jWKSZJOfaXhT0CKq0Xy9U0QXmyaZIRGfrwymVODj6D/peA8XS3poPaL06/jDZj2CDob1
-         DdvQ==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=bWB5wfGe;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=h1jpRJOs;
-       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
-       spf=pass (google.com: domain of prvs=2106454d27=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=2106454d27=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id k18si10322959vsm.418.2019.07.22.16.41.29
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 22 Jul 2019 16:41:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=2106454d27=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        b=buL2jD+gaAS/h84Qs4JPgMxlXw5bBwQGr+U43vixgB5kzZ8Tv5oYTD/2n5CUtfKJT7
+         3Cg7xqi7+iObndsjShZc6YWRGK9+0X747Qstjp5lDz2xmyGu08z1A3ofJj1mT7vHLSqn
+         Ndt+fGG3O7V5qBGClRHQ+qWRYirVycktPA54VKZsiLIi4pPI4lesnyy1nRzAB3wo5LUj
+         5fVm0NKB2uKQr+iHc0KN/g4H8LlupKYIYBV4RA2PJV4Br1LJa74YSsjeqcdbkIQQz1TR
+         VWfXMVtPoMY2wBHMOQ5kyFsas/3VNJwVxjVrkPXzHIUqnOEFYDtCSrSYrxSHpqwPgApX
+         aJiw==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=G2KDi8J+eLxk9PnNxZ4AOboVee294jxqoOE5+8lh0u8=;
+        b=afcfheBSC2WwdUedZkRHrf6iwYcjF64DWRTsKS3jD138bCB5LxnVDNYgBEJNQs+siN
+         LvAbtFtn0mYeOf5k9LBeXJX92panWmjps7PZ1ZTmnC2WkBpjsiPThJxDi1PDf+t6mzWa
+         ZHKauPPUa5J7enbuqaV8Dgl2PuW/5E/Qm1aYioSIb2u5UdD32OYBIxr8EDqBdhNjMoqc
+         wzyiQcr5lXU6aFwCkvgm94Ca+r3cU+DzYDA/CMFlgrSFZasj44SGXFK1zkjHMZCcymbr
+         wEOI5pZ2abrYQcvUyCoMz+OhsTMrLle5+JhMnjpmz6ChjEjpjfm80Esp4OBEUSbmXbP7
+         3Uqw==
+ARC-Authentication-Results: i=1; mx.google.com;
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au. [211.29.132.246])
+        by mx.google.com with ESMTP id w18si10933809pgi.37.2019.07.22.17.03.36
+        for <linux-mm@kvack.org>;
+        Mon, 22 Jul 2019 17:03:36 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.246;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=bWB5wfGe;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector1-fb-onmicrosoft-com header.b=h1jpRJOs;
-       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
-       spf=pass (google.com: domain of prvs=2106454d27=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=2106454d27=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109332.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6MNd931004143;
-	Mon, 22 Jul 2019 16:41:28 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=I6NfZ/h0TqHGegpRPCubSw7E1tnooAbYDeoRHVtw884=;
- b=bWB5wfGewSF7ysKOkJyD9y5F2ZOBhAqWwXXOhnuB2RmHWYgNmm6SCMbZkMVp2eF6FqPf
- DtHi72I6JNnT5zrNeWoAqtoZQnTWotB77VpO1LN3sf8uBNrk8mLTKwgcyEaSg+WR4eUE
- UoOBG0ScoaCRwSd7MU5T7RKTBjGtISOrdHM= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2twn9ngaxd-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Mon, 22 Jul 2019 16:41:28 -0700
-Received: from prn-mbx08.TheFacebook.com (2620:10d:c081:6::22) by
- prn-hub06.TheFacebook.com (2620:10d:c081:35::130) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Mon, 22 Jul 2019 16:41:27 -0700
-Received: from prn-hub03.TheFacebook.com (2620:10d:c081:35::127) by
- prn-mbx08.TheFacebook.com (2620:10d:c081:6::22) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Mon, 22 Jul 2019 16:41:27 -0700
-Received: from NAM05-CO1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.27) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Mon, 22 Jul 2019 16:41:27 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=eniDSj4dLF0h5OOJnm0eVmmEX0kJpMnToL+Z5vAcSDfUpPNzOhZTrViN0UbV9Nfb1p5jXRV4HS7WPIuyT4Ize9JBdsCJyD5wPZZH0JUL1jV9jJntbSBNRBcOAP/booxkFMio7vgBnSlLeB3eoHaWcbCzS8V0E4fTg4ptj5AidoPQHEyWM3qeSFmVXN4QEd/JwTQUYwN1mRh0RzjZMT5nCoDKHjBZX+3ejZy9+H5kf84e+QaEvENSSx0Lh9vsTsxp4SDf1Y7FVRcGnqFZ2W8CWZyFjipVqlEzU6unq43Di90DVUKYahPjiXgKIEJsfWMJwwGNfcxkmNyWuDUbphQVHA==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=I6NfZ/h0TqHGegpRPCubSw7E1tnooAbYDeoRHVtw884=;
- b=DoQxjThzj9kCaqGKxUs1kVDXViDi+BoON0dwTTaeWVZDLZqtuPRwZyYaR0bdnSi1CqZwkFuZaNpzkse+lm2CmYNOw7ew6V6jhWymlT3bTVc9qmY4yWX5DMMWBZmUaJqpItwBJG49ErWYKILuGWhqu+163C6iA84FC2Z1yL493PU5C1NSluIH1aN1btcRNyUNBd24d5z2i/H0n9fi2+uoEAAMoHieOdbcqYEhLUMNtDmFjFUOh+rAJ4PxtL6Y/tJiC98m4Zn3W+72qnKk95sogpTNkG7R8Tu/OP//3hAjBsi8GMqFXG9HJgJlW+JezIMMOpfc/A9g4LuEgdCyqvpDYg==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=fb.com;dmarc=pass action=none header.from=fb.com;dkim=pass
- header.d=fb.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector1-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=I6NfZ/h0TqHGegpRPCubSw7E1tnooAbYDeoRHVtw884=;
- b=h1jpRJOsgCzJ7p1ySxAf5xWmNfNwku7CraWE48XLh7okEVzxczgBsonqiFG+sdZqfALUIGoGESyXcx0GkNWHdV/tbcZHYgCZokz9l8cnnAvBfb0v360b3XCDiD+cijUSglmNQ0l6tv2WjAyWuXo5xxbguRcgO+iRdCf3d9BppiU=
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
- MWHPR15MB1198.namprd15.prod.outlook.com (10.175.3.7) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2094.17; Mon, 22 Jul 2019 23:41:26 +0000
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::4066:b41c:4397:27b7]) by MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::4066:b41c:4397:27b7%7]) with mapi id 15.20.2094.013; Mon, 22 Jul 2019
- 23:41:25 +0000
-From: Song Liu <songliubraving@fb.com>
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-195-139-63.pa.nsw.optusnet.com.au [49.195.139.63])
+	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id 4C6C843B788;
+	Tue, 23 Jul 2019 10:03:33 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hpiGA-0001mL-5I; Tue, 23 Jul 2019 10:02:26 +1000
+Date: Tue, 23 Jul 2019 10:02:26 +1000
+From: Dave Chinner <david@fromorbit.com>
 To: Johannes Weiner <hannes@cmpxchg.org>
-CC: Linux-MM <linux-mm@kvack.org>,
-        "linux-fsdevel@vger.kernel.org"
-	<linux-fsdevel@vger.kernel.org>,
-        LKML <linux-kernel@vger.kernel.org>,
-        Matthew
- Wilcox <matthew.wilcox@oracle.com>,
-        "Kirill A. Shutemov"
-	<kirill.shutemov@linux.intel.com>,
-        Kernel Team <Kernel-team@fb.com>,
-        "William
- Kucharski" <william.kucharski@oracle.com>,
-        Andrew Morton
-	<akpm@linux-foundation.org>,
-        "hdanton@sina.com" <hdanton@sina.com>
-Subject: Re: [PATCH v9 5/6] mm,thp: add read-only THP support for (non-shmem)
- FS
-Thread-Topic: [PATCH v9 5/6] mm,thp: add read-only THP support for (non-shmem)
- FS
-Thread-Index: AQHVKurnm0pZpZevHki8fTgvnJjHiqbESjWAgBMt6IA=
-Date: Mon, 22 Jul 2019 23:41:25 +0000
-Message-ID: <D2D86FEC-6AAA-4051-A58C-27F305F310A8@fb.com>
-References: <20190625001246.685563-1-songliubraving@fb.com>
- <20190625001246.685563-6-songliubraving@fb.com>
- <20190710184811.GF11197@cmpxchg.org>
-In-Reply-To: <20190710184811.GF11197@cmpxchg.org>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: Apple Mail (2.3445.104.11)
-x-originating-ip: [2620:10d:c090:200::2:c799]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: fc390eae-4e6a-472e-f34c-08d70efe1c86
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1198;
-x-ms-traffictypediagnostic: MWHPR15MB1198:
-x-microsoft-antispam-prvs: <MWHPR15MB1198049AC116B01346E4E3BBB3C40@MWHPR15MB1198.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
-x-forefront-prvs: 01068D0A20
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(376002)(366004)(136003)(396003)(346002)(189003)(199004)(71190400001)(6246003)(81166006)(81156014)(316002)(76176011)(6506007)(6116002)(53546011)(305945005)(71200400001)(4326008)(64756008)(6436002)(6512007)(66476007)(66946007)(76116006)(66556008)(7736002)(66446008)(256004)(6486002)(14444005)(476003)(186003)(2906002)(486006)(68736007)(14454004)(8936002)(8676002)(229853002)(57306001)(86362001)(54906003)(102836004)(6916009)(25786009)(478600001)(46003)(50226002)(99286004)(5660300002)(53936002)(33656002)(446003)(11346002)(36756003)(2616005)(142933001);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1198;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: fTR1i/LKTvXLh742Ol9lB4spEwORWJUnasJXAlxSnNj1yggM53uXyCAykMd0ZBzPF2ZsD1sBzmYVuhgflfnSdyw0G9U7b3hf0KvHcecD3BSufR5KsS+XhB+C6O+IqLrrI1Po36Eux3CVo0qCg6BfcxK5RKrLjJZFyMPUwJWZzLab5ke1JbNHpa7C342towggOB4LOg8P8sfeSiA2R51AAi6zhVQYo1AodRhuytY2zq474WY5OLMVzrdZMy+CV3Wz0i+o7w1JV9wsZSrhM0C2pkN1uAXjGQ2e4VpKPvFVe7ptVflYl0dsoJBFQ6q1pqlJJvzjbsZHkNixXDlKP8tctUAViKQJU5oFiVuKp8TxWl8oP14HUVaocCTHpuskJsAZq4rxqyuoI0WaXtKKlg709F8JvjK6aRTDsKuWYtsxbmY=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <C2D0730775384D489CA840F0BE9ADA62@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] psi: annotate refault stalls from IO submission
+Message-ID: <20190723000226.GV7777@dread.disaster.area>
+References: <20190722201337.19180-1-hannes@cmpxchg.org>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: fc390eae-4e6a-472e-f34c-08d70efe1c86
-X-MS-Exchange-CrossTenant-originalarrivaltime: 22 Jul 2019 23:41:25.5489
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1198
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-22_16:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1810050000 definitions=main-1907220250
-X-FB-Internal: deliver
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190722201337.19180-1-hannes@cmpxchg.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0 cx=a_idp_d
+	a=fNT+DnnR6FjB+3sUuX8HHA==:117 a=fNT+DnnR6FjB+3sUuX8HHA==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=0o9FgrsRnhwA:10
+	a=ufHFDILaAAAA:8 a=7-415B0cAAAA:8 a=o-jcnmsilH93K4pHmdQA:9
+	a=EdKfoW5OtvoDdtON:21 a=SJvZlBx9A85TV0R8:21 a=CjuIK1q_8ugA:10
+	a=ZmIg1sZ3JBWsdXgziEIF:22 a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, Jul 22, 2019 at 04:13:37PM -0400, Johannes Weiner wrote:
+> psi tracks the time tasks wait for refaulting pages to become
+> uptodate, but it does not track the time spent submitting the IO. The
+> submission part can be significant if backing storage is contended or
+> when cgroup throttling (io.latency) is in effect - a lot of time is
+> spent in submit_bio(). In that case, we underreport memory pressure.
+> 
+> Annotate the submit_bio() paths (or the indirection through readpage)
+> for refaults and swapin to get proper psi coverage of delays there.
+> 
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+> ---
+>  fs/btrfs/extent_io.c | 14 ++++++++++++--
+>  fs/ext4/readpage.c   |  9 +++++++++
+>  fs/f2fs/data.c       |  8 ++++++++
+>  fs/mpage.c           |  9 +++++++++
+>  mm/filemap.c         | 20 ++++++++++++++++++++
+>  mm/page_io.c         | 11 ++++++++---
+>  mm/readahead.c       | 24 +++++++++++++++++++++++-
+>  7 files changed, 89 insertions(+), 6 deletions(-)
+> 
+> diff --git a/fs/btrfs/extent_io.c b/fs/btrfs/extent_io.c
+> index 1eb671c16ff1..2d2b3239965a 100644
+> --- a/fs/btrfs/extent_io.c
+> +++ b/fs/btrfs/extent_io.c
+> @@ -13,6 +13,7 @@
+>  #include <linux/pagevec.h>
+>  #include <linux/prefetch.h>
+>  #include <linux/cleancache.h>
+> +#include <linux/psi.h>
+>  #include "extent_io.h"
+>  #include "extent_map.h"
+>  #include "ctree.h"
+> @@ -4267,6 +4268,9 @@ int extent_readpages(struct address_space *mapping, struct list_head *pages,
+>  	struct extent_io_tree *tree = &BTRFS_I(mapping->host)->io_tree;
+>  	int nr = 0;
+>  	u64 prev_em_start = (u64)-1;
+> +	int ret = 0;
+> +	bool refault = false;
+> +	unsigned long pflags;
+>  
+>  	while (!list_empty(pages)) {
+>  		u64 contig_end = 0;
+> @@ -4281,6 +4285,10 @@ int extent_readpages(struct address_space *mapping, struct list_head *pages,
+>  				put_page(page);
+>  				break;
+>  			}
+> +			if (PageWorkingset(page) && !refault) {
+> +				psi_memstall_enter(&pflags);
+> +				refault = true;
+> +			}
+>  
+>  			pagepool[nr++] = page;
+>  			contig_end = page_offset(page) + PAGE_SIZE - 1;
+> @@ -4301,8 +4309,10 @@ int extent_readpages(struct address_space *mapping, struct list_head *pages,
+>  		free_extent_map(em_cached);
+>  
+>  	if (bio)
+> -		return submit_one_bio(bio, 0, bio_flags);
+> -	return 0;
+> +		ret = submit_one_bio(bio, 0, bio_flags);
+> +	if (refault)
+> +		psi_memstall_leave(&pflags);
+> +	return ret;
 
+This all seems extremely fragile to me. Sprinkling magic,
+undocumented pixie dust through the IO paths to account for
+something nobody can actually determine is working correctly is a
+bad idea.  People are going to break this without knowing it, nobody
+is going to notice because there are no regression tests for it,
+and this will all end up in frustration for users because it
+constantly gets broken and doesn't work reliably.
 
-> On Jul 10, 2019, at 11:48 AM, Johannes Weiner <hannes@cmpxchg.org> wrote:
->=20
-> On Mon, Jun 24, 2019 at 05:12:45PM -0700, Song Liu wrote:
->> This patch is (hopefully) the first step to enable THP for non-shmem
->> filesystems.
->>=20
->> This patch enables an application to put part of its text sections to TH=
-P
->> via madvise, for example:
->>=20
->>    madvise((void *)0x600000, 0x200000, MADV_HUGEPAGE);
->>=20
->> We tried to reuse the logic for THP on tmpfs.
->>=20
->> Currently, write is not supported for non-shmem THP. khugepaged will onl=
-y
->> process vma with VM_DENYWRITE. sys_mmap() ignores VM_DENYWRITE requests
->> (see ksys_mmap_pgoff). The only way to create vma with VM_DENYWRITE is
->> execve(). This requirement limits non-shmem THP to text sections.
->>=20
->> The next patch will handle writes, which would only happen when the all
->> the vmas with VM_DENYWRITE are unmapped.
->>=20
->> An EXPERIMENTAL config, READ_ONLY_THP_FOR_FS, is added to gate this
->> feature.
->>=20
->> Acked-by: Rik van Riel <riel@surriel.com>
->> Signed-off-by: Song Liu <songliubraving@fb.com>
->=20
-> This is really cool, and less invasive than I anticipated. Nice work.
->=20
-> I only have one concern and one question:
->=20
->> @@ -1392,6 +1401,29 @@ static void collapse_file(struct mm_struct *mm,
->> 				result =3D SCAN_FAIL;
->> 				goto xa_unlocked;
->> 			}
->> +		} else if (!page || xa_is_value(page)) {
->> +			xas_unlock_irq(&xas);
->> +			page_cache_sync_readahead(mapping, &file->f_ra, file,
->> +						  index, PAGE_SIZE);
->> +			/* drain pagevecs to help isolate_lru_page() */
->> +			lru_add_drain();
->> +			page =3D find_lock_page(mapping, index);
->> +			if (unlikely(page =3D=3D NULL)) {
->> +				result =3D SCAN_FAIL;
->> +				goto xa_unlocked;
->> +			}
->> +		} else if (!PageUptodate(page)) {
->> +			VM_BUG_ON(is_shmem);
->> +			xas_unlock_irq(&xas);
->> +			wait_on_page_locked(page);
->> +			if (!trylock_page(page)) {
->> +				result =3D SCAN_PAGE_LOCK;
->> +				goto xa_unlocked;
->> +			}
->> +			get_page(page);
->> +		} else if (!is_shmem && PageDirty(page)) {
->> +			result =3D SCAN_FAIL;
->> +			goto xa_locked;
->> 		} else if (trylock_page(page)) {
->> 			get_page(page);
->> 			xas_unlock_irq(&xas);
->=20
-> The many else ifs here check fairly complex page state and are hard to
-> follow and verify mentally. In fact, it's a bit easier now in the
-> patch when you see how it *used* to work with just shmem, but the end
-> result is fragile from a maintenance POV.
->=20
-> The shmem and file cases have little in common - basically only the
-> trylock_page(). Can you please make one big 'if (is_shmem) {} {}'
-> structure instead that keeps those two scenarios separate?
+e.g. If this is needed around all calls to ->readpage(), then please
+write a readpage wrapper function and convert all the callers to use
+that wrapper.
 
-Good point! Will fix in next version.=20
+Even better: If this memstall and "refault" check is needed to
+account for bio submission blocking, then page cache iteration is
+the wrong place to be doing this check. It should be done entirely
+in the bio code when adding pages to the bio because we'll only ever
+be doing page cache read IO on page cache misses. i.e. this isn't
+dependent on adding a new page to the LRU or not - if we add a new
+page then we are going to be doing IO and so this does not require
+magic pixie dust at the page cache iteration level
 
->=20
->> @@ -1426,6 +1458,12 @@ static void collapse_file(struct mm_struct *mm,
->> 			goto out_unlock;
->> 		}
->>=20
->> +		if (page_has_private(page) &&
->> +		    !try_to_release_page(page, GFP_KERNEL)) {
->> +			result =3D SCAN_PAGE_HAS_PRIVATE;
->> +			break;
->> +		}
->> +
->> 		if (page_mapped(page))
->> 			unmap_mapping_pages(mapping, index, 1, false);
->=20
->> @@ -1607,6 +1658,17 @@ static void khugepaged_scan_file(struct mm_struct=
- *mm,
->> 			break;
->> 		}
->>=20
->> +		if (page_has_private(page) && trylock_page(page)) {
->> +			int ret;
->> +
->> +			ret =3D try_to_release_page(page, GFP_KERNEL);
->> +			unlock_page(page);
->> +			if (!ret) {
->> +				result =3D SCAN_PAGE_HAS_PRIVATE;
->> +				break;
->> +			}
->> +		}
->> +
->> 		if (page_count(page) !=3D 1 + page_mapcount(page)) {
->> 			result =3D SCAN_PAGE_COUNT;
->> 			break;
->=20
-> There is already a try_to_release() inside the page lock section in
-> collapse_file(). I'm assuming you added this one because private data
-> affects the refcount. But it seems a bit overkill just for that; we
-> could also still fail the check, in which case we'd have dropped the
-> buffers in vain. Can you fix the check instead?
->=20
-> There is an is_page_cache_freeable() function in vmscan.c that handles
-> private fs references:
->=20
-> static inline int is_page_cache_freeable(struct page *page)
-> {
-> 	/*
-> 	 * A freeable page cache page is referenced only by the caller
-> 	 * that isolated the page, the page cache and optional buffer
-> 	 * heads at page->private.
-> 	 */
-> 	int page_cache_pins =3D PageTransHuge(page) && PageSwapCache(page) ?
-> 		HPAGE_PMD_NR : 1;
-> 	return page_count(page) - page_has_private(page) =3D=3D 1 + page_cache_p=
-ins;
-> }
->=20
-> Wouldn't this work here as well?
+e.g. bio_add_page_memstall() can do the working set check and then
+set a flag on the bio to say it contains a memstall page. Then on
+submission of the bio the memstall condition can be cleared.
 
-Good point! Let me try fix this.=20
+Cheers,
 
-Thanks,
-Song
+-Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
