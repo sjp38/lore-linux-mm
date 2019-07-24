@@ -7,82 +7,82 @@ X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D1231C76191
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 13:48:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A24BDC76191
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 13:53:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A240A22ADB
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 13:48:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A240A22ADB
+	by mail.kernel.org (Postfix) with ESMTP id 654D521926
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 13:53:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 654D521926
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 34CB96B0003; Wed, 24 Jul 2019 09:48:20 -0400 (EDT)
+	id EE2A38E0003; Wed, 24 Jul 2019 09:53:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2FD028E0003; Wed, 24 Jul 2019 09:48:20 -0400 (EDT)
+	id E92388E0002; Wed, 24 Jul 2019 09:53:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1C67E8E0002; Wed, 24 Jul 2019 09:48:20 -0400 (EDT)
+	id D82678E0003; Wed, 24 Jul 2019 09:53:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C5E4A6B0003
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 09:48:19 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id o13so30252216edt.4
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 06:48:19 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8CC3C8E0002
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 09:53:10 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id y24so30306637edb.1
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 06:53:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=UoiB9jSnHt/Asq0GvczBoHnDRnKVxHUzqwDXUw8XErc=;
-        b=fPrtA4meLLdftSpv5KfbvlNBC6DP8X4DYyJOwGoAkhvYPzk6KBK+1xLleCp6/Z9ULm
-         KUvMbPhoiMIyhC6UJOgO61iKJSSlzlcPS4YS5OspIk3CxrtHxs0AWxkLTk1g2/DgDEw/
-         BUPrtR45QlVSsiKccPz9lvbuh1114nybce9HVPqPuXAC3Vu/3W4V2YhMAcjL2RuPDNQS
-         lrYaavkW/gRrw70UmXQsFoDpmOdL/lcDUGbTom1tFTEjbyfWB/EJDdqQIcUvYIIAtcw5
-         xLY5kwykmPkI2Fk6rDrjtc/rSEk5Q/X3cAKTto3n/K9WBxSft8IrzY+TxTdoCPZVExGr
-         naXg==
+        bh=K/NGaHNDTuxqRsiTxNWxXdgbnrjQ2IFjoWSMvqmkJ1s=;
+        b=oITbLPpo2VV/nA3nB71UGjE3bUL1XfdybCdoeyXSlB5zTqtsbobiskWm6zO1ZOOc3I
+         DRFMI+7RBTEhzHgQPduzcQEFG+dsWrg3TrJgbQXlQYRLXwWPe0hHV69+GpQdMch/TnyN
+         Ov7+0KCKEEGVtyugx/tboczKLE8nqlFA3pqd4xt2DmvGUTNSt1A1OdpSX1iTjjehNK7N
+         xcrKl3n8/vrQRcHcjiyPortb2Vtw5v11d1mHms/a+ZtAkvYdoPCQGDISf3KqPjAoqXlu
+         pn80/u0h/k4mGpwdOC2W0Evsp2Ggruz7FwC2qPem+vWFOz8wbK14ahKxxgRLlqF8RErw
+         xYHA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAUEvrwiMZ1Bc33i8gtzR4QXYBVQ2hbdWDqolOl/Rydbq2bQs5qF
-	PPbwZ2y8Ssrx43dKAqU/2vnM1mmxbVDRm4YQAYYKALNOC4/cMs3vbsbiOJP3+tfZWGHz2D8aBw6
-	6zZRqlBdlbykWX3Da/kWDbKYdshH20foD5CS9q0h9iZeY/qbk5xgBIYveHATtJfPG/Q==
-X-Received: by 2002:aa7:cf90:: with SMTP id z16mr69567618edx.228.1563976099377;
-        Wed, 24 Jul 2019 06:48:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxvvGjEhUlMpOzJrbfjgiWBbZaD0Fppa+bWqou2qJmVR+QTBWKjNK+EGLl0xATxH5WAAbZr
-X-Received: by 2002:aa7:cf90:: with SMTP id z16mr69567559edx.228.1563976098509;
-        Wed, 24 Jul 2019 06:48:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563976098; cv=none;
+X-Gm-Message-State: APjAAAXAql5pYw5UjcJfRiFMAVDxES1ilmrPSsqo0lgZ2AJQpdweGAGx
+	WumqWlvzk/j5D0YZfaCglTh0GH5FWp3GcRx1ALbh+t2xoHLeXP1nOOMRF0GWLQFaKeRhUVlRsBZ
+	4Th7DiqehMdYo2ncJo54YGzI3w0xA7P+3k/R+OBCvxFouLKUjyYnyq3hdnK15VfANnQ==
+X-Received: by 2002:a05:6402:1707:: with SMTP id y7mr70257740edu.223.1563976390121;
+        Wed, 24 Jul 2019 06:53:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxCT4zAl7Dx23SZeQRJxgcWPzvnVd6i73WhB4/gU0/5o96hcHG5l/pK74XvpTFBcSdw9GbF
+X-Received: by 2002:a05:6402:1707:: with SMTP id y7mr70257684edu.223.1563976389409;
+        Wed, 24 Jul 2019 06:53:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563976389; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZUSPWNkKvx7LY2QsbsjSdmYy+ZCqfzIISfkCluXzyY41aefcNvnqjOxhysP/1/BH1U
-         D5iQW2AKjmZlxLGB0IhokqjuPbVrDAWwTpfs2ehpzhHUIbCVbeyfZYPwqtC//Xq8q1K3
-         d1/vUcZW8p2hXihIRxuK9DfquBFf8G9fkljn9o4XCqtUYYvmGvvE+zsdCks0Z3iKXAT4
-         2h21xgI0fEph7QQzme1tVDjwpIzLaTtMJAFFODczSLaqKvaZor16Xqjat1Wn7to25EIP
-         WWe+Immy0Hzx91PuUV9yELsP0tSenA1oxg03SkLhHPaSMcI3teNQOsLOkox+nE/BIntx
-         baJg==
+        b=amMa+GXEa6k1jhEUGYt5zt5LSwvxvYJxwiyekg50R5DZAKTrSkxN7stA0dOIXjLuJi
+         +kzLHj4egd4sF7alqASmKWatpfHSj2u7uXWGCrKPRoJGRfWx8EgD3d7Rmeamu/2XBcgs
+         HWFh5CaCV1YCHlhkFB4DsPPFHZ0m3JK6MijOmpiL96rOzanBcakZIZHWl1zSl67r1rLi
+         H4OzO+p8uIQhXJT4TrwAi5TDpioLlaQWOtp3wEj4UZHJlEhFdLfEztJNbH6EXfucN8mV
+         hiFQsgpOK8U/RBcjFL1B8Awmz+BGp8wFg6IRbs7ndWopEXV9DDGSCar4EPaWUO8Y2Lt0
+         Xbww==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=UoiB9jSnHt/Asq0GvczBoHnDRnKVxHUzqwDXUw8XErc=;
-        b=Kwzc68DQELI7F6ew5BMRVqk6V0bl+luYNro+AnrRkow/XJqiu/+pT9Np11KbVMR/Fl
-         u8b0CjE/9vIR7TekusS4vS1AUVXKbxFbtWelKpND70KVfSKy6emuZVo2bXyfCcRg7gfA
-         2GArolqUxp9TYI0qAsvBROhQnOCjidgWrNTg6v7bT2eVxHbQwf8SiTjI3mX4//invhjc
-         HeHvv/dGfYH7YW6VReYbMxSa6Mf1KwR8uE5E2cSC/rJbT66ajf1PHttC0awXqcPlStHn
-         nsjR5e/ODks7M23YxzXlp7P2lGq7tFkwr179TY57WdZXKpsYCFZRw1VWStnO760I02U1
-         Xisw==
+        bh=K/NGaHNDTuxqRsiTxNWxXdgbnrjQ2IFjoWSMvqmkJ1s=;
+        b=GSXbwGScLEewVs5pTifqbayPWI0xTObscmdysbK85XTYVK/NcNBY+SooHyI85dNE1u
+         H2os27CCvY/jjksupdioK/QLCGvQGaHBcgCtUR9R7BWcVwM/URNbtX3Zvq/408Rv5x07
+         9G3xejuhDvnJddpuLN2QBbNFAoJhCiMnsRuHTbM453eyJdT0CiOeGt4IIJUxlx1TypKv
+         v7QUqsiLlGuFyKvxcnyLNGd6+Y5VOj7ZOG9fkIHYMa921YG9alagbUVrSeidxfAwWRfr
+         cVrYbu2CfR6pyaHwK3P7jkG2wr/U8ITNbqCGxKIVPYBwwvvwm44SuUKV9L8TOz1RkAp+
+         HSNQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id o15si7828295ejj.248.2019.07.24.06.48.18
+        by mx.google.com with ESMTP id 7si8943243ejx.290.2019.07.24.06.53.09
         for <linux-mm@kvack.org>;
-        Wed, 24 Jul 2019 06:48:18 -0700 (PDT)
+        Wed, 24 Jul 2019 06:53:09 -0700 (PDT)
 Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6868828;
-	Wed, 24 Jul 2019 06:48:17 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6F72D28;
+	Wed, 24 Jul 2019 06:53:08 -0700 (PDT)
 Received: from [10.1.196.133] (e112269-lin.cambridge.arm.com [10.1.196.133])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id A85F23F71A;
-	Wed, 24 Jul 2019 06:48:14 -0700 (PDT)
-Subject: Re: [PATCH v9 10/21] mm: Add generic p?d_leaf() macros
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 996793F71A;
+	Wed, 24 Jul 2019 06:53:05 -0700 (PDT)
+Subject: Re: [PATCH v9 11/21] mm: pagewalk: Add p4d_entry() and pgd_entry()
 To: Mark Rutland <mark.rutland@arm.com>
 Cc: x86@kernel.org, Arnd Bergmann <arnd@arndb.de>,
  Ard Biesheuvel <ard.biesheuvel@linaro.org>,
@@ -97,15 +97,15 @@ Cc: x86@kernel.org, Arnd Bergmann <arnd@arndb.de>,
  linux-arm-kernel@lists.infradead.org, "Liang, Kan"
  <kan.liang@linux.intel.com>
 References: <20190722154210.42799-1-steven.price@arm.com>
- <20190722154210.42799-11-steven.price@arm.com>
- <20190723094113.GA8085@lakrids.cambridge.arm.com>
+ <20190722154210.42799-12-steven.price@arm.com>
+ <20190723101432.GC8085@lakrids.cambridge.arm.com>
 From: Steven Price <steven.price@arm.com>
-Message-ID: <4366c0d8-6175-88d0-8cf2-938dff56f1ac@arm.com>
-Date: Wed, 24 Jul 2019 14:48:13 +0100
+Message-ID: <60ee20ef-62a3-5df1-6e24-24973b69be70@arm.com>
+Date: Wed, 24 Jul 2019 14:53:04 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190723094113.GA8085@lakrids.cambridge.arm.com>
+In-Reply-To: <20190723101432.GC8085@lakrids.cambridge.arm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-GB
 Content-Transfer-Encoding: 7bit
@@ -115,68 +115,62 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 23/07/2019 10:41, Mark Rutland wrote:
-> On Mon, Jul 22, 2019 at 04:41:59PM +0100, Steven Price wrote:
->> Exposing the pud/pgd levels of the page tables to walk_page_range() means
->> we may come across the exotic large mappings that come with large areas
->> of contiguous memory (such as the kernel's linear map).
+On 23/07/2019 11:14, Mark Rutland wrote:
+> On Mon, Jul 22, 2019 at 04:42:00PM +0100, Steven Price wrote:
+>> pgd_entry() and pud_entry() were removed by commit 0b1fbfe50006c410
+>> ("mm/pagewalk: remove pgd_entry() and pud_entry()") because there were
+>> no users. We're about to add users so reintroduce them, along with
+>> p4d_entry() as we now have 5 levels of tables.
 >>
->> For architectures that don't provide all p?d_leaf() macros, provide
->> generic do nothing default that are suitable where there cannot be leaf
->> pages that that level.
+>> Note that commit a00cc7d9dd93d66a ("mm, x86: add support for
+>> PUD-sized transparent hugepages") already re-added pud_entry() but with
+>> different semantics to the other callbacks. Since there have never
+>> been upstream users of this, revert the semantics back to match the
+>> other callbacks. This means pud_entry() is called for all entries, not
+>> just transparent huge pages.
 >>
 >> Signed-off-by: Steven Price <steven.price@arm.com>
-> 
-> Not a big deal, but it would probably make sense for this to be patch 1
-> in the series, given it defines the semantic of p?d_leaf(), and they're
-> not used until we provide all the architectural implemetnations anyway.
-
-Sure, I'll move it. When it was named p?d_large() this had to come after
-some architectures that implement p?d_large() as static inline. But
-p?d_leaf() doesn't have that issue.
-
-> It might also be worth pointing out the reasons for this naming, e.g.
-> p?d_large() aren't currently generic, and this name minimizes potential
-> confusion between p?d_{large,huge}().
-
-Ok, how about:
-
-The name p?d_leaf() is chosen because to minimize the confusion with
-existing uses of "large" pages and "huge" pages which do not necessary
-mean that the entry is a leaf (for example it may be a set of contiguous
-entries that only take 1 TLB slot). For the purpose of walking the page
-tables we don't need to know how it will be represented in the TLB, but
-we do need to know for sure if it is a leaf of the tree.
-
 >> ---
->>  include/asm-generic/pgtable.h | 19 +++++++++++++++++++
->>  1 file changed, 19 insertions(+)
+>>  include/linux/mm.h | 15 +++++++++------
+>>  mm/pagewalk.c      | 27 ++++++++++++++++-----------
+>>  2 files changed, 25 insertions(+), 17 deletions(-)
 >>
->> diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
->> index 75d9d68a6de7..46275896ca66 100644
->> --- a/include/asm-generic/pgtable.h
->> +++ b/include/asm-generic/pgtable.h
->> @@ -1188,4 +1188,23 @@ static inline bool arch_has_pfn_modify_check(void)
->>  #define mm_pmd_folded(mm)	__is_defined(__PAGETABLE_PMD_FOLDED)
->>  #endif
+>> diff --git a/include/linux/mm.h b/include/linux/mm.h
+>> index 0334ca97c584..b22799129128 100644
+>> --- a/include/linux/mm.h
+>> +++ b/include/linux/mm.h
+>> @@ -1432,15 +1432,14 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
 >>  
->> +/*
->> + * p?d_leaf() - true if this entry is a final mapping to a physical address.
->> + * This differs from p?d_huge() by the fact that they are always available (if
->> + * the architecture supports large pages at the appropriate level) even
->> + * if CONFIG_HUGETLB_PAGE is not defined.
->> + */
+>>  /**
+>>   * mm_walk - callbacks for walk_page_range
+>> - * @pud_entry: if set, called for each non-empty PUD (2nd-level) entry
+>> - *	       this handler should only handle pud_trans_huge() puds.
+>> - *	       the pmd_entry or pte_entry callbacks will be used for
+>> - *	       regular PUDs.
+>> - * @pmd_entry: if set, called for each non-empty PMD (3rd-level) entry
+>> + * @pgd_entry: if set, called for each non-empty PGD (top-level) entry
+>> + * @p4d_entry: if set, called for each non-empty P4D entry
+>> + * @pud_entry: if set, called for each non-empty PUD entry
+>> + * @pmd_entry: if set, called for each non-empty PMD entry
 > 
-> I assume it's only safe to call these on valid entries? I think it would
-> be worth calling that out explicitly.
-
-Yes only meaningful on valid entries - I'll add that as a comment.
-
-> Otherwise, this looks sound to me:
+> How are these expected to work with folding?
 > 
-> Acked-by: Mark Rutland <mark.rutland@arm.com>
+> For example, on arm64 with 64K pages and 42-bit VA, you can have 2-level
+> tables where the PGD is P4D, PUD, and PMD. IIUC we'd invoke the
+> callbacks for each of those levels where we found an entry in the pgd.
+> 
+> Either the callee handle that, or we should inhibit the callbacks when
+> levels are folded, and I think that needs to be explcitly stated either
+> way.
+> 
+> IIRC on x86 the p4d folding is dynamic depending on whether the HW
+> supports 5-level page tables. Maybe that implies the callee has to
+> handle that.
 
-Thanks for the review
+Yes, my assumption is that it has to be up to the callee to handle that
+because folding can be dynamic. I believe this also was how these
+callbacks work before they were removed. However I'll add a comment
+explaining that here as it's probably non-obvious.
 
 Steve
 
