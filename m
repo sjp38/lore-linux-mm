@@ -2,126 +2,172 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FAKE_REPLY_C,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 27653C7618F
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 16:09:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3793FC7618B
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 16:36:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E34AD2173B
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 16:09:38 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="d3D/6SvI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E34AD2173B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id D2F3621911
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 16:36:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D2F3621911
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 666276B0006; Wed, 24 Jul 2019 12:09:38 -0400 (EDT)
+	id 42F656B0008; Wed, 24 Jul 2019 12:36:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5F00A8E0005; Wed, 24 Jul 2019 12:09:38 -0400 (EDT)
+	id 3B8E38E0005; Wed, 24 Jul 2019 12:36:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4B88B8E0002; Wed, 24 Jul 2019 12:09:38 -0400 (EDT)
+	id 2A7D18E0002; Wed, 24 Jul 2019 12:36:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1283A6B0006
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:09:38 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id d190so28809778pfa.0
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 09:09:38 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CF0EF6B0008
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:36:51 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id l26so30548624eda.2
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 09:36:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:mime-version:content-disposition:user-agent;
-        bh=HXDgC3r+QZndYF+JhGOtU3oBVmxVpcd58tRMaOLYpnI=;
-        b=SHJHHoPLWGqUNSXtGsNW0cd5yph0TWJp7PBZVgBp++Wkb2LbMFKWb/BRdrXQ8EcjVY
-         zM1Gbp5UGp3Z4AXSt6awz48jkB0LSP79g2dEquIHiDxXzGGsqYXj391pxhZd3miphLfX
-         xPOXCl+dCYm0L1duOnVLVZl3CRM8K59aOKnrV3vLrWejBxOJzLe1G4EMVyVCPAkR21H6
-         gQqoM8/zjRnrbFutKEUCeWSiB0dOlATNLZ/YqXLZoex+glOF2IQXZ7HRHXc9BKfWFsdb
-         i+/TsfMrYGoyn6Vag6WCu6fWgal75iyvONNwzmh051VE72UkM9VPrwtZBgpaSEZacoOL
-         L+Tg==
-X-Gm-Message-State: APjAAAVY9EdLsG+2pyaseGO9+xFyh/MQgL34+mO/dNGaTBWkPe0Ow2gB
-	iEn9oWbQKLn4RRXC2ZfarQlSF7YoHLqFyE+80EQWRrger2+N9JDPsQ0fz8g6AMumFmQfbHVf9QD
-	RWhxhKpX2lbKGG1S8s361e3pKThkb//u2i9ihb5HxZxa84nwCBV/5xd0+uF/QjCz8ag==
-X-Received: by 2002:aa7:9a92:: with SMTP id w18mr12071337pfi.167.1563984577610;
-        Wed, 24 Jul 2019 09:09:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzQkfGxVIWOIyWWhO5rS+FGW6GoI2qHovCevgsqSflK2IMbPqWusfxEs/2Ux/87IpQLa37i
-X-Received: by 2002:aa7:9a92:: with SMTP id w18mr12071283pfi.167.1563984576872;
-        Wed, 24 Jul 2019 09:09:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563984576; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=gIx+ceJLLqzYzF7GtNXtIq07rvlh51FQYTqoEO8IsJ0=;
+        b=KKqJEXfJBHxXoCcGam3CkAD4DZ86uDHNR5gNj/WM32GjiMd6hHAZE+H367deoDZZiz
+         yqXly5s87Eg/mnYkoMzvwNBRQFZn+zAnUQyjL4GneL9z+4nn9r24E4m90o65qpi45vgR
+         8YRyxL4xFFd2vudyGrk08jx9BvhesEyZcuSwOnwaRFj8GWZzwzZT+m3FjCuWjrPFTKQH
+         eR4u9IHIz8WeAOZ5gJFB+RhJy5YdkDcwwqz5k087JtiwMnE7vJe6chghg+ZmlI1q+P4m
+         EUV4MGDk1yA+b9v4vQG0jahvSZKoBTHdKxjUDPZqXrpHEzvs86hwc6l8aG5d6is/WNyq
+         ZvhA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: APjAAAWmZKory5xkckQ62tVA45ueUC5MiEgXhKbJ9vQMvIim4cIzGkd5
+	GA7KYwQ8A0J/T5/Uzjs6VL4UpelMn0AY/NYYslUGuUz8y/CvDdzXwS03oue/wbVx2pK8Si02onk
+	oTMU8PdJtk5TK75Dqy4rAy1hDC8OFz/Z65uv+FYYUhGrEiQHEhcucW75QPGe8U6zbOg==
+X-Received: by 2002:a50:e703:: with SMTP id a3mr73320688edn.291.1563986211304;
+        Wed, 24 Jul 2019 09:36:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzTOUPBx5UKjWA7Hiyt8fPCYfn/UD+o3mT37xXEuiNriS/E6FSyK+2idQ38ALd2tbhDjrvf
+X-Received: by 2002:a50:e703:: with SMTP id a3mr73320624edn.291.1563986210485;
+        Wed, 24 Jul 2019 09:36:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563986210; cv=none;
         d=google.com; s=arc-20160816;
-        b=KnYFX8sWz7V2YWkthcrejZEc/tW4iNgV2CEZ5zT2HjlCMNoycrrgkJcRU3hs4CiAQ3
-         u71FYWvlxhd2/D0G3qfTpecugbJabeHA4cYjjZsAtaQG1NhR4wA1x4lQML6l57jszYMa
-         FP9K2+twaoqSFC5NIGLx9WDHeXY7G+HZWibUqX2b1XkSWEune8J5rQfxYpdR21/d6xBC
-         /AR7cTP24SCglU4jZ0mZcE8AYMljCNPKSoOtLNphdgRQ+wSM/ULcC83/R+JPWzegMvzi
-         9aPoT7x78CWmDzezb961sXMF0IgHo2SuvG5NN/1Wo7DAtUNPxJVJOwthaFCkf46FdP74
-         YfXA==
+        b=Y5VLEY4ZEVw7JIr5YcjAsMiQCIUCMuVpPUmD8VohQM70j3UO6ftZr82wGOHw05gsWp
+         Ay1iT+H7tL9oQmLXlOrwkcJcw/fAvet+ES1vunmnTXctKxqQwCiLpsZEZQU5JzwVr8VN
+         2NMA0m7bOVNR0Wm/DkLjuwwPuuukmqPJs8Po5SODbQ8DcwDkLCdHrvysc+2MGi0Eb5D9
+         ovkgxO8NHz/VNul7ElfNVF8EkgG3BkgvubCg/cNrrMmq+xV8xkGSepoQrLV2jOn3B2WE
+         4sYFr4KIrWUwyBCBNg0FxgOzGxdsTx7rx3oNl6pWloEtTRTlHnFHGqn0rSomv7vxpJfA
+         d7zw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=HXDgC3r+QZndYF+JhGOtU3oBVmxVpcd58tRMaOLYpnI=;
-        b=tU4SO0exQgGweVG6kPRdez6VilTm1NoSoS0+c2osLdbuIQB9apTJegUb3zCQhw13gf
-         M6DKqI6+R5gocYppuf15Ij6RLUAsnfTYpagjydgmbfwIzC089AE6vnU/rmkNE88QIe50
-         Bpg9TASSOPG6tsc5EEpnuuYjDcXvgmvUbA9FXdqKnrm+MszXKP+s+upss4f67aFLllnZ
-         Xu9/8tgXSt2PD5+L4js2pOunuZ/DpcY7v43wQ6h+hq/3eWDV7qrqklPub45v8/DHjwZj
-         /9d4eyRlM3wMC4vOlNmbo1MR3q7CAlId3fK/dHeMdua2MSn4/RR/oHJsiXx/8QcKEwGp
-         O46w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=gIx+ceJLLqzYzF7GtNXtIq07rvlh51FQYTqoEO8IsJ0=;
+        b=iVV8ybknwBM2ckSk5t3nB2Hxfks6fgVX5KrCzTyCRiGYkLOMtmsjtu490WIGPQx5Dd
+         42Bi6AiyUfegExCdH8R0ey3l3K3SjHE1Hio1aH21mB+yo+0Wqle9dJ3GK0VldpmUJwar
+         gcojTFxXLZW7TVDxt9vDNJ/NM3ChMZ3vBdeUxRbZz4LchPEoODQ9qacyhtA9x87FfC4N
+         9Amm7axzjlzQqbI7qGbWoYtoHux6cFXklEC9VXwYR5uGo//ddCkzURnyow645j1IN7Jr
+         4CGNJ2k6Hl1Drv7fIq17R4JLYUqenRE0o+IIT1b6xyJY76HVIRcqTT0SjnC4w0ouqJvs
+         YFUw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="d3D/6SvI";
-       spf=pass (google.com: best guess record for domain of batv+1e4efd27347a199fee4d+5813+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+1e4efd27347a199fee4d+5813+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id w19si5977209pga.462.2019.07.24.09.09.36
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 24 Jul 2019 09:09:36 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+1e4efd27347a199fee4d+5813+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id g27si8800045ejc.229.2019.07.24.09.36.49
+        for <linux-mm@kvack.org>;
+        Wed, 24 Jul 2019 09:36:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="d3D/6SvI";
-       spf=pass (google.com: best guess record for domain of batv+1e4efd27347a199fee4d+5813+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+1e4efd27347a199fee4d+5813+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Content-Type:MIME-Version:Message-ID:
-	Subject:Cc:To:From:Date:Sender:Reply-To:Content-Transfer-Encoding:Content-ID:
-	Content-Description:Resent-Date:Resent-From:Resent-Sender:Resent-To:Resent-Cc
-	:Resent-Message-ID:In-Reply-To:References:List-Id:List-Help:List-Unsubscribe:
-	List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=HXDgC3r+QZndYF+JhGOtU3oBVmxVpcd58tRMaOLYpnI=; b=d3D/6SvIZRlTvJ4R8TcVqF4SL7
-	PnO32n2UOdRKzi4R406Kmnuht+z1TH4GbopOWqBzcNBF9gF8gOB0Z2HeZdfLqE9uDgdzC46V1Aa6g
-	S+5KtgJ+4KPjAEDUGO6DKj2FkIqx1roD3g56z56/APJMkoBJU8T/8lQLTrwpeahrDBzP55c1khSuo
-	WE5aUK5ELeoDcQPo9qOh+s3vok/HYoxbT9gUrYk6FyVb5baCCQjTii446Tz57dE91gw+FWqr3B0YY
-	7DzwclfUBhNY88751AsXNCMbRP+hl//FBMqE+dkRJ1DRC2wWKq994Pb0vCVLdnisJralEi2i8YPnG
-	lSMeoenQ==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hqJpZ-0000Rp-EL; Wed, 24 Jul 2019 16:09:29 +0000
-Date: Wed, 24 Jul 2019 09:09:29 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Bharath Vedartham <linux.bhar@gmail.com>
-Cc: sivanich@sgi.com, arnd@arndb.de, jhubbard@nvidia.com,
-	ira.weiny@intel.com, jglisse@redhat.com, gregkh@linuxfoundation.org,
-	william.kucharski@oracle.com, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH v2 3/3] sgi-gru: Use __get_user_pages_fast in
- atomic_pte_lookup
-Message-ID: <20190724160929.GA14052@infradead.org>
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 3690E28;
+	Wed, 24 Jul 2019 09:36:49 -0700 (PDT)
+Received: from [10.1.196.133] (e112269-lin.cambridge.arm.com [10.1.196.133])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C337C3F71F;
+	Wed, 24 Jul 2019 09:36:46 -0700 (PDT)
+Subject: Re: [PATCH v9 19/21] mm: Add generic ptdump
+To: Mark Rutland <mark.rutland@arm.com>
+Cc: x86@kernel.org, Arnd Bergmann <arnd@arndb.de>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
+ Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
+ James Morse <james.morse@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Will Deacon <will@kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
+ linux-arm-kernel@lists.infradead.org, "Liang, Kan"
+ <kan.liang@linux.intel.com>
+References: <20190722154210.42799-1-steven.price@arm.com>
+ <20190722154210.42799-20-steven.price@arm.com>
+ <20190723095747.GB8085@lakrids.cambridge.arm.com>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <ee707646-0196-63bb-45cc-6b949ae9530e@arm.com>
+Date: Wed, 24 Jul 2019 17:36:45 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+In-Reply-To: <20190723095747.GB8085@lakrids.cambridge.arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-I think the atomic_pte_lookup / non_atomic_pte_lookup helpers
-should simply go away.  Most of the setup code is common now and should
-be in the caller where it can be shared.  Then just do a:
+On 23/07/2019 10:57, Mark Rutland wrote:
+> On Mon, Jul 22, 2019 at 04:42:08PM +0100, Steven Price wrote:
+>> Add a generic version of page table dumping that architectures can
+>> opt-in to
+>>
+>> Signed-off-by: Steven Price <steven.price@arm.com>
+> 
+> [...]
+> 
+>> +#ifdef CONFIG_KASAN
+>> +/*
+>> + * This is an optimization for KASAN=y case. Since all kasan page tables
+>> + * eventually point to the kasan_early_shadow_page we could call note_page()
+>> + * right away without walking through lower level page tables. This saves
+>> + * us dozens of seconds (minutes for 5-level config) while checking for
+>> + * W+X mapping or reading kernel_page_tables debugfs file.
+>> + */
+>> +static inline bool kasan_page_table(struct ptdump_state *st, void *pt,
+>> +				    unsigned long addr)
+>> +{
+>> +	if (__pa(pt) == __pa(kasan_early_shadow_pmd) ||
+>> +#ifdef CONFIG_X86
+>> +	    (pgtable_l5_enabled() &&
+>> +			__pa(pt) == __pa(kasan_early_shadow_p4d)) ||
+>> +#endif
+>> +	    __pa(pt) == __pa(kasan_early_shadow_pud)) {
+>> +		st->note_page(st, addr, 5, pte_val(kasan_early_shadow_pte[0]));
+>> +		return true;
+>> +	}
+>> +	return false;
+> 
+> Having you tried this with CONFIG_DEBUG_VIRTUAL?
+> 
+> The kasan_early_shadow_pmd is a kernel object rather than a linear map
+> object, so you should use __pa_symbol for that.
 
-	if (atomic) {
-		__get_user_pages_fast()
-	} else {
-		get_user_pages_fast();
-	}
+Thanks for pointing that out - it is indeed broken on arm64. This was
+moved from x86 where CONFIG_DEBUG_VIRTUAL doesn't seem to pick this up.
+There is actually a problem here that 'pt' might not be in the linear
+map (so __pa(pt) barfs on arm64 as well as kasan_early_shadow_p?d).
 
-and we actually have an easy to understand piece of code.
+It looks like having the comparisons of the form "pt ==
+lm_alias(kasan_early_shadow_p?d)" is probably best.
+
+> It's a bit horrid to have to test multiple levels in one function; can't
+> we check the relevant level inline in each of the test_p?d funcs?
+> 
+> They're optional anyway, so they only need to be defined for
+> CONFIG_KASAN.
+
+Good point - removing the test_p?d callbacks when !CONFIG_KASAN
+simplifies the code.
+
+Thanks,
+
+Steve
 
