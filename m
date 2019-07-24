@@ -2,217 +2,238 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 50F55C76186
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:21:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E1A6BC76186
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:24:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F13E52147A
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:21:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="ZyJ3zgq6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F13E52147A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 94A67229F4
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:24:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94A67229F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 90A126B0006; Wed, 24 Jul 2019 15:21:57 -0400 (EDT)
+	id 33D556B0006; Wed, 24 Jul 2019 15:24:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 893F96B0007; Wed, 24 Jul 2019 15:21:57 -0400 (EDT)
+	id 314256B0007; Wed, 24 Jul 2019 15:24:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 733618E0002; Wed, 24 Jul 2019 15:21:57 -0400 (EDT)
+	id 229078E0002; Wed, 24 Jul 2019 15:24:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4EAF36B0006
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 15:21:57 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id p34so42405382qtp.1
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:21:57 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F2EAA6B0006
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 15:24:44 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id n190so40292968qkd.5
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:24:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=q7VJ5lbRcag+sb2GFiCBi0ogY7ktByen10i6R5SYdYM=;
-        b=KBB5zy8m1K3MzhRgzO4/n5sF0PT8dYiYGILTjFvRjChyFj5Q4yv9x+H0zCMeJl4gl8
-         jH/VbwwknpB8xfkv82jDCFZYko1tawWztx5371n+nKahFPZ04PzkJK+1rMbIKI/tIe2K
-         T0mL9I8xWEtPCxTGxJlIS78IMsnzmwvGARsMGSpYEaEkZW8/Rfh2e7E5t0tH4xM/q7sm
-         uwbR1xJ7PFjvXvPA4PEVIURVrYLKKS5ijDgvcMvC1urj6nRRrvI7VVF8pvU7Gx8nuj63
-         K6dlIok9b0AzWyKd5cDHXKYOW6WbFhzepb+dPu5VYBNHUspZDhWFdHfrACHxib/iY9SV
-         xhMA==
-X-Gm-Message-State: APjAAAXCetQTEfJb1u2deDaAfjXic6y6QsslH3/xzc1Wsqr4tQld1pkH
-	JcZJ+wO1TtnxArWkpzuAC/jIITF8JwMDAL0YT7YPJrFqK8g8wD3jFQLxRnFDYw4Z+OXtgMGN51s
-	b5ORx0EhFWkYRzKqmVuND55BYpH4ZwFfPLlr4xbDMvlPu5qWWUVb8FeguUKtVilI72w==
-X-Received: by 2002:aed:2d83:: with SMTP id i3mr59896336qtd.368.1563996117014;
-        Wed, 24 Jul 2019 12:21:57 -0700 (PDT)
-X-Received: by 2002:aed:2d83:: with SMTP id i3mr59896312qtd.368.1563996116376;
-        Wed, 24 Jul 2019 12:21:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563996116; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=6wfpg22kkBGQSGagL3FHOCSJzZUomxdfgUX443/VLoE=;
+        b=DfSz0mZv2fLV5O1A0S/Qz/NI31oc35v+jbAc4bkQDUBr9/phJK+bZjWFDWUHVSzNqy
+         TUJi7lB7vPNRexw32uTD7NK2VXuDYJT7dP9MYpeuULfB/KZlFdu67XLJweEhwkw2LGIv
+         VgPxAVBqdahfJs5gCBD1/2HYTHj61DHSgDCMlbEsElOLSco7YAiNlGeNnbWe6HBoE4tf
+         l7XJLVB4IQfiifEJUhrAmAEflozGrCi1jhnv3TfSzejclcSArXfrcoK0+g8cJyrYJm8N
+         j0kSO3Lo5+iedUmkGKc8dkIECaFBHaqVv58raouxj/QH1qpUmtISYUtOtlhlDb+6xRdB
+         nBOg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUZ+PDyWv4QefD+/9K7fRDKGJ+inVbBzk/neA8pOjYda+Wvm0hQ
+	LHCNt7xN6LifUFSsdprevKv6GCHy+z4620rtrfrO0uCHzeoVUkZP6eo7RdpknH9zzc68WMYONQq
+	Eip8fAIbA8PWdwsz5jR4AdpRO5Z0rN1IFzr6WvopvPy9DlV3y8ZdZjDQ82s+Oz9F9wQ==
+X-Received: by 2002:a0c:b115:: with SMTP id q21mr60797183qvc.68.1563996284730;
+        Wed, 24 Jul 2019 12:24:44 -0700 (PDT)
+X-Received: by 2002:a0c:b115:: with SMTP id q21mr60797146qvc.68.1563996283861;
+        Wed, 24 Jul 2019 12:24:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563996283; cv=none;
         d=google.com; s=arc-20160816;
-        b=RwtqJAM8LqsQ0v11nY4oO0ffPIJiQFR2C5R0eh3xriBLkkMogsJUmzo7fpB55O5wSD
-         l1XkVB4sum+hV+jltKyZaJXo1ckbP2cXDV3KKbZRtt0Xwk1bSfzaaSKzrGHorfprCDaQ
-         osqExuKlDUzWJVHZjMeqHppGcAqQ3hK/pyldbHJQEhvqiO127QbuXJwsdUszGDyNqgIJ
-         E8VayrFxjCfQstE0KPPcVNIyKQCeMXKgJClkKSa4Fi7mS+4HVQ+gTpkJ4TOdTEY5CuIp
-         JYYjqihhN3j3NDX5zGk8mlbeZ4voNuxRcSkIValPoV04drj9QTNJHZrnXpUboAKOVXaR
-         iShQ==
+        b=L/TeJGKsKlyHciv0/ChvVpRf+MMbBAxFzmNA/v3GChh9J0KJxk3y+6Tzp73cw5HOPr
+         3ctQ/Q9bR0wtU192wPoHbnujlxjQXGmQd/P3WUfCZ0Njj9alVpilfvUSy2BF1XUASdv4
+         Td1sYn65oykTolIIrsR4h+RtdwixbWbY7iuNaW1MzHMxFggpOiGOLdaK7MM+1N4meK+f
+         0jwyXDjfqiXsJyyogb11jCKnkKgrO9bme5lRSWcSUdvf0kpm7scJifLf3SdfsX5U08ec
+         hYJ2D66LvKfBkAJpbClY8YRXZj8rO+Hy9cmO2xMzGR6j7XsoRsjNp+HFKsa5idawgo5N
+         hiMQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=q7VJ5lbRcag+sb2GFiCBi0ogY7ktByen10i6R5SYdYM=;
-        b=sZ+ErxxYNmH+vePNfkjNn5n38fpOLEsjbTmGQ44PSZPbB98m34V1WKoMq+j+55H5Yz
-         dPqpmQU0WomxWzBosFqHXTdp5NDEWr1jq2gYk0A6bXdpXDobg3HzQwpMeHATBpYqO90o
-         PIqpQsYUxS71oU6Qf1grmVjCL2eDuKPxUwjh2yiVpbnoFsC6kdQi2szc/lSFWSB3taob
-         880wqP+/RH/xTprT1ihbLyQirTV/TChvNnJ8oJO0SHIYR+GplRKdb+wRtIdlqh18EBYY
-         T3nB1f++/E6SRsvm+0XW4UEcywe8A6i846g8apmONTaFs0iKeJILg2bve0Qiab8gUcDG
-         N9mg==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=6wfpg22kkBGQSGagL3FHOCSJzZUomxdfgUX443/VLoE=;
+        b=0GzUgJxUAj5wrhwXgfC4te+9ipxQ4MwRqZuE746bNzgmcZ8fjwMIupvVkbVE1yzEM3
+         pl0VBurcnwPLRu0MmAszfxwRV7jrQH+Z/G3Gabj5sxIQ5H9PPmRkW6DYoe6OicHkXcRh
+         /qXL+5s72XAD4kCSZW7UrMno1zvkSRs0SbxcIAzsIynW4rdCDti6qXjazayFm+A9VWSg
+         NcipEocC7vlHob9agDzBUucckTnyDLHmw49cJc+85S5F2fUlHxV7pI+fFomD5kgP2sEP
+         ZVd+jHodbM/FTOvjjY98QRPPSjZEj1Atgm/GW4lRv7GIwVIR4704U0BA3oFbLCg/g2w6
+         Tnzg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=ZyJ3zgq6;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s74sor26874488qka.199.2019.07.24.12.21.56
+        by mx.google.com with SMTPS id j6sor27481758qke.111.2019.07.24.12.24.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 24 Jul 2019 12:21:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 24 Jul 2019 12:24:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=ZyJ3zgq6;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=q7VJ5lbRcag+sb2GFiCBi0ogY7ktByen10i6R5SYdYM=;
-        b=ZyJ3zgq6h4cja/hdaLrA6IkzBFDVRDUJUFtWz1fzLJwFO3+4I4Mk/FCq69MWFKhPkn
-         VmJtaQRVCCbTW4B/7vtp3EFV7mKQ0Du9zN1ddOb32MyshNPl6WhBSEDHrm+k6o2CyMMO
-         4KyPGLB4T/6MfLf1NsYTF9rAzr1pU8FsMWEvqr8KtU1D2GgXOl729S0aNG0wyoeil1db
-         UU7GVtf1oaMsSE860psV8LYDQAfcq3WrN/GcPafu+19PCrIlmB/lcCJJ/hsWVBf9sq/S
-         3j9mLwgItOsVezznIUV4U2H56ZO80MnsJTCG1n8+5OJ16YnPZyPc+ck/lacJ5FRZiPcz
-         PO7Q==
-X-Google-Smtp-Source: APXvYqxIqRA+0VLqS5/ktYsyx1BSHKocPYVvc0BAedibqfRz0wbPwwvU+Y1GIKj2RSb05TRVjFqKEg==
-X-Received: by 2002:a05:620a:1425:: with SMTP id k5mr56337391qkj.146.1563996116084;
-        Wed, 24 Jul 2019 12:21:56 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id l19sm27634792qtb.6.2019.07.24.12.21.55
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 24 Jul 2019 12:21:55 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hqMpn-0006gr-3W; Wed, 24 Jul 2019 16:21:55 -0300
-Date: Wed, 24 Jul 2019 16:21:55 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Christoph Hellwig <hch@lst.de>, Ralph Campbell <rcampbell@nvidia.com>,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	nouveau@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	Ben Skeggs <bskeggs@redhat.com>
-Subject: Re: [PATCH] mm/hmm: replace hmm_update with mmu_notifier_range
-Message-ID: <20190724192155.GG28493@ziepe.ca>
-References: <20190723210506.25127-1-rcampbell@nvidia.com>
- <20190724070553.GA2523@lst.de>
- <20190724152858.GB28493@ziepe.ca>
- <20190724175858.GC6410@dhcp22.suse.cz>
- <20190724180837.GF28493@ziepe.ca>
- <20190724185617.GE6410@dhcp22.suse.cz>
- <20190724185910.GF6410@dhcp22.suse.cz>
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqy77kkB2RpSxBnWenjZ0UwyhE7LKJGBKOCJhGTtIhJgVV+u7LlioVLo64z1RecpigW2GqU0Mw==
+X-Received: by 2002:a37:ac19:: with SMTP id e25mr56019402qkm.155.1563996283591;
+        Wed, 24 Jul 2019 12:24:43 -0700 (PDT)
+Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
+        by smtp.gmail.com with ESMTPSA id j6sm3007749qtl.85.2019.07.24.12.24.38
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 24 Jul 2019 12:24:42 -0700 (PDT)
+Date: Wed, 24 Jul 2019 15:24:35 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>, kvm@vger.kernel.org,
+	david@redhat.com, dave.hansen@intel.com,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	akpm@linux-foundation.org, yang.zhang.wz@gmail.com,
+	pagupta@redhat.com, riel@surriel.com, konrad.wilk@oracle.com,
+	lcapitulino@redhat.com, wei.w.wang@intel.com, aarcange@redhat.com,
+	pbonzini@redhat.com, dan.j.williams@intel.com,
+	alexander.h.duyck@linux.intel.com
+Subject: Re: [PATCH v2 0/5] mm / virtio: Provide support for page hinting
+Message-ID: <20190724151855-mutt-send-email-mst@kernel.org>
+References: <20190724165158.6685.87228.stgit@localhost.localdomain>
+ <0c520470-4654-cdf2-cf4d-d7c351d25e8b@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190724185910.GF6410@dhcp22.suse.cz>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <0c520470-4654-cdf2-cf4d-d7c351d25e8b@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 24, 2019 at 08:59:10PM +0200, Michal Hocko wrote:
-> On Wed 24-07-19 20:56:17, Michal Hocko wrote:
-> > On Wed 24-07-19 15:08:37, Jason Gunthorpe wrote:
-> > > On Wed, Jul 24, 2019 at 07:58:58PM +0200, Michal Hocko wrote:
-> > [...]
-> > > > Maybe new users have started relying on a new semantic in the meantime,
-> > > > back then, none of the notifier has even started any action in blocking
-> > > > mode on a EAGAIN bailout. Most of them simply did trylock early in the
-> > > > process and bailed out so there was nothing to do for the range_end
-> > > > callback.
-> > > 
-> > > Single notifiers are not the problem. I tried to make this clear in
-> > > the commit message, but lets be more explicit.
-> > > 
-> > > We have *two* notifiers registered to the mm, A and B:
-> > > 
-> > > A invalidate_range_start: (has no blocking)
-> > >     spin_lock()
-> > >     counter++
-> > >     spin_unlock()
-> > > 
-> > > A invalidate_range_end:
-> > >     spin_lock()
-> > >     counter--
-> > >     spin_unlock()
-> > > 
-> > > And this one:
-> > > 
-> > > B invalidate_range_start: (has blocking)
-> > >     if (!try_mutex_lock())
-> > >         return -EAGAIN;
-> > >     counter++
-> > >     mutex_unlock()
-> > > 
-> > > B invalidate_range_end:
-> > >     spin_lock()
-> > >     counter--
-> > >     spin_unlock()
-> > > 
-> > > So now the oom path does:
-> > > 
-> > > invalidate_range_start_non_blocking:
-> > >  for each mn:
-> > >    a->invalidate_range_start
-> > >    b->invalidate_range_start
-> > >    rc = EAGAIN
-> > > 
-> > > Now we SKIP A's invalidate_range_end even though A had no idea this
-> > > would happen has state that needs to be unwound. A is broken.
-> > > 
-> > > B survived just fine.
-> > > 
-> > > A and B *alone* work fine, combined they fail.
-> > 
-> > But that requires that they share some state, right?
-> > 
-> > > When the commit was landed you can use KVM as an example of A and RDMA
-> > > ODP as an example of B
-> > 
-> > Could you point me where those two share the state please? KVM seems to
-> > be using kvm->mmu_notifier_count but I do not know where to look for the
-> > RDMA...
+On Wed, Jul 24, 2019 at 02:40:02PM -0400, Nitesh Narayan Lal wrote:
 > 
-> Scratch that. ELONGDAY... I can see your point. It is all or nothing
-> that doesn't really work here. Looking back at your patch it seems
-> reasonable but I am not sure what is supposed to be a behavior for
-> notifiers that failed.
+> On 7/24/19 12:54 PM, Alexander Duyck wrote:
+> > This series provides an asynchronous means of hinting to a hypervisor
+> > that a guest page is no longer in use and can have the data associated
+> > with it dropped. To do this I have implemented functionality that allows
+> > for what I am referring to as page hinting
+> >
+> > The functionality for this is fairly simple. When enabled it will allocate
+> > statistics to track the number of hinted pages in a given free area. When
+> > the number of free pages exceeds this value plus a high water value,
+> > currently 32,
+> Shouldn't we configure this to a lower number such as 16?
+> >  it will begin performing page hinting which consists of
+> > pulling pages off of free list and placing them into a scatter list. The
+> > scatterlist is then given to the page hinting device and it will perform
+> > the required action to make the pages "hinted", in the case of
+> > virtio-balloon this results in the pages being madvised as MADV_DONTNEED
+> > and as such they are forced out of the guest. After this they are placed
+> > back on the free list, and an additional bit is added if they are not
+> > merged indicating that they are a hinted buddy page instead of a standard
+> > buddy page. The cycle then repeats with additional non-hinted pages being
+> > pulled until the free areas all consist of hinted pages.
+> >
+> > I am leaving a number of things hard-coded such as limiting the lowest
+> > order processed to PAGEBLOCK_ORDER,
+> Have you considered making this option configurable at the compile time?
+> >  and have left it up to the guest to
+> > determine what the limit is on how many pages it wants to allocate to
+> > process the hints.
+> It might make sense to set the number of pages to be hinted at a time from the
+> hypervisor.
+> >
+> > My primary testing has just been to verify the memory is being freed after
+> > allocation by running memhog 79g on a 80g guest and watching the total
+> > free memory via /proc/meminfo on the host. With this I have verified most
+> > of the memory is freed after each iteration. As far as performance I have
+> > been mainly focusing on the will-it-scale/page_fault1 test running with
+> > 16 vcpus. With that I have seen at most a 2% difference between the base
+> > kernel without these patches and the patches with virtio-balloon disabled.
+> > With the patches and virtio-balloon enabled with hinting the results
+> > largely depend on the host kernel. On a 3.10 RHEL kernel I saw up to a 2%
+> > drop in performance as I approached 16 threads,
+> I think this is acceptable.
+> >  however on the the lastest
+> > linux-next kernel I saw roughly a 4% to 5% improvement in performance for
+> > all tests with 8 or more threads. 
+> Do you mean that with your patches the will-it-scale/page_fault1 numbers were
+> better by 4-5% over an unmodified kernel?
+> > I believe the difference seen is due to
+> > the overhead for faulting pages back into the guest and zeroing of memory.
+> It may also make sense to test these patches with netperf to observe how much
+> performance drop it is introducing.
+> > Patch 4 is a bit on the large side at about 600 lines of change, however
+> > I really didn't see a good way to break it up since each piece feeds into
+> > the next. So I couldn't add the statistics by themselves as it didn't
+> > really make sense to add them without something that will either read or
+> > increment/decrement them, or add the Hinted state without something that
+> > would set/unset it. As such I just ended up adding the entire thing as
+> > one patch. It makes it a bit bigger but avoids the issues in the previous
+> > set where I was referencing things before they had been added.
+> >
+> > Changes from the RFC:
+> > https://lore.kernel.org/lkml/20190530215223.13974.22445.stgit@localhost.localdomain/
+> > Moved aeration requested flag out of aerator and into zone->flags.
+> > Moved bounary out of free_area and into local variables for aeration.
+> > Moved aeration cycle out of interrupt and into workqueue.
+> > Left nr_free as total pages instead of splitting it between raw and aerated.
+> > Combined size and physical address values in virtio ring into one 64b value.
+> >
+> > Changes from v1:
+> > https://lore.kernel.org/lkml/20190619222922.1231.27432.stgit@localhost.localdomain/
+> > Dropped "waste page treatment" in favor of "page hinting"
+> We may still have to try and find a better name for virtio-balloon side changes.
+> As "FREE_PAGE_HINT" and "PAGE_HINTING" are still confusing.
 
-Okay, good to know I'm not missing something. The idea was the failed
-notifier would have to handle the mandatory _end callback.
+Right. In fact I'm not sure why should these be called hints at all.
+VIRTIO_BALLOON_F_FREE_PAGE_HINT is a hint because pages might no
+longer be free by the time they are reported.
 
-I've reflected on it some more, and I have a scheme to be able to
-'undo' that is safe against concurrent hlist_del_rcu.
+I think of this one as a free page reporting capability.
+I don't really mind how are internal kernel functions called,
+but I think for virtio uapi things that's a better name.
 
-If we change the register to keep the hlist sorted by address then we
-can do a targetted 'undo' of past starts terminated by address
-less-than comparison of the first failing struct mmu_notifier.
 
-It relies on the fact that rcu is only used to remove items, the list
-adds are all protected by mm locks, and the number of mmu notifiers is
-very small.
 
-This seems workable and does not need more driver review/update...
 
-However, hmm's implementation still needs more fixing.
-
-Thanks,
-Jason
+> > Renamed files and functions from "aeration" to "page_hinting"
+> > Moved from page->lru list to scatterlist
+> > Replaced wait on refcnt in shutdown with RCU and cancel_delayed_work_sync
+> > Virtio now uses scatterlist directly instead of intermedate array
+> > Moved stats out of free_area, now in seperate area and pointed to from zone
+> > Merged patch 5 into patch 4 to improve reviewability
+> > Updated various code comments throughout
+> >
+> > ---
+> >
+> > Alexander Duyck (5):
+> >       mm: Adjust shuffle code to allow for future coalescing
+> >       mm: Move set/get_pcppage_migratetype to mmzone.h
+> >       mm: Use zone and order instead of free area in free_list manipulators
+> >       mm: Introduce Hinted pages
+> >       virtio-balloon: Add support for providing page hints to host
+> >
+> >
+> >  drivers/virtio/Kconfig              |    1 
+> >  drivers/virtio/virtio_balloon.c     |   47 ++++++
+> >  include/linux/mmzone.h              |  116 ++++++++------
+> >  include/linux/page-flags.h          |    8 +
+> >  include/linux/page_hinting.h        |  139 ++++++++++++++++
+> >  include/uapi/linux/virtio_balloon.h |    1 
+> >  mm/Kconfig                          |    5 +
+> >  mm/Makefile                         |    1 
+> >  mm/internal.h                       |   18 ++
+> >  mm/memory_hotplug.c                 |    1 
+> >  mm/page_alloc.c                     |  238 ++++++++++++++++++++--------
+> >  mm/page_hinting.c                   |  298 +++++++++++++++++++++++++++++++++++
+> >  mm/shuffle.c                        |   24 ---
+> >  mm/shuffle.h                        |   32 ++++
+> >  14 files changed, 796 insertions(+), 133 deletions(-)
+> >  create mode 100644 include/linux/page_hinting.h
+> >  create mode 100644 mm/page_hinting.c
+> >
+> > --
+> -- 
+> Thanks
+> Nitesh
 
