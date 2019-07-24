@@ -2,129 +2,120 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41A6CC76191
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 17:12:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9AE8FC7618F
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 17:14:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0EC5421911
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 17:12:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0EC5421911
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 5421421911
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 17:14:21 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="aySNiRYG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5421421911
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A7C0F8E0008; Wed, 24 Jul 2019 13:12:28 -0400 (EDT)
+	id CEC558E0009; Wed, 24 Jul 2019 13:14:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A2CE28E0005; Wed, 24 Jul 2019 13:12:28 -0400 (EDT)
+	id C9D718E0005; Wed, 24 Jul 2019 13:14:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8CEC88E0008; Wed, 24 Jul 2019 13:12:28 -0400 (EDT)
+	id B63E18E0009; Wed, 24 Jul 2019 13:14:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3EEEB8E0005
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 13:12:28 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b33so30562130edc.17
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 10:12:28 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 97E638E0005
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 13:14:20 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id x17so51380733iog.8
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 10:14:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=6ODrP6DcHvPLc7qyA9XPL9ii1GE+u/9TjfvkOvUPkKI=;
-        b=bDon6mfODT8bAWjocMU1+8V2ACgxo1Ubqnpl+edSOb8vBIWr101xCGKyLzJXt8hm9m
-         wbEMck7uZjDXdqpWMn715Knq5RxXDIoHPNa8DLX8a+abAtct4iLzmYVhUPkPiaWL8bl2
-         rr1jftfYNIuZxih76dXAN00npSTTtIOg8e7FbZG/vyihTY1AAYVAm7k3i4WcPKVbQRjv
-         ZnZS88pXh8OYHtoC3jv823h/PdQQZ9izYEmLNRwOZVlSBMrQRRM1Jz3Wa6t/uFrWC0DD
-         egBSLlleycRlUVmBxc9Otgn4q+G5tmGRgYkKHLLw7yusL5ZijUbWNqb5hDyFVny8QYY2
-         49Ng==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-X-Gm-Message-State: APjAAAVlMMxO2cK5dPPVydiiehIy3Z9ZleSZ3ALq08vJZz6+duVJWyBO
-	ZgFAt+9lezPNtiiJbHWMBA+w33YnHjb2Bcx9lxAlokBEgX7ry8tteCbaLippkhnmZgDVjrdb7sa
-	HBmlWiI3ejJooKFYSFE9GdpzLmVaQ+r9gQaZERB2J9sO7UaSNeazYM/N3zxHTFV6f+w==
-X-Received: by 2002:a17:906:9147:: with SMTP id y7mr63810887ejw.66.1563988347826;
-        Wed, 24 Jul 2019 10:12:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyrowdz0Yq/fKZBMnCr33UZ+wN0ACZqUYDbVtQ0GfFbDo+AZuGfosD8PQtlqqKXZrUBt8rF
-X-Received: by 2002:a17:906:9147:: with SMTP id y7mr63810842ejw.66.1563988347049;
-        Wed, 24 Jul 2019 10:12:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563988347; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
+         :message-id:in-reply-to:references:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=ZIoj43NJHCuwdBLKiuQJ9FmxjncTWPcR2MlEt+h7o+U=;
+        b=o+Ux3/mGr4u5ZrbkGBXc/gtZnWK8N/0oaMfo2JSS6TlHCy6NwGocqXTjrGy5loFT4W
+         sYBTKDl9fnjCBEqCsJ3SZF2e37UWCtLjxD96hWeXuSlz9awig7m6kM6ZgKn51WS3gCLY
+         RGUBx4xtxUQt6AFgaRm6q9A6gEUOqMlBJrbimEfaSMWHlIcOk8zx3Cf4zh2SxlXDch9Y
+         QuMy/yZT1EZ8/YivcJ3FTmknfRq9CVX4PyvTQmDed4GQEMAcLRQ9wDSfaWosamiwjfrF
+         4J3mZvT+5NDQ2992aKcHY4gRhDLv3V8Ig6Krkjk1sJiOT10fyb9q7wNSW3SxgMsV6fJu
+         LIrw==
+X-Gm-Message-State: APjAAAUqVJQK0VZm3OR6ShSzs+kHhgoFmD1fH0bnHU4C+ts7ziqDahmF
+	QrN7HtRTpgH6CAOZ/faffab1To+wkwVhZ0b+tlYrdqq2I7XJ6PwzFn/dWa3toZuKDPw0gvE3whx
+	5el4/Kuxuz/ZwegtoiYOuyrEQ62ZHXUuEFPgmHtiHqVTDOPvCg/kv8lv2SDrepwMAaA==
+X-Received: by 2002:a5d:87d6:: with SMTP id q22mr26632719ios.2.1563988460386;
+        Wed, 24 Jul 2019 10:14:20 -0700 (PDT)
+X-Received: by 2002:a5d:87d6:: with SMTP id q22mr26632660ios.2.1563988459658;
+        Wed, 24 Jul 2019 10:14:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563988459; cv=none;
         d=google.com; s=arc-20160816;
-        b=eDHlTW7v+jCX3zg7DdCXj5VJu6U+j/QXuF6x2WjQkbchmUZ0V5bpWXDAnAhfNBpb2M
-         cJxKDuoM3n8i25OSeBJmwz8ABSgLd+6/irorukmzF0r0/C/UIOHhywVGELEaoUjGlwwc
-         8BCQc/tPzWubWALIexzQjkWvTC0kS/u4WR9tvgrkteVnmxrXYvvBLVl58+eXF612wVsD
-         KKrRiNeSph6YR5l7Tahi2sJx7lPB+KG/G685FBfxeyqlPpZGGbMEAZxtB0nni8pIF20A
-         MvMlwc2lsHb97aa8qOA1GxJQrgGeF7/pL2mWhxrESvrm7dbEX2emBOv/AB7P7kj9Kdwx
-         AQ+A==
+        b=SQPjoveBBHo9/aHL9AYHGZGzfCZzOwd39ibyMsA4fQm6wQbVnhZd2Yw5oDYhcaHYp2
+         iZkjeuPcAQBnrjBDR2PNCnMlPRPmNRyr+qKfLHIPZda2DPUkyO+etilv/hVK6MVZYG1N
+         28Lwu+2UAFSxFnTpK+EzioAxoFpqYLFtgg2/wgiAlwL4y/A+GZ0Sal5BRWN56tOzWjKb
+         +RQjMlKmZM/dHYE94iuaW3XvIh3NHKkMGk39+lJhqpeR4Gny54IcXGhS9pFlbx8kU0Pw
+         8pNiQmm5hrm8W5VHIc4emC1icam80Ep8RVCrh4B82WApr9YFmYz50mlFf+L5txLPMdk1
+         YTDA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=6ODrP6DcHvPLc7qyA9XPL9ii1GE+u/9TjfvkOvUPkKI=;
-        b=0gStM+IyEnY2VV12RadcwxTHTw4zdFxqx/TVkv6pw3+X6LfU1cY5dCyQS/5GKex9NU
-         FEa09GOSTXRiy7wQQQy2n1BCew1eZ23ZghpaYcgw9+52Wo2o6nB5Rmvqx5ZLi+Rzv6LK
-         qznJpaafeD/KdILeMpLEcmB5yAQHlDkMLWaJNviI88eTU8NOV8fuEQQQ4FRVvEntfKFU
-         8YYUTC0eSg4Q9ykHCNaIgiPlaR0CaST97zHDo0icpfnZDKM1kySA0efQO3ge+Et5aNeC
-         TS3YFfYrpCBN9Gq0DOLAIzLLUzrNmq8g+Y5VzleymWvM2Y0E+7ax4GMx3dZ0mV3ObF8E
-         yaJQ==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
+        bh=ZIoj43NJHCuwdBLKiuQJ9FmxjncTWPcR2MlEt+h7o+U=;
+        b=FuC7p/zsjKi/FkdYDqWgzIYV0L/uauqV2NPit8I2s1vjfm1f2SaZ/yqWXVMZPtA0Zd
+         0vwIDmd6n2Sr1Jrb75xYMpZ2BgiQCa1PEnt+08mc3xZD1piBfI6+/mlrRD5p4aAPDK14
+         lk1I1RH4KtufxQJIYgctO0e/sTQlJ+IJqJvDG8i3DHbXHfJuiqF67SZSLe4s0lFqUS+z
+         lZcvyJ6k5QsKI1n+UfSDsT9O6XfTGmXKOOunXKYIV1QduS4qX21cdmJDm8n8Y4ottLRn
+         ml6qMgvH77FMWB22o2hBkvlIYaHFWwZAByU88g9kmMcVkVYtk642ZgwUAsff58NMWXxk
+         JjYQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id i17si8525126ejc.55.2019.07.24.10.12.26
-        for <linux-mm@kvack.org>;
-        Wed, 24 Jul 2019 10:12:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=aySNiRYG;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t11sor32024597iob.106.2019.07.24.10.14.19
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 24 Jul 2019 10:14:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 0E49528;
-	Wed, 24 Jul 2019 10:12:26 -0700 (PDT)
-Received: from [10.1.196.72] (e119884-lin.cambridge.arm.com [10.1.196.72])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 3CE253F71F;
-	Wed, 24 Jul 2019 10:12:21 -0700 (PDT)
-Subject: Re: [PATCH v19 00/15] arm64: untag user pointers passed to the kernel
-To: Will Deacon <will.deacon@arm.com>,
- Andrey Konovalov <andreyknvl@google.com>
-Cc: Will Deacon <will@kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
- Catalin Marinas <catalin.marinas@arm.com>,
- Mark Rutland <mark.rutland@arm.com>, kvm@vger.kernel.org,
- Szabolcs Nagy <Szabolcs.Nagy@arm.com>, dri-devel@lists.freedesktop.org,
- Kostya Serebryany <kcc@google.com>, Khalid Aziz <khalid.aziz@oracle.com>,
- "open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
- Felix Kuehling <Felix.Kuehling@amd.com>,
- Jacob Bramley <Jacob.Bramley@arm.com>, Leon Romanovsky <leon@kernel.org>,
- linux-rdma@vger.kernel.org, amd-gfx@lists.freedesktop.org,
- Christoph Hellwig <hch@infradead.org>, Jason Gunthorpe <jgg@ziepe.ca>,
- Linux ARM <linux-arm-kernel@lists.infradead.org>,
- Dave Martin <Dave.Martin@arm.com>, Evgeniy Stepanov <eugenis@google.com>,
- linux-media@vger.kernel.org, Kevin Brodsky <kevin.brodsky@arm.com>,
- Kees Cook <keescook@chromium.org>,
- Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
- Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
- Alex Williamson <alex.williamson@redhat.com>,
- Mauro Carvalho Chehab <mchehab@kernel.org>,
- Dmitry Vyukov <dvyukov@google.com>,
- Linux Memory Management List <linux-mm@kvack.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Yishai Hadas <yishaih@mellanox.com>, LKML <linux-kernel@vger.kernel.org>,
- Jens Wiklander <jens.wiklander@linaro.org>, Lee Smith <Lee.Smith@arm.com>,
- Alexander Deucher <Alexander.Deucher@amd.com>, enh <enh@google.com>,
- Robin Murphy <robin.murphy@arm.com>,
- Christian Koenig <Christian.Koenig@amd.com>,
- Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-References: <cover.1563904656.git.andreyknvl@google.com>
- <CAAeHK+yc0D_nd7nTRsY4=qcSx+eQR0VLut3uXMf4NEiE-VpeCw@mail.gmail.com>
- <20190724140212.qzvbcx5j2gi5lcoj@willie-the-truck>
- <CAAeHK+xXzdQHpVXL7f1T2Ef2P7GwFmDMSaBH4VG8fT3=c_OnjQ@mail.gmail.com>
- <20190724142059.GC21234@fuggles.cambridge.arm.com>
-From: Vincenzo Frascino <vincenzo.frascino@arm.com>
-Message-ID: <f27f4e55-fcd6-9ae7-d9ca-cac2aea5fe70@arm.com>
-Date: Wed, 24 Jul 2019 18:12:20 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=aySNiRYG;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:from:to:cc:date:message-id:in-reply-to:references
+         :user-agent:mime-version:content-transfer-encoding;
+        bh=ZIoj43NJHCuwdBLKiuQJ9FmxjncTWPcR2MlEt+h7o+U=;
+        b=aySNiRYGFQc24x/Bc4iiG2Y8mXw+zOLMrDHCOA4vJM3jewhUf7oe5Txqi/cuNz8M3A
+         9vC2fiueKfH9qGdmx3juwgOWXXcyypi9q8eMRv66hGnJRJ1PEt77uS7qmkddIWcKHYCW
+         oCfrkvvDIAWj9jlewYnAsSo7AvQ5JWS7/Tu4y0mAgc6+76ATQO47+pWzNqMO/Zwuety5
+         Qcr+LZLZo+l9B5D/ltvl0geoeTlAU6GvF5oA0ckB31hR2jfsAry1miFRntQGyiHHr8E2
+         Qm5wk/Vd2wJ0vVtr1OqnHkKSjYl/+xaMjM3cfDoFYTCOjj4FdZDRQU62nXEyF1x7i5ax
+         XjUQ==
+X-Google-Smtp-Source: APXvYqzh3UDl4qShBdx52TKjsvLqQYDrV3cwS9+g5wM2wuTj8B9iWvID3doGQP/xGnP2TWfmTYT7hQ==
+X-Received: by 2002:a6b:790d:: with SMTP id i13mr2316801iop.27.1563988459273;
+        Wed, 24 Jul 2019 10:14:19 -0700 (PDT)
+Received: from localhost.localdomain (50-39-177-61.bvtn.or.frontiernet.net. [50.39.177.61])
+        by smtp.gmail.com with ESMTPSA id b8sm38193847ioj.16.2019.07.24.10.14.17
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Jul 2019 10:14:18 -0700 (PDT)
+Subject: [PATCH v2 QEMU] virtio-balloon: Provide a interface for "bubble
+ hinting"
+From: Alexander Duyck <alexander.duyck@gmail.com>
+To: nitesh@redhat.com, kvm@vger.kernel.org, david@redhat.com, mst@redhat.com,
+ dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ akpm@linux-foundation.org
+Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
+ konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com,
+ aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com,
+ alexander.h.duyck@linux.intel.com
+Date: Wed, 24 Jul 2019 10:12:10 -0700
+Message-ID: <20190724171050.7888.62199.stgit@localhost.localdomain>
+In-Reply-To: <20190724165158.6685.87228.stgit@localhost.localdomain>
+References: <20190724165158.6685.87228.stgit@localhost.localdomain>
+User-Agent: StGit/0.17.1-dirty
 MIME-Version: 1.0
-In-Reply-To: <20190724142059.GC21234@fuggles.cambridge.arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -132,60 +123,115 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Will and Andrey,
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-On 24/07/2019 15:20, Will Deacon wrote:
-> On Wed, Jul 24, 2019 at 04:16:49PM +0200, Andrey Konovalov wrote:
->> On Wed, Jul 24, 2019 at 4:02 PM Will Deacon <will@kernel.org> wrote:
->>> On Tue, Jul 23, 2019 at 08:03:29PM +0200, Andrey Konovalov wrote:
->>>> On Tue, Jul 23, 2019 at 7:59 PM Andrey Konovalov <andreyknvl@google.com> wrote:
->>>>>
->>>>> === Overview
->>>>>
->>>>> arm64 has a feature called Top Byte Ignore, which allows to embed pointer
->>>>> tags into the top byte of each pointer. Userspace programs (such as
->>>>> HWASan, a memory debugging tool [1]) might use this feature and pass
->>>>> tagged user pointers to the kernel through syscalls or other interfaces.
->>>>>
->>>>> Right now the kernel is already able to handle user faults with tagged
->>>>> pointers, due to these patches:
->>>>>
->>>>> 1. 81cddd65 ("arm64: traps: fix userspace cache maintenance emulation on a
->>>>>              tagged pointer")
->>>>> 2. 7dcd9dd8 ("arm64: hw_breakpoint: fix watchpoint matching for tagged
->>>>>               pointers")
->>>>> 3. 276e9327 ("arm64: entry: improve data abort handling of tagged
->>>>>               pointers")
->>>>>
->>>>> This patchset extends tagged pointer support to syscall arguments.
->>>
->>> [...]
->>>
->>>> Do you think this is ready to be merged?
->>>>
->>>> Should this go through the mm or the arm tree?
->>>
->>> I would certainly prefer to take at least the arm64 bits via the arm64 tree
->>> (i.e. patches 1, 2 and 15). We also need a Documentation patch describing
->>> the new ABI.
->>
->> Sounds good! Should I post those patches together with the
->> Documentation patches from Vincenzo as a separate patchset?
-> 
-> Yes, please (although as you say below, we need a new version of those
-> patches from Vincenzo to address the feedback on v5). The other thing I
-> should say is that I'd be happy to queue the other patches in the series
-> too, but some of them are missing acks from the relevant maintainers (e.g.
-> the mm/ and fs/ changes).
-> 
+Add support for what I am referring to as "bubble hinting". Basically the
+idea is to function very similar to how the balloon works in that we
+basically end up madvising the page as not being used. However we don't
+really need to bother with any deflate type logic since the page will be
+faulted back into the guest when it is read or written to.
 
-I am actively working on the document and will share v6 with the requested
-changes in the next few days.
+This is meant to be a simplification of the existing balloon interface
+to use for providing hints to what memory needs to be freed. I am assuming
+this is safe to do as the deflate logic does not actually appear to do very
+much other than tracking what subpages have been released and which ones
+haven't.
 
-> Will
-> 
+Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+---
+ hw/virtio/virtio-balloon.c                      |   40 +++++++++++++++++++++++
+ include/hw/virtio/virtio-balloon.h              |    2 +
+ include/standard-headers/linux/virtio_balloon.h |    1 +
+ 3 files changed, 42 insertions(+), 1 deletion(-)
 
--- 
-Regards,
-Vincenzo
+diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
+index 2112874055fb..70c0004c0f88 100644
+--- a/hw/virtio/virtio-balloon.c
++++ b/hw/virtio/virtio-balloon.c
+@@ -328,6 +328,39 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
+     balloon_stats_change_timer(s, 0);
+ }
+ 
++static void virtio_bubble_handle_output(VirtIODevice *vdev, VirtQueue *vq)
++{
++    VirtQueueElement *elem;
++
++    while ((elem = virtqueue_pop(vq, sizeof(VirtQueueElement)))) {
++    	unsigned int i;
++
++        for (i = 0; i < elem->in_num; i++) {
++            void *addr = elem->in_sg[i].iov_base;
++            size_t size = elem->in_sg[i].iov_len;
++            ram_addr_t ram_offset;
++            size_t rb_page_size;
++            RAMBlock *rb;
++
++            if (qemu_balloon_is_inhibited())
++                continue;
++
++            rb = qemu_ram_block_from_host(addr, false, &ram_offset);
++            rb_page_size = qemu_ram_pagesize(rb);
++
++            /* For now we will simply ignore unaligned memory regions */
++            if ((ram_offset | size) & (rb_page_size - 1))
++                continue;
++
++            ram_block_discard_range(rb, ram_offset, size);
++        }
++
++        virtqueue_push(vq, elem, 0);
++        virtio_notify(vdev, vq);
++        g_free(elem);
++    }
++}
++
+ static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
+ {
+     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
+@@ -782,6 +815,11 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
+     s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
+ 
+     if (virtio_has_feature(s->host_features,
++                           VIRTIO_BALLOON_F_HINTING)) {
++        s->hvq = virtio_add_queue(vdev, 128, virtio_bubble_handle_output);
++    }
++
++    if (virtio_has_feature(s->host_features,
+                            VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
+         s->free_page_vq = virtio_add_queue(vdev, VIRTQUEUE_MAX_SIZE,
+                                            virtio_balloon_handle_free_page_vq);
+@@ -897,6 +935,8 @@ static Property virtio_balloon_properties[] = {
+                     VIRTIO_BALLOON_F_DEFLATE_ON_OOM, false),
+     DEFINE_PROP_BIT("free-page-hint", VirtIOBalloon, host_features,
+                     VIRTIO_BALLOON_F_FREE_PAGE_HINT, false),
++    DEFINE_PROP_BIT("guest-page-hinting", VirtIOBalloon, host_features,
++                    VIRTIO_BALLOON_F_HINTING, true),
+     DEFINE_PROP_LINK("iothread", VirtIOBalloon, iothread, TYPE_IOTHREAD,
+                      IOThread *),
+     DEFINE_PROP_END_OF_LIST(),
+diff --git a/include/hw/virtio/virtio-balloon.h b/include/hw/virtio/virtio-balloon.h
+index 1afafb12f6bc..a58b24fdf29d 100644
+--- a/include/hw/virtio/virtio-balloon.h
++++ b/include/hw/virtio/virtio-balloon.h
+@@ -44,7 +44,7 @@ enum virtio_balloon_free_page_report_status {
+ 
+ typedef struct VirtIOBalloon {
+     VirtIODevice parent_obj;
+-    VirtQueue *ivq, *dvq, *svq, *free_page_vq;
++    VirtQueue *ivq, *dvq, *svq, *free_page_vq, *hvq;
+     uint32_t free_page_report_status;
+     uint32_t num_pages;
+     uint32_t actual;
+diff --git a/include/standard-headers/linux/virtio_balloon.h b/include/standard-headers/linux/virtio_balloon.h
+index 9375ca2a70de..f9e3e8256261 100644
+--- a/include/standard-headers/linux/virtio_balloon.h
++++ b/include/standard-headers/linux/virtio_balloon.h
+@@ -36,6 +36,7 @@
+ #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
+ #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
+ #define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
++#define VIRTIO_BALLOON_F_HINTING	5 /* Page hinting virtqueue */
+ 
+ /* Size of a PFN in the balloon interface. */
+ #define VIRTIO_BALLOON_PFN_SHIFT 12
 
