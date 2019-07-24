@@ -2,115 +2,179 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1A617C76191
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 15:33:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B0E0CC41514
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 15:45:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DD49821951
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 15:33:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DD49821951
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 6F19622387
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 15:45:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F19622387
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 681AB8E0002; Wed, 24 Jul 2019 11:33:08 -0400 (EDT)
+	id 0F9E18E0003; Wed, 24 Jul 2019 11:45:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 632686B000E; Wed, 24 Jul 2019 11:33:08 -0400 (EDT)
+	id 0AC086B0008; Wed, 24 Jul 2019 11:45:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4FA608E0002; Wed, 24 Jul 2019 11:33:08 -0400 (EDT)
+	id EDBAE8E0003; Wed, 24 Jul 2019 11:45:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DA736B0007
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 11:33:08 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id r4so22666349wrt.13
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 08:33:08 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E96E6B0006
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 11:45:35 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id y3so30422901edm.21
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 08:45:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=J47c5Xv+H4pUUYAommvtDQM3CfR2VRutFeXq9FWvutY=;
-        b=GD65/722rZ45A6QdSmoYTJSRghkSfmv0rTizYrG0U4jAdzsT8UHA4ySu5akhullQVj
-         82G9QVC6DR2C0RUVDu8PbANliq3b6JG4C0TRkB9HmUKD07DGskBtHV78V3FH+Rx3SnTi
-         z2qSxc1tpec3ibV4H++Mzv8yof9XHqzA+NhOpOHYSmcA/QKlWS8CiPgP7V76TG4ZEEEu
-         nXsLkJNiOfl3WCGG8hOQXqjbdfxdgucG+nONFZr/f0qb9r0hoq6EB9QZ8vNne1NtQfl+
-         yzZ0iE3TDpCdbKeFXLyJzTgIcQaMJ1hSMZZ+09gh5Bb41mYTYNt2MgxOWZML9iHzNW1r
-         IBuA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAXe0QC9yaotW8mcgLCCHXwgF9NSYDlx7RzzJZ2Pm97DC8jmqjYN
-	NzRpKn79tAqOjaZxnS6pd87W2zhe+Zn+XzsaOXfS5YZQz6rZ4Do9hQD1uBkMhg2SEQUvt5kdGDW
-	Cin0pV+zraRFO+SN6xmp3yY0qMHAvemKEyHEYqA6u/d1a/DZJTWWSdyut/3GIW+G2fg==
-X-Received: by 2002:a1c:a101:: with SMTP id k1mr76789448wme.98.1563982387706;
-        Wed, 24 Jul 2019 08:33:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwxeIoxUPhITfm/bgP0Qvalf5mvg1gD8R3S8KmFEXbDdZ24aYqvXPy+qO5Cufm2Ocl/35yv
-X-Received: by 2002:a1c:a101:: with SMTP id k1mr76789396wme.98.1563982386874;
-        Wed, 24 Jul 2019 08:33:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563982386; cv=none;
+        bh=LGJCMJWyLWrRgKdoukzgZ9P3DUyBkfggf10cUsmA/ms=;
+        b=qmtXVGwOn1CcsW5DxbH1v0eDYWNfEMm8Q/iFPiLCDL5cMAr7pLeZP7aqBsUYIEaiGQ
+         og1NkCmN5b7z3dWf024TFN1mqInZZZHgG5mq9rPSW6YZFmwXwplADhGRrZQ2FsQm729e
+         hIVMRl0fU3Y9Yul1Vp1/wGZFpLmHNKOFJYP3mGqIzTjyEGAYQOVHCDEpe3gMgfXYwUye
+         Xlx6p6YtctJHCQ/j3nXveNM71GqTzlxqCtJuYCgkxcw29gokzErK6elDDfu8OSK3Lb2O
+         w6yP03ufg4dnQy8u7KOJ99XpqTbFi42hXCUAQAxtfJDS4Td06uOE6Q46vWAjoZl5wTkO
+         SFRw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAU208ocPbOq7kdM4vPAJ/3FgGjAUBk26jvWlMvGDzh8PxqA7E3M
+	U9ZMGKTJr6notHaQleL8pqZponcqBiQdMutIyYz0pi4DSW8miYntowHzv0zjhcLhckmRoVLBAa7
+	1tuYs/maN1y/TG1vD1vqsmUpLSGDOsOz6eoQUKsoLhYjWBWxlZG88/O/dlyI2X9M=
+X-Received: by 2002:a50:fa42:: with SMTP id c2mr73091726edq.48.1563983135196;
+        Wed, 24 Jul 2019 08:45:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxk5ektYMwYGtLxzmkwWN7qvfmuZhQ60gyQQK8idjWYeu6glyqMZO7njHE2J9zzCsHDk3Y0
+X-Received: by 2002:a50:fa42:: with SMTP id c2mr73091647edq.48.1563983134369;
+        Wed, 24 Jul 2019 08:45:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563983134; cv=none;
         d=google.com; s=arc-20160816;
-        b=UMhGvtKEolUtebBdlTye2l6hmH1BxbtirlFjTn/kh5zoo3oRJGVCMR/eTm/0xyHbsr
-         5j98AR6SHOxgqEDibULN9fjmBvV6BF8UDdihdBpDl6mXV/+OUMTR3V7ySDtuYlfMhgHv
-         fyRJyG1tLfN0/tSw34nejjbt80g9kfEcGOzUnz3rcwEodrfg2NAUQ8GXdkDHQJwLKpey
-         sgvpmNL8B/FtCHFWWGKLz22o9MmLSXbWPwWOyJPInbbSu9w87o33h3nB6Xck61Ad4YLe
-         RIfw4iHsa1Hiy/onNqS1vQBODSAKo1Mee3fVGxmCzjYyAGFvIl/dWnGm03FFYPMQiIh1
-         Sk4Q==
+        b=PT6XrzNHkPIDW7IRG/tnjJJGTT7osycEfH9AB/Zvvq178tswxtLZgokp+hQ6qB7wgf
+         /2Z9w5U3Aw1q6V2Jt/wfcF1/HiNusvhfIM5BE7DNb9myZlEb30emT87Cl5OAaNYZiCYd
+         o2IDBkMS5cBoLKpcHgePo+x0X7EC5AJGGBBAVLt/nKFohgzniQmhmKo3nge6I/ToRFGn
+         8WcBPm27qqOk3cmUKG5AScprYiGmtZ/GnXp9O990VYfPewcv/CntdZlNa6lChZDyogOf
+         cN+hP8PG7ftOIz2ME5HeO9MbSCW4Rg62h1ZmjrpNtINzZVCfzvdPzyyB2B3BBN2fAMoR
+         h0jg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=J47c5Xv+H4pUUYAommvtDQM3CfR2VRutFeXq9FWvutY=;
-        b=BIyliqst5iTLIUUTIgdhZcYOkSBcCEu+swEvGkthHda6geReDcJxsYrHLc0mQVf2hx
-         9vHC9Ojd0eXWg4WNQCL6szeZIGQ0W7C2Qq5w/a+uvQeE7fdOGJGMq7WChY8A6o2EnTwl
-         4RaDW9BGj4tAr4qeAPCv5Y46qiRdN5NObnKa7IVpK3QPUbMPPY+/I3Na55jjXV0UCLMO
-         8Mf1XX7HOq+s+ejXuYUYtdSmgfVQsN5/u1KLUGJG64u4eead10rWcg18wgL/i+Dn0WGS
-         B9LnkL7oEVo6y7BIJR963UN98gxKJrvTSuaNtddxTxlESdQa29+VQfJfVjMiiKdT3/xY
-         7W7A==
+        bh=LGJCMJWyLWrRgKdoukzgZ9P3DUyBkfggf10cUsmA/ms=;
+        b=c1ybtqi7aqKTB0yveQE09L2Nbealu6B12iX0ZJjTqF17UyBGxCRt4b2/D1LJapA799
+         gWzncwXQkybi3/XnkFF5QUsoTPHkrOCJ12zhk/04z3ARZjhaucecYURfVuELWnPxKaf7
+         VgvBERqgGNffpXDDSN/kwR1dn0EWhmBP1kClQLrDmT4cq9RLlAJMUiWBvtPEFXnI4AZq
+         IYY3ewqtOx2tOSPHGGxJIO/U1BSvuS7yhxw1jwIxw/cPFyKCCZkjZgi5NMrt+LmrBPWK
+         aqiVTvgaoEMYRj1Jn1SuFz5D+b2g9jyy6q4SZAnlzqmG72e7lLnO8IIg/l4tXFTYt7fp
+         +NLw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id t9si51400958wra.181.2019.07.24.08.33.06
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g41si9318726edc.339.2019.07.24.08.45.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 08:33:06 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Wed, 24 Jul 2019 08:45:34 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by verein.lst.de (Postfix, from userid 2407)
-	id E22EC68B20; Wed, 24 Jul 2019 17:33:05 +0200 (CEST)
-Date: Wed, 24 Jul 2019 17:33:05 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Christoph Hellwig <hch@lst.de>, Michal Hocko <mhocko@suse.com>,
-	Ralph Campbell <rcampbell@nvidia.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, nouveau@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Ben Skeggs <bskeggs@redhat.com>
-Subject: Re: [PATCH] mm/hmm: replace hmm_update with mmu_notifier_range
-Message-ID: <20190724153305.GA10681@lst.de>
-References: <20190723210506.25127-1-rcampbell@nvidia.com> <20190724070553.GA2523@lst.de> <20190724152858.GB28493@ziepe.ca>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 79B36AE96;
+	Wed, 24 Jul 2019 15:45:33 +0000 (UTC)
+Date: Wed, 24 Jul 2019 17:45:32 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Oscar Salvador <osalvador@suse.de>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Dan Williams <dan.j.williams@intel.com>
+Subject: Re: [PATCH v1] mm/memory_hotplug: Remove move_pfn_range()
+Message-ID: <20190724154532.GE5584@dhcp22.suse.cz>
+References: <20190724142324.3686-1-david@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190724152858.GB28493@ziepe.ca>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+In-Reply-To: <20190724142324.3686-1-david@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 24, 2019 at 12:28:58PM -0300, Jason Gunthorpe wrote:
-> Humm. Actually having looked this some more, I wonder if this is a
-> problem:
+On Wed 24-07-19 16:23:24, David Hildenbrand wrote:
+> Let's remove this indirection. We need the zone in the caller either
+> way, so let's just detect it there. Add some documentation for
+> move_pfn_range_to_zone() instead.
+> 
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: David Hildenbrand <david@redhat.com>
+> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
 
-What a mess.
+Acked-by: Michal Hocko <mhocko@suse.com>
 
-Question: do we even care for the non-blocking events?  The only place
-where mmu_notifier_invalidate_range_start_nonblock is called is the oom
-killer, which means the process is about to die and the pagetable will
-get torn down ASAP.  Should we just skip them unconditionally?  nouveau
-already does so, but amdgpu currently tries to handle the non-blocking
-notifications.
+> ---
+>  mm/memory_hotplug.c | 23 +++++++----------------
+>  1 file changed, 7 insertions(+), 16 deletions(-)
+> 
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index efa5283be36c..e7c3b219a305 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -715,7 +715,11 @@ static void __meminit resize_pgdat_range(struct pglist_data *pgdat, unsigned lon
+>  
+>  	pgdat->node_spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - pgdat->node_start_pfn;
+>  }
+> -
+> +/*
+> + * Associate the pfn range with the given zone, initializing the memmaps
+> + * and resizing the pgdat/zone data to span the added pages. After this
+> + * call, all affected pages are PG_reserved.
+> + */
+>  void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+>  		unsigned long nr_pages, struct vmem_altmap *altmap)
+>  {
+> @@ -804,20 +808,6 @@ struct zone * zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
+>  	return default_zone_for_pfn(nid, start_pfn, nr_pages);
+>  }
+>  
+> -/*
+> - * Associates the given pfn range with the given node and the zone appropriate
+> - * for the given online type.
+> - */
+> -static struct zone * __meminit move_pfn_range(int online_type, int nid,
+> -		unsigned long start_pfn, unsigned long nr_pages)
+> -{
+> -	struct zone *zone;
+> -
+> -	zone = zone_for_pfn_range(online_type, nid, start_pfn, nr_pages);
+> -	move_pfn_range_to_zone(zone, start_pfn, nr_pages, NULL);
+> -	return zone;
+> -}
+> -
+>  int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_type)
+>  {
+>  	unsigned long flags;
+> @@ -840,7 +830,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>  	put_device(&mem->dev);
+>  
+>  	/* associate pfn range with the zone */
+> -	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
+> +	zone = zone_for_pfn_range(online_type, nid, pfn, nr_pages);
+> +	move_pfn_range_to_zone(zone, pfn, nr_pages, NULL);
+>  
+>  	arg.start_pfn = pfn;
+>  	arg.nr_pages = nr_pages;
+> -- 
+> 2.21.0
+
+-- 
+Michal Hocko
+SUSE Labs
 
