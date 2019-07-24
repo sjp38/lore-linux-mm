@@ -2,148 +2,165 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-8.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A3524C7618B
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 11:37:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C2EB1C76191
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 11:41:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4C833229ED
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 11:37:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C833229ED
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 89329229F4
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 11:41:32 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="oSS6z2pR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 89329229F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7A7F46B0003; Wed, 24 Jul 2019 07:37:16 -0400 (EDT)
+	id 24CD36B0006; Wed, 24 Jul 2019 07:41:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 757E46B0005; Wed, 24 Jul 2019 07:37:16 -0400 (EDT)
+	id 1FD036B0007; Wed, 24 Jul 2019 07:41:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 66DC98E0002; Wed, 24 Jul 2019 07:37:16 -0400 (EDT)
+	id 0C7A18E0002; Wed, 24 Jul 2019 07:41:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 47FFD6B0003
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 07:37:16 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id q26so41260409qtr.3
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 04:37:16 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C77366B0006
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 07:41:31 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id p29so19904516pgm.10
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 04:41:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=JOWC4bhCJmfhcc7hKdBktwT8LxfwZnzkmPUQoHL0BtI=;
-        b=bSyRukv15+xXb5pSSXI5j8DLHUSuJTBoxKOW7B9NApXligapZRaSVWqlMSAR7uvf0I
-         gwhw1Ge1fGDU/0kLV0AiJn7gF/lW9fnsjQQOZyvvSxe2YzvpD7UrkSDL6C1TwMKmH3ri
-         /J5IevgkaLCpA1dUXtQyQpz/i4SA0Km700oNuwRu+l2PCVxE3aBhevBwjNk9MJH8MYf5
-         5mSu2Ign22MwLjVPtY/FW2tsj8bzIHgIM3PW2cgB6uWlSGFsCqisXl9HQKoMIP+uqt3J
-         3yi6nJEE8kXPGxHtAVE8i47Xc6f9bTPWsBM78IIp9CrpYcf+i4kvq+oGFF7cTdu3xrBi
-         ZXkQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVUC3RTp8wmjGSpFzT7X/sOXqz14MRzCT5zetGqjIX+VfxViwcZ
-	idlqvqXmFQeAwYLcJRiD6VpIVmxJAAinOATaHSP0pZq9Q4IHZ/bTxFbY3eH6zA8jZqRE4sZBK0K
-	KOOAUVrIEu5oCtjUaDKsW+Xud1Ji1tl1eaedxgvq6krFrFYpTr7+RO5xo7HX/FWEtNw==
-X-Received: by 2002:a05:620a:685:: with SMTP id f5mr51261434qkh.238.1563968236056;
-        Wed, 24 Jul 2019 04:37:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxNcfWa24MllXSHPV3e7BBtQj02Rl6g91Ky+Vw1Dw/rgdkMaBBKu/Uz8+j2VW7tquUXgNOs
-X-Received: by 2002:a05:620a:685:: with SMTP id f5mr51261401qkh.238.1563968235483;
-        Wed, 24 Jul 2019 04:37:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563968235; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=vUoAw9IYsxFSDNG2uruyjPHm6XhF4oDBz80MmGH0I+c=;
+        b=BJfCih8K9zmPfxGPhvKg6dNQCHgKoea0P/jaoQOlzgnnqHtx5EbywIgVTrNGjPzPz9
+         y2GqEECawE/YX4L7aA2pCsMGnZuhofpHcpmZ2ckXgykhW3RryOENzmvZzU6/whAb/d9r
+         qRq+lgbyzA9LJuA87A8HTyrqPQP/3scaO/OzndeJTB4Mxatc3ujqP2okcB+azVEKyCFp
+         5Var6KVXUnUgIDvwn7qfX3d4CJbxQRMAsZmEPquBx1B6hAZ3BB/iApzojwQL9Xyfc+EU
+         t+EVYWjKXU+MOFXjAqspxdYytt3bfzfdgOF+BNkxI/L21HcEB3tr/rlpDd3TLgXJx4sA
+         F/Tg==
+X-Gm-Message-State: APjAAAWW7E4qd31jzo47eVgdoFdEFRN8zc5PbjpWYOKzo7sp8Si6YzFH
+	nyOyAHl+Betrg7Qy5y8Gu9tdM6ga8cKaomOasSP66gZxHvYnEeunflj5iI+ELYEoPcah7XAWNXw
+	JfH9rX32pqu8V/6Cp+UW4t7xomstcuyhUpvJsfeH8MiYiYiYFeupKroeuzMGxlAgSIQ==
+X-Received: by 2002:a17:902:9f8e:: with SMTP id g14mr39550736plq.67.1563968491351;
+        Wed, 24 Jul 2019 04:41:31 -0700 (PDT)
+X-Received: by 2002:a17:902:9f8e:: with SMTP id g14mr39550661plq.67.1563968490546;
+        Wed, 24 Jul 2019 04:41:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563968490; cv=none;
         d=google.com; s=arc-20160816;
-        b=a8bgT05MCdrcyZlb9UZjs470qAVlWkZaGl+u7ndKJMvLMXhe+rsl1ek81Vo/dCX9ei
-         TYwc+/oCaILtoY4d3tvQQfjycJF6whR+U4lAxPTtzQJ/G9myz5Cd6o2qHSAZ7pip+rOW
-         K3vOmTJLTe2xQA4RUzhG4k9NdwxvIkFrVd9QvPWaJLbxzC7Crclyz9iFrFaa92n50jGa
-         xW/nPB0KY/MooXOGSQMlCiimeke+BxvEn0ak4oEE1R2tvddZaZgVrBg4uNWSI6lMkj7R
-         4/gI5YV6sFfhKiZWZBDwz+7hCY+YgvdFc9zitfms8a4bezAyjuhV1jkIRN11KRi1AURx
-         pHGA==
+        b=FexVB24nhXgdRlP3B67VOJBGoiYhVaSznq6dYQsQRSnOdCq7eS+RZxgNOY4zYIj1q7
+         6mJGSezMrDgsp8y5xFLVL/Sm5vuX/+VDOaeOkIYrtMe+pY10t9Sb62eDeOMpk0WL6eKQ
+         2khG4Fl6stClp7ktx+7BC/cly1YsD0tHOd/37w33+pH97Yd1IP/fDBzhMnQqB05lAdBG
+         dQBXZN1Svw99hJAhQb9dr4MC5yPaBWvX5A3ojAWIvfDiNViHu/19BqcQ3ZeRkKYyE1p9
+         QOaLRSOONNwFVbVczYF6cik2xbV/9q5u36Lv+qi+3VODSvww/mxCm0/2KmRyFG4mbeJm
+         PlFw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=JOWC4bhCJmfhcc7hKdBktwT8LxfwZnzkmPUQoHL0BtI=;
-        b=oZ0+5bU94pjbo1H69CZxUbuUwWE5u/fFzqSdJj1L5qNeIFwIbxL6qRKOm3iUoEeExM
-         49Njtp3x3wPUZEGyKe46kkQtqy3swnn6JnzeXOaaot0L+H+Kp24BTAP9fFPHM0SEfdsP
-         2vSnwSndpR0dzbITUQp11OQLITaqTjwnw37IbPURNWjQGaSGqn7q2Y8uYzr5Ve41beo1
-         CWu1h2/az431qZ33hoCe3xTtbYa6KxZ34aDL4m0WNDp1mXN96mi4MG9R51InRNL/QWCW
-         eX8Jgx/IoCrg7SE9Qj+wLpYeTCvO+LRt6Sco4QRCJmAQbozmdFC8E1MWx2zNmqDkhEkk
-         NSSg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=vUoAw9IYsxFSDNG2uruyjPHm6XhF4oDBz80MmGH0I+c=;
+        b=fAczVn71qGFmF9UhfSJ7eiBPzxp1F2lL3x9JtRCi6s9Qe+vocWsCRdnnaMqkVFDxAK
+         AqG3O0tqVoqEn/Qni+e0E3jlUFNbpwzi9rez8DYKFHsr1fXDM+GoZBT75GLzGY9iB66r
+         ipQ3OIdxCatM7+hM2JGGqfO0KVhCD9oE6FXQ420Ma3jgKtiojyZ4NyJt1BmvCs3rXDrP
+         t3zw9b1dHUKoIKRIQZFnwOKoQoKINEbqbXgF/Xqg2w/FQd08mvYffOcMrhzesZ4ryins
+         QcXFdV1bbxCcEQfgf6P/vqm3xUx+0XFrTd7QTV/UcaKRuqRdntxpyp5WsZoSxjQgu9Eo
+         fpXQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id z7si10093001qtz.1.2019.07.24.04.37.15
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=oSS6z2pR;
+       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b17sor54852216pjz.4.2019.07.24.04.41.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 04:37:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Wed, 24 Jul 2019 04:41:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 748FC30BD1B1;
-	Wed, 24 Jul 2019 11:37:14 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.136])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 53FB760BCE;
-	Wed, 24 Jul 2019 11:37:12 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Wed, 24 Jul 2019 13:37:14 +0200 (CEST)
-Date: Wed, 24 Jul 2019 13:37:11 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: Song Liu <songliubraving@fb.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	akpm@linux-foundation.org, matthew.wilcox@oracle.com,
-	kirill.shutemov@linux.intel.com, peterz@infradead.org,
-	rostedt@goodmis.org, kernel-team@fb.com,
-	william.kucharski@oracle.com
-Subject: Re: [PATCH v8 2/4] uprobe: use original page when all uprobes are
- removed
-Message-ID: <20190724113711.GE21599@redhat.com>
-References: <20190724083600.832091-1-songliubraving@fb.com>
- <20190724083600.832091-3-songliubraving@fb.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=oSS6z2pR;
+       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=vUoAw9IYsxFSDNG2uruyjPHm6XhF4oDBz80MmGH0I+c=;
+        b=oSS6z2pRqF5Ym3nqGS3x+om5IJIatfw2MYM+Z4wz63R3A3pKCb0+cfpjjn/S08EJ+G
+         9ZFkJiQucJ9voR50uVSL4HUbiM23BPgL4Sa8cqixGTdIcMpDAaFl2ytXRhr9ESTcSb3E
+         lcpb+5CxerBqXenXrR943zrp6J2vC8YhUaRIKZ9BQBHtYluJNxAMvZNprsmVbS//gWLo
+         jGsOOuCEcTfkmbecwN3ADDjh3hsxW1OaQ3mCiwYeOSZS8aYII/POfoSnAUMep1H/h0h6
+         THFPzi6BwrNaiK767akFUdWhBqT/6O1mDoT7T0U6Hxrrk+7qc5uQoSsx0DYyG6QQKJ2i
+         /kUw==
+X-Google-Smtp-Source: APXvYqxfrWQEe5JThmMch91J5yQRowYBVSY6S4IZZQAYyTJ6Dy1JLZ0Er7W6o+H7JETocCb0dOJkqQ==
+X-Received: by 2002:a17:90a:8c92:: with SMTP id b18mr85654749pjo.97.1563968490088;
+        Wed, 24 Jul 2019 04:41:30 -0700 (PDT)
+Received: from bharath12345-Inspiron-5559 ([103.110.42.34])
+        by smtp.gmail.com with ESMTPSA id a16sm49348659pfd.68.2019.07.24.04.41.28
+        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 24 Jul 2019 04:41:29 -0700 (PDT)
+From: Bharath Vedartham <linux.bhar@gmail.com>
+To: sivanich@sgi.com,
+	arnd@arndb.de,
+	jhubbard@nvidia.com
+Cc: ira.weiny@intel.com,
+	jglisse@redhat.com,
+	gregkh@linuxfoundation.org,
+	william.kucharski@oracle.com,
+	linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org,
+	Bharath Vedartham <linux.bhar@gmail.com>
+Subject: [PATCH v2 0/3] sgi-gru: get_user_page changes
+Date: Wed, 24 Jul 2019 17:11:13 +0530
+Message-Id: <1563968476-12785-1-git-send-email-linux.bhar@gmail.com>
+X-Mailer: git-send-email 2.7.4
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190724083600.832091-3-songliubraving@fb.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Wed, 24 Jul 2019 11:37:14 +0000 (UTC)
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/24, Song Liu wrote:
->
->  	lock_page(old_page);
-> @@ -177,15 +180,24 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
->  	mmu_notifier_invalidate_range_start(&range);
->  	err = -EAGAIN;
->  	if (!page_vma_mapped_walk(&pvmw)) {
-> -		mem_cgroup_cancel_charge(new_page, memcg, false);
-> +		if (!orig)
-> +			mem_cgroup_cancel_charge(new_page, memcg, false);
->  		goto unlock;
->  	}
->  	VM_BUG_ON_PAGE(addr != pvmw.address, old_page);
->  
->  	get_page(new_page);
-> -	page_add_new_anon_rmap(new_page, vma, addr, false);
-> -	mem_cgroup_commit_charge(new_page, memcg, false, false);
-> -	lru_cache_add_active_or_unevictable(new_page, vma);
-> +	if (orig) {
-> +		lock_page(new_page);  /* for page_add_file_rmap() */
-> +		page_add_file_rmap(new_page, false);
+This is version 2 of the patch series with a few non-functional changes.
+Changes are described in the individual changelog.
 
+This patch series incorporates a few changes in the get_user_page usage
+of sgi-gru.
 
-Shouldn't we re-check new_page->mapping after lock_page() ? Or we can't
-race with truncate?
+The main change is the first patch, which is a trivial one line change to
+convert put_page to put_user_page to enable tracking of get_user_pages.
 
+The second patch removes an uneccessary ifdef of CONFIG_HUGETLB.
 
-and I am worried this code can try to lock the same page twice...
-Say, the probed application does MADV_DONTNEED and then writes "int3"
-into vma->vm_file at the same address to fool verify_opcode().
+The third patch adds __get_user_pages_fast in atomic_pte_lookup to retrive
+a physical user page in an atomic context instead of manually walking up
+the page tables like the current code does. This patch should be subject to
+more review from the gup people.
 
-Oleg.
+drivers/misc/sgi-gru/* builds after this patch series. But I do not have the
+hardware to verify these changes.
+
+The first patch implements gup tracking in the current code. This is to be tested
+as to check whether gup tracking works properly. Currently, in the upstream kernels
+put_user_page simply calls put_page. But that is to change in the future.
+Any suggestions as to how to test this code?
+
+The implementation of gup tracking is in:
+https://github.com/johnhubbard/linux/tree/gup_dma_core
+
+We could test it by applying the first patch to the above tree and test it.
+
+More details are in the individual changelogs.
+Bharath Vedartham (3):
+  sgi-gru: Convert put_page() to get_user_page*()
+  sgi-gru: Remove CONFIG_HUGETLB_PAGE ifdef
+  sgi-gru: Use __get_user_pages_fast in atomic_pte_lookup
+
+ drivers/misc/sgi-gru/grufault.c | 73 ++++++++++++++---------------------------
+ 1 file changed, 24 insertions(+), 49 deletions(-)
+
+-- 
+2.7.4
 
