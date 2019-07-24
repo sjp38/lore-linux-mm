@@ -5,101 +5,101 @@ X-Spam-Level:
 X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9663FC7618B
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 04:25:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E05DAC7618B
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 04:25:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4379522387
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 04:25:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 991F42080C
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 04:25:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="j7zJYCw4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4379522387
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="KG/F7Sd5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 991F42080C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8C6D76B0007; Wed, 24 Jul 2019 00:25:24 -0400 (EDT)
+	id 5BA746B0008; Wed, 24 Jul 2019 00:25:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 876928E0002; Wed, 24 Jul 2019 00:25:24 -0400 (EDT)
+	id 56EB98E0003; Wed, 24 Jul 2019 00:25:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6F1C36B000A; Wed, 24 Jul 2019 00:25:24 -0400 (EDT)
+	id 3BC2D8E0002; Wed, 24 Jul 2019 00:25:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 362BC6B0007
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 00:25:24 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id o6so23333544plk.23
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 21:25:24 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 046FD6B0008
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 00:25:26 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 6so27703181pfi.6
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 21:25:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=5gbvfTIK/mSaKMjbkYWk6GHqvja6ZqCh33qCfyFDpP0=;
-        b=snmJjOwL387VDO47qNBycgUxROlLTOdcyxIJamtkJbPxP4gGl+xWkVN/pX/SjUm3N0
-         tdQXGMscRdHwkWZgJ0NRc00YfDAvokS0F3NHOQKLAnz4QcXIrJcXJKuzyx821pt2KYhd
-         7Sa1LlPX9hwdQ5NhVJPkV2GmI8BY/XNY5zr6bzDTFYUHEWhsUNClgInPMS3qcOjLMTyo
-         TuxV+zclC94dxg6Q0PYQ9JWSkWUiWx6uuRrz16ZvemxuBuMdGI0AqfPJuKAL3iEslvA1
-         WpVElSeBvk1UFbdKGTdFlIVTZfKM9f2jn5yYgsFEIcv1N/Esu8+SS4qpANu79A693+mv
-         MfiA==
-X-Gm-Message-State: APjAAAX6S/UWjfueMDbpWuB66LxonWEttP7AA5zuHuHOXDzl7VLchnhd
-	zd/OJhhVZJMDemcIS5BmKPkm6PbQlRqW8tu8kG1G2/7gz+eRV2gi4VSsBUVk1wMy3Xjjun3wq68
-	HXmTTX6hB5wuiuL7hovrzl8Z+BHT/Tl+KTTHacro8GIDBuMd2/fVnZdRjvhxLCemqAg==
-X-Received: by 2002:a62:15c3:: with SMTP id 186mr9573937pfv.141.1563942323851;
-        Tue, 23 Jul 2019 21:25:23 -0700 (PDT)
-X-Received: by 2002:a62:15c3:: with SMTP id 186mr9573896pfv.141.1563942323009;
-        Tue, 23 Jul 2019 21:25:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563942323; cv=none;
+        bh=qETbyvDGXmWMmkqN4sOdgKXeFkWOntX3r/NRFgCZoWE=;
+        b=DD46X764HHYPsE34H9S4xbCzeiyJ9FbvBTgaIPeWErqbli2yyV1quVla7+p9C38jLb
+         V0xLxK6wL+j/ie9x1818mKuorLrC7/O/I0SED9nhQ8JldUy0pJ5QjmMecbKspEa/OdHf
+         I0dklYFKreUhXPosTPRhcOsvmbFJ2c63Zz19cWMvny6Bp3TjThkCgo57iGOwVQ/0iCKf
+         Gwnfpf30nnX3jtSxoHIYjmG6WzWU0akntdpVGn2WMaoVtWo6Oaf36anMqcXD1rLx8ozY
+         fVCwwOMgVZKruhjPm3Yhwoq7lblRbQiJBH6XkiiMknGCMwSwXRMhJlxXFvy882m469mc
+         dcmw==
+X-Gm-Message-State: APjAAAVaH7oA5Tmka1R8U05v8U8WssyvreUNOjtQMgoL2JS0/8Yb0z2e
+	FnbPmXjFui76xArNxG8QRNSZHkrapd1kCIzCiFruxWwjcsMQG3pFidPEPDbFQ+3BUwgckOP6ZCw
+	rHoc0JdQ2HFgp93SnLS+Y4QVQa2ZIFUKDcF89uFvAYxAv02KDl0dnAT1rfM/FuC57DA==
+X-Received: by 2002:a17:902:26c:: with SMTP id 99mr86698470plc.215.1563942325620;
+        Tue, 23 Jul 2019 21:25:25 -0700 (PDT)
+X-Received: by 2002:a17:902:26c:: with SMTP id 99mr86698413plc.215.1563942324527;
+        Tue, 23 Jul 2019 21:25:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563942324; cv=none;
         d=google.com; s=arc-20160816;
-        b=WIEvp9KLvdw7/TjrVX/whrJYx23TJMw6J9CHJiRm/+7iwkIEnpW9iuaDcvsm72nuAc
-         Ht47Q5q4Evriv8QsrpEXTMD33ErZbAXnqCDiwlrULZtMiCqRbLFOFQXDbQmoZ9RFFMRS
-         IXi/lp9gFJkr3TFsQxL/War/oLCfFV4nW5PylETJtUEIWw3S0ICdl+d5McF0wdwpApnw
-         r8bb59lHb3hghN/kAg6spKKY3bVgB+0aPIzItWXK21Uw8V9pdNBnblLeR8xb+wl7U4xP
-         ahbWpiQiatroc7a9d38qPeOV9M9T4Bs9EA2OOAOcib804en9vLzN4V8k/0L0fg1ubaiS
-         x3hA==
+        b=yAal7Fk0xmXAv+NVdA6h7H9x1mV9eBwCHsaemOCd1yCIchcdk+MNfVONmiBLvYHMkX
+         1xOXrO/jk3bETnNUclDyG+2IhRfrZGxjV71RwDhS/u/FLiObwLEOgD6lydcNqi+y76zc
+         pH+LB6b9OzFVWm9N9QzVgQbUty+Fa/Gy+zFixnKPNXtNH8SZwohR/MWvzqgvFhKX0jEt
+         3gLIXhB5yqf+lupZf9oDPk+rx7+KSJtnxYjKez1zLFPb4DMZjUinRaWfc6T/+LQp2gi9
+         bTdG+pcdqSso4+whbQOTrKpLCFT2GMkPuAN0jEVeRLlj62JDaKnxxOWmqNGPtldlZ7gE
+         jT0A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=5gbvfTIK/mSaKMjbkYWk6GHqvja6ZqCh33qCfyFDpP0=;
-        b=u5ywOqonlcpwwjhfYjbo5vXQr8WzQ1jSJl61nNTFrbsE9R7ujcgMuZFPe2NGsO3WpF
-         M0U4+tk9T+IpG5HvJRYaRF3Tt6+qHrWkHFq/X5lRvXl0I8LpTMV58wvgem69HcqwCn3h
-         ynQnbw7l0/nnDQLkL3vpZHqPD3+YNml3aKF7NJnRe9XB5k6iqSm4zojHlzbDkRb7BhG7
-         VOhVlbjcaibEoQUQSr8fiW0JHbOU42yRan5Yw3CSGV9JpXIQBuzj/D/LKJ96nAy6wtxP
-         BYqvGlr+R/JZaMxiBdO/qTH4NEn5FcTeb8kuzLv9mlJlezGwCIVsMe+5AT6hmz7pRVUd
-         sXeg==
+        bh=qETbyvDGXmWMmkqN4sOdgKXeFkWOntX3r/NRFgCZoWE=;
+        b=S4Qu2rs1cYqZiClN6cpoUTixXqiOP7bOZs8DawCDRtvXX9o1ctVfrE7Y//cc0g4+qM
+         VZYkfoyGHr/50jB+HDTyB41gt5yczmD/Tu8iDRCPkUPTGO5VQ2LZNxNogkZZnf27Oe7k
+         LhE4sUJkVm3ORIJ6diGEGVGArEj6hl/NpTaVxoov8EIFps27RQMaXPzN73otij8Nt7yM
+         2n3zlY8r7VwmATaN/p1p0+kt0hIUcQTDrh8ZkGhHJS0Yof0gNeSiCQuDAgOMxdDAAhfp
+         bFASM575Kx6z6RFmoXulm9TBMi+Ci20Ly1I6Eq8Cn9XG7hZ/LoMNFEfPNF/t3xKw+0XM
+         IAGA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=j7zJYCw4;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="KG/F7Sd5";
        spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s20sor18107213pgj.59.2019.07.23.21.25.22
+        by mx.google.com with SMTPS id s129sor18351375pgs.62.2019.07.23.21.25.24
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 23 Jul 2019 21:25:23 -0700 (PDT)
+        Tue, 23 Jul 2019 21:25:24 -0700 (PDT)
 Received-SPF: pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=j7zJYCw4;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="KG/F7Sd5";
        spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=5gbvfTIK/mSaKMjbkYWk6GHqvja6ZqCh33qCfyFDpP0=;
-        b=j7zJYCw4U1caEVcFEuKobiyZPV9eIUv7xmxR7LmMSDvz1bpuny3yyGTV6MypZtlPXz
-         hc8rQIVHKDgsnUZUb5lrASU4vG0LJ3zlXNrtENzNY/3JZVdn2F8Z6UW7GA6drfI4X+kU
-         HfCw1mWmQ0dyLdYwGY7N4j8dUjykPuh/d18jdGK7qL5MelVHtqtu1D1/9ESQtjIF/2De
-         OrLZp7NCa0U7FTfcG+7/YKz8vFSLJwWWkLMpOsucAPglQGYm4czK1tXxxEzvo3MYlUbA
-         Fr6bL3aZsetr+/824apMhB0mMtuE0goOnNffDU8btojjZGmLhgM6qOHAfAzEGZdcC/fv
-         U7WQ==
-X-Google-Smtp-Source: APXvYqz0bNGTzQTfix0lE4oONDy4wG8t04zCVf7WSKUYxPRWKH7PYhz8R1Do2uL48a+xrPBL7zQa4w==
-X-Received: by 2002:a65:504c:: with SMTP id k12mr80708644pgo.252.1563942322683;
-        Tue, 23 Jul 2019 21:25:22 -0700 (PDT)
+        bh=qETbyvDGXmWMmkqN4sOdgKXeFkWOntX3r/NRFgCZoWE=;
+        b=KG/F7Sd5J79dEipElYhdvyhMIk0TxQlRtZu9bi85rUwY/TE5KUGgUZYMnF+3jcDsXr
+         jk+YAZfWVg6gnp2IiqLCse5lUUZrgh27wRKMfQRWXUdRnaO5ZlXDztHkfwCA1gRbK+Qa
+         Vdl/mcDwYDvc/aIthkQn3dHIfadxoz9OGVoTMkITstrb8gRinr4GRivAlsVYAzJkRXx3
+         qijzZ8AyOYgc5Vk4JND+9sG/qLIVyx5s39WeHO+RM9Ey6ODD5O8kuqfL85vwwK9Febym
+         eFolpJZ4Wkv3lsIz5mVKSWu4wewrN05ykT4POz6d2Mi/mkYtEQg5LGvW/0qsyHcM4WB5
+         F1og==
+X-Google-Smtp-Source: APXvYqxkwpMUKWSZK/4NQcFDw+bDP7yRS/NluRzHQboqTdh3aehK42NKuj/IACv1wat7jP2wWUy+ng==
+X-Received: by 2002:a65:4489:: with SMTP id l9mr81979980pgq.207.1563942324157;
+        Tue, 23 Jul 2019 21:25:24 -0700 (PDT)
 Received: from blueforge.nvidia.com (searspoint.nvidia.com. [216.228.112.21])
-        by smtp.gmail.com with ESMTPSA id a15sm34153364pgw.3.2019.07.23.21.25.21
+        by smtp.gmail.com with ESMTPSA id a15sm34153364pgw.3.2019.07.23.21.25.22
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 23 Jul 2019 21:25:22 -0700 (PDT)
+        Tue, 23 Jul 2019 21:25:23 -0700 (PDT)
 From: john.hubbard@gmail.com
 X-Google-Original-From: jhubbard@nvidia.com
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -130,16 +130,21 @@ Cc: Alexander Viro <viro@zeniv.linux.org.uk>,
 	samba-technical@lists.samba.org,
 	v9fs-developer@lists.sourceforge.net,
 	virtualization@lists.linux-foundation.org,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
 	John Hubbard <jhubbard@nvidia.com>,
 	Jan Kara <jack@suse.cz>,
-	Ira Weiny <ira.weiny@intel.com>
-Subject: [PATCH 01/12] mm/gup: add make_dirty arg to put_user_pages_dirty_lock()
-Date: Tue, 23 Jul 2019 21:25:07 -0700
-Message-Id: <20190724042518.14363-2-jhubbard@nvidia.com>
+	Dan Williams <dan.j.williams@intel.com>,
+	Johannes Thumshirn <jthumshirn@suse.de>,
+	Ming Lei <ming.lei@redhat.com>,
+	Dave Chinner <david@fromorbit.com>
+Subject: [PATCH 02/12] iov_iter: add helper to test if an iter would use GUP v2
+Date: Tue, 23 Jul 2019 21:25:08 -0700
+Message-Id: <20190724042518.14363-3-jhubbard@nvidia.com>
 X-Mailer: git-send-email 2.22.0
 In-Reply-To: <20190724042518.14363-1-jhubbard@nvidia.com>
 References: <20190724042518.14363-1-jhubbard@nvidia.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
 X-NVConfidentiality: public
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -148,284 +153,67 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: John Hubbard <jhubbard@nvidia.com>
+From: Jérôme Glisse <jglisse@redhat.com>
 
-Provide more capable variation of put_user_pages_dirty_lock(),
-and delete put_user_pages_dirty(). This is based on the
-following:
+Add a helper to test if call to iov_iter_get_pages*() with a given
+iter would result in calls to GUP (get_user_pages*()). We want to
+use different tracking of page references if they are coming from
+GUP (get_user_pages*()) and thus  we need to know when GUP is used
+for a given iter.
 
-1. Lots of call sites become simpler if a bool is passed
-into put_user_page*(), instead of making the call site
-choose which put_user_page*() variant to call.
+Changes since Jérôme's original patch:
 
-2. Christoph Hellwig's observation that set_page_dirty_lock()
-is usually correct, and set_page_dirty() is usually a
-bug, or at least questionable, within a put_user_page*()
-calling chain.
+* iov_iter_get_pages_use_gup(): do not return true for the ITER_PIPE
+case, because iov_iter_get_pages() calls pipe_get_pages(), which in
+turn uses get_page(), not get_user_pages().
 
-This leads to the following API choices:
+* Remove some obsolete code, as part of rebasing onto Linux 5.3.
 
-    * put_user_pages_dirty_lock(page, npages, make_dirty)
+* Fix up the kerneldoc comment to "Return:" rather than "Returns:",
+and a few other grammatical tweaks.
 
-    * There is no put_user_pages_dirty(). You have to
-      hand code that, in the rare case that it's
-      required.
-
-Cc: Matthew Wilcox <willy@infradead.org>
-Cc: Jan Kara <jack@suse.cz>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Ira Weiny <ira.weiny@intel.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>
+Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
 Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+Cc: linux-fsdevel@vger.kernel.org
+Cc: linux-block@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: Jan Kara <jack@suse.cz>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Johannes Thumshirn <jthumshirn@suse.de>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Jens Axboe <axboe@kernel.dk>
+Cc: Ming Lei <ming.lei@redhat.com>
+Cc: Dave Chinner <david@fromorbit.com>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Matthew Wilcox <willy@infradead.org>
 ---
- drivers/infiniband/core/umem.c             |   5 +-
- drivers/infiniband/hw/hfi1/user_pages.c    |   5 +-
- drivers/infiniband/hw/qib/qib_user_pages.c |   5 +-
- drivers/infiniband/hw/usnic/usnic_uiom.c   |   5 +-
- drivers/infiniband/sw/siw/siw_mem.c        |   8 +-
- include/linux/mm.h                         |   5 +-
- mm/gup.c                                   | 115 +++++++++------------
- 7 files changed, 58 insertions(+), 90 deletions(-)
+ include/linux/uio.h | 11 +++++++++++
+ 1 file changed, 11 insertions(+)
 
-diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
-index 08da840ed7ee..965cf9dea71a 100644
---- a/drivers/infiniband/core/umem.c
-+++ b/drivers/infiniband/core/umem.c
-@@ -54,10 +54,7 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
- 
- 	for_each_sg_page(umem->sg_head.sgl, &sg_iter, umem->sg_nents, 0) {
- 		page = sg_page_iter_page(&sg_iter);
--		if (umem->writable && dirty)
--			put_user_pages_dirty_lock(&page, 1);
--		else
--			put_user_page(page);
-+		put_user_pages_dirty_lock(&page, 1, umem->writable && dirty);
- 	}
- 
- 	sg_free_table(&umem->sg_head);
-diff --git a/drivers/infiniband/hw/hfi1/user_pages.c b/drivers/infiniband/hw/hfi1/user_pages.c
-index b89a9b9aef7a..469acb961fbd 100644
---- a/drivers/infiniband/hw/hfi1/user_pages.c
-+++ b/drivers/infiniband/hw/hfi1/user_pages.c
-@@ -118,10 +118,7 @@ int hfi1_acquire_user_pages(struct mm_struct *mm, unsigned long vaddr, size_t np
- void hfi1_release_user_pages(struct mm_struct *mm, struct page **p,
- 			     size_t npages, bool dirty)
- {
--	if (dirty)
--		put_user_pages_dirty_lock(p, npages);
--	else
--		put_user_pages(p, npages);
-+	put_user_pages_dirty_lock(p, npages, dirty);
- 
- 	if (mm) { /* during close after signal, mm can be NULL */
- 		atomic64_sub(npages, &mm->pinned_vm);
-diff --git a/drivers/infiniband/hw/qib/qib_user_pages.c b/drivers/infiniband/hw/qib/qib_user_pages.c
-index bfbfbb7e0ff4..6bf764e41891 100644
---- a/drivers/infiniband/hw/qib/qib_user_pages.c
-+++ b/drivers/infiniband/hw/qib/qib_user_pages.c
-@@ -40,10 +40,7 @@
- static void __qib_release_user_pages(struct page **p, size_t num_pages,
- 				     int dirty)
- {
--	if (dirty)
--		put_user_pages_dirty_lock(p, num_pages);
--	else
--		put_user_pages(p, num_pages);
-+	put_user_pages_dirty_lock(p, num_pages, dirty);
+diff --git a/include/linux/uio.h b/include/linux/uio.h
+index ab5f523bc0df..2a179af8e5a7 100644
+--- a/include/linux/uio.h
++++ b/include/linux/uio.h
+@@ -86,6 +86,17 @@ static inline unsigned char iov_iter_rw(const struct iov_iter *i)
+ 	return i->type & (READ | WRITE);
  }
  
- /**
-diff --git a/drivers/infiniband/hw/usnic/usnic_uiom.c b/drivers/infiniband/hw/usnic/usnic_uiom.c
-index 0b0237d41613..62e6ffa9ad78 100644
---- a/drivers/infiniband/hw/usnic/usnic_uiom.c
-+++ b/drivers/infiniband/hw/usnic/usnic_uiom.c
-@@ -75,10 +75,7 @@ static void usnic_uiom_put_pages(struct list_head *chunk_list, int dirty)
- 		for_each_sg(chunk->page_list, sg, chunk->nents, i) {
- 			page = sg_page(sg);
- 			pa = sg_phys(sg);
--			if (dirty)
--				put_user_pages_dirty_lock(&page, 1);
--			else
--				put_user_page(page);
-+			put_user_pages_dirty_lock(&page, 1, dirty);
- 			usnic_dbg("pa: %pa\n", &pa);
- 		}
- 		kfree(chunk);
-diff --git a/drivers/infiniband/sw/siw/siw_mem.c b/drivers/infiniband/sw/siw/siw_mem.c
-index 67171c82b0c4..358d440efa11 100644
---- a/drivers/infiniband/sw/siw/siw_mem.c
-+++ b/drivers/infiniband/sw/siw/siw_mem.c
-@@ -65,13 +65,7 @@ static void siw_free_plist(struct siw_page_chunk *chunk, int num_pages,
- {
- 	struct page **p = chunk->plist;
- 
--	while (num_pages--) {
--		if (!PageDirty(*p) && dirty)
--			put_user_pages_dirty_lock(p, 1);
--		else
--			put_user_page(*p);
--		p++;
--	}
-+	put_user_pages_dirty_lock(chunk->plist, num_pages, dirty);
- }
- 
- void siw_umem_release(struct siw_umem *umem, bool dirty)
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 0334ca97c584..9759b6a24420 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1057,8 +1057,9 @@ static inline void put_user_page(struct page *page)
- 	put_page(page);
- }
- 
--void put_user_pages_dirty(struct page **pages, unsigned long npages);
--void put_user_pages_dirty_lock(struct page **pages, unsigned long npages);
-+void put_user_pages_dirty_lock(struct page **pages, unsigned long npages,
-+			       bool make_dirty);
++/**
++ * iov_iter_get_pages_use_gup - report if iov_iter_get_pages(i) uses GUP
++ * @i: iterator
++ * Return: true if a call to iov_iter_get_pages*() with the iter provided in
++ *          the argument would result in the use of get_user_pages*()
++ */
++static inline bool iov_iter_get_pages_use_gup(const struct iov_iter *i)
++{
++	return iov_iter_type(i) == ITER_IOVEC;
++}
 +
- void put_user_pages(struct page **pages, unsigned long npages);
- 
- #if defined(CONFIG_SPARSEMEM) && !defined(CONFIG_SPARSEMEM_VMEMMAP)
-diff --git a/mm/gup.c b/mm/gup.c
-index 98f13ab37bac..7fefd7ab02c4 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -29,85 +29,70 @@ struct follow_page_context {
- 	unsigned int page_mask;
- };
- 
--typedef int (*set_dirty_func_t)(struct page *page);
--
--static void __put_user_pages_dirty(struct page **pages,
--				   unsigned long npages,
--				   set_dirty_func_t sdf)
--{
--	unsigned long index;
--
--	for (index = 0; index < npages; index++) {
--		struct page *page = compound_head(pages[index]);
--
--		/*
--		 * Checking PageDirty at this point may race with
--		 * clear_page_dirty_for_io(), but that's OK. Two key cases:
--		 *
--		 * 1) This code sees the page as already dirty, so it skips
--		 * the call to sdf(). That could happen because
--		 * clear_page_dirty_for_io() called page_mkclean(),
--		 * followed by set_page_dirty(). However, now the page is
--		 * going to get written back, which meets the original
--		 * intention of setting it dirty, so all is well:
--		 * clear_page_dirty_for_io() goes on to call
--		 * TestClearPageDirty(), and write the page back.
--		 *
--		 * 2) This code sees the page as clean, so it calls sdf().
--		 * The page stays dirty, despite being written back, so it
--		 * gets written back again in the next writeback cycle.
--		 * This is harmless.
--		 */
--		if (!PageDirty(page))
--			sdf(page);
--
--		put_user_page(page);
--	}
--}
--
- /**
-- * put_user_pages_dirty() - release and dirty an array of gup-pinned pages
-- * @pages:  array of pages to be marked dirty and released.
-+ * put_user_pages_dirty_lock() - release and optionally dirty gup-pinned pages
-+ * @pages:  array of pages to be maybe marked dirty, and definitely released.
-  * @npages: number of pages in the @pages array.
-+ * @make_dirty: whether to mark the pages dirty
+ /*
+  * Total number of bytes covered by an iovec.
   *
-  * "gup-pinned page" refers to a page that has had one of the get_user_pages()
-  * variants called on that page.
-  *
-  * For each page in the @pages array, make that page (or its head page, if a
-- * compound page) dirty, if it was previously listed as clean. Then, release
-- * the page using put_user_page().
-+ * compound page) dirty, if @make_dirty is true, and if the page was previously
-+ * listed as clean. In any case, releases all pages using put_user_page(),
-+ * possibly via put_user_pages(), for the non-dirty case.
-  *
-  * Please see the put_user_page() documentation for details.
-  *
-- * set_page_dirty(), which does not lock the page, is used here.
-- * Therefore, it is the caller's responsibility to ensure that this is
-- * safe. If not, then put_user_pages_dirty_lock() should be called instead.
-+ * set_page_dirty_lock() is used internally. If instead, set_page_dirty() is
-+ * required, then the caller should a) verify that this is really correct,
-+ * because _lock() is usually required, and b) hand code it:
-+ * set_page_dirty_lock(), put_user_page().
-  *
-  */
--void put_user_pages_dirty(struct page **pages, unsigned long npages)
-+void put_user_pages_dirty_lock(struct page **pages, unsigned long npages,
-+			       bool make_dirty)
- {
--	__put_user_pages_dirty(pages, npages, set_page_dirty);
--}
--EXPORT_SYMBOL(put_user_pages_dirty);
-+	unsigned long index;
- 
--/**
-- * put_user_pages_dirty_lock() - release and dirty an array of gup-pinned pages
-- * @pages:  array of pages to be marked dirty and released.
-- * @npages: number of pages in the @pages array.
-- *
-- * For each page in the @pages array, make that page (or its head page, if a
-- * compound page) dirty, if it was previously listed as clean. Then, release
-- * the page using put_user_page().
-- *
-- * Please see the put_user_page() documentation for details.
-- *
-- * This is just like put_user_pages_dirty(), except that it invokes
-- * set_page_dirty_lock(), instead of set_page_dirty().
-- *
-- */
--void put_user_pages_dirty_lock(struct page **pages, unsigned long npages)
--{
--	__put_user_pages_dirty(pages, npages, set_page_dirty_lock);
-+	/*
-+	 * TODO: this can be optimized for huge pages: if a series of pages is
-+	 * physically contiguous and part of the same compound page, then a
-+	 * single operation to the head page should suffice.
-+	 */
-+
-+	if (!make_dirty) {
-+		put_user_pages(pages, npages);
-+		return;
-+	}
-+
-+	for (index = 0; index < npages; index++) {
-+		struct page *page = compound_head(pages[index]);
-+		/*
-+		 * Checking PageDirty at this point may race with
-+		 * clear_page_dirty_for_io(), but that's OK. Two key
-+		 * cases:
-+		 *
-+		 * 1) This code sees the page as already dirty, so it
-+		 * skips the call to set_page_dirty(). That could happen
-+		 * because clear_page_dirty_for_io() called
-+		 * page_mkclean(), followed by set_page_dirty().
-+		 * However, now the page is going to get written back,
-+		 * which meets the original intention of setting it
-+		 * dirty, so all is well: clear_page_dirty_for_io() goes
-+		 * on to call TestClearPageDirty(), and write the page
-+		 * back.
-+		 *
-+		 * 2) This code sees the page as clean, so it calls
-+		 * set_page_dirty(). The page stays dirty, despite being
-+		 * written back, so it gets written back again in the
-+		 * next writeback cycle. This is harmless.
-+		 */
-+		if (!PageDirty(page))
-+			set_page_dirty_lock(page);
-+		put_user_page(page);
-+	}
- }
- EXPORT_SYMBOL(put_user_pages_dirty_lock);
- 
 -- 
 2.22.0
 
