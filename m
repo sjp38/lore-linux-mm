@@ -6,74 +6,74 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D774C7618F
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 09:07:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7E8A5C76191
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 09:17:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4A93121951
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 09:07:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A93121951
+	by mail.kernel.org (Postfix) with ESMTP id 50A93227BF
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 09:17:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50A93227BF
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8B5656B0006; Wed, 24 Jul 2019 05:07:39 -0400 (EDT)
+	id E05576B0006; Wed, 24 Jul 2019 05:17:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 867196B0007; Wed, 24 Jul 2019 05:07:39 -0400 (EDT)
+	id DB6A48E0003; Wed, 24 Jul 2019 05:17:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 754818E0002; Wed, 24 Jul 2019 05:07:39 -0400 (EDT)
+	id C7D488E0002; Wed, 24 Jul 2019 05:17:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B8816B0006
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 05:07:39 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id d11so38782938qkb.20
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 02:07:39 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AC8B96B0006
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 05:17:29 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id j81so38652629qke.23
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 02:17:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=J0UoNtyjlXHyau5OZuzM07Yy9QCjbo2q8iYtmMl1W4U=;
-        b=AgkeJujbnnJRzhCRg1acC1Lug35lYEibY/PByHsisu9daOfct/F0Z/q5H6y1ZZiVK5
-         EMrjDW4YaPLJK3Z5VfEIPxgUO35nLbmx5C4YqJkmX5W5M6Qv7Nu9vtfghn93jJ4/E168
-         X18sk4jtI1Uq19uS0sS5IyR9pyEzZgFKXXE02zm2+//bOEWDfaIaiiWbNxsbCZVncs3o
-         TfP3iWFWv+H4CtfdCMGwxigi75CJOtGwcS1SvUvBANjk1R+xloAowAtVOyHjZ/DJjMZT
-         DuJyZZWUUOMVU8pUK2P7AV5putlPySPur0oBduU1b3eVWh/R/16zQXf3i/9z2nsKilEy
-         0buQ==
+        bh=tuugOoBJw7nxB4oRweQBZ1Y2hf+P1zUQ2W+xilUNTVw=;
+        b=N1iMUblIfjVbeZTR2tNUcw1/uAnSN2nEqGII3EcZ2s79U2RYlTnjEgoJa4N9rXDx5+
+         NGkfDJEMz2580GaN5/AlOzXI0HfBY0VyAW42EY+6twfgc7QqRzlEtkQGF8XHaWxABkQs
+         pbLV/6jDnD/c8+xSuaZE37PrWRfpEQ4W3AlHpfwrMP7/5Qrqd2i/V6GlPYMmNBOc7cYR
+         3h6ArEJ/koWr1WsptJjLSbSBK34Jq1js0gYF1QlndNp7CU5XWIYcVywYETCoOxzsipAK
+         Z0ScKrQ6AmiEPgSP/S++yJjcNpT2Z1SyK2U6QPkeEwOChBd/4vORCpuFzkIE02NFducM
+         h8HA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX/74GckbtSUvmcDklLmF8ukH2ZMHbB0Yasn0pM/hPgkhnSM7xm
-	GIEliJ8mN6qVXLKR+xFMD3vdI51RpNalpyC5zLA0PG65phhtH/g3BAbKpqAmtEnntHmM2qpvXDG
-	kuKaAHlRLU0DkVgROsCKosbI4noa8QtO/K2Mv8RW2kqu5bzA4lpwwpvKv+v+SID+Cjg==
-X-Received: by 2002:a37:dcc7:: with SMTP id v190mr5313753qki.169.1563959259169;
-        Wed, 24 Jul 2019 02:07:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwyLfycKHbIVar1cTiIID9RHorziDzrRUW1pX/jnQ4r90v3/C/Ci7RopPXxU2y+J0ksyQ8K
-X-Received: by 2002:a37:dcc7:: with SMTP id v190mr5313730qki.169.1563959258779;
-        Wed, 24 Jul 2019 02:07:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563959258; cv=none;
+X-Gm-Message-State: APjAAAUr/tDnLCQdP8JxgprHYYzI3MI7eiWBF2vFhBZZJQ/i6G1JN1Jw
+	0FM473pMV8ZRUnupEEOoyY1AeSlJskqJDsbN4IEZ7X+iRYe5EzDU4ooIhLFKbaS+uwps4S3QI4C
+	AvmGHb+FVHz73at/CVY1yvNJPUjyb9kYq0X5sB9MoE6p/xeh5KzDxXuFXPtV06fa8GQ==
+X-Received: by 2002:ac8:f91:: with SMTP id b17mr56292342qtk.352.1563959849506;
+        Wed, 24 Jul 2019 02:17:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqygK0qK1x9UepEPBDBS+rAEl9vEzys0SXYeyyeP8oEgJc7LPFhVqXvFfaMwyIAoxYgyrXep
+X-Received: by 2002:ac8:f91:: with SMTP id b17mr56292320qtk.352.1563959849091;
+        Wed, 24 Jul 2019 02:17:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563959849; cv=none;
         d=google.com; s=arc-20160816;
-        b=o5dUrDFzTcYWlNqgIaN8Kb5Z7ECIgespwGayFBimEz7Ij4ExqmthHTj1SXWiGC3X1T
-         AXoPuxf3IndEtwOtHuqa6ogttNCUUGBZTe62R8BtvVFmzMtWCIabTGc7UfKb5TB5CGd9
-         Y9v/nS1cNjYaVNB+s7qDxs8k62ui617lYwzEPf/aBwwfZV5h5c8eBmFLnJAq3CRmDiCr
-         EvU/SQj3fCrV808Mgf1++AOGdKCvlSCCP97+XCsE/1OaYHCFPXlBlgqhlrQPhAaXKRhz
-         jlljzP9NInU5LfL5VJJK/1XDJmmdBohYM5xIxF3BS6sz73Op989PJl7PmY5ScGvdRx1T
-         +Low==
+        b=cPzbxroRh/GtyjUpboOybvLmzaVX2RTnmnkDfbNU5QyHIHRtgPJ0a8kAFlXGoBRYJM
+         GYkNs04gVS6oLwUbF1xGvgaDZzQFYxakbM/Tmzz9IYuc1XyJWE/C59MxRs8GhAv/ft0n
+         EZQ8twPBUHAO+20QQhpFuQZnFeo0Cv1N2fiVVd2xpPeCm/cmi7HZirm9RDZdV/3KqCIP
+         AZeNTsGbeneke0/jDXY05AQ3iwOmCoTji5JimnYO81c1W/RoDxujyJGBxVX3Ts+9b55F
+         nj3n8mQofo2cS3jOLMXJONXPf0kCM91rAj12e0VthdHdAM6JaI5iRjgOLzND9Bxs3CKL
+         LHmg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=J0UoNtyjlXHyau5OZuzM07Yy9QCjbo2q8iYtmMl1W4U=;
-        b=HAvWO2YSBZk63iAvXuOhhzXx8tJbPXHCMc1AOsq59xDPHMBG5vGOXErzcYr97/IgPf
-         CXKbt9JdLnh/w8lnQxxDcIX7WF88edtRtBYxVhRKh3kuoFW+4p0ap0bDolJ3vSfNMYJG
-         tDv8I9XSuXLwLAwaQtoig6BLHGB17OVLsDKHf2cYzlySDQ4yzlvL6low10gXmgzuG3US
-         k/TnBzYmT2wFT71N+RdU79auGXJhown5xuEruF88HOdh9qUjlpPXdnjGiToKz5Tqgptd
-         pW3+6d6uOq3Fa2VWOiVRM1F+yqdJdQ3EDGXQljMk8i0zhMUPJPHNp3UUmD48tFvAFAep
-         AgOA==
+        bh=tuugOoBJw7nxB4oRweQBZ1Y2hf+P1zUQ2W+xilUNTVw=;
+        b=lxRxjq+xdo4Cfdxw300lHqaG16U+XDGZmzGzD6/jgkbjQN4blJhCTBqVUS2s/PCiog
+         0uTF9wZH7GX9nlFXtsbcT7pu7WwwrENuBxx8BXT435x5qBixXqb6B5lijA/tEAp/AgT0
+         iszpc5Vz2eoSEgvLTd+MagN4NgUVTyvTU2vtRl5Mr9rmulw2cbcupN1ezL73hnw1ghAl
+         84amr7FEIntzdHI7ERJG1XCpjRRFhm1fBnzLcXam8Lna0iaIeZ+jIB6ISjJAXoWUkJ5I
+         7RlFwksgHaM5DByXBvu2QfId1QtyKfEN/cEXU6xWZou/c/4jeKZwrwrVsIVC4h1Juu6R
+         lzew==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k79si27375844qke.300.2019.07.24.02.07.38
+        by mx.google.com with ESMTPS id p11si26065892qkk.82.2019.07.24.02.17.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 02:07:38 -0700 (PDT)
+        Wed, 24 Jul 2019 02:17:29 -0700 (PDT)
 Received-SPF: pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
@@ -81,14 +81,14 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id D9CE43179174;
-	Wed, 24 Jul 2019 09:07:37 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 473FB302246D;
+	Wed, 24 Jul 2019 09:17:28 +0000 (UTC)
 Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.136])
-	by smtp.corp.redhat.com (Postfix) with SMTP id D002E19C78;
-	Wed, 24 Jul 2019 09:07:35 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with SMTP id 3F02619C67;
+	Wed, 24 Jul 2019 09:17:26 +0000 (UTC)
 Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Wed, 24 Jul 2019 11:07:37 +0200 (CEST)
-Date: Wed, 24 Jul 2019 11:07:35 +0200
+	oleg@redhat.com; Wed, 24 Jul 2019 11:17:28 +0200 (CEST)
+Date: Wed, 24 Jul 2019 11:17:25 +0200
 From: Oleg Nesterov <oleg@redhat.com>
 To: Song Liu <songliubraving@fb.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
@@ -98,31 +98,37 @@ Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
 	william.kucharski@oracle.com
 Subject: Re: [PATCH v8 2/4] uprobe: use original page when all uprobes are
  removed
-Message-ID: <20190724090734.GB21599@redhat.com>
+Message-ID: <20190724091725.GC21599@redhat.com>
 References: <20190724083600.832091-1-songliubraving@fb.com>
  <20190724083600.832091-3-songliubraving@fb.com>
+ <20190724090734.GB21599@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190724083600.832091-3-songliubraving@fb.com>
+In-Reply-To: <20190724090734.GB21599@redhat.com>
 User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Wed, 24 Jul 2019 09:07:38 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Wed, 24 Jul 2019 09:17:28 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/24, Song Liu wrote:
+On 07/24, Oleg Nesterov wrote:
 >
-> This patch allows uprobe to use original page when possible (all uprobes
-> on the page are already removed).
+> On 07/24, Song Liu wrote:
+> >
+> > This patch allows uprobe to use original page when possible (all uprobes
+> > on the page are already removed).
+>
+> and only if the original page is already in the page cache and uptodate,
+> right?
+>
+> another reason why I think unmap makes more sense... but I won't argue.
 
-and only if the original page is already in the page cache and uptodate,
-right?
-
-another reason why I think unmap makes more sense... but I won't argue.
+but somehow I forgot we need to read the original page anyway to check
+pages_identical(), so unmap is not really better, please forget.
 
 Oleg.
 
