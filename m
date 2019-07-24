@@ -2,396 +2,295 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F420CC7618B
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 06:41:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 348C6C7618B
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 06:49:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7FF1F21738
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 06:41:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7FF1F21738
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
+	by mail.kernel.org (Postfix) with ESMTP id C13EF21743
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 06:49:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C13EF21743
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DDB906B0003; Wed, 24 Jul 2019 02:41:13 -0400 (EDT)
+	id 5E6F26B0008; Wed, 24 Jul 2019 02:49:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D8B286B0006; Wed, 24 Jul 2019 02:41:13 -0400 (EDT)
+	id 5BF546B000A; Wed, 24 Jul 2019 02:49:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C54D68E0002; Wed, 24 Jul 2019 02:41:13 -0400 (EDT)
+	id 4D4508E0002; Wed, 24 Jul 2019 02:49:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 74E026B0003
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 02:41:13 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id e9so18476700edv.18
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 23:41:13 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 15FE76B0008
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 02:49:23 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id h3so27643419pgc.19
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 23:49:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Fiai8W3r2l8rxUSVOGL09d/nL8UMjKLO7kvhTx03fkY=;
-        b=QARa2eNRI0Bj9aArxZX8gnRa0YVZBKOXs+8eDTcfF5RYppyrm9pKX/5IregBuj/mYV
-         f0Fi2OLmw4WMD6/13FhH9T5YoVGkMaBgbT1d2yMBXEK+nU9DwKc0Ry4NrF6wAQHZN5Nl
-         duIybedk06/LLG0WlzhOHIpYeCgYO5VBxlITgYRdO2nbVtjuFpkStdTOaZrUbWFoX7rP
-         3T2smqkNpQwcRSeMARO8+WWGzw5lIzrKNDWj+XzJ2dhMSsYOKR4S3PJ6EuGx/3BTnZDn
-         RzGKq/iSg8wMVdlfCaECV5cnPsI+5KqMeSoKC076QbtMfwIpcofEE4IcZRkHyjTdeFJa
-         I1Lw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-X-Gm-Message-State: APjAAAUlZ2LmSQXf5f/w3tD5qWI5J1p6JZMMJLFwvPrpph7XLuoWHVUI
-	5KmZahNiqXw/h1kwWFZxxTutUU26MXPt9YrhKT41t2ExWJ2wqLwINMxSG7rka8Ko6P5JPm9GpiE
-	JrbVOse5uC2hIGXeUxiGloWady3fcb8ONkmhPGU/jCD/q4THdz2Vk9VKKHk7u66C8dQ==
-X-Received: by 2002:a50:84a1:: with SMTP id 30mr70322856edq.44.1563950473007;
-        Tue, 23 Jul 2019 23:41:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyqV4I5QV5jbb4Krn2T0L824Bx5CruFPAfT1sDRmrrAxkIV/bXPkR86d8vMoN54eLpqDVYz
-X-Received: by 2002:a50:84a1:: with SMTP id 30mr70322799edq.44.1563950471841;
-        Tue, 23 Jul 2019 23:41:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563950471; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=vMChR67aqlw4NWL2FqFkGfTM2ajtplmPQnK1p+Jeyws=;
+        b=L0pkix+nt7UWvwE9YvPEEIj9SixMfUhDu9iDlTJRicopQIsX0oBP3/ll6p/O9foIvz
+         8CchLL7rP4l3ebeACs7nqFgjdq8BQRKyJIvoqe07DmRrPiQ8ToUd8atY/wLS9zhWyrh5
+         Ufv9Lu1EDgSeuMeJKNx18h3o5jcFqWf1JGqsqZSa9DCBNQPtbAxoj2zliMrNTpLNgM8H
+         T7FJ6GuxyMvcYf2OOLMQ7RA5UK3wOWhPw15lVAHsaAUgSsvVDKbaHKcXqUw/ICcDY0WT
+         Y74f6R1/C4LfzP8Rz7uAI+vaTKNqb6uUv3m8SO96EiuNbKjzsE6O23oAdOGE1OXYazRC
+         NxqA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+X-Gm-Message-State: APjAAAXRKUEvBi3uu6UMI3/pF5yF6SOxoaO2Q+8XJ4UWiCkhrMMwx0Q2
+	joQitEKDhxc6uzHCR3fd83euT76tXQjERe5QtSfzoIloJ9QWOwVancPCWFH7oVV7fgCnvvWAmp1
+	YVIYulhpUpCRw3pB7ZZGk43GCvd9WWAZSqUCIqcafkCx5vyHArskHF2eoPkjwYo274Q==
+X-Received: by 2002:a63:3112:: with SMTP id x18mr79958643pgx.385.1563950962549;
+        Tue, 23 Jul 2019 23:49:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxLBybcdZqA3tnDL8IPh/J1wHjSafgr8w+eeE3V2SYQm/slzfV8C0lz1vv9LYaZ6bfdqcag
+X-Received: by 2002:a63:3112:: with SMTP id x18mr79958578pgx.385.1563950961561;
+        Tue, 23 Jul 2019 23:49:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563950961; cv=none;
         d=google.com; s=arc-20160816;
-        b=Fh3uNaGVyvbXb9EChVBSMYy5IR5FhUDzo4EFhmiNStbTxmhkUxifcN4r8a0aUlMYjS
-         KMxvoypgXm1yITyd0+EwSE/98rCI6koBwhGeRL20ELsXKxt6JxsSvpbZt3L+kjZcBGve
-         Cu4mUibjD/uNDbXj1jhjrM59hMoIZS8wXf2ddpWBm4yaYrmHEc+OLMwibinit7Be5oPA
-         BCLZnxqtTy0Yw83MdKrxlNmlB62OkdvMaYqOGsACKnFFLp3RerF8r64HaADyLJ41Lx0v
-         DnRyRAij3nJ9jQgGrsGFS7vUnU+pCO63Rn4s8FVPTvD1Yiy1nDxsaUGdlbSzmd3fjpwG
-         qs5A==
+        b=GjIB6I6MQfvZjVL1z+tzGDiN8SWShMlRoA0KqFaBXxaDT8LaNJ0zmJG9OaPfdoqDKw
+         E4MTUTa4Ia47/B6g1cvowDYYePna+xYJUNYFTAWf8Ru/txNrY3zYAKa5/X/ZxcWqw2x2
+         SgtFYSGzt9UC9V8F/CzOtodglRzAPzSzp9JMbK9SGjMDKWUWP8GIJL/UchLchgHOMGh1
+         ga6wMGQqNOrBlyDwIeM7KrQrX7b1fRRGHNZk/nvTtDEDPTmZIOECKupStGCr54ReNcwt
+         fS/SUtHyw9ohpthnPncR+8lzEmFiMyZYfaccOdKZCUKpJt6+EMWgonNDQuvlOM46uOfP
+         /6xA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Fiai8W3r2l8rxUSVOGL09d/nL8UMjKLO7kvhTx03fkY=;
-        b=0D/a2877jLiKl33UzTiN6LmFoQWcFyDc31ZduPklvrx58eY/ySgzltp/1FAPiD87np
-         4ZvLMuhLokhRgUwJnVbIhVaroRecmtsl2SGjp6ZNkMFnhVk36ijHNKw8HVSmI6KE6aZG
-         1wX3DoQ+VI6DVh8p8RSXpWHcYjioM3BEhPNp81hgDy+iudmOd+6+FAuNgrTyddqiISKH
-         P6RR8scTfRvt+QQzy9e2RWdhlT8aGa4ARellNDEwYX+s2QyfQTTG2PPT1ueowrAQiaey
-         Ym4FvOITnXRIYubByfsR6rA+2SXljCb32QS06mqV5C+iGXFYUHR880eQ5VmiOCV+BsaR
-         Tk8w==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from;
+        bh=vMChR67aqlw4NWL2FqFkGfTM2ajtplmPQnK1p+Jeyws=;
+        b=yd91QgSOnhnnqqfVdfFrWpvNPlnPrJu4w5rK8UZ6nbC0Hd8t/t1JSZDzaM9qjPiAxl
+         6hvgcnC82Tk9cImDn6ngDmkfsrSo61z+0rq5vu+ggcvKDJyLAwW6Asz3PyayrCgX1cyV
+         XddJRZ7MFWwUHuL6h6jnzTTBVXaH6RQaKeDx6PE9CUeKYVAwfI58+d+tuS8jYv4X/AWV
+         pbt2NUeb4p7nv65JAvVSryLkTwqW1knE17ePKveiyu1ZsM1Ht15ex6DVSHKn71Otxhu9
+         O/Ea64t2R93Fi4fKrjaL73b4f/CzmXQvChLw//oBsioym2ZhjedQaLDMaZbw44mENXhq
+         liWg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id 4si8537862edz.269.2019.07.23.23.41.11
+       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id h69si14509495pge.543.2019.07.23.23.49.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 23 Jul 2019 23:41:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 23 Jul 2019 23:49:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) client-ip=114.179.232.162;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 1A98BAE3F;
-	Wed, 24 Jul 2019 06:41:11 +0000 (UTC)
-Date: Wed, 24 Jul 2019 08:41:10 +0200
-From: Michal Hocko <mhocko@suse.com>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	David Rientjes <rientjes@google.com>, Roman Gushchin <guro@fb.com>,
-	Shakeel Butt <shakeelb@google.com>
-Subject: Re: [PATCH] mm, oom: simplify task's refcount handling
-Message-ID: <20190724064110.GC10882@dhcp22.suse.cz>
-References: <1563940476-6162-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+Received: from mailgate02.nec.co.jp ([114.179.233.122])
+	by tyo162.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x6O6nG5d021120
+	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
+	Wed, 24 Jul 2019 15:49:16 +0900
+Received: from mailsv01.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
+	by mailgate02.nec.co.jp (8.15.1/8.15.1) with ESMTP id x6O6nGFx009426;
+	Wed, 24 Jul 2019 15:49:16 +0900
+Received: from mail03.kamome.nec.co.jp (mail03.kamome.nec.co.jp [10.25.43.7])
+	by mailsv01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x6O6dSsL017998;
+	Wed, 24 Jul 2019 15:49:16 +0900
+Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.150] [10.38.151.150]) by mail03.kamome.nec.co.jp with ESMTP id BT-MMP-2404595; Wed, 24 Jul 2019 15:48:55 +0900
+Received: from BPXM23GP.gisp.nec.co.jp ([10.38.151.215]) by
+ BPXC22GP.gisp.nec.co.jp ([10.38.151.150]) with mapi id 14.03.0439.000; Wed,
+ 24 Jul 2019 15:48:55 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Jane Chu <jane.chu@oracle.com>, Dan Williams <dan.j.williams@intel.com>
+CC: Linux MM <linux-mm@kvack.org>,
+        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+        linux-nvdimm <linux-nvdimm@lists.01.org>
+Subject: Re: [PATCH] mm/memory-failure: Poison read receives SIGKILL instead
+ of SIGBUS if mmaped more than once
+Thread-Topic: [PATCH] mm/memory-failure: Poison read receives SIGKILL
+ instead of SIGBUS if mmaped more than once
+Thread-Index: AQHVQbAJYBnoCgkSO0yo1OfL2uazvqbYZaaAgABXyAA=
+Date: Wed, 24 Jul 2019 06:48:54 +0000
+Message-ID: <20190724064846.GA17567@hori.linux.bs1.fc.nec.co.jp>
+References: <1563925110-19359-1-git-send-email-jane.chu@oracle.com>
+ <CAPcyv4hyvHFnSE4AUbXooxX_Ug-raxAJgzC7jzkHp_mSg_sCmg@mail.gmail.com>
+In-Reply-To: <CAPcyv4hyvHFnSE4AUbXooxX_Ug-raxAJgzC7jzkHp_mSg_sCmg@mail.gmail.com>
+Accept-Language: en-US, ja-JP
+Content-Language: ja-JP
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [10.34.125.96]
+Content-Type: text/plain; charset="iso-2022-jp"
+Content-ID: <A8D19D1E94905D479DFEEA8EADF01457@gisp.nec.co.jp>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1563940476-6162-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-TM-AS-MML: disable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 24-07-19 12:54:36, Tetsuo Handa wrote:
-> Currently out_of_memory() is full of get_task_struct()/put_task_struct()
-> calls. Since "mm, oom: avoid printk() iteration under RCU" introduced
-> a list for holding a snapshot of all OOM victim candidates, let's share
-> that list for select_bad_process() and oom_kill_process() in order to
-> simplify task's refcount handling.
-> 
-> As a result of this patch, get_task_struct()/put_task_struct() calls
-> in out_of_memory() are reduced to only 2 times respectively.
+Hi Jane, Dan,
 
-This is probably a matter of taste but the diffstat suggests to me that the
-simplification is not all that great. On the other hand this makes the
-oom handling even more tricky and harder for potential further
-development - e.g. if we ever need to break the global lock down in the
-future this would be another obstacle on the way. While potential
-development might be too theoretical the benefit of the patch is not
-really clear to me. The task_struct reference counting is not really
-unusual operations and there is nothing really scary that we do with it
-here. We already have to to extra mile wrt. task_lock so careful
-reference count doesn't really jump out.
+On Tue, Jul 23, 2019 at 06:34:35PM -0700, Dan Williams wrote:
+> On Tue, Jul 23, 2019 at 4:49 PM Jane Chu <jane.chu@oracle.com> wrote:
+> >
+> > Mmap /dev/dax more than once, then read the poison location using addre=
+ss
+> > from one of the mappings. The other mappings due to not having the page
+> > mapped in will cause SIGKILLs delivered to the process. SIGKILL succeed=
+s
+> > over SIGBUS, so user process looses the opportunity to handle the UE.
+> >
+> > Although one may add MAP_POPULATE to mmap(2) to work around the issue,
+> > MAP_POPULATE makes mapping 128GB of pmem several magnitudes slower, so
+> > isn't always an option.
+> >
+> > Details -
+> >
+> > ndctl inject-error --block=3D10 --count=3D1 namespace6.0
+> >
+> > ./read_poison -x dax6.0 -o 5120 -m 2
+> > mmaped address 0x7f5bb6600000
+> > mmaped address 0x7f3cf3600000
+> > doing local read at address 0x7f3cf3601400
+> > Killed
+> >
+> > Console messages in instrumented kernel -
+> >
+> > mce: Uncorrected hardware memory error in user-access at edbe201400
+> > Memory failure: tk->addr =3D 7f5bb6601000
+> > Memory failure: address edbe201: call dev_pagemap_mapping_shift
+> > dev_pagemap_mapping_shift: page edbe201: no PUD
+> > Memory failure: tk->size_shift =3D=3D 0
+> > Memory failure: Unable to find user space address edbe201 in read_poiso=
+n
+> > Memory failure: tk->addr =3D 7f3cf3601000
+> > Memory failure: address edbe201: call dev_pagemap_mapping_shift
+> > Memory failure: tk->size_shift =3D 21
+> > Memory failure: 0xedbe201: forcibly killing read_poison:22434 because o=
+f failure to unmap corrupted page
+> >   =3D> to deliver SIGKILL
+> > Memory failure: 0xedbe201: Killing read_poison:22434 due to hardware me=
+mory corruption
+> >   =3D> to deliver SIGBUS
+> >
+> > Signed-off-by: Jane Chu <jane.chu@oracle.com>
+> > ---
+> >  mm/memory-failure.c | 16 ++++++++++------
+> >  1 file changed, 10 insertions(+), 6 deletions(-)
+> >
+> > diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+> > index d9cc660..7038abd 100644
+> > --- a/mm/memory-failure.c
+> > +++ b/mm/memory-failure.c
+> > @@ -315,7 +315,6 @@ static void add_to_kill(struct task_struct *tsk, st=
+ruct page *p,
+> >
+> >         if (*tkc) {
+> >                 tk =3D *tkc;
+> > -               *tkc =3D NULL;
+> >         } else {
+> >                 tk =3D kmalloc(sizeof(struct to_kill), GFP_ATOMIC);
+> >                 if (!tk) {
+> > @@ -331,16 +330,21 @@ static void add_to_kill(struct task_struct *tsk, =
+struct page *p,
+> >                 tk->size_shift =3D compound_order(compound_head(p)) + P=
+AGE_SHIFT;
+> >
+> >         /*
+> > -        * In theory we don't have to kill when the page was
+> > -        * munmaped. But it could be also a mremap. Since that's
+> > -        * likely very rare kill anyways just out of paranoia, but use
+> > -        * a SIGKILL because the error is not contained anymore.
+> > +        * Indeed a page could be mmapped N times within a process. And=
+ it's possible
+> > +        * that not all of those N VMAs contain valid mapping for the p=
+age. In which
+> > +        * case we don't want to send SIGKILL to the process on behalf =
+of the VMAs
+> > +        * that don't have the valid mapping, because doing so will ecl=
+ipse the SIGBUS
+> > +        * delivered on behalf of the active VMA.
+> >          */
+> >         if (tk->addr =3D=3D -EFAULT || tk->size_shift =3D=3D 0) {
+> >                 pr_info("Memory failure: Unable to find user space addr=
+ess %lx in %s\n",
+> >                         page_to_pfn(p), tsk->comm);
+> > -               tk->addr_valid =3D 0;
+> > +               if (tk !=3D *tkc)
+> > +                       kfree(tk);
+> > +               return;
 
-That being said, I do not think this patch gives any improvement.
+The immediate return bypasses list_add_tail() below, so we might lose
+the chance of sending SIGBUS to the process.
 
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Cc: Shakeel Butt <shakeelb@google.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Roman Gushchin <guro@fb.com>
-> Cc: David Rientjes <rientjes@google.com>
-> ---
->  include/linux/sched.h |   2 +-
->  mm/oom_kill.c         | 122 ++++++++++++++++++++++++--------------------------
->  2 files changed, 60 insertions(+), 64 deletions(-)
-> 
-> diff --git a/include/linux/sched.h b/include/linux/sched.h
-> index 48c1a4c..4062999 100644
-> --- a/include/linux/sched.h
-> +++ b/include/linux/sched.h
-> @@ -1247,7 +1247,7 @@ struct task_struct {
->  #ifdef CONFIG_MMU
->  	struct task_struct		*oom_reaper_list;
->  #endif
-> -	struct list_head		oom_victim_list;
-> +	struct list_head		oom_candidate;
->  #ifdef CONFIG_VMAP_STACK
->  	struct vm_struct		*stack_vm_area;
->  #endif
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index 110f948..311e0e9 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -63,6 +63,7 @@
->   * and mark_oom_victim
->   */
->  DEFINE_MUTEX(oom_lock);
-> +static LIST_HEAD(oom_candidate_list);
->  
->  static inline bool is_memcg_oom(struct oom_control *oc)
->  {
-> @@ -167,6 +168,41 @@ static bool oom_unkillable_task(struct task_struct *p)
->  	return false;
->  }
->  
-> +static int add_candidate_task(struct task_struct *p, void *unused)
-> +{
-> +	if (!oom_unkillable_task(p)) {
-> +		get_task_struct(p);
-> +		list_add_tail(&p->oom_candidate, &oom_candidate_list);
-> +	}
-> +	return 0;
-> +}
-> +
-> +static void link_oom_candidates(struct oom_control *oc)
-> +{
-> +	struct task_struct *p;
-> +
-> +	if (is_memcg_oom(oc))
-> +		mem_cgroup_scan_tasks(oc->memcg, add_candidate_task, NULL);
-> +	else {
-> +		rcu_read_lock();
-> +		for_each_process(p)
-> +			add_candidate_task(p, NULL);
-> +		rcu_read_unlock();
-> +	}
-> +
-> +}
-> +
-> +static void unlink_oom_candidates(void)
-> +{
-> +	struct task_struct *p;
-> +	struct task_struct *t;
-> +
-> +	list_for_each_entry_safe(p, t, &oom_candidate_list, oom_candidate) {
-> +		list_del(&p->oom_candidate);
-> +		put_task_struct(p);
-> +	}
-> +}
-> +
->  /*
->   * Print out unreclaimble slabs info when unreclaimable slabs amount is greater
->   * than all user memory (LRU pages)
-> @@ -344,16 +380,11 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
->  		goto next;
->  
->  select:
-> -	if (oc->chosen)
-> -		put_task_struct(oc->chosen);
-> -	get_task_struct(task);
->  	oc->chosen = task;
->  	oc->chosen_points = points;
->  next:
->  	return 0;
->  abort:
-> -	if (oc->chosen)
-> -		put_task_struct(oc->chosen);
->  	oc->chosen = (void *)-1UL;
->  	return 1;
->  }
-> @@ -364,27 +395,13 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
->   */
->  static void select_bad_process(struct oom_control *oc)
->  {
-> -	if (is_memcg_oom(oc))
-> -		mem_cgroup_scan_tasks(oc->memcg, oom_evaluate_task, oc);
-> -	else {
-> -		struct task_struct *p;
-> -
-> -		rcu_read_lock();
-> -		for_each_process(p)
-> -			if (oom_evaluate_task(p, oc))
-> -				break;
-> -		rcu_read_unlock();
-> -	}
-> -}
-> -
-> +	struct task_struct *p;
->  
-> -static int add_candidate_task(struct task_struct *p, void *arg)
-> -{
-> -	if (!oom_unkillable_task(p)) {
-> -		get_task_struct(p);
-> -		list_add_tail(&p->oom_victim_list, (struct list_head *) arg);
-> +	list_for_each_entry(p, &oom_candidate_list, oom_candidate) {
-> +		cond_resched();
-> +		if (oom_evaluate_task(p, oc))
-> +			break;
->  	}
-> -	return 0;
->  }
->  
->  /**
-> @@ -399,21 +416,12 @@ static int add_candidate_task(struct task_struct *p, void *arg)
->   */
->  static void dump_tasks(struct oom_control *oc)
->  {
-> -	static LIST_HEAD(list);
->  	struct task_struct *p;
->  	struct task_struct *t;
->  
-> -	if (is_memcg_oom(oc))
-> -		mem_cgroup_scan_tasks(oc->memcg, add_candidate_task, &list);
-> -	else {
-> -		rcu_read_lock();
-> -		for_each_process(p)
-> -			add_candidate_task(p, &list);
-> -		rcu_read_unlock();
-> -	}
->  	pr_info("Tasks state (memory values in pages):\n");
->  	pr_info("[  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name\n");
-> -	list_for_each_entry(p, &list, oom_victim_list) {
-> +	list_for_each_entry(p, &oom_candidate_list, oom_candidate) {
->  		cond_resched();
->  		/* p may not have freeable memory in nodemask */
->  		if (!is_memcg_oom(oc) && !oom_cpuset_eligible(p, oc))
-> @@ -430,10 +438,6 @@ static void dump_tasks(struct oom_control *oc)
->  			t->signal->oom_score_adj, t->comm);
->  		task_unlock(t);
->  	}
-> -	list_for_each_entry_safe(p, t, &list, oom_victim_list) {
-> -		list_del(&p->oom_victim_list);
-> -		put_task_struct(p);
-> -	}
->  }
->  
->  static void dump_oom_summary(struct oom_control *oc, struct task_struct *victim)
-> @@ -859,17 +863,11 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
->  	bool can_oom_reap = true;
->  
->  	p = find_lock_task_mm(victim);
-> -	if (!p) {
-> -		put_task_struct(victim);
-> +	if (!p)
->  		return;
-> -	} else if (victim != p) {
-> -		get_task_struct(p);
-> -		put_task_struct(victim);
-> -		victim = p;
-> -	}
->  
-> -	/* Get a reference to safely compare mm after task_unlock(victim) */
-> -	mm = victim->mm;
-> +	/* Get a reference to safely compare mm after task_unlock(p) */
-> +	mm = p->mm;
->  	mmgrab(mm);
->  
->  	/* Raise event before sending signal: task reaper must see this */
-> @@ -881,16 +879,15 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
->  	 * in order to prevent the OOM victim from depleting the memory
->  	 * reserves from the user space under its control.
->  	 */
-> -	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
-> -	mark_oom_victim(victim);
-> +	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, p, PIDTYPE_TGID);
-> +	mark_oom_victim(p);
->  	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB, UID:%u\n",
-> -		message, task_pid_nr(victim), victim->comm,
-> -		K(victim->mm->total_vm),
-> -		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
-> -		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
-> -		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)),
-> -		from_kuid(&init_user_ns, task_uid(victim)));
-> -	task_unlock(victim);
-> +	       message, task_pid_nr(p), p->comm, K(mm->total_vm),
-> +	       K(get_mm_counter(mm, MM_ANONPAGES)),
-> +	       K(get_mm_counter(mm, MM_FILEPAGES)),
-> +	       K(get_mm_counter(mm, MM_SHMEMPAGES)),
-> +	       from_kuid(&init_user_ns, task_uid(p)));
-> +	task_unlock(p);
->  
->  	/*
->  	 * Kill all user processes sharing victim->mm in other thread groups, if
-> @@ -929,7 +926,6 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
->  		wake_oom_reaper(victim);
->  
->  	mmdrop(mm);
-> -	put_task_struct(victim);
->  }
->  #undef K
->  
-> @@ -940,10 +936,8 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
->  static int oom_kill_memcg_member(struct task_struct *task, void *message)
->  {
->  	if (task->signal->oom_score_adj != OOM_SCORE_ADJ_MIN &&
-> -	    !is_global_init(task)) {
-> -		get_task_struct(task);
-> +	    !is_global_init(task))
->  		__oom_kill_process(task, message);
-> -	}
->  	return 0;
->  }
->  
-> @@ -964,7 +958,6 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
->  		mark_oom_victim(victim);
->  		wake_oom_reaper(victim);
->  		task_unlock(victim);
-> -		put_task_struct(victim);
->  		return;
->  	}
->  	task_unlock(victim);
-> @@ -1073,6 +1066,8 @@ bool out_of_memory(struct oom_control *oc)
->  	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
->  		return true;
->  
-> +	link_oom_candidates(oc);
-> +
->  	/*
->  	 * Check if there were limitations on the allocation (only relevant for
->  	 * NUMA and memcg) that may require different handling.
-> @@ -1086,10 +1081,9 @@ bool out_of_memory(struct oom_control *oc)
->  	    current->mm && !oom_unkillable_task(current) &&
->  	    oom_cpuset_eligible(current, oc) &&
->  	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
-> -		get_task_struct(current);
->  		oc->chosen = current;
->  		oom_kill_process(oc, "Out of memory (oom_kill_allocating_task)");
-> -		return true;
-> +		goto done;
->  	}
->  
->  	select_bad_process(oc);
-> @@ -1108,6 +1102,8 @@ bool out_of_memory(struct oom_control *oc)
->  	if (oc->chosen && oc->chosen != (void *)-1UL)
->  		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
->  				 "Memory cgroup out of memory");
-> + done:
-> +	unlink_oom_candidates();
->  	return !!oc->chosen;
->  }
->  
-> -- 
-> 1.8.3.1
+tk->size_shift is always non-zero for !is_zone_device_page(), so
+"tk->size_shift =3D=3D 0" effectively checks "no mapping on ZONE_DEVICE" no=
+w.
+As you mention above, "no mapping" doesn't means "invalid address"
+so we can drop "tk->size_shift =3D=3D 0" check from this if-statement.
+Going forward in this direction, "tk->addr_valid =3D=3D 0" is equivalent to
+"tk->addr =3D=3D -EFAULT", so we seems to be able to remove ->addr_valid.
+This observation leads me to the following change, does it work for you?
 
--- 
-Michal Hocko
-SUSE Labs
+  --- a/mm/memory-failure.c
+  +++ b/mm/memory-failure.c
+  @@ -199,7 +199,6 @@ struct to_kill {
+   	struct task_struct *tsk;
+   	unsigned long addr;
+   	short size_shift;
+  -	char addr_valid;
+   };
+  =20
+   /*
+  @@ -324,7 +323,6 @@ static void add_to_kill(struct task_struct *tsk, stru=
+ct page *p,
+   		}
+   	}
+   	tk->addr =3D page_address_in_vma(p, vma);
+  -	tk->addr_valid =3D 1;
+   	if (is_zone_device_page(p))
+   		tk->size_shift =3D dev_pagemap_mapping_shift(p, vma);
+   	else
+  @@ -336,11 +334,9 @@ static void add_to_kill(struct task_struct *tsk, str=
+uct page *p,
+   	 * likely very rare kill anyways just out of paranoia, but use
+   	 * a SIGKILL because the error is not contained anymore.
+   	 */
+  -	if (tk->addr =3D=3D -EFAULT || tk->size_shift =3D=3D 0) {
+  +	if (tk->addr =3D=3D -EFAULT)
+   		pr_info("Memory failure: Unable to find user space address %lx in %s\n=
+",
+   			page_to_pfn(p), tsk->comm);
+  -		tk->addr_valid =3D 0;
+  -	}
+   	get_task_struct(tsk);
+   	tk->tsk =3D tsk;
+   	list_add_tail(&tk->nd, to_kill);
+  @@ -366,7 +362,7 @@ static void kill_procs(struct list_head *to_kill, int=
+ forcekill, bool fail,
+   			 * make sure the process doesn't catch the
+   			 * signal and then access the memory. Just kill it.
+   			 */
+  -			if (fail || tk->addr_valid =3D=3D 0) {
+  +			if (fail || tk->addr =3D=3D -EFAULT) {
+   				pr_err("Memory failure: %#lx: forcibly killing %s:%d because of fail=
+ure to unmap corrupted page\n",
+   				       pfn, tk->tsk->comm, tk->tsk->pid);
+   				do_send_sig_info(SIGKILL, SEND_SIG_PRIV,
+
+> >         }
+> > +       if (tk =3D=3D *tkc)
+> > +               *tkc =3D NULL;
+> >         get_task_struct(tsk);
+> >         tk->tsk =3D tsk;
+> >         list_add_tail(&tk->nd, to_kill);
+>=20
+>=20
+> Concept and policy looks good to me, and I never did understand what
+> the mremap() case was trying to protect against.
+>=20
+> The patch is a bit difficult to read (not your fault) because of the
+> odd way that add_to_kill() expects the first 'tk' to be pre-allocated.
+> May I ask for a lead-in cleanup that moves all the allocation internal
+> to add_to_kill() and drops the **tk argument?
+
+I totally agree with this cleanup. Thanks for the comment.
+
+Thanks,
+Naoya Horiguchi=
 
