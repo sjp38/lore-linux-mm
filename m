@@ -2,139 +2,205 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 315DFC76191
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:34:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4572FC76186
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:37:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EA2DF22ADA
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:34:30 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="MQuSOeR9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA2DF22ADA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 1060D214AF
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:37:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1060D214AF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 817866B0006; Wed, 24 Jul 2019 15:34:30 -0400 (EDT)
+	id 973C46B0003; Wed, 24 Jul 2019 15:37:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7EE786B0007; Wed, 24 Jul 2019 15:34:30 -0400 (EDT)
+	id 94B786B0006; Wed, 24 Jul 2019 15:37:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6DDF88E0002; Wed, 24 Jul 2019 15:34:30 -0400 (EDT)
+	id 85FDB8E0002; Wed, 24 Jul 2019 15:37:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 380486B0006
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 15:34:30 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id n23so17128989pgf.18
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:34:30 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 675116B0003
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 15:37:00 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id x1so40253044qkn.6
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:37:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=1fDn3AFXXm19Ake8tU5gjq3MWC1W7K5qFY0eF05b2Pc=;
-        b=BtePxHkpRqSuMEMtslCLSN5/KFrxgi0kzl6mF0GsQ08t06MOXPg28glPYNLCWaySvP
-         lFi2T+1ILRX8ZAK11TJtS5daeGZ1EjJD82ctID1oXELzd6sUdC3+g4/uetMRrlVd6sq5
-         /8y7APpu9m5ofQTovje52ZMS8TSUrZrai10ejSDEfU9cmJUziHgP50dVJ4FILtxVXF0X
-         GJSpro3wyNjvGroyPhK3reO0r6I5JQPerz42p06+cltFtfD7R2i9Yq6ktk841GO2MA4M
-         b77c0tJLldjMx+gs5pQ5yYoVTi+GhtQvhU73dXnO+G8zZ4S7goIwddxXElTJEXocoQQh
-         EPdQ==
-X-Gm-Message-State: APjAAAW0ViRno2hXdzvWdIoQT4YTAI1SRMQiP0uQdF2X4VRdyBStyVmI
-	/fv311gBU4rFUxlIYCteNjJPOKRGebQE8sfJq4fLEsitWS3ErEuQRgn1dcSjI+Eeezb9pkH0K5Z
-	GvaT1zme68T7AbJHSRDZMRkt81Z3NB47Vqx/LBngrxE4RVDb8PMP6sXSsIphKaeBvvA==
-X-Received: by 2002:a17:902:bc83:: with SMTP id bb3mr89278334plb.56.1563996869867;
-        Wed, 24 Jul 2019 12:34:29 -0700 (PDT)
-X-Received: by 2002:a17:902:bc83:: with SMTP id bb3mr89278302plb.56.1563996869346;
-        Wed, 24 Jul 2019 12:34:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563996869; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=Z7pnaGuYc9LFLbT5aUxNfUlnE7ek1gcnJ4zW5L3HylM=;
+        b=Q+4SfPJheO7V5whNzInwXMFo8wIRDjs04mYBy+5GQxA9YmOorNRHJMWky/eEyRo2UE
+         DclwKa4hOuvTQDCbeJRNxJqZiW3N7rJXP7HO/ExQ/HPTH2QrYBy52dirxccacIaJwAH6
+         49xLGZdFZLNTJSLGIOk5zVyRJBiLBd5EEk48b7AYEmjgWbYnKRTmHPe8npvMi8X7sJoU
+         BOVaC/kcLZGBPifAGLTtRwIWJQLB4+v/95gHpeUk/FBzHSIE9fwDpSSuV3JTaeQS+vng
+         tg8ueygYg7p7SUUHIrp4elBx9gBOwhP0lCuPu1gTyV69s8/icdCA97/NC4unGBQg12YL
+         +Ivw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of labbott@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=labbott@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVGC+IzccZwObFaVipYqx6T0uP3lbywkjPLdRd3sL3y0YFTwAhZ
+	5tPCvIYD0cOY193Zdh0OrXzN2ffuzcW+SiKQ2U/sZWS0TmtqzH3vlg6Jc5yHJjWCzub7SiAz6MQ
+	S5HMMjgaPkioZHKzBlkNh5veSapt/6x0/7n3Kf8c0uqDjaEcQYD+GerP0qcy4LKXtFw==
+X-Received: by 2002:ae9:d606:: with SMTP id r6mr54653369qkk.364.1563997020163;
+        Wed, 24 Jul 2019 12:37:00 -0700 (PDT)
+X-Received: by 2002:ae9:d606:: with SMTP id r6mr54653345qkk.364.1563997019302;
+        Wed, 24 Jul 2019 12:36:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563997019; cv=none;
         d=google.com; s=arc-20160816;
-        b=pNwZ0o/jdn1dufySSRTA0uAh5dvA7kUUlMurU6FHfKmCGIVGkzPdudFVQakW//gaF6
-         7vQPtdENiawSPD7so/ohNx6ukbloEE3dTv8WKqtoPCgfPE4jiXPGZYjNBHRj82+ycj0J
-         5gaCgByTWaYeaIimAM4cE14WA03nQJu3XqPFzwcsKsQjGZBgrVVkvDpouvH0eDiv0is1
-         czKEac3L42aCtZXZGv01j7Eg9NMeVF08feAAg2AceOq5wIzAAoun3cM8YqyGROhBEUPE
-         b3PQ4B4mYPHAbRClgh2WFZlX1/GekILeQnqu3fLm0disCcEl+3st/n53zFJj4/JHlSli
-         JBrQ==
+        b=jrE/qNP/kz2NYzgKqNoY7NIKsW6GaEgkyPzsYQDttDgCUDhq9LY39G1PbWF1miCg3b
+         3RRkaKCzTT3bsvfzbzr/+vrbXi7rNQnRxdqG2xyKropcB7HD0Jy0Bbkn84ChpXCr3tXf
+         T/YXloRFBLL02ObbmNTULJR1nhA2jUAcB4V/985tZesqtvzD/UX7fjI1OgAolsIrJbTj
+         6/Gd1gXXCaL7u9dSZU3lodWHMpTIJbe3pDr4gy0ZjjQPZ/hEdG9zQxtAaRW2Q/8gGkZj
+         68myKxcVY0OYk++vJrtvTU0G1it1bqMzN6UOpnratVPOsszIgPrioILPLG/wjZeSEFi8
+         lKMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=1fDn3AFXXm19Ake8tU5gjq3MWC1W7K5qFY0eF05b2Pc=;
-        b=WKQOTqTfK6wKCerisDU8CwhgLbrRSrfCnaRMA6RmBkLdkCsh30WeH74D/gPyBirqh1
-         O8J1+PIx812sXpUFXo7poe/2KcGeEF9AMnR3wjSnYEEBVFTQ237YbajJkGoDqBGCHjhB
-         DfKTvfX6vkeeeq7S0mfQ9iFOBpLr+ONc43DRPO3DPdM6yjtke/P97n/84akyf/xhttIg
-         ZxDoZjBBegaTuErtzy9WJSQzca9ct9WJ5wycEShRkdkc9h/MLk0X1D3PdCHer7UjVMjW
-         NFr86Zs5QXgIgeShVLyzLwcjjmJ8iHJwt4Yp8vCqBt9nclJ3QD4bpVt5oAS2C23/EqGS
-         7OFA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:to:subject;
+        bh=Z7pnaGuYc9LFLbT5aUxNfUlnE7ek1gcnJ4zW5L3HylM=;
+        b=E/6wfspzz6e9RVU3fYEdT+b0k8xWKvTfAdHMexulapjoIdWkOp5pbFyELcFAVb3z44
+         DHnAos2qSdHeXIH0il1u+xcIVtaM5wlh0o67JdPZ2I9T+6ussqrmCI6v9toc6Nli3ne/
+         0AjkNXoGZvs25ZhZVNz6m9adZVqQSdArPAh/v6Gjze00om/hKSDuL4844MVXj1aoXQto
+         z5Y/M1z5SigDjc24YJ0Je9Ia2ksZP1wegf+3NBd/ghe8B86YgD6PXrFYWprFfQy7TT03
+         hGsItHaNi+tMq1jfv0cLJAjII+8kIKZGi7UpFqQpliL88O6Kn/Z12fnqzLK6mgQu3Bct
+         6MQw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=MQuSOeR9;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       spf=pass (google.com: domain of labbott@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=labbott@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l16sor64909719pjb.0.2019.07.24.12.34.29
+        by mx.google.com with SMTPS id q41sor61781848qta.24.2019.07.24.12.36.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 24 Jul 2019 12:34:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 24 Jul 2019 12:36:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of labbott@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=MQuSOeR9;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=1fDn3AFXXm19Ake8tU5gjq3MWC1W7K5qFY0eF05b2Pc=;
-        b=MQuSOeR9mj5QCC1q4RsYGdjizf19viLBu8D0muFmywAqDmossyMthj1BsTRNG8GwDI
-         kxGHWNPIj3YJR1RWdDp7q+atj144Oxc6UttaYcUuFECwrQVyHnbjrs/T/hkRg6c2APan
-         pkPDkRAUv4DyfkYuDSYr8lqe07nJw1WycUm1GdzJKL+XhWhy3CedPhbfcC/oZWDJX96Z
-         HphILDBSrUAMcxlSt5OQJiUdyFQKoKLtjOWQJAoTJBz4RfW0sl5Uv3RrbHmNfO618yw6
-         QFFO1qg0PjZsg8UfzVFJexHRrSi+j6VzvJ1Lix3GIyXS5Q3uM/Ng9CEbCxPzAi2ZGMlp
-         fYMw==
-X-Google-Smtp-Source: APXvYqzWJWqJ5BleMO/Ei96DUKZpyyodxYvZ1d6IP5GguMosVsO0BWc/rWyOZUkMH7b44piPkNU3oA==
-X-Received: by 2002:a17:90a:cb15:: with SMTP id z21mr43431285pjt.87.1563996868963;
-        Wed, 24 Jul 2019 12:34:28 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.34])
-        by smtp.gmail.com with ESMTPSA id v7sm4447177pff.87.2019.07.24.12.34.22
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 12:34:28 -0700 (PDT)
-Date: Thu, 25 Jul 2019 01:04:19 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: Christoph Hellwig <hch@infradead.org>
-Cc: sivanich@sgi.com, arnd@arndb.de, jhubbard@nvidia.com,
-	ira.weiny@intel.com, jglisse@redhat.com, gregkh@linuxfoundation.org,
-	william.kucharski@oracle.com, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH v2 3/3] sgi-gru: Use __get_user_pages_fast in
- atomic_pte_lookup
-Message-ID: <20190724193418.GA19421@bharath12345-Inspiron-5559>
-References: <20190724160929.GA14052@infradead.org>
+       spf=pass (google.com: domain of labbott@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=labbott@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqwNTwfZ7UhOrUsmMJREZDSG4r+F8zrpdIk7pUPLDp8e5SLJxmNngfBQGNr0NG9bBAHOHmh5zA==
+X-Received: by 2002:ac8:1887:: with SMTP id s7mr59031081qtj.220.1563997018800;
+        Wed, 24 Jul 2019 12:36:58 -0700 (PDT)
+Received: from [192.168.1.157] (pool-96-235-39-235.pitbpa.fios.verizon.net. [96.235.39.235])
+        by smtp.gmail.com with ESMTPSA id q17sm16672031qtl.13.2019.07.24.12.36.57
+        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Jul 2019 12:36:58 -0700 (PDT)
+Subject: Re: Limits for ION Memory Allocator
+To: alex.popov@linux.com, Sumit Semwal <sumit.semwal@linaro.org>,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>, arve@android.com,
+ Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>,
+ Joel Fernandes <joel@joelfernandes.org>,
+ Christian Brauner <christian@brauner.io>,
+ Riley Andrews <riandrews@android.com>, devel@driverdev.osuosl.org,
+ linaro-mm-sig@lists.linaro.org,
+ linux-arm-kernel <linux-arm-kernel@lists.infradead.org>,
+ dri-devel@lists.freedesktop.org, LKML <linux-kernel@vger.kernel.org>,
+ Brian Starkey <brian.starkey@arm.com>,
+ Daniel Vetter <daniel.vetter@intel.com>, Mark Brown <broonie@kernel.org>,
+ Benjamin Gaignard <benjamin.gaignard@linaro.org>,
+ Linux-MM <linux-mm@kvack.org>, Dmitry Vyukov <dvyukov@google.com>,
+ Andrey Konovalov <andreyknvl@google.com>, syzkaller@googlegroups.com,
+ John Stultz <john.stultz@linaro.org>
+References: <3b922aa4-c6d4-e4a4-766d-f324ff77f7b5@linux.com>
+From: Laura Abbott <labbott@redhat.com>
+Message-ID: <40f8b7d8-fafa-ad99-34fb-9c63e34917e2@redhat.com>
+Date: Wed, 24 Jul 2019 15:36:57 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190724160929.GA14052@infradead.org>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <3b922aa4-c6d4-e4a4-766d-f324ff77f7b5@linux.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 24, 2019 at 09:09:29AM -0700, Christoph Hellwig wrote:
-> I think the atomic_pte_lookup / non_atomic_pte_lookup helpers
-> should simply go away.  Most of the setup code is common now and should
-> be in the caller where it can be shared.  Then just do a:
+On 7/17/19 12:31 PM, Alexander Popov wrote:
+> Hello!
 > 
-> 	if (atomic) {
-> 		__get_user_pages_fast()
-> 	} else {
-> 		get_user_pages_fast();
+> The syzkaller [1] has a trouble with fuzzing the Linux kernel with ION Memory
+> Allocator.
+> 
+> Syzkaller uses several methods [2] to limit memory consumption of the userspace
+> processes calling the syscalls for testing the kernel:
+>   - setrlimit(),
+>   - cgroups,
+>   - various sysctl.
+> But these methods don't work for ION Memory Allocator, so any userspace process
+> that has access to /dev/ion can bring the system to the out-of-memory state.
+> 
+> An example of a program doing that:
+> 
+> 
+> #include <sys/types.h>
+> #include <sys/stat.h>
+> #include <fcntl.h>
+> #include <stdio.h>
+> #include <linux/types.h>
+> #include <sys/ioctl.h>
+> 
+> #define ION_IOC_MAGIC		'I'
+> #define ION_IOC_ALLOC		_IOWR(ION_IOC_MAGIC, 0, \
+> 				      struct ion_allocation_data)
+> 
+> struct ion_allocation_data {
+> 	__u64 len;
+> 	__u32 heap_id_mask;
+> 	__u32 flags;
+> 	__u32 fd;
+> 	__u32 unused;
+> };
+> 
+> int main(void)
+> {
+> 	unsigned long i = 0;
+> 	int fd = -1;
+> 	struct ion_allocation_data data = {
+> 		.len = 0x13f65d8c,
+> 		.heap_id_mask = 1,
+> 		.flags = 0,
+> 		.fd = -1,
+> 		.unused = 0
+> 	};
+> 
+> 	fd = open("/dev/ion", 0);
+> 	if (fd == -1) {
+> 		perror("[-] open /dev/ion");
+> 		return 1;
 > 	}
 > 
-> and we actually have an easy to understand piece of code.
+> 	while (1) {
+> 		printf("iter %lu\n", i);
+> 		ioctl(fd, ION_IOC_ALLOC, &data);
+> 		i++;
+> 	}
+> 
+> 	return 0;
+> }
+> 
+> 
+> I looked through the code of ion_alloc() and didn't find any limit checks.
+> Is it currently possible to limit ION kernel allocations for some process?
+> 
+> If not, is it a right idea to do that?
+> Thanks!
+> 
 
-That makes sense. I ll do that and send v3. I ll probably cut down on a
-patch and try to fold all the changes into a single patch removing the
-*pte_lookup helpers.
+Yes, I do think that's the right approach. We're working on moving Ion
+out of staging and this is something I mentioned to John Stultz. I don't
+think we've thought too hard about how to do the actual limiting so
+suggestions are welcome.
+
+Thanks,
+Laura
+
+> Best regards,
+> Alexander
+> 
+> 
+> [1]: https://github.com/google/syzkaller
+> [2]: https://github.com/google/syzkaller/blob/master/executor/common_linux.h
+> 
 
