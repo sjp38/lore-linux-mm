@@ -4,83 +4,83 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A8A6EC7618B
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 06:11:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BA586C76191
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 06:12:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 72ACF22387
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 06:11:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72ACF22387
+	by mail.kernel.org (Postfix) with ESMTP id 81595229ED
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 06:12:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81595229ED
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1215D6B000C; Wed, 24 Jul 2019 02:11:03 -0400 (EDT)
+	id 36B766B000D; Wed, 24 Jul 2019 02:12:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0D1CB8E0003; Wed, 24 Jul 2019 02:11:03 -0400 (EDT)
+	id 31AD58E0003; Wed, 24 Jul 2019 02:12:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EDD178E0002; Wed, 24 Jul 2019 02:11:02 -0400 (EDT)
+	id 1E3EC8E0002; Wed, 24 Jul 2019 02:12:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EF066B000C
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 02:11:02 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id r21so29572222edc.6
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 23:11:02 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id C313D6B000D
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 02:12:08 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id y15so29570119edu.19
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 23:12:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=0C35ePTka3aILniTSobALrcos9kafZPeyeIsA3FK51o=;
-        b=FDhvtyTLzuyUXdv9GdUxyembbHcZpNKdHcUm/JseES78XTw/IRYSG18XlfdntrswdU
-         73wIU7kvk/SoX3fQKbDN8r+HpeXTdGixsYsmru67dg2TqW8WX3/ZcFCCgB6DvDQvtXG2
-         5FozXlg1HiO+Wg6VOUkdRMcvJahxOVbb5ITHPEB0hQvYKbrgT3hS5sthjN+LlEI2XqcY
-         XdKpVa/O2fCLcZgsUBJX/Vdavso6qozustMTuBIUtv0F7KvMJMmVokKtGtcWlfUimvtc
-         w9tCYjX80JYZK5Z8GTVPkYR275urI7PhSs29B1OcL2fF6cmlcTgkIa8w9IqCrqIFNNkV
-         8tfw==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAVfu8HiVdfYmRuq7JIF2ia570MlGTdRbldxNWx2VFeq+3JzfcbW
-	Dq6pGamedLo1Rd0iTVEcls/AAbSW6lDzHF9Kj+Q0w3Ibt5bG8bG5Keir6fytgbQH8GzyhZLhDSD
-	lJwnT1sS+nPMzrdM2NhrssL80Awodv1lyXSxCxMFkFcZK/w1SuWJsu0BQMqs2zyQ=
-X-Received: by 2002:a50:f4dd:: with SMTP id v29mr69298808edm.246.1563948662230;
-        Tue, 23 Jul 2019 23:11:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy53MlVzhpHa8vhDGKto69ACey0n0D6t3TE774N3v7mzhlgt9MkYHUoYrSNy0lEqRjA9UNe
-X-Received: by 2002:a50:f4dd:: with SMTP id v29mr69298754edm.246.1563948661380;
-        Tue, 23 Jul 2019 23:11:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563948661; cv=none;
+        bh=66FrIHCi/FwU5Qd+YH0GklxRIkE/On5h0rf1MXh1DUQ=;
+        b=tBiSCOGmQAGEgxdB4jHKm35Wi5bD37D1GjQWJ1+Zr83RRSQzB6blClAxnCKI60RUG4
+         wOyWhxzmQCbmLePbANxOfpWuF/pH077z+XyKv6jvOjm9BF09Hh9zJLzgv2pMyTzyAcIE
+         SnRj2uSbak7p6xQs4eKevI8yW2cLm2yNIWtBGqhHW7aWb+kbtn0JpmnYVxLipetCfxhw
+         6gFxe9XOl/WKVBNhdvgoCEn5wILEL6twgsVDBbuQHzPiQ9LacfcQYlQLhDxUdnX8V303
+         UZzGGsBsCWHlpk4MclKCuKfpJgyBBIWzt8IPjqSFZJz1L6Gavntu7yC+bpRDuDJoZh5O
+         l5pQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.178.231 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAWEGpKuQ48zkQHAHt4TjvR3IWvCBCdBcIRkjbrrJuWH01LGdkgH
+	cGPpJttaoV754++u8PsozrFZR9wNURWRT/L2Z/+ideINKAFmXSCqRaCG41KO9ABeN3iwmEfD31H
+	Y5MxfkXRe2t2H8V/5Lh5gSSjqLpT53HFbPb+tlEWj1JmI7XgKqb7FiGP0HUT9li0=
+X-Received: by 2002:aa7:c515:: with SMTP id o21mr69490087edq.2.1563948728389;
+        Tue, 23 Jul 2019 23:12:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyVJVSKnQw6VwOkna3RuskGMDrKwh3llukNMuJwxBHGS8wOPgf4wAiTXgzuI2xTl4rs9/iX
+X-Received: by 2002:aa7:c515:: with SMTP id o21mr69490037edq.2.1563948727547;
+        Tue, 23 Jul 2019 23:12:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563948727; cv=none;
         d=google.com; s=arc-20160816;
-        b=WkzPuVJvFWcHyOy7hlM3Y3nCJqGngbI//8rh2h7XIUVh79idZ4CkQq/wCMl7P1uP7g
-         opRzhloxjeA9+5GF7f5FSnQSobFHaYFP34Nkolv6PMc/QPlq525JkcqcIxiRN5YA5tYu
-         g2HXvZ0QxPWrZcdYDVYkhMUXvgPlRJmtJJYxXrK58j19RzuiMMjo8K7ZGcRCZmA0nyX1
-         MlbmFIpLM5uRjZgw6B1H0cLRb6q2DtsfpI+o5jMEs0zUHXWEyB8AySbQh258WJ3pFQd+
-         jNSLUOucOp9nnqcTSsaE5QX8bPhUgoWTALEtvzeI93DH7BgGiTtVSrzjsc38/ICCdZYF
-         1z3A==
+        b=m2rg5F2nyfB6moGotAn2P0dfB6Z8gkDjUzrA3DugMfRn23D1MwL6ihzV8T/slVuOtD
+         Afn/SXpK3r6Ru96zzmy+fO49IBvQ/AOVnlM0VKcqVKj229WnS+D8Tmrz6lklIs4P53jq
+         XJ6Fm1jhB9LYQDoJmNTPpwcZdZ6Syq2OjUQaISvcBmRmwLxDg6EG1YOGEWIEBzD4s6dZ
+         7ZlusfVLbIaoRwNwy171fcvzlalFqCRxK+PXar/U93S/wn6diO6dbq6NfZ2Be33/HRXa
+         Oe5DWQzBeEj/3o0ufEVj8muHqt2nDZ2uiZQ6HwcDi4NxJBY3sP2qTeJLX+ZGmUaiRrLZ
+         nqXQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=0C35ePTka3aILniTSobALrcos9kafZPeyeIsA3FK51o=;
-        b=VLS6CNuIeGplbPDE8WpveYoPPZthrFD3qqoaRKWUd1MhOh3BdP9xvzhyS0nm3gdsfJ
-         FYBCTgE8Ur+U+mr59CYoF9g9sR4eRKAMn3L/ZmX+NlaDqPlHSMyfsunBQsRA2CbggmHa
-         wXg3yAjqh1Sz3ycw12HhwWCV0RcdOaDyv92pdQ3fR7dvu528hsBpQRMpX+W62ZO3ViPr
-         SqGB4TCjaySVRKtgM2Rga0jlHa5W1IM4i5BkFtesNrq9GTwlyUJ98wTRCNPJmc2UvhQ7
-         JDuwnbWJq+lgLVJ2WHtbdoWUDI2b4Af3JwmnoDvS0qaX9Xna+SsWOCUD3SdwNgNLWvlv
-         0kvA==
+        bh=66FrIHCi/FwU5Qd+YH0GklxRIkE/On5h0rf1MXh1DUQ=;
+        b=hv3wbdKxpSm9ztL39auxMc6uqDqFLHynE0+ROwqUoolzpYW+vZ1+b7QUjM5O3sYPPV
+         eTd0ZPG7HkyKnlliDZcOn/UUBS1zjgpNvNBAQH5wjms+1UZGVMshzee0xFFrwb9nBtFU
+         5t4Z7iRvX9cjp4waMOUBT2N9bmwx3EGG88qnUmrZkjuRiMZBgr/dtSYb8+bf4uOSXlLl
+         PxxnIMDIgp4AVb9PO0QZYRZZHcl4tdpA+pg5oPlNhbcpjUeQt9tqWl2KQKOPkzZsrNJU
+         3w273nnZHIwheFLwKgMyEhbsSMvJIFM8L7CADNU8uLSA357qHqGVrYFa07p1NS7x4pb6
+         YdeQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [217.70.183.195])
-        by mx.google.com with ESMTPS id j42si8419051ede.285.2019.07.23.23.11.01
+       spf=neutral (google.com: 217.70.178.231 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay11.mail.gandi.net (relay11.mail.gandi.net. [217.70.178.231])
+        by mx.google.com with ESMTPS id o47si7916841edc.347.2019.07.23.23.12.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 23 Jul 2019 23:11:01 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.195;
+        Tue, 23 Jul 2019 23:12:07 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.178.231 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.178.231;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Originating-IP: 79.86.19.127
+       spf=neutral (google.com: 217.70.178.231 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
 Received: from alex.numericable.fr (127.19.86.79.rev.sfr.net [79.86.19.127])
 	(Authenticated sender: alex@ghiti.fr)
-	by relay3-d.mail.gandi.net (Postfix) with ESMTPSA id 1BAEE60002;
-	Wed, 24 Jul 2019 06:10:56 +0000 (UTC)
+	by relay11.mail.gandi.net (Postfix) with ESMTPSA id 8BB91100006;
+	Wed, 24 Jul 2019 06:12:01 +0000 (UTC)
 From: Alexandre Ghiti <alex@ghiti.fr>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Christoph Hellwig <hch@lst.de>,
@@ -102,9 +102,9 @@ Cc: Christoph Hellwig <hch@lst.de>,
 	linux-fsdevel@vger.kernel.org,
 	linux-mm@kvack.org,
 	Alexandre Ghiti <alex@ghiti.fr>
-Subject: [PATCH REBASE v4 11/14] mips: Adjust brk randomization offset to fit generic version
-Date: Wed, 24 Jul 2019 01:58:47 -0400
-Message-Id: <20190724055850.6232-12-alex@ghiti.fr>
+Subject: [PATCH REBASE v4 12/14] mips: Replace arch specific way to determine 32bit task with generic version
+Date: Wed, 24 Jul 2019 01:58:48 -0400
+Message-Id: <20190724055850.6232-13-alex@ghiti.fr>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190724055850.6232-1-alex@ghiti.fr>
 References: <20190724055850.6232-1-alex@ghiti.fr>
@@ -116,43 +116,37 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This commit simply bumps up to 32MB and 1GB the random offset
-of brk, compared to 8MB and 256MB, for 32bit and 64bit respectively.
+Mips uses TASK_IS_32BIT_ADDR to determine if a task is 32bit, but
+this define is mips specific and other arches do not have it: instead,
+use !IS_ENABLED(CONFIG_64BIT) || is_compat_task() condition.
 
-Suggested-by: Kees Cook <keescook@chromium.org>
 Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
 Reviewed-by: Kees Cook <keescook@chromium.org>
 ---
- arch/mips/mm/mmap.c | 7 ++++---
- 1 file changed, 4 insertions(+), 3 deletions(-)
+ arch/mips/mm/mmap.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
 diff --git a/arch/mips/mm/mmap.c b/arch/mips/mm/mmap.c
-index a7e84b2e71d7..faa5aa615389 100644
+index faa5aa615389..d4eafbb82789 100644
 --- a/arch/mips/mm/mmap.c
 +++ b/arch/mips/mm/mmap.c
-@@ -16,6 +16,7 @@
- #include <linux/random.h>
+@@ -17,6 +17,7 @@
  #include <linux/sched/signal.h>
  #include <linux/sched/mm.h>
-+#include <linux/sizes.h>
+ #include <linux/sizes.h>
++#include <linux/compat.h>
  
  unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
  EXPORT_SYMBOL(shm_align_mask);
-@@ -189,11 +190,11 @@ static inline unsigned long brk_rnd(void)
- 	unsigned long rnd = get_random_long();
+@@ -191,7 +192,7 @@ static inline unsigned long brk_rnd(void)
  
  	rnd = rnd << PAGE_SHIFT;
--	/* 8MB for 32bit, 256MB for 64bit */
-+	/* 32MB for 32bit, 1GB for 64bit */
- 	if (TASK_IS_32BIT_ADDR)
--		rnd = rnd & 0x7ffffful;
-+		rnd = rnd & SZ_32M;
+ 	/* 32MB for 32bit, 1GB for 64bit */
+-	if (TASK_IS_32BIT_ADDR)
++	if (!IS_ENABLED(CONFIG_64BIT) || is_compat_task())
+ 		rnd = rnd & SZ_32M;
  	else
--		rnd = rnd & 0xffffffful;
-+		rnd = rnd & SZ_1G;
- 
- 	return rnd;
- }
+ 		rnd = rnd & SZ_1G;
 -- 
 2.20.1
 
