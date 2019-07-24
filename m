@@ -2,133 +2,182 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 575F9C76191
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 20:13:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 58BEDC76191
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 20:18:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EBAB12083B
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 20:13:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EBAB12083B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=davemloft.net
+	by mail.kernel.org (Postfix) with ESMTP id 1B01B206BF
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 20:18:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B01B206BF
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9F4D46B0006; Wed, 24 Jul 2019 16:13:28 -0400 (EDT)
+	id A3F766B0005; Wed, 24 Jul 2019 16:18:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 97EE76B0007; Wed, 24 Jul 2019 16:13:28 -0400 (EDT)
+	id 9F27C8E0003; Wed, 24 Jul 2019 16:18:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 845996B0008; Wed, 24 Jul 2019 16:13:28 -0400 (EDT)
+	id 8E2068E0002; Wed, 24 Jul 2019 16:18:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 32FB36B0006
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 16:13:28 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f3so30797647edx.10
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 13:13:28 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 559D06B0005
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 16:18:02 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id f2so24765038plr.0
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 13:18:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date
-         :message-id:to:cc:subject:from:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=VtKkVz80qm0Iv68/rRnuoudh2oFw8A5KLuJT1TVUcag=;
-        b=aYtqw1MlZ8qnZtaTaYnCeXlne3QP5muCAcHlq4KNI8FPAl86pyB6/icF3z+kuiOE6C
-         NaFOOFvgENpExhqyWEJc4pbrx7nvqWSa40x1HBaySitinu1IVMDXI1za8ioFcEqyjN4z
-         ftcy/d1Sx7YQVbMJl++WWykiAbRub617BZySISwoBztuFl/RXujaoiBUJrFej5OQMJuH
-         pV0XT29bX39doUufbslXq02ZT069fLXKDEBMoZk6tLrwExewe3FYi4m9iglOPuh8XTZD
-         j4BmV1UHRO/wnUXUiN16InB+BPZhe6riDWHnSb9tSQhuKxvqDDeTnGT1BjLnxCHeMpRu
-         2KyA==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-X-Gm-Message-State: APjAAAV4oDL48XKEj1V0hskSijnhk4dfefB1/SFW3wZyCKQpFgjUo1kO
-	5CndhWMKqs1k/Zc9CJZdloWD2ciNR6obyId9ViPQMmbDDB3Jj9Smm+6cftMuLN/qP6DsTraDhIm
-	IW1DpI2KVOvC+YgUtIqa+jeQ0Z4cy7S6uSRTuV4c/j3YX+EGCJZbLzMOcbAWGe88=
-X-Received: by 2002:a17:906:af86:: with SMTP id mj6mr19288042ejb.157.1563999207762;
-        Wed, 24 Jul 2019 13:13:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyLwK6Y9l/btjc08RkxZ7RSNnVZhUyPYANWMXootZEVhxb3Ib2Ylliow1sKsP6Oo3BAkIJr
-X-Received: by 2002:a17:906:af86:: with SMTP id mj6mr19287972ejb.157.1563999207051;
-        Wed, 24 Jul 2019 13:13:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563999207; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:user-agent
+         :mime-version:content-transfer-encoding;
+        bh=v0V48bHJCTyXrXZRPA/cLuY9lP0VDLM8nRGyE+5xpGs=;
+        b=IJC3MLN66XMBYBk2SINLLELcn+2Kial4piw8h5MKhENuk12RIdmgq+Ho7ykLggpf0E
+         Ir6kmVdg6M799lrV7rtIJJFYqHgCk1WXAgtoRHGmYeCQVq+Zg9JP6rgWDyBSllzLWTcS
+         EOaAKreQpYfwrxr0t8oSfpwAe21lXsyzLf0ZQD+6aFs6yPMT70Q59DflGffIDcEkeJO0
+         709R1K58HJCZcJS9fNEUJmaHp7UuldXN1ImugwBHhN35Yy2Ye+fQKLxhIcAHlYYJh6Sb
+         trbOZWch/YOsOL0IudrV9359GeQQMgO3oSvZcq/8YOU4jCd6gvMLMj2JogmvzAcaUbo8
+         9hUA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUHDqsXjIOyKFJTWYEAMCv5Ohohq3gG2WpI9945sY0Mz1Ok3IXv
+	9ZUAYFjuTBEH2TWCCZanYMo149skLlUzJElMYor12T/csljhdwuCuRPEW5nY/78fZ3SzBOjYOMK
+	TiG/OFnY8wfgfCa+zgxFxA/mfUb+4LF+MdgKaihoDEcQlSMhPGCh+gEf9/hDgi55Ifg==
+X-Received: by 2002:a17:90a:2385:: with SMTP id g5mr91309066pje.12.1563999482015;
+        Wed, 24 Jul 2019 13:18:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxTsv51CdUlRvwBW0yiSEMpwWe/8RN1uVPZqrEEmPsGHPoJljvj/St8pI7XyVT5V/229ccb
+X-Received: by 2002:a17:90a:2385:: with SMTP id g5mr91309036pje.12.1563999481280;
+        Wed, 24 Jul 2019 13:18:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563999481; cv=none;
         d=google.com; s=arc-20160816;
-        b=xIQP0QnvQMg1ABo4J2SqU3UCFBNZOXk2EPRIwIoP7NFntEgitg7l3JGYSrrnxf7tNT
-         o4v/ukJgbdsWAzV2lz1fdjJjRm/q3pgPLPwyW840sZJu0y7uO8QIFm3bedXkj3993H/+
-         E6XiVxe2VPHpjfev+BtN5zzseLkhFN8MO78jkfnrkA4CpZ8X/RYWMahfX4Pb6GyEIzPG
-         fIpbxcIf5N9bGYJo8mU0tSjc9n1ywLYNE+3M/fg/X8FJIF2XHThP6GvhBLaDv9Z2sHYg
-         s2a4eHGbMkBqsHwIYTCA3FWr9h6cZuolQjKg/9dtHICvPs8bd91pBn/C8bPaJ2K5wmj1
-         yizA==
+        b=ZVfFQgjz21kcpZgQn8Zoio/P9cjahfMUNFg5aCbUz1thMOuYZdZgC7PQjmAzSIQT5g
+         vuTMH9Xv0MvAH6eDqINgKNMQZnXZso0+Pu9lq/GoZ3dxZ7vOe8tdln9gYW6mFjUsnxtJ
+         gvJgvPMaq2Wo3A+Z87+ItJ7yeKJ7JYkGJhhI0lZA7iwkhsD5MbLFz1WPFbNNmfFBRuTj
+         a703KgTGZFEAtRRxc9hdnU5t10dWbx1x2/7Lw+QRFgpfMyN3yDQcm1qhMCdfiwMnWWAt
+         hQ0FnpEAkNjPZbpRwa1+lmK5LkKm0eO9K7hka7nyq9y83X8BiUp1BjC4+fW4kgMO0/tS
+         Zj3g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:from
-         :subject:cc:to:message-id:date;
-        bh=VtKkVz80qm0Iv68/rRnuoudh2oFw8A5KLuJT1TVUcag=;
-        b=lWeLhyi2C535pAoau5qoQZCBls6OenPKPWfR2vVaDIYmGR2SSWS2+S5MbA//DtjOs4
-         jliYCWa8AdOQu8wotyVNLHoIifgHAVedoqkcyhrnjnq2diXwfjnSuIi0r3Y6tOTsrYlI
-         lapj+HdrwIoTzpRcSs41wbdzT+fm7hyMobuIhCUX+QkTY79aRoL30bhSHvCR/Wv+8NUT
-         QcPbn34aAFh7SBAI1DmanQ/PAR65K+Iq/ER2doDTNAPsCH1KDzij9K3HwedZvd4BfM6v
-         mOAfId5gxk0PBnXJMtTb0qNR2pyjegXk6zadAVvlEbuGYQ2vI1dvAYVajsVhBqqK6ZnC
-         nQ5w==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:date:cc:to:from:subject:message-id;
+        bh=v0V48bHJCTyXrXZRPA/cLuY9lP0VDLM8nRGyE+5xpGs=;
+        b=zVfSGoswbDs5JgG7FXDJJN3IEVD0MYTLPWooMZ9sD7YeGFYvZ8Xs/nrl+IVBEagT17
+         oMkNFlauWfvAwTzLpOp2PZJlsFqSsId1BqZQWYABxqA/oplLi70RU4FS8PplylU1WnNm
+         E0bEeDlWFYpbzu2CfSfn9mLT2K6MOZs9ZtYc5yCVHuNOUKQfNu4IbwHp+2Jbnm+vzN6W
+         tBzLDryydvQJe+cdrlraURaKrGGitYPJYgi8ipe9jRO/UTA4r4Ud4Y59GxsKrG7Evcln
+         oYr2enzZo4COAAlmFG7TgDApIEpt1D+GEmletR+V+kAuhgfg3yJp654CQf2tJmqK/1T9
+         KTBw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2620:137:e000::1:9])
-        by mx.google.com with ESMTPS id 2si11340378edu.19.2019.07.24.13.13.26
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id i94si14393747plb.78.2019.07.24.13.18.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 13:13:26 -0700 (PDT)
-Received-SPF: neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) client-ip=2620:137:e000::1:9;
+        Wed, 24 Jul 2019 13:18:01 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-Received: from localhost (unknown [IPv6:2601:601:9f80:35cd::d71])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
-	(Client did not present a certificate)
-	(Authenticated sender: davem-davemloft)
-	by shards.monkeyblade.net (Postfix) with ESMTPSA id 85A5B15431990;
-	Wed, 24 Jul 2019 13:13:24 -0700 (PDT)
-Date: Wed, 24 Jul 2019 13:13:24 -0700 (PDT)
-Message-Id: <20190724.131324.1545677795217357026.davem@davemloft.net>
-To: matorola@gmail.com
-Cc: ldv@altlinux.org, hch@lst.de, khalid.aziz@oracle.com,
- torvalds@linux-foundation.org, akpm@linux-foundation.org,
- sparclinux@vger.kernel.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 09/16] sparc64: use the generic get_user_pages_fast code
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <CADxRZqx-jEnm4U8oe=tJf5apbvcMuw5OYZUN8h4G68sXFvDsmQ@mail.gmail.com>
-References: <20190717215956.GA30369@altlinux.org>
-	<20190718.141405.1070121094691581998.davem@davemloft.net>
-	<CADxRZqx-jEnm4U8oe=tJf5apbvcMuw5OYZUN8h4G68sXFvDsmQ@mail.gmail.com>
-X-Mailer: Mew version 6.8 on Emacs 26.1
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga006.jf.intel.com ([10.7.209.51])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 24 Jul 2019 13:18:00 -0700
+X-IronPort-AV: E=Sophos;i="5.64,304,1559545200"; 
+   d="scan'208";a="174993771"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga006-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 24 Jul 2019 13:18:00 -0700
+Message-ID: <6218af96d7d55935f2cf607d47680edc9b90816e.camel@linux.intel.com>
+Subject: Re: [PATCH v2 QEMU] virtio-balloon: Provide a interface for "bubble
+ hinting"
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>, Alexander Duyck
+	 <alexander.duyck@gmail.com>
+Cc: nitesh@redhat.com, kvm@vger.kernel.org, david@redhat.com, 
+	dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+	akpm@linux-foundation.org, yang.zhang.wz@gmail.com, pagupta@redhat.com, 
+	riel@surriel.com, konrad.wilk@oracle.com, lcapitulino@redhat.com, 
+	wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com, 
+	dan.j.williams@intel.com
+Date: Wed, 24 Jul 2019 13:18:00 -0700
+In-Reply-To: <20190724150224-mutt-send-email-mst@kernel.org>
+References: <20190724165158.6685.87228.stgit@localhost.localdomain>
+	 <20190724171050.7888.62199.stgit@localhost.localdomain>
+	 <20190724150224-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
-X-Greylist: Sender succeeded SMTP AUTH, not delayed by milter-greylist-4.5.12 (shards.monkeyblade.net [149.20.54.216]); Wed, 24 Jul 2019 13:13:24 -0700 (PDT)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Anatoly Pugachev <matorola@gmail.com>
-Date: Wed, 24 Jul 2019 22:32:17 +0300
-
-> the first test where it was discovered was done on my test LDOM named
-> ttip, hardware (hypervisor) is T5-2 server, running under Solaris 11.4
-> OS.
-> ttip LDOM is debian sparc64 unstable , so with almost all the latest
-> software (gcc 8.3.0, binutils 2.32.51.20190707-1, debian GLIBC
-> 2.28-10, etc..)
+On Wed, 2019-07-24 at 15:02 -0400, Michael S. Tsirkin wrote:
+> On Wed, Jul 24, 2019 at 10:12:10AM -0700, Alexander Duyck wrote:
+> > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > 
+> > Add support for what I am referring to as "bubble hinting". Basically the
+> > idea is to function very similar to how the balloon works in that we
+> > basically end up madvising the page as not being used. However we don't
+> > really need to bother with any deflate type logic since the page will be
+> > faulted back into the guest when it is read or written to.
+> > 
+> > This is meant to be a simplification of the existing balloon interface
+> > to use for providing hints to what memory needs to be freed. I am assuming
+> > this is safe to do as the deflate logic does not actually appear to do very
+> > much other than tracking what subpages have been released and which ones
+> > haven't.
+> > 
+> > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > ---
+> >  hw/virtio/virtio-balloon.c                      |   40 +++++++++++++++++++++++
+> >  include/hw/virtio/virtio-balloon.h              |    2 +
+> >  include/standard-headers/linux/virtio_balloon.h |    1 +
+> >  3 files changed, 42 insertions(+), 1 deletion(-)
+> > 
+> > diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
+> > index 2112874055fb..70c0004c0f88 100644
+> > --- a/hw/virtio/virtio-balloon.c
+> > +++ b/hw/virtio/virtio-balloon.c
+> > @@ -328,6 +328,39 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
+> >      balloon_stats_change_timer(s, 0);
+> >  }
+> >  
+> > +static void virtio_bubble_handle_output(VirtIODevice *vdev, VirtQueue *vq)
+> > +{
+> > +    VirtQueueElement *elem;
+> > +
+> > +    while ((elem = virtqueue_pop(vq, sizeof(VirtQueueElement)))) {
+> > +    	unsigned int i;
+> > +
+> > +        for (i = 0; i < elem->in_num; i++) {
+> > +            void *addr = elem->in_sg[i].iov_base;
+> > +            size_t size = elem->in_sg[i].iov_len;
+> > +            ram_addr_t ram_offset;
+> > +            size_t rb_page_size;
+> > +            RAMBlock *rb;
+> > +
+> > +            if (qemu_balloon_is_inhibited())
+> > +                continue;
+> > +
+> > +            rb = qemu_ram_block_from_host(addr, false, &ram_offset);
+> > +            rb_page_size = qemu_ram_pagesize(rb);
+> > +
+> > +            /* For now we will simply ignore unaligned memory regions */
+> > +            if ((ram_offset | size) & (rb_page_size - 1))
+> > +                continue;
+> > +
+> > +            ram_block_discard_range(rb, ram_offset, size);
 > 
-> For another test, i also installed LDOM with oracle sparc linux
-> https://oss.oracle.com/projects/linux-sparc/ , but I've to install a
-> more fresh version of gcc on it first, since system installed gcc 4.4
-> is too old for a git kernel (linux-2.6/Documentation/Changes lists gcc
-> 4.6 as a minimal version), so I choose to install gcc-7.4.0 to /opt/
-> (leaving system installed gcc 4.4 under /usr/bin). Compiled and
-> installed git kernel version, i.e. last tag 5.3.0-rc1 and ran the
-> test. Kernel still produced oops.
+> I suspect this needs to do like the migration type of
+> hinting and get disabled if page poisoning is in effect.
+> Right?
 
-I suspect, therefore, that we have a miscompile.
+Shouldn't something like that end up getting handled via
+qemu_balloon_is_inhibited, or did I miss something there? I assumed cases
+like that would end up setting qemu_balloon_is_inhibited to true, if that
+isn't the case then I could add some additional conditions. I would do it
+in about the same spot as the qemu_balloon_is_inhibited check.
 
-Please put your unstripped vmlinux image somewhere so I can take a closer
-look.
-
-Thank you.
 
