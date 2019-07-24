@@ -2,148 +2,143 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_2 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CA096C7618B
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 14:11:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 99DF4C7618B
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 14:16:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8DBB421BF6
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 14:11:09 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="gTXhj9Zq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DBB421BF6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 67A5A22ADB
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 14:16:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67A5A22ADB
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 33CD66B000E; Wed, 24 Jul 2019 10:11:09 -0400 (EDT)
+	id 13D6F8E0006; Wed, 24 Jul 2019 10:16:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2ED7C8E0006; Wed, 24 Jul 2019 10:11:09 -0400 (EDT)
+	id 0C7258E0002; Wed, 24 Jul 2019 10:16:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1DBEC8E0002; Wed, 24 Jul 2019 10:11:09 -0400 (EDT)
+	id EA9348E0006; Wed, 24 Jul 2019 10:16:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F1D3E6B000E
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 10:11:08 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id k125so39355350qkc.12
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 07:11:08 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C48748E0002
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 10:16:10 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 145so28641948pfv.18
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 07:16:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:mime-version:content-transfer-encoding;
-        bh=XSMSBO973DfvMeeteXqgGKF7W2+Loe7uKWtbLSmRJp4=;
-        b=eSSkBzWZIgrr/C4kr3VCPAHnbBU9NGEB/s8tLd897ofZU8z6ZW8uX6fBRbN7bbTiQD
-         z/hyMuo3grndhVMkm4cM/UQcsuPLZMmOSAFGCf3+1JGJwWHbgH/bewvx7ALJi37/SjCL
-         16LuESYCqXnhePeUdWmS2bCHAHicX7cyv4+W3p7HC1zk5Aglo2EuWUXDN5k5oZXTAPjI
-         sVJeFoPm7XAkv8pUQLSkWtu2sHc2SbBezNLJdwRuwuekvCECh1gZyHSttFNb9mlQwMxM
-         Ko1iMTvO7+Aj90Mu8poLjrg2D0rSYe8N1+OCHd4qC4Lnv2DOCacqKleBDGZwq4Z3LHO9
-         FbNA==
-X-Gm-Message-State: APjAAAVC2smDSf0qm/LUy7L/EoYzOD6RHfpzyam+hRpRfrDCD71H97ui
-	OIR+bqtVEMLW3Sn01kcqJ+tzmUNJFGBs40ht45yoN3UFzQSTAXmx4zTE3nQp/2mJE131nLnzxwf
-	giOVaudh03y1c/G/JvVSfJc5mOC+YrESJTlc20gCvL+vumaoe1rv7ApNWur9WIIGD1Q==
-X-Received: by 2002:ac8:244f:: with SMTP id d15mr55437732qtd.32.1563977468722;
-        Wed, 24 Jul 2019 07:11:08 -0700 (PDT)
-X-Received: by 2002:ac8:244f:: with SMTP id d15mr55437667qtd.32.1563977467938;
-        Wed, 24 Jul 2019 07:11:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563977467; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version;
+        bh=EekXmR5Bri93vUaMAziD1lKFG8IDX5FLgIF5eoQD+xA=;
+        b=E5n5c/nD0ZGAmLsHmJOrE2AQMZPvubVWQVk7tDggK4ZiTuMWnz+hHCqdp3aDb6R926
+         HxDnRsKa3azwo4VAAioNZDmnkADLsw6A/WyxBLe76qlWqkxNfSAg0lTvmZpCXZahky9Q
+         J/KOz1mO7ISHwnjh+OigVV+cJTD8ZiAhuZxYk86XLxAeD7YebR63kpJfcP9D/hdSgNJ5
+         T+xVp71mL/uS+iw6r+gmA0bHsfcY7JT/Iy2CHoXYoU/4SBDBCiKBKq3PfZh9RYX1N2EB
+         ukR9qVLYyjVfInjuGrn1PNFVMzSfH5k18lcu1+J4dUrvKOHi9UzFAsIx0bSrwSl5nzlh
+         ngVQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yuehaibing@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=yuehaibing@huawei.com
+X-Gm-Message-State: APjAAAXoWp/vcpgNwLGRlF4WHVoQrvqp+PnhfIpD4Z/Gp9vonr2rFkSb
+	+1ZVZZbufMVxE3pGzJ84Q6nwDgnjliC4ILq1rqcFgrKF1Jmld80dgVbvCWgHIaiuX6wmylYnCOM
+	Ypy3uPWcLfk4v4/1+7Da8VoC21DsAmxFUYF/Eefyc8wlJ1EaoiFzs7fzkfH0XxvWtJA==
+X-Received: by 2002:aa7:8383:: with SMTP id u3mr11619269pfm.175.1563977770483;
+        Wed, 24 Jul 2019 07:16:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxAg+z93/9D53a53W4/uGSvsUdLBMKJF/tjLAtToXZcYfETy6cSGC5E6b4l1A6TLRuKi2K4
+X-Received: by 2002:aa7:8383:: with SMTP id u3mr11619206pfm.175.1563977769845;
+        Wed, 24 Jul 2019 07:16:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563977769; cv=none;
         d=google.com; s=arc-20160816;
-        b=NKwfLIaMazTbxmlASKXvdjZl5UljCpukJ427YEuKRAeA3vZofdlhUsfwl43PDCCLvF
-         gEHwTwyaq1FJ/BaX8gH07PTUp4CFNJm0w7iHMzRZh6NYZ1uQchWb9ARL9JjDbTVmq7y0
-         REXP3FPaYjD5U6JW04EKuo+Wu8+eoSp18lwxE7aTqLIfUeOxPssN0EP8eYNuXwkxMlkq
-         R1EVxsmfEVF7TS4SuqmTPr944Sljzuly3K54fjYetEF+/jW7wQtKE8tY5T/JxuxNZR7r
-         dVF/2J/7EzXekOtJ3FNxtnk8JN/oVM68f0CxttONgtzMVoPCbS+Qd2PwkY80yILZIMYn
-         nVYg==
+        b=UaCwRe68JlxqZoKXbRYIbeAN4AH3nhvuS6rtIbB1boxJ7pbrqaPSP3gluwvw0wspV0
+         LC8FQgWiMP3P7o9nx660SLS6ZaJmyyLgXNC2BPz9jGCpKeH6of516d5OW+XslpyL+S2F
+         elIUcty7qDDEWEgd8s/CZoUoJi+b4HlVJIls2+kH71kDCTgqLlYtmEOVg6kpTTaB3/77
+         unO6axxiQ3BjVbNPvaZ7PIhWcH8B9uNzPBjCR0CzGCDXG06wdunvwqRmwEwrfTOZACdM
+         v55ypMHG8cf8/u154fz50klLyVAQmUt5zk3tzveYXDW/Y17EP1hxxNHhCgeni2X0L6Xn
+         1vtg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:date
-         :cc:to:from:subject:message-id:dkim-signature;
-        bh=XSMSBO973DfvMeeteXqgGKF7W2+Loe7uKWtbLSmRJp4=;
-        b=vDA5gJruTxBTIz5iAR+RH+l7OEbfCwa4KP/cMOQV6eUpm+r8NW0HhWWc13u6tuABzm
-         sgWzuly3l+/UYyORKtOUdX5yEYfFTs2dnqeRFatRSPVcy9WSQGtgRo8iQMBoOzbK/BoF
-         hGDU51IkvLdmus48IFUHrntiIRzlyYplXgAJclsJlgXDkjLgUtY23RlMPA+BeYewoPBc
-         j5+G/I6EhWrTAEQXDotEfpxO+Yu77IAjlWWQw/PjhjvbBREP4xoBtw170fQp/sRu40fi
-         ZL1EPXCzd1oeqAkOWJbZ4T9U9NUbWqUgQ5S5ioLdc2G35nKTFXHbkl/Zapx4seyKNDUh
-         LCRA==
+        h=mime-version:message-id:date:subject:cc:to:from;
+        bh=EekXmR5Bri93vUaMAziD1lKFG8IDX5FLgIF5eoQD+xA=;
+        b=dFK7hDsNk4TF9w0dHAJ5q/9Ol0N1wmXqHj4lzMeUz4SUl5xepL3elRgn17f4J8RbLp
+         3FCeVYQIaFCuBPUO9ICsNpd3NrdjDEfsshDR9RIYpQZabj73YqY9c3n9uHXZckNT3KIn
+         jL2o8QIchl3fBW3BnhB7TB/b8HqDvL5KfQI28sF5sZnkVl+eejOBHJI68LqJhbdBw1gh
+         lRU6bvjZqsJruBx/a1JIP7/ft9u2ZuW06nC3EeB2nRHNnUAd9G7/T23Nemw1Yx2+Fmty
+         IlC/6WMUato3G0lRbybt3UzbrsJysl+64hxuC6aPA5YiKKqPajrnjwdaLPC218TqsQk+
+         YdLQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=gTXhj9Zq;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x19sor61700406qtq.45.2019.07.24.07.11.07
+       spf=pass (google.com: domain of yuehaibing@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=yuehaibing@huawei.com
+Received: from huawei.com (szxga05-in.huawei.com. [45.249.212.191])
+        by mx.google.com with ESMTPS id 1si15321695ply.180.2019.07.24.07.16.09
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Jul 2019 07:11:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=gTXhj9Zq;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=XSMSBO973DfvMeeteXqgGKF7W2+Loe7uKWtbLSmRJp4=;
-        b=gTXhj9ZqVqh/c1Tlp0kQKLmIeOJZ9I0W7iJFijeEbYc2pw5WqfBaHyQhl/qzepZJlM
-         infzsQJLb6v93ckbqBV7S4YQa39ItbL+e6nnT2zbh2KV3vK9UtV6EzNmp94ycAMB1PUP
-         atzF38AlS0gWScipZSZVHIq9i57oaULt3ldLlCTsYx28piF73voCpHpl7b/DOKE6ELrD
-         mwIezPCPGgOTGcpKkEbaGHZHCB2MeHoJxwuArMiAJFxhHUOmsSfckuqq/kkciwpYzhlD
-         CNSrJEALAFWZKGCY85HLPMPi/4ZUb1MQOZuknR+CuwqWRTiFtOj9ESf4E4PNr9UjN6kR
-         aNFA==
-X-Google-Smtp-Source: APXvYqy0tj9o47/lvntHG1UXs42ZsSWDwBvJZWHf+0IOq45oHpMmcsWa56sAZ9oeA906uiVqylpMDQ==
-X-Received: by 2002:ac8:2642:: with SMTP id v2mr55104887qtv.333.1563977467644;
-        Wed, 24 Jul 2019 07:11:07 -0700 (PDT)
-Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id r36sm24461459qte.71.2019.07.24.07.11.06
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 07:11:07 -0700 (PDT)
-Message-ID: <1563977465.11067.9.camel@lca.pw>
-Subject: Re: [PATCH] mm/mmap.c: silence variable 'new_start' set but not used
-From: Qian Cai <cai@lca.pw>
-To: YueHaibing <yuehaibing@huawei.com>, akpm@linux-foundation.org, 
-	kirill.shutemov@linux.intel.com, mhocko@suse.com, vbabka@suse.cz, 
-	yang.shi@linux.alibaba.com, jannh@google.com, walken@google.com
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Date: Wed, 24 Jul 2019 10:11:05 -0400
-In-Reply-To: <20190724140739.59532-1-yuehaibing@huawei.com>
-References: <20190724140739.59532-1-yuehaibing@huawei.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
-Mime-Version: 1.0
-Content-Transfer-Encoding: 8bit
+        Wed, 24 Jul 2019 07:16:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yuehaibing@huawei.com designates 45.249.212.191 as permitted sender) client-ip=45.249.212.191;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of yuehaibing@huawei.com designates 45.249.212.191 as permitted sender) smtp.mailfrom=yuehaibing@huawei.com
+Received: from DGGEMS403-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id 69C3A31B2A1EFBD16A29;
+	Wed, 24 Jul 2019 22:16:08 +0800 (CST)
+Received: from localhost (10.133.213.239) by DGGEMS403-HUB.china.huawei.com
+ (10.3.19.203) with Microsoft SMTP Server id 14.3.439.0; Wed, 24 Jul 2019
+ 22:15:59 +0800
+From: YueHaibing <yuehaibing@huawei.com>
+To: <akpm@linux-foundation.org>, <jglisse@redhat.com>,
+	<kirill.shutemov@linux.intel.com>, <mike.kravetz@oracle.com>,
+	<rcampbell@nvidia.com>, <ktkhai@virtuozzo.com>, <colin.king@canonical.com>
+CC: <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>, YueHaibing
+	<yuehaibing@huawei.com>
+Subject: [PATCH] mm/rmap.c: remove set but not used variable 'cstart'
+Date: Wed, 24 Jul 2019 22:14:53 +0800
+Message-ID: <20190724141453.38536-1-yuehaibing@huawei.com>
+X-Mailer: git-send-email 2.10.2.windows.1
+MIME-Version: 1.0
+Content-Type: text/plain
+X-Originating-IP: [10.133.213.239]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-07-24 at 22:07 +0800, YueHaibing wrote:
-> 'new_start' is used in is_hugepage_only_range(),
-> which do nothing in some arch. gcc will warning:
-> 
-> mm/mmap.c: In function acct_stack_growth:
-> mm/mmap.c:2311:16: warning: variable new_start set but not used [-Wunused-but-
-> set-variable]
+Fixes gcc '-Wunused-but-set-variable' warning:
 
-Nope. Convert them to inline instead.
+mm/rmap.c: In function page_mkclean_one:
+mm/rmap.c:906:17: warning: variable cstart set but not used [-Wunused-but-set-variable]
 
-> 
-> Reported-by: Hulk Robot <hulkci@huawei.com>
-> Signed-off-by: YueHaibing <yuehaibing@huawei.com>
-> ---
->  mm/mmap.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index e2dbed3..56c2a92 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2308,7 +2308,7 @@ static int acct_stack_growth(struct vm_area_struct *vma,
->  			     unsigned long size, unsigned long grow)
->  {
->  	struct mm_struct *mm = vma->vm_mm;
-> -	unsigned long new_start;
-> +	unsigned long __maybe_unused new_start;
->  
->  	/* address space limit tests */
->  	if (!may_expand_vm(mm, vma->vm_flags, grow))
+It is not used any more since
+commit cdb07bdea28e ("mm/rmap.c: remove redundant variable cend")
+
+Reported-by: Hulk Robot <hulkci@huawei.com>
+Signed-off-by: YueHaibing <yuehaibing@huawei.com>
+---
+ mm/rmap.c | 4 +---
+ 1 file changed, 1 insertion(+), 3 deletions(-)
+
+diff --git a/mm/rmap.c b/mm/rmap.c
+index ec1af8b..40e4def 100644
+--- a/mm/rmap.c
++++ b/mm/rmap.c
+@@ -903,10 +903,9 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
+ 	mmu_notifier_invalidate_range_start(&range);
+ 
+ 	while (page_vma_mapped_walk(&pvmw)) {
+-		unsigned long cstart;
+ 		int ret = 0;
+ 
+-		cstart = address = pvmw.address;
++		address = pvmw.address;
+ 		if (pvmw.pte) {
+ 			pte_t entry;
+ 			pte_t *pte = pvmw.pte;
+@@ -933,7 +932,6 @@ static bool page_mkclean_one(struct page *page, struct vm_area_struct *vma,
+ 			entry = pmd_wrprotect(entry);
+ 			entry = pmd_mkclean(entry);
+ 			set_pmd_at(vma->vm_mm, address, pmd, entry);
+-			cstart &= PMD_MASK;
+ 			ret = 1;
+ #else
+ 			/* unexpected pmd-mapped page? */
+-- 
+2.7.4
+
 
