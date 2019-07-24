@@ -2,168 +2,396 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 226E5C7618F
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 06:18:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F420CC7618B
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 06:41:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D2F0D22387
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 06:17:59 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="gGQOCJFz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D2F0D22387
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 7FF1F21738
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 06:41:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7FF1F21738
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7FBC28E0005; Wed, 24 Jul 2019 02:17:59 -0400 (EDT)
+	id DDB906B0003; Wed, 24 Jul 2019 02:41:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7AB588E0002; Wed, 24 Jul 2019 02:17:59 -0400 (EDT)
+	id D8B286B0006; Wed, 24 Jul 2019 02:41:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 672858E0005; Wed, 24 Jul 2019 02:17:59 -0400 (EDT)
+	id C54D68E0002; Wed, 24 Jul 2019 02:41:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C2228E0002
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 02:17:59 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id n3so17768333pgh.12
-        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 23:17:59 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 74E026B0003
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 02:41:13 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id e9so18476700edv.18
+        for <linux-mm@kvack.org>; Tue, 23 Jul 2019 23:41:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=1Xa50e3c+n/XgLreEXAZzM1/Dusmqf3jal/tdBSMEUY=;
-        b=hh0gge+WI06proTsf5TUGU2ufJFGw/fNHeCZ6ep45u/T54smaSEr78aDVagZNS05zW
-         Zubka8Xoc6C3IG/Rakutzh31UcHAdH1FXFVLnrxVNpscUuODFMmBdwNdNUup3vIDHtd+
-         FLg0yz36daGYb+/GlRQ2Z6TPrdrtjNL/kEC+VoHpWHny8lmyo5rPU0kMGLv3op2MxXli
-         U2Do4ynnaOKyINGygiAtFvFilf7hmYLt1P+Fq/Hf3MzJcRcGH/bSHkZpWyIYDvvQ5Ty+
-         Hin9OOVu6x8013xEOz29vhmYpw+MA+EiAdQgSIE+BsQ51ECTU9M4/V6LT2jitL6AxSmH
-         WsoA==
-X-Gm-Message-State: APjAAAU8TmHOOQVlef+WKTq1GmIMzs+f1DD2coSWLNm58++FOaRl4aJ1
-	kBjA/0ONJFfCVf97gC9sRXuWy74G1kiJfIsrbh1v2Xeep86xd9yvVImO0if/Vv/OZWUB2U2RdBE
-	wqYHRsiAB3oYB+dLiKMdejgOLLFdzlG5zAT079cZhFiIoohRABmrJhTg432cUNzx9NQ==
-X-Received: by 2002:a17:90a:7148:: with SMTP id g8mr19130860pjs.51.1563949078775;
-        Tue, 23 Jul 2019 23:17:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyKv1EoXNcG1IL0duggJLh7Qx6jlg/BNjTIiitVk32/jsJAR9Si8kEwvE0JT6PzJ7wHekam
-X-Received: by 2002:a17:90a:7148:: with SMTP id g8mr19130816pjs.51.1563949078077;
-        Tue, 23 Jul 2019 23:17:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563949078; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Fiai8W3r2l8rxUSVOGL09d/nL8UMjKLO7kvhTx03fkY=;
+        b=QARa2eNRI0Bj9aArxZX8gnRa0YVZBKOXs+8eDTcfF5RYppyrm9pKX/5IregBuj/mYV
+         f0Fi2OLmw4WMD6/13FhH9T5YoVGkMaBgbT1d2yMBXEK+nU9DwKc0Ry4NrF6wAQHZN5Nl
+         duIybedk06/LLG0WlzhOHIpYeCgYO5VBxlITgYRdO2nbVtjuFpkStdTOaZrUbWFoX7rP
+         3T2smqkNpQwcRSeMARO8+WWGzw5lIzrKNDWj+XzJ2dhMSsYOKR4S3PJ6EuGx/3BTnZDn
+         RzGKq/iSg8wMVdlfCaECV5cnPsI+5KqMeSoKC076QbtMfwIpcofEE4IcZRkHyjTdeFJa
+         I1Lw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Gm-Message-State: APjAAAUlZ2LmSQXf5f/w3tD5qWI5J1p6JZMMJLFwvPrpph7XLuoWHVUI
+	5KmZahNiqXw/h1kwWFZxxTutUU26MXPt9YrhKT41t2ExWJ2wqLwINMxSG7rka8Ko6P5JPm9GpiE
+	JrbVOse5uC2hIGXeUxiGloWady3fcb8ONkmhPGU/jCD/q4THdz2Vk9VKKHk7u66C8dQ==
+X-Received: by 2002:a50:84a1:: with SMTP id 30mr70322856edq.44.1563950473007;
+        Tue, 23 Jul 2019 23:41:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyqV4I5QV5jbb4Krn2T0L824Bx5CruFPAfT1sDRmrrAxkIV/bXPkR86d8vMoN54eLpqDVYz
+X-Received: by 2002:a50:84a1:: with SMTP id 30mr70322799edq.44.1563950471841;
+        Tue, 23 Jul 2019 23:41:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563950471; cv=none;
         d=google.com; s=arc-20160816;
-        b=cp1oCd35tNzVjQqBhdOy+TLwzYVmsGoggN5lx6UhhfXzjqNOWUDxeI/d/XHpMB6zGt
-         7FBS3VEYeIDZ0hkNkUzflsYUYjgPfxedWUhBG+CcyhC98/kRhwy13lxdIJKSFMiOBu98
-         JR7eh2M1rr/KhLogu1UuKmfjvnvxULBruPTKwdYEvv1BmEa5bhbZaGGWfmyjiQ2iHUKN
-         iHzDsIGXFndt4AiTkemLU3ubo3TVh5WkPKFsU3gYoxSAjN43v+cUzU2WzkyBAWceZYvE
-         thlnlFuO15R/dNORToSTpW2zetMf/Iq2Xioiv11Ob00OjJQQQKtlba/JMN/9RcdXId5x
-         w/ug==
+        b=Fh3uNaGVyvbXb9EChVBSMYy5IR5FhUDzo4EFhmiNStbTxmhkUxifcN4r8a0aUlMYjS
+         KMxvoypgXm1yITyd0+EwSE/98rCI6koBwhGeRL20ELsXKxt6JxsSvpbZt3L+kjZcBGve
+         Cu4mUibjD/uNDbXj1jhjrM59hMoIZS8wXf2ddpWBm4yaYrmHEc+OLMwibinit7Be5oPA
+         BCLZnxqtTy0Yw83MdKrxlNmlB62OkdvMaYqOGsACKnFFLp3RerF8r64HaADyLJ41Lx0v
+         DnRyRAij3nJ9jQgGrsGFS7vUnU+pCO63Rn4s8FVPTvD1Yiy1nDxsaUGdlbSzmd3fjpwG
+         qs5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=1Xa50e3c+n/XgLreEXAZzM1/Dusmqf3jal/tdBSMEUY=;
-        b=zQdnmERkl6oUIk/SJ8w+L/CfVWy7okalhlVzdKCQNSmep5VNi3nUZGVJgCnMYUiPLy
-         +smRYnzyPyLsQhKeJrVJ7ruaU5YziinM2DU0t97K+Sag4XTw62lm1vnpEtiW/cQZRpYf
-         xFD8wYRX6b5YEqPDkh5dQ/BjhPzXjTJ7o7i/csAq8K6SIDPLzkCt6jnmm7pO/cTYv3Pt
-         MpcB3Wm+QFwC2Bd94aYZVRko1yCpEJJj0wfwNvqyZusYJfH33tJ82t3U3mEahzn157Kb
-         +epPTSGw4lUQBTZs2+CtGEwakFBYWIJ2YRJZAyNZ675MifCxKgBxv6TengAxcTyfyOO4
-         2LhQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Fiai8W3r2l8rxUSVOGL09d/nL8UMjKLO7kvhTx03fkY=;
+        b=0D/a2877jLiKl33UzTiN6LmFoQWcFyDc31ZduPklvrx58eY/ySgzltp/1FAPiD87np
+         4ZvLMuhLokhRgUwJnVbIhVaroRecmtsl2SGjp6ZNkMFnhVk36ijHNKw8HVSmI6KE6aZG
+         1wX3DoQ+VI6DVh8p8RSXpWHcYjioM3BEhPNp81hgDy+iudmOd+6+FAuNgrTyddqiISKH
+         P6RR8scTfRvt+QQzy9e2RWdhlT8aGa4ARellNDEwYX+s2QyfQTTG2PPT1ueowrAQiaey
+         Ym4FvOITnXRIYubByfsR6rA+2SXljCb32QS06mqV5C+iGXFYUHR880eQ5VmiOCV+BsaR
+         Tk8w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gGQOCJFz;
-       spf=pass (google.com: best guess record for domain of batv+1e4efd27347a199fee4d+5813+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+1e4efd27347a199fee4d+5813+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 67si16341590pfv.74.2019.07.23.23.17.57
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 4si8537862edz.269.2019.07.23.23.41.11
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 23 Jul 2019 23:17:58 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+1e4efd27347a199fee4d+5813+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 23 Jul 2019 23:41:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=gGQOCJFz;
-       spf=pass (google.com: best guess record for domain of batv+1e4efd27347a199fee4d+5813+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+1e4efd27347a199fee4d+5813+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Transfer-Encoding
-	:Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
-	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=1Xa50e3c+n/XgLreEXAZzM1/Dusmqf3jal/tdBSMEUY=; b=gGQOCJFzwPHRaT0Y5VpwBtWJoQ
-	7N90/JQMzvZNdlZpfiJ/+4M5wIFkAFW6SLRu80CqjgQtsuC25Bn72Ra55U98FUrqDgFJii1g2Pk+v
-	XPvWZXVP7/4TvQIWdHMJJsTBcEyaiNbtoPg+JOyeFN2/iHN+j8DiH//YTyjVYst2eZdJNW8GDmmaH
-	1tpuC3lNNf/w0GceJkPRPaBB6JdiZZSZVJOlr+inma1SfS2sXWO/g3eKnofUKFN7B7pQL3769+3TW
-	jCOEK61cTU+A0p4axGitNuC4cMeg/ZDpW3Ry+2Ff0HYkYs0+KxmpPcvICLo1Gula2Bgy/8Zw4ackm
-	7GUAhyFw==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hqAb0-0007QP-TP; Wed, 24 Jul 2019 06:17:50 +0000
-Date: Tue, 23 Jul 2019 23:17:50 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: john.hubbard@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Anna Schumaker <anna.schumaker@netapp.com>,
-	"David S . Miller" <davem@davemloft.net>,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	Eric Van Hensbergen <ericvh@gmail.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Jason Wang <jasowang@redhat.com>,
-	Jens Axboe <axboe@kernel.dk>, Latchesar Ionkov <lucho@ionkov.net>,
-	"Michael S . Tsirkin" <mst@redhat.com>,
-	Miklos Szeredi <miklos@szeredi.hu>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Christoph Hellwig <hch@lst.de>,
-	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
-	LKML <linux-kernel@vger.kernel.org>, ceph-devel@vger.kernel.org,
-	kvm@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-cifs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-nfs@vger.kernel.org, linux-rdma@vger.kernel.org,
-	netdev@vger.kernel.org, samba-technical@lists.samba.org,
-	v9fs-developer@lists.sourceforge.net,
-	virtualization@lists.linux-foundation.org,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [PATCH 00/12] block/bio, fs: convert put_page() to
- put_user_page*()
-Message-ID: <20190724061750.GA19397@infradead.org>
-References: <20190724042518.14363-1-jhubbard@nvidia.com>
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 1A98BAE3F;
+	Wed, 24 Jul 2019 06:41:11 +0000 (UTC)
+Date: Wed, 24 Jul 2019 08:41:10 +0200
+From: Michal Hocko <mhocko@suse.com>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+	David Rientjes <rientjes@google.com>, Roman Gushchin <guro@fb.com>,
+	Shakeel Butt <shakeelb@google.com>
+Subject: Re: [PATCH] mm, oom: simplify task's refcount handling
+Message-ID: <20190724064110.GC10882@dhcp22.suse.cz>
+References: <1563940476-6162-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190724042518.14363-1-jhubbard@nvidia.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+In-Reply-To: <1563940476-6162-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 23, 2019 at 09:25:06PM -0700, john.hubbard@gmail.com wrote:
-> * Store, in the iov_iter, a "came from gup (get_user_pages)" parameter.
->   Then, use the new iov_iter_get_pages_use_gup() to retrieve it when
->   it is time to release the pages. That allows choosing between put_page()
->   and put_user_page*().
+On Wed 24-07-19 12:54:36, Tetsuo Handa wrote:
+> Currently out_of_memory() is full of get_task_struct()/put_task_struct()
+> calls. Since "mm, oom: avoid printk() iteration under RCU" introduced
+> a list for holding a snapshot of all OOM victim candidates, let's share
+> that list for select_bad_process() and oom_kill_process() in order to
+> simplify task's refcount handling.
 > 
-> * Pass in one more piece of information to bio_release_pages: a "from_gup"
->   parameter. Similar use as above.
+> As a result of this patch, get_task_struct()/put_task_struct() calls
+> in out_of_memory() are reduced to only 2 times respectively.
+
+This is probably a matter of taste but the diffstat suggests to me that the
+simplification is not all that great. On the other hand this makes the
+oom handling even more tricky and harder for potential further
+development - e.g. if we ever need to break the global lock down in the
+future this would be another obstacle on the way. While potential
+development might be too theoretical the benefit of the patch is not
+really clear to me. The task_struct reference counting is not really
+unusual operations and there is nothing really scary that we do with it
+here. We already have to to extra mile wrt. task_lock so careful
+reference count doesn't really jump out.
+
+That being said, I do not think this patch gives any improvement.
+
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Cc: Shakeel Butt <shakeelb@google.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Roman Gushchin <guro@fb.com>
+> Cc: David Rientjes <rientjes@google.com>
+> ---
+>  include/linux/sched.h |   2 +-
+>  mm/oom_kill.c         | 122 ++++++++++++++++++++++++--------------------------
+>  2 files changed, 60 insertions(+), 64 deletions(-)
 > 
-> * Change the block layer, and several file systems, to use
->   put_user_page*().
+> diff --git a/include/linux/sched.h b/include/linux/sched.h
+> index 48c1a4c..4062999 100644
+> --- a/include/linux/sched.h
+> +++ b/include/linux/sched.h
+> @@ -1247,7 +1247,7 @@ struct task_struct {
+>  #ifdef CONFIG_MMU
+>  	struct task_struct		*oom_reaper_list;
+>  #endif
+> -	struct list_head		oom_victim_list;
+> +	struct list_head		oom_candidate;
+>  #ifdef CONFIG_VMAP_STACK
+>  	struct vm_struct		*stack_vm_area;
+>  #endif
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index 110f948..311e0e9 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -63,6 +63,7 @@
+>   * and mark_oom_victim
+>   */
+>  DEFINE_MUTEX(oom_lock);
+> +static LIST_HEAD(oom_candidate_list);
+>  
+>  static inline bool is_memcg_oom(struct oom_control *oc)
+>  {
+> @@ -167,6 +168,41 @@ static bool oom_unkillable_task(struct task_struct *p)
+>  	return false;
+>  }
+>  
+> +static int add_candidate_task(struct task_struct *p, void *unused)
+> +{
+> +	if (!oom_unkillable_task(p)) {
+> +		get_task_struct(p);
+> +		list_add_tail(&p->oom_candidate, &oom_candidate_list);
+> +	}
+> +	return 0;
+> +}
+> +
+> +static void link_oom_candidates(struct oom_control *oc)
+> +{
+> +	struct task_struct *p;
+> +
+> +	if (is_memcg_oom(oc))
+> +		mem_cgroup_scan_tasks(oc->memcg, add_candidate_task, NULL);
+> +	else {
+> +		rcu_read_lock();
+> +		for_each_process(p)
+> +			add_candidate_task(p, NULL);
+> +		rcu_read_unlock();
+> +	}
+> +
+> +}
+> +
+> +static void unlink_oom_candidates(void)
+> +{
+> +	struct task_struct *p;
+> +	struct task_struct *t;
+> +
+> +	list_for_each_entry_safe(p, t, &oom_candidate_list, oom_candidate) {
+> +		list_del(&p->oom_candidate);
+> +		put_task_struct(p);
+> +	}
+> +}
+> +
+>  /*
+>   * Print out unreclaimble slabs info when unreclaimable slabs amount is greater
+>   * than all user memory (LRU pages)
+> @@ -344,16 +380,11 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
+>  		goto next;
+>  
+>  select:
+> -	if (oc->chosen)
+> -		put_task_struct(oc->chosen);
+> -	get_task_struct(task);
+>  	oc->chosen = task;
+>  	oc->chosen_points = points;
+>  next:
+>  	return 0;
+>  abort:
+> -	if (oc->chosen)
+> -		put_task_struct(oc->chosen);
+>  	oc->chosen = (void *)-1UL;
+>  	return 1;
+>  }
+> @@ -364,27 +395,13 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
+>   */
+>  static void select_bad_process(struct oom_control *oc)
+>  {
+> -	if (is_memcg_oom(oc))
+> -		mem_cgroup_scan_tasks(oc->memcg, oom_evaluate_task, oc);
+> -	else {
+> -		struct task_struct *p;
+> -
+> -		rcu_read_lock();
+> -		for_each_process(p)
+> -			if (oom_evaluate_task(p, oc))
+> -				break;
+> -		rcu_read_unlock();
+> -	}
+> -}
+> -
+> +	struct task_struct *p;
+>  
+> -static int add_candidate_task(struct task_struct *p, void *arg)
+> -{
+> -	if (!oom_unkillable_task(p)) {
+> -		get_task_struct(p);
+> -		list_add_tail(&p->oom_victim_list, (struct list_head *) arg);
+> +	list_for_each_entry(p, &oom_candidate_list, oom_candidate) {
+> +		cond_resched();
+> +		if (oom_evaluate_task(p, oc))
+> +			break;
+>  	}
+> -	return 0;
+>  }
+>  
+>  /**
+> @@ -399,21 +416,12 @@ static int add_candidate_task(struct task_struct *p, void *arg)
+>   */
+>  static void dump_tasks(struct oom_control *oc)
+>  {
+> -	static LIST_HEAD(list);
+>  	struct task_struct *p;
+>  	struct task_struct *t;
+>  
+> -	if (is_memcg_oom(oc))
+> -		mem_cgroup_scan_tasks(oc->memcg, add_candidate_task, &list);
+> -	else {
+> -		rcu_read_lock();
+> -		for_each_process(p)
+> -			add_candidate_task(p, &list);
+> -		rcu_read_unlock();
+> -	}
+>  	pr_info("Tasks state (memory values in pages):\n");
+>  	pr_info("[  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name\n");
+> -	list_for_each_entry(p, &list, oom_victim_list) {
+> +	list_for_each_entry(p, &oom_candidate_list, oom_candidate) {
+>  		cond_resched();
+>  		/* p may not have freeable memory in nodemask */
+>  		if (!is_memcg_oom(oc) && !oom_cpuset_eligible(p, oc))
+> @@ -430,10 +438,6 @@ static void dump_tasks(struct oom_control *oc)
+>  			t->signal->oom_score_adj, t->comm);
+>  		task_unlock(t);
+>  	}
+> -	list_for_each_entry_safe(p, t, &list, oom_victim_list) {
+> -		list_del(&p->oom_victim_list);
+> -		put_task_struct(p);
+> -	}
+>  }
+>  
+>  static void dump_oom_summary(struct oom_control *oc, struct task_struct *victim)
+> @@ -859,17 +863,11 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
+>  	bool can_oom_reap = true;
+>  
+>  	p = find_lock_task_mm(victim);
+> -	if (!p) {
+> -		put_task_struct(victim);
+> +	if (!p)
+>  		return;
+> -	} else if (victim != p) {
+> -		get_task_struct(p);
+> -		put_task_struct(victim);
+> -		victim = p;
+> -	}
+>  
+> -	/* Get a reference to safely compare mm after task_unlock(victim) */
+> -	mm = victim->mm;
+> +	/* Get a reference to safely compare mm after task_unlock(p) */
+> +	mm = p->mm;
+>  	mmgrab(mm);
+>  
+>  	/* Raise event before sending signal: task reaper must see this */
+> @@ -881,16 +879,15 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
+>  	 * in order to prevent the OOM victim from depleting the memory
+>  	 * reserves from the user space under its control.
+>  	 */
+> -	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
+> -	mark_oom_victim(victim);
+> +	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, p, PIDTYPE_TGID);
+> +	mark_oom_victim(p);
+>  	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB, UID:%u\n",
+> -		message, task_pid_nr(victim), victim->comm,
+> -		K(victim->mm->total_vm),
+> -		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
+> -		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
+> -		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)),
+> -		from_kuid(&init_user_ns, task_uid(victim)));
+> -	task_unlock(victim);
+> +	       message, task_pid_nr(p), p->comm, K(mm->total_vm),
+> +	       K(get_mm_counter(mm, MM_ANONPAGES)),
+> +	       K(get_mm_counter(mm, MM_FILEPAGES)),
+> +	       K(get_mm_counter(mm, MM_SHMEMPAGES)),
+> +	       from_kuid(&init_user_ns, task_uid(p)));
+> +	task_unlock(p);
+>  
+>  	/*
+>  	 * Kill all user processes sharing victim->mm in other thread groups, if
+> @@ -929,7 +926,6 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
+>  		wake_oom_reaper(victim);
+>  
+>  	mmdrop(mm);
+> -	put_task_struct(victim);
+>  }
+>  #undef K
+>  
+> @@ -940,10 +936,8 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
+>  static int oom_kill_memcg_member(struct task_struct *task, void *message)
+>  {
+>  	if (task->signal->oom_score_adj != OOM_SCORE_ADJ_MIN &&
+> -	    !is_global_init(task)) {
+> -		get_task_struct(task);
+> +	    !is_global_init(task))
+>  		__oom_kill_process(task, message);
+> -	}
+>  	return 0;
+>  }
+>  
+> @@ -964,7 +958,6 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+>  		mark_oom_victim(victim);
+>  		wake_oom_reaper(victim);
+>  		task_unlock(victim);
+> -		put_task_struct(victim);
+>  		return;
+>  	}
+>  	task_unlock(victim);
+> @@ -1073,6 +1066,8 @@ bool out_of_memory(struct oom_control *oc)
+>  	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
+>  		return true;
+>  
+> +	link_oom_candidates(oc);
+> +
+>  	/*
+>  	 * Check if there were limitations on the allocation (only relevant for
+>  	 * NUMA and memcg) that may require different handling.
+> @@ -1086,10 +1081,9 @@ bool out_of_memory(struct oom_control *oc)
+>  	    current->mm && !oom_unkillable_task(current) &&
+>  	    oom_cpuset_eligible(current, oc) &&
+>  	    current->signal->oom_score_adj != OOM_SCORE_ADJ_MIN) {
+> -		get_task_struct(current);
+>  		oc->chosen = current;
+>  		oom_kill_process(oc, "Out of memory (oom_kill_allocating_task)");
+> -		return true;
+> +		goto done;
+>  	}
+>  
+>  	select_bad_process(oc);
+> @@ -1108,6 +1102,8 @@ bool out_of_memory(struct oom_control *oc)
+>  	if (oc->chosen && oc->chosen != (void *)-1UL)
+>  		oom_kill_process(oc, !is_memcg_oom(oc) ? "Out of memory" :
+>  				 "Memory cgroup out of memory");
+> + done:
+> +	unlink_oom_candidates();
+>  	return !!oc->chosen;
+>  }
+>  
+> -- 
+> 1.8.3.1
 
-I think we can do this in a simple and better way.  We have 5 ITER_*
-types.  Of those ITER_DISCARD as the name suggests never uses pages, so
-we can skip handling it.  ITER_PIPE is rejected іn the direct I/O path,
-which leaves us with three.
-
-Out of those ITER_BVEC needs a user page reference, so we want to call
-put_user_page* on it.  ITER_BVEC always already has page reference,
-which means in the block direct I/O path path we alread don't take
-a page reference.  We should extent that handling to all other calls
-of iov_iter_get_pages / iov_iter_get_pages_alloc.  I think we should
-just reject ITER_KVEC for direct I/O as well as we have no users and
-it is rather pointless.  Alternatively if we see a use for it the
-callers should always have a life page reference anyway (or might
-be on kmalloc memory), so we really should not take a reference either.
-
-In other words:  the only time we should ever have to put a page in
-this patch is when they are user pages.  We'll need to clean up
-various bits of code for that, but that can be done gradually before
-even getting to the actual put_user_pages conversion.
+-- 
+Michal Hocko
+SUSE Labs
 
