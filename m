@@ -6,257 +6,118 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 333C9C76186
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:47:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 39091C76191
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:48:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E5EEC214AF
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:47:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E5EEC214AF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 0499921873
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:48:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0499921873
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6FA1F6B0008; Wed, 24 Jul 2019 15:47:58 -0400 (EDT)
+	id 91DA16B000A; Wed, 24 Jul 2019 15:48:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 684466B000A; Wed, 24 Jul 2019 15:47:58 -0400 (EDT)
+	id 8CEE06B000C; Wed, 24 Jul 2019 15:48:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 525128E0002; Wed, 24 Jul 2019 15:47:58 -0400 (EDT)
+	id 7BDD38E0002; Wed, 24 Jul 2019 15:48:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f71.google.com (mail-ua1-f71.google.com [209.85.222.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B3BD6B0008
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 15:47:58 -0400 (EDT)
-Received: by mail-ua1-f71.google.com with SMTP id z42so4812000uac.10
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:47:58 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 437CB6B000A
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 15:48:58 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id b6so22864485wrp.21
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:48:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=Pdpqk8jXMRLFLp5pQ1qaf1FXvLgpDDTz9EhFU4nPLzM=;
-        b=VXu31FR1Y5S8RFYRvPsXdb0/JdqH7rjxyOq0oQliiyXyFVZYyF05RF32MxkkiuP1bN
-         dMmNFs585p6/sQp5Nd6X0tZAra6vCEAEF86nreza/qO7P9/q27CcwWq4IIphW8OQhAaf
-         kT14eqw4db5p6s2CN5HltqJPoy01xm9UIdBovcfcS6OQepfEy4yfluBOxmG33B4y8cth
-         ATv5p1hlYCOrDLHaN1vv/oypELVN7TdKPHV9IpDtwqzB1Tv52zRzb2WJYkLm3I1hdxtJ
-         HVxHqaSQ+53M5SOwSZQbc9lG0jfpB1vulBAdfPye38Ia2WDBcz6w49uGkwxsErRazu/y
-         o92w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX+o2YNjU0a8VO9WV8o8Hpub1wf1FMV5G0u/M+ociucyDl0nmVY
-	dMW2wI2xV8AV+Zdjr8ENqccfTOj2B6l0vYJvctbd75aLFxabUsFzWda7oWtNA95yltC3rtdf6JZ
-	C28zMTfehkC3GIfU3I8kIZp30Etus6d3EsYpbsLjDtO5t2NIvbbdwEghGvBBZlAtSEg==
-X-Received: by 2002:a67:fc19:: with SMTP id o25mr53509083vsq.106.1563997677848;
-        Wed, 24 Jul 2019 12:47:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy8J95jPq3OL5+CaHcckIUppg9Qvodl6Je/Oa+04/KY22xLIRI1tFQJPg+TmOddpSBLj6Fn
-X-Received: by 2002:a67:fc19:: with SMTP id o25mr53509011vsq.106.1563997677183;
-        Wed, 24 Jul 2019 12:47:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563997677; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=7Mw9NbtoiZQZJOpXdyhGv2HIjy5nvJ4CnKHyPITeaDI=;
+        b=dQqia9uMxtk68slWFL4sh/98lEObrOGO/9JD8RrnojN/qvPeS8OkmEidIDs7RQ2Fd/
+         vndqEpXqtNLOf9DgAvo27vhchdPQqGbTf5R17/y03kKMknp3lmtL8nMcKrElVBENBAhF
+         rBnrsP4nOD0KtatgpgqGXrFj+AuidUM3JaZRy5Q0cahInczJYW/d1twZXxC/wz4NcDCi
+         8M27XUyZuPe3kaoz60PmdTQTjXkblTcqTkrDsSC7ytP0T/LIbYYjyYkdkFbwnRrU5YkS
+         qsGzvhGEqjG7gEO6xh2ksNBszte3iF/VZiDwx+t938Cto77bb4G/4EfGS8Klm3gGIdLN
+         Pjkw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAXTSiFK7fYjg0Vue4UqrgDEoiiepCLYbdg7zVqSuhY1E0SgtQJ/
+	jdkQWNwEXIOvzA3+/m9jb5HlkdnhAaK38ao+2T/6PWxorsm5q3qjLE1UYn1eBJhgfeI+5M4UMDQ
+	7eWNmtPeZy/19HbOAug1S5kSxa/NIWYrXEE/nLUA4mbHHrBJ195x8aYhmYH3jfwy1Kw==
+X-Received: by 2002:a1c:968c:: with SMTP id y134mr74319389wmd.75.1563997737801;
+        Wed, 24 Jul 2019 12:48:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyccq8ghS1siACkgzIARAHUi2+jxtFKB/EexCPgTkIaqbSaiFf3qBKGp4EfaRHfdEQdkfDb
+X-Received: by 2002:a1c:968c:: with SMTP id y134mr74319368wmd.75.1563997737117;
+        Wed, 24 Jul 2019 12:48:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563997737; cv=none;
         d=google.com; s=arc-20160816;
-        b=uP0BBHe5wUDRPjKF1QD/SjloOXbUNQqRrnig6GhPVhMv5qHXlVJXDS5z9d/D41/ed5
-         m4+ccaTuMvKw0XxveuqpuoMeMBmuMdAQs1li8ICqSxCzSNP/M3ctcwh39eaLMZtJSia3
-         yvYxxTTX42kf4XpF8YYHYirL3tpAXvlqn/r7ZaJzkvjJwCLPwE7dnkb0oMbjijdYrUE4
-         SPPb2izFu0DaNhOsp8BLjFoPr27djPH2IXEs+HUFXUggJAsd1ubl/V3q/RoiHiQuDJqX
-         RClRspr9/3WJFwP6+dZTB9SHgTVzEk4VFwTr+CCVQ4z6HqT2qeGCrlrgQ2M1U4lxbANQ
-         5pUQ==
+        b=TUMoqzeXOEvs7+k+X9kXJlncQjYCdmAD4m7OxadD6rRfKt2iuW9THfQf5guXkSYiPA
+         4LHsOIXFeSfi3FtRqr3Qy+BzwCZMCg2ppcBovKvVj9AA6HB7UqpYF9uvl86krasNlvlA
+         39a9xhApu0IDF1igpNIvJCvT5YfDQLl9MTUmumJNALk4lbODDkQ4DqI1oxxwlKgJeCkO
+         atAAeE85kiE9gYu6TpcwFQQKDBDi6GM91xyjXXVZ4qcaTeNTUek/97NSlCLHtiTh+aXi
+         N9OA/hYodzHlUcT98lgj8vMUBrz1H7fslJehhtEYhlmDLvY062ORaB9fZjgV6LJ9qlMD
+         nfHg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=Pdpqk8jXMRLFLp5pQ1qaf1FXvLgpDDTz9EhFU4nPLzM=;
-        b=DBIBlo10HiTb13ai9d8I6hpGceowKJXf0gcwscxlH/zInXTQjvX2vzMFeD1nz/w7W2
-         9rEYIGB7OG3XRXleQWy/DaxMWJ8YODpSRQQNKun4mm0P3DF9rN3ab/0n8h0vA0X7t+FH
-         uK+CUCijTWqzK1GiL6sNe1uyLPeBQFNEN2F/8M54/SjJouhjwvZ0l4OGrzgWs5OA4W2T
-         ExhaK821vShnw5jdELJCQ8v0NXWXGVjt2AMLMvzqkXAYkgINxlMTvQSCb7u7YJ/W+ZJQ
-         2NwNtZNXDrz0dPx7a01IcFL7KTWjezz5xpu3y0GktiMEhMcRe1lMj0QQQzBlPHDlF5Do
-         tx1Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=7Mw9NbtoiZQZJOpXdyhGv2HIjy5nvJ4CnKHyPITeaDI=;
+        b=M59uBuPxZxEWt8UfuNFcM42y8jWx98oDl1jHdyAZSBxc/CZewbTAZ0kLCe7dcdnzbv
+         tW4plrLgOYnEu+CBTvN36RUCiFqsQt4Ap/5PWBJFwpucwk+DvGnWOnV97WqoKKiisEv2
+         tWX+vANhuj96ltHKWJ0jzamYHAu3hGS0lRZNVwwxKeavycTpAeV8PJRGBGsHWe+jOKNr
+         jZR5KsMhLsjtIO7F0FKPKZSwnKIdWs18H6knRHG3pxPheLl63sHY1lXXzJN5mEJbEj8e
+         3MiMmz+ggVRJC/a7FXR//rlGjszwYv8ud3vZmpXJjTdI88LFPm3NS2ZgbHyewm46UiWY
+         29+Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o11si10982467vsn.101.2019.07.24.12.47.56
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id s133si37555905wme.79.2019.07.24.12.48.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 12:47:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 24 Jul 2019 12:48:57 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 37F2230C1E37;
-	Wed, 24 Jul 2019 19:47:56 +0000 (UTC)
-Received: from [10.36.116.35] (ovpn-116-35.ams2.redhat.com [10.36.116.35])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 1801918231;
-	Wed, 24 Jul 2019 19:47:24 +0000 (UTC)
-Subject: Re: [PATCH v2 0/5] mm / virtio: Provide support for page hinting
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>,
- Alexander Duyck <alexander.duyck@gmail.com>, kvm@vger.kernel.org,
- dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- akpm@linux-foundation.org, yang.zhang.wz@gmail.com, pagupta@redhat.com,
- riel@surriel.com, konrad.wilk@oracle.com, lcapitulino@redhat.com,
- wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com,
- dan.j.williams@intel.com, alexander.h.duyck@linux.intel.com
-References: <20190724165158.6685.87228.stgit@localhost.localdomain>
- <0c520470-4654-cdf2-cf4d-d7c351d25e8b@redhat.com>
- <f7578309-dd36-bda0-6a30-34a6df21faca@redhat.com>
- <20190724153003-mutt-send-email-mst@kernel.org>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <b3279b70-7a64-a456-cbfa-2a5ec3e9468e@redhat.com>
-Date: Wed, 24 Jul 2019 21:47:24 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by verein.lst.de (Postfix, from userid 2407)
+	id E520F68B20; Wed, 24 Jul 2019 21:48:55 +0200 (CEST)
+Date: Wed, 24 Jul 2019 21:48:55 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Michal Hocko <mhocko@kernel.org>, Christoph Hellwig <hch@lst.de>,
+	Ralph Campbell <rcampbell@nvidia.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, nouveau@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Ben Skeggs <bskeggs@redhat.com>
+Subject: Re: [PATCH] mm/hmm: replace hmm_update with mmu_notifier_range
+Message-ID: <20190724194855.GA15029@lst.de>
+References: <20190723210506.25127-1-rcampbell@nvidia.com> <20190724070553.GA2523@lst.de> <20190724152858.GB28493@ziepe.ca> <20190724175858.GC6410@dhcp22.suse.cz> <20190724180837.GF28493@ziepe.ca> <20190724185617.GE6410@dhcp22.suse.cz> <20190724185910.GF6410@dhcp22.suse.cz> <20190724192155.GG28493@ziepe.ca>
 MIME-Version: 1.0
-In-Reply-To: <20190724153003-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Wed, 24 Jul 2019 19:47:56 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190724192155.GG28493@ziepe.ca>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 24.07.19 21:31, Michael S. Tsirkin wrote:
-> On Wed, Jul 24, 2019 at 08:41:33PM +0200, David Hildenbrand wrote:
->> On 24.07.19 20:40, Nitesh Narayan Lal wrote:
->>>
->>> On 7/24/19 12:54 PM, Alexander Duyck wrote:
->>>> This series provides an asynchronous means of hinting to a hypervisor
->>>> that a guest page is no longer in use and can have the data associated
->>>> with it dropped. To do this I have implemented functionality that allows
->>>> for what I am referring to as page hinting
->>>>
->>>> The functionality for this is fairly simple. When enabled it will allocate
->>>> statistics to track the number of hinted pages in a given free area. When
->>>> the number of free pages exceeds this value plus a high water value,
->>>> currently 32,
->>> Shouldn't we configure this to a lower number such as 16?
->>>>  it will begin performing page hinting which consists of
->>>> pulling pages off of free list and placing them into a scatter list. The
->>>> scatterlist is then given to the page hinting device and it will perform
->>>> the required action to make the pages "hinted", in the case of
->>>> virtio-balloon this results in the pages being madvised as MADV_DONTNEED
->>>> and as such they are forced out of the guest. After this they are placed
->>>> back on the free list, and an additional bit is added if they are not
->>>> merged indicating that they are a hinted buddy page instead of a standard
->>>> buddy page. The cycle then repeats with additional non-hinted pages being
->>>> pulled until the free areas all consist of hinted pages.
->>>>
->>>> I am leaving a number of things hard-coded such as limiting the lowest
->>>> order processed to PAGEBLOCK_ORDER,
->>> Have you considered making this option configurable at the compile time?
->>>>  and have left it up to the guest to
->>>> determine what the limit is on how many pages it wants to allocate to
->>>> process the hints.
->>> It might make sense to set the number of pages to be hinted at a time from the
->>> hypervisor.
->>>>
->>>> My primary testing has just been to verify the memory is being freed after
->>>> allocation by running memhog 79g on a 80g guest and watching the total
->>>> free memory via /proc/meminfo on the host. With this I have verified most
->>>> of the memory is freed after each iteration. As far as performance I have
->>>> been mainly focusing on the will-it-scale/page_fault1 test running with
->>>> 16 vcpus. With that I have seen at most a 2% difference between the base
->>>> kernel without these patches and the patches with virtio-balloon disabled.
->>>> With the patches and virtio-balloon enabled with hinting the results
->>>> largely depend on the host kernel. On a 3.10 RHEL kernel I saw up to a 2%
->>>> drop in performance as I approached 16 threads,
->>> I think this is acceptable.
->>>>  however on the the lastest
->>>> linux-next kernel I saw roughly a 4% to 5% improvement in performance for
->>>> all tests with 8 or more threads. 
->>> Do you mean that with your patches the will-it-scale/page_fault1 numbers were
->>> better by 4-5% over an unmodified kernel?
->>>> I believe the difference seen is due to
->>>> the overhead for faulting pages back into the guest and zeroing of memory.
->>> It may also make sense to test these patches with netperf to observe how much
->>> performance drop it is introducing.
->>>> Patch 4 is a bit on the large side at about 600 lines of change, however
->>>> I really didn't see a good way to break it up since each piece feeds into
->>>> the next. So I couldn't add the statistics by themselves as it didn't
->>>> really make sense to add them without something that will either read or
->>>> increment/decrement them, or add the Hinted state without something that
->>>> would set/unset it. As such I just ended up adding the entire thing as
->>>> one patch. It makes it a bit bigger but avoids the issues in the previous
->>>> set where I was referencing things before they had been added.
->>>>
->>>> Changes from the RFC:
->>>> https://lore.kernel.org/lkml/20190530215223.13974.22445.stgit@localhost.localdomain/
->>>> Moved aeration requested flag out of aerator and into zone->flags.
->>>> Moved bounary out of free_area and into local variables for aeration.
->>>> Moved aeration cycle out of interrupt and into workqueue.
->>>> Left nr_free as total pages instead of splitting it between raw and aerated.
->>>> Combined size and physical address values in virtio ring into one 64b value.
->>>>
->>>> Changes from v1:
->>>> https://lore.kernel.org/lkml/20190619222922.1231.27432.stgit@localhost.localdomain/
->>>> Dropped "waste page treatment" in favor of "page hinting"
->>> We may still have to try and find a better name for virtio-balloon side changes.
->>> As "FREE_PAGE_HINT" and "PAGE_HINTING" are still confusing.
->>
->> We should have named that free page reporting, but that train already
->> has left.
+On Wed, Jul 24, 2019 at 04:21:55PM -0300, Jason Gunthorpe wrote:
+> If we change the register to keep the hlist sorted by address then we
+> can do a targetted 'undo' of past starts terminated by address
+> less-than comparison of the first failing struct mmu_notifier.
 > 
-> I think VIRTIO_BALLOON_F_FREE_PAGE_HINT is different and arguably
-> actually does provide hints.
+> It relies on the fact that rcu is only used to remove items, the list
+> adds are all protected by mm locks, and the number of mmu notifiers is
+> very small.
+> 
+> This seems workable and does not need more driver review/update...
+> 
+> However, hmm's implementation still needs more fixing.
 
-I guess it depends on the point of view (e.g., getting all free pages
-feels more like a report). But I could also live with using the term
-reporting in this context.
-
-We could go ahead and name it all "page reporting", would also work for me.
-
--- 
-
-Thanks,
-
-David / dhildenb
+Can we take one step back, please?  The only reason why drivers
+implement both ->invalidate_range_start and ->invalidate_range_end and
+expect them to be called paired is to keep some form of counter of
+active invalidation "sections".  So instead of doctoring around
+undo schemes the only sane answer is to take such a counter into the
+core VM code instead of having each driver struggle with it.
 
