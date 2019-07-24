@@ -2,198 +2,165 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 11B4CC76186
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 23:23:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D79F0C76191
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 23:27:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9EA1E2189F
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 23:23:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9551C2189F
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 23:27:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="POKycPna"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9EA1E2189F
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="mHFm/5BS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9551C2189F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 08ADD8E0015; Wed, 24 Jul 2019 19:23:26 -0400 (EDT)
+	id 3BD4C8E0016; Wed, 24 Jul 2019 19:27:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 062B68E0002; Wed, 24 Jul 2019 19:23:26 -0400 (EDT)
+	id 36CEB8E0002; Wed, 24 Jul 2019 19:27:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EBBA58E0015; Wed, 24 Jul 2019 19:23:25 -0400 (EDT)
+	id 234B88E0016; Wed, 24 Jul 2019 19:27:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CD2CF8E0002
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 19:23:25 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id e66so29611481ybe.19
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 16:23:25 -0700 (PDT)
+Received: from mail-yb1-f199.google.com (mail-yb1-f199.google.com [209.85.219.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F21E78E0002
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 19:27:07 -0400 (EDT)
+Received: by mail-yb1-f199.google.com with SMTP id a2so24192523ybb.14
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 16:27:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
          :content-transfer-encoding:dkim-signature;
-        bh=U/byz8o3kezigETW8hWUjg+JqkNm/y0Q4UHjAnDVaRI=;
-        b=Dav262jCiBg8BWfHhACZE5U/AVUnBy9CY4bQ6gnX8pvdRtuM2aRP/wTrCZr8dkpvzZ
-         /vzygisRWTBAhZe/wdDGY61SnFXR/XrEfzr6HdfcK7JN6+7F3BI29ubqUUPLxeKMMa/H
-         tYfMS1G2MsW0J/uasUyFWPBGmzNm401uXGAKTPL9ykMv6ILhx/nexpo1qnDzzFtNvuz7
-         gBTtcPuYOx3XPmmaMsv/RWik1OV8pSMCTnkLFgINm5/kPQizJ17cItZMVAxi6B7JW8OP
-         5I0mPZBvT+rofkN7fjEAzQc3SKRkkn4WtKlJeBkD15OGR99GjHj7fib2q6m149KdLXEZ
-         7B3Q==
-X-Gm-Message-State: APjAAAWfy5mKtxV/kHLL/y+dakPoOaApgwyXcPYUy9bwMDh7GaLWE96B
-	b0LvmrvWTePJ/ucK7YDawdJcs7zP8oNKnLsT9q48Qn/mFdCxUIXIrIUwLA3QxL/L8gX1QyaJ1ZN
-	2qU2mK8mnuLTMCZPTXhlYNi4RM4RTwdX/xvdNsVnoqgDgbYjb3i9PRQwt1FfH4o1enQ==
-X-Received: by 2002:a25:5986:: with SMTP id n128mr51959880ybb.301.1564010605371;
-        Wed, 24 Jul 2019 16:23:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwhknzfn71H38aLzT4m3TMfqPoAcl4zoqqoY1stgPILl/x8gFHRTfa2/eZLUE45aSuuXOI4
-X-Received: by 2002:a25:5986:: with SMTP id n128mr51959852ybb.301.1564010604651;
-        Wed, 24 Jul 2019 16:23:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564010604; cv=none;
+        bh=gTLfLpBBgzH14pN0OishW6D/G2zPoxenwkGRe8J45rs=;
+        b=PRtoxlK0jsEMZFJmvtRC7XjlYJc1D5mMDBZ+x4SqXoTEEYz7K73Mz3FXD7NZhILnWn
+         fv0CPMkT/pnrlQvqY2oohsqhK9O6BYCMnqcwSJ0KfLbK2JdcUKfyIRJABFGQWuJ13pBJ
+         esJJzNCT9OxX8aPur1x9t6PYdsuhdqjTlG8XxyPyuzIB8V4zxGJca9X0FJxah/k8T0/F
+         YHN0ymr3aARaOeQ6eh0R2pZkpafbGGOlZVQDCusDOwTkofjhBXcJuwzlDeDZrMeUtZly
+         0vFkho3gF8O1x6AZ2n/3T+8pgvAhBP25LzMDhl1+N8MlTHhihok2RAfEU8sYVt8eRXio
+         PLOA==
+X-Gm-Message-State: APjAAAVlzrwH84c8jj3VgbqwKmE3clRtGqHPVJ8Gaem1432Z5Gfb08oh
+	8Ma1Kwu49iua52n2RBqZsse44ttrcBzprY9yzj/cGVMyqtNmq8Dvyt5HbfD8eRMhSPNbtm7qO2g
+	LlhWbDg+yMxYFhTfddRLhs8k87gcUKLFlnVJqiBGcuJxtVqeXng2CM4cUYTc9Nb+zDQ==
+X-Received: by 2002:a81:3b8e:: with SMTP id i136mr50143309ywa.493.1564010827772;
+        Wed, 24 Jul 2019 16:27:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzpkZfaVFrjtHLQtZ4kUalqCq/Zo109izrGHpt7QTzT6gv+y+KJJBXOBM2yRkZs1qoQ3TWt
+X-Received: by 2002:a81:3b8e:: with SMTP id i136mr50143278ywa.493.1564010827070;
+        Wed, 24 Jul 2019 16:27:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564010827; cv=none;
         d=google.com; s=arc-20160816;
-        b=VaPXI7NY0VfLxG0xpuqgyky14sXS7AeCAHQ6vrH3r7+PKGsZIo12SSv1oFiuc8ex05
-         IrhTsUhcgPFvfgmrCLzdDx7/wNlTU04xhH7D/4ZLgWKJZo9Tg4VJ6n1yHTSD/rVRMKxm
-         vM28dD8z3jqR9ndEf3Zt3CAQi0b+LmPBrEfL5Ll+H2eInW+PiIeIRUH5vL8GXdLy9vEs
-         ctEXWHymH/jYr9zShC4hizquEyzg8g+08chexDr3SPVlCme7JEzjOmFwDSaHbuwNYtFj
-         lISVR8DDvuCPNh2zDJJd+/6SFOeeFhkZ6eKcKZh31aKNATvXoKqB4Xo3oiAQEv5y62Q5
-         mslg==
+        b=p4jVEnxgGVB4ZqN40nQORpMkz5ZGMBHeoRYv2wA7DRDgpLYDRXnyUXbduVFYo1KZ7L
+         GoOEy93A2TatI+zt6jDrRSDYdxXhIZnF/U9w9Lo5eC/gs2EyD+kehylOlFds7D027rVO
+         Z215/qO/ujYtJaWqUPiNFSuFq5SNWeNCV4Ec8+OWe1EfndHb1Qtg1rGLYGuwDsGn1WpF
+         x5ERTeWanFbNAlDyBWP1FRQXTblaJFf00qEVo90BnFt4Ds2T5e4ySuF2MPr6hvGiVMXW
+         wVouWZY0EvPQSRgCMBYrSgYfwET4UrXMCZltuwZtehWOG8R03X9WWdr0qO0guT0YupCC
+         +QIA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=U/byz8o3kezigETW8hWUjg+JqkNm/y0Q4UHjAnDVaRI=;
-        b=iXSsyxYiXc+X6iIq/sPdqOpCGHe+Q19BvYR3Mxp2aPA4ERxfM7i30rCR8KeFCAqc5A
-         VbpCa2mgQCKT5krTE2bXZfPBIOGkuZV56bSGY/9o6BM8nhcamU5M+1WxCWXdEAfBu6j2
-         VkMRBvBNWSJo/Ve3pnOKAiP7fUxEKLbIl8cDOKRKWjMJ/aezYlmg+q8WiXEMlG6PtpE4
-         BqXhbT02+o9pGvL0duKUcw0lHPSG3GXFbc5t2pfOd5cWtPNYMI603gMz5BMWGd00miwM
-         CqBsG+ISYkLhVheiNq1NunIdEsxcB2f8oGZQ/ZwNeftEViRwri9QsxRMnYIXNbVkBr1I
-         fIcA==
+        h=dkim-signature:content-transfer-encoding:mime-version:message-id
+         :date:subject:cc:to:from;
+        bh=gTLfLpBBgzH14pN0OishW6D/G2zPoxenwkGRe8J45rs=;
+        b=I5WDinnpTbu24VuJsjB2s6Vnzqya0Y/qk8COwXvYrS82HPyUUIqQq5Vf+2dx53luVA
+         kqv0HhpXImNZkDRBuZ+60XuvJOvO7slQpzns5iaRzRrd4iRUKGrQMQ13hz8H4HCoA33h
+         4+7xpWYTpSDL/3RfKNhXqxEgUmQR7QxJtlEAY2iJNIduEZpPt+zPtANhui8QfHzxAJiB
+         CS85aJyYOpuG09wCIZfPk+m2rvt/cUYcqKBHgSZZvdB9LylBcg1Eaof+ndKRC0BmuaLY
+         kR+nVkUP+sUFisV/YNhpCqLG3FjrBPWS51+m2kf+WezQoVWz+HPirdWQWrpeLQ7EsZJP
+         /Aeg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=POKycPna;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="mHFm/5BS";
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id a199si18886122ywe.403.2019.07.24.16.23.24
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id y73si13409058ywy.7.2019.07.24.16.27.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 16:23:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Wed, 24 Jul 2019 16:27:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=POKycPna;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="mHFm/5BS";
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d38e8730000>; Wed, 24 Jul 2019 16:23:31 -0700
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d38e94a0000>; Wed, 24 Jul 2019 16:27:06 -0700
 Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Wed, 24 Jul 2019 16:23:23 -0700
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Wed, 24 Jul 2019 16:27:06 -0700
 X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Wed, 24 Jul 2019 16:23:23 -0700
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 24 Jul
- 2019 23:23:22 +0000
-Subject: Re: [PATCH 00/12] block/bio, fs: convert put_page() to
- put_user_page*()
-To: Christoph Hellwig <hch@infradead.org>, <john.hubbard@gmail.com>
-CC: Andrew Morton <akpm@linux-foundation.org>, Alexander Viro
-	<viro@zeniv.linux.org.uk>, Anna Schumaker <anna.schumaker@netapp.com>, "David
- S . Miller" <davem@davemloft.net>, Dominique Martinet
-	<asmadeus@codewreck.org>, Eric Van Hensbergen <ericvh@gmail.com>, Jason
- Gunthorpe <jgg@ziepe.ca>, Jason Wang <jasowang@redhat.com>, Jens Axboe
-	<axboe@kernel.dk>, Latchesar Ionkov <lucho@ionkov.net>, "Michael S . Tsirkin"
-	<mst@redhat.com>, Miklos Szeredi <miklos@szeredi.hu>, Trond Myklebust
-	<trond.myklebust@hammerspace.com>, Christoph Hellwig <hch@lst.de>, Matthew
- Wilcox <willy@infradead.org>, <linux-mm@kvack.org>, LKML
-	<linux-kernel@vger.kernel.org>, <ceph-devel@vger.kernel.org>,
-	<kvm@vger.kernel.org>, <linux-block@vger.kernel.org>,
-	<linux-cifs@vger.kernel.org>, <linux-fsdevel@vger.kernel.org>,
-	<linux-nfs@vger.kernel.org>, <linux-rdma@vger.kernel.org>,
-	<netdev@vger.kernel.org>, <samba-technical@lists.samba.org>,
-	<v9fs-developer@lists.sourceforge.net>,
-	<virtualization@lists.linux-foundation.org>
-References: <20190724042518.14363-1-jhubbard@nvidia.com>
- <20190724061750.GA19397@infradead.org>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <17f12f3d-981e-a717-c8e5-bfbbfb7ec1a3@nvidia.com>
-Date: Wed, 24 Jul 2019 16:23:21 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+	by hqpgpgate101.nvidia.com on Wed, 24 Jul 2019 16:27:06 -0700
+Received: from HQMAIL105.nvidia.com (172.20.187.12) by HQMAIL105.nvidia.com
+ (172.20.187.12) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 24 Jul
+ 2019 23:27:05 +0000
+Received: from hqnvemgw01.nvidia.com (172.20.150.20) by HQMAIL105.nvidia.com
+ (172.20.187.12) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
+ Transport; Wed, 24 Jul 2019 23:27:05 +0000
+Received: from rcampbell-dev.nvidia.com (Not Verified[10.110.48.66]) by hqnvemgw01.nvidia.com with Trustwave SEG (v7,5,8,10121)
+	id <B5d38e9490001>; Wed, 24 Jul 2019 16:27:05 -0700
+From: Ralph Campbell <rcampbell@nvidia.com>
+To: <linux-mm@kvack.org>
+CC: <linux-kernel@vger.kernel.org>, Ralph Campbell <rcampbell@nvidia.com>
+Subject: [PATCH v3 0/3] mm/hmm: fixes for device private page migration
+Date: Wed, 24 Jul 2019 16:26:57 -0700
+Message-ID: <20190724232700.23327-1-rcampbell@nvidia.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-In-Reply-To: <20190724061750.GA19397@infradead.org>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
+X-NVConfidentiality: public
+Content-Type: text/plain; charset="UTF-8"
 Content-Transfer-Encoding: quoted-printable
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1564010611; bh=U/byz8o3kezigETW8hWUjg+JqkNm/y0Q4UHjAnDVaRI=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	t=1564010826; bh=gTLfLpBBgzH14pN0OishW6D/G2zPoxenwkGRe8J45rs=;
+	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
+	 MIME-Version:X-NVConfidentiality:Content-Type:
 	 Content-Transfer-Encoding;
-	b=POKycPna3sFHaptSpPG8JFNhdv+KWPJt4Fqq7qra/U5uujHxVhga0mA2hyYe3oLWO
-	 rvMjdBQgQaYdhe3tYVq3xzWzC7PXLH9gVg6v6GfrdnHKhzPSXOdrUzDa4Sfy+FpWme
-	 AYx8XN4QHijtxUQThz9jDsFglp/BwmD6wmVyo2Ou4HoX36ySg8r0DnnWDfRMrkzmXC
-	 XvSXsG7L9llJHump4bjV4yoH02Li7EYgdYhEFhGR3d1oO3a9DGx7nb70VEc+guaDrP
-	 BAn4DIKE83X0lqImHCnmIIbgjVMdzz9Q4ePUhHR77cnRWD+JGehn4V8I2IYZgTvKbn
-	 0ENu9Hbk0xmXw==
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+	b=mHFm/5BSNkpiIizmFlxJBFlZ5AY3WiRyFEePDr9oWQ473aDpCVLOrRoB6nx0KwvjS
+	 HYxtHV5bRdS23e6YHjzo2c+4shRrFMHOLx4DXn/XfeN/VXzFHKHJ3KcmukN5izfPyb
+	 pHTAlnOE1JXeN8ZEnA8uY3CFSvD4vUReVd21A/cehRYjo7rr8nZkwkZRgNDX5nKtok
+	 smxmGyZ/IUUAmmt6AVIAeIi1avYMjafvV4pQGVOwa3mtrI0if+Hf3GfcoNiNEivQgW
+	 LI/+XnVIJppguZ69lKQjgs9cAKna0rPAqcb1junJAQrye8vz3mCYu4dXF/xVJyE7xv
+	 JySHepvCjAlrA==
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/23/19 11:17 PM, Christoph Hellwig wrote:
-> On Tue, Jul 23, 2019 at 09:25:06PM -0700, john.hubbard@gmail.com wrote:
->> * Store, in the iov_iter, a "came from gup (get_user_pages)" parameter.
->>   Then, use the new iov_iter_get_pages_use_gup() to retrieve it when
->>   it is time to release the pages. That allows choosing between put_page=
-()
->>   and put_user_page*().
->>
->> * Pass in one more piece of information to bio_release_pages: a "from_gu=
-p"
->>   parameter. Similar use as above.
->>
->> * Change the block layer, and several file systems, to use
->>   put_user_page*().
->=20
-> I think we can do this in a simple and better way.  We have 5 ITER_*
-> types.  Of those ITER_DISCARD as the name suggests never uses pages, so
-> we can skip handling it.  ITER_PIPE is rejected =D1=96n the direct I/O pa=
-th,
-> which leaves us with three.
->=20
-> Out of those ITER_BVEC needs a user page reference, so we want to call
+Testing the latest linux git tree turned up a few bugs with page
+migration to and from ZONE_DEVICE private and anonymous pages.
+Hopefully this series clarifies how ZONE_DEVICE private struct page
+uses the same mapping and index fields from the source anonymous page
+mapping.
 
-               ^ ITER_IOVEC, I hope. Otherwise I'm hopeless lost. :)
+Changes from v2 to v3:
 
-> put_user_page* on it.  ITER_BVEC always already has page reference,
-> which means in the block direct I/O path path we alread don't take
-> a page reference.  We should extent that handling to all other calls
-> of iov_iter_get_pages / iov_iter_get_pages_alloc.  I think we should
-> just reject ITER_KVEC for direct I/O as well as we have no users and
-> it is rather pointless.  Alternatively if we see a use for it the
-> callers should always have a life page reference anyway (or might
-> be on kmalloc memory), so we really should not take a reference either.
->=20
-> In other words:  the only time we should ever have to put a page in
-> this patch is when they are user pages.  We'll need to clean up
-> various bits of code for that, but that can be done gradually before
-> even getting to the actual put_user_pages conversion.
->=20
+Patch #1 is basically new (like v1 but with comments from v2) to
+accommodate Matthew Wilcox's NAK of v2 and Christoph's objection to
+adding _zd_pad fields in v1.
 
-Sounds great. I'm part way into it and it doesn't look too bad. The main
-question is where to scatter various checks and assertions, to keep
-the kvecs out of direct I/0. Or at least keep the gups away from=20
-direct I/0.
+Patch #2 adds reviewed-by
 
+Patch #3 adds comments explaining the reason for setting "subpage".
 
-thanks,
+Changes from v1 to v2:
+
+Patch #1 merges ZONE_DEVICE page struct into a union of lru and
+a struct for ZONE_DEVICE fields. So, basically a new patch.
+
+Patch #2 updates the code comments for clearing page->mapping as
+suggested by John Hubbard.
+
+Patch #3 is unchanged from the previous posting but note that
+Andrew Morton has v1 queued in v5.2-mmotm-2019-07-18-16-08.
+
+Ralph Campbell (3):
+  mm: document zone device struct page reserved fields
+  mm/hmm: fix ZONE_DEVICE anon page mapping reuse
+  mm/hmm: Fix bad subpage pointer in try_to_unmap_one
+
+ include/linux/mm_types.h | 9 ++++++++-
+ kernel/memremap.c        | 4 ++++
+ mm/rmap.c                | 1 +
+ 3 files changed, 13 insertions(+), 1 deletion(-)
+
 --=20
-John Hubbard
-NVIDIA
+2.20.1
 
