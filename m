@@ -2,288 +2,190 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C2E5CC76186
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 20:10:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F12A2C7618F
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 20:12:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 77B262147A
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 20:10:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77B262147A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id A573A20665
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 20:12:06 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="nMkbt/qr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A573A20665
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2558D6B0005; Wed, 24 Jul 2019 16:10:36 -0400 (EDT)
+	id 3DBA26B0005; Wed, 24 Jul 2019 16:12:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 207BB6B0006; Wed, 24 Jul 2019 16:10:36 -0400 (EDT)
+	id 38BDA6B0006; Wed, 24 Jul 2019 16:12:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0F84D8E0002; Wed, 24 Jul 2019 16:10:36 -0400 (EDT)
+	id 254E98E0002; Wed, 24 Jul 2019 16:12:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DDE036B0005
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 16:10:35 -0400 (EDT)
-Received: by mail-vs1-f71.google.com with SMTP id k10so12912856vso.5
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 13:10:35 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F12436B0005
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 16:12:05 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id x18so26226076otp.9
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 13:12:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-transfer-encoding
-         :content-language;
-        bh=5hcKu9wpuYaU4S3K3JSjl3CxYR3PF3phuadKopfEDo4=;
-        b=LMNeHxFsmm7gofd/De4B2BRFmQy7764rK600TRJkoWFzcGulxEYYh8QuA7lcz5h1Fn
-         6j+WYcRsldtqz4njW7OHmN+eIgMuWSpRKEb9wB7wIUWTQGRX9iZBPX+5huBD+soStCXH
-         V5SaR6cyVyVAeZUl7xFStfNGKystez+SPgOuT3zHqTlzdFAJYsVVjzOcKQAmjcY/WS88
-         SoIVP3bpVrmn8T6rQSfQ0m967yFhc1JzMjR4FqmpdN9zoPBLloNtWfT8+LqJgF36P5ck
-         EPVsWbF49Lw1A+jTrnhQtZzC4fmz0qfDTyUiu9U/Z+fL6UXjGw7zpQHDd4OcVFRbWfJ8
-         CE0g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVOM0c6LMvlDSi/raL27HRr1/ZKPIqwN8WGfot8sApU0YwyyJqK
-	k/ai+QkA5KNt2LvRzsMMQ0655ogOoXVV4WcWe/EeoyMotpBXYL2eb9rzWXhbp+s3c1zLg8ixuiU
-	YUFAldDcyXjZngmN030offQasg0qPcJXKytoiKiOZewp15tRQkcRBrP0GWGB4cSPYQQ==
-X-Received: by 2002:ab0:20cc:: with SMTP id z12mr20133095ual.32.1563999035662;
-        Wed, 24 Jul 2019 13:10:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxuA01RYJG7UKupLwjCDU6Lo4NHCiuSdLIjEIAiAxtHfklek0O+Qp0fYwxB0kuBfO3Ev9yz
-X-Received: by 2002:ab0:20cc:: with SMTP id z12mr20133030ual.32.1563999035007;
-        Wed, 24 Jul 2019 13:10:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563999035; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=+PNL04KYvInZXteiwuvvVomp7psYL1Kl+T8ycx6EmRk=;
+        b=pcxvxiq5xvdpbwxPniEy4ASPNsk68sMGCJD9NASL27XybBYk3+4DpeRmeifxTSsPzZ
+         pqBbu3od+kSdjNKBVOcnIHPESFvTaDD/S8uFtC5y1hOlYE3Y1Cg81493xIXdaWw15tDF
+         ANtC0JtM0s7evO8o1bksTiVxYdbLW8AHKeGOX/1Bt/e4ZglkJz51eC0Q5jOVGWNZjpyT
+         Ai7QvphczDmoSLskZ/EEe+sBR3T0Yx0WQNRDF3ZEroTDjLz7K4oqRsOnExAgXeR11zsA
+         XIRT421qiripsRcGOi3hTsVi3cN5PyZt0wDEnaXWaNYZgqMhJzvj0gbg01ScQFvVf6LU
+         s38g==
+X-Gm-Message-State: APjAAAU5JGhgvmrNj94t6vbAllq9mtdcVJ7FLDdDCE77vffZglLFEDci
+	lOlAdvUYP8xkkC8bQcs6VPmq/3ZRQN56q49u1K6aVhYy09pPZ9Fs/jhy1Ji9hMH5K4oaEw5+a6c
+	4/kl+JmvulHHIhKY1Uee6J2gP1KpuN0eLW5zPWVSYo66vrxFn3/TSSQJI0K2i+Hkywg==
+X-Received: by 2002:a9d:6a92:: with SMTP id l18mr59634006otq.294.1563999125581;
+        Wed, 24 Jul 2019 13:12:05 -0700 (PDT)
+X-Received: by 2002:a9d:6a92:: with SMTP id l18mr59633973otq.294.1563999124971;
+        Wed, 24 Jul 2019 13:12:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563999124; cv=none;
         d=google.com; s=arc-20160816;
-        b=htx3t1nrG77mEoaYjP8fmDBEKYqnhW9O5+dpquSOhqYC/TfLIdbJjfuxM6zBbPoIv3
-         DM3slEP3PdRABlqiG6MlVzeWHoC69RfR7lyHQr+E5I1TSL6+WhneMNqg+MFJSz6y0mOy
-         7wzlxvIJc4ISBi+UPvSjeoX7WyITcLq6IdftVSSx6aUWZcfRHkjeEBpVAwGXmS15B+9e
-         bftTjezAfDZRV2Kg3HYWexIq/OgsQs1CmCDdtT9eegyEqSpcSvmNWhbMxZgX3gMLIEGM
-         Go11Jfn5FzHQVVhRZBNY9BlbamzlA2CiO7YpE8XGfhYXJa3xDkcNcI9s4CvEIJKqbLMU
-         YImw==
+        b=HgLKY4KnUguKuX4l5usFT3D0UhJ2VUJ+KSdztQVytRiowfTFvsFr+6SUKpxeIVX7Bo
+         WYoogqx0p8Dw7BWDVbD2//IKWVbETVE9pkkZkdyOOE+3S8+OUncA7z0oQ6fe4b/xa8Xt
+         DkexoIzDiwWaN3btyPH/wVTPgcqYnCy1GuRTEILE5Ph5R2uRsRZ7g7Yb9hleu5+dc6R2
+         xHMqE6pBqWNV2EcEtgb80ZVffXVZ9UA5vkXSVPReiYNgmZqcrTKr+bdUqwLvhjtGxTC9
+         Wm1ph3atV6m0+RLvT0cxwsJrM2nVW0c/mm7WelUmG2Z4AjN41FAOZhhNLcW3x5vDzsJr
+         rJQg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=5hcKu9wpuYaU4S3K3JSjl3CxYR3PF3phuadKopfEDo4=;
-        b=dPSwyJ5zMa83vd9DAfBqfe4ECDoCoGaamZTECKT0d9rWcW6DlKrTnOKR1WCmCY2HQS
-         KmpPM917bAWCdgmrTSlJKMo1AiVrQ9mdX4NDihjPRVuo/lYfztJDkEt4GXMR1Y17Jcyt
-         klAxEQ9Vyn42xp12AxEmm2DEnEDTLpLTeqBFEBC234Yy5BI5SDj85/L1QIe0xYkkO8ua
-         uI9alvS3dmmjvoPpSCDgacruaX22SmBUn4uF3+MAV9bVUI3x1dN/PHtLeNIU5573trZ/
-         Zt8PEww0lgKiMI87x9XqcI+NlLOQNO1VGpxrYfMHJZltJF0Lhj1+emY/vkuAskayMY7H
-         +BtQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=+PNL04KYvInZXteiwuvvVomp7psYL1Kl+T8ycx6EmRk=;
+        b=uH5x08/fZ01WTAys7KwHb8T/wVLhm5b0z6ivmJH0jfuXc0rxpmMpqcaqz2q9Vz+V/W
+         eURf/TLIpXVnu7eYRqtVdTtzKYlrsLtB7V/mpzaKYXi8aT/NvtZgWLmjONy4O10IdgoK
+         HMBchpSzQ+ftffhw2JNX7lUWI0ulAMYkikIQw6G27kNccTVPCOgVHBoRHyWrrHpsXD3z
+         cpZuoXENA0cRmDJWERHT/ymnupBHEVJpe050+7bt7BEM4jDf2yWqpLxLfLyxo30Ki7R3
+         IxLjF6rTMPkHhHPz63JtaYovOE2lPr4GSlaqJISN8eW+CxGWIBpjvWUcqZM3qMXW6uvs
+         JoWA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s15si11238186uao.57.2019.07.24.13.10.34
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="nMkbt/qr";
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l1sor23967041otk.47.2019.07.24.13.12.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 13:10:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Wed, 24 Jul 2019 13:12:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 223DC8553D;
-	Wed, 24 Jul 2019 20:10:34 +0000 (UTC)
-Received: from [10.18.17.163] (dhcp-17-163.bos.redhat.com [10.18.17.163])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id BA0FD5D9DE;
-	Wed, 24 Jul 2019 20:10:22 +0000 (UTC)
-Subject: Re: [RFC][Patch v11 2/2] virtio-balloon: page_hinting: reporting to
- the host
-To: David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin"
- <mst@redhat.com>
-Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- pbonzini@redhat.com, lcapitulino@redhat.com, pagupta@redhat.com,
- wei.w.wang@intel.com, yang.zhang.wz@gmail.com, riel@surriel.com,
- dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
- aarcange@redhat.com, alexander.duyck@gmail.com, john.starks@microsoft.com,
- dave.hansen@intel.com, mhocko@suse.com
-References: <20190710195158.19640-1-nitesh@redhat.com>
- <20190710195158.19640-3-nitesh@redhat.com>
- <20190724153951-mutt-send-email-mst@kernel.org>
- <d4f827a5-7914-4f8c-932e-91ef173b65d0@redhat.com>
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- VujM7c/b4pps
-Organization: Red Hat Inc,
-Message-ID: <a230c221-604f-44d8-9895-a22123704c72@redhat.com>
-Date: Wed, 24 Jul 2019 16:10:22 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b="nMkbt/qr";
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=+PNL04KYvInZXteiwuvvVomp7psYL1Kl+T8ycx6EmRk=;
+        b=nMkbt/qriVy9O40AoW5FYNfDVr8RyGGaYJ40joGq40jdmhquOlREtNDZ/xeGpk9EHD
+         gXIrt4W1XVVNC6/Rd2cAvNqLFpGVzBldC5FrJdtpyV4dVO8ZxSE8mfwUvBpjKm1jzl17
+         krrSZj+MzqvjS3VrNAzKy8wM81/5FUxqLeDnL3zJG6EW31/OdglL16Ms8Uggn9Qz2FUQ
+         y4aYlFANRwJZE2ZsU9dZEqXS7iUWtbd/J+qYJcO23brfsDmTeNV2Rw9ByujWw5xbW40z
+         0ldixykjhsbNKz/35tArF46weN+pr4TRfpajnHEBiwS7hXFUaIYfGGIyG3ZPouMGNZhX
+         vamQ==
+X-Google-Smtp-Source: APXvYqyVnJ52FSRiRxNb5fXzbbBT2vQjm4rcB9LwDsWmIAgcWVuBgRfFtQALre7fkjgKI2r2zo6w17KkSkKZppNPmvs=
+X-Received: by 2002:a9d:7b48:: with SMTP id f8mr36294684oto.207.1563999124513;
+ Wed, 24 Jul 2019 13:12:04 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <d4f827a5-7914-4f8c-932e-91ef173b65d0@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Wed, 24 Jul 2019 20:10:34 +0000 (UTC)
+References: <20190625075227.15193-1-osalvador@suse.de> <20190625075227.15193-3-osalvador@suse.de>
+In-Reply-To: <20190625075227.15193-3-osalvador@suse.de>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Wed, 24 Jul 2019 13:11:52 -0700
+Message-ID: <CAPcyv4hvu+wp4tJJNW70jp2G_rNabyvzGMvDTS3PzkDCAFztYg@mail.gmail.com>
+Subject: Re: [PATCH v2 2/5] mm,memory_hotplug: Introduce MHP_VMEMMAP_FLAGS
+To: Oscar Salvador <osalvador@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>, 
+	Pavel Tatashin <pasha.tatashin@soleen.com>, Jonathan Cameron <Jonathan.Cameron@huawei.com>, 
+	David Hildenbrand <david@redhat.com>, Anshuman Khandual <anshuman.khandual@arm.com>, 
+	Vlastimil Babka <vbabka@suse.cz>, Linux MM <linux-mm@kvack.org>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Jun 25, 2019 at 12:53 AM Oscar Salvador <osalvador@suse.de> wrote:
+>
+> This patch introduces MHP_MEMMAP_DEVICE and MHP_MEMMAP_MEMBLOCK flags,
+> and prepares the callers that add memory to take a "flags" parameter.
+> This "flags" parameter will be evaluated later on in Patch#3
+> to init mhp_restrictions struct.
+>
+> The callers are:
+>
+> add_memory
+> __add_memory
+> add_memory_resource
+>
+> Unfortunately, we do not have a single entry point to add memory, as depending
+> on the requisites of the caller, they want to hook up in different places,
+> (e.g: Xen reserve_additional_memory()), so we have to spread the parameter
+> in the three callers.
+>
+> The flags are either MHP_MEMMAP_DEVICE or MHP_MEMMAP_MEMBLOCK, and only differ
+> in the way they allocate vmemmap pages within the memory blocks.
+>
+> MHP_MEMMAP_MEMBLOCK:
+>         - With this flag, we will allocate vmemmap pages in each memory block.
+>           This means that if we hot-add a range that spans multiple memory blocks,
+>           we will use the beginning of each memory block for the vmemmap pages.
+>           This strategy is good for cases where the caller wants the flexiblity
+>           to hot-remove memory in a different granularity than when it was added.
+>
+>           E.g:
+>                 We allocate a range (x,y], that spans 3 memory blocks, and given
+>                 memory block size = 128MB.
+>                 [memblock#0  ]
+>                 [0 - 511 pfns      ] - vmemmaps for section#0
+>                 [512 - 32767 pfns  ] - normal memory
+>
+>                 [memblock#1 ]
+>                 [32768 - 33279 pfns] - vmemmaps for section#1
+>                 [33280 - 65535 pfns] - normal memory
+>
+>                 [memblock#2 ]
+>                 [65536 - 66047 pfns] - vmemmap for section#2
+>                 [66048 - 98304 pfns] - normal memory
+>
+> MHP_MEMMAP_DEVICE:
+>         - With this flag, we will store all vmemmap pages at the beginning of
+>           hot-added memory.
+>
+>           E.g:
+>                 We allocate a range (x,y], that spans 3 memory blocks, and given
+>                 memory block size = 128MB.
+>                 [memblock #0 ]
+>                 [0 - 1533 pfns    ] - vmemmap for section#{0-2}
+>                 [1534 - 98304 pfns] - normal memory
+>
+> When using larger memory blocks (1GB or 2GB), the principle is the same.
+>
+> Of course, MHP_MEMMAP_DEVICE is nicer when it comes to have a large contigous
+> area, while MHP_MEMMAP_MEMBLOCK allows us to have flexibility when removing the
+> memory.
 
-On 7/24/19 3:56 PM, David Hildenbrand wrote:
-> On 24.07.19 21:47, Michael S. Tsirkin wrote:
->> On Wed, Jul 10, 2019 at 03:51:58PM -0400, Nitesh Narayan Lal wrote:
->>> Enables the kernel to negotiate VIRTIO_BALLOON_F_HINTING feature with the
->>> host. If it is available and page_hinting_flag is set to true, page_hinting
->>> is enabled and its callbacks are configured along with the max_pages count
->>> which indicates the maximum number of pages that can be isolated and hinted
->>> at a time. Currently, only free pages of order >= (MAX_ORDER - 2) are
->>> reported. To prevent any false OOM max_pages count is set to 16.
->>>
->>> By default page_hinting feature is enabled and gets loaded as soon
->>> as the virtio-balloon driver is loaded. However, it could be disabled
->>> by writing the page_hinting_flag which is a virtio-balloon parameter.
->>>
->>> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
->>> ---
->>>  drivers/virtio/Kconfig              |  1 +
->>>  drivers/virtio/virtio_balloon.c     | 91 ++++++++++++++++++++++++++++-
->>>  include/uapi/linux/virtio_balloon.h | 11 ++++
->>>  3 files changed, 102 insertions(+), 1 deletion(-)
->>>
->>> diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
->>> index 023fc3bc01c6..dcc0cb4269a5 100644
->>> --- a/drivers/virtio/Kconfig
->>> +++ b/drivers/virtio/Kconfig
->>> @@ -47,6 +47,7 @@ config VIRTIO_BALLOON
->>>  	tristate "Virtio balloon driver"
->>>  	depends on VIRTIO
->>>  	select MEMORY_BALLOON
->>> +	select PAGE_HINTING
->>>  	---help---
->>>  	 This driver supports increasing and decreasing the amount
->>>  	 of memory within a KVM guest.
->>> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
->>> index 44339fc87cc7..1fb0eb0b2c20 100644
->>> --- a/drivers/virtio/virtio_balloon.c
->>> +++ b/drivers/virtio/virtio_balloon.c
->>> @@ -18,6 +18,7 @@
->>>  #include <linux/mm.h>
->>>  #include <linux/mount.h>
->>>  #include <linux/magic.h>
->>> +#include <linux/page_hinting.h>
->>>  
->>>  /*
->>>   * Balloon device works in 4K page units.  So each page is pointed to by
->>> @@ -35,6 +36,12 @@
->>>  /* The size of a free page block in bytes */
->>>  #define VIRTIO_BALLOON_FREE_PAGE_SIZE \
->>>  	(1 << (VIRTIO_BALLOON_FREE_PAGE_ORDER + PAGE_SHIFT))
->>> +/* Number of isolated pages to be reported to the host at a time.
->>> + * TODO:
->>> + * 1. Set it via host.
->>> + * 2. Find an optimal value for this.
->>> + */
->>> +#define PAGE_HINTING_MAX_PAGES	16
->>>  
->>>  #ifdef CONFIG_BALLOON_COMPACTION
->>>  static struct vfsmount *balloon_mnt;
->>> @@ -45,6 +52,7 @@ enum virtio_balloon_vq {
->>>  	VIRTIO_BALLOON_VQ_DEFLATE,
->>>  	VIRTIO_BALLOON_VQ_STATS,
->>>  	VIRTIO_BALLOON_VQ_FREE_PAGE,
->>> +	VIRTIO_BALLOON_VQ_HINTING,
->>>  	VIRTIO_BALLOON_VQ_MAX
->>>  };
->>>  
->>> @@ -54,7 +62,8 @@ enum virtio_balloon_config_read {
->>>  
->>>  struct virtio_balloon {
->>>  	struct virtio_device *vdev;
->>> -	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq;
->>> +	struct virtqueue *inflate_vq, *deflate_vq, *stats_vq, *free_page_vq,
->>> +			 *hinting_vq;
->>>  
->>>  	/* Balloon's own wq for cpu-intensive work items */
->>>  	struct workqueue_struct *balloon_wq;
->>> @@ -112,6 +121,9 @@ struct virtio_balloon {
->>>  
->>>  	/* To register a shrinker to shrink memory upon memory pressure */
->>>  	struct shrinker shrinker;
->>> +
->>> +	/* Array object pointing at the isolated pages ready for hinting */
->>> +	struct isolated_memory isolated_pages[PAGE_HINTING_MAX_PAGES];
->>>  };
->>>  
->>>  static struct virtio_device_id id_table[] = {
->>> @@ -119,6 +131,66 @@ static struct virtio_device_id id_table[] = {
->>>  	{ 0 },
->>>  };
->>>  
->>> +static struct page_hinting_config page_hinting_conf;
->>> +bool page_hinting_flag = true;
->>> +struct virtio_balloon *hvb;
->>> +module_param(page_hinting_flag, bool, 0444);
->>> +MODULE_PARM_DESC(page_hinting_flag, "Enable page hinting");
->>> +
->>> +static int page_hinting_report(void)
->>> +{
->>> +	struct virtqueue *vq = hvb->hinting_vq;
->>> +	struct scatterlist sg;
->>> +	int err = 0, unused;
->>> +
->>> +	mutex_lock(&hvb->balloon_lock);
->>> +	sg_init_one(&sg, hvb->isolated_pages, sizeof(hvb->isolated_pages[0]) *
->>> +		    PAGE_HINTING_MAX_PAGES);
->>> +	err = virtqueue_add_outbuf(vq, &sg, 1, hvb, GFP_KERNEL);
->> In Alex's patch, I really like it that he's passing pages as sg
->> entries. IMHO that's both cleaner and allows seamless
->> support for arbitrary page sizes.
->>
-> +1
->
-> I especially like passing full addresses and sizes instead of PFNs and
-> orders (compared to Alex's v1, where he would pass PFNs and orders).
-I agree it fixes the issues which could have been introduced due to different
-page sizes in the host and the guest.
->
--- 
-Thanks
-Nitesh
+Concept and patch looks good to me, but I don't quite like the
+proliferation of the _DEVICE naming, in theory it need not necessarily
+be ZONE_DEVICE that is the only user of that flag. I also think it
+might be useful to assign a flag for the default 'allocate from RAM'
+case, just so the code is explicit. So, how about:
+
+MHP_MEMMAP_PAGE_ALLOC
+MHP_MEMMAP_MEMBLOCK
+MHP_MEMMAP_RESERVED
+
+...for the 3 cases?
+
+Other than that, feel free to add:
+
+Reviewed-by: Dan Williams <dan.j.williams@intel.com>
 
