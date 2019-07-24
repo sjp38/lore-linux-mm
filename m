@@ -2,223 +2,128 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 706D7C7618F
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 08:05:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF273C7618B
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 08:07:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 17AB3229ED
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 08:05:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17AB3229ED
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id A9FC121873
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 08:07:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A9FC121873
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6C0976B0003; Wed, 24 Jul 2019 04:05:28 -0400 (EDT)
+	id 5ADC16B0003; Wed, 24 Jul 2019 04:07:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 673446B0005; Wed, 24 Jul 2019 04:05:28 -0400 (EDT)
+	id 55F6E6B0005; Wed, 24 Jul 2019 04:07:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5865A8E0002; Wed, 24 Jul 2019 04:05:28 -0400 (EDT)
+	id 474CF6B0006; Wed, 24 Jul 2019 04:07:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 375DD6B0003
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 04:05:28 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id r58so40795236qtb.5
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 01:05:28 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 11B936B0003
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 04:07:29 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id o13so29728225edt.4
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 01:07:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to;
-        bh=474FJ4CjTLJhnSN+huYP4Jd3bf8v5qgo4+UVMvlOmIY=;
-        b=JUJ3T0v4cSYEsoY8L8l9dNpKTiH+90/VcYoIFPhkhUkbuT5EoMcJ4Q9ajqBV8/FDU9
-         tSc73dKGVl5cnlZaLUeviNjtwecZNEUpEHl23a50A8JvaNQMiVySAFYGsGsh4HoaDAAC
-         H5e74xxipcM7v+eqXbV0pyFA7T20yCLzukXk26zKLULs0frndy0/aPg+moKeRdVCugQp
-         zMtY/xZlMfpy3IcJE8htAMFKwyWTW3NEfztUBjGBUOozxHRJWWSLD4OOBnIOKG9MuDAL
-         Y/eGK4uVJTidhbxYvEMp1KduETY5Hq4iLFooScEZ6UJcZIR8CQFTby6x1TZVDqFWurHZ
-         AeqQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVFVTO13zvJWWLD6d+jd87N8QBiyNIsJzWQSDYeZuzCQHe93Jwp
-	fN3JVZBwUa3pDIqsGtWnswzYMVCniAdOJJPIHOzw50k856cF9g0bdkw0ZCz9AIi/RSvs80Txprj
-	QUTD78kQ9KDUwVTWU5wWgRIg2uIlwbl8brJKQXzrdGH+GGq19+0BHKckz7yXFI3PlxA==
-X-Received: by 2002:ae9:d610:: with SMTP id r16mr49842517qkk.16.1563955527943;
-        Wed, 24 Jul 2019 01:05:27 -0700 (PDT)
-X-Received: by 2002:ae9:d610:: with SMTP id r16mr49842478qkk.16.1563955527127;
-        Wed, 24 Jul 2019 01:05:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563955527; cv=none;
+         :in-reply-to:user-agent;
+        bh=d5nGHwz1qmXETyeN4Nwd6NgsthuhYK/aPlV7ITNUtWw=;
+        b=D1ZHtK0qqR5BSfxIfFXWvcSaotJZF6D7OGHRVAJAtwBs3si25ljqCIemlMGD1NjcLF
+         ZSal/A/Dm1FUGxChpdEfUEKXpYgXNuRxm6RqACuWY3FnR45Nu5g4F7Pcl+EJoerH9NwP
+         gZ5Cuf1vjOaSa4JGMIyqZ3Xuyx1eRX1TgcfvmfJWt6uY/yArkbw303HzvdTQQ1ci92kH
+         h6eHaRcmmm4U76Iz9fg768yXIR0XAFtE2rrR3QY4TQ9q/1UaaeGw/QQ3JuRry3khtPkt
+         uGKckr1e1C7cTIohMBCA0rW9zKrskJva6p8J3sIQAZSWo2+QnQVfvy2UBZm1RTgnd5af
+         BirA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Gm-Message-State: APjAAAU1JuhChDrOEam626SPYudQTdYQ7ex2/7vUyu7VdVjf/av3AJ23
+	SKGaLS5oBZ5P8M3yL7M5fP8Y0jnoJf1j+dRwC+ujvyLxAglgZdc7zyoe46fySY/C4TAm+l5VC7N
+	vWN2FM35J5uO78UfpwaBnjY2fw/QwHjoMvtkGixDa1vLZGhD93O5umcFvkS56n+MqSA==
+X-Received: by 2002:a17:906:b2cd:: with SMTP id cf13mr60893216ejb.197.1563955648661;
+        Wed, 24 Jul 2019 01:07:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy3kQcBJDv516qeCkfZvGqISJIh0fvNXEdLnvn+9QsoSyzUK0v4Rklj+HrxBNPrgHaF/cOI
+X-Received: by 2002:a17:906:b2cd:: with SMTP id cf13mr60893169ejb.197.1563955647980;
+        Wed, 24 Jul 2019 01:07:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563955647; cv=none;
         d=google.com; s=arc-20160816;
-        b=PjA3ZtN4C5YWvej+Z8T/CKOtmvTQaQiy8VrtY7EMKp9mPRq3eO/kcnyM23N5E2jnQi
-         Hn35yuXCw1BBvjoaOsB9jmCser56l23m0qPSg1GMkCYbbksPphhF49wUeVi3Ug59Iu4m
-         S9wyqX87pBwi7z+IpnXAiptnWFDGelRqrZ4Ct6M2SW58MdTPmfjFthUAq5hyBZiLuVzQ
-         giYRMAwPllOkljYVZ3zOHUs8OF9gWw32xCk9jVibBLSUVL/uEivGWyU5oHLfW95jFBAK
-         x3cnAlqLPTnoed7evXermQCA5jpasW87IbOMr/NY7kSg+nZppuTo8jo7vmdGRlvhSWjL
-         diWA==
+        b=i9XMqsvN/kV9uBax5bXCsxclNZB5KRJTMaIC35G6gUCtPNSnnF8laG2yhSDCGjQcev
+         o3GpUzWsxk0KqyzYD1/BUftVPvqKFilASCEaDp+nvDYE00ZuohnEZ3IotuDWapQbaW7Y
+         VvNuAMWKybehbtKUcE9bQZY2Frqf/2WQ9qflCA7nzAKC8Qe8q41/bnoZOexi5teorNRp
+         Ut5Bi38zXwwobFJCwxxy+R+wa6KmK7G5hpO+bX1touSS7Iu5T7dRArwLJw1nA8aQC1n+
+         LdkqnKNr5kukUxip1L9fPSLsa8OBfCujQ/YXLcTZKvpcoawd7qA6g1HdA8bGKRwfJiZw
+         wTgA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :mime-version:references:message-id:subject:cc:to:from:date;
-        bh=474FJ4CjTLJhnSN+huYP4Jd3bf8v5qgo4+UVMvlOmIY=;
-        b=gDA5uFig9yi/957vJuXGdglRI75pSIx3AfrSlFdEiFmXcw0tvjFjtOA18ngO0q/TbB
-         GWAxTATQylhdFZCh9zNYY+LcQ7h3XAfZZdliNlwLXT5UTyg49jFCOssUsXLNM7aOgDY+
-         HJk6xQHBjKRkc6m1hNFFR33ha8rN0PxR2gXYAAL6nE+IuRgbr9paTR7mWxMFSxWVoAVe
-         +5N+YxOftOJTuEhgWPnmtqicIbr5hjbAywwW4QigB8ss7jZkTH7ZDlun9CfKh61+0nWj
-         kXBN6SskcOLP+JUDDyle+kzUneGY6X2XoqVhO3BPgW0yYJGmkBWhuOIHcFk2LhEqoIcX
-         DbrA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=d5nGHwz1qmXETyeN4Nwd6NgsthuhYK/aPlV7ITNUtWw=;
+        b=JrC3B0ZBZsxZol2g54xT9yVu+r7O8lTSE4qrCAnONmYGaxQyXC2NuZmM1NUyHQ7CHP
+         ZpcxcPnB8VSd50N8CTAQs63x+eQH7OKf1ZJ5VMYoZKpjIzASPd6CdF9/s8M4w01NkttG
+         Pk0RcooESbRQkA0gSXsrBNiRUYvQ9M7Dr/REAU2GxCowAfCq6c5S0e1pIETcOPjxvldv
+         QmgQSZoUnr3+9t8uGZW4p52E7Jv3ZxKtcjpBedTIp+GtLdI4HdBiwOwk+86vhzpAruCh
+         3eyumtUVxqWcQNxs5uEiDDCyCCAHi3XwEGt37j6MJI0OvXjdzy1xYEZuT7eWX/xlL+JC
+         kkKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s6sor60861356qtq.34.2019.07.24.01.05.27
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id e52si8253327ede.345.2019.07.24.01.07.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Jul 2019 01:05:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Jul 2019 01:07:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqw6ZQ1xEgGDaGfr+FokaUeYzIX8sH8l8tvdJOvhZHCA1+JFXeX8ZY5yCCc6YIRs25mpDti6IA==
-X-Received: by 2002:ac8:1106:: with SMTP id c6mr4002540qtj.332.1563955526892;
-        Wed, 24 Jul 2019 01:05:26 -0700 (PDT)
-Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
-        by smtp.gmail.com with ESMTPSA id u11sm19337738qkk.76.2019.07.24.01.05.20
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 24 Jul 2019 01:05:25 -0700 (PDT)
-Date: Wed, 24 Jul 2019 04:05:17 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Jason Wang <jasowang@redhat.com>
-Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
-	aarcange@redhat.com, akpm@linux-foundation.org,
-	christian@brauner.io, davem@davemloft.net, ebiederm@xmission.com,
-	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
-	james.bottomley@hansenpartnership.com, jglisse@redhat.com,
-	keescook@chromium.org, ldv@altlinux.org,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, linux-parisc@vger.kernel.org,
-	luto@amacapital.net, mhocko@suse.com, mingo@kernel.org,
-	namit@vmware.com, peterz@infradead.org,
-	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
-	wad@chromium.org
-Subject: Re: WARNING in __mmdrop
-Message-ID: <20190724040238-mutt-send-email-mst@kernel.org>
-References: <20190722035657-mutt-send-email-mst@kernel.org>
- <cfcd330d-5f4a-835a-69f7-c342d5d0d52d@redhat.com>
- <20190723010156-mutt-send-email-mst@kernel.org>
- <124be1a2-1c53-8e65-0f06-ee2294710822@redhat.com>
- <20190723032800-mutt-send-email-mst@kernel.org>
- <e2e01a05-63d8-4388-2bcd-b2be3c865486@redhat.com>
- <20190723062221-mutt-send-email-mst@kernel.org>
- <9baa4214-67fd-7ad2-cbad-aadf90bbfc20@redhat.com>
- <20190723110219-mutt-send-email-mst@kernel.org>
- <e0c91b89-d1e8-9831-00fe-23fe92d79fa2@redhat.com>
+       spf=pass (google.com: domain of mhocko@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 14DCEAD3E;
+	Wed, 24 Jul 2019 08:07:27 +0000 (UTC)
+Date: Wed, 24 Jul 2019 10:07:26 +0200
+From: Michal Hocko <mhocko@suse.com>
+To: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Cc: Roman Gushchin <guro@fb.com>, David Rientjes <rientjes@google.com>,
+	Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH] mm, oom: simplify task's refcount handling
+Message-ID: <20190724080726.GA5584@dhcp22.suse.cz>
+References: <1563940476-6162-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20190724064110.GC10882@dhcp22.suse.cz>
+ <d6aebef5-60f8-a61c-0564-5bb4595e8e2c@i-love.sakura.ne.jp>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <e0c91b89-d1e8-9831-00fe-23fe92d79fa2@redhat.com>
+In-Reply-To: <d6aebef5-60f8-a61c-0564-5bb4595e8e2c@i-love.sakura.ne.jp>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 24, 2019 at 10:17:14AM +0800, Jason Wang wrote:
-> 
-> On 2019/7/23 下午11:02, Michael S. Tsirkin wrote:
-> > On Tue, Jul 23, 2019 at 09:34:29PM +0800, Jason Wang wrote:
-> > > On 2019/7/23 下午6:27, Michael S. Tsirkin wrote:
-> > > > > Yes, since there could be multiple co-current invalidation requests. We need
-> > > > > count them to make sure we don't pin wrong pages.
-> > > > > 
-> > > > > 
-> > > > > > I also wonder about ordering. kvm has this:
-> > > > > >           /*
-> > > > > >             * Used to check for invalidations in progress, of the pfn that is
-> > > > > >             * returned by pfn_to_pfn_prot below.
-> > > > > >             */
-> > > > > >            mmu_seq = kvm->mmu_notifier_seq;
-> > > > > >            /*
-> > > > > >             * Ensure the read of mmu_notifier_seq isn't reordered with PTE reads in
-> > > > > >             * gfn_to_pfn_prot() (which calls get_user_pages()), so that we don't
-> > > > > >             * risk the page we get a reference to getting unmapped before we have a
-> > > > > >             * chance to grab the mmu_lock without mmu_notifier_retry() noticing.
-> > > > > >             *
-> > > > > >             * This smp_rmb() pairs with the effective smp_wmb() of the combination
-> > > > > >             * of the pte_unmap_unlock() after the PTE is zapped, and the
-> > > > > >             * spin_lock() in kvm_mmu_notifier_invalidate_<page|range_end>() before
-> > > > > >             * mmu_notifier_seq is incremented.
-> > > > > >             */
-> > > > > >            smp_rmb();
-> > > > > > 
-> > > > > > does this apply to us? Can't we use a seqlock instead so we do
-> > > > > > not need to worry?
-> > > > > I'm not familiar with kvm MMU internals, but we do everything under of
-> > > > > mmu_lock.
-> > > > > 
-> > > > > Thanks
-> > > > I don't think this helps at all.
-> > > > 
-> > > > There's no lock between checking the invalidate counter and
-> > > > get user pages fast within vhost_map_prefetch. So it's possible
-> > > > that get user pages fast reads PTEs speculatively before
-> > > > invalidate is read.
-> > > > 
-> > > > -- 
-> > > 
-> > > In vhost_map_prefetch() we do:
-> > > 
-> > >          spin_lock(&vq->mmu_lock);
-> > > 
-> > >          ...
-> > > 
-> > >          err = -EFAULT;
-> > >          if (vq->invalidate_count)
-> > >                  goto err;
-> > > 
-> > >          ...
-> > > 
-> > >          npinned = __get_user_pages_fast(uaddr->uaddr, npages,
-> > >                                          uaddr->write, pages);
-> > > 
-> > >          ...
-> > > 
-> > >          spin_unlock(&vq->mmu_lock);
-> > > 
-> > > Is this not sufficient?
-> > > 
-> > > Thanks
-> > So what orders __get_user_pages_fast wrt invalidate_count read?
-> 
-> 
-> So in invalidate_end() callback we have:
-> 
-> spin_lock(&vq->mmu_lock);
-> --vq->invalidate_count;
->         spin_unlock(&vq->mmu_lock);
-> 
-> 
-> So even PTE is read speculatively before reading invalidate_count (only in
-> the case of invalidate_count is zero). The spinlock has guaranteed that we
-> won't read any stale PTEs.
-> 
-> Thanks
-
-I'm sorry I just do not get the argument.
-If you want to order two reads you need an smp_rmb
-or stronger between them executed on the same CPU.
-
-Executing any kind of barrier on another CPU
-will have no ordering effect on the 1st one.
-
-
-So if CPU1 runs the prefetch, and CPU2 runs invalidate
-callback, read of invalidate counter on CPU1 can bypass
-read of PTE on CPU1 unless there's a barrier
-in between, and nothing CPU2 does can affect that outcome.
-
-
-What did I miss?
-
-> 
+On Wed 24-07-19 16:37:35, Tetsuo Handa wrote:
+> On 2019/07/24 15:41, Michal Hocko wrote:
+[...]
+> > That being said, I do not think this patch gives any improvement.
 > > 
+> 
+> This patch avoids RCU during select_bad_process().
+
+It just shifts where the RCU is taken. Do you have any numbers to show
+that this is an improvement? Basically the only potentially expensive
+thing down the oom_evaluate_task that I can see is the task_lock but I
+am not aware of a single report that this would be a contributor for RCU
+stalls. I can be proven wrong but 
+
+> This patch allows
+> possibility of doing reschedulable things there; e.g. directly reaping
+> only a portion of OOM victim's memory rather than wasting CPU resource
+> by spinning until MMF_OOM_SKIP is set by the OOM reaper.
+
+We have been through direct oom reaping before and I haven't changed my
+possition there. It is just too tricky to be worth it.
+-- 
+Michal Hocko
+SUSE Labs
 
