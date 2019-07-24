@@ -6,165 +6,165 @@ X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D1BDCC76191
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:56:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1AB0FC7618F
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 20:07:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 80F5E205C9
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:56:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 80F5E205C9
+	by mail.kernel.org (Postfix) with ESMTP id BF1962083B
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 20:07:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF1962083B
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 064E16B0007; Wed, 24 Jul 2019 15:56:58 -0400 (EDT)
+	id 36A766B0005; Wed, 24 Jul 2019 16:07:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F311B6B0008; Wed, 24 Jul 2019 15:56:57 -0400 (EDT)
+	id 3198D8E0003; Wed, 24 Jul 2019 16:07:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DD0208E0002; Wed, 24 Jul 2019 15:56:57 -0400 (EDT)
+	id 1BC848E0002; Wed, 24 Jul 2019 16:07:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B1D9D6B0007
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 15:56:57 -0400 (EDT)
-Received: by mail-vk1-f197.google.com with SMTP id o202so20778350vko.16
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:56:57 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EAD3D6B0005
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 16:07:05 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id j81so40180240qke.23
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 13:07:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=UTQ1Tb9Sza6noSGSJr3ICyN6eib7q7f/W762etL2prE=;
-        b=kpw+A3YPhjQT6PmDcQy/E+AuulMUY1pHAuuGJqBnpMY6o2P4FeyxTZixeuz3MBMReQ
-         SAvmyFQnI2k/TbGH5t3GdkvX84a36p44+kMaZ6VVtBzSg6UAmdmsYHOiizUsu4vEaxmM
-         p7VackQsKeMnjDDfeAKz2NG4CKkz1KI3DuR81kc2/Kb8LibnUQ2TmAMUc1fwyTgm5J1h
-         d/cKcIdQiceBZwdpJJq9NOnA6FhUqg0vSRBztaw2ZOX5ynsU3858qWihvC2ArxuGPNPd
-         XClgiWW/QolOsp0qpO9g6bsiQVF4YaWvfXZ2/3xxLdfBpwMiqJAr+hyHa60TvjQEmUij
-         Fa0A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVjSARZXvGSjqedAYU3w3Cy4cpTiUQgw/lvXNE4HCmrDTk0rhB1
-	76XQWNXXz54t619kcFmHtknz53hbIHQGNuJDN8CmdeUOhwiXF7GEE0/ehK8bOJlhWvoW0LvoqBR
-	Y8IhgRp+WFRwQ6Wb+E9QUS4qK81F7ckjW/uA2cx6seO+sYYL1CyHFVVVI8anHLwqrYw==
-X-Received: by 2002:ab0:7848:: with SMTP id y8mr35549410uaq.58.1563998217416;
-        Wed, 24 Jul 2019 12:56:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyZWxG3l8AtNUrmh6diOaV5mtYHnGcZZeGKHjKmDzHgNdxcuwJ5VNb55Cw+bXaR+iK2UJ4j
-X-Received: by 2002:ab0:7848:: with SMTP id y8mr35549332uaq.58.1563998216765;
-        Wed, 24 Jul 2019 12:56:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563998216; cv=none;
+         :user-agent:mime-version:in-reply-to:content-transfer-encoding
+         :content-language;
+        bh=n7irbrV8iIQOvRw2SLTqpuZxygHHxh8DEvPTFRwHgf4=;
+        b=JA9KF8Ez72SYEXzLO/xeFxf+EPXhjzrMzVfEdJ3UmcGeNhPrbkMwc/c0GBo3kxsXex
+         prtWLkMLh/C074uy699g+ellahRBRVd1mmH9z/qWAXWzv8H+v2HeJ31YmyFOWVc7pmoK
+         rke5HxqI7TpkWt3HID5mSw2WL2zXRsHGVyKiO5C0RCHuyy36dJkNlmXPgx+jInyZRcpI
+         42AHDTOcSFxMGptbdWjF55op80Z8GgtJGSvYjDPgyPv8WkDQ3raWjYzt3/EzOI7cLRx8
+         Y/lD0PuzhoetNG5cKIiMZAwyDr5kFxQMFMlpbvciG0GnsekaoIfAaKBBppVoIfCtJQP3
+         uP1Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVTDHcVbchOfBtntIIDitR+e0NVlC8lhwasmlP3dHqr0XJISFsu
+	Jp/ExflPPvMGd0AvInvdckptbtl6tNds/rfJz8ca4J3ChVup3o8daOTbumFIQAEvmKFTyfSuW+i
+	7uIzFqnM1BPUY4mxmTGpDZCWrtHRzvdxZWQygfMFSwvnTT7TvmFcSAovOtMtNnZhhuQ==
+X-Received: by 2002:a0c:8791:: with SMTP id 17mr61311802qvj.215.1563998825646;
+        Wed, 24 Jul 2019 13:07:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxv+lfYJB35fLrabIq2Ml4xtuqT9oGrsjYJFY/V7lscatY9mnAZRnzpDEDmr6dOuHF+31bO
+X-Received: by 2002:a0c:8791:: with SMTP id 17mr61311745qvj.215.1563998824732;
+        Wed, 24 Jul 2019 13:07:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563998824; cv=none;
         d=google.com; s=arc-20160816;
-        b=NZjlFCVZdhicQXYR0452K4w8BPO5RoWU46LM0SkDqhIsLCeIe68UFNsFjFmKAk1KhR
-         6pPL/hfzrAA96QKUwZ39fDTADbNX8z3KkgZaohdEmW5aTlBHcW+5jzBfcUejAXhYt+in
-         eWRGeN9omv52tN9WfRhKZ6IWVcKIOHHmo/w87z9aADOPNt5yWIf5b6r8cUgvDrSQBc9j
-         IjgI5sMewNA/J499kIsbMjHXIb5Y48OIE3rOwUGsjeYj8Cnhq9a8q+1qxeQx4PRwnk/H
-         FxFyxU+5ckE9TLq3FRXpCEsIh3CxfpiirRiScwAG11CMfDF20Jjjfe/Qgy8B6LDEg2nV
-         dC3Q==
+        b=sF4OvoPoMBwc1A2LRIWNKmyCSuY7oyn4lOMW+fEFdQ853aZVklc3uTyMupKQvG11GY
+         YgR9x+LyhAeLC4/3yJpqjgkZUHTWqF9nIzCIzUcMqjnAbWhpRa4RIkyHj9/V1r2Hr0sO
+         sTniuRdr6+9hwXgOR3G+HGayE5HGm/8ML7PWP3N9oTICVXKRganwZwrc2knd/kJD/Qag
+         syP4NeTdDs3yYAA8qttrhu9QqkWNW0abC+WCi2B13fVmFQbWDAarJt+TU72VpJtcUgjE
+         zMyeqVA9IEycvyZbsY4RpxaeC1GfB9HsNiZ5I3tgercO2W23HJw45g+Ea4/8hdfpPm5K
+         tM8g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=UTQ1Tb9Sza6noSGSJr3ICyN6eib7q7f/W762etL2prE=;
-        b=d1m6Iqz3bbA6GhDECgXqCCtMFErEG5AYUsEsw1xYQVYCIeLBn2OrdLE2TNujELahwq
-         x05uK54iFvXVj6X0n5MsE4yESmtXtPsjyw7HgiWa7a5GrQyWx2VcQvQFCz7CEd84tUge
-         OtEiL/kuT4pW7G44zLot+YBHnOj9JHppfR7o+iZgWyDzroAcsdCDmP8gzIpUBYMCRXLM
-         JlZZ8ncLyiTa2Wv6V+73fpe/Zh3+/46EYtRlMYzmLo5fGk1oBTk5zEQ7uZV1Xp4vNZAA
-         lwq+AuUcV4zMullK28vOVZq2TMacLFfSBkoS+mrB3VCpEYxtVGVQ61ql3KGOE1gL7zAU
-         pY+A==
+        bh=n7irbrV8iIQOvRw2SLTqpuZxygHHxh8DEvPTFRwHgf4=;
+        b=jNlY1XlcihHfxRoWeuIYITULmHxL30EbjUobl/AgRxGVOfC9APuFMyk1kgkTscmYLc
+         BMfMVdtU7Ufh/gTT2ckgcOIoGSS1HuGMPqNECuk0orF7lLFYJOcqajOuNiYTDm2uOL4E
+         KXsZAJZHBPBc3lSADyHy1ymSxIidXPpKR4aZsGoKAGTdLMVxmEFkjWKcTuSjqpY434Vo
+         ANHq3jwxFigDSlW8DUPKaCwJikRFPF6j0m6eI8COdefiJLbG6ngBBBFoKFwJK15DiXQ0
+         8wFBcnLdCKL340rQywG3BUpa+vf8lqHTqpG522/tFBQzH+2Le+VHsik4IjUlZ6vjFoqH
+         RMHw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 4si18296957uat.189.2019.07.24.12.56.56
+        by mx.google.com with ESMTPS id s47si14402464qth.305.2019.07.24.13.07.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 12:56:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 24 Jul 2019 13:07:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id D582A330272;
-	Wed, 24 Jul 2019 19:56:55 +0000 (UTC)
-Received: from [10.36.116.35] (ovpn-116-35.ams2.redhat.com [10.36.116.35])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id E7AFB605C3;
-	Wed, 24 Jul 2019 19:56:44 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 728B1308FBAC;
+	Wed, 24 Jul 2019 20:07:03 +0000 (UTC)
+Received: from [10.18.17.163] (dhcp-17-163.bos.redhat.com [10.18.17.163])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 194C11843C;
+	Wed, 24 Jul 2019 20:06:52 +0000 (UTC)
 Subject: Re: [RFC][Patch v11 2/2] virtio-balloon: page_hinting: reporting to
  the host
-To: "Michael S. Tsirkin" <mst@redhat.com>,
- Nitesh Narayan Lal <nitesh@redhat.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
 Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
  pbonzini@redhat.com, lcapitulino@redhat.com, pagupta@redhat.com,
  wei.w.wang@intel.com, yang.zhang.wz@gmail.com, riel@surriel.com,
- dodgen@google.com, konrad.wilk@oracle.com, dhildenb@redhat.com,
- aarcange@redhat.com, alexander.duyck@gmail.com, john.starks@microsoft.com,
- dave.hansen@intel.com, mhocko@suse.com
+ david@redhat.com, dodgen@google.com, konrad.wilk@oracle.com,
+ dhildenb@redhat.com, aarcange@redhat.com, alexander.duyck@gmail.com,
+ john.starks@microsoft.com, dave.hansen@intel.com, mhocko@suse.com
 References: <20190710195158.19640-1-nitesh@redhat.com>
  <20190710195158.19640-3-nitesh@redhat.com>
  <20190724153951-mutt-send-email-mst@kernel.org>
-From: David Hildenbrand <david@redhat.com>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
 Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <d4f827a5-7914-4f8c-932e-91ef173b65d0@redhat.com>
-Date: Wed, 24 Jul 2019 21:56:44 +0200
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <74181cce-5db2-3d0a-00d6-16966c876dcc@redhat.com>
+Date: Wed, 24 Jul 2019 16:06:52 -0400
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+ Thunderbird/60.6.1
 MIME-Version: 1.0
 In-Reply-To: <20190724153951-mutt-send-email-mst@kernel.org>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Wed, 24 Jul 2019 19:56:56 +0000 (UTC)
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Wed, 24 Jul 2019 20:07:03 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 24.07.19 21:47, Michael S. Tsirkin wrote:
+
+On 7/24/19 3:47 PM, Michael S. Tsirkin wrote:
 > On Wed, Jul 10, 2019 at 03:51:58PM -0400, Nitesh Narayan Lal wrote:
 >> Enables the kernel to negotiate VIRTIO_BALLOON_F_HINTING feature with the
 >> host. If it is available and page_hinting_flag is set to true, page_hinting
@@ -269,20 +269,155 @@ On 24.07.19 21:47, Michael S. Tsirkin wrote:
 >> +	sg_init_one(&sg, hvb->isolated_pages, sizeof(hvb->isolated_pages[0]) *
 >> +		    PAGE_HINTING_MAX_PAGES);
 >> +	err = virtqueue_add_outbuf(vq, &sg, 1, hvb, GFP_KERNEL);
-> 
 > In Alex's patch, I really like it that he's passing pages as sg
 > entries. IMHO that's both cleaner and allows seamless
 > support for arbitrary page sizes.
-> 
-
-+1
-
-I especially like passing full addresses and sizes instead of PFNs and
-orders (compared to Alex's v1, where he would pass PFNs and orders).
-
+>
+> In particular ....
++1. I will also incorporate this change.
+>
+>> +	if (!err)
+>> +		virtqueue_kick(hvb->hinting_vq);
+>> +	wait_event(hvb->acked, virtqueue_get_buf(vq, &unused));
+>> +	mutex_unlock(&hvb->balloon_lock);
+>> +	return err;
+>> +}
+>> +
+>> +void hint_pages(struct list_head *pages)
+>> +{
+>> +	struct device *dev = &hvb->vdev->dev;
+>> +	struct page *page, *next;
+>> +	int idx = 0, order, err;
+>> +	unsigned long pfn;
+>> +
+>> +	list_for_each_entry_safe(page, next, pages, lru) {
+>> +		pfn = page_to_pfn(page);
+>> +		order = page_private(page);
+>> +		hvb->isolated_pages[idx].phys_addr = pfn << PAGE_SHIFT;
+>> +		hvb->isolated_pages[idx].size = (1 << order) * PAGE_SIZE;
+>> +		idx++;
+> ... passing native endian-ness values to host creates pain for
+> cross-endian configurations.
+>
+>> +	}
+>> +	err = page_hinting_report();
+>> +	if (err < 0)
+>> +		dev_err(dev, "Failed to hint pages, err = %d\n", err);
+>> +}
+>> +
+>> +static void page_hinting_init(struct virtio_balloon *vb)
+>> +{
+>> +	struct device *dev = &vb->vdev->dev;
+>> +	int err;
+>> +
+>> +	page_hinting_conf.hint_pages = hint_pages;
+>> +	page_hinting_conf.max_pages = PAGE_HINTING_MAX_PAGES;
+>> +	err = page_hinting_enable(&page_hinting_conf);
+>> +	if (err < 0) {
+>> +		dev_err(dev, "Failed to enable page-hinting, err = %d\n", err);
+> It would be nicer to disable the feature bit then, or fail probe
+> completely.
+Makes sense. Thanks.
+>> +		page_hinting_flag = false;
+>> +		page_hinting_conf.hint_pages = NULL;
+>> +		page_hinting_conf.max_pages = 0;
+>> +		return;
+>> +	}
+>> +	hvb = vb;
+>> +}
+>> +
+>>  static u32 page_to_balloon_pfn(struct page *page)
+>>  {
+>>  	unsigned long pfn = page_to_pfn(page);
+>> @@ -475,6 +547,7 @@ static int init_vqs(struct virtio_balloon *vb)
+>>  	names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
+>>  	names[VIRTIO_BALLOON_VQ_STATS] = NULL;
+>>  	names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
+>> +	names[VIRTIO_BALLOON_VQ_HINTING] = NULL;
+>>  
+>>  	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+>>  		names[VIRTIO_BALLOON_VQ_STATS] = "stats";
+>> @@ -486,11 +559,18 @@ static int init_vqs(struct virtio_balloon *vb)
+>>  		callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
+>>  	}
+>>  
+>> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING)) {
+>> +		names[VIRTIO_BALLOON_VQ_HINTING] = "hinting_vq";
+>> +		callbacks[VIRTIO_BALLOON_VQ_HINTING] = balloon_ack;
+>> +	}
+>>  	err = vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX,
+>>  					 vqs, callbacks, names, NULL, NULL);
+>>  	if (err)
+>>  		return err;
+>>  
+>> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
+>> +		vb->hinting_vq = vqs[VIRTIO_BALLOON_VQ_HINTING];
+>> +
+>>  	vb->inflate_vq = vqs[VIRTIO_BALLOON_VQ_INFLATE];
+>>  	vb->deflate_vq = vqs[VIRTIO_BALLOON_VQ_DEFLATE];
+>>  	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+>> @@ -929,6 +1009,9 @@ static int virtballoon_probe(struct virtio_device *vdev)
+>>  		if (err)
+>>  			goto out_del_balloon_wq;
+>>  	}
+>> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING) &&
+>> +	    page_hinting_flag)
+>> +		page_hinting_init(vb);
+>>  	virtio_device_ready(vdev);
+>>  
+>>  	if (towards_target(vb))
+>> @@ -976,6 +1059,10 @@ static void virtballoon_remove(struct virtio_device *vdev)
+>>  		destroy_workqueue(vb->balloon_wq);
+>>  	}
+>>  
+>> +	if (!page_hinting_flag) {
+>> +		hvb = NULL;
+>> +		page_hinting_disable();
+>> +	}
+>>  	remove_common(vb);
+>>  #ifdef CONFIG_BALLOON_COMPACTION
+>>  	if (vb->vb_dev_info.inode)
+>> @@ -1030,8 +1117,10 @@ static unsigned int features[] = {
+>>  	VIRTIO_BALLOON_F_MUST_TELL_HOST,
+>>  	VIRTIO_BALLOON_F_STATS_VQ,
+>>  	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
+>> +	VIRTIO_BALLOON_F_HINTING,
+>>  	VIRTIO_BALLOON_F_FREE_PAGE_HINT,
+>>  	VIRTIO_BALLOON_F_PAGE_POISON,
+>> +	VIRTIO_BALLOON_F_HINTING,
+>>  };
+>>  
+>>  static struct virtio_driver virtio_balloon_driver = {
+>> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
+>> index a1966cd7b677..29eed0ec83d3 100644
+>> --- a/include/uapi/linux/virtio_balloon.h
+>> +++ b/include/uapi/linux/virtio_balloon.h
+>> @@ -36,6 +36,8 @@
+>>  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
+>>  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
+>>  #define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
+>> +/* TODO: Find a better name to avoid any confusion with FREE_PAGE_HINT */
+>> +#define VIRTIO_BALLOON_F_HINTING	5 /* Page hinting virtqueue */
+>>  
+>>  /* Size of a PFN in the balloon interface. */
+>>  #define VIRTIO_BALLOON_PFN_SHIFT 12
+>> @@ -108,4 +110,13 @@ struct virtio_balloon_stat {
+>>  	__virtio64 val;
+>>  } __attribute__((packed));
+>>  
+>> +/*
+>> + * struct isolated_memory- holds the pages which will be reported to the host.
+>> + * @phys_add:	physical address associated with a page.
+>> + * @size:	total size of memory to be reported.
+>> + */
+>> +struct isolated_memory {
+>> +	__virtio64 phys_addr;
+>> +	__virtio64 size;
+>> +};
+>>  #endif /* _LINUX_VIRTIO_BALLOON_H */
+>> -- 
+>> 2.21.0
 -- 
-
-Thanks,
-
-David / dhildenb
+Thanks
+Nitesh
 
