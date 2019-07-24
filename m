@@ -2,216 +2,158 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E4B1C7618B
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 08:08:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 796AFC7618B
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 08:18:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CE40B21873
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 08:08:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CE40B21873
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id BDF2C21873
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 08:18:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BDF2C21873
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i-love.sakura.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 70E506B0005; Wed, 24 Jul 2019 04:08:08 -0400 (EDT)
+	id 6B84C6B0003; Wed, 24 Jul 2019 04:18:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6BF326B0006; Wed, 24 Jul 2019 04:08:08 -0400 (EDT)
+	id 6427D6B0005; Wed, 24 Jul 2019 04:18:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5D4256B0007; Wed, 24 Jul 2019 04:08:08 -0400 (EDT)
+	id 4BAC18E0002; Wed, 24 Jul 2019 04:18:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3DD3F6B0005
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 04:08:08 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id d26so40806615qte.19
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 01:08:08 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 10ABF6B0003
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 04:18:02 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id h27so28000935pfq.17
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 01:18:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to;
-        bh=/MFYQFzENwHk5G46kOvOVKTzaxjp4jXpKM7WypPWBDc=;
-        b=m75OzfQpc8LyjJcIyFXI4564I3JBwAkDubdIlirZAP/z/+Fgll0kz1J1q/FS+IZO+0
-         7BUDINwf8NH+lQp+B0lYKeRhEs7OGOrytwzVYUUqksTDhHziC5ySdKPo0fMs849aPMps
-         QlcO56NqANuUQVisb5NAVtCNDlZtLQsgKUsOUs65ri7ed67EUakiPcYFrwB/uTDAeJPt
-         rNg/XMmn4Rs/qo8isqkglH2rlpqvSJxJAmWDe2gAWxCOiYBT8TkESruBVrh9PWnJipYF
-         vRsDC/eXrbxBUtULcF7iRdhisij36A8pSAJJ1OKzdy+0ihisjfihWypzVfW8KWkwtRDX
-         Kavw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAU1ov29IR4bvujX5i2qjK1RV0Ef0ymEzMqOfOhCU16lVJuxz3B+
-	QSL5xEd43qYFGEsHnenCcQC5F7J/9zHR7faqkPt3u4bSv3JEz23fcvAZVW5HcSUQGg3tjJk274O
-	8Cdv0r/dpCDftyOONX1qdR/+UepeERe4Yaa4NxXx/jlJxQWPDTrTPduutwS80wkaiGg==
-X-Received: by 2002:aed:3ed5:: with SMTP id o21mr56720395qtf.369.1563955688034;
-        Wed, 24 Jul 2019 01:08:08 -0700 (PDT)
-X-Received: by 2002:aed:3ed5:: with SMTP id o21mr56720372qtf.369.1563955687484;
-        Wed, 24 Jul 2019 01:08:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563955687; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=S07Nz1r4hzK7/gtSB3x+WXE+sNEYGaGmU9AJ/epG1qk=;
+        b=uA4EuK8NrPTVekITyaNlRQH9un8jepmIyPhRLdVZ4v2GY+m6byMs3P4Ty7yUVUDSuF
+         192m1BYRhIX9LrU1P3vgcxo66+oa3TobAjC48woAH5tMrQcvhJ1RsdovKcdKmFwb7mLE
+         xFi22IVgRvmdjPJdu1knWE8P0zCOve/jUGBNEXGcH+dlrWfrbZ073x23n8DizGIsiWRR
+         JVaZ53vYqKDfWROJlZM3i4Au7Zh4vr8s4OBYhHUAhZChglaMqGiNSCF5MatVX3j3CHUk
+         neNa4hGLWAg4jZwd52AyzOyXNtkptoLrFDUvZ+RqNhD04VZiP8SLqTPpSxehxDM1ck5h
+         oqGw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: APjAAAVDgLbA+O6xV0/J5bgOgHd4KDswTzPhVtBRpcu1KjPBQWEicARj
+	ybyNDACmg5vQZLzr/58fs6oAXfJi4BkUcJEfrz+4x0rEkN+oFkXQf4mpcgJ1/TwPm171XdnY0wN
+	E9mKzpiLBQASIdqysmQBxRzsC0Z2dnR1VqxNEO7f4Va5NQXLlJ2jJbQNQc5kALr3PMw==
+X-Received: by 2002:a63:3c5:: with SMTP id 188mr78903135pgd.394.1563956281508;
+        Wed, 24 Jul 2019 01:18:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqztWhvS3NC1FyvlECBjbVkkumaI0rDed0Xqk+ee+L/os3TfQY7BMedQe2R6u3cv+ZqmWd2K
+X-Received: by 2002:a63:3c5:: with SMTP id 188mr78903086pgd.394.1563956280789;
+        Wed, 24 Jul 2019 01:18:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563956280; cv=none;
         d=google.com; s=arc-20160816;
-        b=AEIRJcrRFmeVxz3TXvaDv4CpzT3K3MFslAIiH1KP/Bo9tyNt45IPMYX1jEMih5bWyG
-         u3lAnpMJ57N+51uwnwAFcLicv52TXQfJlXA6/Qlnt11aEFSTaeHfYjaWnsgBLRYp8K4Y
-         VEgMsoPwJjzcjSrL3rEkp7M+rSJZrKhtRcWPyZKi0nw9cQ9ISUOMI+SsWozo55jwFZy6
-         RhuWOVnVeA/hdRupJjHAzC4COilY55jMdvhEoqqLH7oonZvRvS0VMOe+kbssSHZdsA8G
-         Vxjfh4af0QBCsGiHR29L/wSzbwm13j1Ntm32tR++aD30Y6m1WoRFwLIhNsRvvgAFiJ7f
-         Vg6Q==
+        b=fjPu1mlsCaCFonDI1qz9jL3nkK3ODmq/LFzGQ6Skrn8JpE70QFh5QBQdvE3otUpZeN
+         rqg66laSV1qFSwtbFYxpvFvfDntTOR9PrUz/8UcbU9r2HExZPh4mIKfH9yg4Ukbcj/na
+         alw6FZNRcl4cwMWbl434fsaHQbAN7g7Y4Svf32Cb+bzL5t7+oR2zF+KIzSsx1MXmyy2t
+         GhHS4QN+Fp2gSzTiLDgYy0VXexQyQFyZA4IKoLFEWBZtsNIHLIjTORStmrP8hktejUcT
+         97LMEMMI1RXCZN+gXgJJrXUhOhLVpDZCOHhP0/B8UIZSPsRc//2KJXwp7EYfe1Gbbr4s
+         fbFg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :mime-version:references:message-id:subject:cc:to:from:date;
-        bh=/MFYQFzENwHk5G46kOvOVKTzaxjp4jXpKM7WypPWBDc=;
-        b=ANmpYV6u2eCFpRu25lhv2FQ021x8RaQEL3vd1qOQJkWtYcJwoxXcEVlY0XaLi/UAKP
-         4OImSbt5phvSxplWJgFQPMA5A6ZqJuZ2gAvO18WADSXYGKrk5Xn7wmypQjU7LcrXIAp0
-         nVXoFsyL3gDZMY0j/wvHHsvEa2/+TcwjbxZHtmZ/YcJBQ62GTQBMLHUotsomA7DMF3EZ
-         Erccwo7mH/D5DRqoziRR5DKkO0ydChgeC1jgH4EuumawroV/+aaBTDrSZVvNNq03BeJ/
-         AoZmlaz2lJ7MzDWxKyuNNUvqMu+i0JvQ+Mw830yDgWmRHnioEAg90nwRvcgh2CZPD1kP
-         udxA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=S07Nz1r4hzK7/gtSB3x+WXE+sNEYGaGmU9AJ/epG1qk=;
+        b=XiWNgqILTugPQQxGc3EY+uY2mmIjwGIj/6hq+DCSNMJcPFdv4Xu3BkhvHcVw+xBHOO
+         D5RSG/cDQ+6QttYPTF5qorU1u9sUffMkawwEtJqfHruI3aHEzDKWfARH4WJaYeux1s+O
+         OEjz+vcJfnrJX986wghrQOSxKPrU3KURaN45HzkbugDUZ+ZLGNT7Zw4CUZ0HusLTVuM2
+         rBfly1GyIfBcj5bV3XF7ioEbiSXncCM6hD7BJdvXvIV+9T/2I2tBGwbwHNFspwElMXmC
+         CzlHgvC+0hU5zaf6dVcJwoRnCtI3Ezo91T2lANPatiShZCFK018P+92km1ExmYoAPx4r
+         XN6A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c191sor25720828qke.78.2019.07.24.01.08.07
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id 19si16271717pfc.239.2019.07.24.01.18.00
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Jul 2019 01:08:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 24 Jul 2019 01:18:00 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqyqOJ7xj5WyBSGnSKw6r+fHzKSSQgggyWILPC/N5KbhyvrIGi3wpGDnO2q6i0xNWsrtSCd37A==
-X-Received: by 2002:a05:620a:31b:: with SMTP id s27mr17648521qkm.264.1563955687250;
-        Wed, 24 Jul 2019 01:08:07 -0700 (PDT)
-Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
-        by smtp.gmail.com with ESMTPSA id t26sm23203051qtc.95.2019.07.24.01.07.58
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 24 Jul 2019 01:08:06 -0700 (PDT)
-Date: Wed, 24 Jul 2019 04:07:55 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: john.hubbard@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Anna Schumaker <anna.schumaker@netapp.com>,
-	"David S . Miller" <davem@davemloft.net>,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	Eric Van Hensbergen <ericvh@gmail.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Jason Wang <jasowang@redhat.com>,
-	Jens Axboe <axboe@kernel.dk>, Latchesar Ionkov <lucho@ionkov.net>,
-	Miklos Szeredi <miklos@szeredi.hu>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Christoph Hellwig <hch@lst.de>,
-	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
-	LKML <linux-kernel@vger.kernel.org>, ceph-devel@vger.kernel.org,
-	kvm@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-cifs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-nfs@vger.kernel.org, linux-rdma@vger.kernel.org,
-	netdev@vger.kernel.org, samba-technical@lists.samba.org,
-	v9fs-developer@lists.sourceforge.net,
-	virtualization@lists.linux-foundation.org,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	John Hubbard <jhubbard@nvidia.com>, Jan Kara <jack@suse.cz>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Johannes Thumshirn <jthumshirn@suse.de>,
-	Ming Lei <ming.lei@redhat.com>, Dave Chinner <david@fromorbit.com>,
-	Boaz Harrosh <boaz@plexistor.com>,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	Stefan Hajnoczi <stefanha@redhat.com>
-Subject: Re: [PATCH 07/12] vhost-scsi: convert put_page() to put_user_page*()
-Message-ID: <20190724040745-mutt-send-email-mst@kernel.org>
-References: <20190724042518.14363-1-jhubbard@nvidia.com>
- <20190724042518.14363-8-jhubbard@nvidia.com>
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav105.sakura.ne.jp (fsav105.sakura.ne.jp [27.133.134.232])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x6O7blOH086195;
+	Wed, 24 Jul 2019 16:37:47 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav105.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav105.sakura.ne.jp);
+ Wed, 24 Jul 2019 16:37:47 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav105.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank126012062002.bbtec.net [126.12.62.2])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x6O7bV9E086030
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
+	Wed, 24 Jul 2019 16:37:47 +0900 (JST)
+	(envelope-from penguin-kernel@i-love.sakura.ne.jp)
+Subject: Re: [PATCH] mm, oom: simplify task's refcount handling
+To: Michal Hocko <mhocko@suse.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+        David Rientjes <rientjes@google.com>, Roman Gushchin <guro@fb.com>,
+        Shakeel Butt <shakeelb@google.com>
+References: <1563940476-6162-1-git-send-email-penguin-kernel@I-love.SAKURA.ne.jp>
+ <20190724064110.GC10882@dhcp22.suse.cz>
+From: Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>
+Message-ID: <d6aebef5-60f8-a61c-0564-5bb4595e8e2c@i-love.sakura.ne.jp>
+Date: Wed, 24 Jul 2019 16:37:35 +0900
+User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190724042518.14363-8-jhubbard@nvidia.com>
+In-Reply-To: <20190724064110.GC10882@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 23, 2019 at 09:25:13PM -0700, john.hubbard@gmail.com wrote:
-> From: Jérôme Glisse <jglisse@redhat.com>
+On 2019/07/24 15:41, Michal Hocko wrote:
+> On Wed 24-07-19 12:54:36, Tetsuo Handa wrote:
+>> Currently out_of_memory() is full of get_task_struct()/put_task_struct()
+>> calls. Since "mm, oom: avoid printk() iteration under RCU" introduced
+>> a list for holding a snapshot of all OOM victim candidates, let's share
+>> that list for select_bad_process() and oom_kill_process() in order to
+>> simplify task's refcount handling.
+>>
+>> As a result of this patch, get_task_struct()/put_task_struct() calls
+>> in out_of_memory() are reduced to only 2 times respectively.
 > 
-> For pages that were retained via get_user_pages*(), release those pages
-> via the new put_user_page*() routines, instead of via put_page().
-> 
-> This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
-> ("mm: introduce put_user_page*(), placeholder versions").
-> 
-> Changes from Jérôme's original patch:
-> 
-> * Changed a WARN_ON to a BUG_ON.
-> 
-> Signed-off-by: Jérôme Glisse <jglisse@redhat.com>
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-> Cc: virtualization@lists.linux-foundation.org
-> Cc: linux-fsdevel@vger.kernel.org
-> Cc: linux-block@vger.kernel.org
-> Cc: linux-mm@kvack.org
-> Cc: Jan Kara <jack@suse.cz>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> Cc: Johannes Thumshirn <jthumshirn@suse.de>
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: Jens Axboe <axboe@kernel.dk>
-> Cc: Ming Lei <ming.lei@redhat.com>
-> Cc: Dave Chinner <david@fromorbit.com>
-> Cc: Jason Gunthorpe <jgg@ziepe.ca>
-> Cc: Matthew Wilcox <willy@infradead.org>
-> Cc: Boaz Harrosh <boaz@plexistor.com>
-> Cc: Miklos Szeredi <miklos@szeredi.hu>
-> Cc: "Michael S. Tsirkin" <mst@redhat.com>
-> Cc: Jason Wang <jasowang@redhat.com>
-> Cc: Paolo Bonzini <pbonzini@redhat.com>
-> Cc: Stefan Hajnoczi <stefanha@redhat.com>
+> This is probably a matter of taste but the diffstat suggests to me that the
+> simplification is not all that great. On the other hand this makes the
+> oom handling even more tricky and harder for potential further
+> development - e.g. if we ever need to break the global lock down in the
+> future this would be another obstacle on the way.
 
-Acked-by: Michael S. Tsirkin <mst@redhat.com>
+If we want to remove oom_lock serialization, we can implement it by doing
+INIT_LIST_HEAD(&p->oom_candidate) upon creating a thread and checking
+list_empty(&p->oom_candidate) under p->task_lock (or something) held
+when adding to local on-stack "oom_candidate_list" list stored in "oc".
 
-> ---
->  drivers/vhost/scsi.c | 13 ++++++++++---
->  1 file changed, 10 insertions(+), 3 deletions(-)
+But we do not want to jumble concurrent OOM killer messages. Since it is
+dump_header() which takes majority of time, synchronous printk() will be
+the real obstacle on the way. I've tried removing oom_lock serialization,
+and got commit cbae05d32ff68233 ("printk: Pass caller information to log_store().").
+The OOM killer is calling printk() in a manner that will jumble concurrent
+OOM killer messages...
+
+>                                                   While potential
+> development might be too theoretical the benefit of the patch is not
+> really clear to me. The task_struct reference counting is not really
+> unusual operations and there is nothing really scary that we do with it
+> here. We already have to to extra mile wrt. task_lock so careful
+> reference count doesn't really jump out.
 > 
-> diff --git a/drivers/vhost/scsi.c b/drivers/vhost/scsi.c
-> index a9caf1bc3c3e..282565ab5e3f 100644
-> --- a/drivers/vhost/scsi.c
-> +++ b/drivers/vhost/scsi.c
-> @@ -329,11 +329,11 @@ static void vhost_scsi_release_cmd(struct se_cmd *se_cmd)
->  
->  	if (tv_cmd->tvc_sgl_count) {
->  		for (i = 0; i < tv_cmd->tvc_sgl_count; i++)
-> -			put_page(sg_page(&tv_cmd->tvc_sgl[i]));
-> +			put_user_page(sg_page(&tv_cmd->tvc_sgl[i]));
->  	}
->  	if (tv_cmd->tvc_prot_sgl_count) {
->  		for (i = 0; i < tv_cmd->tvc_prot_sgl_count; i++)
-> -			put_page(sg_page(&tv_cmd->tvc_prot_sgl[i]));
-> +			put_user_page(sg_page(&tv_cmd->tvc_prot_sgl[i]));
->  	}
->  
->  	vhost_scsi_put_inflight(tv_cmd->inflight);
-> @@ -630,6 +630,13 @@ vhost_scsi_map_to_sgl(struct vhost_scsi_cmd *cmd,
->  	size_t offset;
->  	unsigned int npages = 0;
->  
-> +	/*
-> +	 * Here in all cases we should have an IOVEC which use GUP. If that is
-> +	 * not the case then we will wrongly call put_user_page() and the page
-> +	 * refcount will go wrong (this is in vhost_scsi_release_cmd())
-> +	 */
-> +	WARN_ON(!iov_iter_get_pages_use_gup(iter));
-> +
->  	bytes = iov_iter_get_pages(iter, pages, LONG_MAX,
->  				VHOST_SCSI_PREALLOC_UPAGES, &offset);
->  	/* No pages were pinned */
-> @@ -681,7 +688,7 @@ vhost_scsi_iov_to_sgl(struct vhost_scsi_cmd *cmd, bool write,
->  			while (p < sg) {
->  				struct page *page = sg_page(p++);
->  				if (page)
-> -					put_page(page);
-> +					put_user_page(page);
->  			}
->  			return ret;
->  		}
-> -- 
-> 2.22.0
+> That being said, I do not think this patch gives any improvement.
+> 
+
+This patch avoids RCU during select_bad_process(). This patch allows
+possibility of doing reschedulable things there; e.g. directly reaping
+only a portion of OOM victim's memory rather than wasting CPU resource
+by spinning until MMF_OOM_SKIP is set by the OOM reaper.
 
