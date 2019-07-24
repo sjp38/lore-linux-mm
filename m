@@ -2,150 +2,249 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BBDADC76186
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:32:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F7A2C76186
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:34:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 77F7121951
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:32:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id CF1D72238C
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 19:34:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="daangUid"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77F7121951
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="aJRIeg6p"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF1D72238C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 24ABB6B0006; Wed, 24 Jul 2019 15:32:31 -0400 (EDT)
+	id 643226B0003; Wed, 24 Jul 2019 15:34:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1FB7A6B0007; Wed, 24 Jul 2019 15:32:31 -0400 (EDT)
+	id 6194F6B0006; Wed, 24 Jul 2019 15:34:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0C3FE6B0008; Wed, 24 Jul 2019 15:32:31 -0400 (EDT)
+	id 4E20F8E0002; Wed, 24 Jul 2019 15:34:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B3E246B0006
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 15:32:30 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id w25so30747869edu.11
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:32:30 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 197966B0003
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 15:34:01 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id q11so24662552pll.22
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:34:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=RmmUOfw6KdNJB7Dw3A649BONg+TVcJuxBPKeIVpSw5Y=;
-        b=qUJ+TSQPB2M7XusRrmbIzmnFS6vq6b8iYjtzzvgaB5K2JGuBgKux808vNXYq5BiYpF
-         /fgCXPYHCPQHrPprxnBqt/iryOjHs9p3mS8jkfT2/4exIRwE/hSKa50BajCNb7U9XfB0
-         d+8PgfwHQOiPjmv8tC1JWsW87YHogf7Ezv6FiSEfDnLBOGfkLwD+y1hTjIDHBwN77Qjt
-         ZkWxJNktbA0YKxdAzZxDdJvt3Wvoch4Hhk1FnDUFmC14H37sjMU70CC65DZEwa/o9NwW
-         CX6EHg/8Ugf1hFpf+Pde0tZxdVSl9uGzgJC2OB2mrHvGAbdf3n6e6YxDu7WHsooKt7wP
-         IlvA==
-X-Gm-Message-State: APjAAAVsHVtSyJ+Jf3C9bor9xI37nTaJvxG+UiG0ifE+6Q7XcPokimRT
-	LdQgdLFCNv4RcctXeXDKlrUs/+6fZSXhv6is/E4wAKPyiK4V2XEEANK8tCQywBo/DKIlXa0pe3S
-	W01yiN6Es6sVCAAMVHBlOMbVAQk5dPxd54Ry1gaLhAA7+Y5nWj4XRoSGUav3PdHMjjg==
-X-Received: by 2002:a17:906:94ce:: with SMTP id d14mr65825773ejy.251.1563996750129;
-        Wed, 24 Jul 2019 12:32:30 -0700 (PDT)
-X-Received: by 2002:a17:906:94ce:: with SMTP id d14mr65825697ejy.251.1563996749125;
-        Wed, 24 Jul 2019 12:32:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563996749; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=c620Z7QmNN4xuzBoT0I523KlXKmQArPqXiiSBk5DJAo=;
+        b=A76s+f9NFQlASImaB0FaxcwKHa6DIzV4KLgOJWTtt5v0q2E376RPLkU/6ZHfeBC0Lv
+         CLnUc/16Cnk9txBWBfh+mFgMg3JrtJdWz0QYC0D3k4TAIraOol3l/Tuthz4gVLPTFcFP
+         k83AJbQfIuC6hB3It50dXFRpj2VUKAXA/hq0Cv+jTXfVURwPxTB3+lL1r5jY7NeGzfr4
+         gaAHpoM5qHWrm4v8TUKUA43bZCq7wt2JYY0C5KsA1K3bcEEoVdh0a7lOeFNY7yte+qsc
+         Sc4dD78BA0DznQmtYqr9hgmWoXSBdYvXRCr2/LGDxU1J3MEWQRs8dyuc8x5CmvnfyoAo
+         nm4A==
+X-Gm-Message-State: APjAAAXAmwlHDgDsKHVZhkF79BkUM/QUPPziJ9WJyCntYqqRtbun4HMf
+	RYeNj+W+dk9KYgMhPTqkMoNxEmfKLluI390WSYhQkTqvtwPdv4HvSeiIDXia4Bk716MoDtM5y4+
+	qF9N8TH1fX0MbGQEasTGsyctV8YLrLWAZlNFKoJxe6xx0S+osafbXrBWZNvwM+TWVpw==
+X-Received: by 2002:a17:90a:ff17:: with SMTP id ce23mr88805827pjb.47.1563996840706;
+        Wed, 24 Jul 2019 12:34:00 -0700 (PDT)
+X-Received: by 2002:a17:90a:ff17:: with SMTP id ce23mr88805769pjb.47.1563996839923;
+        Wed, 24 Jul 2019 12:33:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563996839; cv=none;
         d=google.com; s=arc-20160816;
-        b=gEsfwLd2zFgChRiFZB/YsxoaYdKj22meRTq8CcZc9xSeZnxmhUf0fYezDCSJe/vzVb
-         928wXqhfljpMMVHRxgdJrD+q+v9ob3i805Ov/17uYF5n2ZOnQ6ahlxCHDt6IzTfDv9Gw
-         Lhk1f8bw0AkKFVvSgU8NMP370dqTlUVJdNe/KSA8SsXMRPxHworF099coJt/Nx3M93HT
-         lWDV/EP/CIumKE9QglCFX8EKM0Ul5kuAr9yXik5ShfOtvc9r1DJ+LUtEsuL1DL57t6rx
-         bSKvhmzjNHdLC08cLZL2iU5pYPlw+xXghnU+Y02v3rlkE2E8Do2kdL0m15N0WAxkRnE0
-         jJ0w==
+        b=gMqEC+z/AXU7xZnevR79ImLmOrg83Kn4ovotpdyph5pgrQB9cbxEhcnANTrH60xz16
+         Ffq4o+VNvYDbkmK09GJsBa5DqhVBFy1/yIC5PIHniMXE2uBgT8rusIHCVkmsTayWtUgQ
+         uyjcWbhJ8On1XcdgCyV86BePoRQetnj/9B1XYFxZesFZbECqKdr3KeAVBvvY8pQ4eGGo
+         skT3TMqiRjzPQ1DD7d4lDsRerhkVec6sA/bOnsFTSIB265YwMn430EMyKrjqbEpjI14t
+         Z7i4qgYz8xUWY1TKHiBBAFUNSF4RQvSdl+4veeOercOftxBcP/ESsnxh0mQUEQUGkzm2
+         QMcw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=RmmUOfw6KdNJB7Dw3A649BONg+TVcJuxBPKeIVpSw5Y=;
-        b=Sucmno3EvrXnfdBupnhIzmpm6VpjGZLrsTBjW9vwr0QnBEXWXS+U+/YZKELlcmtSeM
-         TWT5LCY/NpNmGQO5z/CsO+oN2YMB0bvb+eaEo526kKwYQr3aeeWoF8vwjylc91JP9qF/
-         zbw057U+DhkAQj+y7F41Y0Z3HIkYE5iJsFWjycMH/oG3UaPpJQ4dFr7ULgEU0nTQoAtq
-         +x+Yc59aMfnpT0hd/dNpAbPAliCQVzjiRn6mnavtMpO2qWLsXDc9DOAEA1lIBqn++rqM
-         esxRXLAnNlWvjIc7wAtsSObwRXZCneYR/lbifVgrS2bELUV39nYXO+tO6EKP1Nc97T0D
-         0cPQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=c620Z7QmNN4xuzBoT0I523KlXKmQArPqXiiSBk5DJAo=;
+        b=owGBtDPgrqIeOuBwldh9nWi4xXRsbAkBWEZ29ovTgzf6IEUUoIWKd5Mo1zl05ywyde
+         h2gCL5aHsUwTP9XT6s+alkLTLI0hZOI041VGVa6c+aj9YJFo5cvjwLeQPuzwxbOOGEiw
+         mP4zzO25cGXJJ6+CWRGABsCKjDXzItgbmXvFRmF5TBVvnrNy7GABg4FQkH919tdPKEgL
+         KXHYqGH3wkJhLTnpY1XEIMvo0g1mRL0t6DnB3qfaEJfl0DZuJBD/BBAZNGWVg/vBlzgz
+         T15J/xbzalOGm8odgzL9141Qql7EEsD0jmRa0tpj2xdBpcZV2WlnxivdQ88aMVa9XV8/
+         Kq4g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=daangUid;
-       spf=pass (google.com: domain of matorola@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=matorola@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=aJRIeg6p;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id no5sor11538815ejb.51.2019.07.24.12.32.28
+        by mx.google.com with SMTPS id j5sor56901831pjf.7.2019.07.24.12.33.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 24 Jul 2019 12:32:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of matorola@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 24 Jul 2019 12:33:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=daangUid;
-       spf=pass (google.com: domain of matorola@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=matorola@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=aJRIeg6p;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=RmmUOfw6KdNJB7Dw3A649BONg+TVcJuxBPKeIVpSw5Y=;
-        b=daangUidITkUVKr7vk3OUx08Gl1Jxg57OGBaW32/VfgcDYW4r8ueSaHlvl7prjeAAn
-         6hbbOLWpvFqcVTCDWVzqtuonDNxTeBQ+SKsmAZa2QZG5GqbYinzXg9AQ78AarKMfpjje
-         3IQG9AXksuIrunc2zx7/mlH6K0s4IGMvmxff7cHuLu5R8mGFv5U79S7o+KLdAHgA95Lr
-         uN4yR1koyNq/sBo4AzrOFlpzNT0eZeoXLnzT7iCkJWsONrShxQpzSGGp7Us4+8mQ1sNf
-         vIPKBtPZPxJUw3XWCA/roIuHPsq7vBfCJS3fZ69Vvb6pSNJKIcsFkES1O2U9mLRunOvz
-         kkDA==
-X-Google-Smtp-Source: APXvYqzQK3O5v+7yVlFJSGeU4C2I4d4sf8cRDv+2qxowZgzIVi2SvDX7ph8dKH/Lo5xszlodW3vLefHeISTmBsyrRKY=
-X-Received: by 2002:a17:906:7f16:: with SMTP id d22mr64449323ejr.17.1563996748713;
- Wed, 24 Jul 2019 12:32:28 -0700 (PDT)
+        d=joelfernandes.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=c620Z7QmNN4xuzBoT0I523KlXKmQArPqXiiSBk5DJAo=;
+        b=aJRIeg6pq323ryehRW15NWh/H46jxm2+UlXPt/GAp+gGlXsdiD5tuwNAzwSOlQjvte
+         kAf7yvLfhsa31LbfvzoQxal4db/+ND5t3sCE3KQ0cK1D2FNrEMSsUF10lD+va5+XCjZF
+         82tS1vs8G8RyiJ9FtkZUoim+/k0zp6iCqhTGk=
+X-Google-Smtp-Source: APXvYqxRZo6EdKy/Ij4HPNmhe7JYCvmAq8gwdkPC9eWWevt48AruaweG4iMi6+eWocFY2nBwaDK8/g==
+X-Received: by 2002:a17:90a:2190:: with SMTP id q16mr86312060pjc.23.1563996839453;
+        Wed, 24 Jul 2019 12:33:59 -0700 (PDT)
+Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
+        by smtp.gmail.com with ESMTPSA id i124sm87050514pfe.61.2019.07.24.12.33.58
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 24 Jul 2019 12:33:58 -0700 (PDT)
+Date: Wed, 24 Jul 2019 15:33:57 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, vdavydov.dev@gmail.com,
+	Brendan Gregg <bgregg@netflix.com>, kernel-team@android.com,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Al Viro <viro@zeniv.linux.org.uk>, carmenjackson@google.com,
+	Christian Hansen <chansen3@cisco.com>,
+	Colin Ian King <colin.king@canonical.com>, dancol@google.com,
+	David Howells <dhowells@redhat.com>, fmayer@google.com,
+	joaodias@google.com, Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>,
+	Kirill Tkhai <ktkhai@virtuozzo.com>,
+	Konstantin Khlebnikov <khlebnikov@yandex-team.ru>,
+	linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>,
+	Mike Rapoport <rppt@linux.ibm.com>, minchan@google.com,
+	minchan@kernel.org, namhyung@google.com, sspatil@google.com,
+	surenb@google.com, Thomas Gleixner <tglx@linutronix.de>,
+	timmurray@google.com, tkjos@google.com,
+	Vlastimil Babka <vbabka@suse.cz>, wvw@google.com
+Subject: Re: [PATCH v1 1/2] mm/page_idle: Add support for per-pid page_idle
+ using virtual indexing
+Message-ID: <20190724193357.GB21829@google.com>
+References: <20190722213205.140845-1-joel@joelfernandes.org>
+ <20190722150639.27641c63b003dd04e187fd96@linux-foundation.org>
 MIME-Version: 1.0
-References: <20190625143715.1689-1-hch@lst.de> <20190625143715.1689-10-hch@lst.de>
- <20190717215956.GA30369@altlinux.org> <20190718.141405.1070121094691581998.davem@davemloft.net>
-In-Reply-To: <20190718.141405.1070121094691581998.davem@davemloft.net>
-From: Anatoly Pugachev <matorola@gmail.com>
-Date: Wed, 24 Jul 2019 22:32:17 +0300
-Message-ID: <CADxRZqx-jEnm4U8oe=tJf5apbvcMuw5OYZUN8h4G68sXFvDsmQ@mail.gmail.com>
-Subject: Re: [PATCH 09/16] sparc64: use the generic get_user_pages_fast code
-To: David Miller <davem@davemloft.net>
-Cc: "Dmitry V. Levin" <ldv@altlinux.org>, Christoph Hellwig <hch@lst.de>, khalid.aziz@oracle.com, 
-	torvalds@linux-foundation.org, akpm@linux-foundation.org, 
-	Sparc kernel list <sparclinux@vger.kernel.org>, linux-mm@kvack.org, 
-	Linux Kernel list <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190722150639.27641c63b003dd04e187fd96@linux-foundation.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 19, 2019 at 12:14 AM David Miller <davem@davemloft.net> wrote:
-> > So this ended up as commit 7b9afb86b6328f10dc2cad9223d7def12d60e505
-> > (thanks to Anatoly for bisecting) and introduced a regression:
-> > futex.test from the strace test suite now causes an Oops on sparc64
-> > in futex syscall.
+On Mon, Jul 22, 2019 at 03:06:39PM -0700, Andrew Morton wrote:
+[snip] 
+> > +	*end = *start + count * BITS_PER_BYTE;
+> > +	if (*end > max_frame)
+> > +		*end = max_frame;
+> > +	return 0;
+> > +}
+> > +
 > >
-> > Here is a heavily stripped down reproducer:
->
-> Does not reproduce for me on a T4-2 machine.
->
-> So this problem might depend on the type of system you are on,
-> I suspect it's one of those "pre-Niagara vs. Niagara and later"
-> situations because that's the dividing line between two set of
-> wildly different TLB and cache management methods.
->
-> What kind of machine are you on?
+> > ...
+> >
+> > +static void add_page_idle_list(struct page *page,
+> > +			       unsigned long addr, struct mm_walk *walk)
+> > +{
+> > +	struct page *page_get;
+> > +	struct page_node *pn;
+> > +	int bit;
+> > +	unsigned long frames;
+> > +	struct page_idle_proc_priv *priv = walk->private;
+> > +	u64 *chunk = (u64 *)priv->buffer;
+> > +
+> > +	if (priv->write) {
+> > +		/* Find whether this page was asked to be marked */
+> > +		frames = (addr - priv->start_addr) >> PAGE_SHIFT;
+> > +		bit = frames % BITMAP_CHUNK_BITS;
+> > +		chunk = &chunk[frames / BITMAP_CHUNK_BITS];
+> > +		if (((*chunk >> bit) & 1) == 0)
+> > +			return;
+> > +	}
+> > +
+> > +	page_get = page_idle_get_page(page);
+> > +	if (!page_get)
+> > +		return;
+> > +
+> > +	pn = kmalloc(sizeof(*pn), GFP_ATOMIC);
+> 
+> I'm not liking this GFP_ATOMIC.  If I'm reading the code correctly,
+> userspace can ask for an arbitrarily large number of GFP_ATOMIC
+> allocations by doing a large read.  This can potentially exhaust page
+> reserves which things like networking Rx interrupts need and can make
+> this whole feature less reliable.
 
-David,
+For the revision, I will pre-allocate the page nodes in advance so it does
+not need to do this. Diff on top of this patch is below. Let me know any
+comments, thanks.
 
-the first test where it was discovered was done on my test LDOM named
-ttip, hardware (hypervisor) is T5-2 server, running under Solaris 11.4
-OS.
-ttip LDOM is debian sparc64 unstable , so with almost all the latest
-software (gcc 8.3.0, binutils 2.32.51.20190707-1, debian GLIBC
-2.28-10, etc..)
+Btw, I also dropped the idle_page_list_lock by putting the idle_page_list
+list_head on the stack instead of heap.
+---8<-----------------------
 
-For another test, i also installed LDOM with oracle sparc linux
-https://oss.oracle.com/projects/linux-sparc/ , but I've to install a
-more fresh version of gcc on it first, since system installed gcc 4.4
-is too old for a git kernel (linux-2.6/Documentation/Changes lists gcc
-4.6 as a minimal version), so I choose to install gcc-7.4.0 to /opt/
-(leaving system installed gcc 4.4 under /usr/bin). Compiled and
-installed git kernel version, i.e. last tag 5.3.0-rc1 and ran the
-test. Kernel still produced oops.
+From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
+Subject: [PATCH] mm/page_idle: Avoid need for GFP_ATOMIC
+
+GFP_ATOMIC can harm allocations does by other allocations that are in
+need of reserves and the like. Pre-allocate the nodes list so that
+spinlocked region can just use it.
+
+Suggested-by: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+---
+ mm/page_idle.c | 19 +++++++++++++++----
+ 1 file changed, 15 insertions(+), 4 deletions(-)
+
+diff --git a/mm/page_idle.c b/mm/page_idle.c
+index 874a60c41fef..b9c790721f16 100644
+--- a/mm/page_idle.c
++++ b/mm/page_idle.c
+@@ -266,6 +266,10 @@ struct page_idle_proc_priv {
+ 	unsigned long start_addr;
+ 	char *buffer;
+ 	int write;
++
++	/* Pre-allocate and provide nodes to add_page_idle_list() */
++	struct page_node *page_nodes;
++	int cur_page_node;
+ };
+ 
+ static void add_page_idle_list(struct page *page,
+@@ -291,10 +295,7 @@ static void add_page_idle_list(struct page *page,
+ 	if (!page_get)
+ 		return;
+ 
+-	pn = kmalloc(sizeof(*pn), GFP_ATOMIC);
+-	if (!pn)
+-		return;
+-
++	pn = &(priv->page_nodes[priv->cur_page_node++]);
+ 	pn->page = page_get;
+ 	pn->addr = addr;
+ 	list_add(&pn->list, &idle_page_list);
+@@ -379,6 +380,15 @@ ssize_t page_idle_proc_generic(struct file *file, char __user *ubuff,
+ 	priv.buffer = buffer;
+ 	priv.start_addr = start_addr;
+ 	priv.write = write;
++
++	priv.cur_page_node = 0;
++	priv.page_nodes = kzalloc(sizeof(struct page_node) * (end_frame - start_frame),
++				  GFP_KERNEL);
++	if (!priv.page_nodes) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
+ 	walk.private = &priv;
+ 	walk.mm = mm;
+ 
+@@ -425,6 +435,7 @@ ssize_t page_idle_proc_generic(struct file *file, char __user *ubuff,
+ 		ret = copy_to_user(ubuff, buffer, count);
+ 
+ 	up_read(&mm->mmap_sem);
++	kfree(priv.page_nodes);
+ out:
+ 	kfree(buffer);
+ out_mmput:
+-- 
+2.22.0.657.g960e92d24f-goog
 
