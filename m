@@ -2,103 +2,105 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C960C76191
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 16:56:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 29DD5C76186
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 16:58:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 251C621926
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 16:56:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D3F0F21841
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 16:58:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="eWuAulp7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 251C621926
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uY1ehjWR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3F0F21841
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 903B66B000A; Wed, 24 Jul 2019 12:56:13 -0400 (EDT)
+	id 61A7C8E0002; Wed, 24 Jul 2019 12:58:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8BC306B000C; Wed, 24 Jul 2019 12:56:13 -0400 (EDT)
+	id 5CCA56B000E; Wed, 24 Jul 2019 12:58:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7CA0C8E0002; Wed, 24 Jul 2019 12:56:13 -0400 (EDT)
+	id 4E03A8E0002; Wed, 24 Jul 2019 12:58:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 47EB16B000A
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:56:13 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id i33so24455500pld.15
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 09:56:13 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2EEE26B000D
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:58:27 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id s9so51678158iob.11
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 09:58:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
-         :message-id:user-agent:mime-version:content-transfer-encoding;
-        bh=PhVb6RN1Ss2cdB2PwVe0HtBm8bfHqYHCMNa/n92glxA=;
-        b=g5iYvoDeNdKPwBs6D2hw0tlt4MHT+9ML/Cgsmi/wmBf0Xb1JG+sOCH7wPSKn5JSJGv
-         jRsQzVIQstqjYECc1xAmbY9cXgPJJB+33OV8pRQftQA3IphiWMqtg83MsMlpxS/9EVmr
-         aasQ8YKknaT3Z+HPPqnf/GbSQwxpc9op1J447nx5QCOnmdvrXhAGPqc9KL9o9or+TXrI
-         9ux/R5mO0QaX/wlNMUz51kxkM4AmAcI+sWq+/SkziUpldLKJpXO5L4hoLqGcrx13s2sg
-         9KsT4iqHMPQyrTkIWvlT16YPFuog+dGzwrOCnuR8yZZmd6MYvoH5liL1/ucfyJ7qu8Ou
-         EGvA==
-X-Gm-Message-State: APjAAAXpIFKPTg+DlBLeFbQoeQMpIrfzIVtld87h6YS5iPsoXYjI0D9c
-	r18fQheqIp1upDAG9vBVDdzkDz/zIFRl0w6jxnR4r/TVy25m6Xi6ZYzsjDhA5UGBnYONAVhi3mu
-	Wk5VaoiVfpEBv7Ur3SfulYaZbcgwzVECj7VJyraFCLC32Q97I3zHdun/9Nh2TyYhaXQ==
-X-Received: by 2002:a63:dd0b:: with SMTP id t11mr41930013pgg.410.1563987372427;
-        Wed, 24 Jul 2019 09:56:12 -0700 (PDT)
-X-Received: by 2002:a63:dd0b:: with SMTP id t11mr41929954pgg.410.1563987371401;
-        Wed, 24 Jul 2019 09:56:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563987371; cv=none;
+         :message-id:in-reply-to:references:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=wYHYz2CAMv2i0hd4mcN2CYyNrF3b9BU8TFbZbdGIzOs=;
+        b=q1m6I7IDlNqO+eS6fvZ33aj28PAI0Qw4mnDwMYKlXedTaDQuWUOXAz3FirKW5Y5/BK
+         Popt4rqef63/zjI6UgscyY+uM/JfX95aumwvMOIQfp1Zn0Yr+HoQeVTcCf++MoVHw97X
+         6AwDDbifm0r+Lx3XCGfuAMk+l7WFR3zi59erf742vkXr9MIu2G7MZMnrhudRfrKcZw6I
+         3vKaDy54PJQBvjZTgRRuP37fb4f81jz2UNqOdfii7UT0iYTaoQyZzUKXLhGwSpk/LMwm
+         S+cVuSfVsTniokjUWrBmIkZwrczfvvacRtVcWG0dfPGI3Aq/izymS3Y/UthYsE84Eln5
+         WVTQ==
+X-Gm-Message-State: APjAAAWyJDVf2PbT8MTya/IFIkqmhnZOAr9Cyuj0IfnRZzLzCdbliNEh
+	mu/z20zq4BEV06vv5cUdH/uywfdmsn5laN3P+kjcsDnH47DNEEuHVn3BN/0PNw1o3bEsVaNeQqy
+	w5UwhPSWFlGHWGJ4nMHbPLQIsamNa9V7T35LKiWghPrnYaw18+ftWUeDWWGCbmYZJ8w==
+X-Received: by 2002:a5d:8794:: with SMTP id f20mr8851892ion.128.1563987506887;
+        Wed, 24 Jul 2019 09:58:26 -0700 (PDT)
+X-Received: by 2002:a5d:8794:: with SMTP id f20mr8851828ion.128.1563987505941;
+        Wed, 24 Jul 2019 09:58:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563987505; cv=none;
         d=google.com; s=arc-20160816;
-        b=aeUY5RnRLJ+lr1nhH4puGShNadfp7Oj6YI0ZUjyjO1RS3qljoT5+trcvoMavg5Ud4F
-         qXxokd8sNvn9HlE151UyCEF3eNOd9x6wF03+Ounri0UMJ6ydVCn/6K9Y7cB/625hIDoc
-         qYXuJasiJwBu4ScVAZgAx39iA90i/7AQzEgFhS5q3MhAt8W2jm7oSl75h9bkVglhsB7m
-         nqZDjO4tp4WhDyADKdYdswf0miwGFSlb2gAVeYRGrN4WAlop8MMnzpKnDnz6jYzYLBes
-         Ucpbcalz+W1fc61R/ozyHaubdcMVnaxR364OR4XQObmcUCWyS51hpqMGIUY5MYM1pX88
-         ElzA==
+        b=0nIQ09oGUCzfAE7kvpDzpIaKFoeYagK+hUjx1S0GDfzfJtoE0Nfxz3wLj5Uq3JIKd0
+         oo2G6yN/OuFSshS04NWTWe5OZsCNA4mTCiQVTQ208DYCESdcY0f1m2yC5b8fJHo+QkN9
+         IdCQpxt6nKKY7r1TreSuxEbbOs398tyvwzqZVBp+J+3GNLNGidhLxSla8FnsDKXeFNxz
+         wxJcntMllFZNRH3571kRHmrqmHn4J+xqgoa9UmM0fBh3XJmSmkp6sBR4JH/gO4UTye2i
+         7c0vVNISuOm/KGde4JzRxZrW8+Tdyk8yE0la6KwLplQmHDHaysC+kEtQY9vtAq5UEkcU
+         X9JQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:message-id:date
-         :cc:to:from:subject:dkim-signature;
-        bh=PhVb6RN1Ss2cdB2PwVe0HtBm8bfHqYHCMNa/n92glxA=;
-        b=FXqDAhBCQaqAY7Jn/LZbrtkrrj5YqiGkADafRnOZp9KPKQnRKgwPxOxUKsaqpcjcPr
-         wiFPkv6nbmn3okNYGN61m9MKlW+c+HatzMaPXqXiLSTV1CHGbduQKQUGEDINLI/wS2QC
-         rO3RAjADZzyaPI499qWQmgnGhD3TRVGnaZZB4CfUKpadNDzBcUM2YCeCdb2vPHXmY1CA
-         ws/pqHDeEIgrLKQTb+/rMxzpOyuk7sErg11PbkRsRAD5oGSxrGJJM1Cn2ayDGV8GUQRm
-         4SBg+XvDGJUhx3QIbim0teHIFFdqQA2Rx7F4dgjBlnOwJcQoTn/V9OnMk00oYRDR8o2W
-         8Bng==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
+        bh=wYHYz2CAMv2i0hd4mcN2CYyNrF3b9BU8TFbZbdGIzOs=;
+        b=lwasMSF/cmTqRGILBBcfbaur5CDCETxL1i/WZO/G5ex6CUXYTHj+QXlKXcw2Zs/r8w
+         VEh3MSXsC1voXKl5bLfQlHw2Rp/Gw5m0YI7qLOBnNjxszgPe2/gO9IKUTstuzV5y4lbQ
+         N+WKNs7OdbqKnSuxrZedA3GRIWin12fhZzda/H+/Hnrrzhf0gH+tbGtHRPQJhss6eguG
+         YfkiqKe6FFk1QRDeTZUuP4dHgLZy1zQFkCKEqIXRoep0IExuQXyl4QT2hijzBphsD3rA
+         bCz7vAxh8KMcPag7pAJmuirq7h1qc2LmM1ZX+if2wGAoLS8Nyt+k1rTMiJAasbq1eKci
+         NUnw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=eWuAulp7;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uY1ehjWR;
        spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s24sor7385832pgm.81.2019.07.24.09.56.11
+        by mx.google.com with SMTPS id k7sor32441392iol.66.2019.07.24.09.58.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 24 Jul 2019 09:56:11 -0700 (PDT)
+        Wed, 24 Jul 2019 09:58:25 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=eWuAulp7;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uY1ehjWR;
        spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=subject:from:to:cc:date:message-id:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=PhVb6RN1Ss2cdB2PwVe0HtBm8bfHqYHCMNa/n92glxA=;
-        b=eWuAulp7lVJApkFKE01P2svmwkQSz+xZKBk4ILTbKSTUXwG6JPCNOThPtpZipJJywM
-         fuowmbFRGkDa4VN4iOGrb0ez3a8/f+PT1HLrK2ycWYe5GcKy2PJft0JrgMFUQkF2bieb
-         ynYDQR9OITwdZktFzeBHzKB6sV1c5twRJTSBsPEnRwP0UGx9fodzsh0b20sSvwmvC2Xi
-         cvRh0qC/t6520YdzswKjIplH1tFaH3L80ZrxvZWu8xdOgdPTNrqVsRj2JinU6lrnNAps
-         IQlQV0ZJRP+Jdf9NjxJl5OKKqIQodIiqsGrqolvaBYG528KyU0W6Dhi7ELw8W4uH1nTa
-         KROQ==
-X-Google-Smtp-Source: APXvYqy5FhBKIOIqEhIwqKISuGQ+P1R0oDCuSk0WbIIGBn5tah6kKqrwZ+sY9jBZWmTnJ8zO8szXNw==
-X-Received: by 2002:a63:f304:: with SMTP id l4mr81474308pgh.66.1563987370874;
-        Wed, 24 Jul 2019 09:56:10 -0700 (PDT)
+        h=subject:from:to:cc:date:message-id:in-reply-to:references
+         :user-agent:mime-version:content-transfer-encoding;
+        bh=wYHYz2CAMv2i0hd4mcN2CYyNrF3b9BU8TFbZbdGIzOs=;
+        b=uY1ehjWR6BNqfQDttxnJ2nwMmBN8h3DMwSIIAOAYu7j+1U9hWxIKRCWsDilAvtulS7
+         jqHJXC90O93P97yw9YGdgSrzEUbp/ZLwkCT8Yc0LOVtg7XtoHzdwigcsAacCSXhT9E6V
+         beqzvXL7IVwvTdXLU3GOtLQearf9QMNAH8y0xURecTQLtawiDMebQFFl5jX3uHtZ+F9c
+         ikP//AaeOHroRE4+hUvKBROEkcq166E16z8wfjtJtzRhaXSVsUpd49066HnG3q72ZGj8
+         LdvAH/t8xfq00R+pV9kgkHyBHNwpH45MFLV/9Our+I1qQxPvHjK9Ty+dkBWr4Kwu2ZzO
+         j4qw==
+X-Google-Smtp-Source: APXvYqzPsB0WoiSPD7TwB+7/Z6jVYA0qOPZHI3pVrvai/+z0Jj6tq9koz6Gcg9wg+Mxn8dfbkySShA==
+X-Received: by 2002:a6b:ef06:: with SMTP id k6mr4646761ioh.70.1563987505511;
+        Wed, 24 Jul 2019 09:58:25 -0700 (PDT)
 Received: from localhost.localdomain (50-39-177-61.bvtn.or.frontiernet.net. [50.39.177.61])
-        by smtp.gmail.com with ESMTPSA id r61sm61815112pjb.7.2019.07.24.09.56.10
+        by smtp.gmail.com with ESMTPSA id q13sm42436508ioh.36.2019.07.24.09.58.23
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 09:56:10 -0700 (PDT)
-Subject: [PATCH v2 0/5] mm / virtio: Provide support for page hinting
+        Wed, 24 Jul 2019 09:58:25 -0700 (PDT)
+Subject: [PATCH v2 1/5] mm: Adjust shuffle code to allow for future
+ coalescing
 From: Alexander Duyck <alexander.duyck@gmail.com>
 To: nitesh@redhat.com, kvm@vger.kernel.org, david@redhat.com, mst@redhat.com,
  dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
@@ -107,8 +109,10 @@ Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
  konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com,
  aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com,
  alexander.h.duyck@linux.intel.com
-Date: Wed, 24 Jul 2019 09:54:02 -0700
-Message-ID: <20190724165158.6685.87228.stgit@localhost.localdomain>
+Date: Wed, 24 Jul 2019 09:56:16 -0700
+Message-ID: <20190724165615.6685.24289.stgit@localhost.localdomain>
+In-Reply-To: <20190724165158.6685.87228.stgit@localhost.localdomain>
+References: <20190724165158.6685.87228.stgit@localhost.localdomain>
 User-Agent: StGit/0.17.1-dirty
 MIME-Version: 1.0
 Content-Type: text/plain; charset="utf-8"
@@ -119,99 +123,235 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This series provides an asynchronous means of hinting to a hypervisor
-that a guest page is no longer in use and can have the data associated
-with it dropped. To do this I have implemented functionality that allows
-for what I am referring to as page hinting
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-The functionality for this is fairly simple. When enabled it will allocate
-statistics to track the number of hinted pages in a given free area. When
-the number of free pages exceeds this value plus a high water value,
-currently 32, it will begin performing page hinting which consists of
-pulling pages off of free list and placing them into a scatter list. The
-scatterlist is then given to the page hinting device and it will perform
-the required action to make the pages "hinted", in the case of
-virtio-balloon this results in the pages being madvised as MADV_DONTNEED
-and as such they are forced out of the guest. After this they are placed
-back on the free list, and an additional bit is added if they are not
-merged indicating that they are a hinted buddy page instead of a standard
-buddy page. The cycle then repeats with additional non-hinted pages being
-pulled until the free areas all consist of hinted pages.
+This patch is meant to move the head/tail adding logic out of the shuffle
+code and into the __free_one_page function since ultimately that is where
+it is really needed anyway. By doing this we should be able to reduce the
+overhead and can consolidate all of the list addition bits in one spot.
 
-I am leaving a number of things hard-coded such as limiting the lowest
-order processed to PAGEBLOCK_ORDER, and have left it up to the guest to
-determine what the limit is on how many pages it wants to allocate to
-process the hints.
-
-My primary testing has just been to verify the memory is being freed after
-allocation by running memhog 79g on a 80g guest and watching the total
-free memory via /proc/meminfo on the host. With this I have verified most
-of the memory is freed after each iteration. As far as performance I have
-been mainly focusing on the will-it-scale/page_fault1 test running with
-16 vcpus. With that I have seen at most a 2% difference between the base
-kernel without these patches and the patches with virtio-balloon disabled.
-With the patches and virtio-balloon enabled with hinting the results
-largely depend on the host kernel. On a 3.10 RHEL kernel I saw up to a 2%
-drop in performance as I approached 16 threads, however on the the lastest
-linux-next kernel I saw roughly a 4% to 5% improvement in performance for
-all tests with 8 or more threads. I believe the difference seen is due to
-the overhead for faulting pages back into the guest and zeroing of memory.
-
-Patch 4 is a bit on the large side at about 600 lines of change, however
-I really didn't see a good way to break it up since each piece feeds into
-the next. So I couldn't add the statistics by themselves as it didn't
-really make sense to add them without something that will either read or
-increment/decrement them, or add the Hinted state without something that
-would set/unset it. As such I just ended up adding the entire thing as
-one patch. It makes it a bit bigger but avoids the issues in the previous
-set where I was referencing things before they had been added.
-
-Changes from the RFC:
-https://lore.kernel.org/lkml/20190530215223.13974.22445.stgit@localhost.localdomain/
-Moved aeration requested flag out of aerator and into zone->flags.
-Moved bounary out of free_area and into local variables for aeration.
-Moved aeration cycle out of interrupt and into workqueue.
-Left nr_free as total pages instead of splitting it between raw and aerated.
-Combined size and physical address values in virtio ring into one 64b value.
-
-Changes from v1:
-https://lore.kernel.org/lkml/20190619222922.1231.27432.stgit@localhost.localdomain/
-Dropped "waste page treatment" in favor of "page hinting"
-Renamed files and functions from "aeration" to "page_hinting"
-Moved from page->lru list to scatterlist
-Replaced wait on refcnt in shutdown with RCU and cancel_delayed_work_sync
-Virtio now uses scatterlist directly instead of intermedate array
-Moved stats out of free_area, now in seperate area and pointed to from zone
-Merged patch 5 into patch 4 to improve reviewability
-Updated various code comments throughout
-
+Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 ---
+ include/linux/mmzone.h |   12 --------
+ mm/page_alloc.c        |   70 +++++++++++++++++++++++++++---------------------
+ mm/shuffle.c           |   24 ----------------
+ mm/shuffle.h           |   32 ++++++++++++++++++++++
+ 4 files changed, 71 insertions(+), 67 deletions(-)
 
-Alexander Duyck (5):
-      mm: Adjust shuffle code to allow for future coalescing
-      mm: Move set/get_pcppage_migratetype to mmzone.h
-      mm: Use zone and order instead of free area in free_list manipulators
-      mm: Introduce Hinted pages
-      virtio-balloon: Add support for providing page hints to host
-
-
- drivers/virtio/Kconfig              |    1 
- drivers/virtio/virtio_balloon.c     |   47 ++++++
- include/linux/mmzone.h              |  116 ++++++++------
- include/linux/page-flags.h          |    8 +
- include/linux/page_hinting.h        |  139 ++++++++++++++++
- include/uapi/linux/virtio_balloon.h |    1 
- mm/Kconfig                          |    5 +
- mm/Makefile                         |    1 
- mm/internal.h                       |   18 ++
- mm/memory_hotplug.c                 |    1 
- mm/page_alloc.c                     |  238 ++++++++++++++++++++--------
- mm/page_hinting.c                   |  298 +++++++++++++++++++++++++++++++++++
- mm/shuffle.c                        |   24 ---
- mm/shuffle.h                        |   32 ++++
- 14 files changed, 796 insertions(+), 133 deletions(-)
- create mode 100644 include/linux/page_hinting.h
- create mode 100644 mm/page_hinting.c
-
---
+diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+index d77d717c620c..738e9c758135 100644
+--- a/include/linux/mmzone.h
++++ b/include/linux/mmzone.h
+@@ -116,18 +116,6 @@ static inline void add_to_free_area_tail(struct page *page, struct free_area *ar
+ 	area->nr_free++;
+ }
+ 
+-#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
+-/* Used to preserve page allocation order entropy */
+-void add_to_free_area_random(struct page *page, struct free_area *area,
+-		int migratetype);
+-#else
+-static inline void add_to_free_area_random(struct page *page,
+-		struct free_area *area, int migratetype)
+-{
+-	add_to_free_area(page, area, migratetype);
+-}
+-#endif
+-
+ /* Used for pages which are on another list */
+ static inline void move_to_free_area(struct page *page, struct free_area *area,
+ 			     int migratetype)
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 272c6de1bf4e..1c4644b6cdc3 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -877,6 +877,36 @@ static inline struct capture_control *task_capc(struct zone *zone)
+ #endif /* CONFIG_COMPACTION */
+ 
+ /*
++ * If this is not the largest possible page, check if the buddy
++ * of the next-highest order is free. If it is, it's possible
++ * that pages are being freed that will coalesce soon. In case,
++ * that is happening, add the free page to the tail of the list
++ * so it's less likely to be used soon and more likely to be merged
++ * as a higher order page
++ */
++static inline bool
++buddy_merge_likely(unsigned long pfn, unsigned long buddy_pfn,
++		   struct page *page, unsigned int order)
++{
++	struct page *higher_page, *higher_buddy;
++	unsigned long combined_pfn;
++
++	if (order >= MAX_ORDER - 2)
++		return false;
++
++	if (!pfn_valid_within(buddy_pfn))
++		return false;
++
++	combined_pfn = buddy_pfn & pfn;
++	higher_page = page + (combined_pfn - pfn);
++	buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
++	higher_buddy = higher_page + (buddy_pfn - combined_pfn);
++
++	return pfn_valid_within(buddy_pfn) &&
++	       page_is_buddy(higher_page, higher_buddy, order + 1);
++}
++
++/*
+  * Freeing function for a buddy system allocator.
+  *
+  * The concept of a buddy system is to maintain direct-mapped table
+@@ -905,11 +935,12 @@ static inline void __free_one_page(struct page *page,
+ 		struct zone *zone, unsigned int order,
+ 		int migratetype)
+ {
+-	unsigned long combined_pfn;
++	struct capture_control *capc = task_capc(zone);
+ 	unsigned long uninitialized_var(buddy_pfn);
+-	struct page *buddy;
++	unsigned long combined_pfn;
++	struct free_area *area;
+ 	unsigned int max_order;
+-	struct capture_control *capc = task_capc(zone);
++	struct page *buddy;
+ 
+ 	max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
+ 
+@@ -978,35 +1009,12 @@ static inline void __free_one_page(struct page *page,
+ done_merging:
+ 	set_page_order(page, order);
+ 
+-	/*
+-	 * If this is not the largest possible page, check if the buddy
+-	 * of the next-highest order is free. If it is, it's possible
+-	 * that pages are being freed that will coalesce soon. In case,
+-	 * that is happening, add the free page to the tail of the list
+-	 * so it's less likely to be used soon and more likely to be merged
+-	 * as a higher order page
+-	 */
+-	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)
+-			&& !is_shuffle_order(order)) {
+-		struct page *higher_page, *higher_buddy;
+-		combined_pfn = buddy_pfn & pfn;
+-		higher_page = page + (combined_pfn - pfn);
+-		buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
+-		higher_buddy = higher_page + (buddy_pfn - combined_pfn);
+-		if (pfn_valid_within(buddy_pfn) &&
+-		    page_is_buddy(higher_page, higher_buddy, order + 1)) {
+-			add_to_free_area_tail(page, &zone->free_area[order],
+-					      migratetype);
+-			return;
+-		}
+-	}
+-
+-	if (is_shuffle_order(order))
+-		add_to_free_area_random(page, &zone->free_area[order],
+-				migratetype);
++	area = &zone->free_area[order];
++	if (is_shuffle_order(order) ? shuffle_add_to_tail() :
++	    buddy_merge_likely(pfn, buddy_pfn, page, order))
++		add_to_free_area_tail(page, area, migratetype);
+ 	else
+-		add_to_free_area(page, &zone->free_area[order], migratetype);
+-
++		add_to_free_area(page, area, migratetype);
+ }
+ 
+ /*
+diff --git a/mm/shuffle.c b/mm/shuffle.c
+index 3ce12481b1dc..55d592e62526 100644
+--- a/mm/shuffle.c
++++ b/mm/shuffle.c
+@@ -4,7 +4,6 @@
+ #include <linux/mm.h>
+ #include <linux/init.h>
+ #include <linux/mmzone.h>
+-#include <linux/random.h>
+ #include <linux/moduleparam.h>
+ #include "internal.h"
+ #include "shuffle.h"
+@@ -182,26 +181,3 @@ void __meminit __shuffle_free_memory(pg_data_t *pgdat)
+ 	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
+ 		shuffle_zone(z);
+ }
+-
+-void add_to_free_area_random(struct page *page, struct free_area *area,
+-		int migratetype)
+-{
+-	static u64 rand;
+-	static u8 rand_bits;
+-
+-	/*
+-	 * The lack of locking is deliberate. If 2 threads race to
+-	 * update the rand state it just adds to the entropy.
+-	 */
+-	if (rand_bits == 0) {
+-		rand_bits = 64;
+-		rand = get_random_u64();
+-	}
+-
+-	if (rand & 1)
+-		add_to_free_area(page, area, migratetype);
+-	else
+-		add_to_free_area_tail(page, area, migratetype);
+-	rand_bits--;
+-	rand >>= 1;
+-}
+diff --git a/mm/shuffle.h b/mm/shuffle.h
+index 777a257a0d2f..add763cc0995 100644
+--- a/mm/shuffle.h
++++ b/mm/shuffle.h
+@@ -3,6 +3,7 @@
+ #ifndef _MM_SHUFFLE_H
+ #define _MM_SHUFFLE_H
+ #include <linux/jump_label.h>
++#include <linux/random.h>
+ 
+ /*
+  * SHUFFLE_ENABLE is called from the command line enabling path, or by
+@@ -43,6 +44,32 @@ static inline bool is_shuffle_order(int order)
+ 		return false;
+ 	return order >= SHUFFLE_ORDER;
+ }
++
++static inline bool shuffle_add_to_tail(void)
++{
++	static u64 rand;
++	static u8 rand_bits;
++	u64 rand_old;
++
++	/*
++	 * The lack of locking is deliberate. If 2 threads race to
++	 * update the rand state it just adds to the entropy.
++	 */
++	if (rand_bits-- == 0) {
++		rand_bits = 64;
++		rand = get_random_u64();
++	}
++
++	/*
++	 * Test highest order bit while shifting our random value. This
++	 * should result in us testing for the carry flag following the
++	 * shift.
++	 */
++	rand_old = rand;
++	rand <<= 1;
++
++	return rand < rand_old;
++}
+ #else
+ static inline void shuffle_free_memory(pg_data_t *pgdat)
+ {
+@@ -60,5 +87,10 @@ static inline bool is_shuffle_order(int order)
+ {
+ 	return false;
+ }
++
++static inline bool shuffle_add_to_tail(void)
++{
++	return false;
++}
+ #endif
+ #endif /* _MM_SHUFFLE_H */
 
