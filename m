@@ -7,100 +7,99 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
 	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 29DD5C76186
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 16:58:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8899C7618F
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 17:00:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D3F0F21841
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 16:58:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6DA4321841
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 17:00:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uY1ehjWR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3F0F21841
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="kHN1iP7z"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6DA4321841
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 61A7C8E0002; Wed, 24 Jul 2019 12:58:27 -0400 (EDT)
+	id 073C78E0003; Wed, 24 Jul 2019 13:00:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5CCA56B000E; Wed, 24 Jul 2019 12:58:27 -0400 (EDT)
+	id 0252E6B0010; Wed, 24 Jul 2019 13:00:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4E03A8E0002; Wed, 24 Jul 2019 12:58:27 -0400 (EDT)
+	id E2CD88E0003; Wed, 24 Jul 2019 13:00:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EEE26B000D
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 12:58:27 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id s9so51678158iob.11
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 09:58:27 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id C4B476B000E
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 13:00:41 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id u84so51794535iod.1
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 10:00:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
          :message-id:in-reply-to:references:user-agent:mime-version
          :content-transfer-encoding;
-        bh=wYHYz2CAMv2i0hd4mcN2CYyNrF3b9BU8TFbZbdGIzOs=;
-        b=q1m6I7IDlNqO+eS6fvZ33aj28PAI0Qw4mnDwMYKlXedTaDQuWUOXAz3FirKW5Y5/BK
-         Popt4rqef63/zjI6UgscyY+uM/JfX95aumwvMOIQfp1Zn0Yr+HoQeVTcCf++MoVHw97X
-         6AwDDbifm0r+Lx3XCGfuAMk+l7WFR3zi59erf742vkXr9MIu2G7MZMnrhudRfrKcZw6I
-         3vKaDy54PJQBvjZTgRRuP37fb4f81jz2UNqOdfii7UT0iYTaoQyZzUKXLhGwSpk/LMwm
-         S+cVuSfVsTniokjUWrBmIkZwrczfvvacRtVcWG0dfPGI3Aq/izymS3Y/UthYsE84Eln5
-         WVTQ==
-X-Gm-Message-State: APjAAAWyJDVf2PbT8MTya/IFIkqmhnZOAr9Cyuj0IfnRZzLzCdbliNEh
-	mu/z20zq4BEV06vv5cUdH/uywfdmsn5laN3P+kjcsDnH47DNEEuHVn3BN/0PNw1o3bEsVaNeQqy
-	w5UwhPSWFlGHWGJ4nMHbPLQIsamNa9V7T35LKiWghPrnYaw18+ftWUeDWWGCbmYZJ8w==
-X-Received: by 2002:a5d:8794:: with SMTP id f20mr8851892ion.128.1563987506887;
-        Wed, 24 Jul 2019 09:58:26 -0700 (PDT)
-X-Received: by 2002:a5d:8794:: with SMTP id f20mr8851828ion.128.1563987505941;
-        Wed, 24 Jul 2019 09:58:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563987505; cv=none;
+        bh=H5uePaAnfho3jP4O84y/TR/d85pMr1PHhHfJNr70LiM=;
+        b=cZO3f5iZ2eEdqHK+vnLTYYDpT8CUxC6SAP0kyrqUyrzY6QlkHbbtaSR78UXTKdCpGM
+         upY96ECHy2JNaLViC3utgqvQ59OAsimPkQbmcu36ZqyZ/6Khd8QScDRdLWmwr8Z58+UW
+         NBGI4ArPvpLSj+ZsbIrcFwNXrFmNBTdQyXbcjjfaZr4nHPAXwQMfGX52D2VoHXIVV8oA
+         8ZH8PavfV3RR8oa5FIJxNPMJ4hJZQIJGVSmRyYXZPHya3easwbEBk3FkP7wriEWCnjnU
+         BuTE9z6uaoKkmPsWVI4Z7aAOI/levv+1aRtnzbiVwecqzOckiknD7gWK8l+HaFzA4Gj1
+         +2fQ==
+X-Gm-Message-State: APjAAAWbmxElI8yzjnUgMYSYMmbNkBJWNn//OsjXiAanwL6Rsljpvk6+
+	xQ3LHViMYJILdoOIlmlYtKbKX559R7PI6zE3ZTnSa6k+IBqmcgL/o7OaCaS8gE7I8FEobEryk1O
+	W0imVIjWLbnjqIYQFgFCyYBJFL50tCQsoPD8USEtkJTGcTVjnO8oSfFyetoaNKjE+9Q==
+X-Received: by 2002:a05:6602:220d:: with SMTP id n13mr79956330ion.104.1563987641539;
+        Wed, 24 Jul 2019 10:00:41 -0700 (PDT)
+X-Received: by 2002:a05:6602:220d:: with SMTP id n13mr79956252ion.104.1563987640686;
+        Wed, 24 Jul 2019 10:00:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563987640; cv=none;
         d=google.com; s=arc-20160816;
-        b=0nIQ09oGUCzfAE7kvpDzpIaKFoeYagK+hUjx1S0GDfzfJtoE0Nfxz3wLj5Uq3JIKd0
-         oo2G6yN/OuFSshS04NWTWe5OZsCNA4mTCiQVTQ208DYCESdcY0f1m2yC5b8fJHo+QkN9
-         IdCQpxt6nKKY7r1TreSuxEbbOs398tyvwzqZVBp+J+3GNLNGidhLxSla8FnsDKXeFNxz
-         wxJcntMllFZNRH3571kRHmrqmHn4J+xqgoa9UmM0fBh3XJmSmkp6sBR4JH/gO4UTye2i
-         7c0vVNISuOm/KGde4JzRxZrW8+Tdyk8yE0la6KwLplQmHDHaysC+kEtQY9vtAq5UEkcU
-         X9JQ==
+        b=I53wHwNYbYrcrEIWZg3gYLY4wEgOtT3Y+BwqiudJanSVzlxNduN2gegHwdhZdhTKwZ
+         nvIJyRkaTctfx+vnzvag3Z5N4ia3bEIMXYeKpC7e4v7+fu5g9zyt4X1cub66OlnuFAAY
+         WM4ZaQvtZgtoqpUr6icrx4qQtaY0M0A5fbggofyOBYEVU/9esNUOVWjYQbrWF4sw3P+5
+         91QwbYWfCknT4QCsXICLkpVSW9iyS3bjzP8zvgEQpmsaI3Yjn35C5A090YpGXfFzIPaP
+         HQdbjftVLjZMPtivDfq6qgdoSNwysR6UmSXF3Ew9LN7vuLpKQG6v8Rw2f2B6ITKjzP1j
+         gkiA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:user-agent:references
          :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
-        bh=wYHYz2CAMv2i0hd4mcN2CYyNrF3b9BU8TFbZbdGIzOs=;
-        b=lwasMSF/cmTqRGILBBcfbaur5CDCETxL1i/WZO/G5ex6CUXYTHj+QXlKXcw2Zs/r8w
-         VEh3MSXsC1voXKl5bLfQlHw2Rp/Gw5m0YI7qLOBnNjxszgPe2/gO9IKUTstuzV5y4lbQ
-         N+WKNs7OdbqKnSuxrZedA3GRIWin12fhZzda/H+/Hnrrzhf0gH+tbGtHRPQJhss6eguG
-         YfkiqKe6FFk1QRDeTZUuP4dHgLZy1zQFkCKEqIXRoep0IExuQXyl4QT2hijzBphsD3rA
-         bCz7vAxh8KMcPag7pAJmuirq7h1qc2LmM1ZX+if2wGAoLS8Nyt+k1rTMiJAasbq1eKci
-         NUnw==
+        bh=H5uePaAnfho3jP4O84y/TR/d85pMr1PHhHfJNr70LiM=;
+        b=OlCwbO6DMP8z42E+AIOYSGqpuoAPshESPAPaADx6pXdnacZWJUtahOgBVZ5/4I2+lt
+         g8f/PJVht8XqkdJmTJ682irquSSM6Z1psyxJK/ccZK9wBEfl0Y5Vgi/u0jdfRnsfRiLD
+         LO21MbK2ih845oW4Nmz0xcqPpMKGTCM0rlQjSoGv8kKySLu21p2ejql1XPgXXxy9Croh
+         J2WZLH9yBQ2sNjur8BVhrx8kVh49+zAs02KZbq0pBJPjGFdyNMw0t60pXBbTgYSTcBNz
+         EMViqLlo8SpBeu0frjgCHulZbehDikcKl5zh2K1D6rRGNFbARIQQRe/IAy9yrg7dqj6W
+         sxjw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uY1ehjWR;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kHN1iP7z;
        spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k7sor32441392iol.66.2019.07.24.09.58.25
+        by mx.google.com with SMTPS id v12sor32460705iop.32.2019.07.24.10.00.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 24 Jul 2019 09:58:25 -0700 (PDT)
+        Wed, 24 Jul 2019 10:00:40 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uY1ehjWR;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=kHN1iP7z;
        spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=subject:from:to:cc:date:message-id:in-reply-to:references
          :user-agent:mime-version:content-transfer-encoding;
-        bh=wYHYz2CAMv2i0hd4mcN2CYyNrF3b9BU8TFbZbdGIzOs=;
-        b=uY1ehjWR6BNqfQDttxnJ2nwMmBN8h3DMwSIIAOAYu7j+1U9hWxIKRCWsDilAvtulS7
-         jqHJXC90O93P97yw9YGdgSrzEUbp/ZLwkCT8Yc0LOVtg7XtoHzdwigcsAacCSXhT9E6V
-         beqzvXL7IVwvTdXLU3GOtLQearf9QMNAH8y0xURecTQLtawiDMebQFFl5jX3uHtZ+F9c
-         ikP//AaeOHroRE4+hUvKBROEkcq166E16z8wfjtJtzRhaXSVsUpd49066HnG3q72ZGj8
-         LdvAH/t8xfq00R+pV9kgkHyBHNwpH45MFLV/9Our+I1qQxPvHjK9Ty+dkBWr4Kwu2ZzO
-         j4qw==
-X-Google-Smtp-Source: APXvYqzPsB0WoiSPD7TwB+7/Z6jVYA0qOPZHI3pVrvai/+z0Jj6tq9koz6Gcg9wg+Mxn8dfbkySShA==
-X-Received: by 2002:a6b:ef06:: with SMTP id k6mr4646761ioh.70.1563987505511;
-        Wed, 24 Jul 2019 09:58:25 -0700 (PDT)
+        bh=H5uePaAnfho3jP4O84y/TR/d85pMr1PHhHfJNr70LiM=;
+        b=kHN1iP7zA3FJ74YxjzC8lHyl0JgV6YH25zYfaGW5aYOffgySOf1QKp+KZSQHNEMZFn
+         GKh2kTELEzLGxrmnDZLQUmt0ykjoIDF3onJTscviyJA5ehSAC5J/5UW+6OaSP+iS5bu/
+         1xU8vU3Z2VYVFmXfnmjeHFfNhPttjVDYToOKq1rg678rqHxcm0f7g0tiQhJpl/xRi+Wd
+         hxAt6HjXkfC9jvuYIpfnwcVzdP5pFdL9Cf7F6GyLICGbk9RmPEUy6b4Qcp04eardBWx/
+         jknqRgy69k+O7wjc/qY01mpJ20yzKRb5wPGzFCtmmEbEQ6QD7AfuECV7TisOSvi+bo3l
+         Y7Yw==
+X-Google-Smtp-Source: APXvYqx+6Zi+RypFO68n1WeSfP+QuoinYaHM4/PZrw3z9TvZURJv9ULbWB+7BvwlnKgD1QoYlHaN3g==
+X-Received: by 2002:a02:6d24:: with SMTP id m36mr87555505jac.87.1563987640301;
+        Wed, 24 Jul 2019 10:00:40 -0700 (PDT)
 Received: from localhost.localdomain (50-39-177-61.bvtn.or.frontiernet.net. [50.39.177.61])
-        by smtp.gmail.com with ESMTPSA id q13sm42436508ioh.36.2019.07.24.09.58.23
+        by smtp.gmail.com with ESMTPSA id b8sm38161917ioj.16.2019.07.24.10.00.38
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 09:58:25 -0700 (PDT)
-Subject: [PATCH v2 1/5] mm: Adjust shuffle code to allow for future
- coalescing
+        Wed, 24 Jul 2019 10:00:39 -0700 (PDT)
+Subject: [PATCH v2 2/5] mm: Move set/get_pcppage_migratetype to mmzone.h
 From: Alexander Duyck <alexander.duyck@gmail.com>
 To: nitesh@redhat.com, kvm@vger.kernel.org, david@redhat.com, mst@redhat.com,
  dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
@@ -109,8 +108,8 @@ Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
  konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com,
  aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com,
  alexander.h.duyck@linux.intel.com
-Date: Wed, 24 Jul 2019 09:56:16 -0700
-Message-ID: <20190724165615.6685.24289.stgit@localhost.localdomain>
+Date: Wed, 24 Jul 2019 09:58:30 -0700
+Message-ID: <20190724165830.6685.51110.stgit@localhost.localdomain>
 In-Reply-To: <20190724165158.6685.87228.stgit@localhost.localdomain>
 References: <20190724165158.6685.87228.stgit@localhost.localdomain>
 User-Agent: StGit/0.17.1-dirty
@@ -125,233 +124,73 @@ List-ID: <linux-mm.kvack.org>
 
 From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 
-This patch is meant to move the head/tail adding logic out of the shuffle
-code and into the __free_one_page function since ultimately that is where
-it is really needed anyway. By doing this we should be able to reduce the
-overhead and can consolidate all of the list addition bits in one spot.
+In order to support page aeration it will be necessary to store and
+retrieve the migratetype of a page. To enable that I am moving the set and
+get operations for pcppage_migratetype into the mm/internal.h header so
+that they can be used outside of the page_alloc.c file.
 
 Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 ---
- include/linux/mmzone.h |   12 --------
- mm/page_alloc.c        |   70 +++++++++++++++++++++++++++---------------------
- mm/shuffle.c           |   24 ----------------
- mm/shuffle.h           |   32 ++++++++++++++++++++++
- 4 files changed, 71 insertions(+), 67 deletions(-)
+ mm/internal.h   |   18 ++++++++++++++++++
+ mm/page_alloc.c |   18 ------------------
+ 2 files changed, 18 insertions(+), 18 deletions(-)
 
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index d77d717c620c..738e9c758135 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -116,18 +116,6 @@ static inline void add_to_free_area_tail(struct page *page, struct free_area *ar
- 	area->nr_free++;
+diff --git a/mm/internal.h b/mm/internal.h
+index e32390802fd3..e432c7d5940d 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -549,6 +549,24 @@ static inline bool is_migrate_highatomic_page(struct page *page)
+ 	return get_pageblock_migratetype(page) == MIGRATE_HIGHATOMIC;
  }
  
--#ifdef CONFIG_SHUFFLE_PAGE_ALLOCATOR
--/* Used to preserve page allocation order entropy */
--void add_to_free_area_random(struct page *page, struct free_area *area,
--		int migratetype);
--#else
--static inline void add_to_free_area_random(struct page *page,
--		struct free_area *area, int migratetype)
--{
--	add_to_free_area(page, area, migratetype);
--}
--#endif
--
- /* Used for pages which are on another list */
- static inline void move_to_free_area(struct page *page, struct free_area *area,
- 			     int migratetype)
++/*
++ * A cached value of the page's pageblock's migratetype, used when the page is
++ * put on a pcplist. Used to avoid the pageblock migratetype lookup when
++ * freeing from pcplists in most cases, at the cost of possibly becoming stale.
++ * Also the migratetype set in the page does not necessarily match the pcplist
++ * index, e.g. page might have MIGRATE_CMA set but be on a pcplist with any
++ * other index - this ensures that it will be put on the correct CMA freelist.
++ */
++static inline int get_pcppage_migratetype(struct page *page)
++{
++	return page->index;
++}
++
++static inline void set_pcppage_migratetype(struct page *page, int migratetype)
++{
++	page->index = migratetype;
++}
++
+ void setup_zone_pageset(struct zone *zone);
+ extern struct page *alloc_new_node_page(struct page *page, unsigned long node);
+ #endif	/* __MM_INTERNAL_H */
 diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 272c6de1bf4e..1c4644b6cdc3 100644
+index 1c4644b6cdc3..3d612a6b1771 100644
 --- a/mm/page_alloc.c
 +++ b/mm/page_alloc.c
-@@ -877,6 +877,36 @@ static inline struct capture_control *task_capc(struct zone *zone)
- #endif /* CONFIG_COMPACTION */
- 
- /*
-+ * If this is not the largest possible page, check if the buddy
-+ * of the next-highest order is free. If it is, it's possible
-+ * that pages are being freed that will coalesce soon. In case,
-+ * that is happening, add the free page to the tail of the list
-+ * so it's less likely to be used soon and more likely to be merged
-+ * as a higher order page
-+ */
-+static inline bool
-+buddy_merge_likely(unsigned long pfn, unsigned long buddy_pfn,
-+		   struct page *page, unsigned int order)
-+{
-+	struct page *higher_page, *higher_buddy;
-+	unsigned long combined_pfn;
-+
-+	if (order >= MAX_ORDER - 2)
-+		return false;
-+
-+	if (!pfn_valid_within(buddy_pfn))
-+		return false;
-+
-+	combined_pfn = buddy_pfn & pfn;
-+	higher_page = page + (combined_pfn - pfn);
-+	buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
-+	higher_buddy = higher_page + (buddy_pfn - combined_pfn);
-+
-+	return pfn_valid_within(buddy_pfn) &&
-+	       page_is_buddy(higher_page, higher_buddy, order + 1);
-+}
-+
-+/*
-  * Freeing function for a buddy system allocator.
-  *
-  * The concept of a buddy system is to maintain direct-mapped table
-@@ -905,11 +935,12 @@ static inline void __free_one_page(struct page *page,
- 		struct zone *zone, unsigned int order,
- 		int migratetype)
- {
--	unsigned long combined_pfn;
-+	struct capture_control *capc = task_capc(zone);
- 	unsigned long uninitialized_var(buddy_pfn);
--	struct page *buddy;
-+	unsigned long combined_pfn;
-+	struct free_area *area;
- 	unsigned int max_order;
--	struct capture_control *capc = task_capc(zone);
-+	struct page *buddy;
- 
- 	max_order = min_t(unsigned int, MAX_ORDER, pageblock_order + 1);
- 
-@@ -978,35 +1009,12 @@ static inline void __free_one_page(struct page *page,
- done_merging:
- 	set_page_order(page, order);
- 
--	/*
--	 * If this is not the largest possible page, check if the buddy
--	 * of the next-highest order is free. If it is, it's possible
--	 * that pages are being freed that will coalesce soon. In case,
--	 * that is happening, add the free page to the tail of the list
--	 * so it's less likely to be used soon and more likely to be merged
--	 * as a higher order page
--	 */
--	if ((order < MAX_ORDER-2) && pfn_valid_within(buddy_pfn)
--			&& !is_shuffle_order(order)) {
--		struct page *higher_page, *higher_buddy;
--		combined_pfn = buddy_pfn & pfn;
--		higher_page = page + (combined_pfn - pfn);
--		buddy_pfn = __find_buddy_pfn(combined_pfn, order + 1);
--		higher_buddy = higher_page + (buddy_pfn - combined_pfn);
--		if (pfn_valid_within(buddy_pfn) &&
--		    page_is_buddy(higher_page, higher_buddy, order + 1)) {
--			add_to_free_area_tail(page, &zone->free_area[order],
--					      migratetype);
--			return;
--		}
--	}
--
--	if (is_shuffle_order(order))
--		add_to_free_area_random(page, &zone->free_area[order],
--				migratetype);
-+	area = &zone->free_area[order];
-+	if (is_shuffle_order(order) ? shuffle_add_to_tail() :
-+	    buddy_merge_likely(pfn, buddy_pfn, page, order))
-+		add_to_free_area_tail(page, area, migratetype);
- 	else
--		add_to_free_area(page, &zone->free_area[order], migratetype);
--
-+		add_to_free_area(page, area, migratetype);
+@@ -185,24 +185,6 @@ static int __init early_init_on_free(char *buf)
  }
+ early_param("init_on_free", early_init_on_free);
  
- /*
-diff --git a/mm/shuffle.c b/mm/shuffle.c
-index 3ce12481b1dc..55d592e62526 100644
---- a/mm/shuffle.c
-+++ b/mm/shuffle.c
-@@ -4,7 +4,6 @@
- #include <linux/mm.h>
- #include <linux/init.h>
- #include <linux/mmzone.h>
--#include <linux/random.h>
- #include <linux/moduleparam.h>
- #include "internal.h"
- #include "shuffle.h"
-@@ -182,26 +181,3 @@ void __meminit __shuffle_free_memory(pg_data_t *pgdat)
- 	for (z = pgdat->node_zones; z < pgdat->node_zones + MAX_NR_ZONES; z++)
- 		shuffle_zone(z);
- }
--
--void add_to_free_area_random(struct page *page, struct free_area *area,
--		int migratetype)
+-/*
+- * A cached value of the page's pageblock's migratetype, used when the page is
+- * put on a pcplist. Used to avoid the pageblock migratetype lookup when
+- * freeing from pcplists in most cases, at the cost of possibly becoming stale.
+- * Also the migratetype set in the page does not necessarily match the pcplist
+- * index, e.g. page might have MIGRATE_CMA set but be on a pcplist with any
+- * other index - this ensures that it will be put on the correct CMA freelist.
+- */
+-static inline int get_pcppage_migratetype(struct page *page)
 -{
--	static u64 rand;
--	static u8 rand_bits;
--
--	/*
--	 * The lack of locking is deliberate. If 2 threads race to
--	 * update the rand state it just adds to the entropy.
--	 */
--	if (rand_bits == 0) {
--		rand_bits = 64;
--		rand = get_random_u64();
--	}
--
--	if (rand & 1)
--		add_to_free_area(page, area, migratetype);
--	else
--		add_to_free_area_tail(page, area, migratetype);
--	rand_bits--;
--	rand >>= 1;
+-	return page->index;
 -}
-diff --git a/mm/shuffle.h b/mm/shuffle.h
-index 777a257a0d2f..add763cc0995 100644
---- a/mm/shuffle.h
-+++ b/mm/shuffle.h
-@@ -3,6 +3,7 @@
- #ifndef _MM_SHUFFLE_H
- #define _MM_SHUFFLE_H
- #include <linux/jump_label.h>
-+#include <linux/random.h>
- 
+-
+-static inline void set_pcppage_migratetype(struct page *page, int migratetype)
+-{
+-	page->index = migratetype;
+-}
+-
+ #ifdef CONFIG_PM_SLEEP
  /*
-  * SHUFFLE_ENABLE is called from the command line enabling path, or by
-@@ -43,6 +44,32 @@ static inline bool is_shuffle_order(int order)
- 		return false;
- 	return order >= SHUFFLE_ORDER;
- }
-+
-+static inline bool shuffle_add_to_tail(void)
-+{
-+	static u64 rand;
-+	static u8 rand_bits;
-+	u64 rand_old;
-+
-+	/*
-+	 * The lack of locking is deliberate. If 2 threads race to
-+	 * update the rand state it just adds to the entropy.
-+	 */
-+	if (rand_bits-- == 0) {
-+		rand_bits = 64;
-+		rand = get_random_u64();
-+	}
-+
-+	/*
-+	 * Test highest order bit while shifting our random value. This
-+	 * should result in us testing for the carry flag following the
-+	 * shift.
-+	 */
-+	rand_old = rand;
-+	rand <<= 1;
-+
-+	return rand < rand_old;
-+}
- #else
- static inline void shuffle_free_memory(pg_data_t *pgdat)
- {
-@@ -60,5 +87,10 @@ static inline bool is_shuffle_order(int order)
- {
- 	return false;
- }
-+
-+static inline bool shuffle_add_to_tail(void)
-+{
-+	return false;
-+}
- #endif
- #endif /* _MM_SHUFFLE_H */
+  * The following functions are used by the suspend/hibernate code to temporarily
 
