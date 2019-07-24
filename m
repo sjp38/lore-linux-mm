@@ -2,179 +2,250 @@ Return-Path: <SRS0=cVar=VV=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5F78EC76194
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 14:09:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 144C8C41517
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 14:10:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 30A1F22AEC
-	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 14:09:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30A1F22AEC
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id C2AFC22ADC
+	for <linux-mm@archiver.kernel.org>; Wed, 24 Jul 2019 14:10:56 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="m6YvAC5U"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C2AFC22ADC
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F248C8E0005; Wed, 24 Jul 2019 10:09:15 -0400 (EDT)
+	id 5D5906B000D; Wed, 24 Jul 2019 10:10:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ED5738E0002; Wed, 24 Jul 2019 10:09:15 -0400 (EDT)
+	id 5AC4C8E0006; Wed, 24 Jul 2019 10:10:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D9E4B8E0005; Wed, 24 Jul 2019 10:09:15 -0400 (EDT)
+	id 4C2218E0002; Wed, 24 Jul 2019 10:10:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 8BACC8E0002
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 10:09:15 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id k22so30305478ede.0
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 07:09:15 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 129AA6B000D
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 10:10:56 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id y9so24191330plp.12
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 07:10:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=3hNIS604cIlpNb5X0dW+yA2d1B9YTWRXVYiOJCJvT2I=;
-        b=tdLyg0cuE1q3qufTKacEvPg0c9SrZCIsoIl+SpWXBqihauEj0Ty30k4rCPIdutzBQO
-         PQzAOiv/wS5VdyMivFv9sIGH2T9EffIg0ezbGt2qMqSC7rz9+5o+lYs9jsBENFwa6JYs
-         6ly70zWHUh31fnwJYYmTSU7fTX6NTr3fuwj/U63+reqUQ8ECZQOpJb6An6COB4csX0wH
-         4GzpJNl1rSja9Vx4az52r8gPZvJlD25gkIQs9zkVFavdDSczvBLPHZHvrv9mzoG18S6j
-         sW89Th2a6gkiDpIw0I27OjELu+d1HvXiMUzLOQQIXL4iPmCcjQPbofm/An8AvVIWlnv2
-         SzFg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: APjAAAWCejxmRCG6VUUdYA7W+xQx94Qem9D554s9nuDOg2qLVpLKWW8q
-	roXc4tXG34MvUgN7ytfw/lx6khN0usQbCH/wUp2A66kh0ECAs3znE53BAJQb3pN9pGBVIgDfvXF
-	ZUKmYKQTdpoLWEtHTinxRpTKMqQxlnpOCi/WAXmEBl+vrZZO1nyTqWjaUrww0Eahvig==
-X-Received: by 2002:a17:906:4911:: with SMTP id b17mr61406520ejq.158.1563977354967;
-        Wed, 24 Jul 2019 07:09:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyszcfJeTkpxpWn5xk2ozsU/QAYwfSKC/GrfXi4b5Y6FVBHXW4q4WBxZvpSMdEAEoLLjcLM
-X-Received: by 2002:a17:906:4911:: with SMTP id b17mr61406457ejq.158.1563977354258;
-        Wed, 24 Jul 2019 07:09:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1563977354; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=WXhaeMPXQ8MNtkF+Sp+2bS4wghsA38PAkoq4RUXLo/c=;
+        b=VBn/H30niWJM83KWCrOpMK/PBGwjKkTz5tvKv2ueVQ8LbjtIygrM9d0ucsov7iIVlM
+         ryYecaa3kGy7l+rxN07nwMJfqRYN+JJd1cZTCrTorCDyR/7qD6UpThpN9Ksw22X1FYnI
+         Bb3E9d4SpqrGXK81385lgEtcX5/jL/PKaV/DV4Y/YeWETfWlFzDe4ooVGBkt1bKXG5em
+         DhRHYCIzc7eyONjp4IysAUnb3Z0hNvFZfApUjN6wta2bATEzSrr1kdC5z3tmOuX+CeRQ
+         KY8rCu2SlQ6SkEvnhoazqf1CsGfjMysZmWqHzEaKPZsgln6ifUbMkc3dccJ5fpcgtFqJ
+         2KYw==
+X-Gm-Message-State: APjAAAXX871Jb9kM6Q0BJsrFxQRYK7PLqEh0y0nT5XlcdC5SXwyM5hcY
+	OYtCb2r+XJgM+8oWLQRt4f7Oef3nnAKTJKH8f0UkSeoLL7X8MU6C3QdYSFNrZ5GNx/FpU1BrfhC
+	SoOu/tEwaAAQNLOyBdFqhaBqaTxqa2yZuF7nuzqHjIo1FLZEhGfe6GyJLcC+0S83psw==
+X-Received: by 2002:aa7:81d9:: with SMTP id c25mr11751316pfn.255.1563977455729;
+        Wed, 24 Jul 2019 07:10:55 -0700 (PDT)
+X-Received: by 2002:aa7:81d9:: with SMTP id c25mr11751242pfn.255.1563977454806;
+        Wed, 24 Jul 2019 07:10:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1563977454; cv=none;
         d=google.com; s=arc-20160816;
-        b=zXlkYruWRy2j14ypJRg0bQlCJx8/LVQV3TN3QAB+d3qazB9SU7yywuFSmrhxWqI2d/
-         Vzt0iwWcMd7aQARiJ+tBpCU7YaMfRAISWe540gLEtBw/B7YEmXXwPmKSG42qEvvdbQ55
-         OH/jTo8qtwYQr9MHj8QPh7oPZ4sD8yMZs92ryH7JbTZPiwSZAN4kWHJ8FxsB7N808scX
-         2zVQT6VXXpq9wcUQTuhRj9qtN8jhSIsogL3dMtDcpvcFLol3HFQ/mmOsX+d0fnJ6L2Lp
-         AgzbaeAgm6kjA1Q01s0FPr7odLXd+IK6Ekj13/peqgljCpYdeLI2yeBd17dlagj27eaY
-         302g==
+        b=bupgoD0+qjh8/l+/bJ6CuE1XMgNsoKc7CzBOTml+jXvK5iP3cqu6jbolqqlcQaPNQh
+         /XEZyehW2aFP8ND/R9K2i44efvlgQ1ZuuYzY2RqqV4OuVjxNqkm4A21I8CVAoNdftXHS
+         NzGotmwqYj1uhk44J9ywV20oW7mhOlfs9nVcBZsFaDXdzfXJTJEim20yUrixczlnsOCO
+         HmpN9M+mGzAT/rRYh21nH/65Pz1/ALV9sG7X3d+wmRK1VbSy/RC2c0CqkAlQuFnxpHiV
+         qe1cgMDzCb9Z5a7knBKI7h1K7EqRTcS4P0R8OUU7ymmvAmda0+JtPEzpG5AmnEXTlkmN
+         VJDQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=3hNIS604cIlpNb5X0dW+yA2d1B9YTWRXVYiOJCJvT2I=;
-        b=KpH0cE7LkH9QGahA0NhjuRqF48QH7HKuMS/G3V1JgxtQOnCx3+e4wIv3ysooi1mOA+
-         iIwqRDHduUFzekIBPJf7nI3UuBBzbsRYyAVNCCyZWKMQfbtVsqP4wqyVTAN1UJKg1KMb
-         eMa+8kVLFVGHugP1m+mvBn5xNxKNitKFBTYpRkjmPzawwIXv6J9CKCQR1nB3gCy3fJF8
-         i5pkfmttEH7t42jInYkU0+U5GkDADwfN67186V2lohIYPHpY5d+dbvmXva5Ay/qQT+7i
-         /jlzK3WIsM1vK8LXLhKsAhyOQcZrl+4OIGMDIM7h3mzPCkL7Zd3rb7Ddd58lqLnpQ3fW
-         BuQw==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=WXhaeMPXQ8MNtkF+Sp+2bS4wghsA38PAkoq4RUXLo/c=;
+        b=HKShH8itKWSuTFHGAG6uuNjO4ntMvURz4OQkyqxHVE6BJ0yG+BGl6nBpEO3HAg+SCB
+         DzR3xyhCKMUWkamBtkIc6jKmaSGBJ1gwrUWpGIRKG3WoNRJKuV+0Z4NtUsxqpuxR1Atj
+         fNk5NXhMnVrAlWxJ0t5BxP4rFArdawNjoGctEJ1QMZlXVExdqYC4bH7wvuoB07SQBjmo
+         kDa0wnTIfvYg1F5+dBU+WKEnd9AOYyFkjmummfa5O+Etn7/yKuGgL52htUryqBf4EtNQ
+         AdBS6rqx/rb8mKP8AmPbS0LbIhblbUhtMptb2/d2DHzrAjZVBLrADZf83OuSlXgay1Mr
+         a5mg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id g12si8274120edm.40.2019.07.24.07.09.13
-        for <linux-mm@kvack.org>;
-        Wed, 24 Jul 2019 07:09:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=m6YvAC5U;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a1sor1901278pfc.63.2019.07.24.07.10.54
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Wed, 24 Jul 2019 07:10:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4428D28;
-	Wed, 24 Jul 2019 07:09:13 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id CB3973F71A;
-	Wed, 24 Jul 2019 07:09:10 -0700 (PDT)
-Date: Wed, 24 Jul 2019 15:09:08 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-To: Steven Price <steven.price@arm.com>
-Cc: x86@kernel.org, Arnd Bergmann <arnd@arndb.de>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
-	Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
-	James Morse <james.morse@arm.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Will Deacon <will@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-arm-kernel@lists.infradead.org,
-	"Liang, Kan" <kan.liang@linux.intel.com>
-Subject: Re: [PATCH v9 11/21] mm: pagewalk: Add p4d_entry() and pgd_entry()
-Message-ID: <20190724140908.GE2624@lakrids.cambridge.arm.com>
-References: <20190722154210.42799-1-steven.price@arm.com>
- <20190722154210.42799-12-steven.price@arm.com>
- <20190723101432.GC8085@lakrids.cambridge.arm.com>
- <60ee20ef-62a3-5df1-6e24-24973b69be70@arm.com>
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=m6YvAC5U;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=joelfernandes.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=WXhaeMPXQ8MNtkF+Sp+2bS4wghsA38PAkoq4RUXLo/c=;
+        b=m6YvAC5UDmYi4TsfqlA07rTcUbfvc9lidZhL3ozBZPd9FuNWIKormAzLfT9QLJeXSF
+         2DlJ04Pv53eAX5aDIefwhPa4ynnSAA98nz2zD5VGbt4BI8tgCFX+iFwGmIgLSHIE1zb2
+         8tkJvPr+jPd5o5N/vsQKy8hTHoEz1YzrJNWUI=
+X-Google-Smtp-Source: APXvYqxhiuMEPHH8pRDkDkxK8JM+xQ0EECYE2I6dsIIwwk5MI/hkEsc+JGVOGaSpqK/SVp9B21n2eQ==
+X-Received: by 2002:a63:dd0b:: with SMTP id t11mr41295651pgg.410.1563977454295;
+        Wed, 24 Jul 2019 07:10:54 -0700 (PDT)
+Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
+        by smtp.gmail.com with ESMTPSA id q63sm61399100pfb.81.2019.07.24.07.10.53
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 24 Jul 2019 07:10:53 -0700 (PDT)
+Date: Wed, 24 Jul 2019 10:10:52 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, vdavydov.dev@gmail.com,
+	Brendan Gregg <bgregg@netflix.com>, kernel-team@android.com,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Andrew Morton <akpm@linux-foundation.org>, carmenjackson@google.com,
+	Christian Hansen <chansen3@cisco.com>,
+	Colin Ian King <colin.king@canonical.com>, dancol@google.com,
+	David Howells <dhowells@redhat.com>, fmayer@google.com,
+	joaodias@google.com, Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>,
+	Kirill Tkhai <ktkhai@virtuozzo.com>,
+	Konstantin Khlebnikov <khlebnikov@yandex-team.ru>,
+	linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>,
+	Mike Rapoport <rppt@linux.ibm.com>, namhyung@google.com,
+	sspatil@google.com, surenb@google.com,
+	Thomas Gleixner <tglx@linutronix.de>, timmurray@google.com,
+	tkjos@google.com, Vlastimil Babka <vbabka@suse.cz>, wvw@google.com
+Subject: Re: [PATCH v1 1/2] mm/page_idle: Add support for per-pid page_idle
+ using virtual indexing
+Message-ID: <20190724141052.GB9945@google.com>
+References: <20190722213205.140845-1-joel@joelfernandes.org>
+ <20190723061358.GD128252@google.com>
+ <20190723142049.GC104199@google.com>
+ <20190724042842.GA39273@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <60ee20ef-62a3-5df1-6e24-24973b69be70@arm.com>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+In-Reply-To: <20190724042842.GA39273@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 24, 2019 at 02:53:04PM +0100, Steven Price wrote:
-> On 23/07/2019 11:14, Mark Rutland wrote:
-> > On Mon, Jul 22, 2019 at 04:42:00PM +0100, Steven Price wrote:
-> >> pgd_entry() and pud_entry() were removed by commit 0b1fbfe50006c410
-> >> ("mm/pagewalk: remove pgd_entry() and pud_entry()") because there were
-> >> no users. We're about to add users so reintroduce them, along with
-> >> p4d_entry() as we now have 5 levels of tables.
-> >>
-> >> Note that commit a00cc7d9dd93d66a ("mm, x86: add support for
-> >> PUD-sized transparent hugepages") already re-added pud_entry() but with
-> >> different semantics to the other callbacks. Since there have never
-> >> been upstream users of this, revert the semantics back to match the
-> >> other callbacks. This means pud_entry() is called for all entries, not
-> >> just transparent huge pages.
-> >>
-> >> Signed-off-by: Steven Price <steven.price@arm.com>
-> >> ---
-> >>  include/linux/mm.h | 15 +++++++++------
-> >>  mm/pagewalk.c      | 27 ++++++++++++++++-----------
-> >>  2 files changed, 25 insertions(+), 17 deletions(-)
-> >>
-> >> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> >> index 0334ca97c584..b22799129128 100644
-> >> --- a/include/linux/mm.h
-> >> +++ b/include/linux/mm.h
-> >> @@ -1432,15 +1432,14 @@ void unmap_vmas(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
-> >>  
-> >>  /**
-> >>   * mm_walk - callbacks for walk_page_range
-> >> - * @pud_entry: if set, called for each non-empty PUD (2nd-level) entry
-> >> - *	       this handler should only handle pud_trans_huge() puds.
-> >> - *	       the pmd_entry or pte_entry callbacks will be used for
-> >> - *	       regular PUDs.
-> >> - * @pmd_entry: if set, called for each non-empty PMD (3rd-level) entry
-> >> + * @pgd_entry: if set, called for each non-empty PGD (top-level) entry
-> >> + * @p4d_entry: if set, called for each non-empty P4D entry
-> >> + * @pud_entry: if set, called for each non-empty PUD entry
-> >> + * @pmd_entry: if set, called for each non-empty PMD entry
+On Wed, Jul 24, 2019 at 01:28:42PM +0900, Minchan Kim wrote:
+> On Tue, Jul 23, 2019 at 10:20:49AM -0400, Joel Fernandes wrote:
+> > On Tue, Jul 23, 2019 at 03:13:58PM +0900, Minchan Kim wrote:
+> > > Hi Joel,
+> > > 
+> > > On Mon, Jul 22, 2019 at 05:32:04PM -0400, Joel Fernandes (Google) wrote:
+> > > > The page_idle tracking feature currently requires looking up the pagemap
+> > > > for a process followed by interacting with /sys/kernel/mm/page_idle.
+> > > > This is quite cumbersome and can be error-prone too. If between
+> > > 
+> > > cumbersome: That's the fair tradeoff between idle page tracking and
+> > > clear_refs because idle page tracking could check even though the page
+> > > is not mapped.
 > > 
-> > How are these expected to work with folding?
+> > It is fair tradeoff, but could be made simpler. The userspace code got
+> > reduced by a good amount as well.
 > > 
-> > For example, on arm64 with 64K pages and 42-bit VA, you can have 2-level
-> > tables where the PGD is P4D, PUD, and PMD. IIUC we'd invoke the
-> > callbacks for each of those levels where we found an entry in the pgd.
+> > > error-prone: What's the error?
 > > 
-> > Either the callee handle that, or we should inhibit the callbacks when
-> > levels are folded, and I think that needs to be explcitly stated either
-> > way.
-> > 
-> > IIRC on x86 the p4d folding is dynamic depending on whether the HW
-> > supports 5-level page tables. Maybe that implies the callee has to
-> > handle that.
+> > We see in normal Android usage, that some of the times pages appear not to be
+> > idle even when they really are idle. Reproducing this is a bit unpredictable
+> > and happens at random occasions. With this new interface, we are seeing this
+> > happen much much lesser.
 > 
-> Yes, my assumption is that it has to be up to the callee to handle that
-> because folding can be dynamic. I believe this also was how these
-> callbacks work before they were removed. However I'll add a comment
-> explaining that here as it's probably non-obvious.
+> I don't know how you did test. Maybe that could be contributed by
+> swapping out or shared pages touched by other processes or some kernel
+> behavior not to keep access bit of their operation.
 
-That sounds good to me.
+It could be something along these lines is my thinking as well. So we know
+its already has issues due to what you mentioned, I am not sure what else
+needs investigation?
 
-Thanks,
-Mark.
+> Please investigate more what's the root cause. That would be important
+> point to justify for the patch motivation.
+
+The motivation is security. I am dropping the 'accuracy' factor I mentioned
+from the patch description since it created a lot of confusion.
+
+> > > > More over looking up PFN from pagemap in Android devices is not
+> > > > supported by unprivileged process and requires SYS_ADMIN and gives 0 for
+> > > > the PFN.
+> > > > 
+> > > > This patch adds support to directly interact with page_idle tracking at
+> > > > the PID level by introducing a /proc/<pid>/page_idle file. This
+> > > > eliminates the need for userspace to calculate the mapping of the page.
+> > > > It follows the exact same semantics as the global
+> > > > /sys/kernel/mm/page_idle, however it is easier to use for some usecases
+> > > > where looking up PFN is not needed and also does not require SYS_ADMIN.
+> > > 
+> > > Ah, so the primary goal is to provide convinience interface and it would
+> > > help accurary, too. IOW, accuracy is not your main goal?
+> > 
+> > There are a couple of primary goals: Security, conveience and also solving
+> > the accuracy/reliability problem we are seeing. Do keep in mind looking up
+> > PFN has security implications. The PFN field in pagemap is zeroed if the user
+> > does not have CAP_SYS_ADMIN.
+> 
+> Myaybe you don't need PFN. is it?
+
+With the traditional idle tracking, PFN is needed which has the mentioned
+security issues. This patch solves it. And the interface is identical and
+familiar to the existing page_idle bitmap interface.
+
+> > > > In Android, we are using this for the heap profiler (heapprofd) which
+> > > > profiles and pin points code paths which allocates and leaves memory
+> > > > idle for long periods of time.
+> > > 
+> > > So the goal is to detect idle pages with idle memory tracking?
+> > 
+> > Isn't that what idle memory tracking does?
+> 
+> To me, it's rather misleading. Please read motivation section in document.
+> The feature would be good to detect workingset pages, not idle pages
+> because workingset pages are never freed, swapped out and even we could
+> count on newly allocated pages.
+> 
+> Motivation
+> ==========
+> 
+> The idle page tracking feature allows to track which memory pages are being
+> accessed by a workload and which are idle. This information can be useful for
+> estimating the workload's working set size, which, in turn, can be taken into
+> account when configuring the workload parameters, setting memory cgroup limits,
+> or deciding where to place the workload within a compute cluster.
+
+As we discussed by chat, we could collect additional metadata to check if
+pages were swapped or freed ever since the time we marked them as idle.
+However this can be incremental improvement.
+
+> > > It couldn't work well because such idle pages could finally swap out and
+> > > lose every flags of the page descriptor which is working mechanism of
+> > > idle page tracking. It should have named "workingset page tracking",
+> > > not "idle page tracking".
+> > 
+> > The heap profiler that uses page-idle tracking is not to measure working set,
+> > but to look for pages that are idle for long periods of time.
+> 
+> It's important part. Please include it in the description so that people
+> understands what's the usecase. As I said above, if it aims for finding
+> idle pages durting the period, current idle page tracking feature is not
+> good ironically.
+
+Ok, I will mention.
+
+> > Thanks for bringing up the swapping corner case..  Perhaps we can improve
+> > the heap profiler to detect this by looking at bits 0-4 in pagemap. While it
+> 
+> Yeb, that could work but it could add overhead again what you want to remove?
+> Even, userspace should keep metadata to identify that page was already swapped
+> in last period or newly swapped in new period.
+
+Yep.
+
+thanks,
+
+ - Joel
 
