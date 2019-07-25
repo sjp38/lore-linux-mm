@@ -2,177 +2,261 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C0E40C76191
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 08:14:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EAC9C7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 08:16:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8614922BED
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 08:14:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8614922BED
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 202C222CBA
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 08:16:00 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="yg2Z6Kv3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 202C222CBA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 282C68E004F; Thu, 25 Jul 2019 04:14:19 -0400 (EDT)
+	id A97528E0050; Thu, 25 Jul 2019 04:15:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 232F48E0031; Thu, 25 Jul 2019 04:14:19 -0400 (EDT)
+	id A47648E0031; Thu, 25 Jul 2019 04:15:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 121CC8E004F; Thu, 25 Jul 2019 04:14:19 -0400 (EDT)
+	id 936208E0050; Thu, 25 Jul 2019 04:15:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E512E8E0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 04:14:18 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id k31so43908271qte.13
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 01:14:18 -0700 (PDT)
+Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2DA618E0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 04:15:59 -0400 (EDT)
+Received: by mail-lf1-f71.google.com with SMTP id m2so4991915lfj.1
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 01:15:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=g1B0j/DFbwZg53pT5uPps1IkIrXjJzGgjJ/VWYzhU2w=;
-        b=VgkA1/xmV0Zm6p308Mol4gSBUw3/gt/rdsLIYAbccZ0Fk5gP4YFfNQUlq/VGXyRIlI
-         S4qgZ/qIO5xKVQXWctEhzURh5MTuO6ZXaEUS9fmI/bv27+Rg6GjzZWU0mE93uBoK0/FX
-         IMVrfjulV5j2kscu1wmEUgvUd5xOdJBB75F1LUHrxD7gg/sbFkGksgmGfl370HV4uZtp
-         vOl6nNr1zcHojbz0e0ud7QEM4UoRnn5bMD/Q2PqfMOMau19KX/rhgRchEgNEpoZziuUG
-         oQh4CioQ4wpGfrWemW5AHExNE8GRJ/MTmSseAVxq91+RYWyWvYyiL5U+8Lmd2KWkJe09
-         BL4Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUBQBDFWheREoXiMmL3bJM9y6i7SxWFjojzh1csD0mXXTNcEG51
-	tMhgVclD2gzYxM7IJmIQpk10Hi7f0guwvTQFUzASZL0ENC+rmbehKillPgB6ZYMm2R3neDlkuG8
-	hURB77mbHgiUtYc0nt0TMZc/uoQKCIUBNi0Rql8NS6OPQrDXO/JBLHVqt/Q8iybsFwA==
-X-Received: by 2002:ac8:252e:: with SMTP id 43mr60851930qtm.61.1564042458688;
-        Thu, 25 Jul 2019 01:14:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxyaXyFWmnd/ZJKLt9/OfWKv/jn0NV/cFs/NvxIcsSH6XxGfX0N9trBPzUveI5x/z+vLBks
-X-Received: by 2002:ac8:252e:: with SMTP id 43mr60851903qtm.61.1564042458142;
-        Thu, 25 Jul 2019 01:14:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564042458; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=mqwyPL/Kvi4FlMJZMuuGgTLVmBANLSvlAgU95QJvMKg=;
+        b=PilpQ5ux9jm/CLbHm5Lgabl9US7vyq78KvkZ5yUR+4CzOcoyw/Kf2PnobABHG2y446
+         dReDvQUxB2EDaSebdOrvrAaxVRvGp1JXXpHdgnoLSWKhEzreFzrgEVtbteQa81ulWFSg
+         Bb2aI23R0EjNCTPLDcPTXe7CaiP3pf/6Eg3xEzFqhgLCNIFlGqzqEAqP9B1gkchwUVFw
+         ie38pG+jQTIzI5UQhv7qCh3A5V6ZYh2c0qA+qAWhvNZT+gtpG0DOoeAV7+MeQ3SEUruZ
+         i1zOuxJ9DgMJmiyqJHJjK4tK+TjXQQMzufiOa84+FTOimX/of80c6l6cFpAGx+0ugEYx
+         Wbag==
+X-Gm-Message-State: APjAAAXqhqEpg9raL0q1XMzZGD6/mHY/Vs4E8DgH7b7vEbLQhrzErF2S
+	PUogppZTmnmn2vc1hlE53wrtBpHFJ7XKTDAAaBhoosCwCfXP0sOPnn7tJnmRnX4iToqkib6+EGq
+	eXwpP6QoJwW4Y/rbwWb5cx/AUIBaYj19WvSpK7BW2ThTj3G37VJvl3NukSUF8pmBqWQ==
+X-Received: by 2002:a19:c503:: with SMTP id w3mr36088731lfe.139.1564042558265;
+        Thu, 25 Jul 2019 01:15:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzHwvDTgrx+arfSIUbFQ0xHeizxXnCMmcVBRVAWaXcTPeh8Wdvjr90n2ENT2F3Ntc0MZnWG
+X-Received: by 2002:a19:c503:: with SMTP id w3mr36088686lfe.139.1564042556906;
+        Thu, 25 Jul 2019 01:15:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564042556; cv=none;
         d=google.com; s=arc-20160816;
-        b=OzbT7IwfAEKBn9pwyzHYTliBFQ0vdI1rMFw0Etig0jy84jppsuhD9/S0FhEx7/dGy4
-         W0BR+Ok3D/LbTpyo64po93LPm2vc2k6kkZYDsbJd518w+MZ/33nJzX+lLd6esIrToJkR
-         YQE9pqQxWvmyioM4tNhPMQqyJiERAuG2/XqpDeojyOa781cSwVR9TQg0l0AeA1cLqQSR
-         qpg4OV/nvtJkC9FkV89zPhEN09BU03llKAcfHTsC3a6nr3wQkRkha3YVxH2w62jBZ+ZB
-         NF3Ot4AZXhSR+6OsOsnFMSh3p05/OCHQaGmTffBPlYKB14Pnls6mQMcMvNmHn0q7lAuF
-         Z15Q==
+        b=R/rWBLMUDxHIxfs6UYuAaJYUbd62wBgy++OtugZsLKYQaH1onsoZGDmp4hBkufvLuX
+         cweKQl6r6ZyqTFVSVbaXY8LEVDpXpc+N6O/tPCrZMdpTyNqudZwPb/UwBpGD8o7NJBT+
+         4eVsG8ri5Bp/Ogt6CitypLR7y4f81zj3aLMRSicQDhAh21NiA50Ab5zbmUAMp4oMMsGK
+         dXUaLNcYMYadyT81PuU4LJ3DuksvVIdqWQBig/nPdqFOt0q+y2gAxflWdDkmhck9ojAs
+         g7ZmeR5D1fgH87j7R+cHiepWlkjnfWgx1bnhohMojuJAp3eAUUPfK+R4/0QENu6BWi1I
+         VKxQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=g1B0j/DFbwZg53pT5uPps1IkIrXjJzGgjJ/VWYzhU2w=;
-        b=lHdGz71TUzGRsPmzbgSgeT3qZvTXVEfeWvP1BcfAXGI6wRR+zbziQ39X8duzVo/iU7
-         QhGtcZB/evnTQOkvyOKAZSsJJ6N+NzqVJwHP1pM/cdxHeBeZzrsu4pmd9SAfDqWxRH+E
-         fGEdBTUHCcm5GmOPp+GkkMalNSQfZInCTg0pp9zDdTkereOGP/3xz8rbYMhQc/HyKjVf
-         deSNaUHJsQEJBCTaiAgYYzsbf4P5ffrBZadnw0JXq+ykvE85L+VpLzfXjmR9w/jCh9pa
-         n0axUANc0ij2l50z00UF9bca265a7p1a/FpTrK5n+k7TRxd11Ttay2NLnBURhccdrir5
-         YiRw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=mqwyPL/Kvi4FlMJZMuuGgTLVmBANLSvlAgU95QJvMKg=;
+        b=whNZICPWi0EBwhUjM7wMd370spIigmIwvDuINIZdWJKA2voqHVGOFAFpVzMR0LZ/vY
+         tvat4omFuo/rUDojFGqKk9OlBcMlJU9kphQmelajbmyiqkTlkATt5hpC3Uzn7sQeoede
+         yEjohdnWqqxbtc7QJkVfk7JrrtoqHuR/knlHOU2ewtciTp/6w1mNiGgJi9wBC55691DU
+         ByHQcM+Nlrd1HGseH7km6vpEmPZDKsqRDarSxz92yr7cFZ4x9UJYXC9XzG5LwCYTeTnY
+         8BW+TZOfxjNJ8xWTqqWp9INrJlTPsvQkx6/2NsMG64mLf6syqpA4INGOjgC8kIHzgO0q
+         tB5g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id s7si24705757qkc.12.2019.07.25.01.14.18
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=yg2Z6Kv3;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from forwardcorp1o.mail.yandex.net (forwardcorp1o.mail.yandex.net. [95.108.205.193])
+        by mx.google.com with ESMTPS id d26si45383517ljj.123.2019.07.25.01.15.56
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 01:14:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 25 Jul 2019 01:15:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) client-ip=95.108.205.193;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 64CA485546;
-	Thu, 25 Jul 2019 08:14:17 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.136])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 5028B600C4;
-	Thu, 25 Jul 2019 08:14:15 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Thu, 25 Jul 2019 10:14:17 +0200 (CEST)
-Date: Thu, 25 Jul 2019 10:14:14 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: Song Liu <songliubraving@fb.com>
-Cc: lkml <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	"matthew.wilcox@oracle.com" <matthew.wilcox@oracle.com>,
-	"kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>,
-	"peterz@infradead.org" <peterz@infradead.org>,
-	"rostedt@goodmis.org" <rostedt@goodmis.org>,
-	Kernel Team <Kernel-team@fb.com>,
-	"william.kucharski@oracle.com" <william.kucharski@oracle.com>
-Subject: Re: [PATCH v8 2/4] uprobe: use original page when all uprobes are
- removed
-Message-ID: <20190725081414.GB4707@redhat.com>
-References: <20190724083600.832091-1-songliubraving@fb.com>
- <20190724083600.832091-3-songliubraving@fb.com>
- <20190724113711.GE21599@redhat.com>
- <BCE000B2-3F72-4148-A75C-738274917282@fb.com>
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=yg2Z6Kv3;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 95.108.205.193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from mxbackcorp1o.mail.yandex.net (mxbackcorp1o.mail.yandex.net [IPv6:2a02:6b8:0:1a2d::301])
+	by forwardcorp1o.mail.yandex.net (Yandex) with ESMTP id CEA9A2E1546;
+	Thu, 25 Jul 2019 11:15:55 +0300 (MSK)
+Received: from smtpcorp1o.mail.yandex.net (smtpcorp1o.mail.yandex.net [2a02:6b8:0:1a2d::30])
+	by mxbackcorp1o.mail.yandex.net (nwsmtp/Yandex) with ESMTP id BHFOVffvkF-FsBKYq39;
+	Thu, 25 Jul 2019 11:15:55 +0300
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
+	t=1564042555; bh=mqwyPL/Kvi4FlMJZMuuGgTLVmBANLSvlAgU95QJvMKg=;
+	h=In-Reply-To:Message-ID:From:Date:References:To:Subject:Cc;
+	b=yg2Z6Kv3kAo5EaGGy3G9RVrs92O5ikWA9VmdX0QpVDDSlO0VlBwqkO2pAkbukBQnn
+	 J5OizK5Zp+57pK6J+mXCnOSs2NZMLzr+oqr3vj3KLBzIx55idigsymckEWqbyt6bei
+	 kw1JkUxfveSV9/6Vmj8g1+t1A7++FSfjCZ7y2NpI=
+Authentication-Results: mxbackcorp1o.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
+Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:38b3:1cdf:ad1a:1fe1])
+	by smtpcorp1o.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id QkVcPTjsve-FrIap0Me;
+	Thu, 25 Jul 2019 11:15:54 +0300
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(Client certificate not present)
+Subject: Re: [PATCH v1 1/2] mm/page_idle: Add support for per-pid page_idle
+ using virtual indexing
+To: Joel Fernandes <joel@joelfernandes.org>, Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, vdavydov.dev@gmail.com,
+ Brendan Gregg <bgregg@netflix.com>, kernel-team@android.com,
+ Alexey Dobriyan <adobriyan@gmail.com>, Al Viro <viro@zeniv.linux.org.uk>,
+ Andrew Morton <akpm@linux-foundation.org>, carmenjackson@google.com,
+ Christian Hansen <chansen3@cisco.com>,
+ Colin Ian King <colin.king@canonical.com>, dancol@google.com,
+ David Howells <dhowells@redhat.com>, fmayer@google.com, joaodias@google.com,
+ Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+ Kirill Tkhai <ktkhai@virtuozzo.com>, linux-doc@vger.kernel.org,
+ linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+ Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.ibm.com>,
+ namhyung@google.com, sspatil@google.c
+References: <20190722213205.140845-1-joel@joelfernandes.org>
+ <20190723061358.GD128252@google.com> <20190723142049.GC104199@google.com>
+ <20190724042842.GA39273@google.com> <20190724141052.GB9945@google.com>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <c116f836-5a72-c6e6-498f-a904497ef557@yandex-team.ru>
+Date: Thu, 25 Jul 2019 11:15:53 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <BCE000B2-3F72-4148-A75C-738274917282@fb.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Thu, 25 Jul 2019 08:14:17 +0000 (UTC)
+In-Reply-To: <20190724141052.GB9945@google.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-CA
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/24, Song Liu wrote:
->
->
-> > On Jul 24, 2019, at 4:37 AM, Oleg Nesterov <oleg@redhat.com> wrote:
-> >
-> > On 07/24, Song Liu wrote:
-> >>
-> >> 	lock_page(old_page);
-> >> @@ -177,15 +180,24 @@ static int __replace_page(struct vm_area_struct *vma, unsigned long addr,
-> >> 	mmu_notifier_invalidate_range_start(&range);
-> >> 	err = -EAGAIN;
-> >> 	if (!page_vma_mapped_walk(&pvmw)) {
-> >> -		mem_cgroup_cancel_charge(new_page, memcg, false);
-> >> +		if (!orig)
-> >> +			mem_cgroup_cancel_charge(new_page, memcg, false);
-> >> 		goto unlock;
-> >> 	}
-> >> 	VM_BUG_ON_PAGE(addr != pvmw.address, old_page);
-> >>
-> >> 	get_page(new_page);
-> >> -	page_add_new_anon_rmap(new_page, vma, addr, false);
-> >> -	mem_cgroup_commit_charge(new_page, memcg, false, false);
-> >> -	lru_cache_add_active_or_unevictable(new_page, vma);
-> >> +	if (orig) {
-> >> +		lock_page(new_page);  /* for page_add_file_rmap() */
-> >> +		page_add_file_rmap(new_page, false);
-> >
-> >
-> > Shouldn't we re-check new_page->mapping after lock_page() ? Or we can't
-> > race with truncate?
->
-> We can't race with truncate, because the file is open as binary and
-> protected with DENYWRITE (ETXTBSY).
+On 24.07.2019 17:10, Joel Fernandes wrote:> On Wed, Jul 24, 2019 at 01:28:42PM +0900, Minchan Kim wrote:
+ >> On Tue, Jul 23, 2019 at 10:20:49AM -0400, Joel Fernandes wrote:
+ >>> On Tue, Jul 23, 2019 at 03:13:58PM +0900, Minchan Kim wrote:
+ >>>> Hi Joel,
+ >>>>
+ >>>> On Mon, Jul 22, 2019 at 05:32:04PM -0400, Joel Fernandes (Google) wrote:
+ >>>>> The page_idle tracking feature currently requires looking up the pagemap
+ >>>>> for a process followed by interacting with /sys/kernel/mm/page_idle.
+ >>>>> This is quite cumbersome and can be error-prone too. If between
+ >>>>
+ >>>> cumbersome: That's the fair tradeoff between idle page tracking and
+ >>>> clear_refs because idle page tracking could check even though the page
+ >>>> is not mapped.
+ >>>
+ >>> It is fair tradeoff, but could be made simpler. The userspace code got
+ >>> reduced by a good amount as well.
+ >>>
+ >>>> error-prone: What's the error?
+ >>>
+ >>> We see in normal Android usage, that some of the times pages appear not to be
+ >>> idle even when they really are idle. Reproducing this is a bit unpredictable
+ >>> and happens at random occasions. With this new interface, we are seeing this
+ >>> happen much much lesser.
+ >>
+ >> I don't know how you did test. Maybe that could be contributed by
+ >> swapping out or shared pages touched by other processes or some kernel
+ >> behavior not to keep access bit of their operation.
+ >
+ > It could be something along these lines is my thinking as well. So we know
+ > its already has issues due to what you mentioned, I am not sure what else
+ > needs investigation?
+ >
+ >> Please investigate more what's the root cause. That would be important
+ >> point to justify for the patch motivation.
+ >
+ > The motivation is security. I am dropping the 'accuracy' factor I mentioned
+ > from the patch description since it created a lot of confusion.
+If you are tracking idle working set for one process you could use degrading
+'accuracy' for good - just don't walk page rmap and play only with access
+bits in one process. Foreign access could be detected with arbitrary delay,
+but this does not important if main goal is heap profiling.
 
-No. Yes, deny_write_access() protects mm->exe_file, but not the dynamic
-libraries or other files which can be mmaped.
+ >
+ >>>>> More over looking up PFN from pagemap in Android devices is not
+ >>>>> supported by unprivileged process and requires SYS_ADMIN and gives 0 for
+ >>>>> the PFN.
+ >>>>>
+ >>>>> This patch adds support to directly interact with page_idle tracking at
+ >>>>> the PID level by introducing a /proc/<pid>/page_idle file. This
+ >>>>> eliminates the need for userspace to calculate the mapping of the page.
+ >>>>> It follows the exact same semantics as the global
+ >>>>> /sys/kernel/mm/page_idle, however it is easier to use for some usecases
+ >>>>> where looking up PFN is not needed and also does not require SYS_ADMIN.
+ >>>>
+ >>>> Ah, so the primary goal is to provide convinience interface and it would
+ >>>> help accurary, too. IOW, accuracy is not your main goal?
+ >>>
+ >>> There are a couple of primary goals: Security, conveience and also solving
+ >>> the accuracy/reliability problem we are seeing. Do keep in mind looking up
+ >>> PFN has security implications. The PFN field in pagemap is zeroed if the user
+ >>> does not have CAP_SYS_ADMIN.
+ >>
+ >> Myaybe you don't need PFN. is it?
+ >
+ > With the traditional idle tracking, PFN is needed which has the mentioned
+ > security issues. This patch solves it. And the interface is identical and
+ > familiar to the existing page_idle bitmap interface.
+ >
+ >>>>> In Android, we are using this for the heap profiler (heapprofd) which
+ >>>>> profiles and pin points code paths which allocates and leaves memory
+ >>>>> idle for long periods of time.
+ >>>>
+ >>>> So the goal is to detect idle pages with idle memory tracking?
+ >>>
+ >>> Isn't that what idle memory tracking does?
+ >>
+ >> To me, it's rather misleading. Please read motivation section in document.
+ >> The feature would be good to detect workingset pages, not idle pages
+ >> because workingset pages are never freed, swapped out and even we could
+ >> count on newly allocated pages.
+ >>
+ >> Motivation
+ >> ==========
+ >>
+ >> The idle page tracking feature allows to track which memory pages are being
+ >> accessed by a workload and which are idle. This information can be useful for
+ >> estimating the workload's working set size, which, in turn, can be taken into
+ >> account when configuring the workload parameters, setting memory cgroup limits,
+ >> or deciding where to place the workload within a compute cluster.
+ >
+ > As we discussed by chat, we could collect additional metadata to check if
+ > pages were swapped or freed ever since the time we marked them as idle.
+ > However this can be incremental improvement.
+ >
+ >>>> It couldn't work well because such idle pages could finally swap out and
+ >>>> lose every flags of the page descriptor which is working mechanism of
+ >>>> idle page tracking. It should have named "workingset page tracking",
+ >>>> not "idle page tracking".
+ >>>
+ >>> The heap profiler that uses page-idle tracking is not to measure working set,
+ >>> but to look for pages that are idle for long periods of time.
+ >>
+ >> It's important part. Please include it in the description so that people
+ >> understands what's the usecase. As I said above, if it aims for finding
+ >> idle pages durting the period, current idle page tracking feature is not
+ >> good ironically.
+ >
+ > Ok, I will mention.
+ >
+ >>> Thanks for bringing up the swapping corner case..  Perhaps we can improve
+ >>> the heap profiler to detect this by looking at bits 0-4 in pagemap. While it
+ >>
+ >> Yeb, that could work but it could add overhead again what you want to remove?
+ >> Even, userspace should keep metadata to identify that page was already swapped
+ >> in last period or newly swapped in new period.
+ >
+ > Yep.
+Between samples page could be read from swap and swapped out back multiple times.
+For tracking this swap ptes could be marked with idle bit too.
+I believe it's not so hard to find free bit for this.
 
-> > and I am worried this code can try to lock the same page twice...
-> > Say, the probed application does MADV_DONTNEED and then writes "int3"
-> > into vma->vm_file at the same address to fool verify_opcode().
-> >
->
-> Do you mean the case where old_page == new_page?
+Refault\swapout will automatically clear this bit in pte even if
+page goes nowhere stays if swap-cache.
 
-Yes,
 
-> I think this won't
-> happen, because in uprobe_write_opcode() we only do orig_page for
-> !is_register case.
-
-See above.
-
-!is_register doesn't necessarily mean the original page was previously cow'ed.
-And even if it was cow'ed, MADV_DONTNEED can restore the original mapping.
-
-Oleg.
 
