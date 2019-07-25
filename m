@@ -2,208 +2,239 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A928AC41517
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 11:18:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 653A4C7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 11:35:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 64D862238C
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 11:18:47 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="RiPttf3V"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 64D862238C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 17BA32184B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 11:35:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 17BA32184B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 15BCB8E0066; Thu, 25 Jul 2019 07:18:45 -0400 (EDT)
+	id A4EF38E0067; Thu, 25 Jul 2019 07:35:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 10E2A8E0059; Thu, 25 Jul 2019 07:18:45 -0400 (EDT)
+	id 9FF888E0059; Thu, 25 Jul 2019 07:35:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F16218E0066; Thu, 25 Jul 2019 07:18:44 -0400 (EDT)
+	id 8A1FE8E0067; Thu, 25 Jul 2019 07:35:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BA6868E0059
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 07:18:44 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id e25so30687084pfn.5
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 04:18:44 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 6B1778E0059
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 07:35:39 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id 41so38374150qtm.4
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 04:35:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=1FbnKtI3LwQwgUsr/g3MUa9Py+KRgg38b6IrILFDUhU=;
-        b=OfEWSAdEVAS7I6UQu37f9CI9nIQ+CA4EZCHTMLRaCLua+Y8QobxI+/2F4K57y90tJc
-         FghiuEndl+J8NKZPpnG7lMP/Pat0Ne83SMo4h86qOoYlFvQ8G42SFvYOGmXMySzSK3Oz
-         KwRs0b1bB6FNKxZQfpAupfTWUxvUvLVNU9qvrpfKzaKeENcgmNprLdMHu5N0enB+1gP+
-         /U3m+6nzSWYpHjJS34IIp+8Wzj7kk5mN53MsPYCiWV8nr4igOSBJm5HK0BAzF7rsEhO2
-         kWfdQixhaVqWPPJZqfLHwzoXfR7OPH5y+dK/yuI0KtLfszteePMmtPrGDnJKJAYRoEfb
-         XRsA==
-X-Gm-Message-State: APjAAAUqhTvGy9WCUP76V2Pqa6debwGXvVatrSR4Rvvy/NT3OoXIOl5z
-	m5fJTq9JFq5XqRjjg44fsZ+yahNsmFsADoKHQoVUemnNA2ri3c9wnOmuejB84vrRLeLxD186HIH
-	ADMjrq9jl50uPaoY9XK0Soo2crp7twYzIdyG4PuRMzI284Lih6T1wKxTiI8zEiFm1nA==
-X-Received: by 2002:a17:902:59c3:: with SMTP id d3mr87893703plj.22.1564053524385;
-        Thu, 25 Jul 2019 04:18:44 -0700 (PDT)
-X-Received: by 2002:a17:902:59c3:: with SMTP id d3mr87893654plj.22.1564053523656;
-        Thu, 25 Jul 2019 04:18:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564053523; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-transfer-encoding
+         :content-language;
+        bh=VrVDnmqu9ueijxT3n5f7y4MVWVeyC9Zpjxdvgu8BfWg=;
+        b=GffjSM7ev+x1ZiVULhBe69G9Bcz3elolu/BnvY+OJ3TtplqhPOY8XREq0ELKnGp4Sw
+         VgQWZupZvoBDQKX+ZfxQ7sNAzL0wx2HNZmjr0j1UlnVwEgFABN+b+nRNYXukkooX2W3+
+         pHzS99BGkv/dUmx8K0tEiq/dqfQ7qm7ili/RQLdzso1yLLikD423JKs7HHE969qbyy34
+         6V4Z5iuBAZaL8udqOCr2DWjIDDvUTi8FMIZ5PbaAZ7kqdkbppTP9K2O5HjSa433bJJJP
+         37Y+opOotPnJyj4q85JznIroc/UhOOpjvkGcB3+rrV5g+kgYlNpUcKwhmI+ASARujkMM
+         vmYg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVZp5xPUd1rMBZYJnz0xNL02jtc6zMS/tgTWmTEE8wiK3KCKzeJ
+	4SneRSIIBFgHSg9FKwqks6rKHXHwv0fwzqeNpUFuKSmMXME30mfXkjTCRWZdBsD5JkGwKsPnBsd
+	KDoDAbquPbPtE9DWtv2hFsJH5Y6soitVgXThhAKwiWSI/Y9SCgVdqYAuB75rg4YMi9w==
+X-Received: by 2002:ac8:2410:: with SMTP id c16mr61340767qtc.108.1564054539147;
+        Thu, 25 Jul 2019 04:35:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyT3k+9ZuIGb3AsE9sA4TiWv9n34KshlqPvnLTZ2zTxDy8BDm1ujzevoMhWh7qWD1caro/6
+X-Received: by 2002:ac8:2410:: with SMTP id c16mr61340718qtc.108.1564054538284;
+        Thu, 25 Jul 2019 04:35:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564054538; cv=none;
         d=google.com; s=arc-20160816;
-        b=woQZkB8jE4zyQzxG8r74J78FxOwglACYrZszcf1vPi5t3xi1wYXOZCh4nhN6TdofTQ
-         RfvdIAcqahzgCAkAR2olmQkRHvG9csj+mO+x1vOcqZPatgfaeClGAojKIBrgn2+DXDQ0
-         4saZy5iq9qmS1iU+7p2ephfmCnZWTT2kro6G+acBfTRkgyoEZU/uyH7xbIHqf4gLBBho
-         YbzYU/s0deJ1f60oqI1ymqZMdhPye4tFXyz61NyVPOWzlDXZ5usbmmkAKL1FX0GW4oCo
-         b7UbixoOsshkoWvhMxF1vPBmghQh4puZ+xvlAq4TtHDvVVHOxI9o1DsBK4HrmdKxcY8u
-         NOTw==
+        b=porOjQY9ZAFk7D+x7JJdDJSicrUvxSFsDmd0V0aP/cpWJC+NYl8SYis3bWaDx95TkQ
+         8yLp5jKtoMIoFmNEhf3W8OnbnNK/k99+8CgOaUleU2VVhCOmroMmV1uDlrGZzv1ohLRD
+         0+yZcdG2V7YwJqsTSKnSMaPdWOlJrN1QSI58d6V1qry9dmSgCsyRMl1jlknfDCyfCcLb
+         33RxvD7Ndh5XsW2fXq7lVhTV2SyPcT2ELewZ3TcfR4D/SyzGNS6B2QGv2ACa7QHIniVW
+         b7dQOPOSu6KkOU6zX+upcm1ZJBYeNw0k7YfSMPcg+QrI0cTrJK3F0CtNMuXruIT2TIew
+         GzMA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=1FbnKtI3LwQwgUsr/g3MUa9Py+KRgg38b6IrILFDUhU=;
-        b=vUgcX1rQtTDIpbLnX3AhO6l3q4EjMGCDXpdFq5CGKaYMuSK0MvQRS+Gkiz7k80NRKv
-         VaTdVfIuZa+/N0oCsIlw7zyeysNv1fPMazakN7LR+ysVZCBWwXDqRhN7KVEGbX2YVErF
-         6s6e4gPfqi/3AgIdd572KCej2zBFlM8uKbcGORPWwDy3P+KN+T4AL0NAfRJE1FqO5xRR
-         TT8cLfnuostS0RwWMVTTIzqGjatfhqgId5Vpmt7AqV8tVKn9C7jB+XMEGERnN6gatUrk
-         yx7cdZxp2cdpDt4BP44GTbTwXDEN74WoZ92RJLxLAkU7wMn+gkxowjKyuryOV+dEPUPu
-         yuEA==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=VrVDnmqu9ueijxT3n5f7y4MVWVeyC9Zpjxdvgu8BfWg=;
+        b=X2PYHxvx0vVDITe4kMOE/fryL4PhTtpQu04reHD9PgpX7uGvxXnP2h032reig5aXD/
+         dAidtc42YojoIik1vHKV5h1RC9bsEF8EK695O0FiA6UVfUH1Gf2MHQGwTUPVKM3yfJm0
+         0S++Wrs9INsBFxzGv+QLN0KKwAgjFz4/YRA+6WqDmBwMyx0T33JMWUj4zU5mvswOWKFq
+         SgASmlYmeM2XVHq2S75d/+g/kvDOrd/nH4PFF164U9W+M8zICKa0aWvlCr6YuHayrWr8
+         JnvrFcB8VS2lTAFvRkrKKJ40fPF8aasq+/07OmjEvahk5DDFoVkAw94SlU/plLGscMGx
+         JUtw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RiPttf3V;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g15sor29272300pgg.19.2019.07.25.04.18.43
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i1si30767909qvq.100.2019.07.25.04.35.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Jul 2019 04:18:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RiPttf3V;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=1FbnKtI3LwQwgUsr/g3MUa9Py+KRgg38b6IrILFDUhU=;
-        b=RiPttf3VULytvTV1gQCGGIofaH3cmMvvcLlShfvYsVeKFzWjG/kfl/UguNaNy7/Dfo
-         FVmH2PIQAE2iC69ldXu5sNi9yS2z2PuKCOKbuswCunkNuJwrNoEzBk2cOmbgVNaQZsql
-         vWiZsd67ciYl95JIzgVUAExNBHZtC8mivPnxWK78M7nMNjVgpYOHWMOxtXNNo0v9cqC2
-         r/T/+iTbpnJX5k7uurmQUrJ54neQWBfYxzH6kvGeSJ+H2ILyhbfMSTjrInxG6dRzsZPQ
-         t9CzL6qva/lkcI8XGhVlO+HAbtcciB4SanHFtxVMYgiTsIzVps4/IUCTGBW581LK8m7v
-         GkAg==
-X-Google-Smtp-Source: APXvYqwWrdl5FJRCm09CQlypUGpElLXPTtXQhNRGvN4DIQ3ybEer3KGwJh1GSg+qHIHbIRJ+x3Bfug==
-X-Received: by 2002:a63:121b:: with SMTP id h27mr70608971pgl.335.1564053523202;
-        Thu, 25 Jul 2019 04:18:43 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.34])
-        by smtp.gmail.com with ESMTPSA id s15sm48874992pfd.183.2019.07.25.04.18.38
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 04:18:42 -0700 (PDT)
-Date: Thu, 25 Jul 2019 16:48:35 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: Greg KH <gregkh@linuxfoundation.org>
-Cc: ira.weiny@intel.com, jglisse@redhat.com, Matt.Sickler@daktronics.com,
-	jhubbard@nvidia.com, devel@driverdev.osuosl.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v4] staging: kpc2000: Convert put_page to put_user_page*()
-Message-ID: <20190725111834.GA12517@bharath12345-Inspiron-5559>
-References: <20190720173214.GA4250@bharath12345-Inspiron-5559>
- <20190725074634.GB15090@kroah.com>
+        Thu, 25 Jul 2019 04:35:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 8DBFDC05E760;
+	Thu, 25 Jul 2019 11:35:36 +0000 (UTC)
+Received: from [10.18.17.163] (dhcp-17-163.bos.redhat.com [10.18.17.163])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 1440A19C7F;
+	Thu, 25 Jul 2019 11:35:26 +0000 (UTC)
+Subject: Re: [PATCH v2 QEMU] virtio-balloon: Provide a interface for "bubble
+ hinting"
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+ "Michael S. Tsirkin" <mst@redhat.com>,
+ Alexander Duyck <alexander.duyck@gmail.com>
+Cc: kvm@vger.kernel.org, david@redhat.com, dave.hansen@intel.com,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org,
+ yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
+ konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com,
+ aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com
+References: <20190724165158.6685.87228.stgit@localhost.localdomain>
+ <20190724171050.7888.62199.stgit@localhost.localdomain>
+ <20190724173403-mutt-send-email-mst@kernel.org>
+ <ada4e7d932ebd436d00c46e8de699212e72fd989.camel@linux.intel.com>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ mQINBFl4pQoBEADT/nXR2JOfsCjDgYmE2qonSGjkM1g8S6p9UWD+bf7YEAYYYzZsLtbilFTe
+ z4nL4AV6VJmC7dBIlTi3Mj2eymD/2dkKP6UXlliWkq67feVg1KG+4UIp89lFW7v5Y8Muw3Fm
+ uQbFvxyhN8n3tmhRe+ScWsndSBDxYOZgkbCSIfNPdZrHcnOLfA7xMJZeRCjqUpwhIjxQdFA7
+ n0s0KZ2cHIsemtBM8b2WXSQG9CjqAJHVkDhrBWKThDRF7k80oiJdEQlTEiVhaEDURXq+2XmG
+ jpCnvRQDb28EJSsQlNEAzwzHMeplddfB0vCg9fRk/kOBMDBtGsTvNT9OYUZD+7jaf0gvBvBB
+ lbKmmMMX7uJB+ejY7bnw6ePNrVPErWyfHzR5WYrIFUtgoR3LigKnw5apzc7UIV9G8uiIcZEn
+ C+QJCK43jgnkPcSmwVPztcrkbC84g1K5v2Dxh9amXKLBA1/i+CAY8JWMTepsFohIFMXNLj+B
+ RJoOcR4HGYXZ6CAJa3Glu3mCmYqHTOKwezJTAvmsCLd3W7WxOGF8BbBjVaPjcZfavOvkin0u
+ DaFvhAmrzN6lL0msY17JCZo046z8oAqkyvEflFbC0S1R/POzehKrzQ1RFRD3/YzzlhmIowkM
+ BpTqNBeHEzQAlIhQuyu1ugmQtfsYYq6FPmWMRfFPes/4JUU/PQARAQABtCVOaXRlc2ggTmFy
+ YXlhbiBMYWwgPG5pbGFsQHJlZGhhdC5jb20+iQI9BBMBCAAnBQJZeKUKAhsjBQkJZgGABQsJ
+ CAcCBhUICQoLAgQWAgMBAh4BAheAAAoJEKOGQNwGMqM56lEP/A2KMs/pu0URcVk/kqVwcBhU
+ SnvB8DP3lDWDnmVrAkFEOnPX7GTbactQ41wF/xwjwmEmTzLrMRZpkqz2y9mV0hWHjqoXbOCS
+ 6RwK3ri5e2ThIPoGxFLt6TrMHgCRwm8YuOSJ97o+uohCTN8pmQ86KMUrDNwMqRkeTRW9wWIQ
+ EdDqW44VwelnyPwcmWHBNNb1Kd8j3xKlHtnS45vc6WuoKxYRBTQOwI/5uFpDZtZ1a5kq9Ak/
+ MOPDDZpd84rqd+IvgMw5z4a5QlkvOTpScD21G3gjmtTEtyfahltyDK/5i8IaQC3YiXJCrqxE
+ r7/4JMZeOYiKpE9iZMtS90t4wBgbVTqAGH1nE/ifZVAUcCtycD0f3egX9CHe45Ad4fsF3edQ
+ ESa5tZAogiA4Hc/yQpnnf43a3aQ67XPOJXxS0Qptzu4vfF9h7kTKYWSrVesOU3QKYbjEAf95
+ NewF9FhAlYqYrwIwnuAZ8TdXVDYt7Z3z506//sf6zoRwYIDA8RDqFGRuPMXUsoUnf/KKPrtR
+ ceLcSUP/JCNiYbf1/QtW8S6Ca/4qJFXQHp0knqJPGmwuFHsarSdpvZQ9qpxD3FnuPyo64S2N
+ Dfq8TAeifNp2pAmPY2PAHQ3nOmKgMG8Gn5QiORvMUGzSz8Lo31LW58NdBKbh6bci5+t/HE0H
+ pnyVf5xhNC/FuQINBFl4pQoBEACr+MgxWHUP76oNNYjRiNDhaIVtnPRqxiZ9v4H5FPxJy9UD
+ Bqr54rifr1E+K+yYNPt/Po43vVL2cAyfyI/LVLlhiY4yH6T1n+Di/hSkkviCaf13gczuvgz4
+ KVYLwojU8+naJUsiCJw01MjO3pg9GQ+47HgsnRjCdNmmHiUQqksMIfd8k3reO9SUNlEmDDNB
+ XuSzkHjE5y/R/6p8uXaVpiKPfHoULjNRWaFc3d2JGmxJpBdpYnajoz61m7XJlgwl/B5Ql/6B
+ dHGaX3VHxOZsfRfugwYF9CkrPbyO5PK7yJ5vaiWre7aQ9bmCtXAomvF1q3/qRwZp77k6i9R3
+ tWfXjZDOQokw0u6d6DYJ0Vkfcwheg2i/Mf/epQl7Pf846G3PgSnyVK6cRwerBl5a68w7xqVU
+ 4KgAh0DePjtDcbcXsKRT9D63cfyfrNE+ea4i0SVik6+N4nAj1HbzWHTk2KIxTsJXypibOKFX
+ 2VykltxutR1sUfZBYMkfU4PogE7NjVEU7KtuCOSAkYzIWrZNEQrxYkxHLJsWruhSYNRsqVBy
+ KvY6JAsq/i5yhVd5JKKU8wIOgSwC9P6mXYRgwPyfg15GZpnw+Fpey4bCDkT5fMOaCcS+vSU1
+ UaFmC4Ogzpe2BW2DOaPU5Ik99zUFNn6cRmOOXArrryjFlLT5oSOe4IposgWzdwARAQABiQIl
+ BBgBCAAPBQJZeKUKAhsMBQkJZgGAAAoJEKOGQNwGMqM5ELoP/jj9d9gF1Al4+9bngUlYohYu
+ 0sxyZo9IZ7Yb7cHuJzOMqfgoP4tydP4QCuyd9Q2OHHL5AL4VFNb8SvqAxxYSPuDJTI3JZwI7
+ d8JTPKwpulMSUaJE8ZH9n8A/+sdC3CAD4QafVBcCcbFe1jifHmQRdDrvHV9Es14QVAOTZhnJ
+ vweENyHEIxkpLsyUUDuVypIo6y/Cws+EBCWt27BJi9GH/EOTB0wb+2ghCs/i3h8a+bi+bS7L
+ FCCm/AxIqxRurh2UySn0P/2+2eZvneJ1/uTgfxnjeSlwQJ1BWzMAdAHQO1/lnbyZgEZEtUZJ
+ x9d9ASekTtJjBMKJXAw7GbB2dAA/QmbA+Q+Xuamzm/1imigz6L6sOt2n/X/SSc33w8RJUyor
+ SvAIoG/zU2Y76pKTgbpQqMDmkmNYFMLcAukpvC4ki3Sf086TdMgkjqtnpTkEElMSFJC8npXv
+ 3QnGGOIfFug/qs8z03DLPBz9VYS26jiiN7QIJVpeeEdN/LKnaz5LO+h5kNAyj44qdF2T2AiF
+ HxnZnxO5JNP5uISQH3FjxxGxJkdJ8jKzZV7aT37sC+Rp0o3KNc+GXTR+GSVq87Xfuhx0LRST
+ NK9ZhT0+qkiN7npFLtNtbzwqaqceq3XhafmCiw8xrtzCnlB/C4SiBr/93Ip4kihXJ0EuHSLn
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <fed474fe-93f4-a9f6-2e01-75e8903edd81@redhat.com>
+Date: Thu, 25 Jul 2019 07:35:25 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190725074634.GB15090@kroah.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <ada4e7d932ebd436d00c46e8de699212e72fd989.camel@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Thu, 25 Jul 2019 11:35:37 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 25, 2019 at 09:46:34AM +0200, Greg KH wrote:
-> On Sat, Jul 20, 2019 at 11:02:14PM +0530, Bharath Vedartham wrote:
-> > For pages that were retained via get_user_pages*(), release those pages
-> > via the new put_user_page*() routines, instead of via put_page().
-> > 
-> > This is part a tree-wide conversion, as described in commit fc1d8e7cca2d ("mm: introduce put_user_page*(), placeholder versions").
-> 
-> Please line-wrap this line.
-> 
-> > 
-> > Cc: Ira Weiny <ira.weiny@intel.com>
-> > Cc: John Hubbard <jhubbard@nvidia.com>
-> > Cc: Jérôme Glisse <jglisse@redhat.com>
-> > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> > Cc: Matt Sickler <Matt.Sickler@daktronics.com>
-> > Cc: devel@driverdev.osuosl.org
-> > Cc: linux-kernel@vger.kernel.org
-> > Cc: linux-mm@kvack.org
-> > Reviewed-by: John Hubbard <jhubbard@nvidia.com>
-> > Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
-> > ---
-> > Changes since v1
-> >        - Improved changelog by John's suggestion.
-> >        - Moved logic to dirty pages below sg_dma_unmap
-> >        and removed PageReserved check.
-> > Changes since v2
-> >        - Added back PageResevered check as suggested by John Hubbard.
-> > Changes since v3
-> >        - Changed the commit log as suggested by John.
-> >        - Added John's Reviewed-By tag
-> > 
-> > ---
-> >  drivers/staging/kpc2000/kpc_dma/fileops.c | 17 ++++++-----------
-> >  1 file changed, 6 insertions(+), 11 deletions(-)
-> > 
-> > diff --git a/drivers/staging/kpc2000/kpc_dma/fileops.c b/drivers/staging/kpc2000/kpc_dma/fileops.c
-> > index 6166587..75ad263 100644
-> > --- a/drivers/staging/kpc2000/kpc_dma/fileops.c
-> > +++ b/drivers/staging/kpc2000/kpc_dma/fileops.c
-> > @@ -198,9 +198,7 @@ int  kpc_dma_transfer(struct dev_private_data *priv, struct kiocb *kcb, unsigned
-> >  	sg_free_table(&acd->sgt);
-> >   err_dma_map_sg:
-> >   err_alloc_sg_table:
-> > -	for (i = 0 ; i < acd->page_count ; i++){
-> > -		put_page(acd->user_pages[i]);
-> > -	}
-> > +	put_user_pages(acd->user_pages, acd->page_count);
-> >   err_get_user_pages:
-> >  	kfree(acd->user_pages);
-> >   err_alloc_userpages:
-> > @@ -221,16 +219,13 @@ void  transfer_complete_cb(struct aio_cb_data *acd, size_t xfr_count, u32 flags)
-> >  	
-> >  	dev_dbg(&acd->ldev->pldev->dev, "transfer_complete_cb(acd = [%p])\n", acd);
-> >  	
-> > -	for (i = 0 ; i < acd->page_count ; i++){
-> > -		if (!PageReserved(acd->user_pages[i])){
-> > -			set_page_dirty(acd->user_pages[i]);
-> > -		}
-> > -	}
-> > -	
-> >  	dma_unmap_sg(&acd->ldev->pldev->dev, acd->sgt.sgl, acd->sgt.nents, acd->ldev->dir);
-> >  	
-> > -	for (i = 0 ; i < acd->page_count ; i++){
-> > -		put_page(acd->user_pages[i]);
-> > +	for (i = 0; i < acd->page_count; i++) {
-> > +		if (!PageReserved(acd->user_pages[i]))
-> > +			put_user_pages_dirty(&acd->user_pages[i], 1);
-> > +		else
-> > +			put_user_page(acd->user_pages[i]);
-> >  	}
-> >  	
-> >  	sg_free_table(&acd->sgt);
-> > -- 
-> > 2.7.4
-> 
-> This patch can not be applied at all :(
-> 
-> Can you redo it against the latest staging-next branch and resend?
-> 
-> thanks,
-Yup. Will do that!
-> greg k-h
+
+On 7/24/19 6:03 PM, Alexander Duyck wrote:
+> On Wed, 2019-07-24 at 17:38 -0400, Michael S. Tsirkin wrote:
+>> On Wed, Jul 24, 2019 at 10:12:10AM -0700, Alexander Duyck wrote:
+>>> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+>>>
+>>> Add support for what I am referring to as "bubble hinting". Basically=
+ the
+>>> idea is to function very similar to how the balloon works in that we
+>>> basically end up madvising the page as not being used. However we don=
+'t
+>>> really need to bother with any deflate type logic since the page will=
+ be
+>>> faulted back into the guest when it is read or written to.
+>>>
+>>> This is meant to be a simplification of the existing balloon interfac=
+e
+>>> to use for providing hints to what memory needs to be freed. I am ass=
+uming
+>>> this is safe to do as the deflate logic does not actually appear to d=
+o very
+>>> much other than tracking what subpages have been released and which o=
+nes
+>>> haven't.
+>>>
+>>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+>> BTW I wonder about migration here.  When we migrate we lose all hints
+>> right?  Well destination could be smarter, detect that page is full of=
+
+>> 0s and just map a zero page. Then we don't need a hint as such - but I=
+
+>> don't think it's done like that ATM.
+> I was wondering about that a bit myself. If you migrate with a balloon
+> active what currently happens with the pages in the balloon? Do you
+> actually migrate them, or do you ignore them and just assume a zero pag=
+e?
+> I'm just reusing the ram_block_discard_range logic that was being used =
+for
+> the balloon inflation so I would assume the behavior would be the same.=
+
+I agree, however, I think it is worth investigating to see if enabling hi=
+nting
+adds some sort of overhead specifically in this kind of scenarios. What d=
+o you
+think?
+>> I also wonder about interaction with deflate.  ATM deflate will add
+>> pages to the free list, then balloon will come right back and report
+>> them as free.
+> I don't know how likely it is that somebody who is getting the free pag=
+e
+> reporting is likely to want to also use the balloon to take up memory.
+I think it is possible. There are two possibilities:
+1. User has a workload running, which is allocating and freeing the pages=
+ and at
+the same time, user deflates.
+If these new pages get used by this workload, we don't have to worry as y=
+ou are
+already handling that by not hinting the free pages immediately.
+2. Guest is idle and the user adds up some memory, for this situation wha=
+t you
+have explained below does seems reasonable.
+> However hinting on a page that came out of deflate might make sense whe=
+n
+> you consider that the balloon operates on 4K pages and the hints are on=
+ 2M
+> pages. You are likely going to lose track of it all anyway as you have =
+to
+> work to merge the 4K pages up to the higher order page.
+>
+--=20
+Thanks
+Nitesh
 
