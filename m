@@ -2,797 +2,219 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 632B1C7618B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 16:02:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FC2FC41517
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 16:16:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0DEA22238C
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 16:02:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0DEA22238C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 27A6520679
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 16:16:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 27A6520679
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 542728E0003; Thu, 25 Jul 2019 12:02:21 -0400 (EDT)
+	id B51A56B000A; Thu, 25 Jul 2019 12:16:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4F2E46B026B; Thu, 25 Jul 2019 12:02:21 -0400 (EDT)
+	id B023B8E0005; Thu, 25 Jul 2019 12:16:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3956C8E0003; Thu, 25 Jul 2019 12:02:21 -0400 (EDT)
+	id 9F06A8E0002; Thu, 25 Jul 2019 12:16:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B55846B026A
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 12:02:20 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id n3so32390006edr.8
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 09:02:20 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 692696B000A
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 12:16:23 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id f25so31151410pfk.14
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 09:16:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=f7UUvJsfXZXodHTfIDUHMCaAGiYivhzT6pUIeqGM2J0=;
-        b=MC5xqpTipo+J0i2U4qQ6jeGqpxLvBESopzDqElrDnmmi/NRz2kowqGyqeMUSppA+jh
-         12W6sHnj2xdTUkkktJorBTYASEk5T7SAT2Z2wGX9YyStHRIHtexvHP6QDGOuk1rykNd7
-         6BMujhsqbAzccsSnIjXhaKNGhbfznO0MHyr4C7s73kFGefgnabMa6Lf6tFRpVkKL0XnU
-         9E3FYdqME79M5bpNcZu0rOowXZSEAiz+ULydsPE6C/xNchOBUi3fvtuHZu1Jpy9xnN/y
-         P9xcV2Zz9pVDOSOEXyPpT/l0Ebqdl/TBT2TO/7SQwRFquoPIqxHNUM+hHGZcLAgbbjxf
-         /MLA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAUZJFYkRy/kqIfD3QSmhS/E6JB4OM0pLkJ6YLjh/2L0Kdpo/Wkl
-	HxL1DuThDH9nCG1EZBLamZpHtJM5nY3wiBV8IMfj9oaLfBY5kCHdFZ8YnWVopAvN4wJX8wn4pNj
-	vbo9CuBDhwPTZKThW/h/zhCxLDtlnIvJO4CuHxGiuUh27R5Fe+4S5Cs3kBjWlfyOCKA==
-X-Received: by 2002:a17:906:c459:: with SMTP id ck25mr67563012ejb.32.1564070540225;
-        Thu, 25 Jul 2019 09:02:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxlqoP91n67XZ2JoBztBRn0hDSg8Q+61OzMpeSENN+HtaHpInf9Yf8j0bhPphm7DoLMNdyK
-X-Received: by 2002:a17:906:c459:: with SMTP id ck25mr67562775ejb.32.1564070537558;
-        Thu, 25 Jul 2019 09:02:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564070537; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:user-agent
+         :mime-version:content-transfer-encoding;
+        bh=S3kFICFzajaKLhxsqbaRIoJ9kJHYVP61xK+xtSgzRkY=;
+        b=LrxYB7nvIi5/eW+lMu5yqHlnoqiHwHtZRMkF3Ty97zsVX2NWDNT1G0Vy91FYCnZAi6
+         IKaF2ogJIgEf2Nngs8fidwcZcoRgoQ6+kJroMbpvrn79auFcoFA9Dj27Chlzr+s5PpRL
+         IOVy7RZxOJtNNACA5rL5iFWAjTifewrTDbPoY32n7fwuROIQ8f1KYlwNvJ8sIzOhKFlW
+         +3061SMBxOpI6eiRpreCkbhnwRvqsqDJ2/2tqdyyDF+tvwdg0LqbuVFy1nh/D+13jgsV
+         qPbfSM3Av7kmIsXi5L/qLxfY0r83a6dKZMRyx4A0+FrLS/58EFe5aJOQfoeKGGgyfTYz
+         38Hw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWbKKN9iVOOjlto35aTLldr8aDW4BH5jhJ5y1uVGFFMEtjaD4Hb
+	vNJ0IBh1BlkmMsoZR+DWKSP7WKwhO4yj/nVqXN3GfOgpWWvNlZs7/BEaxwrVdCEoE+hXbykF/hK
+	YFLNSZe/16Lf3JfmtRb1PkJsYtF1yb5XnIkYxXQwsmDSfTV40TL+VSKLJLKA2QnLj7Q==
+X-Received: by 2002:a17:902:2a68:: with SMTP id i95mr93407810plb.167.1564071383009;
+        Thu, 25 Jul 2019 09:16:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwbt3O84ZWCA+kHb4D/axJ7vdN9ofJa6qPtjFx+BK4o2zh/dFrp3PcSWogt1lm0L9gVZMdY
+X-Received: by 2002:a17:902:2a68:: with SMTP id i95mr93407732plb.167.1564071382075;
+        Thu, 25 Jul 2019 09:16:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564071382; cv=none;
         d=google.com; s=arc-20160816;
-        b=Vr25dGesPX9uORLKC5GNojQcVdYMBdLM1akUBPn5W1Y6CtDc/+wj0f5tpU1ZuFn559
-         U17QuZtStwAy6AEW0pKjATCEW9l8Yfha+NpssbzmDH4qPFQiYLKZ+8tbvmWevfLZx+1q
-         Cq96LLJUkAklz7UF9Oeb7+zBZqvrLsPzOenWYc1j/XP/bmkpGqaM+TxgacNu96JZI6Fh
-         xXyeH7e/pjIkjgyPhUwF/kOVYTFFBwsa3z9Rc9RQmUWn/YDotVskopqfyrMusUqBn1rN
-         0GfY9po+Tj6byJfFwGMUr/5Bd53Q0krOSCMVlBucN4R5CBo0xcghyHfCVcJ17rMuShuE
-         xW9Q==
+        b=MRMLaEGB1T/2HU7bMblud6x+YzErWXMqBLsdZS+IfdRjM3qpbiXhQwo6ISF15CijNu
+         Fl9oRSIsqJOGb+f56zSt01UY3fULn/oxGzeUM2XfuWlGnLNPRKseRjeWpwkdSWDzIQOk
+         VHw//mckBpp0Qtd16z+aAGin3LWIqnLcuw2hk49D58jasr0TgcFuFz0KVGN3FGouWMIy
+         UaKZetZ8Z63tMnsbORf5WTKppHfdLUdZgE3z0Wk8jYiYnLxT6eokfVrLb3B4gW8JGjVE
+         SWsOF790+qUt/WAWscr7P+yBA053P25pfZbJZDH9WVuHVKHxhLwTVN0CendYwe11S4LE
+         pUPQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=f7UUvJsfXZXodHTfIDUHMCaAGiYivhzT6pUIeqGM2J0=;
-        b=M+u12nxynlUCNW0FGU2Thw2mFJTJX+2jiif87jN+B1uHJKEGuNnx7tYiR/jfBRgeV0
-         Mp4VMlDYIDmX0ehmUMw7dkTGDjQ/D6FV/yWKuPNS4YujnP5nrJPe8Geg8qGg6yciQgvR
-         aHoPdZvJvxJoDsH6p9SEknJjuepKwrS64vWywClOlCo5+lCbkqK+rtpj/gZFpIiJhbno
-         1gtYQtXJJisxR7SIuMgUCNjUXLWcIfPdMNLDe2lRE1IchnEgh9AQFX+oRdBmJE5UOQ5T
-         hg6ZuoHZ5mtNAfYPsvBF1jYrrC5kqkjwhYnqXCQcLNkzRkNQ1hK2A4tsSs8HrajZsR67
-         bY8w==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:date:cc:to:from:subject:message-id;
+        bh=S3kFICFzajaKLhxsqbaRIoJ9kJHYVP61xK+xtSgzRkY=;
+        b=euoFKPrm3P0W20H4hxOi06QpYNMenH8GdNSUe0LQQYV/z0DCQwSK5u9e5KGYl562cr
+         kBuGPzVTolWUtOxqToPDo3I1VdX6f6J+vtOt/GBCQrUbOSS4l7qRzz2GO4OGcOvrG/+l
+         6DI6rj6gZ7L2vL+8FSJUEOy1Pn/k9Zmvbmick+ScltFfCzSWQr5iLXWvoEq9OTlGqHKx
+         NGek4EOMt1IMT9MzLL7+vzCeFHAv2ZGVPjzmp9jpj2/eaR6M6aSDykx/2Ae1ud8R8LSv
+         sTo57a2KdQ2j7KBzz3fui1OqsCYR9pD4s0/4vw9AuCE67S5qGApHkBdbUoYYXW1lnMvw
+         OiGQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z7si11339955edc.200.2019.07.25.09.02.17
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id s29si18061100pfd.147.2019.07.25.09.16.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 09:02:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 25 Jul 2019 09:16:22 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 0E131AFE2;
-	Thu, 25 Jul 2019 16:02:17 +0000 (UTC)
-From: Oscar Salvador <osalvador@suse.de>
-To: akpm@linux-foundation.org
-Cc: dan.j.williams@intel.com,
-	david@redhat.com,
-	pasha.tatashin@soleen.com,
-	mhocko@suse.com,
-	anshuman.khandual@arm.com,
-	Jonathan.Cameron@huawei.com,
-	vbabka@suse.cz,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH v3 4/5] mm,memory_hotplug: Allocate memmap from the added memory range for sparse-vmemmap
-Date: Thu, 25 Jul 2019 18:02:06 +0200
-Message-Id: <20190725160207.19579-5-osalvador@suse.de>
-X-Mailer: git-send-email 2.13.7
-In-Reply-To: <20190725160207.19579-1-osalvador@suse.de>
-References: <20190725160207.19579-1-osalvador@suse.de>
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Jul 2019 09:16:21 -0700
+X-IronPort-AV: E=Sophos;i="5.64,307,1559545200"; 
+   d="scan'208";a="164225983"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga008-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Jul 2019 09:16:21 -0700
+Message-ID: <96b1ac42dccbfbb5dd17210e6767ca2544558390.camel@linux.intel.com>
+Subject: Re: [PATCH v2 QEMU] virtio-balloon: Provide a interface for "bubble
+ hinting"
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>, Alexander Duyck
+	 <alexander.duyck@gmail.com>, kvm@vger.kernel.org, david@redhat.com, 
+	dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+	akpm@linux-foundation.org, yang.zhang.wz@gmail.com, pagupta@redhat.com, 
+	riel@surriel.com, konrad.wilk@oracle.com, lcapitulino@redhat.com, 
+	wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com, 
+	dan.j.williams@intel.com
+Date: Thu, 25 Jul 2019 09:16:21 -0700
+In-Reply-To: <20190725111303-mutt-send-email-mst@kernel.org>
+References: <20190724165158.6685.87228.stgit@localhost.localdomain>
+	 <20190724171050.7888.62199.stgit@localhost.localdomain>
+	 <20190724173403-mutt-send-email-mst@kernel.org>
+	 <ada4e7d932ebd436d00c46e8de699212e72fd989.camel@linux.intel.com>
+	 <fed474fe-93f4-a9f6-2e01-75e8903edd81@redhat.com>
+	 <bc162a5eaa58ac074c8ad20cb23d579aa04d0f43.camel@linux.intel.com>
+	 <20190725111303-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Physical memory hotadd has to allocate a memmap (struct page array) for
-the newly added memory section. Currently, alloc_pages_node() is used
-for those allocations.
+On Thu, 2019-07-25 at 11:16 -0400, Michael S. Tsirkin wrote:
+> On Thu, Jul 25, 2019 at 08:05:30AM -0700, Alexander Duyck wrote:
+> > On Thu, 2019-07-25 at 07:35 -0400, Nitesh Narayan Lal wrote:
+> > > On 7/24/19 6:03 PM, Alexander Duyck wrote:
+> > > > On Wed, 2019-07-24 at 17:38 -0400, Michael S. Tsirkin wrote:
+> > > > > On Wed, Jul 24, 2019 at 10:12:10AM -0700, Alexander Duyck wrote:
+> > > > > > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > > > > > 
+> > > > > > Add support for what I am referring to as "bubble hinting". Basically the
+> > > > > > idea is to function very similar to how the balloon works in that we
+> > > > > > basically end up madvising the page as not being used. However we don't
+> > > > > > really need to bother with any deflate type logic since the page will be
+> > > > > > faulted back into the guest when it is read or written to.
+> > > > > > 
+> > > > > > This is meant to be a simplification of the existing balloon interface
+> > > > > > to use for providing hints to what memory needs to be freed. I am assuming
+> > > > > > this is safe to do as the deflate logic does not actually appear to do very
+> > > > > > much other than tracking what subpages have been released and which ones
+> > > > > > haven't.
+> > > > > > 
+> > > > > > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > > > > BTW I wonder about migration here.  When we migrate we lose all hints
+> > > > > right?  Well destination could be smarter, detect that page is full of
+> > > > > 0s and just map a zero page. Then we don't need a hint as such - but I
+> > > > > don't think it's done like that ATM.
+> > > > I was wondering about that a bit myself. If you migrate with a balloon
+> > > > active what currently happens with the pages in the balloon? Do you
+> > > > actually migrate them, or do you ignore them and just assume a zero page?
+> > > > I'm just reusing the ram_block_discard_range logic that was being used for
+> > > > the balloon inflation so I would assume the behavior would be the same.
+> > > I agree, however, I think it is worth investigating to see if enabling hinting
+> > > adds some sort of overhead specifically in this kind of scenarios. What do you
+> > > think?
+> > 
+> > I suspect that the hinting/reporting would probably improve migration
+> > times based on the fact that from the sound of things it would just be
+> > migrated as a zero page.
+> > 
+> > I don't have a good setup for testing migration though and I am not that
+> > familiar with trying to do a live migration. That is one of the reasons
+> > why I didn't want to stray too far from the existing balloon code as that
+> > has already been tested with migration so I would assume as long as I am
+> > doing almost the exact same thing to hint the pages away it should behave
+> > exactly the same.
+> > 
+> > > > > I also wonder about interaction with deflate.  ATM deflate will add
+> > > > > pages to the free list, then balloon will come right back and report
+> > > > > them as free.
+> > > > I don't know how likely it is that somebody who is getting the free page
+> > > > reporting is likely to want to also use the balloon to take up memory.
+> > > I think it is possible. There are two possibilities:
+> > > 1. User has a workload running, which is allocating and freeing the pages and at
+> > > the same time, user deflates.
+> > > If these new pages get used by this workload, we don't have to worry as you are
+> > > already handling that by not hinting the free pages immediately.
+> > > 2. Guest is idle and the user adds up some memory, for this situation what you
+> > > have explained below does seems reasonable.
+> > 
+> > Us hinting on pages that are freed up via deflate wouldn't be too big of a
+> > deal. I would think that is something we could look at addressing as more
+> > of a follow-on if we ever needed to since it would just add more
+> > complexity.
+> > 
+> > Really what I would like to see is the balloon itself get updated first to
+> > perhaps work with variable sized pages first so that we could then have
+> > pages come directly out of the balloon and go back into the freelist as
+> > hinted, or visa-versa where hinted pages could be pulled directly into the
+> > balloon without needing to notify the host.
+> 
+> Right, I agree. At this point the main thing I worry about is that
+> the interfaces only support one reporter, since a page flag is used.
+> So if we ever rewrite existing hinting to use the new mm
+> infrastructure then we can't e.g. enable both types of hinting.
 
-This has some disadvantages:
- a) an existing memory is consumed for that purpose
-    (~2MB per 128MB memory section on x86_64)
- b) if the whole node is movable then we have off-node struct pages
-    which has performance drawbacks.
+Does it make sense to have multiple types of hinting active at the same
+time though? That kind of seems wasteful to me. Ideally we should be able
+to provide the hints and have them feed whatever is supposed to be using
+them. So for example I could probably look at also clearing the bitmaps
+when migration is in process.
 
-a) has turned out to be a problem for memory hotplug based ballooning
-   because the userspace might not react in time to online memory while
-   the memory consumed during physical hotadd consumes enough memory to
-   push system to OOM. 31bc3858ea3e ("memory-hotplug: add automatic onlining
-   policy for the newly added memory") has been added to workaround that
-   problem.
+Also, I am wonder if the free page hints would be redundant with the form
+of page hinting/reporting that I have since we should be migrating a much
+smaller footprint anyway if the pages have been madvised away before we
+even start the migration.
 
-This can be improved when CONFIG_SPARSEMEM_VMEMMAP is enabled.
+> FWIW Nitesh's RFC does not have this limitation.
 
-Vmemap page tables can map arbitrary memory.
-That means that we can simply use the beginning of each memory section and
-map struct pages there.
-struct pages which back the allocated space then just need to be treated
-carefully.
+Yes, but there are also limitations to his approach. For example the fact
+that the bitmap it maintains is back to being a hint rather then being
+very exact. As a result you could end up walking the bitmap for a while
+clearing bits without ever finding a free page.
 
-Implementation wise we will reuse vmem_altmap infrastructure to override
-the default allocator used by __vmemap_populate. Once the memmap is
-allocated, we are going to need a way to mark altmap pfns used for the allocation.
-If MHP_MEMMAP_ON_MEMORY flag was passed, we will set up the layout of the
-altmap structure at the beginning of __add_pages(), and then we will call
-mhp_mark_vmemmap_pages() to do the proper marking.
+> I intend to think about this over the weekend.
 
-mhp_mark_vmemmap_pages() marks the pages as vmemmap and sets some metadata:
+Sounds good. I'll try to get the stuff you have pointed out so far
+addressed and hopefully have v3 ready to go next week.
 
-Vmemmap's pages layout is as follows:
+Thanks.
 
-        * Layout:
-        * Head:
-        *      head->vmemmap_pages     : nr of vmemmap pages
-        *      head->vmemmap_sections  : nr of sections used by this altmap
-        * Tail:
-        *      tail->vmemmap_head      : head
-        * All:
-        *      page->type              : Vmemmap
-
-E.g:
-When hot-add 1GB on x86_64 :
-
-head->vmemmap_pages = 4096
-head->vmemmap_sections = 8
-
-We keep this information within the struct pages as we need them in certain
-stages like offline, online and hot-remove.
-
-head->vmemmap_sections is a kind of refcount, because when using MHP_MEMMAP_ON_MEMORY,
-we need to know how much do we have to defer the call to vmemmap_free().
-The thing is that the first pages of the memory range are used to store the
-memmap mapping, so we cannot remove those first, otherwise we would blow up
-when accessing the other pages.
-
-So, instead of actually removing the section (with vmemmap_free), we wait
-until we remove the last one, and then we call vmemmap_free() for all
-batched sections.
-
-We also have to be careful about those pages during online and offline
-operations. They are simply skipped, so online will keep them
-reserved and so unusable for any other purpose and offline ignores them
-so they do not block the offline operation.
-
-In offline operation we only have to check for one particularity.
-Depending on the way the hot-added range was added, it might be that,
-that one or more of memory blocks from the beginning are filled with
-only vmemmap pages.
-We just need to check for this case and skip 1) isolating 2) migrating,
-because those pages do not need to be migrated anywhere, as they are
-self-hosted.
-
-Signed-off-by: Oscar Salvador <osalvador@suse.de>
----
- arch/powerpc/mm/init_64.c      |   7 +++
- arch/s390/mm/init.c            |   6 ++
- arch/x86/mm/init_64.c          |  10 +++
- drivers/acpi/acpi_memhotplug.c |   3 +-
- include/linux/memory_hotplug.h |   6 ++
- include/linux/memremap.h       |   2 +-
- mm/compaction.c                |   7 +++
- mm/memory_hotplug.c            | 136 ++++++++++++++++++++++++++++++++++++++---
- mm/page_alloc.c                |  26 +++++++-
- mm/page_isolation.c            |  14 ++++-
- mm/sparse.c                    | 107 ++++++++++++++++++++++++++++++++
- 11 files changed, 309 insertions(+), 15 deletions(-)
-
-diff --git a/arch/powerpc/mm/init_64.c b/arch/powerpc/mm/init_64.c
-index a44f6281ca3a..f19aa006ca6d 100644
---- a/arch/powerpc/mm/init_64.c
-+++ b/arch/powerpc/mm/init_64.c
-@@ -292,6 +292,13 @@ void __ref vmemmap_free(unsigned long start, unsigned long end,
- 
- 		if (base_pfn >= alt_start && base_pfn < alt_end) {
- 			vmem_altmap_free(altmap, nr_pages);
-+		} else if (PageVmemmap(page)) {
-+			/*
-+			 * runtime vmemmap pages are residing inside the memory
-+			 * section so they do not have to be freed anywhere.
-+			 */
-+			while (PageVmemmap(page))
-+				ClearPageVmemmap(page++);
- 		} else if (PageReserved(page)) {
- 			/* allocated from bootmem */
- 			if (page_size < PAGE_SIZE) {
-diff --git a/arch/s390/mm/init.c b/arch/s390/mm/init.c
-index 20340a03ad90..adb04f3977eb 100644
---- a/arch/s390/mm/init.c
-+++ b/arch/s390/mm/init.c
-@@ -278,6 +278,12 @@ int arch_add_memory(int nid, u64 start, u64 size,
- 	unsigned long size_pages = PFN_DOWN(size);
- 	int rc;
- 
-+	/*
-+	 * Physical memory is added only later during the memory online so we
-+	 * cannot use the added range at this stage unfortunately.
-+	 */
-+	restrictions->flags &= ~restrictions->flags;
-+
- 	if (WARN_ON_ONCE(restrictions->altmap))
- 		return -EINVAL;
- 
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index a6b5c653727b..f9f720a28b3e 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -876,6 +876,16 @@ static void __meminit free_pagetable(struct page *page, int order)
- 	unsigned long magic;
- 	unsigned int nr_pages = 1 << order;
- 
-+	/*
-+	 * Runtime vmemmap pages are residing inside the memory section so
-+	 * they do not have to be freed anywhere.
-+	 */
-+	if (PageVmemmap(page)) {
-+		while (nr_pages--)
-+			ClearPageVmemmap(page++);
-+		return;
-+	}
-+
- 	/* bootmem page has reserved flag */
- 	if (PageReserved(page)) {
- 		__ClearPageReserved(page);
-diff --git a/drivers/acpi/acpi_memhotplug.c b/drivers/acpi/acpi_memhotplug.c
-index d91b3584d4b2..e0148dde5313 100644
---- a/drivers/acpi/acpi_memhotplug.c
-+++ b/drivers/acpi/acpi_memhotplug.c
-@@ -207,7 +207,8 @@ static int acpi_memory_enable_device(struct acpi_memory_device *mem_device)
- 		if (node < 0)
- 			node = memory_add_physaddr_to_nid(info->start_addr);
- 
--		result = __add_memory(node, info->start_addr, info->length, 0);
-+		result = __add_memory(node, info->start_addr, info->length,
-+				      MHP_MEMMAP_ON_MEMORY);
- 
- 		/*
- 		 * If the memory block has been used by the kernel, add_memory()
-diff --git a/include/linux/memory_hotplug.h b/include/linux/memory_hotplug.h
-index 6b20008d9297..e1e8abf22a80 100644
---- a/include/linux/memory_hotplug.h
-+++ b/include/linux/memory_hotplug.h
-@@ -377,4 +377,10 @@ extern bool allow_online_pfn_range(int nid, unsigned long pfn, unsigned long nr_
- 		int online_type);
- extern struct zone *zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
- 		unsigned long nr_pages);
-+
-+#ifdef CONFIG_SPARSEMEM_VMEMMAP
-+extern void mhp_mark_vmemmap_pages(struct vmem_altmap *self);
-+#else
-+static inline void mhp_mark_vmemmap_pages(struct vmem_altmap *self) {}
-+#endif
- #endif /* __LINUX_MEMORY_HOTPLUG_H */
-diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-index 2cfc3c289d01..0a7355b8c1cf 100644
---- a/include/linux/memremap.h
-+++ b/include/linux/memremap.h
-@@ -16,7 +16,7 @@ struct device;
-  * @alloc: track pages consumed, private to vmemmap_populate()
-  */
- struct vmem_altmap {
--	const unsigned long base_pfn;
-+	unsigned long base_pfn;
- 	const unsigned long reserve;
- 	unsigned long free;
- 	unsigned long align;
-diff --git a/mm/compaction.c b/mm/compaction.c
-index ac4ead029b4a..2faf769375c4 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -857,6 +857,13 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
- 		nr_scanned++;
- 
- 		page = pfn_to_page(low_pfn);
-+		/*
-+		 * Vmemmap pages do not need to be isolated.
-+		 */
-+		if (PageVmemmap(page)) {
-+			low_pfn += vmemmap_nr_pages(page) - 1;
-+			continue;
-+		}
- 
- 		/*
- 		 * Check if the pageblock has already been marked skipped.
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index c2338703ce80..09d41339cd11 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -278,6 +278,13 @@ static int check_pfn_span(unsigned long pfn, unsigned long nr_pages,
- 	return 0;
- }
- 
-+static void mhp_init_altmap(unsigned long pfn, unsigned long nr_pages,
-+			    struct vmem_altmap *altmap)
-+{
-+	altmap->free = nr_pages;
-+	altmap->base_pfn = pfn;
-+}
-+
- /*
-  * Reasonably generic function for adding memory.  It is
-  * expected that archs that support memory hotplug will
-@@ -289,8 +296,18 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
- {
- 	int err;
- 	unsigned long nr, start_sec, end_sec;
--	struct vmem_altmap *altmap = restrictions->altmap;
-+	struct vmem_altmap *altmap;
-+	struct vmem_altmap mhp_altmap = {};
-+	unsigned long mhp_flags = restrictions->flags;
-+	bool vmemmap_section = false;
-+
-+	if (mhp_flags) {
-+		mhp_init_altmap(pfn, nr_pages, &mhp_altmap);
-+		restrictions->altmap = &mhp_altmap;
-+		vmemmap_section = true;
-+	}
- 
-+	altmap = restrictions->altmap;
- 	if (altmap) {
- 		/*
- 		 * Validate altmap is within bounds of the total request
-@@ -314,7 +331,7 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
- 
- 		pfns = min(nr_pages, PAGES_PER_SECTION
- 				- (pfn & ~PAGE_SECTION_MASK));
--		err = sparse_add_section(nid, pfn, pfns, altmap, 0);
-+		err = sparse_add_section(nid, pfn, pfns, altmap, vmemmap_section);
- 		if (err)
- 			break;
- 		pfn += pfns;
-@@ -322,6 +339,10 @@ int __ref __add_pages(int nid, unsigned long pfn, unsigned long nr_pages,
- 		cond_resched();
- 	}
- 	vmemmap_populate_print_last();
-+
-+	if (mhp_flags)
-+		mhp_mark_vmemmap_pages(altmap);
-+
- 	return err;
- }
- 
-@@ -640,6 +661,14 @@ static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
- 	while (start < end) {
- 		order = min(MAX_ORDER - 1,
- 			get_order(PFN_PHYS(end) - PFN_PHYS(start)));
-+		/*
-+		 * Check if the pfn is aligned to its order.
-+		 * If not, we decrement the order until it is,
-+		 * otherwise __free_one_page will bug us.
-+		 */
-+		while (start & ((1 << order) - 1))
-+			order--;
-+
- 		(*online_page_callback)(pfn_to_page(start), order);
- 
- 		onlined_pages += (1UL << order);
-@@ -648,17 +677,51 @@ static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
- 	return onlined_pages;
- }
- 
-+static bool vmemmap_skip_block(unsigned long pfn, unsigned long nr_pages,
-+		       unsigned long *nr_vmemmap_pages)
-+{
-+	bool skip = false;
-+	unsigned long vmemmap_pages = 0;
-+
-+	/*
-+	 * This function gets called from {online,offline}_pages.
-+	 * It has two goals:
-+	 *
-+	 * 1) Account number of vmemmap pages within the range
-+	 * 2) Check if the whole range contains only vmemmap_pages.
-+	 */
-+
-+	if (PageVmemmap(pfn_to_page(pfn))) {
-+		struct page *page = pfn_to_page(pfn);
-+
-+		vmemmap_pages = min(vmemmap_nr_pages(page), nr_pages);
-+		if (vmemmap_pages == nr_pages)
-+			skip = true;
-+	}
-+
-+	*nr_vmemmap_pages = vmemmap_pages;
-+	return skip;
-+}
-+
- static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
- 			void *arg)
- {
- 	unsigned long onlined_pages = *(unsigned long *)arg;
--
--	if (PageReserved(pfn_to_page(start_pfn)))
--		onlined_pages += online_pages_blocks(start_pfn, nr_pages);
--
-+	unsigned long pfn = start_pfn;
-+	unsigned long nr_vmemmap_pages = 0;
-+	bool skip;
-+
-+	skip = vmemmap_skip_block(pfn, nr_pages, &nr_vmemmap_pages);
-+	if (skip)
-+		goto skip_online_pages;
-+
-+	pfn += nr_vmemmap_pages;
-+	if (PageReserved(pfn_to_page(pfn)))
-+		onlined_pages += online_pages_blocks(pfn, nr_pages - nr_vmemmap_pages);
-+skip_online_pages:
- 	online_mem_sections(start_pfn, start_pfn + nr_pages);
- 
--	*(unsigned long *)arg = onlined_pages;
-+	*(unsigned long *)arg = onlined_pages + nr_vmemmap_pages;
- 	return 0;
- }
- 
-@@ -1040,6 +1103,19 @@ static int online_memory_block(struct memory_block *mem, void *arg)
- 	return device_online(&mem->dev);
- }
- 
-+static unsigned long mhp_check_flags(unsigned long flags)
-+{
-+	if (!flags)
-+		return 0;
-+
-+	if (flags != MHP_MEMMAP_ON_MEMORY) {
-+		WARN(1, "Wrong flags value (%lx). Ignoring flags.\n", flags);
-+		return 0;
-+	}
-+
-+	return flags;
-+}
-+
- /*
-  * NOTE: The caller must call lock_device_hotplug() to serialize hotplug
-  * and online/offline operations (triggered e.g. by sysfs).
-@@ -1075,6 +1151,8 @@ int __ref add_memory_resource(int nid, struct resource *res, unsigned long flags
- 		goto error;
- 	new_node = ret;
- 
-+	restrictions.flags = mhp_check_flags(flags);
-+
- 	/* call arch's memory hotadd */
- 	ret = arch_add_memory(nid, start, size, &restrictions);
- 	if (ret < 0)
-@@ -1502,12 +1580,14 @@ static int __ref __offline_pages(unsigned long start_pfn,
- {
- 	unsigned long pfn, nr_pages;
- 	unsigned long offlined_pages = 0;
-+	unsigned long nr_vmemmap_pages = 0;
- 	int ret, node, nr_isolate_pageblock;
- 	unsigned long flags;
- 	unsigned long valid_start, valid_end;
- 	struct zone *zone;
- 	struct memory_notify arg;
- 	char *reason;
-+	bool skip = false;
- 
- 	mem_hotplug_begin();
- 
-@@ -1524,8 +1604,10 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 	node = zone_to_nid(zone);
- 	nr_pages = end_pfn - start_pfn;
- 
-+	skip = vmemmap_skip_block(start_pfn, nr_pages, &nr_vmemmap_pages);
-+
- 	/* set above range as isolated */
--	ret = start_isolate_page_range(start_pfn, end_pfn,
-+	ret = start_isolate_page_range(start_pfn + nr_vmemmap_pages, end_pfn,
- 				       MIGRATE_MOVABLE,
- 				       SKIP_HWPOISON | REPORT_FAILURE);
- 	if (ret < 0) {
-@@ -1545,6 +1627,9 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 		goto failed_removal_isolated;
- 	}
- 
-+	if (skip)
-+		goto skip_migration;
-+
- 	do {
- 		for (pfn = start_pfn; pfn;) {
- 			if (signal_pending(current)) {
-@@ -1581,6 +1666,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 					    NULL, check_pages_isolated_cb);
- 	} while (ret);
- 
-+skip_migration:
- 	/* Ok, all of our target is isolated.
- 	   We cannot do rollback at this point. */
- 	walk_system_ram_range(start_pfn, end_pfn - start_pfn,
-@@ -1596,7 +1682,9 @@ static int __ref __offline_pages(unsigned long start_pfn,
- 	spin_unlock_irqrestore(&zone->lock, flags);
- 
- 	/* removal success */
--	adjust_managed_page_count(pfn_to_page(start_pfn), -offlined_pages);
-+	if (offlined_pages)
-+		adjust_managed_page_count(pfn_to_page(start_pfn), -offlined_pages);
-+	offlined_pages += nr_vmemmap_pages;
- 	zone->present_pages -= offlined_pages;
- 
- 	pgdat_resize_lock(zone->zone_pgdat, &flags);
-@@ -1739,11 +1827,41 @@ static void __release_memory_resource(resource_size_t start,
- 	}
- }
- 
-+static int check_hotplug_granularity(u64 start, u64 size)
-+{
-+	unsigned long pfn = PHYS_PFN(start);
-+
-+	/*
-+	 * Sanity check in case the range used MHP_MEMMAP_ON_MEMORY.
-+	 */
-+	if (vmemmap_section(__pfn_to_section(pfn))) {
-+		struct page *page = pfn_to_page(pfn);
-+		unsigned long nr_pages = size >> PAGE_SHIFT;
-+		unsigned long sections;
-+
-+		/*
-+		 * The start of the memory range is not correct.
-+		 */
-+		if (!PageVmemmap(page) || (vmemmap_head(page) != page))
-+			return -EINVAL;
-+
-+		sections = vmemmap_nr_sections(page);
-+		if (sections * PAGES_PER_SECTION != nr_pages)
-+			/*
-+			 * Check that granularity is the same.
-+			 */
-+			return -EINVAL;
-+	}
-+
-+	return 0;
-+}
-+
- static int __ref try_remove_memory(int nid, u64 start, u64 size)
- {
- 	int rc = 0;
- 
- 	BUG_ON(check_hotplug_memory_range(start, size));
-+	BUG_ON(check_hotplug_granularity(start, size));
- 
- 	mem_hotplug_begin();
- 
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d3bb601c461b..7c7d7130b627 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -1340,14 +1340,21 @@ static void free_one_page(struct zone *zone,
- static void __meminit __init_single_page(struct page *page, unsigned long pfn,
- 				unsigned long zone, int nid)
- {
-+	if (PageVmemmap(page))
-+		/*
-+		 * Vmemmap pages need to preserve their state.
-+		 */
-+		goto preserve_state;
-+
- 	mm_zero_struct_page(page);
--	set_page_links(page, zone, nid, pfn);
--	init_page_count(page);
- 	page_mapcount_reset(page);
-+	INIT_LIST_HEAD(&page->lru);
-+preserve_state:
-+	init_page_count(page);
-+	set_page_links(page, zone, nid, pfn);
- 	page_cpupid_reset_last(page);
- 	page_kasan_tag_reset(page);
- 
--	INIT_LIST_HEAD(&page->lru);
- #ifdef WANT_PAGE_VIRTUAL
- 	/* The shift won't overflow because ZONE_NORMAL is below 4G. */
- 	if (!is_highmem_idx(zone))
-@@ -8184,6 +8191,14 @@ bool has_unmovable_pages(struct zone *zone, struct page *page, int count,
- 
- 		page = pfn_to_page(check);
- 
-+		/*
-+		 * Vmemmap pages are not needed to be moved around.
-+		 */
-+		if (PageVmemmap(page)) {
-+			iter += vmemmap_nr_pages(page) - 1;
-+			continue;
-+		}
-+
- 		if (PageReserved(page))
- 			goto unmovable;
- 
-@@ -8551,6 +8566,11 @@ __offline_isolated_pages(unsigned long start_pfn, unsigned long end_pfn)
- 			continue;
- 		}
- 		page = pfn_to_page(pfn);
-+
-+		if (PageVmemmap(page)) {
-+			pfn += vmemmap_nr_pages(page);
-+			continue;
-+		}
- 		/*
- 		 * The HWPoisoned page may be not in buddy system, and
- 		 * page_count() is not 0.
-diff --git a/mm/page_isolation.c b/mm/page_isolation.c
-index 89c19c0feadb..ee26ea41c9eb 100644
---- a/mm/page_isolation.c
-+++ b/mm/page_isolation.c
-@@ -146,7 +146,7 @@ static void unset_migratetype_isolate(struct page *page, unsigned migratetype)
- static inline struct page *
- __first_valid_page(unsigned long pfn, unsigned long nr_pages)
- {
--	int i;
-+	unsigned long i;
- 
- 	for (i = 0; i < nr_pages; i++) {
- 		struct page *page;
-@@ -154,6 +154,10 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
- 		page = pfn_to_online_page(pfn + i);
- 		if (!page)
- 			continue;
-+		if (PageVmemmap(page)) {
-+			i += vmemmap_nr_pages(page) - 1;
-+			continue;
-+		}
- 		return page;
- 	}
- 	return NULL;
-@@ -267,6 +271,14 @@ __test_page_isolated_in_pageblock(unsigned long pfn, unsigned long end_pfn,
- 			continue;
- 		}
- 		page = pfn_to_page(pfn);
-+		/*
-+		 * Vmemmap pages are not isolated. Skip them.
-+		 */
-+		if (PageVmemmap(page)) {
-+			pfn += vmemmap_nr_pages(page);
-+			continue;
-+		}
-+
- 		if (PageBuddy(page))
- 			/*
- 			 * If the page is on a free list, it has to be on
-diff --git a/mm/sparse.c b/mm/sparse.c
-index 09cac39e39d9..2cc2e5af1986 100644
---- a/mm/sparse.c
-+++ b/mm/sparse.c
-@@ -645,18 +645,125 @@ void offline_mem_sections(unsigned long start_pfn, unsigned long end_pfn)
- #endif
- 
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
-+static void vmemmap_init_page(struct page *page, struct page *head)
-+{
-+	page_mapcount_reset(page);
-+	SetPageVmemmap(page);
-+	page->vmemmap_head = (unsigned long)head;
-+}
-+
-+static void vmemmap_init_head(struct page *page, unsigned long nr_sections,
-+			      unsigned long nr_pages)
-+{
-+	page->vmemmap_sections = nr_sections;
-+	page->vmemmap_pages = nr_pages;
-+}
-+
-+void mhp_mark_vmemmap_pages(struct vmem_altmap *self)
-+{
-+	unsigned long pfn = self->base_pfn + self->reserve;
-+	unsigned long nr_pages = self->alloc;
-+	unsigned long nr_sects = self->free / PAGES_PER_SECTION;
-+	unsigned long i;
-+	struct page *head;
-+
-+	if (!nr_pages)
-+		return;
-+
-+	/*
-+	 * All allocations for the memory hotplug are the same sized so align
-+	 * should be 0.
-+	 */
-+	WARN_ON(self->align);
-+
-+	memset(pfn_to_page(pfn), 0, sizeof(struct page) * nr_pages);
-+
-+	/*
-+	 * Mark pages as Vmemmap pages
-+	 * Layout:
-+	 * Head:
-+	 * 	head->vmemmap_pages	: nr of vmemmap pages
-+	 *	head->mhp_flags    	: MHP_flags
-+	 *	head->vmemmap_sections	: nr of sections used by this altmap
-+	 * Tail:
-+	 *	tail->vmemmap_head	: head
-+	 * All:
-+	 *	page->type		: Vmemmap
-+	 */
-+	head = pfn_to_page(pfn);
-+	for (i = 0; i < nr_pages; i++) {
-+		struct page *page = head + i;
-+
-+		vmemmap_init_page(page, head);
-+	}
-+	vmemmap_init_head(head, nr_sects, nr_pages);
-+}
-+
-+/*
-+ * If the range we are trying to remove was hot-added with vmemmap pages
-+ * using MHP_MEMMAP_*, we need to keep track of it to know how much
-+ * do we have do defer the free up.
-+ * Since sections are removed sequentally in __remove_pages()->
-+ * __remove_section(), we just wait until we hit the last section.
-+ * Once that happens, we can trigger free_deferred_vmemmap_range to actually
-+ * free the whole memory-range.
-+ */
-+static struct page *__vmemmap_head = NULL;
-+
- static struct page *populate_section_memmap(unsigned long pfn,
- 		unsigned long nr_pages, int nid, struct vmem_altmap *altmap)
- {
- 	return __populate_section_memmap(pfn, nr_pages, nid, altmap);
- }
- 
-+static void vmemmap_free_deferred_range(unsigned long start,
-+					unsigned long end)
-+{
-+	unsigned long nr_pages = end - start;
-+	unsigned long first_section;
-+
-+	first_section = (unsigned long)__vmemmap_head;
-+	while (start >= first_section) {
-+		vmemmap_free(start, end, NULL);
-+		end = start;
-+		start -= nr_pages;
-+	}
-+	__vmemmap_head = NULL;
-+}
-+
-+static inline bool vmemmap_dec_and_test(void)
-+{
-+	__vmemmap_head->vmemmap_sections--;
-+	return !__vmemmap_head->vmemmap_sections;
-+}
-+
-+static void vmemmap_defer_free(unsigned long start, unsigned long end)
-+{
-+	if (vmemmap_dec_and_test())
-+		vmemmap_free_deferred_range(start, end);
-+}
-+
-+static inline bool should_defer_freeing(unsigned long start)
-+{
-+	if (PageVmemmap((struct page *)start) || __vmemmap_head) {
-+		if (!__vmemmap_head)
-+			__vmemmap_head = (struct page *)start;
-+		return true;
-+	}
-+	return false;
-+}
-+
- static void depopulate_section_memmap(unsigned long pfn, unsigned long nr_pages,
- 		struct vmem_altmap *altmap)
- {
- 	unsigned long start = (unsigned long) pfn_to_page(pfn);
- 	unsigned long end = start + nr_pages * sizeof(struct page);
- 
-+	if (should_defer_freeing(start)) {
-+		vmemmap_defer_free(start, end);
-+		return;
-+	}
-+
- 	vmemmap_free(start, end, altmap);
- }
- static void free_map_bootmem(struct page *memmap)
--- 
-2.12.3
+- Alex
 
