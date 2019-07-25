@@ -2,162 +2,147 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8BB20C76190
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 21:42:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B636FC76191
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 21:42:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 590E3218D4
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 21:42:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 590E3218D4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
+	by mail.kernel.org (Postfix) with ESMTP id 7DAD622BF5
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 21:42:36 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="e/Yzp6j8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DAD622BF5
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DE02B6B0006; Thu, 25 Jul 2019 17:42:20 -0400 (EDT)
+	id 2BB456B0008; Thu, 25 Jul 2019 17:42:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D90178E0003; Thu, 25 Jul 2019 17:42:20 -0400 (EDT)
+	id 26CBE8E0003; Thu, 25 Jul 2019 17:42:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C56A08E0002; Thu, 25 Jul 2019 17:42:20 -0400 (EDT)
+	id 181DC8E0002; Thu, 25 Jul 2019 17:42:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7767C6B0006
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 17:42:20 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id v14so24568737wrm.23
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 14:42:20 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D60D56B0008
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 17:42:35 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id e25so31769599pfn.5
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 14:42:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=RHA2ofEYLbAhfGb8SVCv0oG+oLR4u8BdgY4SBsCsRuA=;
-        b=itSX/dWXpnm8Zve5Hv971T9Lrinc5CsalQRAXM8l7Zp2LpaNAbwbnrlnTEaewOJ+5C
-         B68oAd0KcptN1m6cD34xq6u7wCwLMYbUEdzmvWf/q5W+cOPMx+UrcpwTY5NCuy/8+j3R
-         nv8buEPmc1mLuGfvE9nO9yqdBaFokMw6hkgNey79eDS0dGN+qDNEJP+4xsNInrhkEa4s
-         t6GJbsm8rE+2Aa3N8h4NQj6LEsaBreSAkmfBjrlQ5JQqHSQzlzKLXTOamjdnyzZg0j/x
-         W6rSHuidBVT6oD9+ptBoyNU/BL6IsUtjHqdbLBbOzrkWj/qJkJblJQk1Fl92jTyr1LLN
-         0BNQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
-X-Gm-Message-State: APjAAAXChPu0bvf25+GiZslevZIEnQ6oC58ZOhjFlKZYqsLZk74YKMd8
-	mFfI8S6mBDFRgW/Otaq/n5fdsABbkToN2aKQlSIF57x/a73t6rRx7unpIpsxNke3PTly+wsizqG
-	Dc+n4S4K/VKoP1bb1ofDaGrQcjZVHyHnV/jjfo4KyGXLRL3c9+0AuVym9YkLtjS0=
-X-Received: by 2002:a7b:c081:: with SMTP id r1mr30756907wmh.76.1564090939975;
-        Thu, 25 Jul 2019 14:42:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzgRF6os7PdfzkTw5rgWI8XeuP+NBdIxzuk+zrCASfHUAfAb4guTub4qo/0x+C2FRG0G1ON
-X-Received: by 2002:a7b:c081:: with SMTP id r1mr30756879wmh.76.1564090939078;
-        Thu, 25 Jul 2019 14:42:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564090939; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=JNOo0Dhi9UDinqug0uYA1LHheZfDibP+WEcEG6xvIBA=;
+        b=WWX8dSQUbCCfxmo6KVBG7o2BxcJVH1Kr1asZH1qE98T7sQzc+WnelvabHXR/6pHTDH
+         k6onMR7DrTFs8TeGbm3qvh5FquGJxXjPG8e2PKlnhJZAZwHd0GoiaxsJXwjBdpp9YNKP
+         TGXfV4rZ4oBMFGWEnXc2N854UTJt7m83C1YmKqvR1U2mhClMj7V7bJOR/nWiZvxuputN
+         737LdzFGtwy8exW4HsQiEwO3a26gBMFrAAsqyHKwXUKpotP+V/GmAURICqK96NvogfA6
+         a15YGbL8XFOCwefBWlFHO8enWSFSUzv8lqQt3MNfxraZNC1F5XiwoYv487sVOAsq3FJE
+         x8Gg==
+X-Gm-Message-State: APjAAAUo7coXG7HR3JLf6cAWniXx5YIhxNI3D2ovM0qeA8igNEnXdE3z
+	kJs/sxVtdceuz8ZrVJvmQH5Sh2b5kgY7SJmOlFuUtcYb9fMEC3Ri6/VhDvJMLmQ5nnCsWZs6pRv
+	TCQvXbmFg+X2UUqBxXFh8AJ1zHHajJgR0b2ULVafqA8mHzvddFSU09A5moOQQC9UdQw==
+X-Received: by 2002:a17:902:aa03:: with SMTP id be3mr92566162plb.240.1564090955432;
+        Thu, 25 Jul 2019 14:42:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx8BXqR94xcheEVvuXUMSCFyt27CVZq2NKa6F28SZUM96vz3dbUlcTDu/8oQARc3pNkG9FQ
+X-Received: by 2002:a17:902:aa03:: with SMTP id be3mr92566124plb.240.1564090954846;
+        Thu, 25 Jul 2019 14:42:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564090954; cv=none;
         d=google.com; s=arc-20160816;
-        b=GsZtiGfHrDSZt7UyYO07x7TunLRSUaPc+GxAzRjze93sGYzO7JaQROGhTdwyXeijIZ
-         p4XeRK0LbmcO15Um074PA6i9RaZKD9AGheY1sGMtiEL4le/pWCrWiJt17ZEVxtVso3GU
-         z595i5NrdFttVlj0w1mSWKXPJY0t0kvhRJhXXAP2rInbBORJZyAmHNLRJNUrjCUJhrnh
-         Gx05LXKIpr5xPUHaTj2iyQqjnX5UFC3f8AS9GqWeJaXrsEUUtUKAk6sgOy2SzuHW/o1P
-         ZL5BTMvtPLoCwHjuFAXqurXBsu8ZRbfXT0Cunr89THVYJWl3IvMHdnAZKtb2/3VWwjAH
-         8ONg==
+        b=xWSCXK7HH+p9AdvW/6Vx5azC8r0nqFsmJQsB39Qp/07o2YaBD8sQRd/80h/2Xzae5J
+         J8Y+2s6MqYBAi1C6TgFQ/ZJ6I/ik85gGxicXoO9lV394o2V5Ujbxpk/Pyo8BBRW/3616
+         VVSGwAmrv109WqAsYrKf7HnetKj+jgB2dbniNM9kaL5/GsJMbLcrbhMMnGN+xerOp0ap
+         wiwbqV8eTQMTkkVq1zSp1njmb0dL8cvPBYBpHA3nJ5zfexhsoz/v5b4jprCymQpHwLjV
+         bM+KabWQlM7jaJdhfCHZUlxWUAz9PMImwQ4e7a4uGySwPrJWaCYCU49jr2zLiKU2Bh6W
+         pRew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=RHA2ofEYLbAhfGb8SVCv0oG+oLR4u8BdgY4SBsCsRuA=;
-        b=c2OhGm/bBibbGK6niegMwHKzWv2Xfw/7N2XaEuRda+jLyX9Cbj26BJcN/340X9BNiB
-         3Rw951HSGqp4dX/Ybs3W7bycOD0tr7dESwTw01DpSRaUc6Fm58zSAjVNSU8k3i9eYAVN
-         0k5VyD2wG5PmEyb2VkpKGrCZAcoasuG/YELcjtZ6kFnViNp8pxxEGARSl08nnSmeECXx
-         gEFORS+Q+iBjR0cpZUuGvje73ZidoIZCYeNgHIpRfLF1jKKYv+u3FZk+eYScAAJk1ZfL
-         0dQUBgaeY/uYQ1ZS4gwwBwzkmBGyZeURv1C84JQcBMmHUHg6zbEnCV+MB+qRnXfyBVkG
-         sMjQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=JNOo0Dhi9UDinqug0uYA1LHheZfDibP+WEcEG6xvIBA=;
+        b=v9yctW4mtTs8gWBVwZoaH7v6hN+HFVWZA7ui6jTlARb83yh+m8lrskipSYKcaJr+6H
+         gXThcoY5mbMCcVEd3UXU/PPNIdHROadI9y3MT7FXSIYHiJVbPb36I3BhGBeuJrz+7NsK
+         Fg/77RcyH+NUrV6Z26BQ3aVZXv8Xpin584pdydawVds4VSmidg2knpYGWxlmUW8crnJW
+         mGon79VzQyvd4Ye2rhOZvkFoGWfu+sWAV9Y2xWRue5URSPEN6oB0Piocj+2J7vFwa1pT
+         IDrNvLVVDMaaKyIwEvRVGcvx5Yj779P4Vv+uw4yUaf56ZSZ3elhrMM6nX9iPJhkfcduN
+         6Nsg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
-Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de. [178.250.10.56])
-        by mx.google.com with ESMTPS id a2si49721276wrv.230.2019.07.25.14.42.18
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="e/Yzp6j8";
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id l4si17297908pjq.69.2019.07.25.14.42.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 25 Jul 2019 14:42:19 -0700 (PDT)
-Received-SPF: neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) client-ip=178.250.10.56;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 25 Jul 2019 14:42:34 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
-Received: (qmail 11487 invoked from network); 25 Jul 2019 23:42:18 +0200
-X-Fcrdns: No
-Received: from phoffice.de-nserver.de (HELO [10.242.2.6]) (185.39.223.5)
-  (smtp-auth username hostmaster@profihost.com, mechanism plain)
-  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Thu, 25 Jul 2019 23:42:18 +0200
-Subject: Re: No memory reclaim while reaching MemoryHigh
-To: Chris Down <chris@chrisdown.name>
-Cc: cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>,
- Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>,
- "n.fahldieck@profihost.ag" <n.fahldieck@profihost.ag>,
- Daniel Aberger - Profihost AG <d.aberger@profihost.ag>, p.kramme@profihost.ag
-References: <496dd106-abdd-3fca-06ad-ff7abaf41475@profihost.ag>
- <20190725145355.GA7347@chrisdown.name>
-From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-Message-ID: <06bc6218-810d-a912-935c-cb09d063ec3d@profihost.ag>
-Date: Thu, 25 Jul 2019 23:42:17 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="e/Yzp6j8";
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=JNOo0Dhi9UDinqug0uYA1LHheZfDibP+WEcEG6xvIBA=; b=e/Yzp6j8Alk5/730XXwU0FDWq
+	rr3okQdzLCE/J4OLyeEPbCRO5XaSEEqvUQNRuRdDTG/W3OlD1FAjSaxvbulJP4bbEv2K/AQ2pdD7U
+	C25B6yg420c7m5I/Iv0H7H3aTu60UCDWNz1VIrgdDL7SjaSToKp3xhjFnK0FAT+OdGd8tjn7T0BiL
+	FVnp2v5FBeoStt238IAx1keeH1uoGWywMyOzwIoA2i0vmW6dd0U6Kfa62LYSOi7Vnd4DWO1YOgjNg
+	0PLrZ06JDUhTYMwDhiWauSPYZcheWxkHZREuSCfc07MneufWREPlpo1Hg9S9UoGbIioPLs5HnL1tq
+	WlAQZfXjQ==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hqlVG-0004iU-Tb; Thu, 25 Jul 2019 21:42:22 +0000
+Date: Thu, 25 Jul 2019 14:42:22 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Russell King - ARM Linux admin <linux@armlinux.org.uk>
+Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Kees Cook <keescook@chromium.org>,
+	Sri Krishna chowdary <schowdary@nvidia.com>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, x86@kernel.org,
+	Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org,
+	Steven Price <Steven.Price@arm.com>, linux-mm@kvack.org,
+	Mark Brown <Mark.Brown@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	linux-arm-kernel@lists.infradead.org
+Subject: Re: [RFC] mm/pgtable/debug: Add test validating architecture page
+ table helpers
+Message-ID: <20190725214222.GG30641@bombadil.infradead.org>
+References: <1564037723-26676-1-git-send-email-anshuman.khandual@arm.com>
+ <1564037723-26676-2-git-send-email-anshuman.khandual@arm.com>
+ <20190725143920.GW363@bombadil.infradead.org>
+ <20190725213858.GK1330@shell.armlinux.org.uk>
 MIME-Version: 1.0
-In-Reply-To: <20190725145355.GA7347@chrisdown.name>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
-X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190725213858.GK1330@shell.armlinux.org.uk>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Chris,
-
-Am 25.07.19 um 16:53 schrieb Chris Down:
-> Hi Stefan,
+On Thu, Jul 25, 2019 at 10:38:58PM +0100, Russell King - ARM Linux admin wrote:
+> On Thu, Jul 25, 2019 at 07:39:21AM -0700, Matthew Wilcox wrote:
+> > But 'page' isn't necessarily PMD-aligned.  I don't think we can rely on
+> > architectures doing the right thing if asked to make a PMD for a randomly
+> > aligned page.
+> > 
+> > How about finding the physical address of something like kernel_init(),
+> > and using the corresponding pte/pmd/pud/p4d/pgd that encompasses that
+> > address?  It's also better to pass in the pfn/page rather than using global
+> > variables to communicate to the test functions.
 > 
-> Stefan Priebe - Profihost AG writes:
->> While using kernel 4.19.55 and cgroupv2 i set a MemoryHigh value for a
->> varnish service.
->>
->> It happens that the varnish.service cgroup reaches it's MemoryHigh value
->> and stops working due to throttling.
-> 
-> In that kernel version, the only throttling we have is reclaim-based
-> throttling (I also have a patch out to do schedule-based throttling, but
-> it's not in mainline yet). If the application is slowing down, it likely
-> means that we are struggling to reclaim pages.
+> There are architectures (32-bit ARM) where the kernel is mapped using
+> section mappings, and we don't expect the Linux page table walking to
+> work for section mappings.
 
-Sounds interesting can you point me to a discussion or thread?
-
-
->> But i don't understand is that the process itself only consumes 40% of
->> it's cgroup usage.
->>
->> So the other 60% is dirty dentries and inode cache. If i issue an
->> echo 3 > /proc/sys/vm/drop_caches
->>
->> the varnish cgroup memory usage drops to the 50% of the pure process.
-> 
-> As a caching server, doesn't Varnish have a lot of hot inodes/dentries
-> in memory? If they are hot, it's possible it's hard for us to evict them.
-
-May be but they can't be that hot as what i would call hot. If you drop
-caches the whole cgroup is only using ~ 1G extra memory even after hours.
-
->> I thought that the kernel would trigger automatic memory reclaim if a
->> cgroup reaches is memory high value to drop caches.
-> 
-> It does, that's the throttling you're seeing :-) I think more
-> information is needed to work out what's going on here. For example:
-> what do your kswapd counters look like?
-
-Where do i find those?
-
-> What does "stops working due to
-> throttling" mean -- are you stuck in reclaim?
-
-See the other mail to Michal - varnish does not respond and stack hangs
-in handle_mm_fault.
-
-I thought th kernel would drop fast the unneeded pagecache, inode and
-dentries cache.
-
-Thanks,
-Stefan
+This test doesn't go so far as to insert the PTE/PMD/PUD/... into the
+page tables.  It merely needs an appropriately aligned PFN to create a
+PTE/PMD/PUD/... from.
 
