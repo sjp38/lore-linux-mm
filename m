@@ -6,109 +6,100 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A4F9C76194
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 20:45:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 11213C41517
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 20:49:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E6DA222CBB
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 20:45:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E6DA222CBB
+	by mail.kernel.org (Postfix) with ESMTP id BD12D218DA
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 20:49:41 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD12D218DA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7EF486B0003; Thu, 25 Jul 2019 16:45:16 -0400 (EDT)
+	id 490556B0005; Thu, 25 Jul 2019 16:49:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A15B6B0005; Thu, 25 Jul 2019 16:45:16 -0400 (EDT)
+	id 4426E6B0006; Thu, 25 Jul 2019 16:49:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 667E08E0002; Thu, 25 Jul 2019 16:45:16 -0400 (EDT)
+	id 308FD8E0002; Thu, 25 Jul 2019 16:49:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f72.google.com (mail-ua1-f72.google.com [209.85.222.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4450E6B0003
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 16:45:16 -0400 (EDT)
-Received: by mail-ua1-f72.google.com with SMTP id z42so5588150uac.10
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 13:45:16 -0700 (PDT)
+Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 06F416B0005
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 16:49:41 -0400 (EDT)
+Received: by mail-ua1-f70.google.com with SMTP id s14so5607841uap.15
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 13:49:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=h1Ke7AAtpA4/OImtTh8DKGnHTItWnvrmNvbDulMMuok=;
-        b=CrVAUVPnayzPiMDZhkSEk2WzBZKvEFE66bW2w8UAjtUOt4L0rYCfCLTRNYl2w8zBUG
-         +jjig4eELxysmeT6ci1eDKAL1jh+Kt9Vjev3pT/rNlHvs2ciwHClTfFGZQfu1zwhx3d+
-         vzXRmxtmRvuh8fgLMe7fGmvYr84rtY7h/z09BFl2xUs+/rmmYW+edLF/M4BvxezQb7q1
-         GoQ+MTUMl/BLeweR668RuMBStKAdh+NYisB+E4jCMGxFI74siR9QSBcmClui5YKf49AT
-         KnsXG5YSO3saZevE3EjfW1SJooUxQLcCbjGAZgCCPZIIjCIX+W19YzZzKHwhnv6qE5bN
-         CmAA==
+        bh=NqBVO5R0XuGW3x/8E/9/TCMLefdmlvLirtxCf81W2cc=;
+        b=HH5y5uZ1xIlqM0yCr9lFlv37uiNmD1vhw5qehvmOnFCNbbeLBwlePbHdwE5BnkfYQr
+         Ypat42CpBlReOB3GKgmezv4068Pf+w24B1rf66zEsXflG305h+WOMGIuG3qnrXAxQWFi
+         SE7DM0cfKnXc7WwK6s+gZuWdp5/GTyLJwDa2KCGauVnlGyGyE/70dS6dvGGzDRjitMr3
+         LE7AxvJwVYEKzkOtRRzLL5damqtaNaVJRAn6cERYUZ6ZEWlpSKTFZ2w9WKoYK/JrmSTo
+         2JAi1T72i9POvXTJp8bBv8BM4cFjHCD5xKH1SdNR+76SFSo3SmYRrCU/BKpkao9AU9sf
+         xtiw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWBnWYrX++NqM289yZb1uWlp7BWJQl94u7oi/M+KYVjGaxJNPGo
-	IrIRkc9MQeG/NScu+Q0b76XI5e6nMS/2bkacYi7ZA/NPfo5pGwp8RMgXOocAEbkoV0m1hmSZp/x
-	q6DvpQ9sze5prkRNEYKm51DyrEV1N6S/9aXnuRiF7d/eIgcNvTrJIfBqRLnMhxCAVkQ==
-X-Received: by 2002:ab0:6158:: with SMTP id w24mr52594709uan.37.1564087515969;
-        Thu, 25 Jul 2019 13:45:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxipqmfasXlRT+i5DcXnJ0zBSrT9Q7J3OliBOTj+iUydbmRux7VBCuRZZH1xnF2uHnISTK3
-X-Received: by 2002:ab0:6158:: with SMTP id w24mr52594631uan.37.1564087515269;
-        Thu, 25 Jul 2019 13:45:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564087515; cv=none;
+X-Gm-Message-State: APjAAAVWB/UbpHvPRzBLWxCxilU4NizF+7JKwwY7SmtYdbs8qadsByNc
+	tmRJy86IU85gU7yCinRhbVadZE3595c/v0GUHIw2QOxLNa55WuBZxjrEBaf6bW187dkFuleUgVs
+	KJxwTyIy2jO+xBehwtQAdKi3Iqi5VNQc1pKWzLkREIJKc0iRxmqGKAM3aCY4OLMiemQ==
+X-Received: by 2002:a1f:9f06:: with SMTP id i6mr36001941vke.52.1564087780695;
+        Thu, 25 Jul 2019 13:49:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwUv9JAI9ax9FyHjcB3hKBwP5ez8kMDzX3uxpD4UrNxE5VDVmStpbFuKoGpReun6zXD7HQV
+X-Received: by 2002:a1f:9f06:: with SMTP id i6mr36001903vke.52.1564087780021;
+        Thu, 25 Jul 2019 13:49:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564087780; cv=none;
         d=google.com; s=arc-20160816;
-        b=LER6vBfLQhPhUZFeWjCS/guJZutHAhzuFsjTuQ4bh5k9S5A6saoTvJdIHq4h36dLV8
-         WqWyba73U3A78+CI6SOW+QVJkqbdoGCGrUVygSsF/KagKlko1yFQdEl+SXGIzgMJ43vx
-         HzbMxINHYziSjEgzHiPHM8WaJx51qKllKtlRacdiL/f3SmjV45hKqcdT6BuhC6WPIWNl
-         GTPCLHtfAY394GOiZZP0YJr+5ghxkAjLISHt/h1+DppCtKHCERLyvn/2MvLsYy8CC3OB
-         DhWXunOTF6LXUJCrzwG//47xG1YSgs/LmHCn3PPjwUCKNgQaXgOr5f3pgK/nQ9z9/kfC
-         UIVw==
+        b=iFXj2mnf7/zWi6U1df7PW3/sXVIypwebMDozpnjzLgoxaQmHU27goMUCFOTv6EoOat
+         ZhrjOt9xscPAeW4pgtn0xZlaPuol2ytNzPqQjmiWMqVtIfWYC0h/vIMu7NB/gFDf5w1A
+         iG6rbYSO+awO2A9wYv5eg63Ps+Y5dLC+BhfXA4PzGulO8aGOIXfwIBjBe2lqUEyuAwzj
+         lPt88kK56cblkKuVxZFq3VUAa5vJzq9Nlr6gSQO/Nu6Qyka28BXCui3n77n7tUOYhudI
+         wFfjlyXhuSOff+9AWgfkWUwReCUpcUoqgvlw5GG6awdBAWiNB77bYRJzVWGCe8GPm+XU
+         m8FQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=h1Ke7AAtpA4/OImtTh8DKGnHTItWnvrmNvbDulMMuok=;
-        b=0x6pjikmIw6KTwy744nJC2L8cfxnsxLIu0v+Y9bruZdpCFhnXLvgWeIEhHbXTYiNGV
-         kwn2TzL8KGwHakJSmu83+oFZO0wWx0mvwkSm9wRveYrujesBUxpEBVz4nu0IY62/qefs
-         DvkExwPfd3yZv3u5xgqziImh+1H2PW/QoSbAYGbgG6dYeJPvr7cbaVeV96872c6pEs4Z
-         jQdRAq6DY49tW/knByfjnyJ8Yc/Sys22brZ++lVaP+WQIlv6q35kzz2PlRizZIVHNwra
-         jTncrh2jaEPSbVhRjCUPHemagJvhJXMA3u6ABPhFHMVqztu97Pv/hYDeRTG/9THgGXnL
-         8SgQ==
+        bh=NqBVO5R0XuGW3x/8E/9/TCMLefdmlvLirtxCf81W2cc=;
+        b=L/wB2KnydxNUUmacRYp382/5ossSMrZP+D2p/T5aBZpL7W9XwLnZBS/cGsipxQtRL2
+         iSBgeDwQ8lHF1Uv1yAHpa5w1xB+9UjyX4EMOSq8zHG5LljsTs1y5vn6emejtnUzdck+z
+         t6PJxvaafVbkgHZ/eA2bNqdJ0hwqvU20uMGvPQOciG/4/D37MKvvocjW1AhhZygoezRZ
+         9ZavTPu/4tfDmqRAdQTRBD+hw2n0WFzBX4UGaD9J6fHHUXAWJpzTIz1ec67cM8Z8A7P5
+         93RESQiA2OtrrrE+Iqj83+Njmxl8oe1iV0oic+VjeX7xkTN2EL986D7CYKtsX1tLvz9+
+         MhNg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q124si13156410vkg.18.2019.07.25.13.45.15
+        by mx.google.com with ESMTPS id l5si19236670vke.36.2019.07.25.13.49.39
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 13:45:15 -0700 (PDT)
+        Thu, 25 Jul 2019 13:49:40 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 4B3FF307D84B;
-	Thu, 25 Jul 2019 20:45:14 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 17FFE308FBB4;
+	Thu, 25 Jul 2019 20:49:39 +0000 (UTC)
 Received: from [10.36.116.16] (ovpn-116-16.ams2.redhat.com [10.36.116.16])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 38902600D1;
-	Thu, 25 Jul 2019 20:45:00 +0000 (UTC)
-Subject: Re: [PATCH v2 4/5] mm: Introduce Hinted pages
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>,
- Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>,
- "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>,
- LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
- Andrew Morton <akpm@linux-foundation.org>,
- Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com,
- Rik van Riel <riel@surriel.com>,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com,
- wei.w.wang@intel.com, Andrea Arcangeli <aarcange@redhat.com>,
- Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com,
- Matthew Wilcox <willy@infradead.org>
-References: <20190724165158.6685.87228.stgit@localhost.localdomain>
- <20190724170259.6685.18028.stgit@localhost.localdomain>
- <a9f52894-52df-cd0c-86ac-eea9fbe96e34@redhat.com>
- <CAKgT0Ud-UNk0Mbef92hDLpWb2ppVHsmd24R9gEm2N8dujb4iLw@mail.gmail.com>
- <f0ac7747-0e18-5039-d341-5dfda8d5780e@redhat.com>
- <b3568a5422d0f6b88f7c5cb46577db1a43057c04.camel@linux.intel.com>
- <c200d5cf-90f7-9dca-5061-b6e0233ca089@redhat.com>
- <5f78cccab8273cb759538ef6e088886a507ce438.camel@linux.intel.com>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 7EA6119C68;
+	Thu, 25 Jul 2019 20:49:37 +0000 (UTC)
+Subject: Re: [PATCH v1] ACPI / scan: Acquire device_hotplug_lock in
+ acpi_scan_init()
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-acpi@vger.kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>,
+ Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <osalvador@suse.de>
+References: <20190724143017.12841-1-david@redhat.com>
+ <20190725125636.GA3582@dhcp22.suse.cz>
+ <6dc566c2-faf6-565d-4ef1-2ac3a366bc76@redhat.com>
+ <20190725135747.GB3582@dhcp22.suse.cz>
+ <447b74ca-f7c7-0835-fd50-a9f7191fe47c@redhat.com>
+ <20190725191943.GA6142@dhcp22.suse.cz>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -155,108 +146,114 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <c185af56-0c85-a84a-b7cf-bbb2b0bc6b5b@redhat.com>
-Date: Thu, 25 Jul 2019 22:44:54 +0200
+Message-ID: <e31882cf-3290-ea36-77d6-637eaf66fe77@redhat.com>
+Date: Thu, 25 Jul 2019 22:49:36 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <5f78cccab8273cb759538ef6e088886a507ce438.camel@linux.intel.com>
+In-Reply-To: <20190725191943.GA6142@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Thu, 25 Jul 2019 20:45:14 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.43]); Thu, 25 Jul 2019 20:49:39 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 25.07.19 22:37, Alexander Duyck wrote:
-> On Thu, 2019-07-25 at 20:32 +0200, David Hildenbrand wrote:
->> On 25.07.19 19:38, Alexander Duyck wrote:
->>> On Thu, 2019-07-25 at 18:48 +0200, David Hildenbrand wrote:
->>>> On 25.07.19 17:59, Alexander Duyck wrote:
->>>>> On Thu, Jul 25, 2019 at 1:53 AM David Hildenbrand <david@redhat.com> wrote:
->>>>>> On 24.07.19 19:03, Alexander Duyck wrote:
->>>>>>> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
->>>
->>> <snip>
->>>
->>>>>> Can't we reuse one of the traditional page flags for that, not used
->>>>>> along with buddy pages? E.g., PG_dirty: Pages that were not hinted yet
->>>>>> are dirty.
+On 25.07.19 21:19, Michal Hocko wrote:
+> On Thu 25-07-19 16:35:07, David Hildenbrand wrote:
+>> On 25.07.19 15:57, Michal Hocko wrote:
+>>> On Thu 25-07-19 15:05:02, David Hildenbrand wrote:
+>>>> On 25.07.19 14:56, Michal Hocko wrote:
+>>>>> On Wed 24-07-19 16:30:17, David Hildenbrand wrote:
+>>>>>> We end up calling __add_memory() without the device hotplug lock held.
+>>>>>> (I used a local patch to assert in __add_memory() that the
+>>>>>>  device_hotplug_lock is held - I might upstream that as well soon)
+>>>>>>
+>>>>>> [   26.771684]        create_memory_block_devices+0xa4/0x140
+>>>>>> [   26.772952]        add_memory_resource+0xde/0x200
+>>>>>> [   26.773987]        __add_memory+0x6e/0xa0
+>>>>>> [   26.775161]        acpi_memory_device_add+0x149/0x2b0
+>>>>>> [   26.776263]        acpi_bus_attach+0xf1/0x1f0
+>>>>>> [   26.777247]        acpi_bus_attach+0x66/0x1f0
+>>>>>> [   26.778268]        acpi_bus_attach+0x66/0x1f0
+>>>>>> [   26.779073]        acpi_bus_attach+0x66/0x1f0
+>>>>>> [   26.780143]        acpi_bus_scan+0x3e/0x90
+>>>>>> [   26.780844]        acpi_scan_init+0x109/0x257
+>>>>>> [   26.781638]        acpi_init+0x2ab/0x30d
+>>>>>> [   26.782248]        do_one_initcall+0x58/0x2cf
+>>>>>> [   26.783181]        kernel_init_freeable+0x1bd/0x247
+>>>>>> [   26.784345]        kernel_init+0x5/0xf1
+>>>>>> [   26.785314]        ret_from_fork+0x3a/0x50
+>>>>>>
+>>>>>> So perform the locking just like in acpi_device_hotplug().
 >>>>>
->>>>> Reusing something like the dirty bit would just be confusing in my
->>>>> opinion. In addition it looks like Xen has also re-purposed PG_dirty
->>>>> already for another purpose.
+>>>>> While playing with the device_hotplug_lock, can we actually document
+>>>>> what it is protecting please? I have a bad feeling that we are adding
+>>>>> this lock just because some other code path does rather than with a good
+>>>>> idea why it is needed. This patch just confirms that. What exactly does
+>>>>> the lock protect from here in an early boot stage.
 >>>>
->>>> You brought up waste page management. A dirty bit for unprocessed pages
->>>> fits perfectly in this context. Regarding XEN, as long as it's not used
->>>> along with buddy pages, no issue.
->>>
->>> I would rather not have to dirty all pages that aren't hinted. That starts
->>> to get too invasive. Ideally we only modify pages if we are hinting on
->>> them. That is why I said I didn't like the use of a dirty bit. What we
->>> want is more of a "guaranteed clean" bit.
->>
->> Not sure if that is too invasive, but fair enough.
->>
->>>> FWIW, I don't even thing PG_offline matches to what you are using it
->>>> here for. The pages are not logically offline. They were simply buddy
->>>> pages that were hinted. (I'd even prefer a separate page type for that
->>>> instead - if we cannot simply reuse one of the other flags)
+>>>> We have plenty of documentation already
 >>>>
->>>> "Offline pages" that are not actually offline in the context of the
->>>> buddy is way more confusing.
->>>
->>> Right now offline and hinted are essentially the same thing since the
->>> effect is identical.
->>
->> No they are not the same thing. Regarding virtio-balloon: You are free
->> to reuse any hinted pages immediate. Offline pages (a.k.a. inflated) you
->> might not generally reuse before deflating.
-> 
-> Okay, so it sounds like your perspective is a bit different than mine. I
-> was thinking of it from the perspective of the host OS where in either
-> case the guest has set the page as MADV_DONTNEED. You are looking at it
-> from the guest perspective where Offline means the guest cannot use it.
-> 
->>> There may be cases in the future where that is not the case, but with the
->>> current patch set they both result in the pages being evicted from the
->>> guest.
->>>
->>>>> If anything I could probably look at seeing if the PG_private flags
->>>>> are available when a page is in the buddy allocator which I suspect
->>>>> they probably are since the only users I currently see appear to be
->>>>> SLOB and compound pages. Either that or maybe something like PG_head
->>>>> might make sense since once we start allocating them we are popping
->>>>> the head off of the boundary list.
+>>>> mm/memory_hotplug.c
 >>>>
->>>> Would also be fine with me.
+>>>> git grep -C5 device_hotplug mm/memory_hotplug.c
+>>>>
+>>>> Also see
+>>>>
+>>>> Documentation/core-api/memory-hotplug.rst
 >>>
->>> Actually I may have found an even better bit if we are going with the
->>> "reporting" name. I could probably use "PG_uptodate" since it looks like
->>> most of its uses are related to filesystems. I will wait till I hear from
->>> Matthew on what bits would be available for use before I update things.
+>>> OK, fair enough. I was more pointing to a documentation right there
+>>> where the lock is declared because that is the place where people
+>>> usually check for documentation. The core-api documentation looks quite
+>>> nice. And based on that doc it seems that this patch is actually not
+>>> needed because neither the online/offline or cpu hotplug should be
+>>> possible that early unless I am missing something.
 >>
->> Also fine with me. In the optimal case we (in my opinion)
->> a) Don't reuse PG_offline
->> b) Don't use another page type
+>> I really prefer to stick to locking rules as outlined on the
+>> interfaces if it doesn't hurt. Why it is not needed is not clear.
+>>
+>>>
+>>>> Regarding the early stage: primarily lockdep as I mentioned.
+>>>
+>>> Could you add a lockdep splat that would be fixed by this patch to the
+>>> changelog for reference?
+>>>
+>>
+>> I have one where I enforce what's documented (but that's of course not
+>> upstream and therefore not "real" yet)
 > 
-> That is fine. I just need to determine the exact flag to use then. I'll do
-> some more research and wait to see if anyone else from MM comunity has
-> input or suggestions on the page flag to be used. From what I can tell it
-> looks like there are a bunch of flag bits that are unused as far as the
-> buddy pages are concerned so I should have a few to choose from.
+> Then I suppose to not add locking for something that is not a problem.
+> Really, think about it. People will look at this code and follow the
+> lead without really knowing why the locking is needed.
+> device_hotplug_lock has its purpose and if the code in question doesn't
+> need synchronization for the documented scenarios then the locking
+> simply shouldn't be there. Adding the lock just because of a
+> non-existing, and IMHO dubious, lockdep splats is just wrong.
+> 
+> We need to rationalize the locking here, not to add more hacks.
 
-Right, and I would favor that - at least less hacking with the
-kexec/kdump interface :)
+No, sorry. The real hack is calling a function that is *documented* to
+be called under lock without it. That is an optimization for a special
+case. That is the black magic in the code.
 
-You can then go ahead and add
+The only alternative I see to this patch is adding a comment like
 
-PG_hinted or PG_reported = PG_*younameit* and properly document how it
-is being used along with PageBuddy() only.
+/*
+ * We end up calling __add_memory() without the device_hotplug_lock
+ * held. This is fine as we cannot race with other hotplug activities
+ * and userspace trying to online memory blocks.
+ */
+
+Personally, I don't think that's any better than just grabbing the lock
+as we are told to. (honestly, I don't see how optimizing away the lock
+here is of *any* help to optimize our overall memory hotplug locking)
+
+@Rafael, what's your take? lock or comment?
 
 -- 
 
