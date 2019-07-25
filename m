@@ -2,126 +2,113 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_2 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EB268C76190
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 18:44:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6DAD4C76190
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 18:52:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A5AB222BEF
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 18:44:56 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1BE7921901
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 18:52:53 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="tJBS9eBY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A5AB222BEF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="fk5PxdqX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1BE7921901
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B5556B0008; Thu, 25 Jul 2019 14:44:56 -0400 (EDT)
+	id BC7DE6B0006; Thu, 25 Jul 2019 14:52:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 366AE6B0269; Thu, 25 Jul 2019 14:44:56 -0400 (EDT)
+	id B78C66B0007; Thu, 25 Jul 2019 14:52:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 255CF8E0002; Thu, 25 Jul 2019 14:44:56 -0400 (EDT)
+	id A3E658E0002; Thu, 25 Jul 2019 14:52:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E3BD46B0008
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 14:44:55 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id e95so26795653plb.9
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 11:44:55 -0700 (PDT)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 82EF16B0006
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 14:52:52 -0400 (EDT)
+Received: by mail-vs1-f69.google.com with SMTP id v20so13552899vsi.12
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 11:52:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=p7anoNZvbE1SmPE7vSkzLr+EkemuOAJ6vumDZVqMY6I=;
-        b=TZv53C9u4VM045c7ymhTC++P/v2W1EaNOLYSwhLPwRj3nriasgp12UyxV0l5rvn0DZ
-         Dla4Zi6T8rbjdHI7eUahGDjIdEDVTD46UYvNIwVXC87kWmZflA05E6NGCRNffGThoWWG
-         WXALz1KTJRmLmH10Nt9XM7GLje9s1f276gg7WLhxwUJKzgmSk47RMdWK+0Un6zxe4+uU
-         4b7FJPfB02jGqWhjR2J+54rk5ILvgH4Pg1/AlvDaaNqwDYuyiv7/fA6AfeOjsZRhr52M
-         xsfl/V1Ckp7Tst9NMzeB1vu6qiTdZ2zKmfje8G73dTmau8j6FTUroiB/jfNGwDp5OSYj
-         v5Hw==
-X-Gm-Message-State: APjAAAWeIKZHvcot5uD3A1UHVW8LqN+Qv+iGW6Gcw9IPHIWuqKtAcwrw
-	arYI2M1TNpJUCe2ti91RjIkBm2iEB9UAFWe7DO3b/WSz8UOTpZt9cd5YMzo0JQLTknUWacXw+c3
-	wV0gGgxQ/Gg4CLAsig3YK+HN/Z6sR8QixMjg3mJL61A+0TW/AJUym6pCNfpAOF+2wpA==
-X-Received: by 2002:a65:4189:: with SMTP id a9mr60778674pgq.399.1564080295520;
-        Thu, 25 Jul 2019 11:44:55 -0700 (PDT)
-X-Received: by 2002:a65:4189:: with SMTP id a9mr60778626pgq.399.1564080294312;
-        Thu, 25 Jul 2019 11:44:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564080294; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:mime-version:content-transfer-encoding;
+        bh=w30g8iTJZ+UU2qLPrb+evOZb5z9OWHBiOGbGq1jemNU=;
+        b=lRRTofUIhFLQzh8jR4foisKPbnulhskMtVk0VQjEzxqZu5vj3YlRZZAfFs7/DOqxuK
+         SnadMLtOcWOxEml/nqoyoZjzrQkxrlN1FFFAS2sM3LokkgPQ6W+uJVfVhiz1KflW1J3y
+         ZL8R9OBKJyQQtNwytAIvHyDF15ewleJXhfQBKLQ9aOTiNPJW/JLIzwb75fBuq+1nBj7r
+         NsqFV4slMNVMQsRhJoBDtsaC57BvPaKCQ5X69SeTwJgQmoJXjQro6ij4D52x3eF88cyt
+         cV01B8N8qziyh1hIUA3qkHY/Q2+X3O3DkIopDqyVkYiK6VgIx/lcK9LKeWqp9Pdasf6I
+         tHRg==
+X-Gm-Message-State: APjAAAXxosYp08bz0LKFsuxUVeUtebCg7b4FUfaXHP8zWc2mKW5xXPy4
+	qQsVgG9C0Q+yRhndwJka0UyGL3EkrpBcBvdyExhO81wjnUyKXob1omcF1sC6vjWcl75LVOM4GQ/
+	bB9kgT41pliQu38tA+lO0YlcoPcjBV8eIwA7+7xeudtYDweQbFaT0QJWpqo3wPpUueg==
+X-Received: by 2002:a67:ff0b:: with SMTP id v11mr23873476vsp.14.1564080772206;
+        Thu, 25 Jul 2019 11:52:52 -0700 (PDT)
+X-Received: by 2002:a67:ff0b:: with SMTP id v11mr23873416vsp.14.1564080771556;
+        Thu, 25 Jul 2019 11:52:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564080771; cv=none;
         d=google.com; s=arc-20160816;
-        b=QMRlXtImTJBLSVGTRavWD7b5cvfdWAGRWNIEAYfvMQmHYVKQU5J+oyJ/kSVR29wGbq
-         sUgbtToEQkVnyUI0H3u3OCb67hGO7wVpRLjJ20fLBClYFBcoImC03nGNVACAJx3umrSK
-         X+sMnMRKCkuTemaFlqqoPR6ICzlR8THifeqXP4Gu39rd//OH9RE1f8s01IKH0L6WUADK
-         8S/J3ROvMol8MGTz7uV/TrH/M9zNpEH06v8+0rfiAfjWOYP6eCdUrB2OtSA05UnF/Ibn
-         mCtEe8ABMYIqK/3RDVAmyGQ0IU8K6l8wFuI5kckc80g9OW3ACz/cGVsWDabxF3NoThgf
-         TjkA==
+        b=BsTRTX8lWqII49JJ6Es/21OuyGAz9Mj5rSmFAGNXeDPDSpviagy2E1i5xCzKSVANwO
+         GY31DXD5XZaKvwQgfeTTVlaWP04gfGriMmOhaXzsR5g78V11V41MfkmSxK74plD9UfOY
+         hbsYZm2XAM89I3QCvtnb1+j8MfaFD+RfYnSj27sy7KoqMqvK2lg1wHNK9tH2+gLQ66Tp
+         fg6rHVV3aqbYLn8dTOhxtIxpzDSek17dpYBwqXzsR6UGfNDKjgbKHqVK5LwGPEOqgQ3S
+         p/iB2A8Lrc1If/9eGJq52G895RZKXbAoI0LayD+7dZYQBYFkXvgveoeWvfCJHYoL55jU
+         rZ4Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=p7anoNZvbE1SmPE7vSkzLr+EkemuOAJ6vumDZVqMY6I=;
-        b=EuA9JWDcMPWmv1yRjcwLHaPNXFB88DJ/++j4I0G+Yg2o+l/opZPW9wJ9e4k/hrcb6j
-         9B77sXbHeNHBi33HGl0gROcec4cunZG5/XUlddF8FCWwmTMi4RzBa531Hend/t6eaUK3
-         IcuK7fH6k5OJUJw/G9sz4CQNf6MPgbAEVKiuMfEYVMjcudhs3OlmvkabT/tJkhzaFL+i
-         zIMXB5Kctl26jjIUYKABn8vmhJ9JdTmWuzZG21FVgtN88EigJqcw8TDru/7EdGNiCEE+
-         N1TTzDZ/O4K/T6UObhAF0VEScS1L8IMEPme79F7wGSN8Rw8F5bSQOFrEHikHQITc31g4
-         m4Jg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to:date
+         :cc:to:from:subject:message-id:dkim-signature;
+        bh=w30g8iTJZ+UU2qLPrb+evOZb5z9OWHBiOGbGq1jemNU=;
+        b=MK6VXlLkS+OfuMJXJ0381oZe6p1UeEDORlXnBNkZKh2Im5e5tFJqvXd1k5W5hzqbbN
+         FeC9pWK/kt3x2xpH3MQn5u8Kn6+FIbtBBA11+XD+a0Pzq5fqKyEaDNdES3duSS/7fBkC
+         1UqQmgZM+cRNkqRWI9ICFz1SnbmkJ7LB2BiBrMJCI0+ZFxUPEzKAieUawvB8knA7RudB
+         iKyvmismf0PSPOxUPFKEDw4E41AHhkTKLKWgVI0VuT7AyN0uTWPv5jQADJRX9D5IvAqQ
+         axd+dEjK6c7vxDrR/vNqKQtyDO5r8MHIZq7mFi6trpr5JxJinF5bYfDwyekMTCX2J8iS
+         2yQA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tJBS9eBY;
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=fk5PxdqX;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g85sor31819079pfb.62.2019.07.25.11.44.54
+        by mx.google.com with SMTPS id 53sor24629658uae.55.2019.07.25.11.52.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 25 Jul 2019 11:44:54 -0700 (PDT)
-Received-SPF: pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 25 Jul 2019 11:52:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=tJBS9eBY;
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=fk5PxdqX;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
+        d=lca.pw; s=google;
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=p7anoNZvbE1SmPE7vSkzLr+EkemuOAJ6vumDZVqMY6I=;
-        b=tJBS9eBYwj5uFnvpYiOFMVcvakA/gNlpWBLT8ABmrbAMIlcvS5T5oRS5m3dKEQ25Bl
-         8AusFNV4/jIOLj3fBavzY82wfCx5RoXf+dE20Nnnt0xXpvKquTSMiItJLWgEOoXsjt7Y
-         ehfj3CQf43o371r/d1vAi+eeSeWV++2ZZLt+1LdWwluIeWLw4/IzgQy0a4pGLmLGhYiP
-         IwGkgvsELiIEgxhha6sbuvNuy18XtzADZ4I90Aa5Rn1QRu8q7RPpr/KsyDRof+JXMBOT
-         J1XUbuzl4K3hgKDfOEBKjMXC1MSMvMyfGeUljO6JpN+OJqdSyd/zp5ddzuqhZmKN42C2
-         kfFw==
-X-Google-Smtp-Source: APXvYqwZbtVPZxFGTdpe3wuAozXuab4sqkGSpbGjI1Hce0XSqcULaSlK3GMHEQ89iHU3g+UWizUZYQ==
-X-Received: by 2002:a62:1444:: with SMTP id 65mr17795430pfu.145.1564080293985;
-        Thu, 25 Jul 2019 11:44:53 -0700 (PDT)
-Received: from localhost.localdomain.localdomain ([2408:823c:c11:624:b8c3:8577:bf2f:3])
-        by smtp.gmail.com with ESMTPSA id w3sm43818257pgl.31.2019.07.25.11.44.46
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 25 Jul 2019 11:44:53 -0700 (PDT)
-From: Pengfei Li <lpf.vector@gmail.com>
-To: akpm@linux-foundation.org
-Cc: mgorman@techsingularity.net,
-	mhocko@suse.com,
-	vbabka@suse.cz,
-	cai@lca.pw,
-	aryabinin@virtuozzo.com,
-	osalvador@suse.de,
-	rostedt@goodmis.org,
-	mingo@redhat.com,
-	pavel.tatashin@microsoft.com,
-	rppt@linux.ibm.com,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	Pengfei Li <lpf.vector@gmail.com>
-Subject: [PATCH 10/10] mm/vmscan: use unsigned int for "kswapd_order" in struct pglist_data
-Date: Fri, 26 Jul 2019 02:42:53 +0800
-Message-Id: <20190725184253.21160-11-lpf.vector@gmail.com>
-X-Mailer: git-send-email 2.21.0
+        bh=w30g8iTJZ+UU2qLPrb+evOZb5z9OWHBiOGbGq1jemNU=;
+        b=fk5PxdqXwDMPwORg3XCxFG7uAIyVeAxzjCVFr+xY1GzC38VvJWux97NE9QX+CMxCWT
+         dW04AcGMPDsLPV36Mle3sHH8SfBxjOIw/qUNl8V7ZhAGicnLTjfSfmoBiocxOZZg4bsX
+         GueHeMwj15Cu7ORpM8BNUmrifrXhJs/fxE9WQyPlh1AHJW8e1ZDTzDFM3b2Y8A8cZ5Ee
+         Zym/8PjXzAcatIUnO7Fm1FMiiuJMEr9QWCVp9O3lKHrMoKEn4pG7flqM/1RgO/i7Tp5H
+         NB1nrOVWLfVvMaxoRs94O2pNu7mq8vhq1LjdJr0p7wEW5WxeQ6k84EitR4kgT4ZHfBrk
+         8fPg==
+X-Google-Smtp-Source: APXvYqzR+uo0BYzmmM09fGdkgM3r83aj04Jvid8uh+HP6b+ewHzxQIVEd/JNaC3+NAmqGGBGmAZ9Hg==
+X-Received: by 2002:a9f:2269:: with SMTP id 96mr55944133uad.80.1564080771058;
+        Thu, 25 Jul 2019 11:52:51 -0700 (PDT)
+Received: from dhcp-41-57.bos.redhat.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id l20sm15288616vkl.2.2019.07.25.11.52.49
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Jul 2019 11:52:50 -0700 (PDT)
+Message-ID: <1564080768.11067.22.camel@lca.pw>
+Subject: Re: [PATCH 00/10] make "order" unsigned int
+From: Qian Cai <cai@lca.pw>
+To: Pengfei Li <lpf.vector@gmail.com>, akpm@linux-foundation.org
+Cc: mgorman@techsingularity.net, mhocko@suse.com, vbabka@suse.cz, 
+ aryabinin@virtuozzo.com, osalvador@suse.de, rostedt@goodmis.org,
+ mingo@redhat.com,  pavel.tatashin@microsoft.com, rppt@linux.ibm.com,
+ linux-kernel@vger.kernel.org,  linux-mm@kvack.org
+Date: Thu, 25 Jul 2019 14:52:48 -0400
 In-Reply-To: <20190725184253.21160-1-lpf.vector@gmail.com>
 References: <20190725184253.21160-1-lpf.vector@gmail.com>
-MIME-Version: 1.0
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.22.6 (3.22.6-10.el7) 
+Mime-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -129,134 +116,73 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Because "kswapd_order" will never be negative, so just make it
-unsigned int. And modify wakeup_kswapd(), kswapd_try_to_sleep()
-and trace_mm_vmscan_kswapd_wake() accordingly.
+On Fri, 2019-07-26 at 02:42 +0800, Pengfei Li wrote:
+> Objective
+> ----
+> The motivation for this series of patches is use unsigned int for
+> "order" in compaction.c, just like in other memory subsystems.
 
-Besides, make "order" unsigned int in two related trace functions.
+I suppose you will need more justification for this change. Right now, I don't
+see much real benefit apart from possibly introducing more regressions in those
+tricky areas of the code. Also, your testing seems quite lightweight.
 
-Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
----
- include/linux/mmzone.h            |  4 ++--
- include/trace/events/compaction.h | 10 +++++-----
- include/trace/events/vmscan.h     |  4 ++--
- mm/vmscan.c                       |  6 +++---
- 4 files changed, 12 insertions(+), 12 deletions(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index 60bebdf47661..1196ed0cee67 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -717,7 +717,7 @@ typedef struct pglist_data {
- 	wait_queue_head_t pfmemalloc_wait;
- 	struct task_struct *kswapd;	/* Protected by
- 					   mem_hotplug_begin/end() */
--	int kswapd_order;
-+	unsigned int kswapd_order;
- 	enum zone_type kswapd_classzone_idx;
- 
- 	int kswapd_failures;		/* Number of 'reclaimed == 0' runs */
-@@ -802,7 +802,7 @@ static inline bool pgdat_is_empty(pg_data_t *pgdat)
- #include <linux/memory_hotplug.h>
- 
- void build_all_zonelists(pg_data_t *pgdat);
--void wakeup_kswapd(struct zone *zone, gfp_t gfp_mask, int order,
-+void wakeup_kswapd(struct zone *zone, gfp_t gfp_mask, unsigned int order,
- 		   enum zone_type classzone_idx);
- bool __zone_watermark_ok(struct zone *z, unsigned int order, unsigned long mark,
- 			 int classzone_idx, unsigned int alloc_flags,
-diff --git a/include/trace/events/compaction.h b/include/trace/events/compaction.h
-index f83ba40f9614..34a9fac3b4d6 100644
---- a/include/trace/events/compaction.h
-+++ b/include/trace/events/compaction.h
-@@ -314,13 +314,13 @@ TRACE_EVENT(mm_compaction_kcompactd_sleep,
- 
- DECLARE_EVENT_CLASS(kcompactd_wake_template,
- 
--	TP_PROTO(int nid, int order, enum zone_type classzone_idx),
-+	TP_PROTO(int nid, unsigned int order, enum zone_type classzone_idx),
- 
- 	TP_ARGS(nid, order, classzone_idx),
- 
- 	TP_STRUCT__entry(
- 		__field(int, nid)
--		__field(int, order)
-+		__field(unsigned int, order)
- 		__field(enum zone_type, classzone_idx)
- 	),
- 
-@@ -330,7 +330,7 @@ DECLARE_EVENT_CLASS(kcompactd_wake_template,
- 		__entry->classzone_idx = classzone_idx;
- 	),
- 
--	TP_printk("nid=%d order=%d classzone_idx=%-8s",
-+	TP_printk("nid=%d order=%u classzone_idx=%-8s",
- 		__entry->nid,
- 		__entry->order,
- 		__print_symbolic(__entry->classzone_idx, ZONE_TYPE))
-@@ -338,14 +338,14 @@ DECLARE_EVENT_CLASS(kcompactd_wake_template,
- 
- DEFINE_EVENT(kcompactd_wake_template, mm_compaction_wakeup_kcompactd,
- 
--	TP_PROTO(int nid, int order, enum zone_type classzone_idx),
-+	TP_PROTO(int nid, unsigned int order, enum zone_type classzone_idx),
- 
- 	TP_ARGS(nid, order, classzone_idx)
- );
- 
- DEFINE_EVENT(kcompactd_wake_template, mm_compaction_kcompactd_wake,
- 
--	TP_PROTO(int nid, int order, enum zone_type classzone_idx),
-+	TP_PROTO(int nid, unsigned int order, enum zone_type classzone_idx),
- 
- 	TP_ARGS(nid, order, classzone_idx)
- );
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index c37e2280e6dd..13c214f3750b 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -74,7 +74,7 @@ TRACE_EVENT(mm_vmscan_kswapd_wake,
- 
- TRACE_EVENT(mm_vmscan_wakeup_kswapd,
- 
--	TP_PROTO(int nid, int zid, int order, gfp_t gfp_flags),
-+	TP_PROTO(int nid, int zid, unsigned int order, gfp_t gfp_flags),
- 
- 	TP_ARGS(nid, zid, order, gfp_flags),
- 
-@@ -92,7 +92,7 @@ TRACE_EVENT(mm_vmscan_wakeup_kswapd,
- 		__entry->gfp_flags	= gfp_flags;
- 	),
- 
--	TP_printk("nid=%d order=%d gfp_flags=%s",
-+	TP_printk("nid=%d order=%u gfp_flags=%s",
- 		__entry->nid,
- 		__entry->order,
- 		show_gfp_flags(__entry->gfp_flags))
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index f4fd02ae233e..9d98a2e5f736 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -3781,8 +3781,8 @@ static enum zone_type kswapd_classzone_idx(pg_data_t *pgdat,
- 	return pgdat->kswapd_classzone_idx;
- }
- 
--static void kswapd_try_to_sleep(pg_data_t *pgdat, int alloc_order, int reclaim_order,
--				unsigned int classzone_idx)
-+static void kswapd_try_to_sleep(pg_data_t *pgdat, unsigned int alloc_order,
-+			unsigned int reclaim_order, unsigned int classzone_idx)
- {
- 	long remaining = 0;
- 	DEFINE_WAIT(wait);
-@@ -3956,7 +3956,7 @@ static int kswapd(void *p)
-  * has failed or is not needed, still wake up kcompactd if only compaction is
-  * needed.
-  */
--void wakeup_kswapd(struct zone *zone, gfp_t gfp_flags, int order,
-+void wakeup_kswapd(struct zone *zone, gfp_t gfp_flags, unsigned int order,
- 		   enum zone_type classzone_idx)
- {
- 	pg_data_t *pgdat;
--- 
-2.21.0
+> 
+> In addition, did some cleanup about "order" in page_alloc
+> and vmscan.
+> 
+> 
+> Description
+> ----
+> Directly modifying the type of "order" to unsigned int is ok in most
+> places, because "order" is always non-negative.
+> 
+> But there are two places that are special, one is next_search_order()
+> and the other is compact_node().
+> 
+> For next_search_order(), order may be negative. It can be avoided by
+> some modifications.
+> 
+> For compact_node(), order = -1 means performing manual compaction.
+> It can be avoided by specifying order = MAX_ORDER.
+> 
+> Key changes in [PATCH 05/10] mm/compaction: make "order" and
+> "search_order" unsigned.
+> 
+> More information can be obtained from commit messages.
+> 
+> 
+> Test
+> ----
+> I have done some stress testing locally and have not found any problems.
+> 
+> In addition, local tests indicate no performance impact.
+> 
+> 
+> Pengfei Li (10):
+>   mm/page_alloc: use unsigned int for "order" in should_compact_retry()
+>   mm/page_alloc: use unsigned int for "order" in __rmqueue_fallback()
+>   mm/page_alloc: use unsigned int for "order" in should_compact_retry()
+>   mm/page_alloc: remove never used "order" in alloc_contig_range()
+>   mm/compaction: make "order" and "search_order" unsigned int in struct
+>     compact_control
+>   mm/compaction: make "order" unsigned int in compaction.c
+>   trace/events/compaction: make "order" unsigned int
+>   mm/compaction: use unsigned int for "compact_order_failed" in struct
+>     zone
+>   mm/compaction: use unsigned int for "kcompactd_max_order" in struct
+>     pglist_data
+>   mm/vmscan: use unsigned int for "kswapd_order" in struct pglist_data
+> 
+>  include/linux/compaction.h        |  30 +++----
+>  include/linux/mmzone.h            |   8 +-
+>  include/trace/events/compaction.h |  40 +++++-----
+>  include/trace/events/kmem.h       |   6 +-
+>  include/trace/events/oom.h        |   6 +-
+>  include/trace/events/vmscan.h     |   4 +-
+>  mm/compaction.c                   | 127 +++++++++++++++---------------
+>  mm/internal.h                     |   6 +-
+>  mm/page_alloc.c                   |  16 ++--
+>  mm/vmscan.c                       |   6 +-
+>  10 files changed, 126 insertions(+), 123 deletions(-)
+> 
 
