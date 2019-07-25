@@ -2,335 +2,245 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30E8BC76190
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 18:26:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CF63BC41517
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 18:33:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DC699216C8
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 18:26:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC699216C8
+	by mail.kernel.org (Postfix) with ESMTP id 89FA222BEF
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 18:33:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 89FA222BEF
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 831306B0006; Thu, 25 Jul 2019 14:26:06 -0400 (EDT)
+	id 210B66B0003; Thu, 25 Jul 2019 14:33:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E3406B0007; Thu, 25 Jul 2019 14:26:06 -0400 (EDT)
+	id 1C0EC8E0003; Thu, 25 Jul 2019 14:33:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6A90A8E0002; Thu, 25 Jul 2019 14:26:06 -0400 (EDT)
+	id 088CA8E0002; Thu, 25 Jul 2019 14:33:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 484376B0006
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 14:26:06 -0400 (EDT)
-Received: by mail-ua1-f70.google.com with SMTP id d1so5438270uak.23
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 11:26:06 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DAD186B0003
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 14:33:05 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id z13so43148732qka.15
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 11:33:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-transfer-encoding
-         :content-language;
-        bh=J3+CidwfAYkBITCE3PZ8hU5n6b9+EFq8j/Gwsz5dpaI=;
-        b=Pw2c50DMItsBR33G9JOrwfIhRrCffqWEYYPMUPPwclAwA3t5n23bxIKJsO66FxbTz1
-         ksfnJuwPOALKocncC810510UgGzv84Goow63xhFXkognGI2XX3u06B5aa2H7JW5TxgFt
-         lCWl3L/hLkU1hQBW6XRjLbD0+wRxyDUX7/HnsaLezv6yDCe9djCq7XC7PHj5/XG3Fi69
-         qWfcPtK94WZWMx6T5/kAF5m8KpgyBy1Vn7fpcZMqMo2/MiwdPXCtdBJ6/dG/7tQyjsCh
-         3sCYiD6NVEkLA3LzlNiyJwbIxITY/M5asrsb31PZh00Dry4F/0VKvMQl2ifxbEM2xNK9
-         3BMA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXq8EkusjFrZju+nWcxSpWRe2VrGEvC4Hrt33pYKFISPzy21Z7b
-	Aaj24ry6EEPeUQaNE5yFcbRCQY8PCG2uOcwtY6MiXYt3FHJexJSC1D8LpMfY9d5/3MqBIOiM3tV
-	1JhJNYojlH47G+Lj6KNimbpLrO22i6ECUbCeUqWntQLpmEUDN4RjKlVxk9L+PJCP3GA==
-X-Received: by 2002:ab0:3159:: with SMTP id e25mr8213152uam.81.1564079166008;
-        Thu, 25 Jul 2019 11:26:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxnxHvFsiMlk2UIJUhTH881phzDs5+vtx9XISHi+PQq/AwwCynX9fE539SWdhCKJIkQZdD7
-X-Received: by 2002:ab0:3159:: with SMTP id e25mr8213066uam.81.1564079165142;
-        Thu, 25 Jul 2019 11:26:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564079165; cv=none;
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=sXXIMYIo2bd+TRQq8Hnay+P0i/dC8N+OflRpvTIGX5Q=;
+        b=Sl1rZwwvn9/tV1sEduNmdbhAHoJU7sNEFe3jaNXAJWMqCztYUFkVrK8Sx3ufVAAT9D
+         qVcVNnx+mdqSiEtnKV3gu3YiJZkSC/T0ITrlalmXd9D+tACCOdRK+fG9unB/h7dvYl0i
+         nyTHpDLR/S1CmCWDJKlbhxSYvfjhdiHjo0i8FaZDQkS/Jk0AOADeCe0y1NKBqmiwrFMl
+         tVPodGs8QYavGXl8XP4K5Ebkmtbe4UXDsDTcdG499jZvxXbY/beJwO6zf2wM21spejOv
+         rvdxGB/OafGt5inf59EqYhbWLnEnqWHVHH0cS2jxN8V1zDq+j7hdNtmwmQVaCChU5JgL
+         GgLw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVtkUngwIa/07HmTcuueHFugnOFQaEPLTkGXHp+y3bFeYwEseuS
+	3bA5Po8TzBnJBS++zqYkVzWmUnQvTgmjulhF5emWFdU5wbCGSSLkmiYO7j1j7u9BmTgR9Ygyvmm
+	qeXgHK6s8IWRLKop5606NsMy+ONCMz5j6GvQJQdbAOjkzvjvj7utcM0FDNHz1t1JEdw==
+X-Received: by 2002:a0c:c96a:: with SMTP id v39mr63592410qvj.121.1564079585635;
+        Thu, 25 Jul 2019 11:33:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwO7MuQyCAkMc0j9YMWqcNla9LRRhYKT4lHkmaAZtMs6LebFrT3gmLkWM1W6fqCQyNECuuu
+X-Received: by 2002:a0c:c96a:: with SMTP id v39mr63592373qvj.121.1564079585007;
+        Thu, 25 Jul 2019 11:33:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564079585; cv=none;
         d=google.com; s=arc-20160816;
-        b=PFsrn8yVXSX7fwoz+ndkKerbIpEsvRNAdvcUz4c+Quh+BfbLP2wQhRGVgFJ7b17uSG
-         CAH1+JxkhVcvvtvdEMGB63D/9/LoqVJSJb3QsQuRopRXKjfwBH+UlJDyLNkz7XYgVkBO
-         wKcZUh2NLf2daWHdPG2LLPa91kXFTwTVBYjCOI9Imw+Zl9+ojK+k4N7p+Qn5LwOLWJbf
-         yX7QA4NG0wCNkediDkNT0/hERw2smct+H93Jyx09WZ9kAMgm0CN4ri8kwvtvFJoWBLJO
-         QlegpAD7AIRsmz9bSmhiflFE4WsA9nicrZWKm0b+Ez8WvCfOjCzqxX80JBkD2f6e7msU
-         B2Fw==
+        b=P9oDYHe+GVDfUXddaKIHjGvlvW9a0fwg+X7ny1CuZ6fjJfe/GN8HPtjMk739KNJT0n
+         pGh5Ls2wK6NBCNNQBcqySPi+zfaLDobUB3gsEC79ztG9gBGKjFtTqP8teHV5G807W2mj
+         VpUTw1JHqGfB3nkr0sL7Cam1ibkOyDM9TJvt0xR3esXKq/5PnYtU+bvbRjlP4Sgx5yTb
+         QntZZRXdJAQoKaFP5rnlEHw7H7f+1Ydu+QS4OQ6Q63oSEwhGX/j+vj74q9suWeHyjwnV
+         5NttCAzEA4a26XXENpxbekpibTaVTDsG4vXJ56IRVFOsSs8y9kDIX0tQhsuZMVBHSe+8
+         1pjQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=J3+CidwfAYkBITCE3PZ8hU5n6b9+EFq8j/Gwsz5dpaI=;
-        b=0++3OvVeEdjRZwZ5L76z0x6iFwVOvhPnlUtp8OwgqnXp9XrZLa8PYhTdiSE9mkdMjY
-         UNEp53E7BtFsyR/N6OsJGtjFLdX1JuBQWACU3+9OQ1siqtTh0t2kJE3D/c//gPaJ8Vrd
-         F30b7jZInfFXetm0KKRiV5T5BsKiYc1uvaTb15kv4dYJv11cmWMUc0el2VvYD25ZzOqx
-         Fw3hz0IvdOfyQ9wGe4PQS4XDFU0ectE6G5ri0ZOBKWOhLd/ccR9981h3VP/iOYauJBQI
-         Oj4V5jopp5jGATjmiB0VUwS6psG4NLtRFRKJL+Z31Rd3dKhMudyfC8SBwxtvSX+jX0QF
-         USoA==
+        bh=sXXIMYIo2bd+TRQq8Hnay+P0i/dC8N+OflRpvTIGX5Q=;
+        b=IvQ0Yb3n4Fne8JUPVUp+Nrh2wiIRG84iX/FQrcRUcVGElKVqAyJXiZYhnZBFYUgFxZ
+         R8Dj0rZF0MKSnKlFZEMzu45J8uGUlM5spXPi5DUrpQ2cBQIr9h3uNhbsz5/Iazf3VuFi
+         I8O8S3U/x5046PStQpTZf0qYA7ainH92vgOyq9KwP6acmxH1Ninx1F7m/sI9lCsaZjFy
+         Bc44fA/dLs4Sb3vtXViDGKD520XKwTmbvC4on/OWE7v1Vu26OjxfhEtnqI9K0grP6w+Z
+         eZlY6nNelZUrM4g9V2xj9ojKwjhabxe4JoEYUXRmPrv6F66MyFweG6PFHInzRFPlckTk
+         gPJA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m4si10178135vsd.38.2019.07.25.11.26.04
+        by mx.google.com with ESMTPS id v37si33083831qtk.200.2019.07.25.11.33.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 11:26:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 25 Jul 2019 11:33:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 2C26D30001D8;
-	Thu, 25 Jul 2019 18:26:04 +0000 (UTC)
-Received: from [10.18.17.163] (dhcp-17-163.bos.redhat.com [10.18.17.163])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id CD0165E1B0;
-	Thu, 25 Jul 2019 18:25:53 +0000 (UTC)
-Subject: Re: [PATCH v2 QEMU] virtio-balloon: Provide a interface for "bubble
- hinting"
+	by mx1.redhat.com (Postfix) with ESMTPS id 1878459440;
+	Thu, 25 Jul 2019 18:33:04 +0000 (UTC)
+Received: from [10.36.116.69] (ovpn-116-69.ams2.redhat.com [10.36.116.69])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 61F015C542;
+	Thu, 25 Jul 2019 18:32:51 +0000 (UTC)
+Subject: Re: [PATCH v2 4/5] mm: Introduce Hinted pages
 To: Alexander Duyck <alexander.h.duyck@linux.intel.com>,
- "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>, kvm@vger.kernel.org,
- david@redhat.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, akpm@linux-foundation.org, yang.zhang.wz@gmail.com,
- pagupta@redhat.com, riel@surriel.com, konrad.wilk@oracle.com,
- lcapitulino@redhat.com, wei.w.wang@intel.com, aarcange@redhat.com,
- pbonzini@redhat.com, dan.j.williams@intel.com
+ Alexander Duyck <alexander.duyck@gmail.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>,
+ "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>,
+ LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com,
+ Rik van Riel <riel@surriel.com>,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com,
+ wei.w.wang@intel.com, Andrea Arcangeli <aarcange@redhat.com>,
+ Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com,
+ Matthew Wilcox <willy@infradead.org>
 References: <20190724165158.6685.87228.stgit@localhost.localdomain>
- <20190724171050.7888.62199.stgit@localhost.localdomain>
- <20190724173403-mutt-send-email-mst@kernel.org>
- <ada4e7d932ebd436d00c46e8de699212e72fd989.camel@linux.intel.com>
- <fed474fe-93f4-a9f6-2e01-75e8903edd81@redhat.com>
- <bc162a5eaa58ac074c8ad20cb23d579aa04d0f43.camel@linux.intel.com>
- <20190725111303-mutt-send-email-mst@kernel.org>
- <96b1ac42dccbfbb5dd17210e6767ca2544558390.camel@linux.intel.com>
-From: Nitesh Narayan Lal <nitesh@redhat.com>
+ <20190724170259.6685.18028.stgit@localhost.localdomain>
+ <a9f52894-52df-cd0c-86ac-eea9fbe96e34@redhat.com>
+ <CAKgT0Ud-UNk0Mbef92hDLpWb2ppVHsmd24R9gEm2N8dujb4iLw@mail.gmail.com>
+ <f0ac7747-0e18-5039-d341-5dfda8d5780e@redhat.com>
+ <b3568a5422d0f6b88f7c5cb46577db1a43057c04.camel@linux.intel.com>
+From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
-Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- VujM7c/b4pps
-Organization: Red Hat Inc,
-Message-ID: <cc98f7c9-bcf8-79cb-54b7-de7c996f76e1@redhat.com>
-Date: Thu, 25 Jul 2019 14:25:52 -0400
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <c200d5cf-90f7-9dca-5061-b6e0233ca089@redhat.com>
+Date: Thu, 25 Jul 2019 20:32:50 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <96b1ac42dccbfbb5dd17210e6767ca2544558390.camel@linux.intel.com>
+In-Reply-To: <b3568a5422d0f6b88f7c5cb46577db1a43057c04.camel@linux.intel.com>
 Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
 Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Thu, 25 Jul 2019 18:26:04 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Thu, 25 Jul 2019 18:33:04 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On 7/25/19 12:16 PM, Alexander Duyck wrote:
-> On Thu, 2019-07-25 at 11:16 -0400, Michael S. Tsirkin wrote:
->> On Thu, Jul 25, 2019 at 08:05:30AM -0700, Alexander Duyck wrote:
->>> On Thu, 2019-07-25 at 07:35 -0400, Nitesh Narayan Lal wrote:
->>>> On 7/24/19 6:03 PM, Alexander Duyck wrote:
->>>>> On Wed, 2019-07-24 at 17:38 -0400, Michael S. Tsirkin wrote:
->>>>>> On Wed, Jul 24, 2019 at 10:12:10AM -0700, Alexander Duyck wrote:
->>>>>>> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
->>>>>>>
->>>>>>> Add support for what I am referring to as "bubble hinting". Basic=
-ally the
->>>>>>> idea is to function very similar to how the balloon works in that=
- we
->>>>>>> basically end up madvising the page as not being used. However we=
- don't
->>>>>>> really need to bother with any deflate type logic since the page =
-will be
->>>>>>> faulted back into the guest when it is read or written to.
->>>>>>>
->>>>>>> This is meant to be a simplification of the existing balloon inte=
-rface
->>>>>>> to use for providing hints to what memory needs to be freed. I am=
- assuming
->>>>>>> this is safe to do as the deflate logic does not actually appear =
-to do very
->>>>>>> much other than tracking what subpages have been released and whi=
-ch ones
->>>>>>> haven't.
->>>>>>>
->>>>>>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com=
->
->>>>>> BTW I wonder about migration here.  When we migrate we lose all hi=
-nts
->>>>>> right?  Well destination could be smarter, detect that page is ful=
-l of
->>>>>> 0s and just map a zero page. Then we don't need a hint as such - b=
-ut I
->>>>>> don't think it's done like that ATM.
->>>>> I was wondering about that a bit myself. If you migrate with a ball=
-oon
->>>>> active what currently happens with the pages in the balloon? Do you=
-
->>>>> actually migrate them, or do you ignore them and just assume a zero=
- page?
->>>>> I'm just reusing the ram_block_discard_range logic that was being u=
-sed for
->>>>> the balloon inflation so I would assume the behavior would be the s=
-ame.
->>>> I agree, however, I think it is worth investigating to see if enabli=
-ng hinting
->>>> adds some sort of overhead specifically in this kind of scenarios. W=
-hat do you
->>>> think?
->>> I suspect that the hinting/reporting would probably improve migration=
-
->>> times based on the fact that from the sound of things it would just b=
-e
->>> migrated as a zero page.
+On 25.07.19 19:38, Alexander Duyck wrote:
+> On Thu, 2019-07-25 at 18:48 +0200, David Hildenbrand wrote:
+>> On 25.07.19 17:59, Alexander Duyck wrote:
+>>> On Thu, Jul 25, 2019 at 1:53 AM David Hildenbrand <david@redhat.com> wrote:
+>>>> On 24.07.19 19:03, Alexander Duyck wrote:
+>>>>> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 >>>
->>> I don't have a good setup for testing migration though and I am not t=
-hat
->>> familiar with trying to do a live migration. That is one of the reaso=
-ns
->>> why I didn't want to stray too far from the existing balloon code as =
-that
->>> has already been tested with migration so I would assume as long as I=
- am
->>> doing almost the exact same thing to hint the pages away it should be=
-have
->>> exactly the same.
+> 
+> <snip>
+> 
+>>>> Can't we reuse one of the traditional page flags for that, not used
+>>>> along with buddy pages? E.g., PG_dirty: Pages that were not hinted yet
+>>>> are dirty.
 >>>
->>>>>> I also wonder about interaction with deflate.  ATM deflate will ad=
-d
->>>>>> pages to the free list, then balloon will come right back and repo=
-rt
->>>>>> them as free.
->>>>> I don't know how likely it is that somebody who is getting the free=
- page
->>>>> reporting is likely to want to also use the balloon to take up memo=
-ry.
->>>> I think it is possible. There are two possibilities:
->>>> 1. User has a workload running, which is allocating and freeing the =
-pages and at
->>>> the same time, user deflates.
->>>> If these new pages get used by this workload, we don't have to worry=
- as you are
->>>> already handling that by not hinting the free pages immediately.
->>>> 2. Guest is idle and the user adds up some memory, for this situatio=
-n what you
->>>> have explained below does seems reasonable.
->>> Us hinting on pages that are freed up via deflate wouldn't be too big=
- of a
->>> deal. I would think that is something we could look at addressing as =
-more
->>> of a follow-on if we ever needed to since it would just add more
->>> complexity.
->>>
->>> Really what I would like to see is the balloon itself get updated fir=
-st to
->>> perhaps work with variable sized pages first so that we could then ha=
-ve
->>> pages come directly out of the balloon and go back into the freelist =
-as
->>> hinted, or visa-versa where hinted pages could be pulled directly int=
-o the
->>> balloon without needing to notify the host.
->> Right, I agree. At this point the main thing I worry about is that
->> the interfaces only support one reporter, since a page flag is used.
->> So if we ever rewrite existing hinting to use the new mm
->> infrastructure then we can't e.g. enable both types of hinting.
-> Does it make sense to have multiple types of hinting active at the same=
+>>> Reusing something like the dirty bit would just be confusing in my
+>>> opinion. In addition it looks like Xen has also re-purposed PG_dirty
+>>> already for another purpose.
+>>
+>> You brought up waste page management. A dirty bit for unprocessed pages
+>> fits perfectly in this context. Regarding XEN, as long as it's not used
+>> along with buddy pages, no issue.
+> 
+> I would rather not have to dirty all pages that aren't hinted. That starts
+> to get too invasive. Ideally we only modify pages if we are hinting on
+> them. That is why I said I didn't like the use of a dirty bit. What we
+> want is more of a "guaranteed clean" bit.
 
-> time though? That kind of seems wasteful to me.=20
+Not sure if that is too invasive, but fair enough.
 
+> 
+>> FWIW, I don't even thing PG_offline matches to what you are using it
+>> here for. The pages are not logically offline. They were simply buddy
+>> pages that were hinted. (I'd even prefer a separate page type for that
+>> instead - if we cannot simply reuse one of the other flags)
+>>
+>> "Offline pages" that are not actually offline in the context of the
+>> buddy is way more confusing.
+> 
+> Right now offline and hinted are essentially the same thing since the
+> effect is identical.
 
-I agree.
+No they are not the same thing. Regarding virtio-balloon: You are free
+to reuse any hinted pages immediate. Offline pages (a.k.a. inflated) you
+might not generally reuse before deflating.
 
+> 
+> There may be cases in the future where that is not the case, but with the
+> current patch set they both result in the pages being evicted from the
+> guest.
+> 
+>>> If anything I could probably look at seeing if the PG_private flags
+>>> are available when a page is in the buddy allocator which I suspect
+>>> they probably are since the only users I currently see appear to be
+>>> SLOB and compound pages. Either that or maybe something like PG_head
+>>> might make sense since once we start allocating them we are popping
+>>> the head off of the boundary list.
+>>
+>> Would also be fine with me.
+> 
+> Actually I may have found an even better bit if we are going with the
+> "reporting" name. I could probably use "PG_uptodate" since it looks like
+> most of its uses are related to filesystems. I will wait till I hear from
+> Matthew on what bits would be available for use before I update things.
 
-> Ideally we should be able
-> to provide the hints and have them feed whatever is supposed to be usin=
-g
-> them. So for example I could probably look at also clearing the bitmaps=
+Also fine with me. In the optimal case we (in my opinion)
+a) Don't reuse PG_offline
+b) Don't use another page type
 
-> when migration is in process.
->
-> Also, I am wonder if the free page hints would be redundant with the fo=
-rm
-> of page hinting/reporting that I have since we should be migrating a mu=
-ch
-> smaller footprint anyway if the pages have been madvised away before we=
+-- 
 
-> even start the migration.
->
->> FWIW Nitesh's RFC does not have this limitation.
-> Yes, but there are also limitations to his approach. For example the fa=
-ct
-> that the bitmap it maintains is back to being a hint rather then being
-> very exact.
+Thanks,
 
-True.
-
-
->  As a result you could end up walking the bitmap for a while
-> clearing bits without ever finding a free page.
-
-
-Are referring to the overhead which will be introduced due to bitmap scan=
-ning on
-very large guests?
-
-
->
->> I intend to think about this over the weekend.
-> Sounds good. I'll try to get the stuff you have pointed out so far
-> addressed and hopefully have v3 ready to go next week.
->
-> Thanks.
->
-> - Alex
->
---=20
-Thanks
-Nitesh
+David / dhildenb
 
