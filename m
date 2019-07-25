@@ -2,143 +2,158 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B1805C76190
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 23:21:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4AFF9C76194
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 23:40:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 48D1420823
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 23:21:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0E8AB216C8
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 23:40:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="pOq4jwIH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 48D1420823
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="vLjb1Kee"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E8AB216C8
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9C3506B0003; Thu, 25 Jul 2019 19:21:13 -0400 (EDT)
+	id A2B816B0003; Thu, 25 Jul 2019 19:40:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 974BB6B0005; Thu, 25 Jul 2019 19:21:13 -0400 (EDT)
+	id 9DBEF6B0005; Thu, 25 Jul 2019 19:40:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 83CB28E0002; Thu, 25 Jul 2019 19:21:13 -0400 (EDT)
+	id 8CB408E0002; Thu, 25 Jul 2019 19:40:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5B6D86B0003
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 19:21:13 -0400 (EDT)
-Received: by mail-oi1-f197.google.com with SMTP id u8so20294948oie.5
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 16:21:13 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 586586B0003
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 19:40:02 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id a21so31664090pgh.11
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 16:40:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=38jxRDTFNsBuvXEWmRhAENl7Dn2UdsUzhcb9070VNP0=;
-        b=mEtY+p4sqIJ3db6+rz3NdYQZGdu3nKKG0AjSYo4S7ClZcevmNHIWOpF9Jyvt5R7BbE
-         TsNSzWWSdsTwMW5T/Hkx2hR3QJu1XpLVBih72bT34ehxOFHEerSQvomviroi+5y3r1p/
-         hexCVoDNrWRR5vo/7DicmtoPoy3DXKtXYmmk3DyFcfSY/Guyntjaz1/CAXM2w3zyHq1Q
-         qUNkYh+K58R2wuKivbel0MuJqfzXv/TLqyx7aPJWXfMMBZqigYsGPmrN3zi5RvYiv/s0
-         g5YpvGC7/SH4t6Y2/Ao0VI/T9HDSl7W/miqDFIRoSNZiEruNKhyBHcAiTgjPQXPkQCiY
-         SfXA==
-X-Gm-Message-State: APjAAAUY+3vsYGgrtxMOOYzXZ1DmF0PiVg0BiHclUD2plUX5Q3wOfMHQ
-	TfiV/XgvAe+2a1+n/muIxG3CVXMjCbGgxu18UbaB/YZnldaYW5rnHMooLDNKMPpEUS9xJP8PRzy
-	6hHoSV0x8uX8dzaEdbMxxHV2mcEWf2VVInlG5jxGH82J2Knp4kR48tg0jIb70SrcOvQ==
-X-Received: by 2002:aca:5410:: with SMTP id i16mr42215715oib.36.1564096872920;
-        Thu, 25 Jul 2019 16:21:12 -0700 (PDT)
-X-Received: by 2002:aca:5410:: with SMTP id i16mr42215698oib.36.1564096872245;
-        Thu, 25 Jul 2019 16:21:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564096872; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=eff2c+xz+9XiJe1zJ5JQ04Yg+8ikE3X8gugNUxpc1Uc=;
+        b=tDZCD8An4oSQYnS2/mnpgzdhFgJmdQp4Kbd/yNXHj08CqQZQo1T4t6GllfLZn6DE8u
+         i8ylGGTTVx2M6SuIOLbEfuwnZtvP9ZrDNArjUzXOsSz/rad8ylu9gkgDzRjc1hqZtZNX
+         Irl/e1VcsLQ5uxr/n4gyOVCRJ1OC2Ydgomx8He+xvLfQZ3EleeYNiT1Ju363HmKMCpZ4
+         lp2qdi6UZQLSkGQlX6GF275butzoH6NsQjLr+c7VZ803Ji5JlLJslkcDqQybR40JA3O5
+         vldOi9ElabdeCY8oR/a1jPgAtyooMm3i00yOEZllEK2iOfoLhLeKaSclNymL23rIOPyc
+         Ie+A==
+X-Gm-Message-State: APjAAAVRP7Pwf08HDwFrEiGOXxjsWCF9LY4X7ck9sxnjAfQTfvpsfvYZ
+	6r2JpdM4fXe+Q/AU19bB1e4HFT1bxh/dDCDATp5xW0kB17Fxb1oO+EQF8u2qZi7gHJil4QwUHpO
+	Wl+gHU3EhqHwUWx4P+wj6gDnkCJwfPyRwOi+7cjqmp49O9JpJKeiyrEVofCGny68a1A==
+X-Received: by 2002:a17:902:27a8:: with SMTP id d37mr93250359plb.150.1564098001919;
+        Thu, 25 Jul 2019 16:40:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwkKYcV9Ed+vMihnocUcFycpAcWRMIrgS7ohYarUGAzNENTGPi4wYhp/JEco/Gy/w4eWccI
+X-Received: by 2002:a17:902:27a8:: with SMTP id d37mr93250317plb.150.1564098001293;
+        Thu, 25 Jul 2019 16:40:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564098001; cv=none;
         d=google.com; s=arc-20160816;
-        b=xSMgVTsX4dvpMFzYHX8JV27yFljuSVjEGj6amDCkDcQdqlGR+WHicAH0QJ6xVjrTdS
-         ycAJkx1jeFoaq0f5gEoEV8yPbvy5Fm2xtfKSdJbCnomXAtBchos4p22e2QSn0VpOYhrV
-         qyMB0fk16MpCEUx5xPM7xxYhxC/EXERxRmCnkK0GZYd0s9sWadwwssPKhS4c3TiCDCFg
-         /PhLKwQiTx2ou/AFTwbcRiDwGlS4LK/O/sS1eOCZZLkqqo4EgrfyywvQeaYuuCrRdriy
-         twuFCU/61Z7W/8Kk0LaKJ6zgP/7EjH/EW2VJo8YY0Z0HPKQq/cHrgHVxde46gloFaVG5
-         osVA==
+        b=lDlaaAYn6G1mxqKKzqoBIPn1U3RfQHjXU/obhtn7BdG5gqkCWdvY7vXTrcamMWvPCa
+         KW3sZhLF1Hp24PRQMGZCg722U4+9QGTWuAC+ewK9MtvjUzZC+JbjWSkx5ToAkB4ClXo4
+         hg7eJzo4TmFjb1KMfR9yNtCnZrD+1TlBQ69uWBGBMzP5uCRcyUdS1que3gTYo8IxUl4N
+         TqIewVs8x71yW5r+rlgAlrsu9c7drne9T878WdjS+HBTIlRMa3Ye49tL7ME1+7szeM8b
+         onQBULZuHZj2w55fpSfEEDXcfa2V4rckDcVRyXNDARXiEratjKO38JYamKF79rUueSJR
+         JlyA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=38jxRDTFNsBuvXEWmRhAENl7Dn2UdsUzhcb9070VNP0=;
-        b=ELTNFKWdCK8/o2hhe9Du01/jp1I/btyYlQMPJPpQ79KEfcDXED9CQSQWCbuiMFkNpl
-         O70KNHL64p7WyzNfVs9gfik2Osog7BCXaaUKujJQfLk2zCmZxi10PS9AR4J14VjSqGnn
-         RaarkQmohASUuXM1CNCoDBYb+OwaOJBryd2u57VQA/LvLsFg2rPMEqG1+uH0jYl5+4au
-         cxEJa7qu1QTKXsw7l8XGRRkpcXlbsWDtawzk3HuK7ImfEraG17/QK6Womjp/QmEBbNIB
-         c5PUEDAPucBpggrhttE91PjRZoHGo2YkaXDOwWHP8gDZbCUZFZ9QdeGVtwdJBpKHdb5k
-         cqgQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=eff2c+xz+9XiJe1zJ5JQ04Yg+8ikE3X8gugNUxpc1Uc=;
+        b=0ICSPT1JSw1Wlw/cS9Lp5Y9NzOr+t307HJGza+6FEnT+TtvzyxkHaWUUIm0Bisx+Md
+         Zue9np3o7uENmV0yddpwJI+1pA4NjwqwFjPT+dU5eTONued1zXWHU1qQ1jyXtP1h9khH
+         gmo/IkaNxyFqE5IbX+RVh7oBLLCPJ8oUJvYnsLYviajbMNFRiHQi0MHrVCLKuIRMdVlF
+         q+3CvaQa2Xzq7ANzcUDcsgnBX3oMJf0jK74L/wVneaXP+t1P/kth3xotHkKulbkglMfG
+         kWuWvO6gTYny2VW3qQTPCIM6F7BITujcTUTXsvKerTho6TpJVrzVUjwGPwQUHc3+fXal
+         peSQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pOq4jwIH;
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m23sor26741970otf.164.2019.07.25.16.21.12
+       dkim=pass header.i=@kernel.org header.s=default header.b=vLjb1Kee;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id x16si20781980pgi.312.2019.07.25.16.40.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Jul 2019 16:21:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Jul 2019 16:40:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pOq4jwIH;
-       spf=pass (google.com: domain of lpf.vector@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=lpf.vector@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=38jxRDTFNsBuvXEWmRhAENl7Dn2UdsUzhcb9070VNP0=;
-        b=pOq4jwIH28H2b1iSOQrWo32IdYYxXTbBo3q1WI1pQZh+wScKbCT6GcyOW+Ai5qId/E
-         WxRSp38HTlhmMKBUZhyHF0kthb3Hfu2IAtovYxX3MB+9XmSpeRl3KStvol8PJTMEdu98
-         hfSx+yBsxsA8MEwwx5UZKvguuEmqulFrDiDgOS9bu0eF0HJwBpIX5ATf10OuETHiSiW0
-         UcL1d3XJrzlfQSNNKQdj9XZ5ne/2qHm4vgh5tNIsqfI47F60RJfLOYSn3N8WDyA4V3iR
-         ko3LLIDAbctiv1VW95oe08P4AR2xba15afj1ayy+/picFE4mCeH95DA03AoDUFwzchv8
-         f83Q==
-X-Google-Smtp-Source: APXvYqzQt9JrA2rxwFLAC9k6gQgnEsbS5znL3NvqMmP5TLvNTgxwXAFj1N37C1EmlQjCItCvjUiFYydQVj6azSLq8fk=
-X-Received: by 2002:a05:6830:2098:: with SMTP id y24mr25146806otq.173.1564096871998;
- Thu, 25 Jul 2019 16:21:11 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190725184253.21160-1-lpf.vector@gmail.com> <20190725184253.21160-2-lpf.vector@gmail.com>
- <20190725185800.GC30641@bombadil.infradead.org>
-In-Reply-To: <20190725185800.GC30641@bombadil.infradead.org>
-From: Pengfei Li <lpf.vector@gmail.com>
-Date: Fri, 26 Jul 2019 07:21:00 +0800
-Message-ID: <CAD7_sbG+nv-PxnMAxsU25BWQz1EMQx3V0CT7W9XTdfY1HvZfFw@mail.gmail.com>
-Subject: Re: [PATCH 01/10] mm/page_alloc: use unsigned int for "order" in should_compact_retry()
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, mgorman@techsingularity.net, mhocko@suse.com, 
-	vbabka@suse.cz, cai@lca.pw, aryabinin@virtuozzo.com, osalvador@suse.de, 
-	rostedt@goodmis.org, mingo@redhat.com, pavel.tatashin@microsoft.com, 
-	rppt@linux.ibm.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@kernel.org header.s=default header.b=vLjb1Kee;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 6A2BA21951;
+	Thu, 25 Jul 2019 23:40:00 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1564098000;
+	bh=iy1BW35mJIm+u1ndRp7gqExlXuNpjLDRAzH09BcEAsY=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=vLjb1KeectGNjzRx+6eWqeYw0tAHPetlrJyW2cFRrGjB2oFd3tgLcRcumIgiMgdTZ
+	 TMAykIuGqE3toftxZvn8UfWrN2Z1iib1K/EY1Kshp3irJMUwfFbRe3ciH4nWGJQxGr
+	 D55fhfKMXurpk7OHLvUawEz9kGaz+yJdOp67nph8=
+Date: Thu, 25 Jul 2019 16:39:59 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Randy Dunlap <rdunlap@infradead.org>
+Cc: broonie@kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org,
+ sfr@canb.auug.org.au, Chris Down <chris@chrisdown.name>
+Subject: Re: mmotm 2019-07-24-21-39 uploaded (mm/memcontrol)
+Message-Id: <20190725163959.3d759a7f37ba40bb7f75244e@linux-foundation.org>
+In-Reply-To: <4831a203-8853-27d7-1996-280d34ea824f@infradead.org>
+References: <20190725044010.4tE0dhrji%akpm@linux-foundation.org>
+	<4831a203-8853-27d7-1996-280d34ea824f@infradead.org>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 26, 2019 at 2:58 AM Matthew Wilcox <willy@infradead.org> wrote:
->
-> On Fri, Jul 26, 2019 at 02:42:44AM +0800, Pengfei Li wrote:
-> >  static inline bool
-> > -should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
-> > -                  enum compact_result compact_result,
-> > -                  enum compact_priority *compact_priority,
-> > -                  int *compaction_retries)
-> > +should_compact_retry(struct alloc_context *ac, unsigned int order,
-> > +     int alloc_flags, enum compact_result compact_result,
-> > +     enum compact_priority *compact_priority, int *compaction_retries)
-> >  {
-> >       int max_retries = MAX_COMPACT_RETRIES;
->
-> One tab here is insufficient indentation.  It should be at least two.
+On Thu, 25 Jul 2019 15:02:59 -0700 Randy Dunlap <rdunlap@infradead.org> wrote:
 
-Thanks for your comments.
+> On 7/24/19 9:40 PM, akpm@linux-foundation.org wrote:
+> > The mm-of-the-moment snapshot 2019-07-24-21-39 has been uploaded to
+> > 
+> >    http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > mmotm-readme.txt says
+> > 
+> > README for mm-of-the-moment:
+> > 
+> > http://www.ozlabs.org/~akpm/mmotm/
+> > 
+> > This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+> > more than once a week.
+> > 
+> > You will need quilt to apply these patches to the latest Linus release (5.x
+> > or 5.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+> > http://ozlabs.org/~akpm/mmotm/series
+> > 
+> 
+> on i386:
+> 
+> ld: mm/memcontrol.o: in function `mem_cgroup_handle_over_high':
+> memcontrol.c:(.text+0x6235): undefined reference to `__udivdi3'
 
-> Some parts of the kernel insist on lining up arguments with the opening
-> parenthesis of the function; I don't know if mm really obeys this rule,
-> but you're indenting function arguments to the same level as the opening
-> variables of the function, which is confusing.
+Thanks.  This?
 
-I will use two tabs in the next version.
-
---
-Pengfei
+--- a/mm/memcontrol.c~mm-throttle-allocators-when-failing-reclaim-over-memoryhigh-fix-fix
++++ a/mm/memcontrol.c
+@@ -2414,8 +2414,9 @@ void mem_cgroup_handle_over_high(void)
+ 	 */
+ 	clamped_high = max(high, 1UL);
+ 
+-	overage = ((u64)(usage - high) << MEMCG_DELAY_PRECISION_SHIFT)
+-		/ clamped_high;
++	overage = (u64)(usage - high) << MEMCG_DELAY_PRECISION_SHIFT;
++	do_div(overage, clamped_high);
++
+ 	penalty_jiffies = ((u64)overage * overage * HZ)
+ 		>> (MEMCG_DELAY_PRECISION_SHIFT + MEMCG_DELAY_SCALING_SHIFT);
+ 
+_
 
