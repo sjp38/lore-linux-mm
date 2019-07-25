@@ -2,140 +2,141 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E1B18C41514
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 01:40:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DC4E9C76186
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 02:03:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 888E22190F
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 01:40:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A1CD522387
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 02:03:43 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="H2461pL6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 888E22190F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="RzkjMoPL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A1CD522387
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DB91C8E0021; Wed, 24 Jul 2019 21:40:48 -0400 (EDT)
+	id 348D48E0022; Wed, 24 Jul 2019 22:03:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D6A5E8E001C; Wed, 24 Jul 2019 21:40:48 -0400 (EDT)
+	id 2D28E8E001C; Wed, 24 Jul 2019 22:03:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C58C18E0021; Wed, 24 Jul 2019 21:40:48 -0400 (EDT)
+	id 1730E8E0022; Wed, 24 Jul 2019 22:03:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A71628E001C
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 21:40:48 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id r27so53130712iob.14
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 18:40:48 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id DFE348E001C
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 22:03:42 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id n4so24797930plp.4
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 19:03:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=oXN5GwXNrqWezDYAWTbIPylSr9KykD38a2m5LA5Vzvk=;
-        b=S9e0zjbIM6I3Buovtjm9Jx1zh3JW3EcozuMZH/A21OESzPF1lwLa2dPmfQXfAj6GY9
-         hyZf/ZpDSKKUiJmFYh8rwQlll7tMGaLCkWJFBX4SUJ0bkohHjl9gLiCUZIjlyQB500Pe
-         u2r02s4JU7VoewjTocHaqhu3enagyHGm7IINZTnYO3BBEWY4GVazOJKdZIW0cXpqsY5k
-         vEiPjju46jrUctutAuj1h+KZ1NCO8CVU5q2R+iS/w3yQIWORRxtZw5XNaybVi4DzBMAt
-         oRlmbFXWKZy9aAT7oIdpN4yptBjhSwbsn+d8ZiNCC98ZgEp7L2N2AXB/LmPNOCSb+IPg
-         3izg==
-X-Gm-Message-State: APjAAAV/ZUYlsdeRmqaSgJbJMo4abz12pxdT6BhJiVzdT5p65s1K9DGk
-	5bB5vpkYt39JgvlXJsL1XbmM9W+Kaqj49zom5vWwKiduwtcd1zRtUAc0RC4rCdI8kXqMejyQIo6
-	JxV+ASyLrnWarN0F+UAwpBQ8fWP1IMq53RbCGuL8xCc8v7WSITrJlbRY4dp4Sck/Evg==
-X-Received: by 2002:a6b:7909:: with SMTP id i9mr48161269iop.8.1564018848411;
-        Wed, 24 Jul 2019 18:40:48 -0700 (PDT)
-X-Received: by 2002:a6b:7909:: with SMTP id i9mr48161229iop.8.1564018847644;
-        Wed, 24 Jul 2019 18:40:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564018847; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:to:to:cc:cc:cc:cc:cc
+         :cc:cc:cc:subject:in-reply-to:references:message-id;
+        bh=FxhxY7Kn1uJ+k0ZNnnc5WKY/A7tH9qvVLK2CnuEsOHI=;
+        b=Uu1O6S99BBALSJD5vBKnZfnn+rU1wEPY9mEaZNIdT/qA1/VRHiOAoD4KEUiKf5kSXT
+         kvF/hn5NAsSXPrXEmcZXX4v6NDa6ZhgoXt+7UPGAtaFc/sL1jx83PvafFpVNpGX8vvzF
+         BvU/7DS3uDsD7DP7lPwtVRNjed/ZDe6+q4ShtVNojUkL+dVf4SCxwVjIVC0JkB8U4qzG
+         lPAd4FhoXyhUNNLpUfC462DakBI455o0YYBgX2+xUKCK14um/DQrFlOjlamatNx42ho8
+         9ve4ak7FsQf6GXge123CyFq5I+D5UZ1NbS2pZP5O6Db7Ks0l5vlNaUFb7zGfhAKeQ3Aj
+         ia3A==
+X-Gm-Message-State: APjAAAVm7CJaVOkaPImRLNXtu02UnUF/Zq+KxoBk0BPEBjXyY4IqhWAO
+	WVmPRwzQNhxGcJHISG0KzS02uhASZTj7XypZMlN5Igi8ah00go/O+yIsHFLrNKPOnsDwDpWO47S
+	yGNkAwiaIKEaSAS/4Je6PmWGofSsyK2U3Q1kEeO4X2YE4v2A5b2FbN4rP1LXuo6UB2Q==
+X-Received: by 2002:a17:90a:5806:: with SMTP id h6mr87879542pji.126.1564020222487;
+        Wed, 24 Jul 2019 19:03:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw6Gw5dUljG7obNHY8jbGuXkTNvtYx6d/UNZk9MW2Uk8mcv+JTZ9ewH47KCh7BNZwptpifV
+X-Received: by 2002:a17:90a:5806:: with SMTP id h6mr87879478pji.126.1564020221539;
+        Wed, 24 Jul 2019 19:03:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564020221; cv=none;
         d=google.com; s=arc-20160816;
-        b=C6ViYzf0c6H0mHhyJipWPOeZDuctnrQsoNKgH7Fm0uKj+mKUhKzHfxye++qZq0chlt
-         WQMuZQZih425PHQNxgWsGpnVATfzP51sj39yFukXwcIdEWzB8AHbOpcm5Z+rNBy8Sg8n
-         ho9cGJqwU+1xAaDU87CrgFVHoFycUad6XnZwvmBTwmH6nI/1uucb+5xosfrIxE91KA6a
-         cqB+o8xs/+bW3e2I/EjeHXOXvGnOryMrgsJm1fJc277EizBcyWg6f5nKUDb5ktASw1oq
-         bntoBRNVwX8YRgC9apXntLotz3psMprUxgkwNwGP+qnU3M2yxDEYWX0KoHCMMBvArezs
-         M9rg==
+        b=fnE86wx2HnSc9f7omw7GEKQ3WZgwdJhdxy6NDKGJpDJewx3+sov3Mc9pyNXYxr0jf1
+         NBc2TAsqzSqnS7Pyb4PcH8HBb3U349zh22iXXTUuh/DTvaSA0M3INvXRmOfsSYTSFFVL
+         S2EGCBxDYfLZE0zBVahdHwjLDtfBME/+7+XLq995k+Cn5ARavRmiGpJcb4TeC0CUVEbd
+         BpVhbRKYmVqp/EGUyipo22eVBJR5RCDe8bjKYYW8Hb3auoNOYyrx3q2ekydrrdh3uTMo
+         yPxzPjV2IfiC/gQDJYEPqvlLvw+CldS678FffXC9M48TAw9YLl1Cvh38hkK5hAY/P54k
+         01sg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=oXN5GwXNrqWezDYAWTbIPylSr9KykD38a2m5LA5Vzvk=;
-        b=aVKIhvbkkSQ766iil9Ku+qkJTEHbOvgRwgCoiDcRP0Tvk7Zye4kzTR+SUwjzn8VToP
-         ur5t9rNFBHI55xR0WnS+mnifGqNMaOlMD9akSMFDu/qnh56mec8Hp/MghfSrN9Y8FMos
-         sXifvscdTpkIw/RgYOxU36bSJQRkqrXmEaDjx8hux7vS9kLaXu7GLbojyoA5EAwT/W3f
-         ApVE/xWUbVSrAZCUDdU4V6sCCtZhefQ5MQs0bkx+tfSGWDc3Kf0DWtm+RFvycvuhwbAl
-         RlNR4WAteWYYFIeEMSLevvhMeVeqGmXVWtfQSViHLaZLxXFnn96XirHehHTzzrfh0B4+
-         y7Ng==
+        h=message-id:references:in-reply-to:subject:cc:cc:cc:cc:cc:cc:cc:cc
+         :to:to:to:from:date:dkim-signature;
+        bh=FxhxY7Kn1uJ+k0ZNnnc5WKY/A7tH9qvVLK2CnuEsOHI=;
+        b=uIhrosp950/g1LgiQH9vFEUolJmuDVaYWgy3Jj4l6MY9nEVPD+ehZ433/bIGklsvr4
+         Zspv3JQ9iFyh1d0ivWYJxAKKq7Aczr+NGTJ0t0ce5fPXG+bG3I9H9VGwOGLh+73XvYWQ
+         GHIqutaNN12rLQ+5BMekrXGS/fuUYSB3PuSs9X00tEIajL6etJN+qdBVHmYOWGg/zflk
+         tcBX8L9AuMgSFTjyraBC14ytmUJ7I8RP8UrHBYGXxuK7uU2Vd8o9htxuKGLDUfOeJHH+
+         CBcU9FGImB2PHEKpUl0GhV8fHyTsWU4tsuuJXAfShmt51HLOWiiiaZ37NB1oNhWlETNU
+         NObg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=H2461pL6;
-       spf=pass (google.com: domain of navid.emamdoost@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=navid.emamdoost@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v8sor32053967ioj.68.2019.07.24.18.40.47
+       dkim=pass header.i=@kernel.org header.s=default header.b=RzkjMoPL;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 189si16843241pgj.416.2019.07.24.19.03.41
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 24 Jul 2019 18:40:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of navid.emamdoost@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=H2461pL6;
-       spf=pass (google.com: domain of navid.emamdoost@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=navid.emamdoost@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=oXN5GwXNrqWezDYAWTbIPylSr9KykD38a2m5LA5Vzvk=;
-        b=H2461pL6theAnpW5edW+3dqP8T5QMrpFl0SXGGIZnqB+ZlHIXGHeYrYrfnlBuLfUp9
-         o+DcklySifYG765de/M6SgutOlGYOP4WF5mJtz1jTM2lOmhvJX9V6DhHKgn2HOScs53e
-         IzBcWiOROr/uvNK+aKEyV/oc1kulroh6fFFau4kjUzN5aRYuMC+51OMqOcoZLa0nC2bS
-         8+BoGmCcQceVuXdjrqbcfXyFNI4xY1/t62QHTPZefRz7oOXBCShHxOwzmafADOk8VhJX
-         gLdEGHfYCnCmIhAozPvWbPT1+3C7/khPdVJ4aX000z8Dz28NjCaJoqArS2QvPkpIHpQM
-         slfg==
-X-Google-Smtp-Source: APXvYqwZV+csN65QFH3c/+ek2MRlo4Jzp+G1GLrE+iP8KG1lV2GK5/itgNtY2zuUMy76j+9IordQ7Q==
-X-Received: by 2002:a02:aa8f:: with SMTP id u15mr88348318jai.39.1564018847231;
-        Wed, 24 Jul 2019 18:40:47 -0700 (PDT)
-Received: from cs-dulles.cs.umn.edu (cs-dulles.cs.umn.edu. [128.101.35.54])
-        by smtp.googlemail.com with ESMTPSA id h19sm32973203iol.65.2019.07.24.18.40.46
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 18:40:46 -0700 (PDT)
-From: Navid Emamdoost <navid.emamdoost@gmail.com>
-To: emamd001@umn.edu
-Cc: kjlu@umn.edu,
-	smccaman@umn.edu,
-	Navid Emamdoost <navid.emamdoost@gmail.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH] mm/hugetlb.c: check the failure case for find_vma
-Date: Wed, 24 Jul 2019 20:39:44 -0500
-Message-Id: <20190725013944.20661-1-navid.emamdoost@gmail.com>
-X-Mailer: git-send-email 2.17.1
+        Wed, 24 Jul 2019 19:03:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@kernel.org header.s=default header.b=RzkjMoPL;
+       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from localhost (unknown [23.100.24.84])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id D2EA021951;
+	Thu, 25 Jul 2019 02:03:40 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1564020221;
+	bh=6BseBO9BTLytaD6ATHn8Qmo+seGh5f/lE/Clqi0CzIo=;
+	h=Date:From:To:To:To:CC:Cc:Cc:Cc:Cc:Cc:Cc:Cc:Subject:In-Reply-To:
+	 References:From;
+	b=RzkjMoPLknuhk8IhxxUU4kFLGYiiqohCKnb/UlJqhNHiJbFF8X0IXTECGz3h/QR2e
+	 xHiXTyxt+bwLeiw6h28hB0xiNZVc6HP/enmWylAyZJC/jzstQn1shffNVENF8MxpvL
+	 Skh1wvc9uHPEtaibqaeafX25GY6seLIni7P248sI=
+Date: Thu, 25 Jul 2019 02:03:39 +0000
+From: Sasha Levin <sashal@kernel.org>
+To: Sasha Levin <sashal@kernel.org>
+To: Ralph Campbell <rcampbell@nvidia.com>
+To: <linux-mm@kvack.org>
+CC: <linux-kernel@vger.kernel.org>, Ralph Campbell <rcampbell@nvidia.com>,
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Jason Gunthorpe <jgg@mellanox.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: <stable@vger.kernel.org>
+Cc: stable@vger.kernel.org
+Subject: Re: [PATCH v3 3/3] mm/hmm: Fix bad subpage pointer in try_to_unmap_one
+In-Reply-To: <20190724232700.23327-4-rcampbell@nvidia.com>
+References: <20190724232700.23327-4-rcampbell@nvidia.com>
+Message-Id: <20190725020340.D2EA021951@mail.kernel.org>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-find_vma may fail and return NULL. The null check is added.
+Hi,
 
-Signed-off-by: Navid Emamdoost <navid.emamdoost@gmail.com>
----
- mm/hugetlb.c | 3 +++
- 1 file changed, 3 insertions(+)
+[This is an automated email]
 
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index ede7e7f5d1ab..9c5e8b7a6476 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -4743,6 +4743,9 @@ void adjust_range_if_pmd_sharing_possible(struct vm_area_struct *vma,
- pte_t *huge_pmd_share(struct mm_struct *mm, unsigned long addr, pud_t *pud)
- {
- 	struct vm_area_struct *vma = find_vma(mm, addr);
-+	if (!vma)
-+		return (pte_t *)pmd_alloc(mm, pud, addr);
-+
- 	struct address_space *mapping = vma->vm_file->f_mapping;
- 	pgoff_t idx = ((addr - vma->vm_start) >> PAGE_SHIFT) +
- 			vma->vm_pgoff;
--- 
-2.17.1
+This commit has been processed because it contains a "Fixes:" tag,
+fixing commit: a5430dda8a3a mm/migrate: support un-addressable ZONE_DEVICE page in migration.
+
+The bot has tested the following trees: v5.2.2, v5.1.19, v4.19.60, v4.14.134.
+
+v5.2.2: Build OK!
+v5.1.19: Build OK!
+v4.19.60: Build OK!
+v4.14.134: Failed to apply! Possible dependencies:
+    0f10851ea475 ("mm/mmu_notifier: avoid double notification when it is useless")
+
+
+NOTE: The patch will not be queued to stable trees until it is upstream.
+
+How should we proceed with this patch?
+
+--
+Thanks,
+Sasha
 
