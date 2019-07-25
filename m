@@ -2,160 +2,149 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DA862C76186
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 00:44:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7F2ABC76186
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 01:14:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9D71621911
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 00:44:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3CDBF21855
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 01:14:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="DTMevEAy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D71621911
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="CLuwqZyx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CDBF21855
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 359E18E001E; Wed, 24 Jul 2019 20:44:26 -0400 (EDT)
+	id BD0EA8E001F; Wed, 24 Jul 2019 21:14:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2E3358E001C; Wed, 24 Jul 2019 20:44:26 -0400 (EDT)
+	id B80B38E001C; Wed, 24 Jul 2019 21:14:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1ABC08E001E; Wed, 24 Jul 2019 20:44:26 -0400 (EDT)
+	id A46F48E001F; Wed, 24 Jul 2019 21:14:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D7CEC8E001C
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 20:44:25 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id r142so29653769pfc.2
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 17:44:25 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 83D518E001C
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 21:14:27 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id x1so40946630qkn.6
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 18:14:27 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=HOMehB1vdHub2fgtZm471U2goVIT/mnfZWSHdivROoc=;
-        b=DTYKdsfO9w5Wac2COIVgrIaghwjai0ZRJYpMINJZ8EVcHcsjVqu3t6yRmcbfYl/EFS
-         dP4LhW0H8ceBqmeBOYVz8cIfUtCVFn9I1CwuNgv6733udIP2t/dzCD+kT6ii0RIDa/lj
-         YTncUxFGSVDQVGwbFItRNb6yTLQmFFnNDyuxkevd9epFXt5zcvPXVuaZ6IrCO1drHrVV
-         mn+Ytlbc/C62ARG1InIM0GisTCB8bCV0/kQBDuLw4Bce0fm2oPetr9JEuHB3zc3S9fpW
-         8VajSrM8GVDbNrqsilj76BqbCzOA+RpvHi7N7Wvxded4q+PrG4OjTCl7XKvzVzJ3cXSI
-         oUZQ==
-X-Gm-Message-State: APjAAAWA05I8KvI3cntyX9U8uHz3eHoqQPw+s3HiJCoY0MYm9rVm38xS
-	ZblJc90Gnq0gZxff0gZUhw20sydp9WB1sliRzXn7ilw3paTXRhHb2oAbElSkD1rYOf+VuatSxQl
-	bIHuHOG2Zo3xmAit68SO0edGt3qCLNbtyzDkkqBE7Y8TP7jqVvvIEV31joJmtJnc3KA==
-X-Received: by 2002:a17:90a:1ac5:: with SMTP id p63mr88451663pjp.25.1564015465572;
-        Wed, 24 Jul 2019 17:44:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw6+85bzETf0aXwmTPNZH3heWolcMfb5/a3BZf8sE8s9BwykEU3iYCJtfhlEhhOo2tSCDUG
-X-Received: by 2002:a17:90a:1ac5:: with SMTP id p63mr88451625pjp.25.1564015464835;
-        Wed, 24 Jul 2019 17:44:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564015464; cv=none;
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=2QscBl/3tbBrXReK2tsv96us6PdZtQnqjBeeXbxeJtw=;
+        b=gf4JBe5+Nyp9PqoMTeLRRQIxRd+k8tKBhdpzHshy205MkmxVpr1qr8eDp+WbKJVjim
+         P/rOk/IxBhTAFP5qLM42+L5wjHpeLgis+Hlok2MMFUMayAXcA2/sPHneJJVpBUP38siT
+         PthfXeAzw8HHClyy40srpFPW9Yc9nO8VKeK3FQ3XVEVVuXBMaZhFtnELLJESLeMaIP7C
+         xwJfna8urFXhkO1bBjbwzNYkgkNxsvYZBSBJ4pbE3rn84TZSJKkHr/aPGUCoiK+MhKYp
+         mdvA/arH8x0USVr4DhuoUSUeq8iEEUYWRs7n+idQXk9JWVsuG9XKSNWgWXbRRN773UuJ
+         3uYQ==
+X-Gm-Message-State: APjAAAVznpYQIvTOJVe3AbmED7T/d8c/BEw9SB74CnViJ+rEUzH/GbQs
+	mpq6lcbU+gVUQ7FdthekA/vfXxHQeZpte3jZnHqGRgwEH3ozas+EiYAvVhgwDc9OXE3CvnPha3V
+	bJpueJw1siEetG21jbBiBknHr1lw2b9+BEtP2zRVdSAa5VCJS/SReE4eH36ZNoYICYw==
+X-Received: by 2002:ac8:32c8:: with SMTP id a8mr58104386qtb.47.1564017267246;
+        Wed, 24 Jul 2019 18:14:27 -0700 (PDT)
+X-Received: by 2002:ac8:32c8:: with SMTP id a8mr58104365qtb.47.1564017266667;
+        Wed, 24 Jul 2019 18:14:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564017266; cv=none;
         d=google.com; s=arc-20160816;
-        b=A9zYsQU51dksHMo82/EENcc8SGMHYX2HTnYdKROk4Fl4SdQthAyyYZwjINAL0DhRsH
-         LTQPSVCCZDfXma0gHiiyPXbX7FfsnPN4BqulaCfbfSF1W9LTen9A8QgGAGsO+z4SNdPq
-         1KJt+bOTbgbGsPepfBgIk5MG06wCPGq9aUPAhjOJGLCe8aGxDI5+tRwxPkVbY3FgBD6O
-         YqvAGXezG0QOAooA+qtEjvqr3FRC7gelIrA8uW2JtKHC2qqB/f2J+QMIe7iCyYR5tjs7
-         eDqgDyJOn2PlCWzENW4EevaeaGjeUGzHtG80baCoyyq4wmpTSkv6WiXAFbgcI0NpDNy/
-         WFDg==
+        b=P/GIXCEn5bZpnmjnZjGtrp3gJa3OhCKU9AvNLj+qqNMht6Rs8YzJKnVqqmwPwS1tD1
+         dPk2umv3vyWMP6B4Re89U8PnRABXGq/gnOJeiun97ojArNrszm2Oq+n6dPUYFZoJRNsR
+         DOfjrtSXBmlNCCjk8X4dZAwKpm4uipJ6mAGMvR61idy7drPjp1HPD7f4sUtPALoUNUHQ
+         APX4aAsw+4vCFISUnWO9l7F2BxD03eHhCfP6NG8VrAIpkowWGt/p9oYxiUg2piKn3fhO
+         GbC/TbSP3hTZDfeDD6UposjCjGoxxNT45UyzCpHXqgu6h2snnzH18/cj7AQYDutxIJGh
+         bZXA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=HOMehB1vdHub2fgtZm471U2goVIT/mnfZWSHdivROoc=;
-        b=byu78d1HnrZ5nfvu8nbAhPNgS2dbS7JESbGgTc0wnKnwiHrAUnImu8HbqSx07O7+Ay
-         RGUnad8LKxb9CgtOlHU0Rv/WVYDJxPdZM2HyXBKZjI+MvIf8xMP/9TF6gRoSDkPrgsc8
-         JAlEzE6Wi6tC+hQZPIG2R/PnC7vSKz1DbKM1/ZxUR+d1L4iGPTQLbZkmpkMsq9kbTxMR
-         EpM+PwsfR5+1Qs9OAOAW9+NGgAHpze85/YWXtFUx7RWvkg39G7VGfTgALyCT85C/2Ipp
-         gVWWJa6SuxIck6CcvKdSn64b08odPMAqrR+vEG8mSRup/bAYNJaXE++Vue0Vi6bUKH/x
-         MdGw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=2QscBl/3tbBrXReK2tsv96us6PdZtQnqjBeeXbxeJtw=;
+        b=YNplooLFBrQ9VTW7/HDz3hvCrKe8vUixMTTtr/Yc6abrd/W6lg5gohFCgMAQWkb+Uv
+         LQlbggkpui7CSpe7sHwVTVLH7z1MdWy8+NQMimA9JalYBcROOhsQLqdRDUgsAOxzh+Wr
+         nsg2H9o3kN0p7RiaNfuk/HK0fAA7JfP5Kq0RNzzU4R46CLW3ztqSBjCznMJ3shIqeDay
+         HBD8uTY7Ba+0pzU/7/Aih1ByRqS0BaRyzoT+PE2jY96LxAkhMXxHeQ0Eg48Ex52LOmmF
+         5gxYVMS8mCpj7aJXgLGJ0Kb7ebDl3deUWaVFlvRPESuj72Bfa5YpAZTDSoIHdVf1IdaL
+         2Byw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=DTMevEAy;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id p35si15061081pgb.484.2019.07.24.17.44.24
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=CLuwqZyx;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m14sor27085607qka.115.2019.07.24.18.14.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 17:44:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Wed, 24 Jul 2019 18:14:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=DTMevEAy;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 251A921901;
-	Thu, 25 Jul 2019 00:44:24 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1564015464;
-	bh=BnJm16XIJ4U5h0/wFfNFjUiyQUQlm05rCuTqzXG01x0=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=DTMevEAy6MsZBxplreEMB+bJxmKA1GsWpZtLmWP6cVbMq2QKKqVCfOMcytQ8gUcHi
-	 2JRtFP16ImDGp/MasraDgzI0X9ruqK1X25hWfedDjzH+kLP0i3V4/xHmTmNp9rmAY5
-	 OHff/q50Keh8KHkK1MMdNgOMrgVrKIzoTZZ1Fr0Y=
-Date: Wed, 24 Jul 2019 17:44:23 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@kernel.org,
- mgorman@techsingularity.net, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, linux-api@vger.kernel.org
-Subject: Re: [v4 PATCH 2/2] mm: mempolicy: handle vma with unmovable pages
- mapped correctly in mbind
-Message-Id: <20190724174423.1826c92f72ce9c815ebc72d9@linux-foundation.org>
-In-Reply-To: <6aeca7cf-d9da-95cc-e6dc-a10c2978c523@suse.cz>
-References: <1563556862-54056-1-git-send-email-yang.shi@linux.alibaba.com>
-	<1563556862-54056-3-git-send-email-yang.shi@linux.alibaba.com>
-	<6c948a96-7af1-c0d2-b3df-5fe613284d4f@suse.cz>
-	<20190722180231.b7abbe8bdb046d725bdd9e6b@linux-foundation.org>
-	<a9b8cae7-4bca-3c98-99f9-6b92de7e5909@linux.alibaba.com>
-	<6aeca7cf-d9da-95cc-e6dc-a10c2978c523@suse.cz>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=CLuwqZyx;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=2QscBl/3tbBrXReK2tsv96us6PdZtQnqjBeeXbxeJtw=;
+        b=CLuwqZyxlnhSQLNy2YRvagdU0Et/zZ17Ms4ehbdSvHLmk/gxwl3Wy/TTFegvnq+Et5
+         4OpzVJv31gfdKu+/y13I9cSc1xlCIrpNLtabHb96qgORKl53PzbY30X66v61S563aYvw
+         Z37UCLu003OZv8+NzTJzDSWyvzaPJpCNXSGq9hTC782PqR5qb6OfdY663YIxKKz6zIal
+         IUoHez0chz3E2syIDBmGa7w0i9EJIB2xJ/Oxn1p3vnYmrNLjnuIVSG83ByHoyfGxuzLd
+         v/OfQGlL/BCupE+LUBwfJE+qrXBuBE9jk/6+jF2E0ImNgnz9zBrdwCRnFkuXmowLxdCC
+         tjIQ==
+X-Google-Smtp-Source: APXvYqx9ciisQdvPSwTvcdjpywJ+TPlixY+OV7qviQmXLqIq62Jmz3/cvYtUMzroSQEs8t3xbOZYHw==
+X-Received: by 2002:a05:620a:1ea:: with SMTP id x10mr54556510qkn.484.1564017266127;
+        Wed, 24 Jul 2019 18:14:26 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id k7sm20307997qth.88.2019.07.24.18.14.25
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 24 Jul 2019 18:14:25 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hqSKu-00006q-Vv; Wed, 24 Jul 2019 22:14:24 -0300
+Date: Wed, 24 Jul 2019 22:14:24 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Ralph Campbell <rcampbell@nvidia.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	nouveau@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	Christoph Hellwig <hch@lst.de>, Ben Skeggs <bskeggs@redhat.com>
+Subject: Re: [PATCH] mm/hmm: replace hmm_update with mmu_notifier_range
+Message-ID: <20190725011424.GA377@ziepe.ca>
+References: <20190723210506.25127-1-rcampbell@nvidia.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190723210506.25127-1-rcampbell@nvidia.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 24 Jul 2019 10:19:34 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
-
-> On 7/23/19 7:35 AM, Yang Shi wrote:
-> > 
-> > 
-> > On 7/22/19 6:02 PM, Andrew Morton wrote:
-> >> On Mon, 22 Jul 2019 09:25:09 +0200 Vlastimil Babka <vbabka@suse.cz> wrote:
-> >>
-> >>>> since there may be pages off LRU temporarily.  We should migrate other
-> >>>> pages if MPOL_MF_MOVE* is specified.  Set has_unmovable flag if some
-> >>>> paged could not be not moved, then return -EIO for mbind() eventually.
-> >>>>
-> >>>> With this change the above test would return -EIO as expected.
-> >>>>
-> >>>> Cc: Vlastimil Babka <vbabka@suse.cz>
-> >>>> Cc: Michal Hocko <mhocko@suse.com>
-> >>>> Cc: Mel Gorman <mgorman@techsingularity.net>
-> >>>> Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
-> >>> Reviewed-by: Vlastimil Babka <vbabka@suse.cz>
-> >> Thanks.
-> >>
-> >> I'm a bit surprised that this doesn't have a cc:stable.  Did we
-> >> consider that?
-> > 
-> > The VM_BUG just happens on 4.9, and it is enabled only by CONFIG_VM. For 
-> > post-4.9 kernel, this fixes the semantics of mbind which should be not a 
-> > regression IMHO.
+On Tue, Jul 23, 2019 at 02:05:06PM -0700, Ralph Campbell wrote:
+> The hmm_mirror_ops callback function sync_cpu_device_pagetables() passes
+> a struct hmm_update which is a simplified version of struct
+> mmu_notifier_range. This is unnecessary so replace hmm_update with
+> mmu_notifier_range directly.
 > 
-> 4.9 is a LTS kernel, so perhaps worth trying?
+> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: "Jérôme Glisse" <jglisse@redhat.com>
+> Cc: Jason Gunthorpe <jgg@mellanox.com>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Ben Skeggs <bskeggs@redhat.com>
 > 
+> This is based on 5.3.0-rc1 plus Christoph Hellwig's 6 patches
+> ("hmm_range_fault related fixes and legacy API removal v2").
+> Jason, I believe this is the patch you were requesting.
 
-OK, I'll add cc:stable to 
+Doesn't this need revision to include amgpu?
 
-mm-mempolicy-make-the-behavior-consistent-when-mpol_mf_move-and-mpol_mf_strict-were-specified.patch
+drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c:         .sync_cpu_device_pagetables = amdgpu_mn_sync_pagetables_gfx,
+drivers/gpu/drm/amd/amdgpu/amdgpu_mn.c:         .sync_cpu_device_pagetables = amdgpu_mn_sync_pagetables_hsa,
 
-and
-
-mm-mempolicy-handle-vma-with-unmovable-pages-mapped-correctly-in-mbind.patch
-
-Do we have a Fixes: for these patches?
+Thanks,
+Jason
 
