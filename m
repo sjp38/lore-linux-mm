@@ -2,259 +2,208 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AC6DDC7618B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 13:02:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96452C7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 13:05:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 620D521951
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 13:02:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 620D521951
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 5AC7E21951
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 13:05:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AC7E21951
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DDD5F8E0072; Thu, 25 Jul 2019 09:02:58 -0400 (EDT)
+	id EA01E8E0073; Thu, 25 Jul 2019 09:05:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D8F228E0059; Thu, 25 Jul 2019 09:02:58 -0400 (EDT)
+	id E01BC8E0059; Thu, 25 Jul 2019 09:05:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C570C8E0072; Thu, 25 Jul 2019 09:02:58 -0400 (EDT)
+	id C7B498E0073; Thu, 25 Jul 2019 09:05:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 77F188E0059
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 09:02:58 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id n3so32081779edr.8
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 06:02:58 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9CB5D8E0059
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 09:05:08 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id x17so42316842qkf.14
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 06:05:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=xm1uc7em0G8JejwS/Yo1wbMLfKh/weg38a2HA9WQH/M=;
-        b=tyU1Bhkk+pfDjMf0J3W+mn58gguu/ZnS0uO5TwOMbGYkCuUGx5lWQivhedYn7yRvWI
-         r3JuopWSB9WbkT+gEmOHr+2QKCVy3bFnDqOQ+gZpqdyyzJbflWRW19kfTdC44oLVWd+J
-         Nv1TpF8HwTmXEaMkQRPmQx9mcZ0/phdiaw9AL5MhrBf7OMVz1WkjL3MDdkSF8WgNZ0l/
-         U/b63clINOQWcrHdAVwJd2UU0UX/Kjbzxq00WPt012G0AoQSdGxqwO8F1UUKpCXdYWQc
-         vaYyJNaIFi7mIIYNLT3a6UhfiTq1KYExFEzHsYXK0yNxDsgpw99Xyk2gAeRPRJIoWWQ+
-         uHVw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAXItiHr2nkJCGLzy83Vrll9k03h1M2ip2vihvxHVn6VQopdvwSO
-	BeXlvnXsqIrGID1GahzEo8LV4oGndw+3DqUYP4GyIAYVxBXExLQA/9pyUUE1cppSjHPqGmhFm6N
-	uEv3up+Wb1iL1VXen8ruZvin9417XL6be4gnhoIcDqhjCQ29c0cWg1PuNFOwTvrSWEA==
-X-Received: by 2002:a17:906:2555:: with SMTP id j21mr68715318ejb.231.1564059778019;
-        Thu, 25 Jul 2019 06:02:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxyzJcJircady/Z9q13w53SpQH3V6zLEwo4FUId5+hNSuheGrLlbBE7f8AZhdBD2+cBHZI4
-X-Received: by 2002:a17:906:2555:: with SMTP id j21mr68715237ejb.231.1564059777171;
-        Thu, 25 Jul 2019 06:02:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564059777; cv=none;
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=2/XDWIENTrK82hBmD4TRlYXae2uD9Be9AlV5D8OTldU=;
+        b=CTRPQ8RCbOjTFd2hHQmmOems6cuLcDmtSSlo5JjJimlOT/JJl0ASt3DztpdcEqVeh7
+         QCeDCbjsYJ2t3Ar6rrVtEKKZrMD/k30aC5CrLW+SNGWi24sKeCBiFFUrW7I/kDvBSycd
+         d/Q1RlpqaqEHNgb4lH3zv0cc6ox40L7JHWZrNYypiRukSTNaoGrzij7+agiloAiYco8l
+         +SB562J6XtYkH5H7ZsA+vHRsRr1gwSKrjhFScBQINwhC713x+VJYkclC5t+6s0WC8QcH
+         3pVUTpE/x+JblO6gyG4vdZ0KhZobnb6uO/9Svsatm2XFqWGdyFeyl1J4XcSI+Adxrajv
+         LEPQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUvB5EU9Mw3iAQEr97h39Gjt+iCKDWKP5I6UVItu7QfrIy/hL1K
+	DQ7Jn9+ckr1a3TM3wxSiJD2qH9SpxxKl/PTpO0nFn3eXETDZxesuNuDDZ2M1wF2iEjBCCRINC+d
+	5I8Wb4OkcE0Qcg/7MN0ulKRfIIuRQye1DjaEZYrExjSPSxExwwHlXZaoGMoiBGnxKUg==
+X-Received: by 2002:ae9:ec0d:: with SMTP id h13mr58330235qkg.26.1564059908396;
+        Thu, 25 Jul 2019 06:05:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy9Uwp5Ak5FORmnwJiLFDercN/+tIZSyOGrC4HUeZNm+Tifita0S4FtNEdJXj8kVFnoi22A
+X-Received: by 2002:ae9:ec0d:: with SMTP id h13mr58330183qkg.26.1564059907791;
+        Thu, 25 Jul 2019 06:05:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564059907; cv=none;
         d=google.com; s=arc-20160816;
-        b=gp5gf9jlaU9ARpAysPzc+aEtSxrfSF0p8G59vf+vkEm87ODQNETT1ZM8PWSmEJ80Z2
-         dULyAV/Hsn1iUFIud/eGUn6CJwMbZF9a5Gc0ewkJobVqRsbiCveIsRdvcVpLkxl32nd9
-         MRlbRxS5eEjr6ECy8YxXEqDyesJvUIVzP+swVlnHohiInLzJlNMX8BhQc+H+RYzF0NtF
-         Evbrfu/rcIejDUwi0TJjgtELORb8bXLfLufoQz4gbz2WyMANZYID31meDNtxmk8r0sof
-         lip/PYToC0R9RscOWpPCHyLWPL7mX/3hBCamKRpfX8sJ7Fs5elyJSsp575Yv7UPmq9XJ
-         VNWw==
+        b=fQg9flQcm7vbDDEl3n12smRMflAnIyr/rzD6qzz6ffhRCnrnoR9TMWWQAY7vIklilc
+         NieNDVEl888FmI4tEqzbwm0oYhmsrCoDqV3Fsd1tz7+BrXmHZfhVi+r+0YEaL1z+X69u
+         8RL18F6ztYBL/xbdFVxBY98IvhCYTRzPslZp3FRqkjHrTgI/M1N4nU96sblfHFotJO8V
+         9AT+irkMWJiT7fUbGuiFfZeWRAEobTeaaAHoa/9+Sx/Cp1C8RIWeO3h09yyrZGmK8o7t
+         pi8kWKsEZHIDJguArxSYP9yelPZ0Cip5OmNAjRZRqUjN4bwP5NwrwOXulTnel6oFsxxv
+         COWw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=xm1uc7em0G8JejwS/Yo1wbMLfKh/weg38a2HA9WQH/M=;
-        b=i8JTRSOZ7bSv68S34CMQqsX/0sS8qpzsY0DAStIAmdnRRBEFXBD+k3J0X6R1EfZE6w
-         v38x/vjNHPicdOrdLQbfnNid8Ok8bdeAlv4tZDq/qLk5BKGBUZClyd0tDdFcKEcMUsGz
-         HjO6bPrwagn+cWZzXMHWYU92qVWQrP9S0oMSth80rR38ujQccLqnwgAVpa23OSuR4jCX
-         I02K7P+h2ujr1U0O0BQkBIdtbgEwZj9Z4Be4XF2XK27f3IuIlipeoBXlRmJUk4H3DNyF
-         /qTRcF5OTd2mxGmzgnIutzUETT09pnGnB6197qFwJysjWUqafIIV709wR5Hvwj/PeB2t
-         9vLg==
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=2/XDWIENTrK82hBmD4TRlYXae2uD9Be9AlV5D8OTldU=;
+        b=S5kfr/i0n8E530teyXofQJnh8MQulRbBpXVwu7C+38QEszJwmPP2fywJCgODwpJPkc
+         jQ6CaOt2gaslXtUR61ACU1z1tHupsIoVmazLghnYs+CX8sjdRyiL/1WZw7pxHQEDJnVs
+         DLy0ua+36he6qW6ogVCSDUmc1e4Xe0Zo+Q9xoK+ZFw8OrYpMrlbTYLDig5hagvlINi2p
+         1AqZVj7rUk4P5MYAdpluZPmeS/CleBnXdjosHXCeZ/deQG3RP1MRg76ERpEb7lCNkfaT
+         my2f296b8odkyMnItqPsML/7fKbUHa8PdxaEK94Qm5TW30D+HOQBI8fgqtHnSF0S7Rig
+         Tvvw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id dc24si8854396ejb.220.2019.07.25.06.02.56
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id w64si29790244qkb.254.2019.07.25.06.05.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 06:02:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 25 Jul 2019 06:05:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 92D18AF38;
-	Thu, 25 Jul 2019 13:02:56 +0000 (UTC)
-Subject: Re: [PATCH] mm: compaction: Avoid 100% CPU usage during compaction
- when a task is killed
-To: Mel Gorman <mgorman@techsingularity.net>,
- Andrew Morton <akpm@linux-foundation.org>
-Cc: howaboutsynergy@protonmail.com, "linux-mm@kvack.org"
- <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-References: <20190718085708.GE24383@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 540C5319D1C3;
+	Thu, 25 Jul 2019 13:05:05 +0000 (UTC)
+Received: from [10.36.117.70] (ovpn-117-70.ams2.redhat.com [10.36.117.70])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id B0E6B1001281;
+	Thu, 25 Jul 2019 13:05:03 +0000 (UTC)
+Subject: Re: [PATCH v1] ACPI / scan: Acquire device_hotplug_lock in
+ acpi_scan_init()
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-acpi@vger.kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>,
+ Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <osalvador@suse.de>
+References: <20190724143017.12841-1-david@redhat.com>
+ <20190725125636.GA3582@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <68fef6b3-bae8-2479-0e6e-ce13607369af@suse.cz>
-Date: Thu, 25 Jul 2019 15:02:55 +0200
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <6dc566c2-faf6-565d-4ef1-2ac3a366bc76@redhat.com>
+Date: Thu, 25 Jul 2019 15:05:02 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <20190718085708.GE24383@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
+In-Reply-To: <20190725125636.GA3582@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Thu, 25 Jul 2019 13:05:05 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/18/19 10:57 AM, Mel Gorman wrote:
-> "howaboutsynergy" reported via kernel buzilla number 204165 that
-> compact_zone_order was consuming 100% CPU during a stress test for
-> prolonged periods of time. Specifically the following command, which
-> should exit in 10 seconds, was taking an excessive time to finish while
-> the CPU was pegged at 100%.
+On 25.07.19 14:56, Michal Hocko wrote:
+> On Wed 24-07-19 16:30:17, David Hildenbrand wrote:
+>> We end up calling __add_memory() without the device hotplug lock held.
+>> (I used a local patch to assert in __add_memory() that the
+>>  device_hotplug_lock is held - I might upstream that as well soon)
+>>
+>> [   26.771684]        create_memory_block_devices+0xa4/0x140
+>> [   26.772952]        add_memory_resource+0xde/0x200
+>> [   26.773987]        __add_memory+0x6e/0xa0
+>> [   26.775161]        acpi_memory_device_add+0x149/0x2b0
+>> [   26.776263]        acpi_bus_attach+0xf1/0x1f0
+>> [   26.777247]        acpi_bus_attach+0x66/0x1f0
+>> [   26.778268]        acpi_bus_attach+0x66/0x1f0
+>> [   26.779073]        acpi_bus_attach+0x66/0x1f0
+>> [   26.780143]        acpi_bus_scan+0x3e/0x90
+>> [   26.780844]        acpi_scan_init+0x109/0x257
+>> [   26.781638]        acpi_init+0x2ab/0x30d
+>> [   26.782248]        do_one_initcall+0x58/0x2cf
+>> [   26.783181]        kernel_init_freeable+0x1bd/0x247
+>> [   26.784345]        kernel_init+0x5/0xf1
+>> [   26.785314]        ret_from_fork+0x3a/0x50
+>>
+>> So perform the locking just like in acpi_device_hotplug().
 > 
->   stress -m 220 --vm-bytes 1000000000 --timeout 10
-> 
-> Tracing indicated a pattern as follows
-> 
->           stress-3923  [007]   519.106208: mm_compaction_isolate_migratepages: range=(0x70bb80 ~ 0x70bb80) nr_scanned=0 nr_taken=0
->           stress-3923  [007]   519.106212: mm_compaction_isolate_migratepages: range=(0x70bb80 ~ 0x70bb80) nr_scanned=0 nr_taken=0
->           stress-3923  [007]   519.106216: mm_compaction_isolate_migratepages: range=(0x70bb80 ~ 0x70bb80) nr_scanned=0 nr_taken=0
->           stress-3923  [007]   519.106219: mm_compaction_isolate_migratepages: range=(0x70bb80 ~ 0x70bb80) nr_scanned=0 nr_taken=0
->           stress-3923  [007]   519.106223: mm_compaction_isolate_migratepages: range=(0x70bb80 ~ 0x70bb80) nr_scanned=0 nr_taken=0
->           stress-3923  [007]   519.106227: mm_compaction_isolate_migratepages: range=(0x70bb80 ~ 0x70bb80) nr_scanned=0 nr_taken=0
->           stress-3923  [007]   519.106231: mm_compaction_isolate_migratepages: range=(0x70bb80 ~ 0x70bb80) nr_scanned=0 nr_taken=0
->           stress-3923  [007]   519.106235: mm_compaction_isolate_migratepages: range=(0x70bb80 ~ 0x70bb80) nr_scanned=0 nr_taken=0
->           stress-3923  [007]   519.106238: mm_compaction_isolate_migratepages: range=(0x70bb80 ~ 0x70bb80) nr_scanned=0 nr_taken=0
->           stress-3923  [007]   519.106242: mm_compaction_isolate_migratepages: range=(0x70bb80 ~ 0x70bb80) nr_scanned=0 nr_taken=0
-> 
-> Note that compaction is entered in rapid succession while scanning and
-> isolating nothing. The problem is that when a task that is compacting
-> receives a fatal signal, it retries indefinitely instead of exiting while
-> making no progress as a fatal signal is pending.
-> 
-> It's not easy to trigger this condition although enabling zswap helps on
-> the basis that the timing is altered. A very small window has to be hit
-> for the problem to occur (signal delivered while compacting and isolating
-> a PFN for migration that is not aligned to SWAP_CLUSTER_MAX).
-> 
-> This was reproduced locally -- 16G single socket system, 8G swap, 30% zswap
-> configured, vm-bytes 22000000000 using Colin Kings stress-ng implementation
-> from github running in a loop until the problem hits). Tracing recorded the
-> problem occurring almost 200K times in a short window. With this patch, the
-> problem hit 4 times but the task existed normally instead of consuming CPU.
-> 
-> This problem has existed for some time but it was made worse by
-> cf66f0700c8f ("mm, compaction: do not consider a need to reschedule as
-> contention"). Before that commit, if the same condition was hit then
-> locks would be quickly contended and compaction would exit that way.
-> 
-> I haven't included a Reported-and-tested-by as the reporters real name
-> is unknown but this was caught and repaired due to their testing and
-> tracing.  If they want a tag added then hopefully they'll say so before
-> this gets merged.
-> 
-> Bugzilla: https://bugzilla.kernel.org/show_bug.cgi?id=204165
-> Fixes: cf66f0700c8f ("mm, compaction: do not consider a need to reschedule as contention")
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> CC: stable@vger.kernel.org # v5.1+
+> While playing with the device_hotplug_lock, can we actually document
+> what it is protecting please? I have a bad feeling that we are adding
+> this lock just because some other code path does rather than with a good
+> idea why it is needed. This patch just confirms that. What exactly does
+> the lock protect from here in an early boot stage.
 
-Reviewed-by: Vlastimil Babka <vbabka@suse.cz>
+We have plenty of documentation already
 
-> ---
->  mm/compaction.c | 11 +++++++----
->  1 file changed, 7 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/compaction.c b/mm/compaction.c
-> index 9e1b9acb116b..952dc2fb24e5 100644
-> --- a/mm/compaction.c
-> +++ b/mm/compaction.c
-> @@ -842,13 +842,15 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->  
->  		/*
->  		 * Periodically drop the lock (if held) regardless of its
-> -		 * contention, to give chance to IRQs. Abort async compaction
-> -		 * if contended.
-> +		 * contention, to give chance to IRQs. Abort completely if
-> +		 * a fatal signal is pending.
->  		 */
->  		if (!(low_pfn % SWAP_CLUSTER_MAX)
->  		    && compact_unlock_should_abort(&pgdat->lru_lock,
-> -					    flags, &locked, cc))
-> -			break;
-> +					    flags, &locked, cc)) {
-> +			low_pfn = 0;
-> +			goto fatal_pending;
-> +		}
->  
->  		if (!pfn_valid_within(low_pfn))
->  			goto isolate_fail;
-> @@ -1060,6 +1062,7 @@ isolate_migratepages_block(struct compact_control *cc, unsigned long low_pfn,
->  	trace_mm_compaction_isolate_migratepages(start_pfn, low_pfn,
->  						nr_scanned, nr_isolated);
->  
-> +fatal_pending:
->  	cc->total_migrate_scanned += nr_scanned;
->  	if (nr_isolated)
->  		count_compact_events(COMPACTISOLATED, nr_isolated);
-> 
+mm/memory_hotplug.c
+
+git grep -C5 device_hotplug mm/memory_hotplug.c
+
+Also see
+
+Documentation/core-api/memory-hotplug.rst
+
+Regarding the early stage: primarily lockdep as I mentioned.
+
+-- 
+
+Thanks,
+
+David / dhildenb
 
