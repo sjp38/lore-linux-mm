@@ -2,185 +2,161 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=FROM_EXCESS_BASE64,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5AE44C76186
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 02:33:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0ECFDC76186
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 02:36:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0D44521734
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 02:33:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D44521734
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id BAF9E22387
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 02:36:40 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="i0fC83yp"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BAF9E22387
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AAE318E0024; Wed, 24 Jul 2019 22:33:18 -0400 (EDT)
+	id 491468E0025; Wed, 24 Jul 2019 22:36:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A600C8E001C; Wed, 24 Jul 2019 22:33:18 -0400 (EDT)
+	id 441B08E001C; Wed, 24 Jul 2019 22:36:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 974498E0024; Wed, 24 Jul 2019 22:33:18 -0400 (EDT)
+	id 3577C8E0025; Wed, 24 Jul 2019 22:36:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F3F98E001C
-	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 22:33:18 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id i33so25338931pld.15
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 19:33:18 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 014F08E001C
+	for <linux-mm@kvack.org>; Wed, 24 Jul 2019 22:36:40 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id r142so29833901pfc.2
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 19:36:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=XwLqp8Z3M5R9sJyY1dCHjhkB3k3wy7et1I50y6Zfs+0=;
-        b=A6kgOk3QkpPIgOlaClUocgaNpmpEyXEODEncBABFrQCYYj3VxGF4YIRbN3DgfnFOC1
-         YwDNQueDB9mD/18I0fVzxIV1ZtACLxoxGxFQh+D6Vs+32a4qqSKaWmHS6XN7L2ltKVbB
-         AGhozGYYoxOC9qhTHiPSvl+QSz05OvqfzBr7WLhoc56RsZ6FmdAa9/vlgcoyd2cHHe6E
-         DKal0+xsDn4/L92GsmCRvm8UBTKsWvUE3gDkB+deEetzFQcYUSuQhdClLIxLbj9fAGyy
-         x9aXjQfnCZBbcyHQIvTrQB1+WQYF5GGH86UmPYq5LQ79vRLP6dqNcq2GU9OwqEyQFM7D
-         OM4A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAW7DeSEv6SvvxLhs9PHjziCYuFuvz+8KIgQfe05LdHA5ZQrDwMj
-	77d6bZbOuHuFarZTczMxhwKVuPXXzbKQzeJPLCO4uDemlXSGy7C5uGDyxaOI6LT8ZcsmwHjQrnP
-	DZxdK1DkbZKkxjshtWS72o31fORZb0TyKTvsVX2gYI7oF2fzcIIzTTQNdJVKudRSLGQ==
-X-Received: by 2002:a17:90a:a407:: with SMTP id y7mr90609079pjp.97.1564021997986;
-        Wed, 24 Jul 2019 19:33:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw36Kbn4QxuBDDAuySKYtu5uQaGXe8pmu3R3GDBHXSbInjZ4AxW7WgxlDfTpP8LVVONARBo
-X-Received: by 2002:a17:90a:a407:: with SMTP id y7mr90609056pjp.97.1564021997239;
-        Wed, 24 Jul 2019 19:33:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564021997; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=CB5Z8nr1WZSSNnI22cPzZ5y4y81aFkRUJTfJZecdvYA=;
+        b=A7IJV/iJu1JzeddYvxEOTHGGQsfVFfg8BjJLxS4SbFfhZ43cEi3iMPh9jW1EfnqS7G
+         CFI2CdrAC7ExMYzbQASfxuFyX77V6Rv0ZZdRkknsB1CqyQtk47Pi6M7wWFbM+fhRfGMe
+         qY5ySvewZNpHF/83Jl7na2uhOXDF2b2s0rLmHT3NnITIi+YW0gDgoG1WBFaa/KdA2+A1
+         oEqPgzWoaYONHBxH0GuLyEo9RyUEJIHD6SlRtvVK2uNeymPYI85r5uotmWhD0xrRrtdd
+         ET05qW8bRcFhcSzdJq3uobsFN6DHulUU3gt7L01hI9/3HAqhQnXVmgi+tbGLkWL9IVkc
+         oJvA==
+X-Gm-Message-State: APjAAAWIHlszuyGfd+reG8LU4b76S4HrVdApI7E5V9qofUEnU0UF7XFL
+	AxLZzdfF3C8DYiKY4MoI+Jzw3wxNNMjMHqq3Jrc7nS3oFVyDuX6L83EcoOPR57CUpkUpfzfF1FJ
+	m7XBhUaacymFwpIea0T0iuz8pnw7m9fmEbAqXRcax2Vyics7bTJhHqaLYLkUTJKIsVQ==
+X-Received: by 2002:a17:90a:208d:: with SMTP id f13mr87732589pjg.68.1564022199668;
+        Wed, 24 Jul 2019 19:36:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyKGtBZQ441ylvTNV/WoD8xBXumgS/4EMCIyfTvSWzPXiQFYSu0gr6hRBE5246LOQbuS7nB
+X-Received: by 2002:a17:90a:208d:: with SMTP id f13mr87732551pjg.68.1564022198940;
+        Wed, 24 Jul 2019 19:36:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564022198; cv=none;
         d=google.com; s=arc-20160816;
-        b=wwD1m3NfLz+jtx8iyCzvBpUbpuxpAekO/JiwhuiNAawbak9NPE3kxWW2Gc8JvM4hvq
-         0+DZP11Fn3XjZLRYr2/xXOmeJSy0m9n/+SBuqqoaW18TpwbqBq0GaxVh+bAcxleX9WPO
-         1m3BsfvmTJrcrDvSkMq7tB9gn9qgjdELSxMAkU9aKun6Vwox1pTebxIKdvJEz9NseKXS
-         uVWEXq65GvChgI3ATVaskG7ao4XStml3d0znqPYVpiJ3asICa3djJGfcVUqsjmebH+8a
-         U+iE98VWv+SEVCOcn12U1AiDI/blfQMfdUAcpPex8sHt4ZYJBbtJmTF7WOXP66Qws+Pn
-         o/mg==
+        b=pYNV9MUBylvO9HIWRr+GC5kchMjb3Z2dABBV2j+0zW4cqgg4j9k+uNAYEvOi4hqhL3
+         jw0fAEHDx+CAfLkeFGA0UGEaViL8bcI/m0PoTIlIbKOFatG2NV2BC8FVVWQ9SDCWtf/T
+         c/eQOZOnLGcI4b2wkuhk91WdJ2kcGvn84JGBO2KSujvVzB6MAGoARdvnJ+92jzuc3Cvv
+         FFQ/pF8cwT+qDXcGCre8wLY4dXrKlFhJAoa9lEC5ytPNfh70SaJBDW/5HvzbVPAno8EK
+         nEgQxBZEdlDm1se4P2S7EvEOOTBgucoLwtkKZnyy5t7yw1uF3BQW88Nlc9TTY9NnQeek
+         EA8w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:from:subject;
-        bh=XwLqp8Z3M5R9sJyY1dCHjhkB3k3wy7et1I50y6Zfs+0=;
-        b=e7LyV8Rpf05m7rucs68f8Hrtr4YhP1VH2fhPNlTzVtfONwyxrlP8n1GFIOEg0jbUqq
-         hZbOwERgHjxHysIdKN1K82711FXwZZUuVakZk6a3rKaWnZb18SG77RzPbMIZ5XuToxoH
-         CWrBN0+4TwgnvBv+Qv3oD0Uam/LzVNBjb1IB1QJTlZZtouoKNEl1+KOKNGUaIfZx0J/n
-         zJ7JMt7mN14sgskvAI1tJ6EiiS1razIK6EYs50oDI45JwFmX3hr3uQQHNzMjVEuDAVXW
-         xeaibgI5Mhax8wkSktTyDSIbD+/oBVvpgv2JdyaBm/gkIv1HyeQ/93/7OQxg8BTGNaTQ
-         29gQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=CB5Z8nr1WZSSNnI22cPzZ5y4y81aFkRUJTfJZecdvYA=;
+        b=Zp3BG7ZMuDRwCsHzBoAOMFFzraOSUZE4Ow0qo70k7vOadfHnooXkV3nsT8xBgei0mc
+         HAETigZFT/5eP6/w+myZ0i3fCAiKUU2P9KjXUYv6J5U+W901mgkWjvJEGgcSBKOEpRVh
+         VMKiIUfivDyHbEb6ScxDo3YYpQodTfNJrFZmC7dBuCKJ3pE/X8u2UsCmeS7uQMmpHPz9
+         UkpfSrCGECP6EN9fQGpADN9F9JQV4P5enCGevZNh6CGuNsSvMKsznmpAXy+cBmHAFAIb
+         G1eZtij+5GIyT+Qi80057tsHdTEC5wGsQwclbap2iwFU9+XbrEeQ2oHdAr9UcA2PO7kV
+         Dr1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out4436.biz.mail.alibaba.com (out4436.biz.mail.alibaba.com. [47.88.44.36])
-        by mx.google.com with ESMTPS id u10si17535495pgj.588.2019.07.24.19.33.15
+       dkim=pass header.i=@kernel.org header.s=default header.b=i0fC83yp;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id q10si2934308pff.223.2019.07.24.19.36.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 19:33:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.36 as permitted sender) client-ip=47.88.44.36;
+        Wed, 24 Jul 2019 19:36:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 47.88.44.36 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R161e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07417;MF=yun.wang@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TXkJoVQ_1564021990;
-Received: from testdeMacBook-Pro.local(mailfrom:yun.wang@linux.alibaba.com fp:SMTPD_---0TXkJoVQ_1564021990)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Thu, 25 Jul 2019 10:33:11 +0800
-Subject: Re: [PATCH v2 0/4] per-cgroup numa suite
-From: =?UTF-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
-To: Peter Zijlstra <peterz@infradead.org>, hannes@cmpxchg.org,
- mhocko@kernel.org, vdavydov.dev@gmail.com, Ingo Molnar <mingo@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mcgrof@kernel.org,
- keescook@chromium.org, linux-fsdevel@vger.kernel.org,
- cgroups@vger.kernel.org, =?UTF-8?Q?Michal_Koutn=c3=bd?= <mkoutny@suse.com>,
- Hillf Danton <hdanton@sina.com>
-References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
- <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
- <65c1987f-bcce-2165-8c30-cf8cf3454591@linux.alibaba.com>
-Message-ID: <2203b828-1458-5fec-f4f6-353f51091e2a@linux.alibaba.com>
-Date: Thu, 25 Jul 2019 10:33:10 +0800
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0)
- Gecko/20100101 Thunderbird/60.7.0
-MIME-Version: 1.0
-In-Reply-To: <65c1987f-bcce-2165-8c30-cf8cf3454591@linux.alibaba.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+       dkim=pass header.i=@kernel.org header.s=default header.b=i0fC83yp;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 0EA0B21852;
+	Thu, 25 Jul 2019 02:36:38 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1564022198;
+	bh=D1/XAZeml+GaFLf+eOsik3qb0TT1TCoXAkWbdZi4Uk0=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=i0fC83ypNVUKB9EVai4LXo+v9ARw5Eyade7UDcE4YL+6sCTYavtEvzFa0Tykazaz+
+	 SsLvMemZaTAs++xQk83lBYn2Grm5YGG3xvnbO7/nLnU1R+78CB5s67GOwvl1L5kqIO
+	 uj/fRVIsKke3L1aYxS/VQVMNN28hRjeKuFm2wTWM=
+Date: Wed, 24 Jul 2019 19:36:37 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Pengfei Li <lpf.vector@gmail.com>
+Cc: willy@infradead.org, urezki@gmail.com, rpenyaev@suse.de,
+ peterz@infradead.org, guro@fb.com, rick.p.edgecombe@intel.com,
+ rppt@linux.ibm.com, aryabinin@virtuozzo.com, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v6 1/2] mm/vmalloc: do not keep unpurged areas in the
+ busy tree
+Message-Id: <20190724193637.44ced3b82dd76649df28ecf5@linux-foundation.org>
+In-Reply-To: <20190716152656.12255-2-lpf.vector@gmail.com>
+References: <20190716152656.12255-1-lpf.vector@gmail.com>
+	<20190716152656.12255-2-lpf.vector@gmail.com>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi, Peter
+On Tue, 16 Jul 2019 23:26:55 +0800 Pengfei Li <lpf.vector@gmail.com> wrote:
 
-Now we have all these stuff in cpu cgroup, with the new statistic
-folks should be able to estimate their per-cgroup workloads on
-numa platform, and numa group + cling would help to address the
-issue when their workloads can't be settled on one node.
+> From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
+> 
+> The busy tree can be quite big, even though the area is freed
+> or unmapped it still stays there until "purge" logic removes
+> it.
+> 
+> 1) Optimize and reduce the size of "busy" tree by removing a
+> node from it right away as soon as user triggers free paths.
+> It is possible to do so, because the allocation is done using
+> another augmented tree.
+> 
+> The vmalloc test driver shows the difference, for example the
+> "fix_size_alloc_test" is ~11% better comparing with default
+> configuration:
+> 
+> sudo ./test_vmalloc.sh performance
+> 
+> <default>
+> Summary: fix_size_alloc_test loops: 1000000 avg: 993985 usec
+> Summary: full_fit_alloc_test loops: 1000000 avg: 973554 usec
+> Summary: long_busy_list_alloc_test loops: 1000000 avg: 12617652 usec
+> <default>
+> 
+> <this patch>
+> Summary: fix_size_alloc_test loops: 1000000 avg: 882263 usec
+> Summary: full_fit_alloc_test loops: 1000000 avg: 973407 usec
+> Summary: long_busy_list_alloc_test loops: 1000000 avg: 12593929 usec
+> <this patch>
+> 
+> 2) Since the busy tree now contains allocated areas only and does
+> not interfere with lazily free nodes, introduce the new function
+> show_purge_info() that dumps "unpurged" areas that is propagated
+> through "/proc/vmallocinfo".
+> 
+> 3) Eliminate VM_LAZY_FREE flag.
+> 
+> Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
 
-How do you think about this version :-)
+This should have included your signed-off-by, since you were on the
+patch delivery path.  (Documentation/process/submitting-patches.rst,
+section 11).
 
-Regards,
-Michael Wang
-
-On 2019/7/16 上午11:38, 王贇 wrote:
-> During our torturing on numa stuff, we found problems like:
-> 
->   * missing per-cgroup information about the per-node execution status
->   * missing per-cgroup information about the numa locality
-> 
-> That is when we have a cpu cgroup running with bunch of tasks, no good
-> way to tell how it's tasks are dealing with numa.
-> 
-> The first two patches are trying to complete the missing pieces, but
-> more problems appeared after monitoring these status:
-> 
->   * tasks not always running on the preferred numa node
->   * tasks from same cgroup running on different nodes
-> 
-> The task numa group handler will always check if tasks are sharing pages
-> and try to pack them into a single numa group, so they will have chance to
-> settle down on the same node, but this failed in some cases:
-> 
->   * workloads share page caches rather than share mappings
->   * workloads got too many wakeup across nodes
-> 
-> Since page caches are not traced by numa balancing, there are no way to
-> realize such kind of relationship, and when there are too many wakeup,
-> task will be drag from the preferred node and then migrate back by numa
-> balancing, repeatedly.
-> 
-> Here the third patch try to address the first issue, we could now give hint
-> to kernel about the relationship of tasks, and pack them into single numa
-> group.
-> 
-> And the forth patch introduced numa cling, which try to address the wakup
-> issue, now we try to make task stay on the preferred node on wakeup in fast
-> path, in order to address the unbalancing risk, we monitoring the numa
-> migration failure ratio, and pause numa cling when it reach the specified
-> degree.
-> 
-> Since v1:
->   * move statistics from memory cgroup into cpu group
->   * statistics now accounting in hierarchical way
->   * locality now accounted into 8 regions equally
->   * numa cling no longer override select_idle_sibling, instead we
->     prevent numa swap migration with tasks cling to dst-node, also
->     prevent wake affine to drag tasks away which already cling to
->     prev-cpu
->   * other refine on comments and names
-> 
-> Michael Wang (4):
->   v2 numa: introduce per-cgroup numa balancing locality statistic
->   v2 numa: append per-node execution time in cpu.numa_stat
->   v2 numa: introduce numa group per task group
->   v4 numa: introduce numa cling feature
-> 
->  include/linux/sched.h        |   8 +-
->  include/linux/sched/sysctl.h |   3 +
->  kernel/sched/core.c          |  85 ++++++++
->  kernel/sched/debug.c         |   7 +
->  kernel/sched/fair.c          | 510 ++++++++++++++++++++++++++++++++++++++++++-
->  kernel/sched/sched.h         |  41 ++++
->  kernel/sysctl.c              |   9 +
->  7 files changed, 651 insertions(+), 12 deletions(-)
-> 
+Please send along your signed-off-by?
 
