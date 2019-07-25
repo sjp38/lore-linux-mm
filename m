@@ -4,189 +4,233 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D94FCC76194
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 14:57:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D9D2EC7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 14:59:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9A27722BF5
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 14:57:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A27722BF5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 962A8229F9
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 14:59:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 962A8229F9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D9456B026B; Thu, 25 Jul 2019 10:57:50 -0400 (EDT)
+	id 3277B8E0002; Thu, 25 Jul 2019 10:59:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 289796B026C; Thu, 25 Jul 2019 10:57:50 -0400 (EDT)
+	id 2D6766B026C; Thu, 25 Jul 2019 10:59:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 179918E0002; Thu, 25 Jul 2019 10:57:50 -0400 (EDT)
+	id 1C5B78E0002; Thu, 25 Jul 2019 10:59:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D50C96B026B
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 10:57:49 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id 6so31047015pfz.10
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 07:57:49 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id EF3E46B026B
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 10:59:48 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id k125so42499607qkc.12
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 07:59:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=l/urlPE742dwOPrjg4cIuvv4qlqyGvC6x5/DV4E1IoI=;
-        b=Ojs7KKwUCyqT2vrxNuYoKXOu4zZFMvBGzAxklNnxUADb5IKxhXRlEy+45FIVdq4etS
-         unS8bs6GovxNjDPIXdoYpRL6HcGOMJ+1xJvG09WBI2XKxSC6mGy2dnFWoTfsTK19FdDX
-         AjnzSp2X2UgrpD0JLLHOVisppC/dJAf/U00rwtQjZgOmZVQ6kanFmjPHU4bZpC7ad5Kn
-         bcvvIHPFqSU//Tolup3X+Mf3C5NCltgW99Cb/xvuW6Np4hed2oHNt5Xe1MOliyRyoAyO
-         1ppYNBaPPWybP01S5yRRvvd38LcNBEdB+Fkmj1XQl6AS/Pzi5f/QykIeHU0m3J8aYvDO
-         863w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAU00Jb4dENI2Rq82uCigcWKRoSjaq4LF33ZBO9zQTSrGm1MKh40
-	lGgC8L7KBi+LMbtxSBhI9VtOUD/8Ygiiv/fLvs9S/fjXSSbFj4S5QQ6+8o6Irhpf7HDVOA2YQjo
-	HtaBlsoVt7gRJeOb6gQilUxUGX1p4ylS6/wldfQKBmnzZGnk1DH3/1ltW0tYx/bcn9g==
-X-Received: by 2002:a63:20d:: with SMTP id 13mr75764562pgc.253.1564066669426;
-        Thu, 25 Jul 2019 07:57:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx2H89eyvCC7PYvfcOZtjQBeG36t90Xa4X7H+x4xXEn4dPZRypKGOr04etrTYO4qxr9Aoui
-X-Received: by 2002:a63:20d:: with SMTP id 13mr75764523pgc.253.1564066668574;
-        Thu, 25 Jul 2019 07:57:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564066668; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=Rmm6yLiguxnk1HEaBFpodRlU5b5ba8DS6Z2s5rRsdl0=;
+        b=ICpYfiR6A5TzPRUGdE00HCGm/CQD2fFeZHYtirvJvi4wWxz4Kt4MAS41V8aT3LTPYH
+         iY+9PeAVfzyrHlLKYWDieErjNcesA9Mu6ib8eLxsrFHI1AL/7hIHTuxoboX9sWTF+7zJ
+         eGlR1QyaW037Rvbnnnkwxd9C6QHboA8hNmIC0+EUCRz99vazHSfYc4eW5DoKcbfG728B
+         rZl+sYk71tAdLHoSUw/6nX8gttOG1uEpKW2HR3Z5oRBVfcOdeFBAy1wbXPbJ5Q9b3jyV
+         fgRfESzkikQvAHb9uF8Wk5M5F7KNV0M0bF7JR8elm3OxFYNet3o9z0XfD5ds4FQ+qgCF
+         puDA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWn+Y/ALULx8YXpbQ8uZ56oq5/l7Gi+WM4kAp8AeEnIS2IGMSLg
+	k6072ualbMtVsJnXDfEfMonwF6GL9tOwdvcEH+7uwHoOCzkzJf3aJCRVCx+SYLT13wVCvpGYYTe
+	3atYjxvaKp+N0JY+IrLR8cLdSD+7zZC8O2obvcQX48LLi6Ysy2HHwkfSpzzmq2qywnQ==
+X-Received: by 2002:a37:9b92:: with SMTP id d140mr57927412qke.443.1564066788732;
+        Thu, 25 Jul 2019 07:59:48 -0700 (PDT)
+X-Received: by 2002:a37:9b92:: with SMTP id d140mr57927378qke.443.1564066788114;
+        Thu, 25 Jul 2019 07:59:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564066788; cv=none;
         d=google.com; s=arc-20160816;
-        b=c9ZAkDYGOgyTYh+Bp3dGid3EPhS+XjrRs27Mi9nj3ZTZR2Gzl9tEinaemaDFQ6JSL8
-         fhJqxi+Lhrvqy8R5mqwUJ+LCeFvg2ApQ+S0p9B1cLnL9JTaWvcqKF3j30a00bBsIT7aY
-         6e5PwLfP8GZTmpXEsRLaAoRWYsOr4q+fmmlzRmDApKMcnX/AcuSPtKRJra6vG89x5RGQ
-         yWb5V2idekokVmYBsCorE+LLfNBfELlmZGPWkJuKBuxTEGysghCJz3s/8bcupcXvYd39
-         zr5z6AO6ChPBrqpPGW0t0hdpLlEwNKKHMQAOfxCu+Q1sFn2YXA6htNVmxAZ4kY0M57RK
-         4L9g==
+        b=ypzspvoU69nGYhAteK8LXxjP24Bro/krOndl1mVZj5xDsLgy3zBtiOzUdrxkJThIZy
+         ET0pt4N0yNRxXmOPkjpSksU9V2Q1EXy4RKU8LPDZDfbErMmUpRdsJ5WC22JTQRyHm/R2
+         WZ+ThqR6+HPh/tYZJAaWDmE/OqqH8XsBWiAs016W4Bh/TfAOCpPGtkkC46kQDNw9hPVo
+         do+j/dJPE47tknC5r+mBgeJnNnGgO4tc/1tyJDGAgP++Z/z7LzJs2+Roonr7nIIqio/y
+         ayrIwLnwOn4QvxguESXkbqw3ewX9fjGxJ974BfgD3KgiCD204VECbA6kq2ENsjKVa8G2
+         sgSQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:date:cc:to:from:subject:message-id;
-        bh=l/urlPE742dwOPrjg4cIuvv4qlqyGvC6x5/DV4E1IoI=;
-        b=RH/o5rYMFCcYxYZSsp3GNvMoDkJ/8smkJNLTdASKGSXhxvWcrkMNH/3wN/5fKdAlu6
-         HOjQNPtqSlqnDY5zSvRtX3i3asGEG3s7UfYr5QNoKoNCp8te1IvcSorRPfRbcP+EB1rL
-         lSvzN9mJhAH3vP3ZgYjjCpEbWLErSsOsUjF3+LHPhjBC49f7/iTQre/lbyGwXRv+9ci6
-         C9lOLH2DI8WQuI5/qpOv/pRuw6P1iolfIlxDRvtsM2MKpDusDi6zkHloHZUW9e3V0UDQ
-         QaA2G8D7dF9Z13F04Kv4M5Y0YdMVCmlGLwO95QIMTPv6E0EJGAq7ms9qZFMTZo8oX+rs
-         Z2Fg==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=Rmm6yLiguxnk1HEaBFpodRlU5b5ba8DS6Z2s5rRsdl0=;
+        b=LO+P+9BkKwfp6udXAqPePVp4qJURA3nhq3RfEQdLQoBg3nGoUdPdkI72M42Z5BVXM5
+         bnEzgkvbTp51OhKBKBil4apVvxi34aJ+HBrn4aQ2pbyBq8k4IaLO0e2lCxQFd4lz0qS+
+         CeeIBkpZepPTfRrYFzYPO5DFikfF4lNKIpzMLEDRZIU1yDrs9pYZ9JimdudMBqTftaHW
+         wq96RjuHGjvfH48IVVG0WHbwWZlZ79nKHBzKCnT06dOa/yF8rieLgvJw6mT37XX6NqBX
+         4WGHH637tPbJFFLM5Au+e9kliTDlJQsLMFbIvF+KYCv+Gt+x6FCWTVZpftxwBIAuX5QF
+         fP0A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
-        by mx.google.com with ESMTPS id d12si17886903pla.121.2019.07.25.07.57.48
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t7sor66395741qtr.14.2019.07.25.07.59.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 07:57:48 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
+        (Google Transport Security);
+        Thu, 25 Jul 2019 07:59:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Jul 2019 07:57:48 -0700
-X-IronPort-AV: E=Sophos;i="5.64,307,1559545200"; 
-   d="scan'208";a="164199993"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga008-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Jul 2019 07:57:48 -0700
-Message-ID: <d9357c2b6ed9e1499703a562199cc28d1b57383e.camel@linux.intel.com>
-Subject: Re: [PATCH v2 QEMU] virtio-balloon: Provide a interface for "bubble
- hinting"
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: Nitesh Narayan Lal <nitesh@redhat.com>, Alexander Duyck
-	 <alexander.duyck@gmail.com>
-Cc: "Michael S. Tsirkin" <mst@redhat.com>, kvm@vger.kernel.org, 
-	david@redhat.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, 
-	linux-mm@kvack.org, akpm@linux-foundation.org, yang.zhang.wz@gmail.com, 
-	pagupta@redhat.com, riel@surriel.com, konrad.wilk@oracle.com, 
-	lcapitulino@redhat.com, wei.w.wang@intel.com, aarcange@redhat.com, 
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqzoIpindOeRtA1tCkHO4cy0qQv+nosyivtBgk+2pOYdPVUj3ArumomPLobNHAIjfwa4IloqWA==
+X-Received: by 2002:ac8:3907:: with SMTP id s7mr64407808qtb.374.1564066787847;
+        Thu, 25 Jul 2019 07:59:47 -0700 (PDT)
+Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
+        by smtp.gmail.com with ESMTPSA id v75sm24506057qka.38.2019.07.25.07.59.42
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 25 Jul 2019 07:59:47 -0700 (PDT)
+Date: Thu, 25 Jul 2019 10:59:40 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>,
+	Alexander Duyck <alexander.duyck@gmail.com>, kvm@vger.kernel.org,
+	david@redhat.com, dave.hansen@intel.com,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	akpm@linux-foundation.org, yang.zhang.wz@gmail.com,
+	pagupta@redhat.com, riel@surriel.com, konrad.wilk@oracle.com,
+	lcapitulino@redhat.com, wei.w.wang@intel.com, aarcange@redhat.com,
 	pbonzini@redhat.com, dan.j.williams@intel.com
-Date: Thu, 25 Jul 2019 07:57:47 -0700
-In-Reply-To: <bbfe0fbb-dd23-ed5c-01b3-493ae804942f@redhat.com>
+Subject: Re: [PATCH v2 5/5] virtio-balloon: Add support for providing page
+ hints to host
+Message-ID: <20190725105852-mutt-send-email-mst@kernel.org>
 References: <20190724165158.6685.87228.stgit@localhost.localdomain>
-	 <20190724171050.7888.62199.stgit@localhost.localdomain>
-	 <20190724150224-mutt-send-email-mst@kernel.org>
-	 <6218af96d7d55935f2cf607d47680edc9b90816e.camel@linux.intel.com>
-	 <bbfe0fbb-dd23-ed5c-01b3-493ae804942f@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+ <20190724170514.6685.17161.stgit@localhost.localdomain>
+ <20190724143902-mutt-send-email-mst@kernel.org>
+ <21cc88cd-3577-e8b4-376f-26c7848f5764@redhat.com>
+ <d75ba86f0cab44562148f3ffd66684c167952079.camel@linux.intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d75ba86f0cab44562148f3ffd66684c167952079.camel@linux.intel.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 2019-07-25 at 07:57 -0400, Nitesh Narayan Lal wrote:
-> On 7/24/19 4:18 PM, Alexander Duyck wrote:
-> > On Wed, 2019-07-24 at 15:02 -0400, Michael S. Tsirkin wrote:
-> > > On Wed, Jul 24, 2019 at 10:12:10AM -0700, Alexander Duyck wrote:
+On Thu, Jul 25, 2019 at 07:56:15AM -0700, Alexander Duyck wrote:
+> On Thu, 2019-07-25 at 10:44 -0400, Nitesh Narayan Lal wrote:
+> > On 7/24/19 3:02 PM, Michael S. Tsirkin wrote:
+> > > On Wed, Jul 24, 2019 at 10:05:14AM -0700, Alexander Duyck wrote:
 > > > > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 > > > > 
-> > > > Add support for what I am referring to as "bubble hinting". Basically the
-> > > > idea is to function very similar to how the balloon works in that we
-> > > > basically end up madvising the page as not being used. However we don't
-> > > > really need to bother with any deflate type logic since the page will be
-> > > > faulted back into the guest when it is read or written to.
-> > > > 
-> > > > This is meant to be a simplification of the existing balloon interface
-> > > > to use for providing hints to what memory needs to be freed. I am assuming
-> > > > this is safe to do as the deflate logic does not actually appear to do very
-> > > > much other than tracking what subpages have been released and which ones
-> > > > haven't.
+> > > > Add support for the page hinting feature provided by virtio-balloon.
+> > > > Hinting differs from the regular balloon functionality in that is is
+> > > > much less durable than a standard memory balloon. Instead of creating a
+> > > > list of pages that cannot be accessed the pages are only inaccessible
+> > > > while they are being indicated to the virtio interface. Once the
+> > > > interface has acknowledged them they are placed back into their respective
+> > > > free lists and are once again accessible by the guest system.
 > > > > 
 > > > > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > > Looking at the design, it seems that hinted pages can immediately be
+> > > reused. I wonder how we can efficiently support this
+> > > with kvm when poisoning is in effect. Of course we can just
+> > > ignore the poison. However it seems cleaner to
+> > > 1. verify page is poisoned with the correct value
+> > > 2. fill the page with the correct value on fault
+> > > 
+> > > Requirement 2 requires some kind of madvise that
+> > > will save the poison e.g. in the VMA.
+> > > 
+> > > Not a blocker for sure ... 
+> > > 
+> > > 
 > > > > ---
-> > > >  hw/virtio/virtio-balloon.c                      |   40 +++++++++++++++++++++++
-> > > >  include/hw/virtio/virtio-balloon.h              |    2 +
-> > > >  include/standard-headers/linux/virtio_balloon.h |    1 +
-> > > >  3 files changed, 42 insertions(+), 1 deletion(-)
+> > > >  drivers/virtio/Kconfig              |    1 +
+> > > >  drivers/virtio/virtio_balloon.c     |   47 +++++++++++++++++++++++++++++++++++
+> > > >  include/uapi/linux/virtio_balloon.h |    1 +
+> > > >  3 files changed, 49 insertions(+)
 > > > > 
-> > > > diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
-> > > > index 2112874055fb..70c0004c0f88 100644
-> > > > --- a/hw/virtio/virtio-balloon.c
-> > > > +++ b/hw/virtio/virtio-balloon.c
-> > > > @@ -328,6 +328,39 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
-> > > >      balloon_stats_change_timer(s, 0);
+> > > > diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
+> > > > index 078615cf2afc..d45556ae1f81 100644
+> > > > --- a/drivers/virtio/Kconfig
+> > > > +++ b/drivers/virtio/Kconfig
+> > > > @@ -58,6 +58,7 @@ config VIRTIO_BALLOON
+> > > >  	tristate "Virtio balloon driver"
+> > > >  	depends on VIRTIO
+> > > >  	select MEMORY_BALLOON
+> > > > +	select PAGE_HINTING
+> > > >  	---help---
+> > > >  	 This driver supports increasing and decreasing the amount
+> > > >  	 of memory within a KVM guest.
+> > > > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> > > > index 226fbb995fb0..dee9f8f3ad09 100644
+> > > > --- a/drivers/virtio/virtio_balloon.c
+> > > > +++ b/drivers/virtio/virtio_balloon.c
+> > > > @@ -19,6 +19,7 @@
+> > > >  #include <linux/mount.h>
+> > > >  #include <linux/magic.h>
+> > > >  #include <linux/pseudo_fs.h>
+> > > > +#include <linux/page_hinting.h>
+> > > >  
+> > > >  /*
+> > > >   * Balloon device works in 4K page units.  So each page is pointed to by
+> > > > @@ -27,6 +28,7 @@
+> > > >   */
+> > > >  #define VIRTIO_BALLOON_PAGES_PER_PAGE (unsigned)(PAGE_SIZE >> VIRTIO_BALLOON_PFN_SHIFT)
+> > > >  #define VIRTIO_BALLOON_ARRAY_PFNS_MAX 256
+> > > > +#define VIRTIO_BALLOON_ARRAY_HINTS_MAX	32
+> > > >  #define VIRTBALLOON_OOM_NOTIFY_PRIORITY 80
+> > > >  
+> > > >  #define VIRTIO_BALLOON_FREE_PAGE_ALLOC_FLAG (__GFP_NORETRY | __GFP_NOWARN | \
+> > > > @@ -46,6 +48,7 @@ enum virtio_balloon_vq {
+> > > >  	VIRTIO_BALLOON_VQ_DEFLATE,
+> > > >  	VIRTIO_BALLOON_VQ_STATS,
+> > > >  	VIRTIO_BALLOON_VQ_FREE_PAGE,
+> > > > +	VIRTIO_BALLOON_VQ_HINTING,
+> > > >  	VIRTIO_BALLOON_VQ_MAX
+> > > >  };
+> > > >  
+> > > > @@ -113,6 +116,10 @@ struct virtio_balloon {
+> > > >  
+> > > >  	/* To register a shrinker to shrink memory upon memory pressure */
+> > > >  	struct shrinker shrinker;
+> > > > +
+> > > > +	/* Unused page hinting device */
+> > > > +	struct virtqueue *hinting_vq;
+> > > > +	struct page_hinting_dev_info ph_dev_info;
+> > > >  };
+> > > >  
+> > > >  static struct virtio_device_id id_table[] = {
+> > > > @@ -152,6 +159,22 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
+> > > >  
 > > > >  }
 > > > >  
-> > > > +static void virtio_bubble_handle_output(VirtIODevice *vdev, VirtQueue *vq)
+> > > > +void virtballoon_page_hinting_react(struct page_hinting_dev_info *ph_dev_info,
+> > > > +				    unsigned int num_hints)
 > > > > +{
-> > > > +    VirtQueueElement *elem;
+> > > > +	struct virtio_balloon *vb =
+> > > > +		container_of(ph_dev_info, struct virtio_balloon, ph_dev_info);
+> > > > +	struct virtqueue *vq = vb->hinting_vq;
+> > > > +	unsigned int unused;
 > > > > +
-> > > > +    while ((elem = virtqueue_pop(vq, sizeof(VirtQueueElement)))) {
-> > > > +    	unsigned int i;
-> > > > +
-> > > > +        for (i = 0; i < elem->in_num; i++) {
-> > > > +            void *addr = elem->in_sg[i].iov_base;
-> > > > +            size_t size = elem->in_sg[i].iov_len;
-> > > > +            ram_addr_t ram_offset;
-> > > > +            size_t rb_page_size;
-> > > > +            RAMBlock *rb;
-> > > > +
-> > > > +            if (qemu_balloon_is_inhibited())
-> > > > +                continue;
-> > > > +
-> > > > +            rb = qemu_ram_block_from_host(addr, false, &ram_offset);
-> > > > +            rb_page_size = qemu_ram_pagesize(rb);
-> > > > +
-> > > > +            /* For now we will simply ignore unaligned memory regions */
-> > > > +            if ((ram_offset | size) & (rb_page_size - 1))
-> > > > +                continue;
-> > > > +
-> > > > +            ram_block_discard_range(rb, ram_offset, size);
-> > > I suspect this needs to do like the migration type of
-> > > hinting and get disabled if page poisoning is in effect.
-> > > Right?
-> > Shouldn't something like that end up getting handled via
-> > qemu_balloon_is_inhibited, or did I miss something there? I assumed cases
-> > like that would end up setting qemu_balloon_is_inhibited to true, if that
-> > isn't the case then I could add some additional conditions. I would do it
-> > in about the same spot as the qemu_balloon_is_inhibited check.
+> > > > +	/* We should always be able to add these buffers to an empty queue. */
+> > > 
+> > > can be an out of memory condition, and then ...
+> > 
+> > Do we need an error check here?
+> > 
+> > For situations where this fails we should disable hinting completely, maybe?
 > 
-> Just wondering if you have tried running these patches in an environment with
-> directly assigned devices? Ideally, I would expect qemu_balloon_is_inhibited()
-> to take care of it.
+> No. Instead I will just limit the capacity to no more than the vq size.
+> Doing that should allow us to avoid the out of memory issue here if I am
+> understanding things correctly.
+> 
+> I'm assuming the allocation being referred to is alloc_indirect_split(),
+> if so then it looks like it can fail and then we just fall back to using
+> the vring.desc directly which will work for my purposes as long as I limit
+> the capacity of the scatterlist to no more than the size of the vring.
+> 
 
-Yes, I have run that as a test to actually benchmark the effect of things
-without the madvise bits since it essentially disables the hinting in the
-hypervisor but not the guest.
+
+Right. And maybe tweak the GFP mask - no reason to try to
+allocate memory aggressively with just 1 element in flight.
+
+> 
 
