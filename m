@@ -2,198 +2,223 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6F199C7618B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 17:15:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B780CC7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 17:19:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E7EC2238C
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 17:15:45 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="plsu6r8R"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E7EC2238C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 676252238C
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 17:19:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 676252238C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B4C316B0006; Thu, 25 Jul 2019 13:15:41 -0400 (EDT)
+	id D44766B0006; Thu, 25 Jul 2019 13:19:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AFD178E0003; Thu, 25 Jul 2019 13:15:41 -0400 (EDT)
+	id CCDDF6B0007; Thu, 25 Jul 2019 13:19:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9C39F8E0002; Thu, 25 Jul 2019 13:15:41 -0400 (EDT)
+	id BBDA08E0002; Thu, 25 Jul 2019 13:19:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B5D06B0006
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 13:15:41 -0400 (EDT)
-Received: by mail-vs1-f72.google.com with SMTP id v9so13541263vsq.7
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 10:15:41 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 957EC6B0006
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 13:19:54 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id x1so42950801qkn.6
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 10:19:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=BXt4ZTjon02rBlSAS5SUMkhrj4K/BTJhzHlU3Vmid/s=;
-        b=d9vsO+G+QEwzcFuJ1KJnFUQBeZ0IQ7XQoSI3K7SiXdEDVvZXuItCWceY2GEEjZhfwP
-         pOdaEhO57OcbqMS9/6nVF2G0L33FkYcY389uLDciNoawdoFPMax9oT9KI1CIylk5YvNQ
-         Rn7YD4qKGpQ3jOyqp2D+CL/PKDKbjbmHFjZgNwb3JZG6+Poo4YJa6KA/ug7l7zttNBap
-         2dPoXC27k/TPB1Q34P18Ng+fnmS/GdvO+mjmwwjZYNbas+wi3ZkflivWnSFf/QK27Med
-         zD8Un0jyxrsyUdnIcM1IERLdOxx43LwULJDq8vI5gndA0X3Jq1NCbzVHvM7uKtEHCfLE
-         G8cA==
-X-Gm-Message-State: APjAAAWMJMWWuHMbQSRLSsBlg8FBy1xPYDhCrMELHaQ3f7Zs7m+3or2F
-	dG4Ou3u6GwJHrPe4UL4pdnWi/dMpmanDETxWJfkYjAJIlO2pe1sMrhqIC+/jEU3l19PHqfJ/D1H
-	/jV+Ua5BN37yzBTvI9Q7n+vTZiQagiLp5AuzNRm0I9CwUp/T307c7ZrelV0f7CdyrgA==
-X-Received: by 2002:a67:1a81:: with SMTP id a123mr57577122vsa.162.1564074941082;
-        Thu, 25 Jul 2019 10:15:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy2BvTeXBrSKGmxluhOTsHX34A7cWb71nU2MXNZVLCNxNjDu3RUbVaHJK8lfY/IUUxM6MyV
-X-Received: by 2002:a67:1a81:: with SMTP id a123mr57577049vsa.162.1564074940309;
-        Thu, 25 Jul 2019 10:15:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564074940; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=5u3LjMGnob/eh7dErEU98DnSWYn59krPNcbtYSmpfxg=;
+        b=qormw5z0KeOi+3vr7m4Zi9mGNTCRv9JmAIHBCKJZL8VptAmtbyiqz+DZgWAaxSunbb
+         HUb78qdxjLZ7moXmdu5Gj5VMCZcDUNcSrBREuxjVJR37Hmv+B7dDDKmjQ33hDPa5IB3a
+         BPqH8r9bQ4bHm2v01QqJkjVf4XSwdHJmW0OwgBJoPPfxPbeC2gC9Jf9G72Cxv65iu7BW
+         SPvDXlRcBsTXILUcmAqJ9GcV2cnyaZcggyGJdVz6cgvGkiU9UIuhhAB0AGa1yW/AJrmy
+         lMOqJP8C09/utr0k6ajwIhpccMSqP3hw00b44O50DqF8/I28xPCFcLuK4Re+9wG+lfbt
+         Y0LA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWi4LFgWXNDgmn2HSbVVOSQXi7BPw/oy5XaSJ++7PKHGK46WFGF
+	Byzsrj52MSohb6cj3GQbzdBNOte+xlc03SEPIHyAsCYLylozI4yiWmhezRaAqCmF0Zn3qxC31zy
+	DVDe3lTsS6qRwbU1P2zKleZZE8fGFiY3N3I5KAMsfvEm2J2i/MDGL2Hc9jq+Lk1T8dQ==
+X-Received: by 2002:a37:c81:: with SMTP id 123mr61344744qkm.474.1564075194332;
+        Thu, 25 Jul 2019 10:19:54 -0700 (PDT)
+X-Received: by 2002:a37:c81:: with SMTP id 123mr61344700qkm.474.1564075193568;
+        Thu, 25 Jul 2019 10:19:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564075193; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ha6YUjrkNf2u3GUO58A2tLTec56THqE7MFdUZ9/rx83r+CJ70afsfybPd7zqoYDEjM
-         kuLKtZhkGxkjCrhGAAo4ohYFoPjQ0WPvi9CFrGoqjkwQhOGNVadxHqAnV2DHnesIv1QO
-         vo4Be53P4PaVL/+o1JSwYSqtqrfJ5y2S7slVIOS35IRKcEun215g+Rut06hOQcfjxQ3I
-         UraNhZzz/2wZIx9K9uEVo5MNY9WMH3PYPPmZkb9oUvY4U7HTTOoCZFAoGM8Dt94audkY
-         YzwFmRvShFbNq5nZQPH7mup5CkESIl6pOqBKXinwCMZ/o25wp7uQnHDSMq3eBBGKZ2Ns
-         ZiCw==
+        b=0k4hIdRiHCDdDN66KZCsD93F7fR6bGF87jA6xX/wrncYFNbbmLZOdN+c8tiXeWZ5I+
+         +MPu1BEVeYMx/ceh4gGVXNf92RVhJkOp30OgGr808bUKL7HXetAGaZtfas/4c73tMgU+
+         eioKcxRdErCqx0Jw0yybCG5uNMqX7PtVIvAsJPdWTM+I3MmahOW0d76vswHKUIL0TO2G
+         iP+D7utFFRAK+OnkjWoNQr34Orr7fGpM4U3fz+XBJCtkOkiHRHujqL5cbfSJMb4s8yly
+         o7/QLgkSnyxVvVWch/pQkQ9/TRSXqfX5C68JChyDwLbntptwY5imOBRMghmZw4WzGmWn
+         dgaw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=BXt4ZTjon02rBlSAS5SUMkhrj4K/BTJhzHlU3Vmid/s=;
-        b=zleo4qaro6gJG0T/vKGqugMuxRfGKefFGgHZNHi1a87Lz8vGMQEp+5o2hRsWDJj6Xj
-         s9tYQQjZkiHw2bb/m0DSh9TlitSxN+AehlcmhOkYtVZGs3yhYOdAAgoiRWCAYj8XGhcq
-         Wegrsdg2rbiAyCxaz5uDkkGZ3koz8Yy/jJeLGqgtnhulFDMjxjPAyyYSy+pU/09pDkoi
-         mBDtL8XiBijC99yAGQ/kbn1BnXrjiQV6lhrVinMQbwuc2w51rM3Wvd6pk6kCxsSTnxGt
-         7FFm4EOPGMfFBMBI03iHipA/g3T5DJu2J+Vijo1nMurvcvhP+koro7mFBsctAmMMJrUA
-         QLQA==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=5u3LjMGnob/eh7dErEU98DnSWYn59krPNcbtYSmpfxg=;
+        b=zNtLKC1YG8nvdd88KuZ7+7G4j/b00hwB8vXw1XWtWDmV4GX7xskTwbBqonsIpUniVm
+         2Dm4M04dd7tpKZn+FT3NaJyjtCzuq9NYS2ir8Xm7ddB7ytocon/l5SfqlnEYjdBctR2z
+         01GfPD+Za7tfAI1pFgKBXQFZVFz1+QtBm30GrUyQjtWfu+tHStTdQG4hm3n/PXHPeAs8
+         m94JuCiWSJfOMWwpH46fElJacBlUCcQEtG2CXWcGn/UzWopRF8VW2NxBRYFr8peeFZeb
+         H0i6H6y28h67SmJ4TJAdlQ43CzefIKU/epGkMRpPj16WtuFKGJEGCp/icm/w8M1QP+Pp
+         JolA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=plsu6r8R;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id j20si11850888vsf.70.2019.07.25.10.15.40
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i7sor66942906qtb.37.2019.07.25.10.19.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 10:15:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        (Google Transport Security);
+        Thu, 25 Jul 2019 10:19:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=plsu6r8R;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6PGv9ND008688;
-	Thu, 25 Jul 2019 17:15:36 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=BXt4ZTjon02rBlSAS5SUMkhrj4K/BTJhzHlU3Vmid/s=;
- b=plsu6r8RTf9N+SMlN9Cxk32QxhiS3IWD++laWBrE8vbiVMS2WYlw/FGHZscInnbveUY5
- 3SaBY7qToy5VICuPGo5YBzgBE8zsjvkd4ZtFqiwVX1A8gokTU3/uVO1nSOMF/7EHLJsJ
- Xul9KEad+cKUWgutVTDtsVNklntSE0ZYfbqvj/fLER20Sr5IstrN0zuQsXxHhahNOIWJ
- LyA9keeYdZz6a0WtmftUdHjZY+zN94LNlR+G3n2ao/G/O30ay8mkmEAQsA4NBSzpy4Ld
- NsyDVh5XKx5HvyRcimnEYnX8kCptmJGweNNxkcyYTnDkWt0sYgZKkGDHYDaP6+D5A98/ lQ== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2120.oracle.com with ESMTP id 2tx61c5e6k-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 25 Jul 2019 17:15:36 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6PFwHsM078851;
-	Thu, 25 Jul 2019 17:15:36 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userp3030.oracle.com with ESMTP id 2tx60yemca-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 25 Jul 2019 17:15:36 +0000
-Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x6PHFUGZ008590;
-	Thu, 25 Jul 2019 17:15:31 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Thu, 25 Jul 2019 10:15:30 -0700
-Subject: Re: [RFC PATCH 3/3] hugetlbfs: don't retry when pool page allocations
- start to fail
-To: Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        Hillf Danton <hdanton@sina.com>, Michal Hocko <mhocko@kernel.org>,
-        Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>,
-        Andrew Morton <akpm@linux-foundation.org>
-References: <20190724175014.9935-1-mike.kravetz@oracle.com>
- <20190724175014.9935-4-mike.kravetz@oracle.com>
- <20190725081350.GD2708@suse.de>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <6a7f3705-9550-e22f-efa1-5e3616351df6@oracle.com>
-Date: Thu, 25 Jul 2019 10:15:29 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqzh6iVjr6MjlWT59KW8JoNnu8DTc4nuzePg5RGcXEbwv4teTePt1g4kYdzGbH7yQSr7ND0zdg==
+X-Received: by 2002:ac8:2379:: with SMTP id b54mr64138089qtb.168.1564075193014;
+        Thu, 25 Jul 2019 10:19:53 -0700 (PDT)
+Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
+        by smtp.gmail.com with ESMTPSA id w25sm20020746qto.87.2019.07.25.10.19.47
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 25 Jul 2019 10:19:52 -0700 (PDT)
+Date: Thu, 25 Jul 2019 13:19:45 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>,
+	Alexander Duyck <alexander.duyck@gmail.com>, kvm@vger.kernel.org,
+	david@redhat.com, dave.hansen@intel.com,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	akpm@linux-foundation.org, yang.zhang.wz@gmail.com,
+	pagupta@redhat.com, riel@surriel.com, konrad.wilk@oracle.com,
+	lcapitulino@redhat.com, wei.w.wang@intel.com, aarcange@redhat.com,
+	pbonzini@redhat.com, dan.j.williams@intel.com
+Subject: Re: [PATCH v2 QEMU] virtio-balloon: Provide a interface for "bubble
+ hinting"
+Message-ID: <20190725131821-mutt-send-email-mst@kernel.org>
+References: <20190724165158.6685.87228.stgit@localhost.localdomain>
+ <20190724171050.7888.62199.stgit@localhost.localdomain>
+ <20190724173403-mutt-send-email-mst@kernel.org>
+ <ada4e7d932ebd436d00c46e8de699212e72fd989.camel@linux.intel.com>
+ <fed474fe-93f4-a9f6-2e01-75e8903edd81@redhat.com>
+ <bc162a5eaa58ac074c8ad20cb23d579aa04d0f43.camel@linux.intel.com>
+ <20190725111303-mutt-send-email-mst@kernel.org>
+ <96b1ac42dccbfbb5dd17210e6767ca2544558390.camel@linux.intel.com>
 MIME-Version: 1.0
-In-Reply-To: <20190725081350.GD2708@suse.de>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9329 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1907250188
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9329 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1907250188
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <96b1ac42dccbfbb5dd17210e6767ca2544558390.camel@linux.intel.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/25/19 1:13 AM, Mel Gorman wrote:
-> On Wed, Jul 24, 2019 at 10:50:14AM -0700, Mike Kravetz wrote:
->> When allocating hugetlbfs pool pages via /proc/sys/vm/nr_hugepages,
->> the pages will be interleaved between all nodes of the system.  If
->> nodes are not equal, it is quite possible for one node to fill up
->> before the others.  When this happens, the code still attempts to
->> allocate pages from the full node.  This results in calls to direct
->> reclaim and compaction which slow things down considerably.
->>
->> When allocating pool pages, note the state of the previous allocation
->> for each node.  If previous allocation failed, do not use the
->> aggressive retry algorithm on successive attempts.  The allocation
->> will still succeed if there is memory available, but it will not try
->> as hard to free up memory.
->>
->> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+On Thu, Jul 25, 2019 at 09:16:21AM -0700, Alexander Duyck wrote:
+> On Thu, 2019-07-25 at 11:16 -0400, Michael S. Tsirkin wrote:
+> > On Thu, Jul 25, 2019 at 08:05:30AM -0700, Alexander Duyck wrote:
+> > > On Thu, 2019-07-25 at 07:35 -0400, Nitesh Narayan Lal wrote:
+> > > > On 7/24/19 6:03 PM, Alexander Duyck wrote:
+> > > > > On Wed, 2019-07-24 at 17:38 -0400, Michael S. Tsirkin wrote:
+> > > > > > On Wed, Jul 24, 2019 at 10:12:10AM -0700, Alexander Duyck wrote:
+> > > > > > > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > > > > > > 
+> > > > > > > Add support for what I am referring to as "bubble hinting". Basically the
+> > > > > > > idea is to function very similar to how the balloon works in that we
+> > > > > > > basically end up madvising the page as not being used. However we don't
+> > > > > > > really need to bother with any deflate type logic since the page will be
+> > > > > > > faulted back into the guest when it is read or written to.
+> > > > > > > 
+> > > > > > > This is meant to be a simplification of the existing balloon interface
+> > > > > > > to use for providing hints to what memory needs to be freed. I am assuming
+> > > > > > > this is safe to do as the deflate logic does not actually appear to do very
+> > > > > > > much other than tracking what subpages have been released and which ones
+> > > > > > > haven't.
+> > > > > > > 
+> > > > > > > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > > > > > BTW I wonder about migration here.  When we migrate we lose all hints
+> > > > > > right?  Well destination could be smarter, detect that page is full of
+> > > > > > 0s and just map a zero page. Then we don't need a hint as such - but I
+> > > > > > don't think it's done like that ATM.
+> > > > > I was wondering about that a bit myself. If you migrate with a balloon
+> > > > > active what currently happens with the pages in the balloon? Do you
+> > > > > actually migrate them, or do you ignore them and just assume a zero page?
+> > > > > I'm just reusing the ram_block_discard_range logic that was being used for
+> > > > > the balloon inflation so I would assume the behavior would be the same.
+> > > > I agree, however, I think it is worth investigating to see if enabling hinting
+> > > > adds some sort of overhead specifically in this kind of scenarios. What do you
+> > > > think?
+> > > 
+> > > I suspect that the hinting/reporting would probably improve migration
+> > > times based on the fact that from the sound of things it would just be
+> > > migrated as a zero page.
+> > > 
+> > > I don't have a good setup for testing migration though and I am not that
+> > > familiar with trying to do a live migration. That is one of the reasons
+> > > why I didn't want to stray too far from the existing balloon code as that
+> > > has already been tested with migration so I would assume as long as I am
+> > > doing almost the exact same thing to hint the pages away it should behave
+> > > exactly the same.
+> > > 
+> > > > > > I also wonder about interaction with deflate.  ATM deflate will add
+> > > > > > pages to the free list, then balloon will come right back and report
+> > > > > > them as free.
+> > > > > I don't know how likely it is that somebody who is getting the free page
+> > > > > reporting is likely to want to also use the balloon to take up memory.
+> > > > I think it is possible. There are two possibilities:
+> > > > 1. User has a workload running, which is allocating and freeing the pages and at
+> > > > the same time, user deflates.
+> > > > If these new pages get used by this workload, we don't have to worry as you are
+> > > > already handling that by not hinting the free pages immediately.
+> > > > 2. Guest is idle and the user adds up some memory, for this situation what you
+> > > > have explained below does seems reasonable.
+> > > 
+> > > Us hinting on pages that are freed up via deflate wouldn't be too big of a
+> > > deal. I would think that is something we could look at addressing as more
+> > > of a follow-on if we ever needed to since it would just add more
+> > > complexity.
+> > > 
+> > > Really what I would like to see is the balloon itself get updated first to
+> > > perhaps work with variable sized pages first so that we could then have
+> > > pages come directly out of the balloon and go back into the freelist as
+> > > hinted, or visa-versa where hinted pages could be pulled directly into the
+> > > balloon without needing to notify the host.
+> > 
+> > Right, I agree. At this point the main thing I worry about is that
+> > the interfaces only support one reporter, since a page flag is used.
+> > So if we ever rewrite existing hinting to use the new mm
+> > infrastructure then we can't e.g. enable both types of hinting.
 > 
-> set_max_huge_pages can fail the NODEMASK_ALLOC() alloc which you handle
-> *but* in the event of an allocation failure this bug can silently recur.
-> An informational message might be justified in that case in case the
-> stall should recur with no hint as to why.
-
-Right.
-Perhaps a NODEMASK_ALLOC() failure should just result in a quick exit/error.
-If we can't allocate a node mask, it is unlikely we will be able to allocate
-a/any huge pages.  And, the system must be extremely low on memory and there
-are likely other bigger issues.
-
-There have been discussions elsewhere about discontinuing the use of
-NODEMASK_ALLOC() and just putting the mask on the stack.  That may be
-acceptable here as well.
-
->                                            Technically passing NULL into
-> NODEMASK_FREE is also safe as kfree (if used for that kernel config) can
-> handle freeing of a NULL pointer. However, that is cosmetic more than
-> anything. Whether you decide to change either or not;
-
-Yes.
-I will clean up with an updated series after more feedback.
-
+> Does it make sense to have multiple types of hinting active at the same
+> time though? That kind of seems wasteful to me. Ideally we should be able
+> to provide the hints and have them feed whatever is supposed to be using
+> them. So for example I could probably look at also clearing the bitmaps
+> when migration is in process.
 > 
-> Acked-by: Mel Gorman <mgorman@suse.de>
-> 
+> Also, I am wonder if the free page hints would be redundant with the form
+> of page hinting/reporting that I have since we should be migrating a much
+> smaller footprint anyway if the pages have been madvised away before we
+> even start the migration.
 
-Thanks!
--- 
-Mike Kravetz
+Good points.
+
+> > FWIW Nitesh's RFC does not have this limitation.
+> 
+> Yes, but there are also limitations to his approach. For example the fact
+> that the bitmap it maintains is back to being a hint rather then being
+> very exact. As a result you could end up walking the bitmap for a while
+> clearing bits without ever finding a free page.
+
+For sure.
+
+> > I intend to think about this over the weekend.
+> 
+> Sounds good. I'll try to get the stuff you have pointed out so far
+> addressed and hopefully have v3 ready to go next week.
+> 
+> Thanks.
+> 
+> - Alex
 
