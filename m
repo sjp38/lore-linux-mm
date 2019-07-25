@@ -2,217 +2,182 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
 	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 31AEAC7618B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 11:38:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21AFFC7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 11:42:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EA8EE229F9
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 11:38:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="nyY+obe/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA8EE229F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id D22E7229F9
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 11:42:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D22E7229F9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 719178E0068; Thu, 25 Jul 2019 07:38:57 -0400 (EDT)
+	id 6A18A8E0069; Thu, 25 Jul 2019 07:42:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6A33C8E0059; Thu, 25 Jul 2019 07:38:57 -0400 (EDT)
+	id 6533E8E0059; Thu, 25 Jul 2019 07:42:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 56A388E0068; Thu, 25 Jul 2019 07:38:57 -0400 (EDT)
+	id 51B528E0069; Thu, 25 Jul 2019 07:42:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B2A98E0059
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 07:38:57 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id f11so27261352otq.3
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 04:38:57 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 00C668E0059
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 07:42:09 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id f3so31948829edx.10
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 04:42:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=G6MpZgr7i8B1FkEDPScz8e/wH7xnLSjpvv/jUeXDToM=;
-        b=dCLmsEov0qorFwUsUP4Ww5MZQdMretvct8SWto0bvk9Y/roqb9G4PuPKGQ7VN2TtpL
-         jO1m7gCHBduYtA0/bRYQTH21IpSrk5o21gcjIb+qs2G9BXCpClVYfRe2ctPSVZIqwcU7
-         BUuNjSHVXrWQf7vxE9AKYkvVV0nc+nIiIznQOP5DBO/xDHu2MfAERQmTCZeJxk82gVFe
-         9Db3KIRi5+clL0LopFADW6XpZhDrGEq9gTpBAdttft5ZvqackkWwsL8SONGyUd0KOJwc
-         k2rftRp680KSDIAxuzSC3MTXp4gV+Whe/iBpsefrjGQCvOJfvs0LlPutxd1UgSevPIm0
-         s2mg==
-X-Gm-Message-State: APjAAAV3JOLXtYAfaAHPTWuj+eRS//E+N0BYSIW+iFF1gYNSJjxeGy/q
-	3u4u7R+m5XY+8OzIm+HQmhxUeOjbNcLcOhOxb7jKGgeg83fh5tF5xGe1vGVLSFtptX16SzkEFYU
-	3jnRPcrWciIDkBX3B+BNeFSeeMtnImurRMpTVnb0zrkWK0xwx0lNvDN2+6dsjMGd8zg==
-X-Received: by 2002:aca:dd55:: with SMTP id u82mr41551516oig.68.1564054736666;
-        Thu, 25 Jul 2019 04:38:56 -0700 (PDT)
-X-Received: by 2002:aca:dd55:: with SMTP id u82mr41551489oig.68.1564054735836;
-        Thu, 25 Jul 2019 04:38:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564054735; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=PsY6sKcp20rbVMn/kU/kpOnUZaMowx0qLzK7CvF0vrg=;
+        b=tbpW9DDYObwuU6zdEgPlWTlOCaxxiuhcEAPaUB94933vgtuhjALhZv/8iBx9ERiwvh
+         1glAdFUTb+wdiZaQ/GL8V/lt7Eo8b+0Tmqvej3ljpJb8djNyo5xJFJfyoCTaFnhN2JUK
+         buOgQXllhxSvX1x3+PgeF3whK3HLVeKMKWkwZagBP2vNk3+Wct6hc1q7+EdaZlHANPIc
+         /i8tu72uf1Vw0CHNQYUQvQm4HotTxMPoRmkK6a7zF+qIXX5zGqA3lshP5h9M5/7jhSYD
+         GzdnEdWHrsv62jSsv2WIZR9gd+1zak4m/XehDREKaDT2dJmTszzu3TvhutW5XPANAGoI
+         U0Xg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAX5t7X6TMGnYw0TK9pODIDggLCyLyOvp1zBHJUOoCuSwM84qhSw
+	5IXhp/ZCVKdcCIoqtYn71RXdZjYX8HbeZMVXFCa0Fg9M0ikuUEaimJWOL0/TDAkd6n8MfRC1MGR
+	xs63XVFTML3oxoHuLcv3S11szufDx9+oPXdseEoCU7qB3fkYSn0+BYu4x5EM2+wEcNg==
+X-Received: by 2002:a17:906:4717:: with SMTP id y23mr66915450ejq.150.1564054928572;
+        Thu, 25 Jul 2019 04:42:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzRnft5GKUb8OWJ28/qPaBt0AQhUdbN25eMVv8V8jR9D+tT/4QxZwNpNnq7vt3/09BnL2WM
+X-Received: by 2002:a17:906:4717:: with SMTP id y23mr66915416ejq.150.1564054927858;
+        Thu, 25 Jul 2019 04:42:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564054927; cv=none;
         d=google.com; s=arc-20160816;
-        b=QE19N70DQUGDMxdtA5iRO/T3vs2t68ARI9sACdvRW3p8fIi3WnLdfcSOjvDSv+vKad
-         HlMPi7+/QpdacpseEL5xtjuvZMbUFBRFbYmMkkJstTZytDisH05xLn+u0GAM4MYFCMIO
-         bg8aMGG/3uoML2hNXtvVcLC6KIPOE7jTt4yWWVxz+VE1vrklsf/4ma97gVaKr4Xs7jly
-         zlpIBKPvNRz/YYngmpZWCR/0o27kVIgx6g0L7cyeAzw5H7kckLgAS3i2I3guOnMcdLyB
-         NzRW0+sBkdee7HqHSFSvBCD+U/X86j511i74wRgF+ukiCZHhJmksZBc+iaFdLrH4rYaW
-         xqWw==
+        b=g8mXvDBPxrWRy2z7ZoMOGcFNA+fDpxOWvOh/TsqrNWhjhCjvRFqpcIsODR2L3gt12t
+         AlLV1Mp0tYtiYPvI50sSL86qX/W49HjzfhgAw+Iln3KhfbCMbVBwQgFQgl581or8POL1
+         gyyYyxXf2hATw5Wm//SefGkR17rSFA9rK5pHkGYLG8+Zp/D/0e7x0DKtRTrRWqeivuK4
+         zB0n5VPVJ9nBReL5Jt5eFzIC6WZYFL9bqTsObgnG/+qAR05+bZT73oPqV3ONw/hR8Wq4
+         gs3NfExOKx3dcnB8fJ06zvM3ket1SwUsMXBjpozaQh8Jla63ZNkUTWN8o6OkzFAS7R+R
+         hf4A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=G6MpZgr7i8B1FkEDPScz8e/wH7xnLSjpvv/jUeXDToM=;
-        b=pFQwmqAuD7kbU9ojx3necCq/BQLYuWnp5OyeMyq++YukvpKD18o36dWTqG22L7fXvD
-         QKo+5CyTq7Ore6SDnyltXNxblguDUZWJ1lDZY+QHh4lJ9WxS1AqKnaFQRRd+jr9pZugo
-         gEogChDrYcTUmf9CWHJ0kxvoTyPYCd8f51TtSm0JCzqtGKFPZ7BuR9oFaLBIR1oTUfWy
-         ohV09+sUL6wBkTGr6LZ4mgyjlr+3UB41h07MdCdFfzrQaMm5zn8B38jfFhaUWUw1zuwJ
-         HAC8Qx/AWb8R/bBU9qw6wDPVKG9ygV2gEY9WwaLdBm1ios3eAhZqapY7PMXgQVrnINRG
-         5JuA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:to
+         :subject;
+        bh=PsY6sKcp20rbVMn/kU/kpOnUZaMowx0qLzK7CvF0vrg=;
+        b=KoTwfkkVLJeEURJTLINvY5cgGpLScrktKlgVOsL65VPPROPSVOkoZlWHbPLuOeWwDV
+         aQ78z3vWpd7OjVntsg3ZVK2GY30YnynzaXCrjB2FsmE3SA+vCg89R4+NdgSJAYFsV3Om
+         5p6jwXiX7R1B7crqh4CLiCVl3QXhPg8VQUAFSI57AqU55dsZsFqJN0Fr8FgbEXmjQPmd
+         LPR2/smQFiluT+IIfN0FC+iBAdQAJzoWc6dP+eDTmaN+Xq5zQELJqF16GgMBoH1Tytuc
+         IDmTTFc++Zek4lVgZkO5c37ZkMj5yjRl7Y8f8enwjksGnNlsUKBieOz3FSxBtAwKyIpR
+         rNtw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="nyY+obe/";
-       spf=pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=elver@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c22sor26114909otn.18.2019.07.25.04.38.55
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l42si10601769edd.332.2019.07.25.04.42.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Jul 2019 04:38:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Jul 2019 04:42:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b="nyY+obe/";
-       spf=pass (google.com: domain of elver@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=elver@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=G6MpZgr7i8B1FkEDPScz8e/wH7xnLSjpvv/jUeXDToM=;
-        b=nyY+obe/i8BPsQ9tV6oR/SYTh1cwBpWPdZUHEi6zHL537VM4jVHEMNu6f42gzIG3C4
-         php4D9liMyMj06VelMTSpFNOVGLpq2boQmu0KiUu0OJ67ffsZZ8sGDPa4n8hVBTmNrvM
-         5wPhO2o0DdouG6Adnn9CD5pzYp+K4/RsN4AQGhA70tinYurvHdYPKFXs+S7uD4ZRcWPw
-         hXEx+uUlAQnpd5evyq3CDlJZ3X41kn60/TPU2RXcw7WLCC3XUXoqCwUA9oPd6Z+FzugM
-         ChmYOdr4Y2LDAtWYInBfJppWUAt4gByvI0F9eIhsJqDhY4Pv1TXdQatjEJ894w5q81T2
-         ThcA==
-X-Google-Smtp-Source: APXvYqwlvxtpErK7SyKEUbs9S2xkGf4bF1/no0g7n+Qlk9vOJFBk7RzPSH/NR75ptf/4VJpWmRSPirwNtTIk03j9LdM=
-X-Received: by 2002:a05:6830:1688:: with SMTP id k8mr24913637otr.233.1564054735077;
- Thu, 25 Jul 2019 04:38:55 -0700 (PDT)
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 43B8BAD4C;
+	Thu, 25 Jul 2019 11:42:07 +0000 (UTC)
+Subject: Re: [PATCH] mm/compaction: introduce a helper
+ compact_zone_counters_init()
+To: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko
+ <mhocko@suse.com>, Yafang Shao <laoar.shao@gmail.com>, linux-mm@kvack.org,
+ Mel Gorman <mgorman@techsingularity.net>,
+ Yafang Shao <shaoyafang@didiglobal.com>
+References: <1563869295-25748-1-git-send-email-laoar.shao@gmail.com>
+ <20190723081218.GD4552@dhcp22.suse.cz>
+ <20190723144007.9660c3c98068caeba2109ded@linux-foundation.org>
+ <1fb6f7da-f776-9e42-22f8-bbb79b030b98@suse.cz>
+ <20190724171945.c81db3079162a1eb4730bd20@linux-foundation.org>
+ <20190724172528.aa65e746231fcdc6646dacf9@linux-foundation.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <f239a40f-373a-2002-514c-0a73db630aeb@suse.cz>
+Date: Thu, 25 Jul 2019 13:42:06 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-References: <20190725055503.19507-1-dja@axtens.net> <20190725055503.19507-2-dja@axtens.net>
- <CACT4Y+Yw74otyk9gASfUyAW_bbOr8H5Cjk__F7iptrxRWmS9=A@mail.gmail.com>
- <CACT4Y+Z3HNLBh_FtevDvf2fe_BYPTckC19csomR6nK42_w8c1Q@mail.gmail.com>
- <CANpmjNNhwcYo-3tMkYPGrvSew633FQW7fCUiTgYUp7iKYY7fpw@mail.gmail.com> <20190725101114.GB14347@lakrids.cambridge.arm.com>
-In-Reply-To: <20190725101114.GB14347@lakrids.cambridge.arm.com>
-From: Marco Elver <elver@google.com>
-Date: Thu, 25 Jul 2019 13:38:43 +0200
-Message-ID: <CANpmjNOQSqtpEWNbk6Ed+GmZ8ZBY-LBn4ojt8_yrUM+qmdGttw@mail.gmail.com>
-Subject: Re: [PATCH 1/3] kasan: support backing vmalloc space with real shadow memory
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>, Daniel Axtens <dja@axtens.net>, 
-	kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, 
-	"the arch/x86 maintainers" <x86@kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
-	Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190724172528.aa65e746231fcdc6646dacf9@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 25 Jul 2019 at 12:11, Mark Rutland <mark.rutland@arm.com> wrote:
->
-> On Thu, Jul 25, 2019 at 12:06:46PM +0200, Marco Elver wrote:
-> > On Thu, 25 Jul 2019 at 09:51, Dmitry Vyukov <dvyukov@google.com> wrote:
-> > >
-> > > On Thu, Jul 25, 2019 at 9:35 AM Dmitry Vyukov <dvyukov@google.com> wrote:
-> > > >
-> > > > ,On Thu, Jul 25, 2019 at 7:55 AM Daniel Axtens <dja@axtens.net> wrote:
-> > > > >
-> > > > > Hook into vmalloc and vmap, and dynamically allocate real shadow
-> > > > > memory to back the mappings.
-> > > > >
-> > > > > Most mappings in vmalloc space are small, requiring less than a full
-> > > > > page of shadow space. Allocating a full shadow page per mapping would
-> > > > > therefore be wasteful. Furthermore, to ensure that different mappings
-> > > > > use different shadow pages, mappings would have to be aligned to
-> > > > > KASAN_SHADOW_SCALE_SIZE * PAGE_SIZE.
-> > > > >
-> > > > > Instead, share backing space across multiple mappings. Allocate
-> > > > > a backing page the first time a mapping in vmalloc space uses a
-> > > > > particular page of the shadow region. Keep this page around
-> > > > > regardless of whether the mapping is later freed - in the mean time
-> > > > > the page could have become shared by another vmalloc mapping.
-> > > > >
-> > > > > This can in theory lead to unbounded memory growth, but the vmalloc
-> > > > > allocator is pretty good at reusing addresses, so the practical memory
-> > > > > usage grows at first but then stays fairly stable.
-> > > > >
-> > > > > This requires architecture support to actually use: arches must stop
-> > > > > mapping the read-only zero page over portion of the shadow region that
-> > > > > covers the vmalloc space and instead leave it unmapped.
-> > > > >
-> > > > > This allows KASAN with VMAP_STACK, and will be needed for architectures
-> > > > > that do not have a separate module space (e.g. powerpc64, which I am
-> > > > > currently working on).
-> > > > >
-> > > > > Link: https://bugzilla.kernel.org/show_bug.cgi?id=202009
-> > > > > Signed-off-by: Daniel Axtens <dja@axtens.net>
-> > > >
-> > > > Hi Daniel,
-> > > >
-> > > > This is awesome! Thanks so much for taking over this!
-> > > > I agree with memory/simplicity tradeoffs. Provided that virtual
-> > > > addresses are reused, this should be fine (I hope). If we will ever
-> > > > need to optimize memory consumption, I would even consider something
-> > > > like aligning all vmalloc allocations to PAGE_SIZE*KASAN_SHADOW_SCALE
-> > > > to make things simpler.
-> > > >
-> > > > Some comments below.
-> > >
-> > > Marco, please test this with your stack overflow test and with
-> > > syzkaller (to estimate the amount of new OOBs :)). Also are there any
-> > > concerns with performance/memory consumption for us?
-> >
-> > It appears that stack overflows are *not* detected when KASAN_VMALLOC
-> > and VMAP_STACK are enabled.
-> >
-> > Tested with:
-> > insmod drivers/misc/lkdtm/lkdtm.ko cpoint_name=DIRECT cpoint_type=EXHAUST_STACK
->
-> Could you elaborate on what exactly happens?
->
-> i.e. does the test fail entirely, or is it detected as a fault (but not
-> reported as a stack overflow)?
->
-> If you could post a log, that would be ideal!
+On 7/25/19 2:25 AM, Andrew Morton wrote:
+> On Wed, 24 Jul 2019 17:19:45 -0700 Andrew Morton <akpm@linux-foundation.org> wrote:
+> 
+>> And this?
 
-No fault, system just appears to freeze.
+Makes sense.
 
-Log:
+> Here's the current rolled-up state of this patch.
 
-[   18.408553] lkdtm: Calling function with 1024 frame size to depth 64 ...
-[   18.409546] lkdtm: loop 64/64 ...
-[   18.410030] lkdtm: loop 63/64 ...
-[   18.410497] lkdtm: loop 62/64 ...
-[   18.410972] lkdtm: loop 61/64 ...
-[   18.411470] lkdtm: loop 60/64 ...
-[   18.411946] lkdtm: loop 59/64 ...
-[   18.412415] lkdtm: loop 58/64 ...
-[   18.412890] lkdtm: loop 57/64 ...
-[   18.413356] lkdtm: loop 56/64 ...
-[   18.413830] lkdtm: loop 55/64 ...
-[   18.414297] lkdtm: loop 54/64 ...
-[   18.414801] lkdtm: loop 53/64 ...
-[   18.415269] lkdtm: loop 52/64 ...
-[   18.415751] lkdtm: loop 51/64 ...
-[   18.416219] lkdtm: loop 50/64 ...
-[   18.416698] lkdtm: loop 49/64 ...
-[   18.417201] lkdtm: loop 48/64 ...
-[   18.417712] lkdtm: loop 47/64 ...
-[   18.418216] lkdtm: loop 46/64 ...
-[   18.418728] lkdtm: loop 45/64 ...
-[   18.419232] lkdtm: loop 44/64 ...
-[   18.419747] lkdtm: loop 43/64 ...
-[   18.420262] lkdtm: loop 42/64 ...
-< no further output, system appears unresponsive at this point >
-
-Thanks,
--- Marco
+Looks good, thanks.
 
