@@ -2,346 +2,152 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 36FCFC7618B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 08:53:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 708B9C7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 09:03:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB26522BED
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 08:53:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB26522BED
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2111A22C7C
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 09:03:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2111A22C7C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6AA816B0283; Thu, 25 Jul 2019 04:53:28 -0400 (EDT)
+	id 9AF7D8E0054; Thu, 25 Jul 2019 05:03:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 634438E0031; Thu, 25 Jul 2019 04:53:28 -0400 (EDT)
+	id 9601C8E0031; Thu, 25 Jul 2019 05:03:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4D5906B0285; Thu, 25 Jul 2019 04:53:28 -0400 (EDT)
+	id 84E3F8E0054; Thu, 25 Jul 2019 05:03:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 262FD6B0283
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 04:53:28 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id y19so43951011qtm.0
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 01:53:28 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 344E48E0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 05:03:49 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b12so31747451eds.14
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 02:03:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=4ivvoK5UgzU2OMXYCcff3WUBgt6SD9abgskYDqHcU5E=;
-        b=KWuGyjiBqgMsp+mwyMBA/F1ryjb8TrOmEiEpSq+a0wIGTOk0szfoCJuEW87Wg8cCrC
-         Za4IuITYx1y7toTgxzCnJq2PJv0fDaaq1/Zbr2rnnQcy/8+vomMfBcYM08Dctsy/7h2i
-         Go3rl46Fu3nxUB+ICVnJkt6JsER+LqndtduTUfWjy3pksxiVvfSn5BTs8GN9xn8sWMga
-         a/SFTvEzPYcpcZuXngXdTSiEA+yXFx95YfzyGmVB9+cGthYZ1FEuZKRfiDI/vCjdlgIF
-         Mdri/6CDOSZbQAje+PhTKCELG8Mn8Ga3WV/T2xv+YnZvdhRQ/vOnsXa2heG/uX3uOyF8
-         I1Yg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAW/FLG7Bf0PcCxltNvJIvDFqiE8SmnRTYNrRvw0BGvjntoASd1l
-	R8Yed8NbYE502NqtkG7HcwocfXvtBKbiRbNnVW4RfCZ5P1y+vUBaM25uj6Ix/d9O2Q/2cOesctD
-	dkvfa6FVl5qb5KNEeVIZSCWnAYGawmL0zML+YooGDqHxqfFQWHQ5CTEoNX8COS8hXbw==
-X-Received: by 2002:a0c:b4ab:: with SMTP id c43mr60661699qve.157.1564044807892;
-        Thu, 25 Jul 2019 01:53:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxNjkumr7c19raylhmBUo+pVz+LMsK/3pmPwGK4UiDhgvzAUnUFwVlnRoPeM9WxYrgCJfwM
-X-Received: by 2002:a0c:b4ab:: with SMTP id c43mr60661667qve.157.1564044807022;
-        Thu, 25 Jul 2019 01:53:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564044807; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=O+uw8Iaq/8Apk9DHI9pBYV4+DkywBGrhuok6xbEvrTY=;
+        b=noZQEhjen/BGgyGKJJmCkn+5PRJORTqDpoTQr1ncG/3dG69OUSxBbZ6MxeKwCJcOqA
+         MOUDIfH/o/MFwWXMwE5DhPVMhz9mHP86KhiJX/dfwl4MScxRVsnMlqjLcdZ+S5ntFApX
+         nEY3r4gtK/eTzIUC/Jalg9/8nN+9Uo5IbegIVH7YI46X8/2rLuR5OXTuL6EFwVaDU64r
+         Vf6N3Ar1fymWLk4qhOg41wou8lbHDkEQHEbwNN47xPWIjhL4UmCAluSvkmNo7JmiGmq7
+         qENVPGXmCc1UmoJzZkZquzN5Fqh2hwpG8ny7wOk7d1Xiwgd0z5IA4EE7qbsSUVq97yLZ
+         1BdQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUjE9cTpkgL22cf1JhZETjOH9VTMjd6X+ryNI5UV4CMjsmRHuhg
+	k3yLkNaRG/z3HLQ6hiYWY0pPG60jAbCGJJzL9CATK5PUMr/Y6dz6ngJmLycq2Eo1mjLAvcZG31z
+	GIZT80R2vJcIEotailE7y/pUxe5n/2S+UCdYuN0jEr4/ICRQR0knVdjETzcjMyS8=
+X-Received: by 2002:aa7:c1cb:: with SMTP id d11mr78068014edp.157.1564045428761;
+        Thu, 25 Jul 2019 02:03:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxOVgmnsYv9vworXGMF31/ZH8O5i2L+I43l8bLH/VrsbdJR4rAVafuB2+G2upAIl8K4lBLv
+X-Received: by 2002:aa7:c1cb:: with SMTP id d11mr78067916edp.157.1564045427848;
+        Thu, 25 Jul 2019 02:03:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564045427; cv=none;
         d=google.com; s=arc-20160816;
-        b=PuS5+P4FTh4pksSwAj+ms/oDouXXBz0pv5qcbC7Ns85fr80VCXcM3qg4tIj+QiZ/HL
-         YCOO8+K1nta73Ae3gXGSAYN7bL2o7usCTS1/6/5xO6YcZcdE28TDQjj92cEdISKGH+U5
-         RIAeYJPDgsbY3etqURaBygYMr5nsu0s5UP4+lFXyxiUmzLTVQbX35Z2qjv1mhRE9qzwj
-         Z7lUensB4sUJ7X4qonOQT0GBPCQ/t9Y/CvOzeFDfTWy73MfrowARiqwfqsDDoPePdh38
-         uazwmn4SD3957l6UXXsa4SEI1BSTdM8WQmBzKnZ788wP5mfzqqU+DuwhmDYqxxcvZfNj
-         Qn8A==
+        b=FzgLWAruA+1VlhtZpPBGGO55fK0xJl+Q9LC3KCojry5BA0jSsANPnuzz1vp2xYpim6
+         02bTbxUE3xi4C6I+m7ntdR0A1KIR5srdBkHn1BBjLR84jWdjXyQh1deAg1pCpeioVLr3
+         kpf+RUotRst0yZpcMGmgDXh8cmjb5deB7vmnl9y+EdpZTNUgCPfBL0xIqGcHfCUvOk0C
+         d4v4qPTVf5DWAKl13sOeQyiCjoo9lf+NfbOZqiS1Hwyzy+scbwm7cUtQro3YaZSQIpPT
+         hgZv5iJsK5MMea9nwvNJvSULax9qVWUhrrXjn/dE5CK79FCj3mEqGPoJr5Zixsx5doIb
+         eejg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=4ivvoK5UgzU2OMXYCcff3WUBgt6SD9abgskYDqHcU5E=;
-        b=QWUPsVz2uBm3RHrXE/ypqPMMazbC70HxS1wNkYqtY9qYOx7JpZem4VeZHz1/ONmfIe
-         trJjJ7edzWGJtcbwoCyKgEzQNhhQ4phctb1U/epMwUbCZy5fbwswwOJC8UQnoHmVkdt3
-         gTuAuNygxBCdT886HYpkm9146WBCvZvNz/rvQ2GIghd34vmICfsQlPPqxWuX04NiOnkY
-         rCnVJo1SRmKfInqiwMrc5E9An5UqORd/3abSkgcCfRmLc6mIRwGxiYgLJdMdqqfTM4Fg
-         O3Gro5Qf5PI/yHBAqOBo/AoqHM+4WTcmimoU42QsXY5U2qBwflRglbbjRiNwEev+DruU
-         0tTw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=O+uw8Iaq/8Apk9DHI9pBYV4+DkywBGrhuok6xbEvrTY=;
+        b=a/d3/a30/XMj8KZfkcgWD1/FD1q3WF1OrOkK1+riYQvTy0g0rjK/BuTtEQFddIkJ6v
+         NJl/tBgeBh04eQ5xbHaVq2M3toj/VaALOa+hToGySUlNiht9r2zmjGkUVCctpl0D2a/O
+         6o09fa9Sd5jU98i4H6+ptUKC/b83h/1bNY9S3LTF2ChG43oHEMrJaBy5g+6w3ug8Lwbt
+         WKCgYyQP3l+/bw+gQAfQNabHEjp36sA9SA7SK1INmanDCVvUJxjAAksE/npyJXHYrOUz
+         UaCP8EahFlz7dx+jygcOvTE9V0fUAslqn/Tsadyn4jlFLscQ3Jt/RwwAkxqBhhFrI5HH
+         HJdg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id p54si31499903qtc.371.2019.07.25.01.53.26
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ec17si9905416ejb.327.2019.07.25.02.03.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 01:53:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 25 Jul 2019 02:03:47 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 13CFA3E2D7;
-	Thu, 25 Jul 2019 08:53:26 +0000 (UTC)
-Received: from [10.36.117.212] (ovpn-117-212.ams2.redhat.com [10.36.117.212])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 8510C5DD94;
-	Thu, 25 Jul 2019 08:53:14 +0000 (UTC)
-Subject: Re: [PATCH v2 4/5] mm: Introduce Hinted pages
-To: Alexander Duyck <alexander.duyck@gmail.com>, nitesh@redhat.com,
- kvm@vger.kernel.org, mst@redhat.com, dave.hansen@intel.com,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
- konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com,
- aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com,
- Matthew Wilcox <willy@infradead.org>
-References: <20190724165158.6685.87228.stgit@localhost.localdomain>
- <20190724170259.6685.18028.stgit@localhost.localdomain>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <a9f52894-52df-cd0c-86ac-eea9fbe96e34@redhat.com>
-Date: Thu, 25 Jul 2019 10:53:13 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4F278ACD1;
+	Thu, 25 Jul 2019 09:03:47 +0000 (UTC)
+Date: Thu, 25 Jul 2019 11:03:41 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
+Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+	"dan.j.williams@intel.com" <dan.j.williams@intel.com>,
+	"adobriyan@gmail.com" <adobriyan@gmail.com>,
+	"hch@lst.de" <hch@lst.de>,
+	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+	Junichi Nomura <j-nomura@ce.jp.nec.com>,
+	"stable@vger.kernel.org" <stable@vger.kernel.org>
+Subject: Re: [PATCH 2/2] /proc/kpageflags: do not use uninitialized struct
+ pages
+Message-ID: <20190725090341.GC13855@dhcp22.suse.cz>
+References: <20190725023100.31141-1-t-fukasawa@vx.jp.nec.com>
+ <20190725023100.31141-3-t-fukasawa@vx.jp.nec.com>
 MIME-Version: 1.0
-In-Reply-To: <20190724170259.6685.18028.stgit@localhost.localdomain>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Thu, 25 Jul 2019 08:53:26 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190725023100.31141-3-t-fukasawa@vx.jp.nec.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 24.07.19 19:03, Alexander Duyck wrote:
-> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+On Thu 25-07-19 02:31:18, Toshiki Fukasawa wrote:
+> A kernel panic was observed during reading /proc/kpageflags for
+> first few pfns allocated by pmem namespace:
 > 
-> In order to pave the way for free page hinting in virtualized environments
-> we will need a way to get pages out of the free lists and identify those
-> pages after they have been returned. To accomplish this, this patch adds
-> the concept of a Hinted Buddy, which is essentially meant to just be the
-> Offline page type used in conjunction with the Buddy page type.
+> BUG: unable to handle page fault for address: fffffffffffffffe
+> [  114.495280] #PF: supervisor read access in kernel mode
+> [  114.495738] #PF: error_code(0x0000) - not-present page
+> [  114.496203] PGD 17120e067 P4D 17120e067 PUD 171210067 PMD 0
+> [  114.496713] Oops: 0000 [#1] SMP PTI
+> [  114.497037] CPU: 9 PID: 1202 Comm: page-types Not tainted 5.3.0-rc1 #1
+> [  114.497621] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.11.0-0-g63451fca13-prebuilt.qemu-project.org 04/01/2014
+> [  114.498706] RIP: 0010:stable_page_flags+0x27/0x3f0
+> [  114.499142] Code: 82 66 90 66 66 66 66 90 48 85 ff 0f 84 d1 03 00 00 41 54 55 48 89 fd 53 48 8b 57 08 48 8b 1f 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48> 8b 00 f6 c4 02 0f 84 57 03 00 00 45 31 e4 48 8b 55 08 48 89 ef
+> [  114.500788] RSP: 0018:ffffa5e601a0fe60 EFLAGS: 00010202
+> [  114.501373] RAX: fffffffffffffffe RBX: ffffffffffffffff RCX: 0000000000000000
+> [  114.502009] RDX: 0000000000000001 RSI: 00007ffca13a7310 RDI: ffffd07489000000
+> [  114.502637] RBP: ffffd07489000000 R08: 0000000000000001 R09: 0000000000000000
+> [  114.503270] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000240000
+> [  114.503896] R13: 0000000000080000 R14: 00007ffca13a7310 R15: ffffa5e601a0ff08
+> [  114.504530] FS:  00007f0266c7f540(0000) GS:ffff962dbbac0000(0000) knlGS:0000000000000000
+> [  114.505245] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> [  114.505754] CR2: fffffffffffffffe CR3: 000000023a204000 CR4: 00000000000006e0
+> [  114.506401] Call Trace:
+> [  114.506660]  kpageflags_read+0xb1/0x130
+> [  114.507051]  proc_reg_read+0x39/0x60
+> [  114.507387]  vfs_read+0x8a/0x140
+> [  114.507686]  ksys_pread64+0x61/0xa0
+> [  114.508021]  do_syscall_64+0x5f/0x1a0
+> [  114.508372]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+> [  114.508844] RIP: 0033:0x7f0266ba426b
 > 
-> It adds a set of pointers we shall call "boundary" which represents the
-> upper boundary between the unhinted and hinted pages. The general idea is
-> that in order for a page to cross from one side of the boundary to the
-> other it will need to go through the hinting process. Ultimately a
-> free_list has been fully processed when the boundary has been moved from
-> the tail all they way up to occupying the first entry in the list.
-> 
-> Doing this we should be able to make certain that we keep the hinted
-> pages as one contiguous block in each free list. This will allow us to
-> efficiently manipulate the free lists whenever we need to go in and start
-> sending hints to the hypervisor that there are new pages that have been
-> freed and are no longer in use.
-> 
-> An added advantage to this approach is that we should be reducing the
-> overall memory footprint of the guest as it will be more likely to recycle
-> warm pages versus trying to allocate the hinted pages that were likely
-> evicted from the guest memory.
-> 
-> Since we will only be hinting one zone at a time we keep the boundary
-> limited to being defined for just the zone we are currently placing hinted
-> pages into. Doing this we can keep the number of additional pointers needed
-> quite small. To flag that the boundaries are in place we use a single bit
-> in the zone to indicate that hinting and the boundaries are active.
-> 
-> The determination of when to start hinting is based on the tracking of the
-> number of free pages in a given area versus the number of hinted pages in
-> that area. We keep track of the number of hinted pages per free_area in a
-> separate zone specific area. We do this to avoid modifying the free_area
-> structure as this can lead to false sharing for the highest order with the
-> zone lock which leads to a noticeable performance degradation.
-> 
-> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> ---
->  include/linux/mmzone.h       |   40 +++++-
->  include/linux/page-flags.h   |    8 +
->  include/linux/page_hinting.h |  139 ++++++++++++++++++++
->  mm/Kconfig                   |    5 +
->  mm/Makefile                  |    1 
->  mm/memory_hotplug.c          |    1 
->  mm/page_alloc.c              |  136 ++++++++++++++++++-
->  mm/page_hinting.c            |  298 ++++++++++++++++++++++++++++++++++++++++++
->  8 files changed, 620 insertions(+), 8 deletions(-)
->  create mode 100644 include/linux/page_hinting.h
->  create mode 100644 mm/page_hinting.c
-> 
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index f0c68b6b6154..42bdebb20484 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -460,6 +460,14 @@ struct zone {
->  	seqlock_t		span_seqlock;
->  #endif
->  
-> +#ifdef CONFIG_PAGE_HINTING
-> +	/*
-> +	 * Pointer to hinted page tracking statistics array. The size of
-> +	 * the array is MAX_ORDER - PAGE_HINTING_MIN_ORDER. NULL when
-> +	 * page hinting is not present.
-> +	 */
-> +	unsigned long		*hinted_pages;
-> +#endif
->  	int initialized;
->  
->  	/* Write-intensive fields used from the page allocator */
-> @@ -535,6 +543,14 @@ enum zone_flags {
->  	ZONE_BOOSTED_WATERMARK,		/* zone recently boosted watermarks.
->  					 * Cleared when kswapd is woken.
->  					 */
-> +	ZONE_PAGE_HINTING_REQUESTED,	/* zone enabled page hinting and has
-> +					 * requested flushing the data out of
-> +					 * higher order pages.
-> +					 */
-> +	ZONE_PAGE_HINTING_ACTIVE,	/* zone enabled page hinting and is
-> +					 * activly flushing the data out of
-> +					 * higher order pages.
-> +					 */
->  };
->  
->  static inline unsigned long zone_managed_pages(struct zone *zone)
-> @@ -755,6 +771,8 @@ static inline bool pgdat_is_empty(pg_data_t *pgdat)
->  	return !pgdat->node_start_pfn && !pgdat->node_spanned_pages;
->  }
->  
-> +#include <linux/page_hinting.h>
-> +
->  /* Used for pages not on another list */
->  static inline void add_to_free_list(struct page *page, struct zone *zone,
->  				    unsigned int order, int migratetype)
-> @@ -769,10 +787,16 @@ static inline void add_to_free_list(struct page *page, struct zone *zone,
->  static inline void add_to_free_list_tail(struct page *page, struct zone *zone,
->  					 unsigned int order, int migratetype)
->  {
-> -	struct free_area *area = &zone->free_area[order];
-> +	struct list_head *tail = get_unhinted_tail(zone, order, migratetype);
->  
-> -	list_add_tail(&page->lru, &area->free_list[migratetype]);
-> -	area->nr_free++;
-> +	/*
-> +	 * To prevent the unhinted pages from being interleaved with the
-> +	 * hinted ones while we are actively processing pages we will use
-> +	 * the head of the hinted pages to determine the tail of the free
-> +	 * list.
-> +	 */
-> +	list_add_tail(&page->lru, tail);
-> +	zone->free_area[order].nr_free++;
->  }
->  
->  /* Used for pages which are on another list */
-> @@ -781,12 +805,22 @@ static inline void move_to_free_list(struct page *page, struct zone *zone,
->  {
->  	struct free_area *area = &zone->free_area[order];
->  
-> +	/*
-> +	 * Clear Hinted flag, if present, to avoid placing hinted pages
-> +	 * at the top of the free_list. It is cheaper to just process this
-> +	 * page again, then have to walk around a page that is already hinted.
-> +	 */
-> +	clear_page_hinted(page, zone);
-> +
->  	list_move(&page->lru, &area->free_list[migratetype]);
->  }
->  
->  static inline void del_page_from_free_list(struct page *page, struct zone *zone,
->  					   unsigned int order)
->  {
-> +	/* Clear Hinted flag, if present, before clearing the Buddy flag */
-> +	clear_page_hinted(page, zone);
-> +
->  	list_del(&page->lru);
->  	__ClearPageBuddy(page);
->  	set_page_private(page, 0);
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index b848517da64c..b753dbf673cb 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -745,6 +745,14 @@ static inline int page_has_type(struct page *page)
->  PAGE_TYPE_OPS(Offline, offline)
->  
->  /*
-> + * PageHinted() is an alias for Offline, however it is not meant to be an
-> + * exclusive value. It should be combined with PageBuddy() when seen as it
-> + * is meant to indicate that the page has been scrubbed while waiting in
-> + * the buddy system.
-> + */
-> +PAGE_TYPE_OPS(Hinted, offline)
+> The reason for the panic is that stable_page_flags() which parses
+> the page flags uses uninitialized struct pages reserved by the
+> ZONE_DEVICE driver.
 
-
-CCing Matthew
-
-I am still not sure if I like the idea of having two page types at a time.
-
-1. Once we run out of page type bits (which can happen easily looking at
-it getting more and more user - e.g., maybe for vmmap pages soon), we
-might want to convert again back to a value-based, not bit-based type
-detection. This will certainly make this switch harder.
-
-2. It will complicate the kexec/kdump handling. I assume it can be fixed
-some way - e.g., making the elf interface aware of the exact notion of
-page type bits compared to mapcount values we have right now (e.g.,
-PAGE_BUDDY_MAPCOUNT_VALUE). Not addressed in this series yet.
-
-
-Can't we reuse one of the traditional page flags for that, not used
-along with buddy pages? E.g., PG_dirty: Pages that were not hinted yet
-are dirty.
-
-Matthew, what's your take?
-
+Why pmem hasn't initialized struct pages? Isn't that a bug that should
+be addressed rather than paper over it like this?
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
 
