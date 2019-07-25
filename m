@@ -2,156 +2,316 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A6721C7618B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 14:53:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 47075C7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 14:54:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 50ED221734
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 14:53:58 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="OEpCHpjy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50ED221734
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
+	by mail.kernel.org (Postfix) with ESMTP id EFC2521734
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 14:54:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EFC2521734
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BB5F96B0003; Thu, 25 Jul 2019 10:53:57 -0400 (EDT)
+	id 881D06B0269; Thu, 25 Jul 2019 10:54:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B66376B0005; Thu, 25 Jul 2019 10:53:57 -0400 (EDT)
+	id 831AE6B026A; Thu, 25 Jul 2019 10:54:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A556B8E0002; Thu, 25 Jul 2019 10:53:57 -0400 (EDT)
+	id 6D3978E0002; Thu, 25 Jul 2019 10:54:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 824C46B0003
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 10:53:57 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id n190so42617951qkd.5
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 07:53:57 -0700 (PDT)
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 42C806B0269
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 10:54:18 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id l5so19692540oih.3
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 07:54:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=rpQsWh8tKFiB0DisghLGOONFMKT1wn+vfgfBbAUOPSQ=;
-        b=PoxtELoYWtBKxudk/6Btgs+BGk1wN5IvhFAGCdgOt89fe0rwzG9xNNxXaxl29hUw6n
-         PJP5vLCOV4XvLGqXZirLcn0tCoCTgawla+cZDfxE6BjiEVDEd0t7rPDV3UqDXKVYelWw
-         oXlTMVsQrhSwXbG7xKomFTag861Sb6w3JckvyyA/Ug3Zoi7sSEjdyUYcXyXWgHFsh7kN
-         UWKBGR0neQoxfqUG3oTIlJRcUAAeps7BSRd/xN0iHypa/dlqqlhPlbcE7UmqfDqasKbI
-         8zOr8cM8jWQ4k5g/2FF2U4ELaKfy2cIVVeIr6m1ceZNwl28FktBer1Q+m+RfO4Kp9AOJ
-         FZ0g==
-X-Gm-Message-State: APjAAAWWTruJCPAS2uz3BHPtXtIBxqOHvTl2wmHh27AJmpKOmZh9flEs
-	zBCrnprw1jw1Ko+YiYKZQrFXN3uYOegIk72DYgozzvVYQdp2rN5jEFxm38eDyUvw47aGXY30hsL
-	8fdSp/5VxKhdMdx1JfpJK3uI8Kgu9P1KsOQb+6GMhRTebBc0F2mytKFysInr0ZXJ9TA==
-X-Received: by 2002:ac8:376e:: with SMTP id p43mr62789718qtb.354.1564066437277;
-        Thu, 25 Jul 2019 07:53:57 -0700 (PDT)
-X-Received: by 2002:ac8:376e:: with SMTP id p43mr62789681qtb.354.1564066436748;
-        Thu, 25 Jul 2019 07:53:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564066436; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version;
+        bh=Uh4RfgIrY/7DK7JMTFfUymv3qRNsq/JZPjUXpmohIQc=;
+        b=WeQIOCZ2hkqr0kR5EUxe5qyHHcl1tTEGbpeU0kHVIyycrH610eVE13HgthwE/HOa+i
+         slQITM/ke05DX8+p4hFVmpzFQnUrrlgZUJ687N9rtLSQ1Sg/EZ2sbG5x4b2CdBstRKgR
+         1/YfRh7P23pc7ZNWLvmz3l12TX2fL/NknltJK/1VFnX2iQ21PgEIdbav/yuginvQfMu/
+         rGPPX8OKr6ROPbfl98ntaKAz77g2GCJOHjF/BkBHSjsN9v/TZMIHOhVfI9GjzyL0C5Lu
+         cUZYBFBHm9cMcknQ6Jerfxq/361GlM7NVHA9Dmnkxg9y1jcOf3rRk/cq1Ol7S5N6fZjB
+         cIvQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of miles.chen@mediatek.com designates 216.200.240.185 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
+X-Gm-Message-State: APjAAAWQLorhUT3eaQOD7xpd9BmOTapwjI9jOwMX0nnVFUyw2E3mAMZv
+	Q75oE0Sxs2Y2SryYi6zXS68IqJvnkxKVcvzX07NVk/bd5w8AiiY8WESYeKwIylHWka+6PBEq9RA
+	0YqKxNbBqQ5BRFAgJN9ujOuD+EmdvlSFGxeHWuw8ZfjAuP7KANDTcVHmm0Hk6SQh9dg==
+X-Received: by 2002:a54:4813:: with SMTP id j19mr18067565oij.34.1564066457843;
+        Thu, 25 Jul 2019 07:54:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzqxnuXo5q8EPjQAQSFt35FOHL5Gnmi6S0s/kOLBhaCi12emGg88f0bBmpTtS8Rz1UkDo63
+X-Received: by 2002:a54:4813:: with SMTP id j19mr18067521oij.34.1564066456727;
+        Thu, 25 Jul 2019 07:54:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564066456; cv=none;
         d=google.com; s=arc-20160816;
-        b=hVEmyPgl52xvK1aGg1hFPlFXnyqIamHDJO8BKSQ2uiwc77KgrKNYUTwFmAXGFQyASA
-         s7d5tW2IKBxfd7ME5H9IJ30rKwRXw1tpOJUmhOCs1ncR276HQQnMlKCGo4pcL7vXXGP9
-         RmPm46Vc9cgc8xsyFsrrCt/GO2/1lIri2B3LBSVP6W1NgZl+M6psHYIMw30z9Bt3DSw2
-         pkcn7NV1lgq+QcEUkDBPREvgKt2OKgAaeeQqCwGvLjrHy8YQssDi845NeQqo/X7Y18dr
-         ya5D5jgPzUN2jYs7Jgt7clCLkZgimeF5YDSmpp6EBE3A4Gw0WhPmgm32fiwz0ykly9OQ
-         J90Q==
+        b=0vwJFUpMfQpQWFf0t/I+9jV0T9UPPbJScdj3xh/yZGOlqVhF342gwUH6YlP94gHg+N
+         0JvmJ1OGKm1irqNjRbfF89aixKGfmelGnu+fDPfFrZgQ2RKMFgmIFeWNagFfeJmA8RAJ
+         peqJVJlcpXBg1EC81ojZ644Nis6tiqT6HGXAS80snRywgTe2ZAmMswdq2P6Y0cP/EJeW
+         zT0tlRUtaPfbKELHvRUQEmsfI5yHAkjRR7llwjquYMFxFZKsD9MZHmUPtRxYnPXR3Lba
+         nk4sJn/IHb+PB4wiWj+pzq4El/lrFzJ0m5NjTzXzR25uRGEGogJHx33Lc4YPRlZS+QKF
+         roEQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=rpQsWh8tKFiB0DisghLGOONFMKT1wn+vfgfBbAUOPSQ=;
-        b=xZXUiYJSWoGe6AXj4y+2B+6L6OPOLMTkJn9yOJG7/X80AJVLkuuxmsH0Q4mDRc9gra
-         nMJKupKkOdONN8SOexA8KeRFeVCMCOzbD1DYZH9RSnGPJzBcqoS+UwmvCdjy9ggoxS5H
-         wte3uAtN4kOMTKNi66zIz06Z9RCcA8EiPhn6DLSqrwuTOxKlIc7INq17/alIYO/v0Vv+
-         yOu024Vm3nUT4YfAyCXck24omaGjFapnryuK6YS/NF7SI6wK93EDjOYkpG1DmWhxvzyP
-         eoIM/Xxwygxr8CIZ0+H/uGQd/1lmx3LO3Uw+RylqvtzoDWiFVQQ2oJeq2hIgZ6IvN33R
-         xTJw==
+        h=mime-version:message-id:date:subject:cc:to:from;
+        bh=Uh4RfgIrY/7DK7JMTFfUymv3qRNsq/JZPjUXpmohIQc=;
+        b=dqVuoZD7Ugs8EZ+ABypXHq5x+UfDPGNWezNlB57wYcB4hLQmDaYAE3D1fPiKrst7Zz
+         3dsTFWwzQ9op2aJSPZ1xe8w2FlMccnaVp3sHP22vQOEmGneZMhGzlFBhR1nY+1EHw8Bk
+         JGzVCZEbNHE/INhEruZetl9QyK41i3u1jeO3PGse8Ug6XligPwdDK1fkYm3Pv3Y25RDC
+         ziKSUZV72WID196FHjHSN1hLHKSA19RHINiXRHTIAyCnynXpCuGgVqvhACLzvBfQ+hYQ
+         xNd/5M3/6u/2q+KvNzoRjlQaAnkowgReuMZashsdJV+GMVQfasCm46+Dw+GCf+EaEsMq
+         YdTg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=OEpCHpjy;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b26sor64940887qtp.58.2019.07.25.07.53.56
+       spf=pass (google.com: domain of miles.chen@mediatek.com designates 216.200.240.185 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
+Received: from mailgw02.mediatek.com (mailgw02.mediatek.com. [216.200.240.185])
+        by mx.google.com with ESMTPS id r26si31907723otp.85.2019.07.25.07.54.15
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Jul 2019 07:53:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Jul 2019 07:54:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of miles.chen@mediatek.com designates 216.200.240.185 as permitted sender) client-ip=216.200.240.185;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chrisdown.name header.s=google header.b=OEpCHpjy;
-       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.65 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chrisdown.name; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=rpQsWh8tKFiB0DisghLGOONFMKT1wn+vfgfBbAUOPSQ=;
-        b=OEpCHpjy+7Mo84hrchMB/6zcHf71ju+A1I4m29ZHJK6VuYG6orfa3YhpmrReIYgGzX
-         u5gs0kZveSgwO3shzXd5HocMNEETXZpxDQh8kqAo22eHJvyvOSE+UapcuwoDV3f51dne
-         bwohgQ0eeH4JV5ccxn8rysL2tTriLczaCioPE=
-X-Google-Smtp-Source: APXvYqwe4cQgpMJVUKQnSVY0whP34x+pDj462jqi9VovQ4DrUT1xMj2tqY2ZAtDTxO7BBE70mMKlXg==
-X-Received: by 2002:ac8:1c42:: with SMTP id j2mr62197636qtk.68.1564066436199;
-        Thu, 25 Jul 2019 07:53:56 -0700 (PDT)
-Received: from localhost (rrcs-24-103-44-77.nyc.biz.rr.com. [24.103.44.77])
-        by smtp.gmail.com with ESMTPSA id a6sm22200235qkd.135.2019.07.25.07.53.55
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 25 Jul 2019 07:53:55 -0700 (PDT)
-Date: Thu, 25 Jul 2019 10:53:55 -0400
-From: Chris Down <chris@chrisdown.name>
-To: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-Cc: cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	"n.fahldieck@profihost.ag" <n.fahldieck@profihost.ag>,
-	Daniel Aberger - Profihost AG <d.aberger@profihost.ag>,
-	p.kramme@profihost.ag
-Subject: Re: No memory reclaim while reaching MemoryHigh
-Message-ID: <20190725145355.GA7347@chrisdown.name>
-References: <496dd106-abdd-3fca-06ad-ff7abaf41475@profihost.ag>
+       spf=pass (google.com: domain of miles.chen@mediatek.com designates 216.200.240.185 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
+X-UUID: 68c8c96cfe82444895fc582f3966f561-20190725
+X-UUID: 68c8c96cfe82444895fc582f3966f561-20190725
+Received: from mtkexhb01.mediatek.inc [(172.21.101.102)] by mailgw02.mediatek.com
+	(envelope-from <miles.chen@mediatek.com>)
+	(musrelay.mediatek.com ESMTP with TLS)
+	with ESMTP id 1017426763; Thu, 25 Jul 2019 06:53:06 -0800
+Received: from MTKCAS06.mediatek.inc (172.21.101.30) by
+ mtkmbs06n2.mediatek.inc (172.21.101.130) with Microsoft SMTP Server (TLS) id
+ 15.0.1395.4; Thu, 25 Jul 2019 22:27:04 +0800
+Received: from mtksdccf07.mediatek.inc (172.21.84.99) by MTKCAS06.mediatek.inc
+ (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
+ Transport; Thu, 25 Jul 2019 22:27:04 +0800
+From: <miles.chen@mediatek.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>
+CC: <cgroups@vger.kernel.org>, <linux-mm@kvack.org>,
+	<linux-kernel@vger.kernel.org>, <wsd_upstream@mediatek.com>,
+	<linux-mediatek@lists.infradead.org>, Miles Chen <miles.chen@mediatek.com>
+Subject: [RFC PATCH] mm: memcontrol: fix use after free in mem_cgroup_iter()
+Date: Thu, 25 Jul 2019 22:27:03 +0800
+Message-ID: <20190725142703.27276-1-miles.chen@mediatek.com>
+X-Mailer: git-send-email 2.18.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii; format=flowed
-Content-Disposition: inline
-In-Reply-To: <496dd106-abdd-3fca-06ad-ff7abaf41475@profihost.ag>
-User-Agent: Mutt/1.12.1 (2019-06-15)
+Content-Type: text/plain
+X-TM-SNTS-SMTP:
+	BA133858E120E853044F975DFC7A41746A406CCD8C5E6AAF83D767E759F686B22000:8
+X-MTK: N
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Stefan,
+From: Miles Chen <miles.chen@mediatek.com>
 
-Stefan Priebe - Profihost AG writes:
->While using kernel 4.19.55 and cgroupv2 i set a MemoryHigh value for a
->varnish service.
->
->It happens that the varnish.service cgroup reaches it's MemoryHigh value
->and stops working due to throttling.
+This RFC patch is sent to report an use after free in mem_cgroup_iter()
+after merging commit: be2657752e9e "mm: memcg: fix use after free in
+mem_cgroup_iter()".
 
-In that kernel version, the only throttling we have is reclaim-based throttling 
-(I also have a patch out to do schedule-based throttling, but it's not in 
-mainline yet). If the application is slowing down, it likely means that we are 
-struggling to reclaim pages.
+I work with android kernel tree (4.9 & 4.14), and the commit:
+be2657752e9e "mm: memcg: fix use after free in mem_cgroup_iter()" has
+been merged to the trees. However, I can still observe use after free
+issues addressed in the commit be2657752e9e.
+(on low-end devices, a few times this month)
 
->But i don't understand is that the process itself only consumes 40% of
->it's cgroup usage.
->
->So the other 60% is dirty dentries and inode cache. If i issue an
->echo 3 > /proc/sys/vm/drop_caches
->
->the varnish cgroup memory usage drops to the 50% of the pure process.
+backtrace:
+	css_tryget <- crash here
+	mem_cgroup_iter
+	shrink_node
+	shrink_zones
+	do_try_to_free_pages
+	try_to_free_pages
+	__perform_reclaim
+	__alloc_pages_direct_reclaim
+	__alloc_pages_slowpath
+	__alloc_pages_nodemask
 
-As a caching server, doesn't Varnish have a lot of hot inodes/dentries in 
-memory? If they are hot, it's possible it's hard for us to evict them.
+To debug, I poisoned mem_cgroup before freeing it:
 
->I thought that the kernel would trigger automatic memory reclaim if a
->cgroup reaches is memory high value to drop caches.
+static void __mem_cgroup_free(struct mem_cgroup *memcg)
+	for_each_node(node)
+	free_mem_cgroup_per_node_info(memcg, node);
+	free_percpu(memcg->stat);
++       /* poison memcg before freeing it */
++       memset(memcg, 0x78, sizeof(struct mem_cgroup));
+	kfree(memcg);
+}
 
-It does, that's the throttling you're seeing :-) I think more information is 
-needed to work out what's going on here. For example: what do your kswapd 
-counters look like? What does "stops working due to throttling" mean -- are you 
-stuck in reclaim?
+The coredump shows the position=0xdbbc2a00 is freed.
 
-Thanks,
+(gdb) p/x ((struct mem_cgroup_per_node *)0xe5009e00)->iter[8]
+$13 = {position = 0xdbbc2a00, generation = 0x2efd}
 
-Chris
+0xdbbc2a00:     0xdbbc2e00      0x00000000      0xdbbc2800      0x00000100
+0xdbbc2a10:     0x00000200      0x78787878      0x00026218      0x00000000
+0xdbbc2a20:     0xdcad6000      0x00000001      0x78787800      0x00000000
+0xdbbc2a30:     0x78780000      0x00000000      0x0068fb84      0x78787878
+0xdbbc2a40:     0x78787878      0x78787878      0x78787878      0xe3fa5cc0
+0xdbbc2a50:     0x78787878      0x78787878      0x00000000      0x00000000
+0xdbbc2a60:     0x00000000      0x00000000      0x00000000      0x00000000
+0xdbbc2a70:     0x00000000      0x00000000      0x00000000      0x00000000
+0xdbbc2a80:     0x00000000      0x00000000      0x00000000      0x00000000
+0xdbbc2a90:     0x00000001      0x00000000      0x00000000      0x00100000
+0xdbbc2aa0:     0x00000001      0xdbbc2ac8      0x00000000      0x00000000
+0xdbbc2ab0:     0x00000000      0x00000000      0x00000000      0x00000000
+0xdbbc2ac0:     0x00000000      0x00000000      0xe5b02618      0x00001000
+0xdbbc2ad0:     0x00000000      0x78787878      0x78787878      0x78787878
+0xdbbc2ae0:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2af0:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b00:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b10:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b20:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b30:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b40:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b50:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b60:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b70:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b80:     0x78787878      0x78787878      0x00000000      0x78787878
+0xdbbc2b90:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2ba0:     0x78787878      0x78787878      0x78787878      0x78787878
+
+In the reclaim path, try_to_free_pages() does not setup
+sc.target_mem_cgroup and sc is passed to do_try_to_free_pages(), ...,
+shrink_node().
+
+In mem_cgroup_iter(), root is set to root_mem_cgroup because
+sc->target_mem_cgroup is NULL.
+It is possible to assign a memcg to root_mem_cgroup.nodeinfo.iter in
+mem_cgroup_iter().
+
+	try_to_free_pages
+		struct scan_control sc = {...}, target_mem_cgroup is 0x0;
+	do_try_to_free_pages
+	shrink_zones
+	shrink_node
+		 mem_cgroup *root = sc->target_mem_cgroup;
+		 memcg = mem_cgroup_iter(root, NULL, &reclaim);
+	mem_cgroup_iter()
+		if (!root)
+			root = root_mem_cgroup;
+		...
+
+		css = css_next_descendant_pre(css, &root->css);
+		memcg = mem_cgroup_from_css(css);
+		cmpxchg(&iter->position, pos, memcg);
+
+My device uses memcg non-hierarchical mode.
+When we release a memcg: invalidate_reclaim_iterators() reaches only
+dead_memcg and its parents. If non-hierarchical mode is used,
+invalidate_reclaim_iterators() never reaches root_mem_cgroup.
+
+static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
+{
+	struct mem_cgroup *memcg = dead_memcg;
+
+	for (; memcg; memcg = parent_mem_cgroup(memcg)
+	...
+}
+
+So the use after free scenario looks like:
+
+CPU1						CPU2
+
+try_to_free_pages
+do_try_to_free_pages
+shrink_zones
+shrink_node
+mem_cgroup_iter()
+    if (!root)
+    	root = root_mem_cgroup;
+    ...
+    css = css_next_descendant_pre(css, &root->css);
+    memcg = mem_cgroup_from_css(css);
+    cmpxchg(&iter->position, pos, memcg);
+
+					invalidate_reclaim_iterators(memcg);
+					...
+					__mem_cgroup_free()
+						kfree(memcg);
+
+try_to_free_pages
+do_try_to_free_pages
+shrink_zones
+shrink_node
+mem_cgroup_iter()
+    if (!root)
+    	root = root_mem_cgroup;
+    ...
+    mz = mem_cgroup_nodeinfo(root, reclaim->pgdat->node_id);
+    iter = &mz->iter[reclaim->priority];
+    pos = READ_ONCE(iter->position);
+    css_tryget(&pos->css) <- use after free
+
+To avoid this, we should also invalidate root_mem_cgroup.nodeinfo.iter in
+invalidate_reclaim_iterators().
+
+Signed-off-by: Miles Chen <miles.chen@mediatek.com>
+---
+ mm/memcontrol.c | 33 +++++++++++++++++++++++----------
+ 1 file changed, 23 insertions(+), 10 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index cdbb7a84cb6e..578b02982c9a 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1130,26 +1130,39 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
+ 		css_put(&prev->css);
+ }
+ 
+-static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
++static void __invalidate_reclaim_iterators(struct mem_cgroup *from,
++					struct mem_cgroup *dead_memcg)
+ {
+-	struct mem_cgroup *memcg = dead_memcg;
+ 	struct mem_cgroup_reclaim_iter *iter;
+ 	struct mem_cgroup_per_node *mz;
+ 	int nid;
+ 	int i;
+ 
+-	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
+-		for_each_node(nid) {
+-			mz = mem_cgroup_nodeinfo(memcg, nid);
+-			for (i = 0; i <= DEF_PRIORITY; i++) {
+-				iter = &mz->iter[i];
+-				cmpxchg(&iter->position,
+-					dead_memcg, NULL);
+-			}
++	for_each_node(nid) {
++		mz = mem_cgroup_nodeinfo(from, nid);
++		for (i = 0; i <= DEF_PRIORITY; i++) {
++			iter = &mz->iter[i];
++			cmpxchg(&iter->position,
++				dead_memcg, NULL);
+ 		}
+ 	}
+ }
+ 
++static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
++{
++	struct mem_cgroup *memcg = dead_memcg;
++	int invalid_root = 0;
++
++	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
++		__invalidate_reclaim_iterators(memcg, dead_memcg);
++		if (memcg == root_mem_cgroup)
++			invalid_root = 1;
++	}
++
++	if (!invalid_root)
++		__invalidate_reclaim_iterators(root_mem_cgroup, dead_memcg);
++}
++
+ /**
+  * mem_cgroup_scan_tasks - iterate over tasks of a memory cgroup hierarchy
+  * @memcg: hierarchy root
+-- 
+2.18.0
 
