@@ -2,201 +2,170 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.0 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 00677C76194
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 21:23:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C8E8C76190
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 21:37:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C5DBA218F0
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 21:23:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C5DBA218F0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 482BE218D4
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 21:37:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 482BE218D4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 53A826B0003; Thu, 25 Jul 2019 17:23:50 -0400 (EDT)
+	id 9C42E6B0003; Thu, 25 Jul 2019 17:37:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C4798E0002; Thu, 25 Jul 2019 17:23:50 -0400 (EDT)
+	id 975386B0005; Thu, 25 Jul 2019 17:37:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 364B46B0006; Thu, 25 Jul 2019 17:23:50 -0400 (EDT)
+	id 83CE78E0002; Thu, 25 Jul 2019 17:37:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 05D096B0003
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 17:23:50 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id m24so7145225oih.16
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 14:23:49 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 39B906B0003
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 17:37:18 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id j10so21586518wre.18
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 14:37:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :references:in-reply-to:from:date:message-id:subject:to:cc;
-        bh=ymU59qUw9f+YTxwPbG7+MzBEYroVA+eRo9XyYVrY9Y0=;
-        b=JmZedi+CQVs79ZtwhTiiYXZfcq1aji0sUxX9lYZjYUvXtXW4a9zzSXBZMm9if9jDJR
-         KLA4WBNfLBP5e8y0cs/uYyj58ko7+BOhp894d8V8MSo/n4qjUaTzgPp93YWag3jW4pxY
-         oGLFv2OoDik50XtmUZCXCBdtSDSLNg1YPu9CipdUdsXpeBSlVLIUJE/DTnOMZEUNIC3l
-         a7Vpb59v4cyxmCQCPgznV1rmhDEyAWBJ9K++oH/BY7wmVQlWr3dMnRlSdOHMbW0uhdcn
-         cQ7ss+14tmc/hQdeL1GN5ghqIPgFgwjjRlvUmxGnTt0GObIfRF8fz3FC4MiQxf/2ETYM
-         W1Ig==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWP5+R3iYNzhdJ+WRGm9RH4amB7nsKLd/zesN4OVcrNxxlKXFBU
-	FK7ZHYv8/SDe1xW2I1judenHmes8IWuyMpM4TBRHHhIh6MQ3nhslWfX8Jj9Q/UR/4QKuKGKGn8K
-	6/ctcZap4WlL2M8hYEiqCjy/u5ImLxX0n24BkAGH+oN1kGWo7O48EmOW1VgdTh/g=
-X-Received: by 2002:a54:441a:: with SMTP id k26mr7372871oiw.83.1564089829583;
-        Thu, 25 Jul 2019 14:23:49 -0700 (PDT)
-X-Received: by 2002:a54:441a:: with SMTP id k26mr7372842oiw.83.1564089828675;
-        Thu, 25 Jul 2019 14:23:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564089828; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=lEpeGIugxR8Tv/BvnO5RuF8owDqGYtsZkKwPro2wFZI=;
+        b=NR37lQgfYp8yIy8OsoLgF/lhA+uTCF9iEcHg1AngGoyjyVU5ECBwGDpjOpwyYi0SpN
+         FlL/3f0dTLhB2oLoBl62YMzch3PAbTZZIzFj6RtC+NmCd4R2B+dQQQk+XbXeMWzLmq8w
+         7ggYy0imLXIsPloTPSwhCmZFUcQbqOr8qatY1uExhhBKBm9ZoFvHBXADPUVwS6lOV6xY
+         E3jblm6nYUehAQis804wEXE0+sTUGmQygoKhRQdvAFlxH2Foh6i6h/ke5y5A1a9VNcWw
+         yajE7Wh0QNdfkcR2Cf3bWROZHT6M6kcBgCv/PNrCiGvvMtL9JNtsmQAlWTHOEzV/28TO
+         Gm7Q==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+X-Gm-Message-State: APjAAAU2wHZvTDAMAAXm5eOad1r0wR6OzXZmdcoFlCAvaUdwB803uUHI
+	Qg6fd85kTk66WzxnNIbOGCvu9FSuhDEdpARpPSMvKC/2PqF9SP1KTzgUpgcUq1qxh8KQJbIlFIL
+	xG6U3U9jpprC1KgmSWFrzyArV+5hZCF3xGOl2V9SD/xmx7kDmmJ2jqY60NfrjEak=
+X-Received: by 2002:adf:da4d:: with SMTP id r13mr65661741wrl.281.1564090637802;
+        Thu, 25 Jul 2019 14:37:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwfoNMUx5IjPDzQtirFam5D9+Y2IraOFUavZqHVEOJVITsuyBIKkGFe8m2DrFbAfasWsVAp
+X-Received: by 2002:adf:da4d:: with SMTP id r13mr65661719wrl.281.1564090637107;
+        Thu, 25 Jul 2019 14:37:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564090637; cv=none;
         d=google.com; s=arc-20160816;
-        b=qzeZweHw8eKgqhbbyzYzdqpA985ZUXsjxuti6HR35tHOtE930qwR5gZFDXHmeMZMpX
-         IjX6+2RK1jaQRORuHron5bPTGXC2z6ZV4UhP9+/VuNYEOKq0eBclmHgt1OpNfzUyvGuI
-         LAVo2cK1xqjdTRBqRAf1g8lIt4p6awAR0Cb4SyDSOxMbwGYpq4xvaGzFsK8oKh7vOm6X
-         v1pbPBL0LV+gsOklH+TdW5w+W1xLRwZp777gtFLBD2WxQ1V1idEPDmnBT83LP4T6S5Hd
-         QSVcdxqSu5KhFuJrp+ZJeY2DYUn5ZcfTQqgwbCB5QKWuSv76uLcZPnSAnK2vkGQbJRyg
-         DV+w==
+        b=BwvwbXxch0Q7IuGv7C6BA0b+GVogHs+CJ/j14CiH9M9XtDZRHIDWrqEmj07rqOdfNU
+         VeRmiYy5185Ci1Ks+2qZpwIYKExIqFuoc3xjWyeZFma1mV1/jonaSbpAbBZaeqM6+N/a
+         +B9LVIRrcmRzxJUD6vnl10+nZSIw3hKGeA0UdC9Apprmb9IuNgI2jx1r/zEU1X67MGj8
+         r9LfSYlUN+VlZbbTn3p1aHoo4KfU6RD7ok5F1psyKlt6o4allBWVqR7HkDQGzfzxQDMV
+         68J4gzb84eXGIOXwFgtSisxhuZnRhajsKZ44Hrl0O7n0+YCLlLPpzYDg03YgavR9/Bhw
+         pEQg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version;
-        bh=ymU59qUw9f+YTxwPbG7+MzBEYroVA+eRo9XyYVrY9Y0=;
-        b=Riox1xNu5Uovft+mMEwE1gRIa2TONPEMOmhVVBf0qEh4bgt4ML/cvCVbA74pil7zBr
-         +4zzNBCwDP7/Tq9NJ1J4SSbjKHR/6aTfdVVFHrFA/g7eYF7+tqQbMXkUGT/qq2P7fhUv
-         1NpHUUMQLYQcvX0buM1RHknWUYU0gnqB+/K/rJNV8hfnyLlwDvEcSe8h8qNlbblCU2V8
-         j7lqOsj0brLcZxDUbfAF1ZKeczsYlerQUlBVlcqRgjsizaBBXo0NnP8Gq6PAJa3Wp+sQ
-         Zeuly1H7h1neHXH2Ih3Wn6+kXlA4zuLocpuXYvZHcP/j1637JygOdt5SpHqqAN0pVHjI
-         CS2g==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=lEpeGIugxR8Tv/BvnO5RuF8owDqGYtsZkKwPro2wFZI=;
+        b=J31IFPmKhzxCsQI42x/+inIlNYqNcURi8ImPP/aEyfK3tcJ4daeaXtypDIrOc7yzOa
+         tHBwtSxU+ENYcxBe3SjScm/Cfloko22NbjtOc1TsegaYi5oORTFHo95PbCWi4V02KxT6
+         JLgGRjb/7d+bKSX7wbSTH5kPdPKEYuYQkAF+oFME3xHtnN5CinVWzJiGDbR3P0ck29Nv
+         fxxl1oACdDWGOn+HD492iRviBVoiacXfYYc2vxfawcY5YFSXHIB5uASWgp9w8mRWYzBm
+         iIoXXk6om4oHSBSI9GIWnyrW2l0ThjKEEHuNY+ElC5A1FwTw1qTEGad0dTX12IEwZWLq
+         NLaQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p67sor23293107oic.154.2019.07.25.14.23.48
+       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de. [178.250.10.56])
+        by mx.google.com with ESMTPS id p5si47343106wrq.214.2019.07.25.14.37.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Jul 2019 14:23:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 25 Jul 2019 14:37:17 -0700 (PDT)
+Received-SPF: neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) client-ip=178.250.10.56;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Google-Smtp-Source: APXvYqyvlhdC/BZI1W/nxzJZ72rWrJHG8Ltb0e8ZMHIC8wvEkvppGARCCAW+v73DBm/IDsBdOykCZuSDfEu2WefnQ+k=
-X-Received: by 2002:aca:d907:: with SMTP id q7mr43310361oig.68.1564089828123;
- Thu, 25 Jul 2019 14:23:48 -0700 (PDT)
+       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+Received: (qmail 11097 invoked from network); 25 Jul 2019 23:37:16 +0200
+X-Fcrdns: No
+Received: from phoffice.de-nserver.de (HELO [10.242.2.6]) (185.39.223.5)
+  (smtp-auth username hostmaster@profihost.com, mechanism plain)
+  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Thu, 25 Jul 2019 23:37:16 +0200
+Subject: Re: No memory reclaim while reaching MemoryHigh
+To: Michal Hocko <mhocko@kernel.org>
+Cc: cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ Johannes Weiner <hannes@cmpxchg.org>,
+ "n.fahldieck@profihost.ag" <n.fahldieck@profihost.ag>,
+ Daniel Aberger - Profihost AG <d.aberger@profihost.ag>, p.kramme@profihost.ag
+References: <496dd106-abdd-3fca-06ad-ff7abaf41475@profihost.ag>
+ <20190725140117.GC3582@dhcp22.suse.cz>
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Message-ID: <028ff462-b547-b9a5-bdb0-e0de3a884afd@profihost.ag>
+Date: Thu, 25 Jul 2019 23:37:14 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-References: <20190724143017.12841-1-david@redhat.com> <20190725125636.GA3582@dhcp22.suse.cz>
- <6dc566c2-faf6-565d-4ef1-2ac3a366bc76@redhat.com> <20190725135747.GB3582@dhcp22.suse.cz>
- <447b74ca-f7c7-0835-fd50-a9f7191fe47c@redhat.com> <20190725191943.GA6142@dhcp22.suse.cz>
- <e31882cf-3290-ea36-77d6-637eaf66fe77@redhat.com>
-In-Reply-To: <e31882cf-3290-ea36-77d6-637eaf66fe77@redhat.com>
-From: "Rafael J. Wysocki" <rafael@kernel.org>
-Date: Thu, 25 Jul 2019 23:23:37 +0200
-Message-ID: <CAJZ5v0h+MjC3gFm1Kf3eBg2Rs12368j6S_i5_Gc24yWx+Z3xBA@mail.gmail.com>
-Subject: Re: [PATCH v1] ACPI / scan: Acquire device_hotplug_lock in acpi_scan_init()
-To: David Hildenbrand <david@redhat.com>
-Cc: Michal Hocko <mhocko@kernel.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
-	"Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrew Morton <akpm@linux-foundation.org>, 
-	Oscar Salvador <osalvador@suse.de>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190725140117.GC3582@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
+X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 25, 2019 at 10:49 PM David Hildenbrand <david@redhat.com> wrote:
->
-> On 25.07.19 21:19, Michal Hocko wrote:
-> > On Thu 25-07-19 16:35:07, David Hildenbrand wrote:
-> >> On 25.07.19 15:57, Michal Hocko wrote:
-> >>> On Thu 25-07-19 15:05:02, David Hildenbrand wrote:
-> >>>> On 25.07.19 14:56, Michal Hocko wrote:
-> >>>>> On Wed 24-07-19 16:30:17, David Hildenbrand wrote:
-> >>>>>> We end up calling __add_memory() without the device hotplug lock held.
-> >>>>>> (I used a local patch to assert in __add_memory() that the
-> >>>>>>  device_hotplug_lock is held - I might upstream that as well soon)
-> >>>>>>
-> >>>>>> [   26.771684]        create_memory_block_devices+0xa4/0x140
-> >>>>>> [   26.772952]        add_memory_resource+0xde/0x200
-> >>>>>> [   26.773987]        __add_memory+0x6e/0xa0
-> >>>>>> [   26.775161]        acpi_memory_device_add+0x149/0x2b0
-> >>>>>> [   26.776263]        acpi_bus_attach+0xf1/0x1f0
-> >>>>>> [   26.777247]        acpi_bus_attach+0x66/0x1f0
-> >>>>>> [   26.778268]        acpi_bus_attach+0x66/0x1f0
-> >>>>>> [   26.779073]        acpi_bus_attach+0x66/0x1f0
-> >>>>>> [   26.780143]        acpi_bus_scan+0x3e/0x90
-> >>>>>> [   26.780844]        acpi_scan_init+0x109/0x257
-> >>>>>> [   26.781638]        acpi_init+0x2ab/0x30d
-> >>>>>> [   26.782248]        do_one_initcall+0x58/0x2cf
-> >>>>>> [   26.783181]        kernel_init_freeable+0x1bd/0x247
-> >>>>>> [   26.784345]        kernel_init+0x5/0xf1
-> >>>>>> [   26.785314]        ret_from_fork+0x3a/0x50
-> >>>>>>
-> >>>>>> So perform the locking just like in acpi_device_hotplug().
-> >>>>>
-> >>>>> While playing with the device_hotplug_lock, can we actually document
-> >>>>> what it is protecting please? I have a bad feeling that we are adding
-> >>>>> this lock just because some other code path does rather than with a good
-> >>>>> idea why it is needed. This patch just confirms that. What exactly does
-> >>>>> the lock protect from here in an early boot stage.
-> >>>>
-> >>>> We have plenty of documentation already
-> >>>>
-> >>>> mm/memory_hotplug.c
-> >>>>
-> >>>> git grep -C5 device_hotplug mm/memory_hotplug.c
-> >>>>
-> >>>> Also see
-> >>>>
-> >>>> Documentation/core-api/memory-hotplug.rst
-> >>>
-> >>> OK, fair enough. I was more pointing to a documentation right there
-> >>> where the lock is declared because that is the place where people
-> >>> usually check for documentation. The core-api documentation looks quite
-> >>> nice. And based on that doc it seems that this patch is actually not
-> >>> needed because neither the online/offline or cpu hotplug should be
-> >>> possible that early unless I am missing something.
-> >>
-> >> I really prefer to stick to locking rules as outlined on the
-> >> interfaces if it doesn't hurt. Why it is not needed is not clear.
-> >>
-> >>>
-> >>>> Regarding the early stage: primarily lockdep as I mentioned.
-> >>>
-> >>> Could you add a lockdep splat that would be fixed by this patch to the
-> >>> changelog for reference?
-> >>>
-> >>
-> >> I have one where I enforce what's documented (but that's of course not
-> >> upstream and therefore not "real" yet)
-> >
-> > Then I suppose to not add locking for something that is not a problem.
-> > Really, think about it. People will look at this code and follow the
-> > lead without really knowing why the locking is needed.
-> > device_hotplug_lock has its purpose and if the code in question doesn't
-> > need synchronization for the documented scenarios then the locking
-> > simply shouldn't be there. Adding the lock just because of a
-> > non-existing, and IMHO dubious, lockdep splats is just wrong.
-> >
-> > We need to rationalize the locking here, not to add more hacks.
->
-> No, sorry. The real hack is calling a function that is *documented* to
-> be called under lock without it. That is an optimization for a special
-> case. That is the black magic in the code.
->
-> The only alternative I see to this patch is adding a comment like
->
-> /*
->  * We end up calling __add_memory() without the device_hotplug_lock
->  * held. This is fine as we cannot race with other hotplug activities
->  * and userspace trying to online memory blocks.
->  */
->
-> Personally, I don't think that's any better than just grabbing the lock
-> as we are told to. (honestly, I don't see how optimizing away the lock
-> here is of *any* help to optimize our overall memory hotplug locking)
->
-> @Rafael, what's your take? lock or comment?
+Hi Michal,
 
-Well, I have ACKed your patch already. :-)
+Am 25.07.19 um 16:01 schrieb Michal Hocko:
+> On Thu 25-07-19 15:17:17, Stefan Priebe - Profihost AG wrote:
+>> Hello all,
+>>
+>> i hope i added the right list and people - if i missed someone i would
+>> be happy to know.
+>>
+>> While using kernel 4.19.55 and cgroupv2 i set a MemoryHigh value for a
+>> varnish service.
+>>
+>> It happens that the varnish.service cgroup reaches it's MemoryHigh value
+>> and stops working due to throttling.
+> 
+> What do you mean by "stops working"? Does it mean that the process is
+> stuck in the kernel doing the reclaim? /proc/<pid>/stack would tell you
+> what the kernel executing for the process.
 
-That said, adding a comment stating that the lock is acquired mostly
-for consistency wouldn't hurt.
+The service no longer responses to HTTP requests.
+
+stack switches in this case between:
+[<0>] io_schedule+0x12/0x40
+[<0>] __lock_page_or_retry+0x1e7/0x4e0
+[<0>] filemap_fault+0x42f/0x830
+[<0>] __xfs_filemap_fault.constprop.11+0x49/0x120
+[<0>] __do_fault+0x57/0x108
+[<0>] __handle_mm_fault+0x949/0xef0
+[<0>] handle_mm_fault+0xfc/0x1f0
+[<0>] __do_page_fault+0x24a/0x450
+[<0>] do_page_fault+0x32/0x110
+[<0>] async_page_fault+0x1e/0x30
+[<0>] 0xffffffffffffffff
+
+and
+
+[<0>] poll_schedule_timeout.constprop.13+0x42/0x70
+[<0>] do_sys_poll+0x51e/0x5f0
+[<0>] __x64_sys_poll+0xe7/0x130
+[<0>] do_syscall_64+0x5b/0x170
+[<0>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+[<0>] 0xffffffffffffffff
+
+
+>> But i don't understand is that the process itself only consumes 40% of
+>> it's cgroup usage.
+>>
+>> So the other 60% is dirty dentries and inode cache. If i issue an
+>> echo 3 > /proc/sys/vm/drop_caches
+>>
+>> the varnish cgroup memory usage drops to the 50% of the pure process.
+>>
+>> I thought that the kernel would trigger automatic memory reclaim if a
+>> cgroup reaches is memory high value to drop caches.
+> 
+> Yes, that is indeed the case and the kernel memory (e.g. inodes/dentries
+> and others) should be reclaim on the way. Maybe it is harder for the
+> reclaim to get rid of those than drop_caches. We need more data.
+
+Tell me what you need ;-)
+
+Stefan
 
