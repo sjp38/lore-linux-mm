@@ -2,228 +2,346 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2FAA9C7618B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 08:28:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 36FCFC7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 08:53:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E09F321871
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 08:28:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E09F321871
+	by mail.kernel.org (Postfix) with ESMTP id DB26522BED
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 08:53:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB26522BED
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 733758E0053; Thu, 25 Jul 2019 04:28:50 -0400 (EDT)
+	id 6AA816B0283; Thu, 25 Jul 2019 04:53:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6E2578E0031; Thu, 25 Jul 2019 04:28:50 -0400 (EDT)
+	id 634438E0031; Thu, 25 Jul 2019 04:53:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5AAC48E0053; Thu, 25 Jul 2019 04:28:50 -0400 (EDT)
+	id 4D5906B0285; Thu, 25 Jul 2019 04:53:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 3A4C88E0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 04:28:50 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id z13so41744800qka.15
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 01:28:50 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 262FD6B0283
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 04:53:28 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id y19so43951011qtm.0
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 01:53:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to;
-        bh=W9gVDQuWc00uLJaqP5LZiohnBPPDA5P8er6pMpADl+8=;
-        b=aBKuBTW8Gn1XxeG93dXw299OmRABJuS8xur1v+5cqFwryINmlQ2ufn6yfDrynSUWku
-         vn3sBG3Sg86slcV7tk+4qYjA4jFjxxdlCkVB5Oq6MjK2PP5HN4jg6vTLNGCsw6Jocz0r
-         RfsFuJl3Co8ELuyT9ixDPEdpfGtl4CV67QjzOwvRGqdKzwu+03VCkEyNB5Gdxg/eZj5G
-         l9UI6IxuSiCYCNgnGjAYGGdz+usrQEA53+zNjVuK1vudZZFJdaheDXWGHyba0NgIPdPN
-         py8QHLQpCnDX6EdhWeN0FLI8ZSiz2OzREVG8CtoXWNSVrYu81V6vnK8I507FnyO2Qmxg
-         AmTw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWdVEgEeNx9mgrm2sd4B7ua+yLnuQQqM2oGwrtc1PJMYo0fQLbt
-	duxtHyN5TPlq7kxTzurkrMozPYNCpORyAPWmaDPW36ioF6wMCm/m5ok6GH/HTluYcnOH9fJj1LM
-	ozTlLi8oBGyTkprttkGBOLGv3wmye1FBCxrOix8arXorlOlP+07xvWjOu/oMP+zZtTg==
-X-Received: by 2002:a05:620a:35e:: with SMTP id t30mr54511447qkm.1.1564043330004;
-        Thu, 25 Jul 2019 01:28:50 -0700 (PDT)
-X-Received: by 2002:a05:620a:35e:: with SMTP id t30mr54511421qkm.1.1564043329285;
-        Thu, 25 Jul 2019 01:28:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564043329; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=4ivvoK5UgzU2OMXYCcff3WUBgt6SD9abgskYDqHcU5E=;
+        b=KWuGyjiBqgMsp+mwyMBA/F1ryjb8TrOmEiEpSq+a0wIGTOk0szfoCJuEW87Wg8cCrC
+         Za4IuITYx1y7toTgxzCnJq2PJv0fDaaq1/Zbr2rnnQcy/8+vomMfBcYM08Dctsy/7h2i
+         Go3rl46Fu3nxUB+ICVnJkt6JsER+LqndtduTUfWjy3pksxiVvfSn5BTs8GN9xn8sWMga
+         a/SFTvEzPYcpcZuXngXdTSiEA+yXFx95YfzyGmVB9+cGthYZ1FEuZKRfiDI/vCjdlgIF
+         Mdri/6CDOSZbQAje+PhTKCELG8Mn8Ga3WV/T2xv+YnZvdhRQ/vOnsXa2heG/uX3uOyF8
+         I1Yg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAW/FLG7Bf0PcCxltNvJIvDFqiE8SmnRTYNrRvw0BGvjntoASd1l
+	R8Yed8NbYE502NqtkG7HcwocfXvtBKbiRbNnVW4RfCZ5P1y+vUBaM25uj6Ix/d9O2Q/2cOesctD
+	dkvfa6FVl5qb5KNEeVIZSCWnAYGawmL0zML+YooGDqHxqfFQWHQ5CTEoNX8COS8hXbw==
+X-Received: by 2002:a0c:b4ab:: with SMTP id c43mr60661699qve.157.1564044807892;
+        Thu, 25 Jul 2019 01:53:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxNjkumr7c19raylhmBUo+pVz+LMsK/3pmPwGK4UiDhgvzAUnUFwVlnRoPeM9WxYrgCJfwM
+X-Received: by 2002:a0c:b4ab:: with SMTP id c43mr60661667qve.157.1564044807022;
+        Thu, 25 Jul 2019 01:53:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564044807; cv=none;
         d=google.com; s=arc-20160816;
-        b=IHfogieb72dGMKDhbFkivXqMmi+yLikUFkACPxiTcozyZYs8oXptrcL1ejIdGBAPbd
-         0g5poLzKjaCGgmQKhC8y3wgGuirEY4D1984eir/dvJHYokGPiM/yPyam/GYlz/1DsRXj
-         Zb6bKa561v/AZ97ivDYhiVseFUo9OcSXVVMIR1YJY9PFwh3eciL/E34c86+yZUNKRaVL
-         qIEqWbggitlhszjVpeL3+qERrHlwKgvwtddahCWLbsGqv/TZRzNavr5wJ+VxbPMM6g+G
-         KyQCFx9dQk2bc3ZwGXYwBJlGzpvXnqLGoBjHzSe6OQljgyjCRiOO81oze/h/cJPB8UkX
-         C94w==
+        b=PuS5+P4FTh4pksSwAj+ms/oDouXXBz0pv5qcbC7Ns85fr80VCXcM3qg4tIj+QiZ/HL
+         YCOO8+K1nta73Ae3gXGSAYN7bL2o7usCTS1/6/5xO6YcZcdE28TDQjj92cEdISKGH+U5
+         RIAeYJPDgsbY3etqURaBygYMr5nsu0s5UP4+lFXyxiUmzLTVQbX35Z2qjv1mhRE9qzwj
+         Z7lUensB4sUJ7X4qonOQT0GBPCQ/t9Y/CvOzeFDfTWy73MfrowARiqwfqsDDoPePdh38
+         uazwmn4SD3957l6UXXsa4SEI1BSTdM8WQmBzKnZ788wP5mfzqqU+DuwhmDYqxxcvZfNj
+         Qn8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :mime-version:references:message-id:subject:cc:to:from:date;
-        bh=W9gVDQuWc00uLJaqP5LZiohnBPPDA5P8er6pMpADl+8=;
-        b=aQ4LJvXoEdmMLZ1v2TGhVFjg79mQQnrBs5zyGs5xyw61NMBI+90X+qXgrF6b9dZprK
-         FoYyYtBk2eGj4h4sC/QcOxEpRJ3avFDfgJIElwt38QCy5GIh8H7ba43TGYINrW7vpb0C
-         y2ucSq3+ZUcZfiKiNvNoBLiUdfuiYj1FLJHS+i98BSqdU74X1eFFWv4uIbKUewVvOnPw
-         TIvYYg5H49ZyTe4Tv86XBx+IvrBiXgQWjQYVLEL6lx5YYg8gC65/kPgjgTUdoWZqrGiU
-         WzUsw79R+yrAOAmgIbYPU2iHUR6uuvnsWEmJOVz5Yg1AR0rbQMEPxY4dBU6XLAo2OMrn
-         Alzg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=4ivvoK5UgzU2OMXYCcff3WUBgt6SD9abgskYDqHcU5E=;
+        b=QWUPsVz2uBm3RHrXE/ypqPMMazbC70HxS1wNkYqtY9qYOx7JpZem4VeZHz1/ONmfIe
+         trJjJ7edzWGJtcbwoCyKgEzQNhhQ4phctb1U/epMwUbCZy5fbwswwOJC8UQnoHmVkdt3
+         gTuAuNygxBCdT886HYpkm9146WBCvZvNz/rvQ2GIghd34vmICfsQlPPqxWuX04NiOnkY
+         rCnVJo1SRmKfInqiwMrc5E9An5UqORd/3abSkgcCfRmLc6mIRwGxiYgLJdMdqqfTM4Fg
+         O3Gro5Qf5PI/yHBAqOBo/AoqHM+4WTcmimoU42QsXY5U2qBwflRglbbjRiNwEev+DruU
+         0tTw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
-        by mx.google.com with SMTPS id 56sor64926421qtp.70.2019.07.25.01.28.49
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p54si31499903qtc.371.2019.07.25.01.53.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Jul 2019 01:28:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Jul 2019 01:53:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqypxxYh1SBYrdx7sBULiRodWoRyZYhZUU0NIqTYlxg9WD9pqSvNPlHTYL+xZ+kptrKYhL64aw==
-X-Received: by 2002:aed:3667:: with SMTP id e94mr55831866qtb.382.1564043329003;
-        Thu, 25 Jul 2019 01:28:49 -0700 (PDT)
-Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
-        by smtp.gmail.com with ESMTPSA id z21sm19762286qto.48.2019.07.25.01.28.41
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 25 Jul 2019 01:28:48 -0700 (PDT)
-Date: Thu, 25 Jul 2019 04:28:39 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Jason Wang <jasowang@redhat.com>
-Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
-	aarcange@redhat.com, akpm@linux-foundation.org,
-	christian@brauner.io, davem@davemloft.net, ebiederm@xmission.com,
-	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
-	james.bottomley@hansenpartnership.com, jglisse@redhat.com,
-	keescook@chromium.org, ldv@altlinux.org,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, linux-parisc@vger.kernel.org,
-	luto@amacapital.net, mhocko@suse.com, mingo@kernel.org,
-	namit@vmware.com, peterz@infradead.org,
-	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
-	wad@chromium.org
-Subject: Re: WARNING in __mmdrop
-Message-ID: <20190725042651-mutt-send-email-mst@kernel.org>
-References: <20190723010019-mutt-send-email-mst@kernel.org>
- <b4696f2e-678a-bdb2-4b7c-fb4ce040ec2a@redhat.com>
- <20190723032024-mutt-send-email-mst@kernel.org>
- <1d14de4d-0133-1614-9f64-3ded381de04e@redhat.com>
- <20190723035725-mutt-send-email-mst@kernel.org>
- <3f4178f1-0d71-e032-0f1f-802428ceca59@redhat.com>
- <20190723051828-mutt-send-email-mst@kernel.org>
- <caff362a-e208-3468-3688-63e1d093a9d3@redhat.com>
- <20190725012149-mutt-send-email-mst@kernel.org>
- <55e8930c-2695-365f-a07b-3ad169654d28@redhat.com>
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 13CFA3E2D7;
+	Thu, 25 Jul 2019 08:53:26 +0000 (UTC)
+Received: from [10.36.117.212] (ovpn-117-212.ams2.redhat.com [10.36.117.212])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 8510C5DD94;
+	Thu, 25 Jul 2019 08:53:14 +0000 (UTC)
+Subject: Re: [PATCH v2 4/5] mm: Introduce Hinted pages
+To: Alexander Duyck <alexander.duyck@gmail.com>, nitesh@redhat.com,
+ kvm@vger.kernel.org, mst@redhat.com, dave.hansen@intel.com,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
+ konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com,
+ aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com,
+ Matthew Wilcox <willy@infradead.org>
+References: <20190724165158.6685.87228.stgit@localhost.localdomain>
+ <20190724170259.6685.18028.stgit@localhost.localdomain>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <a9f52894-52df-cd0c-86ac-eea9fbe96e34@redhat.com>
+Date: Thu, 25 Jul 2019 10:53:13 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
+In-Reply-To: <20190724170259.6685.18028.stgit@localhost.localdomain>
 Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <55e8930c-2695-365f-a07b-3ad169654d28@redhat.com>
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Thu, 25 Jul 2019 08:53:26 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 25, 2019 at 03:43:41PM +0800, Jason Wang wrote:
+On 24.07.19 19:03, Alexander Duyck wrote:
+> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 > 
-> On 2019/7/25 下午1:52, Michael S. Tsirkin wrote:
-> > On Tue, Jul 23, 2019 at 09:31:35PM +0800, Jason Wang wrote:
-> > > On 2019/7/23 下午5:26, Michael S. Tsirkin wrote:
-> > > > On Tue, Jul 23, 2019 at 04:49:01PM +0800, Jason Wang wrote:
-> > > > > On 2019/7/23 下午4:10, Michael S. Tsirkin wrote:
-> > > > > > On Tue, Jul 23, 2019 at 03:53:06PM +0800, Jason Wang wrote:
-> > > > > > > On 2019/7/23 下午3:23, Michael S. Tsirkin wrote:
-> > > > > > > > > > Really let's just use kfree_rcu. It's way cleaner: fire and forget.
-> > > > > > > > > Looks not, you need rate limit the fire as you've figured out?
-> > > > > > > > See the discussion that followed. Basically no, it's good enough
-> > > > > > > > already and is only going to be better.
-> > > > > > > > 
-> > > > > > > > > And in fact,
-> > > > > > > > > the synchronization is not even needed, does it help if I leave a comment to
-> > > > > > > > > explain?
-> > > > > > > > Let's try to figure it out in the mail first. I'm pretty sure the
-> > > > > > > > current logic is wrong.
-> > > > > > > Here is what the code what to achieve:
-> > > > > > > 
-> > > > > > > - The map was protected by RCU
-> > > > > > > 
-> > > > > > > - Writers are: MMU notifier invalidation callbacks, file operations (ioctls
-> > > > > > > etc), meta_prefetch (datapath)
-> > > > > > > 
-> > > > > > > - Readers are: memory accessor
-> > > > > > > 
-> > > > > > > Writer are synchronized through mmu_lock. RCU is used to synchronized
-> > > > > > > between writers and readers.
-> > > > > > > 
-> > > > > > > The synchronize_rcu() in vhost_reset_vq_maps() was used to synchronized it
-> > > > > > > with readers (memory accessors) in the path of file operations. But in this
-> > > > > > > case, vq->mutex was already held, this means it has been serialized with
-> > > > > > > memory accessor. That's why I think it could be removed safely.
-> > > > > > > 
-> > > > > > > Anything I miss here?
-> > > > > > > 
-> > > > > > So invalidate callbacks need to reset the map, and they do
-> > > > > > not have vq mutex. How can they do this and free
-> > > > > > the map safely? They need synchronize_rcu or kfree_rcu right?
-> > > > > Invalidation callbacks need but file operations (e.g ioctl) not.
-> > > > > 
-> > > > > 
-> > > > > > And I worry somewhat that synchronize_rcu in an MMU notifier
-> > > > > > is a problem, MMU notifiers are supposed to be quick:
-> > > > > Looks not, since it can allow to be blocked and lots of driver depends on
-> > > > > this. (E.g mmu_notifier_range_blockable()).
-> > > > Right, they can block. So why don't we take a VQ mutex and be
-> > > > done with it then? No RCU tricks.
-> > > 
-> > > This is how I want to go with RFC and V1. But I end up with deadlock between
-> > > vq locks and some MM internal locks. So I decide to use RCU which is 100%
-> > > under the control of vhost.
-> > > 
-> > > Thanks
-> > And I guess the deadlock is because GUP is taking mmu locks which are
-> > taken on mmu notifier path, right?
+> In order to pave the way for free page hinting in virtualized environments
+> we will need a way to get pages out of the free lists and identify those
+> pages after they have been returned. To accomplish this, this patch adds
+> the concept of a Hinted Buddy, which is essentially meant to just be the
+> Offline page type used in conjunction with the Buddy page type.
 > 
+> It adds a set of pointers we shall call "boundary" which represents the
+> upper boundary between the unhinted and hinted pages. The general idea is
+> that in order for a page to cross from one side of the boundary to the
+> other it will need to go through the hinting process. Ultimately a
+> free_list has been fully processed when the boundary has been moved from
+> the tail all they way up to occupying the first entry in the list.
 > 
-> Yes, but it's not the only lock. I don't remember the details, but I can
-> confirm I meet issues with one or two other locks.
+> Doing this we should be able to make certain that we keep the hinted
+> pages as one contiguous block in each free list. This will allow us to
+> efficiently manipulate the free lists whenever we need to go in and start
+> sending hints to the hypervisor that there are new pages that have been
+> freed and are no longer in use.
 > 
+> An added advantage to this approach is that we should be reducing the
+> overall memory footprint of the guest as it will be more likely to recycle
+> warm pages versus trying to allocate the hinted pages that were likely
+> evicted from the guest memory.
 > 
-> >    How about we add a seqlock and take
-> > that in invalidate callbacks?  We can then drop the VQ lock before GUP,
-> > and take it again immediately after.
-> > 
-> > something like
-> > 	if (!vq_meta_mapped(vq)) {
-> > 		vq_meta_setup(&uaddrs);
-> > 		mutex_unlock(vq->mutex)
-> > 		vq_meta_map(&uaddrs);
+> Since we will only be hinting one zone at a time we keep the boundary
+> limited to being defined for just the zone we are currently placing hinted
+> pages into. Doing this we can keep the number of additional pointers needed
+> quite small. To flag that the boundaries are in place we use a single bit
+> in the zone to indicate that hinting and the boundaries are active.
 > 
+> The determination of when to start hinting is based on the tracking of the
+> number of free pages in a given area versus the number of hinted pages in
+> that area. We keep track of the number of hinted pages per free_area in a
+> separate zone specific area. We do this to avoid modifying the free_area
+> structure as this can lead to false sharing for the highest order with the
+> zone lock which leads to a noticeable performance degradation.
 > 
-> The problem is the vq address could be changed at this time.
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> ---
+>  include/linux/mmzone.h       |   40 +++++-
+>  include/linux/page-flags.h   |    8 +
+>  include/linux/page_hinting.h |  139 ++++++++++++++++++++
+>  mm/Kconfig                   |    5 +
+>  mm/Makefile                  |    1 
+>  mm/memory_hotplug.c          |    1 
+>  mm/page_alloc.c              |  136 ++++++++++++++++++-
+>  mm/page_hinting.c            |  298 ++++++++++++++++++++++++++++++++++++++++++
+>  8 files changed, 620 insertions(+), 8 deletions(-)
+>  create mode 100644 include/linux/page_hinting.h
+>  create mode 100644 mm/page_hinting.c
 > 
-> 
-> > 		mutex_lock(vq->mutex)
-> > 
-> > 		/* recheck both sock->private_data and seqlock count. */
-> > 		if changed - bail out
-> > 	}
-> > 
-> > And also requires that VQ uaddrs is defined like this:
-> > - writers must have both vq mutex and dev mutex
-> > - readers must have either vq mutex or dev mutex
-> > 
-> > 
-> > That's a big change though. For now, how about switching to a per-vq SRCU?
-> > That is only a little bit more expensive than RCU, and we
-> > can use synchronize_srcu_expedited.
-> > 
-> 
-> Consider we switch to use kfree_rcu(), what's the advantage of per-vq SRCU?
-> 
-> Thanks
+> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> index f0c68b6b6154..42bdebb20484 100644
+> --- a/include/linux/mmzone.h
+> +++ b/include/linux/mmzone.h
+> @@ -460,6 +460,14 @@ struct zone {
+>  	seqlock_t		span_seqlock;
+>  #endif
+>  
+> +#ifdef CONFIG_PAGE_HINTING
+> +	/*
+> +	 * Pointer to hinted page tracking statistics array. The size of
+> +	 * the array is MAX_ORDER - PAGE_HINTING_MIN_ORDER. NULL when
+> +	 * page hinting is not present.
+> +	 */
+> +	unsigned long		*hinted_pages;
+> +#endif
+>  	int initialized;
+>  
+>  	/* Write-intensive fields used from the page allocator */
+> @@ -535,6 +543,14 @@ enum zone_flags {
+>  	ZONE_BOOSTED_WATERMARK,		/* zone recently boosted watermarks.
+>  					 * Cleared when kswapd is woken.
+>  					 */
+> +	ZONE_PAGE_HINTING_REQUESTED,	/* zone enabled page hinting and has
+> +					 * requested flushing the data out of
+> +					 * higher order pages.
+> +					 */
+> +	ZONE_PAGE_HINTING_ACTIVE,	/* zone enabled page hinting and is
+> +					 * activly flushing the data out of
+> +					 * higher order pages.
+> +					 */
+>  };
+>  
+>  static inline unsigned long zone_managed_pages(struct zone *zone)
+> @@ -755,6 +771,8 @@ static inline bool pgdat_is_empty(pg_data_t *pgdat)
+>  	return !pgdat->node_start_pfn && !pgdat->node_spanned_pages;
+>  }
+>  
+> +#include <linux/page_hinting.h>
+> +
+>  /* Used for pages not on another list */
+>  static inline void add_to_free_list(struct page *page, struct zone *zone,
+>  				    unsigned int order, int migratetype)
+> @@ -769,10 +787,16 @@ static inline void add_to_free_list(struct page *page, struct zone *zone,
+>  static inline void add_to_free_list_tail(struct page *page, struct zone *zone,
+>  					 unsigned int order, int migratetype)
+>  {
+> -	struct free_area *area = &zone->free_area[order];
+> +	struct list_head *tail = get_unhinted_tail(zone, order, migratetype);
+>  
+> -	list_add_tail(&page->lru, &area->free_list[migratetype]);
+> -	area->nr_free++;
+> +	/*
+> +	 * To prevent the unhinted pages from being interleaved with the
+> +	 * hinted ones while we are actively processing pages we will use
+> +	 * the head of the hinted pages to determine the tail of the free
+> +	 * list.
+> +	 */
+> +	list_add_tail(&page->lru, tail);
+> +	zone->free_area[order].nr_free++;
+>  }
+>  
+>  /* Used for pages which are on another list */
+> @@ -781,12 +805,22 @@ static inline void move_to_free_list(struct page *page, struct zone *zone,
+>  {
+>  	struct free_area *area = &zone->free_area[order];
+>  
+> +	/*
+> +	 * Clear Hinted flag, if present, to avoid placing hinted pages
+> +	 * at the top of the free_list. It is cheaper to just process this
+> +	 * page again, then have to walk around a page that is already hinted.
+> +	 */
+> +	clear_page_hinted(page, zone);
+> +
+>  	list_move(&page->lru, &area->free_list[migratetype]);
+>  }
+>  
+>  static inline void del_page_from_free_list(struct page *page, struct zone *zone,
+>  					   unsigned int order)
+>  {
+> +	/* Clear Hinted flag, if present, before clearing the Buddy flag */
+> +	clear_page_hinted(page, zone);
+> +
+>  	list_del(&page->lru);
+>  	__ClearPageBuddy(page);
+>  	set_page_private(page, 0);
+> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> index b848517da64c..b753dbf673cb 100644
+> --- a/include/linux/page-flags.h
+> +++ b/include/linux/page-flags.h
+> @@ -745,6 +745,14 @@ static inline int page_has_type(struct page *page)
+>  PAGE_TYPE_OPS(Offline, offline)
+>  
+>  /*
+> + * PageHinted() is an alias for Offline, however it is not meant to be an
+> + * exclusive value. It should be combined with PageBuddy() when seen as it
+> + * is meant to indicate that the page has been scrubbed while waiting in
+> + * the buddy system.
+> + */
+> +PAGE_TYPE_OPS(Hinted, offline)
 
 
-I thought we established that notifiers must wait for
-all readers to finish before they mark page dirty, to
-prevent page from becoming dirty after address
-has been invalidated.
-Right?
+CCing Matthew
+
+I am still not sure if I like the idea of having two page types at a time.
+
+1. Once we run out of page type bits (which can happen easily looking at
+it getting more and more user - e.g., maybe for vmmap pages soon), we
+might want to convert again back to a value-based, not bit-based type
+detection. This will certainly make this switch harder.
+
+2. It will complicate the kexec/kdump handling. I assume it can be fixed
+some way - e.g., making the elf interface aware of the exact notion of
+page type bits compared to mapcount values we have right now (e.g.,
+PAGE_BUDDY_MAPCOUNT_VALUE). Not addressed in this series yet.
+
+
+Can't we reuse one of the traditional page flags for that, not used
+along with buddy pages? E.g., PG_dirty: Pages that were not hinted yet
+are dirty.
+
+Matthew, what's your take?
+
+-- 
+
+Thanks,
+
+David / dhildenb
 
