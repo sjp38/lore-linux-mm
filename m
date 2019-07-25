@@ -2,316 +2,330 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 47075C7618B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 14:54:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A9CD9C7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 14:54:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EFC2521734
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 14:54:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EFC2521734
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id 29B4321734
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 14:54:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 29B4321734
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 881D06B0269; Thu, 25 Jul 2019 10:54:18 -0400 (EDT)
+	id C03356B026B; Thu, 25 Jul 2019 10:54:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 831AE6B026A; Thu, 25 Jul 2019 10:54:18 -0400 (EDT)
+	id BB4166B026C; Thu, 25 Jul 2019 10:54:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6D3978E0002; Thu, 25 Jul 2019 10:54:18 -0400 (EDT)
+	id AA2528E0002; Thu, 25 Jul 2019 10:54:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 42C806B0269
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 10:54:18 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id l5so19692540oih.3
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 07:54:18 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 88C586B026B
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 10:54:54 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id r58so44763640qtb.5
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 07:54:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version;
-        bh=Uh4RfgIrY/7DK7JMTFfUymv3qRNsq/JZPjUXpmohIQc=;
-        b=WeQIOCZ2hkqr0kR5EUxe5qyHHcl1tTEGbpeU0kHVIyycrH610eVE13HgthwE/HOa+i
-         slQITM/ke05DX8+p4hFVmpzFQnUrrlgZUJ687N9rtLSQ1Sg/EZ2sbG5x4b2CdBstRKgR
-         1/YfRh7P23pc7ZNWLvmz3l12TX2fL/NknltJK/1VFnX2iQ21PgEIdbav/yuginvQfMu/
-         rGPPX8OKr6ROPbfl98ntaKAz77g2GCJOHjF/BkBHSjsN9v/TZMIHOhVfI9GjzyL0C5Lu
-         cUZYBFBHm9cMcknQ6Jerfxq/361GlM7NVHA9Dmnkxg9y1jcOf3rRk/cq1Ol7S5N6fZjB
-         cIvQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of miles.chen@mediatek.com designates 216.200.240.185 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-X-Gm-Message-State: APjAAAWQLorhUT3eaQOD7xpd9BmOTapwjI9jOwMX0nnVFUyw2E3mAMZv
-	Q75oE0Sxs2Y2SryYi6zXS68IqJvnkxKVcvzX07NVk/bd5w8AiiY8WESYeKwIylHWka+6PBEq9RA
-	0YqKxNbBqQ5BRFAgJN9ujOuD+EmdvlSFGxeHWuw8ZfjAuP7KANDTcVHmm0Hk6SQh9dg==
-X-Received: by 2002:a54:4813:: with SMTP id j19mr18067565oij.34.1564066457843;
-        Thu, 25 Jul 2019 07:54:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzqxnuXo5q8EPjQAQSFt35FOHL5Gnmi6S0s/kOLBhaCi12emGg88f0bBmpTtS8Rz1UkDo63
-X-Received: by 2002:a54:4813:: with SMTP id j19mr18067521oij.34.1564066456727;
-        Thu, 25 Jul 2019 07:54:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564066456; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=CcgVTFTJMOOveKpatdedshRmvTZJnKJaf5zjvcK1rE0=;
+        b=ehyIK/z4NEcAI7kgo/VjxFhGuAqhhXdduTujFRkZGJEapiDqV7RW95fMQ/DYdYf/zy
+         rlj2eaRSSPQ67FaJvdbqhpIYQqO35wDkLS4DgX7opIrhS25LypaPe3gi1yyJgecH0YbG
+         K3KxTs4HYSI03i/4yvHYeDQ8gfxYiZmVzmhBIuKTS0JFESopz58tDWa+nVfn6ds/efJo
+         mLPEsWpzVAMBXc7Dg6X8Pp8RkCx9unzdDgz0lg1BVFPi9oAa2PxBC+rT9970SyzUTId6
+         OhwFlGPAV5bMZaKJmdksrMzbLTN2Z3A73fS9zIh7hpQFQcYQ+SGfg4fNhArlE5zr3/Lx
+         bGYg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAV72OLSWj57pXT1/t3+WoU2j4+J3Qo9gLHbkr7kffRMoW7PirHn
+	RNXqXE0pUOFxMFtbUUmQ9gcuYBu8CVuqdnafF5x8rMeHvvOncp3520eecC5lj/NV+OCvFJJGg+p
+	QwzpfiwPt1qQ3nf3zFjuSD7+q+Z7pZCLou/ucXGJjvh9d2VQsbOdq+NrIPABYQbh44w==
+X-Received: by 2002:ac8:2b90:: with SMTP id m16mr61211940qtm.384.1564066494290;
+        Thu, 25 Jul 2019 07:54:54 -0700 (PDT)
+X-Received: by 2002:ac8:2b90:: with SMTP id m16mr61211903qtm.384.1564066493543;
+        Thu, 25 Jul 2019 07:54:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564066493; cv=none;
         d=google.com; s=arc-20160816;
-        b=0vwJFUpMfQpQWFf0t/I+9jV0T9UPPbJScdj3xh/yZGOlqVhF342gwUH6YlP94gHg+N
-         0JvmJ1OGKm1irqNjRbfF89aixKGfmelGnu+fDPfFrZgQ2RKMFgmIFeWNagFfeJmA8RAJ
-         peqJVJlcpXBg1EC81ojZ644Nis6tiqT6HGXAS80snRywgTe2ZAmMswdq2P6Y0cP/EJeW
-         zT0tlRUtaPfbKELHvRUQEmsfI5yHAkjRR7llwjquYMFxFZKsD9MZHmUPtRxYnPXR3Lba
-         nk4sJn/IHb+PB4wiWj+pzq4El/lrFzJ0m5NjTzXzR25uRGEGogJHx33Lc4YPRlZS+QKF
-         roEQ==
+        b=Ouh2LcCI8w2686cGux5mDqI0RZDgXhIx3cAP2kSkqINpDO0AoxhyFlHXlxCuujFR9J
+         BG3tnJhEXI//bVD0Qq5zKnYUN3+BZfWji/zZYVeThobklhT9NsBcWpT6UOaBy1gZg74c
+         W3fqU1gwwCYAQTMRxUIvR5qIoTg8Y1TxZQ3AyxL/87G5AZeGPdNlgjPhOLJmJIm5q/YW
+         eFeK394cSTkUB1310ckRoH2DZ6UXdcxYfwitjfHRmBC4Qeg6eWBjQNMnaLkU9aZWehEM
+         V1fURPgfCwACbDcQwO5C4pWNCBq/vpxcZmM6rjoFvXVVWh5UvY36CAn4HrwJU43qvQTH
+         Kdyg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:subject:cc:to:from;
-        bh=Uh4RfgIrY/7DK7JMTFfUymv3qRNsq/JZPjUXpmohIQc=;
-        b=dqVuoZD7Ugs8EZ+ABypXHq5x+UfDPGNWezNlB57wYcB4hLQmDaYAE3D1fPiKrst7Zz
-         3dsTFWwzQ9op2aJSPZ1xe8w2FlMccnaVp3sHP22vQOEmGneZMhGzlFBhR1nY+1EHw8Bk
-         JGzVCZEbNHE/INhEruZetl9QyK41i3u1jeO3PGse8Ug6XligPwdDK1fkYm3Pv3Y25RDC
-         ziKSUZV72WID196FHjHSN1hLHKSA19RHINiXRHTIAyCnynXpCuGgVqvhACLzvBfQ+hYQ
-         xNd/5M3/6u/2q+KvNzoRjlQaAnkowgReuMZashsdJV+GMVQfasCm46+Dw+GCf+EaEsMq
-         YdTg==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=CcgVTFTJMOOveKpatdedshRmvTZJnKJaf5zjvcK1rE0=;
+        b=N4ZL2Sa4wd0vMdZ6k6a3uSEC1hWDn1V7dAZSV2aiOeOo6ZBGL3QsavPqJ0EiG/VhsQ
+         q/XPa8JDjtnf/Phn9FhjDVgwqzgaA6h6b7vrHr7YbJHsW1DXrpb3AMOIiOGCrqgg/Lhx
+         SaThEALRSN9b966TRuKqnvx+O9c/JsN3kDMFza0GluIswy8bjIO+Y6wdBgjmR0i3nuLN
+         xeznnvsBlVCeW+87MMlQBVM1wTagjC4r9C6Vy/0ZT+QLEno6tj6CTXC5H2co5NeJEKCH
+         JsAvnmiZtpqIOkyH28td0dLZBVt390VRzEbUXBanaeF6NP7g/PSOvYUIeFWxVrIGATBp
+         6scg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 216.200.240.185 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-Received: from mailgw02.mediatek.com (mailgw02.mediatek.com. [216.200.240.185])
-        by mx.google.com with ESMTPS id r26si31907723otp.85.2019.07.25.07.54.15
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j5sor28302040qkm.140.2019.07.25.07.54.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 07:54:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of miles.chen@mediatek.com designates 216.200.240.185 as permitted sender) client-ip=216.200.240.185;
+        (Google Transport Security);
+        Thu, 25 Jul 2019 07:54:53 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 216.200.240.185 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-X-UUID: 68c8c96cfe82444895fc582f3966f561-20190725
-X-UUID: 68c8c96cfe82444895fc582f3966f561-20190725
-Received: from mtkexhb01.mediatek.inc [(172.21.101.102)] by mailgw02.mediatek.com
-	(envelope-from <miles.chen@mediatek.com>)
-	(musrelay.mediatek.com ESMTP with TLS)
-	with ESMTP id 1017426763; Thu, 25 Jul 2019 06:53:06 -0800
-Received: from MTKCAS06.mediatek.inc (172.21.101.30) by
- mtkmbs06n2.mediatek.inc (172.21.101.130) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Thu, 25 Jul 2019 22:27:04 +0800
-Received: from mtksdccf07.mediatek.inc (172.21.84.99) by MTKCAS06.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Thu, 25 Jul 2019 22:27:04 +0800
-From: <miles.chen@mediatek.com>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>
-CC: <cgroups@vger.kernel.org>, <linux-mm@kvack.org>,
-	<linux-kernel@vger.kernel.org>, <wsd_upstream@mediatek.com>,
-	<linux-mediatek@lists.infradead.org>, Miles Chen <miles.chen@mediatek.com>
-Subject: [RFC PATCH] mm: memcontrol: fix use after free in mem_cgroup_iter()
-Date: Thu, 25 Jul 2019 22:27:03 +0800
-Message-ID: <20190725142703.27276-1-miles.chen@mediatek.com>
-X-Mailer: git-send-email 2.18.0
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqzjeyV7dxTsscokLIiuSfFooVi6LnhPvO3yvAtF8NiqaOjbZbFDFHvnj/MfmLBA0jTFNhbBWg==
+X-Received: by 2002:a37:6086:: with SMTP id u128mr59476377qkb.270.1564066493306;
+        Thu, 25 Jul 2019 07:54:53 -0700 (PDT)
+Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
+        by smtp.gmail.com with ESMTPSA id p32sm25527072qtb.67.2019.07.25.07.54.47
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 25 Jul 2019 07:54:52 -0700 (PDT)
+Date: Thu, 25 Jul 2019 10:54:45 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: Alexander Duyck <alexander.duyck@gmail.com>, kvm@vger.kernel.org,
+	david@redhat.com, dave.hansen@intel.com,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	akpm@linux-foundation.org, yang.zhang.wz@gmail.com,
+	pagupta@redhat.com, riel@surriel.com, konrad.wilk@oracle.com,
+	lcapitulino@redhat.com, wei.w.wang@intel.com, aarcange@redhat.com,
+	pbonzini@redhat.com, dan.j.williams@intel.com,
+	alexander.h.duyck@linux.intel.com
+Subject: Re: [PATCH v2 5/5] virtio-balloon: Add support for providing page
+ hints to host
+Message-ID: <20190725105415-mutt-send-email-mst@kernel.org>
+References: <20190724165158.6685.87228.stgit@localhost.localdomain>
+ <20190724170514.6685.17161.stgit@localhost.localdomain>
+ <20190724143902-mutt-send-email-mst@kernel.org>
+ <21cc88cd-3577-e8b4-376f-26c7848f5764@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-TM-SNTS-SMTP:
-	BA133858E120E853044F975DFC7A41746A406CCD8C5E6AAF83D767E759F686B22000:8
-X-MTK: N
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <21cc88cd-3577-e8b4-376f-26c7848f5764@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Miles Chen <miles.chen@mediatek.com>
+On Thu, Jul 25, 2019 at 10:44:01AM -0400, Nitesh Narayan Lal wrote:
+> 
+> On 7/24/19 3:02 PM, Michael S. Tsirkin wrote:
+> > On Wed, Jul 24, 2019 at 10:05:14AM -0700, Alexander Duyck wrote:
+> >> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> >>
+> >> Add support for the page hinting feature provided by virtio-balloon.
+> >> Hinting differs from the regular balloon functionality in that is is
+> >> much less durable than a standard memory balloon. Instead of creating a
+> >> list of pages that cannot be accessed the pages are only inaccessible
+> >> while they are being indicated to the virtio interface. Once the
+> >> interface has acknowledged them they are placed back into their respective
+> >> free lists and are once again accessible by the guest system.
+> >>
+> >> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > Looking at the design, it seems that hinted pages can immediately be
+> > reused. I wonder how we can efficiently support this
+> > with kvm when poisoning is in effect. Of course we can just
+> > ignore the poison. However it seems cleaner to
+> > 1. verify page is poisoned with the correct value
+> > 2. fill the page with the correct value on fault
+> >
+> > Requirement 2 requires some kind of madvise that
+> > will save the poison e.g. in the VMA.
+> >
+> > Not a blocker for sure ... 
+> >
+> >
+> >> ---
+> >>  drivers/virtio/Kconfig              |    1 +
+> >>  drivers/virtio/virtio_balloon.c     |   47 +++++++++++++++++++++++++++++++++++
+> >>  include/uapi/linux/virtio_balloon.h |    1 +
+> >>  3 files changed, 49 insertions(+)
+> >>
+> >> diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
+> >> index 078615cf2afc..d45556ae1f81 100644
+> >> --- a/drivers/virtio/Kconfig
+> >> +++ b/drivers/virtio/Kconfig
+> >> @@ -58,6 +58,7 @@ config VIRTIO_BALLOON
+> >>  	tristate "Virtio balloon driver"
+> >>  	depends on VIRTIO
+> >>  	select MEMORY_BALLOON
+> >> +	select PAGE_HINTING
+> >>  	---help---
+> >>  	 This driver supports increasing and decreasing the amount
+> >>  	 of memory within a KVM guest.
+> >> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> >> index 226fbb995fb0..dee9f8f3ad09 100644
+> >> --- a/drivers/virtio/virtio_balloon.c
+> >> +++ b/drivers/virtio/virtio_balloon.c
+> >> @@ -19,6 +19,7 @@
+> >>  #include <linux/mount.h>
+> >>  #include <linux/magic.h>
+> >>  #include <linux/pseudo_fs.h>
+> >> +#include <linux/page_hinting.h>
+> >>  
+> >>  /*
+> >>   * Balloon device works in 4K page units.  So each page is pointed to by
+> >> @@ -27,6 +28,7 @@
+> >>   */
+> >>  #define VIRTIO_BALLOON_PAGES_PER_PAGE (unsigned)(PAGE_SIZE >> VIRTIO_BALLOON_PFN_SHIFT)
+> >>  #define VIRTIO_BALLOON_ARRAY_PFNS_MAX 256
+> >> +#define VIRTIO_BALLOON_ARRAY_HINTS_MAX	32
+> >>  #define VIRTBALLOON_OOM_NOTIFY_PRIORITY 80
+> >>  
+> >>  #define VIRTIO_BALLOON_FREE_PAGE_ALLOC_FLAG (__GFP_NORETRY | __GFP_NOWARN | \
+> >> @@ -46,6 +48,7 @@ enum virtio_balloon_vq {
+> >>  	VIRTIO_BALLOON_VQ_DEFLATE,
+> >>  	VIRTIO_BALLOON_VQ_STATS,
+> >>  	VIRTIO_BALLOON_VQ_FREE_PAGE,
+> >> +	VIRTIO_BALLOON_VQ_HINTING,
+> >>  	VIRTIO_BALLOON_VQ_MAX
+> >>  };
+> >>  
+> >> @@ -113,6 +116,10 @@ struct virtio_balloon {
+> >>  
+> >>  	/* To register a shrinker to shrink memory upon memory pressure */
+> >>  	struct shrinker shrinker;
+> >> +
+> >> +	/* Unused page hinting device */
+> >> +	struct virtqueue *hinting_vq;
+> >> +	struct page_hinting_dev_info ph_dev_info;
+> >>  };
+> >>  
+> >>  static struct virtio_device_id id_table[] = {
+> >> @@ -152,6 +159,22 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
+> >>  
+> >>  }
+> >>  
+> >> +void virtballoon_page_hinting_react(struct page_hinting_dev_info *ph_dev_info,
+> >> +				    unsigned int num_hints)
+> >> +{
+> >> +	struct virtio_balloon *vb =
+> >> +		container_of(ph_dev_info, struct virtio_balloon, ph_dev_info);
+> >> +	struct virtqueue *vq = vb->hinting_vq;
+> >> +	unsigned int unused;
+> >> +
+> >> +	/* We should always be able to add these buffers to an empty queue. */
+> >
+> > can be an out of memory condition, and then ...
+> 
+> Do we need an error check here?
+> 
+> For situations where this fails we should disable hinting completely, maybe?
 
-This RFC patch is sent to report an use after free in mem_cgroup_iter()
-after merging commit: be2657752e9e "mm: memcg: fix use after free in
-mem_cgroup_iter()".
+I would just limit this to vq size, then you know it won't fail.
 
-I work with android kernel tree (4.9 & 4.14), and the commit:
-be2657752e9e "mm: memcg: fix use after free in mem_cgroup_iter()" has
-been merged to the trees. However, I can still observe use after free
-issues addressed in the commit be2657752e9e.
-(on low-end devices, a few times this month)
-
-backtrace:
-	css_tryget <- crash here
-	mem_cgroup_iter
-	shrink_node
-	shrink_zones
-	do_try_to_free_pages
-	try_to_free_pages
-	__perform_reclaim
-	__alloc_pages_direct_reclaim
-	__alloc_pages_slowpath
-	__alloc_pages_nodemask
-
-To debug, I poisoned mem_cgroup before freeing it:
-
-static void __mem_cgroup_free(struct mem_cgroup *memcg)
-	for_each_node(node)
-	free_mem_cgroup_per_node_info(memcg, node);
-	free_percpu(memcg->stat);
-+       /* poison memcg before freeing it */
-+       memset(memcg, 0x78, sizeof(struct mem_cgroup));
-	kfree(memcg);
-}
-
-The coredump shows the position=0xdbbc2a00 is freed.
-
-(gdb) p/x ((struct mem_cgroup_per_node *)0xe5009e00)->iter[8]
-$13 = {position = 0xdbbc2a00, generation = 0x2efd}
-
-0xdbbc2a00:     0xdbbc2e00      0x00000000      0xdbbc2800      0x00000100
-0xdbbc2a10:     0x00000200      0x78787878      0x00026218      0x00000000
-0xdbbc2a20:     0xdcad6000      0x00000001      0x78787800      0x00000000
-0xdbbc2a30:     0x78780000      0x00000000      0x0068fb84      0x78787878
-0xdbbc2a40:     0x78787878      0x78787878      0x78787878      0xe3fa5cc0
-0xdbbc2a50:     0x78787878      0x78787878      0x00000000      0x00000000
-0xdbbc2a60:     0x00000000      0x00000000      0x00000000      0x00000000
-0xdbbc2a70:     0x00000000      0x00000000      0x00000000      0x00000000
-0xdbbc2a80:     0x00000000      0x00000000      0x00000000      0x00000000
-0xdbbc2a90:     0x00000001      0x00000000      0x00000000      0x00100000
-0xdbbc2aa0:     0x00000001      0xdbbc2ac8      0x00000000      0x00000000
-0xdbbc2ab0:     0x00000000      0x00000000      0x00000000      0x00000000
-0xdbbc2ac0:     0x00000000      0x00000000      0xe5b02618      0x00001000
-0xdbbc2ad0:     0x00000000      0x78787878      0x78787878      0x78787878
-0xdbbc2ae0:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2af0:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b00:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b10:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b20:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b30:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b40:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b50:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b60:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b70:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b80:     0x78787878      0x78787878      0x00000000      0x78787878
-0xdbbc2b90:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2ba0:     0x78787878      0x78787878      0x78787878      0x78787878
-
-In the reclaim path, try_to_free_pages() does not setup
-sc.target_mem_cgroup and sc is passed to do_try_to_free_pages(), ...,
-shrink_node().
-
-In mem_cgroup_iter(), root is set to root_mem_cgroup because
-sc->target_mem_cgroup is NULL.
-It is possible to assign a memcg to root_mem_cgroup.nodeinfo.iter in
-mem_cgroup_iter().
-
-	try_to_free_pages
-		struct scan_control sc = {...}, target_mem_cgroup is 0x0;
-	do_try_to_free_pages
-	shrink_zones
-	shrink_node
-		 mem_cgroup *root = sc->target_mem_cgroup;
-		 memcg = mem_cgroup_iter(root, NULL, &reclaim);
-	mem_cgroup_iter()
-		if (!root)
-			root = root_mem_cgroup;
-		...
-
-		css = css_next_descendant_pre(css, &root->css);
-		memcg = mem_cgroup_from_css(css);
-		cmpxchg(&iter->position, pos, memcg);
-
-My device uses memcg non-hierarchical mode.
-When we release a memcg: invalidate_reclaim_iterators() reaches only
-dead_memcg and its parents. If non-hierarchical mode is used,
-invalidate_reclaim_iterators() never reaches root_mem_cgroup.
-
-static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
-{
-	struct mem_cgroup *memcg = dead_memcg;
-
-	for (; memcg; memcg = parent_mem_cgroup(memcg)
-	...
-}
-
-So the use after free scenario looks like:
-
-CPU1						CPU2
-
-try_to_free_pages
-do_try_to_free_pages
-shrink_zones
-shrink_node
-mem_cgroup_iter()
-    if (!root)
-    	root = root_mem_cgroup;
-    ...
-    css = css_next_descendant_pre(css, &root->css);
-    memcg = mem_cgroup_from_css(css);
-    cmpxchg(&iter->position, pos, memcg);
-
-					invalidate_reclaim_iterators(memcg);
-					...
-					__mem_cgroup_free()
-						kfree(memcg);
-
-try_to_free_pages
-do_try_to_free_pages
-shrink_zones
-shrink_node
-mem_cgroup_iter()
-    if (!root)
-    	root = root_mem_cgroup;
-    ...
-    mz = mem_cgroup_nodeinfo(root, reclaim->pgdat->node_id);
-    iter = &mz->iter[reclaim->priority];
-    pos = READ_ONCE(iter->position);
-    css_tryget(&pos->css) <- use after free
-
-To avoid this, we should also invalidate root_mem_cgroup.nodeinfo.iter in
-invalidate_reclaim_iterators().
-
-Signed-off-by: Miles Chen <miles.chen@mediatek.com>
----
- mm/memcontrol.c | 33 +++++++++++++++++++++++----------
- 1 file changed, 23 insertions(+), 10 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index cdbb7a84cb6e..578b02982c9a 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1130,26 +1130,39 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
- 		css_put(&prev->css);
- }
- 
--static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
-+static void __invalidate_reclaim_iterators(struct mem_cgroup *from,
-+					struct mem_cgroup *dead_memcg)
- {
--	struct mem_cgroup *memcg = dead_memcg;
- 	struct mem_cgroup_reclaim_iter *iter;
- 	struct mem_cgroup_per_node *mz;
- 	int nid;
- 	int i;
- 
--	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
--		for_each_node(nid) {
--			mz = mem_cgroup_nodeinfo(memcg, nid);
--			for (i = 0; i <= DEF_PRIORITY; i++) {
--				iter = &mz->iter[i];
--				cmpxchg(&iter->position,
--					dead_memcg, NULL);
--			}
-+	for_each_node(nid) {
-+		mz = mem_cgroup_nodeinfo(from, nid);
-+		for (i = 0; i <= DEF_PRIORITY; i++) {
-+			iter = &mz->iter[i];
-+			cmpxchg(&iter->position,
-+				dead_memcg, NULL);
- 		}
- 	}
- }
- 
-+static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
-+{
-+	struct mem_cgroup *memcg = dead_memcg;
-+	int invalid_root = 0;
-+
-+	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
-+		__invalidate_reclaim_iterators(memcg, dead_memcg);
-+		if (memcg == root_mem_cgroup)
-+			invalid_root = 1;
-+	}
-+
-+	if (!invalid_root)
-+		__invalidate_reclaim_iterators(root_mem_cgroup, dead_memcg);
-+}
-+
- /**
-  * mem_cgroup_scan_tasks - iterate over tasks of a memory cgroup hierarchy
-  * @memcg: hierarchy root
--- 
-2.18.0
+> 
+> >
+> >> +	virtqueue_add_inbuf(vq, ph_dev_info->sg, num_hints, vb, GFP_KERNEL);
+> >> +	virtqueue_kick(vq);
+> > ... this will block forever.
+> >
+> >> +	/* When host has read buffer, this completes via balloon_ack */
+> >> +	wait_event(vb->acked, virtqueue_get_buf(vq, &unused));
+> > However below I suggest limiting capacity which will solve
+> > this problem for you.
+> >
+> >
+> >
+> >> +}
+> >> +
+> >>  static void set_page_pfns(struct virtio_balloon *vb,
+> >>  			  __virtio32 pfns[], struct page *page)
+> >>  {
+> >> @@ -476,6 +499,7 @@ static int init_vqs(struct virtio_balloon *vb)
+> >>  	names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
+> >>  	names[VIRTIO_BALLOON_VQ_STATS] = NULL;
+> >>  	names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
+> >> +	names[VIRTIO_BALLOON_VQ_HINTING] = NULL;
+> >>  
+> >>  	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+> >>  		names[VIRTIO_BALLOON_VQ_STATS] = "stats";
+> >> @@ -487,11 +511,19 @@ static int init_vqs(struct virtio_balloon *vb)
+> >>  		callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
+> >>  	}
+> >>  
+> >> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING)) {
+> >> +		names[VIRTIO_BALLOON_VQ_HINTING] = "hinting_vq";
+> >> +		callbacks[VIRTIO_BALLOON_VQ_HINTING] = balloon_ack;
+> >> +	}
+> >> +
+> >>  	err = vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX,
+> >>  					 vqs, callbacks, names, NULL, NULL);
+> >>  	if (err)
+> >>  		return err;
+> >>  
+> >> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
+> >> +		vb->hinting_vq = vqs[VIRTIO_BALLOON_VQ_HINTING];
+> >> +
+> >>  	vb->inflate_vq = vqs[VIRTIO_BALLOON_VQ_INFLATE];
+> >>  	vb->deflate_vq = vqs[VIRTIO_BALLOON_VQ_DEFLATE];
+> >>  	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+> >> @@ -924,12 +956,24 @@ static int virtballoon_probe(struct virtio_device *vdev)
+> >>  		if (err)
+> >>  			goto out_del_balloon_wq;
+> >>  	}
+> >> +
+> >> +	vb->ph_dev_info.react = virtballoon_page_hinting_react;
+> >> +	vb->ph_dev_info.capacity = VIRTIO_BALLOON_ARRAY_HINTS_MAX;
+> > As explained above I think you should limit this by vq size.
+> > Otherwise virtqueue add buf might fail.
+> > In fact by struct spec reading you need to limit it
+> > anyway otherwise it will fail unconditionally.
+> > In practice on most hypervisors it will typically work ...
+> >
+> >> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING)) {
+> >> +		err = page_hinting_startup(&vb->ph_dev_info);
+> >> +		if (err)
+> >> +			goto out_unregister_shrinker;
+> >> +	}
+> >> +
+> >>  	virtio_device_ready(vdev);
+> >>  
+> >>  	if (towards_target(vb))
+> >>  		virtballoon_changed(vdev);
+> >>  	return 0;
+> >>  
+> >> +out_unregister_shrinker:
+> >> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+> >> +		virtio_balloon_unregister_shrinker(vb);
+> >>  out_del_balloon_wq:
+> >>  	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
+> >>  		destroy_workqueue(vb->balloon_wq);
+> >> @@ -958,6 +1002,8 @@ static void virtballoon_remove(struct virtio_device *vdev)
+> >>  {
+> >>  	struct virtio_balloon *vb = vdev->priv;
+> >>  
+> >> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_HINTING))
+> >> +		page_hinting_shutdown(&vb->ph_dev_info);
+> >>  	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+> >>  		virtio_balloon_unregister_shrinker(vb);
+> >>  	spin_lock_irq(&vb->stop_update_lock);
+> >> @@ -1027,6 +1073,7 @@ static int virtballoon_validate(struct virtio_device *vdev)
+> >>  	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
+> >>  	VIRTIO_BALLOON_F_FREE_PAGE_HINT,
+> >>  	VIRTIO_BALLOON_F_PAGE_POISON,
+> >> +	VIRTIO_BALLOON_F_HINTING,
+> >>  };
+> >>  
+> >>  static struct virtio_driver virtio_balloon_driver = {
+> >> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/virtio_balloon.h
+> >> index a1966cd7b677..2b0f62814e22 100644
+> >> --- a/include/uapi/linux/virtio_balloon.h
+> >> +++ b/include/uapi/linux/virtio_balloon.h
+> >> @@ -36,6 +36,7 @@
+> >>  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */
+> >>  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages */
+> >>  #define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisoning */
+> >> +#define VIRTIO_BALLOON_F_HINTING	5 /* Page hinting virtqueue */
+> >>  
+> >>  /* Size of a PFN in the balloon interface. */
+> >>  #define VIRTIO_BALLOON_PFN_SHIFT 12
+> -- 
+> Thanks
+> Nitesh
 
