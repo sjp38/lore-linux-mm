@@ -2,229 +2,146 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,URIBL_SBL,URIBL_SBL_A,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 75AA1C7618B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 13:50:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BEE62C7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 13:51:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 112B522BEF
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 13:50:38 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="rE6HVhCn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 112B522BEF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 9089422BEF
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 13:51:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9089422BEF
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 68DD48E0077; Thu, 25 Jul 2019 09:50:38 -0400 (EDT)
+	id 3F55A8E0078; Thu, 25 Jul 2019 09:51:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 63E4A8E0059; Thu, 25 Jul 2019 09:50:38 -0400 (EDT)
+	id 3A5248E0059; Thu, 25 Jul 2019 09:51:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4E0528E0077; Thu, 25 Jul 2019 09:50:38 -0400 (EDT)
+	id 26E088E0078; Thu, 25 Jul 2019 09:51:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 14FB88E0059
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 09:50:38 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id i27so30934087pfk.12
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 06:50:38 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CDD6E8E0059
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 09:51:14 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id y3so32158974edm.21
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 06:51:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=cznC/mia673R12amLE2+NAuwJMmX8y7Trfs12IWdodY=;
-        b=dTaV8hX6NQuMebUTYK4uyo4vAtWvGxNMn8b8ASgJ5wFfZNolud13vZoBKsPfeyGwos
-         yba6f/dGq8zpLnNPtdAlChQYPIS8x6YW9zAqlnjcFtIaBICcDsXbHGRBE5fx9vuCbDvH
-         Gbr+reiJi0qFcjlCAMduwwmyM2/dF2iljZuNnSTu394bim1+WF0eDx7sy8k9ULoLd8+C
-         YlRMEWKu0LK7/Z0e9lV+kUYAefGHmT16sCGPuKXH4p5eXOQJlfQd25cYqRBoc8Pso2KK
-         TpVl3E3B7D5fwg0av7/TINbvSvQXObC/4ikaIkyANb52f6cGrzCBawaYiOCYfdjctB46
-         rmYw==
-X-Gm-Message-State: APjAAAXwmYCGtO8OPjgcDVJZJ3Gy+n9bCYlVM1c9PJqFFbSrqPUmkzj1
-	QEUgCiWLEarnf5LIBu0UO4TqpqZ322dFG/cY5D2H/Y03DrhEsmtoBET5nzMocSNJFyrm4kfaNOr
-	oWRhQrbixzHJ4sJq+UlQJPbfeuZ8aCfmNNuTqek5FPic4ohIVfweJ294WNHqn+g0sgw==
-X-Received: by 2002:a65:5cca:: with SMTP id b10mr88415079pgt.365.1564062637272;
-        Thu, 25 Jul 2019 06:50:37 -0700 (PDT)
-X-Received: by 2002:a65:5cca:: with SMTP id b10mr88415020pgt.365.1564062636410;
-        Thu, 25 Jul 2019 06:50:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564062636; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=90j8pwPJbERCSOoptymIMwkhw4ze4sh3LmP3iWCdthg=;
+        b=q+3IRwEPF0C75wbrlqksKsJyPOphpoRJ6muKqjiD0Eh7vSsxsyN/2G0GrUUDQK4rNW
+         laGHmzCC06D861VnhM1mwZP3wL5l7Ri66mdKEWO+jXyVBSdwsZWTTBHzG4mw/kbW2IGs
+         g7WgvsU2x1+T7UCA+wRmEPj6ZxIwbPHOhwipG5o5VrSz++9NTYGSSZWc+RUZarv+LQ3M
+         ahsoaNJsUo/RHuR6rVvbsGd4fLUYqBSs9t5yRHFijZwPyIHgzvrBJAo8T9OKwEKSpuxR
+         jDp76bvr0wgNRAedN58ZZqOtkOZ1i90y2VWuOUNlAL/VZKc9WrMK6/1EtMBRmfqkl/3o
+         Jg8w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+X-Gm-Message-State: APjAAAUf4kjzcYFgNmxWnPRzK31/gCJ6ZcUTZP9H+6ENFpx8xuOwUqDx
+	KtIWVQK3COJ8PC4WGO/k/a31xRDBb8ZC9kCZ8ptbPVONmUXSJuhEm7dOZAMuRmcU52iNfnR0m14
+	S7rnrjKz7Tmggab+BBwKYXQZUS9GMEvdbZHJJ5kE5V7got0j+tNNLF3FzvVLJqKB9Ow==
+X-Received: by 2002:a50:9846:: with SMTP id h6mr75586172edb.263.1564062674404;
+        Thu, 25 Jul 2019 06:51:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwsAGvSw1VYRM8j8G19gw3gdFZ1SXVcgXeP37br/cAiI21corrvmJdoYm+WS2/t0nIOPcVj
+X-Received: by 2002:a50:9846:: with SMTP id h6mr75586114edb.263.1564062673633;
+        Thu, 25 Jul 2019 06:51:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564062673; cv=none;
         d=google.com; s=arc-20160816;
-        b=Bzz8yH4iNJCTjw1Q5yAXCt8Ik9dqlzGNEE7S2QqQx3omI/7qfxIKDOsJVgZocdlqP6
-         uOe1Ziw7QUWzswUqPSRJr7XNyB5N8oiwVzlrcDdGKxctbR36nVRJKyqGlHeWVMUW701h
-         rfqMKZUfpQaA+A+MuqiiNupQ8zoUVScKFs3at4sZxwndhRzuN/ZagEvmmkiE3kLos2ie
-         2/y5hy9q4E+gGnbS54x85F8vjayIO0MxP4/bnpX07R7TmTIbz8GgeTc+X7C4kXFiM5eK
-         2nkVuNtieJ3gjMHPWV6RVdgq07kPF7A+S7E+l6RpB0JIti0EEur3HJvN2hpN2npA+v5M
-         t9Bg==
+        b=bzKzrqjM5qDCcPpdzldyb+axg7sF5P22/b1rF/kNDT4BI77loydzHaHGPzcjkwcfXX
+         C330kR+0AWdw0vS0CvXdO7XVcxyuRDE8E0QKj40xXazuFS63MfernSIJMPr0uvK3XIcs
+         AGsghOTFdHHpEFkN6j5PIgbyTRo8kzW7XDTTmwGKrpUH5elJpwFn57JJHD7b5DaNL+Nt
+         IaYpQ3AKrJWSrR/VPTVg99TXEU0gAGJgS2bESjvLCxGQ1JEclm4i5DkvZ9IMztbbYOyG
+         10LOD2gAGc621LuBkZgb4ERjZJIMDFeqWOG3Y+IbguMmnRQKxLlUWb+gtWlq7QievtoT
+         Fx4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=cznC/mia673R12amLE2+NAuwJMmX8y7Trfs12IWdodY=;
-        b=xmHUkH8FfnZbs1ZtrUbZBvdK9+mR+KyEulSsb6fbCGJzfbJFqRWeC+ZE41ctcnNN/8
-         jkQm73j/aysmSrtVJfS8sHtbmG9L4GRny2rE0VZrJvjJE73SGMcBUhiIb+K486QDjrdz
-         WQYjP9unOinN6BuikstDjZxNjaFTnhDjDBc8XYnObw368gXyF/BIXW8z2CQF25YKOXXF
-         zlxHNoMT5h5rhfzeVb0kZZnJpF1sP8Gq1XQS6fNP2w+jZtkZAtjvMPFUs4qyJFfiiufN
-         /uxh0DpXtFsQRlHKcXhWnwTupLEgFcNCpk95/F1lr1eXNaau+IcUja2kAEh6mwdwncB4
-         mOTw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=90j8pwPJbERCSOoptymIMwkhw4ze4sh3LmP3iWCdthg=;
+        b=jWxOyHB7+19bbUz1uleMAnc0xmYgc24YJXpaAvFlXJl4w4ROV8J+03K//n9y4p6Gv2
+         8G44yZHOU48f2w2RWz1LS47NTXBOfalwBZQviN+9hqd6RDnGr910YOjmkOsWorZHwkN5
+         DfwBr4mz/t2eif6szYj5GF5cuJ4beU0CM6fApF7Afre95/MP4mFJU6Tf/xbqa8dLapBk
+         Kh0fSspcGssfmvtTysl8w14oof4VNkhFV3ACj9yverHXsdc5f9naN0Z0ezqagziWjTsN
+         k2cAE+/eddPSFvcKGaZZYsFklue/Cw2pHyv/+8Vo7P3LdeliDetcBljC4fqHosw/qI4T
+         gzOQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rE6HVhCn;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j6sor28846709pgq.25.2019.07.25.06.50.36
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Jul 2019 06:50:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id p6si11133330eda.198.2019.07.25.06.51.13
+        for <linux-mm@kvack.org>;
+        Thu, 25 Jul 2019 06:51:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=rE6HVhCn;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=cznC/mia673R12amLE2+NAuwJMmX8y7Trfs12IWdodY=;
-        b=rE6HVhCnyS9Fuh8XBydCT0JNwye99wS2LnV3haS5VXjGpKpKIuckW7pCDHtEQr6aW4
-         E12yP+AFQBAbmC6NjqFVvZTTsMJUq++VbJorRpr0od2oDmUA2sR/MpMVQ5y5EVh+d+fC
-         mdCKkr+a0vIC+/h3u9eHMOY+uumKZJfVxZPLBMUrB50wnT0Vpp3XiYn4g0+k79L9qrgX
-         BvHH7owqZoTrODqPDVwvaP+dQvsT0DeTYpdkSnC9dRVdaUfbqhwotfGBTvobTIBFEA2A
-         GGlIJyfON3rQRQnGhYV6Ev/hN7VT6OGN10ORo4dIfMATMk/WSYcA+3wU+wVpQkgY8XdZ
-         XofQ==
-X-Google-Smtp-Source: APXvYqx95YTBmfZ2s6irx5QGcKsLYJHHj7SGgLLi4873958KHGS6URkSeVG3+hvXtd1vwQtAjj6vUw==
-X-Received: by 2002:a65:5202:: with SMTP id o2mr63140175pgp.29.1564062635792;
-        Thu, 25 Jul 2019 06:50:35 -0700 (PDT)
-Received: from bogon.localdomain ([203.100.54.194])
-        by smtp.gmail.com with ESMTPSA id p65sm49350879pfp.58.2019.07.25.06.50.32
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 06:50:35 -0700 (PDT)
-From: Yafang Shao <laoar.shao@gmail.com>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org,
-	Yafang Shao <laoar.shao@gmail.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Arnd Bergmann <arnd@arndb.de>,
-	Paul Gortmaker <paul.gortmaker@windriver.com>,
-	Rik van Riel <riel@redhat.com>,
-	Yafang Shao <shaoyafang@didiglobal.com>
-Subject: [PATCH] mm/compaction: use proper zoneid for compaction_suitable()
-Date: Thu, 25 Jul 2019 09:50:21 -0400
-Message-Id: <1564062621-8105-1-git-send-email-laoar.shao@gmail.com>
-X-Mailer: git-send-email 1.8.3.1
+       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id C83D428;
+	Thu, 25 Jul 2019 06:51:12 -0700 (PDT)
+Received: from e119884-lin.cambridge.arm.com (e119884-lin.cambridge.arm.com [10.1.196.72])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 592483F71F;
+	Thu, 25 Jul 2019 06:51:11 -0700 (PDT)
+From: Vincenzo Frascino <vincenzo.frascino@arm.com>
+To: linux-arm-kernel@lists.infradead.org,
+	linux-doc@vger.kernel.org,
+	linux-mm@kvack.org,
+	linux-arch@vger.kernel.org,
+	linux-kselftest@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Cc: vincenzo.frascino@arm.com,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Szabolcs Nagy <szabolcs.nagy@arm.com>
+Subject: [PATCH v6 0/2] arm64 relaxed ABI
+Date: Thu, 25 Jul 2019 14:50:42 +0100
+Message-Id: <20190725135044.24381-1-vincenzo.frascino@arm.com>
+X-Mailer: git-send-email 2.22.0
+In-Reply-To: <cover.1563904656.git.andreyknvl@google.com>
+References: <cover.1563904656.git.andreyknvl@google.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-By now there're three compaction paths,
-- direct compaction
-- kcompactd compcation
-- proc triggered compaction
-When we do compaction in all these paths, we will use compaction_suitable()
-to check whether a zone is suitable to do compaction.
+On arm64 the TCR_EL1.TBI0 bit has been always enabled on the arm64 kernel,
+hence the userspace (EL0) is allowed to set a non-zero value in the top
+byte but the resulting pointers are not allowed at the user-kernel syscall
+ABI boundary.
 
-There're some issues around the usage of compaction_suitable().
-We don't use the proper zoneid in kcompactd_node_suitable() when try to
-wakeup kcompactd. In the kcompactd compaction paths, we call
-compaction_suitable() twice and the zoneid isn't proper in the second call.
-For proc triggered compaction, the classzone_idx is always zero.
+This patchset proposes a relaxation of the ABI with which it is possible
+to pass tagged tagged pointers to the syscalls, when these pointers are in
+memory ranges obtained as described in tagged-address-abi.txt contained in
+this patch series.
 
-In order to fix these issues, I change the type of classzone_idx in the
-struct compact_control from const int to int and assign the proper zoneid
-before calling compact_zone().
+Since it is not desirable to relax the ABI to allow tagged user addresses
+into the kernel indiscriminately, this patchset documents a new sysctl
+interface (/proc/sys/abi/tagged_addr) that is used to prevent the applications
+from enabling the relaxed ABI and a new prctl() interface that can be used to
+enable or disable the relaxed ABI.
 
-This patch also fixes some comments in struct compact_control, as these
-fields are not only for direct compactor but also for all other compactors.
+This patchset should be merged together with [1].
 
-Fixes: ebff398017c6("mm, compaction: pass classzone_idx and alloc_flags to watermark checking")
-Fixes: 698b1b30642f("mm, compaction: introduce kcompactd")
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: Paul Gortmaker <paul.gortmaker@windriver.com>
-Cc: Rik van Riel <riel@redhat.com>
-Cc: Yafang Shao <shaoyafang@didiglobal.com>
----
- mm/compaction.c | 12 +++++-------
- mm/internal.h   | 10 +++++-----
- 2 files changed, 10 insertions(+), 12 deletions(-)
+[1] https://patchwork.kernel.org/cover/10674351/
 
-diff --git a/mm/compaction.c b/mm/compaction.c
-index ac4ead0..984dea7 100644
---- a/mm/compaction.c
-+++ b/mm/compaction.c
-@@ -2425,6 +2425,7 @@ static void compact_node(int nid)
- 			continue;
- 
- 		cc.zone = zone;
-+		cc.classzone_idx = zoneid;
- 
- 		compact_zone(&cc, NULL);
- 
-@@ -2508,7 +2509,7 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
- 			continue;
- 
- 		if (compaction_suitable(zone, pgdat->kcompactd_max_order, 0,
--					classzone_idx) == COMPACT_CONTINUE)
-+					zoneid) == COMPACT_CONTINUE)
- 			return true;
- 	}
- 
-@@ -2526,7 +2527,6 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 	struct compact_control cc = {
- 		.order = pgdat->kcompactd_max_order,
- 		.search_order = pgdat->kcompactd_max_order,
--		.classzone_idx = pgdat->kcompactd_classzone_idx,
- 		.mode = MIGRATE_SYNC_LIGHT,
- 		.ignore_skip_hint = false,
- 		.gfp_mask = GFP_KERNEL,
-@@ -2535,7 +2535,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 							cc.classzone_idx);
- 	count_compact_event(KCOMPACTD_WAKE);
- 
--	for (zoneid = 0; zoneid <= cc.classzone_idx; zoneid++) {
-+	for (zoneid = 0; zoneid <= pgdat->kcompactd_classzone_idx; zoneid++) {
- 		int status;
- 
- 		zone = &pgdat->node_zones[zoneid];
-@@ -2545,14 +2545,12 @@ static void kcompactd_do_work(pg_data_t *pgdat)
- 		if (compaction_deferred(zone, cc.order))
- 			continue;
- 
--		if (compaction_suitable(zone, cc.order, 0, zoneid) !=
--							COMPACT_CONTINUE)
--			continue;
--
- 		if (kthread_should_stop())
- 			return;
- 
- 		cc.zone = zone;
-+		cc.classzone_idx = zoneid;
-+
- 		status = compact_zone(&cc, NULL);
- 
- 		if (status == COMPACT_SUCCESS) {
-diff --git a/mm/internal.h b/mm/internal.h
-index 0d5f720..c224a16 100644
---- a/mm/internal.h
-+++ b/mm/internal.h
-@@ -190,11 +190,11 @@ struct compact_control {
- 	unsigned long total_free_scanned;
- 	unsigned short fast_search_fail;/* failures to use free list searches */
- 	short search_order;		/* order to start a fast search at */
--	const gfp_t gfp_mask;		/* gfp mask of a direct compactor */
--	int order;			/* order a direct compactor needs */
--	int migratetype;		/* migratetype of direct compactor */
--	const unsigned int alloc_flags;	/* alloc flags of a direct compactor */
--	const int classzone_idx;	/* zone index of a direct compactor */
-+	const gfp_t gfp_mask;		/* gfp mask of a compactor */
-+	int order;			/* order a compactor needs */
-+	int migratetype;		/* migratetype of a compactor */
-+	const unsigned int alloc_flags;	/* alloc flags of a compactor */
-+	int classzone_idx;		/* zone index of a compactor */
- 	enum migrate_mode mode;		/* Async or sync migration mode */
- 	bool ignore_skip_hint;		/* Scan blocks even if marked skip */
- 	bool no_set_skip_hint;		/* Don't mark blocks for skipping */
+Cc: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Will Deacon <will.deacon@arm.com>
+CC: Andrey Konovalov <andreyknvl@google.com>
+Cc: Szabolcs Nagy <szabolcs.nagy@arm.com>
+Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+
+Vincenzo Frascino (2):
+  arm64: Define Documentation/arm64/tagged-address-abi.rst
+  arm64: Relax Documentation/arm64/tagged-pointers.rst
+
+ Documentation/arm64/tagged-address-abi.rst | 148 +++++++++++++++++++++
+ Documentation/arm64/tagged-pointers.rst    |  23 +++-
+ 2 files changed, 164 insertions(+), 7 deletions(-)
+ create mode 100644 Documentation/arm64/tagged-address-abi.rst
+
 -- 
-1.8.3.1
+2.22.0
 
