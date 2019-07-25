@@ -2,185 +2,224 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.3 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5362EC7618B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 07:38:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 233C6C76194
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 07:44:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 080CA2070B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 07:38:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="fr9l8juY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 080CA2070B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id DBBEC218F0
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 07:44:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBBEC218F0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 97AF08E0045; Thu, 25 Jul 2019 03:38:08 -0400 (EDT)
+	id 72CB78E0046; Thu, 25 Jul 2019 03:44:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 92BF58E0031; Thu, 25 Jul 2019 03:38:08 -0400 (EDT)
+	id 6DCE68E0031; Thu, 25 Jul 2019 03:44:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 819C18E0045; Thu, 25 Jul 2019 03:38:08 -0400 (EDT)
+	id 5A56D8E0046; Thu, 25 Jul 2019 03:44:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 61BA88E0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 03:38:08 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id v11so53949968iop.7
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 00:38:08 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 37EFD8E0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 03:44:24 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id e32so43710002qtc.7
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 00:44:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=xNvB2ONftmaWiXRhMLu1nth3BAaraeOQSf/+WChcARs=;
-        b=SEhgdHCi0npZz6Ngq2UMdP43LvvZqYOSfzjozmuSnqnSkTGCEl0qAoAmn3TKopCu++
-         wxxVZFolOS3dfMrIg7rxE9t1HmOmDNaATVhkbAIAddTjIFQLVRzEcm05vUkKa+eMMwit
-         O86b4P9ZZBPXfdJn4W1fcLsl98T5EmpuxhcObfMxTp86fwGdwtOk0+XwuEqqfypo3MSV
-         BsPAa5ShhxcFeRZNb0OLB1qt/T59f+52cutY2LHru9N+QMXi7utgcU/g8KA2jAdC3m0O
-         dmJcTh5zxxagOeqPPv6GuxCgKSpYn/DRCZRc7UbudcwsSpEPDA7vMt2tizLmivexrDfE
-         lEjg==
-X-Gm-Message-State: APjAAAWxMfUVyJqn5zVd+WANJX0wwKqc6QUUHU0HPhiSDyU2JCywpqIU
-	RRGPVzN2+SCyLwRpeDOQyBUf1KKpu2s5qySPghAVPHt4GNWhP8bL7gkqXc0aye9T+1pPABg0noS
-	aZJPGOoSiKLCSJrxcPtVZncMEkglTaIXKxxrH+9yFMbaMKfLNHosSnKljuDzh6iYzVg==
-X-Received: by 2002:a02:cc6c:: with SMTP id j12mr46577970jaq.102.1564040288174;
-        Thu, 25 Jul 2019 00:38:08 -0700 (PDT)
-X-Received: by 2002:a02:cc6c:: with SMTP id j12mr46577917jaq.102.1564040287430;
-        Thu, 25 Jul 2019 00:38:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564040287; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=acAUfxbZ2yCJCgOcrOJ/SiLQh/4Iw8FfpHBr0uZv6Bc=;
+        b=AsWricVrjoeWOLMNnwL6oEMAFut/J44fQdsRN7JKCJgBVRebm058QIz9VwbH7s9fBM
+         IWH8lVBcDJYi/WLakZIinyV5j+4y7/FYUFMpRHR/gi0dJuzAq2gJ84kAae8Nkegk1AHw
+         Z6B4w6+JU+e9//gwBJjXf2gTIwHdwAUfUYk/VHsIs9Hm+MrLHbaLnAAklZvtaMYzdVO1
+         bBdul5rZw19EPAphbXeMJVUoF8O/ilMvdqJNMkHSnS17EsH4dGGhmVNHBKyTBSXLngtM
+         3q7ZiNWGrHs/CANL7N0fLjZmCw083mZh5BLWjXbtNazij1gJ2HhBTHG9HFe24ds9LWrF
+         ybDA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVAxmw0wK1Pxgr3F9AuxNoikAMFgXtwbYimuVIVKYi4mh75LFMK
+	YPjOi3yhqb9B6WX+njwYTB9CH4yc8H9f+d4lt6phhmCF0BFCGxBzUl/2PUYT1yVcRxHImyZOtMM
+	tsM0RZOQ33wXQKEfaK7kgN/3Xl61azKgPDuAj9ItcsmK4foTWO9z2zwmdpW5d6DI6Pg==
+X-Received: by 2002:a37:9a8b:: with SMTP id c133mr52567648qke.261.1564040663932;
+        Thu, 25 Jul 2019 00:44:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyp2UNuYn0pFVMFfTQhFDP+47XzzrVBU7CDOSY3DIp7OByfxxoFgljUd9n7LmEi0rKYfemj
+X-Received: by 2002:a37:9a8b:: with SMTP id c133mr52567613qke.261.1564040663106;
+        Thu, 25 Jul 2019 00:44:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564040663; cv=none;
         d=google.com; s=arc-20160816;
-        b=iMnBC4uKLxoSQL/ML1kCLy71fbvjDK0nuEN/TJyVT+X4NCKCcJ5we/kr8ZEf/Mo1pz
-         rGYpryIbvNlRsK5/3jf+mjBV0S7NAYDSQAKzZ46dBJ75/Rkd102TVxCpe0mR/xFeGb33
-         74e910p6ebe36lHPyv6jo37Hy+jHZL8aQncts/vtQdBbP5l3I2anfF4HN0n2epDVpSrP
-         5efXNAUhoTUHTdfv/yYZfRkVtvCFInCws2tFDOd9d5c8RrvMqu7FCXUCrYSX/ZHMWwVD
-         Uv+c0l4xWL65LeFQqldosth0rufhmUNXf/C2Odtezxz3w8C753HneX3ONGahHihTeH7Q
-         Evtw==
+        b=nynVX1ksXKWVq+PvXwRj9t8h9CDRyRzgsG/9mLMXw7xS9RtbKkPCE9FBW+PjryhETW
+         krLHVi9EatvlkA6bx9fTCIr2lUj7hoEkj1lgxLVC47/wQdViSLVGj6pcEbPyc8ki//Kz
+         QwaOWrOmKZfGFslZ2AcuwwYdo3BRwLmnJRUqDyRo1g0PNAAw1rQ8sipfWGxT7PEK5oBL
+         QvgQHYdr+7kvEvgaCFo9AjtzjWlXo7JN7IxMLoJW91leUPsXTObo8MsP+8i/TLxVIscz
+         LAdXBVVig7+SjwSh1qf1YQZ7bIqs/xPpOL19nx6U2QmJZFCG+BDLSmDxNnE/j4He6gd6
+         MuJQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=xNvB2ONftmaWiXRhMLu1nth3BAaraeOQSf/+WChcARs=;
-        b=OLduJSH1+2VHjhwj8sDZvzGlwJMCz8Uu3IKll5GbCi6w19B8SIsSP/is0B3SOiCGTx
-         v8QfqoqZgkAFu0fvGgHSX4nqdQinTYm7cxH5jqmM1J0/YXbeAguL8ikCQK7fePQlZpo/
-         kufSRquK074wR07FtXApsr7dIgihULLVJNQ6o7bPTu4ZRQclhLW0aWqqZ2asLduIyaCZ
-         D2MFXGtkh5rDa3wXJsdtlh5BBNq0X5agozCvDoF+fztrPAuZCMSgBGhuS5YYvQDPhq/E
-         h1jhbDI4pPkTfCEuOVwq8PpPBgaQ49JW+vKUnzJJJR60b7qN3zlyVVMFUEh7n2Hp+rgu
-         HDMQ==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=acAUfxbZ2yCJCgOcrOJ/SiLQh/4Iw8FfpHBr0uZv6Bc=;
+        b=AWLUL8SdMFMob40DDNkDOuiLEYvmZmp98G+9eGwtHJuasb936orwhfC4PiRyrIaLxe
+         GxCiV0+uyetV2Yik/J/4/8HfYcHiliVWPFudu7UgU8QrcFVvJA6ZuQgDV2rxupzf8e2u
+         1gNemHv6v3DtJ1C95PRscHqf45MXha8SmP/Dx46gh/R5531q4dOdinTbjzOKlJNPfVwp
+         h3n8Oa+b4+Ic8MYbpybvCA5w8NQRERYGXwEcuG0GighIsabR432krq7cFTyoihutyI+w
+         0TSoNZJYqss9GOt2av1OAXCnKYjLAhW2X6ZXNRHJcNKfYHw+uc0/n9woOsi9j8FXs9KU
+         +Ctg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=fr9l8juY;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id j6sor32231200iog.11.2019.07.25.00.38.07
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s54si30130225qte.241.2019.07.25.00.44.22
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Jul 2019 00:38:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Jul 2019 00:44:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=fr9l8juY;
-       spf=pass (google.com: domain of dvyukov@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dvyukov@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=xNvB2ONftmaWiXRhMLu1nth3BAaraeOQSf/+WChcARs=;
-        b=fr9l8juYjQ/JeEFFeRXMS2hULLCf6FmgD0GiXuRPt9+/6vbFkhv5fQao4HtvkA1nSN
-         Hundf5061xCvw3cztPVqXSkqRTGK2+vMqrMfb6feMfOQ9OzGEep8DHobwE2pjj0luZkN
-         jm4UXpBAwsX5vgWkM5f58ag9ySz5Auqvwhj45Z+rASuMKRl/VGpS3UNX8EE+ii+HoduO
-         j5niOd6+lCwe5LWAv/h2Go0EtQiyr6jxuu2YVp+rAFkGEG1IuRGMMLrQJC0JJlyYGvj4
-         +3bXp60tPupGxnNuv+VayoQQCoO0u2dT4jt71tRA9pjZUp4TDvss4i/07EobyLH5SMbJ
-         svLw==
-X-Google-Smtp-Source: APXvYqyTIhEg25V35EKAUow1cficLpe2IWeBlMVkavYr91rSmxFP0dG+elET2304HhNnBYyHzZ/DpaNs09dqyAhP+4Q=
-X-Received: by 2002:a6b:b556:: with SMTP id e83mr78484315iof.94.1564040286860;
- Thu, 25 Jul 2019 00:38:06 -0700 (PDT)
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id AD73530917AF;
+	Thu, 25 Jul 2019 07:44:21 +0000 (UTC)
+Received: from [10.72.12.18] (ovpn-12-18.pek2.redhat.com [10.72.12.18])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id B998060852;
+	Thu, 25 Jul 2019 07:44:04 +0000 (UTC)
+Subject: Re: WARNING in __mmdrop
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
+ aarcange@redhat.com, akpm@linux-foundation.org, christian@brauner.io,
+ davem@davemloft.net, ebiederm@xmission.com, elena.reshetova@intel.com,
+ guro@fb.com, hch@infradead.org, james.bottomley@hansenpartnership.com,
+ jglisse@redhat.com, keescook@chromium.org, ldv@altlinux.org,
+ linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, linux-parisc@vger.kernel.org, luto@amacapital.net,
+ mhocko@suse.com, mingo@kernel.org, namit@vmware.com, peterz@infradead.org,
+ syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk, wad@chromium.org
+References: <20190722040230-mutt-send-email-mst@kernel.org>
+ <4bd2ff78-6871-55f2-44dc-0982ffef3337@redhat.com>
+ <20190723010019-mutt-send-email-mst@kernel.org>
+ <b4696f2e-678a-bdb2-4b7c-fb4ce040ec2a@redhat.com>
+ <20190723032024-mutt-send-email-mst@kernel.org>
+ <1d14de4d-0133-1614-9f64-3ded381de04e@redhat.com>
+ <20190723035725-mutt-send-email-mst@kernel.org>
+ <3f4178f1-0d71-e032-0f1f-802428ceca59@redhat.com>
+ <20190723051828-mutt-send-email-mst@kernel.org>
+ <caff362a-e208-3468-3688-63e1d093a9d3@redhat.com>
+ <20190725012149-mutt-send-email-mst@kernel.org>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <55e8930c-2695-365f-a07b-3ad169654d28@redhat.com>
+Date: Thu, 25 Jul 2019 15:43:41 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-References: <20190725055503.19507-1-dja@axtens.net> <20190725055503.19507-3-dja@axtens.net>
-In-Reply-To: <20190725055503.19507-3-dja@axtens.net>
-From: Dmitry Vyukov <dvyukov@google.com>
-Date: Thu, 25 Jul 2019 09:37:55 +0200
-Message-ID: <CACT4Y+YDjnv_GhGkN7MfjTD-KmA8W6uDkwn0isxRoANTVFD8ew@mail.gmail.com>
-Subject: Re: [PATCH 2/3] fork: support VMAP_STACK with KASAN_VMALLOC
-To: Daniel Axtens <dja@axtens.net>
-Cc: kasan-dev <kasan-dev@googlegroups.com>, Linux-MM <linux-mm@kvack.org>, 
-	"the arch/x86 maintainers" <x86@kernel.org>, Andrey Ryabinin <aryabinin@virtuozzo.com>, 
-	Alexander Potapenko <glider@google.com>, Andy Lutomirski <luto@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190725012149-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Thu, 25 Jul 2019 07:44:22 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 25, 2019 at 7:55 AM Daniel Axtens <dja@axtens.net> wrote:
->
-> Supporting VMAP_STACK with KASAN_VMALLOC is straightforward:
->
->  - clear the shadow region of vmapped stacks when swapping them in
->  - tweak Kconfig to allow VMAP_STACK to be turned on with KASAN
->
-> Signed-off-by: Daniel Axtens <dja@axtens.net>
 
-Reviewed-by: Dmitry Vyukov <dvyukov@google.com>
+On 2019/7/25 下午1:52, Michael S. Tsirkin wrote:
+> On Tue, Jul 23, 2019 at 09:31:35PM +0800, Jason Wang wrote:
+>> On 2019/7/23 下午5:26, Michael S. Tsirkin wrote:
+>>> On Tue, Jul 23, 2019 at 04:49:01PM +0800, Jason Wang wrote:
+>>>> On 2019/7/23 下午4:10, Michael S. Tsirkin wrote:
+>>>>> On Tue, Jul 23, 2019 at 03:53:06PM +0800, Jason Wang wrote:
+>>>>>> On 2019/7/23 下午3:23, Michael S. Tsirkin wrote:
+>>>>>>>>> Really let's just use kfree_rcu. It's way cleaner: fire and forget.
+>>>>>>>> Looks not, you need rate limit the fire as you've figured out?
+>>>>>>> See the discussion that followed. Basically no, it's good enough
+>>>>>>> already and is only going to be better.
+>>>>>>>
+>>>>>>>> And in fact,
+>>>>>>>> the synchronization is not even needed, does it help if I leave a comment to
+>>>>>>>> explain?
+>>>>>>> Let's try to figure it out in the mail first. I'm pretty sure the
+>>>>>>> current logic is wrong.
+>>>>>> Here is what the code what to achieve:
+>>>>>>
+>>>>>> - The map was protected by RCU
+>>>>>>
+>>>>>> - Writers are: MMU notifier invalidation callbacks, file operations (ioctls
+>>>>>> etc), meta_prefetch (datapath)
+>>>>>>
+>>>>>> - Readers are: memory accessor
+>>>>>>
+>>>>>> Writer are synchronized through mmu_lock. RCU is used to synchronized
+>>>>>> between writers and readers.
+>>>>>>
+>>>>>> The synchronize_rcu() in vhost_reset_vq_maps() was used to synchronized it
+>>>>>> with readers (memory accessors) in the path of file operations. But in this
+>>>>>> case, vq->mutex was already held, this means it has been serialized with
+>>>>>> memory accessor. That's why I think it could be removed safely.
+>>>>>>
+>>>>>> Anything I miss here?
+>>>>>>
+>>>>> So invalidate callbacks need to reset the map, and they do
+>>>>> not have vq mutex. How can they do this and free
+>>>>> the map safely? They need synchronize_rcu or kfree_rcu right?
+>>>> Invalidation callbacks need but file operations (e.g ioctl) not.
+>>>>
+>>>>
+>>>>> And I worry somewhat that synchronize_rcu in an MMU notifier
+>>>>> is a problem, MMU notifiers are supposed to be quick:
+>>>> Looks not, since it can allow to be blocked and lots of driver depends on
+>>>> this. (E.g mmu_notifier_range_blockable()).
+>>> Right, they can block. So why don't we take a VQ mutex and be
+>>> done with it then? No RCU tricks.
+>>
+>> This is how I want to go with RFC and V1. But I end up with deadlock between
+>> vq locks and some MM internal locks. So I decide to use RCU which is 100%
+>> under the control of vhost.
+>>
+>> Thanks
+> And I guess the deadlock is because GUP is taking mmu locks which are
+> taken on mmu notifier path, right?
 
-> ---
->  arch/Kconfig  | 9 +++++----
->  kernel/fork.c | 4 ++++
->  2 files changed, 9 insertions(+), 4 deletions(-)
+
+Yes, but it's not the only lock. I don't remember the details, but I can 
+confirm I meet issues with one or two other locks.
+
+
+>    How about we add a seqlock and take
+> that in invalidate callbacks?  We can then drop the VQ lock before GUP,
+> and take it again immediately after.
 >
-> diff --git a/arch/Kconfig b/arch/Kconfig
-> index a7b57dd42c26..e791196005e1 100644
-> --- a/arch/Kconfig
-> +++ b/arch/Kconfig
-> @@ -825,16 +825,17 @@ config HAVE_ARCH_VMAP_STACK
->  config VMAP_STACK
->         default y
->         bool "Use a virtually-mapped stack"
-> -       depends on HAVE_ARCH_VMAP_STACK && !KASAN
-> +       depends on HAVE_ARCH_VMAP_STACK
-> +       depends on !KASAN || KASAN_VMALLOC
->         ---help---
->           Enable this if you want the use virtually-mapped kernel stacks
->           with guard pages.  This causes kernel stack overflows to be
->           caught immediately rather than causing difficult-to-diagnose
->           corruption.
+> something like
+> 	if (!vq_meta_mapped(vq)) {
+> 		vq_meta_setup(&uaddrs);
+> 		mutex_unlock(vq->mutex)
+> 		vq_meta_map(&uaddrs);
+
+
+The problem is the vq address could be changed at this time.
+
+
+> 		mutex_lock(vq->mutex)
 >
-> -         This is presently incompatible with KASAN because KASAN expects
-> -         the stack to map directly to the KASAN shadow map using a formula
-> -         that is incorrect if the stack is in vmalloc space.
-> +         To use this with KASAN, the architecture must support backing
-> +         virtual mappings with real shadow memory, and KASAN_VMALLOC must
-> +         be enabled.
+> 		/* recheck both sock->private_data and seqlock count. */
+> 		if changed - bail out
+> 	}
 >
->  config ARCH_OPTIONAL_KERNEL_RWX
->         def_bool n
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index d8ae0f1b4148..ce3150fe8ff2 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -94,6 +94,7 @@
->  #include <linux/livepatch.h>
->  #include <linux/thread_info.h>
->  #include <linux/stackleak.h>
-> +#include <linux/kasan.h>
+> And also requires that VQ uaddrs is defined like this:
+> - writers must have both vq mutex and dev mutex
+> - readers must have either vq mutex or dev mutex
 >
->  #include <asm/pgtable.h>
->  #include <asm/pgalloc.h>
-> @@ -215,6 +216,9 @@ static unsigned long *alloc_thread_stack_node(struct task_struct *tsk, int node)
->                 if (!s)
->                         continue;
 >
-> +               /* Clear the KASAN shadow of the stack. */
-> +               kasan_unpoison_shadow(s->addr, THREAD_SIZE);
-> +
->                 /* Clear stale pointers from reused stack. */
->                 memset(s->addr, 0, THREAD_SIZE);
+> That's a big change though. For now, how about switching to a per-vq SRCU?
+> That is only a little bit more expensive than RCU, and we
+> can use synchronize_srcu_expedited.
 >
-> --
-> 2.20.1
->
-> --
-> You received this message because you are subscribed to the Google Groups "kasan-dev" group.
-> To unsubscribe from this group and stop receiving emails from it, send an email to kasan-dev+unsubscribe@googlegroups.com.
-> To view this discussion on the web visit https://groups.google.com/d/msgid/kasan-dev/20190725055503.19507-3-dja%40axtens.net.
+
+Consider we switch to use kfree_rcu(), what's the advantage of per-vq SRCU?
+
+Thanks
 
