@@ -2,158 +2,141 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.0 required=3.0 tests=MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A49E0C76194
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 09:22:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D11AC41514
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 09:23:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 76EB8218EA
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 09:22:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 76EB8218EA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 45FF322C7D
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 09:23:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 45FF322C7D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 053DD6B0296; Thu, 25 Jul 2019 05:22:14 -0400 (EDT)
+	id E5C1B6B0297; Thu, 25 Jul 2019 05:22:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 003DF6B0297; Thu, 25 Jul 2019 05:22:13 -0400 (EDT)
+	id E33B48E0057; Thu, 25 Jul 2019 05:22:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E35728E0057; Thu, 25 Jul 2019 05:22:13 -0400 (EDT)
+	id D495D6B029A; Thu, 25 Jul 2019 05:22:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C30596B0296
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 05:22:13 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id 199so41922569qkj.9
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 02:22:13 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id AE2B36B0297
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 05:22:59 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id a21so27101766otk.17
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 02:22:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=tAfcsJ/o8BSdIR7kvDIEFhQqbQgQuionX07qJ9nVKK4=;
-        b=TugwhXShAaVsQYjspmw7CtRUfhjffHH2IBYOgb7+MOlIyuI2fXyv60rS+nS6WIGb72
-         wdRc3vEokGp9YvtuPd+TOFC/sJILeby460rmkc0q7KL75iQ/AgVormqgItdfbGduTFwU
-         GuLHiG2hn41OxFdfnupArhHDSc3ylply37Yo3q8nHk/GD4VmnAY5E2FmFkIRspOZ6xE7
-         I2F7k5pRNeC7YpeNP+msLDTsI5Kv1mb/A13cjC8Cy9j1PFnQrCC+r9vAjDEUm7seJwbc
-         iePGvc98TDaoK9L4t6BeqlX3tmKj1/+1fW7FzgTpr8ePnIvC+fBrRidb/RCcpJeB94du
-         r8hw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVJ2ovTT5DTlVSYDzxuxWJBQOcYRtdiF5LQpxrK5GoGWBo5011w
-	jBl3fK+WUQSe/NZhzvNLLCFj8xjTkhht3hsuuuKXyGdDn1kY3okyJ3SGLssrPafAMxKweS/8tPR
-	nGIYLdKBRLDbM/p35zGxHRmylzo6egPvSXDMaofA1a+pVUuwPk0gCv/twCvaToXLN1Q==
-X-Received: by 2002:ac8:19ac:: with SMTP id u41mr59684677qtj.46.1564046533523;
-        Thu, 25 Jul 2019 02:22:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy3DpChHA5qsq9IzldIDUOcChureS4HrWGfwakWRLqlKOntzqYvlyBZUHvzd/6FebVLtdvx
-X-Received: by 2002:ac8:19ac:: with SMTP id u41mr59684641qtj.46.1564046532660;
-        Thu, 25 Jul 2019 02:22:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564046532; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :references:in-reply-to:from:date:message-id:subject:to:cc;
+        bh=d6bXcLy59IZQ/jzA1KAA80JAzsTaXl85YCv6d26dui4=;
+        b=RsMglgtx5UpaQqkFqZM0vfd3Javyvq5+8MtdIo+xFockN7u8Otg9OYu7V9BFHqsEIq
+         4eOmuYMe0GkHxDhjVr57peq0g7m+fxXugy6lg/pjwEuM0prLb/RsDZhBZJzB2itksa6T
+         eYV3WB3NFfJLrslmiWmq3NJkV5GKchrvVhmBo46qN7SklBW3DX8fpnFu240XU8BaP261
+         wZahSMC+yq3FGs5V9RRURNDMcNSb2YlA2DUdHltj/b1mSqIwMlGjMpoiOX2m7+Tigj8V
+         jof47ZXLZxPBvuoIOSWBshEPMbZP1sv9Z9HmuT22eNBMM/Hqhulj2zmDdu/yyDqRLXr8
+         bJiA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUuzwYWPDzmpeyVY5gFCO2OA+6LKsrV2IkbhVGxJectkl0D16nd
+	ypYouwacLUXaQeTM+WXR6UCpS2bAYsa0nrgOD6VT9Bi7AaBEnRjbfzPgi0zDgjHc6iCCdmmZXZ7
+	rchTnmtORHwTe+/YPG8+h+w0Lpb+gem8sw1DJq9Pik7Z2uTjZ715Rohltxuhw1IA=
+X-Received: by 2002:aca:cd4f:: with SMTP id d76mr44280993oig.147.1564046579291;
+        Thu, 25 Jul 2019 02:22:59 -0700 (PDT)
+X-Received: by 2002:aca:cd4f:: with SMTP id d76mr44280969oig.147.1564046578640;
+        Thu, 25 Jul 2019 02:22:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564046578; cv=none;
         d=google.com; s=arc-20160816;
-        b=Q8JDmoeMLB9qWCS6td+Hl6RHGdHga53QA2NUq/e7AZNkPe6xmjaXhWXZrflwmMQ4KL
-         cx9oQs7rOtJhdEG2g68ql5Ak9vEpXrqh1Xj038GtUCyzQgzUKDOlzi/GsNzzUC8x4K5p
-         /UzM0xtem/P0NCYt8cHJO7q9bXVSga+KJvn2aE1HcuRBGMpbbQoNPtG2zrieCauwSsJU
-         nMO7TEooLkCF2TLlZhFUKTakzk88nvzDVMI1OdbC6zwaA1xlBiddsJTnr2+FTMqy76/L
-         vrZHSkoLShPPlma3bnhRW8oAaAN3Fg+JRsggbM2l6HNSN4bGPL53R5bwGqANJTVjabaa
-         46HQ==
+        b=bvmrnRMhVP5AHMqamxI+GnfhB2d3o0zIeVoGGBn1s1uyvvdRrTrbe2/tygJ57XcXnY
+         +2xTLoKfMyMeWfbde+7EeQyiBQ4e5Dx+ZOZcF3t3nkxt5ZEjpojJ5YjSE6K5puSTdqrk
+         ldv65MceVoBgdgdmqagrEPeBt6YHhq+YXcKatdV+vXii7O/5knqM9rHprzYwmM7jeY5C
+         336joKbcnRLaHClpuSznawb5P5PC+5rBkLKADQFQS/7jYsaGcR+O8vsFDaFz6nt4gDnX
+         8jp7NNWwIz6QDGj7ic65rTuRZZ085IHXf7YYf7tCFQlBqbT8xE5N1SUDnAKnKmZpJyzZ
+         ABVQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=tAfcsJ/o8BSdIR7kvDIEFhQqbQgQuionX07qJ9nVKK4=;
-        b=gzbqEsw8CQ5dYt2/FpmpM5ae06BsgTecqXW2QpQ4+0mXd8jvyt4KZtimoCeTlb4nab
-         /TQuT/4zgReYJAYlFrCHs0recylhRlQeiPKAegRV33lwvCzNrQbRDIY/6z7ClmaH9mMV
-         EWQ/POPXyvF7SR0BgrOizIptp4AC/0lBAEvAMJQi5svfsROjuanyX5Fb3qc/Jojv0J6i
-         jvhgmuNvKdYvEGGgroHcMAKJqdTvLBmlYJTO95Fym4eHUYpWtNblql/OHg+SXtcm2FnG
-         eY59KhUFs2WhS37NwfZsp59bL5IXvWXD5WgSa9piEHAmJiVZ2h6ySYk8eZU8sIZEcZby
-         C+MQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version;
+        bh=d6bXcLy59IZQ/jzA1KAA80JAzsTaXl85YCv6d26dui4=;
+        b=io+4ATKoUju7+4ptY8T5q21K2jg1LFOeqclwICFv/DkW9ybEi66/sWgj/IL6CfQV4i
+         g2fxUHDEMRjvZyha/gsU9nHG6rcw1gCMD3x7Kgnk3IwJ17iZXCjC/HriUT7rgtcMGGrM
+         rINZlwB9ZqgED609W6pUD8fD0v00YcGeG4vMmIqRngCmsGaX5aYT5a1ypkZzrBEFRhrN
+         h1457rwhPvGKC32RlK7TASvf0qpAJ4nQs63c2CllRX4N74zekppdPmvbbCpWa2DM2YRt
+         DeVCRaXvfT0Nwp6gbL/HDcf0VeQJdnpwRFGZL8eLIXfl9ENMQ1yJAjO8yc1BSBdkos1s
+         Ig0g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n1si26609934qtn.402.2019.07.25.02.22.12
+       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m8sor25684074otm.167.2019.07.25.02.22.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 02:22:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 25 Jul 2019 02:22:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id C36A230917AF;
-	Thu, 25 Jul 2019 09:22:11 +0000 (UTC)
-Received: from t460s.redhat.com (ovpn-117-212.ams2.redhat.com [10.36.117.212])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 7D39D5C652;
-	Thu, 25 Jul 2019 09:22:07 +0000 (UTC)
-From: David Hildenbrand <david@redhat.com>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org,
-	David Hildenbrand <david@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Oscar Salvador <osalvador@suse.de>,
-	Michal Hocko <mhocko@suse.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Thomas Gleixner <tglx@linutronix.de>
-Subject: [PATCH RFC] mm/memory_hotplug: Don't take the cpu_hotplug_lock
-Date: Thu, 25 Jul 2019 11:22:06 +0200
-Message-Id: <20190725092206.23712-1-david@redhat.com>
+       spf=pass (google.com: domain of rjwysocki@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rjwysocki@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Google-Smtp-Source: APXvYqxJ49+1aZ6N4TDMyBMfQsD/Uphq9/3dCsGS122VqG+v2Ww7f6i5dT2dazWN0C3ylFEI+mrm0iTK0F636Zu0+Q8=
+X-Received: by 2002:a05:6830:1516:: with SMTP id k22mr59724305otp.189.1564046578263;
+ Thu, 25 Jul 2019 02:22:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Thu, 25 Jul 2019 09:22:11 +0000 (UTC)
+References: <20190724143017.12841-1-david@redhat.com> <20190725091625.GA15848@linux>
+In-Reply-To: <20190725091625.GA15848@linux>
+From: "Rafael J. Wysocki" <rafael@kernel.org>
+Date: Thu, 25 Jul 2019 11:22:46 +0200
+Message-ID: <CAJZ5v0iBntT1c7gKkXG-RJpabZne2n-Afq40GKeA6-tUViVZuQ@mail.gmail.com>
+Subject: Re: [PATCH v1] ACPI / scan: Acquire device_hotplug_lock in acpi_scan_init()
+To: Oscar Salvador <osalvador@suse.de>
+Cc: David Hildenbrand <david@redhat.com>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, ACPI Devel Maling List <linux-acpi@vger.kernel.org>, 
+	"Rafael J. Wysocki" <rjw@rjwysocki.net>, Andrew Morton <akpm@linux-foundation.org>, 
+	Michal Hocko <mhocko@suse.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Commit 9852a7212324 ("mm: drop hotplug lock from lru_add_drain_all()")
-states that lru_add_drain_all() "Doesn't need any cpu hotplug locking
-because we do rely on per-cpu kworkers being shut down before our
-page_alloc_cpu_dead callback is executed on the offlined cpu."
+On Thu, Jul 25, 2019 at 11:18 AM Oscar Salvador <osalvador@suse.de> wrote:
+>
+> On Wed, Jul 24, 2019 at 04:30:17PM +0200, David Hildenbrand wrote:
+> > We end up calling __add_memory() without the device hotplug lock held.
+> > (I used a local patch to assert in __add_memory() that the
+> >  device_hotplug_lock is held - I might upstream that as well soon)
+> >
+> > [   26.771684]        create_memory_block_devices+0xa4/0x140
+> > [   26.772952]        add_memory_resource+0xde/0x200
+> > [   26.773987]        __add_memory+0x6e/0xa0
+> > [   26.775161]        acpi_memory_device_add+0x149/0x2b0
+> > [   26.776263]        acpi_bus_attach+0xf1/0x1f0
+> > [   26.777247]        acpi_bus_attach+0x66/0x1f0
+> > [   26.778268]        acpi_bus_attach+0x66/0x1f0
+> > [   26.779073]        acpi_bus_attach+0x66/0x1f0
+> > [   26.780143]        acpi_bus_scan+0x3e/0x90
+> > [   26.780844]        acpi_scan_init+0x109/0x257
+> > [   26.781638]        acpi_init+0x2ab/0x30d
+> > [   26.782248]        do_one_initcall+0x58/0x2cf
+> > [   26.783181]        kernel_init_freeable+0x1bd/0x247
+> > [   26.784345]        kernel_init+0x5/0xf1
+> > [   26.785314]        ret_from_fork+0x3a/0x50
+> >
+> > So perform the locking just like in acpi_device_hotplug().
+> >
+> > Cc: "Rafael J. Wysocki" <rjw@rjwysocki.net>
+> > Cc: Len Brown <lenb@kernel.org
+> > Cc: Andrew Morton <akpm@linux-foundation.org>
+> > Cc: Oscar Salvador <osalvador@suse.de>
+> > Cc: Michal Hocko <mhocko@suse.com>
+> > Signed-off-by: David Hildenbrand <david@redhat.com>
+>
+> Given that that call comes from a __init function, so while booting, I wonder
+> how bad it is.
 
-And also "Calling this function with cpu hotplug locks held can actually
-lead to obscure indirect dependencies via WQ context.".
+Yes, it probably does not matter.
 
-Since commit 3f906ba23689 ("mm/memory-hotplug: switch locking to a percpu
-rwsem") we do a cpus_read_lock() in mem_hotplug_begin().
+> Anyway, let us be consistent:
 
-I don't see how that lock is still helpful, we already hold the
-device_hotplug_lock to protect try_offline_node(), which is AFAIK one
-problematic part that can race with CPU hotplug. If it is still
-necessary, we should document why.
-
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Oscar Salvador <osalvador@suse.de>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- mm/memory_hotplug.c | 2 --
- 1 file changed, 2 deletions(-)
-
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index e7c3b219a305..43b8cd4b96f5 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -86,14 +86,12 @@ __setup("memhp_default_state=", setup_memhp_default_state);
- 
- void mem_hotplug_begin(void)
- {
--	cpus_read_lock();
- 	percpu_down_write(&mem_hotplug_lock);
- }
- 
- void mem_hotplug_done(void)
- {
- 	percpu_up_write(&mem_hotplug_lock);
--	cpus_read_unlock();
- }
- 
- u64 max_mem_size = U64_MAX;
--- 
-2.21.0
+Right.
 
