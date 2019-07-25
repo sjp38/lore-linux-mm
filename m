@@ -2,279 +2,254 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A63AC76191
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 04:40:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ADAF1C76191
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 05:09:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 14A6322BED
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 04:40:14 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="ox0dlalh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 14A6322BED
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 48AB72189F
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 05:09:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 48AB72189F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 98BD76B0280; Thu, 25 Jul 2019 00:40:14 -0400 (EDT)
+	id AD5CE8E002B; Thu, 25 Jul 2019 01:09:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9159F6B0281; Thu, 25 Jul 2019 00:40:14 -0400 (EDT)
+	id A86A08E001C; Thu, 25 Jul 2019 01:09:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7B74D8E001C; Thu, 25 Jul 2019 00:40:14 -0400 (EDT)
+	id 975028E002B; Thu, 25 Jul 2019 01:09:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 4138F6B0280
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 00:40:14 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id 71so25531821pld.1
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 21:40:14 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 751038E001C
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 01:09:20 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id d9so41229704qko.8
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 22:09:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:subject:message-id
-         :user-agent;
-        bh=XKBKoAk+E7RabZkWXBevLk+v39SShC0ySWndPi4he5g=;
-        b=dKYFiar4q4hsfI7dz0cfZqe+deo9cBiyPgXAamshj2OnrA7o29mI3NPSoc/uQcV9VP
-         2WIzsZyyYXYjzCqS+MQeS/RQFfaCPymTRBlUn6rj8H7G1ckfeIiEtcq4QcOJZcrlZO5Q
-         n/JD2PGkqsMf0eYRSc6fuAq3qsQmOC18O+gUD2ZnWajsWuDH8mx01g3Iixmrjq2/aSsa
-         czN/VB69YEZ3J0Bt21cc0AEmSXDI//2a914gXGP4wWJ2FgZubcvKIHkcIrikzzVS02S8
-         x+ATszQXsJO3qPz6wco9lvbDKWOaj4B1XOLdxFBUk6o3bu/CQeaajqoqtfRGFDfAlreE
-         7KRw==
-X-Gm-Message-State: APjAAAVyEScG/jGnwXvzHfz2M3BrY0EsrafPjZ4EzlTmafDTgYexD9Nl
-	TI02nOBnilQlr+9f5e757BTFsTkp4Yuh63qohGvKMk4gGhLbmqqbALtNb8jSeYoerWjIiRa4QtN
-	iUL8KZ21ywItUwk3oWLFl9EB0RLG2QrVRLTpd9OEpUO9KTDpLq1AlfbvfOI6E5JVUZA==
-X-Received: by 2002:a65:41c6:: with SMTP id b6mr27475392pgq.269.1564029613591;
-        Wed, 24 Jul 2019 21:40:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwG6ZR4sYrbtauuLQ1CoRRyUhC7ftuyVEOVeKSJjkFUIjrNrU0xLvvcOU8vcY6DiZaRZ8op
-X-Received: by 2002:a65:41c6:: with SMTP id b6mr27475341pgq.269.1564029612378;
-        Wed, 24 Jul 2019 21:40:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564029612; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to;
+        bh=SnXooH6bRth1jD1xI5jgub1n7W/9cDeezB8IK/8FBvM=;
+        b=gpboegw4P8Wvi5/FAv+wv07n83ZcIdBxVsGa6psCkkzw1VvzczYftfNpF+7akEsfV9
+         neaQToQBSnJ3IkcutKoF+JQl07jquTyrCvJkgYab2DpM3nOWReJo7HS8Yrsaphoz1199
+         xZJ8CJ/bNOahXWshjZfOhxzau8OaDWrSw4Y9W9ekJnQaAX33WtuJFDT65KtVUC9RPCm0
+         f+a58UqN8+yPAYpbyS6Bu3HY5ci3cYW/iHObbLj7QK62CGV2Kfn0WVtEnwsodm3s+wA1
+         sP9fC22lMtMovYbO1gT2RDXUHpLAFfIfVohSI33VjNaf5W+xucTPPeruwV/n1uz7g1DE
+         /cwA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUXP1OBS2VZENO5W5WG+nhylFvGV3Pu3H2shgmQvl9xXyMT4qk2
+	G0eLrGz365T/fMcalSc8L/SwKM2n0FulUHx1PnGnwXxX8mBBgcH6Pyzp9ZtVwdRy68k/2kPMvJT
+	qV/XtNMuD/NfTmoRxpuiCy/JKXkqK9C880fEItr/XOHoXxK0/28QU5aIvXV7kZJGwBQ==
+X-Received: by 2002:a0c:b758:: with SMTP id q24mr61542354qve.45.1564031360181;
+        Wed, 24 Jul 2019 22:09:20 -0700 (PDT)
+X-Received: by 2002:a0c:b758:: with SMTP id q24mr61542321qve.45.1564031359395;
+        Wed, 24 Jul 2019 22:09:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564031359; cv=none;
         d=google.com; s=arc-20160816;
-        b=mMF9fYfqLgPisrc6dx1B0R9CBk1ljwEctIrEky//RS9clg5XfV2RXWyyjvU1n5Hudc
-         3k1s8artjghvW3yB1nr506bhIQfBBfEduukY5oCnmOL35D9K9NK5KEalp37sYRnc1Fzt
-         +fRY34y8qx8d62wKyOjAy4hyQ2/2HPMJvqTzxg8E0m4aITh+bvcwNzwCAjGXok6OOVeE
-         KE/fInp+BNMwVj7ct9Zt3cdcaLyBykKMUVHC2nUsh8p18X77WAMATKfRA6CzNGwfo1Jj
-         PDI+rgDviaQ5RtzBzlJFx1iD908fu0t8dCYZFbupAUifgW2jpbf5lDU80Ew1h2mMU+1c
-         t4kg==
+        b=rUZHUcvDVX8Eu9RYvAi8wTrOuRhnCijE2FNNRa1Z872gzZQA8xBJJgs7ZhKX8YH2zw
+         rPyCDnUncZsUduPV8dRzESazldz0S+6ltP78tY7IyhyICdP68HruxcZBjKsAocSj9WXP
+         Iuer+5YPPg2ARtGCK5PMWrV68W/feKcHyP9m9LhnSsnqeUht4gKNdh8phXnLJd+opENz
+         qq+RCBrGL/5gAqu7F05sFb170KWLwyEShnpltJbhn8wG5LFod90DqNqRTsQGBegq+Jz8
+         d8Fbtxp+VLovcIKSRhTlkJGIrdLQRJdytxZS4Ys1dS87GimKQN1vD+og6pS9wohy3IhV
+         /NhA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:message-id:subject:to:from:date:dkim-signature;
-        bh=XKBKoAk+E7RabZkWXBevLk+v39SShC0ySWndPi4he5g=;
-        b=qxk+iBvVGDYUdfKMnSYDrkzWuI+A1dGhDGrhQd7RTylyzgHWSmR2XorUNq/Kz1Q1gg
-         +K4nnfLzUHtb5OIimiDumpnh2mWFVsXSZ02kst8tyYIbXVVLvcVxF1Fmej2nmDphypIe
-         stB0ic9rn7FgoTb8xy8lgpDyrUENg9M+1H8zIjH5JL9HtxQUfSa4ks53ni19cGBlR3FL
-         nSEBpv0/E1Qh4kWaiS2eB6/p0gjIIMO2gfVnbLPjZeqpjuo8ydUC+eLDfAnB6KuABzyg
-         khH8IlCDSHFjLM30pjvmCz+1FWpKqvnNz0/I1IgoiklFedCRBUyfUKtIddZMKvCR4gFm
-         lwcg==
+        h=in-reply-to:content-transfer-encoding:content-disposition
+         :mime-version:references:message-id:subject:cc:to:from:date;
+        bh=SnXooH6bRth1jD1xI5jgub1n7W/9cDeezB8IK/8FBvM=;
+        b=CJ5wbEPESe7JvyKwQLdrZqcLYrVUvaaoKXBPQ2++AaQzU3pqsbl1N1j9iVfwisDVFb
+         7/WwEfstAMi0x644E6qHjbxGnFrw61ekcNhrd/mA7OD6RhEfOUv85+d/A5rYr/F9oMz6
+         bDH0hTC7FY0wlkXL2mFct68LVjOwoKScnCXqKFsCkeuZ0PGjZ5ixDmNA74xMd+bPG6Ut
+         fPFl4piM/sueRy+qv7nPMozuT4Q/jlKEXkyEjvGigPjb/syJLzAjpgMred3gpqqHJ4HA
+         Iak30OFrCOBIcksoQvvb+F6b41HLQtu7GFYQRbQmyBdg5OvGynmLDC+Bq3xPh/r0J/t1
+         9Ilw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=ox0dlalh;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id x18si13787110pjq.71.2019.07.24.21.40.12
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id u9sor63743938qth.4.2019.07.24.22.09.19
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 21:40:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Wed, 24 Jul 2019 22:09:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=ox0dlalh;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 710F3218DA;
-	Thu, 25 Jul 2019 04:40:11 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1564029611;
-	bh=8oxT8xgyNUwuwFXTPBDPfAgyusjMHHhLLfJMiVh45oI=;
-	h=Date:From:To:Subject:From;
-	b=ox0dlalhd8kPMMrPqsYYxIH76KrkpBJDavG47yS5iy2z9gbiy+dEZnZDDWXTPJ9Dq
-	 LWfefQ4d+nCJ+BItBanHurqGjqU11IEhTe/DuclzOMq/pwC0hVJQZM8+6uScAFeXiH
-	 Dpapju0lUDZi8paPRlNtUsTbRb8N/8sOrU6RZJT4=
-Date: Wed, 24 Jul 2019 21:40:10 -0700
-From: akpm@linux-foundation.org
-To: broonie@kernel.org, linux-fsdevel@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org,
- sfr@canb.auug.org.au
-Subject:  mmotm 2019-07-24-21-39 uploaded
-Message-ID: <20190725044010.4tE0dhrji%akpm@linux-foundation.org>
-User-Agent: s-nail v14.8.16
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqzxEY8dCmXk72rFnbRyLodej+/+AemVfFopwhCrDsk6CUcwTNrtK1TN+HZM5zzMAfs0Ax/wsg==
+X-Received: by 2002:aed:3325:: with SMTP id u34mr59397385qtd.324.1564031358875;
+        Wed, 24 Jul 2019 22:09:18 -0700 (PDT)
+Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
+        by smtp.gmail.com with ESMTPSA id m5sm20753530qke.25.2019.07.24.22.09.11
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 24 Jul 2019 22:09:17 -0700 (PDT)
+Date: Thu, 25 Jul 2019 01:09:08 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Jason Wang <jasowang@redhat.com>
+Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
+	aarcange@redhat.com, akpm@linux-foundation.org,
+	christian@brauner.io, davem@davemloft.net, ebiederm@xmission.com,
+	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
+	james.bottomley@hansenpartnership.com, jglisse@redhat.com,
+	keescook@chromium.org, ldv@altlinux.org,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, linux-parisc@vger.kernel.org,
+	luto@amacapital.net, mhocko@suse.com, mingo@kernel.org,
+	namit@vmware.com, peterz@infradead.org,
+	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
+	wad@chromium.org
+Subject: Re: WARNING in __mmdrop
+Message-ID: <20190725010342-mutt-send-email-mst@kernel.org>
+References: <20190723032800-mutt-send-email-mst@kernel.org>
+ <e2e01a05-63d8-4388-2bcd-b2be3c865486@redhat.com>
+ <20190723062221-mutt-send-email-mst@kernel.org>
+ <9baa4214-67fd-7ad2-cbad-aadf90bbfc20@redhat.com>
+ <20190723110219-mutt-send-email-mst@kernel.org>
+ <e0c91b89-d1e8-9831-00fe-23fe92d79fa2@redhat.com>
+ <20190724040238-mutt-send-email-mst@kernel.org>
+ <3dfa2269-60ba-7dd8-99af-5aef8552bd98@redhat.com>
+ <20190724142533-mutt-send-email-mst@kernel.org>
+ <d786141f-9145-788d-6a10-6fa673dd584c@redhat.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <d786141f-9145-788d-6a10-6fa673dd584c@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The mm-of-the-moment snapshot 2019-07-24-21-39 has been uploaded to
+On Thu, Jul 25, 2019 at 11:44:27AM +0800, Jason Wang wrote:
+> 
+> On 2019/7/25 上午2:25, Michael S. Tsirkin wrote:
+> > On Wed, Jul 24, 2019 at 06:08:05PM +0800, Jason Wang wrote:
+> > > On 2019/7/24 下午4:05, Michael S. Tsirkin wrote:
+> > > > On Wed, Jul 24, 2019 at 10:17:14AM +0800, Jason Wang wrote:
+> > > > > On 2019/7/23 下午11:02, Michael S. Tsirkin wrote:
+> > > > > > On Tue, Jul 23, 2019 at 09:34:29PM +0800, Jason Wang wrote:
+> > > > > > > On 2019/7/23 下午6:27, Michael S. Tsirkin wrote:
+> > > > > > > > > Yes, since there could be multiple co-current invalidation requests. We need
+> > > > > > > > > count them to make sure we don't pin wrong pages.
+> > > > > > > > > 
+> > > > > > > > > 
+> > > > > > > > > > I also wonder about ordering. kvm has this:
+> > > > > > > > > >             /*
+> > > > > > > > > >               * Used to check for invalidations in progress, of the pfn that is
+> > > > > > > > > >               * returned by pfn_to_pfn_prot below.
+> > > > > > > > > >               */
+> > > > > > > > > >              mmu_seq = kvm->mmu_notifier_seq;
+> > > > > > > > > >              /*
+> > > > > > > > > >               * Ensure the read of mmu_notifier_seq isn't reordered with PTE reads in
+> > > > > > > > > >               * gfn_to_pfn_prot() (which calls get_user_pages()), so that we don't
+> > > > > > > > > >               * risk the page we get a reference to getting unmapped before we have a
+> > > > > > > > > >               * chance to grab the mmu_lock without mmu_notifier_retry() noticing.
+> > > > > > > > > >               *
+> > > > > > > > > >               * This smp_rmb() pairs with the effective smp_wmb() of the combination
+> > > > > > > > > >               * of the pte_unmap_unlock() after the PTE is zapped, and the
+> > > > > > > > > >               * spin_lock() in kvm_mmu_notifier_invalidate_<page|range_end>() before
+> > > > > > > > > >               * mmu_notifier_seq is incremented.
+> > > > > > > > > >               */
+> > > > > > > > > >              smp_rmb();
+> > > > > > > > > > 
+> > > > > > > > > > does this apply to us? Can't we use a seqlock instead so we do
+> > > > > > > > > > not need to worry?
+> > > > > > > > > I'm not familiar with kvm MMU internals, but we do everything under of
+> > > > > > > > > mmu_lock.
+> > > > > > > > > 
+> > > > > > > > > Thanks
+> > > > > > > > I don't think this helps at all.
+> > > > > > > > 
+> > > > > > > > There's no lock between checking the invalidate counter and
+> > > > > > > > get user pages fast within vhost_map_prefetch. So it's possible
+> > > > > > > > that get user pages fast reads PTEs speculatively before
+> > > > > > > > invalidate is read.
+> > > > > > > > 
+> > > > > > > > -- 
+> > > > > > > In vhost_map_prefetch() we do:
+> > > > > > > 
+> > > > > > >            spin_lock(&vq->mmu_lock);
+> > > > > > > 
+> > > > > > >            ...
+> > > > > > > 
+> > > > > > >            err = -EFAULT;
+> > > > > > >            if (vq->invalidate_count)
+> > > > > > >                    goto err;
+> > > > > > > 
+> > > > > > >            ...
+> > > > > > > 
+> > > > > > >            npinned = __get_user_pages_fast(uaddr->uaddr, npages,
+> > > > > > >                                            uaddr->write, pages);
+> > > > > > > 
+> > > > > > >            ...
+> > > > > > > 
+> > > > > > >            spin_unlock(&vq->mmu_lock);
+> > > > > > > 
+> > > > > > > Is this not sufficient?
+> > > > > > > 
+> > > > > > > Thanks
+> > > > > > So what orders __get_user_pages_fast wrt invalidate_count read?
+> > > > > So in invalidate_end() callback we have:
+> > > > > 
+> > > > > spin_lock(&vq->mmu_lock);
+> > > > > --vq->invalidate_count;
+> > > > >           spin_unlock(&vq->mmu_lock);
+> > > > > 
+> > > > > 
+> > > > > So even PTE is read speculatively before reading invalidate_count (only in
+> > > > > the case of invalidate_count is zero). The spinlock has guaranteed that we
+> > > > > won't read any stale PTEs.
+> > > > > 
+> > > > > Thanks
+> > > > I'm sorry I just do not get the argument.
+> > > > If you want to order two reads you need an smp_rmb
+> > > > or stronger between them executed on the same CPU.
+> > > > 
+> > > > Executing any kind of barrier on another CPU
+> > > > will have no ordering effect on the 1st one.
+> > > > 
+> > > > 
+> > > > So if CPU1 runs the prefetch, and CPU2 runs invalidate
+> > > > callback, read of invalidate counter on CPU1 can bypass
+> > > > read of PTE on CPU1 unless there's a barrier
+> > > > in between, and nothing CPU2 does can affect that outcome.
+> > > > 
+> > > > 
+> > > > What did I miss?
+> > > 
+> > > It doesn't harm if PTE is read before invalidate_count, this is because:
+> > > 
+> > > 1) This speculation is serialized with invalidate_range_end() because of the
+> > > spinlock
+> > > 
+> > > 2) This speculation can only make effect when we read invalidate_count as
+> > > zero.
+> > > 
+> > > 3) This means the speculation is done after the last invalidate_range_end()
+> > > and because of the spinlock, when we enter the critical section of spinlock
+> > > in prefetch, we can not see any stale PTE that was unmapped before.
+> > > 
+> > > Am I wrong?
+> > > 
+> > > Thanks
+> > OK I think you are right. Sorry it took me a while to figure out.
+> 
+> 
+> No problem. So do you want me to send a V2 of the fixes (e.g with the
+> conversion from synchronize_rcu() to kfree_rcu()). Or you want something
+> else. (e.g revert or a config option)?
+> 
+> Thanks
 
-   http://www.ozlabs.org/~akpm/mmotm/
-
-mmotm-readme.txt says
-
-README for mm-of-the-moment:
-
-http://www.ozlabs.org/~akpm/mmotm/
-
-This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
-more than once a week.
-
-You will need quilt to apply these patches to the latest Linus release (5.x
-or 5.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
-http://ozlabs.org/~akpm/mmotm/series
-
-The file broken-out.tar.gz contains two datestamp files: .DATE and
-.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
-followed by the base kernel version against which this patch series is to
-be applied.
-
-This tree is partially included in linux-next.  To see which patches are
-included in linux-next, consult the `series' file.  Only the patches
-within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
-linux-next.
-
-
-A full copy of the full kernel tree with the linux-next and mmotm patches
-already applied is available through git within an hour of the mmotm
-release.  Individual mmotm releases are tagged.  The master branch always
-points to the latest release, so it's constantly rebasing.
-
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+Pls post V2 and I'll do my best to do a thorough review.  We can then
+decide, if we find more issues then patch revert makes more sense IMHO.
+If we don't let's keep it in and if issues surface close to release
+we can flip the config option.
 
 
 
-The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
-contains daily snapshots of the -mm tree.  It is updated more frequently
-than mmotm, and is untested.
-
-A git copy of this tree is available at
-
-	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
-
-and use of this tree is similar to
-http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
-
-
-This mmotm tree contains the following patches against 5.3-rc1:
-(patches marked "*" will be included in linux-next)
-
-  origin.patch
-* docs-signal-fix-a-kernel-doc-markup.patch
-* revert-kmemleak-allow-to-coexist-with-fault-injection.patch
-* ocfs2-remove-set-but-not-used-variable-last_hash.patch
-* mm-vmscan-check-if-mem-cgroup-is-disabled-or-not-before-calling-memcg-slab-shrinker.patch
-* mm-migrate-fix-reference-check-race-between-__find_get_block-and-migration.patch
-* mm-compaction-avoid-100%-cpu-usage-during-compaction-when-a-task-is-killed.patch
-* kasan-remove-clang-version-check-for-kasan_stack.patch
-* proc-kpageflags-prevent-an-integer-overflow-in-stable_page_flags.patch
-* proc-kpageflags-do-not-use-uninitialized-struct-pages.patch
-* mm-document-zone-device-struct-page-field-usage.patch
-* mm-hmm-fix-zone_device-anon-page-mapping-reuse.patch
-* mm-hmm-fix-bad-subpage-pointer-in-try_to_unmap_one.patch
-* mm-hmm-fix-bad-subpage-pointer-in-try_to_unmap_one-v3.patch
-* ubsan-build-ubsanc-more-conservatively.patch
-* page-flags-prioritize-kasan-bits-over-last-cpuid.patch
-* coredump-split-pipe-command-whitespace-before-expanding-template.patch
-* mm-migrate-initialize-pud_entry-in-migrate_vma.patch
-* mm-hotplug-remove-unneeded-return-for-void-function.patch
-* cgroup-kselftest-relax-fs_spec-checks.patch
-* asm-generic-fix-wtype-limits-compiler-warnings.patch
-* asm-generic-fix-wtype-limits-compiler-warnings-fix.patch
-* asm-generic-fix-wtype-limits-compiler-warnings-v2.patch
-* acpi-scan-acquire-device_hotplug_lock-in-acpi_scan_init.patch
-* mm-mempolicy-make-the-behavior-consistent-when-mpol_mf_move-and-mpol_mf_strict-were-specified.patch
-* mm-mempolicy-make-the-behavior-consistent-when-mpol_mf_move-and-mpol_mf_strict-were-specified-v4.patch
-* mm-mempolicy-handle-vma-with-unmovable-pages-mapped-correctly-in-mbind.patch
-* mm-mempolicy-handle-vma-with-unmovable-pages-mapped-correctly-in-mbind-v4.patch
-* kbuild-clean-compressed-initramfs-image.patch
-* ocfs2-use-jbd2_inode-dirty-range-scoping.patch
-* jbd2-remove-jbd2_journal_inode_add_.patch
-* ocfs2-clear-zero-in-unaligned-direct-io.patch
-* ocfs2-clear-zero-in-unaligned-direct-io-checkpatch-fixes.patch
-* ocfs2-wait-for-recovering-done-after-direct-unlock-request.patch
-* ocfs2-checkpoint-appending-truncate-log-transaction-before-flushing.patch
-* ramfs-support-o_tmpfile.patch
-  mm.patch
-* mm-slab-extend-slab-shrink-to-shrink-all-memcg-caches.patch
-* mm-slab-move-memcg_cache_params-structure-to-mm-slabh.patch
-* memremap-move-from-kernel-to-mm.patch
-* mm-page_poison-fix-a-typo-in-a-comment.patch
-* mm-rmapc-remove-set-but-not-used-variable-cstart.patch
-* mm-introduce-page_size.patch
-* mm-introduce-page_shift.patch
-* mm-introduce-page_shift-fix.patch
-* mm-introduce-compound_nr.patch
-* mm-replace-list_move_tail-with-add_page_to_lru_list_tail.patch
-* mm-filemap-rewrite-mapping_needs_writeback-in-less-fancy-manner.patch
-* mm-throttle-allocators-when-failing-reclaim-over-memoryhigh.patch
-* mm-throttle-allocators-when-failing-reclaim-over-memoryhigh-fix.patch
-* mm-vmscan-expose-cgroup_ino-for-memcg-reclaim-tracepoints.patch
-* mm-gup-add-make_dirty-arg-to-put_user_pages_dirty_lock.patch
-* drivers-gpu-drm-via-convert-put_page-to-put_user_page.patch
-* net-xdp-convert-put_page-to-put_user_page.patch
-* mm-remove-redundant-assignment-of-entry.patch
-* mm-mmap-fix-the-adjusted-length-error.patch
-* mm-memory_hotplug-remove-move_pfn_range.patch
-* mm-memory_hotplug-remove-move_pfn_range-fix.patch
-* drivers-base-nodec-simplify-unregister_memory_block_under_nodes.patch
-* mm-sparse-fix-memory-leak-of-sparsemap_buf-in-aliged-memory.patch
-* mm-sparse-fix-memory-leak-of-sparsemap_buf-in-aliged-memory-fix.patch
-* mm-sparse-fix-align-without-power-of-2-in-sparse_buffer_alloc.patch
-* mm-vmalloc-do-not-keep-unpurged-areas-in-the-busy-tree.patch
-* mm-vmalloc-modify-struct-vmap_area-to-reduce-its-size.patch
-* mm-compaction-clear-total_migratefree_scanned-before-scanning-a-new-zone.patch
-* mm-compaction-clear-total_migratefree_scanned-before-scanning-a-new-zone-fix.patch
-* mm-compaction-clear-total_migratefree_scanned-before-scanning-a-new-zone-fix-fix.patch
-* mm-compaction-clear-total_migratefree_scanned-before-scanning-a-new-zone-fix-2.patch
-* mm-compaction-clear-total_migratefree_scanned-before-scanning-a-new-zone-fix-2-fix.patch
-* mm-oom-avoid-printk-iteration-under-rcu.patch
-* mm-oom-avoid-printk-iteration-under-rcu-fix.patch
-* mm-oom_killer-add-task-uid-to-info-message-on-an-oom-kill.patch
-* mm-oom_killer-add-task-uid-to-info-message-on-an-oom-kill-fix.patch
-* psi-annotate-refault-stalls-from-io-submission.patch
-* psi-annotate-refault-stalls-from-io-submission-fix.patch
-* psi-annotate-refault-stalls-from-io-submission-fix-2.patch
-* mm-introduce-madv_cold.patch
-* mm-change-pageref_reclaim_clean-with-page_refreclaim.patch
-* mm-account-nr_isolated_xxx-in-_lru_page.patch
-* mm-introduce-madv_pageout.patch
-* mm-factor-out-common-parts-between-madv_cold-and-madv_pageout.patch
-* zpool-add-malloc_support_movable-to-zpool_driver.patch
-* zswap-use-movable-memory-if-zpool-support-allocate-movable-memory.patch
-* mm-proportional-memorylowmin-reclaim.patch
-* mm-make-memoryemin-the-baseline-for-utilisation-determination.patch
-* mm-make-memoryemin-the-baseline-for-utilisation-determination-fix.patch
-* mm-vmscan-remove-unused-lru_pages-argument.patch
-* mm-dont-expose-page-to-fast-gup-before-its-ready.patch
-* info-task-hung-in-generic_file_write_iter.patch
-* info-task-hung-in-generic_file_write-fix.patch
-* kernel-hung_taskc-monitor-killed-tasks.patch
-* hung_task-allow-printing-warnings-every-check-interval.patch
-* lib-genallocc-export-symbol-addr_in_gen_pool.patch
-* lib-genallocc-rename-addr_in_gen_pool-to-gen_pool_has_addr.patch
-* lib-genallocc-rename-addr_in_gen_pool-to-gen_pool_has_addr-fix.patch
-* string-add-stracpy-and-stracpy_pad-mechanisms.patch
-* kernel-doc-core-api-include-stringh-into-core-api.patch
-* kernel-doc-core-api-include-stringh-into-core-api-v2.patch
-* lib-fix-possible-incorrect-result-from-rational-fractions-helper.patch
-* checkpatch-dont-interpret-stack-dumps-as-commit-ids.patch
-* checkpatch-improve-spdx-license-checking.patch
-* checkpatchpl-warn-on-invalid-commit-id.patch
-* checkpatch-add-_notifier_head-as-var-definition.patch
-* fat-add-nobarrier-to-workaround-the-strange-behavior-of-device.patch
-* cpumask-nicer-for_each_cpumask_and-signature.patch
-* kexec-bail-out-upon-sigkill-when-allocating-memory.patch
-* aio-simplify-read_events.patch
-* kgdb-dont-use-a-notifier-to-enter-kgdb-at-panic-call-directly.patch
-* ipc-consolidate-all-xxxctl_down-functions.patch
-  linux-next.patch
-  diff-sucks.patch
-* pinctrl-fix-pxa2xxc-build-warnings.patch
-* mm-treewide-clarify-pgtable_page_ctordtor-naming.patch
-* drivers-tty-serial-sh-scic-suppress-warning.patch
-* fix-read-buffer-overflow-in-delta-ipc.patch
-  make-sure-nobodys-leaking-resources.patch
-  releasing-resources-with-children.patch
-  mutex-subsystem-synchro-test-module.patch
-  kernel-forkc-export-kernel_thread-to-modules.patch
-  workaround-for-a-pci-restoring-bug.patch
+-- 
+MST
 
