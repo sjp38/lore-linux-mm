@@ -2,131 +2,198 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 03F2EC7618B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 17:07:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6F199C7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 17:15:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9EF382238C
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 17:07:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9EF382238C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 1E7EC2238C
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 17:15:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="plsu6r8R"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E7EC2238C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EAEF06B0006; Thu, 25 Jul 2019 13:07:27 -0400 (EDT)
+	id B4C316B0006; Thu, 25 Jul 2019 13:15:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E5C686B0007; Thu, 25 Jul 2019 13:07:27 -0400 (EDT)
+	id AFD178E0003; Thu, 25 Jul 2019 13:15:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D273E8E0002; Thu, 25 Jul 2019 13:07:27 -0400 (EDT)
+	id 9C39F8E0002; Thu, 25 Jul 2019 13:15:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C3936B0006
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 13:07:27 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id r21so32525791edc.6
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 10:07:27 -0700 (PDT)
+Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B5D06B0006
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 13:15:41 -0400 (EDT)
+Received: by mail-vs1-f72.google.com with SMTP id v9so13541263vsq.7
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 10:15:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=3L0nD4ecoq5g5sCDVJ0NUCXQMT5H1kQvqBp5vknREYI=;
-        b=Jz8xJry8zOG3r5LtEh+kBJs7C7DPHhRFahN+et1Ds009zMnHgX4RRFOukVKkdNg/O5
-         CjL9dIiRLcLSq5g7ykXGK3+bm0xCVITBcW5WPT2ISIpSXEenUEzpORyyYIht0RKxHj2q
-         nu1SAcathtOI/eJJkSAOKIrQLl1JpU7JAgjwJZTBEEk2ySoxqhHwe47mstGY1ooi0VXx
-         9byyycnp71BYOBE80gWoHHncaeDyXQ1XsthrOpsUTtLI/9mHfzs7XTr98kJ/7SPz/aEw
-         fNZPe1oFDMJQq6JEPHSQO2piB6vNhkzjrQ6K21xzlhrpIY3p87ynMlwfwIWMXlgruc8F
-         /Stw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAW6PLS6CN1F7eYJ0oR1afNayYZonh1E11VYk4LY4QmwDjyQAA6h
-	bYnW6egK7nWrzQoMtWvAQsbGutjjtvbHyAfETHGJSyqiHeNoj7fgmgSUeuWD4EDwdlxfA7QSuJB
-	EtuVNjrEVetGQRacI66+aVQTmQM66YoJ/qHmYbrFz8/Qb70pLop9viE9CPkCcZocn5Q==
-X-Received: by 2002:a17:906:19cc:: with SMTP id h12mr1328843ejd.304.1564074447115;
-        Thu, 25 Jul 2019 10:07:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwiR2o331t3FOhAohABT3bbejcWcmn0RcS69betob/Oy/jfXUiPi3PbByBbwpuLpuQrCzje
-X-Received: by 2002:a17:906:19cc:: with SMTP id h12mr1328775ejd.304.1564074446351;
-        Thu, 25 Jul 2019 10:07:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564074446; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=BXt4ZTjon02rBlSAS5SUMkhrj4K/BTJhzHlU3Vmid/s=;
+        b=d9vsO+G+QEwzcFuJ1KJnFUQBeZ0IQ7XQoSI3K7SiXdEDVvZXuItCWceY2GEEjZhfwP
+         pOdaEhO57OcbqMS9/6nVF2G0L33FkYcY389uLDciNoawdoFPMax9oT9KI1CIylk5YvNQ
+         Rn7YD4qKGpQ3jOyqp2D+CL/PKDKbjbmHFjZgNwb3JZG6+Poo4YJa6KA/ug7l7zttNBap
+         2dPoXC27k/TPB1Q34P18Ng+fnmS/GdvO+mjmwwjZYNbas+wi3ZkflivWnSFf/QK27Med
+         zD8Un0jyxrsyUdnIcM1IERLdOxx43LwULJDq8vI5gndA0X3Jq1NCbzVHvM7uKtEHCfLE
+         G8cA==
+X-Gm-Message-State: APjAAAWMJMWWuHMbQSRLSsBlg8FBy1xPYDhCrMELHaQ3f7Zs7m+3or2F
+	dG4Ou3u6GwJHrPe4UL4pdnWi/dMpmanDETxWJfkYjAJIlO2pe1sMrhqIC+/jEU3l19PHqfJ/D1H
+	/jV+Ua5BN37yzBTvI9Q7n+vTZiQagiLp5AuzNRm0I9CwUp/T307c7ZrelV0f7CdyrgA==
+X-Received: by 2002:a67:1a81:: with SMTP id a123mr57577122vsa.162.1564074941082;
+        Thu, 25 Jul 2019 10:15:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy2BvTeXBrSKGmxluhOTsHX34A7cWb71nU2MXNZVLCNxNjDu3RUbVaHJK8lfY/IUUxM6MyV
+X-Received: by 2002:a67:1a81:: with SMTP id a123mr57577049vsa.162.1564074940309;
+        Thu, 25 Jul 2019 10:15:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564074940; cv=none;
         d=google.com; s=arc-20160816;
-        b=CYFEe9eBXzmkoKF5D3F4d/bcocN21ib5J5iHsBr9Y7OTEdyNtqRey1gRPYhQtcty/Q
-         XZoSF3FnTMRMQXu2O7bWpW7uqLN/bvSW8/nisXmom95e3fF3DQ6O731Pwrzt0VKN3FkE
-         zC5fP4q0hqBIoOqcU1JwetnIT/MVMqpazMctNVdz4AreBJnAhE7Qvopu077YMrpEQBBo
-         PyO0dGOrvJtFk3+SBMWCgkEP3mycoEnnlwLByUJAFnVkbBUTS6pOPku4gr/JcfBLG785
-         yAOHtyeoV9Q5WGIM2D/6Chy897xDepXwxPbRkYYxf2Zztpf1wB6BRug0aIuSr1I13v9N
-         Nzkw==
+        b=Ha6YUjrkNf2u3GUO58A2tLTec56THqE7MFdUZ9/rx83r+CJ70afsfybPd7zqoYDEjM
+         kuLKtZhkGxkjCrhGAAo4ohYFoPjQ0WPvi9CFrGoqjkwQhOGNVadxHqAnV2DHnesIv1QO
+         vo4Be53P4PaVL/+o1JSwYSqtqrfJ5y2S7slVIOS35IRKcEun215g+Rut06hOQcfjxQ3I
+         UraNhZzz/2wZIx9K9uEVo5MNY9WMH3PYPPmZkb9oUvY4U7HTTOoCZFAoGM8Dt94audkY
+         YzwFmRvShFbNq5nZQPH7mup5CkESIl6pOqBKXinwCMZ/o25wp7uQnHDSMq3eBBGKZ2Ns
+         ZiCw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=3L0nD4ecoq5g5sCDVJ0NUCXQMT5H1kQvqBp5vknREYI=;
-        b=ea4guw/3DxEvhF1DJ3UQCv8W4Z6e9fX4dI1JeE7DsC3pnhy4UICxol0nJpEV7fpYi9
-         wgb/W3kGCcibOwfnubqLeQ6sleAgaJzpJFFoG5M7Ve75vNRzzmFuCpVelQ4h0c1PuA+M
-         Z+wjv3lluAxWTcmmHfeGhdCgarrIJlB7Ixdmc8Exrw8suVWgOQZ6N3shU1GGZcpy14Cy
-         O8Rd5L3AfCCGqHYSCs6GutZniOqV+bGlpH9wkNHc7rUjGRhPJfux88/Lq+z4JJBc3Tqu
-         vwkGnjgFDlbEEYyMbbbV2DemQ49dFq7P6ut+ddpqRZrqNyXVYxb7IlZ+d8vk5goibtxW
-         Siig==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=BXt4ZTjon02rBlSAS5SUMkhrj4K/BTJhzHlU3Vmid/s=;
+        b=zleo4qaro6gJG0T/vKGqugMuxRfGKefFGgHZNHi1a87Lz8vGMQEp+5o2hRsWDJj6Xj
+         s9tYQQjZkiHw2bb/m0DSh9TlitSxN+AehlcmhOkYtVZGs3yhYOdAAgoiRWCAYj8XGhcq
+         Wegrsdg2rbiAyCxaz5uDkkGZ3koz8Yy/jJeLGqgtnhulFDMjxjPAyyYSy+pU/09pDkoi
+         mBDtL8XiBijC99yAGQ/kbn1BnXrjiQV6lhrVinMQbwuc2w51rM3Wvd6pk6kCxsSTnxGt
+         7FFm4EOPGMfFBMBI03iHipA/g3T5DJu2J+Vijo1nMurvcvhP+koro7mFBsctAmMMJrUA
+         QLQA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id l58si11677100edc.150.2019.07.25.10.07.25
-        for <linux-mm@kvack.org>;
-        Thu, 25 Jul 2019 10:07:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=plsu6r8R;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
+        by mx.google.com with ESMTPS id j20si11850888vsf.70.2019.07.25.10.15.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Jul 2019 10:15:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5C96A174E;
-	Thu, 25 Jul 2019 10:07:25 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 3EFD23F71A;
-	Thu, 25 Jul 2019 10:07:23 -0700 (PDT)
-Date: Thu, 25 Jul 2019 18:07:21 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, Mark Rutland <mark.rutland@arm.com>, x86@kernel.org,
-	Kees Cook <keescook@chromium.org>,
-	Sri Krishna chowdary <schowdary@nvidia.com>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org,
-	Matthew Wilcox <willy@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Mark Brown <Mark.Brown@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Steven Price <Steven.Price@arm.com>,
-	linux-arm-kernel@lists.infradead.org
-Subject: Re: [RFC] mm/pgtable/debug: Add test validating architecture page
- table helpers
-Message-ID: <20190725170720.GB11545@arrakis.emea.arm.com>
-References: <1564037723-26676-1-git-send-email-anshuman.khandual@arm.com>
- <1564037723-26676-2-git-send-email-anshuman.khandual@arm.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=plsu6r8R;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6PGv9ND008688;
+	Thu, 25 Jul 2019 17:15:36 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=BXt4ZTjon02rBlSAS5SUMkhrj4K/BTJhzHlU3Vmid/s=;
+ b=plsu6r8RTf9N+SMlN9Cxk32QxhiS3IWD++laWBrE8vbiVMS2WYlw/FGHZscInnbveUY5
+ 3SaBY7qToy5VICuPGo5YBzgBE8zsjvkd4ZtFqiwVX1A8gokTU3/uVO1nSOMF/7EHLJsJ
+ Xul9KEad+cKUWgutVTDtsVNklntSE0ZYfbqvj/fLER20Sr5IstrN0zuQsXxHhahNOIWJ
+ LyA9keeYdZz6a0WtmftUdHjZY+zN94LNlR+G3n2ao/G/O30ay8mkmEAQsA4NBSzpy4Ld
+ NsyDVh5XKx5HvyRcimnEYnX8kCptmJGweNNxkcyYTnDkWt0sYgZKkGDHYDaP6+D5A98/ lQ== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by userp2120.oracle.com with ESMTP id 2tx61c5e6k-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 25 Jul 2019 17:15:36 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6PFwHsM078851;
+	Thu, 25 Jul 2019 17:15:36 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userp3030.oracle.com with ESMTP id 2tx60yemca-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 25 Jul 2019 17:15:36 +0000
+Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x6PHFUGZ008590;
+	Thu, 25 Jul 2019 17:15:31 GMT
+Received: from [192.168.1.222] (/71.63.128.209)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Thu, 25 Jul 2019 10:15:30 -0700
+Subject: Re: [RFC PATCH 3/3] hugetlbfs: don't retry when pool page allocations
+ start to fail
+To: Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+        Hillf Danton <hdanton@sina.com>, Michal Hocko <mhocko@kernel.org>,
+        Vlastimil Babka <vbabka@suse.cz>, Johannes Weiner <hannes@cmpxchg.org>,
+        Andrew Morton <akpm@linux-foundation.org>
+References: <20190724175014.9935-1-mike.kravetz@oracle.com>
+ <20190724175014.9935-4-mike.kravetz@oracle.com>
+ <20190725081350.GD2708@suse.de>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <6a7f3705-9550-e22f-efa1-5e3616351df6@oracle.com>
+Date: Thu, 25 Jul 2019 10:15:29 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1564037723-26676-2-git-send-email-anshuman.khandual@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190725081350.GD2708@suse.de>
+Content-Type: text/plain; charset=iso-8859-15
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9329 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1907250188
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9329 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1907250188
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 25, 2019 at 12:25:23PM +0530, Anshuman Khandual wrote:
-> +#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
-> +static void pud_clear_tests(void)
-> +{
-> +	pud_t pud;
-> +
-> +	pud_clear(&pud);
-> +	WARN_ON(!pud_none(pud));
-> +}
+On 7/25/19 1:13 AM, Mel Gorman wrote:
+> On Wed, Jul 24, 2019 at 10:50:14AM -0700, Mike Kravetz wrote:
+>> When allocating hugetlbfs pool pages via /proc/sys/vm/nr_hugepages,
+>> the pages will be interleaved between all nodes of the system.  If
+>> nodes are not equal, it is quite possible for one node to fill up
+>> before the others.  When this happens, the code still attempts to
+>> allocate pages from the full node.  This results in calls to direct
+>> reclaim and compaction which slow things down considerably.
+>>
+>> When allocating pool pages, note the state of the previous allocation
+>> for each node.  If previous allocation failed, do not use the
+>> aggressive retry algorithm on successive attempts.  The allocation
+>> will still succeed if there is memory available, but it will not try
+>> as hard to free up memory.
+>>
+>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
+> 
+> set_max_huge_pages can fail the NODEMASK_ALLOC() alloc which you handle
+> *but* in the event of an allocation failure this bug can silently recur.
+> An informational message might be justified in that case in case the
+> stall should recur with no hint as to why.
 
-For the clear tests, I think you should initialise the local variable to
-something non-zero rather than rely on whatever was on the stack. In
-case it fails, you have a more deterministic behaviour.
+Right.
+Perhaps a NODEMASK_ALLOC() failure should just result in a quick exit/error.
+If we can't allocate a node mask, it is unlikely we will be able to allocate
+a/any huge pages.  And, the system must be extremely low on memory and there
+are likely other bigger issues.
 
+There have been discussions elsewhere about discontinuing the use of
+NODEMASK_ALLOC() and just putting the mask on the stack.  That may be
+acceptable here as well.
+
+>                                            Technically passing NULL into
+> NODEMASK_FREE is also safe as kfree (if used for that kernel config) can
+> handle freeing of a NULL pointer. However, that is cosmetic more than
+> anything. Whether you decide to change either or not;
+
+Yes.
+I will clean up with an updated series after more feedback.
+
+> 
+> Acked-by: Mel Gorman <mgorman@suse.de>
+> 
+
+Thanks!
 -- 
-Catalin
+Mike Kravetz
 
