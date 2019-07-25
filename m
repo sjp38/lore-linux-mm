@@ -2,126 +2,167 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D6686C7618B
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 05:38:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 01FEAC7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 05:40:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 969DD22BEB
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 05:38:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 969DD22BEB
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id ACA1822CB8
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 05:40:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="IPH/9AVY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ACA1822CB8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 346D08E002D; Thu, 25 Jul 2019 01:38:25 -0400 (EDT)
+	id 4CB278E002E; Thu, 25 Jul 2019 01:40:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2F5888E001C; Thu, 25 Jul 2019 01:38:25 -0400 (EDT)
+	id 453D78E001C; Thu, 25 Jul 2019 01:40:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E4D58E002D; Thu, 25 Jul 2019 01:38:25 -0400 (EDT)
+	id 2A62A8E002E; Thu, 25 Jul 2019 01:40:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C53B18E001C
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 01:38:24 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id j10so20453552wre.18
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 22:38:24 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 0ABE18E001C
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 01:40:07 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id s9so53681907iob.11
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 22:40:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=MnX4sjrjQ4hspDF2bRDdwlwL6iTF8xpxcMxVCrDD4pI=;
-        b=jK8Gc4TYLvMF5jP7WC9O1DmxvohKTERJglmkapyS/AnR62EhbljjECm9qk2N6lKBEL
-         yIOsJNI/ILwVmtpWHImnWvaG+S7LwJ2I3zYIlyN4UpbVzn41vtYsCmfV+Yk+KzfIYC7s
-         IImRKm1WsN5wvKB/RZAw9md9K+B0wlFRMTv40tKf1YXJGdf3+quWdHhbaHC7tswdUonN
-         Kktd+sDDPI6pd4PxlUPkB4w+K1IV40BWkghEjoSnAWE6fFaf8Lbke+yeAIQ2jZaWXk3N
-         mtWibfTwkuxAEUs89vg34FDCrEP31Zj9d2IjwhxpVVrq9TIOg5kiyYmuouu5HCT8OCgJ
-         +pSg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAUFZJLoIb/AsGDgTHP5xKes/9+gRhAzPbjkkDrx9K9twIXpa8Wa
-	xrsgl8zQs38dPtrul6hybkGImPDhcUIvZRMB+KC0CtNpYmSknqVTJ+KY6M2jh0zM7iMw32d7esa
-	InjbIbWCCEvJX0uR7cwuZm7HjJ7SoVkSUbtk9za3NFistbL/6bW2/lrSS/S3ggfdMCw==
-X-Received: by 2002:a1c:988a:: with SMTP id a132mr75547273wme.165.1564033104320;
-        Wed, 24 Jul 2019 22:38:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzd1Ge6qb7Kb3X7FwUp2BEe9r/bFTcdP7vcTCx4jsnzEg1fjSxbpGv2Q8Qcmjv99PSn16yZ
-X-Received: by 2002:a1c:988a:: with SMTP id a132mr75547243wme.165.1564033103553;
-        Wed, 24 Jul 2019 22:38:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564033103; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :organization:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=DIaad5qbirnDkeKlUJE4RYRnrPGQKiec4THTqLDSXrw=;
+        b=Rt1WgLdfnZxO5MgY0rBFGNhwtHMWiNeTLKh1L9WQW/Zbqxc2lGgmdd1q3T/pfrVk6+
+         VsB5H5cqUdIU2DDo8DSNpTsvmp93aszglu7iPrA1nXbCxYcNZa1A6WDeeXZUI1BIipxB
+         Dx1G70mY0G4bSyQHlrOrgCCI1Sp0Z7CfQWxp1pMAs+9uayoaBohqdBYtIRZYHP33wuHb
+         OMCo6izWrMU4YzWO6Wg+iiXOBnR7zl6/vA5tqLynDPTNDeHsAo4Y954EA2bFfUayF91v
+         lhYSXHvqRLjaBzPuZKjsrxgr0deaj4Ee8WHPZfXMIDYXjF53e+h/9r4zJHPPIhemS7HA
+         qF1g==
+X-Gm-Message-State: APjAAAX1p3BRaJaYYnviirPyqsjbFC1rYTvwv7hGBeZ8OsNvNv/XwtI6
+	RKrW5od1O/jlnkHtKcAqHlnope7Mb+NUlhYeRPdkbYX0hq0KNaQilMyBVBCfyA3jOkVtBs64F2t
+	8OlTxWczgFgRTI9vczrzb8froF1ER+J4FXhrSEtX8GZPsWnXBKyDPAhN4a+NcixIF/g==
+X-Received: by 2002:a02:cb96:: with SMTP id u22mr89267790jap.118.1564033206766;
+        Wed, 24 Jul 2019 22:40:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqza+3NLDWbiMRz5qrdc+E2FB9IIo91iVMO72H3TdEMz6Pl/Teh3RQ4WWMVrEVBrHovW9X41
+X-Received: by 2002:a02:cb96:: with SMTP id u22mr89267771jap.118.1564033206284;
+        Wed, 24 Jul 2019 22:40:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564033206; cv=none;
         d=google.com; s=arc-20160816;
-        b=l8XAja1io2ewd1/Z0QlxZLPkda29ij6FFORcITsQjq7zPg6fRZvhPpaurRuL14n/Os
-         Ey+OInZNBZw3Q0Gp1YgnbcCuLFOQLGtA/Xt9zWnIc/pr4+o5R0PPLgC+SEpOltMQWTu5
-         jZLANgTM9kKOOh/TRbllCoWpoXqK7qeWuzJUiBeyIrHRC106cxhiQSwN95suftZ0Ufva
-         jD49h64H0swI287q9x2XK1b4MYZzbHAn9VIOChkRtmLOmctcFgJ0XSShHGeJFUHZxkaS
-         ydaX2jE76iBaHaI63k6pkDwt+t3mEo6x8QM3OSjkGQspR1ipzeROxJ5iHoRyI4SGvGRy
-         Y57Q==
+        b=qhYWFoPAM5kfZNdQygu7H7RZfwXpdWb0W+gVtA0adt1ix4sXUyVqjGna9F2DRhsxPi
+         PWrEWIJL8V3rxHA/KLspTAw8E+egLO/CHCUq7cM7ejg3DQo4SSvoWTb4DC7tOO6zZnl8
+         q3olnFcUD+NPYzDDkhSDdtAWnn30Z1Dx519guGLXNf+SKpNwVOkAXZgWPVwdfM9XQPeS
+         7I3mIBOn1TWuhYTGgq0/1H01rNsjsTyFM4EFd6C50V3Jp/f0DY7KwKImETgpM+kPS58C
+         EG19wf9hvame27PUb2RIEqw79ctQP3Inbof/bCHOwD+M8tSG23eWXbRDTtHyQwt73p65
+         hOAw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=MnX4sjrjQ4hspDF2bRDdwlwL6iTF8xpxcMxVCrDD4pI=;
-        b=Sgu0GcRQ8JSzSYyE+/mo+u1D3wrXLWUKxMvdxPV0FDOQHAx2JG58LMKYTCWOuvnQZN
-         RIz1qr1BNuwT5/acPn2GRhb6LBbfYwiRg5GWASbv7hlrmRp/5pGtlITbSahQJKJY2ASj
-         qHimEvLD0C+bQlKKZa5LlaWzV2ttgrEKpiTTrb6n/SLWvgnWxkrRXJSCXOWOgklfOdji
-         zM+5VxmDtRkOJLmTSYATJRcZTDP3xzTz50/smimPemkWA9cIJ6B1s2NB3QmCeLvdjSdS
-         U9p/wgCGDrfX16CkrXHffNcyYF6z3C74GgKDeYL0ucWC2RtyMWfRhTSWCrCqyuUQ1iv1
-         I21w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:dkim-signature;
+        bh=DIaad5qbirnDkeKlUJE4RYRnrPGQKiec4THTqLDSXrw=;
+        b=j2RU2lIuYGrh1V+hF2CXL10cWKXzZ1evLcYYHlm7KeT9uiF8k1N7lSoA3rKtaQJIvc
+         O1p5IqZ9U3QGm2k9sZcqkusw3QYtJ90ouSktSlQ1JiI8zad6f1ZHwitFCfNzaOTONnpS
+         JSN1eGqiJnhWMMPDJZ89TQsVSy42TD9vZwcBeilKI9pOtNYDhS+PRTizxb9l9NrVR0Ft
+         baNY9EOjlWKeIJ+NwRLyJvPR9SG5vV9FvPDxmvJ3NbH07G04QNP5utuDSA7SlMrQX7wS
+         Yd13Klylq7wooSDKNK+J8RU1ZL8t4HjurVvMpQWweaWxz35P6dE9h9E9XUITovlK7nV/
+         pCKg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id m25si37727589wmi.43.2019.07.24.22.38.23
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="IPH/9AVY";
+       spf=pass (google.com: domain of jane.chu@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=jane.chu@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id g25si71075959jam.35.2019.07.24.22.40.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 24 Jul 2019 22:38:23 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Wed, 24 Jul 2019 22:40:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jane.chu@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by verein.lst.de (Postfix, from userid 2407)
-	id B331868B20; Thu, 25 Jul 2019 07:38:21 +0200 (CEST)
-Date: Thu, 25 Jul 2019 07:38:21 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Ralph Campbell <rcampbell@nvidia.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Vlastimil Babka <vbabka@suse.cz>, Christoph Lameter <cl@linux.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Lai Jiangshan <jiangshanlai@gmail.com>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Pekka Enberg <penberg@kernel.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	Andrey Ryabinin <aryabinin@virtuozzo.com>,
-	Christoph Hellwig <hch@lst.de>, Jason Gunthorpe <jgg@mellanox.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linus Torvalds <torvalds@linux-foundation.org>
-Subject: Re: [PATCH v3 1/3] mm: document zone device struct page field usage
-Message-ID: <20190725053821.GA24527@lst.de>
-References: <20190724232700.23327-1-rcampbell@nvidia.com> <20190724232700.23327-2-rcampbell@nvidia.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="IPH/9AVY";
+       spf=pass (google.com: domain of jane.chu@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=jane.chu@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6P5d0Xf078656;
+	Thu, 25 Jul 2019 05:40:02 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=DIaad5qbirnDkeKlUJE4RYRnrPGQKiec4THTqLDSXrw=;
+ b=IPH/9AVYiWVzq6wlgvo3F/88gUEHhrUGkzLM6HKQ3AmDJPgJ8FW1o+LAKoVFyJLNsUwb
+ zsrH29WQGuIYFvvrTct1noJAWGP/8qtGXRkEr+gewJ/1f2dvoFCOpy3i9lZck/YnIK61
+ jNr2CX38esOUkjQUYt0LsFbgzuHJIPziZ8qxVU66qow2iB++jbx1iY41Mr0DwIl6QHCA
+ 2ANpXPrK4JxlnkWQcrPaFf2m5BynwVihkJd0W4F9mSDy3r9CxoRka8aPoGoJUb0uyHbS
+ YDvkMJudKzqg3boByZ4sZ9HKCuCpRp//23F3sY3O6NEQ4bNxLWaol7M+3AEhbFvKISaY NA== 
+Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
+	by aserp2120.oracle.com with ESMTP id 2tx61c1f6c-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 25 Jul 2019 05:40:01 +0000
+Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
+	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6P5bmEi117255;
+	Thu, 25 Jul 2019 05:40:01 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userp3020.oracle.com with ESMTP id 2tx60yn82x-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Thu, 25 Jul 2019 05:40:01 +0000
+Received: from abhmp0009.oracle.com (abhmp0009.oracle.com [141.146.116.15])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x6P5dxBH003035;
+	Thu, 25 Jul 2019 05:39:59 GMT
+Received: from [10.159.158.5] (/10.159.158.5)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Wed, 24 Jul 2019 22:39:56 -0700
+Subject: Re: [PATCH v2 0/1] mm/memory-failure: Poison read receives SIGKILL
+ instead of SIGBUS issue
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+        Linux MM
+ <linux-mm@kvack.org>,
+        Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+        linux-nvdimm <linux-nvdimm@lists.01.org>
+References: <1564007603-9655-1-git-send-email-jane.chu@oracle.com>
+ <CAPcyv4iqdbL+=boCciMTgUEn-GU1RQQmBJtNU9RHoV84XNMS+g@mail.gmail.com>
+From: Jane Chu <jane.chu@oracle.com>
+Organization: Oracle Corporation
+Message-ID: <fa353250-2ea2-3be3-5e4d-1ccf7dc06014@oracle.com>
+Date: Wed, 24 Jul 2019 22:39:38 -0700
+User-Agent: Mozilla/5.0 (Windows NT 10.0; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190724232700.23327-2-rcampbell@nvidia.com>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+In-Reply-To: <CAPcyv4iqdbL+=boCciMTgUEn-GU1RQQmBJtNU9RHoV84XNMS+g@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9328 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=986
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1907250067
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9328 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1907250067
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 24, 2019 at 04:26:58PM -0700, Ralph Campbell wrote:
-> Struct page for ZONE_DEVICE private pages uses the page->mapping and
-> and page->index fields while the source anonymous pages are migrated to
-> device private memory. This is so rmap_walk() can find the page when
-> migrating the ZONE_DEVICE private page back to system memory.
-> ZONE_DEVICE pmem backed fsdax pages also use the page->mapping and
-> page->index fields when files are mapped into a process address space.
+On 7/24/2019 3:52 PM, Dan Williams wrote:
+> On Wed, Jul 24, 2019 at 3:35 PM Jane Chu <jane.chu@oracle.com> wrote:
+>>
+>> Changes in v2:
+>>   - move 'tk' allocations internal to add_to_kill(), suggested by Dan;
 > 
-> Add comments to struct page and remove the unused "_zd_pad_1" field
-> to make this more clear.
+> Oh, sorry if it wasn't clear, this should move to its own patch that
+> only does the cleanup, and then the follow on fix patch becomes
+> smaller and more straightforward.
+> 
 
-I still think we should also fix up the layout, and I haven't seen
-a reply from Matthew justifying his curses for your patch that makes
-the struct page layout actually match how it is used.
+Make sense, thanks! I'll split up the patch next.
+
+thanks,
+-jane
 
