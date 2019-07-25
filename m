@@ -2,128 +2,149 @@ Return-Path: <SRS0=Q21e=VW=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 52750C41514
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 06:10:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1DD66C7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 06:17:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EABB520828
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 06:10:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EABB520828
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
+	by mail.kernel.org (Postfix) with ESMTP id D605321850
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 06:17:34 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ElkF0jZ2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D605321850
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 85DE28E003A; Thu, 25 Jul 2019 02:10:11 -0400 (EDT)
+	id 76DC18E003B; Thu, 25 Jul 2019 02:17:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 80D648E0031; Thu, 25 Jul 2019 02:10:11 -0400 (EDT)
+	id 71EC68E0031; Thu, 25 Jul 2019 02:17:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6D6718E003A; Thu, 25 Jul 2019 02:10:11 -0400 (EDT)
+	id 60C938E003B; Thu, 25 Jul 2019 02:17:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 35BB58E0031
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 02:10:11 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b12so31503045eds.14
-        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 23:10:11 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 411398E0031
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 02:17:34 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id u84so53889728iod.1
+        for <linux-mm@kvack.org>; Wed, 24 Jul 2019 23:17:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=SpfYKVuGdLl4C0td4aBNl9rimK912E6CtJfOiMxTN48=;
-        b=fvDQMkzC0ofY/gIo1X5TweJ9yHZtZofxNXhStkHa4psj3LKZKMMs6AgOZ90EVFIKAx
-         QeeXHXwJo3xkh0wcOm5QIpKlNe37IM4fKvtL+J/WL4J7oWX53bvINir/xvjZn3Bw3R6x
-         CRFVVzXgPetBUOAwM2LChJWvV3+QBWtU0DP/x4Ps1zDyigatpilwnXKpJVmCrMfAWVk+
-         hUcHoAAqu2YmPPMURExb7m9PoZsBRn2aFeHbGl1i47uqk5jL0ltGavuqV+T8UBk0a01/
-         WCdEZq2CylzLAhDHvRypmMuYqsKWxPIF6ZnWNFBE26H6YNPnsDemv/YJp8hX/IdCUCra
-         RVBg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAWgQ4Fu7Fe85ZwmPHI6KZP9nnx3AyfITjDd+TjoXLbqrfR/4MNf
-	LyLNdpwNitS4RWbl69ukd4816Krkd23fGInTzyMPVAYDyqDpzAnQVQ6UwFmkVaxndo3ZGqK7gN6
-	bFvUeW7AxNt1qHuia2+hRurl5BlhxyehtEoMTFWFf/oy3rkRvrGxD9MF7zjF8vNI=
-X-Received: by 2002:aa7:dd09:: with SMTP id i9mr76548042edv.193.1564035010782;
-        Wed, 24 Jul 2019 23:10:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwOtWw4CQk10QG3kqbvmnVVHm99hfcJpCAliLTHcJzlpS22IwulTlZurQZcdwPt7NE6/AiU
-X-Received: by 2002:aa7:dd09:: with SMTP id i9mr76547996edv.193.1564035010131;
-        Wed, 24 Jul 2019 23:10:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564035010; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=LRoqbDJHGfr38RXpT7qcza55DevlOlHgy5CoUePAUmA=;
+        b=iLa3WKmCTJE4X5AJMOym5X0BE/UWoKUr5cdmweUq/Y3Ao9BBn4N/n3dz2DiKDFwIim
+         nzPDChuDs3mN2gxwIxWBQveae3aZn+tRr2fNWiCy9Wo1sLcVl6utV8l6QA2lkx11JQRR
+         TA51uPjHu0Htiq+LlNx/WK+3UIpEuVtYAmMvW0CNNpaAVGjlqDPdGRLKGxS0o3qrcTAm
+         yOZndmPIx46Ks4cD09eqPy1YF0i5Ja6dtggTNdn+HwlBs6y40Xl6P2c1P7CPm3jr7Pez
+         pxjFsVBfeHPNUyJ5qMgvJ/tnbqXzzYKn7gujPZefCqYwcQzfWqgmvNl1gRcT0bGgkNvu
+         BrAQ==
+X-Gm-Message-State: APjAAAUtYPCgYREM4lRXiy0WAHNzR1ctGFe0t1CcgO5LaGq76nagSiex
+	zi8JY6luz5YE6fXRFKVLuoOhJGapQ68Vk5q3FdKXwjBCH8ZhJkHjAM/OwY1L6zLl7BEkoA/FFu6
+	ni8dRdujg5AF0xt4HRWL0F7B3CQ1XtgOKMvG+4JmqFdn3/CMSa73Lx5HuLMJKjf3ouw==
+X-Received: by 2002:a6b:f80e:: with SMTP id o14mr10835924ioh.1.1564035453990;
+        Wed, 24 Jul 2019 23:17:33 -0700 (PDT)
+X-Received: by 2002:a6b:f80e:: with SMTP id o14mr10835884ioh.1.1564035453220;
+        Wed, 24 Jul 2019 23:17:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564035453; cv=none;
         d=google.com; s=arc-20160816;
-        b=XZCcIaGEMekZfpxbZFXgG6btywHXlqEPYgiE031QYjWIHjD7scVOdYj9tl+okRmPjL
-         z04fsARU+v4W3I3vJP/9aNc3jlDS5uOG9vQxOk2UW1HpYXv+sP+mgOAIgv6yVccTZ3HO
-         ainF5kNT98zprv0N7V2gvpWo++KJNU/dZUiI6nbPJXJvpIdHcKc9PeXf3vFb7yNKVB+V
-         9FhpGRfvIepzTQr41NrD5lr/TyEALt15PwsHdbNpL7Abj1wrGmYBL+SY2hWKNi4rt1s9
-         KcJh66hCOO8Kc3SuyACWIU/fNcuZZPZ/SVGA4hIuPl94EacpyqPve9E66JcTEZn5v0ZI
-         rchw==
+        b=r3b+qigoyHrtsv77A0J8AupFc4biXzabaauUnzRLjj0WXSbBXu+cQv/ZqbDeKAureM
+         Zk8lpKQkqaGsftX/1hGuluGwubhOoUMKzpbQqyZYgWkO/hh6918PjYsmvAHgH8SHRKkv
+         6GPgyUMtFV29OOeb3Mzi3RtIhb6t25zVAE2RvOhlE6hMJaegSmxTUfrMRvmyMEaN4wde
+         PMntDjL/jAgXV0dgw+IMuzxrA1TKcha0IxQlrd5/IKImnciZKF0XbCWwqaiQ0w9awXvy
+         hLOyZDSkcYKFGK1JbUZo2YJy6JhpV6NH1ipeHb/+QINRzP8iNoZK0fugACU7rv84c4bU
+         rxng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=SpfYKVuGdLl4C0td4aBNl9rimK912E6CtJfOiMxTN48=;
-        b=arrIXKzKIPdoadNS0vHX4yw0k9xukLBVlmMC7cy7JMZ3d9qVJ3+wr5GVBlzX/WMJFz
-         TeYv4zyos4sjUxXkTnnBIK0V0blMcsaXyrxcqxjMURsyyt6lIBwqq6Nm3he7AQJUg6He
-         BOHDYHN+mn0BHHEfIk2RHoDO1yZR+YGAhvc/v1SQwCQnSruZauvKsCx/K37Wi9xp0umZ
-         IIEJgyZEQDobXkRu/p1UfS77bzNhv1TaddiwnAq1yxWRiIYnMtqLaiIV3HX1rHVwKoCT
-         zuwTpb7uYj066xWiWFkmu2C1RKhHxO5sngZTgbB8mUA4ApPojx6orLdOXn+oM9QKjDSY
-         sllg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=LRoqbDJHGfr38RXpT7qcza55DevlOlHgy5CoUePAUmA=;
+        b=mCptUjxtCuteoCdWj/PyAzxES3QC92n21azP0tkOHWH/zfVUIa5NN/XQQJWBl4IVsI
+         fHdHiefDkEkYRxnZHmkpy0OLdokwDi/XHQVQbSIkTUYmhdUWIagpuEXJc54RTM/Bt1QD
+         CriT4Igle7xkbryqZkcwZyj9LogD0BfnDGfeizFFizp5ebnwxEZx/VfIZbRZbiDXDRW0
+         wqjHe6zA5X+lCYATV1FQfeTUU3PWqBnkac9LA4sBY4gWew4FQJjDM1YvMWPWIyfzWo66
+         Dmv6V0OSBam0MBRh/VJd6LIUasWnMqkXA/cjq045Bn8uaY2BsEa4uY8zeYorxfTzeIWD
+         IL3A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [217.70.183.195])
-        by mx.google.com with ESMTPS id si2si9360743ejb.335.2019.07.24.23.10.09
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ElkF0jZ2;
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i26sor114684352jaf.1.2019.07.24.23.17.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 24 Jul 2019 23:10:10 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.195;
+        (Google Transport Security);
+        Wed, 24 Jul 2019 23:17:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Originating-IP: 81.250.144.103
-Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
-	(Authenticated sender: alex@ghiti.fr)
-	by relay3-d.mail.gandi.net (Postfix) with ESMTPSA id D99C260004;
-	Thu, 25 Jul 2019 06:10:06 +0000 (UTC)
-Subject: Re: [PATCH REBASE v4 00/14] Provide generic top-down mmap layout
- functions
-To: Luis Chamberlain <mcgrof@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig
- <hch@lst.de>, Russell King <linux@armlinux.org.uk>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>,
- Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>,
- Palmer Dabbelt <palmer@sifive.com>, Albert Ou <aou@eecs.berkeley.edu>,
- Alexander Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>,
- linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-mips@vger.kernel.org, linux-riscv@lists.infradead.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-References: <20190724055850.6232-1-alex@ghiti.fr>
- <20190724171745.GX19023@42.do-not-panic.com>
-From: Alexandre Ghiti <alex@ghiti.fr>
-Message-ID: <c7a35023-8571-6000-d870-12803314adbf@ghiti.fr>
-Date: Thu, 25 Jul 2019 08:10:06 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ElkF0jZ2;
+       spf=pass (google.com: domain of mikhail.v.gavrilov@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mikhail.v.gavrilov@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=LRoqbDJHGfr38RXpT7qcza55DevlOlHgy5CoUePAUmA=;
+        b=ElkF0jZ2oXdbwt+dCFUKNeLkDixlYYHEpD+pFLmuOYWj6wWyJcscplUObqPiiwAmyW
+         OKcMh09HoG8tb6nJaEneRZMa7p/p5Aa/Xw2wOGBvu5ro3WetRLqQ5RNfjfwGwGGgfbMH
+         AtZf04obC8OEXzLfTJ1vFUeSdSJpVszRAbPF/6rDDPB0O44x5zPiNIm7uJUsewru5p0o
+         VU31YGLkjCU0mUhgaDfqke3vxe43OfWiFY81rhYW99fQKA1gkl+6P1rHoZGwGG2mUS9I
+         On/OQMC0fFPzzFgBI79nNP9Y9yiH8Fjs6jxIK10ffXre40U7yqMytaLqS/z5gaxBx5Eh
+         zMBQ==
+X-Google-Smtp-Source: APXvYqw3GQTATk7TCpJIxhOvn2PyGKQTOn1eklEiI+U7h4SZXAwdtGqiBf2d5eqHcZ865TD85nByVoKsejn8s5nuf38=
+X-Received: by 2002:a02:bb05:: with SMTP id y5mr86296517jan.93.1564035452598;
+ Wed, 24 Jul 2019 23:17:32 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190724171745.GX19023@42.do-not-panic.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: fr
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.253215, version=1.2.4
+References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
+ <CAC=cRTMz5S636Wfqdn3UGbzwzJ+v_M46_juSfoouRLS1H62orQ@mail.gmail.com>
+ <CABXGCsOo-4CJicvTQm4jF4iDSqM8ic+0+HEEqP+632KfCntU+w@mail.gmail.com>
+ <878ssqbj56.fsf@yhuang-dev.intel.com> <CABXGCsOhimxC17j=jApoty-o1roRhKYoe+oiqDZ3c1s2r3QxFw@mail.gmail.com>
+ <87zhl59w2t.fsf@yhuang-dev.intel.com>
+In-Reply-To: <87zhl59w2t.fsf@yhuang-dev.intel.com>
+From: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Date: Thu, 25 Jul 2019 11:17:21 +0500
+Message-ID: <CABXGCsNRpq=AF1aRgyquszy2MZzVfKZwrKXiSW-PnGiAR652cg@mail.gmail.com>
+Subject: Re: kernel BUG at mm/swap_state.c:170!
+To: "Huang, Ying" <ying.huang@intel.com>
+Cc: huang ying <huang.ying.caritas@gmail.com>, 
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, linux-mm@kvack.org
+Content-Type: text/plain; charset="UTF-8"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/24/19 7:17 PM, Luis Chamberlain wrote:
-> Other than the two comments:
+On Tue, 23 Jul 2019 at 10:08, Huang, Ying <ying.huang@intel.com> wrote:
 >
-> Reviewed-by: Luis Chamberlain <mcgrof@kernel.org>
-
-
-Thanks for your time Luis,
-
-Alex
-
-
+> Thanks!  I have found another (easier way) to reproduce the panic.
+> Could you try the below patch on top of v5.2-rc2?  It can fix the panic
+> for me.
 >
->    Luis
->
+
+Thanks! Amazing work! The patch fixes the issue completely. The system
+worked at a high load of 16 hours without failures.
+
+But still seems to me that page cache is being too actively crowded
+out with a lack of memory. Since, in addition to the top speed SSD on
+which the swap is located, there is also the slow HDD in the system
+that just starts to rustle continuously when swap being used. It would
+seem better to push some of the RAM onto a fast SSD into the swap
+partition than to leave the slow HDD without a cache.
+
+https://imgur.com/a/e8TIkBa
+
+But I am afraid it will be difficult to implement such an algorithm
+that analyzes the waiting time for the file I/O and waiting for paging
+(memory) and decides to leave parts in memory where the waiting time
+is more higher it would be more efficient for systems with several
+drives with access speeds can vary greatly. By waiting time I mean
+waiting time reading/writing to storage multiplied on the count of
+hits. Thus, we will not just keep in memory the most popular parts of
+the memory/disk, but also those parts of which read/write where was
+most costly.
+
+--
+Best Regards,
+Mike Gavrilov.
 
