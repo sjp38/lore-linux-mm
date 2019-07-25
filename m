@@ -6,105 +6,94 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 749B1C76194
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 16:48:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DACDFC7618B
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 16:56:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2B70321951
-	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 16:48:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2B70321951
+	by mail.kernel.org (Postfix) with ESMTP id 8ED0421851
+	for <linux-mm@archiver.kernel.org>; Thu, 25 Jul 2019 16:56:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8ED0421851
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BD5B76B0005; Thu, 25 Jul 2019 12:48:50 -0400 (EDT)
+	id 0F9B66B0006; Thu, 25 Jul 2019 12:56:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B86A86B0006; Thu, 25 Jul 2019 12:48:50 -0400 (EDT)
+	id 0AC716B0007; Thu, 25 Jul 2019 12:56:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A4E4F6B0007; Thu, 25 Jul 2019 12:48:50 -0400 (EDT)
+	id EB5178E0002; Thu, 25 Jul 2019 12:56:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ua1-f71.google.com (mail-ua1-f71.google.com [209.85.222.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 80CA16B0005
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 12:48:50 -0400 (EDT)
-Received: by mail-ua1-f71.google.com with SMTP id p13so5391815uad.11
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 09:48:50 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C99966B0006
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 12:56:44 -0400 (EDT)
+Received: by mail-ua1-f71.google.com with SMTP id q25so5399772uar.17
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 09:56:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=leMWAIfWTXj1mqExvS/NRtgwNRKENxY7ZLNM3HUR38A=;
-        b=oItFZFDliiYNGGji86TF+Y9ypzH4yM6rJ7SjNCq1fLj3Cfcrfivmip+28JzEHLxMP3
-         Lw9Vqo8CkWdFKlnYGYgAMGZAfZgoE/J9vnd3BKf0M4TFTD0uHibgE+UsuDJPTGxVuRSc
-         gjZpavn6QCCfTqXCCHV+VBvZNdjhV7sOPL0nq8irqhJjDAFQMfiTay9d66jPgTzI5vj+
-         VAbRb4CXfGKa+UMNzgGiql+4UsMyCXgvlGnpRcBDEBpM7X9YTLq57j0M+dGvXKgJnxXu
-         lkx3yIzM56kw1fVruU+pS7HaLzFtoHhm26AZ36Bof7+9lwIhwJ1UFj4+dbNmx8+isDVo
-         UnYw==
+        bh=rbDMXoRSXlzGT0tjWZhwdrsLBEa4Yni2xq2GD1gmOho=;
+        b=VIav9XkqHH2xrwT0bc5n3mbsw0n/wwi5qnYETov9jSmrg3MSct+DdhJ9DvmdmiYt/0
+         Da6d0UbamwmuDY1cBdgbaRKXTT8j1MQ3E6lXOt6TQPdBqeUi8Ic9+Pr/Dehm53P8m/GD
+         zrwJe4iPhqPYyvyOgPavg+txC7kDIwtd57l2Nrvkz1SQae49PlA42u38TQ1pNdxc4WXV
+         QTwK7zbRF7l0kpBsCsoV26TqdzEhekCQ8wnNElxwpR7tZ4KRme9LnoXRFTQq7SUe4ezq
+         p2/GLn94ZXaOMz5M/OdHnlKbbn0uDGvBLXEzYUU2b1BOksy5Bpg2ZRlAkt0V04TSIT+9
+         JUoQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVDUdnoX36716kPQP3MAI1LcGnu2vaBExd2NobWJiRboSqrEsLh
-	k6VmIJy7jE7JpzxDvNWdvj/wdkQTp0EeyibIFXOI91EbmiVx6ZQdkaach+vHDjCxTZsyU3dLh6v
-	MPkaeY74Ptp/pxcu490D1SIt5UTCOISGN0LByP2U9AGGMXEeqILYOxn1ylXFa9jmBHA==
-X-Received: by 2002:a67:ead3:: with SMTP id s19mr39193926vso.147.1564073330253;
-        Thu, 25 Jul 2019 09:48:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyY17l+c9bM5zJgNnT99R+RouPjc7kXV/f9jNbbBRQ7GBWugS8mDb+u2dNYIzE9e//I5vLF
-X-Received: by 2002:a67:ead3:: with SMTP id s19mr39193861vso.147.1564073329653;
-        Thu, 25 Jul 2019 09:48:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564073329; cv=none;
+X-Gm-Message-State: APjAAAUrM5b79ApRgtZmiLG0kgGiKivZhZn/cIht+eDY+i7jdVdvs+p7
+	/aqwsyrtqnvZ+Ew/ZY1sOz7bZIYfsVt2PynibvcIJYWQ/T9rWRInjss29x8SXsw7uwQqccx3J1G
+	apC7ZoZnWxPKRjbLFhG8r6iOEk99YnXDXe+4bk16Qrj7V6KK7ajnNXKU/EplS97F/mw==
+X-Received: by 2002:a67:444:: with SMTP id 65mr56599208vse.166.1564073804564;
+        Thu, 25 Jul 2019 09:56:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyYn5bV3dBSKXLSO4JGCoKtCMaI/c0B8LqFrhcV3BEk6J8a2f+mqBZ6gBMg3pj1cWs0Nwd2
+X-Received: by 2002:a67:444:: with SMTP id 65mr56599113vse.166.1564073803663;
+        Thu, 25 Jul 2019 09:56:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564073803; cv=none;
         d=google.com; s=arc-20160816;
-        b=XOLDaHGHE62Xsvzy9rdxiU1JC4gZ/EuoonKqPhhh7Ub/4CrvuA/PWYYaXnFHVN/94M
-         h4dVZoV9/0vyKEysDfTzfqX8QQ9Ot4vfIoMwlAr+iAE+o6pkiuSiiRyRg7I0oq4aG9Lu
-         NF/KDkouUoAQwVTyAgGfzvPmr76f0Ydua+MBZnU5FEbxQxJINMZcn5ct/pb3IAzilAk0
-         J4mykYvOrl4x2d+2KUANjWYvyzZ7OhJxCKS+npJt1eg82FnbIA90ewAKeD7ZOLzhWmCv
-         KYURKbyGALDFT0F+diRNttj+hgedXS8+7mG0mAy/WlYqh+9qQWsBmk0Q8NdcfibZVZHB
-         QRjA==
+        b=xxVo7JhVho+qN3vu+HoRePCpkETwpCtgoJQs5Twsu2jsmmooE3UkAsIhMTJsgKNkjS
+         W8nygLDO0qUuD2c2CNCfyoWFnoRBJGfCbEUmOIY3uOwxaduXux/t1lhlC6y3vZ6hZvqo
+         Njk9WdCTJ5zJiT3gc6jurQDw1nW6aJZ6d++F9HPPxHO/DQGJ2Qvgbyp73p7bjDdA9h45
+         A84jQkZzYgoEUNx/+MApdoJMhLHBytVvZE8FDyUCr9TKimzqX1yzFyATPYut4+iVwA3O
+         1HE8zFti6JcqcFgJbXU15+fzNLxBsEoS6/DqR+curNCtiH8gle0MGWPyhOvz0WuL3Lbs
+         zP7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=leMWAIfWTXj1mqExvS/NRtgwNRKENxY7ZLNM3HUR38A=;
-        b=juQZoO7WdSUD66g6vrQ+w9VBVW4JXYYBatobqcYuop4xwWYSOyenR+9CxHusydAd2Z
-         ZNJNNgszkYMs9O+RAJHOzzH4IMdZOd6gXQZciaoLbdueIBj86gZYUOpl7bXlNtn6e51e
-         D44O/Nmw50Zksuc7O1dgub2fpf6YwbxHQy6++6NWc8BbJPOFo6k1N4mOZRkWbg0CIQQq
-         P2u9d7LdhHomiUSvisBv/hj7rSSymmMWRLEh4T8Vp10j31KlSKZVLFnIVhmeBuk22BSU
-         JWEdXblNr3NX+6xXyEU2Bl/qPvXiTolTToLoOCanjU6u3g9vuTWI7MtAL6itUoGyscgj
-         AYRA==
+        bh=rbDMXoRSXlzGT0tjWZhwdrsLBEa4Yni2xq2GD1gmOho=;
+        b=nscGNEkXAiZB2nnG5biXMQ6TYm7lqh9USehTJBhyzr2EEPZ53dn7waI5eHhma28fXv
+         d93Ta1rQk5HA2lpcKTK/4wHa/rUFrmcQXRJMsYW52peouQny6aUl1igSTA/o1mliX/b/
+         aS26r743eouhM0smC4heCXEIZo/MsfDWI0G77gutgNcoyY8dyc431okk7A6moxq5Meqy
+         Cew43Z4E8tY31lVGyHPNkw0GQG3r2JCV+Uc1PZ2QXa1OTEKNkSZ9uIZJ4OPDFMxdclSb
+         1nNdRwh1oLxJYez5Gmj+wBO7Om0NMG5nhHMIZUWVtiueegyIqAYiLXsU2dl4KNDOV9ke
+         os2Q==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y3si12695121vsi.28.2019.07.25.09.48.49
+        by mx.google.com with ESMTPS id b7si781924vsj.178.2019.07.25.09.56.43
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 09:48:49 -0700 (PDT)
+        Thu, 25 Jul 2019 09:56:43 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 934C430821F4;
-	Thu, 25 Jul 2019 16:48:48 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 7AF5B30C585C;
+	Thu, 25 Jul 2019 16:56:42 +0000 (UTC)
 Received: from [10.36.116.67] (ovpn-116-67.ams2.redhat.com [10.36.116.67])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id EA17D5E1B0;
-	Thu, 25 Jul 2019 16:48:36 +0000 (UTC)
-Subject: Re: [PATCH v2 4/5] mm: Introduce Hinted pages
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>,
- "Michael S. Tsirkin" <mst@redhat.com>, Dave Hansen <dave.hansen@intel.com>,
- LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
- Andrew Morton <akpm@linux-foundation.org>,
- Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com,
- Rik van Riel <riel@surriel.com>,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com,
- wei.w.wang@intel.com, Andrea Arcangeli <aarcange@redhat.com>,
- Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com,
- Matthew Wilcox <willy@infradead.org>,
- Alexander Duyck <alexander.h.duyck@linux.intel.com>
-References: <20190724165158.6685.87228.stgit@localhost.localdomain>
- <20190724170259.6685.18028.stgit@localhost.localdomain>
- <a9f52894-52df-cd0c-86ac-eea9fbe96e34@redhat.com>
- <CAKgT0Ud-UNk0Mbef92hDLpWb2ppVHsmd24R9gEm2N8dujb4iLw@mail.gmail.com>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 56C085D71A;
+	Thu, 25 Jul 2019 16:56:40 +0000 (UTC)
+Subject: Re: [PATCH v3 0/5] Allocate memmap from hotadded memory
+To: Oscar Salvador <osalvador@suse.de>, akpm@linux-foundation.org
+Cc: dan.j.williams@intel.com, pasha.tatashin@soleen.com, mhocko@suse.com,
+ anshuman.khandual@arm.com, Jonathan.Cameron@huawei.com, vbabka@suse.cz,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190725160207.19579-1-osalvador@suse.de>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -151,108 +140,118 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <f0ac7747-0e18-5039-d341-5dfda8d5780e@redhat.com>
-Date: Thu, 25 Jul 2019 18:48:35 +0200
+Message-ID: <2598d082-dd20-627e-61e9-b9e4b37af877@redhat.com>
+Date: Thu, 25 Jul 2019 18:56:39 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0Ud-UNk0Mbef92hDLpWb2ppVHsmd24R9gEm2N8dujb4iLw@mail.gmail.com>
+In-Reply-To: <20190725160207.19579-1-osalvador@suse.de>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Thu, 25 Jul 2019 16:48:48 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Thu, 25 Jul 2019 16:56:42 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 25.07.19 17:59, Alexander Duyck wrote:
-> On Thu, Jul 25, 2019 at 1:53 AM David Hildenbrand <david@redhat.com> wrote:
->>
->> On 24.07.19 19:03, Alexander Duyck wrote:
->>> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+On 25.07.19 18:02, Oscar Salvador wrote:
+> Here we go with v3.
 > 
-> <snip>
+> v3 -> v2:
+>         * Rewrite about vmemmap pages handling.
+>           Prior to this version, I was (ab)using hugepages fields
+>           from struct page, while here I am officially adding a new
+>           sub-page type with the fields I need.
 > 
->>>  /*
->>> + * PageHinted() is an alias for Offline, however it is not meant to be an
->>> + * exclusive value. It should be combined with PageBuddy() when seen as it
->>> + * is meant to indicate that the page has been scrubbed while waiting in
->>> + * the buddy system.
->>> + */
->>> +PAGE_TYPE_OPS(Hinted, offline)
->>
->>
->> CCing Matthew
->>
->> I am still not sure if I like the idea of having two page types at a time.
->>
->> 1. Once we run out of page type bits (which can happen easily looking at
->> it getting more and more user - e.g., maybe for vmmap pages soon), we
->> might want to convert again back to a value-based, not bit-based type
->> detection. This will certainly make this switch harder.
+>         * Drop MHP_MEMMAP_{MEMBLOCK,DEVICE} in favor of MHP_MEMMAP_ON_MEMORY.
+>           While I am still not 100% if this the right decision, and while I
+>           still see some gaining in having MHP_MEMMAP_{MEMBLOCK,DEVICE},
+>           having only one flag ease the code.
+>           If the user wants to allocate memmaps per memblock, it'll
+>           have to call add_memory() variants with memory-block granularity.
 > 
-> Shouldn't we wait to cross that bridge until we get there? It wouldn't
-> take much to look at either defining the buddy as 2 types for such a
-> case, or if needed we could then look at the option of moving over to
-> another bit.
+>           If we happen to have a more clear usecase MHP_MEMMAP_MEMBLOCK
+>           flag in the future, so user does not have to bother about the way
+>           it calls add_memory() variants, but only pass a flag, we can add it.
+>           Actually, I already had the code, so add it in the future is going to be
+>           easy.
 
-I'd rather clarify this now. I am not yet convinced that having multiple
-page types at a is a good idea.
+FWIW, for now I think this is the right thing to do. Whoever roots for
+this now has to propose an interface on how this is going to be used
+now. Otherwise, this is untested, dead code. Nobody wants that :)
 
 > 
->> 2. It will complicate the kexec/kdump handling. I assume it can be fixed
->> some way - e.g., making the elf interface aware of the exact notion of
->> page type bits compared to mapcount values we have right now (e.g.,
->> PAGE_BUDDY_MAPCOUNT_VALUE). Not addressed in this series yet.
-> 
-> It does, but not by much. We were already exposing both the buddy and
-> offline values. The cahnge could probably be in the executable that
-> are accessing the interface to allow the combination of buddy and
-> offline.
+>         * Granularity check when hot-removing memory.
+>           Just checking that the granularity is the same.
 
-We are exposing mapcount values, not bit values. So you would
-
-> That is one of the advantages of using the "offline" value to
-> also mean hinted since then "hinted" is just a combination of the two
-> known values.
-
-We are exposing mapcount values right now, not individual bits. Either
-expose the bits manually (and thereby the whole page type scheme) or a
-new mapcount value PAGE_BUDDY_OFFLINE_MAPCOUNT_VALUE.
+This is for the powernv/memtrace.c case, right?
 
 > 
->> Can't we reuse one of the traditional page flags for that, not used
->> along with buddy pages? E.g., PG_dirty: Pages that were not hinted yet
->> are dirty.
+> [Testing]
 > 
-> Reusing something like the dirty bit would just be confusing in my
-> opinion. In addition it looks like Xen has also re-purposed PG_dirty
-> already for another purpose.
+>  - x86_64: small and large memblocks (128MB, 1G and 2G)
+> 
+> So far, only acpi memory hotplug uses the new flag.
+> The other callers can be changed depending on their needs.
+> 
+> [Coverletter]
+> 
+> This is another step to make memory hotplug more usable. The primary
+> goal of this patchset is to reduce memory overhead of the hot-added
+> memory (at least for SPARSEMEM_VMEMMAP memory model). The current way we use
+> to populate memmap (struct page array) has two main drawbacks:
+> 
+> a) it consumes an additional memory until the hotadded memory itself is
+>    onlined and
+> b) memmap might end up on a different numa node which is especially true
+>    for movable_node configuration.
+> 
+> a) it is a problem especially for memory hotplug based memory "ballooning"
+>    solutions when the delay between physical memory hotplug and the
+>    onlining can lead to OOM and that led to introduction of hacks like auto
+>    onlining (see 31bc3858ea3e ("memory-hotplug: add automatic onlining
+>    policy for the newly added memory")).
+> 
+> b) can have performance drawbacks.
 
-You brought up waste page management. A dirty bit for unprocessed pages
-fits perfectly in this context. Regarding XEN, as long as it's not used
-along with buddy pages, no issue.
+We now also consume less NORMAL memory when onlining DIMMs to the
+MOVABLE_ZONE, as the vmemmap no longer ends up in the NORMAL zone -
+which is nice. (not perfect, but nice :) )
 
-FWIW, I don't even thing PG_offline matches to what you are using it
-here for. The pages are not logically offline. They were simply buddy
-pages that were hinted. (I'd even prefer a separate page type for that
-instead - if we cannot simply reuse one of the other flags)
-
-"Offline pages" that are not actually offline in the context of the
-buddy is way more confusing.
+I'm curious on how/when you are initializing the vmemmap and setting all
+vmemmap pages to the new page type. Right now, we initialize it when
+onlining memory - will have a look how you sorted that out :)
 
 > 
-> If anything I could probably look at seeing if the PG_private flags
-> are available when a page is in the buddy allocator which I suspect
-> they probably are since the only users I currently see appear to be
-> SLOB and compound pages. Either that or maybe something like PG_head
-> might make sense since once we start allocating them we are popping
-> the head off of the boundary list.
+> One way to mitigate all these issues is to simply allocate memmap array
+> (which is the largest memory footprint of the physical memory hotplug)
+> from the hot-added memory itself. SPARSEMEM_VMEMMAP memory model allows
+> us to map any pfn range so the memory doesn't need to be online to be
+> usable for the array. See patch 3 for more details.
+> This feature is only usable when CONFIG_SPARSEMEM_VMEMMAP is set.
+> 
+> [Overall design]:
+> 
+> Implementation wise we reuse vmem_altmap infrastructure to override
+> the default allocator used by vmemap_populate. Once the memmap is
+> allocated we need a way to mark altmap pfns used for the allocation.
+> If MHP_MEMMAP_ON_MEMORY flag was passed, we set up the layout of the
+> altmap structure at the beginning of __add_pages(), and then we call
+> mark_vmemmap_pages().
+> 
+> MHP_MEMMAP_ON_MEMORY flag parameter will specify to allocate memmaps
+> from the hot-added range.
+> If callers wants memmaps to be allocated per memory block, it will
+> have to call add_memory() variants in memory-block granularity
+> spanning the whole range, while if it wants to allocate memmaps
+> per whole memory range, just one call will do.
 
-Would also be fine with me.
+I assume you you played with all kinds of offlining/onlining of affected
+memory blocks and especially that the vmemmap pages remain set to the
+new page type?
 
 -- 
 
