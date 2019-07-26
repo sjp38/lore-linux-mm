@@ -2,211 +2,121 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,TVD_SPACE_RATIO,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B3CC5C7618F
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 21:25:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 18661C7618F
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 22:34:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6528622BF5
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 21:25:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A7D8721994
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 22:34:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="SgoM4QTy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6528622BF5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (1024-bit key) header.d=chrisdown.name header.i=@chrisdown.name header.b="SrH7L+xp"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A7D8721994
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chrisdown.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EE42D6B0003; Fri, 26 Jul 2019 17:25:07 -0400 (EDT)
+	id EAFD76B0003; Fri, 26 Jul 2019 18:34:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E93BC8E0003; Fri, 26 Jul 2019 17:25:07 -0400 (EDT)
+	id E61098E0003; Fri, 26 Jul 2019 18:34:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D5AF68E0002; Fri, 26 Jul 2019 17:25:07 -0400 (EDT)
+	id D4F9B8E0002; Fri, 26 Jul 2019 18:34:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9DE606B0003
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 17:25:07 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id r142so33962570pfc.2
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 14:25:07 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 9B8CE6B0003
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 18:34:38 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id i6so26243533wre.1
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 15:34:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=rCSNynzsJ2BaJs7UdF7xUQfSzXN+dEXEzajH9yZrdVU=;
-        b=Th+nHMmcXH+5sMmxVp25BNZHPBryxkojWmY1I4bjnO+X/u3kja0hN5xFV1u54kdndp
-         oxMdc2OUTtC2nkGUmRzQhxwKa2KvTrIo5ZUojL3DlWHXNXG2EWqlzQRjPgzilsgCIjkr
-         O4iTpZDAXN6ephy0V3tF1fDQU3vEpQwvRR2jHzEyl54nwI3EN++7I5+Rj3G/oUNM4jP3
-         tLbPixAhHj48rWFTf6cqoi9m0RuecLsg0WY6iVaNcXyXhlIFDzpDigTnYJ75zhXRnFer
-         5uoCIBylEMvkMePQJ8FC/qYmlo/vwBF42Ksb00rQSkpWg1Ikozy8JOV9rwunt55+BQwG
-         N30Q==
-X-Gm-Message-State: APjAAAVPIpAGrftg8cfVo4NRIir0SwWSNbXx/Qf5p+h7AZKUubYXcB3Z
-	8i6IYecXoYVb9E5+CEDGMSK3SuaOx6RtShDQeq6AgeAnPyYyrHrqIeF6E1sC60lG7Esvgg1hLjE
-	RwaCcIFxPe+jFwFfAp3TLCaKkBmLKlyS4YfW2QNDJ9ONHm3qMCFJ/CyE5RDBPrp2ZAw==
-X-Received: by 2002:a62:3103:: with SMTP id x3mr23839992pfx.107.1564176307094;
-        Fri, 26 Jul 2019 14:25:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzeicETekoH0TBMbKvAKCtFrI8yDD3enemCWpq8N77vQl1uc7By+rm+EOjD22zmEM8gDb4L
-X-Received: by 2002:a62:3103:: with SMTP id x3mr23839951pfx.107.1564176306445;
-        Fri, 26 Jul 2019 14:25:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564176306; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=teW9UCbxA/etYx0sHYFoKRXSUQlEi33fuCpUJ8AOwWo=;
+        b=d4gthsBgnCYyBWwZCFY+GifE3clio1Fc14Jx02IFRdZUIq5jXC321jxia2v0ujRIJ+
+         z+QcSnOlIXJZsNZRsNvKEe+pP2QY21J2nHLS73Sk2uHPlWKS5rNd01ab+eyz9xcGnJ/g
+         ysU9fZo4fRd6f+iDXnXzvLMc4i6VCn5DbqfLqBOLeaKRPz4VZE/HS7Fk+G9u2CPfY/3b
+         fVOoDHKFKF2ho9m2Lwd2NiGZAK0WS9jzqBFTWf6Zi8ugIs0wShkxUZLkXcCkblh1G1v8
+         XoB2sc4fIlM0CSCUHuhULxEbSw3IHdIjG3y16qwIhkt7CivZGy0PhaV8hjZpvVzJdIRW
+         riGw==
+X-Gm-Message-State: APjAAAV9vYA0fjQeGEnBrW5ur8Il1onWM8ieHxLgpL4NA085W4JtUfIf
+	pnW8g1mzC1YPcWBH943JDBsWPcAOzDvHTiyQqSwz7FwMZyrstD+qa7KpXU0m1SYbqnFocqPJdDm
+	8C7XBr08P6h9PeWacNUhG9DmiFZVVepTAmojhCqsPupqcr21H5mptHWD0hv0x/MXRzw==
+X-Received: by 2002:a7b:c776:: with SMTP id x22mr13795903wmk.55.1564180477974;
+        Fri, 26 Jul 2019 15:34:37 -0700 (PDT)
+X-Received: by 2002:a7b:c776:: with SMTP id x22mr13795884wmk.55.1564180477121;
+        Fri, 26 Jul 2019 15:34:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564180477; cv=none;
         d=google.com; s=arc-20160816;
-        b=cza5iLY/ljBx6lXUsBGRBwEOv3aPqlkE1l4mQxoZWfNmvertCz6JcEHDAn8dd//ImS
-         dE61ft6Z1J3DYk3XyhfEhnPlywGEznRfAU8XbFZCDJ5c/DZ4Nobs/kfid7tozlcym1Gk
-         1FR8cko+By5HnU41UFsP8XgqVixuw2Dqc2FzRR8mCCENXIa4PJn6XNOuWRGWSp7nHkig
-         Ncbuz2ePwhBOyHdZFU5qRI0jOa9tN454Ve78pHYSgLCg8jnmgX+Uo/KQ+cw+q/JIB0vW
-         ca1zKZBhUvZj2TPOXhMLgFy41/k8k+cK6+qWkoiG9SGtR9GJfANCUdXaTGpBm+8GZ8j1
-         XUEQ==
+        b=JOCSGfDwwEPczBQ2qhmvKwTlisVP/Rjx5B8BASIZepxdNLDO9OsKgZhvCC6wF/O8zi
+         V8qLLbvUcZoT+P1HI0fCffwBG+Iq/l0XjJiwTLe82lHM5Zeqi0a6UQ/JLpcR7SiPYTLg
+         XlwRZWwUg/C4ruCk9wURv2jxc65AZBO6unFiSzKUVMOp7V9amqHMWrAI0colYS15pGEv
+         9C+XkXmeGGkZdsn9l1nr7NtRv+J/mWERfUyBS+Ye+yKnSWO07bHvQT6SdTmJJ8SvhJ5b
+         9GihLTv91akQWRp78XXXwpNVIoVCbIdPCuN5JFt1FjrCwCAANXh//4r1qY2LYAyhmYmT
+         mrnQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:date:cc:to:from:subject:message-id:dkim-signature;
-        bh=rCSNynzsJ2BaJs7UdF7xUQfSzXN+dEXEzajH9yZrdVU=;
-        b=eHplkxTuSAPvckoIgHE0gCT5curKDq73kwhd1Zttb9x4+S5v3zsywUjV//yuw0k7hG
-         rpETfXc/Qh5EnwaCS3CGQHPRghWLXjkub+B76DGpSNVpuUMjA521N7qXtg5K1YSpzY0c
-         WTAs0JHKP0RyxkzNe627DjY/0CUXhAwxZyBBT2vdG551uXoYI07LpdLzRMvHAd2YTqUR
-         5CZn5aX87BVbXcvQVdVa677cVMC9MxBmYQU+jaTap0HVon1xODTnEtbfaiZIOH01W7Im
-         Kn00VD1fIUJ4vYPJ4CRnP0Y9ibEatILCc5AVpaQJpBhf1JOCAW29v4l8rfaRJnK5KiHe
-         ZuUw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=teW9UCbxA/etYx0sHYFoKRXSUQlEi33fuCpUJ8AOwWo=;
+        b=bVufTtHP1cXaMeQv3DUG74YyZNe/jyaSmuGSlwyltgHhM3GcS/TJ22I5Ir1OOuWHjR
+         +qsQZOKqkKbI3vgqvcbeHhQoY12vbsMy4B+dTwI7dFtJWDY7lxRHcO1onowCfZEQ+Ku1
+         xeqosWPajKOkYL63NJne9u+OWftzOlwuopoEAvLLs8IRmtEuk0QLHAlhzNlrQ0T8Y4iQ
+         pAmLYsEr7sIxZyXNM3EOggbm1Bbu3dgeeHe+znHAqENLmBFn3QzH3mcyhnurkMosX9Rb
+         SaVjJ9+5muAqgoa91OEb4yJiNT6sC2GmQsmKYiqngWaP/axBGIqoFrhChaZJ0X8tBzIT
+         JAMQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=SgoM4QTy;
-       spf=pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jlayton@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d67si21793709pgc.62.2019.07.26.14.25.06
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=SrH7L+xp;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.41 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id y134sor30054952wmc.4.2019.07.26.15.34.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jul 2019 14:25:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Fri, 26 Jul 2019 15:34:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of chris@chrisdown.name designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=SgoM4QTy;
-       spf=pass (google.com: domain of jlayton@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=jlayton@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from tleilax.poochiereds.net (cpe-71-70-156-158.nc.res.rr.com [71.70.156.158])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 1D8DA2083B;
-	Fri, 26 Jul 2019 21:25:05 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1564176306;
-	bh=ZMdUsOA413NREipWgNGiUNHEV337/SQnp+du76ZZxss=;
-	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
-	b=SgoM4QTyfOezHqndzroxeVQLXZc50SrbGADq3WK34Po2ZYwAgUgtDk2BWLI8WUPDS
-	 QT+w4eRLC0ER0mBGJpRzxSzzYrouBUJ0OCJZJNck2mCYD7WvsZJek9KOkB8Nph03Rr
-	 tS+sH0DqV/9miLNPM2lwhKLFafryPhYtnKl8aJcM=
-Message-ID: <e4b0d323ed0bc159d863945251cf3f4c4064526c.camel@kernel.org>
-Subject: Re: [PATCH] mm: Make kvfree safe to call
-From: Jeff Layton <jlayton@kernel.org>
-To: Alexander Duyck <alexander.duyck@gmail.com>, Matthew Wilcox
-	 <willy@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm
- <linux-mm@kvack.org>,  LKML <linux-kernel@vger.kernel.org>, Alexander Viro
- <viro@zeniv.linux.org.uk>, Luis Henriques <lhenriques@suse.com>, Christoph
- Hellwig <hch@lst.de>, Carlos Maiolino <cmaiolino@redhat.com>
-Date: Fri, 26 Jul 2019 17:25:03 -0400
-In-Reply-To: <CAKgT0UcMND12oZ1869howDjcbvRj+KwabaMuRk8bmLZPWbJWcg@mail.gmail.com>
-References: <20190726210137.23395-1-willy@infradead.org>
-	 <CAKgT0UcMND12oZ1869howDjcbvRj+KwabaMuRk8bmLZPWbJWcg@mail.gmail.com>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.32.4 (3.32.4-1.fc30) 
+       dkim=pass header.i=@chrisdown.name header.s=google header.b=SrH7L+xp;
+       spf=pass (google.com: domain of chris@chrisdown.name designates 209.85.220.41 as permitted sender) smtp.mailfrom=chris@chrisdown.name;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chrisdown.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chrisdown.name; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=teW9UCbxA/etYx0sHYFoKRXSUQlEi33fuCpUJ8AOwWo=;
+        b=SrH7L+xpuU1C1Kssd1KDttlOB49IMMPtIOR5yli5S5pWcQxnZNKt5LAPavHiUwG87I
+         1w++3qzt9eZqIaOwkWVxdiU/OQ2WAL7+NL+MxRzBrxYahSSwnbuLkvIiQqo9HufBxoIQ
+         O2j/JBfq4sBzIMt1gIhTXPOdxamo/Nt4i4hik=
+X-Google-Smtp-Source: APXvYqzoKpPSoj7/6ufA48Cus4/lJuhS4fRI6EnNvP6Zx4/+34y6jmxLY1EmlQ2icJZjpfSiQJH+bA==
+X-Received: by 2002:a1c:107:: with SMTP id 7mr86911714wmb.84.1564180476668;
+        Fri, 26 Jul 2019 15:34:36 -0700 (PDT)
+Received: from localhost ([2620:10d:c092:180::1:602a])
+        by smtp.gmail.com with ESMTPSA id 4sm123647887wro.78.2019.07.26.15.34.35
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 26 Jul 2019 15:34:36 -0700 (PDT)
+Date: Fri, 26 Jul 2019 23:34:33 +0100
+From: Chris Down <chris@chrisdown.name>
+To: kbuild test robot <lkp@intel.com>
+Cc: kbuild-all@01.org, Johannes Weiner <hannes@cmpxchg.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linux Memory Management List <linux-mm@kvack.org>
+Subject: Re: [mmotm:master 49/120] mm/memcontrol.c:2418: undefined reference
+ to `__udivdi3'
+Message-ID: <20190726223433.GA64654@chrisdown.name>
+References: <201907270424.JeLLgbe6%lkp@intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <201907270424.JeLLgbe6%lkp@intel.com>
+User-Agent: Mutt/1.12.1 (2019-06-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-07-26 at 14:10 -0700, Alexander Duyck wrote:
-> On Fri, Jul 26, 2019 at 2:01 PM Matthew Wilcox <willy@infradead.org> wrote:
-> > From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
-> > 
-> > Since vfree() can sleep, calling kvfree() from contexts where sleeping
-> > is not permitted (eg holding a spinlock) is a bit of a lottery whether
-> > it'll work.  Introduce kvfree_safe() for situations where we know we can
-> > sleep, but make kvfree() safe by default.
-> > 
-> > Reported-by: Jeff Layton <jlayton@kernel.org>
-> > Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-> > Cc: Luis Henriques <lhenriques@suse.com>
-> > Cc: Christoph Hellwig <hch@lst.de>
-> > Cc: Carlos Maiolino <cmaiolino@redhat.com>
-> > Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
-> 
-> So you say you are adding kvfree_safe() in the patch description, but
-> it looks like you are introducing kvfree_fast() below. Did something
-> change and the patch description wasn't updated, or is this just the
-> wrong description for this patch?
-> 
-> > ---
-> >  mm/util.c | 26 ++++++++++++++++++++++++--
-> >  1 file changed, 24 insertions(+), 2 deletions(-)
-> > 
-> > diff --git a/mm/util.c b/mm/util.c
-> > index bab284d69c8c..992f0332dced 100644
-> > --- a/mm/util.c
-> > +++ b/mm/util.c
-> > @@ -470,6 +470,28 @@ void *kvmalloc_node(size_t size, gfp_t flags, int node)
-> >  }
-> >  EXPORT_SYMBOL(kvmalloc_node);
-> > 
-> > +/**
-> > + * kvfree_fast() - Free memory.
-> > + * @addr: Pointer to allocated memory.
-> > + *
-> > + * kvfree_fast frees memory allocated by any of vmalloc(), kmalloc() or
-> > + * kvmalloc().  It is slightly more efficient to use kfree() or vfree() if
-> > + * you are certain that you know which one to use.
-> > + *
-> > + * Context: Either preemptible task context or not-NMI interrupt.  Must not
-> > + * hold a spinlock as it can sleep.
-> > + */
-> > +void kvfree_fast(const void *addr)
-> > +{
-> > +       might_sleep();
-> > +
-
-    might_sleep_if(!in_interrupt());
-
-That's what vfree does anyway, so we might as well exempt the case where
-you are.
-
-> > +       if (is_vmalloc_addr(addr))
-> > +               vfree(addr);
-> > +       else
-> > +               kfree(addr);
-> > +}
-> > +EXPORT_SYMBOL(kvfree_fast);
-> > +
-
-That said -- is this really useful?
-
-The only way to know that this is safe is to know what sort of
-allocation it is, and in that case you can just call kfree or vfree as
-appropriate.
-
-> >  /**
-> >   * kvfree() - Free memory.
-> >   * @addr: Pointer to allocated memory.
-> > @@ -478,12 +500,12 @@ EXPORT_SYMBOL(kvmalloc_node);
-> >   * It is slightly more efficient to use kfree() or vfree() if you are certain
-> >   * that you know which one to use.
-> >   *
-> > - * Context: Either preemptible task context or not-NMI interrupt.
-> > + * Context: Any context except NMI.
-> >   */
-> >  void kvfree(const void *addr)
-> >  {
-> >         if (is_vmalloc_addr(addr))
-> > -               vfree(addr);
-> > +               vfree_atomic(addr);
-> >         else
-> >                 kfree(addr);
-> >  }
-> > --
-> > 2.20.1
-> > 
-
--- 
-Jeff Layton <jlayton@kernel.org>
+Andrew already kindly fixed it in 
+mm-throttle-allocators-when-failing-reclaim-over-memoryhigh-fix-fix.patch.
 
