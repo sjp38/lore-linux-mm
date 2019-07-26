@@ -2,105 +2,110 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F0657C7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:26:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B116C7618B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:31:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF11C229F9
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:26:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF11C229F9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id 1F56C229F9
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:31:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F56C229F9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 169B66B0003; Fri, 26 Jul 2019 06:26:07 -0400 (EDT)
+	id B50466B0003; Fri, 26 Jul 2019 06:31:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1192B6B0005; Fri, 26 Jul 2019 06:26:07 -0400 (EDT)
+	id AFFF66B0005; Fri, 26 Jul 2019 06:31:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F24686B0006; Fri, 26 Jul 2019 06:26:06 -0400 (EDT)
+	id 9F1978E0002; Fri, 26 Jul 2019 06:31:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A83E06B0003
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 06:26:06 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id f16so25328136wrw.5
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 03:26:06 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F96A6B0003
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 06:31:15 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id f19so33863715edv.16
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 03:31:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=0wNYkdHC/9JLBYd6vNd/C3Zk994Z0t9x1daeBHW/qm4=;
-        b=m/rCBYYpuCQQOAdDQd8NV8qt1Grqo+9rfE6k9Dl1ajpwHr5wgfolpeBBlUaakDe9gF
-         BcZFhVvWsaghNqy5Zq4IPeeR4U+h7G/ImfZuRSuyDP0N9VNo44Vf3mcMjXLmjMEq+xUR
-         YS0jEb47gE4PvSSj9G/YWasNFKa1QP6GsUWZJtMWqZfT1EP4qcDX/fLc0ZGvG4ze7Ode
-         VM7BML7sUdxQFxcX6kd0LWFRTe3QRmFyf+WriR/MBbwiD7bW1LKHTeGsGaiwMhYZqPkl
-         mZGMa6d/xMXbdgTu4suyriBixUod6Z4v7pOm49HYQrHRSRtTtynfQb6Kuth0I5PYlQnc
-         vElA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.220 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAUuasVuaOEbI2RRwXGYhCtApLqnGz2JDAkl+cY+bgFpyjTOloQt
-	M3hluedN206Jy2gZyCm2VvRsRDWZ2Lg6GZWNjMbsO5aFEjAlwpAKR4v5aLw/Dn+AdaVzUvoES2a
-	7xDAEsdz4HzGnKmREM1zpsfZjqiyCDY6HbkjAI8tvynhUr9ITq3AZLn8v71/1CvS3mA==
-X-Received: by 2002:a1c:e109:: with SMTP id y9mr49444748wmg.35.1564136766171;
-        Fri, 26 Jul 2019 03:26:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzU+MD+RwMpMcNdZzoDIY5WUQqbbr0mAQEIbv6Rwh4DjDM+eXNOMhy6PScVf5BTAb3O5ncB
-X-Received: by 2002:a1c:e109:: with SMTP id y9mr49444671wmg.35.1564136765237;
-        Fri, 26 Jul 2019 03:26:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564136765; cv=none;
+        bh=q5OSh3OERl92GZLXK5ongYTq/KLDbxrfouQidJQ8hPs=;
+        b=KL9Z0yzG0BljXFLLr85zpTf5HpSFKvgLCMg0bZsMyZQfTR/SqnoGfCUd1cpHUTC5BC
+         Nr263IU+z87X6DNJaew00X4orWA8pW8Zbh3cZdrTQ1nDwerQeyw9LK7YM660/w534Hk4
+         9eZgrhO35hEG/0WlNonuJGsiTbsLa2Dz5rcITm3slBTUfwvAgT9slmK2K1XwdAJ7Yn1k
+         KBhW3h0d8GLWYqjs4zFpsEYXfJKJ9FraZr7baVREEvhZBLiXiFJSQoJ2+BrrQjjl54Ov
+         KcD729gMqjXTLx/Fc1Vt7vsxdsygjX4UoiuQPz6W3qxLSwfDfx+mmDiDsABl9f366vZP
+         WqPw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAX58xdepLegWGDC07Gc12ZMXJoTS1ShIt//GPAmQu8uPc4INC5H
+	h1vn+SgiyUC1QEmBMcjTfwm5jWlsYjgf7Uf9AGtGDThlwXoVPQxuSoVDIAaHhvih4BmKUKgo0NZ
+	H7ndAV9dvRm1lgcJbW/DrdHQEVOMcvVYuVP38UbZv5pXvAIPK2QibjYoL7E0oMTI=
+X-Received: by 2002:a50:fc18:: with SMTP id i24mr81342706edr.249.1564137074838;
+        Fri, 26 Jul 2019 03:31:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw96ZbSeZ01p7QCtf3yVyfQpK3SMHUA7DyoQBuDkJeyPjVIKUmwitAUlH7aIVSHU4YJ7na+
+X-Received: by 2002:a50:fc18:: with SMTP id i24mr81342649edr.249.1564137074087;
+        Fri, 26 Jul 2019 03:31:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564137074; cv=none;
         d=google.com; s=arc-20160816;
-        b=sWQjn7eFJSKUk/8fRKLdulrxG1Nm77yhp7/DhoRI+SdfhLr3MbM9xKrAyvWzHEC6l1
-         OcwomygyCwXJDLrVbfhjOrcE6fI1wGGyssnuXsv2EDq2fRkYDgBp7LW2ojUL2vNjWoHU
-         064+t8W4gjHItNyG9GWBzq6MdiBlb4Rld3TwEmUIsb1dI4+xnov6SCxg35OCKH/MEpBR
-         VXYcJZflm9zTnErtjovUmDWfi6oSEIRBI7mtcRdlplDhfUBi4KKZlMrkYhcfL7ynSrvE
-         7L99KeQ3/G3/lqTs75EqU1P4HzAFzXWTG/q6NVNuVC+FxpaHZb8B7Wqk7f6K5b/0q1CV
-         PV4Q==
+        b=T9dUCBekaaatBEtRFkDCXLhyEYAJxCVT9lB1FW9gxLVXev3wfeeSknDN5Lag8L4l2Z
+         /gFoQDG4FeMAZ7qvnZuXSCV38tnAb6BgF+NtLnp1pEo1xEWslwiiw/rWeR/CtZ5RB4Zb
+         CFK/ukMt+fitak0rSJH5QMKx+UxfUI7FHzj/PApE8qLFo4xFpn4xF692zDV0D1VUFucI
+         4ZzMClQdMn+RN6X43WEvtfLChy2iOyZLq/MaL00Vx+iCvkaOkvIIjOAmTq+lCj9YJTWe
+         lWVefWX0nlJSAnE6i51Y8Dn6SG1hwk8C89F9EcAMpO4HH28Z26BQTXBeAtk5Oh3m53k/
+         yZAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=0wNYkdHC/9JLBYd6vNd/C3Zk994Z0t9x1daeBHW/qm4=;
-        b=y0g+ahxG7oBcNYVLGanBuJaUMV1yVcL1hSJoK+0dqtyeFm4OyPpxFkivwVpSDWDPZg
-         lBY/+NROZFb4fjKJAI67H6dOeXcCU/j0exRfx5WhFNmw23hqUFr/AchWr6Wtc2p3AojU
-         7mbnjCyQkUwJZ7yctC1Sbu2N95o17FMNYZQtYDJ9Rz//3SOPPzchw2kXTmHGTuUkVTlH
-         lf8JoYpNfZe7B/e2k2mUNYA3CdVQczTwtfPqZQwowKiWca5cBthDREPnOw431KGExMDf
-         oxSOlywqlb1Em6617YFQ0weN2dCArrPDNd0lV7FTgaJDslTbbKoWilGhMBsL9Rp6DH1/
-         wy7A==
+        bh=q5OSh3OERl92GZLXK5ongYTq/KLDbxrfouQidJQ8hPs=;
+        b=ZhQHSJT/+ryvjumnyh8nKWy4M0+f58vxeX7bDdQ60ImGJjqRT7tIdeAWTh9CHlkRrQ
+         esRxkkAE8+/jqlqWrrEKUd230rV144Vk6cMSuMUke35lViH9O8AAxhRZmTnEwYt9X3L4
+         ZeYJCWgH7VwrjDkPvgR27hIqTch1JlnejEHmKjJj8xD1RAedrGhFvo/jhActyEjphe+t
+         9LGaplr18gVeVjc4FHaJ4dNaqgsMvsmwp0ZSBEbM/ho5Yj9Co4wjaCaRzMrav6Qs5zW2
+         NaW0IUu/O6KxLB/3DH58rzPMpLUZRu28lHVzW8ogFEWj2caeog0BASrSUG/Gg83F98Mn
+         7LCA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.220 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp37.blacknight.com (outbound-smtp37.blacknight.com. [46.22.139.220])
-        by mx.google.com with ESMTPS id r132si17617476wma.63.2019.07.26.03.26.04
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l28si12772958edb.261.2019.07.26.03.31.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jul 2019 03:26:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.220 as permitted sender) client-ip=46.22.139.220;
+        Fri, 26 Jul 2019 03:31:14 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.220 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (unknown [81.17.255.152])
-	by outbound-smtp37.blacknight.com (Postfix) with ESMTPS id BADC193B
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 11:26:04 +0100 (IST)
-Received: (qmail 16510 invoked from network); 26 Jul 2019 10:26:04 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[84.203.19.7])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 26 Jul 2019 10:26:04 -0000
-Date: Fri, 26 Jul 2019 11:26:02 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Linux MM <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>,
-	Arnd Bergmann <arnd@arndb.de>,
-	Paul Gortmaker <paul.gortmaker@windriver.com>,
-	Rik van Riel <riel@redhat.com>,
-	Yafang Shao <shaoyafang@didiglobal.com>
-Subject: Re: [PATCH] mm/compaction: use proper zoneid for
- compaction_suitable()
-Message-ID: <20190726102602.GD2739@techsingularity.net>
-References: <1564062621-8105-1-git-send-email-laoar.shao@gmail.com>
- <20190726070939.GA2739@techsingularity.net>
- <CALOAHbA2sHSOpZXE6E+VjdJENa-WCZCo=-=YOqyVYAhkpf+Lrg@mail.gmail.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 58D0DAEAF;
+	Fri, 26 Jul 2019 10:31:13 +0000 (UTC)
+Date: Fri, 26 Jul 2019 12:31:12 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-acpi@vger.kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Oscar Salvador <osalvador@suse.de>
+Subject: Re: [PATCH v1] ACPI / scan: Acquire device_hotplug_lock in
+ acpi_scan_init()
+Message-ID: <20190726103112.GL6142@dhcp22.suse.cz>
+References: <20190725135747.GB3582@dhcp22.suse.cz>
+ <447b74ca-f7c7-0835-fd50-a9f7191fe47c@redhat.com>
+ <20190725191943.GA6142@dhcp22.suse.cz>
+ <e31882cf-3290-ea36-77d6-637eaf66fe77@redhat.com>
+ <20190726075729.GG6142@dhcp22.suse.cz>
+ <fd9e8495-1a93-ac47-442f-081d392ed09b@redhat.com>
+ <20190726083117.GJ6142@dhcp22.suse.cz>
+ <38d76051-504e-c81a-293a-0b0839e829d3@redhat.com>
+ <20190726084408.GK6142@dhcp22.suse.cz>
+ <45c9f942-fe67-fa60-b62f-31867f9c6e53@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALOAHbA2sHSOpZXE6E+VjdJENa-WCZCo=-=YOqyVYAhkpf+Lrg@mail.gmail.com>
+In-Reply-To: <45c9f942-fe67-fa60-b62f-31867f9c6e53@redhat.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -108,107 +113,77 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 26, 2019 at 06:06:48PM +0800, Yafang Shao wrote:
-> On Fri, Jul 26, 2019 at 3:09 PM Mel Gorman <mgorman@techsingularity.net> wrote:
-> >
-> > On Thu, Jul 25, 2019 at 09:50:21AM -0400, Yafang Shao wrote:
-> > > By now there're three compaction paths,
-> > > - direct compaction
-> > > - kcompactd compcation
-> > > - proc triggered compaction
-> > > When we do compaction in all these paths, we will use compaction_suitable()
-> > > to check whether a zone is suitable to do compaction.
-> > >
-> > > There're some issues around the usage of compaction_suitable().
-> > > We don't use the proper zoneid in kcompactd_node_suitable() when try to
-> > > wakeup kcompactd. In the kcompactd compaction paths, we call
-> > > compaction_suitable() twice and the zoneid isn't proper in the second call.
-> > > For proc triggered compaction, the classzone_idx is always zero.
-> > >
-> > > In order to fix these issues, I change the type of classzone_idx in the
-> > > struct compact_control from const int to int and assign the proper zoneid
-> > > before calling compact_zone().
-> > >
-> >
-> > What is actually fixed by this?
-> >
+On Fri 26-07-19 10:57:52, David Hildenbrand wrote:
+> On 26.07.19 10:44, Michal Hocko wrote:
+> > On Fri 26-07-19 10:36:42, David Hildenbrand wrote:
+> >> On 26.07.19 10:31, Michal Hocko wrote:
+> > [...]
+> >>> Anyway, my dislike of the device_hotplug_lock persists. I would really
+> >>> love to see it go rather than grow even more to the hotplug code. We
+> >>> should be really striving for mem hotplug internal and ideally range
+> >>> defined locking longterm. 
+> >>
+> >> Yes, and that is a different story, because it will require major
+> >> changes to all add_memory() users. (esp, due to the documented race
+> >> conditions). Having that said, memory hotplug locking is not ideal yet.
+> > 
+> > I am really happy to hear that we are on the same page here. Do we have
+> > any document (I am sorry but I am lacking behind recent development in
+> > this area) that describes roadblocks to remove device_hotplug_lock?
 > 
-> Recently there's a page alloc failure on our server because the
-> compaction can't satisfy it.
+> Only the core-api document I mentioned (I documented there quite some
+> current conditions I identified back then).
 
-That could be for a wide variety of reasons. There are limits to how
-aggressive compaction will be but if there are unmovable pages preventing
-the allocation, no amount of cleverness with the wakeups will change that.
+That document doesn't describe which _data structures_ are protected by
+the lock though. It documents only the current state of locking.
 
-> This issue is unproducible, so I have to view the compaction code and
-> find out the possible solutions.
+> I am not sure if we can remove it completely from
+> add_memory()/remove_memory(): We actually create/delete devices which
+> can otherwise create races with user space.
 
-For high allocation success rates, the focus should be on strictness of
-fragmentation control (hard, multiple tradeoffs) or increasing the number
-of pages that can be moved (very hard, multiple tradeoffs).
+More details would be really appreciated.
 
-> When I'm reading these compaction code, I find some  misuse of
-> compaction_suitable().
-> But after you point out, I find that I missed something.
-> The classzone_idx should represent the alloc request, otherwise we may
-> do unnecessary compaction on a zone.
-> Thanks a lot for your explaination.
-> 
+> Besides that:
+> - try_offline_node() needs the lock to synchronize against cpu hotplug
+> - I *assume* try_online_node() needs it as well
 
-Exactly.
+more details on why would be great.
 
-> Hi Andrew,
-> 
-> Pls. help drop this patch. Sorry about that.
+> Then, there is the possible race condition with user space onlining
+> memory avoided by the lock. Also, currently the lock protects the
+> "online_type" when onlining memory.
 
-Agreed but there is no need to apologise. The full picture of this problem
-is not obvious, not described anywhere and it's extremely difficult to
-test and verify.
+I do not see the race, if the user API triggered online/offline takes a
+range lock on the affected physical memory range
 
-> > > <SNIP>
-> > > @@ -2535,7 +2535,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
-> > >                                                       cc.classzone_idx);
-> > >       count_compact_event(KCOMPACTD_WAKE);
-> > >
-> > > -     for (zoneid = 0; zoneid <= cc.classzone_idx; zoneid++) {
-> > > +     for (zoneid = 0; zoneid <= pgdat->kcompactd_classzone_idx; zoneid++) {
-> > >               int status;
-> > >
-> > >               zone = &pgdat->node_zones[zoneid];
-> >
-> > This variable can be updated by a wakeup while the loop is executing
-> > making the loop more difficult to reason about given the exit conditions
-> > can change.
-> >
-> 
-> Thanks for your point out.
-> 
-> But seems there're still issues event without my change ?
-> For example,
-> If we call wakeup_kcompactd() while the kcompactd is running,
-> we just modify the kcompactd_max_order and kcompactd_classzone_idx and
-> then return.
-> Then in another path, the wakeup_kcompactd() is called again,
-> so kcompactd_classzone_idx and kcompactd_max_order will be override,
-> that means the previous wakeup is missed.
-> Right ?
-> 
+> Then, there might be other global variables (eventually
+> zone/node/section related) that might need this lock right now - no
+> details known.
 
-That's intended. When kcompactd wakes up, it takes a snapshot of what is
-requested and works on that. Other requests can update the requirements for
-a future compaction request if necessary. One could argue that the wakeup
-is missed but really it's "defer that request to some kcompactd activity
-in the future". If kcompactd loops until there are no more requests, it
-can consume an excessive amount of CPU due to requests continually keeping
-it awake. kcompactd is best-effort to reduce the amount of direct stalls
-due to compaction but an allocation request always faces the possibility
-that it may stall because a kernel thread has not made enough progress
-or failed.
+zones/nodes have their own locking for spans. Sections should be using
+a low level locking but I am not really sure this is needed if there is
+a mem hotplug lock in place (range or global)
 
-FWIW, similar problems hit kswapd in the past where allocation requests
-could artifically keep it awake consuming 100% of CPU.
+> IOW, we have to be very carefully and it is more involved than it might
+> seem.
 
+I am not questioning that. And that is why I am asking about a todo list
+for that transition.
+
+> Locking is definitely better (and more reliably!) than one year ago, but
+> there is definitely a lot to do. (unfortunately, just like in many areas
+> in memory hotplug code :( - say zone handling when offlining/failing to
+> online memory).
+
+Yeah, the code is shaping up. And I am happy to see that happening. But
+please try to understand that I really do not like to see some ad-hoc
+locking enforcement without a clear locking model in place. This patch
+is an example of it. Whoever would like to rationalize locking further
+will have to stumble over this and scratch head why the hack the locking
+is there and my experience tells me that people usually go along with
+existing code and make further assumptions based on that so we are
+unlikely to get rid of the locking...
 -- 
-Mel Gorman
+Michal Hocko
 SUSE Labs
 
