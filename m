@@ -2,179 +2,233 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 24856C76191
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 11:09:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D613AC7618B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 11:14:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EA2C722ADA
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 11:09:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA2C722ADA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 8A83121852
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 11:14:22 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Jl78jgis"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A83121852
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 714616B0003; Fri, 26 Jul 2019 07:09:42 -0400 (EDT)
+	id 2CCA56B0005; Fri, 26 Jul 2019 07:14:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6C57B6B0005; Fri, 26 Jul 2019 07:09:42 -0400 (EDT)
+	id 27E4B6B0006; Fri, 26 Jul 2019 07:14:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5DC1A8E0002; Fri, 26 Jul 2019 07:09:42 -0400 (EDT)
+	id 195128E0002; Fri, 26 Jul 2019 07:14:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 128236B0003
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 07:09:42 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id y15so33917461edu.19
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 04:09:42 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id EE76B6B0005
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 07:14:21 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id m26so58383301ioh.17
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 04:14:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=dDbcwl7Bs+mn1YNTK1xlD989BeivSdEtGkH/XWYFPQg=;
-        b=oansGGuA2WYaCauFf0LaD2b63GCbeNu+hMPAolzMjLh+bw2Ko3o8bd18yC7pWyVhWJ
-         mXIwDJFZz7J1ieVH6y+rkF+yBLwxcePCAnoAcGw0qsXQIShpc8BeTQ2ZN76Mnl1ET6EC
-         SfOFh+hDb34Zt0lS+uTUkESoIOGcyBfSTh9z+KoksuyzWjDWhFG/EWFSokIOCcN9m+CU
-         t34xai2kwneElbPyMJ8yICnZQlugOJeHM0KkRXoU/1ldUlC/H9U8Phko8/y4q5paRR8k
-         2YNaUvBEllVS9QubbgWZwdhrmzpA2sHAAtp2biPUj1wTYI4yt1UZguZztCCkIMjU1+EI
-         e/9w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Gm-Message-State: APjAAAVdyP54tP1Cnkqiog+SM/7Pdy9Kfb0WLQYTOqeJp63SI9i6bhNO
-	cQWYb1gIIzeTd50bUQw4zRrFW3RtVZ0kbgA+L8Bmgo+Lw+Zx5FCnwYdOkdzWT3s5xcApbWnYlcw
-	f1yNYI2SLL/fAAmiK6+rJ3s6swfrT/jNfkPP+bnswG5pPMdo3TMfsJqamwTbb6ESWDQ==
-X-Received: by 2002:a50:b48f:: with SMTP id w15mr83170144edd.260.1564139381663;
-        Fri, 26 Jul 2019 04:09:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyGEndIION52yqvyYsBFg04H8ujB+H9hx084pTCaCtxqWnEpxJjMo4Kpi7GWLBAN4HR0NhS
-X-Received: by 2002:a50:b48f:: with SMTP id w15mr83170079edd.260.1564139380869;
-        Fri, 26 Jul 2019 04:09:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564139380; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=0M/nUeAr2qrx9NG9JsIDfA6wIkuEQwVlnlogMGXV4+U=;
+        b=EfLTCflG+RIfQ00w1SqyZ8hGu5QuDmqeY4TMobxBb9xFosbTPEAbH6zHmRsgtZjAIZ
+         G+qOsFF6LnPTUQ7epZ3w2A2rkEIZhvvKIPIqz3gJiIZFk5S/8Q6PVS2y+9pntx1jRHE6
+         pG2K03+hyrIa5OBwBOK6+IpGOPPzkflnXpbyecZPFniv9tTK4AqPZgog9JshPc2ep32j
+         iU0Var4WZ/TukBmWtJdacZrAiT8pxT3VYX/TKoeDiwjVWok1nMFzRyNFsyWpPHq9oSHd
+         RO8eBlUsiHNiwTeoh2mIMqoRBIo6dWix8K5Z0nygZlezPVimBpFZJxqOjdxgw/IDySNj
+         Rkzw==
+X-Gm-Message-State: APjAAAVvswZghRhMkrM1QvIC+bbP3c/XE6HJGApsDdWMwuGPE8fg1hb4
+	7ZU9DWA1f8J2PYuQpiyYsvuSVSiG5AZYYdmZYsTCby2ial+dPmn1Eb6b2pSYm6UMoQnq1tAUeow
+	efTVWd/tZEstVnEuyoFkLTUQF2Wo5FWitkINppOYGN/ytTsvs8s+6z8u/sUhN6D9w+Q==
+X-Received: by 2002:a6b:b756:: with SMTP id h83mr56146208iof.147.1564139661685;
+        Fri, 26 Jul 2019 04:14:21 -0700 (PDT)
+X-Received: by 2002:a6b:b756:: with SMTP id h83mr56146162iof.147.1564139660971;
+        Fri, 26 Jul 2019 04:14:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564139660; cv=none;
         d=google.com; s=arc-20160816;
-        b=VZJRWH0UzMZexrmTwomLmIpSOQPlvd11w6DedYTQGTUEWYVvMp1n2jeOTHWMzCt2yg
-         SONUMGn492yi0incIejohod4bSGLWzLumOV+81/6T7MwR6PlMTOTQ8OpZ9gJQ/LgkK3W
-         n7Hit1DZp8gYVlstjrSv5FLLqCyo/KBS6wWvm3Ylj4kYfLGwNr8/oT2d3vZoyZ4nnOpw
-         xvZ03GbHf4Wz3iS2o7Jakqjq2L3ao0LZVnzWIzqQ+SSDfDBqTOt9NqQay0EFgKqOWREe
-         W8KalfnnijF/rKDFolL1bH9uN2teoP4IcC0o2s+maMIwrCuZgIGNiX/kEk66L9S4+U3J
-         tvwA==
+        b=HA0n11vsUi14qJevtUn7jsE0F8/SQCragtIYgfOBRdtF9SdQ/QYdgPhW7X8bb1m6GN
+         4hx4qcJODQDSXrDn7XPGyMY+ZOIpqpBwvepAtOrPDxDjoUt2WALyp6k91IPzeYm6OmUg
+         DFAlGjZCHR1dFV7GaL82ByhS24jkyzmRRh78Vlb3G2DSV2imaKEUBGP16QZOsyUdQKMU
+         lfgV6MkRsdoA+kyzgTiGzUr1FOr0sunz5ZZZsZe2W90FvTc4D86o4OvRiOpwLpNNFbLu
+         U/Q9R9fCG5/2MK/RTMRA6N72cHFbzc+ZxIujZrYsp1JKx1lMlBcvGaWma4/tT8imTnw8
+         7p2w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=dDbcwl7Bs+mn1YNTK1xlD989BeivSdEtGkH/XWYFPQg=;
-        b=UCrGB3JXsGXxqJXV32vs/WczCb/s61uf/zeLj9Qelx8UIU+KktMH3o6f4ZbJ6uvo1d
-         OGeykdtGmHls+hpRWvRZcxL5FuKF8T3aFL2P954W9lT/0ru9QSArMUR1TXnav+fHX86l
-         sn2MX+Yltf3TmSaS4HhKM0INNBBL51tVyzWc8SbWqRz7AGi9RfRpkAqbFUicRp2UUKNF
-         TKEDKPpZweElRYsiJ6r8y/sNK68zc6mOGQ7iDiCPWFWp1i8xEBjur8GCGqxswjQnTd5a
-         Dj1PgUIdG7c2V/BSZ5gLouTAJr3DVs7QocdaZpsQEV5UEPHKd6THB7jRxo5i+22DVk0M
-         t61w==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=0M/nUeAr2qrx9NG9JsIDfA6wIkuEQwVlnlogMGXV4+U=;
+        b=LOms+tCmDK6vkdQRdbyHmBEm+aUCMMouXoJeLerFVqnazI4g3Xt5rMW9ZzTO3UhjHf
+         HaakUuN7XYWR+2yp6RA/Oo2UM4qjZMsQlz5GY+Cm3O779t9EESeIkjqHkLBTrpLGyl9s
+         iIfUZ9jLL7HZOkK47x2ZiBUk0cODQqTy8a4DVEXtL8+LqryUEKS3m1Shsg9dCFhJWWMw
+         2v8R++zFMYzQ9si4b07EJGDpberNP9FZ/8tLZjS8q/OEENcibF8PGcS2Gak1tF57Qfd7
+         iYoKvtBJLsgtjn/Nlarjo1latHTEHWHIBliHvtOpIF7tuPHy3zTom/cXQtNaLnVx0cyz
+         AWZg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mh23si10615312ejb.224.2019.07.26.04.09.40
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Jl78jgis;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q6sor35435449ioi.76.2019.07.26.04.14.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jul 2019 04:09:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Fri, 26 Jul 2019 04:14:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E9229AD12;
-	Fri, 26 Jul 2019 11:09:39 +0000 (UTC)
-Date: Fri, 26 Jul 2019 13:09:37 +0200
-From: Oscar Salvador <osalvador@suse.de>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCH v1] mm/memory_hotplug: Remove move_pfn_range()
-Message-ID: <20190726110933.GA27545@linux>
-References: <20190724142324.3686-1-david@redhat.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Jl78jgis;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=0M/nUeAr2qrx9NG9JsIDfA6wIkuEQwVlnlogMGXV4+U=;
+        b=Jl78jgiso93/UWkVlpJ5eliZFMc9f07NxG849KOus/B5u6xfRuQnbHvRzRUSl7ZZYQ
+         MAMgJ06w/D9axwTahEPAR5aFj/pCwsMixasMe4/dLvCxUJiv5w+g4D51D2nq6wPMfUG4
+         zSJ/2FREFpfYfIPaiaIAgWDkOSNBO2gYmJyKVG0NifEPdcWTZx58c+oH8yPTsXEJwAHd
+         DqG30Z8wHizAQYH8V0Ro8RUwvMnAWS6zijshPYRj5rtb5Wob45HSvY4nkseDG2/1ksII
+         whnhg19KsShuMSSg0LvOVInprfzRi7BDs7f7bSN6/lg92v7T8asFEptmp915uLEhEuyM
+         syew==
+X-Google-Smtp-Source: APXvYqwufydvBFzz0T6sFGc+h4Nnb+rhugA7ryrnmNMvnAyhSYGTO7f0tGAMQ6XCj/7XmXCMMBkjgO/zE/7q7g7JUTo=
+X-Received: by 2002:a5e:9e0a:: with SMTP id i10mr21774410ioq.44.1564139660605;
+ Fri, 26 Jul 2019 04:14:20 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190724142324.3686-1-david@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <1564062621-8105-1-git-send-email-laoar.shao@gmail.com>
+ <20190726070939.GA2739@techsingularity.net> <CALOAHbA2sHSOpZXE6E+VjdJENa-WCZCo=-=YOqyVYAhkpf+Lrg@mail.gmail.com>
+ <20190726102602.GD2739@techsingularity.net>
+In-Reply-To: <20190726102602.GD2739@techsingularity.net>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Fri, 26 Jul 2019 19:13:44 +0800
+Message-ID: <CALOAHbDxUENTiPm18Ntd=sOAakxbQaZRnktOY9Jok-0+RTwG5g@mail.gmail.com>
+Subject: Re: [PATCH] mm/compaction: use proper zoneid for compaction_suitable()
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	Vlastimil Babka <vbabka@suse.cz>, Arnd Bergmann <arnd@arndb.de>, 
+	Paul Gortmaker <paul.gortmaker@windriver.com>, Rik van Riel <riel@redhat.com>, 
+	Yafang Shao <shaoyafang@didiglobal.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 24, 2019 at 04:23:24PM +0200, David Hildenbrand wrote:
-> Let's remove this indirection. We need the zone in the caller either
-> way, so let's just detect it there. Add some documentation for
-> move_pfn_range_to_zone() instead.
-> 
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: David Hildenbrand <david@redhat.com>
-> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
+On Fri, Jul 26, 2019 at 6:26 PM Mel Gorman <mgorman@techsingularity.net> wrote:
+>
+> On Fri, Jul 26, 2019 at 06:06:48PM +0800, Yafang Shao wrote:
+> > On Fri, Jul 26, 2019 at 3:09 PM Mel Gorman <mgorman@techsingularity.net> wrote:
+> > >
+> > > On Thu, Jul 25, 2019 at 09:50:21AM -0400, Yafang Shao wrote:
+> > > > By now there're three compaction paths,
+> > > > - direct compaction
+> > > > - kcompactd compcation
+> > > > - proc triggered compaction
+> > > > When we do compaction in all these paths, we will use compaction_suitable()
+> > > > to check whether a zone is suitable to do compaction.
+> > > >
+> > > > There're some issues around the usage of compaction_suitable().
+> > > > We don't use the proper zoneid in kcompactd_node_suitable() when try to
+> > > > wakeup kcompactd. In the kcompactd compaction paths, we call
+> > > > compaction_suitable() twice and the zoneid isn't proper in the second call.
+> > > > For proc triggered compaction, the classzone_idx is always zero.
+> > > >
+> > > > In order to fix these issues, I change the type of classzone_idx in the
+> > > > struct compact_control from const int to int and assign the proper zoneid
+> > > > before calling compact_zone().
+> > > >
+> > >
+> > > What is actually fixed by this?
+> > >
+> >
+> > Recently there's a page alloc failure on our server because the
+> > compaction can't satisfy it.
+>
+> That could be for a wide variety of reasons. There are limits to how
+> aggressive compaction will be but if there are unmovable pages preventing
+> the allocation, no amount of cleverness with the wakeups will change that.
+>
 
-Reviewed-by: Oscar Salvador <osalvador@suse.de>
+Yes, we should know whether it is lack of movable pages or the
+compaction can't catch up first.
+I think it would be better if there're some debugging facilities could
+help us do that.
 
-> ---
->  mm/memory_hotplug.c | 23 +++++++----------------
->  1 file changed, 7 insertions(+), 16 deletions(-)
-> 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index efa5283be36c..e7c3b219a305 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -715,7 +715,11 @@ static void __meminit resize_pgdat_range(struct pglist_data *pgdat, unsigned lon
->  
->  	pgdat->node_spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - pgdat->node_start_pfn;
->  }
-> -
-> +/*
-> + * Associate the pfn range with the given zone, initializing the memmaps
-> + * and resizing the pgdat/zone data to span the added pages. After this
-> + * call, all affected pages are PG_reserved.
-> + */
->  void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
->  		unsigned long nr_pages, struct vmem_altmap *altmap)
->  {
-> @@ -804,20 +808,6 @@ struct zone * zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
->  	return default_zone_for_pfn(nid, start_pfn, nr_pages);
->  }
->  
-> -/*
-> - * Associates the given pfn range with the given node and the zone appropriate
-> - * for the given online type.
-> - */
-> -static struct zone * __meminit move_pfn_range(int online_type, int nid,
-> -		unsigned long start_pfn, unsigned long nr_pages)
-> -{
-> -	struct zone *zone;
-> -
-> -	zone = zone_for_pfn_range(online_type, nid, start_pfn, nr_pages);
-> -	move_pfn_range_to_zone(zone, start_pfn, nr_pages, NULL);
-> -	return zone;
-> -}
-> -
->  int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_type)
->  {
->  	unsigned long flags;
-> @@ -840,7 +830,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
->  	put_device(&mem->dev);
->  
->  	/* associate pfn range with the zone */
-> -	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
-> +	zone = zone_for_pfn_range(online_type, nid, pfn, nr_pages);
-> +	move_pfn_range_to_zone(zone, pfn, nr_pages, NULL);
->  
->  	arg.start_pfn = pfn;
->  	arg.nr_pages = nr_pages;
-> -- 
-> 2.21.0
-> 
+> > This issue is unproducible, so I have to view the compaction code and
+> > find out the possible solutions.
+>
+> For high allocation success rates, the focus should be on strictness of
+> fragmentation control (hard, multiple tradeoffs) or increasing the number
+> of pages that can be moved (very hard, multiple tradeoffs).
+>
 
--- 
-Oscar Salvador
-SUSE L3
+Agreed, that's a tradeoff.
+
+> > When I'm reading these compaction code, I find some  misuse of
+> > compaction_suitable().
+> > But after you point out, I find that I missed something.
+> > The classzone_idx should represent the alloc request, otherwise we may
+> > do unnecessary compaction on a zone.
+> > Thanks a lot for your explaination.
+> >
+>
+> Exactly.
+>
+> > Hi Andrew,
+> >
+> > Pls. help drop this patch. Sorry about that.
+>
+> Agreed but there is no need to apologise. The full picture of this problem
+> is not obvious, not described anywhere and it's extremely difficult to
+> test and verify.
+>
+> > > > <SNIP>
+> > > > @@ -2535,7 +2535,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+> > > >                                                       cc.classzone_idx);
+> > > >       count_compact_event(KCOMPACTD_WAKE);
+> > > >
+> > > > -     for (zoneid = 0; zoneid <= cc.classzone_idx; zoneid++) {
+> > > > +     for (zoneid = 0; zoneid <= pgdat->kcompactd_classzone_idx; zoneid++) {
+> > > >               int status;
+> > > >
+> > > >               zone = &pgdat->node_zones[zoneid];
+> > >
+> > > This variable can be updated by a wakeup while the loop is executing
+> > > making the loop more difficult to reason about given the exit conditions
+> > > can change.
+> > >
+> >
+> > Thanks for your point out.
+> >
+> > But seems there're still issues event without my change ?
+> > For example,
+> > If we call wakeup_kcompactd() while the kcompactd is running,
+> > we just modify the kcompactd_max_order and kcompactd_classzone_idx and
+> > then return.
+> > Then in another path, the wakeup_kcompactd() is called again,
+> > so kcompactd_classzone_idx and kcompactd_max_order will be override,
+> > that means the previous wakeup is missed.
+> > Right ?
+> >
+>
+> That's intended. When kcompactd wakes up, it takes a snapshot of what is
+> requested and works on that. Other requests can update the requirements for
+> a future compaction request if necessary. One could argue that the wakeup
+> is missed but really it's "defer that request to some kcompactd activity
+> in the future". If kcompactd loops until there are no more requests, it
+> can consume an excessive amount of CPU due to requests continually keeping
+> it awake. kcompactd is best-effort to reduce the amount of direct stalls
+> due to compaction but an allocation request always faces the possibility
+> that it may stall because a kernel thread has not made enough progress
+> or failed.
+>
+> FWIW, similar problems hit kswapd in the past where allocation requests
+> could artifically keep it awake consuming 100% of CPU.
+>
+
+Understood. Thanks for your explanation again.
+
+Thanks
+Yafang
 
