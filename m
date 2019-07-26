@@ -2,129 +2,102 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7EEB0C7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:54:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 009DDC7618B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:55:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 411DE21871
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:54:26 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="gQuH0Ric"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 411DE21871
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
+	by mail.kernel.org (Postfix) with ESMTP id A875521871
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:55:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A875521871
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C6C576B0006; Fri, 26 Jul 2019 08:54:25 -0400 (EDT)
+	id 4F11A6B0005; Fri, 26 Jul 2019 08:55:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C1F996B0008; Fri, 26 Jul 2019 08:54:25 -0400 (EDT)
+	id 4A1888E0003; Fri, 26 Jul 2019 08:55:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AE3FE8E0002; Fri, 26 Jul 2019 08:54:25 -0400 (EDT)
+	id 3B7E48E0002; Fri, 26 Jul 2019 08:55:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 79CF46B0006
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:54:25 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id i33so28359462pld.15
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 05:54:25 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E19956B0005
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:55:35 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id z20so34082872edr.15
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 05:55:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=1CV30Ulmhw3UVs5wZJSfxlQX22PQyu6508MpeQYH9hA=;
-        b=CnYDsT0iICxsfB3YilexuW9tkEn0zJcXIyLoI3IMNf204VB6gV9ymgDe1zg3teFkBl
-         7IhqkM5CMvzMAW6WI9vYLpZs3Bj01ri/7GUTRSYrR6QeKfmX4p6EpUr+k/sxgQa/+QpL
-         XiZZK1Fhv0KhrTneyCl1Y7GTCtvtDQTg0hDiPbHm7q/cFXtl/dKyqntSYs/HvXRuOufj
-         molqvVBK6fF2c1BJtMpBl1MCbDTQv1lPxoFh2navBy8yTDstA7MYBwDqstV6p62hO7Ht
-         cRItkSevuUpTY6dQj8gFcAWIHXnqYOs8yO+3IXvDbKos+0hcUXGsQgEQeOoV1ZdIai0+
-         zKAQ==
-X-Gm-Message-State: APjAAAVTqK0AJDR6nhKTDUn+gjE2QjsaDkllZq0mDopoxHdBAZmYRRga
-	sKoUb/3EN4HNTLOFAUFe7U70Nj0HAaCGlPChSEM5KNNMChY5rTP6FL1wJzDcy6WH2x4h1q2rgsw
-	HdZ6bNCttRzzLas0/ntunHaSUbK0TslwaigKi0fJ42FyhD4KnYITM0517p0ebkqaaYQ==
-X-Received: by 2002:a63:c44c:: with SMTP id m12mr52569141pgg.396.1564145664967;
-        Fri, 26 Jul 2019 05:54:24 -0700 (PDT)
-X-Received: by 2002:a63:c44c:: with SMTP id m12mr52569100pgg.396.1564145664153;
-        Fri, 26 Jul 2019 05:54:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564145664; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=h911+WRuILe0IZojgwiXEDQs/EpQSYjObJAEx5dM7zE=;
+        b=X3e7AQNT/pcBrB66sZByhU4PxKncSIsY5W1h7FQ/F0FIU4Lq37lWBdfsbfS9ixiLqp
+         7MakzsunGZCzLmkTABYJZlX8oU5L+hCSaQcZY1pjwhhnAh+MWG1dKayW9Q3/mBQwEMq6
+         SE8HRsB8fFfd8rvNd3Fo0Dk9uBW/UQhRmuvt6syrsBrgUSZl5wsXFuGPGXEwMajvhDdV
+         iD7zjUih7J+GmalLMGSC++MKzfxW2otppATAat8ClOf9e7/XPlxUDVJONnqXv8p+Iczh
+         wkDAgAA8vhjT7sjW91w4ivz1lI1yCUQUWoCI6p6kt7aJGY4y2mmpUFwtCKS4ZS0mMFb6
+         CWTw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXvW2RSH7kPtXH5HU+/lpKw2LfYJ4zoOYKKNs9IkvckBs8mpLcq
+	RfIyIaGXqymHTkEqnlsFii2DiDzKoQ/47SZ6CQCoqF079w/Hp9CwVcOrB6bHCrPKS6ju15Yo9y3
+	knPkhewz1hOfEEh4MVfhrMl9FPaVJ/t+xog8D3aWyDc4gz+Cc7kWpsIbQBZ/O+N0=
+X-Received: by 2002:a17:906:e241:: with SMTP id gq1mr71624224ejb.265.1564145735458;
+        Fri, 26 Jul 2019 05:55:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxDB19i3owTA3n3EZnpJIZ3Q2IkQhhrZnYOClytbbMNS8ecw/N8yoMjTRx/DbxVmuTNEQhU
+X-Received: by 2002:a17:906:e241:: with SMTP id gq1mr71624178ejb.265.1564145734631;
+        Fri, 26 Jul 2019 05:55:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564145734; cv=none;
         d=google.com; s=arc-20160816;
-        b=rDFbqSYsdPtSMb58ueLGBOR9Lon75T3u8EczkH4Y0yCtZdw/whRF0yknb0dc7l2T8K
-         /TpGIoFtXSsA0sTO7Nej41Nuu3dTefNNyKdp7w7jjYM42BhMtq4hBOdNMITZQ0dhtk1M
-         rZvsHnvsmLD0n1sAqwNZVWO/7o99LL0zNgDnuvwItSP8Ua4zuB9WuOD7PLV/mU5ME6dh
-         Osv8jg55CQUikVEluFAe7Lbz+iF+x4xK+Pq4QGmA422mSAx+9cpRNUZi+hNUwM+IU76O
-         udlyjTy9FRDjwpOoj/RSH80BDxUd0W8Iwx0QARKg3AdkglpqM2l61EAFhn7oK8lhDd1I
-         qO1g==
+        b=VQSXMVI1O9RgHZE+d0WqGKavMWTG3gIiNEFL8hDSdzsXH5ElfyBbNByoFekfnBb1d6
+         qUJ05mfyzHulxtpS2Ed6RSErx5LnAOyWkAnBPAhD9rSasPLUkLLRMs0CaWvqkGs6OrqN
+         qnixw4Y0utprp0EbhWFAtoIZO+vmdJpVvexOBNvD3+TgZNzIQM4xqjpG/kdLd/N3nsf+
+         neiXOiCzMtgmoJ3n45VOLVN1ngy4yTl3L4qwYrOWPUWQ8JJYI8tMRVeIvuxQsj8Ml4he
+         w1kYqT9LoPC109keQxCdKMRocCdrb3Q06OVDTSYkkntpCbtLeRAzEgEFgfUJ4FKCSCv0
+         Rf1Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=1CV30Ulmhw3UVs5wZJSfxlQX22PQyu6508MpeQYH9hA=;
-        b=rqzhA57rEiI7Dq6Ngc1hqvLbCFsYUK9ekN8icD3xnU67RQwCWU/zoHjTh56tILkUvX
-         vj08j133m+eWrA6L43cuRDewbrHNunBSAWfz/zayM6UJjWoJz61y3615YKN58dSNkYkS
-         Lba5ibzPDxaqGz2YAhHTGYshUApxivBCggbXKtcbhjKIgVSyaovmEpPv8Molu8JjgzC6
-         5i1D1jiZ1gpmOEbpFJfzNmtyGbKo00yL1MvhAsjNaVVP+JgMc1Zb8BtYuZOmfmT4bUMO
-         Z+BsiOHw+PeAjqD2RzUGODhyEmfUCdhXwSX6Gfax3t8oiG5LXCh9Mxu69LNK3m9AT3SA
-         kSuA==
+         :message-id:subject:cc:to:from:date;
+        bh=h911+WRuILe0IZojgwiXEDQs/EpQSYjObJAEx5dM7zE=;
+        b=bC95YjCwLm/myhHOkzasinoCjOK1ZNYo9/7jlkaOevSpu6wbh35IfPqMvUNsNMWlAv
+         ugSA9BmlqWree6IFhJiAYPJ/b/1LC9xnBSV5pzBPgMIaG4dTX7lZb6fXYuBm8NQJHPqC
+         124fLSC/ZZBmvOFBLJfyrO5hrq3rx5CmGIKKr1d+xoPKIHfk3JMuOD15pe1p865XQFoF
+         bUiyv9I8i+G8UsVF3VZFFAfzQ7xmkWJhJClLG3fBxHFOpnEyoaOr/ZJerJ6K505EUAWv
+         vJ3RktjaYtHnMprSy7Z1jbgwrqg/+qb+RrnhdHvaMwOQb31NDePPNXGT5BoWPlPE3P+k
+         xByA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=gQuH0Ric;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 11sor28796299pgh.67.2019.07.26.05.54.24
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c14si12620808ejb.99.2019.07.26.05.55.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 Jul 2019 05:54:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Jul 2019 05:55:34 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=gQuH0Ric;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=joelfernandes.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=1CV30Ulmhw3UVs5wZJSfxlQX22PQyu6508MpeQYH9hA=;
-        b=gQuH0RicdNOowMPYfbO1oCrLPCJQ7RG5vRhySY5uKbNmTPgJ9gjJhxIQlgovgpa61j
-         /fesyTgUhfC6NkYtNzLPj9OFsHLRlFOnE6bQDcY/2tkHHiMxdFrnqXA8ZynuSTScFhap
-         MsVrgmBpEcAREpwym2Gd4zS7Og3lnANQ201d0=
-X-Google-Smtp-Source: APXvYqzilkkbU1jvUSqJ7GWTJJgame/K3EOovYUFU8dAxa/kz5mkVmVgYiB/rX3VOXqDrSKNafzHjQ==
-X-Received: by 2002:a63:ee0c:: with SMTP id e12mr92603350pgi.184.1564145663513;
-        Fri, 26 Jul 2019 05:54:23 -0700 (PDT)
-Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
-        by smtp.gmail.com with ESMTPSA id o129sm23051451pfg.1.2019.07.26.05.54.22
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 26 Jul 2019 05:54:22 -0700 (PDT)
-Date: Fri, 26 Jul 2019 08:54:21 -0400
-From: Joel Fernandes <joel@joelfernandes.org>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org,
-	vdavydov.dev@gmail.com, Brendan Gregg <bgregg@netflix.com>,
-	kernel-team@android.com, Alexey Dobriyan <adobriyan@gmail.com>,
-	Al Viro <viro@zeniv.linux.org.uk>,
-	Andrew Morton <akpm@linux-foundation.org>, carmenjackson@google.com,
-	Christian Hansen <chansen3@cisco.com>,
-	Colin Ian King <colin.king@canonical.com>, dancol@google.com,
-	David Howells <dhowells@redhat.com>, fmayer@google.com,
-	joaodias@google.com, Jonathan Corbet <corbet@lwn.net>,
-	Kees Cook <keescook@chromium.org>,
-	Kirill Tkhai <ktkhai@virtuozzo.com>, linux-doc@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
-	Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.ibm.com>,
-	namhyung@google.com, sspatil@google.com
-Subject: Re: [PATCH v1 1/2] mm/page_idle: Add support for per-pid page_idle
- using virtual indexing
-Message-ID: <20190726125421.GA103959@google.com>
-References: <20190722213205.140845-1-joel@joelfernandes.org>
- <20190723061358.GD128252@google.com>
- <20190723142049.GC104199@google.com>
- <20190724042842.GA39273@google.com>
- <20190724141052.GB9945@google.com>
- <c116f836-5a72-c6e6-498f-a904497ef557@yandex-team.ru>
- <20190726000654.GB66718@google.com>
- <9cba9acb-9451-a53e-278d-92f7b66ae20b@yandex-team.ru>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id BA2EFABB2;
+	Fri, 26 Jul 2019 12:55:33 +0000 (UTC)
+Date: Fri, 26 Jul 2019 14:55:33 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Miles Chen <miles.chen@mediatek.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com
+Subject: Re: [PATCH v2] mm: memcontrol: fix use after free in
+ mem_cgroup_iter()
+Message-ID: <20190726125533.GO6142@dhcp22.suse.cz>
+References: <20190726021247.16162-1-miles.chen@mediatek.com>
+ <20190726124933.GN6142@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <9cba9acb-9451-a53e-278d-92f7b66ae20b@yandex-team.ru>
+In-Reply-To: <20190726124933.GN6142@dhcp22.suse.cz>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -132,63 +105,178 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 26, 2019 at 02:16:20PM +0300, Konstantin Khlebnikov wrote:
-> On 26.07.2019 3:06, Joel Fernandes wrote:
-> > On Thu, Jul 25, 2019 at 11:15:53AM +0300, Konstantin Khlebnikov wrote:
-> > [snip]
-> > > > > > Thanks for bringing up the swapping corner case..  Perhaps we can improve
-> > > > > > the heap profiler to detect this by looking at bits 0-4 in pagemap. While it
-> > > > > 
-> > > > > Yeb, that could work but it could add overhead again what you want to remove?
-> > > > > Even, userspace should keep metadata to identify that page was already swapped
-> > > > > in last period or newly swapped in new period.
-> > > > 
-> > > > Yep.
-> > > Between samples page could be read from swap and swapped out back multiple times.
-> > > For tracking this swap ptes could be marked with idle bit too.
-> > > I believe it's not so hard to find free bit for this.
-> > > 
-> > > Refault\swapout will automatically clear this bit in pte even if
-> > > page goes nowhere stays if swap-cache.
+On Fri 26-07-19 14:49:33, Michal Hocko wrote:
+> On Fri 26-07-19 10:12:47, Miles Chen wrote:
+> > This patch is sent to report an use after free in mem_cgroup_iter()
+> > after merging commit: be2657752e9e "mm: memcg: fix use after free in
+> > mem_cgroup_iter()".
 > > 
-> > Could you clarify more about your idea? Do you mean swapout will clear the new
-> > idle swap-pte bit if the page was accessed just before the swapout? >
-> > Instead, I thought of using is_swap_pte() to detect if the PTE belong to a
-> > page that was swapped. And if so, then assume the page was idle. Sure we
-> > would miss data that the page was accessed before the swap out in the
-> > sampling window, however if the page was swapped out, then it is likely idle
-> > anyway.
+> > I work with android kernel tree (4.9 & 4.14), and the commit:
+> > be2657752e9e "mm: memcg: fix use after free in mem_cgroup_iter()" has
+> > been merged to the trees. However, I can still observe use after free
+> > issues addressed in the commit be2657752e9e.
+> > (on low-end devices, a few times this month)
+> > 
+> > backtrace:
+> > 	css_tryget <- crash here
+> > 	mem_cgroup_iter
+> > 	shrink_node
+> > 	shrink_zones
+> > 	do_try_to_free_pages
+> > 	try_to_free_pages
+> > 	__perform_reclaim
+> > 	__alloc_pages_direct_reclaim
+> > 	__alloc_pages_slowpath
+> > 	__alloc_pages_nodemask
+> > 
+> > To debug, I poisoned mem_cgroup before freeing it:
+> > 
+> > static void __mem_cgroup_free(struct mem_cgroup *memcg)
+> > 	for_each_node(node)
+> > 	free_mem_cgroup_per_node_info(memcg, node);
+> > 	free_percpu(memcg->stat);
+> > +       /* poison memcg before freeing it */
+> > +       memset(memcg, 0x78, sizeof(struct mem_cgroup));
+> > 	kfree(memcg);
+> > }
+> > 
+> > The coredump shows the position=0xdbbc2a00 is freed.
+> > 
+> > (gdb) p/x ((struct mem_cgroup_per_node *)0xe5009e00)->iter[8]
+> > $13 = {position = 0xdbbc2a00, generation = 0x2efd}
+> > 
+> > 0xdbbc2a00:     0xdbbc2e00      0x00000000      0xdbbc2800      0x00000100
+> > 0xdbbc2a10:     0x00000200      0x78787878      0x00026218      0x00000000
+> > 0xdbbc2a20:     0xdcad6000      0x00000001      0x78787800      0x00000000
+> > 0xdbbc2a30:     0x78780000      0x00000000      0x0068fb84      0x78787878
+> > 0xdbbc2a40:     0x78787878      0x78787878      0x78787878      0xe3fa5cc0
+> > 0xdbbc2a50:     0x78787878      0x78787878      0x00000000      0x00000000
+> > 0xdbbc2a60:     0x00000000      0x00000000      0x00000000      0x00000000
+> > 0xdbbc2a70:     0x00000000      0x00000000      0x00000000      0x00000000
+> > 0xdbbc2a80:     0x00000000      0x00000000      0x00000000      0x00000000
+> > 0xdbbc2a90:     0x00000001      0x00000000      0x00000000      0x00100000
+> > 0xdbbc2aa0:     0x00000001      0xdbbc2ac8      0x00000000      0x00000000
+> > 0xdbbc2ab0:     0x00000000      0x00000000      0x00000000      0x00000000
+> > 0xdbbc2ac0:     0x00000000      0x00000000      0xe5b02618      0x00001000
+> > 0xdbbc2ad0:     0x00000000      0x78787878      0x78787878      0x78787878
+> > 0xdbbc2ae0:     0x78787878      0x78787878      0x78787878      0x78787878
+> > 0xdbbc2af0:     0x78787878      0x78787878      0x78787878      0x78787878
+> > 0xdbbc2b00:     0x78787878      0x78787878      0x78787878      0x78787878
+> > 0xdbbc2b10:     0x78787878      0x78787878      0x78787878      0x78787878
+> > 0xdbbc2b20:     0x78787878      0x78787878      0x78787878      0x78787878
+> > 0xdbbc2b30:     0x78787878      0x78787878      0x78787878      0x78787878
+> > 0xdbbc2b40:     0x78787878      0x78787878      0x78787878      0x78787878
+> > 0xdbbc2b50:     0x78787878      0x78787878      0x78787878      0x78787878
+> > 0xdbbc2b60:     0x78787878      0x78787878      0x78787878      0x78787878
+> > 0xdbbc2b70:     0x78787878      0x78787878      0x78787878      0x78787878
+> > 0xdbbc2b80:     0x78787878      0x78787878      0x00000000      0x78787878
+> > 0xdbbc2b90:     0x78787878      0x78787878      0x78787878      0x78787878
+> > 0xdbbc2ba0:     0x78787878      0x78787878      0x78787878      0x78787878
+> > 
+> > In the reclaim path, try_to_free_pages() does not setup
+> > sc.target_mem_cgroup and sc is passed to do_try_to_free_pages(), ...,
+> > shrink_node().
+> > 
+> > In mem_cgroup_iter(), root is set to root_mem_cgroup because
+> > sc->target_mem_cgroup is NULL.
+> > It is possible to assign a memcg to root_mem_cgroup.nodeinfo.iter in
+> > mem_cgroup_iter().
+> > 
+> > 	try_to_free_pages
+> > 		struct scan_control sc = {...}, target_mem_cgroup is 0x0;
+> > 	do_try_to_free_pages
+> > 	shrink_zones
+> > 	shrink_node
+> > 		 mem_cgroup *root = sc->target_mem_cgroup;
+> > 		 memcg = mem_cgroup_iter(root, NULL, &reclaim);
+> > 	mem_cgroup_iter()
+> > 		if (!root)
+> > 			root = root_mem_cgroup;
+> > 		...
+> > 
+> > 		css = css_next_descendant_pre(css, &root->css);
+> > 		memcg = mem_cgroup_from_css(css);
+> > 		cmpxchg(&iter->position, pos, memcg);
+> > 
+> > My device uses memcg non-hierarchical mode.
+> > When we release a memcg: invalidate_reclaim_iterators() reaches only
+> > dead_memcg and its parents. If non-hierarchical mode is used,
+> > invalidate_reclaim_iterators() never reaches root_mem_cgroup.
+> > 
+> > static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
+> > {
+> > 	struct mem_cgroup *memcg = dead_memcg;
+> > 
+> > 	for (; memcg; memcg = parent_mem_cgroup(memcg)
+> > 	...
+> > }
+> > 
+> > So the use after free scenario looks like:
+> > 
+> > CPU1						CPU2
+> > 
+> > try_to_free_pages
+> > do_try_to_free_pages
+> > shrink_zones
+> > shrink_node
+> > mem_cgroup_iter()
+> >     if (!root)
+> >     	root = root_mem_cgroup;
+> >     ...
+> >     css = css_next_descendant_pre(css, &root->css);
+> >     memcg = mem_cgroup_from_css(css);
+> >     cmpxchg(&iter->position, pos, memcg);
+> > 
+> > 					invalidate_reclaim_iterators(memcg);
+> > 					...
+> > 					__mem_cgroup_free()
+> > 						kfree(memcg);
+> > 
+> > try_to_free_pages
+> > do_try_to_free_pages
+> > shrink_zones
+> > shrink_node
+> > mem_cgroup_iter()
+> >     if (!root)
+> >     	root = root_mem_cgroup;
+> >     ...
+> >     mz = mem_cgroup_nodeinfo(root, reclaim->pgdat->node_id);
+> >     iter = &mz->iter[reclaim->priority];
+> >     pos = READ_ONCE(iter->position);
+> >     css_tryget(&pos->css) <- use after free
 > 
+> Thanks for the write up. This is really useful.
 > 
-> I mean page might be in swap when you mark pages idle and
-> then been accessed and swapped back before second pass.
+> > To avoid this, we should also invalidate root_mem_cgroup.nodeinfo.iter in
+> > invalidate_reclaim_iterators().
 > 
-> I propose marking swap pte with idle bit which will be automatically
-> cleared by following swapin/swapout pair:
+> I am sorry, I didn't get to comment an earlier version but I am
+> wondering whether it makes more sense to do and explicit invalidation.
 > 
-> page alloc -> install page pte
-> page swapout -> install swap entry in pte
-> mark vm idle -> set swap-idle bit in swap pte
-> access/swapin -> install page pte (clear page idle if set)
-> page swapout -> install swap entry in pte (without swap idle bit)
-> scan vm idle -> see swap entry without idle bit -> page has been accessed since marking idle
+> [...]
+> > +static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
+> > +{
+> > +	struct mem_cgroup *memcg = dead_memcg;
+> > +	int invalidate_root = 0;
+> > +
+> > +	for (; memcg; memcg = parent_mem_cgroup(memcg))
+> > +		__invalidate_reclaim_iterators(memcg, dead_memcg);
 > 
-> One bit in pte is enough for tracking. This does not needs any propagation for
-> idle bits between page and swap, or marking pages as idle in swap cache.
+> 	/* here goes your comment */
+> 	if (!dead_memcg->use_hierarchy)
+> 		__invalidate_reclaim_iterators(root_mem_cgroup,	dead_memcg);
+> > +
+> > +}
+> 
+> Other than that the patch looks good to me.
+> 
+> Acked-by: Michal Hocko <mhocko@suse.com>
 
-Ok I see the case you are referring to now. This can be a follow-up patch to
-address the case, because.. the limitation you mentioned is also something
-inherrent in the (traditional) physical page_idle tracking if that were used.
-The reason being, after swapping, the PTE is not mapped to any page so there
-is nothing to mark as idle. So if the page gets swapped out and in in the
-meanwhile, then you would run into the same issue.
-
-But yes, we should certainly address it in the future. I just want to keep
-things simple at the moment. I will make a note about your suggestion but you
-are welcomed to write a patch for it on top of my patch. I am about to send
-another revision shortly for futhre review.
-
-thanks,
-
- - Joel
+Btw. I believe we want to push this to stable trees as well. I think it
+goes all the way down to 5ac8fb31ad2e ("mm: memcontrol: convert reclaim
+iterator to simple css refcounting"). Unless I am missing something a
+Fixes: tag would be really helpful.
+-- 
+Michal Hocko
+SUSE Labs
 
