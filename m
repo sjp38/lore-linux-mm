@@ -2,213 +2,274 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CB6DEC76190
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:38:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9CB69C7618B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:49:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 99E6721951
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:38:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99E6721951
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 4E2FB2238C
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:49:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E2FB2238C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1545B6B0003; Fri, 26 Jul 2019 08:38:25 -0400 (EDT)
+	id A4C526B0008; Fri, 26 Jul 2019 08:49:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1061A8E0002; Fri, 26 Jul 2019 08:38:25 -0400 (EDT)
+	id 9FDB08E0003; Fri, 26 Jul 2019 08:49:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F37126B0008; Fri, 26 Jul 2019 08:38:24 -0400 (EDT)
+	id 8EBBE8E0002; Fri, 26 Jul 2019 08:49:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DCBF66B0003
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:38:24 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id n190so45088810qkd.5
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 05:38:24 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CFE56B0008
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:49:36 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id e9so22922098edv.18
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 05:49:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to;
-        bh=7AAahzA3S5OmAp3WHwhPen11x5qmdYBmT/Y66i6DKGs=;
-        b=e1VGQRn/M3xGcQEUXS3L5iASLNaopzoU+JLR9HbGbF6Kxl1PQ1jm8JcveNyQqYmFgP
-         HgvS192/0c3Qv5SHr0Ep3NvZ365YcVyBps31Vp/qX/5OvNCQkvrwE6d5sXJG0Ap+ccji
-         R4HXyJvh55HfL81y8bHpsg37VVPMkd+ZQnAxU+D5Vcu2iJ4WYZaccdxlCl7mZygvgDkK
-         9VntQDaVkA+mZAnb94rHJPnvItVYh3+wdpZPQn+reIsgXjGaaRv4sicWjtsEAnVy72h1
-         xK61eYAOwhFXlTdUZkz33zjjoBaG7YwtCFXYV7T92n4sm5RMU69OB+ren0LHYveKPNOA
-         g0jA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWfRg23S+NxEDvacEh6VMIMpx3a/aWpfstlWEA19GFIgesjw8bW
-	90vwHSyxHUtKwH9oeCwLPv41K3zwTtP0aTuV/UcG7DN7Pv2EiP5isX3km0ViBM9rTrnILyewCrJ
-	gTiVqdKHomTVvKYCrvNoj0xvIM1AkiAEoR7HXNYjj+kVnXKrOGKjm2ewx/S85OpFKqw==
-X-Received: by 2002:a0c:c688:: with SMTP id d8mr67895738qvj.86.1564144704666;
-        Fri, 26 Jul 2019 05:38:24 -0700 (PDT)
-X-Received: by 2002:a0c:c688:: with SMTP id d8mr67895706qvj.86.1564144704075;
-        Fri, 26 Jul 2019 05:38:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564144704; cv=none;
+         :in-reply-to:user-agent;
+        bh=nNpcOEVyV3SN4a/zaMP4AC+VHbE0/ocGXO9iuI9yTyk=;
+        b=a/RxqiK309XjmHb0kMhQc3irhKNySTQ2+azKq/OcRnwNSjR0Mr6X7sCbExbbEfqG2p
+         BHlflXg91Wyh/ZE81ooLS0s78afOzbrFTJV63jkwWtVj5gvnOPvaDZKwXpBLI79nuYR3
+         FDnS7DUZGDY79OosOb/IOXkE6rgryRbUpACNLQ44VOUd6LdkNQrwLZeK4lzq1IRElOln
+         oHi+Obcy60A3g9pPIjiyC+NzT74RyVMcxblJYOmQ2MRYPfRag+pssxyC1qzv/19hRG6e
+         4XiCj1E/wfIoTtY6QVXC9Lp+TdbN6VMdjX2JceEfevd3Gr8EOmB3xyTtEpuI51zXVfVe
+         hRdg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXY+KqZkfk2itWiV1eNnWoJWPyfnAhY2HUpZLu+8OM7sWwKF+sb
+	wmL8nF8Vb4trhAntPfgMemM90rZFuLQQeRisib0y7G8J4aPHXpo3+ycBmhw99J03YH2ImOSc3re
+	AVb6jcLH+UhDwdvrf5E8fJMX4GboF3FH6zcbr5WUs+Flsv+LJL7oSX31oNsonfFA=
+X-Received: by 2002:a17:906:3f91:: with SMTP id b17mr46108361ejj.74.1564145375786;
+        Fri, 26 Jul 2019 05:49:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz73fpaVXRt5HAwBAVog4CJ53x4tH/KPT885wAzf7j/W3Gn4SSniYsAYF9SDausUELTvUu7
+X-Received: by 2002:a17:906:3f91:: with SMTP id b17mr46108318ejj.74.1564145374930;
+        Fri, 26 Jul 2019 05:49:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564145374; cv=none;
         d=google.com; s=arc-20160816;
-        b=sj699GJmDp2oi8dmW0cyvWNdhjJZSsCR0INlO4WpPKt4YLrm3HTFyOpeZrCePhD/q+
-         sgirk2pLCkKbpZd9lemXoKzwYAkkdeBsHR8ttjFT4MsssvNvDhByAqSBb+J38rPru/nN
-         nu8xx37u2MErZ6CKCPKDipJXKtUPjakJHK3yBumhJ2RJX+yEGK2IrWLvgFaeNDVYKegQ
-         kj/pHia0vHXoGVo4fS/phomBcP+n5N0pVooo8p80NEFRO0gvLdiWp1v+3QsTZdXcUgig
-         m2jAk89MIymsnb4apAW9EpuyWqBoiYNSM4SRGRoOUWqQF7jvGpLCFWLtOBqcX3mrhaG4
-         X+WQ==
+        b=NlFpYcR1A7eDmZ/SqtZR+Rxvh7VXJ7304uesC+GP/BLYkgUaML1NTWtKTm4cYk+hPK
+         vsAlsKj+hEoOGRNpT4panNqcQh4rMjJCKtZwKQ/KUaDizEnIZ51joSQyYcweT9fE2Nw2
+         e5FKOEpxA0hrwsSsg+OpMZ67MhsRxxi+wsLKQAu2kNWlTe6lc+/ITZvegxSa7zVCegt1
+         1o2SDt1S9YRemLGGMvsAyvt6gUEllchErN8hRzHNxrAaCKOSz9V09W8m/oi5XbXdAhx2
+         kLX83slAbBt8ELp9JGCVh2ADJwtPkp9+8ESZBeFqYrRv63S7Mka8FyDD/pZd/DwPScrt
+         HrYg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :mime-version:references:message-id:subject:cc:to:from:date;
-        bh=7AAahzA3S5OmAp3WHwhPen11x5qmdYBmT/Y66i6DKGs=;
-        b=c0fllbFJrgndipy1kDnxyxfA8K2M3IyYS+a/0tMPNOGnMRfCNX6b3Qs4ifmLwf7CcR
-         cb/ndkZ+smrtPBC5vgoXZu4JMDOHS04SZYe2PBwjcCu1UVza9Q+Mx8H35jckXJ+PJo6i
-         KcAxXQk4Be1Hc4l7eVrKunFpJSXAmdvATcjYBMZICzVUWJPq1kMYhEZ4dgRVAnbEMnBM
-         QfnDOpzRk2YEMUa2NKwat34b0mv5foneoQ4rCjlx7Y/cZB7wpotao9C1tf3h/agBoNtd
-         SxGFVQEiDFgCRWCDo9F8hBSd1B9phX6vIe9C9ynDass1JEn/o4KRye7ldph+jnTJRBGg
-         YnDg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=nNpcOEVyV3SN4a/zaMP4AC+VHbE0/ocGXO9iuI9yTyk=;
+        b=QXpo0wRlanMjYklofkTu5q7YfSm1PJK52sVoCmSibS0GZkllG5YcKt0PNBVRXn6L9c
+         2u4nca3+hJMdXEs0asljIvOGL21TRUhyDzzvKt3RJcCH6Mwc4r9wNR8IPNlkK6MwdCxS
+         HNbswk7pSOpqOOI6FtaP0ivzjgHKWOz5181QuVBE9MmdTi2MVCEzAhVvcW9PrRznILFZ
+         ssJbdvz4avc7EY4uOUg81c4q/JDyDS/tgysGZ1FRzms+ej/mfnFNNGHOhyWmvkaIu9rQ
+         6CeJO09PP7VfWvyftwtaEmSXh5KG3l0JKJXPL3JJxkyOHSzoyvnx0cMl8Za4UxLM73EV
+         Mf5A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b15sor61208618qtt.9.2019.07.26.05.38.24
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id p16si11681659ejr.358.2019.07.26.05.49.34
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 Jul 2019 05:38:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Jul 2019 05:49:34 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqzmq5+4vWxaDwMY+05UXlQp7huBRpq3YhuBZEQ2PajFPNo/CMYsaRV1rBY4ljt21ew7Zf/M7w==
-X-Received: by 2002:ac8:37b8:: with SMTP id d53mr65290476qtc.227.1564144703827;
-        Fri, 26 Jul 2019 05:38:23 -0700 (PDT)
-Received: from redhat.com ([212.92.104.165])
-        by smtp.gmail.com with ESMTPSA id v7sm25082729qte.86.2019.07.26.05.38.16
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 26 Jul 2019 05:38:23 -0700 (PDT)
-Date: Fri, 26 Jul 2019 08:38:13 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Jason Wang <jasowang@redhat.com>
-Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
-	aarcange@redhat.com, akpm@linux-foundation.org,
-	christian@brauner.io, davem@davemloft.net, ebiederm@xmission.com,
-	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
-	james.bottomley@hansenpartnership.com, jglisse@redhat.com,
-	keescook@chromium.org, ldv@altlinux.org,
-	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, linux-parisc@vger.kernel.org,
-	luto@amacapital.net, mhocko@suse.com, mingo@kernel.org,
-	namit@vmware.com, peterz@infradead.org,
-	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
-	wad@chromium.org
-Subject: Re: WARNING in __mmdrop
-Message-ID: <20190726082837-mutt-send-email-mst@kernel.org>
-References: <20190723051828-mutt-send-email-mst@kernel.org>
- <caff362a-e208-3468-3688-63e1d093a9d3@redhat.com>
- <20190725012149-mutt-send-email-mst@kernel.org>
- <55e8930c-2695-365f-a07b-3ad169654d28@redhat.com>
- <20190725042651-mutt-send-email-mst@kernel.org>
- <84bb2e31-0606-adff-cf2a-e1878225a847@redhat.com>
- <20190725092332-mutt-send-email-mst@kernel.org>
- <11802a8a-ce41-f427-63d5-b6a4cf96bb3f@redhat.com>
- <20190726074644-mutt-send-email-mst@kernel.org>
- <5cc94f15-b229-a290-55f3-8295266edb2b@redhat.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 3C11AAFE4;
+	Fri, 26 Jul 2019 12:49:34 +0000 (UTC)
+Date: Fri, 26 Jul 2019 14:49:33 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Miles Chen <miles.chen@mediatek.com>
+Cc: Johannes Weiner <hannes@cmpxchg.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com
+Subject: Re: [PATCH v2] mm: memcontrol: fix use after free in
+ mem_cgroup_iter()
+Message-ID: <20190726124933.GN6142@dhcp22.suse.cz>
+References: <20190726021247.16162-1-miles.chen@mediatek.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <5cc94f15-b229-a290-55f3-8295266edb2b@redhat.com>
+In-Reply-To: <20190726021247.16162-1-miles.chen@mediatek.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 26, 2019 at 08:00:58PM +0800, Jason Wang wrote:
+On Fri 26-07-19 10:12:47, Miles Chen wrote:
+> This patch is sent to report an use after free in mem_cgroup_iter()
+> after merging commit: be2657752e9e "mm: memcg: fix use after free in
+> mem_cgroup_iter()".
 > 
-> On 2019/7/26 下午7:49, Michael S. Tsirkin wrote:
-> > On Thu, Jul 25, 2019 at 10:25:25PM +0800, Jason Wang wrote:
-> > > On 2019/7/25 下午9:26, Michael S. Tsirkin wrote:
-> > > > > Exactly, and that's the reason actually I use synchronize_rcu() there.
-> > > > > 
-> > > > > So the concern is still the possible synchronize_expedited()?
-> > > > I think synchronize_srcu_expedited.
-> > > > 
-> > > > synchronize_expedited sends lots of IPI and is bad for realtime VMs.
-> > > > 
-> > > > > Can I do this
-> > > > > on through another series on top of the incoming V2?
-> > > > > 
-> > > > > Thanks
-> > > > > 
-> > > > The question is this: is this still a gain if we switch to the
-> > > > more expensive srcu? If yes then we can keep the feature on,
-> > > 
-> > > I think we only care about the cost on srcu_read_lock() which looks pretty
-> > > tiny form my point of view. Which is basically a READ_ONCE() + WRITE_ONCE().
-> > > 
-> > > Of course I can benchmark to see the difference.
-> > > 
-> > > 
-> > > > if not we'll put it off until next release and think
-> > > > of better solutions. rcu->srcu is just a find and replace,
-> > > > don't see why we need to defer that. can be a separate patch
-> > > > for sure, but we need to know how well it works.
-> > > 
-> > > I think I get here, let me try to do that in V2 and let's see the numbers.
-> > > 
-> > > Thanks
+> I work with android kernel tree (4.9 & 4.14), and the commit:
+> be2657752e9e "mm: memcg: fix use after free in mem_cgroup_iter()" has
+> been merged to the trees. However, I can still observe use after free
+> issues addressed in the commit be2657752e9e.
+> (on low-end devices, a few times this month)
 > 
+> backtrace:
+> 	css_tryget <- crash here
+> 	mem_cgroup_iter
+> 	shrink_node
+> 	shrink_zones
+> 	do_try_to_free_pages
+> 	try_to_free_pages
+> 	__perform_reclaim
+> 	__alloc_pages_direct_reclaim
+> 	__alloc_pages_slowpath
+> 	__alloc_pages_nodemask
 > 
-> It looks to me for tree rcu, its srcu_read_lock() have a mb() which is too
-> expensive for us.
-
-I will try to ponder using vq lock in some way.
-Maybe with trylock somehow ...
-
-
-> If we just worry about the IPI,
-
-With synchronize_rcu what I would worry about is that guest is stalled
-because system is busy because of other guests.
-With expedited it's the IPIs...
-
-
-> can we do something like in
-> vhost_invalidate_vq_start()?
+> To debug, I poisoned mem_cgroup before freeing it:
 > 
->         if (map) {
->                 /* In order to avoid possible IPIs with
->                  * synchronize_rcu_expedited() we use call_rcu() +
->                  * completion.
-> */
-> init_completion(&c.completion);
->                 call_rcu(&c.rcu_head, vhost_finish_vq_invalidation);
-> wait_for_completion(&c.completion);
->                 vhost_set_map_dirty(vq, map, index);
-> vhost_map_unprefetch(map);
->         }
+> static void __mem_cgroup_free(struct mem_cgroup *memcg)
+> 	for_each_node(node)
+> 	free_mem_cgroup_per_node_info(memcg, node);
+> 	free_percpu(memcg->stat);
+> +       /* poison memcg before freeing it */
+> +       memset(memcg, 0x78, sizeof(struct mem_cgroup));
+> 	kfree(memcg);
+> }
 > 
-> ?
-
-Why would that be faster than synchronize_rcu?
-
-
-
+> The coredump shows the position=0xdbbc2a00 is freed.
 > 
-> > There's one other thing that bothers me, and that is that
-> > for large rings which are not physically contiguous
-> > we don't implement the optimization.
-> > 
-> > For sure, that can wait, but I think eventually we should
-> > vmap large rings.
+> (gdb) p/x ((struct mem_cgroup_per_node *)0xe5009e00)->iter[8]
+> $13 = {position = 0xdbbc2a00, generation = 0x2efd}
 > 
+> 0xdbbc2a00:     0xdbbc2e00      0x00000000      0xdbbc2800      0x00000100
+> 0xdbbc2a10:     0x00000200      0x78787878      0x00026218      0x00000000
+> 0xdbbc2a20:     0xdcad6000      0x00000001      0x78787800      0x00000000
+> 0xdbbc2a30:     0x78780000      0x00000000      0x0068fb84      0x78787878
+> 0xdbbc2a40:     0x78787878      0x78787878      0x78787878      0xe3fa5cc0
+> 0xdbbc2a50:     0x78787878      0x78787878      0x00000000      0x00000000
+> 0xdbbc2a60:     0x00000000      0x00000000      0x00000000      0x00000000
+> 0xdbbc2a70:     0x00000000      0x00000000      0x00000000      0x00000000
+> 0xdbbc2a80:     0x00000000      0x00000000      0x00000000      0x00000000
+> 0xdbbc2a90:     0x00000001      0x00000000      0x00000000      0x00100000
+> 0xdbbc2aa0:     0x00000001      0xdbbc2ac8      0x00000000      0x00000000
+> 0xdbbc2ab0:     0x00000000      0x00000000      0x00000000      0x00000000
+> 0xdbbc2ac0:     0x00000000      0x00000000      0xe5b02618      0x00001000
+> 0xdbbc2ad0:     0x00000000      0x78787878      0x78787878      0x78787878
+> 0xdbbc2ae0:     0x78787878      0x78787878      0x78787878      0x78787878
+> 0xdbbc2af0:     0x78787878      0x78787878      0x78787878      0x78787878
+> 0xdbbc2b00:     0x78787878      0x78787878      0x78787878      0x78787878
+> 0xdbbc2b10:     0x78787878      0x78787878      0x78787878      0x78787878
+> 0xdbbc2b20:     0x78787878      0x78787878      0x78787878      0x78787878
+> 0xdbbc2b30:     0x78787878      0x78787878      0x78787878      0x78787878
+> 0xdbbc2b40:     0x78787878      0x78787878      0x78787878      0x78787878
+> 0xdbbc2b50:     0x78787878      0x78787878      0x78787878      0x78787878
+> 0xdbbc2b60:     0x78787878      0x78787878      0x78787878      0x78787878
+> 0xdbbc2b70:     0x78787878      0x78787878      0x78787878      0x78787878
+> 0xdbbc2b80:     0x78787878      0x78787878      0x00000000      0x78787878
+> 0xdbbc2b90:     0x78787878      0x78787878      0x78787878      0x78787878
+> 0xdbbc2ba0:     0x78787878      0x78787878      0x78787878      0x78787878
 > 
-> Yes, worth to try. But using direct map has its own advantage: it can use
-> hugepage that vmap can't
+> In the reclaim path, try_to_free_pages() does not setup
+> sc.target_mem_cgroup and sc is passed to do_try_to_free_pages(), ...,
+> shrink_node().
 > 
-> Thanks
+> In mem_cgroup_iter(), root is set to root_mem_cgroup because
+> sc->target_mem_cgroup is NULL.
+> It is possible to assign a memcg to root_mem_cgroup.nodeinfo.iter in
+> mem_cgroup_iter().
+> 
+> 	try_to_free_pages
+> 		struct scan_control sc = {...}, target_mem_cgroup is 0x0;
+> 	do_try_to_free_pages
+> 	shrink_zones
+> 	shrink_node
+> 		 mem_cgroup *root = sc->target_mem_cgroup;
+> 		 memcg = mem_cgroup_iter(root, NULL, &reclaim);
+> 	mem_cgroup_iter()
+> 		if (!root)
+> 			root = root_mem_cgroup;
+> 		...
+> 
+> 		css = css_next_descendant_pre(css, &root->css);
+> 		memcg = mem_cgroup_from_css(css);
+> 		cmpxchg(&iter->position, pos, memcg);
+> 
+> My device uses memcg non-hierarchical mode.
+> When we release a memcg: invalidate_reclaim_iterators() reaches only
+> dead_memcg and its parents. If non-hierarchical mode is used,
+> invalidate_reclaim_iterators() never reaches root_mem_cgroup.
+> 
+> static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
+> {
+> 	struct mem_cgroup *memcg = dead_memcg;
+> 
+> 	for (; memcg; memcg = parent_mem_cgroup(memcg)
+> 	...
+> }
+> 
+> So the use after free scenario looks like:
+> 
+> CPU1						CPU2
+> 
+> try_to_free_pages
+> do_try_to_free_pages
+> shrink_zones
+> shrink_node
+> mem_cgroup_iter()
+>     if (!root)
+>     	root = root_mem_cgroup;
+>     ...
+>     css = css_next_descendant_pre(css, &root->css);
+>     memcg = mem_cgroup_from_css(css);
+>     cmpxchg(&iter->position, pos, memcg);
+> 
+> 					invalidate_reclaim_iterators(memcg);
+> 					...
+> 					__mem_cgroup_free()
+> 						kfree(memcg);
+> 
+> try_to_free_pages
+> do_try_to_free_pages
+> shrink_zones
+> shrink_node
+> mem_cgroup_iter()
+>     if (!root)
+>     	root = root_mem_cgroup;
+>     ...
+>     mz = mem_cgroup_nodeinfo(root, reclaim->pgdat->node_id);
+>     iter = &mz->iter[reclaim->priority];
+>     pos = READ_ONCE(iter->position);
+>     css_tryget(&pos->css) <- use after free
 
-Sure, so we can do that for small rings.
+Thanks for the write up. This is really useful.
 
+> To avoid this, we should also invalidate root_mem_cgroup.nodeinfo.iter in
+> invalidate_reclaim_iterators().
+
+I am sorry, I didn't get to comment an earlier version but I am
+wondering whether it makes more sense to do and explicit invalidation.
+
+[...]
+> +static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
+> +{
+> +	struct mem_cgroup *memcg = dead_memcg;
+> +	int invalidate_root = 0;
+> +
+> +	for (; memcg; memcg = parent_mem_cgroup(memcg))
+> +		__invalidate_reclaim_iterators(memcg, dead_memcg);
+
+	/* here goes your comment */
+	if (!dead_memcg->use_hierarchy)
+		__invalidate_reclaim_iterators(root_mem_cgroup,	dead_memcg);
+> +
+> +}
+
+Other than that the patch looks good to me.
+
+Acked-by: Michal Hocko <mhocko@suse.com>
 -- 
-MST
+Michal Hocko
+SUSE Labs
 
