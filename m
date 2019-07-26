@@ -2,184 +2,323 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 53251C76191
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 01:24:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 987A6C76190
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 02:12:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ED715229F9
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 01:24:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="PQnzJX5x"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED715229F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 2285222C7B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 02:12:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2285222C7B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 792738E0003; Thu, 25 Jul 2019 21:24:22 -0400 (EDT)
+	id 96AB46B0003; Thu, 25 Jul 2019 22:12:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 742D78E0002; Thu, 25 Jul 2019 21:24:22 -0400 (EDT)
+	id 9417C6B0005; Thu, 25 Jul 2019 22:12:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 659CB8E0003; Thu, 25 Jul 2019 21:24:22 -0400 (EDT)
+	id 8326F8E0002; Thu, 25 Jul 2019 22:12:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 46E0B8E0002
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 21:24:22 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id f11so38567719ywc.4
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 18:24:22 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4BE9F6B0003
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 22:12:56 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id u21so32171710pfn.15
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 19:12:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=QKXKINFukbwLIIsnFYM0gxF2tKYcHndEGgwougXKa7I=;
-        b=ObW9n6ti93YazbWjxRHSGqfCzTJUMcTVJqpFBNKeDUH8OQKM0qe6/z4JwJDk5aKd01
-         Z5yiyBIE0IHxNvIj0R4ryaNdTtZ8SFDsjKkwXdD8BdrPDVebRSGvma1kmK3fT0wRSpPp
-         EOHqmT4w5NoIDlGnSDvYocyvDGPB9wp60AdaVQWtfw0sYY+2rUNL7TImJ/us16cUdmqK
-         aYc6LsW74KbYDC2014aFegEaZ/ZEmS+XUUY3MbO644AxpVq1g0gr/028K+W59gLNmiHk
-         sTyBwvF6AWql4BI3Ty8kgJLI25cjcMiYxikseGDfytAhLzfeyciEemvM1d8jieqVFu/X
-         21Ow==
-X-Gm-Message-State: APjAAAWQaE39y2dmvEiD9AAJv9g/MII/A2GMoVto7EB7tkBhEU4cUC5u
-	uV6IY+1nT/7VFAAA6d5p4jNEgIhG1dAC3AuPoe47HABwHVxKEAe11xHb7Y6ydjD+iboDjXR+5CI
-	UtMyGcQj+OBvs8Loa4DgIYoqB727i/Ip9pagiBn5On9KXVoh+1/RALRNcU4Cmo4kIDw==
-X-Received: by 2002:a25:a2cb:: with SMTP id c11mr43255448ybn.175.1564104261960;
-        Thu, 25 Jul 2019 18:24:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwOdZjMShkCKH2IB5snWms3vztYlSLm9b4cJ0np1Vl8YZqwbYohGDlw+C5HR1mlUl8mgUtq
-X-Received: by 2002:a25:a2cb:: with SMTP id c11mr43255420ybn.175.1564104261294;
-        Thu, 25 Jul 2019 18:24:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564104261; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version;
+        bh=KNNzlvSBXHFkLdf839fOOo7jMyPUxFwuwEWNS3Q0IGw=;
+        b=GcZIfckBKsZw2Hbyn6Usj4ERhP5SAuZ+/4o91DJHhByTYXINyuh6NlztiAzNGnGcZQ
+         0R5z5w4xE5o3BNGDNHWNXhaD+rc2HY15TPuC07N+XdNawF0LNbXEoygfI4vlqkKZANF5
+         s1owbSue6k1QDgANaXiA/EcRcOARB/XkIyHVj+l+zoBGL5jNo/ryDfrD6ZKR37MQYDxU
+         EXvOqKsw4NG5qclZB8Mr7yp32H8gJjpn1FkpnPyiS37/TlNpsihuOzIbTGD3mpC0luG9
+         jtrDmqdBljf1USFh7seBS3HSS6IX6fS+u1UMnMnbf75NzFGX6V4FVGnkNvd1avtf2m1R
+         Wj7A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
+X-Gm-Message-State: APjAAAW6X0uPrGLJR1Xt3VDFC+3gRjEQcDcQGZ9WnbKXiCEXaIUkuzOD
+	7FfzF2uO2/1inNlhoSv8fr+M2IKmaXDrbsRpt+cOyHDqeDGHyYXLUWROaHcO5QYq28O3t+mhJth
+	yD4JQWVM5T16bWF1Nuttg9VphIUQeYAdlhWIoTQBaYtQuUa0FlHKAffhWMdUvru1qgw==
+X-Received: by 2002:a63:fb43:: with SMTP id w3mr53261949pgj.403.1564107175842;
+        Thu, 25 Jul 2019 19:12:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy9MLCnAFJExv5p8mqCi0RRZom/jVaCVZNoO9djrliWqBVW+dph1x3aGvtGYji7xpM7iqkw
+X-Received: by 2002:a63:fb43:: with SMTP id w3mr53261912pgj.403.1564107174706;
+        Thu, 25 Jul 2019 19:12:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564107174; cv=none;
         d=google.com; s=arc-20160816;
-        b=ApMGA9j7DZmXVkk/T6IRkzIwYzKgadz8ntoHxl5Hpg7/QSivgWE699qihQsDLWD4hr
-         l45rOOdqCm508WCkS9slkq0zFWqzdnV5lSClcKyct8ydXJQfA60kP6e9oAOpRa4dbqz5
-         D27p6LCBZKtIzUyDhthcecV8j3EkDr6zzhTyfYMXH4goGn0viaxkNNBc/VQmsbGIryhp
-         PM+HVSB5Ppgb7GfY3Xq9ayvqmWY8ynWAPF/50MsVvPHeECzynxZrx2Dvxa8Vi/vnvcDY
-         RjMoyh2UwehPsAyJU5hGN8pZKHYmXKz4y9TyLdatFLRaAadyrFxqMsQES4jam7Sns2il
-         RNcQ==
+        b=VrF3CW/f6P767heBEwMgs6vn8RDhuAV1cCjF0gEAvxRGMmAjWUXprVbQnfmOvbkkxH
+         hCcZ/rAziVXiw5M/HwRH3IUmBMqOJCZXXJnT+J1iU4QsbQ7PPwHcGR0O9xxWiIdlTdnr
+         Z0Qav3210/ROsJmzkgOOe7Tk4D+cwghkUGTa7T1YXKTDOnqt5KFo+ANX1+uabjFpHz/b
+         rHG0u8MvltOy+caWYdDPvd2MO1AjesPcsAplKpnbVMXhzLpChEI3N46zyyILxLH2tXXy
+         VUOxgareBrJ9hG2f98x6liBjY8ogL4zxTns9UehaM4E0nojeyDypMqTYHGAkk1Sp0eb2
+         Bobw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=QKXKINFukbwLIIsnFYM0gxF2tKYcHndEGgwougXKa7I=;
-        b=BYZQF3gzWxROaMT6V3TNKzTH5xXOoZ/dawS2XBrpd8vWwEDBllPd1Y73WLrQ9AbIkL
-         MuJFF4ExHtCX6a1M9s7GCEK5g76THViBmKHmYvIM2lMNmlEr9LTOntiApUnKEmJMlOa8
-         01nvSUVOl7eXfy86I+sCUMX9Nz4M2m5hEzEdG/dIucheL4w71f9XvQpnhprkMjqJXqtl
-         VDCnOqxVa/VZhvl2AZGF0ISapAz8QObjPlEs26w4L8nIQRCKkq2+Vyuk/m0rNcIKJOqf
-         WfGd2gx1FYw9fO+CYcIgz7CoGZ+cSRcX5D83RaEJa9rIVdy7LwNZCFkrKkkOplMmDsk4
-         l/VQ==
+        h=mime-version:message-id:date:subject:cc:to:from;
+        bh=KNNzlvSBXHFkLdf839fOOo7jMyPUxFwuwEWNS3Q0IGw=;
+        b=t6t7vAiTtwTe0/obDlZguBxB3wus++dYezZ6ww0DghllM2P8mNoDRhjPVCA2S+xV6T
+         8lcbAIakqO+xlCLL3ivi9Idk0BBq9Dw3l1rhUDziCRjV+XY6JhyRYtqIABMW5dGRYQ16
+         pDiK+0fdyGwvyC9sILBmiGW3vS7um2p75MaSq5kZpICTfKaN2xsnox+iwOpbm2D7vpyp
+         sOQXer5ScE04g0uRWD+rZjzUeaVUkFCkhWD/mreISuxhAZCQU+T7v1c8IKtk0A45FFPW
+         UqALehZDtEr1UU2RYD1hx0q2t2JxpEDUgbqKZfytzItuMd64dqGsjLbbeoor7lYTylti
+         SBrQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=PQnzJX5x;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id t188si11249600ywf.84.2019.07.25.18.24.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 18:24:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
+Received: from mailgw02.mediatek.com ([210.61.82.184])
+        by mx.google.com with ESMTP id y6si18490579pfl.288.2019.07.25.19.12.54
+        for <linux-mm@kvack.org>;
+        Thu, 25 Jul 2019 19:12:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) client-ip=210.61.82.184;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=PQnzJX5x;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d3a563e0000>; Thu, 25 Jul 2019 18:24:14 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Thu, 25 Jul 2019 18:24:17 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Thu, 25 Jul 2019 18:24:17 -0700
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 26 Jul
- 2019 01:24:16 +0000
-Subject: Re: [PATCH 00/12] block/bio, fs: convert put_page() to
- put_user_page*()
-To: Bob Liu <bob.liu@oracle.com>, Andrew Morton <akpm@linux-foundation.org>
-CC: Alexander Viro <viro@zeniv.linux.org.uk>, Anna Schumaker
-	<anna.schumaker@netapp.com>, "David S . Miller" <davem@davemloft.net>,
-	Dominique Martinet <asmadeus@codewreck.org>, Eric Van Hensbergen
-	<ericvh@gmail.com>, Jason Gunthorpe <jgg@ziepe.ca>, Jason Wang
-	<jasowang@redhat.com>, Jens Axboe <axboe@kernel.dk>, Latchesar Ionkov
-	<lucho@ionkov.net>, "Michael S . Tsirkin" <mst@redhat.com>, Miklos Szeredi
-	<miklos@szeredi.hu>, Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Christoph Hellwig <hch@lst.de>, Matthew Wilcox <willy@infradead.org>,
-	<linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	<ceph-devel@vger.kernel.org>, <kvm@vger.kernel.org>,
-	<linux-block@vger.kernel.org>, <linux-cifs@vger.kernel.org>,
-	<linux-fsdevel@vger.kernel.org>, <linux-nfs@vger.kernel.org>,
-	<linux-rdma@vger.kernel.org>, <netdev@vger.kernel.org>,
-	<samba-technical@lists.samba.org>, <v9fs-developer@lists.sourceforge.net>,
-	<virtualization@lists.linux-foundation.org>
-References: <20190724042518.14363-1-jhubbard@nvidia.com>
- <8621066c-e242-c449-eb04-4f2ce6867140@oracle.com>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <88864b91-516d-9774-f4ca-b45927ac4556@nvidia.com>
-Date: Thu, 25 Jul 2019 18:24:16 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
+X-UUID: b7f5b787c1b0489b95ff72da6144a4a5-20190726
+X-UUID: b7f5b787c1b0489b95ff72da6144a4a5-20190726
+Received: from mtkcas07.mediatek.inc [(172.21.101.84)] by mailgw02.mediatek.com
+	(envelope-from <miles.chen@mediatek.com>)
+	(Cellopoint E-mail Firewall v4.1.10 Build 0707 with TLS)
+	with ESMTP id 790886099; Fri, 26 Jul 2019 10:12:50 +0800
+Received: from mtkcas08.mediatek.inc (172.21.101.126) by
+ mtkmbs06n2.mediatek.inc (172.21.101.130) with Microsoft SMTP Server (TLS) id
+ 15.0.1395.4; Fri, 26 Jul 2019 10:12:49 +0800
+Received: from mtksdccf07.mediatek.inc (172.21.84.99) by mtkcas08.mediatek.inc
+ (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
+ Transport; Fri, 26 Jul 2019 10:12:49 +0800
+From: Miles Chen <miles.chen@mediatek.com>
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
+	Vladimir Davydov <vdavydov.dev@gmail.com>
+CC: <cgroups@vger.kernel.org>, <linux-mm@kvack.org>,
+	<linux-kernel@vger.kernel.org>, <linux-mediatek@lists.infradead.org>,
+	<wsd_upstream@mediatek.com>, Miles Chen <miles.chen@mediatek.com>
+Subject: [PATCH v2] mm: memcontrol: fix use after free in mem_cgroup_iter()
+Date: Fri, 26 Jul 2019 10:12:47 +0800
+Message-ID: <20190726021247.16162-1-miles.chen@mediatek.com>
+X-Mailer: git-send-email 2.18.0
 MIME-Version: 1.0
-In-Reply-To: <8621066c-e242-c449-eb04-4f2ce6867140@oracle.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1564104254; bh=QKXKINFukbwLIIsnFYM0gxF2tKYcHndEGgwougXKa7I=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=PQnzJX5xz5ikEiwrLKM8WsALivZ88h6rrpD5As08defMJIkdP+u4c4qNjj9VJ4tt7
-	 nwv4lirmE3zmhFpqjjtQZ51fomZqIx7+Z5K/hIMgtkne3B/lAraavguLY6SA4HXRUi
-	 W4SUZZlps8N4rFxPowCNQkldeoVK/fBECjRShYxjtzJx8yvDnyDgvLG3XjCMQgN0HE
-	 j0RlPZtSamPdX7GpRyHeIVO0klar+OAGzPGoJx+oiz7wZ/GbisDHnJkR/hoyBrvfQa
-	 +HuyKaWvKrWvHxopvgEQcRa8uv0hWn0N0u4M8vDDfrnuUHyPlJZxMytFt1GB3uPYBU
-	 1cdZ+M2GXGeqw==
+Content-Type: text/plain
+X-TM-SNTS-SMTP:
+	E47BA62FB3520A87CDD1B1B07F617E89661B21D1F20B352078600D8EA1F7DDB92000:8
+X-MTK: N
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/24/19 5:41 PM, Bob Liu wrote:
-> On 7/24/19 12:25 PM, john.hubbard@gmail.com wrote:
->> From: John Hubbard <jhubbard@nvidia.com>
->>
->> Hi,
->>
->> This is mostly Jerome's work, converting the block/bio and related areas
->> to call put_user_page*() instead of put_page(). Because I've changed
->> Jerome's patches, in some cases significantly, I'd like to get his
->> feedback before we actually leave him listed as the author (he might
->> want to disown some or all of these).
->>
-> 
-> Could you add some background to the commit log for people don't have the context..
-> Why this converting? What's the main differences?
-> 
+This patch is sent to report an use after free in mem_cgroup_iter()
+after merging commit: be2657752e9e "mm: memcg: fix use after free in
+mem_cgroup_iter()".
 
-Hi Bob,
+I work with android kernel tree (4.9 & 4.14), and the commit:
+be2657752e9e "mm: memcg: fix use after free in mem_cgroup_iter()" has
+been merged to the trees. However, I can still observe use after free
+issues addressed in the commit be2657752e9e.
+(on low-end devices, a few times this month)
 
-1. Many of the patches have a blurb like this:
+backtrace:
+	css_tryget <- crash here
+	mem_cgroup_iter
+	shrink_node
+	shrink_zones
+	do_try_to_free_pages
+	try_to_free_pages
+	__perform_reclaim
+	__alloc_pages_direct_reclaim
+	__alloc_pages_slowpath
+	__alloc_pages_nodemask
 
-For pages that were retained via get_user_pages*(), release those pages
-via the new put_user_page*() routines, instead of via put_page().
+To debug, I poisoned mem_cgroup before freeing it:
 
-This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
-("mm: introduce put_user_page*(), placeholder versions").
+static void __mem_cgroup_free(struct mem_cgroup *memcg)
+	for_each_node(node)
+	free_mem_cgroup_per_node_info(memcg, node);
+	free_percpu(memcg->stat);
++       /* poison memcg before freeing it */
++       memset(memcg, 0x78, sizeof(struct mem_cgroup));
+	kfree(memcg);
+}
 
-...and if you look at that commit, you'll find several pages of
-information in its commit description, which should address your point.
+The coredump shows the position=0xdbbc2a00 is freed.
 
-2. This whole series has to be re-worked, as per the other feedback thread.
-So I'll keep your comment in mind when I post a new series.
+(gdb) p/x ((struct mem_cgroup_per_node *)0xe5009e00)->iter[8]
+$13 = {position = 0xdbbc2a00, generation = 0x2efd}
 
-thanks,
+0xdbbc2a00:     0xdbbc2e00      0x00000000      0xdbbc2800      0x00000100
+0xdbbc2a10:     0x00000200      0x78787878      0x00026218      0x00000000
+0xdbbc2a20:     0xdcad6000      0x00000001      0x78787800      0x00000000
+0xdbbc2a30:     0x78780000      0x00000000      0x0068fb84      0x78787878
+0xdbbc2a40:     0x78787878      0x78787878      0x78787878      0xe3fa5cc0
+0xdbbc2a50:     0x78787878      0x78787878      0x00000000      0x00000000
+0xdbbc2a60:     0x00000000      0x00000000      0x00000000      0x00000000
+0xdbbc2a70:     0x00000000      0x00000000      0x00000000      0x00000000
+0xdbbc2a80:     0x00000000      0x00000000      0x00000000      0x00000000
+0xdbbc2a90:     0x00000001      0x00000000      0x00000000      0x00100000
+0xdbbc2aa0:     0x00000001      0xdbbc2ac8      0x00000000      0x00000000
+0xdbbc2ab0:     0x00000000      0x00000000      0x00000000      0x00000000
+0xdbbc2ac0:     0x00000000      0x00000000      0xe5b02618      0x00001000
+0xdbbc2ad0:     0x00000000      0x78787878      0x78787878      0x78787878
+0xdbbc2ae0:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2af0:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b00:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b10:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b20:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b30:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b40:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b50:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b60:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b70:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2b80:     0x78787878      0x78787878      0x00000000      0x78787878
+0xdbbc2b90:     0x78787878      0x78787878      0x78787878      0x78787878
+0xdbbc2ba0:     0x78787878      0x78787878      0x78787878      0x78787878
+
+In the reclaim path, try_to_free_pages() does not setup
+sc.target_mem_cgroup and sc is passed to do_try_to_free_pages(), ...,
+shrink_node().
+
+In mem_cgroup_iter(), root is set to root_mem_cgroup because
+sc->target_mem_cgroup is NULL.
+It is possible to assign a memcg to root_mem_cgroup.nodeinfo.iter in
+mem_cgroup_iter().
+
+	try_to_free_pages
+		struct scan_control sc = {...}, target_mem_cgroup is 0x0;
+	do_try_to_free_pages
+	shrink_zones
+	shrink_node
+		 mem_cgroup *root = sc->target_mem_cgroup;
+		 memcg = mem_cgroup_iter(root, NULL, &reclaim);
+	mem_cgroup_iter()
+		if (!root)
+			root = root_mem_cgroup;
+		...
+
+		css = css_next_descendant_pre(css, &root->css);
+		memcg = mem_cgroup_from_css(css);
+		cmpxchg(&iter->position, pos, memcg);
+
+My device uses memcg non-hierarchical mode.
+When we release a memcg: invalidate_reclaim_iterators() reaches only
+dead_memcg and its parents. If non-hierarchical mode is used,
+invalidate_reclaim_iterators() never reaches root_mem_cgroup.
+
+static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
+{
+	struct mem_cgroup *memcg = dead_memcg;
+
+	for (; memcg; memcg = parent_mem_cgroup(memcg)
+	...
+}
+
+So the use after free scenario looks like:
+
+CPU1						CPU2
+
+try_to_free_pages
+do_try_to_free_pages
+shrink_zones
+shrink_node
+mem_cgroup_iter()
+    if (!root)
+    	root = root_mem_cgroup;
+    ...
+    css = css_next_descendant_pre(css, &root->css);
+    memcg = mem_cgroup_from_css(css);
+    cmpxchg(&iter->position, pos, memcg);
+
+					invalidate_reclaim_iterators(memcg);
+					...
+					__mem_cgroup_free()
+						kfree(memcg);
+
+try_to_free_pages
+do_try_to_free_pages
+shrink_zones
+shrink_node
+mem_cgroup_iter()
+    if (!root)
+    	root = root_mem_cgroup;
+    ...
+    mz = mem_cgroup_nodeinfo(root, reclaim->pgdat->node_id);
+    iter = &mz->iter[reclaim->priority];
+    pos = READ_ONCE(iter->position);
+    css_tryget(&pos->css) <- use after free
+
+To avoid this, we should also invalidate root_mem_cgroup.nodeinfo.iter in
+invalidate_reclaim_iterators().
+
+Change since v1:
+Add a comment to explain why we need to handle root_mem_cgroup separately.
+Rename invalid_root to invalidate_root.
+
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Miles Chen <miles.chen@mediatek.com>
+---
+ mm/memcontrol.c | 38 ++++++++++++++++++++++++++++----------
+ 1 file changed, 28 insertions(+), 10 deletions(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index cdbb7a84cb6e..09f2191f113b 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1130,26 +1130,44 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
+ 		css_put(&prev->css);
+ }
+ 
+-static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
++static void __invalidate_reclaim_iterators(struct mem_cgroup *from,
++					struct mem_cgroup *dead_memcg)
+ {
+-	struct mem_cgroup *memcg = dead_memcg;
+ 	struct mem_cgroup_reclaim_iter *iter;
+ 	struct mem_cgroup_per_node *mz;
+ 	int nid;
+ 	int i;
+ 
+-	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
+-		for_each_node(nid) {
+-			mz = mem_cgroup_nodeinfo(memcg, nid);
+-			for (i = 0; i <= DEF_PRIORITY; i++) {
+-				iter = &mz->iter[i];
+-				cmpxchg(&iter->position,
+-					dead_memcg, NULL);
+-			}
++	for_each_node(nid) {
++		mz = mem_cgroup_nodeinfo(from, nid);
++		for (i = 0; i <= DEF_PRIORITY; i++) {
++			iter = &mz->iter[i];
++			cmpxchg(&iter->position,
++				dead_memcg, NULL);
+ 		}
+ 	}
+ }
+ 
++/*
++ * When cgruop1 non-hierarchy mode is used, parent_mem_cgroup() does
++ * not walk all the way up to the cgroup root (root_mem_cgroup). So
++ * we have to handle dead_memcg from cgroup root separately.
++ */
++static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
++{
++	struct mem_cgroup *memcg = dead_memcg;
++	int invalidate_root = 0;
++
++	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
++		__invalidate_reclaim_iterators(memcg, dead_memcg);
++		if (memcg == root_mem_cgroup)
++			invalidate_root = 1;
++	}
++
++	if (!invalidate_root)
++		__invalidate_reclaim_iterators(root_mem_cgroup, dead_memcg);
++}
++
+ /**
+  * mem_cgroup_scan_tasks - iterate over tasks of a memory cgroup hierarchy
+  * @memcg: hierarchy root
 -- 
-John Hubbard
-NVIDIA
+2.18.0
 
