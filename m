@@ -6,122 +6,120 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D75BC7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:00:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72DD2C7618B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:01:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B3BD4218DA
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:00:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3BD4218DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id 32B3C218DA
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:01:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 32B3C218DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4312F6B0003; Fri, 26 Jul 2019 08:00:16 -0400 (EDT)
+	id BA9A66B0003; Fri, 26 Jul 2019 08:01:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3E1146B0005; Fri, 26 Jul 2019 08:00:16 -0400 (EDT)
+	id B5AC56B0005; Fri, 26 Jul 2019 08:01:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2AA4A8E0002; Fri, 26 Jul 2019 08:00:16 -0400 (EDT)
+	id A70DC8E0002; Fri, 26 Jul 2019 08:01:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B4B376B0003
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:00:15 -0400 (EDT)
-Received: by mail-lj1-f197.google.com with SMTP id j22so11566022ljb.16
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 05:00:15 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 86E1D6B0003
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:01:19 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id x1so47342263qts.9
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 05:01:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=49P2rfnFxRRY9jvnWLrC9nEeePhkdlcYz3DLcNHY0+E=;
-        b=XaCehSjJGoN7/9BLskrFMOVG7YmOTGQADCqjZlWdckAFLR++TaajkXcc4cMPgufSGM
-         hI6W86CckuDgnZvlmU2QF9FPiwRttjRDgCeTmcCk+SbmZsUV+cHjimN8kHu+bkuZnIW+
-         ryNScfQFoas45sq0VimXd6BRc0660g9m0J3Clz5kU2h1g6+AkrDmhfk9WUNwAU58T0C6
-         OjNyuaS/vwG7J+2dJfT78/ywWL8KY4Ksm35/bWcGnnLEGUyDBBQ5UMv62CuVMEmTNspc
-         BEyJzhAuX9FLwxB5LagY1Y8zTb7yVkBiWxRnrjuJYZFCSTTrLdqI82wLUG3+E/sTFqQZ
-         h/1A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-X-Gm-Message-State: APjAAAX8nEX77fHThNdN9LFpZmXIDazcWPrx9o+kfJxoAhu+oQ782t2P
-	CjYhFOFHlFsG/8CATTi9ikqC/2qtu8UdS0wVV5hLC1GUlpeo0kiGxZBo7iu8kerjfsrvwqTDaXJ
-	XOAhpB8eaDCEtr/+Qk4SIYEEe700tmNZXPzIeN3XNVuKWNbV4W0I8G+22ZTwV0RS+FQ==
-X-Received: by 2002:a05:651c:d1:: with SMTP id 17mr12165528ljr.174.1564142415127;
-        Fri, 26 Jul 2019 05:00:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqydpy4smBNkxYkBLF+tXNw/pIIMzvxQLEDtlPiVqHg8Dv1FdjHJ5JZU0Td+A8NHpsVuDX8i
-X-Received: by 2002:a05:651c:d1:: with SMTP id 17mr12165480ljr.174.1564142414108;
-        Fri, 26 Jul 2019 05:00:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564142414; cv=none;
+         :content-transfer-encoding:content-language;
+        bh=w3wuoFfbMt9qdirrl+bhnjG3ZFuqAGhEyYyG9y4KPa8=;
+        b=iYfQ0aHapM/4QhjWn4x7NSWzSOta0xv8KK2UmRkAvTdjOOitOlMhzLyL+FC2cjaud9
+         cSPPIBcirzdBuxXpB9jTSMcmvV1SqjVtLrczbUenLpra4Nzm4Lv3M/foGA6GW0xjExuQ
+         F3OjIKIod+PEp1tTOTMye0lDv723bCoTh2vNhSiUh8muLbVeE2E5d6G0XfAy7SuSMo7g
+         fzpXg8jHpsc1akrjjrdtJEozPkXQdb8D4y9pa/vQfwNEmZssm/UUK+kEF0jmjm4olpIk
+         Bwds4N6ev7EYu/Id4DBIbO9Ma/xULrxN1Yyb0ylQBn9KcMV+nR6xn9SE9Y6FAIExmn8Q
+         upCA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWrsarwelc3PmAK8V2v6pEyzz1yJqPzyHamtOMYyrKfnZ0WSfZQ
+	JoQAVPApBmpuXY1mU9iZiKZkjRGBgkiV2S2d806W0Na6RwScGy9iySyLJxmmWderQZbqugo4f0w
+	yaVpMoSyV8Fi4apMjUlRCIV1QzSm8u1wscOfoC0hgzOxLW3bzkfXfYYd6ti43EpQY6g==
+X-Received: by 2002:a0c:9932:: with SMTP id h47mr67061726qvd.147.1564142479204;
+        Fri, 26 Jul 2019 05:01:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxo7nWCBKN2/bud0eO4LLcRLf07/NmBP9kkKdJhDfUz6ldemcpgRUewbLPtH54bDw+DVDq4
+X-Received: by 2002:a0c:9932:: with SMTP id h47mr67061143qvd.147.1564142470088;
+        Fri, 26 Jul 2019 05:01:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564142470; cv=none;
         d=google.com; s=arc-20160816;
-        b=BvGN7IEOI4B+CrDxu4JOeX/9PV6GZbLi+0kSEaKIgFQG8GvfES1aMyNNIAu1cEqj9c
-         j3Vj5VgnR3n95aEZbPV3JDQX3JBR9LS0DonfSRk0UXNhiGe8WMjilxpK7ofMHkVkAgP3
-         ll41Iqj70qtNSwFEVMSJQ+DmZqZZoj8dSaWPyBzBFo5fEHET1UkgC4IOj3lmlq+OLnCE
-         xxHBu8R5Dxfn2MLd9zIR6znUag275L51Uzs3nsGC7LirK/j5HPiYhimd+USqsgyd9BJ3
-         vubY2T+wsNEJVYtNqA1BwfXPgGhF33diXKMxxT12MkDC90sd1C5up2fBT6UYRSIptf/2
-         pvKg==
+        b=Ni5VzACwWByXwnGPQZd0TGZvptj1UWuTgdyP5RqQ1wfOjGjldGJ5j50Wix8F71tgkA
+         OoDU4Ji+PIEyPp5NkhCToVO9MIUHap5i2XRazFk2mNGlQqpP41ii/mHrd10Cqmtjvn2B
+         cOs1x1NrvfJZLuYAiYuJSgxCYQFVi+FLmXLII7YgvP8fwGVuKduHKRO975uAYt9kvqIG
+         8ijZSYrE0N3eKshIeVeYEuho5I2QIHhKD7TjVk19G+qA4jNcvG1ird0dwLqO1LIYG9Hn
+         PG/9LWOxfsjJ97ckUvtn7OZVZrizfdoHiESW3IW9N6kLM6BNoLCHqtQMaNysperJ1bEx
+         aCXA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=49P2rfnFxRRY9jvnWLrC9nEeePhkdlcYz3DLcNHY0+E=;
-        b=tRM58SY0Ci9qNkoU5AQZynbR5AX4tlLiF/ZQN3AE7TeZSquhIPC6coVDW7aKnp6MPR
-         2ICbS6Nt7t22bwnm4N+D3dQsK3HbwUeOmXbaf4u5D+/QPov4Z+IRamYtf17TWmsrtIAC
-         PL2A7nkCSLRLHRmvF/m+GqyTmnR5DTgvX3t9YtKZjkpeiZ/qwTUQNlu/3TarCCIh0xhS
-         OJ6DrP9e0qMvo7jsRdSuDwc3v9scM7aXkU6GmYDSiN24SNnAsaTMvpZGQ/VpuPHqw8x2
-         fwZTWJ+RjfltQ0NJA/ZLi7MRUcmRek4BRup4z4jfDxPyJxXFuk98FWtsODlG1HBkY7IB
-         9UAA==
+        bh=w3wuoFfbMt9qdirrl+bhnjG3ZFuqAGhEyYyG9y4KPa8=;
+        b=SugUosrecNFNOmcmJh5eXTRryiD5iZ+V3z/7dyghEtzQrxNU9wOvhr+r1jArCzE8Cp
+         NtdHeb1qEUiP7WQ7IeJ8t1ZjRqSmSzIjWSZVGkah5tTqSjT/MUaVsniCkkjXLNU2uydv
+         oponwV7v7uUeLm0x/IKU3jxlPyOeDw1E38VuxF/E3j8TNx+Uw7NuUP66iVtdVr70I9FK
+         rsLmrvDAcivIKnp74aVRhYCRG+sqcSsBs+mbqoIkfrqtGWzYxF/dToQYTLt6LMEnzMc7
+         J97+SVNzFt0l8RuM5IlHH+FkwWYdytUUEwH8IXXB8cwiUnYPLKljhCgKxDadtCujHp6k
+         353g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
-        by mx.google.com with ESMTPS id p12si38423324lfo.100.2019.07.26.05.00.13
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a193si10290042qkc.324.2019.07.26.05.01.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jul 2019 05:00:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
+        Fri, 26 Jul 2019 05:01:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from [172.16.25.12]
-	by relay.sw.ru with esmtp (Exim 4.92)
-	(envelope-from <aryabinin@virtuozzo.com>)
-	id 1hqytE-0007LO-Dd; Fri, 26 Jul 2019 15:00:00 +0300
-Subject: Re: [PATCH v3] kasan: add memory corruption identification for
- software tag-based mode
-To: Walter Wu <walter-zh.wu@mediatek.com>
-Cc: Dmitry Vyukov <dvyukov@google.com>,
- Alexander Potapenko <glider@google.com>, Christoph Lameter <cl@linux.com>,
- Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
- Joonsoo Kim <iamjoonsoo.kim@lge.com>,
- Matthias Brugger <matthias.bgg@gmail.com>,
- Martin Schwidefsky <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>,
- Vasily Gorbik <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>,
- "Jason A . Donenfeld" <Jason@zx2c4.com>, Miles Chen
- <miles.chen@mediatek.com>, kasan-dev <kasan-dev@googlegroups.com>,
- LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
- Linux ARM <linux-arm-kernel@lists.infradead.org>,
- linux-mediatek@lists.infradead.org, wsd_upstream <wsd_upstream@mediatek.com>
-References: <20190613081357.1360-1-walter-zh.wu@mediatek.com>
- <da7591c9-660d-d380-d59e-6d70b39eaa6b@virtuozzo.com>
- <1560447999.15814.15.camel@mtksdccf07> <1560479520.15814.34.camel@mtksdccf07>
- <1560744017.15814.49.camel@mtksdccf07>
- <CACT4Y+Y3uS59rXf92ByQuFK_G4v0H8NNnCY1tCbr4V+PaZF3ag@mail.gmail.com>
- <1560774735.15814.54.camel@mtksdccf07> <1561974995.18866.1.camel@mtksdccf07>
- <CACT4Y+aMXTBE0uVkeZz+MuPx3X1nESSBncgkScWvAkciAxP1RA@mail.gmail.com>
- <ebc99ee1-716b-0b18-66ab-4e93de02ce50@virtuozzo.com>
- <1562640832.9077.32.camel@mtksdccf07>
- <d9fd1d5b-9516-b9b9-0670-a1885e79f278@virtuozzo.com>
- <1562839579.5846.12.camel@mtksdccf07>
- <37897fb7-88c1-859a-dfcc-0a5e89a642e0@virtuozzo.com>
- <1563160001.4793.4.camel@mtksdccf07>
- <9ab1871a-2605-ab34-3fd3-4b44a0e17ab7@virtuozzo.com>
- <1563789162.31223.3.camel@mtksdccf07>
-From: Andrey Ryabinin <aryabinin@virtuozzo.com>
-Message-ID: <e62da62a-2a63-3a1c-faeb-9c5561a5170c@virtuozzo.com>
-Date: Fri, 26 Jul 2019 15:00:00 +0300
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 0724830C0A3B;
+	Fri, 26 Jul 2019 12:01:08 +0000 (UTC)
+Received: from [10.72.12.238] (ovpn-12-238.pek2.redhat.com [10.72.12.238])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 0BBB55DE6F;
+	Fri, 26 Jul 2019 12:00:59 +0000 (UTC)
+Subject: Re: WARNING in __mmdrop
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
+ aarcange@redhat.com, akpm@linux-foundation.org, christian@brauner.io,
+ davem@davemloft.net, ebiederm@xmission.com, elena.reshetova@intel.com,
+ guro@fb.com, hch@infradead.org, james.bottomley@hansenpartnership.com,
+ jglisse@redhat.com, keescook@chromium.org, ldv@altlinux.org,
+ linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, linux-parisc@vger.kernel.org, luto@amacapital.net,
+ mhocko@suse.com, mingo@kernel.org, namit@vmware.com, peterz@infradead.org,
+ syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk, wad@chromium.org
+References: <20190723035725-mutt-send-email-mst@kernel.org>
+ <3f4178f1-0d71-e032-0f1f-802428ceca59@redhat.com>
+ <20190723051828-mutt-send-email-mst@kernel.org>
+ <caff362a-e208-3468-3688-63e1d093a9d3@redhat.com>
+ <20190725012149-mutt-send-email-mst@kernel.org>
+ <55e8930c-2695-365f-a07b-3ad169654d28@redhat.com>
+ <20190725042651-mutt-send-email-mst@kernel.org>
+ <84bb2e31-0606-adff-cf2a-e1878225a847@redhat.com>
+ <20190725092332-mutt-send-email-mst@kernel.org>
+ <11802a8a-ce41-f427-63d5-b6a4cf96bb3f@redhat.com>
+ <20190726074644-mutt-send-email-mst@kernel.org>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <5cc94f15-b229-a290-55f3-8295266edb2b@redhat.com>
+Date: Fri, 26 Jul 2019 20:00:58 +0800
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <1563789162.31223.3.camel@mtksdccf07>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
+In-Reply-To: <20190726074644-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Fri, 26 Jul 2019 12:01:09 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -129,116 +127,71 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-
-On 7/22/19 12:52 PM, Walter Wu wrote:
-> On Thu, 2019-07-18 at 19:11 +0300, Andrey Ryabinin wrote:
->>
->> On 7/15/19 6:06 AM, Walter Wu wrote:
->>> On Fri, 2019-07-12 at 13:52 +0300, Andrey Ryabinin wrote:
+On 2019/7/26 下午7:49, Michael S. Tsirkin wrote:
+> On Thu, Jul 25, 2019 at 10:25:25PM +0800, Jason Wang wrote:
+>> On 2019/7/25 下午9:26, Michael S. Tsirkin wrote:
+>>>> Exactly, and that's the reason actually I use synchronize_rcu() there.
 >>>>
->>>> On 7/11/19 1:06 PM, Walter Wu wrote:
->>>>> On Wed, 2019-07-10 at 21:24 +0300, Andrey Ryabinin wrote:
->>>>>>
->>>>>> On 7/9/19 5:53 AM, Walter Wu wrote:
->>>>>>> On Mon, 2019-07-08 at 19:33 +0300, Andrey Ryabinin wrote:
->>>>>>>>
->>>>>>>> On 7/5/19 4:34 PM, Dmitry Vyukov wrote:
->>>>>>>>> On Mon, Jul 1, 2019 at 11:56 AM Walter Wu <walter-zh.wu@mediatek.com> wrote:
->>>>>>
->>>>>>>>>
->>>>>>>>> Sorry for delays. I am overwhelm by some urgent work. I afraid to
->>>>>>>>> promise any dates because the next week I am on a conference, then
->>>>>>>>> again a backlog and an intern starting...
->>>>>>>>>
->>>>>>>>> Andrey, do you still have concerns re this patch? This change allows
->>>>>>>>> to print the free stack.
->>>>>>>>
->>>>>>>> I 'm not sure that quarantine is a best way to do that. Quarantine is made to delay freeing, but we don't that here.
->>>>>>>> If we want to remember more free stacks wouldn't be easier simply to remember more stacks in object itself?
->>>>>>>> Same for previously used tags for better use-after-free identification.
->>>>>>>>
->>>>>>>
->>>>>>> Hi Andrey,
->>>>>>>
->>>>>>> We ever tried to use object itself to determine use-after-free
->>>>>>> identification, but tag-based KASAN immediately released the pointer
->>>>>>> after call kfree(), the original object will be used by another
->>>>>>> pointer, if we use object itself to determine use-after-free issue, then
->>>>>>> it has many false negative cases. so we create a lite quarantine(ring
->>>>>>> buffers) to record recent free stacks in order to avoid those false
->>>>>>> negative situations.
->>>>>>
->>>>>> I'm telling that *more* than one free stack and also tags per object can be stored.
->>>>>> If object reused we would still have information about n-last usages of the object.
->>>>>> It seems like much easier and more efficient solution than patch you proposing.
->>>>>>
->>>>> To make the object reused, we must ensure that no other pointers uses it
->>>>> after kfree() release the pointer.
->>>>> Scenario:
->>>>> 1). The object reused information is valid when no another pointer uses
->>>>> it.
->>>>> 2). The object reused information is invalid when another pointer uses
->>>>> it.
->>>>> Do you mean that the object reused is scenario 1) ?
->>>>> If yes, maybe we can change the calling quarantine_put() location. It
->>>>> will be fully use that quarantine, but at scenario 2) it looks like to
->>>>> need this patch.
->>>>> If no, maybe i miss your meaning, would you tell me how to use invalid
->>>>> object information? or?
->>>>>
+>>>> So the concern is still the possible synchronize_expedited()?
+>>> I think synchronize_srcu_expedited.
+>>>
+>>> synchronize_expedited sends lots of IPI and is bad for realtime VMs.
+>>>
+>>>> Can I do this
+>>>> on through another series on top of the incoming V2?
 >>>>
+>>>> Thanks
 >>>>
->>>> KASAN keeps information about object with the object, right after payload in the kasan_alloc_meta struct.
->>>> This information is always valid as long as slab page allocated. Currently it keeps only one last free stacktrace.
->>>> It could be extended to record more free stacktraces and also record previously used tags which will allow you
->>>> to identify use-after-free and extract right free stacktrace.
->>>
->>> Thanks for your explanation.
->>>
->>> For extend slub object, if one record is 9B (sizeof(u8)+ sizeof(struct
->>> kasan_track)) and add five records into slub object, every slub object
->>> may add 45B usage after the system runs longer. 
->>> Slub object number is easy more than 1,000,000(maybe it may be more
->>> bigger), then the extending object memory usage should be 45MB, and
->>> unfortunately it is no limit. The memory usage is more bigger than our
->>> patch.
+>>> The question is this: is this still a gain if we switch to the
+>>> more expensive srcu? If yes then we can keep the feature on,
 >>
->> No, it's not necessarily more.
->> And there are other aspects to consider such as performance, how simple reliable the code is.
+>> I think we only care about the cost on srcu_read_lock() which looks pretty
+>> tiny form my point of view. Which is basically a READ_ONCE() + WRITE_ONCE().
 >>
->>>
->>> We hope tag-based KASAN advantage is smaller memory usage. If it’s
->>> possible, we should spend less memory in order to identify
->>> use-after-free. Would you accept our patch after fine tune it?
+>> Of course I can benchmark to see the difference.
 >>
->> Sure, if you manage to fix issues and demonstrate that performance penalty of your
->> patch is close to zero.
-> 
-> 
-> I remember that there are already the lists which you concern. Maybe we
-> can try to solve those problems one by one.
-> 
-> 1. deadlock issue? cause by kmalloc() after kfree()?
-
-smp_call_on_cpu()
-
-> 2. decrease allocation fail, to modify GFP_NOWAIT flag to GFP_KERNEL?
-
-No, this is not gonna work. Ideally we shouldn't have any allocations there.
-It's not reliable and it hurts performance.
+>>
+>>> if not we'll put it off until next release and think
+>>> of better solutions. rcu->srcu is just a find and replace,
+>>> don't see why we need to defer that. can be a separate patch
+>>> for sure, but we need to know how well it works.
+>>
+>> I think I get here, let me try to do that in V2 and let's see the numbers.
+>>
+>> Thanks
 
 
-> 3. check whether slim 48 bytes (sizeof (qlist_object) +
-> sizeof(kasan_alloc_meta)) and additional unique stacktrace in
-> stackdepot?
-> 4. duplicate struct 'kasan_track' information in two different places
-> 
+It looks to me for tree rcu, its srcu_read_lock() have a mb() which is 
+too expensive for us.
 
-Yup.
+If we just worry about the IPI, can we do something like in 
+vhost_invalidate_vq_start()?
 
-> Would you have any other concern? or?
-> 
+         if (map) {
+                 /* In order to avoid possible IPIs with
+                  * synchronize_rcu_expedited() we use call_rcu() +
+                  * completion.
+*/
+init_completion(&c.completion);
+                 call_rcu(&c.rcu_head, vhost_finish_vq_invalidation);
+wait_for_completion(&c.completion);
+                 vhost_set_map_dirty(vq, map, index);
+vhost_map_unprefetch(map);
+         }
 
-It would be nice to see some performance numbers. Something that uses slab allocations a lot, e.g. netperf STREAM_STREAM test.
+?
 
+
+> There's one other thing that bothers me, and that is that
+> for large rings which are not physically contiguous
+> we don't implement the optimization.
+>
+> For sure, that can wait, but I think eventually we should
+> vmap large rings.
+
+
+Yes, worth to try. But using direct map has its own advantage: it can 
+use hugepage that vmap can't
+
+Thanks
 
