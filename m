@@ -2,136 +2,171 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_2
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D3DC1C7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 13:00:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A8A15C7618B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 13:20:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A5A3721871
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 13:00:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A5A3721871
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 67C34218D4
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 13:20:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67C34218D4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B3EF6B0005; Fri, 26 Jul 2019 09:00:21 -0400 (EDT)
+	id 04BA86B0003; Fri, 26 Jul 2019 09:20:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 366826B0006; Fri, 26 Jul 2019 09:00:21 -0400 (EDT)
+	id F3F1F6B0005; Fri, 26 Jul 2019 09:20:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 22CEE8E0002; Fri, 26 Jul 2019 09:00:21 -0400 (EDT)
+	id E2F0A8E0002; Fri, 26 Jul 2019 09:20:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id C88DD6B0005
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 09:00:20 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id l26so34081994eda.2
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 06:00:20 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AE1426B0003
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 09:20:30 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 21so33181345pfu.9
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 06:20:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=ZnFnLX57nZWl1UwsuvPEx2b1Ejn+8R9k/lPZDTJLfps=;
-        b=YXLFYYEFQ5+UNjyABqI+3yQfr3HOJ9yt8dnkiuFxbqUVfbMjBnGe/Mh7YYnWgFeRXc
-         xIaaAKBEHvICGSPdUuvelFpCCGCh7Fc4blS+c9Jgkx8GX2YS+l7x+1Izr4UfqpTjGb+r
-         Mk6NvWemf/K8q94mKWNw5xlkcnwd2u/Cj+bWRATKgc0oq4jzAJbyA6l700leWFGbdskh
-         0l6OyUOfPjzQA7StEsl37szjJNjMMa76VY5Hfp9ri/dWAodiHl2xPlD8Nut+5vh7y3EZ
-         bRa45pldCdXgFRUwqj3Z9Ej68RErDYKECu0B0TWu57nMeo9tdhG9gSUIroVcWmeMrz6C
-         lNpQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAU2CFUFlhyyAe6lVpSjGNGL7knEmV6czEV9RWqi52EPv7NyHxG3
-	A0sIdmyQ20lGyw5kKGRuRJKgcTOSgll6SBRj6+CXIii9Nt8LwMZSKPjOiMrGVf1gPGDVSGjP2h0
-	BKPgo3QKhqpwCFPLU2lhjR/GaTjMrqCT4I146exFC2ls1G0+USoM4x8ZOglQ01DDbFg==
-X-Received: by 2002:aa7:cdc6:: with SMTP id h6mr81781963edw.5.1564146020360;
-        Fri, 26 Jul 2019 06:00:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzSZvjOPzX+lQj9P2pLr2MZGaTKc5RmGjVVus0sgWk2iwQEIkpgOUGYWp9zS7RYepste9JB
-X-Received: by 2002:aa7:cdc6:: with SMTP id h6mr81781848edw.5.1564146019305;
-        Fri, 26 Jul 2019 06:00:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564146019; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references
+         :content-transfer-encoding:mime-version;
+        bh=Dk4vQtmJTJwidyR9ji2Z1X/x/ODb/8xrAJ4pYnp3tso=;
+        b=Y/d2tdAU8HKuTvob59bYqHQw18UYJiV15i9cXCfZWY4sTDaz4QRnwuleoGp8N1pEsH
+         KY7R54BfHQVz6f2sby0xzMbrNpx6ltvwi9JUFdWuNGt1yHLHvZvkNKJT4ZEdm+7DNT8u
+         dCjmAcpA49zSBdZr0AdVvauoduwXYbfQMm5TcOB05z/+EPsE5wotWMQMjuKqnzPXaRBB
+         dzWTBs3Qte5sed49osZuTxoO1g7UBU0g5UKk0IKAZobi4Z5vaOjKg751HpTqqltaCfPP
+         26ObeYTrahCaWmgt6Jg1d+/0cntSyVBcI6tmDeBveaWhD6GzbrIXWwHZHhLJ8smhb/1w
+         f0vQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
+X-Gm-Message-State: APjAAAWvYFXvy63U2xmBa22+4captYH6CwjR2uds8VHCq3l3nEGIrSlt
+	ufqYvEZNz3MfrHhyBAtbe88fIklFnRdvDf34oJzrSxt/5OjTXnBxWQVdJtfHW94RR6JT96Ll7bk
+	x1yqvz1YItRtIhyB+vhKATwKmP0AArvocXKjH4G5HhxE2ACjeStuRXZu65ihtQ0IweA==
+X-Received: by 2002:a65:62d7:: with SMTP id m23mr91403781pgv.358.1564147230281;
+        Fri, 26 Jul 2019 06:20:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxbe84z47LX51SpUtjmFj9ucksOzaRd2Z6jHKoND/RF931ccse2+qbB91M5mCvW0EFmVvVv
+X-Received: by 2002:a65:62d7:: with SMTP id m23mr91400787pgv.358.1564147190112;
+        Fri, 26 Jul 2019 06:19:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564147190; cv=none;
         d=google.com; s=arc-20160816;
-        b=yPo/LduZaJLVNLQYMJMBZSiKCpHJscj/s1J2J4Yezn0Sf1Up33J/uTpYmWTQdI+5N7
-         to4Odoav2QE8E3XWDD60te1wTtVJy5DQ32OaLpMnAICPxxzUxPn/mvkjLWkTQu67eahB
-         wX1RYp0iLvi5F11a1Kzy0HONfeBT/wwb5uLaC4RF3iucLzwRbDNZaTpOFSOddyEDCkOJ
-         Aq5raXV5kBRNmvHOsOB4CLGDJUexcemvDSCqN2/XCfYp6nfltZgf1wDRhE1KoCMbqO+d
-         19ofGQN9BECqJAJPouxUin7pQm77BGDB6jX7ERY97dHdLAq4VQtFAOrPn4+rGQJU2Wk+
-         yFug==
+        b=B5fGukKeCfzRpdEO1wNhz6LyXgWBUtkCKGs/nIbPjwFWWWeMz8rF0+hwr+LZSQ0q4J
+         QjGwV0RNFFGiH3NC2z0nxbBkAHRGmnKgNYfOkKm1ALSETNR2auNMxKqZ9A7kjYF0wwWH
+         AgVOHlkmivWUNzEyxJjEerXUHuEPdbbXqMSMnUJ3FRLAQvwmlkpGuAYY9Dh8q1eJHQoG
+         3YqJKn5iSzMawbJ/mbrlEVaFfPhyUJBLqB/tXnRD3j58snU2D/aaCOZbrdbn6xONuS0I
+         /AQkWS7cn+nV4VNSDT/oM75GnFOAZ7Gx7ZWTmVYrbHEeSS4IJAegcoCGyj9XnB7XhTiZ
+         UK3A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=ZnFnLX57nZWl1UwsuvPEx2b1Ejn+8R9k/lPZDTJLfps=;
-        b=v4dvcp48hLetFMR6d5uqqD4h3AVIecUtYIZODDbncDyyj8pQjbWbFJkVFvMzFkfBJC
-         pgUWzad3v2YfTrCGecX5HPsFOd4ENOS4ZD5U6VtaC5JnfTFA2lyXPHaYpjH33nZ0grTO
-         Dc9I8ZxY7CaTBEqBsgxwwUk/OJ9Kte3pBWUwzPa+hQIEqnmrSO74rwrIgDaT7G5CfdI6
-         et+HQ7eLLYc40ozfc/RLKx6PSvw67lnbCwHifQ+0mcw+hRzYH+h/nrSaO9WXTJfoOJJa
-         3HOM9B57AfX8/eJd65v4kKrG6yJVOQuAiqATPAfsWS9OEHrSff0VUt9qC6Or+1IqjuYD
-         p8Hg==
+        h=mime-version:content-transfer-encoding:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=Dk4vQtmJTJwidyR9ji2Z1X/x/ODb/8xrAJ4pYnp3tso=;
+        b=Uv6hQZ6x8p65RS9kCFS8ePCPlT6/9GglMBptBG1jBpACZ+M9cNAMAbr+z4oKwZJokS
+         xLQiKiH8PHG83KzGwpoGMwmXfmi1KFna4Udqd9VsWf6/LqA6yWd8saXH7TzDnkyK3uL6
+         Np/bCSbKWap6ZxkqiOozbwyakNi1X0fXw8FvSGApy607cgk7Mjc+7Teht/ssGHthS8ay
+         SyxhC0Ux2xBTPInw07FgDJBOWa/9lsKTCUO+nXH0lbFpjMdIs94ux/Ci+sWZMq/hX1Fz
+         ZYMyJtcJFTNiaP4aAn788BNdmm0QQqCCMpWKTHqlhJaLxiMyel3XCAx+Z/Z/wfDbvD7J
+         ROow==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id i13si10728982eja.216.2019.07.26.06.00.18
+       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
+Received: from mailgw02.mediatek.com ([210.61.82.184])
+        by mx.google.com with ESMTP id v71si20302371pgd.468.2019.07.26.06.19.27
         for <linux-mm@kvack.org>;
-        Fri, 26 Jul 2019 06:00:18 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+        Fri, 26 Jul 2019 06:19:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) client-ip=210.61.82.184;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 70923337;
-	Fri, 26 Jul 2019 06:00:17 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 357033F694;
-	Fri, 26 Jul 2019 06:00:16 -0700 (PDT)
-Date: Fri, 26 Jul 2019 14:00:14 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: syzbot <syzbot+a871c1e6ea00685e73d7@syzkaller.appspotmail.com>
-Cc: alexandre.belloni@free-electrons.com, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, nicolas.ferre@atmel.com, robh@kernel.org,
-	sre@kernel.org, syzkaller-bugs@googlegroups.com
-Subject: Re: memory leak in vq_meta_prefetch
-Message-ID: <20190726130013.GC2368@arrakis.emea.arm.com>
-References: <00000000000052ad6b058e722ba4@google.com>
+       spf=pass (google.com: domain of walter-zh.wu@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=walter-zh.wu@mediatek.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
+X-UUID: 0811d90d0f9943609049e07c27e9d03e-20190726
+X-UUID: 0811d90d0f9943609049e07c27e9d03e-20190726
+Received: from mtkmrs01.mediatek.inc [(172.21.131.159)] by mailgw02.mediatek.com
+	(envelope-from <walter-zh.wu@mediatek.com>)
+	(Cellopoint E-mail Firewall v4.1.10 Build 0707 with TLS)
+	with ESMTP id 1211687384; Fri, 26 Jul 2019 21:19:23 +0800
+Received: from mtkcas08.mediatek.inc (172.21.101.126) by
+ mtkmbs06n1.mediatek.inc (172.21.101.129) with Microsoft SMTP Server (TLS) id
+ 15.0.1395.4; Fri, 26 Jul 2019 21:19:24 +0800
+Received: from [172.21.84.99] (172.21.84.99) by mtkcas08.mediatek.inc
+ (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
+ Transport; Fri, 26 Jul 2019 21:19:24 +0800
+Message-ID: <1564147164.515.10.camel@mtksdccf07>
+Subject: Re: [PATCH v3] kasan: add memory corruption identification for
+ software tag-based mode
+From: Walter Wu <walter-zh.wu@mediatek.com>
+To: Andrey Ryabinin <aryabinin@virtuozzo.com>
+CC: Dmitry Vyukov <dvyukov@google.com>, Alexander Potapenko
+	<glider@google.com>, Christoph Lameter <cl@linux.com>, Pekka Enberg
+	<penberg@kernel.org>, David Rientjes <rientjes@google.com>, Joonsoo Kim
+	<iamjoonsoo.kim@lge.com>, Matthias Brugger <matthias.bgg@gmail.com>, "Martin
+ Schwidefsky" <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>, "Vasily
+ Gorbik" <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>, "Jason
+ A . Donenfeld" <Jason@zx2c4.com>, Miles Chen <miles.chen@mediatek.com>,
+	kasan-dev <kasan-dev@googlegroups.com>, LKML <linux-kernel@vger.kernel.org>,
+	Linux-MM <linux-mm@kvack.org>, Linux ARM
+	<linux-arm-kernel@lists.infradead.org>, <linux-mediatek@lists.infradead.org>,
+	wsd_upstream <wsd_upstream@mediatek.com>
+Date: Fri, 26 Jul 2019 21:19:24 +0800
+In-Reply-To: <71df2bd5-7bc8-2c82-ee31-3f68c3b6296d@virtuozzo.com>
+References: <20190613081357.1360-1-walter-zh.wu@mediatek.com>
+	 <da7591c9-660d-d380-d59e-6d70b39eaa6b@virtuozzo.com>
+	 <1560447999.15814.15.camel@mtksdccf07>
+	 <1560479520.15814.34.camel@mtksdccf07>
+	 <1560744017.15814.49.camel@mtksdccf07>
+	 <CACT4Y+Y3uS59rXf92ByQuFK_G4v0H8NNnCY1tCbr4V+PaZF3ag@mail.gmail.com>
+	 <1560774735.15814.54.camel@mtksdccf07>
+	 <1561974995.18866.1.camel@mtksdccf07>
+	 <CACT4Y+aMXTBE0uVkeZz+MuPx3X1nESSBncgkScWvAkciAxP1RA@mail.gmail.com>
+	 <ebc99ee1-716b-0b18-66ab-4e93de02ce50@virtuozzo.com>
+	 <1562640832.9077.32.camel@mtksdccf07>
+	 <d9fd1d5b-9516-b9b9-0670-a1885e79f278@virtuozzo.com>
+	 <1562839579.5846.12.camel@mtksdccf07>
+	 <37897fb7-88c1-859a-dfcc-0a5e89a642e0@virtuozzo.com>
+	 <1563160001.4793.4.camel@mtksdccf07>
+	 <9ab1871a-2605-ab34-3fd3-4b44a0e17ab7@virtuozzo.com>
+	 <1563789162.31223.3.camel@mtksdccf07>
+	 <e62da62a-2a63-3a1c-faeb-9c5561a5170c@virtuozzo.com>
+	 <1564144097.515.3.camel@mtksdccf07>
+	 <71df2bd5-7bc8-2c82-ee31-3f68c3b6296d@virtuozzo.com>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.2.3-0ubuntu6 
+Content-Transfer-Encoding: 7bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <00000000000052ad6b058e722ba4@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-MTK: N
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 24, 2019 at 12:18:07PM -0700, syzbot wrote:
-> syzbot found the following crash on:
+On Fri, 2019-07-26 at 15:52 +0300, Andrey Ryabinin wrote:
 > 
-> HEAD commit:    c6dd78fc Merge branch 'x86-urgent-for-linus' of git://git...
-> git tree:       upstream
-> console output: https://syzkaller.appspot.com/x/log.txt?x=15fffef4600000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=8de7d700ea5ac607
-> dashboard link: https://syzkaller.appspot.com/bug?extid=a871c1e6ea00685e73d7
-> compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-> syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=127b0334600000
-> C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=12609e94600000
+> On 7/26/19 3:28 PM, Walter Wu wrote:
+> > On Fri, 2019-07-26 at 15:00 +0300, Andrey Ryabinin wrote:
+> >>
+> >
+> >>>
+> >>>
+> >>> I remember that there are already the lists which you concern. Maybe we
+> >>> can try to solve those problems one by one.
+> >>>
+> >>> 1. deadlock issue? cause by kmalloc() after kfree()?
+> >>
+> >> smp_call_on_cpu()
+> > 
+> >>> 2. decrease allocation fail, to modify GFP_NOWAIT flag to GFP_KERNEL?
+> >>
+> >> No, this is not gonna work. Ideally we shouldn't have any allocations there.
+> >> It's not reliable and it hurts performance.
+> >>
+> > I dont know this meaning, we need create a qobject and put into
+> > quarantine, so may need to call kmem_cache_alloc(), would you agree this
+> > action?
+> > 
 > 
-> The bug was bisected to:
-> 
-> commit 0e5f7d0b39e1f184dc25e3adb580c79e85332167
-> Author: Nicolas Ferre <nicolas.ferre@atmel.com>
-> Date:   Wed Mar 16 13:19:49 2016 +0000
-> 
->     ARM: dts: at91: shdwc binding: add new shutdown controller documentation
+> How is this any different from what you have now?
 
-That's another wrong commit identification (a documentation patch should
-not cause a memory leak).
-
-I don't really think kmemleak, with its relatively high rate of false
-positives, is suitable for automated testing like syzbot. You could
-reduce the false positives if you add support for scanning in
-stop_machine(). Otherwise, in order to avoid locking the kernel for long
-periods, kmemleak runs concurrently with other threads (even on the
-current CPU) and under high load, pointers are missed (e.g. they are in
-CPU registers rather than stack).
-
--- 
-Catalin
+I originally thought you already agreed the free-list(tag-based
+quarantine) after fix those issue. If no allocation there, i think maybe
+only move generic quarantine into tag-based kasan, but its memory
+consumption is more bigger our patch. what do you think?
 
