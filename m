@@ -2,265 +2,179 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 01C8AC7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:37:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 24856C76191
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 11:09:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id ACCD022C7E
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:37:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ACCD022C7E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id EA2C722ADA
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 11:09:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA2C722ADA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5A6A66B0003; Fri, 26 Jul 2019 06:37:15 -0400 (EDT)
+	id 714616B0003; Fri, 26 Jul 2019 07:09:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 52EE08E0002; Fri, 26 Jul 2019 06:37:15 -0400 (EDT)
+	id 6C57B6B0005; Fri, 26 Jul 2019 07:09:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3AA396B0007; Fri, 26 Jul 2019 06:37:15 -0400 (EDT)
+	id 5DC1A8E0002; Fri, 26 Jul 2019 07:09:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 14E956B0003
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 06:37:15 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id b139so44725282qkc.21
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 03:37:15 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 128236B0003
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 07:09:42 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id y15so33917461edu.19
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 04:09:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=+aRR7Z/ZkPsCs4ZMFyUWOZCgeh/IqFaQ7lS2bp2qPVs=;
-        b=Up8tveTA+BORX7frvkzS30ixSQHSc2aeSLfE3kqMTn+0cCAgHCmlTjYs/gd8YZ79IN
-         o1iK0UTuvXF8jGh3NnxTFR2kAzJ/CFElY31FrSUJW2Ua8pCd35XvVUjBH8PWFyN/TKZf
-         X2j1Wd/b8tyYwIQSkrWfhf+6GlUC6Blf3zCSimSvMYPnJU3VHIojYlFq5AuvcFSOCRpz
-         vgL7iApvm6Cju8ZS9SnOUBGDg8JN/OQ/mVZR/ylPXDcy+qTFi7KBodFOkZiAlIXGFT96
-         rEVOvrWcmj7F0nBp0OzSnTaz5bG5b+qvHcJFYn2hrMFKHu0xRZ8PTYzAKTkBjxBuwvKU
-         J/7w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAV23lulVA4oztmWQPf2ZIMuouo1bF9LYuwU64hrY4bn8+5zdMYj
-	F3RmPBoVYuesjo6eIYNUBDGXfTKf5ZGXW8QkUa0AHd05JBpbYofU5dub2WIxCbVMxfAl2p12/Ua
-	vmTC79QKzZxR3FkyZ+JfdpX3ghc7IaUpPPhba7neUULwRhKc/+1tDwGucoze9DKNQ2g==
-X-Received: by 2002:ae9:f017:: with SMTP id l23mr62207370qkg.457.1564137434831;
-        Fri, 26 Jul 2019 03:37:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxT9bxx8KT9zzymdTpG4zU1SwOvd0unv5bZUYFf6q5ulHdy+MuBqzdrtH95RFwsy59PVE01
-X-Received: by 2002:ae9:f017:: with SMTP id l23mr62207342qkg.457.1564137434283;
-        Fri, 26 Jul 2019 03:37:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564137434; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=dDbcwl7Bs+mn1YNTK1xlD989BeivSdEtGkH/XWYFPQg=;
+        b=oansGGuA2WYaCauFf0LaD2b63GCbeNu+hMPAolzMjLh+bw2Ko3o8bd18yC7pWyVhWJ
+         mXIwDJFZz7J1ieVH6y+rkF+yBLwxcePCAnoAcGw0qsXQIShpc8BeTQ2ZN76Mnl1ET6EC
+         SfOFh+hDb34Zt0lS+uTUkESoIOGcyBfSTh9z+KoksuyzWjDWhFG/EWFSokIOCcN9m+CU
+         t34xai2kwneElbPyMJ8yICnZQlugOJeHM0KkRXoU/1ldUlC/H9U8Phko8/y4q5paRR8k
+         2YNaUvBEllVS9QubbgWZwdhrmzpA2sHAAtp2biPUj1wTYI4yt1UZguZztCCkIMjU1+EI
+         e/9w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAVdyP54tP1Cnkqiog+SM/7Pdy9Kfb0WLQYTOqeJp63SI9i6bhNO
+	cQWYb1gIIzeTd50bUQw4zRrFW3RtVZ0kbgA+L8Bmgo+Lw+Zx5FCnwYdOkdzWT3s5xcApbWnYlcw
+	f1yNYI2SLL/fAAmiK6+rJ3s6swfrT/jNfkPP+bnswG5pPMdo3TMfsJqamwTbb6ESWDQ==
+X-Received: by 2002:a50:b48f:: with SMTP id w15mr83170144edd.260.1564139381663;
+        Fri, 26 Jul 2019 04:09:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyGEndIION52yqvyYsBFg04H8ujB+H9hx084pTCaCtxqWnEpxJjMo4Kpi7GWLBAN4HR0NhS
+X-Received: by 2002:a50:b48f:: with SMTP id w15mr83170079edd.260.1564139380869;
+        Fri, 26 Jul 2019 04:09:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564139380; cv=none;
         d=google.com; s=arc-20160816;
-        b=ii9r7GhSkTy/VULmwGLqJmxVuQroi4T+B9FrAAZ7Uw8FN+etxDQnyPUviXCqM81+7B
-         vGsDWO9aWpUKbt9JaLdc4CZSr865M9KsE0kc9KsqLwAbJnOC2D5K28NVxkoPQnqhuvmM
-         O9WXziyZUOontd3AOW7Djjy+AoNsY/nnXy3OlPO/0jmm1D9wA0LRWzQN70C7kvz88sJt
-         I8kO1+KnDCZ22QmhTOxVDmAG0+YTFNQevGCntHeQxPiDy1/fc9WdKsy9l+sERmr1PIRp
-         BXhhMSGkJk3XScmU7OA44XzqKqN68/MNJ+fLn8SZqq15bXSmC39+ljv2nwkmQPp4ZjI7
-         dEhA==
+        b=VZJRWH0UzMZexrmTwomLmIpSOQPlvd11w6DedYTQGTUEWYVvMp1n2jeOTHWMzCt2yg
+         SONUMGn492yi0incIejohod4bSGLWzLumOV+81/6T7MwR6PlMTOTQ8OpZ9gJQ/LgkK3W
+         n7Hit1DZp8gYVlstjrSv5FLLqCyo/KBS6wWvm3Ylj4kYfLGwNr8/oT2d3vZoyZ4nnOpw
+         xvZ03GbHf4Wz3iS2o7Jakqjq2L3ao0LZVnzWIzqQ+SSDfDBqTOt9NqQay0EFgKqOWREe
+         W8KalfnnijF/rKDFolL1bH9uN2teoP4IcC0o2s+maMIwrCuZgIGNiX/kEk66L9S4+U3J
+         tvwA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=+aRR7Z/ZkPsCs4ZMFyUWOZCgeh/IqFaQ7lS2bp2qPVs=;
-        b=HOq40THXn4xI40zVy5cWN6aipIFjEXWUd0zECi8xq5K7q3kzmTnROcdb654TO6JCl6
-         YJJerzf7coKOruQHvMNmzO7GIFmQqoCGQsFDnIlGZHHWr/QEdFKFV2qCbXNBEG4Z7KFg
-         MWETeQ28e+nb6/5bjMG6yrTdus2AKM2Vae62tI42NUXRG3+F0rly+W0QwJ5/nkHx7zj0
-         xPP+9Cf6FXh6ezgLI9RCaieiuz3pOPldFGbrALNAul4eI1LBnx2JZ0oa3dp2beArYJuI
-         9eHretaGKumHJ/W5Eh63oxWYuJH8zi2fH+AZaQWkvE/LD2vzmub7Q23mLsPSuvoNsMV8
-         oQTw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=dDbcwl7Bs+mn1YNTK1xlD989BeivSdEtGkH/XWYFPQg=;
+        b=UCrGB3JXsGXxqJXV32vs/WczCb/s61uf/zeLj9Qelx8UIU+KktMH3o6f4ZbJ6uvo1d
+         OGeykdtGmHls+hpRWvRZcxL5FuKF8T3aFL2P954W9lT/0ru9QSArMUR1TXnav+fHX86l
+         sn2MX+Yltf3TmSaS4HhKM0INNBBL51tVyzWc8SbWqRz7AGi9RfRpkAqbFUicRp2UUKNF
+         TKEDKPpZweElRYsiJ6r8y/sNK68zc6mOGQ7iDiCPWFWp1i8xEBjur8GCGqxswjQnTd5a
+         Dj1PgUIdG7c2V/BSZ5gLouTAJr3DVs7QocdaZpsQEV5UEPHKd6THB7jRxo5i+22DVk0M
+         t61w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k51si32983071qtf.356.2019.07.26.03.37.14
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id mh23si10615312ejb.224.2019.07.26.04.09.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jul 2019 03:37:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Fri, 26 Jul 2019 04:09:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 6A82E5AFE3;
-	Fri, 26 Jul 2019 10:37:13 +0000 (UTC)
-Received: from [10.36.116.244] (ovpn-116-244.ams2.redhat.com [10.36.116.244])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id CD75D608D0;
-	Fri, 26 Jul 2019 10:37:11 +0000 (UTC)
-Subject: Re: [PATCH v1] ACPI / scan: Acquire device_hotplug_lock in
- acpi_scan_init()
-To: Michal Hocko <mhocko@kernel.org>
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id E9229AD12;
+	Fri, 26 Jul 2019 11:09:39 +0000 (UTC)
+Date: Fri, 26 Jul 2019 13:09:37 +0200
+From: Oscar Salvador <osalvador@suse.de>
+To: David Hildenbrand <david@redhat.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- linux-acpi@vger.kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>,
- Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <osalvador@suse.de>
-References: <20190725135747.GB3582@dhcp22.suse.cz>
- <447b74ca-f7c7-0835-fd50-a9f7191fe47c@redhat.com>
- <20190725191943.GA6142@dhcp22.suse.cz>
- <e31882cf-3290-ea36-77d6-637eaf66fe77@redhat.com>
- <20190726075729.GG6142@dhcp22.suse.cz>
- <fd9e8495-1a93-ac47-442f-081d392ed09b@redhat.com>
- <20190726083117.GJ6142@dhcp22.suse.cz>
- <38d76051-504e-c81a-293a-0b0839e829d3@redhat.com>
- <20190726084408.GK6142@dhcp22.suse.cz>
- <45c9f942-fe67-fa60-b62f-31867f9c6e53@redhat.com>
- <20190726103112.GL6142@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
- dBrn+lhhOYjjNefFQou6478faXE6o2AhmebqT4KiQoUQFV4R7y1KMEKoSyy8hQaK1umALTdL
- QZLQMzNE74ap+GDK0wnacPQFpcG1AE9RMq3aeErY5tujekBS32jfC/7AnH7I0v1v1TbbK3Gp
- XNeiN4QroO+5qaSr0ID2sz5jtBLRb15RMre27E1ImpaIv2Jw8NJgW0k/D1RyKCwaTsgRdwuK
- Kx/Y91XuSBdz0uOyU/S8kM1+ag0wvsGlpBVxRR/xw/E8M7TEwuCZQArqqTCmkG6HGcXFT0V9
- PXFNNgV5jXMQRwU0O/ztJIQqsE5LsUomE//bLwzj9IVsaQpKDqW6TAPjcdBDPLHvriq7kGjt
- WhVhdl0qEYB8lkBEU7V2Yb+SYhmhpDrti9Fq1EsmhiHSkxJcGREoMK/63r9WLZYI3+4W2rAc
- UucZa4OT27U5ZISjNg3Ev0rxU5UH2/pT4wJCfxwocmqaRr6UYmrtZmND89X0KigoFD/XSeVv
- jwBRNjPAubK9/k5NoRrYqztM9W6sJqrH8+UWZ1Idd/DdmogJh0gNC0+N42Za9yBRURfIdKSb
- B3JfpUqcWwE7vUaYrHG1nw54pLUoPG6sAA7Mehl3nd4pZUALHwARAQABzSREYXZpZCBIaWxk
- ZW5icmFuZCA8ZGF2aWRAcmVkaGF0LmNvbT7CwX4EEwECACgFAljj9eoCGwMFCQlmAYAGCwkI
- BwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEE3eEPcA/4Na5IIP/3T/FIQMxIfNzZshIq687qgG
- 8UbspuE/YSUDdv7r5szYTK6KPTlqN8NAcSfheywbuYD9A4ZeSBWD3/NAVUdrCaRP2IvFyELj
- xoMvfJccbq45BxzgEspg/bVahNbyuBpLBVjVWwRtFCUEXkyazksSv8pdTMAs9IucChvFmmq3
- jJ2vlaz9lYt/lxN246fIVceckPMiUveimngvXZw21VOAhfQ+/sofXF8JCFv2mFcBDoa7eYob
- s0FLpmqFaeNRHAlzMWgSsP80qx5nWWEvRLdKWi533N2vC/EyunN3HcBwVrXH4hxRBMco3jvM
- m8VKLKao9wKj82qSivUnkPIwsAGNPdFoPbgghCQiBjBe6A75Z2xHFrzo7t1jg7nQfIyNC7ez
- MZBJ59sqA9EDMEJPlLNIeJmqslXPjmMFnE7Mby/+335WJYDulsRybN+W5rLT5aMvhC6x6POK
- z55fMNKrMASCzBJum2Fwjf/VnuGRYkhKCqqZ8gJ3OvmR50tInDV2jZ1DQgc3i550T5JDpToh
- dPBxZocIhzg+MBSRDXcJmHOx/7nQm3iQ6iLuwmXsRC6f5FbFefk9EjuTKcLMvBsEx+2DEx0E
- UnmJ4hVg7u1PQ+2Oy+Lh/opK/BDiqlQ8Pz2jiXv5xkECvr/3Sv59hlOCZMOaiLTTjtOIU7Tq
- 7ut6OL64oAq+zsFNBFXLn5EBEADn1959INH2cwYJv0tsxf5MUCghCj/CA/lc/LMthqQ773ga
- uB9mN+F1rE9cyyXb6jyOGn+GUjMbnq1o121Vm0+neKHUCBtHyseBfDXHA6m4B3mUTWo13nid
- 0e4AM71r0DS8+KYh6zvweLX/LL5kQS9GQeT+QNroXcC1NzWbitts6TZ+IrPOwT1hfB4WNC+X
- 2n4AzDqp3+ILiVST2DT4VBc11Gz6jijpC/KI5Al8ZDhRwG47LUiuQmt3yqrmN63V9wzaPhC+
- xbwIsNZlLUvuRnmBPkTJwwrFRZvwu5GPHNndBjVpAfaSTOfppyKBTccu2AXJXWAE1Xjh6GOC
- 8mlFjZwLxWFqdPHR1n2aPVgoiTLk34LR/bXO+e0GpzFXT7enwyvFFFyAS0Nk1q/7EChPcbRb
- hJqEBpRNZemxmg55zC3GLvgLKd5A09MOM2BrMea+l0FUR+PuTenh2YmnmLRTro6eZ/qYwWkC
- u8FFIw4pT0OUDMyLgi+GI1aMpVogTZJ70FgV0pUAlpmrzk/bLbRkF3TwgucpyPtcpmQtTkWS
- gDS50QG9DR/1As3LLLcNkwJBZzBG6PWbvcOyrwMQUF1nl4SSPV0LLH63+BrrHasfJzxKXzqg
- rW28CTAE2x8qi7e/6M/+XXhrsMYG+uaViM7n2je3qKe7ofum3s4vq7oFCPsOgwARAQABwsFl
- BBgBAgAPBQJVy5+RAhsMBQkJZgGAAAoJEE3eEPcA/4NagOsP/jPoIBb/iXVbM+fmSHOjEshl
- KMwEl/m5iLj3iHnHPVLBUWrXPdS7iQijJA/VLxjnFknhaS60hkUNWexDMxVVP/6lbOrs4bDZ
- NEWDMktAeqJaFtxackPszlcpRVkAs6Msn9tu8hlvB517pyUgvuD7ZS9gGOMmYwFQDyytpepo
- YApVV00P0u3AaE0Cj/o71STqGJKZxcVhPaZ+LR+UCBZOyKfEyq+ZN311VpOJZ1IvTExf+S/5
- lqnciDtbO3I4Wq0ArLX1gs1q1XlXLaVaA3yVqeC8E7kOchDNinD3hJS4OX0e1gdsx/e6COvy
- qNg5aL5n0Kl4fcVqM0LdIhsubVs4eiNCa5XMSYpXmVi3HAuFyg9dN+x8thSwI836FoMASwOl
- C7tHsTjnSGufB+D7F7ZBT61BffNBBIm1KdMxcxqLUVXpBQHHlGkbwI+3Ye+nE6HmZH7IwLwV
- W+Ajl7oYF+jeKaH4DZFtgLYGLtZ1LDwKPjX7VAsa4Yx7S5+EBAaZGxK510MjIx6SGrZWBrrV
- TEvdV00F2MnQoeXKzD7O4WFbL55hhyGgfWTHwZ457iN9SgYi1JLPqWkZB0JRXIEtjd4JEQcx
- +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <7dcfb097-0090-e60f-7d14-9a60dae9a474@redhat.com>
-Date: Fri, 26 Jul 2019 12:37:11 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+	Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Dan Williams <dan.j.williams@intel.com>
+Subject: Re: [PATCH v1] mm/memory_hotplug: Remove move_pfn_range()
+Message-ID: <20190726110933.GA27545@linux>
+References: <20190724142324.3686-1-david@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20190726103112.GL6142@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Fri, 26 Jul 2019 10:37:13 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190724142324.3686-1-david@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 26.07.19 12:31, Michal Hocko wrote:
-> On Fri 26-07-19 10:57:52, David Hildenbrand wrote:
->> On 26.07.19 10:44, Michal Hocko wrote:
->>> On Fri 26-07-19 10:36:42, David Hildenbrand wrote:
->>>> On 26.07.19 10:31, Michal Hocko wrote:
->>> [...]
->>>>> Anyway, my dislike of the device_hotplug_lock persists. I would really
->>>>> love to see it go rather than grow even more to the hotplug code. We
->>>>> should be really striving for mem hotplug internal and ideally range
->>>>> defined locking longterm. 
->>>>
->>>> Yes, and that is a different story, because it will require major
->>>> changes to all add_memory() users. (esp, due to the documented race
->>>> conditions). Having that said, memory hotplug locking is not ideal yet.
->>>
->>> I am really happy to hear that we are on the same page here. Do we have
->>> any document (I am sorry but I am lacking behind recent development in
->>> this area) that describes roadblocks to remove device_hotplug_lock?
->>
->> Only the core-api document I mentioned (I documented there quite some
->> current conditions I identified back then).
+On Wed, Jul 24, 2019 at 04:23:24PM +0200, David Hildenbrand wrote:
+> Let's remove this indirection. We need the zone in the caller either
+> way, so let's just detect it there. Add some documentation for
+> move_pfn_range_to_zone() instead.
 > 
-> That document doesn't describe which _data structures_ are protected by
-> the lock though. It documents only the current state of locking.
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: David Hildenbrand <david@redhat.com>
+> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
 
-Yeah, I also thing we should find out more and document it.
-Unfortunately, optimize the locking is not very high on my priority list
-(there are more critical things to figure out than optimizing locking
-that at least seems to work :) ). It is on my list, though.
+Reviewed-by: Oscar Salvador <osalvador@suse.de>
 
+> ---
+>  mm/memory_hotplug.c | 23 +++++++----------------
+>  1 file changed, 7 insertions(+), 16 deletions(-)
 > 
->> I am not sure if we can remove it completely from
->> add_memory()/remove_memory(): We actually create/delete devices which
->> can otherwise create races with user space.
+> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> index efa5283be36c..e7c3b219a305 100644
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -715,7 +715,11 @@ static void __meminit resize_pgdat_range(struct pglist_data *pgdat, unsigned lon
+>  
+>  	pgdat->node_spanned_pages = max(start_pfn + nr_pages, old_end_pfn) - pgdat->node_start_pfn;
+>  }
+> -
+> +/*
+> + * Associate the pfn range with the given zone, initializing the memmaps
+> + * and resizing the pgdat/zone data to span the added pages. After this
+> + * call, all affected pages are PG_reserved.
+> + */
+>  void __ref move_pfn_range_to_zone(struct zone *zone, unsigned long start_pfn,
+>  		unsigned long nr_pages, struct vmem_altmap *altmap)
+>  {
+> @@ -804,20 +808,6 @@ struct zone * zone_for_pfn_range(int online_type, int nid, unsigned start_pfn,
+>  	return default_zone_for_pfn(nid, start_pfn, nr_pages);
+>  }
+>  
+> -/*
+> - * Associates the given pfn range with the given node and the zone appropriate
+> - * for the given online type.
+> - */
+> -static struct zone * __meminit move_pfn_range(int online_type, int nid,
+> -		unsigned long start_pfn, unsigned long nr_pages)
+> -{
+> -	struct zone *zone;
+> -
+> -	zone = zone_for_pfn_range(online_type, nid, start_pfn, nr_pages);
+> -	move_pfn_range_to_zone(zone, start_pfn, nr_pages, NULL);
+> -	return zone;
+> -}
+> -
+>  int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_type)
+>  {
+>  	unsigned long flags;
+> @@ -840,7 +830,8 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
+>  	put_device(&mem->dev);
+>  
+>  	/* associate pfn range with the zone */
+> -	zone = move_pfn_range(online_type, nid, pfn, nr_pages);
+> +	zone = zone_for_pfn_range(online_type, nid, pfn, nr_pages);
+> +	move_pfn_range_to_zone(zone, pfn, nr_pages, NULL);
+>  
+>  	arg.start_pfn = pfn;
+>  	arg.nr_pages = nr_pages;
+> -- 
+> 2.21.0
 > 
-> More details would be really appreciated.
-> 
->> Besides that:
->> - try_offline_node() needs the lock to synchronize against cpu hotplug
->> - I *assume* try_online_node() needs it as well
-> 
-> more details on why would be great.
-> 
->> Then, there is the possible race condition with user space onlining
->> memory avoided by the lock. Also, currently the lock protects the
->> "online_type" when onlining memory.
-> 
-> I do not see the race, if the user API triggered online/offline takes a
-> range lock on the affected physical memory range
-
-Yeah, and that's still future work. Another item on the list.
-
-> 
->> Then, there might be other global variables (eventually
->> zone/node/section related) that might need this lock right now - no
->> details known.
-> 
-> zones/nodes have their own locking for spans. Sections should be using
-> a low level locking but I am not really sure this is needed if there is
-> a mem hotplug lock in place (range or global)
-> 
->> IOW, we have to be very carefully and it is more involved than it might
->> seem.
-> 
-> I am not questioning that. And that is why I am asking about a todo list
-> for that transition.
-
-I think somebody will have to invest quite some effort to create that
-todo list first :) (I'd love to provide more information right now, but
-I don't really have more)
-
-> 
->> Locking is definitely better (and more reliably!) than one year ago, but
->> there is definitely a lot to do. (unfortunately, just like in many areas
->> in memory hotplug code :( - say zone handling when offlining/failing to
->> online memory).
-> 
-> Yeah, the code is shaping up. And I am happy to see that happening. But
-> please try to understand that I really do not like to see some ad-hoc
-> locking enforcement without a clear locking model in place. This patch
-> is an example of it. Whoever would like to rationalize locking further
-> will have to stumble over this and scratch head why the hack the locking
-> is there and my experience tells me that people usually go along with
-> existing code and make further assumptions based on that so we are
-> unlikely to get rid of the locking...
-
-I do understand, but we really have to rethink locking in a more broad
-sense and document it. Here, I am going to add a comment as requested by
-Rafael.
 
 -- 
-
-Thanks,
-
-David / dhildenb
+Oscar Salvador
+SUSE L3
 
