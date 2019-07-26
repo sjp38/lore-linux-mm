@@ -2,242 +2,193 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D914C7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:53:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7EEB0C7618B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:54:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3FAEC21871
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:53:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FAEC21871
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 411DE21871
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 12:54:26 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="gQuH0Ric"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 411DE21871
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D0A126B0005; Fri, 26 Jul 2019 08:53:35 -0400 (EDT)
+	id C6C576B0006; Fri, 26 Jul 2019 08:54:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CE0E28E0003; Fri, 26 Jul 2019 08:53:35 -0400 (EDT)
+	id C1F996B0008; Fri, 26 Jul 2019 08:54:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BCFF88E0002; Fri, 26 Jul 2019 08:53:35 -0400 (EDT)
+	id AE3FE8E0002; Fri, 26 Jul 2019 08:54:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D85C6B0005
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:53:35 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id e39so47223451qte.8
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 05:53:35 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 79CF46B0006
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:54:25 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id i33so28359462pld.15
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 05:54:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=DHcuayelp8myF8MmoINiMSJ6lAdY92SYzASiTn+SS7A=;
-        b=QnzOqWaEe4n4mEdSDcqt5Fr9ZkRqfWcY6hA/piNj4c2PgqMlUVE79zVkBBC8JI/gjf
-         Xar1ZpQy8NuJIh43S64Gly/gZdYQkTodAjkg7pAvSRWHB+ofq4t5lEVDi60czNaqpZQt
-         HxWyNmxdt1Yj/1JSEn4kTm/GbmLCjJaSMzOqDfFBddG7VLejWh/l1aO1ifed0uE3mQz7
-         YxF3itpkpGTPgBdOrf8kEMML1ycP5oKDgkQ1lkyNRQerG1Fe9BmazcOsosvTp7nDS+Jq
-         1omG2UWCqVSz6LPu8RP0Bx/9asztjBcqPI70yYU0qLRc4fVMXXuq/ouWQS9fItl5gO6y
-         HxPQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUuu4E0a7VstLw+4jZ6e/8pUQlj4aRiUZk1N4BUzcJVDWW+IiPv
-	AZ464AUjxETZpVUM4x3/6VjlOfmyMOweJ/LtxVovsLfZwK7tmg83HkdLOklttAAKxuQKU4oQOsr
-	SWKQTnOhFJu5hTNKnf/PCkUEezhUQiP3guivepxXTOTtgnU8k1Bkyxah1C1dq9ttkew==
-X-Received: by 2002:a05:6214:1441:: with SMTP id b1mr66209326qvy.218.1564145615416;
-        Fri, 26 Jul 2019 05:53:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw9rNVsuKpGj+MCqKdRhNGQ2HR1rCSco5KQ8YcGSH6h6+Td94HDCIB5gQNX+c51qSCm5vd4
-X-Received: by 2002:a05:6214:1441:: with SMTP id b1mr66209301qvy.218.1564145614864;
-        Fri, 26 Jul 2019 05:53:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564145614; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=1CV30Ulmhw3UVs5wZJSfxlQX22PQyu6508MpeQYH9hA=;
+        b=CnYDsT0iICxsfB3YilexuW9tkEn0zJcXIyLoI3IMNf204VB6gV9ymgDe1zg3teFkBl
+         7IhqkM5CMvzMAW6WI9vYLpZs3Bj01ri/7GUTRSYrR6QeKfmX4p6EpUr+k/sxgQa/+QpL
+         XiZZK1Fhv0KhrTneyCl1Y7GTCtvtDQTg0hDiPbHm7q/cFXtl/dKyqntSYs/HvXRuOufj
+         molqvVBK6fF2c1BJtMpBl1MCbDTQv1lPxoFh2navBy8yTDstA7MYBwDqstV6p62hO7Ht
+         cRItkSevuUpTY6dQj8gFcAWIHXnqYOs8yO+3IXvDbKos+0hcUXGsQgEQeOoV1ZdIai0+
+         zKAQ==
+X-Gm-Message-State: APjAAAVTqK0AJDR6nhKTDUn+gjE2QjsaDkllZq0mDopoxHdBAZmYRRga
+	sKoUb/3EN4HNTLOFAUFe7U70Nj0HAaCGlPChSEM5KNNMChY5rTP6FL1wJzDcy6WH2x4h1q2rgsw
+	HdZ6bNCttRzzLas0/ntunHaSUbK0TslwaigKi0fJ42FyhD4KnYITM0517p0ebkqaaYQ==
+X-Received: by 2002:a63:c44c:: with SMTP id m12mr52569141pgg.396.1564145664967;
+        Fri, 26 Jul 2019 05:54:24 -0700 (PDT)
+X-Received: by 2002:a63:c44c:: with SMTP id m12mr52569100pgg.396.1564145664153;
+        Fri, 26 Jul 2019 05:54:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564145664; cv=none;
         d=google.com; s=arc-20160816;
-        b=oHjhtr0sX4aywr8X9IcD/GyzvgO+qSUZeHVmAAaur5IE6hri/n34s52zO+j0ixCQ7/
-         yOpPZIPrBPNCawxWr6PfJuWAQo30b+BqFYKyvw06woyGDnAZU0Wt+Fy+N9239lkcszWh
-         tNJcJ6fvelaNuwUz8IKJQYslCMmemkqLI032LqVuUT8giTNpPOdmpimrl0hT/BRxtwvm
-         I6QvA06sCTPY0Qyjmnw8Ucm0R1ssHdYqaTkhKsYen2hTZUQ8njeHM/p49Dww2X3dlxZp
-         8IhQR+CnTyjpn07vHRpEGadmcrWZNcMkWBbXOkzhh4VPafwRrrlP326q8tqoyu0jfsvg
-         4Dgw==
+        b=rDFbqSYsdPtSMb58ueLGBOR9Lon75T3u8EczkH4Y0yCtZdw/whRF0yknb0dc7l2T8K
+         /TpGIoFtXSsA0sTO7Nej41Nuu3dTefNNyKdp7w7jjYM42BhMtq4hBOdNMITZQ0dhtk1M
+         rZvsHnvsmLD0n1sAqwNZVWO/7o99LL0zNgDnuvwItSP8Ua4zuB9WuOD7PLV/mU5ME6dh
+         Osv8jg55CQUikVEluFAe7Lbz+iF+x4xK+Pq4QGmA422mSAx+9cpRNUZi+hNUwM+IU76O
+         udlyjTy9FRDjwpOoj/RSH80BDxUd0W8Iwx0QARKg3AdkglpqM2l61EAFhn7oK8lhDd1I
+         qO1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=DHcuayelp8myF8MmoINiMSJ6lAdY92SYzASiTn+SS7A=;
-        b=qbbgbtv01sN7FYoa3Omr8pLuTMtZY/hZm8OHMeO/wEct74G/b5UicCcAqo0Mrt6qZ7
-         yxJEuuXZ/xe8qm8MgIlXFch7XjYLuqHsq3AARV4byC8XrwWY4neSk03eHxC0wTXICrtZ
-         0dNOwVL8e4iclF9QbCihW+uUYQtIW29u54vnjqwyLtMAA5ZcAH5RxU1EA84BSUa2p0c3
-         +k9SBy4cP3QoAhcE93hKaAIH9S+yvh3x+234QdAWnK92yU/PFDpg25en843iCyQG6i60
-         xl5w9G1NgBlkva/sTjL6VAKpg6fhwN+1fXUQ91kunAZ0TPX2wF/X6iJxvrBZnno/i+UZ
-         3Otw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=1CV30Ulmhw3UVs5wZJSfxlQX22PQyu6508MpeQYH9hA=;
+        b=rqzhA57rEiI7Dq6Ngc1hqvLbCFsYUK9ekN8icD3xnU67RQwCWU/zoHjTh56tILkUvX
+         vj08j133m+eWrA6L43cuRDewbrHNunBSAWfz/zayM6UJjWoJz61y3615YKN58dSNkYkS
+         Lba5ibzPDxaqGz2YAhHTGYshUApxivBCggbXKtcbhjKIgVSyaovmEpPv8Molu8JjgzC6
+         5i1D1jiZ1gpmOEbpFJfzNmtyGbKo00yL1MvhAsjNaVVP+JgMc1Zb8BtYuZOmfmT4bUMO
+         Z+BsiOHw+PeAjqD2RzUGODhyEmfUCdhXwSX6Gfax3t8oiG5LXCh9Mxu69LNK3m9AT3SA
+         kSuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 51si20447817qvo.107.2019.07.26.05.53.34
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=gQuH0Ric;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 11sor28796299pgh.67.2019.07.26.05.54.24
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jul 2019 05:53:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Fri, 26 Jul 2019 05:54:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id AE5F6300D1CA;
-	Fri, 26 Jul 2019 12:53:33 +0000 (UTC)
-Received: from [10.72.12.238] (ovpn-12-238.pek2.redhat.com [10.72.12.238])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 3F4645DE6F;
-	Fri, 26 Jul 2019 12:53:19 +0000 (UTC)
-Subject: Re: WARNING in __mmdrop
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
- aarcange@redhat.com, akpm@linux-foundation.org, christian@brauner.io,
- davem@davemloft.net, ebiederm@xmission.com, elena.reshetova@intel.com,
- guro@fb.com, hch@infradead.org, james.bottomley@hansenpartnership.com,
- jglisse@redhat.com, keescook@chromium.org, ldv@altlinux.org,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, linux-parisc@vger.kernel.org, luto@amacapital.net,
- mhocko@suse.com, mingo@kernel.org, namit@vmware.com, peterz@infradead.org,
- syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk, wad@chromium.org
-References: <20190723051828-mutt-send-email-mst@kernel.org>
- <caff362a-e208-3468-3688-63e1d093a9d3@redhat.com>
- <20190725012149-mutt-send-email-mst@kernel.org>
- <55e8930c-2695-365f-a07b-3ad169654d28@redhat.com>
- <20190725042651-mutt-send-email-mst@kernel.org>
- <84bb2e31-0606-adff-cf2a-e1878225a847@redhat.com>
- <20190725092332-mutt-send-email-mst@kernel.org>
- <11802a8a-ce41-f427-63d5-b6a4cf96bb3f@redhat.com>
- <20190726074644-mutt-send-email-mst@kernel.org>
- <5cc94f15-b229-a290-55f3-8295266edb2b@redhat.com>
- <20190726082837-mutt-send-email-mst@kernel.org>
-From: Jason Wang <jasowang@redhat.com>
-Message-ID: <ada10dc9-6cab-e189-5289-6f9d3ff8fed2@redhat.com>
-Date: Fri, 26 Jul 2019 20:53:18 +0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=gQuH0Ric;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=joelfernandes.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=1CV30Ulmhw3UVs5wZJSfxlQX22PQyu6508MpeQYH9hA=;
+        b=gQuH0RicdNOowMPYfbO1oCrLPCJQ7RG5vRhySY5uKbNmTPgJ9gjJhxIQlgovgpa61j
+         /fesyTgUhfC6NkYtNzLPj9OFsHLRlFOnE6bQDcY/2tkHHiMxdFrnqXA8ZynuSTScFhap
+         MsVrgmBpEcAREpwym2Gd4zS7Og3lnANQ201d0=
+X-Google-Smtp-Source: APXvYqzilkkbU1jvUSqJ7GWTJJgame/K3EOovYUFU8dAxa/kz5mkVmVgYiB/rX3VOXqDrSKNafzHjQ==
+X-Received: by 2002:a63:ee0c:: with SMTP id e12mr92603350pgi.184.1564145663513;
+        Fri, 26 Jul 2019 05:54:23 -0700 (PDT)
+Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
+        by smtp.gmail.com with ESMTPSA id o129sm23051451pfg.1.2019.07.26.05.54.22
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 26 Jul 2019 05:54:22 -0700 (PDT)
+Date: Fri, 26 Jul 2019 08:54:21 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org,
+	vdavydov.dev@gmail.com, Brendan Gregg <bgregg@netflix.com>,
+	kernel-team@android.com, Alexey Dobriyan <adobriyan@gmail.com>,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Andrew Morton <akpm@linux-foundation.org>, carmenjackson@google.com,
+	Christian Hansen <chansen3@cisco.com>,
+	Colin Ian King <colin.king@canonical.com>, dancol@google.com,
+	David Howells <dhowells@redhat.com>, fmayer@google.com,
+	joaodias@google.com, Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>,
+	Kirill Tkhai <ktkhai@virtuozzo.com>, linux-doc@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+	Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.ibm.com>,
+	namhyung@google.com, sspatil@google.com
+Subject: Re: [PATCH v1 1/2] mm/page_idle: Add support for per-pid page_idle
+ using virtual indexing
+Message-ID: <20190726125421.GA103959@google.com>
+References: <20190722213205.140845-1-joel@joelfernandes.org>
+ <20190723061358.GD128252@google.com>
+ <20190723142049.GC104199@google.com>
+ <20190724042842.GA39273@google.com>
+ <20190724141052.GB9945@google.com>
+ <c116f836-5a72-c6e6-498f-a904497ef557@yandex-team.ru>
+ <20190726000654.GB66718@google.com>
+ <9cba9acb-9451-a53e-278d-92f7b66ae20b@yandex-team.ru>
 MIME-Version: 1.0
-In-Reply-To: <20190726082837-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Fri, 26 Jul 2019 12:53:34 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <9cba9acb-9451-a53e-278d-92f7b66ae20b@yandex-team.ru>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Fri, Jul 26, 2019 at 02:16:20PM +0300, Konstantin Khlebnikov wrote:
+> On 26.07.2019 3:06, Joel Fernandes wrote:
+> > On Thu, Jul 25, 2019 at 11:15:53AM +0300, Konstantin Khlebnikov wrote:
+> > [snip]
+> > > > > > Thanks for bringing up the swapping corner case..  Perhaps we can improve
+> > > > > > the heap profiler to detect this by looking at bits 0-4 in pagemap. While it
+> > > > > 
+> > > > > Yeb, that could work but it could add overhead again what you want to remove?
+> > > > > Even, userspace should keep metadata to identify that page was already swapped
+> > > > > in last period or newly swapped in new period.
+> > > > 
+> > > > Yep.
+> > > Between samples page could be read from swap and swapped out back multiple times.
+> > > For tracking this swap ptes could be marked with idle bit too.
+> > > I believe it's not so hard to find free bit for this.
+> > > 
+> > > Refault\swapout will automatically clear this bit in pte even if
+> > > page goes nowhere stays if swap-cache.
+> > 
+> > Could you clarify more about your idea? Do you mean swapout will clear the new
+> > idle swap-pte bit if the page was accessed just before the swapout? >
+> > Instead, I thought of using is_swap_pte() to detect if the PTE belong to a
+> > page that was swapped. And if so, then assume the page was idle. Sure we
+> > would miss data that the page was accessed before the swap out in the
+> > sampling window, however if the page was swapped out, then it is likely idle
+> > anyway.
+> 
+> 
+> I mean page might be in swap when you mark pages idle and
+> then been accessed and swapped back before second pass.
+> 
+> I propose marking swap pte with idle bit which will be automatically
+> cleared by following swapin/swapout pair:
+> 
+> page alloc -> install page pte
+> page swapout -> install swap entry in pte
+> mark vm idle -> set swap-idle bit in swap pte
+> access/swapin -> install page pte (clear page idle if set)
+> page swapout -> install swap entry in pte (without swap idle bit)
+> scan vm idle -> see swap entry without idle bit -> page has been accessed since marking idle
+> 
+> One bit in pte is enough for tracking. This does not needs any propagation for
+> idle bits between page and swap, or marking pages as idle in swap cache.
 
-On 2019/7/26 下午8:38, Michael S. Tsirkin wrote:
-> On Fri, Jul 26, 2019 at 08:00:58PM +0800, Jason Wang wrote:
->> On 2019/7/26 下午7:49, Michael S. Tsirkin wrote:
->>> On Thu, Jul 25, 2019 at 10:25:25PM +0800, Jason Wang wrote:
->>>> On 2019/7/25 下午9:26, Michael S. Tsirkin wrote:
->>>>>> Exactly, and that's the reason actually I use synchronize_rcu() there.
->>>>>>
->>>>>> So the concern is still the possible synchronize_expedited()?
->>>>> I think synchronize_srcu_expedited.
->>>>>
->>>>> synchronize_expedited sends lots of IPI and is bad for realtime VMs.
->>>>>
->>>>>> Can I do this
->>>>>> on through another series on top of the incoming V2?
->>>>>>
->>>>>> Thanks
->>>>>>
->>>>> The question is this: is this still a gain if we switch to the
->>>>> more expensive srcu? If yes then we can keep the feature on,
->>>> I think we only care about the cost on srcu_read_lock() which looks pretty
->>>> tiny form my point of view. Which is basically a READ_ONCE() + WRITE_ONCE().
->>>>
->>>> Of course I can benchmark to see the difference.
->>>>
->>>>
->>>>> if not we'll put it off until next release and think
->>>>> of better solutions. rcu->srcu is just a find and replace,
->>>>> don't see why we need to defer that. can be a separate patch
->>>>> for sure, but we need to know how well it works.
->>>> I think I get here, let me try to do that in V2 and let's see the numbers.
->>>>
->>>> Thanks
->>
->> It looks to me for tree rcu, its srcu_read_lock() have a mb() which is too
->> expensive for us.
-> I will try to ponder using vq lock in some way.
-> Maybe with trylock somehow ...
+Ok I see the case you are referring to now. This can be a follow-up patch to
+address the case, because.. the limitation you mentioned is also something
+inherrent in the (traditional) physical page_idle tracking if that were used.
+The reason being, after swapping, the PTE is not mapped to any page so there
+is nothing to mark as idle. So if the page gets swapped out and in in the
+meanwhile, then you would run into the same issue.
 
+But yes, we should certainly address it in the future. I just want to keep
+things simple at the moment. I will make a note about your suggestion but you
+are welcomed to write a patch for it on top of my patch. I am about to send
+another revision shortly for futhre review.
 
-Ok, let me retry if necessary (but I do remember I end up with deadlocks 
-last try).
+thanks,
 
-
->
->
->> If we just worry about the IPI,
-> With synchronize_rcu what I would worry about is that guest is stalled
-
-
-Can this synchronize_rcu() be triggered by guest? If yes, there are 
-several other MMU notifiers that can block. Is vhost something special here?
-
-
-> because system is busy because of other guests.
-> With expedited it's the IPIs...
->
-
-The current synchronize_rcu()  can force a expedited grace period:
-
-void synchronize_rcu(void)
-{
-         ...
-         if (rcu_blocking_is_gp())
-return;
-         if (rcu_gp_is_expedited())
-synchronize_rcu_expedited();
-else
-wait_rcu_gp(call_rcu);
-}
-EXPORT_SYMBOL_GPL(synchronize_rcu);
-
-
->> can we do something like in
->> vhost_invalidate_vq_start()?
->>
->>          if (map) {
->>                  /* In order to avoid possible IPIs with
->>                   * synchronize_rcu_expedited() we use call_rcu() +
->>                   * completion.
->> */
->> init_completion(&c.completion);
->>                  call_rcu(&c.rcu_head, vhost_finish_vq_invalidation);
->> wait_for_completion(&c.completion);
->>                  vhost_set_map_dirty(vq, map, index);
->> vhost_map_unprefetch(map);
->>          }
->>
->> ?
-> Why would that be faster than synchronize_rcu?
-
-
-No faster but no IPI.
-
-
->
->
->>> There's one other thing that bothers me, and that is that
->>> for large rings which are not physically contiguous
->>> we don't implement the optimization.
->>>
->>> For sure, that can wait, but I think eventually we should
->>> vmap large rings.
->>
->> Yes, worth to try. But using direct map has its own advantage: it can use
->> hugepage that vmap can't
->>
->> Thanks
-> Sure, so we can do that for small rings.
-
-
-Yes, that's possible but should be done on top.
-
-Thanks
+ - Joel
 
