@@ -2,109 +2,103 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.5 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_SBL,URIBL_SBL_A,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B371C76190
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 07:06:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7ACB0C7618B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 07:09:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 47ECC2189F
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 07:06:20 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 47ECC2189F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 1A2BB21852
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 07:09:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1A2BB21852
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A15676B0003; Fri, 26 Jul 2019 03:06:19 -0400 (EDT)
+	id A39E06B0006; Fri, 26 Jul 2019 03:09:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9C4ED6B0005; Fri, 26 Jul 2019 03:06:19 -0400 (EDT)
+	id 9EA228E0002; Fri, 26 Jul 2019 03:09:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 88E508E0002; Fri, 26 Jul 2019 03:06:19 -0400 (EDT)
+	id 8D8D86B0008; Fri, 26 Jul 2019 03:09:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C7326B0003
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 03:06:19 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id l26so33562067eda.2
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 00:06:19 -0700 (PDT)
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 40A1A6B0006
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 03:09:46 -0400 (EDT)
+Received: by mail-wr1-f72.google.com with SMTP id g8so25186848wrw.2
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 00:09:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=SIgWQia1pGjlARJQoZwRDhhzyhiRBtXMTG1+Rpf80wk=;
-        b=nQSLPoOcBI1Lh6FxPTBikNMrm0/UbDnPBEM05YMJn/174EGF5KAtejpZlymOQgWi9z
-         6uuwaDXrNUZxWJsjhrjLC0EFUH1gSD4YVxC5IZi1g/HPFx/ardmpXivsSFT7rdF+FuDw
-         9vvb643md3qLG3JOk8i71gFt5w8qItVSQvFBSJWSFj27dEMiX3VuSTQ8qkrL6wnwMy8w
-         uQsj7qAFO512uknH/yPQ839MVC7ox4t6JW/0xAQzuVm+bTvaRtVqtwA5TeBSfmUjgpit
-         d6qVNV42hs+9Cks0tUJl5F28/mwa6s82tHJjuuagEUKpfCuwCp3CaTtei4SvKIbdtOQI
-         SnNg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAXFT6RueI1o4JQDX/hBjLB290EuKfT3YsLxNjxPtgvja3Vtp+AC
-	cEcPp32osN3AzQwri8e2xBURVTUIoaqdi5jVuswer6C2OVxYQssMk45kZvg+JajtEAes5N6EmJ3
-	crWkbYxqKOk+ZHjU/LgytKjRL8eDXj32afK/bGxeR4foGeqiAVcoypz0FcGX+l/E=
-X-Received: by 2002:a50:fc18:: with SMTP id i24mr80526670edr.249.1564124778619;
-        Fri, 26 Jul 2019 00:06:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxQeohiPEeLC8Fbx+IFBRqJDTsFV6Wj4FgWp07TxSCYspqIqsEDDTKj56w7Jmcvbpy73JzZ
-X-Received: by 2002:a50:fc18:: with SMTP id i24mr80526584edr.249.1564124777553;
-        Fri, 26 Jul 2019 00:06:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564124777; cv=none;
+        bh=v++9QLQIxVKfcXRp7P294AsYAgLGPGoB58FG1MNQyhk=;
+        b=GaVx7zAnzT08lZeSoKt3En0q0nrWUMUsaPgbWETiwvfnbQTNJXBeLzOdDUnX0+at15
+         L5zJvZGISA/PXlu1z/Ak9jUCxN9JiLUs3xFPCAuZHGSPa18Bl944IAy1BUh3RgDaTz9E
+         KZJzKOmicL+zHc+S3KIB1nTP8IDAQdvjP5RgVqBgpIg2EAp4X/KDQzw6yFlYSc7I8CNf
+         wjjPsTG3llCPzkfQD+He38eRWpGHB4FH+AfUN5+9JHGYuMj6rFWsM7S1LMj2luSocngf
+         80SqYWA7NSJfn45Yd4yRlKBfE2bL3/2blxoHY5QQqITi4H2v6NpCBpB4+MU2Uc0El5Pj
+         5A1A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAX7cHEbi9yOYcCo9bJiK+owSMdC/vvmvW1H7YADPKrCDCm0gOlM
+	4oxntFeRTclgbwmD4yDTmAo3WXWzTgJmWFTlzqIFdTejkjbHfrtsTR1t9eYGFEd9A/0uKq1qiwx
+	y2hmc17j7dGpBMfIYODbC10qIdkErqbKoKhrnPm5cLMpYOG3wiY2Dv4qGQtlELhrYQg==
+X-Received: by 2002:adf:f050:: with SMTP id t16mr93248845wro.99.1564124985819;
+        Fri, 26 Jul 2019 00:09:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw9vHvIL9jEWoTYmKcKhmcau2BeeZGrG93TAGNK5qCCaICne5oiNUxmekhQXVgHI8cfFuTQ
+X-Received: by 2002:adf:f050:: with SMTP id t16mr93248737wro.99.1564124985061;
+        Fri, 26 Jul 2019 00:09:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564124985; cv=none;
         d=google.com; s=arc-20160816;
-        b=kraWdCCNumKH9tNvCtJox+xNAdbcRxTMRsRe5rE21WjMp3sHHLQ50KZ0bXiercC6tK
-         2ulRC63ZWc/260tMqMRLiZXy3MTg8reaDDu6V/2GzazeZ+ZcC1JPkgh2x7q398itCDVG
-         LM2Az/tu+Wy7TVYGnyuiP/eGq93ltWwn5S6klBsp8ws6gliPZA+dPL1LsAvbljOrcSG5
-         yZc+5845RVpUeMLHIciDWlfYJgMODgcLLZjg9dqeLTAfY06o3unXrykMYubUWbs88Ewu
-         /A3AGfQMggKR/CwWTwmd9QbxVU/nBvO1DrfvMcIVdxaJ1KcWG8L8xTiAN+sWvsAuONQZ
-         +3oA==
+        b=wI6NT8NaMlF/P4UxDdf+2+cadg9beSSDirGLbGBVBTX+PbLFkGAi3XIBhvrhZgXZ1G
+         McbAAq09HZS6O8VGgwdNmzj3CRbYvnoMxQMMep60WOK8hVTjoUU/KMdhJD24dfkSOu63
+         HHUVA4zOJ3mI/IKHj4myqQIsAXLfr+VlA5XsvsLmXKgFgUFbpQyEWrExXjLX/WLGTKWm
+         volF92aOYaLdzuJZX6k/g6i4T5AdlB7e3D2osHCrPoUVLs5Pg+BeJg6Z6+zinOzGCUX4
+         8gKt6uIqiyqg7YDLLeVqslsIccXY4nBtYZa8vz3aA4qUJz/U2wtvKOw/WoTQnR0fD/D6
+         clDQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=SIgWQia1pGjlARJQoZwRDhhzyhiRBtXMTG1+Rpf80wk=;
-        b=V74j3VvLVSDyGbheSACvtDE575Zm7WA4wtGI07HeVSW1y82IPwVmcuBHT4PMhBLlbq
-         DLWZDEwOWjn+BQQzYSSKdd8adTeE1QTkRE5nAAt8iwskvyygE0V4DuMdkdF539T/TeHu
-         nejciC5FlYvd25ZrwzFiiKpnl12VobL1Rgf8oAs2oPDvH8ApFc5vQH/UHuys7IrHJ96S
-         4qzti9MLyA/650/Pw1/7HIMcF8W2+q8l3+JKG7CwRuqVbAsJlXgGw0jkPofWdDPX8oZZ
-         U3KaWf+IHEszEfbPzDHBzS3r3EGlyQ9OrdMX0U5+/Or4wC/jr61esABOrk+zZP26dER4
-         8+KA==
+        bh=v++9QLQIxVKfcXRp7P294AsYAgLGPGoB58FG1MNQyhk=;
+        b=Tlt/8E3J1G4UWyZmyf2F3v3c8OsFRBrrtmWDIICHD03MZ8Js0IhLtvz5f/RJalUNxd
+         84JXq3kh07x9+Q/cX0yux4cN07d5xBlwNiYgVmNH6rwURV/8vw6K1xBtvfw2XIO/F+kW
+         Lh9ge+rbGqXXpzP98B7EOPRPNf2b56Y8ZU1UUj1P1OgpulzUwK7hra/ijgJogw5pt+DE
+         VOc4Zc3AHAiGWChI/mOjHWW9ZApyEFg8eGSky38EaavyXJvnZZchJ4RiiEPX4vJaJ8gv
+         ScOzSrNP7Y36/LRmAjLRcS1JYWEZL9Tzt04AFVuLSvMsJvi9X9ey2hgcKPSB87pxlTMD
+         t8xg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h54si12253742edh.205.2019.07.26.00.06.17
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp02.blacknight.com (outbound-smtp02.blacknight.com. [81.17.249.8])
+        by mx.google.com with ESMTPS id a10si46077369wrt.276.2019.07.26.00.09.44
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jul 2019 00:06:17 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 26 Jul 2019 00:09:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) client-ip=81.17.249.8;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 810CAB128;
-	Fri, 26 Jul 2019 07:06:16 +0000 (UTC)
-Date: Fri, 26 Jul 2019 09:06:15 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"dan.j.williams@intel.com" <dan.j.williams@intel.com>,
-	"adobriyan@gmail.com" <adobriyan@gmail.com>,
-	"hch@lst.de" <hch@lst.de>,
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	Junichi Nomura <j-nomura@ce.jp.nec.com>,
-	"stable@vger.kernel.org" <stable@vger.kernel.org>
-Subject: Re: [PATCH 2/2] /proc/kpageflags: do not use uninitialized struct
- pages
-Message-ID: <20190726070615.GB6142@dhcp22.suse.cz>
-References: <20190725023100.31141-1-t-fukasawa@vx.jp.nec.com>
- <20190725023100.31141-3-t-fukasawa@vx.jp.nec.com>
- <20190725090341.GC13855@dhcp22.suse.cz>
- <40b3078e-fb8b-87ef-5c4e-6321956cc940@vx.jp.nec.com>
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.8 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail06.blacknight.ie [81.17.255.152])
+	by outbound-smtp02.blacknight.com (Postfix) with ESMTPS id BEEE198B4C
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:09:44 +0100 (IST)
+Received: (qmail 8584 invoked from network); 26 Jul 2019 07:09:44 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[84.203.19.7])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 26 Jul 2019 07:09:44 -0000
+Date: Fri, 26 Jul 2019 08:09:39 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: akpm@linux-foundation.org, linux-mm@kvack.org,
+	Vlastimil Babka <vbabka@suse.cz>, Arnd Bergmann <arnd@arndb.de>,
+	Paul Gortmaker <paul.gortmaker@windriver.com>,
+	Rik van Riel <riel@redhat.com>,
+	Yafang Shao <shaoyafang@didiglobal.com>
+Subject: Re: [PATCH] mm/compaction: use proper zoneid for
+ compaction_suitable()
+Message-ID: <20190726070939.GA2739@techsingularity.net>
+References: <1564062621-8105-1-git-send-email-laoar.shao@gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-15
 Content-Disposition: inline
-In-Reply-To: <40b3078e-fb8b-87ef-5c4e-6321956cc940@vx.jp.nec.com>
+In-Reply-To: <1564062621-8105-1-git-send-email-laoar.shao@gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -112,59 +106,97 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 26-07-19 06:25:49, Toshiki Fukasawa wrote:
+On Thu, Jul 25, 2019 at 09:50:21AM -0400, Yafang Shao wrote:
+> By now there're three compaction paths,
+> - direct compaction
+> - kcompactd compcation
+> - proc triggered compaction
+> When we do compaction in all these paths, we will use compaction_suitable()
+> to check whether a zone is suitable to do compaction.
 > 
+> There're some issues around the usage of compaction_suitable().
+> We don't use the proper zoneid in kcompactd_node_suitable() when try to
+> wakeup kcompactd. In the kcompactd compaction paths, we call
+> compaction_suitable() twice and the zoneid isn't proper in the second call.
+> For proc triggered compaction, the classzone_idx is always zero.
 > 
-> On 2019/07/25 18:03, Michal Hocko wrote:
-> > On Thu 25-07-19 02:31:18, Toshiki Fukasawa wrote:
-> >> A kernel panic was observed during reading /proc/kpageflags for
-> >> first few pfns allocated by pmem namespace:
-> >>
-> >> BUG: unable to handle page fault for address: fffffffffffffffe
-> >> [  114.495280] #PF: supervisor read access in kernel mode
-> >> [  114.495738] #PF: error_code(0x0000) - not-present page
-> >> [  114.496203] PGD 17120e067 P4D 17120e067 PUD 171210067 PMD 0
-> >> [  114.496713] Oops: 0000 [#1] SMP PTI
-> >> [  114.497037] CPU: 9 PID: 1202 Comm: page-types Not tainted 5.3.0-rc1 #1
-> >> [  114.497621] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.11.0-0-g63451fca13-prebuilt.qemu-project.org 04/01/2014
-> >> [  114.498706] RIP: 0010:stable_page_flags+0x27/0x3f0
-> >> [  114.499142] Code: 82 66 90 66 66 66 66 90 48 85 ff 0f 84 d1 03 00 00 41 54 55 48 89 fd 53 48 8b 57 08 48 8b 1f 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48> 8b 00 f6 c4 02 0f 84 57 03 00 00 45 31 e4 48 8b 55 08 48 89 ef
-> >> [  114.500788] RSP: 0018:ffffa5e601a0fe60 EFLAGS: 00010202
-> >> [  114.501373] RAX: fffffffffffffffe RBX: ffffffffffffffff RCX: 0000000000000000
-> >> [  114.502009] RDX: 0000000000000001 RSI: 00007ffca13a7310 RDI: ffffd07489000000
-> >> [  114.502637] RBP: ffffd07489000000 R08: 0000000000000001 R09: 0000000000000000
-> >> [  114.503270] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000240000
-> >> [  114.503896] R13: 0000000000080000 R14: 00007ffca13a7310 R15: ffffa5e601a0ff08
-> >> [  114.504530] FS:  00007f0266c7f540(0000) GS:ffff962dbbac0000(0000) knlGS:0000000000000000
-> >> [  114.505245] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> >> [  114.505754] CR2: fffffffffffffffe CR3: 000000023a204000 CR4: 00000000000006e0
-> >> [  114.506401] Call Trace:
-> >> [  114.506660]  kpageflags_read+0xb1/0x130
-> >> [  114.507051]  proc_reg_read+0x39/0x60
-> >> [  114.507387]  vfs_read+0x8a/0x140
-> >> [  114.507686]  ksys_pread64+0x61/0xa0
-> >> [  114.508021]  do_syscall_64+0x5f/0x1a0
-> >> [  114.508372]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-> >> [  114.508844] RIP: 0033:0x7f0266ba426b
-> >>
-> >> The reason for the panic is that stable_page_flags() which parses
-> >> the page flags uses uninitialized struct pages reserved by the
-> >> ZONE_DEVICE driver.
-> > 
-> > Why pmem hasn't initialized struct pages? 
+> In order to fix these issues, I change the type of classzone_idx in the
+> struct compact_control from const int to int and assign the proper zoneid
+> before calling compact_zone().
 > 
-> We proposed to initialize in previous approach but that wasn't merged.
-> (See https://marc.info/?l=linux-mm&m=152964792500739&w=2)
-> 
-> > Isn't that a bug that should be addressed rather than paper over it like this?
-> 
-> I'm not sure. What do you think, Dan?
 
-Yeah, I am really curious about details. Why do we keep uninitialized
-struct pages at all? What is a random pfn walker supposed to do? What
-kind of metadata would be clobbered? In other words much more details
-please.
+What is actually fixed by this?
+
+> This patch also fixes some comments in struct compact_control, as these
+> fields are not only for direct compactor but also for all other compactors.
+> 
+> Fixes: ebff398017c6("mm, compaction: pass classzone_idx and alloc_flags to watermark checking")
+> Fixes: 698b1b30642f("mm, compaction: introduce kcompactd")
+> Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Arnd Bergmann <arnd@arndb.de>
+> Cc: Paul Gortmaker <paul.gortmaker@windriver.com>
+> Cc: Rik van Riel <riel@redhat.com>
+> Cc: Yafang Shao <shaoyafang@didiglobal.com>
+> ---
+>  mm/compaction.c | 12 +++++-------
+>  mm/internal.h   | 10 +++++-----
+>  2 files changed, 10 insertions(+), 12 deletions(-)
+> 
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index ac4ead0..984dea7 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -2425,6 +2425,7 @@ static void compact_node(int nid)
+>  			continue;
+>  
+>  		cc.zone = zone;
+> +		cc.classzone_idx = zoneid;
+>  
+>  		compact_zone(&cc, NULL);
+>  
+> @@ -2508,7 +2509,7 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
+>  			continue;
+>  
+>  		if (compaction_suitable(zone, pgdat->kcompactd_max_order, 0,
+> -					classzone_idx) == COMPACT_CONTINUE)
+> +					zoneid) == COMPACT_CONTINUE)
+>  			return true;
+>  	}
+>  
+
+This is a semantic change. The use of the classzone_idx here and not
+classzone_idx is so that the watermark check takes the lowmem reserves
+into account in the __zone_watermark_ok check. This means that
+compaction is more likely to proceed but not necessarily correct.
+
+> @@ -2526,7 +2527,6 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+>  	struct compact_control cc = {
+>  		.order = pgdat->kcompactd_max_order,
+>  		.search_order = pgdat->kcompactd_max_order,
+> -		.classzone_idx = pgdat->kcompactd_classzone_idx,
+>  		.mode = MIGRATE_SYNC_LIGHT,
+>  		.ignore_skip_hint = false,
+>  		.gfp_mask = GFP_KERNEL,
+> @@ -2535,7 +2535,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+>  							cc.classzone_idx);
+>  	count_compact_event(KCOMPACTD_WAKE);
+>  
+> -	for (zoneid = 0; zoneid <= cc.classzone_idx; zoneid++) {
+> +	for (zoneid = 0; zoneid <= pgdat->kcompactd_classzone_idx; zoneid++) {
+>  		int status;
+>  
+>  		zone = &pgdat->node_zones[zoneid];
+
+This variable can be updated by a wakeup while the loop is executing
+making the loop more difficult to reason about given the exit conditions
+can change.
+
+Please explain what exactly this patch is fixing and why it should be
+done because it currently appears to be making a number of subtle
+changes without justification.
+
 -- 
-Michal Hocko
+Mel Gorman
 SUSE Labs
 
