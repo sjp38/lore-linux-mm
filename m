@@ -2,218 +2,164 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C2259C7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 15:23:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5FC4AC7618B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 15:45:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7890E218D4
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 15:23:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 211B220838
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 15:45:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="NSm723gH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7890E218D4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="o+Sw+Ft9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 211B220838
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2378C6B0008; Fri, 26 Jul 2019 11:23:34 -0400 (EDT)
+	id ADAB36B0007; Fri, 26 Jul 2019 11:45:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E9756B000A; Fri, 26 Jul 2019 11:23:34 -0400 (EDT)
+	id A8A808E0003; Fri, 26 Jul 2019 11:45:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 089B08E0002; Fri, 26 Jul 2019 11:23:34 -0400 (EDT)
+	id 950C28E0002; Fri, 26 Jul 2019 11:45:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C770D6B0008
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 11:23:33 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id n3so23350879pgh.12
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:23:33 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 728386B0007
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 11:45:35 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id x7so47792779qtp.15
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:45:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=dWQZR/3W1JJGAqPUD7hTWyfWfaLoNTQhqklPLc/rCo0=;
-        b=GSfLQo0L3NIwTqHLI5Q7njP9ACXKuQihwCUO+eIfwnm9Uwl5xKhUW5siiHdjZhOXoz
-         6X9Cq9PHb2zh4GIcnbS+PJdR2cenJYJA0ywfuMlIoJ1ma4Of9wL49gbYy/26RkeEunfp
-         as1nxrSCLSvbqWjuXS6Ow20MVRjXPIetcM12y/6LtJWVdp9BcHzhbyPfMdDt82utanLE
-         XdHA7Lg1MP1lZezOVWy/jackcVHwVtImqmorrC0Dss1N0HjyI3oMUQ/M4qbqpadNtH7W
-         ipRjTy19t1tPFcisGOT1yQ5mt7zEFv3sRLA0VWJNytOOwg02m9ucp7dp27Vq+1Y1yfqw
-         zu0A==
-X-Gm-Message-State: APjAAAU9VnoTjsGdvhTYbK8n1026sUkYN9E0/A6YDur+4X+7AEqIBiI+
-	LNBKHsriyzKKdIr2i6m34xzGbHeYSy54V+X81WJXBW14nWkN14OYVieUirSKRR0jeToc1NofGvl
-	GiKmNENwVegB+DMa6Rlzs4psYr3/h7rR8qv9q5JSyN/fdoM/Ym33/43VMnG+rTpRB9Q==
-X-Received: by 2002:aa7:8189:: with SMTP id g9mr23171640pfi.143.1564154613490;
-        Fri, 26 Jul 2019 08:23:33 -0700 (PDT)
-X-Received: by 2002:aa7:8189:: with SMTP id g9mr23171572pfi.143.1564154612659;
-        Fri, 26 Jul 2019 08:23:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564154612; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=0XvBgQp2/E+/Ic94KFJvx3PoeHBC2K6bMN+dYGtrzrU=;
+        b=kS0oYxWAZB+7fevVRC/YaZDjcI0By2Z3kKsYsCuGE37g6nSzTpmBGMVKLStNtZtv3K
+         08CMscX3aOhwK+Wzu7i7lklgaBATjlqbbrkS2BPVaQEOXEah2+ODKJQn7CIcIxEFgNKc
+         URtDtrtm9k3SwLBpPIqiKIfP4PAlaNe+rY8B+nVP999ekh2GhivI+hPh248WfIzDBfUp
+         TFvIzaSdWioAbEP0aTkglLnaXlTIVCEjEVNzU5ANxtkymVPsPM6r+rp/bjlLPgWx4bsB
+         equxPPUyRe7jK+CV0tUNMKFZTM1gF/n6Zu13bDeSDBHopf1Jd2mrJtgWsM3GYWoRIF0x
+         G41g==
+X-Gm-Message-State: APjAAAVsRRtQvNnJn7iNEu9NpgWI8MpccDYMwPC7Pu/L26TBhL0jHqTt
+	qDHFfZ5LlUtUDjjaMHjGLfQcFW0dgd8huJh2UmOcrcmyP4ByedGhbtpLd+mZQbg7WRxZ65szv5j
+	GNz1dndC44WupQ4EN7n1lTDEt0NH703uWoDu5qFw8NRHr3xYUOPimDAiZjsjsOMe4CA==
+X-Received: by 2002:ae9:f019:: with SMTP id l25mr64462774qkg.473.1564155935241;
+        Fri, 26 Jul 2019 08:45:35 -0700 (PDT)
+X-Received: by 2002:ae9:f019:: with SMTP id l25mr64462720qkg.473.1564155934558;
+        Fri, 26 Jul 2019 08:45:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564155934; cv=none;
         d=google.com; s=arc-20160816;
-        b=yXkyi03IbWa2HxlW+h2pXvs8SqFLWVKJ1K1ACl5AlqYxIAREDxAl5JBnE4xXYXupLD
-         700otgVfN/2baRBcIp+zQdaHMve8UzEgR+PssN/iLE3DX6oa+w8caUeZvUct11EroaG+
-         eETLL346+CHErP1g8+WpDfaJwOdalqC7CtiyEMffTFsAzFZeqlcK64z4crKNX+KSGXxp
-         2as6M1n2gnVTRh39RDFaZrNRjQMzYBDCy/OyIYbChM11Byko9CD6UcErVsiNr8kVjGQc
-         /9p6rqOmnWmUkC6hSaRFn9+p8AqZXskHo+VQigMunvqDNoYYFkIry1VXbWO51Qftlf0f
-         6vTA==
+        b=B8ylOT0wuDt1Jzj85iZpA49QUASCBypNWHHvmKPwIPgRy2eisJ5u17VDSXZcsgO7nH
+         aTbmJ0aHQ+vVINBz8ARVg6mxQJYSjQ/f5kDyGhdbT6sJci0zzy7/GEMd73g251JrgiLD
+         XKifB8ZHIJwA2Q1fqFRWJYb3/tWf4D0jRvZt5f1MFrtmoxDNUs06r+Vcw15UjZfnFUzv
+         TZxmj2g7orcQ9Q+KyQgmwYkdWZJf1eJGiumW/woarpeQr4c1oZSOom8XQJHFZx06IdcK
+         VF82NVmx2VNvAYRjTmc5SNRwn2JpddKGtMuz+zt7yTgeKszsPfQewRNFWdUHfzUt4dQ3
+         9zRQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=dWQZR/3W1JJGAqPUD7hTWyfWfaLoNTQhqklPLc/rCo0=;
-        b=WIwzzvk/6sSERP6UbjdTIfz2qmaPSn595+X0kSrZw2vGdldMlJvMommywRdWL60jbO
-         dGrGUrmVJcS90e39XSE9FVGjChzNHFrYUTJN+/P+V5fYohL5vSgNKWlKlXS4YWnnMmzj
-         wKiDtgPrF/Ae6c4d2T0CE+IXoQN2P4Eog+Ye2gHMFsVSM0qJRlFpIufbFU8jnuF1wbco
-         DM/AX6+BuQW9qHXo6ss4D6nOukGKCKinI8nnV/Zn+sMHqrO/mLE8y2L5rG+Eaem0sukh
-         S0BN7AOmcDbAyuI210VkEMCOn4VOUyBUjJjWUy9AEnImYsuFSX8r/2is7LpmxpmCZS1S
-         4Asw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=0XvBgQp2/E+/Ic94KFJvx3PoeHBC2K6bMN+dYGtrzrU=;
+        b=MOor8y6eErM4WMx1+sJcDFbGWUh4jNH3v6SC98iQW4fHhgiDG1zU/C4ELG/LC/LFm0
+         pk30tf2OCVAFw+7YKHL1YRelHL02nL/eUxuKRp3ORUwxjl+SeGU3qjWj/x2KGwzE6QSZ
+         c8TAy2cmBmxvxnQKzdWuxyp+6oCWamUYU47Xr2ZoO9lp1Hz5RXww73z3SSdPDNtknzwG
+         HPP4Nab4gyd6dZ4qFml0qF5WvO7XmEjAhV0B4wx2dBbDRulCVrXOl9uY7U3RwTuKCf60
+         n5AVKzC7ipKSuYFndyK0HDBmecG2Gl8y5DVYArOa24PCTPuy9Q8nlrsIVPwFWH8uwB1x
+         2vLg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=NSm723gH;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=o+Sw+Ft9;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 1sor64080160plw.7.2019.07.26.08.23.32
+        by mx.google.com with SMTPS id v31sor12459765qtj.59.2019.07.26.08.45.34
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 26 Jul 2019 08:23:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 26 Jul 2019 08:45:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=NSm723gH;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=o+Sw+Ft9;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=joelfernandes.org; s=google;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=dWQZR/3W1JJGAqPUD7hTWyfWfaLoNTQhqklPLc/rCo0=;
-        b=NSm723gHApWanD6yeW4J2Hod3LusoD9q5rDYeMMOfmnvzy1V6IW8Ik70kYPIywWp+5
-         ePTv11kUJPhco3rtrxGscl1Xvn/9LGCfMjCA63hEQGhn0+RLeCWphNUjv25+mG/EUvI5
-         IipB8N+66gykX0zBQeBiqZbzJqprH2vYSF24M=
-X-Google-Smtp-Source: APXvYqxDFJfffeebJNKJPBtRQh+QrCwtMX6C8cQ3ucTqzwQ23dCczXPmGvaj1O0CVDvfDxhY8WADAQ==
-X-Received: by 2002:a17:902:be03:: with SMTP id r3mr97943466pls.156.1564154612178;
-        Fri, 26 Jul 2019 08:23:32 -0700 (PDT)
-Received: from joelaf.cam.corp.google.com ([2620:15c:6:12:9c46:e0da:efbf:69cc])
-        by smtp.gmail.com with ESMTPSA id w132sm55268640pfd.78.2019.07.26.08.23.28
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 26 Jul 2019 08:23:31 -0700 (PDT)
-From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-To: linux-kernel@vger.kernel.org
-Cc: "Joel Fernandes (Google)" <joel@joelfernandes.org>,
-	Alexey Dobriyan <adobriyan@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Brendan Gregg <bgregg@netflix.com>,
-	Christian Hansen <chansen3@cisco.com>,
-	dancol@google.com,
-	fmayer@google.com,
-	joaodias@google.com,
-	joelaf@google.com,
-	Jonathan Corbet <corbet@lwn.net>,
-	Kees Cook <keescook@chromium.org>,
-	kernel-team@android.com,
-	linux-api@vger.kernel.org,
-	linux-doc@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org,
-	linux-mm@kvack.org,
-	Michal Hocko <mhocko@suse.com>,
-	Mike Rapoport <rppt@linux.ibm.com>,
-	minchan@kernel.org,
-	namhyung@google.com,
-	Roman Gushchin <guro@fb.com>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	surenb@google.com,
-	tkjos@google.com,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	wvw@google.com
-Subject: [PATCH v3 2/2] doc: Update documentation for page_idle virtual address indexing
-Date: Fri, 26 Jul 2019 11:23:19 -0400
-Message-Id: <20190726152319.134152-2-joel@joelfernandes.org>
-X-Mailer: git-send-email 2.22.0.709.g102302147b-goog
-In-Reply-To: <20190726152319.134152-1-joel@joelfernandes.org>
-References: <20190726152319.134152-1-joel@joelfernandes.org>
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=0XvBgQp2/E+/Ic94KFJvx3PoeHBC2K6bMN+dYGtrzrU=;
+        b=o+Sw+Ft9tBTCMfQnjjV7hQQHUdyNoWUSjIb4imOvsb2LbKFd1Q5NbuyDRu/AsB0VyP
+         URzry2DDvBoWY/MzinDkwxqdipoU7eQxWimCd8F9Wq4pH2nxNhL0VEiztP0eXgfDnVhe
+         qmeSCQ2RfaMf6HFkHqhsbZs1xw/iQNrwM9UEb0q7YJO4WRAfVYJT1pLZHckgpLWDFEW5
+         ezBU84Ow58+f91moEdhmpcwYTGEj4uyoRch1AjlQz/y6ZgqBFNCIZvJUNmWtnVdWYvE1
+         CtR3H87yaXERTd9RsoCTTWIViWcACY1Iwet3M5jz6s3WZSDa8csEbMTwgddUyXEsLr51
+         dtdw==
+X-Google-Smtp-Source: APXvYqz8sQPW4m3GzwcT9XhmjAeoy2UAD2U4rkt48bJMq/KWyyCMGm6hjyKnT+STDp46Ymz4NgJRKg==
+X-Received: by 2002:aed:33e6:: with SMTP id v93mr67774336qtd.157.1564155934207;
+        Fri, 26 Jul 2019 08:45:34 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id a23sm22076094qtp.22.2019.07.26.08.45.32
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 26 Jul 2019 08:45:33 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hr2PU-0007qj-F6; Fri, 26 Jul 2019 12:45:32 -0300
+Date: Fri, 26 Jul 2019 12:45:32 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Ralph Campbell <rcampbell@nvidia.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
+	nouveau@lists.freedesktop.org
+Subject: Re: [PATCH v2 0/7] mm/hmm: more HMM clean up
+Message-ID: <20190726154532.GA29678@ziepe.ca>
+References: <20190726005650.2566-1-rcampbell@nvidia.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190726005650.2566-1-rcampbell@nvidia.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch updates the documentation with the new page_idle tracking
-feature which uses virtual address indexing.
+On Thu, Jul 25, 2019 at 05:56:43PM -0700, Ralph Campbell wrote:
+> Here are seven more patches for things I found to clean up.
+> This was based on top of Christoph's seven patches:
+> "hmm_range_fault related fixes and legacy API removal v3".
+> I assume this will go into Jason's tree since there will likely be
+> more HMM changes in this cycle.
+>
+> Changes from v1 to v2:
+> 
+> Added AMD GPU to hmm_update removal.
+> Added 2 patches from Christoph.
+> Added 2 patches as a result of Jason's suggestions.
+> 
+> Christoph Hellwig (2):
+>   mm/hmm: replace the block argument to hmm_range_fault with a flags
+>     value
+>   mm: merge hmm_range_snapshot into hmm_range_fault
+> 
+> Ralph Campbell (5):
+>   mm/hmm: replace hmm_update with mmu_notifier_range
+>   mm/hmm: a few more C style and comment clean ups
+>   mm/hmm: remove hugetlbfs check in hmm_vma_walk_pmd
+>   mm/hmm: remove hmm_range vma
 
-Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
----
- .../admin-guide/mm/idle_page_tracking.rst     | 43 ++++++++++++++++---
- 1 file changed, 36 insertions(+), 7 deletions(-)
+For all of these:
 
-diff --git a/Documentation/admin-guide/mm/idle_page_tracking.rst b/Documentation/admin-guide/mm/idle_page_tracking.rst
-index df9394fb39c2..1eeac78c94a7 100644
---- a/Documentation/admin-guide/mm/idle_page_tracking.rst
-+++ b/Documentation/admin-guide/mm/idle_page_tracking.rst
-@@ -19,10 +19,14 @@ It is enabled by CONFIG_IDLE_PAGE_TRACKING=y.
- 
- User API
- ========
-+There are 2 ways to access the idle page tracking API. One uses physical
-+address indexing, another uses a simpler virtual address indexing scheme.
- 
--The idle page tracking API is located at ``/sys/kernel/mm/page_idle``.
--Currently, it consists of the only read-write file,
--``/sys/kernel/mm/page_idle/bitmap``.
-+Physical address indexing
-+-------------------------
-+The idle page tracking API for physical address indexing using page frame
-+numbers (PFN) is located at ``/sys/kernel/mm/page_idle``.  Currently, it
-+consists of the only read-write file, ``/sys/kernel/mm/page_idle/bitmap``.
- 
- The file implements a bitmap where each bit corresponds to a memory page. The
- bitmap is represented by an array of 8-byte integers, and the page at PFN #i is
-@@ -74,6 +78,31 @@ See :ref:`Documentation/admin-guide/mm/pagemap.rst <pagemap>` for more
- information about ``/proc/pid/pagemap``, ``/proc/kpageflags``, and
- ``/proc/kpagecgroup``.
- 
-+Virtual address indexing
-+------------------------
-+The idle page tracking API for virtual address indexing using virtual page
-+frame numbers (VFN) is located at ``/proc/<pid>/page_idle``. It is a bitmap
-+that follows the same semantics as ``/sys/kernel/mm/page_idle/bitmap``
-+except that it uses virtual instead of physical frame numbers.
-+
-+This idle page tracking API does not need deal with PFN so it does not require
-+prior lookups of ``pagemap`` in order to find if page is idle or not. This is
-+an advantage on some systems where looking up PFN is considered a security
-+issue.  Also in some cases, this interface could be slightly more reliable to
-+use than physical address indexing, since in physical address indexing, address
-+space changes can occur between reading the ``pagemap`` and reading the
-+``bitmap``, while in virtual address indexing, the process's ``mmap_sem`` is
-+held for the duration of the access.
-+
-+To estimate the amount of pages that are not used by a workload one should:
-+
-+ 1. Mark all the workload's pages as idle by setting corresponding bits in
-+    ``/proc/<pid>/page_idle``.
-+
-+ 2. Wait until the workload accesses its working set.
-+
-+ 3. Read ``/proc/<pid>/page_idle`` and count the number of bits set.
-+
- .. _impl_details:
- 
- Implementation Details
-@@ -99,10 +128,10 @@ When a dirty page is written to swap or disk as a result of memory reclaim or
- exceeding the dirty memory limit, it is not marked referenced.
- 
- The idle memory tracking feature adds a new page flag, the Idle flag. This flag
--is set manually, by writing to ``/sys/kernel/mm/page_idle/bitmap`` (see the
--:ref:`User API <user_api>`
--section), and cleared automatically whenever a page is referenced as defined
--above.
-+is set manually, by writing to ``/sys/kernel/mm/page_idle/bitmap`` for physical
-+addressing or by writing to ``/proc/<pid>/page_idle`` for virtual
-+addressing (see the :ref:`User API <user_api>` section), and cleared
-+automatically whenever a page is referenced as defined above.
- 
- When a page is marked idle, the Accessed bit must be cleared in all PTEs it is
- mapped to, otherwise we will not be able to detect accesses to the page coming
--- 
-2.22.0.709.g102302147b-goog
+Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
+
+I've applied this to hmm.git, excluding:
+
+>   mm/hmm: make full use of walk_page_range()
+
+Pending further discussion.
+
+Based on last cycle I've decided to move good patches into linux-next
+earlier and rely on some rebase if needed. This is to help Andrew's
+workflow.
+
+So, if there are more tags/etc please continue to send them, I will
+sort it..
+
+Thanks,
+Jason
 
