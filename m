@@ -2,123 +2,225 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=FROM_LOCAL_HEX,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A0BBC7618F
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 23:26:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C240AC7618F
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 23:45:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 02F2D20869
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 23:26:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02F2D20869
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 324F621994
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 23:45:12 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="DImgnqbm";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="K53at5KC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 324F621994
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6C2136B0005; Fri, 26 Jul 2019 19:26:02 -0400 (EDT)
+	id 9C0EC6B0003; Fri, 26 Jul 2019 19:45:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 64BE18E0003; Fri, 26 Jul 2019 19:26:02 -0400 (EDT)
+	id 971F48E0003; Fri, 26 Jul 2019 19:45:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4EC108E0002; Fri, 26 Jul 2019 19:26:02 -0400 (EDT)
+	id 8387B8E0002; Fri, 26 Jul 2019 19:45:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E1656B0005
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 19:26:02 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id e20so59986156ioe.12
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 16:26:02 -0700 (PDT)
+Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5AB166B0003
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 19:45:11 -0400 (EDT)
+Received: by mail-vk1-f197.google.com with SMTP id o75so21463105vke.3
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 16:45:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:mime-version
-         :date:in-reply-to:message-id:subject:from:to;
-        bh=jU9fP+7H8MVZejaHdG74+bs1E1cZqrGALTWcbghPSM4=;
-        b=nnoB5A+WNqR0UnczmNKoq++Q9QJlyX1P8+DnXEoWGAYElYpcvLDDLqf35AYCzy0PFd
-         2N9rRLPsvTyrVeXqsKeTEjwP6cgyUd0X5j3k/jxDwQFgZFO913ghb8n3PKNNj481b0VE
-         xBy8A/ZFYSmj2DGA7fKHhJz264tWFOmM8c5wdvQPtYX+HLABJUJYOgIsvUnLjigZcvsQ
-         EgHBSeUF56Jrp6ppqYnNmLBy3A0o8N1fXMnQPFeuXaopFbdwtDBHE1Pb7mmj74cPOPa6
-         E9DN6ag3P4hLKJg7mcy080p3bmyZX/UpQpOf2N0smfGLtJgxVPyQ9Vp+bcjRhLOWzNiN
-         0V9w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3ciw7xqkbap0x34pfqqjwfuuni.lttlqjzxjwhtsyjsy.htr@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3CIw7XQkbAP0x34pfqqjwfuuni.lttlqjzxjwhtsyjsy.htr@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Gm-Message-State: APjAAAUvVTBKHpypDwuqzT4+5211VR4EDUSD+3F/ie1hkOsRAoH+KAFu
-	ii81K5WAkRSX7yKoeN1NeVm25GU7aTqPzlgTSGdZldJTF5u9WlzcbKEQ2nK48Aqh8fUq1YkK0IZ
-	yMwfg1kjX27M4jLyUJSaD6XTLjzFnP27ctgpqH6KMMAW3/YgMrMRgDEGK6tISX/Q=
-X-Received: by 2002:a05:6638:63a:: with SMTP id h26mr24329244jar.92.1564183561976;
-        Fri, 26 Jul 2019 16:26:01 -0700 (PDT)
-X-Received: by 2002:a05:6638:63a:: with SMTP id h26mr24329196jar.92.1564183561349;
-        Fri, 26 Jul 2019 16:26:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564183561; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=IjXJt58OQmKJLLz95X4E2W/q0+CgRirWuNUC5Rg1S8E=;
+        b=dbksRmnnCEJe2ComsibnFVW6Wel8rWX4CLMUZRrmvELBZz/f5vqyHmf4W1lXanFY8f
+         ZiBJYah1e+H0J8l6dqCb4eWIzDJLO5iO+SYOeIxWeSEj3DaGk8P3Adq+vyP0mb01iQ0g
+         TjW40R9vds/gYyyEvfE64XDH8XYD7lTx5AVyozXoPh3D8BseouhfYSC1JDwoRR4O0QY/
+         35YXgeKBpYb518/tVuK8WuazN0L2cJHaBYEcH8iPa5hpqLtLzPA4k6f48R4bctsHg06V
+         GEsqswLUQfy8EUDJh4YNtKLhYRjDeLxanLfxS8mjchuOeWnyHIVxc8w4WzHPnVcQ1c3n
+         tpkw==
+X-Gm-Message-State: APjAAAVBz5sEN8Phn9ulz9kB+eZ2rwbTx63Stt50Wq3Z/YhJFfSXlmWk
+	kQ1+iiQVyjT7ZRM2Qc+pIr7vVEkrgGeI4+hMMQkgj60p1I1LHCav9Ek7LvD708uwUY7YTD6T8p6
+	iq/0+qFzJ5PRmM25zs0LFHc+LgZuJMuWveZhrk/FuE1p6CAu30KGHE+IBh1GTxqozJg==
+X-Received: by 2002:a67:dd0d:: with SMTP id y13mr36256917vsj.210.1564184711020;
+        Fri, 26 Jul 2019 16:45:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyc3MqB3+MEy2B0LQnxk5POR7SD4t6eKtDGMGs45/PSqI/PYxESFLQk3USdKmZC9dJ7G/46
+X-Received: by 2002:a67:dd0d:: with SMTP id y13mr36256897vsj.210.1564184710501;
+        Fri, 26 Jul 2019 16:45:10 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1564184710; cv=pass;
         d=google.com; s=arc-20160816;
-        b=kxmqpWkergNDbbh1kznRtcNeLt1q4URngbcADombldtVPxfk55vr0+u+psZEbVK9Yt
-         jm7b3wlM8xguS5ZlRt9/+LHisI+S/gKgszBF/xjHfzap+QIh3A9qvAGEq4yAMgBgfHor
-         0YrWzBD3ZgWoh1benG22LGx7/Vprs1MTPzzzUZw0f47s0vcUlM4osY9whw7S/kNROqLU
-         grEQAXPO5th2njHU7owD2NBBlqbMHHZB4pCjNbE6Q4BwIF7f0yJ+ExWMjj/SjWALYM9b
-         5NGQoQGqUph9KB9+wdR63CZNUNumMTfDVJ1QXbKrNZu36o3NFgLXErBlxtMcVrNBHhfe
-         DydA==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:from:subject:message-id:in-reply-to:date:mime-version;
-        bh=jU9fP+7H8MVZejaHdG74+bs1E1cZqrGALTWcbghPSM4=;
-        b=YLSeThgPJ9F8aBMQTSkJiUbUtF/BQ0Ek+3zNS6VysACogJasth5kchfFLuudBylqKo
-         l5TfJx4/rfOuuITpYOj+39qD5RX2m3qa8UlECc+6lX4aYGQsN8IIxGz2yGuaIJRJoGCI
-         w6E6JlIxngWZdU2NdoPoVJrUQ23UFOlCexOtLRoNMiz9Zep72h7dZBfydnrieUj9Mk3l
-         h16payYDcdhNv0uaob/cfv20s+ks9ajna8D5vU4Iu74q3MxRRTTySzc2gE0uynN3+JIj
-         2mhSaXOlfo6zowMvS3Y9ucLkEZND8+WmUsEV0f6UMzafEhJ+V3bAPK4rIS01r49XAH4h
-         gSTA==
-ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of 3ciw7xqkbap0x34pfqqjwfuuni.lttlqjzxjwhtsyjsy.htr@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3CIw7XQkbAP0x34pfqqjwfuuni.lttlqjzxjwhtsyjsy.htr@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
-        by mx.google.com with SMTPS id m187sor37289193ioa.46.2019.07.26.16.26.01
+        b=EYK9Zqn7ncMDPIQ4n4gEnd6hX8caR7ZdzFnPkZrL1lvwZT8odyuoWkzheId83RyEJX
+         +NiLGBpButCvl4iASlnXyhqDap6CrR0KvbEahDbORxuJOxLHClLp/VdCa6UKlggf3ypj
+         Pbco1kUJRXmFrY0z+LxCDPKTymlK8GlSkz55/r3EmUUtQD4tDATxp8IXXqVbZVaHFb6n
+         /4o+IlGQIJbwUOauStRg2U1lFDRzeRHG8qKmjmveUaBKy592ml7kfxwRfv3kS+aOd1Az
+         lkwIvxNkVjG2hmm9t+LpPTf0g24hko6yjtdE8jj/EC1wgXdjwm0Ih0SmtfDTLU7JHDbm
+         RE5Q==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=IjXJt58OQmKJLLz95X4E2W/q0+CgRirWuNUC5Rg1S8E=;
+        b=hc+y+PlXCaZ2KdEtLUhf/WB9nf40PSleS2F917px0g/PWIErrhpq6rfibr33FyE9IG
+         wCK7MdUs0XFU37V/FcgpToLeIRyBx6AJA16z+4WKqF81IcCJ+Wf4Yka8zyKYGw/q6EPj
+         hVH2QhwqdK6kvp9q5e02eFrHSHKtEiZDrep4jP/SD/4B5to5QpXd22Tw5OE6WTS2q5TT
+         M/Spn+19YlO6SowhihdgXUtdCyX7gwHeiHuLJCHOsGeEpZUeIR3D85QcvOjFQPAKzOY4
+         gWn3NxkcR7esOXMUY75/bXuYbSc82nOYrVqf1xwvmT9oRSIxSjWmbGLhTxcyhEwsTYfN
+         EMqQ==
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=DImgnqbm;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=K53at5KC;
+       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
+       spf=pass (google.com: domain of prvs=21101f516b=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=21101f516b=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id r7si2904815vsl.103.2019.07.26.16.45.10
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 Jul 2019 16:26:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3ciw7xqkbap0x34pfqqjwfuuni.lttlqjzxjwhtsyjsy.htr@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Jul 2019 16:45:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=21101f516b=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of 3ciw7xqkbap0x34pfqqjwfuuni.lttlqjzxjwhtsyjsy.htr@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3CIw7XQkbAP0x34pfqqjwfuuni.lttlqjzxjwhtsyjsy.htr@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
-X-Google-Smtp-Source: APXvYqxovLmXIv75laVrMtZvlr79yeQWRntZAt1hwL6RBmKRhi84q3dBc8vJmpG72hkv1CJ8iH3NYbDZi9CnPAFhes4c6TPcq2Lv
+       dkim=pass header.i=@fb.com header.s=facebook header.b=DImgnqbm;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=K53at5KC;
+       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
+       spf=pass (google.com: domain of prvs=21101f516b=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=21101f516b=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0109332.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6QNiOYH004626;
+	Fri, 26 Jul 2019 16:44:37 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=IjXJt58OQmKJLLz95X4E2W/q0+CgRirWuNUC5Rg1S8E=;
+ b=DImgnqbmWDXS10uyXvlapAn4F2xUhnVj9udKnm0yInjyz5ebVYuS1vBk324uLXXyL2Lh
+ FITn6MEnqt2QroyRpOaejYBWFrjd2iP0hp8N8aPkPF+p3ej3ZnuEQE2HqQvGlnoMXVdf
+ kTIYUwUrAoTg9Gu7Q3mr8M5YgH1MW0ZPWF4= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2u08d18n0t-2
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
+	Fri, 26 Jul 2019 16:44:37 -0700
+Received: from ash-exhub101.TheFacebook.com (2620:10d:c0a8:82::e) by
+ ash-exhub102.TheFacebook.com (2620:10d:c0a8:82::f) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Fri, 26 Jul 2019 16:44:36 -0700
+Received: from NAM03-BY2-obe.outbound.protection.outlook.com (100.104.31.183)
+ by o365-in.thefacebook.com (100.104.35.173) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id 15.1.1713.5
+ via Frontend Transport; Fri, 26 Jul 2019 16:44:36 -0700
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=I9OkcIT4qMffsavY2LM01CzgVBYEdgTSAs+m3RPfuhFZfBG92RpEUIcJ0ZAbdbXIBGc88BF/PaMt+8PPUHYGCaIgtZHqLxD1jItFLNksS4m149AurxN4zPeEp5yLKWSxQMpZvpyn9rzZEPvWu/rC6nANJdvGCR8geFRlHHWwuuSDGL3g3oH8QY1nKuEuw5kuxY/zPa5irCdK/grPtHq1NQ6h8NyGpVqSVX5k66fTAyBVnX6/qkt1vB6AaFhsZGUIFoO6D1sjmbqqA9ytmXxXGuveU342y2qIq2AiLEGq/UcVShhm/C1WGWa7vG4r0e3LNlVg9vnsTZRSTP0iOqVCSQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=IjXJt58OQmKJLLz95X4E2W/q0+CgRirWuNUC5Rg1S8E=;
+ b=PdjKmudbHmGIlc8Io1SzL5atpgcZGxkAhzbr6qzdf2aPtzu9AEpfU6voaMb9BDxgjMQRDcjnmTiSc2QZUe2qc3eUA0UC9eMBLEX/vScEVogaFyaPEo2Y5YpMvHQcGcKLQTJdilFM4ZFJAtAZaaPUWdV8S2/7Xy1nplfRKKO2830Q1dDCa/chtv49EvhtY5Lasapv2Es1IXsl4ziz/oWJVkxDchZgDKlINOv8IwwctQ+bKxtkZBF9yNeVs65bwj4DlpqNAZSpGUpxq27scecgcVdFbcpbWXPfbOc5klczTacjWyISWZpuFNz3ZYmXgUw7waeiARY+hH93J1D7/EnMkg==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
+ smtp.mailfrom=fb.com;dmarc=pass action=none header.from=fb.com;dkim=pass
+ header.d=fb.com;arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector2-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=IjXJt58OQmKJLLz95X4E2W/q0+CgRirWuNUC5Rg1S8E=;
+ b=K53at5KCSMXlp09Ul9i1Jqo1HErTOck3w4RC5+W16ax6MbadFMmY/LQv7a/jIe8MhGDsnwz7ml29S0tDpoqoik6tFkfyVUDoKB8jjdfSZXfdytG8SkyDTZHoRzdrQSquID17B8km3emTtV7tCJ9W717lm0njHML+Pm8MzFA7bBA=
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
+ MWHPR15MB1439.namprd15.prod.outlook.com (10.173.235.20) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2094.16; Fri, 26 Jul 2019 23:44:34 +0000
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::4066:b41c:4397:27b7]) by MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::4066:b41c:4397:27b7%7]) with mapi id 15.20.2094.013; Fri, 26 Jul 2019
+ 23:44:34 +0000
+From: Song Liu <songliubraving@fb.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+CC: lkml <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+        "matthew.wilcox@oracle.com" <matthew.wilcox@oracle.com>,
+        "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>,
+        "peterz@infradead.org" <peterz@infradead.org>,
+        "oleg@redhat.com"
+	<oleg@redhat.com>,
+        "rostedt@goodmis.org" <rostedt@goodmis.org>,
+        Kernel Team
+	<Kernel-team@fb.com>,
+        "william.kucharski@oracle.com"
+	<william.kucharski@oracle.com>,
+        "srikar@linux.vnet.ibm.com"
+	<srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v9 4/4] uprobe: use FOLL_SPLIT_PMD instead of FOLL_SPLIT
+Thread-Topic: [PATCH v9 4/4] uprobe: use FOLL_SPLIT_PMD instead of FOLL_SPLIT
+Thread-Index: AQHVQ3ZlmP2L+/3PqE2yConlr9Gmr6bdhYSAgAALtYA=
+Date: Fri, 26 Jul 2019 23:44:34 +0000
+Message-ID: <509AB060-6E17-40AB-A773-DF3FB8EBDB62@fb.com>
+References: <20190726054654.1623433-1-songliubraving@fb.com>
+ <20190726054654.1623433-5-songliubraving@fb.com>
+ <20190726160239.68f538a79913df343308b473@linux-foundation.org>
+In-Reply-To: <20190726160239.68f538a79913df343308b473@linux-foundation.org>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-mailer: Apple Mail (2.3445.104.11)
+x-originating-ip: [2620:10d:c090:180::1:bb04]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 44653ef3-abe8-4261-1e21-08d712233693
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1439;
+x-ms-traffictypediagnostic: MWHPR15MB1439:
+x-microsoft-antispam-prvs: <MWHPR15MB1439DAD43321E07A11114DCFB3C00@MWHPR15MB1439.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8882;
+x-forefront-prvs: 01106E96F6
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(376002)(136003)(396003)(366004)(346002)(39860400002)(54534003)(189003)(199004)(486006)(64756008)(6916009)(7736002)(46003)(6486002)(6436002)(57306001)(256004)(4744005)(14454004)(99286004)(14444005)(66946007)(53546011)(66556008)(68736007)(6246003)(4326008)(25786009)(6116002)(66446008)(71190400001)(71200400001)(76176011)(86362001)(305945005)(81166006)(11346002)(2616005)(8676002)(6506007)(446003)(66476007)(76116006)(229853002)(186003)(33656002)(7416002)(36756003)(81156014)(54906003)(316002)(53936002)(50226002)(476003)(6512007)(102836004)(8936002)(5660300002)(478600001)(2906002);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1439;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: BDqgwmsfAz1NdKtsWpSFa+LF9pOrkwnO9c1fzeXYLHyBzLPXBAIHeLNF0bw4SrasOdv42JCpixIwfLf5uA5456b6RQ89BELMviOY/t80YiuOH+g3dKjs3ISJQDSEJMzFJgVKchNai+jnoxV0Oqng5OrmbKmze3JlIsPeRE+bbLU/Iw/zU5BlfNR0gBVFTVU05IeiCzMxpU8S3KxWl51aJ/4CFDKf96OHjqS9yTGd0mTvi7R/Rc1qk2LetpocowjHATsBVWFTLPvGjq7Yxxsv2OjtobbweJxXw9MiT5O673H26pZAauAQpb/VONYolyHMUW4B0En81Fmp9bP1TjdBti82O6yYSKO0QE/0cAfFUm2JMSZkqPkTe0jp6rM2BxMvZAkvLnSvlDqZP2GnVP46uqyV10/U2el8bI7IHu+c4zo=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <E8B2CEF1332099498FA36A82D993CEB1@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-X-Received: by 2002:a5e:d611:: with SMTP id w17mr24902658iom.63.1564183560976;
- Fri, 26 Jul 2019 16:26:00 -0700 (PDT)
-Date: Fri, 26 Jul 2019 16:26:00 -0700
-In-Reply-To: <000000000000edcb3c058e6143d5@google.com>
-X-Google-Appengine-App-Id: s~syzkaller
-X-Google-Appengine-App-Id-Alias: syzkaller
-Message-ID: <00000000000083ffc4058e9dddf0@google.com>
-Subject: Re: memory leak in kobject_set_name_vargs (2)
-From: syzbot <syzbot+ad8ca40ecd77896d51e2@syzkaller.appspotmail.com>
-To: catalin.marinas@arm.com, davem@davemloft.net, dvyukov@google.com, 
-	herbert@gondor.apana.org.au, kuznet@ms2.inr.ac.ru, kvalo@codeaurora.org, 
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org, luciano.coelho@intel.com, 
-	netdev@vger.kernel.org, steffen.klassert@secunet.com, 
-	syzkaller-bugs@googlegroups.com, torvalds@linux-foundation.org, 
-	yoshfuji@linux-ipv6.org
-Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+X-MS-Exchange-CrossTenant-Network-Message-Id: 44653ef3-abe8-4261-1e21-08d712233693
+X-MS-Exchange-CrossTenant-originalarrivaltime: 26 Jul 2019 23:44:34.2599
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1439
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-26_16:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=823 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1907260267
+X-FB-Internal: deliver
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-syzbot has bisected this bug to:
 
-commit 0e034f5c4bc408c943f9c4a06244415d75d7108c
-Author: Linus Torvalds <torvalds@linux-foundation.org>
-Date:   Wed May 18 18:51:25 2016 +0000
 
-     iwlwifi: fix mis-merge that breaks the driver
+> On Jul 26, 2019, at 4:02 PM, Andrew Morton <akpm@linux-foundation.org> wr=
+ote:
+>=20
+> On Thu, 25 Jul 2019 22:46:54 -0700 Song Liu <songliubraving@fb.com> wrote=
+:
+>=20
+>> This patches uses newly added FOLL_SPLIT_PMD in uprobe. This enables eas=
+y
+>> regroup of huge pmd after the uprobe is disabled (in next patch).
+>=20
+> Confused.  There is no "next patch".
 
-bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=10f955f0600000
-start commit:   3bfe1fc4 Merge tag 'for-5.3/dm-changes-2' of git://git.ker..
-git tree:       upstream
-final crash:    https://syzkaller.appspot.com/x/report.txt?x=12f955f0600000
-console output: https://syzkaller.appspot.com/x/log.txt?x=14f955f0600000
-kernel config:  https://syzkaller.appspot.com/x/.config?x=dcfc65ee492509c6
-dashboard link: https://syzkaller.appspot.com/bug?extid=ad8ca40ecd77896d51e2
-syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=135cbed0600000
-C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=14dd4e34600000
+That was the patch 5, which was in earlier versions. I am working on=20
+addressing Kirill's feedback for it.=20
 
-Reported-by: syzbot+ad8ca40ecd77896d51e2@syzkaller.appspotmail.com
-Fixes: 0e034f5c4bc4 ("iwlwifi: fix mis-merge that breaks the driver")
+Do I need to resubmit 4/4 with modified change log?=20
 
-For information about bisection process see: https://goo.gl/tpsmEJ#bisection
+Thanks,
+Song=
 
