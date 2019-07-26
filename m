@@ -2,204 +2,201 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B48AC7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 05:58:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E96FEC41514
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 06:02:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C7749217D4
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 05:57:59 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="SPS/fe56"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7749217D4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id A961E206BA
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 06:02:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A961E206BA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4A3C16B0003; Fri, 26 Jul 2019 01:57:59 -0400 (EDT)
+	id 402FB6B0003; Fri, 26 Jul 2019 02:02:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 453FD6B0005; Fri, 26 Jul 2019 01:57:59 -0400 (EDT)
+	id 3B2F06B0005; Fri, 26 Jul 2019 02:02:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 31C5F8E0002; Fri, 26 Jul 2019 01:57:59 -0400 (EDT)
+	id 27E848E0002; Fri, 26 Jul 2019 02:02:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EC7346B0003
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 01:57:58 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id x19so32289807pgx.1
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 22:57:58 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CE12E6B0003
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 02:02:44 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id w25so33420327edu.11
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 23:02:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
-         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
-         :message-id:mime-version;
-        bh=2G2JqqAaL+zcE7XbmXR266BSDdjMJVA1jPdlyObFpEo=;
-        b=lQbG6VneF0Zg9NPJZShRuaaIvF5mqjKXbXWSAi9QEqEkKOO6L6M1Ofs+vvq6sbz9NV
-         47onuQVsC0VTQ8gBo2IWCjiax348aat44ISdo6rVouzG9taRp2OhLD8+1KOEz4t//uOu
-         ppUH/kwIcVV4MdXQMcqm2oi9EB7iFGgBKNh7q4rJBto+2qIpKSvSBQATiSKv4Eu2W73C
-         M1HUynHd7+zPjNt1oICQQPPlSa0zzBGAo1BEuqp2pjyy9VG8GUj8meY/jPqnjXhnkpoS
-         hjDCeyR2oXEhYNgW7cenqOO7+sVxu1p7PR89/klVo7FfGQE9onbMPLrDhW1TNy8HK793
-         Y+fg==
-X-Gm-Message-State: APjAAAVNDoUzKuOdmiwfG1VpEj7EuFVu8LogLTzvExDvvDNBAN6D19UH
-	zEu8zARRV4zDzl1sgVGLE4xIOiZuHf7FBkp5ae6bcxUkQIjYgKxeMTw/ypy8JPu45pur5YTUkoF
-	YYqBRAVg4fpiCOhmnExZIfY0ed8aHf/FdWWKkoB+8WjBBXkEpE/uxcKV6r3ureLq1AQ==
-X-Received: by 2002:a63:31c1:: with SMTP id x184mr85796799pgx.128.1564120678554;
-        Thu, 25 Jul 2019 22:57:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw0a67LAKYtuq17HOtHOMQIjEfyPTIlgGF0iR6MfBO2DFfJ77Z+69Z5pn/qLBIaOFZSAL4D
-X-Received: by 2002:a63:31c1:: with SMTP id x184mr85796755pgx.128.1564120677718;
-        Thu, 25 Jul 2019 22:57:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564120677; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=mxQjWzqybI9PqSVCZJCJK0K7mNtpday5Hlg5apeL7ns=;
+        b=sH54Kff50zg6Oa7Rp/sWqyTH8CIvl8oYnVHJovKmd5A2PvscDs+TKqEle34xU8JhM/
+         iZgI/3gny3tAy31TrvszisC1UXU+/x+PIEJ5xM+pT6Bxo8hrw1WKnq+inmZj00TM1b9g
+         0cD56xxqqhQQ2Bw2AuZ0HwS6AfghdQpOzIr/3/plPwKGaufKPmVR9AZu/esRaM5Pzx0P
+         oijC8MMToowsBoLzTgC+1ksQJCYts/WOBLTvvTNlN3F3BfUq0VVynfxjdBdAehW4EAkC
+         9dpOUBYcBPTq2hnN2agO8GE3b9AR5BbDDEpzAB8bIz6uJB9eZavti/weFc4u8wuz3scu
+         lz7Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAUKwTii8x5jXSZIDI9aJq/2vMWXl+/gqbypI1ca2q+5mS/z6mxz
+	cLwKgm17hkAhZvmgTPbtvuBnhmIm6Iw6+T0JWbVLE6m+fwRO+6x9H6MtgLGY+iL2H43Cv2aVwK0
+	LPnLqACdWy/k6dpSvEqCKHGng/pLMhfWZGL5ns7BGy2DgeceslJM9Jnmp5myJgANDgA==
+X-Received: by 2002:a17:906:7d12:: with SMTP id u18mr69800948ejo.24.1564120964395;
+        Thu, 25 Jul 2019 23:02:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxZSjIYOqepsB0enkW73F5jzoSvHaTrkCvmYasrnn9cClcGQkYgN61T2OM5d/nXViOothMP
+X-Received: by 2002:a17:906:7d12:: with SMTP id u18mr69800892ejo.24.1564120963606;
+        Thu, 25 Jul 2019 23:02:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564120963; cv=none;
         d=google.com; s=arc-20160816;
-        b=GDyarJAjOKw9UQP0wzo6RoJdmwofk1PjG7TtyV2Cv5p6YBEXFu6b97qoR22pLmcF3E
-         OvtyjK9xcpUb6ZBzFWGqXb+zxDlhHzSB0mej/xuKupZ7SHciUTdaS+tEkXFdI5ESblY7
-         9szhFgjkmyz5FCU5jr5llAjhTYTtn/Z2l26GFPC6UrzoRc4MG2fsRQQwSZ/l8Holw6OD
-         x1Kja7IeJmHysOveTp8CYSkBp1WcSQ+O06YdcX7EjqZDiu4nrfTm0+cAmAVr/yazXJkd
-         TO7WuW9Nq0Y5LT2nALqcOzc/ariGwAWcHLqLX9Y7suaP/SJxRP5pLW2IyT4e8Mq2A7Dh
-         S1fg==
+        b=lb0FxfHhj1qjxz+SD2NwILGZFyQr+kcOsOhJs00Q/t/jVdihoi1pRmdU8RjXml7q02
+         tRseDan5GC5L6Y1QqDnGrrWOcccOVnsHSlAOvAeA1Z57n/rvmDQ0f8mbX/xUHK9MaKVu
+         H64UPwo5Q0gCJxT/Pu76dnY/198f4s2fnHxw98bZXqOX3pzpqM0zDpIZ4czhRG1r+I1v
+         t+X5nmFxpM2/BSd7CniDvU2rgbVxkweAWcu8W7EbbZJFGmMlCUEmcyi0eb52i/9zKMCC
+         FhqEsPldLdvQrT+Uv4PyHhImM7Oo8d1YInNuSmVQf8j3dcYhJN5nkPfdYMW+aRUS5Zc5
+         VcEQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:subject:smtp-origin-cluster:cc:to
-         :smtp-origin-hostname:from:smtp-origin-hostprefix:dkim-signature;
-        bh=2G2JqqAaL+zcE7XbmXR266BSDdjMJVA1jPdlyObFpEo=;
-        b=G1Nxl/opiNt0V66dGqh4c+2VeNPOUAV8avgj8mzKXifKaaOkDNdPedqXOtVcWlqLSO
-         AorCRzVqdLVi5fQ3HBlD8qMlSlbpmjIodaBLr061HPfWbY4+BZUxhkw0BzJW+LMA0Y7x
-         pZ9o0lU8f7N/FggwzaGsOUEqDxYMk6QyayPY/X5DsetfbyHPzRui0wCUTKZCBNRniigZ
-         yF5NHKcDmhI5yYY37rBqwrWLyeyvCTpAiX6XpVSos7MRHZcsCfK7epB8ToLkJzf9bphN
-         ZyuvFFqiMNBZG+ZeTcvsWJ4KZi3NdxEmVt5Uza9kxbI7Fg5pL5fz3Wa9CY+qMgecGnqV
-         1JOQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=mxQjWzqybI9PqSVCZJCJK0K7mNtpday5Hlg5apeL7ns=;
+        b=lN7oV4o7DRsZEEnVvWkvZ+L7yWaeAmYwZnu8P/Px3GKZ6NG0J7+OW8vzdl36dVjxxo
+         EaOhMndIqiQ3ZR3vXYa0kYO/Ui2clqSfU0kl+EQTyt2U2xbsxRhbrZgqT2PYFPPiLOj3
+         d2uxBh24HgkM+lMoV8ipn022Nf7ivoytuXTcnM2p/RbZNYmOcjQb0ALSxtLCYsvZHQ+k
+         +X9FnARBQ9kxn/m1MKreJ1qBWxAZggojpmg8KdNQt/8w8GyKbkkfErKOUH2S+aP9EE+j
+         WXj2umt/Ep47gdO2wuYbng0ImQ3RAuLqNGdGDqEQ93pmBSAp5aTsvpDMyNtne14vf0an
+         /ODA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="SPS/fe56";
-       spf=pass (google.com: domain of prvs=21101f516b=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=21101f516b=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id l70si17298782pgd.363.2019.07.25.22.57.57
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 25 Jul 2019 22:57:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=21101f516b=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id 47si13148182edu.294.2019.07.25.23.02.43
+        for <linux-mm@kvack.org>;
+        Thu, 25 Jul 2019 23:02:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="SPS/fe56";
-       spf=pass (google.com: domain of prvs=21101f516b=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=21101f516b=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109333.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6Q5stA1025299
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 22:57:57 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : mime-version : content-type; s=facebook;
- bh=2G2JqqAaL+zcE7XbmXR266BSDdjMJVA1jPdlyObFpEo=;
- b=SPS/fe56KW9xYLIqPiVObNLis76IMHdUsW73YXz7ZBBgbMGLYx1ne8K/htFE8JtLRxTP
- KJYh/4BtcSj97wWgnnpQG5jSeaMRLT3bbL1cOaFE/STRZ2w5HyTOohlrc6kqH2SmV6K7
- oI4G4SAInRHtbNKRD8O3kQ9xDbcwWIN87Ck= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2tyh4n27a7-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 22:57:57 -0700
-Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
- mail.thefacebook.com (2620:10d:c0a8:82::e) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Thu, 25 Jul 2019 22:57:55 -0700
-Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
-	id A1F8D62E2163; Thu, 25 Jul 2019 22:47:01 -0700 (PDT)
-Smtp-Origin-Hostprefix: devbig
-From: Song Liu <songliubraving@fb.com>
-Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
-To: <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
-        <akpm@linux-foundation.org>
-CC: <matthew.wilcox@oracle.com>, <kirill.shutemov@linux.intel.com>,
-        <peterz@infradead.org>, <oleg@redhat.com>, <rostedt@goodmis.org>,
-        <kernel-team@fb.com>, <william.kucharski@oracle.com>,
-        <srikar@linux.vnet.ibm.com>, Song Liu <songliubraving@fb.com>
-Smtp-Origin-Cluster: ftw2c04
-Subject: [PATCH v9 0/4] THP aware uprobe
-Date: Thu, 25 Jul 2019 22:46:50 -0700
-Message-ID: <20190726054654.1623433-1-songliubraving@fb.com>
-X-Mailer: git-send-email 2.17.1
-X-FB-Internal: Safe
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 8CE59337;
+	Thu, 25 Jul 2019 23:02:42 -0700 (PDT)
+Received: from [10.163.1.197] (unknown [10.163.1.197])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 1F3E03F694;
+	Thu, 25 Jul 2019 23:04:40 -0700 (PDT)
+Subject: Re: [PATCH v9 00/21] Generic page walk and ptdump
+To: Will Deacon <will@kernel.org>
+Cc: Steven Price <steven.price@arm.com>, linux-mm@kvack.org,
+ Mark Rutland <Mark.Rutland@arm.com>, x86@kernel.org,
+ Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
+ Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
+ James Morse <james.morse@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ linux-arm-kernel@lists.infradead.org, "Liang, Kan"
+ <kan.liang@linux.intel.com>
+References: <20190722154210.42799-1-steven.price@arm.com>
+ <835a0f2e-328d-7f7f-e52a-b754137789f9@arm.com>
+ <c9d2042f-c731-4705-4148-b38deccf7963@arm.com>
+ <6f59521e-1f3e-6765-9a6f-c8eca4c0c154@arm.com>
+ <20190725093036.dzn6uulcihhkohm2@willie-the-truck>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <40adc5ea-1125-d821-267d-3621732775d6@arm.com>
+Date: Fri, 26 Jul 2019 11:33:14 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-26_03:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1907260079
-X-FB-Internal: deliver
+In-Reply-To: <20190725093036.dzn6uulcihhkohm2@willie-the-truck>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This set makes uprobe aware of THPs.
 
-Currently, when uprobe is attached to text on THP, the page is split by
-FOLL_SPLIT. As a result, uprobe eliminates the performance benefit of THP.
 
-This set makes uprobe THP-aware. Instead of FOLL_SPLIT, we introduces
-FOLL_SPLIT_PMD, which only split PMD for uprobe.
+On 07/25/2019 03:00 PM, Will Deacon wrote:
+> On Thu, Jul 25, 2019 at 02:39:22PM +0530, Anshuman Khandual wrote:
+>> On 07/24/2019 07:05 PM, Steven Price wrote:
+>>> There isn't any problem as such with using p?d_large macros. However the
+>>> name "large" has caused confusion in the past. In particular there are
+>>> two types of "large" page:
+>>>
+>>> 1. leaf entries at high levels than normal ('sections' on Arm, for 4K
+>>> pages this gives you 2MB and 1GB pages).
+>>>
+>>> 2. sets of contiguous entries that can share a TLB entry (the
+>>> 'Contiguous bit' on Arm - which for 4K pages gives you 16 entries = 64
+>>> KB 'pages').
+>>
+>> This is arm64 specific and AFAIK there are no other architectures where there
+>> will be any confusion wrt p?d_large() not meaning a single entry.
+>>
+>> As you have noted before if we are printing individual entries with PTE_CONT
+>> then they need not be identified as p??d_large(). In which case p?d_large()
+>> can just safely point to p?d_sect() identifying regular huge leaf entries.
+> 
+> Steven's stuck in the middle of things here, but I do object to p?d_large()
+> because I find it bonkers to have p?d_large() and p?d_huge() mean completely
+> different things when they are synonyms in the English language.
 
-TODO (temporarily removed in v7+):
-After all uprobes within the THP are removed, regroup the PTE-mapped pages
-into huge PMD.
+Agreed that both p?d_large() and p?d_huge() should not exist at the same time
+when they imply the same thing. I believe all these name proliferation happened
+because THP, HugeTLB and kernel large mappings like linear, vmemmap, ioremap etc
+which the platform code had to deal with in various forms.
 
-This set (plus a few THP patches) is also available at
+> 
+> Yes, p?d_leaf() matches the terminology used by the Arm architecture, but
+> given that most page table structures are arranged as a 'tree', then it's
+> not completely unreasonable, in my opinion. If you have a more descriptive
+> name, we could use that instead. We could also paint it blue.
 
-   https://github.com/liu-song-6/linux/tree/uprobe-thp
+The alternate name chosen p?d_leaf() is absolutely fine and it describes the
+entry as intended. There is no disagreement over that. My original concern
+was introduction of yet another page table helper.
 
-Changes v8 => v9:
-1. To replace with orig_page, only unmap old_page. Let the orig_page fault
-   in (Oleg Nesterov).
+> 
+>>> In many cases both give the same effect (reduce pressure on TLBs and
+>>> requires contiguous and aligned physical addresses). But for this case
+>>> we only care about the 'leaf' case (because the contiguous bit makes no
+>>> difference to walking the page tables).
+>>
+>> Right and we can just safely identify section entries with it. What will be
+>> the problem with that ? Again this is only arm64 specific.
+>>
+>>>
+>>> As far as I'm aware p?d_large() currently implements the first and
+>>> p?d_(trans_)huge() implements either 1 or 2 depending on the architecture.
+>>
+>> AFAIK option 2 exists only on arm6 platform. IIUC generic MM requires two
+>> different huge page dentition from platform. HugeTLB identifies large entries
+>> at PGD|PUD|PMD after converting it's content into PTE first. So there is no
+>> need for direct large page definitions for other levels.
+>>
+>> 1. THP		- pmd_trans_huge()
+>> 2. HugeTLB	- pte_huge()	   CONFIG_ARCH_WANT_GENERAL_HUGETLB is set
+>>
+>> A simple check for p?d_large() on mm/ and include/linux shows that there are
+>> no existing usage for these in generic MM. Hence it is available.
+> 
+> Alternatively, it means we have a good opportunity to give it a better name
+> before it spreads into the core code.
 
-Changes v7 => v8:
-1. check PageUptodate() for orig_page (Oleg Nesterov).
+Fair enough, that is another way. So you expect existing platform definitions
+for p?d_large()/p?d_huge() getting cleaned up and to start using new p?d_leaf()
+instead ?
 
-Changes v6 => v7:
-1. Include Acked-by from Kirill A. Shutemov for the first 4 patches;
-2. Keep only the first 4 patches (while I working on improving the last 2).
+> 
+>> IMHO the new addition of p?d_leaf() can be avoided and p?d_large() should be
+>> cleaned up (if required) in platforms and used in generic functions.
+> 
+> Again, I disagree and think p?d_large() should be confined to arch code
+> if it sticks around at all.
 
-Changes v5 => v6:
-1. Enable khugepaged to collapse pmd for pte-mapped THP
-   (Kirill A. Shutemov).
-2. uprobe asks khuagepaged to collaspe pmd. (Kirill A. Shutemov)
-
-Note: Theast two patches in v6 the set apply _after_ v7 of set "Enable THP
-      for text section of non-shmem files"
-
-Changes v4 => v5:
-1. Propagate pte_alloc() error out of follow_pmd_mask().
-
-Changes since v3:
-1. Simplify FOLL_SPLIT_PMD case in follow_pmd_mask(), (Kirill A. Shutemov)
-2. Fix try_collapse_huge_pmd() to match change in follow_pmd_mask().
-
-Changes since v2:
-1. For FOLL_SPLIT_PMD, populated the page table in follow_pmd_mask().
-2. Simplify logic in uprobe_write_opcode. (Oleg Nesterov)
-3. Fix page refcount handling with FOLL_SPLIT_PMD.
-4. Much more testing, together with THP on ext4 and btrfs (sending in
-   separate set).
-5. Rebased.
-
-Changes since v1:
-1. introduces FOLL_SPLIT_PMD, instead of modifying split_huge_pmd*();
-2. reuse pages_identical() from ksm.c;
-3. rewrite most of try_collapse_huge_pmd().
-
-Song Liu (4):
-  mm: move memcmp_pages() and pages_identical()
-  uprobe: use original page when all uprobes are removed
-  mm, thp: introduce FOLL_SPLIT_PMD
-  uprobe: use FOLL_SPLIT_PMD instead of FOLL_SPLIT
-
- include/linux/mm.h      |  8 +++++
- kernel/events/uprobes.c | 68 +++++++++++++++++++++++++++++------------
- mm/gup.c                |  8 +++--
- mm/ksm.c                | 18 -----------
- mm/util.c               | 13 ++++++++
- 5 files changed, 76 insertions(+), 39 deletions(-)
-
---
-2.17.1
+All of those instances should migrate to using p?d_leaf() eventually else
+there will be three different helpers which probably mean the same thing.
 
