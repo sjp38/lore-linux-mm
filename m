@@ -2,187 +2,190 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A64AFC7618F
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 17:58:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5247DC7618F
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 18:30:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 61E3621842
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 17:58:29 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="V0Z3b9Hc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 61E3621842
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 0EE6D22BEF
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 18:30:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0EE6D22BEF
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E6DEC6B0005; Fri, 26 Jul 2019 13:58:28 -0400 (EDT)
+	id 617036B0005; Fri, 26 Jul 2019 14:30:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E1F6E8E0003; Fri, 26 Jul 2019 13:58:28 -0400 (EDT)
+	id 5C7958E0003; Fri, 26 Jul 2019 14:30:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D0E0F8E0002; Fri, 26 Jul 2019 13:58:28 -0400 (EDT)
+	id 4B79E8E0002; Fri, 26 Jul 2019 14:30:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f71.google.com (mail-vs1-f71.google.com [209.85.217.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ADC9D6B0005
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 13:58:28 -0400 (EDT)
-Received: by mail-vs1-f71.google.com with SMTP id j186so14369645vsc.11
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 10:58:28 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F1C6E6B0005
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 14:30:38 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id g2so26168984wrq.19
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 11:30:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :organization:message-id:date:user-agent:mime-version:in-reply-to
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=yeCMaN4K2ZO7buQVH+UC6UxQHTwLlHucEGyTiE6T/j8=;
-        b=nXMf9a3Zo0a2SfS8YWQsvvbS/A9ubOuJaROVcqfS+9Cp6xIAdjCsn9+j7nfwbcl7u+
-         H4ndUZj7cVt3LAV8/5j5AdYoEBAA0Hra15iigX83+oQlM0jgQr+9UBiEPfg2I5g45QTZ
-         ZiX1znXkmajr0oKMKKHpDDTsa8vVbPIxISikdkQTMBcpcKe1NsPD3HEC9S/gqf5Lb44l
-         LszFt0tBTDpquig5HwfQTEaJ0pyGrfAHuHZlBL6TBxGHj4CAVJEqW/wvH5Csg/d2E7Tz
-         bHHE9gUrFoBbNQ3/w16Uh7v0eLgclD4EB/stzqPbP6tuQnpf6uLvhE+AXYJhd1k3Wyr0
-         1oPQ==
-X-Gm-Message-State: APjAAAWv9qN8QhXI0gTGTyfG4Jnl2U82VcT3mJUNqEjlqXCh8r+Qn0aF
-	GqTB2tvEg9sj7J9rBmdtbkOSG41O05GJKpewFzfsT7tK0w/qbK1aT8eRtwtdw5jvPuJKw7PNGAs
-	c2U79cD+/X3PAOZqTVex7EMYbQy70MVQYDo2BvIyxjWXK1bln6iq2szIQm158uSiFFA==
-X-Received: by 2002:a05:6102:252:: with SMTP id a18mr57989198vsq.53.1564163908345;
-        Fri, 26 Jul 2019 10:58:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqza8nGr7xLDOsWjTwSZLlNWsgwFJ//nZO5rQZcKy8RNUKweQ5saAqjbZ/e7wp2lXRyCWNGX
-X-Received: by 2002:a05:6102:252:: with SMTP id a18mr57989169vsq.53.1564163907674;
-        Fri, 26 Jul 2019 10:58:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564163907; cv=none;
+        bh=EwijGTLENdH/sFKFZp8enpUoT8DByntKEIfCeodxIgQ=;
+        b=AvzGosuwm8raAyxZ0DAd5R7YOD+Ra8AmiwjPcsJim5EQ79AXcTMXz6PMtwatxp72mv
+         JpiyWzu0vsCKtkaXUluxEJyXtnI450sJk45PrY4pJsARN3UuGywWUrhuYsES8x6yqsQs
+         LsooYOMtGUJj3ankJk1vRZPj1OLcRZB/MDVxlf0ei9M2kgeL1yPBmJCn00FIUM89XjPi
+         iAOE5NN9APlpj4LeMAaQXwiCPJtygLPZzY/TeFaI08+u7yI/UGe4SMYWjg4FHGC8QmtL
+         57NlBSujTBn7EkP2+9Ffufl/HTnybRQnL59SQ8Zq8EHEHFFR0XD9dgv7mR+kcRy0nPol
+         YZoQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+X-Gm-Message-State: APjAAAV5S58g0gAxlKSbwtkU1asXPObl9s3A+dVTdhpl33Cc1s6es2ex
+	JFyxqzlgJ9C4MRyfkLyd1VDW29ejMJ2IgpcIj/P9hQE23H2EoRsZPbKChpbE92l8be+YiODCpN5
+	wk1hMyRm5NqFW6dG1FFV8aiKdPmUs5DQAyAkUiv79VDtlnU4K3P5aKRbyBRPUsn8=
+X-Received: by 2002:a1c:ac81:: with SMTP id v123mr88629663wme.145.1564165838496;
+        Fri, 26 Jul 2019 11:30:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy8WPAZWrPHzyPiguYJ8EBMa61wpuUitBQPnHz4JlzIeVOEbM162+B1rCmQm61Lh5Vefejz
+X-Received: by 2002:a1c:ac81:: with SMTP id v123mr88629624wme.145.1564165837482;
+        Fri, 26 Jul 2019 11:30:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564165837; cv=none;
         d=google.com; s=arc-20160816;
-        b=cYi3qz7tQx5mpkdzjogKKNnB7vAZSJ3waqdmlgBnWpcSmGC77L+yCEebc4AwMFBwir
-         /BLk416OlaranVskPchDHzcdB2r0z7h8W9pMS2cfTTVCyPBpDp9tlWzqxBh+wbAdpyuK
-         rtREWwimL+UGAmIFqt48jRpHeQjBWvjimrpXK/DrTV2EKNn3C4zU0yPnZ9w7bTX0I8Y8
-         yo5KeFeXArb7d9qyZCHdDtBdpyDcZ9YologSrYs8ntE3sw0mesXm6ItZrSfuNth8mIPE
-         cb7dxA9/HUxo1R7xRYkpCX2wP2+zYc6twNaD2Gg0Y3pzJ8i5TIWylTUY7hks8UijzWqh
-         zh7A==
+        b=OSivtzKkLO/DEgFXD4H9YRdhCIos3sz9fRpAT0cvZsJptDSK0nEiSFpv8fCX+ZPGMA
+         Yu/O/mx6cm24cUqn5bNjWejQr7xtEZNwKf3P7/g6Cv2UYT9HjAu5XV/Fws5JR0efVJc0
+         UK1IsWwKAwai89ZEkuOLegAKhLs6juKCOH6oETBmEmHDWpXRM9BOW54Gg7GPs8d7QN9S
+         af+NZ25nbF9NipPsEvQcCNtIbOGfEpOX+lJJgkonRqKNeaAJdZdz2QoNXNTTiLDBwvD7
+         4+nIdSfuWW2s1GhFzY5VJIVIB+xydj08+6e+aL10H5V+DAuFwi9oMr+lTY5gflfr8Ouf
+         PbFA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject:dkim-signature;
-        bh=yeCMaN4K2ZO7buQVH+UC6UxQHTwLlHucEGyTiE6T/j8=;
-        b=Gukzy/pdDchQhkostZoOTA0jr3x56rbvjWiH0k4E/8fVDloSftih1NLuKpdtcrBksU
-         22mhVIYto+AGkeKChVSHq4KdyPx69ptKUV9OVAg5t3T2b0qPoDqE89GpFIqU2bYXxXdV
-         pliOdJ9/zU16NzTB74CrztFjwEvToEC7yyM3DDc2ezzSoBeUx7Mng/AHjDuFJTmu/cUd
-         KVqQEU2gBuSdkTjvmIxtI0ZazM9J9IrYd94qY/NUgXZ4vGgRcq7lFu2sYRx3N8FZRmZe
-         ZB5rYgf19TDOW0ZrgtQYbX/HjIfdx82Mqmp6lk///ODX9/9X0vXe53u2kq2c7J/5f2tQ
-         qYag==
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=EwijGTLENdH/sFKFZp8enpUoT8DByntKEIfCeodxIgQ=;
+        b=aXDFJ4tJQdzmBm73Dzf4Pdn9wgFWTi213608LMBJjtoKmFzzpMeIs66Pf38j2DKZZ2
+         gWNV3uQiDrW5E4lHY0ooccNyHexHxekT8DOcpvEhZVBsRUtIKVFNOP7RQDelCccyYIeA
+         d8HFNWRkSOg2j+0prDehgCKC8a572op9W7uGSimFIF9K03ly1rYxqDr8RD+Y4d0B2csT
+         FTCfadn3m6cq4YAW9ASy4XQBFFpa5SOBAvleEJluL+dSm2buXVMAWyodWYUFjPVXzw8+
+         kPzl7Ahm5b161ko3xcYU2YB7UJKwXUTRJDQh8BP9wmDLfoWm7fx7XV/SFYqcwSERfKck
+         dBew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=V0Z3b9Hc;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id e188si20666972vsc.99.2019.07.26.10.58.27
+       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de. [178.250.10.56])
+        by mx.google.com with ESMTPS id m4si12595046wrr.80.2019.07.26.11.30.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jul 2019 10:58:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 26 Jul 2019 11:30:37 -0700 (PDT)
+Received-SPF: neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) client-ip=178.250.10.56;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=V0Z3b9Hc;
-       spf=pass (google.com: domain of khalid.aziz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=khalid.aziz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6QHrRdQ070868;
-	Fri, 26 Jul 2019 17:58:13 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=yeCMaN4K2ZO7buQVH+UC6UxQHTwLlHucEGyTiE6T/j8=;
- b=V0Z3b9HcNgBLGK896nLr2lpPLZ3t1rvtynwo15NBI8+Rb9P+k8AH9iYWd+kfaPmp8Lnd
- 0a2r3afMlMyIHnVJK3DO3MwMV3zYSN7DZfOLLhSHkgIOj7F/pqIbhehWBukF5lfyQytt
- wudHYssGhgewTAGbbkiNjL3zXo5a0UeOyJKooPUuHbCTDKoqAhelFGKSn+tAQgnqbKg8
- EUHF/9KD9mK+AG+orSGaqCT1LXFUd5Hyw/zUgnC1WgHaxkUixgPrHyD9XdcmGYoDBlkt
- OqguUQqE+9zgFzfUuLOrF9LXUBib1fbRrmKsgxTHwSnkUMgb3UUbN73fX3Qu52yi7jvb pw== 
-Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by userp2130.oracle.com with ESMTP id 2tx61ccdbe-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 26 Jul 2019 17:58:13 +0000
-Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6QHvSiE095495;
-	Fri, 26 Jul 2019 17:58:12 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserp3030.oracle.com with ESMTP id 2tx60ymgxp-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 26 Jul 2019 17:58:12 +0000
-Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x6QHw4SK007947;
-	Fri, 26 Jul 2019 17:58:04 GMT
-Received: from [10.154.133.139] (/10.154.133.139)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 26 Jul 2019 10:58:04 -0700
-Subject: Re: [PATCH 09/16] sparc64: use the generic get_user_pages_fast code
-To: "Dmitry V. Levin" <ldv@altlinux.org>, Christoph Hellwig <hch@lst.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        "David S. Miller" <davem@davemloft.net>,
-        Anatoly Pugachev <matorola@gmail.com>, sparclinux@vger.kernel.org,
-        linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <20190625143715.1689-1-hch@lst.de>
- <20190625143715.1689-10-hch@lst.de> <20190717215956.GA30369@altlinux.org>
-From: Khalid Aziz <khalid.aziz@oracle.com>
-Organization: Oracle Corp
-Message-ID: <14242f6d-e833-c5b7-3748-458f31039b84@oracle.com>
-Date: Fri, 26 Jul 2019 11:58:01 -0600
+       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+Received: (qmail 21622 invoked from network); 26 Jul 2019 20:30:36 +0200
+X-Fcrdns: No
+Received: from phoffice.de-nserver.de (HELO [10.242.2.5]) (185.39.223.5)
+  (smtp-auth username hostmaster@profihost.com, mechanism plain)
+  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Fri, 26 Jul 2019 20:30:36 +0200
+Subject: Re: No memory reclaim while reaching MemoryHigh
+To: Michal Hocko <mhocko@kernel.org>
+Cc: cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ Johannes Weiner <hannes@cmpxchg.org>,
+ "n.fahldieck@profihost.ag" <n.fahldieck@profihost.ag>,
+ Daniel Aberger - Profihost AG <d.aberger@profihost.ag>, p.kramme@profihost.ag
+References: <496dd106-abdd-3fca-06ad-ff7abaf41475@profihost.ag>
+ <20190725140117.GC3582@dhcp22.suse.cz>
+ <028ff462-b547-b9a5-bdb0-e0de3a884afd@profihost.ag>
+ <20190726074557.GF6142@dhcp22.suse.cz>
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+Message-ID: <d205c7a1-30c4-e26c-7e9c-debc431b5ada@profihost.ag>
+Date: Fri, 26 Jul 2019 20:30:35 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190717215956.GA30369@altlinux.org>
-Content-Type: text/plain; charset=windows-1252
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9330 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1907260215
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9330 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1907260214
+In-Reply-To: <20190726074557.GF6142@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
+X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/17/19 3:59 PM, Dmitry V. Levin wrote:
-> Hi,
->=20
-> On Tue, Jun 25, 2019 at 04:37:08PM +0200, Christoph Hellwig wrote:
->> The sparc64 code is mostly equivalent to the generic one, minus variou=
-s
->> bugfixes and two arch overrides that this patch adds to pgtable.h.
+Am 26.07.19 um 09:45 schrieb Michal Hocko:
+> On Thu 25-07-19 23:37:14, Stefan Priebe - Profihost AG wrote:
+>> Hi Michal,
 >>
->> Signed-off-by: Christoph Hellwig <hch@lst.de>
->> Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
->> ---
->>  arch/sparc/Kconfig                  |   1 +
->>  arch/sparc/include/asm/pgtable_64.h |  18 ++
->>  arch/sparc/mm/Makefile              |   2 +-
->>  arch/sparc/mm/gup.c                 | 340 ---------------------------=
--
->>  4 files changed, 20 insertions(+), 341 deletions(-)
->>  delete mode 100644 arch/sparc/mm/gup.c
->=20
-> So this ended up as commit 7b9afb86b6328f10dc2cad9223d7def12d60e505
-> (thanks to Anatoly for bisecting) and introduced a regression:=20
-> futex.test from the strace test suite now causes an Oops on sparc64
-> in futex syscall
->=20
+>> Am 25.07.19 um 16:01 schrieb Michal Hocko:
+>>> On Thu 25-07-19 15:17:17, Stefan Priebe - Profihost AG wrote:
+>>>> Hello all,
+>>>>
+>>>> i hope i added the right list and people - if i missed someone i would
+>>>> be happy to know.
+>>>>
+>>>> While using kernel 4.19.55 and cgroupv2 i set a MemoryHigh value for a
+>>>> varnish service.
+>>>>
+>>>> It happens that the varnish.service cgroup reaches it's MemoryHigh value
+>>>> and stops working due to throttling.
+>>>
+>>> What do you mean by "stops working"? Does it mean that the process is
+>>> stuck in the kernel doing the reclaim? /proc/<pid>/stack would tell you
+>>> what the kernel executing for the process.
+>>
+>> The service no longer responses to HTTP requests.
+>>
+>> stack switches in this case between:
+>> [<0>] io_schedule+0x12/0x40
+>> [<0>] __lock_page_or_retry+0x1e7/0x4e0
+>> [<0>] filemap_fault+0x42f/0x830
+>> [<0>] __xfs_filemap_fault.constprop.11+0x49/0x120
+>> [<0>] __do_fault+0x57/0x108
+>> [<0>] __handle_mm_fault+0x949/0xef0
+>> [<0>] handle_mm_fault+0xfc/0x1f0
+>> [<0>] __do_page_fault+0x24a/0x450
+>> [<0>] do_page_fault+0x32/0x110
+>> [<0>] async_page_fault+0x1e/0x30
+>> [<0>] 0xffffffffffffffff
+>>
+>> and
+>>
+>> [<0>] poll_schedule_timeout.constprop.13+0x42/0x70
+>> [<0>] do_sys_poll+0x51e/0x5f0
+>> [<0>] __x64_sys_poll+0xe7/0x130
+>> [<0>] do_syscall_64+0x5b/0x170
+>> [<0>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+>> [<0>] 0xffffffffffffffff
+> 
+> Neither of the two seem to be memcg related.
 
-I have been working on reproducing this problem but ran into a different
-problem. I found 5.1 and newer kernels no longer boot on an S7 server or
-in an ldom on a T7 server (kernel hangs after "crc32c_sparc64: Using
-sparc64 crc32c opcode optimized CRC32C implementation" on console). A
-long git bisect session between 5.0 and 5.1 pointed to commit
-73a66023c937 ("sparc64: fix sparc_ipc type conversion") but that makes
-no sense. I will keep working on finding root cause. I wonder if
-Anatoly's git bisect result is also suspect.
+Yes but at least the xfs one is a page fault - isn't this related?
 
---
-Khalid
+> Have you tried to get
+> several snapshots and see if the backtrace is stable?
+No it's not it switches most of the time between these both. But as long
+as the xfs one with the page fault is seen it does not serve requests
+and that one is seen for at least 1-5s than the poill one is visible and
+than the xfs one again for 1-5s.
+
+This happens if i do:
+systemctl set-property --runtime varnish.service MemoryHigh=6.5G
+
+if i set:
+systemctl set-property --runtime varnish.service MemoryHigh=14G
+
+i never get the xfs handle_mm fault one. This is reproducable.
+
+> tell you whether your application is stuck in a single syscall or they
+> are just progressing very slowly (-ttt parameter should give you timing)
+
+Yes it's still going forward but really really slow due to memory
+pressure. memory.pressure of varnish cgroup shows high values above 100
+or 200.
+
+I can reproduce the same with rsync or other tasks using memory for
+inodes and dentries. What i don't unterstand is that the kernel does not
+reclaim memory for the userspace process and drops the cache. I can't
+believe those entries are hot - as they must be at least some days old
+as a fresh process running a day only consumes about 200MB of indoe /
+dentries / page cache.
+
+Greets,
+Stefan
 
