@@ -2,164 +2,154 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5FC4AC7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 15:45:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 92045C76191
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 15:57:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 211B220838
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 15:45:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="o+Sw+Ft9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 211B220838
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 62F4421951
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 15:57:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62F4421951
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ADAB36B0007; Fri, 26 Jul 2019 11:45:35 -0400 (EDT)
+	id F155D6B0005; Fri, 26 Jul 2019 11:57:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A8A808E0003; Fri, 26 Jul 2019 11:45:35 -0400 (EDT)
+	id EC84F8E0003; Fri, 26 Jul 2019 11:57:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 950C28E0002; Fri, 26 Jul 2019 11:45:35 -0400 (EDT)
+	id D8F488E0002; Fri, 26 Jul 2019 11:57:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 728386B0007
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 11:45:35 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id x7so47792779qtp.15
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:45:35 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D3516B0005
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 11:57:39 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id l26so34386834eda.2
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:57:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=0XvBgQp2/E+/Ic94KFJvx3PoeHBC2K6bMN+dYGtrzrU=;
-        b=kS0oYxWAZB+7fevVRC/YaZDjcI0By2Z3kKsYsCuGE37g6nSzTpmBGMVKLStNtZtv3K
-         08CMscX3aOhwK+Wzu7i7lklgaBATjlqbbrkS2BPVaQEOXEah2+ODKJQn7CIcIxEFgNKc
-         URtDtrtm9k3SwLBpPIqiKIfP4PAlaNe+rY8B+nVP999ekh2GhivI+hPh248WfIzDBfUp
-         TFvIzaSdWioAbEP0aTkglLnaXlTIVCEjEVNzU5ANxtkymVPsPM6r+rp/bjlLPgWx4bsB
-         equxPPUyRe7jK+CV0tUNMKFZTM1gF/n6Zu13bDeSDBHopf1Jd2mrJtgWsM3GYWoRIF0x
-         G41g==
-X-Gm-Message-State: APjAAAVsRRtQvNnJn7iNEu9NpgWI8MpccDYMwPC7Pu/L26TBhL0jHqTt
-	qDHFfZ5LlUtUDjjaMHjGLfQcFW0dgd8huJh2UmOcrcmyP4ByedGhbtpLd+mZQbg7WRxZ65szv5j
-	GNz1dndC44WupQ4EN7n1lTDEt0NH703uWoDu5qFw8NRHr3xYUOPimDAiZjsjsOMe4CA==
-X-Received: by 2002:ae9:f019:: with SMTP id l25mr64462774qkg.473.1564155935241;
-        Fri, 26 Jul 2019 08:45:35 -0700 (PDT)
-X-Received: by 2002:ae9:f019:: with SMTP id l25mr64462720qkg.473.1564155934558;
-        Fri, 26 Jul 2019 08:45:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564155934; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=4633w728CXGgf0AmyOavmLCQnzkq443JLhtFjOezZEg=;
+        b=CGlJ6SdIRSNEON4KqsmqRPYvxk0DJH/A4xmjv3Xd6mcZQbyNzHXklLUq5Ftl36XilX
+         CfQ/+rwxstQfodbQLjgFsBqThc9SNcEjL9G2A/1LBTgkOVWuo1t+UQd+tq/uqwPs/kdE
+         ow8V/QJKypDS7gNXtAIqZq+QDIcDZb72Vb6W4Z8PcyTNnKakbz63yaSMkn6kWhfFNNUi
+         S7zqQwydd+5Nhy4gsq7NEvlcMik60ReaEA7DXXDCIKmcHWm+/fA6zPsijj1sdHn2SsL4
+         HpBZI6u/GwNVl20uSm0rPoJQBYhHalhMd1IgDOAkwLJtzmKSB9ptfoH8Y9MB0mNm0PoG
+         Eibw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAXKi59s/B4uP8z8iyR3XDmbnp37iBZdKxuqYcriEB6VSp9wEBm9
+	SZYOCV+XUzamcr/b2JTNDPpwbci8SHu3sAr9OXELxPj8lF1ltz1tycBOY/YDEP9wAr/JsUBt5Bi
+	Xa4NtDuYc3EMvHSm2QuuAuvtyniLLzBVURfgLKSp/8tVPvBEGJC+XetDUBPyTRycScg==
+X-Received: by 2002:a17:906:45d7:: with SMTP id z23mr48256673ejq.54.1564156659133;
+        Fri, 26 Jul 2019 08:57:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxhV5yiuSkBZnVSmK1s8xo6b79bIKmYtDfAfK6cLL0zWsnd33kTtuIsZKue9peFOIejs2rQ
+X-Received: by 2002:a17:906:45d7:: with SMTP id z23mr48256622ejq.54.1564156658343;
+        Fri, 26 Jul 2019 08:57:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564156658; cv=none;
         d=google.com; s=arc-20160816;
-        b=B8ylOT0wuDt1Jzj85iZpA49QUASCBypNWHHvmKPwIPgRy2eisJ5u17VDSXZcsgO7nH
-         aTbmJ0aHQ+vVINBz8ARVg6mxQJYSjQ/f5kDyGhdbT6sJci0zzy7/GEMd73g251JrgiLD
-         XKifB8ZHIJwA2Q1fqFRWJYb3/tWf4D0jRvZt5f1MFrtmoxDNUs06r+Vcw15UjZfnFUzv
-         TZxmj2g7orcQ9Q+KyQgmwYkdWZJf1eJGiumW/woarpeQr4c1oZSOom8XQJHFZx06IdcK
-         VF82NVmx2VNvAYRjTmc5SNRwn2JpddKGtMuz+zt7yTgeKszsPfQewRNFWdUHfzUt4dQ3
-         9zRQ==
+        b=GDA6S7sS0GqtZoci6oUhW2Qe7l09AUt256ifL8OVFTcThKSCbIxpJfiqW3kCxVMNUV
+         8MAkKc5qrQ5CbDA3lWyeV+mlHl2QPWNz78+0bd6CgUBInMlFmUulHtZZdc5FprWSVFOR
+         xQwf21s3ndR+Zuz+OqP4t6gJNZNSkVQPiNh6hEwdN4ndVzX3/S6aRdFnBS6vqXzTYbtK
+         ovouTVsALQGVo7OVDz3pgnUgpe12mSCbpuNVRZKeRJug7mMSoaEsCvvJE5ESt7/7Ytgs
+         iXRO0zZVjWQ+L45inkCNq0fJd+CfZRpotvhgS2YFaQkvYt2f/PTbnEwH7U/Cr+eaZxwj
+         72OA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=0XvBgQp2/E+/Ic94KFJvx3PoeHBC2K6bMN+dYGtrzrU=;
-        b=MOor8y6eErM4WMx1+sJcDFbGWUh4jNH3v6SC98iQW4fHhgiDG1zU/C4ELG/LC/LFm0
-         pk30tf2OCVAFw+7YKHL1YRelHL02nL/eUxuKRp3ORUwxjl+SeGU3qjWj/x2KGwzE6QSZ
-         c8TAy2cmBmxvxnQKzdWuxyp+6oCWamUYU47Xr2ZoO9lp1Hz5RXww73z3SSdPDNtknzwG
-         HPP4Nab4gyd6dZ4qFml0qF5WvO7XmEjAhV0B4wx2dBbDRulCVrXOl9uY7U3RwTuKCf60
-         n5AVKzC7ipKSuYFndyK0HDBmecG2Gl8y5DVYArOa24PCTPuy9Q8nlrsIVPwFWH8uwB1x
-         2vLg==
+         :message-id:subject:cc:to:from:date;
+        bh=4633w728CXGgf0AmyOavmLCQnzkq443JLhtFjOezZEg=;
+        b=tuHSrdKJI5lZuVy0NNSyofBk/K0WUP+SO7mKOjgKYb1rUd7hGScmsXIKLt8WFlg8zP
+         HokxKWVAMWJpva6/0YEskPLqDnnPucby9DraVJDUSrbGeTHP+hT/nxZv9BORJz5vnPSf
+         GUW8rNS2g16Eu6jhQd+IBK2ILV7SwPpz5l8FpZbqD5mNvLNzHMvNOLe24Bco1wW49Hke
+         KX/wbMkR5hCCM0zUvvX/1X0VEuxZzgOI/aQUCNpYhq+5R9efWQPyZrerOdUjNWxdLZ86
+         9nlOyB32KtqKfYOJjrQcNrf0bF9oCwbs1ZSZ0jwXBIrMATyzbl8+/9O7U+btFqlCO2CP
+         dFJg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=o+Sw+Ft9;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v31sor12459765qtj.59.2019.07.26.08.45.34
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 Jul 2019 08:45:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id k41si12576206edb.152.2019.07.26.08.57.38
+        for <linux-mm@kvack.org>;
+        Fri, 26 Jul 2019 08:57:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=o+Sw+Ft9;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=0XvBgQp2/E+/Ic94KFJvx3PoeHBC2K6bMN+dYGtrzrU=;
-        b=o+Sw+Ft9tBTCMfQnjjV7hQQHUdyNoWUSjIb4imOvsb2LbKFd1Q5NbuyDRu/AsB0VyP
-         URzry2DDvBoWY/MzinDkwxqdipoU7eQxWimCd8F9Wq4pH2nxNhL0VEiztP0eXgfDnVhe
-         qmeSCQ2RfaMf6HFkHqhsbZs1xw/iQNrwM9UEb0q7YJO4WRAfVYJT1pLZHckgpLWDFEW5
-         ezBU84Ow58+f91moEdhmpcwYTGEj4uyoRch1AjlQz/y6ZgqBFNCIZvJUNmWtnVdWYvE1
-         CtR3H87yaXERTd9RsoCTTWIViWcACY1Iwet3M5jz6s3WZSDa8csEbMTwgddUyXEsLr51
-         dtdw==
-X-Google-Smtp-Source: APXvYqz8sQPW4m3GzwcT9XhmjAeoy2UAD2U4rkt48bJMq/KWyyCMGm6hjyKnT+STDp46Ymz4NgJRKg==
-X-Received: by 2002:aed:33e6:: with SMTP id v93mr67774336qtd.157.1564155934207;
-        Fri, 26 Jul 2019 08:45:34 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id a23sm22076094qtp.22.2019.07.26.08.45.32
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 26 Jul 2019 08:45:33 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hr2PU-0007qj-F6; Fri, 26 Jul 2019 12:45:32 -0300
-Date: Fri, 26 Jul 2019 12:45:32 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Ralph Campbell <rcampbell@nvidia.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
-	nouveau@lists.freedesktop.org
-Subject: Re: [PATCH v2 0/7] mm/hmm: more HMM clean up
-Message-ID: <20190726154532.GA29678@ziepe.ca>
-References: <20190726005650.2566-1-rcampbell@nvidia.com>
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4C6C3152D;
+	Fri, 26 Jul 2019 08:57:37 -0700 (PDT)
+Received: from e109758.arm.com (unknown [10.1.39.157])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 50BC73F71F;
+	Fri, 26 Jul 2019 08:57:35 -0700 (PDT)
+Date: Fri, 26 Jul 2019 16:57:32 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Dmitry Vyukov <dvyukov@google.com>
+Cc: syzbot <syzbot+a871c1e6ea00685e73d7@syzkaller.appspotmail.com>,
+	alexandre.belloni@free-electrons.com,
+	LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+	nicolas.ferre@atmel.com, Rob Herring <robh@kernel.org>,
+	sre@kernel.org, syzkaller-bugs <syzkaller-bugs@googlegroups.com>
+Subject: Re: memory leak in vq_meta_prefetch
+Message-ID: <20190726155732.GA30211@e109758.arm.com>
+References: <00000000000052ad6b058e722ba4@google.com>
+ <20190726130013.GC2368@arrakis.emea.arm.com>
+ <CACT4Y+b5H4jvY34iT2K0m6a2HCpzgKd3dtv+YFsApp=-18B+pw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190726005650.2566-1-rcampbell@nvidia.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <CACT4Y+b5H4jvY34iT2K0m6a2HCpzgKd3dtv+YFsApp=-18B+pw@mail.gmail.com>
+User-Agent: Mutt/1.11.2 (2019-01-07)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Jul 25, 2019 at 05:56:43PM -0700, Ralph Campbell wrote:
-> Here are seven more patches for things I found to clean up.
-> This was based on top of Christoph's seven patches:
-> "hmm_range_fault related fixes and legacy API removal v3".
-> I assume this will go into Jason's tree since there will likely be
-> more HMM changes in this cycle.
->
-> Changes from v1 to v2:
+On Fri, Jul 26, 2019 at 05:20:55PM +0200, Dmitry Vyukov wrote:
+> On Fri, Jul 26, 2019 at 3:00 PM Catalin Marinas <catalin.marinas@arm.com> wrote:
+> > On Wed, Jul 24, 2019 at 12:18:07PM -0700, syzbot wrote:
+> > > syzbot found the following crash on:
+> > >
+> > > HEAD commit:    c6dd78fc Merge branch 'x86-urgent-for-linus' of git://git...
+> > > git tree:       upstream
+> > > console output: https://syzkaller.appspot.com/x/log.txt?x=15fffef4600000
+> > > kernel config:  https://syzkaller.appspot.com/x/.config?x=8de7d700ea5ac607
+> > > dashboard link: https://syzkaller.appspot.com/bug?extid=a871c1e6ea00685e73d7
+> > > compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+> > > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=127b0334600000
+> > > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=12609e94600000
+> > >
+> > > The bug was bisected to:
+> > >
+> > > commit 0e5f7d0b39e1f184dc25e3adb580c79e85332167
+> > > Author: Nicolas Ferre <nicolas.ferre@atmel.com>
+> > > Date:   Wed Mar 16 13:19:49 2016 +0000
+> > >
+> > >     ARM: dts: at91: shdwc binding: add new shutdown controller documentation
+> >
+> > That's another wrong commit identification (a documentation patch should
+> > not cause a memory leak).
+> >
+> > I don't really think kmemleak, with its relatively high rate of false
+> > positives, is suitable for automated testing like syzbot. You could
 > 
-> Added AMD GPU to hmm_update removal.
-> Added 2 patches from Christoph.
-> Added 2 patches as a result of Jason's suggestions.
-> 
-> Christoph Hellwig (2):
->   mm/hmm: replace the block argument to hmm_range_fault with a flags
->     value
->   mm: merge hmm_range_snapshot into hmm_range_fault
-> 
-> Ralph Campbell (5):
->   mm/hmm: replace hmm_update with mmu_notifier_range
->   mm/hmm: a few more C style and comment clean ups
->   mm/hmm: remove hugetlbfs check in hmm_vma_walk_pmd
->   mm/hmm: remove hmm_range vma
+> Do you mean automated testing in general, or bisection only?
+> The wrong commit identification is related to bisection only, but you
+> generalized it to automated testing in general. So which exactly you
+> mean?
 
-For all of these:
+I probably meant both. In terms of automated testing and reporting, if
+the false positives rate is high, people start ignoring the reports. So
+it requires some human checking first (or make the tool more robust).
 
-Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
+W.r.t. bisection, the false negatives (rather than positives) will cause
+the tool to miss the problematic commit and misreport. I'm not sure you
+can make the reporting deterministic on successive runs given that you
+changed the kernel HEAD (for bisection). But it may get better if you
+have a "stopscan" kmemleak option which freezes the machine during
+scanning (it has been discussed in the past but I really struggle to
+find time to work on it; any help appreciated ;)).
 
-I've applied this to hmm.git, excluding:
-
->   mm/hmm: make full use of walk_page_range()
-
-Pending further discussion.
-
-Based on last cycle I've decided to move good patches into linux-next
-earlier and rely on some rebase if needed. This is to help Andrew's
-workflow.
-
-So, if there are more tags/etc please continue to send them, I will
-sort it..
-
-Thanks,
-Jason
+-- 
+Catalin
 
