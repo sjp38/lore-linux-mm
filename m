@@ -2,334 +2,213 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_SANE_2 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DBB9C7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:20:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F0657C7618B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:26:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0FEEE229F9
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:20:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0FEEE229F9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id AF11C229F9
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:26:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF11C229F9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8E7046B0003; Fri, 26 Jul 2019 06:20:30 -0400 (EDT)
+	id 169B66B0003; Fri, 26 Jul 2019 06:26:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 872A66B0005; Fri, 26 Jul 2019 06:20:30 -0400 (EDT)
+	id 1192B6B0005; Fri, 26 Jul 2019 06:26:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7136B8E0002; Fri, 26 Jul 2019 06:20:30 -0400 (EDT)
+	id F24686B0006; Fri, 26 Jul 2019 06:26:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3646D6B0003
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 06:20:30 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id k20so32707958pgg.15
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 03:20:30 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A83E06B0003
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 06:26:06 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id f16so25328136wrw.5
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 03:26:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references
-         :content-transfer-encoding:mime-version;
-        bh=sjUX4bETfzwcBLKRwAE+p0hTj1238gzoCvsdlTQUumY=;
-        b=CJ8K1qvytH13hmwFf35PeVl018aRUoBOGJaSozJQG7Q9/mvp2++peh6FhV4XwBPBdG
-         PHoZQAFkYAi+rW6RZ55pU0OQZCFa6qVR7cqNyBH4oE+nHHpUlhps7ys1P906npmtoadB
-         tChNICGa/MEyxFQxOo6UtlpKEqaLDDRPEE3XF4QZBEblOWUGIv7tS8kRHem7tpWI6Hao
-         fHgfQX9XmvZi1vY8Y8XzoK7dFXPHTP1KsIq/lJmKyvjkmPLxkVwiLY3BnbY9XaBBlzzS
-         l9Ozm6j+Lc2rVLsJ3Opf4/MgsDip5+AD/oDe6NLyGvDeD8NEhd/z4D+vbc1dXz8PNq9G
-         SlJA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-X-Gm-Message-State: APjAAAWFFHkCqK6gY5DQ3JmLeoulEsDyH0j4f9BiQeVBLp3Q6E76YLwq
-	katwMzD4b42V6ZcCd9LhOq+qt9GTF5IGIOzvrzxNHpbZ3I/+CJImdQ9cYok9ifUTjxX5bmjJ2a7
-	UeGYOYh+jalGYdAjAe5qF180x6uZO/nMZuDzBBBPBHVbNWOJG4jinXls1DBPna9xK6Q==
-X-Received: by 2002:a62:2582:: with SMTP id l124mr21336462pfl.43.1564136429789;
-        Fri, 26 Jul 2019 03:20:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyWA+/oQjMlFA5qW7vw2gYYHzlkCQiL6jMhxpF0z7a783ak3FLy2gHws3QR7simpDwUWhi+
-X-Received: by 2002:a62:2582:: with SMTP id l124mr21336405pfl.43.1564136428861;
-        Fri, 26 Jul 2019 03:20:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564136428; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=0wNYkdHC/9JLBYd6vNd/C3Zk994Z0t9x1daeBHW/qm4=;
+        b=m/rCBYYpuCQQOAdDQd8NV8qt1Grqo+9rfE6k9Dl1ajpwHr5wgfolpeBBlUaakDe9gF
+         BcZFhVvWsaghNqy5Zq4IPeeR4U+h7G/ImfZuRSuyDP0N9VNo44Vf3mcMjXLmjMEq+xUR
+         YS0jEb47gE4PvSSj9G/YWasNFKa1QP6GsUWZJtMWqZfT1EP4qcDX/fLc0ZGvG4ze7Ode
+         VM7BML7sUdxQFxcX6kd0LWFRTe3QRmFyf+WriR/MBbwiD7bW1LKHTeGsGaiwMhYZqPkl
+         mZGMa6d/xMXbdgTu4suyriBixUod6Z4v7pOm49HYQrHRSRtTtynfQb6Kuth0I5PYlQnc
+         vElA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.220 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAUuasVuaOEbI2RRwXGYhCtApLqnGz2JDAkl+cY+bgFpyjTOloQt
+	M3hluedN206Jy2gZyCm2VvRsRDWZ2Lg6GZWNjMbsO5aFEjAlwpAKR4v5aLw/Dn+AdaVzUvoES2a
+	7xDAEsdz4HzGnKmREM1zpsfZjqiyCDY6HbkjAI8tvynhUr9ITq3AZLn8v71/1CvS3mA==
+X-Received: by 2002:a1c:e109:: with SMTP id y9mr49444748wmg.35.1564136766171;
+        Fri, 26 Jul 2019 03:26:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzU+MD+RwMpMcNdZzoDIY5WUQqbbr0mAQEIbv6Rwh4DjDM+eXNOMhy6PScVf5BTAb3O5ncB
+X-Received: by 2002:a1c:e109:: with SMTP id y9mr49444671wmg.35.1564136765237;
+        Fri, 26 Jul 2019 03:26:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564136765; cv=none;
         d=google.com; s=arc-20160816;
-        b=eQsvhgFYG5s/5dLg20v3BrKcwU74GYoAxwmEYn9+zeLywRY9hoDV1NZzBqIluZ7mnp
-         XAbxaZflHWq7rj9dbEO/FoQTbm1rdZTVuy8uX3yLnHMSGOw/EM/HwAAtamW1njNHhCXi
-         36LcyFNjAt3c5HGC58H2npg/Pecx/z4sPUqzTLMMuVoTwmslDK5cj2rtFX7tcuTAVIkF
-         xBXIXpmFpuhBR6XseieIh/ow6N2PY3g4gurbCAwxsI6oiIdJ6Vv3SRlJ0FM+F+yTqEr1
-         iN5mb1u2QyMB7Kr+NMW2JMCY4PHSVMSZ8sOBgiSR68Kl3kSApr6lAEGDYdxYiD2JWiPA
-         cyOA==
+        b=sWQjn7eFJSKUk/8fRKLdulrxG1Nm77yhp7/DhoRI+SdfhLr3MbM9xKrAyvWzHEC6l1
+         OcwomygyCwXJDLrVbfhjOrcE6fI1wGGyssnuXsv2EDq2fRkYDgBp7LW2ojUL2vNjWoHU
+         064+t8W4gjHItNyG9GWBzq6MdiBlb4Rld3TwEmUIsb1dI4+xnov6SCxg35OCKH/MEpBR
+         VXYcJZflm9zTnErtjovUmDWfi6oSEIRBI7mtcRdlplDhfUBi4KKZlMrkYhcfL7ynSrvE
+         7L99KeQ3/G3/lqTs75EqU1P4HzAFzXWTG/q6NVNuVC+FxpaHZb8B7Wqk7f6K5b/0q1CV
+         PV4Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:references:in-reply-to:date
-         :cc:to:from:subject:message-id;
-        bh=sjUX4bETfzwcBLKRwAE+p0hTj1238gzoCvsdlTQUumY=;
-        b=Vp85gvpA/V7XXchKos8YTkbzvMjOEIdwNm064nxvFy1ImhQSFydiz7Kgtb7QwAGhFx
-         yUVxBhI+eW+iFDDohm+fzfe3M7vJmrrwRy6noC0pjzN1ZhBMgUQHscMeuSpGOb5v6jw+
-         fBJlSWw4o1NV7DBiE24kdi7FHDIQpzBmaPxs4PfD00wNnDmx6xwuAMsmjKDAqasevqXW
-         AbPakxIC4aQj405walXmgk3z0sU0qiSgD7RRDpsA7QxZhVCHXir85aK0KJ4lB0U88k9q
-         W0GOZ9pBMjSJYZGUI19wYAj7MJxJ0mnx4LMCQIHeJd+OeBfll5Rq1ULtvG/2wl2z5Pnu
-         uCaA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=0wNYkdHC/9JLBYd6vNd/C3Zk994Z0t9x1daeBHW/qm4=;
+        b=y0g+ahxG7oBcNYVLGanBuJaUMV1yVcL1hSJoK+0dqtyeFm4OyPpxFkivwVpSDWDPZg
+         lBY/+NROZFb4fjKJAI67H6dOeXcCU/j0exRfx5WhFNmw23hqUFr/AchWr6Wtc2p3AojU
+         7mbnjCyQkUwJZ7yctC1Sbu2N95o17FMNYZQtYDJ9Rz//3SOPPzchw2kXTmHGTuUkVTlH
+         lf8JoYpNfZe7B/e2k2mUNYA3CdVQczTwtfPqZQwowKiWca5cBthDREPnOw431KGExMDf
+         oxSOlywqlb1Em6617YFQ0weN2dCArrPDNd0lV7FTgaJDslTbbKoWilGhMBsL9Rp6DH1/
+         wy7A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-Received: from mailgw01.mediatek.com ([210.61.82.183])
-        by mx.google.com with ESMTP id n2si455954pga.426.2019.07.26.03.20.28
-        for <linux-mm@kvack.org>;
-        Fri, 26 Jul 2019 03:20:28 -0700 (PDT)
-Received-SPF: pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) client-ip=210.61.82.183;
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.220 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp37.blacknight.com (outbound-smtp37.blacknight.com. [46.22.139.220])
+        by mx.google.com with ESMTPS id r132si17617476wma.63.2019.07.26.03.26.04
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Jul 2019 03:26:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.220 as permitted sender) client-ip=46.22.139.220;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-X-UUID: ff942d5feab1455fb029b5ee5719ae32-20190726
-X-UUID: ff942d5feab1455fb029b5ee5719ae32-20190726
-Received: from mtkexhb01.mediatek.inc [(172.21.101.102)] by mailgw01.mediatek.com
-	(envelope-from <miles.chen@mediatek.com>)
-	(Cellopoint E-mail Firewall v4.1.10 Build 0707 with TLS)
-	with ESMTP id 1360154933; Fri, 26 Jul 2019 18:20:21 +0800
-Received: from mtkcas07.mediatek.inc (172.21.101.84) by
- mtkmbs07n2.mediatek.inc (172.21.101.141) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Fri, 26 Jul 2019 18:20:23 +0800
-Received: from [172.21.77.33] (172.21.77.33) by mtkcas07.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Fri, 26 Jul 2019 18:20:23 +0800
-Message-ID: <1564136423.15330.4.camel@mtkswgap22>
-Subject: Re: [PATCH v2] mm: memcontrol: fix use after free in
- mem_cgroup_iter()
-From: Miles Chen <miles.chen@mediatek.com>
-To: Johannes Weiner <hannes@cmpxchg.org>
-CC: Michal Hocko <mhocko@kernel.org>, Vladimir Davydov
-	<vdavydov.dev@gmail.com>, <cgroups@vger.kernel.org>, <linux-mm@kvack.org>,
-	<linux-kernel@vger.kernel.org>, <linux-mediatek@lists.infradead.org>,
-	<wsd_upstream@mediatek.com>
-Date: Fri, 26 Jul 2019 18:20:23 +0800
-In-Reply-To: <20190726021247.16162-1-miles.chen@mediatek.com>
-References: <20190726021247.16162-1-miles.chen@mediatek.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.2.3-0ubuntu6 
-Content-Transfer-Encoding: 7bit
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.220 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (unknown [81.17.255.152])
+	by outbound-smtp37.blacknight.com (Postfix) with ESMTPS id BADC193B
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 11:26:04 +0100 (IST)
+Received: (qmail 16510 invoked from network); 26 Jul 2019 10:26:04 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[84.203.19.7])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 26 Jul 2019 10:26:04 -0000
+Date: Fri, 26 Jul 2019 11:26:02 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Linux MM <linux-mm@kvack.org>, Vlastimil Babka <vbabka@suse.cz>,
+	Arnd Bergmann <arnd@arndb.de>,
+	Paul Gortmaker <paul.gortmaker@windriver.com>,
+	Rik van Riel <riel@redhat.com>,
+	Yafang Shao <shaoyafang@didiglobal.com>
+Subject: Re: [PATCH] mm/compaction: use proper zoneid for
+ compaction_suitable()
+Message-ID: <20190726102602.GD2739@techsingularity.net>
+References: <1564062621-8105-1-git-send-email-laoar.shao@gmail.com>
+ <20190726070939.GA2739@techsingularity.net>
+ <CALOAHbA2sHSOpZXE6E+VjdJENa-WCZCo=-=YOqyVYAhkpf+Lrg@mail.gmail.com>
 MIME-Version: 1.0
-X-MTK: N
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CALOAHbA2sHSOpZXE6E+VjdJENa-WCZCo=-=YOqyVYAhkpf+Lrg@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Johannes,
+On Fri, Jul 26, 2019 at 06:06:48PM +0800, Yafang Shao wrote:
+> On Fri, Jul 26, 2019 at 3:09 PM Mel Gorman <mgorman@techsingularity.net> wrote:
+> >
+> > On Thu, Jul 25, 2019 at 09:50:21AM -0400, Yafang Shao wrote:
+> > > By now there're three compaction paths,
+> > > - direct compaction
+> > > - kcompactd compcation
+> > > - proc triggered compaction
+> > > When we do compaction in all these paths, we will use compaction_suitable()
+> > > to check whether a zone is suitable to do compaction.
+> > >
+> > > There're some issues around the usage of compaction_suitable().
+> > > We don't use the proper zoneid in kcompactd_node_suitable() when try to
+> > > wakeup kcompactd. In the kcompactd compaction paths, we call
+> > > compaction_suitable() twice and the zoneid isn't proper in the second call.
+> > > For proc triggered compaction, the classzone_idx is always zero.
+> > >
+> > > In order to fix these issues, I change the type of classzone_idx in the
+> > > struct compact_control from const int to int and assign the proper zoneid
+> > > before calling compact_zone().
+> > >
+> >
+> > What is actually fixed by this?
+> >
+> 
+> Recently there's a page alloc failure on our server because the
+> compaction can't satisfy it.
 
-I post patch v2 with proper comment you mentioned.
-(I am not sure if I can copy your acked-by to patch v2 directly)
+That could be for a wide variety of reasons. There are limits to how
+aggressive compaction will be but if there are unmovable pages preventing
+the allocation, no amount of cleverness with the wakeups will change that.
 
-Miles
+> This issue is unproducible, so I have to view the compaction code and
+> find out the possible solutions.
 
-On Fri, 2019-07-26 at 10:12 +0800, Miles Chen wrote:
-> This patch is sent to report an use after free in mem_cgroup_iter()
-> after merging commit: be2657752e9e "mm: memcg: fix use after free in
-> mem_cgroup_iter()".
-> 
-> I work with android kernel tree (4.9 & 4.14), and the commit:
-> be2657752e9e "mm: memcg: fix use after free in mem_cgroup_iter()" has
-> been merged to the trees. However, I can still observe use after free
-> issues addressed in the commit be2657752e9e.
-> (on low-end devices, a few times this month)
-> 
-> backtrace:
-> 	css_tryget <- crash here
-> 	mem_cgroup_iter
-> 	shrink_node
-> 	shrink_zones
-> 	do_try_to_free_pages
-> 	try_to_free_pages
-> 	__perform_reclaim
-> 	__alloc_pages_direct_reclaim
-> 	__alloc_pages_slowpath
-> 	__alloc_pages_nodemask
-> 
-> To debug, I poisoned mem_cgroup before freeing it:
-> 
-> static void __mem_cgroup_free(struct mem_cgroup *memcg)
-> 	for_each_node(node)
-> 	free_mem_cgroup_per_node_info(memcg, node);
-> 	free_percpu(memcg->stat);
-> +       /* poison memcg before freeing it */
-> +       memset(memcg, 0x78, sizeof(struct mem_cgroup));
-> 	kfree(memcg);
-> }
-> 
-> The coredump shows the position=0xdbbc2a00 is freed.
-> 
-> (gdb) p/x ((struct mem_cgroup_per_node *)0xe5009e00)->iter[8]
-> $13 = {position = 0xdbbc2a00, generation = 0x2efd}
-> 
-> 0xdbbc2a00:     0xdbbc2e00      0x00000000      0xdbbc2800      0x00000100
-> 0xdbbc2a10:     0x00000200      0x78787878      0x00026218      0x00000000
-> 0xdbbc2a20:     0xdcad6000      0x00000001      0x78787800      0x00000000
-> 0xdbbc2a30:     0x78780000      0x00000000      0x0068fb84      0x78787878
-> 0xdbbc2a40:     0x78787878      0x78787878      0x78787878      0xe3fa5cc0
-> 0xdbbc2a50:     0x78787878      0x78787878      0x00000000      0x00000000
-> 0xdbbc2a60:     0x00000000      0x00000000      0x00000000      0x00000000
-> 0xdbbc2a70:     0x00000000      0x00000000      0x00000000      0x00000000
-> 0xdbbc2a80:     0x00000000      0x00000000      0x00000000      0x00000000
-> 0xdbbc2a90:     0x00000001      0x00000000      0x00000000      0x00100000
-> 0xdbbc2aa0:     0x00000001      0xdbbc2ac8      0x00000000      0x00000000
-> 0xdbbc2ab0:     0x00000000      0x00000000      0x00000000      0x00000000
-> 0xdbbc2ac0:     0x00000000      0x00000000      0xe5b02618      0x00001000
-> 0xdbbc2ad0:     0x00000000      0x78787878      0x78787878      0x78787878
-> 0xdbbc2ae0:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2af0:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b00:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b10:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b20:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b30:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b40:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b50:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b60:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b70:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b80:     0x78787878      0x78787878      0x00000000      0x78787878
-> 0xdbbc2b90:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2ba0:     0x78787878      0x78787878      0x78787878      0x78787878
-> 
-> In the reclaim path, try_to_free_pages() does not setup
-> sc.target_mem_cgroup and sc is passed to do_try_to_free_pages(), ...,
-> shrink_node().
-> 
-> In mem_cgroup_iter(), root is set to root_mem_cgroup because
-> sc->target_mem_cgroup is NULL.
-> It is possible to assign a memcg to root_mem_cgroup.nodeinfo.iter in
-> mem_cgroup_iter().
-> 
-> 	try_to_free_pages
-> 		struct scan_control sc = {...}, target_mem_cgroup is 0x0;
-> 	do_try_to_free_pages
-> 	shrink_zones
-> 	shrink_node
-> 		 mem_cgroup *root = sc->target_mem_cgroup;
-> 		 memcg = mem_cgroup_iter(root, NULL, &reclaim);
-> 	mem_cgroup_iter()
-> 		if (!root)
-> 			root = root_mem_cgroup;
-> 		...
-> 
-> 		css = css_next_descendant_pre(css, &root->css);
-> 		memcg = mem_cgroup_from_css(css);
-> 		cmpxchg(&iter->position, pos, memcg);
-> 
-> My device uses memcg non-hierarchical mode.
-> When we release a memcg: invalidate_reclaim_iterators() reaches only
-> dead_memcg and its parents. If non-hierarchical mode is used,
-> invalidate_reclaim_iterators() never reaches root_mem_cgroup.
-> 
-> static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
-> {
-> 	struct mem_cgroup *memcg = dead_memcg;
-> 
-> 	for (; memcg; memcg = parent_mem_cgroup(memcg)
-> 	...
-> }
-> 
-> So the use after free scenario looks like:
-> 
-> CPU1						CPU2
-> 
-> try_to_free_pages
-> do_try_to_free_pages
-> shrink_zones
-> shrink_node
-> mem_cgroup_iter()
->     if (!root)
->     	root = root_mem_cgroup;
->     ...
->     css = css_next_descendant_pre(css, &root->css);
->     memcg = mem_cgroup_from_css(css);
->     cmpxchg(&iter->position, pos, memcg);
-> 
-> 					invalidate_reclaim_iterators(memcg);
-> 					...
-> 					__mem_cgroup_free()
-> 						kfree(memcg);
-> 
-> try_to_free_pages
-> do_try_to_free_pages
-> shrink_zones
-> shrink_node
-> mem_cgroup_iter()
->     if (!root)
->     	root = root_mem_cgroup;
->     ...
->     mz = mem_cgroup_nodeinfo(root, reclaim->pgdat->node_id);
->     iter = &mz->iter[reclaim->priority];
->     pos = READ_ONCE(iter->position);
->     css_tryget(&pos->css) <- use after free
-> 
-> To avoid this, we should also invalidate root_mem_cgroup.nodeinfo.iter in
-> invalidate_reclaim_iterators().
-> 
-> Change since v1:
-> Add a comment to explain why we need to handle root_mem_cgroup separately.
-> Rename invalid_root to invalidate_root.
-> 
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Signed-off-by: Miles Chen <miles.chen@mediatek.com>
-> ---
->  mm/memcontrol.c | 38 ++++++++++++++++++++++++++++----------
->  1 file changed, 28 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index cdbb7a84cb6e..09f2191f113b 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1130,26 +1130,44 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
->  		css_put(&prev->css);
->  }
->  
-> -static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
-> +static void __invalidate_reclaim_iterators(struct mem_cgroup *from,
-> +					struct mem_cgroup *dead_memcg)
->  {
-> -	struct mem_cgroup *memcg = dead_memcg;
->  	struct mem_cgroup_reclaim_iter *iter;
->  	struct mem_cgroup_per_node *mz;
->  	int nid;
->  	int i;
->  
-> -	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
-> -		for_each_node(nid) {
-> -			mz = mem_cgroup_nodeinfo(memcg, nid);
-> -			for (i = 0; i <= DEF_PRIORITY; i++) {
-> -				iter = &mz->iter[i];
-> -				cmpxchg(&iter->position,
-> -					dead_memcg, NULL);
-> -			}
-> +	for_each_node(nid) {
-> +		mz = mem_cgroup_nodeinfo(from, nid);
-> +		for (i = 0; i <= DEF_PRIORITY; i++) {
-> +			iter = &mz->iter[i];
-> +			cmpxchg(&iter->position,
-> +				dead_memcg, NULL);
->  		}
->  	}
->  }
->  
-> +/*
-> + * When cgruop1 non-hierarchy mode is used, parent_mem_cgroup() does
-> + * not walk all the way up to the cgroup root (root_mem_cgroup). So
-> + * we have to handle dead_memcg from cgroup root separately.
-> + */
-> +static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
-> +{
-> +	struct mem_cgroup *memcg = dead_memcg;
-> +	int invalidate_root = 0;
-> +
-> +	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
-> +		__invalidate_reclaim_iterators(memcg, dead_memcg);
-> +		if (memcg == root_mem_cgroup)
-> +			invalidate_root = 1;
-> +	}
-> +
-> +	if (!invalidate_root)
-> +		__invalidate_reclaim_iterators(root_mem_cgroup, dead_memcg);
-> +}
-> +
->  /**
->   * mem_cgroup_scan_tasks - iterate over tasks of a memory cgroup hierarchy
->   * @memcg: hierarchy root
+For high allocation success rates, the focus should be on strictness of
+fragmentation control (hard, multiple tradeoffs) or increasing the number
+of pages that can be moved (very hard, multiple tradeoffs).
 
+> When I'm reading these compaction code, I find some  misuse of
+> compaction_suitable().
+> But after you point out, I find that I missed something.
+> The classzone_idx should represent the alloc request, otherwise we may
+> do unnecessary compaction on a zone.
+> Thanks a lot for your explaination.
+> 
+
+Exactly.
+
+> Hi Andrew,
+> 
+> Pls. help drop this patch. Sorry about that.
+
+Agreed but there is no need to apologise. The full picture of this problem
+is not obvious, not described anywhere and it's extremely difficult to
+test and verify.
+
+> > > <SNIP>
+> > > @@ -2535,7 +2535,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
+> > >                                                       cc.classzone_idx);
+> > >       count_compact_event(KCOMPACTD_WAKE);
+> > >
+> > > -     for (zoneid = 0; zoneid <= cc.classzone_idx; zoneid++) {
+> > > +     for (zoneid = 0; zoneid <= pgdat->kcompactd_classzone_idx; zoneid++) {
+> > >               int status;
+> > >
+> > >               zone = &pgdat->node_zones[zoneid];
+> >
+> > This variable can be updated by a wakeup while the loop is executing
+> > making the loop more difficult to reason about given the exit conditions
+> > can change.
+> >
+> 
+> Thanks for your point out.
+> 
+> But seems there're still issues event without my change ?
+> For example,
+> If we call wakeup_kcompactd() while the kcompactd is running,
+> we just modify the kcompactd_max_order and kcompactd_classzone_idx and
+> then return.
+> Then in another path, the wakeup_kcompactd() is called again,
+> so kcompactd_classzone_idx and kcompactd_max_order will be override,
+> that means the previous wakeup is missed.
+> Right ?
+> 
+
+That's intended. When kcompactd wakes up, it takes a snapshot of what is
+requested and works on that. Other requests can update the requirements for
+a future compaction request if necessary. One could argue that the wakeup
+is missed but really it's "defer that request to some kcompactd activity
+in the future". If kcompactd loops until there are no more requests, it
+can consume an excessive amount of CPU due to requests continually keeping
+it awake. kcompactd is best-effort to reduce the amount of direct stalls
+due to compaction but an allocation request always faces the possibility
+that it may stall because a kernel thread has not made enough progress
+or failed.
+
+FWIW, similar problems hit kswapd in the past where allocation requests
+could artifically keep it awake consuming 100% of CPU.
+
+-- 
+Mel Gorman
+SUSE Labs
 
