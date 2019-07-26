@@ -2,187 +2,222 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 505EEC76190
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 00:16:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BED22C76190
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 00:20:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0BF8D2166E
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 00:16:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7EAA721849
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 00:20:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="BPvqDOZ8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0BF8D2166E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=pass (2048-bit key) header.d=sifive.com header.i=@sifive.com header.b="jToOEjgr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7EAA721849
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sifive.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 99A006B0003; Thu, 25 Jul 2019 20:16:33 -0400 (EDT)
+	id 180866B0003; Thu, 25 Jul 2019 20:20:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 94B8C6B0005; Thu, 25 Jul 2019 20:16:33 -0400 (EDT)
+	id 132526B0005; Thu, 25 Jul 2019 20:20:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7EC078E0002; Thu, 25 Jul 2019 20:16:33 -0400 (EDT)
+	id 0495D8E0002; Thu, 25 Jul 2019 20:20:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F5116B0003
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 20:16:33 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id o13so33076096edt.4
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 17:16:33 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id D9E036B0003
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 20:20:53 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id z19so56838488ioi.15
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 17:20:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=0q7KETf8VOgdRydYjPeN0MMEKPYfp/4tpTOPqZtr/E0=;
-        b=nNNiOVlBniKUHZmPAKEkrSoCvwlhUPJLQpPpgvYrk6nLBcZMRMJttU7/1LgZE78OaI
-         dVQ5Cjo7Z7+MDhCsvwQ+SV27mmob6A+OmcztDX9e/DJmpnfiY6uDaldnAXCTbRgZpUAi
-         bLnaqlrJi1QROS2aCRbrtBqu+Yb2GVVWQH7ovNX1y9FEcUlQUs754eKO1mymf4+FumpH
-         AcHnqNAzjoaPL549Szpz5wLtPwQbQ0N13voDW9Z2fMGu1B3RCr9EF67q+QvX2WKvdzPD
-         0c0PRQ8HERN6j1gyQBqA51jPD0QcSODG8dCd7Vl5xznlZitXbeVYEIZFXLV/FIRA3f+Z
-         A56Q==
-X-Gm-Message-State: APjAAAW66n2hwjyeqqebGofj4lylqy9/fGlURHjrprB6K14gtqchzpg+
-	z35W3+Q39WVEfZl6/f9AW4x91jsg2yYcuIN1SanNPQAS54SfwOHFk2aPmMYwUvbQ2Jx7Oowfqea
-	SyMYGePbaP77ChSTvMegfXAsUuY+AazY24GGg73JBI2VQTSTb6YtBPQIYY1gSzXR0zA==
-X-Received: by 2002:a50:cd91:: with SMTP id p17mr80990176edi.35.1564100192749;
-        Thu, 25 Jul 2019 17:16:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwRpmmK0vLUp0b5qBerduZBVO55uHUhGWvT06JOa5z+5iy3xCxOmIp3QCnU01kaNpthgj1R
-X-Received: by 2002:a50:cd91:: with SMTP id p17mr80990127edi.35.1564100192088;
-        Thu, 25 Jul 2019 17:16:32 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1564100192; cv=pass;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=wVoyay7NO1Taf0v9T8BEjNVHV5CQV4op2+u8nOtjKhg=;
+        b=N0blBtiDHdjaGMRbDlwvThfUweONSTsqXjwNsbwPRiG0ZCEx/35CucCLdeQ38NL/nb
+         0w/lGfqPpvH2NMvRS4BVw6FwqkmpL98sGr0a/2hmCozO5nCOlZ+d1ZpEfzCn2gYFDtZO
+         rsqZXaIsYeIYNoN/ty3rWuZND6HuUvKnqK8PFpeIR0pA6Lm/Fy62a2HiPZEZg3KH07R8
+         V78Rm1V3gAp6QIiurjei7TPJRH8QBgbKotRvDUI2/D+15+Koins9AELKzIqZche3GxIP
+         ZSlEzlBmZxa8hILiSWRqwq3DlNYlpZ2cOVRKvyODNvqr5vroeCc/2Zjl1rPqtCPX66X4
+         mj7Q==
+X-Gm-Message-State: APjAAAWu4ARgBi+UXvWxNvKhFtK7Gqkr4Y0Q0vkK5Gbyrme/T6SsPOSP
+	n921OtWg0aysrSCPFIpps8v8k+GttBoBZT8ZHPf7LfpEJl5KFQY6m95YSUHaSujoE2p6TXyWii2
+	SD7eRpzJauA7ItKTWOFsPXJ4XKQi4WcH+CBoK9tAK9RuucbvVavRjoGtGBf5mHj+/LA==
+X-Received: by 2002:a02:b395:: with SMTP id p21mr95666367jan.31.1564100453657;
+        Thu, 25 Jul 2019 17:20:53 -0700 (PDT)
+X-Received: by 2002:a02:b395:: with SMTP id p21mr95666309jan.31.1564100452786;
+        Thu, 25 Jul 2019 17:20:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564100452; cv=none;
         d=google.com; s=arc-20160816;
-        b=R+hzzRb9x/f/Cfq1B+ZABrbwtwCd3TauJa0aR2TmhXxTgL08B5bJVqREvn39oJwTXB
-         Kb9+k+deXxn4ZECrimZkU45a2mbd9h5IHMazh1K0mWEARV2hKgSXv/c5SWCc19Db5Nz9
-         DtiJ965w17uY4xlD4KjbxFK/KvgR7kde/oRv+X7sjch4I1CJY+/6r075i+RrIMmQ67Tg
-         HBNl3zNmX6c16JG20tbrxVG8knC2vf1Zpgdf0BTmKdP9QwgFuUohfSa5AmFFAY+oA9g9
-         QrxSv2EOZ4NYfVWWVxeLB+7lJdFg8j0YcwTv6QKo/QWdy4TFMY2d7giOVvLqzU/TaKLs
-         mfBA==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=0q7KETf8VOgdRydYjPeN0MMEKPYfp/4tpTOPqZtr/E0=;
-        b=QF3eq6SyjoHAcbhdi49/JcLZs8Bq/GoQJCMPlAN46G9DIWfYbaXVhdhrTlktp4ZQAJ
-         e1U9jD2c2lIOFA5YIDE75HspTtC9lRwTJ5lk4n3RT4XhRr2SI1mFyycoTJhilj+PjN/b
-         Ytthaxxn+jXNBSubtbmpQD06jhSlPEeuQTuDkIl1alurj6mGJSowXbUzAbbyLziqmx0+
-         gzY9h5i+Yvk64F/MsNvjrjikklbL75P4t49f+6alE9FrjWzrUXThMK4ZsL7Ji6E1eDEX
-         NK72xVGANeAEAVDCK/O3x86wdkewpUgAcLBUp1FS/w+gc7kh7jrNEFZYNeSVmvIsa3EK
-         Cqlw==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=BPvqDOZ8;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.5.86 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR03-VE1-obe.outbound.protection.outlook.com (mail-eopbgr50086.outbound.protection.outlook.com. [40.107.5.86])
-        by mx.google.com with ESMTPS id i9si10391711ejf.152.2019.07.25.17.16.31
+        b=CVhdKZr79FMI5ZdXoOMCMDN7ZRrczVBCiE0CXdulX+nmO3wwM9MgdtBHwrpK/PLq1Q
+         fN/OxeQgkgZo9QTQnydezTmGAhGS7RzZNci/+HQ8SJD2aP2yzHa/W0swroMWaLIwAlr2
+         Vtjj2pR6ohPBmKgN/EEEh4yZ1wn/Z55YEi+nF5/xCyzznpB7BKfSBusxcVaSpFikYZRO
+         NrqEPh39SXeLmJeYkoU2ulfGc7uwClvZbgY0vTXkU41cT1klLxVKBu82z1cWr7p5ObWd
+         WtVRRRgcINTOryZQKRMwxQMqmXSpG/eWhw0KfvLBOCz0YJ3yGp/QkXlYDNyd2yMNoxP7
+         N/nA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=wVoyay7NO1Taf0v9T8BEjNVHV5CQV4op2+u8nOtjKhg=;
+        b=pWmG3mcRj1StLUgbkmsRNiuXB1esMq/biMhCx+pMUxABEZPWmStsMLjwJ/Tb9QbuRe
+         I48ZjrjUMXiLuOQGQH0XnUQUt9ngBYwfA4V1B0ep5+vFXEhkOWwxf1++Sa3EZ8aSyZbF
+         WYzTxK4rJQqO3ip05U+Yh2DSJgExa5b7GV2EzcxlA51FOyp8SoFKK1hDReEwtjW1fQhN
+         h7HDIFNrjJiw+GNL/tSRwe/cO2kt3iQLenBE8p6ja5HPjyANQvP6LxQqu142FjOmBw86
+         KGMJSLC37Hv7l9dsQ7DBNPQJLBQalRY1NxvdHFS4hqsjkfmKWz0xQJY6nGRfLWKLwlvL
+         eD5Q==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@sifive.com header.s=google header.b=jToOEjgr;
+       spf=pass (google.com: domain of paul.walmsley@sifive.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=paul.walmsley@sifive.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v9sor34637007ios.17.2019.07.25.17.20.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Thu, 25 Jul 2019 17:16:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.5.86 as permitted sender) client-ip=40.107.5.86;
+        (Google Transport Security);
+        Thu, 25 Jul 2019 17:20:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of paul.walmsley@sifive.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=BPvqDOZ8;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.5.86 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=MNI2rM7p45vkpfKHgM+MRU49tgMgLjLIWqj4QUhIhH6Z3LMtLujcoXsbuPRKLbMLD6QCtpoBO1IgCPzxBdXrUayAWR8/6zaNDzu+xLPBqWvPQLEKnUKv+P2HDBNCWDkJ+Rq4cAHYNBQ6h9y1UVMK+aotqbtKvnLL1g8RjAr5U34xj8IXdc4HuI/uHBZofQ3+iuprLiFRRBGMFSmHJVdJdedO79yPk9J+6tFuSEhbwdj9KsMf6J2xPCPoex9gN72HQpriVDtHiT6lMJHAl8qXNty2bLEvjEH44eIjwFVe/moRnz6QIhJHC34TF4H/80SYq74ukVAFkMyJ5uqFRIMQww==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=0q7KETf8VOgdRydYjPeN0MMEKPYfp/4tpTOPqZtr/E0=;
- b=X2mBSecRCDOHx0jXX9K2PzJ6cHWsQLff8SfDR/vTxdOcGUsnR+L7hYoXbXsWLKfN7RssmG8nL9yHsJEIGADEojF05D/XpYfT+ZjMEK7tK9gtjpotteN96dbLiKslfvaP3j2B8s5C4me1bFA/+LIM/lDfzvo9JpG1CtCrU/8POTb6UrBZOt0HRoEWGyGjWcOjpxwQ7I5rQt6dbKk0O9znrkOl6yJ7Ts/GNrh1FIhf9NRlnD+n3/FnSrCI+2MJcWtQV01/pdzgBpu/4hyOouRiUy6XiR5/j4APO3CIlbfjE2k5K4BA1y73DIKIM8AkZlk8sYPUcKrvYwu6XMVAT6vdPg==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=mellanox.com;dmarc=pass action=none
- header.from=mellanox.com;dkim=pass header.d=mellanox.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=0q7KETf8VOgdRydYjPeN0MMEKPYfp/4tpTOPqZtr/E0=;
- b=BPvqDOZ83VGD2ZpojFsykMRzKPQNfABicQx4MWQwP/vZjYzrhD6lAZZz01N145wBImU2sR6lHZ9Bx9O5kfbTTqeJBNrJ/oOkUXdgFQYhv+7NfxZazu+dfGmFc58W6r670I3ya2c5N/3ZjV8HndcgBumjduwXU30hOiMtL/aZyhY=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB5389.eurprd05.prod.outlook.com (20.177.63.86) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2094.16; Fri, 26 Jul 2019 00:16:30 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880%4]) with mapi id 15.20.2115.005; Fri, 26 Jul 2019
- 00:16:30 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Christoph Hellwig <hch@lst.de>
-CC: =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Ben Skeggs
-	<bskeggs@redhat.com>, Ralph Campbell <rcampbell@nvidia.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>, "nouveau@lists.freedesktop.org"
-	<nouveau@lists.freedesktop.org>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-Subject: Re: hmm_range_fault related fixes and legacy API removal v3
-Thread-Topic: hmm_range_fault related fixes and legacy API removal v3
-Thread-Index: AQHVQexyfCYT3znpM0Ow5t5NZiu9m6bcCtwA
-Date: Fri, 26 Jul 2019 00:16:30 +0000
-Message-ID: <20190726001622.GL7450@mellanox.com>
-References: <20190724065258.16603-1-hch@lst.de>
-In-Reply-To: <20190724065258.16603-1-hch@lst.de>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YTOPR0101CA0071.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:b00:14::48) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: ca69ca56-6347-48a7-0ff0-08d7115e81d4
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5389;
-x-ms-traffictypediagnostic: VI1PR05MB5389:
-x-microsoft-antispam-prvs:
- <VI1PR05MB53890B869C202998ED9D6689CFC00@VI1PR05MB5389.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:8882;
-x-forefront-prvs: 01106E96F6
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(39860400002)(366004)(376002)(346002)(136003)(396003)(199004)(189003)(66556008)(66446008)(4744005)(66946007)(66476007)(6486002)(1076003)(64756008)(71200400001)(476003)(66066001)(6246003)(71190400001)(99286004)(6436002)(229853002)(53936002)(25786009)(81166006)(86362001)(478600001)(6916009)(6506007)(256004)(7736002)(3846002)(386003)(81156014)(486006)(76176011)(305945005)(8676002)(36756003)(102836004)(14454004)(4326008)(186003)(11346002)(54906003)(2906002)(316002)(26005)(68736007)(33656002)(8936002)(2616005)(5660300002)(6116002)(52116002)(6512007)(446003);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5389;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- NrmVLum9v2YBluzrp/mm1lBfpYaq+Gu1hv0gn7ggZrHzR9yH6MA/0XO7rOE6W6HwiyZvO4QLdhW8urne5fF2yANtHGsYbvMay2mb7f11AE/NLxBSXUhMjAGl0gz3Ts1of3+ERmpQ7ADZe0ediRyTXIUIWFHJRJHdSudZmqFKRN2aH5xjvJbX6BfG30bIDwJ9rbSsXbYryOxrKMg+R2770JxORJZDEC7PYBfM96CoPZuPV+hx+VtIcohphA+EfjVLewRC2wrzf4Jr2HoHpEavGaCP+36436Lv55A2lNph9+/Ixw4uiIfTPOmZZ8FQiod/hewpFI2LJak9KuNHPhsbr85hkpyxGBqefxmjU/fH1e0eVej8i6lf96Ti29mi3os7pmvIDxG2R+VWvVp4iq0dlX4zeJKx5D90mhOueIuMAXM=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <86BBF3FDDFDEC14E88EE4CCBA4717F7E@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       dkim=pass header.i=@sifive.com header.s=google header.b=jToOEjgr;
+       spf=pass (google.com: domain of paul.walmsley@sifive.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=paul.walmsley@sifive.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=sifive.com; s=google;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=wVoyay7NO1Taf0v9T8BEjNVHV5CQV4op2+u8nOtjKhg=;
+        b=jToOEjgrbrybRXQICjzzQLCzC6a+oGnvytylhhSA9uxtg6WnH51O9ifLdSV6bfGMfa
+         q8niV4muBTTLsVTSbcEIiUpVX+Amr5OSrKkakw3SIsgJ8wNsZyQBOkBDr2dbL5g7FM01
+         G/XkE2FByaeoL8V88ESwf2TAB2YZjUSsL0fYgL45Wj4T/V0LKEidele78SCI55EuL/J/
+         sYl0p5itnLMSTOYg3+6E06sl9nRstqfUkqQp7Rox6hXNDgUyeGkR886lLScN+95mjm/T
+         aOi3Bf5eztl/MGmlss1eZVgOtDl8Lkje5E83dmFr4AAMVpQxweZF/aXyNxTquIa66KkV
+         3ymw==
+X-Google-Smtp-Source: APXvYqwip5nwThbcgJqNtgafvdfTP5pQ2Oo0kmQagV/oOYV3+6lQkCabaIgCA6ODx3NeYEb64i78TA==
+X-Received: by 2002:a6b:f80e:: with SMTP id o14mr15217081ioh.1.1564100452408;
+        Thu, 25 Jul 2019 17:20:52 -0700 (PDT)
+Received: from localhost (67-0-24-96.albq.qwest.net. [67.0.24.96])
+        by smtp.gmail.com with ESMTPSA id 20sm54026778iog.62.2019.07.25.17.20.50
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 25 Jul 2019 17:20:51 -0700 (PDT)
+Date: Thu, 25 Jul 2019 17:20:50 -0700 (PDT)
+From: Paul Walmsley <paul.walmsley@sifive.com>
+X-X-Sender: paulw@viisi.sifive.com
+To: Alexandre Ghiti <alex@ghiti.fr>
+cc: Andrew Morton <akpm@linux-foundation.org>, 
+    Albert Ou <aou@eecs.berkeley.edu>, Daniel Cashman <dcashman@google.com>, 
+    Kees Cook <keescook@chromium.org>, 
+    Catalin Marinas <catalin.marinas@arm.com>, 
+    Palmer Dabbelt <palmer@sifive.com>, Will Deacon <will.deacon@arm.com>, 
+    Russell King <linux@armlinux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, 
+    linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+    Paul Burton <paul.burton@mips.com>, 
+    Alexander Viro <viro@zeniv.linux.org.uk>, James Hogan <jhogan@kernel.org>, 
+    linux-fsdevel@vger.kernel.org, linux-riscv@lists.infradead.org, 
+    linux-mips@vger.kernel.org, Christoph Hellwig <hch@lst.de>, 
+    linux-arm-kernel@lists.infradead.org, Luis Chamberlain <mcgrof@kernel.org>
+Subject: Re: [PATCH REBASE v4 14/14] riscv: Make mmap allocation top-down by
+ default
+In-Reply-To: <20190724055850.6232-15-alex@ghiti.fr>
+Message-ID: <alpine.DEB.2.21.9999.1907251655310.32766@viisi.sifive.com>
+References: <20190724055850.6232-1-alex@ghiti.fr> <20190724055850.6232-15-alex@ghiti.fr>
+User-Agent: Alpine 2.21.9999 (DEB 301 2018-08-15)
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: ca69ca56-6347-48a7-0ff0-08d7115e81d4
-X-MS-Exchange-CrossTenant-originalarrivaltime: 26 Jul 2019 00:16:30.0910
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5389
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gV2VkLCBKdWwgMjQsIDIwMTkgYXQgMDg6NTI6NTFBTSArMDIwMCwgQ2hyaXN0b3BoIEhlbGx3
-aWcgd3JvdGU6DQo+IEhpIErDqXLDtG1lLCBCZW4gYW5kIEphc29uLA0KPiANCj4gYmVsb3cgaXMg
-YSBzZXJpZXMgYWdhaW5zdCB0aGUgaG1tIHRyZWUgd2hpY2ggZml4ZXMgdXAgdGhlIG1tYXBfc2Vt
-DQo+IGxvY2tpbmcgaW4gbm91dmVhdSBhbmQgd2hpbGUgYXQgaXQgYWxzbyByZW1vdmVzIGxlZnRv
-dmVyIGxlZ2FjeSBITU0gQVBJcw0KPiBvbmx5IHVzZWQgYnkgbm91dmVhdS4NCj4gDQo+IFRoZSBm
-aXJzdCA0IHBhdGNoZXMgYXJlIGEgYnVnIGZpeCBmb3Igbm91dmVhdSwgd2hpY2ggSSBzdXNwZWN0
-IHNob3VsZA0KPiBnbyBpbnRvIHRoaXMgbWVyZ2Ugd2luZG93IGV2ZW4gaWYgdGhlIGNvZGUgaXMg
-bWFya2VkIGFzIHN0YWdpbmcsIGp1c3QNCj4gdG8gYXZvaWQgcGVvcGxlIGNvcHlpbmcgdGhlIGJy
-ZWFrYWdlLg0KPiANCj4gQ2hhbmdlcyBzaW5jZSB2MjoNCj4gIC0gbmV3IHBhdGNoIGZyb20gSmFz
-b24gdG8gZG9jdW1lbnQgRkFVTFRfRkxBR19BTExPV19SRVRSWSBzZW1hbnRpY3MNCj4gICAgYmV0
-dGVyDQo+ICAtIHJlbW92ZSAtRUFHQUlOIGhhbmRsaW5nIGluIG5vdXZlYXUgZWFybGllcg0KDQpJ
-IGRvbid0IHNlZSBSYWxwaCdzIHRlc3RlZCBieSwgZG8geW91IHRoaW5rIGl0IGNoYW5nZWQgZW5v
-dWdoIHRvDQpyZXF1aXJlIHRlc3RpbmcgYWdhaW4/IElmIHNvLCBSYWxwaCB3b3VsZCB5b3UgYmUg
-c28ga2luZD8NCg0KSW4gYW55IGV2ZW50LCBJJ20gc2VuZGluZyB0aGlzIGludG8gbGludXgtbmV4
-dCBhbmQgaW50ZW5kIHRvIGZvcndhcmQNCnRoZSBmaXJzdCBmb3VyIG5leHQgd2Vlay4NCg0KVGhh
-bmtzLA0KSmFzb24NCg==
+Hi Alexandre,
+
+I have a few questions about this patch.  Sorry to be dense here ...
+
+On Wed, 24 Jul 2019, Alexandre Ghiti wrote:
+
+> In order to avoid wasting user address space by using bottom-up mmap
+> allocation scheme, prefer top-down scheme when possible.
+> 
+> Before:
+> root@qemuriscv64:~# cat /proc/self/maps
+> 00010000-00016000 r-xp 00000000 fe:00 6389       /bin/cat.coreutils
+> 00016000-00017000 r--p 00005000 fe:00 6389       /bin/cat.coreutils
+> 00017000-00018000 rw-p 00006000 fe:00 6389       /bin/cat.coreutils
+> 00018000-00039000 rw-p 00000000 00:00 0          [heap]
+> 1555556000-155556d000 r-xp 00000000 fe:00 7193   /lib/ld-2.28.so
+> 155556d000-155556e000 r--p 00016000 fe:00 7193   /lib/ld-2.28.so
+> 155556e000-155556f000 rw-p 00017000 fe:00 7193   /lib/ld-2.28.so
+> 155556f000-1555570000 rw-p 00000000 00:00 0
+> 1555570000-1555572000 r-xp 00000000 00:00 0      [vdso]
+> 1555574000-1555576000 rw-p 00000000 00:00 0
+> 1555576000-1555674000 r-xp 00000000 fe:00 7187   /lib/libc-2.28.so
+> 1555674000-1555678000 r--p 000fd000 fe:00 7187   /lib/libc-2.28.so
+> 1555678000-155567a000 rw-p 00101000 fe:00 7187   /lib/libc-2.28.so
+> 155567a000-15556a0000 rw-p 00000000 00:00 0
+> 3fffb90000-3fffbb1000 rw-p 00000000 00:00 0      [stack]
+> 
+> After:
+> root@qemuriscv64:~# cat /proc/self/maps
+> 00010000-00016000 r-xp 00000000 fe:00 6389       /bin/cat.coreutils
+> 00016000-00017000 r--p 00005000 fe:00 6389       /bin/cat.coreutils
+> 00017000-00018000 rw-p 00006000 fe:00 6389       /bin/cat.coreutils
+> 2de81000-2dea2000 rw-p 00000000 00:00 0          [heap]
+> 3ff7eb6000-3ff7ed8000 rw-p 00000000 00:00 0
+> 3ff7ed8000-3ff7fd6000 r-xp 00000000 fe:00 7187   /lib/libc-2.28.so
+> 3ff7fd6000-3ff7fda000 r--p 000fd000 fe:00 7187   /lib/libc-2.28.so
+> 3ff7fda000-3ff7fdc000 rw-p 00101000 fe:00 7187   /lib/libc-2.28.so
+> 3ff7fdc000-3ff7fe2000 rw-p 00000000 00:00 0
+> 3ff7fe4000-3ff7fe6000 r-xp 00000000 00:00 0      [vdso]
+> 3ff7fe6000-3ff7ffd000 r-xp 00000000 fe:00 7193   /lib/ld-2.28.so
+> 3ff7ffd000-3ff7ffe000 r--p 00016000 fe:00 7193   /lib/ld-2.28.so
+> 3ff7ffe000-3ff7fff000 rw-p 00017000 fe:00 7193   /lib/ld-2.28.so
+> 3ff7fff000-3ff8000000 rw-p 00000000 00:00 0
+> 3fff888000-3fff8a9000 rw-p 00000000 00:00 0      [stack]
+> 
+> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Kees Cook <keescook@chromium.org>
+> ---
+>  arch/riscv/Kconfig | 11 +++++++++++
+>  1 file changed, 11 insertions(+)
+> 
+> diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
+> index 59a4727ecd6c..6a63973873fd 100644
+> --- a/arch/riscv/Kconfig
+> +++ b/arch/riscv/Kconfig
+> @@ -54,6 +54,17 @@ config RISCV
+>  	select EDAC_SUPPORT
+>  	select ARCH_HAS_GIGANTIC_PAGE
+>  	select ARCH_WANT_HUGE_PMD_SHARE if 64BIT
+> +	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT if MMU
+> +	select HAVE_ARCH_MMAP_RND_BITS
+> +
+> +config ARCH_MMAP_RND_BITS_MIN
+> +	default 18
+
+Could you help me understand the rationale behind this constant?
+
+> +
+> +# max bits determined by the following formula:
+> +#  VA_BITS - PAGE_SHIFT - 3
+
+I realize that these lines are probably copied from arch/arm64/Kconfig.  
+But the rationale behind the "- 3" is not immediately obvious.  This 
+apparently originates from commit 8f0d3aa9de57 ("arm64: mm: support 
+ARCH_MMAP_RND_BITS"). Can you provide any additional context here?
+
+> +config ARCH_MMAP_RND_BITS_MAX
+> +	default 33 if 64BIT # SV48 based
+
+The rationale here is clear for Sv48, per the above formula:
+
+   (48 - 12 - 3) = 33
+
+> +	default 18
+
+However, here it is less clear to me.  For Sv39, shouldn't this be
+
+   (39 - 12 - 3) = 24
+
+?  And what about Sv32?
+ 
+
+- Paul
 
