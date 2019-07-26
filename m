@@ -2,310 +2,172 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 72E4EC76191
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 19:42:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 74D42C41514
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 19:55:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2716E21852
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 19:42:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 39585218B8
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 19:55:02 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="pvb4XMoR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2716E21852
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="qLaE1wkK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39585218B8
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CBF008E0003; Fri, 26 Jul 2019 15:42:28 -0400 (EDT)
+	id B060B8E0005; Fri, 26 Jul 2019 15:55:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C6E208E0002; Fri, 26 Jul 2019 15:42:28 -0400 (EDT)
+	id AB8FD8E0002; Fri, 26 Jul 2019 15:55:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B36968E0003; Fri, 26 Jul 2019 15:42:28 -0400 (EDT)
+	id 9A6378E0005; Fri, 26 Jul 2019 15:55:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DAF58E0002
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 15:42:28 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id x18so33823162pfj.4
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 12:42:28 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 66CB18E0002
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 15:55:01 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id a21so26761955pgv.0
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 12:55:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=iss5MtLqPNhVnioRpTHWsrM6bPKJLDIqo033J1yVDcM=;
-        b=IGVZuYGWQ39JT+kxVQzrM3CqjE6BQIjXkKa0N/uzqAJJKX+xbPOxaiZP/RXY+XdSrO
-         Za9/KN5k99VuDRhJabooAMhgYL46jc8zkQ+c/sJmA9W2MjcS9pB2n6Sd1UF1iDgdj2RI
-         DX+4STTl4SSVu9D9mWWZyPYGU/wZr9Xi/F2aPwDJCBdg2Gf5Knqp21FUii/LNLELJylS
-         UbhlZX8dFP1C+svIy2GzEwBCu4ekHiPIY3F8GAqDLU5xDs0pj3hyVLqAY2RLqiKmKgv7
-         OqGdNcbCYrudo2UToNJrPTmakT8dzEMNBpI7bU92wf3FSbYrF5boc8EFO7xpIqnYoCzy
-         oLMg==
-X-Gm-Message-State: APjAAAXn4cCWmY+bfKAYWK2Cnod12OFVn/oXNOFgslaJVjyXWaE4uAiM
-	zQnU5Sq9Fc+kzIrg4b17XwNLAFYr5QWQikUnOpJu2hsbkn6G3irj8L1E8J2KqMaBBqHMXgiw35n
-	ie2j4qEmtEqmCnu6YbAt7teESgb/GnibdM7R07EXBEUr/qTnqz1xHiMhzRoHBtHTnDQ==
-X-Received: by 2002:a17:902:8a94:: with SMTP id p20mr97642246plo.312.1564170148034;
-        Fri, 26 Jul 2019 12:42:28 -0700 (PDT)
-X-Received: by 2002:a17:902:8a94:: with SMTP id p20mr97642189plo.312.1564170146874;
-        Fri, 26 Jul 2019 12:42:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564170146; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Jbv0LbZynJFOQcTJN5oGebnbSqk/idAThN/ynHRXZp8=;
+        b=EpTN2XAMJIVrMDtGL3lY8V5i/QOlCDAd2d2I3FiGGRNWVy5xSiSwhrsl6WFrdC8ZSh
+         enMTCSuinrkpMRCsTmGn7BJNcc4+7FYzaFFjqBZ23WDr3SJfH+hG7cWQMz9XoLgT73/h
+         7HbwtSGXKiqk40yyjS3fJiSDqwqIKmMGcspAtaJbmiWSqTAdVWFpbbd74q5d22MSaN54
+         MrPSC8hlg2q26GAIVFACmWDIMdsGCLVOjB7UBFTIZ2v/8yhltsGsy30fyAZfvwxqHvwy
+         CphtgIFf+feRCgKdkncxDjH4dj5NDqRvq4LBMr3yD6Mlr3epL9iBj2k/uu4lEyHdIgsT
+         icjg==
+X-Gm-Message-State: APjAAAVeoQ8NKj+c7HyGagB6xv1Gw5DqbWImgIeR+cJU8svHeGM5EjNO
+	NEh+w57vwHsrGm+2p46fFhCJlhyUdANZbhGS9AiQyqGIxljF0lLhll9pBwNbxK1cmIT1Q19RwGh
+	TxXX1PSTQXUiGg8EyIeZo4quzrDYN4wAdRgU/9xXsQptQ+HNUpKqjkwRA/8uoBj0hOw==
+X-Received: by 2002:a63:5945:: with SMTP id j5mr92488864pgm.452.1564170900995;
+        Fri, 26 Jul 2019 12:55:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyqlOY8Kx3QL0BrmRE6GVaJKPTW0DxvraZ4YsmDP5p7NncnrnsMeHLL+Hzwv6NUjiU92/eA
+X-Received: by 2002:a63:5945:: with SMTP id j5mr92488822pgm.452.1564170900187;
+        Fri, 26 Jul 2019 12:55:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564170900; cv=none;
         d=google.com; s=arc-20160816;
-        b=jpN2mzCd6gY3e2Vi6drnCR1voeplKiWADIJBOtbKVFkzePduy4tuE5KaWNseDvCext
-         DWWbjAa8EuJnBio/vk2WaudnED2QMRYgl5aXjV2kpvXiSgzcIp7HSnVBtsFNJehqEM3M
-         I2sveGu+e4qAu96fztHdiA4DHOKL37SB70mnqftwK8ghmDhipVohQHzRMXQGOz8U9HSr
-         wOKy4jygtKcVl45Obzz5v/8KRkOLx9Z4B7RQIPLPc4Ry9bAOIcmE26oE70q+y7zw0jeU
-         K93EGF4ryxUmWOC0PnrBOlrvXk6yqVueHqbQHQBbNjvtIoDBxpmLaMoKNNPsGl3VxlLY
-         +wcQ==
+        b=DH7Cui616Ro3dwardwZr7nwHYkV72As3V5stBsnDmWD1RlZnVOFphtyGeOIYkkV/2e
+         Yh65/5NQM9HifrJBC4fFGUCE3L9bjzDmvg67ABf50LDLiuLjG27qIQl3gV0vrylYC9P+
+         W/3HB4d5A/ORe30nqwY3oC+X9lVTUUDvpTRkEABJD+u8Tt0YcFvGdAnDLgL6a0p5Rp5t
+         Z05/8/vdoJFNf9KbVza3WeI7zlxY4E1uRD60fPL4CLgRwRhzek+H9qRdlMoReGPnzdyN
+         96FwnEpdHcMlYdJTuPQQIw8TPr5whA8RkBjzYjqTwj+2W/oRVl7wjx8MCSya00H9/Qc8
+         ANwQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=iss5MtLqPNhVnioRpTHWsrM6bPKJLDIqo033J1yVDcM=;
-        b=ej0hJaOip6dmhz4FR80B1nMposRLXuDo30pNkWU2wetfv4+UMs2XZPbEwyvg16beEV
-         k9S/VyHT9kHMvwuB8n4jWSaeqxaE0VuHH1Otk01deks2QDeR9sbuwxgEKqBI0WLis3H9
-         UjRW0wbWS11+pFrmN2JjV62u4C+SlsW9v80Z6LMRCDjr0+cRUffAVJLQ118KV15ULa2y
-         ruTjSN5Z+n6zc6TepzohmB+zwrPcnkClcCYFkeqngheAgcioxoqWGj/Mx07g0dSsv2hn
-         K+HginiyJzBXLFtxjrfRqoehbrAUruBYqXivKqHIZiVb5TmC1LibhYxP1cjplFOfUgPd
-         rLDQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=Jbv0LbZynJFOQcTJN5oGebnbSqk/idAThN/ynHRXZp8=;
+        b=YPmKyZ+Spjmxt6sFiT45PbisNtJKskZFs6mfIY/MbOVFCQLg/36cECm+RfBrzIl7T2
+         N5Ov0p8uzwzapjGV5p0wzFnhy1QryAnfno4vRAFthPoTxRAnXQDHAA+yUFLrVuXigbrD
+         ISArN5q3aIOhfzdWa5aFgFmbkb1Zr0jj04Vc+PbwTixlM9Px3rqTdGXb+DP+B2JT3jNu
+         SZ3GM2E7u8UXZVG1fUUn93dSUBw9x34kaIJjFWa+pPK9nXgUJs4vgSyDMXxGQh9sEZuD
+         hkV9z+SzBpIo6E6HWHttc/gkIoJ/ebmE5n5oKisAs1ohsRAWIbAE7CXnBdWEM3pcaYWG
+         PR+w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pvb4XMoR;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c4sor65439474plo.34.2019.07.26.12.42.26
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qLaE1wkK;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id v1si23391583plp.264.2019.07.26.12.54.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 Jul 2019 12:42:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 26 Jul 2019 12:55:00 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pvb4XMoR;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=iss5MtLqPNhVnioRpTHWsrM6bPKJLDIqo033J1yVDcM=;
-        b=pvb4XMoRFI3vsJl94sgvoHP/3L0Qepy+ejBQoFocThb2yu7LfHELYTa6G30aRmCC9W
-         +NbGZpskxV3iU7pPyRlHjPdnNB8WE7DuWQMm5TtV5Y5eEUyNyes2h2RwMVlQIF0N4ueO
-         ucdd2Rd0G7dheEC1quI7hOgoln5Wa3gGbAaybSo2A6La3L+plFQGI7doXzNMxa9FgAXK
-         +rwneYJlM34N+4aNQgsa/mrXtpgVVomftfd1ll3EBc7eBoNbDhwnwuYuX91+8MnXBXBa
-         fuMbsZUSqjjT4iYEE8OjLIpHaACJMVUEMi25tFyMP9sqfIfMYCad7iXRDSRECwJuZbQj
-         c42A==
-X-Google-Smtp-Source: APXvYqw/jaznBgDNukiE2GcNJbRxsJDEYzeWOiNNNvV/tzrutqH9zyoszrSjvdNRmthnNGT+UvJlbQ==
-X-Received: by 2002:a17:902:9004:: with SMTP id a4mr98378377plp.109.1564170146570;
-        Fri, 26 Jul 2019 12:42:26 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.33])
-        by smtp.gmail.com with ESMTPSA id a3sm62334301pje.3.2019.07.26.12.42.25
-        (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 26 Jul 2019 12:42:26 -0700 (PDT)
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: sivanich@sgi.com,
-	arnd@arndb.de
-Cc: ira.weiny@intel.com,
-	jhubbard@nvidia.com,
-	jglisse@redhat.com,
-	gregkh@linuxfoundation.org,
-	william.kucharski@oracle.com,
-	hch@lst.de,
-	linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	Bharath Vedartham <linux.bhar@gmail.com>
-Subject: [PATCH v3 1/1] sgi-gru: Remove *pte_lookup functions
-Date: Sat, 27 Jul 2019 01:12:00 +0530
-Message-Id: <1564170120-11882-2-git-send-email-linux.bhar@gmail.com>
-X-Mailer: git-send-email 2.7.4
-In-Reply-To: <1564170120-11882-1-git-send-email-linux.bhar@gmail.com>
-References: <1564170120-11882-1-git-send-email-linux.bhar@gmail.com>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qLaE1wkK;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=Jbv0LbZynJFOQcTJN5oGebnbSqk/idAThN/ynHRXZp8=; b=qLaE1wkKgoy7MM+GpS8n4h0G5
+	ore0CpfVTIbcdEbcRmCa3upn43Xm+UHEcbYtITzvkm+EW5hIfq1Vkb4nLIvE1cbnvqtSp3poIxCwo
+	Z2e7Qsak865u/eh3Yug9ba7yjlnjT7jbooxL03UhvtaENYgbBDfeBxNn7xs++60Pbll5RIqAzZAtH
+	9PHtgtW9psv9Sqlz05XEV7HAfHOqSzG2R0ZGzfs4G1mjtBgBB29R+rwCVdhfIkLeKQNMAjYpdTWry
+	11Nicdi23ixiLKeLhOIAXCwfF6d2yqDdDSUDgD1LRimA9qyYq9uzv9aukemW6TAcgADgf6BU/zBrR
+	miBBXLelQ==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hr6Ir-00045T-GC; Fri, 26 Jul 2019 19:54:57 +0000
+Date: Fri, 26 Jul 2019 12:54:57 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Mark Brown <Mark.Brown@arm.com>,
+	Steven Price <Steven.Price@arm.com>,
+	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	Masahiro Yamada <yamada.masahiro@socionext.com>,
+	Kees Cook <keescook@chromium.org>,
+	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+	Sri Krishna chowdary <schowdary@nvidia.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	linux-arm-kernel@lists.infradead.org, x86@kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [RFC] mm/pgtable/debug: Add test validating architecture page
+ table helpers
+Message-ID: <20190726195457.GI30641@bombadil.infradead.org>
+References: <1564037723-26676-1-git-send-email-anshuman.khandual@arm.com>
+ <1564037723-26676-2-git-send-email-anshuman.khandual@arm.com>
+ <20190725143920.GW363@bombadil.infradead.org>
+ <c3bb0420-584c-de3b-2439-8702bc09595e@arm.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c3bb0420-584c-de3b-2439-8702bc09595e@arm.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The *pte_lookup functions can be removed and be easily replaced with
-get_user_pages_fast functions. In the case of atomic lookup,
-__get_user_pages_fast is used which does not fall back to slow
-get_user_pages. get_user_pages_fast on the other hand tries to use
-__get_user_pages_fast but fallbacks to slow get_user_pages if
-__get_user_pages_fast fails.
+On Fri, Jul 26, 2019 at 10:17:11AM +0530, Anshuman Khandual wrote:
+> > But 'page' isn't necessarily PMD-aligned.  I don't think we can rely on
+> > architectures doing the right thing if asked to make a PMD for a randomly
+> > aligned page.
+> > 
+> > How about finding the physical address of something like kernel_init(),
+> 
+> Physical address corresponding to the symbol in the kernel text segment ?
 
-Also unnecessary ifdefs to check for CONFIG_HUGETLB is removed as the
-check is redundant.
+Yes.  We need the address of something that's definitely memory.
+The stack might be in vmalloc space.  We can't allocate memory from the
+allocator that's PUD-aligned.  This seems like a reasonable approximation
+to something that might work.
 
-Cc: Ira Weiny <ira.weiny@intel.com>
-Cc: John Hubbard <jhubbard@nvidia.com>
-Cc: Jérôme Glisse <jglisse@redhat.com>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Dimitri Sivanich <sivanich@sgi.com>
-Cc: Arnd Bergmann <arnd@arndb.de>
-Cc: William Kucharski <william.kucharski@oracle.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Reviewed-by: Ira Weiny <ira.weiny@intel.com>
-Reviewed-by: John Hubbard <jhubbard@nvidia.com>
-Reviewed-by: William Kucharski <william.kucharski@oracle.com>
-Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
----
-This is a fold of the 3 patches in the previous patch series.
-The review tags were given to the individual patches.
----
- drivers/misc/sgi-gru/grufault.c | 114 +++++++++-------------------------------
- 1 file changed, 25 insertions(+), 89 deletions(-)
+> > and using the corresponding pte/pmd/pud/p4d/pgd that encompasses that
+> 
+> So I guess this will help us use pte/pmd/pud/p4d/pgd entries from a real and
+> present mapping rather then making them up for test purpose. Although we are
+> not creating real page tables here just wondering if this could some how
+> affect these real mapping in anyway from some accessors. The current proposal
+> stays clear from anything real - allocates, evaluates and releases.
 
-diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/grufault.c
-index 4b713a8..c1258ea 100644
---- a/drivers/misc/sgi-gru/grufault.c
-+++ b/drivers/misc/sgi-gru/grufault.c
-@@ -166,96 +166,20 @@ static void get_clear_fault_map(struct gru_state *gru,
- }
- 
- /*
-- * Atomic (interrupt context) & non-atomic (user context) functions to
-- * convert a vaddr into a physical address. The size of the page
-- * is returned in pageshift.
-- * 	returns:
-- * 		  0 - successful
-- * 		< 0 - error code
-- * 		  1 - (atomic only) try again in non-atomic context
-- */
--static int non_atomic_pte_lookup(struct vm_area_struct *vma,
--				 unsigned long vaddr, int write,
--				 unsigned long *paddr, int *pageshift)
--{
--	struct page *page;
--
--#ifdef CONFIG_HUGETLB_PAGE
--	*pageshift = is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
--#else
--	*pageshift = PAGE_SHIFT;
--#endif
--	if (get_user_pages(vaddr, 1, write ? FOLL_WRITE : 0, &page, NULL) <= 0)
--		return -EFAULT;
--	*paddr = page_to_phys(page);
--	put_page(page);
--	return 0;
--}
--
--/*
-- * atomic_pte_lookup
-+ * mmap_sem is already helod on entry to this function. This guarantees
-+ * existence of the page tables.
-  *
-- * Convert a user virtual address to a physical address
-  * Only supports Intel large pages (2MB only) on x86_64.
-- *	ZZZ - hugepage support is incomplete
-- *
-- * NOTE: mmap_sem is already held on entry to this function. This
-- * guarantees existence of the page tables.
-+ *	ZZZ - hugepage support is incomplete.
-  */
--static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
--	int write, unsigned long *paddr, int *pageshift)
--{
--	pgd_t *pgdp;
--	p4d_t *p4dp;
--	pud_t *pudp;
--	pmd_t *pmdp;
--	pte_t pte;
--
--	pgdp = pgd_offset(vma->vm_mm, vaddr);
--	if (unlikely(pgd_none(*pgdp)))
--		goto err;
--
--	p4dp = p4d_offset(pgdp, vaddr);
--	if (unlikely(p4d_none(*p4dp)))
--		goto err;
--
--	pudp = pud_offset(p4dp, vaddr);
--	if (unlikely(pud_none(*pudp)))
--		goto err;
--
--	pmdp = pmd_offset(pudp, vaddr);
--	if (unlikely(pmd_none(*pmdp)))
--		goto err;
--#ifdef CONFIG_X86_64
--	if (unlikely(pmd_large(*pmdp)))
--		pte = *(pte_t *) pmdp;
--	else
--#endif
--		pte = *pte_offset_kernel(pmdp, vaddr);
--
--	if (unlikely(!pte_present(pte) ||
--		     (write && (!pte_write(pte) || !pte_dirty(pte)))))
--		return 1;
--
--	*paddr = pte_pfn(pte) << PAGE_SHIFT;
--#ifdef CONFIG_HUGETLB_PAGE
--	*pageshift = is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
--#else
--	*pageshift = PAGE_SHIFT;
--#endif
--	return 0;
--
--err:
--	return 1;
--}
--
- static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
- 		    int write, int atomic, unsigned long *gpa, int *pageshift)
- {
- 	struct mm_struct *mm = gts->ts_mm;
- 	struct vm_area_struct *vma;
- 	unsigned long paddr;
--	int ret, ps;
-+	int ret;
-+	struct page *page;
- 
- 	vma = find_vma(mm, vaddr);
- 	if (!vma)
-@@ -263,21 +187,33 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
- 
- 	/*
- 	 * Atomic lookup is faster & usually works even if called in non-atomic
--	 * context.
-+	 * context. get_user_pages_fast does atomic lookup before falling back to
-+	 * slow gup.
- 	 */
- 	rmb();	/* Must/check ms_range_active before loading PTEs */
--	ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &ps);
--	if (ret) {
--		if (atomic)
-+	if (atomic) {
-+		ret = __get_user_pages_fast(vaddr, 1, write, &page);
-+		if (!ret)
- 			goto upm;
--		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
-+	} else {
-+		ret = get_user_pages_fast(vaddr, 1, write, &page);
-+		if (!ret)
- 			goto inval;
- 	}
-+
-+	paddr = page_to_phys(page);
-+	put_user_page(page);
-+
-+	if (unlikely(is_vm_hugetlb_page(vma)))
-+		*pageshift = HPAGE_SHIFT;
-+	else
-+		*pageshift = PAGE_SHIFT;
-+
- 	if (is_gru_paddr(paddr))
- 		goto inval;
--	paddr = paddr & ~((1UL << ps) - 1);
--	*gpa = uv_soc_phys_ram_to_gpa(paddr);
--	*pageshift = ps;
-+	paddr = paddr & ~((1UL << *pageshift) - 1);
-+	*gpa = uv_soc_phys_ram_to_gpa(paddr);
-+
- 	return VTOP_SUCCESS;
- 
- inval:
--- 
-2.7.4
+I think that's a mistake.  As Russell said, the ARM p*d manipulation
+functions expect to operate on tables, not on individual entries
+constructed on the stack.
+
+So I think the right thing to do here is allocate an mm, then do the
+pgd_alloc / p4d_alloc / pud_alloc / pmd_alloc / pte_alloc() steps giving
+you real page tables that you can manipulate.
+
+Then destroy them, of course.  And don't access through them.
+
+> >> +#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
+> >> +static void pud_basic_tests(void)
+> > 
+> > Is this the right ifdef?
+> 
+> IIUC THP at PUD is where the pud_t entries are directly operated upon and the
+> corresponding accessors are present only when HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
+> is enabled. Am I missing something here ?
+
+Maybe I am.  I thought we could end up operating on PUDs for kernel mappings,
+even without transparent hugepages turned on.
 
