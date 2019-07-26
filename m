@@ -2,261 +2,228 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C1DBC7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 11:16:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 99B38C7618B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 11:45:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C4525216F4
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 11:16:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3EF72229F3
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 11:45:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="nXCB8f2m"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4525216F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="pETxnGiW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3EF72229F3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 711586B0005; Fri, 26 Jul 2019 07:16:26 -0400 (EDT)
+	id 8F5E66B0003; Fri, 26 Jul 2019 07:45:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 69C7C6B0006; Fri, 26 Jul 2019 07:16:26 -0400 (EDT)
+	id 8A8696B0005; Fri, 26 Jul 2019 07:45:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5655D8E0002; Fri, 26 Jul 2019 07:16:26 -0400 (EDT)
+	id 796CB8E0002; Fri, 26 Jul 2019 07:45:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DEACE6B0005
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 07:16:25 -0400 (EDT)
-Received: by mail-lf1-f71.google.com with SMTP id z14so5433587lfq.21
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 04:16:25 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 11BAA6B0003
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 07:45:31 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id r5so11603392ljn.1
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 04:45:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=ecwFC3fgXFrOWyG9ohvQQEeG7yd0wdelvg82Hk6eDDo=;
-        b=q4DjZHEqIC4U11bm45VvhjIY7HHQ6NvdbM8DqTZIfaxiS8LQM7M0dFTi3R7p5s6ktY
-         oKRBuAZuLBXd+WK4H9M+ap9+3GCrg8KRHS6vwegel31KLY6DfXmFCkC9g6cJfyKxu40K
-         kijNShCsfiCR9XXVwydY08VXbFhpjRmjyrgJnxXQ0g+ZiRJ/YP/Shm0ips5/83Cv6jW8
-         yT3bqe1BfHX24StXLWy4hK+OEZmBPkJ0Q2J8EC9Bl7DqUXXXZgLXiClFsIht2AOoIUqa
-         Ma0f2cVwN5eQ1UwJGuj69H6JnUcBdz3a4LQCO7nfMln7zep9JeqGYO4GLYs/Ve/RhCJI
-         sbRA==
-X-Gm-Message-State: APjAAAUnm35z1be+l8OpxxxzeYOMudSRrp6kbF71kuRhJzeImdGjV08x
-	EZtKWXrAQlI00KKEhH27/L4qI5EBRkdxrOPElBwdxHI9MtEfrioT6E/38F1zs6XPJ3eF39cH0TY
-	OenwL4ca8Y7rKWK2LO2xAY/QFz/ULXG0APgWKPvsm0BlrwhC1OTxleNnA9lJzf5mmBg==
-X-Received: by 2002:a19:7006:: with SMTP id h6mr43454783lfc.5.1564139784984;
-        Fri, 26 Jul 2019 04:16:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxNWPwVk0m/TyZv0SVlIotMiL+qJWITArBBE/UFhHDDJE1z1z6krfZT5FBKLcIEnM8qSMv6
-X-Received: by 2002:a19:7006:: with SMTP id h6mr43454746lfc.5.1564139784042;
-        Fri, 26 Jul 2019 04:16:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564139784; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=IIyzRbatR38ttllEYMMotwwVkanyqchmaJcpYBpIki0=;
+        b=U8rH8fGzXlcsMXH381k9ZYY9ZZ+6I4U46Mv6QqAQdukojuVSILm8OjHuGQt2eAiw4r
+         uaJnI/ZIyxI1oSQtWIBBIYv5MKbMPCNKxCCwcd7es/p+yY7L3p7zJqNnhOCDqGsv2XxB
+         pRLooZ99Ru+SrNj4vkBplTNXNezL7IXjQZLqCNRsCkP0k9zQ9eXqzWvp4OyS6iYs3KSj
+         FsQ4T/5RBdwG6WuJvtJARNZHktBJBPBWMTkntuM/b76HQF974bFnH4ax1NaJXTqMfiY+
+         Yrh1145em211MrGfQf+wnuTi/j7WB58uUgtDARFXNwtwmuMsKm33PyzWuinK6m4FqPT0
+         ZbjQ==
+X-Gm-Message-State: APjAAAXwkYLQVKYSdOnIdMAIWY+bayJSSWBYrJpzieUmRGLZO+VV2hq7
+	gRaUwBrtkJWgAa0FwNxL+HOQTnr3bKhFA5qZa/hEw7jncE7HqQEsBD3eFQPF8xbJW5LQGRk3FSh
+	O7FLiZaBzFODq6jaLl317nwhL06jE77WdiOAPN4NSRrG6z+lgy/svLhFg8O4fXAjglQ==
+X-Received: by 2002:a2e:890c:: with SMTP id d12mr47912069lji.103.1564141530155;
+        Fri, 26 Jul 2019 04:45:30 -0700 (PDT)
+X-Received: by 2002:a2e:890c:: with SMTP id d12mr47912031lji.103.1564141529251;
+        Fri, 26 Jul 2019 04:45:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564141529; cv=none;
         d=google.com; s=arc-20160816;
-        b=Zjdx7jcldHUivHiKgcIIJb+OCNarArTU2ZjBbCA6dvgpmS85lighDzSJXVtvh9elTA
-         1yWayRQ6adk4in0spHSh/am6Zd8J84A/q3CaFDtPFoPhbP+PifTSHnSYAtxWj/oudT1C
-         Oij742Cu4AiGhHFzWE/vYUGnPtnYbzK9db0hg5ULJB6wYhqRle4jvOTUb0hiVp7ljYzi
-         tOp2X1oBvQ2TW6MDXjAUfjL1S7rl1GlrdPHu/8iVxMfs9PT1m6w99gvKltV4Bpm0h+Vl
-         LBuuK/I7DwVschbJwiyrAUK8Xzf4dNximsn9icX+41n8K2Sbwc90NnSxEDkd2y5Z0hak
-         h6YQ==
+        b=n+FaGc3xArdOmg2FyY6bI8ZrxLg5LWM1x1Liw3kne+cEBYvFo8GRD8gVZ8IrW9csb1
+         Y00wmfKeBEaOSZ1ch2R4ATtya/dKOxh5iua8YbO4mgYLBpWyLd+IQ32AiqEYU5OzQaN3
+         pnoavreAQHJ099xqTU30Sv5orPps4GQCknyc1Y9N3hSHujAb7p92YzQgcz0YBrSO4vJW
+         GoE4vSdJOFUAxDIxBgvm4gz67sQbH197gACmBSU6ypIXhr2YHZhPZRwLymh4bgJcT68b
+         OJUVWHrk7QAesK0vZZtWRVtZIUJ9GWTWxJEcBCgav4UnDhkugTCfwsRwAyrJo+iWqTBB
+         ExtA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=ecwFC3fgXFrOWyG9ohvQQEeG7yd0wdelvg82Hk6eDDo=;
-        b=ZHJrCH0Nx1zgpWEzr8RZGHdv1l4hpLdnzJmddXaGrAtCxWIQqvA7xqQq/vwqLmJbyc
-         u12YWBEHTioeUk9OKwHMy6EbBCcrNFw6VYfIDW4x7JlTpLq9cOyEHGF2HpA1QZMC8TtJ
-         6K6GHcsNwDkDoZLuSG5wkgTxifEd64G+3zZkIsncJZRQuhSBiFTF2+1z/OF5/agSvgu4
-         6msIwkNDMSSbfF9IrUc4uPBwzoD0vNYmC6TuTqIOEPzLwdfGDqkhrZdxYj7RV4nfCEeT
-         2XDpRUDJmdzNbTzsJqJUv9YVrqJ3u13n1jhVmLg2oQvdpgBVVgtpVkODCGORiN2CYLP9
-         4zsg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=IIyzRbatR38ttllEYMMotwwVkanyqchmaJcpYBpIki0=;
+        b=fXtKnMSz/PK9W8xb7Md6BDLfXXTDFu1Bju/CuWSP6RmYwHM7aprp6zndQuXMaRc2vL
+         fgaHXO7hgsFPYNqrMrG8jYyIHgwYbXFqxDEvGN09Au74Ng3rN8aVVTTOCwDZQOq1aTnT
+         nZvB8pDfQAzLiE8rqW78XvVDhCb27BoLKhkKta8wZTOtZzn4kKQYA4TAKOC+yb/Tw85k
+         2VlbEi0U1sz4E0vpXsjbhQeIeGc0cEr20O4Ee0nmNhYbguM/dZvoHJwtnYy5Pvzfgndg
+         3KADY0K0VMxdOihr/M5hYyc9Yo9RskG/z/dlmtMfF+n9RqHANiHYYitFQdruduixmlbS
+         2pbQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=nXCB8f2m;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1a2d::193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from forwardcorp1o.mail.yandex.net (forwardcorp1o.mail.yandex.net. [2a02:6b8:0:1a2d::193])
-        by mx.google.com with ESMTPS id e16si45142076ljh.141.2019.07.26.04.16.23
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=pETxnGiW;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y23sor29033222ljk.21.2019.07.26.04.45.29
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jul 2019 04:16:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1a2d::193 as permitted sender) client-ip=2a02:6b8:0:1a2d::193;
+        (Google Transport Security);
+        Fri, 26 Jul 2019 04:45:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=nXCB8f2m;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1a2d::193 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from mxbackcorp2j.mail.yandex.net (mxbackcorp2j.mail.yandex.net [IPv6:2a02:6b8:0:1619::119])
-	by forwardcorp1o.mail.yandex.net (Yandex) with ESMTP id 3998E2E0B10;
-	Fri, 26 Jul 2019 14:16:23 +0300 (MSK)
-Received: from smtpcorp1p.mail.yandex.net (smtpcorp1p.mail.yandex.net [2a02:6b8:0:1472:2741:0:8b6:10])
-	by mxbackcorp2j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id jtgl0cVK3U-GLNGEp2n;
-	Fri, 26 Jul 2019 14:16:23 +0300
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
-	t=1564139783; bh=ecwFC3fgXFrOWyG9ohvQQEeG7yd0wdelvg82Hk6eDDo=;
-	h=In-Reply-To:Message-ID:From:Date:References:To:Subject:Cc;
-	b=nXCB8f2mA72AK22inribUdeAvInMoGaGhDsBuAZjGmmM4hrqaBbywNFVKpV41OPyG
-	 AYUfWwnLk39G30OJBeO5YcN/PQ5yq981pXG1Q1GJv8ETRhInUCv1DI3FPrdeE0HseW
-	 F/QCK72cDUk+Fr/LcXRIYG2ccu4U0Lxp4GdrZobE=
-Authentication-Results: mxbackcorp2j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
-Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:38b3:1cdf:ad1a:1fe1])
-	by smtpcorp1p.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id PWLMWYfpFd-GK6SXEm5;
-	Fri, 26 Jul 2019 14:16:21 +0300
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(Client certificate not present)
-Subject: Re: [PATCH v1 1/2] mm/page_idle: Add support for per-pid page_idle
- using virtual indexing
-To: Joel Fernandes <joel@joelfernandes.org>
-Cc: Minchan Kim <minchan@kernel.org>, linux-kernel@vger.kernel.org,
- vdavydov.dev@gmail.com, Brendan Gregg <bgregg@netflix.com>,
- kernel-team@android.com, Alexey Dobriyan <adobriyan@gmail.com>,
- Al Viro <viro@zeniv.linux.org.uk>, Andrew Morton
- <akpm@linux-foundation.org>, carmenjackson@google.com,
- Christian Hansen <chansen3@cisco.com>,
- Colin Ian King <colin.king@canonical.com>, dancol@google.com,
- David Howells <dhowells@redhat.com>, fmayer@google.com, joaodias@google.com,
- Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
- Kirill Tkhai <ktkhai@virtuozzo.com>, linux-doc@vger.kernel.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
- Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.ibm.com>,
- namhyung@google.com, sspatil@google.com
-References: <20190722213205.140845-1-joel@joelfernandes.org>
- <20190723061358.GD128252@google.com> <20190723142049.GC104199@google.com>
- <20190724042842.GA39273@google.com> <20190724141052.GB9945@google.com>
- <c116f836-5a72-c6e6-498f-a904497ef557@yandex-team.ru>
- <20190726000654.GB66718@google.com>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <9cba9acb-9451-a53e-278d-92f7b66ae20b@yandex-team.ru>
-Date: Fri, 26 Jul 2019 14:16:20 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=pETxnGiW;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=joelfernandes.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=IIyzRbatR38ttllEYMMotwwVkanyqchmaJcpYBpIki0=;
+        b=pETxnGiWkSphfi8/+4c4u+22brSho8PFLYphcLagT7bB4i3SZD16fRKJ1ZGb4qp9QL
+         XlEsF8oKodWUi4PTu9/XdlUG9gA1pNqyjoA1KsmDLbgysBzBCd4nQcFsDELuCIbpAPhL
+         21AoZAsF7HFuXv/4+6Ros9QR2I6qyBtvICViA=
+X-Google-Smtp-Source: APXvYqy1v+K91LR9Uqf7ttTOrc82KHvHW4Tm7nxGruwvykh6mSwzjj9McmHGuJKaCGbsiBx37LheJaMcKc4BiMCDW/c=
+X-Received: by 2002:a2e:3602:: with SMTP id d2mr13542107lja.112.1564141528767;
+ Fri, 26 Jul 2019 04:45:28 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190726000654.GB66718@google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
+References: <3b922aa4-c6d4-e4a4-766d-f324ff77f7b5@linux.com>
+ <40f8b7d8-fafa-ad99-34fb-9c63e34917e2@redhat.com> <CALAqxLU199ATrMFa2ARmHOZ3K6ZnOuDLSAqNrTfwOWJaYiW7Yg@mail.gmail.com>
+ <CALAqxLU0VUp=PGx5=JuVp6c5gwLqpSZJxs7ieL631QhdzNQTyA@mail.gmail.com>
+In-Reply-To: <CALAqxLU0VUp=PGx5=JuVp6c5gwLqpSZJxs7ieL631QhdzNQTyA@mail.gmail.com>
+From: Joel Fernandes <joel@joelfernandes.org>
+Date: Fri, 26 Jul 2019 07:45:17 -0400
+Message-ID: <CAEXW_YQFKhfS=2-LkkDkSg_1XzWh9WUa__nWjqxL0Uts9yyDdg@mail.gmail.com>
+Subject: Re: Limits for ION Memory Allocator
+To: John Stultz <john.stultz@linaro.org>
+Cc: Laura Abbott <labbott@redhat.com>, alex.popov@linux.com, 
+	Sumit Semwal <sumit.semwal@linaro.org>, Greg Kroah-Hartman <gregkh@linuxfoundation.org>, 
+	=?UTF-8?B?QXJ2ZSBIasO4bm5ldsOlZw==?= <arve@android.com>, 
+	Todd Kjos <tkjos@android.com>, Martijn Coenen <maco@android.com>, 
+	Christian Brauner <christian@brauner.io>, Riley Andrews <riandrews@android.com>, 
+	driverdevel <devel@driverdev.osuosl.org>, 
+	"moderated list:DMA BUFFER SHARING FRAMEWORK" <linaro-mm-sig@lists.linaro.org>, 
+	linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, 
+	dri-devel <dri-devel@lists.freedesktop.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Brian Starkey <brian.starkey@arm.com>, Daniel Vetter <daniel.vetter@intel.com>, 
+	Mark Brown <broonie@kernel.org>, Benjamin Gaignard <benjamin.gaignard@linaro.org>, 
+	Linux-MM <linux-mm@kvack.org>, Dmitry Vyukov <dvyukov@google.com>, 
+	Andrey Konovalov <andreyknvl@google.com>, syzkaller <syzkaller@googlegroups.com>, 
+	Hridya Valsaraju <hridya@google.com>, Alistair Delva <adelva@google.com>, Chenbo Feng <fengc@google.com>, 
+	Erick Reyes <erickreyes@google.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 26.07.2019 3:06, Joel Fernandes wrote:
-> On Thu, Jul 25, 2019 at 11:15:53AM +0300, Konstantin Khlebnikov wrote:
-> [snip]
->>>>> Thanks for bringing up the swapping corner case..  Perhaps we can improve
->>>>> the heap profiler to detect this by looking at bits 0-4 in pagemap. While it
->>>>
->>>> Yeb, that could work but it could add overhead again what you want to remove?
->>>> Even, userspace should keep metadata to identify that page was already swapped
->>>> in last period or newly swapped in new period.
->>>
->>> Yep.
->> Between samples page could be read from swap and swapped out back multiple times.
->> For tracking this swap ptes could be marked with idle bit too.
->> I believe it's not so hard to find free bit for this.
->>
->> Refault\swapout will automatically clear this bit in pte even if
->> page goes nowhere stays if swap-cache.
-> 
-> Could you clarify more about your idea? Do you mean swapout will clear the new
-> idle swap-pte bit if the page was accessed just before the swapout? >
-> Instead, I thought of using is_swap_pte() to detect if the PTE belong to a
-> page that was swapped. And if so, then assume the page was idle. Sure we
-> would miss data that the page was accessed before the swap out in the
-> sampling window, however if the page was swapped out, then it is likely idle
-> anyway.
+On Wed, Jul 24, 2019 at 4:24 PM John Stultz <john.stultz@linaro.org> wrote:
+>
+> On Wed, Jul 24, 2019 at 1:18 PM John Stultz <john.stultz@linaro.org> wrote:
+> >
+> > On Wed, Jul 24, 2019 at 12:36 PM Laura Abbott <labbott@redhat.com> wrote:
+> > >
+> > > On 7/17/19 12:31 PM, Alexander Popov wrote:
+> > > > Hello!
+> > > >
+> > > > The syzkaller [1] has a trouble with fuzzing the Linux kernel with ION Memory
+> > > > Allocator.
+> > > >
+> > > > Syzkaller uses several methods [2] to limit memory consumption of the userspace
+> > > > processes calling the syscalls for testing the kernel:
+> > > >   - setrlimit(),
+> > > >   - cgroups,
+> > > >   - various sysctl.
+> > > > But these methods don't work for ION Memory Allocator, so any userspace process
+> > > > that has access to /dev/ion can bring the system to the out-of-memory state.
+> > > >
+> > > > An example of a program doing that:
+> > > >
+> > > >
+> > > > #include <sys/types.h>
+> > > > #include <sys/stat.h>
+> > > > #include <fcntl.h>
+> > > > #include <stdio.h>
+> > > > #include <linux/types.h>
+> > > > #include <sys/ioctl.h>
+> > > >
+> > > > #define ION_IOC_MAGIC         'I'
+> > > > #define ION_IOC_ALLOC         _IOWR(ION_IOC_MAGIC, 0, \
+> > > >                                     struct ion_allocation_data)
+> > > >
+> > > > struct ion_allocation_data {
+> > > >       __u64 len;
+> > > >       __u32 heap_id_mask;
+> > > >       __u32 flags;
+> > > >       __u32 fd;
+> > > >       __u32 unused;
+> > > > };
+> > > >
+> > > > int main(void)
+> > > > {
+> > > >       unsigned long i = 0;
+> > > >       int fd = -1;
+> > > >       struct ion_allocation_data data = {
+> > > >               .len = 0x13f65d8c,
+> > > >               .heap_id_mask = 1,
+> > > >               .flags = 0,
+> > > >               .fd = -1,
+> > > >               .unused = 0
+> > > >       };
+> > > >
+> > > >       fd = open("/dev/ion", 0);
+> > > >       if (fd == -1) {
+> > > >               perror("[-] open /dev/ion");
+> > > >               return 1;
+> > > >       }
+> > > >
+> > > >       while (1) {
+> > > >               printf("iter %lu\n", i);
+> > > >               ioctl(fd, ION_IOC_ALLOC, &data);
+> > > >               i++;
+> > > >       }
+> > > >
+> > > >       return 0;
+> > > > }
+> > > >
+> > > >
+> > > > I looked through the code of ion_alloc() and didn't find any limit checks.
+> > > > Is it currently possible to limit ION kernel allocations for some process?
+> > > >
+> > > > If not, is it a right idea to do that?
+> > > > Thanks!
+> > > >
+> > >
+> > > Yes, I do think that's the right approach. We're working on moving Ion
+> > > out of staging and this is something I mentioned to John Stultz. I don't
+> > > think we've thought too hard about how to do the actual limiting so
+> > > suggestions are welcome.
+> >
+> > In part the dmabuf heaps allow for separate heap devices, so we can
+> > have finer grained permissions to the specific heaps.  But that
+> > doesn't provide any controls on how much memory one process could
+> > allocate using the device if it has permission.
+> >
+> > I suspect the same issue is present with any of the dmabuf exporters
+> > (gpu/display drivers, etc), so this is less of an ION/dmabuf heap
+> > issue and more of a dmabuf core accounting issue.
+> >
+>
+> Also, do unmapped memfd buffers have similar accounting issues?
+>
 
+The syzcaller bot didn't complain about this for memfd yet, so I suspect not ;-)
 
-I mean page might be in swap when you mark pages idle and
-then been accessed and swapped back before second pass.
+With memfd since it uses shmem underneath, __vm_enough_memory() is
+called during shmem_acct_block() which should take per-process memory
+into account already and fail if there is not enough memory.
 
-I propose marking swap pte with idle bit which will be automatically
-cleared by following swapin/swapout pair:
+Should ION be doing something similar to fail if there's not enough memory?
 
-page alloc -> install page pte
-page swapout -> install swap entry in pte
-mark vm idle -> set swap-idle bit in swap pte
-access/swapin -> install page pte (clear page idle if set)
-page swapout -> install swap entry in pte (without swap idle bit)
-scan vm idle -> see swap entry without idle bit -> page has been accessed since marking idle
+thanks,
 
-One bit in pte is enough for tracking. This does not needs any propagation for
-idle bits between page and swap, or marking pages as idle in swap cache.
-
-> 
-> My current patch was just reporting swapped out pages as non-idle (idle bit
-> not set) which is wrong as Minchan pointed. So I added below patch on top of
-> this patch (still testing..) :
-> 
-> thanks,
-> 
->   - Joel
-> ---8<-----------------------
-> 
-> diff --git a/mm/page_idle.c b/mm/page_idle.c
-> index 3667ed9cc904..46c2dd18cca8 100644
-> --- a/mm/page_idle.c
-> +++ b/mm/page_idle.c
-> @@ -271,10 +271,14 @@ struct page_idle_proc_priv {
->   	struct list_head *idle_page_list;
->   };
->   
-> +/*
-> + * Add a page to the idle page list.
-> + * page can also be NULL if pte was not present or swapped.
-> + */
->   static void add_page_idle_list(struct page *page,
->   			       unsigned long addr, struct mm_walk *walk)
->   {
-> -	struct page *page_get;
-> +	struct page *page_get = NULL;
->   	struct page_node *pn;
->   	int bit;
->   	unsigned long frames;
-> @@ -290,9 +294,11 @@ static void add_page_idle_list(struct page *page,
->   			return;
->   	}
->   
-> -	page_get = page_idle_get_page(page);
-> -	if (!page_get)
-> -		return;
-> +	if (page) {
-> +		page_get = page_idle_get_page(page);
-> +		if (!page_get)
-> +			return;
-> +	}
->   
->   	pn = &(priv->page_nodes[priv->cur_page_node++]);
->   	pn->page = page_get;
-> @@ -326,6 +332,15 @@ static int pte_page_idle_proc_range(pmd_t *pmd, unsigned long addr,
->   
->   	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
->   	for (; addr != end; pte++, addr += PAGE_SIZE) {
-> +		/*
-> +		 * We add swapped pages to the idle_page_list so that we can
-> +		 * reported to userspace that they are idle.
-> +		 */
-> +		if (is_swap_pte(*pte)) {
-> +			add_page_idle_list(NULL, addr, walk);
-> +			continue;
-> +		}
-> +
->   		if (!pte_present(*pte))
->   			continue;
->   
-> @@ -413,10 +428,12 @@ ssize_t page_idle_proc_generic(struct file *file, char __user *ubuff,
->   			goto remove_page;
->   
->   		if (write) {
-> -			page_idle_clear_pte_refs(page);
-> -			set_page_idle(page);
-> +			if (page) {
-> +				page_idle_clear_pte_refs(page);
-> +				set_page_idle(page);
-> +			}
->   		} else {
-> -			if (page_really_idle(page)) {
-> +			if (!page || page_really_idle(page)) {
->   				off = ((cur->addr) >> PAGE_SHIFT) - start_frame;
->   				bit = off % BITMAP_CHUNK_BITS;
->   				index = off / BITMAP_CHUNK_BITS;
-> 
+- Joel
 
