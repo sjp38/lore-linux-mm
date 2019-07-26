@@ -2,242 +2,163 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,URIBL_SBL,URIBL_SBL_A autolearn=ham
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CC4FDC7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:07:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 464E3C7618B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:11:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8284022ADA
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:07:26 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BPeMjEKC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8284022ADA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 125B7229F9
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 10:11:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 125B7229F9
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2130D6B0003; Fri, 26 Jul 2019 06:07:26 -0400 (EDT)
+	id A269F6B0003; Fri, 26 Jul 2019 06:11:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1C5A76B0005; Fri, 26 Jul 2019 06:07:26 -0400 (EDT)
+	id 9AED46B0005; Fri, 26 Jul 2019 06:11:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B22D8E0002; Fri, 26 Jul 2019 06:07:26 -0400 (EDT)
+	id 877FD8E0002; Fri, 26 Jul 2019 06:11:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DC55D6B0003
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 06:07:25 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id h3so58213205iob.20
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 03:07:25 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3BA746B0003
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 06:11:45 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id i9so33809745edr.13
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 03:11:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=4X7dJz0Q3o8b1ySlXDx7Q5cdcZy+ZQXi1CPIE/+w3pc=;
-        b=dptVJ7DPh3PrRuGQ+VsrS41U+GSPnHvQc0qeC1h6czC5vlw9qcilJ1M6Owkl8XQkIo
-         iYg7pvkoolSoIX6z6jljh0YpIcD77hVIjeoyworIuSqN+cxh92Gm+31P8RSHkSLgv2P1
-         CkA7EUqyfbcknhyV241/Ugt0fBqm1w7Ufhq43lIz6ExBpOP5v0kN712iAN9MvMtPXbiu
-         siWYXArinzf1O0i3aQE9IvSAezv4nSCyKmNdzf6veigh21uPfzmUaPS2jez8HSp20rrS
-         DyqZMzNaJJ5w2A4ygaeemgT5W5nOkauBq78WwW/LpiIVyrQ0ktlj2vhnFWTKWX+yE33v
-         hzxA==
-X-Gm-Message-State: APjAAAUxBq1osYgmV47T8q2hTdLYlKONlg5efyQgXze92PfSeyEN5FRX
-	2pFv4VLyllF63XvQ0H7itUh1uPAFIzB3Bc5VTeWb/waxazrP2iRauWkMbk8fPrZEaQYwYY2pegP
-	20U0KcYDWmg8Vk/m2RuBdgvtYc+qxZwrb3Dku5SdP3XAjL2B/L5Km1AqVJsxNSrke0Q==
-X-Received: by 2002:a6b:7109:: with SMTP id q9mr5147529iog.30.1564135645559;
-        Fri, 26 Jul 2019 03:07:25 -0700 (PDT)
-X-Received: by 2002:a6b:7109:: with SMTP id q9mr5147466iog.30.1564135644629;
-        Fri, 26 Jul 2019 03:07:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564135644; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=3mUbzPn3v1wYU/lFRDR2NcphYlTAt4oilMtMauvvm5c=;
+        b=MdkNw0rrl1qMdwckv1zvKXjPlZCOAEsNbze3oYn1iUJI+WD191k6v66vYHZwaOIEHl
+         IhMM5bVHH1SqiJRRZoyshdqOa3SJUiTxhW3wZjsb1Z720jwO10zKhPu0HWr3m7VZaHck
+         khUVLwU28xuJxInp+V8qbxDT2Q5a8UIV4Uu2JXtn7CR6ipNgWI8IbctNbY6Nh0+hWidE
+         /8AjzsmWQ0kr2rgmMWQhINv1bLtRBqqoIwEG50omm3piRCkK+NJM6Jiiu8oVMWF9hhJu
+         MIuCMvZ54Mqd17ghQgCj8l6l3cHTBh8xjK02VV52aCXgsd2K61Yr/Yb8BU+JlZalTNMZ
+         qLxA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Gm-Message-State: APjAAAV25G1c03ewt7APP1CDIyRQDxb4V4SyvqMvN0QJGXn9NU+j6fAh
+	TaREXFGBoLLvoZNi7cIXBl1+x7uw4TUeWhdDnVEiIbRtqpo7X6u4oJkCJAkrmrc/Rf9Qa4nwe/9
+	jXKfH3uK5Ekz3gr0gSlmKy6mk7vPAqX6pJvDG4gLoPyyvKRGQms2NVdnaqIzdaTHOHg==
+X-Received: by 2002:a50:d2d3:: with SMTP id q19mr81268589edg.64.1564135904756;
+        Fri, 26 Jul 2019 03:11:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwUui18OFPdYX18BVW5wQKSCSDtynWF20LXq56JXfCXAeuoc8dF16VF/iQW1hMD9NdYV9hF
+X-Received: by 2002:a50:d2d3:: with SMTP id q19mr81268503edg.64.1564135903939;
+        Fri, 26 Jul 2019 03:11:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564135903; cv=none;
         d=google.com; s=arc-20160816;
-        b=ILuHB8lCvXzvBHqEYMaJwHwCyOi/kHIYirijSasxjQYIhu5a8M8tjh0tqNrO7fSw34
-         5GW8vXI3sHbRtK+L2X79c0y4ER+uTy5CQAUffonY5BSbvO6swffTMN5i1IkUicCQZYRH
-         sYJyTf4L4+qkcWx409Zlimg3zhhFdE8Hlo9j/ro5YKuPTVtEvN0X+CoUSUmlcSQYJgyS
-         xkoYYvCGCCeUCiZbZdWv45zu/bYEjWFHfWh1zCn2cxetx0abyp8bMNUn1HFfVTMa3HjN
-         waAnlIRjbTyIn59r6lXDEkpEAXF0eAOiBu2aDmD/ydOKpxpHh74bBj0sK+8BWXgYxABd
-         +/hQ==
+        b=dfee/Qg65TOvbyPvQecH4IqwSJ12selz7zJPbzkfX+6yzaCm0d7AFMlebOyN3JtCdu
+         rN174VZnSBpoyQTfjSVAhNhVqGYgJS3f4zRn01UomGjAOriT1tR32o/dncj9+IB5ZhA2
+         oh0IAX5HY2kvIgavJcvPFGqkNWLaJj+3oC1lXtzPprhh/x4KpsZcaGtPwbFosDL7N7Zz
+         46JqJ8vLTxdsejkQAeDjc93c3G1i7nYygb9w6siPkNt8WneNMKN7OcMfrdgfAy2TuI5o
+         0Zf93m0WR6yY33YbG31XEchCeZJDkGdtlxk4yZjJ4FcWyvBTeZL6oU2kfbrvJ0bZypZw
+         VKEA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=4X7dJz0Q3o8b1ySlXDx7Q5cdcZy+ZQXi1CPIE/+w3pc=;
-        b=z3cPyHvDP2tZfAjY3gGgMU6X9SPIK6bDCW+IaFy5o9OIXBfO4zbNlQxnuylRnHzVK8
-         2eMbMixl5BwZh3JcMQWLgRmB5+ouFIQ3QpZxiLBU5ysWuV43e2ilQywQigLN4KHpqoMp
-         oZIFZ/9oJCm2VzJ8x29B8lCBsAV59uVw0ubyYXMKhMS9oBzXIbsJXdR704dAByxl34rY
-         r7RywxwIaAI8qSNOEgdjoACNlqfoUZR3ExwlkLWc7SqTxvkFy2zGcOpUnj+//gevsGju
-         UHOBjorLbVU0oBmM2X03cZ9qWqI9jWoYZI7ys4pfRpHc2pkHV/9kf9252nPHYjtSSG+V
-         IARA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=3mUbzPn3v1wYU/lFRDR2NcphYlTAt4oilMtMauvvm5c=;
+        b=fAFxDKTSDl9JeBvOHJdib4WdQRp/KIdgKvo1g/nkiEJ8n858Rpfee1bHuDLXQxpBG/
+         rHtsVZ3li6L1lc2hndQm/rkUBj48nVuwjoYOI2of6QDO4v27m7JoPKlokP+EbVx5DtHN
+         pVW1LV4GPWWIsLGZgihwkYZ2ByaTevGrxqnRsS5gY6fXGWz8e5Va3HA137xfzeoO89Gr
+         LQJf7Ym6kPmzfBucRIgaIt5DjFZKH16T2ThKaYAmm4DhhkJkSDfQivq6IvvKLq4lYzoh
+         RA0SX9HJa/H8p8XJAe1ppMMVZcrx8MYetuJ3mEbYQj8/F+aGrtVyyQoFFVSxPWcsBPtG
+         L7/w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BPeMjEKC;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m15sor37464910iol.1.2019.07.26.03.07.24
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id l8si11210893ejq.134.2019.07.26.03.11.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 26 Jul 2019 03:07:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 26 Jul 2019 03:11:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BPeMjEKC;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=4X7dJz0Q3o8b1ySlXDx7Q5cdcZy+ZQXi1CPIE/+w3pc=;
-        b=BPeMjEKCjXcf7yzyl5kXB+2uunNLhlruFEoIMtH6jXPb0G1yS8bwj7gCUH+AMh6iTz
-         T3qterbmGgQOg9ratADOEX+7B9LiIxNIPpeSEAD2fbqON192EgGkKos/1k7nsJ8otH4N
-         g7o6Vn/LgLtUgr4Ot+ipItOY9AWmSYoEjYl0Kxwgr1BJKK+1j9kC7Fxd+5PGOGIGa0uX
-         2plECn0EheztbdsxuBdftu4uSzdJE7P+L63XgAHBCjxB3ltW3qR2+Ebu1NaxytMm8UeQ
-         Eej+fPswJEF3txtbai6YjddL1yQ/hQSM+QS5GUjE5nzbEXnLTbTifExzIilDwYz1SwZj
-         nQAQ==
-X-Google-Smtp-Source: APXvYqznza6sV+ZaE9zlB3w1qdTK2PGB3SEG5oNBF0BY5Cl2JzsKK/WmV9UV7hsb93MF/KrTH5UO3us8PO0srOrE094=
-X-Received: by 2002:a5d:8702:: with SMTP id u2mr67995076iom.228.1564135644373;
- Fri, 26 Jul 2019 03:07:24 -0700 (PDT)
+       spf=pass (google.com: domain of osalvador@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=osalvador@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 79544B634;
+	Fri, 26 Jul 2019 10:11:43 +0000 (UTC)
+Date: Fri, 26 Jul 2019 12:11:40 +0200
+From: Oscar Salvador <osalvador@suse.de>
+To: David Hildenbrand <david@redhat.com>
+Cc: akpm@linux-foundation.org, dan.j.williams@intel.com,
+	pasha.tatashin@soleen.com, mhocko@suse.com,
+	anshuman.khandual@arm.com, Jonathan.Cameron@huawei.com,
+	vbabka@suse.cz, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH v3 2/5] mm: Introduce a new Vmemmap page-type
+Message-ID: <20190726101136.GA26721@linux>
+References: <20190725160207.19579-1-osalvador@suse.de>
+ <20190725160207.19579-3-osalvador@suse.de>
+ <7e8746ac-6a66-d73c-9f2a-4fc53c7e4c04@redhat.com>
+ <20190726092548.GA26268@linux>
+ <dbd19aea-fe18-ec42-7932-f03109cb399e@redhat.com>
 MIME-Version: 1.0
-References: <1564062621-8105-1-git-send-email-laoar.shao@gmail.com> <20190726070939.GA2739@techsingularity.net>
-In-Reply-To: <20190726070939.GA2739@techsingularity.net>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Fri, 26 Jul 2019 18:06:48 +0800
-Message-ID: <CALOAHbA2sHSOpZXE6E+VjdJENa-WCZCo=-=YOqyVYAhkpf+Lrg@mail.gmail.com>
-Subject: Re: [PATCH] mm/compaction: use proper zoneid for compaction_suitable()
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
-	Vlastimil Babka <vbabka@suse.cz>, Arnd Bergmann <arnd@arndb.de>, 
-	Paul Gortmaker <paul.gortmaker@windriver.com>, Rik van Riel <riel@redhat.com>, 
-	Yafang Shao <shaoyafang@didiglobal.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <dbd19aea-fe18-ec42-7932-f03109cb399e@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 26, 2019 at 3:09 PM Mel Gorman <mgorman@techsingularity.net> wrote:
->
-> On Thu, Jul 25, 2019 at 09:50:21AM -0400, Yafang Shao wrote:
-> > By now there're three compaction paths,
-> > - direct compaction
-> > - kcompactd compcation
-> > - proc triggered compaction
-> > When we do compaction in all these paths, we will use compaction_suitable()
-> > to check whether a zone is suitable to do compaction.
-> >
-> > There're some issues around the usage of compaction_suitable().
-> > We don't use the proper zoneid in kcompactd_node_suitable() when try to
-> > wakeup kcompactd. In the kcompactd compaction paths, we call
-> > compaction_suitable() twice and the zoneid isn't proper in the second call.
-> > For proc triggered compaction, the classzone_idx is always zero.
-> >
-> > In order to fix these issues, I change the type of classzone_idx in the
-> > struct compact_control from const int to int and assign the proper zoneid
-> > before calling compact_zone().
-> >
->
-> What is actually fixed by this?
->
+On Fri, Jul 26, 2019 at 11:41:46AM +0200, David Hildenbrand wrote:
+> > static void __meminit __init_single_page(struct page *page, unsigned long pfn,
+> >                                 unsigned long zone, int nid)
+> > {
+> >         if (PageVmemmap(page))
+> >                 /*
+> >                  * Vmemmap pages need to preserve their state.
+> >                  */
+> >                 goto preserve_state;
+> 
+> Can you be sure there are no false positives? (if I remember correctly,
+> this memory might be completely uninitialized - I might be wrong)
 
-Recently there's a page alloc failure on our server because the
-compaction can't satisfy it.
-This issue is unproducible, so I have to view the compaction code and
-find out the possible solutions.
-When I'm reading these compaction code, I find some  misuse of
-compaction_suitable().
-But after you point out, I find that I missed something.
-The classzone_idx should represent the alloc request, otherwise we may
-do unnecessary compaction on a zone.
-Thanks a lot for your explaination.
+Normal pages reaching this point will be uninitialized or 
+poisoned-initialized.
 
-Hi Andrew,
+Vmemmap pages are initialized to 0 in mhp_mark_vmemmap_pages,
+before reaching here.
 
-Pls. help drop this patch. Sorry about that.
-I will think about it more.
+For the false positive to be effective, page should be reserved, and 
+page->type would have to have a specific value.
+If we feel unsure about this, I could add a new kind of check for only
+this situation, where we initialize another field of struct page
+to another specific/magic value, so we will have three checks only at
+this stage.
 
-> > This patch also fixes some comments in struct compact_control, as these
-> > fields are not only for direct compactor but also for all other compactors.
-> >
-> > Fixes: ebff398017c6("mm, compaction: pass classzone_idx and alloc_flags to watermark checking")
-> > Fixes: 698b1b30642f("mm, compaction: introduce kcompactd")
-> > Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
-> > Cc: Vlastimil Babka <vbabka@suse.cz>
-> > Cc: Arnd Bergmann <arnd@arndb.de>
-> > Cc: Paul Gortmaker <paul.gortmaker@windriver.com>
-> > Cc: Rik van Riel <riel@redhat.com>
-> > Cc: Yafang Shao <shaoyafang@didiglobal.com>
-> > ---
-> >  mm/compaction.c | 12 +++++-------
-> >  mm/internal.h   | 10 +++++-----
-> >  2 files changed, 10 insertions(+), 12 deletions(-)
-> >
-> > diff --git a/mm/compaction.c b/mm/compaction.c
-> > index ac4ead0..984dea7 100644
-> > --- a/mm/compaction.c
-> > +++ b/mm/compaction.c
-> > @@ -2425,6 +2425,7 @@ static void compact_node(int nid)
-> >                       continue;
-> >
-> >               cc.zone = zone;
-> > +             cc.classzone_idx = zoneid;
-> >
-> >               compact_zone(&cc, NULL);
-> >
-> > @@ -2508,7 +2509,7 @@ static bool kcompactd_node_suitable(pg_data_t *pgdat)
-> >                       continue;
-> >
-> >               if (compaction_suitable(zone, pgdat->kcompactd_max_order, 0,
-> > -                                     classzone_idx) == COMPACT_CONTINUE)
-> > +                                     zoneid) == COMPACT_CONTINUE)
-> >                       return true;
-> >       }
-> >
->
-> This is a semantic change. The use of the classzone_idx here and not
-> classzone_idx is so that the watermark check takes the lowmem reserves
-> into account in the __zone_watermark_ok check. This means that
-> compaction is more likely to proceed but not necessarily correct.
->
-> > @@ -2526,7 +2527,6 @@ static void kcompactd_do_work(pg_data_t *pgdat)
-> >       struct compact_control cc = {
-> >               .order = pgdat->kcompactd_max_order,
-> >               .search_order = pgdat->kcompactd_max_order,
-> > -             .classzone_idx = pgdat->kcompactd_classzone_idx,
-> >               .mode = MIGRATE_SYNC_LIGHT,
-> >               .ignore_skip_hint = false,
-> >               .gfp_mask = GFP_KERNEL,
-> > @@ -2535,7 +2535,7 @@ static void kcompactd_do_work(pg_data_t *pgdat)
-> >                                                       cc.classzone_idx);
-> >       count_compact_event(KCOMPACTD_WAKE);
-> >
-> > -     for (zoneid = 0; zoneid <= cc.classzone_idx; zoneid++) {
-> > +     for (zoneid = 0; zoneid <= pgdat->kcompactd_classzone_idx; zoneid++) {
-> >               int status;
-> >
-> >               zone = &pgdat->node_zones[zoneid];
->
-> This variable can be updated by a wakeup while the loop is executing
-> making the loop more difficult to reason about given the exit conditions
-> can change.
->
+> 
+> > 
+> >         mm_zero_struct_page(page);
+> >         page_mapcount_reset(page);
+> >         INIT_LIST_HEAD(&page->lru);
+> > preserve_state:
+> >         init_page_count(page);
+> >         set_page_links(page, zone, nid, pfn);
+> >         page_cpupid_reset_last(page);
+> >         page_kasan_tag_reset(page);
+> > 
+> > So, vmemmap pages will fall within the same zone as the range we are adding,
+> > that does not change.
+> 
+> I wonder if that is the right thing to do, hmmmm, because they are
+> effectively not part of that zone (not online)
+> 
+> Will have a look at the details :)
 
-Thanks for your point out.
+I might be wrong here, but last time I checked, pages that are used for memmaps
+at boot time (not hotplugged), are still linked to some zone.
 
-But seems there're still issues event without my change ?
-For example,
-If we call wakeup_kcompactd() while the kcompactd is running,
-we just modify the kcompactd_max_order and kcompactd_classzone_idx and
-then return.
-Then in another path, the wakeup_kcompactd() is called again,
-so kcompactd_classzone_idx and kcompactd_max_order will be override,
-that means the previous wakeup is missed.
-Right ?
+Will have to double check though.
+
+If that is not case, it would be easier, but I am afraid it is.
 
 
-> Please explain what exactly this patch is fixing and why it should be
-> done because it currently appears to be making a number of subtle
-> changes without justification.
->
-> --
-> Mel Gorman
-> SUSE Labs
+-- 
+Oscar Salvador
+SUSE L3
 
