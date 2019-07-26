@@ -2,114 +2,113 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,URIBL_SBL,URIBL_SBL_A,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 085F4C7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 13:41:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D543DC76191
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 13:41:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B743222BE8
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 13:41:02 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9E14122CC3
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 13:41:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Fw6HTIlJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B743222BE8
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="OjjpPW7v"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9E14122CC3
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B386D6B0008; Fri, 26 Jul 2019 09:41:01 -0400 (EDT)
+	id EDFE26B000A; Fri, 26 Jul 2019 09:41:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AC0A06B000A; Fri, 26 Jul 2019 09:41:01 -0400 (EDT)
+	id E6ADC8E0003; Fri, 26 Jul 2019 09:41:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 913E78E0002; Fri, 26 Jul 2019 09:41:01 -0400 (EDT)
+	id CBD6C8E0002; Fri, 26 Jul 2019 09:41:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AA616B0008
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 09:41:01 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i2so33229000pfe.1
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 06:41:01 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 897D06B000A
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 09:41:03 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id r142so33182682pfc.2
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 06:41:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=MGg0FzB3p0TMwh4TZ9VIwTM0GGTGoxcaifJgS0GBTNE=;
-        b=TY3QK2rLjAUBQex5WHL20Z12zoAq+3z2wBBVdBy1LekAKh43gsssWnTcWmrcLKz8nu
-         rk5VbZEVHUJ1sb9f+KnxfSWBvxXUvuRlJUPao57GvWIm7ddyyrAb7T4nKdNUwuQsjsH8
-         0nQxb+iV2EdGJ+Cj7qstIcJa3KDTZIfmNVumu/COH44CX2gbSNYd8EM1qdMXDNyNYl4B
-         gO6k6OZD2wLRkzSYZakhj75xtV9mFLszecZGEOi4YlL0BxE52jtllGnAQ1fNMHx25xtk
-         tKVPXQXX3w6LYXu41pwrRsgmn56ychVSS0JO/V2GjcGVFTCD2DRUwqh28pu9h/2A71fu
-         FeKw==
-X-Gm-Message-State: APjAAAWsOPW1UMgG0EKFqSr7tW2L6ovHSyebxwRvjsjOEXRZ2Ugg3z8n
-	1+KFvBK/Le5Gn79NJSzLwyrukDM+Qnps2TQrISmGl3U5RKmJ0Ty9g3ik1d3PwXROVwZiLkMFUd/
-	iRbwB8+NMSQgdq1P4ScqZOMQ7geSL3gcWF4L6fQSS9oWhgKguQUS9oRdKVIhulellJg==
-X-Received: by 2002:a65:5188:: with SMTP id h8mr58792508pgq.294.1564148460836;
-        Fri, 26 Jul 2019 06:41:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwS4JJYrtoHxwAPp1jIIep6naQW0kUoIuWsna1JwGBHfNtC++UpGqdfp9trJeuYdS7pL8ys
-X-Received: by 2002:a65:5188:: with SMTP id h8mr58792471pgq.294.1564148460075;
-        Fri, 26 Jul 2019 06:41:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564148460; cv=none;
+        bh=JA5tYA6xzXZ3AVCMyv2jH3qpBbdyS70wQgXDaqQEbDs=;
+        b=FGOPKKSempIVPgjcSoE+7Mpz1byXknmnsEk53cQfGJ27HEEvApE0qN/r3kHyKDiPH2
+         iUcMd5wMqD7nRjSoB4acdZ37YFjb2Y5a6/BijmitFSjuL5fKv6niVHA4NituXs72a/XX
+         QJBEl7p7qkOLp5EvX/M4IYPHm/t3dzVAQognTkilPW50ZLDN9T4CAmrg/2h16hhXnTiq
+         aKlr1m8p6alVlnUpWircFFVs3k5BXfsL0SuJI5KZXJV83SG72hGiQKEyJVe7oBoyRyM4
+         tpUCUGbj3vPFFECJQysVtxn/MePMIDKToh0riS10scAPfvLlshXmTUAMjP9WDxd0BhzJ
+         NNdA==
+X-Gm-Message-State: APjAAAXU7NXI7Yu3lSptKQG9LdSIGDGXFQjTQpgfSmK6EGpmIODf3A5j
+	TgTbp8XrUZg7mgwUc8FpcLpxO//0ZbIszZt5jDJNBrRYLGDpZAei0UoyDHnXPgCHWNkuyIxs6vO
+	2LDX3CyAOj2BRQfKx0bAOv0ZwE+leGvsub+H00DljNA5p76zrTnh1SpN4BBH/4WWuuQ==
+X-Received: by 2002:a17:90a:30cf:: with SMTP id h73mr99772618pjb.42.1564148463244;
+        Fri, 26 Jul 2019 06:41:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyTRId5f6ARnN/sVcAahn9AdNZZNQbXRubl26vMk5Ptc6bjDFkdEXLEholsv0c5dYjluKoc
+X-Received: by 2002:a17:90a:30cf:: with SMTP id h73mr99772576pjb.42.1564148462617;
+        Fri, 26 Jul 2019 06:41:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564148462; cv=none;
         d=google.com; s=arc-20160816;
-        b=HRj6Vhi9uR4tYvRDzX364M6Bs7Na3/3/ugE5Jg1FNB0/qDte2bU5lcyz8/aD4ExPZ4
-         hX3u+g6VKGm6LKZTjZiImMI8SoXRrs5XsYPUUx3K1cIZNiI1zQ3xtHeSWRtUMbCZuxCQ
-         mFCrRiXU7eb9zKzGV9wMP0hXuGp2K3M8DCkTIYZB0Q4TXlyqiX1iKzpqv26o9OrWNoF3
-         GJ4Wq2j35xDm2InP5zZfIgOYYTOoAZvoEGUAqMiWZfowaRhylyJqI+p+mJ/Ei0pTqudv
-         Kir01lXHZVk6yw+F5fpKrDIZ6oUN497MR8tY3KVfBN17q0fyNiZ93F8ORggki9I9rIKQ
-         2H7Q==
+        b=YqiyVfE28SBFYJ68BwQmoOr0W33nkYb7P/nYXg61PFhwyEM+Yob4A/owmyndE+laGg
+         U2h9GK2dpHxbY6MiGEUiJd2NGBMd9vYeqktpC8iwdWcGKZMC9SmFfEGFV7XT7Jy03wDW
+         pbX0rG3ynYUi0IfOy2fC24Zmjx9jSKHKTYaQLREW6RA1Wos9pU04KUtFIH6l4M1nS0Xf
+         89sfKDCqz/XQN3HKldtWBIYk3ClffhyT6JUFKsKZVtIJjgQR1wKTyatKT+p48M5irr6o
+         /L6imvhZJoLpK+2LqxV9Zt64A/PkD4F2fY7VuSQeUadEV7Jl7tsBQvYTJ0Gufg+5LBf6
+         CnhA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=MGg0FzB3p0TMwh4TZ9VIwTM0GGTGoxcaifJgS0GBTNE=;
-        b=qcN9xcqJkKREHCGenNS5XyJIGRXko+heTZTAeNv/4FVb9qV++MXPYqxlUGSw71zk/5
-         VSDx65OdtwOZ8gJsQQ1ZoPHyzFlq3VNuJtSQyBWAbPuTh0wHp1MvwMxXIp+CAjeaaEoh
-         VSOBZn5tWPgm6DFFAEF1UDMYG89Y7umyc+t+ybXs177mDsnkXm97Plebq9FfuBd87h7s
-         K/EfCFksF+ylp7RhmgdSuAqBNTtyBQydUskNWUlPUou1aHBGA/jhRW8YtkGFus14HsnA
-         LQRjAWsE13Fq921b2N10Mc8h9KDzPBg/AD9G9QugMS6zDBE0JwxchXzU47p+SkkqP++B
-         798Q==
+        bh=JA5tYA6xzXZ3AVCMyv2jH3qpBbdyS70wQgXDaqQEbDs=;
+        b=EGuFHPA5KRuFBQcXj2r9MEkjkxdo2bEat1pua1XPOIev2O56G0b4SEPOEr96gPm85i
+         Y7IJhp8aQd6BWrVlSB410FSVOBLXOnElxdA8/2vw7b3e0dcv3aX8TiDmxYCc6Szy/1NC
+         aM2bo/VBRU3XFyorJtiHUh3HkR1LdRQ4c1vqkSwiVLFjPbes8AaoaOCoF8u1Uy0EH449
+         1y4RVQXAw8rwuwYGTMRdRNu2xSe4ip8GOGpQsvg2aA61q3LAF3dmhhL7TodAN+IgfvVE
+         BuS3cFGkSmMqKuvt5CVVHPaUukFOHnBsSdXeRfK1hlZJkgYqy/+iGOW4qb8wlmCjxJzG
+         FzgQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Fw6HTIlJ;
+       dkim=pass header.i=@kernel.org header.s=default header.b=OjjpPW7v;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id t6si20562463pfe.231.2019.07.26.06.40.59
+        by mx.google.com with ESMTPS id v10si20064395pgq.17.2019.07.26.06.41.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jul 2019 06:41:00 -0700 (PDT)
+        Fri, 26 Jul 2019 06:41:02 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Fw6HTIlJ;
+       dkim=pass header.i=@kernel.org header.s=default header.b=OjjpPW7v;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 935C122CD5;
-	Fri, 26 Jul 2019 13:40:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 3C63222CB9;
+	Fri, 26 Jul 2019 13:41:01 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1564148459;
-	bh=kL3mlcYcc+Q9jAb4Pl1atYrXYmTb6HeWN92nUpHLk3A=;
+	s=default; t=1564148462;
+	bh=Qt2/1Z3/byDB4IlQk0hOeMb7GKWf8oM+Z2eeZc24UfU=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=Fw6HTIlJ+dAqBanjdLDnU16zhOoRdqUtIylBtdNW2WzzF5FvL2Cx8vuj8jhqG1j9M
-	 M3B+u6aLF4Gk3rzzT/VYncTazb8cwYNb5xdX3nivM5JTBdyB7WLV2x2rmt8R/F2hxY
-	 U7BmMX8rV2rgejZsHmQ2yjPpYzbhRRGaDk4MvuHs=
+	b=OjjpPW7v1GN99vV9Ddsmo5b1CPZ2sil7k8KzGs2GZNcuzZBAlUvo90lUqvgiHWdug
+	 9frEFwg7ZguJGpVByRf6CNC5xSp70ex1NqD7AfNzTy/abdPwaJ1Wo2uJ4R/4S48orj
+	 o0D5y6ephx5b73+ihstS3t5CBeGDYaa876ddYqMA=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
-Cc: Yafang Shao <laoar.shao@gmail.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Yafang Shao <shaoyafang@didiglobal.com>,
+Cc: Henry Burns <henryburns@google.com>,
+	Shakeel Butt <shakeelb@google.com>,
+	Vitaly Vul <vitaly.vul@sony.com>,
+	Vitaly Wool <vitalywool@gmail.com>,
+	Jonathan Adams <jwadams@google.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
-	cgroups@vger.kernel.org,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 5.2 52/85] mm/memcontrol.c: keep local VM counters in sync with the hierarchical ones
-Date: Fri, 26 Jul 2019 09:39:02 -0400
-Message-Id: <20190726133936.11177-52-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 5.2 53/85] mm/z3fold.c: reinitialize zhdr structs after migration
+Date: Fri, 26 Jul 2019 09:39:03 -0400
+Message-Id: <20190726133936.11177-53-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190726133936.11177-1-sashal@kernel.org>
 References: <20190726133936.11177-1-sashal@kernel.org>
@@ -123,103 +122,61 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Yafang Shao <laoar.shao@gmail.com>
+From: Henry Burns <henryburns@google.com>
 
-[ Upstream commit 766a4c19d880887c457811b86f1f68525e416965 ]
+[ Upstream commit c92d2f38563db20c20c8db2f98fa1349290477d5 ]
 
-After commit 815744d75152 ("mm: memcontrol: don't batch updates of local
-VM stats and events"), the local VM counter are not in sync with the
-hierarchical ones.
+z3fold_page_migration() calls memcpy(new_zhdr, zhdr, PAGE_SIZE).
+However, zhdr contains fields that can't be directly coppied over (ex:
+list_head, a circular linked list).  We only need to initialize the
+linked lists in new_zhdr, as z3fold_isolate_page() already ensures that
+these lists are empty
 
-Below is one example in a leaf memcg on my server (with 8 CPUs):
+Additionally it is possible that zhdr->work has been placed in a
+workqueue.  In this case we shouldn't migrate the page, as zhdr->work
+references zhdr as opposed to new_zhdr.
 
-	inactive_file 3567570944
-	total_inactive_file 3568029696
-
-We find that the deviation is very great because the 'val' in
-__mod_memcg_state() is in pages while the effective value in
-memcg_stat_show() is in bytes.
-
-So the maximum of this deviation between local VM stats and total VM
-stats can be (32 * number_of_cpu * PAGE_SIZE), that may be an
-unacceptably great value.
-
-We should keep the local VM stats in sync with the total stats.  In
-order to keep this behavior the same across counters, this patch updates
-__mod_lruvec_state() and __count_memcg_events() as well.
-
-Link: http://lkml.kernel.org/r/1562851979-10610-1-git-send-email-laoar.shao@gmail.com
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
-Acked-by: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Vladimir Davydov <vdavydov.dev@gmail.com>
-Cc: Yafang Shao <shaoyafang@didiglobal.com>
+Link: http://lkml.kernel.org/r/20190716000520.230595-1-henryburns@google.com
+Fixes: 1f862989b04ade61d3 ("mm/z3fold.c: support page migration")
+Signed-off-by: Henry Burns <henryburns@google.com>
+Reviewed-by: Shakeel Butt <shakeelb@google.com>
+Cc: Vitaly Vul <vitaly.vul@sony.com>
+Cc: Vitaly Wool <vitalywool@gmail.com>
+Cc: Jonathan Adams <jwadams@google.com>
 Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
 Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 Signed-off-by: Sasha Levin <sashal@kernel.org>
 ---
- mm/memcontrol.c | 22 +++++++++++++++-------
- 1 file changed, 15 insertions(+), 7 deletions(-)
+ mm/z3fold.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index ba9138a4a1de..07b4ca559bcc 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -691,12 +691,15 @@ void __mod_memcg_state(struct mem_cgroup *memcg, int idx, int val)
- 	if (mem_cgroup_disabled())
- 		return;
- 
--	__this_cpu_add(memcg->vmstats_local->stat[idx], val);
--
- 	x = val + __this_cpu_read(memcg->vmstats_percpu->stat[idx]);
- 	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
- 		struct mem_cgroup *mi;
- 
-+		/*
-+		 * Batch local counters to keep them in sync with
-+		 * the hierarchical ones.
-+		 */
-+		__this_cpu_add(memcg->vmstats_local->stat[idx], x);
- 		for (mi = memcg; mi; mi = parent_mem_cgroup(mi))
- 			atomic_long_add(x, &mi->vmstats[idx]);
- 		x = 0;
-@@ -745,13 +748,15 @@ void __mod_lruvec_state(struct lruvec *lruvec, enum node_stat_item idx,
- 	/* Update memcg */
- 	__mod_memcg_state(memcg, idx, val);
- 
--	/* Update lruvec */
--	__this_cpu_add(pn->lruvec_stat_local->count[idx], val);
--
- 	x = val + __this_cpu_read(pn->lruvec_stat_cpu->count[idx]);
- 	if (unlikely(abs(x) > MEMCG_CHARGE_BATCH)) {
- 		struct mem_cgroup_per_node *pi;
- 
-+		/*
-+		 * Batch local counters to keep them in sync with
-+		 * the hierarchical ones.
-+		 */
-+		__this_cpu_add(pn->lruvec_stat_local->count[idx], x);
- 		for (pi = pn; pi; pi = parent_nodeinfo(pi, pgdat->node_id))
- 			atomic_long_add(x, &pi->lruvec_stat[idx]);
- 		x = 0;
-@@ -773,12 +778,15 @@ void __count_memcg_events(struct mem_cgroup *memcg, enum vm_event_item idx,
- 	if (mem_cgroup_disabled())
- 		return;
- 
--	__this_cpu_add(memcg->vmstats_local->events[idx], count);
--
- 	x = count + __this_cpu_read(memcg->vmstats_percpu->events[idx]);
- 	if (unlikely(x > MEMCG_CHARGE_BATCH)) {
- 		struct mem_cgroup *mi;
- 
-+		/*
-+		 * Batch local counters to keep them in sync with
-+		 * the hierarchical ones.
-+		 */
-+		__this_cpu_add(memcg->vmstats_local->events[idx], x);
- 		for (mi = memcg; mi; mi = parent_mem_cgroup(mi))
- 			atomic_long_add(x, &mi->vmevents[idx]);
- 		x = 0;
+diff --git a/mm/z3fold.c b/mm/z3fold.c
+index e1686bf6d689..7e764b0d8c8a 100644
+--- a/mm/z3fold.c
++++ b/mm/z3fold.c
+@@ -1350,12 +1350,22 @@ static int z3fold_page_migrate(struct address_space *mapping, struct page *newpa
+ 		unlock_page(page);
+ 		return -EBUSY;
+ 	}
++	if (work_pending(&zhdr->work)) {
++		z3fold_page_unlock(zhdr);
++		return -EAGAIN;
++	}
+ 	new_zhdr = page_address(newpage);
+ 	memcpy(new_zhdr, zhdr, PAGE_SIZE);
+ 	newpage->private = page->private;
+ 	page->private = 0;
+ 	z3fold_page_unlock(zhdr);
+ 	spin_lock_init(&new_zhdr->page_lock);
++	INIT_WORK(&new_zhdr->work, compact_page_work);
++	/*
++	 * z3fold_page_isolate() ensures that new_zhdr->buddy is empty,
++	 * so we only have to reinitialize it.
++	 */
++	INIT_LIST_HEAD(&new_zhdr->buddy);
+ 	new_mapping = page_mapping(page);
+ 	__ClearPageMovable(page);
+ 	ClearPagePrivate(page);
 -- 
 2.20.1
 
