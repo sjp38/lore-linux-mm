@@ -1,249 +1,171 @@
 Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: *
-X-Spam-Status: No, score=1.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Level: 
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C40E7C41517
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 02:42:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0593DC76190
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 03:21:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 70D302238C
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 02:42:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="bTVjRsdM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 70D302238C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 943D2206E0
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 03:20:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 943D2206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0EF366B0006; Thu, 25 Jul 2019 22:42:40 -0400 (EDT)
+	id 196946B0003; Thu, 25 Jul 2019 23:20:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0A0016B0007; Thu, 25 Jul 2019 22:42:40 -0400 (EDT)
+	id 120256B0005; Thu, 25 Jul 2019 23:20:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ED0028E0002; Thu, 25 Jul 2019 22:42:39 -0400 (EDT)
+	id F29988E0002; Thu, 25 Jul 2019 23:20:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B6CF46B0006
-	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 22:42:39 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id 191so32208005pfy.20
-        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 19:42:39 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id BBB016B0003
+	for <linux-mm@kvack.org>; Thu, 25 Jul 2019 23:20:58 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id 30so32040343pgk.16
+        for <linux-mm@kvack.org>; Thu, 25 Jul 2019 20:20:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=Sw8V9bDn7QTKMld9EYLdEeoC4y9pSS5VgcZuqisuwyo=;
-        b=bxgNjP9JnHF36ksX6vSVgUwXhI5Kq6SvoTaIGgsZqYGI27il3t8XwiSys7BciUZPeq
-         jF3mEa/9H02IX2Ch29xI1gOVd5iwjdKs4WOzLRy84hF+fXO5qo1+1ix4q3EaMZNGqCRu
-         7VLwrkdBmJxqH502sWQ0MiY2vmTIdAhTyMrsv3rNsJfenLy+ly/reE3hAnAW7hSAar05
-         87F8B3gil1ftS6PwjMl37T4tZHz86kfberbx8LzH16MufQDZuAeBEQeQUAlTTDQzLwK2
-         qI+tvcD9dGmZAjX1hqKCvDQLq/y3EZ+BClmcj/Ut7zPBI01gel8wxlN9mv7X54JO2VM/
-         QGXA==
-X-Gm-Message-State: APjAAAV7WJl/Cnh1nzlAG5kgjLvDG4mx+O2h2QB4qNtj5nR9UG267wbl
-	IaO2A0RpTffldQl0iChnm2vyS6mbSvZHsZGBXrOJFdMyHspur+u/tnpeQPw1h1578eZrrptVEMZ
-	AYZ0fKjAevz+XkyqlJfkeJWlMxJFIvT21YmCS7TgmZnryK0PpbiQ3CpXx5s1fTIA=
-X-Received: by 2002:a63:ed50:: with SMTP id m16mr32825840pgk.209.1564108959288;
-        Thu, 25 Jul 2019 19:42:39 -0700 (PDT)
-X-Received: by 2002:a63:ed50:: with SMTP id m16mr32825787pgk.209.1564108958176;
-        Thu, 25 Jul 2019 19:42:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564108958; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=hagU+U6M35C3mpB5PKk7c4uyB/4T5xiknS2lmZf42r8=;
+        b=nuG4eWaotFsnFRW98UyRCZwIdu70PhMzg3QBszc/PaA4eqqczjbk/emqVAmNPuBqth
+         Oo/zJDsHIzfFPMDJeQwPKjP040Pq5UWVHJf49lz82M47k5C+wb0uFGWUaSyjuhAybsNw
+         L+wNmWkGxWmJmgwDS/VB0KJnRgkQQ8Na/kzTyExrQi3a5jT959a8tvN8/IKT0B2G5MXa
+         y8nJ/98wo07TwTE58HlEgrgwet5H/kpsdNB3TPsRWxbmm98MFD8oyo+6vTJbT4uatdYp
+         ymXOmuf1nHcsj58u7uLbxKdqIGKRSOrqm+0SFnkDjgMFUzyrYXt/gKTLv7RNMvLYhvHd
+         eBDA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAX3o0Gg9Yqc/FlVVQh7hjjUqaKn1QI6KHGyVulGnEVmLG3SRqPJ
+	g77gbwAcN6uVwMN6l3Ckzso0K1DmwUTZvg2RWW66vbOgtC+7e2JI67SBBlpTRlEBJgYsms2gPIu
+	fCgnYGu1tloJfOmkrLVC3dbeNR4e/D9ih8wKrFBnyiSPUcwpf1B2oZp7UzArRhWqRWA==
+X-Received: by 2002:a17:90a:9905:: with SMTP id b5mr98089676pjp.70.1564111258458;
+        Thu, 25 Jul 2019 20:20:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqziqxEs8lZjbtW/3xpIPwX5nCCDa8idRJ41catyzv24CHAl6D9dd2AeYl8JFuVCW8r/j5O6
+X-Received: by 2002:a17:90a:9905:: with SMTP id b5mr98089628pjp.70.1564111257683;
+        Thu, 25 Jul 2019 20:20:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564111257; cv=none;
         d=google.com; s=arc-20160816;
-        b=H319eO7FfozbTvQ92GWJb2FwTO9MgYR1RRQmBt8Czgs00CoesBRA67jJEJlsKMAN7H
-         calkCGoBuG7cevO7cZUXe1kksSiwVpECg8jWz7XI0n1+AbZIeohF55DuhuwmgB/A5s+Q
-         Xyhu+Oc1k2MP3lf8/z9XbJfcO/oUVOo7Ts5GPburhhxWIV3RDEO+y4JUF7Ok83amEHW5
-         KSAj05LbnXdmLQ7GwzBxxuRpFjPQPsmYQRZRud2RImeYhF9NX4bbP0NRw6Ntgc4aCtN8
-         AtqmfgxNjO8ASPtrNFf4CCUbpAfRlJB0LCgCg2ru6iH1+rp7Q7BlmH282EGDXjNyiTrm
-         6a7Q==
+        b=TnvspQMSVRr0qDeaHRWqFhc6qkveIdSm9YO988TFOj4E3EWs3Rnmpx+JHC2HnQFSio
+         ExJHsa3GJkWS1JCR4kIt+xoSU4s3rbZYKrbf+izyVWaAY4Z4j10ZpzDMSeDAOa8m1Fai
+         GG+r+DUYXlYOkbOC7RXPa4cVcfdMLrMev0XfWTY5dije5gotT8Ycrx3VQZLHo7K6AK3U
+         5yx5y97jpEns+hKSZ93GmknYHZ/HVfzIcYSYx9BbVCIJxdHq6prNoEIOl0rg21Ex+MEa
+         MIIo1WPKDPpDbL6nkg5oRH3DDq3eYAOKmCkvP+DJB2v7cEC/7W5M3EJARjtmjOVuLwlC
+         UIHw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:sender:dkim-signature;
-        bh=Sw8V9bDn7QTKMld9EYLdEeoC4y9pSS5VgcZuqisuwyo=;
-        b=tQtjV0d+WxvtemTxgoVej7DXXK4FaWfEYhbw6F7XQGxaihuXddvy75uKKXTQZHycYA
-         dfg8tCClaCgOFa5LCYerZG8HxWbNOFTVrHsyIx2JB8B7eKfCOTVukYllHC0TZ4iGNc5N
-         fH4Ev5XJx5VS6oXASP683H0uXHO/fcmyBvCRWNOvtgoMWqK5bpDMq+QuGUrfEgxe5n9W
-         3kMWLA0tUCOopdB1ARhKWIbeToLwn5a8tF32TiGKvJN74Nk8xwNjhtRjyVG4HuHtSA4p
-         19Efmb6ffpUlWr+hZXRUWFGbWRzajArDn1S7R5xgHReMuoExBg1jPrXcN6FRyiSx8tFD
-         rKhQ==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=hagU+U6M35C3mpB5PKk7c4uyB/4T5xiknS2lmZf42r8=;
+        b=Ofh3lzUQUzk3o9dMJS6djZcBwBzJSlwpCcOS/4vCeE6AuP5DGK/L40VvSc/fR97Noh
+         DhFEJVweohWa7ZEmcOHNVFgB4+ufxMs+WuOWVRLOjoUgG1tHQCmti6oqX0BTGoeMWfRn
+         xetTyqtz3kwrWlOW9aL3GVNgN4QT10cruGnl1sly5V8btoxJpbQGTnhR89Qr1m6BUi8v
+         bMCK4f3MYfzKqJDf+vuvEh/lle715+TmCdM1/XBdIQNu4tO1BsF9IS/1XNbQMxuPFJwD
+         oX6rZEYPw0BvTTDvk1zPHFKf3ehbeLaw1NGDp+jL8t2HC/+j5ok+5zO5Tj8iV8+fuRbb
+         v1sQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bTVjRsdM;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s14sor63170413pjb.11.2019.07.25.19.42.38
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
+        by mx.google.com with ESMTPS id x9si19400973plo.98.2019.07.25.20.20.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 25 Jul 2019 19:42:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 25 Jul 2019 20:20:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bTVjRsdM;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=Sw8V9bDn7QTKMld9EYLdEeoC4y9pSS5VgcZuqisuwyo=;
-        b=bTVjRsdMvx6I6p695BSxtsIrspfsdgKJAIPjsX2KdorpIuM2cpKeHRrzcV+z9YZy0/
-         4lCEeSW6pC99wy9ByeHaZvvo1R6RXkH5DSdQY+HBDz1qJTDLV/C1jxXbrYU8dN15Bgqq
-         wX/w/LHhkWAiZdYtFuxKWXnkULtBCnlDEwUnWEfh42gfoIQxwp7W/dZuw4fe+yiQOCQ5
-         f+5PksssOh17UeARnHPOEYEPlzCPAO9KJLFqVYZPhLp77PpvMBy0d247PmB1Odlnbhj6
-         Q7BFuYloZfpnnOD3BRABQA6P1AFUCCff9iOLmDCo8NXO7qFPfPjb+bKneMKrGIfaBC0W
-         HSIg==
-X-Google-Smtp-Source: APXvYqzZVWllWaYWh6ED7e60CUOsZLsTeByVz38ebxeCXI+kX7Glzvo1aB92EO2v3XVcEeYwmmRnLA==
-X-Received: by 2002:a17:90a:ac14:: with SMTP id o20mr96850971pjq.114.1564108957648;
-        Thu, 25 Jul 2019 19:42:37 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id q22sm46283450pgh.49.2019.07.25.19.42.32
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 25 Jul 2019 19:42:36 -0700 (PDT)
-Date: Fri, 26 Jul 2019 11:42:30 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-api@vger.kernel.org, Michal Hocko <mhocko@suse.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Tim Murray <timmurray@google.com>,
-	Joel Fernandes <joel@joelfernandes.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Daniel Colascione <dancol@google.com>,
-	Shakeel Butt <shakeelb@google.com>, Sonny Rao <sonnyrao@google.com>,
-	oleksandr@redhat.com, hdanton@sina.com, lizeb@google.com,
-	Dave Hansen <dave.hansen@intel.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH v7 0/5] Introduce MADV_COLD and MADV_PAGEOUT
-Message-ID: <20190726024230.GA216222@google.com>
-References: <20190726023435.214162-1-minchan@kernel.org>
+       spf=pass (google.com: domain of ying.huang@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 25 Jul 2019 20:20:57 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,309,1559545200"; 
+   d="scan'208";a="369406245"
+Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.29])
+  by fmsmga005.fm.intel.com with ESMTP; 25 Jul 2019 20:20:56 -0700
+From: "Huang\, Ying" <ying.huang@intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>,  huang ying <huang.ying.caritas@gmail.com>,  Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,  <linux-mm@kvack.org>
+Subject: Re: kernel BUG at mm/swap_state.c:170!
+References: <CABXGCsN9mYmBD-4GaaeW_NrDu+FDXLzr_6x+XNxfmFV6QkYCDg@mail.gmail.com>
+	<CAC=cRTMz5S636Wfqdn3UGbzwzJ+v_M46_juSfoouRLS1H62orQ@mail.gmail.com>
+	<CABXGCsOo-4CJicvTQm4jF4iDSqM8ic+0+HEEqP+632KfCntU+w@mail.gmail.com>
+	<878ssqbj56.fsf@yhuang-dev.intel.com>
+	<CABXGCsOhimxC17j=jApoty-o1roRhKYoe+oiqDZ3c1s2r3QxFw@mail.gmail.com>
+	<87zhl59w2t.fsf@yhuang-dev.intel.com>
+	<20190725114408.GV363@bombadil.infradead.org>
+Date: Fri, 26 Jul 2019 11:20:55 +0800
+In-Reply-To: <20190725114408.GV363@bombadil.infradead.org> (Matthew Wilcox's
+	message of "Thu, 25 Jul 2019 04:44:08 -0700")
+Message-ID: <87a7d17a7c.fsf@yhuang-dev.intel.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190726023435.214162-1-minchan@kernel.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=ascii
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Andrew,
+Matthew Wilcox <willy@infradead.org> writes:
 
-It's the resend with fixing build errors kbuildbot reported.
-Please take it this version to get more test coverage.
+> On Tue, Jul 23, 2019 at 01:08:42PM +0800, Huang, Ying wrote:
+>> @@ -2489,6 +2491,14 @@ static void __split_huge_page(struct page *page, struct list_head *list,
+>>  	/* complete memcg works before add pages to LRU */
+>>  	mem_cgroup_split_huge_fixup(head);
+>>  
+>> +	if (PageAnon(head) && PageSwapCache(head)) {
+>> +		swp_entry_t entry = { .val = page_private(head) };
+>> +
+>> +		offset = swp_offset(entry);
+>> +		swap_cache = swap_address_space(entry);
+>> +		xa_lock(&swap_cache->i_pages);
+>> +	}
+>> +
+>>  	for (i = HPAGE_PMD_NR - 1; i >= 1; i--) {
+>>  		__split_huge_page_tail(head, i, lruvec, list);
+>>  		/* Some pages can be beyond i_size: drop them from page cache */
+>> @@ -2501,6 +2511,9 @@ static void __split_huge_page(struct page *page, struct list_head *list,
+>>  		} else if (!PageAnon(page)) {
+>>  			__xa_store(&head->mapping->i_pages, head[i].index,
+>>  					head + i, 0);
+>> +		} else if (swap_cache) {
+>> +			__xa_store(&swap_cache->i_pages, offset + i,
+>> +				   head + i, 0);
+>
+> I tried something along these lines (though I think I messed up the offset
+> calculation which is why it wasn't working for me).  My other concern
+> was with the case where SWAPFILE_CLUSTER was less than HPAGE_PMD_NR.
+> Don't we need to drop the lock and look up a new swap_cache if offset >=
+> SWAPFILE_CLUSTER?
 
-Thanks.
+In swapfile.c, there is
 
-On Fri, Jul 26, 2019 at 11:34:30AM +0900, Minchan Kim wrote:
-> This patch is part of previous series:
-> https://lore.kernel.org/lkml/20190531064313.193437-1-minchan@kernel.org/
-> Originally, it was created for external madvise hinting feature.
-> 
-> https://lkml.org/lkml/2019/5/31/463
-> Michal wanted to separte the discussion from external hinting interface
-> so this patchset includes only first part of my entire patchset
-> 
->   - introduce MADV_COLD and MADV_PAGEOUT hint to madvise.
-> 
-> However, I keep entire description for others for easier understanding
-> why this kinds of hint was born.
-> 
-> Thanks.
-> 
-> This patchset is against on mmotm-mmotm-2019-07-24-21-39.
-> 
-> Below is description of previous entire patchset.
-> 
-> ================= &< =====================
-> 
-> - Background
-> 
-> The Android terminology used for forking a new process and starting an app
-> from scratch is a cold start, while resuming an existing app is a hot start.
-> While we continually try to improve the performance of cold starts, hot
-> starts will always be significantly less power hungry as well as faster so
-> we are trying to make hot start more likely than cold start.
-> 
-> To increase hot start, Android userspace manages the order that apps should
-> be killed in a process called ActivityManagerService. ActivityManagerService
-> tracks every Android app or service that the user could be interacting with
-> at any time and translates that into a ranked list for lmkd(low memory
-> killer daemon). They are likely to be killed by lmkd if the system has to
-> reclaim memory. In that sense they are similar to entries in any other cache.
-> Those apps are kept alive for opportunistic performance improvements but
-> those performance improvements will vary based on the memory requirements of
-> individual workloads.
-> 
-> - Problem
-> 
-> Naturally, cached apps were dominant consumers of memory on the system.
-> However, they were not significant consumers of swap even though they are
-> good candidate for swap. Under investigation, swapping out only begins
-> once the low zone watermark is hit and kswapd wakes up, but the overall
-> allocation rate in the system might trip lmkd thresholds and cause a cached
-> process to be killed(we measured performance swapping out vs. zapping the
-> memory by killing a process. Unsurprisingly, zapping is 10x times faster
-> even though we use zram which is much faster than real storage) so kill
-> from lmkd will often satisfy the high zone watermark, resulting in very
-> few pages actually being moved to swap.
-> 
-> - Approach
-> 
-> The approach we chose was to use a new interface to allow userspace to
-> proactively reclaim entire processes by leveraging platform information.
-> This allowed us to bypass the inaccuracy of the kernel’s LRUs for pages
-> that are known to be cold from userspace and to avoid races with lmkd
-> by reclaiming apps as soon as they entered the cached state. Additionally,
-> it could provide many chances for platform to use much information to
-> optimize memory efficiency.
-> 
-> To achieve the goal, the patchset introduce two new options for madvise.
-> One is MADV_COLD which will deactivate activated pages and the other is
-> MADV_PAGEOUT which will reclaim private pages instantly. These new options
-> complement MADV_DONTNEED and MADV_FREE by adding non-destructive ways to
-> gain some free memory space. MADV_PAGEOUT is similar to MADV_DONTNEED in a way
-> that it hints the kernel that memory region is not currently needed and
-> should be reclaimed immediately; MADV_COLD is similar to MADV_FREE in a way
-> that it hints the kernel that memory region is not currently needed and
-> should be reclaimed when memory pressure rises.
-> 
-> * v6 - http://lore.kernel.org/lkml/20190723062539.198697-1-minchan@kernel.org
-> * v5 - http://lore.kernel.org/lkml/20190714233401.36909-1-minchan@kernel.org
-> * v4 - http://lore.kernel.org/lkml/20190711012528.176050-1-minchan@kernel.org
-> * v3 - http://lore.kernel.org/lkml/20190627115405.255259-1-minchan@kernel.org
-> * v2 - http://lore.kernel.org/lkml/20190610111252.239156-1-minchan@kernel.org
-> * v1 - http://lore.kernel.org/lkml/20190603053655.127730-1-minchan@kernel.org
-> 
-> Minchan Kim (5):
->   mm: introduce MADV_COLD
->   mm: change PAGEREF_RECLAIM_CLEAN with PAGE_REFRECLAIM
->   mm: account nr_isolated_xxx in [isolate|putback]_lru_page
->   mm: introduce MADV_PAGEOUT
->   mm: factor out common parts between MADV_COLD and MADV_PAGEOUT
-> 
->  arch/alpha/include/uapi/asm/mman.h     |   3 +
->  arch/mips/include/uapi/asm/mman.h      |   3 +
->  arch/parisc/include/uapi/asm/mman.h    |   3 +
->  arch/xtensa/include/uapi/asm/mman.h    |   3 +
->  include/linux/swap.h                   |   2 +
->  include/uapi/asm-generic/mman-common.h |   3 +
->  mm/compaction.c                        |   2 -
->  mm/gup.c                               |   7 +-
->  mm/internal.h                          |   2 +-
->  mm/khugepaged.c                        |   3 -
->  mm/madvise.c                           | 274 ++++++++++++++++++++++++-
->  mm/memory-failure.c                    |   3 -
->  mm/memory_hotplug.c                    |   4 -
->  mm/mempolicy.c                         |   3 -
->  mm/migrate.c                           |  37 +---
->  mm/oom_kill.c                          |   2 +-
->  mm/swap.c                              |  42 ++++
->  mm/vmscan.c                            |  83 +++++++-
->  18 files changed, 416 insertions(+), 63 deletions(-)
-> 
-> -- 
-> 2.22.0.709.g102302147b-goog
-> 
+#ifdef CONFIG_THP_SWAP
+#define SWAPFILE_CLUSTER	HPAGE_PMD_NR
+...
+#else
+#define SWAPFILE_CLUSTER	256
+...
+#endif
+
+So, if a THP is in swap cache, then SWAPFILE_CLUSTER equals
+HPAGE_PMD_NR.
+
+
+And there is one swap address space for each 64M swap space.  So one THP
+will be in one swap address space.
+
+In swap.h, there is
+
+/* One swap address space for each 64M swap space */
+#define SWAP_ADDRESS_SPACE_SHIFT	14
+#define SWAP_ADDRESS_SPACE_PAGES	(1 << SWAP_ADDRESS_SPACE_SHIFT)
+
+Best Regards,
+Huang, Ying
 
