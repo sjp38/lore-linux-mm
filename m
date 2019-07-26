@@ -7,93 +7,93 @@ X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7FD33C7618B
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 13:43:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21393C76191
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 13:44:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 39FED22CD8
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 13:43:03 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D067722CD0
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 13:44:08 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="qcNcvHBa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39FED22CD8
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="V7jx6t4v"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D067722CD0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B0E876B000A; Fri, 26 Jul 2019 09:43:02 -0400 (EDT)
+	id 6531F6B0006; Fri, 26 Jul 2019 09:44:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AC0748E0003; Fri, 26 Jul 2019 09:43:02 -0400 (EDT)
+	id 604188E0003; Fri, 26 Jul 2019 09:44:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 939628E0002; Fri, 26 Jul 2019 09:43:02 -0400 (EDT)
+	id 4F2EF8E0002; Fri, 26 Jul 2019 09:44:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 587F16B000A
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 09:43:02 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id 8so27661741pgl.3
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 06:43:02 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 198CF6B0006
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 09:44:08 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id f2so28425950plr.0
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 06:44:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=LKdFFQMw4QQuT34zm0Dt5TQOKgDDHwaTlkCS2gnGFk8=;
-        b=VX/wm0sPaMCwrdmP62uirnUZ2V85yfcZ/EDWK8e0pwIVbok+vLJDDmkW9/OMKQY+ox
-         LeONFYUDzUUX3rU2QOk8ZoAUDzDfSCuTm11Fc1FrAOr+18oMNTQeU14CUdJsUOL4lrWn
-         /Y0HrtF8XeXtG0QG0GxhUC64s6I1AKS61nEkiTT8maZCEIT580OYqFAwZ+YEMc0Vatp6
-         q5GJUiXhf+/Dp9vY/0SZKEUyAeE7hO16K7s3gh7pUww4cefucz3E3gDCayK1OHNtLbKY
-         N86VzKEDZyTbi8tOgKHfPFmEyBlLXDLnNKPH2iRnJtXfcsD6F6lMbmcYKwIA/umXiTuM
-         H8CA==
-X-Gm-Message-State: APjAAAXBaT3oath1bBXkGZkzSGtwkpjAEJwsmJqxEJYDPzVPvPRT7RE9
-	yiw+Hi0JJorFGAdJb0auTpG+xKjkiOq6ZjI75rbgEGrWYXxTkEN8XvSf2S4Mk3d3hZbybAaTzIM
-	ruBKZna/cNxh93n1rYiWQshZecTb2Pun7tIl8uyzY1tv5XhEc9o8gdrqQzAnDzHeppw==
-X-Received: by 2002:a17:902:4623:: with SMTP id o32mr94807003pld.112.1564148582048;
-        Fri, 26 Jul 2019 06:43:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxxDQ1xcOKyQOROOlVX9TR4LoVtCcGpqR8NgOZleNUByFPytdmrY6GvufDnCAxUJta6Cp8C
-X-Received: by 2002:a17:902:4623:: with SMTP id o32mr94806954pld.112.1564148581365;
-        Fri, 26 Jul 2019 06:43:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564148581; cv=none;
+        bh=j8crT+4ifklZpVE5EKM0I6dEV8w4rPboWHXBEeO3gpE=;
+        b=H1cxYgjuABrMnDGKCr0Hyl3qLqSkc1t0LsHT1KgrbFNNAGGTwazfGPH0XoRYQ1Zil/
+         7DS7O4QgbrS7f5XPS3H+NZre/Q7bgAkK3xehg0j9zr7kOd11+DFLtWpU02TI+MdlG58T
+         tOtb3r6SeVIwaeHGtkefR9KgVu7ZlXxwHwdNYvLmoFFTACN3DCh6PliZfM/9Ub20FDma
+         Up6S7Sr+aMrIQhpiiy2h+FlyInbt78BUiBAEk/qtiwN0KFMRHnCpy3og+oCaPvqDovmW
+         IQP7ENe5d1MlCptgkLftm1d5qleUGQmsqea4/L1E61EfXJ2MgbbcxMeepC//DE0eCzcd
+         yD1Q==
+X-Gm-Message-State: APjAAAVbs5hjA/hz9emx1V6OpRQfZRqODxeX/zL2+wMo4DCv4C5N2yIO
+	rqIIKpi5xAuQI+3nh78l+eW+i+vy7edylr0LHDXHvUITPlM9b609YzpwdL7UUlNYPHrE1/mVvc1
+	Bz3Jsyp9UaMYqPXdxGFr2kq7dquSQ6NDVJWujiGs0S36DQ7wWODfUR4MsJY3mjD+16A==
+X-Received: by 2002:a65:62cd:: with SMTP id m13mr25905286pgv.437.1564148647716;
+        Fri, 26 Jul 2019 06:44:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyVPw6CDcVU8L442TjgUeaQ+yhwtXM2wUmcsDRcX8EJE2axGgpuIYixHLNaSJMUruUQdMpg
+X-Received: by 2002:a65:62cd:: with SMTP id m13mr25905234pgv.437.1564148647030;
+        Fri, 26 Jul 2019 06:44:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564148647; cv=none;
         d=google.com; s=arc-20160816;
-        b=O9tyLLlcuTDRY/sII8GRWhzVR1qOIwWvvDO71VlW0xzRLoSM4wO5G7NNuQXTs6IvDg
-         B2OkYCKwg+maJGgaBK+cLUL6hov3ZDoia1FDU4pKk2YaIDfCZjXyue5q4YBn82m6y1FI
-         d8+e2VkdjQCGbVTygIrZncIrJoAatmkHNTd5BHyZEn7v3EzuwS4NnkP8405syj97QSLC
-         CZjNE+hYtHnh5uCx4YUZTKg5oPb+CtXZYpekP+v2BQyb4SV4LidOVvOVE2XQA6+zz52D
-         T99hB1SZaaR7+7XeQIsWBc16oUM0b74uvMc96JIQUaDHmAvkdRYOj4VTeMRy5ssngQsv
-         A/vA==
+        b=dqqfPCtqX3+yvGDoa81LX92oAurFwclICiLFmn+1wOD1Hzv7J5dchyuMjdb+alcdHI
+         nSgifUAp/EoeWqWLOFvTocuRzAB6Ng8T48lPq0FbGRpcEQR+dtejTzIyAUe7Y8OIkjQ/
+         83FR5ljpUD5dQBsnTXQVWQMHTupzECVDmW8+mnlg/+q95FhUTLsC3i46VjbbIS0L0kJy
+         PKGH9dA1VXT/LWnUVuIbaNN8dHK9PrZq9OR1qKxllP3O3vojfdSiYQPmqcsBBq+J4nLE
+         H1wdiy3iwNu1fj7VCyjaCYRjiyiEWE8cbYtDkKIykrVVGpTkDQbWO/d60RAuaZC5r75M
+         QKCw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=LKdFFQMw4QQuT34zm0Dt5TQOKgDDHwaTlkCS2gnGFk8=;
-        b=cAoAhYEsOh0GyDOjFZYjGRKvuKUsDGddg1mW8IFc8S7u1fq3oISF4820jAlQNl6n5M
-         dpxNhWVSiRRQO1xmcWnFm9wInShtewY3W/uBIHH2cTS3EkcrnEwl/ojxlsinOo4UWOkG
-         teXZKU1NSu/fGC6aSp1xayhKH/WcwolpZoioF0VF6RvLN8PzxyBxhPrXPgmRsobQ6DWH
-         JjS7DqxyiKsHmOmBoZiSYQPig/ztKX+68guvsHAVx/XP9hvpc8WKwJKzPiV598LgTdH3
-         /dMzCKkujRBmDYNyWfv0lbDiuVaWXxax3cCqsQxaM7ZNxvwUErjEJL32vGcKa22T7gz5
-         ITEg==
+        bh=j8crT+4ifklZpVE5EKM0I6dEV8w4rPboWHXBEeO3gpE=;
+        b=zTOUBRw+xU2ihKE3qN/s/dEYdu+nZOsVvnYacUYpGIhI090PUCETR0pIolACVtYQpg
+         ZfBYzTjHiuT+/aU4jaa7hWydiENUMsOvGoCHrRn8ShVvOZhFjqAWxsXNSuziE6kNbgL6
+         ydy2jkwXSiBSFlM2vxgLSntiPEuA6+ni7J02eX74wxUYdqD2qnj58VSiQVYbL67OXIuf
+         46tgkMOaUUwC84eh9rrLZNj8Dw+vPlAnNyRb+SUnTiTtgg57bWwumEo0BT8FSot0VV91
+         WLEBGQ2IXAuW9hzALmZPFzPDRhwuysHahO2n4T7KWC3Y6PVlJk6KXLnUfgXjOwVBMuHy
+         jG5g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=qcNcvHBa;
+       dkim=pass header.i=@kernel.org header.s=default header.b=V7jx6t4v;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id q11si20365204pjb.84.2019.07.26.06.43.01
+        by mx.google.com with ESMTPS id gb4si19036531plb.429.2019.07.26.06.44.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jul 2019 06:43:01 -0700 (PDT)
+        Fri, 26 Jul 2019 06:44:07 -0700 (PDT)
 Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=qcNcvHBa;
+       dkim=pass header.i=@kernel.org header.s=default header.b=V7jx6t4v;
        spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 99C2F22CC2;
-	Fri, 26 Jul 2019 13:42:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 4E74622CC2;
+	Fri, 26 Jul 2019 13:44:05 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1564148581;
-	bh=Dtsfv0EZOJEzc6QLNhd9lF+93AxZR+meA54znWd8bGE=;
+	s=default; t=1564148646;
+	bh=ItV/L+YqpHgl/KAEB0KZea0d2qVCwzkzhqwD8RJx8cU=;
 	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=qcNcvHBaSFSrMmukHuPwA17A/osRfNrPWM6dQ5b6GGi3skcym7ln2LLz6IgbE/UvA
-	 VGDOnJnbxPUAX/NmpwWz2zqhkm2wDbO+s+I21KOwHZC/8fCRhDQxRTAUVDxh4Msm3O
-	 m9BUMpaXuf//y21XMJzf9zyL2P4kB9Ei1SBNvLgo=
+	b=V7jx6t4vWtqHHt59KrWRICnzspkZfmSGLjwyDlSzrzzyl4iL56qUBep2u8Tdph1rh
+	 n0mso3R83KiTGBm1/CPYm3WYsVYZNijew/ZR+hT8b6qA7z6z8LMrywDBTMEIaVwJrM
+	 SUY7l5Dqt+SREEzLtHo0dMUFOnliVIIPQpo9RADM=
 From: Sasha Levin <sashal@kernel.org>
 To: linux-kernel@vger.kernel.org,
 	stable@vger.kernel.org
@@ -110,12 +110,12 @@ Cc: Doug Berger <opendmb@gmail.com>,
 	Linus Torvalds <torvalds@linux-foundation.org>,
 	Sasha Levin <sashal@kernel.org>,
 	linux-mm@kvack.org
-Subject: [PATCH AUTOSEL 4.19 30/47] mm/cma.c: fail if fixed declaration can't be honored
-Date: Fri, 26 Jul 2019 09:41:53 -0400
-Message-Id: <20190726134210.12156-30-sashal@kernel.org>
+Subject: [PATCH AUTOSEL 4.14 23/37] mm/cma.c: fail if fixed declaration can't be honored
+Date: Fri, 26 Jul 2019 09:43:18 -0400
+Message-Id: <20190726134332.12626-23-sashal@kernel.org>
 X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190726134210.12156-1-sashal@kernel.org>
-References: <20190726134210.12156-1-sashal@kernel.org>
+In-Reply-To: <20190726134332.12626-1-sashal@kernel.org>
+References: <20190726134332.12626-1-sashal@kernel.org>
 MIME-Version: 1.0
 X-stable: review
 X-Patchwork-Hint: Ignore
@@ -158,10 +158,10 @@ Signed-off-by: Sasha Levin <sashal@kernel.org>
  1 file changed, 13 insertions(+)
 
 diff --git a/mm/cma.c b/mm/cma.c
-index 476dfe13a701..4c2864270a39 100644
+index 56761e40d191..c4a34c813d47 100644
 --- a/mm/cma.c
 +++ b/mm/cma.c
-@@ -282,6 +282,12 @@ int __init cma_declare_contiguous(phys_addr_t base,
+@@ -277,6 +277,12 @@ int __init cma_declare_contiguous(phys_addr_t base,
  	 */
  	alignment = max(alignment,  (phys_addr_t)PAGE_SIZE <<
  			  max_t(unsigned long, MAX_ORDER - 1, pageblock_order));
@@ -174,7 +174,7 @@ index 476dfe13a701..4c2864270a39 100644
  	base = ALIGN(base, alignment);
  	size = ALIGN(size, alignment);
  	limit &= ~(alignment - 1);
-@@ -312,6 +318,13 @@ int __init cma_declare_contiguous(phys_addr_t base,
+@@ -307,6 +313,13 @@ int __init cma_declare_contiguous(phys_addr_t base,
  	if (limit == 0 || limit > memblock_end)
  		limit = memblock_end;
  
