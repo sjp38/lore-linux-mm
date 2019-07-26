@@ -2,99 +2,109 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7315CC76191
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 08:49:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 67C26C7618B
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 08:57:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 29A002086D
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 08:49:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 29A002086D
+	by mail.kernel.org (Postfix) with ESMTP id 2AE5E22C7C
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 08:57:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AE5E22C7C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B01166B0005; Fri, 26 Jul 2019 04:48:59 -0400 (EDT)
+	id AF9B46B0003; Fri, 26 Jul 2019 04:57:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AB1638E0003; Fri, 26 Jul 2019 04:48:59 -0400 (EDT)
+	id AABB96B0005; Fri, 26 Jul 2019 04:57:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 99FC98E0002; Fri, 26 Jul 2019 04:48:59 -0400 (EDT)
+	id 94A598E0002; Fri, 26 Jul 2019 04:57:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 791006B0005
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 04:48:59 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id k125so44524997qkc.12
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 01:48:59 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 746216B0003
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 04:57:56 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id 199so44717035qkj.9
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 01:57:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=pbCLwJKwVZcVj75lQUeGmZAC2RHAjn48jIMmu03rd54=;
-        b=BvATcfnZKFp9t8XwUahv+YvmA/iObrPCpuwuiwuwAX4vG7tfuH43r0bE7PyTVoWACz
-         VGt0mSxkdGYqImgSG5JlqJc4eP/kstvkxTO3kceptiw9ImkzalejfomCPPckMucAl1j0
-         6d6t5dxVnCp/ZWAaND3wqPEARRjAJ9zU/vNUWCW2zOQXMURKtv3ApGDkDk3ox+zdR5+K
-         5Wgu6OXbPjyh0AfMtvBjnKc8GE2bjEq8CqN8PMojq6fg/8LslmNilj3QmKFY7/oxkHjg
-         aQcYsFzOhQgX4ZUttBaHA0MxAxHdU7hiaovdosou/ZqkkPX2kkfqUFGDnMFcxLyhu+XY
-         Bv/g==
+        bh=b4skpfKJLKybcfy5n1hvZ1EzSRecMEbnZOk8aC9/iTU=;
+        b=n8qOZld2UN/r7XkP/LHFeMbSlCeGTJw/ex6RfeRMluDF9A/0jTXYbIt+JGAVvb1e8O
+         0BvcmchiDszgKMMEHvHV3Nuo6WtLt5iRZNY8RO+a7OYsG4CapIIG2c6vtQOKHaz2NVyM
+         kNfnCIs+HP2MfKlHKnPannE7+jJi1aCKmKGMdxqrrz+5pRBcMr31To2WkELY84X7zdcJ
+         7iDqSKL4ITa+UK0OQ2ke0ws5cqSm6KsuahbXuUE3zbtjz8hPRC2GEakWGWS/q3vgO0nn
+         J+rADW3VFkI2A/qP3RhqhjRieq4iOIdWpObCK5b2Bh/TIWMObaLwgaLAwipRJcSpJl5Y
+         fOVw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUkgb3/AxzApZ9yq5BURDk0mIiueSMAJda0VwxP3L9Qw8zh5+Un
-	BRy3K2WffHvDGso9/FxI6RGNNb+7c3Ljd9BJhc8iVUYAMIKJSue+PNdNLEfRgb5nEV1vaCggAj1
-	I9XY3+O87cGD9ImWGIYBlwHv/II7yWoxIMx6yqyBppYy2BVPl3/4MPSStgvOYozicHg==
-X-Received: by 2002:a05:620a:166a:: with SMTP id d10mr58437859qko.195.1564130939247;
-        Fri, 26 Jul 2019 01:48:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzt9SfHZsVGXZi7MH4eu+RMcVJBOlf4W+GY28wgtX/YE0CwcLjZnY2zR0WmwysGLUhr2Dst
-X-Received: by 2002:a05:620a:166a:: with SMTP id d10mr58437835qko.195.1564130938510;
-        Fri, 26 Jul 2019 01:48:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564130938; cv=none;
+X-Gm-Message-State: APjAAAUu5yrobDI0EMjGMtl1UzLZf6/FZ/ITcEetlez0yLtVaxASEKVa
+	5IIvrslwOz7o5UaFpLsZgUMU5aC+qPgZdYQOzZiAhziHTAb3as/mjaD+EJpuEkqO+tzjUdMh4Y0
+	3pxcK9wYNCIg3Z6gbH7llEazfDp+WEOrpEeVnBYYjJ1ycE+4gHJf+E1E6Nt0AbJu9nw==
+X-Received: by 2002:a0c:98e9:: with SMTP id g38mr65988546qvd.187.1564131476261;
+        Fri, 26 Jul 2019 01:57:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyjhWox9DoYCFHPTqA74TDLdFzYvsP0Hcjn9+7iJX+wRGIOJ/JfE6eD5YPQmBxtk5rgQTvp
+X-Received: by 2002:a0c:98e9:: with SMTP id g38mr65988527qvd.187.1564131475783;
+        Fri, 26 Jul 2019 01:57:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564131475; cv=none;
         d=google.com; s=arc-20160816;
-        b=QHHjxmhrxZqjgchQuwVjmS+8alfpb4QMyO5PvkRvkSNYkkM95ktZRaV5PwxwxprSi2
-         kqtsSgoDCgUMovXBof/am9uxlMDgeV3Hg9SSBui2rgOtuurwpHx/F6Pm9MEfmcb7uthI
-         6HOmKNE1WuYhrE1bMIEYj+aUewA+wWqqlcq52oE2HvPTTiebrQy2+5h2a88BvqWMTQYK
-         JVJowYrDaMQk9Jfd3DUP/e09X7mqm6yCcecIu/gKnfEuJLo8HcAFwWRrud39ItxqCl4v
-         Xv4If+VtPkVKIexApeIay8UOzsymDk8wLsiOzRwb1HSRfsFAe7EdJuA9PpHQPvtu3PqL
-         9tbw==
+        b=i0LVBumJU83kU7Qker3/L7/6q1DqIQ3IPskdh4/v3Pc0W6xrXbIPs04peUwI8ggEoL
+         3KGuPP/XtFIzf02GUAEmRrZJDozKJC57qISrtMBiU8E0AD7cUK6Kx0odTK9k5Sv2jipH
+         ETVcJi4PnhxgsZkzM46jy+ojLhGbySsZXr6ZTXomaJALxnCroaob7MZjfnrG4pPWJMYn
+         4+P/M75KC4Brg4KxqGcLzfQdmbirc1oODuFskmRt82YiQIoSqdqOSivZ5EqjzhgFdO0u
+         ji7tqTTpCf6bjogF/wOy5I8MGYUp/fHyqXMSaotxPvufsOmAHhAhYhPkpmUszLmsn7et
+         V7cQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:organization:autocrypt:openpgp:from
          :references:cc:to:subject;
-        bh=pbCLwJKwVZcVj75lQUeGmZAC2RHAjn48jIMmu03rd54=;
-        b=jcTIheTdXG+p4YeLuM7x0mdpSjGQuyAAK610TTa/u2ff4aAeKirhOfPuSJrWbKiXes
-         tjpwPghA+3QfT1Q2gTmZ3qj/nvVVHCnRul8yWYC5E0zNvsL5YixqJGhLaewInKVFc9oE
-         BWePWfitn+dQU8/LjrwiSWZwoHolLCPbRXaEoS5QW6ECDIhx3o+UT5diih8ggpOW8J/u
-         bZ18H5EofMtS5kUhJjDe/8v122pOIEsvZXZS/8ptQwWAcgBhEWqTCvhwv/86uXZ+Dkf4
-         pW4y5vGBbgAYalOHzEJa/ZZwAZZfZ9zLFiT2Zr/B7CQ70JmfHWlERWb5cVyAz345UGVU
-         aB4g==
+        bh=b4skpfKJLKybcfy5n1hvZ1EzSRecMEbnZOk8aC9/iTU=;
+        b=GPl9jqnxuwMrqF4ckShbAM02CeQ8Kt8QuhQMG0sveXsxFbg8q7gd28R1YMhzBljJHT
+         IrvYDSsyfKi/PtRIW1Sztgw4s5HLgBQVDMPKM5+Ten6YqyaRqEgdXwRm/ewMgL/CV8h0
+         ES+lAiJ7kjpB7nEKRH17gIcEsN8mS0s6MfljiL9Gwn6GHZymO+oOXwG9ntxd1Ydw9snr
+         1UeH7H2iFiooOm92+REv6pnTdh/WPZxjH4KZDGf2dQOW86wvC142q1tuS/9QkodeK2Nv
+         badQSLLimUlVOmWHd8dduN/6zTZfUBbxRQCLG+U5E/5ifHaGnO8/sJvh+lw+Pq8+GJ/v
+         M5dA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w8si30782743qkj.341.2019.07.26.01.48.58
+        by mx.google.com with ESMTPS id v54si34088252qtv.88.2019.07.26.01.57.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 26 Jul 2019 01:48:58 -0700 (PDT)
+        Fri, 26 Jul 2019 01:57:55 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5E50030917AC;
-	Fri, 26 Jul 2019 08:48:57 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id E9ABB30C134E;
+	Fri, 26 Jul 2019 08:57:54 +0000 (UTC)
 Received: from [10.36.116.244] (ovpn-116-244.ams2.redhat.com [10.36.116.244])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 3B39587B6;
-	Fri, 26 Jul 2019 08:48:55 +0000 (UTC)
-Subject: Re: [PATCH v3 2/5] mm: Introduce a new Vmemmap page-type
-To: Oscar Salvador <osalvador@suse.de>, akpm@linux-foundation.org
-Cc: dan.j.williams@intel.com, pasha.tatashin@soleen.com, mhocko@suse.com,
- anshuman.khandual@arm.com, Jonathan.Cameron@huawei.com, vbabka@suse.cz,
- linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <20190725160207.19579-1-osalvador@suse.de>
- <20190725160207.19579-3-osalvador@suse.de>
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 6C22C5D9C6;
+	Fri, 26 Jul 2019 08:57:53 +0000 (UTC)
+Subject: Re: [PATCH v1] ACPI / scan: Acquire device_hotplug_lock in
+ acpi_scan_init()
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-acpi@vger.kernel.org, "Rafael J. Wysocki" <rjw@rjwysocki.net>,
+ Andrew Morton <akpm@linux-foundation.org>, Oscar Salvador <osalvador@suse.de>
+References: <20190725125636.GA3582@dhcp22.suse.cz>
+ <6dc566c2-faf6-565d-4ef1-2ac3a366bc76@redhat.com>
+ <20190725135747.GB3582@dhcp22.suse.cz>
+ <447b74ca-f7c7-0835-fd50-a9f7191fe47c@redhat.com>
+ <20190725191943.GA6142@dhcp22.suse.cz>
+ <e31882cf-3290-ea36-77d6-637eaf66fe77@redhat.com>
+ <20190726075729.GG6142@dhcp22.suse.cz>
+ <fd9e8495-1a93-ac47-442f-081d392ed09b@redhat.com>
+ <20190726083117.GJ6142@dhcp22.suse.cz>
+ <38d76051-504e-c81a-293a-0b0839e829d3@redhat.com>
+ <20190726084408.GK6142@dhcp22.suse.cz>
 From: David Hildenbrand <david@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
@@ -141,167 +151,66 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <7e8746ac-6a66-d73c-9f2a-4fc53c7e4c04@redhat.com>
-Date: Fri, 26 Jul 2019 10:48:54 +0200
+Message-ID: <45c9f942-fe67-fa60-b62f-31867f9c6e53@redhat.com>
+Date: Fri, 26 Jul 2019 10:57:52 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <20190725160207.19579-3-osalvador@suse.de>
+In-Reply-To: <20190726084408.GK6142@dhcp22.suse.cz>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Fri, 26 Jul 2019 08:48:57 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Fri, 26 Jul 2019 08:57:55 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 25.07.19 18:02, Oscar Salvador wrote:
-> This patch introduces a new Vmemmap page-type.
+On 26.07.19 10:44, Michal Hocko wrote:
+> On Fri 26-07-19 10:36:42, David Hildenbrand wrote:
+>> On 26.07.19 10:31, Michal Hocko wrote:
+> [...]
+>>> Anyway, my dislike of the device_hotplug_lock persists. I would really
+>>> love to see it go rather than grow even more to the hotplug code. We
+>>> should be really striving for mem hotplug internal and ideally range
+>>> defined locking longterm. 
+>>
+>> Yes, and that is a different story, because it will require major
+>> changes to all add_memory() users. (esp, due to the documented race
+>> conditions). Having that said, memory hotplug locking is not ideal yet.
 > 
-> It also introduces some functions to ease the handling of vmemmap pages:
-> 
-> - vmemmap_nr_sections: Returns the number of sections that used vmemmap.
-> 
-> - vmemmap_nr_pages: Allows us to retrieve the amount of vmemmap pages
->   derivated from any vmemmap-page in the section. Useful for accounting
->   and to know how much to we have to skip in the case where vmemmap pages
->   need to be ignored.
-> 
-> - vmemmap_head: Returns the vmemmap head page
-> 
-> - SetPageVmemmap: Sets Reserved flag bit, and sets page->type to Vmemmap.
->   Setting the Reserved flag bit is just for extra protection, actually
->   we do not expect anyone to use these pages for anything.
-> 
-> - ClearPageVmemmap: Clears Reserved flag bit and page->type.
->   Only used when sections containing vmemmap pages are removed.
-> 
-> These functions will be used for the code handling Vmemmap pages.
-> 
+> I am really happy to hear that we are on the same page here. Do we have
+> any document (I am sorry but I am lacking behind recent development in
+> this area) that describes roadblocks to remove device_hotplug_lock?
 
-Much cleaner using the page type :)
+Only the core-api document I mentioned (I documented there quite some
+current conditions I identified back then).
 
-> Signed-off-by: Oscar Salvador <osalvador@suse.de>
-> ---
->  include/linux/mm.h         | 17 +++++++++++++++++
->  include/linux/mm_types.h   |  5 +++++
->  include/linux/page-flags.h | 19 +++++++++++++++++++
->  3 files changed, 41 insertions(+)
-> 
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 45f0ab0ed4f7..432175f8f8d2 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -2904,6 +2904,23 @@ static inline bool debug_guardpage_enabled(void) { return false; }
->  static inline bool page_is_guard(struct page *page) { return false; }
->  #endif /* CONFIG_DEBUG_PAGEALLOC */
->  
-> +static __always_inline struct page *vmemmap_head(struct page *page)
-> +{
-> +	return (struct page *)page->vmemmap_head;
-> +}
-> +
-> +static __always_inline unsigned long vmemmap_nr_sections(struct page *page)
-> +{
-> +	struct page *head = vmemmap_head(page);
-> +	return head->vmemmap_sections;
-> +}
-> +
-> +static __always_inline unsigned long vmemmap_nr_pages(struct page *page)
-> +{
-> +	struct page *head = vmemmap_head(page);
-> +	return head->vmemmap_pages - (page - head);
-> +}
-> +
->  #if MAX_NUMNODES > 1
->  void __init setup_nr_node_ids(void);
->  #else
-> diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-> index 6a7a1083b6fb..51dd227f2a6b 100644
-> --- a/include/linux/mm_types.h
-> +++ b/include/linux/mm_types.h
-> @@ -170,6 +170,11 @@ struct page {
->  			 * pmem backed DAX files are mapped.
->  			 */
->  		};
-> +		struct {        /* Vmemmap pages */
-> +			unsigned long vmemmap_head;
-> +			unsigned long vmemmap_sections; /* Number of sections */
-> +			unsigned long vmemmap_pages;    /* Number of pages */
-> +		};
->  
->  		/** @rcu_head: You can use this to free a page by RCU. */
->  		struct rcu_head rcu_head;
-> diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
-> index f91cb8898ff0..75f302a532f9 100644
-> --- a/include/linux/page-flags.h
-> +++ b/include/linux/page-flags.h
-> @@ -708,6 +708,7 @@ PAGEFLAG_FALSE(DoubleMap)
->  #define PG_kmemcg	0x00000200
->  #define PG_table	0x00000400
->  #define PG_guard	0x00000800
-> +#define PG_vmemmap     0x00001000
->  
->  #define PageType(page, flag)						\
->  	((page->page_type & (PAGE_TYPE_BASE | flag)) == PAGE_TYPE_BASE)
-> @@ -764,6 +765,24 @@ PAGE_TYPE_OPS(Table, table)
->   */
->  PAGE_TYPE_OPS(Guard, guard)
->  
-> +/*
-> + * Vmemmap pages refers to those pages that are used to create the memmap
-> + * array, and reside within the same memory range that was hotppluged, so
-> + * they are self-hosted. (see include/linux/memory_hotplug.h)
-> + */
-> +PAGE_TYPE_OPS(Vmemmap, vmemmap)
-> +static __always_inline void SetPageVmemmap(struct page *page)
-> +{
-> +	__SetPageVmemmap(page);
-> +	__SetPageReserved(page);
+I am not sure if we can remove it completely from
+add_memory()/remove_memory(): We actually create/delete devices which
+can otherwise create races with user space.
 
-So, the issue with some vmemmap pages is that the "struct pages" reside
-on the memory they manage. (it is nice, but complicated - e.g. when
-onlining/offlining)
+Besides that:
+- try_offline_node() needs the lock to synchronize against cpu hotplug
+- I *assume* try_online_node() needs it as well
 
-I would expect that you properly initialize the struct pages for the
-vmemmap pages (now it gets confusing :) ) when adding memory. The other
-struct pages are initialized when onlining/offlining.
+Then, there is the possible race condition with user space onlining
+memory avoided by the lock. Also, currently the lock protects the
+"online_type" when onlining memory.
 
-So, at this point, the pages should already be marked reserved, no? Or
-are the struct pages for the vmemmap never initialized?
+Then, there might be other global variables (eventually
+zone/node/section related) that might need this lock right now - no
+details known.
 
-What zone do these vmemmap pages have? They are not assigned to any zone
-and will never be :/
+IOW, we have to be very carefully and it is more involved than it might
+seem.
 
-> +}
-> +
-> +static __always_inline void ClearPageVmemmap(struct page *page)
-> +{
-> +	__ClearPageVmemmap(page);
-> +	__ClearPageReserved(page);
-
-You sure you want to clear the reserved flag here? Is this function
-really needed?
-
-(when you add memory, you can mark all relevant pages as vmemmap pages,
-which is valid until removing the memory)
-
-Let's draw a picture so I am not confused
-
-[ ------ added memory ------ ]
-[ vmemmap]
-
-The first page of the added memory is a vmemmap page AND contains its
-own vmemmap, right?
-
-When adding memory, you would initialize set all struct pages of the
-vmemmap (residing on itself) and set them to SetPageVmemmap().
-
-When removing memory, there is nothing to do, all struct pages are
-dropped. So why do we need the ClearPageVmemmap() ?
+Locking is definitely better (and more reliably!) than one year ago, but
+there is definitely a lot to do. (unfortunately, just like in many areas
+in memory hotplug code :( - say zone handling when offlining/failing to
+online memory).
 
 -- 
 
