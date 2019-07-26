@@ -2,92 +2,110 @@ Return-Path: <SRS0=rceO=VX=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BEA7CC41517
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 14:11:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A110DC76191
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 15:03:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7471421850
-	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 14:11:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7471421850
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 3DB5821901
+	for <linux-mm@archiver.kernel.org>; Fri, 26 Jul 2019 15:03:27 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="O6JUVwIu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DB5821901
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC1696B0003; Fri, 26 Jul 2019 10:11:03 -0400 (EDT)
+	id D43356B0003; Fri, 26 Jul 2019 11:03:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E53AC8E0005; Fri, 26 Jul 2019 10:11:03 -0400 (EDT)
+	id CF4236B0005; Fri, 26 Jul 2019 11:03:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D43A18E0003; Fri, 26 Jul 2019 10:11:03 -0400 (EDT)
+	id BBB908E0002; Fri, 26 Jul 2019 11:03:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B3C6E6B0003
-	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 10:11:03 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id d11so45246304qkb.20
-        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 07:11:03 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E0FD6B0003
+	for <linux-mm@kvack.org>; Fri, 26 Jul 2019 11:03:26 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id s22so47556860qtb.22
+        for <linux-mm@kvack.org>; Fri, 26 Jul 2019 08:03:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to;
-        bh=BzrA0ys/IGuw6+s+YjNIxT2BTY3S5/AQ1t9rFuzqXxg=;
-        b=J9yY0ldJuw51VkyZ+LgLqUYRnaUZLPY5XT71goRCy4hS/nP6s5gxoSxtu4frgGOA1v
-         ncGoddddfi7SQYcaqf+jfWSsZ29/MSFNtpo2tHSX9ZsAoktUWUOqGdKNxGr3oXPKnNay
-         tOJmchugKrcXQR2O1oIPYMZ/Ku3LgxK6LZsjTb18+HaMXQv4fAFjPVwl5gCkoYRwiSNi
-         Vhi4Mc9OljkLnq3Bwj52R0DY8TiDdWLQKLcQuqfmLrlmZaasIKrRfxHVZa4LZhnRhR3g
-         CNy5y9sNZmZOq0OCYnDiUFTlG/ZKwQGOhQGp47Df+rwJM7XQ4Xy/DRCWWchyd3iX/SMW
-         U+gw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUPVRORziNKQQTngjcoQbWsulE+VUWKeD7HeFqBTVRtLqxn7lw1
-	xnz22duBjCTvkBDEzTPfmZ7zgUfpcZ0zfLwmUhlytGEFj1xEEX8BkMwIQuPmaF1tRky5ITaJ/5V
-	QdyAis/jDbRW4w4TY65vbVOSi13ieDz7u6KIGX++/P4bnLGQYjYg/kA1XWCaSrX/3Sg==
-X-Received: by 2002:ac8:22ad:: with SMTP id f42mr66341033qta.271.1564150263477;
-        Fri, 26 Jul 2019 07:11:03 -0700 (PDT)
-X-Received: by 2002:ac8:22ad:: with SMTP id f42mr66340973qta.271.1564150262806;
-        Fri, 26 Jul 2019 07:11:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564150262; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=GJNtLWUjNKGuqf/4gWb/0hY3o63IJN+bigrvbnAEvoQ=;
+        b=nnWV/cv6OrJplhKrkfyMVM+HIRaV53MuVtTp4lq8rVlPLUm3SUBR+wsVrgErm0t1vA
+         WO3eldbTDZusfN9Wi3cXWG1MPRK33yxlI+FXGjh0g9MBAdLqBI4QGYjUtMAZsmhvIrFE
+         JR50eUqYpq0ap1QRTXCnBMg33Pv7vTTk6vTQY0lmD/03I94VeZmg997kwEmyUs8oeelb
+         3SjgEruaKcR0sE2wAaujxMCQgvkhyXhvmmhb2NRVQTCnwl1gDozIuguH8NfmYalnFeIB
+         jlr1xkbPzXsncsaFDJSMUU0kWTUpicfqRYSdzpTaQYWZGgZMGlXDvADuK6mmKeY2rj0N
+         1soQ==
+X-Gm-Message-State: APjAAAVCXLAwETPU5nBq4qAFtXKU4/iC9ClBtCIdH3td/9stOxHY+jtp
+	ZhftebXMRQblUfhjKFzUaO1p5tedN9ZGxyQmfyzypyZfZP8iFuRq982TmmlUCPsyGosFNISe/s+
+	Kt6uefgpQgVQeYebIRJhxKhhbB2rM8vgWR03WOOj+17qpULHPNFmz74rdaSKb3sMZNw==
+X-Received: by 2002:a37:6ac3:: with SMTP id f186mr61469393qkc.281.1564153406335;
+        Fri, 26 Jul 2019 08:03:26 -0700 (PDT)
+X-Received: by 2002:a37:6ac3:: with SMTP id f186mr61469343qkc.281.1564153405664;
+        Fri, 26 Jul 2019 08:03:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564153405; cv=none;
         d=google.com; s=arc-20160816;
-        b=aObj1NT1lgBaNM3aUmUPTCLDi56D4I7VgctTlZd+TWWWfJwqOHLJ33sAKs+t8wB/ZH
-         VuNqfYxTIfhB+yL26UYBFMVJ1/GQYueQFiDxpvIPPBPN6ysjWE570bIjb2K5U7L2xfUf
-         mqG4OhcBCqK/obmhloTd7z2VRLgLsX/hOInFOYDn2rcqclda0zstfuqEyCFiZaK46wZn
-         c7RKW5a+GdgFNvBubaZFuVwH1GPfVmhv/mLyTSdRzAY5nPMpFf+blFBQicivbRcsf0K5
-         ySSM7aDPSu/hROk5fZ49dg77r9Koso0RVkhfqs/PkFSuFA7JBwGUj8BfEijXvgTym7+C
-         CZNg==
+        b=LSKMtNvRrMHkFcmrqUdo6xLcG3RhjrVgJwnvAf9e3sjjFNiJB0Cuo8qrOCcTY7AuP5
+         SzTR4XgICMxfBoeiRDRwi4I79XVRVArzxN3uRk0ihjMfZXrM3MiBapT6LBavMM0ceCTr
+         3o8MAZ9ibs0ombm7BEgnkXbBN1RcFEEVjPBe2gzrpemJpp1DVJCG7jmUr1bhez+jRxn/
+         tkcp5Do2E+Wo/LYCMV5sB6k5FlB258iNn/iysDVqIUyqaD5n7GLrAp/0FF2UDtr8szIR
+         F1/xEb5CDYXnzzOgeczs0UPKR5RrNMio92UrCyErMTUN8caYc9dDOS+9xBGzp+QWfCX+
+         zPLw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :mime-version:references:message-id:subject:cc:to:from:date;
-        bh=BzrA0ys/IGuw6+s+YjNIxT2BTY3S5/AQ1t9rFuzqXxg=;
-        b=ofY2UfhBryvNhNruJW5nx3kZi5PJL18F0/EnvphTnn+JX2avpImaK6fB31tOZcyhen
-         Mg3CoplayN9RV5tEkxhrwjq5PXTFia6A21L1B+ZXs8QntfOVoSTAuZzrzT22GecdDXed
-         WmFbRHMDK4TUSI2HSKAGAZC8Cr60Upaj6qE2pPT8+uLI8ihrjAj/YGHt9Iwfudm9hCLp
-         wtYpovzOeCgiLA59VSQXTEZTZ005SSE+Pigh484VQfHx8HBuGqyi9AIMD9NkhySVAy0s
-         LrDmMj8zQouVfJOMsaOulR7WFJhA119jdkJ4sHoUi84QokKG5ttHKwkRwqhjFSVAWXil
-         +bqg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=GJNtLWUjNKGuqf/4gWb/0hY3o63IJN+bigrvbnAEvoQ=;
+        b=IoUIGVHWE0rZp+h2TTJqxPwyrmMmwlA4AADELE4rHKYAmqVv8K0cbL/ZYv0MRcWRf7
+         ZAh1ySmw2EfY1WjoaPwmNRWYkVsnrl1gfR39r6TuTyP2FYo8uY+T+hEwgx8fWm8aOTO1
+         zH5//OrGIehXV9bgV4b6cVpyCgtU0mP7JcThPgQ8f6jGzWQ/EcyXhbrn8ILeLIweuw+e
+         zNbKJQ5yKGrLkEKVaD9Qbjd6t6gqIi07hkc/Tj4zXhwJlsMmYTEXYu1/L1TKBQgk3GRX
+         tAudVhp0EE8l0Ne7Rc/oG0shUEiC2pzuD9tayZNP5gmh5efxnC6GpqYR3v9VzKJJ01Zn
+         FyzA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=O6JUVwIu;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l4sor29876900qkf.164.2019.07.26.07.11.02
+        by mx.google.com with SMTPS id l8sor28481164qvh.25.2019.07.26.08.03.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 26 Jul 2019 07:11:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 26 Jul 2019 08:03:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqwObrpXH42ySj1xm6EAU0bUDulKJhDhMtupkS+wvVAcYf8qLK0833op+LhL9ss7CBOddhb+9A==
-X-Received: by 2002:a37:6086:: with SMTP id u128mr63344232qkb.270.1564150262488;
-        Fri, 26 Jul 2019 07:11:02 -0700 (PDT)
-Received: from redhat.com ([212.92.104.165])
-        by smtp.gmail.com with ESMTPSA id p32sm27054502qtb.67.2019.07.26.07.10.55
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 26 Jul 2019 07:11:01 -0700 (PDT)
-Date: Fri, 26 Jul 2019 10:10:52 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=O6JUVwIu;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=GJNtLWUjNKGuqf/4gWb/0hY3o63IJN+bigrvbnAEvoQ=;
+        b=O6JUVwIuDaoRGTyw9VDj8CvDSgLGWaKe8W4Wqb4w+dbn+4ZFH7a+6nHcjk/wUFFm6c
+         0OYFTUoD9kHzSda3BQ8LyYRfdBubXwXZJVnNplw+uVLkHyKDz4X4NKH3Iz+7fyGTXvHZ
+         SAmJImRDUCcOoWsYveIBTPNVruXFj0AXDPvuupRJe2nNzzPjk3KJWpIwPdb/PyZI5Fwj
+         1x+AzU4fu6Hr7MypuEf996Ujkld5D3SALeRfN0ESQsNEl+iLcmRk7VOM3gFucanIizsp
+         TEtB+vFjXNcz2vsGefQVJGHCZUG+6dpBQ5WpVqBd3HCf7f1KtoQETLm3B6MhLgC1B2Ry
+         ndDA==
+X-Google-Smtp-Source: APXvYqw5bM9aE7bDAsR6CkrbhbbwLJ5RGlTlhcmaAHdDamcGQSO6zz4CR/XGVWg0EnLb37ZxhxrkYw==
+X-Received: by 2002:a0c:d14e:: with SMTP id c14mr68086462qvh.206.1564153405057;
+        Fri, 26 Jul 2019 08:03:25 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id u71sm25391649qka.21.2019.07.26.08.03.23
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 26 Jul 2019 08:03:24 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hr1kg-0000d9-RM; Fri, 26 Jul 2019 12:03:22 -0300
+Date: Fri, 26 Jul 2019 12:03:22 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
 To: Jason Wang <jasowang@redhat.com>
-Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
+Cc: "Michael S. Tsirkin" <mst@redhat.com>,
+	syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
 	aarcange@redhat.com, akpm@linux-foundation.org,
 	christian@brauner.io, davem@davemloft.net, ebiederm@xmission.com,
 	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
@@ -100,7 +118,7 @@ Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
 	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
 	wad@chromium.org
 Subject: Re: WARNING in __mmdrop
-Message-ID: <20190726100716-mutt-send-email-mst@kernel.org>
+Message-ID: <20190726150322.GB8695@ziepe.ca>
 References: <20190725042651-mutt-send-email-mst@kernel.org>
  <84bb2e31-0606-adff-cf2a-e1878225a847@redhat.com>
  <20190725092332-mutt-send-email-mst@kernel.org>
@@ -116,6 +134,7 @@ Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
 In-Reply-To: <63754251-a39a-1e0e-952d-658102682094@redhat.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -123,69 +142,6 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On Fri, Jul 26, 2019 at 10:00:20PM +0800, Jason Wang wrote:
-> 
-> On 2019/7/26 下午9:47, Michael S. Tsirkin wrote:
-> > On Fri, Jul 26, 2019 at 08:53:18PM +0800, Jason Wang wrote:
-> > > On 2019/7/26 下午8:38, Michael S. Tsirkin wrote:
-> > > > On Fri, Jul 26, 2019 at 08:00:58PM +0800, Jason Wang wrote:
-> > > > > On 2019/7/26 下午7:49, Michael S. Tsirkin wrote:
-> > > > > > On Thu, Jul 25, 2019 at 10:25:25PM +0800, Jason Wang wrote:
-> > > > > > > On 2019/7/25 下午9:26, Michael S. Tsirkin wrote:
-> > > > > > > > > Exactly, and that's the reason actually I use synchronize_rcu() there.
-> > > > > > > > > 
-> > > > > > > > > So the concern is still the possible synchronize_expedited()?
-> > > > > > > > I think synchronize_srcu_expedited.
-> > > > > > > > 
-> > > > > > > > synchronize_expedited sends lots of IPI and is bad for realtime VMs.
-> > > > > > > > 
-> > > > > > > > > Can I do this
-> > > > > > > > > on through another series on top of the incoming V2?
-> > > > > > > > > 
-> > > > > > > > > Thanks
-> > > > > > > > > 
-> > > > > > > > The question is this: is this still a gain if we switch to the
-> > > > > > > > more expensive srcu? If yes then we can keep the feature on,
-> > > > > > > I think we only care about the cost on srcu_read_lock() which looks pretty
-> > > > > > > tiny form my point of view. Which is basically a READ_ONCE() + WRITE_ONCE().
-> > > > > > > 
-> > > > > > > Of course I can benchmark to see the difference.
-> > > > > > > 
-> > > > > > > 
-> > > > > > > > if not we'll put it off until next release and think
-> > > > > > > > of better solutions. rcu->srcu is just a find and replace,
-> > > > > > > > don't see why we need to defer that. can be a separate patch
-> > > > > > > > for sure, but we need to know how well it works.
-> > > > > > > I think I get here, let me try to do that in V2 and let's see the numbers.
-> > > > > > > 
-> > > > > > > Thanks
-> > > > > It looks to me for tree rcu, its srcu_read_lock() have a mb() which is too
-> > > > > expensive for us.
-> > > > I will try to ponder using vq lock in some way.
-> > > > Maybe with trylock somehow ...
-> > > 
-> > > Ok, let me retry if necessary (but I do remember I end up with deadlocks
-> > > last try).
-> > > 
-> > > 
-> > > > 
-> > > > > If we just worry about the IPI,
-> > > > With synchronize_rcu what I would worry about is that guest is stalled
-> > > 
-> > > Can this synchronize_rcu() be triggered by guest? If yes, there are several
-> > > other MMU notifiers that can block. Is vhost something special here?
-> > Sorry, let me explain: guests (and tasks in general)
-> > can trigger activity that will
-> > make synchronize_rcu take a long time.
-> 
-> 
-> Yes, I get this.
-> 
-> 
-> >   Thus blocking
-> > an mmu notifier until synchronize_rcu finishes
-> > is a bad idea.
-> 
-> 
 > The question is, MMU notifier are allowed to be blocked on
 > invalidate_range_start() which could be much slower than synchronize_rcu()
 > to finish.
@@ -197,93 +153,15 @@ On Fri, Jul 26, 2019 at 10:00:20PM +0800, Jason Wang wrote:
 >                         true, false, MAX_SCHEDULE_TIMEOUT);
 > 
 > ...
-> 
 
-Right. And the result will probably be VMs freezing/timing out, too.
-It's just that we care about VMs more than the GPU guys :)
+The general guidance has been that invalidate_start should block
+minimally, if at all.
 
+I would say synchronize_rcu is outside that guidance.
 
-> > > > because system is busy because of other guests.
-> > > > With expedited it's the IPIs...
-> > > > 
-> > > The current synchronize_rcu()  can force a expedited grace period:
-> > > 
-> > > void synchronize_rcu(void)
-> > > {
-> > >          ...
-> > >          if (rcu_blocking_is_gp())
-> > > return;
-> > >          if (rcu_gp_is_expedited())
-> > > synchronize_rcu_expedited();
-> > > else
-> > > wait_rcu_gp(call_rcu);
-> > > }
-> > > EXPORT_SYMBOL_GPL(synchronize_rcu);
-> > 
-> > An admin can force rcu to finish faster, trading
-> > interrupts for responsiveness.
-> 
-> 
-> Yes, so when set, all each synchronize_rcu() will go for
-> synchronize_rcu_expedited().
+BTW, always returning EAGAIN for mmu_notifier_range_blockable() is not
+good either, it should instead only return EAGAIN if any
+vhost_map_range_overlap() is true.
 
-And that's bad for realtime things. I understand what you are saying,
-host admin can set this and VMs won't time-out.  What I'm saying is we
-should not make admins choose between two types of bugs. Tuning for
-performance is fine.
-
-> 
-> > 
-> > > > > can we do something like in
-> > > > > vhost_invalidate_vq_start()?
-> > > > > 
-> > > > >           if (map) {
-> > > > >                   /* In order to avoid possible IPIs with
-> > > > >                    * synchronize_rcu_expedited() we use call_rcu() +
-> > > > >                    * completion.
-> > > > > */
-> > > > > init_completion(&c.completion);
-> > > > >                   call_rcu(&c.rcu_head, vhost_finish_vq_invalidation);
-> > > > > wait_for_completion(&c.completion);
-> > > > >                   vhost_set_map_dirty(vq, map, index);
-> > > > > vhost_map_unprefetch(map);
-> > > > >           }
-> > > > > 
-> > > > > ?
-> > > > Why would that be faster than synchronize_rcu?
-> > > 
-> > > No faster but no IPI.
-> > > 
-> > Sorry I still don't see the point.
-> > synchronize_rcu doesn't normally do an IPI either.
-> > 
-> 
-> Not the case of when rcu_expedited is set. This can just 100% make sure
-> there's no IPI.
-
-Right but then the latency can be pretty big.
-
-> 
-> > > > 
-> > > > > > There's one other thing that bothers me, and that is that
-> > > > > > for large rings which are not physically contiguous
-> > > > > > we don't implement the optimization.
-> > > > > > 
-> > > > > > For sure, that can wait, but I think eventually we should
-> > > > > > vmap large rings.
-> > > > > Yes, worth to try. But using direct map has its own advantage: it can use
-> > > > > hugepage that vmap can't
-> > > > > 
-> > > > > Thanks
-> > > > Sure, so we can do that for small rings.
-> > > 
-> > > Yes, that's possible but should be done on top.
-> > > 
-> > > Thanks
-> > Absolutely. Need to fix up the bugs first.
-> > 
-> 
-> Yes.
-> 
-> Thanks
+Jason
 
