@@ -2,125 +2,122 @@ Return-Path: <SRS0=PO26=VY=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.4 required=3.0 tests=FROM_LOCAL_HEX,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E7564C7618B
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Jul 2019 10:13:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 360B8C7618B
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Jul 2019 10:16:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C029C20840
-	for <linux-mm@archiver.kernel.org>; Sat, 27 Jul 2019 10:13:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C029C20840
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 1A3EC20840
+	for <linux-mm@archiver.kernel.org>; Sat, 27 Jul 2019 10:16:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1A3EC20840
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 26B0C8E0003; Sat, 27 Jul 2019 06:13:59 -0400 (EDT)
+	id 96C7B8E0003; Sat, 27 Jul 2019 06:16:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 240498E0002; Sat, 27 Jul 2019 06:13:59 -0400 (EDT)
+	id 91D398E0002; Sat, 27 Jul 2019 06:16:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 131F48E0003; Sat, 27 Jul 2019 06:13:59 -0400 (EDT)
+	id 85A108E0003; Sat, 27 Jul 2019 06:16:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D12498E0002
-	for <linux-mm@kvack.org>; Sat, 27 Jul 2019 06:13:58 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id d27so35473881eda.9
-        for <linux-mm@kvack.org>; Sat, 27 Jul 2019 03:13:58 -0700 (PDT)
+Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 652B48E0002
+	for <linux-mm@kvack.org>; Sat, 27 Jul 2019 06:16:01 -0400 (EDT)
+Received: by mail-io1-f71.google.com with SMTP id c5so61217715iom.18
+        for <linux-mm@kvack.org>; Sat, 27 Jul 2019 03:16:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=JbEDAElGhBvQS+cUD/l7SvM0bOJzGScQl5oJeAtgUQI=;
-        b=AMYq8R+GTQKEswx/ef+8oq7LUXVHPboEgvGtYN5uevAyl8GfDXHW7GY8IhGah6Wciz
-         pYQHAyzuW8ASRHMp4FB8gHV+dxxXn0wGOCu0HKYIva4LEzchhwcN++Al4QR2D6sa/KFI
-         Ugw08eH3Jmiiw3jWRmMwp8xT7/TCFgMWW5Fi9FHs8tNsHN46hGi1Yq9deSdStCfpYWf1
-         /9e+j/t9AS3/unpkwkPUQyw4DZSvFnwVvHaBfItmDNG8uIVNwLOBPCiltAq0IxH5W14I
-         0Y9bU5MUkQ9BpuNtAjN1qMoeeeFFezKn9I8qCAPaA1+AcM0noulX3WVJqFtNoFdXElvi
-         cVHg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAWsuJf+qz51thF8rJVhu0qzcs6b0FpWZSQfbSsfATckH6FqifOL
-	e7hPxSkLInQkIKRn9JWnmrZBtFiTdAADLf88ri34z6sj3L+7c7NjDPJlJVsPOz4FuurK/kxn6rz
-	ZcL/BJV9MH3ltCrBnKOEt3wu6coYA0LeiKd1iK/OBJUzwbDmZ8ZDvyyaor718jNzwZw==
-X-Received: by 2002:a50:9f4e:: with SMTP id b72mr86746594edf.252.1564222438402;
-        Sat, 27 Jul 2019 03:13:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx3/uisYHCC58khY/KW/TvOtESL1EwxXtNoMwEpByTLgM2Y3sAPwwDsEouM3XGJnSXOSpYI
-X-Received: by 2002:a50:9f4e:: with SMTP id b72mr86746557edf.252.1564222437668;
-        Sat, 27 Jul 2019 03:13:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564222437; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :date:in-reply-to:message-id:subject:from:to;
+        bh=x2XPPyWw+kTQEvjXcX/vC5JNb6a5vMqFuiwlUWd2Kag=;
+        b=Dk/GK0H8hlRfCpMvugHJDpRhX1qtTdhXM5MMqhJ6cVDtXvjAS0KMgzocb0D8BQV19C
+         yZep8wMuwO9bYkANifyRC5UN2bPqblUrJX9qpRAHOjZ8PUik/jZpL5bHvsIp4bwEMc0A
+         XEvogKrqOq6IS6NAbS+2Lxf2fn3Ez8ttcYd6ilOO3mqKFizEHB5mQKQ0ICrQ4hCWdxyX
+         RA2PkcsLcTIM+5agy1ZZMe2NpKb6ROf1b4METSrwzA7Ms2qDp2jmPEG7wY7Gf0hfIuWH
+         ARBArW3QZ2X7/0O9lougr0a8Jv2z1aOIUR7W7mgoRuQTloaCBlWly8/pAbOpddWXW9Yp
+         DXgw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3ycq8xqkbaik5bcxnyyr4n22vq.t11tyr75r4p106r06.p1z@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3YCQ8XQkbAIk5BCxnyyr4n22vq.t11tyr75r4p106r06.p1z@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Gm-Message-State: APjAAAVvt50tDfXf69ksNNYDMOeIRABvATV4ApgoOziPzbQspJENndzG
+	uKvRVP3A6WFMKWgqGbJrDwUuW4MQb9wkN25pu9ZhtkN2EUy+IC3SfYuyEcih/BKyWFLV+hvhhKG
+	AWqYIIxi31+uciWiPtfDgpNkRVVDra+w6EUWWk46eZQEF/xs+HaTxjvLN4+52ajI=
+X-Received: by 2002:a5e:9304:: with SMTP id k4mr6028940iom.206.1564222561174;
+        Sat, 27 Jul 2019 03:16:01 -0700 (PDT)
+X-Received: by 2002:a5e:9304:: with SMTP id k4mr6028906iom.206.1564222560550;
+        Sat, 27 Jul 2019 03:16:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564222560; cv=none;
         d=google.com; s=arc-20160816;
-        b=NX4sCpsEG24DM86eZFmqwI2xXJUQ2dgk5XIprsUEflE1M+gM6jMoIP5MXCi6BHcmwi
-         jwr4vqHMLP/NxwQR+dBS9yctGZALBsYGf1NMasq7lytkfAiunfZb9Z67TOb7e8WjGAZn
-         RTPnsLKIN1A47s0yZzFXuYqkfy/I9I5w4jhQNLnbaoCKq3Lqov4t+9wtp2Gvs3JL8t3k
-         QQWyKkrKc0mGT8FlrRNadq6Uwus/28Y/2gZYOEer+Mq6fnIdtAZx5JXLdWJygcqCzDRs
-         rZur4YvlSeSakDgcXnj3CokPEo40hojOU4HLwXnvgT0PUspmNKXJ5plfjCo5MA2erwZG
-         mAWw==
+        b=VBmKD+jx+DvAvOofCn0uIF6YlE+snzhcoO566ncFP4o+z3CNTUaH3uwk2AghkqQYX+
+         S8jlMEJD6PwXt6u2lhtB4noGgyrvxzXdz1jUTHwRjwwBiwrww3WeMGuKzMsrp0iFPR5H
+         tFTalCxEfkPzCzNf4mANCHUdrtigVURaA6U4qBRWs9P90C2qBZBsvwraNeWwKYgy1G73
+         MI9lC+JnTjpw2U+C4/T9ZDnjX8wxoP+qPqY0xZggKDojjtodXxm1RLAnuVk0J13hDBoo
+         zxgQZsYYAmwWgLG/Z/eXVTJpb9Upl90swZVa+hLuqIeq5QvnnrwLWzEbVWaCC/3oCoJx
+         +Ccg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=JbEDAElGhBvQS+cUD/l7SvM0bOJzGScQl5oJeAtgUQI=;
-        b=MP5Fex+TbB5GIwP6QnkG+hRTmiBsQHVEYYFndLxbHeExLdcqAm/nWNVcJR2sb5vFKe
-         Z3u2wueRrGJNf2ez0R0RqnFT/XUuSFa/1ihL6+eSa6Ac2QKwi2Yp84N0DAbEuCClkGB6
-         z82VH2lX8OnxGdwxU6/5a7h5V4vIh7JfQ3wEZTEN3RCtEbjxk4zGsyjlY7A5a/lud0dw
-         YF7k3MAOuNq1GAQFwfUEiWnfGLf/2fGGFHU9+x/APkw+xL14T0o6ZqIwyXU0cejNRjTo
-         IE960RKx3qCITcA0ApRmnRCfIBBARLSRgMXgTdSX8ukpwNGjgZGl8h46lBHvG1wXRcWf
-         /vzw==
+        h=to:from:subject:message-id:in-reply-to:date:mime-version;
+        bh=x2XPPyWw+kTQEvjXcX/vC5JNb6a5vMqFuiwlUWd2Kag=;
+        b=JVchOeW5ribDJ1EQw/DCJYd5bPvlaDlTxN13KzCup82ziHtOwMcdMaMMZCk2zXTbN+
+         PWCRvM+1dt8Z49aYgdqLIAfWHooF91TawIZ18hznpaOPQlNZ2BDmI0LwhVhTfPlpeRwn
+         Ye52eXoQuJbDceyGqJ6SUTInK8YPidAYPLQS5EPK+CSHOwNwsh92reQujftsjPsIKhAF
+         SJPqgrdAXfNeUO3/QO1+xwHnaM452ly5nq/t8DG97tb7/DOQZLPLyZVl6HNWfJQ1+0Sw
+         gSr6opQtZeNXm9AU7UajlrWvdq1l88USO7k2dEgGTWt+bDRCI1w7YTctX+3/4LLIq72k
+         MbHA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id ox16si12240433ejb.171.2019.07.27.03.13.57
-        for <linux-mm@kvack.org>;
-        Sat, 27 Jul 2019 03:13:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of 3ycq8xqkbaik5bcxnyyr4n22vq.t11tyr75r4p106r06.p1z@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3YCQ8XQkbAIk5BCxnyyr4n22vq.t11tyr75r4p106r06.p1z@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id k7sor38735545iol.66.2019.07.27.03.16.00
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sat, 27 Jul 2019 03:16:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3ycq8xqkbaik5bcxnyyr4n22vq.t11tyr75r4p106r06.p1z@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id CCDD528;
-	Sat, 27 Jul 2019 03:13:56 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 76FE83F71A;
-	Sat, 27 Jul 2019 03:13:55 -0700 (PDT)
-Date: Sat, 27 Jul 2019 11:13:53 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Qian Cai <cai@lca.pw>
-Cc: Yang Shi <yang.shi@linux.alibaba.com>, mhocko@suse.com,
-	dvyukov@google.com, rientjes@google.com, willy@infradead.org,
-	akpm@linux-foundation.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] Revert "kmemleak: allow to coexist with fault injection"
-Message-ID: <20190727101352.GA14316@arrakis.emea.arm.com>
-References: <1563299431-111710-1-git-send-email-yang.shi@linux.alibaba.com>
- <1563301410.4610.8.camel@lca.pw>
+       spf=pass (google.com: domain of 3ycq8xqkbaik5bcxnyyr4n22vq.t11tyr75r4p106r06.p1z@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3YCQ8XQkbAIk5BCxnyyr4n22vq.t11tyr75r4p106r06.p1z@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Google-Smtp-Source: APXvYqyUUXRwrDhv+Q8VwK3XJ+lyMBkXhuGvc/B+mH+HMjh06Rq3S9TIzl2shA7qpymnG5hvTqwSBsZorpk8Y0tjAKx1u9bCuJWS
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1563301410.4610.8.camel@lca.pw>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-Received: by 2002:a5d:994b:: with SMTP id v11mr46002856ios.165.1564222560256;
+ Sat, 27 Jul 2019 03:16:00 -0700 (PDT)
+Date: Sat, 27 Jul 2019 03:16:00 -0700
+In-Reply-To: <000000000000111cbe058dc7754d@google.com>
+X-Google-Appengine-App-Id: s~syzkaller
+X-Google-Appengine-App-Id-Alias: syzkaller
+Message-ID: <0000000000000dc874058ea6f261@google.com>
+Subject: Re: memory leak in new_inode_pseudo (2)
+From: syzbot <syzbot+e682cca30bc101a4d9d9@syzkaller.appspotmail.com>
+To: axboe@fb.com, axboe@kernel.dk, catalin.marinas@arm.com, 
+	davem@davemloft.net, linux-block@vger.kernel.org, 
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org, michaelcallahan@fb.com, 
+	netdev@vger.kernel.org, syzkaller-bugs@googlegroups.com
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000446, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 16, 2019 at 02:23:30PM -0400, Qian Cai wrote:
-> As mentioned in anther thread, the situation for kmemleak under memory pressure
-> has already been unhealthy. I don't feel comfortable to make it even worse by
-> reverting this commit alone. This could potentially make kmemleak kill itself
-> easier and miss some more real memory leak later.
-> 
-> To make it really a short-term solution before the reverting, I think someone
-> needs to follow up with the mempool solution with tunable pool size mentioned
-> in,
-> 
-> https://lore.kernel.org/linux-mm/20190328145917.GC10283@arrakis.emea.arm.com/
+syzbot has bisected this bug to:
 
-Before my little bit of spare time disappears, let's add the tunable to
-the mempool size so that I can repost the patch. Are you ok with a
-kernel cmdline parameter or you'd rather change it at runtime? The
-latter implies a minor extension to mempool to allow it to refill on
-demand. I'd personally go for the former.
+commit a21f2a3ec62abe2e06500d6550659a0ff5624fbb
+Author: Michael Callahan <michaelcallahan@fb.com>
+Date:   Tue May 3 15:12:49 2016 +0000
 
--- 
-Catalin
+     block: Minor blk_account_io_start usage cleanup
+
+bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=13565e92600000
+start commit:   be8454af Merge tag 'drm-next-2019-07-16' of git://anongit...
+git tree:       upstream
+final crash:    https://syzkaller.appspot.com/x/report.txt?x=10d65e92600000
+console output: https://syzkaller.appspot.com/x/log.txt?x=17565e92600000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=d23a1a7bf85c5250
+dashboard link: https://syzkaller.appspot.com/bug?extid=e682cca30bc101a4d9d9
+syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=155c5800600000
+C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=1738f800600000
+
+Reported-by: syzbot+e682cca30bc101a4d9d9@syzkaller.appspotmail.com
+Fixes: a21f2a3ec62a ("block: Minor blk_account_io_start usage cleanup")
+
+For information about bisection process see: https://goo.gl/tpsmEJ#bisection
 
