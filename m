@@ -2,438 +2,182 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D0C0C7618B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 13:56:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8758AC7618B
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:21:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1371820578
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 13:56:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1371820578
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 4087A2070D
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:21:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="h0ssI4U9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4087A2070D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axtens.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9CE078E0003; Mon, 29 Jul 2019 09:56:48 -0400 (EDT)
+	id B68DF8E0005; Mon, 29 Jul 2019 10:21:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9578C8E0002; Mon, 29 Jul 2019 09:56:48 -0400 (EDT)
+	id B1A728E0002; Mon, 29 Jul 2019 10:21:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D16B8E0003; Mon, 29 Jul 2019 09:56:48 -0400 (EDT)
+	id A083F8E0005; Mon, 29 Jul 2019 10:21:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 258188E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 09:56:48 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id f19so38317330edv.16
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 06:56:48 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C3838E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 10:21:17 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id h3so38326696pgc.19
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 07:21:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=kmGvG0H8k3x54BowLkI+MomFoXzpLMLkVcmW8uyRQ5c=;
-        b=R1a5SRlkB929DW3p1jg6e1Jq9HYbOPhLhx20Nr29FJZrgKmyKAj63gdmBDINDmiNwL
-         fcXbx532vi/a8cNRBL/5JCGPQDF2Lnkdztet8AvssIk1AgwFCof2M4ZxXz1hgDQUkW15
-         TqWhojYyclhiJyjnuum6oNDiE9NEa/xeVoL/tbIj+I9Hicfm7KNUe8lHKHXLRI9yExZ5
-         /MUI1SNKT62IZylpt2obK7M3O1z8WhIPY4fRtiN8OwuarkhhlPN1Rx9Qg1ZZWRoSJd73
-         7czC9ki/WAk5x5Lbl4lDt/MTvb2uNQfFlMHMgDznnse7legpRzXFVHyXV+QyjadQWhpB
-         WoMg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAUnxx3ippcG9iXgk0hglPnOVYwSqwWE0uamZvF6umfupIedn9Co
-	FHp0F4dB7i27SQqclvEe709/O1cehXf9ad+O1OnAMI14O3WHyFlR+xNaHQpABS4IpEPeAuJrHlx
-	fIxgn5BVILh3NzGw7fFl1JKEEZrcDv8Il5GEwf6KD0MzGgKKmU5LS9zktI04ha3RcSg==
-X-Received: by 2002:aa7:cdc6:: with SMTP id h6mr95590215edw.5.1564408607680;
-        Mon, 29 Jul 2019 06:56:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwXZCTLyKTRsV4zNCbR8T0XHPd+ZeqPdTu22akEckIkaxr3giZHjfpioo1QRn1SzRQk0az7
-X-Received: by 2002:aa7:cdc6:: with SMTP id h6mr95590139edw.5.1564408606682;
-        Mon, 29 Jul 2019 06:56:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564408606; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=MR80kuJNJTZu3hsDXBNA4q0a6EH0Ziu81Ow2DeGUsWQ=;
+        b=cifybLsj6yR5FEgEBWViKzQh5668xTUkdUuTPnBceGaajuzfpvNRlwuMS2GnC6/voz
+         dQ/iREb0r90I9nBpCbv2S8kqlYSXI+Jkj9sQPgXN1alTB67n8tMUizNz0x4EqIixQJo5
+         gYAUQQWXPNG6om0pxF8eX0FZwFv7deUqF6j+IgpdZoz/sLQlmcO0qmE/aIWK5Uubpz6/
+         ntinOBEfP+8zmiNkwnaNqQRXLGehjxHfEMnV+aH6s4ZxrW2vTZyO7d9MYJ0MVt2ctcuZ
+         R4uNFVRt8Q3L+HqASJzhkHfwz4amoUCA1MBZwBA8o8p5BHzsGe2UdBlmqZ+0sJn9HoWX
+         IoQw==
+X-Gm-Message-State: APjAAAUaclXLUc+WR2hNXYVS+MH45UYSZJgWHhvY/sIAVbiMOkDPd1rQ
+	Z84enOeQDDLZjgN1+fgMmE38AeKpG0ndz/11op3JcSehGe2NFpYVK1XqvNAo2P6HMVDb0B3UmaO
+	ak0H8gZ26P0uwg08dUMozEkdsFbN+0wVIRrPDggNc5dSqdQLnyscrCmvvdUERZmmERQ==
+X-Received: by 2002:aa7:92cb:: with SMTP id k11mr37361353pfa.126.1564410076975;
+        Mon, 29 Jul 2019 07:21:16 -0700 (PDT)
+X-Received: by 2002:aa7:92cb:: with SMTP id k11mr37361274pfa.126.1564410075961;
+        Mon, 29 Jul 2019 07:21:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564410075; cv=none;
         d=google.com; s=arc-20160816;
-        b=WU5QoyDX/zboZyEByAQ4KanKSdeV9PWDvRMedvkElemYi3u+X4AIS2TUvUKB7wWehB
-         2r+YUYFHYjcYI0NGZjiVbwgWXwPpKkAWdjYt+MytSzISFuoRpHWd1ke5wlDCbhZsB95N
-         GoBxMQsdLmLR72XrAyfBEoPNwRKsFbnZTbRnH5mq4V3S1hdCspn57U8IeCl+HpLA0e/Q
-         +jp6UCpMKh/ML5fVqFRgTiCMjfZimhxkMHHr5Dect3acEOHxR0eL7NP2nmSOjegTDZrx
-         JMMTCJ/TJXoF4NCMAorbOe5AXQuZNKmQgegniPqRMYvWJqiC5suKutyxpzCsNJMcQfxG
-         nBow==
+        b=0tBxTNc/4QQZxvvEA5dZIqA3nM6ow48Hdckx22RuhErXrsEt1zxjQBzsMlxdBbqUfU
+         P7qPqJkQf+1dGo5FhOSjDTkNsc0vox6mIOY/iHK7Wd+xn0oqM75f0CbqvgYKJ9VMTO5C
+         YvCCQ+099MPKNncHSDzHqZDz+t61vp7JtqzuWHnr2R8ET45JU8DBw2ooRkxkqgaQYwr3
+         ULHCzeHKHvKCpRbpiXX5ODcSWXGQ7/YBgJd792O3pG84B30nGn+xRozh2RFfTRhTk+/d
+         ISd1/N3zEJHHbHglE2jYzk9Ze9LDSGyGVkSFpPmOFDR1BomZkwEj8IQ+jEFbkwY7izy8
+         p4Vg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=kmGvG0H8k3x54BowLkI+MomFoXzpLMLkVcmW8uyRQ5c=;
-        b=0JI1DAg7WPV1CqDQ93sDoqJfkxiLadJgLrNeZ/mTmshY9qY939HLrCgV5rGDJHwZvb
-         mLPRRivcWErDoyYBzE6WTrgEKbz9PIHFwld23qbXsLSfgSr999zSEDhucE02hT1bXr2Q
-         wOXhGagxgj2DvfcKDiR+LLaIJlsuCXYFyCUL9snmensFJqUdKOvoQSFQnk5mm0p1fJsj
-         qcI3bILltXb5t56TDnqnCKQQmSlpcWQabRoAC4qX/FSgmlxIlNfJqnMaamN/8btJ2m8R
-         w6gqqmNGMTZIiCiA8pWg7XVWNeyTPw22P3vg1j9EmqgQ2Y3IHaNEJmxaMmuDwnmVlqan
-         TlsQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=MR80kuJNJTZu3hsDXBNA4q0a6EH0Ziu81Ow2DeGUsWQ=;
+        b=r0hknZOg8wVX/rI466ZzWUT/GhvrYbJE4Cnr7DNcK/p3LdYn1ar0V4kLa+Ql45Gq+U
+         F6K39mTQjtbKTqZ1X+ZEC5PYC6QwjikZ1jHJ0ORsK55o755Adnk70iyG7gUYAZop9kB3
+         XfxjlGbpms/MyAnk8yWCvJGl8hTY7wKEvscMHx50lfe6xxRC8DOBenx1Gak4TfHJ5P2t
+         BrOm3aUyNpYyCci0+rQVnU3vMwoOS+MT6WWvM78ut5ckv/PUMpK7XhFSMve1/bI1TgZu
+         FfStUivJjhyt5RpyrPMcvV5W6j8rMO8CmhyjqqUoMQtWD7rqPs9GJQn+A9yW26qHgJjX
+         3MAA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id 11si14771052ejy.102.2019.07.29.06.56.46
-        for <linux-mm@kvack.org>;
-        Mon, 29 Jul 2019 06:56:46 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@axtens.net header.s=google header.b=h0ssI4U9;
+       spf=pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=dja@axtens.net
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 15sor39671863pgs.16.2019.07.29.07.21.15
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 29 Jul 2019 07:21:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 2BD2028;
-	Mon, 29 Jul 2019 06:56:45 -0700 (PDT)
-Received: from [10.1.196.133] (e112269-lin.cambridge.arm.com [10.1.196.133])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 912203F71F;
-	Mon, 29 Jul 2019 06:56:42 -0700 (PDT)
-Subject: Re: [PATCH v9 19/21] mm: Add generic ptdump
-To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org
-Cc: Mark Rutland <Mark.Rutland@arm.com>, x86@kernel.org,
- Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Peter Zijlstra <peterz@infradead.org>,
- Catalin Marinas <catalin.marinas@arm.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org,
- =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
- Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
- Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
- James Morse <james.morse@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
- Will Deacon <will@kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
- linux-arm-kernel@lists.infradead.org, "Liang, Kan"
- <kan.liang@linux.intel.com>
-References: <20190722154210.42799-1-steven.price@arm.com>
- <20190722154210.42799-20-steven.price@arm.com>
- <f8444b1f-c886-9bfd-4873-3ed9068d3c44@arm.com>
-From: Steven Price <steven.price@arm.com>
-Message-ID: <75e314f2-b4e6-0a5f-20f0-ad5f56ce77f6@arm.com>
-Date: Mon, 29 Jul 2019 14:56:41 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@axtens.net header.s=google header.b=h0ssI4U9;
+       spf=pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=dja@axtens.net
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=axtens.net; s=google;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=MR80kuJNJTZu3hsDXBNA4q0a6EH0Ziu81Ow2DeGUsWQ=;
+        b=h0ssI4U9wjp1jVnPVOHReehDKSp/8jrXd6kfiCYoB88CDRXMFy2VsMgLb+53mXG8bG
+         3ujADxDfBwHH4B+TJVQ6UAg5vsOk4SuC11JrrYhLuSrXg95iTBogwJtxcsGAcXjeIKnL
+         KaxuntdgTbDi+hdcJ2sKgSBYjdoV9yWT8GYrQ=
+X-Google-Smtp-Source: APXvYqwIXlupdIi6PkUXUFGu9oV4z+WuZwgZVgPFpcMgqr1bkVfNbExq9CxRoUE4mt0Rvi0fm5ynYA==
+X-Received: by 2002:a63:c008:: with SMTP id h8mr102953637pgg.427.1564410075414;
+        Mon, 29 Jul 2019 07:21:15 -0700 (PDT)
+Received: from localhost (ppp167-251-205.static.internode.on.net. [59.167.251.205])
+        by smtp.gmail.com with ESMTPSA id i3sm67061225pfo.138.2019.07.29.07.21.13
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 29 Jul 2019 07:21:14 -0700 (PDT)
+From: Daniel Axtens <dja@axtens.net>
+To: kasan-dev@googlegroups.com,
+	linux-mm@kvack.org,
+	x86@kernel.org,
+	aryabinin@virtuozzo.com,
+	glider@google.com,
+	luto@kernel.org,
+	linux-kernel@vger.kernel.org,
+	mark.rutland@arm.com,
+	dvyukov@google.com
+Cc: Daniel Axtens <dja@axtens.net>
+Subject: [PATCH v2 0/3] kasan: support backing vmalloc space with real shadow memory
+Date: Tue, 30 Jul 2019 00:21:05 +1000
+Message-Id: <20190729142108.23343-1-dja@axtens.net>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-In-Reply-To: <f8444b1f-c886-9bfd-4873-3ed9068d3c44@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 29/07/2019 03:59, Anshuman Khandual wrote:
-> 
-> On 07/22/2019 09:12 PM, Steven Price wrote:
->> Add a generic version of page table dumping that architectures can
->> opt-in to
->>
->> Signed-off-by: Steven Price <steven.price@arm.com>
->> ---
->>  include/linux/ptdump.h |  19 +++++
->>  mm/Kconfig.debug       |  21 ++++++
->>  mm/Makefile            |   1 +
->>  mm/ptdump.c            | 161 +++++++++++++++++++++++++++++++++++++++++
->>  4 files changed, 202 insertions(+)
->>  create mode 100644 include/linux/ptdump.h
->>  create mode 100644 mm/ptdump.c
->>
->> diff --git a/include/linux/ptdump.h b/include/linux/ptdump.h
->> new file mode 100644
->> index 000000000000..eb8e78154be3
->> --- /dev/null
->> +++ b/include/linux/ptdump.h
->> @@ -0,0 +1,19 @@
->> +/* SPDX-License-Identifier: GPL-2.0 */
->> +
->> +#ifndef _LINUX_PTDUMP_H
->> +#define _LINUX_PTDUMP_H
->> +
->> +struct ptdump_range {
->> +	unsigned long start;
->> +	unsigned long end;
->> +};
->> +
->> +struct ptdump_state {
->> +	void (*note_page)(struct ptdump_state *st, unsigned long addr,
->> +			  int level, unsigned long val);
->> +	const struct ptdump_range *range;
->> +};
->> +
->> +void ptdump_walk_pgd(struct ptdump_state *st, struct mm_struct *mm);
->> +
->> +#endif /* _LINUX_PTDUMP_H */
->> diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
->> index 82b6a20898bd..7ad939b7140f 100644
->> --- a/mm/Kconfig.debug
->> +++ b/mm/Kconfig.debug
->> @@ -115,3 +115,24 @@ config DEBUG_RODATA_TEST
->>      depends on STRICT_KERNEL_RWX
->>      ---help---
->>        This option enables a testcase for the setting rodata read-only.
->> +
->> +config GENERIC_PTDUMP
->> +	bool
->> +
->> +config PTDUMP_CORE
->> +	bool
->> +
->> +config PTDUMP_DEBUGFS
->> +	bool "Export kernel pagetable layout to userspace via debugfs"
->> +	depends on DEBUG_KERNEL
->> +	depends on DEBUG_FS
->> +	depends on GENERIC_PTDUMP
->> +	select PTDUMP_CORE
-> 
-> So PTDUMP_DEBUGFS depends on GENERIC_PTDUMP but selects PTDUMP_CORE. So any arch
-> subscribing this new generic PTDUMP by selecting GENERIC_PTDUMP needs to provide
-> some functions for PTDUMP_DEBUGFS which does not really have any code in generic
-> MM. Also ptdump_walk_pgd() is wrapped in PTDUMP_CORE not GENERIC_PTDUMP. Then what
-> does PTDUMP_GENERIC really indicate ? Bit confusing here.
+Currently, vmalloc space is backed by the early shadow page. This
+means that kasan is incompatible with VMAP_STACK, and it also provides
+a hurdle for architectures that do not have a dedicated module space
+(like powerpc64).
 
-The intention is:
+This series provides a mechanism to back vmalloc space with real,
+dynamically allocated memory. I have only wired up x86, because that's
+the only currently supported arch I can work with easily, but it's
+very easy to wire up other architectures.
 
-* PTDUMP_DEBUGFS: Controls if the debugfs file is available. This
-enables arch specific code which creates the debugfs file (as the files
-available vary between architectures).
+This has been discussed before in the context of VMAP_STACK:
+ - https://bugzilla.kernel.org/show_bug.cgi?id=202009
+ - https://lkml.org/lkml/2018/7/22/198
+ - https://lkml.org/lkml/2019/7/19/822
 
-* GENERIC_PTDUMP: Architecture is opting in to the generic ptdump
-infrastructure. The arch code is expected to provide the debugfs code
-for PTDUMP_DBEUGFS.
+In terms of implementation details:
 
-* PTDUMP_CORE: The core page table walker is enabled. This code is used
-by both PTDUMP_DEBUGFS as well as the DEBUG_WX ("Warn on W+X mappings at
-boot"). x86 also has EFI_PGT_DUMP which uses the core.
+Most mappings in vmalloc space are small, requiring less than a full
+page of shadow space. Allocating a full shadow page per mapping would
+therefore be wasteful. Furthermore, to ensure that different mappings
+use different shadow pages, mappings would have to be aligned to
+KASAN_SHADOW_SCALE_SIZE * PAGE_SIZE.
 
-> The new ptdump_walk_pgd() symbol needs to be wrapped in a config symbol for sure
-> which should be selected in all platforms wishing to use it. GENERIC_PTDUMP can
-> be that config.
+Instead, share backing space across multiple mappings. Allocate
+a backing page the first time a mapping in vmalloc space uses a
+particular page of the shadow region. Keep this page around
+regardless of whether the mapping is later freed - in the mean time
+the page could have become shared by another vmalloc mapping.
 
-The intention is that GENERIC_PTDUMP is signalling that the architecture
-supports PTDUMP_DEBUGFS. PTDUMP_CORE is the configuration which chooses
-whether ptdump_walk_pgd() is built - selected by the options that
-require it.
+This can in theory lead to unbounded memory growth, but the vmalloc
+allocator is pretty good at reusing addresses, so the practical memory
+usage appears to grow at first but then stay fairly stable.
 
-> PTDUMP_DEBUGFS will require a full implementation (i.e PTDUMP_CORE) irrespective
-> of whether the platform subscribes GENERIC_PTDUMP or not. It should be something
-> like this.
-> 
-> config PTDUMP_DEBUGFS
-> 	bool "Export kernel pagetable layout to userspace via debugfs"
-> 	depends on DEBUG_KERNEL
-> 	depends on DEBUG_FS
-> 	select PTDUMP_CORE
-> 
-> PTDUMP_DEBUGFS need not depend on GENERIC_PTDUMP. All it requires is a PTDUMP_CORE
-> implementation which can optionally use ptdump_walk_pgd() through GENERIC_PTDUMP.
-> s/GENERIC_PTDUMP/PTDUMP_GENERIC to match and group with other configs.
+If we run into practical memory exhaustion issues, I'm happy to
+consider hooking into the book-keeping that vmap does, but I am not
+convinced that it will be an issue.
 
-The intention here is to hide PTDUMP_DEBUGFS on architectures that
-haven't migrated to it. Because the generic code isn't responsible for
-creating the debugfs entries if we don't hide it then it will compile
-but nothing will appear in debugfs.
+v1: https://lore.kernel.org/linux-mm/20190725055503.19507-1-dja@axtens.net/T/
+v2: address review comments:
+ - Patch 1: use kasan_unpoison_shadow's built-in handling of
+            ranges that do not align to a full shadow byte
+ - Patch 3: prepopulate pgds rather than faulting things in
 
-> DEBUG_WX can also be moved to generic MM like PTDUMP_DEBUGFS ?
+Daniel Axtens (3):
+  kasan: support backing vmalloc space with real shadow memory
+  fork: support VMAP_STACK with KASAN_VMALLOC
+  x86/kasan: support KASAN_VMALLOC
 
-Well the DEBUG_WX requires some arch specific code (separate from
-PTDUMP_DEBUGFS), so while the config option could be moved you would
-then require a "ARCH_HAS_DEBUG_WX" to hide it on the architectures that
-don't support it. I'm not sure that's worth doing when only 3
-architectures support it, and I would argue it's separate to this patch
-series so can be done at a different time.
+ Documentation/dev-tools/kasan.rst | 60 ++++++++++++++++++++++++++++++
+ arch/Kconfig                      |  9 +++--
+ arch/x86/Kconfig                  |  1 +
+ arch/x86/mm/kasan_init_64.c       | 61 +++++++++++++++++++++++++++++++
+ include/linux/kasan.h             | 16 ++++++++
+ kernel/fork.c                     |  4 ++
+ lib/Kconfig.kasan                 | 16 ++++++++
+ lib/test_kasan.c                  | 26 +++++++++++++
+ mm/kasan/common.c                 | 51 ++++++++++++++++++++++++++
+ mm/kasan/generic_report.c         |  3 ++
+ mm/kasan/kasan.h                  |  1 +
+ mm/vmalloc.c                      | 15 +++++++-
+ 12 files changed, 258 insertions(+), 5 deletions(-)
 
->> +	help
->> +	  Say Y here if you want to show the kernel pagetable layout in a
->> +	  debugfs file. This information is only useful for kernel developers
->> +	  who are working in architecture specific areas of the kernel.
->> +	  It is probably not a good idea to enable this feature in a production
->> +	  kernel.
->> +
->> +	  If in doubt, say N.
->> diff --git a/mm/Makefile b/mm/Makefile
->> index 338e528ad436..750a4c12d5da 100644
->> --- a/mm/Makefile
->> +++ b/mm/Makefile
->> @@ -104,3 +104,4 @@ obj-$(CONFIG_HARDENED_USERCOPY) += usercopy.o
->>  obj-$(CONFIG_PERCPU_STATS) += percpu-stats.o
->>  obj-$(CONFIG_HMM_MIRROR) += hmm.o
->>  obj-$(CONFIG_MEMFD_CREATE) += memfd.o
->> +obj-$(CONFIG_PTDUMP_CORE) += ptdump.o
-> 
-> Should be GENERIC_PTDUMP instead ?
-
-No - GENERIC_PTDUMP is just signalling the architecture support it, we
-don't want to compile in the code unless it is used.
-
->> diff --git a/mm/ptdump.c b/mm/ptdump.c
->> new file mode 100644
->> index 000000000000..39befc9088b8
->> --- /dev/null
->> +++ b/mm/ptdump.c
->> @@ -0,0 +1,161 @@
->> +// SPDX-License-Identifier: GPL-2.0
->> +
->> +#include <linux/mm.h>
->> +#include <linux/ptdump.h>
->> +#include <linux/kasan.h>
->> +
->> +static int ptdump_pgd_entry(pgd_t *pgd, unsigned long addr,
->> +			    unsigned long next, struct mm_walk *walk)
->> +{
->> +	struct ptdump_state *st = walk->private;
->> +	pgd_t val = READ_ONCE(*pgd);
->> +
->> +	if (pgd_leaf(val))
->> +		st->note_page(st, addr, 1, pgd_val(val));
->> +
->> +	return 0;
->> +}
->> +
->> +static int ptdump_p4d_entry(p4d_t *p4d, unsigned long addr,
->> +			    unsigned long next, struct mm_walk *walk)
->> +{
->> +	struct ptdump_state *st = walk->private;
->> +	p4d_t val = READ_ONCE(*p4d);
->> +
->> +	if (p4d_leaf(val))
->> +		st->note_page(st, addr, 2, p4d_val(val));
->> +
->> +	return 0;
->> +}
->> +
->> +static int ptdump_pud_entry(pud_t *pud, unsigned long addr,
->> +			    unsigned long next, struct mm_walk *walk)
->> +{
->> +	struct ptdump_state *st = walk->private;
->> +	pud_t val = READ_ONCE(*pud);
->> +
->> +	if (pud_leaf(val))
->> +		st->note_page(st, addr, 3, pud_val(val));
->> +
->> +	return 0;
->> +}
->> +
->> +static int ptdump_pmd_entry(pmd_t *pmd, unsigned long addr,
->> +			    unsigned long next, struct mm_walk *walk)
->> +{
->> +	struct ptdump_state *st = walk->private;
->> +	pmd_t val = READ_ONCE(*pmd);
->> +
->> +	if (pmd_leaf(val))
->> +		st->note_page(st, addr, 4, pmd_val(val));
->> +
->> +	return 0;
->> +}
->> +
->> +static int ptdump_pte_entry(pte_t *pte, unsigned long addr,
->> +			    unsigned long next, struct mm_walk *walk)
->> +{
->> +	struct ptdump_state *st = walk->private;
->> +
->> +	st->note_page(st, addr, 5, pte_val(READ_ONCE(*pte)));
->> +
->> +	return 0;
->> +}
->> +
->> +#ifdef CONFIG_KASAN
->> +/*
->> + * This is an optimization for KASAN=y case. Since all kasan page tables
->> + * eventually point to the kasan_early_shadow_page we could call note_page()
->> + * right away without walking through lower level page tables. This saves
->> + * us dozens of seconds (minutes for 5-level config) while checking for
->> + * W+X mapping or reading kernel_page_tables debugfs file.
->> + */
->> +static inline bool kasan_page_table(struct ptdump_state *st, void *pt,
->> +				    unsigned long addr)
->> +{
->> +	if (__pa(pt) == __pa(kasan_early_shadow_pmd) ||
->> +#ifdef CONFIG_X86
->> +	    (pgtable_l5_enabled() &&
->> +			__pa(pt) == __pa(kasan_early_shadow_p4d)) ||
->> +#endif
->> +	    __pa(pt) == __pa(kasan_early_shadow_pud)) {
->> +		st->note_page(st, addr, 5, pte_val(kasan_early_shadow_pte[0]));
->> +		return true;
->> +	}
->> +	return false;
->> +}
->> +#else
->> +static inline bool kasan_page_table(struct ptdump_state *st, void *pt,
->> +				    unsigned long addr)
->> +{
->> +	return false;
->> +}
->> +#endif
->> +
->> +static int ptdump_test_p4d(unsigned long addr, unsigned long next,
->> +			   p4d_t *p4d, struct mm_walk *walk)
->> +{
->> +	struct ptdump_state *st = walk->private;
->> +
->> +	if (kasan_page_table(st, p4d, addr))
->> +		return 1;
->> +	return 0;
->> +}
->> +
->> +static int ptdump_test_pud(unsigned long addr, unsigned long next,
->> +			   pud_t *pud, struct mm_walk *walk)
->> +{
->> +	struct ptdump_state *st = walk->private;
->> +
->> +	if (kasan_page_table(st, pud, addr))
->> +		return 1;
->> +	return 0;
->> +}
->> +
->> +static int ptdump_test_pmd(unsigned long addr, unsigned long next,
->> +			   pmd_t *pmd, struct mm_walk *walk)
->> +{
->> +	struct ptdump_state *st = walk->private;
->> +
->> +	if (kasan_page_table(st, pmd, addr))
->> +		return 1;
->> +	return 0;
->> +}
->> +
->> +static int ptdump_hole(unsigned long addr, unsigned long next,
->> +		       struct mm_walk *walk)
->> +{
->> +	struct ptdump_state *st = walk->private;
->> +
->> +	st->note_page(st, addr, -1, 0);
->> +
->> +	return 0;
->> +}
->> +
->> +void ptdump_walk_pgd(struct ptdump_state *st, struct mm_struct *mm)
->> +{
->> +	struct mm_walk walk = {
->> +		.mm		= mm,
->> +		.pgd_entry	= ptdump_pgd_entry,
->> +		.p4d_entry	= ptdump_p4d_entry,
->> +		.pud_entry	= ptdump_pud_entry,
->> +		.pmd_entry	= ptdump_pmd_entry,
->> +		.pte_entry	= ptdump_pte_entry,
->> +		.test_p4d	= ptdump_test_p4d,
->> +		.test_pud	= ptdump_test_pud,
->> +		.test_pmd	= ptdump_test_pmd,
->> +		.pte_hole	= ptdump_hole,
->> +		.private	= st
->> +	};
->> +	const struct ptdump_range *range = st->range;
->> +
->> +	down_read(&mm->mmap_sem);
->> +	while (range->start != range->end) {
->> +		walk_page_range(range->start, range->end, &walk);
->> +		range++;
->> +	}
->> +	up_read(&mm->mmap_sem);
-> 
-> Does walk_page_range() really needed here when it is definitely walking a
-> kernel page table. Why not directly use walk_pgd_range() instead which can
-> save some cycles avoiding going over VMAs, checking for HugeTLB, taking the
-> mmap_sem lock etc. AFAICS only thing it will miss is the opportunity to call
-> walk->test_walk() via walk_page_test(). IIUC test_walk() callback is primarily
-> for testing a VMA for it's eligibility and for kernel page table now there are
-> test callbacks like p?d_test() for individual levels anyway.
-
-Well it's a debug interface so saving a few cycles is largely
-irrelevant. I'm reluctant to export walk_pgd_range() in case it gets
-used to walk real VMAs. Having just one interface is cleanest. But I
-agree for kernel mappings all the extra work in walk_page_range() isn't
-needed.
-
-Steve
+-- 
+2.20.1
 
