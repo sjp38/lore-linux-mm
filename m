@@ -2,184 +2,253 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C5F5EC433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 19:01:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C426C7618E
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 19:25:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 77F57206DD
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 19:01:01 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="um4NIe51"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77F57206DD
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 2BCB92070B
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 19:25:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2BCB92070B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 05EAC8E0005; Mon, 29 Jul 2019 15:01:01 -0400 (EDT)
+	id AFB7B8E0003; Mon, 29 Jul 2019 15:25:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 035F98E0002; Mon, 29 Jul 2019 15:01:01 -0400 (EDT)
+	id AD1D28E0002; Mon, 29 Jul 2019 15:25:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E95B98E0005; Mon, 29 Jul 2019 15:01:00 -0400 (EDT)
+	id 9C0A58E0003; Mon, 29 Jul 2019 15:25:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f71.google.com (mail-io1-f71.google.com [209.85.166.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CBD6C8E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 15:01:00 -0400 (EDT)
-Received: by mail-io1-f71.google.com with SMTP id h3so68543320iob.20
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 12:01:00 -0700 (PDT)
+Received: from mail-vs1-f70.google.com (mail-vs1-f70.google.com [209.85.217.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 784FB8E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 15:25:52 -0400 (EDT)
+Received: by mail-vs1-f70.google.com with SMTP id a11so16268252vso.9
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 12:25:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=lAL03gieRWMt2NiHS28qTkY4C5xTTlo85PjStvM0KRU=;
-        b=Fw0T5VofRieCRxPxeAyjyD63wbAqu5Kvp+SGU2xxlornc4PrYKkl6NKKI50on5Rqf0
-         wNPcO4iltFmpgPJWi8377K8HmhlHxzx3Mx0j1YTzOt7NN3Ud/aXjKOCZNciCTw/Cqwug
-         eOlftStz8Vk1o4JltT3jPRhZ83kQeADU64jWzjDSgaBLw/kCNOJNA5liv5B3A2UbysmZ
-         ZtWbPZpdDwVJfveZGtNrxJehBMtqCmYCiiyvlLHHiYFxrbV88WLRIC6GL7lz8yKZNp34
-         0naTS+Qi1G3iVLedsI0k2CNAlvoU3dYUmO4VX3aa5oY+/r4gM4uH5xgi8NYIN/wcCSsN
-         GVTg==
-X-Gm-Message-State: APjAAAVYwE/aQz+PnAwsW3RHDBvGm7TmFO8u7S5ILUABnn+W4UrqFchu
-	T00zAo5762KLzL/BbeWv6wfKS4DSufO1OIR4dn6WPInNkADEUtsBnVlN7Ks0jY1lFSVj6u5TG55
-	Vco2AhEq9UV3xS7QNCjS2lCq+RYY2KcTAGf0NnOqrVjuns0XGTmJy7wPXjQoei2TEew==
-X-Received: by 2002:a05:6638:3d2:: with SMTP id r18mr115664254jaq.13.1564426860582;
-        Mon, 29 Jul 2019 12:01:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzDT2jbRlWpF77Ooi5IFXqu6GKj6C7goXe8OJC3LAcyp+ReW64Sc9rwZZzfBwCreem1Thz/
-X-Received: by 2002:a05:6638:3d2:: with SMTP id r18mr115664183jaq.13.1564426859928;
-        Mon, 29 Jul 2019 12:00:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564426859; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to;
+        bh=KuDwyfFjeNA7MHLSVk0PfrBhoChP/xZ4V/mRYLTptI4=;
+        b=X2trOZppQtzFMw6yOAFHUMsHWmOiL2GuNg22ow3Qk6GgeKgMmlejmo0VhDEUKxWaf3
+         ryb5+dy4jhW2CW7V6k9EZAG2RfW8swZ/W7C7MIVmjxnKwaS9Al5iarGYx6QaKeDOm0fy
+         x4539v8aaZg6rAPri/h/J1nOKsyUetZie7+0uA0sSt3pLSUANqTM/BZNiIzrB66wu4z7
+         v0rRaMgOKPypGF6PGKuk70QFvAPJRsn9PooCr1VjnRYV3cZGvSXIj7Vi1/aIINk0JRM7
+         az8X+ZI1v6W5VZLfx9JPzKWTk29u9Gi1d+hGx+TWSu8wCmCpw/Eejjs9JHaf+bzhoalF
+         ZoeA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWxv5+v3nsZci+9uJPwL2ZRK6dpCW8cr0Tb94kJi/atCWGz1BUA
+	KznXPT7NGAZfyms1M46bSaVwXlpUfbMJzeRPV7/abUGy88/ML5Jq63fl/dSyQ6za/OA9rkHpy8J
+	xA+z7H5zBLLEWRNrhluU13Kd6DIBsb4jVo8fM3SW41NAuiARefrVnf3jxWW8leL6eQQ==
+X-Received: by 2002:ab0:7149:: with SMTP id k9mr35032218uao.115.1564428352221;
+        Mon, 29 Jul 2019 12:25:52 -0700 (PDT)
+X-Received: by 2002:ab0:7149:: with SMTP id k9mr35032124uao.115.1564428351218;
+        Mon, 29 Jul 2019 12:25:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564428351; cv=none;
         d=google.com; s=arc-20160816;
-        b=xg0kxPSnGtVTFu1wEGuQFnI/3b7A5mkLwvY6f7soOSlLQoiGzSFr7hwPZERIp9hVo8
-         pKBAhZP426j7mioVtiil3I0ZuBQmSmX6ta8JsrpB6yDtR4fNY4LfPNkkx2e/V7bEZvRC
-         KawzA52T459PswMo4AZ1iR0ohrGNEEQpWnmXuCdFZNBKg/rPODTNYobu7RLFuDk0ItLQ
-         YsKLMXrJgKha+XforfhclTolvzLf7EjC88L56/70OGm2zlxiLmz7Kd2CVjp4YoAhDfek
-         C7TH7IZ2cctfiDlGwtsdWoja43IwgZPW5NyJLtNNvZwTKjX6tqFEZRGLdGwu1r3my8HI
-         S/HA==
+        b=smRccpbVJFDhehQrMMO4j+B8jWJDKXR8atk10+Spud1v/5JIFGvbOoStdnivu/8Hck
+         ur3ESQz/nym4k+pIusjjOs0bv8HJpEtvbFLjtU//VkSmck2XUcfDkp2innXBOn6hO0Gf
+         czd44XqZg/bFW59i6BGZqQpHzvBQx+f9vtqrZS+S3sfNsR6m/UDv1qbjLnlxB4WY0xkI
+         oincpSyJ5QjmnCVO44bUG+BQkZEaOueKxw1IwH05l5xmloN1hkhxrvxTlkT3uaOvZ6w1
+         vIL+wR0pqC31KtvbnbVaER25WzPnakdNGQU80XWf/t6RtYWcEG8teiQT4SIOIh8FhsUS
+         hDxA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=lAL03gieRWMt2NiHS28qTkY4C5xTTlo85PjStvM0KRU=;
-        b=07DNPz+WfJM3Hx53N1FPjgfsZN730SLHlOr+Ua/D1qziqkGnkWWRKz+Uklf/vN4LdN
-         5KOe/ymyhxf1rTD9mLqJqhtKxZ9GkDmjbi8B/OjMwaEUvMzGO9hPGA5HlSDVbIb5OjoE
-         NozEqd1tRpIzMQg1z9VbJMB9kRSgVHnPV4tbjWiguqHbQ5KWfxpMK7R2GiXptuQ4KxA2
-         vMFI6VE2/cZc6VxCl7KMXkvbroWBWcrGH3sYSJWDYMBK3qh5aDo0KlnDz9zu7zL0j3cV
-         EhaWH2UgbwFPwoNW7XG80P1aZPIMbACDfO+o9pwnMZ5cVxVW2O1PgxgGPO+hMsrVFlFQ
-         Bt9g==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date;
+        bh=KuDwyfFjeNA7MHLSVk0PfrBhoChP/xZ4V/mRYLTptI4=;
+        b=E0LltJP2aQGqSdMmSDqQ6Qr+mvXgDO7Trcy0b94OD6wGjDFZBhFI6E3KXesSXzzWxu
+         Panx7I56hxOYJhGXuX+Xuf9yuOQWvUiYVa3ko4/1RvBVUO5YmW8z2RZEDkCW9hg1t4WL
+         TxznCwRDMzrqEQhu+eDgr2cdnoK6qvXZuWcB5ufCxT3EM6x8Y0+l+UN5OU7rd/cQWji/
+         iOv0ZZHWzxZH7WLuZnJk9pDzeQSQmMMRCxwrHbY7TMWU1xfE+SGy/RtqJNa+BllGhixy
+         W16gfq5eZE25LusbsE7obi7I5NUmomhL9olkBw0u+Q1Y521IXRV3Lyb2Ku5Sp0m7y33t
+         9fDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=um4NIe51;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id w12si79242833iod.69.2019.07.29.12.00.59
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id 129sor31432665vsi.124.2019.07.29.12.25.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jul 2019 12:00:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        (Google Transport Security);
+        Mon, 29 Jul 2019 12:25:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=um4NIe51;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6TIsOTM113863;
-	Mon, 29 Jul 2019 19:00:51 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=lAL03gieRWMt2NiHS28qTkY4C5xTTlo85PjStvM0KRU=;
- b=um4NIe510L2v/cjoKmnDynIkYzl4e4EI30gykJDTPQhknFlZALvoG4XLQPCL4b/D0CxI
- drQ07qYB2nYfJH5gpFo7wgUpV+XmerDqBFuWn4UyWH2y9tJVcXAtt1GS23TbVgASDhmk
- dbUfcWnFQ4rMXZemxksjR5Wg+T5dbrjJMiS6tDYvMMuHh3q7s7mIw0XxvM7s8/fxxY0I
- LQvLMQ8erYsC7xLgKHxPYxIJXIuAqKkrmMDQEIZe24STGUnisW7qgjHQJhXsjcz1xfqF
- dWPpBe/V1numGlAQs2vltGjGsCMWnPr5lTqYYhg38FVNicJ8P+sdKI0OnQL/Cg59cI30 Gg== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2120.oracle.com with ESMTP id 2u0f8qsdye-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 29 Jul 2019 19:00:51 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6TIw4m4041359;
-	Mon, 29 Jul 2019 19:00:50 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserp3020.oracle.com with ESMTP id 2u0ee4d4eb-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 29 Jul 2019 19:00:50 +0000
-Received: from abhmp0006.oracle.com (abhmp0006.oracle.com [141.146.116.12])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x6TJ0g7R012209;
-	Mon, 29 Jul 2019 19:00:43 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 29 Jul 2019 12:00:42 -0700
-Subject: =?UTF-8?Q?Re=3a_=5bMM_Bug=3f=5d_mmap=28=29_triggers_SIGBUS_while_do?=
- =?UTF-8?B?aW5nIHRoZeKAiyDigItudW1hX21vdmVfcGFnZXMoKSBmb3Igb2ZmbGluZWQgaHVn?=
- =?UTF-8?Q?epage_in_background?=
-To: Li Wang <liwang@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-Cc: Linux-MM <linux-mm@kvack.org>, LTP List <ltp@lists.linux.it>,
-        xishi.qiuxishi@alibaba-inc.com, mhocko@kernel.org,
-        Cyril Hrubis <chrubis@suse.cz>
-References: <CAEemH2dMW6oh6Bbm=yqUADF+mDhuQgFTTGYftB+xAhqqdYV3Ng@mail.gmail.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <47999e20-ccbe-deda-c960-473db5b56ea0@oracle.com>
-Date: Mon, 29 Jul 2019 12:00:41 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqyXXOall2jCflvinWC2gaIT9BD0Z5K7BVc2aKd3WT2Zxcla5B9AwA2EkqMiUXMUo+1dx/BnWw==
+X-Received: by 2002:a67:2c50:: with SMTP id s77mr69962386vss.50.1564428350830;
+        Mon, 29 Jul 2019 12:25:50 -0700 (PDT)
+Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
+        by smtp.gmail.com with ESMTPSA id w73sm26923160vkh.14.2019.07.29.12.25.45
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 29 Jul 2019 12:25:49 -0700 (PDT)
+Date: Mon, 29 Jul 2019 15:25:42 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: wei.w.wang@intel.com, Nitesh Narayan Lal <nitesh@redhat.com>,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+	kvm list <kvm@vger.kernel.org>,
+	David Hildenbrand <david@redhat.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com,
+	Rik van Riel <riel@surriel.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	lcapitulino@redhat.com, Andrea Arcangeli <aarcange@redhat.com>,
+	Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com
+Subject: Re: [PATCH v2 QEMU] virtio-balloon: Provide a interface for "bubble
+ hinting"
+Message-ID: <20190729151805-mutt-send-email-mst@kernel.org>
+References: <20190724165158.6685.87228.stgit@localhost.localdomain>
+ <20190724171050.7888.62199.stgit@localhost.localdomain>
+ <20190724150224-mutt-send-email-mst@kernel.org>
+ <6218af96d7d55935f2cf607d47680edc9b90816e.camel@linux.intel.com>
+ <ee5387b1-89af-daf4-8492-8139216c6dcf@redhat.com>
+ <20190724164023-mutt-send-email-mst@kernel.org>
+ <CAKgT0Ud6jPpsvJWFAMSnQXAXeNZb116kR7D2Xb7U-7BOtctK_Q@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <CAEemH2dMW6oh6Bbm=yqUADF+mDhuQgFTTGYftB+xAhqqdYV3Ng@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9333 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1907290207
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9333 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1907290207
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAKgT0Ud6jPpsvJWFAMSnQXAXeNZb116kR7D2Xb7U-7BOtctK_Q@mail.gmail.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/28/19 10:17 PM, Li Wang wrote:
-> Hi Naoya and Linux-MMers,
+On Mon, Jul 29, 2019 at 09:58:04AM -0700, Alexander Duyck wrote:
+> On Wed, Jul 24, 2019 at 1:42 PM Michael S. Tsirkin <mst@redhat.com> wrote:
+> >
+> > On Wed, Jul 24, 2019 at 04:29:27PM -0400, Nitesh Narayan Lal wrote:
+> > >
+> > > On 7/24/19 4:18 PM, Alexander Duyck wrote:
+> > > > On Wed, 2019-07-24 at 15:02 -0400, Michael S. Tsirkin wrote:
+> > > >> On Wed, Jul 24, 2019 at 10:12:10AM -0700, Alexander Duyck wrote:
+> > > >>> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > > >>>
+> > > >>> Add support for what I am referring to as "bubble hinting". Basically the
+> > > >>> idea is to function very similar to how the balloon works in that we
+> > > >>> basically end up madvising the page as not being used. However we don't
+> > > >>> really need to bother with any deflate type logic since the page will be
+> > > >>> faulted back into the guest when it is read or written to.
+> > > >>>
+> > > >>> This is meant to be a simplification of the existing balloon interface
+> > > >>> to use for providing hints to what memory needs to be freed. I am assuming
+> > > >>> this is safe to do as the deflate logic does not actually appear to do very
+> > > >>> much other than tracking what subpages have been released and which ones
+> > > >>> haven't.
+> > > >>>
+> > > >>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > > >>> ---
+> > > >>>  hw/virtio/virtio-balloon.c                      |   40 +++++++++++++++++++++++
+> > > >>>  include/hw/virtio/virtio-balloon.h              |    2 +
+> > > >>>  include/standard-headers/linux/virtio_balloon.h |    1 +
+> > > >>>  3 files changed, 42 insertions(+), 1 deletion(-)
+> > > >>>
+> > > >>> diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
+> > > >>> index 2112874055fb..70c0004c0f88 100644
+> > > >>> --- a/hw/virtio/virtio-balloon.c
+> > > >>> +++ b/hw/virtio/virtio-balloon.c
+> > > >>> @@ -328,6 +328,39 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
+> > > >>>      balloon_stats_change_timer(s, 0);
+> > > >>>  }
+> > > >>>
+> > > >>> +static void virtio_bubble_handle_output(VirtIODevice *vdev, VirtQueue *vq)
+> > > >>> +{
+> > > >>> +    VirtQueueElement *elem;
+> > > >>> +
+> > > >>> +    while ((elem = virtqueue_pop(vq, sizeof(VirtQueueElement)))) {
+> > > >>> +         unsigned int i;
+> > > >>> +
+> > > >>> +        for (i = 0; i < elem->in_num; i++) {
+> > > >>> +            void *addr = elem->in_sg[i].iov_base;
+> > > >>> +            size_t size = elem->in_sg[i].iov_len;
+> > > >>> +            ram_addr_t ram_offset;
+> > > >>> +            size_t rb_page_size;
+> > > >>> +            RAMBlock *rb;
+> > > >>> +
+> > > >>> +            if (qemu_balloon_is_inhibited())
+> > > >>> +                continue;
+> > > >>> +
+> > > >>> +            rb = qemu_ram_block_from_host(addr, false, &ram_offset);
+> > > >>> +            rb_page_size = qemu_ram_pagesize(rb);
+> > > >>> +
+> > > >>> +            /* For now we will simply ignore unaligned memory regions */
+> > > >>> +            if ((ram_offset | size) & (rb_page_size - 1))
+> > > >>> +                continue;
+> > > >>> +
+> > > >>> +            ram_block_discard_range(rb, ram_offset, size);
+> > > >> I suspect this needs to do like the migration type of
+> > > >> hinting and get disabled if page poisoning is in effect.
+> > > >> Right?
+> > > > Shouldn't something like that end up getting handled via
+> > > > qemu_balloon_is_inhibited, or did I miss something there? I assumed cases
+> > > > like that would end up setting qemu_balloon_is_inhibited to true, if that
+> > > > isn't the case then I could add some additional conditions. I would do it
+> > > > in about the same spot as the qemu_balloon_is_inhibited check.
+> > > I don't think qemu_balloon_is_inhibited() will take care of the page poisoning
+> > > situations.
+> > > If I am not wrong we may have to look to extend VIRTIO_BALLOON_F_PAGE_POISON
+> > > support as per Michael's suggestion.
+> >
+> >
+> > BTW upstream qemu seems to ignore VIRTIO_BALLOON_F_PAGE_POISON ATM.
+> > Which is probably a bug.
+> > Wei, could you take a look pls?
 > 
-> The LTP/move_page12 V2 triggers SIGBUS in the kernel-v5.2.3 testing.
-> https://github.com/wangli5665/ltp/blob/master/testcases/kernel/syscalls/move_pages/move_pages12.c
+> So I was looking at sorting out this for the unused page reporting
+> that I am working on and it occurred to me that I don't think we can
+> do the free page hinting if any sort of poison validation is present.
+> The problem is that free page hinting simply stops the page from being
+> migrated. As a result if there was stale data present it will just
+> leave it there instead of zeroing it or writing it to alternating 1s
+> and 0s.
+
+stale data where? on source or on destination?
+do you mean the case where memory was corrupted?
+
+
+
+
+
+
 > 
-> It seems like the retry mmap() triggers SIGBUS while doing thenuma_move_pages() in background. That is very similar to the kernelbug which was mentioned by commit 6bc9b56433b76e40d(mm: fix race onsoft-offlining ): A race condition between soft offline andhugetlb_fault which causes unexpected process SIGBUS killing.
+> Also it looks like the VIRTIO_BALLOON_F_PAGE_POISON feature is
+> assuming that 0 means that page poisoning is disabled,
+> when in reality
+> it might just mean we are using the value zero to poison pages instead
+> of the 0xaa pattern. As such I think there are several cases where we
+> could incorrectly flag the pages with the hint and result in the
+> migrated guest reporting pages that contain non-poison values.
 > 
-> I'm not sure if that below patch is making sene to memory-failures.c, but after building a new kernel-5.2.3 with this change, the problem can NOT be reproduced. 
-> 
-> Any comments?
 
-Something seems strange.  I can not reproduce with unmodified 5.2.3
 
-[root@f23d move_pages]# uname -r
-5.2.3
-[root@f23d move_pages]# PATH=$PATH:$PWD ./move_pages12
-tst_test.c:1096: INFO: Timeout per run is 0h 05m 00s
-move_pages12.c:201: INFO: Free RAM 6725424 kB
-move_pages12.c:219: INFO: Increasing 2048kB hugepages pool on node 0 to 4
-move_pages12.c:229: INFO: Increasing 2048kB hugepages pool on node 1 to 4
-move_pages12.c:145: INFO: Allocating and freeing 4 hugepages on node 0
-move_pages12.c:145: INFO: Allocating and freeing 4 hugepages on node 1
-move_pages12.c:135: PASS: Bug not reproduced
+Well guest has this code:
+static int virtballoon_validate(struct virtio_device *vdev)
+{
+        if (!page_poisoning_enabled())
+                __virtio_clear_bit(vdev, VIRTIO_BALLOON_F_PAGE_POISON);
 
-Summary:
-passed   1
-failed   0
-skipped  0
-warnings 0
+        __virtio_clear_bit(vdev, VIRTIO_F_IOMMU_PLATFORM);
+        return 0;
+}
 
-Also, the soft_offline_huge_page() code should not come into play with
-this specific test.
+So it seems that host can figure out what is going on easily enough.
+What did I miss?
+
+
+
+> The zero assumption works for unused page reporting since we will be
+> zeroing out the page when it is faulted back into the guest, however
+> the same doesn't work for the free page hint since it is simply
+> skipping the migration of the recently dirtied page.
+
+Right but the dirtied page is normally full of 0 since that is the
+poison value, if we just leave it there we still get 0s, right?
+
 -- 
-Mike Kravetz
+MST
 
