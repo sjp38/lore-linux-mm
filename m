@@ -5,95 +5,96 @@ X-Spam-Level:
 X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A1CD4C433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 23:12:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CB161C41514
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 23:18:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 09425206E0
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 23:12:25 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8B68E206E0
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 23:18:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="cmfaa8BF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 09425206E0
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="qJYB6wAP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B68E206E0
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 67E7C8E0003; Mon, 29 Jul 2019 19:12:25 -0400 (EDT)
+	id 05F418E0003; Mon, 29 Jul 2019 19:18:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 656688E0002; Mon, 29 Jul 2019 19:12:25 -0400 (EDT)
+	id 00F778E0002; Mon, 29 Jul 2019 19:18:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 545068E0003; Mon, 29 Jul 2019 19:12:25 -0400 (EDT)
+	id DF16E8E0003; Mon, 29 Jul 2019 19:18:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f72.google.com (mail-yw1-f72.google.com [209.85.161.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 2B1E88E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 19:12:25 -0400 (EDT)
-Received: by mail-yw1-f72.google.com with SMTP id i73so46430516ywa.18
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 16:12:25 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id BA6E98E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 19:18:18 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id w6so47933467ybe.23
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 16:18:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:subject:to:cc:references:from:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding:dkim-signature;
-        bh=y4VhtL48fzxl5Y5NRytW5rwznKlY/TGqkp6rbIHbD+g=;
-        b=RiBCLk5wZ47NEUvO0DbTUCYasyQHj66Rwxcyh394zW57GqhMTGTBEWRaDfB4SYup/B
-         /MDqBFLphYYndUX1+qFMWg4/ClZ9d7HdmSf8LWPwBINgZWMw6Q0j7Z2ILmNMS4x0ZteF
-         mDwIXfETL1Avm7HMForbwrPemEo/mXkuX8TjNJAJmbp9fTW0N0Q2UYhGsCIgg0NPKoWv
-         lBuW9vMjoWexlQO1wibiiRlQhsZwGmp//kdHbQZDOAPDMZAGqwHFOHdt3I2/P6z3zX46
-         q8mTGceAhW6mqHbof3hNsy0G3b2KoVQE7Tw9rm3W7YGlGgeaILmgjKQK9POYEPPx5JkX
-         Ei2g==
-X-Gm-Message-State: APjAAAUed19jBNkk3LSGXkihoBhhOwCZ7rrsZJEzWovlq2NSUBrNKbXo
-	DsdthTfRs5z7nZihBPbGElxlGdUfgDeo/kkeF5qqOtYGZMOCmaNX9EOsv404I6MreCRU+1oGnbE
-	C8mXR6nMbo6PhH7I7SVMFGM/EXuaDNKOgJhwNhuP6aUtEz0rpSMnmgEyYtSl8zD4amw==
-X-Received: by 2002:a81:7085:: with SMTP id l127mr62502191ywc.92.1564441944843;
-        Mon, 29 Jul 2019 16:12:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy0Ngjqy7RWbgyQLj5frjrXLi8jV+os2RLZL6rW13/eKvFQSim/resjAs7Tnd3fos6JI/N3
-X-Received: by 2002:a81:7085:: with SMTP id l127mr62502136ywc.92.1564441943250;
-        Mon, 29 Jul 2019 16:12:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564441943; cv=none;
+        bh=wffttBld7HfMmTsUtcVoraIE8ihlJ8+LyvWPe1N6NlM=;
+        b=YSvsDQX34NRF5nMruxTrlmMTurBOfNYDa0o4vteRUxw2EquD8S57G09q8O2NwTg6wC
+         X3H/iasDUAJdm7y2/NAJKDT0Se9EctDQHskg7OEBhHeXbZU2Jol7Xp7GWAy6J5OX/VyL
+         1sDRjO4pqYBoraiY+GyjPmD+Ng6jY/cHL9PEWKmWvrSQ1LVztBu8ymaIAJkLs3mMoRsD
+         rmcXhwxefS3KY+jOeO4yb1E48rOL8h1HgIpGdIw5qSjhSs3EVrHXeS9bU30L3E0WxYQk
+         foEc2S2LUIPD4tgQVIpId3zmVTExXoPqTlawMD/sZzMBghQqR476LoERFIazoHtXn2Zl
+         sNXw==
+X-Gm-Message-State: APjAAAXTgrkedTNVSiHU+WVTRN76E7l7e8LZfmSGJhQiL4vhpDegZjRN
+	JJs/qRPDAqqvx/mxb6C/XdTpH8IG5qncUz8LN8hn29JM/kFRiVK4b8788ya92et7ayiROHiGKRG
+	f17rAPIzt0+3mA5wXKNp/EtfWgbQayS8clPly4DpZ2NLgApkMco+VXkwMKWYxTY/TEQ==
+X-Received: by 2002:a25:5c45:: with SMTP id q66mr71864761ybb.227.1564442298481;
+        Mon, 29 Jul 2019 16:18:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqypEf7x0MzqZ0Vni7Tqw3RSqsOt0WCWbW3A7NPHl8rOLu3WZNj2cvNkymtPpozQ5K5SS2ue
+X-Received: by 2002:a25:5c45:: with SMTP id q66mr71864734ybb.227.1564442297919;
+        Mon, 29 Jul 2019 16:18:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564442297; cv=none;
         d=google.com; s=arc-20160816;
-        b=yFrRy6FIzP6rs/4y1tkandFrfXDQJ5Sdu+oiE0hctpZNe/KvAAdDaqcnzaM6kof2we
-         ki7HH+sDZCNXAbV+Koz4w8PTdgp6mjNq1WOV7NipToeW/pePz/6RtnlM5xzbMwhaP+0b
-         O5A0DdVt092Kra7wp3rzuuWa89Tm1GtG/7y6ljox+p1T71MOVJSehFHi43Ix662yzK5P
-         aVSo8fv0vBpygvFaAvl023EoiiiJz/YJcY30lSHAkVKt59Gg1rtP02raV8hzWjeiP+Q5
-         A51rLVcHBINcY/EqpMPpW6Hm9+iJZSrG+lbFTNqisVkXGO1ce2Je2o40Xx3qOATch5nd
-         JnYA==
+        b=V1zoWe33uOrN/iJnJ54wgGHQudEQwsBVH7ZxW3RinT/K1awf5sa5u5pir1sVqBPCBt
+         2m+huhMOqGh4bDefipaFojkQOqKVTXce/jpMOOChywloRdGyWdVaslhVPsU+xP0YBa8q
+         dFPBakUe1iBiR7X2J+xm4lfSxd6pj9OuuEq5sjJVYfVRWtYGX9MupE7p2XMQDw5yEjmz
+         X6KZmaVLtEGekAm2ej4muCIfGU43X/sMuHCbd42kLbUmxjZTji/RCo1/ksKLqjxG052n
+         rccZdud1oTle6kEabsgH7T7HWgjYoDKn6G0rV3GOo8Qo4S1EeG/P0ncRXsWXoaSA5nbv
+         yqIQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=dkim-signature:content-transfer-encoding:content-language
          :in-reply-to:mime-version:user-agent:date:message-id:from:references
          :cc:to:subject;
-        bh=y4VhtL48fzxl5Y5NRytW5rwznKlY/TGqkp6rbIHbD+g=;
-        b=jZb7DX71GW71Vj2fdnaoAqb0xVK/051rxSS96rmkQ8uxkuTogVUPN+bfSoMibsIg4p
-         iNbN6OYUy6sTfzVXl6qTNHLTqjq90VJl3qtI0Bwr080NUcUZwtbHLsHfiw0HqXJHvXou
-         baKe+5GUcKelf2cwqB0bSaIc2TiITChecPhMlW4FEbyStN4RxP5s2jqJHdbhrQkfoStk
-         7PzjCzsl1nxogxck9KAM8QQhm9a4xr0HicDl6Mx/oFAy/KmqJsrUEV2Sa7MDKEta4JBg
-         dh7J/csJysNCV3bUVb9Ba3rYUFcvbRg1JLTOmPvAvMBO1t+WbYsuLwLV5MEQY4lWgrtL
-         NYaA==
+        bh=wffttBld7HfMmTsUtcVoraIE8ihlJ8+LyvWPe1N6NlM=;
+        b=okTW7YE1V2Iq06QUFOSpxGy0e2O5RD0WQkZ0aIzjyZuyFMerFyDFLVxFU1hRgMX0ST
+         0uw/i+FDts4+MksG6kcMmbsSCYYINYBkEW+tgu2NHk3T4/ZIsXXXA6jHrTjVab4m5LEh
+         Ro6HWVgWg//gzGsNzbc0aKCY1l6UTlUPb5I7neRe+/nLEqw7CbDf3xjniSoKw3N6qMKE
+         bqnlZc5dQv/b7nsbY1In17YxHzoRw5bIqkCrSRM0Ntb4L9oAiBsRuKkezxgJ6mekWD+k
+         XphMI8SPwXwW6O61wIXH379qmTJou+YhHK3/obsm59hMd7Uxx4YZrfltFm/t+eYRat8x
+         75hg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=cmfaa8BF;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=qJYB6wAP;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
-        by mx.google.com with ESMTPS id y83si24173620ywd.226.2019.07.29.16.12.22
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id i69si21698655ywg.316.2019.07.29.16.18.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jul 2019 16:12:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
+        Mon, 29 Jul 2019 16:18:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=cmfaa8BF;
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=qJYB6wAP;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d3f7d4d0000>; Mon, 29 Jul 2019 16:12:13 -0700
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d3f7eba0000>; Mon, 29 Jul 2019 16:18:18 -0700
 Received: from hqmail.nvidia.com ([172.20.161.6])
   by hqpgpgate101.nvidia.com (PGP Universal service);
-  Mon, 29 Jul 2019 16:12:22 -0700
+  Mon, 29 Jul 2019 16:18:17 -0700
 X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Mon, 29 Jul 2019 16:12:22 -0700
+	by hqpgpgate101.nvidia.com on Mon, 29 Jul 2019 16:18:17 -0700
 Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL107.nvidia.com
  (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 29 Jul
- 2019 23:12:17 +0000
-Subject: Re: [PATCH 1/9] mm: turn migrate_vma upside down
+ 2019 23:18:13 +0000
+Subject: Re: [PATCH 2/9] nouveau: reset dma_nr in
+ nouveau_dmem_migrate_alloc_and_copy
 To: Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
 	<jglisse@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs
 	<bskeggs@redhat.com>
@@ -102,33 +103,33 @@ CC: Bharata B Rao <bharata@linux.ibm.com>, Andrew Morton
 	<nouveau@lists.freedesktop.org>, <dri-devel@lists.freedesktop.org>,
 	<linux-kernel@vger.kernel.org>
 References: <20190729142843.22320-1-hch@lst.de>
- <20190729142843.22320-2-hch@lst.de>
+ <20190729142843.22320-3-hch@lst.de>
 X-Nvconfidentiality: public
 From: Ralph Campbell <rcampbell@nvidia.com>
-Message-ID: <95a044c6-8bef-a647-f3c0-71dadd37b386@nvidia.com>
-Date: Mon, 29 Jul 2019 16:12:17 -0700
+Message-ID: <26260dd4-f28d-f962-9e38-8bde45335099@nvidia.com>
+Date: Mon, 29 Jul 2019 16:18:12 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190729142843.22320-2-hch@lst.de>
+In-Reply-To: <20190729142843.22320-3-hch@lst.de>
 X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
+X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
  HQMAIL107.nvidia.com (172.20.187.13)
 Content-Type: text/plain; charset="utf-8"; format=flowed
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1564441933; bh=y4VhtL48fzxl5Y5NRytW5rwznKlY/TGqkp6rbIHbD+g=;
+	t=1564442298; bh=wffttBld7HfMmTsUtcVoraIE8ihlJ8+LyvWPe1N6NlM=;
 	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
 	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
 	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
 	 Content-Transfer-Encoding;
-	b=cmfaa8BFyh+qP+WPrv9bW3BMazQqP8OeJNh6CMy2Nylkpx3UL6z6pugKcAfYB7vVI
-	 Dd48lcn8Q9HpPs5NHq7awtGVP6y9sRK+fdI1Wd8UhohUGeSGRO/hTsm1KJ9pTcrPxU
-	 qwtX6ThbP2oJIDtoc2TMWUfiAJqFmlZzxWGPg5PzhxIIQo2iXGSWEordKZVKP8D3xD
-	 ZM3ZFYVUxNJBkh9U2brL8UQvdGD8KNhhDuS6a1yy3v+Tx2a1SfR50TBLUsncNzmihY
-	 Ite4q/ih2ieXl10oDmexW+oO9hI5pBioyWaaRXQjCEwZvctzluNULjVUvua/UX5usi
-	 gm++EBLkxtjww==
+	b=qJYB6wAPLve6SzMmp5MpWUWQdHoVK+fKim4roGerZZ+H77Co/BQ9+sH3W3tA6tGo6
+	 Qw/ilm9/0g7HpgRfqMM+KqB6PldKNV2/X0EkW+vFmEjKH+/0MNIWB6wXrj1YRUXzwL
+	 RCt1HZmcafUvz8j6lns2XXyvcNxg18HpUEpVLEIFOxdtlbLEFvJd6EcuvIHmAssuwk
+	 Cu4w6L02s0iaeg0/0OBAUj/7DCbe0uWiSDRevgQpB8N02P0daSKT5OUL6ZfFrUxc/w
+	 HIneiuZFGw8uM87zuhdk7izVmIFJFBcoLp4P1KO4Qcu2x+7vZZLRIMwj2jxvykh/K3
+	 cvQCTOyBkvhYA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -137,715 +138,28 @@ List-ID: <linux-mm.kvack.org>
 
 
 On 7/29/19 7:28 AM, Christoph Hellwig wrote:
-> There isn't any good reason to pass callbacks to migrate_vma.  Instead
-> we can just export the three steps done by this function to drivers and
-> let them sequence the operation without callbacks.  This removes a lot
-> of boilerplate code as-is, and will allow the drivers to drastically
-> improve code flow and error handling further on.
+> When we start a new batch of dma_map operations we need to reset dma_nr,
+> as we start filling a newly allocated array.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
-
-Except for a few white space errors (<space><tab> and <space>$),
-looks OK.
 
 Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
 
 > ---
->   Documentation/vm/hmm.rst               |  55 +-----
->   drivers/gpu/drm/nouveau/nouveau_dmem.c | 122 +++++++------
->   include/linux/migrate.h                | 118 ++----------
->   mm/migrate.c                           | 242 +++++++++++--------------
->   4 files changed, 193 insertions(+), 344 deletions(-)
+>   drivers/gpu/drm/nouveau/nouveau_dmem.c | 1 +
+>   1 file changed, 1 insertion(+)
 > 
-> diff --git a/Documentation/vm/hmm.rst b/Documentation/vm/hmm.rst
-> index ddcb5ca8b296..ad880e3996b1 100644
-> --- a/Documentation/vm/hmm.rst
-> +++ b/Documentation/vm/hmm.rst
-> @@ -339,58 +339,9 @@ Migration to and from device memory
->   ===================================
->   
->   Because the CPU cannot access device memory, migration must use the device DMA
-> -engine to perform copy from and to device memory. For this we need a new
-> -migration helper::
-> -
-> - int migrate_vma(const struct migrate_vma_ops *ops,
-> -                 struct vm_area_struct *vma,
-> -                 unsigned long mentries,
-> -                 unsigned long start,
-> -                 unsigned long end,
-> -                 unsigned long *src,
-> -                 unsigned long *dst,
-> -                 void *private);
-> -
-> -Unlike other migration functions it works on a range of virtual address, there
-> -are two reasons for that. First, device DMA copy has a high setup overhead cost
-> -and thus batching multiple pages is needed as otherwise the migration overhead
-> -makes the whole exercise pointless. The second reason is because the
-> -migration might be for a range of addresses the device is actively accessing.
-> -
-> -The migrate_vma_ops struct defines two callbacks. First one (alloc_and_copy())
-> -controls destination memory allocation and copy operation. Second one is there
-> -to allow the device driver to perform cleanup operations after migration::
-> -
-> - struct migrate_vma_ops {
-> -     void (*alloc_and_copy)(struct vm_area_struct *vma,
-> -                            const unsigned long *src,
-> -                            unsigned long *dst,
-> -                            unsigned long start,
-> -                            unsigned long end,
-> -                            void *private);
-> -     void (*finalize_and_map)(struct vm_area_struct *vma,
-> -                              const unsigned long *src,
-> -                              const unsigned long *dst,
-> -                              unsigned long start,
-> -                              unsigned long end,
-> -                              void *private);
-> - };
-> -
-> -It is important to stress that these migration helpers allow for holes in the
-> -virtual address range. Some pages in the range might not be migrated for all
-> -the usual reasons (page is pinned, page is locked, ...). This helper does not
-> -fail but just skips over those pages.
-> -
-> -The alloc_and_copy() might decide to not migrate all pages in the
-> -range (for reasons under the callback control). For those, the callback just
-> -has to leave the corresponding dst entry empty.
-> -
-> -Finally, the migration of the struct page might fail (for file backed page) for
-> -various reasons (failure to freeze reference, or update page cache, ...). If
-> -that happens, then the finalize_and_map() can catch any pages that were not
-> -migrated. Note those pages were still copied to a new page and thus we wasted
-> -bandwidth but this is considered as a rare event and a price that we are
-> -willing to pay to keep all the code simpler.
-> +engine to perform copy from and to device memory. For this we need a new to
-> +use migrate_vma_setup(), migrate_vma_pages(), and migrate_vma_finalize()
-> +helpers.
->   
->   
->   Memory cgroup (memcg) and rss accounting
 > diff --git a/drivers/gpu/drm/nouveau/nouveau_dmem.c b/drivers/gpu/drm/nouveau/nouveau_dmem.c
-> index 345c63cb752a..38416798abd4 100644
+> index 38416798abd4..e696157f771e 100644
 > --- a/drivers/gpu/drm/nouveau/nouveau_dmem.c
 > +++ b/drivers/gpu/drm/nouveau/nouveau_dmem.c
-> @@ -131,9 +131,8 @@ nouveau_dmem_fault_alloc_and_copy(struct vm_area_struct *vma,
->   				  unsigned long *dst_pfns,
->   				  unsigned long start,
->   				  unsigned long end,
-> -				  void *private)
-> +				  struct nouveau_dmem_fault *fault)
->   {
-> -	struct nouveau_dmem_fault *fault = private;
->   	struct nouveau_drm *drm = fault->drm;
->   	struct device *dev = drm->dev->dev;
->   	unsigned long addr, i, npages = 0;
-> @@ -230,14 +229,9 @@ nouveau_dmem_fault_alloc_and_copy(struct vm_area_struct *vma,
->   	}
->   }
+> @@ -682,6 +682,7 @@ nouveau_dmem_migrate_alloc_and_copy(struct vm_area_struct *vma,
+>   	migrate->dma = kmalloc(sizeof(*migrate->dma) * npages, GFP_KERNEL);
+>   	if (!migrate->dma)
+>   		goto error;
+> +	migrate->dma_nr = 0;
 >   
-> -void nouveau_dmem_fault_finalize_and_map(struct vm_area_struct *vma,
-> -					 const unsigned long *src_pfns,
-> -					 const unsigned long *dst_pfns,
-> -					 unsigned long start,
-> -					 unsigned long end,
-> -					 void *private)
-> +static void
-> +nouveau_dmem_fault_finalize_and_map(struct nouveau_dmem_fault *fault)
->   {
-> -	struct nouveau_dmem_fault *fault = private;
->   	struct nouveau_drm *drm = fault->drm;
->   
->   	if (fault->fence) {
-> @@ -257,29 +251,35 @@ void nouveau_dmem_fault_finalize_and_map(struct vm_area_struct *vma,
->   	kfree(fault->dma);
->   }
->   
-> -static const struct migrate_vma_ops nouveau_dmem_fault_migrate_ops = {
-> -	.alloc_and_copy		= nouveau_dmem_fault_alloc_and_copy,
-> -	.finalize_and_map	= nouveau_dmem_fault_finalize_and_map,
-> -};
-> -
->   static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
->   {
->   	struct nouveau_dmem *dmem = page_to_dmem(vmf->page);
->   	unsigned long src[1] = {0}, dst[1] = {0};
-> +	struct migrate_vma args = {
-> +		.vma		= vmf->vma,
-> +		.start		= vmf->address,
-> +		.end		= vmf->address + PAGE_SIZE,
-> +		.src		= src,
-> +		.dst		= dst,
-> +	};
->   	struct nouveau_dmem_fault fault = { .drm = dmem->drm };
-> -	int ret;
->   
->   	/*
->   	 * FIXME what we really want is to find some heuristic to migrate more
->   	 * than just one page on CPU fault. When such fault happens it is very
->   	 * likely that more surrounding page will CPU fault too.
->   	 */
-> -	ret = migrate_vma(&nouveau_dmem_fault_migrate_ops, vmf->vma,
-> -			vmf->address, vmf->address + PAGE_SIZE,
-> -			src, dst, &fault);
-> -	if (ret)
-> +	if (migrate_vma_setup(&args) < 0)
->   		return VM_FAULT_SIGBUS;
-> +	if (!args.cpages)
-> +		return 0;
-> +
-> +	nouveau_dmem_fault_alloc_and_copy(args.vma, src, dst, args.start,
-> +			args.end, &fault);
-> +	migrate_vma_pages(&args);
-> +	nouveau_dmem_fault_finalize_and_map(&fault);
->   
-> +	migrate_vma_finalize(&args);
->   	if (dst[0] == MIGRATE_PFN_ERROR)
->   		return VM_FAULT_SIGBUS;
->   
-> @@ -648,9 +648,8 @@ nouveau_dmem_migrate_alloc_and_copy(struct vm_area_struct *vma,
->   				    unsigned long *dst_pfns,
->   				    unsigned long start,
->   				    unsigned long end,
-> -				    void *private)
-> +				    struct nouveau_migrate *migrate)
->   {
-> -	struct nouveau_migrate *migrate = private;
->   	struct nouveau_drm *drm = migrate->drm;
->   	struct device *dev = drm->dev->dev;
->   	unsigned long addr, i, npages = 0;
-> @@ -747,14 +746,9 @@ nouveau_dmem_migrate_alloc_and_copy(struct vm_area_struct *vma,
->   	}
->   }
->   
-> -void nouveau_dmem_migrate_finalize_and_map(struct vm_area_struct *vma,
-> -					   const unsigned long *src_pfns,
-> -					   const unsigned long *dst_pfns,
-> -					   unsigned long start,
-> -					   unsigned long end,
-> -					   void *private)
-> +static void
-> +nouveau_dmem_migrate_finalize_and_map(struct nouveau_migrate *migrate)
->   {
-> -	struct nouveau_migrate *migrate = private;
->   	struct nouveau_drm *drm = migrate->drm;
->   
->   	if (migrate->fence) {
-> @@ -779,10 +773,15 @@ void nouveau_dmem_migrate_finalize_and_map(struct vm_area_struct *vma,
->   	 */
->   }
->   
-> -static const struct migrate_vma_ops nouveau_dmem_migrate_ops = {
-> -	.alloc_and_copy		= nouveau_dmem_migrate_alloc_and_copy,
-> -	.finalize_and_map	= nouveau_dmem_migrate_finalize_and_map,
-> -};
-> +static void nouveau_dmem_migrate_chunk(struct migrate_vma *args,
-> +		struct nouveau_migrate *migrate)
-> +{
-> +	nouveau_dmem_migrate_alloc_and_copy(args->vma, args->src, args->dst,
-> +			args->start, args->end, migrate);
-> +	migrate_vma_pages(args);
-> +	nouveau_dmem_migrate_finalize_and_map(migrate);
-> +	migrate_vma_finalize(args);
-> +}
->   
->   int
->   nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
-> @@ -790,40 +789,45 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
->   			 unsigned long start,
->   			 unsigned long end)
->   {
-> -	unsigned long *src_pfns, *dst_pfns, npages;
-> -	struct nouveau_migrate migrate = {0};
-> -	unsigned long i, c, max;
-> -	int ret = 0;
-> -
-> -	npages = (end - start) >> PAGE_SHIFT;
-> -	max = min(SG_MAX_SINGLE_ALLOC, npages);
-> -	src_pfns = kzalloc(sizeof(long) * max, GFP_KERNEL);
-> -	if (src_pfns == NULL)
-> -		return -ENOMEM;
-> -	dst_pfns = kzalloc(sizeof(long) * max, GFP_KERNEL);
-> -	if (dst_pfns == NULL) {
-> -		kfree(src_pfns);
-> -		return -ENOMEM;
-> -	}
-> +	unsigned long npages = (end - start) >> PAGE_SHIFT;
-> +	unsigned long max = min(SG_MAX_SINGLE_ALLOC, npages);
-> +	struct migrate_vma args = {
-> +		.vma		= vma,
-> +		.start		= start,
-> +	};
-> +	struct nouveau_migrate migrate = {
-> +		.drm		= drm,
-> +		.vma		= vma,
-> +		.npages		= npages,
-> +	};
-> +	unsigned long c, i;
-> +	int ret = -ENOMEM;
-> +
-> +	args.src = kzalloc(sizeof(long) * max, GFP_KERNEL);
-> +	if (!args.src)
-> +		goto out;
-> +	args.dst = kzalloc(sizeof(long) * max, GFP_KERNEL);
-> +	if (!args.dst)
-> +		goto out_free_src;
->   
-> -	migrate.drm = drm;
-> -	migrate.vma = vma;
-> -	migrate.npages = npages;
->   	for (i = 0; i < npages; i += c) {
-> -		unsigned long next;
-> -
->   		c = min(SG_MAX_SINGLE_ALLOC, npages);
-> -		next = start + (c << PAGE_SHIFT);
-> -		ret = migrate_vma(&nouveau_dmem_migrate_ops, vma, start,
-> -				  next, src_pfns, dst_pfns, &migrate);
-> +		args.end = start + (c << PAGE_SHIFT);
-> +		ret = migrate_vma_setup(&args);
->   		if (ret)
-> -			goto out;
-> -		start = next;
-> +			goto out_free_dst;
-> +
-> +		if (args.cpages)
-> +			nouveau_dmem_migrate_chunk(&args, &migrate);
-> +		args.start = args.end;
->   	}
->   
-> +	ret = 0;
-> +out_free_dst:
-> +	kfree(args.dst);
-> +out_free_src:
-> +	kfree(args.src);
->   out:
-> -	kfree(dst_pfns);
-> -	kfree(src_pfns);
->   	return ret;
->   }
->   
-> diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-> index 7f04754c7f2b..093d67fcf6dd 100644
-> --- a/include/linux/migrate.h
-> +++ b/include/linux/migrate.h
-> @@ -182,107 +182,27 @@ static inline unsigned long migrate_pfn(unsigned long pfn)
->   	return (pfn << MIGRATE_PFN_SHIFT) | MIGRATE_PFN_VALID;
->   }
->   
-> -/*
-> - * struct migrate_vma_ops - migrate operation callback
-> - *
-> - * @alloc_and_copy: alloc destination memory and copy source memory to it
-> - * @finalize_and_map: allow caller to map the successfully migrated pages
-> - *
-> - *
-> - * The alloc_and_copy() callback happens once all source pages have been locked,
-> - * unmapped and checked (checked whether pinned or not). All pages that can be
-> - * migrated will have an entry in the src array set with the pfn value of the
-> - * page and with the MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE flag set (other
-> - * flags might be set but should be ignored by the callback).
-> - *
-> - * The alloc_and_copy() callback can then allocate destination memory and copy
-> - * source memory to it for all those entries (ie with MIGRATE_PFN_VALID and
-> - * MIGRATE_PFN_MIGRATE flag set). Once these are allocated and copied, the
-> - * callback must update each corresponding entry in the dst array with the pfn
-> - * value of the destination page and with the MIGRATE_PFN_VALID and
-> - * MIGRATE_PFN_LOCKED flags set (destination pages must have their struct pages
-> - * locked, via lock_page()).
-> - *
-> - * At this point the alloc_and_copy() callback is done and returns.
-> - *
-> - * Note that the callback does not have to migrate all the pages that are
-> - * marked with MIGRATE_PFN_MIGRATE flag in src array unless this is a migration
-> - * from device memory to system memory (ie the MIGRATE_PFN_DEVICE flag is also
-> - * set in the src array entry). If the device driver cannot migrate a device
-> - * page back to system memory, then it must set the corresponding dst array
-> - * entry to MIGRATE_PFN_ERROR. This will trigger a SIGBUS if CPU tries to
-> - * access any of the virtual addresses originally backed by this page. Because
-> - * a SIGBUS is such a severe result for the userspace process, the device
-> - * driver should avoid setting MIGRATE_PFN_ERROR unless it is really in an
-> - * unrecoverable state.
-> - *
-> - * For empty entry inside CPU page table (pte_none() or pmd_none() is true) we
-> - * do set MIGRATE_PFN_MIGRATE flag inside the corresponding source array thus
-> - * allowing device driver to allocate device memory for those unback virtual
-> - * address. For this the device driver simply have to allocate device memory
-> - * and properly set the destination entry like for regular migration. Note that
-> - * this can still fails and thus inside the device driver must check if the
-> - * migration was successful for those entry inside the finalize_and_map()
-> - * callback just like for regular migration.
-> - *
-> - * THE alloc_and_copy() CALLBACK MUST NOT CHANGE ANY OF THE SRC ARRAY ENTRIES
-> - * OR BAD THINGS WILL HAPPEN !
-> - *
-> - *
-> - * The finalize_and_map() callback happens after struct page migration from
-> - * source to destination (destination struct pages are the struct pages for the
-> - * memory allocated by the alloc_and_copy() callback).  Migration can fail, and
-> - * thus the finalize_and_map() allows the driver to inspect which pages were
-> - * successfully migrated, and which were not. Successfully migrated pages will
-> - * have the MIGRATE_PFN_MIGRATE flag set for their src array entry.
-> - *
-> - * It is safe to update device page table from within the finalize_and_map()
-> - * callback because both destination and source page are still locked, and the
-> - * mmap_sem is held in read mode (hence no one can unmap the range being
-> - * migrated).
-> - *
-> - * Once callback is done cleaning up things and updating its page table (if it
-> - * chose to do so, this is not an obligation) then it returns. At this point,
-> - * the HMM core will finish up the final steps, and the migration is complete.
-> - *
-> - * THE finalize_and_map() CALLBACK MUST NOT CHANGE ANY OF THE SRC OR DST ARRAY
-> - * ENTRIES OR BAD THINGS WILL HAPPEN !
-> - */
-> -struct migrate_vma_ops {
-> -	void (*alloc_and_copy)(struct vm_area_struct *vma,
-> -			       const unsigned long *src,
-> -			       unsigned long *dst,
-> -			       unsigned long start,
-> -			       unsigned long end,
-> -			       void *private);
-> -	void (*finalize_and_map)(struct vm_area_struct *vma,
-> -				 const unsigned long *src,
-> -				 const unsigned long *dst,
-> -				 unsigned long start,
-> -				 unsigned long end,
-> -				 void *private);
-> +struct migrate_vma {
-> +	struct vm_area_struct	*vma;
-> + 	/*
-> +	 * Both src and dst array must be big enough for
-> +	 * (end - start) >> PAGE_SHIFT entries.
-> +	 *
-> +	 * The src array must not be modified by the caller after
-> +	 * migrate_vma_setup(), and must not change the dst array after
-> +	 * migrate_vma_pages() returns.
-> +	 */
-> +	unsigned long		*dst;
-> +	unsigned long		*src;
-> +	unsigned long		cpages;
-> +	unsigned long		npages;
-> +	unsigned long		start;
-> +	unsigned long		end;
->   };
->   
-> -#if defined(CONFIG_MIGRATE_VMA_HELPER)
-> -int migrate_vma(const struct migrate_vma_ops *ops,
-> -		struct vm_area_struct *vma,
-> -		unsigned long start,
-> -		unsigned long end,
-> -		unsigned long *src,
-> -		unsigned long *dst,
-> -		void *private);
-> -#else
-> -static inline int migrate_vma(const struct migrate_vma_ops *ops,
-> -			      struct vm_area_struct *vma,
-> -			      unsigned long start,
-> -			      unsigned long end,
-> -			      unsigned long *src,
-> -			      unsigned long *dst,
-> -			      void *private)
-> -{
-> -	return -EINVAL;
-> -}
-> -#endif /* IS_ENABLED(CONFIG_MIGRATE_VMA_HELPER) */
-> +int migrate_vma_setup(struct migrate_vma *args);
-> +void migrate_vma_pages(struct migrate_vma *migrate);
-> +void migrate_vma_finalize(struct migrate_vma *migrate);
->   
->   #endif /* CONFIG_MIGRATION */
->   
-> diff --git a/mm/migrate.c b/mm/migrate.c
-> index 8992741f10aa..dc4e60a496f2 100644
-> --- a/mm/migrate.c
-> +++ b/mm/migrate.c
-> @@ -2118,16 +2118,6 @@ int migrate_misplaced_transhuge_page(struct mm_struct *mm,
->   #endif /* CONFIG_NUMA */
->   
->   #if defined(CONFIG_MIGRATE_VMA_HELPER)
-> -struct migrate_vma {
-> -	struct vm_area_struct	*vma;
-> -	unsigned long		*dst;
-> -	unsigned long		*src;
-> -	unsigned long		cpages;
-> -	unsigned long		npages;
-> -	unsigned long		start;
-> -	unsigned long		end;
-> -};
-> -
->   static int migrate_vma_collect_hole(unsigned long start,
->   				    unsigned long end,
->   				    struct mm_walk *walk)
-> @@ -2578,6 +2568,108 @@ static void migrate_vma_unmap(struct migrate_vma *migrate)
->   	}
->   }
->   
-> +/**
-> + * migrate_vma_setup() - prepare to migrate a range of memory
-> + * @args: contains the vma, start, and and pfns arrays for the migration
-> + *
-> + * Returns: negative errno on failures, 0 when 0 or more pages were migrated
-> + * without an error.
-> + *
-> + * Prepare to migrate a range of memory virtual address range by collecting all
-> + * the pages backing each virtual address in the range, saving them inside the
-> + * src array.  Then lock those pages and unmap them. Once the pages are locked
-> + * and unmapped, check whether each page is pinned or not.  Pages that aren't
-> + * pinned have the MIGRATE_PFN_MIGRATE flag set (by this function) in the
-> + * corresponding src array entry.  Then restores any pages that are pinned, by
-> + * remapping and unlocking those pages.
-> + *
-> + * The caller should then allocate destination memory and copy source memory to
-> + * it for all those entries (ie with MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE
-> + * flag set).  Once these are allocated and copied, the caller must update each
-> + * corresponding entry in the dst array with the pfn value of the destination
-> + * page and with the MIGRATE_PFN_VALID and MIGRATE_PFN_LOCKED flags set
-> + * (destination pages must have their struct pages locked, via lock_page()).
-> + *
-> + * Note that the caller does not have to migrate all the pages that are marked
-> + * with MIGRATE_PFN_MIGRATE flag in src array unless this is a migration from
-> + * device memory to system memory.  If the caller cannot migrate a device page
-> + * back to system memory, then it must return VM_FAULT_SIGBUS, which will
-> + * might have severe consequences for the userspace process, so it should best
-> + * be avoided if possible.
-> + *
-> + * For empty entries inside CPU page table (pte_none() or pmd_none() is true) we
-> + * do set MIGRATE_PFN_MIGRATE flag inside the corresponding source array thus
-> + * allowing the caller to allocate device memory for those unback virtual
-> + * address.  For this the caller simply havs to allocate device memory and
-> + * properly set the destination entry like for regular migration.  Note that
-> + * this can still fails and thus inside the device driver must check if the
-> + * migration was successful for those entries after calling migrate_vma_pages()
-> + * just like for regular migration.
-> + *
-> + * After that, the callers must call migrate_vma_pages() to go over each entry
-> + * in the src array that has the MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE flag
-> + * set. If the corresponding entry in dst array has MIGRATE_PFN_VALID flag set,
-> + * then migrate_vma_pages() to migrate struct page information from the source
-> + * struct page to the destination struct page.  If it fails to migrate the
-> + * struct page information, then it clears the MIGRATE_PFN_MIGRATE flag in the
-> + * src array.
-> + *
-> + * At this point all successfully migrated pages have an entry in the src
-> + * array with MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE flag set and the dst
-> + * array entry with MIGRATE_PFN_VALID flag set.
-> + *
-> + * Once migrate_vma_pages() returns the caller may inspect which pages were
-> + * successfully migrated, and which were not.  Successfully migrated pages will
-> + * have the MIGRATE_PFN_MIGRATE flag set for their src array entry.
-> + *
-> + * It is safe to update device page table from within the finalize_and_map()
-> + * callback because both destination and source page are still locked, and the
-> + * mmap_sem is held in read mode (hence no one can unmap the range being
-> + * migrated).
-> + *
-> + * Once the caller is done cleaning up things and updating its page table (if it
-> + * chose to do so, this is not an obligation) it finally calls
-> + * migrate_vma_finalize() to update the CPU page table to point to new pages
-> + * for successfully migrated pages or otherwise restore the CPU page table to
-> + * point to the original source pages.
-> + */
-> +int migrate_vma_setup(struct migrate_vma *args)
-> +{
-> +	long nr_pages = (args->end - args->start) >> PAGE_SHIFT;
-> +
-> +	args->start &= PAGE_MASK;
-> +	args->end &= PAGE_MASK;
-> +	if (!args->vma || is_vm_hugetlb_page(args->vma) ||
-> +	    (args->vma->vm_flags & VM_SPECIAL) || vma_is_dax(args->vma))
-> +		return -EINVAL;
-> +	if (nr_pages <= 0)
-> +		return -EINVAL;
-> +	if (args->start < args->vma->vm_start ||
-> +	    args->start >= args->vma->vm_end)
-> +		return -EINVAL;
-> +	if (args->end <= args->vma->vm_start || args->end > args->vma->vm_end)
-> +		return -EINVAL;
-> +	if (!args->src || !args->dst)
-> +		return -EINVAL;
-> +
-> +	memset(args->src, 0, sizeof(*args->src) * nr_pages);
-> +
-> +	migrate_vma_collect(args);
-> +	if (args->cpages)
-> +		migrate_vma_prepare(args);
-> +	if (args->cpages)
-> +		migrate_vma_unmap(args);
-> +
-> +	/*
-> +	 * At this point pages are locked and unmapped, and thus they have
-> +	 * stable content and can safely be copied to destination memory that
-> +	 * is allocated by the drivers.
-> +	 */
-> +	return 0;
-> +
-> +}
-> +EXPORT_SYMBOL(migrate_vma_setup);
-> +
->   static void migrate_vma_insert_page(struct migrate_vma *migrate,
->   				    unsigned long addr,
->   				    struct page *page,
-> @@ -2709,7 +2801,7 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
->   	*src &= ~MIGRATE_PFN_MIGRATE;
->   }
->   
-> -/*
-> +/**
->    * migrate_vma_pages() - migrate meta-data from src page to dst page
->    * @migrate: migrate struct containing all migration information
->    *
-> @@ -2717,7 +2809,7 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
->    * struct page. This effectively finishes the migration from source page to the
->    * destination page.
->    */
-> -static void migrate_vma_pages(struct migrate_vma *migrate)
-> +void migrate_vma_pages(struct migrate_vma *migrate)
->   {
->   	const unsigned long npages = migrate->npages;
->   	const unsigned long start = migrate->start;
-> @@ -2791,8 +2883,9 @@ static void migrate_vma_pages(struct migrate_vma *migrate)
->   	if (notified)
->   		mmu_notifier_invalidate_range_only_end(&range);
->   }
-> +EXPORT_SYMBOL(migrate_vma_pages);
->   
-> -/*
-> +/**
->    * migrate_vma_finalize() - restore CPU page table entry
->    * @migrate: migrate struct containing all migration information
->    *
-> @@ -2803,7 +2896,7 @@ static void migrate_vma_pages(struct migrate_vma *migrate)
->    * This also unlocks the pages and puts them back on the lru, or drops the extra
->    * refcount, for device pages.
->    */
-> -static void migrate_vma_finalize(struct migrate_vma *migrate)
-> +void migrate_vma_finalize(struct migrate_vma *migrate)
->   {
->   	const unsigned long npages = migrate->npages;
->   	unsigned long i;
-> @@ -2846,124 +2939,5 @@ static void migrate_vma_finalize(struct migrate_vma *migrate)
->   		}
->   	}
->   }
-> -
-> -/*
-> - * migrate_vma() - migrate a range of memory inside vma
-> - *
-> - * @ops: migration callback for allocating destination memory and copying
-> - * @vma: virtual memory area containing the range to be migrated
-> - * @start: start address of the range to migrate (inclusive)
-> - * @end: end address of the range to migrate (exclusive)
-> - * @src: array of hmm_pfn_t containing source pfns
-> - * @dst: array of hmm_pfn_t containing destination pfns
-> - * @private: pointer passed back to each of the callback
-> - * Returns: 0 on success, error code otherwise
-> - *
-> - * This function tries to migrate a range of memory virtual address range, using
-> - * callbacks to allocate and copy memory from source to destination. First it
-> - * collects all the pages backing each virtual address in the range, saving this
-> - * inside the src array. Then it locks those pages and unmaps them. Once the pages
-> - * are locked and unmapped, it checks whether each page is pinned or not. Pages
-> - * that aren't pinned have the MIGRATE_PFN_MIGRATE flag set (by this function)
-> - * in the corresponding src array entry. It then restores any pages that are
-> - * pinned, by remapping and unlocking those pages.
-> - *
-> - * At this point it calls the alloc_and_copy() callback. For documentation on
-> - * what is expected from that callback, see struct migrate_vma_ops comments in
-> - * include/linux/migrate.h
-> - *
-> - * After the alloc_and_copy() callback, this function goes over each entry in
-> - * the src array that has the MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE flag
-> - * set. If the corresponding entry in dst array has MIGRATE_PFN_VALID flag set,
-> - * then the function tries to migrate struct page information from the source
-> - * struct page to the destination struct page. If it fails to migrate the struct
-> - * page information, then it clears the MIGRATE_PFN_MIGRATE flag in the src
-> - * array.
-> - *
-> - * At this point all successfully migrated pages have an entry in the src
-> - * array with MIGRATE_PFN_VALID and MIGRATE_PFN_MIGRATE flag set and the dst
-> - * array entry with MIGRATE_PFN_VALID flag set.
-> - *
-> - * It then calls the finalize_and_map() callback. See comments for "struct
-> - * migrate_vma_ops", in include/linux/migrate.h for details about
-> - * finalize_and_map() behavior.
-> - *
-> - * After the finalize_and_map() callback, for successfully migrated pages, this
-> - * function updates the CPU page table to point to new pages, otherwise it
-> - * restores the CPU page table to point to the original source pages.
-> - *
-> - * Function returns 0 after the above steps, even if no pages were migrated
-> - * (The function only returns an error if any of the arguments are invalid.)
-> - *
-> - * Both src and dst array must be big enough for (end - start) >> PAGE_SHIFT
-> - * unsigned long entries.
-> - */
-> -int migrate_vma(const struct migrate_vma_ops *ops,
-> -		struct vm_area_struct *vma,
-> -		unsigned long start,
-> -		unsigned long end,
-> -		unsigned long *src,
-> -		unsigned long *dst,
-> -		void *private)
-> -{
-> -	struct migrate_vma migrate;
-> -
-> -	/* Sanity check the arguments */
-> -	start &= PAGE_MASK;
-> -	end &= PAGE_MASK;
-> -	if (!vma || is_vm_hugetlb_page(vma) || (vma->vm_flags & VM_SPECIAL) ||
-> -			vma_is_dax(vma))
-> -		return -EINVAL;
-> -	if (start < vma->vm_start || start >= vma->vm_end)
-> -		return -EINVAL;
-> -	if (end <= vma->vm_start || end > vma->vm_end)
-> -		return -EINVAL;
-> -	if (!ops || !src || !dst || start >= end)
-> -		return -EINVAL;
-> -
-> -	memset(src, 0, sizeof(*src) * ((end - start) >> PAGE_SHIFT));
-> -	migrate.src = src;
-> -	migrate.dst = dst;
-> -	migrate.start = start;
-> -	migrate.npages = 0;
-> -	migrate.cpages = 0;
-> -	migrate.end = end;
-> -	migrate.vma = vma;
-> -
-> -	/* Collect, and try to unmap source pages */
-> -	migrate_vma_collect(&migrate);
-> -	if (!migrate.cpages)
-> -		return 0;
-> -
-> -	/* Lock and isolate page */
-> -	migrate_vma_prepare(&migrate);
-> -	if (!migrate.cpages)
-> -		return 0;
-> -
-> -	/* Unmap pages */
-> -	migrate_vma_unmap(&migrate);
-> -	if (!migrate.cpages)
-> -		return 0;
-> -
-> -	/*
-> -	 * At this point pages are locked and unmapped, and thus they have
-> -	 * stable content and can safely be copied to destination memory that
-> -	 * is allocated by the callback.
-> -	 *
-> -	 * Note that migration can fail in migrate_vma_struct_page() for each
-> -	 * individual page.
-> -	 */
-> -	ops->alloc_and_copy(vma, src, dst, start, end, private);
-> -
-> -	/* This does the real migration of struct page */
-> -	migrate_vma_pages(&migrate);
-> -
-> -	ops->finalize_and_map(vma, src, dst, start, end, private);
-> -
-> -	/* Unlock and remap pages */
-> -	migrate_vma_finalize(&migrate);
-> -
-> -	return 0;
-> -}
-> -EXPORT_SYMBOL(migrate_vma);
-> +EXPORT_SYMBOL(migrate_vma_finalize);
->   #endif /* defined(MIGRATE_VMA_HELPER) */
+>   	/* Copy things over */
+>   	copy = drm->dmem->migrate.copy_func;
 > 
 
