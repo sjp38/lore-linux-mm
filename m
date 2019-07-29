@@ -2,94 +2,94 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A0B9EC7618E
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 11:32:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8685AC7618B
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 11:38:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 64F5C206B8
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 11:32:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 64F5C206B8
+	by mail.kernel.org (Postfix) with ESMTP id 4732D20651
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 11:38:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4732D20651
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E31868E0003; Mon, 29 Jul 2019 07:32:31 -0400 (EDT)
+	id C31908E0005; Mon, 29 Jul 2019 07:38:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DE2AC8E0002; Mon, 29 Jul 2019 07:32:31 -0400 (EDT)
+	id BBB3E8E0002; Mon, 29 Jul 2019 07:38:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CD1008E0003; Mon, 29 Jul 2019 07:32:31 -0400 (EDT)
+	id A82488E0005; Mon, 29 Jul 2019 07:38:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DF6A8E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 07:32:31 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id y3so38059706edm.21
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 04:32:31 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 573DF8E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 07:38:50 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id m23so38063272edr.7
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 04:38:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=WopCjjspgIawBvVbPd70+X5gbjHpqmrzPaq1C0u4lO8=;
-        b=i3ceoCjGYTcbMOwaV3yRaYH+Ov1X9ucyPPxxVbpOowGRp0+nxHLeFTXGiP64/B+uV2
-         GREqQsg+VEXl+4jLQ1+oG2fnNV3iA6TbRHXYBCceyYoAPoFUiKc6KMDs2P+sket4T73T
-         eX4QNyyP36CB4/bPp3TXlnhqq7zDxQS2i7K8lCkmz52x9iuasF4YznTb06IJ08eHyyvF
-         t+0O0yYMiCeZTXSZN++s5MkCxgQthBVIxaZqk03x4Z93NzUTw97CxX4iQIokSKCze/A3
-         QeTk81IkJ1Kea+A+iVs1Tl7v+Eavnv3FnhnKlBSiweaYZHTesWKL1KBvLl00muvAIdeG
-         dljw==
+        bh=tdXnCls1/dKVBUI6AJDlG+b/2njgx4f0JtKfYJzU9tk=;
+        b=ulHHPK0DR0EBMyy7DyNMlyRuxtjCQ6x2495E09RK0nW4jTdH6J4ftP+B+JA+RNTP1n
+         wMMS99o7hJMQNCf7N0wVu1xmODkX8vIS0+IdI+cK3FHepIpLRzfVC7WQa8RV/wb1KREt
+         UfjLi9TtXdvo98S0jJPDz4dXvW+0OH8AMgJTA4M9Xy2DfDkMIPmdd3nuCmqHTPuxSFQz
+         +q10NRVGpVbVKynDTjw3AT0fyO14lz3mYSOpKXbZpY9xbkKo367dxRIDgM349d12rgNK
+         l763XtSlZnh/VsH4RzvNx/+PNMirEISGdFY86f5jpMAe2oAsrcs1EBMPKBZQkS8qp+H+
+         wOUg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAXytS6JDPc1QJjIhKWsXRE8GWYJoczwoqr+u/mkS6KizIoCX7Xm
-	6hgA72PSHE17QckZA/wbLrbS6VZQbpGf5taiaV1XtWaYLrSExgPeuEoI4lR+849D4W5fe/cg2DG
-	c1oWYK6YQSGzEKKVN6wSlD7QXPEz8JgtvRuhoKLRaG9XYSmmXiFul/FLQdMcuSG+Kkw==
-X-Received: by 2002:a50:9177:: with SMTP id f52mr95787934eda.294.1564399950964;
-        Mon, 29 Jul 2019 04:32:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxEx3M1zD8X084Cr2Zs/USavsQMnhOVkwuw1zfQ8ZjOSG+6jnpE0shW7tnWGzhyqt75+bIb
-X-Received: by 2002:a50:9177:: with SMTP id f52mr95787844eda.294.1564399949976;
-        Mon, 29 Jul 2019 04:32:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564399949; cv=none;
+X-Gm-Message-State: APjAAAXqzQkosJp8fnZZMkEszxW7M09qwp9zc0pVbcVQDLATWbuJuhcC
+	aOSEY9nRth8EycqO23ITBW/av5U1vm8t4ntgTU1vaTnK3P4OOU3DvqqbuSlutWno1oR3qyYhpFE
+	c/DVFHOX+4oJKgq2m3+SDpOXtFVQ+3awYkev9WvFFYbrCz0wsxFk4v3J6ljsprshIDQ==
+X-Received: by 2002:a50:ec98:: with SMTP id e24mr95262609edr.264.1564400329917;
+        Mon, 29 Jul 2019 04:38:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy6tpOiTFVsaKJprz3Bk4aGlbd5qUJDdS11/kgHFydm1ghpttOIPhWdH0g4wlA8z+02n7it
+X-Received: by 2002:a50:ec98:: with SMTP id e24mr95262558edr.264.1564400329123;
+        Mon, 29 Jul 2019 04:38:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564400329; cv=none;
         d=google.com; s=arc-20160816;
-        b=QoruLYn0rLYH4E2O2wDv4RkllubJHGQqFCpA9I4q1ScFJ6/w+LNZJP6cFk1B1FSOWk
-         4veARZwxUjgExotxW7PhnSUasYOVd5oOeZfRNErTTN41FUAzH5bNOZQpB1J9eeb7Wd+T
-         ab+bQURDx/wNJ0Ajtzb/MVkV1FEoHwV8P7S2vXzUeVI/0Ii/Of27uRd7T9NyvJOp8cey
-         yAnlFj2jZYvFBDvUjzwq8SKeKe57cErToQb+C5RiTYGqo3Kwc9L2sS5MPY52hhIniWT8
-         p5gG5hKpVXw9Tul8iM2aDuB5TdnYovd1z0EDfUFcznPQzSxtetug2WIZI/KKayIwy6oW
-         sjbA==
+        b=afCQ7ByTMdoRhTDtSxVuCsGdArE2+RWipH1HvKvs+HejiR3bZuRQ015OuQJJhhmYUs
+         TZQiLOXU0QTGbIomgHbviTh1YzfY5HZJAroz6yLkRKQO2wvRFUwpaqMKDyaJxQqyrmCc
+         nvaMWe8lYW3g82NnOHVno6nUaw4zkfTjA9m7OuC1XGQnReW1fa4tBrMoiPehGQaXlP49
+         keeSFZPmAVBcSYZqW01c4XNaHpYv0sPKsrpvG1zMw6o2oVs3N5d8TF64GL6pBUDYTJ/s
+         ble4d530PE4SbUM3HLqjHA6SJ3zLW4QyCEY6Uv73IF0it9WPAtno1/JDM2nf7h4iuEI/
+         5izg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=WopCjjspgIawBvVbPd70+X5gbjHpqmrzPaq1C0u4lO8=;
-        b=njdauGUiMNUm1ctxPX+i2WVAriLek8MvmNCxW6Ai9gAovasTLfb+Tww7JEA5B0F3Mx
-         icsecm6tNt8xIkhsYzgv5DMt/bCT8kgDoXA9ioVed8EqZ5qCQrhkPWMVk23eRVS7JSky
-         Iq1tAv8xOiykBHfEqvWym1qQhTsR48PPe+nskqIlqOJ+4MCgdYqyK+IWxAwIdz23gM1b
-         TLuXfplQ22fGi5EzyAQ/d93He8EpnhLxDkAO2XiKpI4X4BaICbwaTUPEJwwPtEQ72yNk
-         9Ywo0+wbCI0aSIZKR0wnQLA7Q1QZHld8YJpTxrc0yz5gIIUHRpW8fMWwGTD/MzHcX/q5
-         77vQ==
+        bh=tdXnCls1/dKVBUI6AJDlG+b/2njgx4f0JtKfYJzU9tk=;
+        b=0PR87RjLB8XeCFMK74Sgz+veMozeVPiAULMJ8PbzEoJhBH/5IS+X9UaPFasHHnP+xl
+         JsVPO864ooP5cC4JhrTp+LTEolmYZlZqMZvj7h9QARDj0zovuR+RnbqIZvBRz9zZawu0
+         ZpBiYcmk4PO1vRUBZdBPznwMdRu84jw+GfaphHcEIhJ00JEXMISd8klpQt0hSVwA9DSn
+         Zf2hZjU6tJ8jwBVEhWDH0cijeAHlso/oHeChstxJv9C+zexuXyUy7D40DUVYbQFTyY5I
+         Mt0YJe22C04OarHlNjHsQKyF5pJOTEt4DKR653yxhPZfur+7wf1BXbixgiWjY0RrDLTc
+         LetQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id 91si17307603edr.174.2019.07.29.04.32.29
+        by mx.google.com with ESMTP id f53si16797856edf.85.2019.07.29.04.38.48
         for <linux-mm@kvack.org>;
-        Mon, 29 Jul 2019 04:32:29 -0700 (PDT)
+        Mon, 29 Jul 2019 04:38:49 -0700 (PDT)
 Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id EF9BD28;
-	Mon, 29 Jul 2019 04:32:28 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id ECCD228;
+	Mon, 29 Jul 2019 04:38:47 -0700 (PDT)
 Received: from [10.1.196.133] (e112269-lin.cambridge.arm.com [10.1.196.133])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 609A73F694;
-	Mon, 29 Jul 2019 04:32:26 -0700 (PDT)
-Subject: Re: [PATCH v9 00/21] Generic page walk and ptdump
-To: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org,
- Helge Deller <deller@gmx.de>
-Cc: Mark Rutland <Mark.Rutland@arm.com>, x86@kernel.org,
- Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 4E2E03F694;
+	Mon, 29 Jul 2019 04:38:45 -0700 (PDT)
+Subject: Re: [PATCH v9 10/21] mm: Add generic p?d_leaf() macros
+To: Anshuman Khandual <anshuman.khandual@arm.com>,
+ Mark Rutland <mark.rutland@arm.com>
+Cc: x86@kernel.org, Arnd Bergmann <arnd@arndb.de>,
+ Ard Biesheuvel <ard.biesheuvel@linaro.org>,
  Peter Zijlstra <peterz@infradead.org>,
  Catalin Marinas <catalin.marinas@arm.com>,
  Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org,
- =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ linux-mm@kvack.org, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
  Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
  Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
  James Morse <james.morse@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
@@ -97,14 +97,16 @@ Cc: Mark Rutland <Mark.Rutland@arm.com>, x86@kernel.org,
  linux-arm-kernel@lists.infradead.org, "Liang, Kan"
  <kan.liang@linux.intel.com>
 References: <20190722154210.42799-1-steven.price@arm.com>
- <794fb469-00c8-af10-92a8-cb7c0c83378b@arm.com>
+ <20190722154210.42799-11-steven.price@arm.com>
+ <20190723094113.GA8085@lakrids.cambridge.arm.com>
+ <ce4e21f2-020f-6677-d79c-5432e3061d6e@arm.com>
 From: Steven Price <steven.price@arm.com>
-Message-ID: <270ce719-49f9-7c61-8b25-bc9548a2f478@arm.com>
-Date: Mon, 29 Jul 2019 12:32:25 +0100
+Message-ID: <674bd809-f853-adb0-b1ab-aa4404093083@arm.com>
+Date: Mon, 29 Jul 2019 12:38:44 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <794fb469-00c8-af10-92a8-cb7c0c83378b@arm.com>
+In-Reply-To: <ce4e21f2-020f-6677-d79c-5432e3061d6e@arm.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-GB
 Content-Transfer-Encoding: 7bit
@@ -114,68 +116,54 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 28/07/2019 12:20, Anshuman Khandual wrote:
-> On 07/22/2019 09:11 PM, Steven Price wrote:
->> Steven Price (21):
->>   arc: mm: Add p?d_leaf() definitions
->>   arm: mm: Add p?d_leaf() definitions
->>   arm64: mm: Add p?d_leaf() definitions
->>   mips: mm: Add p?d_leaf() definitions
->>   powerpc: mm: Add p?d_leaf() definitions
->>   riscv: mm: Add p?d_leaf() definitions
->>   s390: mm: Add p?d_leaf() definitions
->>   sparc: mm: Add p?d_leaf() definitions
->>   x86: mm: Add p?d_leaf() definitions
+On 28/07/2019 12:44, Anshuman Khandual wrote:
 > 
-> The set of architectures here is neither complete (e.g ia64, parisc missing)
-> nor does it only include architectures which had previously enabled PTDUMP
-> like arm, arm64, powerpc, s390 and x86. Is there any reason for this set of
-> archs to be on the list and not the others which are currently falling back
-> on generic p?d_leaf() defined later in the series ? Are the missing archs
-> do not have huge page support in the MMU ? If there is a direct dependency
-> for these symbols with CONFIG_HUGETLB_PAGE then it must be checked before
-> falling back on the generic ones.
+> 
+> On 07/23/2019 03:11 PM, Mark Rutland wrote:
+>> On Mon, Jul 22, 2019 at 04:41:59PM +0100, Steven Price wrote:
+>>> Exposing the pud/pgd levels of the page tables to walk_page_range() means
+>>> we may come across the exotic large mappings that come with large areas
+>>> of contiguous memory (such as the kernel's linear map).
+>>>
+>>> For architectures that don't provide all p?d_leaf() macros, provide
+>>> generic do nothing default that are suitable where there cannot be leaf
+>>> pages that that level.
+>>>
+>>> Signed-off-by: Steven Price <steven.price@arm.com>
+>>
+>> Not a big deal, but it would probably make sense for this to be patch 1
+>> in the series, given it defines the semantic of p?d_leaf(), and they're
+>> not used until we provide all the architectural implemetnations anyway.
+> 
+> Agreed.
+> 
+>>
+>> It might also be worth pointing out the reasons for this naming, e.g.
+>> p?d_large() aren't currently generic, and this name minimizes potential
+>> confusion between p?d_{large,huge}().
+> 
+> Agreed. But these fallback also need to first check non-availability of large
+> pages. I am not sure whether CONFIG_HUGETLB_PAGE config being clear indicates
+> that conclusively or not. Being a page table leaf entry has a broader meaning
+> than a large page but that is really not the case today. All leaf entries here
+> are large page entries from MMU perspective. This dependency can definitely be
+> removed when there are other types of leaf entries but for now IMHO it feels
+> bit problematic not to directly associate leaf entries with large pages in
+> config restriction while doing exactly the same.
 
-The list of architectures here is what I believe to be the list of
-architectures which can have leaf entries further up the tree than
-normal. I'm by no means an expert on all these architectures so I'm
-hoping someone will chime in if they notice something amiss. Obviously
-all the NO_MMU
+The intention here is that the page walkers are able to walk any type of
+page table entry which the kernel may use. CONFIG_HUGETLB_PAGE only
+controls whether "huge TLB pages" are used by user space processes. It's
+quite possible that option to not be selected but the linear mapping to
+have been mapped using "large pages" (i.e. leaf entries further up the
+tree than normal).
 
-ia64 as far as I can tell doesn't implement leaf entries further up - it
-has an interesting hybrid hardware/software walk mechanism and as I
-understand it the hardware never walks the page table tree that the
-p?d_xxx() operations operate on. So this is a software implementation
-detail - but the existance of p?d_huge functions which always return 0
-were my first clue that leaf entries are only at the bottom of the tree.
-
-parisc is more interesting and I'm not sure if this is necessarily
-correct. I originally proposed a patch with the line "For parisc, we
-don't support large pages, so add stubs returning 0" which got Acked by
-Helge Deller. However going back to look at that again I see there was a
-follow up thread[2] which possibly suggests I was wrong?
-
-Can anyone shed some light on whether parisc does support leaf entries
-of the page table tree at a higher than the normal depth?
-
-[1] https://lkml.org/lkml/2019/2/27/572
-[2] https://lkml.org/lkml/2019/3/5/610
-
-The intention is that the page table walker would be available for all
-architectures so that it can be used in any generic code - PTDUMP simply
-seemed like a good place to start.
-
-> Now that pmd_leaf() and pud_leaf() are getting used in walk_page_range() these
-> functions need to be defined on all arch irrespective if they use PTDUMP or not
-> or otherwise just define it for archs which need them now for sure i.e x86 and
-> arm64 (which are moving to new generic PTDUMP framework). Other archs can
-> implement these later.
-
-The intention was to have valid definitions for all architectures, but
-obviously I need help from those familiar with those other architectures
-to check whether I've understood them correctly.
-
-Thanks,
+One of the goals was to avoid tying the new functions to a configuration
+option but instead match the hardware architecture. Of course this isn't
+possible in the most general case (e.g. an architecture may have
+multiple hardware page table formats). But to the extent that other
+functions like p?d_none() work the desire is that p?d_leaf() should also
+work.
 
 Steve
 
