@@ -2,272 +2,210 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D9E2C433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:25:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C465C7618B
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:25:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C8F25216C8
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:24:59 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="VDIZSjBO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8F25216C8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 0C0AE206DD
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:25:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C0AE206DD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 747A78E0005; Mon, 29 Jul 2019 10:24:59 -0400 (EDT)
+	id 9B9268E0006; Mon, 29 Jul 2019 10:25:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6F8398E0002; Mon, 29 Jul 2019 10:24:59 -0400 (EDT)
+	id 945AE8E0002; Mon, 29 Jul 2019 10:25:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5E6CD8E0005; Mon, 29 Jul 2019 10:24:59 -0400 (EDT)
+	id 799108E0006; Mon, 29 Jul 2019 10:25:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F10D8E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 10:24:59 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id x24so67707730ioh.16
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 07:24:59 -0700 (PDT)
+Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 544B58E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 10:25:01 -0400 (EDT)
+Received: by mail-vk1-f199.google.com with SMTP id d14so26591318vka.6
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 07:25:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=r2R3bvPPA7z+Zk5Z5T/eRlqnLR0fPm6kMZLrDw0T1mM=;
-        b=XiQRly1tf2Tjs9IuWWeM58TDcU9KpHCL8t2bWY2YyyCzcXfXuPCoMI/7s/QqolONcI
-         sWOHmaQbE8mWGcdybE01sPg1jSNsPb6ihdYt3ucab0WoOP0F1MJplf72tWVqax9Llw6O
-         +kiYg2JAlj33kbRNwxi1ymbvSzni4OqzfZNyJQVnon64FLh9ahEdjflGi+ql6fLoNXA+
-         hsMshQ/pZh1zBysY6PAIYXK9tYdBOd8sQn5kmzTUvDTMLLZ4QYP3nbYb2lfmOxTAMjc6
-         JG5S4G8tx0Vr4Z45B+8QjGQIZoLpOy98n3VptxfEoeaeVOQUQ3W9lyd2GJtGkLmwCVXp
-         cOOQ==
-X-Gm-Message-State: APjAAAVFBUDBe6mhClnjCdQ32vdcUNa+RZDDqxQ2IZB0/bsKqNwJyPBz
-	ksvd7Pt42mU04IEpvglxInw5l2b+w5XQIXApMF4EVK7pTD4iqNnoom+OQHio3rSYSL3B53UwZrG
-	Tvb4uEvEhNg/ms0NHxjajLpdgadSsVhIZqo8tXNXFnC0I+3yUN90WERfRC5TtGiC+4A==
-X-Received: by 2002:a05:6638:303:: with SMTP id w3mr58699489jap.103.1564410298938;
-        Mon, 29 Jul 2019 07:24:58 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz0of2YJDgqFnPOhwOnlFFILs7CpuRja6bcVphGYcz32ScCGSNyexI+E6GUiyKXkEpMc6OT
-X-Received: by 2002:a05:6638:303:: with SMTP id w3mr58699412jap.103.1564410297981;
-        Mon, 29 Jul 2019 07:24:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564410297; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=Dae4/IXxIKvok4ax7clnXozmTE0V8dNaujdRqd/9frk=;
+        b=QPrHHGCoxKv0vsAVcSUfk8zaMKWPimdZmumnlhbMTdmoQxCvenWanA6aDngmithQCj
+         CRvOzFUd5V6I2/upG5+ewuGM4pBxJBU3hGZHQYGlkGc2aazsiz+VjICHYObvi3vXGJhv
+         8cZ2+ACTu/3ERC3FGRnc54REtaXhEn3DGTZbyrENmDQW0kAdTCLR1N935cg1IrufmhNo
+         Lcrdfb14dixDzy3Shp1vDZdiMsOW4EadMc65yUJUvfwlSlFqM7xM+3oxK7HTPLH7slEG
+         QTA5LMJa1YyueK/gQQc345CjB6LUoobrpvEmi0fv70jdzTH650tZAdhgN3p8ABHr1J3T
+         i6HA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAU9SjDvlQkJUjMNrmm0vrSYyGTbyX7sszUAcdL+rPkf5oY1XYiS
+	+ft8L+TffHhiNCAOXdZCfdv1bY18ZBz9OdMGz3i0czECTwaOoSaxqvyJmlNL6BfS/QviP8g+EfV
+	zufFfB2w6Tie77PAb9TayrgEiExYAx4MJEa5SEPaMxz4TwiQZIrM5z2mBbxqt/FThPQ==
+X-Received: by 2002:a1f:5945:: with SMTP id n66mr41209737vkb.58.1564410300966;
+        Mon, 29 Jul 2019 07:25:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyGFsCQVb7ICcMJC8Ls6GignYlZODl5tPFY5ZssmCZsdMrYzBMHVwPpNOTxxoI5+oIa7RDW
+X-Received: by 2002:a1f:5945:: with SMTP id n66mr41209654vkb.58.1564410299993;
+        Mon, 29 Jul 2019 07:24:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564410299; cv=none;
         d=google.com; s=arc-20160816;
-        b=h2MaSlI79R9VMuZVIrv5CST+vjzYF7PGaXKSKzmcMEQQfS1r9bQaDFA4l2ejrD+Srn
-         4iBLFliB6+PE54Ed/GTXD7BllyoHEdAAxdry5CjNPOBMzHn00L9AX2xSI/xPb8i82JsM
-         JxWTNbu3J1GSQJCAguU10Jnd7c6H20khPEoQsQw5ZQuXKra7/75dhWBWcoduJUV1aGYc
-         n9SD/0aG2i0yCwDKdXB6xi3hKE3ZEFmj1Y3bmyQNlVyIREKY7pkUa89wLDj2bYd1NZWb
-         mY6HCH6S71n7YrITX+RFTtU/IO2jqGam7bYneYi9r15mOomOXG4Oqz7xheZbMNQCcXA4
-         ws5g==
+        b=zw0/a9pB9n7IfjbL9JgLtwTYS5XU5XMJUgT0YfVcpUKZbzrsXShlNENt/DBv+H9dEg
+         HxzQK6+5Hekk9vpasaFXi+vBn6nH97ceFfAR4vHZTJH2E0MZlUYJ+71610mPJTlje2Wh
+         yvHM9vJW+SJC2MipD39GtCT/yufYExvYNSwiw8g/TxXtOoIeTCuvhn4Pp5ISP7scmbPp
+         iLZmbInk6LFXKBwzOI+qCnBFxggOknyc2PViPvbGVqnxFzKH4Xj/a+dcwZ530WXzjNaI
+         R0onnS/VAt6WueFVH7MruP15ERdkdBLuBe5SyHHn4GDFvUNWMlwozN6/xZ4XMMOM9ZQt
+         mfUQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=r2R3bvPPA7z+Zk5Z5T/eRlqnLR0fPm6kMZLrDw0T1mM=;
-        b=ysXLX2I6w+HGrMCNkeQy2TIzz1MjmrV2my1Wli8qRODVjW0IeAHQetSClQED/uB4P4
-         qM6HSfb89N2MhLznbqe9tJ7/zmvPj6FkF3J91UGWvBj/BiQH0sHYnJzTWybtSLfMVkbp
-         voX5NXmf6rQyXj84yFM1thQboBj8HPpS57SNQTnbtXXdQ0DWlaXfJZOPb6MvlLAAbzby
-         lcKJCmWI84LANOKPTXp2nStP121NbbMGoGW5W5doloBYfpyjr+zKIGXTd8eySEykk+mn
-         6HfYVHVRtpGxDZDBVXP2qVwPIVBZvBSL8aoKrVhoANFlGS/Y6WnLxY56cbPZk0XUZDVc
-         KXJA==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=Dae4/IXxIKvok4ax7clnXozmTE0V8dNaujdRqd/9frk=;
+        b=mkU4jah7e+jf6at8zH9BhZzQXusjr+ouAcQdjc7GCNiMr8AXY26f2rHaFV9vCJUSWd
+         BZspFvJ8Z8qOTsRNwgRvErzv/SOA3QFgQkBegGZ4F96RqsO954lU88zouPFMst2PHEm4
+         PD5tRcqlaqRpw+3QFPAXygnKoOTIiUdSFtyjq/5Y+cVBu5TaU5lQwNuKJugqDPg/QchI
+         jAmIKZlB3CMLklZboKUMtqpf7cNA6UFynvTdHAU7Khy0XcheYJGz8MoXXky6GG80K9xh
+         6+hjxkDC0+q9xBwcgFB9QAhPLzxwkcIQ9kAUlJ7aVRAVvnT8/OI4K5Bxvvli1kK1Byof
+         lHew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=VDIZSjBO;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id c31si92921221jaa.76.2019.07.29.07.24.56
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id x62si14697195vkg.89.2019.07.29.07.24.59
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 29 Jul 2019 07:24:56 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Jul 2019 07:24:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=VDIZSjBO;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=r2R3bvPPA7z+Zk5Z5T/eRlqnLR0fPm6kMZLrDw0T1mM=; b=VDIZSjBOQQ5VujuzGXLUd8ztg
-	s9lZP8iQA6DasO0eCjfCdN66UHKmyiRi268O6wWJUP/0aANp/x59QPcYqoSJh4IQgpSRF/DL6KxWH
-	0kgwwmK2eRnOAE0i+uA7PqX2cxYVQVHKzmsRWBOClTrWQfNY4Q8lOsTlLHBoT0MAKh23KApH1NXDP
-	9wewptlleUm83XE3JiybClJJZMT0obX31Swo2M25QwiC+YOSR2hf83+aWTCGjpQYy0EgbryP7TBgU
-	cSenMrQzb/jwtG5VGK6iivMyfYv4imx8GubCaG31CtFlipADI9USL2jpugr46Sz83fOplbiTV39Ir
-	/bWQ4t3xA==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hs6a4-0002qo-N7; Mon, 29 Jul 2019 14:24:53 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 130FF20AFFEAD; Mon, 29 Jul 2019 16:24:50 +0200 (CEST)
-Date: Mon, 29 Jul 2019 16:24:50 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	Phil Auld <pauld@redhat.com>, riel@surriel.com, luto@kernel.org,
-	mathieu.desnoyers@efficios.com
-Subject: [PATCH] sched: Clean up active_mm reference counting
-Message-ID: <20190729142450.GE31425@hirez.programming.kicks-ass.net>
-References: <20190727171047.31610-1-longman@redhat.com>
- <20190729085235.GT31381@hirez.programming.kicks-ass.net>
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 81BE3C049E12;
+	Mon, 29 Jul 2019 14:24:58 +0000 (UTC)
+Received: from [10.72.12.68] (ovpn-12-68.pek2.redhat.com [10.72.12.68])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 14E8E5D6A0;
+	Mon, 29 Jul 2019 14:24:44 +0000 (UTC)
+Subject: Re: WARNING in __mmdrop
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
+ aarcange@redhat.com, akpm@linux-foundation.org, christian@brauner.io,
+ davem@davemloft.net, ebiederm@xmission.com, elena.reshetova@intel.com,
+ guro@fb.com, hch@infradead.org, james.bottomley@hansenpartnership.com,
+ jglisse@redhat.com, keescook@chromium.org, ldv@altlinux.org,
+ linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, linux-parisc@vger.kernel.org, luto@amacapital.net,
+ mhocko@suse.com, mingo@kernel.org, namit@vmware.com, peterz@infradead.org,
+ syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk, wad@chromium.org
+References: <84bb2e31-0606-adff-cf2a-e1878225a847@redhat.com>
+ <20190725092332-mutt-send-email-mst@kernel.org>
+ <11802a8a-ce41-f427-63d5-b6a4cf96bb3f@redhat.com>
+ <20190726074644-mutt-send-email-mst@kernel.org>
+ <5cc94f15-b229-a290-55f3-8295266edb2b@redhat.com>
+ <20190726082837-mutt-send-email-mst@kernel.org>
+ <ada10dc9-6cab-e189-5289-6f9d3ff8fed2@redhat.com>
+ <aaefa93e-a0de-1c55-feb0-509c87aae1f3@redhat.com>
+ <20190726094756-mutt-send-email-mst@kernel.org>
+ <0792ee09-b4b7-673c-2251-e5e0ce0fbe32@redhat.com>
+ <20190729045127-mutt-send-email-mst@kernel.org>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <4d43c094-44ed-dbac-b863-48fc3d754378@redhat.com>
+Date: Mon, 29 Jul 2019 22:24:43 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190729085235.GT31381@hirez.programming.kicks-ass.net>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190729045127-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Mon, 29 Jul 2019 14:24:59 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 29, 2019 at 10:52:35AM +0200, Peter Zijlstra wrote:
-> On Sat, Jul 27, 2019 at 01:10:47PM -0400, Waiman Long wrote:
 
-> > diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-> > index 2b037f195473..923a63262dfd 100644
-> > --- a/kernel/sched/core.c
-> > +++ b/kernel/sched/core.c
-> > @@ -3233,13 +3233,22 @@ context_switch(struct rq *rq, struct task_struct *prev,
-> >  	 * Both of these contain the full memory barrier required by
-> >  	 * membarrier after storing to rq->curr, before returning to
-> >  	 * user-space.
-> > +	 *
-> > +	 * If mm is NULL and oldmm is dying (!owner), we switch to
-> > +	 * init_mm instead to make sure that oldmm can be freed ASAP.
-> >  	 */
-> > -	if (!mm) {
-> > +	if (!mm && !mm_dying(oldmm)) {
-> >  		next->active_mm = oldmm;
-> >  		mmgrab(oldmm);
-> >  		enter_lazy_tlb(oldmm, next);
-> > -	} else
-> > +	} else {
-> > +		if (!mm) {
-> > +			mm = &init_mm;
-> > +			next->active_mm = mm;
-> > +			mmgrab(mm);
-> > +		}
-> >  		switch_mm_irqs_off(oldmm, mm, next);
-> > +	}
-> >  
-> >  	if (!prev->mm) {
-> >  		prev->active_mm = NULL;
-> 
-> Bah, I see we _still_ haven't 'fixed' that code. And you're making an
-> even bigger mess of it.
-> 
-> Let me go find where that cleanup went.
+On 2019/7/29 下午4:59, Michael S. Tsirkin wrote:
+> On Mon, Jul 29, 2019 at 01:54:49PM +0800, Jason Wang wrote:
+>> On 2019/7/26 下午9:49, Michael S. Tsirkin wrote:
+>>>>> Ok, let me retry if necessary (but I do remember I end up with deadlocks
+>>>>> last try).
+>>>> Ok, I play a little with this. And it works so far. Will do more testing
+>>>> tomorrow.
+>>>>
+>>>> One reason could be I switch to use get_user_pages_fast() to
+>>>> __get_user_pages_fast() which doesn't need mmap_sem.
+>>>>
+>>>> Thanks
+>>> OK that sounds good. If we also set a flag to make
+>>> vhost_exceeds_weight exit, then I think it will be all good.
+>>
+>> After some experiments, I came up two methods:
+>>
+>> 1) switch to use vq->mutex, then we must take the vq lock during range
+>> checking (but I don't see obvious slowdown for 16vcpus + 16queues). Setting
+>> flags during weight check should work but it still can't address the worst
+>> case: wait for the page to be swapped in. Is this acceptable?
+>>
+>> 2) using current RCU but replace synchronize_rcu() with vhost_work_flush().
+>> The worst case is the same as 1) but we can check range without holding any
+>> locks.
+>>
+>> Which one did you prefer?
+>>
+>> Thanks
+> I would rather we start with 1 and switch to 2 after we
+> can show some gain.
+>
+> But the worst case needs to be addressed.
 
----
-Subject: sched: Clean up active_mm reference counting
-From: Peter Zijlstra <peterz@infradead.org>
-Date: Mon Jul 29 16:05:15 CEST 2019
 
-The current active_mm reference counting is confusing and sub-optimal.
+Yes.
 
-Rewrite the code to explicitly consider the 4 separate cases:
 
-    user -> user
+> How about sending a signal to
+> the vhost thread?  We will need to fix up error handling (I think that
+> at the moment it will error out in that case, handling this as EFAULT -
+> and we don't want to drop packets if we can help it, and surely not
+> enter any error states.  In particular it might be especially tricky if
+> we wrote into userspace memory and are now trying to log the write.
+> I guess we can disable the optimization if log is enabled?).
 
-	When switching between two user tasks, all we need to consider
-	is switch_mm().
 
-    user -> kernel
+This may work but requires a lot of changes. And actually it's the price 
+of using vq mutex. Actually, the critical section should be rather 
+small, e.g just inside memory accessors.
 
-	When switching from a user task to a kernel task (which
-	doesn't have an associated mm) we retain the last mm in our
-	active_mm. Increment a reference count on active_mm.
+I wonder whether or not just do synchronize our self like:
 
-  kernel -> kernel
+static void inline vhost_inc_vq_ref(struct vhost_virtqueue *vq)
+{
+         int ref = READ_ONCE(vq->ref);
 
-	When switching between kernel threads, all we need to do is
-	pass along the active_mm reference.
+         WRITE_ONCE(vq->ref, ref + 1);
+smp_rmb();
+}
 
-  kernel -> user
+static void inline vhost_dec_vq_ref(struct vhost_virtqueue *vq)
+{
+         int ref = READ_ONCE(vq->ref);
 
-	When switching between a kernel and user task, we must switch
-	from the last active_mm to the next mm, hoping of course that
-	these are the same. Decrement a reference on the active_mm.
+smp_wmb();
+         WRITE_ONCE(vq->ref, ref - 1);
+}
 
-The code keeps a different order, because as you'll note, both 'to
-user' cases require switch_mm().
+static void inline vhost_wait_for_ref(struct vhost_virtqueue *vq)
+{
+         while (READ_ONCE(vq->ref));
+mb();
+}
 
-And where the old code would increment/decrement for the 'kernel ->
-kernel' case, the new code observes this is a neutral operation and
-avoids touching the reference count.
 
-Cc: riel@surriel.com
-Cc: luto@kernel.org
-Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
----
- kernel/sched/core.c |   49 ++++++++++++++++++++++++++++++-------------------
- 1 file changed, 30 insertions(+), 19 deletions(-)
+Or using smp_load_acquire()/smp_store_release() instead?
 
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -3214,12 +3214,8 @@ static __always_inline struct rq *
- context_switch(struct rq *rq, struct task_struct *prev,
- 	       struct task_struct *next, struct rq_flags *rf)
- {
--	struct mm_struct *mm, *oldmm;
--
- 	prepare_task_switch(rq, prev, next);
- 
--	mm = next->mm;
--	oldmm = prev->active_mm;
- 	/*
- 	 * For paravirt, this is coupled with an exit in switch_to to
- 	 * combine the page table reload and the switch backend into
-@@ -3228,22 +3224,37 @@ context_switch(struct rq *rq, struct tas
- 	arch_start_context_switch(prev);
- 
- 	/*
--	 * If mm is non-NULL, we pass through switch_mm(). If mm is
--	 * NULL, we will pass through mmdrop() in finish_task_switch().
--	 * Both of these contain the full memory barrier required by
--	 * membarrier after storing to rq->curr, before returning to
--	 * user-space.
-+	 * kernel -> kernel   lazy + transfer active
-+	 *   user -> kernel   lazy + mmgrab() active
-+	 *
-+	 * kernel ->   user   switch + mmdrop() active
-+	 *   user ->   user   switch
- 	 */
--	if (!mm) {
--		next->active_mm = oldmm;
--		mmgrab(oldmm);
--		enter_lazy_tlb(oldmm, next);
--	} else
--		switch_mm_irqs_off(oldmm, mm, next);
--
--	if (!prev->mm) {
--		prev->active_mm = NULL;
--		rq->prev_mm = oldmm;
-+	if (!next->mm) {                                // to kernel
-+		enter_lazy_tlb(prev->active_mm, next);
-+
-+		next->active_mm = prev->active_mm;
-+		if (prev->mm)                           // from user
-+			mmgrab(prev->active_mm);
-+		else
-+			prev->active_mm = NULL;
-+	} else {                                        // to user
-+		/*
-+		 * sys_membarrier() requires an smp_mb() between setting
-+		 * rq->curr and returning to userspace.
-+		 *
-+		 * The below provides this either through switch_mm(), or in
-+		 * case 'prev->active_mm == next->mm' through
-+		 * finish_task_switch()'s mmdrop().
-+		 */
-+
-+		switch_mm_irqs_off(prev->active_mm, next->mm, next);
-+
-+		if (!prev->mm) {                        // from kernel
-+			/* will mmdrop() in finish_task_switch(). */
-+			rq->prev_mm = prev->active_mm;
-+			prev->active_mm = NULL;
-+		}
- 	}
- 
- 	rq->clock_update_flags &= ~(RQCF_ACT_SKIP|RQCF_REQ_SKIP);
+Thanks
+
+>
 
