@@ -2,188 +2,472 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1A404C433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 21:08:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D71DBC433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 21:10:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C16D020C01
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 21:08:38 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C16D020C01
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 7B9C620693
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 21:10:20 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="QLLWrhSt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7B9C620693
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5F0C98E0003; Mon, 29 Jul 2019 17:08:38 -0400 (EDT)
+	id 04A058E0003; Mon, 29 Jul 2019 17:10:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5A10C8E0002; Mon, 29 Jul 2019 17:08:38 -0400 (EDT)
+	id 022738E0002; Mon, 29 Jul 2019 17:10:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 48F508E0003; Mon, 29 Jul 2019 17:08:38 -0400 (EDT)
+	id E2CA88E0003; Mon, 29 Jul 2019 17:10:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2855B8E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 17:08:38 -0400 (EDT)
-Received: by mail-vk1-f197.google.com with SMTP id j63so27008404vkc.13
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 14:08:38 -0700 (PDT)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id BEFD38E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 17:10:19 -0400 (EDT)
+Received: by mail-vs1-f69.google.com with SMTP id b188so16335944vsc.21
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 14:10:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=pQAkZdb2MdpLX83iuWv5XMam8kwNDm0XeAT4DOHX2Vg=;
-        b=DPeN6lTSkC0crLR9o8TVIWZPXihcHveXbZtTM0w2gSLL+qiQIeskwYvgHKD+Yhrr0x
-         QTSUDloELY2nwpoGpDNoFENK0vQ9pBcAJjNmYI3EYXeriRAtySRrYFQufBrPO9bAWSnD
-         8ExMYpKUNcF5vNRi80hpcf4N7BafYb7K6EJSfTxmTvzTIYJFWmONy2oqMu2zSz5cfwgF
-         M1rR01qJovmv+Mmuk84EA+XBe31eUIREALTurWdj/JYJdmuASD4xh9lqp7WZlTJ/EqL1
-         SiDyY63CGTV4ikeN+THk7z9PtU+w+FYzH7ahrF3xqhmthQ96HcfWsit6c4ZJoQj4ffrh
-         aY3Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUvXr8Qzft/t8GyQwTpKHZiFf88NyuAy5JW5oTJr0jGeF4kDg6o
-	VuZFruW1KGEMbF10kKY7yNwaz8cW31IoML2o8xo6ITEgOb6DPLybazHxDZg+cUsheXCdfv6VvBz
-	2wY5CPamAUXfydQMG1HD+F2dF/8o3bEu2YJ7Cw86cgke/CFP+0Z3n5zxdK2XSTBJRKg==
-X-Received: by 2002:a67:fe4d:: with SMTP id m13mr27067654vsr.177.1564434517919;
-        Mon, 29 Jul 2019 14:08:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxuW1xe7LsLL3V7gCqTD7pNQbUZ8tRNdzGDEHzM5Ce16rKtonSJx5DHLAl4mAAbrqbrv1By
-X-Received: by 2002:a67:fe4d:: with SMTP id m13mr27067590vsr.177.1564434517248;
-        Mon, 29 Jul 2019 14:08:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564434517; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=PL6wqvYOZ69qRzWKkDI0Itl6m3d3Bz9HZBNcef5DvnU=;
+        b=ZMGEp4NnIIHc9m3jxdR3c0d+nVP+OBwRJ2Zi4FK18Xv4LUZA8j5NTeVeZj1wtUv7n7
+         eC63vLAa+SGltGygzNzmAgHjFUJCF+6P6zwQ93iCdS13VnmGu5siu+4N4/hK4nWDJWj4
+         vIPRewPgvhedaazoXKL/pfTEkdbD+/9EiIJ222OO0D65Cxws/D4JqDLBD99M/PKFKxMy
+         u2lpBMMp6+DqTmlcfViaVIqM36qfla12a92QWyL7abE1Eq2gIOY1HewCkYFOgtxpjb/+
+         WBddIWi/94aduQhinqkSXikF0h5MJb8rZ4LE7pyGoxxwwpb46ywGXenN7wrrwZ0NVKHM
+         cmxw==
+X-Gm-Message-State: APjAAAVJJfS/ytN2KdxyKr5vylQwypM6YyRA6iTohGTsTktFx1x7l/Rk
+	t9ozAqRDB1cdsqua0j5yIUOLwHIEYuShHAUnOKsEP2o1LTWCXGa0q4K+h6JcCHIQDReyg2B1aE+
+	V/cWPyghs3sHRUQKrn/HAB5GEtCuVZPVcgmjyBo7hoCcUcS5utH0ViIiM4F5QanZjxg==
+X-Received: by 2002:ab0:6788:: with SMTP id v8mr24883987uar.48.1564434619444;
+        Mon, 29 Jul 2019 14:10:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwBGy82ODMwr27/8COEFG0WRE4p7M5ZGpf+RdWM4EgUjJ0Zsh+vwBuE3+RZAqrNElJ98FhC
+X-Received: by 2002:ab0:6788:: with SMTP id v8mr24883896uar.48.1564434618423;
+        Mon, 29 Jul 2019 14:10:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564434618; cv=none;
         d=google.com; s=arc-20160816;
-        b=haLEfb6yBmyZ43Mi7oOslx1ylK2lIzW/cxAY3B1MNa5AjIRChTdxYsfA9YYZ7puf/w
-         mbPm7qta2e1uTmM7xYCuaiLgdlOTfxPzcrLVVPo1jpY6PrhPd0oEHXRyCDhTHvQmBxAa
-         t+N0z7HuyAFfDpNvQM5ViOiN/gP/v4PI5k89j9O09sjDQz3B5MDhfLD9RZfA9uTOguM7
-         0el81qa55ZnQoQkyKeBXbCv8LfU2hDV1sGV8yej22dRWZ9gYBLvMUhSgg/6RKzYUcF90
-         613OQB48ysMfu0v0WHRK8Mx+YuEMM8gX7I583BmTi8gskGIaEoMucET/ps5WqwYxpB7w
-         N3gQ==
+        b=ZrgPMQXz10iX9hZ7Ah3AGE3mZPzFN+EMScbIqpK4BZhvqfnngpgl3jRI5aucUUuIa1
+         b3TItTnSxZNa3piuCU1iIGf5ds2DnMt43W7bpBnfl+cG1Gj9qpJPesmCyv7VcFqhoGMH
+         RbGSp5izzzGG0ftKWrGMZpCGtUVyltBbP+hQg1seYZLO7+5er61VTOMPHMF3PIApTyK1
+         oaJv40fAqdE1CktowIPR19LgS4UOaGEP2QZ3OtN3YYu7noq/gFYtCgCVIGvB8Wi7pyJL
+         b9wE52xYKb5jktE1wSCjTSMK6Z8C7MVCKcuZt5/79v7n9s6h/BEh0YGF9UdLHXPUAIRs
+         CgFQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=pQAkZdb2MdpLX83iuWv5XMam8kwNDm0XeAT4DOHX2Vg=;
-        b=H4iuW1ioriiQPNeZrIkudzFB1XIKaN10G2oThzTgooRY1QaGtljMzvkeVRkO2LCfOE
-         OMMZeFpXBmAFMFYSrm9l27EkvDsTsgsprlVWNIZTzOmhCt4eRYzi+Dqe/npD0QwN9NkI
-         aTENR0U6qDTtEXdxaRvhG2OD4nbmYQcy9wK2RMZRdce343Q47afGYfy8puAH7ZZGZS9A
-         gk84Kawq3scg3UsiuoCaPfRPT/5l/FWmTPvicKxLGJHcjhkVT3CwD/sC1VmwLtrsUCw5
-         eKQzAqhieB2rtLjGBjhKbaBFfEOgVNHgMRriCPOdGC8lkq424iRT3+NEqXjxtrpFpFze
-         uoJw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=PL6wqvYOZ69qRzWKkDI0Itl6m3d3Bz9HZBNcef5DvnU=;
+        b=U8ioqMiSjvBe8FD0Ti5PZacFFFuyfCKd9va0PLpo2dXYLHcKXIxJoKL7WkNvBl7h+j
+         1YR4xbepDUfTCY2cbA+YnLoY/vEdQ7LxUqWxwm8j6T0LJi172mf6XA/KVeSiyD7KvcHw
+         AkA3kVr0QdyZWOsBqCguq0qNhj208bLcZauDl/vjTlvMbZdaX9lEzGcc52/bMA5wOkSW
+         6p4jdYU4MJ4sGTdJ4rY5Zwt2oHlqv7u2orLRwiB1UExQguiLZv8sgv1P39vUQhPwnrvO
+         3c81/qFNdzQSUp5+0PORPHqw6ycUHZITFTijmTUyAcidlsasi3DC7YQmTy0KAihdO8mx
+         FITg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y1si9771322vsl.56.2019.07.29.14.08.37
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=QLLWrhSt;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id g27si14144824uac.156.2019.07.29.14.10.18
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jul 2019 14:08:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 29 Jul 2019 14:10:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5F3F530860C6;
-	Mon, 29 Jul 2019 21:08:36 +0000 (UTC)
-Received: from llong.com (dhcp-17-160.bos.redhat.com [10.18.17.160])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 5E8175C1A1;
-	Mon, 29 Jul 2019 21:08:30 +0000 (UTC)
-From: Waiman Long <longman@redhat.com>
-To: Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>
-Cc: linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Phil Auld <pauld@redhat.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Rik van Riel <riel@surriel.com>,
-	Waiman Long <longman@redhat.com>
-Subject: [PATCH v3] sched/core: Don't use dying mm as active_mm of kthreads
-Date: Mon, 29 Jul 2019 17:07:28 -0400
-Message-Id: <20190729210728.21634-1-longman@redhat.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Mon, 29 Jul 2019 21:08:36 +0000 (UTC)
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=QLLWrhSt;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6TL9Vx2030410;
+	Mon, 29 Jul 2019 21:09:55 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
+ subject : date : message-id : in-reply-to : references : mime-version :
+ content-transfer-encoding; s=corp-2018-07-02;
+ bh=PL6wqvYOZ69qRzWKkDI0Itl6m3d3Bz9HZBNcef5DvnU=;
+ b=QLLWrhStnCtACaMYcMeAgSrAwzhGF959ZKXAt4P7ceiqkwlsjnJhmhhSSy0zAEgHgeVa
+ MjBMW5guN7vE3Eabe0WFsRxBEGPuJIvKFYaTLH1QyboFyMheb/aO/zjBW1wVLQb+XgZY
+ OOJMNB8guzOZSavd75Qylswx31OsCZtT6F0j1ehu8m1mryRdbjBPoXDIgf7BlIp6Sc/v
+ j587mDAK0qOMi+AM1cqEK59FboaleLZlqqS72nxRNWhXODik6oofnp+PsWZ7uAKCCTDL
+ 4QaPPEXobIHC2N6+UMCr8QTQBX8Yp+329WyjrfItC3dNJdfRZJqF0LxWIGIA0fU8yAFQ Aw== 
+Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
+	by userp2130.oracle.com with ESMTP id 2u0e1tj9r9-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 29 Jul 2019 21:09:55 +0000
+Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
+	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x6TL7o5n015443;
+	Mon, 29 Jul 2019 21:09:54 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userp3020.oracle.com with ESMTP id 2u0dxqf49y-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 29 Jul 2019 21:09:54 +0000
+Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x6TL9kU9014044;
+	Mon, 29 Jul 2019 21:09:46 GMT
+Received: from localhost.localdomain (/73.243.10.6)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 29 Jul 2019 21:09:45 +0000
+From: William Kucharski <william.kucharski@oracle.com>
+To: ceph-devel@vger.kernel.org, linux-afs@lists.infradead.org,
+        linux-btrfs@vger.kernel.org, linux-kernel@vger.kernel.org,
+        linux-mm@kvack.org, netdev@vger.kernel.org, Chris Mason <clm@fb.com>,
+        "David S. Miller" <davem@davemloft.net>,
+        David Sterba <dsterba@suse.com>, Josef Bacik <josef@toxicpanda.com>
+Cc: Dave Hansen <dave.hansen@linux.intel.com>,
+        Song Liu <songliubraving@fb.com>,
+        Bob Kasten <robert.a.kasten@intel.com>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        William Kucharski <william.kucharski@oracle.com>,
+        Chad Mynhier <chad.mynhier@oracle.com>,
+        "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+        Johannes Weiner <jweiner@fb.com>, Matthew Wilcox <willy@infradead.org>,
+        Dave Airlie <airlied@redhat.com>, Vlastimil Babka <vbabka@suse.cz>,
+        Keith Busch <keith.busch@intel.com>,
+        Ralph Campbell <rcampbell@nvidia.com>,
+        Steve Capper <steve.capper@arm.com>,
+        Dave Chinner <dchinner@redhat.com>,
+        Sean Christopherson <sean.j.christopherson@intel.com>,
+        Hugh Dickins <hughd@google.com>, Ilya Dryomov <idryomov@gmail.com>,
+        Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+        Thomas Gleixner <tglx@linutronix.de>,
+        =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+        Amir Goldstein <amir73il@gmail.com>, Jason Gunthorpe <jgg@ziepe.ca>,
+        Michal Hocko <mhocko@suse.com>, Jann Horn <jannh@google.com>,
+        David Howells <dhowells@redhat.com>,
+        John Hubbard <jhubbard@nvidia.com>,
+        Souptick Joarder <jrdr.linux@gmail.com>,
+        "john.hubbard@gmail.com" <john.hubbard@gmail.com>,
+        Jan Kara <jack@suse.cz>, Andrey Konovalov <andreyknvl@google.com>,
+        Arun KS <arunks@codeaurora.org>,
+        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>,
+        Jeff Layton <jlayton@kernel.org>, Yangtao Li <tiny.windzz@gmail.com>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Robin Murphy <robin.murphy@arm.com>,
+        Mike Rapoport <rppt@linux.ibm.com>,
+        David Rientjes <rientjes@google.com>,
+        Andrey Ryabinin <aryabinin@virtuozzo.com>,
+        Yafang Shao <laoar.shao@gmail.com>, Huang Shijie <sjhuang@iluvatar.ai>,
+        Yang Shi <yang.shi@linux.alibaba.com>,
+        Miklos Szeredi <mszeredi@redhat.com>,
+        Pavel Tatashin <pasha.tatashin@oracle.com>,
+        Kirill Tkhai <ktkhai@virtuozzo.com>, Sage Weil <sage@redhat.com>,
+        Ira Weiny <ira.weiny@intel.com>,
+        Dan Williams <dan.j.williams@intel.com>,
+        "Darrick J. Wong" <darrick.wong@oracle.com>,
+        Gao Xiang <hsiangkao@aol.com>,
+        Bartlomiej Zolnierkiewicz <b.zolnierkie@samsung.com>,
+        Ross Zwisler <zwisler@google.com>, kbuild test robot <lkp@intel.com>
+Subject: [PATCH v2 1/2] mm: Allow the page cache to allocate large pages
+Date: Mon, 29 Jul 2019 15:09:32 -0600
+Message-Id: <20190729210933.18674-2-william.kucharski@oracle.com>
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190729210933.18674-1-william.kucharski@oracle.com>
+References: <20190729210933.18674-1-william.kucharski@oracle.com>
+MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9333 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1907290231
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9333 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1907290231
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-It was found that a dying mm_struct where the owning task has exited
-can stay on as active_mm of kernel threads as long as no other user
-tasks run on those CPUs that use it as active_mm. This prolongs the
-life time of dying mm holding up some resources that cannot be freed
-on a mostly idle system.
+Add an order field to __page_cache_alloc() to allow for the allocation
+of large memory page page cache entries.
 
-Fix that by forcing the kernel threads to use init_mm as the active_mm
-during a kernel thread to kernel thread transition if the previous
-active_mm is dying (!mm_users). This will allows the freeing of resources
-associated with the dying mm ASAP.
-
-The presence of a kernel-to-kernel thread transition indicates that
-the cpu is probably idling with no higher priority user task to run.
-So the overhead of loading the mm_users cacheline should not really
-matter in this case.
-
-My testing on an x86 system showed that the mm_struct was freed within
-seconds after the task exited instead of staying alive for minutes or
-even longer on a mostly idle system before this patch.
-
-Signed-off-by: Waiman Long <longman@redhat.com>
+Signed-off-by: Matthew Wilcox <willy@infradead.org>
+Signed-off-by: William Kucharski <william.kucharski@oracle.com>
+Reported-by: kbuild test robot <lkp@intel.com>
 ---
- kernel/sched/core.c | 21 +++++++++++++++++++--
- 1 file changed, 19 insertions(+), 2 deletions(-)
+ fs/afs/dir.c            |  2 +-
+ fs/btrfs/compression.c  |  2 +-
+ fs/cachefiles/rdwr.c    |  4 ++--
+ fs/ceph/addr.c          |  2 +-
+ fs/ceph/file.c          |  2 +-
+ include/linux/pagemap.h | 13 +++++++++----
+ mm/filemap.c            | 25 +++++++++++++------------
+ mm/readahead.c          |  2 +-
+ net/ceph/pagelist.c     |  4 ++--
+ net/ceph/pagevec.c      |  2 +-
+ 10 files changed, 32 insertions(+), 26 deletions(-)
 
-diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-index 795077af4f1a..41997e676251 100644
---- a/kernel/sched/core.c
-+++ b/kernel/sched/core.c
-@@ -3214,6 +3214,8 @@ static __always_inline struct rq *
- context_switch(struct rq *rq, struct task_struct *prev,
- 	       struct task_struct *next, struct rq_flags *rf)
+diff --git a/fs/afs/dir.c b/fs/afs/dir.c
+index e640d67274be..0a392214f71e 100644
+--- a/fs/afs/dir.c
++++ b/fs/afs/dir.c
+@@ -274,7 +274,7 @@ static struct afs_read *afs_read_dir(struct afs_vnode *dvnode, struct key *key)
+ 				afs_stat_v(dvnode, n_inval);
+ 
+ 			ret = -ENOMEM;
+-			req->pages[i] = __page_cache_alloc(gfp);
++			req->pages[i] = __page_cache_alloc(gfp, 0);
+ 			if (!req->pages[i])
+ 				goto error;
+ 			ret = add_to_page_cache_lru(req->pages[i],
+diff --git a/fs/btrfs/compression.c b/fs/btrfs/compression.c
+index 60c47b417a4b..5280e7477b7e 100644
+--- a/fs/btrfs/compression.c
++++ b/fs/btrfs/compression.c
+@@ -466,7 +466,7 @@ static noinline int add_ra_bio_pages(struct inode *inode,
+ 		}
+ 
+ 		page = __page_cache_alloc(mapping_gfp_constraint(mapping,
+-								 ~__GFP_FS));
++								 ~__GFP_FS), 0);
+ 		if (!page)
+ 			break;
+ 
+diff --git a/fs/cachefiles/rdwr.c b/fs/cachefiles/rdwr.c
+index 44a3ce1e4ce4..11d30212745f 100644
+--- a/fs/cachefiles/rdwr.c
++++ b/fs/cachefiles/rdwr.c
+@@ -259,7 +259,7 @@ static int cachefiles_read_backing_file_one(struct cachefiles_object *object,
+ 			goto backing_page_already_present;
+ 
+ 		if (!newpage) {
+-			newpage = __page_cache_alloc(cachefiles_gfp);
++			newpage = __page_cache_alloc(cachefiles_gfp, 0);
+ 			if (!newpage)
+ 				goto nomem_monitor;
+ 		}
+@@ -495,7 +495,7 @@ static int cachefiles_read_backing_file(struct cachefiles_object *object,
+ 				goto backing_page_already_present;
+ 
+ 			if (!newpage) {
+-				newpage = __page_cache_alloc(cachefiles_gfp);
++				newpage = __page_cache_alloc(cachefiles_gfp, 0);
+ 				if (!newpage)
+ 					goto nomem;
+ 			}
+diff --git a/fs/ceph/addr.c b/fs/ceph/addr.c
+index e078cc55b989..bcb41fbee533 100644
+--- a/fs/ceph/addr.c
++++ b/fs/ceph/addr.c
+@@ -1707,7 +1707,7 @@ int ceph_uninline_data(struct file *filp, struct page *locked_page)
+ 		if (len > PAGE_SIZE)
+ 			len = PAGE_SIZE;
+ 	} else {
+-		page = __page_cache_alloc(GFP_NOFS);
++		page = __page_cache_alloc(GFP_NOFS, 0);
+ 		if (!page) {
+ 			err = -ENOMEM;
+ 			goto out;
+diff --git a/fs/ceph/file.c b/fs/ceph/file.c
+index 685a03cc4b77..ae58d7c31aa4 100644
+--- a/fs/ceph/file.c
++++ b/fs/ceph/file.c
+@@ -1305,7 +1305,7 @@ static ssize_t ceph_read_iter(struct kiocb *iocb, struct iov_iter *to)
+ 		struct page *page = NULL;
+ 		loff_t i_size;
+ 		if (retry_op == READ_INLINE) {
+-			page = __page_cache_alloc(GFP_KERNEL);
++			page = __page_cache_alloc(GFP_KERNEL, 0);
+ 			if (!page)
+ 				return -ENOMEM;
+ 		}
+diff --git a/include/linux/pagemap.h b/include/linux/pagemap.h
+index c7552459a15f..e9004e3cb6a3 100644
+--- a/include/linux/pagemap.h
++++ b/include/linux/pagemap.h
+@@ -208,17 +208,17 @@ static inline int page_cache_add_speculative(struct page *page, int count)
+ }
+ 
+ #ifdef CONFIG_NUMA
+-extern struct page *__page_cache_alloc(gfp_t gfp);
++extern struct page *__page_cache_alloc(gfp_t gfp, unsigned int order);
+ #else
+-static inline struct page *__page_cache_alloc(gfp_t gfp)
++static inline struct page *__page_cache_alloc(gfp_t gfp, unsigned int order)
  {
-+	struct mm_struct *next_mm = next->mm;
-+
- 	prepare_task_switch(rq, prev, next);
+-	return alloc_pages(gfp, 0);
++	return alloc_pages(gfp, order);
+ }
+ #endif
  
- 	/*
-@@ -3229,8 +3231,22 @@ context_switch(struct rq *rq, struct task_struct *prev,
- 	 *
- 	 * kernel ->   user   switch + mmdrop() active
- 	 *   user ->   user   switch
-+	 *
-+	 * kernel -> kernel and !prev->active_mm->mm_users:
-+	 *   switch to init_mm + mmgrab() + mmdrop()
- 	 */
--	if (!next->mm) {                                // to kernel
-+	if (!next_mm) {					// to kernel
-+		/*
-+		 * Checking is only done on kernel -> kernel transition
-+		 * to avoid any performance overhead while user tasks
-+		 * are running.
-+		 */
-+		if (unlikely(!prev->mm &&
-+			     !atomic_read(&prev->active_mm->mm_users))) {
-+			next_mm = next->active_mm = &init_mm;
-+			mmgrab(next_mm);
-+			goto mm_switch;
-+		}
- 		enter_lazy_tlb(prev->active_mm, next);
+ static inline struct page *page_cache_alloc(struct address_space *x)
+ {
+-	return __page_cache_alloc(mapping_gfp_mask(x));
++	return __page_cache_alloc(mapping_gfp_mask(x), 0);
+ }
  
- 		next->active_mm = prev->active_mm;
-@@ -3239,6 +3255,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
- 		else
- 			prev->active_mm = NULL;
- 	} else {                                        // to user
-+mm_switch:
- 		/*
- 		 * sys_membarrier() requires an smp_mb() between setting
- 		 * rq->curr and returning to userspace.
-@@ -3248,7 +3265,7 @@ context_switch(struct rq *rq, struct task_struct *prev,
- 		 * finish_task_switch()'s mmdrop().
- 		 */
+ static inline gfp_t readahead_gfp_mask(struct address_space *x)
+@@ -240,6 +240,11 @@ pgoff_t page_cache_prev_miss(struct address_space *mapping,
+ #define FGP_NOFS		0x00000010
+ #define FGP_NOWAIT		0x00000020
+ #define FGP_FOR_MMAP		0x00000040
++/* If you add more flags, increment FGP_ORDER_SHIFT */
++#define	FGP_ORDER_SHIFT		7
++#define	FGP_PMD			((PMD_SHIFT - PAGE_SHIFT) << FGP_ORDER_SHIFT)
++#define	FGP_PUD			((PUD_SHIFT - PAGE_SHIFT) << FGP_ORDER_SHIFT)
++#define	fgp_get_order(fgp)	((fgp) >> FGP_ORDER_SHIFT)
  
--		switch_mm_irqs_off(prev->active_mm, next->mm, next);
-+		switch_mm_irqs_off(prev->active_mm, next_mm, next);
+ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
+ 		int fgp_flags, gfp_t cache_gfp_mask);
+diff --git a/mm/filemap.c b/mm/filemap.c
+index d0cf700bf201..a96092243fc4 100644
+--- a/mm/filemap.c
++++ b/mm/filemap.c
+@@ -954,7 +954,7 @@ int add_to_page_cache_lru(struct page *page, struct address_space *mapping,
+ EXPORT_SYMBOL_GPL(add_to_page_cache_lru);
  
- 		if (!prev->mm) {                        // from kernel
- 			/* will mmdrop() in finish_task_switch(). */
+ #ifdef CONFIG_NUMA
+-struct page *__page_cache_alloc(gfp_t gfp)
++struct page *__page_cache_alloc(gfp_t gfp, unsigned int order)
+ {
+ 	int n;
+ 	struct page *page;
+@@ -964,12 +964,12 @@ struct page *__page_cache_alloc(gfp_t gfp)
+ 		do {
+ 			cpuset_mems_cookie = read_mems_allowed_begin();
+ 			n = cpuset_mem_spread_node();
+-			page = __alloc_pages_node(n, gfp, 0);
++			page = __alloc_pages_node(n, gfp, order);
+ 		} while (!page && read_mems_allowed_retry(cpuset_mems_cookie));
+ 
+ 		return page;
+ 	}
+-	return alloc_pages(gfp, 0);
++	return alloc_pages(gfp, order);
+ }
+ EXPORT_SYMBOL(__page_cache_alloc);
+ #endif
+@@ -1597,12 +1597,12 @@ EXPORT_SYMBOL(find_lock_entry);
+  * pagecache_get_page - find and get a page reference
+  * @mapping: the address_space to search
+  * @offset: the page index
+- * @fgp_flags: PCG flags
++ * @fgp_flags: FGP flags
+  * @gfp_mask: gfp mask to use for the page cache data page allocation
+  *
+  * Looks up the page cache slot at @mapping & @offset.
+  *
+- * PCG flags modify how the page is returned.
++ * FGP flags modify how the page is returned.
+  *
+  * @fgp_flags can be:
+  *
+@@ -1615,6 +1615,7 @@ EXPORT_SYMBOL(find_lock_entry);
+  * - FGP_FOR_MMAP: Similar to FGP_CREAT, only we want to allow the caller to do
+  *   its own locking dance if the page is already in cache, or unlock the page
+  *   before returning if we had to add the page to pagecache.
++ * - FGP_PMD: If FGP_CREAT is specified, attempt to allocate a PMD-sized page.
+  *
+  * If FGP_LOCK or FGP_CREAT are specified then the function may sleep even
+  * if the GFP flags specified for FGP_CREAT are atomic.
+@@ -1660,12 +1661,13 @@ struct page *pagecache_get_page(struct address_space *mapping, pgoff_t offset,
+ no_page:
+ 	if (!page && (fgp_flags & FGP_CREAT)) {
+ 		int err;
+-		if ((fgp_flags & FGP_WRITE) && mapping_cap_account_dirty(mapping))
++		if ((fgp_flags & FGP_WRITE) &&
++			mapping_cap_account_dirty(mapping))
+ 			gfp_mask |= __GFP_WRITE;
+ 		if (fgp_flags & FGP_NOFS)
+ 			gfp_mask &= ~__GFP_FS;
+ 
+-		page = __page_cache_alloc(gfp_mask);
++		page = __page_cache_alloc(gfp_mask, fgp_get_order(fgp_flags));
+ 		if (!page)
+ 			return NULL;
+ 
+@@ -2802,15 +2804,14 @@ static struct page *wait_on_page_read(struct page *page)
+ static struct page *do_read_cache_page(struct address_space *mapping,
+ 				pgoff_t index,
+ 				int (*filler)(void *, struct page *),
+-				void *data,
+-				gfp_t gfp)
++				void *data, unsigned int order, gfp_t gfp)
+ {
+ 	struct page *page;
+ 	int err;
+ repeat:
+ 	page = find_get_page(mapping, index);
+ 	if (!page) {
+-		page = __page_cache_alloc(gfp);
++		page = __page_cache_alloc(gfp, order);
+ 		if (!page)
+ 			return ERR_PTR(-ENOMEM);
+ 		err = add_to_page_cache_lru(page, mapping, index, gfp);
+@@ -2917,7 +2918,7 @@ struct page *read_cache_page(struct address_space *mapping,
+ 				int (*filler)(void *, struct page *),
+ 				void *data)
+ {
+-	return do_read_cache_page(mapping, index, filler, data,
++	return do_read_cache_page(mapping, index, filler, data, 0,
+ 			mapping_gfp_mask(mapping));
+ }
+ EXPORT_SYMBOL(read_cache_page);
+@@ -2939,7 +2940,7 @@ struct page *read_cache_page_gfp(struct address_space *mapping,
+ 				pgoff_t index,
+ 				gfp_t gfp)
+ {
+-	return do_read_cache_page(mapping, index, NULL, NULL, gfp);
++	return do_read_cache_page(mapping, index, NULL, NULL, 0, gfp);
+ }
+ EXPORT_SYMBOL(read_cache_page_gfp);
+ 
+diff --git a/mm/readahead.c b/mm/readahead.c
+index 2fe72cd29b47..954760a612ea 100644
+--- a/mm/readahead.c
++++ b/mm/readahead.c
+@@ -193,7 +193,7 @@ unsigned int __do_page_cache_readahead(struct address_space *mapping,
+ 			continue;
+ 		}
+ 
+-		page = __page_cache_alloc(gfp_mask);
++		page = __page_cache_alloc(gfp_mask, 0);
+ 		if (!page)
+ 			break;
+ 		page->index = page_offset;
+diff --git a/net/ceph/pagelist.c b/net/ceph/pagelist.c
+index 65e34f78b05d..0c3face908dc 100644
+--- a/net/ceph/pagelist.c
++++ b/net/ceph/pagelist.c
+@@ -56,7 +56,7 @@ static int ceph_pagelist_addpage(struct ceph_pagelist *pl)
+ 	struct page *page;
+ 
+ 	if (!pl->num_pages_free) {
+-		page = __page_cache_alloc(GFP_NOFS);
++		page = __page_cache_alloc(GFP_NOFS, 0);
+ 	} else {
+ 		page = list_first_entry(&pl->free_list, struct page, lru);
+ 		list_del(&page->lru);
+@@ -107,7 +107,7 @@ int ceph_pagelist_reserve(struct ceph_pagelist *pl, size_t space)
+ 	space = (space + PAGE_SIZE - 1) >> PAGE_SHIFT;   /* conv to num pages */
+ 
+ 	while (space > pl->num_pages_free) {
+-		struct page *page = __page_cache_alloc(GFP_NOFS);
++		struct page *page = __page_cache_alloc(GFP_NOFS, 0);
+ 		if (!page)
+ 			return -ENOMEM;
+ 		list_add_tail(&page->lru, &pl->free_list);
+diff --git a/net/ceph/pagevec.c b/net/ceph/pagevec.c
+index 64305e7056a1..1d07e639216d 100644
+--- a/net/ceph/pagevec.c
++++ b/net/ceph/pagevec.c
+@@ -45,7 +45,7 @@ struct page **ceph_alloc_page_vector(int num_pages, gfp_t flags)
+ 	if (!pages)
+ 		return ERR_PTR(-ENOMEM);
+ 	for (i = 0; i < num_pages; i++) {
+-		pages[i] = __page_cache_alloc(flags);
++		pages[i] = __page_cache_alloc(flags, 0);
+ 		if (pages[i] == NULL) {
+ 			ceph_release_page_vector(pages, i);
+ 			return ERR_PTR(-ENOMEM);
 -- 
-2.18.1
+2.21.0
 
