@@ -2,181 +2,262 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 63EEAC41514
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 07:45:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3351CC433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:06:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3276F2075B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 07:45:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3276F2075B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id DFCFC20693
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:06:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="LB/VimNW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DFCFC20693
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BD0C28E0006; Mon, 29 Jul 2019 03:45:26 -0400 (EDT)
+	id 72CD88E0003; Mon, 29 Jul 2019 04:06:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B81208E0002; Mon, 29 Jul 2019 03:45:26 -0400 (EDT)
+	id 6DCD68E0002; Mon, 29 Jul 2019 04:06:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A70338E0006; Mon, 29 Jul 2019 03:45:26 -0400 (EDT)
+	id 5CD758E0003; Mon, 29 Jul 2019 04:06:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 59FDD8E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 03:45:26 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id o13so37767574edt.4
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 00:45:26 -0700 (PDT)
+Received: from mail-lj1-f197.google.com (mail-lj1-f197.google.com [209.85.208.197])
+	by kanga.kvack.org (Postfix) with ESMTP id EF4318E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 04:06:13 -0400 (EDT)
+Received: by mail-lj1-f197.google.com with SMTP id e16so13103241lja.23
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 01:06:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=yqSQZl5BR1RkSKHgIy75PKBcAUe+/8sHe4TA3mojtkU=;
-        b=JQqxJ6c8fx1diEI1kiJ8oSthGYBGNQ8TwSaCdFob6O9vFHgEiUCm1uacEmuWrC2UR4
-         1EXW/+n7VSE8YLiFQLhkknGhQP+FewK5+MoOoXyVoMb7x03j6GLsUe56csWtRCp5m5D4
-         WNnUSsE4CW9d0PszET5UgkIiMm7X9sUq43wOrPhpB4l+3IfIjpcdNkb6NlrM6QPqlpFh
-         2y1or6PAd2TA3cuzOjrylb6o/3WGjgFje+oIoH06cc/YtyWZuDtOZMbQ4bt++5J39zxJ
-         f/+2kapT/mw9T5Rh+btAuz+ctQ2YwKCa43gGQcpstQUNW0AfSxPOc03hj2Gvmar7dUZK
-         WQgw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWSaxbwHDxlMJDszYtijhCH4BptLRU4uiCJiAStFf3P/Q8Pzku7
-	dSixy8nyVT7qNM0n68/taABBfzE7lAGGbTZgQlCV+IH2rRPL/J19178I+E/fPozxDhwxk2d+HTO
-	JgaBi50lSb3uzejj7B8qGgqv8KNII0XAHmjVYLy59pAoCUDdw9xmi5hd4uusaSb4=
-X-Received: by 2002:a50:b1bd:: with SMTP id m58mr94310306edd.185.1564386325937;
-        Mon, 29 Jul 2019 00:45:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw4zVV8283qcL2dOskvWniRr/qB47Gfjf/S+PSNltbJjv0eFRBkTV4079I1LgS7mGYNrQwj
-X-Received: by 2002:a50:b1bd:: with SMTP id m58mr94310271edd.185.1564386325306;
-        Mon, 29 Jul 2019 00:45:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564386325; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=q+5I/p/Nycgrz3gMKuzpkFKzO+GKwckGcbd0BiK6zG0=;
+        b=sfflCX/Hdzt+EzlnD4fRfVOcva+9ElN/rpxhBzM9Ar2PfAS7PP7PEM95fpplVaiJz+
+         TGa1WnobRCxrfK8CdWnUuYlx/MZjezVXscyWHrTZL1UyqRm2e8EHrXficoMmha0h+eSw
+         aGSYDNhsgIeL0h1ox9NdHMwvaIWCifgejn+Je78nT6yqSuiZEpLwWsAdkM5p22mTcBLV
+         E3GuW02D98qVwub61GjPtsN8nXzbH35INq33Q3vhKocC/J/qYrFi0UfdHMCPyf8oTH5e
+         Iu2cZ+6GL0ahd8yTYzwxUDVEN5PFl485bKbdXruaqr6LqHV1bhfMpMOs4BGZQog1UYmz
+         oP+Q==
+X-Gm-Message-State: APjAAAV/+6C9v19ibCdb+mbYmuXBccubLYaCF5cdtoKTOUnRhO2mtI6d
+	duetPC3Pvnf8QlVaa9SrGebiIv3WLwPzuIeCOGYDWQVL9pANDQJNminxL4UJM0ol3yFsggQ8g1B
+	kMN1ArNiV3IGW0YHoWvrEarZi59Vg854KH1Q28jHG8I0dsPUCl2XAs/3Z6C3HhtNhmQ==
+X-Received: by 2002:a2e:b0c4:: with SMTP id g4mr39771802ljl.155.1564387573137;
+        Mon, 29 Jul 2019 01:06:13 -0700 (PDT)
+X-Received: by 2002:a2e:b0c4:: with SMTP id g4mr39771751ljl.155.1564387572126;
+        Mon, 29 Jul 2019 01:06:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564387572; cv=none;
         d=google.com; s=arc-20160816;
-        b=n5IVaOaqIRBHf1uUY+JHoiRTRfu8mYapr+O8TOzQHGEbjfryiZuEDRH6lApL/bnCEU
-         bFBtbB+YVbbtTODi6+7nm1g4KelE7+WIN/GzSB/Av9Ky30iRf8QJc9pcm4FyQDrhc5bF
-         Ab25sXrU3sX2Tn3RLP5+mBzfp45acLyknutRnb8uBTUhID111BHvWmEBqWtwPKbV1jrL
-         62yu8PKPy+ZlSPyQ6Ht1Qxypbg3QoEqEiAyS1F3wpI77Toc556CpMG+tfNLKzldAenh+
-         RYlgoXY610F5p+lQCZ1spFGv/wuasA3IvCX4imxOJ3JD8hV4nN41MocSkYuH5cOA7VOy
-         lZEA==
+        b=y1rcJ4ZymZ6L9LH9OXoa+qMIsqiea3hmHXouu73MT+LVHaSXTrT0uXgtAduK8iwR6l
+         TVbj85M+ahung+F0+BxbPXBoG3LDrIGp8hONd8BiW82y6fL3O3pCA8pZHRzzwd5feWio
+         Dk30JxIDYleFLjFlPqazA3Bq91nN/EpqUTeQnMGvqYvX4Bcq7d3VmbuaTFDAJJKSjC8U
+         nfsxp/Y2VuhhOmb38mcMVyHhMKN8GsL1v8n7cayTQjOhEUbLtZth8uYhLcFdxlrRX1y5
+         Sa7SLd8L63ISxm9Vv4I38hf4H148GHNBtAvPDQdRU1D4rMMLOqB09ivThxJETx0Cp0vX
+         1Leg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=yqSQZl5BR1RkSKHgIy75PKBcAUe+/8sHe4TA3mojtkU=;
-        b=na/q6n0ILJA+iXWQyv08+TGBFQ8I3kb3GzHU5BhywDRQoTkIFiLGeByiEA8djNC7Ol
-         23CQXrizS5NjAuItFP9HMDJVf5FvJbIJN2gKcuxOyFg1UCoo63faSc5dE2bYtz+z+a16
-         6W1F+ITDWtRXQBZqc3ZisAygggZ5BHyVWqNvK8QREahhom5BbCw/OQ9mnDLXDUTUqwfS
-         9fsyFdsAQ73i+nS1Nf+2/QuPSlniGHUBE+wA1ZBeycxmMCRetI0efvrUbVly9n2ZxdUt
-         ZhU8BJii5mFck7OQ1KEiIgMP46owXsfU5JVBE8+BnRO2EQVVDApOib8tLxLhtKcD3qap
-         1c8A==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=q+5I/p/Nycgrz3gMKuzpkFKzO+GKwckGcbd0BiK6zG0=;
+        b=V1w9lC/tDnXDbGEwNVECp70nRweXSoX3YxODQA8dH64CoDGKRE2ri3DyFe2ulVto7Z
+         fqVS3H6oixexUYTqO5wA0ZG+oKDw6SEtFfLMbFQPU/KK1M7JoFaYVk9RUm7sb7qispK8
+         DB5+HuSEje6amTFaBitPQef6lDMeXqnewzREzgxaUUpcP64V9LbGe/8cgfcXmukKd/4C
+         sXaUNMHEmoCSkSZdVSGr8f0b2aGFOXy0ybjEipZY5Lf7xAFBPuBP/gUr0qjBRfk8fDD7
+         L9lW9SrXl0DONPncrpVOVlvLhYpRuFD7/SVciTdTEkUHLk+v1L1WvdjYfP1t6XJlGFaS
+         OByQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y12si16575830edd.87.2019.07.29.00.45.25
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="LB/VimNW";
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id z5sor32426122ljc.29.2019.07.29.01.06.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jul 2019 00:45:25 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Mon, 29 Jul 2019 01:06:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 7FC2CAE5E;
-	Mon, 29 Jul 2019 07:45:24 +0000 (UTC)
-Date: Mon, 29 Jul 2019 09:45:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
-	Miguel de Dios <migueldedios@google.com>, Wei Wang <wvw@google.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: release the spinlock on zap_pte_range
-Message-ID: <20190729074523.GC9330@dhcp22.suse.cz>
-References: <20190729071037.241581-1-minchan@kernel.org>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="LB/VimNW";
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=q+5I/p/Nycgrz3gMKuzpkFKzO+GKwckGcbd0BiK6zG0=;
+        b=LB/VimNWk6JAU5/0EApO5jynRztUXjN0TlosFKaq/kodUwFVw0PewLEs0V68CR581J
+         4JlwzGL1H/RgmulXJE0tUnfGIbnAg+sboDZsIgfwmu5zl5BuBomBD0GnsmCfvsD96P7c
+         81a3Itk5111vnbz+3jlZUj6HwRjk603ngMwMhwxGZtZyazLVFIh7gk8zwdo6uMokLrwo
+         BxlrHYeLTM7lyQGhdhkpGxhnpuX6jxPYtIgh6+bxdTukqfk38gWfWBmqLnsQhkJfiAW1
+         gHJBp5gXUR/8JTLCOXBmIl6aYSDoYBFQWfAph63tY1YwjFkjyQjdiesYPJO7SBVp2XXA
+         p9xQ==
+X-Google-Smtp-Source: APXvYqz0P76ouodZLQJ+67CUBUqcRzH9RJUfbxlKZqHe7C7pDJbANNDWcvHTrBJed/XvhfMm/hXZdRRCBXnmIBaGkUs=
+X-Received: by 2002:a2e:93cc:: with SMTP id p12mr57966349ljh.11.1564387571686;
+ Mon, 29 Jul 2019 01:06:11 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190729071037.241581-1-minchan@kernel.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190215024830.GA26477@jordon-HP-15-Notebook-PC> <20190728180611.GA20589@mail-itl>
+In-Reply-To: <20190728180611.GA20589@mail-itl>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Mon, 29 Jul 2019 13:35:59 +0530
+Message-ID: <CAFqt6zaMDnpB-RuapQAyYAub1t7oSdHH_pTD=f5k-s327ZvqMA@mail.gmail.com>
+Subject: Re: [Xen-devel] [PATCH v4 8/9] xen/gntdev.c: Convert to use vm_map_pages()
+To: =?UTF-8?Q?Marek_Marczykowski=2DG=C3=B3recki?= <marmarek@invisiblethingslab.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
+	Michal Hocko <mhocko@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, 
+	Juergen Gross <jgross@suse.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, 
+	xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, 
+	Linux-MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 29-07-19 16:10:37, Minchan Kim wrote:
-> In our testing(carmera recording), Miguel and Wei found unmap_page_range
-> takes above 6ms with preemption disabled easily. When I see that, the
-> reason is it holds page table spinlock during entire 512 page operation
-> in a PMD. 6.2ms is never trivial for user experince if RT task couldn't
-> run in the time because it could make frame drop or glitch audio problem.
+On Sun, Jul 28, 2019 at 11:36 PM Marek Marczykowski-G=C3=B3recki
+<marmarek@invisiblethingslab.com> wrote:
+>
+> On Fri, Feb 15, 2019 at 08:18:31AM +0530, Souptick Joarder wrote:
+> > Convert to use vm_map_pages() to map range of kernel
+> > memory to user vma.
+> >
+> > map->count is passed to vm_map_pages() and internal API
+> > verify map->count against count ( count =3D vma_pages(vma))
+> > for page array boundary overrun condition.
+>
+> This commit breaks gntdev driver. If vma->vm_pgoff > 0, vm_map_pages
+> will:
+>  - use map->pages starting at vma->vm_pgoff instead of 0
 
-Where is the time spent during the tear down? 512 pages doesn't sound
-like a lot to tear down. Is it the TLB flushing?
+The actual code ignores vma->vm_pgoff > 0 scenario and mapped
+the entire map->pages[i]. Why the entire map->pages[i] needs to be mapped
+if vma->vm_pgoff > 0 (in original code) ?
 
-> This patch adds preemption point like coyp_pte_range.
-> 
-> Reported-by: Miguel de Dios <migueldedios@google.com>
-> Reported-by: Wei Wang <wvw@google.com>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Mel Gorman <mgorman@techsingularity.net>
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/memory.c | 19 ++++++++++++++++---
->  1 file changed, 16 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/memory.c b/mm/memory.c
-> index 2e796372927fd..bc3e0c5e4f89b 100644
-> --- a/mm/memory.c
-> +++ b/mm/memory.c
-> @@ -1007,6 +1007,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
->  				struct zap_details *details)
->  {
->  	struct mm_struct *mm = tlb->mm;
-> +	int progress = 0;
->  	int force_flush = 0;
->  	int rss[NR_MM_COUNTERS];
->  	spinlock_t *ptl;
-> @@ -1022,7 +1023,16 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
->  	flush_tlb_batched_pending(mm);
->  	arch_enter_lazy_mmu_mode();
->  	do {
-> -		pte_t ptent = *pte;
-> +		pte_t ptent;
-> +
-> +		if (progress >= 32) {
-> +			progress = 0;
-> +			if (need_resched())
-> +				break;
-> +		}
-> +		progress += 8;
+are you referring to set vma->vm_pgoff =3D 0 irrespective of value passed
+from user space ? If yes, using vm_map_pages_zero() is an alternate
+option.
 
-Why 8?
 
-> +
-> +		ptent = *pte;
->  		if (pte_none(ptent))
->  			continue;
->  
-> @@ -1123,8 +1133,11 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
->  	if (force_flush) {
->  		force_flush = 0;
->  		tlb_flush_mmu(tlb);
-> -		if (addr != end)
-> -			goto again;
-> +	}
-> +
-> +	if (addr != end) {
-> +		progress = 0;
-> +		goto again;
->  	}
->  
->  	return addr;
-> -- 
-> 2.22.0.709.g102302147b-goog
+>  - verify map->count against vma_pages()+vma->vm_pgoff instead of just
+>    vma_pages().
 
--- 
-Michal Hocko
-SUSE Labs
+In original code ->
+
+diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
+index 559d4b7f807d..469dfbd6cf90 100644
+--- a/drivers/xen/gntdev.c
++++ b/drivers/xen/gntdev.c
+@@ -1084,7 +1084,7 @@ static int gntdev_mmap(struct file *flip, struct
+vm_area_struct *vma)
+int index =3D vma->vm_pgoff;
+int count =3D vma_pages(vma);
+
+Count is user passed value.
+
+struct gntdev_grant_map *map;
+- int i, err =3D -EINVAL;
++ int err =3D -EINVAL;
+if ((vma->vm_flags & VM_WRITE) && !(vma->vm_flags & VM_SHARED))
+return -EINVAL;
+@@ -1145,12 +1145,9 @@ static int gntdev_mmap(struct file *flip,
+struct vm_area_struct *vma)
+goto out_put_map;
+if (!use_ptemod) {
+- for (i =3D 0; i < count; i++) {
+- err =3D vm_insert_page(vma, vma->vm_start + i*PAGE_SIZE,
+- map->pages[i]);
+
+and when count > i , we end up with trying to map memory outside
+boundary of map->pages[i], which was not correct.
+
+- if (err)
+- goto out_put_map;
+- }
++ err =3D vm_map_pages(vma, map->pages, map->count);
++ if (err)
++ goto out_put_map;
+
+With this commit, inside __vm_map_pages(), we have addressed this scenario.
+
++static int __vm_map_pages(struct vm_area_struct *vma, struct page **pages,
++ unsigned long num, unsigned long offset)
++{
++ unsigned long count =3D vma_pages(vma);
++ unsigned long uaddr =3D vma->vm_start;
++ int ret, i;
++
++ /* Fail if the user requested offset is beyond the end of the object */
++ if (offset > num)
++ return -ENXIO;
++
++ /* Fail if the user requested size exceeds available object size */
++ if (count > num - offset)
++ return -ENXIO;
+
+By checking count > num -offset. (considering vma->vm_pgoff !=3D 0 as well)=
+.
+So we will never cross the boundary of map->pages[i].
+
+
+>
+> In practice, this breaks using a single gntdev FD for mapping multiple
+> grants.
+
+How ?
+
+>
+> It looks like vm_map_pages() is not a good fit for this code and IMO it
+> should be reverted.
+
+Did you hit any issue around this code in real time ?
+
+
+>
+> > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+> > Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+> > ---
+> >  drivers/xen/gntdev.c | 11 ++++-------
+> >  1 file changed, 4 insertions(+), 7 deletions(-)
+> >
+> > diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
+> > index 5efc5ee..5d64262 100644
+> > --- a/drivers/xen/gntdev.c
+> > +++ b/drivers/xen/gntdev.c
+> > @@ -1084,7 +1084,7 @@ static int gntdev_mmap(struct file *flip, struct =
+vm_area_struct *vma)
+> >       int index =3D vma->vm_pgoff;
+> >       int count =3D vma_pages(vma);
+> >       struct gntdev_grant_map *map;
+> > -     int i, err =3D -EINVAL;
+> > +     int err =3D -EINVAL;
+> >
+> >       if ((vma->vm_flags & VM_WRITE) && !(vma->vm_flags & VM_SHARED))
+> >               return -EINVAL;
+> > @@ -1145,12 +1145,9 @@ static int gntdev_mmap(struct file *flip, struct=
+ vm_area_struct *vma)
+> >               goto out_put_map;
+> >
+> >       if (!use_ptemod) {
+> > -             for (i =3D 0; i < count; i++) {
+> > -                     err =3D vm_insert_page(vma, vma->vm_start + i*PAG=
+E_SIZE,
+> > -                             map->pages[i]);
+> > -                     if (err)
+> > -                             goto out_put_map;
+> > -             }
+> > +             err =3D vm_map_pages(vma, map->pages, map->count);
+> > +             if (err)
+> > +                     goto out_put_map;
+> >       } else {
+> >  #ifdef CONFIG_X86
+> >               /*
+>
+> --
+> Best Regards,
+> Marek Marczykowski-G=C3=B3recki
+> Invisible Things Lab
+> A: Because it messes up the order in which people normally read text.
+> Q: Why is top-posting such a bad thing?
 
