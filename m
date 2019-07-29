@@ -2,163 +2,220 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D308FC7618B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 16:26:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 10C8DC433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 16:58:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 937D420657
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 16:26:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ABE3B206E0
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 16:58:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="0Bdz75ko"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 937D420657
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="qmwBJoRI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABE3B206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 31B8E8E0006; Mon, 29 Jul 2019 12:26:58 -0400 (EDT)
+	id 1A3D38E0005; Mon, 29 Jul 2019 12:58:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A46B8E0002; Mon, 29 Jul 2019 12:26:58 -0400 (EDT)
+	id 154458E0002; Mon, 29 Jul 2019 12:58:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 16CC88E0006; Mon, 29 Jul 2019 12:26:58 -0400 (EDT)
+	id 042438E0005; Mon, 29 Jul 2019 12:58:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E8A918E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 12:26:57 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id f22so68061917ioj.9
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 09:26:57 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id D75228E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 12:58:17 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id v11so68153614iop.7
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 09:58:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=UR1nwN2DobERwDBbUiUS2eO5vjDIciCJ3KKzmZdKH0Q=;
-        b=PKWRzYNiTUL4HjZKR2gEg4m+3xhXu9MGkUJrGDj+qp52rO4s3V3b7HsciVOZLHacWV
-         omFtN0p/3burXTVAikh3I1SNrtOlRyVGUKzdifIWLu+th1JiBoduS/bFpgq5j5m1V0wA
-         yIvWAVyDlJulZZL4Xzdj6/gXTJHcN11G4AX4YUHGEfXcW5tDNSvw3Jnpl9PA81mVqYxK
-         Xdv/Q0S0Q7sFBUfKasW4r0I1fZc9bgF7f57JlcHTao1PcSnLOxmUQY2G8Em5+hEMDx1R
-         W6USk23U3Br4ytr+HUTOD7mU0CyjHJkC6GM8ZNS5mUrGg3BgBZW9nsE/c/DcrETDZF3T
-         xCZw==
-X-Gm-Message-State: APjAAAWyE37IYgKu/Ryd49E/Uxx16sCRWuVyxCJMpusGFHet6n3OUc+k
-	6+fg7tIN4Ia4b3wnMpEJOJag9MmkFvOBgJhO3MdAeT3Yz/WjP7vaenjyy5ubgIyk0MGjKIVxQ8n
-	ov3fifZWU0xVw+EQpdwQCkwLjSaqMJFarek8EDterStevOFbJu5leQ77U3fPp58YA5A==
-X-Received: by 2002:a6b:2b08:: with SMTP id r8mr57317086ior.34.1564417617637;
-        Mon, 29 Jul 2019 09:26:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwMUgFhH6F+6ORl+NK1n43FyjAtBCLcf2mwEKhQp1d+scUi9kQI0V5nvT/U0g6qbqJ26PRw
-X-Received: by 2002:a6b:2b08:: with SMTP id r8mr57317033ior.34.1564417617039;
-        Mon, 29 Jul 2019 09:26:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564417617; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=DMJX6exOwqjooLEn9qtJXN6JS2y5xnQ/2H7xPTrhJ28=;
+        b=HAa7e26n/mVJ7Mxu82WCxh9+Fy3oZaDmkSCwBJh1fjZHp5W40VkpN3iE40K8Q60kOG
+         oZtGNgObq3OopLwGOttLHeMgmkoh+m6+1wpR6whLWf18n2mKqA2jbr48scK/rOaehZbn
+         dMrrd/zg2oVL47Bxs2BCVpC+zbWCBR+Y+lsjaLGCSg81FZ4xY2ps1G6rP4knC8DB5sZX
+         hVYy92yPuL4qIXNrSzxHSdvPojMycPFYPjEkSZ3ALwBZPNRWLEVLfXXA0Yk7TSZygfel
+         Qra6ePDsUuNO96RvKgTpZ3S/S/Ttcrk20JOZm07CdNc944Sr4Ro3C3hQVZwU58C+EKKr
+         /WYQ==
+X-Gm-Message-State: APjAAAXSxfHmz0Jscvp2+GIYsnJElaENcUV/Om6m2v1Bu1aidXcvZus7
+	dVVln/yr2axq8FBkIxB2UGallvBB3cTpx72h5hREPoRLY9yL94wuk+F6s4WxgX4uDk3E7qBwrGW
+	tITTq/b4Z9eGUkqHCqwj8WfTk4VXYZIup5HaqgvEv3KimvBgL/Pr77Tt2hfn8jSlb2w==
+X-Received: by 2002:a5d:8416:: with SMTP id i22mr76757687ion.248.1564419497576;
+        Mon, 29 Jul 2019 09:58:17 -0700 (PDT)
+X-Received: by 2002:a5d:8416:: with SMTP id i22mr76757630ion.248.1564419496610;
+        Mon, 29 Jul 2019 09:58:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564419496; cv=none;
         d=google.com; s=arc-20160816;
-        b=W67PpJ4HBHUB23IvwYZcyx8lFrsOqJbmeIf+jC0NVat3a/Q02xwNtgNPRMIz+FH3Vi
-         t42fwYCTQIs88MvPfsZRgEosV6CHSl4ygmgBNZiEde0CSjylyXXZSd3RXxOjQHqRiYO2
-         ZHHWa1FiScEPz7d38yhaSe+DrKVdkfX3IhOdHrof/Bmim8HZRnFKZy4qGpxn0vbobCDI
-         dAHKLDe3NnQVtZcE7HSUCkGqQafoaZoabr63JgccvAwzShWAr3GlU/EE+pvfAgD03nCH
-         Ktg28BJdysdi+09kHcf7GReZoFNhNHSf+yd5QFyKC80X4tyCbT3lMoB1a+bVOx6NdoHX
-         +byA==
+        b=lZPN//uKxn26brs4388aTeQLBYmIjoNMdzSfgaeOdOrLIBqV+zYmSWiNyYPubCnwf1
+         NhqTaG1+VRKIiV0JoalIBvNrwszYn5gBSwOTXR2vK5A61gnaXdqpKi7DltK+rSL530Dh
+         q+JgQM1WcVB80kZjGmsEKnNqMh/e7H00/sLBXkrHOodLGzT/wK89/8Yg4iysB+llEXZD
+         vej1C5hpKNCxQoYsQSqKJZJyB1vyL6j0S6+01jpmw1lPjntlvTSlLUnz+A93XPbhh9Ad
+         xGOzfKYrt+D7d/9uPtShkxvHRu4zNsmqGmCYKLE2kn7igmIQr7TrIVWBOQgcuwQiucM9
+         bVHg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=UR1nwN2DobERwDBbUiUS2eO5vjDIciCJ3KKzmZdKH0Q=;
-        b=HzQxL31b2WZd0TuL3wGi8RW82r8zTKB4Bf4yTRUhr8l5H/BBd36UcEu+7f2YNaQgES
-         LDsX40vj5Qj97CTDK4OmBp2GTX6ztEAoNMwu0hhGqEq5bmc6QICn6Md7x/1+w7syRjDH
-         fap+/APy0W/Bkh9TQXhX5zeAlMVKcA5owYdM5arVEibGWTsz+C0vw2WegXlCNDa07aPb
-         5Fiq+wxfbSM1mVOvfCQIKm0p27u3qWdSZevpustt0l51KbzP6zyBEBlrzuyEcr+08+rP
-         7r1j/6kQKGjJjOq+LbQKvSaWsurcG24/WNaln+K593xN79wnm8YVvnUWD+sOIE/2mm9Y
-         0S4w==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=DMJX6exOwqjooLEn9qtJXN6JS2y5xnQ/2H7xPTrhJ28=;
+        b=fkJDWO8k7x3qkk+OaN0CcL9pOtU2xDGlJcm7ZtdJOW8oJt0NG9N9I3LGMuESzRPTJ6
+         LXj64HM4C50UkF3uzlGHR+LaUaU0NQUtF7RbdGIYF0rLImz26V2rslzpUPHsoPzvPd5j
+         3hy/IkhChdQdbOXDFDw78BEiS6LLVkOf5GpZY9n9JMLbPUHiCAblzn6xhWMbp2nUMKhZ
+         7KRjeASqeTjQmHZgzhVUG8DMd99wvd18MnyD0JteqtOBfZ8lL9z+Q5n45JcgHP1zz/YM
+         YQ12E+CnrYqkCY56j6/A6Z663zTCDvwktqLTTfCuzkEn8L3zrhq24amq2VdKCQuaaope
+         lFwQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=0Bdz75ko;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id k17si55952462jap.19.2019.07.29.09.26.56
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qmwBJoRI;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a17sor41403209iot.95.2019.07.29.09.58.16
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 29 Jul 2019 09:26:56 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (Google Transport Security);
+        Mon, 29 Jul 2019 09:58:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=0Bdz75ko;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Transfer-Encoding:
-	Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
-	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=UR1nwN2DobERwDBbUiUS2eO5vjDIciCJ3KKzmZdKH0Q=; b=0Bdz75ko9JlIuIV7NBooLQGYXZ
-	xKeLkiHp/upUnBeY/3RRAQ0w80wxz5hCRhdmbkGPTGDXX9l34bW83spOgXr7BkgDvyJTpD+nzx5Hk
-	f7FHE5z3duaS40ug1H6vAfes/hnn2Ko81P07zJpuFTAL9ysk0mR3cEIhP4kdMn+6LN68BxDqEqg3v
-	vkbk9UEmf86iZJLfE3J2DUX4/gv/0Oc6UlSCCyR2JKl/sG/g/FaCWfhkauzVmzAft4OuEWMV9uzqL
-	q/iTWXu+CcGDHtSRVDr/0z1kzIMyyfsTEHTStTW5ZEfMyH43HSdf7OqvfzZOKEvTHMaAeCC7x0xSI
-	V21kBB3A==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hs8UA-00041z-Ot; Mon, 29 Jul 2019 16:26:55 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 75A7C20AFFE9F; Mon, 29 Jul 2019 18:26:53 +0200 (CEST)
-Date: Mon, 29 Jul 2019 18:26:53 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Rik van Riel <riel@surriel.com>
-Cc: Waiman Long <longman@redhat.com>, Ingo Molnar <mingo@redhat.com>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Phil Auld <pauld@redhat.com>, Andy Lutomirski <luto@kernel.org>
-Subject: Re: [PATCH v2] sched/core: Don't use dying mm as active_mm of
- kthreads
-Message-ID: <20190729162653.GE31381@hirez.programming.kicks-ass.net>
-References: <20190727171047.31610-1-longman@redhat.com>
- <20190729085235.GT31381@hirez.programming.kicks-ass.net>
- <4cd17c3a-428c-37a0-b3a2-04e6195a61d5@redhat.com>
- <20190729150338.GF31398@hirez.programming.kicks-ass.net>
- <25cd74fcee33dfd0b9604a8d1612187734037394.camel@surriel.com>
- <20190729154419.GJ31398@hirez.programming.kicks-ass.net>
- <aba144fbb176666a479420eb75e5d2032a893c83.camel@surriel.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=qmwBJoRI;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=DMJX6exOwqjooLEn9qtJXN6JS2y5xnQ/2H7xPTrhJ28=;
+        b=qmwBJoRInh23civEWJdNICjdMLoR9BUo4NN/Jr86tkcVeVrkU8KIGkSHwi5irmcRPP
+         //4n9GJj5Y4+FnXDmYBTTPKxGApkHqgo65J6IGPXJlcCq78kIwGwAwelULdRAmOMY0wj
+         2jocJCfs/d9EId682irXl8YPuCk5umHMvx2eMUnRwkfBu/fBd6mQy3KuQt0NxpkLbO9W
+         YOVEhLnvLQfQO0RnpPtADN/mblkeyeUlPNcWyZOlmbzLjSafTngOlIL+SV4V+pIbh3EV
+         3SwJBZ+dMeUWV+Bvl+whJ+X+UegiEFARHumJQ/VGnj75FFt4AgYcDgpK34RtNtgdtb9r
+         fSWQ==
+X-Google-Smtp-Source: APXvYqztFG7YMJz0zsHEI3iKX0c4uGDWIt8CrgE8B+fv9wr+8aZKn7VtfZzuBhrEkz5ALTKWzWmFtnQpnC24Mw8lh00=
+X-Received: by 2002:a5d:9dc7:: with SMTP id 7mr48452689ioo.237.1564419495894;
+ Mon, 29 Jul 2019 09:58:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-Content-Transfer-Encoding: quoted-printable
-In-Reply-To: <aba144fbb176666a479420eb75e5d2032a893c83.camel@surriel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <20190724165158.6685.87228.stgit@localhost.localdomain>
+ <20190724171050.7888.62199.stgit@localhost.localdomain> <20190724150224-mutt-send-email-mst@kernel.org>
+ <6218af96d7d55935f2cf607d47680edc9b90816e.camel@linux.intel.com>
+ <ee5387b1-89af-daf4-8492-8139216c6dcf@redhat.com> <20190724164023-mutt-send-email-mst@kernel.org>
+In-Reply-To: <20190724164023-mutt-send-email-mst@kernel.org>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Mon, 29 Jul 2019 09:58:04 -0700
+Message-ID: <CAKgT0Ud6jPpsvJWFAMSnQXAXeNZb116kR7D2Xb7U-7BOtctK_Q@mail.gmail.com>
+Subject: Re: [PATCH v2 QEMU] virtio-balloon: Provide a interface for "bubble hinting"
+To: "Michael S. Tsirkin" <mst@redhat.com>, wei.w.wang@intel.com
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>, 
+	kvm list <kvm@vger.kernel.org>, David Hildenbrand <david@redhat.com>, 
+	Dave Hansen <dave.hansen@intel.com>, LKML <linux-kernel@vger.kernel.org>, 
+	linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com, 
+	Rik van Riel <riel@surriel.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com, 
+	Andrea Arcangeli <aarcange@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 29, 2019 at 12:10:12PM -0400, Rik van Riel wrote:
-> On Mon, 2019-07-29 at 17:44 +0200, Peter Zijlstra wrote:
-> > On Mon, Jul 29, 2019 at 11:28:04AM -0400, Rik van Riel wrote:
-> > > On Mon, 2019-07-29 at 17:03 +0200, Peter Zijlstra wrote:
-> > >=20
-> > > > The 'sad' part is that x86 already switches to init_mm on idle
-> > > > and we
-> > > > only keep the active_mm around for 'stupid'.
-> > >=20
-> > > Wait, where do we do that?
-> >=20
-> > drivers/idle/intel_idle.c:              leave_mm(cpu);
-> > drivers/acpi/processor_idle.c:  acpi_unlazy_tlb(smp_processor_id());
->=20
-> This is only done for deeper c-states, isn't it?
+On Wed, Jul 24, 2019 at 1:42 PM Michael S. Tsirkin <mst@redhat.com> wrote:
+>
+> On Wed, Jul 24, 2019 at 04:29:27PM -0400, Nitesh Narayan Lal wrote:
+> >
+> > On 7/24/19 4:18 PM, Alexander Duyck wrote:
+> > > On Wed, 2019-07-24 at 15:02 -0400, Michael S. Tsirkin wrote:
+> > >> On Wed, Jul 24, 2019 at 10:12:10AM -0700, Alexander Duyck wrote:
+> > >>> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > >>>
+> > >>> Add support for what I am referring to as "bubble hinting". Basically the
+> > >>> idea is to function very similar to how the balloon works in that we
+> > >>> basically end up madvising the page as not being used. However we don't
+> > >>> really need to bother with any deflate type logic since the page will be
+> > >>> faulted back into the guest when it is read or written to.
+> > >>>
+> > >>> This is meant to be a simplification of the existing balloon interface
+> > >>> to use for providing hints to what memory needs to be freed. I am assuming
+> > >>> this is safe to do as the deflate logic does not actually appear to do very
+> > >>> much other than tracking what subpages have been released and which ones
+> > >>> haven't.
+> > >>>
+> > >>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > >>> ---
+> > >>>  hw/virtio/virtio-balloon.c                      |   40 +++++++++++++++++++++++
+> > >>>  include/hw/virtio/virtio-balloon.h              |    2 +
+> > >>>  include/standard-headers/linux/virtio_balloon.h |    1 +
+> > >>>  3 files changed, 42 insertions(+), 1 deletion(-)
+> > >>>
+> > >>> diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
+> > >>> index 2112874055fb..70c0004c0f88 100644
+> > >>> --- a/hw/virtio/virtio-balloon.c
+> > >>> +++ b/hw/virtio/virtio-balloon.c
+> > >>> @@ -328,6 +328,39 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
+> > >>>      balloon_stats_change_timer(s, 0);
+> > >>>  }
+> > >>>
+> > >>> +static void virtio_bubble_handle_output(VirtIODevice *vdev, VirtQueue *vq)
+> > >>> +{
+> > >>> +    VirtQueueElement *elem;
+> > >>> +
+> > >>> +    while ((elem = virtqueue_pop(vq, sizeof(VirtQueueElement)))) {
+> > >>> +         unsigned int i;
+> > >>> +
+> > >>> +        for (i = 0; i < elem->in_num; i++) {
+> > >>> +            void *addr = elem->in_sg[i].iov_base;
+> > >>> +            size_t size = elem->in_sg[i].iov_len;
+> > >>> +            ram_addr_t ram_offset;
+> > >>> +            size_t rb_page_size;
+> > >>> +            RAMBlock *rb;
+> > >>> +
+> > >>> +            if (qemu_balloon_is_inhibited())
+> > >>> +                continue;
+> > >>> +
+> > >>> +            rb = qemu_ram_block_from_host(addr, false, &ram_offset);
+> > >>> +            rb_page_size = qemu_ram_pagesize(rb);
+> > >>> +
+> > >>> +            /* For now we will simply ignore unaligned memory regions */
+> > >>> +            if ((ram_offset | size) & (rb_page_size - 1))
+> > >>> +                continue;
+> > >>> +
+> > >>> +            ram_block_discard_range(rb, ram_offset, size);
+> > >> I suspect this needs to do like the migration type of
+> > >> hinting and get disabled if page poisoning is in effect.
+> > >> Right?
+> > > Shouldn't something like that end up getting handled via
+> > > qemu_balloon_is_inhibited, or did I miss something there? I assumed cases
+> > > like that would end up setting qemu_balloon_is_inhibited to true, if that
+> > > isn't the case then I could add some additional conditions. I would do it
+> > > in about the same spot as the qemu_balloon_is_inhibited check.
+> > I don't think qemu_balloon_is_inhibited() will take care of the page poisoning
+> > situations.
+> > If I am not wrong we may have to look to extend VIRTIO_BALLOON_F_PAGE_POISON
+> > support as per Michael's suggestion.
+>
+>
+> BTW upstream qemu seems to ignore VIRTIO_BALLOON_F_PAGE_POISON ATM.
+> Which is probably a bug.
+> Wei, could you take a look pls?
 
-Not C1 but I forever forget where it starts doing that. IIRC it isn't
-too hard to hit it often, and I'm fairly sure we always do it when we
-hit NOHZ.
+So I was looking at sorting out this for the unused page reporting
+that I am working on and it occurred to me that I don't think we can
+do the free page hinting if any sort of poison validation is present.
+The problem is that free page hinting simply stops the page from being
+migrated. As a result if there was stale data present it will just
+leave it there instead of zeroing it or writing it to alternating 1s
+and 0s.
 
-> > > > Rik and Andy were working on getting that 'fixed' a while ago,
-> > > > not
-> > > > sure
-> > > > where that went.
-> > >=20
-> > > My lazy TLB stuff got merged last year.=20
-> >=20
-> > Yes, but we never got around to getting rid of active_mm for x86,
-> > right?
->=20
-> True, we still use active_mm. Getting rid of the
-> active_mm refcounting alltogether did not look
-> entirely worthwhile the hassle.
+Also it looks like the VIRTIO_BALLOON_F_PAGE_POISON feature is
+assuming that 0 means that page poisoning is disabled, when in reality
+it might just mean we are using the value zero to poison pages instead
+of the 0xaa pattern. As such I think there are several cases where we
+could incorrectly flag the pages with the hint and result in the
+migrated guest reporting pages that contain non-poison values.
 
-OK, clearly I forgot some of the details ;-)
+The zero assumption works for unused page reporting since we will be
+zeroing out the page when it is faulted back into the guest, however
+the same doesn't work for the free page hint since it is simply
+skipping the migration of the recently dirtied page.
 
