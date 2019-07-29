@@ -2,153 +2,181 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-4.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 39E83C76192
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:20:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F9A9C7618B
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:21:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 04EEF2070B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:20:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 04EEF2070B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id BBE6E20644
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:20:59 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="gmynHK9g"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BBE6E20644
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 993258E0005; Mon, 29 Jul 2019 04:20:08 -0400 (EDT)
+	id 6FB8A8E0006; Mon, 29 Jul 2019 04:20:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 943EE8E0002; Mon, 29 Jul 2019 04:20:08 -0400 (EDT)
+	id 6AB598E0002; Mon, 29 Jul 2019 04:20:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 80B438E0005; Mon, 29 Jul 2019 04:20:08 -0400 (EDT)
+	id 59B278E0006; Mon, 29 Jul 2019 04:20:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 47F328E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 04:20:08 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id x18so37982219pfj.4
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 01:20:08 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 2464A8E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 04:20:59 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id g18so32693287plj.19
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 01:20:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:references:date:in-reply-to:message-id:user-agent
-         :mime-version;
-        bh=loBkav+SVwnYBMcv6F0k5dMqgWh8nEXO64nEXvoYfqw=;
-        b=l4sEh1vG5DrEc8LFFN2vEPIvEnhmuB34XHjmxbIee2UiEh2cJRl+j7VtMtcKi/waAH
-         JDqcmyG7muj+gMealxPcTShEI1ceGwwF/oyd+hX6VxLpYmKGMOgWISGYCWMPHHH/VZ9O
-         zaktFv9dBmR3oLzJAFfN+bxhtJt5XkS/bf7FpmPEJDnh6PpdhpAydv/KWitKGLhQoeQS
-         aQO191VKjRg87fdUeGi5PSuIA+6Ca5RUoYoqBiGJTcO8McpXYmjsW+uCtydrFXB4xubC
-         48wta6yn7VuDMdE4Izvh9p3AFOIr+XFE1ZAwYD2dzRcv/oIuuOi3yWuJn5OIA4lS/elM
-         xgUQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXHhauzgSePhp5b4WX7NQ7Em0kS4uDVIiqCKBDK2Wd+WdYfVT4k
-	pAAUxhdj9WQeLvg5+Zh89zY07PrqFCavO6AD0R/aEWNwemF64dCrxFpCWw32DpXzXujoqq4M207
-	98Qn6Y9P9Yb0zHZw+5u2YE/jM+FVjbVHdcR2jsD6AxUZVs1rwjROtuIpkim5F+uBoXA==
-X-Received: by 2002:aa7:9092:: with SMTP id i18mr35000888pfa.101.1564388407925;
-        Mon, 29 Jul 2019 01:20:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw9OcrSzuVJM0BKhMMxSVrk7ayrev2HwiEYBPw5wyiEG8IbDaCwYVPyjobC9OuEVQgjkPx3
-X-Received: by 2002:aa7:9092:: with SMTP id i18mr35000832pfa.101.1564388407188;
-        Mon, 29 Jul 2019 01:20:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564388407; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=2sHb6igh5/VG31vZ5TimH3Lv/XXcD5eHvB6x/vi/sxg=;
+        b=K8YCnrBu9hDAldAEeibGIbUtUiti7KdUWp0h39HHAuEhM70BuPz4u2pEWlTUwWGbBG
+         M2704F5q5+tCoJA6BL45x6mo9cznE9DBxcFNBhCfKuiCxFi/TsQsOdjQXUqELRE+ayXQ
+         Pp7zhSTqeF/o5uRYdfuIJvpIu5sAX2tGOnmqfAgE599YCJp2snM+OZhQAwaO980s1N7D
+         y3XRxPAaIkxgbFnsHNjb+RK3V5sbSaGNnKXAaQY1SR8mzVEsovkvQwFPFWELVXmJPkN/
+         TciefNgq1SHdVX/ROSSNN+Ai39cZ4C0mRcKyOEqiePkY3dBaaG1zXRShDbv81TcYfs27
+         6t8g==
+X-Gm-Message-State: APjAAAUud9rCc/VOYVzAiUyGm0EPufHbBIcHwXp0O58r0gGFaH20rovP
+	BDpJeOymMGh3T0h1DIZQyG2VecY0s7sN8ypIhdsG5Hg26NqpOC8e26F2aSLl9SV2Pleai5tfgAO
+	6gdyK1JaclUwgC8A2x4EesWn9bP1x8HFeNAILwllSrbOUo3fdkcJHfAnv2LjhhoM=
+X-Received: by 2002:a17:902:2a29:: with SMTP id i38mr109673528plb.46.1564388458755;
+        Mon, 29 Jul 2019 01:20:58 -0700 (PDT)
+X-Received: by 2002:a17:902:2a29:: with SMTP id i38mr109673486plb.46.1564388458162;
+        Mon, 29 Jul 2019 01:20:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564388458; cv=none;
         d=google.com; s=arc-20160816;
-        b=TbGzOfJhJ9pVAPCBhg6kFdBHl3497Uzb0fxtJ97dxWdIOnitc5zRPbzgTe/KAXY8oR
-         0V3/28L/sNheBgXkWhI4IH9+gJ2cVv97OSvZAO2UyhegpUmwTWiCS++Htuo1JiWNA/Sy
-         xxh0YbyV8E+uRPlZQhaKcUElaah5xrifJPKkdEPzZSOjHUvKNg5kqu1GBsLR1RaaiX4V
-         BC3zR4S5NKLuGoyV2u9Cn26YLio2t54be8FPTj29ALRfAxkSTl3cstEvjMUn/IWYl4Om
-         fkC8eDXa9mCtvabYRBUiJsBUOYMgfv3oJYchgJbi+JxxlnZLw0n6+TYDlJjWipW9Q1re
-         RE3Q==
+        b=v/Qhq7kVQZeqw5HilyTh2bp1oYizjdnhACoJ1u0BbXbWPeriqJF4FytDEZGR22Suep
+         RUcTMp7Tn6DM1z5iqWpqj1DEEVv7tYat00/0IxTGbpIwsY/R78LXvNh4N+9vmBCcPF+d
+         Cb4i2mlRVndsyvsJpZnvp8dZmWrAlU6XCT3Ybu1STm2PePw/ekMtiqaw0R0lywjUqHVa
+         aFTlQm44Jw7neuBB+6RHPBWkX8oPSLAukzf8ESWkOr2iZZjJ9aQpPPSZJFcJlOvw7fGO
+         nKERSGN1z9LWVqsxwhCRkLKkuB/zZw6VZlH9qV8lmnw3JzZ7AbmMCFWSgRgeS7P/3hlO
+         wtyA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:message-id:in-reply-to:date:references
-         :subject:cc:to:from;
-        bh=loBkav+SVwnYBMcv6F0k5dMqgWh8nEXO64nEXvoYfqw=;
-        b=NF3eE3inwk7GeNaPIVNWBZeJjaqfSpAzkSb/GrNGFoa2xdZ3Jcj8ircZ8Fo4Gl7gTi
-         5Q8pIXWjCGvNo1TbxPk/DEQAnxXKbmx6uUobOw3zCL0kKpmJI9JIo+D5NZoJnLv+hByn
-         5hBEcT2L+YfUlPwFV5LFAnUIHCKZFFpZ6snEPhhz8pBechYk78jjvS3+6aqe30hslyn5
-         KH6xfw0ZlEyMxfNJLGtd+NlltOM0256cLc3Gx6LgiDjKyaWcPpXW79KnSfLo3P4xxeDG
-         2FOCZIR3nVPafOfB1hdXMoZ22+CU8qYQgdpdx9eaiHvtyiZHq16k+sLCCEVpiLaRj3UE
-         QktA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=2sHb6igh5/VG31vZ5TimH3Lv/XXcD5eHvB6x/vi/sxg=;
+        b=Olt3B2qNeC5RLA0AaeVRoHFpBjESFEnwzKBims4zkfZ3lfWMA2pgYy9dLIn5pKizhC
+         enudQEt3UOOdkk3pZV4NX9z5XMMk4qcu4ecUIjaGRvHYDGrSw20GVAmfMNN6Zx1fFf1s
+         UhSQ+BQzwFr5Ci/TychvowxbhIs1XzJmgDydRbGnhKPHIcoeLqnbbv8qjmtZIf5MZQAT
+         cJE2zQnqWfDnnwBOIdRbeCWbJVUeXM0vHfx1d5TOMsQGOnuqzsBhsYZA3DAxdUWZAQSv
+         NQwVgo1V9VLuRTQz1Z/KQl/mYH2MjzuV48eG+Jr5mTgtwVcjEw3EGiNg1AglCoxu8dhB
+         jkRA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id z17si25708820pgj.147.2019.07.29.01.20.07
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gmynHK9g;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f1sor72917255plt.64.2019.07.29.01.20.58
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jul 2019 01:20:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        (Google Transport Security);
+        Mon, 29 Jul 2019 01:20:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 29 Jul 2019 01:16:30 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,322,1559545200"; 
-   d="scan'208";a="165395411"
-Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.29])
-  by orsmga008.jf.intel.com with ESMTP; 29 Jul 2019 01:16:28 -0700
-From: "Huang\, Ying" <ying.huang@intel.com>
-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-Cc: Peter Zijlstra <peterz@infradead.org>,  Ingo Molnar <mingo@kernel.org>,  <linux-mm@kvack.org>,  <linux-kernel@vger.kernel.org>,  Rik van Riel <riel@redhat.com>,  Mel Gorman <mgorman@suse.de>,  <jhladky@redhat.com>,  <lvenanci@redhat.com>,  Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RESEND] autonuma: Fix scan period updating
-References: <20190725080124.494-1-ying.huang@intel.com>
-	<20190725173516.GA16399@linux.vnet.ibm.com>
-	<87y30l5jdo.fsf@yhuang-dev.intel.com>
-	<20190726092021.GA5273@linux.vnet.ibm.com>
-	<87ef295yn9.fsf@yhuang-dev.intel.com>
-	<20190729072845.GC7168@linux.vnet.ibm.com>
-Date: Mon, 29 Jul 2019 16:16:28 +0800
-In-Reply-To: <20190729072845.GC7168@linux.vnet.ibm.com> (Srikar Dronamraju's
-	message of "Mon, 29 Jul 2019 12:58:45 +0530")
-Message-ID: <87wog145nn.fsf@yhuang-dev.intel.com>
-User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gmynHK9g;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=2sHb6igh5/VG31vZ5TimH3Lv/XXcD5eHvB6x/vi/sxg=;
+        b=gmynHK9gyyTGbg08KX1ZQt/n4uNaNufyxFQUsiO6i7otivMqyM4q94qS47AsyjiSVz
+         sh/KPvUiy8JFTmCXgaBbyvbzFmuebJJpq7OKcH656fOdOUDx1Ff2mlmF7RiGQiBYHtwU
+         jbwDZsWevu5V4BTlyjpzZh3wGR1cUNovfzrkFOPT1JpXxKGxXa+IDLkxqbMdq1PEiyVk
+         rrIqoI562bWsu3KXIN6408heothnZN4VbnypkaWfRf5oJo1Q3PchVIpQHMX43q+tpgCs
+         MmeT9qhO+HEm7abd7SjLKzzuBbMqTIWzxZhZLX1kfTOnCT/q+up4nY4kIku7111SK4a1
+         2d/w==
+X-Google-Smtp-Source: APXvYqzPD2uMU0BPGJcyzlG6gVZffWUBi8HGnNgWln9aj61e+obG9uHjQlq+n0jJV4ijNPnNUaKatg==
+X-Received: by 2002:a17:902:ea:: with SMTP id a97mr33346954pla.182.1564388457651;
+        Mon, 29 Jul 2019 01:20:57 -0700 (PDT)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id n98sm60659702pjc.26.2019.07.29.01.20.54
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 29 Jul 2019 01:20:56 -0700 (PDT)
+Date: Mon, 29 Jul 2019 17:20:52 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Miguel de Dios <migueldedios@google.com>, Wei Wang <wvw@google.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: release the spinlock on zap_pte_range
+Message-ID: <20190729082052.GA258885@google.com>
+References: <20190729071037.241581-1-minchan@kernel.org>
+ <20190729074523.GC9330@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ascii
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190729074523.GC9330@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Srikar Dronamraju <srikar@linux.vnet.ibm.com> writes:
+On Mon, Jul 29, 2019 at 09:45:23AM +0200, Michal Hocko wrote:
+> On Mon 29-07-19 16:10:37, Minchan Kim wrote:
+> > In our testing(carmera recording), Miguel and Wei found unmap_page_range
+> > takes above 6ms with preemption disabled easily. When I see that, the
+> > reason is it holds page table spinlock during entire 512 page operation
+> > in a PMD. 6.2ms is never trivial for user experince if RT task couldn't
+> > run in the time because it could make frame drop or glitch audio problem.
+> 
+> Where is the time spent during the tear down? 512 pages doesn't sound
+> like a lot to tear down. Is it the TLB flushing?
 
->> >> 
->> >> if (lr_ratio >= NUMA_PERIOD_THRESHOLD)
->> >>     slow down scanning
->> >> else if (sp_ratio >= NUMA_PERIOD_THRESHOLD) {
->> >>     if (NUMA_PERIOD_SLOTS - lr_ratio >= NUMA_PERIOD_THRESHOLD)
->> >>         speed up scanning
->> 
->> Thought about this again.  For example, a multi-threads workload runs on
->> a 4-sockets machine, and most memory accesses are shared.  The optimal
->> situation will be pseudo-interleaving, that is, spreading memory
->> accesses evenly among 4 NUMA nodes.  Where "share" >> "private", and
->> "remote" > "local".  And we should slow down scanning to reduce the
->> overhead.
->> 
->> What do you think about this?
->
-> If all 4 nodes have equal access, then all 4 nodes will be active nodes.
->
-> From task_numa_fault()
->
-> 	if (!priv && !local && ng && ng->active_nodes > 1 &&
-> 				numa_is_active_node(cpu_node, ng) &&
-> 				numa_is_active_node(mem_node, ng))
-> 		local = 1;
->
-> Hence all accesses will be accounted as local. Hence scanning would slow
-> down.
+Miguel confirmed there is no such big latency without mark_page_accessed
+in zap_pte_range so I guess it's the contention of LRU lock as well as
+heavy activate_page overhead which is not trivial, either.
 
-Yes.  You are right!  Thanks a lot!
+> 
+> > This patch adds preemption point like coyp_pte_range.
+> > 
+> > Reported-by: Miguel de Dios <migueldedios@google.com>
+> > Reported-by: Wei Wang <wvw@google.com>
+> > Cc: Michal Hocko <mhocko@kernel.org>
+> > Cc: Johannes Weiner <hannes@cmpxchg.org>
+> > Cc: Mel Gorman <mgorman@techsingularity.net>
+> > Signed-off-by: Minchan Kim <minchan@kernel.org>
+> > ---
+> >  mm/memory.c | 19 ++++++++++++++++---
+> >  1 file changed, 16 insertions(+), 3 deletions(-)
+> > 
+> > diff --git a/mm/memory.c b/mm/memory.c
+> > index 2e796372927fd..bc3e0c5e4f89b 100644
+> > --- a/mm/memory.c
+> > +++ b/mm/memory.c
+> > @@ -1007,6 +1007,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+> >  				struct zap_details *details)
+> >  {
+> >  	struct mm_struct *mm = tlb->mm;
+> > +	int progress = 0;
+> >  	int force_flush = 0;
+> >  	int rss[NR_MM_COUNTERS];
+> >  	spinlock_t *ptl;
+> > @@ -1022,7 +1023,16 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+> >  	flush_tlb_batched_pending(mm);
+> >  	arch_enter_lazy_mmu_mode();
+> >  	do {
+> > -		pte_t ptent = *pte;
+> > +		pte_t ptent;
+> > +
+> > +		if (progress >= 32) {
+> > +			progress = 0;
+> > +			if (need_resched())
+> > +				break;
+> > +		}
+> > +		progress += 8;
+> 
+> Why 8?
 
-There may be another case.  For example, a workload with 9 threads runs
-on a 2-sockets machine, and most memory accesses are shared.  7 threads
-runs on the node 0 and 2 threads runs on the node 1 based on CPU load
-balancing.  Then the 2 threads on the node 1 will have "share" >>
-"private" and "remote" >> "local".  But it doesn't help to speed up
-scanning.
-
-Best Regards,
-Huang, Ying
+Just copied from copy_pte_range.
 
