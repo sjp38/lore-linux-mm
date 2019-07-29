@@ -2,235 +2,272 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A3E5FC7618B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:21:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D9E2C433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:25:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 607B3217D4
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:21:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C8F25216C8
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:24:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="fzL9e9NG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 607B3217D4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axtens.net
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="VDIZSjBO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8F25216C8
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F135D8E0008; Mon, 29 Jul 2019 10:21:31 -0400 (EDT)
+	id 747A78E0005; Mon, 29 Jul 2019 10:24:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EC3478E0002; Mon, 29 Jul 2019 10:21:31 -0400 (EDT)
+	id 6F8398E0002; Mon, 29 Jul 2019 10:24:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DB21E8E0008; Mon, 29 Jul 2019 10:21:31 -0400 (EDT)
+	id 5E6CD8E0005; Mon, 29 Jul 2019 10:24:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A66EE8E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 10:21:31 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id e25so38600831pfn.5
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 07:21:31 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3F10D8E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 10:24:59 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id x24so67707730ioh.16
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 07:24:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=UahEbtdXwZNAU+KwZPeJAGjgE2lYz0Dt6XczqvKwLUQ=;
-        b=Ah4T/QcQu7v0H/kxiWOz65Csl3Vr5DKsu5ghXMSbEcTIs3GMOYBa1KLpneX9Pgks94
-         zGh9F7J2T2NAE7kZm2jmtWRqhlzyEPkiAMbNWbkwN3Pi/ZwxnPRMvOx9+jrB1p4qmNTG
-         Res9c2Viyeqf1OxMcqFemqLxlFKNsvtCtku8nmQNkEHx39vTW2DdOoEZ98pzJNeZDM3h
-         kIeNkqZBMGah1m4GhwwjlQTVhTAadbWsX7hvneiB7r5oZiq8jXKQSKvsRCciXMC/2lG+
-         or/ZcVmBrZ+gfsVi+bopk0pp2Gl8SsJD/wH/FCQMe/48iH87hrPi/+FMukLdxtXDzqhp
-         b5fg==
-X-Gm-Message-State: APjAAAVk0KNE5NNDPWYMYBg0E0LXg2pyHZMIHOYzDyhO+EyQkjExJ+pn
-	4ppafNc9GXWpj25UlMS+T01D6Z8fNTkbwDCbRpXxad9lgxF2Uxj1EZ7jEEm1ApQw51G/2gSU94t
-	DJhLW9Gh4D4jxvf5W5R7Lkb/ZsvV836ROU3HpwPInWTy+1ZQCyTwkum1AWaGGyvxlGw==
-X-Received: by 2002:a17:902:968d:: with SMTP id n13mr63179961plp.257.1564410091348;
-        Mon, 29 Jul 2019 07:21:31 -0700 (PDT)
-X-Received: by 2002:a17:902:968d:: with SMTP id n13mr63179903plp.257.1564410090499;
-        Mon, 29 Jul 2019 07:21:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564410090; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=r2R3bvPPA7z+Zk5Z5T/eRlqnLR0fPm6kMZLrDw0T1mM=;
+        b=XiQRly1tf2Tjs9IuWWeM58TDcU9KpHCL8t2bWY2YyyCzcXfXuPCoMI/7s/QqolONcI
+         sWOHmaQbE8mWGcdybE01sPg1jSNsPb6ihdYt3ucab0WoOP0F1MJplf72tWVqax9Llw6O
+         +kiYg2JAlj33kbRNwxi1ymbvSzni4OqzfZNyJQVnon64FLh9ahEdjflGi+ql6fLoNXA+
+         hsMshQ/pZh1zBysY6PAIYXK9tYdBOd8sQn5kmzTUvDTMLLZ4QYP3nbYb2lfmOxTAMjc6
+         JG5S4G8tx0Vr4Z45B+8QjGQIZoLpOy98n3VptxfEoeaeVOQUQ3W9lyd2GJtGkLmwCVXp
+         cOOQ==
+X-Gm-Message-State: APjAAAVFBUDBe6mhClnjCdQ32vdcUNa+RZDDqxQ2IZB0/bsKqNwJyPBz
+	ksvd7Pt42mU04IEpvglxInw5l2b+w5XQIXApMF4EVK7pTD4iqNnoom+OQHio3rSYSL3B53UwZrG
+	Tvb4uEvEhNg/ms0NHxjajLpdgadSsVhIZqo8tXNXFnC0I+3yUN90WERfRC5TtGiC+4A==
+X-Received: by 2002:a05:6638:303:: with SMTP id w3mr58699489jap.103.1564410298938;
+        Mon, 29 Jul 2019 07:24:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz0of2YJDgqFnPOhwOnlFFILs7CpuRja6bcVphGYcz32ScCGSNyexI+E6GUiyKXkEpMc6OT
+X-Received: by 2002:a05:6638:303:: with SMTP id w3mr58699412jap.103.1564410297981;
+        Mon, 29 Jul 2019 07:24:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564410297; cv=none;
         d=google.com; s=arc-20160816;
-        b=QRKlZp2JcyOE+dAfCgvg1tHxwc98pyh1FVcBSmiXBbktSnqs2EuVobGYvv8QtzoKin
-         43zs6abyCyheHDmIAKuremyPrxdzaAFBATRv99jgGTjLYYVXJK5LnQ8zf3+AsFMhWeWc
-         vGXE8jtEUQmi6MZJ738fHsiVFUSWcsoOnljfH4CP/36xJPeUoC7wCHrbut+IPzSalGVg
-         1a7KpmcrcApv3fvSj6c3VF7W9VeRSzs/SoJoBPgA+EYAf2ykSJ+YlPGc8Cw+cbw8Bi/H
-         bO5VVAtZp+UJ7pFJu6dwbX5ol9EDwquBtz8UTp5SmGt9U2tIdaw5pNZKHtmb9zqNc7hT
-         6ICg==
+        b=h2MaSlI79R9VMuZVIrv5CST+vjzYF7PGaXKSKzmcMEQQfS1r9bQaDFA4l2ejrD+Srn
+         4iBLFliB6+PE54Ed/GTXD7BllyoHEdAAxdry5CjNPOBMzHn00L9AX2xSI/xPb8i82JsM
+         JxWTNbu3J1GSQJCAguU10Jnd7c6H20khPEoQsQw5ZQuXKra7/75dhWBWcoduJUV1aGYc
+         n9SD/0aG2i0yCwDKdXB6xi3hKE3ZEFmj1Y3bmyQNlVyIREKY7pkUa89wLDj2bYd1NZWb
+         mY6HCH6S71n7YrITX+RFTtU/IO2jqGam7bYneYi9r15mOomOXG4Oqz7xheZbMNQCcXA4
+         ws5g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=UahEbtdXwZNAU+KwZPeJAGjgE2lYz0Dt6XczqvKwLUQ=;
-        b=gR7xirBoGajf2YJ7pRkwyhjZma8wzARksbsFnhnEybO6l8QR8VvgD3s9Rwje0RR/cY
-         HkyRPeCLNI86eOLwlUaHFduv8KOyZRNCPFXQDj0dt4bAGLbKwi9XUBToaPXobysVN81d
-         /a8u3oTA+5l7BnUNS4EfzHlSPSWwuSoyUzScLwQuXJbYAHn2dCeAYQWA68ZHXpojBWMN
-         UGJ3wDKGY1yMBcqZ8ZnsiVeZZxtcaYQ4iHyJ2XbiPNS/0IAeG895DMHza3tNx65UfJrw
-         wL2ANl8rFczpj3BLbicUIFM5vtLfenTxCXZocz16oZb7VZ6ammCIwOhbJ1RqviMz3Lnn
-         WrIQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=r2R3bvPPA7z+Zk5Z5T/eRlqnLR0fPm6kMZLrDw0T1mM=;
+        b=ysXLX2I6w+HGrMCNkeQy2TIzz1MjmrV2my1Wli8qRODVjW0IeAHQetSClQED/uB4P4
+         qM6HSfb89N2MhLznbqe9tJ7/zmvPj6FkF3J91UGWvBj/BiQH0sHYnJzTWybtSLfMVkbp
+         voX5NXmf6rQyXj84yFM1thQboBj8HPpS57SNQTnbtXXdQ0DWlaXfJZOPb6MvlLAAbzby
+         lcKJCmWI84LANOKPTXp2nStP121NbbMGoGW5W5doloBYfpyjr+zKIGXTd8eySEykk+mn
+         6HfYVHVRtpGxDZDBVXP2qVwPIVBZvBSL8aoKrVhoANFlGS/Y6WnLxY56cbPZk0XUZDVc
+         KXJA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@axtens.net header.s=google header.b=fzL9e9NG;
-       spf=pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=dja@axtens.net
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n3sor28700942pgn.56.2019.07.29.07.21.30
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=VDIZSjBO;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id c31si92921221jaa.76.2019.07.29.07.24.56
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 29 Jul 2019 07:21:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@axtens.net header.s=google header.b=fzL9e9NG;
-       spf=pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=dja@axtens.net
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=axtens.net; s=google;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=UahEbtdXwZNAU+KwZPeJAGjgE2lYz0Dt6XczqvKwLUQ=;
-        b=fzL9e9NGg4Qjr2J3UpWztGNQR57AulF/3UQEiR1a9Md80VZwZTIn9TRRubWlaS/Hl4
-         LOCeBjBaUrIgk2w0oLdXnYFC/x89KdBH/EUp4SGo0wf7qML0Q1zbmstYKKVoAfXixnvH
-         1UwH3wAFUDqMh2FnvB0ouTVLkQFq2ybEtsObY=
-X-Google-Smtp-Source: APXvYqzsTWziV3uGfQSZhld3lbCm5Hl80o2+zdoas9rkn9wivbK+frNOV0FOh9c9mgtrfH4egyHamQ==
-X-Received: by 2002:a63:2026:: with SMTP id g38mr98776818pgg.172.1564410090185;
-        Mon, 29 Jul 2019 07:21:30 -0700 (PDT)
-Received: from localhost (ppp167-251-205.static.internode.on.net. [59.167.251.205])
-        by smtp.gmail.com with ESMTPSA id s66sm65997285pfs.8.2019.07.29.07.21.28
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 29 Jul 2019 07:21:29 -0700 (PDT)
-From: Daniel Axtens <dja@axtens.net>
-To: kasan-dev@googlegroups.com,
-	linux-mm@kvack.org,
-	x86@kernel.org,
-	aryabinin@virtuozzo.com,
-	glider@google.com,
-	luto@kernel.org,
-	linux-kernel@vger.kernel.org,
-	mark.rutland@arm.com,
-	dvyukov@google.com
-Cc: Daniel Axtens <dja@axtens.net>
-Subject: [PATCH v2 3/3] x86/kasan: support KASAN_VMALLOC
-Date: Tue, 30 Jul 2019 00:21:08 +1000
-Message-Id: <20190729142108.23343-4-dja@axtens.net>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190729142108.23343-1-dja@axtens.net>
-References: <20190729142108.23343-1-dja@axtens.net>
+        Mon, 29 Jul 2019 07:24:56 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=VDIZSjBO;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=r2R3bvPPA7z+Zk5Z5T/eRlqnLR0fPm6kMZLrDw0T1mM=; b=VDIZSjBOQQ5VujuzGXLUd8ztg
+	s9lZP8iQA6DasO0eCjfCdN66UHKmyiRi268O6wWJUP/0aANp/x59QPcYqoSJh4IQgpSRF/DL6KxWH
+	0kgwwmK2eRnOAE0i+uA7PqX2cxYVQVHKzmsRWBOClTrWQfNY4Q8lOsTlLHBoT0MAKh23KApH1NXDP
+	9wewptlleUm83XE3JiybClJJZMT0obX31Swo2M25QwiC+YOSR2hf83+aWTCGjpQYy0EgbryP7TBgU
+	cSenMrQzb/jwtG5VGK6iivMyfYv4imx8GubCaG31CtFlipADI9USL2jpugr46Sz83fOplbiTV39Ir
+	/bWQ4t3xA==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hs6a4-0002qo-N7; Mon, 29 Jul 2019 14:24:53 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 130FF20AFFEAD; Mon, 29 Jul 2019 16:24:50 +0200 (CEST)
+Date: Mon, 29 Jul 2019 16:24:50 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Waiman Long <longman@redhat.com>
+Cc: Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+	Phil Auld <pauld@redhat.com>, riel@surriel.com, luto@kernel.org,
+	mathieu.desnoyers@efficios.com
+Subject: [PATCH] sched: Clean up active_mm reference counting
+Message-ID: <20190729142450.GE31425@hirez.programming.kicks-ass.net>
+References: <20190727171047.31610-1-longman@redhat.com>
+ <20190729085235.GT31381@hirez.programming.kicks-ass.net>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190729085235.GT31381@hirez.programming.kicks-ass.net>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In the case where KASAN directly allocates memory to back vmalloc
-space, don't map the early shadow page over it.
+On Mon, Jul 29, 2019 at 10:52:35AM +0200, Peter Zijlstra wrote:
+> On Sat, Jul 27, 2019 at 01:10:47PM -0400, Waiman Long wrote:
 
-We prepopulate pgds/p4ds for the range that would otherwise be empty.
-This is required to get it synced to hardware on boot, allowing the
-lower levels of the page tables to be filled dynamically.
-
-Acked-by: Dmitry Vyukov <dvyukov@google.com>
-Signed-off-by: Daniel Axtens <dja@axtens.net>
+> > diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+> > index 2b037f195473..923a63262dfd 100644
+> > --- a/kernel/sched/core.c
+> > +++ b/kernel/sched/core.c
+> > @@ -3233,13 +3233,22 @@ context_switch(struct rq *rq, struct task_struct *prev,
+> >  	 * Both of these contain the full memory barrier required by
+> >  	 * membarrier after storing to rq->curr, before returning to
+> >  	 * user-space.
+> > +	 *
+> > +	 * If mm is NULL and oldmm is dying (!owner), we switch to
+> > +	 * init_mm instead to make sure that oldmm can be freed ASAP.
+> >  	 */
+> > -	if (!mm) {
+> > +	if (!mm && !mm_dying(oldmm)) {
+> >  		next->active_mm = oldmm;
+> >  		mmgrab(oldmm);
+> >  		enter_lazy_tlb(oldmm, next);
+> > -	} else
+> > +	} else {
+> > +		if (!mm) {
+> > +			mm = &init_mm;
+> > +			next->active_mm = mm;
+> > +			mmgrab(mm);
+> > +		}
+> >  		switch_mm_irqs_off(oldmm, mm, next);
+> > +	}
+> >  
+> >  	if (!prev->mm) {
+> >  		prev->active_mm = NULL;
+> 
+> Bah, I see we _still_ haven't 'fixed' that code. And you're making an
+> even bigger mess of it.
+> 
+> Let me go find where that cleanup went.
 
 ---
+Subject: sched: Clean up active_mm reference counting
+From: Peter Zijlstra <peterz@infradead.org>
+Date: Mon Jul 29 16:05:15 CEST 2019
 
-v2: move from faulting in shadow pgds to prepopulating
+The current active_mm reference counting is confusing and sub-optimal.
+
+Rewrite the code to explicitly consider the 4 separate cases:
+
+    user -> user
+
+	When switching between two user tasks, all we need to consider
+	is switch_mm().
+
+    user -> kernel
+
+	When switching from a user task to a kernel task (which
+	doesn't have an associated mm) we retain the last mm in our
+	active_mm. Increment a reference count on active_mm.
+
+  kernel -> kernel
+
+	When switching between kernel threads, all we need to do is
+	pass along the active_mm reference.
+
+  kernel -> user
+
+	When switching between a kernel and user task, we must switch
+	from the last active_mm to the next mm, hoping of course that
+	these are the same. Decrement a reference on the active_mm.
+
+The code keeps a different order, because as you'll note, both 'to
+user' cases require switch_mm().
+
+And where the old code would increment/decrement for the 'kernel ->
+kernel' case, the new code observes this is a neutral operation and
+avoids touching the reference count.
+
+Cc: riel@surriel.com
+Cc: luto@kernel.org
+Signed-off-by: Peter Zijlstra (Intel) <peterz@infradead.org>
 ---
- arch/x86/Kconfig            |  1 +
- arch/x86/mm/kasan_init_64.c | 61 +++++++++++++++++++++++++++++++++++++
- 2 files changed, 62 insertions(+)
+ kernel/sched/core.c |   49 ++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 30 insertions(+), 19 deletions(-)
 
-diff --git a/arch/x86/Kconfig b/arch/x86/Kconfig
-index 222855cc0158..40562cc3771f 100644
---- a/arch/x86/Kconfig
-+++ b/arch/x86/Kconfig
-@@ -134,6 +134,7 @@ config X86
- 	select HAVE_ARCH_JUMP_LABEL
- 	select HAVE_ARCH_JUMP_LABEL_RELATIVE
- 	select HAVE_ARCH_KASAN			if X86_64
-+	select HAVE_ARCH_KASAN_VMALLOC		if X86_64
- 	select HAVE_ARCH_KGDB
- 	select HAVE_ARCH_MMAP_RND_BITS		if MMU
- 	select HAVE_ARCH_MMAP_RND_COMPAT_BITS	if MMU && COMPAT
-diff --git a/arch/x86/mm/kasan_init_64.c b/arch/x86/mm/kasan_init_64.c
-index 296da58f3013..2f57c4ddff61 100644
---- a/arch/x86/mm/kasan_init_64.c
-+++ b/arch/x86/mm/kasan_init_64.c
-@@ -245,6 +245,52 @@ static void __init kasan_map_early_shadow(pgd_t *pgd)
- 	} while (pgd++, addr = next, addr != end);
- }
+--- a/kernel/sched/core.c
++++ b/kernel/sched/core.c
+@@ -3214,12 +3214,8 @@ static __always_inline struct rq *
+ context_switch(struct rq *rq, struct task_struct *prev,
+ 	       struct task_struct *next, struct rq_flags *rf)
+ {
+-	struct mm_struct *mm, *oldmm;
+-
+ 	prepare_task_switch(rq, prev, next);
  
-+static void __init kasan_shallow_populate_p4ds(pgd_t *pgd,
-+		unsigned long addr,
-+		unsigned long end,
-+		int nid)
-+{
-+	p4d_t *p4d;
-+	unsigned long next;
-+	void *p;
+-	mm = next->mm;
+-	oldmm = prev->active_mm;
+ 	/*
+ 	 * For paravirt, this is coupled with an exit in switch_to to
+ 	 * combine the page table reload and the switch backend into
+@@ -3228,22 +3224,37 @@ context_switch(struct rq *rq, struct tas
+ 	arch_start_context_switch(prev);
+ 
+ 	/*
+-	 * If mm is non-NULL, we pass through switch_mm(). If mm is
+-	 * NULL, we will pass through mmdrop() in finish_task_switch().
+-	 * Both of these contain the full memory barrier required by
+-	 * membarrier after storing to rq->curr, before returning to
+-	 * user-space.
++	 * kernel -> kernel   lazy + transfer active
++	 *   user -> kernel   lazy + mmgrab() active
++	 *
++	 * kernel ->   user   switch + mmdrop() active
++	 *   user ->   user   switch
+ 	 */
+-	if (!mm) {
+-		next->active_mm = oldmm;
+-		mmgrab(oldmm);
+-		enter_lazy_tlb(oldmm, next);
+-	} else
+-		switch_mm_irqs_off(oldmm, mm, next);
+-
+-	if (!prev->mm) {
+-		prev->active_mm = NULL;
+-		rq->prev_mm = oldmm;
++	if (!next->mm) {                                // to kernel
++		enter_lazy_tlb(prev->active_mm, next);
 +
-+	p4d = p4d_offset(pgd, addr);
-+	do {
-+		next = p4d_addr_end(addr, end);
-+
-+		if (p4d_none(*p4d)) {
-+			p = early_alloc(PAGE_SIZE, nid, true);
-+			p4d_populate(&init_mm, p4d, p);
-+		}
-+	} while (p4d++, addr = next, addr != end);
-+}
-+
-+static void __init kasan_shallow_populate_pgds(void *start, void *end)
-+{
-+	unsigned long addr, next;
-+	pgd_t *pgd;
-+	void *p;
-+	int nid = early_pfn_to_nid((unsigned long)start);
-+
-+	addr = (unsigned long)start;
-+	pgd = pgd_offset_k(addr);
-+	do {
-+		next = pgd_addr_end(addr, (unsigned long)end);
-+
-+		if (pgd_none(*pgd)) {
-+			p = early_alloc(PAGE_SIZE, nid, true);
-+			pgd_populate(&init_mm, pgd, p);
-+		}
-+
++		next->active_mm = prev->active_mm;
++		if (prev->mm)                           // from user
++			mmgrab(prev->active_mm);
++		else
++			prev->active_mm = NULL;
++	} else {                                        // to user
 +		/*
-+		 * we need to populate p4ds to be synced when running in
-+		 * four level mode - see sync_global_pgds_l4()
++		 * sys_membarrier() requires an smp_mb() between setting
++		 * rq->curr and returning to userspace.
++		 *
++		 * The below provides this either through switch_mm(), or in
++		 * case 'prev->active_mm == next->mm' through
++		 * finish_task_switch()'s mmdrop().
 +		 */
-+		kasan_shallow_populate_p4ds(pgd, addr, next, nid);
-+	} while (pgd++, addr = next, addr != (unsigned long)end);
-+}
 +
++		switch_mm_irqs_off(prev->active_mm, next->mm, next);
 +
- #ifdef CONFIG_KASAN_INLINE
- static int kasan_die_handler(struct notifier_block *self,
- 			     unsigned long val,
-@@ -352,9 +398,24 @@ void __init kasan_init(void)
- 	shadow_cpu_entry_end = (void *)round_up(
- 			(unsigned long)shadow_cpu_entry_end, PAGE_SIZE);
++		if (!prev->mm) {                        // from kernel
++			/* will mmdrop() in finish_task_switch(). */
++			rq->prev_mm = prev->active_mm;
++			prev->active_mm = NULL;
++		}
+ 	}
  
-+	/*
-+	 * If we're in full vmalloc mode, don't back vmalloc space with early
-+	 * shadow pages. Instead, prepopulate pgds/p4ds so they are synced to
-+	 * the global table and we can populate the lower levels on demand.
-+	 */
-+#ifdef CONFIG_KASAN_VMALLOC
-+	kasan_shallow_populate_pgds(
-+		kasan_mem_to_shadow((void *)PAGE_OFFSET + MAXMEM),
-+		kasan_mem_to_shadow((void *)VMALLOC_END));
-+
-+	kasan_populate_early_shadow(
-+		kasan_mem_to_shadow((void *)VMALLOC_END + 1),
-+		shadow_cpu_entry_begin);
-+#else
- 	kasan_populate_early_shadow(
- 		kasan_mem_to_shadow((void *)PAGE_OFFSET + MAXMEM),
- 		shadow_cpu_entry_begin);
-+#endif
- 
- 	kasan_populate_shadow((unsigned long)shadow_cpu_entry_begin,
- 			      (unsigned long)shadow_cpu_entry_end, 0);
--- 
-2.20.1
+ 	rq->clock_update_flags &= ~(RQCF_ACT_SKIP|RQCF_REQ_SKIP);
 
