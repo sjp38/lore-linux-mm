@@ -2,149 +2,147 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E144C7618B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 15:37:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B39FFC433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 15:38:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 06D3C2070D
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 15:37:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06D3C2070D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 7885E2067D
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 15:38:30 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="USrawQ6/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7885E2067D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A92C28E0003; Mon, 29 Jul 2019 11:37:50 -0400 (EDT)
+	id 0CEA28E0006; Mon, 29 Jul 2019 11:38:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A431E8E0002; Mon, 29 Jul 2019 11:37:50 -0400 (EDT)
+	id 07FEA8E0002; Mon, 29 Jul 2019 11:38:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 90AB18E0003; Mon, 29 Jul 2019 11:37:50 -0400 (EDT)
+	id EB0C28E0006; Mon, 29 Jul 2019 11:38:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EAE48E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 11:37:50 -0400 (EDT)
-Received: by mail-vk1-f199.google.com with SMTP id b85so26622343vke.22
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 08:37:50 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B3BCD8E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 11:38:29 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id 145so38715004pfw.16
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 08:38:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:organization:message-id:date:user-agent
-         :mime-version:in-reply-to:content-transfer-encoding:content-language;
-        bh=gC8MExgYn0xfQlLGf7vnCj4KnLvnunZ3t62f8U+o32s=;
-        b=ktt1sAtNFEaMc/5DD1rj09xxCGU2jYvY9IGCEGiHZdz2mcwouDVEoGRz/bH1wVrqVk
-         udrd9++yJAGOw2eCH5VRtqkfIcgto2T8LHfLkGvVbSul2FBK8PZ9XRKfqiRMeFlygBTL
-         b82sth9uBWvGqzod/RGo8JeltdmEzWmPkfus6q9p8wdOJBC6dg8Np+XXLssFAuv6aE4R
-         38ho/uZvMlRodzq2T/tebmmJOMVNL+bmWdSUJ6zkfHA7VFhkOzpLHDfNP5ZXDMncIzZ4
-         a7DkJ6oWRPLHrqKhZYRzj3g9zZmj99hLw+aPRc2MdTMS1xPjzOsdp0R6rlTds2+K6bx6
-         7gfg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUq1rU63YbHxEhRJYjzFIVwEJ7JhMB9CrqW+WNJcMmHp6Peutfl
-	Fv42u45xM0OzGYPSeGuH0NtfWVkuEhz8hxfVrGEyXBfUs6f21LfL1O5dFdJCklF+uZRwjmcgOPZ
-	5j0qNWZlyi4X/sz43laDnQO8vgAfKf9EQT5vMEsamut6d2efAIStSVw2RqZkWe7KgWw==
-X-Received: by 2002:a67:bb03:: with SMTP id m3mr17798305vsn.84.1564414670172;
-        Mon, 29 Jul 2019 08:37:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzdgTNj5BBODyCCzU0zjNL5UZvS+TiGJPq0LjnYDCv1L4IImNIy/UX5IPVgv3TuTQMvEeEl
-X-Received: by 2002:a67:bb03:: with SMTP id m3mr17798249vsn.84.1564414669679;
-        Mon, 29 Jul 2019 08:37:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564414669; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=kTRobX83JJeBQVwIveyy0p4dpxyy2pND5viOSWqwu2A=;
+        b=PUHDQYArXR2vqIgDEzMOQBgOyr2pteNY1dzBTpsnAVJv2falo10pErtmT1UeC4pYp2
+         ebpkmMgYU6hdP+oWCzC8GYK2pWwUENl5LdloGWirf5ya74H1JMU4w1kk4b/wCCniP7P9
+         ZJtOHrS7Xwt4pmOBrglNcpGzp+OXmdFW4VqA2ZrW6U24rz+jmNHZS1AKqeZGzQ1YRQQC
+         XsABxoIMxO4q0ZVvcKtzQLHJxKZgAoFgz4Q6mRpA7BI+zqShN8uo2OHh6Nnu2YRqc4WX
+         EUhnTPvysaud5sOmgTNYufvmUzqX3iECotG0UJear3go3jtAdCvQbz6O0+6HGkQBP+/i
+         PTyQ==
+X-Gm-Message-State: APjAAAV0MHSgDB+gjK9mEJR8CMLAzqeT8XBxrdXFOWnzFc6m7koF9rrz
+	27SIAaH06154KbFT0mpa+9XaBmRh/eqL1Vp15Xf7a88kk6pf/Qsl00ik0BWOFRdneW/AAqY6lmU
+	JknLuAuUiJVfiSrSl4fCbEF698ZDJPeqJwt1siGTZI9mg+rgUNs+9DGyiTp4kf6wpjg==
+X-Received: by 2002:a63:9e56:: with SMTP id r22mr48037540pgo.221.1564414709137;
+        Mon, 29 Jul 2019 08:38:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyhakKOEdIx1WRXVNPRkXyc7Kl9pxpBibTLB4PGoTnZ+srZ5441rjZ5sOKtrOI37nKsrhCi
+X-Received: by 2002:a63:9e56:: with SMTP id r22mr48037498pgo.221.1564414708476;
+        Mon, 29 Jul 2019 08:38:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564414708; cv=none;
         d=google.com; s=arc-20160816;
-        b=GfKlTuGpaczlgDfOaXY3iNv+xA7BUlL2WnL3n55BSSjZE2+HrmWOUXvr2UCi1d92yM
-         Miv3eP27Pxafj//6p5ETR8H0+Co6XKw/BI4f9UPbsH4vCVd0+C4iR9zMJ5Z6jfqyBwup
-         3gfMIJRx8HEKJWCUBRG5x4nocaN3TXx5icZeDRs058tULZM0Rc2rlizXeyKNLBkihdPD
-         8v/L9nGGLYw7L06Qx1aqxwccRd6SsOgToZKFFXg11QOKYA4AmQOjD9D3U2PrYYIzlCMX
-         rI2W4x1w5gaKAu5E/1Q671L6jxm082NClD2qyAvTuzPd5SRgtk44wmq1qdpLyQnujxY0
-         qA2A==
+        b=JZN56eyik1bF/eknUJ6FfMI4cy/oH52fR1mVqLyzOFM/5Q/nJkO7cFXm6ykWjo76QO
+         i65RDkaiUVUMSWKvCQt7+aGYjhMapGuR1U3fVly0CowcnfcPed9egWbfX5ZNoJXgx3tn
+         5/7WQkOk9tArZbLdcyIfDyFvNn7LeGGmt6/taoszpSUYxo5jK/+QtwijKbTxSReCtdu7
+         QuwTKdXwNpLLXQX5Lqr+PUBS3yY5/nA/1RSsXwEKxpr/oSXWjhuDmYuscJTNLsmkp56z
+         yeJBmmly9rbVI3IVAce3VmFB3U3Y6XKBg0dts8+yiaF7FixAiHIRFtLA3mJ/mgNRuF76
+         v4zA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:cc:to
-         :subject;
-        bh=gC8MExgYn0xfQlLGf7vnCj4KnLvnunZ3t62f8U+o32s=;
-        b=nB2A90NsQ7QOcnwxpZFDXcFmauGiH//dhGv1T9EShSSi9rS/ZZHH9gHwo1262HBs44
-         uymIqAHR00kP0giCDsClIIHcttSiDyht/wOuVNI4VqDgdS3NCWuccIdvYicVRU9r6ii/
-         VQ5n8/gpCQpqoyFMezbYV11yxkx1qT6WCp7K3r+Bz7R1RJLj3P6IH9KExNtaUEmDTbxT
-         CxNHxroq9Rv8vO5+LYLh12ToRcHYkNOtu1xBXbQaxeKrfapv38d32XAqkv+fGk6UsNe3
-         lOgzdBEJiBPRvuHNMLBYJfIo/cljVjFyG0Ej9Tm5BkSMUyIggQAbBb8Ju2OK00+i8nNE
-         ensQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=kTRobX83JJeBQVwIveyy0p4dpxyy2pND5viOSWqwu2A=;
+        b=DUT/DpU03UOfnDRgU6+WRQVCi+GmHCOADtumVduu89MWciipm0Op4m8Loy8BjrgoC1
+         ojF1FBGpDSBvTi3wc28kDCxwIJveLu4VhW3VMscGTo6zTi/BzP1JyMPEOe1imGUXQKQh
+         5LTPhkg918LGmkr9Uad9fPBEJQ4I8QKurPQJmkimCYAUiOCcSyQpQZg1iFEys7pszsgn
+         fCoG1AOE1wGJpy528zMNCk3AS7n/IyshMLwCiTNY/T2eF6/+da+tZ1zfRTdDPkK+LLzw
+         bYFh3zQpT/dhus8aSWOniPeQYw6OGs8NawNj8F+ZPm5z7x+gJEzY4Cv+hHDdJ884XVBQ
+         vLEw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 45si13985253uan.40.2019.07.29.08.37.49
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="USrawQ6/";
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id l6si3199277pgp.391.2019.07.29.08.38.28
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jul 2019 08:37:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 29 Jul 2019 08:38:28 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id DE805300CA4D;
-	Mon, 29 Jul 2019 15:37:48 +0000 (UTC)
-Received: from llong.remote.csb (dhcp-17-160.bos.redhat.com [10.18.17.160])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 11B105C1A1;
-	Mon, 29 Jul 2019 15:37:47 +0000 (UTC)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="USrawQ6/";
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=kTRobX83JJeBQVwIveyy0p4dpxyy2pND5viOSWqwu2A=; b=USrawQ6/HCifS+n9zc9f7rRgp
+	SS5hThycZpx1nxHNxbRjjHd58Mq1C1l4w9QEKwwQNaiogsS9aukVbw35Ie8ufchGdx5QtTCUwFcl3
+	FfwbK5zDhfFPOG9/uFIYxpbEjq5att4KMnfsyy6QymNjukfSwlA81zJW06X6fuXkyw7GTf3MgE/kA
+	zTAuXCQPr7aW2ZsXCalOGcV2p+X5RugQ0DbW7hKyFEYY5E78e/SGZcaC66r+TSJ8jNyEz/cfCvgHI
+	qo6m3Yc0CFtAMw4MfaFMG+zOuLdhKL8rgV3QbYm+hMBMow6/yIR4aMeSHHAm+RQP9Alg2UCMNJ/r6
+	cGy0ZFNJQ==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hs7jH-0001Zh-St; Mon, 29 Jul 2019 15:38:28 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 4705420AFFEAE; Mon, 29 Jul 2019 17:38:25 +0200 (CEST)
+Date: Mon, 29 Jul 2019 17:38:25 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Waiman Long <longman@redhat.com>
+Cc: Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+	Phil Auld <pauld@redhat.com>, Will Deacon <will.deacon@kernel.org>,
+	Rik van Riel <riel@surriel.com>, Andy Lutomirski <luto@kernel.org>
 Subject: Re: [PATCH v2] sched/core: Don't use dying mm as active_mm of
  kthreads
-To: Peter Zijlstra <peterz@infradead.org>
-Cc: Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
- Phil Auld <pauld@redhat.com>, Rik van Riel <riel@surriel.com>,
- Andy Lutomirski <luto@kernel.org>
+Message-ID: <20190729153825.GI31398@hirez.programming.kicks-ass.net>
 References: <20190727171047.31610-1-longman@redhat.com>
  <20190729085235.GT31381@hirez.programming.kicks-ass.net>
- <4cd17c3a-428c-37a0-b3a2-04e6195a61d5@redhat.com>
- <20190729150338.GF31398@hirez.programming.kicks-ass.net>
-From: Waiman Long <longman@redhat.com>
-Organization: Red Hat
-Message-ID: <c2dfc884-b3e1-6fb3-b05f-2b1f299853f4@redhat.com>
-Date: Mon, 29 Jul 2019 11:37:47 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+ <20190729142756.GF31425@hirez.programming.kicks-ass.net>
+ <2bc722b9-3eff-6d99-4ee7-1f4cab8b6c21@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <20190729150338.GF31398@hirez.programming.kicks-ass.net>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Mon, 29 Jul 2019 15:37:48 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2bc722b9-3eff-6d99-4ee7-1f4cab8b6c21@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/29/19 11:03 AM, Peter Zijlstra wrote:
-> On Mon, Jul 29, 2019 at 10:51:51AM -0400, Waiman Long wrote:
->> On 7/29/19 4:52 AM, Peter Zijlstra wrote:
->>> On Sat, Jul 27, 2019 at 01:10:47PM -0400, Waiman Long wrote:
->>>> It was found that a dying mm_struct where the owning task has exited
->>>> can stay on as active_mm of kernel threads as long as no other user
->>>> tasks run on those CPUs that use it as active_mm. This prolongs the
->>>> life time of dying mm holding up memory and other resources like swap
->>>> space that cannot be freed.
->>> Sure, but this has been so 'forever', why is it a problem now?
->> I ran into this probem when running a test program that keeps on
->> allocating and touch memory and it eventually fails as the swap space is
->> full. After the failure, I could not rerun the test program again
->> because the swap space remained full. I finally track it down to the
->> fact that the mm stayed on as active_mm of kernel threads. I have to
->> make sure that all the idle cpus get a user task to run to bump the
->> dying mm off the active_mm of those cpus, but this is just a workaround,
->> not a solution to this problem.
-> The 'sad' part is that x86 already switches to init_mm on idle and we
-> only keep the active_mm around for 'stupid'.
->
-> Rik and Andy were working on getting that 'fixed' a while ago, not sure
-> where that went.
+On Mon, Jul 29, 2019 at 11:22:16AM -0400, Waiman Long wrote:
+> On 7/29/19 10:27 AM, Peter Zijlstra wrote:
 
-Good, perhaps the right thing to do is for the idle->kernel case to keep
-init_mm as the active_mm instead of reuse whatever left behind the last
-time around.
+> > Also; why then not key off that owner tracking to free the resources
+> > (and leave the struct mm around) and avoid touching this scheduling
+> > hot-path ?
+> 
+> The resources are pinned by the reference count. Making a special case
+> will certainly mess up the existing code.
+> 
+> It is actually a problem for systems that are mostly idle. Only the
+> kernel->kernel case needs to be updated. If the CPUs isn't busy running
+> user tasks, a little bit more overhead shouldn't really hurt IMHO.
 
-Cheers,
-Longman
+But when you cannot find a new owner; you can start to strip mm_struct.
+That is, what's stopping you from freeing swap reservations when that
+happens?
+
+That is; I think the moment mm_users drops to 0, you can destroy the
+actual addres space. But you have to keep mm_struct around until
+mm_count goes to 0.
+
+This is going on the comments with mmget() and mmgrab(); they forever
+confuse me.
 
