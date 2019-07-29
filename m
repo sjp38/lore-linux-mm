@@ -6,114 +6,117 @@ X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B39FFC433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 15:38:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B336C433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 15:44:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7885E2067D
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 15:38:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 50DDC2067D
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 15:44:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="USrawQ6/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7885E2067D
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="xtfjplAv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50DDC2067D
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0CEA28E0006; Mon, 29 Jul 2019 11:38:30 -0400 (EDT)
+	id E366E8E0008; Mon, 29 Jul 2019 11:44:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 07FEA8E0002; Mon, 29 Jul 2019 11:38:30 -0400 (EDT)
+	id DE7AE8E0002; Mon, 29 Jul 2019 11:44:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EB0C28E0006; Mon, 29 Jul 2019 11:38:29 -0400 (EDT)
+	id CD6F98E0008; Mon, 29 Jul 2019 11:44:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B3BCD8E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 11:38:29 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id 145so38715004pfw.16
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 08:38:29 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 849238E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 11:44:26 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id g8so30286853wrw.2
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 08:44:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=kTRobX83JJeBQVwIveyy0p4dpxyy2pND5viOSWqwu2A=;
-        b=PUHDQYArXR2vqIgDEzMOQBgOyr2pteNY1dzBTpsnAVJv2falo10pErtmT1UeC4pYp2
-         ebpkmMgYU6hdP+oWCzC8GYK2pWwUENl5LdloGWirf5ya74H1JMU4w1kk4b/wCCniP7P9
-         ZJtOHrS7Xwt4pmOBrglNcpGzp+OXmdFW4VqA2ZrW6U24rz+jmNHZS1AKqeZGzQ1YRQQC
-         XsABxoIMxO4q0ZVvcKtzQLHJxKZgAoFgz4Q6mRpA7BI+zqShN8uo2OHh6Nnu2YRqc4WX
-         EUhnTPvysaud5sOmgTNYufvmUzqX3iECotG0UJear3go3jtAdCvQbz6O0+6HGkQBP+/i
-         PTyQ==
-X-Gm-Message-State: APjAAAV0MHSgDB+gjK9mEJR8CMLAzqeT8XBxrdXFOWnzFc6m7koF9rrz
-	27SIAaH06154KbFT0mpa+9XaBmRh/eqL1Vp15Xf7a88kk6pf/Qsl00ik0BWOFRdneW/AAqY6lmU
-	JknLuAuUiJVfiSrSl4fCbEF698ZDJPeqJwt1siGTZI9mg+rgUNs+9DGyiTp4kf6wpjg==
-X-Received: by 2002:a63:9e56:: with SMTP id r22mr48037540pgo.221.1564414709137;
-        Mon, 29 Jul 2019 08:38:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyhakKOEdIx1WRXVNPRkXyc7Kl9pxpBibTLB4PGoTnZ+srZ5441rjZ5sOKtrOI37nKsrhCi
-X-Received: by 2002:a63:9e56:: with SMTP id r22mr48037498pgo.221.1564414708476;
-        Mon, 29 Jul 2019 08:38:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564414708; cv=none;
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=qErB5hAyr+6D1ok8s8gYAwp7NlEM0ZUbJetryLu9lfI=;
+        b=NN7/xAmoLsonHcYqTBbA3NiMUY+uVrSNNdKGWJI31ItwkxEe/E2XqC+fz4XYPIW6Wz
+         LWhCIQhMRYEB2Cb5E1oznZstt1B9MfwFxSIDSzaAHKU7VbIBWQ8+Kj1ZBdNH2sE61HZh
+         juQZ8FIyJvw3fttz9hqmbc+Wn6W/Pr+Q1SA48531fpyowq3u4CTcwkx0ca2g/iBR27uH
+         2la2GbySGfuEB4A1paqx/du3Pq0vq3Yx0Y8ao1WzQXu2wInJ9pHff3W5hmcWUsN5m1qW
+         lMMb0rpBtNkBO+R2B0JCwaHaqTi+SX5Ld5yfG6sDXcspnZ1ip73rjXp4EXd2BveMVhFA
+         NAxg==
+X-Gm-Message-State: APjAAAU9kQX6R+5W9qdhD+7EfH1LUBPWfmJgdngZFTz3jiCTv3ON1Ivl
+	8qzL4ocCaGhNMosQg8cFDk94nk2o5BJtXCEVTWB1+lLaYkJ+Si0STsCR1C/riWj/1QFgMoEGnKn
+	2yOWeibcsIh4GY7L+m314kkCp4N8+w2FZoGP8hp1tLhnR+cqB4jYQAua/oYJ0x9WPPw==
+X-Received: by 2002:a1c:2015:: with SMTP id g21mr98247799wmg.33.1564415066122;
+        Mon, 29 Jul 2019 08:44:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxpvwwlAPWZKBwXILhNVSMtyRs/1m2m5+TEhi6wbuLiwXMqfoNatUsEQj/qauRurfn6Zaa5
+X-Received: by 2002:a1c:2015:: with SMTP id g21mr98247763wmg.33.1564415065414;
+        Mon, 29 Jul 2019 08:44:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564415065; cv=none;
         d=google.com; s=arc-20160816;
-        b=JZN56eyik1bF/eknUJ6FfMI4cy/oH52fR1mVqLyzOFM/5Q/nJkO7cFXm6ykWjo76QO
-         i65RDkaiUVUMSWKvCQt7+aGYjhMapGuR1U3fVly0CowcnfcPed9egWbfX5ZNoJXgx3tn
-         5/7WQkOk9tArZbLdcyIfDyFvNn7LeGGmt6/taoszpSUYxo5jK/+QtwijKbTxSReCtdu7
-         QuwTKdXwNpLLXQX5Lqr+PUBS3yY5/nA/1RSsXwEKxpr/oSXWjhuDmYuscJTNLsmkp56z
-         yeJBmmly9rbVI3IVAce3VmFB3U3Y6XKBg0dts8+yiaF7FixAiHIRFtLA3mJ/mgNRuF76
-         v4zA==
+        b=FvlyjasTLPc0CcfwMsme/W6oasBE7gBqU/2zDjyXGG8O/48QCs5/h3KLbjWpbFFJdJ
+         ZRsn4BXc9pV1o1TypdfeTCl32NV7T0N8aKyKCjUEVIfv8sRggg03G4ETFpqbqp6OCGL9
+         vhCMZ5r07dUlSg6AQKyN9l6dmh5AD0izFtTB6vrlKlQO/J481d7hShPZwjnMGOZukbrG
+         WCuKgxNKNGxJroDEwb/6kznMwWNou9KQJFvPweCG+YJH7atNGFODQ5Y1ipK37JJZ9U2s
+         H2ySvxE3dCvVNEzzxh/0csfZZEvn3lJ1gHwq4N3QFvpv8yCA6b3EiEuxol99/VIh0gAS
+         r9Ww==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=kTRobX83JJeBQVwIveyy0p4dpxyy2pND5viOSWqwu2A=;
-        b=DUT/DpU03UOfnDRgU6+WRQVCi+GmHCOADtumVduu89MWciipm0Op4m8Loy8BjrgoC1
-         ojF1FBGpDSBvTi3wc28kDCxwIJveLu4VhW3VMscGTo6zTi/BzP1JyMPEOe1imGUXQKQh
-         5LTPhkg918LGmkr9Uad9fPBEJQ4I8QKurPQJmkimCYAUiOCcSyQpQZg1iFEys7pszsgn
-         fCoG1AOE1wGJpy528zMNCk3AS7n/IyshMLwCiTNY/T2eF6/+da+tZ1zfRTdDPkK+LLzw
-         bYFh3zQpT/dhus8aSWOniPeQYw6OGs8NawNj8F+ZPm5z7x+gJEzY4Cv+hHDdJ884XVBQ
-         vLEw==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=qErB5hAyr+6D1ok8s8gYAwp7NlEM0ZUbJetryLu9lfI=;
+        b=BrTDN798hoYAjPEqPfUd/A22CofirhSj1mKdwQU6gEaY9zxU5IBw9Ci6OFCjHFqwon
+         gncofZz8CrCFXp4Qclw+jMVuoCNlYKi2pLqKn9X+4vfDUAauwh75BLYaLPiIxLpBlD68
+         QeLtAko5hpVBg2kVOhXiM7ty4mS1Vc6MqVF3sV+mYv0EW8nFpsWf4xTdF5KQaGUAXrJx
+         6YSyLjz+XN6svVGC0prAlmkAinrfIQJVchm87MOnqfI3hrygXIFF+UGeSZIqGQVcepH7
+         0+aVUGDA7lBqkxAMWSYlCZspMVh0U21mf2nQgRTqKbGNQUdrunLTu4vy1EowJa5bSGeG
+         zniQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="USrawQ6/";
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id l6si3199277pgp.391.2019.07.29.08.38.28
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=xtfjplAv;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id m13si56912519wru.8.2019.07.29.08.44.25
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 29 Jul 2019 08:38:28 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        Mon, 29 Jul 2019 08:44:25 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="USrawQ6/";
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=peterz@infradead.org
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=xtfjplAv;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=kTRobX83JJeBQVwIveyy0p4dpxyy2pND5viOSWqwu2A=; b=USrawQ6/HCifS+n9zc9f7rRgp
-	SS5hThycZpx1nxHNxbRjjHd58Mq1C1l4w9QEKwwQNaiogsS9aukVbw35Ie8ufchGdx5QtTCUwFcl3
-	FfwbK5zDhfFPOG9/uFIYxpbEjq5att4KMnfsyy6QymNjukfSwlA81zJW06X6fuXkyw7GTf3MgE/kA
-	zTAuXCQPr7aW2ZsXCalOGcV2p+X5RugQ0DbW7hKyFEYY5E78e/SGZcaC66r+TSJ8jNyEz/cfCvgHI
-	qo6m3Yc0CFtAMw4MfaFMG+zOuLdhKL8rgV3QbYm+hMBMow6/yIR4aMeSHHAm+RQP9Alg2UCMNJ/r6
-	cGy0ZFNJQ==;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Transfer-Encoding:
+	Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
+	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=qErB5hAyr+6D1ok8s8gYAwp7NlEM0ZUbJetryLu9lfI=; b=xtfjplAvplgj8E7ZbGTMOZ/Xfe
+	X7BDyj9GfttyYNCU9AOypvshDqSYZTru04BNEExlfrvPcdD+e7aDw/83uj3n1uL0IuBhszUN3Hv49
+	7qjpvBxQKjlsU4TWhIRJqBjU8MFYrhHW58v0gf6gFRNqd6foy/7NCCxUMYtCbgFndhUpfR3JLo9fF
+	gt+Arzhzdkuu3ajbMxLZXv7xisD5kPPPqbJyM6A/eU639MecKRngik0KgdHmrd/GlusUrN4JeHkiD
+	OcbpYBeg+bDKZKPPAWXkhERkBsUe3pAHjVvwkhGjEVGGN0uqFIJNPy3mU8B2X2mpzpN+F3H6RzX26
+	7g5MHmfA==;
 Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hs7jH-0001Zh-St; Mon, 29 Jul 2019 15:38:28 +0000
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hs7p0-0003fc-8q; Mon, 29 Jul 2019 15:44:22 +0000
 Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 4705420AFFEAE; Mon, 29 Jul 2019 17:38:25 +0200 (CEST)
-Date: Mon, 29 Jul 2019 17:38:25 +0200
+	id CD26120AF2C00; Mon, 29 Jul 2019 17:44:19 +0200 (CEST)
+Date: Mon, 29 Jul 2019 17:44:19 +0200
 From: Peter Zijlstra <peterz@infradead.org>
-To: Waiman Long <longman@redhat.com>
-Cc: Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	Phil Auld <pauld@redhat.com>, Will Deacon <will.deacon@kernel.org>,
-	Rik van Riel <riel@surriel.com>, Andy Lutomirski <luto@kernel.org>
+To: Rik van Riel <riel@surriel.com>
+Cc: Waiman Long <longman@redhat.com>, Ingo Molnar <mingo@redhat.com>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Phil Auld <pauld@redhat.com>, Andy Lutomirski <luto@kernel.org>
 Subject: Re: [PATCH v2] sched/core: Don't use dying mm as active_mm of
  kthreads
-Message-ID: <20190729153825.GI31398@hirez.programming.kicks-ass.net>
+Message-ID: <20190729154419.GJ31398@hirez.programming.kicks-ass.net>
 References: <20190727171047.31610-1-longman@redhat.com>
  <20190729085235.GT31381@hirez.programming.kicks-ass.net>
- <20190729142756.GF31425@hirez.programming.kicks-ass.net>
- <2bc722b9-3eff-6d99-4ee7-1f4cab8b6c21@redhat.com>
+ <4cd17c3a-428c-37a0-b3a2-04e6195a61d5@redhat.com>
+ <20190729150338.GF31398@hirez.programming.kicks-ass.net>
+ <25cd74fcee33dfd0b9604a8d1612187734037394.camel@surriel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <2bc722b9-3eff-6d99-4ee7-1f4cab8b6c21@redhat.com>
+Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <25cd74fcee33dfd0b9604a8d1612187734037394.camel@surriel.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -121,28 +124,22 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 29, 2019 at 11:22:16AM -0400, Waiman Long wrote:
-> On 7/29/19 10:27 AM, Peter Zijlstra wrote:
+On Mon, Jul 29, 2019 at 11:28:04AM -0400, Rik van Riel wrote:
+> On Mon, 2019-07-29 at 17:03 +0200, Peter Zijlstra wrote:
+>=20
+> > The 'sad' part is that x86 already switches to init_mm on idle and we
+> > only keep the active_mm around for 'stupid'.
+>=20
+> Wait, where do we do that?
 
-> > Also; why then not key off that owner tracking to free the resources
-> > (and leave the struct mm around) and avoid touching this scheduling
-> > hot-path ?
-> 
-> The resources are pinned by the reference count. Making a special case
-> will certainly mess up the existing code.
-> 
-> It is actually a problem for systems that are mostly idle. Only the
-> kernel->kernel case needs to be updated. If the CPUs isn't busy running
-> user tasks, a little bit more overhead shouldn't really hurt IMHO.
+drivers/idle/intel_idle.c:              leave_mm(cpu);
+drivers/acpi/processor_idle.c:  acpi_unlazy_tlb(smp_processor_id());
 
-But when you cannot find a new owner; you can start to strip mm_struct.
-That is, what's stopping you from freeing swap reservations when that
-happens?
+> > Rik and Andy were working on getting that 'fixed' a while ago, not
+> > sure
+> > where that went.
+>=20
+> My lazy TLB stuff got merged last year.=20
 
-That is; I think the moment mm_users drops to 0, you can destroy the
-actual addres space. But you have to keep mm_struct around until
-mm_count goes to 0.
-
-This is going on the comments with mmget() and mmgrab(); they forever
-confuse me.
+Yes, but we never got around to getting rid of active_mm for x86, right?
 
