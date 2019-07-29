@@ -5,102 +5,103 @@ X-Spam-Level:
 X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EC97BC7618E
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 18:39:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 87473C433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 18:42:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 84CF2206BA
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 18:39:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 38C72206BA
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 18:42:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="tKzCUvFd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 84CF2206BA
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="IQmmqup/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38C72206BA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E77398E0003; Mon, 29 Jul 2019 14:39:09 -0400 (EDT)
+	id C51D58E0005; Mon, 29 Jul 2019 14:42:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E27B78E0002; Mon, 29 Jul 2019 14:39:09 -0400 (EDT)
+	id C02668E0002; Mon, 29 Jul 2019 14:42:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D16B48E0003; Mon, 29 Jul 2019 14:39:09 -0400 (EDT)
+	id AF0C88E0005; Mon, 29 Jul 2019 14:42:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B13D58E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 14:39:09 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id x24so68432878ioh.16
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 11:39:09 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 8F03C8E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 14:42:22 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id p12so68427305iog.19
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 11:42:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
          :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=1FwMHPlbmAPxJQ/mJ/56Fjrh96L8HY/RcidjTcs4/fk=;
-        b=lObq+7mODvrt0xedTPY+O6apeTW7akFPvTqcaWDMA3FZ/lqd3RmUvBIFBQS1jkpElZ
-         1w2f2pcovOQ/gyMqZWM42Sz9HGg2Mdh9fLUYma31RQYN0oQP7hmx6uYEKgfieh6RAl7N
-         tPBOhMxSg+txjhBEQf3VKOgV2hUSKd6oTN49anAaJYZCVU8ScP3Z5/Kcvq8/sLeF7iBb
-         PZ9birJDZw/tHbMsRhxr3ukgMn4zNBYh/8alRLAKK5IswlTtYPm2hhBjhSuSmc31SNV4
-         HwMLNmEtV/9tBTFJfcJztEswUKoS05EdwuZDxJkfZOb+IahVbU2VvijATUyWkKH6vUnK
-         m8mQ==
-X-Gm-Message-State: APjAAAUX1/tteCTTJJYvQebG0+uM3m073iqVlAqTjWyGurZH9hjSe5Es
-	FxrD7Yf0btttwyaXMoInUz/ws7GT1wvm9xwVl2Ja/DSBvfFw/B99xu2dzBPAV0X4tAyOShltMzl
-	6lWmtqSoJVWMlx1afW+dsfKMw1IVHK9eZntS0scTQuGbWZzTiZwHD2pVhLL7K5u3GRA==
-X-Received: by 2002:a02:b68f:: with SMTP id i15mr85293374jam.107.1564425549444;
-        Mon, 29 Jul 2019 11:39:09 -0700 (PDT)
-X-Received: by 2002:a02:b68f:: with SMTP id i15mr85293317jam.107.1564425548628;
-        Mon, 29 Jul 2019 11:39:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564425548; cv=none;
+        bh=3tfpxcMIOawO8s0nF6u5AxpRiYOClgINgvc5ma6ttZw=;
+        b=pO+YuJehuXqK7tuP3s8bk3H58PqB24/rn9nAok2i90rq+p08qY+1sXap100lfI2wpW
+         tcF6Q5Ru95k4P4QRO2oNuTeap9i1RG6Wtbco7Ec+8bAScfbofXSq0Rj522yB+wmRVxpD
+         hKtL69a0Iq5jk8bV7OvRAX5yYSN9LXFNsrQlRp59lAnOorCUORbcW/AfQr8nBNoLC1cT
+         fnVZYPeeoruqlDYFRjhaJW7qYY5O2W0Jzi4vfHiGvOSmFtoBmhUM+Ksp2WjWhZiWxJPj
+         linTM1/Irdug4ktzzoR7OkLU1Q5NQUGBxInD80S7pUGCseXRtLbEkL4YscfddXddBut2
+         3Uww==
+X-Gm-Message-State: APjAAAWaWrjAnBMy0CLtXY0jNn77j7HkSooo6IJem2ziviJIWMG6nJi0
+	d4q7bBYC8Pw0T5hdDgCM8mzkxftt/Kbji69Tgwicy2+RuUit3wJOGu027Bm6Rr+49B+MNBLcYqX
+	q2MzSrr+ADxdoLgT4EuVi91EW6hKN4KXyQsPoJ5YSFA9XW7XPfCdqC6xHA6SO+/C6Tw==
+X-Received: by 2002:a5d:94d0:: with SMTP id y16mr64142128ior.123.1564425742366;
+        Mon, 29 Jul 2019 11:42:22 -0700 (PDT)
+X-Received: by 2002:a5d:94d0:: with SMTP id y16mr64142097ior.123.1564425741712;
+        Mon, 29 Jul 2019 11:42:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564425741; cv=none;
         d=google.com; s=arc-20160816;
-        b=b/04TQVGVk02aZsCH80j53LlKvAHDCJeLdJDBltsYoU+C5V9FEs9Zd2euUafMT6j/t
-         1Fmdk4zVZZVWO8RcaC62k8Sy7fsXPbhLGLSWbZBIwhFx0ZVSxe3yUAW9SpkYxtCNXV2S
-         7it2MjbYcqBGXcgTg2k9xlvPnQc3jLhVdFB58etykeESHEU+PrOBec9R3yqkp4qJbgY9
-         GtSVxJrRy8D8egpxjOYz+1NswQjXKn3/DKiFpb6w5CEK4uMtjTFJAzCtNedUC/fiWMPu
-         u52kHzdHo4/hFqKFWGE7UQY6jtD5/krU0ZnDrKds/pLjlICfo/pNWAW8Fh6qmGF8IsAn
-         /UCA==
+        b=EHt1YxfJvLThwm0kPsR/MvdJ3urb+ncy5hMM3omSi5h140WRqaO5nlWwaXvlqNobDj
+         vz+0+LYjFbxcmKZtpkRJ8Ui8JI9mpuYintYlw1745FugmB3FfkR7Cw1QvPxECidZQao9
+         B9d+mRgIKzgHhbOAfHkrPSx2G+xRRD64jswE5XsXSjcn7Y/EAVTk6AOfGTAEv63jGAcw
+         7NdNThmk4hRYCXE+vY9w8OsrbGPrgWSdZGKHNo96o4dDLMIHfbOdbfQ7GV8AvM+Ltfw5
+         ga9ez/vdW69HaYIHJHQifc2PNcV/vF5kG9JoF+9N5gSk1SgXnxZdGomXAm6pEgsgKAD1
+         zRgw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=cc:to:subject:message-id:date:from:in-reply-to:references
          :mime-version:dkim-signature;
-        bh=1FwMHPlbmAPxJQ/mJ/56Fjrh96L8HY/RcidjTcs4/fk=;
-        b=xltBi1rwi7HQ/gNyI/jrObT3tqwVwrUbcKKSJ8TiSaoABzx+qSAuN6f2rZ42W/tvrV
-         ho16VfJg6UqkMH+4s/8wDRLgsMEuDiRWJ8NG6dA9WgAH8G3+3nD2sU64QIHkao2caxW3
-         tJ5xKLSWmLc/9GUV4QjUEi61SGJiu9Kwk0N5Tk5nS/qhQsds038fbCQ8v1ABPqNli6l+
-         ED34xG0ZjK1BoVzWp+nQfsfQlCszEVPW+OQWPW9qvtaMyzNn6aN0E653tgnqHn13ocdw
-         nGGrHscUdVa1N0E91wclCimBfPnNWGPgyHgJyL6VrDZVnMhQo2gAbgiBP/GVarPIoeBl
-         xZTg==
+        bh=3tfpxcMIOawO8s0nF6u5AxpRiYOClgINgvc5ma6ttZw=;
+        b=l/l+Mv/0uAUHjgV0E4PzhtvGUKn/erbfOoz/KGePqVIBlXwd1Olv8Q/OGImdNETEME
+         Tx79SPVn5LPvOT7Vus1hEUjtBM80g8ugjKfoolKAsLffY0cec6Ksi8vxm7PtUOD4WeWU
+         8vZ3VleMpBvBjtmin3i/uflfM0rCA06WTGhDWEF7C1S6tF6HPOaWDjMonunnelbucNp5
+         qXBTPHr48hIL6EpXNULkna6r4rcN7k+/yHgHgZAmHegJWXywzf6agRgKcOm1J/F8K3Mf
+         dJijdvCnuSLJ0BpyHiEUFvF6FADapOU7QSh67PVMbFDM70XFqNyhEmyyuJooeR8c6J6A
+         8mNg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=tKzCUvFd;
+       dkim=pass header.i=@google.com header.s=20161025 header.b="IQmmqup/";
        spf=pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=henryburns@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l13sor42468488iok.112.2019.07.29.11.39.08
+        by mx.google.com with SMTPS id o124sor41624336iof.20.2019.07.29.11.42.21
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Mon, 29 Jul 2019 11:39:08 -0700 (PDT)
+        Mon, 29 Jul 2019 11:42:21 -0700 (PDT)
 Received-SPF: pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=tKzCUvFd;
+       dkim=pass header.i=@google.com header.s=20161025 header.b="IQmmqup/";
        spf=pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=henryburns@google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=1FwMHPlbmAPxJQ/mJ/56Fjrh96L8HY/RcidjTcs4/fk=;
-        b=tKzCUvFdpAjThXn2UowV+bawmycTgopdxquIlC+dqdFlomKh47e7PWPAWXwPDhlEV0
-         WGaL2Lf3K2nX3uFrFKxHvVy8tSxAc9k2gVTAD9NVYrqF8DkZZW7UipkFX9bjCJCenxdt
-         8Yu/uW7CHfDxENOSQSV6rziYo0QM8mfjwOKxWkAT1Jf4g729nbl1Eezj6UAWOTn672O/
-         z1GpzyJZZlnM6k4dWYNVDKijnjLKx/kofl9zYXDCLISx67v1pkIzpZOukDv0BLs20LUp
-         KWxNi9rJdkEwe55x4UrQMFO2ktWdudcrVcoyNBOJlB/pjpy3BEx0u41fUVp5lz6G+xXW
-         k4HA==
-X-Google-Smtp-Source: APXvYqwOyvbINe7VjyObX3vCNtadyRi+XDTMas83pG4+8ZVxw9xxSxj0gKL6sLA3lpVp0q7URJsTTC8vSVXcO2bi+AM=
-X-Received: by 2002:a5d:9e48:: with SMTP id i8mr101423232ioi.51.1564425548036;
- Mon, 29 Jul 2019 11:39:08 -0700 (PDT)
+        bh=3tfpxcMIOawO8s0nF6u5AxpRiYOClgINgvc5ma6ttZw=;
+        b=IQmmqup/6r9M4vGzFNJ2eQeqgw7xlIoAUs5jeMBIFXwMw1/6E8KZwGF59gU1R/s1wr
+         od8n0zVv12PnonheCchmyOFja2Rj5CqOQgVE6IuSCXp0atpMNpN4A4t4/7Vf5jI1f1tC
+         bqmDTxp9EjXqdrgmgE7jOAMpjGGp01BzpAfRmS/bOjpScIYhwcfWKhJCbOf4mGM/MuOx
+         kfDC4rfXTjw6TLq0kV/0cEZZi4Hv/UOPJ9FqlF/1RHxu+j97c80UihRGIktDhfVOQUtm
+         u+Knabw655Ohtf9vz38yQiZVVGmgt0OllVIj/2aK5dgiGvZqqDwcxin29m4BabmpHLuu
+         rFwg==
+X-Google-Smtp-Source: APXvYqwjLiqzT6+l8biMGbT+ubzfDFZQP3pdxi7Bs2LEIu59aazQJHsn2226HIPI6J8GkYWgkqquogjLf6r6kCe70Dg=
+X-Received: by 2002:a6b:c38b:: with SMTP id t133mr38575856iof.162.1564425741290;
+ Mon, 29 Jul 2019 11:42:21 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190726224810.79660-1-henryburns@google.com> <CA+VK+GM4AXrmZtv_narEU6pHO+NGrTc74iSSUNNbutZySfXjRw@mail.gmail.com>
-In-Reply-To: <CA+VK+GM4AXrmZtv_narEU6pHO+NGrTc74iSSUNNbutZySfXjRw@mail.gmail.com>
+References: <20190726224810.79660-1-henryburns@google.com> <20190726224810.79660-2-henryburns@google.com>
+ <CA+VK+GPC+akF0qGrKFivtNneweEfdC9uEx=QgmztB4M_xvMeKQ@mail.gmail.com>
+In-Reply-To: <CA+VK+GPC+akF0qGrKFivtNneweEfdC9uEx=QgmztB4M_xvMeKQ@mail.gmail.com>
 From: Henry Burns <henryburns@google.com>
-Date: Mon, 29 Jul 2019 11:38:32 -0700
-Message-ID: <CAGQXPTgGJBiLVqAGWQZpSrTcWw4FnzDSkQWFOPhJ=TqtnQZPvw@mail.gmail.com>
-Subject: Re: [PATCH] mm/z3fold.c: Fix z3fold_destroy_pool() ordering
+Date: Mon, 29 Jul 2019 11:41:45 -0700
+Message-ID: <CAGQXPTi8+EanC2ygr4W7qDN1bnas_3utxFkSCj4Xdzo4H134nw@mail.gmail.com>
+Subject: Re: [PATCH] mm/z3fold.c: Fix z3fold_destroy_pool() race condition
 To: Jonathan Adams <jwadams@google.com>
 Cc: Vitaly Vul <vitaly.vul@sony.com>, Andrew Morton <akpm@linux-foundation.org>, 
 	Shakeel Butt <shakeelb@google.com>, David Howells <dhowells@redhat.com>, 
@@ -119,52 +120,45 @@ are no outstanding handles to memory (so no active allocations), but
 it is possible for there to be outstanding work on either of the two
 wqs in the pool.
 
+Calling z3fold_deregister_migration() before the workqueues are drained
+means that there can be allocated pages referencing a freed inode,
+causing any thread in compaction to be able to trip over the bad
+pointer in PageMovable().
 
-If there is work queued on pool->compact_workqueue when it is called,
-z3fold_destroy_pool() will do:
-
-   z3fold_destroy_pool()
-     destroy_workqueue(pool->release_wq)
-     destroy_workqueue(pool->compact_wq)
-       drain_workqueue(pool->compact_wq)
-         do_compact_page(zhdr)
-           kref_put(&zhdr->refcount)
-             __release_z3fold_page(zhdr, ...)
-               queue_work_on(pool->release_wq, &pool->work) *BOOM*
-
-So compact_wq needs to be destroyed before release_wq.
-
-Fixes: 5d03a6613957 ("mm/z3fold.c: use kref to prevent page free/compact race")
+Fixes: 1f862989b04a ("mm/z3fold.c: support page migration")
 
 Signed-off-by: Henry Burns <henryburns@google.com>
-
 
 > Reviewed-by: Shakeel Butt <shakeelb@google.com>
 > Reviewed-by: Jonathan Adams <jwadams@google.com>
 >
 > > Cc: <stable@vger.kernel.org>
 > > ---
-> >  mm/z3fold.c | 9 ++++++++-
-> >  1 file changed, 8 insertions(+), 1 deletion(-)
+> >  mm/z3fold.c | 5 ++++-
+> >  1 file changed, 4 insertions(+), 1 deletion(-)
 > >
 > > diff --git a/mm/z3fold.c b/mm/z3fold.c
-> > index 1a029a7432ee..43de92f52961 100644
+> > index 43de92f52961..ed19d98c9dcd 100644
 > > --- a/mm/z3fold.c
 > > +++ b/mm/z3fold.c
-> > @@ -818,8 +818,15 @@ static void z3fold_destroy_pool(struct z3fold_pool *pool)
+> > @@ -817,16 +817,19 @@ static struct z3fold_pool *z3fold_create_pool(const char *name, gfp_t gfp,
+> >  static void z3fold_destroy_pool(struct z3fold_pool *pool)
 > >  {
 > >         kmem_cache_destroy(pool->c_handle);
-> >         z3fold_unregister_migration(pool);
-> > -       destroy_workqueue(pool->release_wq);
-> > +
-> > +       /*
-> > +        * We need to destroy pool->compact_wq before pool->release_wq,
-> > +        * as any pending work on pool->compact_wq will call
-> > +        * queue_work(pool->release_wq, &pool->work).
-> > +        */
-> > +
+> > -       z3fold_unregister_migration(pool);
+> >
+> >         /*
+> >          * We need to destroy pool->compact_wq before pool->release_wq,
+> >          * as any pending work on pool->compact_wq will call
+> >          * queue_work(pool->release_wq, &pool->work).
+> > +        *
+> > +        * There are still outstanding pages until both workqueues are drained,
+> > +        * so we cannot unregister migration until then.
+> >          */
+> >
 > >         destroy_workqueue(pool->compact_wq);
-> > +       destroy_workqueue(pool->release_wq);
+> >         destroy_workqueue(pool->release_wq);
+> > +       z3fold_unregister_migration(pool);
 > >         kfree(pool);
 > >  }
 > >
