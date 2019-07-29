@@ -2,231 +2,137 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6EF9BC433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 21:21:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 23B7DC433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 21:33:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 23B6D2073F
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 21:21:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23B6D2073F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=surriel.com
+	by mail.kernel.org (Postfix) with ESMTP id E4E77217F5
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 21:33:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E4E77217F5
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B65018E0005; Mon, 29 Jul 2019 17:21:10 -0400 (EDT)
+	id 716118E0005; Mon, 29 Jul 2019 17:33:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B15948E0002; Mon, 29 Jul 2019 17:21:10 -0400 (EDT)
+	id 6C6068E0002; Mon, 29 Jul 2019 17:33:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A2C2A8E0005; Mon, 29 Jul 2019 17:21:10 -0400 (EDT)
+	id 590C28E0005; Mon, 29 Jul 2019 17:33:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 81C718E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 17:21:10 -0400 (EDT)
-Received: by mail-vs1-f69.google.com with SMTP id u17so16328734vsq.17
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 14:21:10 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 09EA98E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 17:33:47 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id z20so39022030edr.15
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 14:33:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:user-agent
-         :mime-version:sender;
-        bh=jbA2FIUk5XWSh6okDk+X0w/SCUEF1RgwXZz64vQnvgs=;
-        b=Fd6mAtrZ4TC3e+QfOHQ+2Zny7JzwrQoQN3cOPcnInl0+RDrsNeI9/uxtWD1hT79364
-         78XQOrd+LqAznJXESx8yeR7Gwk0zCe9WtfQpvhdVVOeOOjswB2XRf+Qhl4KyGX8xbKEM
-         sfLpl5KZDJa4I2UKJxygrM4at6OoMvud7oGOv4olzflB4OHSs7zdzY0CBq9vM7mnQzgT
-         T/MUnBBJzA6Sjd5wiqQNKM3UQEXb1DKvQqpPJWzymstSfTeNZotDfxHm6fUmcf5ps7Rl
-         zxLtA3m1rxkz8HEo6M/ytSrqsswEOQ28bkL1rLlUtqoJhF8WrKJmJmzupZnRpv22Vzz1
-         gIIA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-X-Gm-Message-State: APjAAAWgDS4J5o5A/oVdPy0E4GQkOOnEKkPy8gJnda1t6ttQHGpRlpbp
-	z1E660CCS0uaaOCmTXKhU7l7D6YWBZBIdAhwroKzSVGuf6K4k1Z1Ygk8zyupJRMgET2Ot7wijK8
-	iU4evYPi3Pg3ylRDSdesCJxHyKiDi4ElTfEghACYa7UxUjr3a/TKX6LFr26Nyi3dplQ==
-X-Received: by 2002:a05:6102:8c:: with SMTP id t12mr17591800vsp.143.1564435270295;
-        Mon, 29 Jul 2019 14:21:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyYLphvN4y/3vhacUEfdJT6Y7jd5o3VAiAAXfLYwb3YzIMEs28PiYyDS3rbqFuS/t57ly/l
-X-Received: by 2002:a05:6102:8c:: with SMTP id t12mr17591738vsp.143.1564435269695;
-        Mon, 29 Jul 2019 14:21:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564435269; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=6Jl9DS1EKc0OjCFMJqDd7SL7yh8rMk8qwq52fLhcChE=;
+        b=LKZXC29Gb6Zg3RvyA+NGPjHYo/VxiioB0XJSHViOXhRLC1nsW74/I0VU/OM3XrH0+l
+         XBBWZwA3rRVosN1eLnAzx0pHtrDMomPV/AnOx6p6idoQSNHr4AlEJU9og4Vh0Wi9JXGu
+         NmPaf220AcM5H+eza2hlWJSUVTykTuHwfrvrgWr93T2E5z2wqD+hKaNHl7OdctMplF68
+         l/NPOVxzmy5McSczg6cPbf9PkmpW8w+3lLOviIRrRQec+UAK2vggO6DYzDbOXSW+Eflt
+         nTmMhmeRdOrJDBeMABEV5KE601Vd0o6V7CL8cAcEepV1fuj6LuZ9kVNoHjG+J+04pHg4
+         gsow==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of qais.yousef@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=qais.yousef@arm.com
+X-Gm-Message-State: APjAAAXGhHK4VtCW4k52T4c7L5JDtLmO8DY/ggttQ2DUCdmDT8NlFghC
+	+zQqEe2Frr97mJ9a+M8mjVItUs64ppBshpfTYBJ6u/YbnxOTfzv+ovhULKsKof3hx5YOwvelVM/
+	M1brQ02hefxP1BgENWXJboQO3gHbjlXbqyemxuTuHzbIQvtQtDbyU3pynO8walmpsxg==
+X-Received: by 2002:a50:84a1:: with SMTP id 30mr99133426edq.44.1564436026622;
+        Mon, 29 Jul 2019 14:33:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzkU9TmN05u9aTsW9jrDkWIt/7oZzKq6DShrNX+5bEa48yUGrnMujycYWzXYviQi/rHvBCX
+X-Received: by 2002:a50:84a1:: with SMTP id 30mr99133380edq.44.1564436026014;
+        Mon, 29 Jul 2019 14:33:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564436026; cv=none;
         d=google.com; s=arc-20160816;
-        b=qrsTToidQiyQjDLhY5Q1E8RSGqcjLT92P4gK6Qy86NKQBRaCOIhC+eIt5Y3H1DcrLO
-         alNhmZgn2TCxEA1ZPdMSsp3QE8+gM3o3Q9GOGGoYGoYDigtI/9Ns/PtxmqMAhYEIH9jr
-         4bwbu80R3q5InK/B5W6EHcx0uY7QbNUI3oQcxN7n6akCAiYQdAB3nxyjIDFtSbps2rW/
-         9oZXCW/Yj8u1fEkaHLuy4Ak5cIpPR6ypUhMpiztyov4pl6c3mUjL5KKFOGLagZB6+vPU
-         ZHiIQdQ+2tqntv9J0hkTsveklC5qrzFynRBUO4TMmJ99mhhNpRji26ZbvpCh3+SwooAS
-         WMCg==
+        b=w62Srqtu12Jm8p+AjMHVT0hJLRkZzHudlC08Uebya81Dj3aeOFKTz1jFXVgWqcCT4l
+         tUTSdHD7ASzTPJK/SkvGQx22y3eG86VXRQEx5prnSWl8POtC4dmLVUJ0tv75IBNnaDVy
+         AKYGMwnUdxjRSW0EPC23wujd/6VDRzK33QwIOVsKDaXcYIGluYX7YqOs8HmLHUE7ATkh
+         gySINdZUsii+mK4XdU5Lp3kRoTGBqiMDQZIRdDswCYRd3ec45v+GfMnJMtq5GZhWj0x+
+         KPGRHlTPADKfgu4/XCXgtiPPOL7bBfc+BkHqU2GE/DFYuMzZmY5sCnRCU1k+ZwgBdStz
+         FAHQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=sender:mime-version:user-agent:references:in-reply-to:date:cc:to
-         :from:subject:message-id;
-        bh=jbA2FIUk5XWSh6okDk+X0w/SCUEF1RgwXZz64vQnvgs=;
-        b=bQaQrx8X2pYTKf333QgaCQcjHNZQI31BpgwtJFTAZQSUAee7Cav4TavSfXVmJZiC6k
-         tq6U7Uttb+SWvUw0uAGV9HBeFck6P/v4P97I0I7xoG5WLjSlatJ7fUddHChzWghNhN83
-         QXNai9hkbAaIAiOieA1s33gXhKQl6dx2opz4dZRj+Y8HWFuLgZLKuowTqp2jL3Rm7wBE
-         6lTE/orLWoJm0jFyRiVTuC+6DT7KoKuXJ6L/sjSjcDK1skYgBTsrejzyWMOpWygp6kkW
-         eqSGvFT9768QcULUgppv4AQW08rufAtOcMj2i7V+1U/d9+xl685ATKtgkI1MqNCl0Ji2
-         vKHw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=6Jl9DS1EKc0OjCFMJqDd7SL7yh8rMk8qwq52fLhcChE=;
+        b=pQ9FjBGjKBKl1GJXdwzOVzYcNF97NOQyRv0MxNOhNMoGNmm/NAcfRbh9W+2FfsPaGg
+         RdzFUP1qiQ/E+GKKdlDTW5M4KiY40BmjmDD2sT8+ted3QEnH+IRjchaC4d84Pd3CDA8V
+         lCR4luS3jQtWnEK7ptWTWwV6GNpd27E9Vs/l1HRPHiJ8WxpEHn7MPV/8qgwFJbUbG86k
+         F/l9Wizc23PS9eCfq0c1Ttvcf3QiiWk919DZ7GZPvO6KGsBX8XZOOzCXKOTBwSpv9KK5
+         rwVAAoY26UJyhjVhyBM+gCvba26VThkLvUS+YOyvVMKlf0x/xoJHogW0ZeVHfJGC2b4W
+         hL0g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id x18si14429688uag.219.2019.07.29.14.21.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jul 2019 14:21:09 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) client-ip=96.67.55.147;
+       spf=pass (google.com: best guess record for domain of qais.yousef@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=qais.yousef@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id gu1si15842474ejb.131.2019.07.29.14.33.45
+        for <linux-mm@kvack.org>;
+        Mon, 29 Jul 2019 14:33:45 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of qais.yousef@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from imladris.surriel.com ([96.67.55.152])
-	by shelob.surriel.com with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
-	(Exim 4.92)
-	(envelope-from <riel@shelob.surriel.com>)
-	id 1hsD4u-00061P-72; Mon, 29 Jul 2019 17:21:08 -0400
-Message-ID: <ec9effc07a94b28ecf364de40dee183bcfb146fc.camel@surriel.com>
-Subject: Re: [PATCH v3] sched/core: Don't use dying mm as active_mm of
+       spf=pass (google.com: best guess record for domain of qais.yousef@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=qais.yousef@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id CD299337;
+	Mon, 29 Jul 2019 14:33:44 -0700 (PDT)
+Received: from e107158-lin.cambridge.arm.com (e107158-lin.cambridge.arm.com [10.1.194.55])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C95423F71F;
+	Mon, 29 Jul 2019 14:33:43 -0700 (PDT)
+Date: Mon, 29 Jul 2019 22:33:41 +0100
+From: Qais Yousef <qais.yousef@arm.com>
+To: Waiman Long <longman@redhat.com>
+Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Phil Auld <pauld@redhat.com>
+Subject: Re: [PATCH v2] sched/core: Don't use dying mm as active_mm of
  kthreads
-From: Rik van Riel <riel@surriel.com>
-To: Waiman Long <longman@redhat.com>, Peter Zijlstra <peterz@infradead.org>,
-  Ingo Molnar <mingo@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton
-	 <akpm@linux-foundation.org>, Phil Auld <pauld@redhat.com>, Michal Hocko
-	 <mhocko@kernel.org>
-Date: Mon, 29 Jul 2019 17:21:07 -0400
-In-Reply-To: <20190729210728.21634-1-longman@redhat.com>
-References: <20190729210728.21634-1-longman@redhat.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-l4XujGBB1uulLbJ4CPGM"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+Message-ID: <20190729213341.pacbqtcsdfmkdbsr@e107158-lin.cambridge.arm.com>
+References: <20190727171047.31610-1-longman@redhat.com>
+ <20190729081800.qbamrvsf4rjna656@e107158-lin.cambridge.arm.com>
+ <be28b3d2-3f94-806b-874d-db2248a2c3a9@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <be28b3d2-3f94-806b-874d-db2248a2c3a9@redhat.com>
+User-Agent: NeoMutt/20171215
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 07/29/19 17:06, Waiman Long wrote:
+> On 7/29/19 4:18 AM, Qais Yousef wrote:
+> > On 07/27/19 13:10, Waiman Long wrote:
+> >> It was found that a dying mm_struct where the owning task has exited
+> >> can stay on as active_mm of kernel threads as long as no other user
+> >> tasks run on those CPUs that use it as active_mm. This prolongs the
+> >> life time of dying mm holding up memory and other resources like swap
+> >> space that cannot be freed.
+> >>
+> >> Fix that by forcing the kernel threads to use init_mm as the active_mm
+> >> if the previous active_mm is dying.
+> >>
+> >> The determination of a dying mm is based on the absence of an owning
+> >> task. The selection of the owning task only happens with the CONFIG_MEMCG
+> >> option. Without that, there is no simple way to determine the life span
+> >> of a given mm. So it falls back to the old behavior.
+> > I don't really know a lot about this code, but does the owner field has to
+> > depend on CONFIG_MEMCG? ie: can't the owner be always set?
+> >
+> Yes, the owner field is only used and defined when CONFIG_MEMCG is on.
 
---=-l4XujGBB1uulLbJ4CPGM
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+I guess this is the simpler answer of it's too much work to take it out of
+CONFIG_MEMCG.
 
-On Mon, 2019-07-29 at 17:07 -0400, Waiman Long wrote:
-> It was found that a dying mm_struct where the owning task has exited
-> can stay on as active_mm of kernel threads as long as no other user
-> tasks run on those CPUs that use it as active_mm. This prolongs the
-> life time of dying mm holding up some resources that cannot be freed
-> on a mostly idle system.
+Anyway, given the direction of the thread this is moot now :-)
 
-On what kernels does this happen?
+Thanks!
 
-Don't we explicitly flush all lazy TLB CPUs at exit
-time, when we are about to free page tables?
-
-Does this happen only on the CPU where the task in
-question is exiting, or also on other CPUs?
-
-If it is only on the CPU where the task is exiting,
-would the TASK_DEAD handling in finish_task_switch()
-be a better place to handle this?
-
-> Fix that by forcing the kernel threads to use init_mm as the
-> active_mm
-> during a kernel thread to kernel thread transition if the previous
-> active_mm is dying (!mm_users). This will allows the freeing of
-> resources
-> associated with the dying mm ASAP.
->=20
-> The presence of a kernel-to-kernel thread transition indicates that
-> the cpu is probably idling with no higher priority user task to run.
-> So the overhead of loading the mm_users cacheline should not really
-> matter in this case.
->=20
-> My testing on an x86 system showed that the mm_struct was freed
-> within
-> seconds after the task exited instead of staying alive for minutes or
-> even longer on a mostly idle system before this patch.
->=20
-> Signed-off-by: Waiman Long <longman@redhat.com>
-> ---
->  kernel/sched/core.c | 21 +++++++++++++++++++--
->  1 file changed, 19 insertions(+), 2 deletions(-)
->=20
-> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
-> index 795077af4f1a..41997e676251 100644
-> --- a/kernel/sched/core.c
-> +++ b/kernel/sched/core.c
-> @@ -3214,6 +3214,8 @@ static __always_inline struct rq *
->  context_switch(struct rq *rq, struct task_struct *prev,
->  	       struct task_struct *next, struct rq_flags *rf)
->  {
-> +	struct mm_struct *next_mm =3D next->mm;
-> +
->  	prepare_task_switch(rq, prev, next);
-> =20
->  	/*
-> @@ -3229,8 +3231,22 @@ context_switch(struct rq *rq, struct
-> task_struct *prev,
->  	 *
->  	 * kernel ->   user   switch + mmdrop() active
->  	 *   user ->   user   switch
-> +	 *
-> +	 * kernel -> kernel and !prev->active_mm->mm_users:
-> +	 *   switch to init_mm + mmgrab() + mmdrop()
->  	 */
-> -	if (!next->mm) {                                // to kernel
-> +	if (!next_mm) {					// to kernel
-> +		/*
-> +		 * Checking is only done on kernel -> kernel transition
-> +		 * to avoid any performance overhead while user tasks
-> +		 * are running.
-> +		 */
-> +		if (unlikely(!prev->mm &&
-> +			     !atomic_read(&prev->active_mm->mm_users)))=20
-> {
-> +			next_mm =3D next->active_mm =3D &init_mm;
-> +			mmgrab(next_mm);
-> +			goto mm_switch;
-> +		}
->  		enter_lazy_tlb(prev->active_mm, next);
-> =20
->  		next->active_mm =3D prev->active_mm;
-> @@ -3239,6 +3255,7 @@ context_switch(struct rq *rq, struct
-> task_struct *prev,
->  		else
->  			prev->active_mm =3D NULL;
->  	} else {                                        // to user
-> +mm_switch:
->  		/*
->  		 * sys_membarrier() requires an smp_mb() between
-> setting
->  		 * rq->curr and returning to userspace.
-> @@ -3248,7 +3265,7 @@ context_switch(struct rq *rq, struct
-> task_struct *prev,
->  		 * finish_task_switch()'s mmdrop().
->  		 */
-> =20
-> -		switch_mm_irqs_off(prev->active_mm, next->mm, next);
-> +		switch_mm_irqs_off(prev->active_mm, next_mm, next);
-> =20
->  		if (!prev->mm) {                        // from kernel
->  			/* will mmdrop() in finish_task_switch(). */
---=20
-All Rights Reversed.
-
---=-l4XujGBB1uulLbJ4CPGM
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAl0/Y0MACgkQznnekoTE
-3oOaKQf/VSVsZmXhfcU6zOpLa8iKeG1i8twZxHUp3pmctc0g9XcW7a+h60GTX/Aq
-wHbRpgAnjpltplzqrWqipaxvj+fj+8IRNOBuWzB20gupeq+bx/tJHcvnXpAlUsZJ
-Zgj4eIzYETaREYfdUgEmBZg6gE9DyLI3sEz5/RH5L4/V+HkdYu9i1bVX5rfNq1kn
-iIgK7EjGmoM84W/zNgIFMtvGZiWiTDkYMhjqTpp5wVUNHHutF41gHNVEQ1KXr/la
-Xdu2OgionGyrr2SfsU/KxWN8Ha34E1IjVEaHcR1AhLPIdOX6DeWUB2aFr9Ymx7HM
-i1UfCr9K0VKZ3cWVGAZDmNtm+kQXEg==
-=kV++
------END PGP SIGNATURE-----
-
---=-l4XujGBB1uulLbJ4CPGM--
+--
+Qais Yousef
 
