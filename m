@@ -2,182 +2,272 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 644FBC76192
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:32:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 42B39C7618B
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:33:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0CF7D206E0
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:32:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CF7D206E0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id EC8BC206E0
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:33:08 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Yj2x/YP+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC8BC206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 766DB8E0005; Mon, 29 Jul 2019 04:32:18 -0400 (EDT)
+	id 8EE698E0006; Mon, 29 Jul 2019 04:33:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 717CB8E0002; Mon, 29 Jul 2019 04:32:18 -0400 (EDT)
+	id 89FC78E0002; Mon, 29 Jul 2019 04:33:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5E0FB8E0005; Mon, 29 Jul 2019 04:32:18 -0400 (EDT)
+	id 7B63B8E0006; Mon, 29 Jul 2019 04:33:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 124AC8E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 04:32:18 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id o13so37838759edt.4
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 01:32:18 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 160E08E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 04:33:08 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id m2so13177770ljj.0
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 01:33:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=IF708GymTQFOOI7nmy2euqjzzSXt9Zh89btFpnOof30=;
-        b=MGdfunqNotDLF4T71Q3c4f0N8gtI9B7/Mi2h1n04YGR6Ar4p2o+AySZZ0D3Yp7XeAZ
-         /HEeo3eHjJt4tgYf/wdAFdiSUh27yy46dTXCpjsbHhEqmnDxtR/9a7Ec1j41TJJJPRIP
-         P+tkIqiYhg1LOJjNOWVw7vUIuyk0TyWyPFIV8ZniHLMUVByvnFAXAEf27zOYZZW2JHFy
-         bsSeLoNHh9DHSB+0Z+MaV+9bAe7aUEPbRGmgddueIQ+JBPpk/OtaL2rAuPku0zQ9KyzQ
-         ohpCSbCqD6bteDD2E4SYQxy+JuQ0605xViM4971YCcmLb66+DMMXni+ArdMgZqy29YuU
-         AuqA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAVu4aNN9lEz2U3yfVzU9EwKoD5njJ5Yke5WFA1EZ8Un/YqR9wZI
-	IuF8mhJmsPWI5GNS88rXn6R/BrkVALi/aYH5lQ/uWyWwGpZMI8MeigauKkK5Y59p1R4J2dvsq6P
-	ouSPP1/CpjbAXV/JrAL1+SlqE5qkVSNCD29hg7WWbZyX7vsnK1RS9Ofnh+r0LJoHLxQ==
-X-Received: by 2002:a17:907:20db:: with SMTP id qq27mr83122048ejb.30.1564389137510;
-        Mon, 29 Jul 2019 01:32:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzdyEkaJtGj++xxxqkzFIne7QMcnAzJW97fcpsvndFarQ3a7pboxfkA1zpzIPDPvhz52Qss
-X-Received: by 2002:a17:907:20db:: with SMTP id qq27mr83122002ejb.30.1564389136690;
-        Mon, 29 Jul 2019 01:32:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564389136; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=fzjgi5IYwtgWKCD94QQKl1WKdW6R14NVG7cIaq5hNd0=;
+        b=jeVi6Ww37OMF6tqarBtA+YvrLrv1TXHinDQdRIP7I8APZIvSAstvVGoYAgxuN0YerS
+         v9yQxKHEzQbLjYiO4TH/R+7WIVvAFoAoEoyUEUZw1V1wFKwFiWZVIysPqda0VO0XdmPc
+         M9cr7tuBKhIIC2zRAPnfwJCmeL2/f/XfuU+V7ND1Z+gCpEyQVv4jfrVBik0WhM3RW9lK
+         vNertnOVznzHM7U3ZnnOpb8AVLLJQvAuiI+hsLtgITIOUK4+h1Udj7cCw+2RTHF0B01s
+         vFSYVJlWWvI5cgMmZEatPScOCEHVh1G7WVeiUGVVlzeGBr3j9WRhzNZ3tZDNN97+Ej9i
+         1s7A==
+X-Gm-Message-State: APjAAAXEquYJJbPrQwD22GaeTWPkBcdBqH3IBj+8V1Bj1F7Pp/1pt/fz
+	BFcyLHckL+i185Kn7fxS9wFNHN3hSa2AiA5qQo9cK1ZK7Qa25JfytJP1Iiz3hOkriAHhDxszVvn
+	vhJwPklsi2tlm5ZRIn/HE+wGyFjCh8EeA5ctcifaJsIP0T1fQIpnJ7IW9auojPf0rew==
+X-Received: by 2002:a2e:96d0:: with SMTP id d16mr43788506ljj.14.1564389187492;
+        Mon, 29 Jul 2019 01:33:07 -0700 (PDT)
+X-Received: by 2002:a2e:96d0:: with SMTP id d16mr43788467ljj.14.1564389186659;
+        Mon, 29 Jul 2019 01:33:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564389186; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZRRoCmDTzxSU0+DsJMJ+R8grFPPAO57eCFzrA5KXjJBX45xh8qKoMm4R6pkScQXd+O
-         GPI8O7IzIf7wOJEm18gT2Rl/1wVD5heNcf/wQNqmxq1qwBTK0x07pv2U7dkzB7G3Zhhm
-         7HvN0pPHhUqoJfNtc9t0XdIoahDQvPFv3xlVK0BDJiyRhsBUIvTukut1yKjAqibCqUoT
-         H+P9FCQQ81YcZbvFfmUJvyx33rV9VMmOqMMgYrtR0nsmdoFJ0W4J7jJtiUZguuEF9DFV
-         jA8gg1lNeuyl6b428MqzDM1Ql2OZqlQUnXg9MS/ejG0uTH6izdULBzEvwJGvaU5Q2niE
-         Q7ww==
+        b=Ek64xVYwLvdCu44i4Qqt11v5sidNVc7YC/5Bq41y+PrJ3ggMWQvObbfHTuX1+dQ8qX
+         Pzfkrg7SoUsTnqBxNevPGqWqO1CtqUfLWaH9EXu5mxVJDnSFbe23QeHXBh+awI4+JtxX
+         ERgQtvaDaapMvS8C1yUYPpNJf3fHT9CzlxBdGAvgq6mGJuKIqkCq+R69PH2KIUVKj/xM
+         96q5IDTiHR27ePvVntJnkV7xN0BKR5dTusGOVocwzK6B1lm1DgaPtWO4xj4EKl7YPrbY
+         ceP1ifhhPy11A1fXiizG/GybETVXIoiTd2Lnnqf5OM7Uu/fyMC7/gHzKZ9haDsEdZ9xJ
+         BorQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=IF708GymTQFOOI7nmy2euqjzzSXt9Zh89btFpnOof30=;
-        b=W4f8yy6pQUZd+6Vi9tZouaJToZ14b+RSfRDGz6koRfcPW3qQx9/BlLl/+X48Y90UYD
-         cGGMH6cnVH8aBeSxnDJMPau2K//6mJssdgsrjCvlW3tEKIa70hy1OsKniTAbCoj4ZGBy
-         yeO00h3YkJ8VdyxgRtXTW8PltRy1YJzz6A8tdSSFWRi22aELZ8dg+n/aUY8Rrtm9fhm1
-         dF2J91qghZityj2QkoAJQm/JpqqLXxl5HoLREIZyj4xF1pFzvXry2EZeRQjn6n5qqSHV
-         sPUmlsKiN7l9Cmmb9t67MG8XyfTb+VQIsuWo1ZDmVYI+juxcJKl+5nTYRXSh08iS++Ve
-         YYSg==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=fzjgi5IYwtgWKCD94QQKl1WKdW6R14NVG7cIaq5hNd0=;
+        b=IlYwU5gYE6L5XuLmuPZn+ycyAdLmHOdjxYBh74ACDr4vavikeaD4HZt0+hUhQPFBzM
+         +550LNwgoYefEGxwYRMgXO6BpoS+vqjONCqhApuYo1TsY4nTzGz0K/GkHqde6uLrx7KH
+         oQ6aygEnhohz05e3ZGWQxIFw3YwD/xML0GpEunu9nsfMchGZYGHJwwbHjQ076zMnkY1j
+         B+DxVb/8ZSrT43wDalqefnWftqjuenBVLBMLDg/q5/jBwfo5POrn8aVphCSf8noFC7Ur
+         LQ6Q0+Dbo15OyKveJIE1A6PlXSapvv7YwOoajf5bZY8N09CQsNLyqiciSzVSeTRL57+W
+         +n5g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id x51si16864654edm.42.2019.07.29.01.32.16
-        for <linux-mm@kvack.org>;
-        Mon, 29 Jul 2019 01:32:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Yj2x/YP+";
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n5sor15358853lfi.73.2019.07.29.01.33.06
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 29 Jul 2019 01:33:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id A9CDF337;
-	Mon, 29 Jul 2019 01:32:15 -0700 (PDT)
-Received: from [10.162.40.126] (p8cg001049571a15.blr.arm.com [10.162.40.126])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 990293F575;
-	Mon, 29 Jul 2019 01:32:11 -0700 (PDT)
-Subject: Re: [RFC] mm/pgtable/debug: Add test validating architecture page
- table helpers
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
- Michal Hocko <mhocko@kernel.org>, Mark Rutland <mark.rutland@arm.com>,
- Mark Brown <Mark.Brown@arm.com>, Steven Price <Steven.Price@arm.com>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Kees Cook <keescook@chromium.org>,
- Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
- Sri Krishna chowdary <schowdary@nvidia.com>,
- Dave Hansen <dave.hansen@intel.com>, linux-arm-kernel@lists.infradead.org,
- x86@kernel.org, linux-kernel@vger.kernel.org
-References: <1564037723-26676-1-git-send-email-anshuman.khandual@arm.com>
- <1564037723-26676-2-git-send-email-anshuman.khandual@arm.com>
- <20190725143920.GW363@bombadil.infradead.org>
- <c3bb0420-584c-de3b-2439-8702bc09595e@arm.com>
- <20190726195457.GI30641@bombadil.infradead.org>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <10ed1022-a5c0-c80c-c0c9-025bb2307666@arm.com>
-Date: Mon, 29 Jul 2019 14:02:52 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Yj2x/YP+";
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=fzjgi5IYwtgWKCD94QQKl1WKdW6R14NVG7cIaq5hNd0=;
+        b=Yj2x/YP+GQx3u0ETLl95DFn76V+nUeZ0HgcyvoUS0J23BQZRtMVjzIjCk80uAnKs7Q
+         HQlRZ1Ixt54mk2Xl0CPAS4hhA/sUUWDDv5/rRB2v+KHQ4C83QqlXf3PwcGVgrK44gXGK
+         T8QwJf/xyMFHhs2/N13YRy+O5ZrAaWHzCrT+9uVBY8T0e9XoY4vKw0aMc3l5RNtlaUye
+         2VNkfpFLe1kIUERcSgFAVPZYdYW3WF1u+Y7yXdwTmDoI1JjojonOcWFQNJEu9zZ2L+Ms
+         iR7gq/NDAQVjh7NAv7l7QBoZvm7uLNemt8yUQrhf5sdM60rK76dfCnEyAtS40qTLkvPy
+         d9ag==
+X-Google-Smtp-Source: APXvYqxOB3hlBmp/ELmfdAvewRmPGBGlLy908aDcnO5gzCSlHvcgEUZGOZj5/xu4Z+SD47jako1Nt3Hob11dDINtGdM=
+X-Received: by 2002:a19:5e10:: with SMTP id s16mr49683043lfb.13.1564389186319;
+ Mon, 29 Jul 2019 01:33:06 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190726195457.GI30641@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <20190215024830.GA26477@jordon-HP-15-Notebook-PC>
+ <20190728180611.GA20589@mail-itl> <CAFqt6zaMDnpB-RuapQAyYAub1t7oSdHH_pTD=f5k-s327ZvqMA@mail.gmail.com>
+In-Reply-To: <CAFqt6zaMDnpB-RuapQAyYAub1t7oSdHH_pTD=f5k-s327ZvqMA@mail.gmail.com>
+From: Souptick Joarder <jrdr.linux@gmail.com>
+Date: Mon, 29 Jul 2019 14:02:54 +0530
+Message-ID: <CAFqt6zY+07JBxAVfMqb+X78mXwFOj2VBh0nbR2tGnQOP9RrNkQ@mail.gmail.com>
+Subject: Re: [Xen-devel] [PATCH v4 8/9] xen/gntdev.c: Convert to use vm_map_pages()
+To: =?UTF-8?Q?Marek_Marczykowski=2DG=C3=B3recki?= <marmarek@invisiblethingslab.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
+	Michal Hocko <mhocko@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, 
+	Juergen Gross <jgross@suse.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, 
+	xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, 
+	Linux-MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/27/2019 01:24 AM, Matthew Wilcox wrote:
-> On Fri, Jul 26, 2019 at 10:17:11AM +0530, Anshuman Khandual wrote:
->>> But 'page' isn't necessarily PMD-aligned.  I don't think we can rely on
->>> architectures doing the right thing if asked to make a PMD for a randomly
->>> aligned page.
->>>
->>> How about finding the physical address of something like kernel_init(),
->>
->> Physical address corresponding to the symbol in the kernel text segment ?
-> 
-> Yes.  We need the address of something that's definitely memory.
-> The stack might be in vmalloc space.  We can't allocate memory from the
-> allocator that's PUD-aligned.  This seems like a reasonable approximation
-> to something that might work.
+On Mon, Jul 29, 2019 at 1:35 PM Souptick Joarder <jrdr.linux@gmail.com> wro=
+te:
+>
+> On Sun, Jul 28, 2019 at 11:36 PM Marek Marczykowski-G=C3=B3recki
+> <marmarek@invisiblethingslab.com> wrote:
+> >
+> > On Fri, Feb 15, 2019 at 08:18:31AM +0530, Souptick Joarder wrote:
+> > > Convert to use vm_map_pages() to map range of kernel
+> > > memory to user vma.
+> > >
+> > > map->count is passed to vm_map_pages() and internal API
+> > > verify map->count against count ( count =3D vma_pages(vma))
+> > > for page array boundary overrun condition.
+> >
+> > This commit breaks gntdev driver. If vma->vm_pgoff > 0, vm_map_pages
+> > will:
+> >  - use map->pages starting at vma->vm_pgoff instead of 0
+>
+> The actual code ignores vma->vm_pgoff > 0 scenario and mapped
+> the entire map->pages[i]. Why the entire map->pages[i] needs to be mapped
+> if vma->vm_pgoff > 0 (in original code) ?
+>
+> are you referring to set vma->vm_pgoff =3D 0 irrespective of value passed
+> from user space ? If yes, using vm_map_pages_zero() is an alternate
+> option.
+>
+>
+> >  - verify map->count against vma_pages()+vma->vm_pgoff instead of just
+> >    vma_pages().
+>
+> In original code ->
+>
+> diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
+> index 559d4b7f807d..469dfbd6cf90 100644
+> --- a/drivers/xen/gntdev.c
+> +++ b/drivers/xen/gntdev.c
+> @@ -1084,7 +1084,7 @@ static int gntdev_mmap(struct file *flip, struct
+> vm_area_struct *vma)
+> int index =3D vma->vm_pgoff;
+> int count =3D vma_pages(vma);
+>
+> Count is user passed value.
+>
+> struct gntdev_grant_map *map;
+> - int i, err =3D -EINVAL;
+> + int err =3D -EINVAL;
+> if ((vma->vm_flags & VM_WRITE) && !(vma->vm_flags & VM_SHARED))
+> return -EINVAL;
+> @@ -1145,12 +1145,9 @@ static int gntdev_mmap(struct file *flip,
+> struct vm_area_struct *vma)
+> goto out_put_map;
+> if (!use_ptemod) {
+> - for (i =3D 0; i < count; i++) {
+> - err =3D vm_insert_page(vma, vma->vm_start + i*PAGE_SIZE,
+> - map->pages[i]);
+>
+> and when count > i , we end up with trying to map memory outside
+> boundary of map->pages[i], which was not correct.
 
-Okay sure. What is about vmalloc space being PUD aligned and how that is
-problematic here ? Could you please give some details. Just being curious.
-
-> 
->>> and using the corresponding pte/pmd/pud/p4d/pgd that encompasses that
->>
->> So I guess this will help us use pte/pmd/pud/p4d/pgd entries from a real and
->> present mapping rather then making them up for test purpose. Although we are
->> not creating real page tables here just wondering if this could some how
->> affect these real mapping in anyway from some accessors. The current proposal
->> stays clear from anything real - allocates, evaluates and releases.
-> 
-> I think that's a mistake.  As Russell said, the ARM p*d manipulation
-> functions expect to operate on tables, not on individual entries
-> constructed on the stack.
-
-Hmm. I assume that it will take care of dual 32 bit entry updates on arm
-platform through various helper functions as Russel had mentioned earlier.
-After we create page table with p?d_alloc() functions and pick an entry at
-each page table level.
-
-> 
-> So I think the right thing to do here is allocate an mm, then do the
-> pgd_alloc / p4d_alloc / pud_alloc / pmd_alloc / pte_alloc() steps giving
-> you real page tables that you can manipulate.
-> 
-> Then destroy them, of course.  And don't access through them.
-
-mm_alloc() seems like a comprehensive helper to allocate and initialize a
-mm_struct. But could we use mm_init() with 'current' in the driver context or we
-need to create a dummy task_struct for this purpose. Some initial tests show that
-p?d_alloc() and p?d_free() at each level with a fixed virtual address gives p?d_t
-entries required at various page table level to test upon.
-
-> 
->>>> +#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
->>>> +static void pud_basic_tests(void)
->>>
->>> Is this the right ifdef?
->>
->> IIUC THP at PUD is where the pud_t entries are directly operated upon and the
->> corresponding accessors are present only when HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
->> is enabled. Am I missing something here ?
-> 
-> Maybe I am.  I thought we could end up operating on PUDs for kernel mappings,
-> even without transparent hugepages turned on.
-
-In generic MM ? IIUC except ioremap mapping all other PUD handling for kernel virtual
-range is platform specific. All the helpers used in the function pud_basic_tests() are
-part of THP and used in mm/huge_memory.c
+typo.
+s/count > i / count > map->count
+>
+> - if (err)
+> - goto out_put_map;
+> - }
+> + err =3D vm_map_pages(vma, map->pages, map->count);
+> + if (err)
+> + goto out_put_map;
+>
+> With this commit, inside __vm_map_pages(), we have addressed this scenari=
+o.
+>
+> +static int __vm_map_pages(struct vm_area_struct *vma, struct page **page=
+s,
+> + unsigned long num, unsigned long offset)
+> +{
+> + unsigned long count =3D vma_pages(vma);
+> + unsigned long uaddr =3D vma->vm_start;
+> + int ret, i;
+> +
+> + /* Fail if the user requested offset is beyond the end of the object */
+> + if (offset > num)
+> + return -ENXIO;
+> +
+> + /* Fail if the user requested size exceeds available object size */
+> + if (count > num - offset)
+> + return -ENXIO;
+>
+> By checking count > num -offset. (considering vma->vm_pgoff !=3D 0 as wel=
+l).
+> So we will never cross the boundary of map->pages[i].
+>
+>
+> >
+> > In practice, this breaks using a single gntdev FD for mapping multiple
+> > grants.
+>
+> How ?
+>
+> >
+> > It looks like vm_map_pages() is not a good fit for this code and IMO it
+> > should be reverted.
+>
+> Did you hit any issue around this code in real time ?
+>
+>
+> >
+> > > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+> > > Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+> > > ---
+> > >  drivers/xen/gntdev.c | 11 ++++-------
+> > >  1 file changed, 4 insertions(+), 7 deletions(-)
+> > >
+> > > diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
+> > > index 5efc5ee..5d64262 100644
+> > > --- a/drivers/xen/gntdev.c
+> > > +++ b/drivers/xen/gntdev.c
+> > > @@ -1084,7 +1084,7 @@ static int gntdev_mmap(struct file *flip, struc=
+t vm_area_struct *vma)
+> > >       int index =3D vma->vm_pgoff;
+> > >       int count =3D vma_pages(vma);
+> > >       struct gntdev_grant_map *map;
+> > > -     int i, err =3D -EINVAL;
+> > > +     int err =3D -EINVAL;
+> > >
+> > >       if ((vma->vm_flags & VM_WRITE) && !(vma->vm_flags & VM_SHARED))
+> > >               return -EINVAL;
+> > > @@ -1145,12 +1145,9 @@ static int gntdev_mmap(struct file *flip, stru=
+ct vm_area_struct *vma)
+> > >               goto out_put_map;
+> > >
+> > >       if (!use_ptemod) {
+> > > -             for (i =3D 0; i < count; i++) {
+> > > -                     err =3D vm_insert_page(vma, vma->vm_start + i*P=
+AGE_SIZE,
+> > > -                             map->pages[i]);
+> > > -                     if (err)
+> > > -                             goto out_put_map;
+> > > -             }
+> > > +             err =3D vm_map_pages(vma, map->pages, map->count);
+> > > +             if (err)
+> > > +                     goto out_put_map;
+> > >       } else {
+> > >  #ifdef CONFIG_X86
+> > >               /*
+> >
+> > --
+> > Best Regards,
+> > Marek Marczykowski-G=C3=B3recki
+> > Invisible Things Lab
+> > A: Because it messes up the order in which people normally read text.
+> > Q: Why is top-posting such a bad thing?
 
