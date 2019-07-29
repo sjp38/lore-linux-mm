@@ -2,271 +2,185 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3BF0AC433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 07:08:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 01C11C41514
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 07:10:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EB0FD206BA
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 07:08:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB0FD206BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
+	by mail.kernel.org (Postfix) with ESMTP id B01DA206BA
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 07:10:47 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="GbpKZO+1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B01DA206BA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 81BEB8E0005; Mon, 29 Jul 2019 03:08:02 -0400 (EDT)
+	id 4E5938E0005; Mon, 29 Jul 2019 03:10:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7A50C8E0002; Mon, 29 Jul 2019 03:08:02 -0400 (EDT)
+	id 495D58E0002; Mon, 29 Jul 2019 03:10:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 694028E0005; Mon, 29 Jul 2019 03:08:02 -0400 (EDT)
+	id 3AD308E0005; Mon, 29 Jul 2019 03:10:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 19CC18E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 03:08:02 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id t9so29830584wrx.9
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 00:08:02 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 06EB98E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 03:10:47 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id 71so32613963pld.1
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 00:10:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=5e1q7JRSHzyuBPkZ8OX3+Dm5RO0+0nPmbjR6yHN7n8g=;
-        b=Zj3+xh8YK1x5AOci9/1HZM0b06AeLGa2KunaYnPGaUr1ebaO+wvyiwLSTIVkpi7IIy
-         0EsNKF/Ga04cYTu1bMgwTtQDuvpDn75q6de7SDyxjatuDLNtB92jIlXlvYuw9qJhc3JV
-         7q7vzNtzgO/htrrAmwKJRhVrpxceFlX8OfEbvDUbiVLyCduNnGyKU5fPrC/mNT5IGgMy
-         KaQP+RqS8HlpzKzbtD0CIrENkZXI8F2aVMap66cYZ6ssSU6l3NPuHI3wIlsy2BvEH0gK
-         WQs8rW2gJNSNzCeryVVOOuc6TccGSwJKmgCkh9XwHQZHeH/1k6fiKeJ6DyV9iMqic3DJ
-         vbmQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
-X-Gm-Message-State: APjAAAW3tCAl3O9KIylXFd9Lce7j8dpS02PBmZByg6Cb/DC3x1VBc8nM
-	zjGJos0bygoxeNHJq1UYfKmAJDk5ZwF35uvpQ8zZIn868azZoHA92U6RK8IKZwG7T97SBwc57ig
-	rWit3d01BGqOG6oo8nCuF80vVp9uxwVmg6GmVoOpaqYvhwQmkXV7pUk7aT5ZSKP8=
-X-Received: by 2002:adf:91c2:: with SMTP id 60mr63128515wri.334.1564384081598;
-        Mon, 29 Jul 2019 00:08:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy4hssC5YryNiTv72twXaJyRkW+WbS3kZvX03Nf2VnZghMHfam9KpjV5AeSOx4Gi/sNtGED
-X-Received: by 2002:adf:91c2:: with SMTP id 60mr63128423wri.334.1564384080651;
-        Mon, 29 Jul 2019 00:08:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564384080; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=MP9bWqLglik/G7ydzgpH6qxtoOPjTnKjIEZbq35U0w8=;
+        b=ezBPteRfSVnwUNiEW8vc6xsrLIdYLroPBV1XMBQltuXAAkzmkUw27ogTCrPxgWuuSj
+         LCdmcr8dl2ymAt+1cE6NjQcL/lA1vP6LFt5utN12p9sVsstm4/O8kmO0hX6w5Cm4y9PB
+         OhEtPC1DGpAe7Of07bLw0EjnrNvxH5RlZFhYQg9b68wsXg/EBszuGONH0puGzikxMdYo
+         k9rFOntYrHHfiQYk5FVvbuYN8fRLsJR5OCXTosDFh5H9zp9ls5ubu/LUbgbMrA+KnOm2
+         3upp3RGyMDMoCqufzjshP4s3Xj7eaZ1Ygto4hOsDg82m8N3tvEv1TtiniPt3vmQ5oKB6
+         8HHg==
+X-Gm-Message-State: APjAAAXh4GTl8rP9ZgrkX93RY4uMlAigCGwR1xBRYw0r4xL0wiif5JGw
+	ivSi5JkI3QKgyF/3bg0x8/9as4U3RwkScxcxalR36xWMnoAvqjSKYD24FAXfu7Qgils6OgP3Ihm
+	MgfEjpKEELnijqIESL/Zoa3gRdNps0L0VU1TR7/+PijVy4BtDV1uxJL71YrYFh78=
+X-Received: by 2002:a63:c009:: with SMTP id h9mr75459331pgg.166.1564384246506;
+        Mon, 29 Jul 2019 00:10:46 -0700 (PDT)
+X-Received: by 2002:a63:c009:: with SMTP id h9mr75459285pgg.166.1564384245745;
+        Mon, 29 Jul 2019 00:10:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564384245; cv=none;
         d=google.com; s=arc-20160816;
-        b=UoiGMGXM8EsFs/CfNRlwNmTu8fBu2IvtBF+19Ak+CxCp6kaBKxj2FBPS59Y+eZSrFe
-         NfxSf/Wb6XMQKd7ovBZ9nCJQXoQb6oxFN/GWvVDWtkBamHSmxFzCpG0wem+p69nHaL0J
-         G5yxLkOFN9vlH/7Osw0ybrWGPlw7NgW3QDZ2CVwhj3Ez0o0jSUGzjS8lXUu1L5HruSb6
-         AV5TtR/q+pnYX5Yat8TQJKXYdRehHHH9LOXVhZsa7v0Hg5jWXmDRsnEW17E6z2Qmiwmn
-         ZM6GzPUYuafdkh3H4wETEnqemtNHB6y4hDi47jfoECW/6+fycPw9e2Jbw6oZPTDKIISd
-         UmsA==
+        b=L0KZQbnrWRP6oQ8zvHKLofKP5A+oF0eXw7w7uhfQHnK+D61h1A0Ux7Wxt+zHWUAppS
+         x7VGa3vC+Kdjmg4ylChW7GQqCqQhRBGU6vonAjdND34r1UAvKzzOLYHx5qYPQLSLfnlJ
+         eX+v5p0INUm9EDOa3N4k25tmbkWd7FbrSXnb1kyrkxgIDbHLRIKy/k/XzYbT+p27X1i+
+         JMfC7UvDEsUUyM6Ij2DRoRh6KxYt4hTkeDYOmEI0oIvNOgLtSmd3hVdKSlvm58wBKmfz
+         KTeVJT9D4AdVPWArqavQ3zk+VkODJoetKTU/9Ta8AqQmh5RPvAEODfq4Vxs1ypktrLTf
+         DqxA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:from:subject;
-        bh=5e1q7JRSHzyuBPkZ8OX3+Dm5RO0+0nPmbjR6yHN7n8g=;
-        b=dfYnuAt6Q+HoPVSTwlZaTyOuhbPmzD9fC37EIglzZ9C41k9BTQbT/IVnTdjHNK4gl8
-         Ez2ds4af1BDsMmpddiDjCtpJtV9yYOZz6HBODvQR/B+vBkih+5esIvZqsOKsHFyqiPMU
-         Jtv9zhyHdi7Nsl7qOgTPYKJaIvZ/RFGhnwrVLH5WJ0+H5QQ/s/lvR210ahflieKmVzIE
-         YsZPF5R4LIy9M2lWTu+Epv60Fw3kISQb27nhg4d/ZHoouYWGC2gxe4B3LJRNdGHYdtoe
-         FSMlgLqfsBcJxrsF1NJxKauJlvCSfskhh/DlJNCJnRVnNQj5oZxKoAtnqQxLNbMh1wix
-         B/CA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:sender:dkim-signature;
+        bh=MP9bWqLglik/G7ydzgpH6qxtoOPjTnKjIEZbq35U0w8=;
+        b=Xsfqo3RdSewSJ3Z8d3lC5bRyzGQ8TB1uN4eOjl02TEhbAee6sDWQGrMmS3Q8s3m6sS
+         DMmg1J94IZ68NA4bZwryuTGsPbSUPBf+g7htPlSEpV7K6PFQb7Ama2oM3MTKqNaZgypI
+         PmdE3JUgVdokrFahoNeYWxEOYdPB9I0572/SjIkypZxFGx9yF2cLhldDhnZVVFv76hmq
+         quB5brkpqADOvuRWjd9Z2NTPDzmhnZk0JL/SyQu/gG9NOHELRlXgKdD3vMqbYb37s3uh
+         GmjNyc9+oe5c34cffdfr1kOIB66n3xtW4AA+CHUvwbvRlgojp7IMEAU9sO31F1HByLQi
+         ZQEQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
-Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de. [178.250.10.56])
-        by mx.google.com with ESMTPS id f5si44849260wmb.185.2019.07.29.00.08.00
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GbpKZO+1;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g5sor33927445pgs.55.2019.07.29.00.10.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 29 Jul 2019 00:08:00 -0700 (PDT)
-Received-SPF: neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) client-ip=178.250.10.56;
+        (Google Transport Security);
+        Mon, 29 Jul 2019 00:10:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
-Received: (qmail 2318 invoked from network); 29 Jul 2019 09:08:00 +0200
-X-Fcrdns: No
-Received: from phoffice.de-nserver.de (HELO [10.11.11.165]) (185.39.223.5)
-  (smtp-auth username hostmaster@profihost.com, mechanism plain)
-  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Mon, 29 Jul 2019 09:08:00 +0200
-Subject: Re: No memory reclaim while reaching MemoryHigh
-From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>,
- Johannes Weiner <hannes@cmpxchg.org>,
- "n.fahldieck@profihost.ag" <n.fahldieck@profihost.ag>,
- Daniel Aberger - Profihost AG <d.aberger@profihost.ag>, p.kramme@profihost.ag
-References: <496dd106-abdd-3fca-06ad-ff7abaf41475@profihost.ag>
- <20190725140117.GC3582@dhcp22.suse.cz>
- <028ff462-b547-b9a5-bdb0-e0de3a884afd@profihost.ag>
- <20190726074557.GF6142@dhcp22.suse.cz>
- <d205c7a1-30c4-e26c-7e9c-debc431b5ada@profihost.ag>
- <9eb7d70a-40b1-b452-a0cf-24418fa6254c@profihost.ag>
-Message-ID: <57de9aed-2eab-b842-4ca9-a5ec8fbf358a@profihost.ag>
-Date: Mon, 29 Jul 2019 09:07:59 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=GbpKZO+1;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=MP9bWqLglik/G7ydzgpH6qxtoOPjTnKjIEZbq35U0w8=;
+        b=GbpKZO+1qWJF5PiJfpJI+X1d49LQDhRSEjabzM4QoQoxyPC/ykpjviHT067xaP4ur9
+         Q8obYhARMbKPZN2+MUi7KS43dNzPuKR0TZprepoLgqL8dD+kKWF7yA9cJNsgLDuWAebQ
+         0gfhz135PdhcmBO/tQ+4kqQB0rCDV9+w4pqCBPOlGYoT71nY1o7yaEyjkMRD7hBR1P5C
+         yhPQ3G7yavjMpqxRD9NSxGBh3X0PbYCwpznGkB3NPHVGfrc0PBFT5fj7o+pFYkL6z117
+         bVr0nUhG4ri8CNjgE/N7liJe66keFa5uc+KTxXZUTrXVXIUPyjeXYn3corPlUzoq8C+Z
+         tqKg==
+X-Google-Smtp-Source: APXvYqxnzOd4PuafCgb1AfLhTACUQYfJQLs65HMwphdh3OAlLdZAE/tGNxyoyJ+8bK3MjIY85KClhg==
+X-Received: by 2002:a63:2784:: with SMTP id n126mr99458545pgn.92.1564384245259;
+        Mon, 29 Jul 2019 00:10:45 -0700 (PDT)
+Received: from bbox-2.seo.corp.google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id i124sm111028139pfe.61.2019.07.29.00.10.41
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 29 Jul 2019 00:10:44 -0700 (PDT)
+From: Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: LKML <linux-kernel@vger.kernel.org>,
+	linux-mm <linux-mm@kvack.org>,
+	Minchan Kim <minchan@kernel.org>,
+	Miguel de Dios <migueldedios@google.com>,
+	Wei Wang <wvw@google.com>,
+	Michal Hocko <mhocko@kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Mel Gorman <mgorman@techsingularity.net>
+Subject: [PATCH] mm: release the spinlock on zap_pte_range
+Date: Mon, 29 Jul 2019 16:10:37 +0900
+Message-Id: <20190729071037.241581-1-minchan@kernel.org>
+X-Mailer: git-send-email 2.22.0.709.g102302147b-goog
 MIME-Version: 1.0
-In-Reply-To: <9eb7d70a-40b1-b452-a0cf-24418fa6254c@profihost.ag>
-Content-Type: text/plain; charset=utf-8
-Content-Language: de-DE
-Content-Transfer-Encoding: 7bit
-X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi all,
+In our testing(carmera recording), Miguel and Wei found unmap_page_range
+takes above 6ms with preemption disabled easily. When I see that, the
+reason is it holds page table spinlock during entire 512 page operation
+in a PMD. 6.2ms is never trivial for user experince if RT task couldn't
+run in the time because it could make frame drop or glitch audio problem.
 
-it might be that i just missunderstood how it works.
+This patch adds preemption point like coyp_pte_range.
 
-This test works absolutely fine without any penalty:
+Reported-by: Miguel de Dios <migueldedios@google.com>
+Reported-by: Wei Wang <wvw@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/memory.c | 19 ++++++++++++++++---
+ 1 file changed, 16 insertions(+), 3 deletions(-)
 
-test.sh:
-#####
-#!/bin/bash
-
-sync
-echo 3 >/proc/sys/vm/drop_caches
-sync
-time find / -xdev -type f -exec cat "{}" \; >/dev/null 2>/dev/null
-#####
-
-started with:
-systemd-run -pRemainAfterExit=True -- /root/spriebe/test.sh
-
-or
-
-systemd-run --property=MemoryHigh=300M -pRemainAfterExit=True --
-/root/spriebe/test.sh
-
-In both cases it takes ~ 1m 45s even though it consumes about 2G of mem
-in the first case.
-
-So it seems even though it can only consume a max of 300M in the 2nd
-case. It is as fast as the first one without any limit.
-
-I thought until today that the same would happen for varnish. Where's
-the difference?
-
-I also tried stuff like:
-sysctl -w vm.vfs_cache_pressure=1000000
-
-but the cgroup memory usage of varnish still raises slowly about 100M
-per hour. The varnish process itself stays constant at ~5.6G
-
-Greets,
-Stefan
-
-Am 28.07.19 um 23:11 schrieb Stefan Priebe - Profihost AG:
-> here is a memory.stat output of the cgroup:
-> # cat /sys/fs/cgroup/system.slice/varnish.service/memory.stat
-> anon 8113229824
-> file 39735296
-> kernel_stack 26345472
-> slab 24985600
-> sock 339968
-> shmem 0
-> file_mapped 38793216
-> file_dirty 946176
-> file_writeback 0
-> inactive_anon 0
-> active_anon 8113119232
-> inactive_file 40198144
-> active_file 102400
-> unevictable 0
-> slab_reclaimable 2859008
-> slab_unreclaimable 22126592
-> pgfault 178231449
-> pgmajfault 22011
-> pgrefill 393038
-> pgscan 4218254
-> pgsteal 430005
-> pgactivate 295416
-> pgdeactivate 351487
-> pglazyfree 0
-> pglazyfreed 0
-> workingset_refault 401874
-> workingset_activate 62535
-> workingset_nodereclaim 0
-> 
-> Greets,
-> Stefan
-> 
-> Am 26.07.19 um 20:30 schrieb Stefan Priebe - Profihost AG:
->> Am 26.07.19 um 09:45 schrieb Michal Hocko:
->>> On Thu 25-07-19 23:37:14, Stefan Priebe - Profihost AG wrote:
->>>> Hi Michal,
->>>>
->>>> Am 25.07.19 um 16:01 schrieb Michal Hocko:
->>>>> On Thu 25-07-19 15:17:17, Stefan Priebe - Profihost AG wrote:
->>>>>> Hello all,
->>>>>>
->>>>>> i hope i added the right list and people - if i missed someone i would
->>>>>> be happy to know.
->>>>>>
->>>>>> While using kernel 4.19.55 and cgroupv2 i set a MemoryHigh value for a
->>>>>> varnish service.
->>>>>>
->>>>>> It happens that the varnish.service cgroup reaches it's MemoryHigh value
->>>>>> and stops working due to throttling.
->>>>>
->>>>> What do you mean by "stops working"? Does it mean that the process is
->>>>> stuck in the kernel doing the reclaim? /proc/<pid>/stack would tell you
->>>>> what the kernel executing for the process.
->>>>
->>>> The service no longer responses to HTTP requests.
->>>>
->>>> stack switches in this case between:
->>>> [<0>] io_schedule+0x12/0x40
->>>> [<0>] __lock_page_or_retry+0x1e7/0x4e0
->>>> [<0>] filemap_fault+0x42f/0x830
->>>> [<0>] __xfs_filemap_fault.constprop.11+0x49/0x120
->>>> [<0>] __do_fault+0x57/0x108
->>>> [<0>] __handle_mm_fault+0x949/0xef0
->>>> [<0>] handle_mm_fault+0xfc/0x1f0
->>>> [<0>] __do_page_fault+0x24a/0x450
->>>> [<0>] do_page_fault+0x32/0x110
->>>> [<0>] async_page_fault+0x1e/0x30
->>>> [<0>] 0xffffffffffffffff
->>>>
->>>> and
->>>>
->>>> [<0>] poll_schedule_timeout.constprop.13+0x42/0x70
->>>> [<0>] do_sys_poll+0x51e/0x5f0
->>>> [<0>] __x64_sys_poll+0xe7/0x130
->>>> [<0>] do_syscall_64+0x5b/0x170
->>>> [<0>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
->>>> [<0>] 0xffffffffffffffff
->>>
->>> Neither of the two seem to be memcg related.
->>
->> Yes but at least the xfs one is a page fault - isn't this related?
->>
->>> Have you tried to get
->>> several snapshots and see if the backtrace is stable?
->> No it's not it switches most of the time between these both. But as long
->> as the xfs one with the page fault is seen it does not serve requests
->> and that one is seen for at least 1-5s than the poill one is visible and
->> than the xfs one again for 1-5s.
->>
->> This happens if i do:
->> systemctl set-property --runtime varnish.service MemoryHigh=6.5G
->>
->> if i set:
->> systemctl set-property --runtime varnish.service MemoryHigh=14G
->>
->> i never get the xfs handle_mm fault one. This is reproducable.
->>
->>> tell you whether your application is stuck in a single syscall or they
->>> are just progressing very slowly (-ttt parameter should give you timing)
->>
->> Yes it's still going forward but really really slow due to memory
->> pressure. memory.pressure of varnish cgroup shows high values above 100
->> or 200.
->>
->> I can reproduce the same with rsync or other tasks using memory for
->> inodes and dentries. What i don't unterstand is that the kernel does not
->> reclaim memory for the userspace process and drops the cache. I can't
->> believe those entries are hot - as they must be at least some days old
->> as a fresh process running a day only consumes about 200MB of indoe /
->> dentries / page cache.
->>
->> Greets,
->> Stefan
->>
+diff --git a/mm/memory.c b/mm/memory.c
+index 2e796372927fd..bc3e0c5e4f89b 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1007,6 +1007,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 				struct zap_details *details)
+ {
+ 	struct mm_struct *mm = tlb->mm;
++	int progress = 0;
+ 	int force_flush = 0;
+ 	int rss[NR_MM_COUNTERS];
+ 	spinlock_t *ptl;
+@@ -1022,7 +1023,16 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 	flush_tlb_batched_pending(mm);
+ 	arch_enter_lazy_mmu_mode();
+ 	do {
+-		pte_t ptent = *pte;
++		pte_t ptent;
++
++		if (progress >= 32) {
++			progress = 0;
++			if (need_resched())
++				break;
++		}
++		progress += 8;
++
++		ptent = *pte;
+ 		if (pte_none(ptent))
+ 			continue;
+ 
+@@ -1123,8 +1133,11 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 	if (force_flush) {
+ 		force_flush = 0;
+ 		tlb_flush_mmu(tlb);
+-		if (addr != end)
+-			goto again;
++	}
++
++	if (addr != end) {
++		progress = 0;
++		goto again;
+ 	}
+ 
+ 	return addr;
+-- 
+2.22.0.709.g102302147b-goog
 
