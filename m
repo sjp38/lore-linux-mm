@@ -2,187 +2,224 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F09EC7618B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:29:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7F319C7618B
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:44:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CDC0C216C8
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:29:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="PsKqXUcN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDC0C216C8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 27CAB216C8
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 14:44:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 27CAB216C8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7E1C18E0010; Mon, 29 Jul 2019 10:29:24 -0400 (EDT)
+	id 898208E0008; Mon, 29 Jul 2019 10:44:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 76D928E0009; Mon, 29 Jul 2019 10:29:24 -0400 (EDT)
+	id 84A288E0007; Mon, 29 Jul 2019 10:44:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 570068E0010; Mon, 29 Jul 2019 10:29:24 -0400 (EDT)
+	id 737B58E0008; Mon, 29 Jul 2019 10:44:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 223358E0009
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 10:29:24 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id i3so33256978plb.8
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 07:29:24 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 571A48E0007
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 10:44:49 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id f28so55334864qtg.2
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 07:44:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=UZ1iiZ91D5ta7woyBUt0JspQpjAYy1irdMsZOOrHXMc=;
-        b=h8R5FjYEZJCx5EQ4DV2+5oyqo2k1SNPxEAS1h32stv/pS4xG0kWyVJ+Rp2alNbRJ8h
-         xWiSD23hX5g75Pxga1HxdFpe7OO9i6W+aLeUYJ1Oa01OQeERvKP4cT0w4yGsIaJTK/ft
-         ZjEo87QT9FylO0gpmCtnXv+JSTxADRZ0Zx4+vzO4swm+VESmBdynFMPlu1BxAEDDUiFo
-         +7W1Hmmr21QqLqJpo2KsHry0vyiD9uvGWuufwKGXWBeeS+mV58jFwFCK2UaHb3heU/ly
-         Je6/XXKLaVXnTJdnxkTjb8FKIpCoMAc6oOt5hLrqAaglwyj+VG7WdxSakuS42Th0Wrs7
-         5stQ==
-X-Gm-Message-State: APjAAAX0HHDFvKu0H4PXua4DzWnf4olRQZNuNtdfTz3w6p6rCQKrsju7
-	X9e9gwZWoiO73iWyMN2jRH7KIxk9wLE1jApF8Dg6oO03nbM6ZpTNNcDZudjl+I7Q12Ssnb+/U8L
-	Uf66kJbNnpuij292qJYgr/MYCIktkLK7qCejyehoMYj9PjVLYK60MscAWgCg1+Qc=
-X-Received: by 2002:a62:5c01:: with SMTP id q1mr14555960pfb.53.1564410563833;
-        Mon, 29 Jul 2019 07:29:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwza1aiYwxT/1REW6jljIS3XfvAYKEvxX5ZiRZvukSPOrX3yt8QLj7HnpAfX1TYET4Q0g/N
-X-Received: by 2002:a62:5c01:: with SMTP id q1mr14555904pfb.53.1564410563040;
-        Mon, 29 Jul 2019 07:29:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564410563; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to;
+        bh=DoNqX8RWU8p5wa0hRf4mpfQk5+CoY4k3BggOB+rTukY=;
+        b=NAWPwh7CGZeCI3xPXq0UTsuVAWbrFKuo1fTELOW4ZctUXlOb/p7AZTGlPpHA5gFVQp
+         HKJK+YK7T0DxAdc/2SY9fBDTf3jZK1S7Eb/XrXLNk+4olLEg9ufA4n99u6/0Lo9H0aGi
+         sl8SkVBZ0AUIAmmNdu8u8P4ctfrB5mjeVjE9ZtdpxzaRc5OgaMMmE29z9aQ3wIzubIeR
+         Jx9OX1mB7i7/jGmh2iSR2UxAK7E24s5pBHdK8TVmspbjfgD54jl1sODwq4PipoFI/V+S
+         qn7B5vR0r74U10QvEXR3aPF/tu5zhPyTyjG+TukuHyCoyq7qz0x+ichWuDCSltfkfbcp
+         WqjA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUFm0/AtWCqZWMVnJTs+c56Tx+E++X7oYgzDkyq17N4uRHbVavM
+	IujrZFlQDBtzrrQnow1xHai+PE4Uj/bI3czLxEFZH7fsp3XgUQNIf4Jszq+x9Xn7468Z6mWzMl3
+	EAw7JTUedvK7k0M6jtvXjx1wTLpILJn/zJFg+NozkMAch9EiWBg2tgsBZ8Sz1e0NhNw==
+X-Received: by 2002:a0c:96e7:: with SMTP id b36mr79885593qvd.155.1564411488967;
+        Mon, 29 Jul 2019 07:44:48 -0700 (PDT)
+X-Received: by 2002:a0c:96e7:: with SMTP id b36mr79885567qvd.155.1564411488108;
+        Mon, 29 Jul 2019 07:44:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564411488; cv=none;
         d=google.com; s=arc-20160816;
-        b=0/P8iRwqTk1ioQrHTgoVxj978hoygjxaXwpMriRZpeSD1V6QOOJvqi8y65erAGmofp
-         +4NVh/2pbwjkYO4/g1p5RpKCos8reasEdk4FAyNlc4L/DGYQ/JMFRg/4GmjhhRw1BRwS
-         +1NInU2ouVOhBK4BGwgzri9Qv815GzwATD/GWvaHPG66OubHTmRrAFelwWQ9xU1P1iBx
-         V+/slJsRTeF/34iJ7dELwao0icR93RHzB5sVRY622ImV/bJw5JXWgHH/2+xoZth7moKz
-         WhxNXm9BeX2Eo17uqzuas8jNr0q+++t83xe/H7Yq/bJcWMSOPscqhSlZs0Em7D/xAyjm
-         +ZlQ==
+        b=LZ4HFdMuCC8OUtwJGDrq04kmAZPp+/fJo8Z35t5cjgiiAgfXEaQ29CKMLI99m1nQMd
+         lG420mu9g+RxkH7ZESBwKvVu/W4KLOUt6mmaprYB7BWPm9/6bt5xUr2UtkZCuQxzKvzT
+         Zi/JEAOftdngo/6S3iOJISE6MASaWHkk3aI+epiKWQEmbMqTubpgi1bbd/aI/W20A0fq
+         xPIIVaszB1uTn0Bj9rTru4Fr61g1JhfvTfnc3OCViU6SjO/Z/IT2HTLfl2jJBqiVo2kF
+         lmDzDnK0k71dJORQmX/DcC7voVIiIfQgmgCC7EJPg0qa/SWc1tSMudXOq8qImvJE08/R
+         u3Nw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=UZ1iiZ91D5ta7woyBUt0JspQpjAYy1irdMsZOOrHXMc=;
-        b=L8Ev3oHZWqHGJeLveO3cAyjmW95PH8vkjqA7gYuzt0vZtB2zIhnDB3LWN/83+8gaK6
-         IMV8aL3C1qQmXfbzHWwdHeOP74V2b8Tf+uXHBE6JsG3yu3ayX/AiQ/ZbICsLFwO9Vnq1
-         SWrEDdXia7fVxEOxPvlAKJSxzgKmGj/y9j9nHYvuEJJBsKejpkCxEI7xdfoMCqojq+DV
-         vnt98xRkzxBKv/p3xmu8yWT0l7SizTg15lTCuwWAUgzYO8eHA2xY/o1tmyBAfXK3/vG4
-         Jgo8dDpmmARDBW2VuKQEaAPhQKHnkBfZSYMUfdatMY1uMbz9wksb2szfU4uD2x+DRKkH
-         m/Bw==
+        h=in-reply-to:content-transfer-encoding:content-disposition
+         :mime-version:references:message-id:subject:cc:to:from:date;
+        bh=DoNqX8RWU8p5wa0hRf4mpfQk5+CoY4k3BggOB+rTukY=;
+        b=ExHAhiHkxUf7yrxeWHrW5GI3JpNaZmXQQLwztrQqcTOGDmBNCDmbhA7befdMFpNo5i
+         hp8d783OJGV0UcPyrVBpEghz76mOkC0gG+EuAB4jFyPIIDi+hURbHKHiymu5fhP+R5q6
+         L+MUD6hCr0NIZTi0fJ3Iutw1YFTKF6TrB5HqKtsXMdNHgRzym+jAiNB2aglwXN5KiLMM
+         KdeM4CCBty/2l0CgwKKE+aZvY4rIUtLJDHEXDYcS2CGjs5zt52h4AOHoIAFqHK0VzZqg
+         NngR3CRQGnWoNCmN8tVOLypUvhZTC1Ubk4j4oVfM/L564pcZnbJ7xh3xFP7xdJaT1Wwq
+         55Sg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=PsKqXUcN;
-       spf=pass (google.com: best guess record for domain of batv+767bd1556e0605a17a22+5818+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+767bd1556e0605a17a22+5818+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a13si24824883pgn.359.2019.07.29.07.29.22
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c38sor80277681qtb.10.2019.07.29.07.44.48
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 29 Jul 2019 07:29:23 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+767bd1556e0605a17a22+5818+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (Google Transport Security);
+        Mon, 29 Jul 2019 07:44:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=PsKqXUcN;
-       spf=pass (google.com: best guess record for domain of batv+767bd1556e0605a17a22+5818+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+767bd1556e0605a17a22+5818+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
-	MIME-Version:References:In-Reply-To:Message-Id:Date:Subject:Cc:To:From:Sender
-	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
-	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=UZ1iiZ91D5ta7woyBUt0JspQpjAYy1irdMsZOOrHXMc=; b=PsKqXUcN7z7Xz9gU7L79usjrqd
-	1TEUjHamWsPT+rB4y+/yJm/EmvCFSl7ml+1TBJeGQpJ7BwVxO9wF2ewwlhrRVlZhQ2fn7eM4nvSru
-	Htj0+NqPiUUfos5bsZ+wlkRab0SxVL9RrtXQZ0X5t45PUuUj7wuHcCn43N+m+i27dIdLRZryJCjb+
-	p41WXKWECLMO9LZLn3XL4a/cY1LJKbqbDtDs9Mnwi1jx/mtoDZJwIzftrtvBMEa3DqdCL4xlxrb9T
-	Pn5dnuGhyiDr2tSO2dx5kndNT3pjthrpWfVIQvSgWUpbBrW0LeWUm490FPAwN1pfH7BrK6o7UT0aq
-	y3B5AiUQ==;
-Received: from [195.167.85.94] (helo=localhost)
-	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hs6eN-0006P2-Jm; Mon, 29 Jul 2019 14:29:20 +0000
-From: Christoph Hellwig <hch@lst.de>
-To: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Ben Skeggs <bskeggs@redhat.com>
-Cc: Ralph Campbell <rcampbell@nvidia.com>,
-	Bharata B Rao <bharata@linux.ibm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org,
-	nouveau@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org,
-	linux-kernel@vger.kernel.org
-Subject: [PATCH 9/9] mm: remove the MIGRATE_PFN_WRITE flag
-Date: Mon, 29 Jul 2019 17:28:43 +0300
-Message-Id: <20190729142843.22320-10-hch@lst.de>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190729142843.22320-1-hch@lst.de>
-References: <20190729142843.22320-1-hch@lst.de>
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqzNcK5rFMdgsRbkuArHCZVYZl892hVxXOzQtGKKSReE48444ntmi3JNc+/o/FUr3NCS9WKM/g==
+X-Received: by 2002:ac8:384c:: with SMTP id r12mr77572808qtb.153.1564411487834;
+        Mon, 29 Jul 2019 07:44:47 -0700 (PDT)
+Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
+        by smtp.gmail.com with ESMTPSA id h40sm35464987qth.4.2019.07.29.07.44.40
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 29 Jul 2019 07:44:46 -0700 (PDT)
+Date: Mon, 29 Jul 2019 10:44:38 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Jason Wang <jasowang@redhat.com>
+Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
+	aarcange@redhat.com, akpm@linux-foundation.org,
+	christian@brauner.io, davem@davemloft.net, ebiederm@xmission.com,
+	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
+	james.bottomley@hansenpartnership.com, jglisse@redhat.com,
+	keescook@chromium.org, ldv@altlinux.org,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, linux-parisc@vger.kernel.org,
+	luto@amacapital.net, mhocko@suse.com, mingo@kernel.org,
+	namit@vmware.com, peterz@infradead.org,
+	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
+	wad@chromium.org
+Subject: Re: WARNING in __mmdrop
+Message-ID: <20190729104028-mutt-send-email-mst@kernel.org>
+References: <11802a8a-ce41-f427-63d5-b6a4cf96bb3f@redhat.com>
+ <20190726074644-mutt-send-email-mst@kernel.org>
+ <5cc94f15-b229-a290-55f3-8295266edb2b@redhat.com>
+ <20190726082837-mutt-send-email-mst@kernel.org>
+ <ada10dc9-6cab-e189-5289-6f9d3ff8fed2@redhat.com>
+ <aaefa93e-a0de-1c55-feb0-509c87aae1f3@redhat.com>
+ <20190726094756-mutt-send-email-mst@kernel.org>
+ <0792ee09-b4b7-673c-2251-e5e0ce0fbe32@redhat.com>
+ <20190729045127-mutt-send-email-mst@kernel.org>
+ <4d43c094-44ed-dbac-b863-48fc3d754378@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+In-Reply-To: <4d43c094-44ed-dbac-b863-48fc3d754378@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The MIGRATE_PFN_WRITE is only used locally in migrate_vma_collect_pmd,
-where it can be replaced with a simple boolean local variable.
+On Mon, Jul 29, 2019 at 10:24:43PM +0800, Jason Wang wrote:
+> 
+> On 2019/7/29 下午4:59, Michael S. Tsirkin wrote:
+> > On Mon, Jul 29, 2019 at 01:54:49PM +0800, Jason Wang wrote:
+> > > On 2019/7/26 下午9:49, Michael S. Tsirkin wrote:
+> > > > > > Ok, let me retry if necessary (but I do remember I end up with deadlocks
+> > > > > > last try).
+> > > > > Ok, I play a little with this. And it works so far. Will do more testing
+> > > > > tomorrow.
+> > > > > 
+> > > > > One reason could be I switch to use get_user_pages_fast() to
+> > > > > __get_user_pages_fast() which doesn't need mmap_sem.
+> > > > > 
+> > > > > Thanks
+> > > > OK that sounds good. If we also set a flag to make
+> > > > vhost_exceeds_weight exit, then I think it will be all good.
+> > > 
+> > > After some experiments, I came up two methods:
+> > > 
+> > > 1) switch to use vq->mutex, then we must take the vq lock during range
+> > > checking (but I don't see obvious slowdown for 16vcpus + 16queues). Setting
+> > > flags during weight check should work but it still can't address the worst
+> > > case: wait for the page to be swapped in. Is this acceptable?
+> > > 
+> > > 2) using current RCU but replace synchronize_rcu() with vhost_work_flush().
+> > > The worst case is the same as 1) but we can check range without holding any
+> > > locks.
+> > > 
+> > > Which one did you prefer?
+> > > 
+> > > Thanks
+> > I would rather we start with 1 and switch to 2 after we
+> > can show some gain.
+> > 
+> > But the worst case needs to be addressed.
+> 
+> 
+> Yes.
+> 
+> 
+> > How about sending a signal to
+> > the vhost thread?  We will need to fix up error handling (I think that
+> > at the moment it will error out in that case, handling this as EFAULT -
+> > and we don't want to drop packets if we can help it, and surely not
+> > enter any error states.  In particular it might be especially tricky if
+> > we wrote into userspace memory and are now trying to log the write.
+> > I guess we can disable the optimization if log is enabled?).
+> 
+> 
+> This may work but requires a lot of changes.
 
-Signed-off-by: Christoph Hellwig <hch@lst.de>
----
- include/linux/migrate.h | 1 -
- mm/migrate.c            | 9 +++++----
- 2 files changed, 5 insertions(+), 5 deletions(-)
+I agree.
 
-diff --git a/include/linux/migrate.h b/include/linux/migrate.h
-index 8b46cfdb1a0e..ba74ef5a7702 100644
---- a/include/linux/migrate.h
-+++ b/include/linux/migrate.h
-@@ -165,7 +165,6 @@ static inline int migrate_misplaced_transhuge_page(struct mm_struct *mm,
- #define MIGRATE_PFN_VALID	(1UL << 0)
- #define MIGRATE_PFN_MIGRATE	(1UL << 1)
- #define MIGRATE_PFN_LOCKED	(1UL << 2)
--#define MIGRATE_PFN_WRITE	(1UL << 3)
- #define MIGRATE_PFN_SHIFT	6
- 
- static inline struct page *migrate_pfn_to_page(unsigned long mpfn)
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 74735256e260..724f92dcc31b 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -2212,6 +2212,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
- 		unsigned long mpfn, pfn;
- 		struct page *page;
- 		swp_entry_t entry;
-+		bool writable = false;
- 		pte_t pte;
- 
- 		pte = *ptep;
-@@ -2240,7 +2241,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
- 			mpfn = migrate_pfn(page_to_pfn(page)) |
- 					MIGRATE_PFN_MIGRATE;
- 			if (is_write_device_private_entry(entry))
--				mpfn |= MIGRATE_PFN_WRITE;
-+				writable = true;
- 		} else {
- 			if (is_zero_pfn(pfn)) {
- 				mpfn = MIGRATE_PFN_MIGRATE;
-@@ -2250,7 +2251,8 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
- 			}
- 			page = vm_normal_page(migrate->vma, addr, pte);
- 			mpfn = migrate_pfn(pfn) | MIGRATE_PFN_MIGRATE;
--			mpfn |= pte_write(pte) ? MIGRATE_PFN_WRITE : 0;
-+			if (pte_write(pte))
-+				writable = true;
- 		}
- 
- 		/* FIXME support THP */
-@@ -2284,8 +2286,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
- 			ptep_get_and_clear(mm, addr, ptep);
- 
- 			/* Setup special migration page table entry */
--			entry = make_migration_entry(page, mpfn &
--						     MIGRATE_PFN_WRITE);
-+			entry = make_migration_entry(page, writable);
- 			swp_pte = swp_entry_to_pte(entry);
- 			if (pte_soft_dirty(pte))
- 				swp_pte = pte_swp_mksoft_dirty(swp_pte);
--- 
-2.20.1
+> And actually it's the price of
+> using vq mutex. 
+
+Not sure what's meant here.
+
+> Actually, the critical section should be rather small, e.g
+> just inside memory accessors.
+
+Also true.
+
+> 
+> I wonder whether or not just do synchronize our self like:
+> 
+> static void inline vhost_inc_vq_ref(struct vhost_virtqueue *vq)
+> {
+>         int ref = READ_ONCE(vq->ref);
+> 
+>         WRITE_ONCE(vq->ref, ref + 1);
+> smp_rmb();
+> }
+> 
+> static void inline vhost_dec_vq_ref(struct vhost_virtqueue *vq)
+> {
+>         int ref = READ_ONCE(vq->ref);
+> 
+> smp_wmb();
+>         WRITE_ONCE(vq->ref, ref - 1);
+> }
+> 
+> static void inline vhost_wait_for_ref(struct vhost_virtqueue *vq)
+> {
+>         while (READ_ONCE(vq->ref));
+> mb();
+> }
+
+Looks good but I'd like to think of a strategy/existing lock that let us
+block properly as opposed to spinning, that would be more friendly to
+e.g. the realtime patch.
+
+> 
+> Or using smp_load_acquire()/smp_store_release() instead?
+> 
+> Thanks
+
+These are cheaper on x86, yes.
+
+> > 
 
