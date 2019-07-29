@@ -6,170 +6,281 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C52CCC433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 07:28:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 11BEAC433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 07:45:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 70FC3216F4
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 07:28:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 70FC3216F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.vnet.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id C41E4206E0
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 07:45:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C41E4206E0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=profihost.ag
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D3D8A8E0003; Mon, 29 Jul 2019 03:28:56 -0400 (EDT)
+	id 5412B8E0003; Mon, 29 Jul 2019 03:45:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CEE368E0002; Mon, 29 Jul 2019 03:28:56 -0400 (EDT)
+	id 4F1F08E0002; Mon, 29 Jul 2019 03:45:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BDCBF8E0003; Mon, 29 Jul 2019 03:28:56 -0400 (EDT)
+	id 3E0C48E0003; Mon, 29 Jul 2019 03:45:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E5948E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 03:28:56 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id j144so44673471ywa.15
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 00:28:56 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E2BBE8E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 03:45:03 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id f189so13441598wme.5
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 00:45:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:reply-to:references:mime-version:content-disposition
-         :in-reply-to:user-agent:message-id;
-        bh=qTZTybzfZhK0hys4XCURiYnQR/pybix+iJpWbeXQVJE=;
-        b=qsoLSiPhhFZ3+NKAbHGXe2f1vxxOUv4ccisZs5yB2VSniHthgK+ZY7n6Gcmis29L1f
-         YCZzYExu6Kgsa9yjt2MoccK7STognf4h8q9AiuLVpzYmbPU7AyGBI19Ryxynpdl8hvyW
-         V3N4G75Lv71kTY/vidmnKLY0TU2sGsgfiKvMZ94YhuFbyCMvNh8Gnr9tUHDS6Sq6qiDN
-         d6zW7sDTKQG/clSsvfR6GAkWSctXo2DTLS6K/zuCJ0U6fKukDtY6abJHkT21OLEWL5Te
-         gs8CLq288yd0ozcN8Itw0Bn6c+dEw2C9pNZ53S9JCY+H81eqjH0Asq2+NIgZ3LCtNScx
-         ewnQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of srikar@linux.vnet.ibm.com) smtp.mailfrom=srikar@linux.vnet.ibm.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXSERBoeBQehJ/THouho/0YXmFGOKaEBMnaBW+azyZY/pbpTWC+
-	oaTTvcGCNZ+zZ6D50WpMRbDLXNmRdGfB8sR5WaQrHQOkjWScm2kaZJPnDgr7qW3qKiC5cFzwC8s
-	S8dW9ZcI1NkmBO8P6WmMX0LZTRfscahv30Oj4OzJeI2jaPnMCx1GqH2ypCo0JvDQ=
-X-Received: by 2002:a25:8186:: with SMTP id p6mr53452127ybk.374.1564385336347;
-        Mon, 29 Jul 2019 00:28:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyly+SNn8dtM5VJ6fWlMeLcWKyBnqKF0feP17D3GTxD2vSGeCal46cjFyEcCW4tB0tqI84n
-X-Received: by 2002:a25:8186:: with SMTP id p6mr53452112ybk.374.1564385335871;
-        Mon, 29 Jul 2019 00:28:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564385335; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=Kzuz0G8r4nAOUHaXQAB3juHCP99mb2qeQOqsMJfLrig=;
+        b=myMsqehQj328hrVVOEbaniDM8oehA9GMv3Vm5XSftOFiDyMZFHbE7VEIajNUn1/RcM
+         7M/25+6uBIOt7pzwxBHOSFjCjXDiye4SEFYO9U+L+c6lVJYBcAPU0AMz8x1hLiNIciem
+         2GJgB8+CetL2s4TD8mxRgAp9teRqo3oDrUN+k6Fv3S7tvUFC+cCJQP+8IPh+ZATyImqr
+         7/6I8HY5UeBkwzL4G2Pv4RCRGgLlRBZwc5rhmOYT9l4VDhgWRVe1NOQkzMaTLzDxfh0p
+         4Xmhsy4t1dPAJrN51PJrTCE8N0qC2OkA8ZqtqaWNeZ9FsJG6ROOwfwW2xwKqsAmzIXvu
+         QYDA==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+X-Gm-Message-State: APjAAAVrUrLB9OIDLk/3soiGGLD3is/IyzZP5FqWj0Hgi2PyCty1jbuv
+	xPWWgksc2OqMHEaiBbqN+G49qe8Xw97XRh5sR95jpAnIv+uQrz6Ugxs07g8NBQfzFzBSl/nPhKK
+	FIabtArvPSM1HSOmJax1uSN7P2jJHxTxzdj9WT2BeCV/SemtzWY9XqUrBWEQsh2k=
+X-Received: by 2002:a05:6000:1186:: with SMTP id g6mr463525wrx.17.1564386303418;
+        Mon, 29 Jul 2019 00:45:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyKOWUdY4EzX3uWf6gxXmKwn/KeH3TmEtQKXuLG0i0WIXuvTZg20ae4ISB60afPohrTqb3l
+X-Received: by 2002:a05:6000:1186:: with SMTP id g6mr463406wrx.17.1564386302506;
+        Mon, 29 Jul 2019 00:45:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564386302; cv=none;
         d=google.com; s=arc-20160816;
-        b=VTgBVt+JmiSL++pp0MJZfiOKcd/proOGqgU0VC9AUJ8apb1Ucw/cch/TDbnqaTgg1R
-         1gY0d7tDDcVCwZr8rkPORLWUisqdb93xPBV5NQZfswHXvK5YipLvyuJqEyicUJ8PjH2l
-         FAzbrK7rq04qvXr89qMwKlgVp+gCXTqbpSXSFDAxvzCJKPDmZm+KbZ8VanCJgfiHSC+F
-         ZTacZZE3DFvnxJkB0A8s30711RIwFWx4dKNSMIVx8E1snO9FpqUHGHfv3FzFoGErf91W
-         Ee7eOwSgEbkGVeqj+3yRgve/nkzy5FEDmC02yHTcsDJfDwHgVngGn0VtZ0K7OwoNHUJo
-         rhSw==
+        b=I0gFs1T3r+gNgNmmhzuPMvBLtsRcqX/rhq/XmnG6kfneHiDsLrTMUYgHaRTRXTj5Z+
+         J/wL5E3HjPp7X0TjAFUv2PdWUlbPH9ZfUYyn/2keX8+OMVlUG3mO+7G4lzhzFvfqrtJ4
+         jk/sXVBWbxo+flOXJgw7BMif09x0E48TksYho7MTB/I8WQWOEXAtQUOWD92PZ6In3aDx
+         Xckz2I6Rw/MkLcnPGABS9SW0+rEYTX8/tHcmQ1H5TxBdpl5VVlOyU9Wk91CsqQdtMYXx
+         fU15RCJWi+ng3xVRhj69nnhybaDSnLmEMjWHjvvilt/+LG7G/Dy4lwt0o56PPDAzMITF
+         /jUw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:reply-to:subject:cc:to:from:date;
-        bh=qTZTybzfZhK0hys4XCURiYnQR/pybix+iJpWbeXQVJE=;
-        b=niPHoYhoo4YRIrqJGlZkMK1Lahxcu4LVzRTHspuL2hmfxWn3UNiMz+XVjBG2KQZeD6
-         FZ4ffkRBHHmTGkDcudmAtWMfO3V5Zm/1m4UqiRs+ZfYTmAxaiwUxFJ8zrsYcAAnbHv6L
-         2BLhf3wnV5SJpeJCLIxoXStC1j1olceuYI8PeZIulCG4c8JdlPPAHb3AkIk0AUImlG44
-         OgEWO+szV/p1BlMtSR+3rHb2IP9Paz0myPxM1Y1WWl0UkrMzlc4rsp8ZeP2cOY47o6n/
-         KGYVNN/lFLxSRd226VgBl0CAV+9Ukc9g26J4QpGA1TpmbvXYwU0mhJ22ia0DZPd8noXo
-         x5tg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:from:subject;
+        bh=Kzuz0G8r4nAOUHaXQAB3juHCP99mb2qeQOqsMJfLrig=;
+        b=BloZF0dpDCLntQcDzIpetd6aDNF0EUhDJgDtfkySOsFpYsNVprkwI3fL96mPpiPKdE
+         CYT5KPOnaV65n/0DXZRrFM4z1odRHfJ7uaJslp/MDYp78PidWsYFZl0WowVybZ+Tyu27
+         1QP1+zLq0WKT/h02rmDM9BMR+BFZBS3tZ3mmTacc1cvdzFnmpvbxGWIyhGQNbXdSUg2X
+         qF5Atv66V8UAtKCI5Y00YNDPfbTlkdDkGhTq+BYn1dR/XCFi5HjdjUsBIcvASrRduBuN
+         URNo/x8mYReBVlsyjoXcfgzN5cV12nLH4ScJIjoeIXN6EBuZsI92hdejqq9D0T43kHJw
+         8SRA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of srikar@linux.vnet.ibm.com) smtp.mailfrom=srikar@linux.vnet.ibm.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id d30si1150935ybi.136.2019.07.29.00.28.55
+       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+Received: from cloud1-vm154.de-nserver.de (cloud1-vm154.de-nserver.de. [178.250.10.56])
+        by mx.google.com with ESMTPS id i12si39911956wrs.152.2019.07.29.00.45.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 29 Jul 2019 00:28:55 -0700 (PDT)
-Received-SPF: neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of srikar@linux.vnet.ibm.com) client-ip=148.163.158.5;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 29 Jul 2019 00:45:02 -0700 (PDT)
+Received-SPF: neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) client-ip=178.250.10.56;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 148.163.158.5 is neither permitted nor denied by best guess record for domain of srikar@linux.vnet.ibm.com) smtp.mailfrom=srikar@linux.vnet.ibm.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098419.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6T7NU21126820
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 03:28:55 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2u1tkbcf48-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 03:28:55 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <srikar@linux.vnet.ibm.com>;
-	Mon, 29 Jul 2019 08:28:53 +0100
-Received: from b06avi18878370.portsmouth.uk.ibm.com (9.149.26.194)
-	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 29 Jul 2019 08:28:49 +0100
-Received: from d06av21.portsmouth.uk.ibm.com (d06av21.portsmouth.uk.ibm.com [9.149.105.232])
-	by b06avi18878370.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6T7SmVX43254160
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 29 Jul 2019 07:28:48 GMT
-Received: from d06av21.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 2AC5052063;
-	Mon, 29 Jul 2019 07:28:48 +0000 (GMT)
-Received: from linux.vnet.ibm.com (unknown [9.126.150.29])
-	by d06av21.portsmouth.uk.ibm.com (Postfix) with SMTP id 59ED252050;
-	Mon, 29 Jul 2019 07:28:46 +0000 (GMT)
-Date: Mon, 29 Jul 2019 12:58:45 +0530
-From: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-To: "Huang, Ying" <ying.huang@intel.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@kernel.org>,
-        linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        Rik van Riel <riel@redhat.com>, Mel Gorman <mgorman@suse.de>,
-        jhladky@redhat.com, lvenanci@redhat.com,
-        Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH RESEND] autonuma: Fix scan period updating
-Reply-To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
-References: <20190725080124.494-1-ying.huang@intel.com>
- <20190725173516.GA16399@linux.vnet.ibm.com>
- <87y30l5jdo.fsf@yhuang-dev.intel.com>
- <20190726092021.GA5273@linux.vnet.ibm.com>
- <87ef295yn9.fsf@yhuang-dev.intel.com>
+       spf=neutral (google.com: 178.250.10.56 is neither permitted nor denied by best guess record for domain of s.priebe@profihost.ag) smtp.mailfrom=s.priebe@profihost.ag
+Received: (qmail 6498 invoked from network); 29 Jul 2019 09:45:01 +0200
+X-Fcrdns: No
+Received: from phoffice.de-nserver.de (HELO [10.11.11.165]) (185.39.223.5)
+  (smtp-auth username hostmaster@profihost.com, mechanism plain)
+  by cloud1-vm154.de-nserver.de (qpsmtpd/0.92) with (ECDHE-RSA-AES256-GCM-SHA384 encrypted) ESMTPSA; Mon, 29 Jul 2019 09:45:01 +0200
+Subject: Re: No memory reclaim while reaching MemoryHigh
+From: Stefan Priebe - Profihost AG <s.priebe@profihost.ag>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: cgroups@vger.kernel.org, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ Johannes Weiner <hannes@cmpxchg.org>,
+ "n.fahldieck@profihost.ag" <n.fahldieck@profihost.ag>,
+ Daniel Aberger - Profihost AG <d.aberger@profihost.ag>, p.kramme@profihost.ag
+References: <496dd106-abdd-3fca-06ad-ff7abaf41475@profihost.ag>
+ <20190725140117.GC3582@dhcp22.suse.cz>
+ <028ff462-b547-b9a5-bdb0-e0de3a884afd@profihost.ag>
+ <20190726074557.GF6142@dhcp22.suse.cz>
+ <d205c7a1-30c4-e26c-7e9c-debc431b5ada@profihost.ag>
+ <9eb7d70a-40b1-b452-a0cf-24418fa6254c@profihost.ag>
+ <57de9aed-2eab-b842-4ca9-a5ec8fbf358a@profihost.ag>
+Message-ID: <8051474f-3a1c-76ee-68fa-46ec684acdb6@profihost.ag>
+Date: Mon, 29 Jul 2019 09:45:00 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <87ef295yn9.fsf@yhuang-dev.intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-TM-AS-GCONF: 00
-x-cbid: 19072907-0012-0000-0000-000003373501
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19072907-0013-0000-0000-00002170D528
-Message-Id: <20190729072845.GC7168@linux.vnet.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-29_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=975 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1907290087
+In-Reply-To: <57de9aed-2eab-b842-4ca9-a5ec8fbf358a@profihost.ag>
+Content-Type: text/plain; charset=utf-8
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
+X-User-Auth: Auth by hostmaster@profihost.com through 185.39.223.5
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> >> 
-> >> if (lr_ratio >= NUMA_PERIOD_THRESHOLD)
-> >>     slow down scanning
-> >> else if (sp_ratio >= NUMA_PERIOD_THRESHOLD) {
-> >>     if (NUMA_PERIOD_SLOTS - lr_ratio >= NUMA_PERIOD_THRESHOLD)
-> >>         speed up scanning
+Sorry for may be spamming - i try to share as much information as i can:
+
+The difference varnish between my is that:
+* varnish cgroup consumes active_anon type of mem
+* my test consumes inactive_file type of mem
+
+both get freed by drop_caches but active_anon does not get freed by
+triggering memoryhigh.
+
+Greets,
+Stefan
+
+Am 29.07.19 um 09:07 schrieb Stefan Priebe - Profihost AG:
+> Hi all,
 > 
-> Thought about this again.  For example, a multi-threads workload runs on
-> a 4-sockets machine, and most memory accesses are shared.  The optimal
-> situation will be pseudo-interleaving, that is, spreading memory
-> accesses evenly among 4 NUMA nodes.  Where "share" >> "private", and
-> "remote" > "local".  And we should slow down scanning to reduce the
-> overhead.
+> it might be that i just missunderstood how it works.
 > 
-> What do you think about this?
-
-If all 4 nodes have equal access, then all 4 nodes will be active nodes.
-
-From task_numa_fault()
-
-	if (!priv && !local && ng && ng->active_nodes > 1 &&
-				numa_is_active_node(cpu_node, ng) &&
-				numa_is_active_node(mem_node, ng))
-		local = 1;
-
-Hence all accesses will be accounted as local. Hence scanning would slow
-down.
-
--- 
-Thanks and Regards
-Srikar Dronamraju
+> This test works absolutely fine without any penalty:
+> 
+> test.sh:
+> #####
+> #!/bin/bash
+> 
+> sync
+> echo 3 >/proc/sys/vm/drop_caches
+> sync
+> time find / -xdev -type f -exec cat "{}" \; >/dev/null 2>/dev/null
+> #####
+> 
+> started with:
+> systemd-run -pRemainAfterExit=True -- /root/spriebe/test.sh
+> 
+> or
+> 
+> systemd-run --property=MemoryHigh=300M -pRemainAfterExit=True --
+> /root/spriebe/test.sh
+> 
+> In both cases it takes ~ 1m 45s even though it consumes about 2G of mem
+> in the first case.
+> 
+> So it seems even though it can only consume a max of 300M in the 2nd
+> case. It is as fast as the first one without any limit.
+> 
+> I thought until today that the same would happen for varnish. Where's
+> the difference?
+> 
+> I also tried stuff like:
+> sysctl -w vm.vfs_cache_pressure=1000000
+> 
+> but the cgroup memory usage of varnish still raises slowly about 100M
+> per hour. The varnish process itself stays constant at ~5.6G
+> 
+> Greets,
+> Stefan
+> 
+> Am 28.07.19 um 23:11 schrieb Stefan Priebe - Profihost AG:
+>> here is a memory.stat output of the cgroup:
+>> # cat /sys/fs/cgroup/system.slice/varnish.service/memory.stat
+>> anon 8113229824
+>> file 39735296
+>> kernel_stack 26345472
+>> slab 24985600
+>> sock 339968
+>> shmem 0
+>> file_mapped 38793216
+>> file_dirty 946176
+>> file_writeback 0
+>> inactive_anon 0
+>> active_anon 8113119232
+>> inactive_file 40198144
+>> active_file 102400
+>> unevictable 0
+>> slab_reclaimable 2859008
+>> slab_unreclaimable 22126592
+>> pgfault 178231449
+>> pgmajfault 22011
+>> pgrefill 393038
+>> pgscan 4218254
+>> pgsteal 430005
+>> pgactivate 295416
+>> pgdeactivate 351487
+>> pglazyfree 0
+>> pglazyfreed 0
+>> workingset_refault 401874
+>> workingset_activate 62535
+>> workingset_nodereclaim 0
+>>
+>> Greets,
+>> Stefan
+>>
+>> Am 26.07.19 um 20:30 schrieb Stefan Priebe - Profihost AG:
+>>> Am 26.07.19 um 09:45 schrieb Michal Hocko:
+>>>> On Thu 25-07-19 23:37:14, Stefan Priebe - Profihost AG wrote:
+>>>>> Hi Michal,
+>>>>>
+>>>>> Am 25.07.19 um 16:01 schrieb Michal Hocko:
+>>>>>> On Thu 25-07-19 15:17:17, Stefan Priebe - Profihost AG wrote:
+>>>>>>> Hello all,
+>>>>>>>
+>>>>>>> i hope i added the right list and people - if i missed someone i would
+>>>>>>> be happy to know.
+>>>>>>>
+>>>>>>> While using kernel 4.19.55 and cgroupv2 i set a MemoryHigh value for a
+>>>>>>> varnish service.
+>>>>>>>
+>>>>>>> It happens that the varnish.service cgroup reaches it's MemoryHigh value
+>>>>>>> and stops working due to throttling.
+>>>>>>
+>>>>>> What do you mean by "stops working"? Does it mean that the process is
+>>>>>> stuck in the kernel doing the reclaim? /proc/<pid>/stack would tell you
+>>>>>> what the kernel executing for the process.
+>>>>>
+>>>>> The service no longer responses to HTTP requests.
+>>>>>
+>>>>> stack switches in this case between:
+>>>>> [<0>] io_schedule+0x12/0x40
+>>>>> [<0>] __lock_page_or_retry+0x1e7/0x4e0
+>>>>> [<0>] filemap_fault+0x42f/0x830
+>>>>> [<0>] __xfs_filemap_fault.constprop.11+0x49/0x120
+>>>>> [<0>] __do_fault+0x57/0x108
+>>>>> [<0>] __handle_mm_fault+0x949/0xef0
+>>>>> [<0>] handle_mm_fault+0xfc/0x1f0
+>>>>> [<0>] __do_page_fault+0x24a/0x450
+>>>>> [<0>] do_page_fault+0x32/0x110
+>>>>> [<0>] async_page_fault+0x1e/0x30
+>>>>> [<0>] 0xffffffffffffffff
+>>>>>
+>>>>> and
+>>>>>
+>>>>> [<0>] poll_schedule_timeout.constprop.13+0x42/0x70
+>>>>> [<0>] do_sys_poll+0x51e/0x5f0
+>>>>> [<0>] __x64_sys_poll+0xe7/0x130
+>>>>> [<0>] do_syscall_64+0x5b/0x170
+>>>>> [<0>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+>>>>> [<0>] 0xffffffffffffffff
+>>>>
+>>>> Neither of the two seem to be memcg related.
+>>>
+>>> Yes but at least the xfs one is a page fault - isn't this related?
+>>>
+>>>> Have you tried to get
+>>>> several snapshots and see if the backtrace is stable?
+>>> No it's not it switches most of the time between these both. But as long
+>>> as the xfs one with the page fault is seen it does not serve requests
+>>> and that one is seen for at least 1-5s than the poill one is visible and
+>>> than the xfs one again for 1-5s.
+>>>
+>>> This happens if i do:
+>>> systemctl set-property --runtime varnish.service MemoryHigh=6.5G
+>>>
+>>> if i set:
+>>> systemctl set-property --runtime varnish.service MemoryHigh=14G
+>>>
+>>> i never get the xfs handle_mm fault one. This is reproducable.
+>>>
+>>>> tell you whether your application is stuck in a single syscall or they
+>>>> are just progressing very slowly (-ttt parameter should give you timing)
+>>>
+>>> Yes it's still going forward but really really slow due to memory
+>>> pressure. memory.pressure of varnish cgroup shows high values above 100
+>>> or 200.
+>>>
+>>> I can reproduce the same with rsync or other tasks using memory for
+>>> inodes and dentries. What i don't unterstand is that the kernel does not
+>>> reclaim memory for the userspace process and drops the cache. I can't
+>>> believe those entries are hot - as they must be at least some days old
+>>> as a fresh process running a day only consumes about 200MB of indoe /
+>>> dentries / page cache.
+>>>
+>>> Greets,
+>>> Stefan
+>>>
 
