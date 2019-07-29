@@ -2,272 +2,246 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 42B39C7618B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:33:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 93121C433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:34:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EC8BC206E0
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:33:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Yj2x/YP+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC8BC206E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 58B88206E0
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:34:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 58B88206E0
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8EE698E0006; Mon, 29 Jul 2019 04:33:08 -0400 (EDT)
+	id DCF328E0005; Mon, 29 Jul 2019 04:34:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 89FC78E0002; Mon, 29 Jul 2019 04:33:08 -0400 (EDT)
+	id D58F28E0002; Mon, 29 Jul 2019 04:34:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7B63B8E0006; Mon, 29 Jul 2019 04:33:08 -0400 (EDT)
+	id C49518E0005; Mon, 29 Jul 2019 04:34:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 160E08E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 04:33:08 -0400 (EDT)
-Received: by mail-lj1-f199.google.com with SMTP id m2so13177770ljj.0
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 01:33:08 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7286C8E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 04:34:44 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id f9so29750993wrq.14
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 01:34:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=fzjgi5IYwtgWKCD94QQKl1WKdW6R14NVG7cIaq5hNd0=;
-        b=jeVi6Ww37OMF6tqarBtA+YvrLrv1TXHinDQdRIP7I8APZIvSAstvVGoYAgxuN0YerS
-         v9yQxKHEzQbLjYiO4TH/R+7WIVvAFoAoEoyUEUZw1V1wFKwFiWZVIysPqda0VO0XdmPc
-         M9cr7tuBKhIIC2zRAPnfwJCmeL2/f/XfuU+V7ND1Z+gCpEyQVv4jfrVBik0WhM3RW9lK
-         vNertnOVznzHM7U3ZnnOpb8AVLLJQvAuiI+hsLtgITIOUK4+h1Udj7cCw+2RTHF0B01s
-         vFSYVJlWWvI5cgMmZEatPScOCEHVh1G7WVeiUGVVlzeGBr3j9WRhzNZ3tZDNN97+Ej9i
-         1s7A==
-X-Gm-Message-State: APjAAAXEquYJJbPrQwD22GaeTWPkBcdBqH3IBj+8V1Bj1F7Pp/1pt/fz
-	BFcyLHckL+i185Kn7fxS9wFNHN3hSa2AiA5qQo9cK1ZK7Qa25JfytJP1Iiz3hOkriAHhDxszVvn
-	vhJwPklsi2tlm5ZRIn/HE+wGyFjCh8EeA5ctcifaJsIP0T1fQIpnJ7IW9auojPf0rew==
-X-Received: by 2002:a2e:96d0:: with SMTP id d16mr43788506ljj.14.1564389187492;
-        Mon, 29 Jul 2019 01:33:07 -0700 (PDT)
-X-Received: by 2002:a2e:96d0:: with SMTP id d16mr43788467ljj.14.1564389186659;
-        Mon, 29 Jul 2019 01:33:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564389186; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=9qmNJpo+G1GbcYINDgxpagj22LYP7N2xvovRaDvrtuc=;
+        b=CjYXSEq1P6Z9Jc5dQwzZPEHoLAtoOsrh8zgPHgEv5Jf5VBRN4Tc6okpJx1UHUd/o05
+         HXeAlNJJYDfviRkOS4K/tlAkSij+WXPv5N4pmDvr88FR7BRuWN2O0LN9QMJaHsKgBgmb
+         bCpeUDoROz1h6feE3GWX8+NYoEI8gJh7iWiE6jfIhhm3CeF0PM2Uzj23XratFc32Mwdv
+         5epukYHKOmhpb4+CIDwXiIF2mKSaB9phPydmwLXT4aLJYhGbal4wiIRtZ18M3bSNaUqn
+         yHj+R9hwAkX9MVRmGv3xdqYRXf+WvOHsUbI3lSu3xSAHDuo4PfsqSwqyPtQ2NaPBNz1g
+         zkSA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.66 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAXFCMTSiyYM+Ip8DUjueOmHLJzQXOG9DHcyAPvEK9AY8BbCQBm5
+	zOEvD49Hd9h1FyIpRCuISzD51WijNPUHIYRipElKZbEEeKNnBhu2byHJtd8X/mEygGCw8Xvpbxy
+	XE1qGnqL2b1ez6xTUPc270KqgzA3shKhb82AS3bHHgR9f6cES4pANZ06i3p0vgpkDAA==
+X-Received: by 2002:a05:600c:23cd:: with SMTP id p13mr90644441wmb.86.1564389283938;
+        Mon, 29 Jul 2019 01:34:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzNb5YWdLKk5cE7GbUr1hvEcG9cmx8bS5c7YtkUG5LdMwgcYPtnPDnfY0gQdRnlZc1rzZWn
+X-Received: by 2002:a05:600c:23cd:: with SMTP id p13mr90644331wmb.86.1564389282827;
+        Mon, 29 Jul 2019 01:34:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564389282; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ek64xVYwLvdCu44i4Qqt11v5sidNVc7YC/5Bq41y+PrJ3ggMWQvObbfHTuX1+dQ8qX
-         Pzfkrg7SoUsTnqBxNevPGqWqO1CtqUfLWaH9EXu5mxVJDnSFbe23QeHXBh+awI4+JtxX
-         ERgQtvaDaapMvS8C1yUYPpNJf3fHT9CzlxBdGAvgq6mGJuKIqkCq+R69PH2KIUVKj/xM
-         96q5IDTiHR27ePvVntJnkV7xN0BKR5dTusGOVocwzK6B1lm1DgaPtWO4xj4EKl7YPrbY
-         ceP1ifhhPy11A1fXiizG/GybETVXIoiTd2Lnnqf5OM7Uu/fyMC7/gHzKZ9haDsEdZ9xJ
-         BorQ==
+        b=hAT09FVAjlXKErY7EF1URYzVvlnG+dDPAbd67LufXm/1iaB0yyBeknO8fqBMnBwcTi
+         IjrnByUmIKJHDiqu/KVnvUPzhjOrGpPNorjSUOIhxYdH+58V0MwdYmgec3+VMUjy4N8m
+         KjcdZcdo3ler+xUU2oSnqKPaXGQ3unDI14tcDvCcp6d9QJFT5HKtINE2XvjFk3au8Ug5
+         VSpG60tuOAOjf4jhPuvRAk9q0EMTu3yju0VJDl8vObpXjBWRX21+iyk8zhFKiul8t+XX
+         U4rrfYM2GI3yNQKtMo9AViu59pW8ktTNPSpXU6b88KQNk3tKQYdoVoAojfm6adRtXlqY
+         qw4A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=fzjgi5IYwtgWKCD94QQKl1WKdW6R14NVG7cIaq5hNd0=;
-        b=IlYwU5gYE6L5XuLmuPZn+ycyAdLmHOdjxYBh74ACDr4vavikeaD4HZt0+hUhQPFBzM
-         +550LNwgoYefEGxwYRMgXO6BpoS+vqjONCqhApuYo1TsY4nTzGz0K/GkHqde6uLrx7KH
-         oQ6aygEnhohz05e3ZGWQxIFw3YwD/xML0GpEunu9nsfMchGZYGHJwwbHjQ076zMnkY1j
-         B+DxVb/8ZSrT43wDalqefnWftqjuenBVLBMLDg/q5/jBwfo5POrn8aVphCSf8noFC7Ur
-         LQ6Q0+Dbo15OyKveJIE1A6PlXSapvv7YwOoajf5bZY8N09CQsNLyqiciSzVSeTRL57+W
-         +n5g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=9qmNJpo+G1GbcYINDgxpagj22LYP7N2xvovRaDvrtuc=;
+        b=SKyVbpBLYV7VznBRgBI2ENTGA/BfQOoEYJtof8+DsDvs4NDae3ukibpqpnD1RIBzve
+         VoQSgLLSLpP60L16AKBrl4KYuQERjBSrNCVmYc3IvHjgHwCYgYLm+QQnDI+Pi1ESZKwo
+         C5mja8ljK2iYzVzPAsjRt/IvDKSS+NCg2ixdNU0eHk97k8Ji3ZwjDZktDlOU49QEIHVp
+         /eazITwhRKUvdKVDAmZKok7QRFwfLJw+lInjRoBhcUNmvAAmj0QZCZHsKvrm/K2Xq0Ex
+         6khTbzpaq+hQQWMcn2cIftbHsIShNc5qwoRaSGomTiTd//7GI+By/BarzCuIM73aM7Ff
+         CtJA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Yj2x/YP+";
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n5sor15358853lfi.73.2019.07.29.01.33.06
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.66 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp33.blacknight.com (outbound-smtp33.blacknight.com. [81.17.249.66])
+        by mx.google.com with ESMTPS id c184si46126289wma.23.2019.07.29.01.34.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 29 Jul 2019 01:33:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Jul 2019 01:34:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.66 as permitted sender) client-ip=81.17.249.66;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="Yj2x/YP+";
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=fzjgi5IYwtgWKCD94QQKl1WKdW6R14NVG7cIaq5hNd0=;
-        b=Yj2x/YP+GQx3u0ETLl95DFn76V+nUeZ0HgcyvoUS0J23BQZRtMVjzIjCk80uAnKs7Q
-         HQlRZ1Ixt54mk2Xl0CPAS4hhA/sUUWDDv5/rRB2v+KHQ4C83QqlXf3PwcGVgrK44gXGK
-         T8QwJf/xyMFHhs2/N13YRy+O5ZrAaWHzCrT+9uVBY8T0e9XoY4vKw0aMc3l5RNtlaUye
-         2VNkfpFLe1kIUERcSgFAVPZYdYW3WF1u+Y7yXdwTmDoI1JjojonOcWFQNJEu9zZ2L+Ms
-         iR7gq/NDAQVjh7NAv7l7QBoZvm7uLNemt8yUQrhf5sdM60rK76dfCnEyAtS40qTLkvPy
-         d9ag==
-X-Google-Smtp-Source: APXvYqxOB3hlBmp/ELmfdAvewRmPGBGlLy908aDcnO5gzCSlHvcgEUZGOZj5/xu4Z+SD47jako1Nt3Hob11dDINtGdM=
-X-Received: by 2002:a19:5e10:: with SMTP id s16mr49683043lfb.13.1564389186319;
- Mon, 29 Jul 2019 01:33:06 -0700 (PDT)
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.66 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (unknown [81.17.255.152])
+	by outbound-smtp33.blacknight.com (Postfix) with ESMTPS id 5CE41D01CB
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 09:34:42 +0100 (IST)
+Received: (qmail 30865 invoked from network); 29 Jul 2019 08:34:42 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[84.203.19.7])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 29 Jul 2019 08:34:42 -0000
+Date: Mon, 29 Jul 2019 09:34:40 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Pengfei Li <lpf.vector@gmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, mhocko@suse.com,
+	vbabka@suse.cz, Qian Cai <cai@lca.pw>, aryabinin@virtuozzo.com,
+	osalvador@suse.de, rostedt@goodmis.org, mingo@redhat.com,
+	pavel.tatashin@microsoft.com, rppt@linux.ibm.com,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH 00/10] make "order" unsigned int
+Message-ID: <20190729083440.GE2739@techsingularity.net>
+References: <20190725184253.21160-1-lpf.vector@gmail.com>
+ <20190726072637.GC2739@techsingularity.net>
+ <CAD7_sbHwjN3RY+ofgWvhQFJdxhCC4=gsMs194=wOH3tKV-qSUg@mail.gmail.com>
 MIME-Version: 1.0
-References: <20190215024830.GA26477@jordon-HP-15-Notebook-PC>
- <20190728180611.GA20589@mail-itl> <CAFqt6zaMDnpB-RuapQAyYAub1t7oSdHH_pTD=f5k-s327ZvqMA@mail.gmail.com>
-In-Reply-To: <CAFqt6zaMDnpB-RuapQAyYAub1t7oSdHH_pTD=f5k-s327ZvqMA@mail.gmail.com>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Mon, 29 Jul 2019 14:02:54 +0530
-Message-ID: <CAFqt6zY+07JBxAVfMqb+X78mXwFOj2VBh0nbR2tGnQOP9RrNkQ@mail.gmail.com>
-Subject: Re: [Xen-devel] [PATCH v4 8/9] xen/gntdev.c: Convert to use vm_map_pages()
-To: =?UTF-8?Q?Marek_Marczykowski=2DG=C3=B3recki?= <marmarek@invisiblethingslab.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Matthew Wilcox <willy@infradead.org>, 
-	Michal Hocko <mhocko@suse.com>, Boris Ostrovsky <boris.ostrovsky@oracle.com>, 
-	Juergen Gross <jgross@suse.com>, Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, 
-	xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, 
-	Linux-MM <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <CAD7_sbHwjN3RY+ofgWvhQFJdxhCC4=gsMs194=wOH3tKV-qSUg@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 29, 2019 at 1:35 PM Souptick Joarder <jrdr.linux@gmail.com> wro=
-te:
->
-> On Sun, Jul 28, 2019 at 11:36 PM Marek Marczykowski-G=C3=B3recki
-> <marmarek@invisiblethingslab.com> wrote:
+On Sun, Jul 28, 2019 at 12:44:36AM +0800, Pengfei Li wrote:
+> On Fri, Jul 26, 2019 at 3:26 PM Mel Gorman <mgorman@techsingularity.net> wrote:
 > >
-> > On Fri, Feb 15, 2019 at 08:18:31AM +0530, Souptick Joarder wrote:
-> > > Convert to use vm_map_pages() to map range of kernel
-> > > memory to user vma.
+> 
+> Thank you for your comments.
+> 
+> > On Fri, Jul 26, 2019 at 02:42:43AM +0800, Pengfei Li wrote:
+> > > Objective
+> > > ----
+> > > The motivation for this series of patches is use unsigned int for
+> > > "order" in compaction.c, just like in other memory subsystems.
 > > >
-> > > map->count is passed to vm_map_pages() and internal API
-> > > verify map->count against count ( count =3D vma_pages(vma))
-> > > for page array boundary overrun condition.
 > >
-> > This commit breaks gntdev driver. If vma->vm_pgoff > 0, vm_map_pages
-> > will:
-> >  - use map->pages starting at vma->vm_pgoff instead of 0
->
-> The actual code ignores vma->vm_pgoff > 0 scenario and mapped
-> the entire map->pages[i]. Why the entire map->pages[i] needs to be mapped
-> if vma->vm_pgoff > 0 (in original code) ?
->
-> are you referring to set vma->vm_pgoff =3D 0 irrespective of value passed
-> from user space ? If yes, using vm_map_pages_zero() is an alternate
-> option.
->
->
-> >  - verify map->count against vma_pages()+vma->vm_pgoff instead of just
-> >    vma_pages().
->
-> In original code ->
->
-> diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
-> index 559d4b7f807d..469dfbd6cf90 100644
-> --- a/drivers/xen/gntdev.c
-> +++ b/drivers/xen/gntdev.c
-> @@ -1084,7 +1084,7 @@ static int gntdev_mmap(struct file *flip, struct
-> vm_area_struct *vma)
-> int index =3D vma->vm_pgoff;
-> int count =3D vma_pages(vma);
->
-> Count is user passed value.
->
-> struct gntdev_grant_map *map;
-> - int i, err =3D -EINVAL;
-> + int err =3D -EINVAL;
-> if ((vma->vm_flags & VM_WRITE) && !(vma->vm_flags & VM_SHARED))
-> return -EINVAL;
-> @@ -1145,12 +1145,9 @@ static int gntdev_mmap(struct file *flip,
-> struct vm_area_struct *vma)
-> goto out_put_map;
-> if (!use_ptemod) {
-> - for (i =3D 0; i < count; i++) {
-> - err =3D vm_insert_page(vma, vma->vm_start + i*PAGE_SIZE,
-> - map->pages[i]);
->
-> and when count > i , we end up with trying to map memory outside
-> boundary of map->pages[i], which was not correct.
+> > Why? The series is relatively subtle in parts, particularly patch 5.
+> 
+> Before I sent this series of patches, I took a close look at the
+> git log for compact.c.
+> 
+> Here is a short history, trouble you to look patiently.
+> 
+> 1) At first, "order" is _unsigned int_
+> 
+> The commit 56de7263fcf3 ("mm: compaction: direct compact when a
+> high-order allocation fails") introduced the "order" in
+> compact_control and its type is unsigned int.
+> 
+> Besides, you specify that order == -1 is the flag that triggers
+> compaction via proc.
+> 
 
-typo.
-s/count > i / count > map->count
->
-> - if (err)
-> - goto out_put_map;
-> - }
-> + err =3D vm_map_pages(vma, map->pages, map->count);
-> + if (err)
-> + goto out_put_map;
->
-> With this commit, inside __vm_map_pages(), we have addressed this scenari=
-o.
->
-> +static int __vm_map_pages(struct vm_area_struct *vma, struct page **page=
-s,
-> + unsigned long num, unsigned long offset)
-> +{
-> + unsigned long count =3D vma_pages(vma);
-> + unsigned long uaddr =3D vma->vm_start;
-> + int ret, i;
-> +
-> + /* Fail if the user requested offset is beyond the end of the object */
-> + if (offset > num)
-> + return -ENXIO;
-> +
-> + /* Fail if the user requested size exceeds available object size */
-> + if (count > num - offset)
-> + return -ENXIO;
->
-> By checking count > num -offset. (considering vma->vm_pgoff !=3D 0 as wel=
-l).
-> So we will never cross the boundary of map->pages[i].
->
->
+Yes, specifying that compaction in that context is for the entire zone
+without any specific allocation context or request.
+
+> 2) Next, because order equals -1 is special, it causes an error.
+> 
+> The commit 7be62de99adc ("vmscan: kswapd carefully call compaction")
+> determines if "order" is less than 0.
+> 
+> This condition is always true because the type of "order" is
+> _unsigned int_.
+> 
+> -               compact_zone(zone, &cc);
+> +               if (cc->order < 0 || !compaction_deferred(zone))
+> 
+> 3) Finally, in order to fix the above error, the type of the order
+> is modified to _int_
+> 
+> It is done by commit: aad6ec3777bf ("mm: compaction: make
+> compact_control order signed").
+> 
+> The reason I mention this is because I want to express that the
+> type of "order" is originally _unsigned int_. And "order" is
+> modified to _int_ because of the special value of -1.
+> 
+
+And in itself, why does that matter?
+
+> If the special value of "order" is not a negative number (for
+> example, -1), but a number greater than MAX_ORDER - 1 (for example,
+> MAX_ORDER), then the "order" may still be _unsigned int_ now.
+> 
+
+Sure, but then you have to check that every check on order understands
+the new special value.
+
+> > There have been places where by it was important for order to be able to
+> > go negative due to loop exit conditions.
+> 
+> I think that even if "cc->order" is _unsigned int_, it can be done
+> with a local temporary variable easily.
+> 
+> Like this,
+> 
+> function(...)
+> {
+>     for(int tmp_order = cc->order; tmp_order >= 0; tmp_order--) {
+>         ...
+>     }
+> }
+> 
+
+Yes, it can be expressed as unsigned but in itself why does that justify
+the review of a large series? There is limited to no performance gain
+and functionally it's equivalent.
+
+> > If there was a gain from this
+> > or it was a cleanup in the context of another major body of work, I
+> > could understand the justification but that does not appear to be the
+> > case here.
 > >
-> > In practice, this breaks using a single gntdev FD for mapping multiple
-> > grants.
->
-> How ?
->
-> >
-> > It looks like vm_map_pages() is not a good fit for this code and IMO it
-> > should be reverted.
->
-> Did you hit any issue around this code in real time ?
->
->
-> >
-> > > Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
-> > > Reviewed-by: Boris Ostrovsky <boris.ostrovsky@oracle.com>
-> > > ---
-> > >  drivers/xen/gntdev.c | 11 ++++-------
-> > >  1 file changed, 4 insertions(+), 7 deletions(-)
-> > >
-> > > diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
-> > > index 5efc5ee..5d64262 100644
-> > > --- a/drivers/xen/gntdev.c
-> > > +++ b/drivers/xen/gntdev.c
-> > > @@ -1084,7 +1084,7 @@ static int gntdev_mmap(struct file *flip, struc=
-t vm_area_struct *vma)
-> > >       int index =3D vma->vm_pgoff;
-> > >       int count =3D vma_pages(vma);
-> > >       struct gntdev_grant_map *map;
-> > > -     int i, err =3D -EINVAL;
-> > > +     int err =3D -EINVAL;
-> > >
-> > >       if ((vma->vm_flags & VM_WRITE) && !(vma->vm_flags & VM_SHARED))
-> > >               return -EINVAL;
-> > > @@ -1145,12 +1145,9 @@ static int gntdev_mmap(struct file *flip, stru=
-ct vm_area_struct *vma)
-> > >               goto out_put_map;
-> > >
-> > >       if (!use_ptemod) {
-> > > -             for (i =3D 0; i < count; i++) {
-> > > -                     err =3D vm_insert_page(vma, vma->vm_start + i*P=
-AGE_SIZE,
-> > > -                             map->pages[i]);
-> > > -                     if (err)
-> > > -                             goto out_put_map;
-> > > -             }
-> > > +             err =3D vm_map_pages(vma, map->pages, map->count);
-> > > +             if (err)
-> > > +                     goto out_put_map;
-> > >       } else {
-> > >  #ifdef CONFIG_X86
-> > >               /*
-> >
-> > --
-> > Best Regards,
-> > Marek Marczykowski-G=C3=B3recki
-> > Invisible Things Lab
-> > A: Because it messes up the order in which people normally read text.
-> > Q: Why is top-posting such a bad thing?
+> 
+> My final conclusion:
+> 
+> Why "order" is _int_ instead of unsigned int?
+>   => Because order == -1 is used as the flag.
+>     => So what about making "order" greater than MAX_ORDER - 1?
+>       => The "order" can be _unsigned int_ just like in most places.
+> 
+> (Can we only pick -1 as this special value?)
+> 
+
+No, but the existing code did make that choice and has been debugged
+with that decision.
+
+> This series of patches makes sense because,
+> 
+> 1) It guarantees that "order" remains the same type.
+> 
+
+And the advantage is?
+
+> No one likes to see this
+> 
+> __alloc_pages_slowpath(unsigned int order, ...)
+>  => should_compact_retry(int order, ...)            /* The type changed */
+>   => compaction_zonelist_suitable(int order, ...)
+>    => __compaction_suitable(int order, ...)
+>     => zone_watermark_ok(unsigned int order, ...)   /* The type
+> changed again! */
+> 
+> 2) It eliminates the evil "order == -1".
+> 
+> If "order" is specified as any positive number greater than
+> MAX_ORDER - 1 in commit 56de7263fcf3, perhaps no int order will
+> appear in compact.c until now.
+> 
+
+So, while it is possible, the point still holds. There is marginal to no
+performance advantage (some CPUs perform fractionally better when an
+index variable is unsigned rather than signed but it's difficult to
+measure even when you're looking for it). It'll take time to review and
+then debug the entire series. If this was in the context of a larger
+functional enablement or performance optimisation then it would be
+worthwhile but as it is, it looks more like churn for the sake of it.
+
+-- 
+Mel Gorman
+SUSE Labs
 
