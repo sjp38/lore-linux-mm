@@ -2,127 +2,153 @@ Return-Path: <SRS0=FoEm=V2=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 66B31C7618B
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:18:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 39E83C76192
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:20:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3517720644
-	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:18:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3517720644
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 04EEF2070B
+	for <linux-mm@archiver.kernel.org>; Mon, 29 Jul 2019 08:20:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 04EEF2070B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D65AA8E0003; Mon, 29 Jul 2019 04:18:06 -0400 (EDT)
+	id 993258E0005; Mon, 29 Jul 2019 04:20:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D152D8E0002; Mon, 29 Jul 2019 04:18:06 -0400 (EDT)
+	id 943EE8E0002; Mon, 29 Jul 2019 04:20:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C04108E0003; Mon, 29 Jul 2019 04:18:06 -0400 (EDT)
+	id 80B438E0005; Mon, 29 Jul 2019 04:20:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 8825E8E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 04:18:06 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id b3so37770026edd.22
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 01:18:06 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 47F328E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 04:20:08 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id x18so37982219pfj.4
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 01:20:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=zv1jyHrQhg/anG79DXIg6d42L7l6b6qBUMNYIf//wxg=;
-        b=ZIgtHLUMi1FkKui1tiYW+lFJHrd9PdJenx++vs9ufFolTGI5B6B5SrInyD9evhNxOT
-         bj/OXi2Gc6uIJwHlPtqy8atKFV4CnZ3bbVoyNG58eT4VT+sEQXFQR6hiaSrgWbiyMpsg
-         c1iK9KthF5mey4Fh0SZdVH+qfmMpdz3dKFxovywlL0AyIrhXg72rQUi0X/hlEg4va8qO
-         yV335A5ia5ukWW2L4oaZDbJiiLt4U9Z/7qXvTxcAkyUjzqp4Uf+0q4WdrrB9AbMVdzIt
-         zTO+9taqAbW8NCT1/KBopNeHXHmtno/YkvRSdY3zixmbZ4VRtoZlHCkh82X8I2jE44lq
-         Cupw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of qais.yousef@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=qais.yousef@arm.com
-X-Gm-Message-State: APjAAAWOabJtPMygeWzCasZWuEBQuFyNi/nNwSeGhYsxncVilIeFTPI9
-	ivu9rv26UvI8E/BvafqdK2bGbQnH7vxyN5IOowiO1zrJJPRv/sbkmvtf0A8ST2YGPjbGCU3wqwV
-	+OegaMfNfwD4U7rymxWHI+N7nQ7r7CubJ0K0AbeHhe69mqaI7+LU9Z2IiDZbT9KRJxg==
-X-Received: by 2002:a17:906:6bd4:: with SMTP id t20mr79755275ejs.294.1564388286104;
-        Mon, 29 Jul 2019 01:18:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy+PDzwO6O7ec0nxWP6AznZVgCuNGS36odH9RDkrStEvsBMEb78vFpB62wvNUxnQBAH9TqZ
-X-Received: by 2002:a17:906:6bd4:: with SMTP id t20mr79755238ejs.294.1564388285329;
-        Mon, 29 Jul 2019 01:18:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564388285; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=loBkav+SVwnYBMcv6F0k5dMqgWh8nEXO64nEXvoYfqw=;
+        b=l4sEh1vG5DrEc8LFFN2vEPIvEnhmuB34XHjmxbIee2UiEh2cJRl+j7VtMtcKi/waAH
+         JDqcmyG7muj+gMealxPcTShEI1ceGwwF/oyd+hX6VxLpYmKGMOgWISGYCWMPHHH/VZ9O
+         zaktFv9dBmR3oLzJAFfN+bxhtJt5XkS/bf7FpmPEJDnh6PpdhpAydv/KWitKGLhQoeQS
+         aQO191VKjRg87fdUeGi5PSuIA+6Ca5RUoYoqBiGJTcO8McpXYmjsW+uCtydrFXB4xubC
+         48wta6yn7VuDMdE4Izvh9p3AFOIr+XFE1ZAwYD2dzRcv/oIuuOi3yWuJn5OIA4lS/elM
+         xgUQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXHhauzgSePhp5b4WX7NQ7Em0kS4uDVIiqCKBDK2Wd+WdYfVT4k
+	pAAUxhdj9WQeLvg5+Zh89zY07PrqFCavO6AD0R/aEWNwemF64dCrxFpCWw32DpXzXujoqq4M207
+	98Qn6Y9P9Yb0zHZw+5u2YE/jM+FVjbVHdcR2jsD6AxUZVs1rwjROtuIpkim5F+uBoXA==
+X-Received: by 2002:aa7:9092:: with SMTP id i18mr35000888pfa.101.1564388407925;
+        Mon, 29 Jul 2019 01:20:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw9OcrSzuVJM0BKhMMxSVrk7ayrev2HwiEYBPw5wyiEG8IbDaCwYVPyjobC9OuEVQgjkPx3
+X-Received: by 2002:aa7:9092:: with SMTP id i18mr35000832pfa.101.1564388407188;
+        Mon, 29 Jul 2019 01:20:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564388407; cv=none;
         d=google.com; s=arc-20160816;
-        b=r3AC22Woa18aZAUjkPuQUdXw3//UcWj1zPKA1iK466RFPwfrJOu8Y6LdHNVD2Ogls1
-         K9hj50yQuuHcCiIdLuFCZS0r3UUAklk+e++jWhWCoXbKslU9yJx0ZfxQOO3irWkz/SVr
-         Yw9kE5ujeHeOXTr4pPSDdjjWqDLpbu+854cDeemIL+3sEL0VrjAIBqfVPPoUf6cIawqd
-         uL674AMuMqNVMFRh0UO4RHaKQYI0b+Xu+OoUPOijc4F2PLH7k14+wVkDEj3SXPO93STn
-         ohw+rruBTeEgWMfOm/5/y19fjLce5gqFeP1OqgFCDMY7oo4sV9aU+myzIziHWpWeUa1T
-         Yd9g==
+        b=TbGzOfJhJ9pVAPCBhg6kFdBHl3497Uzb0fxtJ97dxWdIOnitc5zRPbzgTe/KAXY8oR
+         0V3/28L/sNheBgXkWhI4IH9+gJ2cVv97OSvZAO2UyhegpUmwTWiCS++Htuo1JiWNA/Sy
+         xxh0YbyV8E+uRPlZQhaKcUElaah5xrifJPKkdEPzZSOjHUvKNg5kqu1GBsLR1RaaiX4V
+         BC3zR4S5NKLuGoyV2u9Cn26YLio2t54be8FPTj29ALRfAxkSTl3cstEvjMUn/IWYl4Om
+         fkC8eDXa9mCtvabYRBUiJsBUOYMgfv3oJYchgJbi+JxxlnZLw0n6+TYDlJjWipW9Q1re
+         RE3Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=zv1jyHrQhg/anG79DXIg6d42L7l6b6qBUMNYIf//wxg=;
-        b=xACcx3QEAwghnMpOH3XJynE3iJ6/CswSDpZ0y53IraCEtoqNfhfTKGTTuLmUDo/Dx7
-         nU7YIZcZKpBF81XeYaizLjHruZs+ACLpeOttUEUPG1gn1ia8QBB4e9t9VimXMV4wIOiK
-         iVDeOhh2+nWVgi99zoK7rFuMC05mmbA7fAnomD1C9/4ZAYXgtJPqgG7C9lH50I2+59RH
-         gBZ9bSHBku/KtcEoQ4uJyWaPBmuhbCA82KcYG+P9Mcf5BXo0JMq/U0q8j0zZldMCiCvC
-         zmfyEG8i8CKUUieJiaeif9evrNLUAJ0m43QqELhWFErW7Us43hzOzdRWycNWrzda02hW
-         fbFA==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=loBkav+SVwnYBMcv6F0k5dMqgWh8nEXO64nEXvoYfqw=;
+        b=NF3eE3inwk7GeNaPIVNWBZeJjaqfSpAzkSb/GrNGFoa2xdZ3Jcj8ircZ8Fo4Gl7gTi
+         5Q8pIXWjCGvNo1TbxPk/DEQAnxXKbmx6uUobOw3zCL0kKpmJI9JIo+D5NZoJnLv+hByn
+         5hBEcT2L+YfUlPwFV5LFAnUIHCKZFFpZ6snEPhhz8pBechYk78jjvS3+6aqe30hslyn5
+         KH6xfw0ZlEyMxfNJLGtd+NlltOM0256cLc3Gx6LgiDjKyaWcPpXW79KnSfLo3P4xxeDG
+         2FOCZIR3nVPafOfB1hdXMoZ22+CU8qYQgdpdx9eaiHvtyiZHq16k+sLCCEVpiLaRj3UE
+         QktA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of qais.yousef@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=qais.yousef@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id l31si16933003edb.143.2019.07.29.01.18.05
-        for <linux-mm@kvack.org>;
-        Mon, 29 Jul 2019 01:18:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of qais.yousef@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id z17si25708820pgj.147.2019.07.29.01.20.07
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Jul 2019 01:20:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of qais.yousef@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=qais.yousef@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 7D12E337;
-	Mon, 29 Jul 2019 01:18:04 -0700 (PDT)
-Received: from e107158-lin.cambridge.arm.com (unknown [10.1.194.30])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 78F283F575;
-	Mon, 29 Jul 2019 01:18:03 -0700 (PDT)
-Date: Mon, 29 Jul 2019 09:18:01 +0100
-From: Qais Yousef <qais.yousef@arm.com>
-To: Waiman Long <longman@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Phil Auld <pauld@redhat.com>
-Subject: Re: [PATCH v2] sched/core: Don't use dying mm as active_mm of
- kthreads
-Message-ID: <20190729081800.qbamrvsf4rjna656@e107158-lin.cambridge.arm.com>
-References: <20190727171047.31610-1-longman@redhat.com>
+       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 29 Jul 2019 01:16:30 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,322,1559545200"; 
+   d="scan'208";a="165395411"
+Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.29])
+  by orsmga008.jf.intel.com with ESMTP; 29 Jul 2019 01:16:28 -0700
+From: "Huang\, Ying" <ying.huang@intel.com>
+To: Srikar Dronamraju <srikar@linux.vnet.ibm.com>
+Cc: Peter Zijlstra <peterz@infradead.org>,  Ingo Molnar <mingo@kernel.org>,  <linux-mm@kvack.org>,  <linux-kernel@vger.kernel.org>,  Rik van Riel <riel@redhat.com>,  Mel Gorman <mgorman@suse.de>,  <jhladky@redhat.com>,  <lvenanci@redhat.com>,  Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH RESEND] autonuma: Fix scan period updating
+References: <20190725080124.494-1-ying.huang@intel.com>
+	<20190725173516.GA16399@linux.vnet.ibm.com>
+	<87y30l5jdo.fsf@yhuang-dev.intel.com>
+	<20190726092021.GA5273@linux.vnet.ibm.com>
+	<87ef295yn9.fsf@yhuang-dev.intel.com>
+	<20190729072845.GC7168@linux.vnet.ibm.com>
+Date: Mon, 29 Jul 2019 16:16:28 +0800
+In-Reply-To: <20190729072845.GC7168@linux.vnet.ibm.com> (Srikar Dronamraju's
+	message of "Mon, 29 Jul 2019 12:58:45 +0530")
+Message-ID: <87wog145nn.fsf@yhuang-dev.intel.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20190727171047.31610-1-longman@redhat.com>
-User-Agent: NeoMutt/20171215
+Content-Type: text/plain; charset=ascii
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/27/19 13:10, Waiman Long wrote:
-> It was found that a dying mm_struct where the owning task has exited
-> can stay on as active_mm of kernel threads as long as no other user
-> tasks run on those CPUs that use it as active_mm. This prolongs the
-> life time of dying mm holding up memory and other resources like swap
-> space that cannot be freed.
-> 
-> Fix that by forcing the kernel threads to use init_mm as the active_mm
-> if the previous active_mm is dying.
-> 
-> The determination of a dying mm is based on the absence of an owning
-> task. The selection of the owning task only happens with the CONFIG_MEMCG
-> option. Without that, there is no simple way to determine the life span
-> of a given mm. So it falls back to the old behavior.
+Srikar Dronamraju <srikar@linux.vnet.ibm.com> writes:
 
-I don't really know a lot about this code, but does the owner field has to
-depend on CONFIG_MEMCG? ie: can't the owner be always set?
+>> >> 
+>> >> if (lr_ratio >= NUMA_PERIOD_THRESHOLD)
+>> >>     slow down scanning
+>> >> else if (sp_ratio >= NUMA_PERIOD_THRESHOLD) {
+>> >>     if (NUMA_PERIOD_SLOTS - lr_ratio >= NUMA_PERIOD_THRESHOLD)
+>> >>         speed up scanning
+>> 
+>> Thought about this again.  For example, a multi-threads workload runs on
+>> a 4-sockets machine, and most memory accesses are shared.  The optimal
+>> situation will be pseudo-interleaving, that is, spreading memory
+>> accesses evenly among 4 NUMA nodes.  Where "share" >> "private", and
+>> "remote" > "local".  And we should slow down scanning to reduce the
+>> overhead.
+>> 
+>> What do you think about this?
+>
+> If all 4 nodes have equal access, then all 4 nodes will be active nodes.
+>
+> From task_numa_fault()
+>
+> 	if (!priv && !local && ng && ng->active_nodes > 1 &&
+> 				numa_is_active_node(cpu_node, ng) &&
+> 				numa_is_active_node(mem_node, ng))
+> 		local = 1;
+>
+> Hence all accesses will be accounted as local. Hence scanning would slow
+> down.
 
-Cheers
+Yes.  You are right!  Thanks a lot!
 
---
-Qais Yousef
+There may be another case.  For example, a workload with 9 threads runs
+on a 2-sockets machine, and most memory accesses are shared.  7 threads
+runs on the node 0 and 2 threads runs on the node 1 based on CPU load
+balancing.  Then the 2 threads on the node 1 will have "share" >>
+"private" and "remote" >> "local".  But it doesn't help to speed up
+scanning.
+
+Best Regards,
+Huang, Ying
 
