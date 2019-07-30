@@ -2,444 +2,955 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DB200C0650F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 17:28:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 483AFC0650F
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 17:29:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6126920693
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 17:28:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C95E82089E
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 17:29:43 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="qyhR0H5z";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="jXkgWIX6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6126920693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=android.com header.i=@android.com header.b="HkTFuuTv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C95E82089E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=android.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B5DEC8E0003; Tue, 30 Jul 2019 13:28:19 -0400 (EDT)
+	id 654358E0003; Tue, 30 Jul 2019 13:29:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B0F718E0001; Tue, 30 Jul 2019 13:28:19 -0400 (EDT)
+	id 6054C8E0001; Tue, 30 Jul 2019 13:29:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9619C8E0003; Tue, 30 Jul 2019 13:28:19 -0400 (EDT)
+	id 47FBA8E0003; Tue, 30 Jul 2019 13:29:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f71.google.com (mail-yw1-f71.google.com [209.85.161.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 6CFF98E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 13:28:19 -0400 (EDT)
-Received: by mail-yw1-f71.google.com with SMTP id l141so48014404ywc.11
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 10:28:19 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id F217B8E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 13:29:42 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id b18so41014321pgg.8
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 10:29:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=qhQj2IBUvescjnW+8zn0Zx2UMjQDJCmJ6uGfo4ot6ZQ=;
-        b=S0TNpwd0MdVNhwc8+rrjH9F6TWgO2kBo4RRwOZ6K0NcIhboPbVO907Fjsb7X3GLtc3
-         KsiXEJezR/qNTUwGgFDOV6yZ3kbu3+et8iUa7jST+euK1CWnVfJZfAUpwb66Qv3wpZfV
-         Y0jwClQeaalWUzMzlZYe24LUjsj5jhN4FiyIrAm49aSB2CLg12KDCI8LD1jRTs8oL87K
-         FwB0KNKo3iFMg0wQXkLytyrXJCfpM9QzkqiPJh+Tbg8aENr5i6mmQ5vZc/QSx+letEJW
-         h52cBV0wmRJtWDa0pMlU2MAMXbEzEav3fTzXUhtymNW/PEN0nenRVf64wkPu5G1olncz
-         XC5Q==
-X-Gm-Message-State: APjAAAVu8Ch8TazBhehb9ZmT+7czI3UsivR1dXn9HsCR/QCneLVnMhzS
-	c7nMziJ9jK4PIDdoPkP0JGzhDJ8imQKsnmc0u3zspXV/ueOTvHzcUDpKB6GN0CvpkBfuw2uNprb
-	7EQ2KLJi4XlGgxSuGbwyVYwmZHpy9fkOZiN3i0Ri26hiW0N1QY1z2HD+cdxmeAeMmVg==
-X-Received: by 2002:a81:5e44:: with SMTP id s65mr67062472ywb.441.1564507699131;
-        Tue, 30 Jul 2019 10:28:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwKfGOQYzwAF/PS4XDS24WU2TxQRTo5jC1NsePrUCIK14rBaqfkOc+7QW3lu0Tj5khKS7mi
-X-Received: by 2002:a81:5e44:: with SMTP id s65mr67062401ywb.441.1564507698119;
-        Tue, 30 Jul 2019 10:28:18 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1564507698; cv=pass;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=hpXePiRxXfQ6sClI29050n6F2wnM+ayz6+4t+YYSnqM=;
+        b=E98LHcrv2IF7ptXRHkL7zJEkGxHQht789DVTyLIEE6g3JkDCD1Rni5yB3kbw+KgRAN
+         Ja0rsK9+xidXnKuk66QGUvDiPcB27Z5Vh4stT9LZplkSkPz4jQLWeCJYgNYpCO6HAOo0
+         LH4eTlfKym2BUZvKL2oIsJzrUXNSfkFWY3Mx5w72FU2ZT6m55Hf1gloJLs3kiIiHztCf
+         2YkY9Mo9cP71muZxRIkjQ4A+zeBC8hfwsUkuKYJF05lrMoCFuuOtTyOHdoc1TFAsCAcI
+         6k9EIh58kvsG8zfew60VfKy1kCJuWRoQYgg2cUYQyY/iuQdIsT7Q9kb083BnkD5gjB3B
+         qE8w==
+X-Gm-Message-State: APjAAAVbyX/hoPzxk0oqys2qwudGUqCEKP5o1LoLrFZ+HkQ42qkopSEW
+	GIibYoOFYuu2iIJq3rwrJ7BeC56ZnrTrsHnXlFqPWniZIwxV3A2IsKmEaFaZWCeJraCOfn+vlI1
+	gjSo2Tacqf+daa7tBlUZA8suvCy+DNGj8n2rd6fVsbzzi4h8cWa+S65kQcJeTr5dKCg==
+X-Received: by 2002:a17:902:3181:: with SMTP id x1mr113956627plb.135.1564507782562;
+        Tue, 30 Jul 2019 10:29:42 -0700 (PDT)
+X-Received: by 2002:a17:902:3181:: with SMTP id x1mr113956556plb.135.1564507780836;
+        Tue, 30 Jul 2019 10:29:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564507780; cv=none;
         d=google.com; s=arc-20160816;
-        b=BxhcBiANEzIiwuw4HgMkCV4+bwBz0SgiNaz8wGpmw/JK067iGQmkoHg9v1ZcYq7xSz
-         zQkSZnzD5PAOQc/abD8w9f3cppABS/rADfKIwHO6OtlDnD6K9DIfyuzE7DRQh1iqHqgX
-         rtByIsGD9FkhnxXzw8AtDFRBTl+ymIWYhWkjqGZ1/4kVLrEpBnc9mThTSW0UyX1NCQ0O
-         fkclaCXuXLvV72IhBYnxItUTH9FqZWZyrTAykCcxcqmV6+xCEB0SKyg3oEUBYbquhDq2
-         w3I9xJSNw+OWA/vnXFNQRZWssrDLv8giCw605hExPgIJeI0FV2Devx4xSA97C28ORF75
-         1M8w==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=qhQj2IBUvescjnW+8zn0Zx2UMjQDJCmJ6uGfo4ot6ZQ=;
-        b=YwZXbVL/laq87iuFuaVRUoweRs+Vuk7hXf/yqBDuVsQ3Gy9QID3M81+U3zwfZLOiPA
-         1iGMknHpBpvHOPgX7U5RflyW1UWdDUdiHFfzRmstebm1pmzG+7WN/IjEhMqDM4QzSRQ0
-         33mokhZ953UhhIeBMVNBwuNlEO22Iy4Hbn8BO9DA92XZP+CdrqaEo46PZ15pdO/NLO2m
-         YU0GaXQMfb+LTMiXsu2gMImF78UhdmLroGbAVXIiJXOC+ItHgHazxtbwAwxIGYuJD8TJ
-         O2cupUD7JO5QqdaBNfdHizkCvsSfCZ79Aulf9iHUcmsXWUdXq45YaOl1fdso6mqAUut9
-         j3Ng==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=qyhR0H5z;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=jXkgWIX6;
-       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
-       spf=pass (google.com: domain of prvs=31148e3214=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=31148e3214=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id a14si7607969ybp.39.2019.07.30.10.28.17
+        b=FvLQ/j+YyyGLaJQmQUkdz9p3OCpLIW+o8v1gSBoJMsWhXlOmxi7wQL99kzl5+Wl01h
+         Oc0rfAKZaf17WZVfUTbZDMwDn7SzOxIsW0CEYW+e/5XBAOJc+3pJeWhzDO1DbLyrlG66
+         1mJstesY0hmfwBSCsmQiE1ZBGOsJ3Ic0pt9QK31sljHm1IAcXA1m+8vcsj8rem09MWkc
+         huKwOfPpd5+8NDqFziTBd8EZi2YDRS1FMkECvzuB2WpOpMpjHTEyc+3Tw4ZsakCL9krc
+         CzKGGAqmnuExm8DzweIM+KYTDOu2qx6b/T+7smHJwgYeSdHBbuiqc/7tfUywQkLGKx40
+         DWpQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=hpXePiRxXfQ6sClI29050n6F2wnM+ayz6+4t+YYSnqM=;
+        b=sJuepnwnBjKq2FjbR10J1PM+0mJeY7P050zWpmSjAxP/MWSlg31Jgmi0BXwIut3fwU
+         4sEzeHnRZRjXWeszkroxV3mFys8A4rrxNn4f2teRo7N1/tESe94+yO88QTLBRIwH+f3J
+         xvweBHF21deZQrF4c0uuUyyvp8+8wEZTRm8nZugQ1Ezg+us/cR6jcdXd3Vlo3/Y2lSOs
+         dpCHao1wz2MS6er6vh8dbOTr/LEKH/jKxnqXF0bbJksgXUtUxxC5h+x4dck3BLLje1Eu
+         +7/HauLovTZweFFkVVR1r5nEIHoFAv4/gFBi8X4CLXqtUYXaBx+a6jGlk7LZrZMNKTfA
+         8Sjg==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@android.com header.s=20161025 header.b=HkTFuuTv;
+       spf=pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=salyzyn@android.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=android.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i12sor80256467pjk.27.2019.07.30.10.29.40
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 10:28:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=31148e3214=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        (Google Transport Security);
+        Tue, 30 Jul 2019 10:29:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=qyhR0H5z;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=jXkgWIX6;
-       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
-       spf=pass (google.com: domain of prvs=31148e3214=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=31148e3214=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0148461.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6UHRjw6026808;
-	Tue, 30 Jul 2019 10:28:16 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=qhQj2IBUvescjnW+8zn0Zx2UMjQDJCmJ6uGfo4ot6ZQ=;
- b=qyhR0H5zR/19m8SvTwn/kNBt0r6i4EejsDiPT2t3d3GaEMlSgE7iD39CEQpn+QZV5JnX
- tT1OOErQSgkiVPXA280jKBlTa38gezqKauhRFZ7rKwJhVST2OqOzewxoSmrj7WHNCy6d
- nqTwWVaM4Dj1b6tbhS3X2bYtWprRUfw6y6g= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2u2f53taqb-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Tue, 30 Jul 2019 10:28:15 -0700
-Received: from prn-mbx03.TheFacebook.com (2620:10d:c081:6::17) by
- prn-hub01.TheFacebook.com (2620:10d:c081:35::125) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Tue, 30 Jul 2019 10:28:14 -0700
-Received: from prn-hub05.TheFacebook.com (2620:10d:c081:35::129) by
- prn-mbx03.TheFacebook.com (2620:10d:c081:6::17) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Tue, 30 Jul 2019 10:28:14 -0700
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.29) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Tue, 30 Jul 2019 10:28:14 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=gxg11wfl2C61zOAi+RkV41YRAgVwM+KLOpN0QoaPgtS9fLfLnHNhI/UAOpcYollQIJHit9FEeCUYW2qy7j9XNXFpcSJdzJtt0I68xjrnJwZxU6GTOV/oC1d+RMFnmlvP/N9crQf7DQROPOuQXBNzuF3GYastgWR3BtHqTw6dZJD2ZZP2GEtn3LbsyZ/m4klfP+jKNDtAQn+yhWfOcKqriyFgA1w7uq1PHcI9vq6cWYNjQMk+j8QONcIYWopO+4IRDBTI9RxJUBsCWbnS+2jsvRxKGjsDC1cI7PJ86haDSa2Ohr/M/hz84REte7834nZ1JLGhLIUt7gi7J4nfXClkUQ==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=qhQj2IBUvescjnW+8zn0Zx2UMjQDJCmJ6uGfo4ot6ZQ=;
- b=W3/5rLl4dwmWQdFvqkk/czbTS6CbCj3E4yzHJoXKMLFdI5h421dKHNKlFH9z61keVHocIpqQpdpxV5K5FN9c0KF0K615WgLXWtR6mOMpBGHF8qrgfZ+twFHMH5AeCb+HLL5EWVramPj43u43xkMXsGbWTdkdBvJgOEUXfaUjyiItyFXOSVOCUcHVMBbDgfQUQ7oT0yFLNTVDNabXG4pLLiqeXbSGxxaMIypdeITSbUrVIpclVBHuvXMTPdH1wTlnjRh/z5aMecJC3oQcP8mhaWqQwhernnPThCxHgPSkcjWjWmxUFMsu6X+PYqsJ4uFjCjek2FoeBSFkcsAJa3ddOw==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=fb.com;dmarc=pass action=none header.from=fb.com;dkim=pass
- header.d=fb.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=qhQj2IBUvescjnW+8zn0Zx2UMjQDJCmJ6uGfo4ot6ZQ=;
- b=jXkgWIX6rBvrdJCiqLkcMN0orU5rRFW18l1nxD9Cox5RnyktK4nrM8ZalXr5PClWl+I/1kvcIRKUDvbIEDh7fBTwaYku82JXHXm/Z/942LpW7yTCoKQFnpaVVUZtX9gYlRzWmOOh5UfsoNzE/iwf6GOFh4u4HziaJv7Ferhv6nI=
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
- MWHPR15MB1230.namprd15.prod.outlook.com (10.175.2.148) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2115.10; Tue, 30 Jul 2019 17:28:13 +0000
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::d4fc:70c0:79a5:f41b]) by MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::d4fc:70c0:79a5:f41b%2]) with mapi id 15.20.2115.005; Tue, 30 Jul 2019
- 17:28:13 +0000
-From: Song Liu <songliubraving@fb.com>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-CC: lkml <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
-        "akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-        "matthew.wilcox@oracle.com" <matthew.wilcox@oracle.com>,
-        "kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>,
-        "oleg@redhat.com" <oleg@redhat.com>, Kernel Team <Kernel-team@fb.com>,
-        "william.kucharski@oracle.com" <william.kucharski@oracle.com>,
-        "srikar@linux.vnet.ibm.com" <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH 1/2] khugepaged: enable collapse pmd for pte-mapped THP
-Thread-Topic: [PATCH 1/2] khugepaged: enable collapse pmd for pte-mapped THP
-Thread-Index: AQHVRdCXaB8qUzCo40K8bOFQNuNjzqbjQxwAgAAplQA=
-Date: Tue, 30 Jul 2019 17:28:13 +0000
-Message-ID: <452746EE-186C-43D8-B15C-9921E587BA3A@fb.com>
-References: <20190729054335.3241150-1-songliubraving@fb.com>
- <20190729054335.3241150-2-songliubraving@fb.com>
- <20190730145922.m5omqqf7rmilp6yy@box>
-In-Reply-To: <20190730145922.m5omqqf7rmilp6yy@box>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: Apple Mail (2.3445.104.11)
-x-originating-ip: [2620:10d:c090:200::3:5cb8]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 1887e6b1-793e-45c7-57fa-08d715134cbd
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1230;
-x-ms-traffictypediagnostic: MWHPR15MB1230:
-x-microsoft-antispam-prvs: <MWHPR15MB12303F9BC5E6996671715AF7B3DC0@MWHPR15MB1230.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:7691;
-x-forefront-prvs: 0114FF88F6
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(396003)(346002)(376002)(366004)(39860400002)(136003)(199004)(189003)(64756008)(66556008)(229853002)(53546011)(486006)(6506007)(66446008)(4326008)(68736007)(86362001)(25786009)(76116006)(66946007)(102836004)(50226002)(305945005)(186003)(7736002)(76176011)(316002)(54906003)(5660300002)(66476007)(99286004)(6116002)(33656002)(11346002)(46003)(256004)(476003)(36756003)(2616005)(71200400001)(14454004)(2906002)(71190400001)(8676002)(6916009)(478600001)(14444005)(8936002)(6486002)(53936002)(6246003)(81166006)(6512007)(6436002)(57306001)(81156014)(446003);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1230;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: 6oN+fujpdEwcYIh7o1XCFJsX99Uya5vf4esIp9Up96LJl2vt486tfBgOgk5NAgvn/XpDXTmvgNOn1zmyZTuxcZugqfm8MctDqVnH8FHuGzkg7xm4/7iok8y0ARXUccYkUFydz7JrWgkR94ym852S1Ys/IgPj+G/kzKJ+xa9C9DVUzkdxkI2uKnwuXwehS/f1lpMETIQqBT+xcdlErv1dxuPbF3w8mL9WRldmWWBonMxb2OiG4coSmCo2G+FEfpt11f4o4NTGZM+630oSe56uO0JikV4dw1Yh7aL/9yMwg41/HX0u+Lvpg0BGXCM53RgvXjDmc9SZVjVpiNFhAfm86eYS84GDN9+gWthTCIe8VztROqOFjyVsgD3xs1vDjikhZrJJ5Pz1u4LLKkoBBJlA0x5p3wSEGl+gQGdgiqX69N8=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <4F13321A534DB342B5F10348C15BAEFB@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@android.com header.s=20161025 header.b=HkTFuuTv;
+       spf=pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=salyzyn@android.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=android.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=android.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=hpXePiRxXfQ6sClI29050n6F2wnM+ayz6+4t+YYSnqM=;
+        b=HkTFuuTvBIXlQZSSPWbSBIXm6TttT1y4oMLZRV5iAhmzJo/DpBXgIG21DgnAHKbxVw
+         /mmYEeXaJIKoIdWyeKQZC/w690K7fVQdyNuFDV7znox/Y+a8YluKlraCgeg0ACAU3HZd
+         mc2CGZMsMvIl++bjoghrBiHiuASsC+T7Nj6xdAFYCC38Fu1j77X9nY1hfdFQhkiAMpeg
+         OThqyGjhNGNxD+hjQP36Nk+LIjddHBJ0o7yUIPCjj+POF45e7zPeY38BMWxO70sG3W9O
+         xvWGvG1kcPhJBZLxw0s8XQM2x+hh2GYgTZJ+6y1OmlZJ/DKuTr4V38hgGWQi+fx1PUf6
+         M4sA==
+X-Google-Smtp-Source: APXvYqx2+uPWPnkmyeQnnAqR8ojwmpe5xMbWtmVjejIfGQs8XItzn2uEBRI9JMNOBi6qC1s1EFXuJg==
+X-Received: by 2002:a17:90a:2244:: with SMTP id c62mr120904716pje.29.1564507780186;
+        Tue, 30 Jul 2019 10:29:40 -0700 (PDT)
+Received: from nebulus.mtv.corp.google.com ([2620:15c:211:200:5404:91ba:59dc:9400])
+        by smtp.gmail.com with ESMTPSA id o129sm39856293pfg.1.2019.07.30.10.29.37
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 30 Jul 2019 10:29:39 -0700 (PDT)
+From: Mark Salyzyn <salyzyn@android.com>
+To: linux-kernel@vger.kernel.org
+Cc: kernel-team@android.com,
+	Mark Salyzyn <salyzyn@android.com>,
+	Miklos Szeredi <miklos@szeredi.hu>,
+	Jonathan Corbet <corbet@lwn.net>,
+	Vivek Goyal <vgoyal@redhat.com>,
+	"Eric W . Biederman" <ebiederm@xmission.com>,
+	Amir Goldstein <amir73il@gmail.com>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Stephen Smalley <sds@tycho.nsa.gov>,
+	linux-unionfs@vger.kernel.org,
+	linux-doc@vger.kernel.org,
+	Eric Van Hensbergen <ericvh@gmail.com>,
+	Latchesar Ionkov <lucho@ionkov.net>,
+	Dominique Martinet <asmadeus@codewreck.org>,
+	David Howells <dhowells@redhat.com>,
+	Chris Mason <clm@fb.com>,
+	Josef Bacik <josef@toxicpanda.com>,
+	David Sterba <dsterba@suse.com>,
+	Jeff Layton <jlayton@kernel.org>,
+	Sage Weil <sage@redhat.com>,
+	Ilya Dryomov <idryomov@gmail.com>,
+	Steve French <sfrench@samba.org>,
+	Tyler Hicks <tyhicks@canonical.com>,
+	Jan Kara <jack@suse.com>,
+	"Theodore Ts'o" <tytso@mit.edu>,
+	Andreas Dilger <adilger.kernel@dilger.ca>,
+	Jaegeuk Kim <jaegeuk@kernel.org>,
+	Chao Yu <yuchao0@huawei.com>,
+	Bob Peterson <rpeterso@redhat.com>,
+	Andreas Gruenbacher <agruenba@redhat.com>,
+	David Woodhouse <dwmw2@infradead.org>,
+	Richard Weinberger <richard@nod.at>,
+	Dave Kleikamp <shaggy@kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Tejun Heo <tj@kernel.org>,
+	Trond Myklebust <trond.myklebust@hammerspace.com>,
+	Anna Schumaker <anna.schumaker@netapp.com>,
+	Mark Fasheh <mark@fasheh.com>,
+	Joel Becker <jlbec@evilplan.org>,
+	Joseph Qi <joseph.qi@linux.alibaba.com>,
+	Mike Marshall <hubcap@omnibond.com>,
+	Martin Brandenburg <martin@omnibond.com>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	Phillip Lougher <phillip@squashfs.org.uk>,
+	"Darrick J. Wong" <darrick.wong@oracle.com>,
+	linux-xfs@vger.kernel.org,
+	Hugh Dickins <hughd@google.com>,
+	"David S. Miller" <davem@davemloft.net>,
+	Mark Salyzyn <salyzyn@google.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mathieu Malaterre <malat@debian.org>,
+	=?UTF-8?q?Ernesto=20A=2E=20Fern=C3=A1ndez?= <ernesto.mnd.fernandez@gmail.com>,
+	Vyacheslav Dubeyko <slava@dubeyko.com>,
+	v9fs-developer@lists.sourceforge.net,
+	linux-afs@lists.infradead.org,
+	linux-btrfs@vger.kernel.org,
+	ceph-devel@vger.kernel.org,
+	linux-cifs@vger.kernel.org,
+	samba-technical@lists.samba.org,
+	ecryptfs@vger.kernel.org,
+	linux-ext4@vger.kernel.org,
+	linux-f2fs-devel@lists.sourceforge.net,
+	linux-fsdevel@vger.kernel.org,
+	cluster-devel@redhat.com,
+	linux-mtd@lists.infradead.org,
+	jfs-discussion@lists.sourceforge.net,
+	linux-nfs@vger.kernel.org,
+	ocfs2-devel@oss.oracle.com,
+	devel@lists.orangefs.org,
+	reiserfs-devel@vger.kernel.org,
+	linux-mm@kvack.org,
+	netdev@vger.kernel.org
+Subject: [PATCH v12 2/5] Add flags option to get xattr method paired to __vfs_getxattr
+Date: Tue, 30 Jul 2019 10:28:59 -0700
+Message-Id: <20190730172904.79146-3-salyzyn@android.com>
+X-Mailer: git-send-email 2.22.0.770.g0f2c4a37fd-goog
+In-Reply-To: <20190730172904.79146-1-salyzyn@android.com>
+References: <20190730172904.79146-1-salyzyn@android.com>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 1887e6b1-793e-45c7-57fa-08d715134cbd
-X-MS-Exchange-CrossTenant-originalarrivaltime: 30 Jul 2019 17:28:13.0622
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1230
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-30_08:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=892 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1907300183
-X-FB-Internal: deliver
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Add a flag option to get xattr method that could have a bit flag of
+XATTR_NOSECURITY passed to it.  XATTR_NOSECURITY is set in the
+__vfs_getxattr path.
 
+This handles the case of a union filesystem driver that is being
+requested by the security layer to report back the data that is the
+target label or context embedded into wrapped filesystem's xattr.
 
-> On Jul 30, 2019, at 7:59 AM, Kirill A. Shutemov <kirill@shutemov.name> wr=
-ote:
->=20
-> On Sun, Jul 28, 2019 at 10:43:34PM -0700, Song Liu wrote:
->> khugepaged needs exclusive mmap_sem to access page table. When it fails
->> to lock mmap_sem, the page will fault in as pte-mapped THP. As the page
->> is already a THP, khugepaged will not handle this pmd again.
->>=20
->> This patch enables the khugepaged to retry collapse the page table.
->>=20
->> struct mm_slot (in khugepaged.c) is extended with an array, containing
->> addresses of pte-mapped THPs. We use array here for simplicity. We can
->> easily replace it with more advanced data structures when needed. This
->> array is protected by khugepaged_mm_lock.
->>=20
->> In khugepaged_scan_mm_slot(), if the mm contains pte-mapped THP, we try
->> to collapse the page table.
->>=20
->> Since collapse may happen at an later time, some pages may already fault
->> in. collapse_pte_mapped_thp() is added to properly handle these pages.
->> collapse_pte_mapped_thp() also double checks whether all ptes in this pm=
-d
->> are mapping to the same THP. This is necessary because some subpage of
->> the THP may be replaced, for example by uprobe. In such cases, it is not
->> possible to collapse the pmd.
->>=20
->> Signed-off-by: Song Liu <songliubraving@fb.com>
->> ---
->> include/linux/khugepaged.h |  15 ++++
->> mm/khugepaged.c            | 136 +++++++++++++++++++++++++++++++++++++
->> 2 files changed, 151 insertions(+)
->>=20
->> diff --git a/include/linux/khugepaged.h b/include/linux/khugepaged.h
->> index 082d1d2a5216..2d700830fe0e 100644
->> --- a/include/linux/khugepaged.h
->> +++ b/include/linux/khugepaged.h
->> @@ -15,6 +15,16 @@ extern int __khugepaged_enter(struct mm_struct *mm);
->> extern void __khugepaged_exit(struct mm_struct *mm);
->> extern int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
->> 				      unsigned long vm_flags);
->> +#ifdef CONFIG_SHMEM
->> +extern int khugepaged_add_pte_mapped_thp(struct mm_struct *mm,
->> +					 unsigned long addr);
->> +#else
->> +static inline int khugepaged_add_pte_mapped_thp(struct mm_struct *mm,
->> +						unsigned long addr)
->> +{
->> +	return 0;
->> +}
->> +#endif
->>=20
->> #define khugepaged_enabled()					       \
->> 	(transparent_hugepage_flags &				       \
->> @@ -73,6 +83,11 @@ static inline int khugepaged_enter_vma_merge(struct v=
-m_area_struct *vma,
->> {
->> 	return 0;
->> }
->> +static inline int khugepaged_add_pte_mapped_thp(struct mm_struct *mm,
->> +						unsigned long addr)
->> +{
->> +	return 0;
->> +}
->> #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
->>=20
->> #endif /* _LINUX_KHUGEPAGED_H */
->> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
->> index eaaa21b23215..247c25aeb096 100644
->> --- a/mm/khugepaged.c
->> +++ b/mm/khugepaged.c
->> @@ -76,6 +76,7 @@ static __read_mostly DEFINE_HASHTABLE(mm_slots_hash, M=
-M_SLOTS_HASH_BITS);
->>=20
->> static struct kmem_cache *mm_slot_cache __read_mostly;
->>=20
->> +#define MAX_PTE_MAPPED_THP 8
->=20
-> Is MAX_PTE_MAPPED_THP value random or do you have any justification for
-> it?
+For the use case where access is to be blocked by the security layer.
 
-In our use cases, we only have small number (< 10) of huge pages for the
-text section, so 8 should be enough to cover the worse case.=20
+The path then could be security(dentry) -> __vfs_getxattr(dentry) ->
+handler->get(dentry...XATTR_NOSECURITY) ->
+__vfs_getxattr(lower_dentry) -> lower_handler->get(lower_dentry)
+which would report back through the chain data and success as
+expected, but the logging security layer at the top would have the
+data to determine the access permissions and report back the target
+context that was blocked.
 
-If this is not sufficient, we can make it a list.=20
+Without the get handler flag, the path on a union filesystem would be
+the errant security(dentry) -> __vfs_getxattr(dentry) ->
+handler->get(dentry) -> vfs_getxattr(lower_dentry) -> nested ->
+security(lower_dentry, log off) -> lower_handler->get(lower_dentry)
+which would report back through the chain no data, and -EACCES.
 
->=20
-> Please add empty line after it.
->=20
->> /**
->>  * struct mm_slot - hash lookup from mm to mm_slot
->>  * @hash: hash collision list
->> @@ -86,6 +87,10 @@ struct mm_slot {
->> 	struct hlist_node hash;
->> 	struct list_head mm_node;
->> 	struct mm_struct *mm;
->> +
->> +	/* pte-mapped THP in this mm */
->> +	int nr_pte_mapped_thp;
->> +	unsigned long pte_mapped_thp[MAX_PTE_MAPPED_THP];
->> };
->>=20
->> /**
->> @@ -1281,11 +1286,141 @@ static void retract_page_tables(struct address_=
-space *mapping, pgoff_t pgoff)
->> 			up_write(&vma->vm_mm->mmap_sem);
->> 			mm_dec_nr_ptes(vma->vm_mm);
->> 			pte_free(vma->vm_mm, pmd_pgtable(_pmd));
->> +		} else if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
->> +			/* need down_read for khugepaged_test_exit() */
->> +			khugepaged_add_pte_mapped_thp(vma->vm_mm, addr);
->> +			up_read(&vma->vm_mm->mmap_sem);
->> 		}
->> 	}
->> 	i_mmap_unlock_write(mapping);
->> }
->>=20
->> +/*
->> + * Notify khugepaged that given addr of the mm is pte-mapped THP. Then
->> + * khugepaged should try to collapse the page table.
->> + */
->> +int khugepaged_add_pte_mapped_thp(struct mm_struct *mm, unsigned long a=
-ddr)
->=20
-> What is contract about addr alignment? Do we expect it PAGE_SIZE aligned
-> or PMD_SIZE aligned? Do we want to enforce it?
+For selinux for both cases, this would translate to a correctly
+determined blocked access. In the first corrected case a correct avc
+log would be reported, in the second legacy case an incorrect avc log
+would be reported against an uninitialized u:object_r:unlabeled:s0
+context making the logs cosmetically useless for audit2allow.
 
-It is PMD_SIZE aligned. Let me add VM_BUG_ON() for it.=20
+Signed-off-by: Mark Salyzyn <salyzyn@android.com>
+Cc: Miklos Szeredi <miklos@szeredi.hu>
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: Vivek Goyal <vgoyal@redhat.com>
+Cc: Eric W. Biederman <ebiederm@xmission.com>
+Cc: Amir Goldstein <amir73il@gmail.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>
+Cc: Stephen Smalley <sds@tycho.nsa.gov>
+Cc: linux-unionfs@vger.kernel.org
+Cc: linux-doc@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+Cc: kernel-team@android.com
+---
+v12 - Added back to patch series as get xattr with flag option.
 
->=20
->> +{
->> +	struct mm_slot *mm_slot;
->> +	int ret =3D 0;
->> +
->> +	/* hold mmap_sem for khugepaged_test_exit() */
->> +	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
->> +
->> +	if (unlikely(khugepaged_test_exit(mm)))
->> +		return 0;
->> +
->> +	if (!test_bit(MMF_VM_HUGEPAGE, &mm->flags) &&
->> +	    !test_bit(MMF_DISABLE_THP, &mm->flags)) {
->> +		ret =3D __khugepaged_enter(mm);
->> +		if (ret)
->> +			return ret;
->> +	}
->=20
-> Any reason not to call khugepaged_enter() here?
+v11 - Squashed out of patch series and replaced with per-thread flag
+      solution.
 
-No specific reasons... Let me try it.=20
+v10 - Added to patch series as __get xattr method.
+---
+ fs/9p/acl.c                  |  3 ++-
+ fs/9p/xattr.c                |  3 ++-
+ fs/afs/xattr.c               |  6 +++---
+ fs/btrfs/xattr.c             |  3 ++-
+ fs/ceph/xattr.c              |  3 ++-
+ fs/cifs/xattr.c              |  2 +-
+ fs/ecryptfs/inode.c          |  3 ++-
+ fs/ext2/xattr_trusted.c      |  2 +-
+ fs/ext2/xattr_user.c         |  2 +-
+ fs/ext4/xattr_security.c     |  2 +-
+ fs/ext4/xattr_trusted.c      |  2 +-
+ fs/ext4/xattr_user.c         |  2 +-
+ fs/f2fs/xattr.c              |  4 ++--
+ fs/fuse/xattr.c              |  4 ++--
+ fs/gfs2/xattr.c              |  3 ++-
+ fs/hfs/attr.c                |  2 +-
+ fs/hfsplus/xattr.c           |  3 ++-
+ fs/hfsplus/xattr_trusted.c   |  3 ++-
+ fs/hfsplus/xattr_user.c      |  3 ++-
+ fs/jffs2/security.c          |  3 ++-
+ fs/jffs2/xattr_trusted.c     |  3 ++-
+ fs/jffs2/xattr_user.c        |  3 ++-
+ fs/jfs/xattr.c               |  5 +++--
+ fs/kernfs/inode.c            |  1 +
+ fs/nfs/nfs4proc.c            |  6 ++++--
+ fs/ocfs2/xattr.c             |  9 ++++++---
+ fs/orangefs/xattr.c          |  3 ++-
+ fs/overlayfs/super.c         |  5 +++--
+ fs/posix_acl.c               |  2 +-
+ fs/reiserfs/xattr_security.c |  3 ++-
+ fs/reiserfs/xattr_trusted.c  |  3 ++-
+ fs/reiserfs/xattr_user.c     |  3 ++-
+ fs/squashfs/xattr.c          |  2 +-
+ fs/xattr.c                   | 19 ++++++++++++++-----
+ fs/xfs/xfs_xattr.c           |  3 ++-
+ include/linux/xattr.h        |  6 +++---
+ include/uapi/linux/xattr.h   |  5 +++--
+ mm/shmem.c                   |  3 ++-
+ net/socket.c                 |  3 ++-
+ 39 files changed, 91 insertions(+), 54 deletions(-)
 
->=20
->> +
->> +	spin_lock(&khugepaged_mm_lock);
->> +	mm_slot =3D get_mm_slot(mm);
->> +	if (likely(mm_slot && mm_slot->nr_pte_mapped_thp < MAX_PTE_MAPPED_THP)=
-)
->> +		mm_slot->pte_mapped_thp[mm_slot->nr_pte_mapped_thp++] =3D addr;
->=20
-> It's probably good enough for start, but I'm not sure how useful it will
-> be for real application, considering the limitation.
-
-For limitation, do you mean MAX_PTE_MAPPED_THP? I think this is good for=20
-our use cases. We sure can improve that without too much work.=20
-
-Thanks,
-Song=20
-
->=20
->> +
->=20
-> Useless empty line?
->=20
->> +	spin_unlock(&khugepaged_mm_lock);
->> +	return 0;
->> +}
->> +
->> +/**
->> + * Try to collapse a pte-mapped THP for mm at address haddr.
->> + *
->> + * This function checks whether all the PTEs in the PMD are pointing to=
- the
->> + * right THP. If so, retract the page table so the THP can refault in w=
-ith
->> + * as pmd-mapped.
->> + */
->> +static void collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long=
- haddr)
->> +{
->> +	struct vm_area_struct *vma =3D find_vma(mm, haddr);
->> +	pmd_t *pmd =3D mm_find_pmd(mm, haddr);
->> +	struct page *hpage =3D NULL;
->> +	unsigned long addr;
->> +	spinlock_t *ptl;
->> +	int count =3D 0;
->> +	pmd_t _pmd;
->> +	int i;
->> +
->> +	if (!vma || !pmd || pmd_trans_huge(*pmd))
->> +		return;
->> +
->> +	/* step 1: check all mapped PTEs are to the right huge page */
->> +	for (i =3D 0, addr =3D haddr; i < HPAGE_PMD_NR; i++, addr +=3D PAGE_SI=
-ZE) {
->> +		pte_t *pte =3D pte_offset_map(pmd, addr);
->> +		struct page *page;
->> +
->> +		if (pte_none(*pte))
->> +			continue;
->> +
->> +		page =3D vm_normal_page(vma, addr, *pte);
->> +
->> +		if (!PageCompound(page))
->> +			return;
->=20
-> I think khugepaged_scan_shmem() and collapse_shmem() should changed to no=
-t
-> stop on PageTransCompound() to make this useful for more cases.
-
-With locking sorted out, we could call collapse_pte_mapped_thp() for=20
-PageTransCompound() cases.=20
-
->=20
-> Ideally, it collapse_shmem() and this routine should be the same thing.
-> Or do you thing it's not doable for some reason?
-
-This routine is part of retract_page_tables(). collapse_shmem() does more=20
-work. We can still go into collapse_shmem() and bypass the first half of
-it.=20
-
-On the other hand, I would like to keep it separate for now to minimize
-conflicts with my other set, which is waiting for fixed version of=20
-5fd4ca2d84b249f0858ce28cf637cf25b61a398f.
-
-How about we start with current design (with small things fixed) and=20
-improve it once both sets get in?
-
-Thanks,
-Song
-
+diff --git a/fs/9p/acl.c b/fs/9p/acl.c
+index 6261719f6f2a..cb14e8b312bc 100644
+--- a/fs/9p/acl.c
++++ b/fs/9p/acl.c
+@@ -214,7 +214,8 @@ int v9fs_acl_mode(struct inode *dir, umode_t *modep,
+ 
+ static int v9fs_xattr_get_acl(const struct xattr_handler *handler,
+ 			      struct dentry *dentry, struct inode *inode,
+-			      const char *name, void *buffer, size_t size)
++			      const char *name, void *buffer, size_t size,
++			      int flags)
+ {
+ 	struct v9fs_session_info *v9ses;
+ 	struct posix_acl *acl;
+diff --git a/fs/9p/xattr.c b/fs/9p/xattr.c
+index ac8ff8ca4c11..5cfa772452fd 100644
+--- a/fs/9p/xattr.c
++++ b/fs/9p/xattr.c
+@@ -139,7 +139,8 @@ ssize_t v9fs_listxattr(struct dentry *dentry, char *buffer, size_t buffer_size)
+ 
+ static int v9fs_xattr_handler_get(const struct xattr_handler *handler,
+ 				  struct dentry *dentry, struct inode *inode,
+-				  const char *name, void *buffer, size_t size)
++				  const char *name, void *buffer, size_t size,
++				  int flags)
+ {
+ 	const char *full_name = xattr_full_name(handler, name);
+ 
+diff --git a/fs/afs/xattr.c b/fs/afs/xattr.c
+index 5552d034090a..e6509c21f08a 100644
+--- a/fs/afs/xattr.c
++++ b/fs/afs/xattr.c
+@@ -334,7 +334,7 @@ static const struct xattr_handler afs_xattr_yfs_handler = {
+ static int afs_xattr_get_cell(const struct xattr_handler *handler,
+ 			      struct dentry *dentry,
+ 			      struct inode *inode, const char *name,
+-			      void *buffer, size_t size)
++			      void *buffer, size_t size, int flags)
+ {
+ 	struct afs_vnode *vnode = AFS_FS_I(inode);
+ 	struct afs_cell *cell = vnode->volume->cell;
+@@ -361,7 +361,7 @@ static const struct xattr_handler afs_xattr_afs_cell_handler = {
+ static int afs_xattr_get_fid(const struct xattr_handler *handler,
+ 			     struct dentry *dentry,
+ 			     struct inode *inode, const char *name,
+-			     void *buffer, size_t size)
++			     void *buffer, size_t size, int flags)
+ {
+ 	struct afs_vnode *vnode = AFS_FS_I(inode);
+ 	char text[16 + 1 + 24 + 1 + 8 + 1];
+@@ -397,7 +397,7 @@ static const struct xattr_handler afs_xattr_afs_fid_handler = {
+ static int afs_xattr_get_volume(const struct xattr_handler *handler,
+ 			      struct dentry *dentry,
+ 			      struct inode *inode, const char *name,
+-			      void *buffer, size_t size)
++			      void *buffer, size_t size, int flags)
+ {
+ 	struct afs_vnode *vnode = AFS_FS_I(inode);
+ 	const char *volname = vnode->volume->name;
+diff --git a/fs/btrfs/xattr.c b/fs/btrfs/xattr.c
+index 95d9aebff2c4..1e522e145344 100644
+--- a/fs/btrfs/xattr.c
++++ b/fs/btrfs/xattr.c
+@@ -353,7 +353,8 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
+ 
+ static int btrfs_xattr_handler_get(const struct xattr_handler *handler,
+ 				   struct dentry *unused, struct inode *inode,
+-				   const char *name, void *buffer, size_t size)
++				   const char *name, void *buffer, size_t size,
++				   int flags)
+ {
+ 	name = xattr_full_name(handler, name);
+ 	return btrfs_getxattr(inode, name, buffer, size);
+diff --git a/fs/ceph/xattr.c b/fs/ceph/xattr.c
+index 37b458a9af3a..edb7eb9ae83e 100644
+--- a/fs/ceph/xattr.c
++++ b/fs/ceph/xattr.c
+@@ -1171,7 +1171,8 @@ int __ceph_setxattr(struct inode *inode, const char *name,
+ 
+ static int ceph_get_xattr_handler(const struct xattr_handler *handler,
+ 				  struct dentry *dentry, struct inode *inode,
+-				  const char *name, void *value, size_t size)
++				  const char *name, void *value, size_t size,
++				  int flags)
+ {
+ 	if (!ceph_is_valid_xattr(name))
+ 		return -EOPNOTSUPP;
+diff --git a/fs/cifs/xattr.c b/fs/cifs/xattr.c
+index 9076150758d8..7f71c06ce631 100644
+--- a/fs/cifs/xattr.c
++++ b/fs/cifs/xattr.c
+@@ -199,7 +199,7 @@ static int cifs_creation_time_get(struct dentry *dentry, struct inode *inode,
+ 
+ static int cifs_xattr_get(const struct xattr_handler *handler,
+ 			  struct dentry *dentry, struct inode *inode,
+-			  const char *name, void *value, size_t size)
++			  const char *name, void *value, size_t size, int flags)
+ {
+ 	ssize_t rc = -EOPNOTSUPP;
+ 	unsigned int xid;
+diff --git a/fs/ecryptfs/inode.c b/fs/ecryptfs/inode.c
+index 18426f4855f1..9306e1c53cdb 100644
+--- a/fs/ecryptfs/inode.c
++++ b/fs/ecryptfs/inode.c
+@@ -1103,7 +1103,8 @@ const struct inode_operations ecryptfs_main_iops = {
+ 
+ static int ecryptfs_xattr_get(const struct xattr_handler *handler,
+ 			      struct dentry *dentry, struct inode *inode,
+-			      const char *name, void *buffer, size_t size)
++			      const char *name, void *buffer, size_t size,
++			      int flags)
+ {
+ 	return ecryptfs_getxattr(dentry, inode, name, buffer, size);
+ }
+diff --git a/fs/ext2/xattr_trusted.c b/fs/ext2/xattr_trusted.c
+index 49add1107850..8d313664f0fa 100644
+--- a/fs/ext2/xattr_trusted.c
++++ b/fs/ext2/xattr_trusted.c
+@@ -18,7 +18,7 @@ ext2_xattr_trusted_list(struct dentry *dentry)
+ static int
+ ext2_xattr_trusted_get(const struct xattr_handler *handler,
+ 		       struct dentry *unused, struct inode *inode,
+-		       const char *name, void *buffer, size_t size)
++		       const char *name, void *buffer, size_t size, int flags)
+ {
+ 	return ext2_xattr_get(inode, EXT2_XATTR_INDEX_TRUSTED, name,
+ 			      buffer, size);
+diff --git a/fs/ext2/xattr_user.c b/fs/ext2/xattr_user.c
+index c243a3b4d69d..712b7c95cc64 100644
+--- a/fs/ext2/xattr_user.c
++++ b/fs/ext2/xattr_user.c
+@@ -20,7 +20,7 @@ ext2_xattr_user_list(struct dentry *dentry)
+ static int
+ ext2_xattr_user_get(const struct xattr_handler *handler,
+ 		    struct dentry *unused, struct inode *inode,
+-		    const char *name, void *buffer, size_t size)
++		    const char *name, void *buffer, size_t size, int flags)
+ {
+ 	if (!test_opt(inode->i_sb, XATTR_USER))
+ 		return -EOPNOTSUPP;
+diff --git a/fs/ext4/xattr_security.c b/fs/ext4/xattr_security.c
+index 197a9d8a15ef..50fb71393fb6 100644
+--- a/fs/ext4/xattr_security.c
++++ b/fs/ext4/xattr_security.c
+@@ -15,7 +15,7 @@
+ static int
+ ext4_xattr_security_get(const struct xattr_handler *handler,
+ 			struct dentry *unused, struct inode *inode,
+-			const char *name, void *buffer, size_t size)
++			const char *name, void *buffer, size_t size, int flags)
+ {
+ 	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_SECURITY,
+ 			      name, buffer, size);
+diff --git a/fs/ext4/xattr_trusted.c b/fs/ext4/xattr_trusted.c
+index e9389e5d75c3..64bd8f86c1f1 100644
+--- a/fs/ext4/xattr_trusted.c
++++ b/fs/ext4/xattr_trusted.c
+@@ -22,7 +22,7 @@ ext4_xattr_trusted_list(struct dentry *dentry)
+ static int
+ ext4_xattr_trusted_get(const struct xattr_handler *handler,
+ 		       struct dentry *unused, struct inode *inode,
+-		       const char *name, void *buffer, size_t size)
++		       const char *name, void *buffer, size_t size, int flags)
+ {
+ 	return ext4_xattr_get(inode, EXT4_XATTR_INDEX_TRUSTED,
+ 			      name, buffer, size);
+diff --git a/fs/ext4/xattr_user.c b/fs/ext4/xattr_user.c
+index d4546184b34b..b7301373820e 100644
+--- a/fs/ext4/xattr_user.c
++++ b/fs/ext4/xattr_user.c
+@@ -21,7 +21,7 @@ ext4_xattr_user_list(struct dentry *dentry)
+ static int
+ ext4_xattr_user_get(const struct xattr_handler *handler,
+ 		    struct dentry *unused, struct inode *inode,
+-		    const char *name, void *buffer, size_t size)
++		    const char *name, void *buffer, size_t size, int flags)
+ {
+ 	if (!test_opt(inode->i_sb, XATTR_USER))
+ 		return -EOPNOTSUPP;
+diff --git a/fs/f2fs/xattr.c b/fs/f2fs/xattr.c
+index b32c45621679..76559da8dfba 100644
+--- a/fs/f2fs/xattr.c
++++ b/fs/f2fs/xattr.c
+@@ -24,7 +24,7 @@
+ 
+ static int f2fs_xattr_generic_get(const struct xattr_handler *handler,
+ 		struct dentry *unused, struct inode *inode,
+-		const char *name, void *buffer, size_t size)
++		const char *name, void *buffer, size_t size, int flags)
+ {
+ 	struct f2fs_sb_info *sbi = F2FS_SB(inode->i_sb);
+ 
+@@ -79,7 +79,7 @@ static bool f2fs_xattr_trusted_list(struct dentry *dentry)
+ 
+ static int f2fs_xattr_advise_get(const struct xattr_handler *handler,
+ 		struct dentry *unused, struct inode *inode,
+-		const char *name, void *buffer, size_t size)
++		const char *name, void *buffer, size_t size, int flags)
+ {
+ 	if (buffer)
+ 		*((char *)buffer) = F2FS_I(inode)->i_advise;
+diff --git a/fs/fuse/xattr.c b/fs/fuse/xattr.c
+index 433717640f78..d1ef7808304e 100644
+--- a/fs/fuse/xattr.c
++++ b/fs/fuse/xattr.c
+@@ -176,7 +176,7 @@ int fuse_removexattr(struct inode *inode, const char *name)
+ 
+ static int fuse_xattr_get(const struct xattr_handler *handler,
+ 			 struct dentry *dentry, struct inode *inode,
+-			 const char *name, void *value, size_t size)
++			 const char *name, void *value, size_t size, int flags)
+ {
+ 	return fuse_getxattr(inode, name, value, size);
+ }
+@@ -199,7 +199,7 @@ static bool no_xattr_list(struct dentry *dentry)
+ 
+ static int no_xattr_get(const struct xattr_handler *handler,
+ 			struct dentry *dentry, struct inode *inode,
+-			const char *name, void *value, size_t size)
++			const char *name, void *value, size_t size, int flags)
+ {
+ 	return -EOPNOTSUPP;
+ }
+diff --git a/fs/gfs2/xattr.c b/fs/gfs2/xattr.c
+index bbe593d16bea..a9db067a99c1 100644
+--- a/fs/gfs2/xattr.c
++++ b/fs/gfs2/xattr.c
+@@ -588,7 +588,8 @@ static int __gfs2_xattr_get(struct inode *inode, const char *name,
+ 
+ static int gfs2_xattr_get(const struct xattr_handler *handler,
+ 			  struct dentry *unused, struct inode *inode,
+-			  const char *name, void *buffer, size_t size)
++			  const char *name, void *buffer, size_t size,
++			  int flags)
+ {
+ 	struct gfs2_inode *ip = GFS2_I(inode);
+ 	struct gfs2_holder gh;
+diff --git a/fs/hfs/attr.c b/fs/hfs/attr.c
+index 74fa62643136..08222a9c5d31 100644
+--- a/fs/hfs/attr.c
++++ b/fs/hfs/attr.c
+@@ -115,7 +115,7 @@ static ssize_t __hfs_getxattr(struct inode *inode, enum hfs_xattr_type type,
+ 
+ static int hfs_xattr_get(const struct xattr_handler *handler,
+ 			 struct dentry *unused, struct inode *inode,
+-			 const char *name, void *value, size_t size)
++			 const char *name, void *value, size_t size, int flags)
+ {
+ 	return __hfs_getxattr(inode, handler->flags, value, size);
+ }
+diff --git a/fs/hfsplus/xattr.c b/fs/hfsplus/xattr.c
+index bb0b27d88e50..381c2aaedbc8 100644
+--- a/fs/hfsplus/xattr.c
++++ b/fs/hfsplus/xattr.c
+@@ -839,7 +839,8 @@ static int hfsplus_removexattr(struct inode *inode, const char *name)
+ 
+ static int hfsplus_osx_getxattr(const struct xattr_handler *handler,
+ 				struct dentry *unused, struct inode *inode,
+-				const char *name, void *buffer, size_t size)
++				const char *name, void *buffer, size_t size,
++				int flags)
+ {
+ 	/*
+ 	 * Don't allow retrieving properly prefixed attributes
+diff --git a/fs/hfsplus/xattr_trusted.c b/fs/hfsplus/xattr_trusted.c
+index fbad91e1dada..54d926314f8c 100644
+--- a/fs/hfsplus/xattr_trusted.c
++++ b/fs/hfsplus/xattr_trusted.c
+@@ -14,7 +14,8 @@
+ 
+ static int hfsplus_trusted_getxattr(const struct xattr_handler *handler,
+ 				    struct dentry *unused, struct inode *inode,
+-				    const char *name, void *buffer, size_t size)
++				    const char *name, void *buffer,
++				    size_t size, int flags)
+ {
+ 	return hfsplus_getxattr(inode, name, buffer, size,
+ 				XATTR_TRUSTED_PREFIX,
+diff --git a/fs/hfsplus/xattr_user.c b/fs/hfsplus/xattr_user.c
+index 74d19faf255e..4d2b1ffff887 100644
+--- a/fs/hfsplus/xattr_user.c
++++ b/fs/hfsplus/xattr_user.c
+@@ -14,7 +14,8 @@
+ 
+ static int hfsplus_user_getxattr(const struct xattr_handler *handler,
+ 				 struct dentry *unused, struct inode *inode,
+-				 const char *name, void *buffer, size_t size)
++				 const char *name, void *buffer, size_t size,
++				 int flags)
+ {
+ 
+ 	return hfsplus_getxattr(inode, name, buffer, size,
+diff --git a/fs/jffs2/security.c b/fs/jffs2/security.c
+index c2332e30f218..e6f42fe435af 100644
+--- a/fs/jffs2/security.c
++++ b/fs/jffs2/security.c
+@@ -50,7 +50,8 @@ int jffs2_init_security(struct inode *inode, struct inode *dir,
+ /* ---- XATTR Handler for "security.*" ----------------- */
+ static int jffs2_security_getxattr(const struct xattr_handler *handler,
+ 				   struct dentry *unused, struct inode *inode,
+-				   const char *name, void *buffer, size_t size)
++				   const char *name, void *buffer, size_t size,
++				   int flags)
+ {
+ 	return do_jffs2_getxattr(inode, JFFS2_XPREFIX_SECURITY,
+ 				 name, buffer, size);
+diff --git a/fs/jffs2/xattr_trusted.c b/fs/jffs2/xattr_trusted.c
+index 5d6030826c52..9dccaae549f5 100644
+--- a/fs/jffs2/xattr_trusted.c
++++ b/fs/jffs2/xattr_trusted.c
+@@ -18,7 +18,8 @@
+ 
+ static int jffs2_trusted_getxattr(const struct xattr_handler *handler,
+ 				  struct dentry *unused, struct inode *inode,
+-				  const char *name, void *buffer, size_t size)
++				  const char *name, void *buffer, size_t size,
++				  int flags)
+ {
+ 	return do_jffs2_getxattr(inode, JFFS2_XPREFIX_TRUSTED,
+ 				 name, buffer, size);
+diff --git a/fs/jffs2/xattr_user.c b/fs/jffs2/xattr_user.c
+index 9d027b4abcf9..c0983a3e810b 100644
+--- a/fs/jffs2/xattr_user.c
++++ b/fs/jffs2/xattr_user.c
+@@ -18,7 +18,8 @@
+ 
+ static int jffs2_user_getxattr(const struct xattr_handler *handler,
+ 			       struct dentry *unused, struct inode *inode,
+-			       const char *name, void *buffer, size_t size)
++			       const char *name, void *buffer, size_t size,
++			       int flags)
+ {
+ 	return do_jffs2_getxattr(inode, JFFS2_XPREFIX_USER,
+ 				 name, buffer, size);
+diff --git a/fs/jfs/xattr.c b/fs/jfs/xattr.c
+index db41e7803163..5c79a35bf62f 100644
+--- a/fs/jfs/xattr.c
++++ b/fs/jfs/xattr.c
+@@ -925,7 +925,7 @@ static int __jfs_xattr_set(struct inode *inode, const char *name,
+ 
+ static int jfs_xattr_get(const struct xattr_handler *handler,
+ 			 struct dentry *unused, struct inode *inode,
+-			 const char *name, void *value, size_t size)
++			 const char *name, void *value, size_t size, int flags)
+ {
+ 	name = xattr_full_name(handler, name);
+ 	return __jfs_getxattr(inode, name, value, size);
+@@ -942,7 +942,8 @@ static int jfs_xattr_set(const struct xattr_handler *handler,
+ 
+ static int jfs_xattr_get_os2(const struct xattr_handler *handler,
+ 			     struct dentry *unused, struct inode *inode,
+-			     const char *name, void *value, size_t size)
++			     const char *name, void *value, size_t size,
++			     int flags)
+ {
+ 	if (is_known_namespace(name))
+ 		return -EOPNOTSUPP;
+diff --git a/fs/kernfs/inode.c b/fs/kernfs/inode.c
+index f3f3984cce80..ebd47d549a52 100644
+--- a/fs/kernfs/inode.c
++++ b/fs/kernfs/inode.c
+@@ -310,6 +310,7 @@ int kernfs_xattr_set(struct kernfs_node *kn, const char *name,
+ static int kernfs_vfs_xattr_get(const struct xattr_handler *handler,
+ 				struct dentry *unused, struct inode *inode,
+ 				const char *suffix, void *value, size_t size)
++				int flags)
+ {
+ 	const char *name = xattr_full_name(handler, suffix);
+ 	struct kernfs_node *kn = inode->i_private;
+diff --git a/fs/nfs/nfs4proc.c b/fs/nfs/nfs4proc.c
+index 39896afc6edf..5e6a58685cd0 100644
+--- a/fs/nfs/nfs4proc.c
++++ b/fs/nfs/nfs4proc.c
+@@ -7203,7 +7203,8 @@ static int nfs4_xattr_set_nfs4_acl(const struct xattr_handler *handler,
+ 
+ static int nfs4_xattr_get_nfs4_acl(const struct xattr_handler *handler,
+ 				   struct dentry *unused, struct inode *inode,
+-				   const char *key, void *buf, size_t buflen)
++				   const char *key, void *buf, size_t buflen,
++				   int flags)
+ {
+ 	return nfs4_proc_get_acl(inode, buf, buflen);
+ }
+@@ -7228,7 +7229,8 @@ static int nfs4_xattr_set_nfs4_label(const struct xattr_handler *handler,
+ 
+ static int nfs4_xattr_get_nfs4_label(const struct xattr_handler *handler,
+ 				     struct dentry *unused, struct inode *inode,
+-				     const char *key, void *buf, size_t buflen)
++				     const char *key, void *buf, size_t buflen,
++				     int flags)
+ {
+ 	if (security_ismaclabel(key))
+ 		return nfs4_get_security_label(inode, buf, buflen);
+diff --git a/fs/ocfs2/xattr.c b/fs/ocfs2/xattr.c
+index 385f3aaa2448..06e615642422 100644
+--- a/fs/ocfs2/xattr.c
++++ b/fs/ocfs2/xattr.c
+@@ -7245,7 +7245,8 @@ int ocfs2_init_security_and_acl(struct inode *dir,
+  */
+ static int ocfs2_xattr_security_get(const struct xattr_handler *handler,
+ 				    struct dentry *unused, struct inode *inode,
+-				    const char *name, void *buffer, size_t size)
++				    const char *name, void *buffer, size_t size,
++				    int flags)
+ {
+ 	return ocfs2_xattr_get(inode, OCFS2_XATTR_INDEX_SECURITY,
+ 			       name, buffer, size);
+@@ -7317,7 +7318,8 @@ const struct xattr_handler ocfs2_xattr_security_handler = {
+  */
+ static int ocfs2_xattr_trusted_get(const struct xattr_handler *handler,
+ 				   struct dentry *unused, struct inode *inode,
+-				   const char *name, void *buffer, size_t size)
++				   const char *name, void *buffer, size_t size,
++				   int flags)
+ {
+ 	return ocfs2_xattr_get(inode, OCFS2_XATTR_INDEX_TRUSTED,
+ 			       name, buffer, size);
+@@ -7343,7 +7345,8 @@ const struct xattr_handler ocfs2_xattr_trusted_handler = {
+  */
+ static int ocfs2_xattr_user_get(const struct xattr_handler *handler,
+ 				struct dentry *unused, struct inode *inode,
+-				const char *name, void *buffer, size_t size)
++				const char *name, void *buffer, size_t size,
++				int flags)
+ {
+ 	struct ocfs2_super *osb = OCFS2_SB(inode->i_sb);
+ 
+diff --git a/fs/orangefs/xattr.c b/fs/orangefs/xattr.c
+index bdc285aea360..ef4180bff7bb 100644
+--- a/fs/orangefs/xattr.c
++++ b/fs/orangefs/xattr.c
+@@ -541,7 +541,8 @@ static int orangefs_xattr_get_default(const struct xattr_handler *handler,
+ 				      struct inode *inode,
+ 				      const char *name,
+ 				      void *buffer,
+-				      size_t size)
++				      size_t size,
++				      int flags)
+ {
+ 	return orangefs_inode_getxattr(inode, name, buffer, size);
+ 
+diff --git a/fs/overlayfs/super.c b/fs/overlayfs/super.c
+index b368e2e102fa..57df03f3259f 100644
+--- a/fs/overlayfs/super.c
++++ b/fs/overlayfs/super.c
+@@ -854,7 +854,7 @@ static unsigned int ovl_split_lowerdirs(char *str)
+ static int __maybe_unused
+ ovl_posix_acl_xattr_get(const struct xattr_handler *handler,
+ 			struct dentry *dentry, struct inode *inode,
+-			const char *name, void *buffer, size_t size)
++			const char *name, void *buffer, size_t size, int flags)
+ {
+ 	return ovl_xattr_get(dentry, inode, handler->name, buffer, size);
+ }
+@@ -934,7 +934,8 @@ static int ovl_own_xattr_set(const struct xattr_handler *handler,
+ 
+ static int ovl_other_xattr_get(const struct xattr_handler *handler,
+ 			       struct dentry *dentry, struct inode *inode,
+-			       const char *name, void *buffer, size_t size)
++			       const char *name, void *buffer, size_t size,
++			       int flags)
+ {
+ 	return ovl_xattr_get(dentry, inode, name, buffer, size);
+ }
+diff --git a/fs/posix_acl.c b/fs/posix_acl.c
+index 84ad1c90d535..cd55621e570b 100644
+--- a/fs/posix_acl.c
++++ b/fs/posix_acl.c
+@@ -832,7 +832,7 @@ EXPORT_SYMBOL (posix_acl_to_xattr);
+ static int
+ posix_acl_xattr_get(const struct xattr_handler *handler,
+ 		    struct dentry *unused, struct inode *inode,
+-		    const char *name, void *value, size_t size)
++		    const char *name, void *value, size_t size, int flags)
+ {
+ 	struct posix_acl *acl;
+ 	int error;
+diff --git a/fs/reiserfs/xattr_security.c b/fs/reiserfs/xattr_security.c
+index 20be9a0e5870..eedfa07a4fd0 100644
+--- a/fs/reiserfs/xattr_security.c
++++ b/fs/reiserfs/xattr_security.c
+@@ -11,7 +11,8 @@
+ 
+ static int
+ security_get(const struct xattr_handler *handler, struct dentry *unused,
+-	     struct inode *inode, const char *name, void *buffer, size_t size)
++	     struct inode *inode, const char *name, void *buffer, size_t size,
++	     int flags)
+ {
+ 	if (IS_PRIVATE(inode))
+ 		return -EPERM;
+diff --git a/fs/reiserfs/xattr_trusted.c b/fs/reiserfs/xattr_trusted.c
+index 5ed48da3d02b..2d11d98605dd 100644
+--- a/fs/reiserfs/xattr_trusted.c
++++ b/fs/reiserfs/xattr_trusted.c
+@@ -10,7 +10,8 @@
+ 
+ static int
+ trusted_get(const struct xattr_handler *handler, struct dentry *unused,
+-	    struct inode *inode, const char *name, void *buffer, size_t size)
++	    struct inode *inode, const char *name, void *buffer, size_t size,
++	    int flags)
+ {
+ 	if (!capable(CAP_SYS_ADMIN) || IS_PRIVATE(inode))
+ 		return -EPERM;
+diff --git a/fs/reiserfs/xattr_user.c b/fs/reiserfs/xattr_user.c
+index a573ca45bacc..2a59d85c69c9 100644
+--- a/fs/reiserfs/xattr_user.c
++++ b/fs/reiserfs/xattr_user.c
+@@ -9,7 +9,8 @@
+ 
+ static int
+ user_get(const struct xattr_handler *handler, struct dentry *unused,
+-	 struct inode *inode, const char *name, void *buffer, size_t size)
++	 struct inode *inode, const char *name, void *buffer, size_t size,
++	 int flags)
+ {
+ 	if (!reiserfs_xattrs_user(inode->i_sb))
+ 		return -EOPNOTSUPP;
+diff --git a/fs/squashfs/xattr.c b/fs/squashfs/xattr.c
+index e1e3f3dd5a06..d8d58c990652 100644
+--- a/fs/squashfs/xattr.c
++++ b/fs/squashfs/xattr.c
+@@ -204,7 +204,7 @@ static int squashfs_xattr_handler_get(const struct xattr_handler *handler,
+ 				      struct dentry *unused,
+ 				      struct inode *inode,
+ 				      const char *name,
+-				      void *buffer, size_t size)
++				      void *buffer, size_t size, int flags)
+ {
+ 	return squashfs_xattr_get(inode, handler->flags, name,
+ 		buffer, size);
+diff --git a/fs/xattr.c b/fs/xattr.c
+index 90dd78f0eb27..2b94930ede59 100644
+--- a/fs/xattr.c
++++ b/fs/xattr.c
+@@ -270,7 +270,7 @@ vfs_getxattr_alloc(struct dentry *dentry, const char *name, char **xattr_value,
+ 	const struct xattr_handler *handler;
+ 	struct inode *inode = dentry->d_inode;
+ 	char *value = *xattr_value;
+-	int error;
++	int error, xflags;
+ 
+ 	error = xattr_permission(inode, name, MAY_READ);
+ 	if (error)
+@@ -281,7 +281,8 @@ vfs_getxattr_alloc(struct dentry *dentry, const char *name, char **xattr_value,
+ 		return PTR_ERR(handler);
+ 	if (!handler->get)
+ 		return -EOPNOTSUPP;
+-	error = handler->get(handler, dentry, inode, name, NULL, 0);
++	xflags = flags & GFP_NOFS ? XATTR_NOSECURITY : 0;
++	error = handler->get(handler, dentry, inode, name, NULL, 0, xflags);
+ 	if (error < 0)
+ 		return error;
+ 
+@@ -292,7 +293,8 @@ vfs_getxattr_alloc(struct dentry *dentry, const char *name, char **xattr_value,
+ 		memset(value, 0, error + 1);
+ 	}
+ 
+-	error = handler->get(handler, dentry, inode, name, value, error);
++	error = handler->get(handler, dentry, inode, name, value, error,
++			     xflags);
+ 	*xattr_value = value;
+ 	return error;
+ }
+@@ -308,7 +310,8 @@ __vfs_getxattr(struct dentry *dentry, struct inode *inode, const char *name,
+ 		return PTR_ERR(handler);
+ 	if (!handler->get)
+ 		return -EOPNOTSUPP;
+-	return handler->get(handler, dentry, inode, name, value, size);
++	return handler->get(handler, dentry, inode, name, value, size,
++			    XATTR_NOSECURITY);
+ }
+ EXPORT_SYMBOL(__vfs_getxattr);
+ 
+@@ -317,6 +320,7 @@ vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_t size)
+ {
+ 	struct inode *inode = dentry->d_inode;
+ 	int error;
++	const struct xattr_handler *handler;
+ 
+ 	error = xattr_permission(inode, name, MAY_READ);
+ 	if (error)
+@@ -339,7 +343,12 @@ vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_t size)
+ 		return ret;
+ 	}
+ nolsm:
+-	return __vfs_getxattr(dentry, inode, name, value, size);
++	handler = xattr_resolve_name(inode, &name);
++	if (IS_ERR(handler))
++		return PTR_ERR(handler);
++	if (!handler->get)
++		return -EOPNOTSUPP;
++	return handler->get(handler, dentry, inode, name, value, size, 0);
+ }
+ EXPORT_SYMBOL_GPL(vfs_getxattr);
+ 
+diff --git a/fs/xfs/xfs_xattr.c b/fs/xfs/xfs_xattr.c
+index 3123b5aaad2a..cafc99c48e20 100644
+--- a/fs/xfs/xfs_xattr.c
++++ b/fs/xfs/xfs_xattr.c
+@@ -18,7 +18,8 @@
+ 
+ static int
+ xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
+-		struct inode *inode, const char *name, void *value, size_t size)
++		struct inode *inode, const char *name, void *value, size_t size,
++		int flags)
+ {
+ 	int xflags = handler->flags;
+ 	struct xfs_inode *ip = XFS_I(inode);
+diff --git a/include/linux/xattr.h b/include/linux/xattr.h
+index 6dad031be3c2..b272b6841faa 100644
+--- a/include/linux/xattr.h
++++ b/include/linux/xattr.h
+@@ -30,10 +30,10 @@ struct xattr_handler {
+ 	const char *prefix;
+ 	int flags;      /* fs private flags */
+ 	bool (*list)(struct dentry *dentry);
+-	int (*get)(const struct xattr_handler *, struct dentry *dentry,
++	int (*get)(const struct xattr_handler *handler, struct dentry *dentry,
+ 		   struct inode *inode, const char *name, void *buffer,
+-		   size_t size);
+-	int (*set)(const struct xattr_handler *, struct dentry *dentry,
++		   size_t size, int flags);
++	int (*set)(const struct xattr_handler *handler, struct dentry *dentry,
+ 		   struct inode *inode, const char *name, const void *buffer,
+ 		   size_t size, int flags);
+ };
+diff --git a/include/uapi/linux/xattr.h b/include/uapi/linux/xattr.h
+index c1395b5bd432..1216d777d210 100644
+--- a/include/uapi/linux/xattr.h
++++ b/include/uapi/linux/xattr.h
+@@ -17,8 +17,9 @@
+ #if __UAPI_DEF_XATTR
+ #define __USE_KERNEL_XATTR_DEFS
+ 
+-#define XATTR_CREATE	0x1	/* set value, fail if attr already exists */
+-#define XATTR_REPLACE	0x2	/* set value, fail if attr does not exist */
++#define XATTR_CREATE	 0x1	/* set value, fail if attr already exists */
++#define XATTR_REPLACE	 0x2	/* set value, fail if attr does not exist */
++#define XATTR_NOSECURITY 0x4	/* get value, do not involve security check */
+ #endif
+ 
+ /* Namespaces */
+diff --git a/mm/shmem.c b/mm/shmem.c
+index 626d8c74b973..34d3818b4424 100644
+--- a/mm/shmem.c
++++ b/mm/shmem.c
+@@ -3206,7 +3206,8 @@ static int shmem_initxattrs(struct inode *inode,
+ 
+ static int shmem_xattr_handler_get(const struct xattr_handler *handler,
+ 				   struct dentry *unused, struct inode *inode,
+-				   const char *name, void *buffer, size_t size)
++				   const char *name, void *buffer, size_t size,
++				   int flags)
+ {
+ 	struct shmem_inode_info *info = SHMEM_I(inode);
+ 
+diff --git a/net/socket.c b/net/socket.c
+index 6a9ab7a8b1d2..6b0fea92dd02 100644
+--- a/net/socket.c
++++ b/net/socket.c
+@@ -300,7 +300,8 @@ static const struct dentry_operations sockfs_dentry_operations = {
+ 
+ static int sockfs_xattr_get(const struct xattr_handler *handler,
+ 			    struct dentry *dentry, struct inode *inode,
+-			    const char *suffix, void *value, size_t size)
++			    const char *suffix, void *value, size_t size,
++			    int flags)
+ {
+ 	if (value) {
+ 		if (dentry->d_name.len + 1 > size)
+-- 
+2.22.0.770.g0f2c4a37fd-goog
 
