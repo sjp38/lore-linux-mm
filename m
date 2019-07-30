@@ -2,199 +2,370 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1FFA2C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 13:15:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7EA16C0650F
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 13:24:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BA877206E0
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 13:15:03 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="r85R4yma"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BA877206E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id 3303B20644
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 13:24:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3303B20644
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6A0348E0005; Tue, 30 Jul 2019 09:15:03 -0400 (EDT)
+	id BC8778E0003; Tue, 30 Jul 2019 09:24:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 650418E0001; Tue, 30 Jul 2019 09:15:03 -0400 (EDT)
+	id B7A6F8E0001; Tue, 30 Jul 2019 09:24:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4CA438E0005; Tue, 30 Jul 2019 09:15:03 -0400 (EDT)
+	id A19F38E0003; Tue, 30 Jul 2019 09:24:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id EF9638E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 09:15:02 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id s18so31858818wru.16
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 06:15:02 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 506B88E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 09:24:10 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id e9so29216251edv.18
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 06:24:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=57mhJ9lMltaZjfOvKsO3150A4ENNC9zgifoRzzxIcoA=;
-        b=EjOlfHVFzkuxpvzNmzXUyMhRtu4oFTQ1PZ4p8hhyI1QXmhBYMInfJQNeKtzwiKBSq8
-         xcR1DbVa90qXNRzdEQ/3wX1rvUuBxSPhP3zJ9eCIQlrDcJco6lE2me9RyGeuHE6kHhlK
-         cnN/saQrdnQXNJPxOHEOsOMfVS9HGwTWfnEnDw3rOcQJh9w8uItwr4eBLZI3LWfhkq2g
-         51KpLD7yGcSBZNqJxrnwqhMRc2aYJh1KxMVj70OxzPkRzv0pn5gLpSmrilgXqjX8t17b
-         5zUiROWNxX7nCJN3Ip3ZpE7ok4b9zxiTCucXEwBaCYTAlfbmK3xKa7fL3dcFj7HWpKWA
-         u9Yw==
-X-Gm-Message-State: APjAAAVZchnzAKSP4KoZ6oLFNpliGeckbjUA6Q/p2qwZNGCZlfO7LlZ2
-	0Y+gJIr3fBSgZEFl2Q/qvn/QZOkAIIr81lLrgC6c5Gf+FDM8IjB2YB0oJ5/LeQAlqXQ803sA6+d
-	Ca12XAhYwMzTt7/Q4vhIt8TBQArCaF1xL6xowrOglatwIqLCFjdYPg+tE5Fm27ewO0w==
-X-Received: by 2002:a1c:ca06:: with SMTP id a6mr7870432wmg.48.1564492502495;
-        Tue, 30 Jul 2019 06:15:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwqLro0dap/x8aUW4mJgLmwUICJXHqX2AhUnKnALzv7GAMEMF+t0BXBaYKk3dgPW76WRz9A
-X-Received: by 2002:a1c:ca06:: with SMTP id a6mr7870385wmg.48.1564492501766;
-        Tue, 30 Jul 2019 06:15:01 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1564492501; cv=pass;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=x/KZognaYsX4JdL855BD4h7NJzfCESepK86w3j+0AVU=;
+        b=t5PwLJ0JuYy6m0oTO6tvN4tV2Xcrmi0/tJWtQPNWIE9jiOvEJXorDeeoscVVqfDHbi
+         MU9NzVq4+YikfQBDwY1ZVAorhtH2Bvmfrjh4nlOH1Ikw8kl4o+SeiD0gXJ2pTybCGklS
+         2qA2GHn4cSVcu0dPLUm11aP9hG5hrtJPa3UIFFvQUZG95pt5QZhZq6XPvswQjdakHmRp
+         e57aFdetUUsqR2ZXjNMfm3TSQLrrb/lddGP2mtSwbX8/roeQm2080hIxkVTH0v6E6+3p
+         UmfL36ohTj9RKAFbmMmNbAFwLd9K2H4BPbrBQ0CUVTjsJVOXm1o8Ze/SUAUp1SMhopZ5
+         +Zig==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+X-Gm-Message-State: APjAAAVGeXGU7PCOY7U26olv4GZXIU3Xy/xKofzFe3/h9V3CQMqwWAey
+	rzPd8TT85IDsOoLAirbv0oAkObP4eiYyGTJCwg4noZKDNCrwOSOiXFK2UMFJtUaYwfJldVjLL+x
+	hP4fg53GdRhOGKESBSYz/JbHuiLMO4u1EzvxKf24RbxnvhsRuiGAJVMY7QPEa74rWOA==
+X-Received: by 2002:a17:906:914:: with SMTP id i20mr22617017ejd.213.1564493049547;
+        Tue, 30 Jul 2019 06:24:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyaJxwRsMoLYg6FAhG8iz0urWL5YwJi1z7NlX9rVdKwxOjWcN3ILHYo0mtkyhFQxDyEmA2r
+X-Received: by 2002:a17:906:914:: with SMTP id i20mr22616954ejd.213.1564493048466;
+        Tue, 30 Jul 2019 06:24:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564493048; cv=none;
         d=google.com; s=arc-20160816;
-        b=ndZnvROr+c2gKQqETGILssSw2IrtjdPT/60QKiK7ieIk5m1RZyAOabtFrSzFhld8Ko
-         b04osRnMBlSIK/JfQiOrZpfvTBNAnWNDAzFbQnbkwmVxvgMOWllseVWdJG1CvIi0mVo2
-         nrliMc+Qx7FF8EWs8xR9F5QJaH5PFEED6caj+0HKqw2gKtkp1eL2wb2nHlAa3Eh9DoOs
-         M97sOwYvdhGLFs5HkoEeLLk/MaZliEexqaDne1py7MpPdW5ph1t2yM59qupRuYP45B6S
-         Mitsh35cMcZfgcih8l1DBXOk5Ol90NwTKOr17sFV3lys8eC7kJXqQ2svTB9wZ2JiApfV
-         h1Cg==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=57mhJ9lMltaZjfOvKsO3150A4ENNC9zgifoRzzxIcoA=;
-        b=wjlKQfdKNDrmFEqvJBF1X9jDVcSM5slTCiDOLDIxqT2/azcYOKncC9e4bjDZpYrX15
-         XCVsWWLjGtQ+f/SkWXWaw1bLYGjq5KJHgmNcm55vtenXFf7XIYnjTxuDasQMiaTuusTs
-         iahQlvZdNsbdn3Wqw2LMS0BmaoVhn73jMLnezQbWiuZGNaEJ1Z+jAFvtuQMMR1Uhu2O7
-         tpEwwlDAMgvVfCIw6tDM39FGXORdGs0Qb5smS058bdlTNgKmL1Alpj8S6yRR3YxVXHdE
-         g4FJttbmYnukV5+ubgK7V1XCl8v5A5ujUT8mxzGm9+MwWun1bW5M7FOETuGI1LloWUHZ
-         KWAA==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=r85R4yma;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.4.82 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR03-DB5-obe.outbound.protection.outlook.com (mail-eopbgr40082.outbound.protection.outlook.com. [40.107.4.82])
-        by mx.google.com with ESMTPS id w16si59662845wrl.74.2019.07.30.06.15.01
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 30 Jul 2019 06:15:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.4.82 as permitted sender) client-ip=40.107.4.82;
+        b=NcW4LtLYIUzGW/Sh8qBeqsCAokoSkLn1LI9DaAaqrlousg2GU6GIuRdVLNQJpqjhBl
+         aJJFygz7TA6Qnb5vGy16VX5YKsSm0IErmVh1iF5497YS/rkKiwzsBqq/96B4L/Gc9zeI
+         EgzOoF2z1bjIuKkF9eJPbogltw62G5tM6m49W+8Xfa8ZfjwpLols1mjR7xkQABgNyDnA
+         kQj7FlAAFGimfCPWNdArf7b1LZPoHdyptHi6FDq937L1lHm9Yatz+v9NPTpffnMiKnHQ
+         +26NEv6LO6tWZwm+2sCdnlsLmVIDyLcpTsVypWl+1Au7OC8l0+xbYN6PDR1kjhzMTp0R
+         h14A==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=x/KZognaYsX4JdL855BD4h7NJzfCESepK86w3j+0AVU=;
+        b=bsZYCXzmREO1vAYy1I48FlseH2H7mhiRiRWMNcNzfY4zJQ0Oh6ir2M28YtXS4LCBjq
+         S7UMUt96ZDff8kDvG70DUf7zOvLvwKGO7+0wEtamnZyUie/oM9X+WQlJGQWxQ8/8WdWX
+         YPkMqNbvizcrKfgB4IocJ/Nn+4q9vcG2Cahx7B6TbZG7/aw92roJ27+zoQpOpr5cP5Bx
+         zbvQcJ/6I6fYt5ZvUI8tL53Bu/BspAsj5WsK7JRhy/lL+FtCKJJ2jsnVlAUdXDoli2fP
+         tOR/u3e0OTCtS4+2FUTdhoLcrVnTD5I/EbFJohuwVj7uPelHHuJ/XXWNZFIUAVTiIB8c
+         fzCQ==
+ARC-Authentication-Results: i=1; mx.google.com;
+       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id v6si16294217ejx.120.2019.07.30.06.24.08
+        for <linux-mm@kvack.org>;
+        Tue, 30 Jul 2019 06:24:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=r85R4yma;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.4.82 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=YeyHKzxapEPVsPmYMjmnzxv52O6MhXo2GMBEa8dRb+fRGhk2kRwQm8SrkjZDxyB1diwMJoDLUmgRUz9JQu5IxqMfS2I7tHyzbiDPDd556kN/mkx0gpZAWRZ0nJdvQhJoWEvdeLspd4uhxAjxwlhkP/XqW/IZ4nOaESLXxRKXNU0rWtZ4CZeqFNeoTMoJuNqYbX6u3a/ShzAvs+ldJT3T4+ID+Gj6A/B68O+vDLMFgqnZ+qec07ob8CS/p/238G9ZneXC4g6Te4Hn98KFm3FzevWvBWgqQe44sPMdc2Y65nbOnVd04pLnTBTJu/z6NFK1uWmMNKZtiZE6SJ98JME+Mw==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=57mhJ9lMltaZjfOvKsO3150A4ENNC9zgifoRzzxIcoA=;
- b=JvmnHemilL+Oe7BEKHfkoUcxQyTk2V9ecEYkzC9xQs8D93FojseY9SnjLSi/S/6vbBnNO28GLlDlLm9tIxTLwslNkVCS1OaY4hy5HD5huy02FaEWR7ei730q3mQM6XFF0sH4+gVkA7WFxhjKUtxQ9vnVNFlnFUqk0k3xd+AGNjLX6GNR4PGqwvItpmR68VU+nTaXgQFAIgX9LYIM4kUsKMAvImraYPwyZaIIx/SmKWxW9kABYgwA3qOMOJjXhXK8vqVdVjTVB0rZyNhuts9ADIcT7yYbtJz1UkPhjPtRPot/cZXHaeGZourhulg9GrP7WyGzevIdqx+Lb1GPeN+iEg==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=mellanox.com;dmarc=pass action=none
- header.from=mellanox.com;dkim=pass header.d=mellanox.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=57mhJ9lMltaZjfOvKsO3150A4ENNC9zgifoRzzxIcoA=;
- b=r85R4ymaS8JN55FyHNv8uJSJgkrQ44ttgTpkVWvZgwWV4EszNSZOMcgJ54hyc6RDJTFTJJJEYA+Kmwnp5bJGksFqeHQtjD0Qzr/D5ZoBgX8NcykCHq0teC9wyIFAKOVu3arBC6XKVJYgv9LTBWegrPWROPvz7E7UZAptTETHZmQ=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB4288.eurprd05.prod.outlook.com (52.133.12.140) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2136.12; Tue, 30 Jul 2019 13:14:59 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880%4]) with mapi id 15.20.2115.005; Tue, 30 Jul 2019
- 13:14:58 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Christoph Hellwig <hch@lst.de>
-CC: =?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Ben Skeggs
-	<bskeggs@redhat.com>, Felix Kuehling <Felix.Kuehling@amd.com>, Ralph Campbell
-	<rcampbell@nvidia.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 03/13] nouveau: pass struct nouveau_svmm to
- nouveau_range_fault
-Thread-Topic: [PATCH 03/13] nouveau: pass struct nouveau_svmm to
- nouveau_range_fault
-Thread-Index: AQHVRpr4kL6aKlcudUqEUBBy4/lXjabjGXIAgAAJtACAAAExAA==
-Date: Tue, 30 Jul 2019 13:14:58 +0000
-Message-ID: <20190730131454.GG24038@mellanox.com>
-References: <20190730055203.28467-1-hch@lst.de>
- <20190730055203.28467-4-hch@lst.de> <20190730123554.GD24038@mellanox.com>
- <20190730131038.GB4566@lst.de>
-In-Reply-To: <20190730131038.GB4566@lst.de>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YQXPR0101CA0007.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:c00:15::20) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 567c83d6-26ec-4ba9-1306-08d714efec1a
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB4288;
-x-ms-traffictypediagnostic: VI1PR05MB4288:
-x-microsoft-antispam-prvs:
- <VI1PR05MB4288B858C7DEF569EBA2921FCFDC0@VI1PR05MB4288.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:7691;
-x-forefront-prvs: 0114FF88F6
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(136003)(366004)(396003)(376002)(346002)(39860400002)(199004)(189003)(54534003)(86362001)(33656002)(68736007)(25786009)(7736002)(305945005)(14444005)(2906002)(6916009)(229853002)(256004)(446003)(478600001)(6486002)(6436002)(1076003)(71190400001)(71200400001)(7416002)(66066001)(36756003)(11346002)(8676002)(4326008)(4744005)(81166006)(81156014)(486006)(476003)(186003)(53936002)(316002)(8936002)(386003)(6506007)(76176011)(26005)(14454004)(102836004)(99286004)(6512007)(54906003)(52116002)(2616005)(6116002)(66476007)(66556008)(66446008)(64756008)(5660300002)(3846002)(66946007)(6246003);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4288;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- mG8LV/6niYle0ZfCKqOsSXVNrQ8TsIEpZPZqLtc80iGAge6QFyZsPbO30d+w3zdHDTEbD3U6wHgrvsPxKUMejwgk+w1i9GxHsu1wuIVJa0S5iRpKEjH90e5zi+s/3+gRx5AHYU+OeLLboPMXlrPOYCThmhXaZdDTxKJYeN1e02y099G/gaySkSr+sG88WiJQari78KQ/O1YAdV6b0mFHtNbEyv9g1PzFaEne7NAS/Tn0ypDFQQtG3k+P09mmNpwFr4Y1HXZAJm5fC7pJCML7w+0xdH1tjfhXcUNJIReXF7/mSduVlhTx5f4b4eUMed/wNqK33lbMvZ6Cpuu+wq5ZKRwAbWKtdisCmbKE4lDTZBGlqIt+GeEG5xbxh2gO/ASl9WiZt4YsXdBGriWoxOEUVDFJrWRKV2AxKVnJIw2ma0U=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <9EFBC7D2033F0A4F9278F6401B93A640@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of vincenzo.frascino@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=vincenzo.frascino@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 811B828;
+	Tue, 30 Jul 2019 06:24:07 -0700 (PDT)
+Received: from [10.37.12.80] (unknown [10.37.12.80])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 9E97B3F694;
+	Tue, 30 Jul 2019 06:24:05 -0700 (PDT)
+Subject: Re: [PATCH v6 1/2] arm64: Define
+ Documentation/arm64/tagged-address-abi.rst
+To: Kevin Brodsky <kevin.brodsky@arm.com>,
+ linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
+ linux-mm@kvack.org, linux-arch@vger.kernel.org,
+ linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Szabolcs Nagy <szabolcs.nagy@arm.com>,
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+ <will.deacon@arm.com>, Andrey Konovalov <andreyknvl@google.com>
+References: <cover.1563904656.git.andreyknvl@google.com>
+ <20190725135044.24381-1-vincenzo.frascino@arm.com>
+ <20190725135044.24381-2-vincenzo.frascino@arm.com>
+ <52fa2cfc-f7a6-af6f-0dc2-f9ea0e41ac3c@arm.com>
+From: Vincenzo Frascino <vincenzo.frascino@arm.com>
+Message-ID: <c45df19e-8f48-7f4e-3eae-ada54cb6f707@arm.com>
+Date: Tue, 30 Jul 2019 14:25:17 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 567c83d6-26ec-4ba9-1306-08d714efec1a
-X-MS-Exchange-CrossTenant-originalarrivaltime: 30 Jul 2019 13:14:58.8754
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4288
+In-Reply-To: <52fa2cfc-f7a6-af6f-0dc2-f9ea0e41ac3c@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 30, 2019 at 03:10:38PM +0200, Christoph Hellwig wrote:
-> On Tue, Jul 30, 2019 at 12:35:59PM +0000, Jason Gunthorpe wrote:
-> > On Tue, Jul 30, 2019 at 08:51:53AM +0300, Christoph Hellwig wrote:
-> > > This avoid having to abuse the vma field in struct hmm_range to unloc=
-k
-> > > the mmap_sem.
-> >=20
-> > I think the change inside hmm_range_fault got lost on rebase, it is
-> > now using:
-> >=20
-> >                 up_read(&range->hmm->mm->mmap_sem);
-> >=20
-> > But, yes, lets change it to use svmm->mm and try to keep struct hmm
-> > opaque to drivers
->=20
-> It got lost somewhat intentionally as I didn't want the churn, but I
-> forgot to update the changelog.  But if you are fine with changing it
-> over I can bring it back.
+Hi Kevin,
 
-I have a patch deleting hmm->mm, so using svmm seems cleaner churn
-here, we could defer and I can fold this into that patch?
+On 7/30/19 11:32 AM, Kevin Brodsky wrote:
+> Some more comments. Mostly minor wording issues, except the prctl() exclusion at
+> the end.
+> 
+> On 25/07/2019 14:50, Vincenzo Frascino wrote:
+>> On arm64 the TCR_EL1.TBI0 bit has been always enabled hence
+>> the userspace (EL0) is allowed to set a non-zero value in the
+>> top byte but the resulting pointers are not allowed at the
+>> user-kernel syscall ABI boundary.
+>>
+>> With the relaxed ABI proposed through this document, it is now possible
+>> to pass tagged pointers to the syscalls, when these pointers are in
+>> memory ranges obtained by an anonymous (MAP_ANONYMOUS) mmap().
+>>
+>> This change in the ABI requires a mechanism to requires the userspace
+>> to opt-in to such an option.
+>>
+>> Specify and document the way in which sysctl and prctl() can be used
+>> in combination to allow the userspace to opt-in this feature.
+>>
+>> Cc: Catalin Marinas <catalin.marinas@arm.com>
+>> Cc: Will Deacon <will.deacon@arm.com>
+>> CC: Andrey Konovalov <andreyknvl@google.com>
+>> Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+>> Acked-by: Szabolcs Nagy <szabolcs.nagy@arm.com>
+>> ---
+>>   Documentation/arm64/tagged-address-abi.rst | 148 +++++++++++++++++++++
+>>   1 file changed, 148 insertions(+)
+>>   create mode 100644 Documentation/arm64/tagged-address-abi.rst
+>>
+>> diff --git a/Documentation/arm64/tagged-address-abi.rst
+>> b/Documentation/arm64/tagged-address-abi.rst
+>> new file mode 100644
+>> index 000000000000..a8ecb991de82
+>> --- /dev/null
+>> +++ b/Documentation/arm64/tagged-address-abi.rst
+>> @@ -0,0 +1,148 @@
+>> +========================
+>> +ARM64 TAGGED ADDRESS ABI
+>> +========================
+>> +
+>> +Author: Vincenzo Frascino <vincenzo.frascino@arm.com>
+>> +
+>> +Date: 25 July 2019
+>> +
+>> +This document describes the usage and semantics of the Tagged Address
+>> +ABI on arm64.
+>> +
+>> +1. Introduction
+>> +---------------
+>> +
+>> +On arm64 the TCR_EL1.TBI0 bit has always been enabled on the kernel, hence
+>> +the userspace (EL0) is entitled to perform a user memory access through a
+>> +64-bit pointer with a non-zero top byte but the resulting pointers are not
+>> +allowed at the user-kernel syscall ABI boundary.
+>> +
+>> +This document describes a relaxation of the ABI that makes it possible to
+>> +to pass tagged pointers to the syscalls, when these pointers are in memory
+> 
+> One too many "to" (at the end the previous line).
+> 
 
-Jason
+Yep will fix in v7.
+
+>> +ranges obtained as described in section 2.
+>> +
+>> +Since it is not desirable to relax the ABI to allow tagged user addresses
+>> +into the kernel indiscriminately, arm64 provides a new sysctl interface
+>> +(/proc/sys/abi/tagged_addr) that is used to prevent the applications from
+>> +enabling the relaxed ABI and a new prctl() interface that can be used to
+>> +enable or disable the relaxed ABI.
+>> +A detailed description of the newly introduced mechanisms will be provided
+>> +in section 2.
+>> +
+>> +2. ARM64 Tagged Address ABI
+>> +---------------------------
+>> +
+>> +From the kernel syscall interface perspective, we define, for the purposes
+>> +of this document, a "valid tagged pointer" as a pointer that either has a
+>> +zero value set in the top byte or has a non-zero value, is in memory ranges
+>> +privately owned by a userspace process and is obtained in one of the
+>> +following ways:
+>> +- mmap() done by the process itself, where either:
+>> +
+>> +  - flags have **MAP_PRIVATE** and **MAP_ANONYMOUS**
+>> +  - flags have **MAP_PRIVATE** and the file descriptor refers to a regular
+>> +    file or **/dev/zero**
+>> +
+>> +- brk() system call done by the process itself (i.e. the heap area between
+>> +  the initial location of the program break at process creation and its
+>> +  current location).
+>> +- any memory mapped by the kernel in the process's address space during
+>> +  creation and with the same restrictions as for mmap() (e.g. data, bss,
+>> +  stack).
+>> +
+>> +The ARM64 Tagged Address ABI is an opt-in feature, and an application can
+>> +control it using the following:
+>> +
+>> +- **/proc/sys/abi/tagged_addr**: a new sysctl interface that can be used to
+>> +  prevent the applications from enabling the access to the relaxed ABI.
+>> +  The sysctl supports the following configuration options:
+>> +
+>> +  - **0**: Disable the access to the ARM64 Tagged Address ABI for all
+>> +    the applications.
+>> +  - **1** (Default): Enable the access to the ARM64 Tagged Address ABI for
+>> +    all the applications.
+>> +
+>> +   If the access to the ARM64 Tagged Address ABI is disabled at a certain
+>> +   point in time, all the applications that were using tagging before this
+>> +   event occurs, will continue to use tagging.
+> 
+> "tagging" may be misinterpreted here. I would be more explicit by saying that
+> the tagged address ABI remains enabled in processes that opted in before the
+> access got disabled.
+> 
+
+Assuming that ARM64 Tagged Address ABI gives access to "tagging" and since it is
+what this document is talking about, I do not see how it can be misinterpreted ;)
+
+>> +- **prctl()s**:
+>> +
+>> +  - **PR_SET_TAGGED_ADDR_CTRL**: Invoked by a process, can be used to enable or
+>> +    disable its access to the ARM64 Tagged Address ABI.
+> 
+> I still find the wording confusing, because "access to the ABI" is not used
+> consistently. The "tagged_addr" sysctl enables *access to the ABI*, that's fine.
+> However, PR_SET_TAGGED_ADDR_CTRL enables *the ABI itself* (which is only
+> possible if access to the ABI is enabled).
+> 
+
+As it stands, it enables or disables the ABI itself when used with
+PR_TAGGED_ADDR_ENABLE, or can enable other things in future. IMHO the only thing
+that these features have in common is the access to the ABI which is granted by
+this prctl().
+
+>> +
+>> +    The (unsigned int) arg2 argument is a bit mask describing the control mode
+>> +    used:
+>> +
+>> +    - **PR_TAGGED_ADDR_ENABLE**: Enable ARM64 Tagged Address ABI.
+>> +
+>> +    The prctl(PR_SET_TAGGED_ADDR_CTRL, ...) will return -EINVAL if the ARM64
+>> +    Tagged Address ABI is not available.
+> 
+> For clarity, it would be good to mention that one possible reason for the ABI
+> not to be available is tagged_addr == 0.
+> 
+
+The logical implication is already quite clear tagged_addr == 0 (Disabled) =>
+Tagged Address ABI not available => return -EINVAL. I do not see the need to
+repeat the concept twice.
+
+>> +
+>> +    The arguments arg3, arg4, and arg5 are ignored.
+>> +  - **PR_GET_TAGGED_ADDR_CTRL**: can be used to check the status of the Tagged
+>> +    Address ABI.
+>> +
+>> +    The arguments arg2, arg3, arg4, and arg5 are ignored.
+>> +
+>> +The ABI properties set by the mechanisms described above are inherited by
+>> threads
+>> +of the same application and fork()'ed children but cleared by execve().
+>> +
+>> +When a process has successfully opted into the new ABI by invoking
+>> +PR_SET_TAGGED_ADDR_CTRL prctl(), this guarantees the following behaviours:
+>> +
+>> + - Every currently available syscall, except the cases mentioned in section
+>> 3, can
+>> +   accept any valid tagged pointer. The same rule is applicable to any syscall
+>> +   introduced in the future.
+> 
+> I thought Catalin wanted to drop this guarantee?
+> 
+
+The guarantee is changed and explicitly includes the syscalls that can be added
+in the future. IMHO since we are defining an ABI, we cannot leave that topic in
+an uncharted territory, we need to address it.
+
+>> + - If a non valid tagged pointer is passed to a syscall then the behaviour
+>> +   is undefined.
+>> + - Every valid tagged pointer is expected to work as an untagged one.
+>> + - The kernel preserves any valid tagged pointer and returns it to the
+>> +   userspace unchanged (i.e. on syscall return) in all the cases except the
+>> +   ones documented in the "Preserving tags" section of tagged-pointers.txt.
+>> +
+>> +A definition of the meaning of tagged pointers on arm64 can be found in:
+>> +Documentation/arm64/tagged-pointers.txt.
+>> +
+>> +3. ARM64 Tagged Address ABI Exceptions
+>> +--------------------------------------
+>> +
+>> +The behaviours described in section 2, with particular reference to the
+>> +acceptance by the syscalls of any valid tagged pointer are not applicable
+>> +to the following cases:
+>> +
+>> + - mmap() addr parameter.
+>> + - mremap() new_address parameter.
+>> + - prctl(PR_SET_MM, PR_SET_MM_MAP, ...) struct prctl_mm_map fields.
+>> + - prctl(PR_SET_MM, PR_SET_MM_MAP_SIZE, ...) struct prctl_mm_map fields.
+> 
+> All the PR_SET_MM options that specify pointers (PR_SET_MM_START_CODE,
+> PR_SET_MM_END_CODE, ...) should be excluded as well. AFAICT (but don't take my
+> word for it), that's all of them except PR_SET_MM_EXE_FILE. Conversely,
+> PR_SET_MM_MAP_SIZE should not be excluded (it does not pass a prctl_mm_map
+> struct, and the pointer to unsigned int can be tagged).
+> 
+
+Agreed, I clearly misread the prctl() man page here. Fill fix in v7.
+PR_SET_MM_MAP_SIZE _returns_  struct prctl_mm_map, does not take it as a parameter.
+
+Vincenzo
+
+> Kevin
+> 
+>> +
+>> +Any attempt to use non-zero tagged pointers will lead to undefined behaviour.
+>> +
+>> +4. Example of correct usage
+>> +---------------------------
+>> +.. code-block:: c
+>> +
+>> +   void main(void)
+>> +   {
+>> +           static int tbi_enabled = 0;
+>> +           unsigned long tag = 0;
+>> +
+>> +           char *ptr = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
+>> +                            MAP_ANONYMOUS, -1, 0);
+>> +
+>> +           if (prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE,
+>> +                     0, 0, 0) == 0)
+>> +                   tbi_enabled = 1;
+>> +
+>> +           if (ptr == (void *)-1) /* MAP_FAILED */
+>> +                   return -1;
+>> +
+>> +           if (tbi_enabled)
+>> +                   tag = rand() & 0xff;
+>> +
+>> +           ptr = (char *)((unsigned long)ptr | (tag << TAG_SHIFT));
+>> +
+>> +           *ptr = 'a';
+>> +
+>> +           ...
+>> +   }
+>> +
+> 
+> _______________________________________________
+> linux-arm-kernel mailing list
+> linux-arm-kernel@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+
+-- 
+Regards,
+Vincenzo
 
