@@ -2,214 +2,188 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A81FC0650F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 08:38:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C535AC433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 08:43:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E688F206A2
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 08:38:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 763FC206A2
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 08:43:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="fBVA+CF5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E688F206A2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axtens.net
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="xG7r1Kkm"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 763FC206A2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7BE848E0003; Tue, 30 Jul 2019 04:38:54 -0400 (EDT)
+	id 0677E8E0003; Tue, 30 Jul 2019 04:43:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 796758E0001; Tue, 30 Jul 2019 04:38:54 -0400 (EDT)
+	id F334A8E0001; Tue, 30 Jul 2019 04:43:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 684F28E0003; Tue, 30 Jul 2019 04:38:54 -0400 (EDT)
+	id DD4AB8E0003; Tue, 30 Jul 2019 04:43:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 35DDE8E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 04:38:54 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id u1so40109374pgr.13
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 01:38:54 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F7588E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 04:43:26 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id j10so28491612wre.18
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 01:43:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:in-reply-to
-         :references:date:message-id:mime-version;
-        bh=xAWml8zHr+RR4WtcfJXF5qLyW4vcoY8hdC2IB6AOcOc=;
-        b=c93iMVqV7Mh3Jg4I1pkgfIfUZoz5MONU/1nbsGWImGt9oWZ5PntHv6pS+UZskRE5EE
-         ZyTV98DzRSSPnfrO8EMNtS0zwP21FfjqcqnYoZulafOZ8PYVDNS8i+bpL58E0Sxa7E92
-         FraZ0JpZVPgOnbgigLcBkf8p/Wq8cBS/6cjPrPUdOBI3lktxgwvSZDOKdkIPa84rkq6M
-         0IdSs2sEJciAJyLsR5ZxpvuBi3A07yHxFXYXoCbumW0sUqVQ08MA6dIZn3Lp0+fCCJse
-         m+VCc4Y6M7NFWZ28sOVSPetIRxV+s/JJUI2WCUAZgaJPhJdb9ROKrTJrlOqeIyuCWhhi
-         Oq6A==
-X-Gm-Message-State: APjAAAXJeQdiq+sPTDj+TEGHBJMIevZHJToHGrPqDB/WLDDl46q2HjZZ
-	hoPADpNSJSf4VqN3fJBKsqdgk1Gek3BaTIM2/g0Yme6XevCCP2nWlJMBjJsCniAjYj6Wy6LBCzl
-	v4U3cxJPaPs1EyWr2gnm/OiGdChgRn4YTX5d36DnaAVwl6OFTRz2CLeGZ0MzLPVBKjQ==
-X-Received: by 2002:a17:902:ff10:: with SMTP id f16mr19306196plj.141.1564475933814;
-        Tue, 30 Jul 2019 01:38:53 -0700 (PDT)
-X-Received: by 2002:a17:902:ff10:: with SMTP id f16mr19306155plj.141.1564475933009;
-        Tue, 30 Jul 2019 01:38:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564475933; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=5dtvEs2ayMMPDWlDVD/VDsH5GdZ7NguoxBUGDu1v+1A=;
+        b=fiBZiz3bP3zCUBmSycEjBq+o/4eRc9jDE7DGxh3IHUYHali74/43fciHdSlEs5u5AK
+         /EnEWVlKCZAi7xYgo0AK37ucKheKFmmMDoNxuU8+DjuhFfY0pvXS02LIKrmX1XnVOBx8
+         FNrDuXUQH/8EoA/j8WIujLkUPYHU0cZFYJPGoPnfzsVMp/Ucs7DR3nIO0kjx6dh1FAkJ
+         LeGD+NpIy0wiPPqD8jW3Y4xrtZSXjK5uVpjVo6yJTd+pnDm23c8TnIHQxqHFdEY4ZUk+
+         1WFjFkBiyJzmpoOzyJupbmhNtx08Aw/RDCAEKwt0Ul4lcz4f48y/oeF7IvInc5fAC6kw
+         XA0Q==
+X-Gm-Message-State: APjAAAX4KJu16f2gZZKeT23eeh6seH8mjYUOLGzQuQVXnVTEdc32d6/I
+	uSQD8XcrmrQ896WctGtjXBVYnp5LsqIBJCA2KajE6dKbpwkzSXIN6wh3BRCx1fr7eimnREIjpXV
+	UXpmHEgnoIItNwIH0t0XD1ySyLSdTvI93qjMak50oAKW1k88U4RlRhYw8jzGPvHLIoQ==
+X-Received: by 2002:adf:ca0f:: with SMTP id o15mr10140323wrh.135.1564476206097;
+        Tue, 30 Jul 2019 01:43:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqww8F4D6HcERY31Dfx8f1OL3IdroGou2bdWo+6135lwO7Z5Hiw7WNtmkif2VVO/Py0LHWxf
+X-Received: by 2002:adf:ca0f:: with SMTP id o15mr10140201wrh.135.1564476205234;
+        Tue, 30 Jul 2019 01:43:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564476205; cv=none;
         d=google.com; s=arc-20160816;
-        b=G3JEzWJUEwAjAMlBXYUDuhSEAD761Yvq/dL9QZi54ylB2OEtthyQmvw+aKbCtpvctC
-         Mxy03yMYpni3Uw7oWZwyDS0sT7k1mfz4CExUBGDuEjxIkSXFhEzdeyrTnz3z8O/6HwvZ
-         3wLM3tma12PIFhrDRKT1Z505CGRDspDO8zqu5aDKd60Coa1D/8XxC+knxTLEOoL9jY/M
-         +wXRZmT+FW7OOaM1duRv9rsmeSVSce4n7FMNGJ3OLO1JM6uPappR0KppCBbUjBBBF0Rg
-         v/MewQ8/6ckcKk09/pkXRWKqyT9OfNgXu6G8IttEq1sJoehmQfWSrpAKIfht/ZdK5tiH
-         M3ig==
+        b=ZEFO3AxM0GWTTRzQ+KkXvXKGYQnGrMVVHPczlIK7U4asum+b2hDAbHDU6TiU6U5MF4
+         /L5GERQgEh6roB6lec3/3fuvb8JGFtr7fSXn3CG8q4dkb1jYCjNRU2wQ/eeUhRulMGXe
+         0rnRROaBd6sqPOV+bbVYXiM3okzlQUwapi+ajdhLse221VIUuuV0DG3GNXfVylPM9SLp
+         eVlRBMEe6zPgdd+470RMTKocL1V3Com0QGKlaeayaCPKavEVGlESvag/OvCX6QHmVJZb
+         +JCm386kjfNu+nvJyT5k1pi1CED0knBaUm8YH8/bMWG38suSfFJboCaPC7yyzfTL91Lt
+         WpYg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
-         :from:dkim-signature;
-        bh=xAWml8zHr+RR4WtcfJXF5qLyW4vcoY8hdC2IB6AOcOc=;
-        b=i3iA7IGYTOIDdWHpc9SFoqWkaoG2blUUuBqgRr+EOUE2RbpBGu+WwAy8sMAeG2mKV5
-         WW4WuKJKzD2jjIhGATDN4+dHnoVdHioII3U7T/bn77JPsuf4rUH5hoLDECXnVeTiMXIL
-         ajOoHSvqycwF00FHDOu5MoZAH/2nib1j69xXh4+b1M2xreA1B4qej256m0oXRXMgKpyv
-         koGbhhBHDZMIY5W6jmyPRQ+wiMvBV4L1nV/HTxUxT19Wv19hwOAFWa8RVd36Z5TRFw4y
-         J8LJAE3S3ZD0dD+D55pylcqoRJ5JHRiEsXUlnerjFhn9syc9uZUXPJFambMlh+WbT8Ef
-         5TZw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=5dtvEs2ayMMPDWlDVD/VDsH5GdZ7NguoxBUGDu1v+1A=;
+        b=xm6Tqf8B9dtgTLJfuhhhuzrEBH3QaBzkRt99jDBBO1SDVKj2SUXlKvG+ofHuJG/vbO
+         0du9CxQZWtclyNj+z3n0kHV9OaqUfnAbHFykQ2GsvMKMaWYwnXNEP5SXA/CJfdAJH/Ws
+         FAM0NPpA9UmGlKuLKXNF9Sk9SfM4Y3ReIRP+ukGCZO2SmeYHEq5fNbhpaa0E+OzMeGWF
+         SH3GRZ10st5fowBDl+TDFqYj9bRQdIg2sOOPMA47xZZ0+ca47u0Ck+Z0wFDJVoV71puM
+         Y4Jm/nbDwchoooDlw8BLWVGNKFz7LqStUYowBIw+e7sKg1vwUtPmjX1uo/+BWqr0JkIl
+         99Lg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@axtens.net header.s=google header.b=fBVA+CF5;
-       spf=pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=dja@axtens.net
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g71sor75551846pje.16.2019.07.30.01.38.52
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=xG7r1Kkm;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id c18si482493wre.175.2019.07.30.01.43.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 30 Jul 2019 01:38:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@axtens.net header.s=google header.b=fBVA+CF5;
-       spf=pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=dja@axtens.net
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=axtens.net; s=google;
-        h=from:to:cc:subject:in-reply-to:references:date:message-id
-         :mime-version;
-        bh=xAWml8zHr+RR4WtcfJXF5qLyW4vcoY8hdC2IB6AOcOc=;
-        b=fBVA+CF5JEE+effJV4K3mQ0bjdRf0WrTxicmyOKsFjrrZqG78elCDi+wOBnBnXbWx4
-         ym1k2k4QFEQUs+2gBa3CJ8E3EZlJB6wKi6b2qJAHGQoVrmG3TXgEof609/nKFxHb+7dJ
-         eMDWK3XSTFbb8nqVxKtVIsKD6qfgbXSrkfehk=
-X-Google-Smtp-Source: APXvYqwSLszFoXT/40dnLzTLf7YGDHfpuGGatDiw5WyLEl3Fheu3QtT1c4tQCU0jbRE9fZcIOn3FmQ==
-X-Received: by 2002:a17:90a:17c4:: with SMTP id q62mr117904140pja.104.1564475932272;
-        Tue, 30 Jul 2019 01:38:52 -0700 (PDT)
-Received: from localhost (ppp167-251-205.static.internode.on.net. [59.167.251.205])
-        by smtp.gmail.com with ESMTPSA id q126sm70680998pfq.123.2019.07.30.01.38.50
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 30 Jul 2019 01:38:51 -0700 (PDT)
-From: Daniel Axtens <dja@axtens.net>
-To: Mark Rutland <mark.rutland@arm.com>
-Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, x86@kernel.org, aryabinin@virtuozzo.com, glider@google.com, luto@kernel.org, linux-kernel@vger.kernel.org, dvyukov@google.com
-Subject: Re: [PATCH v2 1/3] kasan: support backing vmalloc space with real shadow memory
-In-Reply-To: <20190729154426.GA51922@lakrids.cambridge.arm.com>
-References: <20190729142108.23343-1-dja@axtens.net> <20190729142108.23343-2-dja@axtens.net> <20190729154426.GA51922@lakrids.cambridge.arm.com>
-Date: Tue, 30 Jul 2019 18:38:47 +1000
-Message-ID: <877e7zhq7c.fsf@dja-thinkpad.axtens.net>
+        Tue, 30 Jul 2019 01:43:25 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=xG7r1Kkm;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=5dtvEs2ayMMPDWlDVD/VDsH5GdZ7NguoxBUGDu1v+1A=; b=xG7r1KkmYiasqjaGmGOz72Bvj
+	0y27GNWNOy+MpQ4KS37k8JDOY7tYtI8IAqNjYPncukYi7M95ydimStrBb3IpiD/YIKOTorj5dlkW/
+	diNd1zqx3gUgaRb8lc8nPTkVsTdY1frc9BUQxXbhADAYnqs+7K/9Caz0prQ0CRz8JZJJ5mQEMVfKU
+	bs8EgdLviD8nLA9drj4K+9xd70p5QlYcvdecXAxq07ZZNDeVr1uxRx1RXpFCyLLLpXfug6MwlrklD
+	CqSHOGDXKs21BZagSWGc1Ripc5vOQCTL/vcdsMEHwuIuAzFlAZlsmjFVItaBpT0hgmeYaUHpikALG
+	94PhG1ZPw==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hsNj9-0005YZ-KW; Tue, 30 Jul 2019 08:43:23 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id EB84320AFFE9F; Tue, 30 Jul 2019 10:43:21 +0200 (CEST)
+Date: Tue, 30 Jul 2019 10:43:21 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Waiman Long <longman@redhat.com>
+Cc: Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+	Phil Auld <pauld@redhat.com>, Michal Hocko <mhocko@kernel.org>,
+	Rik van Riel <riel@surriel.com>
+Subject: Re: [PATCH v3] sched/core: Don't use dying mm as active_mm of
+ kthreads
+Message-ID: <20190730084321.GL31381@hirez.programming.kicks-ass.net>
+References: <20190729210728.21634-1-longman@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190729210728.21634-1-longman@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Mark,
+On Mon, Jul 29, 2019 at 05:07:28PM -0400, Waiman Long wrote:
+> It was found that a dying mm_struct where the owning task has exited
+> can stay on as active_mm of kernel threads as long as no other user
+> tasks run on those CPUs that use it as active_mm. This prolongs the
+> life time of dying mm holding up some resources that cannot be freed
+> on a mostly idle system.
+> 
+> Fix that by forcing the kernel threads to use init_mm as the active_mm
+> during a kernel thread to kernel thread transition if the previous
+> active_mm is dying (!mm_users). This will allows the freeing of resources
+> associated with the dying mm ASAP.
+> 
+> The presence of a kernel-to-kernel thread transition indicates that
+> the cpu is probably idling with no higher priority user task to run.
+> So the overhead of loading the mm_users cacheline should not really
+> matter in this case.
+> 
+> My testing on an x86 system showed that the mm_struct was freed within
+> seconds after the task exited instead of staying alive for minutes or
+> even longer on a mostly idle system before this patch.
+> 
+> Signed-off-by: Waiman Long <longman@redhat.com>
+> ---
+>  kernel/sched/core.c | 21 +++++++++++++++++++--
+>  1 file changed, 19 insertions(+), 2 deletions(-)
+> 
+> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+> index 795077af4f1a..41997e676251 100644
+> --- a/kernel/sched/core.c
+> +++ b/kernel/sched/core.c
+> @@ -3214,6 +3214,8 @@ static __always_inline struct rq *
+>  context_switch(struct rq *rq, struct task_struct *prev,
+>  	       struct task_struct *next, struct rq_flags *rf)
+>  {
+> +	struct mm_struct *next_mm = next->mm;
+> +
+>  	prepare_task_switch(rq, prev, next);
+>  
+>  	/*
+> @@ -3229,8 +3231,22 @@ context_switch(struct rq *rq, struct task_struct *prev,
+>  	 *
+>  	 * kernel ->   user   switch + mmdrop() active
+>  	 *   user ->   user   switch
+> +	 *
+> +	 * kernel -> kernel and !prev->active_mm->mm_users:
+> +	 *   switch to init_mm + mmgrab() + mmdrop()
+>  	 */
+> -	if (!next->mm) {                                // to kernel
+> +	if (!next_mm) {					// to kernel
+> +		/*
+> +		 * Checking is only done on kernel -> kernel transition
+> +		 * to avoid any performance overhead while user tasks
+> +		 * are running.
+> +		 */
+> +		if (unlikely(!prev->mm &&
+> +			     !atomic_read(&prev->active_mm->mm_users))) {
+> +			next_mm = next->active_mm = &init_mm;
+> +			mmgrab(next_mm);
+> +			goto mm_switch;
+> +		}
+>  		enter_lazy_tlb(prev->active_mm, next);
+>  
+>  		next->active_mm = prev->active_mm;
 
-Thanks for your email - I'm very new to mm stuff and the feedback is
-very helpful.
-
->> +#ifndef CONFIG_KASAN_VMALLOC
->>  int kasan_module_alloc(void *addr, size_t size)
->>  {
->>  	void *ret;
->> @@ -603,6 +604,7 @@ void kasan_free_shadow(const struct vm_struct *vm)
->>  	if (vm->flags & VM_KASAN)
->>  		vfree(kasan_mem_to_shadow(vm->addr));
->>  }
->> +#endif
->
-> IIUC we can drop MODULE_ALIGN back to PAGE_SIZE in this case, too.
-
-Yes, done.
-
->>  core_initcall(kasan_memhotplug_init);
->>  #endif
->> +
->> +#ifdef CONFIG_KASAN_VMALLOC
->> +void kasan_cover_vmalloc(unsigned long requested_size, struct vm_struct *area)
->
-> Nit: I think it would be more consistent to call this
-> kasan_populate_vmalloc().
->
-
-Absolutely. I didn't love the name but just didn't 'click' that populate
-would be a better verb.
-
->> +{
->> +	unsigned long shadow_alloc_start, shadow_alloc_end;
->> +	unsigned long addr;
->> +	unsigned long backing;
->> +	pgd_t *pgdp;
->> +	p4d_t *p4dp;
->> +	pud_t *pudp;
->> +	pmd_t *pmdp;
->> +	pte_t *ptep;
->> +	pte_t backing_pte;
->
-> Nit: I think it would be preferable to use 'page' rather than 'backing',
-> and 'pte' rather than 'backing_pte', since there's no otehr namespace to
-> collide with here. Otherwise, using 'shadow' rather than 'backing' would
-> be consistent with the existing kasan code.
-
-Not a problem, done.
-
->> +	addr = shadow_alloc_start;
->> +	do {
->> +		pgdp = pgd_offset_k(addr);
->> +		p4dp = p4d_alloc(&init_mm, pgdp, addr);
->> +		pudp = pud_alloc(&init_mm, p4dp, addr);
->> +		pmdp = pmd_alloc(&init_mm, pudp, addr);
->> +		ptep = pte_alloc_kernel(pmdp, addr);
->> +
->> +		/*
->> +		 * we can validly get here if pte is not none: it means we
->> +		 * allocated this page earlier to use part of it for another
->> +		 * allocation
->> +		 */
->> +		if (pte_none(*ptep)) {
->> +			backing = __get_free_page(GFP_KERNEL);
->> +			backing_pte = pfn_pte(PFN_DOWN(__pa(backing)),
->> +					      PAGE_KERNEL);
->> +			set_pte_at(&init_mm, addr, ptep, backing_pte);
->> +		}
->
-> Does anything prevent two threads from racing to allocate the same
-> shadow page?
->
-> AFAICT it's possible for two threads to get down to the ptep, then both
-> see pte_none(*ptep)), then both try to allocate the same page.
->
-> I suspect we have to take init_mm::page_table_lock when plumbing this
-> in, similarly to __pte_alloc().
-
-Good catch. I think you're right, I'll add the lock.
-
->> +	} while (addr += PAGE_SIZE, addr != shadow_alloc_end);
->> +
->> +	kasan_unpoison_shadow(area->addr, requested_size);
->> +	requested_size = round_up(requested_size, KASAN_SHADOW_SCALE_SIZE);
->> +	kasan_poison_shadow(area->addr + requested_size,
->> +			    area->size - requested_size,
->> +			    KASAN_VMALLOC_INVALID);
->
-> IIUC, this could leave the final portion of an allocated page
-> unpoisoned.
->
-> I think it might make more sense to poison each page when it's
-> allocated, then plumb it into the page tables, then unpoison the object.
->
-> That way, we can rely on any shadow allocated by another thread having
-> been initialized to KASAN_VMALLOC_INVALID, and only need mutual
-> exclusion when allocating the shadow, rather than when poisoning
-> objects.
-
-Yes, that makes sense, will do.
-
-Thanks again,
-Daniel
+So I _really_ hate this complication. I'm thinking if you really care
+about this the time is much better spend getting rid of the active_mm
+tracking for x86 entirely.
 
