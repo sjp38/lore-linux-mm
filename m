@@ -2,338 +2,238 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D794C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 07:27:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 45DE9C32750
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 07:45:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 598622087F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 07:27:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 598622087F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id D86B5206E0
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 07:45:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D86B5206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D97D28E0005; Tue, 30 Jul 2019 03:27:27 -0400 (EDT)
+	id 43C5B8E0005; Tue, 30 Jul 2019 03:45:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D49D98E0002; Tue, 30 Jul 2019 03:27:27 -0400 (EDT)
+	id 3EDC38E0002; Tue, 30 Jul 2019 03:45:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C11958E0005; Tue, 30 Jul 2019 03:27:27 -0400 (EDT)
+	id 2DB988E0005; Tue, 30 Jul 2019 03:45:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FA9E8E0002
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 03:27:27 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id o13so39781836edt.4
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 00:27:27 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 08CEF8E0002
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 03:45:06 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id o16so57566323qtj.6
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 00:45:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=nrBxUHmgl8x1VGgMHHpPsiWYj4tSkoM26u6CTSy92ZI=;
-        b=I3CjNDUtj0Pd8Fnelqph/VgBw4EJGFr4knZGE4X/g9ywDXWzaZLlp+0z6OGMHRNqfW
-         i7z02g0oOElAzBTW6rIKjuPxu55bHP0u7ZpA5dVCmp61Q3Yebfy56c1cA9LOBTZF56Qw
-         6ltF0y1imkaCx2T9XqewysdFnFwOhEeaBKQXLrTl+JTtYzTqHAp5S4sxfErgR0UXS0el
-         NCqgEQkplMUlKzw93gzNu17p+cYxlb2fJL6EKd3ps9Xkp/fbo3W0zaCCAoW60Cp3HTdV
-         d9um93yBj1KKCqFZZEW8/qgyHz9pVObKtLNjLwieSP0Er/JLMojm6f/RIGX9To9etQDH
-         ILwA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAX2FbWblN+dS5wdaOgjoIBm1hSgVTUcIp03ext+PLxebcWhVkuU
-	XQnHTbPAfBY40/qBaNiGfC6zGEXKeRsONvtNve8WIs3es5xdpql6T8aWw2aW8hXkqUtS6JRdoHr
-	zpexQuIPa4hTlvC8uIgqnzWrmYL3kZHVHzsKWQaU7JZsYMQPYHjAIiGR39b9ZyF4=
-X-Received: by 2002:a17:906:4a10:: with SMTP id w16mr28431148eju.299.1564471646999;
-        Tue, 30 Jul 2019 00:27:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzhInbaUoAHDZ38T52zJDTPzEpgfJL/KVqVcAx8vbcNFVbEwKZKaMHjfGu1khFjUx6I3sEO
-X-Received: by 2002:a17:906:4a10:: with SMTP id w16mr28431102eju.299.1564471646045;
-        Tue, 30 Jul 2019 00:27:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564471646; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=/u+7PBGONpChj9bsCyMR6/PNwLHKML+JATmP8hgGVAs=;
+        b=NGmb1Tn2Bve7AgPDBL8lv+gtYHM+zgjZdrK7eowcoWs3Nw5oLxSsjw5kg/Cni+Ryz6
+         nBaf3ddh+eqgy7Y8e6jFP0BHKm/Kd1CfEJZOqeIespknw6xhVgfFzPBTTEOph4eEn/fX
+         SwEENHAKL8PfDIELmgSDgWo94cXI/K/l5gW23fc0Cc98Z88CN8LF6CXpyUj2u4P4fJIP
+         ZEWhJH7TAnxi0uTAjLdI1VSDWofu34hkbCjyGaEv5UUlzm0MzcDe55gsS/BCX7V1Gf73
+         xtdYlxHO6Ae58wIJ/wdG69BfpAMoGiSz09iePaBuMgZkwQeotf6w/uEHwBLVZyDaeXof
+         LcKg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAURziQD34GJOq7Rk4liFstyHGPhgmPZpUcIQJ9UJ9zHgOEu63yL
+	KcGlbc2m8mdotrfEEpEsjQBOXPEgfJo/vxEQzHPE9SlmfLv/5sMDMgbsY9UKgnZ1Gfv3xUGU+19
+	8gsZ9EO++Y8YpbWktYfiMOVcgvt/LSL14J1om3WdsNo1gFT45QD/mbqydA2UIBAqQCw==
+X-Received: by 2002:aed:2961:: with SMTP id s88mr79640684qtd.120.1564472705775;
+        Tue, 30 Jul 2019 00:45:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyTApot1QSPkNHZuZ+WEnYEFAevlbdmOPN74h1j1ti+9CaEJcILidf068OMbigjdQ4R5Zgr
+X-Received: by 2002:aed:2961:: with SMTP id s88mr79640649qtd.120.1564472705004;
+        Tue, 30 Jul 2019 00:45:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564472704; cv=none;
         d=google.com; s=arc-20160816;
-        b=DAvlZVFU0mnrD8a4XfuQLc+XXIxueekkcgdiTi5Q+fkt19h89zvV2Zdrs/j+c2JhXf
-         N3DYCL/0oTSvR4ai29zBweqsXHDKMrpt9euy4iTu98Npo1SeJ1FrA81QTI30wdtvzsYh
-         FPVFgLffz17fwx/orkkDraRgk7OI3xHwrdUVWW3Nv64DjPMBuY22dfkwSCcHEW1PQaL7
-         RVPJuZzCe7hhQRo+cClKxNEtCky0gkUgciLWY4jtMRmck2fxAA3KRdM6ouMYNFeKQOlF
-         vtwHu8mf6E0779TxwwnRqPBUGavgRG2mtFUpV/qY2Pq4TmPdwdqgP8M8ptcp41JKAcUc
-         OlYg==
+        b=O/jEFb6peVNtc/PSgXlvDz6hQimNxxtk7zwVVzZbJVJS/aPa7C5DpxRRGNkzoWVgdE
+         Y8eJ3OcTTp8bvyeoTRdu59oq8eX7kPU2coT8j57iHFjldGx/4UV5CkXQL4e4ppBUfaIf
+         yd09Qc4KEiHePm3pRK4N7Z7dcnMffHW8davK6AXb+lvU1QLK/ot6UDTZfHstq0I3R4/T
+         HHfDvGx4E81+GZJiqcYjVAeK0CONjZRyUI5k/ZHTz3b4C9Y9G70mLuseRszHPV0olO2b
+         P0kwFMFG9a/nWIVIogqX6Nfu+o++rh4Rucle1R4Hr29sVp6LUcKo2tkNnFDTaJnH94vc
+         0Iog==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=nrBxUHmgl8x1VGgMHHpPsiWYj4tSkoM26u6CTSy92ZI=;
-        b=DCMviCv+mkIYsgOom3KGsviV4cYIVVuPx8Yd9vJfH/Txnkln0WfM7P9C7nzNEoPcgz
-         37jUNLxUA3L5+A1KKlAAU67Sr5D11OWihofSmCYto2PqBFHZGf/Ht4PPoBD6B8b4y2lN
-         S8dAvYiqg3d12McsplhVr/oi2YyTuK+eE3Omd4+g9ZVj6vVofkN6TifVp07Xh6C9ERAL
-         xhMgUbw2lD7BM/GIUqjsSYlmWnrkV1eyrTwld6NLlg4lwLz0vDI+AwBgTnaBQW7j7gb6
-         H8SABtQ7njXgk6WO3/chOYiV9JMaryG/qbPTzb5APHNXWu59Sche/xaanpJQm8cFHDw7
-         FsBQ==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=/u+7PBGONpChj9bsCyMR6/PNwLHKML+JATmP8hgGVAs=;
+        b=sGpJRawwxDaMQNEku6ulQfP3YZ7rGwvBlXQee2w5cn5wWCrlzw6mAsWzMV4ljS1pHL
+         8i5gLvxJk7q5OZNFEMI7EgO/HI5I8S+ST959JYytlEu2DXvNUxVEtJ/vHkfKhmwAwY5H
+         7xhjTDTOHDAnQUp9xS2BqXBSOqgrpvJnc0PCY7PScKFt1+iWpzGJ5wXAL92c1cFEzMcK
+         XVii4tAvTt5IVIXp6TgxdAeSuNM1XI1uQVlefBI+CnyKy/NFMzH5pEvmpD/R9841tv5z
+         q5qSdw1fri3gEHyMKekslSjxBi8C52dXHvEMh/BxrJwPJknfaDPAEsHdWDNXNS4y1R9C
+         kWqw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e24si18425353ede.59.2019.07.30.00.27.25
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id q9si36018310qtj.4.2019.07.30.00.45.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 00:27:26 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 30 Jul 2019 00:45:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 8A31BAFBB;
-	Tue, 30 Jul 2019 07:27:25 +0000 (UTC)
-Date: Tue, 30 Jul 2019 09:27:24 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Miles Chen <miles.chen@mediatek.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>, cgroups@vger.kernel.org,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	linux-mediatek@lists.infradead.org, wsd_upstream@mediatek.com,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v4] mm: memcontrol: fix use after free in
- mem_cgroup_iter()
-Message-ID: <20190730072724.GM9330@dhcp22.suse.cz>
-References: <20190730015729.4406-1-miles.chen@mediatek.com>
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 3AD0BC027339;
+	Tue, 30 Jul 2019 07:45:03 +0000 (UTC)
+Received: from [10.72.12.185] (ovpn-12-185.pek2.redhat.com [10.72.12.185])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id ECA805C1A1;
+	Tue, 30 Jul 2019 07:44:48 +0000 (UTC)
+Subject: Re: WARNING in __mmdrop
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
+ aarcange@redhat.com, akpm@linux-foundation.org, christian@brauner.io,
+ davem@davemloft.net, ebiederm@xmission.com, elena.reshetova@intel.com,
+ guro@fb.com, hch@infradead.org, james.bottomley@hansenpartnership.com,
+ jglisse@redhat.com, keescook@chromium.org, ldv@altlinux.org,
+ linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, linux-parisc@vger.kernel.org, luto@amacapital.net,
+ mhocko@suse.com, mingo@kernel.org, namit@vmware.com, peterz@infradead.org,
+ syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk, wad@chromium.org
+References: <11802a8a-ce41-f427-63d5-b6a4cf96bb3f@redhat.com>
+ <20190726074644-mutt-send-email-mst@kernel.org>
+ <5cc94f15-b229-a290-55f3-8295266edb2b@redhat.com>
+ <20190726082837-mutt-send-email-mst@kernel.org>
+ <ada10dc9-6cab-e189-5289-6f9d3ff8fed2@redhat.com>
+ <aaefa93e-a0de-1c55-feb0-509c87aae1f3@redhat.com>
+ <20190726094756-mutt-send-email-mst@kernel.org>
+ <0792ee09-b4b7-673c-2251-e5e0ce0fbe32@redhat.com>
+ <20190729045127-mutt-send-email-mst@kernel.org>
+ <4d43c094-44ed-dbac-b863-48fc3d754378@redhat.com>
+ <20190729104028-mutt-send-email-mst@kernel.org>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <96b1d67c-3a8d-1224-e9f0-5f7725a3dc10@redhat.com>
+Date: Tue, 30 Jul 2019 15:44:47 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190730015729.4406-1-miles.chen@mediatek.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190729104028-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Tue, 30 Jul 2019 07:45:04 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Cc Andrew to pick up the patch]
 
-On Tue 30-07-19 09:57:29, Miles Chen wrote:
-> This patch is sent to report an use after free in mem_cgroup_iter()
-> after merging commit: be2657752e9e "mm: memcg: fix use after free in
-> mem_cgroup_iter()".
-> 
-> I work with android kernel tree (4.9 & 4.14), and the commit:
-> be2657752e9e "mm: memcg: fix use after free in mem_cgroup_iter()" has
-> been merged to the trees. However, I can still observe use after free
-> issues addressed in the commit be2657752e9e.
-> (on low-end devices, a few times this month)
-> 
-> backtrace:
-> 	css_tryget <- crash here
-> 	mem_cgroup_iter
-> 	shrink_node
-> 	shrink_zones
-> 	do_try_to_free_pages
-> 	try_to_free_pages
-> 	__perform_reclaim
-> 	__alloc_pages_direct_reclaim
-> 	__alloc_pages_slowpath
-> 	__alloc_pages_nodemask
-> 
-> To debug, I poisoned mem_cgroup before freeing it:
-> 
-> static void __mem_cgroup_free(struct mem_cgroup *memcg)
-> 	for_each_node(node)
-> 	free_mem_cgroup_per_node_info(memcg, node);
-> 	free_percpu(memcg->stat);
-> +       /* poison memcg before freeing it */
-> +       memset(memcg, 0x78, sizeof(struct mem_cgroup));
-> 	kfree(memcg);
-> }
-> 
-> The coredump shows the position=0xdbbc2a00 is freed.
-> 
-> (gdb) p/x ((struct mem_cgroup_per_node *)0xe5009e00)->iter[8]
-> $13 = {position = 0xdbbc2a00, generation = 0x2efd}
-> 
-> 0xdbbc2a00:     0xdbbc2e00      0x00000000      0xdbbc2800      0x00000100
-> 0xdbbc2a10:     0x00000200      0x78787878      0x00026218      0x00000000
-> 0xdbbc2a20:     0xdcad6000      0x00000001      0x78787800      0x00000000
-> 0xdbbc2a30:     0x78780000      0x00000000      0x0068fb84      0x78787878
-> 0xdbbc2a40:     0x78787878      0x78787878      0x78787878      0xe3fa5cc0
-> 0xdbbc2a50:     0x78787878      0x78787878      0x00000000      0x00000000
-> 0xdbbc2a60:     0x00000000      0x00000000      0x00000000      0x00000000
-> 0xdbbc2a70:     0x00000000      0x00000000      0x00000000      0x00000000
-> 0xdbbc2a80:     0x00000000      0x00000000      0x00000000      0x00000000
-> 0xdbbc2a90:     0x00000001      0x00000000      0x00000000      0x00100000
-> 0xdbbc2aa0:     0x00000001      0xdbbc2ac8      0x00000000      0x00000000
-> 0xdbbc2ab0:     0x00000000      0x00000000      0x00000000      0x00000000
-> 0xdbbc2ac0:     0x00000000      0x00000000      0xe5b02618      0x00001000
-> 0xdbbc2ad0:     0x00000000      0x78787878      0x78787878      0x78787878
-> 0xdbbc2ae0:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2af0:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b00:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b10:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b20:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b30:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b40:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b50:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b60:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b70:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2b80:     0x78787878      0x78787878      0x00000000      0x78787878
-> 0xdbbc2b90:     0x78787878      0x78787878      0x78787878      0x78787878
-> 0xdbbc2ba0:     0x78787878      0x78787878      0x78787878      0x78787878
-> 
-> In the reclaim path, try_to_free_pages() does not setup
-> sc.target_mem_cgroup and sc is passed to do_try_to_free_pages(), ...,
-> shrink_node().
-> 
-> In mem_cgroup_iter(), root is set to root_mem_cgroup because
-> sc->target_mem_cgroup is NULL.
-> It is possible to assign a memcg to root_mem_cgroup.nodeinfo.iter in
-> mem_cgroup_iter().
-> 
-> 	try_to_free_pages
-> 		struct scan_control sc = {...}, target_mem_cgroup is 0x0;
-> 	do_try_to_free_pages
-> 	shrink_zones
-> 	shrink_node
-> 		 mem_cgroup *root = sc->target_mem_cgroup;
-> 		 memcg = mem_cgroup_iter(root, NULL, &reclaim);
-> 	mem_cgroup_iter()
-> 		if (!root)
-> 			root = root_mem_cgroup;
-> 		...
-> 
-> 		css = css_next_descendant_pre(css, &root->css);
-> 		memcg = mem_cgroup_from_css(css);
-> 		cmpxchg(&iter->position, pos, memcg);
-> 
-> My device uses memcg non-hierarchical mode.
-> When we release a memcg: invalidate_reclaim_iterators() reaches only
-> dead_memcg and its parents. If non-hierarchical mode is used,
-> invalidate_reclaim_iterators() never reaches root_mem_cgroup.
-> 
-> static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
-> {
-> 	struct mem_cgroup *memcg = dead_memcg;
-> 
-> 	for (; memcg; memcg = parent_mem_cgroup(memcg)
-> 	...
-> }
-> 
-> So the use after free scenario looks like:
-> 
-> CPU1						CPU2
-> 
-> try_to_free_pages
-> do_try_to_free_pages
-> shrink_zones
-> shrink_node
-> mem_cgroup_iter()
->     if (!root)
->     	root = root_mem_cgroup;
->     ...
->     css = css_next_descendant_pre(css, &root->css);
->     memcg = mem_cgroup_from_css(css);
->     cmpxchg(&iter->position, pos, memcg);
-> 
-> 					invalidate_reclaim_iterators(memcg);
-> 					...
-> 					__mem_cgroup_free()
-> 						kfree(memcg);
-> 
-> try_to_free_pages
-> do_try_to_free_pages
-> shrink_zones
-> shrink_node
-> mem_cgroup_iter()
->     if (!root)
->     	root = root_mem_cgroup;
->     ...
->     mz = mem_cgroup_nodeinfo(root, reclaim->pgdat->node_id);
->     iter = &mz->iter[reclaim->priority];
->     pos = READ_ONCE(iter->position);
->     css_tryget(&pos->css) <- use after free
-> 
-> To avoid this, we should also invalidate root_mem_cgroup.nodeinfo.iter in
-> invalidate_reclaim_iterators().
-> 
-> Change since v1:
-> Add a comment to explain why we need to handle root_mem_cgroup separately.
-> Rename invalid_root to invalidate_root.
-> 
-> Change since v2:
-> Add fix tag
-> 
-> Change since v3:
-> Remove confusing 'invalidate_root', make the code easier to read
-> 
-> Fixes: 5ac8fb31ad2e ("mm: memcontrol: convert reclaim iterator to simple css refcounting")
-> Cc: Johannes Weiner <hannes@cmpxchg.org>
-> Cc: Michal Hocko <mhocko@kernel.org>
-> Signed-off-by: Miles Chen <miles.chen@mediatek.com>
+On 2019/7/29 下午10:44, Michael S. Tsirkin wrote:
+> On Mon, Jul 29, 2019 at 10:24:43PM +0800, Jason Wang wrote:
+>> On 2019/7/29 下午4:59, Michael S. Tsirkin wrote:
+>>> On Mon, Jul 29, 2019 at 01:54:49PM +0800, Jason Wang wrote:
+>>>> On 2019/7/26 下午9:49, Michael S. Tsirkin wrote:
+>>>>>>> Ok, let me retry if necessary (but I do remember I end up with deadlocks
+>>>>>>> last try).
+>>>>>> Ok, I play a little with this. And it works so far. Will do more testing
+>>>>>> tomorrow.
+>>>>>>
+>>>>>> One reason could be I switch to use get_user_pages_fast() to
+>>>>>> __get_user_pages_fast() which doesn't need mmap_sem.
+>>>>>>
+>>>>>> Thanks
+>>>>> OK that sounds good. If we also set a flag to make
+>>>>> vhost_exceeds_weight exit, then I think it will be all good.
+>>>> After some experiments, I came up two methods:
+>>>>
+>>>> 1) switch to use vq->mutex, then we must take the vq lock during range
+>>>> checking (but I don't see obvious slowdown for 16vcpus + 16queues). Setting
+>>>> flags during weight check should work but it still can't address the worst
+>>>> case: wait for the page to be swapped in. Is this acceptable?
+>>>>
+>>>> 2) using current RCU but replace synchronize_rcu() with vhost_work_flush().
+>>>> The worst case is the same as 1) but we can check range without holding any
+>>>> locks.
+>>>>
+>>>> Which one did you prefer?
+>>>>
+>>>> Thanks
+>>> I would rather we start with 1 and switch to 2 after we
+>>> can show some gain.
+>>>
+>>> But the worst case needs to be addressed.
+>>
+>> Yes.
+>>
+>>
+>>> How about sending a signal to
+>>> the vhost thread?  We will need to fix up error handling (I think that
+>>> at the moment it will error out in that case, handling this as EFAULT -
+>>> and we don't want to drop packets if we can help it, and surely not
+>>> enter any error states.  In particular it might be especially tricky if
+>>> we wrote into userspace memory and are now trying to log the write.
+>>> I guess we can disable the optimization if log is enabled?).
+>>
+>> This may work but requires a lot of changes.
+> I agree.
+>
+>> And actually it's the price of
+>> using vq mutex.
+> Not sure what's meant here.
 
-Acked-by: Michal Hocko <mhocko@suse.com>
 
-> ---
->  mm/memcontrol.c | 39 +++++++++++++++++++++++++++++----------
->  1 file changed, 29 insertions(+), 10 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index cdbb7a84cb6e..8a2a2d5cfc26 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -1130,26 +1130,45 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
->  		css_put(&prev->css);
->  }
->  
-> -static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
-> +static void __invalidate_reclaim_iterators(struct mem_cgroup *from,
-> +					struct mem_cgroup *dead_memcg)
->  {
-> -	struct mem_cgroup *memcg = dead_memcg;
->  	struct mem_cgroup_reclaim_iter *iter;
->  	struct mem_cgroup_per_node *mz;
->  	int nid;
->  	int i;
->  
-> -	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
-> -		for_each_node(nid) {
-> -			mz = mem_cgroup_nodeinfo(memcg, nid);
-> -			for (i = 0; i <= DEF_PRIORITY; i++) {
-> -				iter = &mz->iter[i];
-> -				cmpxchg(&iter->position,
-> -					dead_memcg, NULL);
-> -			}
-> +	for_each_node(nid) {
-> +		mz = mem_cgroup_nodeinfo(from, nid);
-> +		for (i = 0; i <= DEF_PRIORITY; i++) {
-> +			iter = &mz->iter[i];
-> +			cmpxchg(&iter->position,
-> +				dead_memcg, NULL);
->  		}
->  	}
->  }
->  
-> +static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
-> +{
-> +	struct mem_cgroup *memcg = dead_memcg;
-> +	struct mem_cgroup *last;
-> +
-> +	do {
-> +		__invalidate_reclaim_iterators(memcg, dead_memcg);
-> +		last = memcg;
-> +	} while (memcg = parent_mem_cgroup(memcg));
-> +
-> +	/*
-> +	 * When cgruop1 non-hierarchy mode is used,
-> +	 * parent_mem_cgroup() does not walk all the way up to the
-> +	 * cgroup root (root_mem_cgroup). So we have to handle
-> +	 * dead_memcg from cgroup root separately.
-> +	 */
-> +	if (last != root_mem_cgroup)
-> +		__invalidate_reclaim_iterators(root_mem_cgroup,
-> +						dead_memcg);
-> +}
-> +
->  /**
->   * mem_cgroup_scan_tasks - iterate over tasks of a memory cgroup hierarchy
->   * @memcg: hierarchy root
-> -- 
-> 2.18.0
+I mean if we use vq mutex, it means the critical section was increased 
+and we need to deal with swapping then.
 
--- 
-Michal Hocko
-SUSE Labs
+
+>
+>> Actually, the critical section should be rather small, e.g
+>> just inside memory accessors.
+> Also true.
+>
+>> I wonder whether or not just do synchronize our self like:
+>>
+>> static void inline vhost_inc_vq_ref(struct vhost_virtqueue *vq)
+>> {
+>>          int ref = READ_ONCE(vq->ref);
+>>
+>>          WRITE_ONCE(vq->ref, ref + 1);
+>> smp_rmb();
+>> }
+>>
+>> static void inline vhost_dec_vq_ref(struct vhost_virtqueue *vq)
+>> {
+>>          int ref = READ_ONCE(vq->ref);
+>>
+>> smp_wmb();
+>>          WRITE_ONCE(vq->ref, ref - 1);
+>> }
+>>
+>> static void inline vhost_wait_for_ref(struct vhost_virtqueue *vq)
+>> {
+>>          while (READ_ONCE(vq->ref));
+>> mb();
+>> }
+> Looks good but I'd like to think of a strategy/existing lock that let us
+> block properly as opposed to spinning, that would be more friendly to
+> e.g. the realtime patch.
+
+
+Does it make sense to disable preemption in the critical section? Then 
+we don't need to block and we have a deterministic time spent on memory 
+accssors?
+
+
+>
+>> Or using smp_load_acquire()/smp_store_release() instead?
+>>
+>> Thanks
+> These are cheaper on x86, yes.
+
+
+Will use this.
+
+Thanks
+
+
+>
 
