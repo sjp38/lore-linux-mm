@@ -2,197 +2,391 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 405E2C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 14:57:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DA2A2C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 14:59:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9A37A206A2
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 14:57:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8E29E206A2
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 14:59:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="nRcfxXoJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A37A206A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="KOUGq7zy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E29E206A2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F8248E0005; Tue, 30 Jul 2019 10:57:23 -0400 (EDT)
+	id 2324F8E0005; Tue, 30 Jul 2019 10:59:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A76D8E0001; Tue, 30 Jul 2019 10:57:23 -0400 (EDT)
+	id 1BC898E0001; Tue, 30 Jul 2019 10:59:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 197018E0005; Tue, 30 Jul 2019 10:57:23 -0400 (EDT)
+	id 05C728E0005; Tue, 30 Jul 2019 10:59:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A78E58E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 10:57:22 -0400 (EDT)
-Received: by mail-lf1-f69.google.com with SMTP id f24so6694961lfk.6
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 07:57:22 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A3E558E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 10:59:23 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id k22so40536574ede.0
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 07:59:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=dHW6AIzVqZ+BtB7OKS/RSaqFVfjBjJYiEElqTiNSJSw=;
-        b=PT3/hLofYZJSyTwGx8Ggy0t97plZk4IqHzJNLE6Tf0wjkMwyAJJ9PSUcm6NHzD4rX5
-         6u4ByRhxxvK+kJW/euFOEATV7g19xDN9Zh+1fWWrltyqd8joCo2MnBW+luIFjKPFhkZK
-         24XDtQXJUQMKDYWylLLUwJTounCVKeYS1iPtCVSnVWaBHOJEOkjE1nOxpPB8Y15Gh+uQ
-         QEanX9TfJJprTvRpO70FNrLtffN4a5Um0wnIBVnjkuoUqNjXTJ4952yOcy8kYYD/4Gqz
-         /gXdhr8LQMWcVp5xfZ/H3QnzeGDt/DAQz8LUBG4KmK/ArHlU9zdlHAitXK9C7J17zdx6
-         M2Pg==
-X-Gm-Message-State: APjAAAXv+7IaO5VBVUSTW23PtF9kEtA6oDiX5vX1MCldHr7laOWKndUz
-	WSNKwemKEOcdZHg8dJFOm54+FjBaCKiaHK6CC+O+cVEep0eXUm4+CREaIWbxqv8n5vQLmJupua4
-	pcK0QXXOZtDtvBZ/xnozBiiKRfOJA3lWl6bUJqlMJc39qHmsILqIrSrk+faTkEo7HVQ==
-X-Received: by 2002:ac2:42c7:: with SMTP id n7mr54292250lfl.65.1564498641821;
-        Tue, 30 Jul 2019 07:57:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyblpJtfzcc/txqGff6c1Nk5IylrQfdnejduGOhsCnrJsCub92wRWwVYQAIivQD0+yx4SYt
-X-Received: by 2002:ac2:42c7:: with SMTP id n7mr54292210lfl.65.1564498641025;
-        Tue, 30 Jul 2019 07:57:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564498641; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=1OEUHJAeJuir02frAc/X7UiYIxvDviag+lOCO2z8Si0=;
+        b=SoRLXx2+J/gpAitwSuudKXNIUbqL7Usz81zWyE1lOo3E1G2I6JG/owdq+BCA3/YhKk
+         e1YxvzXsuNR3MCm66faqdeD0bo82s374RLVYFdaCJ1hphNJReTjaFO8tX4qbAFbDHmve
+         BnVhTWz+R/vpMWcLm9PQqWqask6dvkp6PM/h2c1MNWN7s9hxddQdX8SMfMClNEp4j50t
+         dSRvYzflpwfygzt27lv/CD6ebwEhpoq5qmg+9QEBznK9o1ng6d75sriPVCObZHrmLo7R
+         5NvExJS/yCMS6mO//duxqEA6USrYkC7SVFC0Y+gSOt9cWb/YqcsEbOk3xA8bc/7QV/Uw
+         +3ow==
+X-Gm-Message-State: APjAAAUkxO2xDFnKgwHeNy15z1W257PUPUWm5VZUx4NMkUHIgoK26oIz
+	BwJtxJhgvhg5WXypEUdHqRi86UCLn/ENjq9QEFM7sezZLc/jUs+bP1vph/Et+vKNVumdGWL+8Y4
+	MtUkM2geLoIYvYhcJQJSmhz8MstkPIKrijTOcyW7RjunTOc4Da8VWelqXix03W64=
+X-Received: by 2002:a50:f410:: with SMTP id r16mr102871634edm.120.1564498763198;
+        Tue, 30 Jul 2019 07:59:23 -0700 (PDT)
+X-Received: by 2002:a50:f410:: with SMTP id r16mr102871572edm.120.1564498762337;
+        Tue, 30 Jul 2019 07:59:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564498762; cv=none;
         d=google.com; s=arc-20160816;
-        b=tf9qeirYRyrpE4T2T4NAJic6XEs7zlTeGEfJWSEOo18gBMMps8cev+SvHgsrNWXhU9
-         bhEf78C2KZa1jm//Atfq8t3C2Cu0oa1MvCSflway9DjrdWCC+6RT8onrEpfbzkd2Bi07
-         jY1NlReHLPz46yMAy8/itgQs6JxTISpbsjXpJig7amRn93WEQH7wrWiACWnyGVz0vaJO
-         1i8ZmJvLbEJyhc8R4c3qQ4b0PuXlsQLCoKzzBP5JQvMEh7gcVrQC/hlAM1Og7iDYTr/2
-         Q9NNj7jH6OHt3HfEiGKzlY4QVAaO+yWEn0Z5+np1NtFFXzzCKQn9KWALNQZ5b4kAspnM
-         FIww==
+        b=u0hhPHFwQTe4QsKrBNYXHhjbk8siNZ7k7xpVOUnlRw+ZQtH9G/oRnBaoJ8XpwCK7Jj
+         I1E+LLcGiWFkQz8arAQB+stjbpK5fJe60uworEeG6tRiu6OicMsIDU2ejBlh99VdM3Ny
+         POzw7HQ/qIbI/XK+F+/HZqEnapSqlcNMwIXT9FiejL7wsZXABoVAppai3eQCnxDgEk38
+         EP1bLDAU1IMl9zGjBaFDjhATIr/bRcCeVp6gxorIOKmZXR/UXQRzjJ2SDOWFuJO8101p
+         biWpKpZ37PvHJbi6hQk4Zc/wLHqFRR0FNlHwb+STvvu6XWZuHdzARih6cgEhgqDM1lFO
+         5QGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=dHW6AIzVqZ+BtB7OKS/RSaqFVfjBjJYiEElqTiNSJSw=;
-        b=0YOtklSul9CHrepz42vSKgATCs/LoglDOs2bmdlHhIS+e3qXHxMGLBIgExxxQzqm7u
-         cYjyLgzslNIw7FB8h8GA0ujwl6SynMsDmN87zZJ3iiAyT1YKlC4Gk7+06TBOMKodbL9l
-         YLHlU+uuMY/ZGXbqN8ZO5bW6UXjEMwUOR2WlNSghwrne5bS8s3aHkxIK8DlJSsHe4OlW
-         Dk/EzL38j+RYub96TEgqT2E0KS7ZH6WVO9VIuiZqzg5LddozbjpM6SAEhDvwy5+U36SS
-         A5UsOI1jALilZjpw4IyFp1CW2/6eIt88rtTT+215LrJfDuDPRoIQpid4p8oKYrWywM7G
-         tw0w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=1OEUHJAeJuir02frAc/X7UiYIxvDviag+lOCO2z8Si0=;
+        b=K1uPQAajdeYySSni4yVGCHDsaMjpML4XtmaGxhrLcQ260sbLUgShncmg7s0p9b2wFs
+         7mjMVQwzf/4HgW+Dz9KGO8q0/z0aOdRnzYJmhAN0kzas6wKcO1144h4dwZ9hbi9M3fRg
+         PFqhVVyc62bfH60mw+dzS0QDBmSZklsLuRLuIV5IG4ehsdTToMMyh131kbnKo99veS6D
+         KarzgztvOIhqZtwQTSsR+RIXl/8GoVLV0VQC6KtcxIA/UxFaoqrDHFDbYdmA5+rlATjU
+         076saCAYaPfCzNfw21HDG8xO3X/MPNIRxj23dclwpPVF3tSFmKQoWCmszEtNRcklOKX2
+         /EwQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=nRcfxXoJ;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from forwardcorp1j.mail.yandex.net (forwardcorp1j.mail.yandex.net. [2a02:6b8:0:1619::183])
-        by mx.google.com with ESMTPS id d15si60005781ljj.171.2019.07.30.07.57.20
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=KOUGq7zy;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b21sor49265553edc.13.2019.07.30.07.59.22
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 07:57:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) client-ip=2a02:6b8:0:1619::183;
+        (Google Transport Security);
+        Tue, 30 Jul 2019 07:59:22 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=nRcfxXoJ;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from mxbackcorp1j.mail.yandex.net (mxbackcorp1j.mail.yandex.net [IPv6:2a02:6b8:0:1619::162])
-	by forwardcorp1j.mail.yandex.net (Yandex) with ESMTP id 3DC5F2E149D;
-	Tue, 30 Jul 2019 17:57:19 +0300 (MSK)
-Received: from smtpcorp1j.mail.yandex.net (smtpcorp1j.mail.yandex.net [2a02:6b8:0:1619::137])
-	by mxbackcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id WNehyI4MZ5-vIm4YE3J;
-	Tue, 30 Jul 2019 17:57:19 +0300
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
-	t=1564498639; bh=dHW6AIzVqZ+BtB7OKS/RSaqFVfjBjJYiEElqTiNSJSw=;
-	h=In-Reply-To:Message-ID:From:Date:References:To:Subject:Cc;
-	b=nRcfxXoJOFApXtdgJwbWyzJxu18sBhC97J+b0XUkbFKbeyF+czKvEWkER4dD4PvpM
-	 Kx/kWcdfC8+qhUZCnfAK7DgD6b7CRVZVU0aEanWgO1MM6GjH/xuz0fqsz9Qx261iQ4
-	 tVpiYuJxxjpZMd1yQzLk/Q6wtTeCxfDCimRo8B7E=
-Authentication-Results: mxbackcorp1j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
-Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:6454:ac35:2758:ad6a])
-	by smtpcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id 1ayIe6tgdX-vIQKqeKg;
-	Tue, 30 Jul 2019 17:57:18 +0300
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(Client certificate not present)
-Subject: Re: [PATCH 1/2] mm/filemap: don't initiate writeback if mapping has
- no dirty pages
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>,
- Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>,
- linux-fsdevel@vger.kernel.org
-References: <156378816804.1087.8607636317907921438.stgit@buzz>
- <20190722175230.d357d52c3e86dc87efbd4243@linux-foundation.org>
- <bdc6c53d-a7bb-dcc4-20ba-6c7fa5c57dbd@yandex-team.ru>
- <20190730141457.GE28829@quack2.suse.cz>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <51ba7304-06bd-a50d-cb14-6dc41b92fab5@yandex-team.ru>
-Date: Tue, 30 Jul 2019 17:57:18 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=KOUGq7zy;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=1OEUHJAeJuir02frAc/X7UiYIxvDviag+lOCO2z8Si0=;
+        b=KOUGq7zysuAvE4at0kpunn/9Swua/F5SVdKPFwxdiiIeL56jNWqXb8ZQZa5qGsNr7V
+         QD6bP3Q4zszfH0VhIAWqObOmxipyHePvV2ZvOnqcZ34niW2D8zWnzi2MbvG3xOQZboOG
+         whNAdEE/VZyH/hMrfbhkrodxr/LkN2whTZ/7v3zZFNhrz2A21IZ1alPUJ9/b8jL/Y5zg
+         mYeAL+F+cQ307+fnBuUumeKCHrK3SXcSGNV+o9pKJFIUjwi1MvTTCn7O7v9czAE+Eutd
+         yxHTvOmBCZATZeLJroEYg8k7OG0wV5k8LAjEcHhIDDaaD8DR3BSOmnGG973PWbZeoe6r
+         RKzg==
+X-Google-Smtp-Source: APXvYqwmER3ENBQ3PycVe77F3GLiXz2oNqpGaj5ZDb+WG1FV3RPBYSSBfpBKNQnJUvmYAtTe097f1g==
+X-Received: by 2002:a50:91ef:: with SMTP id h44mr102245801eda.276.1564498761916;
+        Tue, 30 Jul 2019 07:59:21 -0700 (PDT)
+Received: from box.localdomain ([86.57.175.117])
+        by smtp.gmail.com with ESMTPSA id oa21sm10568353ejb.60.2019.07.30.07.59.21
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Jul 2019 07:59:21 -0700 (PDT)
+Received: by box.localdomain (Postfix, from userid 1000)
+	id 52DCC100AD0; Tue, 30 Jul 2019 17:59:22 +0300 (+03)
+Date: Tue, 30 Jul 2019 17:59:22 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Song Liu <songliubraving@fb.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	akpm@linux-foundation.org, matthew.wilcox@oracle.com,
+	kirill.shutemov@linux.intel.com, oleg@redhat.com,
+	kernel-team@fb.com, william.kucharski@oracle.com,
+	srikar@linux.vnet.ibm.com
+Subject: Re: [PATCH 1/2] khugepaged: enable collapse pmd for pte-mapped THP
+Message-ID: <20190730145922.m5omqqf7rmilp6yy@box>
+References: <20190729054335.3241150-1-songliubraving@fb.com>
+ <20190729054335.3241150-2-songliubraving@fb.com>
 MIME-Version: 1.0
-In-Reply-To: <20190730141457.GE28829@quack2.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190729054335.3241150-2-songliubraving@fb.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 30.07.2019 17:14, Jan Kara wrote:
-> On Tue 23-07-19 11:16:51, Konstantin Khlebnikov wrote:
->> On 23.07.2019 3:52, Andrew Morton wrote:
->>>
->>> (cc linux-fsdevel and Jan)
+On Sun, Jul 28, 2019 at 10:43:34PM -0700, Song Liu wrote:
+> khugepaged needs exclusive mmap_sem to access page table. When it fails
+> to lock mmap_sem, the page will fault in as pte-mapped THP. As the page
+> is already a THP, khugepaged will not handle this pmd again.
 > 
-> Thanks for CC Andrew.
+> This patch enables the khugepaged to retry collapse the page table.
 > 
->>> On Mon, 22 Jul 2019 12:36:08 +0300 Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
->>>
->>>> Functions like filemap_write_and_wait_range() should do nothing if inode
->>>> has no dirty pages or pages currently under writeback. But they anyway
->>>> construct struct writeback_control and this does some atomic operations
->>>> if CONFIG_CGROUP_WRITEBACK=y - on fast path it locks inode->i_lock and
->>>> updates state of writeback ownership, on slow path might be more work.
->>>> Current this path is safely avoided only when inode mapping has no pages.
->>>>
->>>> For example generic_file_read_iter() calls filemap_write_and_wait_range()
->>>> at each O_DIRECT read - pretty hot path.
+> struct mm_slot (in khugepaged.c) is extended with an array, containing
+> addresses of pte-mapped THPs. We use array here for simplicity. We can
+> easily replace it with more advanced data structures when needed. This
+> array is protected by khugepaged_mm_lock.
 > 
-> Yes, but in common case mapping_needs_writeback() is false for files you do
-> direct IO to (exactly the case with no pages in the mapping). So you
-> shouldn't see the overhead at all. So which case you really care about?
+> In khugepaged_scan_mm_slot(), if the mm contains pte-mapped THP, we try
+> to collapse the page table.
 > 
->>>> This patch skips starting new writeback if mapping has no dirty tags set.
->>>> If writeback is already in progress filemap_write_and_wait_range() will
->>>> wait for it.
->>>>
->>>> ...
->>>>
->>>> --- a/mm/filemap.c
->>>> +++ b/mm/filemap.c
->>>> @@ -408,7 +408,8 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
->>>>    		.range_end = end,
->>>>    	};
->>>> -	if (!mapping_cap_writeback_dirty(mapping))
->>>> +	if (!mapping_cap_writeback_dirty(mapping) ||
->>>> +	    !mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
->>>>    		return 0;
->>>>    	wbc_attach_fdatawrite_inode(&wbc, mapping->host);
->>>
->>> How does this play with tagged_writepages?  We assume that no tagging
->>> has been performed by any __filemap_fdatawrite_range() caller?
->>>
->>
->> Checking also PAGECACHE_TAG_TOWRITE is cheap but seems redundant.
->>
->> To-write tags are supposed to be a subset of dirty tags:
->> to-write is set only when dirty is set and cleared after starting writeback.
->>
->> Special case set_page_writeback_keepwrite() which does not clear to-write
->> should be for dirty page thus dirty tag is not going to be cleared either.
->> Ext4 calls it after redirty_page_for_writepage()
->> XFS even without clear_page_dirty_for_io()
->>
->> Anyway to-write tag without dirty tag or at clear page is confusing.
+> Since collapse may happen at an later time, some pages may already fault
+> in. collapse_pte_mapped_thp() is added to properly handle these pages.
+> collapse_pte_mapped_thp() also double checks whether all ptes in this pmd
+> are mapping to the same THP. This is necessary because some subpage of
+> the THP may be replaced, for example by uprobe. In such cases, it is not
+> possible to collapse the pmd.
 > 
-> Yeah, TOWRITE tag is intended to be internal to writepages logic so your
-> patch is fine in that regard. Overall the patch looks good to me so I'm
-> just wondering a bit about the motivation...
+> Signed-off-by: Song Liu <songliubraving@fb.com>
+> ---
+>  include/linux/khugepaged.h |  15 ++++
+>  mm/khugepaged.c            | 136 +++++++++++++++++++++++++++++++++++++
+>  2 files changed, 151 insertions(+)
+> 
+> diff --git a/include/linux/khugepaged.h b/include/linux/khugepaged.h
+> index 082d1d2a5216..2d700830fe0e 100644
+> --- a/include/linux/khugepaged.h
+> +++ b/include/linux/khugepaged.h
+> @@ -15,6 +15,16 @@ extern int __khugepaged_enter(struct mm_struct *mm);
+>  extern void __khugepaged_exit(struct mm_struct *mm);
+>  extern int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
+>  				      unsigned long vm_flags);
+> +#ifdef CONFIG_SHMEM
+> +extern int khugepaged_add_pte_mapped_thp(struct mm_struct *mm,
+> +					 unsigned long addr);
+> +#else
+> +static inline int khugepaged_add_pte_mapped_thp(struct mm_struct *mm,
+> +						unsigned long addr)
+> +{
+> +	return 0;
+> +}
+> +#endif
+>  
+>  #define khugepaged_enabled()					       \
+>  	(transparent_hugepage_flags &				       \
+> @@ -73,6 +83,11 @@ static inline int khugepaged_enter_vma_merge(struct vm_area_struct *vma,
+>  {
+>  	return 0;
+>  }
+> +static inline int khugepaged_add_pte_mapped_thp(struct mm_struct *mm,
+> +						unsigned long addr)
+> +{
+> +	return 0;
+> +}
+>  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+>  
+>  #endif /* _LINUX_KHUGEPAGED_H */
+> diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+> index eaaa21b23215..247c25aeb096 100644
+> --- a/mm/khugepaged.c
+> +++ b/mm/khugepaged.c
+> @@ -76,6 +76,7 @@ static __read_mostly DEFINE_HASHTABLE(mm_slots_hash, MM_SLOTS_HASH_BITS);
+>  
+>  static struct kmem_cache *mm_slot_cache __read_mostly;
+>  
+> +#define MAX_PTE_MAPPED_THP 8
 
-In our case file mixes cached pages and O_DIRECT read. Kind of database
-were index header is memory mapped while the rest data read via O_DIRECT.
-I suppose for sharing index between multiple instances.
+Is MAX_PTE_MAPPED_THP value random or do you have any justification for
+it?
 
-On this path we also hit this bug:
-https://lore.kernel.org/lkml/156355839560.2063.5265687291430814589.stgit@buzz/
-so that's why I've started looking into this code.
+Please add empty line after it.
+
+>  /**
+>   * struct mm_slot - hash lookup from mm to mm_slot
+>   * @hash: hash collision list
+> @@ -86,6 +87,10 @@ struct mm_slot {
+>  	struct hlist_node hash;
+>  	struct list_head mm_node;
+>  	struct mm_struct *mm;
+> +
+> +	/* pte-mapped THP in this mm */
+> +	int nr_pte_mapped_thp;
+> +	unsigned long pte_mapped_thp[MAX_PTE_MAPPED_THP];
+>  };
+>  
+>  /**
+> @@ -1281,11 +1286,141 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
+>  			up_write(&vma->vm_mm->mmap_sem);
+>  			mm_dec_nr_ptes(vma->vm_mm);
+>  			pte_free(vma->vm_mm, pmd_pgtable(_pmd));
+> +		} else if (down_read_trylock(&vma->vm_mm->mmap_sem)) {
+> +			/* need down_read for khugepaged_test_exit() */
+> +			khugepaged_add_pte_mapped_thp(vma->vm_mm, addr);
+> +			up_read(&vma->vm_mm->mmap_sem);
+>  		}
+>  	}
+>  	i_mmap_unlock_write(mapping);
+>  }
+>  
+> +/*
+> + * Notify khugepaged that given addr of the mm is pte-mapped THP. Then
+> + * khugepaged should try to collapse the page table.
+> + */
+> +int khugepaged_add_pte_mapped_thp(struct mm_struct *mm, unsigned long addr)
+
+What is contract about addr alignment? Do we expect it PAGE_SIZE aligned
+or PMD_SIZE aligned? Do we want to enforce it?
+
+> +{
+> +	struct mm_slot *mm_slot;
+> +	int ret = 0;
+> +
+> +	/* hold mmap_sem for khugepaged_test_exit() */
+> +	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
+> +
+> +	if (unlikely(khugepaged_test_exit(mm)))
+> +		return 0;
+> +
+> +	if (!test_bit(MMF_VM_HUGEPAGE, &mm->flags) &&
+> +	    !test_bit(MMF_DISABLE_THP, &mm->flags)) {
+> +		ret = __khugepaged_enter(mm);
+> +		if (ret)
+> +			return ret;
+> +	}
+
+Any reason not to call khugepaged_enter() here?
+
+> +
+> +	spin_lock(&khugepaged_mm_lock);
+> +	mm_slot = get_mm_slot(mm);
+> +	if (likely(mm_slot && mm_slot->nr_pte_mapped_thp < MAX_PTE_MAPPED_THP))
+> +		mm_slot->pte_mapped_thp[mm_slot->nr_pte_mapped_thp++] = addr;
+
+It's probably good enough for start, but I'm not sure how useful it will
+be for real application, considering the limitation.
+
+> +
+
+Useless empty line?
+
+> +	spin_unlock(&khugepaged_mm_lock);
+> +	return 0;
+> +}
+> +
+> +/**
+> + * Try to collapse a pte-mapped THP for mm at address haddr.
+> + *
+> + * This function checks whether all the PTEs in the PMD are pointing to the
+> + * right THP. If so, retract the page table so the THP can refault in with
+> + * as pmd-mapped.
+> + */
+> +static void collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long haddr)
+> +{
+> +	struct vm_area_struct *vma = find_vma(mm, haddr);
+> +	pmd_t *pmd = mm_find_pmd(mm, haddr);
+> +	struct page *hpage = NULL;
+> +	unsigned long addr;
+> +	spinlock_t *ptl;
+> +	int count = 0;
+> +	pmd_t _pmd;
+> +	int i;
+> +
+> +	if (!vma || !pmd || pmd_trans_huge(*pmd))
+> +		return;
+> +
+> +	/* step 1: check all mapped PTEs are to the right huge page */
+> +	for (i = 0, addr = haddr; i < HPAGE_PMD_NR; i++, addr += PAGE_SIZE) {
+> +		pte_t *pte = pte_offset_map(pmd, addr);
+> +		struct page *page;
+> +
+> +		if (pte_none(*pte))
+> +			continue;
+> +
+> +		page = vm_normal_page(vma, addr, *pte);
+> +
+> +		if (!PageCompound(page))
+> +			return;
+
+I think khugepaged_scan_shmem() and collapse_shmem() should changed to not
+stop on PageTransCompound() to make this useful for more cases.
+
+Ideally, it collapse_shmem() and this routine should be the same thing.
+Or do you thing it's not doable for some reason?
+
+> +
+> +		if (!hpage) {
+> +			hpage = compound_head(page);
+> +			if (hpage->mapping != vma->vm_file->f_mapping)
+> +				return;
+> +		}
+> +
+> +		if (hpage + i != page)
+> +			return;
+> +		count++;
+> +	}
+> +
+> +	/* step 2: adjust rmap */
+> +	for (i = 0, addr = haddr; i < HPAGE_PMD_NR; i++, addr += PAGE_SIZE) {
+> +		pte_t *pte = pte_offset_map(pmd, addr);
+> +		struct page *page;
+> +
+> +		if (pte_none(*pte))
+> +			continue;
+> +		page = vm_normal_page(vma, addr, *pte);
+> +		page_remove_rmap(page, false);
+> +	}
+> +
+> +	/* step 3: set proper refcount and mm_counters. */
+> +	if (hpage) {
+> +		page_ref_sub(hpage, count);
+> +		add_mm_counter(vma->vm_mm, mm_counter_file(hpage), -count);
+> +	}
+> +
+> +	/* step 4: collapse pmd */
+> +	ptl = pmd_lock(vma->vm_mm, pmd);
+> +	_pmd = pmdp_collapse_flush(vma, addr, pmd);
+> +	spin_unlock(ptl);
+> +	mm_dec_nr_ptes(mm);
+> +	pte_free(mm, pmd_pgtable(_pmd));
+> +}
+> +
+> +static int khugepaged_collapse_pte_mapped_thps(struct mm_slot *mm_slot)
+> +{
+> +	struct mm_struct *mm = mm_slot->mm;
+> +	int i;
+> +
+> +	lockdep_assert_held(&khugepaged_mm_lock);
+> +
+> +	if (likely(mm_slot->nr_pte_mapped_thp == 0))
+> +		return 0;
+> +
+> +	if (!down_write_trylock(&mm->mmap_sem))
+> +		return -EBUSY;
+> +
+> +	if (unlikely(khugepaged_test_exit(mm)))
+> +		goto out;
+> +
+> +	for (i = 0; i < mm_slot->nr_pte_mapped_thp; i++)
+> +		collapse_pte_mapped_thp(mm, mm_slot->pte_mapped_thp[i]);
+> +
+> +out:
+> +	mm_slot->nr_pte_mapped_thp = 0;
+> +	up_write(&mm->mmap_sem);
+> +	return 0;
+> +}
+> +
+>  /**
+>   * collapse_shmem - collapse small tmpfs/shmem pages into huge one.
+>   *
+> @@ -1667,6 +1802,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages,
+>  		khugepaged_scan.address = 0;
+>  		khugepaged_scan.mm_slot = mm_slot;
+>  	}
+> +	khugepaged_collapse_pte_mapped_thps(mm_slot);
+>  	spin_unlock(&khugepaged_mm_lock);
+>  
+>  	mm = mm_slot->mm;
+> -- 
+> 2.17.1
+> 
+
+-- 
+ Kirill A. Shutemov
 
