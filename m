@@ -2,191 +2,169 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BA9E9C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 06:06:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EAE9C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 06:12:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6B5852087F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 06:06:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B5852087F
+	by mail.kernel.org (Postfix) with ESMTP id E9209206E0
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 06:12:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9209206E0
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1036F8E001A; Tue, 30 Jul 2019 02:06:43 -0400 (EDT)
+	id 767818E001B; Tue, 30 Jul 2019 02:12:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 08CD88E0003; Tue, 30 Jul 2019 02:06:43 -0400 (EDT)
+	id 7181E8E0003; Tue, 30 Jul 2019 02:12:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EBECC8E001A; Tue, 30 Jul 2019 02:06:42 -0400 (EDT)
+	id 5DFC68E001B; Tue, 30 Jul 2019 02:12:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9A4AA8E0003
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 02:06:42 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id o13so39653743edt.4
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 23:06:42 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 12A8F8E0003
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 02:12:28 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id z20so39680357edr.15
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 23:12:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=9RuQF310S86wrHSQrr0Pr/NRSfRDai7GSr6TTvA6MPE=;
-        b=X2aQXjL/pW0Rp4AxLIE1lfuf3jJmblhxT0MIiJM0C/hjOaR/auC4UL9RNQeHbW+kjP
-         C6XfgptBAkn1tQ+GtqAR/oJkwxhrqW/k3ychxX2jclmh6tUkJucMcLe1ve9PxOznfwS/
-         RwEpeMpsOWwgWLUtR2d8oJd5SKnnBcl+/TdCJ6aL/gKmHGKYV+P998jJzm5QTaDyc9Fv
-         C0CXi70uOVQ98hHYjYLZWTF7xVmA8p+H+v6FCaIMNFZE1LDSXGSyChfykhjKGs2OYd9e
-         1Lifa0rnmvOnFs9oB77M337UkNMuz09KyWewUNFNEBACH9FHL/ivsFGTHMhDoGfdDCHv
-         QnLg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.196 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAUKrMRA21C8QUzj0lEmYC8oH+l+Ht0ViqngxUNkGPh/orqw0HXt
-	6wTu/EttIrBKl35U+s0MfCOSDBfP4Z+ZX/y1ZsJNeY6Cado4bk9aCfyYUdCTRUxfpnc95Ybg1uZ
-	h22BXt73tdrILP3m5s7OidOsrmYuFfupYOIjnDzuNpv49Nv9VaiQsoFAr01jJNOA=
-X-Received: by 2002:aa7:d6d3:: with SMTP id x19mr99181007edr.119.1564466802197;
-        Mon, 29 Jul 2019 23:06:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxvpjs4arJj1/zeoOrmbAT0Iv2ZP9u0zUOTmRO/EAToz1EFrc9Tqax0yiAmgP47voJANjs8
-X-Received: by 2002:aa7:d6d3:: with SMTP id x19mr99180943edr.119.1564466800978;
-        Mon, 29 Jul 2019 23:06:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564466800; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=+GyToamCYQslJN30QlOYB4rUgZbXEdynHh6yGFF/boo=;
+        b=eGjWh+whQvWIzqi5mDLfp+LKQdarzaI8ZeCgTZ5k2reU8aPb/e8i0VrMSGarXbpkcy
+         n5vkfBrauaoOGPwe79KU8/OUV/iGc4ZYff+9Bh8whBZ05AxPQ09xGKAYn3VcunzGN6C7
+         WvQcMyumcZC1jTIvg+KQYujKV/b/2RUFTn5I2bkvqvaLOeb95SQUtb5dXLjJYpqjcVZh
+         32d4m+aVjEDA/8HifnVhJzugFU847xO/Qq/82LW862L7LG02chrsK0ypvQXEG/7OAwrM
+         8ZOrQTpigl2GBqq8dEK80ct9jZzkGiNofTCRVvIul55Zrv0Jl6FuMqqUbibI3WWd7J0f
+         FZgA==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.178.230 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAWgJ6wKVnPi/GZ8ljQV44BM1dT+/gQ+Ev2L7FH0mA2S6BRlV7/i
+	VfELeZViOSPNTX7tq0/ISkDcYUY0NfcKk0kb/BwUJgKy8WuQTYmvgaPv+xQCulK2bQb7s25G3d3
+	0KwJAhmMPF7VqAPWsW04LVjF8ygDf65lcb7DW1rLPUaSCazvvbKv8geOCpTsXmCA=
+X-Received: by 2002:aa7:c24b:: with SMTP id y11mr52853419edo.239.1564467147598;
+        Mon, 29 Jul 2019 23:12:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqys510rjMxYGZNdH76vlvxHEEROQj3ibJ5TEWc9L3RBeGV4xqaKK45qXTqxaUvHm00Ha3XH
+X-Received: by 2002:aa7:c24b:: with SMTP id y11mr52853374edo.239.1564467146847;
+        Mon, 29 Jul 2019 23:12:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564467146; cv=none;
         d=google.com; s=arc-20160816;
-        b=pMvhyejkZrhVun7pqus9rF0FbQW7A3elVCC8amwqJoMdqMlsVp68SXu4ax4GvIhn07
-         HYuTotJzu2WzdQFJOD8Axe2JOUde2AmKiG2VB92kACCquJxGXgVitMlHSKC97TQT01Iu
-         EH+gr1vBvFBN2tSdtDRay8nmKnoMbb+e2fH7OliQEzni5tP8+FFic2ZOjVLGJC9KXrWs
-         bTva+ccxKECwXo8pUdP0xDL0Q92tChGu17AoAj4M22VvpF7/FD+PmsDBx9rOn5UZGeoJ
-         sVww+CsRLBgle634fubsP6789ZSyvsWz8zvDjWUezqgQogi7r/5w9thbfSyyPVmsPHpX
-         STJA==
+        b=lKa9XUST4B7REdFCIZuZZ/ZfaewGAH0F33CpgY2FdW5vSDK4K153DC2M2c9zmhpBrY
+         PKSxc3oSeQ05WzhmvUsECmyeUPjfzbK2LyzOYAS0xABCQ6UR8RhONlXJnxBuG+YAR2ws
+         GbYOI8ZYaYs7k22OBfVzwPVleWfonN6uLc5xZGG4uVfxCTfA9oQ0lyEANJeKH24rBwh4
+         lH3zpbretynfGxN/IOJ2c+eaCZnA6PW0qHoh/r6d/2yOydS24TaPYQb417VFvPABEU2S
+         IHsgoucn0knAhPCQT78JuwMzweGZjDH9mbccF6Fmqd7cXlRCpaf4y4ACwtnaQyZYWpju
+         rtpQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=9RuQF310S86wrHSQrr0Pr/NRSfRDai7GSr6TTvA6MPE=;
-        b=cxFClOcZ0m/awK2fj64P6ful8mL6EMvn2cnAdp0ld/m7sWgmrIpk5MHtY8EVVpSzfw
-         S8YXPbeIexffSfTcVUek1RrVkIj7mDRQByd6UfFQ7e8FJCV4F5w/Fr4mxCteD/lWEOBa
-         M3oZhoLFfgS8h9Jwfa1MwTyNmaF5XHNtyr6fgRP8y4Iv21iT6WQjsX2NbJZpAKnNTZ4E
-         hjLL2Uj+HjBbFOAyBLPUrqkSIZVWm+UJmO4tPTox6+Y3DS18pFfy+yVWLUWNEAl9z4TR
-         siz+KDfmy3qPFgrIbjBgtE2HVZc6FyXTg4bbsw177xtRLae/27vK8Cqv04H8QbUoKpdc
-         Pnsg==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=+GyToamCYQslJN30QlOYB4rUgZbXEdynHh6yGFF/boo=;
+        b=QramYOLVRTuJ8U8vqsi7bWJWi/x14+Z5kRiT+i/pSliFzRTuXMyd7zcLs5nhCB5YLS
+         dGiZQk0ZuVLuif77t1YTHo7MDUdmMVsaUb3M8li5pFr5iYPpzUGkkZHyeivwEwUdGe9j
+         r1tAqCSFeHTv4YCLaMcbvXgVs0wfiOOjlVsR7WzfnsXk2qUn484ardCdWa22SOp1RNxi
+         zivu0awqts6J35hcznsfvukjhiK/HE6CU5zp/yCRDeiuYCGo97QODr0xT1fIQN7G4UmH
+         va1x9zED3f69JbDdvqMQOmkpJyimOBhsx6eeveHucIUD30yJBJ3OA5nHlDUI4y5C85ss
+         NbZQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.183.196 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay4-d.mail.gandi.net (relay4-d.mail.gandi.net. [217.70.183.196])
-        by mx.google.com with ESMTPS id p50si6565736eda.338.2019.07.29.23.06.40
+       spf=neutral (google.com: 217.70.178.230 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay10.mail.gandi.net (relay10.mail.gandi.net. [217.70.178.230])
+        by mx.google.com with ESMTPS id k8si17817632edd.67.2019.07.29.23.12.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 29 Jul 2019 23:06:40 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.70.183.196 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.196;
+        Mon, 29 Jul 2019 23:12:26 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.178.230 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.178.230;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.183.196 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Originating-IP: 79.86.19.127
-Received: from alex.numericable.fr (127.19.86.79.rev.sfr.net [79.86.19.127])
+       spf=neutral (google.com: 217.70.178.230 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
 	(Authenticated sender: alex@ghiti.fr)
-	by relay4-d.mail.gandi.net (Postfix) with ESMTPSA id 9A460E0009;
-	Tue, 30 Jul 2019 06:06:36 +0000 (UTC)
-From: Alexandre Ghiti <alex@ghiti.fr>
+	by relay10.mail.gandi.net (Postfix) with ESMTPSA id 8126E240007;
+	Tue, 30 Jul 2019 06:12:20 +0000 (UTC)
+Subject: Re: [PATCH RESEND 0/8] Fix mmap base in bottom-up mmap
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Luis Chamberlain <mcgrof@kernel.org>,
-	Christoph Hellwig <hch@lst.de>,
-	Russell King <linux@armlinux.org.uk>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Ralf Baechle <ralf@linux-mips.org>,
-	Paul Burton <paul.burton@mips.com>,
-	James Hogan <jhogan@kernel.org>,
-	Palmer Dabbelt <palmer@sifive.com>,
-	Albert Ou <aou@eecs.berkeley.edu>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Kees Cook <keescook@chromium.org>,
-	linux-kernel@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org,
-	linux-mips@vger.kernel.org,
-	linux-riscv@lists.infradead.org,
-	linux-fsdevel@vger.kernel.org,
-	linux-mm@kvack.org,
-	Alexandre Ghiti <alex@ghiti.fr>
-Subject: [PATCH v5 14/14] riscv: Make mmap allocation top-down by default
-Date: Tue, 30 Jul 2019 01:51:13 -0400
-Message-Id: <20190730055113.23635-15-alex@ghiti.fr>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190730055113.23635-1-alex@ghiti.fr>
-References: <20190730055113.23635-1-alex@ghiti.fr>
+Cc: "James E . J . Bottomley" <James.Bottomley@HansenPartnership.com>,
+ Helge Deller <deller@gmx.de>, Heiko Carstens <heiko.carstens@de.ibm.com>,
+ Vasily Gorbik <gor@linux.ibm.com>,
+ Christian Borntraeger <borntraeger@de.ibm.com>,
+ Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
+ "David S . Miller" <davem@davemloft.net>,
+ Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
+ Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
+ x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
+ Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
+ linux-parisc@vger.kernel.org, linux-kernel@vger.kernel.org,
+ linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
+ sparclinux@vger.kernel.org, linux-mm@kvack.org
+References: <20190620050328.8942-1-alex@ghiti.fr>
+From: Alexandre Ghiti <alex@ghiti.fr>
+Message-ID: <175168c1-d25f-7a93-e19b-dbb6ae6289e1@ghiti.fr>
+Date: Tue, 30 Jul 2019 08:12:20 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190620050328.8942-1-alex@ghiti.fr>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: fr
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In order to avoid wasting user address space by using bottom-up mmap
-allocation scheme, prefer top-down scheme when possible.
+On 6/20/19 7:03 AM, Alexandre Ghiti wrote:
+> This series fixes the fallback of the top-down mmap: in case of
+> failure, a bottom-up scheme can be tried as a last resort between
+> the top-down mmap base and the stack, hoping for a large unused stack
+> limit.
+>
+> Lots of architectures and even mm code start this fallback
+> at TASK_UNMAPPED_BASE, which is useless since the top-down scheme
+> already failed on the whole address space: instead, simply use
+> mmap_base.
+>
+> Along the way, it allows to get rid of of mmap_legacy_base and
+> mmap_compat_legacy_base from mm_struct.
+>
+> Note that arm and mips already implement this behaviour.
+>
+> Alexandre Ghiti (8):
+>    s390: Start fallback of top-down mmap at mm->mmap_base
+>    sh: Start fallback of top-down mmap at mm->mmap_base
+>    sparc: Start fallback of top-down mmap at mm->mmap_base
+>    x86, hugetlbpage: Start fallback of top-down mmap at mm->mmap_base
+>    mm: Start fallback top-down mmap at mm->mmap_base
+>    parisc: Use mmap_base, not mmap_legacy_base, as low_limit for
+>      bottom-up mmap
+>    x86: Use mmap_*base, not mmap_*legacy_base, as low_limit for bottom-up
+>      mmap
+>    mm: Remove mmap_legacy_base and mmap_compat_legacy_code fields from
+>      mm_struct
+>
+>   arch/parisc/kernel/sys_parisc.c  |  8 +++-----
+>   arch/s390/mm/mmap.c              |  2 +-
+>   arch/sh/mm/mmap.c                |  2 +-
+>   arch/sparc/kernel/sys_sparc_64.c |  2 +-
+>   arch/sparc/mm/hugetlbpage.c      |  2 +-
+>   arch/x86/include/asm/elf.h       |  2 +-
+>   arch/x86/kernel/sys_x86_64.c     |  4 ++--
+>   arch/x86/mm/hugetlbpage.c        |  7 ++++---
+>   arch/x86/mm/mmap.c               | 20 +++++++++-----------
+>   include/linux/mm_types.h         |  2 --
+>   mm/debug.c                       |  4 ++--
+>   mm/mmap.c                        |  2 +-
+>   12 files changed, 26 insertions(+), 31 deletions(-)
+>
 
-Before:
-root@qemuriscv64:~# cat /proc/self/maps
-00010000-00016000 r-xp 00000000 fe:00 6389       /bin/cat.coreutils
-00016000-00017000 r--p 00005000 fe:00 6389       /bin/cat.coreutils
-00017000-00018000 rw-p 00006000 fe:00 6389       /bin/cat.coreutils
-00018000-00039000 rw-p 00000000 00:00 0          [heap]
-1555556000-155556d000 r-xp 00000000 fe:00 7193   /lib/ld-2.28.so
-155556d000-155556e000 r--p 00016000 fe:00 7193   /lib/ld-2.28.so
-155556e000-155556f000 rw-p 00017000 fe:00 7193   /lib/ld-2.28.so
-155556f000-1555570000 rw-p 00000000 00:00 0
-1555570000-1555572000 r-xp 00000000 00:00 0      [vdso]
-1555574000-1555576000 rw-p 00000000 00:00 0
-1555576000-1555674000 r-xp 00000000 fe:00 7187   /lib/libc-2.28.so
-1555674000-1555678000 r--p 000fd000 fe:00 7187   /lib/libc-2.28.so
-1555678000-155567a000 rw-p 00101000 fe:00 7187   /lib/libc-2.28.so
-155567a000-15556a0000 rw-p 00000000 00:00 0
-3fffb90000-3fffbb1000 rw-p 00000000 00:00 0      [stack]
+Hi everyone,
 
-After:
-root@qemuriscv64:~# cat /proc/self/maps
-00010000-00016000 r-xp 00000000 fe:00 6389       /bin/cat.coreutils
-00016000-00017000 r--p 00005000 fe:00 6389       /bin/cat.coreutils
-00017000-00018000 rw-p 00006000 fe:00 6389       /bin/cat.coreutils
-2de81000-2dea2000 rw-p 00000000 00:00 0          [heap]
-3ff7eb6000-3ff7ed8000 rw-p 00000000 00:00 0
-3ff7ed8000-3ff7fd6000 r-xp 00000000 fe:00 7187   /lib/libc-2.28.so
-3ff7fd6000-3ff7fda000 r--p 000fd000 fe:00 7187   /lib/libc-2.28.so
-3ff7fda000-3ff7fdc000 rw-p 00101000 fe:00 7187   /lib/libc-2.28.so
-3ff7fdc000-3ff7fe2000 rw-p 00000000 00:00 0
-3ff7fe4000-3ff7fe6000 r-xp 00000000 00:00 0      [vdso]
-3ff7fe6000-3ff7ffd000 r-xp 00000000 fe:00 7193   /lib/ld-2.28.so
-3ff7ffd000-3ff7ffe000 r--p 00016000 fe:00 7193   /lib/ld-2.28.so
-3ff7ffe000-3ff7fff000 rw-p 00017000 fe:00 7193   /lib/ld-2.28.so
-3ff7fff000-3ff8000000 rw-p 00000000 00:00 0
-3fff888000-3fff8a9000 rw-p 00000000 00:00 0      [stack]
+This is just a preparatory series for the merging of x86 mmap top-down 
+functions with
+the generic ones (those should get into v5.3), if you could take some 
+time to take a look,
+that would be great :)
 
-Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
-Reviewed-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Kees Cook <keescook@chromium.org>
-Reviewed-by: Luis Chamberlain <mcgrof@kernel.org>
----
- arch/riscv/Kconfig | 13 +++++++++++++
- 1 file changed, 13 insertions(+)
+Thanks,
 
-diff --git a/arch/riscv/Kconfig b/arch/riscv/Kconfig
-index 8ef64fe2c2b3..8d0d8af1a744 100644
---- a/arch/riscv/Kconfig
-+++ b/arch/riscv/Kconfig
-@@ -54,6 +54,19 @@ config RISCV
- 	select EDAC_SUPPORT
- 	select ARCH_HAS_GIGANTIC_PAGE
- 	select ARCH_WANT_HUGE_PMD_SHARE if 64BIT
-+	select ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT if MMU
-+	select HAVE_ARCH_MMAP_RND_BITS
-+
-+config ARCH_MMAP_RND_BITS_MIN
-+	default 18 if 64BIT
-+	default 8
-+
-+# max bits determined by the following formula:
-+#  VA_BITS - PAGE_SHIFT - 3
-+config ARCH_MMAP_RND_BITS_MAX
-+	default 33 if RISCV_VM_SV48
-+	default 24 if RISCV_VM_SV39
-+	default 17 if RISCV_VM_SV32
- 
- config MMU
- 	def_bool y
--- 
-2.20.1
+Alex
 
