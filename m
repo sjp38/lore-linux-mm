@@ -2,102 +2,104 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D07FC31E40
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 15:40:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 989EBC0650F
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 15:40:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 22307217D7
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 15:40:03 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 510AE217F4
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 15:40:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="bE9C7hLQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 22307217D7
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JnpuD7Lh"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 510AE217F4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A2CE18E0006; Tue, 30 Jul 2019 11:40:02 -0400 (EDT)
+	id DD4938E0007; Tue, 30 Jul 2019 11:40:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A041B8E0001; Tue, 30 Jul 2019 11:40:02 -0400 (EDT)
+	id DABAD8E0001; Tue, 30 Jul 2019 11:40:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8F2388E0006; Tue, 30 Jul 2019 11:40:02 -0400 (EDT)
+	id C9A438E0007; Tue, 30 Jul 2019 11:40:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 590BB8E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 11:40:02 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id i33so35538698pld.15
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 08:40:02 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 95C648E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 11:40:11 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id f25so40995077pfk.14
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 08:40:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=Vne3d3TA+jWKXpZqNUGuJSIWUSkOrA0rq1xIX/cTwsA=;
-        b=h/KBoXPXzPggX9NeUThAMeO7L5IQ2NvBt/hzm8EOTeKb7wP0mpQQIx9niVdP8Pg1aj
-         LlfX8E1qKoikiadywUPqi2TR3yDO32epS70gdnQKxZnR6zmsI4Pw9hD0G7ka6e6hdETK
-         R3iLqJXhXohLBZiWa8kl2oyhFH0QNE4DWA9OnuOIvyav7491I2LxfK5moUsvt7GdU/2l
-         u4pBD+PLfHZjC1+OZcVpiyIL6kTBAaswS+17RzXYOtSXjb8sS6UfcAvFboXvyLPMFHgI
-         Q9epB94pByibMU8UgobHFgHQGu2tHzTrTPl76gF1bllS4Vbnk4uV6ODDDposThEu0HY4
-         fJrQ==
-X-Gm-Message-State: APjAAAWS2cKeAVdPUajtFsFCDcBCxy9t3/LU6V3HrmDpES+r3vx2p1jk
-	E7F578j/yjmaKlZySxJJAjOMrxwFmwp2LO6tt7bAhTjf6pyw5B/cACf5YAHsItLvrcZLSIkSbvF
-	J1UD+vp/oKXkmwtJFMrt7mRgo/04JnFlpO4hug0dDB/HzXEG/xvKorq5jtr667GXwYQ==
-X-Received: by 2002:a63:6154:: with SMTP id v81mr75616039pgb.296.1564501201877;
-        Tue, 30 Jul 2019 08:40:01 -0700 (PDT)
-X-Received: by 2002:a63:6154:: with SMTP id v81mr75615979pgb.296.1564501200831;
-        Tue, 30 Jul 2019 08:40:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564501200; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=VL69OhOnAwL0XYVUd4iryHVhyGAPtRV3TIOYsddsZuM=;
+        b=hZ4haluAwgeYR4swzOLd6SJvvXwUWrbMZYvcSBzuQq9hpJ4sQDL1nw7J6l9rJcfOUQ
+         4MMeE5wkDk+h72DalB+BAWI54CmhuAvrakGBtiOeRnjwYtIWGUJPk7qEVyDMeQoTM48h
+         Axs9WRAP96ir9nmsVFlwsKjt6vJ7AAbgG3W+7lLhIPVxJQoECmFjLxkX8YJybI4GGtnQ
+         5RXNlgGIpwPAj0RfRYSUZ0hIexp88bjn10v0qs1jIqFcebg5LpuFiQn1kJlQGoL9vHOV
+         D2AVnGCi1/QlygJsJfQLOMf5530ZWcEebU5Yw8pq5dVvnxbd5+KqmLDZGpQI479wT0r+
+         IVvA==
+X-Gm-Message-State: APjAAAUYUoXBE+6R9Zvj9Axe9J6h4xY+YNd2Q9Bf7/EEv+sKB40asc9N
+	Ej6i8+qj1tEfoFP/zp4KH0CKTWlhU7d2AdO8c8m2ZliDZ1NpyvXj7cqeH8VOpDEzDAauj5ziKWC
+	y7ayAzjgusavQU7Om0bt4FWwb74/M8HzmeuCl38TrDAGeS8RHJp7bXDt9SQNf9yTwlQ==
+X-Received: by 2002:aa7:8641:: with SMTP id a1mr42691931pfo.177.1564501211155;
+        Tue, 30 Jul 2019 08:40:11 -0700 (PDT)
+X-Received: by 2002:aa7:8641:: with SMTP id a1mr42691843pfo.177.1564501209884;
+        Tue, 30 Jul 2019 08:40:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564501209; cv=none;
         d=google.com; s=arc-20160816;
-        b=SgDx7ix2ZJVUdiYialNbf6ZvYa9LaOJ6nPQpxVc7yZNEj4fB1fmLniz7vAIcoZZ7oY
-         B0lNW3lR6D+PexYfx7w5lQ0vBnPVvqZyHMfOOt2d4aAeSPAJrGlrkFHs6AUIzzVlznVT
-         6xuOIMnOZT1n9fU5jEQbA85TzD8MIXm6lg94uFDdHLY6nnZbN3EJtsN6qYN8K0ZybH34
-         QB1NYQlyIMX6m3vcJbIfdhXev/c1TqVt8XAxZ1caeU4+vi8rQa+vUfP3UCI0Qo95xLgj
-         mAJuW9tj/QTg9m9i8IyronvJK7cxYrhH+BYZl0NhHfWPWV/+MC8ISJSxw9qaMlx4lzG8
-         n/jg==
+        b=L2o36lbqhsUxIeyzlqUij8qbX5JO9xU3laPhA0XhnSLhSlRIP0CqCTQKC5bdclBSkq
+         f805uBiAv0BBKk+f1U4EYeDZgL0c7R3EzchMI42hTfw3jQg0FziFM1o25tiWu05WfeMt
+         EkPsA9HwYN/+mIVHfMZDOiTYod0LozujX+mo1Don/J39YQOTBNXGG+A+QtOJ5Ql57QJg
+         nOOskNlkkRtHlNwoCqO8VKXIVTZJIF6mjwGbTz0vWoXWtYkku0J5vhMc+dYw5KnF35ne
+         j5ARu10s9BVSz4N1UHpauKA1U4eteehY9EhCLV2mKGeQSJRXIcEuajOB7jjKd9F234eQ
+         ZHYg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=Vne3d3TA+jWKXpZqNUGuJSIWUSkOrA0rq1xIX/cTwsA=;
-        b=K+fjFW7UVwvx4Foc83D6jgT8uoJAnzu5JPoRYPjghrhcxxMmOJPyG+rWOF4pA6zJWH
-         MpBANWX/Oer4Wr2h1h85Dy7vqe7rKZYdF1lhCLQx8zwVilL3IMIFM0ZGSDe0rHorJeek
-         eBB87D5i9K8BGe3a3xf4UQXIedjR3Q7n+7IQ9GfhWLOmjNtAE8qiRvUbWtQUJVdnD8fN
-         gVUNq/eV0Ux46IPfx9V6JtUPY1zDUIAQjXfsu2cYT0AxRYsjyz4MrwCMSjvkTq/D6Bsd
-         YyOAcQA15SJzb+zgRqcw1+lfDkEILS5k0zf2CjdXnjJ3VJ8ICxkvuXwxRbVV6pnU8/kK
-         5Yzg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=VL69OhOnAwL0XYVUd4iryHVhyGAPtRV3TIOYsddsZuM=;
+        b=IaOn8BSDVNr6xNerqGHVVeiCoMRnV1pxk8jZKtYfXIt94uU5eyLBY+1B3cgk9/glA1
+         TgJu8flM7dj371+3l09JtDXd3YuI0a+kLLXLTnhTpJncDUk/zBkrPQ0iDwoOamk9eyxu
+         l5e2EVNH74MSce4USmV+cOLxYg7v1xJyyK9C85e/0y+PphbrzirsOI6Bw/xxuPmmbjeq
+         p2gqiMJ8mt7jHCCoN4cz5pt9yUGuQ7WWjCuwt4aYzORSt3CpYqxtztVsp7DXmsjv47Fz
+         I/1oV6PbZBJUKAfw8Jte2/pud4iDFis/ZPKH6ffr/u7yLszCu/8948nXIylt3shzWUlt
+         MkGw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bE9C7hLQ;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JnpuD7Lh;
        spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f16sor42042701pgn.77.2019.07.30.08.40.00
+        by mx.google.com with SMTPS id b17sor77093328pjz.4.2019.07.30.08.40.09
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 30 Jul 2019 08:40:00 -0700 (PDT)
+        Tue, 30 Jul 2019 08:40:09 -0700 (PDT)
 Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bE9C7hLQ;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JnpuD7Lh;
        spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=Vne3d3TA+jWKXpZqNUGuJSIWUSkOrA0rq1xIX/cTwsA=;
-        b=bE9C7hLQeEeAAUDM9brsj+v0BgqdDlJPXOYFfQA7UDpv0VvD6Y/2S6ZhkRIIv8T8rm
-         cYWT7A4X3TCY2CBLDcVhBdroKpeZX41WVhh9pQs712L6JAkZ0anqmNse11vvfVLKO9H+
-         gGpskm2MFw1lBkTjETkNw0/kMirfacfyYcHAEYs9iZ9qZmSeBk4MbyvV+6QGa4KFhjva
-         eYNdgMH6IRAVJ+iA3fFlrC7+gBzqn4n+3Qo5XGj3+u/0SK8QQ6DGloJosb3XnYtqMnVk
-         QwmhLsMCc4b+NtQXC5oZp/DzXRN1pP2f4egg6OayFiWdQzVcONmDUnBpZCx46fSa4QkU
-         yRSw==
-X-Google-Smtp-Source: APXvYqxiu60GFSJUeLiGhpCpiZDxJDDoQkgaNaRHTO3YbWFhXNhaHvi/EHcY5z1AkeZb2VKnQlMA7w==
-X-Received: by 2002:a63:cb4b:: with SMTP id m11mr35668140pgi.49.1564501200236;
-        Tue, 30 Jul 2019 08:40:00 -0700 (PDT)
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=VL69OhOnAwL0XYVUd4iryHVhyGAPtRV3TIOYsddsZuM=;
+        b=JnpuD7Lhn/qE7XJv7n7efhB9Y1FFuZ2F4tOy7xPNk3kBOJquUa5ZdXVE2CaWJEsrVh
+         yMfhPN5d3zlY7lks50LSVx43a9lRWN3fEw+2mRlkOtiPyWUiI+jM084e7+I7io06LwW4
+         kK68uPBHyuRVpRWRsz+aFk7D++UOdv1Lu2AkC6wYhYUrHLpHRAcI7yLQGzf4fxZ1UvEf
+         MqI3XIEqPLJYE3iB6QcnVLgMG3zmHV68RS5MYxD0/c3AeU0Dct6278t6LVZ1T4B0j1Ew
+         DlcnLz7xXh4kbs/9etasPC7viCglq3IR4SDSVF2nF9sw0Uiur+vimuBZvOX2mrvMzSNT
+         29Gw==
+X-Google-Smtp-Source: APXvYqxzMdxms+bc78CL5gsMck7qwh7ISTe+alN65NyxUVXjwyMgBoEubKQB6gleAbfiP0OgFFPVqg==
+X-Received: by 2002:a17:90a:8a0b:: with SMTP id w11mr116924577pjn.125.1564501209516;
+        Tue, 30 Jul 2019 08:40:09 -0700 (PDT)
 Received: from bharath12345-Inspiron-5559 ([103.110.42.33])
-        by smtp.gmail.com with ESMTPSA id 195sm108148638pfu.75.2019.07.30.08.39.58
+        by smtp.gmail.com with ESMTPSA id 67sm36860864pfd.177.2019.07.30.08.40.08
         (version=TLS1 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 30 Jul 2019 08:39:59 -0700 (PDT)
+        Tue, 30 Jul 2019 08:40:09 -0700 (PDT)
 From: Bharath Vedartham <linux.bhar@gmail.com>
 To: sivanich@sgi.com,
 	arnd@arndb.de
@@ -111,10 +113,12 @@ Cc: ira.weiny@intel.com,
 	linux-mm@kvack.org,
 	linux-kernel-mentees@lists.linuxfoundation.org,
 	Bharath Vedartham <linux.bhar@gmail.com>
-Subject: [Linux-kernel-mentees][PATCH v4 0/1] get_user_pages changes 
-Date: Tue, 30 Jul 2019 21:09:29 +0530
-Message-Id: <1564501170-6830-1-git-send-email-linux.bhar@gmail.com>
+Subject: [Linux-kernel-mentees][PATCH v4 1/1] sgi-gru: Remove *pte_lookup functions
+Date: Tue, 30 Jul 2019 21:09:30 +0530
+Message-Id: <1564501170-6830-2-git-send-email-linux.bhar@gmail.com>
 X-Mailer: git-send-email 2.7.4
+In-Reply-To: <1564501170-6830-1-git-send-email-linux.bhar@gmail.com>
+References: <1564501170-6830-1-git-send-email-linux.bhar@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -124,21 +128,189 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In this 4th version of the patch series, I have compressed the patches
-of the v2 patch series into one patch. This was suggested by Christoph Hellwig.
-The suggestion was to remove the pte_lookup functions and use the 
-get_user_pages* functions directly instead of the pte_lookup functions.
+The *pte_lookup functions can be removed and be easily replaced with
+get_user_pages_fast functions. In the case of atomic lookup,
+__get_user_pages_fast is used which does not fall back to slow
+get_user_pages. get_user_pages_fast on the other hand tries to use
+__get_user_pages_fast but fallbacks to slow get_user_pages if
+__get_user_pages_fast fails.
 
-There is nothing different in this series compared to the previous
-series, It essentially compresses the 3 patches of the original series
-into one patch.
+Also unnecessary ifdefs to check for CONFIG_HUGETLB is removed as the
+check is redundant.
 
-Bharath Vedartham (1):
-  sgi-gru: Remove *pte_lookup functions
+Cc: Ira Weiny <ira.weiny@intel.com>
+Cc: John Hubbard <jhubbard@nvidia.com>
+Cc: Jérôme Glisse <jglisse@redhat.com>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Dimitri Sivanich <sivanich@sgi.com>
+Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: William Kucharski <william.kucharski@oracle.com>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: linux-kernel-mentees@lists.linuxfoundation.org
+Reviewed-by: Ira Weiny <ira.weiny@intel.com>
+Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+Reviewed-by: William Kucharski <william.kucharski@oracle.com>
+Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
+---
+This is a fold of the 3 patches in the v2 patch series.
+The review tags were given to the individual patches.
 
+Changes since v3
+	- Used gup flags in get_user_pages_fast rather than
+	boolean flags.
+---
  drivers/misc/sgi-gru/grufault.c | 112 +++++++++-------------------------------
  1 file changed, 24 insertions(+), 88 deletions(-)
 
+diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/grufault.c
+index 4b713a8..304e9c5 100644
+--- a/drivers/misc/sgi-gru/grufault.c
++++ b/drivers/misc/sgi-gru/grufault.c
+@@ -166,96 +166,20 @@ static void get_clear_fault_map(struct gru_state *gru,
+ }
+ 
+ /*
+- * Atomic (interrupt context) & non-atomic (user context) functions to
+- * convert a vaddr into a physical address. The size of the page
+- * is returned in pageshift.
+- * 	returns:
+- * 		  0 - successful
+- * 		< 0 - error code
+- * 		  1 - (atomic only) try again in non-atomic context
+- */
+-static int non_atomic_pte_lookup(struct vm_area_struct *vma,
+-				 unsigned long vaddr, int write,
+-				 unsigned long *paddr, int *pageshift)
+-{
+-	struct page *page;
+-
+-#ifdef CONFIG_HUGETLB_PAGE
+-	*pageshift = is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
+-#else
+-	*pageshift = PAGE_SHIFT;
+-#endif
+-	if (get_user_pages(vaddr, 1, write ? FOLL_WRITE : 0, &page, NULL) <= 0)
+-		return -EFAULT;
+-	*paddr = page_to_phys(page);
+-	put_page(page);
+-	return 0;
+-}
+-
+-/*
+- * atomic_pte_lookup
++ * mmap_sem is already helod on entry to this function. This guarantees
++ * existence of the page tables.
+  *
+- * Convert a user virtual address to a physical address
+  * Only supports Intel large pages (2MB only) on x86_64.
+- *	ZZZ - hugepage support is incomplete
+- *
+- * NOTE: mmap_sem is already held on entry to this function. This
+- * guarantees existence of the page tables.
++ *	ZZZ - hugepage support is incomplete.
+  */
+-static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned long vaddr,
+-	int write, unsigned long *paddr, int *pageshift)
+-{
+-	pgd_t *pgdp;
+-	p4d_t *p4dp;
+-	pud_t *pudp;
+-	pmd_t *pmdp;
+-	pte_t pte;
+-
+-	pgdp = pgd_offset(vma->vm_mm, vaddr);
+-	if (unlikely(pgd_none(*pgdp)))
+-		goto err;
+-
+-	p4dp = p4d_offset(pgdp, vaddr);
+-	if (unlikely(p4d_none(*p4dp)))
+-		goto err;
+-
+-	pudp = pud_offset(p4dp, vaddr);
+-	if (unlikely(pud_none(*pudp)))
+-		goto err;
+-
+-	pmdp = pmd_offset(pudp, vaddr);
+-	if (unlikely(pmd_none(*pmdp)))
+-		goto err;
+-#ifdef CONFIG_X86_64
+-	if (unlikely(pmd_large(*pmdp)))
+-		pte = *(pte_t *) pmdp;
+-	else
+-#endif
+-		pte = *pte_offset_kernel(pmdp, vaddr);
+-
+-	if (unlikely(!pte_present(pte) ||
+-		     (write && (!pte_write(pte) || !pte_dirty(pte)))))
+-		return 1;
+-
+-	*paddr = pte_pfn(pte) << PAGE_SHIFT;
+-#ifdef CONFIG_HUGETLB_PAGE
+-	*pageshift = is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
+-#else
+-	*pageshift = PAGE_SHIFT;
+-#endif
+-	return 0;
+-
+-err:
+-	return 1;
+-}
+-
+ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
+ 		    int write, int atomic, unsigned long *gpa, int *pageshift)
+ {
+ 	struct mm_struct *mm = gts->ts_mm;
+ 	struct vm_area_struct *vma;
+ 	unsigned long paddr;
+-	int ret, ps;
++	int ret;
++	struct page *page;
+ 
+ 	vma = find_vma(mm, vaddr);
+ 	if (!vma)
+@@ -263,21 +187,33 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
+ 
+ 	/*
+ 	 * Atomic lookup is faster & usually works even if called in non-atomic
+-	 * context.
++	 * context. get_user_pages_fast does atomic lookup before falling back to
++	 * slow gup.
+ 	 */
+ 	rmb();	/* Must/check ms_range_active before loading PTEs */
+-	ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &ps);
+-	if (ret) {
+-		if (atomic)
++	if (atomic) {
++		ret = __get_user_pages_fast(vaddr, 1, write, &page);
++		if (!ret)
+ 			goto upm;
+-		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
++	} else {
++		ret = get_user_pages_fast(vaddr, 1, write ? FOLL_WRITE : 0, &page);
++		if (!ret)
+ 			goto inval;
+ 	}
++
++	paddr = page_to_phys(page);
++	put_user_page(page);
++
++	if (unlikely(is_vm_hugetlb_page(vma)))
++		*pageshift = HPAGE_SHIFT;
++	else
++		*pageshift = PAGE_SHIFT;
++
+ 	if (is_gru_paddr(paddr))
+ 		goto inval;
+-	paddr = paddr & ~((1UL << ps) - 1);
++	paddr = paddr & ~((1UL << *pageshift) - 1);
+ 	*gpa = uv_soc_phys_ram_to_gpa(paddr);
+-	*pageshift = ps;
++
+ 	return VTOP_SUCCESS;
+ 
+ inval:
 -- 
 2.7.4
 
