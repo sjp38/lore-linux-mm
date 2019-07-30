@@ -2,200 +2,216 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A579C0650F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 12:55:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 350D3C0650F
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 12:57:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF1362087F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 12:55:20 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="NzmrYNyZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF1362087F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id EB4BD2087F
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 12:57:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EB4BD2087F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4D9F48E0006; Tue, 30 Jul 2019 08:55:20 -0400 (EDT)
+	id 8318A8E0005; Tue, 30 Jul 2019 08:57:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 488B28E0001; Tue, 30 Jul 2019 08:55:20 -0400 (EDT)
+	id 7E3058E0001; Tue, 30 Jul 2019 08:57:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 32A248E0006; Tue, 30 Jul 2019 08:55:20 -0400 (EDT)
+	id 6D1998E0005; Tue, 30 Jul 2019 08:57:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id DC9F88E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 08:55:19 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id p13so31748509wru.17
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 05:55:19 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FB708E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 08:57:54 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id w25so40255970edu.11
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 05:57:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=idycEckcr4oa7t42lFd2XxOLcI8deGKjkgpKUBigHj0=;
-        b=cZZxBbw9O4RR0j985UdGZUUoO2JXhn0LtZMdFjXQtgh0W4bAB7aJQI0EGtqDLrQnKx
-         eyqwLm7+h53yLscuiCypCZ0rJB/7W1b8tDM/I5LlsA1LjPbinQSU/kaZsauLWGDXExVK
-         9q5muzUjRehOpr5CvU808xdcET9B5zJcuJOcMou5XhMTLUgNwpQ809EAVtM0qssOIedW
-         dmm7egFVBttN6R2r9+l+7+8v9fG3jDX/WN+6V8QBEvPSLhnQ5lFazwVsMDjGu2NuXXep
-         WWwn3YRLDj3fDactuP1mONHJcrFGU3MclhYAu+5HCFdS2ElD+Qv5fi8iAsWl26KAa0cQ
-         JXnA==
-X-Gm-Message-State: APjAAAXdwFT4DmzfN7iWEA7eJdbEDchCshG9ubtdTsYBRQn8Jrqj2uDb
-	q+sHQPACfkHH0GxWKYATPGhbpLXJ368z9uYrUw+G1RHmtHMsaQcWrQ/evPOc74c7/nYHz6HqGfp
-	P/gmBjMKZSryhROJREF0Y4tMUJAsa4bFEBoNXnh1/GDt4LfpNDBCKVRmg0msDzy6ZSw==
-X-Received: by 2002:a5d:5303:: with SMTP id e3mr47476798wrv.239.1564491319485;
-        Tue, 30 Jul 2019 05:55:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwXWYQ5c8M9QJWyO56481EdIgHK+2LoraV2pGDd74a8+Ep8BDl8cq4fjM0j/vuXQK9M8MUx
-X-Received: by 2002:a5d:5303:: with SMTP id e3mr47476764wrv.239.1564491318876;
-        Tue, 30 Jul 2019 05:55:18 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1564491318; cv=pass;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=LhPpTxq1W4lX/oUUkNGmNsFIixIpMH9fRPv9xB0PyE8=;
+        b=HxXPTDQjGBkBa7fxdcHp0K11Nr12gV+wU+mr+E/CevhUfwy4cMhl+NhsyWoAaiAlHi
+         IJXstuvg7DPqmg6ddRXBXmPnX18gvxy/spYIr7EwdZM4hDRnS8rs1c+yYTabw/F+PnA1
+         09dnlw5tt2kCe38nsJwm9RMAoIbiNLVyvbtdfNp+fWi45yLBtfxm1wzYlPIM+Xop+vc1
+         WdEguOeWLOpZ521b0hxejPz+pdqz6rCC08B1hT2nzVlxDUnkMYcUuQdSAHMqeyBy6WYI
+         gW772w8XRtEwZBr47dkaH+WBj9qPTTQ1AzMorBCXdsAXO5ojU/RCesZ7nn30c0ferrsy
+         IDsw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAW2idjuJxcGUu2//uuVb3/zZwzmwqXc06zyebtYsFadmXO2120j
+	0Lt+9kaC/umMwhOIsIMefP7UmewIbABXbfQEPcuv9dcyqiia0hmhNjmDGAhUD058iD5mpJGpKsY
+	ZavAlhEzC9ewmkRdBJH0j1xrWJTRMIhYMDu/eLIskrXClSYfmED4Pw5LrQvGREso=
+X-Received: by 2002:a17:906:3507:: with SMTP id r7mr56311198eja.45.1564491473668;
+        Tue, 30 Jul 2019 05:57:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxOF0lBbCPBrOOREpZAmDu77qf4070XQRygI1rlhTa6DS3X4g+yQsfT27lkcTLJBhKLi7nk
+X-Received: by 2002:a17:906:3507:: with SMTP id r7mr56311151eja.45.1564491472739;
+        Tue, 30 Jul 2019 05:57:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564491472; cv=none;
         d=google.com; s=arc-20160816;
-        b=k2PJqdbYcO9Zx4+KbWmsZxGm8MKX9CpZNmd2VucBTn2CsB2IQLs1XBlOYLdPIpdyVT
-         Ju8tt4RusVm2lHVLWtYNJeZTNcyDuWSrTxXhmszI+VkQoh/mEIvmJutt7RoH1Qs+cQq5
-         RJu4tgalksOsYU3FKhgFjvNKqrd4GeQT/5JUWJd8qwuL+biKCqVE4h/NtNdQZYp4y2eK
-         pO6zciwOmttqhQqT1qAzDChVhi/40SbYypzg9gPy2lePSF/ncgr7kgGlr61wFaTzHsGj
-         8TqqQxy13/+bmGBihsmy5V/L103Pu1hRmv6TnOcM97j6iJPhidjkqWUlFsyUDL3kMgyM
-         wBJg==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=idycEckcr4oa7t42lFd2XxOLcI8deGKjkgpKUBigHj0=;
-        b=yTSFUpIX09hAcFXRp/6tp2MWSrWUC89HpVoreb364Q1eFfV/uGoNmJf4FmSkO7Kd/c
-         RNemw0peM67pbxw+grU/2knJEXF6PXOqyMa5gIohyeDOe0Xcw68NYrA321bnQArcWrHR
-         XkBMEzgCn5ZqfjnY85O9fxkz1DZ5Di2mnOpVC5vRCwrH2avaPddHsILgHYLQX60IVYms
-         nYiuzNmavdo7nuIOzj8LdU8eAldHz6/JhVLXlKb0UZUJJZhPvf8HcGLT7QAexbEBPZPY
-         ZisjnZTNNQ+8IKpR44fxvKdJWkcD4BpcblU3P8Z+N2l9z4BHZY9haHkXpG0HVVX1n3wM
-         NYFw==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=NzmrYNyZ;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.15.49 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR01-DB5-obe.outbound.protection.outlook.com (mail-eopbgr150049.outbound.protection.outlook.com. [40.107.15.49])
-        by mx.google.com with ESMTPS id q4si62564345wrn.99.2019.07.30.05.55.18
+        b=IWAG3UqsV9C5wm3jjCPnU+RklLq7lk0W1iGLLKZHFUikjFNgPGViyORhxzpZRd+6rc
+         F2I0ow50wHgCbnFaQfBtIw7fFruyS5jUOHWe9BLLdXTTlQleNLXROW9VxxyyxK8Sfddl
+         +L/UsbPI5XWhlHCjO/f9WQ67BwtDd4B7vqjWlLxEaLsyaeO0hSxzqV8+PXe0P/wC55Ee
+         qlahvGdbqjm19/hKnp8gEvJoQpo6gagqN0FJUoYvLR+GbZF38Z+tq4MBeuQM7d8Ym7rI
+         D+HE/emJ35SyFaf+a7AeHBqA3UaEpkd5DygISUc5//ucwwlHGiEX5sbVdKi8l2B9Fh2A
+         Ey1w==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=LhPpTxq1W4lX/oUUkNGmNsFIixIpMH9fRPv9xB0PyE8=;
+        b=r3XRqU8X3N2TQwC9kdruBUpE4OcfDXC7DJdKne0V+jN1zxJTpeOIxY8OmR+1oxd5F8
+         VyowG2Mrp5nk/DX+Golz+kqKC60nJj5mKlLJlJKxh2DfsJn0xI3bXa2JhPLPRA0F3DBw
+         c6gE1EQ77pFpSbDKSlj4IyiKL0DR5q0DXFvwBpgA+XwKbUx9fRAL49AJepWxrJSg2Dz2
+         9Capo14AHHwb/vq4MNrRvt4ukouotS6TdXQrC4iznSE9bCeIOcyDGnK1wL6KcRiS67ww
+         bq8wZywyS14wmFqnVn6hp6fnmVEu4vCt7/uU1yc7cc3u2gl9RxC6fehewwxtx8RrVe0A
+         PljQ==
+ARC-Authentication-Results: i=1; mx.google.com;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id g24si19702389edb.391.2019.07.30.05.57.52
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Tue, 30 Jul 2019 05:55:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.15.49 as permitted sender) client-ip=40.107.15.49;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Jul 2019 05:57:52 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=NzmrYNyZ;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.15.49 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=RnKo7LYrKDZ71MuqMXvk6l1xyYiPKBod/kJ+4AdTkgXuos50numeugypZ4UU4SWo7C3zZGDLTEboOPPWuC1LG2GhTA1D67tIVf9TotFR7AqM3RhXYNdII0+AKUE53CDWu6/J05NGQIMpQGKL2506KA/D8H5MRNq2kXt7AW4mkGfq5Fo6ADAsyrUlpwQpR79uF7bK+K0HmSV4++Zc2O+nfzWNBaVbUJkLCWN/nVu3GLLHwbygclAmWfRavRXUPhFcyXIH4zox6ZmSqjn9QVgaGMbYTwGA7Zigdj07Amu7KRk1jzb/hbbw7ESy2r5gTgQ7sHkeLBo7tR6oYNSss4IN4Q==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=idycEckcr4oa7t42lFd2XxOLcI8deGKjkgpKUBigHj0=;
- b=Sk0oQlKLzA1ZIQq0Ib38IiL4e/iLmkd4i19SJ0NbxBSoAFeu+yC5vWIHkyx217RmFKR0LhIjpfMKUY0ttwNTU8v1n0zPQVbBphaqjNOyJK9+MPIDr8tNu27WN3xALz7gYGZm4DXJvjJn8LFYOZjgeDjot+IhfKuWR0xP3eXxjcpI1QtAHn9CjIb2xzvjItsO0lGX+6AFNCCaO+KwmpTKDa/JvBx7Gp6YOMeGrKsK8j4L6ac2AgXAQz0aHqdc0v5TrG69IMTh6WwoaOfgnaWrD8RicBariwBPe4LdYSiEL+ttDq11ccabVQt2IIrH+gPaw2RzwG4Le2LKX290koQGhg==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=mellanox.com;dmarc=pass action=none
- header.from=mellanox.com;dkim=pass header.d=mellanox.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=idycEckcr4oa7t42lFd2XxOLcI8deGKjkgpKUBigHj0=;
- b=NzmrYNyZQrwD0nVDLtn3wIwZLHyWy/U7WzosHfXNY1L/eskmnwY2Ok/Ak3ArYv/l1/pbX02PcrcLFXBArFKfRbT/H5Y0mh+6rrdSrqwY5zg/WT77gpJCqpYYmTCThgHPtDgEJ9wEI4S+K3Xau9JUJCMsTMvh+ir/48W9/aCKc8A=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB5024.eurprd05.prod.outlook.com (20.177.52.33) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2115.14; Tue, 30 Jul 2019 12:55:17 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880%4]) with mapi id 15.20.2115.005; Tue, 30 Jul 2019
- 12:55:17 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Christoph Hellwig <hch@lst.de>
-CC: =?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Ben Skeggs
-	<bskeggs@redhat.com>, Felix Kuehling <Felix.Kuehling@amd.com>, Ralph Campbell
-	<rcampbell@nvidia.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 07/13] mm: remove the page_shift member from struct
- hmm_range
-Thread-Topic: [PATCH 07/13] mm: remove the page_shift member from struct
- hmm_range
-Thread-Index: AQHVRpr/I9wxeKeChkuG0OEJhB2jNabjHtYA
-Date: Tue, 30 Jul 2019 12:55:17 +0000
-Message-ID: <20190730125512.GF24038@mellanox.com>
-References: <20190730055203.28467-1-hch@lst.de>
- <20190730055203.28467-8-hch@lst.de>
-In-Reply-To: <20190730055203.28467-8-hch@lst.de>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YT1PR01CA0003.CANPRD01.PROD.OUTLOOK.COM (2603:10b6:b01::16)
- To VI1PR05MB4141.eurprd05.prod.outlook.com (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: b4bc70a7-fe8e-45cc-c196-08d714ed2be5
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5024;
-x-ms-traffictypediagnostic: VI1PR05MB5024:
-x-microsoft-antispam-prvs:
- <VI1PR05MB50244A1B80DB3F5AEDC14A54CFDC0@VI1PR05MB5024.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:8882;
-x-forefront-prvs: 0114FF88F6
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(136003)(366004)(346002)(376002)(39860400002)(396003)(189003)(199004)(7416002)(478600001)(66946007)(6512007)(25786009)(6436002)(4326008)(36756003)(6916009)(6246003)(64756008)(66446008)(229853002)(81156014)(81166006)(8676002)(53936002)(8936002)(66476007)(66556008)(316002)(1076003)(6486002)(54906003)(33656002)(6506007)(102836004)(386003)(186003)(26005)(14454004)(446003)(305945005)(3846002)(52116002)(6116002)(68736007)(71200400001)(71190400001)(2616005)(2906002)(11346002)(76176011)(7736002)(99286004)(14444005)(486006)(256004)(476003)(66066001)(86362001)(5660300002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5024;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- seS7Jwz+4z32gUu+IFL61rNNu+NyGMH2Zs2Rf82smPQvpQy9H0CfZVaRqXr2MNgzZLbpq/INxATsAMro+lA6s8JjXpPAml31L1SEoBtlYsMF2hB0rurCA1Wuz1vuR9LNXV0fcdanov+QuCkhbWRE+KKVf2ZesEStQf9a30+mO7U60dImwGOKZgGK3l8ojvmVuMiNkfPTAzzips9kGS/xb17byj4kxFARlPPRKTKBZxeeKotyP4FZAzRdzK9eo2ahoclqaKRWatS0N60FENE9LENjgj8qHzrUXvuqN2uNKcRjmbm11ORk2bGCnV+vAqNx+XlfIjhroVYnOn7VhJrINfjkbDt0x/77qru4+FoynSAef7UYQp5oI/AAOeLuyyFaKzupYGwVOUqvm87oo50MdiGU0K/f5M7hdp0YmDndQ+s=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <B20876FFD0ED7E4A83072CECCE1E8BF0@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id ECEAAAC20;
+	Tue, 30 Jul 2019 12:57:51 +0000 (UTC)
+Date: Tue, 30 Jul 2019 14:57:51 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Miguel de Dios <migueldedios@google.com>, Wei Wang <wvw@google.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH] mm: release the spinlock on zap_pte_range
+Message-ID: <20190730125751.GS9330@dhcp22.suse.cz>
+References: <20190729071037.241581-1-minchan@kernel.org>
+ <20190729074523.GC9330@dhcp22.suse.cz>
+ <20190729082052.GA258885@google.com>
+ <20190729083515.GD9330@dhcp22.suse.cz>
+ <20190730121110.GA184615@google.com>
+ <20190730123237.GR9330@dhcp22.suse.cz>
+ <20190730123935.GB184615@google.com>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: b4bc70a7-fe8e-45cc-c196-08d714ed2be5
-X-MS-Exchange-CrossTenant-originalarrivaltime: 30 Jul 2019 12:55:17.4155
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5024
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190730123935.GB184615@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 30, 2019 at 08:51:57AM +0300, Christoph Hellwig wrote:
-> All users pass PAGE_SIZE here, and if we wanted to support single
-> entries for huge pages we should really just add a HMM_FAULT_HUGEPAGE
-> flag instead that uses the huge page size instead of having the
-> caller calculate that size once, just for the hmm code to verify it.
+[Cc Nick - the email thread starts http://lkml.kernel.org/r/20190729071037.241581-1-minchan@kernel.org
+ A very brief summary is that mark_page_accessed seems to be quite
+ expensive and the question is whether we still need it and why
+ SetPageReferenced cannot be used instead. More below.]
 
-I suspect this was added for the ODP conversion that does use both
-page sizes. I think the ODP code for this is kind of broken, but I
-haven't delved into that..
+On Tue 30-07-19 21:39:35, Minchan Kim wrote:
+> On Tue, Jul 30, 2019 at 02:32:37PM +0200, Michal Hocko wrote:
+> > On Tue 30-07-19 21:11:10, Minchan Kim wrote:
+> > > On Mon, Jul 29, 2019 at 10:35:15AM +0200, Michal Hocko wrote:
+> > > > On Mon 29-07-19 17:20:52, Minchan Kim wrote:
+> > > > > On Mon, Jul 29, 2019 at 09:45:23AM +0200, Michal Hocko wrote:
+> > > > > > On Mon 29-07-19 16:10:37, Minchan Kim wrote:
+> > > > > > > In our testing(carmera recording), Miguel and Wei found unmap_page_range
+> > > > > > > takes above 6ms with preemption disabled easily. When I see that, the
+> > > > > > > reason is it holds page table spinlock during entire 512 page operation
+> > > > > > > in a PMD. 6.2ms is never trivial for user experince if RT task couldn't
+> > > > > > > run in the time because it could make frame drop or glitch audio problem.
+> > > > > > 
+> > > > > > Where is the time spent during the tear down? 512 pages doesn't sound
+> > > > > > like a lot to tear down. Is it the TLB flushing?
+> > > > > 
+> > > > > Miguel confirmed there is no such big latency without mark_page_accessed
+> > > > > in zap_pte_range so I guess it's the contention of LRU lock as well as
+> > > > > heavy activate_page overhead which is not trivial, either.
+> > > > 
+> > > > Please give us more details ideally with some numbers.
+> > > 
+> > > I had a time to benchmark it via adding some trace_printk hooks between
+> > > pte_offset_map_lock and pte_unmap_unlock in zap_pte_range. The testing
+> > > device is 2018 premium mobile device.
+> > > 
+> > > I can get 2ms delay rather easily to release 2M(ie, 512 pages) when the
+> > > task runs on little core even though it doesn't have any IPI and LRU
+> > > lock contention. It's already too heavy.
+> > > 
+> > > If I remove activate_page, 35-40% overhead of zap_pte_range is gone
+> > > so most of overhead(about 0.7ms) comes from activate_page via
+> > > mark_page_accessed. Thus, if there are LRU contention, that 0.7ms could
+> > > accumulate up to several ms.
+> > 
+> > Thanks for this information. This is something that should be a part of
+> > the changelog. I am sorry to still poke into this because I still do not
+> 
+> I will include it.
+> 
+> > have a full understanding of what is going on and while I do not object
+> > to drop the spinlock I still suspect this is papering over a deeper
+> > problem.
+> 
+> I couldn't come up with better solution. Feel free to suggest it.
+> 
+> > 
+> > If mark_page_accessed is really expensive then why do we even bother to
+> > do it in the tear down path in the first place? Why don't we simply set
+> > a referenced bit on the page to reflect the young pte bit? I might be
+> > missing something here of course.
+> 
+> commit bf3f3bc5e73
+> Author: Nick Piggin <npiggin@suse.de>
+> Date:   Tue Jan 6 14:38:55 2009 -0800
+> 
+>     mm: don't mark_page_accessed in fault path
+> 
+>     Doing a mark_page_accessed at fault-time, then doing SetPageReferenced at
+>     unmap-time if the pte is young has a number of problems.
+> 
+>     mark_page_accessed is supposed to be roughly the equivalent of a young pte
+>     for unmapped references. Unfortunately it doesn't come with any context:
+>     after being called, reclaim doesn't know who or why the page was touched.
+> 
+>     So calling mark_page_accessed not only adds extra lru or PG_referenced
+>     manipulations for pages that are already going to have pte_young ptes anyway,
+>     but it also adds these references which are difficult to work with from the
+>     context of vma specific references (eg. MADV_SEQUENTIAL pte_young may not
+>     wish to contribute to the page being referenced).
+> 
+>     Then, simply doing SetPageReferenced when zapping a pte and finding it is
+>     young, is not a really good solution either. SetPageReferenced does not
+>     correctly promote the page to the active list for example. So after removing
+>     mark_page_accessed from the fault path, several mmap()+touch+munmap() would
+>     have a very different result from several read(2) calls for example, which
+>     is not really desirable.
 
-The challenge is that the driver needs to know what page size to
-configure the hardware before it does any range stuff.
+Well, I have to say that this is rather vague to me. Nick, could you be
+more specific about which workloads do benefit from this change? Let's
+say that the zapped pte is the only referenced one and then reclaim
+finds the page on inactive list. We would go and reclaim it. But does
+that matter so much? Hot pages would be referenced from multiple ptes
+very likely, no?
 
-The other challenge is that the HW is configured to do only one page
-size, and if the underlying CPU page side changes it goes south.
+That being said, cosindering that mark_page_accessed is not free, do we
+have strong reasons to keep it?
 
-What I would prefer is if the driver could somehow dynamically adjust
-the the page size after each dma map, but I don't know if ODP HW can
-do that.
+Or do I miss something?
 
-Since this is all driving toward making ODP use this maybe we should
-keep this API?=20
+>     Signed-off-by: Nick Piggin <npiggin@suse.de>
+>     Acked-by: Johannes Weiner <hannes@saeurebad.de>
+>     Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+>     Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
 
-I'm not sure I can loose the crappy huge page support in ODP.
-
-Jason
+-- 
+Michal Hocko
+SUSE Labs
 
