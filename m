@@ -2,143 +2,136 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B4831C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 10:26:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C511CC433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 10:26:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6CE2D20651
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 10:26:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6CE2D20651
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 7A54520651
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 10:26:22 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="i7Nt6xRk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A54520651
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 214558E0003; Tue, 30 Jul 2019 06:26:02 -0400 (EDT)
+	id 263CC8E0005; Tue, 30 Jul 2019 06:26:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1C51C8E0001; Tue, 30 Jul 2019 06:26:02 -0400 (EDT)
+	id 213218E0001; Tue, 30 Jul 2019 06:26:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B40F8E0003; Tue, 30 Jul 2019 06:26:02 -0400 (EDT)
+	id 12A4B8E0005; Tue, 30 Jul 2019 06:26:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B1AEA8E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 06:26:01 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id i2so31568110wrp.12
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 03:26:01 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D56E98E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 06:26:21 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id s22so35065311plp.5
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 03:26:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=OLnhwp1Ir7o0Cp8Oes6ebmKFiIiIxO6WwaM5tBmCVZg=;
-        b=kAdliAvocQGjONVHeVbdtCqeMpF5uD9oAKEcb2MKJGif26rEsEECqZFGgFUfLv/iSg
-         zxEzdxEwUdcZWfCvgLdNl9iuVBHUhOjBm6QXEFaV66TKegKWlhTDuChrv+OjUefH1nKb
-         Q00eaD5px0fk0nqs8zWQqutluY08ZCvkB3QtnB0KCfCddb8Pz6YLcVBzUvgjFYw81uoV
-         bhribvkqXRWdQWw9nyiiGjapnnYza/QDyN1MHQuMiFUXnh9mJ9N3JWdMIfph/dCv/3M5
-         Vy0xlLJEXYSq5odebQ3ZW+y3zB3Fp7zJO3xFgmyf8jCc1pnNnil3zSBoxctloglV3wIS
-         6OBg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAVP4+K2wCBN3FRxEowZeslN1/pmFpfmLSB+DYNGG2pmZXnYjlHT
-	FcF4HBjnjeSwdFfkXQqhupuAdgF8d4XlkJHIpQrEvRV4tBwvo2i7QZkpgpRVQU/cN78/Hh+aQt/
-	GPwC0+hMYkd+xpXs57ix0iGiXod/0c2qWTfa6UTLfED27JP5iyPVrKvKTcLwoItuJLw==
-X-Received: by 2002:adf:9d8b:: with SMTP id p11mr91428808wre.226.1564482361330;
-        Tue, 30 Jul 2019 03:26:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzBlOD0l4jr030sbcSwmop01uwvi+aLsfrEFYovAPtyQemNytn2f2OwEJlQDt9FSqQPL1Q+
-X-Received: by 2002:adf:9d8b:: with SMTP id p11mr91428713wre.226.1564482360493;
-        Tue, 30 Jul 2019 03:26:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564482360; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=B41dOFAL1OVXzo32k2PddSinndYgRrLzOceWuj2dYcs=;
+        b=c54jFSPGKi7Q5+BjLvqLKYRf7mHh20RU3rtE1dkgqZ+f+gR4e9tKX5G2LB3ltP4ODO
+         PkKp+F7N4Iy3u3vCquPVLg39/z8R1QFVTkpxHG4ajn5OsgQE12FSzJwx0KNL0MZSDLDh
+         fkcwhTij4TfxwRfSw7qbJZUCfRtGgo36Yq5gOE0zd4KGPsJ+QaNWQpxGtHVEtiCDbZSL
+         raU8r1ut+/Yr+euz2znB9wPgYP64IFRLmDx2lRB1VQLp0xiSXyhIGOE2Xdwz+7wLgfiI
+         F7b15HgMH5TspI4xyj00WzZ02cTsTowccQUiL0pP+olUxyxbOzTg0Xc4XCHqMWeDz9DP
+         tfLw==
+X-Gm-Message-State: APjAAAVtY5fKE0OH1uy/kJEjWjhk25qNbJY2Eu90LbRuXx2jejIxta3n
+	VNd7ExMZbOOkjWI9GIjd1Ps8hrKvwTOEFBM1Bce3f1H/dwN+SnNAdHU9CKoHD4lju9phjOeM1mO
+	gITsrdtyOV7W0GqIv9uMYOTAM5Aw7xaYygSLDVWcsRzDzhqdaXBwqwfm6a6Ksmssn/w==
+X-Received: by 2002:a62:38c6:: with SMTP id f189mr41256023pfa.157.1564482381464;
+        Tue, 30 Jul 2019 03:26:21 -0700 (PDT)
+X-Received: by 2002:a62:38c6:: with SMTP id f189mr41255985pfa.157.1564482380873;
+        Tue, 30 Jul 2019 03:26:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564482380; cv=none;
         d=google.com; s=arc-20160816;
-        b=aD0rLoR/wBjAcRpXoIf4Jn7kDwV4nJu2ZNshtKiZkKTUbxTCz5E3lIfqZrXVCksr+l
-         9f5sEnp3UtGjbdSJRRAPxSxkrfzwMcoS6EDKh22Pz8MIl6yWwJjUuvbuxVVNRP6Ouyqo
-         DLY2PxZORHD+/Hrt1+MqxGaanvqUY4aMIYCkAb1f23PuVFvawAvXXZKR1g4unUIgSdzs
-         LtEgI4L+mWOG8zioo9SMIpIjHM0sVVWeaH0bVPYZ3SPEa71zF6hT5xp32g4rMMI/SvhM
-         jOD5ySv0mGJWmX/dZrrbjmyhfBWeSXXv7Dvh4bHmmkQCgYGlEP4hr8stucZ/7alzBOg7
-         AM5Q==
+        b=YxvsCWU9yu+41zGyL+OtmmPaGjmMWm5BT9aba/79oUb9xNIM2z/ot9rUQ4Kvd3+jlF
+         g5EHzgttZ2e1FfRS4SJ4yu0nK4Qw7M/Al3pBDHJ9iFuXs4k9fJ1o2Qrf/lbD7dEhMxul
+         dmV1L5AG/RVR1ZCzaz8QOUAGP7w73N4pKDDhl75DjyLEQv27z70C3PyXRSH9eeW0OIpq
+         +Mzf3hSorwhAjhLLp96fq614DqDgf7XSyBjZzbhQrrdXF6jZIhp5OvTCwpEBmdbovwE3
+         IeIRIy9UwltkXo2rqgZAO1fcu0dlB12D1gWWINCgwP9YZ9mrewgKxOm/eLsMbzLAM7EE
+         G+3w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=OLnhwp1Ir7o0Cp8Oes6ebmKFiIiIxO6WwaM5tBmCVZg=;
-        b=T8I9fWo7G5AeUZFXSIy9Ll/hLf9W3GLErZJxYPaAcVj58GeparB9klAoOplFsmp+lM
-         dJJPcoEiMwJ3+bni63QzODxElbr8FImuLKQ1JNNFaHuhWz3XTVn9q+aelNDrjtgmnjcU
-         hm9xSI+Z8vyQN5Y8EjyYwz/lQtvQyaRGQ03gqzIwbBnoUBXT+WztpWyRHzZzaLyXXCAQ
-         nMQhL6EhhSNPmiYxuH0KMu4841ib09a8GZrTcy2jnKjMuhVmknaadBHUgg7XLraNr9B7
-         s/7wgCiqYIW1ia+es1JqF0p2eclprdq2ssMh5LxY/A5dFNd4W36zdYPUy5GNVt4H4S+T
-         DCGQ==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=B41dOFAL1OVXzo32k2PddSinndYgRrLzOceWuj2dYcs=;
+        b=AK8EJdRhPvL5hR7EwOlm8ozUmpoFzA+Y5Y0dKGUdiEs5RjHODIqTWkEkiGZDXjceI8
+         2nLTcaTulpZvkC3eBgrSs7Ium5sI2N9E//lGp3pmkwj8Kpv87QpRslP+JDDrsbtdxKoJ
+         7yJhvVYwKa23E49+PTDN5nbDhTCu5OEOUB3e8sIsOMBlMPTn7oEHeqkS3ThQTjQABEEX
+         e+KEs5e7f/yHnTyFjIRXZrDOhlevRW+AkPfxkWJ7szinoIZy75fqVD6amK7BwRSs9JLk
+         7ruo68Xu5gGA/2TdSG2iV0XZ8FSiyqLgTv62UYOdq3AqVbw/uvLPZryyk6JzoyIBCyrz
+         dsjw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id 17si47358733wmf.19.2019.07.30.03.26.00
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=i7Nt6xRk;
+       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n2sor7386423pgh.45.2019.07.30.03.26.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 03:26:00 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        (Google Transport Security);
+        Tue, 30 Jul 2019 03:26:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by verein.lst.de (Postfix, from userid 2407)
-	id 4C21468B02; Tue, 30 Jul 2019 12:25:57 +0200 (CEST)
-Date: Tue, 30 Jul 2019 12:25:57 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Christoph Hellwig <hch@infradead.org>, john.hubbard@gmail.com,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Anna Schumaker <anna.schumaker@netapp.com>,
-	"David S . Miller" <davem@davemloft.net>,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	Eric Van Hensbergen <ericvh@gmail.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Jason Wang <jasowang@redhat.com>,
-	Jens Axboe <axboe@kernel.dk>, Latchesar Ionkov <lucho@ionkov.net>,
-	"Michael S . Tsirkin" <mst@redhat.com>,
-	Miklos Szeredi <miklos@szeredi.hu>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Christoph Hellwig <hch@lst.de>,
-	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
-	LKML <linux-kernel@vger.kernel.org>, ceph-devel@vger.kernel.org,
-	kvm@vger.kernel.org, linux-block@vger.kernel.org,
-	linux-cifs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-nfs@vger.kernel.org, linux-rdma@vger.kernel.org,
-	netdev@vger.kernel.org, samba-technical@lists.samba.org,
-	v9fs-developer@lists.sourceforge.net,
-	virtualization@lists.linux-foundation.org,
-	John Hubbard <jhubbard@nvidia.com>,
-	Minwoo Im <minwoo.im.dev@gmail.com>
-Subject: Re: [PATCH 03/12] block: bio_release_pages: use flags arg instead
- of bool
-Message-ID: <20190730102557.GA1700@lst.de>
-References: <20190724042518.14363-1-jhubbard@nvidia.com> <20190724042518.14363-4-jhubbard@nvidia.com> <20190724053053.GA18330@infradead.org> <20190729205721.GB3760@redhat.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=i7Nt6xRk;
+       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=B41dOFAL1OVXzo32k2PddSinndYgRrLzOceWuj2dYcs=;
+        b=i7Nt6xRkRfvFCCVipqPhPmUZyVmjuAdk9XvMcLtySbCYdYJr0vMsYhkTiIE9qVDOHK
+         SYduOpEPzNTNU5fL7XIet0nzi6Hb0+Y3MRI3ycdjx2r32drhNk7ebQNjBQGTP9L3tAY3
+         xKPu4OsR0YLH3RZC2tU5A2nV/QJ67w+i5ahlw1mXgS6rsDAYqvvDJLJJNvBcXv3GIew9
+         y79fPpsjqTXZT9WvjGuTCjzDuG1NsHjVuLpPyPCoLsV/cBeumt/X/6hYWs1CZ10UZnb3
+         wzAqKqygyn9ZasPXv3I83Lsa1RI3RpJFi48CFo98NxQjSZfnpYYDmXF1k5mbARh5QCQk
+         TFew==
+X-Google-Smtp-Source: APXvYqxOncBM7FFqx4lditTRj2caSLMJ9IX+bFXJ4D8j7fqT/1w8OoqWf5bcpF3t2GTiYtSsQvUPSQ==
+X-Received: by 2002:a63:3281:: with SMTP id y123mr105781516pgy.72.1564482380523;
+        Tue, 30 Jul 2019 03:26:20 -0700 (PDT)
+Received: from bharath12345-Inspiron-5559 ([103.110.42.31])
+        by smtp.gmail.com with ESMTPSA id k6sm74255606pfi.12.2019.07.30.03.26.16
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Jul 2019 03:26:20 -0700 (PDT)
+Date: Tue, 30 Jul 2019 15:56:13 +0530
+From: Bharath Vedartham <linux.bhar@gmail.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: sivanich@sgi.com, arnd@arndb.de, ira.weiny@intel.com,
+	jhubbard@nvidia.com, jglisse@redhat.com, gregkh@linuxfoundation.org,
+	william.kucharski@oracle.com, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [PATCH v3 1/1] sgi-gru: Remove *pte_lookup functions
+Message-ID: <20190730102613.GB6825@bharath12345-Inspiron-5559>
+References: <1564170120-11882-1-git-send-email-linux.bhar@gmail.com>
+ <1564170120-11882-2-git-send-email-linux.bhar@gmail.com>
+ <20190729064842.GA3853@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190729205721.GB3760@redhat.com>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+In-Reply-To: <20190729064842.GA3853@lst.de>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 29, 2019 at 04:57:21PM -0400, Jerome Glisse wrote:
-> > All pages releases by bio_release_pages should come from
-> > get_get_user_pages, so I don't really see the point here.
+On Mon, Jul 29, 2019 at 08:48:42AM +0200, Christoph Hellwig wrote:
+> On Sat, Jul 27, 2019 at 01:12:00AM +0530, Bharath Vedartham wrote:
+> > +		ret = get_user_pages_fast(vaddr, 1, write, &page);
 > 
-> No they do not all comes from GUP for see various callers
-> of bio_check_pages_dirty() for instance iomap_dio_zero()
-> 
-> I have carefully tracked down all this and i did not do
-> anyconvertion just for the fun of it :)
+> I think you want to pass "write ? FOLL_WRITE : 0" here, as
+> get_user_pages_fast takes a gup_flags argument, not a boolean
+> write flag.
 
-Well, the point is _should_ not necessarily do.  iomap_dio_zero adds the
-ZERO_PAGE, which we by definition don't need to refcount.  So we can
-mark this bio BIO_NO_PAGE_REF safely after removing the get_page there.
+You are right there! I ll send another version correcting this.
 
-Note that the equivalent in the old direct I/O code, dio_refill_pages,
-will be a little more complicated as it can match user pages and the
-ZERO_PAGE in a single bio, so a per-bio flag won't handle it easily.
-Maybe we just need to use a separate bio there as well.
-
-In general with series like this we should not encode the status quo an
-pile new hacks upon the old one, but thing where we should be and fix
-up the old warts while having to wade through all that code.
+Thank you
+Bharath
 
