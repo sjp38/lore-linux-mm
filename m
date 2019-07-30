@@ -2,380 +2,190 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D5A54C0650F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 13:58:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AA814C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 13:59:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 80B782089E
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 13:58:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 80B782089E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 7A7A1208E3
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 13:59:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A7A1208E3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D5C468E0003; Tue, 30 Jul 2019 09:58:01 -0400 (EDT)
+	id 14D928E0005; Tue, 30 Jul 2019 09:59:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CE7428E0001; Tue, 30 Jul 2019 09:58:01 -0400 (EDT)
+	id 1260A8E0001; Tue, 30 Jul 2019 09:59:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BAEE78E0003; Tue, 30 Jul 2019 09:58:01 -0400 (EDT)
+	id 03A8C8E0005; Tue, 30 Jul 2019 09:59:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 617D68E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 09:58:01 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id m23so40362469edr.7
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 06:58:01 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D65CC8E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 09:59:55 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id x7so58483833qtp.15
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 06:59:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=aFowPyIt9gdotpFEshicTQ9xROnbZ3VyADVLdiEcGwQ=;
-        b=ppF3ycb+2w1L8FBrH0TKqWhdogDMCPziv23DLfA/L0DPBr13vHif5vICMECt0hSeL1
-         EvcowCx3qhCXd5L6GJddpSMmUqpqmNhinB3XjLyFMJ0yIkAK0DIXRU8vOKKQzx2Ao6J9
-         CdztlE6V025kgVWcrgcbOhplz9a2pXxhg7u51FR+Liw5LwQZD0zjIB4Gd+6l3477eYKO
-         j8t4THuLCko0rDN+z0V2aOoiR7k/m521pxddnY3rzyNkyy4B8WatC7o5ir8Ay/oxJiVE
-         5jfJLigw/DnQqcFrpBQ/McK0DH4DnrV3dvm5u5jMwaPIkfWoK9eE3OsehxydkV2WZXw6
-         javw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
-X-Gm-Message-State: APjAAAWcocPlOm3ZbgeE1VkKafHkCjXm0JAMlq1+N+niNH5MAw02rwTs
-	2rPTDAa/RK6FYZjkW7gjNVK/oYYP8rSG3wh8jPSYCK9zIFY1MwIrEhTl5VSfXT7Hs3ybBcNcKNk
-	rSBvs+HRvndS9fyQ28CNkMkbrY9UOuPc+E0QuFdlDixZCfL0p3hPZPMWw1YknBzLJ/A==
-X-Received: by 2002:a05:6402:1801:: with SMTP id g1mr100113554edy.262.1564495080907;
-        Tue, 30 Jul 2019 06:58:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzeDo1K3LTZYTr7SLKbct7GVS593SS4yYr772KeYxl504MSGi1le5/q2kFMaWSlVud8eZcJ
-X-Received: by 2002:a05:6402:1801:: with SMTP id g1mr100113472edy.262.1564495079762;
-        Tue, 30 Jul 2019 06:57:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564495079; cv=none;
+         :references:from:organization:message-id:date:user-agent
+         :mime-version:in-reply-to:content-transfer-encoding:content-language;
+        bh=QrdKLx16jdQnHYfi4CV/rTDye/uzMWi4mZ1JzH117/s=;
+        b=hBJ5H2SwPPzBx8zWL/JlVjc+9aj7GuAxXZo+Vy7Pl3tTOkjuJxr/u8rLTFjfL3GgoA
+         jNQT6Eq9DgiSG5cbYLPoi7lIfiziZcwAEWddV8Wm2a/Rw3WFJ8hLj6eu5kb9AOx4GGJJ
+         I+38FIH+zbBmKjEeEZXRrIgwhP1uVJh8Dm4UgPmKoyJfhbn5Xgp5zfUE7SsLMB1wb5y7
+         rDTCSkFultIweQoyZqEKBG5HWxNZks9qB3pUvMUO3s41qFNsDNFlRehy+0MgW741k9fV
+         VnOl+RsxcxntCLWPTzy67iQTlBuG992SPWbWDBQaO+UfwE6gu3l2IhB4fs1ExTQtsViI
+         u6eg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWTjvx7Ve4BHrcLQ9T7uQtSCwWCjGa376kUMVVGP/56DtB+SLLR
+	rnZS7xwkFvrnr/3ocd/vTAyxQkQhJWPQzdAWNycHwgT2zu+5fZuoQTt/htn+qWXyfg44umiCjRA
+	Zsg2FtLKALMZIBg93TEEiaSSd329fSMP/E8SVnBpAh7Z62QXwOBUnIR9TDcXo21d/GQ==
+X-Received: by 2002:a37:6646:: with SMTP id a67mr78328943qkc.216.1564495195628;
+        Tue, 30 Jul 2019 06:59:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw+YCUByfCusWJ692TwaE6TpK0MMe6L40yN4nHZ0ERGbQazGboguO6t75q2icyrTZ9VjAER
+X-Received: by 2002:a37:6646:: with SMTP id a67mr78328898qkc.216.1564495194869;
+        Tue, 30 Jul 2019 06:59:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564495194; cv=none;
         d=google.com; s=arc-20160816;
-        b=SlTPWiEhi6mfoYfs0m3R9e+YCW35dEoU2N2beI65IlmsU9LQluuYwze7RakjJHn6wS
-         /YsyRayEc+ZLffiDY+x7wyH9sFwPLab3/Tdu/j3lKNCJZ/TzybPX4efUiO+yD6Fy2g9m
-         MSL610zL1Fp8dBsvXBJhA63qVJPwnZpSGCwN3TSw+i3B6IyiSnfkRBtDlezEzaFHTfwC
-         tl8YdfBmFbXnJbdb6b7CQn/6/gzOCL+mJ93MBLGsRLYqbXto/5HbPIQIBk0G8mIcGFl3
-         TGBamgXNPwzBPD06JFAQzvFqO6dxDy8131rCKcVMrtZbfJPdJASYwGV3i3Lj7IdvTIT/
-         PMWg==
+        b=pie49yBm3e333niGDyDWHJLTT5o0AZDEM7uXy0KvMTX8vD1dVFCQ4rqJu3U5o/pvkP
+         /fO4IylWYg27+SIS43FlsZl4P5IX3aJmn7hc9tvVmzLtVxDTEMEdnrLrdq1GR63n+wOw
+         E7fOtT089z5nyWKt+m7A/wEDjxE5yaox7fIceTHLemhHsC6DZOV5E+1I0sUBr2Igoji5
+         n8Z+iBhnRso0shBCOjRNs22CgOL5p/LdKc0Wr00vemNdFP6Ec7z1cgFnVGkNsmHyaY4p
+         ypwSFj2/y64TUXR9i+rO8EH9Ao5rW0nJ5OeTSOhoLJ/1WGv/TRlRnnvNg1krJO22p8LW
+         oA5A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=aFowPyIt9gdotpFEshicTQ9xROnbZ3VyADVLdiEcGwQ=;
-        b=rkmE1Pcf8Ny7GCxqzde7Ms33Nd5KfX78aMGgM+uzodyz9pqtojGjQs3ztFIkFn+j6M
-         sMuAiK07kIUf9fQInGLoVas/TGGdJF0Prm3ttHVsK3yynZCLP0gHmq7sx1UN5JOzVklH
-         q4k38O1xgCS/lUn9dN2zPQhLgugJdZRvWvLbuMFOqFueluz2ViJ+93dgDeI6ardLDe0c
-         ZL8ZDtK+p0qLhlFJVb5VPRf+y690OUlhS/KdidurTXMu4qJvdOLkx8vNP6xNkBFEbxGX
-         mIdijxyy2Z2FUQJ/YFs2nPbLDjllHR5oUnRmMM05ijbBkqf5tFtvkJhOaDKvba41yOyL
-         JrHg==
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject;
+        bh=QrdKLx16jdQnHYfi4CV/rTDye/uzMWi4mZ1JzH117/s=;
+        b=1D1QK5kDifRDrBas6eSNtfKNmwrfGIIUixwQ0otI5pf33MfvEfyTNysYjb8gy26AWy
+         fo46pXfUrsnv1XmRsOLMdGfwIG936U/0BtHOkpifCsI9LR3Z8yhEx0gbYc/7BLLVVCtd
+         lrlNZ4qmNmJNp8E5bTUZILU4jaoyKZU3nRsiOfcz1uWlDkHnT+EJJUdGgE6XUUk8q/78
+         X990tirO7LbIa/GzTvwPV/8xXYmOq5mVtpEeQfwCOfyEvtMnTE0ojFqbl+QBrZfZke0O
+         9diV5WjHHriga+lWWYexO+5qB12UngJLQNmGtYzPmNzzPVlLEaaKjObOJi4viKFiifAC
+         Ir/g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id a5si17109908ejb.103.2019.07.30.06.57.58
-        for <linux-mm@kvack.org>;
-        Tue, 30 Jul 2019 06:57:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d124si36625463qkb.151.2019.07.30.06.59.54
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Jul 2019 06:59:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of kevin.brodsky@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 41F4528;
-	Tue, 30 Jul 2019 06:57:58 -0700 (PDT)
-Received: from [10.1.194.48] (e123572-lin.cambridge.arm.com [10.1.194.48])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 2BB393F694;
-	Tue, 30 Jul 2019 06:57:56 -0700 (PDT)
-Subject: Re: [PATCH v6 1/2] arm64: Define
- Documentation/arm64/tagged-address-abi.rst
-To: Vincenzo Frascino <vincenzo.frascino@arm.com>,
- linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
- linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Szabolcs Nagy <szabolcs.nagy@arm.com>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Andrey Konovalov <andreyknvl@google.com>
-References: <cover.1563904656.git.andreyknvl@google.com>
- <20190725135044.24381-1-vincenzo.frascino@arm.com>
- <20190725135044.24381-2-vincenzo.frascino@arm.com>
- <52fa2cfc-f7a6-af6f-0dc2-f9ea0e41ac3c@arm.com>
- <c45df19e-8f48-7f4e-3eae-ada54cb6f707@arm.com>
-From: Kevin Brodsky <kevin.brodsky@arm.com>
-Message-ID: <6eba1250-c0a2-0a51-c8c2-0e77e6241f29@arm.com>
-Date: Tue, 30 Jul 2019 14:57:50 +0100
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 0BE5D81F0E;
+	Tue, 30 Jul 2019 13:59:54 +0000 (UTC)
+Received: from llong.remote.csb (dhcp-17-160.bos.redhat.com [10.18.17.160])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 208BA60856;
+	Tue, 30 Jul 2019 13:59:53 +0000 (UTC)
+Subject: Re: [PATCH v3] sched/core: Don't use dying mm as active_mm of
+ kthreads
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+ Phil Auld <pauld@redhat.com>, Michal Hocko <mhocko@kernel.org>,
+ Rik van Riel <riel@surriel.com>
+References: <20190729210728.21634-1-longman@redhat.com>
+ <20190730084321.GL31381@hirez.programming.kicks-ass.net>
+From: Waiman Long <longman@redhat.com>
+Organization: Red Hat
+Message-ID: <396ac6c6-6c99-3cb8-6ff7-106c82df29ab@redhat.com>
+Date: Tue, 30 Jul 2019 09:59:52 -0400
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <c45df19e-8f48-7f4e-3eae-ada54cb6f707@arm.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-GB
+In-Reply-To: <20190730084321.GL31381@hirez.programming.kicks-ass.net>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Tue, 30 Jul 2019 13:59:54 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 30/07/2019 14:25, Vincenzo Frascino wrote:
-> Hi Kevin,
+On 7/30/19 4:43 AM, Peter Zijlstra wrote:
+> On Mon, Jul 29, 2019 at 05:07:28PM -0400, Waiman Long wrote:
+>> It was found that a dying mm_struct where the owning task has exited
+>> can stay on as active_mm of kernel threads as long as no other user
+>> tasks run on those CPUs that use it as active_mm. This prolongs the
+>> life time of dying mm holding up some resources that cannot be freed
+>> on a mostly idle system.
+>>
+>> Fix that by forcing the kernel threads to use init_mm as the active_mm
+>> during a kernel thread to kernel thread transition if the previous
+>> active_mm is dying (!mm_users). This will allows the freeing of resources
+>> associated with the dying mm ASAP.
+>>
+>> The presence of a kernel-to-kernel thread transition indicates that
+>> the cpu is probably idling with no higher priority user task to run.
+>> So the overhead of loading the mm_users cacheline should not really
+>> matter in this case.
+>>
+>> My testing on an x86 system showed that the mm_struct was freed within
+>> seconds after the task exited instead of staying alive for minutes or
+>> even longer on a mostly idle system before this patch.
+>>
+>> Signed-off-by: Waiman Long <longman@redhat.com>
+>> ---
+>>  kernel/sched/core.c | 21 +++++++++++++++++++--
+>>  1 file changed, 19 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/kernel/sched/core.c b/kernel/sched/core.c
+>> index 795077af4f1a..41997e676251 100644
+>> --- a/kernel/sched/core.c
+>> +++ b/kernel/sched/core.c
+>> @@ -3214,6 +3214,8 @@ static __always_inline struct rq *
+>>  context_switch(struct rq *rq, struct task_struct *prev,
+>>  	       struct task_struct *next, struct rq_flags *rf)
+>>  {
+>> +	struct mm_struct *next_mm = next->mm;
+>> +
+>>  	prepare_task_switch(rq, prev, next);
+>>  
+>>  	/*
+>> @@ -3229,8 +3231,22 @@ context_switch(struct rq *rq, struct task_struct *prev,
+>>  	 *
+>>  	 * kernel ->   user   switch + mmdrop() active
+>>  	 *   user ->   user   switch
+>> +	 *
+>> +	 * kernel -> kernel and !prev->active_mm->mm_users:
+>> +	 *   switch to init_mm + mmgrab() + mmdrop()
+>>  	 */
+>> -	if (!next->mm) {                                // to kernel
+>> +	if (!next_mm) {					// to kernel
+>> +		/*
+>> +		 * Checking is only done on kernel -> kernel transition
+>> +		 * to avoid any performance overhead while user tasks
+>> +		 * are running.
+>> +		 */
+>> +		if (unlikely(!prev->mm &&
+>> +			     !atomic_read(&prev->active_mm->mm_users))) {
+>> +			next_mm = next->active_mm = &init_mm;
+>> +			mmgrab(next_mm);
+>> +			goto mm_switch;
+>> +		}
+>>  		enter_lazy_tlb(prev->active_mm, next);
+>>  
+>>  		next->active_mm = prev->active_mm;
+> So I _really_ hate this complication. I'm thinking if you really care
+> about this the time is much better spend getting rid of the active_mm
+> tracking for x86 entirely.
 >
-> On 7/30/19 11:32 AM, Kevin Brodsky wrote:
->> Some more comments. Mostly minor wording issues, except the prctl() exclusion at
->> the end.
->>
->> On 25/07/2019 14:50, Vincenzo Frascino wrote:
->>> On arm64 the TCR_EL1.TBI0 bit has been always enabled hence
->>> the userspace (EL0) is allowed to set a non-zero value in the
->>> top byte but the resulting pointers are not allowed at the
->>> user-kernel syscall ABI boundary.
->>>
->>> With the relaxed ABI proposed through this document, it is now possible
->>> to pass tagged pointers to the syscalls, when these pointers are in
->>> memory ranges obtained by an anonymous (MAP_ANONYMOUS) mmap().
->>>
->>> This change in the ABI requires a mechanism to requires the userspace
->>> to opt-in to such an option.
->>>
->>> Specify and document the way in which sysctl and prctl() can be used
->>> in combination to allow the userspace to opt-in this feature.
->>>
->>> Cc: Catalin Marinas <catalin.marinas@arm.com>
->>> Cc: Will Deacon <will.deacon@arm.com>
->>> CC: Andrey Konovalov <andreyknvl@google.com>
->>> Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
->>> Acked-by: Szabolcs Nagy <szabolcs.nagy@arm.com>
->>> ---
->>>    Documentation/arm64/tagged-address-abi.rst | 148 +++++++++++++++++++++
->>>    1 file changed, 148 insertions(+)
->>>    create mode 100644 Documentation/arm64/tagged-address-abi.rst
->>>
->>> diff --git a/Documentation/arm64/tagged-address-abi.rst
->>> b/Documentation/arm64/tagged-address-abi.rst
->>> new file mode 100644
->>> index 000000000000..a8ecb991de82
->>> --- /dev/null
->>> +++ b/Documentation/arm64/tagged-address-abi.rst
->>> @@ -0,0 +1,148 @@
->>> +========================
->>> +ARM64 TAGGED ADDRESS ABI
->>> +========================
->>> +
->>> +Author: Vincenzo Frascino <vincenzo.frascino@arm.com>
->>> +
->>> +Date: 25 July 2019
->>> +
->>> +This document describes the usage and semantics of the Tagged Address
->>> +ABI on arm64.
->>> +
->>> +1. Introduction
->>> +---------------
->>> +
->>> +On arm64 the TCR_EL1.TBI0 bit has always been enabled on the kernel, hence
->>> +the userspace (EL0) is entitled to perform a user memory access through a
->>> +64-bit pointer with a non-zero top byte but the resulting pointers are not
->>> +allowed at the user-kernel syscall ABI boundary.
->>> +
->>> +This document describes a relaxation of the ABI that makes it possible to
->>> +to pass tagged pointers to the syscalls, when these pointers are in memory
->> One too many "to" (at the end the previous line).
->>
-> Yep will fix in v7.
->
->>> +ranges obtained as described in section 2.
->>> +
->>> +Since it is not desirable to relax the ABI to allow tagged user addresses
->>> +into the kernel indiscriminately, arm64 provides a new sysctl interface
->>> +(/proc/sys/abi/tagged_addr) that is used to prevent the applications from
->>> +enabling the relaxed ABI and a new prctl() interface that can be used to
->>> +enable or disable the relaxed ABI.
->>> +A detailed description of the newly introduced mechanisms will be provided
->>> +in section 2.
->>> +
->>> +2. ARM64 Tagged Address ABI
->>> +---------------------------
->>> +
->>> +From the kernel syscall interface perspective, we define, for the purposes
->>> +of this document, a "valid tagged pointer" as a pointer that either has a
->>> +zero value set in the top byte or has a non-zero value, is in memory ranges
->>> +privately owned by a userspace process and is obtained in one of the
->>> +following ways:
->>> +- mmap() done by the process itself, where either:
->>> +
->>> +  - flags have **MAP_PRIVATE** and **MAP_ANONYMOUS**
->>> +  - flags have **MAP_PRIVATE** and the file descriptor refers to a regular
->>> +    file or **/dev/zero**
->>> +
->>> +- brk() system call done by the process itself (i.e. the heap area between
->>> +  the initial location of the program break at process creation and its
->>> +  current location).
->>> +- any memory mapped by the kernel in the process's address space during
->>> +  creation and with the same restrictions as for mmap() (e.g. data, bss,
->>> +  stack).
->>> +
->>> +The ARM64 Tagged Address ABI is an opt-in feature, and an application can
->>> +control it using the following:
->>> +
->>> +- **/proc/sys/abi/tagged_addr**: a new sysctl interface that can be used to
->>> +  prevent the applications from enabling the access to the relaxed ABI.
->>> +  The sysctl supports the following configuration options:
->>> +
->>> +  - **0**: Disable the access to the ARM64 Tagged Address ABI for all
->>> +    the applications.
->>> +  - **1** (Default): Enable the access to the ARM64 Tagged Address ABI for
->>> +    all the applications.
->>> +
->>> +   If the access to the ARM64 Tagged Address ABI is disabled at a certain
->>> +   point in time, all the applications that were using tagging before this
->>> +   event occurs, will continue to use tagging.
->> "tagging" may be misinterpreted here. I would be more explicit by saying that
->> the tagged address ABI remains enabled in processes that opted in before the
->> access got disabled.
->>
-> Assuming that ARM64 Tagged Address ABI gives access to "tagging" and since it is
-> what this document is talking about, I do not see how it can be misinterpreted ;)
+That is fine. I won't pursue further. I will take a look at your
+suggestion when I have time, but it will probably be a while :-)
 
-"tagging" is a confusing term ("using tagging" even more so), it could be interpreted 
-as memory tagging (especially in the presence of MTE). This document does not use 
-"tagging" anywhere else, which is good. Let's stick to the same name for the ABI 
-throughout the document, repetition is less problematic than vague wording.
-
->
->>> +- **prctl()s**:
->>> +
->>> +  - **PR_SET_TAGGED_ADDR_CTRL**: Invoked by a process, can be used to enable or
->>> +    disable its access to the ARM64 Tagged Address ABI.
->> I still find the wording confusing, because "access to the ABI" is not used
->> consistently. The "tagged_addr" sysctl enables *access to the ABI*, that's fine.
->> However, PR_SET_TAGGED_ADDR_CTRL enables *the ABI itself* (which is only
->> possible if access to the ABI is enabled).
->>
-> As it stands, it enables or disables the ABI itself when used with
-> PR_TAGGED_ADDR_ENABLE, or can enable other things in future. IMHO the only thing
-> that these features have in common is the access to the ABI which is granted by
-> this prctl().
-
-I see your point, you could have other bits controlling other aspects. However, I 
-would really avoid saying that this prctl is used to enable or disable access to the 
-new ABI, because it isn't (either you have access to the new ABI and this prctl can 
-be used, or you don't and this prctl will fail).
-
->
->>> +
->>> +    The (unsigned int) arg2 argument is a bit mask describing the control mode
->>> +    used:
->>> +
->>> +    - **PR_TAGGED_ADDR_ENABLE**: Enable ARM64 Tagged Address ABI.
->>> +
->>> +    The prctl(PR_SET_TAGGED_ADDR_CTRL, ...) will return -EINVAL if the ARM64
->>> +    Tagged Address ABI is not available.
->> For clarity, it would be good to mention that one possible reason for the ABI
->> not to be available is tagged_addr == 0.
->>
-> The logical implication is already quite clear tagged_addr == 0 (Disabled) =>
-> Tagged Address ABI not available => return -EINVAL. I do not see the need to
-> repeat the concept twice.
->
->>> +
->>> +    The arguments arg3, arg4, and arg5 are ignored.
->>> +  - **PR_GET_TAGGED_ADDR_CTRL**: can be used to check the status of the Tagged
->>> +    Address ABI.
->>> +
->>> +    The arguments arg2, arg3, arg4, and arg5 are ignored.
->>> +
->>> +The ABI properties set by the mechanisms described above are inherited by
->>> threads
->>> +of the same application and fork()'ed children but cleared by execve().
->>> +
->>> +When a process has successfully opted into the new ABI by invoking
->>> +PR_SET_TAGGED_ADDR_CTRL prctl(), this guarantees the following behaviours:
->>> +
->>> + - Every currently available syscall, except the cases mentioned in section
->>> 3, can
->>> +   accept any valid tagged pointer. The same rule is applicable to any syscall
->>> +   introduced in the future.
->> I thought Catalin wanted to drop this guarantee?
->>
-> The guarantee is changed and explicitly includes the syscalls that can be added
-> in the future. IMHO since we are defining an ABI, we cannot leave that topic in
-> an uncharted territory, we need to address it.
-
-It makes sense to me, just wanted to be sure that Catalin is on the same page.
-
->
->>> + - If a non valid tagged pointer is passed to a syscall then the behaviour
->>> +   is undefined.
->>> + - Every valid tagged pointer is expected to work as an untagged one.
->>> + - The kernel preserves any valid tagged pointer and returns it to the
->>> +   userspace unchanged (i.e. on syscall return) in all the cases except the
->>> +   ones documented in the "Preserving tags" section of tagged-pointers.txt.
->>> +
->>> +A definition of the meaning of tagged pointers on arm64 can be found in:
->>> +Documentation/arm64/tagged-pointers.txt.
->>> +
->>> +3. ARM64 Tagged Address ABI Exceptions
->>> +--------------------------------------
->>> +
->>> +The behaviours described in section 2, with particular reference to the
->>> +acceptance by the syscalls of any valid tagged pointer are not applicable
->>> +to the following cases:
->>> +
->>> + - mmap() addr parameter.
->>> + - mremap() new_address parameter.
->>> + - prctl(PR_SET_MM, PR_SET_MM_MAP, ...) struct prctl_mm_map fields.
->>> + - prctl(PR_SET_MM, PR_SET_MM_MAP_SIZE, ...) struct prctl_mm_map fields.
->> All the PR_SET_MM options that specify pointers (PR_SET_MM_START_CODE,
->> PR_SET_MM_END_CODE, ...) should be excluded as well. AFAICT (but don't take my
->> word for it), that's all of them except PR_SET_MM_EXE_FILE. Conversely,
->> PR_SET_MM_MAP_SIZE should not be excluded (it does not pass a prctl_mm_map
->> struct, and the pointer to unsigned int can be tagged).
->>
-> Agreed, I clearly misread the prctl() man page here. Fill fix in v7.
-> PR_SET_MM_MAP_SIZE _returns_  struct prctl_mm_map, does not take it as a parameter.
-
-OK. About PR_SET_MM_MAP_SIZE, it neither takes nor returns struct prctl_mm_map. It 
-writes the size of prctl_map to the int pointed to by arg3, and does nothing else. 
-Therefore, there's no need to exclude it.
-
-BTW I've just realised that the man page is wrong about PR_SET_MM_MAP_SIZE, the 
-pointer to int is passed in arg3, not arg4. Anyone knows where to report that?
-
-Thanks,
-Kevin
-
-> Vincenzo
->
->> Kevin
->>
->>> +
->>> +Any attempt to use non-zero tagged pointers will lead to undefined behaviour.
->>> +
->>> +4. Example of correct usage
->>> +---------------------------
->>> +.. code-block:: c
->>> +
->>> +   void main(void)
->>> +   {
->>> +           static int tbi_enabled = 0;
->>> +           unsigned long tag = 0;
->>> +
->>> +           char *ptr = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
->>> +                            MAP_ANONYMOUS, -1, 0);
->>> +
->>> +           if (prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE,
->>> +                     0, 0, 0) == 0)
->>> +                   tbi_enabled = 1;
->>> +
->>> +           if (ptr == (void *)-1) /* MAP_FAILED */
->>> +                   return -1;
->>> +
->>> +           if (tbi_enabled)
->>> +                   tag = rand() & 0xff;
->>> +
->>> +           ptr = (char *)((unsigned long)ptr | (tag << TAG_SHIFT));
->>> +
->>> +           *ptr = 'a';
->>> +
->>> +           ...
->>> +   }
->>> +
->> _______________________________________________
->> linux-arm-kernel mailing list
->> linux-arm-kernel@lists.infradead.org
->> http://lists.infradead.org/mailman/listinfo/linux-arm-kernel
+Cheers,
+Longman
 
