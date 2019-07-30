@@ -1,246 +1,157 @@
 Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: 
-X-Spam-Status: No, score=-10.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PULL_REQUEST,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Level: *
+X-Spam-Status: No, score=1.2 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 34CD5C0650F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 11:58:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 77090C0650F
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 12:11:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BE5AC20693
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 11:58:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2D055208E3
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 12:11:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="pTAUOFHF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE5AC20693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="bYOaA1bj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D055208E3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EEF458E0003; Tue, 30 Jul 2019 07:58:40 -0400 (EDT)
+	id A9F9A8E0005; Tue, 30 Jul 2019 08:11:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E9EE58E0001; Tue, 30 Jul 2019 07:58:40 -0400 (EDT)
+	id A4F638E0001; Tue, 30 Jul 2019 08:11:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D40858E0003; Tue, 30 Jul 2019 07:58:40 -0400 (EDT)
+	id 93E9A8E0005; Tue, 30 Jul 2019 08:11:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 855B98E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 07:58:40 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id i44so40240087eda.3
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 04:58:40 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D94D8E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 08:11:18 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id y66so40688057pfb.21
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 05:11:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:accept-language:content-language
-         :mime-version;
-        bh=+33JPkMeNqyLpIkArR+07OT/1Uc18dPOVsUqjAcecF0=;
-        b=tTdO8Id7dE3Tl2/BQt8ZmKe0dBUi8b118kPhhlFZGRmCDfjTx58oavDwvKi47MIJcH
-         S1195aHicHrCybu/6qNITeITcIJEL7jGa+W2ikHmgzsGncxwc4krzcYDJq1v3u6xkLSZ
-         /5MmIhXLDXpmLrjitIJ7AId2cKZJDoi2L+bSe6S5ltQZTBy7YaamtLG7aK5m2tpvYjJu
-         d6/FsPd7fySBIGkYYoNcbElrUi9NzSRNougkXuhZ4CxqcVs2VxqGUpwUIgntYwQxh9oy
-         J8A1roqaVI0WsAlZ+BdgZ3zq8CxOGwKQbzMTHlv/pe6FnKFLTwD5chUDUZjHbUEmwBPz
-         37mA==
-X-Gm-Message-State: APjAAAUF6U9NnFPrfyGgWVSEsp+lvKm8QomL4YmgH+hdS+HNCBf0HbyW
-	XVvG1P/qebwNXtvAee+4WdLsMKQ0JZ48wHPjT39K0tGMLgaWaZfwV46PxKLfq32qI6QHKUl2JlX
-	w8F2UOA/+fThijmSM+3AbVvnE4rYWYOUhXkUtu5Nr6nvXUB5gWRXYFx2ItcSquZSJGQ==
-X-Received: by 2002:a50:9167:: with SMTP id f36mr101213410eda.297.1564487920111;
-        Tue, 30 Jul 2019 04:58:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzEDax+aPbkYEpzDTyskHns++rbEie5tzGVOthviLkxNQU8mUbOr7WIPq9/s8WVjpqpZtIT
-X-Received: by 2002:a50:9167:: with SMTP id f36mr101213354eda.297.1564487919080;
-        Tue, 30 Jul 2019 04:58:39 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1564487919; cv=pass;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=Wpon5LXiMRjWM4VYIexd4NaoumE7zgOXY2Q2zhMR31E=;
+        b=ZHeYehRw8PZ26E37KvL7mOrbodP1dLxf47K7WGDi6g+UBXbR3pLmxW3KXgyXcatFn8
+         ikKCXB1FgeXVuWsbOeLSM1VRBwo5e5Ez6MS95gW3av9CaGPFwqKMpC9PdVziaI44OliG
+         VgS/AOLNk1Y09RMUbEgOcThRgzQJqqMiIxTtd13OiKKdLM0q+pxJunF0sIeb3FH+l0WB
+         FZsJx++h/xHld4FrXY7XSShm5bEiMn9eQDmvG4IlFPF8a9oZ3PRnMVaNMVe7iqcHxOMu
+         74dEujV4ZeE59AMA1gcJ+tzXeRSSpwdTBP3fL8/rXnOa9VjLPnd72mrqfZq3IPWEVeUw
+         cwYw==
+X-Gm-Message-State: APjAAAVXoxelw2OjMI2JEZUj5YyuUfFq1zmivRMDkKR/+V/3f2nTwNKz
+	1RoTlVPePIGjD+6FpCSq/2VJsE7dhWdVvdp/AfWe9aJcJIotP7cpggv+b3ddTg9XLjHCozs4W13
+	m1g1uDpLA16E1ylrNqGUECtwe3OlKFsAWZ8MVqhWohyE2Jdbc9LYdUUrarnwwe/4=
+X-Received: by 2002:a65:6547:: with SMTP id a7mr87631133pgw.65.1564488677754;
+        Tue, 30 Jul 2019 05:11:17 -0700 (PDT)
+X-Received: by 2002:a65:6547:: with SMTP id a7mr87631067pgw.65.1564488676748;
+        Tue, 30 Jul 2019 05:11:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564488676; cv=none;
         d=google.com; s=arc-20160816;
-        b=MeNx89RZipmnN6d5FdKs9+S+W2ahXA1BsEyILNYjE4L6DHNFxDfKH0ISW4D2Kkrvs5
-         mkVTzB30Sg/FabtsCmilDjNnWIKr4TAR2Gw2pVwQQ24dSVAi/l5yxKZ1tB+i22Qmj3WV
-         zxu5G6PPHBuOm9q9Q5bKSG819j7FmB3w7UThTcgnCGEPhjmTuHGwWni0zEumwE2PRyNa
-         tjh8Xc9jYXfdP4mK5I7NGfYtF6QwTQW65P73Ncf+FxjLJsyYebhMqqmN5u+AUya3ydHR
-         c0PZ8AQ5kecmMWPqb4qnuyAKT+hUuvcdTcRM+Xsl91mptqay/LmwwwHHX4VwseQw2UwU
-         IO2g==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-language:accept-language:message-id:date
-         :thread-index:thread-topic:subject:cc:to:from:dkim-signature;
-        bh=+33JPkMeNqyLpIkArR+07OT/1Uc18dPOVsUqjAcecF0=;
-        b=l3dV6DwsQNzVixBTkPT5s4NlgFpI9rdQxWSaNrWYlu2SMYU3NRs4ey/wojiyrPhQS+
-         Fg1TAF427+XB/VgC8C7BmNvkXBRP+1YVL7OEdDcRM/4UMRv6MW+bPnltKitoFuSsgSyG
-         wtzTswjm9Q/uAz7tYJHc8QHxYBwfP/YU75s4BcWjy8cGuzRtqKbucBTNY+ywW/DWseQl
-         vStN+d08O8ZGIqvOI6kIS0w+A8ED7Xi85auKASqzI7qw26xT+YzZM0czIngDhxLDSN+9
-         VlQX6YfgHZFGkCmsa0HriA3OU4eQvmVXN7zY9WNq0KP1ylyw1mFOVNrpfN/1sIjwFwZP
-         yFmg==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=pTAUOFHF;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.0.85 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00085.outbound.protection.outlook.com. [40.107.0.85])
-        by mx.google.com with ESMTPS id s41si8564691eda.207.2019.07.30.04.58.38
+        b=upiMEfknFnFpjz6nuLwLqJoGkmVr7xInfxR4C2bvMQaceV1OMO2nUG3ixzRmk/CjIJ
+         doxk6oBx/oW6as5O5tCsVERTZly4RmDL+QxesXPDAFI6opPKuL2pwJFeGV0WW59LuxJc
+         fjBMhw5mVHcJSH7CUcyqPJWGoc8+CXyCBC1v2GA3G5XI3CdPO9nwh6mZ0cukmPF8ffgP
+         +3jFnYAA0FlkgcjTgfbF78Q74X9NfVCfht9Z8gT1BOiA7+qjSl4fEUsY94DjdaVyXRST
+         NmuR7ZA+brzYHMixsOQG5tjVvnGrt7x81CzGJIohnVSDodenszmZK5O6lhE4AMQtZwCC
+         nbAg==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=Wpon5LXiMRjWM4VYIexd4NaoumE7zgOXY2Q2zhMR31E=;
+        b=fH0zshKXnkf7VdiP0U26SnqnzSyy2ZTTIsHiAIfo9OMn11I1BA0kNmkh/B8lArhMiM
+         NoPflgGF5Vs5iD0Z7Czb7wi6T6F2Y19unLjnlcDAap8OiYxS+6HA8l8x9kIo9+S/yaTX
+         mEKEM0loBgwkb2HemzsqAcqTOFlXp6mVgAYIvZQtMgKI4DqbPaIKm48NiqmgT2R0V2dd
+         6c+nm34Y7VL0SaqsAUZYcHbAqEF/9hfGFjjebRygZ1G5G+3J1DaZ89EFpTjS5BLFR/px
+         pubOwmvkgdKWe7KX205eR4O4R/gtoSzK7hiPV3BvUVwa5iDWpYaSLJU/TLntr64SsZ1U
+         ujpw==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bYOaA1bj;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o39sor77281883pjb.10.2019.07.30.05.11.16
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 04:58:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.0.85 as permitted sender) client-ip=40.107.0.85;
+        (Google Transport Security);
+        Tue, 30 Jul 2019 05:11:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=pTAUOFHF;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.0.85 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=Uc8o/Yooyf+Fy5LKnRl1Q0XcxHidnxtz+lMj2KtHxnjqhVsUr95WcbfWNVwhqnJf79bfhWflXFWoL8XG7qXJFtMuJ67f6mRH4gynMI6pbd2yMI+3kfqoLEJGRdgWffFsDRgK1Uzue56PoCOHq8EK3G+VYJyVOXTf/SmxvWJdLybhWQIO5gYCwwT8LKjbEIrKyqn87++TjyzkwFbaL3jJK3PeprU5YxSOqNqvGm01F3Z8LpudxrbHJA54pkSyIQ3T1O40adB0DhnKgfL+/R1n5DkUt/WsrjmN9n/iaGZiHpdmZ6kq9KN29PMEfY2qd9srciO+LYFnOjfw/bWg66Sr8g==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=+33JPkMeNqyLpIkArR+07OT/1Uc18dPOVsUqjAcecF0=;
- b=iGk7bvIkg/GNugY0L0VxDrVeuuAamrfuGgpnx0hvCiMUdsWStVYn7Pwy+3jd3G3mep0LnT1Qaz6y0YsCKGR3LBe9+c6PNHOZKjdShaidgDXsIgPGFlYOM2JYmdN+epxZe7V+YWyeA2wbIl52BR06T7rOPktUQZsS+wIEJuP5UZb+rD9BmyS2uL3+1F+OnGNMMS1cQ5569/DBlInyxqYAtNn+QR9tM2na/O/ymR+oOkSllxoLI55iJdZFO2eCF4HSuSjlqkwVl+cRz/BwG9YR0waPI4J+jBWtLTHcvTSRl7OG1mRsm/vc3gBsZpYb6QeFCXa5jlzhxIqMxcXuXuW+6A==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=mellanox.com;dmarc=pass action=none
- header.from=mellanox.com;dkim=pass header.d=mellanox.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=+33JPkMeNqyLpIkArR+07OT/1Uc18dPOVsUqjAcecF0=;
- b=pTAUOFHFWfescS2ALdSMnHR93xaow9VsWlzsAk8JjASyGaYs4pWcwCVu6CuTbDVgQfBSypFOugHWALdYbxjv7Vxd/pSUo6emmDdLH8+vBD/Su7SlYf/6FeOJQ8mjNbb6PbQ5Qt+xmsYlY/wjA4Pewlm5aTiJo45RVexpLp6yyNo=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB6063.eurprd05.prod.outlook.com (20.178.204.33) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2115.15; Tue, 30 Jul 2019 11:58:37 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880%4]) with mapi id 15.20.2115.005; Tue, 30 Jul 2019
- 11:58:37 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton
-	<akpm@linux-foundation.org>
-CC: Christoph Hellwig <hch@lst.de>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>,
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, "Kuehling,
- Felix" <Felix.Kuehling@amd.com>, "Deucher, Alexander"
-	<Alexander.Deucher@amd.com>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-Subject: [GIT PULL] Please pull hmm changes
-Thread-Topic: [GIT PULL] Please pull hmm changes
-Thread-Index: AQHVRs4epyeD1jwmWUi/iXXZo7asug==
-Date: Tue, 30 Jul 2019 11:58:37 +0000
-Message-ID: <20190730115831.GA15720@ziepe.ca>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: yes
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YQXPR01CA0104.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:c00:41::33) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: b6f9997d-b133-407b-5779-08d714e5413a
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4618075)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(49563074)(7193020);SRVR:VI1PR05MB6063;
-x-ms-traffictypediagnostic: VI1PR05MB6063:
-x-microsoft-antispam-prvs:
- <VI1PR05MB6063117D58AB82D9BBD5CD20CFDC0@VI1PR05MB6063.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:3173;
-x-forefront-prvs: 0114FF88F6
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(346002)(136003)(376002)(366004)(396003)(39860400002)(199004)(189003)(66446008)(99286004)(4326008)(54906003)(8936002)(53936002)(33656002)(68736007)(81156014)(81166006)(2906002)(316002)(486006)(66066001)(110136005)(99936001)(186003)(386003)(6506007)(102836004)(71200400001)(71190400001)(26005)(8676002)(476003)(52116002)(7416002)(478600001)(256004)(14454004)(305945005)(6512007)(6486002)(14444005)(7736002)(36756003)(6436002)(9686003)(1076003)(25786009)(5660300002)(66946007)(6116002)(66476007)(66616009)(86362001)(66556008)(64756008)(3846002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6063;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- 5lwbL/YVtpY1+D5llxcTNXTbawvmeQQKNRaFB7wOLtBFTVGXipPPkgJryzHiWHG/XZWScZv9oJYdOB3qYtDOHbWHDqRo8PWrd3Ev498c5T2DQEBKlamgQpSB905/FbcjUoj49aH/xVj5DrtIGh3ljuSdo8DIywKp+wn2saqRHoQOn3Qm847USGFdAZC+mQw9wbx+VQyKQQOo11AgcqeNaLt4C6EiYyHHM9zM4N0LOoMC5i6XUC8f5bo4nWiCchaoqkJz0b32ALq51NclJz1zWpgqdGSqgb6a386gTi8WHJF9u5KFzHdOkr439yGB7m5x5LvKlZL4doaItYPvle6GOAtpKoonSl3I23Tg7RwKSOxs8bXkieWDWyJiPdNFtoDdPlXkkOaxFJm3bRcce9f4aoKoYtiH8U14x2yZfwDBxfE=
-Content-Type: multipart/signed; micalg=pgp-sha512;
-	protocol="application/pgp-signature"; boundary="pWyiEgJYm5f9v55/"
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=bYOaA1bj;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=Wpon5LXiMRjWM4VYIexd4NaoumE7zgOXY2Q2zhMR31E=;
+        b=bYOaA1bjRco0KHiZUAi1zM5jzjhzBM9TFIVJFCNiCUd9klzlUnSBKKxdDG4ISThyEg
+         dKAvL9lhA4uGT5YSTc3c/AQ7R68uUd7Qh3u1Ib/j9CIUG36TpMQxJJbYXw7vHVZcO59A
+         BczKwzrUBb0l+kBbfjr/G3/FnLYjZdWYP52hSIax7z7O3Giv8C50XnV4a1Vpu+gJS4Xd
+         8PI7hObtiD+MWvhhPxwZw+For/ajH7QgYSyEkQtIVLp2461/mPALNlafvpkaB1gsbWiP
+         /RDkpdDEAStH+4711XBFhYWtRgR3XN777zbvF4LMwCWK3qOQ3nCovPrhKed6mVA5NYFU
+         K3cA==
+X-Google-Smtp-Source: APXvYqz+7hvZ1/fI1zRquioobNABSKavQ8310Y3CJ+5E/soZhgZLg7s+89NlIGB9IMVG6KNx+Kd2Nw==
+X-Received: by 2002:a17:90a:2488:: with SMTP id i8mr114501776pje.123.1564488676117;
+        Tue, 30 Jul 2019 05:11:16 -0700 (PDT)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id a5sm56153980pjv.21.2019.07.30.05.11.12
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 30 Jul 2019 05:11:14 -0700 (PDT)
+Date: Tue, 30 Jul 2019 21:11:10 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Miguel de Dios <migueldedios@google.com>, Wei Wang <wvw@google.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: release the spinlock on zap_pte_range
+Message-ID: <20190730121110.GA184615@google.com>
+References: <20190729071037.241581-1-minchan@kernel.org>
+ <20190729074523.GC9330@dhcp22.suse.cz>
+ <20190729082052.GA258885@google.com>
+ <20190729083515.GD9330@dhcp22.suse.cz>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: b6f9997d-b133-407b-5779-08d714e5413a
-X-MS-Exchange-CrossTenant-originalarrivaltime: 30 Jul 2019 11:58:37.2602
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6063
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190729083515.GD9330@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
---pWyiEgJYm5f9v55/
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+On Mon, Jul 29, 2019 at 10:35:15AM +0200, Michal Hocko wrote:
+> On Mon 29-07-19 17:20:52, Minchan Kim wrote:
+> > On Mon, Jul 29, 2019 at 09:45:23AM +0200, Michal Hocko wrote:
+> > > On Mon 29-07-19 16:10:37, Minchan Kim wrote:
+> > > > In our testing(carmera recording), Miguel and Wei found unmap_page_range
+> > > > takes above 6ms with preemption disabled easily. When I see that, the
+> > > > reason is it holds page table spinlock during entire 512 page operation
+> > > > in a PMD. 6.2ms is never trivial for user experince if RT task couldn't
+> > > > run in the time because it could make frame drop or glitch audio problem.
+> > > 
+> > > Where is the time spent during the tear down? 512 pages doesn't sound
+> > > like a lot to tear down. Is it the TLB flushing?
+> > 
+> > Miguel confirmed there is no such big latency without mark_page_accessed
+> > in zap_pte_range so I guess it's the contention of LRU lock as well as
+> > heavy activate_page overhead which is not trivial, either.
+> 
+> Please give us more details ideally with some numbers.
 
-Hi Linus,
+I had a time to benchmark it via adding some trace_printk hooks between
+pte_offset_map_lock and pte_unmap_unlock in zap_pte_range. The testing
+device is 2018 premium mobile device.
 
-Locking fix for nouveau's use of HMM
+I can get 2ms delay rather easily to release 2M(ie, 512 pages) when the
+task runs on little core even though it doesn't have any IPI and LRU
+lock contention. It's already too heavy.
 
-This small series was posted by Christoph before the merge window, but didn't
-make it in time for the PR. It fixes various locking errors in the nouveau
-driver's use of the hmm_range_* functions.
-
-The diffstat is a bit big as Christoph did a comprehensive job to move the
-obsolete API from the core header and into the driver before fixing its flow,
-but the risk of regression from this code motion is low.
-
-I don't intend to often send -rc patches for hmm, but this is entangled with
-other changes already, so it is simpler to keep it on the hmm git branch.
-
-Thanks,
-Jason
-
-The following changes since commit 5f9e832c137075045d15cd6899ab0505cfb2ca4b:
-
-  Linus 5.3-rc1 (2019-07-21 14:05:38 -0700)
-
-are available in the Git repository at:
-
-  git://git.kernel.org/pub/scm/linux/kernel/git/rdma/rdma.git tags/for-linus-hmm
-
-for you to fetch changes up to de4ee728465f7c0c29241550e083139b2ce9159c:
-
-  nouveau: unlock mmap_sem on all errors from nouveau_range_fault (2019-07-25 16:14:40 -0300)
-
-----------------------------------------------------------------
-HMM patches for 5.3-rc
-
-Fix the locking around nouveau's use of the hmm_range_* APIs. It works
-correctly in the success case, but many of the the edge cases have missing
-unlocks or double unlocks.
-
-----------------------------------------------------------------
-Christoph Hellwig (4):
-      mm/hmm: always return EBUSY for invalid ranges in hmm_range_{fault,snapshot}
-      mm/hmm: move hmm_vma_range_done and hmm_vma_fault to nouveau
-      nouveau: remove the block parameter to nouveau_range_fault
-      nouveau: unlock mmap_sem on all errors from nouveau_range_fault
-
- Documentation/vm/hmm.rst              |  2 +-
- drivers/gpu/drm/nouveau/nouveau_svm.c | 47 ++++++++++++++++++++++++++++--
- include/linux/hmm.h                   | 54 -----------------------------------
- mm/hmm.c                              | 10 +++----
- 4 files changed, 49 insertions(+), 64 deletions(-)
-
---pWyiEgJYm5f9v55/
-Content-Type: application/pgp-signature; name="signature.asc"
-
------BEGIN PGP SIGNATURE-----
-
-iQIzBAABCgAdFiEEfB7FMLh+8QxL+6i3OG33FX4gmxoFAl1AMOIACgkQOG33FX4g
-mxoQ2g//RnLjfumNrH3tMwS8UkYgAoWVh6NGyQ7EjUPT2fvHlfo3dMqzUNK9h+wN
-k2MKDTSZbFVhJQ5scU9KbhzGBXih4+DLnW1bpN1k/6nfZ6EXxRJakmcEz+LE53Pn
-ylcuBXU9SLf733j+uwy42BQhkL7/Ykk+vt/aToWEyuTIXsR7zkTPVd7XH4JcHKi6
-Lsf+zGtBCsIsh27T7uyyyOI52XwcY8Zm6LvfIKdOLczPRB8SzQ3yyMHjG42L7/ui
-VGDvoU+4pMGQmBg2anE49/xsxDrGWeVYgkcsQcw2PhlthXw3VwmWBj83chLU9+qt
-Vc1jofLj4Srgv+mXgFjmu0j1yJ84qoJaBb1YPzxDWoJGHpXyhLWKc7U55lvvotDD
-EJCOV6nE+VMGo/Zu96O+LI4IW05afPxJstNj3XQg72lF4WaRGOS8q3OhmGqntaNh
-ajQNYrcUDODmwepiOpDPf28K2cybwdINqrNKFw2e9eybnBxE4VEoF5vjUIlQmYoj
-BNZAORxOyrnNHr8w3q46pK5OPinjXhNnKXJFrcqldZKKonhRCTIb+vu22CLD0QCC
-DjmflIaGbHx8Q8yB+9B5pFt3j/a9lMzYgfN61Kh1qCOAiDWDXBjJ/c/mA6++iwgL
-08F+Xltp9NoE46VUbpij+5xq6eaXrHWb7v8QyRZJt04KHziebmM=
-=6E82
------END PGP SIGNATURE-----
-
---pWyiEgJYm5f9v55/--
+If I remove activate_page, 35-40% overhead of zap_pte_range is gone
+so most of overhead(about 0.7ms) comes from activate_page via
+mark_page_accessed. Thus, if there are LRU contention, that 0.7ms could
+accumulate up to several ms.
 
