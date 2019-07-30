@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 962B9C0650F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:52:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1BE5DC0650F
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:52:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3E9142087F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:52:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C777120679
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:52:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="WKq782IF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3E9142087F
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="nv/Uk3iA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C777120679
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D91B38E0009; Tue, 30 Jul 2019 01:52:30 -0400 (EDT)
+	id 618048E000A; Tue, 30 Jul 2019 01:52:34 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D449A8E0002; Tue, 30 Jul 2019 01:52:30 -0400 (EDT)
+	id 5A0168E0002; Tue, 30 Jul 2019 01:52:34 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C0C378E0009; Tue, 30 Jul 2019 01:52:30 -0400 (EDT)
+	id 490EE8E000A; Tue, 30 Jul 2019 01:52:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8B1698E0002
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 01:52:30 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id u10so34628728plq.21
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 22:52:30 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 138528E0002
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 01:52:34 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id u21so40096265pfn.15
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 22:52:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=SLYhAoIvzDqEf4YX6gjEiCAIywOZyrNyWp5yd9O/FEc=;
-        b=t+BXAdfZvsMU4IAkbkEXtOfcqquQ8ZFtskq+7hi3+Cv1jmX8vrxsO6ZpVZZjGK5F3T
-         4a7kKshqb5W21a+y1oDnqlzHHiWfRSfXyiq7CdoAKt5jfQoQmsu0Hd4hDcwUTnUELiOF
-         bNsOGzgC7wDAkW+f67vBrl/edYfEGBVUYD4kV4AMS+q1diYv1wIo+vfxNZy7d0aT5wUb
-         y0PDi3PHn4kqXERZ4uhiOp1S90JhBZIM0GQ0RpZ44mMyS7kw7SbM0LTWaHU49askym0G
-         LVI7esvqNzYmqdX51fbNT5upnwvOAGGdPwzhKLNoxhKzF9CgIdxXmyw0pQEP3yjKxOGm
-         fb8g==
-X-Gm-Message-State: APjAAAU0VHlgauQD544syjE8cgZr0jYDyXLgYRiFzP7IgnL1xY/AqsIy
-	quEtVxZSNi8PwJc+F/Z6gZjZPe0xk8Ycu+piF8b3jmBeTBln4Crk8pGv4ILfF1AOov+mvPfslK7
-	1fiBojeP97K+kDyq5binv416hNN4PPLkwQM1GJHVVVO+9jf1PeUOCIPoexCUduPA=
-X-Received: by 2002:a65:5144:: with SMTP id g4mr55092005pgq.202.1564465950170;
-        Mon, 29 Jul 2019 22:52:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwimMzsJlp/rxyu3tbiIeCyJ7UDUBpj/mpUETQuHMu4G5FumRr3XsAjpr7LQwBhGRcpVpNJ
-X-Received: by 2002:a65:5144:: with SMTP id g4mr55091973pgq.202.1564465949227;
-        Mon, 29 Jul 2019 22:52:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564465949; cv=none;
+        bh=eS5S4KohR3irhWgtUfLvLexYfgHi/N0ae1QbGrg+MN8=;
+        b=R51Yf+6vMh99E2YB6RWseyUdFEmv7S2IDE0ZGQrm6Vt9GHo87MkTP8JkbXhHPs45qb
+         RjyL322zZAU12hoEvhk4I0WSiIRpw/EJTBoFkcVmHt4azeAFjLgIiku1AyZWB3pd3g2G
+         99oUid7eSLBcT11yD0qMTvHhqq0NgRfPmSBn6ck1YUesmWEMfEF4fyt6uPa4DfR8aP0k
+         F1Emq7J3vJLeclzFZASwRdlrVQBAdYQoWlugFbC7s0mymfaowKDHAlbxATczq+C7buyU
+         IczoXqA99hgZLP3nBnvzXhC5ByNRfi5U8F9Hu0YERIt/RgpeYb9H2Mh1ZpmhqoMZ97sv
+         w/HQ==
+X-Gm-Message-State: APjAAAXvd3QTbNxbAONmYT1PtJX6w0tZNV0rfZC04m8vnb8/5rgEyGOa
+	IAlHvqE9OJuP4Awm4bks+kg//k8y20Ewvrh51XSpY1qz1O9mxmgBLZNuDiWoWI1foTbmokg705K
+	I6C1F8AA+BAIZextQFoExQhznn14ohI5CK8AVgbhTuuhL+E3AEFVq8lrQLHW0D9g=
+X-Received: by 2002:a65:6497:: with SMTP id e23mr103634764pgv.89.1564465953659;
+        Mon, 29 Jul 2019 22:52:33 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxH3BGsPEmsfiSc7ofekS3qUuDOOhdlPR9oo4Y2h1XyhQzEfxNnweYZgUrhzx1nMiW5F84L
+X-Received: by 2002:a65:6497:: with SMTP id e23mr103634729pgv.89.1564465952642;
+        Mon, 29 Jul 2019 22:52:32 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564465952; cv=none;
         d=google.com; s=arc-20160816;
-        b=msntS5ba1+pbPkyX8PosZAsBbWgr4Yx5XIhUTkj14gwBz4nTQWwSxpxyW9L0D4043Q
-         i/ojA+pzXa0EGLkb0q2PkKxFalGYtL7ZQGL4RuyoIhRMmRDoIpTVvTvySZ8eIV3MVhMr
-         9Wf9STKr4qx55ugYyvlaH+fXZS+NV05e4N8U6yNPYd/UbQuZCLoVu3CI3AXvmJ7O7PxM
-         OaY4n1t6P8b+26xwdReDy47Exozrb5LCRlbcoHLyA/BM4aawTM4JOpMHu2qZEQmLlkQo
-         ciSsJ1Fm4pDgtAoYM0/ztfBe6e/4HAIeuB+ju4jyNCT4odhzfzouuidCeqj12sUflvX7
-         apFQ==
+        b=vKocNOqEmlYv3t7ra01qEo538at0xpV8HQnXIXwRaBISGCgrDuQKc0pbryi4W/0kSF
+         0bWysS0V4bghbgk7rIAMHCmxysEWGjOX3YjXTDHFGYj2csjHzJQlkAVBz8IgVLJvMMGQ
+         kukLoflNSjzosd0HMf6OoteU5aJPbpn02i0mbvZ4n0BgpyZ1UoUIvJAbPYtdGx2y1X/A
+         8tzR5BYbh97F2boy3wUfssBBDJdjLms9DYCDoOdfA8KbKKNixs+j21C387YLk6s2mm7E
+         Ri3i0zxn5Po5h52y6k5A8G8pBynEDBKoxjAFKrHwhCCRfrG//SH+EVutkIf2Jh2wlFWX
+         wSgQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=SLYhAoIvzDqEf4YX6gjEiCAIywOZyrNyWp5yd9O/FEc=;
-        b=j1PxoNiVXqi7Ny1R3bjkdPKdtUv2oa1yy2oxHtzYwTUg4HS8lU/EytVboudyfrq6Id
-         9Bzk1NPh/M65HSrPyG/CDC4lfb9e1WbuHFAWgO7dQAf49xHIBDKFsYDxY+0S3coKnfbA
-         8bnJ1/+m54K2StALOBtJWrw58dJhlmPknITUB4vhmKDTY0NjO8LhG9JUcu8P+Ent+jxa
-         9HGJssJ/u/R1XLVDsX1NEKh6JII7l2CjsizypvqgCEG4TkIEalzJ+TzFE7Mx8hj2mAhX
-         DIbKdgiBPtDC9/sdBR2MxDaJbNAAb2oatBGfvSgudS2UDm/MTjUGwNk6To/aBZjPJPLA
-         8bMg==
+        bh=eS5S4KohR3irhWgtUfLvLexYfgHi/N0ae1QbGrg+MN8=;
+        b=0u4QHZzZMnXqsWHn5XntO0kwbSKXrw4tfM9aVaeF19Z/C8CUvL2ZDx0QU+zes4c9FI
+         jWgeVNOlrcimfEjrYO2fi81KrHGTGbekg2ml3Gi4Rm3Yh+S5MWqJ9M6cNsFGGS5mS0V6
+         HKiRUWHJYOK67ccZYkeVkuc0dvDaUX7aSr1FTMMux5Twlq1oEVqFTOLw0a23igOnPSmK
+         v/MWOtqK033F0rvwKsNGsuciTaVejPvS8d8poFOS8AAnsz9Vz9SBnO+I5UmEz5Xqo+MD
+         WKf+34iFSIKfeua9nGmX0WUnAdUrF1ystyMxIaeajXcyP/Lw+l7YMo/ZHDHOT79amGbq
+         Rl8w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WKq782IF;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="nv/Uk3iA";
        spf=pass (google.com: best guess record for domain of batv+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g11si6663154pgs.59.2019.07.29.22.52.29
+        by mx.google.com with ESMTPS id g90si27247816plb.282.2019.07.29.22.52.32
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 29 Jul 2019 22:52:29 -0700 (PDT)
+        Mon, 29 Jul 2019 22:52:32 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WKq782IF;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b="nv/Uk3iA";
        spf=pass (google.com: best guess record for domain of batv+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=SLYhAoIvzDqEf4YX6gjEiCAIywOZyrNyWp5yd9O/FEc=; b=WKq782IFsF2U8eCPkvbUWuvcnc
-	dGVtnstjVvRw2rYquMXhiZpabUdUodjkHu9e7OfwK5arL0H5z+H39dxtShbtn8hqykGKG03/CEL0F
-	NUObuP68VCe2bBewDj64dRY+eMtBG27qhmhh5JOz8nTU3t5Sh/ssdaHtdPal7/Ql9XMNVhT5vTpqd
-	tGdz/1eEoUVBDmSFmFqaT5L12zImSvXSXehxchm9l9I6kt/e/hGAQmgn4I+XTxnAGXdmF2OJJSk2R
-	xl6eJ0RkTyxEgWzxTAyofzqSRzUa8oFtXKF2RnLpeyeF4NvIBHBO+0N+OyQQ2gti5w0FwunCO7uiv
-	aR5KVByA==;
+	bh=eS5S4KohR3irhWgtUfLvLexYfgHi/N0ae1QbGrg+MN8=; b=nv/Uk3iAICQEpzysmQOiV3ryQv
+	Gat/o6BVc3xRRsdrPwHSTMM2PMHHx6bU9QSukJm2PAurh78FQ6xcvWGwTwVe/vCRF8XF1u9iIfpFg
+	3J91GH7pyOv19vBJ2W847BvEtuCSYnPFVfS6gjHMgFai+iGhE5jKeaX7ZjA2gHRqthFtkAG2vCK0m
+	CmT9xHVXxhVaJu95LQDIP1xwx4JE6wMjVjSt4XgFBd1vs92KnozwLz39ze5LkRqyV0DWWRbdvUfKt
+	37xLUeobKeP/aKEoCv2ZbxpUJT8lqkPzdAow/RTLlaRdVTvcnqTOqUpRZMSLcOSGa7xHRlobRix/L
+	VaoUlOfQ==;
 Received: from [195.167.85.94] (helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hsL3i-00016F-Io; Tue, 30 Jul 2019 05:52:26 +0000
+	id 1hsL3l-0001D4-C6; Tue, 30 Jul 2019 05:52:29 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
 	Jason Gunthorpe <jgg@mellanox.com>,
@@ -106,9 +106,9 @@ Cc: Ralph Campbell <rcampbell@nvidia.com>,
 	dri-devel@lists.freedesktop.org,
 	amd-gfx@lists.freedesktop.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 04/13] mm: remove the pgmap field from struct hmm_vma_walk
-Date: Tue, 30 Jul 2019 08:51:54 +0300
-Message-Id: <20190730055203.28467-5-hch@lst.de>
+Subject: [PATCH 05/13] mm: remove the unused vma argument to hmm_range_dma_unmap
+Date: Tue, 30 Jul 2019 08:51:55 +0300
+Message-Id: <20190730055203.28467-6-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190730055203.28467-1-hch@lst.de>
 References: <20190730055203.28467-1-hch@lst.de>
@@ -121,172 +121,44 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There is only a single place where the pgmap is passed over a function
-call, so replace it with local variables in the places where we deal
-with the pgmap.
-
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- mm/hmm.c | 62 ++++++++++++++++++++++++--------------------------------
- 1 file changed, 27 insertions(+), 35 deletions(-)
+ include/linux/hmm.h | 1 -
+ mm/hmm.c            | 2 --
+ 2 files changed, 3 deletions(-)
 
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 82265118d94a..59be0aa2476d 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -422,7 +422,6 @@ long hmm_range_dma_map(struct hmm_range *range,
+ 		       dma_addr_t *daddrs,
+ 		       unsigned int flags);
+ long hmm_range_dma_unmap(struct hmm_range *range,
+-			 struct vm_area_struct *vma,
+ 			 struct device *device,
+ 			 dma_addr_t *daddrs,
+ 			 bool dirty);
 diff --git a/mm/hmm.c b/mm/hmm.c
-index 9a908902e4cc..d66fa29b42e0 100644
+index d66fa29b42e0..3a3852660757 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -278,7 +278,6 @@ EXPORT_SYMBOL(hmm_mirror_unregister);
- 
- struct hmm_vma_walk {
- 	struct hmm_range	*range;
--	struct dev_pagemap	*pgmap;
- 	unsigned long		last;
- 	unsigned int		flags;
- };
-@@ -475,6 +474,7 @@ static int hmm_vma_handle_pmd(struct mm_walk *walk,
- #ifdef CONFIG_TRANSPARENT_HUGEPAGE
- 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
- 	struct hmm_range *range = hmm_vma_walk->range;
-+	struct dev_pagemap *pgmap = NULL;
- 	unsigned long pfn, npages, i;
- 	bool fault, write_fault;
- 	uint64_t cpu_flags;
-@@ -490,17 +490,14 @@ static int hmm_vma_handle_pmd(struct mm_walk *walk,
- 	pfn = pmd_pfn(pmd) + pte_index(addr);
- 	for (i = 0; addr < end; addr += PAGE_SIZE, i++, pfn++) {
- 		if (pmd_devmap(pmd)) {
--			hmm_vma_walk->pgmap = get_dev_pagemap(pfn,
--					      hmm_vma_walk->pgmap);
--			if (unlikely(!hmm_vma_walk->pgmap))
-+			pgmap = get_dev_pagemap(pfn, pgmap);
-+			if (unlikely(!pgmap))
- 				return -EBUSY;
- 		}
- 		pfns[i] = hmm_device_entry_from_pfn(range, pfn) | cpu_flags;
- 	}
--	if (hmm_vma_walk->pgmap) {
--		put_dev_pagemap(hmm_vma_walk->pgmap);
--		hmm_vma_walk->pgmap = NULL;
--	}
-+	if (pgmap)
-+		put_dev_pagemap(pgmap);
- 	hmm_vma_walk->last = end;
- 	return 0;
- #else
-@@ -520,7 +517,7 @@ static inline uint64_t pte_to_hmm_pfn_flags(struct hmm_range *range, pte_t pte)
- 
- static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
- 			      unsigned long end, pmd_t *pmdp, pte_t *ptep,
--			      uint64_t *pfn)
-+			      uint64_t *pfn, struct dev_pagemap **pgmap)
- {
- 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
- 	struct hmm_range *range = hmm_vma_walk->range;
-@@ -591,9 +588,8 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
- 		goto fault;
- 
- 	if (pte_devmap(pte)) {
--		hmm_vma_walk->pgmap = get_dev_pagemap(pte_pfn(pte),
--					      hmm_vma_walk->pgmap);
--		if (unlikely(!hmm_vma_walk->pgmap))
-+		*pgmap = get_dev_pagemap(pte_pfn(pte), *pgmap);
-+		if (unlikely(!*pgmap))
- 			return -EBUSY;
- 	} else if (IS_ENABLED(CONFIG_ARCH_HAS_PTE_SPECIAL) && pte_special(pte)) {
- 		*pfn = range->values[HMM_PFN_SPECIAL];
-@@ -604,10 +600,10 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
- 	return 0;
- 
- fault:
--	if (hmm_vma_walk->pgmap) {
--		put_dev_pagemap(hmm_vma_walk->pgmap);
--		hmm_vma_walk->pgmap = NULL;
--	}
-+	if (*pgmap)
-+		put_dev_pagemap(*pgmap);
-+	*pgmap = NULL;
-+
- 	pte_unmap(ptep);
- 	/* Fault any virtual address we were asked to fault */
- 	return hmm_vma_walk_hole_(addr, end, fault, write_fault, walk);
-@@ -620,6 +616,7 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
- {
- 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
- 	struct hmm_range *range = hmm_vma_walk->range;
-+	struct dev_pagemap *pgmap = NULL;
- 	uint64_t *pfns = range->pfns;
- 	unsigned long addr = start, i;
- 	pte_t *ptep;
-@@ -683,23 +680,21 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
- 	for (; addr < end; addr += PAGE_SIZE, ptep++, i++) {
- 		int r;
- 
--		r = hmm_vma_handle_pte(walk, addr, end, pmdp, ptep, &pfns[i]);
-+		r = hmm_vma_handle_pte(walk, addr, end, pmdp, ptep, &pfns[i],
-+				&pgmap);
- 		if (r) {
- 			/* hmm_vma_handle_pte() did unmap pte directory */
- 			hmm_vma_walk->last = addr;
- 			return r;
- 		}
- 	}
--	if (hmm_vma_walk->pgmap) {
--		/*
--		 * We do put_dev_pagemap() here and not in hmm_vma_handle_pte()
--		 * so that we can leverage get_dev_pagemap() optimization which
--		 * will not re-take a reference on a pgmap if we already have
--		 * one.
--		 */
--		put_dev_pagemap(hmm_vma_walk->pgmap);
--		hmm_vma_walk->pgmap = NULL;
--	}
-+	/*
-+	 * We do put_dev_pagemap() here and not in hmm_vma_handle_pte() so that
-+	 * we can leverage the get_dev_pagemap() optimization which will not
-+	 * re-take a reference on a pgmap if we already have one.
-+	 */
-+	if (pgmap)
-+		put_dev_pagemap(pgmap);
- 	pte_unmap(ptep - 1);
- 
- 	hmm_vma_walk->last = addr;
-@@ -714,6 +709,7 @@ static int hmm_vma_walk_pud(pud_t *pudp,
- 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
- 	struct hmm_range *range = hmm_vma_walk->range;
- 	unsigned long addr = start, next;
-+	struct dev_pagemap *pgmap = NULL;
- 	pmd_t *pmdp;
- 	pud_t pud;
- 	int ret;
-@@ -744,17 +740,14 @@ static int hmm_vma_walk_pud(pud_t *pudp,
- 
- 		pfn = pud_pfn(pud) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
- 		for (i = 0; i < npages; ++i, ++pfn) {
--			hmm_vma_walk->pgmap = get_dev_pagemap(pfn,
--					      hmm_vma_walk->pgmap);
--			if (unlikely(!hmm_vma_walk->pgmap))
-+			pgmap = get_dev_pagemap(pfn, pgmap);
-+			if (unlikely(!pgmap))
- 				return -EBUSY;
- 			pfns[i] = hmm_device_entry_from_pfn(range, pfn) |
- 				  cpu_flags;
- 		}
--		if (hmm_vma_walk->pgmap) {
--			put_dev_pagemap(hmm_vma_walk->pgmap);
--			hmm_vma_walk->pgmap = NULL;
--		}
-+		if (pgmap)
-+			put_dev_pagemap(pgmap);
- 		hmm_vma_walk->last = end;
- 		return 0;
- 	}
-@@ -1002,7 +995,6 @@ long hmm_range_fault(struct hmm_range *range, unsigned int flags)
- 			return -EPERM;
- 		}
- 
--		hmm_vma_walk.pgmap = NULL;
- 		hmm_vma_walk.last = start;
- 		hmm_vma_walk.flags = flags;
- 		hmm_vma_walk.range = range;
+@@ -1121,7 +1121,6 @@ EXPORT_SYMBOL(hmm_range_dma_map);
+ /**
+  * hmm_range_dma_unmap() - unmap range of that was map with hmm_range_dma_map()
+  * @range: range being unmapped
+- * @vma: the vma against which the range (optional)
+  * @device: device against which dma map was done
+  * @daddrs: dma address of mapped pages
+  * @dirty: dirty page if it had the write flag set
+@@ -1133,7 +1132,6 @@ EXPORT_SYMBOL(hmm_range_dma_map);
+  * concurrent mmu notifier or sync_cpu_device_pagetables() to make progress.
+  */
+ long hmm_range_dma_unmap(struct hmm_range *range,
+-			 struct vm_area_struct *vma,
+ 			 struct device *device,
+ 			 dma_addr_t *daddrs,
+ 			 bool dirty)
 -- 
 2.20.1
 
