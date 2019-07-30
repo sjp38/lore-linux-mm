@@ -2,178 +2,235 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EE470C0650F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 15:01:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4742BC433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 15:01:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A49152089E
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 15:01:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0C59F2089E
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 15:01:28 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="GdNRwja+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A49152089E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="lW+W2m09"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C59F2089E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=invisiblethingslab.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 369888E0006; Tue, 30 Jul 2019 11:01:12 -0400 (EDT)
+	id 936758E0008; Tue, 30 Jul 2019 11:01:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 31A8A8E0001; Tue, 30 Jul 2019 11:01:12 -0400 (EDT)
+	id 8EE248E0001; Tue, 30 Jul 2019 11:01:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1E1E88E0006; Tue, 30 Jul 2019 11:01:12 -0400 (EDT)
+	id 786558E0008; Tue, 30 Jul 2019 11:01:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C1BE08E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 11:01:11 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f19so40530836edv.16
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 08:01:11 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 560978E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 11:01:28 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id l9so58485613qtu.12
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 08:01:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=bQWucyIKvCKeKopDX4ZksHy14UtOcimGNYOu7selEmU=;
-        b=dxJRE4/KduStPXm1fZhPV/5TXv5VgdpGbDtBhVALNMjpnzM1b0vDs6brpzOGBQtIm8
-         A249tnyyf7Py1YQh3F/r5mfXsKmk+hUUjuZGKTnD9wYgq6+Fucpr4W1ccLcika4bDvQT
-         pWXgiG0/65Q+Lrocj66jVPhXTsKqXv/6BZ0qXYsfO1Q4i6vyEer9yR7iuBQsw9NRBRoM
-         tz04g2hAZmEbaQHIgzZg9HgIHbLbGFXkMFJHzT8hm8U/e9DMFx0il7QtGT9c7JFuug1e
-         NodV9KL2HnloRZBzctY76sWIoyjXdHyOGuDsKDaCYuWTJV6MfjxGpX2aCUn9+ghPcl5C
-         TavA==
-X-Gm-Message-State: APjAAAUkx5i0VS+AgjIsxX/pIk8BEoALCpPxCfsaiQQH/i2HQCEx6WYz
-	/PoNUFfQwDMLtC8/0rtQJMJEAvjZAfl0/+8bpfoz9eryTFpvRy5KaVfcpCh1P+FwZ80euqRIgf6
-	0o+32/JD/XmNkcnowbQJLARXfuCi7b7ZzEEgopwRHxuvalBqi8qhD9r42reUi7zk=
-X-Received: by 2002:a17:906:3d69:: with SMTP id r9mr35568522ejf.28.1564498871348;
-        Tue, 30 Jul 2019 08:01:11 -0700 (PDT)
-X-Received: by 2002:a17:906:3d69:: with SMTP id r9mr35568426ejf.28.1564498870435;
-        Tue, 30 Jul 2019 08:01:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564498870; cv=none;
+        bh=zvdSC+++bOixa8/Ggn3YSFdCsBfxtdhmukIIZhQQVgs=;
+        b=ukf7msqog+n/8G++Acdtcu8ltsp+8EyhVWamKHj50rgQMTpx6aTkr8xsV4iEEy28hV
+         pDfjz8zmuSjq3Az7HcldeU26/zvMYkwefmqGK9yviscKwq2O9z/BE4zkGuvSAjgEceou
+         YZ5VM+5fulXfBUYbs2MBIzwCFqOYiEk2H/91hFZvmLz0RW+o/upXP47PD7lTQ+j+1tqO
+         OEuZeAblKid/FCryynM37lX1Ag4tVnZll2IyFldO3na45SMnMtPvh21jKF9a9QOB6xBW
+         qMyT4vlt+JeWyTGykDB5tuRI+16ULBXbX+Khi2ex+kAVs8yj3kDM5nHTwfLoa7uJoCJu
+         MZhQ==
+X-Gm-Message-State: APjAAAU+6KXayV4uRoKSBls6dhhFb0wY7NpIvDRi4qBz/DgKcKk8tQUC
+	mpsG+bBmhNvSp66Gc1Aj15OlgMuDlG2RuSoMtwiBZVThw5AU/GQR5HkVARUUfN2kCLDdJFga0tC
+	vmckyuyhRUq//Th0NClfjn8DxTWZbv/qlqJVly9UNOlK0nP7cG9GGrK7db5pH/Go=
+X-Received: by 2002:ac8:3637:: with SMTP id m52mr80902276qtb.238.1564498888079;
+        Tue, 30 Jul 2019 08:01:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwxM+lLbk3OJF6J/lBfpqWiMgB8uVDEXoJsZpkngpMo8LpAQcv/FMmdaOMDaeqKgn7mzkz0
+X-Received: by 2002:ac8:3637:: with SMTP id m52mr80902187qtb.238.1564498887075;
+        Tue, 30 Jul 2019 08:01:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564498887; cv=none;
         d=google.com; s=arc-20160816;
-        b=lt0tsr70bBrVnUt1xwbq8eaTBgwqOpg8GrlrwcqzokJfGlZ+heOs0fnDIiNHFr4tD6
-         xC6d7JDewA1PfiKthSpc1tQG0fD+xCLsUYYt82rj6AxcwsPPOgyyew1ynQSskUeEoiD8
-         xzl1QwpmNkEc4VkykBVEZKZe1N3yB3tvcZcYYHyXDiuCALnsN8IYLYszQampj9rHGZT9
-         DDdFAw3gE6LEfpImTaf9dhFvQrM5se9WLRUj47hMuDE2fcg2Lw+6i0zf3000YYbdX2CO
-         ffNtqDp3TGLhVhug8haoEh8Ft2mGACKpZkoHM1odmmbaTOS9QF4oxqP2qc3mQcJKTQ5A
-         w/Xw==
+        b=LCiXJDLmlTRU7GsH/zhtrnkM0wRxGuNuliyyaq5DtH9ZxFdTCKFCkZNDzF7NNQYef4
+         1CYdqqO+cQPsjOZ3DA79iUYQIIrs6fhWkZ1lu8qmSHmZ1Zxr2PK83ElFCxJtN9r4TAxX
+         zSGy0Ry9j8ja4dmof8qGtm4u8bnHJSnfeOjB0qiay5zOGENEp1Jpk7bCEWisP13aKxdS
+         d93e9JXkULcIuk5Mc6hw/W3J6nNAqU2liFTXPoYqmnV4oQNkIHpjlXa601NmwtHvq9ca
+         ksKrI/PkHOwoVIPCVYqCzaBFqPw/gGxgEMZ4utJQwiUDE2vBbx6Zfw/uJnmubA+u3ilo
+         F3kQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=bQWucyIKvCKeKopDX4ZksHy14UtOcimGNYOu7selEmU=;
-        b=ajPngsgEcTpmmrJS46M/4EbmrbqxD3vlG6uk+keG3g+eGvxNAl0sCiq4N/k/6g8ljp
-         5Ay02kq8CgGaZXcSWJ6usAd8jeOzWjUHkY8XyGnb8E0zoCSlNduJ5ajqMTJY+lh0cu75
-         GFtDsoqGDPSEzwpW//WVSa14YUpjWqNbMQkIY0qk+LQYcTRW5ZINvbLfpVSWzwSrctiX
-         ReaYf3ak5oCFHjbm13ne5YVdxM3ATrCLNNnYTyLQAfQXDY5SZJ2FR6C02muJpONDGBZr
-         WbMSpx1MYznipgx/sYti0kq5vIZvakudpvOkkAmdY8N/atP1LIUvLWx0msFltR1nBW6S
-         sV5Q==
+        bh=zvdSC+++bOixa8/Ggn3YSFdCsBfxtdhmukIIZhQQVgs=;
+        b=EjK99RYmEJjwAVlkQp8gHLFCPqclLhwxpFKUXr7Zzd97PKRqlkqZkPFkhL1ptQQixP
+         0mA6ExfvC6/hRxpjDfIFjEdD/EY8jbm76nDFukYMZwYJ/wxLuJTHr24pTEQUNphVy7P3
+         4z6vweZh6s2IkMiedf6VLeEZyy5kH+joWavsFhy9KPw5K3fBdowQ6tsM1sShgV7TaiMx
+         TTkjVbDZFPoaBEW8+2+/cbln5U6QufinNQ6+40xDN6lXqzwSQjna1OwDfZS+DZNFtEtC
+         SzcKbS9vhrUC379u6jSinHCT9dB91J0N9wkK+MGEanWKyy7OfOeg8CBiADpRESTxUbqs
+         CrWA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=GdNRwja+;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b56sor49328549edb.9.2019.07.30.08.01.10
+       dkim=pass header.i=@messagingengine.com header.s=fm3 header.b=lW+W2m09;
+       spf=neutral (google.com: 66.111.4.229 is neither permitted nor denied by best guess record for domain of marmarek@invisiblethingslab.com) smtp.mailfrom=marmarek@invisiblethingslab.com
+Received: from new3-smtp.messagingengine.com (new3-smtp.messagingengine.com. [66.111.4.229])
+        by mx.google.com with ESMTPS id c54si36502895qtk.245.2019.07.30.08.01.26
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 30 Jul 2019 08:01:10 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=GdNRwja+;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=bQWucyIKvCKeKopDX4ZksHy14UtOcimGNYOu7selEmU=;
-        b=GdNRwja+/25H4SxUZ4ralc99QLXtPYO2kj4H0jLiarKQZUn/l8l1B/z2ZXWZRqNuZz
-         Bo97G25Ewtp9jrs7GZbl+3mcVqn/Z6kURcIxMGDgvQxtCGAakJaf/QdyTAVoApyqsPCi
-         +KeelUNoacnfmu1MSDGt1BE4PkOnW93teyfZjh0bIJ++GsJrR+OqNatermEhdUGCzqvs
-         MR5irSWphHO6klpLr30FcWHLDfGZR65mQYzA7D2nmY0kJui2TgthhRjXVcKuBE9X5ooQ
-         Y2u+Fy9LUIhK3lJN/lDzNl8X1ZwlZ5ztF/YApdnpbYcs7UzifwAgUuDC5YHTQ6AJ8kA+
-         CLsQ==
-X-Google-Smtp-Source: APXvYqyL2odYUrW+8WuVCn0Ui36foqk2fFzmQK1cuc8eMBoSNxrRogxxj3ymkZEHr7GpPbiBvSWG9w==
-X-Received: by 2002:a50:9107:: with SMTP id e7mr102905767eda.280.1564498870080;
-        Tue, 30 Jul 2019 08:01:10 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id 34sm16475720eds.5.2019.07.30.08.01.09
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 08:01:09 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id BB4A2100AD0; Tue, 30 Jul 2019 18:01:10 +0300 (+03)
-Date: Tue, 30 Jul 2019 18:01:10 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Song Liu <songliubraving@fb.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	akpm@linux-foundation.org, matthew.wilcox@oracle.com,
-	kirill.shutemov@linux.intel.com, oleg@redhat.com,
-	kernel-team@fb.com, william.kucharski@oracle.com,
-	srikar@linux.vnet.ibm.com
-Subject: Re: [PATCH 2/2] uprobe: collapse THP pmd after removing all uprobes
-Message-ID: <20190730150110.yqib7bawsude2vqt@box>
-References: <20190729054335.3241150-1-songliubraving@fb.com>
- <20190729054335.3241150-3-songliubraving@fb.com>
+        Tue, 30 Jul 2019 08:01:27 -0700 (PDT)
+Received-SPF: neutral (google.com: 66.111.4.229 is neither permitted nor denied by best guess record for domain of marmarek@invisiblethingslab.com) client-ip=66.111.4.229;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@messagingengine.com header.s=fm3 header.b=lW+W2m09;
+       spf=neutral (google.com: 66.111.4.229 is neither permitted nor denied by best guess record for domain of marmarek@invisiblethingslab.com) smtp.mailfrom=marmarek@invisiblethingslab.com
+Received: from compute7.internal (compute7.nyi.internal [10.202.2.47])
+	by mailnew.nyi.internal (Postfix) with ESMTP id AEE3A1247;
+	Tue, 30 Jul 2019 11:01:26 -0400 (EDT)
+Received: from mailfrontend1 ([10.202.2.162])
+  by compute7.internal (MEProxy); Tue, 30 Jul 2019 11:01:26 -0400
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
+	messagingengine.com; h=cc:content-type:date:from:in-reply-to
+	:message-id:mime-version:references:subject:to:x-me-proxy
+	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm3; bh=zvdSC+
+	++bOixa8/Ggn3YSFdCsBfxtdhmukIIZhQQVgs=; b=lW+W2m09RjTW3IqalZ8nAn
+	FSD+/aAr7gAdc5pa7CPKW3L82lWY7dJn+6/Gr23FPNxuMJnI/xrjPU0IIP7/zb3p
+	5k+VsJg2pmEKJz3azrNAGRmDONjC5kl2dyEwteYcz551n+KY+LnCKI6WFEgUYZKb
+	RDblacx4JKeUWRzwShHITV1aMT5+W47beGTgZD6F3ue6a8uuhd9MRyCR7s20ZeKq
+	kpA/PCcwus1ILYsOfUoAszNv0SRJdzrcnoEKaerpuRPRcGA7SfRuryzp27xAl4vp
+	bZWmnZLD3LkHbMmMw3g5A6aCMdynN7tjF2buSgh3CTxBul395PTJqOtTE9DnBciQ
+	==
+X-ME-Sender: <xms:xVtAXeR9tmyWb7Jq50fEaB4mJnR4qwywkr4BgNzG1mH7rHpnEUx11w>
+X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduvddrleefgdekudcutefuodetggdotefrodftvf
+    curfhrohhfihhlvgemucfhrghsthforghilhdpqfgfvfdpuffrtefokffrpgfnqfghnecu
+    uegrihhlohhuthemuceftddtnecusecvtfgvtghiphhivghnthhsucdlqddutddtmdenuc
+    fjughrpeffhffvuffkfhggtggujggfsehgtderredtreejnecuhfhrohhmpeforghrvghk
+    ucforghrtgiihihkohifshhkihdqifpkrhgvtghkihcuoehmrghrmhgrrhgvkhesihhnvh
+    hishhisghlvghthhhinhhgshhlrggsrdgtohhmqeenucfkphepledurdeihedrfeegrdef
+    feenucfrrghrrghmpehmrghilhhfrhhomhepmhgrrhhmrghrvghksehinhhvihhsihgslh
+    gvthhhihhnghhslhgrsgdrtghomhenucevlhhushhtvghrufhiiigvpedt
+X-ME-Proxy: <xmx:xVtAXV210lSFKwmpx-PfTm8U5WmitHBoEz5HwQNjvesy9ZYtz0Osrg>
+    <xmx:xVtAXZ_MOb1wHRptEn25foHXEtIqmD6mI2XiFyhIgbRk2BlqJsoGGQ>
+    <xmx:xVtAXe9t3K9R8osyOcYpwdk3UUEyDI2qBoJR5QueB7AFJ7Fv3HYPJw>
+    <xmx:xltAXSJtbrQmVHYJZvo0vjZM4LrE06nFs4xuqcvzmZW7QWQGN-Lqgw>
+Received: from mail-itl (ip5b412221.dynamic.kabel-deutschland.de [91.65.34.33])
+	by mail.messagingengine.com (Postfix) with ESMTPA id 937328005A;
+	Tue, 30 Jul 2019 11:01:23 -0400 (EDT)
+Date: Tue, 30 Jul 2019 17:01:19 +0200
+From: Marek =?utf-8?Q?Marczykowski-G=C3=B3recki?= <marmarek@invisiblethingslab.com>
+To: Souptick Joarder <jrdr.linux@gmail.com>
+Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@suse.com>, Juergen Gross <jgross@suse.com>,
+	Russell King - ARM Linux <linux@armlinux.org.uk>,
+	robin.murphy@arm.com, xen-devel@lists.xenproject.org,
+	linux-kernel@vger.kernel.org, Linux-MM <linux-mm@kvack.org>,
+	stable@vger.kernel.org, Greg KH <gregkh@linuxfoundation.org>
+Subject: Re: [Xen-devel] [PATCH v4 8/9] xen/gntdev.c: Convert to use
+ vm_map_pages()
+Message-ID: <20190730150119.GS1250@mail-itl>
+References: <20190215024830.GA26477@jordon-HP-15-Notebook-PC>
+ <20190728180611.GA20589@mail-itl>
+ <CAFqt6zaMDnpB-RuapQAyYAub1t7oSdHH_pTD=f5k-s327ZvqMA@mail.gmail.com>
+ <CAFqt6zY+07JBxAVfMqb+X78mXwFOj2VBh0nbR2tGnQOP9RrNkQ@mail.gmail.com>
+ <20190729133642.GQ1250@mail-itl>
+ <CAFqt6zZN+6r6wYJY+f15JAjj8dY+o30w_+EWH9Vy2kUXCKSBog@mail.gmail.com>
+ <bf02becc-9db0-bb78-8efc-9e25cc115237@oracle.com>
+ <20190730142233.GR1250@mail-itl>
+ <CAFqt6zZOymx8RH75F69exukLYcGd45xpUHkRHK8nYXpwF8co6g@mail.gmail.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: multipart/signed; micalg=pgp-sha256;
+	protocol="application/pgp-signature"; boundary="KI6XeYrntNhU1GwB"
 Content-Disposition: inline
-In-Reply-To: <20190729054335.3241150-3-songliubraving@fb.com>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <CAFqt6zZOymx8RH75F69exukLYcGd45xpUHkRHK8nYXpwF8co6g@mail.gmail.com>
+User-Agent: Mutt/1.12+29 (a621eaed) (2019-06-14)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Jul 28, 2019 at 10:43:35PM -0700, Song Liu wrote:
-> After all uprobes are removed from the huge page (with PTE pgtable), it
-> is possible to collapse the pmd and benefit from THP again. This patch
-> does the collapse by calling khugepaged_add_pte_mapped_thp().
-> 
-> Signed-off-by: Song Liu <songliubraving@fb.com>
-> ---
->  kernel/events/uprobes.c | 9 +++++++++
->  1 file changed, 9 insertions(+)
-> 
-> diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-> index 58ab7fc7272a..cc53789fefc6 100644
-> --- a/kernel/events/uprobes.c
-> +++ b/kernel/events/uprobes.c
-> @@ -26,6 +26,7 @@
->  #include <linux/percpu-rwsem.h>
->  #include <linux/task_work.h>
->  #include <linux/shmem_fs.h>
-> +#include <linux/khugepaged.h>
->  
->  #include <linux/uprobes.h>
->  
-> @@ -470,6 +471,7 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
->  	struct page *old_page, *new_page;
->  	struct vm_area_struct *vma;
->  	int ret, is_register, ref_ctr_updated = 0;
-> +	bool orig_page_huge = false;
->  
->  	is_register = is_swbp_insn(&opcode);
->  	uprobe = container_of(auprobe, struct uprobe, arch);
-> @@ -525,6 +527,9 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
->  
->  				/* dec_mm_counter for old_page */
->  				dec_mm_counter(mm, MM_ANONPAGES);
-> +
-> +				if (PageCompound(orig_page))
-> +					orig_page_huge = true;
->  			}
->  			put_page(orig_page);
->  		}
-> @@ -543,6 +548,10 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
->  	if (ret && is_register && ref_ctr_updated)
->  		update_ref_ctr(uprobe, mm, -1);
->  
-> +	/* try collapse pmd for compound page */
-> +	if (!ret && orig_page_huge)
-> +		khugepaged_add_pte_mapped_thp(mm, vaddr & HPAGE_PMD_MASK);
-> +
 
-IIUC, here you have all locks taken, so you should be able to call
-collapse_pte_mapped_thp() directly, shouldn't you?
+--KI6XeYrntNhU1GwB
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: quoted-printable
 
--- 
- Kirill A. Shutemov
+On Tue, Jul 30, 2019 at 08:22:02PM +0530, Souptick Joarder wrote:
+> On Tue, Jul 30, 2019 at 7:52 PM Marek Marczykowski-G=C3=B3recki
+> <marmarek@invisiblethingslab.com> wrote:
+> >
+> > On Tue, Jul 30, 2019 at 10:05:42AM -0400, Boris Ostrovsky wrote:
+> > > On 7/30/19 2:03 AM, Souptick Joarder wrote:
+> > > > On Mon, Jul 29, 2019 at 7:06 PM Marek Marczykowski-G=C3=B3recki
+> > > > <marmarek@invisiblethingslab.com> wrote:
+> > > >> On Mon, Jul 29, 2019 at 02:02:54PM +0530, Souptick Joarder wrote:
+> > > >>> On Mon, Jul 29, 2019 at 1:35 PM Souptick Joarder <jrdr.linux@gmai=
+l.com> wrote:
+> > > >>>> On Sun, Jul 28, 2019 at 11:36 PM Marek Marczykowski-G=C3=B3recki
+> > > >>>> <marmarek@invisiblethingslab.com> wrote:
+> > > >>>>> On Fri, Feb 15, 2019 at 08:18:31AM +0530, Souptick Joarder wrot=
+e:
+> > > >>>>>> Convert to use vm_map_pages() to map range of kernel
+> > > >>>>>> memory to user vma.
+> > > >>>>>>
+> > > >>>>>> map->count is passed to vm_map_pages() and internal API
+> > > >>>>>> verify map->count against count ( count =3D vma_pages(vma))
+> > > >>>>>> for page array boundary overrun condition.
+> > > >>>>> This commit breaks gntdev driver. If vma->vm_pgoff > 0, vm_map_=
+pages
+> > > >>>>> will:
+> > > >>>>>  - use map->pages starting at vma->vm_pgoff instead of 0
+> > > >>>> The actual code ignores vma->vm_pgoff > 0 scenario and mapped
+> > > >>>> the entire map->pages[i]. Why the entire map->pages[i] needs to =
+be mapped
+> > > >>>> if vma->vm_pgoff > 0 (in original code) ?
+> > > >> vma->vm_pgoff is used as index passed to gntdev_find_map_index. It=
+'s
+> > > >> basically (ab)using this parameter for "which grant reference to m=
+ap".
+> > > >>
+> > > >>>> are you referring to set vma->vm_pgoff =3D 0 irrespective of val=
+ue passed
+> > > >>>> from user space ? If yes, using vm_map_pages_zero() is an altern=
+ate
+> > > >>>> option.
+> > > >> Yes, that should work.
+> > > > I prefer to use vm_map_pages_zero() to resolve both the issues. Alt=
+ernatively
+> > > > the patch can be reverted as you suggested. Let me know you opinion=
+ and wait
+> > > > for feedback from others.
+> > > >
+> > > > Boris, would you like to give any feedback ?
+> > >
+> > > vm_map_pages_zero() looks good to me. Marek, does it work for you?
+> >
+> > Yes, replacing vm_map_pages() with vm_map_pages_zero() fixes the
+> > problem for me.
+>=20
+> Marek, I can send a patch for the same if you are ok.
+> We need to cc stable as this changes are available in 5.2.4.
+
+Sounds good, thanks!
+
+--=20
+Best Regards,
+Marek Marczykowski-G=C3=B3recki
+Invisible Things Lab
+A: Because it messes up the order in which people normally read text.
+Q: Why is top-posting such a bad thing?
+
+--KI6XeYrntNhU1GwB
+Content-Type: application/pgp-signature; name="signature.asc"
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAEBCAAdFiEEhrpukzGPukRmQqkK24/THMrX1ywFAl1AW78ACgkQ24/THMrX
+1yzCXgf/RBo3QvtbZfVV9r4EG7nQccY0lAa6q3J2HQnpO7yS80HMzp40ccWa+5io
+c7QEt7/NsgEzzv7Aergzv6QivV7yH18RFG+RGWN/nEMOX2qNuSHIB6UVhVFtasWU
++4MfnwFyd6qMogaOXYSQ+n9Um2IPUdhc5hqZiMLufY2As7d3ccNYvccpR/ydE7oc
+LdYvyAjOwPwFlketiZ5j73iL0J4aPNqjox00ZoVAtEijnAyTzf3RB+fIUc0WtPUW
++UrEDqTkVDwbCg0NfQtsR7UI3FZmv7x5gbmXlGZkdDGFlpKSbFhZwXLpmfv5cHKt
+0lP4AtlbS/Pw0vrNR4Vb3Ex6oU/+NQ==
+=afZC
+-----END PGP SIGNATURE-----
+
+--KI6XeYrntNhU1GwB--
 
