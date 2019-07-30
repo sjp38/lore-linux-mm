@@ -2,176 +2,191 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 208EFC32751
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 22:21:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 29A52C32750
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 22:28:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D3CA6205C9
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 22:21:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D3CA6205C9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id D8AC3206E0
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 22:28:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D8AC3206E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6E0008E0003; Tue, 30 Jul 2019 18:21:52 -0400 (EDT)
+	id 79E368E0003; Tue, 30 Jul 2019 18:28:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 690558E0001; Tue, 30 Jul 2019 18:21:52 -0400 (EDT)
+	id 77D798E0001; Tue, 30 Jul 2019 18:28:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5A5D18E0003; Tue, 30 Jul 2019 18:21:52 -0400 (EDT)
+	id 664668E0003; Tue, 30 Jul 2019 18:28:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 28A588E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 18:21:52 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id j12so36112946pll.14
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 15:21:52 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 321AB8E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 18:28:16 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id q11so36116555pll.22
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 15:28:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=23TEN+YXtE4R+00+FApfVXLpAqmgpsW2vc7wymoqapM=;
-        b=DrgwCL6y/PI0RABuj1iqE6K/9pqFGvaJNDkQX3BCyir7G0u7DMzQGu1qrWQU0lD/m0
-         tQJii7IPOh/G3IDNLxG1rICc74wJbsscbiaCZeM0v5af7tz4uQIDUtNHRTEXXcz+Abex
-         VczkBVIgZGgj+V0KSQ3RUMECswYjk4k5eWNtRnsIarCHe6kjaGaT8b309Qmsf2cviawe
-         OtDhwdocetKQ7h0LPa9OTFK3NiUd6Eh4/vRAY6YcQ8+3/BpTPQc3G8c7HF8DX7TTKhXk
-         6zbn9elNbNL75hTVmUI25x9+Py8ggntqdBE5zFZh4/pqEkgmf38I5DtBcZt2Y7jR95Gx
-         37XQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVJHuZX76EYNB3QqttGPgcUaZRgNKmxd0crnXAe2awaPBiS2Ob6
-	fzdr8ew9UCO/sFC7hPF7yn503TCuuBinNQLRfzGMwLqquqf+6I5UEk/Be4iZyvSzhGpBnLyu5vI
-	KRXDyQSAMq8mfPRpPD7gy42lYtdioYkNS5EtkgYVP3J5qJDt/8GevqppiawyyTkZLzA==
-X-Received: by 2002:a17:902:8547:: with SMTP id d7mr119368823plo.171.1564525311785;
-        Tue, 30 Jul 2019 15:21:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwnuMoxoCtJycj5UqXWcNmDNQjeBqdtTYcn+r0zjsbSPUx1aYkr43IC7+t5iIi6K3aUUv45
-X-Received: by 2002:a17:902:8547:: with SMTP id d7mr119368779plo.171.1564525311017;
-        Tue, 30 Jul 2019 15:21:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564525311; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:reply-to
+         :subject:to:cc:references:from:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-transfer-encoding
+         :content-language;
+        bh=jbK8JULC9SJ6pDOMm9cfN8qfqr2zIleYy2L1Zt/un+A=;
+        b=baxvPNv46rfelsMCf3R2KilsPppjUWknNuQVt5UuCDY+xiTShqALpMqskxZ2ulzorG
+         sXUFhrwBAb3xDhKZMGHpeVtEIclz0WzXf1W66OEoKbAwWQbw8r+djxU5NB3IJD4SjzKO
+         wbbBX9FJTF3SG7+27zQlAr11ciM1CofunGS3V/lftIS4MbOjT++75ijAX8F3b7FBhIzC
+         OnZ8WCXja1rdDCu1pNkzNh8SKNBV9EXt/35lPvPHqCrH89bDdvkcGx0/BhzC/2Tlsure
+         Ec2WECo1F4psE/ERjO+cHfJKotiU0dh6mtZm+mQfiM/vJBXEns2b4DzSLIHymkZtOSxT
+         pCVQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of sathyanarayanan.kuppuswamy@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=sathyanarayanan.kuppuswamy@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUzxCWOlqzTO5RVGFaWtezmgM8CLJpuG7iWFKpmnju+fay+Xabu
+	K3Afm4SLoiwDNz7KLASoxzHDWhl+N2Ko7j7B4WxlGHqtSWXec1OHO6AZ7jSVFwo9jCoLVcN3mvu
+	klIUOqVVf56mM3ZoKcxPcnP+9I5Dm8uAZfTGL6Gcam6bH08Ud7fXvLaQY7P/LpJ2ZFw==
+X-Received: by 2002:aa7:96ad:: with SMTP id g13mr45976883pfk.182.1564525695821;
+        Tue, 30 Jul 2019 15:28:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyyLSyFYl0FlA/vYW9PtDsIy+oheTDH2nB4Q9/n/i/ZrABBl2wEFDYufX4S62I/qAB6yVfr
+X-Received: by 2002:aa7:96ad:: with SMTP id g13mr45976839pfk.182.1564525695011;
+        Tue, 30 Jul 2019 15:28:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564525695; cv=none;
         d=google.com; s=arc-20160816;
-        b=09OtdovGucZCqLR37fGz1d9EIm8DBSIae1U7RRNEbhLGlcqRFqgn4Qc52G8kRtarSg
-         IUyFb7SKf7YLMpzL4jKsafbLafy/QF6IU6wnOMyDRzl+PTTBaxNuD1kcICiXS3PuLa39
-         XQY50zeJ8+1mtYYaNEPoMImPPBWWTy0t+oKrf1KsNX08WZRxH8Ma5zpdI0gbQJTyb5SH
-         LnG/njJV3t8/V7YICWRZX3I0oI80TLj+UQf+ZVKBwzwl4mD2rJXtVLNxzx/FYdNE24I5
-         3QuDIMuzic64WWuGwwTX72xNI9B5ndM7607iyO7pwAalUu45isDmWZ7hta54iJM/27kU
-         JHDw==
+        b=n3r6rdSV1RC+xywpThbMrtEgg9+SP3y8FitZMi7XpoCn+Lo2yHygwBzH3pQFSpZBjO
+         U7FQRA3qgI8NT4LVVUo0OUMC7qgPmYj6p0OWJCAqvQjFAxqbPxJEDTne8HxHqn5rQa4h
+         adXlB1ym8rkZTRX8HkU6H0WpHGcmR6I8pQZZOZnTN+jEFPsq4+wgDD3101htFSKTYb0A
+         VoHbjHKYlZ4Q9WgSB+600n1pgw+rBjBxWTV6n3Q1fyRfZJG1yKlGDpq49JlehysEWL1z
+         uqMN5jvct5dM7kE+Fb+OcHfHPYEPpVwuzQPklFoTi0Ly4aYjnfwz1lmHTzCsWBwKEN8W
+         g4JQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=23TEN+YXtE4R+00+FApfVXLpAqmgpsW2vc7wymoqapM=;
-        b=cyenCkeX0NXakMCS1Gt28f9ZrG2JARBvCp5l7iBAJ42Sxu0qMfFUGv1GZTNuy/n9Wz
-         Qtk9BmpdgEydzOf4Ny/r5rHjr8KBuFC29CfqS5H5nITlkn2CQuFGqthYgESx775xXxfT
-         B9jaUeo6gv5NE/BiHkzWE0xPBQMBnCErjX5vJccz0DWup4kW79yIkbAOUqre68JBU+t4
-         9cq7+aXZNTCxhEVVvxhTE4109Y1SFU0+BPhzW6YdufZn7iTd7t+DaeoRyYSJbY7udG0B
-         zvjHo3J5LFo0XiPQLLQ2OotffBpN5HpPMBq3T3scRSQgywftMzKdtV3Yw7whIqh7US9x
-         6WGg==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject:reply-to;
+        bh=jbK8JULC9SJ6pDOMm9cfN8qfqr2zIleYy2L1Zt/un+A=;
+        b=pQJOr7xJ8mDjSd7jz5LRrQUwP22N6RdmK8QefBFaF28kF/nA1QYr79peVNWtCFc463
+         rCYd2StYHJk+UdrmjYk496b8X3EbNdWIOM28N8JwM+iAa8xpKyX2bs4fGGExxdAm+KVM
+         nLw+AlDlDK1Lco6R/pvwsEULM6HcgldbKFXicQZQJPlFqHoIaXRzTwKI/ioiKRooJAuQ
+         A9xDAtgYraifO+hIIBkioiyjcb/hTMwHvL9Lg3Jy2kTI+Q1uHJyr3NjYQZb1iXFPdhpX
+         KCDAi9tlol+w5y19zKnHT0fA20o010ECKOuGJQer5US/0yE5ngyDkAm85XUXOFGymxpE
+         RUhQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga01.intel.com (mga01.intel.com. [192.55.52.88])
-        by mx.google.com with ESMTPS id y4si30092103pfq.222.2019.07.30.15.21.50
+       spf=pass (google.com: best guess record for domain of sathyanarayanan.kuppuswamy@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=sathyanarayanan.kuppuswamy@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id x9si29886367plo.98.2019.07.30.15.28.14
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 15:21:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.88 as permitted sender) client-ip=192.55.52.88;
+        Tue, 30 Jul 2019 15:28:14 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of sathyanarayanan.kuppuswamy@linux.intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.88 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+       spf=pass (google.com: best guess record for domain of sathyanarayanan.kuppuswamy@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=sathyanarayanan.kuppuswamy@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 30 Jul 2019 15:21:50 -0700
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 30 Jul 2019 15:28:14 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.64,327,1559545200"; 
-   d="scan'208";a="347277138"
-Received: from sai-dev-mach.sc.intel.com ([143.183.140.153])
-  by orsmga005.jf.intel.com with ESMTP; 30 Jul 2019 15:21:49 -0700
-From: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
-To: linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Cc: dave.hansen@intel.com,
-	Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>,
-	Ingo Molnar <mingo@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: [PATCH] fork: Improve error message for corrupted page tables
-Date: Tue, 30 Jul 2019 15:18:20 -0700
-Message-Id: <20190730221820.7738-1-sai.praneeth.prakhya@intel.com>
-X-Mailer: git-send-email 2.19.1
+   d="scan'208";a="183424035"
+Received: from linux.intel.com ([10.54.29.200])
+  by orsmga002.jf.intel.com with ESMTP; 30 Jul 2019 15:28:14 -0700
+Received: from [10.54.74.33] (skuppusw-desk.jf.intel.com [10.54.74.33])
+	by linux.intel.com (Postfix) with ESMTP id 1919558060A;
+	Tue, 30 Jul 2019 15:28:14 -0700 (PDT)
+Reply-To: sathyanarayanan.kuppuswamy@linux.intel.com
+Subject: Re: [PATCH v1 1/1] mm/vmalloc.c: Fix percpu free VM area search
+ criteria
+To: Dennis Zhou <dennis@kernel.org>
+Cc: Dave Hansen <dave.hansen@intel.com>, Uladzislau Rezki <urezki@gmail.com>,
+ akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190729232139.91131-1-sathyanarayanan.kuppuswamy@linux.intel.com>
+ <20190730204643.tsxgc3n4adb63rlc@pc636>
+ <d121eb22-01fd-c549-a6e8-9459c54d7ead@intel.com>
+ <9fdd44c2-a10e-23f0-a71c-bf8f3e6fc384@linux.intel.com>
+ <20190730215535.GA67664@dennisz-mbp.dhcp.thefacebook.com>
+From: sathyanarayanan kuppuswamy <sathyanarayanan.kuppuswamy@linux.intel.com>
+Organization: Intel
+Message-ID: <e4dd0282-9d36-2398-5e8c-2ac5527744a0@linux.intel.com>
+Date: Tue, 30 Jul 2019 15:25:42 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190730215535.GA67664@dennisz-mbp.dhcp.thefacebook.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a user process exits, the kernel cleans up the mm_struct of the user
-process and during cleanup, check_mm() checks the page tables of the user
-process for corruption (E.g: unexpected page flags set/cleared). For
-corrupted page tables, the error message printed by check_mm() isn't very
-clear as it prints the loop index instead of page table type (E.g: Resident
-file mapping pages vs Resident shared memory pages). Hence, improve the
-error message so that it's more informative.
 
-Without patch:
---------------
-[  204.836425] mm/pgtable-generic.c:29: bad p4d 0000000089eb4e92(800000025f941467)
-[  204.836544] BUG: Bad rss-counter state mm:00000000f75895ea idx:0 val:2
-[  204.836615] BUG: Bad rss-counter state mm:00000000f75895ea idx:1 val:5
-[  204.836685] BUG: non-zero pgtables_bytes on freeing mm: 20480
+On 7/30/19 2:55 PM, Dennis Zhou wrote:
+> On Tue, Jul 30, 2019 at 02:13:25PM -0700, sathyanarayanan kuppuswamy wrote:
+>> On 7/30/19 1:54 PM, Dave Hansen wrote:
+>>> On 7/30/19 1:46 PM, Uladzislau Rezki wrote:
+>>>>> +		/*
+>>>>> +		 * If required width exeeds current VA block, move
+>>>>> +		 * base downwards and then recheck.
+>>>>> +		 */
+>>>>> +		if (base + end > va->va_end) {
+>>>>> +			base = pvm_determine_end_from_reverse(&va, align) - end;
+>>>>> +			term_area = area;
+>>>>> +			continue;
+>>>>> +		}
+>>>>> +
+>>>>>    		/*
+>>>>>    		 * If this VA does not fit, move base downwards and recheck.
+>>>>>    		 */
+>>>>> -		if (base + start < va->va_start || base + end > va->va_end) {
+>>>>> +		if (base + start < va->va_start) {
+>>>>>    			va = node_to_va(rb_prev(&va->rb_node));
+>>>>>    			base = pvm_determine_end_from_reverse(&va, align) - end;
+>>>>>    			term_area = area;
+>>>>> -- 
+>>>>> 2.21.0
+>>>>>
+>>>> I guess it is NUMA related issue, i mean when we have several
+>>>> areas/sizes/offsets. Is that correct?
+>>> I don't think NUMA has anything to do with it.  The vmalloc() area
+>>> itself doesn't have any NUMA properties I can think of.  We don't, for
+>>> instance, partition it into per-node areas that I know of.
+>>>
+>>> I did encounter this issue on a system with ~100 logical CPUs, which is
+>>> a moderate amount these days.
+>> I agree with Dave. I don't think this issue is related to NUMA. The problem
+>> here is about the logic we use to find appropriate vm_area that satisfies
+>> the offset and size requirements of pcpu memory allocator.
+>>
+>> In my test case, I can reproduce this issue if we make request with offset
+>> (ffff000000) and size (600000).
+>>
+>> -- 
+>> Sathyanarayanan Kuppuswamy
+>> Linux kernel developer
+>>
+> I misspoke earlier. I don't think it's numa related either, but I think
+> you could trigger this much more easily this way as it could skip more
+> viable vma space because it'd have to find more holes.
+>
+> But it seems that pvm_determine_end_from_reverse() will return the free
+> vma below the address if it is aligned so:
+>
+>      base + end > va->va_end
+>
+> will always be true and then push down the searching va instead of using
+> that va first.
 
-With patch:
------------
-[   69.815453] mm/pgtable-generic.c:29: bad p4d 0000000084653642(800000025ca37467)
-[   69.815872] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_FILEPAGES val:2
-[   69.815962] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_ANONPAGES val:5
-[   69.816050] BUG: non-zero pgtables_bytes on freeing mm: 20480
+It won't be always true. Initially base address is calculated as below:
 
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Suggested-by/Acked-by: Dave Hansen <dave.hansen@intel.com>
-Signed-off-by: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
----
- include/linux/mm_types_task.h | 7 +++++++
- kernel/fork.c                 | 4 ++--
- 2 files changed, 9 insertions(+), 2 deletions(-)
+base = pvm_determine_end_from_reverse(&va, align) - end;
 
-diff --git a/include/linux/mm_types_task.h b/include/linux/mm_types_task.h
-index d7016dcb245e..881f4ea3a1b5 100644
---- a/include/linux/mm_types_task.h
-+++ b/include/linux/mm_types_task.h
-@@ -44,6 +44,13 @@ enum {
- 	NR_MM_COUNTERS
- };
- 
-+static const char * const resident_page_types[NR_MM_COUNTERS] = {
-+	"MM_FILEPAGES",
-+	"MM_ANONPAGES",
-+	"MM_SWAPENTS",
-+	"MM_SHMEMPAGES",
-+};
-+
- #if USE_SPLIT_PTE_PTLOCKS && defined(CONFIG_MMU)
- #define SPLIT_RSS_COUNTING
- /* per-thread cached information, */
-diff --git a/kernel/fork.c b/kernel/fork.c
-index 2852d0e76ea3..6aef5842d4e0 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -649,8 +649,8 @@ static void check_mm(struct mm_struct *mm)
- 		long x = atomic_long_read(&mm->rss_stat.count[i]);
- 
- 		if (unlikely(x))
--			printk(KERN_ALERT "BUG: Bad rss-counter state "
--					  "mm:%p idx:%d val:%ld\n", mm, i, x);
-+			pr_alert("BUG: Bad rss-counter state mm:%p type:%s val:%ld\n",
-+				 mm, resident_page_types[i], x);
- 	}
- 
- 	if (mm_pgtables_bytes(mm))
+So for first iteration it will not fail.
+>
+> Thanks,
+> Dennis
+>
 -- 
-2.19.1
+Sathyanarayanan Kuppuswamy
+Linux kernel developer
 
