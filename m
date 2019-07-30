@@ -2,330 +2,208 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+X-Spam-Status: No, score=-8.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 98F23C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 01:57:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 36E2AC0650F
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:23:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4A6E5206E0
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 01:57:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A6E5206E0
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id ADE42206B8
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:23:15 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="Fk5HOo+q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ADE42206B8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CB9EA8E0003; Mon, 29 Jul 2019 21:57:34 -0400 (EDT)
+	id 0D5228E0003; Tue, 30 Jul 2019 01:23:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C910A8E0002; Mon, 29 Jul 2019 21:57:34 -0400 (EDT)
+	id 05EF68E0002; Tue, 30 Jul 2019 01:23:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B7F678E0003; Mon, 29 Jul 2019 21:57:34 -0400 (EDT)
+	id E41C58E0003; Tue, 30 Jul 2019 01:23:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8307E8E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 21:57:34 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id b18so39491561pgg.8
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 18:57:34 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A6C638E0002
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 01:23:13 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id g18so34590850plj.19
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 22:23:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version;
-        bh=4nSt4+4z0yU8Ud2djyr/hMGCEWv/LT687HI00JxUk3k=;
-        b=gPnypNzk8gDL4GcsBsz+PnD86rdEiQeXrrACGj71Jyaum1daaPJCvJi2hj7ZB0tBav
-         E4jNJgdxKd+tAdER8PcckYNthMRmqSkNiPa3HArk5hKXIgsm4BQQzkXEwfEDY/la97o1
-         Hx5uWJ/+fpnM+Bk3seeBYxQlwZ+NgpZ4apOpvbdk6Djt1klCd9iP8yV9dZdB+1H8mnoN
-         /Sxd9k9Ff2hGUIwlrGhkrApzEjr6hKcbhLPTNrQ0/car1VeEy14AWnM0cm+deozNCe6O
-         EfXLjqGsm28gl1qPKFsM3VRFX1WMtareiRYZLM27EjDmF+rv8tyxgUwtZQmRT+MZFHfx
-         Vd9g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-X-Gm-Message-State: APjAAAW8EP2v/3/o5t9x9IVqr4hVtK7SFwyq51kf7LK3/GoQPUJjgm/r
-	05dzw1koSgaYojfGt7/87iboXgPSPwK3xSoM4UleuR5KYA9gk4ybEnQcK0TZyRNJc2kk7/b4Lrp
-	BWrrjhPX0NQNbHRR4dvdXeW/nJr3YvWHE+fh/iNeKcLtcJrg21Z9fXjnn2nq06/q40g==
-X-Received: by 2002:a17:90a:8a84:: with SMTP id x4mr112941042pjn.105.1564451854179;
-        Mon, 29 Jul 2019 18:57:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzUWlh4ZpKhYl2CxSyeR8pvbO3jJYKhgmVVQ8d6vlp0gkeej7vPC277xFK6cHRtx/eemu3G
-X-Received: by 2002:a17:90a:8a84:: with SMTP id x4mr112941001pjn.105.1564451853136;
-        Mon, 29 Jul 2019 18:57:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564451853; cv=none;
+        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
+         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
+         :message-id:mime-version;
+        bh=23YFunGSruQwzl/pBIluttH3byxPMyldDYniqzO33c8=;
+        b=oUGKQ8wPksF72eT7rODQ8f9da1fgbana7QsfcwqIYoVQCJU6aakfW9gDWVWIIj+bvL
+         6OmweYz5t2+s5OYJfIVX2RyzNeMcOPbcSfKoCzMG9D/zbwjtAPFEHVxnrb1df+yxovDT
+         O7w95PQoQZ+MGZNyPtuaFRJVVzzjv0+T41EWnfCVwUUfCgC5N1pRTNgXBZF38cBX+e84
+         cz7CVslQp7EHr4y3RXhFF54Ngi/WBwQfyw4aGVBTe+EyvPrl0Hx/hv2HErvPlBXe0jah
+         4CsYjdIxqPWuMCUvyST6m63tjHlHbJbEIZLq2bsmgLVElmx9jFxJInItU0gEGBTnZEVp
+         sYpg==
+X-Gm-Message-State: APjAAAUyiJllAxu6GVYPA53SjsGwKYeU4oLo+icCGcBzVJrJWYBjMHm9
+	PcFZPMEKJveGLpalUonJJ2veRcg/hbJSr4GwrR7OF9SpCIAPBnbiilyu/CR61TP6kwSTCUXkPdi
+	9ZGo8HfLmVAyGsDY8yDriMjgkT7eyW5GOJb8i9kTSYwib5JL5y0oCy5+i1s4EBzBUDA==
+X-Received: by 2002:a63:7e1d:: with SMTP id z29mr107293581pgc.346.1564464193187;
+        Mon, 29 Jul 2019 22:23:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz5YKkEZQ7pL97UvnKSRafm9lhAbTz7ybwmI5OHR5D9+GGJISqtVvLMZ6XHcZQsHm3F7PLS
+X-Received: by 2002:a63:7e1d:: with SMTP id z29mr107293537pgc.346.1564464192149;
+        Mon, 29 Jul 2019 22:23:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564464192; cv=none;
         d=google.com; s=arc-20160816;
-        b=QqRsTmJDM4ZuI86h7tSGfh1jYmcOVDVEY9axGYOibU5gaGbewDnndgwybigAvKz2QV
-         gsPnVdkpO9H/8V6jubic6R7aeXEeHWIAMR8RIL2yIzj6nhbPhYgWf90yIChyRHA5xoOD
-         WE2ZRsGL2RFbgcJzGZ4FJfKN8vzCxjOFVp7dJpt5EEDy92oOsNZ7D04gU1DMeBJO01be
-         wWAXD8TPUTlPFMPCghnuVx48hrM7ZTAo+Vf61b0/bLC724gGra7PRG1nDEsEOqR+3RSH
-         w7+tO06cdlll8nXlI/zvFvxbXJ5cQ0zYVy66qDhmSosRH6yPt8nXZvQtHTgnhb2Swapv
-         qkww==
+        b=Uau7DL8DdekJ/Zw+672EV37QqW+m/wxiyRsMHWJUw2ZqYrH7PlpTrN/4XacwWrQj+G
+         VYdgohhHvy7Og0jeK6aNlzl5mrQdLb1QTRJyiIJKghlfMTUNFzDRGWC2Dbj5PMlLz7tB
+         sXGresO9k2sRg7MTVq0S//f/x77p3/prqeqwWxoMjHkb+k5s6o7pP4bhJ00kG7O4aNHs
+         kwWGdVV+dzV/emup82Do71ZQWJ5DWoY6OuxHv5lw7ye/sd1diS19Um4ZFVSHQo21SWBM
+         omWLp5Fwy9iR2c+I6nUtclnteJYhp4kZfTlbC+nT0pR00ohL5fugpMU6mAtqm7ecm3IG
+         zSSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:subject:cc:to:from;
-        bh=4nSt4+4z0yU8Ud2djyr/hMGCEWv/LT687HI00JxUk3k=;
-        b=YA7XXL12X6UOhqBVCN06uXaHtnARAYWRHfvYzM7FDjrb/474ePbIHOx4nWmt6f0nWV
-         aXoJE6ybbTehZVknp1uIklF5DWZ4bChZDOvQfYdvkTNgFAVb2pnQgNOKYvuhjwXJrLNy
-         hZjvFy/Mrd5+tBTR8vBw9eWPjzh2GSybIBns3UtpdRVb+y6XB9AKz0TYROAHuZYb4FdL
-         s2+KfsjIM1UPkLve6YYyw7FRJcNCAUFZ+UXHWGI875dqjg3eB90G8Ioqja0i9FbpKu3J
-         DBfbeg+31vwtPH5bR8dfkovqw5OrV5dysTH9x3N3lBwcxNB2knnkEBCliJHZKR7I12WF
-         GPUg==
+        h=mime-version:message-id:date:subject:smtp-origin-cluster:cc:to
+         :smtp-origin-hostname:from:smtp-origin-hostprefix:dkim-signature;
+        bh=23YFunGSruQwzl/pBIluttH3byxPMyldDYniqzO33c8=;
+        b=wmXCXYZfKI5ho1u7V9t6jclYoKWkkb6KqLsVndph9sWBBOFkUBDWriTMziXztRxnWD
+         61LlmiSzf6PsqtXlCVX0nGiqNabuWM4XnMXoJKzsHCGx3t5gqcsVpWtfWoGGGMvJiy1G
+         b9tL6j4QOL/Y89z0AwAeXV0ii+31tCsZJdR2IZ2zCqr3DV1/vBXsUTGkYMpYW1anKS/q
+         5JJYH6KF0gBY3I96IXm5WdPYBOxfXmSoC2MZAnli6eHgWFEDmhQ940K/ZPBLG6C6cCjX
+         VThJGjRqP6uS9FwE9r6jjvfRQBlCrfLFVDH2tUna9V5rZTsUQaKXnaqCqtel3+Wt4BRX
+         vBLQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-Received: from mailgw02.mediatek.com ([210.61.82.184])
-        by mx.google.com with ESMTP id g191si28538863pgc.331.2019.07.29.18.57.32
-        for <linux-mm@kvack.org>;
-        Mon, 29 Jul 2019 18:57:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) client-ip=210.61.82.184;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=Fk5HOo+q;
+       spf=pass (google.com: domain of prvs=31148e3214=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=31148e3214=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id h185si26354460pge.199.2019.07.29.22.23.11
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Jul 2019 22:23:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=31148e3214=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-X-UUID: b2d537855ff247a59ab2e8562b6d0a84-20190730
-X-UUID: b2d537855ff247a59ab2e8562b6d0a84-20190730
-Received: from mtkcas08.mediatek.inc [(172.21.101.126)] by mailgw02.mediatek.com
-	(envelope-from <miles.chen@mediatek.com>)
-	(Cellopoint E-mail Firewall v4.1.10 Build 0707 with TLS)
-	with ESMTP id 1386982138; Tue, 30 Jul 2019 09:57:30 +0800
-Received: from mtkcas08.mediatek.inc (172.21.101.126) by
- mtkmbs07n2.mediatek.inc (172.21.101.141) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Tue, 30 Jul 2019 09:57:30 +0800
-Received: from mtksdccf07.mediatek.inc (172.21.84.99) by mtkcas08.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Tue, 30 Jul 2019 09:57:30 +0800
-From: Miles Chen <miles.chen@mediatek.com>
-To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>
-CC: <cgroups@vger.kernel.org>, <linux-mm@kvack.org>,
-	<linux-kernel@vger.kernel.org>, <linux-mediatek@lists.infradead.org>,
-	<wsd_upstream@mediatek.com>, Miles Chen <miles.chen@mediatek.com>
-Subject: [PATCH v4] mm: memcontrol: fix use after free in mem_cgroup_iter()
-Date: Tue, 30 Jul 2019 09:57:29 +0800
-Message-ID: <20190730015729.4406-1-miles.chen@mediatek.com>
-X-Mailer: git-send-email 2.18.0
+       dkim=pass header.i=@fb.com header.s=facebook header.b=Fk5HOo+q;
+       spf=pass (google.com: domain of prvs=31148e3214=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=31148e3214=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0109333.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6U5F7WU003977
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 22:23:11 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : mime-version : content-type; s=facebook;
+ bh=23YFunGSruQwzl/pBIluttH3byxPMyldDYniqzO33c8=;
+ b=Fk5HOo+qT+vMWBmjfYm0RdQxNn8jOv0H8nVblEUeE8wVq37lpV7EEHyqC8GOWG+cuwNu
+ t5NN+NSVdXMmjefoLH/fFma1om9TFgF01e8M6wS6zp50TxFMLCvZeMYXAnK7GRZdQftw
+ O4hTxaJX6iFpqA6FmeVTfGQH5DAe+uXy5Kw= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2u2d8vrc2g-2
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 22:23:11 -0700
+Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
+ mail.thefacebook.com (2620:10d:c0a8:83::4) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Mon, 29 Jul 2019 22:23:10 -0700
+Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
+	id 6C76F62E2FF0; Mon, 29 Jul 2019 22:23:09 -0700 (PDT)
+Smtp-Origin-Hostprefix: devbig
+From: Song Liu <songliubraving@fb.com>
+Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
+To: <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
+        <akpm@linux-foundation.org>
+CC: <matthew.wilcox@oracle.com>, <kirill.shutemov@linux.intel.com>,
+        <oleg@redhat.com>, <kernel-team@fb.com>,
+        <william.kucharski@oracle.com>, <srikar@linux.vnet.ibm.com>,
+        Song Liu <songliubraving@fb.com>
+Smtp-Origin-Cluster: ftw2c04
+Subject: [PATCH v10 0/4] THP aware uprobe
+Date: Mon, 29 Jul 2019 22:23:01 -0700
+Message-ID: <20190730052305.3672336-1-songliubraving@fb.com>
+X-Mailer: git-send-email 2.17.1
+X-FB-Internal: Safe
 MIME-Version: 1.0
 Content-Type: text/plain
-X-MTK: N
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-30_02:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1907300055
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch is sent to report an use after free in mem_cgroup_iter()
-after merging commit: be2657752e9e "mm: memcg: fix use after free in
-mem_cgroup_iter()".
+This set makes uprobe aware of THPs.
 
-I work with android kernel tree (4.9 & 4.14), and the commit:
-be2657752e9e "mm: memcg: fix use after free in mem_cgroup_iter()" has
-been merged to the trees. However, I can still observe use after free
-issues addressed in the commit be2657752e9e.
-(on low-end devices, a few times this month)
+Currently, when uprobe is attached to text on THP, the page is split by
+FOLL_SPLIT. As a result, uprobe eliminates the performance benefit of THP.
 
-backtrace:
-	css_tryget <- crash here
-	mem_cgroup_iter
-	shrink_node
-	shrink_zones
-	do_try_to_free_pages
-	try_to_free_pages
-	__perform_reclaim
-	__alloc_pages_direct_reclaim
-	__alloc_pages_slowpath
-	__alloc_pages_nodemask
+This set makes uprobe THP-aware. Instead of FOLL_SPLIT, we introduces
+FOLL_SPLIT_PMD, which only split PMD for uprobe.
 
-To debug, I poisoned mem_cgroup before freeing it:
+TODO (temporarily removed in v7+):
+After all uprobes within the THP are removed, regroup the PTE-mapped pages
+into huge PMD.
 
-static void __mem_cgroup_free(struct mem_cgroup *memcg)
-	for_each_node(node)
-	free_mem_cgroup_per_node_info(memcg, node);
-	free_percpu(memcg->stat);
-+       /* poison memcg before freeing it */
-+       memset(memcg, 0x78, sizeof(struct mem_cgroup));
-	kfree(memcg);
-}
+This set (plus a few THP patches) is also available at
 
-The coredump shows the position=0xdbbc2a00 is freed.
+   https://github.com/liu-song-6/linux/tree/uprobe-thp
 
-(gdb) p/x ((struct mem_cgroup_per_node *)0xe5009e00)->iter[8]
-$13 = {position = 0xdbbc2a00, generation = 0x2efd}
+Changes v9 => v10:
+1. 2/4 incorporate suggestion by Oleg Nesterov.
+2. Reword change log of 4/4.
 
-0xdbbc2a00:     0xdbbc2e00      0x00000000      0xdbbc2800      0x00000100
-0xdbbc2a10:     0x00000200      0x78787878      0x00026218      0x00000000
-0xdbbc2a20:     0xdcad6000      0x00000001      0x78787800      0x00000000
-0xdbbc2a30:     0x78780000      0x00000000      0x0068fb84      0x78787878
-0xdbbc2a40:     0x78787878      0x78787878      0x78787878      0xe3fa5cc0
-0xdbbc2a50:     0x78787878      0x78787878      0x00000000      0x00000000
-0xdbbc2a60:     0x00000000      0x00000000      0x00000000      0x00000000
-0xdbbc2a70:     0x00000000      0x00000000      0x00000000      0x00000000
-0xdbbc2a80:     0x00000000      0x00000000      0x00000000      0x00000000
-0xdbbc2a90:     0x00000001      0x00000000      0x00000000      0x00100000
-0xdbbc2aa0:     0x00000001      0xdbbc2ac8      0x00000000      0x00000000
-0xdbbc2ab0:     0x00000000      0x00000000      0x00000000      0x00000000
-0xdbbc2ac0:     0x00000000      0x00000000      0xe5b02618      0x00001000
-0xdbbc2ad0:     0x00000000      0x78787878      0x78787878      0x78787878
-0xdbbc2ae0:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2af0:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b00:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b10:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b20:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b30:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b40:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b50:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b60:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b70:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2b80:     0x78787878      0x78787878      0x00000000      0x78787878
-0xdbbc2b90:     0x78787878      0x78787878      0x78787878      0x78787878
-0xdbbc2ba0:     0x78787878      0x78787878      0x78787878      0x78787878
+Changes v8 => v9:
+1. To replace with orig_page, only unmap old_page. Let the orig_page fault
+   in (Oleg Nesterov).
 
-In the reclaim path, try_to_free_pages() does not setup
-sc.target_mem_cgroup and sc is passed to do_try_to_free_pages(), ...,
-shrink_node().
+Changes v7 => v8:
+1. check PageUptodate() for orig_page (Oleg Nesterov).
 
-In mem_cgroup_iter(), root is set to root_mem_cgroup because
-sc->target_mem_cgroup is NULL.
-It is possible to assign a memcg to root_mem_cgroup.nodeinfo.iter in
-mem_cgroup_iter().
+Changes v6 => v7:
+1. Include Acked-by from Kirill A. Shutemov for the first 4 patches;
+2. Keep only the first 4 patches (while I working on improving the last 2).
 
-	try_to_free_pages
-		struct scan_control sc = {...}, target_mem_cgroup is 0x0;
-	do_try_to_free_pages
-	shrink_zones
-	shrink_node
-		 mem_cgroup *root = sc->target_mem_cgroup;
-		 memcg = mem_cgroup_iter(root, NULL, &reclaim);
-	mem_cgroup_iter()
-		if (!root)
-			root = root_mem_cgroup;
-		...
+Changes v5 => v6:
+1. Enable khugepaged to collapse pmd for pte-mapped THP
+   (Kirill A. Shutemov).
+2. uprobe asks khuagepaged to collaspe pmd. (Kirill A. Shutemov)
 
-		css = css_next_descendant_pre(css, &root->css);
-		memcg = mem_cgroup_from_css(css);
-		cmpxchg(&iter->position, pos, memcg);
+Note: Theast two patches in v6 the set apply _after_ v7 of set "Enable THP
+      for text section of non-shmem files"
 
-My device uses memcg non-hierarchical mode.
-When we release a memcg: invalidate_reclaim_iterators() reaches only
-dead_memcg and its parents. If non-hierarchical mode is used,
-invalidate_reclaim_iterators() never reaches root_mem_cgroup.
+Changes v4 => v5:
+1. Propagate pte_alloc() error out of follow_pmd_mask().
 
-static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
-{
-	struct mem_cgroup *memcg = dead_memcg;
+Changes since v3:
+1. Simplify FOLL_SPLIT_PMD case in follow_pmd_mask(), (Kirill A. Shutemov)
+2. Fix try_collapse_huge_pmd() to match change in follow_pmd_mask().
 
-	for (; memcg; memcg = parent_mem_cgroup(memcg)
-	...
-}
+Changes since v2:
+1. For FOLL_SPLIT_PMD, populated the page table in follow_pmd_mask().
+2. Simplify logic in uprobe_write_opcode. (Oleg Nesterov)
+3. Fix page refcount handling with FOLL_SPLIT_PMD.
+4. Much more testing, together with THP on ext4 and btrfs (sending in
+   separate set).
+5. Rebased.
 
-So the use after free scenario looks like:
+Changes since v1:
+1. introduces FOLL_SPLIT_PMD, instead of modifying split_huge_pmd*();
+2. reuse pages_identical() from ksm.c;
+3. rewrite most of try_collapse_huge_pmd().
 
-CPU1						CPU2
+Song Liu (4):
+  mm: move memcmp_pages() and pages_identical()
+  uprobe: use original page when all uprobes are removed
+  mm, thp: introduce FOLL_SPLIT_PMD
+  uprobe: use FOLL_SPLIT_PMD instead of FOLL_SPLIT
 
-try_to_free_pages
-do_try_to_free_pages
-shrink_zones
-shrink_node
-mem_cgroup_iter()
-    if (!root)
-    	root = root_mem_cgroup;
-    ...
-    css = css_next_descendant_pre(css, &root->css);
-    memcg = mem_cgroup_from_css(css);
-    cmpxchg(&iter->position, pos, memcg);
+ include/linux/mm.h      |  8 +++++
+ kernel/events/uprobes.c | 72 ++++++++++++++++++++++++++++++-----------
+ mm/gup.c                |  8 +++--
+ mm/ksm.c                | 18 -----------
+ mm/util.c               | 13 ++++++++
+ 5 files changed, 80 insertions(+), 39 deletions(-)
 
-					invalidate_reclaim_iterators(memcg);
-					...
-					__mem_cgroup_free()
-						kfree(memcg);
-
-try_to_free_pages
-do_try_to_free_pages
-shrink_zones
-shrink_node
-mem_cgroup_iter()
-    if (!root)
-    	root = root_mem_cgroup;
-    ...
-    mz = mem_cgroup_nodeinfo(root, reclaim->pgdat->node_id);
-    iter = &mz->iter[reclaim->priority];
-    pos = READ_ONCE(iter->position);
-    css_tryget(&pos->css) <- use after free
-
-To avoid this, we should also invalidate root_mem_cgroup.nodeinfo.iter in
-invalidate_reclaim_iterators().
-
-Change since v1:
-Add a comment to explain why we need to handle root_mem_cgroup separately.
-Rename invalid_root to invalidate_root.
-
-Change since v2:
-Add fix tag
-
-Change since v3:
-Remove confusing 'invalidate_root', make the code easier to read
-
-Fixes: 5ac8fb31ad2e ("mm: memcontrol: convert reclaim iterator to simple css refcounting")
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>
-Signed-off-by: Miles Chen <miles.chen@mediatek.com>
----
- mm/memcontrol.c | 39 +++++++++++++++++++++++++++++----------
- 1 file changed, 29 insertions(+), 10 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index cdbb7a84cb6e..8a2a2d5cfc26 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1130,26 +1130,45 @@ void mem_cgroup_iter_break(struct mem_cgroup *root,
- 		css_put(&prev->css);
- }
- 
--static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
-+static void __invalidate_reclaim_iterators(struct mem_cgroup *from,
-+					struct mem_cgroup *dead_memcg)
- {
--	struct mem_cgroup *memcg = dead_memcg;
- 	struct mem_cgroup_reclaim_iter *iter;
- 	struct mem_cgroup_per_node *mz;
- 	int nid;
- 	int i;
- 
--	for (; memcg; memcg = parent_mem_cgroup(memcg)) {
--		for_each_node(nid) {
--			mz = mem_cgroup_nodeinfo(memcg, nid);
--			for (i = 0; i <= DEF_PRIORITY; i++) {
--				iter = &mz->iter[i];
--				cmpxchg(&iter->position,
--					dead_memcg, NULL);
--			}
-+	for_each_node(nid) {
-+		mz = mem_cgroup_nodeinfo(from, nid);
-+		for (i = 0; i <= DEF_PRIORITY; i++) {
-+			iter = &mz->iter[i];
-+			cmpxchg(&iter->position,
-+				dead_memcg, NULL);
- 		}
- 	}
- }
- 
-+static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
-+{
-+	struct mem_cgroup *memcg = dead_memcg;
-+	struct mem_cgroup *last;
-+
-+	do {
-+		__invalidate_reclaim_iterators(memcg, dead_memcg);
-+		last = memcg;
-+	} while (memcg = parent_mem_cgroup(memcg));
-+
-+	/*
-+	 * When cgruop1 non-hierarchy mode is used,
-+	 * parent_mem_cgroup() does not walk all the way up to the
-+	 * cgroup root (root_mem_cgroup). So we have to handle
-+	 * dead_memcg from cgroup root separately.
-+	 */
-+	if (last != root_mem_cgroup)
-+		__invalidate_reclaim_iterators(root_mem_cgroup,
-+						dead_memcg);
-+}
-+
- /**
-  * mem_cgroup_scan_tasks - iterate over tasks of a memory cgroup hierarchy
-  * @memcg: hierarchy root
--- 
-2.18.0
+--
+2.17.1
 
