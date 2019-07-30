@@ -2,136 +2,324 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C511CC433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 10:26:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9F447C31E40
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 10:32:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7A54520651
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 10:26:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="i7Nt6xRk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7A54520651
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 368C620644
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 10:32:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 368C620644
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 263CC8E0005; Tue, 30 Jul 2019 06:26:22 -0400 (EDT)
+	id 914EB8E0005; Tue, 30 Jul 2019 06:32:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 213218E0001; Tue, 30 Jul 2019 06:26:22 -0400 (EDT)
+	id 89E158E0001; Tue, 30 Jul 2019 06:32:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 12A4B8E0005; Tue, 30 Jul 2019 06:26:22 -0400 (EDT)
+	id 766678E0005; Tue, 30 Jul 2019 06:32:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D56E98E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 06:26:21 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id s22so35065311plp.5
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 03:26:21 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2847E8E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 06:32:19 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id k22so40090621ede.0
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 03:32:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=B41dOFAL1OVXzo32k2PddSinndYgRrLzOceWuj2dYcs=;
-        b=c54jFSPGKi7Q5+BjLvqLKYRf7mHh20RU3rtE1dkgqZ+f+gR4e9tKX5G2LB3ltP4ODO
-         PkKp+F7N4Iy3u3vCquPVLg39/z8R1QFVTkpxHG4ajn5OsgQE12FSzJwx0KNL0MZSDLDh
-         fkcwhTij4TfxwRfSw7qbJZUCfRtGgo36Yq5gOE0zd4KGPsJ+QaNWQpxGtHVEtiCDbZSL
-         raU8r1ut+/Yr+euz2znB9wPgYP64IFRLmDx2lRB1VQLp0xiSXyhIGOE2Xdwz+7wLgfiI
-         F7b15HgMH5TspI4xyj00WzZ02cTsTowccQUiL0pP+olUxyxbOzTg0Xc4XCHqMWeDz9DP
-         tfLw==
-X-Gm-Message-State: APjAAAVtY5fKE0OH1uy/kJEjWjhk25qNbJY2Eu90LbRuXx2jejIxta3n
-	VNd7ExMZbOOkjWI9GIjd1Ps8hrKvwTOEFBM1Bce3f1H/dwN+SnNAdHU9CKoHD4lju9phjOeM1mO
-	gITsrdtyOV7W0GqIv9uMYOTAM5Aw7xaYygSLDVWcsRzDzhqdaXBwqwfm6a6Ksmssn/w==
-X-Received: by 2002:a62:38c6:: with SMTP id f189mr41256023pfa.157.1564482381464;
-        Tue, 30 Jul 2019 03:26:21 -0700 (PDT)
-X-Received: by 2002:a62:38c6:: with SMTP id f189mr41255985pfa.157.1564482380873;
-        Tue, 30 Jul 2019 03:26:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564482380; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=96e2nEHAtPkosrU0+mVK3ZgQm78o50wjNvU2XaRdODU=;
+        b=MbR/PikdNU7JA73OLBI/fZR+vyc/TUeE+IiOaVsptri8CdTwt9E71dO4CIDw3yTVX9
+         hQX3gh8Jw7Zirj/M92e3+d5KXiKt+FNyU9fxKhzKrwn+fCf1jJCCDm0HApXLDIUOfvW7
+         Cq6gpWZL44c+Ftjz8333yTiVl2MKWA9hHOLxraoFEwKgbE2WDhDW9Y4dA0vHgDMOLpk4
+         AbuLrKKiltAbe9+z3pqIW1am3RIG+v2vgcmwx0XSGiVChUlz6qAd1fMWoeDJRvleXesp
+         e4AeYMni8tnUfYdwFAZAb1cPICqASyUX53WOpmK2QrPyI7g3VINkRt58eH/jb4Yi1T+u
+         J9UQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of kevin.brodsky@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
+X-Gm-Message-State: APjAAAUw9RZknQRCSkcHkbwvpY6CSWx8gUha2rai9hp0riYfzuu7nO+i
+	LvfE2vn162Pw9qytgOXUUEviB8IoxX8w3MwdGNZFwCutSbR7yqI6oUUUEbzx4V0eh0CEEAyUe5m
+	6jjcFIe2oCaKKVHokiPGmvZ5qGADxjuKgAYPGxED+ruNwWP01Z7V3Cx4LSW3a9fqNaw==
+X-Received: by 2002:a50:f781:: with SMTP id h1mr103224098edn.240.1564482738618;
+        Tue, 30 Jul 2019 03:32:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxgi6PobGJ7eRvjr0ba2kjK/IQGyEFfgr4Jd5/Tkqh60eWFDF9tVo2JQlaKvHefzw7y1ZkL
+X-Received: by 2002:a50:f781:: with SMTP id h1mr103224019edn.240.1564482737635;
+        Tue, 30 Jul 2019 03:32:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564482737; cv=none;
         d=google.com; s=arc-20160816;
-        b=YxvsCWU9yu+41zGyL+OtmmPaGjmMWm5BT9aba/79oUb9xNIM2z/ot9rUQ4Kvd3+jlF
-         g5EHzgttZ2e1FfRS4SJ4yu0nK4Qw7M/Al3pBDHJ9iFuXs4k9fJ1o2Qrf/lbD7dEhMxul
-         dmV1L5AG/RVR1ZCzaz8QOUAGP7w73N4pKDDhl75DjyLEQv27z70C3PyXRSH9eeW0OIpq
-         +Mzf3hSorwhAjhLLp96fq614DqDgf7XSyBjZzbhQrrdXF6jZIhp5OvTCwpEBmdbovwE3
-         IeIRIy9UwltkXo2rqgZAO1fcu0dlB12D1gWWINCgwP9YZ9mrewgKxOm/eLsMbzLAM7EE
-         G+3w==
+        b=pwRonZAFyFSaeromcQfG/v0fob3/aZ/klF9W60FGwHknpGS5UCUSHJnG/vWrk415Xb
+         m90HQfmhEk9btT1uQpxdF7Ljg430PE78R2SxmtEUcQFJMWS7JNt0gSs3bwKNFxujAW2I
+         zWBug7taavddQMSmvmVdWjkrtq+mGwgRfKnRCmHKovZVT3sOChMZ1Ky4Sl7GRs4QdtDo
+         CY4/lH5wrztWJFVtub353bapp8RSocHy9vi3qVXKhEkLlvXHZ6EpQ+FKUjQQScVxgef3
+         byOFUKhJptIOxQr4Bc/DpQDtR7NqP2KIwqegRjqbY2xw4bf+GDiDqdF9RriYWFVuq5gh
+         z2Nw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=B41dOFAL1OVXzo32k2PddSinndYgRrLzOceWuj2dYcs=;
-        b=AK8EJdRhPvL5hR7EwOlm8ozUmpoFzA+Y5Y0dKGUdiEs5RjHODIqTWkEkiGZDXjceI8
-         2nLTcaTulpZvkC3eBgrSs7Ium5sI2N9E//lGp3pmkwj8Kpv87QpRslP+JDDrsbtdxKoJ
-         7yJhvVYwKa23E49+PTDN5nbDhTCu5OEOUB3e8sIsOMBlMPTn7oEHeqkS3ThQTjQABEEX
-         e+KEs5e7f/yHnTyFjIRXZrDOhlevRW+AkPfxkWJ7szinoIZy75fqVD6amK7BwRSs9JLk
-         7ruo68Xu5gGA/2TdSG2iV0XZ8FSiyqLgTv62UYOdq3AqVbw/uvLPZryyk6JzoyIBCyrz
-         dsjw==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=96e2nEHAtPkosrU0+mVK3ZgQm78o50wjNvU2XaRdODU=;
+        b=c2eMcS9woBfkH4gHItOaflJwmt5d7YWLEYRn9M/HxFj7e3B3q7cNI4RVZy21PRP3KY
+         4qkgQMNijHfl8/Izmj96yBSeqsrLa7CiF3JP/LQAWOnBGibLdxMGQCirUd/sNxbDbprN
+         UhGpw9TpiBEX9eWB3ThRQegco0Fck18swmi/K2iYYNY2quqslslLlXm9Avr2b+gcUxui
+         QiEgD/IeVrzEMIwHQM7cWnF46B0NlAQRINSwed7bx1eT7IO+f7kWBAr9mVQq6CDPKUC4
+         5cRxTWKOonTxqxcFMULdqGzeIMayURL5ihnbItjdJDNIKYV9IhkDb5ZoR75tuumV+4fP
+         ty3g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=i7Nt6xRk;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n2sor7386423pgh.45.2019.07.30.03.26.20
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 30 Jul 2019 03:26:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: best guess record for domain of kevin.brodsky@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id w9si18063281ejk.288.2019.07.30.03.32.17
+        for <linux-mm@kvack.org>;
+        Tue, 30 Jul 2019 03:32:17 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of kevin.brodsky@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=i7Nt6xRk;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=B41dOFAL1OVXzo32k2PddSinndYgRrLzOceWuj2dYcs=;
-        b=i7Nt6xRkRfvFCCVipqPhPmUZyVmjuAdk9XvMcLtySbCYdYJr0vMsYhkTiIE9qVDOHK
-         SYduOpEPzNTNU5fL7XIet0nzi6Hb0+Y3MRI3ycdjx2r32drhNk7ebQNjBQGTP9L3tAY3
-         xKPu4OsR0YLH3RZC2tU5A2nV/QJ67w+i5ahlw1mXgS6rsDAYqvvDJLJJNvBcXv3GIew9
-         y79fPpsjqTXZT9WvjGuTCjzDuG1NsHjVuLpPyPCoLsV/cBeumt/X/6hYWs1CZ10UZnb3
-         wzAqKqygyn9ZasPXv3I83Lsa1RI3RpJFi48CFo98NxQjSZfnpYYDmXF1k5mbARh5QCQk
-         TFew==
-X-Google-Smtp-Source: APXvYqxOncBM7FFqx4lditTRj2caSLMJ9IX+bFXJ4D8j7fqT/1w8OoqWf5bcpF3t2GTiYtSsQvUPSQ==
-X-Received: by 2002:a63:3281:: with SMTP id y123mr105781516pgy.72.1564482380523;
-        Tue, 30 Jul 2019 03:26:20 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.31])
-        by smtp.gmail.com with ESMTPSA id k6sm74255606pfi.12.2019.07.30.03.26.16
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 03:26:20 -0700 (PDT)
-Date: Tue, 30 Jul 2019 15:56:13 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: Christoph Hellwig <hch@lst.de>
-Cc: sivanich@sgi.com, arnd@arndb.de, ira.weiny@intel.com,
-	jhubbard@nvidia.com, jglisse@redhat.com, gregkh@linuxfoundation.org,
-	william.kucharski@oracle.com, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [PATCH v3 1/1] sgi-gru: Remove *pte_lookup functions
-Message-ID: <20190730102613.GB6825@bharath12345-Inspiron-5559>
-References: <1564170120-11882-1-git-send-email-linux.bhar@gmail.com>
- <1564170120-11882-2-git-send-email-linux.bhar@gmail.com>
- <20190729064842.GA3853@lst.de>
+       spf=pass (google.com: best guess record for domain of kevin.brodsky@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=kevin.brodsky@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id AA340344;
+	Tue, 30 Jul 2019 03:32:16 -0700 (PDT)
+Received: from [10.1.194.48] (e123572-lin.cambridge.arm.com [10.1.194.48])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 3ADB13F575;
+	Tue, 30 Jul 2019 03:32:15 -0700 (PDT)
+Subject: Re: [PATCH v6 1/2] arm64: Define
+ Documentation/arm64/tagged-address-abi.rst
+To: Vincenzo Frascino <vincenzo.frascino@arm.com>,
+ linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
+ linux-mm@kvack.org, linux-arch@vger.kernel.org,
+ linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
+Cc: Szabolcs Nagy <szabolcs.nagy@arm.com>,
+ Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
+ <will.deacon@arm.com>, Andrey Konovalov <andreyknvl@google.com>
+References: <cover.1563904656.git.andreyknvl@google.com>
+ <20190725135044.24381-1-vincenzo.frascino@arm.com>
+ <20190725135044.24381-2-vincenzo.frascino@arm.com>
+From: Kevin Brodsky <kevin.brodsky@arm.com>
+Message-ID: <52fa2cfc-f7a6-af6f-0dc2-f9ea0e41ac3c@arm.com>
+Date: Tue, 30 Jul 2019 11:32:09 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190729064842.GA3853@lst.de>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <20190725135044.24381-2-vincenzo.frascino@arm.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-GB
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 29, 2019 at 08:48:42AM +0200, Christoph Hellwig wrote:
-> On Sat, Jul 27, 2019 at 01:12:00AM +0530, Bharath Vedartham wrote:
-> > +		ret = get_user_pages_fast(vaddr, 1, write, &page);
-> 
-> I think you want to pass "write ? FOLL_WRITE : 0" here, as
-> get_user_pages_fast takes a gup_flags argument, not a boolean
-> write flag.
+Some more comments. Mostly minor wording issues, except the prctl() exclusion at the end.
 
-You are right there! I ll send another version correcting this.
+On 25/07/2019 14:50, Vincenzo Frascino wrote:
+> On arm64 the TCR_EL1.TBI0 bit has been always enabled hence
+> the userspace (EL0) is allowed to set a non-zero value in the
+> top byte but the resulting pointers are not allowed at the
+> user-kernel syscall ABI boundary.
+>
+> With the relaxed ABI proposed through this document, it is now possible
+> to pass tagged pointers to the syscalls, when these pointers are in
+> memory ranges obtained by an anonymous (MAP_ANONYMOUS) mmap().
+>
+> This change in the ABI requires a mechanism to requires the userspace
+> to opt-in to such an option.
+>
+> Specify and document the way in which sysctl and prctl() can be used
+> in combination to allow the userspace to opt-in this feature.
+>
+> Cc: Catalin Marinas <catalin.marinas@arm.com>
+> Cc: Will Deacon <will.deacon@arm.com>
+> CC: Andrey Konovalov <andreyknvl@google.com>
+> Signed-off-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+> Acked-by: Szabolcs Nagy <szabolcs.nagy@arm.com>
+> ---
+>   Documentation/arm64/tagged-address-abi.rst | 148 +++++++++++++++++++++
+>   1 file changed, 148 insertions(+)
+>   create mode 100644 Documentation/arm64/tagged-address-abi.rst
+>
+> diff --git a/Documentation/arm64/tagged-address-abi.rst b/Documentation/arm64/tagged-address-abi.rst
+> new file mode 100644
+> index 000000000000..a8ecb991de82
+> --- /dev/null
+> +++ b/Documentation/arm64/tagged-address-abi.rst
+> @@ -0,0 +1,148 @@
+> +========================
+> +ARM64 TAGGED ADDRESS ABI
+> +========================
+> +
+> +Author: Vincenzo Frascino <vincenzo.frascino@arm.com>
+> +
+> +Date: 25 July 2019
+> +
+> +This document describes the usage and semantics of the Tagged Address
+> +ABI on arm64.
+> +
+> +1. Introduction
+> +---------------
+> +
+> +On arm64 the TCR_EL1.TBI0 bit has always been enabled on the kernel, hence
+> +the userspace (EL0) is entitled to perform a user memory access through a
+> +64-bit pointer with a non-zero top byte but the resulting pointers are not
+> +allowed at the user-kernel syscall ABI boundary.
+> +
+> +This document describes a relaxation of the ABI that makes it possible to
+> +to pass tagged pointers to the syscalls, when these pointers are in memory
 
-Thank you
-Bharath
+One too many "to" (at the end the previous line).
+
+> +ranges obtained as described in section 2.
+> +
+> +Since it is not desirable to relax the ABI to allow tagged user addresses
+> +into the kernel indiscriminately, arm64 provides a new sysctl interface
+> +(/proc/sys/abi/tagged_addr) that is used to prevent the applications from
+> +enabling the relaxed ABI and a new prctl() interface that can be used to
+> +enable or disable the relaxed ABI.
+> +A detailed description of the newly introduced mechanisms will be provided
+> +in section 2.
+> +
+> +2. ARM64 Tagged Address ABI
+> +---------------------------
+> +
+> +From the kernel syscall interface perspective, we define, for the purposes
+> +of this document, a "valid tagged pointer" as a pointer that either has a
+> +zero value set in the top byte or has a non-zero value, is in memory ranges
+> +privately owned by a userspace process and is obtained in one of the
+> +following ways:
+> +- mmap() done by the process itself, where either:
+> +
+> +  - flags have **MAP_PRIVATE** and **MAP_ANONYMOUS**
+> +  - flags have **MAP_PRIVATE** and the file descriptor refers to a regular
+> +    file or **/dev/zero**
+> +
+> +- brk() system call done by the process itself (i.e. the heap area between
+> +  the initial location of the program break at process creation and its
+> +  current location).
+> +- any memory mapped by the kernel in the process's address space during
+> +  creation and with the same restrictions as for mmap() (e.g. data, bss,
+> +  stack).
+> +
+> +The ARM64 Tagged Address ABI is an opt-in feature, and an application can
+> +control it using the following:
+> +
+> +- **/proc/sys/abi/tagged_addr**: a new sysctl interface that can be used to
+> +  prevent the applications from enabling the access to the relaxed ABI.
+> +  The sysctl supports the following configuration options:
+> +
+> +  - **0**: Disable the access to the ARM64 Tagged Address ABI for all
+> +    the applications.
+> +  - **1** (Default): Enable the access to the ARM64 Tagged Address ABI for
+> +    all the applications.
+> +
+> +   If the access to the ARM64 Tagged Address ABI is disabled at a certain
+> +   point in time, all the applications that were using tagging before this
+> +   event occurs, will continue to use tagging.
+
+"tagging" may be misinterpreted here. I would be more explicit by saying that the 
+tagged address ABI remains enabled in processes that opted in before the access got 
+disabled.
+
+> +- **prctl()s**:
+> +
+> +  - **PR_SET_TAGGED_ADDR_CTRL**: Invoked by a process, can be used to enable or
+> +    disable its access to the ARM64 Tagged Address ABI.
+
+I still find the wording confusing, because "access to the ABI" is not used 
+consistently. The "tagged_addr" sysctl enables *access to the ABI*, that's fine. 
+However, PR_SET_TAGGED_ADDR_CTRL enables *the ABI itself* (which is only possible if 
+access to the ABI is enabled).
+
+> +
+> +    The (unsigned int) arg2 argument is a bit mask describing the control mode
+> +    used:
+> +
+> +    - **PR_TAGGED_ADDR_ENABLE**: Enable ARM64 Tagged Address ABI.
+> +
+> +    The prctl(PR_SET_TAGGED_ADDR_CTRL, ...) will return -EINVAL if the ARM64
+> +    Tagged Address ABI is not available.
+
+For clarity, it would be good to mention that one possible reason for the ABI not to 
+be available is tagged_addr == 0.
+
+> +
+> +    The arguments arg3, arg4, and arg5 are ignored.
+> +  - **PR_GET_TAGGED_ADDR_CTRL**: can be used to check the status of the Tagged
+> +    Address ABI.
+> +
+> +    The arguments arg2, arg3, arg4, and arg5 are ignored.
+> +
+> +The ABI properties set by the mechanisms described above are inherited by threads
+> +of the same application and fork()'ed children but cleared by execve().
+> +
+> +When a process has successfully opted into the new ABI by invoking
+> +PR_SET_TAGGED_ADDR_CTRL prctl(), this guarantees the following behaviours:
+> +
+> + - Every currently available syscall, except the cases mentioned in section 3, can
+> +   accept any valid tagged pointer. The same rule is applicable to any syscall
+> +   introduced in the future.
+
+I thought Catalin wanted to drop this guarantee?
+
+> + - If a non valid tagged pointer is passed to a syscall then the behaviour
+> +   is undefined.
+> + - Every valid tagged pointer is expected to work as an untagged one.
+> + - The kernel preserves any valid tagged pointer and returns it to the
+> +   userspace unchanged (i.e. on syscall return) in all the cases except the
+> +   ones documented in the "Preserving tags" section of tagged-pointers.txt.
+> +
+> +A definition of the meaning of tagged pointers on arm64 can be found in:
+> +Documentation/arm64/tagged-pointers.txt.
+> +
+> +3. ARM64 Tagged Address ABI Exceptions
+> +--------------------------------------
+> +
+> +The behaviours described in section 2, with particular reference to the
+> +acceptance by the syscalls of any valid tagged pointer are not applicable
+> +to the following cases:
+> +
+> + - mmap() addr parameter.
+> + - mremap() new_address parameter.
+> + - prctl(PR_SET_MM, PR_SET_MM_MAP, ...) struct prctl_mm_map fields.
+> + - prctl(PR_SET_MM, PR_SET_MM_MAP_SIZE, ...) struct prctl_mm_map fields.
+
+All the PR_SET_MM options that specify pointers (PR_SET_MM_START_CODE, 
+PR_SET_MM_END_CODE, ...) should be excluded as well. AFAICT (but don't take my word 
+for it), that's all of them except PR_SET_MM_EXE_FILE. Conversely, PR_SET_MM_MAP_SIZE 
+should not be excluded (it does not pass a prctl_mm_map struct, and the pointer to 
+unsigned int can be tagged).
+
+Kevin
+
+> +
+> +Any attempt to use non-zero tagged pointers will lead to undefined behaviour.
+> +
+> +4. Example of correct usage
+> +---------------------------
+> +.. code-block:: c
+> +
+> +   void main(void)
+> +   {
+> +           static int tbi_enabled = 0;
+> +           unsigned long tag = 0;
+> +
+> +           char *ptr = mmap(NULL, PAGE_SIZE, PROT_READ | PROT_WRITE,
+> +                            MAP_ANONYMOUS, -1, 0);
+> +
+> +           if (prctl(PR_SET_TAGGED_ADDR_CTRL, PR_TAGGED_ADDR_ENABLE,
+> +                     0, 0, 0) == 0)
+> +                   tbi_enabled = 1;
+> +
+> +           if (ptr == (void *)-1) /* MAP_FAILED */
+> +                   return -1;
+> +
+> +           if (tbi_enabled)
+> +                   tag = rand() & 0xff;
+> +
+> +           ptr = (char *)((unsigned long)ptr | (tag << TAG_SHIFT));
+> +
+> +           *ptr = 'a';
+> +
+> +           ...
+> +   }
+> +
 
