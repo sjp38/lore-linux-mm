@@ -2,169 +2,311 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	HTML_MESSAGE,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3EAE9C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 06:12:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 459F8C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 06:29:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E9209206E0
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 06:12:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E9209206E0
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
+	by mail.kernel.org (Postfix) with ESMTP id C75B22064A
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 06:29:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C75B22064A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 767818E001B; Tue, 30 Jul 2019 02:12:28 -0400 (EDT)
+	id 33D688E0006; Tue, 30 Jul 2019 02:29:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7181E8E0003; Tue, 30 Jul 2019 02:12:28 -0400 (EDT)
+	id 2EC848E0003; Tue, 30 Jul 2019 02:29:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5DFC68E001B; Tue, 30 Jul 2019 02:12:28 -0400 (EDT)
+	id 1B5958E0006; Tue, 30 Jul 2019 02:29:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 12A8F8E0003
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 02:12:28 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id z20so39680357edr.15
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 23:12:28 -0700 (PDT)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id E66688E0003
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 02:29:21 -0400 (EDT)
+Received: by mail-vs1-f69.google.com with SMTP id x22so16655551vsj.1
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 23:29:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=+GyToamCYQslJN30QlOYB4rUgZbXEdynHh6yGFF/boo=;
-        b=eGjWh+whQvWIzqi5mDLfp+LKQdarzaI8ZeCgTZ5k2reU8aPb/e8i0VrMSGarXbpkcy
-         n5vkfBrauaoOGPwe79KU8/OUV/iGc4ZYff+9Bh8whBZ05AxPQ09xGKAYn3VcunzGN6C7
-         WvQcMyumcZC1jTIvg+KQYujKV/b/2RUFTn5I2bkvqvaLOeb95SQUtb5dXLjJYpqjcVZh
-         32d4m+aVjEDA/8HifnVhJzugFU847xO/Qq/82LW862L7LG02chrsK0ypvQXEG/7OAwrM
-         8ZOrQTpigl2GBqq8dEK80ct9jZzkGiNofTCRVvIul55Zrv0Jl6FuMqqUbibI3WWd7J0f
-         FZgA==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.178.230 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAWgJ6wKVnPi/GZ8ljQV44BM1dT+/gQ+Ev2L7FH0mA2S6BRlV7/i
-	VfELeZViOSPNTX7tq0/ISkDcYUY0NfcKk0kb/BwUJgKy8WuQTYmvgaPv+xQCulK2bQb7s25G3d3
-	0KwJAhmMPF7VqAPWsW04LVjF8ygDf65lcb7DW1rLPUaSCazvvbKv8geOCpTsXmCA=
-X-Received: by 2002:aa7:c24b:: with SMTP id y11mr52853419edo.239.1564467147598;
-        Mon, 29 Jul 2019 23:12:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqys510rjMxYGZNdH76vlvxHEEROQj3ibJ5TEWc9L3RBeGV4xqaKK45qXTqxaUvHm00Ha3XH
-X-Received: by 2002:aa7:c24b:: with SMTP id y11mr52853374edo.239.1564467146847;
-        Mon, 29 Jul 2019 23:12:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564467146; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :references:in-reply-to:from:date:message-id:subject:to:cc;
+        bh=IMosPesPFFf9hL8ooifOFytMB+kDSnPB1qWdSk68K9c=;
+        b=RuVVSFNEd4Y0A2+bRtU9ETyBZAsnv41Qw7zC35H/zHY1dFxEouIl7WiquGwat2xsPz
+         kxJONk8+RPC/7D91aKV+e1GVbabqOmSIqjCEvVYWIneKHVkFq2W7LwgM3GMUwqd6vV58
+         Dj9aSllxlpcPvUMTeFs3sX9DZLFRlj01GyVEvI1X3RgsVQAsucrf7WtcOIMgi1TjLPIR
+         FkNvrNRayTbO2R/rbBd5dwzhvKbP1u4E2wzIOASJ52mp419DyvaABHxaucKoVlaUCuW4
+         55hTaGVpYco/uAUP+RhZNRc2tEgg+nOb6vIKybac2EQBsF/pb57/+/xyuNHpd/81MJkP
+         E2pg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of liwan@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=liwan@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVacz5F6XyB9EC+BpEw6nDtDytYkUg89zxud6gcVUeaAbTu4yZV
+	fgmCWXDNIcwAoDSe3xwJJUzaQIeD6HRb6Gjo13QCLeDH9hc1psrG7UmY9BxRRu8wNmvhpSLWQZN
+	sw8cIfJqu+D3C9rgOj4S4vt2Hp5sIP+0efB64Spr5YeBHkORo+b0zH4kVeW8v4Nd7Sg==
+X-Received: by 2002:a67:2704:: with SMTP id n4mr9040559vsn.202.1564468161597;
+        Mon, 29 Jul 2019 23:29:21 -0700 (PDT)
+X-Received: by 2002:a67:2704:: with SMTP id n4mr9040539vsn.202.1564468160633;
+        Mon, 29 Jul 2019 23:29:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564468160; cv=none;
         d=google.com; s=arc-20160816;
-        b=lKa9XUST4B7REdFCIZuZZ/ZfaewGAH0F33CpgY2FdW5vSDK4K153DC2M2c9zmhpBrY
-         PKSxc3oSeQ05WzhmvUsECmyeUPjfzbK2LyzOYAS0xABCQ6UR8RhONlXJnxBuG+YAR2ws
-         GbYOI8ZYaYs7k22OBfVzwPVleWfonN6uLc5xZGG4uVfxCTfA9oQ0lyEANJeKH24rBwh4
-         lH3zpbretynfGxN/IOJ2c+eaCZnA6PW0qHoh/r6d/2yOydS24TaPYQb417VFvPABEU2S
-         IHsgoucn0knAhPCQT78JuwMzweGZjDH9mbccF6Fmqd7cXlRCpaf4y4ACwtnaQyZYWpju
-         rtpQ==
+        b=QnQJewcDdnOFKlJyD4ZwfuGLt6SKw8IX68v62GAzMukm10aA4tNR6eKrORu0FA7jzU
+         b9NGoBPsw0S4TPWAyU1NaUFvgGAtvO861UmXHpIaGH1p0prGtBxNT9+0gnxTCvAZG7Yt
+         JMIF2Zs7oM7yH2sQWIH9dhNogpByeUb4kSGDvhd17cLSCBX6J3j/Ng4DhP2XhndaYm/5
+         k3sBqhczpvm1Q6GG2GVJbO8tMjqRvqpxJMgQJHR4oxjLoboO8kBvpY+pJp2IjKDxFnnp
+         MZoeD2Q17LfqqmWFIxY298urTomFbi4gzkNdbhKKUbDdfIoVLg7hUOBloXtCNTD0tTCq
+         gpLA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=+GyToamCYQslJN30QlOYB4rUgZbXEdynHh6yGFF/boo=;
-        b=QramYOLVRTuJ8U8vqsi7bWJWi/x14+Z5kRiT+i/pSliFzRTuXMyd7zcLs5nhCB5YLS
-         dGiZQk0ZuVLuif77t1YTHo7MDUdmMVsaUb3M8li5pFr5iYPpzUGkkZHyeivwEwUdGe9j
-         r1tAqCSFeHTv4YCLaMcbvXgVs0wfiOOjlVsR7WzfnsXk2qUn484ardCdWa22SOp1RNxi
-         zivu0awqts6J35hcznsfvukjhiK/HE6CU5zp/yCRDeiuYCGo97QODr0xT1fIQN7G4UmH
-         va1x9zED3f69JbDdvqMQOmkpJyimOBhsx6eeveHucIUD30yJBJ3OA5nHlDUI4y5C85ss
-         NbZQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version;
+        bh=IMosPesPFFf9hL8ooifOFytMB+kDSnPB1qWdSk68K9c=;
+        b=eA95+sT9GPhKDMlr8HFU4plYmEfI+nZ5R7UHVmTkIuXyeXKDT6es12LAAhWwsX1oBl
+         4sjpiHS+mbEunDqolKVnS/7b5e/RBIEXvW2CxCzvLjvi6eqVJIaAuYIWj4Oc3QY5pYQX
+         0qc6Y23zUlDZQTBIC46TdHVMvOFDfn6nOA1pS66IROcq+atq+ss3btHSxqm07k/0Q/Rt
+         7n7Rm10nfetN+ojJSSBBZeOpGn1HNV5IjaEc+b4P3fXt5vK9PMVesc4xQTduevy77U/5
+         uhMcrJxfQmsCMKTV9vTh9h1maBa+rAaf12pPs1EcFsVp6MxC3QTkY1A4PZ39Sj+2Ug+Q
+         ZA2g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.178.230 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay10.mail.gandi.net (relay10.mail.gandi.net. [217.70.178.230])
-        by mx.google.com with ESMTPS id k8si17817632edd.67.2019.07.29.23.12.26
+       spf=pass (google.com: domain of liwan@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=liwan@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n10sor30717242uap.66.2019.07.29.23.29.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 29 Jul 2019 23:12:26 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.70.178.230 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.178.230;
+        (Google Transport Security);
+        Mon, 29 Jul 2019 23:29:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of liwan@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.178.230 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
-	(Authenticated sender: alex@ghiti.fr)
-	by relay10.mail.gandi.net (Postfix) with ESMTPSA id 8126E240007;
-	Tue, 30 Jul 2019 06:12:20 +0000 (UTC)
-Subject: Re: [PATCH RESEND 0/8] Fix mmap base in bottom-up mmap
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: "James E . J . Bottomley" <James.Bottomley@HansenPartnership.com>,
- Helge Deller <deller@gmx.de>, Heiko Carstens <heiko.carstens@de.ibm.com>,
- Vasily Gorbik <gor@linux.ibm.com>,
- Christian Borntraeger <borntraeger@de.ibm.com>,
- Yoshinori Sato <ysato@users.sourceforge.jp>, Rich Felker <dalias@libc.org>,
- "David S . Miller" <davem@davemloft.net>,
- Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>,
- Borislav Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>,
- x86@kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
- Andy Lutomirski <luto@kernel.org>, Peter Zijlstra <peterz@infradead.org>,
- linux-parisc@vger.kernel.org, linux-kernel@vger.kernel.org,
- linux-s390@vger.kernel.org, linux-sh@vger.kernel.org,
- sparclinux@vger.kernel.org, linux-mm@kvack.org
-References: <20190620050328.8942-1-alex@ghiti.fr>
-From: Alexandre Ghiti <alex@ghiti.fr>
-Message-ID: <175168c1-d25f-7a93-e19b-dbb6ae6289e1@ghiti.fr>
-Date: Tue, 30 Jul 2019 08:12:20 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       spf=pass (google.com: domain of liwan@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=liwan@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqxFB1ijO49uxdm2nYMRYf/xjt3Bf1iviS/OQbL/KnT0X2QyoLZxB6P9WAlPP3WH+gvuNa4HcwxVS16Ra/LqbU0=
+X-Received: by 2002:ab0:67d6:: with SMTP id w22mr3968533uar.68.1564468160052;
+ Mon, 29 Jul 2019 23:29:20 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190620050328.8942-1-alex@ghiti.fr>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: fr
+References: <CAEemH2dMW6oh6Bbm=yqUADF+mDhuQgFTTGYftB+xAhqqdYV3Ng@mail.gmail.com>
+ <47999e20-ccbe-deda-c960-473db5b56ea0@oracle.com>
+In-Reply-To: <47999e20-ccbe-deda-c960-473db5b56ea0@oracle.com>
+From: Li Wang <liwang@redhat.com>
+Date: Tue, 30 Jul 2019 14:29:09 +0800
+Message-ID: <CAEemH2d=vEfppCbCgVoGdHed2kuY3GWnZGhymYT1rnxjoWNdcQ@mail.gmail.com>
+Subject: =?UTF-8?Q?Re=3A_=5BMM_Bug=3F=5D_mmap=28=29_triggers_SIGBUS_while_doing_the?=
+	=?UTF-8?Q?=E2=80=8B_=E2=80=8Bnuma=5Fmove=5Fpages=28=29_for_offlined_hugepage_in_background?=
+To: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Linux-MM <linux-mm@kvack.org>, 
+	LTP List <ltp@lists.linux.it>, xishi.qiuxishi@alibaba-inc.com, mhocko@kernel.org, 
+	Cyril Hrubis <chrubis@suse.cz>
+Content-Type: multipart/alternative; boundary="000000000000f292b6058ee020fb"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 6/20/19 7:03 AM, Alexandre Ghiti wrote:
-> This series fixes the fallback of the top-down mmap: in case of
-> failure, a bottom-up scheme can be tried as a last resort between
-> the top-down mmap base and the stack, hoping for a large unused stack
-> limit.
->
-> Lots of architectures and even mm code start this fallback
-> at TASK_UNMAPPED_BASE, which is useless since the top-down scheme
-> already failed on the whole address space: instead, simply use
-> mmap_base.
->
-> Along the way, it allows to get rid of of mmap_legacy_base and
-> mmap_compat_legacy_base from mm_struct.
->
-> Note that arm and mips already implement this behaviour.
->
-> Alexandre Ghiti (8):
->    s390: Start fallback of top-down mmap at mm->mmap_base
->    sh: Start fallback of top-down mmap at mm->mmap_base
->    sparc: Start fallback of top-down mmap at mm->mmap_base
->    x86, hugetlbpage: Start fallback of top-down mmap at mm->mmap_base
->    mm: Start fallback top-down mmap at mm->mmap_base
->    parisc: Use mmap_base, not mmap_legacy_base, as low_limit for
->      bottom-up mmap
->    x86: Use mmap_*base, not mmap_*legacy_base, as low_limit for bottom-up
->      mmap
->    mm: Remove mmap_legacy_base and mmap_compat_legacy_code fields from
->      mm_struct
->
->   arch/parisc/kernel/sys_parisc.c  |  8 +++-----
->   arch/s390/mm/mmap.c              |  2 +-
->   arch/sh/mm/mmap.c                |  2 +-
->   arch/sparc/kernel/sys_sparc_64.c |  2 +-
->   arch/sparc/mm/hugetlbpage.c      |  2 +-
->   arch/x86/include/asm/elf.h       |  2 +-
->   arch/x86/kernel/sys_x86_64.c     |  4 ++--
->   arch/x86/mm/hugetlbpage.c        |  7 ++++---
->   arch/x86/mm/mmap.c               | 20 +++++++++-----------
->   include/linux/mm_types.h         |  2 --
->   mm/debug.c                       |  4 ++--
->   mm/mmap.c                        |  2 +-
->   12 files changed, 26 insertions(+), 31 deletions(-)
->
+--000000000000f292b6058ee020fb
+Content-Type: text/plain; charset="UTF-8"
 
-Hi everyone,
+Hi Mike,
 
-This is just a preparatory series for the merging of x86 mmap top-down 
-functions with
-the generic ones (those should get into v5.3), if you could take some 
-time to take a look,
-that would be great :)
+Thanks for trying this.
 
-Thanks,
+On Tue, Jul 30, 2019 at 3:01 AM Mike Kravetz <mike.kravetz@oracle.com>
+wrote:
+>
+> On 7/28/19 10:17 PM, Li Wang wrote:
+> > Hi Naoya and Linux-MMers,
+> >
+> > The LTP/move_page12 V2 triggers SIGBUS in the kernel-v5.2.3 testing.
+> >
+https://github.com/wangli5665/ltp/blob/master/testcases/kernel/syscalls/move_pages/move_pages12.c
+> >
+> > It seems like the retry mmap() triggers SIGBUS while doing
+thenuma_move_pages() in background. That is very similar to the kernelbug
+which was mentioned by commit 6bc9b56433b76e40d(mm: fix race
+onsoft-offlining ): A race condition between soft offline andhugetlb_fault
+which causes unexpected process SIGBUS killing.
+> >
+> > I'm not sure if that below patch is making sene to memory-failures.c,
+but after building a new kernel-5.2.3 with this change, the problem can NOT
+be reproduced.
+> >
+> > Any comments?
+>
+> Something seems strange.  I can not reproduce with unmodified 5.2.3
 
-Alex
+It's not 100% reproducible, I tried ten times only hit 4~6 times fail.
+
+Did you try the test case with patch V3(in my branch)?
+https://github.com/wangli5665/ltp/commit/198fca89870c1b807a01b27bb1d2ec6e2af1c7b6
+
+# git clone https://github.com/wangli5665/ltp ltp.wangli --depth=1
+# cd ltp.wangli/; make autotools;
+# ./configure ; make -j24
+# cd testcases/kernel/syscalls/move_pages/
+# ./move_pages12
+tst_test.c:1100: INFO: Timeout per run is 0h 05m 00s
+move_pages12.c:249: INFO: Free RAM 64386300 kB
+move_pages12.c:267: INFO: Increasing 2048kB hugepages pool on node 0 to 4
+move_pages12.c:277: INFO: Increasing 2048kB hugepages pool on node 1 to 4
+move_pages12.c:193: INFO: Allocating and freeing 4 hugepages on node 0
+move_pages12.c:193: INFO: Allocating and freeing 4 hugepages on node 1
+move_pages12.c:183: PASS: Bug not reproduced
+tst_test.c:1145: BROK: Test killed by SIGBUS!
+move_pages12.c:117: FAIL: move_pages failed: ESRCH
+
+# uname -r
+5.2.3
+
+# numactl -H
+available: 4 nodes (0-3)
+node 0 cpus: 0 1 2 3 4 5 6 7 32 33 34 35 36 37 38 39
+node 0 size: 16049 MB
+node 0 free: 15736 MB
+node 1 cpus: 8 9 10 11 12 13 14 15 40 41 42 43 44 45 46 47
+node 1 size: 16123 MB
+node 1 free: 15850 MB
+node 2 cpus: 16 17 18 19 20 21 22 23 48 49 50 51 52 53 54 55
+node 2 size: 16123 MB
+node 2 free: 15989 MB
+node 3 cpus: 24 25 26 27 28 29 30 31 56 57 58 59 60 61 62 63
+node 3 size: 16097 MB
+node 3 free: 15278 MB
+node distances:
+node   0   1   2   3
+  0:  10  20  20  20
+  1:  20  10  20  20
+  2:  20  20  10  20
+  3:  20  20  20  10
+
+> Also, the soft_offline_huge_page() code should not come into play with
+> this specific test.
+
+I got the "soft offline xxx.. hugepage failed to isolate" message from
+soft_offline_huge_page()
+in dmesg log.
+
+=== debug print info ===
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -1701,7 +1701,7 @@ static int soft_offline_huge_page(struct page *page,
+int flags)
+         */
+        put_hwpoison_page(hpage);
+        if (!ret) {
+-               pr_info("soft offline: %#lx hugepage failed to isolate\n",
+pfn);
++               pr_info("liwang -- soft offline: %#lx hugepage failed to
+isolate\n", pfn);
+                return -EBUSY;
+        }
+
+# dmesg
+...
+[ 1068.947205] Soft offlining pfn 0x40b200 at process virtual address
+0x7f9d8d000000
+[ 1068.987054] Soft offlining pfn 0x40ac00 at process virtual address
+0x7f9d8d200000
+[ 1069.048478] Soft offlining pfn 0x40a800 at process virtual address
+0x7f9d8d000000
+[ 1069.087413] Soft offlining pfn 0x40ae00 at process virtual address
+0x7f9d8d200000
+[ 1069.123285] liwang -- soft offline: 0x40ae00 hugepage failed to isolate
+[ 1069.160137] Soft offlining pfn 0x80f800 at process virtual address
+0x7f9d8d000000
+[ 1069.196009] Soft offlining pfn 0x80fe00 at process virtual address
+0x7f9d8d200000
+[ 1069.243436] Soft offlining pfn 0x40a400 at process virtual address
+0x7f9d8d000000
+[ 1069.281301] Soft offlining pfn 0x40a600 at process virtual address
+0x7f9d8d200000
+[ 1069.318171] liwang -- soft offline: 0x40a600 hugepage failed to isolate
+
+-- 
+Regards,
+Li Wang
+
+--000000000000f292b6058ee020fb
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div class=3D"gmail_default" style=3D"font-size:small">Hi =
+Mike,</div><div class=3D"gmail_default" style=3D"font-size:small"><br></div=
+><div class=3D"gmail_default" style=3D"font-size:small">Thanks for trying t=
+his.</div><br>On Tue, Jul 30, 2019 at 3:01 AM Mike Kravetz &lt;<a href=3D"m=
+ailto:mike.kravetz@oracle.com">mike.kravetz@oracle.com</a>&gt; wrote:<br>&g=
+t;<br>&gt; On 7/28/19 10:17 PM, Li Wang wrote:<br>&gt; &gt; Hi Naoya and Li=
+nux-MMers,<br>&gt; &gt;<br>&gt; &gt; The LTP/move_page12 V2 triggers SIGBUS=
+ in the kernel-v5.2.3 testing.<br>&gt; &gt; <a href=3D"https://github.com/w=
+angli5665/ltp/blob/master/testcases/kernel/syscalls/move_pages/move_pages12=
+.c">https://github.com/wangli5665/ltp/blob/master/testcases/kernel/syscalls=
+/move_pages/move_pages12.c</a><br>&gt; &gt;<br>&gt; &gt; It seems like the =
+retry mmap() triggers SIGBUS while doing thenuma_move_pages() in background=
+. That is very similar to the kernelbug which was mentioned by commit 6bc9b=
+56433b76e40d(mm: fix race onsoft-offlining ): A race condition between soft=
+ offline andhugetlb_fault which causes unexpected process SIGBUS killing.<b=
+r>&gt; &gt;<br>&gt; &gt; I&#39;m not sure if that below patch is making sen=
+e to memory-failures.c, but after building a new kernel-5.2.3 with this cha=
+nge, the problem can NOT be reproduced.<br>&gt; &gt;<br>&gt; &gt; Any comme=
+nts?<br>&gt;<br>&gt; Something seems strange.=C2=A0 I can not reproduce wit=
+h unmodified 5.2.3<br><br>It&#39;s not 100% reproducible, I tried ten times=
+ only hit 4~6 times fail.<br><br>Did you try the test case with patch V3(in=
+ my branch)?<br><a href=3D"https://github.com/wangli5665/ltp/commit/198fca8=
+9870c1b807a01b27bb1d2ec6e2af1c7b6">https://github.com/wangli5665/ltp/commit=
+/198fca89870c1b807a01b27bb1d2ec6e2af1c7b6</a><br><br># git clone <a href=3D=
+"https://github.com/wangli5665/ltp">https://github.com/wangli5665/ltp</a> l=
+tp.wangli --depth=3D1<br># cd ltp.wangli/; make autotools;<br># ./configure=
+ ; make -j24<div><div class=3D"gmail_default" style=3D"font-size:small"># c=
+d testcases/kernel/syscalls/move_pages/</div><div><div class=3D"gmail_defau=
+lt" style=3D"font-size:small"># ./move_pages12=C2=A0</div>tst_test.c:1100: =
+INFO: Timeout per run is 0h 05m 00s<br>move_pages12.c:249: INFO: Free RAM 6=
+4386300 kB<br>move_pages12.c:267: INFO: Increasing 2048kB hugepages pool on=
+ node 0 to 4<br>move_pages12.c:277: INFO: Increasing 2048kB hugepages pool =
+on node 1 to 4<br>move_pages12.c:193: INFO: Allocating and freeing 4 hugepa=
+ges on node 0<br>move_pages12.c:193: INFO: Allocating and freeing 4 hugepag=
+es on node 1<br>move_pages12.c:183: PASS: Bug not reproduced<br>tst_test.c:=
+1145: BROK: Test killed by SIGBUS!<br>move_pages12.c:117: FAIL: move_pages =
+failed: ESRCH<br><div class=3D"gmail_default" style=3D"font-size:small"><br=
+></div><div class=3D"gmail_default" style=3D"font-size:small"># uname -r</d=
+iv>5.2.3<br><br></div><div># numactl -H<br>available: 4 nodes (0-3)<br>node=
+ 0 cpus: 0 1 2 3 4 5 6 7 32 33 34 35 36 37 38 39<br>node 0 size: 16049 MB<b=
+r>node 0 free: 15736 MB<br>node 1 cpus: 8 9 10 11 12 13 14 15 40 41 42 43 4=
+4 45 46 47<br>node 1 size: 16123 MB<br>node 1 free: 15850 MB<br>node 2 cpus=
+: 16 17 18 19 20 21 22 23 48 49 50 51 52 53 54 55<br>node 2 size: 16123 MB<=
+br>node 2 free: 15989 MB<br>node 3 cpus: 24 25 26 27 28 29 30 31 56 57 58 5=
+9 60 61 62 63<br>node 3 size: 16097 MB<br>node 3 free: 15278 MB<br>node dis=
+tances:<br>node =C2=A0 0 =C2=A0 1 =C2=A0 2 =C2=A0 3 <br>=C2=A0 0: =C2=A010 =
+=C2=A020 =C2=A020 =C2=A020 <br>=C2=A0 1: =C2=A020 =C2=A010 =C2=A020 =C2=A02=
+0 <br>=C2=A0 2: =C2=A020 =C2=A020 =C2=A010 =C2=A020 <br>=C2=A0 3: =C2=A020 =
+=C2=A020 =C2=A020 =C2=A010 <br><br>&gt; Also, the <span class=3D"gmail_defa=
+ult" style=3D"font-size:small"></span>soft_offline_huge_page() code should =
+not come into play with<br>&gt; this specific test.</div><div><br><div clas=
+s=3D"gmail_default" style=3D"font-size:small">I got the &quot;soft offline =
+xxx..=C2=A0<span class=3D"gmail_default"></span>hugepage failed to isolate&=
+quot; message from=C2=A0<span class=3D"gmail_default"></span>soft_offline_h=
+uge_page() in dmesg log.</div><div class=3D"gmail_default" style=3D"font-si=
+ze:small"><br></div><div class=3D"gmail_default" style=3D"font-size:small">=
+=3D=3D=3D debug print info =3D=3D=3D</div><div class=3D"gmail_default" styl=
+e=3D"font-size:small">--- a/mm/memory-failure.c<br>+++ b/mm/memory-failure.=
+c<br>@@ -1701,7 +1701,7 @@ static int soft_offline_huge_page(struct page *p=
+age, int flags)<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0*/<br>=C2=A0 =C2=A0 =
+=C2=A0 =C2=A0 put_hwpoison_page(hpage);<br>=C2=A0 =C2=A0 =C2=A0 =C2=A0 if (=
+!ret) {<br>- =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pr_info(&quot=
+;soft offline: %#lx hugepage failed to isolate\n&quot;, pfn);<br>+ =C2=A0 =
+=C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 pr_info(&quot;liwang -- soft offl=
+ine: %#lx hugepage failed to isolate\n&quot;, pfn);<br>=C2=A0 =C2=A0 =C2=A0=
+ =C2=A0 =C2=A0 =C2=A0 =C2=A0 =C2=A0 return -EBUSY;<br>=C2=A0 =C2=A0 =C2=A0 =
+=C2=A0 }<br></div><br><div class=3D"gmail_default" style=3D"font-size:small=
+"># dmesg</div><div class=3D"gmail_default" style=3D"font-size:small">...</=
+div><div class=3D"gmail_default" style=3D"font-size:small">[ 1068.947205] S=
+oft offlining pfn 0x40b200 at process virtual address 0x7f9d8d000000</div>[=
+ 1068.987054] Soft offlining pfn 0x40ac00 at process virtual address 0x7f9d=
+8d200000<br>[ 1069.048478] Soft offlining pfn 0x40a800 at process virtual a=
+ddress 0x7f9d8d000000<br>[ 1069.087413] Soft offlining pfn 0x40ae00 at proc=
+ess virtual address 0x7f9d8d200000<br>[ 1069.123285] liwang -- soft offline=
+: 0x40ae00 <span class=3D"gmail_default" style=3D"font-size:small"></span>h=
+ugepage failed to isolate<br>[ 1069.160137] Soft offlining pfn 0x80f800 at =
+process virtual address 0x7f9d8d000000<br>[ 1069.196009] Soft offlining pfn=
+ 0x80fe00 at process virtual address 0x7f9d8d200000<br>[ 1069.243436] Soft =
+offlining pfn 0x40a400 at process virtual address 0x7f9d8d000000<br>[ 1069.=
+281301] Soft offlining pfn 0x40a600 at process virtual address 0x7f9d8d2000=
+00<br>[ 1069.318171] liwang -- soft offline: 0x40a600 hugepage failed to is=
+olate<br><br>-- <br>Regards,<br>Li Wang</div></div><div><br></div></div>
+
+--000000000000f292b6058ee020fb--
 
