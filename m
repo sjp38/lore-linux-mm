@@ -2,112 +2,112 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DD019C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 17:51:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A69FDC0650F
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 17:53:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 90FBB2171F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 17:51:04 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 50458206A2
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 17:53:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="IrvS59OJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90FBB2171F
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="N4HQWp2c"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50458206A2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 30F658E000A; Tue, 30 Jul 2019 13:51:04 -0400 (EDT)
+	id D96ED8E000B; Tue, 30 Jul 2019 13:53:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2E7F38E0001; Tue, 30 Jul 2019 13:51:04 -0400 (EDT)
+	id D45B98E0001; Tue, 30 Jul 2019 13:53:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1AFBE8E000A; Tue, 30 Jul 2019 13:51:04 -0400 (EDT)
+	id BBFED8E000B; Tue, 30 Jul 2019 13:53:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id C2FD68E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 13:51:03 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id l26so40805109eda.2
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 10:51:03 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 677C98E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 13:53:17 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id e9so29663065edv.18
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 10:53:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
          :thread-index:date:message-id:references:in-reply-to:accept-language
          :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=/KjY/yC8kVyH+j5gcW/UHDvZ9CpGjyXs5jJmgc0/gx4=;
-        b=CNyjl0+sKUbja3lIFXbImKLIESoMlXyNe1NXZ+ZDHTlUE3uZPCuFCrjQd2hgjAkgTL
-         DaxVzoiW9wFsYSROAvoOv7O6cftYhX1s0yiSLBMAHitYEZLweC5TzC53rfZPSKCsUVZy
-         flHLYJFLm61o2huYl4tVTupyQ+/xFz8OM4MWjcsVI55examcGL5kmPI33p4420wKYMNX
-         XBcsQN5yXTlZtpY1YmW4Ge0afesPwuIGT3MKjtFCd3rsuR/hkYLditVjW4ox3laAyTWA
-         57XeAmjT+//dU3KSZtJtFREG1ckj2kTtN85iViEXc1m4+WhnLbixuipyrqaZaZbJDrx3
-         Yukw==
-X-Gm-Message-State: APjAAAUUo1hjyijDj6C18GmBv1phkPVlbfeRmV2e85e4lrHAS1lxWZkw
-	F8G+QhhGI6aKMqFETDLnF+Yfciv9oPJDJtW8eNggqWbTXBwmwVmM6TcDaQK1JZsu88TObahK39U
-	uGcrEw6siXWMzeZvUy0X85lS5kLLqGUuWnDwk7xe2WOgs6ibBkLVA6amE5HhWdEo7fw==
-X-Received: by 2002:a17:906:45cb:: with SMTP id z11mr91046254ejq.254.1564509063366;
-        Tue, 30 Jul 2019 10:51:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxdRUoHUVCg4R1xVqZvT6D+4mn/MQb7yoReBRgQcXx7u9ZKXG4wfaMFwCyrtyTxVITWGKAW
-X-Received: by 2002:a17:906:45cb:: with SMTP id z11mr91046207ejq.254.1564509062592;
-        Tue, 30 Jul 2019 10:51:02 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1564509062; cv=pass;
+        bh=svBQypctoSakaJxDr/47kKSOg5ovdqk45jRwEu4qKbc=;
+        b=Fd0jOqG0+AjitZAoILU28ThhGMekn0osuiiYfa1pkVt3yG0ueGmFnR0te0mWK1zRLm
+         MojzCLYKq+AriIf3PL7aJAzo+W4DA3CTXVyOJCbjA4+UADx48O7G54q79D6FmGfI0VNb
+         mdk4MONsG82NEDoSgMMy0r/cmzLim5AzNlAMwmlYn4wwOwhM/R5MlkqH/vhy6LV1GD8M
+         AvKymOv7RzSBQ0uow8NYXn588RtJbeIzr2Q+O9hDB/gTTZinyuBqJUXtgaTasqq5RNw/
+         CTC/hVeoM/aIH1L1jIJkktzPty2afaHiqXGzxyXChHKvZGioijZ0HMTc3DbnA6CBJSae
+         u9xA==
+X-Gm-Message-State: APjAAAWeZ8oHskLXvAnYxVWhcxT5mRr7yy9FChLDHtWVBhSP1re5wUUB
+	Sc4KNt4yoACT1yD+MRlxIf3x7j19fiGQgJVZUXaSwE9FQRruajw7atNNtIyD2+Ce6EmTTm8u6Ee
+	MiV8WelpCClEUYTMinpDJUSJM7JshblCi6egYCAMNaTpvJbgfmrTRtBZdlrG6VbamVQ==
+X-Received: by 2002:aa7:c24b:: with SMTP id y11mr55902985edo.239.1564509197008;
+        Tue, 30 Jul 2019 10:53:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyNxmpTEelaZ50q5+Cel4jG010ktE+6WYhJtqZdSCjh2XWKFV+JanTnM4plMRChXbRpnKcB
+X-Received: by 2002:aa7:c24b:: with SMTP id y11mr55902939edo.239.1564509196367;
+        Tue, 30 Jul 2019 10:53:16 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1564509196; cv=pass;
         d=google.com; s=arc-20160816;
-        b=oaQpAPpILlbe1jC8lP9UGZHXqHdW+/QFlRP+ChH4iElMUkWJlk5SaAEhwWcEORbjuF
-         q3MU3NgS3HBBDkBQ6sofqErcr4nX/J6hj0pZi4o+MvGzJten1BOYDVpgzqHaS1NV+gCr
-         nTRdH/33ZywcJUQSvDu+c+E7TAgNv4UuNsoPukTWekjfWejBeuoG2ydZiBAT9coHs2BI
-         S9z5N+9mje5kL6R2RCobwdF7tyCwjFSB8PL1pGVzjjKPWhwdHg0z9reCfBCu2iBk4GLc
-         HkAPLIKyqzZCtkarRTWk7pG1M9ZqLCRvdk9fLDmokUJ+GmkYJitbgcT4Z7/zAq84CcNe
-         Wr+Q==
+        b=aeH0SMlF0EOiXHWK5p0btC1UbUwRBE0sAebZLAxKLEDQaYyCEauZ3N0Tj06SbUKedO
+         j4b2Xoz0onPW22/lE5PBlNKTXcKh785sagZaabTXBT4fAEoYIn7e09LnzVL4yRcHLep+
+         VA9LkHMb9/qC+uiHq5La7nJx0nrgdzx0bIiC+0YSl56sJ2hlGpuEX8jMzrre8zf1iJnG
+         7bRvjWWX1bzfTelCaW5MSBcswVbDzXlhTx7fbgTrWCgLecRODmKHNwO/9nnsFyd5jfUr
+         juUr1Xlj1piVrIBiwTC7lgxLXGY+mHpwAg8+Z6NVTe62rbvXWwdbt7hw2Do8gx0Wej3I
+         A7Qw==
 ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=mime-version:content-transfer-encoding:content-id:content-language
          :accept-language:in-reply-to:references:message-id:date:thread-index
          :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=/KjY/yC8kVyH+j5gcW/UHDvZ9CpGjyXs5jJmgc0/gx4=;
-        b=RJmbp6ZVogqbnL2aDhDOdWZsdPkX4qwZxAcTfmsbWSKpVtw54gqqKtGT2tsz2U6rIS
-         zUi97MxVDyqCFVYuJvUiP8mUH1MCtRg+KMQsuWnTKVO9xtoswoc0UX4NOwQmdMCK4i54
-         SqqJsQCoD2B/Oix/HHnlhHJ4f1QKC9xe33hCuCbNCdZfv5P7daqqRi9oF9ZYTIHfqZaB
-         OnlJljFooikhgIcE19iCqEgjC31ib6NZumherHPJemc7yTW5S+lN6qeKHjtKnUbyONgh
-         mZWfifWe4Guu3ogbuZHeJCnpHdgvocsmHW+hM6JqgtXtfm1Em6vg83Do4tpcBbIQlgIq
-         82Iw==
+        bh=svBQypctoSakaJxDr/47kKSOg5ovdqk45jRwEu4qKbc=;
+        b=SBN6Gcl48oTeq/+UseM6jgvFOS8BmP0/w+WyQ5M/K+dMmNLgQwrVqb+6Xmobk0IQgo
+         3cbWbYXt74SjL6g/tp/PBAjQxEiByY6C8logHPPNQxS1eU2LqgYOLjrSd3LS0Y3AdpLm
+         4nuNIeEPx0cE9mjWZX35T3pUMn/Pb0OjbpKQwQjZ7zV093toasSMOKwEnvfMjrWNE1gx
+         SSBXFPuaGQBucRReM+f8ymu1KudtdSBTaxgBTLKGGly1GKJeX0f4tQQsAkvShTdB1cHF
+         pxYHhWGuoGxZtn74sLGBS3ATxTRsthY6wL4TlqHVUH0CnqhxurgzewZgvMEuV90Kruwx
+         HmmA==
 ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=IrvS59OJ;
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=N4HQWp2c;
        arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.3.50 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.8.85 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR03-AM5-obe.outbound.protection.outlook.com (mail-eopbgr30050.outbound.protection.outlook.com. [40.107.3.50])
-        by mx.google.com with ESMTPS id m12si19798289edm.38.2019.07.30.10.51.02
+Received: from EUR04-VI1-obe.outbound.protection.outlook.com (mail-eopbgr80085.outbound.protection.outlook.com. [40.107.8.85])
+        by mx.google.com with ESMTPS id b38si19913683edb.341.2019.07.30.10.53.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 10:51:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.3.50 as permitted sender) client-ip=40.107.3.50;
+        Tue, 30 Jul 2019 10:53:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.8.85 as permitted sender) client-ip=40.107.8.85;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=IrvS59OJ;
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=N4HQWp2c;
        arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.3.50 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.8.85 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
 ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=Q2QKTNnl160fMAn+A2zB8DLIAAPUharlccNW4clMV2xgW5EjuoAECBzKHtRIXDVlidkgVwnnriOuaBwJZTuBuX54ATVvsXysgscGXa8AZUnLRgTFD/MTWCZdG+anQJ23wDF9jGPZW0iAWr1P50vkj9rBHwzdk2trNfULuqyxvY0F2gm/e6MY7X2/JQqaCFXkFhsMshq7MrwYJlHp85vt9VDNNO4DpP3+eCYx9W8ZqDPPX1BJ0lToYkX4dIR0T+Kw/0DdXwUYIcINxTfNfyHKfENYd/fVvr8rmYbxoxvyP6Qb9u/QH1VvJmLDnFMNIe0f65LmWFpx/LXtMC4gvWRXdA==
+ b=CT806lH3GJFKccQD1MdEtYa59TfzKVZas0pBNefAL7MGwFs+IXfUKXWKfKiEUqG2IWFORXEEHhkcN80KYnMtpN4PZdLMJLelcQm/22Wc1+Pv1m3t/694c47Zjv2XYweXeTPEuG4eOn/Cp1ltLvC0FfQwh9FmW0vWC9XuzohqNdIuMECDei/XMjbOUIDyYZV0i6mv/MUqtYOwz/LKkQKfudSTNHcKQVgpthC5W0FmrSxrWivuC93ebpE40hRE/wmsN0fYkiKMZEPLuj2Xmetrdw9JDp4BwdnB9BHOkgGa0HfK0qikdDCMmWavw0ycDVieML3IUUzT1EL6tnDWe0glAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
  s=arcselector9901;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=/KjY/yC8kVyH+j5gcW/UHDvZ9CpGjyXs5jJmgc0/gx4=;
- b=TzW0KqiIJI33Al4SaibzPqZN3r8gSAnrkGx3Ii8RS0h68+a0SHDtH7pA4aKmLrv+kRr1GFsQk6t2NFOVvy984gYXZlW6+AQSU4InA7EFqNZqb+5yKqaTNYaNnGlbpsw5WbBiwhApyKtjNwcdNB7XBCwcj4l++hLHNt3yobJtjuu/+F+kfBcexG9kVBn2PL+PUZW3myhjp5tNCuYIrSQm9EGMXAqU0idbo6bvPfbzb4ss41kY3H8TO1bS6+o7Q+AFGE5qd2JswIPauVF5gO88ccAYDeSrCa5TBtX5wKsvFvbSk3uUGbShUXBdnu9VbnCos7fBkvH/jbqc+FTY3wOJrw==
+ bh=svBQypctoSakaJxDr/47kKSOg5ovdqk45jRwEu4qKbc=;
+ b=Xyl0QzWvTn9K/PgDrSnOfnN1Metsv/zKFRdDxdgrdjkWfLJ4EFSyhkswpi6g0ctqWd3cJa12jhmb8DUxktP2tWvG2x728v7zgldFnE/NYyVuZ8yUWkpXKU/ijijO4YKNkSvLVR17pE54eTZbHqrEoU8DgJ6Wvdmo5bLdSihDUx55RD/eKn+DJMUY9Ze24WPPZNM9nb/vhzHwI41ereDwiABixOtmZF9itGrDHrlBe1N35Y+MDiQrlv/aQyeOhj055449iQEb6HLVRhXH5RChz61652KK+9b6R7C6qAs94zbXEXu1tW+wqIwJu/b+kDyTDmI7ehZi3aqrfs13n124kg==
 ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
  smtp.mailfrom=mellanox.com;dmarc=pass action=none
  header.from=mellanox.com;dkim=pass header.d=mellanox.com;arc=none
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
  s=selector2;
  h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=/KjY/yC8kVyH+j5gcW/UHDvZ9CpGjyXs5jJmgc0/gx4=;
- b=IrvS59OJ6+EU30qcaRHjPR14jlrmqJuU20QwskP/uboxi+KzHEOipU9ifbudSO7Ov8AQpZkGsdpnailxXllkxQ3PJ0zKpcABto7E/amxebA9z+DIhbqqGuXCLULPYvWQ+iytAhDv3WTmUaiabTfeVA/jxjFfBS4hbU51AgILEnk=
+ bh=svBQypctoSakaJxDr/47kKSOg5ovdqk45jRwEu4qKbc=;
+ b=N4HQWp2clWmIY6kC/cFpcFbUva8KgFw4ye84Wigpj6+tFdnR44iE6vUc97vpPTw0gNAMhO6TKu2UHXIYadMNudLiWkw9h6pMFARZIi4KlWYs8iNlOrEDoDb9hg0cbwupovJeYsHloI8yDlUXblEr2rTUGR7jgjp+iPiwqE09S5E=
 Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB6414.eurprd05.prod.outlook.com (20.179.27.138) with Microsoft SMTP
+ VI1PR05MB6127.eurprd05.prod.outlook.com (20.178.205.25) with Microsoft SMTP
  Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2115.15; Tue, 30 Jul 2019 17:51:00 +0000
+ 15.20.2136.13; Tue, 30 Jul 2019 17:53:14 +0000
 Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
  ([fe80::5c6f:6120:45cd:2880]) by VI1PR05MB4141.eurprd05.prod.outlook.com
  ([fe80::5c6f:6120:45cd:2880%4]) with mapi id 15.20.2115.005; Tue, 30 Jul 2019
- 17:51:00 +0000
+ 17:53:14 +0000
 From: Jason Gunthorpe <jgg@mellanox.com>
 To: Christoph Hellwig <hch@lst.de>
 CC: =?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Ben Skeggs
@@ -117,80 +117,112 @@ CC: =?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Ben Skeggs
 	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
 	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
 	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 06/13] mm: remove superflous arguments from
- hmm_range_register
-Thread-Topic: [PATCH 06/13] mm: remove superflous arguments from
- hmm_range_register
-Thread-Index: AQHVRpr9/FZ6XgBWJE+8PzpxS1FzbKbjcXQA
-Date: Tue, 30 Jul 2019 17:51:00 +0000
-Message-ID: <20190730175054.GM24038@mellanox.com>
+Subject: Re: [PATCH 11/13] mm: cleanup the hmm_vma_handle_pmd stub
+Thread-Topic: [PATCH 11/13] mm: cleanup the hmm_vma_handle_pmd stub
+Thread-Index: AQHVRpsFqcopldMqYEmw+Nzxjc71m6bjchWA
+Date: Tue, 30 Jul 2019 17:53:14 +0000
+Message-ID: <20190730175309.GN24038@mellanox.com>
 References: <20190730055203.28467-1-hch@lst.de>
- <20190730055203.28467-7-hch@lst.de>
-In-Reply-To: <20190730055203.28467-7-hch@lst.de>
+ <20190730055203.28467-12-hch@lst.de>
+In-Reply-To: <20190730055203.28467-12-hch@lst.de>
 Accept-Language: en-US
 Content-Language: en-US
 X-MS-Has-Attach:
 X-MS-TNEF-Correlator:
-x-clientproxiedby: YQXPR01CA0113.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:c00:41::42) To VI1PR05MB4141.eurprd05.prod.outlook.com
+x-clientproxiedby: YQBPR0101CA0034.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:c00::47) To VI1PR05MB4141.eurprd05.prod.outlook.com
  (2603:10a6:803:4d::16)
 authentication-results: spf=none (sender IP is )
  smtp.mailfrom=jgg@mellanox.com; 
 x-ms-exchange-messagesentrepresentingtype: 1
 x-originating-ip: [156.34.55.100]
 x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: f2d7873e-cfc8-4307-a032-08d715167b62
+x-ms-office365-filtering-correlation-id: a86e21db-ce58-4552-20a6-08d71516cb53
 x-ms-office365-filtering-ht: Tenant
 x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6414;
-x-ms-traffictypediagnostic: VI1PR05MB6414:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6127;
+x-ms-traffictypediagnostic: VI1PR05MB6127:
 x-microsoft-antispam-prvs:
- <VI1PR05MB6414E428DF939EAB5E7C56CACFDC0@VI1PR05MB6414.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:3276;
+ <VI1PR05MB6127DF35F7C611722F89A276CFDC0@VI1PR05MB6127.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:1850;
 x-forefront-prvs: 0114FF88F6
 x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(376002)(39860400002)(396003)(366004)(346002)(136003)(189003)(199004)(386003)(2906002)(4744005)(66556008)(66446008)(64756008)(76176011)(478600001)(486006)(1076003)(86362001)(66946007)(71190400001)(7416002)(446003)(305945005)(7736002)(68736007)(53936002)(66066001)(6512007)(2616005)(71200400001)(6506007)(11346002)(476003)(66476007)(5660300002)(81166006)(186003)(52116002)(6436002)(6246003)(256004)(8936002)(36756003)(6486002)(8676002)(3846002)(4326008)(102836004)(229853002)(25786009)(26005)(316002)(81156014)(6116002)(33656002)(54906003)(99286004)(6916009)(14454004);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6414;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+ SFV:NSPM;SFS:(10009020)(4636009)(346002)(136003)(39860400002)(376002)(366004)(396003)(199004)(189003)(6506007)(6486002)(2906002)(256004)(476003)(11346002)(229853002)(66066001)(446003)(6436002)(25786009)(486006)(2616005)(86362001)(6916009)(305945005)(7416002)(81166006)(8676002)(81156014)(316002)(99286004)(1076003)(7736002)(8936002)(4326008)(54906003)(386003)(33656002)(6512007)(71200400001)(71190400001)(5660300002)(6116002)(3846002)(6246003)(186003)(478600001)(76176011)(68736007)(52116002)(14454004)(36756003)(66446008)(53936002)(64756008)(66556008)(66476007)(26005)(102836004)(66946007);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6127;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
 received-spf: None (protection.outlook.com: mellanox.com does not designate
  permitted sender hosts)
 x-ms-exchange-senderadcheck: 1
 x-microsoft-antispam-message-info:
- oGqTfihmFWyR6Jc7iEDNs/zpMBvNH5NewEEORd+ZwZvfR2usfjPIE/pPisx2SBbhRTFGTnOvVO/qZd6+3R50nJbDl1mscf5D0nT2lqedq976bYIQ37awGumYeyH3LBuWXxZuWf03EKAgU3Wqc4yofoo7d1A+QO9jKReeCIRCy1Iv7usEBjlhENqpjgosD0MrGnBFAfcFosi9sJ0d2Od0QCI4kjJnmkl4tnsmMU42CWj8M/Yk/silWrWgiJG6kzWw+Xep0zp1HgJ+CUtrgJt27TwaI3YE98POUAd1dvA9qlIpxvZ96VIZ1TpqrAbZuiIN/0gMg/3fs9uL1EXsuv44lxJ6sMv4y65mmhK5ESuFzD79YT2XXfWBRygyrIXvCdjzCB8tb4S4ceo9gYZpCcQ6lJVIb+r6gUA8ub8SojkfAws=
+ eMqyxStZBZXBfI7QOYbRdCnQWZbklIeusgJmFjsEOIO5UawNseLehFkPAB+PnBPfGkBQoOyco5nEy+/0Bb1opqHO3IPX6n2Wx1gjcMjXSMMWaWCQX9u6fdGZ+XR2QGrqiwR7ipGZxNYBiqIsxkVKeXtnRnLdwkTWwIeKnTUAI88LJ7gGpii6LuqBceQu51tTKFHLDsAl/K2pVhyKp+1tNNvN2RNv+syEoL0XlZ1tGjtz4YJ+jEEM+lexqBmMSTAR1LqM0Z8fX9kYXouHw0M7BK7hC2uAoCPZ8ky13fy7a9bHhps2QjrPbqZ8X/NPkNN7Lkve+zgWk7cT1tylCHPSg+G4Ips+UH5tDuIwU+op8H/wlrD5Jzh1vah+ik6M3rNSf8ZxuTE43QEHJiGAVWCvJTY+amLgF0/Bg/rQuojOfrA=
 Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <2ED0ADD6FF332141A54123A43AF61452@eurprd05.prod.outlook.com>
+Content-ID: <EC3900854AA3CC4983AC1C9EED4B06BC@eurprd05.prod.outlook.com>
 Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
 X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: f2d7873e-cfc8-4307-a032-08d715167b62
-X-MS-Exchange-CrossTenant-originalarrivaltime: 30 Jul 2019 17:51:00.1408
+X-MS-Exchange-CrossTenant-Network-Message-Id: a86e21db-ce58-4552-20a6-08d71516cb53
+X-MS-Exchange-CrossTenant-originalarrivaltime: 30 Jul 2019 17:53:14.2580
  (UTC)
 X-MS-Exchange-CrossTenant-fromentityheader: Hosted
 X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
 X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
 X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6414
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6127
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 30, 2019 at 08:51:56AM +0300, Christoph Hellwig wrote:
-> The start, end and page_shift values are all saved in the range
-> structure, so we might as well use that for argument passing.
+On Tue, Jul 30, 2019 at 08:52:01AM +0300, Christoph Hellwig wrote:
+> Stub out the whole function when CONFIG_TRANSPARENT_HUGEPAGE is not set
+> to make the function easier to read.
 >=20
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  Documentation/vm/hmm.rst                |  2 +-
->  drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c |  7 +++++--
->  drivers/gpu/drm/nouveau/nouveau_svm.c   |  5 ++---
->  include/linux/hmm.h                     |  6 +-----
->  mm/hmm.c                                | 20 +++++---------------
->  5 files changed, 14 insertions(+), 26 deletions(-)
+>  mm/hmm.c | 18 +++++++++---------
+>  1 file changed, 9 insertions(+), 9 deletions(-)
+>=20
+> diff --git a/mm/hmm.c b/mm/hmm.c
+> index 4d3bd41b6522..f4e90ea5779f 100644
+> +++ b/mm/hmm.c
+> @@ -455,13 +455,10 @@ static inline uint64_t pmd_to_hmm_pfn_flags(struct =
+hmm_range *range, pmd_t pmd)
+>  				range->flags[HMM_PFN_VALID];
+>  }
+> =20
+> -static int hmm_vma_handle_pmd(struct mm_walk *walk,
+> -			      unsigned long addr,
+> -			      unsigned long end,
+> -			      uint64_t *pfns,
+> -			      pmd_t pmd)
+> -{
+>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> +static int hmm_vma_handle_pmd(struct mm_walk *walk, unsigned long addr,
+> +		unsigned long end, uint64_t *pfns, pmd_t pmd)
+> +{
+>  	struct hmm_vma_walk *hmm_vma_walk =3D walk->private;
+>  	struct hmm_range *range =3D hmm_vma_walk->range;
+>  	struct dev_pagemap *pgmap =3D NULL;
+> @@ -490,11 +487,14 @@ static int hmm_vma_handle_pmd(struct mm_walk *walk,
+>  		put_dev_pagemap(pgmap);
+>  	hmm_vma_walk->last =3D end;
+>  	return 0;
+> -#else
+> -	/* If THP is not enabled then we should never reach this=20
 
-I also don't really like how the API sets up some things in the struct
-and some things via arguments, so:
+This old comment says we should never get here
 
-Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
+> +}
+> +#else /* CONFIG_TRANSPARENT_HUGEPAGE */
+> +static int hmm_vma_handle_pmd(struct mm_walk *walk, unsigned long addr,
+> +		unsigned long end, uint64_t *pfns, pmd_t pmd)
+> +{
+>  	return -EINVAL;
+
+So could we just do
+   #define hmm_vma_handle_pmd NULL
+
+?
+
+At the very least this seems like a WARN_ON too?
 
 Jason
 
