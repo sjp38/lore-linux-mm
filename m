@@ -4,81 +4,81 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E4D07C0650F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:52:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AF97BC0650F
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:52:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 96275208E4
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:52:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6A9AF208E4
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:52:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="qUVDb0Gb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 96275208E4
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="UQt+nBOC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A9AF208E4
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 750CF8E000F; Tue, 30 Jul 2019 01:52:49 -0400 (EDT)
+	id 729618E0010; Tue, 30 Jul 2019 01:52:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6B2D98E0003; Tue, 30 Jul 2019 01:52:49 -0400 (EDT)
+	id 6D95C8E0003; Tue, 30 Jul 2019 01:52:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 553FB8E000F; Tue, 30 Jul 2019 01:52:49 -0400 (EDT)
+	id 5C8888E0010; Tue, 30 Jul 2019 01:52:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0FAA78E0003
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 01:52:49 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id n3so29998314pgh.12
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 22:52:49 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 217A18E0003
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 01:52:52 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id 30so39806869pgk.16
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 22:52:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=/5sNjyutpvGxyHVQu1GnV/XZDve/kWrhGHnNmckcmW4=;
-        b=tBFDDzxp9kqFBkkz0vbm3ahFOkcPLgpxhg8aBPkEjq6evaSgqN9T2qQzAjIhH7guKs
-         IhpIyRIaPJYVM7YhnKVgb8B+6C86CS5FgC7juLEEpAovUe9qLTwHJmf63ZYRHxH/6IVV
-         3UnsvAbCkyR60ROEBDG9ukxZF7YXTZmNX9dP1BOajt78876hFeGurAcE0k3oypW+CTgk
-         dhA90KaEdJwr5Nxup74aKIbwkw4odotCeeoqg565pb0rYVtr37vOvoDTY8PSwa4ZMnCc
-         UeIW37kQdr2k+mzNH+JpQG6HMNpNeh9om36BdAc8mfAwOiHFBvlpPeTRP47kvun67mLQ
-         VzvA==
-X-Gm-Message-State: APjAAAWMk7jpG+Hu7gVd+FETlEI9zavsjtTDe9nUdwBcR9KQR1A0NVjy
-	WobmEqZq0PVY76QBkbsaPX5NtsmwPHVuq1b5YZOg5Mw1qY76JImTRDuZ1RnK5aavpbGVIOugyIf
-	wOfCNWrmLp1xxWOFN4mkUqESDSXrfXHQ25ayBtXEyJoGG+YSkHyV/5YVzcluRI34=
-X-Received: by 2002:a17:902:6847:: with SMTP id f7mr111288380pln.311.1564465968754;
-        Mon, 29 Jul 2019 22:52:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzj/Qer0ni1KSvPFR9Y0qglvl4QcCA0YKAzVM1mH4CuaO5Z7hg1en9sEGdY3COyaMOR9gDg
-X-Received: by 2002:a17:902:6847:: with SMTP id f7mr111288357pln.311.1564465968109;
-        Mon, 29 Jul 2019 22:52:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564465968; cv=none;
+        bh=WWqUlWBk9SeNDsTgchqiBvCPPdXQGby4eLwA4l1Wn/c=;
+        b=tmGN93R7Gs4/gnGW18u5DMpzrruiKvYdE1oWzwKuxpJEJSLUPhffsj9PzYiUh7sUY6
+         iWDhBYa07mc+BQLWc6n9PTAikJ9v45EHYiNQIQDHfKfCyVmmBeI1tJpKIwVJuA+rJIbr
+         sKUnIH6MpXDeDhnQuypMDyWZXlz26n56HFrDoo9jANUftWkyOChlTgidHng1mKT0kiMd
+         /QkXWUcrbz/P1ZJPTMbOBZTrNQpCMpq3XuAkegau3Hi/IutR3so7HGUd7iBR6Gjeu0A8
+         e4WGpTq76N4hQ3oPkRfUlSzk4IIzileWTccF5OwOljtIQDheuBcAo3OiMaUedWW9/yHR
+         ipKA==
+X-Gm-Message-State: APjAAAUWohF2KQL8F+qEde9gjFV1tJW+6dR3sgGMm+/6HZLU6wVwwwve
+	MctNIQG7Z5MmMKXtyPRCuT5du7rfW7C6l69ahDwm3qB2l+jL9CBy4zrT9P1r3BarQY3mmfbb8zR
+	cOwOSxFvXR+ak/XsSd4WPu/NPn5417F5ydlJsVVtVQMU7SWAt0DFwCO2V2V5dLNc=
+X-Received: by 2002:a63:f857:: with SMTP id v23mr82507143pgj.228.1564465971705;
+        Mon, 29 Jul 2019 22:52:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzLsXT0imxLjdbopFm7Gk5RacpxeEjGbRctO4bwyrWNDb3hdzo+szmHbGPoS1rLyu8aAKMO
+X-Received: by 2002:a63:f857:: with SMTP id v23mr82507113pgj.228.1564465970940;
+        Mon, 29 Jul 2019 22:52:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564465970; cv=none;
         d=google.com; s=arc-20160816;
-        b=J7JJ3VOJY73qbsB1AyEXK9a7Rhleil0Pqn7G01qQW8KEyul8cpm4zgbpIV3sfNYYHF
-         EYSEeSwbejZ1CZ6CDMzfji+M3P3bYAvvKbpkMMPs7/i2TRyfAXfRje+fA2cDMnBG5lSJ
-         NDOhMgBrNqoHbWaO+/hKktRdG8ZLzsJ5SW0qt2YxElI77+vdzZW5lamk5WneqImkmJ2n
-         3Z3wwQDFFOtN0oyB7ohZO8HNjW9NdkOapwmBeEgjnWT6Ek32jgSV831XgdyfSiIIuuAa
-         +ndixvGp/XxXn27gHEWl6YNY/FR7tnxQl6mAFwMcxmaW5Ggm73cr/CIbxec8Z4Ut+7QA
-         bzGg==
+        b=jT/rWgXbIdP0p1mG5KvimW1BnPLYAteZHzESFP8NfUv7H4v9+MfWfrhQseSa2p9EdL
+         5Te+e0Q6OHODbnVmE1pxRVOnZNvuHDdCnfzkwifh5rqdUL5M6Rjl8yk2FjaNGGN6qNVF
+         k/Gtm4tBqWRybw6FxZLCudoBKTorOASzskK9BuqzYMFQjD9+Y+9buweuRW7qewfii5tc
+         mw0Tdk1jiIT4FI9wYcRP3sRlcDG2SHWrHr5VkQqSkjSHe4BeVws2hb41PW0PMGdaKj6Z
+         aSeJcnRISqLoyxtRXAugRAAqEsZq8ArM9rG7Rjlh6lXgEZV8OVbmf1tempifu7jyF3Il
+         BeqQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=/5sNjyutpvGxyHVQu1GnV/XZDve/kWrhGHnNmckcmW4=;
-        b=ARUoLotrOAgr+qZVwVtvwOk57A2pgTDAektAP+wBjXR1GthY8+ES1UQktVKGyukNda
-         ZZlAbqrjWzM3OsdQsmQm5ZVcWu9FAvb0MuRMVjdIVXV5+SiZBTTwTXp3dhTmEB35hbli
-         U7wnlK3CTY9/S+EA3KFpw8mhPFqUUOnHAkyDdQMNxUQxNo/yxtYtM46juzsPTQad7yxz
-         4UuLwgNBbv9s6b3dDISPk0HVnAZoMZcub7C+bSuwLsblQA6ES+Z9C3BOu7W65f5H+c5G
-         UVmPVVVkeJ4IY0A1u5oP3JwNL0BwiTAva+AmgLQ6gZzUmC1PgwRrhNSohlfxF6St4xoa
-         2ueg==
+        bh=WWqUlWBk9SeNDsTgchqiBvCPPdXQGby4eLwA4l1Wn/c=;
+        b=lwKY6d2afkSSfW1E1PqR4Hcl4WCkMgmA3DAn9MVi/wCzRbPZSH7F+Z1aSRzmEGy6cQ
+         BZKMABmYEtwmcKoLyfeuT0yf2nHmWtVBdB47Hz56qhJ7jquTxvjYsP4Zhz7F92h1A0or
+         ma/HpMqdJApmCn/EqwuWEotISLtkmE+Jo3l8otTKB1pjUoHv4RImFuUQJ4yF1ygmlrGk
+         Qn348NgDTm2jGlzn/ZBXIE7AR+yWY99nD2XgaLWVN7R94SW7HFaq2EslLLFyvEZ+fJKJ
+         ov/UT4hwK4fZMQN2IevIpPHbVvN3v1YEPruSoRhwe/GtO69qSJDimsu6iY+9QGNkWLsT
+         olfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qUVDb0Gb;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=UQt+nBOC;
        spf=pass (google.com: best guess record for domain of batv+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g21si26916997plo.235.2019.07.29.22.52.48
+        by mx.google.com with ESMTPS id p7si25694169plo.114.2019.07.29.22.52.50
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 29 Jul 2019 22:52:48 -0700 (PDT)
+        Mon, 29 Jul 2019 22:52:50 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qUVDb0Gb;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=UQt+nBOC;
        spf=pass (google.com: best guess record for domain of batv+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=/5sNjyutpvGxyHVQu1GnV/XZDve/kWrhGHnNmckcmW4=; b=qUVDb0Gb7qkDZ66Y+5kTNUPiZS
-	oPKFdf1FdqOh8A+YmmGZN9LNdSXHfAWdAy/P90p3MOCc2Z96eNVGgpwDoqMg90kChee4ehDTqgr0j
-	Pkj3WfEI90d1K0L5yj8xDhi4zgmFwII7fKqNTkcOh87hmP8aIWYto5bpxj6Uy1e0sMmXDfuZHNiQe
-	ryhsB5F5qd969AsJYWXGSU3b3LjXZyE7SQi6J6IID+hg37hn/a03/WzGB57Vb+NcFVUtwUa5rdmZi
-	cmRAd6TOTOi1MrSWzl3EdA3D5NUMB0guYKclteB1z/GzP1uvBIhvL0Mxg647o4EVb80KI84ij7PDP
-	xbU47HuQ==;
+	bh=WWqUlWBk9SeNDsTgchqiBvCPPdXQGby4eLwA4l1Wn/c=; b=UQt+nBOCFLuTt9lR9m80f7mUgE
+	lS9m/3kgkBnUgWm075wpjDvoWcfsvGjj6XNdiPu0xYJSsIR91F3EVZwqjOtGPHT3tWlZR1g4Z/KQV
+	sMdXE4d3yo6a78yBkEuoY1UtuG8aYk83pTsB59Pqnw9yKDyyqlzcymrOVg3Ou7ovmKyZvBhF6NEzZ
+	YLcfiBi183KQGYbKJQFVbR+/FEJmnM8Cf0NcQFhzluMjCVBfbn7EewshSuoqwtxhgBLdNx+a/2VgS
+	05Skzq6tlpaW0rNMPwXleuGdfG+87MF1AAS0XJXPfCY9/nfdHzoMBWXoCqJG0YWhBv5LN55u8SyqL
+	DNIqFunQ==;
 Received: from [195.167.85.94] (helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hsL40-0001NU-9X; Tue, 30 Jul 2019 05:52:44 +0000
+	id 1hsL43-0001QQ-Bt; Tue, 30 Jul 2019 05:52:47 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
 	Jason Gunthorpe <jgg@mellanox.com>,
@@ -106,9 +106,9 @@ Cc: Ralph Campbell <rcampbell@nvidia.com>,
 	dri-devel@lists.freedesktop.org,
 	amd-gfx@lists.freedesktop.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 10/13] mm: only define hmm_vma_walk_pud if needed
-Date: Tue, 30 Jul 2019 08:52:00 +0300
-Message-Id: <20190730055203.28467-11-hch@lst.de>
+Subject: [PATCH 11/13] mm: cleanup the hmm_vma_handle_pmd stub
+Date: Tue, 30 Jul 2019 08:52:01 +0300
+Message-Id: <20190730055203.28467-12-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190730055203.28467-1-hch@lst.de>
 References: <20190730055203.28467-1-hch@lst.de>
@@ -121,72 +121,53 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-We only need the special pud_entry walker if PUD-sized hugepages and
-pte mappings are supported, else the common pagewalk code will take
-care of the iteration.  Not implementing this callback reduced the
-amount of code compiled for non-x86 platforms, and also fixes compile
-failures with other architectures when helpers like pud_pfn are not
-implemented.
+Stub out the whole function when CONFIG_TRANSPARENT_HUGEPAGE is not set
+to make the function easier to read.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- mm/hmm.c | 29 ++++++++++++++++-------------
- 1 file changed, 16 insertions(+), 13 deletions(-)
+ mm/hmm.c | 18 +++++++++---------
+ 1 file changed, 9 insertions(+), 9 deletions(-)
 
 diff --git a/mm/hmm.c b/mm/hmm.c
-index e63ab7f11334..4d3bd41b6522 100644
+index 4d3bd41b6522..f4e90ea5779f 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -455,15 +455,6 @@ static inline uint64_t pmd_to_hmm_pfn_flags(struct hmm_range *range, pmd_t pmd)
+@@ -455,13 +455,10 @@ static inline uint64_t pmd_to_hmm_pfn_flags(struct hmm_range *range, pmd_t pmd)
  				range->flags[HMM_PFN_VALID];
  }
  
--static inline uint64_t pud_to_hmm_pfn_flags(struct hmm_range *range, pud_t pud)
+-static int hmm_vma_handle_pmd(struct mm_walk *walk,
+-			      unsigned long addr,
+-			      unsigned long end,
+-			      uint64_t *pfns,
+-			      pmd_t pmd)
 -{
--	if (!pud_present(pud))
--		return 0;
--	return pud_write(pud) ? range->flags[HMM_PFN_VALID] |
--				range->flags[HMM_PFN_WRITE] :
--				range->flags[HMM_PFN_VALID];
--}
--
- static int hmm_vma_handle_pmd(struct mm_walk *walk,
- 			      unsigned long addr,
- 			      unsigned long end,
-@@ -700,10 +691,19 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
- 	return 0;
- }
- 
--static int hmm_vma_walk_pud(pud_t *pudp,
--			    unsigned long start,
--			    unsigned long end,
--			    struct mm_walk *walk)
-+#if defined(CONFIG_ARCH_HAS_PTE_DEVMAP) && \
-+    defined(CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD)
-+static inline uint64_t pud_to_hmm_pfn_flags(struct hmm_range *range, pud_t pud)
+ #ifdef CONFIG_TRANSPARENT_HUGEPAGE
++static int hmm_vma_handle_pmd(struct mm_walk *walk, unsigned long addr,
++		unsigned long end, uint64_t *pfns, pmd_t pmd)
 +{
-+	if (!pud_present(pud))
-+		return 0;
-+	return pud_write(pud) ? range->flags[HMM_PFN_VALID] |
-+				range->flags[HMM_PFN_WRITE] :
-+				range->flags[HMM_PFN_VALID];
-+}
-+
-+static int hmm_vma_walk_pud(pud_t *pudp, unsigned long start, unsigned long end,
-+		struct mm_walk *walk)
- {
  	struct hmm_vma_walk *hmm_vma_walk = walk->private;
  	struct hmm_range *range = hmm_vma_walk->range;
-@@ -765,6 +765,9 @@ static int hmm_vma_walk_pud(pud_t *pudp,
- 
+ 	struct dev_pagemap *pgmap = NULL;
+@@ -490,11 +487,14 @@ static int hmm_vma_handle_pmd(struct mm_walk *walk,
+ 		put_dev_pagemap(pgmap);
+ 	hmm_vma_walk->last = end;
  	return 0;
+-#else
+-	/* If THP is not enabled then we should never reach this code ! */
++}
++#else /* CONFIG_TRANSPARENT_HUGEPAGE */
++static int hmm_vma_handle_pmd(struct mm_walk *walk, unsigned long addr,
++		unsigned long end, uint64_t *pfns, pmd_t pmd)
++{
+ 	return -EINVAL;
+-#endif
  }
-+#else
-+#define hmm_vma_walk_pud	NULL
-+#endif
++#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
  
- static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
- 				      unsigned long start, unsigned long end,
+ static inline uint64_t pte_to_hmm_pfn_flags(struct hmm_range *range, pte_t pte)
+ {
 -- 
 2.20.1
 
