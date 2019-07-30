@@ -2,147 +2,157 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C712C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 08:04:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 211B7C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 08:11:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 08CFD206A2
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 08:03:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08CFD206A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id C628920679
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 08:11:38 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="rxPQWpq1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C628920679
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7FF0A8E0003; Tue, 30 Jul 2019 04:03:59 -0400 (EDT)
+	id 5FDA38E0006; Tue, 30 Jul 2019 04:11:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7B0858E0001; Tue, 30 Jul 2019 04:03:59 -0400 (EDT)
+	id 5AED28E0001; Tue, 30 Jul 2019 04:11:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 69F5D8E0003; Tue, 30 Jul 2019 04:03:59 -0400 (EDT)
+	id 49D5C8E0006; Tue, 30 Jul 2019 04:11:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B6CF8E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 04:03:59 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id l9so57505244qtu.12
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 01:03:59 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 2AF348E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 04:11:38 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id x17so70120018iog.8
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 01:11:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:from
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-transfer-encoding:content-language;
-        bh=x6RPycPoRAsF1VkEPpu353GKcUnEMUI9BSmZo5qOVlU=;
-        b=gs4GTaQeZdLXcIdXWXUOwTsDwUU8mv0VRbcTgU9Qg3E6eI0O0lM/g2PJ4GrgexXeK9
-         hTCU/1CcHHQCtp5Y0wDp9jGsdWpKPYGhTmGwVajDEbv3QVJ+AhKzciYwTgnlNaCV505m
-         OEf8VF+wHMgdsSniHcnLaqOZXMIrfC3QSON5G0mmFANgpsqta6Ppv2vceuIVAoNfCJGV
-         HC6XkRF0gnih8g7DkCtFbPEMub5Rtjxz4ZEU/DN5W8vMQQlYYZ7B114jjhfwJqIkOsma
-         IL1odJ9W4/fhcaQTJbn54lDfG6NSj7nAthril+1GWzx7dZPL5LryGQEC3rmI4IrS0jlR
-         0ZVg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAV1C70R9zhesJfpM7RwZ9E9FU40XG34Y4oZDXOaKKninIJafOSq
-	EOjGZ1JxMOQx2lMl3Kf4J1vfvXf7ZDEQD/Sf3PCX25wr//kd4++BU46ikCjeGcK28s2Z1JCEHvY
-	IyaWwG4xc9UqMSeWd8dMW+TyfL6GpCykUzwrUYq8r6jUvQ2MKDOtJq/UU+bCmm1+k0w==
-X-Received: by 2002:a37:afc3:: with SMTP id y186mr74935098qke.115.1564473839046;
-        Tue, 30 Jul 2019 01:03:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxBMzZCavPxI1SyHTlU+zpAI3GA9bdUoKZcD01jYlI3PLERi7KR7VO11BJkpPPZ4fN425h6
-X-Received: by 2002:a37:afc3:: with SMTP id y186mr74935070qke.115.1564473838467;
-        Tue, 30 Jul 2019 01:03:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564473838; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=lqG3hFLeHki6KlZNi6gozV3r9j/aZGFzc0fdJeJSVQ8=;
+        b=fimCBHYvj4ySvzwaQ1LBFifOyheTdBYYG0NRDe0l5fMsw9OukjTQENu3KkS5hNdHzJ
+         5sWxthf3e+cYFayQSDgQdG/MsJh75ThdblIyTOraBLkvJ0PAzWvuZAUvaluhjCo2u3Jq
+         sxQp5nRTmKenC139v15Vc9aMBVOHBNUFyzjElmCtsTpMEg8bp576OrXORobqnhtPywEr
+         2OaNtMYFhNejzz35jh1AkCXHBXzZ9MLB6elOI1uNsBmfaGGNKYO2coiVInciyFdSll61
+         r1Bq7lipJhmZpwn8uv0dHKOsGTWljxhr7e3qa1zCg/cOe/sUspfLbf5SekA5eCwtqgsA
+         /Itw==
+X-Gm-Message-State: APjAAAWV6qwKydxq2il0zI5hZtbYvis/bs53ge5FCFvyTFwcoairtZ44
+	eHR0m1dmc1x8l9SRaLg5zVyiCp6ECyRLpJdbC8GDWx6+hbJ53bFNABG1dHjtA6X9PsmUOkR+pDc
+	9olHy0HWTmkBqHCal89Lnc5OWu2VWuAdf4Oj9VF9Cv4vBGsJJgfrCfAvIdTzSd/5+4A==
+X-Received: by 2002:a5d:884d:: with SMTP id t13mr26395231ios.233.1564474297895;
+        Tue, 30 Jul 2019 01:11:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwkYHPhIUy+vyn9ZqwQ/EwwNw4M+EufySDl5PbTEN0EifPObZ4ayvGh7d/QwI+Mj681qKuW
+X-Received: by 2002:a5d:884d:: with SMTP id t13mr26395186ios.233.1564474297237;
+        Tue, 30 Jul 2019 01:11:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564474297; cv=none;
         d=google.com; s=arc-20160816;
-        b=quATZuxzCyLoY3FUGjGpvCfklVwGuulfnbeibXtVLJNU3RopEBDlEG/2PsTj1XX/Kp
-         hdu3FIegXkge4f1nd5KNfwtEFjGzxU4JAo2GjF9y4pZhOKZ+dSvlKt6ctzcobstQCJHV
-         TmcC2x0EMIy4pnIl2K+RH5933smMHTMvsrAYbUbhzdH4MPSqKTxf9uw4aaF+GD8x1fJ8
-         Ws1K/vcbN26bZZXcvRcb/TIpU14HLdUCbM9ZuO3ZvuojM9PQebxCOJd8Fi6asS4V9J7T
-         Bul1EeUKfwN+ZQoYGcFy4cTmbr2Kb8Raczyj15IX/wBIq9JnaAg6tLdXZNdTCY5c4/w+
-         IG0Q==
+        b=yK5gaJxt7Kd7YVkkhTku8Qr8godVvwabRclNyxpda7Mk2yiboqukFrbzF/hi1tfFB0
+         323vGpP+USVQLcLcqaZ8AGBNfyRlj8wrxfPftEiHVlfLVWctRx+gHieYPyEq080COf7T
+         fQPVrZ3E1R9kffH1hSyjfzqzE9j4Zco7GCgBOCoDxr4zdt6pB6iVshy9K9dcKBTmAv1+
+         yRGvqhwzhk+EN+hxPQ1vCNkbGCUVWJ4IEU18700JV9EhibNJRjMMDMKCrsKfO6g9UcHD
+         c/p5lFNgI4nN4CHEBQ6cA6AOHWSiF03aWZYKy/ZduzxuFG7tgHutpbdIkhECykrR0gZs
+         W1Ng==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:from:subject;
-        bh=x6RPycPoRAsF1VkEPpu353GKcUnEMUI9BSmZo5qOVlU=;
-        b=gSItm7SZXmi32bvsEF4Z1QDwUfx95ZnNk5nw0NECY9COD86ElWLiyti1rUAw6VfLkv
-         LYfkLiF47T1rEanVisoehrHM//rBThYtMzux6CkznUhCNAUt2obBVTVdse4uWPlt4AT+
-         R9vz4jL65/fP12d4iVXaydPJOY63I8MZKrBC+fVIGqtMi1t+Z960ZqogFprJO/DNz2oG
-         5ZmOWoHvxud4BMyaXKlv4/AIUMaQ1Djv8kml9edKBQzQAfMDlL2NBbpmjroUxG7JA42o
-         vZ03J7hVBuMGhibApiK2+a9fz3ebRyo+JAVmpWlknKXdQaSmD3ZR2ADtq12GsIOo0PkY
-         KsWg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=lqG3hFLeHki6KlZNi6gozV3r9j/aZGFzc0fdJeJSVQ8=;
+        b=lfjZte4Y0+R3CZK/B4pVbifoswJo3tjP7JE4Waif6XNUYB4gTMT1h38dhNk5WjLrmL
+         ySOuNFoejOefJErNrMKjIuN8jXpdS6txtigHhiRUFx2D1v8Lm/crESMYUewRUFWljL6s
+         C5YltK3kzCnHrQYS3EurE9AtmarQ7Je5uTdLg6sdluNEF/8dwE3XqtFjuiy90dXHA9Hr
+         o23vgDYSTimNKSH25QD1sy22vFgnwZziYogaUi/u94fJ7vsaJ/CAlridTN6YttYOOWzD
+         xHEFyPBY9d2phlpIIg8r0vZVyJxiFN6agyWxt+S79aaUtc8ONTjreoTW5pBsNNL7gGFn
+         3Ayw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 124si201767qkh.244.2019.07.30.01.03.58
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=rxPQWpq1;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id f125si83143415jaf.28.2019.07.30.01.11.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 01:03:58 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 30 Jul 2019 01:11:37 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5026330C5843;
-	Tue, 30 Jul 2019 08:03:57 +0000 (UTC)
-Received: from [10.72.12.185] (ovpn-12-185.pek2.redhat.com [10.72.12.185])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id D89B65D6A5;
-	Tue, 30 Jul 2019 08:03:46 +0000 (UTC)
-Subject: Re: WARNING in __mmdrop
-From: Jason Wang <jasowang@redhat.com>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
- aarcange@redhat.com, akpm@linux-foundation.org, christian@brauner.io,
- davem@davemloft.net, ebiederm@xmission.com, elena.reshetova@intel.com,
- guro@fb.com, hch@infradead.org, james.bottomley@hansenpartnership.com,
- jglisse@redhat.com, keescook@chromium.org, ldv@altlinux.org,
- linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, linux-parisc@vger.kernel.org, luto@amacapital.net,
- mhocko@suse.com, mingo@kernel.org, namit@vmware.com, peterz@infradead.org,
- syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk, wad@chromium.org
-References: <11802a8a-ce41-f427-63d5-b6a4cf96bb3f@redhat.com>
- <20190726074644-mutt-send-email-mst@kernel.org>
- <5cc94f15-b229-a290-55f3-8295266edb2b@redhat.com>
- <20190726082837-mutt-send-email-mst@kernel.org>
- <ada10dc9-6cab-e189-5289-6f9d3ff8fed2@redhat.com>
- <aaefa93e-a0de-1c55-feb0-509c87aae1f3@redhat.com>
- <20190726094756-mutt-send-email-mst@kernel.org>
- <0792ee09-b4b7-673c-2251-e5e0ce0fbe32@redhat.com>
- <20190729045127-mutt-send-email-mst@kernel.org>
- <4d43c094-44ed-dbac-b863-48fc3d754378@redhat.com>
- <20190729104028-mutt-send-email-mst@kernel.org>
- <96b1d67c-3a8d-1224-e9f0-5f7725a3dc10@redhat.com>
-Message-ID: <fc4cf42d-ea06-f405-b3ff-0579cf67e4ec@redhat.com>
-Date: Tue, 30 Jul 2019 16:03:45 +0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=rxPQWpq1;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=lqG3hFLeHki6KlZNi6gozV3r9j/aZGFzc0fdJeJSVQ8=; b=rxPQWpq1LSCp6jnJK/v6L8dDR
+	SkDfaijqdixP9Xmv7Riil22otsXN/ASK8qonDt1a1WnmCwcZFzOTSgAbcTOGAJ/q0YjwnjWVOAN4J
+	aQItm82TxPGN0WVkOpGnPl0gdgabuNsroTPsKVPIGkdefwHCL43Mywg9MUHzTccgCcvBp/fp4Tg4Y
+	yb89urip9Lk2Qp+GyN86WBbHtK6btdzda9xLD4lNnQyxBqeCeVecQ6vHWKegBrGJD6R9nuf6igjct
+	DKTn0E8lGqly9r6I8JgKv/fXzc1I4FI5mzOw56W98AiFk6F9PGvDdRWJkXs8fM1iS6LW9Cqh9J+Sr
+	mV+nqySTw==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hsNEB-0005KX-Sn; Tue, 30 Jul 2019 08:11:24 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id A37B120D27EAA; Tue, 30 Jul 2019 10:11:22 +0200 (CEST)
+Date: Tue, 30 Jul 2019 10:11:22 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: mingo@redhat.com, lizefan@huawei.com, hannes@cmpxchg.org,
+	axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com,
+	akpm@linux-foundation.org, linux-mm@kvack.org,
+	linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-team@android.com, Nick Kralevich <nnk@google.com>,
+	Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 1/1] psi: do not require setsched permission from the
+ trigger creator
+Message-ID: <20190730081122.GH31381@hirez.programming.kicks-ass.net>
+References: <20190730013310.162367-1-surenb@google.com>
 MIME-Version: 1.0
-In-Reply-To: <96b1d67c-3a8d-1224-e9f0-5f7725a3dc10@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Tue, 30 Jul 2019 08:03:57 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190730013310.162367-1-surenb@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, Jul 29, 2019 at 06:33:10PM -0700, Suren Baghdasaryan wrote:
+> When a process creates a new trigger by writing into /proc/pressure/*
+> files, permissions to write such a file should be used to determine whether
+> the process is allowed to do so or not. Current implementation would also
+> require such a process to have setsched capability. Setting of psi trigger
+> thread's scheduling policy is an implementation detail and should not be
+> exposed to the user level. Remove the permission check by using _nocheck
+> version of the function.
+> 
+> Suggested-by: Nick Kralevich <nnk@google.com>
+> Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+> ---
+>  kernel/sched/psi.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
+> index 7acc632c3b82..ed9a1d573cb1 100644
+> --- a/kernel/sched/psi.c
+> +++ b/kernel/sched/psi.c
+> @@ -1061,7 +1061,7 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group,
+>  			mutex_unlock(&group->trigger_lock);
+>  			return ERR_CAST(kworker);
+>  		}
+> -		sched_setscheduler(kworker->task, SCHED_FIFO, &param);
+> +		sched_setscheduler_nocheck(kworker->task, SCHED_FIFO, &param);
 
-On 2019/7/30 下午3:44, Jason Wang wrote:
->>>
->>> }
->> Looks good but I'd like to think of a strategy/existing lock that let us
->> block properly as opposed to spinning, that would be more friendly to
->> e.g. the realtime patch.
->
->
-> Does it make sense to disable preemption in the critical section? Then 
-> we don't need to block and we have a deterministic time spent on 
-> memory accssors?
+ARGGH, wtf is there a FIFO-99!! thread here at all !?
 
-
-Ok, touching preempt counter seems a little bit expensive in the fast 
-path. Will try for blocking.
-
-Thanks
+>  		kthread_init_delayed_work(&group->poll_work,
+>  				psi_poll_work);
+>  		rcu_assign_pointer(group->poll_kworker, kworker);
+> -- 
+> 2.22.0.709.g102302147b-goog
+> 
 
