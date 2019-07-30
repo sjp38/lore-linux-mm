@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6ED4BC433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:52:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D8DA5C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:52:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 24995208E4
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:52:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9D7A320C01
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 05:52:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="oDf9sTqL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 24995208E4
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="nqj2e5EI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D7A320C01
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DE2268E0011; Tue, 30 Jul 2019 01:52:54 -0400 (EDT)
+	id 6B3588E0012; Tue, 30 Jul 2019 01:52:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D4F0F8E0003; Tue, 30 Jul 2019 01:52:54 -0400 (EDT)
+	id 665A38E0003; Tue, 30 Jul 2019 01:52:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B4AD78E0011; Tue, 30 Jul 2019 01:52:54 -0400 (EDT)
+	id 507228E0012; Tue, 30 Jul 2019 01:52:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 775378E0003
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 01:52:54 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id x18so40063564pfj.4
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 22:52:54 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 19EFB8E0003
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 01:52:58 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id h3so39832843pgc.19
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 22:52:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=5I6cv8rPAulGunfRGkEsTPG6LGj3MyO3rpoe2rANz8U=;
-        b=bOrhHktKEsf7Nwzj/OHp2M4lEH4oLHr9EkQkVq9SaYCzykzeOSTVDuMPagOmdOw81o
-         KtmNXP0bcs/4q/0/WaGT6yDkKx4AoFch0VRuNpq4qiSSMYv1py/95Omvfku3b1N9zu3L
-         U/Dke9+EgMvnm5fiOp2BVWhgu5sz5CGWptcYSytGs8OrT1n1V0E6bUbnHFYt6H+EOenk
-         1STvi1WJCV4MO4a2VzwsjZHPlBqMSbtr8/juQZbPVCPUmFVGMeUvE0E0D0wF4aaHLLdr
-         IS5ZBfyYwpJZPEL1aZNu0nMkSOjnjPL1w1u0bbM/staesf+SpDmucJUUwif3PkNBqf6J
-         lu8A==
-X-Gm-Message-State: APjAAAWGR+TZf0MbyCsyUp25IPDyQbeyRc928VgkSdQXHDmda9dHs+tS
-	1jt59Yop56WCohC4gDigfj0G3eI8LLO3AqaDJq8C9S0Qv5QyEcMimRXY0mIGVJZIBF61tNygldh
-	wF6rXxkKc+QWaOJ8o3zJ+3ofvCdcJ9IRxUCaM5YOZO9nPUEEGgjfQCraMPan6BfI=
-X-Received: by 2002:aa7:9f1c:: with SMTP id g28mr39709666pfr.81.1564465974188;
-        Mon, 29 Jul 2019 22:52:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwBE+5jeM39exGIT1N58jj2fnCspBwt/LKGaUWi6g15j0L3nuBg9OVOvqKUa1QKVyn9H2qw
-X-Received: by 2002:aa7:9f1c:: with SMTP id g28mr39709636pfr.81.1564465973512;
-        Mon, 29 Jul 2019 22:52:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564465973; cv=none;
+        bh=oeVqzqKgfl2aD6OHsHwpo1ch5592YFZchzgyQdMtYkM=;
+        b=Kyjpc3REhGp9YhLx8y+0f2odtrovQetjbh80uOdXIewiJukcUjS6CGnVm+WVY62fZz
+         BWxoODst0KDiqWr2RDq+3a7ldMkCelAFk2mTi3tf5w/oS8vnN4beCT65/i88E5fsxmtc
+         L/l0GhqRXohOMQ/kaTfmSdmjFGto9mHyBWbt2cRUSqODAZQQoVwl37/lqOHe5SvVmKgy
+         t2YBzyD4dZMijNp5GpBKW8zvWYkFIA5GHx/s3fgAoYtkMH4onBDpz04+dF4Pm/l8BZsp
+         83MzAaLlDYb8vVRsmNwEt1jc+6UhQGEW3joEEPCkkNrfIle8VFLW3qK+mQg2SkfS3mF5
+         kkBw==
+X-Gm-Message-State: APjAAAWbS9su7TMuSoSo2VzX5w9cvYUSKdaOO6NSMonRrMW01kDTW88a
+	Rc9mroxB65M5mzmMpyg4f940IpX0YmrzzCQmi4H42p1TlwwEMXSXKne/mrmjl0/S12toOo8GnfS
+	x4Lllo8w/uAGsQeRiLpYRl4UEGnooV1M96dLpl5fnrRrh404FHzBqGU1efaNSfSA=
+X-Received: by 2002:a17:90a:290b:: with SMTP id g11mr115830184pjd.122.1564465977811;
+        Mon, 29 Jul 2019 22:52:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy3VlGYGqUFfU2cfgdR++dIDAcqErBFCYf57Ax3CyetY245jOZFH2/iIgy7KdOqkn1bBf0L
+X-Received: by 2002:a17:90a:290b:: with SMTP id g11mr115830161pjd.122.1564465977166;
+        Mon, 29 Jul 2019 22:52:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564465977; cv=none;
         d=google.com; s=arc-20160816;
-        b=RJrTyjeemju87G41jgj+YWacRKQFeuTlD5P7tmcNs0TtoYIN7hLl+DjTbbbDafJMWL
-         7eQozSknYwJVdbO1LsXa6oJUzojTN5qZ26ZDEHhr8mDphgeb0bofBqqceUG80MIHzqmT
-         PEYxuq1wFV5ADjV5gJFY6H6JcGxLIhb4LJF/b8Y8mzxMT4IzdNn8bRnWk2U1t8Tnld5e
-         CFEX2KNLAJ4Q3QStB2Ep2opI/VMJGm6/iZo7oR4WdWNvDH725NMPW/HqkRdvrZ2xrjOz
-         ZKMoAtnV0/leE4QAKUUEsi2Yl8zymKEBEQJYn44yURjfduFI1HgHLpuCldtRm5vxcZU3
-         rhFg==
+        b=OBvBajB1ncWwbGY8ESY0PJrbt9Cs9RG52WitLYjjFS+zI9BkRjIgQSseKHRlk3pfgT
+         2Smkf1En0hXfnGUS7p6JcFQhl7tnmHHjhbCL6QFt/rw0E0TTZAUIkvjVnh0iDB/g7BwU
+         q18uNHqCs1RqTghAP0WBga8r0qectTaP1wdB5RjveQ3nS2skCvoc5gPuAtdM8CE49ax+
+         NF53I9+9f9nsi1Yjl3HNJ2wkBl1ftK5npkquFCzkcKnIhAo0ZsD8qCtPwCBpOZm9A0hh
+         3x8DsxIJLUhRrDl+oWp0QT2vUE3uLs+BOr4fvI3r+VEyv9KSIfq9y3BIvm7EzFzEQnqn
+         j4hg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=5I6cv8rPAulGunfRGkEsTPG6LGj3MyO3rpoe2rANz8U=;
-        b=Oj+vCpMgdddYjXvzUoOOssx6CIRrxfGlxMIQuEp8Z/IhF58eUDWXEwm4+uPOpKAfZZ
-         I1eisLCopkano1XSsiAldguYhTZOAp4B9a7VpEKpXAfZ1FAtu3aIBjwwp3ZNXXsX+9MG
-         0tVEYmTkTHP2pnIZsWnEMkwVF8qW/vcBwriKx597/eF4oTDedQGI6K7QodkChonBo2zW
-         OtDm63nPy6EE/9S8jtr47JYFTKUBaTrf9wWq0wEI/KVGq9ZhPiD5KgFXd5CxdTLZRd8+
-         EvI9EzhLyLVFc7Gu0HA7Dpg7B9qucgBHg1BliesSf7leefKD4wWVmhMgK9u7VwQx/egi
-         C2jA==
+        bh=oeVqzqKgfl2aD6OHsHwpo1ch5592YFZchzgyQdMtYkM=;
+        b=j2YBxECFQIdAskunZMun1Jbth3viXnP+gGIy/GQ8rijY9eKYCA+QWV5nKY54vHKASP
+         Qk9ekeVXR9Kyz8LdSFTXUOkIj3IRiEuaNSqyS9b+Iqu4TcQK9c5qnHxmTwBK3KvyC4xQ
+         cqbw7c3e0TiGU5CXmLA7QXL/tzVSGtrHPqyp+CpbrQdSsDQ1dDJZNZwfI0TnROeYoAuf
+         BWiXblfaut9psPrb2SJ0QFP4c7lPJwPtytCtjraP41YWMoJQ302C17DQ4ldieuY8oCe+
+         mVhA5k/eBxWyDTaJSYAGsSfqy7w18QGlPBk/J+d18FWcXn1FMgA9n6fe7ZqCL1wItgIz
+         srxA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=oDf9sTqL;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=nqj2e5EI;
        spf=pass (google.com: best guess record for domain of batv+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id q23si27701135pff.103.2019.07.29.22.52.53
+        by mx.google.com with ESMTPS id o8si27392429pgc.179.2019.07.29.22.52.57
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 29 Jul 2019 22:52:53 -0700 (PDT)
+        Mon, 29 Jul 2019 22:52:57 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=oDf9sTqL;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=nqj2e5EI;
        spf=pass (google.com: best guess record for domain of batv+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+c7577188abbe010e1e13+5819+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=5I6cv8rPAulGunfRGkEsTPG6LGj3MyO3rpoe2rANz8U=; b=oDf9sTqLOFXjgtQQfZeUNN/vp5
-	lCVFV/7Tr8JxHR/pQ+/TMmCyjB6NjzjA2mMLkEkCi7jL4ivm6humWCpK5bUJBpgGkIVEIqxfqPwDM
-	4YTgjZfSuNSKi4iH6bf2ix1BFnAHfKSiDJt5tuFXYnbRAPanFBN7galzFX5sH/RzaX/Ar5BkCfFvd
-	41uRDFgvEN7sG3tRwMzHosXwxm3yjKdGtPSFyxJvDop/5dTh5Q/5Zvl1zocmST9V55oZcYCaE7QDT
-	9yH7K0Mb6/P0GmUwfW3WtYnIUZ9WM04YEB6aiSTy77a+Q6/+Ce1zgMON+82ync3MS6VeeHv8iSw9J
-	klDnrBYw==;
+	bh=oeVqzqKgfl2aD6OHsHwpo1ch5592YFZchzgyQdMtYkM=; b=nqj2e5EIZMkVf+8w9hLeGVYCxs
+	wdgEDivjCVoIGZbSaAkz3m0Aa7F44xnNI9z9ymc+9rjF5EAY5xgPXlBSUFqXLwPFeeVU3p8Kny9Ci
+	fVesCkD2VXf5mq/sNI7dWav6POKUDEzzF4PFZkU+Sp4ftE+haMVcYARlpyIu8wUu3FtqOLhPpXRx4
+	rD/U9jRX3Vp4sKK2FXFKTxABMdp8hILpluwAqHq1MSeceWcuDL5ShI5QKZN89NMwkOt6aavp3OD+F
+	/euujoS2VqYYiPfYoUIBTNX2wbHkZ3H2aeas2hZTAbQ5Gzd5tys/swezApCF2bDC6z1pzrN2v5hnW
+	AibQy3Zg==;
 Received: from [195.167.85.94] (helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hsL46-0001T1-B3; Tue, 30 Jul 2019 05:52:50 +0000
+	id 1hsL49-0001W7-9f; Tue, 30 Jul 2019 05:52:53 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
 	Jason Gunthorpe <jgg@mellanox.com>,
@@ -106,9 +106,9 @@ Cc: Ralph Campbell <rcampbell@nvidia.com>,
 	dri-devel@lists.freedesktop.org,
 	amd-gfx@lists.freedesktop.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 12/13] mm: cleanup the hmm_vma_walk_hugetlb_entry stub
-Date: Tue, 30 Jul 2019 08:52:02 +0300
-Message-Id: <20190730055203.28467-13-hch@lst.de>
+Subject: [PATCH 13/13] mm: allow HMM_MIRROR on all architectures with MMU
+Date: Tue, 30 Jul 2019 08:52:03 +0300
+Message-Id: <20190730055203.28467-14-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190730055203.28467-1-hch@lst.de>
 References: <20190730055203.28467-1-hch@lst.de>
@@ -121,46 +121,28 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Stub out the whole function and assign NULL to the .hugetlb_entry method
-if CONFIG_HUGETLB_PAGE is not set, as the method won't ever be called in
-that case.
+There isn't really any architecture specific code in this page table
+walk implementation, so drop the dependencies.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
 ---
- mm/hmm.c | 8 ++++----
- 1 file changed, 4 insertions(+), 4 deletions(-)
+ mm/Kconfig | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
 
-diff --git a/mm/hmm.c b/mm/hmm.c
-index f4e90ea5779f..2b56a4af1001 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -769,11 +769,11 @@ static int hmm_vma_walk_pud(pud_t *pudp, unsigned long start, unsigned long end,
- #define hmm_vma_walk_pud	NULL
- #endif
+diff --git a/mm/Kconfig b/mm/Kconfig
+index 56cec636a1fc..b18782be969c 100644
+--- a/mm/Kconfig
++++ b/mm/Kconfig
+@@ -677,8 +677,7 @@ config DEV_PAGEMAP_OPS
  
-+#ifdef CONFIG_HUGETLB_PAGE
- static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
- 				      unsigned long start, unsigned long end,
- 				      struct mm_walk *walk)
- {
--#ifdef CONFIG_HUGETLB_PAGE
- 	unsigned long addr = start, i, pfn;
- 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
- 	struct hmm_range *range = hmm_vma_walk->range;
-@@ -812,10 +812,10 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
- 		return hmm_vma_walk_hole_(addr, end, fault, write_fault, walk);
- 
- 	return ret;
--#else /* CONFIG_HUGETLB_PAGE */
--	return -EINVAL;
--#endif
- }
-+#else
-+#define hmm_vma_walk_hugetlb_entry NULL
-+#endif /* CONFIG_HUGETLB_PAGE */
- 
- static void hmm_pfns_clear(struct hmm_range *range,
- 			   uint64_t *pfns,
+ config HMM_MIRROR
+ 	bool "HMM mirror CPU page table into a device page table"
+-	depends on (X86_64 || PPC64)
+-	depends on MMU && 64BIT
++	depends on MMU
+ 	select MMU_NOTIFIER
+ 	help
+ 	  Select HMM_MIRROR if you want to mirror range of the CPU page table of a
 -- 
 2.20.1
 
