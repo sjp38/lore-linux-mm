@@ -2,193 +2,143 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 71BF7C0650F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 15:48:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF542C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 15:51:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 35114206B8
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 15:48:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 35114206B8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id AECDB204FD
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 15:51:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AECDB204FD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BF83D8E0003; Tue, 30 Jul 2019 11:48:57 -0400 (EDT)
+	id 3B8A98E0008; Tue, 30 Jul 2019 11:51:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA9138E0001; Tue, 30 Jul 2019 11:48:57 -0400 (EDT)
+	id 3427E8E0001; Tue, 30 Jul 2019 11:51:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A71198E0003; Tue, 30 Jul 2019 11:48:57 -0400 (EDT)
+	id 20A768E0008; Tue, 30 Jul 2019 11:51:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BA7E8E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 11:48:57 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id a5so40597005edx.12
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 08:48:57 -0700 (PDT)
+Received: from mail-ua1-f71.google.com (mail-ua1-f71.google.com [209.85.222.71])
+	by kanga.kvack.org (Postfix) with ESMTP id ED5188E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 11:51:42 -0400 (EDT)
+Received: by mail-ua1-f71.google.com with SMTP id t24so6681203uar.18
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 08:51:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=6w+3KE675kCWzjT8oHgKhFVrXzFlaZnT0bqlvIZwwTU=;
-        b=HR+4BN5xfXVxK5qfX5I3+uo8r1xjPcJYBejMxPv4d0dh/l9RnYaHqNKRp5xsVZKbLO
-         xKAE9HYWt+g0mAQd2dLnhSlL0bCjoJmCT2X3vV1OvLlBJRX71HCrDH7ddvfDTIxobErN
-         e2PkLWjZBbwPTsfhh2vp5vnvZGHtCF0J+1LsImthFBnWSlv/FbReTaoALRaishdcLF8d
-         xlnpDxrMRmQ6Xbe78drqUYvpK172GcP34vDWJvjkoB9drjxwbuy5WS11W5TiwY+pnwjU
-         ofa1ohntzD4U/VCGobAz10mb2gTf0JN8TOZT7mPkQfs4gG8Go32YN8iSgMaP93esA94z
-         Mv3Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAUCcQXb2dHlgbscE5Ld32chYMGQlQjmKqPBQOM1QzH/m8Ne56Jt
-	6rkB7S9vbEEjJTSzCAheYhK4hs7KYH/8qfs8DiXh+cN5I9cSCzRUG8r1TtQ+CRoQvP9pSiQQWYv
-	NdVeuwTv/awRWZXL7OL7f5B8xeKya3AKsh1ZlANiXph31LTvE6L4KnyvAKD/QLvYpZA==
-X-Received: by 2002:a50:9947:: with SMTP id l7mr103468311edb.305.1564501736935;
-        Tue, 30 Jul 2019 08:48:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwWzskNzSajasdLAa4xGiI05vmVQlIUKdbVWPCdgy5F9kepcEOEU1Ce3R1r1TUutLt+VL32
-X-Received: by 2002:a50:9947:: with SMTP id l7mr103468254edb.305.1564501736181;
-        Tue, 30 Jul 2019 08:48:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564501736; cv=none;
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=zFm98YUZt8SSxDLWbzkJjLxO1K6BQyYHVwPwen6Oeho=;
+        b=llVUNzWGVu0rMmpa71NkbLnvEAWgFCXy5pr7fk1flQi2+Lyszs3Tx3DSwS4V22QA31
+         9RuMuIWSFbIaAOk1WU6SuhiIbyiMFZ/w5tpU3ByUpqiV80PF78oRFZI01ZggXVRZvaig
+         I2MklXKVxJbbDppP0LlFOshAgQGpW9FvdLVWIVA6leKIf9KdudDsFZmPobxuP27VeNxf
+         mDP/0bnFrHadhrcQjVU0i/49LXg5hIsDSqKYB5ypBcTv2wGzbuhIl4B+aJ65amD9VRDb
+         ASKfKHyRA0sFd/p0GqkPnG6q5VoTC0B51RVrxnEOPge4DAAfHcco4X654SFEYjaI3E8z
+         w2KA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUzQSEszwugKZ+YDNQMXESSQlY8Wi8k0ipF75UPKFWoq2a0TDTd
+	m27PZJAuGImmPORXFjC1zZhtlhZiZb5F6GdqjQwy0hyGxeVOYTweklEUZagaGVnV5rBRUluNLAY
+	jyNxIMAwmshTYVE1rcgdyJcU96USSrk2GVvQSYVr1FZ2znHxyr3gcTVgIWFNcWr+XXA==
+X-Received: by 2002:a67:f1d6:: with SMTP id v22mr70903290vsm.178.1564501902721;
+        Tue, 30 Jul 2019 08:51:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzf5PNXL6gMSNAUUgL4eEEw0ZGIgRtQ8h2aZMM2WdYX+ki7uZfAXMH438Uik+jA9CLd3OdO
+X-Received: by 2002:a67:f1d6:: with SMTP id v22mr70903215vsm.178.1564501902151;
+        Tue, 30 Jul 2019 08:51:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564501902; cv=none;
         d=google.com; s=arc-20160816;
-        b=G3PMwyOuuyPFSdpvrITDUKEWTp/lg0QaERdcLcsoQ5k/I39of2QWwGNs4szslzQllR
-         clMHGaZfssUSk2YOlGajiJKnu741pzPp6c7atxJ5N2514JypkwKlCaZTIDMSa+p3T8kY
-         nFSIVT0vQmuwYC8z9+L7DwIdQwML+5X6Y7l2637/F2fJnkKhRhBYaqBrjm/5n/2CqiV4
-         cyrPlRd8EA3yvtkoP3dGkpHLBx3BQWcDkXoP9zYo2mMx5epmNRNzzk2Ih+MFuGphqIab
-         ONRf9sWwG7vU7Fzn3spq+hEnAmuv9jjQk8lAS8VHLu+1eDaNFc/j5gjB3fU5MazkQz/w
-         6PRQ==
+        b=i0qMhldk4Ir/tNsRl5FHFe6zELzir6hw/5YwShchQR1ybn/fACdb7aPtbtWSqSSHYK
+         RTcwc+iypmP6e4O0dDw96iK7soJtgZsEv/hgC+6iUwyV9wSp8xsl72QxDmgTsUOu2Wnm
+         gHjFoKguCbzzU/l7DoAKA9NOr54WC8VJraCaRgTzJcy3QU4Ut7dbDiJ5hf6IhINNmSAm
+         WV1Jy6ITgA3yv/Shnv2jeRGwJcZeTfnMQQqRAC/8CA4mgZwKjWlJ3Tx1DIYz2fl2hPed
+         hXIno9ubNWWM6xZdJQkhEpk/fmSygW/Ow1aAvwgd020h0bykP7m55d1L30hYZJKPJBrs
+         uNFQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=6w+3KE675kCWzjT8oHgKhFVrXzFlaZnT0bqlvIZwwTU=;
-        b=DWx6MUpqYwENnLTtMJ3Yh16cb6FP11FSuMAL1SjZ35Ki1AJd73rHDDpWdc8revBXb0
-         MU0LNghkQxAIuj3IRi9UiXFg40Uc5btiREWMumH/lCcN+TZUN/DFu5S88o94Dax2T942
-         w8XNa7w5m5UO68zesCrYkSZAM+03e89mbZgno01lX0XKcsnQXcKHe0BVhYFNNE+7LRYh
-         8hfV2rM9lDvG3lmCl5Y9h6A4LRiPc6RXYzMxptb7robRFAsLdgdufZOHaN6b0TP/OAge
-         z97gkV0D7khTc+QGD8lCHgYk92T7G4ovOwRvi8/yWJ4AKuyqzBm8u1FPwCsQ8mNobWMv
-         0jUg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=zFm98YUZt8SSxDLWbzkJjLxO1K6BQyYHVwPwen6Oeho=;
+        b=ZRKViM71Nr//q7PtNo2bO6wUSTZJaL2xxSHDfuRn36MGPrzvC9GVuG39x+VC5MrOZT
+         Bl3pXA0+mMMdChrrOZGULmW4LV/S4fv7ifvYP6l5xUdhfBr2p6Mx1vd3tUKXZwNHQ6kv
+         Ic/wOvQs4Bsfh79eqjcs4x06KETqVQEf9XnzMCIjgysd5+xf1Z92N12pz1wpZhH36IT2
+         MBhOUl+N7z4u6KiMSltRoEq3yHuNWOJrMyxnKHgTN80Ejx5gPy+9CATufYBVVenuqTmw
+         9MH9dKmezZeSzj8NNdQ/gzH5+zlPDwY+m22ZOeicJB7o/B5dfy705xFSOuVhcv1FhiIw
+         TkmQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b43si18807367edd.433.2019.07.30.08.48.56
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p12si9907570vsn.368.2019.07.30.08.51.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 08:48:56 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 30 Jul 2019 08:51:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 7F5EEB024;
-	Tue, 30 Jul 2019 15:48:55 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 039991E435C; Tue, 30 Jul 2019 17:48:55 +0200 (CEST)
-Date: Tue, 30 Jul 2019 17:48:54 +0200
-From: Jan Kara <jack@suse.cz>
-To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Cc: Jan Kara <jack@suse.cz>, Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Tejun Heo <tj@kernel.org>, Jens Axboe <axboe@kernel.dk>,
-	Johannes Weiner <hannes@cmpxchg.org>, linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH 1/2] mm/filemap: don't initiate writeback if mapping has
- no dirty pages
-Message-ID: <20190730154854.GG28829@quack2.suse.cz>
-References: <156378816804.1087.8607636317907921438.stgit@buzz>
- <20190722175230.d357d52c3e86dc87efbd4243@linux-foundation.org>
- <bdc6c53d-a7bb-dcc4-20ba-6c7fa5c57dbd@yandex-team.ru>
- <20190730141457.GE28829@quack2.suse.cz>
- <51ba7304-06bd-a50d-cb14-6dc41b92fab5@yandex-team.ru>
+       spf=pass (google.com: domain of jglisse@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jglisse@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id BBA843E2D3;
+	Tue, 30 Jul 2019 15:51:40 +0000 (UTC)
+Received: from redhat.com (ovpn-112-36.rdu2.redhat.com [10.10.112.36])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id DFACB608A5;
+	Tue, 30 Jul 2019 15:51:37 +0000 (UTC)
+Date: Tue, 30 Jul 2019 11:51:34 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	Bharata B Rao <bharata@linux.ibm.com>,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	nouveau@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH 9/9] mm: remove the MIGRATE_PFN_WRITE flag
+Message-ID: <20190730155134.GA10366@redhat.com>
+References: <20190729142843.22320-1-hch@lst.de>
+ <20190729142843.22320-10-hch@lst.de>
+ <20190729233044.GA7171@redhat.com>
+ <20190730054633.GA28515@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=iso-8859-1
 Content-Disposition: inline
-In-Reply-To: <51ba7304-06bd-a50d-cb14-6dc41b92fab5@yandex-team.ru>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190730054633.GA28515@lst.de>
+User-Agent: Mutt/1.12.0 (2019-05-25)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Tue, 30 Jul 2019 15:51:41 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 30-07-19 17:57:18, Konstantin Khlebnikov wrote:
-> On 30.07.2019 17:14, Jan Kara wrote:
-> > On Tue 23-07-19 11:16:51, Konstantin Khlebnikov wrote:
-> > > On 23.07.2019 3:52, Andrew Morton wrote:
-> > > > 
-> > > > (cc linux-fsdevel and Jan)
-> > 
-> > Thanks for CC Andrew.
-> > 
-> > > > On Mon, 22 Jul 2019 12:36:08 +0300 Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
-> > > > 
-> > > > > Functions like filemap_write_and_wait_range() should do nothing if inode
-> > > > > has no dirty pages or pages currently under writeback. But they anyway
-> > > > > construct struct writeback_control and this does some atomic operations
-> > > > > if CONFIG_CGROUP_WRITEBACK=y - on fast path it locks inode->i_lock and
-> > > > > updates state of writeback ownership, on slow path might be more work.
-> > > > > Current this path is safely avoided only when inode mapping has no pages.
-> > > > > 
-> > > > > For example generic_file_read_iter() calls filemap_write_and_wait_range()
-> > > > > at each O_DIRECT read - pretty hot path.
-> > 
-> > Yes, but in common case mapping_needs_writeback() is false for files you do
-> > direct IO to (exactly the case with no pages in the mapping). So you
-> > shouldn't see the overhead at all. So which case you really care about?
-> > 
-> > > > > This patch skips starting new writeback if mapping has no dirty tags set.
-> > > > > If writeback is already in progress filemap_write_and_wait_range() will
-> > > > > wait for it.
-> > > > > 
-> > > > > ...
-> > > > > 
-> > > > > --- a/mm/filemap.c
-> > > > > +++ b/mm/filemap.c
-> > > > > @@ -408,7 +408,8 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
-> > > > >    		.range_end = end,
-> > > > >    	};
-> > > > > -	if (!mapping_cap_writeback_dirty(mapping))
-> > > > > +	if (!mapping_cap_writeback_dirty(mapping) ||
-> > > > > +	    !mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
-> > > > >    		return 0;
-> > > > >    	wbc_attach_fdatawrite_inode(&wbc, mapping->host);
-> > > > 
-> > > > How does this play with tagged_writepages?  We assume that no tagging
-> > > > has been performed by any __filemap_fdatawrite_range() caller?
-> > > > 
+On Tue, Jul 30, 2019 at 07:46:33AM +0200, Christoph Hellwig wrote:
+> On Mon, Jul 29, 2019 at 07:30:44PM -0400, Jerome Glisse wrote:
+> > On Mon, Jul 29, 2019 at 05:28:43PM +0300, Christoph Hellwig wrote:
+> > > The MIGRATE_PFN_WRITE is only used locally in migrate_vma_collect_pmd,
+> > > where it can be replaced with a simple boolean local variable.
 > > > 
-> > > Checking also PAGECACHE_TAG_TOWRITE is cheap but seems redundant.
-> > > 
-> > > To-write tags are supposed to be a subset of dirty tags:
-> > > to-write is set only when dirty is set and cleared after starting writeback.
-> > > 
-> > > Special case set_page_writeback_keepwrite() which does not clear to-write
-> > > should be for dirty page thus dirty tag is not going to be cleared either.
-> > > Ext4 calls it after redirty_page_for_writepage()
-> > > XFS even without clear_page_dirty_for_io()
-> > > 
-> > > Anyway to-write tag without dirty tag or at clear page is confusing.
+> > > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > > 
-> > Yeah, TOWRITE tag is intended to be internal to writepages logic so your
-> > patch is fine in that regard. Overall the patch looks good to me so I'm
-> > just wondering a bit about the motivation...
+> > NAK that flag is useful, for instance a anonymous vma might have
+> > some of its page read only even if the vma has write permission.
+> > 
+> > It seems that the code in nouveau is wrong (probably lost that
+> > in various rebase/rework) as this flag should be use to decide
+> > wether to map the device memory with write permission or not.
+> > 
+> > I am traveling right now, i will investigate what happened to
+> > nouveau code.
 > 
-> In our case file mixes cached pages and O_DIRECT read. Kind of database
-> were index header is memory mapped while the rest data read via O_DIRECT.
-> I suppose for sharing index between multiple instances.
+> We can add it back when needed pretty easily.  Much of this has bitrotted
+> way to fast, and the pending ppc kvmhmm code doesn't need it either.
 
-OK, that has always been a bit problematic but you're not the first one to
-have such design ;). So feel free to add:
+Not using is a serious bug, i will investigate this friday.
 
-Reviewed-by: Jan Kara <jack@suse.cz>
-
-to your patch.
-
-> On this path we also hit this bug:
-> https://lore.kernel.org/lkml/156355839560.2063.5265687291430814589.stgit@buzz/
-> so that's why I've started looking into this code.
-
-I see. OK.
-
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Cheers,
+Jérôme
 
