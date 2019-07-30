@@ -2,183 +2,197 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 82BA4C0650F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 14:52:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 405E2C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 14:57:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3C79120665
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 14:52:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9A37A206A2
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 14:57:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="iuQpUu6a"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C79120665
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="nRcfxXoJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9A37A206A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B86E28E0003; Tue, 30 Jul 2019 10:52:18 -0400 (EDT)
+	id 2F8248E0005; Tue, 30 Jul 2019 10:57:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B0F8E8E0001; Tue, 30 Jul 2019 10:52:18 -0400 (EDT)
+	id 2A76D8E0001; Tue, 30 Jul 2019 10:57:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9FF7B8E0003; Tue, 30 Jul 2019 10:52:18 -0400 (EDT)
+	id 197018E0005; Tue, 30 Jul 2019 10:57:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 37A728E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 10:52:18 -0400 (EDT)
-Received: by mail-lj1-f198.google.com with SMTP id t25so138811ljc.17
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 07:52:18 -0700 (PDT)
+Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A78E58E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 10:57:22 -0400 (EDT)
+Received: by mail-lf1-f69.google.com with SMTP id f24so6694961lfk.6
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 07:57:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=vLDKuH+/Y6R1wGAQGSCIi/9agKk/j9gR7pNqj2Ro2Ic=;
-        b=tDpJY/U7xOXcorN3kl8/ChU8AHYY+PRCiW3rzkl3hWtkBhEIqki5GK3zn9wdZWHLTq
-         HVvT6LBTpm8Vh5GrjfszodYo0Cqdo7GOcg2RjrdkLzV6Nrz3Ejwv7FFPGm4zop6dk1Yc
-         n62xatKNSC/A+RzPkI2dfUBotB6xTvso5+gf+0okOmg26zm0WEzS4nHdZ9/h5vGRKxY1
-         gmsI7qa2E8AuyZCe70I9AVMaVceDaRr7I/u8aJ+eUM6tYCCH9IqUj/zibSe6KPM+wMBK
-         /jqYD2LkfehvdFCjZjIZ/bB47js/bUmf23yNRj9g7CTqH554KqXwR+1nKiQx5Ox9NlJk
-         x7ig==
-X-Gm-Message-State: APjAAAWtkSO3t6scnfxbHlqWCGZNTUsqy5kfu45XfZctXH3hf7WYWKeR
-	JiziFaVHcerEXEhLmSqMZwOefmqC0VgOT8kFnoyLeubI2yAAavoSya1rKjjwn4kojFzslgAby+0
-	5gn9Q3SJJSBbdd9nzJTJW/V9zOS3Zb56ES7EHA0Uzz1pIOY+OIrNjB8t4Q36/E9WF+g==
-X-Received: by 2002:a2e:5b0f:: with SMTP id p15mr59335233ljb.82.1564498337317;
-        Tue, 30 Jul 2019 07:52:17 -0700 (PDT)
-X-Received: by 2002:a2e:5b0f:: with SMTP id p15mr59335200ljb.82.1564498336407;
-        Tue, 30 Jul 2019 07:52:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564498336; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=dHW6AIzVqZ+BtB7OKS/RSaqFVfjBjJYiEElqTiNSJSw=;
+        b=PT3/hLofYZJSyTwGx8Ggy0t97plZk4IqHzJNLE6Tf0wjkMwyAJJ9PSUcm6NHzD4rX5
+         6u4ByRhxxvK+kJW/euFOEATV7g19xDN9Zh+1fWWrltyqd8joCo2MnBW+luIFjKPFhkZK
+         24XDtQXJUQMKDYWylLLUwJTounCVKeYS1iPtCVSnVWaBHOJEOkjE1nOxpPB8Y15Gh+uQ
+         QEanX9TfJJprTvRpO70FNrLtffN4a5Um0wnIBVnjkuoUqNjXTJ4952yOcy8kYYD/4Gqz
+         /gXdhr8LQMWcVp5xfZ/H3QnzeGDt/DAQz8LUBG4KmK/ArHlU9zdlHAitXK9C7J17zdx6
+         M2Pg==
+X-Gm-Message-State: APjAAAXv+7IaO5VBVUSTW23PtF9kEtA6oDiX5vX1MCldHr7laOWKndUz
+	WSNKwemKEOcdZHg8dJFOm54+FjBaCKiaHK6CC+O+cVEep0eXUm4+CREaIWbxqv8n5vQLmJupua4
+	pcK0QXXOZtDtvBZ/xnozBiiKRfOJA3lWl6bUJqlMJc39qHmsILqIrSrk+faTkEo7HVQ==
+X-Received: by 2002:ac2:42c7:: with SMTP id n7mr54292250lfl.65.1564498641821;
+        Tue, 30 Jul 2019 07:57:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyblpJtfzcc/txqGff6c1Nk5IylrQfdnejduGOhsCnrJsCub92wRWwVYQAIivQD0+yx4SYt
+X-Received: by 2002:ac2:42c7:: with SMTP id n7mr54292210lfl.65.1564498641025;
+        Tue, 30 Jul 2019 07:57:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564498641; cv=none;
         d=google.com; s=arc-20160816;
-        b=EVSNLa1gZH6uN6GXiFBEHEDlhF32XNmotPpK1GFT5D1BYr/Q41NtHFEvi7nEjjlMsD
-         i+g6dmGHNgDcWJ3EnWkvAY2VChsGIGfgGL9DJm7RYAiWhHFo1HNV/BTaIcZem7TzJitd
-         m7eWKnGc4cqs2h2uXt2FdCByChkQYSdiFiHLHm7dSiGEDtgFSefAM7tqxKo6gjrPr7OK
-         uXZD30Ya9GEEo/glLHLmqisjwiY7xlqFYWFffsYnBVkUku6iMjBW4vWspUMfslpkN2r1
-         HRmy4K2WocCcoRrdqyYBLded20vlHoAA5N7iXLst4BVQMPXJKriAvkqBzb3F+6ew18tj
-         5flg==
+        b=tf9qeirYRyrpE4T2T4NAJic6XEs7zlTeGEfJWSEOo18gBMMps8cev+SvHgsrNWXhU9
+         bhEf78C2KZa1jm//Atfq8t3C2Cu0oa1MvCSflway9DjrdWCC+6RT8onrEpfbzkd2Bi07
+         jY1NlReHLPz46yMAy8/itgQs6JxTISpbsjXpJig7amRn93WEQH7wrWiACWnyGVz0vaJO
+         1i8ZmJvLbEJyhc8R4c3qQ4b0PuXlsQLCoKzzBP5JQvMEh7gcVrQC/hlAM1Og7iDYTr/2
+         Q9NNj7jH6OHt3HfEiGKzlY4QVAaO+yWEn0Z5+np1NtFFXzzCKQn9KWALNQZ5b4kAspnM
+         FIww==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=vLDKuH+/Y6R1wGAQGSCIi/9agKk/j9gR7pNqj2Ro2Ic=;
-        b=U1rO2gI+2f9Cr2bvh6gGR4C+Sgyf7iFUlLIS/UkHnlsLGDViKH6qTj1B8PGkjdz1vW
-         SvtBbdN/E4mTFp89S+OvGmaPqSdV+E7+sqzxDku88T9CQ2Vp62X4h97Xwsw1NUwKRHHP
-         YqsnEbSMnQhOcivrf80Xq9tJVb6W33gFVfYg2mg/Hxx5gN4I8/FLgligSkbMgEO41vuB
-         YHPCMUn69chKDxfGx2ExIqL/5AGUrNue7r5V2t5NRK3UEapQqkEqAu+N1fAu2MmtWhLw
-         +68JmtaagPiqt4qsNAT4TBnIEb4Lmz4x5mMj5x9Z87BzpUY2poDYmR/c625x6eca+6N9
-         yqQQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=dHW6AIzVqZ+BtB7OKS/RSaqFVfjBjJYiEElqTiNSJSw=;
+        b=0YOtklSul9CHrepz42vSKgATCs/LoglDOs2bmdlHhIS+e3qXHxMGLBIgExxxQzqm7u
+         cYjyLgzslNIw7FB8h8GA0ujwl6SynMsDmN87zZJ3iiAyT1YKlC4Gk7+06TBOMKodbL9l
+         YLHlU+uuMY/ZGXbqN8ZO5bW6UXjEMwUOR2WlNSghwrne5bS8s3aHkxIK8DlJSsHe4OlW
+         Dk/EzL38j+RYub96TEgqT2E0KS7ZH6WVO9VIuiZqzg5LddozbjpM6SAEhDvwy5+U36SS
+         A5UsOI1jALilZjpw4IyFp1CW2/6eIt88rtTT+215LrJfDuDPRoIQpid4p8oKYrWywM7G
+         tw0w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iuQpUu6a;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v21sor16762854lfi.6.2019.07.30.07.52.16
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=nRcfxXoJ;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from forwardcorp1j.mail.yandex.net (forwardcorp1j.mail.yandex.net. [2a02:6b8:0:1619::183])
+        by mx.google.com with ESMTPS id d15si60005781ljj.171.2019.07.30.07.57.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 30 Jul 2019 07:52:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Jul 2019 07:57:21 -0700 (PDT)
+Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) client-ip=2a02:6b8:0:1619::183;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=iuQpUu6a;
-       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=vLDKuH+/Y6R1wGAQGSCIi/9agKk/j9gR7pNqj2Ro2Ic=;
-        b=iuQpUu6a8JnbGLjoBITZrEilnUrTWiH26PXOZvr0eJQhTGXYXPQKMEzNw2wB2Zdhwg
-         O1s79fuH/+qKj9qM+F5N7WUORuY3bi2XPxK5gT8Guf2uZd9D6oyAtYDwhskz/FMsfn6o
-         lKk6nD1IBmzrEbMo1z8fbSNSoKGZUfXjLfcnm5mKawQB8u+vap+bsQ1AUfdjGTiXN2ty
-         tL6eFXIjDfZ571OcOPQwvXVAUX+46G+xpgSdufwNKOjBmDF3XP8A7mx0CfXSR6UXqbUn
-         dguHNLtM+ir+qgid1b0WJ9SI3b8hxcX2P6U5NkAvYIDJKRzUwkVnKHJszs5C7d/SjcoV
-         C0AQ==
-X-Google-Smtp-Source: APXvYqwtNV8PHczquSPB8e+BmF7PEr+3WvMBui8pMbhp0rAOkLkZq6TteMkvwzTbZj0eIDgOEAic/3pWWOYVMC6LbUU=
-X-Received: by 2002:a19:c1cc:: with SMTP id r195mr53854149lff.95.1564498336043;
- Tue, 30 Jul 2019 07:52:16 -0700 (PDT)
+       dkim=pass header.i=@yandex-team.ru header.s=default header.b=nRcfxXoJ;
+       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1619::183 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
+Received: from mxbackcorp1j.mail.yandex.net (mxbackcorp1j.mail.yandex.net [IPv6:2a02:6b8:0:1619::162])
+	by forwardcorp1j.mail.yandex.net (Yandex) with ESMTP id 3DC5F2E149D;
+	Tue, 30 Jul 2019 17:57:19 +0300 (MSK)
+Received: from smtpcorp1j.mail.yandex.net (smtpcorp1j.mail.yandex.net [2a02:6b8:0:1619::137])
+	by mxbackcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTP id WNehyI4MZ5-vIm4YE3J;
+	Tue, 30 Jul 2019 17:57:19 +0300
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
+	t=1564498639; bh=dHW6AIzVqZ+BtB7OKS/RSaqFVfjBjJYiEElqTiNSJSw=;
+	h=In-Reply-To:Message-ID:From:Date:References:To:Subject:Cc;
+	b=nRcfxXoJOFApXtdgJwbWyzJxu18sBhC97J+b0XUkbFKbeyF+czKvEWkER4dD4PvpM
+	 Kx/kWcdfC8+qhUZCnfAK7DgD6b7CRVZVU0aEanWgO1MM6GjH/xuz0fqsz9Qx261iQ4
+	 tVpiYuJxxjpZMd1yQzLk/Q6wtTeCxfDCimRo8B7E=
+Authentication-Results: mxbackcorp1j.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
+Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:6454:ac35:2758:ad6a])
+	by smtpcorp1j.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id 1ayIe6tgdX-vIQKqeKg;
+	Tue, 30 Jul 2019 17:57:18 +0300
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(Client certificate not present)
+Subject: Re: [PATCH 1/2] mm/filemap: don't initiate writeback if mapping has
+ no dirty pages
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>,
+ Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>,
+ linux-fsdevel@vger.kernel.org
+References: <156378816804.1087.8607636317907921438.stgit@buzz>
+ <20190722175230.d357d52c3e86dc87efbd4243@linux-foundation.org>
+ <bdc6c53d-a7bb-dcc4-20ba-6c7fa5c57dbd@yandex-team.ru>
+ <20190730141457.GE28829@quack2.suse.cz>
+From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Message-ID: <51ba7304-06bd-a50d-cb14-6dc41b92fab5@yandex-team.ru>
+Date: Tue, 30 Jul 2019 17:57:18 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-References: <20190215024830.GA26477@jordon-HP-15-Notebook-PC>
- <20190728180611.GA20589@mail-itl> <CAFqt6zaMDnpB-RuapQAyYAub1t7oSdHH_pTD=f5k-s327ZvqMA@mail.gmail.com>
- <CAFqt6zY+07JBxAVfMqb+X78mXwFOj2VBh0nbR2tGnQOP9RrNkQ@mail.gmail.com>
- <20190729133642.GQ1250@mail-itl> <CAFqt6zZN+6r6wYJY+f15JAjj8dY+o30w_+EWH9Vy2kUXCKSBog@mail.gmail.com>
- <bf02becc-9db0-bb78-8efc-9e25cc115237@oracle.com> <20190730142233.GR1250@mail-itl>
-In-Reply-To: <20190730142233.GR1250@mail-itl>
-From: Souptick Joarder <jrdr.linux@gmail.com>
-Date: Tue, 30 Jul 2019 20:22:02 +0530
-Message-ID: <CAFqt6zZOymx8RH75F69exukLYcGd45xpUHkRHK8nYXpwF8co6g@mail.gmail.com>
-Subject: Re: [Xen-devel] [PATCH v4 8/9] xen/gntdev.c: Convert to use vm_map_pages()
-To: =?UTF-8?Q?Marek_Marczykowski=2DG=C3=B3recki?= <marmarek@invisiblethingslab.com>
-Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@suse.com>, Juergen Gross <jgross@suse.com>, 
-	Russell King - ARM Linux <linux@armlinux.org.uk>, robin.murphy@arm.com, 
-	xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org, 
-	Linux-MM <linux-mm@kvack.org>, stable@vger.kernel.org, 
-	Greg KH <gregkh@linuxfoundation.org>
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <20190730141457.GE28829@quack2.suse.cz>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-CA
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 30, 2019 at 7:52 PM Marek Marczykowski-G=C3=B3recki
-<marmarek@invisiblethingslab.com> wrote:
->
-> On Tue, Jul 30, 2019 at 10:05:42AM -0400, Boris Ostrovsky wrote:
-> > On 7/30/19 2:03 AM, Souptick Joarder wrote:
-> > > On Mon, Jul 29, 2019 at 7:06 PM Marek Marczykowski-G=C3=B3recki
-> > > <marmarek@invisiblethingslab.com> wrote:
-> > >> On Mon, Jul 29, 2019 at 02:02:54PM +0530, Souptick Joarder wrote:
-> > >>> On Mon, Jul 29, 2019 at 1:35 PM Souptick Joarder <jrdr.linux@gmail.=
-com> wrote:
-> > >>>> On Sun, Jul 28, 2019 at 11:36 PM Marek Marczykowski-G=C3=B3recki
-> > >>>> <marmarek@invisiblethingslab.com> wrote:
-> > >>>>> On Fri, Feb 15, 2019 at 08:18:31AM +0530, Souptick Joarder wrote:
-> > >>>>>> Convert to use vm_map_pages() to map range of kernel
-> > >>>>>> memory to user vma.
-> > >>>>>>
-> > >>>>>> map->count is passed to vm_map_pages() and internal API
-> > >>>>>> verify map->count against count ( count =3D vma_pages(vma))
-> > >>>>>> for page array boundary overrun condition.
-> > >>>>> This commit breaks gntdev driver. If vma->vm_pgoff > 0, vm_map_pa=
-ges
-> > >>>>> will:
-> > >>>>>  - use map->pages starting at vma->vm_pgoff instead of 0
-> > >>>> The actual code ignores vma->vm_pgoff > 0 scenario and mapped
-> > >>>> the entire map->pages[i]. Why the entire map->pages[i] needs to be=
- mapped
-> > >>>> if vma->vm_pgoff > 0 (in original code) ?
-> > >> vma->vm_pgoff is used as index passed to gntdev_find_map_index. It's
-> > >> basically (ab)using this parameter for "which grant reference to map=
-".
-> > >>
-> > >>>> are you referring to set vma->vm_pgoff =3D 0 irrespective of value=
- passed
-> > >>>> from user space ? If yes, using vm_map_pages_zero() is an alternat=
-e
-> > >>>> option.
-> > >> Yes, that should work.
-> > > I prefer to use vm_map_pages_zero() to resolve both the issues. Alter=
-natively
-> > > the patch can be reverted as you suggested. Let me know you opinion a=
-nd wait
-> > > for feedback from others.
-> > >
-> > > Boris, would you like to give any feedback ?
-> >
-> > vm_map_pages_zero() looks good to me. Marek, does it work for you?
->
-> Yes, replacing vm_map_pages() with vm_map_pages_zero() fixes the
-> problem for me.
+On 30.07.2019 17:14, Jan Kara wrote:
+> On Tue 23-07-19 11:16:51, Konstantin Khlebnikov wrote:
+>> On 23.07.2019 3:52, Andrew Morton wrote:
+>>>
+>>> (cc linux-fsdevel and Jan)
+> 
+> Thanks for CC Andrew.
+> 
+>>> On Mon, 22 Jul 2019 12:36:08 +0300 Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
+>>>
+>>>> Functions like filemap_write_and_wait_range() should do nothing if inode
+>>>> has no dirty pages or pages currently under writeback. But they anyway
+>>>> construct struct writeback_control and this does some atomic operations
+>>>> if CONFIG_CGROUP_WRITEBACK=y - on fast path it locks inode->i_lock and
+>>>> updates state of writeback ownership, on slow path might be more work.
+>>>> Current this path is safely avoided only when inode mapping has no pages.
+>>>>
+>>>> For example generic_file_read_iter() calls filemap_write_and_wait_range()
+>>>> at each O_DIRECT read - pretty hot path.
+> 
+> Yes, but in common case mapping_needs_writeback() is false for files you do
+> direct IO to (exactly the case with no pages in the mapping). So you
+> shouldn't see the overhead at all. So which case you really care about?
+> 
+>>>> This patch skips starting new writeback if mapping has no dirty tags set.
+>>>> If writeback is already in progress filemap_write_and_wait_range() will
+>>>> wait for it.
+>>>>
+>>>> ...
+>>>>
+>>>> --- a/mm/filemap.c
+>>>> +++ b/mm/filemap.c
+>>>> @@ -408,7 +408,8 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
+>>>>    		.range_end = end,
+>>>>    	};
+>>>> -	if (!mapping_cap_writeback_dirty(mapping))
+>>>> +	if (!mapping_cap_writeback_dirty(mapping) ||
+>>>> +	    !mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
+>>>>    		return 0;
+>>>>    	wbc_attach_fdatawrite_inode(&wbc, mapping->host);
+>>>
+>>> How does this play with tagged_writepages?  We assume that no tagging
+>>> has been performed by any __filemap_fdatawrite_range() caller?
+>>>
+>>
+>> Checking also PAGECACHE_TAG_TOWRITE is cheap but seems redundant.
+>>
+>> To-write tags are supposed to be a subset of dirty tags:
+>> to-write is set only when dirty is set and cleared after starting writeback.
+>>
+>> Special case set_page_writeback_keepwrite() which does not clear to-write
+>> should be for dirty page thus dirty tag is not going to be cleared either.
+>> Ext4 calls it after redirty_page_for_writepage()
+>> XFS even without clear_page_dirty_for_io()
+>>
+>> Anyway to-write tag without dirty tag or at clear page is confusing.
+> 
+> Yeah, TOWRITE tag is intended to be internal to writepages logic so your
+> patch is fine in that regard. Overall the patch looks good to me so I'm
+> just wondering a bit about the motivation...
 
-Marek, I can send a patch for the same if you are ok.
-We need to cc stable as this changes are available in 5.2.4.
+In our case file mixes cached pages and O_DIRECT read. Kind of database
+were index header is memory mapped while the rest data read via O_DIRECT.
+I suppose for sharing index between multiple instances.
 
->
-> --
-> Best Regards,
-> Marek Marczykowski-G=C3=B3recki
-> Invisible Things Lab
-> A: Because it messes up the order in which people normally read text.
-> Q: Why is top-posting such a bad thing?
+On this path we also hit this bug:
+https://lore.kernel.org/lkml/156355839560.2063.5265687291430814589.stgit@buzz/
+so that's why I've started looking into this code.
 
