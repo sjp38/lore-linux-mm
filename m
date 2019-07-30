@@ -2,118 +2,130 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 211B7C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 08:11:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88521C0650F
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 08:14:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C628920679
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 08:11:38 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="rxPQWpq1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C628920679
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 463402087F
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 08:14:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 463402087F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5FDA38E0006; Tue, 30 Jul 2019 04:11:38 -0400 (EDT)
+	id C16E98E0005; Tue, 30 Jul 2019 04:14:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5AED28E0001; Tue, 30 Jul 2019 04:11:38 -0400 (EDT)
+	id BC5EE8E0001; Tue, 30 Jul 2019 04:14:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 49D5C8E0006; Tue, 30 Jul 2019 04:11:38 -0400 (EDT)
+	id AB5878E0005; Tue, 30 Jul 2019 04:14:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2AF348E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 04:11:38 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id x17so70120018iog.8
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 01:11:38 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 621FA8E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 04:14:20 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id l14so39869668edw.20
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 01:14:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=lqG3hFLeHki6KlZNi6gozV3r9j/aZGFzc0fdJeJSVQ8=;
-        b=fimCBHYvj4ySvzwaQ1LBFifOyheTdBYYG0NRDe0l5fMsw9OukjTQENu3KkS5hNdHzJ
-         5sWxthf3e+cYFayQSDgQdG/MsJh75ThdblIyTOraBLkvJ0PAzWvuZAUvaluhjCo2u3Jq
-         sxQp5nRTmKenC139v15Vc9aMBVOHBNUFyzjElmCtsTpMEg8bp576OrXORobqnhtPywEr
-         2OaNtMYFhNejzz35jh1AkCXHBXzZ9MLB6elOI1uNsBmfaGGNKYO2coiVInciyFdSll61
-         r1Bq7lipJhmZpwn8uv0dHKOsGTWljxhr7e3qa1zCg/cOe/sUspfLbf5SekA5eCwtqgsA
-         /Itw==
-X-Gm-Message-State: APjAAAWV6qwKydxq2il0zI5hZtbYvis/bs53ge5FCFvyTFwcoairtZ44
-	eHR0m1dmc1x8l9SRaLg5zVyiCp6ECyRLpJdbC8GDWx6+hbJ53bFNABG1dHjtA6X9PsmUOkR+pDc
-	9olHy0HWTmkBqHCal89Lnc5OWu2VWuAdf4Oj9VF9Cv4vBGsJJgfrCfAvIdTzSd/5+4A==
-X-Received: by 2002:a5d:884d:: with SMTP id t13mr26395231ios.233.1564474297895;
-        Tue, 30 Jul 2019 01:11:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwkYHPhIUy+vyn9ZqwQ/EwwNw4M+EufySDl5PbTEN0EifPObZ4ayvGh7d/QwI+Mj681qKuW
-X-Received: by 2002:a5d:884d:: with SMTP id t13mr26395186ios.233.1564474297237;
-        Tue, 30 Jul 2019 01:11:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564474297; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=b97PnS2zcat3tcxSxcZWjM6MUVW6bv9b2SSOH1KUqNQ=;
+        b=r1Gg8zsSjXCmqAnmq38l8GY6+RtjMJ72LZTGr58ZgJahb8mumMbpC4ya7PMX3D4sWS
+         Won71eWGI4oEl69C1P2Tce+8QnoJ1rNhVB2XqCZROjWmhB5d3e+5DzpK+euFLamIPmy4
+         VKaFZFUdG2vdhm9LFggzPT0BFYAq2YhXlL0jQa3K6qqsTn17/3AiS2nsdlcsTx4UQFwX
+         PG1taD+8RHmFIO6zpsyquk3geFQIU7u/gCaUyqZKJRCI4SmhbZiWv1Mlv0K5Zk/sXxd+
+         P4tTB5PQtUxOxioAEXBQe/nBTWy2l7Djer8RWLoZ6d5fcMhSDpiEMOJv5EJyeIbbRwSe
+         12FA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAXYLt92oZIY1yJwtC93uovSfP0k9ZCWsfyvMVPGNZsc9CVkSAqt
+	jHWtchpGMX/NGSPKp1mvmfqnCiSTI/8U3MGjNiLDeyVuvvrDmpnYN7Bx/GoYfDU3WZB6iKtSGQp
+	nr3zKL7b7fJulYL/DWoTpsLJbBbSje7LSepTfJk0pnRgKtcSoUrai13ArD7lurMk=
+X-Received: by 2002:a17:906:d78d:: with SMTP id pj13mr87226067ejb.301.1564474459968;
+        Tue, 30 Jul 2019 01:14:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzxevgbqDX4emuZC+71405Gej20oKIrwPgZMe5ytniSGpQHVxfplBqtvl4ioOwWuj08ot+R
+X-Received: by 2002:a17:906:d78d:: with SMTP id pj13mr87226020ejb.301.1564474459232;
+        Tue, 30 Jul 2019 01:14:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564474459; cv=none;
         d=google.com; s=arc-20160816;
-        b=yK5gaJxt7Kd7YVkkhTku8Qr8godVvwabRclNyxpda7Mk2yiboqukFrbzF/hi1tfFB0
-         323vGpP+USVQLcLcqaZ8AGBNfyRlj8wrxfPftEiHVlfLVWctRx+gHieYPyEq080COf7T
-         fQPVrZ3E1R9kffH1hSyjfzqzE9j4Zco7GCgBOCoDxr4zdt6pB6iVshy9K9dcKBTmAv1+
-         yRGvqhwzhk+EN+hxPQ1vCNkbGCUVWJ4IEU18700JV9EhibNJRjMMDMKCrsKfO6g9UcHD
-         c/p5lFNgI4nN4CHEBQ6cA6AOHWSiF03aWZYKy/ZduzxuFG7tgHutpbdIkhECykrR0gZs
-         W1Ng==
+        b=uY63/JWr0G/WnZ+i91QMpKsG7R/Pb8cbGX00sJaKHA2nsRdz7P/0xYBRPZV1nOv0ZS
+         K9PaJWVNutmuOXOR3EOl6B+JUOM1xBzjNCS55fjPD7OBjvGdqXqJBiJeRAw6SmebBXs+
+         PYA+mRcDZNz7wbAd0rO563G8KScY7rbeVa6104/4LD/31ZbUAvEFydJkIYUpeeJoC3Ko
+         hyF1lucjdAK6LquLgeTowQ5ZFjdBm8QYPTaGb/rASGxsU5bYpVs/hzZjP9vn7BGrqqEn
+         yoHa1Fv1q5UFnxealaO9zAKztsb8DwHSla5ta5lCrkoO9g6DIcJuU/AeSdmftDbUgj0a
+         nQVQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=lqG3hFLeHki6KlZNi6gozV3r9j/aZGFzc0fdJeJSVQ8=;
-        b=lfjZte4Y0+R3CZK/B4pVbifoswJo3tjP7JE4Waif6XNUYB4gTMT1h38dhNk5WjLrmL
-         ySOuNFoejOefJErNrMKjIuN8jXpdS6txtigHhiRUFx2D1v8Lm/crESMYUewRUFWljL6s
-         C5YltK3kzCnHrQYS3EurE9AtmarQ7Je5uTdLg6sdluNEF/8dwE3XqtFjuiy90dXHA9Hr
-         o23vgDYSTimNKSH25QD1sy22vFgnwZziYogaUi/u94fJ7vsaJ/CAlridTN6YttYOOWzD
-         xHEFyPBY9d2phlpIIg8r0vZVyJxiFN6agyWxt+S79aaUtc8ONTjreoTW5pBsNNL7gGFn
-         3Ayw==
+         :message-id:subject:cc:to:from:date;
+        bh=b97PnS2zcat3tcxSxcZWjM6MUVW6bv9b2SSOH1KUqNQ=;
+        b=zNrfxIzzyu1+NM3H/Q3ArysEI/GvkaRN7JabTchqH7kzX9qPFFTvAboYWhVu4QMY34
+         P/IPwW0PcT7KGI3QoAt32k4PxOS92MiPcbXk3OgTex0+Gl6LpOabsKspcBIt9KLIiJy+
+         vumDl/ip3Nn1FI3vRjA9vUl2n5JTIxqh51aVqzB1a05vemoylENtZnZt3GCUkIuQM4sL
+         w4+HH62V/Xuxh+8QQQD5gsJmTB/1T9Z9sGTpR7h8HBCNBrhHCTyfvnVMBn8iQ9bQUFeO
+         nvWL4l1CFpRIm4b5kAdtTCUFGvTHtEL/UcuUdXb+w2DETOXZSfJ9sBlpgsw43dvDzJ/g
+         odcg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=rxPQWpq1;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id f125si83143415jaf.28.2019.07.30.01.11.37
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y24si18186370edm.354.2019.07.30.01.14.19
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 30 Jul 2019 01:11:37 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Jul 2019 01:14:19 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=rxPQWpq1;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=lqG3hFLeHki6KlZNi6gozV3r9j/aZGFzc0fdJeJSVQ8=; b=rxPQWpq1LSCp6jnJK/v6L8dDR
-	SkDfaijqdixP9Xmv7Riil22otsXN/ASK8qonDt1a1WnmCwcZFzOTSgAbcTOGAJ/q0YjwnjWVOAN4J
-	aQItm82TxPGN0WVkOpGnPl0gdgabuNsroTPsKVPIGkdefwHCL43Mywg9MUHzTccgCcvBp/fp4Tg4Y
-	yb89urip9Lk2Qp+GyN86WBbHtK6btdzda9xLD4lNnQyxBqeCeVecQ6vHWKegBrGJD6R9nuf6igjct
-	DKTn0E8lGqly9r6I8JgKv/fXzc1I4FI5mzOw56W98AiFk6F9PGvDdRWJkXs8fM1iS6LW9Cqh9J+Sr
-	mV+nqySTw==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hsNEB-0005KX-Sn; Tue, 30 Jul 2019 08:11:24 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id A37B120D27EAA; Tue, 30 Jul 2019 10:11:22 +0200 (CEST)
-Date: Tue, 30 Jul 2019 10:11:22 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: mingo@redhat.com, lizefan@huawei.com, hannes@cmpxchg.org,
-	axboe@kernel.dk, dennis@kernel.org, dennisszhou@gmail.com,
-	akpm@linux-foundation.org, linux-mm@kvack.org,
-	linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@android.com, Nick Kralevich <nnk@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 1/1] psi: do not require setsched permission from the
- trigger creator
-Message-ID: <20190730081122.GH31381@hirez.programming.kicks-ass.net>
-References: <20190730013310.162367-1-surenb@google.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 59F32ABE9;
+	Tue, 30 Jul 2019 08:14:18 +0000 (UTC)
+Date: Tue, 30 Jul 2019 10:14:15 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Hoan Tran OS <hoan@os.amperecomputing.com>
+Cc: Will Deacon <will@kernel.org>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Heiko Carstens <heiko.carstens@de.ibm.com>,
+	"open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
+	Paul Mackerras <paulus@samba.org>,
+	"H . Peter Anvin" <hpa@zytor.com>,
+	"sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>,
+	Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+	"linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>,
+	Michael Ellerman <mpe@ellerman.id.au>,
+	"x86@kernel.org" <x86@kernel.org>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	Christian Borntraeger <borntraeger@de.ibm.com>,
+	Ingo Molnar <mingo@redhat.com>, Vlastimil Babka <vbabka@suse.cz>,
+	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+	Open Source Submission <patches@amperecomputing.com>,
+	Pavel Tatashin <pavel.tatashin@microsoft.com>,
+	Vasily Gorbik <gor@linux.ibm.com>,
+	Will Deacon <will.deacon@arm.com>, Borislav Petkov <bp@alien8.de>,
+	Thomas Gleixner <tglx@linutronix.de>,
+	"linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>,
+	Oscar Salvador <osalvador@suse.de>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	"linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
+	"David S . Miller" <davem@davemloft.net>,
+	"willy@infradead.org" <willy@infradead.org>
+Subject: Re: [PATCH v2 0/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by
+ default for NUMA
+Message-ID: <20190730081415.GN9330@dhcp22.suse.cz>
+References: <1562887528-5896-1-git-send-email-Hoan@os.amperecomputing.com>
+ <20190712070247.GM29483@dhcp22.suse.cz>
+ <586ae736-a429-cf94-1520-1a94ffadad88@os.amperecomputing.com>
+ <20190712121223.GR29483@dhcp22.suse.cz>
+ <20190712143730.au3662g4ua2tjudu@willie-the-truck>
+ <20190712150007.GU29483@dhcp22.suse.cz>
+ <730368c5-1711-89ae-e3ef-65418b17ddc9@os.amperecomputing.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190730013310.162367-1-surenb@google.com>
+In-Reply-To: <730368c5-1711-89ae-e3ef-65418b17ddc9@os.amperecomputing.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -121,38 +133,36 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 29, 2019 at 06:33:10PM -0700, Suren Baghdasaryan wrote:
-> When a process creates a new trigger by writing into /proc/pressure/*
-> files, permissions to write such a file should be used to determine whether
-> the process is allowed to do so or not. Current implementation would also
-> require such a process to have setsched capability. Setting of psi trigger
-> thread's scheduling policy is an implementation detail and should not be
-> exposed to the user level. Remove the permission check by using _nocheck
-> version of the function.
-> 
-> Suggested-by: Nick Kralevich <nnk@google.com>
-> Signed-off-by: Suren Baghdasaryan <surenb@google.com>
-> ---
->  kernel/sched/psi.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
-> index 7acc632c3b82..ed9a1d573cb1 100644
-> --- a/kernel/sched/psi.c
-> +++ b/kernel/sched/psi.c
-> @@ -1061,7 +1061,7 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group,
->  			mutex_unlock(&group->trigger_lock);
->  			return ERR_CAST(kworker);
->  		}
-> -		sched_setscheduler(kworker->task, SCHED_FIFO, &param);
-> +		sched_setscheduler_nocheck(kworker->task, SCHED_FIFO, &param);
+[Sorry for a late reply]
 
-ARGGH, wtf is there a FIFO-99!! thread here at all !?
-
->  		kthread_init_delayed_work(&group->poll_work,
->  				psi_poll_work);
->  		rcu_assign_pointer(group->poll_kworker, kworker);
-> -- 
-> 2.22.0.709.g102302147b-goog
+On Mon 15-07-19 17:55:07, Hoan Tran OS wrote:
+> Hi,
 > 
+> On 7/12/19 10:00 PM, Michal Hocko wrote:
+[...]
+> > Hmm, I thought this was selectable. But I am obviously wrong here.
+> > Looking more closely, it seems that this is indeed only about
+> > __early_pfn_to_nid and as such not something that should add a config
+> > symbol. This should have been called out in the changelog though.
+> 
+> Yes, do you have any other comments about my patch?
+
+Not really. Just make sure to explicitly state that
+CONFIG_NODES_SPAN_OTHER_NODES is only about __early_pfn_to_nid and that
+doesn't really deserve it's own config and can be pulled under NUMA.
+
+> > Also while at it, does HAVE_MEMBLOCK_NODE_MAP fall into a similar
+> > bucket? Do we have any NUMA architecture that doesn't enable it?
+> > 
+> 
+> As I checked with arch Kconfig files, there are 2 architectures, riscv 
+> and microblaze, do not support NUMA but enable this config.
+> 
+> And 1 architecture, alpha, supports NUMA but does not enable this config.
+
+Care to have a look and clean this up please?
+
+-- 
+Michal Hocko
+SUSE Labs
 
