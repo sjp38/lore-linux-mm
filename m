@@ -2,142 +2,190 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-17.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,
-	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DA55C76186
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 01:33:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E7683C76186
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 01:38:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C7336206A2
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 01:33:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="HZV5K3sn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7336206A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id AAE9D206DD
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 01:38:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AAE9D206DD
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4185C8E0005; Mon, 29 Jul 2019 21:33:25 -0400 (EDT)
+	id 32A188E0003; Mon, 29 Jul 2019 21:38:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3C9338E0002; Mon, 29 Jul 2019 21:33:25 -0400 (EDT)
+	id 2DAB28E0002; Mon, 29 Jul 2019 21:38:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2DF0E8E0005; Mon, 29 Jul 2019 21:33:25 -0400 (EDT)
+	id 1A49E8E0003; Mon, 29 Jul 2019 21:38:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 0D1898E0002
-	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 21:33:25 -0400 (EDT)
-Received: by mail-vs1-f69.google.com with SMTP id x22so16551248vsj.1
-        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 18:33:25 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D575C8E0002
+	for <linux-mm@kvack.org>; Mon, 29 Jul 2019 21:38:43 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id g18so34278505plj.19
+        for <linux-mm@kvack.org>; Mon, 29 Jul 2019 18:38:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=Frj/SS/W3AFZFbyzaOV4LWLnrMlPxcryoFLQjik2HTI=;
-        b=b/Hytcc0xqegBFaTKL6R+kd3384LuXWfhFGA0xp7obZXl3YOMDJA9K49azLkwKb0QU
-         gwgkhWuN2UeElvcIAQlqS5pR4SCtALuGUk995TGqi4hQNH2F/c1ILh0flzE9MAvlFjJ6
-         0eAmg1M3nCb8nMyeXamOihkRZUI2g6Q/8yoh9aOiaQMU8F/mizVRO6czLEy32M1LMTcD
-         Jx92YWkJS9hsJYaBvJ6xUokC6MHE4F/luigx7A4r1oXw8e0vz8NOpPQeUELCeOZ5PYgo
-         1xH639BpIzFk60JjdoMjyqtXsEMyt8Bpa6cF5OyY4jkc9cQ8Ls+I//S68AKcsmvbw5iD
-         3Viw==
-X-Gm-Message-State: APjAAAVJ2GkAzBw3LgEDunSkRhz1YNp2L+oq9tBn1s08uYi33CTXxfBT
-	yGwnxUN7FBnlQJn08/C5LZ17o5Lp8ehZa0q08Q8m73cW+6LMnDeh9EWTok/JIadXGfLo8fPr1DI
-	JW+7KqFyqbcSeN+bsJxYpfQWdhdfD1Z03XBhmjD7vg0QYQF7b6qfQNjoc9phpOhpzfQ==
-X-Received: by 2002:a67:db89:: with SMTP id f9mr66947130vsk.150.1564450404699;
-        Mon, 29 Jul 2019 18:33:24 -0700 (PDT)
-X-Received: by 2002:a67:db89:: with SMTP id f9mr66947105vsk.150.1564450403937;
-        Mon, 29 Jul 2019 18:33:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564450403; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:user-agent
+         :mime-version;
+        bh=T9wlwU4+IdaLH16sk1MGPVkORFJXYdyoerOjUtew3ms=;
+        b=Q4k7XLZhnqy8zIvWwQ4J7n4CsMeMW8Fv0v8Ux3QJDs+I8HhIKIWRInG6EBj419muBU
+         VEtsaMvLvwAoV2VqWp7QPBwD/hCeDjX9LSVoGHtSzj5YHbscjQWWKci0HVEvXEotXOSR
+         W0p7OmsgLbtEp6vNwkwLmDPHNMr16YGfnO2jP5p7j4FSvDt25NXiQSlr/S0KPRpbWXr1
+         EfIwzlPeEsEw4klSeapKYPBCnS6WqT0zz8eogSJLj1xW7LLrMAqLxT4YjVG3iRKrX/KT
+         xJgdOSAysObob5Jc9jqGfni+aM8H8sOGx+/XWL2aQLAYaruVkF9YloSHRWaNzMfsecsJ
+         xe4A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ying.huang@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUK4tozfYyv9/4wKI/0YbK2u9eRoyVok9MfZF6mPfoaqvz1Sij/
+	JGyEnXOfouLW69yQ+T1lgLqniQBlBlrZn+NNiaXNO0YkhLpCyHbLYvnQMaYpamMH/1gjtqpsQSO
+	h6/zRWFqCHskcad7BSkh4e2eI89d2GCeowsM+FKbV+TxIxiKpo7iF4FeTc1UFvo0CPA==
+X-Received: by 2002:aa7:92d2:: with SMTP id k18mr30357911pfa.153.1564450723509;
+        Mon, 29 Jul 2019 18:38:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw5ruw+l3liYdDKweKkKtmm8iXAmA4FaW7nnL7PGCC82MpXz0CJh6/lEAf66BcgJM3mR94S
+X-Received: by 2002:aa7:92d2:: with SMTP id k18mr30357864pfa.153.1564450722734;
+        Mon, 29 Jul 2019 18:38:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564450722; cv=none;
         d=google.com; s=arc-20160816;
-        b=rEESWNT+ZswQoNgMafUj0JPg/ebAnDXghdtz5Q5S6wFUQAOnGKxeN3IqLJSzwNHYLG
-         LIjDfxJDfo7KA2MiipFtaMhwY/htIOVeX9qKnD/RHiqlpj1beymzdCuaOBw9RGxKFJCc
-         UYAJAonVdnTn197e3Na60etWIRclKrhY6nZKpMan+nh4DrbQTBk053TFzui75NDAixNM
-         13Rv5rRYnDR/uZUUhy681Bfa+U9gSA/sE6RynroSTtlFKgnRgdc7tKtLDBDuazcSxaoS
-         EUPrZ/NpoLPYgeVhHQzDLdkocq3warvXIKGHfA4jkRgWTRQTBdTmDhRJksSC/2PxOX3u
-         JPkA==
+        b=YjVPz9dD5a/e0d15IMXcAazlqxEqqUw7DuFq76ioxNVDFt0DThtS5LE56jiQivJAcR
+         4NGROG++1iM8y2KX1m7gKQDsgdIs2CjXvvChbsdd/vh7oJEOy3BHuyWC/sSCK/vLD+QL
+         1JkbanUL1DVOD+tCi4f0BXHnxRPMWhuwRF+mJtR5onbIC94vqYgeFWOVa2oZvoJSsDkg
+         UBsOgOMV6IlQGyS0Rph7YnFSf2zIHZ5wunkWRwDbQTs+/MoeNrnDCXdBYkQxh9HuBjXG
+         tzGVVeeZaepMoPJ/WJYww57bhUoN0SeenaJw9wmcEgJejHgquxMsOdTTGzR3LmNfZ/y8
+         wYuQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=Frj/SS/W3AFZFbyzaOV4LWLnrMlPxcryoFLQjik2HTI=;
-        b=sDgjhsywimPMW68QqK90+hpKYmYc/M4l3Khlfeb5JCpX0EAbusAPWRYuimdgolvizT
-         kBfGR5hyfjev1FkSgLl4+WrPNWrSZ3+XrIy+n+hNGdJUoCGibRYwCd4MtEqNrueqtmTO
-         Au2ZtWn1UCV2W/rJr4F0aJTaL1sKw7PspOeA28PRF5+csUUho68hKkCXX/ODmKMsbrg4
-         uJk/PBMAr8uVTgt63uzFKa0GZADyvLZH7Y+BrvMYimrGcHYdV5KFdYKUAWCRetbvBMPt
-         Wwxe4W5y9GekLkzjv9TVRX47b81GCpN83UViazPViKIXcOPn7zrZgYbkgyNmmxYauL52
-         FTIQ==
+        h=mime-version:user-agent:message-id:in-reply-to:date:references
+         :subject:cc:to:from;
+        bh=T9wlwU4+IdaLH16sk1MGPVkORFJXYdyoerOjUtew3ms=;
+        b=qe5BSBzPsLMPdEcK/RlOOMRWpPR/jy7O4ZmWAH4OJJr2C28/rC1SKDpW1v7UkdPtgd
+         Dpf5LsJZQt/6ecjEvaTr3JJNzfzXgJtAl9iNaGivnSqtQwUKUC3spooLGsu1Uk1N7p1v
+         NfGwXNGNx3pt0RAAY7oFX7Z68pXHGwjJllDuR61vB7SayEe4qL0SsCTjXaHthDGl2QTE
+         gmhOQIgx7ARwWbsK9Ju7lP109GZTXlxek14AVSA4EjuwY5letxpZ9Zk26UZMIDnPvnxe
+         QpxyP1DiCPw3nhvNe3VMrXeyxkljAhasYLoKp7xNcZXrPPpZRUfrFQmef8ROILKJD6+A
+         /egA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=HZV5K3sn;
-       spf=pass (google.com: domain of 3y54_xqykci4ac9w5ty66y3w.u64305cf-442dsu2.69y@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3Y54_XQYKCI4AC9w5ty66y3w.u64305CF-442Dsu2.69y@flex--surenb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id m12sor31082680uao.68.2019.07.29.18.33.23
+       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id j74si28385353pje.12.2019.07.29.18.38.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 29 Jul 2019 18:33:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3y54_xqykci4ac9w5ty66y3w.u64305cf-442dsu2.69y@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 29 Jul 2019 18:38:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ying.huang@intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=HZV5K3sn;
-       spf=pass (google.com: domain of 3y54_xqykci4ac9w5ty66y3w.u64305cf-442dsu2.69y@flex--surenb.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3Y54_XQYKCI4AC9w5ty66y3w.u64305CF-442Dsu2.69y@flex--surenb.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=Frj/SS/W3AFZFbyzaOV4LWLnrMlPxcryoFLQjik2HTI=;
-        b=HZV5K3snh9+hZYi0hyCp//JyWT/fXpO3R4ntivO3tTKVGtiJDw32+qKHYjRImOIIZW
-         VxTiXkHj+VspcOQwMQmsA2V4AKt/XjP3LHtr1xFiKnUbnM3QWXE/wSzzzjwb8HARp0NL
-         NnuTKiG3/MUCJOwH8yeiqO0PT9JR5nFtwF6U8A53/0E2cI+PwTcE9W+5puIoSJsXHcYY
-         pGpqdjgsz/Gm/zNNZuQ/PWKC68R/embIB/nPMOQPIpfTsQj4rmJs4brzVzJl1hn7d19A
-         ijF6rMV/AiriXix/ERN3pm4aTwkganjyHVi9+SBcKd4uYnPHslwXHHddmjlMGT2iycj7
-         WlvQ==
-X-Google-Smtp-Source: APXvYqzqfX8t1uXNFJXNaDwGRiqkwrH6h4jiFWfc6T5iZhZ57KmlPWww1KkuiFIxc6pVEcoJJlMga4+hqnw=
-X-Received: by 2002:ab0:740e:: with SMTP id r14mr68442936uap.108.1564450403321;
- Mon, 29 Jul 2019 18:33:23 -0700 (PDT)
-Date: Mon, 29 Jul 2019 18:33:10 -0700
-Message-Id: <20190730013310.162367-1-surenb@google.com>
-Mime-Version: 1.0
-X-Mailer: git-send-email 2.22.0.709.g102302147b-goog
-Subject: [PATCH 1/1] psi: do not require setsched permission from the trigger creator
-From: Suren Baghdasaryan <surenb@google.com>
-To: mingo@redhat.com, peterz@infradead.org
-Cc: lizefan@huawei.com, hannes@cmpxchg.org, axboe@kernel.dk, dennis@kernel.org, 
-	dennisszhou@gmail.com, akpm@linux-foundation.org, linux-mm@kvack.org, 
-	linux-doc@vger.kernel.org, linux-kernel@vger.kernel.org, 
-	kernel-team@android.com, Suren Baghdasaryan <surenb@google.com>, 
-	Nick Kralevich <nnk@google.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.002958, version=1.2.4
+       spf=pass (google.com: domain of ying.huang@intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=ying.huang@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 29 Jul 2019 18:38:42 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,324,1559545200"; 
+   d="scan'208";a="165675363"
+Received: from yhuang-dev.sh.intel.com (HELO yhuang-dev) ([10.239.159.29])
+  by orsmga008.jf.intel.com with ESMTP; 29 Jul 2019 18:38:40 -0700
+From: "Huang\, Ying" <ying.huang@intel.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Srikar Dronamraju <srikar@linux.vnet.ibm.com>,  Peter Zijlstra <peterz@infradead.org>,  Ingo Molnar <mingo@kernel.org>,  <linux-mm@kvack.org>,  <linux-kernel@vger.kernel.org>,  Rik van Riel <riel@redhat.com>,  <jhladky@redhat.com>,  <lvenanci@redhat.com>,  Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH RESEND] autonuma: Fix scan period updating
+References: <20190725080124.494-1-ying.huang@intel.com>
+	<20190725173516.GA16399@linux.vnet.ibm.com>
+	<87y30l5jdo.fsf@yhuang-dev.intel.com>
+	<20190726092021.GA5273@linux.vnet.ibm.com>
+	<87ef295yn9.fsf@yhuang-dev.intel.com>
+	<20190729072845.GC7168@linux.vnet.ibm.com>
+	<87wog145nn.fsf@yhuang-dev.intel.com> <20190729085646.GG2708@suse.de>
+Date: Tue, 30 Jul 2019 09:38:39 +0800
+In-Reply-To: <20190729085646.GG2708@suse.de> (Mel Gorman's message of "Mon, 29
+	Jul 2019 09:56:46 +0100")
+Message-ID: <87ftmo47z4.fsf@yhuang-dev.intel.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
+MIME-Version: 1.0
+Content-Type: text/plain; charset=ascii
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a process creates a new trigger by writing into /proc/pressure/*
-files, permissions to write such a file should be used to determine whether
-the process is allowed to do so or not. Current implementation would also
-require such a process to have setsched capability. Setting of psi trigger
-thread's scheduling policy is an implementation detail and should not be
-exposed to the user level. Remove the permission check by using _nocheck
-version of the function.
+Mel Gorman <mgorman@suse.de> writes:
 
-Suggested-by: Nick Kralevich <nnk@google.com>
-Signed-off-by: Suren Baghdasaryan <surenb@google.com>
----
- kernel/sched/psi.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+> On Mon, Jul 29, 2019 at 04:16:28PM +0800, Huang, Ying wrote:
+>> Srikar Dronamraju <srikar@linux.vnet.ibm.com> writes:
+>> 
+>> >> >> 
+>> >> >> if (lr_ratio >= NUMA_PERIOD_THRESHOLD)
+>> >> >>     slow down scanning
+>> >> >> else if (sp_ratio >= NUMA_PERIOD_THRESHOLD) {
+>> >> >>     if (NUMA_PERIOD_SLOTS - lr_ratio >= NUMA_PERIOD_THRESHOLD)
+>> >> >>         speed up scanning
+>> >> 
+>> >> Thought about this again.  For example, a multi-threads workload runs on
+>> >> a 4-sockets machine, and most memory accesses are shared.  The optimal
+>> >> situation will be pseudo-interleaving, that is, spreading memory
+>> >> accesses evenly among 4 NUMA nodes.  Where "share" >> "private", and
+>> >> "remote" > "local".  And we should slow down scanning to reduce the
+>> >> overhead.
+>> >> 
+>> >> What do you think about this?
+>> >
+>> > If all 4 nodes have equal access, then all 4 nodes will be active nodes.
+>> >
+>> > From task_numa_fault()
+>> >
+>> > 	if (!priv && !local && ng && ng->active_nodes > 1 &&
+>> > 				numa_is_active_node(cpu_node, ng) &&
+>> > 				numa_is_active_node(mem_node, ng))
+>> > 		local = 1;
+>> >
+>> > Hence all accesses will be accounted as local. Hence scanning would slow
+>> > down.
+>> 
+>> Yes.  You are right!  Thanks a lot!
+>> 
+>> There may be another case.  For example, a workload with 9 threads runs
+>> on a 2-sockets machine, and most memory accesses are shared.  7 threads
+>> runs on the node 0 and 2 threads runs on the node 1 based on CPU load
+>> balancing.  Then the 2 threads on the node 1 will have "share" >>
+>> "private" and "remote" >> "local".  But it doesn't help to speed up
+>> scanning.
+>> 
+>
+> Ok, so the results from the patch are mostly neutral. There are some
+> small differences in scan rates depending on the workload but it's not
+> universal and the headline performance is sometimes worse. I couldn't
+> find something that would justify the change on its own.
 
-diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
-index 7acc632c3b82..ed9a1d573cb1 100644
---- a/kernel/sched/psi.c
-+++ b/kernel/sched/psi.c
-@@ -1061,7 +1061,7 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group,
- 			mutex_unlock(&group->trigger_lock);
- 			return ERR_CAST(kworker);
- 		}
--		sched_setscheduler(kworker->task, SCHED_FIFO, &param);
-+		sched_setscheduler_nocheck(kworker->task, SCHED_FIFO, &param);
- 		kthread_init_delayed_work(&group->poll_work,
- 				psi_poll_work);
- 		rcu_assign_pointer(group->poll_kworker, kworker);
--- 
-2.22.0.709.g102302147b-goog
+Thanks a lot for your help!
+
+> I think in the short term -- just fix the comments.
+
+Then we will change the comments to something like,
+
+"Slow down scanning if most memory accesses are private."
+
+It's hard to be understood.  Maybe we just keep the code and comments as
+it was until we have better understanding.
+
+> For the shared access consideration, the scan rate is important but so too
+> is the decision on when pseudo interleaving should be used. Both should
+> probably be taken into account when making changes in this area. The
+> current code may not be optimal but it also has not generated bug reports,
+> high CPU usage or obviously bad locality decision in the field.  Hence,
+> for this patch or a similar series, it is critical that some workloads are
+> selected that really care about the locality of shared access and evaluate
+> based on that. Initially it was done with a large battery of tests run
+> by different people but some of those people have changed role since and
+> would not be in a position to rerun the tests. There also was the issue
+> that when those were done, NUMA balancing was new so it's comparative
+> baseline was "do nothing at all".
+
+Yes.  I totally agree that we should change the behavior based on
+testing.
+
+Best Regards,
+Huang, Ying
 
