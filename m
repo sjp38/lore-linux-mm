@@ -2,222 +2,190 @@ Return-Path: <SRS0=QSbQ=V3=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 81F9AC0650F
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 18:15:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C9259C31E40
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 18:32:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DA7352089E
-	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 18:15:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6A3662064A
+	for <linux-mm@archiver.kernel.org>; Tue, 30 Jul 2019 18:32:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=yandex-team.ru header.i=@yandex-team.ru header.b="wzOucalG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA7352089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=yandex-team.ru
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="JUA9FbUP"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A3662064A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 82CB48E0003; Tue, 30 Jul 2019 14:15:26 -0400 (EDT)
+	id B059B8E0003; Tue, 30 Jul 2019 14:32:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7DDBB8E0001; Tue, 30 Jul 2019 14:15:26 -0400 (EDT)
+	id AB6FB8E0001; Tue, 30 Jul 2019 14:32:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6CC438E0003; Tue, 30 Jul 2019 14:15:26 -0400 (EDT)
+	id 9A5DC8E0003; Tue, 30 Jul 2019 14:32:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 06F8D8E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 14:15:26 -0400 (EDT)
-Received: by mail-lf1-f72.google.com with SMTP id l7so6762190lfc.4
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 11:15:25 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 64DBA8E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 14:32:50 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id y9so35834618plp.12
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 11:32:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=O1f0fqsMtDtcIdVNBgmb2PMxS7uPI7/I37S9Ymo3qec=;
-        b=CUX7BsXnru239L029Vvsl1scxdyxW01/wc5b8dK+3ZbIgnaeg3hshHeoPkdBximi3T
-         QDZGE7zRKQRvu9Ca3O9/dd3MqWYE19aixDz56YWXSnQ+pr85Hp6dh0BhK5dUPi7BQgoj
-         Sqh4ZBSxnVxLoKgk02C1r4y1PuYQau2fH4p4TYgJxjFdEe99PaWAWTU2RhZ6ZgCRnMwv
-         Z30uZrOImj1WFe8NE/uC7zCoIH5LZvTHCuRXriyQ6KGvd6fWWph3nzWKNWTFDBFBvymJ
-         0YHvqQ2dkeMDKztPjhykWuwfxsmow43YYExDJPWmWM+GWifBNGn+2aSaiYS3Uj/YpyM5
-         rZwA==
-X-Gm-Message-State: APjAAAVmAYbJ48tpSivARp9K8qMDm4uCZPd9mBDfaTegEnnsmKZy/pmu
-	g8uUp4OB28STSR4KfLUP7cMvjAJ/NH7lk/oo3kMreCPkGusAtOr/XspImmzjlp5hfIlx599oAmY
-	24cd/xh4kuXZRJX2EJ552YxbHcan8r8jwyl5FIxVc0ocZrnQGdp6tYot+C04cagk99A==
-X-Received: by 2002:a2e:2b57:: with SMTP id q84mr61992976lje.105.1564510525166;
-        Tue, 30 Jul 2019 11:15:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwT/9kB6X4HIIM3qMxR4MjmSUUAwVdBy2sUFe2WyM5+h7lrSn9LPVXh9c3SusJ5rd+rpnzS
-X-Received: by 2002:a2e:2b57:: with SMTP id q84mr61992942lje.105.1564510524189;
-        Tue, 30 Jul 2019 11:15:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564510524; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=6fCIBt83Qg0xm9/csFeyeLFWARKqAMvTELcBmphTpo0=;
+        b=mSxpDZ05qQr87UsOdnhCVswEpoF8Q7XWTtAQApIJtpwvqZWmAOUgbjtYwnWKnDKz1t
+         65WZ5zsZEWlWN894VJ5IxFkIJSoyErSFsdY/eGMIqUh6e//xXT7QCkVsm3vCbItcvxC8
+         qnmgoslaCDY5sjMAqqn5M7jJGsd82og5os1F93eEIIv7DR5uzGJ0kDIUz+Ul/C/qmB+z
+         oi9LhIVvOun6rPabRr9QAXgOXUB5Vi2ylxZ7JQd3PyZYnKmkqBDG6bLvAXQyFADz/6PM
+         99zjxx9nqOs+vIgmELPlvp/VmjhaWHRH265fr8M3ZCKD3Y+7JvmYskxQ6WzKLPAgZzG8
+         9mew==
+X-Gm-Message-State: APjAAAWmxf1lHa6/9A8c3dX9w7XO6uPXQUeIRg0IqcAhj8XA8TpIB9pD
+	jjFfdlisenhUqpPK2/3cn6Vx5+cZdmHXo97ge8cn7+tPRwvCyA8gDBWHLkumK04EulQNYYf5rSJ
+	TG5ZG1AP4GcngbJ+2AomYX5jEuk5aFoReQIaTv9Q58pmHWsbVo1wSkoJynuveXMAPeQ==
+X-Received: by 2002:a17:902:aa83:: with SMTP id d3mr113003944plr.74.1564511569918;
+        Tue, 30 Jul 2019 11:32:49 -0700 (PDT)
+X-Received: by 2002:a17:902:aa83:: with SMTP id d3mr113003891plr.74.1564511569060;
+        Tue, 30 Jul 2019 11:32:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564511569; cv=none;
         d=google.com; s=arc-20160816;
-        b=jkOnsdJj7npbfWYoDpbwntc8YqmsHYXqw7SeQvo07JYKo3yXybZ4CS07OZktofqpu+
-         8yT0lBap2cujAbF/e75n+jljb0sVb5uTWS1W/qutd+/0iJPlpsT/ufZTMQfmZ7e1oGcC
-         6Xnf4BVXCpgqRSQ1rnvGHA70dlmp2ehNPszjsKAFbemJunqHkWCAuJQwCllff4VkMaoT
-         HpJ3CEIj1POWoSP6GuiqeYchPN8Z0peYS1nKxu2qU91BM8dXxfyOJVUqadizFOlHe5zh
-         nrv7PFYU8eLD+NXMh4vNyIdfSt/I87KG+jBZaqJzUU7aqduArWYeT3scgWzIMR9Q6ka7
-         9xRw==
+        b=RNScVMncVneQgs5A/4Jpt2N7mrZr8+5pLsCdTdjRFD8ZGHMNsnQmt5Q3A8DERm2dov
+         j46z8r3HFoGFHwnDDVTze6OCc1nwm1eEcTsJe2MTzIoh238oL2sjxNsFLa+tZ6BDrdX6
+         KcS7rZzbKGmOLgoCS0T6Z01HGvk7bsX/z2DhK1V82ZrqZivw+3pRRYDnbLPhBXth4cD0
+         mTBk/rVYL1UqGXORItAgj61mRuqPirk9jTNXMggcqsxQAiKnWtf4+TycckGG0zvgWakQ
+         S3+PYgib4isXddd12VCHcqzyNLc2nkUhYeIdJZkJovoK5Xi3VUFzjRL9XrtKED6QSIJQ
+         BLhw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=O1f0fqsMtDtcIdVNBgmb2PMxS7uPI7/I37S9Ymo3qec=;
-        b=IGAJHGxegnV5NJDr1OFBZPn2pNdEIzcFcbFDPPW4ptLzEUdktVays0z48USJrhzCHb
-         qUgU1xHkqInhysRWYqeU/BkwnB4iFIrCSsqeXai0V3QCreWt87WtZEEfa/cL6xUNU8oz
-         0LpO33i6gq6yeb1etTnU11xAfLbJ6gqt3NW0JV0Aao9vzzmBepJ2qWLCpbu81qToAPHW
-         OHcV6foySBY+MWafqHJFDa9qMxKPAnv8ijgt4y0I+S8wQYZv7VvVFevEeY6JrGqT69M/
-         2AQuVu8jzKePekqH63rqq4kUsyeUsOjt8cazOFZl02HtJEXdjhzUOVoKc2cLfwyIb2Se
-         PFtw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=6fCIBt83Qg0xm9/csFeyeLFWARKqAMvTELcBmphTpo0=;
+        b=oeoTaD2GHUrhBmOjAWkiFb+BPjeBe/fWoUAvGmin3Sj1rMzoGCKmzPrVTPai10e8cQ
+         dNuTltlDOqnVZ/AWiH2HI/AhsEHOjuCAs4hrSewPe7UeEVvIVneYWKPnHVqIUIhCb95E
+         g2pYIyZpS/szJpmIS1Pp24a0rkPUGi4JdG1oWLaXuS3KcxTxakhrnFQA8BbEWOcJw7TJ
+         3HEm6bnI6eRIIANOWJkKmwnOSJLWFWkW1VpUysmgI/ZRfCENUTENls8ZYjJyi7hVQiiJ
+         gZ5ixc5UfFNZDxiHWQ/8l0yLcWJBE6Sm3WJqpsiFpfQ/dGJNg46LYzdgKHoEBFJxiLy3
+         gxRA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=wzOucalG;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1472:2741:0:8b6:217 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from forwardcorp1p.mail.yandex.net (forwardcorp1p.mail.yandex.net. [2a02:6b8:0:1472:2741:0:8b6:217])
-        by mx.google.com with ESMTPS id q64si55568170ljq.31.2019.07.30.11.15.23
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JUA9FbUP;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n6sor47056200pfq.67.2019.07.30.11.32.48
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 11:15:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1472:2741:0:8b6:217 as permitted sender) client-ip=2a02:6b8:0:1472:2741:0:8b6:217;
+        (Google Transport Security);
+        Tue, 30 Jul 2019 11:32:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@yandex-team.ru header.s=default header.b=wzOucalG;
-       spf=pass (google.com: domain of khlebnikov@yandex-team.ru designates 2a02:6b8:0:1472:2741:0:8b6:217 as permitted sender) smtp.mailfrom=khlebnikov@yandex-team.ru;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=yandex-team.ru
-Received: from mxbackcorp1g.mail.yandex.net (mxbackcorp1g.mail.yandex.net [IPv6:2a02:6b8:0:1402::301])
-	by forwardcorp1p.mail.yandex.net (Yandex) with ESMTP id 71CAA2E14C1;
-	Tue, 30 Jul 2019 21:15:23 +0300 (MSK)
-Received: from smtpcorp1o.mail.yandex.net (smtpcorp1o.mail.yandex.net [2a02:6b8:0:1a2d::30])
-	by mxbackcorp1g.mail.yandex.net (nwsmtp/Yandex) with ESMTP id jJUKzscTox-FMeK8IK3;
-	Tue, 30 Jul 2019 21:15:23 +0300
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=yandex-team.ru; s=default;
-	t=1564510523; bh=O1f0fqsMtDtcIdVNBgmb2PMxS7uPI7/I37S9Ymo3qec=;
-	h=In-Reply-To:Message-ID:From:Date:References:To:Subject:Cc;
-	b=wzOucalG3TJcf705DvhKCt/iJ+Gei4PRaz8KkgIcEn0/engALRpkk2bwtHmicH0wd
-	 Wdq51G8qcAFjmZKdJ+gPff2LVcWzSXbg0fcQ5gV/JgIACYN9uxu3EU/N15XKLDfaEg
-	 ey1FxR/2tsR0q+TK8PLmszVr4AqJxjARczpHJOi8=
-Authentication-Results: mxbackcorp1g.mail.yandex.net; dkim=pass header.i=@yandex-team.ru
-Received: from dynamic-red.dhcp.yndx.net (dynamic-red.dhcp.yndx.net [2a02:6b8:0:40c:6454:ac35:2758:ad6a])
-	by smtpcorp1o.mail.yandex.net (nwsmtp/Yandex) with ESMTPSA id GB79wZpAye-FMaOPmnb;
-	Tue, 30 Jul 2019 21:15:22 +0300
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(Client certificate not present)
-Subject: Re: [PATCH 1/2] mm/filemap: don't initiate writeback if mapping has
- no dirty pages
-To: Jan Kara <jack@suse.cz>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, Tejun Heo <tj@kernel.org>,
- Jens Axboe <axboe@kernel.dk>, Johannes Weiner <hannes@cmpxchg.org>,
- linux-fsdevel@vger.kernel.org
-References: <156378816804.1087.8607636317907921438.stgit@buzz>
- <20190722175230.d357d52c3e86dc87efbd4243@linux-foundation.org>
- <bdc6c53d-a7bb-dcc4-20ba-6c7fa5c57dbd@yandex-team.ru>
- <20190730141457.GE28829@quack2.suse.cz>
- <51ba7304-06bd-a50d-cb14-6dc41b92fab5@yandex-team.ru>
- <20190730154854.GG28829@quack2.suse.cz>
-From: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
-Message-ID: <c28d4243-aeb9-901a-46e9-bfe2e704cd8f@yandex-team.ru>
-Date: Tue, 30 Jul 2019 21:15:22 +0300
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=JUA9FbUP;
+       spf=pass (google.com: domain of jrdr.linux@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=jrdr.linux@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=6fCIBt83Qg0xm9/csFeyeLFWARKqAMvTELcBmphTpo0=;
+        b=JUA9FbUPr0F6xNgBd5J9MHwHtCHrMpBJuNDTvZBzKBZeCmNsbohHado2HBbGTi0It9
+         yThD+OL5Bkf6Da9wJnEKF7n1ZuYfE+RCaAChBqmkI/jmB2QhloDai+ucTPidoKT2u6UQ
+         29UC6QoAyrEf4tN2GNQniwXjZkr83rJH4ak6SFrbJFSb15jmyMBIWZiHh1EgvVH6j48q
+         cZKmuIlqPfwxsnRzt4ye0SXQ2NpyGAmqO03R0RsRzNRYkzGXP/3U1W6hIGXqsFMnjHXR
+         g7Xo3I2gA+uPgrVqyPZw3rp948eNJFIjP60aR0GcG/CsRV9BR7dafhIdCpB5PUi2sogn
+         ixHw==
+X-Google-Smtp-Source: APXvYqz3TKO5CR8bm9L/zAhw0K/5mmOOXYnkeug29AHRYcKaRz4UPuCN4Qa7WYzWXEa+PlUkZGXEBw==
+X-Received: by 2002:a62:754d:: with SMTP id q74mr42050335pfc.211.1564511568653;
+        Tue, 30 Jul 2019 11:32:48 -0700 (PDT)
+Received: from jordon-HP-15-Notebook-PC.domain.name ([106.51.16.0])
+        by smtp.gmail.com with ESMTPSA id j5sm57328671pgp.59.2019.07.30.11.32.43
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Tue, 30 Jul 2019 11:32:47 -0700 (PDT)
+From: Souptick Joarder <jrdr.linux@gmail.com>
+To: boris.ostrovsky@oracle.com,
+	jgross@suse.com,
+	sstabellini@kernel.org,
+	marmarek@invisiblethingslab.com
+Cc: willy@infradead.org,
+	akpm@linux-foundation.org,
+	linux@armlinux.org.uk,
+	linux-mm@kvack.org,
+	xen-devel@lists.xenproject.org,
+	linux-kernel@vger.kernel.org,
+	stable@vger.kernel.org,
+	gregkh@linuxfoundation.org,
+	Souptick Joarder <jrdr.linux@gmail.com>
+Subject: [PATCH] xen/gntdev.c: Replace vm_map_pages() with vm_map_pages_zero()
+Date: Wed, 31 Jul 2019 00:04:56 +0530
+Message-Id: <1564511696-4044-1-git-send-email-jrdr.linux@gmail.com>
+X-Mailer: git-send-email 1.9.1
 MIME-Version: 1.0
-In-Reply-To: <20190730154854.GG28829@quack2.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-CA
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+'commit df9bde015a72 ("xen/gntdev.c: convert to use vm_map_pages()")'
+breaks gntdev driver. If vma->vm_pgoff > 0, vm_map_pages()
+will:
+ - use map->pages starting at vma->vm_pgoff instead of 0
+ - verify map->count against vma_pages()+vma->vm_pgoff instead of just
+   vma_pages().
 
+In practice, this breaks using a single gntdev FD for mapping multiple
+grants.
 
-On 30.07.2019 18:48, Jan Kara wrote:
-> On Tue 30-07-19 17:57:18, Konstantin Khlebnikov wrote:
->> On 30.07.2019 17:14, Jan Kara wrote:
->>> On Tue 23-07-19 11:16:51, Konstantin Khlebnikov wrote:
->>>> On 23.07.2019 3:52, Andrew Morton wrote:
->>>>>
->>>>> (cc linux-fsdevel and Jan)
->>>
->>> Thanks for CC Andrew.
->>>
->>>>> On Mon, 22 Jul 2019 12:36:08 +0300 Konstantin Khlebnikov <khlebnikov@yandex-team.ru> wrote:
->>>>>
->>>>>> Functions like filemap_write_and_wait_range() should do nothing if inode
->>>>>> has no dirty pages or pages currently under writeback. But they anyway
->>>>>> construct struct writeback_control and this does some atomic operations
->>>>>> if CONFIG_CGROUP_WRITEBACK=y - on fast path it locks inode->i_lock and
->>>>>> updates state of writeback ownership, on slow path might be more work.
->>>>>> Current this path is safely avoided only when inode mapping has no pages.
->>>>>>
->>>>>> For example generic_file_read_iter() calls filemap_write_and_wait_range()
->>>>>> at each O_DIRECT read - pretty hot path.
->>>
->>> Yes, but in common case mapping_needs_writeback() is false for files you do
->>> direct IO to (exactly the case with no pages in the mapping). So you
->>> shouldn't see the overhead at all. So which case you really care about?
->>>
->>>>>> This patch skips starting new writeback if mapping has no dirty tags set.
->>>>>> If writeback is already in progress filemap_write_and_wait_range() will
->>>>>> wait for it.
->>>>>>
->>>>>> ...
->>>>>>
->>>>>> --- a/mm/filemap.c
->>>>>> +++ b/mm/filemap.c
->>>>>> @@ -408,7 +408,8 @@ int __filemap_fdatawrite_range(struct address_space *mapping, loff_t start,
->>>>>>     		.range_end = end,
->>>>>>     	};
->>>>>> -	if (!mapping_cap_writeback_dirty(mapping))
->>>>>> +	if (!mapping_cap_writeback_dirty(mapping) ||
->>>>>> +	    !mapping_tagged(mapping, PAGECACHE_TAG_DIRTY))
->>>>>>     		return 0;
->>>>>>     	wbc_attach_fdatawrite_inode(&wbc, mapping->host);
->>>>>
->>>>> How does this play with tagged_writepages?  We assume that no tagging
->>>>> has been performed by any __filemap_fdatawrite_range() caller?
->>>>>
->>>>
->>>> Checking also PAGECACHE_TAG_TOWRITE is cheap but seems redundant.
->>>>
->>>> To-write tags are supposed to be a subset of dirty tags:
->>>> to-write is set only when dirty is set and cleared after starting writeback.
->>>>
->>>> Special case set_page_writeback_keepwrite() which does not clear to-write
->>>> should be for dirty page thus dirty tag is not going to be cleared either.
->>>> Ext4 calls it after redirty_page_for_writepage()
->>>> XFS even without clear_page_dirty_for_io()
->>>>
->>>> Anyway to-write tag without dirty tag or at clear page is confusing.
->>>
->>> Yeah, TOWRITE tag is intended to be internal to writepages logic so your
->>> patch is fine in that regard. Overall the patch looks good to me so I'm
->>> just wondering a bit about the motivation...
->>
->> In our case file mixes cached pages and O_DIRECT read. Kind of database
->> were index header is memory mapped while the rest data read via O_DIRECT.
->> I suppose for sharing index between multiple instances.
-> 
-> OK, that has always been a bit problematic but you're not the first one to
-> have such design ;). So feel free to add:
-> 
-> Reviewed-by: Jan Kara <jack@suse.cz>
-> 
-> to your patch.
+relevant strace output:
+[pid   857] ioctl(7, IOCTL_GNTDEV_MAP_GRANT_REF, 0x7ffd3407b6d0) = 0
+[pid   857] mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_SHARED, 7, 0) =
+0x777f1211b000
+[pid   857] ioctl(7, IOCTL_GNTDEV_SET_UNMAP_NOTIFY, 0x7ffd3407b710) = 0
+[pid   857] ioctl(7, IOCTL_GNTDEV_MAP_GRANT_REF, 0x7ffd3407b6d0) = 0
+[pid   857] mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_SHARED, 7,
+0x1000) = -1 ENXIO (No such device or address)
 
-Thanks.
+details here:
+https://github.com/QubesOS/qubes-issues/issues/5199
 
-O_DIRECT has long history of misunderstandings =)
-It looks some cases are still not documented.
-My favourite: O_DIRECT write into hole goes into cache, at least for ext4.
+The reason is -> ( copying Marek's word from discussion)
 
-> 
->> On this path we also hit this bug:
->> https://lore.kernel.org/lkml/156355839560.2063.5265687291430814589.stgit@buzz/
->> so that's why I've started looking into this code.
-> 
-> I see. OK.
-> 
-> 								Honza
-> 
+vma->vm_pgoff is used as index passed to gntdev_find_map_index. It's
+basically using this parameter for "which grant reference to map".
+map struct returned by gntdev_find_map_index() describes just the pages
+to be mapped. Specifically map->pages[0] should be mapped at
+vma->vm_start, not vma->vm_start+vma->vm_pgoff*PAGE_SIZE.
+
+When trying to map grant with index (aka vma->vm_pgoff) > 1,
+__vm_map_pages() will refuse to map it because it will expect map->count
+to be at least vma_pages(vma)+vma->vm_pgoff, while it is exactly
+vma_pages(vma).
+
+Converting vm_map_pages() to use vm_map_pages_zero() will fix the
+problem.
+
+Marek has tested and confirmed the same.
+
+Reported-by: Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>
+Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+Tested-by: Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>
+---
+ drivers/xen/gntdev.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
+index 4c339c7..a446a72 100644
+--- a/drivers/xen/gntdev.c
++++ b/drivers/xen/gntdev.c
+@@ -1143,7 +1143,7 @@ static int gntdev_mmap(struct file *flip, struct vm_area_struct *vma)
+ 		goto out_put_map;
+ 
+ 	if (!use_ptemod) {
+-		err = vm_map_pages(vma, map->pages, map->count);
++		err = vm_map_pages_zero(vma, map->pages, map->count);
+ 		if (err)
+ 			goto out_put_map;
+ 	} else {
+-- 
+1.9.1
 
