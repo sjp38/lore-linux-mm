@@ -2,183 +2,129 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B4E90C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:11:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BB439C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:16:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6C83F20C01
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:11:10 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="JWwb9h/L"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C83F20C01
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 8A5AD206A3
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:16:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A5AD206A3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 194118E0006; Wed, 31 Jul 2019 12:11:10 -0400 (EDT)
+	id 058D38E0008; Wed, 31 Jul 2019 12:16:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 145258E0001; Wed, 31 Jul 2019 12:11:10 -0400 (EDT)
+	id F23D98E0001; Wed, 31 Jul 2019 12:16:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F27A68E0006; Wed, 31 Jul 2019 12:11:09 -0400 (EDT)
+	id DEB1B8E0008; Wed, 31 Jul 2019 12:16:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BC7148E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 12:11:09 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id d190so43491661pfa.0
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:11:09 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id C0C048E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 12:16:18 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id 5so58542451qki.2
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:16:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=G8M0Rf3LhXvIa9WeNE6MatJYWdlqbfF/uCQQ1z9oEpM=;
-        b=G+6nI3RUAAgDLbtrhiuEVBslkFUH9w1pdYJC7uhh8SJdnhJXKtupWevgk9prejgG1Y
-         OBMidkiWCMLfm6/ifBLk0q+eKXdI0MbvCmi5rsXKVKaGMhVEWm1Ps3tist+mvi7BOK9K
-         USGcKTErK0EEZPubn/zbwTO/GyAXjo/NzKE8SjQ7YhfA2DpUEojaxRosXNPjdlP+6Ox8
-         XHZwroi3M8PCVq+WjitjMX6OkyviU8rUoSV2E7j0IZ9QjTL1V/MxskgcJA+022ouk167
-         ZyBd6lHqmrFximGMNwiyBuqG5d+pDuNHzluyRfTbNvNwwkOuaFxPTKVLl+s3qmJHIcEP
-         9HkA==
-X-Gm-Message-State: APjAAAWGQ6vVbS5UhQqgTfZNcRMZ7p3h0wtgI9sKRAvfIebkUZLA4qCM
-	Lhnw1pB7m3fh6dRl3N/Hin4iz+4dNQrWUuKDjYONRgfxdXwdeaE0K1S82fM4CAlS857oNrMZWGm
-	UwdadVApdC5Ca+U2O19vCOEN0KV5qVgTAiGV8cY8Ob99Dn4lzovPCVKOO7S8DxpIkdw==
-X-Received: by 2002:a63:10a:: with SMTP id 10mr30817122pgb.281.1564589469360;
-        Wed, 31 Jul 2019 09:11:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqywxqiUYMXhnA1sAiovSMhzfPkgVj2pwXjGI4fLaFn30vPLM7kpiwsPAHzHKkgNK+kKtjGi
-X-Received: by 2002:a63:10a:: with SMTP id 10mr30817071pgb.281.1564589468609;
-        Wed, 31 Jul 2019 09:11:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564589468; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=z45bc0/Hf5snDFXev62GUllh+0OaX0y5/9RK/czu9LA=;
+        b=ZlAE4htvcAsFu5kOkamUXwp5FfIK+2fnS+wlVupkAqUzhq2IIx3kIPndcdcdZ3SRQU
+         jd79VKRYAWL4d3JNZcrUeYhU0tY2QdIbQTtlIoHzsguystQ5JOoG36Wg2yHQ7FTeFtT3
+         MR0/fcaEY8RkgHcxztT5jv0wGYDP11wQdLF8k+5dj8H6kJ4bYXTuVRjItlBaY3AOcNa+
+         +aUKTDVWl2e78C0rlLt22M6e46wJEN915oaxmjrcaJKuTVGX/4jCF8/ZzZkHw5YPH3Rt
+         lrWZQMFZKdKryk05/4T4+yXfFCgpjZG+GGxlCtlPYmozujOeM8E47M4sOkVwgpqm9Jrd
+         ho0w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXScnlVPInsrwscrEGGzrdyVqDxWh3/ZR1bQueGEm27SxmPrBI8
+	WDYHChHkjaNNHircximodc8niagImA7EZs3Xdj5sOOLXc0qVlgSoQ7VKw2bJWu0rEs9FjOH6yVH
+	wVUpx+GUh1xeoI1mflPDzdBBGts0xBmUBvWEBxaN+Cmtky2NTK689tZRgOA02eWERYw==
+X-Received: by 2002:ac8:66ce:: with SMTP id m14mr43950881qtp.206.1564589778586;
+        Wed, 31 Jul 2019 09:16:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxLIp3bDVcK8sOQaVYNhaHE2PPUNAvUpM81pWGIlpU+8tgm73hHHktni1F6LK2ieyD94DPK
+X-Received: by 2002:ac8:66ce:: with SMTP id m14mr43950839qtp.206.1564589778065;
+        Wed, 31 Jul 2019 09:16:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564589778; cv=none;
         d=google.com; s=arc-20160816;
-        b=oFn93OD6pAHfH33eMlXCHiPuASwtEqaZ+TvToR/6OGw6AiVwXBWq7E1JCPqKOCQENL
-         hgBOUffGfv33QDtP2T0eu8lkPTK9GYh+R7uFWA3KaDvpVn6ZLuZY8/9WSYZOmpur0K4q
-         QY1AMxQfTO+4foZGnOu5G94DzNJd1H/joSv0xyaOssBdzkmZjCPeZRAzBe0D05TfsVqH
-         uBXh65Z4++Cr9Nh/841lCXHQym2vmsx4qc3ykYB8wvzEDaRk04wkOwm0tuASIoEEAYc7
-         2+jZo7PNs+yI6XateeTheoG/3s7eKe2LTKAltBVgtf28nnkW3afLjPz1Bt5e00ncjYHm
-         wsgg==
+        b=bL5t70E0HOQt+C97jTD78OjjVw4+HvDJIPdPnZUmYNU3/Nk4OlcrBbyr7m+Wary//F
+         XcxUREMry6bR8XdFbaVptGXw2TiuOiI3TqTXr/5WPcU3QxjSAzmuAuUIT32TMlSxdOZ+
+         +3zEH8Vyh3/W5fDL3COPVVujS5Y8LCuFMd8+tqfzJcnkD50M7WWdo+X97067mtv1qFno
+         7/2x12F/b8a2xbIgQMIn4helCdmWOcjHs72ucebeL6t2tIDpwdKmB3Nsdu3FIJYQQ/BJ
+         RebJCz6U0OQaCu9FmxfiB/OO8wcWDjA/NYWumSOEfUPzpgiL/xdckHFlSAzu36oMEmZM
+         xWPw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=G8M0Rf3LhXvIa9WeNE6MatJYWdlqbfF/uCQQ1z9oEpM=;
-        b=fpwHEzSVSl0ysCP8a9o1wjA4RaGIwXA1rxhKWreHg8TJI+4P4boMLhfJY7FIv3p2v7
-         vN9E5Q74Mc7u6I2xsOhzwzpuWZMh9HSAaKzzEJw49UOFWYVL3sI0mUbVPbQpu5+/ZNfV
-         vUF6u/qNmt4ZFK57Otd2jh2JUgzo9RyiPaRl+KZwfJAHj28josBSdBof/SdgKZ/x+klq
-         AmvYP4cPhA0MVSEmRToX4y5PBX+o2Cw7aeXuK6WXJic1Tzuw5Jzmw+laL52etVjUsNMh
-         o/EjLVYYKm/zhKyNaGBKp1j9/ddy/2AxQ/ydy1JL3gi6vyyRDeNbrIFphpgm9boslWnx
-         xp8Q==
+         :message-id:subject:cc:to:from:date;
+        bh=z45bc0/Hf5snDFXev62GUllh+0OaX0y5/9RK/czu9LA=;
+        b=rRDS7/fPT5xuc2jbatW/a5HQTFY2nzROY+usxwIqlftQZ/OV/bb8DGTofahJDdLmIv
+         t1mipKsM/CNlm5k+wW1v6j+MlfHSF2c+UGBfusP6h4KDCoId9gUwDEimnQj4Axp3exep
+         OuH1Xo7T5a3Agev6sXRPzVxNljDAV00h2seU1dCWmeekPLw5mcJAI9Tm7fpy9r2yiZ+/
+         dZyCDm87W78D2BuwMVdN3wRxx1dyGzUiJpa+sDnDR+F7BBvujeC8GpFaG5peazacAP5R
+         Ah+uX6akxRx/PFpbU734zOte7T/c2PUqVZVVMJlWODzF3LZazEtvXI6r3ZmG80FjSG07
+         T0jg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="JWwb9h/L";
-       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id v1si28623278plb.381.2019.07.31.09.11.08
+       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d207si38948303qkc.51.2019.07.31.09.16.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 09:11:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Wed, 31 Jul 2019 09:16:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b="JWwb9h/L";
-       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from willie-the-truck (236.31.169.217.in-addr.arpa [217.169.31.236])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 11533206A3;
-	Wed, 31 Jul 2019 16:11:06 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1564589468;
-	bh=wMw/vfv7591v5B2lTvWN47RNjbkh0FPCOeS3UTprHLk=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=JWwb9h/LpO93Nj+dCkoUS/EpGOhXEKuyHtRHXJC6igJNZAwfQn0IYkY7GipJK9fRJ
-	 XReuRfvbRYRviqtwDUSADC6rOMJeYCvzl9f5WmQnPcH5pZvZXdZE4wp3fSsmA+9VBr
-	 U+kZr3/F/RT8+HUjng0iS0Bm/HZsFhsyWU9sfaag=
-Date: Wed, 31 Jul 2019 17:11:04 +0100
-From: Will Deacon <will@kernel.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, Mark Rutland <mark.rutland@arm.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Will Deacon <will.deacon@arm.com>, linux-kernel@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org
-Subject: Re: [RFC 2/2] arm64/mm: Enable device memory allocation and free for
- vmemmap mapping
-Message-ID: <20190731161103.kqv3v2xlq4vnyjhp@willie-the-truck>
-References: <1561697083-7329-1-git-send-email-anshuman.khandual@arm.com>
- <1561697083-7329-3-git-send-email-anshuman.khandual@arm.com>
+	by mx1.redhat.com (Postfix) with ESMTPS id 512C730A6986;
+	Wed, 31 Jul 2019 16:16:17 +0000 (UTC)
+Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.136])
+	by smtp.corp.redhat.com (Postfix) with SMTP id 7B75B60BEC;
+	Wed, 31 Jul 2019 16:16:15 +0000 (UTC)
+Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
+	oleg@redhat.com; Wed, 31 Jul 2019 18:16:17 +0200 (CEST)
+Date: Wed, 31 Jul 2019 18:16:14 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+To: Song Liu <songliubraving@fb.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	akpm@linux-foundation.org, matthew.wilcox@oracle.com,
+	kirill.shutemov@linux.intel.com, kernel-team@fb.com,
+	william.kucharski@oracle.com, srikar@linux.vnet.ibm.com
+Subject: Re: [PATCH 2/2] uprobe: collapse THP pmd after removing all uprobes
+Message-ID: <20190731161614.GC25078@redhat.com>
+References: <20190729054335.3241150-1-songliubraving@fb.com>
+ <20190729054335.3241150-3-songliubraving@fb.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1561697083-7329-3-git-send-email-anshuman.khandual@arm.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <20190729054335.3241150-3-songliubraving@fb.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Wed, 31 Jul 2019 16:16:17 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jun 28, 2019 at 10:14:43AM +0530, Anshuman Khandual wrote:
-> This enables vmemmap_populate() and vmemmap_free() functions to incorporate
-> struct vmem_altmap based device memory allocation and free requests. With
-> this device memory with specific atlmap configuration can be hot plugged
-> and hot removed as ZONE_DEVICE memory on arm64 platforms.
-> 
-> Cc: Catalin Marinas <catalin.marinas@arm.com>
-> Cc: Will Deacon <will.deacon@arm.com>
-> Cc: Mark Rutland <mark.rutland@arm.com>
-> Cc: linux-arm-kernel@lists.infradead.org
-> Cc: linux-kernel@vger.kernel.org
-> 
-> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
-> ---
->  arch/arm64/mm/mmu.c | 57 ++++++++++++++++++++++++++++++++++-------------------
->  1 file changed, 37 insertions(+), 20 deletions(-)
-> 
-> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
-> index 39e18d1..8867bbd 100644
-> --- a/arch/arm64/mm/mmu.c
-> +++ b/arch/arm64/mm/mmu.c
-> @@ -735,15 +735,26 @@ int kern_addr_valid(unsigned long addr)
->  }
+On 07/28, Song Liu wrote:
+>
+> @@ -525,6 +527,9 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
 >  
->  #ifdef CONFIG_MEMORY_HOTPLUG
-> -static void free_hotplug_page_range(struct page *page, size_t size)
-> +static void free_hotplug_page_range(struct page *page, size_t size,
-> +				    struct vmem_altmap *altmap)
->  {
-> -	WARN_ON(!page || PageReserved(page));
-> -	free_pages((unsigned long)page_address(page), get_order(size));
-> +	if (altmap) {
-> +		/*
-> +		 * vmemmap_populate() creates vmemmap mapping either at pte
-> +		 * or pmd level. Unmapping request at any other level would
-> +		 * be a problem.
-> +		 */
-> +		WARN_ON((size != PAGE_SIZE) && (size != PMD_SIZE));
-> +		vmem_altmap_free(altmap, size >> PAGE_SHIFT);
-> +	} else {
-> +		WARN_ON(!page || PageReserved(page));
-> +		free_pages((unsigned long)page_address(page), get_order(size));
-> +	}
->  }
->  
->  static void free_hotplug_pgtable_page(struct page *page)
->  {
-> -	free_hotplug_page_range(page, PAGE_SIZE);
-> +	free_hotplug_page_range(page, PAGE_SIZE, NULL);
->  }
->  
->  static void free_pte_table(pmd_t *pmdp, unsigned long addr)
-> @@ -807,7 +818,8 @@ static void free_pud_table(pgd_t *pgdp, unsigned long addr)
->  }
->  
->  static void unmap_hotplug_pte_range(pmd_t *pmdp, unsigned long addr,
-> -				    unsigned long end, bool sparse_vmap)
-> +				    unsigned long end, bool sparse_vmap,
-> +				    struct vmem_altmap *altmap)
+>  				/* dec_mm_counter for old_page */
+>  				dec_mm_counter(mm, MM_ANONPAGES);
+> +
+> +				if (PageCompound(orig_page))
+> +					orig_page_huge = true;
 
-Do you still need the sparse_vmap parameter, or can you just pass a NULL
-altmap pointer when sparse_vmap is false?
+I am wondering how find_get_page() can return a PageCompound() page...
 
-Will
+IIUC, this is only possible if shmem_file(), right?
+
+Oleg.
 
