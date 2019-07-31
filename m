@@ -2,131 +2,158 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 006FAC32754
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:44:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A3852C433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:46:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B95B2214DA
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:44:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B95B2214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 62BE9206A2
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:46:17 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="FkJBduK7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62BE9206A2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 006658E0003; Wed, 31 Jul 2019 09:44:25 -0400 (EDT)
+	id 0C8E88E0003; Wed, 31 Jul 2019 09:46:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EF85F8E0001; Wed, 31 Jul 2019 09:44:24 -0400 (EDT)
+	id 079908E0001; Wed, 31 Jul 2019 09:46:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DC2018E0003; Wed, 31 Jul 2019 09:44:24 -0400 (EDT)
+	id E81FF8E0003; Wed, 31 Jul 2019 09:46:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A68E58E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:44:24 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id z20so42471260edr.15
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 06:44:24 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C895A8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:46:16 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id s9so61623028qtn.14
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 06:46:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=0d8tWhq/mfkJ30s7UZNNWMJuhXrfP7P1n1uUM7YlYkw=;
-        b=KSYVXl5jjQfWnkGhb8ULPZXGgpQmBj0+J+qUtmg1XalXnLmVRCT5cRJBw2zB5/ENQX
-         dSFe+z8PCFLOHrHkJp+mBRjdDwYOfTaLh4RBryiOpMlJwqM+hMadZ+DhMsCnL6DeVrX3
-         2ClXl0RKOgYvtvsf+ypnL4LfJHhMdLBoOxnULFVoIEM1udRl8FS8Z6oGLbBEw7/w5gPE
-         zpsjqE7d0DPeFi2om+wo2Ze7RgHRUiGQaR5lU3NWjwQxhJrtYWWnPyywa+TjogJIx0rA
-         E8hohXMb4SbZu8J0GXbUzwGGQsY3lYzADTYXKUo0PQ0imKZbriYmRSnx2EFnNJN1P7fo
-         ZiuQ==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWIbVOy7jbRplqS4Mmo92QqkRRdlw2odHliw1L8pdRyHExAvYzs
-	mmnQKkhq964dxjsoOrrdi7gQuJIycorn6Un0vffk6ogmZKCLcTXvicgELYzxIigGmvL7VyeAZp7
-	b2CiUGdFD+SqNE2obCfK/z89yG7MTXMEEh2g/7dvLRn5u77JWtkdKc3HBaS3L3wo=
-X-Received: by 2002:a17:906:3419:: with SMTP id c25mr92779095ejb.305.1564580664246;
-        Wed, 31 Jul 2019 06:44:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwyB9lzL5Irg2gs/w8f2UMQn6F9gBpAAiMJ1wn2l/SAX+zU+J3UM1QC0jtZeWiiU4DMh8H0
-X-Received: by 2002:a17:906:3419:: with SMTP id c25mr92779049ejb.305.1564580663634;
-        Wed, 31 Jul 2019 06:44:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564580663; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id;
+        bh=8f2ucm94N3RAHWXp2XYv1ymSM73yXUEwnSMo5qDl8Gc=;
+        b=aXpvkHe074R1BTnErMNPxUtqsUWcNpseM1qFBB2BZeXTR+uscYlO+kkhPa1cgaRSbc
+         n/LBaubarZ8OR1V6FybY5IEWVfHBHc1bkPGZXnNZ0vNWamsSOwKAXuhxjibVE2LEFgXL
+         iB4BDFDZFhgR5rqVs7ItXNNTHM3OoLCpAKsdA4Ai2fJ/20gTZqASxngco4gzIqjpnsLe
+         Z19XDr8iEcshmOukOjdGaG4xFLEMdnHwyCa2XRRfNpgUSzRcA4DIc0ln5kV/s3Zt2sNf
+         4HIlgUoln/PMlmi2g4gw5n2CwbhGCqJ5P8Yp42vZOot73QpfUWEEHmP5nzj0jECZ0/aH
+         uGIw==
+X-Gm-Message-State: APjAAAUzuM1R36gPQMWD7bqSg5INdUCS8l8WTBf5Cayvt+bXKXI5noJ2
+	du7II4JolNoI7bFytgq5MwBIdyk/DTQSzwjhp3JUrGYAXHZChksFz4neZFxpypFYLdh7DBqyED3
+	SAI8wQe23ZbWNdzOobx3W2FDr3UtO7G6+8W5MejL3ZNADFcYxdmwYiro6KmRXscr/PA==
+X-Received: by 2002:a37:9dc8:: with SMTP id g191mr81613327qke.431.1564580776604;
+        Wed, 31 Jul 2019 06:46:16 -0700 (PDT)
+X-Received: by 2002:a37:9dc8:: with SMTP id g191mr81613287qke.431.1564580775992;
+        Wed, 31 Jul 2019 06:46:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564580775; cv=none;
         d=google.com; s=arc-20160816;
-        b=QRhwJKqQmXDTlAKbl3Z3jKrZmwLKwkSs5ShoNAnCVeEYF5V6atcLshUFLChz2yw6KQ
-         t8f45CoGxQXqox2Jk3v8vtQzRX1dfbGOzYr+jMicSX4PVOJ82rU6F7w39D564TasXRHn
-         yDqCUvwExgRZsSlXca1ohpDJLUREAI0qiIyGFtiSqvwIKKmHNHr0/SN/0azdTKhTlJr8
-         2ZP/CduMLySI9IbItrQmAsoM3eKb7I8RLuIh5Fj8omJ8Qc3DBMEt7LowhSLgkcQ+TiZo
-         FFdviquuq7DoJsv6EnlA7r1bBMRO2H2sRjXAs46ZSMW2klSz1w0BpEivRCddN4sqWdFI
-         kJrQ==
+        b=bTRFSPQEaME38hvZyoC1ebGtpkUHftE6eXmVdOlNRGclMN8W46XbEv4sMwG2YMQ5w4
+         bafTUs7D27MrhkhLMRmqptWN8Fakk7zooYbiNoU+9pEsRqsipgo14fTlN5l1+uEt3SFu
+         NyZdP7WmX32BRkA2s2HvXnQlzXyup9KrnRxf/SasUm7zeWODmz8H5PHyModk0FoP72v/
+         3Q1+Jxkr00FOSFAygTJ61k/iPHwGVDUXpfyaVRHbM/1QXg/68DMfedR5cteqVk52wHgO
+         IWyXsgHJ09BusDkNepazu+TlI6uETYN7VlMlSrhlTEwkn+v/RD7zQqVCRUbEiXiHdloZ
+         4dlw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=0d8tWhq/mfkJ30s7UZNNWMJuhXrfP7P1n1uUM7YlYkw=;
-        b=hOPSUI8xdaTUh1+3Xdzc60mCqQL4a7mVkB7C9dgDhhNEVcSlNTevHAiCcyZYQzey1a
-         q4M1k3q1VjSTRXc3WENKuGt2V6NboSNItxEUFAnlg/te0I6xAaC3/Ipo9jvqC5+zBhpF
-         wByIjJfScB//iP1FqXMorHsoDeAWrKkQYPn1B70OdlvDJuy0JBHYcYjJcggFROj5SCQE
-         YSUaD0UsjNr4YYdTHIGB+xfNwj+fbXRHVAwbXcx/RUM6LK4kuz5RhDhqrM3LkvW42IG+
-         1EifghKn2YZz1OOHW1wNzTWc5MxM8kVGf19UZy0QYjgS6HYD561PQzI00DHLtUN+DUHE
-         LHdg==
+        h=message-id:date:subject:cc:to:from:dkim-signature;
+        bh=8f2ucm94N3RAHWXp2XYv1ymSM73yXUEwnSMo5qDl8Gc=;
+        b=Vxuc0yMJVaiPIE4D6siUpE3S9lGbzi+GIid9aw6tWQe/MbFbN/qElapIgGxsLaWNB3
+         B4dUvYrBPo7nuVhskVS8KeGNSaX7fq7Ym0TWNqlyt/Dkte22kxxp2bfUsmixIriH6H3U
+         MQYW+buYk7zMnThYuwbB/6XribOQ7q8Cc5V7YTi+vP1qYKkkRqjcEeAbZpD6605tsYBM
+         Ygj34IKasuieI/x0fqdch7nwXJCn5t30VNTuI32fiIGR2h/QUTWGnDbS0mzzLKZ0YNaq
+         nk392NOQxsXQqQgnyNqK5AkB5EiEaAsX36Zs1nvKhI7wyrK4cfj03oXYnj0rp52nHEky
+         7h9g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g37si20128016edb.268.2019.07.31.06.44.23
+       dkim=pass header.i=@lca.pw header.s=google header.b=FkJBduK7;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r10sor30163978qtn.47.2019.07.31.06.46.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 06:44:23 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 31 Jul 2019 06:46:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B8AA4ABD0;
-	Wed, 31 Jul 2019 13:44:22 +0000 (UTC)
-Date: Wed, 31 Jul 2019 15:44:22 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-acpi@vger.kernel.org,
-	"Rafael J . Wysocki" <rafael.j.wysocki@intel.com>,
-	Oscar Salvador <osalvador@suse.de>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [PATCH v1] drivers/acpi/scan.c: Fixup "acquire
- device_hotplug_lock in acpi_scan_init()"
-Message-ID: <20190731134422.GS9330@dhcp22.suse.cz>
-References: <20190731123201.13893-1-david@redhat.com>
- <20190731125334.GM9330@dhcp22.suse.cz>
- <d3cc595d-7e6f-ef6f-044c-b20bd1de3fb0@redhat.com>
- <20190731131408.GP9330@dhcp22.suse.cz>
- <23f28590-7765-bcd9-15f2-94e985b64218@redhat.com>
- <20190731133344.GR9330@dhcp22.suse.cz>
- <b135e167-a0e1-0772-559b-6375ea40c9c4@redhat.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b135e167-a0e1-0772-559b-6375ea40c9c4@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+       dkim=pass header.i=@lca.pw header.s=google header.b=FkJBduK7;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=lca.pw; s=google;
+        h=from:to:cc:subject:date:message-id;
+        bh=8f2ucm94N3RAHWXp2XYv1ymSM73yXUEwnSMo5qDl8Gc=;
+        b=FkJBduK7o2U9DkS56fiFYacXOe0s7mfPx9W0zVWXLGIoBYvxPS2C2Ogl6X1ZM5uZB4
+         cNBAvSNVe+z5s06SyzfhFcV2RMEo+4pQRXPG6a+ptBnkhXvLwFhmgz0gt+BJW3wJbihR
+         nQ+IC+gD8EKjLqqM8uUq0xBkQAcLq2ShOD+pLbe7omO5lVwVExK79k9jyXMHHP9ALfdG
+         HN5osGJO/3roRO/n8DH2DeHGHAjojwdQ4gDaHzxo6r6GRyDbZlbArnEjESad9OoMyJV3
+         prsq8zmDCb3fv9cBiBkmI//oNrGrN1yzBD8iF6WSFS37+kW8o3ZD2SB4jdrbHoccKKeQ
+         LE/A==
+X-Google-Smtp-Source: APXvYqwYN2nhY1spLQvC2zasTrz/bvKwBvV9enaVBBRDKUn7AFldOujCtq9CUvaY4BxZgE1L7GHd6A==
+X-Received: by 2002:ac8:2af8:: with SMTP id c53mr88215379qta.387.1564580775668;
+        Wed, 31 Jul 2019 06:46:15 -0700 (PDT)
+Received: from qcai.nay.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
+        by smtp.gmail.com with ESMTPSA id a67sm31086281qkg.131.2019.07.31.06.46.14
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Jul 2019 06:46:15 -0700 (PDT)
+From: Qian Cai <cai@lca.pw>
+To: akpm@linux-foundation.org
+Cc: miles.chen@mediatek.com,
+	mhocko@suse.com,
+	hannes@cmpxchg.org,
+	vdavydov.dev@gmail.com,
+	cgroups@vger.kernel.org ,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Qian Cai <cai@lca.pw>
+Subject: [PATCH -next] mm/memcg: fix a -Wparentheses compilation warning
+Date: Wed, 31 Jul 2019 09:45:53 -0400
+Message-Id: <1564580753-17531-1-git-send-email-cai@lca.pw>
+X-Mailer: git-send-email 1.8.3.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 31-07-19 15:37:56, David Hildenbrand wrote:
-[...]
-> The other extreme I saw: People dropping locks because they think they
-> can be smart but end up making developers debug crashes for months (I am
-> not lying).
+The linux-next commit ("mm/memcontrol.c: fix use after free in
+mem_cgroup_iter()") [1] introduced a compilation warning,
 
-Any lock removal should be accompanied with an explanation that is to be
-a subject of the review. Sure people can make mistakes but there is no
-way to around it I can see.
+mm/memcontrol.c:1160:17: warning: using the result of an assignment as a
+condition without parentheses [-Wparentheses]
+        } while (memcg = parent_mem_cgroup(memcg));
+                 ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+mm/memcontrol.c:1160:17: note: place parentheses around the assignment
+to silence this warning
+        } while (memcg = parent_mem_cgroup(memcg));
+                       ^
+                 (                               )
+mm/memcontrol.c:1160:17: note: use '==' to turn this assignment into an
+equality comparison
+        } while (memcg = parent_mem_cgroup(memcg));
+                       ^
+                       ==
+
+Fix it by adding a pair of parentheses.
+
+[1] https://lore.kernel.org/linux-mm/20190730015729.4406-1-miles.chen@mediatek.com/
+
+Signed-off-by: Qian Cai <cai@lca.pw>
+---
+ mm/memcontrol.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index 694b6f8776dc..4f66a8305ae0 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -1157,7 +1157,7 @@ static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
+ 	do {
+ 		__invalidate_reclaim_iterators(memcg, dead_memcg);
+ 		last = memcg;
+-	} while (memcg = parent_mem_cgroup(memcg));
++	} while ((memcg = parent_mem_cgroup(memcg)));
  
-> As I want to move on with this patch and have other stuff to work on, I
-> will adjust the comment you gave and add that instead of the lock.
-
-Thanks!
-
+ 	/*
+ 	 * When cgruop1 non-hierarchy mode is used,
 -- 
-Michal Hocko
-SUSE Labs
+1.8.3.1
 
