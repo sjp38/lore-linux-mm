@@ -2,340 +2,196 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AF5AEC32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:59:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DB07C433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:02:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5ABA0216C8
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:59:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C34E821851
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:02:27 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=android.com header.i=@android.com header.b="lbzZFspY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5ABA0216C8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=android.com
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="L5UQjTDS"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C34E821851
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EDF508E000B; Wed, 31 Jul 2019 12:59:06 -0400 (EDT)
+	id 4F1868E0003; Wed, 31 Jul 2019 13:02:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E8F0C8E0001; Wed, 31 Jul 2019 12:59:06 -0400 (EDT)
+	id 4A0F38E0001; Wed, 31 Jul 2019 13:02:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D57DC8E000B; Wed, 31 Jul 2019 12:59:06 -0400 (EDT)
+	id 342318E0003; Wed, 31 Jul 2019 13:02:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A1D9B8E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 12:59:06 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id q11so37809834pll.22
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:59:06 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DC5238E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:02:26 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c31so42854522ede.5
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 10:02:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=oqrLFoRmuV3hwqUNXQJ2VzDrgthNlMLKsczJURhiFqM=;
-        b=QAQFwHgLV7Yu3C8h3AudOQjDnuYQC+m/3KZR38sUKIh9ywCYlG19bfgGevGD/s9gaW
-         Uvm13lSNLIv4i2YXWO+mFMJnhBlkILdY2W68BXmZXZ0sCtB1H8Q4FVAncs0U9wF7Oguf
-         Xm6Xvp7tNY2dL7L07K8zEo9bG/jX96UaakMGnvlhReEOucrmyTSxM6FltuNKwqrYU7+N
-         0yQIfa9OMN5buIaCi0GU1UACUa2PJrQeusaTZh5UGvurWKaqXWMEnCfiaQJWn51BKs2V
-         Tee77erIZRPuTzhzHdKQBsEby6hzuOQwSJ5CozkILNQvBfHXyIv8oPD2WCbzk9PXmwvR
-         L/5Q==
-X-Gm-Message-State: APjAAAU6Xc7U2M06UsxDuwyQ0FAGjooJrCi+dwLM1U0BRODzoyrEEU4h
-	mAiRDb8NX6lGlP1J/3LkQAfP01GunGL27U23KPkWa7X6DR52AnHDE038xOtDdU/fHiw61GlPiH8
-	hg3pcdHYY8D9qeOwkZNWx1hmKj6waWhNLvIw6O87p7Vv7NsnijnVWHg6D1HlRYUjS0A==
-X-Received: by 2002:a63:2264:: with SMTP id t36mr107779384pgm.87.1564592346200;
-        Wed, 31 Jul 2019 09:59:06 -0700 (PDT)
-X-Received: by 2002:a63:2264:: with SMTP id t36mr107779336pgm.87.1564592345370;
-        Wed, 31 Jul 2019 09:59:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564592345; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=h66GYamRh5h8PU3T095hhzCj9UAlrpEZrkJYNRToWEw=;
+        b=qr7u/WJMys41xHCbugZWAnPMV10J/tzoqI/3TNO17skt6+v6JALQtj6YmAA1qWgR6l
+         e2VtrO9Z++zN29zfcigV3VRJlCfwZfzxUEBB2Fq2YIGSKMrRvBeGdhxuypbphnDf9jPe
+         9+U5Rqqyq5oa++GJFB0DgH4ToiXshbdmL4zwa+hKdR0hRrnshXxsUpRIM5qNrbg+M1Rp
+         rYugxWdWp380pz+dzT00ZNH1NvtkTp8U7VufRLRamxNpYiPRfEChhw18MN10XAaDFplJ
+         i+NCvE31krQaz7AGJ+HDMHWm97AvBaCCvcbTUngkHyrAP7vI8sSEY54aQlb/vqS9k67B
+         KhgA==
+X-Gm-Message-State: APjAAAV1g3rzyVcYo3ovAZVU10fftK29wDB5NBo1U4xB63pz/r2rUPZi
+	VmxrdPLF2D+KNJiwEjpxFzqlZumtG9NgMbU9CtQnD98OZBsGjXjoeE/v3adMZjJGm5pP0f3hjsS
+	aoSEonRJL9w/8b0gCqQNrKmVjvEZdM+nFgzeCp6BYR1ZT0wQTsTO+TQyXVPqOr3OxhA==
+X-Received: by 2002:aa7:c49a:: with SMTP id m26mr111120860edq.0.1564592546472;
+        Wed, 31 Jul 2019 10:02:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxYSK9OqkrgID+Jis2bBR0VmtQZ94qg/X6Tde0F+Y5dtq6Iw1CP70R4w96RXk6WJzH5KpJa
+X-Received: by 2002:aa7:c49a:: with SMTP id m26mr111120781edq.0.1564592545839;
+        Wed, 31 Jul 2019 10:02:25 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1564592545; cv=pass;
         d=google.com; s=arc-20160816;
-        b=R6EVghw8KEzWMMu6zKPcbMcbYsjGVfXnXBxJ+5N1bUJRVZQWRC+ZJxEpxdXz811dYr
-         N6OnAS+SrZd9JWW9erB3jSJO1RntkIIyTd+XaXzy55Xry7DCIGkmg8X4LX7SXz664lLl
-         0oaMHtSMqgQ0nIV3sWzgHYcYyI/LMB4QJeT1d0AK+m0ei0zS+0K4L62iuMZlgf7pHGID
-         sQJULX2iLX/qsP5gTi7JukX97h4H9tZoPqNhh+YP4/S+x/U3wr12dFBZP7jJ1TxdH4/o
-         PYYsRr3xkv/9GJvHDkc8nuUWRh0rmyefCUsz3gJCaSahx1h7d2l7ajCPS+TtREOqrEdc
-         fLUA==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=oqrLFoRmuV3hwqUNXQJ2VzDrgthNlMLKsczJURhiFqM=;
-        b=AVhZGfjFBbj0Y9hcexRwmWno50v6jledSdmsq40M7gY/qR4qcldm3NJK96tm/Zsimm
-         FqPHMQqqJ/B8v7caBLahcPd5TklZyELPh+Mm2WWLgugy7tXVFoxtbGIATGdrWwAp4ncL
-         nKC129OiYRNaa/bvT8TRr4DZSoifo2FkeDVZAyTwFzXEhz2iSSojrqQeKDMxpCejKg0a
-         BGdrcpO5nPPF7ieEKNgSQyRgAt+CFWosTGbQpceMdovlisIvCvXhpyBcJj06iueM4rAM
-         IySpOH3KpR60/rdGTB5w8TSvxJ+SVfMZvrgD0kBXLf0/I2v4FvFUZsYVbHkoV6f6cf9H
-         Rkbw==
-ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@android.com header.s=20161025 header.b=lbzZFspY;
-       spf=pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=salyzyn@android.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=android.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n6sor83278217plp.9.2019.07.31.09.59.05
+        b=xk/G9aIKFdZSiRte6XpZT1ShVIL1SLevul9gS05GeGNyBXtIROzqRHqtNNh5EpaXZ0
+         5TwFThukbv9LkiIMXucnOS2VOzfaTZ+wSvisK+dlqQCn1ccfJMU/f8dFJQC0hPlyliFb
+         o7dIA1ZreMbk/MGtbCMw2i67JaxBlCgzDlXIK3BU8vNHJhoe7t7cuc5TvGRcyKuJVAjj
+         6XMotPkjkEHhFnTjj877i1JKeBng7Stb5uPYHyI1TMDZQ7lhH0KLV60K0anI4C+nnr67
+         3CovF1vdLmx2BMA2Vb4JVZqGKZV56hchCKadi7qpAw+ZIUaVMmf8hec0cgAFRWl9e7KH
+         9KGw==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=h66GYamRh5h8PU3T095hhzCj9UAlrpEZrkJYNRToWEw=;
+        b=Mbt6VEK5s3gr1YPSxea1GvPbN85Pd3KG4uABfc4BT2d9N+x1BKY/x3mF3/vWvSoaNh
+         boGpOYYEiYNBS+AZ/sib9ORbV7Y/oGEg41bpHHzquViOqVJEUoWIbkTQ/Y1JjG9B48rc
+         DykSkbSPZj6/89T7b8qtEmC3aazmsuyYoubOl+4j3zGMHCUBpcO6d1MgLllFfwLOQVP8
+         sXIO6tkdkJuXPuDOoORbTcTEcaqQGvn664g4nGugKjkt6Am/E79bKPN3LsE6yquCwXoW
+         MrOOjeJmAmrD8OfGpdf7MJZA4U/B+92WtLxDPpc0gpGNnzcgN5QI+2V+DXtpB55n1yz2
+         yOlg==
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=L5UQjTDS;
+       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.7.89 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR04-HE1-obe.outbound.protection.outlook.com (mail-eopbgr70089.outbound.protection.outlook.com. [40.107.7.89])
+        by mx.google.com with ESMTPS id t4si18808169ejs.337.2019.07.31.10.02.25
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 31 Jul 2019 09:59:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Jul 2019 10:02:25 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.7.89 as permitted sender) client-ip=40.107.7.89;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@android.com header.s=20161025 header.b=lbzZFspY;
-       spf=pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=salyzyn@android.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=android.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=android.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=oqrLFoRmuV3hwqUNXQJ2VzDrgthNlMLKsczJURhiFqM=;
-        b=lbzZFspYQPlTjS9mFxnpUUD9r+UIEx5grL+av4OuQPP9/T+2OU9ueuNWZmmx0kL25k
-         h5cFZG3+lOBZ6FM+mRmt6orsCAbGiHe3PtPTc24ZDvFmF7WGaRiItz/C5sh28BlCEsev
-         GzxXAOZZ+f5AZOt3ZpP2rjRtT4keWRuY8WPfybmuCd7s1ViVRKOuvo5jOslEHHZAXiE3
-         StK/2PPcdxNitdPTPhhnXcvWDqz/ZBNn51yPMrmV0TzR+zsshmmqRgfYcIGGfn0BhJEo
-         LPEOz1Kf/FYmGXc4HHzy/9Haiw4T1QgApXZXk8B2sYhj8mHRvQd5TF4do0geCp4hTfi+
-         8L5g==
-X-Google-Smtp-Source: APXvYqwhRaDtFua+d3o3hcvLc/U+pzzs9W5nxrOy9sfuhnDOsCUPlyOQjSC3Ot89UxpEV42mqzbN8g==
-X-Received: by 2002:a17:902:204:: with SMTP id 4mr34818460plc.178.1564592344943;
-        Wed, 31 Jul 2019 09:59:04 -0700 (PDT)
-Received: from nebulus.mtv.corp.google.com ([2620:15c:211:200:5404:91ba:59dc:9400])
-        by smtp.gmail.com with ESMTPSA id f72sm2245954pjg.10.2019.07.31.09.59.02
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 31 Jul 2019 09:59:04 -0700 (PDT)
-From: Mark Salyzyn <salyzyn@android.com>
-To: linux-kernel@vger.kernel.org
-Cc: kernel-team@android.com,
-	Mark Salyzyn <salyzyn@android.com>,
-	Miklos Szeredi <miklos@szeredi.hu>,
-	Jonathan Corbet <corbet@lwn.net>,
-	Vivek Goyal <vgoyal@redhat.com>,
-	"Eric W . Biederman" <ebiederm@xmission.com>,
-	Amir Goldstein <amir73il@gmail.com>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	Stephen Smalley <sds@tycho.nsa.gov>,
-	linux-unionfs@vger.kernel.org,
-	linux-doc@vger.kernel.org,
-	Eric Van Hensbergen <ericvh@gmail.com>,
-	Latchesar Ionkov <lucho@ionkov.net>,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	David Howells <dhowells@redhat.com>,
-	Chris Mason <clm@fb.com>,
-	Josef Bacik <josef@toxicpanda.com>,
-	David Sterba <dsterba@suse.com>,
-	Jeff Layton <jlayton@kernel.org>,
-	Sage Weil <sage@redhat.com>,
-	Ilya Dryomov <idryomov@gmail.com>,
-	Steve French <sfrench@samba.org>,
-	Tyler Hicks <tyhicks@canonical.com>,
-	Jan Kara <jack@suse.com>,
-	Theodore Ts'o <tytso@mit.edu>,
-	Andreas Dilger <adilger.kernel@dilger.ca>,
-	Jaegeuk Kim <jaegeuk@kernel.org>,
-	Chao Yu <yuchao0@huawei.com>,
-	Bob Peterson <rpeterso@redhat.com>,
-	Andreas Gruenbacher <agruenba@redhat.com>,
-	David Woodhouse <dwmw2@infradead.org>,
-	Richard Weinberger <richard@nod.at>,
-	Dave Kleikamp <shaggy@kernel.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Tejun Heo <tj@kernel.org>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Anna Schumaker <anna.schumaker@netapp.com>,
-	Mark Fasheh <mark@fasheh.com>,
-	Joel Becker <jlbec@evilplan.org>,
-	Joseph Qi <joseph.qi@linux.alibaba.com>,
-	Mike Marshall <hubcap@omnibond.com>,
-	Martin Brandenburg <martin@omnibond.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Phillip Lougher <phillip@squashfs.org.uk>,
-	"Darrick J . Wong" <darrick.wong@oracle.com>,
-	linux-xfs@vger.kernel.org,
-	Hugh Dickins <hughd@google.com>,
-	"David S . Miller" <davem@davemloft.net>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mathieu Malaterre <malat@debian.org>,
-	"Ernesto A . Fernandez" <ernesto.mnd.fernandez@gmail.com>,
-	Vyacheslav Dubeyko <slava@dubeyko.com>,
-	v9fs-developer@lists.sourceforge.net,
-	linux-afs@lists.infradead.org,
-	linux-btrfs@vger.kernel.org,
-	ceph-devel@vger.kernel.org,
-	linux-cifs@vger.kernel.org,
-	samba-technical@lists.samba.org,
-	ecryptfs@vger.kernel.org,
-	linux-ext4@vger.kernel.org,
-	linux-f2fs-devel@lists.sourceforge.net,
-	linux-fsdevel@vger.kernel.org,
-	cluster-devel@redhat.com,
-	linux-mtd@lists.infradead.org,
-	jfs-discussion@lists.sourceforge.net,
-	linux-nfs@vger.kernel.org,
-	ocfs2-devel@oss.oracle.com,
-	devel@lists.orangefs.org,
-	reiserfs-devel@vger.kernel.org,
-	linux-mm@kvack.org,
-	netdev@vger.kernel.org,
-	linux-security-module@vger.kernel.org,
-	stable@vger.kernel.org
-Subject: [PATCH v13 0/5] overlayfs override_creds=off
-Date: Wed, 31 Jul 2019 09:58:01 -0700
-Message-Id: <20190731165803.4755-7-salyzyn@android.com>
-X-Mailer: git-send-email 2.22.0.770.g0f2c4a37fd-goog
-In-Reply-To: <20190731165803.4755-1-salyzyn@android.com>
-References: <20190731165803.4755-1-salyzyn@android.com>
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=L5UQjTDS;
+       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.7.89 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=fOXT2KUTfxcPvEMCppPXk2wrMj4BZLasKl0MVTzmNI0fkSjLV66M4uEv4krqsabdQDAjj/97Yq17EVEK1CYwucARO5gIJ8n49ieAhWP84LKaiJXcCQuzJR2yUnt1e8yP8sAwa7oVw4aMqLe84HOk7VQrTvm3gGJdXNzMc/W56FObR+HJ9D8hv4Qey2bPXSJmcFVGjUXd2Z5LR4WCqHcDwlr89wMcx6SvIx5WIiWdqZdZdFf7rVeBTOniH9u2pzNo7r02r6//ESGNRHeNrfPnix8l/pazfCnh6Ivg6dPk76aksMhEYb2i/t9gJJ7O1u762oYwKhwdbDrus5mfExRACw==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=h66GYamRh5h8PU3T095hhzCj9UAlrpEZrkJYNRToWEw=;
+ b=XwwlJYgAJQ4rZvYxgaUjCaHIM3BgbPeo8fO7H8WknkiiXp6hPzMXD+HBG0xTmdt5pD5/tsUT6PEoJqkKChPfD7QtMM3203BxKoiY+J5ljyjUjfNrmfwKXb7PV/kZbVW1BRyAWbM0QyMJbIlPAY2LCyM7KY5ioZb9MM5wNwt7HLSIOc+06lDgWhuag9DToWEsnafL8alrqHyG7sa7XCcwarWyTLzgos3EnWmjkG+BLz+BXoWnJ7Jh+/ptHMdFsbqC5fo0/L1D/EhC/OUgSg3pxO/BsTF3mutzY9Cyo6Gx9ZIikl3Ao5OXK5S82QOPRhYmts1cCdJz1dK3+M2ovDYY0A==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
+ smtp.mailfrom=mellanox.com;dmarc=pass action=none
+ header.from=mellanox.com;dkim=pass header.d=mellanox.com;arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=h66GYamRh5h8PU3T095hhzCj9UAlrpEZrkJYNRToWEw=;
+ b=L5UQjTDS1konX8ry82cmnIKY6y4buSB33dhb+3UGmgB1jB4Vg1G2ZhzCOwrInofPuCtPO3GvfZL63BtlB/3W59RYqZg0AT9ehbXxTjjCeTwybV7EXAQ6AWY+31P8WpQYtN4KeeuCQ4x6NJpluZzswU0VAXr0RZuQgyYmgdREKs0=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB3231.eurprd05.prod.outlook.com (10.170.238.12) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2115.15; Wed, 31 Jul 2019 17:02:24 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::5c6f:6120:45cd:2880]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::5c6f:6120:45cd:2880%4]) with mapi id 15.20.2136.010; Wed, 31 Jul 2019
+ 17:02:24 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: "Kuehling, Felix" <Felix.Kuehling@amd.com>
+CC: Christoph Hellwig <hch@lst.de>, =?iso-8859-1?Q?J=E9r=F4me_Glisse?=
+	<jglisse@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Ralph Campbell
+	<rcampbell@nvidia.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 02/13] amdgpu: don't initialize range->list in
+ amdgpu_hmm_init_range
+Thread-Topic: [PATCH 02/13] amdgpu: don't initialize range->list in
+ amdgpu_hmm_init_range
+Thread-Index: AQHVRpr2/Xz4jNPu6k2DNRcwdQGPdqbkuYYAgAA8sIA=
+Date: Wed, 31 Jul 2019 17:02:24 +0000
+Message-ID: <20190731170219.GG22677@mellanox.com>
+References: <20190730055203.28467-1-hch@lst.de>
+ <20190730055203.28467-3-hch@lst.de>
+ <a4586f5c-0ae4-8cbd-65ff-dfe70d34f99b@amd.com>
+In-Reply-To: <a4586f5c-0ae4-8cbd-65ff-dfe70d34f99b@amd.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: YQBPR0101CA0071.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:c00:1::48) To VI1PR05MB4141.eurprd05.prod.outlook.com
+ (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [156.34.55.100]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: e18b437b-1d80-4064-93a4-08d715d8dbb1
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB3231;
+x-ms-traffictypediagnostic: VI1PR05MB3231:
+x-microsoft-antispam-prvs:
+ <VI1PR05MB3231B23EE08859787CFF93EECFDF0@VI1PR05MB3231.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:9508;
+x-forefront-prvs: 011579F31F
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(4636009)(396003)(39860400002)(366004)(376002)(346002)(136003)(189003)(199004)(6512007)(478600001)(66556008)(6916009)(6436002)(11346002)(14454004)(229853002)(446003)(256004)(7416002)(6116002)(3846002)(54906003)(53936002)(305945005)(36756003)(86362001)(316002)(486006)(2906002)(476003)(2616005)(66066001)(33656002)(4744005)(81156014)(8676002)(102836004)(26005)(6506007)(66446008)(71200400001)(1076003)(53546011)(386003)(6486002)(81166006)(4326008)(99286004)(6246003)(52116002)(76176011)(68736007)(66476007)(64756008)(66946007)(25786009)(5660300002)(71190400001)(8936002)(186003)(7736002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB3231;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ XvANRZ0wSiwaYImTi/Xr3Vcjvyb3jUZ9kXGpIMAMliLL6nh88DIR9Yh1Zop+BRn/H8Ent1VUnvJsbHWZ2M6wXZBC7utyFXLbpNkbuXcvSREmn69Vjgy9PZoVRZvZjJmGYQy96YC/pPe6eAJXl63HvODgzwUjaz2yy2i2kJea4byM3/AV8p0T+OYwG+WYSIWwJbqWlF6x2pX7NEku1uagH3ZhYaovCn0XJ8Ng0oOvKn9KUrtJRtcyB1WmZKjyFlGGb34I0aa3oYIex22SOsO3C+cC0zOnj089fsi3t9ySZu9jjRa/qEgBWRhE9fLEGuDenzxZOuM4FPdDyp6B3gAm7cXxSg5Kfjb+gyNtPrlWEuFUQBS45zRynPfUGNRudHAY6IhgLvaZjl8nqJltfM/1+bgV7RLjNuiYlQZL8IdecDA=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <FAC49FFA8B421F49B49EF44701A00263@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: e18b437b-1d80-4064-93a4-08d715d8dbb1
+X-MS-Exchange-CrossTenant-originalarrivaltime: 31 Jul 2019 17:02:24.1750
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB3231
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Patch series:
+On Wed, Jul 31, 2019 at 01:25:06PM +0000, Kuehling, Felix wrote:
+> On 2019-07-30 1:51 a.m., Christoph Hellwig wrote:
+> > The list is used to add the range to another list as an entry in the
+> > core hmm code, so there is no need to initialize it in a driver.
+>=20
+> I've seen code that uses list_empty to check whether a list head has=20
+> been added to a list or not. For that to work, the list head needs to be=
+=20
+> initialized, and it has to be removed with list_del_init.=20
 
-overlayfs: check CAP_DAC_READ_SEARCH before issuing exportfs_decode_fh
-Add flags option to get xattr method paired to __vfs_getxattr
-overlayfs: handle XATTR_NOSECURITY flag for get xattr method
-overlayfs: internal getxattr operations without sepolicy checking
-overlayfs: override_creds=off option bypass creator_cred
+I think the ida is that 'list' is a private member of range and
+drivers shouldn't touch it at all.
 
-The first four patches address fundamental security issues that should
-be solved regardless of the override_creds=off feature.
-on them).
+> ever do that with range->list, then this patch is Reviewed-by: Felix=20
+> Kuehling <Felix.Kuehling@amd.com>
 
-The fifth adds the feature depends on these other fixes.
+Please put tags on their own empty line so that patchworks will
+collect them automatically..
 
-By default, all access to the upper, lower and work directories is the
-recorded mounter's MAC and DAC credentials.  The incoming accesses are
-checked against the caller's credentials.
-
-If the principles of least privilege are applied for sepolicy, the
-mounter's credentials might not overlap the credentials of the caller's
-when accessing the overlayfs filesystem.  For example, a file that a
-lower DAC privileged caller can execute, is MAC denied to the
-generally higher DAC privileged mounter, to prevent an attack vector.
-
-We add the option to turn off override_creds in the mount options; all
-subsequent operations after mount on the filesystem will be only the
-caller's credentials.  The module boolean parameter and mount option
-override_creds is also added as a presence check for this "feature",
-existence of /sys/module/overlay/parameters/overlay_creds
-
-Signed-off-by: Mark Salyzyn <salyzyn@android.com>
-Cc: Miklos Szeredi <miklos@szeredi.hu>
-Cc: Jonathan Corbet <corbet@lwn.net>
-Cc: Vivek Goyal <vgoyal@redhat.com>
-Cc: Eric W. Biederman <ebiederm@xmission.com>
-Cc: Amir Goldstein <amir73il@gmail.com>
-Cc: Randy Dunlap <rdunlap@infradead.org>
-Cc: Stephen Smalley <sds@tycho.nsa.gov>
-Cc: linux-unionfs@vger.kernel.org
-Cc: linux-doc@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org
-Cc: Eric Van Hensbergen <ericvh@gmail.com>
-Cc: Latchesar Ionkov <lucho@ionkov.net>
-Cc: Dominique Martinet <asmadeus@codewreck.org>
-Cc: David Howells <dhowells@redhat.com>
-Cc: Chris Mason <clm@fb.com>
-Cc: Josef Bacik <josef@toxicpanda.com>
-Cc: David Sterba <dsterba@suse.com>
-Cc: Jeff Layton <jlayton@kernel.org>
-Cc: Sage Weil <sage@redhat.com>
-Cc: Ilya Dryomov <idryomov@gmail.com>
-Cc: Steve French <sfrench@samba.org>
-Cc: Tyler Hicks <tyhicks@canonical.com>
-Cc: Jan Kara <jack@suse.com>
-Cc: Theodore Ts'o <tytso@mit.edu>
-Cc: Andreas Dilger <adilger.kernel@dilger.ca>
-Cc: Jaegeuk Kim <jaegeuk@kernel.org>
-Cc: Chao Yu <yuchao0@huawei.com>
-Cc: Bob Peterson <rpeterso@redhat.com>
-Cc: Andreas Gruenbacher <agruenba@redhat.com>
-Cc: David Woodhouse <dwmw2@infradead.org>
-Cc: Richard Weinberger <richard@nod.at>
-Cc: Dave Kleikamp <shaggy@kernel.org>
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: Tejun Heo <tj@kernel.org>
-Cc: Trond Myklebust <trond.myklebust@hammerspace.com>
-Cc: Anna Schumaker <anna.schumaker@netapp.com>
-Cc: Mark Fasheh <mark@fasheh.com>
-Cc: Joel Becker <jlbec@evilplan.org>
-Cc: Joseph Qi <joseph.qi@linux.alibaba.com>
-Cc: Mike Marshall <hubcap@omnibond.com>
-Cc: Martin Brandenburg <martin@omnibond.com>
-Cc: Alexander Viro <viro@zeniv.linux.org.uk>
-Cc: Phillip Lougher <phillip@squashfs.org.uk>
-Cc: Darrick J. Wong <darrick.wong@oracle.com>
-Cc: linux-xfs@vger.kernel.org
-Cc: Hugh Dickins <hughd@google.com>
-Cc: David S. Miller <davem@davemloft.net>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mathieu Malaterre <malat@debian.org>
-Cc: Ernesto A. Fernandez <ernesto.mnd.fernandez@gmail.com>
-Cc: Vyacheslav Dubeyko <slava@dubeyko.com>
-Cc: v9fs-developer@lists.sourceforge.net
-Cc: linux-afs@lists.infradead.org
-Cc: linux-btrfs@vger.kernel.org
-Cc: ceph-devel@vger.kernel.org
-Cc: linux-cifs@vger.kernel.org
-Cc: samba-technical@lists.samba.org
-Cc: ecryptfs@vger.kernel.org
-Cc: linux-ext4@vger.kernel.org
-Cc: linux-f2fs-devel@lists.sourceforge.net
-Cc: linux-fsdevel@vger.kernel.org
-Cc: cluster-devel@redhat.com
-Cc: linux-mtd@lists.infradead.org
-Cc: jfs-discussion@lists.sourceforge.net
-Cc: linux-nfs@vger.kernel.org
-Cc: ocfs2-devel@oss.oracle.com
-Cc: devel@lists.orangefs.org
-Cc: reiserfs-devel@vger.kernel.org
-Cc: linux-mm@kvack.org
-Cc: netdev@vger.kernel.org
-Cc: linux-security-module@vger.kernel.org
-Cc: stable@vger.kernel.org # 4.4, 4.9, 4.14 & 4.19
----
-v13:
-- add flags argument to __vfs_getxattr
-- drop GFP_NOFS side-effect
-
-v12:
-- Restore squished out patch 2 and 3 in the series,
-  then change algorithm to add flags argument.
-  Per-thread flag is a large security surface.
-
-v11:
-- Squish out v10 introduced patch 2 and 3 in the series,
-  then and use per-thread flag instead for nesting.
-- Switch name to ovl_do_vds_getxattr for __vds_getxattr wrapper.
-- Add sb argument to ovl_revert_creds to match future work.
-
-v10:
-- Return NULL on CAP_DAC_READ_SEARCH
-- Add __get xattr method to solve sepolicy logging issue
-- Drop unnecessary sys_admin sepolicy checking for administrative
-  driver internal xattr functions.
-
-v6:
-- Drop CONFIG_OVERLAY_FS_OVERRIDE_CREDS.
-- Do better with the documentation, drop rationalizations.
-- pr_warn message adjusted to report consequences.
-
-v5:
-- beefed up the caveats in the Documentation
-- Is dependent on
-  "overlayfs: check CAP_DAC_READ_SEARCH before issuing exportfs_decode_fh"
-  "overlayfs: check CAP_MKNOD before issuing vfs_whiteout"
-- Added prwarn when override_creds=off
-
-v4:
-- spelling and grammar errors in text
-
-v3:
-- Change name from caller_credentials / creator_credentials to the
-  boolean override_creds.
-- Changed from creator to mounter credentials.
-- Updated and fortified the documentation.
-- Added CONFIG_OVERLAY_FS_OVERRIDE_CREDS
-
-v2:
-- Forward port changed attr to stat, resulting in a build error.
-- altered commit message.
+Jason
 
