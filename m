@@ -2,184 +2,148 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A10C6C32753
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 22:40:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DF0CFC32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 23:01:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5229A214DA
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 22:40:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9C46B206A2
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 23:01:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=sifive.com header.i=@sifive.com header.b="QvM5gURg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5229A214DA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sifive.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="ZqOvaIKn"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C46B206A2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DDE078E0005; Wed, 31 Jul 2019 18:40:38 -0400 (EDT)
+	id 397728E0003; Wed, 31 Jul 2019 19:01:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D67308E0001; Wed, 31 Jul 2019 18:40:38 -0400 (EDT)
+	id 34F168E0001; Wed, 31 Jul 2019 19:01:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C07A48E0005; Wed, 31 Jul 2019 18:40:38 -0400 (EDT)
+	id 20D508E0003; Wed, 31 Jul 2019 19:01:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id A22EA8E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 18:40:38 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id p12so76841938iog.19
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 15:40:38 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 011CC8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 19:01:01 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id k125so59323504qkc.12
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 16:01:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=egRpxJBa9oK7OchDbNGXXbbAvoOMUOmZrCvbt5gO8zI=;
-        b=XzGRYfqzHHjDsC4NBMEsxj884Fv1DXDmVqCBRv6rxYIRBc3etEH+qnN4Drd6Zrnbs8
-         w4TBXJGzg15L+2mmvODP+szNoDNbkLHlRA+xyUvZo0p0vG2Y7dZjjnknSu4dhVhi/zYw
-         IKw8R3qGvEyxEZZGdkhqR+Pn34Q9y4k4DjcjRSDbo29BnRGCu/JBaTKHFK/XrdIVMYqU
-         UKMRLDBrRlJ/B8M4SWNoiCErjnJerZco+gqIlLY98rb+aAkDjSWIMNxnufF/oYihO80I
-         3bX2O4qoeTk5CLhVOWPtQrCGqIPZNzQ8SFVKwNDR6/E/7YYdeanDjhixoprNxR4tKuyh
-         QZRg==
-X-Gm-Message-State: APjAAAU5a8WTwGpnW6FJQA9h+OwpSjV54RLEwOV0MXAdesuCQOkEWGSm
-	D6b3qLLpyl13aJ2J2Y9YAGYnlyty5lgU5RrdHbhEyrSYCJOy0zw+UKwdQI0ss66HFt7RqihRzul
-	rdWoxCak8vztq6stBka4n6t9Esw8yIXszEkWFR6OGGQgBq5EJjMfWhhMg08FHyMoSrQ==
-X-Received: by 2002:a02:8663:: with SMTP id e90mr126575166jai.98.1564612838337;
-        Wed, 31 Jul 2019 15:40:38 -0700 (PDT)
-X-Received: by 2002:a02:8663:: with SMTP id e90mr126575049jai.98.1564612837046;
-        Wed, 31 Jul 2019 15:40:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564612837; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=his7K/u+JOrtxUOs2Ekh5bM+KWEwFmVBgmJqXbtUu9E=;
+        b=ZpocwTtpN9LKeYY8C/L+0XRMp8QLV0N7EESF3tuvpkznpcKJ50JJXvIUANXofvmSwQ
+         UCiWDFL3mQxwvcFLdDo1XYjaZMWwxy3ZIDYzNE1EuRlGA2vN1p3ML0EI25lI3Vlqohc9
+         wkza9BsDPJYHqzseVCAZiTwOSSqyeo3eA7t7fCPC6W2Lr7UmrrxdfLvR3j9+IdBwvRe3
+         JTUNpR0y//Px97CuWogEEIEn+udLazkgHwfEYrQEQt+gvb43+Dt/+tu+T4esYX3rbBAe
+         JF5J0ngLJYiTKQfglA2AqaikAnKBA5yEJxukP28V/8kCSb5F9ELgVo4N6fG7CGqV+ZjY
+         JSaA==
+X-Gm-Message-State: APjAAAWTrSTF6QdIuXuLOoPOUq9ntdvb3N3N1/EMLcOAD0OdIHlAoaFf
+	c+P0bSFfq0zRwdZFEKWEansIZsKySXmDYcsyzxmCsTx6dCGiavZwL7Z9I7ifW3CYmad7HBMAuzt
+	2LK+qJCVY+EHrRHTW68dgBJCC5S1+Q9ZGNiN42zTlvOwZ9KggtyeqHy1qeNFkVXcM4Q==
+X-Received: by 2002:a37:9c81:: with SMTP id f123mr79935274qke.135.1564614060743;
+        Wed, 31 Jul 2019 16:01:00 -0700 (PDT)
+X-Received: by 2002:a37:9c81:: with SMTP id f123mr79935202qke.135.1564614059808;
+        Wed, 31 Jul 2019 16:00:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564614059; cv=none;
         d=google.com; s=arc-20160816;
-        b=J0dHiXatDhJEWMTVvG6Sl4eglqVzPw2p5vR/eM4IebNBVGlUWI9b5cXuYsgeo28jAc
-         gW5UwaLEIoBZp4Kbi20OqRnHnVgBj3PB6w86fFW+vIHUjdvwGAwVVHL0SMWNk1q+RkdB
-         Wj9tPySKuXkn3n0UMPGzcrf4B1DzFOKOkkM2mcE3GgF/KdigeXBclFYoyXonfiXkcFPq
-         VZnntMkp8WzO5RiZNaRXPoqNg7JpXcP3GgRwnsJk7s5PXyTnJIV7+MyDJih/eEq41rAe
-         ZhCr3l/HwMm6VV63S22BSvuownlKHFzsbWZSQ7LckhAzxqo+L3CRnu9UAh3CJAk0lWRC
-         whLg==
+        b=OIuF9FXjpJXRuPbAupYuQqcd1I+VgDj2AUYse4Bo7w9m432Sl4g4NOkXCA2+HKACa/
+         cwdcISVmXmv79tRBogtpmT8LNtzvkLFdh90HcrC0SznCeEi+L4XY9WzGClp3l2fhJw3a
+         WR5Mixu5KdOcWwdZwhtYrH1T9vrkTQFVqA7pP1vITuwnEVtNrfI9TN4yiHAFE9cAYKud
+         L/vRH3IPF1A7yxOjcHLb7Tg+cDMMKYtacKKqFTcnvV9h96uTxmB/OJptP2cE7qP6+3ga
+         iUi2Zi9Ga15nuQJBJ15zPb33F9rx2UIo/ePNy2VOyClSd8Pq9dfEjbIMsOk+j705S9Vf
+         0oCQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=egRpxJBa9oK7OchDbNGXXbbAvoOMUOmZrCvbt5gO8zI=;
-        b=nUXVJIQRSgy/zaCzqd9L4y4j+77irWItwrKwoW74McRcbR6+rtgD7afKxjZxl1FAc7
-         92LC8ObAzNYTUiS1yiat7RJv4jm/haw7bpt7dtHoPLIFvxP3FyLnXtrz7sKvBwUJ7Rqw
-         1vLRW1REXOScvq+on9kaHLhDtooajHKj8M+9GJJRK1/xYu4chv5VsThPwRNuDgFL2gA6
-         jZ4nHA+dtBL+Z3fWBh4nszq8hXB+Ex1yovz86GlAu9cd8BDuq6vVAz16Bmg3EZoAnZ+K
-         SziKbKo7vSPFgNRzUYHBi76wHhTJbDV630FF3Wx/CgAYcIFc2sP7P/2kjHJPx4fjyYEX
-         u10w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=his7K/u+JOrtxUOs2Ekh5bM+KWEwFmVBgmJqXbtUu9E=;
+        b=r+uJDqRxoxzmgJWKhQobAnpo3bK550n4sKybCnEDHaSik2C1tReEFQ40c9Zr/5o6Uh
+         NbiNxElaZI/pjlldanaHxIPqdVJkiP1tj5lGiY2K1irDFBMOt3wgk3A+wFYeWJS4dEz4
+         YYwUn3LFHE4fI+f+95c/M6nO8bA4bcPS8CqR9y8zJwV06/jMuz1olSCzN+lYZHGuwf3C
+         oKI/5ePjzH6jRmd4x4h63CxEonpxUhXVp3/AZTChCPD2fKeyY1pHo2WsqalVG69OG0cn
+         fBjPmvJxyy+0GW+uw9ZXCcd5Ql7QNtGap4btZzDyYyNNHtWAIJcHiGJORWF8I/pYs+0M
+         Fbdw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@sifive.com header.s=google header.b=QvM5gURg;
-       spf=pass (google.com: domain of paul.walmsley@sifive.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=paul.walmsley@sifive.com
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=ZqOvaIKn;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e18sor29846312iot.134.2019.07.31.15.40.36
+        by mx.google.com with SMTPS id y8sor91148335qtm.63.2019.07.31.16.00.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Jul 2019 15:40:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of paul.walmsley@sifive.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 31 Jul 2019 16:00:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@sifive.com header.s=google header.b=QvM5gURg;
-       spf=pass (google.com: domain of paul.walmsley@sifive.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=paul.walmsley@sifive.com
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=ZqOvaIKn;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=sifive.com; s=google;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=egRpxJBa9oK7OchDbNGXXbbAvoOMUOmZrCvbt5gO8zI=;
-        b=QvM5gURgmBtYYb5ewAA6jGZY4ljdEgJDQkLHHqVikVD66zPlOj6SuWDfLaZFvi4LUF
-         FQdJPeaP2xBSfu5VhEpovno9nnLQOcyhglyYB0pRP4JDwGr0eAqZbpbagc3uUt7s9USv
-         Mpj2IzZzl+bJl5mUIlw221ntI2T0Gd3i5626L0lZpF3NQf2YbT9pIlRRSe+aFdedyfsu
-         M2J7DASUn+cy4TT7B8G64SBFNLwKRalGaUFXLhzgYJLwUMSwiCHsd5R54xYkxPti/wZi
-         C3bY3XL25Z5iZQrpq93tCxIGxwS4lBIYfZ/mctkv1io4wB2KYJZz7fo2JWv6xUDgj8Db
-         lqfQ==
-X-Google-Smtp-Source: APXvYqwrG00LBhTpDLsR7IvSvLbPRzUfGNUjyuov0y6Pr5JYCZwHs6hWm99dQiGbrjWMUvsaR2nw9Q==
-X-Received: by 2002:a6b:f406:: with SMTP id i6mr44093290iog.110.1564612836637;
-        Wed, 31 Jul 2019 15:40:36 -0700 (PDT)
-Received: from localhost ([170.10.65.222])
-        by smtp.gmail.com with ESMTPSA id a7sm56245658iok.19.2019.07.31.15.40.35
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 31 Jul 2019 15:40:35 -0700 (PDT)
-Date: Wed, 31 Jul 2019 15:40:35 -0700 (PDT)
-From: Paul Walmsley <paul.walmsley@sifive.com>
-X-X-Sender: paulw@viisi.sifive.com
-To: Alexandre Ghiti <alex@ghiti.fr>
-cc: Andrew Morton <akpm@linux-foundation.org>, 
-    Albert Ou <aou@eecs.berkeley.edu>, Kees Cook <keescook@chromium.org>, 
-    Catalin Marinas <catalin.marinas@arm.com>, 
-    Palmer Dabbelt <palmer@sifive.com>, Will Deacon <will.deacon@arm.com>, 
-    Russell King <linux@armlinux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, 
-    linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
-    Luis Chamberlain <mcgrof@kernel.org>, Paul Burton <paul.burton@mips.com>, 
-    James Hogan <jhogan@kernel.org>, linux-fsdevel@vger.kernel.org, 
-    linux-riscv@lists.infradead.org, linux-mips@vger.kernel.org, 
-    Christoph Hellwig <hch@lst.de>, linux-arm-kernel@lists.infradead.org, 
-    Alexander Viro <viro@zeniv.linux.org.uk>
-Subject: Re: [PATCH v5 14/14] riscv: Make mmap allocation top-down by
- default
-In-Reply-To: <20190730055113.23635-15-alex@ghiti.fr>
-Message-ID: <alpine.DEB.2.21.9999.1907311538460.22372@viisi.sifive.com>
-References: <20190730055113.23635-1-alex@ghiti.fr> <20190730055113.23635-15-alex@ghiti.fr>
-User-Agent: Alpine 2.21.9999 (DEB 301 2018-08-15)
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=his7K/u+JOrtxUOs2Ekh5bM+KWEwFmVBgmJqXbtUu9E=;
+        b=ZqOvaIKn5gpXMKF0lFuPBJqJcfbMtb3MPGVVmN3aQsXXr9MSvDSwnBIoLdfs4Cduzu
+         QRA8c1QAxNjNjf8z0l9WF9x2Kw8+F1laR/NQxc3pyjTGetdSmplJvdURFUqnq6fIi7Y5
+         JS4Uvm5qizwTDtKpRb8KoH2QzFqssZQiMkXG494iOUBy1xVC1xhi6b5WNlWd0gIvaub2
+         W1XaQLBaV1YKYGli71I0JUa9mD2l2THlCEAFuHc01L/n1KcqIaj1oCEo7xdECmJqx39w
+         8DGqiJA1GV5ZIbSfFrgl6Pwwxp6UZXG3UZ0N0Nuntbj6x+BE/tlQ9FyXqpoxRRJYgrFQ
+         ADTw==
+X-Google-Smtp-Source: APXvYqwJPf0PqUhqgGpVR2IzxGvlfGykM1M7nRsba5YS0Ne3y5wjASuoEvOh6D7uIAmXvcUuYYR1nQ==
+X-Received: by 2002:ac8:688:: with SMTP id f8mr11797584qth.130.1564614059446;
+        Wed, 31 Jul 2019 16:00:59 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id n18sm29218512qtr.28.2019.07.31.16.00.57
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 31 Jul 2019 16:00:58 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hsxab-00009Y-B9; Wed, 31 Jul 2019 20:00:57 -0300
+Date: Wed, 31 Jul 2019 20:00:57 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Jason Wang <jasowang@redhat.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>,
+	syzbot <syzbot+e58112d71f77113ddb7b@syzkaller.appspotmail.com>,
+	aarcange@redhat.com, akpm@linux-foundation.org,
+	christian@brauner.io, davem@davemloft.net, ebiederm@xmission.com,
+	elena.reshetova@intel.com, guro@fb.com, hch@infradead.org,
+	james.bottomley@hansenpartnership.com, jglisse@redhat.com,
+	keescook@chromium.org, ldv@altlinux.org,
+	linux-arm-kernel@lists.infradead.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, linux-parisc@vger.kernel.org,
+	luto@amacapital.net, mhocko@suse.com, mingo@kernel.org,
+	namit@vmware.com, peterz@infradead.org,
+	syzkaller-bugs@googlegroups.com, viro@zeniv.linux.org.uk,
+	wad@chromium.org
+Subject: Re: WARNING in __mmdrop
+Message-ID: <20190731230057.GA32346@ziepe.ca>
+References: <ada10dc9-6cab-e189-5289-6f9d3ff8fed2@redhat.com>
+ <aaefa93e-a0de-1c55-feb0-509c87aae1f3@redhat.com>
+ <20190726094756-mutt-send-email-mst@kernel.org>
+ <0792ee09-b4b7-673c-2251-e5e0ce0fbe32@redhat.com>
+ <20190729045127-mutt-send-email-mst@kernel.org>
+ <4d43c094-44ed-dbac-b863-48fc3d754378@redhat.com>
+ <20190729104028-mutt-send-email-mst@kernel.org>
+ <96b1d67c-3a8d-1224-e9f0-5f7725a3dc10@redhat.com>
+ <20190730110633-mutt-send-email-mst@kernel.org>
+ <421a1af6-df06-e4a6-b34f-526ac123bc4a@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <421a1af6-df06-e4a6-b34f-526ac123bc4a@redhat.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Jul 2019, Alexandre Ghiti wrote:
+On Wed, Jul 31, 2019 at 04:49:32PM +0800, Jason Wang wrote:
+> Yes, looking at the synchronization implemented by other MMU notifiers.
+> Vhost is even the simplest.
 
-> In order to avoid wasting user address space by using bottom-up mmap
-> allocation scheme, prefer top-down scheme when possible.
-> 
-> Before:
-> root@qemuriscv64:~# cat /proc/self/maps
-> 00010000-00016000 r-xp 00000000 fe:00 6389       /bin/cat.coreutils
-> 00016000-00017000 r--p 00005000 fe:00 6389       /bin/cat.coreutils
-> 00017000-00018000 rw-p 00006000 fe:00 6389       /bin/cat.coreutils
-> 00018000-00039000 rw-p 00000000 00:00 0          [heap]
-> 1555556000-155556d000 r-xp 00000000 fe:00 7193   /lib/ld-2.28.so
-> 155556d000-155556e000 r--p 00016000 fe:00 7193   /lib/ld-2.28.so
-> 155556e000-155556f000 rw-p 00017000 fe:00 7193   /lib/ld-2.28.so
-> 155556f000-1555570000 rw-p 00000000 00:00 0
-> 1555570000-1555572000 r-xp 00000000 00:00 0      [vdso]
-> 1555574000-1555576000 rw-p 00000000 00:00 0
-> 1555576000-1555674000 r-xp 00000000 fe:00 7187   /lib/libc-2.28.so
-> 1555674000-1555678000 r--p 000fd000 fe:00 7187   /lib/libc-2.28.so
-> 1555678000-155567a000 rw-p 00101000 fe:00 7187   /lib/libc-2.28.so
-> 155567a000-15556a0000 rw-p 00000000 00:00 0
-> 3fffb90000-3fffbb1000 rw-p 00000000 00:00 0      [stack]
-> 
-> After:
-> root@qemuriscv64:~# cat /proc/self/maps
-> 00010000-00016000 r-xp 00000000 fe:00 6389       /bin/cat.coreutils
-> 00016000-00017000 r--p 00005000 fe:00 6389       /bin/cat.coreutils
-> 00017000-00018000 rw-p 00006000 fe:00 6389       /bin/cat.coreutils
-> 2de81000-2dea2000 rw-p 00000000 00:00 0          [heap]
-> 3ff7eb6000-3ff7ed8000 rw-p 00000000 00:00 0
-> 3ff7ed8000-3ff7fd6000 r-xp 00000000 fe:00 7187   /lib/libc-2.28.so
-> 3ff7fd6000-3ff7fda000 r--p 000fd000 fe:00 7187   /lib/libc-2.28.so
-> 3ff7fda000-3ff7fdc000 rw-p 00101000 fe:00 7187   /lib/libc-2.28.so
-> 3ff7fdc000-3ff7fe2000 rw-p 00000000 00:00 0
-> 3ff7fe4000-3ff7fe6000 r-xp 00000000 00:00 0      [vdso]
-> 3ff7fe6000-3ff7ffd000 r-xp 00000000 fe:00 7193   /lib/ld-2.28.so
-> 3ff7ffd000-3ff7ffe000 r--p 00016000 fe:00 7193   /lib/ld-2.28.so
-> 3ff7ffe000-3ff7fff000 rw-p 00017000 fe:00 7193   /lib/ld-2.28.so
-> 3ff7fff000-3ff8000000 rw-p 00000000 00:00 0
-> 3fff888000-3fff8a9000 rw-p 00000000 00:00 0      [stack]
-> 
-> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
-> Reviewed-by: Christoph Hellwig <hch@lst.de>
-> Reviewed-by: Kees Cook <keescook@chromium.org>
-> Reviewed-by: Luis Chamberlain <mcgrof@kernel.org>
+I think that is only because it calls gup under a spinlock, which is,
+IMHO, not great.
 
-Acked-by: Paul Walmsley <paul.walmsley@sifive.com> # for arch/riscv
-
-As Alex notes, this patch depends on "[PATCH] riscv: kbuild: add virtual 
-memory system selection":
-
-https://lore.kernel.org/linux-riscv/alpine.DEB.2.21.9999.1907301218560.3486@viisi.sifive.com/T/#t
-
-which will likely go up during v5.3-rc.
-
-
-- Paul
+Jason
 
