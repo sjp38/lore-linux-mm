@@ -2,221 +2,199 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 17CECC32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:23:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F282EC433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:25:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BCBF7208C3
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:23:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BCBF7208C3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 950FB20659
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:25:10 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=amdcloud.onmicrosoft.com header.i=@amdcloud.onmicrosoft.com header.b="JLt78RVx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 950FB20659
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amd.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5BB228E0003; Wed, 31 Jul 2019 09:23:54 -0400 (EDT)
+	id 40D968E0003; Wed, 31 Jul 2019 09:25:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 56C5C8E0001; Wed, 31 Jul 2019 09:23:54 -0400 (EDT)
+	id 3BDEB8E0001; Wed, 31 Jul 2019 09:25:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 40DE88E0003; Wed, 31 Jul 2019 09:23:54 -0400 (EDT)
+	id 285158E0003; Wed, 31 Jul 2019 09:25:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E502C8E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:23:53 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b12so42349458ede.23
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 06:23:53 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 077E88E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:25:10 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id s9so75295374iob.11
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 06:25:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=r+9YjRzKAoDDNjTcVwt+BxUknqmdF55iA+1SdxYntQY=;
-        b=MPcwhqIutItJ9pWRo8ZaqZdIinrVw33PwzqEwhBVGv3aauXjd9Pc5XC1Dw4jc6cynA
-         gIDGwzk/Q3AOoV3+z5WDhC02S08sqAC0KdQLIplBmClGhsms0v+1ZCETQKqLeDvHXRCm
-         qPWAjUp3TAParcCqQpMR7kYM0cIRGsptgByjHuOutKkzhotMaNLEzTb6iI4JpyI9eBXR
-         qFlF9QUnrC/i+7geYkZRU7vjbXaT2qqkITz/YeN8C5MZxNyRv86TfHwEcykmafu4beC3
-         /UVeDy5VmdgUqInpGNxZhpT/z7jpy9i34JSZJOWvjBNC8ZHbvlx14wj8MJTo7U5YgTd+
-         MWgA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAV81r/SKtB8fSRnkxahY76iAqITDWh+AC62fp49plfpyapw8lgW
-	vxsxUbYJJh2joQCQy8zA59My/eGqGFTfn46wETr/j/xiSjoXZinHtL1IjseB+UCEnMJ+MPE168/
-	ZHuVQq79hxU6XkSHfLpPwwtzNkNKIKoKuj0tXXtieMT+y4BqKqKA2H+HsxcmdqpIZ0g==
-X-Received: by 2002:a17:906:9149:: with SMTP id y9mr91537828ejw.98.1564579433448;
-        Wed, 31 Jul 2019 06:23:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy4jgXuS9OZFKG+UTvC53eUwTF4euNS2E9BwZBi0fMLQbHr0vBfcxgQUUCwU5baAj2uqejA
-X-Received: by 2002:a17:906:9149:: with SMTP id y9mr91537783ejw.98.1564579432677;
-        Wed, 31 Jul 2019 06:23:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564579432; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:user-agent:content-id:content-transfer-encoding
+         :mime-version;
+        bh=YwtYT+vExfOzc5xjfQzi4BcYbfZJ4FnCtkseS7N+gHw=;
+        b=pmdXoq6McNNUYVGQcwamT7Nw08rCa8osFoL7mLjMvy+OK0d4idJti0q5YcK+SJMwfw
+         0f1PgVSXNY/4IQDKeU/uBZEbM2tyIIVsuMZa7HbbfV8nYno2Bg2BgfLz7wG1ovuFr1OZ
+         M6FMrtN7btje5cCBs0FIFUwrnb2wwFTDZG+eGDltSuH4w6I/w5ZbNs6LXbv/ZQNOV9N+
+         Cmv0Pjmp91URYG2ZUScwwdscWzNorQh05+I0/b5w8vuQjmsF3bkRb06L5uWwR+XEU/xy
+         9+CWAe72qzjdE7RmpCp8UoSpLcHumz0nGrP1QZKbN6uLAre3nhXhxfZcLQAkS+ZahhM6
+         x90w==
+X-Gm-Message-State: APjAAAU+6f46Pmrqj0WoeFRODXaGpgjqSs9nFvD5AG9StXTVDqOgJRGO
+	kMU6x5/ZeAANiMYt6HOdUZo1IFE+xeJkYGYZWXQ6ZbsqH4C1RN5kThFbGT/hU2AVfrk9Kcfdm1r
+	7TliVRE8NcjL6KkBeg9/e0UhqF69xrMTnLDh/GMErIarTnA3aKzmb8N2haOxjdH0=
+X-Received: by 2002:a6b:fb0f:: with SMTP id h15mr8344133iog.266.1564579509667;
+        Wed, 31 Jul 2019 06:25:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwrEB9UWTysGaaF5CLROWBy/ceYUjZ0xsXA/wgLZSEA4RZOaHovsL//kqt38C5VJvjRQL0P
+X-Received: by 2002:a6b:fb0f:: with SMTP id h15mr8344101iog.266.1564579509105;
+        Wed, 31 Jul 2019 06:25:09 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1564579509; cv=pass;
         d=google.com; s=arc-20160816;
-        b=uJ3Y//5p7IpFDoq+ALZ7xOmLyMGYH++8moQyLNtDvoat6Wr1/UGhjmSa0FphQBy2xJ
-         0jchQcF3yj92mutrwh1wcK9VKIl31QRUvHrCqRh1Dc3+L/4/fVHJcQ7UnjHG8fgVuc5t
-         EuywYD7xv5lh1cCK88e6ecfy+tepuYqJU3pFI+5GWqNj6TUSRikRNWe99Gvlc0NYvwZB
-         sMimZc6UPGCvYnyhhrh/L4r2FWEBcY9x7vtIvbe2MMXkXmSZvSiH567m7GuqlmA9QzLa
-         8c2ogI899aO0el6/IvIKEOimgP1InCzYw3EALyrWaImu5d0lcUvvCP/aFplOyUCX5oHs
-         h0Ag==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=r+9YjRzKAoDDNjTcVwt+BxUknqmdF55iA+1SdxYntQY=;
-        b=LaKUuthkd/ZqwxdWwQVGB9K4S4Bsu2atEQQq8trDKaptMzi0XPQw8dTyxoTpY9Y5Se
-         76ajC555Vzqngq6tn2p6PEnxcmKuHRaIPgjc20M1VxHggopwUNXPE0Tycd0cC5Mf8/TI
-         V8GdRLNujUZJyHJiaNMUoy2jdVyiRC+Xwsoqsdf9M9xA+ct1xl840sBjzZrIjAORUDDI
-         wjr34bDZ6IipUcIRs2H2z0RT6cSLp7sCUqlLi6VP8p/zuJRer8RakQ0jpaxxQ/uCT4pN
-         wgp/yVuylqbF7xCeo8EfBg7yy1+9tPvjX3DOi8k40GB2b9WJeJY1VidWxPDS0S7IdrXm
-         0MEA==
-ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b57si21189890edc.406.2019.07.31.06.23.52
+        b=UQbmFNuJfLsl+kwe2Hosj+ndyu7kWrq7NtcNF7739W6rV8MLxYE3yJh4FIqycXWbBb
+         vHxrcBq+a6lPlfbHyCV1DxIveG4ylhUVsFmgPE123k13lhvE6xQ94QYyRAh+/33OEei/
+         QFPDo7JrkufYxk0zuuKi9yVF1aUKkrhqbgJWAfyaK19MAy0upRHt5di5oyOa2SC3TwpK
+         OngNiSlklcwl7OqRf/2VdFKA85Vvemdf3HzqcmHkEMwaCDN8JFfQYgpEXkgGm7vdZEiw
+         ypswAuF3uAFC1yAQTv7enwLXb4i7/vQt06MOy/ZBnZz/6GjSK0RIv5yad0922dBumW2h
+         nAiQ==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=mime-version:content-transfer-encoding:content-id:user-agent
+         :content-language:accept-language:in-reply-to:references:message-id
+         :date:thread-index:thread-topic:subject:cc:to:from:dkim-signature;
+        bh=YwtYT+vExfOzc5xjfQzi4BcYbfZJ4FnCtkseS7N+gHw=;
+        b=K5ncDOqgrpwbaEJSJweZw6IhJvT75/FxokTsRxAGCS3uu3S5k8N8b3vc6eh4blmlRf
+         Uij9QWk8s/fWnoz5XmdOSwizoaUDWdB8nrz07geTePfP39sC3xdWo2PtfMWuGwrY8XGS
+         FXZhpmmoIGaDT7GcQgM/ykvlddwEYAlohDsfIaHNnPyN6HBUDlybwHT1jMNzainujjdO
+         dhCMb9NWM6baJKPmLdkNzVYnVLPaRvHKyolf7G0SMHcqyDx+rfo7XZYb+cWIGKrrZ70a
+         8KQ1EeazEj7w+DzlgZdOBM5zQ4F57ckukjpWWQsM9pKQKJm/k1uQYuf1y6fzvjbYUl1g
+         cK4A==
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amdcloud-onmicrosoft-com header.b=JLt78RVx;
+       arc=pass (i=1 spf=pass spfdomain=amd.com dkim=pass dkdomain=amd.com dmarc=pass fromdomain=amd.com);
+       spf=neutral (google.com: 40.107.75.41 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) smtp.mailfrom=Felix.Kuehling@amd.com
+Received: from NAM02-BL2-obe.outbound.protection.outlook.com (mail-eopbgr750041.outbound.protection.outlook.com. [40.107.75.41])
+        by mx.google.com with ESMTPS id f19si30566023ioj.8.2019.07.31.06.25.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 06:23:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 31 Jul 2019 06:25:09 -0700 (PDT)
+Received-SPF: neutral (google.com: 40.107.75.41 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) client-ip=40.107.75.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 1D46EAE21;
-	Wed, 31 Jul 2019 13:23:52 +0000 (UTC)
-Subject: Re: [RFC PATCH 3/3] hugetlbfs: don't retry when pool page allocations
- start to fail
-To: Mike Kravetz <mike.kravetz@oracle.com>, Mel Gorman <mgorman@suse.de>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- Hillf Danton <hdanton@sina.com>, Michal Hocko <mhocko@kernel.org>,
- Johannes Weiner <hannes@cmpxchg.org>,
- Andrew Morton <akpm@linux-foundation.org>
-References: <20190724175014.9935-1-mike.kravetz@oracle.com>
- <20190724175014.9935-4-mike.kravetz@oracle.com>
- <20190725081350.GD2708@suse.de>
- <6a7f3705-9550-e22f-efa1-5e3616351df6@oracle.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <d4099d77-418b-4d4b-715f-7b37347d5f8d@suse.cz>
-Date: Wed, 31 Jul 2019 15:23:51 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
-MIME-Version: 1.0
-In-Reply-To: <6a7f3705-9550-e22f-efa1-5e3616351df6@oracle.com>
-Content-Type: text/plain; charset=iso-8859-15
+       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amdcloud-onmicrosoft-com header.b=JLt78RVx;
+       arc=pass (i=1 spf=pass spfdomain=amd.com dkim=pass dkdomain=amd.com dmarc=pass fromdomain=amd.com);
+       spf=neutral (google.com: 40.107.75.41 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) smtp.mailfrom=Felix.Kuehling@amd.com
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=A/JcJKaFWPUEM4H2ZOvBU90YUi2eRvooIVaryVDsubWo6B9NZ97jItXa8TGrIvJW5afFG65CxUiJYZD+aw8bvxN2v7HUVdl+zr/LvPwQ0HYw2OT39mTNNd7aWdPWL/6FMU1sdgqjMCeMLASeHPZEnVyWAaFnlTHBVlnfLaJd3xqc5ksD0yXSGijqtUxRNcsvU1KyirwzYZfRfPUTlo+r5vq9VMD3K31TMYvkTDJj8hAjkQQVIsx61SOxB8aP/IQvJ7oa3aI0NoQzqaymRSf3tdP0tRQHq4W7bYFUFttsmPla3BTPTYc2JTNEqIbE+/e++djKT2DzxoeDOg4oE9TPwg==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=YwtYT+vExfOzc5xjfQzi4BcYbfZJ4FnCtkseS7N+gHw=;
+ b=PRU5ydywvIMODfzvFLIsdq39N0ar6ho2SkD8TsgHOtSRM8qQeiYBnlaUew0i+A1KAfIDRncjeDi7SrwHXUp1y+mA4So5YhwLj2AdUg8dq6BIdTiK+rRep8cMWGBE3rvN+SHl/LLlFcnPyCK6lbq3f0y/1YBQS01d/G9W6c9HpwQxaPygIJR8dsSBKE3VDOR/X5pEy3J4LPVYm4JuzMFVtDxzzN3unEfGUnqlnOkMvj7N+lqhIlovzLowfrGeCeU+C06zYGCNG0hgLCHum+JYDInvIO54Czy6QxIxRekuGOEHUvoAGYSlEioD6WM1DvCB3vaVq5B2CDjbXsIQCrcgyg==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
+ smtp.mailfrom=amd.com;dmarc=pass action=none header.from=amd.com;dkim=pass
+ header.d=amd.com;arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+ d=amdcloud.onmicrosoft.com; s=selector1-amdcloud-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=YwtYT+vExfOzc5xjfQzi4BcYbfZJ4FnCtkseS7N+gHw=;
+ b=JLt78RVxjDKaBy2RyPh4AGG+8V99jcvymtgBFGQ2env4G8iglH3qiqspw1OEIMdlAUf2TDtxoPDq4xuUt7TUi+J4DZ8phTRkMRGdEv7bLhScr15h/MMWad47Y/4QZdorrZtacefJegss2b4pDGMO4RAyTUpSetUYr9eEeTGmevc=
+Received: from DM6PR12MB3947.namprd12.prod.outlook.com (10.255.174.156) by
+ DM6PR12MB2876.namprd12.prod.outlook.com (20.179.71.85) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2094.17; Wed, 31 Jul 2019 13:25:06 +0000
+Received: from DM6PR12MB3947.namprd12.prod.outlook.com
+ ([fe80::1c82:54e7:589b:539c]) by DM6PR12MB3947.namprd12.prod.outlook.com
+ ([fe80::1c82:54e7:589b:539c%5]) with mapi id 15.20.2136.010; Wed, 31 Jul 2019
+ 13:25:06 +0000
+From: "Kuehling, Felix" <Felix.Kuehling@amd.com>
+To: Christoph Hellwig <hch@lst.de>, =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+	<jglisse@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs
+	<bskeggs@redhat.com>
+CC: Ralph Campbell <rcampbell@nvidia.com>, "linux-mm@kvack.org"
+	<linux-mm@kvack.org>, "nouveau@lists.freedesktop.org"
+	<nouveau@lists.freedesktop.org>, "dri-devel@lists.freedesktop.org"
+	<dri-devel@lists.freedesktop.org>, "amd-gfx@lists.freedesktop.org"
+	<amd-gfx@lists.freedesktop.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 02/13] amdgpu: don't initialize range->list in
+ amdgpu_hmm_init_range
+Thread-Topic: [PATCH 02/13] amdgpu: don't initialize range->list in
+ amdgpu_hmm_init_range
+Thread-Index: AQHVRpr3HdRnKcDwD0mPobnQ4k0PuKbkuYMA
+Date: Wed, 31 Jul 2019 13:25:06 +0000
+Message-ID: <a4586f5c-0ae4-8cbd-65ff-dfe70d34f99b@amd.com>
+References: <20190730055203.28467-1-hch@lst.de>
+ <20190730055203.28467-3-hch@lst.de>
+In-Reply-To: <20190730055203.28467-3-hch@lst.de>
+Accept-Language: en-US
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [165.204.55.251]
+user-agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
+x-clientproxiedby: YTXPR0101CA0033.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:b00::46) To DM6PR12MB3947.namprd12.prod.outlook.com
+ (2603:10b6:5:1cb::28)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=Felix.Kuehling@amd.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 3e463aa9-abd8-4fb2-a4d5-08d715ba808a
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:DM6PR12MB2876;
+x-ms-traffictypediagnostic: DM6PR12MB2876:
+x-microsoft-antispam-prvs:
+ <DM6PR12MB2876EAF33AADC444B63CE45F92DF0@DM6PR12MB2876.namprd12.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8273;
+x-forefront-prvs: 011579F31F
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(4636009)(376002)(136003)(39860400002)(346002)(366004)(396003)(199004)(189003)(81166006)(305945005)(52116002)(8936002)(71190400001)(476003)(68736007)(53546011)(71200400001)(26005)(66066001)(6486002)(65956001)(66556008)(102836004)(66476007)(7736002)(54906003)(76176011)(6506007)(3846002)(65806001)(31686004)(7416002)(6116002)(6436002)(386003)(186003)(66446008)(99286004)(8676002)(64756008)(66946007)(486006)(25786009)(6512007)(4326008)(6246003)(81156014)(5660300002)(65826007)(11346002)(229853002)(36756003)(2616005)(110136005)(446003)(86362001)(14444005)(316002)(478600001)(31696002)(256004)(58126008)(14454004)(53936002)(2906002)(64126003);DIR:OUT;SFP:1101;SCL:1;SRVR:DM6PR12MB2876;H:DM6PR12MB3947.namprd12.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: amd.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ XbHN2c+hkdJkN0z1kpd66GW9de9nlr4qQ7jjDRoL5R2ld6KS8MeVSVJhA4wSqEhfkMRrU3Od58fhHBD9pzRJbQkOeL0IvBGdO3X8WAAzv2lwEHfiz0zBc2XPoZyQZVJBg/hLRaiJXHXAGT41ghery7SbtvyOGb8bWfRvexCDr77xvX7qYqcGebdmk8os8nOIUl1Hze/Dp7lFaThxfGt/CzOF8dGbZY2pQZkPBsgR6nr49zTTbSKRGtCnnIH8Fy4pbXlvCGT1cqvp14qeODRBt6OQeI8WHV9c/jNn5eSzRdFvxwYeG4pCSsz/mtmvaEdiPrVIvLXsIN4UhjKtbBN4wOjVce5Ac8Bv8t4e97rdzm+w70Y9iNHahZH59TAORheDdyUTIKeQ0C7UzxleLdSjvknXaeB4BY296xihvCxsVGE=
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <5232542593C7E848A01B5283F83332DC@namprd12.prod.outlook.com>
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
+X-OriginatorOrg: amd.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 3e463aa9-abd8-4fb2-a4d5-08d715ba808a
+X-MS-Exchange-CrossTenant-originalarrivaltime: 31 Jul 2019 13:25:06.2473
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 3dd8961f-e488-4e60-8e11-a82d994e183d
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: fkuehlin@amd.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR12MB2876
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/25/19 7:15 PM, Mike Kravetz wrote:
-> On 7/25/19 1:13 AM, Mel Gorman wrote:
->> On Wed, Jul 24, 2019 at 10:50:14AM -0700, Mike Kravetz wrote:
->>> When allocating hugetlbfs pool pages via /proc/sys/vm/nr_hugepages,
->>> the pages will be interleaved between all nodes of the system.  If
->>> nodes are not equal, it is quite possible for one node to fill up
->>> before the others.  When this happens, the code still attempts to
->>> allocate pages from the full node.  This results in calls to direct
->>> reclaim and compaction which slow things down considerably.
->>>
->>> When allocating pool pages, note the state of the previous allocation
->>> for each node.  If previous allocation failed, do not use the
->>> aggressive retry algorithm on successive attempts.  The allocation
->>> will still succeed if there is memory available, but it will not try
->>> as hard to free up memory.
->>>
->>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
->>
->> set_max_huge_pages can fail the NODEMASK_ALLOC() alloc which you handle
->> *but* in the event of an allocation failure this bug can silently recur.
->> An informational message might be justified in that case in case the
->> stall should recur with no hint as to why.
-> 
-> Right.
-> Perhaps a NODEMASK_ALLOC() failure should just result in a quick exit/error.
-> If we can't allocate a node mask, it is unlikely we will be able to allocate
-> a/any huge pages.  And, the system must be extremely low on memory and there
-> are likely other bigger issues.
-
-Agreed. But I would perhaps drop __GFP_NORETRY from the mask allocation
-as that can fail for transient conditions.
-
-> There have been discussions elsewhere about discontinuing the use of
-> NODEMASK_ALLOC() and just putting the mask on the stack.  That may be
-> acceptable here as well.
-> 
->>                                            Technically passing NULL into
->> NODEMASK_FREE is also safe as kfree (if used for that kernel config) can
->> handle freeing of a NULL pointer. However, that is cosmetic more than
->> anything. Whether you decide to change either or not;
-> 
-> Yes.
-> I will clean up with an updated series after more feedback.
-> 
->>
->> Acked-by: Mel Gorman <mgorman@suse.de>
->>
-> 
-> Thanks!
-> 
+T24gMjAxOS0wNy0zMCAxOjUxIGEubS4sIENocmlzdG9waCBIZWxsd2lnIHdyb3RlOg0KPiBUaGUg
+bGlzdCBpcyB1c2VkIHRvIGFkZCB0aGUgcmFuZ2UgdG8gYW5vdGhlciBsaXN0IGFzIGFuIGVudHJ5
+IGluIHRoZQ0KPiBjb3JlIGhtbSBjb2RlLCBzbyB0aGVyZSBpcyBubyBuZWVkIHRvIGluaXRpYWxp
+emUgaXQgaW4gYSBkcml2ZXIuDQoNCkkndmUgc2VlbiBjb2RlIHRoYXQgdXNlcyBsaXN0X2VtcHR5
+IHRvIGNoZWNrIHdoZXRoZXIgYSBsaXN0IGhlYWQgaGFzIA0KYmVlbiBhZGRlZCB0byBhIGxpc3Qg
+b3Igbm90LiBGb3IgdGhhdCB0byB3b3JrLCB0aGUgbGlzdCBoZWFkIG5lZWRzIHRvIGJlIA0KaW5p
+dGlhbGl6ZWQsIGFuZCBpdCBoYXMgdG8gYmUgcmVtb3ZlZCB3aXRoIGxpc3RfZGVsX2luaXQuIElm
+IEhNTSBkb2Vzbid0IA0KZXZlciBkbyB0aGF0IHdpdGggcmFuZ2UtPmxpc3QsIHRoZW4gdGhpcyBw
+YXRjaCBpcyBSZXZpZXdlZC1ieTogRmVsaXggDQpLdWVobGluZyA8RmVsaXguS3VlaGxpbmdAYW1k
+LmNvbT4NCg0KDQo+DQo+IFNpZ25lZC1vZmYtYnk6IENocmlzdG9waCBIZWxsd2lnIDxoY2hAbHN0
+LmRlPg0KPiAtLS0NCj4gICBkcml2ZXJzL2dwdS9kcm0vYW1kL2FtZGdwdS9hbWRncHVfbW4uYyB8
+IDEgLQ0KPiAgIDEgZmlsZSBjaGFuZ2VkLCAxIGRlbGV0aW9uKC0pDQo+DQo+IGRpZmYgLS1naXQg
+YS9kcml2ZXJzL2dwdS9kcm0vYW1kL2FtZGdwdS9hbWRncHVfbW4uYyBiL2RyaXZlcnMvZ3B1L2Ry
+bS9hbWQvYW1kZ3B1L2FtZGdwdV9tbi5jDQo+IGluZGV4IGI2OThiNDIzYjI1ZC4uNjBiOWZjOTU2
+MWQ3IDEwMDY0NA0KPiAtLS0gYS9kcml2ZXJzL2dwdS9kcm0vYW1kL2FtZGdwdS9hbWRncHVfbW4u
+Yw0KPiArKysgYi9kcml2ZXJzL2dwdS9kcm0vYW1kL2FtZGdwdS9hbWRncHVfbW4uYw0KPiBAQCAt
+NDg0LDYgKzQ4NCw1IEBAIHZvaWQgYW1kZ3B1X2htbV9pbml0X3JhbmdlKHN0cnVjdCBobW1fcmFu
+Z2UgKnJhbmdlKQ0KPiAgIAkJcmFuZ2UtPmZsYWdzID0gaG1tX3JhbmdlX2ZsYWdzOw0KPiAgIAkJ
+cmFuZ2UtPnZhbHVlcyA9IGhtbV9yYW5nZV92YWx1ZXM7DQo+ICAgCQlyYW5nZS0+cGZuX3NoaWZ0
+ID0gUEFHRV9TSElGVDsNCj4gLQkJSU5JVF9MSVNUX0hFQUQoJnJhbmdlLT5saXN0KTsNCj4gICAJ
+fQ0KPiAgIH0NCg==
 
