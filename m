@@ -2,534 +2,752 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BC962C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 08:51:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 044F9C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 08:53:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 70C7D2089E
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 08:51:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 70C7D2089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 9743A208C3
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 08:53:48 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="aXuThQog"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9743A208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1F67A8E0005; Wed, 31 Jul 2019 04:51:04 -0400 (EDT)
+	id 416BD8E0005; Wed, 31 Jul 2019 04:53:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 159E08E0001; Wed, 31 Jul 2019 04:51:04 -0400 (EDT)
+	id 3A0A18E0001; Wed, 31 Jul 2019 04:53:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 021228E0005; Wed, 31 Jul 2019 04:51:03 -0400 (EDT)
+	id 269388E0005; Wed, 31 Jul 2019 04:53:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id CDAA38E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 04:51:03 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id j81so57202931qke.23
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 01:51:03 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D39378E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 04:53:47 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id y9so37134084plp.12
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 01:53:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=v9ue5hbhd2MohnslbZ4usWyHKBolEutg8/RwpvveSzA=;
-        b=XI+OfFGOF6gWKaZF6KA8zw57GB2fbFygLEa12z1GFgrJ3fdsfRGYzati4e42S8UGt8
-         CWEy4XfJ1JceftdljaKdyj/LUbUhRDENVkY7Zc5l6LBNWVXKjA1+dIxtmHTWSYgs3vP/
-         lxbdatO7sgnJQhKBR3mgSuKd2PT6AgslnEXSUgf+tnlc5ewxeqvjII/CUUT6FgGScsU1
-         dBeumwNX+yDMEqLS997yValn5bWquxx8bNiLao4zfeNNY0+vWi45TbhlJ+m16eSm5DXu
-         I0AHaQ58XqmMu6LSIVWcer3+LkBtWHaVeiXVCVWWs2zx0HNXfDwIrZqOz6UQ4PadAWOR
-         hyTw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWmuCn3sCiQEWxiNwKLUWtX3vId369IU7u5DfRVUy4to5oLqDRZ
-	qn9J8HD0Z6lafI4uEBzCTGsGBoKU2DbM/T+m1mXPuQ/EXOQFuMIxdn4jkW69RTt/PDbTAN4SI2C
-	xeMUMSrodDZh2vYJJpGP3+j16JUZWVQvgX91d7a6DegUZxIHWw8/6O3cREE0SoUl2nQ==
-X-Received: by 2002:ac8:32a1:: with SMTP id z30mr85540430qta.117.1564563063557;
-        Wed, 31 Jul 2019 01:51:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz5Zjqjn7jgpLhw4Ssjh22SsHYHY5VBhybNC/uW24F/ov1I2UrqFtzr2XNCQajM+dtj+9mG
-X-Received: by 2002:ac8:32a1:: with SMTP id z30mr85540395qta.117.1564563062674;
-        Wed, 31 Jul 2019 01:51:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564563062; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=yjtSxrpcqYG+rTu6hUiI05ri/eGpBVcCWbzlNAVfWio=;
+        b=rBabZ2utTWSv+lWWUBI7kXNc1qPZDvJ0lzPfjDL7uld4nRrQuWRQW6OWao1g5SZYCK
+         xPz+Q18TIK4fQ0ZJYyEPLaV79T4TbyvQngAiulb3N4Wt9b6TzJbO6jZZOUxkszQP7SKW
+         nMz5B2PIafA94m0Gac2c1tHsQ+D2qUZaCNKdFpqvvfoM0fywM2egQ0OBthWQi0qdvlCm
+         YuWP31YMMvWOWPtwMbYbwJg43GdYX4M9+pZzODcA5T0WidbriM6w6uPQdBhBrq1ie+Vg
+         Y+AODAlxmPYPoU7YctABf49SKS2clpcjSWYdV2h/uv+KX14lOdzg92t5gL+Il547Xcl2
+         jJLQ==
+X-Gm-Message-State: APjAAAUWoWkXhTv1G/8TXhK9tbkayTh6ZIaAldLxwwNClis7L8ZBgeCg
+	Necs0c4JvpqpLdnPQ3W4TV4xNIc2P/42ZY1iNj0Qs+m0dy41xHopG0Wm1xkaxwOZgjqnh9zlwTA
+	YbhHYfCvk/QPzOI2+EOmo9r6/4qjap8Y7gDz7i1jDYJwNtEBiOkM7C+TItkBUD/0=
+X-Received: by 2002:a17:902:7c90:: with SMTP id y16mr121294569pll.238.1564563227398;
+        Wed, 31 Jul 2019 01:53:47 -0700 (PDT)
+X-Received: by 2002:a17:902:7c90:: with SMTP id y16mr121294494pll.238.1564563225959;
+        Wed, 31 Jul 2019 01:53:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564563225; cv=none;
         d=google.com; s=arc-20160816;
-        b=SOF7O5rIG2dPHx6Aa8zyDem7j3KH030nhngiY3fT+RFrUX2bZ1OEOkVeSfV5grQvRt
-         8z59rWZA04g3ZzTAhXILUoAMfk9pRu/XPr9+I0YJ8WC66DnhWzJU6P5sDsehhTEuNgZ4
-         YWvAm4bkzevuYkDunyTTU2aUpWNznuDLQAt/c7ttgeLpOYuBLMkibuCT5SAvzoA+P9P4
-         WvBqTTLOVyfY5Y0NvkN8eMrpONLs5cB1s98L9NDsNSttQbsWYlzOtV/PhRLYoDHnLg30
-         wYuLU6H5hJQmKZEa5Kf3vYj4GVoS+HkOEmpnlfz1kAlDMIR/oWEcB7YD7vLkCUiBCtsA
-         crBw==
+        b=xUNc2lU0ULzS291+RcF0dmRZT5MJkMtH7GBzLqwz2G1av3g6r4XTeQAKdCVRXPmcTn
+         H9IWBaKggFO6f36z6EPXRsauyJ6ImWvtpW3MbMqIo++liqzD8gD47peEnppEdUzF4tse
+         2lZazHwBMop1PnHoRJrfLpBZA9236WUtk5zoR77GlRuw/qfOe3K/vwbGkdL8uO0hHqH4
+         rSaLezFTadKeUa3/mMfkMXPaaRpqeJkAxIYSqfovddPQqXknVjlTVO8UwjPm3GcdBfQ1
+         TGGoOBvumj7u8MaseZOAzcN/KUao46z0oDO6ORIYwkF+xn+rTyArXr+EU3BdkDp3tjMq
+         PVqA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=v9ue5hbhd2MohnslbZ4usWyHKBolEutg8/RwpvveSzA=;
-        b=XKGeqECSC2P8DANC7ssWnu2x6aUzGB7a5Q7A2Q1BReucNRj1ewIqaGhS6VrD/wFySx
-         FBEc3AmoOJCJSQ0nbCjwy3zTFSg05HORPEl/ikJoD9sjThmM6mbLwsBfqN8QRMUnKYmi
-         T+tdSy+9p0J6vpHoBtRJyu8De89bHkmz+GcbY+bpnJp0y9Ev+lu2gqmKFEZmnrhvvfAG
-         ML+lU8EtMfoTcb8PEDfEUs8cVAxonA92DB4d3Rzw4R5szJ+INiWQvFWBy/B76YffaZj+
-         SoBLBtqcwE6c9NZdsnDpwAzV39JMPpbq0nW1TxFXdZD7Ro0eFVKIg49fi5AWshRS2cqU
-         uxXQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=yjtSxrpcqYG+rTu6hUiI05ri/eGpBVcCWbzlNAVfWio=;
+        b=QPmqlTrsF7tmLZzmlLFScL/ybfQ6Z4fegGaM4wrJoPsrNojYz9EmC4hGcJ2699o9uq
+         DRcQTTcy3tRdCTbhcNOj+/Q+06Ad9Fy+iBmo6GatuwYW+3AC9y2ZQiaCzaT6sASc8Tro
+         Oy+3/6uA2fc7kzJ01OVWR5ookfBBMCMhC9ggBCfGVI49sJGKF0hkiixzMwuXevdHR96e
+         3glgQMSx/kGrGquJhSPqyTYRoO+H2sz7o8gvTtz7/0K1b+u/wsEcz+PYhvmsK60o0kGu
+         gW5eRRRzNWENEbR6/ZU1d3Dm2UtduyNLHaxF9qOQ8UMh6pMhJcqDzleqabyPZc87S+4r
+         2p1w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q16si41673775qtc.362.2019.07.31.01.51.02
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=aXuThQog;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id j19sor48550597pfd.55.2019.07.31.01.53.45
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 01:51:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Wed, 31 Jul 2019 01:53:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id CF17C3084025;
-	Wed, 31 Jul 2019 08:51:01 +0000 (UTC)
-Received: from [10.72.12.51] (ovpn-12-51.pek2.redhat.com [10.72.12.51])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id F03B85D6A7;
-	Wed, 31 Jul 2019 08:50:55 +0000 (UTC)
-Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
- with worker
-To: mst@redhat.com, kvm@vger.kernel.org,
- virtualization@lists.linux-foundation.org, netdev@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, jgg@ziepe.ca
-References: <20190731084655.7024-1-jasowang@redhat.com>
- <20190731084655.7024-8-jasowang@redhat.com>
-From: Jason Wang <jasowang@redhat.com>
-Message-ID: <cab99dc3-962e-57a2-70f3-73e9f64f3a49@redhat.com>
-Date: Wed, 31 Jul 2019 16:50:54 +0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=aXuThQog;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=yjtSxrpcqYG+rTu6hUiI05ri/eGpBVcCWbzlNAVfWio=;
+        b=aXuThQogjba0ky3c4PSakNKPI/YAmE0i48tFMxUDHDi6X1bO0ebcFBpGM29/OCHjs6
+         rzKAMLPO7b5vaBGyR1Tp01Z3s52YgE+F9d4a/WgLSlOjsgNiGH0/p4qvrB1qwSBFYVCw
+         2y48k+tAPKhsFGGLmCl4vbXHS9ko98cLQ4airLN4VjA9ce0lqAwsKodQ8l0uc+gGndDk
+         Nsb54Iz+VraPQU/W30PsKO/hSJIt2jr39Vs7c1NlW7pPjLtCljlj1LF0BH7zey8IWvjd
+         nl4+UJTcsVe4AtNIlMOhwf8Kq0ScKAh9wS3SU0dkmI/R2iRBNQ6WJeQsQJtX0iyRfVaO
+         L7vQ==
+X-Google-Smtp-Source: APXvYqyHfw7hKfp1Y7bbA88jij7iLSbY3n4B/qGF4mwM2kRmhhM12+RmBrVtvV8wwzy7uVKUB+B6yQ==
+X-Received: by 2002:a63:5b52:: with SMTP id l18mr113146608pgm.21.1564563225147;
+        Wed, 31 Jul 2019 01:53:45 -0700 (PDT)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id v138sm76826945pfc.15.2019.07.31.01.53.38
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 31 Jul 2019 01:53:43 -0700 (PDT)
+Date: Wed, 31 Jul 2019 17:53:35 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
+Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Brendan Gregg <bgregg@netflix.com>,
+	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
+	fmayer@google.com, joaodias@google.com, joelaf@google.com,
+	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+	kernel-team@android.com, linux-api@vger.kernel.org,
+	linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>,
+	Mike Rapoport <rppt@linux.ibm.com>, namhyung@google.com,
+	Roman Gushchin <guro@fb.com>,
+	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
+	tkjos@google.com, Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>, wvw@google.com
+Subject: Re: [PATCH v3 1/2] mm/page_idle: Add per-pid idle page tracking
+ using virtual indexing
+Message-ID: <20190731085335.GD155569@google.com>
+References: <20190726152319.134152-1-joel@joelfernandes.org>
 MIME-Version: 1.0
-In-Reply-To: <20190731084655.7024-8-jasowang@redhat.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Wed, 31 Jul 2019 08:51:01 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190726152319.134152-1-joel@joelfernandes.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi Joel,
 
-On 2019/7/31 下午4:46, Jason Wang wrote:
-> We used to use RCU to synchronize MMU notifier with worker. This leads
-> calling synchronize_rcu() in invalidate_range_start(). But on a busy
-> system, there would be many factors that may slow down the
-> synchronize_rcu() which makes it unsuitable to be called in MMU
-> notifier.
->
-> A solution is SRCU but its overhead is obvious with the expensive full
-> memory barrier. Another choice is to use seqlock, but it doesn't
-> provide a synchronization method between readers and writers. The last
-> choice is to use vq mutex, but it need to deal with the worst case
-> that MMU notifier must be blocked and wait for the finish of swap in.
->
-> So this patch switches use a counter to track whether or not the map
-> was used. The counter was increased when vq try to start or finish
-> uses the map. This means, when it was even, we're sure there's no
-> readers and MMU notifier is synchronized. When it was odd, it means
-> there's a reader we need to wait it to be even again then we are
-> synchronized. To avoid full memory barrier, store_release +
-> load_acquire on the counter is used.
-
-
-For reviewers, I try hard to avoid e.g smp_mb(), please double check 
-whether or not this trick work.
-
-Thanks
-
-
->
-> Consider the read critical section is pretty small the synchronization
-> should be done very fast.
->
-> Note the patch lead about 3% PPS dropping.
->
-> Reported-by: Michael S. Tsirkin <mst@redhat.com>
-> Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual address")
-> Signed-off-by: Jason Wang <jasowang@redhat.com>
+On Fri, Jul 26, 2019 at 11:23:18AM -0400, Joel Fernandes (Google) wrote:
+> The page_idle tracking feature currently requires looking up the pagemap
+> for a process followed by interacting with /sys/kernel/mm/page_idle.
+> Looking up PFN from pagemap in Android devices is not supported by
+> unprivileged process and requires SYS_ADMIN and gives 0 for the PFN.
+> 
+> This patch adds support to directly interact with page_idle tracking at
+> the PID level by introducing a /proc/<pid>/page_idle file.  It follows
+> the exact same semantics as the global /sys/kernel/mm/page_idle, but now
+> looking up PFN through pagemap is not needed since the interface uses
+> virtual frame numbers, and at the same time also does not require
+> SYS_ADMIN.
+> 
+> In Android, we are using this for the heap profiler (heapprofd) which
+> profiles and pin points code paths which allocates and leaves memory
+> idle for long periods of time. This method solves the security issue
+> with userspace learning the PFN, and while at it is also shown to yield
+> better results than the pagemap lookup, the theory being that the window
+> where the address space can change is reduced by eliminating the
+> intermediate pagemap look up stage. In virtual address indexing, the
+> process's mmap_sem is held for the duration of the access.
+> 
+> Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+> 
 > ---
->   drivers/vhost/vhost.c | 145 ++++++++++++++++++++++++++----------------
->   drivers/vhost/vhost.h |   7 +-
->   2 files changed, 94 insertions(+), 58 deletions(-)
->
-> diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
-> index cfc11f9ed9c9..db2c81cb1e90 100644
-> --- a/drivers/vhost/vhost.c
-> +++ b/drivers/vhost/vhost.c
-> @@ -324,17 +324,16 @@ static void vhost_uninit_vq_maps(struct vhost_virtqueue *vq)
->   
->   	spin_lock(&vq->mmu_lock);
->   	for (i = 0; i < VHOST_NUM_ADDRS; i++) {
-> -		map[i] = rcu_dereference_protected(vq->maps[i],
-> -				  lockdep_is_held(&vq->mmu_lock));
-> +		map[i] = vq->maps[i];
->   		if (map[i]) {
->   			vhost_set_map_dirty(vq, map[i], i);
-> -			rcu_assign_pointer(vq->maps[i], NULL);
-> +			vq->maps[i] = NULL;
->   		}
->   	}
->   	spin_unlock(&vq->mmu_lock);
->   
-> -	/* No need for synchronize_rcu() or kfree_rcu() since we are
-> -	 * serialized with memory accessors (e.g vq mutex held).
-> +	/* No need for synchronization since we are serialized with
-> +	 * memory accessors (e.g vq mutex held).
->   	 */
->   
->   	for (i = 0; i < VHOST_NUM_ADDRS; i++)
-> @@ -362,6 +361,44 @@ static bool vhost_map_range_overlap(struct vhost_uaddr *uaddr,
->   	return !(end < uaddr->uaddr || start > uaddr->uaddr - 1 + uaddr->size);
->   }
->   
-> +static void inline vhost_vq_access_map_begin(struct vhost_virtqueue *vq)
-> +{
-> +	int ref = READ_ONCE(vq->ref);
+> v2->v3:
+> Fixed a bug where I was doing a kfree that is not needed due to not
+> needing to do GFP_ATOMIC allocations.
+> 
+> v1->v2:
+> Mark swap ptes as idle (Minchan)
+> Avoid need for GFP_ATOMIC (Andrew)
+> Get rid of idle_page_list lock by moving list to stack
+> 
+> Internal review -> v1:
+> Fixes from Suren.
+> Corrections to change log, docs (Florian, Sandeep)
+> 
+>  fs/proc/base.c            |   3 +
+>  fs/proc/internal.h        |   1 +
+>  fs/proc/task_mmu.c        |  57 +++++++
+>  include/linux/page_idle.h |   4 +
+>  mm/page_idle.c            | 340 +++++++++++++++++++++++++++++++++-----
+>  5 files changed, 360 insertions(+), 45 deletions(-)
+> 
+> diff --git a/fs/proc/base.c b/fs/proc/base.c
+> index 77eb628ecc7f..a58dd74606e9 100644
+> --- a/fs/proc/base.c
+> +++ b/fs/proc/base.c
+> @@ -3021,6 +3021,9 @@ static const struct pid_entry tgid_base_stuff[] = {
+>  	REG("smaps",      S_IRUGO, proc_pid_smaps_operations),
+>  	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
+>  	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
+> +#ifdef CONFIG_IDLE_PAGE_TRACKING
+> +	REG("page_idle", S_IRUSR|S_IWUSR, proc_page_idle_operations),
+> +#endif
+>  #endif
+>  #ifdef CONFIG_SECURITY
+>  	DIR("attr",       S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
+> diff --git a/fs/proc/internal.h b/fs/proc/internal.h
+> index cd0c8d5ce9a1..bc9371880c63 100644
+> --- a/fs/proc/internal.h
+> +++ b/fs/proc/internal.h
+> @@ -293,6 +293,7 @@ extern const struct file_operations proc_pid_smaps_operations;
+>  extern const struct file_operations proc_pid_smaps_rollup_operations;
+>  extern const struct file_operations proc_clear_refs_operations;
+>  extern const struct file_operations proc_pagemap_operations;
+> +extern const struct file_operations proc_page_idle_operations;
+>  
+>  extern unsigned long task_vsize(struct mm_struct *);
+>  extern unsigned long task_statm(struct mm_struct *,
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 4d2b860dbc3f..11ccc53da38e 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -1642,6 +1642,63 @@ const struct file_operations proc_pagemap_operations = {
+>  	.open		= pagemap_open,
+>  	.release	= pagemap_release,
+>  };
 > +
-> +	smp_store_release(&vq->ref, ref + 1);
-> +	/* Make sure ref counter is visible before accessing the map */
-> +	smp_load_acquire(&vq->ref);
+> +#ifdef CONFIG_IDLE_PAGE_TRACKING
+> +static ssize_t proc_page_idle_read(struct file *file, char __user *buf,
+> +				   size_t count, loff_t *ppos)
+> +{
+> +	int ret;
+> +	struct task_struct *tsk = get_proc_task(file_inode(file));
+> +
+> +	if (!tsk)
+> +		return -EINVAL;
+> +	ret = page_idle_proc_read(file, buf, count, ppos, tsk);
+> +	put_task_struct(tsk);
+
+Why do you need task_struct here? You already got the task in open
+and got mm there so you could pass the MM here instead of task.
+
+> +	return ret;
 > +}
 > +
-> +static void inline vhost_vq_access_map_end(struct vhost_virtqueue *vq)
+> +static ssize_t proc_page_idle_write(struct file *file, const char __user *buf,
+> +				 size_t count, loff_t *ppos)
 > +{
-> +	int ref = READ_ONCE(vq->ref);
+> +	int ret;
+> +	struct task_struct *tsk = get_proc_task(file_inode(file));
 > +
-> +	/* Make sure vq access is done before increasing ref counter */
-> +	smp_store_release(&vq->ref, ref + 1);
+> +	if (!tsk)
+> +		return -EINVAL;
+> +	ret = page_idle_proc_write(file, (char __user *)buf, count, ppos, tsk);
+> +	put_task_struct(tsk);
+> +	return ret;
 > +}
 > +
-> +static void inline vhost_vq_sync_access(struct vhost_virtqueue *vq)
+> +static int proc_page_idle_open(struct inode *inode, struct file *file)
 > +{
-> +	int ref;
+> +	struct mm_struct *mm;
 > +
-> +	/* Make sure map change was done before checking ref counter */
-> +	smp_mb();
+> +	mm = proc_mem_open(inode, PTRACE_MODE_READ);
+> +	if (IS_ERR(mm))
+> +		return PTR_ERR(mm);
+> +	file->private_data = mm;
+> +	return 0;
+> +}
 > +
-> +	ref = READ_ONCE(vq->ref);
-> +	if (ref & 0x1) {
-> +		/* When ref change, we are sure no reader can see
-> +		 * previous map */
-> +		while (READ_ONCE(vq->ref) == ref) {
-> +			set_current_state(TASK_RUNNING);
-> +			schedule();
-> +		}
+> +static int proc_page_idle_release(struct inode *inode, struct file *file)
+> +{
+> +	struct mm_struct *mm = file->private_data;
+> +
+> +	if (mm)
+> +		mmdrop(mm);
+> +	return 0;
+> +}
+> +
+> +const struct file_operations proc_page_idle_operations = {
+> +	.llseek		= mem_lseek, /* borrow this */
+> +	.read		= proc_page_idle_read,
+> +	.write		= proc_page_idle_write,
+> +	.open		= proc_page_idle_open,
+> +	.release	= proc_page_idle_release,
+> +};
+> +#endif /* CONFIG_IDLE_PAGE_TRACKING */
+> +
+>  #endif /* CONFIG_PROC_PAGE_MONITOR */
+>  
+>  #ifdef CONFIG_NUMA
+> diff --git a/include/linux/page_idle.h b/include/linux/page_idle.h
+> index 1e894d34bdce..f1bc2640d85e 100644
+> --- a/include/linux/page_idle.h
+> +++ b/include/linux/page_idle.h
+> @@ -106,6 +106,10 @@ static inline void clear_page_idle(struct page *page)
+>  }
+>  #endif /* CONFIG_64BIT */
+>  
+> +ssize_t page_idle_proc_write(struct file *file,
+> +	char __user *buf, size_t count, loff_t *ppos, struct task_struct *tsk);
+> +ssize_t page_idle_proc_read(struct file *file,
+> +	char __user *buf, size_t count, loff_t *ppos, struct task_struct *tsk);
+>  #else /* !CONFIG_IDLE_PAGE_TRACKING */
+>  
+>  static inline bool page_is_young(struct page *page)
+> diff --git a/mm/page_idle.c b/mm/page_idle.c
+> index 295512465065..86244f7f1faa 100644
+> --- a/mm/page_idle.c
+> +++ b/mm/page_idle.c
+> @@ -5,12 +5,15 @@
+>  #include <linux/sysfs.h>
+>  #include <linux/kobject.h>
+>  #include <linux/mm.h>
+> -#include <linux/mmzone.h>
+> -#include <linux/pagemap.h>
+> -#include <linux/rmap.h>
+>  #include <linux/mmu_notifier.h>
+> +#include <linux/mmzone.h>
+>  #include <linux/page_ext.h>
+>  #include <linux/page_idle.h>
+> +#include <linux/pagemap.h>
+> +#include <linux/rmap.h>
+> +#include <linux/sched/mm.h>
+> +#include <linux/swap.h>
+> +#include <linux/swapops.h>
+>  
+>  #define BITMAP_CHUNK_SIZE	sizeof(u64)
+>  #define BITMAP_CHUNK_BITS	(BITMAP_CHUNK_SIZE * BITS_PER_BYTE)
+> @@ -25,18 +28,13 @@
+>   * page tracking. With such an indicator of user pages we can skip isolated
+>   * pages, but since there are not usually many of them, it will hardly affect
+>   * the overall result.
+> - *
+> - * This function tries to get a user memory page by pfn as described above.
+>   */
+> -static struct page *page_idle_get_page(unsigned long pfn)
+> +static struct page *page_idle_get_page(struct page *page_in)
+
+Looks weird function name after you changed the argument.
+Maybe "bool check_valid_page(struct page *page)"?
+
+>  {
+>  	struct page *page;
+>  	pg_data_t *pgdat;
+>  
+> -	if (!pfn_valid(pfn))
+> -		return NULL;
+> -
+> -	page = pfn_to_page(pfn);
+> +	page = page_in;
+>  	if (!page || !PageLRU(page) ||
+>  	    !get_page_unless_zero(page))
+>  		return NULL;
+> @@ -51,6 +49,18 @@ static struct page *page_idle_get_page(unsigned long pfn)
+>  	return page;
+>  }
+>  
+> +/*
+> + * This function tries to get a user memory page by pfn as described above.
+> + */
+> +static struct page *page_idle_get_page_pfn(unsigned long pfn)
+
+So we could use page_idle_get_page name here.
+
+> +{
+> +
+> +	if (!pfn_valid(pfn))
+> +		return NULL;
+
+
+    page = pfn_to_page(pfn);
+
+    return check_valid_page(page) ? page : NULL;
+> +
+> +	return page_idle_get_page(pfn_to_page(pfn));
+> +}
+> +
+>  static bool page_idle_clear_pte_refs_one(struct page *page,
+>  					struct vm_area_struct *vma,
+>  					unsigned long addr, void *arg)
+> @@ -118,6 +128,47 @@ static void page_idle_clear_pte_refs(struct page *page)
+>  		unlock_page(page);
+>  }
+>  
+> +/* Helper to get the start and end frame given a pos and count */
+> +static int page_idle_get_frames(loff_t pos, size_t count, struct mm_struct *mm,
+> +				unsigned long *start, unsigned long *end)
+> +{
+> +	unsigned long max_frame;
+> +
+> +	/* If an mm is not given, assume we want physical frames */
+> +	max_frame = mm ? (mm->task_size >> PAGE_SHIFT) : max_pfn;
+> +
+> +	if (pos % BITMAP_CHUNK_SIZE || count % BITMAP_CHUNK_SIZE)
+> +		return -EINVAL;
+> +
+> +	*start = pos * BITS_PER_BYTE;
+> +	if (*start >= max_frame)
+> +		return -ENXIO;
+> +
+> +	*end = *start + count * BITS_PER_BYTE;
+> +	if (*end > max_frame)
+> +		*end = max_frame;
+> +	return 0;
+> +}
+> +
+> +static bool page_really_idle(struct page *page)
+
+Just minor:
+Instead of creating new API, could we combine page_is_idle with
+introducing furthere argument pte_check?
+
+    bool page_is_idle(struct page *page, bool pte_check);
+
+> +{
+> +	if (!page)
+> +		return false;
+> +
+> +	if (page_is_idle(page)) {
+> +		/*
+> +		 * The page might have been referenced via a
+> +		 * pte, in which case it is not idle. Clear
+> +		 * refs and recheck.
+> +		 */
+> +		page_idle_clear_pte_refs(page);
+> +		if (page_is_idle(page))
+> +			return true;
 > +	}
-> +	/* Make sure ref counter was checked before any other
-> +	 * operations that was dene on map. */
-> +	smp_mb();
+> +
+> +	return false;
 > +}
 > +
->   static void vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
->   				      int index,
->   				      unsigned long start,
-> @@ -376,16 +413,15 @@ static void vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
->   	spin_lock(&vq->mmu_lock);
->   	++vq->invalidate_count;
->   
-> -	map = rcu_dereference_protected(vq->maps[index],
-> -					lockdep_is_held(&vq->mmu_lock));
-> +	map = vq->maps[index];
->   	if (map) {
->   		vhost_set_map_dirty(vq, map, index);
-> -		rcu_assign_pointer(vq->maps[index], NULL);
-> +		vq->maps[index] = NULL;
->   	}
->   	spin_unlock(&vq->mmu_lock);
->   
->   	if (map) {
-> -		synchronize_rcu();
-> +		vhost_vq_sync_access(vq);
->   		vhost_map_unprefetch(map);
->   	}
->   }
-> @@ -457,7 +493,7 @@ static void vhost_init_maps(struct vhost_dev *dev)
->   	for (i = 0; i < dev->nvqs; ++i) {
->   		vq = dev->vqs[i];
->   		for (j = 0; j < VHOST_NUM_ADDRS; j++)
-> -			RCU_INIT_POINTER(vq->maps[j], NULL);
-> +			vq->maps[j] = NULL;
->   	}
->   }
->   #endif
-> @@ -655,6 +691,7 @@ void vhost_dev_init(struct vhost_dev *dev,
->   		vq->indirect = NULL;
->   		vq->heads = NULL;
->   		vq->dev = dev;
-> +		vq->ref = 0;
->   		mutex_init(&vq->mutex);
->   		spin_lock_init(&vq->mmu_lock);
->   		vhost_vq_reset(dev, vq);
-> @@ -921,7 +958,7 @@ static int vhost_map_prefetch(struct vhost_virtqueue *vq,
->   	map->npages = npages;
->   	map->pages = pages;
->   
-> -	rcu_assign_pointer(vq->maps[index], map);
-> +	vq->maps[index] = map;
->   	/* No need for a synchronize_rcu(). This function should be
->   	 * called by dev->worker so we are serialized with all
->   	 * readers.
-> @@ -1216,18 +1253,18 @@ static inline int vhost_put_avail_event(struct vhost_virtqueue *vq)
->   	struct vring_used *used;
->   
->   	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->   
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> +		map = vq->maps[VHOST_ADDR_USED];
->   		if (likely(map)) {
->   			used = map->addr;
->   			*((__virtio16 *)&used->ring[vq->num]) =
->   				cpu_to_vhost16(vq, vq->avail_idx);
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->   			return 0;
->   		}
->   
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->   	}
->   #endif
->   
-> @@ -1245,18 +1282,18 @@ static inline int vhost_put_used(struct vhost_virtqueue *vq,
->   	size_t size;
->   
->   	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->   
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> +		map = vq->maps[VHOST_ADDR_USED];
->   		if (likely(map)) {
->   			used = map->addr;
->   			size = count * sizeof(*head);
->   			memcpy(used->ring + idx, head, size);
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->   			return 0;
->   		}
->   
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->   	}
->   #endif
->   
-> @@ -1272,17 +1309,17 @@ static inline int vhost_put_used_flags(struct vhost_virtqueue *vq)
->   	struct vring_used *used;
->   
->   	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->   
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> +		map = vq->maps[VHOST_ADDR_USED];
->   		if (likely(map)) {
->   			used = map->addr;
->   			used->flags = cpu_to_vhost16(vq, vq->used_flags);
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->   			return 0;
->   		}
->   
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->   	}
->   #endif
->   
-> @@ -1298,17 +1335,17 @@ static inline int vhost_put_used_idx(struct vhost_virtqueue *vq)
->   	struct vring_used *used;
->   
->   	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->   
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> +		map = vq->maps[VHOST_ADDR_USED];
->   		if (likely(map)) {
->   			used = map->addr;
->   			used->idx = cpu_to_vhost16(vq, vq->last_used_idx);
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->   			return 0;
->   		}
->   
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->   	}
->   #endif
->   
-> @@ -1362,17 +1399,17 @@ static inline int vhost_get_avail_idx(struct vhost_virtqueue *vq,
->   	struct vring_avail *avail;
->   
->   	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->   
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_AVAIL]);
-> +		map = vq->maps[VHOST_ADDR_AVAIL];
->   		if (likely(map)) {
->   			avail = map->addr;
->   			*idx = avail->idx;
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->   			return 0;
->   		}
->   
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->   	}
->   #endif
->   
-> @@ -1387,17 +1424,17 @@ static inline int vhost_get_avail_head(struct vhost_virtqueue *vq,
->   	struct vring_avail *avail;
->   
->   	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->   
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_AVAIL]);
-> +		map = vq->maps[VHOST_ADDR_AVAIL];
->   		if (likely(map)) {
->   			avail = map->addr;
->   			*head = avail->ring[idx & (vq->num - 1)];
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->   			return 0;
->   		}
->   
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->   	}
->   #endif
->   
-> @@ -1413,17 +1450,17 @@ static inline int vhost_get_avail_flags(struct vhost_virtqueue *vq,
->   	struct vring_avail *avail;
->   
->   	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->   
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_AVAIL]);
-> +		map = vq->maps[VHOST_ADDR_AVAIL];
->   		if (likely(map)) {
->   			avail = map->addr;
->   			*flags = avail->flags;
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->   			return 0;
->   		}
->   
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->   	}
->   #endif
->   
-> @@ -1438,15 +1475,15 @@ static inline int vhost_get_used_event(struct vhost_virtqueue *vq,
->   	struct vring_avail *avail;
->   
->   	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_AVAIL]);
-> +		vhost_vq_access_map_begin(vq);
-> +		map = vq->maps[VHOST_ADDR_AVAIL];
->   		if (likely(map)) {
->   			avail = map->addr;
->   			*event = (__virtio16)avail->ring[vq->num];
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->   			return 0;
->   		}
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->   	}
->   #endif
->   
-> @@ -1461,17 +1498,17 @@ static inline int vhost_get_used_idx(struct vhost_virtqueue *vq,
->   	struct vring_used *used;
->   
->   	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->   
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> +		map = vq->maps[VHOST_ADDR_USED];
->   		if (likely(map)) {
->   			used = map->addr;
->   			*idx = used->idx;
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->   			return 0;
->   		}
->   
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->   	}
->   #endif
->   
-> @@ -1486,17 +1523,17 @@ static inline int vhost_get_desc(struct vhost_virtqueue *vq,
->   	struct vring_desc *d;
->   
->   	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->   
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_DESC]);
-> +		map = vq->maps[VHOST_ADDR_DESC];
->   		if (likely(map)) {
->   			d = map->addr;
->   			*desc = *(d + idx);
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->   			return 0;
->   		}
->   
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->   	}
->   #endif
->   
-> @@ -1843,13 +1880,11 @@ static bool iotlb_access_ok(struct vhost_virtqueue *vq,
->   #if VHOST_ARCH_CAN_ACCEL_UACCESS
->   static void vhost_vq_map_prefetch(struct vhost_virtqueue *vq)
->   {
-> -	struct vhost_map __rcu *map;
-> +	struct vhost_map *map;
->   	int i;
->   
->   	for (i = 0; i < VHOST_NUM_ADDRS; i++) {
-> -		rcu_read_lock();
-> -		map = rcu_dereference(vq->maps[i]);
-> -		rcu_read_unlock();
-> +		map = vq->maps[i];
->   		if (unlikely(!map))
->   			vhost_map_prefetch(vq, i);
->   	}
-> diff --git a/drivers/vhost/vhost.h b/drivers/vhost/vhost.h
-> index a9a2a93857d2..f9e9558a529d 100644
-> --- a/drivers/vhost/vhost.h
-> +++ b/drivers/vhost/vhost.h
-> @@ -115,16 +115,17 @@ struct vhost_virtqueue {
->   #if VHOST_ARCH_CAN_ACCEL_UACCESS
->   	/* Read by memory accessors, modified by meta data
->   	 * prefetching, MMU notifier and vring ioctl().
-> -	 * Synchonrized through mmu_lock (writers) and RCU (writers
-> -	 * and readers).
-> +	 * Synchonrized through mmu_lock (writers) and ref counters,
-> +	 * see vhost_vq_access_map_begin()/vhost_vq_access_map_end().
->   	 */
-> -	struct vhost_map __rcu *maps[VHOST_NUM_ADDRS];
-> +	struct vhost_map *maps[VHOST_NUM_ADDRS];
->   	/* Read by MMU notifier, modified by vring ioctl(),
->   	 * synchronized through MMU notifier
->   	 * registering/unregistering.
->   	 */
->   	struct vhost_uaddr uaddrs[VHOST_NUM_ADDRS];
->   #endif
-> +	int ref;
->   	const struct vhost_umem_node *meta_iotlb[VHOST_NUM_ADDRS];
->   
->   	struct file *kick;
+>  static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
+>  				     struct bin_attribute *attr, char *buf,
+>  				     loff_t pos, size_t count)
+> @@ -125,35 +176,21 @@ static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
+>  	u64 *out = (u64 *)buf;
+>  	struct page *page;
+>  	unsigned long pfn, end_pfn;
+> -	int bit;
+> +	int bit, ret;
+>  
+> -	if (pos % BITMAP_CHUNK_SIZE || count % BITMAP_CHUNK_SIZE)
+> -		return -EINVAL;
+> -
+> -	pfn = pos * BITS_PER_BYTE;
+> -	if (pfn >= max_pfn)
+> -		return 0;
+> -
+> -	end_pfn = pfn + count * BITS_PER_BYTE;
+> -	if (end_pfn > max_pfn)
+> -		end_pfn = max_pfn;
+> +	ret = page_idle_get_frames(pos, count, NULL, &pfn, &end_pfn);
+> +	if (ret == -ENXIO)
+> +		return 0;  /* Reads beyond max_pfn do nothing */
+> +	else if (ret)
+> +		return ret;
+>  
+>  	for (; pfn < end_pfn; pfn++) {
+>  		bit = pfn % BITMAP_CHUNK_BITS;
+>  		if (!bit)
+>  			*out = 0ULL;
+> -		page = page_idle_get_page(pfn);
+> -		if (page) {
+> -			if (page_is_idle(page)) {
+> -				/*
+> -				 * The page might have been referenced via a
+> -				 * pte, in which case it is not idle. Clear
+> -				 * refs and recheck.
+> -				 */
+> -				page_idle_clear_pte_refs(page);
+> -				if (page_is_idle(page))
+> -					*out |= 1ULL << bit;
+> -			}
+> +		page = page_idle_get_page_pfn(pfn);
+> +		if (page && page_really_idle(page)) {
+> +			*out |= 1ULL << bit;
+>  			put_page(page);
+>  		}
+>  		if (bit == BITMAP_CHUNK_BITS - 1)
+> @@ -170,23 +207,16 @@ static ssize_t page_idle_bitmap_write(struct file *file, struct kobject *kobj,
+>  	const u64 *in = (u64 *)buf;
+>  	struct page *page;
+>  	unsigned long pfn, end_pfn;
+> -	int bit;
+> +	int bit, ret;
+>  
+> -	if (pos % BITMAP_CHUNK_SIZE || count % BITMAP_CHUNK_SIZE)
+> -		return -EINVAL;
+> -
+> -	pfn = pos * BITS_PER_BYTE;
+> -	if (pfn >= max_pfn)
+> -		return -ENXIO;
+> -
+> -	end_pfn = pfn + count * BITS_PER_BYTE;
+> -	if (end_pfn > max_pfn)
+> -		end_pfn = max_pfn;
+> +	ret = page_idle_get_frames(pos, count, NULL, &pfn, &end_pfn);
+> +	if (ret)
+> +		return ret;
+>  
+>  	for (; pfn < end_pfn; pfn++) {
+>  		bit = pfn % BITMAP_CHUNK_BITS;
+>  		if ((*in >> bit) & 1) {
+> -			page = page_idle_get_page(pfn);
+> +			page = page_idle_get_page_pfn(pfn);
+>  			if (page) {
+>  				page_idle_clear_pte_refs(page);
+>  				set_page_idle(page);
+> @@ -224,6 +254,226 @@ struct page_ext_operations page_idle_ops = {
+>  };
+>  #endif
+>  
+> +/*  page_idle tracking for /proc/<pid>/page_idle */
+> +
+> +struct page_node {
+> +	struct page *page;
+> +	unsigned long addr;
+> +	struct list_head list;
+> +};
+> +
+> +struct page_idle_proc_priv {
+> +	unsigned long start_addr;
+> +	char *buffer;
+> +	int write;
+> +
+> +	/* Pre-allocate and provide nodes to add_page_idle_list() */
+> +	struct page_node *page_nodes;
+> +	int cur_page_node;
+> +	struct list_head *idle_page_list;
+> +};
+> +
+> +/*
+> + * Add a page to the idle page list. page can be NULL if pte is
+> + * from a swapped page.
+> + */
+> +static void add_page_idle_list(struct page *page,
+> +			       unsigned long addr, struct mm_walk *walk)
+> +{
+> +	struct page *page_get = NULL;
+> +	struct page_node *pn;
+> +	int bit;
+> +	unsigned long frames;
+> +	struct page_idle_proc_priv *priv = walk->private;
+> +	u64 *chunk = (u64 *)priv->buffer;
+> +
+> +	if (priv->write) {
+> +		/* Find whether this page was asked to be marked */
+> +		frames = (addr - priv->start_addr) >> PAGE_SHIFT;
+> +		bit = frames % BITMAP_CHUNK_BITS;
+> +		chunk = &chunk[frames / BITMAP_CHUNK_BITS];
+> +		if (((*chunk >> bit) & 1) == 0)
+> +			return;
+> +	}
+> +
+> +	if (page) {
+> +		page_get = page_idle_get_page(page);
+> +		if (!page_get)
+> +			return;
+> +	}
+> +
+> +	pn = &(priv->page_nodes[priv->cur_page_node++]);
+> +	pn->page = page_get;
+> +	pn->addr = addr;
+> +	list_add(&pn->list, priv->idle_page_list);
+> +}
+> +
+> +static int pte_page_idle_proc_range(pmd_t *pmd, unsigned long addr,
+> +				    unsigned long end,
+> +				    struct mm_walk *walk)
+> +{
+> +	struct vm_area_struct *vma = walk->vma;
+> +	pte_t *pte;
+> +	spinlock_t *ptl;
+> +	struct page *page;
+> +
+> +	ptl = pmd_trans_huge_lock(pmd, vma);
+> +	if (ptl) {
+> +		if (pmd_present(*pmd)) {
+> +			page = follow_trans_huge_pmd(vma, addr, pmd,
+> +						     FOLL_DUMP|FOLL_WRITE);
+> +			if (!IS_ERR_OR_NULL(page))
+> +				add_page_idle_list(page, addr, walk);
+> +		}
+> +		spin_unlock(ptl);
+> +		return 0;
+> +	}
+> +
+> +	if (pmd_trans_unstable(pmd))
+> +		return 0;
+> +
+> +	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
+> +	for (; addr != end; pte++, addr += PAGE_SIZE) {
+> +		/*
+> +		 * We add swapped pages to the idle_page_list so that we can
+> +		 * reported to userspace that they are idle.
+> +		 */
+> +		if (is_swap_pte(*pte)) {
+
+I suggested "let's consider every swapped out pages as IDLE" but
+let's think about this case:
+
+1. mark heap of the process as IDLE
+2. process touch working set
+3. process's heap pages are swap out by meory spike or madvise
+4. heap profiler investigates the process's IDLE page and surprised all of
+heap are idle.
+
+It's the good scenario for other purpose because non-idle pages(IOW,
+workingset) could be readahead when the app will restart.
+
+Maybe, squeeze the idle bit in the swap pte to check it.
+
+> +			add_page_idle_list(NULL, addr, walk);
+> +			continue;
+> +		}
+> +
+> +		if (!pte_present(*pte))
+> +			continue;
+> +
+> +		page = vm_normal_page(vma, addr, *pte);
+> +		if (page)
+> +			add_page_idle_list(page, addr, walk);
+> +	}
+> +
+> +	pte_unmap_unlock(pte - 1, ptl);
+> +	return 0;
+> +}
+> +
+> +ssize_t page_idle_proc_generic(struct file *file, char __user *ubuff,
+> +			       size_t count, loff_t *pos,
+> +			       struct task_struct *tsk, int write)
+> +{
+> +	int ret;
+> +	char *buffer;
+> +	u64 *out;
+> +	unsigned long start_addr, end_addr, start_frame, end_frame;
+> +	struct mm_struct *mm = file->private_data;
+> +	struct mm_walk walk = { .pmd_entry = pte_page_idle_proc_range, };
+> +	struct page_node *cur;
+> +	struct page_idle_proc_priv priv;
+> +	bool walk_error = false;
+> +	LIST_HEAD(idle_page_list);
+> +
+> +	if (!mm || !mmget_not_zero(mm))
+> +		return -EINVAL;
+> +
+> +	if (count > PAGE_SIZE)
+> +		count = PAGE_SIZE;
+> +
+> +	buffer = kzalloc(PAGE_SIZE, GFP_KERNEL);
+> +	if (!buffer) {
+> +		ret = -ENOMEM;
+> +		goto out_mmput;
+> +	}
+> +	out = (u64 *)buffer;
+> +
+> +	if (write && copy_from_user(buffer, ubuff, count)) {
+> +		ret = -EFAULT;
+> +		goto out;
+> +	}
+> +
+> +	ret = page_idle_get_frames(*pos, count, mm, &start_frame, &end_frame);
+> +	if (ret)
+> +		goto out;
+> +
+> +	start_addr = (start_frame << PAGE_SHIFT);
+> +	end_addr = (end_frame << PAGE_SHIFT);
+> +	priv.buffer = buffer;
+> +	priv.start_addr = start_addr;
+> +	priv.write = write;
+> +
+> +	priv.idle_page_list = &idle_page_list;
+> +	priv.cur_page_node = 0;
+> +	priv.page_nodes = kzalloc(sizeof(struct page_node) *
+> +				  (end_frame - start_frame), GFP_KERNEL);
+> +	if (!priv.page_nodes) {
+> +		ret = -ENOMEM;
+> +		goto out;
+> +	}
+> +
+> +	walk.private = &priv;
+> +	walk.mm = mm;
+> +
+> +	down_read(&mm->mmap_sem);
+> +
+> +	/*
+> +	 * idle_page_list is needed because walk_page_vma() holds ptlock which
+> +	 * deadlocks with page_idle_clear_pte_refs(). So we have to collect all
+> +	 * pages first, and then call page_idle_clear_pte_refs().
+> +	 */
+
+Thanks for the comment, I was curious why you want to have
+idle_page_list and the reason is here.
+
+How about making this /proc/<pid>/page_idle per-process granuariy,
+unlike system level /sys/xxx/page_idle? What I meant is not to check
+rmap to see any reference from random process but just check only
+access from the target process. It would be more proper as /proc/
+<pid>/ interface and good for per-process tracking as well as
+fast.
+
+> +	ret = walk_page_range(start_addr, end_addr, &walk);
+> +	if (ret)
+> +		walk_error = true;
+> +
+> +	list_for_each_entry(cur, &idle_page_list, list) {
+> +		int bit, index;
+> +		unsigned long off;
+> +		struct page *page = cur->page;
+> +
+> +		if (unlikely(walk_error))
+> +			goto remove_page;
+> +
+> +		if (write) {
+> +			if (page) {
+> +				page_idle_clear_pte_refs(page);
+> +				set_page_idle(page);
+> +			}
+> +		} else {
+> +			if (!page || page_really_idle(page)) {
+> +				off = ((cur->addr) >> PAGE_SHIFT) - start_frame;
+> +				bit = off % BITMAP_CHUNK_BITS;
+> +				index = off / BITMAP_CHUNK_BITS;
+> +				out[index] |= 1ULL << bit;
+> +			}
+> +		}
+> +remove_page:
+> +		if (page)
+> +			put_page(page);
+> +	}
+> +
+> +	if (!write && !walk_error)
+> +		ret = copy_to_user(ubuff, buffer, count);
+> +
+> +	up_read(&mm->mmap_sem);
+> +	kfree(priv.page_nodes);
+> +out:
+> +	kfree(buffer);
+> +out_mmput:
+> +	mmput(mm);
+> +	if (!ret)
+> +		ret = count;
+> +	return ret;
+> +
+> +}
+> +
+> +ssize_t page_idle_proc_read(struct file *file, char __user *ubuff,
+> +			    size_t count, loff_t *pos, struct task_struct *tsk)
+> +{
+> +	return page_idle_proc_generic(file, ubuff, count, pos, tsk, 0);
+> +}
+> +
+> +ssize_t page_idle_proc_write(struct file *file, char __user *ubuff,
+> +			     size_t count, loff_t *pos, struct task_struct *tsk)
+> +{
+> +	return page_idle_proc_generic(file, ubuff, count, pos, tsk, 1);
+> +}
+> +
+>  static int __init page_idle_init(void)
+>  {
+>  	int err;
+> -- 
+> 2.22.0.709.g102302147b-goog
 
