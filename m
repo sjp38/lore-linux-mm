@@ -2,169 +2,273 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=FROM_EXCESS_BASE64,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-4.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EAD51C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 06:09:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C21A8C433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 06:14:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AC643206A2
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 06:09:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AC643206A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 7758D206A2
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 06:14:48 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="pIS3Y8Su"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7758D206A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 52E448E0005; Wed, 31 Jul 2019 02:09:09 -0400 (EDT)
+	id 21CE18E0003; Wed, 31 Jul 2019 02:14:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4DF468E0001; Wed, 31 Jul 2019 02:09:09 -0400 (EDT)
+	id 1A7D68E0001; Wed, 31 Jul 2019 02:14:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3A5B58E0005; Wed, 31 Jul 2019 02:09:09 -0400 (EDT)
+	id 0473D8E0003; Wed, 31 Jul 2019 02:14:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 026D98E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 02:09:09 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id i26so42453339pfo.22
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 23:09:08 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id C05A18E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 02:14:47 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id t2so36873988plo.10
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 23:14:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=vdm32oLurZ8tx2wYylA7BPqohddJHwpUncmgq/Qdc/4=;
-        b=WwxY311Dr8AJmE1TRrbg9ZVMjNVmK+bUYuaRIHXu8LY2qg8ZNNji+URDbT/46ECT+L
-         PkNu9cxEansw56DzWFOaXN2GeUPJa9j57oPxOJ7hxBCOXqHE8jv663nSGEVg9Kgc3ENS
-         a+8Qkdy8afs74rbg6DcF8txijQfZCVXcUnSxs1BHo+waKEpv5yGcipZpWaF8KPqvSTu4
-         BaIVzeiqQQ5Wei1lLgQgC7e8sbYk8WO7LT6mhq/P8EUPsT9OOMmEnod9vmPmG0axg/BW
-         T2xos2GH0l8IZpFAyO4/KJMP5w7TLRh7DYuWFXPE4u8DZGD2VJr7cqV2i9uEQYepCpeg
-         H0ZA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bjorn.topel@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=bjorn.topel@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXvsGkXfu6Rwmp0zdr1UDYCutQGCaR8XuYYSvbOVN4jp+4yiMZP
-	eldFljbVy7VxNr6Rz3DZBRns5miwT7Qm92jhCm60kKyBkWJksWPfTdPBV2YtjP2xACg1fGnGad4
-	TYFlEIGEPqqCMheNg5tnkaCgnTALeE66fbYxHI0OFqRvEPWlZ7R98rEVF7Dbw9Vr3gQ==
-X-Received: by 2002:a17:90a:cb81:: with SMTP id a1mr1122535pju.81.1564553348637;
-        Tue, 30 Jul 2019 23:09:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzQxkKcJh+60pNaKuKSNLOFq5ADayXKcb7neWwS+ijnjE5Acz4XM1U3nzkcanvrxu9rLlRI
-X-Received: by 2002:a17:90a:cb81:: with SMTP id a1mr1122491pju.81.1564553347975;
-        Tue, 30 Jul 2019 23:09:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564553347; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=iqFMksg+GEFnhHcmM4K8TjXa4SGBpwoJKaNawCff3BE=;
+        b=av3MRrB0Saq2+sl80h1dqkqu2nSleW6XtPtpHE6f+Cz8rbQZqZZut9N5LjPvJELrn3
+         aXO+Zr1/mIB4wG3FYNoDmn/bUuUUpLwRhIGvFQCcIZVeZG84KKQIgGAaVQeYs2xzCd9u
+         1Oar4T1+tMZVpCjBYQc5B6aG5tFieRBYMb5XKnwds0z2is/0oNmBTmF03iXPtcLUdrO7
+         qpU/zSAKaYoi1ff8OM2KkxtguBcB59yTEjRiip1CJC9HLSXndgumfipthrdUQqAYggcQ
+         lp8JqPogtJNLBg26j6SL0dlXN/sOOaP/ceSz35tHXWKIKITwOZk3LdFd7DdFvJ/tcfjj
+         Wbow==
+X-Gm-Message-State: APjAAAXwQlcwq8FPlmdRrsyskk2UXF+3c8avEmMjLwGjjMRNnotEilxH
+	eDA+Pen2MYXrFrjDVmFItcTo2InH2KHJ3Bjt2D0GWTaFDF+6sYJOsAN/oFjFdbvVVJHrQk3hMvf
+	sjNuAKB4pjzasj+GvpfFHb26P2Sjg5eiM5+SvQUAYW0ZJxn82DBbYIwD/a9F0Iy4=
+X-Received: by 2002:a63:e901:: with SMTP id i1mr95151459pgh.451.1564553687370;
+        Tue, 30 Jul 2019 23:14:47 -0700 (PDT)
+X-Received: by 2002:a63:e901:: with SMTP id i1mr95151415pgh.451.1564553686498;
+        Tue, 30 Jul 2019 23:14:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564553686; cv=none;
         d=google.com; s=arc-20160816;
-        b=OgdwyouBMBaLciOzouHMO+RxXitTwurY5tyxGawPboLdFbAVQKymFxXVhpgvIer4RB
-         M+JFL3JmPXVU4PE+BSvPdGSDLC1PHAwn3xoFumhnC9DgQr23NN9bNRNVyGjUKc3aq6Y8
-         yxHr2vLHa8IiiXxiP8+bbnLMJfght19wmgj8a/T4qfRB/nX0RQ7c6LhTFjji1K0l5ChV
-         tf5rHkPyRyA9niw96QhqSz42s4GYhXxL/BCNjHox2nS+yglTUtSNyVWp4vHjN35pTYJL
-         99OHWJOG5/+HGZt+dgDN4SRvu1GIg6l2PPEcjuwAtEFPo9GbJUGovjKcR26h5ygU317E
-         z3yA==
+        b=kgqFtoJwEs3Pd8+wG4871bSaSV3QmxZTlJB+SZrhD9VI7LY9TEOOjEuVeIFVCO93Ue
+         a0Xrn2Fkc28kswRYjhFc5xvocEQnU4ci8p84gZYoAoINZLf8f1IuK6CsO2yezWBjg3wm
+         OozrV0c56umOVqSX09Swxi2taZKjmnzZEYrW8Bh0ucG8fB2xFQnP051aXlmpN10yDfV3
+         M8BwjIqFFcel1WSK2zWmgZZrsd+oE2MMoHx1vkez9n6Zp/bXLigiTsggfDF/9M6UlwCU
+         i/kxYCTtZIA9eZItNErNeJ6epZKEdyYerT4jV+Y3+7RdupKurKFnBz+HGj74momJiU9P
+         rUYQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=vdm32oLurZ8tx2wYylA7BPqohddJHwpUncmgq/Qdc/4=;
-        b=tClNC45q73m1tigHiw58CWSRiWqEcBJQGx4jmqp/y9WeEyBaDLn3lkSNHMs0trIird
-         vTE4GPKIH7UiftE4X40tNdIo7Abv0PeI4FYcQIRbvkcZusi4cqxpl4lWmjXpDKNX7f49
-         aFDkhw6ELLI2KAXMVUSJxOpUlaLkfYRSbxO8c6DrTnF/1LeLhvTZ6wcj6RV+mwSsHez9
-         bWnpKwIUJuN3UzoVN9eqoUC7sDyyZ4tPEpy4ZBbemZNvrfAZVRbxAh1JWiLpXxiGiIT4
-         DJEpXF59rDeRSuT30CFNz3Pp0BOST7+45LvZ1DIRVtlnkeEiRKS5hbCf1qPt2NgablWr
-         YSuw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=iqFMksg+GEFnhHcmM4K8TjXa4SGBpwoJKaNawCff3BE=;
+        b=uO63ny/A4c9tv34EOfh1vu61gVlhNDoebwK9NYvyQWNuocg5Aa4wruyDehiUx1/86a
+         w1E+WtANcYAcuLfBkMz1Cc3Jp//ew89rW+NlrQQu1qo0MCLAxFw8VFazYDe9fLv+j08n
+         C4MBHoAbgjWxD+RHw5aj4IJvjRUqlKYDGzdKDUJpX33sLT+nwf1c1ANjy3kLhWpNSxh2
+         +Vg3IckqubGD0uokIa95S6TuAO/3Xt/5TstoiZyQOOm/CgD5xp85C6Z/9i/14U3OMfK/
+         vMA+ELeI4Uh5/t/0xGY3IavhCLQj/YgdKnRzC/V5wo5We176LEWN8IaMR8W4vmZU1idq
+         wd/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of bjorn.topel@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=bjorn.topel@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id v10si31457564pgq.17.2019.07.30.23.09.07
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pIS3Y8Su;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id bg9sor80692322plb.73.2019.07.30.23.14.46
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 23:09:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bjorn.topel@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        (Google Transport Security);
+        Tue, 30 Jul 2019 23:14:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of bjorn.topel@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=bjorn.topel@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga006.fm.intel.com ([10.253.24.20])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 30 Jul 2019 23:09:07 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,328,1559545200"; 
-   d="scan'208";a="371975164"
-Received: from hzengerx-mobl.ger.corp.intel.com (HELO btopel-mobl.ger.intel.com) ([10.249.33.143])
-  by fmsmga006.fm.intel.com with ESMTP; 30 Jul 2019 23:09:00 -0700
-Subject: Re: [PATCH v4 3/3] net/xdp: convert put_page() to put_user_page*()
-To: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: Al Viro <viro@zeniv.linux.org.uk>, Christian Benvenuti <benve@cisco.com>,
- Christoph Hellwig <hch@infradead.org>,
- Dan Williams <dan.j.williams@intel.com>,
- "Darrick J . Wong" <darrick.wong@oracle.com>,
- Dave Chinner <david@fromorbit.com>, Ira Weiny <ira.weiny@intel.com>,
- Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
- Jens Axboe <axboe@kernel.dk>, Jerome Glisse <jglisse@redhat.com>,
- "Kirill A . Shutemov" <kirill@shutemov.name>,
- Matthew Wilcox <willy@infradead.org>, Michal Hocko <mhocko@kernel.org>,
- Mike Marciniszyn <mike.marciniszyn@intel.com>,
- Mike Rapoport <rppt@linux.ibm.com>, linux-block@vger.kernel.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
- linux-xfs@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
- John Hubbard <jhubbard@nvidia.com>,
- Magnus Karlsson <magnus.karlsson@intel.com>,
- "David S . Miller" <davem@davemloft.net>, netdev@vger.kernel.org
-References: <20190730205705.9018-1-jhubbard@nvidia.com>
- <20190730205705.9018-4-jhubbard@nvidia.com>
-From: =?UTF-8?B?QmrDtnJuIFTDtnBlbA==?= <bjorn.topel@intel.com>
-Message-ID: <c1c7b6cd-8f08-0e3f-2f66-557228edabcf@intel.com>
-Date: Wed, 31 Jul 2019 08:08:59 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pIS3Y8Su;
+       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=iqFMksg+GEFnhHcmM4K8TjXa4SGBpwoJKaNawCff3BE=;
+        b=pIS3Y8SuH3hxHZYjEY+VPhyyjAyo+FGqtGWW4NAuNJfqiqSygcvaq1zogoZMZ22TDV
+         e5/jFcKAqDx4QgkhPV/1LWdmUTVf2YDlRCVHSue09MBhLKtMMGWoxspklADGUYxUARbJ
+         46c8B/8+nQT0JQ7zxbD0kr8Vock5IGm9m0UJ+m6oCCl3Q06B+1fGK6bCiDdMJdQQucoY
+         0v8ReN13g5if32JdgIjkTLHW7JfgkznVnENKTdGMGreyrD3BpaVGsIQIjIoZXNLxzCzo
+         0R7aNcYuW3KqKa7dbBwWu3xZthNfGW+NlU04sAXWE4Ds4uO6RSpJ1mgPAfQfkoGmC6qg
+         gL/w==
+X-Google-Smtp-Source: APXvYqx8tKIyBtlv4dSHH0G37FgBEdYFHX+HUdL62kS7gU/eDjdnm7vXcKWh9rO0yaniakChi9hDcQ==
+X-Received: by 2002:a17:902:2bc5:: with SMTP id l63mr122711848plb.30.1564553685998;
+        Tue, 30 Jul 2019 23:14:45 -0700 (PDT)
+Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
+        by smtp.gmail.com with ESMTPSA id 22sm76624580pfu.179.2019.07.30.23.14.42
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 30 Jul 2019 23:14:44 -0700 (PDT)
+Date: Wed, 31 Jul 2019 15:14:40 +0900
+From: Minchan Kim <minchan@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+	linux-mm <linux-mm@kvack.org>,
+	Miguel de Dios <migueldedios@google.com>, Wei Wang <wvw@google.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Mel Gorman <mgorman@techsingularity.net>
+Subject: Re: [PATCH] mm: release the spinlock on zap_pte_range
+Message-ID: <20190731061440.GC155569@google.com>
+References: <20190729071037.241581-1-minchan@kernel.org>
+ <20190729074523.GC9330@dhcp22.suse.cz>
+ <20190729082052.GA258885@google.com>
+ <20190730124207.da70f92f19dc021bf052abd0@linux-foundation.org>
 MIME-Version: 1.0
-In-Reply-To: <20190730205705.9018-4-jhubbard@nvidia.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190730124207.da70f92f19dc021bf052abd0@linux-foundation.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019-07-30 22:57, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
+On Tue, Jul 30, 2019 at 12:42:07PM -0700, Andrew Morton wrote:
+> On Mon, 29 Jul 2019 17:20:52 +0900 Minchan Kim <minchan@kernel.org> wrote:
 > 
-> For pages that were retained via get_user_pages*(), release those pages
-> via the new put_user_page*() routines, instead of via put_page() or
-> release_pages().
+> > > > @@ -1022,7 +1023,16 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+> > > >  	flush_tlb_batched_pending(mm);
+> > > >  	arch_enter_lazy_mmu_mode();
+> > > >  	do {
+> > > > -		pte_t ptent = *pte;
+> > > > +		pte_t ptent;
+> > > > +
+> > > > +		if (progress >= 32) {
+> > > > +			progress = 0;
+> > > > +			if (need_resched())
+> > > > +				break;
+> > > > +		}
+> > > > +		progress += 8;
+> > > 
+> > > Why 8?
+> > 
+> > Just copied from copy_pte_range.
 > 
-> This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
-> ("mm: introduce put_user_page*(), placeholder versions").
+> copy_pte_range() does
 > 
-> Cc: Björn Töpel <bjorn.topel@intel.com>
-> Cc: Magnus Karlsson <magnus.karlsson@intel.com>
-> Cc: David S. Miller <davem@davemloft.net>
-> Cc: netdev@vger.kernel.org
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> 		if (pte_none(*src_pte)) {
+> 			progress++;
+> 			continue;
+> 		}
+> 		entry.val = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte,
+> 							vma, addr, rss);
+> 		if (entry.val)
+> 			break;
+> 		progress += 8;
+> 
+> which appears to be an attempt to balance the cost of copy_one_pte()
+> against the cost of not calling copy_one_pte().
+> 
 
-Acked-by: Björn Töpel <bjorn.topel@intel.com>
+Indeed.
 
-> ---
->   net/xdp/xdp_umem.c | 9 +--------
->   1 file changed, 1 insertion(+), 8 deletions(-)
+> Your code doesn't do this balancing and hence can be simpler.
+
+Based on the balancing code of copy_one_pte, it seems we should balance
+it with cost of mark_page_accessed against the cost of not calling
+mark_page_accessed. IOW, add up 8 only when mark_page_accessed is called.
+
+However, every mark_page_accessed is not heavy since it uses pagevec
+and caller couldn't know whether the target page will be activated or
+just have PG_referenced which is cheap. Thus, I agree, do not make it
+complicated.
+
 > 
-> diff --git a/net/xdp/xdp_umem.c b/net/xdp/xdp_umem.c
-> index 83de74ca729a..17c4b3d3dc34 100644
-> --- a/net/xdp/xdp_umem.c
-> +++ b/net/xdp/xdp_umem.c
-> @@ -166,14 +166,7 @@ void xdp_umem_clear_dev(struct xdp_umem *umem)
->   
->   static void xdp_umem_unpin_pages(struct xdp_umem *umem)
->   {
-> -	unsigned int i;
-> -
-> -	for (i = 0; i < umem->npgs; i++) {
-> -		struct page *page = umem->pgs[i];
-> -
-> -		set_page_dirty_lock(page);
-> -		put_page(page);
-> -	}
-> +	put_user_pages_dirty_lock(umem->pgs, umem->npgs, true);
->   
->   	kfree(umem->pgs);
->   	umem->pgs = NULL;
+> It all seems a bit overdesigned.  need_resched() is cheap.  It's
+> possibly a mistake to check need_resched() on *every* loop because some
+> crazy scheduling load might livelock us.  But surely it would be enough
+> to do something like
 > 
+> 	if (progress++ && need_resched()) {
+> 		<reschedule>
+> 		progress = 0;
+> 	}
+> 
+> and leave it at that?
+
+Seems like this?
+
+From bb1d7aaf520e98a6f9d988c25121602c28e12e67 Mon Sep 17 00:00:00 2001
+From: Minchan Kim <minchan@kernel.org>
+Date: Mon, 29 Jul 2019 15:28:48 +0900
+Subject: [PATCH] mm: release the spinlock on zap_pte_range
+
+In our testing(carmera recording), Miguel and Wei found unmap_page_range
+takes above 6ms with preemption disabled easily. When I see that, the
+reason is it holds page table spinlock during entire 512 page operation
+in a PMD. 6.2ms is never trivial for user experince if RT task couldn't
+run in the time because it could make frame drop or glitch audio problem.
+
+I had a time to benchmark it via adding some trace_printk hooks between
+pte_offset_map_lock and pte_unmap_unlock in zap_pte_range. The testing
+device is 2018 premium mobile device.
+
+I can get 2ms delay rather easily to release 2M(ie, 512 pages) when the
+task runs on little core even though it doesn't have any IPI and LRU
+lock contention. It's already too heavy.
+
+If I remove activate_page, 35-40% overhead of zap_pte_range is gone
+so most of overhead(about 0.7ms) comes from activate_page via
+mark_page_accessed. Thus, if there are LRU contention, that 0.7ms could
+accumulate up to several ms.
+
+Thus, this patch adds preemption point for once every 32 times in the
+loop.
+
+Reported-by: Miguel de Dios <migueldedios@google.com>
+Reported-by: Wei Wang <wvw@google.com>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Signed-off-by: Minchan Kim <minchan@kernel.org>
+---
+ mm/memory.c | 18 +++++++++++++++---
+ 1 file changed, 15 insertions(+), 3 deletions(-)
+
+diff --git a/mm/memory.c b/mm/memory.c
+index 2e796372927fd..8bfcef09da674 100644
+--- a/mm/memory.c
++++ b/mm/memory.c
+@@ -1007,6 +1007,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 				struct zap_details *details)
+ {
+ 	struct mm_struct *mm = tlb->mm;
++	int progress = 0;
+ 	int force_flush = 0;
+ 	int rss[NR_MM_COUNTERS];
+ 	spinlock_t *ptl;
+@@ -1022,7 +1023,15 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 	flush_tlb_batched_pending(mm);
+ 	arch_enter_lazy_mmu_mode();
+ 	do {
+-		pte_t ptent = *pte;
++		pte_t ptent;
++
++		if (progress++ >= 32) {
++			progress = 0;
++			if (need_resched())
++				break;
++		}
++
++		ptent = *pte;
+ 		if (pte_none(ptent))
+ 			continue;
+ 
+@@ -1123,8 +1132,11 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
+ 	if (force_flush) {
+ 		force_flush = 0;
+ 		tlb_flush_mmu(tlb);
+-		if (addr != end)
+-			goto again;
++	}
++
++	if (addr != end) {
++		progress = 0;
++		goto again;
+ 	}
+ 
+ 	return addr;
+-- 
+2.22.0.709.g102302147b-goog
 
