@@ -4,112 +4,110 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 944C5C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:47:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC067C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:48:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5AA60216C8
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:47:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5AA60216C8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 9550421726
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:48:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9550421726
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CA30B8E0009; Wed, 31 Jul 2019 11:47:17 -0400 (EDT)
+	id 32D558E000B; Wed, 31 Jul 2019 11:48:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C2E438E0003; Wed, 31 Jul 2019 11:47:17 -0400 (EDT)
+	id 2DCE58E0003; Wed, 31 Jul 2019 11:48:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AF4C48E0009; Wed, 31 Jul 2019 11:47:17 -0400 (EDT)
+	id 1FD978E000B; Wed, 31 Jul 2019 11:48:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BF338E0003
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:47:17 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b12so42619625ede.23
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:47:17 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DDA8F8E0003
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:48:02 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b3so42629896edd.22
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:48:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=cCG731u2YfkSB5eYdLxPnKjT9032CC6TDk+EWjWhbmE=;
-        b=ASuXaP4X5rVRWYLQXUUkAKT0SQmz+mKJwxO1S0O7p1OQvgff5UXoqUD4ZCCZKf4NC1
-         tnCOGUWM4U3ZjJT7d0LE9EF+9QqInit60ghM6c5spR3d3Dww3EcuDhTeIxskYVIMqEjo
-         SyoRLj2RdE9OmBcFDKqLw8/tsUmS97aUu3N0PqbmdHNmnSRmRv7SyCSfDtTjtoPFUVNh
-         EJCCiJGPPNCmyz0pAI3UDB9onbatxqCF43xFwQxhcc1wJ2dZEh18MRgOAXSGWtUbqZYg
-         2DivTibJVTMypEeV8howy42pOscmfmDlK3KqAQxSnlCMEhee4Qe/P/H2buyqwq22GFog
-         lVTQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAULJuBZLU+dpLllIOIZeL6a/zY7in1HuPxJ/aw9pCrlzebwKDfD
-	+9NYzdWrpEQLhigdp9xzNnADLxuv6EXyqEY5cCwYRI+k72n6d7A1H8LZV0UDXz6+aEDzRBXE+oP
-	5OIUY8PpPHwgi6i6MKnWLjCMo33rC3OF2SR4zAx8sv0gg+ZVecoOU5g7R+YomPaVxhA==
-X-Received: by 2002:aa7:c2c8:: with SMTP id m8mr107418316edp.63.1564588036953;
-        Wed, 31 Jul 2019 08:47:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwe6culgBwIUKch4dfLmRWpMAHIbkTyH9J/uf2XP9rnsfBXCn96MPG7cizLA6y/7neVhh6U
-X-Received: by 2002:aa7:c2c8:: with SMTP id m8mr107418258edp.63.1564588036242;
-        Wed, 31 Jul 2019 08:47:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564588036; cv=none;
+        bh=mc1SYjLVmi9hQ3qnYxRsBDo5bthKRsGDInhBM/MARCQ=;
+        b=bAi7xpJXZY+HbHWHjTDSoKfl+OYL8j7dHJ2orUAl4BuY9voU1Vb2KHjwTfZy+LgT47
+         INtaK/ZeSRFgH2ocMLeBu4oqtHLkoni+BW7QJGTfm9q1tvDDYzwE8sOlkDfSOv/YwOZf
+         7T0klIP2QMZkeCJpmLUaMaDKF/bdEAAzDqeBLNDHl7zTBlgPqa+6okLX3Na7HMsotUHS
+         ld5daVyNyNpjks7OlEo0DaFaH1WLhxGX5GivolQ+DcLjs8GAOVaQiylHSqEhl1zRyIMT
+         fsNvNluiDPOYzyZguEMjVJ9KDbyoVYW8BieE539OT5Ks0mLBsD5yYaNtjEffMdbgwNxX
+         BBlA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
+X-Gm-Message-State: APjAAAUwEGtZGNcvIimPjSV9xZEaU/9Hac+UNtQQ5ju+aB+Xoc2LaMQt
+	ksKwnVvWrC80KDM2u15S6FDScydm2FqojWejrtFBmWGwn8nW5ud/58W1EgyOpUN9DBYnX9v5LSA
+	3bqCakM8Qamo3chxJ2VHZjF9TfT3JfV0Akrs/KyfPViU8RzJnD1qr+S40IGlc6trUtw==
+X-Received: by 2002:a17:906:b301:: with SMTP id n1mr92591858ejz.246.1564588082489;
+        Wed, 31 Jul 2019 08:48:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy9qKK2pGrEHs13ArVCFGGl2fzlLR7vgnhIY/emrZECPnzAE7dJaLr/fRX1ffTZznlPqAlz
+X-Received: by 2002:a17:906:b301:: with SMTP id n1mr92591816ejz.246.1564588081754;
+        Wed, 31 Jul 2019 08:48:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564588081; cv=none;
         d=google.com; s=arc-20160816;
-        b=HhfCVnHf2UmmR2OX9FfVY6lJL0gvFa9x9EBtCLma43S3coHuC8AwMd7vqE/xiqMjW5
-         oDRqtKEO7nIvP0RfmvLoGS2NlZysXefcMlDU6EZY2wbE0pbsFkf+EcoJ4Rfod9DN4FUE
-         p4xlhAWm4cS765TIQzC8hK/MbiR61FvATxeGBMeZKhjYNEI3aM4yhblx9pbcCZHWEE+7
-         OW91MYDWlRm7IUnLVGUVX/SeqvYpD1oatJwj/i/Q+PBI4IorNNw9Nw5ck0rCJ+QW+fQe
-         BiK/tGBvQ+asKgIYOQqbzXGPfOrqtWZyNIBp+JNZ/oficOAVh8k0sFcmD3bQ8tw2RLqO
-         +ZOA==
+        b=WcGrx8SeDc12qNQCTmAuRYTauACuETcG4p3HX6nEa7pl0cLaPSGCvfUfr6XT9C5HqV
+         SIA5HvjN3BmnhUKbaHBEHI1Kyp14rR2WddsW8684wv6wtOy/DMkCkzu82i2xR5NKUhDD
+         3NZ62lIzMjRgQWNrq93rQaPOkjXmM4UedBvOj/3RKKfgn+JTAbXucdYrLVHHZjb0ZBag
+         /KPFtvwUW08vcEVa4n7n7kMEXHiVPpwmqilFlswp5EgtJKs6uCjFO34xakSIWuS/Bpm1
+         N2wmzH3UdPxcXw0Hgzm/W2ukJhq6Y+QjeVDsi4au6FSMSg+jZe+eeTMLdOiUjA+pOZbp
+         Yrqg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=cCG731u2YfkSB5eYdLxPnKjT9032CC6TDk+EWjWhbmE=;
-        b=FV/18YqlENALJ1EPm+oM2l3MHyy2Kvn4mXwn6fHEcV6k6tyVVxuKG4xmgmfgZ+3j9Z
-         z5d4MT/+/Pea8csxmri8XIQslRw3vBlQYckasccxkBOr04iOZFYPSem0A6uKNGzp1fI5
-         Gp019pZDT1aiOetErGtu11WAialNemfr9a7HM18MmsMAWC3jO6zrJ7vYVkMvic918N+2
-         BVt68ENtrRPcqvqYq4WenWi7VZ9nJv0PwtbRSDhphN5cFJ8h/zvtJPewAgxXKJ8PMVaI
-         wsqj63Lc5eEE3pPbprwSSy2WkwQR5x0HBLULVsRKtEbghedA0eGh8LPnhjZAMi4HGdZH
-         1vrw==
+        bh=mc1SYjLVmi9hQ3qnYxRsBDo5bthKRsGDInhBM/MARCQ=;
+        b=DsM6+jgdiDh9Ycc9A3sIW1E3HMOKt20/9Ewl3WEwFUbAgs9/cPr1V7UIVN+F8YjsIf
+         AUIugA66bDod39CWxNJelYKJecUGJRHtF15/wEl1OU8NaNpFdW6Dg/h9BOClalBDNXxH
+         k6lk5ymadeOHF6NeXbSY6blF1+h3AmYovPKTYqKs67KMQPa2Wb4gkg+DMKxcUcUpgkzi
+         aTvd2W8yWF2n0s/ESBPxV8FwmAScL0TWuK+RtDNJkcsEtmwIIIvwVJHZeF2xcgXhk4Ic
+         Zvi1f3z6CtQmAMPG1F5NBCMYTR6ECtnHXomSIrBJwNILQIgXUjipdEH14CAbo50P4JhY
+         rcfQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id j7si20908509eds.315.2019.07.31.08.47.16
-        for <linux-mm@kvack.org>;
-        Wed, 31 Jul 2019 08:47:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o9si18922164ejx.316.2019.07.31.08.48.01
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Jul 2019 08:48:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 789A81576;
-	Wed, 31 Jul 2019 08:47:15 -0700 (PDT)
-Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.133])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E394B3F694;
-	Wed, 31 Jul 2019 08:47:12 -0700 (PDT)
-From: Steven Price <steven.price@arm.com>
-To: linux-mm@kvack.org
-Cc: Steven Price <steven.price@arm.com>,
-	Andy Lutomirski <luto@kernel.org>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Arnd Bergmann <arnd@arndb.de>,
-	Borislav Petkov <bp@alien8.de>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Ingo Molnar <mingo@redhat.com>,
-	James Morse <james.morse@arm.com>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Will Deacon <will@kernel.org>,
-	x86@kernel.org,
-	"H. Peter Anvin" <hpa@zytor.com>,
+       spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 57D91AFA5;
+	Wed, 31 Jul 2019 15:48:01 +0000 (UTC)
+From: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+To: catalin.marinas@arm.com,
+	hch@lst.de,
+	wahrenst@gmx.net,
+	marc.zyngier@arm.com,
+	Robin Murphy <robin.murphy@arm.com>,
 	linux-arm-kernel@lists.infradead.org,
-	linux-kernel@vger.kernel.org,
-	Mark Rutland <Mark.Rutland@arm.com>,
-	"Liang, Kan" <kan.liang@linux.intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: [PATCH v10 22/22] arm64: mm: Display non-present entries in ptdump
-Date: Wed, 31 Jul 2019 16:46:03 +0100
-Message-Id: <20190731154603.41797-23-steven.price@arm.com>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190731154603.41797-1-steven.price@arm.com>
-References: <20190731154603.41797-1-steven.price@arm.com>
+	devicetree@vger.kernel.org,
+	iommu@lists.linux-foundation.org,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Cc: phill@raspberryi.org,
+	f.fainelli@gmail.com,
+	will@kernel.org,
+	robh+dt@kernel.org,
+	eric@anholt.net,
+	mbrugger@suse.com,
+	nsaenzjulienne@suse.de,
+	akpm@linux-foundation.org,
+	frowand.list@gmail.com,
+	m.szyprowski@samsung.com,
+	linux-rpi-kernel@lists.infradead.org
+Subject: [PATCH 1/8] arm64: mm: use arm64_dma_phys_limit instead of calling max_zone_dma_phys()
+Date: Wed, 31 Jul 2019 17:47:44 +0200
+Message-Id: <20190731154752.16557-2-nsaenzjulienne@suse.de>
+X-Mailer: git-send-email 2.22.0
+In-Reply-To: <20190731154752.16557-1-nsaenzjulienne@suse.de>
+References: <20190731154752.16557-1-nsaenzjulienne@suse.de>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -118,57 +116,29 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Previously the /sys/kernel/debug/kernel_page_tables file would only show
-lines for entries present in the page tables. However it is useful to
-also show non-present entries as this makes the size and level of the
-holes more visible. This aligns the behaviour with x86 which also shows
-holes.
+By the time we call zones_sizes_init() arm64_dma_phys_limit already
+contains the result of max_zone_dma_phys(). We use the variable instead
+of calling the function directly to save some precious cpu time.
 
-Signed-off-by: Steven Price <steven.price@arm.com>
+Signed-off-by: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
 ---
- arch/arm64/mm/dump.c | 27 ++++++++++++++-------------
- 1 file changed, 14 insertions(+), 13 deletions(-)
 
-diff --git a/arch/arm64/mm/dump.c b/arch/arm64/mm/dump.c
-index 5cc71ad567b4..765e8fc5640a 100644
---- a/arch/arm64/mm/dump.c
-+++ b/arch/arm64/mm/dump.c
-@@ -259,21 +259,22 @@ static void note_page(struct ptdump_state *pt_st, unsigned long addr, int level,
- 		if (st->current_prot) {
- 			note_prot_uxn(st, addr);
- 			note_prot_wx(st, addr);
--			pt_dump_seq_printf(st->seq, "0x%016lx-0x%016lx   ",
--				   st->start_address, addr);
-+		}
+ arch/arm64/mm/init.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
+index f3c795278def..6112d6c90fa8 100644
+--- a/arch/arm64/mm/init.c
++++ b/arch/arm64/mm/init.c
+@@ -181,7 +181,7 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
+ 	unsigned long max_zone_pfns[MAX_NR_ZONES]  = {0};
  
--			delta = (addr - st->start_address) >> 10;
--			while (!(delta & 1023) && unit[1]) {
--				delta >>= 10;
--				unit++;
--			}
--			pt_dump_seq_printf(st->seq, "%9lu%c %s", delta, *unit,
--				   pg_level[st->level].name);
--			if (pg_level[st->level].bits)
--				dump_prot(st, pg_level[st->level].bits,
--					  pg_level[st->level].num);
--			pt_dump_seq_puts(st->seq, "\n");
-+		pt_dump_seq_printf(st->seq, "0x%016lx-0x%016lx   ",
-+			   st->start_address, addr);
-+
-+		delta = (addr - st->start_address) >> 10;
-+		while (!(delta & 1023) && unit[1]) {
-+			delta >>= 10;
-+			unit++;
- 		}
-+		pt_dump_seq_printf(st->seq, "%9lu%c %s", delta, *unit,
-+			   pg_level[st->level].name);
-+		if (st->current_prot && pg_level[st->level].bits)
-+			dump_prot(st, pg_level[st->level].bits,
-+				  pg_level[st->level].num);
-+		pt_dump_seq_puts(st->seq, "\n");
+ #ifdef CONFIG_ZONE_DMA32
+-	max_zone_pfns[ZONE_DMA32] = PFN_DOWN(max_zone_dma_phys());
++	max_zone_pfns[ZONE_DMA32] = PFN_DOWN(arm64_dma_phys_limit);
+ #endif
+ 	max_zone_pfns[ZONE_NORMAL] = max;
  
- 		if (addr >= st->marker[1].start_address) {
- 			st->marker++;
 -- 
-2.20.1
+2.22.0
 
