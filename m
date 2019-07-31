@@ -7,100 +7,100 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EBF51C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:14:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 91395C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:14:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A426D20693
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:14:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4A38B20C01
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:14:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="bRpitEYF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A426D20693
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="GisN2VOH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A38B20C01
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B36EA8E0032; Wed, 31 Jul 2019 11:14:00 -0400 (EDT)
+	id CE41F8E0033; Wed, 31 Jul 2019 11:14:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ABF558E0030; Wed, 31 Jul 2019 11:14:00 -0400 (EDT)
+	id C6E438E0030; Wed, 31 Jul 2019 11:14:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 988058E0032; Wed, 31 Jul 2019 11:14:00 -0400 (EDT)
+	id A49ED8E0033; Wed, 31 Jul 2019 11:14:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C9F38E0030
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:14:00 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id y24so42671222edb.1
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:14:00 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 53A428E0030
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:14:01 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id y15so42628178edu.19
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:14:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=k+U6VIHmZ/fZHykv9hSZy3hTFPe14uQwWZPNGVQf9Wg=;
-        b=RhZxOufNCNUZwmuV6m5uq02qVaxM46Khz6Wg5Bs3JSQXmQFdDgKIVy24EoUzZnKggo
-         6Ga32yv/znLRw/i3xfbEBlkxt9Z8idmBjspRahB4q/DXizXeAy/BmA0msjC3xg7tRBr8
-         iU6+nsZldd0KJPtYuFI4ZBOLAe28O3Mj/NuK4bJ65k47ACLN0hHgxEt8W/F0wNBS3Dap
-         AcJ936WcIoclktuAQQUicdXRA0XOY1SJNa3qQJ3xE46Q+9Bk/2IukrHStk9wxZjAEFgr
-         rred+sHnOQWYEOOs1Bo6ulmWQ6sVBxjsuOAdRrEzMVkeFeFu1bcnK21CvhKmGx+4ay7P
-         XIXg==
-X-Gm-Message-State: APjAAAVBuR99h1pffrKTNWhmQ7C6BPKXrZN5YH23vMC9dGp8j324SUNE
-	5xqEm/vhznnfKsk+JVagsCzmRX5GYYedNLQv2U6VAbZuRvaf3rqidNn1fI7z9KlazMFte8D38kH
-	hxgZzh9qeT2ll5LJ+8T9Wng3fSXKnhN0rxLq+hvnGoCf195jy6O1QL1u9xpiJbHY=
-X-Received: by 2002:aa7:d918:: with SMTP id a24mr106262129edr.235.1564586039902;
+        bh=3zVMT74rDUltFrg5s5cNC7M6LQV7b9+aLo+/S3q5hiw=;
+        b=BSm8BqMbV2DBNT8SUkMyfJOrg8Ckt4px/eHpxAhTH6fPn0rUM1RBFWuFToM7N2l1iY
+         w8MMpapc9BfJchKU7q/i1BJ2ingHlWBzsdaXoVRrICuimSi2W0PFc0vi0CXm0dDRqDhn
+         EhnntH+sA6k2fgBC+hFtATE776MsJJ9gdDUC1j+Y2WZ9rd5RgV//v0XovXizIdd/Nymu
+         PV6d5N0kqIDRZMqhSw3EK18iNy8obiyWOS6XhrGomuRNy41qvlS6lfRDVK+X7nES9KbE
+         /Zp14I47iZwEDvNmDPVT1iTN02mEvw992+Pq1zBtzoJ77+3Qp+bU7KWo09djmrTn6G0U
+         LrvA==
+X-Gm-Message-State: APjAAAXXk966F/a/iZOYmtnfY0Z93i5sLBwRRyzyzepDoE3gvk/mHcuj
+	aCSa2VUre9Bw5gNsY6oD4uxXMwIASVPf5YiIoerVZ4Rrrm1FRae53XCySNVBimV3Z3Lp7s7GSoL
+	2QxfTnzd91jsOyOFGDc6wA9im/gPTyqXMLpeIuNBopru4u7485uzKJT963KADeww=
+X-Received: by 2002:a50:b4cb:: with SMTP id x11mr109667775edd.284.1564586040914;
+        Wed, 31 Jul 2019 08:14:00 -0700 (PDT)
+X-Received: by 2002:a50:b4cb:: with SMTP id x11mr109667636edd.284.1564586039565;
         Wed, 31 Jul 2019 08:13:59 -0700 (PDT)
-X-Received: by 2002:aa7:d918:: with SMTP id a24mr106262030edr.235.1564586038903;
-        Wed, 31 Jul 2019 08:13:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564586038; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1564586039; cv=none;
         d=google.com; s=arc-20160816;
-        b=jpZs0Fd91yEusDyeQBMN4B7szA12cDRpl/gF09kMWHWtBrS5rd/PQ5kKdKa5LJH976
-         2viaSj8pZWD4HS3LPfEUMMBK0GeYqfIwMXHi8q2KioN8jICX6z74OSnZ559RN/gM8SXs
-         AOlYiNIRKdeenlODBt2QyoNCXMdon0DPzNzOSogl4JOnnuRPazXUM/WPw4iV4o6+7l35
-         cVirGxJnty01pYng5qsAlceWMBEpppfnrnsAzy3huh9sc/Z+vxCktCy7UToxvk0ghRK+
-         y8Pd4tYSJn5k3DhiwCQw3ZuizTeBkTOGH5F0BFesquuJ3PVblxW0+TPhGNoBwl4So71t
-         7V9A==
+        b=xsCbz8skRRf72SqUwRQv7zwcSJw1Y6UOnLZQ5xYNwVR2RCxSzvjlGwzSLjQlFQGSBs
+         Qx4jEKzwklPR0n+m8DQpopSM5TXt84cG5MCAV8cR4DDSTP5d9TSUITk1BJMwQigAsqDs
+         lYVlqBHlWxtVYQLG8TGnbRO/rJVVKIPGId9DGGhu8YUu6Ys5W5E/pEQutGtyBRVy+9Ok
+         4VsQ09FfIbJJiwmFnBZHHxOoNICf+byrub3MSdIg7APrnRFBYcBlSv49s6aZwDF1aZCe
+         +3J4rDj6fRdE/JqBUt2/hfGdTQeKhFtLlPrZ+tesXuWmFjGfma0d+JW9JuE7RRQnFDd1
+         Lt4A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=k+U6VIHmZ/fZHykv9hSZy3hTFPe14uQwWZPNGVQf9Wg=;
-        b=a96zW6Pox9g+KTelq6vZSawmgMBGFBlPyoKFR8HQGmP/CLFD2iR07dUc/T2UBN/OuT
-         M/6t0AYMuZydk4WZiaOBd70Ka+ajryHy1T1BIfm8bRIwm1PhoAUFIDVfITV2XzAeXWNK
-         SEc+9wCSnqgRArmvQI2BQfKD1sMAINGbMjrmIbHo3It0lOlObwjArCNAt0gC0SUcCxGc
-         iEPPueA+uLimQFSqcxS4HHEr8ooJn2VDbLxGiCl+qJjSYwNQqeh3rktBjwduo9610AlJ
-         IdWofr3awVL/aQQT93gdeqze46USvQvklXtsKtAkTf8tfQaOyuEpIu28aaV2XBQKMTkF
-         bhsA==
+        bh=3zVMT74rDUltFrg5s5cNC7M6LQV7b9+aLo+/S3q5hiw=;
+        b=Z7946y8HraD7O/By8+KjBVoerExkDuu5iWgrb7+KFHQhgWPXJqChx+vQT20CwFZInT
+         hW2rqO88DCWCsBSt7/jJsaojIZB5WvQcd2sPNYQ4cBQqVJJYxVtqGcVxnomYlgCfCdMw
+         j8lNIvvW4huq4aBdO5BkS94/V69T560bmUlqKF5hMUKN5x1VAU40GPziXu49OlNqFgCb
+         DupCEzFgCCa0oSrRqYtxiqHrud5bs+6fY8xBUwmgyLB+P1COgxpwV90ScVIc1fEENVfQ
+         /SdFVtZgdXHRT6iB4VTnkMb6NvhFdagVP7XSQf3Rwmp7qTMqow/ZUq77q9ZMyZRdFRSO
+         QTqQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=bRpitEYF;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=GisN2VOH;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h14sor52307231ede.5.2019.07.31.08.13.58
+        by mx.google.com with SMTPS id y5sor52051868edv.14.2019.07.31.08.13.59
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Jul 2019 08:13:58 -0700 (PDT)
+        Wed, 31 Jul 2019 08:13:59 -0700 (PDT)
 Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=bRpitEYF;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=GisN2VOH;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=k+U6VIHmZ/fZHykv9hSZy3hTFPe14uQwWZPNGVQf9Wg=;
-        b=bRpitEYFAw0iw9F4lWLWOaj8uAivovFwyv4AWNZf1NY1sGLxSiCLjNDzw6evzISUMa
-         GHJXwwWF7WOifVXGeInd0STe8yx3ZYQIBXHrbJkyF+Rm71XJH0Uqn7KhiVn6RKSVi/NH
-         GnIdsyLQWF+U1/Hz7RYNsNvOWkWTR+mduMkRXQK/n0AYcfSL5nkUiUeRr88V6rdddNZa
-         NnYZWfhk4GFsXaFANiQNQQqJaMiCdDw2sC/yGDEkK8d34cXt5u306IrMfDI46uU39c0H
-         ulh3gI4vz6iIiS8U4HduYh7aIdHho4vvV2rbd58qJxpeTNRRIu4peFugSAhril4FyF28
-         DzHw==
-X-Google-Smtp-Source: APXvYqx+v4/Pbf2jShDF7c6rephC3qv4nn7vrbh6ErmrX7qhFi1sSZ2Ot8M2CUcvWdStTREYbHHJ+Q==
-X-Received: by 2002:a50:9468:: with SMTP id q37mr106511363eda.163.1564586038381;
-        Wed, 31 Jul 2019 08:13:58 -0700 (PDT)
+        bh=3zVMT74rDUltFrg5s5cNC7M6LQV7b9+aLo+/S3q5hiw=;
+        b=GisN2VOHWd3D2xd2nqgN/O4RiDCWZV8MPtYrQVY6TlWY8EHqrabeuC1r3NX9u0NUOO
+         BH2o2lVkrCrb9gk1MKTOTG948p8DjJmLwuCxvSnHSCG2lQ5LlWSSW0TudDJxop3vUybS
+         iS5zXgJkjFJwjSE1VsEQrLIg9PkOFtoA/PrYofcbBQsb/QBWbIN8wq9TtqNGnZW57NXu
+         FygrvM5q/WyuM25UdOJmx6Q3wWqh1eJzizEsGx5+xS2vf/v8J+0H+RHMoHy2oBvIHwmm
+         KlIaNODZHWgCOQ3B780DUv+UnF1kRJdgXgyEo5fMmqmMlzcNCEgAUZoRuuxXG8JEW+4G
+         Cplw==
+X-Google-Smtp-Source: APXvYqwlNY51UchCswKgnSs9+WfX2oW8BlZl27GF1PmsG2m8MqrdBgD47IA24LwOZbfQr2I0vImeXg==
+X-Received: by 2002:a50:8b9c:: with SMTP id m28mr109889326edm.53.1564586039271;
+        Wed, 31 Jul 2019 08:13:59 -0700 (PDT)
 Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id e43sm17445027ede.62.2019.07.31.08.13.53
+        by smtp.gmail.com with ESMTPSA id ns22sm12486254ejb.9.2019.07.31.08.13.54
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 31 Jul 2019 08:13:57 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 X-Google-Original-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Received: by box.localdomain (Postfix, from userid 1000)
-	id 41659104605; Wed, 31 Jul 2019 18:08:17 +0300 (+03)
+	id DAD501045F8; Wed, 31 Jul 2019 18:08:16 +0300 (+03)
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
 	Thomas Gleixner <tglx@linutronix.de>,
@@ -120,9 +120,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 47/59] kvm, x86, mmu: setup MKTME keyID to spte for given PFN
-Date: Wed, 31 Jul 2019 18:08:01 +0300
-Message-Id: <20190731150813.26289-48-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 34/59] acpi: Remove __init from acpi table parsing functions
+Date: Wed, 31 Jul 2019 18:07:48 +0300
+Message-Id: <20190731150813.26289-35-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
 References: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
@@ -134,58 +134,88 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Kai Huang <kai.huang@linux.intel.com>
+From: Alison Schofield <alison.schofield@intel.com>
 
-Setup keyID to SPTE, which will be eventually programmed to shadow MMU
-or EPT table, according to page's associated keyID, so that guest is
-able to use correct keyID to access guest memory.
+ACPI table parsing functions are useful after init time.
 
-Note current shadow_me_mask doesn't suit MKTME's needs, since for MKTME
-there's no fixed memory encryption mask, but can vary from keyID 1 to
-maximum keyID, therefore shadow_me_mask remains 0 for MKTME.
+For example, the MKTME (Multi-Key Total Memory Encryption) key
+service will evaluate the ACPI HMAT table when the first key
+creation request occurs.  This will happen after init time.
 
-Signed-off-by: Kai Huang <kai.huang@linux.intel.com>
+Signed-off-by: Alison Schofield <alison.schofield@intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- arch/x86/kvm/mmu.c | 18 +++++++++++++++++-
- 1 file changed, 17 insertions(+), 1 deletion(-)
+ drivers/acpi/tables.c | 10 +++++-----
+ include/linux/acpi.h  |  4 ++--
+ 2 files changed, 7 insertions(+), 7 deletions(-)
 
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index 8f72526e2f68..b8742e6219f6 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -2936,6 +2936,22 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
- #define SET_SPTE_WRITE_PROTECTED_PT	BIT(0)
- #define SET_SPTE_NEED_REMOTE_TLB_FLUSH	BIT(1)
+diff --git a/drivers/acpi/tables.c b/drivers/acpi/tables.c
+index b32327759380..9d40af7f07fb 100644
+--- a/drivers/acpi/tables.c
++++ b/drivers/acpi/tables.c
+@@ -33,7 +33,7 @@ static char *mps_inti_flags_trigger[] = { "dfl", "edge", "res", "level" };
  
-+static u64 get_phys_encryption_mask(kvm_pfn_t pfn)
-+{
-+#ifdef CONFIG_X86_INTEL_MKTME
-+	struct page *page;
-+
-+	if (!pfn_valid(pfn))
-+		return 0;
-+
-+	page = pfn_to_page(pfn);
-+
-+	return ((u64)page_keyid(page)) << mktme_keyid_shift();
-+#else
-+	return shadow_me_mask;
-+#endif
-+}
-+
- static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
- 		    unsigned pte_access, int level,
- 		    gfn_t gfn, kvm_pfn_t pfn, bool speculative,
-@@ -2982,7 +2998,7 @@ static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
- 		pte_access &= ~ACC_WRITE_MASK;
+ static struct acpi_table_desc initial_tables[ACPI_MAX_TABLES] __initdata;
  
- 	if (!kvm_is_mmio_pfn(pfn))
--		spte |= shadow_me_mask;
-+		spte |= get_phys_encryption_mask(pfn);
+-static int acpi_apic_instance __initdata;
++static int acpi_apic_instance;
  
- 	spte |= (u64)pfn << PAGE_SHIFT;
+ enum acpi_subtable_type {
+ 	ACPI_SUBTABLE_COMMON,
+@@ -49,7 +49,7 @@ struct acpi_subtable_entry {
+  * Disable table checksum verification for the early stage due to the size
+  * limitation of the current x86 early mapping implementation.
+  */
+-static bool acpi_verify_table_checksum __initdata = false;
++static bool acpi_verify_table_checksum = false;
  
+ void acpi_table_print_madt_entry(struct acpi_subtable_header *header)
+ {
+@@ -280,7 +280,7 @@ acpi_get_subtable_type(char *id)
+  * On success returns sum of all matching entries for all proc handlers.
+  * Otherwise, -ENODEV or -EINVAL is returned.
+  */
+-static int __init acpi_parse_entries_array(char *id, unsigned long table_size,
++static int acpi_parse_entries_array(char *id, unsigned long table_size,
+ 		struct acpi_table_header *table_header,
+ 		struct acpi_subtable_proc *proc, int proc_num,
+ 		unsigned int max_entries)
+@@ -355,7 +355,7 @@ static int __init acpi_parse_entries_array(char *id, unsigned long table_size,
+ 	return errs ? -EINVAL : count;
+ }
+ 
+-int __init acpi_table_parse_entries_array(char *id,
++int acpi_table_parse_entries_array(char *id,
+ 			 unsigned long table_size,
+ 			 struct acpi_subtable_proc *proc, int proc_num,
+ 			 unsigned int max_entries)
+@@ -386,7 +386,7 @@ int __init acpi_table_parse_entries_array(char *id,
+ 	return count;
+ }
+ 
+-int __init acpi_table_parse_entries(char *id,
++int acpi_table_parse_entries(char *id,
+ 			unsigned long table_size,
+ 			int entry_id,
+ 			acpi_tbl_entry_handler handler,
+diff --git a/include/linux/acpi.h b/include/linux/acpi.h
+index 9426b9aaed86..fc1e7d4648bf 100644
+--- a/include/linux/acpi.h
++++ b/include/linux/acpi.h
+@@ -228,11 +228,11 @@ int acpi_numa_init (void);
+ 
+ int acpi_table_init (void);
+ int acpi_table_parse(char *id, acpi_tbl_table_handler handler);
+-int __init acpi_table_parse_entries(char *id, unsigned long table_size,
++int acpi_table_parse_entries(char *id, unsigned long table_size,
+ 			      int entry_id,
+ 			      acpi_tbl_entry_handler handler,
+ 			      unsigned int max_entries);
+-int __init acpi_table_parse_entries_array(char *id, unsigned long table_size,
++int acpi_table_parse_entries_array(char *id, unsigned long table_size,
+ 			      struct acpi_subtable_proc *proc, int proc_num,
+ 			      unsigned int max_entries);
+ int acpi_table_parse_madt(enum acpi_madt_type id,
 -- 
 2.21.0
 
