@@ -3,94 +3,103 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
-	autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54F60C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 22:28:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 037C7C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 22:40:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 221FF204EC
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 22:28:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 221FF204EC
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id C44E820693
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 22:40:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C44E820693
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B75A18E0003; Wed, 31 Jul 2019 18:28:00 -0400 (EDT)
+	id 5A0ED8E0003; Wed, 31 Jul 2019 18:40:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B26488E0001; Wed, 31 Jul 2019 18:28:00 -0400 (EDT)
+	id 529B78E0001; Wed, 31 Jul 2019 18:40:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9ED8A8E0003; Wed, 31 Jul 2019 18:28:00 -0400 (EDT)
+	id 3CB738E0003; Wed, 31 Jul 2019 18:40:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B1438E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 18:28:00 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id j22so44154630pfe.11
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 15:28:00 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id F37D38E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 18:40:08 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id 6so44226811pfz.10
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 15:40:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=nwcJ3sQwPY3LTO7gF5g6MU8bAtfGsVtclFQFC0wg+HA=;
-        b=ZqbiZ0SYKj7NJQDc2dIbwaOxA4Zh6K5ed77hInpdJtwQvkZS+ZoSOvI5Ft6u8ajLEH
-         SFctY1oVbwPLpQXDMpdF6Hvo1ETt0ho3d/WOc21v9nBlhWrquWXtLtKgAVBcCN5NrV/P
-         dVLkBcIJ1+JTpnOwN5d1I9EislxsN9IfQgrx4xXWhMhqprAM9oltfEmAwloknccZonzc
-         qLcR19a2W+YGyRi3QdiRw1Z4iNY6KEtHMj9WcRFdtIO0MxxlInyuf95rEJBKBJ8UIC5V
-         nvtd3oTvxiFLmqYrr7KgzbHKExHF3kBuIoRUYSLUKNBrmaek0X7DUGHh/y83kB+zlQCW
-         6DGA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-X-Gm-Message-State: APjAAAUMAgzmLh75e+clw8wnL7EJJeL+7xuBu9EBMbaSKvyluNCGR9DB
-	DBCvT27DGjkE8CLPvkwvki2v5v4duh+PRZri46/WRTmzlZ0mnpH2Vo95lzDv60XTMK3f3hD8X+Z
-	egv2uQ30Gf/CIQ+dKGu8GvkoXaJvHM1aKdZSvtHDgNlFr9ZMCWb6yZs3ggJPk76Mk8w==
-X-Received: by 2002:a17:902:7887:: with SMTP id q7mr4576509pll.129.1564612080098;
-        Wed, 31 Jul 2019 15:28:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyyXqWnZsuHLj+iOawkeG/q+79dW1bP/+vemJoIVXvc+XcURvy9w8AfQw+oe2a/NaVx72T2
-X-Received: by 2002:a17:902:7887:: with SMTP id q7mr4576455pll.129.1564612079305;
-        Wed, 31 Jul 2019 15:27:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564612079; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:user-agent
+         :mime-version:content-transfer-encoding;
+        bh=0bWlLBuUofOMXxzWXPVmkrlWbXYAAypOrTSLVPR2loI=;
+        b=dSj9ioDm+0ygp8AcJHZoF9ywAr2BeM9HX/p/J8UblVO8iv1dBIUrzLMUOahqhfIeq/
+         W9nN6N0cla8gnkzAfFgKIz8qCaBg2gSK3sSGi3lF7NNXo1SSa04A3XX5UOrE6zxukBdu
+         GObPxrQsS0qry/D0Ii3WxEMiLyTi+pxM833W+zhkiDsj6SOsogkOljM7kYIj7c5E/WcX
+         kuLjF9l/LAyv2+EQh+xSJ3f22RPh1R8L6K/xq1wzGZnDYuJRf7cfHpCxWzwVwFk0NDzG
+         0UzRAHk1y5r+yVp7Mdr/M4tWszlrh97dYJNT4e2Z9eYJe/nVf9OzY3yBcBNvofL6hS06
+         R7fg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXIsIJhnXOOqujinXjz78oBdWODIjcbrK2bN+nRb0+0qMQh8jJ3
+	GplwdGRJPVH7LA+c0pYU9zJKcGcW08UlfQQOOntAX8AbiWnxxf/akxYyu47tgHePeCDhhJ38WmH
+	Aid8gZ7jH2Yr+ghydLxEEv3SiH6iLu2QGP4CyG6uuR7EqxUtkdICmucDQXV+Rd0HuDQ==
+X-Received: by 2002:a62:e716:: with SMTP id s22mr49498485pfh.250.1564612808671;
+        Wed, 31 Jul 2019 15:40:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzoNQBcp/MVTn1w3ZkxXkg+yClbybsd3XAS6mUEQa3isOv+KYycZbObkWann7OVWz0L0yIN
+X-Received: by 2002:a62:e716:: with SMTP id s22mr49498437pfh.250.1564612807992;
+        Wed, 31 Jul 2019 15:40:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564612807; cv=none;
         d=google.com; s=arc-20160816;
-        b=SzEhPOhEQCmhZJixsxoNvYM8AIsDc62kN/k2kGya9z7zh1Hw9E26ZWurmihGnkmXQV
-         brJYyWytFKnAqugZoS02sNrkKqpd13jt3AXuLmBOk1fsNWz4cPWhkWf8okB4kVgbI9pq
-         NpEmmkD345LmKMCnSrRwLqFFwl7GlyjwfJebHmvehW/UV3PDePlzumYJaIIBPhNJuTbH
-         +XxyJNr8IeY/PGbRniBfcxEZUTjyNzpYxd6TY8cgesCfBVi9/l0Sb4hTPbfycJOHypP4
-         ULEYtfmxbn2dtRudjCbLHT8f0XCY6WpCr2/bW76LhdKKEjd0Wr8JfBagtspwEm+wRyw/
-         hxYQ==
+        b=bbmZkgK4w6goByl+RQg2gsj8LlKuGqzJPelbOtYo2bZzVlRlvthXOQIEHi2N/bcJQs
+         Ik/2QmvTITE8EYf1lyxGR7M4Q965R1u/mzMeJyNaXp8PcChUbchfUFR930AIYRqzk+Su
+         O5B5FerwJf5tGhiZGjLXftsHrYqvCTtepKcKUBp7lJqDQ8BuSELr6l53khuoV0hzaXRr
+         KEgd0Aa49SYG/iO2fGLjMlO1NqVIhYhJByo7oZ9A9yAUTV3dinKiE3Fjv7gDGtn59pJT
+         Jh0T23A5o8Oh4ews8sXUXuxzw9xfPO0kQKUTLp2Sw1zdmj3cY02ELSNCYooCz2D5lWWV
+         XjtQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date;
-        bh=nwcJ3sQwPY3LTO7gF5g6MU8bAtfGsVtclFQFC0wg+HA=;
-        b=Bco9VxGD8b2UbbDz4qCiJpBsnsKJYBp1uqXrTeRzY1XGR5T+TTSg1jxKDRx7jV+fHe
-         P0u8LRRpO6hwolVYzHDx4OJlpOs3JvgHwfq3Wchh57ef/ihqywxv4OpuEjSBWDWjxQpx
-         q1PWpl0I3sZQAFnos36+c3OL8JhYmxn8dmtYA8vsy96rur8hwe5JvLqNtRzUhIq+NEoG
-         ER0Q4YzEAWXBWPO7DtCUaw2oHpcEOEWfQkfeB5BT2QqvN0OS6XcGTomxNMMEu3qIUDr1
-         S2Fj2WL9ZqmWzILdKlPTovsNr1ejAStlKsvle058beNtWMV/FIi0y8h+DBjJ9YpmTu/s
-         hudA==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:date:cc:to:from:subject:message-id;
+        bh=0bWlLBuUofOMXxzWXPVmkrlWbXYAAypOrTSLVPR2loI=;
+        b=L1bSgxalonzldr7yk8b1CnMiSalEpyeM94lwM6VzI3Wj6KisMl8m8zodq3K0lVYvyD
+         WDJ2acqu/sgjuAJ9EG429xhkSdoUD5wdLzXMyWUratwwM1h21byxzJGPlTOXajaiSMU5
+         pZEE4mgc39KMZUJHDjM01XipBz/bbS2rgkPyZU+jqcCKpD4ZpIPROKEnunBwWlnxOkwd
+         +U86z+eHwlk9V4Lsa6lOQ7i59EHKRn1r9josks4Fn8i8yBo87/EMdTuL8PvmuICd7ElL
+         MhiBMxoiAIY4jh7a9lXm3a5vCZbW6IZriUALiqRieqQVZOWAWZ6RKQ29r8/JwBmgXJ4l
+         8d7A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
-        by mx.google.com with ESMTPS id h185si30657283pge.199.2019.07.31.15.27.58
+       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
+        by mx.google.com with ESMTPS id bj12si30611564plb.378.2019.07.31.15.40.07
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 15:27:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
+        Wed, 31 Jul 2019 15:40:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from X1 (unknown [76.191.170.112])
-	by mail.linuxfoundation.org (Postfix) with ESMTPSA id BBC45416B;
-	Wed, 31 Jul 2019 22:27:55 +0000 (UTC)
-Date: Wed, 31 Jul 2019 15:27:53 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@intel.com,
- Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>
+       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga001.fm.intel.com ([10.253.24.23])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 31 Jul 2019 15:40:07 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,331,1559545200"; 
+   d="scan'208";a="191399007"
+Received: from sai-dev-mach.sc.intel.com ([143.183.140.153])
+  by fmsmga001.fm.intel.com with ESMTP; 31 Jul 2019 15:40:07 -0700
+Message-ID: <a05920e5994fb74af480255471a6c3f090f29b27.camel@intel.com>
 Subject: Re: [PATCH] fork: Improve error message for corrupted page tables
-Message-Id: <20190731152753.b17d9c4418f4bf6815a27ad8@linux-foundation.org>
-In-Reply-To: <20190730221820.7738-1-sai.praneeth.prakhya@intel.com>
+From: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@intel.com,
+  Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>
+Date: Wed, 31 Jul 2019 15:36:49 -0700
+In-Reply-To: <20190731152753.b17d9c4418f4bf6815a27ad8@linux-foundation.org>
 References: <20190730221820.7738-1-sai.praneeth.prakhya@intel.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+	 <20190731152753.b17d9c4418f4bf6815a27ad8@linux-foundation.org>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5-0ubuntu0.18.10.1 
+MIME-Version: 1.0
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -98,47 +107,43 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 30 Jul 2019 15:18:20 -0700 Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com> wrote:
 
-> When a user process exits, the kernel cleans up the mm_struct of the user
-> process and during cleanup, check_mm() checks the page tables of the user
-> process for corruption (E.g: unexpected page flags set/cleared). For
-> corrupted page tables, the error message printed by check_mm() isn't very
-> clear as it prints the loop index instead of page table type (E.g: Resident
-> file mapping pages vs Resident shared memory pages). Hence, improve the
-> error message so that it's more informative.
+> > With patch:
+> > -----------
+> > [   69.815453] mm/pgtable-generic.c:29: bad p4d
+> > 0000000084653642(800000025ca37467)
+> > [   69.815872] BUG: Bad rss-counter state mm:00000000014a6c03
+> > type:MM_FILEPAGES val:2
+> > [   69.815962] BUG: Bad rss-counter state mm:00000000014a6c03
+> > type:MM_ANONPAGES val:5
+> > [   69.816050] BUG: non-zero pgtables_bytes on freeing mm: 20480
 > 
-> Without patch:
-> --------------
-> [  204.836425] mm/pgtable-generic.c:29: bad p4d 0000000089eb4e92(800000025f941467)
-> [  204.836544] BUG: Bad rss-counter state mm:00000000f75895ea idx:0 val:2
-> [  204.836615] BUG: Bad rss-counter state mm:00000000f75895ea idx:1 val:5
-> [  204.836685] BUG: non-zero pgtables_bytes on freeing mm: 20480
+> Seems useful.
 > 
-> With patch:
-> -----------
-> [   69.815453] mm/pgtable-generic.c:29: bad p4d 0000000084653642(800000025ca37467)
-> [   69.815872] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_FILEPAGES val:2
-> [   69.815962] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_ANONPAGES val:5
-> [   69.816050] BUG: non-zero pgtables_bytes on freeing mm: 20480
+> > --- a/include/linux/mm_types_task.h
+> > +++ b/include/linux/mm_types_task.h
+> > @@ -44,6 +44,13 @@ enum {
+> >  	NR_MM_COUNTERS
+> >  };
+> >  
+> > +static const char * const resident_page_types[NR_MM_COUNTERS] = {
+> > +	"MM_FILEPAGES",
+> > +	"MM_ANONPAGES",
+> > +	"MM_SWAPENTS",
+> > +	"MM_SHMEMPAGES",
+> > +};
+> 
+> But please let's not put this in a header file.  We're asking the
+> compiler to put a copy of all of this into every compilation unit which
+> includes the header.  Presumably the compiler is smart enough not to
+> do that, but it's not good practice.
 
-Seems useful.
+Thanks for the explanation. Makes sense to me.
 
-> --- a/include/linux/mm_types_task.h
-> +++ b/include/linux/mm_types_task.h
-> @@ -44,6 +44,13 @@ enum {
->  	NR_MM_COUNTERS
->  };
->  
-> +static const char * const resident_page_types[NR_MM_COUNTERS] = {
-> +	"MM_FILEPAGES",
-> +	"MM_ANONPAGES",
-> +	"MM_SWAPENTS",
-> +	"MM_SHMEMPAGES",
-> +};
+Just wanted to check before sending V2,
+Is it OK if I add this to kernel/fork.c? or do you have something else in
+mind?
 
-But please let's not put this in a header file.  We're asking the
-compiler to put a copy of all of this into every compilation unit which
-includes the header.  Presumably the compiler is smart enough not to
-do that, but it's not good practice.
+Regards,
+Sai
 
