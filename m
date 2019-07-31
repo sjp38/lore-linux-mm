@@ -4,130 +4,208 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 203F2C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:07:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 51445C433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:15:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E1AF2216C8
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:07:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1AF2216C8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id E88BF206A2
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:15:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E88BF206A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 626988E0008; Wed, 31 Jul 2019 13:07:49 -0400 (EDT)
+	id 8DEBF8E000A; Wed, 31 Jul 2019 13:15:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5D4FB8E0001; Wed, 31 Jul 2019 13:07:49 -0400 (EDT)
+	id 88FD68E0001; Wed, 31 Jul 2019 13:15:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 476E78E0008; Wed, 31 Jul 2019 13:07:49 -0400 (EDT)
+	id 7580B8E000A; Wed, 31 Jul 2019 13:15:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id F28968E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:07:48 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id a5so42810964edx.12
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 10:07:48 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 404898E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:15:31 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id 30so43242104pgk.16
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 10:15:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=YJKzXyNmcdeKRoNmNSVLaabrWUVyFB3KnY0m8z+OCUU=;
-        b=RAaaCdYpxeyAA6I+8r31jLoohtWXIdJRXuNqtS6mL3iSQFQy9zWTR5p9++1lxGnoKr
-         JnOnGkVlovhtTylfiRuAYlnDkp1HadVOmPhrRRyJR4a1a+8xH5mt/LvE2PLWuvf6jG8Z
-         kuTX6WSjTd2t9rjLSIff9ODjfduJI1XRZjTrgIwVq84J1muRMyZmtnT7t0UD2gVUcx6z
-         LdjbbXgZGjnsTckR3xfJoNTfYVXRdoVD2kPyob2wJ+IXH8SsgDbwzyvFMvOxq8k3JdsJ
-         hdEuvozt87iIRL8xhS/7Is4g1TCLOB2ERtxR/x73giEgwdZRXZ1yzJCgIbpKJOdE/9XV
-         9nlg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAUo2VG47PWhB3QmU64mxQ/iLgHwMoU0tmtr2R8OSZaSueDrN3OD
-	nwluHCbGYugWOYMCNSEDgeXlzWVlFoB6UHBdPrMToNf7ZjctrKXN4D6mfXX2yKVGpI3eXkSP2Gh
-	/lNvIgNsaCEa9O+jvEsHnpvElYxU1tHUqKRffhX8cFf2VrsgCFNJT6X/Nsh8As+8cQw==
-X-Received: by 2002:a17:906:b203:: with SMTP id p3mr94989081ejz.223.1564592868572;
-        Wed, 31 Jul 2019 10:07:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwiPplz/c01siOXRoTr40FpZufXHTEMw4Ou5QHUYW1Y88QSzmGbRL2K2zl3BLs3evfMgccg
-X-Received: by 2002:a17:906:b203:: with SMTP id p3mr94989020ejz.223.1564592867796;
-        Wed, 31 Jul 2019 10:07:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564592867; cv=none;
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=QIfxT5RG9GGQYiggevbJ7wQU9KquJ88obAosMLH4YAM=;
+        b=n/oTksXl3cQkEBT6sKLcxrzoVlH2VsgnAgpaxthFhBBtnOKzBUDBYxaxXSUjFj5n8Y
+         1T83+hLiy6VcNLrggunN0cTbe4Vte9i+vcIhD1lXWs4jQ1XNeuEPXiPtCIdxxubo/FAQ
+         ADlw/3Ht1scd4TueOLoOLAp8jDGO1GQLlRCveziJ1HRCPeunxW5X6oRyGgTDKYLvoYFf
+         SXxsiUzQqoG60ksoMqWCMZgrBff/iHeUEhUIjrOkXLzIKJIjO7UMNGJYppEMkEYu7kHF
+         5DI+kAj/rnNUMt/aAbXdeBg4cCgB/Ijlr11qi1z9k0f2dmR6X3t+Q7ejTz+nzmCbWY0U
+         mV0w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAXijdhLP4IisDZX0p8tmWtSUreOlxc5hWuj5Dn+XmGtGD4OYJT0
+	Mr+QbuoaRZgNwL/icEOYlUp6EYN7gtF7vy7amc8qwQkcXySRb9AU7X/hMm7k77lJzihOmwFPZq5
+	LeLUazg2gBC05+IP1K3psqxYBOl8WEJqv/f1KgSeJVb+X9BBya0SfeXABSbav7I+1TQ==
+X-Received: by 2002:a17:90a:2567:: with SMTP id j94mr3980769pje.121.1564593330921;
+        Wed, 31 Jul 2019 10:15:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxEVzPcsLylIxN7tMzpyFeTdiLWf6rRtbf+oCgF+7zr7y4RkS28t4tXodjdagcUF1d3ktrz
+X-Received: by 2002:a17:90a:2567:: with SMTP id j94mr3980709pje.121.1564593330169;
+        Wed, 31 Jul 2019 10:15:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564593330; cv=none;
         d=google.com; s=arc-20160816;
-        b=voNBgQpfrD6uxnz1rNCReMesNTdhFnrvWZFsh8yFFq7y7vHx5nK1WIHxIY0G/ePeza
-         gjdP7Sy3QE+sMG605KBS662ARDZr9rZHKsKyL4oHvDWC0Uz69Ig+SPJXOhiWGl0ZXmMC
-         e1VEsZ8HhN2OFPcEvQcI4wBautM7QZrt7CB8dnlooy+tlyoHz2/tLfhar1bvLFwA27Au
-         tKPHiLFn3gKP6SX1IieM/in4MioGaUHwi9eMmz8qb5sb5gtSW1BEhqiEVtlJfxz1iB8+
-         LDQPvy1HnSyhmL8Zr/hJWncN0YVwXhBotW1Mb1dzcPZHVCuRykn+okyMNSGkOhqkjzNq
-         tNfg==
+        b=Y/Hq4JdQ1vuqvftZWoAd4MNjujS+BbTRVDY0oMLgk3H1JKVyntkiefT3N2TbZjb2gP
+         eKE9PJnTAu2tyulhX9Ch+yMWxtYssKVNW2BnRwN7KbPm8QxOxEYrUpjHXMcZcfW1bCU9
+         JH5SswGkO3BwPUQybu5TW51nudAIlXuLkcpYEC3+KcLyBi7fvTXTQMsPAZkS27AlniHd
+         Bsj9hvhV46D90Fh1zsQFF+1b7+914dFKbfx59SvZBm3lj9wEdqZrsanPncTd370bnEEx
+         62Lrs6USricmuOqFe7khNIPhVKJqwWKpowiIsWj1err2kaWV/KT4pB0K5gccV4wRWtOK
+         ePGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=YJKzXyNmcdeKRoNmNSVLaabrWUVyFB3KnY0m8z+OCUU=;
-        b=QvMlH+N7087WUF/Z1p/1GEiUx5Prnfy8MW1pjA9caPLE99hEUWoFJ6SY9qQEhCBlqq
-         kGGYJx49zlSlat5H4/KzfOQuDhL8ilEoyZciCNmtPUAoQAQ6bz2kczRbe8/06DMaF2wg
-         BWwcrNvEBpA8g8OK/CNEDD0pBBC8tjT1nYTciSLSTwf2qvLvODr5TZh9iUDUU14hmh82
-         JZ/jA0vpFXA46MREUk18BT4oQvJ26/BR54KTkCs3mI65JLhA79rMJBVaVMKcvuc+7WeK
-         o6FIJXOYNEFvxM+8AVUn1ELkEThrKe5H08QOvGBxnBGiHPjobDHF9krKUtf8U+7xBjhk
-         7mBw==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=QIfxT5RG9GGQYiggevbJ7wQU9KquJ88obAosMLH4YAM=;
+        b=vFEqmNc9vYthvHCNDGDIfR4SeURoSGlNqTT8HAeAZVN9CnMFpf1vbvbXlMoAc3gvDA
+         BpUn9shqFZ3kmPNqZm36ZPDzWNklPfFR2LFj4zn+JM3FV7kMBYS5rA5fjDrqiRzuzye/
+         4Rx3YmfvPvCmjKTcfzEpEFoKUU7LiQrqsCD6VEPWuVBBp1U6lyTzGuA7LOBqvWX0rCDs
+         UMLS81a1/vHRu2qRnVOppdSVFuguBbqIGeF14d21pyVrhhnyHQ2B7l4hgasVbmb+cAUw
+         HpEk6J6+fq+Q0sUv1X6JcCntNn/xYqJVPVPlPQkTje6480/dxLIcCZTVuYWAziVjeBq5
+         Rerg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id a49si20399263edd.383.2019.07.31.10.07.47
-        for <linux-mm@kvack.org>;
-        Wed, 31 Jul 2019 10:07:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
+        by mx.google.com with ESMTPS id c22si29365401plz.361.2019.07.31.10.15.29
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Jul 2019 10:15:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E2AF6337;
-	Wed, 31 Jul 2019 10:07:46 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 72C133F71F;
-	Wed, 31 Jul 2019 10:07:44 -0700 (PDT)
-Date: Wed, 31 Jul 2019 18:07:42 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
-Cc: hch@lst.de, wahrenst@gmx.net, marc.zyngier@arm.com,
-	Robin Murphy <robin.murphy@arm.com>,
-	linux-arm-kernel@lists.infradead.org, devicetree@vger.kernel.org,
-	iommu@lists.linux-foundation.org, linux-mm@kvack.org,
-	Will Deacon <will@kernel.org>, phill@raspberryi.org,
-	f.fainelli@gmail.com, linux-kernel@vger.kernel.org,
-	robh+dt@kernel.org, eric@anholt.net, mbrugger@suse.com,
-	akpm@linux-foundation.org, frowand.list@gmail.com,
-	m.szyprowski@samsung.com, linux-rpi-kernel@lists.infradead.org
-Subject: Re: [PATCH 5/8] arm64: use ZONE_DMA on DMA addressing limited devices
-Message-ID: <20190731170742.GC17773@arrakis.emea.arm.com>
-References: <20190731154752.16557-1-nsaenzjulienne@suse.de>
- <20190731154752.16557-6-nsaenzjulienne@suse.de>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6VH7pUL139778
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:15:29 -0400
+Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2u3ddd5e41-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:15:29 -0400
+Received: from localhost
+	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 31 Jul 2019 18:15:26 +0100
+Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
+	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 31 Jul 2019 18:15:18 +0100
+Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
+	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6VHFGw050069666
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 31 Jul 2019 17:15:16 GMT
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 4E48CAE056;
+	Wed, 31 Jul 2019 17:15:16 +0000 (GMT)
+Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 918D8AE04D;
+	Wed, 31 Jul 2019 17:15:13 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.206.240])
+	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed, 31 Jul 2019 17:15:13 +0000 (GMT)
+Date: Wed, 31 Jul 2019 20:15:11 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Hoan Tran OS <hoan@os.amperecomputing.com>, Will Deacon <will@kernel.org>,
+        Catalin Marinas <catalin.marinas@arm.com>,
+        Heiko Carstens <heiko.carstens@de.ibm.com>,
+        "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
+        Paul Mackerras <paulus@samba.org>, "H . Peter Anvin" <hpa@zytor.com>,
+        "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>,
+        Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+        "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>,
+        Michael Ellerman <mpe@ellerman.id.au>,
+        "x86@kernel.org" <x86@kernel.org>,
+        Christian Borntraeger <borntraeger@de.ibm.com>,
+        Ingo Molnar <mingo@redhat.com>, Vlastimil Babka <vbabka@suse.cz>,
+        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+        Open Source Submission <patches@amperecomputing.com>,
+        Pavel Tatashin <pavel.tatashin@microsoft.com>,
+        Vasily Gorbik <gor@linux.ibm.com>, Will Deacon <will.deacon@arm.com>,
+        Borislav Petkov <bp@alien8.de>, Thomas Gleixner <tglx@linutronix.de>,
+        "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>,
+        Oscar Salvador <osalvador@suse.de>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
+        "David S . Miller" <davem@davemloft.net>,
+        "willy@infradead.org" <willy@infradead.org>
+Subject: Re: microblaze HAVE_MEMBLOCK_NODE_MAP dependency (was Re: [PATCH v2
+ 0/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by default for NUMA)
+References: <730368c5-1711-89ae-e3ef-65418b17ddc9@os.amperecomputing.com>
+ <20190730081415.GN9330@dhcp22.suse.cz>
+ <20190731062420.GC21422@rapoport-lnx>
+ <20190731080309.GZ9330@dhcp22.suse.cz>
+ <20190731111422.GA14538@rapoport-lnx>
+ <20190731114016.GI9330@dhcp22.suse.cz>
+ <20190731122631.GB14538@rapoport-lnx>
+ <20190731130037.GN9330@dhcp22.suse.cz>
+ <20190731142129.GA24998@rapoport-lnx>
+ <20190731144114.GY9330@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190731154752.16557-6-nsaenzjulienne@suse.de>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190731144114.GY9330@dhcp22.suse.cz>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19073117-0016-0000-0000-000002980793
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19073117-0017-0000-0000-000032F707ED
+Message-Id: <20190731171510.GB24998@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-31_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=928 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1907310172
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 31, 2019 at 05:47:48PM +0200, Nicolas Saenz Julienne wrote:
-> diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-> index 1c4ffabbe1cb..f5279ef85756 100644
-> --- a/arch/arm64/mm/init.c
-> +++ b/arch/arm64/mm/init.c
-> @@ -50,6 +50,13 @@
->  s64 memstart_addr __ro_after_init = -1;
->  EXPORT_SYMBOL(memstart_addr);
->  
-> +/*
-> + * We might create both a ZONE_DMA and ZONE_DMA32. ZONE_DMA is needed if there
-> + * are periferals unable to address the first naturally aligned 4GB of ram.
-> + * ZONE_DMA32 will be expanded to cover the rest of that memory. If such
-> + * limitations doesn't exist only ZONE_DMA32 is created.
-> + */
+On Wed, Jul 31, 2019 at 04:41:14PM +0200, Michal Hocko wrote:
+> On Wed 31-07-19 17:21:29, Mike Rapoport wrote:
+> > On Wed, Jul 31, 2019 at 03:00:37PM +0200, Michal Hocko wrote:
+> > > 
+> > > I am sorry, but I still do not follow. Who is consuming that node id
+> > > information when NUMA=n. In other words why cannot we simply do
+> >  
+> > We can, I think nobody cared to change it.
+> 
+> It would be great if somebody with the actual HW could try it out.
+> I can throw a patch but I do not even have a cross compiler in my
+> toolbox.
 
-Shouldn't we instead only create ZONE_DMA to cover the whole 32-bit
-range and leave ZONE_DMA32 empty? Can__GFP_DMA allocations fall back
-onto ZONE_DMA32?
+Well, it compiles :)
+ 
+> > > diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
+> > > index a015a951c8b7..3a47e8db8d1c 100644
+> > > --- a/arch/microblaze/mm/init.c
+> > > +++ b/arch/microblaze/mm/init.c
+> > > @@ -175,14 +175,9 @@ void __init setup_memory(void)
+> > >  
+> > >  		start_pfn = memblock_region_memory_base_pfn(reg);
+> > >  		end_pfn = memblock_region_memory_end_pfn(reg);
+> > > -		memblock_set_node(start_pfn << PAGE_SHIFT,
+> > > -				  (end_pfn - start_pfn) << PAGE_SHIFT,
+> > > -				  &memblock.memory, 0);
+> > > +		memory_present(0, start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT);
+> > 
+> > memory_present() expects pfns, the shift is not needed.
+> 
+> Right.
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
+> 
 
 -- 
-Catalin
+Sincerely yours,
+Mike.
 
