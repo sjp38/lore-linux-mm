@@ -2,178 +2,145 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FE49C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:48:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8DD52C32753
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:53:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 61FB8206A2
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:48:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 61FB8206A2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=surriel.com
+	by mail.kernel.org (Postfix) with ESMTP id 5E09720693
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:53:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E09720693
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F1F998E0003; Wed, 31 Jul 2019 09:48:17 -0400 (EDT)
+	id ECDB48E0003; Wed, 31 Jul 2019 09:53:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EA8578E0001; Wed, 31 Jul 2019 09:48:17 -0400 (EDT)
+	id E7DC18E0001; Wed, 31 Jul 2019 09:53:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D97B48E0003; Wed, 31 Jul 2019 09:48:17 -0400 (EDT)
+	id D46978E0003; Wed, 31 Jul 2019 09:53:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id B83748E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:48:17 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id x10so61453657qti.11
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 06:48:17 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B6C708E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:53:10 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id x11so57103722qto.23
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 06:53:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:user-agent
-         :mime-version:sender;
-        bh=a2UVqfb3vKkwAoFb8LMnoJhfpNx/nbwzZdgyGR+A5vg=;
-        b=esAtG69pfzHhNXHiPzkIuCl8WIloSbupQSatPZyKR627DlHCqRgYCusWJ3OseHAPCv
-         6dNog1rsBD1yngmagUAEWS23MXRyIGmM1XU6DlR2roXvZv5p6H1lZagpdje6DcVctoAV
-         0lxVxw9ATwwRMDH6SDXIxrNSiG477H+VloLpX0RZgQeV2FM7Iff/h84NS5DeVIOV9epB
-         etzxJ/5Xo+ZzJSQYNWwXMZcsr+035Dwuvd3Lqwa9K8dA50KoBNUCiF5t1y4jMSht81or
-         ZZ/MjIfxgPe3E+9TWEt3TaKnwtqQBYryDmWU9RwTsu8AiL3K2ICsDgTwnaSA28HGmGbi
-         ox7g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-X-Gm-Message-State: APjAAAWCCI44KKeIlQ+dKhHOK2qbBB5kVcrtAcra2eeEdrN8GRtPWZx/
-	ZUVQjIRAEOJS7MezMq4iJXgnLCZe5uv6Bpm8AIQJPa20lNr8m7s2H+XxSKo3WQXruRhRRaXAD+Y
-	rSoEMQMKk++cdiYMePEF/sQMkTirv0kbWEGGMAkcFvXRooFo+jObTq04JJFco7qKErg==
-X-Received: by 2002:a37:4f4f:: with SMTP id d76mr72191412qkb.304.1564580897509;
-        Wed, 31 Jul 2019 06:48:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyXwEnCCWy5Pc6lAp6YSXwLXTqxTiKSTbkvIHmzMnkJuyS2gh14kH0QhBoJF4bplXGzrm1k
-X-Received: by 2002:a37:4f4f:: with SMTP id d76mr72191363qkb.304.1564580896724;
-        Wed, 31 Jul 2019 06:48:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564580896; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=gTYnWhFY2Y8ySXDBBhKlyYnBsXqdAcapyLryjibiR6U=;
+        b=UInMYTVYzx9Y/BVVWCB+5D0ikT3SYJmCAPLsZeR4GW3GHTlklDI1NArQSWZ5BBgdiE
+         VbuvV8yMWE9liyPwxO5FpdXmxE7yog2pMoxh8Su9QhVK26yt3tx03y2NCScy2H8cFp29
+         Z5mQhNPJiG8tX9RU5L2Glp7GiO2QQ92GF/vpkSLPJcb2/4akA0WXHUjScuPrakC28hQO
+         fqMihDI5M7tg544yWmufayUezdKbgvXj3ydRiEZYHTRp+ZLxQFQ4H0zaQnKWArmHfdCS
+         Vky2JHPfb6OpSyWkThA8+CLMSetLVITrXtvUg9x6tRigm5Ply9JXPRdPsONw+Tpys01w
+         6Mdg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAU9S/JwruW/MSwLmtMhPTruX11DtW4o/2PnukBXRAXeT9gu7pzc
+	s1vfE4F0gKDtGK5Tu4pTJv3V7H/6XhiXzj2/36c7XTS78zUH2YeVd3ndSDigedJEJ+flJK6SczT
+	f71Rmxa5vqdQPOEKc3Eian+4Wv+skfuyxU62YOd8i7FFy5JVBZA01T/aCg8T/FNUxEA==
+X-Received: by 2002:ac8:3907:: with SMTP id s7mr88352967qtb.374.1564581190521;
+        Wed, 31 Jul 2019 06:53:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqySmPrmKxnTtDd3NKgiW1VECnDphI5fsAjiihyDhay8UbnRqrLAoQBiMOsB8y2YiKVmo4PZ
+X-Received: by 2002:ac8:3907:: with SMTP id s7mr88352914qtb.374.1564581189689;
+        Wed, 31 Jul 2019 06:53:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564581189; cv=none;
         d=google.com; s=arc-20160816;
-        b=ELj/rowWQrqQpjVPVgw7OslP4x3JvLNtqKWPYPk91isTSClLxjKkm3lsvB2C5a01xx
-         buCSqVgO6DSQwB+lkGg8wFYu1HLnvtvdp8BZS7D9St4RawwFTlfTMsmyLIX6kLEI3Qe5
-         e+cE1OSY9+QJqbnBZMz9Z2LKXx747+CiL/LvTQk5C3z8H1FHp0R353YCefwNGRRJXzgT
-         XjGf0j8DRb84IgqKTVIxwRYab5syuDlgxpQeKC+wbHHOhDQSJMmGPMTZj/yZDuxJ79Tk
-         7kxE/HprStE0/CIA+xwznT69vTK2+W0bo0b6G8W+z1kvgk4pOZlRNqHMXXNQZEvwyuD8
-         7T8A==
+        b=mW/4keNmevXtLD2wi0cf/ZNzIF6GStgYG5OkhiLvD4c/SwuClIRsUzf9baGUKiU4pK
+         QI/bId4MMyiYx2725D1KiSqQhcWo0iImASzM4Hpi8CYMzWbZfkiPNI7DjimtvX+ScJwq
+         NbgVJlB541DslY5WaKgach+jbYXcQ5tLmn77v6S95a4DNljG9Na9/NbEV+ELEWA2PeYo
+         UZV1ULOA+EHu7cL/853piY4adwhAP2F5xP18Bs6eR/KPrceGYCe40sLd/MFWb5jmX4CV
+         tZ9gB3HJGeTnY9A3HebK6JrLlkZkGkjupY4R+xRZSmjW2HXdlo5BPee62ma7nes9X6id
+         NXIA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=sender:mime-version:user-agent:references:in-reply-to:date:cc:to
-         :from:subject:message-id;
-        bh=a2UVqfb3vKkwAoFb8LMnoJhfpNx/nbwzZdgyGR+A5vg=;
-        b=FWhiUMIMx3RH32BIjjWOkddfhQhn0Jxy/bsfzbVZ9AP3Zt8w4erdMqEsHTogkn1mkq
-         UmvTTmk1EZSj5Pi1XVEUGzUmwEHtoft5xOxyCuPKEiECzD8gAtS7Il+pc4hDU/zmAXi9
-         hL1Klo6IrPg6BQyi3al6a+xxDppjw8TpgiE4din2dtqRnh44KNOrxbc23MJlOToiBSRG
-         9NGxl0Kmi/SWD65hN46yt7wpa9qyF0kNOW4TA0Vh6Ouqz8o6ZBaRwy+KFc5ExD/C7DbP
-         4QcSlLfGkFc7yUc7qeY2T9EMIvtsfU1qmWR4BW5Gkv64MJELXw6thrCEGrQnY4818XTJ
-         mCcw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=gTYnWhFY2Y8ySXDBBhKlyYnBsXqdAcapyLryjibiR6U=;
+        b=gJm3gB7q8Di+X+QiH03VILssb8ywLPIP/sVM0WQR1AqB5/rNSiwWITdalQUJbHFKxF
+         wOHcViMOu0MK/9XwnH+9rQwd7bHJ+Haaa47f3eFPWQxor2/WAV0iCYo+cvZl+6waS/og
+         r/1CFizIAXnkY/cQH922MLFw4aAp/yVmNi7135BbAeroM7mJW/jnr82yxHWUojkst/DE
+         cDryMvp2KCFjlIY4vXOLDDUm5pmpe1nmLqYKK4DUHLIoW//rWuxVgxkIoKBhIhHiOjsL
+         hR6JYdetd0aP7RMqckohIFuXTob124Fvh+n04YBYwovU47aRXQRel+ft8O6dwi1FuNu2
+         IMDQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
-        by mx.google.com with ESMTPS id r131si22247775qke.339.2019.07.31.06.48.14
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id z36si452495qtz.405.2019.07.31.06.53.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 06:48:14 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) client-ip=96.67.55.147;
+        Wed, 31 Jul 2019 06:53:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
-Received: from imladris.surriel.com ([96.67.55.152])
-	by shelob.surriel.com with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
-	(Exim 4.92)
-	(envelope-from <riel@shelob.surriel.com>)
-	id 1hsoxZ-0000KL-F1; Wed, 31 Jul 2019 09:48:05 -0400
-Message-ID: <c91e6104acaef118ae09e4b4b0c70232c4583293.camel@surriel.com>
-Subject: Re: [PATCH v3] sched/core: Don't use dying mm as active_mm of
- kthreads
-From: Rik van Riel <riel@surriel.com>
-To: Waiman Long <longman@redhat.com>, Peter Zijlstra <peterz@infradead.org>,
-  Ingo Molnar <mingo@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton
-	 <akpm@linux-foundation.org>, Phil Auld <pauld@redhat.com>, Michal Hocko
-	 <mhocko@kernel.org>
-Date: Wed, 31 Jul 2019 09:48:04 -0400
-In-Reply-To: <b5a462b8-8ef6-6d2c-89aa-b5009c194000@redhat.com>
-References: <20190729210728.21634-1-longman@redhat.com>
-	 <ec9effc07a94b28ecf364de40dee183bcfb146fc.camel@surriel.com>
-	 <3e2ff4c9-c51f-8512-5051-5841131f4acb@redhat.com>
-	 <8021be4426fdafdce83517194112f43009fb9f6d.camel@surriel.com>
-	 <b5a462b8-8ef6-6d2c-89aa-b5009c194000@redhat.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-xAvz8PAt4EpYAA5Kq7uu"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id CCEAB3079B62;
+	Wed, 31 Jul 2019 13:53:08 +0000 (UTC)
+Received: from t460s.redhat.com (ovpn-117-240.ams2.redhat.com [10.36.117.240])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 2C5081001959;
+	Wed, 31 Jul 2019 13:53:07 +0000 (UTC)
+From: David Hildenbrand <david@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org,
+	linux-acpi@vger.kernel.org,
+	David Hildenbrand <david@redhat.com>,
+	"Rafael J . Wysocki" <rafael.j.wysocki@intel.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Oscar Salvador <osalvador@suse.de>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: [PATCH v1] drivers/acpi/scan.c: Document why we don't need the device_hotplug_lock
+Date: Wed, 31 Jul 2019 15:53:06 +0200
+Message-Id: <20190731135306.31524-1-david@redhat.com>
 MIME-Version: 1.0
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Wed, 31 Jul 2019 13:53:08 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Let's document why the lock is not needed in acpi_scan_init(), right now
+this is not really obvious.
 
---=-xAvz8PAt4EpYAA5Kq7uu
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Oscar Salvador <osalvador@suse.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Signed-off-by: David Hildenbrand <david@redhat.com>
+---
 
-On Tue, 2019-07-30 at 17:01 -0400, Waiman Long wrote:
-> On 7/29/19 8:26 PM, Rik van Riel wrote:
-> > On Mon, 2019-07-29 at 17:42 -0400, Waiman Long wrote:
-> >=20
-> > > What I have found is that a long running process on a mostly idle
-> > > system
-> > > with many CPUs is likely to cycle through a lot of the CPUs
-> > > during
-> > > its
-> > > lifetime and leave behind its mm in the active_mm of those
-> > > CPUs.  My
-> > > 2-socket test system have 96 logical CPUs. After running the test
-> > > program for a minute or so, it leaves behind its mm in about half
-> > > of
-> > > the
-> > > CPUs with a mm_count of 45 after exit. So the dying mm will stay
-> > > until
-> > > all those 45 CPUs get new user tasks to run.
-> > OK. On what kernel are you seeing this?
-> >=20
-> > On current upstream, the code in native_flush_tlb_others()
-> > will send a TLB flush to every CPU in mm_cpumask() if page
-> > table pages have been freed.
-> >=20
-> > That should cause the lazy TLB CPUs to switch to init_mm
-> > when the exit->zap_page_range path gets to the point where
-> > it frees page tables.
-> >=20
-> I was using the latest upstream 5.3-rc2 kernel. It may be the case
-> that
-> the mm has been switched, but the mm_count field of the active_mm of
-> the
-> kthread is not being decremented until a user task runs on a CPU.
+@Andrew, can you drop "drivers/acpi/scan.c: acquire device_hotplug_lock in
+acpi_scan_init()" and add this patch instead? Thanks
 
-Is that something we could fix from the TLB flushing
-code?
+---
+ drivers/acpi/scan.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
 
-When switching to init_mm, drop the refcount on the
-lazy mm?
-
-That way that overhead is not added to the context
-switching code.
-
---=20
-All Rights Reversed.
-
---=-xAvz8PAt4EpYAA5Kq7uu
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAl1BnBUACgkQznnekoTE
-3oP8LggAs4XburHZ+HTI3IJjkgfu6S82BUog14l4Iqg4Pk4/KMkf5dPrftjy8atc
-BcB98mXDlfQCjyPd3gj8JZVlxmpwcendnEKgh1ErkLh5cDDTUnhil7dSQjCVLCBi
-KRxakwewtyuK1MwCtcDM0fd1GhNJS/VWfGzDh5BxSLFbQSNlhGZyxR92xMMe9ra0
-xIaIzzSdYJ9B9Uno9ZlaJdZwenrS/zEpE4iet6MSFaf/yy0gU0Bk07/x2IYNwsOB
-0diPL3V6VWTPG7k0fjfiaBoDjSdBaogMAPWEO+0fG2g4KQMsxyPg1Kgfrayw2NW7
-RSzLXBmZNFvkqJZMnErK1bmn937QQg==
-=14CR
------END PGP SIGNATURE-----
-
---=-xAvz8PAt4EpYAA5Kq7uu--
+diff --git a/drivers/acpi/scan.c b/drivers/acpi/scan.c
+index 0e28270b0fd8..8444af6cd514 100644
+--- a/drivers/acpi/scan.c
++++ b/drivers/acpi/scan.c
+@@ -2204,6 +2204,12 @@ int __init acpi_scan_init(void)
+ 	acpi_gpe_apply_masked_gpes();
+ 	acpi_update_all_gpes();
+ 
++	/*
++	 * Although we call__add_memory() that is documented to require the
++	 * device_hotplug_lock, it is not necessary here because this is an
++	 * early code when userspace or any other code path cannot trigger
++	 * hotplug/hotunplug operations.
++	 */
+ 	mutex_lock(&acpi_scan_lock);
+ 	/*
+ 	 * Enumerate devices in the ACPI namespace.
+-- 
+2.21.0
 
