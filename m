@@ -2,148 +2,184 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 037C7C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 22:40:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A10C6C32753
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 22:40:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C44E820693
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 22:40:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C44E820693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 5229A214DA
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 22:40:39 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=sifive.com header.i=@sifive.com header.b="QvM5gURg"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5229A214DA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sifive.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5A0ED8E0003; Wed, 31 Jul 2019 18:40:09 -0400 (EDT)
+	id DDE078E0005; Wed, 31 Jul 2019 18:40:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 529B78E0001; Wed, 31 Jul 2019 18:40:09 -0400 (EDT)
+	id D67308E0001; Wed, 31 Jul 2019 18:40:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3CB738E0003; Wed, 31 Jul 2019 18:40:09 -0400 (EDT)
+	id C07A48E0005; Wed, 31 Jul 2019 18:40:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id F37D38E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 18:40:08 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id 6so44226811pfz.10
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 15:40:08 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A22EA8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 18:40:38 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id p12so76841938iog.19
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 15:40:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=0bWlLBuUofOMXxzWXPVmkrlWbXYAAypOrTSLVPR2loI=;
-        b=dSj9ioDm+0ygp8AcJHZoF9ywAr2BeM9HX/p/J8UblVO8iv1dBIUrzLMUOahqhfIeq/
-         W9nN6N0cla8gnkzAfFgKIz8qCaBg2gSK3sSGi3lF7NNXo1SSa04A3XX5UOrE6zxukBdu
-         GObPxrQsS0qry/D0Ii3WxEMiLyTi+pxM833W+zhkiDsj6SOsogkOljM7kYIj7c5E/WcX
-         kuLjF9l/LAyv2+EQh+xSJ3f22RPh1R8L6K/xq1wzGZnDYuJRf7cfHpCxWzwVwFk0NDzG
-         0UzRAHk1y5r+yVp7Mdr/M4tWszlrh97dYJNT4e2Z9eYJe/nVf9OzY3yBcBNvofL6hS06
-         R7fg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXIsIJhnXOOqujinXjz78oBdWODIjcbrK2bN+nRb0+0qMQh8jJ3
-	GplwdGRJPVH7LA+c0pYU9zJKcGcW08UlfQQOOntAX8AbiWnxxf/akxYyu47tgHePeCDhhJ38WmH
-	Aid8gZ7jH2Yr+ghydLxEEv3SiH6iLu2QGP4CyG6uuR7EqxUtkdICmucDQXV+Rd0HuDQ==
-X-Received: by 2002:a62:e716:: with SMTP id s22mr49498485pfh.250.1564612808671;
-        Wed, 31 Jul 2019 15:40:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzoNQBcp/MVTn1w3ZkxXkg+yClbybsd3XAS6mUEQa3isOv+KYycZbObkWann7OVWz0L0yIN
-X-Received: by 2002:a62:e716:: with SMTP id s22mr49498437pfh.250.1564612807992;
-        Wed, 31 Jul 2019 15:40:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564612807; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :in-reply-to:message-id:references:user-agent:mime-version;
+        bh=egRpxJBa9oK7OchDbNGXXbbAvoOMUOmZrCvbt5gO8zI=;
+        b=XzGRYfqzHHjDsC4NBMEsxj884Fv1DXDmVqCBRv6rxYIRBc3etEH+qnN4Drd6Zrnbs8
+         w4TBXJGzg15L+2mmvODP+szNoDNbkLHlRA+xyUvZo0p0vG2Y7dZjjnknSu4dhVhi/zYw
+         IKw8R3qGvEyxEZZGdkhqR+Pn34Q9y4k4DjcjRSDbo29BnRGCu/JBaTKHFK/XrdIVMYqU
+         UKMRLDBrRlJ/B8M4SWNoiCErjnJerZco+gqIlLY98rb+aAkDjSWIMNxnufF/oYihO80I
+         3bX2O4qoeTk5CLhVOWPtQrCGqIPZNzQ8SFVKwNDR6/E/7YYdeanDjhixoprNxR4tKuyh
+         QZRg==
+X-Gm-Message-State: APjAAAU5a8WTwGpnW6FJQA9h+OwpSjV54RLEwOV0MXAdesuCQOkEWGSm
+	D6b3qLLpyl13aJ2J2Y9YAGYnlyty5lgU5RrdHbhEyrSYCJOy0zw+UKwdQI0ss66HFt7RqihRzul
+	rdWoxCak8vztq6stBka4n6t9Esw8yIXszEkWFR6OGGQgBq5EJjMfWhhMg08FHyMoSrQ==
+X-Received: by 2002:a02:8663:: with SMTP id e90mr126575166jai.98.1564612838337;
+        Wed, 31 Jul 2019 15:40:38 -0700 (PDT)
+X-Received: by 2002:a02:8663:: with SMTP id e90mr126575049jai.98.1564612837046;
+        Wed, 31 Jul 2019 15:40:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564612837; cv=none;
         d=google.com; s=arc-20160816;
-        b=bbmZkgK4w6goByl+RQg2gsj8LlKuGqzJPelbOtYo2bZzVlRlvthXOQIEHi2N/bcJQs
-         Ik/2QmvTITE8EYf1lyxGR7M4Q965R1u/mzMeJyNaXp8PcChUbchfUFR930AIYRqzk+Su
-         O5B5FerwJf5tGhiZGjLXftsHrYqvCTtepKcKUBp7lJqDQ8BuSELr6l53khuoV0hzaXRr
-         KEgd0Aa49SYG/iO2fGLjMlO1NqVIhYhJByo7oZ9A9yAUTV3dinKiE3Fjv7gDGtn59pJT
-         Jh0T23A5o8Oh4ews8sXUXuxzw9xfPO0kQKUTLp2Sw1zdmj3cY02ELSNCYooCz2D5lWWV
-         XjtQ==
+        b=J0dHiXatDhJEWMTVvG6Sl4eglqVzPw2p5vR/eM4IebNBVGlUWI9b5cXuYsgeo28jAc
+         gW5UwaLEIoBZp4Kbi20OqRnHnVgBj3PB6w86fFW+vIHUjdvwGAwVVHL0SMWNk1q+RkdB
+         Wj9tPySKuXkn3n0UMPGzcrf4B1DzFOKOkkM2mcE3GgF/KdigeXBclFYoyXonfiXkcFPq
+         VZnntMkp8WzO5RiZNaRXPoqNg7JpXcP3GgRwnsJk7s5PXyTnJIV7+MyDJih/eEq41rAe
+         ZhCr3l/HwMm6VV63S22BSvuownlKHFzsbWZSQ7LckhAzxqo+L3CRnu9UAh3CJAk0lWRC
+         whLg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:date:cc:to:from:subject:message-id;
-        bh=0bWlLBuUofOMXxzWXPVmkrlWbXYAAypOrTSLVPR2loI=;
-        b=L1bSgxalonzldr7yk8b1CnMiSalEpyeM94lwM6VzI3Wj6KisMl8m8zodq3K0lVYvyD
-         WDJ2acqu/sgjuAJ9EG429xhkSdoUD5wdLzXMyWUratwwM1h21byxzJGPlTOXajaiSMU5
-         pZEE4mgc39KMZUJHDjM01XipBz/bbS2rgkPyZU+jqcCKpD4ZpIPROKEnunBwWlnxOkwd
-         +U86z+eHwlk9V4Lsa6lOQ7i59EHKRn1r9josks4Fn8i8yBo87/EMdTuL8PvmuICd7ElL
-         MhiBMxoiAIY4jh7a9lXm3a5vCZbW6IZriUALiqRieqQVZOWAWZ6RKQ29r8/JwBmgXJ4l
-         8d7A==
+        h=mime-version:user-agent:references:message-id:in-reply-to:subject
+         :cc:to:from:date:dkim-signature;
+        bh=egRpxJBa9oK7OchDbNGXXbbAvoOMUOmZrCvbt5gO8zI=;
+        b=nUXVJIQRSgy/zaCzqd9L4y4j+77irWItwrKwoW74McRcbR6+rtgD7afKxjZxl1FAc7
+         92LC8ObAzNYTUiS1yiat7RJv4jm/haw7bpt7dtHoPLIFvxP3FyLnXtrz7sKvBwUJ7Rqw
+         1vLRW1REXOScvq+on9kaHLhDtooajHKj8M+9GJJRK1/xYu4chv5VsThPwRNuDgFL2gA6
+         jZ4nHA+dtBL+Z3fWBh4nszq8hXB+Ex1yovz86GlAu9cd8BDuq6vVAz16Bmg3EZoAnZ+K
+         SziKbKo7vSPFgNRzUYHBi76wHhTJbDV630FF3Wx/CgAYcIFc2sP7P/2kjHJPx4fjyYEX
+         u10w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id bj12si30611564plb.378.2019.07.31.15.40.07
+       dkim=pass header.i=@sifive.com header.s=google header.b=QvM5gURg;
+       spf=pass (google.com: domain of paul.walmsley@sifive.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=paul.walmsley@sifive.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id e18sor29846312iot.134.2019.07.31.15.40.36
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 15:40:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
+        (Google Transport Security);
+        Wed, 31 Jul 2019 15:40:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of paul.walmsley@sifive.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 31 Jul 2019 15:40:07 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,331,1559545200"; 
-   d="scan'208";a="191399007"
-Received: from sai-dev-mach.sc.intel.com ([143.183.140.153])
-  by fmsmga001.fm.intel.com with ESMTP; 31 Jul 2019 15:40:07 -0700
-Message-ID: <a05920e5994fb74af480255471a6c3f090f29b27.camel@intel.com>
-Subject: Re: [PATCH] fork: Improve error message for corrupted page tables
-From: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@intel.com,
-  Ingo Molnar <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>
-Date: Wed, 31 Jul 2019 15:36:49 -0700
-In-Reply-To: <20190731152753.b17d9c4418f4bf6815a27ad8@linux-foundation.org>
-References: <20190730221820.7738-1-sai.praneeth.prakhya@intel.com>
-	 <20190731152753.b17d9c4418f4bf6815a27ad8@linux-foundation.org>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5-0ubuntu0.18.10.1 
+       dkim=pass header.i=@sifive.com header.s=google header.b=QvM5gURg;
+       spf=pass (google.com: domain of paul.walmsley@sifive.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=paul.walmsley@sifive.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=sifive.com; s=google;
+        h=date:from:to:cc:subject:in-reply-to:message-id:references
+         :user-agent:mime-version;
+        bh=egRpxJBa9oK7OchDbNGXXbbAvoOMUOmZrCvbt5gO8zI=;
+        b=QvM5gURgmBtYYb5ewAA6jGZY4ljdEgJDQkLHHqVikVD66zPlOj6SuWDfLaZFvi4LUF
+         FQdJPeaP2xBSfu5VhEpovno9nnLQOcyhglyYB0pRP4JDwGr0eAqZbpbagc3uUt7s9USv
+         Mpj2IzZzl+bJl5mUIlw221ntI2T0Gd3i5626L0lZpF3NQf2YbT9pIlRRSe+aFdedyfsu
+         M2J7DASUn+cy4TT7B8G64SBFNLwKRalGaUFXLhzgYJLwUMSwiCHsd5R54xYkxPti/wZi
+         C3bY3XL25Z5iZQrpq93tCxIGxwS4lBIYfZ/mctkv1io4wB2KYJZz7fo2JWv6xUDgj8Db
+         lqfQ==
+X-Google-Smtp-Source: APXvYqwrG00LBhTpDLsR7IvSvLbPRzUfGNUjyuov0y6Pr5JYCZwHs6hWm99dQiGbrjWMUvsaR2nw9Q==
+X-Received: by 2002:a6b:f406:: with SMTP id i6mr44093290iog.110.1564612836637;
+        Wed, 31 Jul 2019 15:40:36 -0700 (PDT)
+Received: from localhost ([170.10.65.222])
+        by smtp.gmail.com with ESMTPSA id a7sm56245658iok.19.2019.07.31.15.40.35
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 31 Jul 2019 15:40:35 -0700 (PDT)
+Date: Wed, 31 Jul 2019 15:40:35 -0700 (PDT)
+From: Paul Walmsley <paul.walmsley@sifive.com>
+X-X-Sender: paulw@viisi.sifive.com
+To: Alexandre Ghiti <alex@ghiti.fr>
+cc: Andrew Morton <akpm@linux-foundation.org>, 
+    Albert Ou <aou@eecs.berkeley.edu>, Kees Cook <keescook@chromium.org>, 
+    Catalin Marinas <catalin.marinas@arm.com>, 
+    Palmer Dabbelt <palmer@sifive.com>, Will Deacon <will.deacon@arm.com>, 
+    Russell King <linux@armlinux.org.uk>, Ralf Baechle <ralf@linux-mips.org>, 
+    linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
+    Luis Chamberlain <mcgrof@kernel.org>, Paul Burton <paul.burton@mips.com>, 
+    James Hogan <jhogan@kernel.org>, linux-fsdevel@vger.kernel.org, 
+    linux-riscv@lists.infradead.org, linux-mips@vger.kernel.org, 
+    Christoph Hellwig <hch@lst.de>, linux-arm-kernel@lists.infradead.org, 
+    Alexander Viro <viro@zeniv.linux.org.uk>
+Subject: Re: [PATCH v5 14/14] riscv: Make mmap allocation top-down by
+ default
+In-Reply-To: <20190730055113.23635-15-alex@ghiti.fr>
+Message-ID: <alpine.DEB.2.21.9999.1907311538460.22372@viisi.sifive.com>
+References: <20190730055113.23635-1-alex@ghiti.fr> <20190730055113.23635-15-alex@ghiti.fr>
+User-Agent: Alpine 2.21.9999 (DEB 301 2018-08-15)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=US-ASCII
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, 30 Jul 2019, Alexandre Ghiti wrote:
 
-> > With patch:
-> > -----------
-> > [   69.815453] mm/pgtable-generic.c:29: bad p4d
-> > 0000000084653642(800000025ca37467)
-> > [   69.815872] BUG: Bad rss-counter state mm:00000000014a6c03
-> > type:MM_FILEPAGES val:2
-> > [   69.815962] BUG: Bad rss-counter state mm:00000000014a6c03
-> > type:MM_ANONPAGES val:5
-> > [   69.816050] BUG: non-zero pgtables_bytes on freeing mm: 20480
+> In order to avoid wasting user address space by using bottom-up mmap
+> allocation scheme, prefer top-down scheme when possible.
 > 
-> Seems useful.
+> Before:
+> root@qemuriscv64:~# cat /proc/self/maps
+> 00010000-00016000 r-xp 00000000 fe:00 6389       /bin/cat.coreutils
+> 00016000-00017000 r--p 00005000 fe:00 6389       /bin/cat.coreutils
+> 00017000-00018000 rw-p 00006000 fe:00 6389       /bin/cat.coreutils
+> 00018000-00039000 rw-p 00000000 00:00 0          [heap]
+> 1555556000-155556d000 r-xp 00000000 fe:00 7193   /lib/ld-2.28.so
+> 155556d000-155556e000 r--p 00016000 fe:00 7193   /lib/ld-2.28.so
+> 155556e000-155556f000 rw-p 00017000 fe:00 7193   /lib/ld-2.28.so
+> 155556f000-1555570000 rw-p 00000000 00:00 0
+> 1555570000-1555572000 r-xp 00000000 00:00 0      [vdso]
+> 1555574000-1555576000 rw-p 00000000 00:00 0
+> 1555576000-1555674000 r-xp 00000000 fe:00 7187   /lib/libc-2.28.so
+> 1555674000-1555678000 r--p 000fd000 fe:00 7187   /lib/libc-2.28.so
+> 1555678000-155567a000 rw-p 00101000 fe:00 7187   /lib/libc-2.28.so
+> 155567a000-15556a0000 rw-p 00000000 00:00 0
+> 3fffb90000-3fffbb1000 rw-p 00000000 00:00 0      [stack]
 > 
-> > --- a/include/linux/mm_types_task.h
-> > +++ b/include/linux/mm_types_task.h
-> > @@ -44,6 +44,13 @@ enum {
-> >  	NR_MM_COUNTERS
-> >  };
-> >  
-> > +static const char * const resident_page_types[NR_MM_COUNTERS] = {
-> > +	"MM_FILEPAGES",
-> > +	"MM_ANONPAGES",
-> > +	"MM_SWAPENTS",
-> > +	"MM_SHMEMPAGES",
-> > +};
+> After:
+> root@qemuriscv64:~# cat /proc/self/maps
+> 00010000-00016000 r-xp 00000000 fe:00 6389       /bin/cat.coreutils
+> 00016000-00017000 r--p 00005000 fe:00 6389       /bin/cat.coreutils
+> 00017000-00018000 rw-p 00006000 fe:00 6389       /bin/cat.coreutils
+> 2de81000-2dea2000 rw-p 00000000 00:00 0          [heap]
+> 3ff7eb6000-3ff7ed8000 rw-p 00000000 00:00 0
+> 3ff7ed8000-3ff7fd6000 r-xp 00000000 fe:00 7187   /lib/libc-2.28.so
+> 3ff7fd6000-3ff7fda000 r--p 000fd000 fe:00 7187   /lib/libc-2.28.so
+> 3ff7fda000-3ff7fdc000 rw-p 00101000 fe:00 7187   /lib/libc-2.28.so
+> 3ff7fdc000-3ff7fe2000 rw-p 00000000 00:00 0
+> 3ff7fe4000-3ff7fe6000 r-xp 00000000 00:00 0      [vdso]
+> 3ff7fe6000-3ff7ffd000 r-xp 00000000 fe:00 7193   /lib/ld-2.28.so
+> 3ff7ffd000-3ff7ffe000 r--p 00016000 fe:00 7193   /lib/ld-2.28.so
+> 3ff7ffe000-3ff7fff000 rw-p 00017000 fe:00 7193   /lib/ld-2.28.so
+> 3ff7fff000-3ff8000000 rw-p 00000000 00:00 0
+> 3fff888000-3fff8a9000 rw-p 00000000 00:00 0      [stack]
 > 
-> But please let's not put this in a header file.  We're asking the
-> compiler to put a copy of all of this into every compilation unit which
-> includes the header.  Presumably the compiler is smart enough not to
-> do that, but it's not good practice.
+> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
+> Reviewed-by: Christoph Hellwig <hch@lst.de>
+> Reviewed-by: Kees Cook <keescook@chromium.org>
+> Reviewed-by: Luis Chamberlain <mcgrof@kernel.org>
 
-Thanks for the explanation. Makes sense to me.
+Acked-by: Paul Walmsley <paul.walmsley@sifive.com> # for arch/riscv
 
-Just wanted to check before sending V2,
-Is it OK if I add this to kernel/fork.c? or do you have something else in
-mind?
+As Alex notes, this patch depends on "[PATCH] riscv: kbuild: add virtual 
+memory system selection":
 
-Regards,
-Sai
+https://lore.kernel.org/linux-riscv/alpine.DEB.2.21.9999.1907301218560.3486@viisi.sifive.com/T/#t
+
+which will likely go up during v5.3-rc.
+
+
+- Paul
 
