@@ -2,171 +2,193 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0223BC32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:48:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E17C2C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:49:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C413E208E3
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:48:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C413E208E3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id A3A2020C01
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:49:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A3A2020C01
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 418608E0043; Wed, 31 Jul 2019 11:48:13 -0400 (EDT)
+	id 4B2248E0042; Wed, 31 Jul 2019 11:49:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3EED48E0042; Wed, 31 Jul 2019 11:48:13 -0400 (EDT)
+	id 489F68E0012; Wed, 31 Jul 2019 11:49:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 305D88E0043; Wed, 31 Jul 2019 11:48:13 -0400 (EDT)
+	id 3518D8E0042; Wed, 31 Jul 2019 11:49:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id D5F598E0042
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:48:12 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id e9so31544675edv.18
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:48:12 -0700 (PDT)
+Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 131368E0012
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:49:24 -0400 (EDT)
+Received: by mail-vk1-f198.google.com with SMTP id v135so29658732vke.4
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:49:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=y1JUTJoMwtxuP9fpjTlmgOiVx9qaajEKjxesU1OKZaM=;
-        b=qR9jvCFu6q014mVefeRSQ6sOqTyntxgsP/4B3Epgsu5gPXGiXlMLNNwCcX7RCj1Px3
-         x3aTU//jUG2nzOVZbB+SVuAneX/27Br8Hy/5cLgunzu65Ly+SQCjKAKdqLSdxpX0SOYd
-         gzBqqgv4NMuNUUyBWyFmKkf93eDYVN3lww5HLsUWq3hDp7J4k95PQFLSH/ya82wYB826
-         JvkJIBTeuv0tdp2SUR8ZrJlk8FpmuIYFjSutRuzs78RixawSPmo2ZoIFB9SYwtcrAvOR
-         sZNMq93TUOwnuFZ2NCkK/tq+KU80Kfnn/rwRwDkvQqwjGSezOXHi6IvVBRHJ8MX329PC
-         W5Ug==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
-X-Gm-Message-State: APjAAAVPXgbKkdr1Wj2ULTzcWhatdH7D9SL/4VtDtxZBP/0/pI1Y700A
-	Ta02qY3CCdY2GUsczfS98lxMIXF+cUX4CzhlKbB7ksjwr3f6aXCE+JVRmHLDteyVQogTehEzv0T
-	xHY70mY+c9TYnjTsvIbUhsXB8Ay9ayEFKbyaGPDmppB7cKgwhOALvBONb1tkny32c+A==
-X-Received: by 2002:a17:906:19c6:: with SMTP id h6mr7235442ejd.262.1564588092443;
-        Wed, 31 Jul 2019 08:48:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxrtW1qA48DRhwV5L5lTp7ZZlrD6SJI2UV1KM3MWmjWMYY119MpN8vC1VYXQqbym22Y9Yro
-X-Received: by 2002:a17:906:19c6:: with SMTP id h6mr7235384ejd.262.1564588091585;
-        Wed, 31 Jul 2019 08:48:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564588091; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:organization:message-id:date:user-agent
+         :mime-version:in-reply-to:content-transfer-encoding:content-language;
+        bh=WaV1Lvzd+MQ8kSHIw2ChDVu4wJFwRVwzL1Sm7201XIs=;
+        b=szFRXNx/+VUFOhNlhQ94RbGwPeClZVUADWrzJsTaxjjSNTgIsm6QoRDkYF2Id/NavU
+         TAX8twAU2cI2sc+SmUtcfvId3q5RbxHPH1+5W4pVQk6F1+IFLxmqLSHt2naLoY0YpL0K
+         nrvWNJZXvNMOoeqRQdvDd1HsjzX6rz17Xs3+s0HYMsy1RPBlO1p+xxVARA755Vr9kiCM
+         P0Jx5Yu/6nyL6Lc8dA/YKtG9w9ZRC/OtGqQkeXheo3Y56+lnyHF/0kiLHl11AeqadXJ/
+         KlOWY2IOmTWsjP4gs+Dk9MBlfs3yTCcLeuyr33OYOx9kAKlCm4K8zbmptLmZQQC7772V
+         Pd6Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXyyhJnv130gv8A3LQTntWYsT8UvvJHYp/E8I0DEdpk6LJfQODU
+	y11/gFdlV8H/L3g83xrgi58jd2NNUOUnWxIKADzHPDd/4nI2rJQrHMKOGips1Yfn3+3rn+L0O0e
+	Wsy90FkeY5x5O+6aXQaOHVcIm1brjUapkK/O7CiB3MF6CjGqNPO9/HeBJGpYn32u+zA==
+X-Received: by 2002:ab0:3159:: with SMTP id e25mr27133264uam.81.1564588163762;
+        Wed, 31 Jul 2019 08:49:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwHiF2DiMuVF8tUNoN9mYB/rGmGVfE8arImbUsWGrVqxXmb8NwWMNjm9Rt1eNaf6WNO7A62
+X-Received: by 2002:ab0:3159:: with SMTP id e25mr27133200uam.81.1564588163151;
+        Wed, 31 Jul 2019 08:49:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564588163; cv=none;
         d=google.com; s=arc-20160816;
-        b=iX+EdX4/pCCYb+xAH3Y+s7ghE5VRgaXDzKXKQjDd+Dzltj8j+t1PQFq0HSDL/mBNVn
-         0/D2K4QpAYASmIVS5dYb6qRDk24U2h5ZfvnQmXcSVep1I7iRae6a8RFtH1DtTGfycCm+
-         MkL8FLBpDCxGgi8JqZjVWCvfs5mvlARK0yzBzfmgGZyEiF+tHIIv6uOpKU6oKMx4fApY
-         rlNh1/v1eJXDUPHjs4zpfWFwTzct5QTu9o1bKAc3jkalAgJpTazO5V/jofMohLMrO2Az
-         ryX2xVQfdldPLpRqrLtV8mvesyjGdS37eS5OjC5nxKtq7OxvlWPxmIV+wfZUE0ny3Ioy
-         8WWw==
+        b=JH7kjsu1lZWaPzaQzIM306G5/sXOXIRywP39HQoXnzNOYM9I1tDTEPl8poh887DH0q
+         ihiRmMQxoOjK8Ofzk5145+lG1DMmyFaGOHUMKqzcOHOrzMBkzTB2YcAB+nzAVR+7czDK
+         na18oFuKAwWMzZM7fdE0+g14fCmip3uQ8fBbRznGdK8/FlOgQyWqylO4KdhcDVAp30cO
+         u4tzCZH61G9dstaYSgWxOaHPwHio+YOgaSYyXZWsGh3zL2b7X580vrvAlCbdkhe24+Ix
+         8vsuXwQHDEczCbnv87o6w5TDHVJeS2EyghNCH5yhX68TI09Kqxc6LxyZQ5Yhdsk3vMbq
+         WGQw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=y1JUTJoMwtxuP9fpjTlmgOiVx9qaajEKjxesU1OKZaM=;
-        b=xLl7pkFx2biwLVDYWb05iax3q/I9XE0yOVkF2kEnNk66tp9+g5+JWOAD3hZ5JMBWbD
-         jL6zIPIqyV0cZCDn3fPpE01YIK8mu7O/xT9UP0a5uebGC/Xyn9eh2yB7JYpXxVWV0PPs
-         N0wP1kB/+pysI0XLZBd9bvmZDvAWi+kR/D4RjhPhlqZeWBqIpFStaNVfVqzu+0trjpFa
-         S0Bk9CauCa2xvAt0c3GFyYxpB18874TJQqk/5ro1Mdp0n85oyLosOBDcZysegfIKcWEP
-         XTIBpR09fL6ddjoto/Cz/xwEOQImzOTyUPRW6GqaDjYA1U3tSzlPMQ4VSPoh6vrdu6g4
-         Y/Ig==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:from:references:cc:to
+         :subject;
+        bh=WaV1Lvzd+MQ8kSHIw2ChDVu4wJFwRVwzL1Sm7201XIs=;
+        b=ucVm8DWj2Y1M6VNmagX1V+eQ7MQ8nfcredVxjjtjY4AkIiZYFoGYfLOIcBon4ARmfj
+         hzYs/IVWYN5wXo+nmSxSgWlF552UnNb4vyuTpfi+ksoToW1eHiphAmMCSZZMUa8A3sRr
+         GTKWh8Z5fl05GMoGwFC12r3SdIn6gvKwR3mm0BPQBO4c9YSzT1JvKSm5ojWRaJWRTikk
+         tMNH5agRN1sItZZrRXYMA2YJZF9km5bIKpJn97lqlrSsnNgiEv3ShAtzlD1AnBoTPIPE
+         CgV5LXUOh+5FjkAqBs29lnCn2lQhjaIn3Qi2SVDVDpCF/vxnti6+LELHjoS6CW6qx5n5
+         IqUA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id gq12si20425835ejb.170.2019.07.31.08.48.11
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id a11si134798uah.111.2019.07.31.08.49.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 08:48:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 31 Jul 2019 08:49:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 1CBAEB05E;
-	Wed, 31 Jul 2019 15:48:11 +0000 (UTC)
-From: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
-To: catalin.marinas@arm.com,
-	hch@lst.de,
-	wahrenst@gmx.net,
-	marc.zyngier@arm.com,
-	Robin Murphy <robin.murphy@arm.com>,
-	linux-arm-kernel@lists.infradead.org,
-	devicetree@vger.kernel.org,
-	iommu@lists.linux-foundation.org,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Cc: phill@raspberryi.org,
-	f.fainelli@gmail.com,
-	will@kernel.org,
-	robh+dt@kernel.org,
-	eric@anholt.net,
-	mbrugger@suse.com,
-	nsaenzjulienne@suse.de,
-	akpm@linux-foundation.org,
-	frowand.list@gmail.com,
-	m.szyprowski@samsung.com,
-	linux-rpi-kernel@lists.infradead.org
-Subject: [PATCH 8/8] mm: comment arm64's usage of 'enum zone_type'
-Date: Wed, 31 Jul 2019 17:47:51 +0200
-Message-Id: <20190731154752.16557-9-nsaenzjulienne@suse.de>
-X-Mailer: git-send-email 2.22.0
-In-Reply-To: <20190731154752.16557-1-nsaenzjulienne@suse.de>
-References: <20190731154752.16557-1-nsaenzjulienne@suse.de>
+       spf=pass (google.com: domain of longman@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=longman@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 5434130C26DA;
+	Wed, 31 Jul 2019 15:49:22 +0000 (UTC)
+Received: from llong.remote.csb (dhcp-17-160.bos.redhat.com [10.18.17.160])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 68AA160852;
+	Wed, 31 Jul 2019 15:49:20 +0000 (UTC)
+Subject: Re: [PATCH v3] sched/core: Don't use dying mm as active_mm of
+ kthreads
+To: Rik van Riel <riel@surriel.com>, Peter Zijlstra <peterz@infradead.org>,
+ Ingo Molnar <mingo@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ Andrew Morton <akpm@linux-foundation.org>, Phil Auld <pauld@redhat.com>,
+ Michal Hocko <mhocko@kernel.org>
+References: <20190729210728.21634-1-longman@redhat.com>
+ <ec9effc07a94b28ecf364de40dee183bcfb146fc.camel@surriel.com>
+ <3e2ff4c9-c51f-8512-5051-5841131f4acb@redhat.com>
+ <8021be4426fdafdce83517194112f43009fb9f6d.camel@surriel.com>
+ <b5a462b8-8ef6-6d2c-89aa-b5009c194000@redhat.com>
+ <c91e6104acaef118ae09e4b4b0c70232c4583293.camel@surriel.com>
+ <01125822-c883-18ce-42e4-942a4f28c128@redhat.com>
+ <76dbc397e21d64da75cd07d90b3ca15ca50d6fbb.camel@surriel.com>
+From: Waiman Long <longman@redhat.com>
+Organization: Red Hat
+Message-ID: <3307e8f7-4a68-95fc-a5dd-925fd3a5f8d7@redhat.com>
+Date: Wed, 31 Jul 2019 11:49:19 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <76dbc397e21d64da75cd07d90b3ca15ca50d6fbb.camel@surriel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Wed, 31 Jul 2019 15:49:22 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-arm64 uses both ZONE_DMA and ZONE_DMA32 for the same reasons x86_64
-does: peripherals with different DMA addressing limitations. This
-updates both ZONE_DMAs comments to inform about the usage.
+On 7/31/19 11:07 AM, Rik van Riel wrote:
+> On Wed, 2019-07-31 at 10:15 -0400, Waiman Long wrote:
+>> On 7/31/19 9:48 AM, Rik van Riel wrote:
+>>> On Tue, 2019-07-30 at 17:01 -0400, Waiman Long wrote:
+>>>> On 7/29/19 8:26 PM, Rik van Riel wrote:
+>>>>> On Mon, 2019-07-29 at 17:42 -0400, Waiman Long wrote:
+>>>>>
+>>>>>> What I have found is that a long running process on a mostly
+>>>>>> idle
+>>>>>> system
+>>>>>> with many CPUs is likely to cycle through a lot of the CPUs
+>>>>>> during
+>>>>>> its
+>>>>>> lifetime and leave behind its mm in the active_mm of those
+>>>>>> CPUs.  My
+>>>>>> 2-socket test system have 96 logical CPUs. After running the
+>>>>>> test
+>>>>>> program for a minute or so, it leaves behind its mm in about
+>>>>>> half
+>>>>>> of
+>>>>>> the
+>>>>>> CPUs with a mm_count of 45 after exit. So the dying mm will
+>>>>>> stay
+>>>>>> until
+>>>>>> all those 45 CPUs get new user tasks to run.
+>>>>> OK. On what kernel are you seeing this?
+>>>>>
+>>>>> On current upstream, the code in native_flush_tlb_others()
+>>>>> will send a TLB flush to every CPU in mm_cpumask() if page
+>>>>> table pages have been freed.
+>>>>>
+>>>>> That should cause the lazy TLB CPUs to switch to init_mm
+>>>>> when the exit->zap_page_range path gets to the point where
+>>>>> it frees page tables.
+>>>>>
+>>>> I was using the latest upstream 5.3-rc2 kernel. It may be the
+>>>> case
+>>>> that
+>>>> the mm has been switched, but the mm_count field of the active_mm
+>>>> of
+>>>> the
+>>>> kthread is not being decremented until a user task runs on a CPU.
+>>> Is that something we could fix from the TLB flushing
+>>> code?
+>>>
+>>> When switching to init_mm, drop the refcount on the
+>>> lazy mm?
+>>>
+>>> That way that overhead is not added to the context
+>>> switching code.
+>> I have thought about that. That will require changing the active_mm
+>> of
+>> the current task to point to init_mm, for example. Since TLB flush is
+>> done in interrupt context, proper coordination between interrupt and
+>> process context will require some atomic instruction which will
+>> defect
+>> the purpose.
+> Would it be possible to work around that by scheduling
+> a work item that drops the active_mm?
+>
+> After all, a work item runs in a kernel thread, so by
+> the time the work item is run, either the kernel will
+> still be running the mm you want to get rid of as
+> active_mm, or it will have already gotten rid of it
+> earlier.
 
-Signed-off-by: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+Yes, that may work.
 
----
-
- include/linux/mmzone.h | 21 +++++++++++----------
- 1 file changed, 11 insertions(+), 10 deletions(-)
-
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index d77d717c620c..8fa6bcf72e7c 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -365,23 +365,24 @@ enum zone_type {
- 	 *
- 	 * Some examples
- 	 *
--	 * Architecture		Limit
--	 * ---------------------------
--	 * parisc, ia64, sparc	<4G
--	 * s390, powerpc	<2G
--	 * arm			Various
--	 * alpha		Unlimited or 0-16MB.
-+	 * Architecture			Limit
-+	 * ----------------------------------
-+	 * parisc, ia64, sparc, arm64	<4G
-+	 * s390, powerpc		<2G
-+	 * arm				Various
-+	 * alpha			Unlimited or 0-16MB.
- 	 *
- 	 * i386, x86_64 and multiple other arches
--	 * 			<16M.
-+	 *				<16M.
- 	 */
- 	ZONE_DMA,
- #endif
- #ifdef CONFIG_ZONE_DMA32
- 	/*
--	 * x86_64 needs two ZONE_DMAs because it supports devices that are
--	 * only able to do DMA to the lower 16M but also 32 bit devices that
--	 * can only do DMA areas below 4G.
-+	 * x86_64 and arm64 need two ZONE_DMAs because they support devices
-+	 * that are only able to DMA a fraction of the 32 bit addressable
-+	 * memory area, but also devices that are limited to that whole 32 bit
-+	 * area.
- 	 */
- 	ZONE_DMA32,
- #endif
--- 
-2.22.0
+Thanks,
+Longman
 
