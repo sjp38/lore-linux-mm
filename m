@@ -2,320 +2,195 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 069CFC32755
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 09:58:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88F1EC41514
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 09:59:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B6A36206B8
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 09:58:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6A36206B8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 421F72089E
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 09:59:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 421F72089E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 323148E0005; Wed, 31 Jul 2019 05:58:36 -0400 (EDT)
+	id E1E4C8E0003; Wed, 31 Jul 2019 05:59:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 302C28E0001; Wed, 31 Jul 2019 05:58:36 -0400 (EDT)
+	id DCED58E0001; Wed, 31 Jul 2019 05:59:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1EA098E0005; Wed, 31 Jul 2019 05:58:36 -0400 (EDT)
+	id CBE448E0003; Wed, 31 Jul 2019 05:59:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DDDBE8E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 05:58:35 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id i27so42921829pfk.12
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 02:58:35 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 829458E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 05:59:55 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id v125so12845826wme.5
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 02:59:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:reply-to:references:mime-version:content-disposition
-         :in-reply-to:user-agent:message-id;
-        bh=cQF4WS4RI5nisIM6w7DWApNArIS1mTgh3UNCzggmSzA=;
-        b=U5za2JjIJSFsGfzGornRzwu9nVAJRdiVwDiehrzkrBb0SVW6+zlvIV1bjZR9IET00g
-         LIoLfh9vBGg6aCOUZzV1AOFiXoT3sNz0nvLCm8yBuUTMsr8IlEfV04hBDqbAi6uWnfcU
-         wwnKuMjazkDihy5oI2KIXBIOwTmYgqdumfsmSqA8eizOpNw41CeItt8vTjx5e+dpRMA1
-         hkRWhU6nygCqzjWBMkadK5ouB7f16ahHVKjN3im2ybySn6IEqkgcZTMkivYioA7HaBEc
-         JTe95yiAdydb0qXHBowNj4lKktecWiqy47p7XYsT1TIRQe2teEDriHKsmMSoaSz2uaQb
-         1e+A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bharata@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=bharata@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWtwwlX5sMr5DEPtiE6FlZ57CbzLPaWI3Krj0Q4ykWhitc+4I17
-	l9hOz6chFD3PcOPjqrb3zofjFqo0SRpAwQEGe0y3RaSLbGEKUbg/ky/yMmkVJFVMEw1bBoPtKoY
-	mrHeMD7WAIy9AG90C3ZHQqeJyRZxB9LtARQMi3tS79bXqXIJGn3+AczQRAwfj8VZZPg==
-X-Received: by 2002:a17:902:b909:: with SMTP id bf9mr25807427plb.309.1564567115545;
-        Wed, 31 Jul 2019 02:58:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzdbZyU8n2JVxx5g0B/RdcSWiinJKzIWAUikj1N12MEBX//vn9TcMpIoPh6VXaGI0iM8Fb8
-X-Received: by 2002:a17:902:b909:: with SMTP id bf9mr25807373plb.309.1564567114750;
-        Wed, 31 Jul 2019 02:58:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564567114; cv=none;
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=KfQ1GOxa2gwawYjZESEw8m6ZN1EOeLyab9IzRAQRkB8=;
+        b=aUK4oSR4GcOZYTj+pnHk1lwW+A250PBbNQZLdta5eGEb2HNQSlXmJu8xlqIrSLTtz8
+         Kvqq/1i2Wh7+H+I2e/SnAamQRM35PAIkK7wXoO32fot+/V5XqXKUSC5Oye+cGP9Vnh7N
+         rULovRzSNkLIRJ7XA7f96dlfHch+soo0JE+YIbkHrcw2xm7g9OQW5kSTQmiaG8llkFBg
+         gE2NZqRoqHcWJmt5snmstGQwFMoYmuknqA3/8VPoXf7DCg7SVgOSeog143hAN14Iq57/
+         EWeuZr+tP1oH44YGMJT39jPOrkeoo0op+nzCygdCEPufi8CMMpE5jemm98hZd5fFm6u+
+         e9Bw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sgarzare@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sgarzare@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAV0GuIjbVxmNZu9SkCR9HSqfcAtbcepKFCvMHxMd4gpteqd+apF
+	bl/1WIZnBG9Dq5wbdJRrmPC+7JhXei7mBMSiLI2h1dyKmgilkMPC/34aHQ226mxAzurH3rLPjv/
+	COP+7B7kXUVaSzt/w+uSg1Rijs5PvnSQ/WvZI1HkYp1GoFw0R/LlO6Ox5BVt+Luq4yQ==
+X-Received: by 2002:adf:da4d:: with SMTP id r13mr31221580wrl.281.1564567195046;
+        Wed, 31 Jul 2019 02:59:55 -0700 (PDT)
+X-Received: by 2002:adf:da4d:: with SMTP id r13mr31221478wrl.281.1564567194251;
+        Wed, 31 Jul 2019 02:59:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564567194; cv=none;
         d=google.com; s=arc-20160816;
-        b=M8MfazEC0EvbPYBt04gsp6zDejZ/cgCEUo3BS2vWTn7iBmocv3Vydy19IhN0NfWWUx
-         IVDVKKxaqH1eiMBQjAvLoPKxzmvFzgeQVyplC/k5pErzj9aDs+6TTCr4wzzWMa86N/K5
-         bIEOHQPgPeogisC0Nj7vcrjF+wd2SwRSsEXpuwR2aOsLt12EOSm9U6mGyWP73xFDGzFT
-         NVU8TLUcnXVPgF8TmZQhs4u9VdyBUmgr6wnhSVqDHyo+08DnqzRgwrISTlgDyS63KA8B
-         szwE1v4E3uLDPsG/SEZr2kLekpXKsBGiC+sORjH/SVrO0UHYg8Uo3FKkXug2oRcCmxNo
-         5qDg==
+        b=x+SNPg3ktAh9TB2ktjCiTGbrgni+X1kLkFIdDA86bdaAfBintRecsCZJBlCheofcho
+         xnQ1mp2Xs5z4lyoCMUXfr5ecgAFHZBEuE89ivvrviQ/K/TUDBVCr4s41Yhtt0bcoLxMt
+         MZL0bwqLsIZi8yQ9pUSK2lUSvq8y6N14Ru52Whgi5e+yJ5pq1gm/ieTdnPxk9VWZRsug
+         wxLAa1OS71MfjbZftNl5kP5HotT9PkltUNkcGmE2oRSfLlNTRlpPMqjzn9dHEh7bboHb
+         QNP7ytRtSIOYbnXsuGoC+1AlxCRq2A6UV35HwDdkuBv2K7l0MD/DdYtmE2WCNOPHOAT9
+         xXnQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:reply-to:subject:cc:to:from:date;
-        bh=cQF4WS4RI5nisIM6w7DWApNArIS1mTgh3UNCzggmSzA=;
-        b=OMD/R36DgRGNFuXXoGRZwvDmuK9A97eFXus28tf2LP1FnXHZ7qGVQrazZFPfdeNH5G
-         GWAev4YaId6uVUAqTZXPYuXsscQXA6qL5jOjAY/k6PuAF6QW7a71YtU0re0YIhlhkdUB
-         FSWof8aWW7M/8CEA/hsgq94/v3Hdfv978KfNorQHBDyqjFU7na4ldIIN/FMCie5DDtA5
-         EbCVcPZjLcEDlSoG/uRpV/N29MFog2Ka/RGxK4mbAl00FhwbDpy4jvaAwdBrP/EtweZL
-         ysaeF7CcGQdXyMdjYhD6svlPAID+4AOv/xlYo8xuzCj1iNZXy9spVuuOA2TAbWxX3d9r
-         ygSw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=KfQ1GOxa2gwawYjZESEw8m6ZN1EOeLyab9IzRAQRkB8=;
+        b=GHmaSUts+oW3Fn+kHxDtGYprhMtHU0Zv/UOsK51tXHykQydiNA4MeYr59a58yed+qY
+         dxpeXLu3sSUn0p9VAmZuGxsP4ccpPy0xC/v3MhMVR7Gmgbfejo4DGhIIzmNXspBpyeWP
+         CP072vhtVkxKWnmsKak143qMyVu0cLLmtjEPSCrJkOibgdPPYdm5TQVCmJJVgyu6cP0v
+         QXJsSFNPJGQm8NlmL+Lqpp/PLlbL2FJQeZJTMXOca0RMEhVW1b65fYpjpqfbhBL5QLA5
+         sBwF5wOEOlSG0wz+egahu9Sl+9feco03zsc9yRNCqp3JPYI11wZ9/uz2d6wP3RWNm8Lo
+         zQ4Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of bharata@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=bharata@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id o1si1205570pja.67.2019.07.31.02.58.34
+       spf=pass (google.com: domain of sgarzare@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sgarzare@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s129sor38034219wmf.18.2019.07.31.02.59.54
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 02:58:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bharata@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        (Google Transport Security);
+        Wed, 31 Jul 2019 02:59:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sgarzare@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of bharata@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=bharata@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6V9wDsL028635
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 05:58:34 -0400
-Received: from e06smtp03.uk.ibm.com (e06smtp03.uk.ibm.com [195.75.94.99])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2u37n5380g-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 05:58:31 -0400
-Received: from localhost
-	by e06smtp03.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
-	Wed, 31 Jul 2019 10:57:51 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp03.uk.ibm.com (192.168.101.133) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 31 Jul 2019 10:57:48 +0100
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6V9vlWW33358064
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 31 Jul 2019 09:57:47 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id C11224C04A;
-	Wed, 31 Jul 2019 09:57:47 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 465574C044;
-	Wed, 31 Jul 2019 09:57:44 +0000 (GMT)
-Received: from in.ibm.com (unknown [9.109.246.128])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Wed, 31 Jul 2019 09:57:43 +0000 (GMT)
-Date: Wed, 31 Jul 2019 15:27:35 +0530
-From: Bharata B Rao <bharata@linux.ibm.com>
-To: Christoph Hellwig <hch@lst.de>
-Cc: =?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-        Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>,
-        Ralph Campbell <rcampbell@nvidia.com>,
-        Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-        nouveau@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
-        linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 5/9] nouveau: simplify nouveau_dmem_migrate_to_ram
-Reply-To: bharata@linux.ibm.com
-References: <20190729142843.22320-1-hch@lst.de>
- <20190729142843.22320-6-hch@lst.de>
+       spf=pass (google.com: domain of sgarzare@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sgarzare@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqy7/iEU1UrL2it0Ep7+ooQdkQ6xuUDFbcpqjrWR2xbr/ulDYf5qm8/eQpzBooD00tKHJ19RcQ==
+X-Received: by 2002:a05:600c:230c:: with SMTP id 12mr12821673wmo.151.1564567193839;
+        Wed, 31 Jul 2019 02:59:53 -0700 (PDT)
+Received: from steredhat (host122-201-dynamic.13-79-r.retail.telecomitalia.it. [79.13.201.122])
+        by smtp.gmail.com with ESMTPSA id d10sm79226236wro.18.2019.07.31.02.59.52
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 31 Jul 2019 02:59:53 -0700 (PDT)
+Date: Wed, 31 Jul 2019 11:59:50 +0200
+From: Stefano Garzarella <sgarzare@redhat.com>
+To: Jason Wang <jasowang@redhat.com>
+Cc: mst@redhat.com, kvm@vger.kernel.org,
+	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org, jgg@ziepe.ca
+Subject: Re: [PATCH V2 9/9] vhost: do not return -EAGIAN for non blocking
+ invalidation too early
+Message-ID: <20190731095950.d6zr472megt7rgkt@steredhat>
+References: <20190731084655.7024-1-jasowang@redhat.com>
+ <20190731084655.7024-10-jasowang@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190729142843.22320-6-hch@lst.de>
-User-Agent: Mutt/1.12.0 (2019-05-25)
-X-TM-AS-GCONF: 00
-x-cbid: 19073109-0012-0000-0000-00000337F1FF
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19073109-0013-0000-0000-000021719A7D
-Message-Id: <20190731095735.GB18807@in.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-31_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1907310102
+In-Reply-To: <20190731084655.7024-10-jasowang@redhat.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Jul 29, 2019 at 05:28:39PM +0300, Christoph Hellwig wrote:
-> Factor the main copy page to ram routine out into a helper that acts on
-> a single page and which doesn't require the nouveau_dmem_fault
-> structure for argument passing.  Also remove the loop over multiple
-> pages as we only handle one at the moment, although the structure of
-> the main worker function makes it relatively easy to add multi page
-> support back if needed in the future.  But at least for now this avoid
-> the needed to dynamically allocate memory for the dma addresses in
-> what is essentially the page fault path.
+A little typo in the title: s/EAGIAN/EAGAIN
+
+Thanks,
+Stefano
+
+On Wed, Jul 31, 2019 at 04:46:55AM -0400, Jason Wang wrote:
+> Instead of returning -EAGAIN unconditionally, we'd better do that only
+> we're sure the range is overlapped with the metadata area.
 > 
-> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> Reported-by: Jason Gunthorpe <jgg@ziepe.ca>
+> Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual address")
+> Signed-off-by: Jason Wang <jasowang@redhat.com>
 > ---
->  drivers/gpu/drm/nouveau/nouveau_dmem.c | 158 ++++++-------------------
->  1 file changed, 39 insertions(+), 119 deletions(-)
+>  drivers/vhost/vhost.c | 32 +++++++++++++++++++-------------
+>  1 file changed, 19 insertions(+), 13 deletions(-)
 > 
-> diff --git a/drivers/gpu/drm/nouveau/nouveau_dmem.c b/drivers/gpu/drm/nouveau/nouveau_dmem.c
-> index 21052a4aaf69..036e6c07d489 100644
-> --- a/drivers/gpu/drm/nouveau/nouveau_dmem.c
-> +++ b/drivers/gpu/drm/nouveau/nouveau_dmem.c
-> @@ -86,13 +86,6 @@ static inline struct nouveau_dmem *page_to_dmem(struct page *page)
->  	return container_of(page->pgmap, struct nouveau_dmem, pagemap);
+> diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
+> index fc2da8a0c671..96c6aeb1871f 100644
+> --- a/drivers/vhost/vhost.c
+> +++ b/drivers/vhost/vhost.c
+> @@ -399,16 +399,19 @@ static void inline vhost_vq_sync_access(struct vhost_virtqueue *vq)
+>  	smp_mb();
 >  }
 >  
-> -struct nouveau_dmem_fault {
-> -	struct nouveau_drm *drm;
-> -	struct nouveau_fence *fence;
-> -	dma_addr_t *dma;
-> -	unsigned long npages;
-> -};
-> -
->  struct nouveau_migrate {
->  	struct vm_area_struct *vma;
->  	struct nouveau_drm *drm;
-> @@ -146,130 +139,55 @@ static void nouveau_dmem_fence_done(struct nouveau_fence **fence)
->  	}
->  }
->  
-> -static void
-> -nouveau_dmem_fault_alloc_and_copy(struct vm_area_struct *vma,
-> -				  const unsigned long *src_pfns,
-> -				  unsigned long *dst_pfns,
-> -				  unsigned long start,
-> -				  unsigned long end,
-> -				  struct nouveau_dmem_fault *fault)
-> +static vm_fault_t nouveau_dmem_fault_copy_one(struct nouveau_drm *drm,
-> +		struct vm_area_struct *vma, unsigned long addr,
-> +		unsigned long src, unsigned long *dst, dma_addr_t *dma_addr)
+> -static void vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
+> -				      int index,
+> -				      unsigned long start,
+> -				      unsigned long end)
+> +static int vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
+> +				     int index,
+> +				     unsigned long start,
+> +				     unsigned long end,
+> +				     bool blockable)
 >  {
-> -	struct nouveau_drm *drm = fault->drm;
->  	struct device *dev = drm->dev->dev;
-> -	unsigned long addr, i, npages = 0;
-> -	nouveau_migrate_copy_t copy;
-> -	int ret;
-> -
-> -
-> -	/* First allocate new memory */
-> -	for (addr = start, i = 0; addr < end; addr += PAGE_SIZE, i++) {
-> -		struct page *dpage, *spage;
-> -
-> -		dst_pfns[i] = 0;
-> -		spage = migrate_pfn_to_page(src_pfns[i]);
-> -		if (!spage || !(src_pfns[i] & MIGRATE_PFN_MIGRATE))
-> -			continue;
-> +	struct page *dpage, *spage;
+>  	struct vhost_uaddr *uaddr = &vq->uaddrs[index];
+>  	struct vhost_map *map;
 >  
-> -		dpage = alloc_page_vma(GFP_HIGHUSER, vma, addr);
-> -		if (!dpage) {
-> -			dst_pfns[i] = MIGRATE_PFN_ERROR;
-> -			continue;
-> -		}
-> -		lock_page(dpage);
-> -
-> -		dst_pfns[i] = migrate_pfn(page_to_pfn(dpage)) |
-> -			      MIGRATE_PFN_LOCKED;
-> -		npages++;
-> -	}
-> +	spage = migrate_pfn_to_page(src);
-> +	if (!spage || !(src & MIGRATE_PFN_MIGRATE))
+>  	if (!vhost_map_range_overlap(uaddr, start, end))
+> -		return;
 > +		return 0;
+> +	else if (!blockable)
+> +		return -EAGAIN;
 >  
-> -	/* Allocate storage for DMA addresses, so we can unmap later. */
-> -	fault->dma = kmalloc(sizeof(*fault->dma) * npages, GFP_KERNEL);
-> -	if (!fault->dma)
-> +	dpage = alloc_page_vma(GFP_HIGHUSER, args->vma, addr);
-> +	if (!dpage)
->  		goto error;
-> +	lock_page(dpage);
+>  	spin_lock(&vq->mmu_lock);
+>  	++vq->invalidate_count;
+> @@ -423,6 +426,8 @@ static void vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
+>  		vhost_set_map_dirty(vq, map, index);
+>  		vhost_map_unprefetch(map);
+>  	}
+> +
+> +	return 0;
+>  }
 >  
-> -	/* Copy things over */
-> -	copy = drm->dmem->migrate.copy_func;
-> -	for (addr = start, i = 0; addr < end; addr += PAGE_SIZE, i++) {
-> -		struct page *spage, *dpage;
+>  static void vhost_invalidate_vq_end(struct vhost_virtqueue *vq,
+> @@ -443,18 +448,19 @@ static int vhost_invalidate_range_start(struct mmu_notifier *mn,
+>  {
+>  	struct vhost_dev *dev = container_of(mn, struct vhost_dev,
+>  					     mmu_notifier);
+> -	int i, j;
 > -
-> -		dpage = migrate_pfn_to_page(dst_pfns[i]);
-> -		if (!dpage || dst_pfns[i] == MIGRATE_PFN_ERROR)
-> -			continue;
-> -
-> -		spage = migrate_pfn_to_page(src_pfns[i]);
-> -		if (!spage || !(src_pfns[i] & MIGRATE_PFN_MIGRATE)) {
-> -			dst_pfns[i] = MIGRATE_PFN_ERROR;
-> -			__free_page(dpage);
-> -			continue;
-> -		}
-> -
-> -		fault->dma[fault->npages] =
-> -			dma_map_page_attrs(dev, dpage, 0, PAGE_SIZE,
-> -					   PCI_DMA_BIDIRECTIONAL,
-> -					   DMA_ATTR_SKIP_CPU_SYNC);
-> -		if (dma_mapping_error(dev, fault->dma[fault->npages])) {
-> -			dst_pfns[i] = MIGRATE_PFN_ERROR;
-> -			__free_page(dpage);
-> -			continue;
-> -		}
-> -
-> -		ret = copy(drm, 1, NOUVEAU_APER_HOST,
-> -				fault->dma[fault->npages++],
-> -				NOUVEAU_APER_VRAM,
-> -				nouveau_dmem_page_addr(spage));
-> -		if (ret) {
-> -			dst_pfns[i] = MIGRATE_PFN_ERROR;
-> -			__free_page(dpage);
-> -			continue;
-> -		}
-> -	}
-> +	*dma_addr = dma_map_page(dev, dpage, 0, PAGE_SIZE, DMA_BIDIRECTIONAL);
-> +	if (dma_mapping_error(dev, *dma_addr))
-> +		goto error_free_page;
+> -	if (!mmu_notifier_range_blockable(range))
+> -		return -EAGAIN;
+> +	bool blockable = mmu_notifier_range_blockable(range);
+> +	int i, j, ret;
 >  
-> -	nouveau_fence_new(drm->dmem->migrate.chan, false, &fault->fence);
-> +	if (drm->dmem->migrate.copy_func(drm, 1, NOUVEAU_APER_HOST, *dma_addr,
-> +			NOUVEAU_APER_VRAM, nouveau_dmem_page_addr(spage)))
-> +		goto error_dma_unmap;
+>  	for (i = 0; i < dev->nvqs; i++) {
+>  		struct vhost_virtqueue *vq = dev->vqs[i];
 >  
-> -	return;
-> +	*dst = migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
+> -		for (j = 0; j < VHOST_NUM_ADDRS; j++)
+> -			vhost_invalidate_vq_start(vq, j,
+> -						  range->start,
+> -						  range->end);
+> +		for (j = 0; j < VHOST_NUM_ADDRS; j++) {
+> +			ret = vhost_invalidate_vq_start(vq, j,
+> +							range->start,
+> +							range->end, blockable);
+> +			if (ret)
+> +				return ret;
+> +		}
+>  	}
 >  
-> +error_dma_unmap:
-> +	dma_unmap_page(dev, *dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
-> +error_free_page:
-> +	__free_page(dpage);
->  error:
-> -	for (addr = start, i = 0; addr < end; addr += PAGE_SIZE, ++i) {
-> -		struct page *page;
-> -
-> -		if (!dst_pfns[i] || dst_pfns[i] == MIGRATE_PFN_ERROR)
-> -			continue;
-> -
-> -		page = migrate_pfn_to_page(dst_pfns[i]);
-> -		dst_pfns[i] = MIGRATE_PFN_ERROR;
-> -		if (page == NULL)
-> -			continue;
-> -
-> -		__free_page(page);
-> -	}
-> -}
-> -
-> -static void
-> -nouveau_dmem_fault_finalize_and_map(struct nouveau_dmem_fault *fault)
-> -{
-> -	struct nouveau_drm *drm = fault->drm;
-> -
-> -	nouveau_dmem_fence_done(&fault->fence);
-> -
-> -	while (fault->npages--) {
-> -		dma_unmap_page(drm->dev->dev, fault->dma[fault->npages],
-> -			       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
-> -	}
-> -	kfree(fault->dma);
-> +	return VM_FAULT_SIGBUS;
+>  	return 0;
+> -- 
+> 2.18.1
+> 
 
-Looks like nouveau_dmem_fault_copy_one() is now returning VM_FAULT_SIGBUS
-for success case. Is this expected?
-
-Regards,
-Bharata.
+-- 
 
