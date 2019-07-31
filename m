@@ -7,100 +7,100 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 62637C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:13:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C859AC32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:13:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1A18E217F4
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:13:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 808D621842
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:13:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="AOy2CWLX"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1A18E217F4
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="vfdW7e5V"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 808D621842
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9D61A8E0005; Wed, 31 Jul 2019 11:13:51 -0400 (EDT)
+	id B0F1C8E0023; Wed, 31 Jul 2019 11:13:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9865F8E0021; Wed, 31 Jul 2019 11:13:51 -0400 (EDT)
+	id AE8CB8E0022; Wed, 31 Jul 2019 11:13:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 827498E0005; Wed, 31 Jul 2019 11:13:51 -0400 (EDT)
+	id 912088E0023; Wed, 31 Jul 2019 11:13:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 36E828E0021
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:13:51 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id l14so42632154edw.20
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:13:51 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 41FD58E0021
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:13:52 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id r21so42620012edc.6
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:13:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=ukIFHDJenwkznoJ0S+ycGyH8eEeHrvR6n2ACiYDuDdk=;
-        b=o5R3hHqw1fTuZ/lhYR3VGcnPnW56TtUbjJrw1Ww7u5aCUH76iXKSugvsJhrzECwW0d
-         bFMbgTCIm53FFvb19Au1A3jzo6r3eH3tmA5runmHO2elXFJ1LWm76zOKOpc9kAh/S97x
-         J8mCqzBrAnAOW81WPs5ValERmpLEEBo8Q0uSbMCES/94Zt1PM+BUNVoUEKyoOFbxI+dq
-         9B98FSiWlJ2DUPqfPS+VzqPL3CnNIm6v3VWyBCHQwc4ZGyPY8R+YkNOLK22rBnyuW6mV
-         cufJ/xvuKNypEY6pagd/vrReGv4srqq2Yd6MEbLs5Yb9TxbVPOlveghLlhZ+1SLIFxoh
-         PqZg==
-X-Gm-Message-State: APjAAAU+hpXrgAfa9blN10Vsc3K5FwBb23b56KpMY/e/9TnMns1tdcmV
-	HFSOW6AmDOzeoSQxOHoeDwADS2tyo45Xo/y8iVeFx2mB/6Tkm9Q3R0ZwDG4rPTSPW+/ZV5RAIJy
-	kruEnMuk8TgHVg/C+sP53C5VQKcDt+GsjD3Z7uKqn2KwQfm3vRRiS31YdyVxmn+Q=
-X-Received: by 2002:a17:906:fae0:: with SMTP id lu32mr8621420ejb.283.1564586030760;
+        bh=uIXZ0F8v9y0X5Vlr65FlBUe43ILwGFJ310V1qk1n87Y=;
+        b=TGJIYCVaC5e4y2oxMu6TcvezqOdlle09Cuq8RwMMF4hyH2+LzO8fuimGky5C+AroIL
+         FxtHT3qVcidir/YPkF/um0l1DrGD3moQmBh7hz8DoCsZM54TldENvaSP87ksjtLdoG43
+         BasC9W9YLl00ibsBQGgVbH+XUQCJGSLYLIiqIRfWTQ1aRUIFb6wzRLKUpuLj3hzU5cQh
+         yO1/wTt+iwkNm0K8XV70EmmMJAL3elCYzO8WbtuHTP7wEfMnzH8pFB3ozQI90kkNGj+X
+         lLJ1x0KrG94KxiReHsEQJZMn6G2g3j/xa6lBFuhwMksKaYg8JsWcQ9thBUn38mcZDfvf
+         f5Yg==
+X-Gm-Message-State: APjAAAUOc8Q20ghQrdQW6YUqu+UGCA/izSACXSjt71WmgzI/0j6atTkR
+	DVVWZkpigSniv3jSAU7QnjLdqxaoF0LRG7NuZzlOHNOvB/W3p9PPuCOqIniCjanHbyKmQZkpxRy
+	UlFUgSMQo7vhnFx2Skj002G63yl15mDule88A6CdpyVoHnUcP828RbT68a8VLyfE=
+X-Received: by 2002:a17:906:2555:: with SMTP id j21mr96482485ejb.231.1564586031811;
+        Wed, 31 Jul 2019 08:13:51 -0700 (PDT)
+X-Received: by 2002:a17:906:2555:: with SMTP id j21mr96482352ejb.231.1564586030232;
         Wed, 31 Jul 2019 08:13:50 -0700 (PDT)
-X-Received: by 2002:a17:906:fae0:: with SMTP id lu32mr8621306ejb.283.1564586029372;
-        Wed, 31 Jul 2019 08:13:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564586029; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1564586030; cv=none;
         d=google.com; s=arc-20160816;
-        b=iqCQw/0mHgV6YB/Ibi6eq9/vpLHFfmeSYs2RGGio8WHtm/QqwWUtPladWnW92raXfZ
-         n9+P1Ub3OWTjBU0hoN4pQsyY+iybwwKRj0VoF0wz1y6PaCSKX+j+0Sv+Ggjw/WDihk8E
-         yjXJZ03J1s/rPkWaxFAm65tcjkq/z7++oZQcGuEM6+YR0p2KkSzghWYkJtnwmEYuAB1P
-         l7WyVhSO9/C8KqIHcZHiTPvcuW3UayfXFsy1EqM4/CjYRhgbzg2DqwO+YHuHxKZypaYd
-         AM6NYP6QemEoa5dtYFM6lJ0SA+9yZnxVJKmcVk7uNDY27LeY+oSjxWeYbRzwNDFzWz3r
-         gZzw==
+        b=sLjudbY6SXJr/jNTxxZjxwnT3/s8MSPLV5oqi7lAWUlfHhrYQc5H0O5Q/e7JRu9BT9
+         GE9Ymv5p51Jkt5srwpi0/bWd2IjWBNcACd/xtub9jjwn9Uof1xU7AeJ6s0QKBOECKZd6
+         Sw8m9fkqROBuccfoOq+1ZWQdoXIGo0aZ/KvaLfZlOtbqvv+uI9CJjqq5hzLYuCDP9O15
+         bhQ4jl7V8+uXf12XHT+pvpoH03go5GPMcZz4vgI1ZeEtZznQDJTIEMCNaScI89Ufu4xO
+         +jj86gvo0FmQsSkgwURbIfKuAS2apKAL/SsKHDEteSKBrEoMcNzo4Ff9LhTb1VeSKMxO
+         CjEQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=ukIFHDJenwkznoJ0S+ycGyH8eEeHrvR6n2ACiYDuDdk=;
-        b=a9XcscBYMygxxLcnDfwk7Ke6omVXTmJkJBt5UoPO+7C+meRANJabitl66ydHLsC2QZ
-         163TQ/BICMvr6eXyYBuWowcKBVPtkvAOuFjaIkXwAHweZo6fPgYWHlMZq/ysyIsgQRXq
-         vjEQld/VuPSayeT5gL8Sfyon38en6KMmIX0ZwFsxTndhPhg9pYHxi41phJ+c8P/rwyF3
-         ixq3umod6z7jmW4WCH2/PkbHLNrbawQybAA23fcMd5+YyLMbF9Gxqrpg9rKrS/cCkFu6
-         DiWdpVhYsI4G+JJJTSqKGNoC2cw6Xkc6mIOn+DKDvtaU9ljTq2CB+J8lkrmcjkaJbSiV
-         HhhQ==
+        bh=uIXZ0F8v9y0X5Vlr65FlBUe43ILwGFJ310V1qk1n87Y=;
+        b=HC3vl6vjcG8XGwXJmznTQevNxofRW6UW1HJB0JvhIm/wDt+WGHdZBVef4v9XP/J4sb
+         ItISXVfRYSTUlncZRV7N31KFRli8XhIdtLJbA6Q70Fz9hHGxAnAbRHg3W+/n06bUsDs2
+         7VZe1AFPLNjPMy7i2wZ8wspKpYEvTKR/bt7Ypxy40NqYM6v6m+A+6Odx902+12L9nKBu
+         J8ST8luEgMG3gvewVAOxfWFtAAn7UcHnV6BLsjlBoxGVRqr+qMmUH3q20NGR5nGPenRG
+         Q8r2Wq1CfNNoWRLqLxH/uen+qXnDuZN83vWO5rrd0j4NMSHfVqGx5zTRSpqswSKx8vmT
+         9qBA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=AOy2CWLX;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=vfdW7e5V;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q27sor16474736eji.6.2019.07.31.08.13.49
+        by mx.google.com with SMTPS id l22sor52317825eda.1.2019.07.31.08.13.50
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Jul 2019 08:13:49 -0700 (PDT)
+        Wed, 31 Jul 2019 08:13:50 -0700 (PDT)
 Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=AOy2CWLX;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=vfdW7e5V;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=ukIFHDJenwkznoJ0S+ycGyH8eEeHrvR6n2ACiYDuDdk=;
-        b=AOy2CWLXXb5HmAhiEuMvNlpAfvbzvVTmBhdFbnfbTg/elp4wHPlGZlanZYYDI/FrxG
-         XR1qjn43zM5orBwV4t3lyE99FyrF9PkSX5oImrC331w0Zqkq8aM4qZ7W1MIsKYtR1Iq+
-         R9RJkh8iSQEpA340quOn7TlujXd6hrIkjm5Jm0Xb21fUTBV8fnmRZXlmIojL8rcIgjCU
-         PUTp3qDE06KwYQHnhsuC+tatmmIbYIQBPxFpZQsboYojGA8UMc7qiPLpOzuIoc1jePqI
-         mj+jOHlIVv7dZaf23nr1b3w0Wc5cWJIlxSvk362WiEcqLVDtgLk3XpruSZHTCkoabCWN
-         v2Aw==
-X-Google-Smtp-Source: APXvYqySwhWDf4JA3GLQlNS2pqACUoF55kJ2wCVDTSRm+FoPw2vi1mKPJsOuuhC2eFbEA1+1nD2ApQ==
-X-Received: by 2002:a17:906:1e85:: with SMTP id e5mr94007378ejj.200.1564586029031;
+        bh=uIXZ0F8v9y0X5Vlr65FlBUe43ILwGFJ310V1qk1n87Y=;
+        b=vfdW7e5VZM1NTRsW9Qj9s3ymywg9Z9eZf0L8H23FhduBuIwBKrkUvK2YDh7+VgvO2z
+         3q9p0yQ2/EX6CTrY+uDCaCJl6TyJDc+BnE2CZKywXpecMsM8Q5tNHXv9bcx8OOj8tnBm
+         QH3O/qxckPbmTmy4X1F0rKZmU1UXd0VSYVNKsK+ChAul5R8pVMmYFyXbEmcIU9HHfUbN
+         frKzsjweIKsQ0mnZrk/2o3FUXu9XTU+CZ3leIN6sTXmycUuVIoqiQg6NFsv1CV7J2zOR
+         MHvIFNk9NC4quOBkwU2rhdIHH54BaXnZovl+oi4BNME3i/u2OjU/uJHdK2YV59LnCg7W
+         X1VQ==
+X-Google-Smtp-Source: APXvYqwYeWMLltpEBPBckLNCM+g7S+IY4Us955LLaX0vHxxronyzv/ZLKgeH3uRrChjLLmvrEg+r8g==
+X-Received: by 2002:a50:c28a:: with SMTP id o10mr105376291edf.182.1564586029913;
         Wed, 31 Jul 2019 08:13:49 -0700 (PDT)
 Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id v6sm12580413ejx.28.2019.07.31.08.13.47
+        by smtp.gmail.com with ESMTPSA id j10sm12539092ejk.23.2019.07.31.08.13.47
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 31 Jul 2019 08:13:47 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 X-Google-Original-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Received: by box.localdomain (Postfix, from userid 1000)
-	id 025681045FC; Wed, 31 Jul 2019 18:08:17 +0300 (+03)
+	id 095281045FD; Wed, 31 Jul 2019 18:08:17 +0300 (+03)
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
 	Thomas Gleixner <tglx@linutronix.de>,
@@ -120,9 +120,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 38/59] keys/mktme: Do not allow key creation in unsafe topologies
-Date: Wed, 31 Jul 2019 18:07:52 +0300
-Message-Id: <20190731150813.26289-39-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 39/59] keys/mktme: Support CPU hotplug for MKTME key service
+Date: Wed, 31 Jul 2019 18:07:53 +0300
+Message-Id: <20190731150813.26289-40-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
 References: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
@@ -136,99 +136,117 @@ List-ID: <linux-mm.kvack.org>
 
 From: Alison Schofield <alison.schofield@intel.com>
 
-MKTME depends upon at least one online CPU capable of programming
-each memory controller in the platform.
+The MKTME encryption hardware resides on each physical package.
+The encryption hardware includes 'Key Tables' that must be
+programmed identically across all physical packages in the
+platform. Although every CPU in a package can program its key
+table, the kernel uses one lead CPU per package for programming.
 
-An unsafe topology for MKTME is a memory only package or a package
-with no online CPUs. Key creation with unsafe topologies will fail
-with EINVAL and a warning will be logged one time.
-For example:
-	[ ] MKTME: no online CPU in proximity domain
-	[ ] MKTME: topology does not support key creation
+CPU Hotplug Teardown
+--------------------
+MKTME manages CPU hotplug teardown to make sure the ability to
+program all packages is preserved when MKTME keys are present.
 
-These are recoverable errors. CPUs may be brought online that are
-capable of programming a previously unprogrammable memory controller.
+When MKTME keys are not currently programmed, simply allow
+the teardown, and set "mktme_allow_keys" to false. This will
+force a re-evaluation of the platform topology before the next
+key creation. If this CPU teardown mattered, MKTME key service
+will report an error and fail to create the key. (User can
+online that CPU and try again)
+
+When MKTME keys are currently programmed, allow teardowns
+of non 'lead CPU's' and of CPUs where another, core sibling
+CPU, can take over as lead. Do not allow teardown of any
+lead CPU that would render a hardware key table unreachable!
+
+CPU Hotplug Startup
+-------------------
+CPUs coming online are of interest to the key service, but since
+the service never needs to block a CPU startup event, nor does it
+need to prepare for an onlining CPU, a callback is not implemented.
+
+MKTME will catch the availability of the new CPU, if it is
+needed, at the next key creation time. If keys are not allowed,
+that new CPU will be part of the topology evaluation to determine
+if keys should now be allowed.
 
 Signed-off-by: Alison Schofield <alison.schofield@intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- security/keys/mktme_keys.c | 36 ++++++++++++++++++++++++++++++------
- 1 file changed, 30 insertions(+), 6 deletions(-)
+ security/keys/mktme_keys.c | 47 +++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 46 insertions(+), 1 deletion(-)
 
 diff --git a/security/keys/mktme_keys.c b/security/keys/mktme_keys.c
-index 6265b62801e9..70662e882674 100644
+index 70662e882674..b042df73899d 100644
 --- a/security/keys/mktme_keys.c
 +++ b/security/keys/mktme_keys.c
-@@ -23,6 +23,7 @@ static unsigned int mktme_available_keyids;  /* Free Hardware KeyIDs */
- static struct kmem_cache *mktme_prog_cache;  /* Hardware programming cache */
- static unsigned long *mktme_target_map;	     /* PCONFIG programming target */
- static cpumask_var_t mktme_leadcpus;	     /* One CPU per PCONFIG target */
-+static bool mktme_allow_keys;		     /* HW topology supports keys */
- 
- enum mktme_keyid_state {
- 	KEYID_AVAILABLE,	/* Available to be assigned */
-@@ -253,32 +254,55 @@ static void mktme_destroy_key(struct key *key)
- 	percpu_ref_kill(&encrypt_count[keyid]);
+@@ -460,9 +460,46 @@ static int mktme_alloc_pconfig_targets(void)
+ 	return 0;
  }
  
-+static void mktme_update_pconfig_targets(void);
- /* Key Service Method to create a new key. Payload is preparsed. */
- int mktme_instantiate_key(struct key *key, struct key_preparsed_payload *prep)
- {
- 	u32 *payload = prep->payload.data[0];
- 	unsigned long flags;
-+	int ret = -ENOKEY;
- 	int keyid;
- 
- 	spin_lock_irqsave(&mktme_lock, flags);
++static int mktme_cpu_teardown(unsigned int cpu)
++{
++	int new_leadcpu, ret = 0;
++	unsigned long flags;
 +
-+	/* Topology supports key creation */
-+	if (mktme_allow_keys)
-+		goto get_key;
++	/* Do not allow key programming during cpu hotplug event */
++	spin_lock_irqsave(&mktme_lock, flags);
 +
-+	/* Topology unknown, check it. */
-+	if (!mktme_hmat_evaluate()) {
-+		ret = -EINVAL;
-+		goto out_unlock;
++	/*
++	 * When no keys are in use, allow the teardown, and set
++	 * mktme_allow_keys to FALSE. That forces an evaluation
++	 * of the topology before the next key creation.
++	 */
++	if (mktme_available_keyids == mktme_nr_keyids()) {
++		mktme_allow_keys = false;
++		goto out;
 +	}
-+
-+	/* Keys are now allowed. Update the programming targets. */
-+	mktme_update_pconfig_targets();
-+	mktme_allow_keys = true;
-+
-+get_key:
- 	keyid = mktme_reserve_keyid(key);
- 	spin_unlock_irqrestore(&mktme_lock, flags);
- 	if (!keyid)
--		return -ENOKEY;
++	/* Teardown CPU is not a lead CPU. Allow teardown. */
++	if (!cpumask_test_cpu(cpu, mktme_leadcpus))
 +		goto out;
- 
- 	if (percpu_ref_init(&encrypt_count[keyid], mktme_percpu_ref_release,
- 			    0, GFP_KERNEL))
--		goto err_out;
-+		goto out_free_key;
- 
--	if (!mktme_program_keyid(keyid, *payload))
--		return MKTME_PROG_SUCCESS;
-+	ret = mktme_program_keyid(keyid, *payload);
-+	if (ret == MKTME_PROG_SUCCESS)
-+		goto out;
- 
-+	/* Key programming failed */
- 	percpu_ref_exit(&encrypt_count[keyid]);
--err_out:
 +
-+out_free_key:
- 	spin_lock_irqsave(&mktme_lock, flags);
- 	mktme_release_keyid(keyid);
-+out_unlock:
- 	spin_unlock_irqrestore(&mktme_lock, flags);
--	return -ENOKEY;
++	/* Teardown CPU is a lead CPU. Look for a new lead CPU. */
++	new_leadcpu = cpumask_any_but(topology_core_cpumask(cpu), cpu);
++
++	if (new_leadcpu < nr_cpumask_bits) {
++		/* New lead CPU found. Update the programming mask */
++		__cpumask_clear_cpu(cpu, mktme_leadcpus);
++		__cpumask_set_cpu(new_leadcpu, mktme_leadcpus);
++	} else {
++		/* New lead CPU not found. Do not allow CPU teardown */
++		ret = -1;
++	}
 +out:
++	spin_unlock_irqrestore(&mktme_lock, flags);
 +	return ret;
- }
++}
++
+ static int __init init_mktme(void)
+ {
+-	int ret;
++	int ret, cpuhp;
  
- /* Make sure arguments are correct for the TYPE of key requested */
+ 	/* Verify keys are present */
+ 	if (mktme_nr_keyids() < 1)
+@@ -500,10 +537,18 @@ static int __init init_mktme(void)
+ 	if (!encrypt_count)
+ 		goto free_targets;
+ 
++	cpuhp = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
++					  "keys/mktme_keys:online",
++					  NULL, mktme_cpu_teardown);
++	if (cpuhp < 0)
++		goto free_encrypt;
++
+ 	ret = register_key_type(&key_type_mktme);
+ 	if (!ret)
+ 		return ret;			/* SUCCESS */
+ 
++	cpuhp_remove_state_nocalls(cpuhp);
++free_encrypt:
+ 	kvfree(encrypt_count);
+ free_targets:
+ 	free_cpumask_var(mktme_leadcpus);
 -- 
 2.21.0
 
