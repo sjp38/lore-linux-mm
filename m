@@ -2,110 +2,106 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E6C41C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:17:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DFE0DC32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:17:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8A71A21773
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:17:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A0EC7206A2
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:17:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="C00yoMeC"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A71A21773
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="spp6+pbv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0EC7206A2
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 730478E000B; Wed, 31 Jul 2019 13:17:42 -0400 (EDT)
+	id 3145E8E000C; Wed, 31 Jul 2019 13:17:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6BA158E0001; Wed, 31 Jul 2019 13:17:42 -0400 (EDT)
+	id 24FBE8E0001; Wed, 31 Jul 2019 13:17:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 536CF8E000B; Wed, 31 Jul 2019 13:17:42 -0400 (EDT)
+	id 052508E000C; Wed, 31 Jul 2019 13:17:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F17908E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:17:41 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id r142so43625442pfc.2
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 10:17:41 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id C8E798E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:17:43 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id 8so37938170pgl.3
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 10:17:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=Dzm8n40AK7nf0sj2NrTyzG0gk2I/yPbmt3M3+XvF2jI=;
-        b=DSrqTyiPXYV1zTgx6JYw+VNQiFPQOSW9qEqGSsj3jG9rwF3wuWF9vLKfIMKlKqDOae
-         qtx/TJFhDk0csmgLlwcm3PhRTuwrPsgXQdogtpwBYBLzwjdkKO1fNPJfFrhSfUz+iDsC
-         bNXrLMeYlOGGydCXWpJr8kugcmF4d+Q3K8BNSd69rn2tBv3ISxTCDTlzgMlRvcXxX5bt
-         n1/7jYXgbMiUWWnrYJHaw0x7WDTBwnPzjvvgjs1FXWWu6kyJBuSsEukYjmFaIehKkuEg
-         3S54AvoNalvHT6vab2NJkWoxVA3KYsVbYQ/NvcbnFv3Z8qhZ56c33qgnH+4IQZjhYBaQ
-         O/iA==
-X-Gm-Message-State: APjAAAWAogP3Tkmt+YVplZJtOVuVJVeRHk6tMJvC8kgpEj/4wgcS6yJI
-	kCotzDV5DRmpcNZd3TMMLebeBziJKpm1knPauHcgHfTOY5krfOW28f3jcBrJFh0aKPtIfEbfnfP
-	Tz7H4eT6TifJHwqPvHKuLHPyO0UGdvkvep8qK6fzwfPsstfEiVQAWqNd/6hh4XAM8XA==
-X-Received: by 2002:a63:f13:: with SMTP id e19mr114552536pgl.132.1564593461553;
-        Wed, 31 Jul 2019 10:17:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz/pjF3zzBN0GDt5O7rVtYJabXt2beVA1ssLL30T3iaokEF8tCJt8Vse+2FeBwx4etgOkyI
-X-Received: by 2002:a63:f13:: with SMTP id e19mr114552447pgl.132.1564593460326;
-        Wed, 31 Jul 2019 10:17:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564593460; cv=none;
+         :message-id:mime-version:content-transfer-encoding;
+        bh=KaVjUWTTnVdkOk2Zg6cPSfY2fDbbbTfB5zwO5s7DZ4s=;
+        b=UqhWI1+siZdhamq8KKJMxvQdyuGOp+KAan7TdmDYjrDR8m3o2GDL5mRFsOlVlRj1vg
+         pawQbqYfJdSJ0jAU4yrGlSCR2v8Q7A7Fwyautf+93SUfuUMCnpX/1n4ODwCZhFJEYwIs
+         9atRqJPWfkteGycD1PKbL9VHeGUiBtw608FnEtsP4HxFymSIh6QHUkeDM94ENufPfZx1
+         gWbYS+FYr4Dww9L/JUj6gN8R8JtsX4yCyKfUROA5vyr1g161f7yFtAdDZ6ryLFFyOPDJ
+         Mks3u4zpUAFKGm3Q/J0FCBgE8hk8gGF6uRjkLYFuMjgtt4Y9oPRJ/9mTsW5KS9yUSvVb
+         Yq3Q==
+X-Gm-Message-State: APjAAAWPBBbS2lESYuiQ11vS2MzalZ2gePAj+g6ftgKyYGXYp3OURTGz
+	VHzrJ4Br0v5zchXJ/i3IrAoTJoq0CbXkN75y1tSqDh4ZZR5qVARX+74NqCHMAphYF/7uo3RgsQp
+	esPBAP03e1haCcF5sgGDK/xBMRGCrocWS67uhPl9e37ZhIC+SiM3PzOFVjG31yak2zQ==
+X-Received: by 2002:a17:902:2889:: with SMTP id f9mr115159915plb.230.1564593463523;
+        Wed, 31 Jul 2019 10:17:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyENYNutJp2BR9ufuoRHOPMAXBTKzJtDpXtDc0MBzxO25Dp4pb7mH+Ie0ZYwmHGYlibWKHc
+X-Received: by 2002:a17:902:2889:: with SMTP id f9mr115159873plb.230.1564593462902;
+        Wed, 31 Jul 2019 10:17:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564593462; cv=none;
         d=google.com; s=arc-20160816;
-        b=uPphrw1R0RCxbrgdYv53pecy6nukjIDwAJy6D350ndvDb+O6qct+BEyr2IFnqau8J7
-         CRUZXaxd+jlWhgzUWVYc+ho9qeGeZfVjOF/2WyT68XFxVUsm9rcOf45v0Sdw4WHLHW4x
-         nv7ofOnpQWQsKFR1KvU1NPNpZL/Ej9WOodPdhQXqMJ5zTu99/zeEAWUUacBP9z8/q5SX
-         FeA6AwqQ3CbdFZg4BpAqRyxDXzhRxibI+DneCaXMzXTk/Y9G6HxspaHvOoLK+ELzqGqL
-         84H9cv/hxReiwVi5lpvZ+r/N8QiHOakq3W4nKoIY1/6geNzpF0KkavNyZfrX4d+0sm+H
-         AtBQ==
+        b=LKOpFrgG58t8vcaLfzpgicYDacIHHb6BldllGJRusZaDvNkCC+6U2TADPjiQPDG2UE
+         igpvdSkNKgB59RthHUzB/laN/+my6p49t7SScGb9NDMJNIxrlCCPFHUJdsJI3KeDjDYy
+         3EPDp4g8pbEgBPcjHYLtJPT8zmhH2Hs4B9caFgBMqvLkuIFdL0mKnDdDrhjN7Z26bzSn
+         tp3oaw/P0XGo4u2VMMn28StLfuD+aJpo3SFnQh86oF3ydg4nZDdirNefjb6SnFpcpR3P
+         6Czfw0knoigFYRaenojHi8aKHcjNWv3ezyzT+5HBbU2KWotV1X8NoplnxtP/uivni5Ek
+         Df1w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=Dzm8n40AK7nf0sj2NrTyzG0gk2I/yPbmt3M3+XvF2jI=;
-        b=EEnFr0I4MGESlIVaJP/5sCn0L3iDll+534EYkwsbkQ6WXjKQ1qtLWN54vsevrBlu2R
-         ACeENYvS6BCvAEniRS++fTyyeKk9BGyXsVCo6cv1N+ztmx5ec/byoriZzTF+Y1IUlES7
-         axtM1uSBIDTni9OLhlMP2MxTJdew+AqsNJ1KHSXQhBJHmLl/PV2LhzbELTy9tkMOMlRD
-         KbR/+BztFja+pLhNlevamu+/BAFb5pYZFJ8NN0Yt9kMbEikxY8jZ2BdkJhlDV06n/6Wz
-         h8nKYDSFslhsHYZLijDkYkdwlTvQSOYD9SQo/+QSln7PVcSX+71Jm1DRtLNP64tJZEYf
-         xqYQ==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=KaVjUWTTnVdkOk2Zg6cPSfY2fDbbbTfB5zwO5s7DZ4s=;
+        b=I4x7iv7pugs75WNfodAE3vEX5fpTWEI1YyESdIFey/L1hyhPVuIsNTOFF1W7q/5MBG
+         0unSxNunn9nqz+argjcvztUMy+6dG+lkU6LG4jibDjxR1FFMg1TMsMqBEjFEURfguR8r
+         4WTazyDLz4g45S5XBN9a9tz5r26/sjs634dwmMcL8nCnrOEfqwyFloleQ2smv8jfnjWg
+         lPmmc931s5fO3drxowjGH3JngplmoXI7LkfYtslv5VD8c/gaEyQu4Oryt+RoWcSsCmPn
+         F/0IgQ9+wCqWqcHVNUI5XrH1IixVu322N9PwHUxdQVypb8B1CMQIJpA6bhq5dFLhKHKt
+         LYew==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=C00yoMeC;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=spp6+pbv;
        spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id v189si32236332pgd.289.2019.07.31.10.17.40
+        by mx.google.com with ESMTPS id l14si31716292pgh.205.2019.07.31.10.17.42
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 31 Jul 2019 10:17:40 -0700 (PDT)
+        Wed, 31 Jul 2019 10:17:42 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=C00yoMeC;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=spp6+pbv;
        spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
-	MIME-Version:References:In-Reply-To:Message-Id:Date:Subject:Cc:To:From:Sender
-	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
-	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=Dzm8n40AK7nf0sj2NrTyzG0gk2I/yPbmt3M3+XvF2jI=; b=C00yoMeCD1DTUj682QyuErg+ge
-	A2g0SeJNIBn8xdJGZDXe/NCKSOu57RowtGdWTSaOM8tkau110BYNQakEkH2yFJHS1/as/hED2VkXx
-	gVs4qAQX1pUn2OBx6aPBcmYwTX2GgN2AKrbGhRWnwdyzCPgOAMBvn8AbnK+5+wWfn0Jqs55g7qepn
-	QxgocFd8uJpRqC5FhsHfYcw1QMyqoBdURzV54j1/n+85xAg/5o6HS/0wiKvTU083WhXUgcEIHD/EY
-	F6PbR/hvGEf8ZYIWlZAH34FVp/2zIT71t/hg0LTqbuTZKQRulYWBMTFbvYzkpWWazmLDsOGFU9vMk
-	JtUajdcg==;
+	MIME-Version:Message-Id:Date:Subject:Cc:To:From:Sender:Reply-To:Content-Type:
+	Content-ID:Content-Description:Resent-Date:Resent-From:Resent-Sender:
+	Resent-To:Resent-Cc:Resent-Message-ID:In-Reply-To:References:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=KaVjUWTTnVdkOk2Zg6cPSfY2fDbbbTfB5zwO5s7DZ4s=; b=spp6+pbvnz834aJ0eeqzIUdla
+	6LkY/AxjVqEWXayDIBWYlkJMgNSdt8GGK3rcxtNCitA6xWOhQsfebCrSWviHjrF9WT2yQgOZzfxEN
+	/VKiqn3cvhV6zchKXV0AO6jV4GTZIikIdS8L54ILQ3TkmpR8Prsx3pr+bR8P0VArNZQhNeY7mWwaF
+	H61ldCoLvU+v3nRQsoxInhNY1zeca5psJ+wB0sfPo7cVM7BCdp0N1BCDaBNrQY/kF4+w/+l4oMxjP
+	kHtMmn3rj60gliJ5IDfuWCVEQJ6x3TB1p7rm7jWJilqYIVXrP1O4p/uz+qQesKUUQRHV9p57NcO4a
+	idSPZw8lg==;
 Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hssEN-0005dJ-5K; Wed, 31 Jul 2019 17:17:39 +0000
+	id 1hssEN-0005dG-3z; Wed, 31 Jul 2019 17:17:39 +0000
 From: Matthew Wilcox <willy@infradead.org>
 To: linux-fsdevel@vger.kernel.org
 Cc: "Matthew Wilcox (Oracle)" <willy@infradead.org>,
 	hch@lst.de,
 	linux-xfs@vger.kernel.org,
 	linux-mm@kvack.org
-Subject: [PATCH 1/2] iomap: Support large pages
-Date: Wed, 31 Jul 2019 10:17:33 -0700
-Message-Id: <20190731171734.21601-2-willy@infradead.org>
+Subject: [RFC 0/2] iomap & xfs support for large pages
+Date: Wed, 31 Jul 2019 10:17:32 -0700
+Message-Id: <20190731171734.21601-1-willy@infradead.org>
 X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190731171734.21601-1-willy@infradead.org>
-References: <20190731171734.21601-1-willy@infradead.org>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -116,285 +112,21 @@ List-ID: <linux-mm.kvack.org>
 
 From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
 
-Change iomap_page from a statically sized uptodate bitmap to a
-dynamically allocated uptodate bitmap, allowing an arbitrarily large page.
+Christoph sent me a patch a few months ago called "XFS THP wip".
+I've redone it based on current linus tree, plus the page_size() /
+compound_nr() / page_shift() patches currently found in -mm.  I fixed
+the logic bugs that I noticed in his patch and may have introduced some
+of my own.  I have only compile tested this code.
 
-Calculate the size of the page everywhere instead of using a base
-PAGE_SIZE.
+Matthew Wilcox (Oracle) (2):
+  iomap: Support large pages
+  xfs: Support large pages
 
-Based on a patch from Christoph Hellwig.
-
-Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
----
  fs/iomap/buffered-io.c | 82 ++++++++++++++++++++++++++----------------
+ fs/xfs/xfs_aops.c      | 37 +++++++++----------
  include/linux/iomap.h  |  2 +-
- 2 files changed, 53 insertions(+), 31 deletions(-)
+ 3 files changed, 72 insertions(+), 49 deletions(-)
 
-diff --git a/fs/iomap/buffered-io.c b/fs/iomap/buffered-io.c
-index e25901ae3ff4..4d56b8060b6c 100644
---- a/fs/iomap/buffered-io.c
-+++ b/fs/iomap/buffered-io.c
-@@ -23,14 +23,17 @@ static struct iomap_page *
- iomap_page_create(struct inode *inode, struct page *page)
- {
- 	struct iomap_page *iop = to_iomap_page(page);
-+	unsigned int nbits;
- 
--	if (iop || i_blocksize(inode) == PAGE_SIZE)
-+	if (iop || i_blocksize(inode) == page_size(page))
- 		return iop;
- 
--	iop = kmalloc(sizeof(*iop), GFP_NOFS | __GFP_NOFAIL);
-+	nbits = BITS_TO_LONGS(page_size(page) / SECTOR_SIZE);
-+	iop = kmalloc(struct_size(iop, uptodate, nbits),
-+			GFP_NOFS | __GFP_NOFAIL);
- 	atomic_set(&iop->read_count, 0);
- 	atomic_set(&iop->write_count, 0);
--	bitmap_zero(iop->uptodate, PAGE_SIZE / SECTOR_SIZE);
-+	bitmap_zero(iop->uptodate, nbits);
- 
- 	/*
- 	 * migrate_page_move_mapping() assumes that pages with private data have
-@@ -61,15 +64,16 @@ iomap_page_release(struct page *page)
-  * Calculate the range inside the page that we actually need to read.
-  */
- static void
--iomap_adjust_read_range(struct inode *inode, struct iomap_page *iop,
-+iomap_adjust_read_range(struct inode *inode, struct page *page,
- 		loff_t *pos, loff_t length, unsigned *offp, unsigned *lenp)
- {
-+	struct iomap_page *iop = to_iomap_page(page);
- 	loff_t orig_pos = *pos;
- 	loff_t isize = i_size_read(inode);
- 	unsigned block_bits = inode->i_blkbits;
- 	unsigned block_size = (1 << block_bits);
--	unsigned poff = offset_in_page(*pos);
--	unsigned plen = min_t(loff_t, PAGE_SIZE - poff, length);
-+	unsigned poff = *pos & (page_size(page) - 1);
-+	unsigned plen = min_t(loff_t, page_size(page) - poff, length);
- 	unsigned first = poff >> block_bits;
- 	unsigned last = (poff + plen - 1) >> block_bits;
- 
-@@ -107,7 +111,8 @@ iomap_adjust_read_range(struct inode *inode, struct iomap_page *iop,
- 	 * page cache for blocks that are entirely outside of i_size.
- 	 */
- 	if (orig_pos <= isize && orig_pos + length > isize) {
--		unsigned end = offset_in_page(isize - 1) >> block_bits;
-+		unsigned end = (isize - 1) & (page_size(page) - 1) >>
-+				block_bits;
- 
- 		if (first <= end && last > end)
- 			plen -= (last - end) * block_size;
-@@ -128,7 +133,7 @@ iomap_set_range_uptodate(struct page *page, unsigned off, unsigned len)
- 	bool uptodate = true;
- 
- 	if (iop) {
--		for (i = 0; i < PAGE_SIZE / i_blocksize(inode); i++) {
-+		for (i = 0; i < page_size(page) / i_blocksize(inode); i++) {
- 			if (i >= first && i <= last)
- 				set_bit(i, iop->uptodate);
- 			else if (!test_bit(i, iop->uptodate))
-@@ -194,11 +199,12 @@ iomap_read_inline_data(struct inode *inode, struct page *page,
- 		return;
- 
- 	BUG_ON(page->index);
--	BUG_ON(size > PAGE_SIZE - offset_in_page(iomap->inline_data));
-+	BUG_ON(size > page_size(page) - ((unsigned long)iomap->inline_data &
-+						(page_size(page) - 1)));
- 
- 	addr = kmap_atomic(page);
- 	memcpy(addr, iomap->inline_data, size);
--	memset(addr + size, 0, PAGE_SIZE - size);
-+	memset(addr + size, 0, page_size(page) - size);
- 	kunmap_atomic(addr);
- 	SetPageUptodate(page);
- }
-@@ -218,11 +224,11 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
- 	if (iomap->type == IOMAP_INLINE) {
- 		WARN_ON_ONCE(pos);
- 		iomap_read_inline_data(inode, page, iomap);
--		return PAGE_SIZE;
-+		return page_size(page);
- 	}
- 
- 	/* zero post-eof blocks as the page may be mapped */
--	iomap_adjust_read_range(inode, iop, &pos, length, &poff, &plen);
-+	iomap_adjust_read_range(inode, page, &pos, length, &poff, &plen);
- 	if (plen == 0)
- 		goto done;
- 
-@@ -258,7 +264,7 @@ iomap_readpage_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
- 
- 	if (!ctx->bio || !is_contig || bio_full(ctx->bio, plen)) {
- 		gfp_t gfp = mapping_gfp_constraint(page->mapping, GFP_KERNEL);
--		int nr_vecs = (length + PAGE_SIZE - 1) >> PAGE_SHIFT;
-+		int nr_vecs = (length + page_size(page) - 1) >> page_shift(page);
- 
- 		if (ctx->bio)
- 			submit_bio(ctx->bio);
-@@ -293,9 +299,9 @@ iomap_readpage(struct page *page, const struct iomap_ops *ops)
- 	unsigned poff;
- 	loff_t ret;
- 
--	for (poff = 0; poff < PAGE_SIZE; poff += ret) {
-+	for (poff = 0; poff < page_size(page); poff += ret) {
- 		ret = iomap_apply(inode, page_offset(page) + poff,
--				PAGE_SIZE - poff, 0, ops, &ctx,
-+				page_size(page) - poff, 0, ops, &ctx,
- 				iomap_readpage_actor);
- 		if (ret <= 0) {
- 			WARN_ON_ONCE(ret == 0);
-@@ -342,7 +348,7 @@ iomap_next_page(struct inode *inode, struct list_head *pages, loff_t pos,
- 		 * readpages call itself as every page gets checked again once
- 		 * actually needed.
- 		 */
--		*done += PAGE_SIZE;
-+		*done += page_size(page);
- 		put_page(page);
- 	}
- 
-@@ -355,9 +361,14 @@ iomap_readpages_actor(struct inode *inode, loff_t pos, loff_t length,
- {
- 	struct iomap_readpage_ctx *ctx = data;
- 	loff_t done, ret;
-+	size_t pg_left = 0;
-+
-+	if (ctx->cur_page)
-+		pg_left = page_size(ctx->cur_page) -
-+					(pos & (page_size(ctx->cur_page) - 1));
- 
- 	for (done = 0; done < length; done += ret) {
--		if (ctx->cur_page && offset_in_page(pos + done) == 0) {
-+		if (ctx->cur_page && pg_left == 0) {
- 			if (!ctx->cur_page_in_bio)
- 				unlock_page(ctx->cur_page);
- 			put_page(ctx->cur_page);
-@@ -369,9 +380,11 @@ iomap_readpages_actor(struct inode *inode, loff_t pos, loff_t length,
- 			if (!ctx->cur_page)
- 				break;
- 			ctx->cur_page_in_bio = false;
-+			pg_left = page_size(ctx->cur_page);
- 		}
- 		ret = iomap_readpage_actor(inode, pos + done, length - done,
- 				ctx, iomap);
-+		pg_left -= ret;
- 	}
- 
- 	return done;
-@@ -386,8 +399,9 @@ iomap_readpages(struct address_space *mapping, struct list_head *pages,
- 		.is_readahead	= true,
- 	};
- 	loff_t pos = page_offset(list_entry(pages->prev, struct page, lru));
--	loff_t last = page_offset(list_entry(pages->next, struct page, lru));
--	loff_t length = last - pos + PAGE_SIZE, ret = 0;
-+	struct page *last_page = list_entry(pages->next, struct page, lru);
-+	loff_t length = page_offset(last_page) - pos + page_size(last_page);
-+	loff_t ret = 0;
- 
- 	while (length > 0) {
- 		ret = iomap_apply(mapping->host, pos, length, 0, ops,
-@@ -435,7 +449,7 @@ iomap_is_partially_uptodate(struct page *page, unsigned long from,
- 	unsigned i;
- 
- 	/* Limit range to one page */
--	len = min_t(unsigned, PAGE_SIZE - from, count);
-+	len = min_t(unsigned, page_size(page) - from, count);
- 
- 	/* First and last blocks in range within page */
- 	first = from >> inode->i_blkbits;
-@@ -474,7 +488,7 @@ iomap_invalidatepage(struct page *page, unsigned int offset, unsigned int len)
- 	 * If we are invalidating the entire page, clear the dirty state from it
- 	 * and release it to avoid unnecessary buildup of the LRU.
- 	 */
--	if (offset == 0 && len == PAGE_SIZE) {
-+	if (offset == 0 && len == page_size(page)) {
- 		WARN_ON_ONCE(PageWriteback(page));
- 		cancel_dirty_page(page);
- 		iomap_page_release(page);
-@@ -550,18 +564,20 @@ static int
- __iomap_write_begin(struct inode *inode, loff_t pos, unsigned len,
- 		struct page *page, struct iomap *iomap)
- {
--	struct iomap_page *iop = iomap_page_create(inode, page);
- 	loff_t block_size = i_blocksize(inode);
- 	loff_t block_start = pos & ~(block_size - 1);
- 	loff_t block_end = (pos + len + block_size - 1) & ~(block_size - 1);
--	unsigned from = offset_in_page(pos), to = from + len, poff, plen;
-+	unsigned from = pos & (page_size(page) - 1);
-+	unsigned to = from + len;
-+	unsigned poff, plen;
- 	int status = 0;
- 
- 	if (PageUptodate(page))
- 		return 0;
-+	iomap_page_create(inode, page);
- 
- 	do {
--		iomap_adjust_read_range(inode, iop, &block_start,
-+		iomap_adjust_read_range(inode, page, &block_start,
- 				block_end - block_start, &poff, &plen);
- 		if (plen == 0)
- 			break;
-@@ -673,7 +689,7 @@ __iomap_write_end(struct inode *inode, loff_t pos, unsigned len,
- 	 */
- 	if (unlikely(copied < len && !PageUptodate(page)))
- 		return 0;
--	iomap_set_range_uptodate(page, offset_in_page(pos), len);
-+	iomap_set_range_uptodate(page, pos & (page_size(page) - 1), len);
- 	iomap_set_page_dirty(page);
- 	return copied;
- }
-@@ -685,7 +701,9 @@ iomap_write_end_inline(struct inode *inode, struct page *page,
- 	void *addr;
- 
- 	WARN_ON_ONCE(!PageUptodate(page));
--	BUG_ON(pos + copied > PAGE_SIZE - offset_in_page(iomap->inline_data));
-+	BUG_ON(pos + copied > page_size(page) -
-+			((unsigned long)iomap->inline_data &
-+			 (page_size(page) - 1)));
- 
- 	addr = kmap_atomic(page);
- 	memcpy(iomap->inline_data + pos, addr + pos, copied);
-@@ -749,6 +767,10 @@ iomap_write_actor(struct inode *inode, loff_t pos, loff_t length, void *data,
- 		unsigned long bytes;	/* Bytes to write to page */
- 		size_t copied;		/* Bytes copied from user */
- 
-+		/*
-+		 * XXX: We don't know what size page we'll find in the
-+		 * page cache, so only copy up to a regular page boundary.
-+		 */
- 		offset = offset_in_page(pos);
- 		bytes = min_t(unsigned long, PAGE_SIZE - offset,
- 						iov_iter_count(i));
-@@ -1047,11 +1069,11 @@ vm_fault_t iomap_page_mkwrite(struct vm_fault *vmf, const struct iomap_ops *ops)
- 		goto out_unlock;
- 	}
- 
--	/* page is wholly or partially inside EOF */
--	if (((page->index + 1) << PAGE_SHIFT) > size)
--		length = offset_in_page(size);
-+	/* page is wholly or partially beyond EOF */
-+	if (((page->index + compound_nr(page)) << PAGE_SHIFT) > size)
-+		length = size & (page_size(page) - 1);
- 	else
--		length = PAGE_SIZE;
-+		length = page_size(page);
- 
- 	offset = page_offset(page);
- 	while (length > 0) {
-diff --git a/include/linux/iomap.h b/include/linux/iomap.h
-index bc499ceae392..86be24a8259b 100644
---- a/include/linux/iomap.h
-+++ b/include/linux/iomap.h
-@@ -139,7 +139,7 @@ loff_t iomap_apply(struct inode *inode, loff_t pos, loff_t length,
- struct iomap_page {
- 	atomic_t		read_count;
- 	atomic_t		write_count;
--	DECLARE_BITMAP(uptodate, PAGE_SIZE / 512);
-+	unsigned long		uptodate[];
- };
- 
- static inline struct iomap_page *to_iomap_page(struct page *page)
 -- 
 2.20.1
 
