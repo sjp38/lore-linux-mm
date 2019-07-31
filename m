@@ -2,104 +2,102 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E40A8C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 12:44:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 55238C41517
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 12:53:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF71C206B8
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 12:44:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF71C206B8
+	by mail.kernel.org (Postfix) with ESMTP id 23646206B8
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 12:53:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 23646206B8
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 369418E000C; Wed, 31 Jul 2019 08:44:04 -0400 (EDT)
+	id 92D8C8E0007; Wed, 31 Jul 2019 08:53:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 319678E0001; Wed, 31 Jul 2019 08:44:04 -0400 (EDT)
+	id 8DD558E0001; Wed, 31 Jul 2019 08:53:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 22FA48E000C; Wed, 31 Jul 2019 08:44:04 -0400 (EDT)
+	id 7A60B8E0007; Wed, 31 Jul 2019 08:53:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CADE68E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:44:03 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id i9so42294061edr.13
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 05:44:03 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3081A8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:53:37 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id l14so42358952edw.20
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 05:53:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=FxdoRcmJazCquQoAmMGXusTLTFMDHLUfIQitf8aA/6I=;
-        b=p6pJBVMzsC91tINF/YX0GQsC4vr032Hwp1in6NPY9D5lkhEIlc36UNKhAAb1iY4nwa
-         e8EUwcfqXYhc+0iEBJ1A3tW3upOHc1zFQ+GLJTv7pHb483PHOg3A7PNVoAs0qB8jngRv
-         Ly7GhACcgV/0Z+ATT7BIO0tAejemahciaXapKMWqpEjiNU9mYSdJ78xgq/TbPS2/RMKH
-         4QbHxh6f//gHEwiiECuji9Ac8sJT/BUG364FWmD0Df7XYdUjz1VYMrjdNyIekx1wBvHl
-         yJFTEDtDOOBB+afE/XdyXhsuZqS/RkLJkPYoRqAYVIg9fxQzpRSjuV8tQI88xNFQ9+S5
-         g0TQ==
+        bh=3njEql/Ucb9XnYA1rXmZitq3pTN7wgVyH5N1bno1CIU=;
+        b=QMvQ4afzxOOyRrFrooc/09ZpcCuUC9xJS+Cthmy6NQbnhyIWmIW831TGBYYK/TfuRL
+         /Gfg0bWdSfvyd8G9/PpWK7Uys5pTOanBDemdV1gAwoI5wEk9IM/fy6d7VYVZBVi5sdGi
+         A4JT4TNM2zUVq9LM+z8tyrojZIKPRlOpyCRYhPhbbZPtE3uhd7JA0XPg/8ewWQd9Ln58
+         nWvW6oeCtjHsr5ke1LsL8iCMK8YwURICHLn1Ife+Nc0tRDU23TQJt/mbOWANguYw07Xa
+         9l5p2izd7LF7IESDnvt743O9kt0d4YHmk+xC8VlRpm0A3EVB4Nq/nQTVrIqq2cV0TnSr
+         s1iA==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWlZXwN6JTCOeOhJRUhjNtDEVpR6CuNV0CMgKWuIillKqfFaTZl
-	B4VojHtsVxcMu+Dw8ioJL/cP6DegV8/50b5hiCRKpDzi6gC8sGA+zcsoy9y2R/2WdZGRzrorLbS
-	Ky42cL8HsZqF7POLjbt+QeE4FuNHScECCUdSiCt75+g+miQdMZ5HQrmH1z+135iY=
-X-Received: by 2002:a50:9422:: with SMTP id p31mr106349190eda.127.1564577043357;
-        Wed, 31 Jul 2019 05:44:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxp7WxKeREnyDr2605l0YyxtpjupL6PEf7CduP4wODZq7nQPrnPfW1Eb9GJfKnSxrfgAQvZ
-X-Received: by 2002:a50:9422:: with SMTP id p31mr106349150eda.127.1564577042748;
-        Wed, 31 Jul 2019 05:44:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564577042; cv=none;
+X-Gm-Message-State: APjAAAVTj3pm/96kZBxXxN/uZ3rux5GSGicKlNi+FKKRfDyYFh/1Aujg
+	7wjveMSava2lk8CvdTXLJHvScC5IL/qCbVi/1zFYUghdL2AFU5/OUvW2ldFenOGv1QXbAd1UI7m
+	hxEwi0zCsi5Mc9/nXUpSZMcQozLf8TD2VU4yx4k5cDsKWhvAodp6JR2SJ+SeA5No=
+X-Received: by 2002:aa7:d0cc:: with SMTP id u12mr107693122edo.212.1564577616779;
+        Wed, 31 Jul 2019 05:53:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyLbUYwQQtEtpia89S/9pSPVxr+kW2Pe8bSmHDr9dIORX4iXHm2awNROUVMN4UvGCW/h9vV
+X-Received: by 2002:aa7:d0cc:: with SMTP id u12mr107693076edo.212.1564577616153;
+        Wed, 31 Jul 2019 05:53:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564577616; cv=none;
         d=google.com; s=arc-20160816;
-        b=q2GRra6WiNF88m+WXtoQg+Xgre5VL1VExS8Q1zlKljxAyAJ+zoiOEhcwNA4nm3Hhpj
-         ojCdegB9Oz+95A+55jfw/gNDV4JrbFy5tVVsM6TbOENznLHf9uv/JSGWfbYpuAcEV0/f
-         rZjT0I+SQT43QcR9IweagopcwGp0gq+T56nWpDWUu36LWP9hCILXysbAUEBAmBJEZ4WE
-         tQRxu52RHbAH6c3V05P/f06UFzgqB1fsf1DmpSXt76fTlUgYsvmtCpYihucdqJb6qEdh
-         uqBs2sE20rnjzAGMbjt3qZRSb0bjb3CM3VxDq1I8aVvvaDtCjyD15ov3pEN6eSUFMqL1
-         gp0g==
+        b=z06vM3lFRZ9ZWX/lLS6rqX1jCuhXSDqxN11eOQ9ODsdQLpeZzi42g255ZTmTrzPIo9
+         qPieppNQLRfAWBXhT/VgwGaEyozSGo8WnRzBQ3LD5jBO6vZoEXkiXI4J+4e+9EfS8DYn
+         EHWxtABs8fTlFtPMOjMSWUyVWb20s3EahfETEhlIhgXzfvBqm3yQxWmpDpjOqQpBZ1Ur
+         clyXQwe26tL0P0pxC/1CVupaaDMjSgiyLuOBHXpjA1ZJ+gD2fI/6WOJ8lULzGp9w9Ay3
+         h/iS+cLKqX/RCDPkcfgSWrkDIKJQxtuUXfqfuI0Qh2gQaob0/EgRyuT+HUhKyhprFtPk
+         BLHw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=FxdoRcmJazCquQoAmMGXusTLTFMDHLUfIQitf8aA/6I=;
-        b=ajSgIbxtwFT8CO9eCBqPq47mQOK499RgwNRdLMxHHdlnbG4lrnQGNGvlPR9vEGq17y
-         s27mNtVCo5V4Iz7yU+mRQjxTmvNOgPBem49wQkVJMGQH00PNB7Aj2LWU+DaqD7c8Uvkl
-         VvF91K6VBruVongzliIo4SubgAUgLVew38AIhUwrv6kGIUbJ+fdSXhGurTrsbui6RiCl
-         gKolTSdtIg3GKXGo1cBzD7IQuSS9RFpgWUE3RH0cFYcnif3tPGST9S462JazhamHJia9
-         oCyYrEo3kFS1u4b1scBGaA3vu8Lm/OvcdTvkj5Ig7Se1RJ+Cz1PlCUdIs/K8kchK3ptC
-         KdbQ==
+        bh=3njEql/Ucb9XnYA1rXmZitq3pTN7wgVyH5N1bno1CIU=;
+        b=yriNGRgKViLZ/8vmO0wt1mJg14y5IPzmFobwyWrY++u9F5yDYIt1uL5RWiIFifcq7J
+         eOJrAFeWHsBKpQ/sQJlSp0DTd2RdJErwevsmTRulR2Ou4xt7juDuokgaO9d1C0rsMae2
+         gVHIAEij3wuN71lk/2Z2bWohR4ITF/bv1V9FH2UB1GWXyqkmENsgZZ3uWEeHwFRf7jBU
+         9CrDKvecLOrXBf9HLIaICkSO1b31DcebEypTcjHMc0+URZS8NuD88fRH4RBdT+sWCcHi
+         kGIIH4yypXwj4D8Ql6zuXFC5fukY4ID112sCIf34uUPACMZQRMuF7k+2/JytXaD//cQA
+         GIjg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g7si19632093eda.302.2019.07.31.05.44.02
+        by mx.google.com with ESMTPS id a5si18694547ejb.103.2019.07.31.05.53.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 05:44:02 -0700 (PDT)
+        Wed, 31 Jul 2019 05:53:36 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id EC03AAFA4;
-	Wed, 31 Jul 2019 12:44:01 +0000 (UTC)
-Date: Wed, 31 Jul 2019 14:43:56 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 512F7AFEC;
+	Wed, 31 Jul 2019 12:53:35 +0000 (UTC)
+Date: Wed, 31 Jul 2019 14:53:34 +0200
 From: Michal Hocko <mhocko@kernel.org>
 To: David Hildenbrand <david@redhat.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael J. Wysocki" <rafael@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Oscar Salvador <osalvador@suse.de>
-Subject: Re: [PATCH v1] drivers/base/memory.c: Don't store end_section_nr in
- memory blocks
-Message-ID: <20190731124356.GL9330@dhcp22.suse.cz>
-References: <20190731122213.13392-1-david@redhat.com>
+	linux-acpi@vger.kernel.org,
+	"Rafael J . Wysocki" <rafael.j.wysocki@intel.com>,
+	Oscar Salvador <osalvador@suse.de>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v1] drivers/acpi/scan.c: Fixup "acquire
+ device_hotplug_lock in acpi_scan_init()"
+Message-ID: <20190731125334.GM9330@dhcp22.suse.cz>
+References: <20190731123201.13893-1-david@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190731122213.13392-1-david@redhat.com>
+In-Reply-To: <20190731123201.13893-1-david@redhat.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -107,23 +105,46 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 31-07-19 14:22:13, David Hildenbrand wrote:
-> Each memory block spans the same amount of sections/pages/bytes. The size
-> is determined before the first memory block is created. No need to store
-> what we can easily calculate - and the calculations even look simpler now.
+On Wed 31-07-19 14:32:01, David Hildenbrand wrote:
+> Let's document why we take the lock here. If we're going to overhaul
+> memory hotplug locking, we'll have to touch many places - this comment
+> will help to clairfy why it was added here.
 
-While this cleanup helps a bit, I am not sure this is really worth
-bothering. I guess we can agree when I say that the memblock interface
-is suboptimal (to put it mildly).  Shouldn't we strive for making it
-a real hotplug API in the future? What do I mean by that? Why should
-be any memblock fixed in size? Shouldn't we have use hotplugable units
-instead (aka pfn range that userspace can work with sensibly)? Do we
-know of any existing userspace that would depend on the current single
-section res. 2GB sized memblocks?
+And how exactly is "lock for consistency" comment going to help the poor
+soul touching that code? How do people know that it is safe to remove it?
+I am not going to repeat my arguments how/why I hate "locking for
+consistency" (or fun or whatever but a real synchronization reasons)
+but if you want to help then just explicitly state what should done to
+remove this lock.
 
-All that being said, I do not oppose to the patch but can we start
-thinking about the underlying memblock limitations rather than micro
-cleanups?
+> Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
+> ---
+>  drivers/acpi/scan.c | 5 +++++
+>  1 file changed, 5 insertions(+)
+> 
+> diff --git a/drivers/acpi/scan.c b/drivers/acpi/scan.c
+> index cbc9d64b48dd..9193f1d46148 100644
+> --- a/drivers/acpi/scan.c
+> +++ b/drivers/acpi/scan.c
+> @@ -2204,6 +2204,11 @@ int __init acpi_scan_init(void)
+>  	acpi_gpe_apply_masked_gpes();
+>  	acpi_update_all_gpes();
+>  
+> +	/*
+> +	 * We end up calling __add_memory(), which expects the
+> +	 * device_hotplug_lock to be held. Races with userspace and other
+> +	 * hotplug activities are not really possible - lock for consistency.
+> +	 */
+>  	lock_device_hotplug();
+>  	mutex_lock(&acpi_scan_lock);
+>  
+> -- 
+> 2.21.0
+
 -- 
 Michal Hocko
 SUSE Labs
