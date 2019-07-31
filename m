@@ -4,103 +4,103 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A1BBC32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:23:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0AFBFC433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:23:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B1D1C2171F
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:23:51 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B767B208E3
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:23:53 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="NRoJL3bi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B1D1C2171F
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="1WGj7wJ1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B767B208E3
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9A79E8E0007; Wed, 31 Jul 2019 11:23:50 -0400 (EDT)
+	id 317CC8E003A; Wed, 31 Jul 2019 11:23:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 90AD88E003A; Wed, 31 Jul 2019 11:23:50 -0400 (EDT)
+	id 2A1718E003C; Wed, 31 Jul 2019 11:23:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D3528E0007; Wed, 31 Jul 2019 11:23:50 -0400 (EDT)
+	id 0A7EE8E003A; Wed, 31 Jul 2019 11:23:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2579C8E003A
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A38CA8E003B
 	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:23:50 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id l14so42650465edw.20
+Received: by mail-ed1-f71.google.com with SMTP id f3so42592537edx.10
         for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:23:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=a18UOZt3FCDvDMvgP9zldJLt6lTKwFfHbu73YInWFn4=;
-        b=pep7ReqfdJvJ5apIpitAW/dw8zCYtGK5A6R7rzHc6krBOuK/eGwcvX1KQZa5GFOQUj
-         fBTyakhtO48YZptOb+LgSwh+FVcLlulGV7IUrNjMaaYJ5PG29E5cFf6GgeV5rulYeHlJ
-         cCRcjADc1P0hgh1vPJST+xsv7L4xFzk+a4jUxrUAfC/qKQ3bPJQngrlvDyQWAvpmog+w
-         fKHxU8VA7RI2iJEMgRHttPyfYMnz2FiqFWt6tZcQ55lgDbyIWpRZUIizdB6rtcmANdsx
-         c4jtDaQXX8g7sNEOtJGVrsqKuPXMRk9xQMjRxM5lQObXE9n7vMzkYKElCiWndy5H0tFc
-         wOTA==
-X-Gm-Message-State: APjAAAWgGBOFDPTpCdHLvHoRvQ5g5Z/F3VXZO/Sx5Pjnd7gvsLBvJ2+X
-	TDmzv9jPLMcJoj1OGZ/WFUiNOcoEgG2dCfCRUUGM4RxaT/1cmFqmvKOgYX07nfY0NpNL1f9uQ6O
-	w6Y3PNMw99rBf6LkLwVCpSgBpN9GoUiohNFsNiXxgYJUfbTtNli+qpTgPKccJNAw=
-X-Received: by 2002:a17:906:7e4b:: with SMTP id z11mr96941081ejr.214.1564586629693;
-        Wed, 31 Jul 2019 08:23:49 -0700 (PDT)
-X-Received: by 2002:a17:906:7e4b:: with SMTP id z11mr96940988ejr.214.1564586628305;
+        bh=UJ4hP1jpsdk64Bv8Sf387CJe/yf6g4uoo14C+HjaYmc=;
+        b=gOwieCgGd9x+ZHQwaJfj+XiMfXNkBSxx6jqLXGy1uygu8I+wKe2sX/DHdv5Dnqw1fU
+         CyNLBiQVEUGjiBe+dzk+eoiZjAueZxI0g1oUNB9Y1MID3bIxSOCPVTYL0S0qvrgCD8V1
+         Rp1NyHaST7HS1TfvSJfJlDih7tnN7pFvJHrdCP4sAOakjznMjjfVRRj8lVbBiYiewKZ4
+         kYDZwJ64jgSkTTL0UIhvP2+1EK454U9LtJGMLwqk/GO+uUsOFBhiuxJ/W+vQJW2gson+
+         mbSLVMBznZbmgAysRkk19L4E0M0VEc6IKBcdUBCy4PGHHGlQNACkF4RVYyGlfzhIQ0ee
+         xALw==
+X-Gm-Message-State: APjAAAUA03U1sxQck3JbHSQC9lpXBzPYAqs1UhotVpVoDUYhj34vJbya
+	iO2AdJJoqO7ue2jeEGlbsBFICUNVbBqmEtao24fFpnUHiCYvy0tOlYwkbUroUTyTSXKidliyVc/
+	ZEndhlW12V57fCjD7IAWsGduE3nBjR8OYY9U2VPmT22a0CZeKa9VSJdjeLLfmhXA=
+X-Received: by 2002:a17:906:a39a:: with SMTP id k26mr46335202ejz.82.1564586630179;
+        Wed, 31 Jul 2019 08:23:50 -0700 (PDT)
+X-Received: by 2002:a17:906:a39a:: with SMTP id k26mr46335105ejz.82.1564586628824;
         Wed, 31 Jul 2019 08:23:48 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1564586628; cv=none;
         d=google.com; s=arc-20160816;
-        b=uUUDKOCKGXKGLpiNJpIkGfUYTXJ1zR0d/p4ug5uHtcrfqMI6IGdp/kD8iY10mbRNlU
-         EDcQpEqGZ2lZpk/9ycZpj9pqbBJCLMbLAKEC7+XZZj8qmwtQB7Uttlc53Y1asp3r6aEK
-         QUmF4P9RuetRlSWlRAZ/Jio7J9wx69/E+cMZ4cE+sTXf2fAXEQMRYsTDuZjPj3A8l0lW
-         KmU0vhhdqfrQMrCjXyp0ehmHV/mR74ocAHuvqb4OPct9eClMniBr/2J7sYBMj/wmvod1
-         4TB+AjzmbnswbVjJeCrNx+mv8TxENDOUr0CIHnzLL3btP4FCUkQi+yOL7Y8h1gqDX8g/
-         1xWw==
+        b=Q1GT9JGrcKMftk3efa41rbNhjUq4HAOe4g3tvS4QjnNcUblqX7ZE18jI52ua3bmIlf
+         zPuvyxElvgBafKULc+BiVY1oej3gLFfoz1Y9XgWgcy18Kb1j35kJaLkQrSp0MnjdwOx6
+         3LbnBZG7nwDcuoGzEpbcC1TAPjLp/4o06C5Shiwt0VBY7LcexYm8qXKpV7o+rQPGXq/F
+         jGvk79uScZ7eiWC7QSFX6Dxs5DATq/MucolvxhcStuygWIZjKeeiyqPUCU8Zm3w5s06b
+         rf2IsL+53d6/VtrkgX11Z9XM5DaC3ZZQ6kCgEr9zOmp2ZxRtUXQO7GPE+HVn/dqVgu4/
+         VF5Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=a18UOZt3FCDvDMvgP9zldJLt6lTKwFfHbu73YInWFn4=;
-        b=S1G8tSAAaDMWe2CNIR9PLJHbT/n/H7zGFUyQzgMfB1cIJC4+WGA7U+LXEE8lXdVspD
-         8RDCNKZ4SQ5Bu/BWA3+Bbvkk4cFyXDQyGvtuqs+edo/BApF+OGDCP3wY4HpZ7uNVHgd0
-         B9XHrXg2bcvmDQvVcXF9yTrg7ALL5y+Ym1NhmApOB22wn7VPtc6pH0zl3Q1kD8Yg5zHn
-         8cOgF1ni1Lp9DkBU93FmjQsadX+2BXzdKe+7K6u9KljFeDcVnj2BfkXtMjRUz5F+1ptv
-         0sWAfyF8fa8Dz4Wr0I24s7R/h4z640igg6DMh1edqE9+0EALJiaoxk2vnEVBb2ARCtHm
-         pk4g==
+        bh=UJ4hP1jpsdk64Bv8Sf387CJe/yf6g4uoo14C+HjaYmc=;
+        b=oU/PUK+BRjgrF9NWAPZ8nA+3dM9FTG1Rf/YnHHMFU45/MU7OYj8sW2V+6nLTl8ex7P
+         5xYUIg2Y0HH7ryCBTE2FAo895aqkW2PhKBHkLWjDHLf+e1V7sfa/ulOZIAFtQcwjvDmP
+         Kjo0z/KsltyaVVogwk9oDcjx1YhvAUvtCVwWv0i+d3NQu8aTO5MTyOF6MdvEEC/qAsao
+         I0a1OGvrYzuu9xeO8Z30F4bhugAZAvbtf0uXe1T9PE2QgmfUxtlJnA6+tlhZVo4vcXaS
+         VWJssWO8FxbO2UsV9jOHZqs3b3t5ZIuKLGbOPIbOipSmBb07gegsJNKwgXaEO2OuB0xI
+         QBEA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=NRoJL3bi;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=1WGj7wJ1;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h14sor52333488ede.5.2019.07.31.08.23.48
+        by mx.google.com with SMTPS id x7sor52303209edx.26.2019.07.31.08.23.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
         Wed, 31 Jul 2019 08:23:48 -0700 (PDT)
 Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=NRoJL3bi;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=1WGj7wJ1;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=a18UOZt3FCDvDMvgP9zldJLt6lTKwFfHbu73YInWFn4=;
-        b=NRoJL3bi5X5MHI+UHT7B1S62Fze3JOWhyFVaj3bzy32xghKUPsGgZO7GdGj/I+MGwQ
-         IcszjXoHkHLCYl9E9+S0TVZkBMexB6yUan+V+lOdKu1ZTL//k329IuqiUOHsMZt8zobx
-         DpyOBiRYKgBlkPN70qU0UyV4A9sw+9NOai6RD5k+KXVTchojnkBQ/9wvCG9xsOR3lQJH
-         25Orq3JTmZBnhwFdJDSLbIjUUACw24Q/2V5Z/1iDJXDUwr6CPtjVVjX8EN+dRQ/iWt3F
-         ajr2K45loyNYVlzJu2bXoVrUmjOiINR3+Zakf9U0MEFo74tWWpXOujPELeLbtPwG7Bf+
-         4HTA==
-X-Google-Smtp-Source: APXvYqz4eqsH2iJwU1tjXfKb0+/bNd+u2NkjVb8FXDZ8ZsSkbsVxoPTi6IlMDOoUIFCjKkMNnj7bMA==
-X-Received: by 2002:a50:b87c:: with SMTP id k57mr105890483ede.226.1564586627977;
-        Wed, 31 Jul 2019 08:23:47 -0700 (PDT)
+        bh=UJ4hP1jpsdk64Bv8Sf387CJe/yf6g4uoo14C+HjaYmc=;
+        b=1WGj7wJ1Xlp3fgcH7vRPMztYr6U5tkfbscC1DOrRMnOQVJ19MV2EFmQ3dnX/uhMZZn
+         +9L8x0NHV+iAuJ5WNvg45vfgpudSqJX8d/cH7WzdQ31ED8yVQqTnWs55ok0ywoT/cwgf
+         LRqfk29P9c2a6t2n4GX6Zecm1hTDG8T8yRuJTxwS4MxO8xCaa30nlcP9NO9vMwzhD2/o
+         jqb8W3AN4/5jM2qm735SpdYqlgeo8FHpUWhX0TEFnQDL0Nc2/fTIBdSXwohDdZnHEMKC
+         JwVVXHl6iKII+YD7dMq1HoHGHE4mMuXMCZtypv68y+qEBnZs7tcFjmgIVrRdiTc9lYx6
+         gpdw==
+X-Google-Smtp-Source: APXvYqyzPuIoVNHRDVYCIgZPGv2mkwSHT27TYRbjUfR28hqJRIWgt4niZw9djMR/+XyBoAXfW/QEEA==
+X-Received: by 2002:a50:a5ec:: with SMTP id b41mr104531465edc.52.1564586628484;
+        Wed, 31 Jul 2019 08:23:48 -0700 (PDT)
 Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id f24sm17482856edf.30.2019.07.31.08.23.46
+        by smtp.gmail.com with ESMTPSA id k20sm17485239ede.66.2019.07.31.08.23.46
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 31 Jul 2019 08:23:47 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 X-Google-Original-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Received: by box.localdomain (Postfix, from userid 1000)
-	id 953461030BF; Wed, 31 Jul 2019 18:08:16 +0300 (+03)
+	id 6575C1048A4; Wed, 31 Jul 2019 18:08:17 +0300 (+03)
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
 	Thomas Gleixner <tglx@linutronix.de>,
@@ -119,10 +119,10 @@ Cc: Kees Cook <keescook@chromium.org>,
 	kvm@vger.kernel.org,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 24/59] keys/mktme: Introduce a Kernel Key Service for MKTME
-Date: Wed, 31 Jul 2019 18:07:38 +0300
-Message-Id: <20190731150813.26289-25-kirill.shutemov@linux.intel.com>
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 52/59] x86/mm: Disable MKTME if not all system memory supports encryption
+Date: Wed, 31 Jul 2019 18:08:06 +0300
+Message-Id: <20190731150813.26289-53-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
 References: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
@@ -134,102 +134,135 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Alison Schofield <alison.schofield@intel.com>
+UEFI memory attribute EFI_MEMORY_CPU_CRYPTO indicates whether the memory
+region supports encryption.
 
-MKTME (Multi-Key Total Memory Encryption) is a technology that allows
-transparent memory encryption in upcoming Intel platforms. MKTME will
-support multiple encryption domains, each having their own key.
+Kernel doesn't handle situation when only part of the system memory
+supports encryption.
 
-The MKTME key service will manage the hardware encryption keys. It
-will map Userspace Keys to Hardware KeyIDs and program the hardware
-with the user requested encryption options.
+Disable MKTME if not all system memory supports encryption.
 
-Here the mapping structure is introduced, as well as the key service
-initialization and registration.
-
-Signed-off-by: Alison Schofield <alison.schofield@intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- security/keys/Makefile     |  1 +
- security/keys/mktme_keys.c | 60 ++++++++++++++++++++++++++++++++++++++
- 2 files changed, 61 insertions(+)
- create mode 100644 security/keys/mktme_keys.c
+ arch/x86/mm/mktme.c        | 35 +++++++++++++++++++++++++++++++++++
+ drivers/firmware/efi/efi.c | 25 +++++++++++++------------
+ include/linux/efi.h        |  1 +
+ 3 files changed, 49 insertions(+), 12 deletions(-)
 
-diff --git a/security/keys/Makefile b/security/keys/Makefile
-index 9cef54064f60..28799be801a9 100644
---- a/security/keys/Makefile
-+++ b/security/keys/Makefile
-@@ -30,3 +30,4 @@ obj-$(CONFIG_ASYMMETRIC_KEY_TYPE) += keyctl_pkey.o
- obj-$(CONFIG_BIG_KEYS) += big_key.o
- obj-$(CONFIG_TRUSTED_KEYS) += trusted.o
- obj-$(CONFIG_ENCRYPTED_KEYS) += encrypted-keys/
-+obj-$(CONFIG_X86_INTEL_MKTME) += mktme_keys.o
-diff --git a/security/keys/mktme_keys.c b/security/keys/mktme_keys.c
-new file mode 100644
-index 000000000000..d262e0f348e4
---- /dev/null
-+++ b/security/keys/mktme_keys.c
-@@ -0,0 +1,60 @@
-+// SPDX-License-Identifier: GPL-3.0
+diff --git a/arch/x86/mm/mktme.c b/arch/x86/mm/mktme.c
+index 17366d81c21b..4e00c244478b 100644
+--- a/arch/x86/mm/mktme.c
++++ b/arch/x86/mm/mktme.c
+@@ -1,9 +1,11 @@
+ #include <linux/mm.h>
+ #include <linux/highmem.h>
+ #include <linux/rmap.h>
++#include <linux/efi.h>
+ #include <asm/mktme.h>
+ #include <asm/pgalloc.h>
+ #include <asm/tlbflush.h>
++#include <asm/e820/api.h>
+ 
+ /* Mask to extract KeyID from physical address. */
+ phys_addr_t __mktme_keyid_mask;
+@@ -48,9 +50,42 @@ void mktme_disable(void)
+ 
+ static bool need_page_mktme(void)
+ {
++	int nid;
 +
-+/* Documentation/x86/mktme/ */
-+
-+#include <linux/init.h>
-+#include <linux/key.h>
-+#include <linux/key-type.h>
-+#include <linux/mm.h>
-+#include <keys/user-type.h>
-+
-+#include "internal.h"
-+
-+static unsigned int mktme_available_keyids;  /* Free Hardware KeyIDs */
-+
-+enum mktme_keyid_state {
-+	KEYID_AVAILABLE,	/* Available to be assigned */
-+	KEYID_ASSIGNED,		/* Assigned to a userspace key */
-+	KEYID_REF_KILLED,	/* Userspace key has been destroyed */
-+	KEYID_REF_RELEASED,	/* Last reference is released */
-+};
-+
-+/* 1:1 Mapping between Userspace Keys (struct key) and Hardware KeyIDs */
-+struct mktme_mapping {
-+	struct key		*key;
-+	enum mktme_keyid_state	state;
-+};
-+
-+static struct mktme_mapping *mktme_map;
-+
-+struct key_type key_type_mktme = {
-+	.name		= "mktme",
-+	.describe	= user_describe,
-+};
-+
-+static int __init init_mktme(void)
-+{
-+	int ret;
-+
-+	/* Verify keys are present */
-+	if (mktme_nr_keyids() < 1)
+ 	/* Make sure keyid doesn't collide with extended page flags */
+ 	BUILD_BUG_ON(__NR_PAGE_EXT_FLAGS > 16);
+ 
++	if (!mktme_nr_keyids())
 +		return 0;
 +
-+	mktme_available_keyids = mktme_nr_keyids();
++	for_each_node_state(nid, N_MEMORY) {
++		const efi_memory_desc_t *md;
++		unsigned long node_start, node_end;
 +
-+	/* Mapping of Userspace Keys to Hardware KeyIDs */
-+	mktme_map = kvzalloc((sizeof(*mktme_map) * (mktme_nr_keyids() + 1)),
-+			     GFP_KERNEL);
-+	if (!mktme_map)
-+		return -ENOMEM;
++		node_start = node_start_pfn(nid) << PAGE_SHIFT;
++		node_end = node_end_pfn(nid) << PAGE_SHIFT;
 +
-+	ret = register_key_type(&key_type_mktme);
-+	if (!ret)
-+		return ret;			/* SUCCESS */
++		for_each_efi_memory_desc(md) {
++			u64 efi_start = md->phys_addr;
++			u64 efi_end = md->phys_addr + PAGE_SIZE * md->num_pages;
 +
-+	kvfree(mktme_map);
++			if (md->attribute & EFI_MEMORY_CPU_CRYPTO)
++				continue;
++			if (efi_start > node_end)
++				continue;
++			if (efi_end  < node_start)
++				continue;
++			if (!e820__mapped_any(efi_start, efi_end, E820_TYPE_RAM))
++				continue;
 +
-+	return -ENOMEM;
-+}
++			printk("Memory range %#llx-%#llx: doesn't support encryption\n",
++					efi_start, efi_end);
++			printk("Disable MKTME\n");
++			mktme_disable();
++			break;
++		}
++	}
 +
-+late_initcall(init_mktme);
+ 	return !!mktme_nr_keyids();
+ }
+ 
+diff --git a/drivers/firmware/efi/efi.c b/drivers/firmware/efi/efi.c
+index ad3b1f4866b3..fc19da5da3e8 100644
+--- a/drivers/firmware/efi/efi.c
++++ b/drivers/firmware/efi/efi.c
+@@ -852,25 +852,26 @@ char * __init efi_md_typeattr_format(char *buf, size_t size,
+ 	if (attr & ~(EFI_MEMORY_UC | EFI_MEMORY_WC | EFI_MEMORY_WT |
+ 		     EFI_MEMORY_WB | EFI_MEMORY_UCE | EFI_MEMORY_RO |
+ 		     EFI_MEMORY_WP | EFI_MEMORY_RP | EFI_MEMORY_XP |
+-		     EFI_MEMORY_NV |
++		     EFI_MEMORY_NV | EFI_MEMORY_CPU_CRYPTO |
+ 		     EFI_MEMORY_RUNTIME | EFI_MEMORY_MORE_RELIABLE))
+ 		snprintf(pos, size, "|attr=0x%016llx]",
+ 			 (unsigned long long)attr);
+ 	else
+ 		snprintf(pos, size,
+-			 "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
++			 "|%3s|%2s|%2s|%2s|%2s|%2s|%2s|%2s|%3s|%2s|%2s|%2s|%2s]",
+ 			 attr & EFI_MEMORY_RUNTIME ? "RUN" : "",
+ 			 attr & EFI_MEMORY_MORE_RELIABLE ? "MR" : "",
+-			 attr & EFI_MEMORY_NV      ? "NV"  : "",
+-			 attr & EFI_MEMORY_XP      ? "XP"  : "",
+-			 attr & EFI_MEMORY_RP      ? "RP"  : "",
+-			 attr & EFI_MEMORY_WP      ? "WP"  : "",
+-			 attr & EFI_MEMORY_RO      ? "RO"  : "",
+-			 attr & EFI_MEMORY_UCE     ? "UCE" : "",
+-			 attr & EFI_MEMORY_WB      ? "WB"  : "",
+-			 attr & EFI_MEMORY_WT      ? "WT"  : "",
+-			 attr & EFI_MEMORY_WC      ? "WC"  : "",
+-			 attr & EFI_MEMORY_UC      ? "UC"  : "");
++			 attr & EFI_MEMORY_NV         ? "NV"  : "",
++			 attr & EFI_MEMORY_CPU_CRYPTO ? "CR"  : "",
++			 attr & EFI_MEMORY_XP         ? "XP"  : "",
++			 attr & EFI_MEMORY_RP         ? "RP"  : "",
++			 attr & EFI_MEMORY_WP         ? "WP"  : "",
++			 attr & EFI_MEMORY_RO         ? "RO"  : "",
++			 attr & EFI_MEMORY_UCE        ? "UCE" : "",
++			 attr & EFI_MEMORY_WB         ? "WB"  : "",
++			 attr & EFI_MEMORY_WT         ? "WT"  : "",
++			 attr & EFI_MEMORY_WC         ? "WC"  : "",
++			 attr & EFI_MEMORY_UC         ? "UC"  : "");
+ 	return buf;
+ }
+ 
+diff --git a/include/linux/efi.h b/include/linux/efi.h
+index f87fabea4a85..4ac54a168ffe 100644
+--- a/include/linux/efi.h
++++ b/include/linux/efi.h
+@@ -112,6 +112,7 @@ typedef	struct {
+ #define EFI_MEMORY_MORE_RELIABLE \
+ 				((u64)0x0000000000010000ULL)	/* higher reliability */
+ #define EFI_MEMORY_RO		((u64)0x0000000000020000ULL)	/* read-only */
++#define EFI_MEMORY_CPU_CRYPTO 	((u64)0x0000000000080000ULL)	/* memory encryption supported */
+ #define EFI_MEMORY_RUNTIME	((u64)0x8000000000000000ULL)	/* range requires runtime mapping */
+ #define EFI_MEMORY_DESCRIPTOR_VERSION	1
+ 
 -- 
 2.21.0
 
