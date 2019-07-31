@@ -1,121 +1,126 @@
 Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: 
-X-Spam-Status: No, score=-4.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Level: *
+X-Spam-Status: No, score=1.2 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ED8EFC433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 05:34:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9799AC32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 05:44:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A4F01208C3
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 05:34:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 061D4214DA
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 05:44:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="BKUh5c33"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A4F01208C3
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="sQjfjK3y"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 061D4214DA
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 399D88E0003; Wed, 31 Jul 2019 01:34:52 -0400 (EDT)
+	id 6C76B8E0005; Wed, 31 Jul 2019 01:44:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 34A968E0001; Wed, 31 Jul 2019 01:34:52 -0400 (EDT)
+	id 677E48E0001; Wed, 31 Jul 2019 01:44:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 213448E0003; Wed, 31 Jul 2019 01:34:52 -0400 (EDT)
+	id 566AD8E0005; Wed, 31 Jul 2019 01:44:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E12E78E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 01:34:51 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id g21so42466709pfb.13
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 22:34:51 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 217FB8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 01:44:55 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id n1so36773459plk.11
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 22:44:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=B809nu+qDvG2keKE9LaOcbN2n/N576RYGU8+2av9Vpw=;
-        b=ozwZdtApV76qoG7eIg8l7NxaLxQ/Xgy6wbBn2zwJO4crn6mbJqc0L38kiruaGhcj+m
-         INtL5ToSbmYUiN2sYuT3u9OWRArAedoPDBMRGhYVQ0Bma55819JbnFR8ZIn+BTRIuVRk
-         hn0n1eqYi0cGG1HQ+4k57xjV1/0Y6mHmCc9xdI2sJN/8dH+aFoKr0kl8JU0vzkkA8pWk
-         yC1u8nwa9XhU69iFtaFEobfesNYI9/9xA9W2+YcIcNWO3jn/FB9S3E73gI/WShj4nRkZ
-         KHl7Rm1ya2KE0GgfVjkvNcNa4wXvtRdw64VUlXcpdzlCtMiYahE2Hu7VwutsORQTcCsh
-         E0RQ==
-X-Gm-Message-State: APjAAAWsAuBqBYG4luGvysHbSLzKftdVhixv3fpqnQGIciWGTsSOZUHW
-	W3u4dtusgVOqwJEPJOQtHOrJjES6xrKU37NsfJlDX8H+8JRcGImwwMdVNnalbD61SL4iuaGzUTd
-	/wYT2fo9GvkVVD63ljBElvhGPT6KQ5xKmciQ/Qfk7v7knVOs35rs2OQblKl8gVrg=
-X-Received: by 2002:a63:ec03:: with SMTP id j3mr10291656pgh.325.1564551291313;
-        Tue, 30 Jul 2019 22:34:51 -0700 (PDT)
-X-Received: by 2002:a63:ec03:: with SMTP id j3mr10291603pgh.325.1564551290355;
-        Tue, 30 Jul 2019 22:34:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564551290; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=dhefx6+bI5/lxdg6oXf3wodWpmayqnB7DDdokXpcjMg=;
+        b=j44c1bSQD1c3dnqyTJxiXNwJ5HwwZzzRnOfG7u3JErT54kCoP0CLiF8N6tBDD1CQz2
+         6VuGXHbff1gxLXq8p4thxjc3ZyzpV4KOCIWl90KYfeNWRs/WIVo4Lan6SQGkvmaBpF+N
+         F6V0d90ap13GVFh6578YHUXROxBNkfErzZHei2beoGOEPoU0w9MDxPirJYgrJ0naLeRN
+         V0bUJXYh3y1gl0kcF+8m9GDg19UTuyahmuqyB19BEPj5bfDzvg3/mW9UTQTXURRRb9kz
+         KweW7ckrLZBppMbPNDYwRP9m/MtkUi0WQrg623i8kReFZu76uJhjP6Ta6A+fcJ0iJRCV
+         yiUg==
+X-Gm-Message-State: APjAAAXpyO9eGKM8a6mH/9r91H7S+mdm/6nDMwgRc5wFZTF2JsWmJZay
+	y8XLM8B5hh0y6QbSzM2hU+vTV507IYbKtoQM4Bv0fXLksU8jRWnMp1c9ncazMHxmHi8vLY0YP6D
+	da2kEZ8TCbxC54DKgx+vLA2rkT1ASdDansnC2esBV+x9MAEBIp4+V9vFybTtXk44=
+X-Received: by 2002:a17:902:100a:: with SMTP id b10mr77487722pla.338.1564551894575;
+        Tue, 30 Jul 2019 22:44:54 -0700 (PDT)
+X-Received: by 2002:a17:902:100a:: with SMTP id b10mr77487674pla.338.1564551893688;
+        Tue, 30 Jul 2019 22:44:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564551893; cv=none;
         d=google.com; s=arc-20160816;
-        b=z+N3S1cmhu+efTvHpMTUa3/XuaJmGXkPtnFAYepqARvCsJYpZWuusDF1RAsM4fZz1W
-         GuIHoh/WZEBOdNzwhQqyE/78rGPGNtgwG4XdK59b6t9W6nQ75PdGxVlun2aPQ3bd9DHO
-         2nPgxxECqSVr0qzWV84C1SAgVQnLXnuPjPupDabcpo9vyCJ6qUpuUg8q9ERH53oSc0DH
-         532DeoQ4/UKdou9wRQ6BMmJ4LQvyGZqrpmdAOqROIB5YuSUEGnuaThHuiIQyP4cd9P58
-         pSYnFDDpT6sFFHojkV9BALlD/MI33rZHyZ8onNyuWkJlTSfPGpTW/P1GU/4tvBlHtgCV
-         i3vw==
+        b=Fs8pFiUMvlffVCWStyQV6M+BkiIyt6xZtQqTzQRJx+nJDNjjZd0nIuN5mBiSMeAifn
+         lu+zSiaFyY9YCZS+lg8SE0/cDWEcGGDsLBpm8DNgJgzOvPyMYjkTgKSwZwaW4HB9Xz3Q
+         s9QxO2xxgJJ1S1AEpr32T1WZiNJJdtswoy+e/3P1y8+v/sXRLQTF79012hpUEN9LD2KJ
+         8PusySP6ZWrvKJtWThUKgPf+fuebOYSt7/fhrMtBIdGURomiqbe3y6POj6IN+sbN88xw
+         bCy1LOQ/TAUzj/NRNg/mL8bK1ZwjUweQ8KqXh8LvmGOMqd/XRhxNp7ie3z0WZMKPE/4m
+         FAlQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:sender:dkim-signature;
-        bh=B809nu+qDvG2keKE9LaOcbN2n/N576RYGU8+2av9Vpw=;
-        b=jFaBJAUEm3wn6DtoifJjBGTkXUE307cFeZWcxq+pP35lAUjsZsYjrXI+hCoXY4HkQa
-         8ULl9cBqOO6PNct5zr0Vd0PsEn//rF+yje1TC4TSQwXKxbuWdOouSjg3FjBRv1qqg6jj
-         xHEIJWviLrgX3Cd0GUt5JdhyOnRM6Euz8uXv9eB47IC+hjPgGvhCyG+8V+r0piINo4v6
-         xrRXJxMO5dM1R3DV2vyCEoatJ4p4Y/y1rlTj1zvi+ixKSw9Gjs+c4vN7kc7thRz+6QK5
-         a4jbIll7fJcxGpL63XwoaS73c/PceaU1TIPrSPHfF2BLZm/KBp1QTvSYAC/ntqbHWvNa
-         xMxg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=dhefx6+bI5/lxdg6oXf3wodWpmayqnB7DDdokXpcjMg=;
+        b=Ku8o1POO6lNLGQ0xA8VvQbqEAo87VHprHtPO+pjTGdG5Ralg/UaYtDXus6rEDxVsff
+         Sr0ZNI+7hrnHb5WyeBhdFjS4DZBxvVM/HBJ1ayjj6yjh5UO8IQBxwL6yHiVeZUfQT210
+         eXm5rrKGc8kBKtDQjbGujuwhvz1US9AR6MbAOflZ02o24TMNAp/6+ZiXx2EIuihYekjc
+         VJEkCA+kC2f3eLKfPSJEGpLfW9Yeb4d0PwoN7GuBKyqp2qvgP/QkfTM9eYF2x4RYcnhb
+         /SlH9B3CjxMmqtEQlnK6nLRlQPzObC2yXsIAOHo0IcAVTzTSll7WrLFNNC1/JIZ/NVmq
+         RpRg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BKUh5c33;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sQjfjK3y;
        spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v21sor34887119pgb.48.2019.07.30.22.34.50
+        by mx.google.com with SMTPS id f2sor80912101plj.43.2019.07.30.22.44.53
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 30 Jul 2019 22:34:50 -0700 (PDT)
+        Tue, 30 Jul 2019 22:44:53 -0700 (PDT)
 Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=BKUh5c33;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=sQjfjK3y;
        spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=B809nu+qDvG2keKE9LaOcbN2n/N576RYGU8+2av9Vpw=;
-        b=BKUh5c33i4Ntgitzba1xegNXnbHGi8OMrrIAOhXmxDwbW0jytYqGT3Z+Ijm0vWjhsz
-         WAhlCXrxWwYh/aJA+FJFEYQKkEzQzCAkuIW5xrSqkL2PyF34Iji0hJtSmuXRDtKGdT/v
-         lYJpJswjCpbn+zPp+3rAoXDlf65TldnlhqWm+4xhWP1ACUgvEm6n96G4mRQVVj/+prTm
-         8olrck+rPy2eMksmudzo+TMDkHYFMIz9dKKX/EoJL9cca6pcQVy1xAF92K6NfHUkg1lP
-         jbfc8LugwnGaIuEd7NkGM2GVl0u4e2625cfwVFoJrg971WYoHLo08AEIfvVhD736xX5l
-         emrg==
-X-Google-Smtp-Source: APXvYqzRXtWuiNLN8+b2CexnrxJ2mi6hxZoX1aoOMcOYRIJNJypGE1uhWtsObN2wTtC3QTQze0WLkw==
-X-Received: by 2002:a65:64ce:: with SMTP id t14mr46024399pgv.137.1564551289575;
-        Tue, 30 Jul 2019 22:34:49 -0700 (PDT)
+         :content-disposition:in-reply-to:user-agent;
+        bh=dhefx6+bI5/lxdg6oXf3wodWpmayqnB7DDdokXpcjMg=;
+        b=sQjfjK3y/z/3d1JS6WvWhqo3J5FttXfKN2QWJlL8hmfsh08bqrfKSPzjH+q2i2VfxF
+         xCQ2z5zwl6OtquqRKi67ATkp1OfGjV+nBURLRH7z6cMVP9/Ky7KbQU8+zW7ugMs+KqBo
+         QEj06w4vrVT8k1fVsIUC5EfRbHUEJ2wDz6aYPMDeLSVQ94ZV7+UV7Z4dJHGsisMijpxT
+         fcWFYOMTGkQtcJFUc/aLLuFg6Ho13xn9gZpyIwvWNOgxyibFI8p/BvqXKZPrM2pCIP+N
+         33IoFcZ99cw8qXIB+c0G9p+sH6OvabS41kyP/1hHSzxYUh5fTH1UR/x9J0Buw02Bp9SL
+         0zaQ==
+X-Google-Smtp-Source: APXvYqw+GsX0jKceDzctiXZbIk5pPQYlHAy301YmRVfmXsab/Hyl6L4qaNTVaKCKGnaLMO3DWpwiDQ==
+X-Received: by 2002:a17:902:bd94:: with SMTP id q20mr108502842pls.307.1564551893301;
+        Tue, 30 Jul 2019 22:44:53 -0700 (PDT)
 Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id u7sm59500233pfm.96.2019.07.30.22.34.46
+        by smtp.gmail.com with ESMTPSA id w4sm86568867pfn.144.2019.07.30.22.44.50
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 30 Jul 2019 22:34:48 -0700 (PDT)
-Date: Wed, 31 Jul 2019 14:34:44 +0900
+        Tue, 30 Jul 2019 22:44:52 -0700 (PDT)
+Date: Wed, 31 Jul 2019 14:44:47 +0900
 From: Minchan Kim <minchan@kernel.org>
-To: Qian Cai <cai@lca.pw>
+To: Michal Hocko <mhocko@kernel.org>
 Cc: Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Miguel de Dios <migueldedios@google.com>, Wei Wang <wvw@google.com>,
 	Johannes Weiner <hannes@cmpxchg.org>,
-	Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: "mm: account nr_isolated_xxx in [isolate|putback]_lru_page"
- breaks OOM with swap
-Message-ID: <20190731053444.GA155569@google.com>
-References: <1564503928.11067.32.camel@lca.pw>
+	Mel Gorman <mgorman@techsingularity.net>,
+	Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [PATCH] mm: release the spinlock on zap_pte_range
+Message-ID: <20190731054447.GB155569@google.com>
+References: <20190729071037.241581-1-minchan@kernel.org>
+ <20190729074523.GC9330@dhcp22.suse.cz>
+ <20190729082052.GA258885@google.com>
+ <20190729083515.GD9330@dhcp22.suse.cz>
+ <20190730121110.GA184615@google.com>
+ <20190730123237.GR9330@dhcp22.suse.cz>
+ <20190730123935.GB184615@google.com>
+ <20190730125751.GS9330@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <1564503928.11067.32.camel@lca.pw>
+In-Reply-To: <20190730125751.GS9330@dhcp22.suse.cz>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -123,104 +128,98 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 30, 2019 at 12:25:28PM -0400, Qian Cai wrote:
-> OOM workloads with swapping is unable to recover with linux-next since next-
-> 20190729 due to the commit "mm: account nr_isolated_xxx in
-> [isolate|putback]_lru_page" breaks OOM with swap" [1]
+On Tue, Jul 30, 2019 at 02:57:51PM +0200, Michal Hocko wrote:
+> [Cc Nick - the email thread starts http://lkml.kernel.org/r/20190729071037.241581-1-minchan@kernel.org
+>  A very brief summary is that mark_page_accessed seems to be quite
+>  expensive and the question is whether we still need it and why
+>  SetPageReferenced cannot be used instead. More below.]
 > 
-> [1] https://lore.kernel.org/linux-mm/20190726023435.214162-4-minchan@kernel.org/
-> T/#mdcd03bcb4746f2f23e6f508c205943726aee8355
+> On Tue 30-07-19 21:39:35, Minchan Kim wrote:
+> > On Tue, Jul 30, 2019 at 02:32:37PM +0200, Michal Hocko wrote:
+> > > On Tue 30-07-19 21:11:10, Minchan Kim wrote:
+> > > > On Mon, Jul 29, 2019 at 10:35:15AM +0200, Michal Hocko wrote:
+> > > > > On Mon 29-07-19 17:20:52, Minchan Kim wrote:
+> > > > > > On Mon, Jul 29, 2019 at 09:45:23AM +0200, Michal Hocko wrote:
+> > > > > > > On Mon 29-07-19 16:10:37, Minchan Kim wrote:
+> > > > > > > > In our testing(carmera recording), Miguel and Wei found unmap_page_range
+> > > > > > > > takes above 6ms with preemption disabled easily. When I see that, the
+> > > > > > > > reason is it holds page table spinlock during entire 512 page operation
+> > > > > > > > in a PMD. 6.2ms is never trivial for user experince if RT task couldn't
+> > > > > > > > run in the time because it could make frame drop or glitch audio problem.
+> > > > > > > 
+> > > > > > > Where is the time spent during the tear down? 512 pages doesn't sound
+> > > > > > > like a lot to tear down. Is it the TLB flushing?
+> > > > > > 
+> > > > > > Miguel confirmed there is no such big latency without mark_page_accessed
+> > > > > > in zap_pte_range so I guess it's the contention of LRU lock as well as
+> > > > > > heavy activate_page overhead which is not trivial, either.
+> > > > > 
+> > > > > Please give us more details ideally with some numbers.
+> > > > 
+> > > > I had a time to benchmark it via adding some trace_printk hooks between
+> > > > pte_offset_map_lock and pte_unmap_unlock in zap_pte_range. The testing
+> > > > device is 2018 premium mobile device.
+> > > > 
+> > > > I can get 2ms delay rather easily to release 2M(ie, 512 pages) when the
+> > > > task runs on little core even though it doesn't have any IPI and LRU
+> > > > lock contention. It's already too heavy.
+> > > > 
+> > > > If I remove activate_page, 35-40% overhead of zap_pte_range is gone
+> > > > so most of overhead(about 0.7ms) comes from activate_page via
+> > > > mark_page_accessed. Thus, if there are LRU contention, that 0.7ms could
+> > > > accumulate up to several ms.
+> > > 
+> > > Thanks for this information. This is something that should be a part of
+> > > the changelog. I am sorry to still poke into this because I still do not
+> > 
+> > I will include it.
+> > 
+> > > have a full understanding of what is going on and while I do not object
+> > > to drop the spinlock I still suspect this is papering over a deeper
+> > > problem.
+> > 
+> > I couldn't come up with better solution. Feel free to suggest it.
+> > 
+> > > 
+> > > If mark_page_accessed is really expensive then why do we even bother to
+> > > do it in the tear down path in the first place? Why don't we simply set
+> > > a referenced bit on the page to reflect the young pte bit? I might be
+> > > missing something here of course.
+> > 
+> > commit bf3f3bc5e73
+> > Author: Nick Piggin <npiggin@suse.de>
+> > Date:   Tue Jan 6 14:38:55 2009 -0800
+> > 
+> >     mm: don't mark_page_accessed in fault path
+> > 
+> >     Doing a mark_page_accessed at fault-time, then doing SetPageReferenced at
+> >     unmap-time if the pte is young has a number of problems.
+> > 
+> >     mark_page_accessed is supposed to be roughly the equivalent of a young pte
+> >     for unmapped references. Unfortunately it doesn't come with any context:
+> >     after being called, reclaim doesn't know who or why the page was touched.
+> > 
+> >     So calling mark_page_accessed not only adds extra lru or PG_referenced
+> >     manipulations for pages that are already going to have pte_young ptes anyway,
+> >     but it also adds these references which are difficult to work with from the
+> >     context of vma specific references (eg. MADV_SEQUENTIAL pte_young may not
+> >     wish to contribute to the page being referenced).
+> > 
+> >     Then, simply doing SetPageReferenced when zapping a pte and finding it is
+> >     young, is not a really good solution either. SetPageReferenced does not
+> >     correctly promote the page to the active list for example. So after removing
+> >     mark_page_accessed from the fault path, several mmap()+touch+munmap() would
+> >     have a very different result from several read(2) calls for example, which
+> >     is not really desirable.
 > 
-> For example, LTP oom01 test case is stuck for hours, while it finishes in a few
-> minutes here after reverted the above commit. Sometimes, it prints those message
-> while hanging.
-> 
-> [  509.983393][  T711] INFO: task oom01:5331 blocked for more than 122 seconds.
-> [  509.983431][  T711]       Not tainted 5.3.0-rc2-next-20190730 #7
-> [  509.983447][  T711] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
-> disables this message.
-> [  509.983477][  T711] oom01           D24656  5331   5157 0x00040000
-> [  509.983513][  T711] Call Trace:
-> [  509.983538][  T711] [c00020037d00f880] [0000000000000008] 0x8 (unreliable)
-> [  509.983583][  T711] [c00020037d00fa60] [c000000000023724]
-> __switch_to+0x3a4/0x520
-> [  509.983615][  T711] [c00020037d00fad0] [c0000000008d17bc]
-> __schedule+0x2fc/0x950
-> [  509.983647][  T711] [c00020037d00fba0] [c0000000008d1e68] schedule+0x58/0x150
-> [  509.983684][  T711] [c00020037d00fbd0] [c0000000008d7614]
-> rwsem_down_read_slowpath+0x4b4/0x630
-> [  509.983727][  T711] [c00020037d00fc90] [c0000000008d7dfc]
-> down_read+0x12c/0x240
-> [  509.983758][  T711] [c00020037d00fd20] [c00000000005fb28]
-> __do_page_fault+0x6f8/0xee0
-> [  509.983801][  T711] [c00020037d00fe20] [c00000000000a364]
-> handle_page_fault+0x18/0x38
+> Well, I have to say that this is rather vague to me. Nick, could you be
+> more specific about which workloads do benefit from this change? Let's
+> say that the zapped pte is the only referenced one and then reclaim
+> finds the page on inactive list. We would go and reclaim it. But does
+> that matter so much? Hot pages would be referenced from multiple ptes
+> very likely, no?
 
-Thanks for the testing! No surprise the patch make some bugs because
-it's rather tricky.
-
-Could you test this patch?
-
-From b31667210dd747f4d8aeb7bdc1f5c14f1f00bff5 Mon Sep 17 00:00:00 2001
-From: Minchan Kim <minchan@kernel.org>
-Date: Wed, 31 Jul 2019 14:18:01 +0900
-Subject: [PATCH] mm: decrease NR_ISOALTED count at succesful migration
-
-If migration fails, it should go back to LRU list so putback_lru_page
-could handle NR_ISOLATED count in pair with isolate_lru_page. However,
-if migration is successful, the page will be freed so no need to
-add the page back to LRU list. Thus, NR_ISOLATED count should be done
-in manually.
-
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/migrate.c | 16 ++++++++--------
- 1 file changed, 8 insertions(+), 8 deletions(-)
-
-diff --git a/mm/migrate.c b/mm/migrate.c
-index 84b89d2d69065..96ae0c3cada8d 100644
---- a/mm/migrate.c
-+++ b/mm/migrate.c
-@@ -1166,6 +1166,7 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- {
- 	int rc = MIGRATEPAGE_SUCCESS;
- 	struct page *newpage;
-+	bool is_lru = __PageMovable(page);
- 
- 	if (!thp_migration_supported() && PageTransHuge(page))
- 		return -ENOMEM;
-@@ -1175,17 +1176,10 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 		return -ENOMEM;
- 
- 	if (page_count(page) == 1) {
--		bool is_lru = !__PageMovable(page);
--
- 		/* page was freed from under us. So we are done. */
- 		ClearPageActive(page);
- 		ClearPageUnevictable(page);
--		if (likely(is_lru))
--			mod_node_page_state(page_pgdat(page),
--						NR_ISOLATED_ANON +
--						page_is_file_cache(page),
--						-hpage_nr_pages(page));
--		else {
-+		if (unlikely(!is_lru)) {
- 			lock_page(page);
- 			if (!PageMovable(page))
- 				__ClearPageIsolated(page);
-@@ -1229,6 +1223,12 @@ static ICE_noinline int unmap_and_move(new_page_t get_new_page,
- 			if (set_hwpoison_free_buddy_page(page))
- 				num_poisoned_pages_inc();
- 		}
-+
-+		if (likely(is_lru))
-+			mod_node_page_state(page_pgdat(page),
-+					NR_ISOLATED_ANON +
-+						page_is_file_cache(page),
-+					-hpage_nr_pages(page));
- 	} else {
- 		if (rc != -EAGAIN) {
- 			if (likely(!__PageMovable(page))) {
--- 
-2.22.0.709.g102302147b-goog
+As Nick mentioned in the description, without mark_page_accessed in
+zapping part, repeated mmap + touch + munmap never acticated the page
+while several read(2) calls easily promote it.
 
