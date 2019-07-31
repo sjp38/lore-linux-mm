@@ -7,100 +7,100 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CFBD8C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:08:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D645AC433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:08:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 87A57217D4
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:08:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 83D7E21850
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:08:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="Adcw5GPs"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 87A57217D4
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="kKXhGbR2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 83D7E21850
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A01F78E000B; Wed, 31 Jul 2019 11:08:21 -0400 (EDT)
+	id 0B9218E0009; Wed, 31 Jul 2019 11:08:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 98B938E0009; Wed, 31 Jul 2019 11:08:21 -0400 (EDT)
+	id F33F98E0001; Wed, 31 Jul 2019 11:08:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7669A8E000B; Wed, 31 Jul 2019 11:08:21 -0400 (EDT)
+	id D86B88E0009; Wed, 31 Jul 2019 11:08:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 18F1D8E0009
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7ACD28E0001
 	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:08:21 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y15so42617757edu.19
+Received: by mail-ed1-f70.google.com with SMTP id w25so42560236edu.11
         for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:08:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=uRHR4JyNhqg33njeUSvVGNylXkFyo7B3QnIKSQpCDwk=;
-        b=kHt8tMSa9Z9e7bfCLLCvaU0YOL2be3RGq+zhLGKd1aApEDJNmfndyTEoZOUT714mb3
-         XEhYneoWdXEKc61gMl/TWK+v5KxpsLBuYLX2xcK43JPC2xpyc/zfhNi0muBRoU8tiVep
-         dYe8sBQJ8l7HzFEUSlPUoWHg2ceLfuTe9qTSpbalQvTC+cJ9QR7pvQwKtomCLWevzlkd
-         kAaqXUF4UwXqLH7KcBozKrn6h1X5NKFobZVjdiBHTSITLw3JLGFreI6LfQpuyF58J1XU
-         9Du+UPwHcJvFGB6Pkz0V71erPN6R80mPTJzTQuc421OTU86/cjDrKOnFBhBiZZBMDFrQ
-         qKfA==
-X-Gm-Message-State: APjAAAX3/6MoMQiw9FD2Ws+xsRJZ/8VgnhSIPDA19r5sBhcjwRkSTiu7
-	VfcJkhhMNuKAIgVAU5YtvwkGutpeZPw7YTZzbPk0F52AlBOr8axpCk3UI0o3P8EGfCUwNvUeSle
-	/kKHXmZyKyC9HvecXA53RXNkkfWbSumNkWTsi8/T6o9PRNW11QtX6t3ax1vP2pc8=
-X-Received: by 2002:a17:906:9385:: with SMTP id l5mr93321308ejx.8.1564585700624;
+        bh=AJU4EYtP5Ndll/OqHeAitrNwzvbF49Nst5sv0orja/w=;
+        b=JtE90EiZpLPDDAIrlHOE+aC/qyCS4gt6V1oJaLPfWmGYvUR9a11e/AEHQgJeDQiyJv
+         hlKPfIUkv5Rqee4XstPoJgUR5aV/5+6wGEeDhaLF/y349jzQQczIaqUynjRhglym20qT
+         e6eoFOHoEJafZeIpYVHBHcf4Ssd2a8tRGpZIHpgc9MI63/jfd2TvP0xPu20mWrg9MrJI
+         1RGmfyf4JNmtGr/C2EAoycbMKZNaNeh50IjBcnwRbvZtaFJTZIMUt71XSR7iLTYKuPt9
+         3jvb4kSn0mTwiSafnj8IAZ36V8YADaoSb/3cnxkn8SPjbCkwtNdHn3iRx4Oau0TRDDwD
+         hUMg==
+X-Gm-Message-State: APjAAAW4cipr6qSKcW4dOG/sF8qPyZJSOYF5zOqf7Hb8A5ss6C2Tbfih
+	HVAlixbP4IT3MdGbymOZmS13YfBAgHVb1bYe/IAoPIWlExzNxurNzxOO/W020EuAT6UBB8u3GQ4
+	sCyig4q03kmLQq9hS/lFVRvVlQN9knf/NnkuNEENyKlOBBUY989b7ArgdZqBGcBU=
+X-Received: by 2002:a50:95a1:: with SMTP id w30mr108194349eda.177.1564585701058;
+        Wed, 31 Jul 2019 08:08:21 -0700 (PDT)
+X-Received: by 2002:a50:95a1:: with SMTP id w30mr108194248eda.177.1564585700157;
         Wed, 31 Jul 2019 08:08:20 -0700 (PDT)
-X-Received: by 2002:a17:906:9385:: with SMTP id l5mr93321166ejx.8.1564585699155;
-        Wed, 31 Jul 2019 08:08:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564585699; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1564585700; cv=none;
         d=google.com; s=arc-20160816;
-        b=MhP8A4wst4wFsmc3GULyJ8TwJcRhErOnViSoSgSjMDNah7fZUITc333bdes5URJUAl
-         p1o9cm6ckI49ys2MxkKIg2isZqMlXrlutuw5IkbV5pNvfGYSedlR0wGbJvUk3AnAFod+
-         PC0a6QxegXpVZ7jEQg4EwFpqW3ny5yUpLys/uMGHL0DNdZi/KBq+34fJkQdSzx4yAyfM
-         t5ESmZ78ruhQ/dgCofoGO5K2/SPrWRgyE0FsFAzmLT027Kpc45ylIHA1x8Vx5Sw9Aqdo
-         n8CG54/JLdvUAqzV3OnqMeQfPISq41CThJMqjGPpQYV4b/jTToYe4bw4oZ6Y+WYHWQWj
-         ZfkQ==
+        b=mNaIDFUGDZsBYwFNsw7AFKw8NbypUlS9ScENoU9kVw3o3jhxGG0RlVAGKJpvsRRtkt
+         1yN/eNVM5FYmykW7v3T19xDDq4d+a2xk6kR+4l2ouBMik+lVo0kGBYsNgSgl83lZb0fF
+         Ph41eDwD4mkXva9j6LOElgPOMIrvpdMEnCLkYvHvNMO/30pt5w5UGivq1j0Kv3fvlRF1
+         pUCx/p5+FUq9800ZgTaoTZrQ7O7adqEH4Q9UATdKBz1tCGfAlFJzdoZ6Ua20skZDPz7S
+         R33LnDE6M87zxGw0OBecwRkJQ3HooV8GKEwHj6D2eTNlSX5HZN/DLeO1+a/KlvnaKA53
+         m74A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=uRHR4JyNhqg33njeUSvVGNylXkFyo7B3QnIKSQpCDwk=;
-        b=HBC8TfEUaEk9a78KMJTGb4O7Mg5avawQ40gW4D2txHhaVcpgqI/4IWFVHxHIw1mYa8
-         CEv4L7FkvqmT2TPUlTKglimMmHEiMWWSeZbW+xFKngJ/EVmPfFjUlt8RZplFczczQMmF
-         jIEAbJ02oUt3rGpRIVCVhFPic0aC/47rWg5zxSz+uBTKHYMaW7oO0WZqPH/ccfwb/bSo
-         maM5B/yprcK8gkptv+hJd+JYRG5eE2mVdxkcknlljPes7klQiaGrBiZJ3cWAG001yAJH
-         6AIjyjhM62o3Sex9MMuLbHgY00+OEelSjlTZlxEQq9ZOqhXck4IzW5d6gloiLGZJZld9
-         CfBg==
+        bh=AJU4EYtP5Ndll/OqHeAitrNwzvbF49Nst5sv0orja/w=;
+        b=rfXpZ8+3192zA0E96oQ0MTidiq9ceJh3MGzjfstrmbIFtXFnHVbc7Iz1KOzeiDsbJf
+         7nVLrmcbkM557zhtxTxpdLMS/Qno0Ao+S+ljtgqJoyTf+elrEiz7y2YISo+LTJ/y/Mew
+         /tBu1SuL0hEc7LKfyNn8+Do7PkRG+DuGnjJN6oFqnAeTibHFHWGgGajAQSHKYtrUslAr
+         HOz5fAHWz0XiPHCRPmUrvY9wI/26sZ0oa5C87UGbyHs8POlEjX6VW/p3ICKymC84xNUo
+         H+vOds+2DRix2MxcUip0+3bkK988jh7/7rQ36hsl201efo7MhODMBJzPQpmAEpMX9Dbl
+         Jr8Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=Adcw5GPs;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=kKXhGbR2;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id no5sor18519064ejb.51.2019.07.31.08.08.19
+        by mx.google.com with SMTPS id y7sor51960748edd.25.2019.07.31.08.08.20
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Jul 2019 08:08:19 -0700 (PDT)
+        Wed, 31 Jul 2019 08:08:20 -0700 (PDT)
 Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=Adcw5GPs;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=kKXhGbR2;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=uRHR4JyNhqg33njeUSvVGNylXkFyo7B3QnIKSQpCDwk=;
-        b=Adcw5GPsJkn83YXVJKj7Wqwm6NwWDC1hAYaUolv28wXp+8oH0VtnaENGQuZ/0K5+Nb
-         4ttVuTcBuWW62tdKiOabj/bghgVhdlTVmNRPbQ83nxcV2pN29l6uGQo0wyZ/lAlhkLv5
-         uu88EBPXw3XRRpwEaUjPB0g7WmxNmdd7QzlE0G/0MbaOwDTTzRhC9WWYSRAeSeO7X5bx
-         QFUzmQ84OBFGl0JYzwuDQQLD8dx+iNms4LZ5CMlKmpkkFg5rsp7bDTsd+CepoXc38t5t
-         U6hOGTcOi/3klKmjqufRITIY89IhP2ybvsPkGFX/lxa/yb3zD0rrCBZO9eKTlKALJ6M+
-         k80A==
-X-Google-Smtp-Source: APXvYqwgh75LQw16lfxHmAAueOtxiQIAT7Hemys++oZtGs9IrW8hC3dJ4CKW+gKV4lDeffYtzg8cig==
-X-Received: by 2002:a17:906:6a87:: with SMTP id p7mr23487746ejr.277.1564585698812;
-        Wed, 31 Jul 2019 08:08:18 -0700 (PDT)
+        bh=AJU4EYtP5Ndll/OqHeAitrNwzvbF49Nst5sv0orja/w=;
+        b=kKXhGbR2JDGE9bSyvxgjKsfR1EooQVCxUWsDBiB/ov2JhR22a80ZVWH6hsoT5t60hW
+         ReQlX2VuPnyHZm+ht43QCRrwOTR4FXEx8N9KLDx8PA4ydWKsR2BIUMxIijk5qFFyJWJR
+         2f083LoqCGdskXIuleu/ah0wA10Rm17n5y2ig4+kPBzijtTL3lkIw8/27JLPaHybuORM
+         pzMd9bI4PnPnmBKajAUKL8D2paFeEh9jjqZZbZStBfag1gDyfG8bBCKhuARqXP5nW2Pq
+         L1ZhDiLr0HWi2NeMxbyWk+wgHvu/5r9izvPURcblDhh/5L3ApkkaOd6gdu9AGvFSIsuM
+         bwfA==
+X-Google-Smtp-Source: APXvYqwybSsBXdcn4hH+cdquBQ7naCJOKUH1HBc36wrC3gr3IAtOhb7lLrFtZj0CqBrWNvtjPSNrNw==
+X-Received: by 2002:aa7:da14:: with SMTP id r20mr107154184eds.65.1564585699886;
+        Wed, 31 Jul 2019 08:08:19 -0700 (PDT)
 Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id o22sm17282769edc.37.2019.07.31.08.08.15
+        by smtp.gmail.com with ESMTPSA id o22sm17282787edc.37.2019.07.31.08.08.17
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 08:08:15 -0700 (PDT)
+        Wed, 31 Jul 2019 08:08:19 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 X-Google-Original-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Received: by box.localdomain (Postfix, from userid 1000)
-	id 03F8F10131A; Wed, 31 Jul 2019 18:08:16 +0300 (+03)
+	id 17B6310131D; Wed, 31 Jul 2019 18:08:16 +0300 (+03)
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
 	Thomas Gleixner <tglx@linutronix.de>,
@@ -120,9 +120,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 03/59] mm/ksm: Do not merge pages with different KeyIDs
-Date: Wed, 31 Jul 2019 18:07:17 +0300
-Message-Id: <20190731150813.26289-4-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 06/59] mm/khugepaged: Handle encrypted pages
+Date: Wed, 31 Jul 2019 18:07:20 +0300
+Message-Id: <20190731150813.26289-7-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
 References: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
@@ -134,66 +134,39 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KSM compares plain text.  It might try to merge two pages that have the
-same plain text but different ciphertext and possibly different
-encryption keys.  When the kernel encrypted the page, it promised that
-it would keep it encrypted with _that_ key.  That makes it impossible to
-merge two pages encrypted with different keys.
+For !NUMA khugepaged allocates page in advance, before we found a VMA
+for collapse. We don't yet know which KeyID to use for the allocation.
 
-Never merge encrypted pages with different KeyIDs.
+The page is allocated with KeyID-0. Once we know that the VMA is
+suitable for collapsing, we prepare the page for KeyID we need, based on
+vma_keyid().
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- include/linux/mm.h |  7 +++++++
- mm/ksm.c           | 17 +++++++++++++++++
- 2 files changed, 24 insertions(+)
+ mm/khugepaged.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
 
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 5bfd3dd121c1..af1a56ff6764 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1644,6 +1644,13 @@ static inline int vma_keyid(struct vm_area_struct *vma)
- }
- #endif
- 
-+#ifndef page_keyid
-+static inline int page_keyid(struct page *page)
-+{
-+	return 0;
-+}
-+#endif
-+
- extern unsigned long move_page_tables(struct vm_area_struct *vma,
- 		unsigned long old_addr, struct vm_area_struct *new_vma,
- 		unsigned long new_addr, unsigned long len,
-diff --git a/mm/ksm.c b/mm/ksm.c
-index 3dc4346411e4..7d4ef634f38e 100644
---- a/mm/ksm.c
-+++ b/mm/ksm.c
-@@ -1228,6 +1228,23 @@ static int try_to_merge_one_page(struct vm_area_struct *vma,
- 	if (!PageAnon(page))
- 		goto out;
+diff --git a/mm/khugepaged.c b/mm/khugepaged.c
+index eaaa21b23215..ae9bd3b18aa1 100644
+--- a/mm/khugepaged.c
++++ b/mm/khugepaged.c
+@@ -1059,6 +1059,16 @@ static void collapse_huge_page(struct mm_struct *mm,
+ 	 */
+ 	anon_vma_unlock_write(vma->anon_vma);
  
 +	/*
-+	 * KeyID indicates what key to use to encrypt and decrypt page's
-+	 * content.
-+	 *
-+	 * KSM compares plain text instead (transparently to KSM code).
-+	 *
-+	 * But we still need to make sure that pages with identical plain
-+	 * text will not be merged together if they are encrypted with
-+	 * different keys.
-+	 *
-+	 * To make it work kernel only allows merging pages with the same KeyID.
-+	 * The approach guarantees that the merged page can be read by all
-+	 * users.
++	 * At this point new_page is allocated as non-encrypted.
++	 * If VMA's KeyID is non-zero, we need to prepare it to be encrypted
++	 * before coping data.
 +	 */
-+	if (kpage && page_keyid(page) != page_keyid(kpage))
-+		goto out;
++	if (vma_keyid(vma)) {
++		prep_encrypted_page(new_page, HPAGE_PMD_ORDER,
++				vma_keyid(vma), false);
++	}
 +
- 	/*
- 	 * We need the page lock to read a stable PageSwapCache in
- 	 * write_protect_page().  We use trylock_page() instead of
+ 	__collapse_huge_page_copy(pte, new_page, vma, address, pte_ptl);
+ 	pte_unmap(pte);
+ 	__SetPageUptodate(new_page);
 -- 
 2.21.0
 
