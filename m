@@ -2,273 +2,157 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-10.3 required=3.0
+	tests=HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C21A8C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 06:14:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 04A21C32753
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 06:15:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7758D206A2
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 06:14:48 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="pIS3Y8Su"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7758D206A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id B8C30206A2
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 06:15:40 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B8C30206A2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 21CE18E0003; Wed, 31 Jul 2019 02:14:48 -0400 (EDT)
+	id 689568E0006; Wed, 31 Jul 2019 02:15:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1A7D68E0001; Wed, 31 Jul 2019 02:14:48 -0400 (EDT)
+	id 6125F8E0001; Wed, 31 Jul 2019 02:15:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0473D8E0003; Wed, 31 Jul 2019 02:14:47 -0400 (EDT)
+	id 5024C8E0006; Wed, 31 Jul 2019 02:15:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C05A18E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 02:14:47 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id t2so36873988plo.10
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 23:14:47 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F3D008E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 02:15:39 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id b12so41721756eds.14
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 23:15:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=iqFMksg+GEFnhHcmM4K8TjXa4SGBpwoJKaNawCff3BE=;
-        b=av3MRrB0Saq2+sl80h1dqkqu2nSleW6XtPtpHE6f+Cz8rbQZqZZut9N5LjPvJELrn3
-         aXO+Zr1/mIB4wG3FYNoDmn/bUuUUpLwRhIGvFQCcIZVeZG84KKQIgGAaVQeYs2xzCd9u
-         1Oar4T1+tMZVpCjBYQc5B6aG5tFieRBYMb5XKnwds0z2is/0oNmBTmF03iXPtcLUdrO7
-         qpU/zSAKaYoi1ff8OM2KkxtguBcB59yTEjRiip1CJC9HLSXndgumfipthrdUQqAYggcQ
-         lp8JqPogtJNLBg26j6SL0dlXN/sOOaP/ceSz35tHXWKIKITwOZk3LdFd7DdFvJ/tcfjj
-         Wbow==
-X-Gm-Message-State: APjAAAXwQlcwq8FPlmdRrsyskk2UXF+3c8avEmMjLwGjjMRNnotEilxH
-	eDA+Pen2MYXrFrjDVmFItcTo2InH2KHJ3Bjt2D0GWTaFDF+6sYJOsAN/oFjFdbvVVJHrQk3hMvf
-	sjNuAKB4pjzasj+GvpfFHb26P2Sjg5eiM5+SvQUAYW0ZJxn82DBbYIwD/a9F0Iy4=
-X-Received: by 2002:a63:e901:: with SMTP id i1mr95151459pgh.451.1564553687370;
-        Tue, 30 Jul 2019 23:14:47 -0700 (PDT)
-X-Received: by 2002:a63:e901:: with SMTP id i1mr95151415pgh.451.1564553686498;
-        Tue, 30 Jul 2019 23:14:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564553686; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=PiD/EuL14HAFVjnjjDk8zmFntKSZoXRyNd8x4k6cFVM=;
+        b=F7rG058Es4FlkXa0zIYQes6b1ddtJEcuM07A6W+yjYdO/piON0r5MREFtHGfRY+1gZ
+         eo0C/ZSbfO+Hkb57BKW9TRG1q85HcZ/imvxonYc21rPYNtFyNbKRIqKVdGY890CbMtWP
+         BpEG22hFwDoEfbgN7oYnECL26oqKSQRavwzwk6ElOE4Y8yfDxQdtH+DMksIeqKay46z0
+         cqtArgJpjXCezTVfw3n1O4QJC2ExRupEqWz0xxgbN+ETcGuq8b/SII7gpgmPT+nxMxgC
+         hSLMn23dSyzOWD48P97b2n6N/LB9gw04613pvqj1C998eDVganOMiYnKn3G9Zba1a1Nk
+         9RIw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Gm-Message-State: APjAAAW7lLLH/+MUldCEStlXWc5Uqw1O5DknproUmoQ0VjvzOSlKOEwx
+	bcgdlE1l7D7pGbSVyQ9HU6O/SG4hS+KSUjy23Y9yQk/pmad/tr2FMiDMCWpIbIqYx6LOTg9FObm
+	FMBiwJCtJhTgx2Ow1KUWzvQD/yAReDcbr1SXGYiM78hMCckVp5CFhEbE0Yv0LZF1p8g==
+X-Received: by 2002:a05:6402:397:: with SMTP id o23mr106726105edv.68.1564553739536;
+        Tue, 30 Jul 2019 23:15:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyLLYQ3nQUL8DgUrm2LQsW2zIqfPMl16ElpsmitgxzjD1TARBaZIvTal2Gi41b0cSW9ZC/d
+X-Received: by 2002:a05:6402:397:: with SMTP id o23mr106726079edv.68.1564553738933;
+        Tue, 30 Jul 2019 23:15:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564553738; cv=none;
         d=google.com; s=arc-20160816;
-        b=kgqFtoJwEs3Pd8+wG4871bSaSV3QmxZTlJB+SZrhD9VI7LY9TEOOjEuVeIFVCO93Ue
-         a0Xrn2Fkc28kswRYjhFc5xvocEQnU4ci8p84gZYoAoINZLf8f1IuK6CsO2yezWBjg3wm
-         OozrV0c56umOVqSX09Swxi2taZKjmnzZEYrW8Bh0ucG8fB2xFQnP051aXlmpN10yDfV3
-         M8BwjIqFFcel1WSK2zWmgZZrsd+oE2MMoHx1vkez9n6Zp/bXLigiTsggfDF/9M6UlwCU
-         i/kxYCTtZIA9eZItNErNeJ6epZKEdyYerT4jV+Y3+7RdupKurKFnBz+HGj74momJiU9P
-         rUYQ==
+        b=C2tF4AA7KPS0h8ZUCumcpRVJY9Y6cHGocz0IEttbK4FtfhvGUdSO/+N4IpdFhV01MO
+         0a/izJAR9OK5kUpWrv9MnaCBFBlJ266dECcJbd/5/wr9PVV2NVrbuQS7gc/nCKBNb7vN
+         6tYmugS1zvKdB1f6LDjREWscxrqW8QJPtPV+jILmUs+HA7V5m78vkZmRlqH6CgtY3CQe
+         EEOq42qn+VsRnM2hF4SUISSHXmcm5AsZB0TZxe/8BNzHBGs++fu4SUqgq7pw+B+yvT+N
+         0NFroGFFo6F6XGPsHit/dxq2DQb+I0qaCmQVF4cAUWq9V7lOPXd/rO0sHeyVcimXutVP
+         YqVg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=iqFMksg+GEFnhHcmM4K8TjXa4SGBpwoJKaNawCff3BE=;
-        b=uO63ny/A4c9tv34EOfh1vu61gVlhNDoebwK9NYvyQWNuocg5Aa4wruyDehiUx1/86a
-         w1E+WtANcYAcuLfBkMz1Cc3Jp//ew89rW+NlrQQu1qo0MCLAxFw8VFazYDe9fLv+j08n
-         C4MBHoAbgjWxD+RHw5aj4IJvjRUqlKYDGzdKDUJpX33sLT+nwf1c1ANjy3kLhWpNSxh2
-         +Vg3IckqubGD0uokIa95S6TuAO/3Xt/5TstoiZyQOOm/CgD5xp85C6Z/9i/14U3OMfK/
-         vMA+ELeI4Uh5/t/0xGY3IavhCLQj/YgdKnRzC/V5wo5We176LEWN8IaMR8W4vmZU1idq
-         wd/Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=PiD/EuL14HAFVjnjjDk8zmFntKSZoXRyNd8x4k6cFVM=;
+        b=Z73iD4I2anPsLMHk2rhurPwQ6v1R2Nzl9h/wU6zcfgUYd54WRqJ/DKdXm9go8uWIle
+         uUOWVdCNCf2dWzW9/cZntMooMJv9YhFF4Gcv3Kmmu1+1SkOvBpZjbeQWTXtKa3cTdAqF
+         URR1BUxZj/LS6YNId/Z9iyvHAnVdE40mix/0VGhT73DAjnAiVHnOYY2dR2Y0Vg0XMDua
+         LqfjK98HBAyiT6mES0Uxn8kOefOy5SaP3fBcnYqENZ7NKiwmoLmAjqyawukdvO44lAud
+         0Wyq2qTF1flJ3W/sJyzldVBLg1ZB6siL+H+RuUSIAb4IFxHgWeVXn9Ja34No5wDzEAZB
+         lh4g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pIS3Y8Su;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id bg9sor80692322plb.73.2019.07.30.23.14.46
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x54si20871631edd.148.2019.07.30.23.15.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 30 Jul 2019 23:14:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 30 Jul 2019 23:15:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pIS3Y8Su;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=iqFMksg+GEFnhHcmM4K8TjXa4SGBpwoJKaNawCff3BE=;
-        b=pIS3Y8SuH3hxHZYjEY+VPhyyjAyo+FGqtGWW4NAuNJfqiqSygcvaq1zogoZMZ22TDV
-         e5/jFcKAqDx4QgkhPV/1LWdmUTVf2YDlRCVHSue09MBhLKtMMGWoxspklADGUYxUARbJ
-         46c8B/8+nQT0JQ7zxbD0kr8Vock5IGm9m0UJ+m6oCCl3Q06B+1fGK6bCiDdMJdQQucoY
-         0v8ReN13g5if32JdgIjkTLHW7JfgkznVnENKTdGMGreyrD3BpaVGsIQIjIoZXNLxzCzo
-         0R7aNcYuW3KqKa7dbBwWu3xZthNfGW+NlU04sAXWE4Ds4uO6RSpJ1mgPAfQfkoGmC6qg
-         gL/w==
-X-Google-Smtp-Source: APXvYqx8tKIyBtlv4dSHH0G37FgBEdYFHX+HUdL62kS7gU/eDjdnm7vXcKWh9rO0yaniakChi9hDcQ==
-X-Received: by 2002:a17:902:2bc5:: with SMTP id l63mr122711848plb.30.1564553685998;
-        Tue, 30 Jul 2019 23:14:45 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id 22sm76624580pfu.179.2019.07.30.23.14.42
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 30 Jul 2019 23:14:44 -0700 (PDT)
-Date: Wed, 31 Jul 2019 15:14:40 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>, LKML <linux-kernel@vger.kernel.org>,
-	linux-mm <linux-mm@kvack.org>,
-	Miguel de Dios <migueldedios@google.com>, Wei Wang <wvw@google.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Mel Gorman <mgorman@techsingularity.net>
-Subject: Re: [PATCH] mm: release the spinlock on zap_pte_range
-Message-ID: <20190731061440.GC155569@google.com>
-References: <20190729071037.241581-1-minchan@kernel.org>
- <20190729074523.GC9330@dhcp22.suse.cz>
- <20190729082052.GA258885@google.com>
- <20190730124207.da70f92f19dc021bf052abd0@linux-foundation.org>
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 05D0CAD1E;
+	Wed, 31 Jul 2019 06:15:37 +0000 (UTC)
+Subject: Re: [PATCH] xen/gntdev.c: Replace vm_map_pages() with
+ vm_map_pages_zero()
+To: Souptick Joarder <jrdr.linux@gmail.com>, marmarek@invisiblethingslab.com,
+ sstabellini@kernel.org, boris.ostrovsky@oracle.com
+Cc: linux@armlinux.org.uk, willy@infradead.org, linux-mm@kvack.org,
+ akpm@linux-foundation.org, gregkh@linuxfoundation.org,
+ xen-devel@lists.xenproject.org, linux-kernel@vger.kernel.org,
+ stable@vger.kernel.org
+References: <1564511696-4044-1-git-send-email-jrdr.linux@gmail.com>
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <436440f5-0031-5ad5-4a22-2acf218ad727@suse.com>
+Date: Wed, 31 Jul 2019 08:15:37 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190730124207.da70f92f19dc021bf052abd0@linux-foundation.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <1564511696-4044-1-git-send-email-jrdr.linux@gmail.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: de-DE
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 30, 2019 at 12:42:07PM -0700, Andrew Morton wrote:
-> On Mon, 29 Jul 2019 17:20:52 +0900 Minchan Kim <minchan@kernel.org> wrote:
+On 30.07.19 20:34, Souptick Joarder wrote:
+> 'commit df9bde015a72 ("xen/gntdev.c: convert to use vm_map_pages()")'
+> breaks gntdev driver. If vma->vm_pgoff > 0, vm_map_pages()
+> will:
+>   - use map->pages starting at vma->vm_pgoff instead of 0
+>   - verify map->count against vma_pages()+vma->vm_pgoff instead of just
+>     vma_pages().
 > 
-> > > > @@ -1022,7 +1023,16 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
-> > > >  	flush_tlb_batched_pending(mm);
-> > > >  	arch_enter_lazy_mmu_mode();
-> > > >  	do {
-> > > > -		pte_t ptent = *pte;
-> > > > +		pte_t ptent;
-> > > > +
-> > > > +		if (progress >= 32) {
-> > > > +			progress = 0;
-> > > > +			if (need_resched())
-> > > > +				break;
-> > > > +		}
-> > > > +		progress += 8;
-> > > 
-> > > Why 8?
-> > 
-> > Just copied from copy_pte_range.
+> In practice, this breaks using a single gntdev FD for mapping multiple
+> grants.
 > 
-> copy_pte_range() does
+> relevant strace output:
+> [pid   857] ioctl(7, IOCTL_GNTDEV_MAP_GRANT_REF, 0x7ffd3407b6d0) = 0
+> [pid   857] mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_SHARED, 7, 0) =
+> 0x777f1211b000
+> [pid   857] ioctl(7, IOCTL_GNTDEV_SET_UNMAP_NOTIFY, 0x7ffd3407b710) = 0
+> [pid   857] ioctl(7, IOCTL_GNTDEV_MAP_GRANT_REF, 0x7ffd3407b6d0) = 0
+> [pid   857] mmap(NULL, 4096, PROT_READ|PROT_WRITE, MAP_SHARED, 7,
+> 0x1000) = -1 ENXIO (No such device or address)
 > 
-> 		if (pte_none(*src_pte)) {
-> 			progress++;
-> 			continue;
-> 		}
-> 		entry.val = copy_one_pte(dst_mm, src_mm, dst_pte, src_pte,
-> 							vma, addr, rss);
-> 		if (entry.val)
-> 			break;
-> 		progress += 8;
+> details here:
+> https://github.com/QubesOS/qubes-issues/issues/5199
 > 
-> which appears to be an attempt to balance the cost of copy_one_pte()
-> against the cost of not calling copy_one_pte().
+> The reason is -> ( copying Marek's word from discussion)
 > 
-
-Indeed.
-
-> Your code doesn't do this balancing and hence can be simpler.
-
-Based on the balancing code of copy_one_pte, it seems we should balance
-it with cost of mark_page_accessed against the cost of not calling
-mark_page_accessed. IOW, add up 8 only when mark_page_accessed is called.
-
-However, every mark_page_accessed is not heavy since it uses pagevec
-and caller couldn't know whether the target page will be activated or
-just have PG_referenced which is cheap. Thus, I agree, do not make it
-complicated.
-
+> vma->vm_pgoff is used as index passed to gntdev_find_map_index. It's
+> basically using this parameter for "which grant reference to map".
+> map struct returned by gntdev_find_map_index() describes just the pages
+> to be mapped. Specifically map->pages[0] should be mapped at
+> vma->vm_start, not vma->vm_start+vma->vm_pgoff*PAGE_SIZE.
 > 
-> It all seems a bit overdesigned.  need_resched() is cheap.  It's
-> possibly a mistake to check need_resched() on *every* loop because some
-> crazy scheduling load might livelock us.  But surely it would be enough
-> to do something like
+> When trying to map grant with index (aka vma->vm_pgoff) > 1,
+> __vm_map_pages() will refuse to map it because it will expect map->count
+> to be at least vma_pages(vma)+vma->vm_pgoff, while it is exactly
+> vma_pages(vma).
 > 
-> 	if (progress++ && need_resched()) {
-> 		<reschedule>
-> 		progress = 0;
-> 	}
+> Converting vm_map_pages() to use vm_map_pages_zero() will fix the
+> problem.
 > 
-> and leave it at that?
+> Marek has tested and confirmed the same.
+> 
+> Reported-by: Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>
+> Signed-off-by: Souptick Joarder <jrdr.linux@gmail.com>
+> Tested-by: Marek Marczykowski-Górecki <marmarek@invisiblethingslab.com>
 
-Seems like this?
+Pushed to xen/tip.git for-linus-5.3a
 
-From bb1d7aaf520e98a6f9d988c25121602c28e12e67 Mon Sep 17 00:00:00 2001
-From: Minchan Kim <minchan@kernel.org>
-Date: Mon, 29 Jul 2019 15:28:48 +0900
-Subject: [PATCH] mm: release the spinlock on zap_pte_range
 
-In our testing(carmera recording), Miguel and Wei found unmap_page_range
-takes above 6ms with preemption disabled easily. When I see that, the
-reason is it holds page table spinlock during entire 512 page operation
-in a PMD. 6.2ms is never trivial for user experince if RT task couldn't
-run in the time because it could make frame drop or glitch audio problem.
-
-I had a time to benchmark it via adding some trace_printk hooks between
-pte_offset_map_lock and pte_unmap_unlock in zap_pte_range. The testing
-device is 2018 premium mobile device.
-
-I can get 2ms delay rather easily to release 2M(ie, 512 pages) when the
-task runs on little core even though it doesn't have any IPI and LRU
-lock contention. It's already too heavy.
-
-If I remove activate_page, 35-40% overhead of zap_pte_range is gone
-so most of overhead(about 0.7ms) comes from activate_page via
-mark_page_accessed. Thus, if there are LRU contention, that 0.7ms could
-accumulate up to several ms.
-
-Thus, this patch adds preemption point for once every 32 times in the
-loop.
-
-Reported-by: Miguel de Dios <migueldedios@google.com>
-Reported-by: Wei Wang <wvw@google.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Mel Gorman <mgorman@techsingularity.net>
-Signed-off-by: Minchan Kim <minchan@kernel.org>
----
- mm/memory.c | 18 +++++++++++++++---
- 1 file changed, 15 insertions(+), 3 deletions(-)
-
-diff --git a/mm/memory.c b/mm/memory.c
-index 2e796372927fd..8bfcef09da674 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -1007,6 +1007,7 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 				struct zap_details *details)
- {
- 	struct mm_struct *mm = tlb->mm;
-+	int progress = 0;
- 	int force_flush = 0;
- 	int rss[NR_MM_COUNTERS];
- 	spinlock_t *ptl;
-@@ -1022,7 +1023,15 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 	flush_tlb_batched_pending(mm);
- 	arch_enter_lazy_mmu_mode();
- 	do {
--		pte_t ptent = *pte;
-+		pte_t ptent;
-+
-+		if (progress++ >= 32) {
-+			progress = 0;
-+			if (need_resched())
-+				break;
-+		}
-+
-+		ptent = *pte;
- 		if (pte_none(ptent))
- 			continue;
- 
-@@ -1123,8 +1132,11 @@ static unsigned long zap_pte_range(struct mmu_gather *tlb,
- 	if (force_flush) {
- 		force_flush = 0;
- 		tlb_flush_mmu(tlb);
--		if (addr != end)
--			goto again;
-+	}
-+
-+	if (addr != end) {
-+		progress = 0;
-+		goto again;
- 	}
- 
- 	return addr;
--- 
-2.22.0.709.g102302147b-goog
+Juergen
 
