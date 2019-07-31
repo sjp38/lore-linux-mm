@@ -2,188 +2,338 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D554C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:51:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 08E55C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:58:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6007020C01
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:51:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6007020C01
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id B29CE206B8
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:58:14 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=android.com header.i=@android.com header.b="cfX4VNn7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B29CE206B8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=android.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D38428E0005; Wed, 31 Jul 2019 12:51:00 -0400 (EDT)
+	id 345EE8E0003; Wed, 31 Jul 2019 12:58:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CC0CF8E0001; Wed, 31 Jul 2019 12:51:00 -0400 (EDT)
+	id 2F6A18E0001; Wed, 31 Jul 2019 12:58:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B39B68E0005; Wed, 31 Jul 2019 12:51:00 -0400 (EDT)
+	id 198208E0003; Wed, 31 Jul 2019 12:58:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 7AD6A8E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 12:51:00 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id z1so43576792pfb.7
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:51:00 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D7F318E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 12:58:13 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id h3so43233762pgc.19
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:58:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=wr8N7Gqcl4MMRyf8WRIQbBkL5v9y+gJ9JOuE0NSZ5VA=;
-        b=SqeFt0yFygHavZL8S0mcvtpCM0wUJFPYYqbcpollhAXaCcVEbSG/xWJJ5a12GTs+fm
-         xGdZCFiqIrMc9XmIYgGDTWWrahcwVQARN32utn3R7BSiAy3AqtgcWajumUwyQEAVIuFo
-         vq2LfRgR7KjZ+WYWab3YzBlXiCtliDrxp4Lu83khwo9tXb5f0gq5I9TfDAcCOmgWBhNL
-         1UOAEUsz3lWfaQnLziT6rs1mRODfKwLZWOkfIxy22WbJXNbXElQ9POzCvJwNBsz6Q6B3
-         CJ2Tx4uE2qxIi8CJPR/8zC1WHrPXO4FKV/vTOCLs/5ZOgWiKlV0/8ofcj122WLMLfo4Q
-         t+iA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUjjCreyQ0wDLzRBapDynf2q2Lp3liRDj4rHLLMfrfCwr8hr8ki
-	z1063DE4TFr/9SxXpjLkxoBbAcrpOplmrgy5DNZ5/PYcq3sb766QQUaRMi/qYCv3OUboTIz8IY/
-	4mQ2XT8cCqDxwTe9wx95khr3n1W5m4vX+kqz2LOC5JEUhbP8g++gbz/cwpRWOmUw5LQ==
-X-Received: by 2002:a17:902:6b86:: with SMTP id p6mr124368351plk.14.1564591860143;
-        Wed, 31 Jul 2019 09:51:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwM7/zDkdK2Hx3e1k5f8qLKtjg8/JWBzAZ6TpKw8AXO6bNdiu7gSytdBqcLS440lFjQFGpZ
-X-Received: by 2002:a17:902:6b86:: with SMTP id p6mr124368322plk.14.1564591859576;
-        Wed, 31 Jul 2019 09:50:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564591859; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=YkWr+p+vKLuVNlEdLhOL/tn/V0J5xAeOTfzwbmW2id8=;
+        b=qRaAjajXwEbGPiPnCoVOP1TgL4wfQOERvWM98rF/f5T1V38kfsWtocx1sBd4aSMHwl
+         9PQPsOguT7TV4Zr9TUIXygKiqvO38Ugx3Fc4iuvwtOPLAm4DYwU8z8xU4df2pRmql+nh
+         TqAefQsZEjsAjPPN0zDawiN81lxVGh0uPEX4pLsJ3KEO+DuO/wFWqRAxK+8VKO1Usw6z
+         tsTUxfR7S+/na39yYHD5rRVCIIWlBB19aP6tzwNmjxzya1/UXnCR/7kNDubGFk1u2KgJ
+         Km9mftVWJGwtEs+nmX3Wd0gXvLO1tsPtsr+56NXCBt6F6cODMPkmovP5lJUZBwBs38rw
+         WQpw==
+X-Gm-Message-State: APjAAAV5/G7JW1uksBvwlTkYVXiY02gafmQe9Y3q0THtLBOYbz8UpAGh
+	QusCkQGghnSUGQwEsI52fiTzpmsd8nxKwmH62fYdLyWBqL4ceIm2FPabTilhV7Zi3RtPv/tSPzt
+	aB/gT1MAsLVL9pxY09zWXIKwKgSvTAGz6lmnLul1OigIfTmWIsMuH9Em6dYYjdmzxjw==
+X-Received: by 2002:a17:90a:2488:: with SMTP id i8mr3817080pje.123.1564592293354;
+        Wed, 31 Jul 2019 09:58:13 -0700 (PDT)
+X-Received: by 2002:a17:90a:2488:: with SMTP id i8mr3817015pje.123.1564592291953;
+        Wed, 31 Jul 2019 09:58:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564592291; cv=none;
         d=google.com; s=arc-20160816;
-        b=PL6chRRK47ESUdNmfR/Fg9V6BI0X0UMFTLmlOc3FPFABKe6cYXl2r9txppcQ1s60JY
-         Q1nhMCPPGuyFPbqGUEEJnHVjFQxL1HvpUeJrsbTgQW9TDcbCVxQWHQn0Sfe/VO7SB20P
-         yzR0ftME/VZTrSf6hGHbPLCRXsvoV9XXCpeZNLbL6tSn0TQfaMhRVko/IXcP1Y84UJwP
-         o0dQydbvZagCvkJtHul7GFHhzX31fuz5mx5xeOfx8WVhYVhAv4GiejFI2FrMzuAXtxre
-         a23cEBmEyX8U4jFpcSOuzlcPOr6SxxVlAOj+/Q4zoufzk4VDxA/OueqoORwLruhth/eh
-         HjoQ==
+        b=OIFjD2g9+ArpOe0nVD/uTP1MZ2GC+V1RYC/bLfTunVF3aQFXHE48j5/JzYpO4YF59E
+         2oIyG3cTO5ZRsoUSKWlKJZZ/q7bNc7asIsQIgVXj4N7EW8OeDwMattXUkYsr6LEFDwcR
+         RriAiCPhEl7Wgmy7u/ZPxf2po81T2b693/sn57H9pfuaaf2PR2eQJn94C94Q4FeYe+Vr
+         w5KCXLAkxNfCLdVV1ZvkwdR9Dm+coakov8+CdAlqEWcy4f+lYXnfGvKydDuLT1oPNq6z
+         u7DQMlxpSFUJm4V/YdUbVUhZbpktZ4JwvD0ycIid5lEk0kE/yo6tniuPDd+oS5+MXlhi
+         gSBA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=wr8N7Gqcl4MMRyf8WRIQbBkL5v9y+gJ9JOuE0NSZ5VA=;
-        b=tJETPcmbQ9gKJvm7GI0teapeTEnsJ17MSQgU2Oymc9QO9vRnENGqbbzr6QFDuC3Olg
-         8CXTPcdkGkXjxprAPxuweORvmQp8NGsHkyZMqcoKDh1GSOdIQxpglfjhWDVMuav+zewQ
-         XgxFVSvEaa2SPclAuEj98JgtEMHwQlE0C2AQkRsmUrJ0zs77DvOgka/lHED8fdjIOVjv
-         GYhDtqoyn0ZldCcQT5ykqM5RJMJYPBFIf1RfNsSxaI79T5ZRTbN06wl6TXcP7U1GDtwv
-         Gp8ewX6Jcd5P6nOAEJEDGw+0LGUZVhunXOhhsksxgSeGyWU0mPgN6EhDz6bdM+AJtglw
-         WNbw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=YkWr+p+vKLuVNlEdLhOL/tn/V0J5xAeOTfzwbmW2id8=;
+        b=pUQ6wyxvrfr9hcWcY4St1kKrbo3tR3rJeqCCDvI52WevkFoJIWjaEEe/dXUpfu/NI2
+         fNch9xN3EyFgorZQOT+oKHV6QAvBiN4qefBVZpUaOowVO69p8WtH2sRublrZijupvaE6
+         +WE4jSGqk8qz39wFsf+MSE8wOArNk5BPul4Qe7pFtNdnLYtoxx4YIuHyrllJGwIFV0nt
+         XMi7ch0aqZysKn56/KYOJVzquOXjSzL0O6Du2vZBccWIUFNETHOkqGRU8z9ryqWJULhz
+         xutlLv9aDMqcfIcamPYkPivEzFPvX1S3elUiyobBdie/cJylgw1VmcXj/VfvRcwHskmI
+         lOZA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id 72si29919923plb.177.2019.07.31.09.50.59
+       dkim=pass header.i=@android.com header.s=20161025 header.b=cfX4VNn7;
+       spf=pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=salyzyn@android.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=android.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id ca12sor2885175pjb.6.2019.07.31.09.58.11
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 09:50:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        (Google Transport Security);
+        Wed, 31 Jul 2019 09:58:11 -0700 (PDT)
+Received-SPF: pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 31 Jul 2019 09:50:59 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,330,1559545200"; 
-   d="scan'208";a="183752276"
-Received: from ray.jf.intel.com (HELO [10.7.201.140]) ([10.7.201.140])
-  by orsmga002.jf.intel.com with ESMTP; 31 Jul 2019 09:50:58 -0700
-Subject: Re: [PATCH v19 00/15] arm64: untag user pointers passed to the kernel
-To: Andrey Konovalov <andreyknvl@google.com>,
- linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
- dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
- linux-media@vger.kernel.org, kvm@vger.kernel.org,
- linux-kselftest@vger.kernel.org
-Cc: Catalin Marinas <catalin.marinas@arm.com>,
- Vincenzo Frascino <vincenzo.frascino@arm.com>,
- Will Deacon <will.deacon@arm.com>, Mark Rutland <mark.rutland@arm.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
- Kees Cook <keescook@chromium.org>, Yishai Hadas <yishaih@mellanox.com>,
- Felix Kuehling <Felix.Kuehling@amd.com>,
- Alexander Deucher <Alexander.Deucher@amd.com>,
- Christian Koenig <Christian.Koenig@amd.com>,
- Mauro Carvalho Chehab <mchehab@kernel.org>,
- Jens Wiklander <jens.wiklander@linaro.org>,
- Alex Williamson <alex.williamson@redhat.com>,
- Leon Romanovsky <leon@kernel.org>,
- Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
- Dave Martin <Dave.Martin@arm.com>, Khalid Aziz <khalid.aziz@oracle.com>,
- enh <enh@google.com>, Jason Gunthorpe <jgg@ziepe.ca>,
- Christoph Hellwig <hch@infradead.org>, Dmitry Vyukov <dvyukov@google.com>,
- Kostya Serebryany <kcc@google.com>, Evgeniy Stepanov <eugenis@google.com>,
- Lee Smith <Lee.Smith@arm.com>,
- Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
- Jacob Bramley <Jacob.Bramley@arm.com>,
- Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
- Robin Murphy <robin.murphy@arm.com>, Kevin Brodsky <kevin.brodsky@arm.com>,
- Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-References: <cover.1563904656.git.andreyknvl@google.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <8c618cc9-ae68-9769-c5bb-67f1295abc4e@intel.com>
-Date: Wed, 31 Jul 2019 09:50:58 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@android.com header.s=20161025 header.b=cfX4VNn7;
+       spf=pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=salyzyn@android.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=android.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=android.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=YkWr+p+vKLuVNlEdLhOL/tn/V0J5xAeOTfzwbmW2id8=;
+        b=cfX4VNn7i5fVUAJEVA4MBhomWV9u/SiICGvW/8hoXIHAFSEgly0mFbnQ+ACtuwiC3g
+         IpRmu1ckKjW2mFtirOT4pZeZvT2dDPhZMzF32ZvoQFr92hPVsLC2dNO3QsACLmwar0UV
+         QGuSfotvuKuTlqK5sSL0gn6Mhis1cY41gMWMYYlYUWkSVqwTLLDgqF7CYEi0YCD1g00b
+         7XO/I47/oxluNGrRhfkGi6MsDix8d8wmsmYqbtCrJdMXSv2+AjyqFMUYQjA2L9of7CoM
+         8oMQRrlSd8a/C7QbtWiQIXkLjDxq+jhIt0VkS66EI4A6SO7z2CwCPG6R7kaiAWc0Io97
+         PoBw==
+X-Google-Smtp-Source: APXvYqy8vRIpYoYhq+l1XHKOf/Pp65RQkYrvXTYdFcAiznSLIUoJDMNElyzOyLh9v1G4MbxuSIIkEQ==
+X-Received: by 2002:a17:90a:2041:: with SMTP id n59mr3794829pjc.6.1564592291310;
+        Wed, 31 Jul 2019 09:58:11 -0700 (PDT)
+Received: from nebulus.mtv.corp.google.com ([2620:15c:211:200:5404:91ba:59dc:9400])
+        by smtp.gmail.com with ESMTPSA id f72sm2245954pjg.10.2019.07.31.09.58.09
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 31 Jul 2019 09:58:10 -0700 (PDT)
+From: Mark Salyzyn <salyzyn@android.com>
+To: linux-kernel@vger.kernel.org
+Cc: kernel-team@android.com,
+	Mark Salyzyn <salyzyn@android.com>,
+	Miklos Szeredi <miklos@szeredi.hu>,
+	Jonathan Corbet <corbet@lwn.net>,
+	Vivek Goyal <vgoyal@redhat.com>,
+	"Eric W . Biederman" <ebiederm@xmission.com>,
+	Amir Goldstein <amir73il@gmail.com>,
+	Randy Dunlap <rdunlap@infradead.org>,
+	Stephen Smalley <sds@tycho.nsa.gov>,
+	linux-unionfs@vger.kernel.org,
+	linux-doc@vger.kernel.org,
+	Eric Van Hensbergen <ericvh@gmail.com>,
+	Latchesar Ionkov <lucho@ionkov.net>,
+	Dominique Martinet <asmadeus@codewreck.org>,
+	David Howells <dhowells@redhat.com>,
+	Chris Mason <clm@fb.com>,
+	Josef Bacik <josef@toxicpanda.com>,
+	David Sterba <dsterba@suse.com>,
+	Jeff Layton <jlayton@kernel.org>,
+	Sage Weil <sage@redhat.com>,
+	Ilya Dryomov <idryomov@gmail.com>,
+	Steve French <sfrench@samba.org>,
+	Tyler Hicks <tyhicks@canonical.com>,
+	Jan Kara <jack@suse.com>,
+	Theodore Ts'o <tytso@mit.edu>,
+	Andreas Dilger <adilger.kernel@dilger.ca>,
+	Jaegeuk Kim <jaegeuk@kernel.org>,
+	Chao Yu <yuchao0@huawei.com>,
+	Bob Peterson <rpeterso@redhat.com>,
+	Andreas Gruenbacher <agruenba@redhat.com>,
+	David Woodhouse <dwmw2@infradead.org>,
+	Richard Weinberger <richard@nod.at>,
+	Dave Kleikamp <shaggy@kernel.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Tejun Heo <tj@kernel.org>,
+	Trond Myklebust <trond.myklebust@hammerspace.com>,
+	Anna Schumaker <anna.schumaker@netapp.com>,
+	Mark Fasheh <mark@fasheh.com>,
+	Joel Becker <jlbec@evilplan.org>,
+	Joseph Qi <joseph.qi@linux.alibaba.com>,
+	Mike Marshall <hubcap@omnibond.com>,
+	Martin Brandenburg <martin@omnibond.com>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	Phillip Lougher <phillip@squashfs.org.uk>,
+	"Darrick J . Wong" <darrick.wong@oracle.com>,
+	linux-xfs@vger.kernel.org,
+	Hugh Dickins <hughd@google.com>,
+	"David S . Miller" <davem@davemloft.net>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mathieu Malaterre <malat@debian.org>,
+	=?UTF-8?q?Ernesto=20A=20=2E=20Fern=C3=A1ndez?= <ernesto.mnd.fernandez@gmail.com>,
+	Vyacheslav Dubeyko <slava@dubeyko.com>,
+	v9fs-developer@lists.sourceforge.net,
+	linux-afs@lists.infradead.org,
+	linux-btrfs@vger.kernel.org,
+	ceph-devel@vger.kernel.org,
+	linux-cifs@vger.kernel.org,
+	samba-technical@lists.samba.org,
+	ecryptfs@vger.kernel.org,
+	linux-ext4@vger.kernel.org,
+	linux-f2fs-devel@lists.sourceforge.net,
+	linux-fsdevel@vger.kernel.org,
+	cluster-devel@redhat.com,
+	linux-mtd@lists.infradead.org,
+	jfs-discussion@lists.sourceforge.net,
+	linux-nfs@vger.kernel.org,
+	ocfs2-devel@oss.oracle.com,
+	devel@lists.orangefs.org,
+	reiserfs-devel@vger.kernel.org,
+	linux-mm@kvack.org,
+	netdev@vger.kernel.org,
+	linux-security-module@vger.kernel.org,
+	stable@vger.kernel.org
+Subject: [PATCH v13 0/5] overlayfs override_creds=off
+Date: Wed, 31 Jul 2019 09:57:55 -0700
+Message-Id: <20190731165803.4755-1-salyzyn@android.com>
+X-Mailer: git-send-email 2.22.0.770.g0f2c4a37fd-goog
 MIME-Version: 1.0
-In-Reply-To: <cover.1563904656.git.andreyknvl@google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/23/19 10:58 AM, Andrey Konovalov wrote:
-> The mmap and mremap (only new_addr) syscalls do not currently accept
-> tagged addresses. Architectures may interpret the tag as a background
-> colour for the corresponding vma.
+Patch series:
 
-What the heck is a "background colour"? :)
+overlayfs: check CAP_DAC_READ_SEARCH before issuing exportfs_decode_fh
+Add flags option to get xattr method paired to __vfs_getxattr
+overlayfs: handle XATTR_NOSECURITY flag for get xattr method
+overlayfs: internal getxattr operations without sepolicy checking
+overlayfs: override_creds=off option bypass creator_cred
+
+The first four patches address fundamental security issues that should
+be solved regardless of the override_creds=off feature.
+on them).
+
+The fifth adds the feature depends on these other fixes.
+
+By default, all access to the upper, lower and work directories is the
+recorded mounter's MAC and DAC credentials.  The incoming accesses are
+checked against the caller's credentials.
+
+If the principles of least privilege are applied for sepolicy, the
+mounter's credentials might not overlap the credentials of the caller's
+when accessing the overlayfs filesystem.  For example, a file that a
+lower DAC privileged caller can execute, is MAC denied to the
+generally higher DAC privileged mounter, to prevent an attack vector.
+
+We add the option to turn off override_creds in the mount options; all
+subsequent operations after mount on the filesystem will be only the
+caller's credentials.  The module boolean parameter and mount option
+override_creds is also added as a presence check for this "feature",
+existence of /sys/module/overlay/parameters/overlay_creds
+
+Signed-off-by: Mark Salyzyn <salyzyn@android.com>
+Cc: Miklos Szeredi <miklos@szeredi.hu>
+Cc: Jonathan Corbet <corbet@lwn.net>
+Cc: Vivek Goyal <vgoyal@redhat.com>
+Cc: Eric W. Biederman <ebiederm@xmission.com>
+Cc: Amir Goldstein <amir73il@gmail.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>
+Cc: Stephen Smalley <sds@tycho.nsa.gov>
+Cc: linux-unionfs@vger.kernel.org
+Cc: linux-doc@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org
+Cc: Eric Van Hensbergen <ericvh@gmail.com>
+Cc: Latchesar Ionkov <lucho@ionkov.net>
+Cc: Dominique Martinet <asmadeus@codewreck.org>
+Cc: David Howells <dhowells@redhat.com>
+Cc: Chris Mason <clm@fb.com>
+Cc: Josef Bacik <josef@toxicpanda.com>
+Cc: David Sterba <dsterba@suse.com>
+Cc: Jeff Layton <jlayton@kernel.org>
+Cc: Sage Weil <sage@redhat.com>
+Cc: Ilya Dryomov <idryomov@gmail.com>
+Cc: Steve French <sfrench@samba.org>
+Cc: Tyler Hicks <tyhicks@canonical.com>
+Cc: Jan Kara <jack@suse.com>
+Cc: Theodore Ts'o <tytso@mit.edu>
+Cc: Andreas Dilger <adilger.kernel@dilger.ca>
+Cc: Jaegeuk Kim <jaegeuk@kernel.org>
+Cc: Chao Yu <yuchao0@huawei.com>
+Cc: Bob Peterson <rpeterso@redhat.com>
+Cc: Andreas Gruenbacher <agruenba@redhat.com>
+Cc: David Woodhouse <dwmw2@infradead.org>
+Cc: Richard Weinberger <richard@nod.at>
+Cc: Dave Kleikamp <shaggy@kernel.org>
+Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+Cc: Tejun Heo <tj@kernel.org>
+Cc: Trond Myklebust <trond.myklebust@hammerspace.com>
+Cc: Anna Schumaker <anna.schumaker@netapp.com>
+Cc: Mark Fasheh <mark@fasheh.com>
+Cc: Joel Becker <jlbec@evilplan.org>
+Cc: Joseph Qi <joseph.qi@linux.alibaba.com>
+Cc: Mike Marshall <hubcap@omnibond.com>
+Cc: Martin Brandenburg <martin@omnibond.com>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>
+Cc: Phillip Lougher <phillip@squashfs.org.uk>
+Cc: Darrick J. Wong <darrick.wong@oracle.com>
+Cc: linux-xfs@vger.kernel.org
+Cc: Hugh Dickins <hughd@google.com>
+Cc: David S. Miller <davem@davemloft.net>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mathieu Malaterre <malat@debian.org>
+Cc: Ernesto A. Fernández <ernesto.mnd.fernandez@gmail.com>
+Cc: Vyacheslav Dubeyko <slava@dubeyko.com>
+Cc: v9fs-developer@lists.sourceforge.net
+Cc: linux-afs@lists.infradead.org
+Cc: linux-btrfs@vger.kernel.org
+Cc: ceph-devel@vger.kernel.org
+Cc: linux-cifs@vger.kernel.org
+Cc: samba-technical@lists.samba.org
+Cc: ecryptfs@vger.kernel.org
+Cc: linux-ext4@vger.kernel.org
+Cc: linux-f2fs-devel@lists.sourceforge.net
+Cc: linux-fsdevel@vger.kernel.org
+Cc: cluster-devel@redhat.com
+Cc: linux-mtd@lists.infradead.org
+Cc: jfs-discussion@lists.sourceforge.net
+Cc: linux-nfs@vger.kernel.org
+Cc: ocfs2-devel@oss.oracle.com
+Cc: devel@lists.orangefs.org
+Cc: reiserfs-devel@vger.kernel.org
+Cc: linux-mm@kvack.org
+Cc: netdev@vger.kernel.org
+Cc: linux-security-module@vger.kernel.org
+Cc: stable@vger.kernel.org # 4.4, 4.9, 4.14 & 4.19
+---
+v13:
+- add flags argument to __vfs_getxattr
+- drop GFP_NOFS side-effect
+
+v12:
+- Restore squished out patch 2 and 3 in the series,
+  then change algorithm to add flags argument.
+  Per-thread flag is a large security surface.
+
+v11:
+- Squish out v10 introduced patch 2 and 3 in the series,
+  then and use per-thread flag instead for nesting.
+- Switch name to ovl_do_vds_getxattr for __vds_getxattr wrapper.
+- Add sb argument to ovl_revert_creds to match future work.
+
+v10:
+- Return NULL on CAP_DAC_READ_SEARCH
+- Add __get xattr method to solve sepolicy logging issue
+- Drop unnecessary sys_admin sepolicy checking for administrative
+  driver internal xattr functions.
+
+v6:
+- Drop CONFIG_OVERLAY_FS_OVERRIDE_CREDS.
+- Do better with the documentation, drop rationalizations.
+- pr_warn message adjusted to report consequences.
+
+v5:
+- beefed up the caveats in the Documentation
+- Is dependent on
+  "overlayfs: check CAP_DAC_READ_SEARCH before issuing exportfs_decode_fh"
+  "overlayfs: check CAP_MKNOD before issuing vfs_whiteout"
+- Added prwarn when override_creds=off
+
+v4:
+- spelling and grammar errors in text
+
+v3:
+- Change name from caller_credentials / creator_credentials to the
+  boolean override_creds.
+- Changed from creator to mounter credentials.
+- Updated and fortified the documentation.
+- Added CONFIG_OVERLAY_FS_OVERRIDE_CREDS
+
+v2:
+- Forward port changed attr to stat, resulting in a build error.
+- altered commit message.
 
