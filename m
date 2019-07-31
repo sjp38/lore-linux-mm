@@ -2,196 +2,175 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DB07C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:02:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 73630C433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:05:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C34E821851
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:02:27 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="L5UQjTDS"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C34E821851
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id 042A921851
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:05:06 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 042A921851
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4F1868E0003; Wed, 31 Jul 2019 13:02:27 -0400 (EDT)
+	id 90D3B8E0005; Wed, 31 Jul 2019 13:05:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4A0F38E0001; Wed, 31 Jul 2019 13:02:27 -0400 (EDT)
+	id 8BDB48E0001; Wed, 31 Jul 2019 13:05:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 342318E0003; Wed, 31 Jul 2019 13:02:27 -0400 (EDT)
+	id 7AD7C8E0005; Wed, 31 Jul 2019 13:05:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id DC5238E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:02:26 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id c31so42854522ede.5
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 10:02:26 -0700 (PDT)
+Received: from mail-lj1-f199.google.com (mail-lj1-f199.google.com [209.85.208.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 15E098E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:05:06 -0400 (EDT)
+Received: by mail-lj1-f199.google.com with SMTP id c18so14998864lji.19
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 10:05:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=h66GYamRh5h8PU3T095hhzCj9UAlrpEZrkJYNRToWEw=;
-        b=qr7u/WJMys41xHCbugZWAnPMV10J/tzoqI/3TNO17skt6+v6JALQtj6YmAA1qWgR6l
-         e2VtrO9Z++zN29zfcigV3VRJlCfwZfzxUEBB2Fq2YIGSKMrRvBeGdhxuypbphnDf9jPe
-         9+U5Rqqyq5oa++GJFB0DgH4ToiXshbdmL4zwa+hKdR0hRrnshXxsUpRIM5qNrbg+M1Rp
-         rYugxWdWp380pz+dzT00ZNH1NvtkTp8U7VufRLRamxNpYiPRfEChhw18MN10XAaDFplJ
-         i+NCvE31krQaz7AGJ+HDMHWm97AvBaCCvcbTUngkHyrAP7vI8sSEY54aQlb/vqS9k67B
-         KhgA==
-X-Gm-Message-State: APjAAAV1g3rzyVcYo3ovAZVU10fftK29wDB5NBo1U4xB63pz/r2rUPZi
-	VmxrdPLF2D+KNJiwEjpxFzqlZumtG9NgMbU9CtQnD98OZBsGjXjoeE/v3adMZjJGm5pP0f3hjsS
-	aoSEonRJL9w/8b0gCqQNrKmVjvEZdM+nFgzeCp6BYR1ZT0wQTsTO+TQyXVPqOr3OxhA==
-X-Received: by 2002:aa7:c49a:: with SMTP id m26mr111120860edq.0.1564592546472;
-        Wed, 31 Jul 2019 10:02:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxYSK9OqkrgID+Jis2bBR0VmtQZ94qg/X6Tde0F+Y5dtq6Iw1CP70R4w96RXk6WJzH5KpJa
-X-Received: by 2002:aa7:c49a:: with SMTP id m26mr111120781edq.0.1564592545839;
-        Wed, 31 Jul 2019 10:02:25 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1564592545; cv=pass;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=gLsZksY+gBpgTVjGj1ZFUu3CK/yOt5FqgBnNEXrwvKg=;
+        b=c8S6u26BruvWYiNqqGpVYiNS2zv+v/U2z3lLapdQ2ZPY3Htu5c/idH/nxkNI64Nr9y
+         /K4CcPuLQpkRyoaNOH1b0sYA/9HvETz+kz02VvtMh9GA0pBagwZ+ykDDoytfGpJadCug
+         6blVrdEFey5buclfUiwDpmfU9ctTpIcU72l7KrM3aI7wl8Uwmy55AwZyQqd2ClHIR5H3
+         Yzklk92p00f4Sqc8XX3Q8vS1Rhdl7wNMiSUdBjDmX13nPM1rS+e/jBd0OpxdUSPVWuta
+         8dYNEx06QqtRmX2NIJUlq3luttKIb00KY43aMXkBy7YvDf/JY9oaCV20EgJEuiCDW5Z6
+         m5wA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+X-Gm-Message-State: APjAAAXVTXznIhLTk+fv86X0TzHZSURZC2JYsbzXE9NNO9QKkcTXmtI+
+	w/18jutrkq9tGszExbDbjDcACjELm4EEpcAo4afmFvgjztjKffZDlBH14R/1bji2Ux2N4a4WSjx
+	viOTAoXIIAokF0ahE/ojrBevcTZB/Txzkvb6jjEwqlAu9uns3wisyphAY+x4a0p3TSQ==
+X-Received: by 2002:a2e:86c3:: with SMTP id n3mr22930412ljj.129.1564592705329;
+        Wed, 31 Jul 2019 10:05:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyPmlyC92GXBN/aWjQzJ/w8KvvxQJ+9IpO/bXhrHFTO3GiHmI/zOqaUSKVkAIuTJb03F30S
+X-Received: by 2002:a2e:86c3:: with SMTP id n3mr22930361ljj.129.1564592704264;
+        Wed, 31 Jul 2019 10:05:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564592704; cv=none;
         d=google.com; s=arc-20160816;
-        b=xk/G9aIKFdZSiRte6XpZT1ShVIL1SLevul9gS05GeGNyBXtIROzqRHqtNNh5EpaXZ0
-         5TwFThukbv9LkiIMXucnOS2VOzfaTZ+wSvisK+dlqQCn1ccfJMU/f8dFJQC0hPlyliFb
-         o7dIA1ZreMbk/MGtbCMw2i67JaxBlCgzDlXIK3BU8vNHJhoe7t7cuc5TvGRcyKuJVAjj
-         6XMotPkjkEHhFnTjj877i1JKeBng7Stb5uPYHyI1TMDZQ7lhH0KLV60K0anI4C+nnr67
-         3CovF1vdLmx2BMA2Vb4JVZqGKZV56hchCKadi7qpAw+ZIUaVMmf8hec0cgAFRWl9e7KH
-         9KGw==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=h66GYamRh5h8PU3T095hhzCj9UAlrpEZrkJYNRToWEw=;
-        b=Mbt6VEK5s3gr1YPSxea1GvPbN85Pd3KG4uABfc4BT2d9N+x1BKY/x3mF3/vWvSoaNh
-         boGpOYYEiYNBS+AZ/sib9ORbV7Y/oGEg41bpHHzquViOqVJEUoWIbkTQ/Y1JjG9B48rc
-         DykSkbSPZj6/89T7b8qtEmC3aazmsuyYoubOl+4j3zGMHCUBpcO6d1MgLllFfwLOQVP8
-         sXIO6tkdkJuXPuDOoORbTcTEcaqQGvn664g4nGugKjkt6Am/E79bKPN3LsE6yquCwXoW
-         MrOOjeJmAmrD8OfGpdf7MJZA4U/B+92WtLxDPpc0gpGNnzcgN5QI+2V+DXtpB55n1yz2
-         yOlg==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=L5UQjTDS;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.7.89 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR04-HE1-obe.outbound.protection.outlook.com (mail-eopbgr70089.outbound.protection.outlook.com. [40.107.7.89])
-        by mx.google.com with ESMTPS id t4si18808169ejs.337.2019.07.31.10.02.25
+        b=0ql7/9H8vMWyTlFao/Ad8KnCVwpUEYT3r5t7zWq1TPt3CPBtDGrDpSIkj8N25Ar17K
+         vP/wmkI1pmGPR84yzJL/PXKsZK7izaCj/cHjrUVJTdu5jEki8ne70CP9XiKt2FknH2fE
+         Rug7PH9YmC7o0RaMY/hH/hlrkvLeLM57HrmGAs9VnROIcCmMa+7HHSobyXH42BdVg61m
+         jihnN3JrCYIWq1B1UGB0yt6Ptg9Lnzbvd4dn8i0bGyi20uwwDRUEYpTjx/kbEGGm8u8Y
+         VWkfB2Mhnf/QJ7uoj2ZNqwiDsG+0xvVH/hYv1kAu82UWfcKNH/Roxb4RzJvzeezLNcn5
+         M41w==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=gLsZksY+gBpgTVjGj1ZFUu3CK/yOt5FqgBnNEXrwvKg=;
+        b=MtZMLttdgg4LiyZg3qYMGZgzaBdDq6IGmrRBsGMptvTgTPLJkKZjanX5zMIYCUSOD0
+         CQW9cn7nhG07V3PQTJicBeVwmjg6PBOGWMtRbzIhza8oWmxR3txGwlDBneNcWgA4/Oo4
+         9a+zQnfKjGP7aEwaxXTweANs4ykf/15TO/efs4ZlWU+xvZNna10cU2P0UNgnYccKeQMB
+         1ZRtiEMbbnOyHMihY8yQYdjHiU/jGPKa630MIjlVCtJV9OSpRaDjr7dtwnyDA1iRC6U8
+         ON+10r7Kr9RRjTnf1hPLT4P43sIYfOPtRbbOADTgx8TKBkapKwXdTl9S0hwgxMHH46i1
+         y73A==
+ARC-Authentication-Results: i=1; mx.google.com;
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from relay.sw.ru (relay.sw.ru. [185.231.240.75])
+        by mx.google.com with ESMTPS id 25si63141704ljs.122.2019.07.31.10.05.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 10:02:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.7.89 as permitted sender) client-ip=40.107.7.89;
+        Wed, 31 Jul 2019 10:05:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) client-ip=185.231.240.75;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=L5UQjTDS;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.7.89 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=fOXT2KUTfxcPvEMCppPXk2wrMj4BZLasKl0MVTzmNI0fkSjLV66M4uEv4krqsabdQDAjj/97Yq17EVEK1CYwucARO5gIJ8n49ieAhWP84LKaiJXcCQuzJR2yUnt1e8yP8sAwa7oVw4aMqLe84HOk7VQrTvm3gGJdXNzMc/W56FObR+HJ9D8hv4Qey2bPXSJmcFVGjUXd2Z5LR4WCqHcDwlr89wMcx6SvIx5WIiWdqZdZdFf7rVeBTOniH9u2pzNo7r02r6//ESGNRHeNrfPnix8l/pazfCnh6Ivg6dPk76aksMhEYb2i/t9gJJ7O1u762oYwKhwdbDrus5mfExRACw==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=h66GYamRh5h8PU3T095hhzCj9UAlrpEZrkJYNRToWEw=;
- b=XwwlJYgAJQ4rZvYxgaUjCaHIM3BgbPeo8fO7H8WknkiiXp6hPzMXD+HBG0xTmdt5pD5/tsUT6PEoJqkKChPfD7QtMM3203BxKoiY+J5ljyjUjfNrmfwKXb7PV/kZbVW1BRyAWbM0QyMJbIlPAY2LCyM7KY5ioZb9MM5wNwt7HLSIOc+06lDgWhuag9DToWEsnafL8alrqHyG7sa7XCcwarWyTLzgos3EnWmjkG+BLz+BXoWnJ7Jh+/ptHMdFsbqC5fo0/L1D/EhC/OUgSg3pxO/BsTF3mutzY9Cyo6Gx9ZIikl3Ao5OXK5S82QOPRhYmts1cCdJz1dK3+M2ovDYY0A==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=mellanox.com;dmarc=pass action=none
- header.from=mellanox.com;dkim=pass header.d=mellanox.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=h66GYamRh5h8PU3T095hhzCj9UAlrpEZrkJYNRToWEw=;
- b=L5UQjTDS1konX8ry82cmnIKY6y4buSB33dhb+3UGmgB1jB4Vg1G2ZhzCOwrInofPuCtPO3GvfZL63BtlB/3W59RYqZg0AT9ehbXxTjjCeTwybV7EXAQ6AWY+31P8WpQYtN4KeeuCQ4x6NJpluZzswU0VAXr0RZuQgyYmgdREKs0=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB3231.eurprd05.prod.outlook.com (10.170.238.12) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2115.15; Wed, 31 Jul 2019 17:02:24 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880%4]) with mapi id 15.20.2136.010; Wed, 31 Jul 2019
- 17:02:24 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: "Kuehling, Felix" <Felix.Kuehling@amd.com>
-CC: Christoph Hellwig <hch@lst.de>, =?iso-8859-1?Q?J=E9r=F4me_Glisse?=
-	<jglisse@redhat.com>, Ben Skeggs <bskeggs@redhat.com>, Ralph Campbell
-	<rcampbell@nvidia.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 02/13] amdgpu: don't initialize range->list in
- amdgpu_hmm_init_range
-Thread-Topic: [PATCH 02/13] amdgpu: don't initialize range->list in
- amdgpu_hmm_init_range
-Thread-Index: AQHVRpr2/Xz4jNPu6k2DNRcwdQGPdqbkuYYAgAA8sIA=
-Date: Wed, 31 Jul 2019 17:02:24 +0000
-Message-ID: <20190731170219.GG22677@mellanox.com>
-References: <20190730055203.28467-1-hch@lst.de>
- <20190730055203.28467-3-hch@lst.de>
- <a4586f5c-0ae4-8cbd-65ff-dfe70d34f99b@amd.com>
-In-Reply-To: <a4586f5c-0ae4-8cbd-65ff-dfe70d34f99b@amd.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YQBPR0101CA0071.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:c00:1::48) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: e18b437b-1d80-4064-93a4-08d715d8dbb1
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB3231;
-x-ms-traffictypediagnostic: VI1PR05MB3231:
-x-microsoft-antispam-prvs:
- <VI1PR05MB3231B23EE08859787CFF93EECFDF0@VI1PR05MB3231.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:9508;
-x-forefront-prvs: 011579F31F
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(396003)(39860400002)(366004)(376002)(346002)(136003)(189003)(199004)(6512007)(478600001)(66556008)(6916009)(6436002)(11346002)(14454004)(229853002)(446003)(256004)(7416002)(6116002)(3846002)(54906003)(53936002)(305945005)(36756003)(86362001)(316002)(486006)(2906002)(476003)(2616005)(66066001)(33656002)(4744005)(81156014)(8676002)(102836004)(26005)(6506007)(66446008)(71200400001)(1076003)(53546011)(386003)(6486002)(81166006)(4326008)(99286004)(6246003)(52116002)(76176011)(68736007)(66476007)(64756008)(66946007)(25786009)(5660300002)(71190400001)(8936002)(186003)(7736002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB3231;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- XvANRZ0wSiwaYImTi/Xr3Vcjvyb3jUZ9kXGpIMAMliLL6nh88DIR9Yh1Zop+BRn/H8Ent1VUnvJsbHWZ2M6wXZBC7utyFXLbpNkbuXcvSREmn69Vjgy9PZoVRZvZjJmGYQy96YC/pPe6eAJXl63HvODgzwUjaz2yy2i2kJea4byM3/AV8p0T+OYwG+WYSIWwJbqWlF6x2pX7NEku1uagH3ZhYaovCn0XJ8Ng0oOvKn9KUrtJRtcyB1WmZKjyFlGGb34I0aa3oYIex22SOsO3C+cC0zOnj089fsi3t9ySZu9jjRa/qEgBWRhE9fLEGuDenzxZOuM4FPdDyp6B3gAm7cXxSg5Kfjb+gyNtPrlWEuFUQBS45zRynPfUGNRudHAY6IhgLvaZjl8nqJltfM/1+bgV7RLjNuiYlQZL8IdecDA=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <FAC49FFA8B421F49B49EF44701A00263@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of aryabinin@virtuozzo.com designates 185.231.240.75 as permitted sender) smtp.mailfrom=aryabinin@virtuozzo.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
+Received: from [172.16.25.12]
+	by relay.sw.ru with esmtp (Exim 4.92)
+	(envelope-from <aryabinin@virtuozzo.com>)
+	id 1hss1z-0001ux-M2; Wed, 31 Jul 2019 20:04:51 +0300
+Subject: Re: [PATCH v3] kasan: add memory corruption identification for
+ software tag-based mode
+To: Walter Wu <walter-zh.wu@mediatek.com>
+Cc: Dmitry Vyukov <dvyukov@google.com>,
+ Alexander Potapenko <glider@google.com>, Christoph Lameter <cl@linux.com>,
+ Pekka Enberg <penberg@kernel.org>, David Rientjes <rientjes@google.com>,
+ Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+ Matthias Brugger <matthias.bgg@gmail.com>,
+ Martin Schwidefsky <schwidefsky@de.ibm.com>, Arnd Bergmann <arnd@arndb.de>,
+ Vasily Gorbik <gor@linux.ibm.com>, Andrey Konovalov <andreyknvl@google.com>,
+ "Jason A . Donenfeld" <Jason@zx2c4.com>, Miles Chen
+ <miles.chen@mediatek.com>, kasan-dev <kasan-dev@googlegroups.com>,
+ LKML <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+ Linux ARM <linux-arm-kernel@lists.infradead.org>,
+ linux-mediatek@lists.infradead.org, wsd_upstream <wsd_upstream@mediatek.com>
+References: <20190613081357.1360-1-walter-zh.wu@mediatek.com>
+ <da7591c9-660d-d380-d59e-6d70b39eaa6b@virtuozzo.com>
+ <1560447999.15814.15.camel@mtksdccf07> <1560479520.15814.34.camel@mtksdccf07>
+ <1560744017.15814.49.camel@mtksdccf07>
+ <CACT4Y+Y3uS59rXf92ByQuFK_G4v0H8NNnCY1tCbr4V+PaZF3ag@mail.gmail.com>
+ <1560774735.15814.54.camel@mtksdccf07> <1561974995.18866.1.camel@mtksdccf07>
+ <CACT4Y+aMXTBE0uVkeZz+MuPx3X1nESSBncgkScWvAkciAxP1RA@mail.gmail.com>
+ <ebc99ee1-716b-0b18-66ab-4e93de02ce50@virtuozzo.com>
+ <1562640832.9077.32.camel@mtksdccf07>
+ <d9fd1d5b-9516-b9b9-0670-a1885e79f278@virtuozzo.com>
+ <1562839579.5846.12.camel@mtksdccf07>
+ <37897fb7-88c1-859a-dfcc-0a5e89a642e0@virtuozzo.com>
+ <1563160001.4793.4.camel@mtksdccf07>
+ <9ab1871a-2605-ab34-3fd3-4b44a0e17ab7@virtuozzo.com>
+ <1563789162.31223.3.camel@mtksdccf07>
+ <e62da62a-2a63-3a1c-faeb-9c5561a5170c@virtuozzo.com>
+ <1564144097.515.3.camel@mtksdccf07>
+ <71df2bd5-7bc8-2c82-ee31-3f68c3b6296d@virtuozzo.com>
+ <1564147164.515.10.camel@mtksdccf07>
+From: Andrey Ryabinin <aryabinin@virtuozzo.com>
+Message-ID: <f29ee964-cf12-1b5d-e570-1d5baa49a580@virtuozzo.com>
+Date: Wed, 31 Jul 2019 20:04:59 +0300
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: e18b437b-1d80-4064-93a4-08d715d8dbb1
-X-MS-Exchange-CrossTenant-originalarrivaltime: 31 Jul 2019 17:02:24.1750
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB3231
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000001, version=1.2.4
+In-Reply-To: <1564147164.515.10.camel@mtksdccf07>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 31, 2019 at 01:25:06PM +0000, Kuehling, Felix wrote:
-> On 2019-07-30 1:51 a.m., Christoph Hellwig wrote:
-> > The list is used to add the range to another list as an entry in the
-> > core hmm code, so there is no need to initialize it in a driver.
->=20
-> I've seen code that uses list_empty to check whether a list head has=20
-> been added to a list or not. For that to work, the list head needs to be=
-=20
-> initialized, and it has to be removed with list_del_init.=20
 
-I think the ida is that 'list' is a private member of range and
-drivers shouldn't touch it at all.
 
-> ever do that with range->list, then this patch is Reviewed-by: Felix=20
-> Kuehling <Felix.Kuehling@amd.com>
+On 7/26/19 4:19 PM, Walter Wu wrote:
+> On Fri, 2019-07-26 at 15:52 +0300, Andrey Ryabinin wrote:
+>>
+>> On 7/26/19 3:28 PM, Walter Wu wrote:
+>>> On Fri, 2019-07-26 at 15:00 +0300, Andrey Ryabinin wrote:
+>>>>
+>>>
+>>>>>
+>>>>>
+>>>>> I remember that there are already the lists which you concern. Maybe we
+>>>>> can try to solve those problems one by one.
+>>>>>
+>>>>> 1. deadlock issue? cause by kmalloc() after kfree()?
+>>>>
+>>>> smp_call_on_cpu()
+>>>
+>>>>> 2. decrease allocation fail, to modify GFP_NOWAIT flag to GFP_KERNEL?
+>>>>
+>>>> No, this is not gonna work. Ideally we shouldn't have any allocations there.
+>>>> It's not reliable and it hurts performance.
+>>>>
+>>> I dont know this meaning, we need create a qobject and put into
+>>> quarantine, so may need to call kmem_cache_alloc(), would you agree this
+>>> action?
+>>>
+>>
+>> How is this any different from what you have now?
+> 
+> I originally thought you already agreed the free-list(tag-based
+> quarantine) after fix those issue. If no allocation there,
 
-Please put tags on their own empty line so that patchworks will
-collect them automatically..
+If no allocation there, than it must be somewhere else.
+We known exactly the amount of memory we need, so it's possible to preallocate it in advance.
 
-Jason
+
+> i think maybe
+> only move generic quarantine into tag-based kasan, but its memory
+> consumption is more bigger our patch. what do you think?
+> 
 
