@@ -2,209 +2,221 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D5AE0C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:18:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 17CECC32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:23:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9753B20693
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:18:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9753B20693
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id BCBF7208C3
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:23:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BCBF7208C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3C4538E0006; Wed, 31 Jul 2019 09:18:46 -0400 (EDT)
+	id 5BB228E0003; Wed, 31 Jul 2019 09:23:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3750A8E0001; Wed, 31 Jul 2019 09:18:46 -0400 (EDT)
+	id 56C5C8E0001; Wed, 31 Jul 2019 09:23:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 23BF38E0006; Wed, 31 Jul 2019 09:18:46 -0400 (EDT)
+	id 40DE88E0003; Wed, 31 Jul 2019 09:23:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 01D908E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:18:46 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id x1so61633942qts.9
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 06:18:45 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E502C8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:23:53 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b12so42349458ede.23
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 06:23:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=+dYu4k4sj2S4o8WEn/qNZ0LA7gV+05GO5+Qic7nxvPY=;
-        b=r7ComEnWAdCcRpOtqYOgzLbA3OfJZvi37LUkQJX+tqSqW00NbvPWN9+z2iXx2P10K8
-         bO8oIyaUpes5eaPhyQ6zwiHV2e0XRw+j894QI5bMWcuDzmNJuGqp2Te4/35I6HQt+TEY
-         izZPmblsjLXY4jHd/g862Wie9eVWJpDLJPXg6gwDge2inG90MuBRrunUbBdC5lB/m/I9
-         KTCnA3BIoJGIt78SglhafjR/Li9EpIMN/9RYPWAhKhUj9lqLHZntQ4Y3Da9/5vqJKIP5
-         CIq24cYCjNE/RAB5FGaUtD2f88R4jJ3fd8QMjpdnX2F3pltokWFRNkLUL8suF1pyRyVI
-         rvlg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUhbPOt+v2pnszZ3rEPeubhsH0rERvc8ncav2VMIGUB2sVMXwsR
-	HqXv7RzdHtdVw8ns180e1C9dZj06Nt2xY+kROeuLkbSe4qUJaYjKUmrVz8ewoRDF3/CxqVxeb1c
-	ey/0N2r6SyrJDItLxLzlJ9qiaFTSCYiQfqhKrrDfd7M0opAbB/GCrcJupl2nmb0tftw==
-X-Received: by 2002:ac8:2d6e:: with SMTP id o43mr83890663qta.195.1564579125781;
-        Wed, 31 Jul 2019 06:18:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyC7j7NZFnfSYzU1yobyZpkp3AsVIv/eT6jIgeUYpxYXFZDgHWKs3l2ITZiOsS/m3frd4xu
-X-Received: by 2002:ac8:2d6e:: with SMTP id o43mr83890620qta.195.1564579125288;
-        Wed, 31 Jul 2019 06:18:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564579125; cv=none;
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=r+9YjRzKAoDDNjTcVwt+BxUknqmdF55iA+1SdxYntQY=;
+        b=MPcwhqIutItJ9pWRo8ZaqZdIinrVw33PwzqEwhBVGv3aauXjd9Pc5XC1Dw4jc6cynA
+         gIDGwzk/Q3AOoV3+z5WDhC02S08sqAC0KdQLIplBmClGhsms0v+1ZCETQKqLeDvHXRCm
+         qPWAjUp3TAParcCqQpMR7kYM0cIRGsptgByjHuOutKkzhotMaNLEzTb6iI4JpyI9eBXR
+         qFlF9QUnrC/i+7geYkZRU7vjbXaT2qqkITz/YeN8C5MZxNyRv86TfHwEcykmafu4beC3
+         /UVeDy5VmdgUqInpGNxZhpT/z7jpy9i34JSZJOWvjBNC8ZHbvlx14wj8MJTo7U5YgTd+
+         MWgA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAV81r/SKtB8fSRnkxahY76iAqITDWh+AC62fp49plfpyapw8lgW
+	vxsxUbYJJh2joQCQy8zA59My/eGqGFTfn46wETr/j/xiSjoXZinHtL1IjseB+UCEnMJ+MPE168/
+	ZHuVQq79hxU6XkSHfLpPwwtzNkNKIKoKuj0tXXtieMT+y4BqKqKA2H+HsxcmdqpIZ0g==
+X-Received: by 2002:a17:906:9149:: with SMTP id y9mr91537828ejw.98.1564579433448;
+        Wed, 31 Jul 2019 06:23:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy4jgXuS9OZFKG+UTvC53eUwTF4euNS2E9BwZBi0fMLQbHr0vBfcxgQUUCwU5baAj2uqejA
+X-Received: by 2002:a17:906:9149:: with SMTP id y9mr91537783ejw.98.1564579432677;
+        Wed, 31 Jul 2019 06:23:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564579432; cv=none;
         d=google.com; s=arc-20160816;
-        b=jUU/CpA0uxg/WfKjrZaGgZb+T3JmF2fNkXIlNUsmttJkBv5SfJAeA2YE+P9hoCZWbt
-         KjIjktq1zl0PYR+4GhMFIAX9iOy8TTDmutxsv3hqUPK3EqMiqmOV61XTWYt7p1UkM7PK
-         qErqTAAvZ2WylQTRrV0eqZHTBdR7nfYpA12VEiq4tc0X8llPFR1tXZPmq8VdbiKuRq5h
-         4z8HFUYuvpa+O7aio7nAhhSsmROxku4U5f5mGCEoph3WTo6MoeBtiMpY4v8yMzm8P3zZ
-         OCp3bOoq+AtmXKfHHfGBES2G3OJAGHI9/aFBmIanp6Uo/gjdoSrCR2h/xtIZgCM+NlLF
-         s+Uw==
+        b=uJ3Y//5p7IpFDoq+ALZ7xOmLyMGYH++8moQyLNtDvoat6Wr1/UGhjmSa0FphQBy2xJ
+         0jchQcF3yj92mutrwh1wcK9VKIl31QRUvHrCqRh1Dc3+L/4/fVHJcQ7UnjHG8fgVuc5t
+         EuywYD7xv5lh1cCK88e6ecfy+tepuYqJU3pFI+5GWqNj6TUSRikRNWe99Gvlc0NYvwZB
+         sMimZc6UPGCvYnyhhrh/L4r2FWEBcY9x7vtIvbe2MMXkXmSZvSiH567m7GuqlmA9QzLa
+         8c2ogI899aO0el6/IvIKEOimgP1InCzYw3EALyrWaImu5d0lcUvvCP/aFplOyUCX5oHs
+         h0Ag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=+dYu4k4sj2S4o8WEn/qNZ0LA7gV+05GO5+Qic7nxvPY=;
-        b=JSh15gHso9zXWNHhoN58czpbtCRadDztzwdsUSVyzJ/J/C0IpI/r/CjRj5HsDnv3rt
-         ncw55++h9YaxoLwU9FI93sl1hvdvuCJDE43A9LmRZT+gU38lWmy30wdh+PporF2r+hP9
-         hS/hSOVkxSEy77Jz0nekCzyIH0gUciNNaN9KnUt1eUzq7G/GZz/bGBzeJtNgzr7gkAbY
-         R3sY0b222iuqC9032dQkIgQ6qBpddXXikVr4c88qZyPddhC4JLNYIULkRMjqA2ZfoDK6
-         mvw5NbjpBoqoI9GGI6aZiy5HOh6jpOb8NP++YFaAHYD1Mfm+41sJJPqidSAj1K7p32ns
-         4QUQ==
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=r+9YjRzKAoDDNjTcVwt+BxUknqmdF55iA+1SdxYntQY=;
+        b=LaKUuthkd/ZqwxdWwQVGB9K4S4Bsu2atEQQq8trDKaptMzi0XPQw8dTyxoTpY9Y5Se
+         76ajC555Vzqngq6tn2p6PEnxcmKuHRaIPgjc20M1VxHggopwUNXPE0Tycd0cC5Mf8/TI
+         V8GdRLNujUZJyHJiaNMUoy2jdVyiRC+Xwsoqsdf9M9xA+ct1xl840sBjzZrIjAORUDDI
+         wjr34bDZ6IipUcIRs2H2z0RT6cSLp7sCUqlLi6VP8p/zuJRer8RakQ0jpaxxQ/uCT4pN
+         wgp/yVuylqbF7xCeo8EfBg7yy1+9tPvjX3DOi8k40GB2b9WJeJY1VidWxPDS0S7IdrXm
+         0MEA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id 34si40399308qtn.246.2019.07.31.06.18.45
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b57si21189890edc.406.2019.07.31.06.23.52
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 06:18:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 31 Jul 2019 06:23:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 729AE81F22;
-	Wed, 31 Jul 2019 13:18:44 +0000 (UTC)
-Received: from [10.36.117.240] (ovpn-117-240.ams2.redhat.com [10.36.117.240])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id E90A05D9C5;
-	Wed, 31 Jul 2019 13:18:42 +0000 (UTC)
-Subject: Re: [PATCH v1] drivers/acpi/scan.c: Fixup "acquire
- device_hotplug_lock in acpi_scan_init()"
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- linux-acpi@vger.kernel.org, "Rafael J . Wysocki"
- <rafael.j.wysocki@intel.com>, Oscar Salvador <osalvador@suse.de>,
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 1D46EAE21;
+	Wed, 31 Jul 2019 13:23:52 +0000 (UTC)
+Subject: Re: [RFC PATCH 3/3] hugetlbfs: don't retry when pool page allocations
+ start to fail
+To: Mike Kravetz <mike.kravetz@oracle.com>, Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Hillf Danton <hdanton@sina.com>, Michal Hocko <mhocko@kernel.org>,
+ Johannes Weiner <hannes@cmpxchg.org>,
  Andrew Morton <akpm@linux-foundation.org>
-References: <20190731123201.13893-1-david@redhat.com>
- <20190731125334.GM9330@dhcp22.suse.cz>
- <d3cc595d-7e6f-ef6f-044c-b20bd1de3fb0@redhat.com>
- <20190731131408.GP9330@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
+References: <20190724175014.9935-1-mike.kravetz@oracle.com>
+ <20190724175014.9935-4-mike.kravetz@oracle.com>
+ <20190725081350.GD2708@suse.de>
+ <6a7f3705-9550-e22f-efa1-5e3616351df6@oracle.com>
+From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <23f28590-7765-bcd9-15f2-94e985b64218@redhat.com>
-Date: Wed, 31 Jul 2019 15:18:42 +0200
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ mQINBFZdmxYBEADsw/SiUSjB0dM+vSh95UkgcHjzEVBlby/Fg+g42O7LAEkCYXi/vvq31JTB
+ KxRWDHX0R2tgpFDXHnzZcQywawu8eSq0LxzxFNYMvtB7sV1pxYwej2qx9B75qW2plBs+7+YB
+ 87tMFA+u+L4Z5xAzIimfLD5EKC56kJ1CsXlM8S/LHcmdD9Ctkn3trYDNnat0eoAcfPIP2OZ+
+ 9oe9IF/R28zmh0ifLXyJQQz5ofdj4bPf8ecEW0rhcqHfTD8k4yK0xxt3xW+6Exqp9n9bydiy
+ tcSAw/TahjW6yrA+6JhSBv1v2tIm+itQc073zjSX8OFL51qQVzRFr7H2UQG33lw2QrvHRXqD
+ Ot7ViKam7v0Ho9wEWiQOOZlHItOOXFphWb2yq3nzrKe45oWoSgkxKb97MVsQ+q2SYjJRBBH4
+ 8qKhphADYxkIP6yut/eaj9ImvRUZZRi0DTc8xfnvHGTjKbJzC2xpFcY0DQbZzuwsIZ8OPJCc
+ LM4S7mT25NE5kUTG/TKQCk922vRdGVMoLA7dIQrgXnRXtyT61sg8PG4wcfOnuWf8577aXP1x
+ 6mzw3/jh3F+oSBHb/GcLC7mvWreJifUL2gEdssGfXhGWBo6zLS3qhgtwjay0Jl+kza1lo+Cv
+ BB2T79D4WGdDuVa4eOrQ02TxqGN7G0Biz5ZLRSFzQSQwLn8fbwARAQABtCBWbGFzdGltaWwg
+ QmFia2EgPHZiYWJrYUBzdXNlLmN6PokCVAQTAQoAPgIbAwULCQgHAwUVCgkICwUWAgMBAAIe
+ AQIXgBYhBKlA1DSZLC6OmRA9UCJPp+fMgqZkBQJcbbyGBQkH8VTqAAoJECJPp+fMgqZkpGoP
+ /1jhVihakxw1d67kFhPgjWrbzaeAYOJu7Oi79D8BL8Vr5dmNPygbpGpJaCHACWp+10KXj9yz
+ fWABs01KMHnZsAIUytVsQv35DMMDzgwVmnoEIRBhisMYOQlH2bBn/dqBjtnhs7zTL4xtqEcF
+ 1hoUFEByMOey7gm79utTk09hQE/Zo2x0Ikk98sSIKBETDCl4mkRVRlxPFl4O/w8dSaE4eczH
+ LrKezaFiZOv6S1MUKVKzHInonrCqCNbXAHIeZa3JcXCYj1wWAjOt9R3NqcWsBGjFbkgoKMGD
+ usiGabetmQjXNlVzyOYdAdrbpVRNVnaL91sB2j8LRD74snKsV0Wzwt90YHxDQ5z3M75YoIdl
+ byTKu3BUuqZxkQ/emEuxZ7aRJ1Zw7cKo/IVqjWaQ1SSBDbZ8FAUPpHJxLdGxPRN8Pfw8blKY
+ 8mvLJKoF6i9T6+EmlyzxqzOFhcc4X5ig5uQoOjTIq6zhLO+nqVZvUDd2Kz9LMOCYb516cwS/
+ Enpi0TcZ5ZobtLqEaL4rupjcJG418HFQ1qxC95u5FfNki+YTmu6ZLXy+1/9BDsPuZBOKYpUm
+ 3HWSnCS8J5Ny4SSwfYPH/JrtberWTcCP/8BHmoSpS/3oL3RxrZRRVnPHFzQC6L1oKvIuyXYF
+ rkybPXYbmNHN+jTD3X8nRqo+4Qhmu6SHi3VquQENBFsZNQwBCACuowprHNSHhPBKxaBX7qOv
+ KAGCmAVhK0eleElKy0sCkFghTenu1sA9AV4okL84qZ9gzaEoVkgbIbDgRbKY2MGvgKxXm+kY
+ n8tmCejKoeyVcn9Xs0K5aUZiDz4Ll9VPTiXdf8YcjDgeP6/l4kHb4uSW4Aa9ds0xgt0gP1Xb
+ AMwBlK19YvTDZV5u3YVoGkZhspfQqLLtBKSt3FuxTCU7hxCInQd3FHGJT/IIrvm07oDO2Y8J
+ DXWHGJ9cK49bBGmK9B4ajsbe5GxtSKFccu8BciNluF+BqbrIiM0upJq5Xqj4y+Xjrpwqm4/M
+ ScBsV0Po7qdeqv0pEFIXKj7IgO/d4W2bABEBAAGJA3IEGAEKACYWIQSpQNQ0mSwujpkQPVAi
+ T6fnzIKmZAUCWxk1DAIbAgUJA8JnAAFACRAiT6fnzIKmZMB0IAQZAQoAHRYhBKZ2GgCcqNxn
+ k0Sx9r6Fd25170XjBQJbGTUMAAoJEL6Fd25170XjDBUH/2jQ7a8g+FC2qBYxU/aCAVAVY0NE
+ YuABL4LJ5+iWwmqUh0V9+lU88Cv4/G8fWwU+hBykSXhZXNQ5QJxyR7KWGy7LiPi7Cvovu+1c
+ 9Z9HIDNd4u7bxGKMpn19U12ATUBHAlvphzluVvXsJ23ES/F1c59d7IrgOnxqIcXxr9dcaJ2K
+ k9VP3TfrjP3g98OKtSsyH0xMu0MCeyewf1piXyukFRRMKIErfThhmNnLiDbaVy6biCLx408L
+ Mo4cCvEvqGKgRwyckVyo3JuhqreFeIKBOE1iHvf3x4LU8cIHdjhDP9Wf6ws1XNqIvve7oV+w
+ B56YWoalm1rq00yUbs2RoGcXmtX1JQ//aR/paSuLGLIb3ecPB88rvEXPsizrhYUzbe1TTkKc
+ 4a4XwW4wdc6pRPVFMdd5idQOKdeBk7NdCZXNzoieFntyPpAq+DveK01xcBoXQ2UktIFIsXey
+ uSNdLd5m5lf7/3f0BtaY//f9grm363NUb9KBsTSnv6Vx7Co0DWaxgC3MFSUhxzBzkJNty+2d
+ 10jvtwOWzUN+74uXGRYSq5WefQWqqQNnx+IDb4h81NmpIY/X0PqZrapNockj3WHvpbeVFAJ0
+ 9MRzYP3x8e5OuEuJfkNnAbwRGkDy98nXW6fKeemREjr8DWfXLKFWroJzkbAVmeIL0pjXATxr
+ +tj5JC0uvMrrXefUhXTo0SNoTsuO/OsAKOcVsV/RHHTwCDR2e3W8mOlA3QbYXsscgjghbuLh
+ J3oTRrOQa8tUXWqcd5A0+QPo5aaMHIK0UAthZsry5EmCY3BrbXUJlt+23E93hXQvfcsmfi0N
+ rNh81eknLLWRYvMOsrbIqEHdZBT4FHHiGjnck6EYx/8F5BAZSodRVEAgXyC8IQJ+UVa02QM5
+ D2VL8zRXZ6+wARKjgSrW+duohn535rG/ypd0ctLoXS6dDrFokwTQ2xrJiLbHp9G+noNTHSan
+ ExaRzyLbvmblh3AAznb68cWmM3WVkceWACUalsoTLKF1sGrrIBj5updkKkzbKOq5gcC5AQ0E
+ Wxk1NQEIAJ9B+lKxYlnKL5IehF1XJfknqsjuiRzj5vnvVrtFcPlSFL12VVFVUC2tT0A1Iuo9
+ NAoZXEeuoPf1dLDyHErrWnDyn3SmDgb83eK5YS/K363RLEMOQKWcawPJGGVTIRZgUSgGusKL
+ NuZqE5TCqQls0x/OPljufs4gk7E1GQEgE6M90Xbp0w/r0HB49BqjUzwByut7H2wAdiNAbJWZ
+ F5GNUS2/2IbgOhOychHdqYpWTqyLgRpf+atqkmpIJwFRVhQUfwztuybgJLGJ6vmh/LyNMRr8
+ J++SqkpOFMwJA81kpjuGR7moSrUIGTbDGFfjxmskQV/W/c25Xc6KaCwXah3OJ40AEQEAAYkC
+ PAQYAQoAJhYhBKlA1DSZLC6OmRA9UCJPp+fMgqZkBQJbGTU1AhsMBQkDwmcAAAoJECJPp+fM
+ gqZkPN4P/Ra4NbETHRj5/fM1fjtngt4dKeX/6McUPDIRuc58B6FuCQxtk7sX3ELs+1+w3eSV
+ rHI5cOFRSdgw/iKwwBix8D4Qq0cnympZ622KJL2wpTPRLlNaFLoe5PkoORAjVxLGplvQIlhg
+ miljQ3R63ty3+MZfkSVsYITlVkYlHaSwP2t8g7yTVa+q8ZAx0NT9uGWc/1Sg8j/uoPGrctml
+ hFNGBTYyPq6mGW9jqaQ8en3ZmmJyw3CHwxZ5FZQ5qc55xgshKiy8jEtxh+dgB9d8zE/S/UGI
+ E99N/q+kEKSgSMQMJ/CYPHQJVTi4YHh1yq/qTkHRX+ortrF5VEeDJDv+SljNStIxUdroPD29
+ 2ijoaMFTAU+uBtE14UP5F+LWdmRdEGS1Ah1NwooL27uAFllTDQxDhg/+LJ/TqB8ZuidOIy1B
+ xVKRSg3I2m+DUTVqBy7Lixo73hnW69kSjtqCeamY/NSu6LNP+b0wAOKhwz9hBEwEHLp05+mj
+ 5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
+ hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
+ Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
+Message-ID: <d4099d77-418b-4d4b-715f-7b37347d5f8d@suse.cz>
+Date: Wed, 31 Jul 2019 15:23:51 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190731131408.GP9330@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <6a7f3705-9550-e22f-efa1-5e3616351df6@oracle.com>
+Content-Type: text/plain; charset=iso-8859-15
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Wed, 31 Jul 2019 13:18:44 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 31.07.19 15:14, Michal Hocko wrote:
-> On Wed 31-07-19 15:02:49, David Hildenbrand wrote:
->> On 31.07.19 14:53, Michal Hocko wrote:
->>> On Wed 31-07-19 14:32:01, David Hildenbrand wrote:
->>>> Let's document why we take the lock here. If we're going to overhaul
->>>> memory hotplug locking, we'll have to touch many places - this comment
->>>> will help to clairfy why it was added here.
+On 7/25/19 7:15 PM, Mike Kravetz wrote:
+> On 7/25/19 1:13 AM, Mel Gorman wrote:
+>> On Wed, Jul 24, 2019 at 10:50:14AM -0700, Mike Kravetz wrote:
+>>> When allocating hugetlbfs pool pages via /proc/sys/vm/nr_hugepages,
+>>> the pages will be interleaved between all nodes of the system.  If
+>>> nodes are not equal, it is quite possible for one node to fill up
+>>> before the others.  When this happens, the code still attempts to
+>>> allocate pages from the full node.  This results in calls to direct
+>>> reclaim and compaction which slow things down considerably.
 >>>
->>> And how exactly is "lock for consistency" comment going to help the poor
->>> soul touching that code? How do people know that it is safe to remove it?
->>> I am not going to repeat my arguments how/why I hate "locking for
->>> consistency" (or fun or whatever but a real synchronization reasons)
->>> but if you want to help then just explicitly state what should done to
->>> remove this lock.
+>>> When allocating pool pages, note the state of the previous allocation
+>>> for each node.  If previous allocation failed, do not use the
+>>> aggressive retry algorithm on successive attempts.  The allocation
+>>> will still succeed if there is memory available, but it will not try
+>>> as hard to free up memory.
 >>>
+>>> Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 >>
->> I know that you have a different opinion here. To remove the lock,
->> add_memory() locking has to be changed *completely* to the point where
->> we can drop the lock from the documentation of the function (*whoever
->> knows what we have to exactly change* - and I don't have time to do that
->> *right now*).
+>> set_max_huge_pages can fail the NODEMASK_ALLOC() alloc which you handle
+>> *but* in the event of an allocation failure this bug can silently recur.
+>> An informational message might be justified in that case in case the
+>> stall should recur with no hint as to why.
 > 
-> Not really. To remove a lock in this particular path it would be
-> sufficient to add
-> 	/*
-> 	 * Although __add_memory used down the road is documented to
-> 	 * require lock_device_hotplug, it is not necessary here because
-> 	 * this is an early code when userspace or any other code path
-> 	 * cannot trigger hotplug operations.
-> 	 */
+> Right.
+> Perhaps a NODEMASK_ALLOC() failure should just result in a quick exit/error.
+> If we can't allocate a node mask, it is unlikely we will be able to allocate
+> a/any huge pages.  And, the system must be extremely low on memory and there
+> are likely other bigger issues.
 
-Okay, let me phrase it like this: Are you 100% (!) sure that we don't
-need the lock here. I am not -  I only know what I documented back then
-and what I found out - could be that we are forgetting something else
-the lock protects.
+Agreed. But I would perhaps drop __GFP_NORETRY from the mask allocation
+as that can fail for transient conditions.
 
-As I already said, I am fine with adding such a comment instead. But I
-am not convinced that the absence of the lock is 100% safe. (I am 99.99%
-sure ;) ).
-
--- 
-
-Thanks,
-
-David / dhildenb
+> There have been discussions elsewhere about discontinuing the use of
+> NODEMASK_ALLOC() and just putting the mask on the stack.  That may be
+> acceptable here as well.
+> 
+>>                                            Technically passing NULL into
+>> NODEMASK_FREE is also safe as kfree (if used for that kernel config) can
+>> handle freeing of a NULL pointer. However, that is cosmetic more than
+>> anything. Whether you decide to change either or not;
+> 
+> Yes.
+> I will clean up with an updated series after more feedback.
+> 
+>>
+>> Acked-by: Mel Gorman <mgorman@suse.de>
+>>
+> 
+> Thanks!
+> 
 
