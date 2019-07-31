@@ -6,81 +6,81 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CE70C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:46:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A617C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:46:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0097D20C01
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:46:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0097D20C01
+	by mail.kernel.org (Postfix) with ESMTP id 38FF820C01
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:46:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38FF820C01
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9E8E68E000E; Wed, 31 Jul 2019 11:46:25 -0400 (EDT)
+	id D67798E0012; Wed, 31 Jul 2019 11:46:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 94D1A8E0003; Wed, 31 Jul 2019 11:46:25 -0400 (EDT)
+	id D3E3F8E0003; Wed, 31 Jul 2019 11:46:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7E76D8E000E; Wed, 31 Jul 2019 11:46:25 -0400 (EDT)
+	id C5E098E0012; Wed, 31 Jul 2019 11:46:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 32B878E0003
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:46:25 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id y24so42732057edb.1
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:46:25 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 72BF48E0003
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:46:28 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id f19so42681301edv.16
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:46:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=7eguvhFG3vFIX+cjWUMgrCPyT9l1sSVqWaOQbfj+tXE=;
-        b=LBYEy1TYZMGgJqE8CyhNCPDFr0849iaWFIbbtoaN6ECW12EWUdZ5JurSTGB7mKyW3f
-         WebcBTPp/9zQnyvw6i2xXftCtGkq1XPyuIHoSS1pKlnNGoK8C9j0A0/9aAiXGzFkkB5r
-         0cSYxwbq0jBoXjBMDHJ9XYLAwQzRHT5c1QaaAyOKkUXJleqc29u2I26dJGtx27Ck5Uki
-         T7OE8xgc36klnFVSEEwgRgcOU0k8BHK0g/aYytUCDOVQxR/r238BRoQm8LJ/tOkBDoqW
-         JZCPzQXw6GJxzbk6om5VpT4uJtF9rNLRxpNgCwcdeVkvunQjFchRkjzdMVd4eFMowwXb
-         5QXw==
+        bh=ELwmRF22LLX0tCygT2lvRbCbwdd+dUVbxYOXSRLI/y4=;
+        b=QZnyZo9UFbXgsZUuYJu96Ctv6r+i94QcsAr3Z/SpXd0H/R8mRgLJbxWFyziOt+8Gux
+         ucSA3AiKKWrK83B8Z1m/UjGpIEUeOXeGlLkW51tKgwAXZZSbzuXw8T6EcO2VO827zVkV
+         aMQ+COUKmzCiQP+nURttY4IIYVGjno2wipYuB36orQaNE7Dn3Tod8QJbj0j2P64FeRbo
+         svPUyAKq781GKvG6XAEOgrmE+UhXGZRoG1N0OI1Lhg5pxH5um3WZ5K7NIK19Ifj4L5p7
+         5IxPEDpbElYUUeGTIcA1FzAr5/zogAzh8SjSRawT9ctz1tb3lrMEie1Bteqm9TLpCZ8j
+         YqRA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAUSHCVs1tyhA0g5eIHJ3cd93FnKnJV9YcOk1kopP254K/JbjpCS
-	Vd2jECwG2gKkXvJ6E+sU7jkBbqRgaSbQU//U7ek0qr+yToJR6ebKeKr8hn1cQuEYY69CJjNZ5ZH
-	fgrFm7IYN6dbW3LE37OxPZMNE1LjYDHJheIyra+hc/0nDA/HAnmQRkbZsazqurBY5OA==
-X-Received: by 2002:a50:c28a:: with SMTP id o10mr105550736edf.182.1564587984789;
-        Wed, 31 Jul 2019 08:46:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqywB8EIrN0KfRtbjsBQd91xffvHyts0rEOQ3OukdUvA60AjIG3Uk5DzcXGnSsceV+XeCuII
-X-Received: by 2002:a50:c28a:: with SMTP id o10mr105550662edf.182.1564587984017;
-        Wed, 31 Jul 2019 08:46:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564587984; cv=none;
+X-Gm-Message-State: APjAAAUGOoATd0oC/q6/OcqU849ixxzA+3xCSslllfdMQr4WH4RQEXYs
+	2l8vUY0kGAczC8Q18zvn8AAi5J5jhN+/ljdEjGCzFOnZ7QzygeaFXBrljUxbrn5HnpS6g9neSLn
+	nkCNwc6VpWKG1ULK/mtFv6ftIF7UaKVfJqe1qG6ZLjuQdr/idEl08fiFKNXfkxzEqsg==
+X-Received: by 2002:a17:906:8053:: with SMTP id x19mr94874367ejw.306.1564587988039;
+        Wed, 31 Jul 2019 08:46:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxztl0K40e034+kZnO+87+ks4qsR5prlDwtwjS4jS410y421hBotEVMofbcA8ivyE4RrlNL
+X-Received: by 2002:a17:906:8053:: with SMTP id x19mr94874315ejw.306.1564587987267;
+        Wed, 31 Jul 2019 08:46:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564587987; cv=none;
         d=google.com; s=arc-20160816;
-        b=WVRQ1XdWfWRuF5LUGmfUOlffp2QFuSTWHZV3/2bZfpB8wtsiXsKC97OgD6dht8L8Mp
-         /javN2HiaNt84XQ5tLoIe2WmVzmw8py3/fi0T8Ocw0vtTR9UnRATaa1YgP9qQKTVELyB
-         flch7gTnGxukzw4KHSt7AZVaQlXFS6ZLex4WdAETwRQr1JyFEYo4AvBkgkacV6kjft4G
-         3CeLZDTMmjQuK/oXJVfRQjWkHeHMbBZ4p9OPklShMbY8N8aFVR0NiJjHZonfNuMHLuhV
-         aI+qfkGqYKvzTIr+euTAwW9vSnmqnntitvpJN3GwhTRgdbVJFuMISeaQhhydhbvLk+7Q
-         +JCw==
+        b=wVMlyz4ukYOxp+mHZRFwWorFDkznTqnqNBIgDE9sHRurM/NWv1o1mMfk47s946Ia+q
+         238bMYorI7MIsLluMDxzeEWzon2+49ud9waI019TfxQBN/Lc+qWyciPWzybtDH7cbBIB
+         j5/eE/MkI+AXmbUGg4Kk7SBmiJ+v0ofIbZBU2QI++AcTpIsx/DE75H1WJEWP6IHQ+Y/a
+         znNT1RWEpZQ4S4zZs+tE/cejJLCZr9j5Q1gofu2R3IMiG/xtHii7re4fmjhE+oF7Pniu
+         lVYWaAHdM/pLTwNL3Ho2Y+0uzQHI3AYkDFr7QKsWPNV3/aB5g5RwYMFbV65srvjCP4JG
+         8BDg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=7eguvhFG3vFIX+cjWUMgrCPyT9l1sSVqWaOQbfj+tXE=;
-        b=PlVDBsUCnKsEJLbjHkUsGlAWJWarBiEHn5LgQl4ageOKOtlCXASfFuBCJlE//b+/Hb
-         27Fkdn7h8ohkWiMdW6s87WrHyCXipMDz0WHRelNbT63WrLHrf5QHSnjIcQOen2GRlfoo
-         1TbaDVmQ4RhitQPaqcXbWIClI8qa3Tn4pA4nBGz+aF3/9/shKCIYd9BpWV+Ae5lp64la
-         S/MXJfS2iFfATboKOWh5TTc0RHSOR67WK/IoGcGs+PC4E05oSQtDbVjMQ/NpB2xh4Jt2
-         VX75aUwAsutMZqa9nw50stuKQOeAQA6sJXiJ/ltTTHsjvJRlix4QWrZGHhVH97skzMTr
-         WJcg==
+        bh=ELwmRF22LLX0tCygT2lvRbCbwdd+dUVbxYOXSRLI/y4=;
+        b=K5PMObdGKC38OuqoLIdNAJgKaaXNEdI+6HMcbZZ0hSkbDaNrQBVdJFaewyVrsJivT1
+         d9ct5eRJ+2m3HTtutsnP4PreGb5rp2s4ogPGTsJi6v4a+N0IoJRnmlFScu+TD+7MlP9i
+         ePtFMn208MJKSMfuNMtgO6ankJmXxiurkWeLhGPZRsQDhiFVIE1QPILv1E47viu47M5i
+         kG1+Obd9mNayCuDqVMHOt37Avi2vT8kmvcrLBI+3+XJHQwuTykLx51hRqDDrX+H7vQ9B
+         2OgEvPDpMwLv1waQpKsthgiPX8clgEnxD2ger8VhDE7Brn4MHv6c0V7eLH6QW3/dAhEy
+         d6UA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id b38si21700149edb.341.2019.07.31.08.46.23
+        by mx.google.com with ESMTP id l50si21106871edc.212.2019.07.31.08.46.27
         for <linux-mm@kvack.org>;
-        Wed, 31 Jul 2019 08:46:24 -0700 (PDT)
+        Wed, 31 Jul 2019 08:46:27 -0700 (PDT)
 Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 342EC344;
-	Wed, 31 Jul 2019 08:46:23 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6D1621570;
+	Wed, 31 Jul 2019 08:46:26 -0700 (PDT)
 Received: from e112269-lin.arm.com (e112269-lin.cambridge.arm.com [10.1.196.133])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 9D62A3F694;
-	Wed, 31 Jul 2019 08:46:20 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 6B6463F694;
+	Wed, 31 Jul 2019 08:46:23 -0700 (PDT)
 From: Steven Price <steven.price@arm.com>
 To: linux-mm@kvack.org
 Cc: Steven Price <steven.price@arm.com>,
@@ -102,10 +102,14 @@ Cc: Steven Price <steven.price@arm.com>,
 	linux-kernel@vger.kernel.org,
 	Mark Rutland <Mark.Rutland@arm.com>,
 	"Liang, Kan" <kan.liang@linux.intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: [PATCH v10 04/22] arm64: mm: Add p?d_leaf() definitions
-Date: Wed, 31 Jul 2019 16:45:45 +0100
-Message-Id: <20190731154603.41797-5-steven.price@arm.com>
+	Andrew Morton <akpm@linux-foundation.org>,
+	Ralf Baechle <ralf@linux-mips.org>,
+	Paul Burton <paul.burton@mips.com>,
+	James Hogan <jhogan@kernel.org>,
+	linux-mips@vger.kernel.org
+Subject: [PATCH v10 05/22] mips: mm: Add p?d_leaf() definitions
+Date: Wed, 31 Jul 2019 16:45:46 +0100
+Message-Id: <20190731154603.41797-6-steven.price@arm.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190731154603.41797-1-steven.price@arm.com>
 References: <20190731154603.41797-1-steven.price@arm.com>
@@ -119,47 +123,38 @@ List-ID: <linux-mm.kvack.org>
 
 walk_page_range() is going to be allowed to walk page tables other than
 those of user space. For this it needs to know when it has reached a
-'leaf' entry in the page tables. This information will be provided by the
+'leaf' entry in the page tables. This information is provided by the
 p?d_leaf() functions/macros.
 
-For arm64, we already have p?d_sect() macros which we can reuse for
-p?d_leaf().
+If _PAGE_HUGE is defined we can simply look for it. When not defined we
+can be confident that there are no leaf pages in existence and fall back
+on the generic implementation (added in a later patch) which returns 0.
 
-pud_sect() is defined as a dummy function when CONFIG_PGTABLE_LEVELS < 3
-or CONFIG_ARM64_64K_PAGES is defined. However when the kernel is
-configured this way then architecturally it isn't allowed to have a
-large page at this level, and any code using these page walking macros
-is implicitly relying on the page size/number of levels being the same as
-the kernel. So it is safe to reuse this for p?d_leaf() as it is an
-architectural restriction.
-
-CC: Catalin Marinas <catalin.marinas@arm.com>
-CC: Will Deacon <will@kernel.org>
+CC: Ralf Baechle <ralf@linux-mips.org>
+CC: Paul Burton <paul.burton@mips.com>
+CC: James Hogan <jhogan@kernel.org>
+CC: linux-mips@vger.kernel.org
 Signed-off-by: Steven Price <steven.price@arm.com>
 ---
- arch/arm64/include/asm/pgtable.h | 2 ++
- 1 file changed, 2 insertions(+)
+ arch/mips/include/asm/pgtable.h | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-index 87a4b2ddc1a1..2c123d59dbff 100644
---- a/arch/arm64/include/asm/pgtable.h
-+++ b/arch/arm64/include/asm/pgtable.h
-@@ -446,6 +446,7 @@ extern pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
- 				 PMD_TYPE_TABLE)
- #define pmd_sect(pmd)		((pmd_val(pmd) & PMD_TYPE_MASK) == \
- 				 PMD_TYPE_SECT)
-+#define pmd_leaf(pmd)		pmd_sect(pmd)
+diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgtable.h
+index 7d27194e3b45..238ca243ad31 100644
+--- a/arch/mips/include/asm/pgtable.h
++++ b/arch/mips/include/asm/pgtable.h
+@@ -627,6 +627,11 @@ static inline pmd_t pmdp_huge_get_and_clear(struct mm_struct *mm,
  
- #if defined(CONFIG_ARM64_64K_PAGES) || CONFIG_PGTABLE_LEVELS < 3
- #define pud_sect(pud)		(0)
-@@ -528,6 +529,7 @@ static inline void pte_unmap(pte_t *pte) { }
- #define pud_none(pud)		(!pud_val(pud))
- #define pud_bad(pud)		(!(pud_val(pud) & PUD_TABLE_BIT))
- #define pud_present(pud)	pte_present(pud_pte(pud))
-+#define pud_leaf(pud)		pud_sect(pud)
- #define pud_valid(pud)		pte_valid(pud_pte(pud))
+ #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
  
- static inline void set_pud(pud_t *pudp, pud_t pud)
++#ifdef _PAGE_HUGE
++#define pmd_leaf(pmd)	((pmd_val(pmd) & _PAGE_HUGE) != 0)
++#define pud_leaf(pud)	((pud_val(pud) & _PAGE_HUGE) != 0)
++#endif
++
+ #define gup_fast_permitted(start, end)	(!cpu_has_dc_aliases)
+ 
+ #include <asm-generic/pgtable.h>
 -- 
 2.20.1
 
