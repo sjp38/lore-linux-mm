@@ -4,103 +4,103 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 04D3CC32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:10:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D401EC433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:13:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9FD0E208C3
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:10:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8A92421726
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:13:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="f87cDXaJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9FD0E208C3
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="oLYDLyPe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A92421726
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 481A78E001E; Wed, 31 Jul 2019 11:10:39 -0400 (EDT)
+	id 31F3A8E0020; Wed, 31 Jul 2019 11:13:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 432318E0005; Wed, 31 Jul 2019 11:10:39 -0400 (EDT)
+	id 2CFB88E0005; Wed, 31 Jul 2019 11:13:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2D2758E001E; Wed, 31 Jul 2019 11:10:39 -0400 (EDT)
+	id 1BED48E0020; Wed, 31 Jul 2019 11:13:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id CF5178E0005
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:10:38 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id o13so42620463edt.4
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:10:38 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C3E638E0005
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:13:50 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id f19so42620124edv.16
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:13:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=lUZ5o3KyzJhrWdCGYLPb2yVyWjyFss5E3sxw1k1xFj4=;
-        b=cOQkMff9Ix1gaRx8WfaGj3a6t2FX6lZI7mcWA7bVuXcM+VyiRQ9+m/+UBZXVHZ/Nkt
-         ddAy1nznzzUW7dl3iXehtfsFUgY+84UMvDTHkZpthpF03A+OJYfbNlFmiFJ990zee+5R
-         dEL7ujSSszz2gGtCyF0hnZjyWawe7aDH/do6DMWribxxq54f/mG5BArnKk5x7dberrQA
-         1Pk8jG+Oe/5si9/VmkbbeAyvigJh8SCRE69Z6b/vIXhDe5lIAAerXkuW8wRN07lVQag5
-         ziSEoWwHGBkl52zDeYi8v2KaUPSrIpDlrb0NzL2cGQoMY1tvUEAfbEeCCw8tetkB13Ho
-         DLQg==
-X-Gm-Message-State: APjAAAWIrViL19XTpMYHq1hr2LssfUn1ZW0LZlmOV3DFRtS8lqHtwHNF
-	+EMuH2ljonq5YOxjRbyXLykWNVVjeKQCP5FTiDdmtZ9kKCAyeXawD8/IzNfEFuygUmxkvsC/idh
-	wx0GGF7Sg2kr0wMUkFRKeW6WWL82MKlMBbN5DnAYDyOSjsmsZHkDLfet5XDKiwf0=
-X-Received: by 2002:a17:906:f2d0:: with SMTP id gz16mr2101746ejb.21.1564585838188;
-        Wed, 31 Jul 2019 08:10:38 -0700 (PDT)
-X-Received: by 2002:a17:906:f2d0:: with SMTP id gz16mr2089966ejb.21.1564585706691;
-        Wed, 31 Jul 2019 08:08:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564585706; cv=none;
+        bh=PzedmcWsRc3DhudY/wiWcVyq0AAagaASN0DGAs1EUfk=;
+        b=R8RzN1CKnHaZIhUVqSMMCHTUEMYgB12cMCMfyZr7kFIsClKmm14vKFFQZ8yfOMrzh3
+         jLXMICM39wOwKmTwf9VG11btw2v2L5vckqUk00oIKkFMggDAPhalYDkaLlcFCwfM26ka
+         npnIfaDo8Npm4FwCyjRL/82obmOI2PctCOyPTnDIxkVBxjQoH8uXNbuWPq7K2WuI7nVH
+         Zl61y1M2ZFDSta1XclRqhoXmYAaBfTkBNxrYh1CwPXxDQfqqeqZX0sVCd2GFpku8lQZM
+         5isDJSMnbme9/TYCpvEhOSIUc1i8ngDbF3rrX5IUmfqMCdumCQfu9ojAum+OAGLreSG5
+         g3Nw==
+X-Gm-Message-State: APjAAAWL7/60RhknERL/4Y3V2CBoaHno4bA1FJ+n9Mzfb3sDsTNxoHXq
+	NFXztp7mc21uC3gpdoKWQ4Q470kqF/Ic8RYAibKO8ZGagA6UZhv9iZmTsQ+DykJPdqV4Aanity6
+	dVZnIQHynG8av5awiir9O7cpIhwSU43FnEmyqlQ32VriYb61quZwnFd/Oa3IXack=
+X-Received: by 2002:aa7:dd09:: with SMTP id i9mr109849273edv.193.1564586030332;
+        Wed, 31 Jul 2019 08:13:50 -0700 (PDT)
+X-Received: by 2002:aa7:dd09:: with SMTP id i9mr109849142edv.193.1564586029040;
+        Wed, 31 Jul 2019 08:13:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564586029; cv=none;
         d=google.com; s=arc-20160816;
-        b=RoUUhQcQJB0YXp95U1+7Pzu+w3zXWz/ls21/PJWQNzYwklRiQ6yrNaiSuNDf8R5oZJ
-         fqrdfLBPO6jBpWOXwRajt9CDPZ1BO8CXDdJVl2aHJ0ked5Ioefu//TkAY8CvOWNij3/Y
-         2aA4UZs3zmkllreA+3e1rKLJjKtuDWSmhzwtA5MR+Vpdoo6LdKynoELTIieyEhkcZoqO
-         shtjnl64ID9o4n48luxh/eCTJh8p4eZCUdxFqeEGZ3drsnPR8GoRc3pJz9Ynga8pfE1u
-         8Zcs0d5CEUPdKiO7tDE90DH656SryHe7yocWoMAAF5736xJ2HLB1ssm22EhKXK2aLnSh
-         NGDw==
+        b=tlhCHIilpx/OPSkykDMYCDKW9aLUNlglZTZOfUo7wXdZ+F2YxIhlsmaxgMkc+SF+cm
+         I1PPkbMldDM91hMd1nd5bJPiXHHDHRtPk4shyMCiBXe5rdHVWpvZR2Y2L998fu/oFDTz
+         PZnweN9EQ+LWf22t+M48Xu1aEJfMX51N5XV6GQMjXopVhvHr0QW4MZZ2fTgkIkMg7Mom
+         psYCBeYNQfabKYaE2xf/qZF65WfHVppBBxTjGOlsv3LyD0FhJWlY7Nq4P74k+ehdsPLw
+         xPSIdVzcsjm5Mzlf+UUB91yOHqEZ67CEH+Ryzn4AGGrZZGVc4MxR0EajIRSrxZRYuvoK
+         2U1A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=lUZ5o3KyzJhrWdCGYLPb2yVyWjyFss5E3sxw1k1xFj4=;
-        b=YDHyDBhZEwWsQyJ+u0xLMJdiTJqTfBGsfhg5Tpb4zrZHYuhPQ7YWWJZeYnARv543OC
-         14763R3OGHLB0wME6Km/6QnA9JqxqkNFou+Mq3s0pZEZ67UuxvDMB7rrBT1iWRLRFMBl
-         7FJMaC/KzceUSwsqeDm+uzAaYDqJm99G2lwsyHY8AJmXxrJYCKIJQzuMMfPrGP9veVM2
-         cWmejI+prEpbp9DAU/REVLG69hpZysvTsCgSHCrlnz7kuw9m9kgCjc8EpWjavCMBjGDi
-         SzJyuSPuqQjGA2RuASCN1HUtepvNQuE8j6BpH7TzOlOi4bEmLWzfH2fT7EvmTPHAjzCO
-         vp5A==
+        bh=PzedmcWsRc3DhudY/wiWcVyq0AAagaASN0DGAs1EUfk=;
+        b=s/Ewn/qepdjFUnS+RiaNb8qj4sQwilpo5C4qioS3QG/zfQaC9HRam64KHbu2Ys408z
+         0eIHln1moIQ732ccM7O9q5XuFFnKw5cgMmkSrJ9ACUjDHC9i493GZBA3AhaEUmqmUqIy
+         bdOWLTdUJhppuYhgzrUZj06xQ9qDen4wAOE8+foYlIcKHUrD7QB4JB2U2r/+DDXX/YgB
+         1YG7X+Mei4mxttvaMBlKSa65yknjVJzySJCXDlIdzUCIG1c8e921zqsUyP72L7dxfLDP
+         BjN6/3bYUMRIIQ+KQedzTCGSJYQ2MiJL89KbtRc9lFMikbAXWwuCDkwOlxWNSsHiCC1l
+         f5Pg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=f87cDXaJ;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=oLYDLyPe;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e1sor22572743ejc.8.2019.07.31.08.08.26
+        by mx.google.com with SMTPS id f3sor18863803ejq.0.2019.07.31.08.13.48
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Jul 2019 08:08:26 -0700 (PDT)
+        Wed, 31 Jul 2019 08:13:49 -0700 (PDT)
 Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=f87cDXaJ;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=oLYDLyPe;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=lUZ5o3KyzJhrWdCGYLPb2yVyWjyFss5E3sxw1k1xFj4=;
-        b=f87cDXaJ8tGVJamu+eP2PyzCUG+ZqKOVZGcAGMCXDWHjkJRyvJrzvQl3kbA74mRwxX
-         OqfZG5qQ+bo+nU4FmQUQEfW8xtRk3mQqCOhXO4ONCK2ETh94d3kePxhHQni0xuu74lB4
-         Y20jFqWjk03QJHsbAjUW4+PFAHLmrv0r6qgsbOO6Jd3/C5xW3cbTj34qRDlJTmRtO5jx
-         RWRM2zh83FmKCv2tiLddj/gDtFIbBkm3P+F0EW4xaKzZM7lJSg8hSxUFcFFMufgrsNgt
-         eaUf+JW89LkyPwaNnhVGpOMNBErtkA5zeIGuiR/MLONHF6hagKmRxYvFL5eQn9P8H2G7
-         0/oQ==
-X-Google-Smtp-Source: APXvYqwFfmfqoKDjr35+pHqpLUwSHQdO/AlnABQJgMuN58XW0JuVzWoIJ2kNgFPcROx7eyZq64QKqA==
-X-Received: by 2002:a17:906:489a:: with SMTP id v26mr95592305ejq.234.1564585706213;
-        Wed, 31 Jul 2019 08:08:26 -0700 (PDT)
+        bh=PzedmcWsRc3DhudY/wiWcVyq0AAagaASN0DGAs1EUfk=;
+        b=oLYDLyPe+JzY2m1J7wjX7AgBe2E4rUQv0fXNMOTxiG0nu3Kabo9U15Ufg7K6WUQgmi
+         RNNtxu0DlWJ+voFj2zV59ecQN7UXfIGdJz6l2QQg7hl1DF1htbBcFoFM/zAI2mPjcI1U
+         l3fEHvv0/1gka708wHD2qXwLZrc051+nm/YjhW0tIhCa72L/Tien3Zer+cqAIsJMVqNK
+         L0WPnYRQdIixCyrAGbQRcVHhSuhtXWLR41Rx6IQOFrIz+x0hmONqrQ/gZtqcXxab8960
+         yeuaFiFWFODRPxwK1POFLi1ZUqFHAQQefGlgCb9xVI6pv/BL6bFoNByecBEofA/OdSSY
+         7nrg==
+X-Google-Smtp-Source: APXvYqzcJGczjYcDRUjZLltV4/L8von3YErmNZFFERlXjz5jyiPEJ/PtKIEf2ACHSo4AM9+ctzEY3w==
+X-Received: by 2002:a17:906:c2c9:: with SMTP id ch9mr2839424ejb.167.1564586028666;
+        Wed, 31 Jul 2019 08:13:48 -0700 (PDT)
 Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id b53sm17306948edd.45.2019.07.31.08.08.21
+        by smtp.gmail.com with ESMTPSA id a18sm9661518ejp.2.2019.07.31.08.13.47
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 08:08:22 -0700 (PDT)
+        Wed, 31 Jul 2019 08:13:47 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 X-Google-Original-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Received: by box.localdomain (Postfix, from userid 1000)
-	id 6BDC6102993; Wed, 31 Jul 2019 18:08:16 +0300 (+03)
+	id BF3F9103FDC; Wed, 31 Jul 2019 18:08:16 +0300 (+03)
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
 	Thomas Gleixner <tglx@linutronix.de>,
@@ -119,10 +119,10 @@ Cc: Kees Cook <keescook@chromium.org>,
 	kvm@vger.kernel.org,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 18/59] x86/mm: Calculate direct mapping size
-Date: Wed, 31 Jul 2019 18:07:32 +0300
-Message-Id: <20190731150813.26289-19-kirill.shutemov@linux.intel.com>
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 30/59] keys/mktme: Program MKTME keys into the platform hardware
+Date: Wed, 31 Jul 2019 18:07:44 +0300
+Message-Id: <20190731150813.26289-31-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
 References: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
@@ -134,243 +134,134 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The kernel needs to have a way to access encrypted memory. We have two
-option on how approach it:
+From: Alison Schofield <alison.schofield@intel.com>
 
- - Create temporary mappings every time kernel needs access to encrypted
-   memory. That's basically brings highmem and its overhead back.
+Finally, the keys are programmed into the hardware via each
+lead CPU. Every package has to be programmed successfully.
+There is no partial success allowed here.
 
- - Create multiple direct mappings, one per-KeyID. In this setup we
-   don't need to create temporary mappings on the fly -- encrypted
-   memory is permanently available in kernel address space.
+Here a retry scheme is included for two errors that may succeed
+on retry: MKTME_DEVICE_BUSY and MKTME_ENTROPY_ERROR.
+However, it's not clear if even those errors should be retried
+at this level. Perhaps they too, should be returned to user space
+for handling.
 
-We take the second approach as it has lower overhead.
-
-It's worth noting that with per-KeyID direct mappings compromised kernel
-would give access to decrypted data right away without additional tricks
-to get memory mapped with the correct KeyID.
-
-Per-KeyID mappings require a lot more virtual address space. On 4-level
-machine with 64 KeyIDs we max out 46-bit virtual address space dedicated
-for direct mapping with 1TiB of RAM. Given that we round up any
-calculation on direct mapping size to 1TiB, we effectively claim all
-46-bit address space for direct mapping on such machine regardless of
-RAM size.
-
-Increased usage of virtual address space has implications for KASLR:
-we have less space for randomization. With 64 TiB claimed for direct
-mapping with 4-level we left with 27 TiB of entropy to place
-page_offset_base, vmalloc_base and vmemmap_base.
-
-5-level paging provides much wider virtual address space and KASLR
-doesn't suffer significantly from per-KeyID direct mappings.
-
-It's preferred to run MKTME with 5-level paging.
-
-A direct mapping for each KeyID will be put next to each other in the
-virtual address space. We need to have a way to find boundaries of
-direct mapping for particular KeyID.
-
-The new variable direct_mapping_size specifies the size of direct
-mapping. With the value, it's trivial to find direct mapping for
-KeyID-N: PAGE_OFFSET + N * direct_mapping_size.
-
-Size of direct mapping is calculated during KASLR setup. If KALSR is
-disabled it happens during MKTME initialization.
-
-With MKTME size of direct mapping has to be power-of-2. It makes
-implementation of __pa() efficient.
-
+Signed-off-by: Alison Schofield <alison.schofield@intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- Documentation/x86/x86_64/mm.rst |  4 +++
- arch/x86/include/asm/page_32.h  |  1 +
- arch/x86/include/asm/page_64.h  |  2 ++
- arch/x86/include/asm/setup.h    |  6 ++++
- arch/x86/kernel/head64.c        |  4 +++
- arch/x86/kernel/setup.c         |  3 ++
- arch/x86/mm/init_64.c           | 58 +++++++++++++++++++++++++++++++++
- arch/x86/mm/kaslr.c             | 11 +++++--
- 8 files changed, 86 insertions(+), 3 deletions(-)
+ security/keys/mktme_keys.c | 92 +++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 91 insertions(+), 1 deletion(-)
 
-diff --git a/Documentation/x86/x86_64/mm.rst b/Documentation/x86/x86_64/mm.rst
-index 267fc4808945..7978afe6c396 100644
---- a/Documentation/x86/x86_64/mm.rst
-+++ b/Documentation/x86/x86_64/mm.rst
-@@ -140,6 +140,10 @@ The direct mapping covers all memory in the system up to the highest
- memory address (this means in some cases it can also include PCI memory
- holes).
+diff --git a/security/keys/mktme_keys.c b/security/keys/mktme_keys.c
+index 272bff8591b7..3c641f3ee794 100644
+--- a/security/keys/mktme_keys.c
++++ b/security/keys/mktme_keys.c
+@@ -83,6 +83,96 @@ static const match_table_t mktme_token = {
+ 	{OPT_ERROR, NULL}
+ };
  
-+With MKTME, we have multiple direct mappings. One per-KeyID. They are put
-+next to each other. PAGE_OFFSET + N * direct_mapping_size can be used to
-+find direct mapping for KeyID-N.
++struct mktme_hw_program_info {
++	struct mktme_key_program *key_program;
++	int *status;
++};
 +
- vmalloc space is lazily synchronized into the different PML4/PML5 pages of
- the processes using the page fault handler, with init_top_pgt as
- reference.
-diff --git a/arch/x86/include/asm/page_32.h b/arch/x86/include/asm/page_32.h
-index 94dbd51df58f..8bce788f9ca9 100644
---- a/arch/x86/include/asm/page_32.h
-+++ b/arch/x86/include/asm/page_32.h
-@@ -6,6 +6,7 @@
- 
- #ifndef __ASSEMBLY__
- 
-+#define direct_mapping_size 0
- #define __phys_addr_nodebug(x)	((x) - PAGE_OFFSET)
- #ifdef CONFIG_DEBUG_VIRTUAL
- extern unsigned long __phys_addr(unsigned long);
-diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
-index 939b1cff4a7b..f57fc3cc2246 100644
---- a/arch/x86/include/asm/page_64.h
-+++ b/arch/x86/include/asm/page_64.h
-@@ -14,6 +14,8 @@ extern unsigned long phys_base;
- extern unsigned long page_offset_base;
- extern unsigned long vmalloc_base;
- extern unsigned long vmemmap_base;
-+extern unsigned long direct_mapping_size;
-+extern unsigned long direct_mapping_mask;
- 
- static inline unsigned long __phys_addr_nodebug(unsigned long x)
- {
-diff --git a/arch/x86/include/asm/setup.h b/arch/x86/include/asm/setup.h
-index ed8ec011a9fd..d2861074cf83 100644
---- a/arch/x86/include/asm/setup.h
-+++ b/arch/x86/include/asm/setup.h
-@@ -62,6 +62,12 @@ extern void x86_ce4100_early_setup(void);
- static inline void x86_ce4100_early_setup(void) { }
- #endif
- 
-+#ifdef CONFIG_MEMORY_PHYSICAL_PADDING
-+void calculate_direct_mapping_size(void);
-+#else
-+static inline void calculate_direct_mapping_size(void) { }
-+#endif
++struct mktme_err_table {
++	const char *msg;
++	bool retry;
++};
 +
- #ifndef _SETUP
- 
- #include <asm/espfix.h>
-diff --git a/arch/x86/kernel/head64.c b/arch/x86/kernel/head64.c
-index 29ffa495bd1c..006d3ff46afe 100644
---- a/arch/x86/kernel/head64.c
-+++ b/arch/x86/kernel/head64.c
-@@ -60,6 +60,10 @@ EXPORT_SYMBOL(vmalloc_base);
- unsigned long vmemmap_base __ro_after_init = __VMEMMAP_BASE_L4;
- EXPORT_SYMBOL(vmemmap_base);
- #endif
-+unsigned long direct_mapping_size __ro_after_init = -1UL;
-+EXPORT_SYMBOL(direct_mapping_size);
-+unsigned long direct_mapping_mask __ro_after_init = -1UL;
-+EXPORT_SYMBOL(direct_mapping_mask);
- 
- #define __head	__section(.head.text)
- 
-diff --git a/arch/x86/kernel/setup.c b/arch/x86/kernel/setup.c
-index bbe35bf879f5..d12431e20876 100644
---- a/arch/x86/kernel/setup.c
-+++ b/arch/x86/kernel/setup.c
-@@ -1077,6 +1077,9 @@ void __init setup_arch(char **cmdline_p)
- 	 */
- 	init_cache_modes();
- 
-+	 /* direct_mapping_size has to be initialized before KASLR and MKTME */
-+	calculate_direct_mapping_size();
++static const struct mktme_err_table mktme_error[] = {
++/* MKTME_PROG_SUCCESS     */ {"KeyID was successfully programmed",   false},
++/* MKTME_INVALID_PROG_CMD */ {"Invalid KeyID programming command",   false},
++/* MKTME_ENTROPY_ERROR    */ {"Insufficient entropy",		      true},
++/* MKTME_INVALID_KEYID    */ {"KeyID not valid",		     false},
++/* MKTME_INVALID_ENC_ALG  */ {"Invalid encryption algorithm chosen", false},
++/* MKTME_DEVICE_BUSY      */ {"Failure to access key table",	      true},
++};
 +
- 	/*
- 	 * Define random base addresses for memory sections after max_pfn is
- 	 * defined and before each memory section base is used.
-diff --git a/arch/x86/mm/init_64.c b/arch/x86/mm/init_64.c
-index a6b5c653727b..4c1f93df47a5 100644
---- a/arch/x86/mm/init_64.c
-+++ b/arch/x86/mm/init_64.c
-@@ -1440,6 +1440,64 @@ unsigned long memory_block_size_bytes(void)
- 	return memory_block_size_probed;
- }
- 
-+#ifdef CONFIG_MEMORY_PHYSICAL_PADDING
-+void __init calculate_direct_mapping_size(void)
++static int mktme_parse_program_status(int status[])
 +{
-+	unsigned long available_va;
++	int cpu, sum = 0;
 +
-+	/* 1/4 of virtual address space is didicated for direct mapping */
-+	available_va = 1UL << (__VIRTUAL_MASK_SHIFT - 1);
++	/* Success: all CPU(s) programmed all key table(s) */
++	for_each_cpu(cpu, mktme_leadcpus)
++		sum += status[cpu];
++	if (!sum)
++		return MKTME_PROG_SUCCESS;
 +
-+	/* How much memory the system has? */
-+	direct_mapping_size = max_pfn << PAGE_SHIFT;
-+	direct_mapping_size = round_up(direct_mapping_size, 1UL << 40);
++	/* Invalid Parameters: log the error and return the error. */
++	for_each_cpu(cpu, mktme_leadcpus) {
++		switch (status[cpu]) {
++		case MKTME_INVALID_KEYID:
++		case MKTME_INVALID_PROG_CMD:
++		case MKTME_INVALID_ENC_ALG:
++			pr_err("mktme: %s\n", mktme_error[status[cpu]].msg);
++			return status[cpu];
 +
-+	if (!mktme_nr_keyids())
-+		goto out;
-+
-+	/*
-+	 * For MKTME we need direct_mapping_size to be power-of-2.
-+	 * It makes __pa() implementation efficient.
-+	 */
-+	direct_mapping_size = roundup_pow_of_two(direct_mapping_size);
-+
-+	/*
-+	 * Not enough virtual address space to address all physical memory with
-+	 * MKTME enabled. Even without padding.
-+	 *
-+	 * Disable MKTME instead.
-+	 */
-+	if (direct_mapping_size > available_va / (mktme_nr_keyids() + 1)) {
-+		pr_err("x86/mktme: Disabled. Not enough virtual address space\n");
-+		pr_err("x86/mktme: Consider switching to 5-level paging\n");
-+		mktme_disable();
-+		goto out;
++		default:
++			break;
++		}
 +	}
-+
 +	/*
-+	 * Virtual address space is divided between per-KeyID direct mappings.
++	 * Device Busy or Insufficient Entropy: do not log the
++	 * error. These will be retried and if retries (time or
++	 * count runs out) caller will log the error.
 +	 */
-+	available_va /= mktme_nr_keyids() + 1;
-+out:
-+	/* Add padding, if there's enough virtual address space */
-+	direct_mapping_size += (1UL << 40) * CONFIG_MEMORY_PHYSICAL_PADDING;
-+	if (mktme_nr_keyids())
-+		direct_mapping_size = roundup_pow_of_two(direct_mapping_size);
-+
-+	if (direct_mapping_size > available_va)
-+		direct_mapping_size = available_va;
-+
-+	/*
-+	 * For MKTME, make sure direct_mapping_size is still power-of-2
-+	 * after adding padding and calculate mask that is used in __pa().
-+	 */
-+	if (mktme_nr_keyids()) {
-+		direct_mapping_size = rounddown_pow_of_two(direct_mapping_size);
-+		direct_mapping_mask = direct_mapping_size - 1;
++	for_each_cpu(cpu, mktme_leadcpus) {
++		if (status[cpu] == MKTME_DEVICE_BUSY)
++			return status[cpu];
 +	}
++	return MKTME_ENTROPY_ERROR;
 +}
-+#endif
 +
- #ifdef CONFIG_SPARSEMEM_VMEMMAP
- /*
-  * Initialise the sparsemem vmemmap using huge-pages at the PMD level.
-diff --git a/arch/x86/mm/kaslr.c b/arch/x86/mm/kaslr.c
-index 580b82c2621b..83af41d289ed 100644
---- a/arch/x86/mm/kaslr.c
-+++ b/arch/x86/mm/kaslr.c
-@@ -103,10 +103,15 @@ void __init kernel_randomize_memory(void)
- 	 * add padding if needed (especially for memory hotplug support).
- 	 */
- 	BUG_ON(kaslr_regions[0].base != &page_offset_base);
--	memory_tb = DIV_ROUND_UP(max_pfn << PAGE_SHIFT, 1UL << TB_SHIFT) +
--		CONFIG_MEMORY_PHYSICAL_PADDING;
- 
--	/* Adapt phyiscal memory region size based on available memory */
-+	/*
-+	 * Calculate space required to map all physical memory.
-+	 * In case of MKTME, we map physical memory multiple times, one for
-+	 * each KeyID. If MKTME is disabled mktme_nr_keyids() is 0.
-+	 */
-+	memory_tb = (direct_mapping_size * (mktme_nr_keyids() + 1)) >> TB_SHIFT;
++/* Program a single key using one CPU. */
++static void mktme_do_program(void *hw_program_info)
++{
++	struct mktme_hw_program_info *info = hw_program_info;
++	int cpu;
 +
-+	/* Adapt physical memory region size based on available memory */
- 	if (memory_tb < kaslr_regions[0].size_tb)
- 		kaslr_regions[0].size_tb = memory_tb;
++	cpu = smp_processor_id();
++	info->status[cpu] = mktme_key_program(info->key_program);
++}
++
++static int mktme_program_all_keytables(struct mktme_key_program *key_program)
++{
++	struct mktme_hw_program_info info;
++	int err, retries = 10; /* Maybe users should handle retries */
++
++	info.key_program = key_program;
++	info.status = kcalloc(num_possible_cpus(), sizeof(info.status[0]),
++			      GFP_KERNEL);
++
++	while (retries--) {
++		get_online_cpus();
++		on_each_cpu_mask(mktme_leadcpus, mktme_do_program,
++				 &info, 1);
++		put_online_cpus();
++
++		err = mktme_parse_program_status(info.status);
++		if (!err)			   /* Success */
++			return err;
++		else if (!mktme_error[err].retry)  /* Error no retry */
++			return -ENOKEY;
++	}
++	/* Ran out of retries */
++	pr_err("mktme: %s\n", mktme_error[err].msg);
++	return err;
++}
++
+ /* Copy the payload to the HW programming structure and program this KeyID */
+ static int mktme_program_keyid(int keyid, u32 payload)
+ {
+@@ -97,7 +187,7 @@ static int mktme_program_keyid(int keyid, u32 payload)
+ 	kprog->keyid = keyid;
+ 	kprog->keyid_ctrl = payload;
  
+-	ret = MKTME_PROG_SUCCESS;	/* Future programming call */
++	ret = mktme_program_all_keytables(kprog);
+ 	kmem_cache_free(mktme_prog_cache, kprog);
+ 	return ret;
+ }
 -- 
 2.21.0
 
