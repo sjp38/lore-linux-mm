@@ -2,211 +2,168 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,URIBL_SBL,URIBL_SBL_A,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5940EC433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 02:00:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CD652C433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 02:21:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 067FD20651
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 02:00:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6F13B2064A
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 02:21:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="k+q+hA5Q"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 067FD20651
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Z0cwZYY6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F13B2064A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A55F58E0003; Tue, 30 Jul 2019 22:00:19 -0400 (EDT)
+	id DEF4A8E0003; Tue, 30 Jul 2019 22:21:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A06A68E0001; Tue, 30 Jul 2019 22:00:19 -0400 (EDT)
+	id D9FBE8E0001; Tue, 30 Jul 2019 22:21:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8F5E18E0003; Tue, 30 Jul 2019 22:00:19 -0400 (EDT)
+	id CB5EE8E0003; Tue, 30 Jul 2019 22:21:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5BDC78E0001
-	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 22:00:19 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id x19so41815561pgx.1
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 19:00:19 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 943708E0001
+	for <linux-mm@kvack.org>; Tue, 30 Jul 2019 22:21:24 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id a21so34947855pgv.0
+        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 19:21:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=oCLOdBMgfCfLJi2/RWEeEeVaZTdV5EmVCrQBzvZ/uFM=;
-        b=RA+y4UBrorhz55mimhv9UxE1F600Aqm1a8ot7K0PICn/w8yQmFHSFd4nInXzcS+lgF
-         HtNCi9xz974Qalz64U3RAfBXmSQCb4QLTQGqIaTmHmxDFBsMQZ+Qk1QQyp0tWYJNwgbp
-         cw6fn7aKl3R3TOPlAc6iemrfe1XHTZkWNHx02Q4zAuic4V+gb6MODabB9sgDIj0U3GsS
-         sZrxjFKrDcl0VIAr82HlrS/0M/MkEXJiwpB1ym/X0Vd747GlnyqN1uVaQOu1aYUR7nkM
-         7ugwBv0N/VSxIXnvz/Xw7mnDLC/FyUXeb0SX0IvZIyEf4sv6htCRInN8g+A5Y3WFNSMi
-         7zpg==
-X-Gm-Message-State: APjAAAXPu5psjYatXX1ZO9Z76ZKzb0VVwwKVxZ3KrEAKcbYdABEzrlqd
-	gV9FFeVHy05ENLebu9ufCFA8cchSAKS/80S8gRwTa+FdWRA9iKGwSpPuY99AZoLGSxvzFAolcrq
-	bKHI3PjYCe4y0McGvQ4B1FiAMi7AFRtQ2U6HgA7exySXxUl5TjvyH2Wy5XbTQksBmTQ==
-X-Received: by 2002:a63:553:: with SMTP id 80mr114619664pgf.280.1564538418751;
-        Tue, 30 Jul 2019 19:00:18 -0700 (PDT)
-X-Received: by 2002:a63:553:: with SMTP id 80mr114619528pgf.280.1564538417012;
-        Tue, 30 Jul 2019 19:00:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564538417; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
+         :date:in-reply-to:references:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=wfO9r2YHzfXnuX5Kr+rPkjXbDXK210fTn6hrztawxZ0=;
+        b=CLwMXmYPWP/36zcrLmNTPd86BbEZI+caH9do/zsgWC+O4Jva+0fjINHldCCYNR+AtK
+         Eil53TXXS2sFkA08M3pIN114Vo0RocnDWk4s6fFNXx5iD0UZUayTV63sGR/nVeSpZ/b6
+         b6/pNR0Xe6uEFrzxFQg/jQ1rby3F9xQzOb5iq3dwKXE9KBd7CS7pDeF0YV5v5APaCZ8Y
+         eOOrSD/+neDYR+TZdWhrMu/VDoeWy1mv4nqlLUmg3lEMo1Wog/kviBQwzVbjQdX8xO8C
+         mIwAkZXNQ+S1a2V9b9lwK67fAP2ewRfmI73bMxMwVSt7uLJ8JAgXXeSLuf3o250hhrsM
+         uzzg==
+X-Gm-Message-State: APjAAAWNq7as9Z3N7g91R+3q36Js/M0pYDlF3YuqD+rmb/oidmE8Epzr
+	lreuqTDGr6FW/IzE4e5zzFnXwHcuve649zJRq55sAGJOYyMfYDuN4R9u3v+fse92wdnBLp0rTCm
+	2elbzQnY2n5D+X5NvITLhLqnzRhIIMj81XxT6IqDCzfoMYGhoLXSWsUKYmwpwFoGNZQ==
+X-Received: by 2002:a62:87c8:: with SMTP id i191mr44968500pfe.133.1564539684236;
+        Tue, 30 Jul 2019 19:21:24 -0700 (PDT)
+X-Received: by 2002:a62:87c8:: with SMTP id i191mr44968455pfe.133.1564539683434;
+        Tue, 30 Jul 2019 19:21:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564539683; cv=none;
         d=google.com; s=arc-20160816;
-        b=jUy5Qb+jd7ZRNaQxUcoVpK67+XDRztn95t0a4EfGdJXzG/nK+V+SXVNs9ffG32KDbz
-         jAbRh+i6o328zHi8d120N3TX5FiWoMqjA4LzTy3MM38uG8+M+zB5U0f18ML7h6p+lOwl
-         3Uw9vwg/C/7pvJag6YQc5Qga4KbmP+CWj5tiwwX9wBPN6azf/Cnp+0LlnnZMoQOC92y4
-         CIRgfutsAG9Bi6DrHJ4eEA3LUXmVevSQ1u+oQveOal5UryfdfGOPM+RZN8CIDdbpRZ1A
-         RkTOXIVmeUCw8nkrty0Jv0IrAYhIcePuzNDTs5COrIkMHoGTj7nrSef0/hFWkshvQbsc
-         ALlQ==
+        b=hy5K5tIMWWl0o4PZLjdbHF1mBbf4H1GxzmQaIeYq/yMHXhxcYPH40t0XFjrsQx3h6H
+         OrvTGKQjwjSxwHqHUy/EAt8nBRISuMzWrSM8kkdeQcEGtuWEgtF+Ay+JxgXwORuEntP2
+         aVB9YtkQpRB6KrMM/esWzCigPgm2Ye9Vh4LXq3UiA+ybTJPtNoctd6yG1sL0kI17E6eH
+         PRODyiHzCIOV2kMzprfavA9a6ZDjzUHy3NSspF6zLsr68OI/q5Y2AYJ8aVdBHMxVrFwb
+         mQHGjh9PiG6DpqirMe9SiQRbyqrg/17VU2iLXz6y+zDqn5HKy5nLT2LPkHWlU0OqNcBt
+         MpHw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=oCLOdBMgfCfLJi2/RWEeEeVaZTdV5EmVCrQBzvZ/uFM=;
-        b=iQFtC6HI/cvjFmN7EV04bFLFECeUSkel8wAVKGt69kInw82c2rbhcxgPkbLFz8C7U5
-         BNVz0ecZtg3WBBQcNUP664ECE+Y81nGHxEP1pVbPuDNlvqHbOMDFoPhsjR80B6u7i62g
-         Ct/AkNyTXD6bGqB2ntIn+8YlTROHWRtJOyjOCXQoF3/UMkVI3lmUsQsHu5OK3XiYTIfj
-         Y/8sKF5tYNRQzMD+3B5AoLOJlQ+3Z7/FyONfQeoKCUFLV9/ixOuOIL4XMtQ0wdpBuzzP
-         613ERKfud7Y1j1L1KFs0UluhoPolOQzoG8F4XA3EMV0M1P9JWJi+vwV1TaJ2Vc9pLtiD
-         0Elg==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:date:cc:to:from:subject:message-id:dkim-signature;
+        bh=wfO9r2YHzfXnuX5Kr+rPkjXbDXK210fTn6hrztawxZ0=;
+        b=fksn4UZAlnf2SsNCbQcRPv3kYt7FqDlIKlyxi4L9Oxqx1kpbeOtKGy4rp8AVvGc76f
+         vuT9+Ifri/zGsHdnmjwqsSwnCyWBKQ/ruVI12cWUbiuIN2PGX/Ogqq8G69DP0OA0Z6d4
+         XECEX5/02n+otQlOHiuHBPbL9KuEvfh7pdm+NArUajZbVE8bY5asZvXap7kgIQApggnO
+         5Ellc015Y6c5Dzzkz/4/dglWDBQNbPwGS/gFwkeqQWpdEC9qz/8cZQpLxCyzltBSjNze
+         Fr+BlVCJLlWoXS0pLEgiGK1YwEykL/+/4i7qC3W+zhrsZ4wpOGrjloIhwefonDX+JuP5
+         kIlg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=k+q+hA5Q;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Z0cwZYY6;
+       spf=pass (google.com: domain of rashmica.g@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rashmica.g@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v21sor34565809pgb.48.2019.07.30.19.00.16
+        by mx.google.com with SMTPS id h6sor16558047pfe.41.2019.07.30.19.21.23
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 30 Jul 2019 19:00:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 30 Jul 2019 19:21:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rashmica.g@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=k+q+hA5Q;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Z0cwZYY6;
+       spf=pass (google.com: domain of rashmica.g@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rashmica.g@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id;
-        bh=oCLOdBMgfCfLJi2/RWEeEeVaZTdV5EmVCrQBzvZ/uFM=;
-        b=k+q+hA5QM2q24CH7290heHs2kmQGt/ykzG47vTmlDxy0jLaUWJpEELxpSqCPfTFsVI
-         HZzNjy7Bix+8gIjF99zvebszJvIJau9MSSv+YNQXh7i+UqZmSKv06y4mjkudoX3Lo1FX
-         uLVWfyxOnww6OOYSI9vx+qfDU5xi3PQW4rdqEyo6ZJIRgsPhHxe7MOaSCEhGGJ601iYT
-         E7RJEJVO1tlucP/3ciwquXKugFaCXNgGb8K4jC2eRJNVgNj/I7C4HIjpQJeytATwQEVr
-         mQjrz0qY6YsEGP9yiPWZ+rW547IEtDD780P2vKakMWpFJxdOcTQl/GfdbLXx/j3RjJdh
-         vJ3w==
-X-Google-Smtp-Source: APXvYqxNcCQKJ8aCEl77yBJkBG2jtsQ4ZpgP5FUCmJoJEm1exonIQap8RKBcC3hCDX6oaUx8s5ym7Q==
-X-Received: by 2002:a63:67c6:: with SMTP id b189mr20351099pgc.163.1564538416577;
-        Tue, 30 Jul 2019 19:00:16 -0700 (PDT)
-Received: from bogon.localdomain ([203.100.54.194])
-        by smtp.gmail.com with ESMTPSA id i9sm136885pjj.2.2019.07.30.19.00.13
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 19:00:15 -0700 (PDT)
-From: Yafang Shao <laoar.shao@gmail.com>
-To: akpm@linux-foundation.org
-Cc: linux-mm@kvack.org,
-	Yafang Shao <laoar.shao@gmail.com>,
-	Michal Hocko <mhocko@kernel.org>,
-	Yafang Shao <shaoyafang@didiglobal.com>
-Subject: [PATCH RESEND] mm/vmscan: shrink slab in node reclaim
-Date: Tue, 30 Jul 2019 22:00:01 -0400
-Message-Id: <1564538401-21353-1-git-send-email-laoar.shao@gmail.com>
-X-Mailer: git-send-email 1.8.3.1
+        h=message-id:subject:from:to:cc:date:in-reply-to:references
+         :user-agent:mime-version:content-transfer-encoding;
+        bh=wfO9r2YHzfXnuX5Kr+rPkjXbDXK210fTn6hrztawxZ0=;
+        b=Z0cwZYY6NB9z3AeRFZ5F9ivrbekqwqA754MYg0lxZjoYmmBYsJ/Bl5wHSjCKN2LKBb
+         RiVb5ZqBigEi4yXwuIOEc+nJm9XYTqh9pkF3ES4VOLOnLst2nENuMZ5bG6Gbp4kPWl+X
+         o4vpIC701znWr7RpZaoEqbr+/iYRHbkWllXL4o2GCx4fis/KCQhsrL0vYoZ88J5Amasj
+         iNC5H8rZr6XTCcyOtcWZGOYJ5RxHa4DpWz9b98qFzLk7iUJODCPdexNE2tz+I6fQfbhv
+         ZQ7hTkO3HvNNx1onQLjN+IFoG63qcYI0uegXN2aKkbVSDUnES9G0m5qhEHNx+/x5H/1A
+         Rntw==
+X-Google-Smtp-Source: APXvYqxyqpyYZY8qY7B1CMLxmEvGtOzFCCg6NIwd49Af1HowMQkaHr7BFniHgWBtLUGq47Ht38tPyw==
+X-Received: by 2002:a62:14c4:: with SMTP id 187mr43672529pfu.241.1564539683105;
+        Tue, 30 Jul 2019 19:21:23 -0700 (PDT)
+Received: from rashmica.ozlabs.ibm.com ([122.99.82.10])
+        by smtp.googlemail.com with ESMTPSA id e11sm79504488pfm.35.2019.07.30.19.21.19
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 30 Jul 2019 19:21:22 -0700 (PDT)
+Message-ID: <7c49e493510ce04371d8d6cd6c436c347b1f8469.camel@gmail.com>
+Subject: Re: [PATCH v2 0/5] Allocate memmap from hotadded memory
+From: Rashmica Gupta <rashmica.g@gmail.com>
+To: David Hildenbrand <david@redhat.com>, Oscar Salvador <osalvador@suse.de>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com, 
+	pasha.tatashin@soleen.com, Jonathan.Cameron@huawei.com, 
+	anshuman.khandual@arm.com, vbabka@suse.cz, linux-mm@kvack.org, 
+	linux-kernel@vger.kernel.org
+Date: Wed, 31 Jul 2019 12:21:16 +1000
+In-Reply-To: <b3fd1177-45ef-fd9e-78c8-d05138c647da@redhat.com>
+References: <20190625075227.15193-1-osalvador@suse.de>
+	 <2ebfbd36-11bd-9576-e373-2964c458185b@redhat.com>
+	 <20190626080249.GA30863@linux>
+	 <2750c11a-524d-b248-060c-49e6b3eb8975@redhat.com>
+	 <20190626081516.GC30863@linux>
+	 <887b902e-063d-a857-d472-f6f69d954378@redhat.com>
+	 <9143f64391d11aa0f1988e78be9de7ff56e4b30b.camel@gmail.com>
+	 <0cd2c142-66ba-5b6d-bc9d-fe68c1c65c77@redhat.com>
+	 <b7de7d9d84e9dd47358a254d36f6a24dd48da963.camel@gmail.com>
+	 <b3fd1177-45ef-fd9e-78c8-d05138c647da@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+MIME-Version: 1.0
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In the node reclaim, may_shrinkslab is 0 by default,
-hence shrink_slab will never be performed in it.
-While shrik_slab should be performed if the relcaimable slab is over
-min slab limit.
+On Mon, 2019-07-29 at 10:06 +0200, David Hildenbrand wrote:
+> > > Of course, other interfaces might make sense.
+> > > 
+> > > You can then start using these memory blocks and hinder them from
+> > > getting onlined (as a safety net) via memory notifiers.
+> > > 
+> > > That would at least avoid you having to call
+> > > add_memory/remove_memory/offline_pages/device_online/modifying
+> > > memblock
+> > > states manually.
+> > 
+> > I see what you're saying and that definitely sounds safer.
+> > 
+> > We would still need to call remove_memory and add_memory from
+> > memtrace
+> > as
+> > just offlining memory doesn't remove it from the linear page tables
+> > (if 
+> > it's still in the page tables then hardware can prefetch it and if
+> > hardware tracing is using it then the box checkstops).
+> 
+> That prefetching part is interesting (and nasty as well). If we could
+> at
+> least get rid of the manual onlining/offlining, I would be able to
+> sleep
+> better at night ;) One step at a time.
+> 
 
-If reclaimable pagecache is less than min_unmapped_pages while
-reclaimable slab is greater than min_slab_pages, we only shrink slab.
-Otherwise the min_unmapped_pages will be useless under this condition.
-A new bitmask no_pagecache is introduced in scan_control for this
-purpose, which is 0 by default.
-Once __node_reclaim() is called, either the reclaimable pagecache is
-greater than min_unmapped_pages or reclaimable slab is greater than
-min_slab_pages, that is ensured in function node_reclaim(). So wen can
-remove the if statement in __node_reclaim().
+What are your thoughts on adding remove to state_store in
+drivers/base/memory.c? And an accompanying add? So then userspace could
+do "echo remove > memory34/state"? 
 
-sc.reclaim_state.reclaimed_slab will tell us how many pages are
-reclaimed in shrink slab.
+Then most of the memtrace code could be moved to a userspace tool. The
+only bit that we would need to keep in the kernel is setting up debugfs
+files in memtrace_init_debugfs.
 
-This issue is very easy to produce, first you continuously cat a random
-non-exist file to produce more and more dentry, then you read big file
-to produce page cache. And finally you will find that the denty will
-never be shrunk in node reclaim (they can only be shrunk in kswapd until
-the watermark is reached).
 
-Regarding vm.zone_reclaim_mode, we always set it to zero to disable node
-reclaim. Someone may prefer to enable it if their different workloads work
-on different nodes.
-
-Signed-off-by: Yafang Shao <laoar.shao@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>
-Cc: Yafang Shao <shaoyafang@didiglobal.com>
----
- mm/vmscan.c | 27 +++++++++++++++++----------
- 1 file changed, 17 insertions(+), 10 deletions(-)
-
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index 47aa215..1e410ef 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -91,6 +91,9 @@ struct scan_control {
- 	/* e.g. boosted watermark reclaim leaves slabs alone */
- 	unsigned int may_shrinkslab:1;
- 
-+	/* in node relcaim mode, we may shrink slab only */
-+	unsigned int no_pagecache:1;
-+
- 	/*
- 	 * Cgroups are not reclaimed below their configured memory.low,
- 	 * unless we threaten to OOM. If any cgroups are skipped due to
-@@ -2831,7 +2834,9 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 
- 			reclaimed = sc->nr_reclaimed;
- 			scanned = sc->nr_scanned;
--			shrink_node_memcg(pgdat, memcg, sc);
-+
-+			if (!sc->no_pagecache)
-+				shrink_node_memcg(pgdat, memcg, sc);
- 
- 			if (sc->may_shrinkslab) {
- 				shrink_slab(sc->gfp_mask, pgdat->node_id,
-@@ -4268,6 +4273,10 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
- 		.may_writepage = !!(node_reclaim_mode & RECLAIM_WRITE),
- 		.may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
- 		.may_swap = 1,
-+		.may_shrinkslab = (node_page_state(pgdat, NR_SLAB_RECLAIMABLE) >
-+				   pgdat->min_slab_pages),
-+		.no_pagecache = !(node_pagecache_reclaimable(pgdat) >
-+				  pgdat->min_unmapped_pages),
- 		.reclaim_idx = gfp_zone(gfp_mask),
- 	};
- 
-@@ -4285,15 +4294,13 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
- 	p->flags |= PF_SWAPWRITE;
- 	set_task_reclaim_state(p, &sc.reclaim_state);
- 
--	if (node_pagecache_reclaimable(pgdat) > pgdat->min_unmapped_pages) {
--		/*
--		 * Free memory by calling shrink node with increasing
--		 * priorities until we have enough memory freed.
--		 */
--		do {
--			shrink_node(pgdat, &sc);
--		} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
--	}
-+	/*
-+	 * Free memory by calling shrink node with increasing
-+	 * priorities until we have enough memory freed.
-+	 */
-+	do {
-+		shrink_node(pgdat, &sc);
-+	} while (sc.nr_reclaimed < nr_pages && --sc.priority >= 0);
- 
- 	set_task_reclaim_state(p, NULL);
- 	current->flags &= ~PF_SWAPWRITE;
--- 
-1.8.3.1
 
