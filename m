@@ -2,600 +2,163 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 03EF3C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 18:30:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F0A1C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 18:33:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 73A58206B8
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 18:29:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73A58206B8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id E4F5C206B8
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 18:33:40 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="Rcc1vkKI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E4F5C206B8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0BA018E0003; Wed, 31 Jul 2019 14:29:59 -0400 (EDT)
+	id 76E1E8E0003; Wed, 31 Jul 2019 14:33:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 06B088E0001; Wed, 31 Jul 2019 14:29:59 -0400 (EDT)
+	id 71F028E0001; Wed, 31 Jul 2019 14:33:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E4CF78E0003; Wed, 31 Jul 2019 14:29:58 -0400 (EDT)
+	id 5BEE58E0003; Wed, 31 Jul 2019 14:33:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BCAF78E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 14:29:58 -0400 (EDT)
-Received: by mail-vk1-f197.google.com with SMTP id p196so29720250vke.17
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:29:58 -0700 (PDT)
+Received: from mail-yw1-f70.google.com (mail-yw1-f70.google.com [209.85.161.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3C93C8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 14:33:40 -0400 (EDT)
+Received: by mail-yw1-f70.google.com with SMTP id f11so51152616ywc.4
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:33:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to;
-        bh=mkkk66qZeM7rZbp5Mkon6w+g0XNyuUrht7AlCfpNI3c=;
-        b=StEL7ypJrSJhL8soOBJORx8M0lJgrDSGPLvO8Fx4yAPqmKWmNZ3M1SYaG4plFb8Ppg
-         XSoYO/hDdxADw/854w74OIw+pUhjF2zzUpuG/iZwbQi1rgy+F/ez/0n90lHTvElBxYYT
-         V5+MKqA7vXAJ2SdVqcILQrozsS1ZGr8LpFAzLOoIdGks5m4B/k79/x/q/hHNfo/3Nbp4
-         FbYLK3ueVbA2NtRtTWidfkR3cFF3IAS5b5YWllF27+Ewd0isdrSqt1WCpm5X3AU0MyMk
-         slnHcdSZnd6zy/L1ckah/Dp/MtCkJz9g6ETUppHpL3mLblUExOovPsiPMTdVUMsuNn9o
-         Nw6A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUSDDyZK4+Hk641Ri/6g40VSyDGO/mMEp3OlRXTbdiyyLRF7UNT
-	hpNV6XFwRDQCFzg2/D4GpUTWuVAtoU8RKHGKX77NgYsThhIGbheymc/1n6xtD85AJ4qa4riitzu
-	R39UKtdGagTXtmPNL38IjVFZiWYp9Kotow1/hyng2vycJfuQfJL+unuMrEmhk14Q97g==
-X-Received: by 2002:ab0:2789:: with SMTP id t9mr61705372uap.69.1564597798454;
-        Wed, 31 Jul 2019 11:29:58 -0700 (PDT)
-X-Received: by 2002:ab0:2789:: with SMTP id t9mr61705245uap.69.1564597797282;
-        Wed, 31 Jul 2019 11:29:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564597797; cv=none;
+        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
+         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
+         :message-id:mime-version;
+        bh=bRpkMB+IavxhRux4OXH4DLu7NlF/d2cpuzrzUbrtFGI=;
+        b=MA6IZYZPiq1M2gqebqJZuCr0r4MbLI1YgX20TBko4MpWiffR85pEKstjnn9MRFhvoW
+         hmBjeJ9pFYq6CYXYLeF2LrT7ChhqWP2ZpA1sqquOj/2ABbGmPV4VwVQMfvQ6cgMyq74m
+         WjfNv767TlmxC/EXSEPaVH54ITlSa2hFs0OuJnifurWkZOeQA/H0jdUmvXiWjwxFoPVP
+         z1CqlS7oWoBzQlu8sTFgwCqDTTjVf0CFJ04u+DJE6vw6BoRmLj6lj+nMnDK0tAqlo2YP
+         NaG9rlxpJivuJoa2kjDHm1KkaVqTqes/qJH/O9mplvJd3pbjKmX9VdxiC1N2rpwGyLnG
+         HjsA==
+X-Gm-Message-State: APjAAAXKQCKTs/M1m++K5Y18A3LCqs9zhRp1mU31Zn5pIuhMSiY0SyVy
+	UXXhxsnv/P/U6iejSOWSeubNXLT526ZvHjuQZcnxnL5qQCfLl3vz4e+GTPzaaSErIMbz9HLnqIe
+	bKep/qVJq/OGtsQ1TBZrGAxO0D25XIzyAN8xXN/+Bo4ppcKtP9YfQETTf/kzd2A8COw==
+X-Received: by 2002:a25:2d43:: with SMTP id s3mr52024627ybe.209.1564598019829;
+        Wed, 31 Jul 2019 11:33:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwk6h6tanADCwSXvGf7du3X+8SZD6Fq3kn/CaRhJlvtkfusWaHf0sOHRVJS3amkyHzSPvPG
+X-Received: by 2002:a25:2d43:: with SMTP id s3mr52024594ybe.209.1564598019065;
+        Wed, 31 Jul 2019 11:33:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564598019; cv=none;
         d=google.com; s=arc-20160816;
-        b=O9O3RuxOKmtipAXjTTBt0n0aSrW7WJt2mmsFCzRnb7+0lwe9bZTr6oBsvtBselOoch
-         VZT7j7uyY4LFZjSNKKq3ppat+8esIr74vYIEIQZUfTBjg13QAtU672cEYgolQc62+Y3Q
-         WOtKOQLN9TsE2kLFxgMGcA4wn4Xd02jvRdi3zX9jPPgH//F7d+sfgUK9+MMvU9slMRUz
-         pzaSGDQnCLQnn8nkpf5NiDZrdAyCvAfKy0CJNUcgtL5vh/zIi1URbKajLvJgQuv/myto
-         plN4KEG38RVps8F0gk4fsEtTAwL9qoVCiuWsezbNJWao1aqUJ5NZA8Fe7N51ECrnfbC+
-         /BBQ==
+        b=v/1Uwk4DSTnpniJA3BcDg9n0GDGXcMWLRfjBj9jjA/f5OpVfIuG5TCO6MGLANE9rpm
+         ClKpH5mqxmoKQ1xXOEXw56D6+c4XxacwiQRKt2oISJKNbgpmym/XOvTp9odjsuxbAVfr
+         OzRVUsuaNqUoUDtpURncdbnrf/R53/UYt3UwftYkMZSwm9w3CZuLYXIUC0wVZOxFPTok
+         tpWdGxloL85kcOIJkI0ZWvY06hCGOvCOfLIo4JEMBBM0J9dN1s+xknW/39pLA9CFdrTW
+         RSncMRCJRYCuGJfC3kQkYdfhwc3S4ELTHtF7xuJdt1b4VVUHskxbcO7W6XD5O976eUl1
+         f7pg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date;
-        bh=mkkk66qZeM7rZbp5Mkon6w+g0XNyuUrht7AlCfpNI3c=;
-        b=0RM9/Sea8f3C5Thzu2y3YkxO9iQ7a/dlq+cIO0UDlXHW1Hq2nWf8i1EC+53fTl9y9a
-         GokZKFiw4TJYiuy5EhIqOfnz6wgvVdUho5DYVH/pZCyAA+CuiEvsN+UScPTSx76e26D+
-         0lBM0z7fc4RSvqbpuhMGCK1XpzA7xEHQ2AfAeOV0FBVqJfJpJi3lu7Rjt330C7wb6lsR
-         77rF/W6xA1e/nQ/bFE7aBqkf6RJzD+FVI1sPfLsCgEgIn389Hll57sMypLBpfe9z3dEs
-         xZLgXD5i1A9PbtfieiNU8ImWl1yz0HR+yjycWxm4Ps1Ae6Pp3UDvmHm2vdBqD+d3hHPf
-         fOqw==
+        h=mime-version:message-id:date:subject:smtp-origin-cluster:cc:to
+         :smtp-origin-hostname:from:smtp-origin-hostprefix:dkim-signature;
+        bh=bRpkMB+IavxhRux4OXH4DLu7NlF/d2cpuzrzUbrtFGI=;
+        b=DcnhZ5zcwhyXw7+ems+MYQWDVRuUDR0lh8CiFFRa6kjMbXAQyo36k3RUp79Q+LsYEk
+         puSkFqdm2EUIHqQVRKJPras0Cga/4zzYDtiQLxspSwb2va3spBSkmOrIbj9bSTRMhVQ3
+         ZCz1fo7blkcRAZEwJHu3syB5AiORQs/y02r3daMAZ96CyAM572t/apkZw5fzRqQZfT3P
+         IDeLGb1d3S9PwrLrYhyTc1+OS/0Sr4f5nVT95Q/xp0SgY6SNeEB6KY9V94KD/6DVINj6
+         Vn3V6zxJtYlK0ff5F07aMC/DAawiBzUo6zy6KuCKgJAcePj8Bd0E9FfWKIjhy5cPSU16
+         QDCA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a11sor33926991vsd.26.2019.07.31.11.29.57
+       dkim=pass header.i=@fb.com header.s=facebook header.b=Rcc1vkKI;
+       spf=pass (google.com: domain of prvs=3115c6337e=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=3115c6337e=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id d30si3755728ybi.136.2019.07.31.11.33.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 31 Jul 2019 11:29:57 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Jul 2019 11:33:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=3115c6337e=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqxwu4JXMVRdRBatu6SdqPckIbcsvlaKORV23YoYuIEhZIrdialQkGmhyfGj2U4NpBEniTRmaA==
-X-Received: by 2002:a67:c419:: with SMTP id c25mr78324215vsk.136.1564597796832;
-        Wed, 31 Jul 2019 11:29:56 -0700 (PDT)
-Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
-        by smtp.gmail.com with ESMTPSA id h12sm9627521uao.15.2019.07.31.11.29.52
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 31 Jul 2019 11:29:55 -0700 (PDT)
-Date: Wed, 31 Jul 2019 14:29:50 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Jason Wang <jasowang@redhat.com>
-Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
-	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, jgg@ziepe.ca,
-	"Paul E. McKenney" <paulmck@linux.ibm.com>
-Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
- with worker
-Message-ID: <20190731132438-mutt-send-email-mst@kernel.org>
-References: <20190731084655.7024-1-jasowang@redhat.com>
- <20190731084655.7024-8-jasowang@redhat.com>
+       dkim=pass header.i=@fb.com header.s=facebook header.b=Rcc1vkKI;
+       spf=pass (google.com: domain of prvs=3115c6337e=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=3115c6337e=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0001303.ppops.net [127.0.0.1])
+	by m0001303.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x6VIWs6K020733
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:33:38 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : mime-version : content-type; s=facebook;
+ bh=bRpkMB+IavxhRux4OXH4DLu7NlF/d2cpuzrzUbrtFGI=;
+ b=Rcc1vkKI62WNwXRCQyABJMLu8U90g3ObOaBIJFUyfU+JoKhJYh8LFAsowvQyvDWbpc+C
+ BbnI81+p52tmz8vU/k5ad4M/wplt+GZtZcgCSFLe6YD9+bdnxk/CHXDrPgoAwy6DQFNu
+ tIT0AG8NJnl1lfVg3/raftTXv1YgZWQyqyY= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by m0001303.ppops.net with ESMTP id 2u2wn6um94-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:33:38 -0700
+Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
+ mail.thefacebook.com (2620:10d:c0a8:83::6) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Wed, 31 Jul 2019 11:33:37 -0700
+Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
+	id 129EE62E1BBA; Wed, 31 Jul 2019 11:33:36 -0700 (PDT)
+Smtp-Origin-Hostprefix: devbig
+From: Song Liu <songliubraving@fb.com>
+Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
+To: <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
+        <akpm@linux-foundation.org>
+CC: <matthew.wilcox@oracle.com>, <kirill.shutemov@linux.intel.com>,
+        <oleg@redhat.com>, <kernel-team@fb.com>,
+        <william.kucharski@oracle.com>, <srikar@linux.vnet.ibm.com>,
+        Song Liu <songliubraving@fb.com>
+Smtp-Origin-Cluster: ftw2c04
+Subject: [PATCH v2 0/2] khugepaged: collapse pmd for pte-mapped THP
+Date: Wed, 31 Jul 2019 11:33:29 -0700
+Message-ID: <20190731183331.2565608-1-songliubraving@fb.com>
+X-Mailer: git-send-email 2.17.1
+X-FB-Internal: Safe
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190731084655.7024-8-jasowang@redhat.com>
+Content-Type: text/plain
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-31_09:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=570 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1907310187
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 31, 2019 at 04:46:53AM -0400, Jason Wang wrote:
-> We used to use RCU to synchronize MMU notifier with worker. This leads
-> calling synchronize_rcu() in invalidate_range_start(). But on a busy
-> system, there would be many factors that may slow down the
-> synchronize_rcu() which makes it unsuitable to be called in MMU
-> notifier.
-> 
-> A solution is SRCU but its overhead is obvious with the expensive full
-> memory barrier. Another choice is to use seqlock, but it doesn't
-> provide a synchronization method between readers and writers. The last
-> choice is to use vq mutex, but it need to deal with the worst case
-> that MMU notifier must be blocked and wait for the finish of swap in.
-> 
-> So this patch switches use a counter to track whether or not the map
-> was used. The counter was increased when vq try to start or finish
-> uses the map. This means, when it was even, we're sure there's no
-> readers and MMU notifier is synchronized. When it was odd, it means
-> there's a reader we need to wait it to be even again then we are
-> synchronized. To avoid full memory barrier, store_release +
-> load_acquire on the counter is used.
+Changes v1 => v2:
+1. Call collapse_pte_mapped_thp() directly from uprobe_write_opcode();
+2. Add VM_BUG_ON() for addr alignment in khugepaged_add_pte_mapped_thp()
+   and collapse_pte_mapped_thp().
 
-Unfortunately this needs a lot of review and testing, so this can't make
-rc2, and I don't think this is the kind of patch I can merge after rc3.
-Subtle memory barrier tricks like this can introduce new bugs while they
-are fixing old ones.
+This set is the newer version of 5/6 and 6/6 of [1]. Newer version of
+1-4 of the work [2] was recently picked by Andrew.
 
+Patch 1 enables khugepaged to handle pte-mapped THP. These THPs are left
+in such state when khugepaged failed to get exclusive lock of mmap_sem.
 
+Patch 2 leverages work in 1 for uprobe on THP. After [2], uprobe only
+splits the PMD. When the uprobe is disabled, we get pte-mapped THP.
+After this set, these pte-mapped THP will be collapsed as pmd-mapped.
 
+[1] https://lkml.org/lkml/2019/6/23/23
+[2] https://www.spinics.net/lists/linux-mm/msg185889.html
 
+Song Liu (2):
+  khugepaged: enable collapse pmd for pte-mapped THP
+  uprobe: collapse THP pmd after removing all uprobes
 
-> 
-> Consider the read critical section is pretty small the synchronization
-> should be done very fast.
-> 
-> Note the patch lead about 3% PPS dropping.
+ include/linux/khugepaged.h |  12 ++++
+ kernel/events/uprobes.c    |   9 +++
+ mm/khugepaged.c            | 138 +++++++++++++++++++++++++++++++++++++
+ 3 files changed, 159 insertions(+)
 
-Sorry what do you mean by this last sentence? This degrades performance
-compared to what?
-
-> 
-> Reported-by: Michael S. Tsirkin <mst@redhat.com>
-> Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual address")
-> Signed-off-by: Jason Wang <jasowang@redhat.com>
-> ---
->  drivers/vhost/vhost.c | 145 ++++++++++++++++++++++++++----------------
->  drivers/vhost/vhost.h |   7 +-
->  2 files changed, 94 insertions(+), 58 deletions(-)
-> 
-> diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
-> index cfc11f9ed9c9..db2c81cb1e90 100644
-> --- a/drivers/vhost/vhost.c
-> +++ b/drivers/vhost/vhost.c
-> @@ -324,17 +324,16 @@ static void vhost_uninit_vq_maps(struct vhost_virtqueue *vq)
->  
->  	spin_lock(&vq->mmu_lock);
->  	for (i = 0; i < VHOST_NUM_ADDRS; i++) {
-> -		map[i] = rcu_dereference_protected(vq->maps[i],
-> -				  lockdep_is_held(&vq->mmu_lock));
-> +		map[i] = vq->maps[i];
->  		if (map[i]) {
->  			vhost_set_map_dirty(vq, map[i], i);
-> -			rcu_assign_pointer(vq->maps[i], NULL);
-> +			vq->maps[i] = NULL;
->  		}
->  	}
->  	spin_unlock(&vq->mmu_lock);
->  
-> -	/* No need for synchronize_rcu() or kfree_rcu() since we are
-> -	 * serialized with memory accessors (e.g vq mutex held).
-> +	/* No need for synchronization since we are serialized with
-> +	 * memory accessors (e.g vq mutex held).
->  	 */
->  
->  	for (i = 0; i < VHOST_NUM_ADDRS; i++)
-> @@ -362,6 +361,44 @@ static bool vhost_map_range_overlap(struct vhost_uaddr *uaddr,
->  	return !(end < uaddr->uaddr || start > uaddr->uaddr - 1 + uaddr->size);
->  }
->  
-> +static void inline vhost_vq_access_map_begin(struct vhost_virtqueue *vq)
-> +{
-> +	int ref = READ_ONCE(vq->ref);
-> +
-> +	smp_store_release(&vq->ref, ref + 1);
-> +	/* Make sure ref counter is visible before accessing the map */
-> +	smp_load_acquire(&vq->ref);
-
-The map access is after this sequence, correct?
-
-Just going by the rules in Documentation/memory-barriers.txt,
-I think that this pair will not order following accesses with ref store.
-
-Documentation/memory-barriers.txt says:
-
-
-+     In addition, a RELEASE+ACQUIRE
-+     pair is -not- guaranteed to act as a full memory barrier.
-
-
-
-The guarantee that is made is this:
-	after
-     an ACQUIRE on a given variable, all memory accesses preceding any prior
-     RELEASE on that same variable are guaranteed to be visible. 
-
-
-And if we also had the reverse rule we'd end up with a full barrier,
-won't we?
-
-Cc Paul in case I missed something here. And if I'm right,
-maybe we should call this out, adding
-
-	"The opposite is not true: a prior RELEASE is not
-	 guaranteed to be visible before memory accesses following
-	 the subsequent ACQUIRE".
-
-
-
-> +}
-> +
-> +static void inline vhost_vq_access_map_end(struct vhost_virtqueue *vq)
-> +{
-> +	int ref = READ_ONCE(vq->ref);
-> +
-> +	/* Make sure vq access is done before increasing ref counter */
-> +	smp_store_release(&vq->ref, ref + 1);
-> +}
-> +
-> +static void inline vhost_vq_sync_access(struct vhost_virtqueue *vq)
-> +{
-> +	int ref;
-> +
-> +	/* Make sure map change was done before checking ref counter */
-> +	smp_mb();
-> +
-> +	ref = READ_ONCE(vq->ref);
-> +	if (ref & 0x1) {
-
-Please document the even/odd trick here too, not just in the commit log.
-
-> +		/* When ref change,
-
-changes
-
-> we are sure no reader can see
-> +		 * previous map */
-> +		while (READ_ONCE(vq->ref) == ref) {
-
-
-what is the below line in aid of?
-
-> +			set_current_state(TASK_RUNNING);
-> +			schedule();
-
-                        if (need_resched())
-                                schedule();
-
-?
-
-> +		}
-
-On an interruptible kernel, there's a risk here is that
-a task got preempted with an odd ref.
-So I suspect we'll have to disable preemption when we
-make ref odd.
-
-
-> +	}
-> +	/* Make sure ref counter was checked before any other
-> +	 * operations that was dene on map. */
-
-was dene -> were done?
-
-> +	smp_mb();
-> +}
-> +
->  static void vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
->  				      int index,
->  				      unsigned long start,
-> @@ -376,16 +413,15 @@ static void vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
->  	spin_lock(&vq->mmu_lock);
->  	++vq->invalidate_count;
->  
-> -	map = rcu_dereference_protected(vq->maps[index],
-> -					lockdep_is_held(&vq->mmu_lock));
-> +	map = vq->maps[index];
->  	if (map) {
->  		vhost_set_map_dirty(vq, map, index);
-> -		rcu_assign_pointer(vq->maps[index], NULL);
-> +		vq->maps[index] = NULL;
->  	}
->  	spin_unlock(&vq->mmu_lock);
->  
->  	if (map) {
-> -		synchronize_rcu();
-> +		vhost_vq_sync_access(vq);
->  		vhost_map_unprefetch(map);
->  	}
->  }
-> @@ -457,7 +493,7 @@ static void vhost_init_maps(struct vhost_dev *dev)
->  	for (i = 0; i < dev->nvqs; ++i) {
->  		vq = dev->vqs[i];
->  		for (j = 0; j < VHOST_NUM_ADDRS; j++)
-> -			RCU_INIT_POINTER(vq->maps[j], NULL);
-> +			vq->maps[j] = NULL;
->  	}
->  }
->  #endif
-> @@ -655,6 +691,7 @@ void vhost_dev_init(struct vhost_dev *dev,
->  		vq->indirect = NULL;
->  		vq->heads = NULL;
->  		vq->dev = dev;
-> +		vq->ref = 0;
->  		mutex_init(&vq->mutex);
->  		spin_lock_init(&vq->mmu_lock);
->  		vhost_vq_reset(dev, vq);
-> @@ -921,7 +958,7 @@ static int vhost_map_prefetch(struct vhost_virtqueue *vq,
->  	map->npages = npages;
->  	map->pages = pages;
->  
-> -	rcu_assign_pointer(vq->maps[index], map);
-> +	vq->maps[index] = map;
->  	/* No need for a synchronize_rcu(). This function should be
->  	 * called by dev->worker so we are serialized with all
->  	 * readers.
-> @@ -1216,18 +1253,18 @@ static inline int vhost_put_avail_event(struct vhost_virtqueue *vq)
->  	struct vring_used *used;
->  
->  	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->  
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> +		map = vq->maps[VHOST_ADDR_USED];
->  		if (likely(map)) {
->  			used = map->addr;
->  			*((__virtio16 *)&used->ring[vq->num]) =
->  				cpu_to_vhost16(vq, vq->avail_idx);
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->  			return 0;
->  		}
->  
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->  	}
->  #endif
->  
-> @@ -1245,18 +1282,18 @@ static inline int vhost_put_used(struct vhost_virtqueue *vq,
->  	size_t size;
->  
->  	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->  
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> +		map = vq->maps[VHOST_ADDR_USED];
->  		if (likely(map)) {
->  			used = map->addr;
->  			size = count * sizeof(*head);
->  			memcpy(used->ring + idx, head, size);
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->  			return 0;
->  		}
->  
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->  	}
->  #endif
->  
-> @@ -1272,17 +1309,17 @@ static inline int vhost_put_used_flags(struct vhost_virtqueue *vq)
->  	struct vring_used *used;
->  
->  	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->  
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> +		map = vq->maps[VHOST_ADDR_USED];
->  		if (likely(map)) {
->  			used = map->addr;
->  			used->flags = cpu_to_vhost16(vq, vq->used_flags);
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->  			return 0;
->  		}
->  
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->  	}
->  #endif
->  
-> @@ -1298,17 +1335,17 @@ static inline int vhost_put_used_idx(struct vhost_virtqueue *vq)
->  	struct vring_used *used;
->  
->  	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->  
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> +		map = vq->maps[VHOST_ADDR_USED];
->  		if (likely(map)) {
->  			used = map->addr;
->  			used->idx = cpu_to_vhost16(vq, vq->last_used_idx);
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->  			return 0;
->  		}
->  
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->  	}
->  #endif
->  
-> @@ -1362,17 +1399,17 @@ static inline int vhost_get_avail_idx(struct vhost_virtqueue *vq,
->  	struct vring_avail *avail;
->  
->  	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->  
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_AVAIL]);
-> +		map = vq->maps[VHOST_ADDR_AVAIL];
->  		if (likely(map)) {
->  			avail = map->addr;
->  			*idx = avail->idx;
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->  			return 0;
->  		}
->  
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->  	}
->  #endif
->  
-> @@ -1387,17 +1424,17 @@ static inline int vhost_get_avail_head(struct vhost_virtqueue *vq,
->  	struct vring_avail *avail;
->  
->  	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->  
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_AVAIL]);
-> +		map = vq->maps[VHOST_ADDR_AVAIL];
->  		if (likely(map)) {
->  			avail = map->addr;
->  			*head = avail->ring[idx & (vq->num - 1)];
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->  			return 0;
->  		}
->  
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->  	}
->  #endif
->  
-> @@ -1413,17 +1450,17 @@ static inline int vhost_get_avail_flags(struct vhost_virtqueue *vq,
->  	struct vring_avail *avail;
->  
->  	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->  
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_AVAIL]);
-> +		map = vq->maps[VHOST_ADDR_AVAIL];
->  		if (likely(map)) {
->  			avail = map->addr;
->  			*flags = avail->flags;
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->  			return 0;
->  		}
->  
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->  	}
->  #endif
->  
-> @@ -1438,15 +1475,15 @@ static inline int vhost_get_used_event(struct vhost_virtqueue *vq,
->  	struct vring_avail *avail;
->  
->  	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_AVAIL]);
-> +		vhost_vq_access_map_begin(vq);
-> +		map = vq->maps[VHOST_ADDR_AVAIL];
->  		if (likely(map)) {
->  			avail = map->addr;
->  			*event = (__virtio16)avail->ring[vq->num];
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->  			return 0;
->  		}
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->  	}
->  #endif
->  
-> @@ -1461,17 +1498,17 @@ static inline int vhost_get_used_idx(struct vhost_virtqueue *vq,
->  	struct vring_used *used;
->  
->  	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->  
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> +		map = vq->maps[VHOST_ADDR_USED];
->  		if (likely(map)) {
->  			used = map->addr;
->  			*idx = used->idx;
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->  			return 0;
->  		}
->  
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->  	}
->  #endif
->  
-> @@ -1486,17 +1523,17 @@ static inline int vhost_get_desc(struct vhost_virtqueue *vq,
->  	struct vring_desc *d;
->  
->  	if (!vq->iotlb) {
-> -		rcu_read_lock();
-> +		vhost_vq_access_map_begin(vq);
->  
-> -		map = rcu_dereference(vq->maps[VHOST_ADDR_DESC]);
-> +		map = vq->maps[VHOST_ADDR_DESC];
->  		if (likely(map)) {
->  			d = map->addr;
->  			*desc = *(d + idx);
-> -			rcu_read_unlock();
-> +			vhost_vq_access_map_end(vq);
->  			return 0;
->  		}
->  
-> -		rcu_read_unlock();
-> +		vhost_vq_access_map_end(vq);
->  	}
->  #endif
->  
-> @@ -1843,13 +1880,11 @@ static bool iotlb_access_ok(struct vhost_virtqueue *vq,
->  #if VHOST_ARCH_CAN_ACCEL_UACCESS
->  static void vhost_vq_map_prefetch(struct vhost_virtqueue *vq)
->  {
-> -	struct vhost_map __rcu *map;
-> +	struct vhost_map *map;
->  	int i;
->  
->  	for (i = 0; i < VHOST_NUM_ADDRS; i++) {
-> -		rcu_read_lock();
-> -		map = rcu_dereference(vq->maps[i]);
-> -		rcu_read_unlock();
-> +		map = vq->maps[i];
->  		if (unlikely(!map))
->  			vhost_map_prefetch(vq, i);
->  	}
-> diff --git a/drivers/vhost/vhost.h b/drivers/vhost/vhost.h
-> index a9a2a93857d2..f9e9558a529d 100644
-> --- a/drivers/vhost/vhost.h
-> +++ b/drivers/vhost/vhost.h
-> @@ -115,16 +115,17 @@ struct vhost_virtqueue {
->  #if VHOST_ARCH_CAN_ACCEL_UACCESS
->  	/* Read by memory accessors, modified by meta data
->  	 * prefetching, MMU notifier and vring ioctl().
-> -	 * Synchonrized through mmu_lock (writers) and RCU (writers
-> -	 * and readers).
-> +	 * Synchonrized through mmu_lock (writers) and ref counters,
-> +	 * see vhost_vq_access_map_begin()/vhost_vq_access_map_end().
->  	 */
-> -	struct vhost_map __rcu *maps[VHOST_NUM_ADDRS];
-> +	struct vhost_map *maps[VHOST_NUM_ADDRS];
->  	/* Read by MMU notifier, modified by vring ioctl(),
->  	 * synchronized through MMU notifier
->  	 * registering/unregistering.
->  	 */
->  	struct vhost_uaddr uaddrs[VHOST_NUM_ADDRS];
->  #endif
-> +	int ref;
-
-Is it important that this is signed? If not I'd do unsigned here:
-even though kernel does compile with 2s complement sign overflow,
-it seems cleaner not to depend on that.
-
->  	const struct vhost_umem_node *meta_iotlb[VHOST_NUM_ADDRS];
->  
->  	struct file *kick;
-> -- 
-> 2.18.1
+--
+2.17.1
 
