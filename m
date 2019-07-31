@@ -2,246 +2,188 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D5C6C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 06:44:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 02940C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 07:15:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E2C8A2089E
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 06:44:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E2C8A2089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 8D611218A6
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 07:15:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=axtens.net header.i=@axtens.net header.b="AHPx62HM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D611218A6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=axtens.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9A7338E0003; Wed, 31 Jul 2019 02:44:18 -0400 (EDT)
+	id E72978E0003; Wed, 31 Jul 2019 03:15:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 958068E0001; Wed, 31 Jul 2019 02:44:18 -0400 (EDT)
+	id DFB608E0001; Wed, 31 Jul 2019 03:15:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 81FCB8E0003; Wed, 31 Jul 2019 02:44:18 -0400 (EDT)
+	id CC3858E0003; Wed, 31 Jul 2019 03:15:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yw1-f69.google.com (mail-yw1-f69.google.com [209.85.161.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 610318E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 02:44:18 -0400 (EDT)
-Received: by mail-yw1-f69.google.com with SMTP id b75so49580220ywh.8
-        for <linux-mm@kvack.org>; Tue, 30 Jul 2019 23:44:18 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 94EBA8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 03:15:57 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id y66so42627054pfb.21
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 00:15:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=eJpTqhjq32xxR611Iu+PnjDy/EPpQxCVR5srDH+Bu+g=;
-        b=MzzRYbMOurDu2x3ebGR/etwrXkUtl2PcEq9DwG5G8Uj2gn5uhdsP5C7gpoXuDUl/6i
-         7Zfl8Kh2TSNtHyzPb3b1nzF/rkGGheIY1i3nw3RXosivkPc+jSo6KkrOrdZ2vTtsqXz6
-         0JXNJDb8QdLfYArZHqqcBRC9YEg+03fXJbLzVTCtszGDncs9ppoekVcOILGkYZYFI50X
-         IIkSmxqhC/FX/IQdKEBh5WjnYcg9LF3lqsTVGLArKg7Dl9bTuesaYmFUDw/kEig/Pb6d
-         3Orlp0C3uk9XoTJF7B+HANYCnnaJtZdwo0K1YMilRavpgan1e6/jqfDsYbDC4ux8KFfE
-         oWzg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWbdveRgtqQf4u5YyQ6WQPTPlg8IdvvAl0uJ5lSCxkQsrToYpes
-	CAJ+gYbNCH/yhB9Vz9kRh7Z07KlcGvV/uL+ws3JlPJpXPt0o2I3QwkBWHxTH9rSa5I1gqOxLHav
-	8XsZSeoLvJF9ZFcCejMOZAAmzU3cr7n92sUIh3wWvxOb2VuBXFEacY9G/MZn51n9nrQ==
-X-Received: by 2002:a25:ba07:: with SMTP id t7mr14725707ybg.261.1564555458091;
-        Tue, 30 Jul 2019 23:44:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz5WlBLDqGGa/ywe0JPjQTeNr3UD5oGh2fttm4yNpRFxvzd4OAZQjTZUuVpgBebX33gb3OM
-X-Received: by 2002:a25:ba07:: with SMTP id t7mr14725699ybg.261.1564555457512;
-        Tue, 30 Jul 2019 23:44:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564555457; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=pBb3SjcJAJvGT3ZKVh7XtBW59bi/thuEuHRFZNsNtKI=;
+        b=QlwpQKua+hK2jTG3NOvX6MpH+x+zcKnQLQ0mtE+XSxul1sn4K8KgHbpO3HU+cLTUcJ
+         hKt6srNqf+2lytpZP5wcjgntzBYs8iw9kiPbkyWPkRi2XXHOACwrvx+aD/JdeJH70zcl
+         5oV8pkc26HDkEVDGRDUkGDqBycz317iiCC1frXPClzvaSHPNtka6+La+3hH8toISMCax
+         55YZRemotdJGskW0MjUIVu2GbMD2EC/YDF23jkJ6sFNSic+XxXYbSFdJoADV9DygC6+S
+         hNeMwbRFnl3lwE0XMwz3I+4kAhoQjTOdoKgb/6BDcQDYGMMNIFdEFgwv0i/c7WyNe6Op
+         8Ukw==
+X-Gm-Message-State: APjAAAWT7HSVy9FCN2aWs3crmDqYgY422s/7s/QplLX7+inGyhe0ySYa
+	FKsrdig20nkzzuMWJ4cnRe0C4xhU45A9uz+lzVY49Mue+K0tsfYdoeitXO4up1u7MuYaX3Xm5Qx
+	4cddc9Q7gORPYUJR07OUN1ckrtKClzhDR34LzhsJZDWphgFmkqezriS95pc9iaKzSHg==
+X-Received: by 2002:a17:902:7781:: with SMTP id o1mr118919845pll.205.1564557357111;
+        Wed, 31 Jul 2019 00:15:57 -0700 (PDT)
+X-Received: by 2002:a17:902:7781:: with SMTP id o1mr118919797pll.205.1564557356261;
+        Wed, 31 Jul 2019 00:15:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564557356; cv=none;
         d=google.com; s=arc-20160816;
-        b=j6NM0qX0hY6py7ya5LmUafGHL8Bf9Jcwig5P6QJ7b9220AbLWmMui7m8W3o/0xI/yB
-         ElwkPnXt5tkV2WG5HYNawa2HK/6eeng1Z7pziAwyxa6SG8H/sXNUO3sByYbNKkBZw3xb
-         0pPHc+TN05YvDRj4jJ0waGVKr29nbK61GYdHwkUW2T5qFTOu2c0uGprF9pjY7c7aKi8Q
-         /68F6C/KpewPam4GbBX7ymEJJGiSyAsnnfpRVnmuIdvtxg38Vhh+bgMFj2yNcdt0vH2p
-         guFE+xaRQ4oXVLqBCMEUWGz64OzVwERDl5TVlqJx8nODiEMpkX3k3MHRBIjARDylm918
-         VPJw==
+        b=d7SEw/QIARwL25LYW88Ecr/H+MhkDozYcMt/8DwPFx7OUK6KEoTBLJM+Fu1DxtcEcZ
+         LhAurvQh0X8f6Bt4DOJAaTKsu634m3N3om0p9s4B6aoD7J7lIRjUa+HC6AIxpiTxZjn5
+         PwA1PeK8w879S7iWfaupV6Qa7GXk6S6zo77Ebs/ixXydhf6QwW+iLIvKl/IcA/gxohzH
+         gNpCkSsGZvsbcHtCqtoiHau1f06H4m/nR/Tojf6uTcz7kloPBUy2K7tu8xR39AZbFm1W
+         2StOZ+GYnCKq44PR3j7rtcMVnEokC9bisYGJbOFKWthXvFaUB9vluoz5nmg5F1f6+d1q
+         IvuQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=eJpTqhjq32xxR611Iu+PnjDy/EPpQxCVR5srDH+Bu+g=;
-        b=NLIqYyr42T59ASr+nUBwbY4zDC7kyMSrbZO+9fmdd98MaRPwBg5xrcxlpVPOJ9h/bV
-         Bx875ve5u+kldacLn5I2BF6CmEU2UbVKQounP3a2qn+5wssUqA8YVk1facw5qAf5lNGe
-         ivFesUnWo3DBvRgOunz7nC54XFVkqDLv69zowx0dzQ2u5vVCDGTkD7HQMYkxc6+WTWrw
-         d4dzzQEyI+nHwe7srd5bCIypnWJqm9UkceLJOi9ImAdKi3r23k8C5Sk0Cw9CzawNQPA5
-         CInL8QClkL/+eoFtDT8aQ7nDfW1V8zOhhHTWlRANYMbcAhWBN9nERx5oK1iR+Js+SDJo
-         1qzg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=pBb3SjcJAJvGT3ZKVh7XtBW59bi/thuEuHRFZNsNtKI=;
+        b=ow9Qe+CEjLpO/36R1I9kC2JMUveuA91idBHyFIROmK0rKMtZzyrfiqhOQVGs9Abth4
+         7nQTrbV9emDRdnT5pgXeiedY/e6DCXE50DjqYC4i6RxMIQi88NrJXpbMXebSOTto59ng
+         UNBR0dW+NmYqMB5Ss4H3wTHIzh/tZjUR9Wh4WLZBR2cN5aMoYui+KNHzDFN9pJT2Gew4
+         J2kUIE9o7LATBawIC1mv8MBhOmmZPqXY6gHrM+uhQydiG12UUPeSyZV9gM53SCvAJ2gS
+         DX92Wy/0i/5Uo3dd2tGT0pNgZmMludIGZC4Zs1Wv6OMEjcSbOhUwnb9tPz/dafxtXipH
+         xQeA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id 63si1378923ywd.389.2019.07.30.23.44.17
+       dkim=pass header.i=@axtens.net header.s=google header.b=AHPx62HM;
+       spf=pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=dja@axtens.net
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id p61sor1002038pjp.0.2019.07.31.00.15.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 30 Jul 2019 23:44:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        (Google Transport Security);
+        Wed, 31 Jul 2019 00:15:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6V6gWF5142464
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 02:44:17 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2u34xhaf34-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 02:44:16 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 31 Jul 2019 07:44:14 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 31 Jul 2019 07:44:07 +0100
-Received: from d06av22.portsmouth.uk.ibm.com (d06av22.portsmouth.uk.ibm.com [9.149.105.58])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6V6i6kP42270910
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 31 Jul 2019 06:44:06 GMT
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 389A64C04E;
-	Wed, 31 Jul 2019 06:44:06 +0000 (GMT)
-Received: from d06av22.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 5E4614C04A;
-	Wed, 31 Jul 2019 06:44:04 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.168])
-	by d06av22.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Wed, 31 Jul 2019 06:44:04 +0000 (GMT)
-Date: Wed, 31 Jul 2019 09:44:02 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Brendan Gregg <bgregg@netflix.com>,
-        Christian Hansen <chansen3@cisco.com>, dancol@google.com,
-        fmayer@google.com, joaodias@google.com, joelaf@google.com,
-        Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
-        kernel-team@android.com, linux-api@vger.kernel.org,
-        linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-        linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, minchan@kernel.org,
-        namhyung@google.com, Roman Gushchin <guro@fb.com>,
-        Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
-        tkjos@google.com, Vladimir Davydov <vdavydov.dev@gmail.com>,
-        Vlastimil Babka <vbabka@suse.cz>, wvw@google.com
-Subject: Re: [PATCH v3 2/2] doc: Update documentation for page_idle virtual
- address indexing
-References: <20190726152319.134152-1-joel@joelfernandes.org>
- <20190726152319.134152-2-joel@joelfernandes.org>
+       dkim=pass header.i=@axtens.net header.s=google header.b=AHPx62HM;
+       spf=pass (google.com: domain of dja@axtens.net designates 209.85.220.65 as permitted sender) smtp.mailfrom=dja@axtens.net
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=axtens.net; s=google;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=pBb3SjcJAJvGT3ZKVh7XtBW59bi/thuEuHRFZNsNtKI=;
+        b=AHPx62HMhQa8hHRMGLqgFiw+CumV6LiEgGPvYRqjcrvfGuwSMk4T9h6ZBLhXoSWrCI
+         K8hKp875yeBKlerrIoeiIERsQFuw95uNk88vGcgWCgVb/quRyN0yqEth5OX9ZrewsaRf
+         QpRSPaGOI1njJ5BGhn1bmjkrIUghufDipHuDQ=
+X-Google-Smtp-Source: APXvYqy/mIDPTuA13zSYqCYHNuz1kgkm/st7Gu7Y8W/1GxIxmP0Q7ged7lvL97JvsdwucbKkDwzDjw==
+X-Received: by 2002:a17:90a:29c5:: with SMTP id h63mr1357413pjd.83.1564557355793;
+        Wed, 31 Jul 2019 00:15:55 -0700 (PDT)
+Received: from localhost (ppp167-251-205.static.internode.on.net. [59.167.251.205])
+        by smtp.gmail.com with ESMTPSA id x13sm71508648pfn.6.2019.07.31.00.15.54
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 31 Jul 2019 00:15:55 -0700 (PDT)
+From: Daniel Axtens <dja@axtens.net>
+To: kasan-dev@googlegroups.com,
+	linux-mm@kvack.org,
+	x86@kernel.org,
+	aryabinin@virtuozzo.com,
+	glider@google.com,
+	luto@kernel.org,
+	linux-kernel@vger.kernel.org,
+	mark.rutland@arm.com,
+	dvyukov@google.com
+Cc: Daniel Axtens <dja@axtens.net>
+Subject: [PATCH v3 0/3] kasan: support backing vmalloc space with real shadow memory
+Date: Wed, 31 Jul 2019 17:15:47 +1000
+Message-Id: <20190731071550.31814-1-dja@axtens.net>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190726152319.134152-2-joel@joelfernandes.org>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19073106-0016-0000-0000-00000297D60A
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19073106-0017-0000-0000-000032F5E768
-Message-Id: <20190731064400.GD21422@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-31_03:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1907310070
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Jul 26, 2019 at 11:23:19AM -0400, Joel Fernandes (Google) wrote:
-> This patch updates the documentation with the new page_idle tracking
-> feature which uses virtual address indexing.
-> 
-> Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+Currently, vmalloc space is backed by the early shadow page. This
+means that kasan is incompatible with VMAP_STACK, and it also provides
+a hurdle for architectures that do not have a dedicated module space
+(like powerpc64).
 
-One nit below, otherwise
+This series provides a mechanism to back vmalloc space with real,
+dynamically allocated memory. I have only wired up x86, because that's
+the only currently supported arch I can work with easily, but it's
+very easy to wire up other architectures.
 
-Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
+This has been discussed before in the context of VMAP_STACK:
+ - https://bugzilla.kernel.org/show_bug.cgi?id=202009
+ - https://lkml.org/lkml/2018/7/22/198
+ - https://lkml.org/lkml/2019/7/19/822
 
-> ---
->  .../admin-guide/mm/idle_page_tracking.rst     | 43 ++++++++++++++++---
->  1 file changed, 36 insertions(+), 7 deletions(-)
-> 
-> diff --git a/Documentation/admin-guide/mm/idle_page_tracking.rst b/Documentation/admin-guide/mm/idle_page_tracking.rst
-> index df9394fb39c2..1eeac78c94a7 100644
-> --- a/Documentation/admin-guide/mm/idle_page_tracking.rst
-> +++ b/Documentation/admin-guide/mm/idle_page_tracking.rst
-> @@ -19,10 +19,14 @@ It is enabled by CONFIG_IDLE_PAGE_TRACKING=y.
->  
->  User API
->  ========
-> +There are 2 ways to access the idle page tracking API. One uses physical
-> +address indexing, another uses a simpler virtual address indexing scheme.
->  
-> -The idle page tracking API is located at ``/sys/kernel/mm/page_idle``.
-> -Currently, it consists of the only read-write file,
-> -``/sys/kernel/mm/page_idle/bitmap``.
-> +Physical address indexing
-> +-------------------------
-> +The idle page tracking API for physical address indexing using page frame
-> +numbers (PFN) is located at ``/sys/kernel/mm/page_idle``.  Currently, it
-> +consists of the only read-write file, ``/sys/kernel/mm/page_idle/bitmap``.
->  
->  The file implements a bitmap where each bit corresponds to a memory page. The
->  bitmap is represented by an array of 8-byte integers, and the page at PFN #i is
-> @@ -74,6 +78,31 @@ See :ref:`Documentation/admin-guide/mm/pagemap.rst <pagemap>` for more
->  information about ``/proc/pid/pagemap``, ``/proc/kpageflags``, and
->  ``/proc/kpagecgroup``.
->  
-> +Virtual address indexing
-> +------------------------
-> +The idle page tracking API for virtual address indexing using virtual page
-> +frame numbers (VFN) is located at ``/proc/<pid>/page_idle``. It is a bitmap
-> +that follows the same semantics as ``/sys/kernel/mm/page_idle/bitmap``
-> +except that it uses virtual instead of physical frame numbers.
+In terms of implementation details:
 
-Can you please make it more explicit that VFNs are in the <pid>'s address
-space?
+Most mappings in vmalloc space are small, requiring less than a full
+page of shadow space. Allocating a full shadow page per mapping would
+therefore be wasteful. Furthermore, to ensure that different mappings
+use different shadow pages, mappings would have to be aligned to
+KASAN_SHADOW_SCALE_SIZE * PAGE_SIZE.
 
-> +
-> +This idle page tracking API does not need deal with PFN so it does not require
-> +prior lookups of ``pagemap`` in order to find if page is idle or not. This is
-> +an advantage on some systems where looking up PFN is considered a security
-> +issue.  Also in some cases, this interface could be slightly more reliable to
-> +use than physical address indexing, since in physical address indexing, address
-> +space changes can occur between reading the ``pagemap`` and reading the
-> +``bitmap``, while in virtual address indexing, the process's ``mmap_sem`` is
-> +held for the duration of the access.
-> +
-> +To estimate the amount of pages that are not used by a workload one should:
-> +
-> + 1. Mark all the workload's pages as idle by setting corresponding bits in
-> +    ``/proc/<pid>/page_idle``.
-> +
-> + 2. Wait until the workload accesses its working set.
-> +
-> + 3. Read ``/proc/<pid>/page_idle`` and count the number of bits set.
-> +
->  .. _impl_details:
->  
->  Implementation Details
-> @@ -99,10 +128,10 @@ When a dirty page is written to swap or disk as a result of memory reclaim or
->  exceeding the dirty memory limit, it is not marked referenced.
->  
->  The idle memory tracking feature adds a new page flag, the Idle flag. This flag
-> -is set manually, by writing to ``/sys/kernel/mm/page_idle/bitmap`` (see the
-> -:ref:`User API <user_api>`
-> -section), and cleared automatically whenever a page is referenced as defined
-> -above.
-> +is set manually, by writing to ``/sys/kernel/mm/page_idle/bitmap`` for physical
-> +addressing or by writing to ``/proc/<pid>/page_idle`` for virtual
-> +addressing (see the :ref:`User API <user_api>` section), and cleared
-> +automatically whenever a page is referenced as defined above.
->  
->  When a page is marked idle, the Accessed bit must be cleared in all PTEs it is
->  mapped to, otherwise we will not be able to detect accesses to the page coming
-> -- 
-> 2.22.0.709.g102302147b-goog
-> 
+Instead, share backing space across multiple mappings. Allocate
+a backing page the first time a mapping in vmalloc space uses a
+particular page of the shadow region. Keep this page around
+regardless of whether the mapping is later freed - in the mean time
+the page could have become shared by another vmalloc mapping.
+
+This can in theory lead to unbounded memory growth, but the vmalloc
+allocator is pretty good at reusing addresses, so the practical memory
+usage appears to grow at first but then stay fairly stable.
+
+If we run into practical memory exhaustion issues, I'm happy to
+consider hooking into the book-keeping that vmap does, but I am not
+convinced that it will be an issue.
+
+v1: https://lore.kernel.org/linux-mm/20190725055503.19507-1-dja@axtens.net/
+v2: https://lore.kernel.org/linux-mm/20190729142108.23343-1-dja@axtens.net/
+ Address review comments:
+ - Patch 1: use kasan_unpoison_shadow's built-in handling of
+            ranges that do not align to a full shadow byte
+ - Patch 3: prepopulate pgds rather than faulting things in
+v3: Address comments from Mark Rutland:
+ - kasan_populate_vmalloc is a better name
+ - handle concurrency correctly
+ - various nits and cleanups
+ - relax module alignment in KASAN_VMALLOC case
+
+Daniel Axtens (3):
+  kasan: support backing vmalloc space with real shadow memory
+  fork: support VMAP_STACK with KASAN_VMALLOC
+  x86/kasan: support KASAN_VMALLOC
+
+ Documentation/dev-tools/kasan.rst | 60 ++++++++++++++++++++++
+ arch/Kconfig                      |  9 ++--
+ arch/x86/Kconfig                  |  1 +
+ arch/x86/mm/kasan_init_64.c       | 61 +++++++++++++++++++++++
+ include/linux/kasan.h             | 16 ++++++
+ include/linux/moduleloader.h      |  2 +-
+ kernel/fork.c                     |  4 ++
+ lib/Kconfig.kasan                 | 16 ++++++
+ lib/test_kasan.c                  | 26 ++++++++++
+ mm/kasan/common.c                 | 83 +++++++++++++++++++++++++++++++
+ mm/kasan/generic_report.c         |  3 ++
+ mm/kasan/kasan.h                  |  1 +
+ mm/vmalloc.c                      | 15 +++++-
+ 13 files changed, 291 insertions(+), 6 deletions(-)
 
 -- 
-Sincerely yours,
-Mike.
+2.20.1
 
