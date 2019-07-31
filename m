@@ -2,76 +2,76 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BF2FC32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 08:47:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4FCAAC32753
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 08:47:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2AA02206A3
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 08:47:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2AA02206A3
+	by mail.kernel.org (Postfix) with ESMTP id 201F8206A3
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 08:47:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 201F8206A3
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BBD348E0005; Wed, 31 Jul 2019 04:47:04 -0400 (EDT)
+	id B213A8E0006; Wed, 31 Jul 2019 04:47:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B6D978E0001; Wed, 31 Jul 2019 04:47:04 -0400 (EDT)
+	id AD1DA8E0001; Wed, 31 Jul 2019 04:47:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A83E58E0005; Wed, 31 Jul 2019 04:47:04 -0400 (EDT)
+	id 99A3C8E0006; Wed, 31 Jul 2019 04:47:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 8FCB08E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 04:47:04 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id r58so60951995qtb.5
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 01:47:04 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7AC638E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 04:47:07 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id l9so60734287qtu.12
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 01:47:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=3D6gBoxJOGt4vALoZto7iLJIGDq2ey5aEjXujJspkhM=;
-        b=nLYfKB7s6UeHSByokPFvTe7LavETPF/a0vDMbLTyE5wlOPgqRUOfKOHpkmhbRB8xPr
-         krMtRWSRjLeYFLZCQ6FzN7r8+KpXPhKKifZ70NWnausplUyn8oc9nGRRtwV0bHjsq2UJ
-         tk0tx93t+0EZ2sIcSKIiURzBAshBHoKmBvwsc+Qy4Ht1zy8FYfPmNcdFfNNwxEpHWhlP
-         hhKacaSQx0QtTOYqaHCGkknHtx5Bia4GhGgYC5fNduNM+zJN1PzJ3XoQXF8DENO2rBkc
-         h4HW4YBA4r5Xszojld3M8UEMDG1hOWzARP8R+JzyY6tbB+h/Xn/4h/NUgarC7LAyrkut
-         MJVQ==
+         :subject:date:message-id:in-reply-to:references;
+        bh=hXDPuh5Kn7pFxSlRRDrUdecWVXcCQZqbNwxxDsR27Vo=;
+        b=dBF/dDIZc1r0fqU5+365l68QjCYmcN4AQs4zZKvuxiJtqRwSh3SZC6bvSl5GubiGrj
+         NKKw6bQxLjanraXrCs8Ly0sO6a+CtD8D1oqmST1dmeDADVDih8ZO4LcD+gsHJs6zcneH
+         XqrYFsa58TOgy17GrSiW8VfGxG92WmXzo/V5zeZU8sqf5+tz0T1oqWzUQkr62PaWTwnl
+         JDSyd4/kqPaq2c6Ca5vBbqKXjga1wzZU8eQLzhSZJ/Lm0R9A6uLkVEYzA25meCx30iV5
+         yLwc+Cf8DbNt4Wk10RgVBvZkd+uYEJrlTkFGU8OTKFompmxelSgRiR7sPHGIDauxgLDD
+         sWYA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAW/Wz2i/ZfTfSxXvMnLVmzC9n0cplDdXzbGaZMVG1MSDCamaCKQ
-	DkCvdkBglKCkloXzvVVOGejnUEWTFYSOcwf2Sbw35ZaQ3icEBqh+u5NP+7pCBIg1KfmytKdyezc
-	V8gxdliXw1GiOPMN09AKOUhZ8GVXEYQW7ZvLiTQGSwHa6bKWjdZ9S0CKEk/USapv4ZA==
-X-Received: by 2002:a37:a413:: with SMTP id n19mr74870234qke.98.1564562824336;
-        Wed, 31 Jul 2019 01:47:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzepAPJkQKcE+pqmYwKrLZt/rsBGI4T+xq3vxxlepSOMBEfPDBWZntcabO/JzA1M+l8JQFP
-X-Received: by 2002:a37:a413:: with SMTP id n19mr74870204qke.98.1564562823492;
-        Wed, 31 Jul 2019 01:47:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564562823; cv=none;
+X-Gm-Message-State: APjAAAWUFAjs+qwQwnD+uXtigzdgwaKBM2/X7zetPwkVn9HbGS0o6Shk
+	l95/8c05TSQ1gSbIcXxGsSy7h18s/S+MHAf6rAfecnO9Dv/86IakAFHk978dyaHxnRwkwhCcDcl
+	qbtkOyEXoohfh/j/ZhHYjbI2eY2rUIRMhmUt5qqPR0qlSduAAuF0/9PEk7uFjre6Ztg==
+X-Received: by 2002:ac8:32c8:: with SMTP id a8mr82022522qtb.47.1564562827308;
+        Wed, 31 Jul 2019 01:47:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzfxo65+Qb30xaHZyi6RfF6+WWXvBwGu1khpW/vgAao3FrUCdXs/2KWrTf9z8cTizO+ZbiW
+X-Received: by 2002:ac8:32c8:: with SMTP id a8mr82022499qtb.47.1564562826748;
+        Wed, 31 Jul 2019 01:47:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564562826; cv=none;
         d=google.com; s=arc-20160816;
-        b=K2agFsLhb6/T8gXlGAKtvdXTdV8+8JekPIdmAGhEgmgNs5uXANnyCqvEMhiyQwJJab
-         tz3ggxVSDQeCXtuRh6CvwshsuuUT84m/8T6L6RHVHr2k3P7T2irnmxQGCS8KzBfY+ZjX
-         kL+pFiFz/d4C0G1Pt51S7gO36k2XtBOTNdT5AMgVyejKBvnL6om0P3iaS2+g26WB2SCr
-         yVu//JIny9MmSgCSNF5uYxPnL41uDG8pIeDsFL4ZyNRbJZqjZJkqmRXt2T1sDxoU55ud
-         AEpRc6WfeXCPQjGCF0dmDkRE3C65YhgHSWjS01dZl2Y4SH4SeA6+YsR88COR/Gtbp3gp
-         5eAQ==
+        b=elZ/jwGUGoHO+Q+Hzh/mqEY74XvseAckoUPUn2dfR7bvxxz056/j081r2D14WQRzHC
+         ZKd28Yo2uLZ6vGKLqkQdmBrNBOF9HFkCLttswmYhQ47sdPt0lAsB2ODC1gbpMT6d7O2k
+         aJpNjdh1bpvSfuSVvbvIRE5RX9FfS24byWvFCIqyPmZ6izQVjHOhFgNl5bCA9pH5phAg
+         fTBSA25LoHMMiK/X8KhG/khOJGNknPzDTNUhA5JtOPQvl8wFGoktTAHOhy8qFw7ookgB
+         h7Pjzv158ZXpslJykKbpqOc8IFtmuPGvIMzV5Y3RQ6m+zFhiu1CvyF2O1p/3PEDMDcrp
+         U0YA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=3D6gBoxJOGt4vALoZto7iLJIGDq2ey5aEjXujJspkhM=;
-        b=vlM50jmCDI28bpiFbY7nlbgn3/ZfHbVqg+t3KLL3eUzMVq+Lw1fXatT8FX8H7tabTq
-         73eRLyz4XoS5qkt4+TcmoBkk9Pcuu9pm/gikGHPfzW04Khrn/nBjzRNBLz3nqgHGEA07
-         9LOr32veyIG0EPJr0ETRZBagwWNXdyV6otlbuzPtVj+5dcKSJaVihsMwfmPuEy/6hCmN
-         hMWPVB8KeV7vgje2flkydywCzWjOoWKKVGXaQoJTIrs3T9WnYZ/5umXDmVNLTak9Gz7I
-         miAF8d3hvo3gxxQcH9839jtJwXNAHtgzUaOQWh11OFUb8NpzqnZ6ymD81vbXGBndCzdb
-         OwNQ==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=hXDPuh5Kn7pFxSlRRDrUdecWVXcCQZqbNwxxDsR27Vo=;
+        b=mQGYQrqF3CP9a/6WFJ4ZdIntEO9hYtPTefby/gQSewIQCoZrXNSOh4LZh3WfxhwFl5
+         eeYBjYWbsjYoA9PUMPKP9BJXZgDFSpM+koRT50mmQObUMWaGfVuG3cdllO2w63R4Hv5J
+         Ru1lSreWQnbZWKdS/kCfme1dc9XOYohJT9VfhZqJ/D8ayufZLOW0vExEi5gGmwoja4KL
+         9lQv2uONw5EJKVH1gpfUt6AiYccXOjNFmaoXsVhfvVO4MrdYiwjQTonjbwVoSwxbPY41
+         JlFiTprHg/+aepGscdHccI9V7Gna6HcAEWKFHGQlNwEKpsuayW2qRX4FXV7QRLGSBCzo
+         DV/g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k123si33606986qkc.353.2019.07.31.01.47.03
+        by mx.google.com with ESMTPS id e12si39083476qve.144.2019.07.31.01.47.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 01:47:03 -0700 (PDT)
+        Wed, 31 Jul 2019 01:47:06 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
@@ -79,11 +79,11 @@ Authentication-Results: mx.google.com;
 Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id BD25E30C1346;
-	Wed, 31 Jul 2019 08:47:02 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 01C3C7FDE9;
+	Wed, 31 Jul 2019 08:47:06 +0000 (UTC)
 Received: from hp-dl380pg8-01.lab.eng.pek2.redhat.com (hp-dl380pg8-01.lab.eng.pek2.redhat.com [10.73.8.10])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 0A0E2600CC;
-	Wed, 31 Jul 2019 08:46:57 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 40E1C600CC;
+	Wed, 31 Jul 2019 08:47:02 +0000 (UTC)
 From: Jason Wang <jasowang@redhat.com>
 To: mst@redhat.com,
 	jasowang@redhat.com,
@@ -93,44 +93,42 @@ To: mst@redhat.com,
 Cc: linux-kernel@vger.kernel.org,
 	linux-mm@kvack.org,
 	jgg@ziepe.ca
-Subject: [PATCH V2 0/9] Fixes for metadata accelreation
-Date: Wed, 31 Jul 2019 04:46:46 -0400
-Message-Id: <20190731084655.7024-1-jasowang@redhat.com>
+Subject: [PATCH V2 1/9] vhost: don't set uaddr for invalid address
+Date: Wed, 31 Jul 2019 04:46:47 -0400
+Message-Id: <20190731084655.7024-2-jasowang@redhat.com>
+In-Reply-To: <20190731084655.7024-1-jasowang@redhat.com>
+References: <20190731084655.7024-1-jasowang@redhat.com>
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Wed, 31 Jul 2019 08:47:02 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.27]); Wed, 31 Jul 2019 08:47:06 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi all:
+We should not setup uaddr for the invalid address, otherwise we may
+try to pin or prefetch mapping of wrong pages.
 
-This series try to fix several issues introduced by meta data
-accelreation series. Please review.
+Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual address")
+Signed-off-by: Jason Wang <jasowang@redhat.com>
+---
+ drivers/vhost/vhost.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
 
-Changes from V1:
-
-- Try not use RCU to syncrhonize MMU notifier with vhost worker
-- set dirty pages after no readers
-- return -EAGAIN only when we find the range is overlapped with
-  metadata
-
-Jason Wang (9):
-  vhost: don't set uaddr for invalid address
-  vhost: validate MMU notifier registration
-  vhost: fix vhost map leak
-  vhost: reset invalidate_count in vhost_set_vring_num_addr()
-  vhost: mark dirty pages during map uninit
-  vhost: don't do synchronize_rcu() in vhost_uninit_vq_maps()
-  vhost: do not use RCU to synchronize MMU notifier with worker
-  vhost: correctly set dirty pages in MMU notifiers callback
-  vhost: do not return -EAGIAN for non blocking invalidation too early
-
- drivers/vhost/vhost.c | 232 +++++++++++++++++++++++++++---------------
- drivers/vhost/vhost.h |   8 +-
- 2 files changed, 154 insertions(+), 86 deletions(-)
-
+diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
+index 0536f8526359..488380a581dc 100644
+--- a/drivers/vhost/vhost.c
++++ b/drivers/vhost/vhost.c
+@@ -2082,7 +2082,8 @@ static long vhost_vring_set_num_addr(struct vhost_dev *d,
+ 	}
+ 
+ #if VHOST_ARCH_CAN_ACCEL_UACCESS
+-	vhost_setup_vq_uaddr(vq);
++	if (r == 0)
++		vhost_setup_vq_uaddr(vq);
+ 
+ 	if (d->mm)
+ 		mmu_notifier_register(&d->mmu_notifier, d->mm);
 -- 
 2.18.1
 
