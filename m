@@ -2,270 +2,171 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7273EC32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:31:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EC125C32753
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:33:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1810A20659
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:31:19 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=amdcloud.onmicrosoft.com header.i=@amdcloud.onmicrosoft.com header.b="HcCLJvxo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1810A20659
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amd.com
+	by mail.kernel.org (Postfix) with ESMTP id BC66E206A2
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:33:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC66E206A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A71228E0003; Wed, 31 Jul 2019 09:31:18 -0400 (EDT)
+	id 4A17A8E0003; Wed, 31 Jul 2019 09:33:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9FB758E0001; Wed, 31 Jul 2019 09:31:18 -0400 (EDT)
+	id 452C78E0001; Wed, 31 Jul 2019 09:33:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 84DE18E0003; Wed, 31 Jul 2019 09:31:18 -0400 (EDT)
+	id 343428E0003; Wed, 31 Jul 2019 09:33:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2C4638E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:31:18 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f19so42423863edv.16
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 06:31:18 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id DD1018E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:33:46 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id l14so42439654edw.20
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 06:33:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:user-agent:content-id:content-transfer-encoding
-         :mime-version;
-        bh=JXJM3vc0F1Go+EHDv0SqTYUfgl7boH9jDnDNhsLqfGA=;
-        b=H3Y9AD8g43NGS+SJGGKo8wN0bmPu7blHFCMkc8SUZa8Hen7lMRUKY2weDjakLQduMI
-         eDmR2Em66nP8J4yPKIxXjAIZ1R9mo0OqM//TqDim2AaC8PXA8Pk0Z7ki6p39Im4mYvXv
-         nc84OElmovCsnOgd6I7mCaPRUuk75EXoR5+h1EfLnXcZaGayvcTQgoMjLpGfdkHLfpfc
-         q+eCy6ykgSVRcdDhvHtLyGHBpXszEhtqEtiwijvWEJKxAqNbYUpJb9WfYzp9/Ial/gbS
-         opgVCWSW8LJQNo+Z6veOgfXR69h1diaeWcIHuPYWMFASqhdocBCWcVDyUTES9H4ThMio
-         K/pQ==
-X-Gm-Message-State: APjAAAVslavpN5Ky6yy+MiNeY0olJPG5xvbFp9VJEQU31RaA/LyYFtYe
-	VG7z6EUD1RqqI+fF+QK2zdhZAQm7KQQZCP23q9q152tTlp1nHRBT0DbGdKj3olLmsvhXKicwP3s
-	GLsHipm2VJVO3LIIsLmWuXZjUwp4NCPiZVyj4VgRPLy3jpO/+fpnDnwLfhDmh8VI=
-X-Received: by 2002:a05:6402:78c:: with SMTP id d12mr107737468edy.160.1564579877714;
-        Wed, 31 Jul 2019 06:31:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwQuMY0Bgm0LmII/IwyQePAIoGMnUfzHHaY5iAlLggejZsKMe9UKXgTCYT4LbaHQeaLb9Cv
-X-Received: by 2002:a05:6402:78c:: with SMTP id d12mr107737387edy.160.1564579876922;
-        Wed, 31 Jul 2019 06:31:16 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1564579876; cv=pass;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=SseHCc6KL5FSzccylaQ89Sfy0DBxYWxEkLKPyaFKMOk=;
+        b=TcMpygqocHflxgwx5hAjh03xte+IlaGp+pdeXTa6H7ZmPYUWsrfy7HbazYcyQ6Gi7Q
+         nyqV+KrjC05XaB+3LaBC2/8X8QYMHNBH0gs2A2wuKOdirtH9xkf8ss7k3tdBPJD5PXjZ
+         b5UFxwvb7hgMVXaL6HaKnGwLUT3e/zE6MT6LM0DHtFXE5seHWJ7waVRWY4V/YLOC6hQ/
+         YK4nAEUwGDKTSJZWLl1P7YSp8NvQsqOr/H+aaPGHaHN1cQJVtNXwe2V0c6HBSlt00tjV
+         5Q5R+Bhfl8kk0o3FhZC1q6QO9zqxZ4bE2NiHPNHI5rf5K2Xde5Lj0vYq4Y4mORR9Iq+B
+         tFCA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWpAId9hcq0luKRUqpJjCXtJTG5U4Zruj12XFucqhLwJXjTxM+N
+	Gs4xThytOPLtNILDtC1rPb4y1zWiFPjFvKfRrQKjRerRl4edYTTorxgyluMqOsY7LIAfmKxMVKE
+	8zbqmxiOgAuc/p76LGfNlYCr4PTm6E6/VdU4XDs9KeQgrGkBIxw1wYcFg7xgC+AE=
+X-Received: by 2002:a17:906:1911:: with SMTP id a17mr94561302eje.290.1564580026452;
+        Wed, 31 Jul 2019 06:33:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwIIE7NxDh8JmqWIPSRycSavrqKI+PI1uIAcMwFIDM3V4ZC3ahY8vwUIpjm9BuQNoqqPja9
+X-Received: by 2002:a17:906:1911:: with SMTP id a17mr94561223eje.290.1564580025541;
+        Wed, 31 Jul 2019 06:33:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564580025; cv=none;
         d=google.com; s=arc-20160816;
-        b=TLxoH7EiounNFgqafvtMLLuwV33nx1J/567opvlqra4x6/QH4a/s5mr3+u3K7gQG9o
-         h9kpLaXsq4mba6wNZFa5brLoc0GbnYsFktOikfGRr8b4LBzp66XX27jHjBjRvrfmx2V1
-         nOCMtZcStUwXkVckb0N/hgdBXVKjkGiG7pBTDIcjrZ4+iVWdx7j82/OXAd/NStMASJi7
-         jTqR2dsLDE1T/9gYMFsdpc3HNkJFrTTLARNI3kMIt4Zc1TH0F/5/om6+aBanGY5WONoa
-         7+2QNPm3trhhe92r6siOYHLB/1c8vnCDPTwgFmsHzoamnGrvJr/VTpmjZ3+eTXe9g7NP
-         ww1A==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:user-agent
-         :content-language:accept-language:in-reply-to:references:message-id
-         :date:thread-index:thread-topic:subject:cc:to:from:dkim-signature;
-        bh=JXJM3vc0F1Go+EHDv0SqTYUfgl7boH9jDnDNhsLqfGA=;
-        b=oekBaQMCzBBWmX7BiqambyPW2LPH92SxHPGY8G20tN6IwquGAEBHnakbxl0i6DA+5h
-         n3ctOmi13ihhn3X4tcoU8mYtgGtt5aQyPfOigFeFZdqptrA1tQ06qKm9Fm0PlsmWRnfV
-         KYLHFUEPZ0YwfHP/OdLK3vG7BRT9YBDGdRhlOjuv/dj0xl0oQzkrvlyDt4G74Tyl/O8X
-         DbHzMDSsruIUou3/E2HsoZEYgnFfawP19fcHOfoC+gf4nhPyltNmoDHXKVCztmD01i+R
-         t3XRIxKokrg/fdWNxiNKvhPy8KklQ7aH+aRA0hF567ySnFZKRTRgtqyDFtx9hMQ17dkr
-         7t8A==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amdcloud-onmicrosoft-com header.b=HcCLJvxo;
-       arc=pass (i=1 spf=pass spfdomain=amd.com dkim=pass dkdomain=amd.com dmarc=pass fromdomain=amd.com);
-       spf=neutral (google.com: 40.107.70.69 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) smtp.mailfrom=Felix.Kuehling@amd.com
-Received: from NAM04-SN1-obe.outbound.protection.outlook.com (mail-eopbgr700069.outbound.protection.outlook.com. [40.107.70.69])
-        by mx.google.com with ESMTPS id s4si20951979edm.117.2019.07.31.06.31.16
+        b=hvu8xScZiBrE66VsF3ewW4uDO6AT7iBMLCT0Szewm6g35EO7xiBs6CmTUtcZ9C0vTd
+         E7YTKr11YbzWUUwckLW9vJq7WyosZU0FieBvRcW8vcPoF5Yeoc1L5YmC5z8/A+POcS6R
+         QhsL86EWPzujg2fyKfIYo77TWnrmRBYja1PBYEQMTp1HlPsw3IU/5we9pDcMnOELwrPx
+         AuFh9bN2HeN6c7uJTlkSooLeWEg1ZxmX9+bUY3Q+2uFXztQRsLjtVYJt7m4kRWuMJVv6
+         r1B270jxJElNS1T/r0KIh6ABN1rlw45xPvaGQfBoiRfZjf4O+MuVZnH3n6yz8p6kb4Px
+         sm0g==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=SseHCc6KL5FSzccylaQ89Sfy0DBxYWxEkLKPyaFKMOk=;
+        b=heU6gulwntLGMIlLCEm+zswn+67Vd4A9Dst2EHZJarXB62dGdoJ5NQEexz8tH4qMZ2
+         3yvs4hjOImjP/k3Q5oZqw0GxGBI18odeHmsGQnG+TX47ZmNakwbaaLYpHu9MfdNdSehS
+         yYpnVGd0KnxNRmHFEsFz3mlaseXjhFr1fDf7/7wxKjK0O6c7pFHCnoVoy0Qt0RoHNti8
+         igqgMwFJzFmepPaIKBWkyauaV5oF6h/8hwXfPhhOHg83Pk/EkpiSORj/p0YDK0OklL57
+         cJgocNmr4Ve525VpyKuM8W8+5gFf67rWFuQ1iXtafI7+Zcb3FAB++Pzw9Sqi9XT/vFeC
+         ttQA==
+ARC-Authentication-Results: i=1; mx.google.com;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id um8si18516740ejb.373.2019.07.31.06.33.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 06:31:16 -0700 (PDT)
-Received-SPF: neutral (google.com: 40.107.70.69 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) client-ip=40.107.70.69;
+        Wed, 31 Jul 2019 06:33:45 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@amdcloud.onmicrosoft.com header.s=selector1-amdcloud-onmicrosoft-com header.b=HcCLJvxo;
-       arc=pass (i=1 spf=pass spfdomain=amd.com dkim=pass dkdomain=amd.com dmarc=pass fromdomain=amd.com);
-       spf=neutral (google.com: 40.107.70.69 is neither permitted nor denied by best guess record for domain of felix.kuehling@amd.com) smtp.mailfrom=Felix.Kuehling@amd.com
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=nncD4pA3F7SG89HlxZw6/tH8ghbaEFQV6Opd1xy+w31bv6k6cLMOSLFFuMHWvn8fJ/HZbPpzuFz6s49RnkQxMbwim5gvvw2N6kEbrG3ukMXAxc7bbopvPC88SMkqAix7Lu1EvRkI++MZggLpcUyoZ2Lr6LI/VKCIxmqTH5yIDxTKluqR8X4LwD2ZkFeQ8SF0CaEb2bbedw59nIZpTPOyUnW0RVCxirZR6Eeav+YEGUQYudN3Wa27Lf84T/IZi1LzZZXmj0XsluiZEEJ83RTikV2ulSS1NtC4e+95UTGOjTytBkIBsnC5/90p6zNMgQOIQEa+Y9r4AtdA2EnGJSKOzA==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=JXJM3vc0F1Go+EHDv0SqTYUfgl7boH9jDnDNhsLqfGA=;
- b=jRvmWWcGXWxiEoDvctCVR7JveO0wVtnrgIxcrJa7VRNRUbmUnvboX72grPs7+KNQYAjNplRIu67U5sxolbFbXV2gWVXRkAsoOgTvDLpGtIgTRLVEQTKLoYPC39ej1XVXMxCt3zr3dHhyrBC471SgnNfXRhHJY051nIiMMTuj1pytWOvBtbQUfbPSDllZz9tpFA42fryCWhu1B/OwWFQ5yECIQ8cBvlKtSl/Ob5TndO1q46HIa2kqhn/cRWuIQb5qI7SPt4W/vBPc4lDqje9fbuSdevWt/y3S09cRkJu14jNMreyPAsz8ggdJuKkcBNQoTjW8m6/afR+sgHKcZUjtSg==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=amd.com;dmarc=pass action=none header.from=amd.com;dkim=pass
- header.d=amd.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=amdcloud.onmicrosoft.com; s=selector1-amdcloud-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=JXJM3vc0F1Go+EHDv0SqTYUfgl7boH9jDnDNhsLqfGA=;
- b=HcCLJvxoKPSyOLr04mqwmvTCg06AWYsp5rB5ulT+8pihoW6YblGbCv/pZ9klk6MTdiOxO487s92jjIFGGnRW4JuiMycL+RHfyB1LmWLPRbImaMwz6xPFIY1GvbkOYQKGaNL3SZtCnNIkhVVXW4+xBEXywiM8RVQpIoS47isL5tw=
-Received: from DM6PR12MB3947.namprd12.prod.outlook.com (10.255.174.156) by
- DM6PR12MB3867.namprd12.prod.outlook.com (10.255.173.212) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2136.14; Wed, 31 Jul 2019 13:31:14 +0000
-Received: from DM6PR12MB3947.namprd12.prod.outlook.com
- ([fe80::1c82:54e7:589b:539c]) by DM6PR12MB3947.namprd12.prod.outlook.com
- ([fe80::1c82:54e7:589b:539c%5]) with mapi id 15.20.2136.010; Wed, 31 Jul 2019
- 13:31:14 +0000
-From: "Kuehling, Felix" <Felix.Kuehling@amd.com>
-To: Christoph Hellwig <hch@lst.de>, =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?=
-	<jglisse@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs
-	<bskeggs@redhat.com>
-CC: Ralph Campbell <rcampbell@nvidia.com>, "linux-mm@kvack.org"
-	<linux-mm@kvack.org>, "nouveau@lists.freedesktop.org"
-	<nouveau@lists.freedesktop.org>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, "amd-gfx@lists.freedesktop.org"
-	<amd-gfx@lists.freedesktop.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 06/13] mm: remove superflous arguments from
- hmm_range_register
-Thread-Topic: [PATCH 06/13] mm: remove superflous arguments from
- hmm_range_register
-Thread-Index: AQHVRpr+gRQ3eXd3iEy8aM3XPtjaAKbkuzuA
-Date: Wed, 31 Jul 2019 13:31:14 +0000
-Message-ID: <484ce3bd-767d-b65e-21c2-ed36bea107be@amd.com>
-References: <20190730055203.28467-1-hch@lst.de>
- <20190730055203.28467-7-hch@lst.de>
-In-Reply-To: <20190730055203.28467-7-hch@lst.de>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [165.204.55.251]
-user-agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
-x-clientproxiedby: YT1PR01CA0014.CANPRD01.PROD.OUTLOOK.COM (2603:10b6:b01::27)
- To DM6PR12MB3947.namprd12.prod.outlook.com (2603:10b6:5:1cb::28)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=Felix.Kuehling@amd.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 5d7c640d-674b-4fec-3136-08d715bb5c0a
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:DM6PR12MB3867;
-x-ms-traffictypediagnostic: DM6PR12MB3867:
-x-microsoft-antispam-prvs:
- <DM6PR12MB38677D806C955B43DFA5C7AA92DF0@DM6PR12MB3867.namprd12.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:7691;
-x-forefront-prvs: 011579F31F
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(39860400002)(376002)(366004)(346002)(136003)(396003)(199004)(189003)(65826007)(8676002)(102836004)(31696002)(6506007)(305945005)(486006)(53936002)(76176011)(446003)(14454004)(256004)(8936002)(26005)(186003)(86362001)(7416002)(81166006)(53546011)(81156014)(476003)(68736007)(2616005)(11346002)(3846002)(2906002)(6116002)(66476007)(66946007)(71200400001)(71190400001)(6486002)(66556008)(316002)(66446008)(64756008)(386003)(229853002)(31686004)(36756003)(6436002)(5660300002)(64126003)(25786009)(58126008)(6512007)(478600001)(99286004)(65806001)(65956001)(7736002)(110136005)(54906003)(66066001)(52116002)(6246003)(4326008);DIR:OUT;SFP:1101;SCL:1;SRVR:DM6PR12MB3867;H:DM6PR12MB3947.namprd12.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: amd.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- Uy7m1COd+4hOBRh5tUMYlKGwIbbel3xVhJwXTnab7pTvYwkAyk0AOSGbg2QvUAprMPrmZn/pQjSXpZgAJ0Xq+nXFrMu6zCduFM9Ikm2eCkrYt19WtPOhYoqQZlNA3FwbHuTZb0C61ZjXnc9oKVJ7luaxJ6mlHHJBpkOju4OK5sSrfXqL1I1r9l5CS+wEJIM0qWEUesvHbzvZPVm7k4SMC/MYR3IuUWItuTndxLCc5ltwW6fSGbUsJWOOuuOFxG55aE45GSdbKmEvTSIDieGdrSrCAs8kGfLqsjKCAPgUm4U/+Afc6HXFSPT6e2LJF+YE7ov1jicMpjGyhPdFOSNZYvgQKXWMtq9oRawgkN5zP4cu9IpE3Me6Cy0pnCwaEJzzI4Hqo6TK23UcXZSxZRNVatBPmWFVjOwZar5lroSJ3Ws=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <51D820BBC285A041B685336D043310D4@namprd12.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id C41B9AFCF;
+	Wed, 31 Jul 2019 13:33:44 +0000 (UTC)
+Date: Wed, 31 Jul 2019 15:33:44 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-acpi@vger.kernel.org,
+	"Rafael J . Wysocki" <rafael.j.wysocki@intel.com>,
+	Oscar Salvador <osalvador@suse.de>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v1] drivers/acpi/scan.c: Fixup "acquire
+ device_hotplug_lock in acpi_scan_init()"
+Message-ID: <20190731133344.GR9330@dhcp22.suse.cz>
+References: <20190731123201.13893-1-david@redhat.com>
+ <20190731125334.GM9330@dhcp22.suse.cz>
+ <d3cc595d-7e6f-ef6f-044c-b20bd1de3fb0@redhat.com>
+ <20190731131408.GP9330@dhcp22.suse.cz>
+ <23f28590-7765-bcd9-15f2-94e985b64218@redhat.com>
 MIME-Version: 1.0
-X-OriginatorOrg: amd.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 5d7c640d-674b-4fec-3136-08d715bb5c0a
-X-MS-Exchange-CrossTenant-originalarrivaltime: 31 Jul 2019 13:31:14.5482
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 3dd8961f-e488-4e60-8e11-a82d994e183d
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: fkuehlin@amd.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR12MB3867
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <23f28590-7765-bcd9-15f2-94e985b64218@redhat.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gMjAxOS0wNy0zMCAxOjUxIGEubS4sIENocmlzdG9waCBIZWxsd2lnIHdyb3RlOg0KPiBUaGUg
-c3RhcnQsIGVuZCBhbmQgcGFnZV9zaGlmdCB2YWx1ZXMgYXJlIGFsbCBzYXZlZCBpbiB0aGUgcmFu
-Z2UNCj4gc3RydWN0dXJlLCBzbyB3ZSBtaWdodCBhcyB3ZWxsIHVzZSB0aGF0IGZvciBhcmd1bWVu
-dCBwYXNzaW5nLg0KPg0KPiBTaWduZWQtb2ZmLWJ5OiBDaHJpc3RvcGggSGVsbHdpZyA8aGNoQGxz
-dC5kZT4NCg0KUmV2aWV3ZWQtYnk6IEZlbGl4IEt1ZWhsaW5nIDxGZWxpeC5LdWVobGluZ0BhbWQu
-Y29tPg0KDQoNCj4gLS0tDQo+ICAgRG9jdW1lbnRhdGlvbi92bS9obW0ucnN0ICAgICAgICAgICAg
-ICAgIHwgIDIgKy0NCj4gICBkcml2ZXJzL2dwdS9kcm0vYW1kL2FtZGdwdS9hbWRncHVfdHRtLmMg
-fCAgNyArKysrKy0tDQo+ICAgZHJpdmVycy9ncHUvZHJtL25vdXZlYXUvbm91dmVhdV9zdm0uYyAg
-IHwgIDUgKystLS0NCj4gICBpbmNsdWRlL2xpbnV4L2htbS5oICAgICAgICAgICAgICAgICAgICAg
-fCAgNiArLS0tLS0NCj4gICBtbS9obW0uYyAgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAg
-fCAyMCArKysrKy0tLS0tLS0tLS0tLS0tLQ0KPiAgIDUgZmlsZXMgY2hhbmdlZCwgMTQgaW5zZXJ0
-aW9ucygrKSwgMjYgZGVsZXRpb25zKC0pDQo+DQo+IGRpZmYgLS1naXQgYS9Eb2N1bWVudGF0aW9u
-L3ZtL2htbS5yc3QgYi9Eb2N1bWVudGF0aW9uL3ZtL2htbS5yc3QNCj4gaW5kZXggZGRjYjVjYThi
-Mjk2Li5lNjNjMTFmN2UwZTAgMTAwNjQ0DQo+IC0tLSBhL0RvY3VtZW50YXRpb24vdm0vaG1tLnJz
-dA0KPiArKysgYi9Eb2N1bWVudGF0aW9uL3ZtL2htbS5yc3QNCj4gQEAgLTIyMiw3ICsyMjIsNyBA
-QCBUaGUgdXNhZ2UgcGF0dGVybiBpczo6DQo+ICAgICAgICAgcmFuZ2UuZmxhZ3MgPSAuLi47DQo+
-ICAgICAgICAgcmFuZ2UudmFsdWVzID0gLi4uOw0KPiAgICAgICAgIHJhbmdlLnBmbl9zaGlmdCA9
-IC4uLjsNCj4gLSAgICAgIGhtbV9yYW5nZV9yZWdpc3RlcigmcmFuZ2UpOw0KPiArICAgICAgaG1t
-X3JhbmdlX3JlZ2lzdGVyKCZyYW5nZSwgbWlycm9yKTsNCj4gICANCj4gICAgICAgICAvKg0KPiAg
-ICAgICAgICAqIEp1c3Qgd2FpdCBmb3IgcmFuZ2UgdG8gYmUgdmFsaWQsIHNhZmUgdG8gaWdub3Jl
-IHJldHVybiB2YWx1ZSBhcyB3ZQ0KPiBkaWZmIC0tZ2l0IGEvZHJpdmVycy9ncHUvZHJtL2FtZC9h
-bWRncHUvYW1kZ3B1X3R0bS5jIGIvZHJpdmVycy9ncHUvZHJtL2FtZC9hbWRncHUvYW1kZ3B1X3R0
-bS5jDQo+IGluZGV4IGYwODIxNjM4YmJjNi4uNzFkNmU3MDg3YjBiIDEwMDY0NA0KPiAtLS0gYS9k
-cml2ZXJzL2dwdS9kcm0vYW1kL2FtZGdwdS9hbWRncHVfdHRtLmMNCj4gKysrIGIvZHJpdmVycy9n
-cHUvZHJtL2FtZC9hbWRncHUvYW1kZ3B1X3R0bS5jDQo+IEBAIC04MTgsOCArODE4LDExIEBAIGlu
-dCBhbWRncHVfdHRtX3R0X2dldF91c2VyX3BhZ2VzKHN0cnVjdCBhbWRncHVfYm8gKmJvLCBzdHJ1
-Y3QgcGFnZSAqKnBhZ2VzKQ0KPiAgIAkJCQkwIDogcmFuZ2UtPmZsYWdzW0hNTV9QRk5fV1JJVEVd
-Ow0KPiAgIAlyYW5nZS0+cGZuX2ZsYWdzX21hc2sgPSAwOw0KPiAgIAlyYW5nZS0+cGZucyA9IHBm
-bnM7DQo+IC0JaG1tX3JhbmdlX3JlZ2lzdGVyKHJhbmdlLCBtaXJyb3IsIHN0YXJ0LA0KPiAtCQkJ
-ICAgc3RhcnQgKyB0dG0tPm51bV9wYWdlcyAqIFBBR0VfU0laRSwgUEFHRV9TSElGVCk7DQo+ICsJ
-cmFuZ2UtPnBhZ2Vfc2hpZnQgPSBQQUdFX1NISUZUOw0KPiArCXJhbmdlLT5zdGFydCA9IHN0YXJ0
-Ow0KPiArCXJhbmdlLT5lbmQgPSBzdGFydCArIHR0bS0+bnVtX3BhZ2VzICogUEFHRV9TSVpFOw0K
-PiArDQo+ICsJaG1tX3JhbmdlX3JlZ2lzdGVyKHJhbmdlLCBtaXJyb3IpOw0KPiAgIA0KPiAgIAkv
-Kg0KPiAgIAkgKiBKdXN0IHdhaXQgZm9yIHJhbmdlIHRvIGJlIHZhbGlkLCBzYWZlIHRvIGlnbm9y
-ZSByZXR1cm4gdmFsdWUgYXMgd2UNCj4gZGlmZiAtLWdpdCBhL2RyaXZlcnMvZ3B1L2RybS9ub3V2
-ZWF1L25vdXZlYXVfc3ZtLmMgYi9kcml2ZXJzL2dwdS9kcm0vbm91dmVhdS9ub3V2ZWF1X3N2bS5j
-DQo+IGluZGV4IGI4ODlkNWVjNGM3ZS4uNDBlNzA2MjM0NTU0IDEwMDY0NA0KPiAtLS0gYS9kcml2
-ZXJzL2dwdS9kcm0vbm91dmVhdS9ub3V2ZWF1X3N2bS5jDQo+ICsrKyBiL2RyaXZlcnMvZ3B1L2Ry
-bS9ub3V2ZWF1L25vdXZlYXVfc3ZtLmMNCj4gQEAgLTQ5Miw5ICs0OTIsNyBAQCBub3V2ZWF1X3Jh
-bmdlX2ZhdWx0KHN0cnVjdCBub3V2ZWF1X3N2bW0gKnN2bW0sIHN0cnVjdCBobW1fcmFuZ2UgKnJh
-bmdlKQ0KPiAgIAlyYW5nZS0+ZGVmYXVsdF9mbGFncyA9IDA7DQo+ICAgCXJhbmdlLT5wZm5fZmxh
-Z3NfbWFzayA9IC0xVUw7DQo+ICAgDQo+IC0JcmV0ID0gaG1tX3JhbmdlX3JlZ2lzdGVyKHJhbmdl
-LCAmc3ZtbS0+bWlycm9yLA0KPiAtCQkJCSByYW5nZS0+c3RhcnQsIHJhbmdlLT5lbmQsDQo+IC0J
-CQkJIFBBR0VfU0hJRlQpOw0KPiArCXJldCA9IGhtbV9yYW5nZV9yZWdpc3RlcihyYW5nZSwgJnN2
-bW0tPm1pcnJvcik7DQo+ICAgCWlmIChyZXQpIHsNCj4gICAJCXVwX3JlYWQoJnJhbmdlLT5obW0t
-Pm1tLT5tbWFwX3NlbSk7DQo+ICAgCQlyZXR1cm4gKGludClyZXQ7DQo+IEBAIC02ODIsNiArNjgw
-LDcgQEAgbm91dmVhdV9zdm1fZmF1bHQoc3RydWN0IG52aWZfbm90aWZ5ICpub3RpZnkpDQo+ICAg
-CQkJIGFyZ3MuaS5wLmFkZHIgKyBhcmdzLmkucC5zaXplLCBmbiAtIGZpKTsNCj4gICANCj4gICAJ
-CS8qIEhhdmUgSE1NIGZhdWx0IHBhZ2VzIHdpdGhpbiB0aGUgZmF1bHQgd2luZG93IHRvIHRoZSBH
-UFUuICovDQo+ICsJCXJhbmdlLnBhZ2Vfc2hpZnQgPSBQQUdFX1NISUZUOw0KPiAgIAkJcmFuZ2Uu
-c3RhcnQgPSBhcmdzLmkucC5hZGRyOw0KPiAgIAkJcmFuZ2UuZW5kID0gYXJncy5pLnAuYWRkciAr
-IGFyZ3MuaS5wLnNpemU7DQo+ICAgCQlyYW5nZS5wZm5zID0gYXJncy5waHlzOw0KPiBkaWZmIC0t
-Z2l0IGEvaW5jbHVkZS9saW51eC9obW0uaCBiL2luY2x1ZGUvbGludXgvaG1tLmgNCj4gaW5kZXgg
-NTliZTBhYTI0NzZkLi5jNWI1MTM3NmI0NTMgMTAwNjQ0DQo+IC0tLSBhL2luY2x1ZGUvbGludXgv
-aG1tLmgNCj4gKysrIGIvaW5jbHVkZS9saW51eC9obW0uaA0KPiBAQCAtNDAwLDExICs0MDAsNyBA
-QCB2b2lkIGhtbV9taXJyb3JfdW5yZWdpc3RlcihzdHJ1Y3QgaG1tX21pcnJvciAqbWlycm9yKTsN
-Cj4gICAvKg0KPiAgICAqIFBsZWFzZSBzZWUgRG9jdW1lbnRhdGlvbi92bS9obW0ucnN0IGZvciBo
-b3cgdG8gdXNlIHRoZSByYW5nZSBBUEkuDQo+ICAgICovDQo+IC1pbnQgaG1tX3JhbmdlX3JlZ2lz
-dGVyKHN0cnVjdCBobW1fcmFuZ2UgKnJhbmdlLA0KPiAtCQkgICAgICAgc3RydWN0IGhtbV9taXJy
-b3IgKm1pcnJvciwNCj4gLQkJICAgICAgIHVuc2lnbmVkIGxvbmcgc3RhcnQsDQo+IC0JCSAgICAg
-ICB1bnNpZ25lZCBsb25nIGVuZCwNCj4gLQkJICAgICAgIHVuc2lnbmVkIHBhZ2Vfc2hpZnQpOw0K
-PiAraW50IGhtbV9yYW5nZV9yZWdpc3RlcihzdHJ1Y3QgaG1tX3JhbmdlICpyYW5nZSwgc3RydWN0
-IGhtbV9taXJyb3IgKm1pcnJvcik7DQo+ICAgdm9pZCBobW1fcmFuZ2VfdW5yZWdpc3RlcihzdHJ1
-Y3QgaG1tX3JhbmdlICpyYW5nZSk7DQo+ICAgDQo+ICAgLyoNCj4gZGlmZiAtLWdpdCBhL21tL2ht
-bS5jIGIvbW0vaG1tLmMNCj4gaW5kZXggM2EzODUyNjYwNzU3Li45MjY3MzVhM2FlZjkgMTAwNjQ0
-DQo+IC0tLSBhL21tL2htbS5jDQo+ICsrKyBiL21tL2htbS5jDQo+IEBAIC04NDMsMzUgKzg0Mywy
-NSBAQCBzdGF0aWMgdm9pZCBobW1fcGZuc19jbGVhcihzdHJ1Y3QgaG1tX3JhbmdlICpyYW5nZSwN
-Cj4gICAgKiBobW1fcmFuZ2VfcmVnaXN0ZXIoKSAtIHN0YXJ0IHRyYWNraW5nIGNoYW5nZSB0byBD
-UFUgcGFnZSB0YWJsZSBvdmVyIGEgcmFuZ2UNCj4gICAgKiBAcmFuZ2U6IHJhbmdlDQo+ICAgICog
-QG1tOiB0aGUgbW0gc3RydWN0IGZvciB0aGUgcmFuZ2Ugb2YgdmlydHVhbCBhZGRyZXNzDQo+IC0g
-KiBAc3RhcnQ6IHN0YXJ0IHZpcnR1YWwgYWRkcmVzcyAoaW5jbHVzaXZlKQ0KPiAtICogQGVuZDog
-ZW5kIHZpcnR1YWwgYWRkcmVzcyAoZXhjbHVzaXZlKQ0KPiAtICogQHBhZ2Vfc2hpZnQ6IGV4cGVj
-dCBwYWdlIHNoaWZ0IGZvciB0aGUgcmFuZ2UNCj4gKyAqDQo+ICAgICogUmV0dXJuOiAwIG9uIHN1
-Y2Nlc3MsIC1FRkFVTFQgaWYgdGhlIGFkZHJlc3Mgc3BhY2UgaXMgbm8gbG9uZ2VyIHZhbGlkDQo+
-ICAgICoNCj4gICAgKiBUcmFjayB1cGRhdGVzIHRvIHRoZSBDUFUgcGFnZSB0YWJsZSBzZWUgaW5j
-bHVkZS9saW51eC9obW0uaA0KPiAgICAqLw0KPiAtaW50IGhtbV9yYW5nZV9yZWdpc3RlcihzdHJ1
-Y3QgaG1tX3JhbmdlICpyYW5nZSwNCj4gLQkJICAgICAgIHN0cnVjdCBobW1fbWlycm9yICptaXJy
-b3IsDQo+IC0JCSAgICAgICB1bnNpZ25lZCBsb25nIHN0YXJ0LA0KPiAtCQkgICAgICAgdW5zaWdu
-ZWQgbG9uZyBlbmQsDQo+IC0JCSAgICAgICB1bnNpZ25lZCBwYWdlX3NoaWZ0KQ0KPiAraW50IGht
-bV9yYW5nZV9yZWdpc3RlcihzdHJ1Y3QgaG1tX3JhbmdlICpyYW5nZSwgc3RydWN0IGhtbV9taXJy
-b3IgKm1pcnJvcikNCj4gICB7DQo+IC0JdW5zaWduZWQgbG9uZyBtYXNrID0gKCgxVUwgPDwgcGFn
-ZV9zaGlmdCkgLSAxVUwpOw0KPiArCXVuc2lnbmVkIGxvbmcgbWFzayA9ICgoMVVMIDw8IHJhbmdl
-LT5wYWdlX3NoaWZ0KSAtIDFVTCk7DQo+ICAgCXN0cnVjdCBobW0gKmhtbSA9IG1pcnJvci0+aG1t
-Ow0KPiAgIAl1bnNpZ25lZCBsb25nIGZsYWdzOw0KPiAgIA0KPiAgIAlyYW5nZS0+dmFsaWQgPSBm
-YWxzZTsNCj4gICAJcmFuZ2UtPmhtbSA9IE5VTEw7DQo+ICAgDQo+IC0JaWYgKChzdGFydCAmIG1h
-c2spIHx8IChlbmQgJiBtYXNrKSkNCj4gKwlpZiAoKHJhbmdlLT5zdGFydCAmIG1hc2spIHx8IChy
-YW5nZS0+ZW5kICYgbWFzaykpDQo+ICAgCQlyZXR1cm4gLUVJTlZBTDsNCj4gLQlpZiAoc3RhcnQg
-Pj0gZW5kKQ0KPiArCWlmIChyYW5nZS0+c3RhcnQgPj0gcmFuZ2UtPmVuZCkNCj4gICAJCXJldHVy
-biAtRUlOVkFMOw0KPiAgIA0KPiAtCXJhbmdlLT5wYWdlX3NoaWZ0ID0gcGFnZV9zaGlmdDsNCj4g
-LQlyYW5nZS0+c3RhcnQgPSBzdGFydDsNCj4gLQlyYW5nZS0+ZW5kID0gZW5kOw0KPiAtDQo+ICAg
-CS8qIFByZXZlbnQgaG1tX3JlbGVhc2UoKSBmcm9tIHJ1bm5pbmcgd2hpbGUgdGhlIHJhbmdlIGlz
-IHZhbGlkICovDQo+ICAgCWlmICghbW1nZXRfbm90X3plcm8oaG1tLT5tbSkpDQo+ICAgCQlyZXR1
-cm4gLUVGQVVMVDsNCg==
+On Wed 31-07-19 15:18:42, David Hildenbrand wrote:
+> On 31.07.19 15:14, Michal Hocko wrote:
+> > On Wed 31-07-19 15:02:49, David Hildenbrand wrote:
+> >> On 31.07.19 14:53, Michal Hocko wrote:
+> >>> On Wed 31-07-19 14:32:01, David Hildenbrand wrote:
+> >>>> Let's document why we take the lock here. If we're going to overhaul
+> >>>> memory hotplug locking, we'll have to touch many places - this comment
+> >>>> will help to clairfy why it was added here.
+> >>>
+> >>> And how exactly is "lock for consistency" comment going to help the poor
+> >>> soul touching that code? How do people know that it is safe to remove it?
+> >>> I am not going to repeat my arguments how/why I hate "locking for
+> >>> consistency" (or fun or whatever but a real synchronization reasons)
+> >>> but if you want to help then just explicitly state what should done to
+> >>> remove this lock.
+> >>>
+> >>
+> >> I know that you have a different opinion here. To remove the lock,
+> >> add_memory() locking has to be changed *completely* to the point where
+> >> we can drop the lock from the documentation of the function (*whoever
+> >> knows what we have to exactly change* - and I don't have time to do that
+> >> *right now*).
+> > 
+> > Not really. To remove a lock in this particular path it would be
+> > sufficient to add
+> > 	/*
+> > 	 * Although __add_memory used down the road is documented to
+> > 	 * require lock_device_hotplug, it is not necessary here because
+> > 	 * this is an early code when userspace or any other code path
+> > 	 * cannot trigger hotplug operations.
+> > 	 */
+> 
+> Okay, let me phrase it like this: Are you 100% (!) sure that we don't
+> need the lock here. I am not -  I only know what I documented back then
+> and what I found out - could be that we are forgetting something else
+> the lock protects.
+> 
+> As I already said, I am fine with adding such a comment instead. But I
+> am not convinced that the absence of the lock is 100% safe. (I am 99.99%
+> sure ;) ).
+
+I am sorry but this is a shiny example of cargo cult programming. You do
+not add locks just because you are not sure. Locks are protecting data
+structures not code paths! If it is not clear what is actually protected
+then that should be explored first before the lock is spread "just to be
+sure"
+
+Just look here. You have pushed that uncertainty to whoever is going
+touch this code and guess what, they are going to follow that lead and
+we are likely to grow the unjustified usage and any further changes will
+be just harder. I have seen that pattern so many times that it is even
+not funny. And that's why I pushed back here.
+
+So let me repeat. If the lock is to stay then make sure that the comment
+actually explains what has to be done to remove it because it is not
+really required as of now.
+
+-- 
+Michal Hocko
+SUSE Labs
 
