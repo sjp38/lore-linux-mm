@@ -4,103 +4,103 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D645AC433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:08:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D8A46C32753
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:08:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 83D7E21850
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:08:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7DDA9214DA
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:08:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="kKXhGbR2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 83D7E21850
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="PQMMzYAt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DDA9214DA
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0B9218E0009; Wed, 31 Jul 2019 11:08:22 -0400 (EDT)
+	id 2D8E18E000C; Wed, 31 Jul 2019 11:08:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F33F98E0001; Wed, 31 Jul 2019 11:08:21 -0400 (EDT)
+	id 2380F8E000D; Wed, 31 Jul 2019 11:08:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D86B88E0009; Wed, 31 Jul 2019 11:08:21 -0400 (EDT)
+	id 08F688E000C; Wed, 31 Jul 2019 11:08:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7ACD28E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:08:21 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id w25so42560236edu.11
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:08:21 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A425B8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:08:22 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id n25so16094583wmc.7
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:08:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=AJU4EYtP5Ndll/OqHeAitrNwzvbF49Nst5sv0orja/w=;
-        b=JtE90EiZpLPDDAIrlHOE+aC/qyCS4gt6V1oJaLPfWmGYvUR9a11e/AEHQgJeDQiyJv
-         hlKPfIUkv5Rqee4XstPoJgUR5aV/5+6wGEeDhaLF/y349jzQQczIaqUynjRhglym20qT
-         e6eoFOHoEJafZeIpYVHBHcf4Ssd2a8tRGpZIHpgc9MI63/jfd2TvP0xPu20mWrg9MrJI
-         1RGmfyf4JNmtGr/C2EAoycbMKZNaNeh50IjBcnwRbvZtaFJTZIMUt71XSR7iLTYKuPt9
-         3jvb4kSn0mTwiSafnj8IAZ36V8YADaoSb/3cnxkn8SPjbCkwtNdHn3iRx4Oau0TRDDwD
-         hUMg==
-X-Gm-Message-State: APjAAAW4cipr6qSKcW4dOG/sF8qPyZJSOYF5zOqf7Hb8A5ss6C2Tbfih
-	HVAlixbP4IT3MdGbymOZmS13YfBAgHVb1bYe/IAoPIWlExzNxurNzxOO/W020EuAT6UBB8u3GQ4
-	sCyig4q03kmLQq9hS/lFVRvVlQN9knf/NnkuNEENyKlOBBUY989b7ArgdZqBGcBU=
-X-Received: by 2002:a50:95a1:: with SMTP id w30mr108194349eda.177.1564585701058;
-        Wed, 31 Jul 2019 08:08:21 -0700 (PDT)
-X-Received: by 2002:a50:95a1:: with SMTP id w30mr108194248eda.177.1564585700157;
-        Wed, 31 Jul 2019 08:08:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564585700; cv=none;
+        bh=QvM6TLsHLaIUsQxiIrLtgZTAl4nwA/abKY84Ix9c1AI=;
+        b=Bfj+gy1MFN7Bh7dJv/txdplTsGiEBnyWHkpSWoavHvktTe6qe9Ll8TMzE3+nq+RFjc
+         1d7H2ccNgzgrcMcmLvGf2djTr7ItAHau9PRJ7j/4GeBQWHxvHrU89119ACewu9h2e9Z3
+         UKL/xUjNj9vMZcDqDC680t/zc6Crev53DTSOYwGYBaEhL+DSS6Oh62xzT7O5gV9Y+die
+         frnz44XzTbLa/PdI1AR5nIiNs49L67MyalES59Iur+PeqDLn+qYvtkLbyIwjIgbFs/uk
+         rGch6rpayGFpz0DYcsUCOc6LTnMC5xZntbgWISYzKf2WSFooVdgYabjmEtcix7hPT00n
+         Sshg==
+X-Gm-Message-State: APjAAAUtmnCudp1D9x2X/eLtTYom+f5BK9BVE7mkvTrP6stJCvcWB9zv
+	AkOOCihs7uqonPh78KXffjEz7AClO5//J9C1hmm4s1uQBt2m7fkUwJMnpiZh7oKS/AQPx8f3+8G
+	0BYQyn7IuBbYmWZXfrcRgcxlrBjarAmpKMzIEiWt9zrwBPbPZopx0n/eivujy2QI=
+X-Received: by 2002:a1c:b189:: with SMTP id a131mr115302225wmf.7.1564585702208;
+        Wed, 31 Jul 2019 08:08:22 -0700 (PDT)
+X-Received: by 2002:a1c:b189:: with SMTP id a131mr115302059wmf.7.1564585699681;
+        Wed, 31 Jul 2019 08:08:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564585699; cv=none;
         d=google.com; s=arc-20160816;
-        b=mNaIDFUGDZsBYwFNsw7AFKw8NbypUlS9ScENoU9kVw3o3jhxGG0RlVAGKJpvsRRtkt
-         1yN/eNVM5FYmykW7v3T19xDDq4d+a2xk6kR+4l2ouBMik+lVo0kGBYsNgSgl83lZb0fF
-         Ph41eDwD4mkXva9j6LOElgPOMIrvpdMEnCLkYvHvNMO/30pt5w5UGivq1j0Kv3fvlRF1
-         pUCx/p5+FUq9800ZgTaoTZrQ7O7adqEH4Q9UATdKBz1tCGfAlFJzdoZ6Ua20skZDPz7S
-         R33LnDE6M87zxGw0OBecwRkJQ3HooV8GKEwHj6D2eTNlSX5HZN/DLeO1+a/KlvnaKA53
-         m74A==
+        b=YUshKbin8P9TslZ5Tqiwc9GqQ3GQ2dw8FaUvK2MEAVhG7ziIPIwn5s5RMFBHWPX2VI
+         mMOcEV66n9UX8U4w8viWKnTdJW08AWROznGDavvFGWWNkOz0YgcBuyrxnsYCAAgtx/g0
+         y5mxw8TYh97/Q8bnp15YYUAIHG5LBFcmqzuNnK/dCa+i0TNVGRJzqpdg9X0DbIe7HpBe
+         uB/2VHfcTT+UzPD+VfNQSuh+tnLrOgwhzR6VyGVWZAaXJW4g8iAbmLfdV6O3KzZKmLdE
+         XuaAdNc+ib91aecloSP4l83SoR/IkYcs2WqweJRXq6VhQ0ZOlU+YSlkYtSIfRaXK6Er5
+         dfGQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=AJU4EYtP5Ndll/OqHeAitrNwzvbF49Nst5sv0orja/w=;
-        b=rfXpZ8+3192zA0E96oQ0MTidiq9ceJh3MGzjfstrmbIFtXFnHVbc7Iz1KOzeiDsbJf
-         7nVLrmcbkM557zhtxTxpdLMS/Qno0Ao+S+ljtgqJoyTf+elrEiz7y2YISo+LTJ/y/Mew
-         /tBu1SuL0hEc7LKfyNn8+Do7PkRG+DuGnjJN6oFqnAeTibHFHWGgGajAQSHKYtrUslAr
-         HOz5fAHWz0XiPHCRPmUrvY9wI/26sZ0oa5C87UGbyHs8POlEjX6VW/p3ICKymC84xNUo
-         H+vOds+2DRix2MxcUip0+3bkK988jh7/7rQ36hsl201efo7MhODMBJzPQpmAEpMX9Dbl
-         Jr8Q==
+        bh=QvM6TLsHLaIUsQxiIrLtgZTAl4nwA/abKY84Ix9c1AI=;
+        b=ezOIuS3tJOoGMjVL3HlHstnT4ppu5tJCa07mq4FnzVLvMLuXUAybaeRivrEbkmeJRB
+         WBXZbi1y5+jTWS/ryrgpG76w55H0piBn+LGDiEjPHEiIrqH0SRlReQautGC1L7lsi+3P
+         GmdFo3h9ytOma5vondVObhwCn5QAiuuxbqVIMj5UxXncykE4E6B7gauN4Ef/bTPEhrU4
+         92UiNQ+UT3DhzC+sjWlft4m6J1UVERWSzvmPjnBc/NMV0jH5+uGJNIvMrnmMOutHhhkQ
+         8y7S2PwqjDz1NjW1v6u7DvvePY1yrzaAy80Y2GH5AmI7Ss/HpgMk3HMjznBXT5kbtOnp
+         mjKQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=kKXhGbR2;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=PQMMzYAt;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y7sor51960748edd.25.2019.07.31.08.08.20
+        by mx.google.com with SMTPS id w6sor52114476edc.24.2019.07.31.08.08.19
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Jul 2019 08:08:20 -0700 (PDT)
+        Wed, 31 Jul 2019 08:08:19 -0700 (PDT)
 Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=kKXhGbR2;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=PQMMzYAt;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=AJU4EYtP5Ndll/OqHeAitrNwzvbF49Nst5sv0orja/w=;
-        b=kKXhGbR2JDGE9bSyvxgjKsfR1EooQVCxUWsDBiB/ov2JhR22a80ZVWH6hsoT5t60hW
-         ReQlX2VuPnyHZm+ht43QCRrwOTR4FXEx8N9KLDx8PA4ydWKsR2BIUMxIijk5qFFyJWJR
-         2f083LoqCGdskXIuleu/ah0wA10Rm17n5y2ig4+kPBzijtTL3lkIw8/27JLPaHybuORM
-         pzMd9bI4PnPnmBKajAUKL8D2paFeEh9jjqZZbZStBfag1gDyfG8bBCKhuARqXP5nW2Pq
-         L1ZhDiLr0HWi2NeMxbyWk+wgHvu/5r9izvPURcblDhh/5L3ApkkaOd6gdu9AGvFSIsuM
-         bwfA==
-X-Google-Smtp-Source: APXvYqwybSsBXdcn4hH+cdquBQ7naCJOKUH1HBc36wrC3gr3IAtOhb7lLrFtZj0CqBrWNvtjPSNrNw==
-X-Received: by 2002:aa7:da14:: with SMTP id r20mr107154184eds.65.1564585699886;
+        bh=QvM6TLsHLaIUsQxiIrLtgZTAl4nwA/abKY84Ix9c1AI=;
+        b=PQMMzYAtdHNIXrG1QMzmJkDEaLAkNcffdKITKNKyMHWPazgNFp8a/KgMG6jpyOPy6L
+         z1/tpsyUip94xQ6akPtE8MoQmmIrADbPePw9ZUJIhjeGaokm0qqY+eEe5uAHTxdaDFOl
+         uTxZlQ2SlbbEr+TXSFQKh3v/lXXZgYGil15BJYjAEoy1ygXMXRc7taLkzxUFswX6evY7
+         kDJdbo1gZxmJV0MtpSm9FnWdgOp9x//J+1DDAJcBl4SLlPClFdePa4j2HyjR2ElgASHb
+         gjubDLRAPzaX0drp9tMCjDRDUkP7/F4q4ORRnXyI3hNiWitoyht+3ai6WwR4M8j+AqBZ
+         0UOA==
+X-Google-Smtp-Source: APXvYqxfIQGkRhrMQl5o3NEbLiMVXnwZsc3hm4rHg9K6Idq9C1pqBjRFAwNsZKfTGo4tqfavOiaY7g==
+X-Received: by 2002:a50:9107:: with SMTP id e7mr108538225eda.280.1564585699281;
         Wed, 31 Jul 2019 08:08:19 -0700 (PDT)
 Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id o22sm17282787edc.37.2019.07.31.08.08.17
+        by smtp.gmail.com with ESMTPSA id f21sm16902175edj.36.2019.07.31.08.08.15
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 08:08:19 -0700 (PDT)
+        Wed, 31 Jul 2019 08:08:15 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 X-Google-Original-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Received: by box.localdomain (Postfix, from userid 1000)
-	id 17B6310131D; Wed, 31 Jul 2019 18:08:16 +0300 (+03)
+	id EA80E101316; Wed, 31 Jul 2019 18:08:15 +0300 (+03)
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
 	Thomas Gleixner <tglx@linutronix.de>,
@@ -120,9 +120,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 06/59] mm/khugepaged: Handle encrypted pages
-Date: Wed, 31 Jul 2019 18:07:20 +0300
-Message-Id: <20190731150813.26289-7-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 01/59] mm: Do no merge VMAs with different encryption KeyIDs
+Date: Wed, 31 Jul 2019 18:07:15 +0300
+Message-Id: <20190731150813.26289-2-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
 References: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
@@ -134,39 +134,246 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For !NUMA khugepaged allocates page in advance, before we found a VMA
-for collapse. We don't yet know which KeyID to use for the allocation.
-
-The page is allocated with KeyID-0. Once we know that the VMA is
-suitable for collapsing, we prepare the page for KeyID we need, based on
-vma_keyid().
+VMAs with different KeyID do not mix together. Only VMAs with the same
+KeyID are compatible.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- mm/khugepaged.c | 10 ++++++++++
- 1 file changed, 10 insertions(+)
+ fs/userfaultfd.c   |  7 ++++---
+ include/linux/mm.h |  9 ++++++++-
+ mm/madvise.c       |  2 +-
+ mm/mempolicy.c     |  3 ++-
+ mm/mlock.c         |  2 +-
+ mm/mmap.c          | 31 +++++++++++++++++++------------
+ mm/mprotect.c      |  2 +-
+ 7 files changed, 36 insertions(+), 20 deletions(-)
 
-diff --git a/mm/khugepaged.c b/mm/khugepaged.c
-index eaaa21b23215..ae9bd3b18aa1 100644
---- a/mm/khugepaged.c
-+++ b/mm/khugepaged.c
-@@ -1059,6 +1059,16 @@ static void collapse_huge_page(struct mm_struct *mm,
- 	 */
- 	anon_vma_unlock_write(vma->anon_vma);
+diff --git a/fs/userfaultfd.c b/fs/userfaultfd.c
+index ccbdbd62f0d8..3b845a6a44d0 100644
+--- a/fs/userfaultfd.c
++++ b/fs/userfaultfd.c
+@@ -911,7 +911,7 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
+ 				 new_flags, vma->anon_vma,
+ 				 vma->vm_file, vma->vm_pgoff,
+ 				 vma_policy(vma),
+-				 NULL_VM_UFFD_CTX);
++				 NULL_VM_UFFD_CTX, vma_keyid(vma));
+ 		if (prev)
+ 			vma = prev;
+ 		else
+@@ -1461,7 +1461,8 @@ static int userfaultfd_register(struct userfaultfd_ctx *ctx,
+ 		prev = vma_merge(mm, prev, start, vma_end, new_flags,
+ 				 vma->anon_vma, vma->vm_file, vma->vm_pgoff,
+ 				 vma_policy(vma),
+-				 ((struct vm_userfaultfd_ctx){ ctx }));
++				 ((struct vm_userfaultfd_ctx){ ctx }),
++				 vma_keyid(vma));
+ 		if (prev) {
+ 			vma = prev;
+ 			goto next;
+@@ -1623,7 +1624,7 @@ static int userfaultfd_unregister(struct userfaultfd_ctx *ctx,
+ 		prev = vma_merge(mm, prev, start, vma_end, new_flags,
+ 				 vma->anon_vma, vma->vm_file, vma->vm_pgoff,
+ 				 vma_policy(vma),
+-				 NULL_VM_UFFD_CTX);
++				 NULL_VM_UFFD_CTX, vma_keyid(vma));
+ 		if (prev) {
+ 			vma = prev;
+ 			goto next;
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0334ca97c584..5bfd3dd121c1 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -1637,6 +1637,13 @@ int clear_page_dirty_for_io(struct page *page);
  
-+	/*
-+	 * At this point new_page is allocated as non-encrypted.
-+	 * If VMA's KeyID is non-zero, we need to prepare it to be encrypted
-+	 * before coping data.
-+	 */
-+	if (vma_keyid(vma)) {
-+		prep_encrypted_page(new_page, HPAGE_PMD_ORDER,
-+				vma_keyid(vma), false);
-+	}
+ int get_cmdline(struct task_struct *task, char *buffer, int buflen);
+ 
++#ifndef vma_keyid
++static inline int vma_keyid(struct vm_area_struct *vma)
++{
++	return 0;
++}
++#endif
 +
- 	__collapse_huge_page_copy(pte, new_page, vma, address, pte_ptl);
- 	pte_unmap(pte);
- 	__SetPageUptodate(new_page);
+ extern unsigned long move_page_tables(struct vm_area_struct *vma,
+ 		unsigned long old_addr, struct vm_area_struct *new_vma,
+ 		unsigned long new_addr, unsigned long len,
+@@ -2301,7 +2308,7 @@ static inline int vma_adjust(struct vm_area_struct *vma, unsigned long start,
+ extern struct vm_area_struct *vma_merge(struct mm_struct *,
+ 	struct vm_area_struct *prev, unsigned long addr, unsigned long end,
+ 	unsigned long vm_flags, struct anon_vma *, struct file *, pgoff_t,
+-	struct mempolicy *, struct vm_userfaultfd_ctx);
++	struct mempolicy *, struct vm_userfaultfd_ctx, int keyid);
+ extern struct anon_vma *find_mergeable_anon_vma(struct vm_area_struct *);
+ extern int __split_vma(struct mm_struct *, struct vm_area_struct *,
+ 	unsigned long addr, int new_below);
+diff --git a/mm/madvise.c b/mm/madvise.c
+index 968df3aa069f..00216780a630 100644
+--- a/mm/madvise.c
++++ b/mm/madvise.c
+@@ -138,7 +138,7 @@ static long madvise_behavior(struct vm_area_struct *vma,
+ 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+ 	*prev = vma_merge(mm, *prev, start, end, new_flags, vma->anon_vma,
+ 			  vma->vm_file, pgoff, vma_policy(vma),
+-			  vma->vm_userfaultfd_ctx);
++			  vma->vm_userfaultfd_ctx, vma_keyid(vma));
+ 	if (*prev) {
+ 		vma = *prev;
+ 		goto success;
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index f48693f75b37..14ee933b1ff7 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -731,7 +731,8 @@ static int mbind_range(struct mm_struct *mm, unsigned long start,
+ 			((vmstart - vma->vm_start) >> PAGE_SHIFT);
+ 		prev = vma_merge(mm, prev, vmstart, vmend, vma->vm_flags,
+ 				 vma->anon_vma, vma->vm_file, pgoff,
+-				 new_pol, vma->vm_userfaultfd_ctx);
++				 new_pol, vma->vm_userfaultfd_ctx,
++				 vma_keyid(vma));
+ 		if (prev) {
+ 			vma = prev;
+ 			next = vma->vm_next;
+diff --git a/mm/mlock.c b/mm/mlock.c
+index a90099da4fb4..3d0a31bf214c 100644
+--- a/mm/mlock.c
++++ b/mm/mlock.c
+@@ -535,7 +535,7 @@ static int mlock_fixup(struct vm_area_struct *vma, struct vm_area_struct **prev,
+ 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+ 	*prev = vma_merge(mm, *prev, start, end, newflags, vma->anon_vma,
+ 			  vma->vm_file, pgoff, vma_policy(vma),
+-			  vma->vm_userfaultfd_ctx);
++			  vma->vm_userfaultfd_ctx, vma_keyid(vma));
+ 	if (*prev) {
+ 		vma = *prev;
+ 		goto success;
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 7e8c3e8ae75f..715438a1fb93 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -1008,7 +1008,8 @@ int __vma_adjust(struct vm_area_struct *vma, unsigned long start,
+  */
+ static inline int is_mergeable_vma(struct vm_area_struct *vma,
+ 				struct file *file, unsigned long vm_flags,
+-				struct vm_userfaultfd_ctx vm_userfaultfd_ctx)
++				struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
++				int keyid)
+ {
+ 	/*
+ 	 * VM_SOFTDIRTY should not prevent from VMA merging, if we
+@@ -1022,6 +1023,8 @@ static inline int is_mergeable_vma(struct vm_area_struct *vma,
+ 		return 0;
+ 	if (vma->vm_file != file)
+ 		return 0;
++	if (vma_keyid(vma) != keyid)
++		return 0;
+ 	if (vma->vm_ops && vma->vm_ops->close)
+ 		return 0;
+ 	if (!is_mergeable_vm_userfaultfd_ctx(vma, vm_userfaultfd_ctx))
+@@ -1058,9 +1061,10 @@ static int
+ can_vma_merge_before(struct vm_area_struct *vma, unsigned long vm_flags,
+ 		     struct anon_vma *anon_vma, struct file *file,
+ 		     pgoff_t vm_pgoff,
+-		     struct vm_userfaultfd_ctx vm_userfaultfd_ctx)
++		     struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
++		     int keyid)
+ {
+-	if (is_mergeable_vma(vma, file, vm_flags, vm_userfaultfd_ctx) &&
++	if (is_mergeable_vma(vma, file, vm_flags, vm_userfaultfd_ctx, keyid) &&
+ 	    is_mergeable_anon_vma(anon_vma, vma->anon_vma, vma)) {
+ 		if (vma->vm_pgoff == vm_pgoff)
+ 			return 1;
+@@ -1079,9 +1083,10 @@ static int
+ can_vma_merge_after(struct vm_area_struct *vma, unsigned long vm_flags,
+ 		    struct anon_vma *anon_vma, struct file *file,
+ 		    pgoff_t vm_pgoff,
+-		    struct vm_userfaultfd_ctx vm_userfaultfd_ctx)
++		    struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
++		    int keyid)
+ {
+-	if (is_mergeable_vma(vma, file, vm_flags, vm_userfaultfd_ctx) &&
++	if (is_mergeable_vma(vma, file, vm_flags, vm_userfaultfd_ctx, keyid) &&
+ 	    is_mergeable_anon_vma(anon_vma, vma->anon_vma, vma)) {
+ 		pgoff_t vm_pglen;
+ 		vm_pglen = vma_pages(vma);
+@@ -1136,7 +1141,8 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
+ 			unsigned long end, unsigned long vm_flags,
+ 			struct anon_vma *anon_vma, struct file *file,
+ 			pgoff_t pgoff, struct mempolicy *policy,
+-			struct vm_userfaultfd_ctx vm_userfaultfd_ctx)
++			struct vm_userfaultfd_ctx vm_userfaultfd_ctx,
++			int keyid)
+ {
+ 	pgoff_t pglen = (end - addr) >> PAGE_SHIFT;
+ 	struct vm_area_struct *area, *next;
+@@ -1169,7 +1175,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
+ 			mpol_equal(vma_policy(prev), policy) &&
+ 			can_vma_merge_after(prev, vm_flags,
+ 					    anon_vma, file, pgoff,
+-					    vm_userfaultfd_ctx)) {
++					    vm_userfaultfd_ctx, keyid)) {
+ 		/*
+ 		 * OK, it can.  Can we now merge in the successor as well?
+ 		 */
+@@ -1178,7 +1184,8 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
+ 				can_vma_merge_before(next, vm_flags,
+ 						     anon_vma, file,
+ 						     pgoff+pglen,
+-						     vm_userfaultfd_ctx) &&
++						     vm_userfaultfd_ctx,
++						     keyid) &&
+ 				is_mergeable_anon_vma(prev->anon_vma,
+ 						      next->anon_vma, NULL)) {
+ 							/* cases 1, 6 */
+@@ -1201,7 +1208,7 @@ struct vm_area_struct *vma_merge(struct mm_struct *mm,
+ 			mpol_equal(policy, vma_policy(next)) &&
+ 			can_vma_merge_before(next, vm_flags,
+ 					     anon_vma, file, pgoff+pglen,
+-					     vm_userfaultfd_ctx)) {
++					     vm_userfaultfd_ctx, keyid)) {
+ 		if (prev && addr < prev->vm_end)	/* case 4 */
+ 			err = __vma_adjust(prev, prev->vm_start,
+ 					 addr, prev->vm_pgoff, NULL, next);
+@@ -1746,7 +1753,7 @@ unsigned long mmap_region(struct file *file, unsigned long addr,
+ 	 * Can we just expand an old mapping?
+ 	 */
+ 	vma = vma_merge(mm, prev, addr, addr + len, vm_flags,
+-			NULL, file, pgoff, NULL, NULL_VM_UFFD_CTX);
++			NULL, file, pgoff, NULL, NULL_VM_UFFD_CTX, 0);
+ 	if (vma)
+ 		goto out;
+ 
+@@ -3025,7 +3032,7 @@ static int do_brk_flags(unsigned long addr, unsigned long len, unsigned long fla
+ 
+ 	/* Can we just expand an old private anonymous mapping? */
+ 	vma = vma_merge(mm, prev, addr, addr + len, flags,
+-			NULL, NULL, pgoff, NULL, NULL_VM_UFFD_CTX);
++			NULL, NULL, pgoff, NULL, NULL_VM_UFFD_CTX, 0);
+ 	if (vma)
+ 		goto out;
+ 
+@@ -3223,7 +3230,7 @@ struct vm_area_struct *copy_vma(struct vm_area_struct **vmap,
+ 		return NULL;	/* should never get here */
+ 	new_vma = vma_merge(mm, prev, addr, addr + len, vma->vm_flags,
+ 			    vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
+-			    vma->vm_userfaultfd_ctx);
++			    vma->vm_userfaultfd_ctx, vma_keyid(vma));
+ 	if (new_vma) {
+ 		/*
+ 		 * Source vma may have been merged into new_vma
+diff --git a/mm/mprotect.c b/mm/mprotect.c
+index bf38dfbbb4b4..82d7b194a918 100644
+--- a/mm/mprotect.c
++++ b/mm/mprotect.c
+@@ -400,7 +400,7 @@ mprotect_fixup(struct vm_area_struct *vma, struct vm_area_struct **pprev,
+ 	pgoff = vma->vm_pgoff + ((start - vma->vm_start) >> PAGE_SHIFT);
+ 	*pprev = vma_merge(mm, *pprev, start, end, newflags,
+ 			   vma->anon_vma, vma->vm_file, pgoff, vma_policy(vma),
+-			   vma->vm_userfaultfd_ctx);
++			   vma->vm_userfaultfd_ctx, vma_keyid(vma));
+ 	if (*pprev) {
+ 		vma = *pprev;
+ 		VM_WARN_ON((vma->vm_flags ^ newflags) & ~VM_SOFTDIRTY);
 -- 
 2.21.0
 
