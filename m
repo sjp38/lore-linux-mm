@@ -4,103 +4,103 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5929AC433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:08:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C0136C32753
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:08:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0B5E7208E3
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:08:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 781B020C01
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:08:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="R36gYrhW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0B5E7208E3
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="uapI7QfQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 781B020C01
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9B3158E0005; Wed, 31 Jul 2019 11:08:19 -0400 (EDT)
+	id 71C288E0008; Wed, 31 Jul 2019 11:08:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 93C6F8E0001; Wed, 31 Jul 2019 11:08:19 -0400 (EDT)
+	id 6A9658E0001; Wed, 31 Jul 2019 11:08:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 805828E0005; Wed, 31 Jul 2019 11:08:19 -0400 (EDT)
+	id 4F8548E0008; Wed, 31 Jul 2019 11:08:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 315EA8E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:08:19 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id l26so42618337eda.2
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 036508E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:08:20 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c31so42646712ede.5
         for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:08:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=wLPXwl8hvJobXFCl++g4aCvf+npUzZ0QqPbdONmdAQc=;
-        b=CmKiSOOS5hyKqbkgqzco6ibq3zbxnN9IL66loXFi/aF6iLTL+Z3TUozgGmvDFKQX4c
-         BBxjP6gh6SaRZWvVkgequqFP4eI8j1LHFespIhopmZ49q/8i9bb6Ji8OSNCLlfi0LxhL
-         9tWr4610oOf1r0sWsCv8l5wJ+8URvQqZRe1ifzn2aAQw/oqXxM/VwhdFW4F17KcjNwDv
-         dX97bIOXzoTzmxaXmDhPQjqd5ZmFKqkToocC9InkaL1zckP99bSUp1pJdH4eH7cAtE2E
-         0E/tUtBfPv473n9jywtfUWG1nWlTKuK+qlts2r5n5RTD97LoVKJreqnx5HYFpjADlDfs
-         iBGA==
-X-Gm-Message-State: APjAAAXDombhfIIxYjtJfha4yH0UxkMemnPotEzD8vWntNqmKIUXfsDc
-	9Vew2HaTbvTLN6DnkQTjsTaGZWVJkgUjX6Fgjbj04jFRTUeWkkKAiKPwbzPMvbJQdSSTtgkpYGz
-	cZkyuIApvBIXhb5h8WSu2wfQSyBMDeH9DvoffXwL+jK2Q/2VKrKebFHJ2J3xCbas=
-X-Received: by 2002:a50:d7d0:: with SMTP id m16mr105325235edj.162.1564585698770;
+        bh=884ZxbzpLr443iBBzOV7VNSITHGDDguNP5NA41SiPjs=;
+        b=lzftaOGd7My9VFnlPNzyc0WzPZBWTelHVut7MnKV5f2bdaP1E6LpjoVGkNxk3GSwPt
+         pCJZ5archPa8Yrw8Og7R77ebkLo/wiVDUmUPbc6XV2/XIKakyuoZTXZKZtl0h40p6hlE
+         PEx542b6SYdH8UAoXhtzt7ue481CT1U3cDCv40BRprHZ1aqvovfGCfoEjj5CJUYhniPI
+         LQLOk1LWS6NGKz3tQrGcU7tj8pKWGKJBvxZNwgcZzF0qtWuap5aPnWLNohU1hk752pRX
+         kTlyssrGwstyPuaxYbyhWFEENdSTOGIJS7uC28o1ZayKYD26yzJlBB7/9ZEesB0B4nEi
+         2btg==
+X-Gm-Message-State: APjAAAWxxqHHnBks6FYyXLUDtziLfWeDP0LQxUIkTWX9EvWjlwNXVPZV
+	GD8zkNPphCiD3bjGxM4GceZ6HeKUYDn3tcAdO9MoWJO75DBMPMyhTWbWO895ShSb/4SvsPPVHBg
+	tFV4y2rvmu8ozsdU+RX8j9/cvTIHjqJfY/m/W61qkiWehJhbdM4bd87/GT+cHgYg=
+X-Received: by 2002:a17:906:b209:: with SMTP id p9mr94575545ejz.270.1564585699537;
+        Wed, 31 Jul 2019 08:08:19 -0700 (PDT)
+X-Received: by 2002:a17:906:b209:: with SMTP id p9mr94575426ejz.270.1564585698323;
         Wed, 31 Jul 2019 08:08:18 -0700 (PDT)
-X-Received: by 2002:a50:d7d0:: with SMTP id m16mr105325071edj.162.1564585697301;
-        Wed, 31 Jul 2019 08:08:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564585697; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1564585698; cv=none;
         d=google.com; s=arc-20160816;
-        b=QQjdD8FDnFCLcvQoyJEU54EIlGNkwXHjdNmJS6s222lQtARrPfqdIjM7e9ZUMY1K38
-         +8f0v99SkrzEHzOBuPUnYO8eJ34J0HC15daJt9AYWmmv7IPnZSDMyipsdKo439e0IFyh
-         dXUHRNg22+gRSIcgpI0dftfXa7/InSlxneEyjbXieUD2mIkSowBtX0hPPL4FmaeeKS5f
-         v1I4KBZgbHmr9Ncc9iWe89EoLBD76bw0l4OiOOHjyK4iRODBUbz0IJyECbTx0ub8/L9P
-         CVSGWENQ7NkLLS5yxp006R9XsNfdbxxxM/cCacxoZLyon+WVHaVXkrUnIJ/i20RnYTw4
-         RgeA==
+        b=dOfnBF8VIWhI3EUg7ph38RA8S7jOCz8X2iutzy+H7ssFDZ0+3A9wKkdn9y1kzvOdrq
+         B5q8yCCNvkLL+h7vV5MHEvJS+8IhAopWzVIFSiYyDSZAVjhJgO2AkyRj4Cb1pDjoMsHU
+         LmWnhObAM0r09anxEOgyAAYlzF3COF/eHNAyn20CFe+brGdAjfaTf8NJUKlxMn+TkiZd
+         TaGTio8uS93FSOTiJL4SZ2lom/kBuGPcSnvKeWCPPlK7aBvp9nVC768X+MsmfgIYQX/t
+         QEKS2sI8Qh1Go+4kXhE3kiKuQ6yQStMb3X8Xngm9AhTig/UOQXD6aDm3V9lu/W0hwjxF
+         Z8fQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=wLPXwl8hvJobXFCl++g4aCvf+npUzZ0QqPbdONmdAQc=;
-        b=R9eBVQ6nA9pVnjnowKnujDCg8Oh/9Vd0Y/C/BmjZIMGoiCqvv7c7jL5D+VlgTfo/+e
-         d7gr+J5SmXcA5UeE89atq7opswepw0up52F1gWlI8KZzeV2AMot2ul2LrtoHC2TQHMVB
-         +9HWyC0Dyy60VNEVoWtOfrVcQznZTAN1QTjCk+0clBr/eqdULt2Dv981yYf33UKvR/PP
-         GDFbaPKDGAUkxbCpS6SC1KacPZIdDRxKyzqzajC6JtxTPaskoQjwAiit2oXxfy1cdZrQ
-         2+4x7NGTMA+MQOD6oSHwuOmqiFMOJi2aH7Rdc6wH9Ga+ZXI1Djs5N3e0dAzZbRQJQmpK
-         vDCA==
+        bh=884ZxbzpLr443iBBzOV7VNSITHGDDguNP5NA41SiPjs=;
+        b=HhcbeK5aQUu0D8wG4Zj3C14QxV/jXx58Mhtjb06rv+XK4Sghp6+Vq3jsASQcCyynLo
+         FXdIOrYpjMXdKUCfePXLLlSyeiBypcB6uj6AC9PR9qtGDWuU2xoI2n1p+Q8rBXDbekbO
+         cp9v6n89v4fhsfOUxC4DSWlHv4x1zDnnGB0wn9cXffDM3YXJgHzrS5/cPtWqt2NbA7vb
+         MR8NB3wZve/LKJKsCd1KiWaYkkhm8qS46qeL19QPDV50sjx+H8eFBN0a5uSzQg9SrcEp
+         +CEjpt8EaYmqmeRvEhMNEbqBWtJIPvHxalbHZ59MbyJEs4FHisvdPSVLUcF0AZ4jc+v8
+         uVBw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=R36gYrhW;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=uapI7QfQ;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id bq17sor22167147ejb.55.2019.07.31.08.08.17
+        by mx.google.com with SMTPS id y5sor52037290edv.14.2019.07.31.08.08.18
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Jul 2019 08:08:17 -0700 (PDT)
+        Wed, 31 Jul 2019 08:08:18 -0700 (PDT)
 Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=R36gYrhW;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=uapI7QfQ;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=wLPXwl8hvJobXFCl++g4aCvf+npUzZ0QqPbdONmdAQc=;
-        b=R36gYrhWPE65DAN624GOKj6Zcvo/ac/skfKDjJ3xcAQFiNmr7dX573jmLVCRaNG72Z
-         xcMGnyIs1LpXnhGK5JxEboIEAPxR/EeGcod/4MYW/A0bbBy9yBKnmU2CF6SqodBq1bbG
-         2et49Q8QeC0Gi2N/dOFWHDkpO2qo6+z6lshk3KNGVbQlqNYxKAMnCnpgag0jzwh5HEUj
-         dMc4Sem5sBJAfoYBQzfFvzczhmipMrh7ObYbRCqFmv9xdDuVsiGlTB/dwRP9co2iZadV
-         LxdeXO4uRP+DUWTuqbPXM46fxWLgXQuCInUrkr1thUYy5i2Mt2bnKrQGqLbEspEV6MTU
-         W2og==
-X-Google-Smtp-Source: APXvYqw0oWdSxi7D+H/1P5QUyRaVYREdYgbW7LIf4XE4H22UAM6yie49PO/SDUQu/e/ngKqwbq3xkA==
-X-Received: by 2002:a17:906:430a:: with SMTP id j10mr10514767ejm.92.1564585696918;
-        Wed, 31 Jul 2019 08:08:16 -0700 (PDT)
+        bh=884ZxbzpLr443iBBzOV7VNSITHGDDguNP5NA41SiPjs=;
+        b=uapI7QfQSFWrfufVSM7HiFX646OQeLiAul30+HPzHGLTEAyE1mlyQ4cfs8/lAJGW3W
+         Tt7zm3MH7qjRyENcy8PkWhrnxtdtI8iaTGgI0/PL1v/DggmhR6NhObJkOFT00YyzaOrj
+         Take1nVpfJ2NoPUc7KjzORoYT7UbY7JlN5HKiuzokOrb0OjCCFMEeDyXY9EOjEuhNnPf
+         T/XVysxTCW8DaKpzjRLUEONeAMippaQbGF+ajea1j5fV5uemWPA4VqQFGgccNvC53hLa
+         leX/D6UzbHLOHMfJMnrjKWDFygclW04/fSZvcc53kO9nqx0C1i5cnaESX8bXsXcjoUoD
+         JtDg==
+X-Google-Smtp-Source: APXvYqzJuBbLlWsZbHVSwq33uygKwm+4dMWF6225mCqR1QI8GR+My+vRb8mmhCMTG8y6ZThSvSiS7A==
+X-Received: by 2002:aa7:da14:: with SMTP id r20mr107153958eds.65.1564585698000;
+        Wed, 31 Jul 2019 08:08:18 -0700 (PDT)
 Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id y11sm12444493ejb.54.2019.07.31.08.08.15
+        by smtp.gmail.com with ESMTPSA id by12sm12375107ejb.37.2019.07.31.08.08.15
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 31 Jul 2019 08:08:15 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 X-Google-Original-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Received: by box.localdomain (Postfix, from userid 1000)
-	id F174F101319; Wed, 31 Jul 2019 18:08:15 +0300 (+03)
+	id 0B25210131B; Wed, 31 Jul 2019 18:08:16 +0300 (+03)
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
 	Thomas Gleixner <tglx@linutronix.de>,
@@ -120,9 +120,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 02/59] mm: Add helpers to setup zero page mappings
-Date: Wed, 31 Jul 2019 18:07:16 +0300
-Message-Id: <20190731150813.26289-3-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 04/59] mm/page_alloc: Unify alloc_hugepage_vma()
+Date: Wed, 31 Jul 2019 18:07:18 +0300
+Message-Id: <20190731150813.26289-5-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
 References: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
@@ -134,114 +134,65 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When kernel sets up an encrypted page mapping, encryption KeyID is
-derived from a VMA. KeyID is going to be part of vma->vm_page_prot and
-it will be propagated transparently to page table entry on mk_pte().
+We don't need to have separate implementations of alloc_hugepage_vma()
+for NUMA and non-NUMA. Using variant based on alloc_pages_vma() we would
+cover both cases.
 
-But there is an exception: zero page is never encrypted and its mapping
-must use KeyID-0, regardless VMA's KeyID.
+This is preparation patch for allocation encrypted pages.
 
-Introduce helpers that create a page table entry for zero page.
+alloc_pages_vma() will handle allocation of encrypted pages. With this
+change we don' t need to cover alloc_hugepage_vma() separately.
 
-The generic implementation will be overridden by architecture-specific
-code that takes care about using correct KeyID.
+The change makes typo in Alpha's implementation of
+__alloc_zeroed_user_highpage() visible. Fix it too.
 
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- fs/dax.c                      | 3 +--
- include/asm-generic/pgtable.h | 8 ++++++++
- mm/huge_memory.c              | 6 ++----
- mm/memory.c                   | 3 +--
- mm/userfaultfd.c              | 3 +--
- 5 files changed, 13 insertions(+), 10 deletions(-)
+ arch/alpha/include/asm/page.h | 2 +-
+ include/linux/gfp.h           | 6 ++----
+ 2 files changed, 3 insertions(+), 5 deletions(-)
 
-diff --git a/fs/dax.c b/fs/dax.c
-index a237141d8787..6ecc9c560e62 100644
---- a/fs/dax.c
-+++ b/fs/dax.c
-@@ -1445,8 +1445,7 @@ static vm_fault_t dax_pmd_load_hole(struct xa_state *xas, struct vm_fault *vmf,
- 		pgtable_trans_huge_deposit(vma->vm_mm, vmf->pmd, pgtable);
- 		mm_inc_nr_ptes(vma->vm_mm);
- 	}
--	pmd_entry = mk_pmd(zero_page, vmf->vma->vm_page_prot);
--	pmd_entry = pmd_mkhuge(pmd_entry);
-+	pmd_entry = mk_zero_pmd(zero_page, vmf->vma->vm_page_prot);
- 	set_pmd_at(vmf->vma->vm_mm, pmd_addr, vmf->pmd, pmd_entry);
- 	spin_unlock(ptl);
- 	trace_dax_pmd_load_hole(inode, vmf, zero_page, *entry);
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 75d9d68a6de7..afcfbb4af4b2 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -879,8 +879,16 @@ static inline unsigned long my_zero_pfn(unsigned long addr)
- }
+diff --git a/arch/alpha/include/asm/page.h b/arch/alpha/include/asm/page.h
+index f3fb2848470a..9a6fbb5269f3 100644
+--- a/arch/alpha/include/asm/page.h
++++ b/arch/alpha/include/asm/page.h
+@@ -18,7 +18,7 @@ extern void clear_page(void *page);
+ #define clear_user_page(page, vaddr, pg)	clear_page(page)
+ 
+ #define __alloc_zeroed_user_highpage(movableflags, vma, vaddr) \
+-	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vmaddr)
++	alloc_page_vma(GFP_HIGHUSER | __GFP_ZERO | movableflags, vma, vaddr)
+ #define __HAVE_ARCH_ALLOC_ZEROED_USER_HIGHPAGE
+ 
+ extern void copy_page(void * _to, void * _from);
+diff --git a/include/linux/gfp.h b/include/linux/gfp.h
+index fb07b503dc45..3d4cb9fea417 100644
+--- a/include/linux/gfp.h
++++ b/include/linux/gfp.h
+@@ -511,21 +511,19 @@ alloc_pages(gfp_t gfp_mask, unsigned int order)
+ extern struct page *alloc_pages_vma(gfp_t gfp_mask, int order,
+ 			struct vm_area_struct *vma, unsigned long addr,
+ 			int node, bool hugepage);
+-#define alloc_hugepage_vma(gfp_mask, vma, addr, order) \
+-	alloc_pages_vma(gfp_mask, order, vma, addr, numa_node_id(), true)
+ #else
+ #define alloc_pages(gfp_mask, order) \
+ 		alloc_pages_node(numa_node_id(), gfp_mask, order)
+ #define alloc_pages_vma(gfp_mask, order, vma, addr, node, false)\
+ 	alloc_pages(gfp_mask, order)
+-#define alloc_hugepage_vma(gfp_mask, vma, addr, order) \
+-	alloc_pages(gfp_mask, order)
  #endif
+ #define alloc_page(gfp_mask) alloc_pages(gfp_mask, 0)
+ #define alloc_page_vma(gfp_mask, vma, addr)			\
+ 	alloc_pages_vma(gfp_mask, 0, vma, addr, numa_node_id(), false)
+ #define alloc_page_vma_node(gfp_mask, vma, addr, node)		\
+ 	alloc_pages_vma(gfp_mask, 0, vma, addr, node, false)
++#define alloc_hugepage_vma(gfp_mask, vma, addr, order) \
++	alloc_pages_vma(gfp_mask, order, vma, addr, numa_node_id(), true)
  
-+#ifndef mk_zero_pte
-+#define mk_zero_pte(addr, prot) pte_mkspecial(pfn_pte(my_zero_pfn(addr), prot))
-+#endif
-+
- #ifdef CONFIG_MMU
- 
-+#ifndef mk_zero_pmd
-+#define mk_zero_pmd(zero_page, prot) pmd_mkhuge(mk_pmd(zero_page, prot))
-+#endif
-+
- #ifndef CONFIG_TRANSPARENT_HUGEPAGE
- static inline int pmd_trans_huge(pmd_t pmd)
- {
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 1334ede667a8..e9a791413730 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -678,8 +678,7 @@ static bool set_huge_zero_page(pgtable_t pgtable, struct mm_struct *mm,
- 	pmd_t entry;
- 	if (!pmd_none(*pmd))
- 		return false;
--	entry = mk_pmd(zero_page, vma->vm_page_prot);
--	entry = pmd_mkhuge(entry);
-+	entry = mk_zero_pmd(zero_page, vma->vm_page_prot);
- 	if (pgtable)
- 		pgtable_trans_huge_deposit(mm, pmd, pgtable);
- 	set_pmd_at(mm, haddr, pmd, entry);
-@@ -2109,8 +2108,7 @@ static void __split_huge_zero_page_pmd(struct vm_area_struct *vma,
- 
- 	for (i = 0; i < HPAGE_PMD_NR; i++, haddr += PAGE_SIZE) {
- 		pte_t *pte, entry;
--		entry = pfn_pte(my_zero_pfn(haddr), vma->vm_page_prot);
--		entry = pte_mkspecial(entry);
-+		entry = mk_zero_pte(haddr, vma->vm_page_prot);
- 		pte = pte_offset_map(&_pmd, haddr);
- 		VM_BUG_ON(!pte_none(*pte));
- 		set_pte_at(mm, haddr, pte, entry);
-diff --git a/mm/memory.c b/mm/memory.c
-index e2bb51b6242e..81ae8c39f75b 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -2970,8 +2970,7 @@ static vm_fault_t do_anonymous_page(struct vm_fault *vmf)
- 	/* Use the zero-page for reads */
- 	if (!(vmf->flags & FAULT_FLAG_WRITE) &&
- 			!mm_forbids_zeropage(vma->vm_mm)) {
--		entry = pte_mkspecial(pfn_pte(my_zero_pfn(vmf->address),
--						vma->vm_page_prot));
-+		entry = mk_zero_pte(vmf->address, vma->vm_page_prot);
- 		vmf->pte = pte_offset_map_lock(vma->vm_mm, vmf->pmd,
- 				vmf->address, &vmf->ptl);
- 		if (!pte_none(*vmf->pte))
-diff --git a/mm/userfaultfd.c b/mm/userfaultfd.c
-index c7ae74ce5ff3..06bf4ea3ee05 100644
---- a/mm/userfaultfd.c
-+++ b/mm/userfaultfd.c
-@@ -120,8 +120,7 @@ static int mfill_zeropage_pte(struct mm_struct *dst_mm,
- 	pgoff_t offset, max_off;
- 	struct inode *inode;
- 
--	_dst_pte = pte_mkspecial(pfn_pte(my_zero_pfn(dst_addr),
--					 dst_vma->vm_page_prot));
-+	_dst_pte = mk_zero_pte(dst_addr, dst_vma->vm_page_prot);
- 	dst_pte = pte_offset_map_lock(dst_mm, dst_pmd, dst_addr, &ptl);
- 	if (dst_vma->vm_file) {
- 		/* the shmem MAP_PRIVATE case requires checking the i_size */
+ extern unsigned long __get_free_pages(gfp_t gfp_mask, unsigned int order);
+ extern unsigned long get_zeroed_page(gfp_t gfp_mask);
 -- 
 2.21.0
 
