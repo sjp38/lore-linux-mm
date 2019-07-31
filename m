@@ -2,169 +2,237 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FF87C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 12:26:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 82CFCC32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 12:26:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2A0E820693
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 12:26:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2A0E820693
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id 413DB208E3
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 12:26:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 413DB208E3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C4F9E8E0008; Wed, 31 Jul 2019 08:26:03 -0400 (EDT)
+	id DFE678E0009; Wed, 31 Jul 2019 08:26:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BFFD18E0001; Wed, 31 Jul 2019 08:26:03 -0400 (EDT)
+	id DAD4C8E0001; Wed, 31 Jul 2019 08:26:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC7B68E0008; Wed, 31 Jul 2019 08:26:03 -0400 (EDT)
+	id C9D788E0009; Wed, 31 Jul 2019 08:26:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 601FF8E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:26:03 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id d27so42289332eda.9
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 05:26:03 -0700 (PDT)
+Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A87908E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:26:48 -0400 (EDT)
+Received: by mail-yb1-f198.google.com with SMTP id s17so12189104ybg.15
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 05:26:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=XedTXaeQUbc2Eii+m33NWqzYIeDu7e0MmI7swzvsUOY=;
-        b=q75FrnIk53bQL1LFGZqVtkLCg2kCpTuGn+G+YOZVZflNok9wRzar4CLsA8HuSDrpqZ
-         QZC59XV7506yChPox3YWyhUlLBdjjBk6WrpaOV0adgEcQkb8aqoPH53LXhRSsKFR4mAx
-         lTgRmGjaxVUMWY5TIs5dzAoP5Qr3yhChWzWyjDwyIR3tV+SOCzS5ql9Js2cMhTK9tF4d
-         eACrJLH14A+WFKICshCQvQBaIPL0LKgUlX86ZrKjBkjtMOrgsgMcvKPSMnDrAuZl0er5
-         G1aM7JnPN7YSLXbEg1zYtvOOUc6gzJrInSmgFipzNksHmUsnNnbNqc/Oyf1Rcedd6DzM
-         81OQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
-X-Gm-Message-State: APjAAAUjTm2IhgzBeydkeexcHZC1qZXPmN3DSp2LoDaHayEql8gFCJBu
-	8aMVZiu/o/CCirYmRhezy4tK+nT03yLdfqQUDdhzloe6blRim6wY4Q54WfhCV1bQdyi2o1tMXxm
-	G0uJeorqZq6rvVU6rR5X385vrg1T4LuIuKw23RCtorBSm9BvO5jOiABf4WfYqJyEUNQ==
-X-Received: by 2002:a17:906:e241:: with SMTP id gq1mr93069511ejb.265.1564575962868;
-        Wed, 31 Jul 2019 05:26:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqygOj9CJRqRakq0RGkAFDyxQDLFhpkJT7I1J20wt8wRLeJ42oHDbHxTbRLly+PSkrH1LB8d
-X-Received: by 2002:a17:906:e241:: with SMTP id gq1mr93069445ejb.265.1564575962021;
-        Wed, 31 Jul 2019 05:26:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564575962; cv=none;
+         :cc:subject:references:mime-version:content-disposition:in-reply-to
+         :user-agent:message-id;
+        bh=Msp32Hew4Bx+pZ9ih09OVDivmI04xZYLkcehNlFACf8=;
+        b=t5o39aimiykRvaBo23825nprLQTOQFZqD44HyjkxusenyZO1mrGe1B7hXjQ/0x9viW
+         AKIWg8jq5PINUX6oBnWd2pdkO/Y6NY/KpDpcNi0zcC1CkEzE//WAWulzL5U4/Q3dpO2e
+         ZU1su7eatUF4kuWdn4sbWeIzWMZF2FRZBGW+KIU74NR16YbZfmUpVOxd7nrytQHc+gX2
+         2PxnwB920ML/nhZGEoT8cA0mxRj1SSRc2bDAAZyLskD6Ibt4VqLZkx3IjeCPPbXcw/ww
+         Ep2msS/8zpbZ+T9KjM0ThXWBQZmUqk3ZwNnUorjYVyTMNtXaHPPqEuTminZ97iXi3aaV
+         +cZg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAX4h5Ok1T2mJWVJITS1J3NntVUjVWXewFnhV73Z0ihzvBbTWfA9
+	zg72RlnHy5nIVRHjokKeMCGW7z5N5esSKj3XmrfFSGquicmr/VNiLtRo8J+0Nyya3yE6/4Z2B0R
+	/c/4T2vzqvd8MYtcOiKSPOiPVRLBf+1MmhKXmNYm7LH39HuEBwviick8ncoz35jVT2g==
+X-Received: by 2002:a81:79d2:: with SMTP id u201mr70386947ywc.457.1564576008448;
+        Wed, 31 Jul 2019 05:26:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzQ0hYcFpOqEA4Hy5rBxGB1DT0d5Z5YCC/JM8IFTBUDOvo4TAhkOWt4DZ3Je4wVuzFhIqlb
+X-Received: by 2002:a81:79d2:: with SMTP id u201mr70386915ywc.457.1564576007808;
+        Wed, 31 Jul 2019 05:26:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564576007; cv=none;
         d=google.com; s=arc-20160816;
-        b=hZPxglnFlbHJTXvgf3QemmAElWX1cBhlDwtHNUwH8MIZsPkxbrPbZ1Qq9oGRgrNQgT
-         Ab1BXb5wMvJBiaby9Fe0OoCFxsaorgoN5XyW02rp/KizKoLaYburV0336xVUAlsolPft
-         9VpKHfl3SaMFVbybYlDfcsj5hBU91J19ZAW72xolE7t3IU9jx5O+/+kJSC9YhxK0pm73
-         B1IfCdy8M/YGhtJUCsqw/bewZNQ0Z8VvhkvhJUO6vtYD9ihMGLlu1OefFpUc+3a90StO
-         NWimFe1ZrIwXcXAaB2JDmSfcKo5xIb8UZiZ4LtXJSMh8NSsInReKIRYcxPDGHdBheS/h
-         MouA==
+        b=YxcdRe/Qwsyv7y02OpkbKsSXQfz6xNeBhIAMkH377T/SiRvDLdTjA6x8+RmHcNOJFg
+         rOsdBLXmWhQ95pzEzhkIce9oNx9cdP3nCqIF98wJB0sUFnD8MtLYI2j+wJCp67sFu36L
+         93psCYCH+Bk7pmrG9a+Lr/NnqUPhoVlA6DtcgOt6mS/fP38EW3hziYgbokg5dL3P4CFK
+         qL6gK9R8E6iBrfP0DxXohGxYoyf9RxEGOJBM600WRyCZkbgDmLKNM8QgWkTcnUewEToE
+         JNo/ONdHpjIuyBRrSR3bHBRqsnL13TDwwk+vnRXOsXAu2PRCYsrcX4Qfe6OMnzGy3FdL
+         9D9w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=XedTXaeQUbc2Eii+m33NWqzYIeDu7e0MmI7swzvsUOY=;
-        b=nG8vVawcwNCwCNZT7Tw5ZqgjuhkzKhmIsBgacyIG8ZNYXhSrysD5bS4SSIW1lNY5b1
-         EK1c+hGZU+gJE0oomXib2eg88i6jfzHDNBkqPLsXocfbMoYs+pvj6wJIqzqj5ur7Iz6h
-         OEPCcRK+0+JUAlQUgjFhpK50cWlOkWHQqug/Jlz0sJSyoM1kAgekli5ygeOaiX+1hWPv
-         FzKKZ9m6X4AHRpJgeDKnfJRcsb5B0fXWDoXN/AZ+uPR3iX+z9rZT5aYygGf14lddepH/
-         rU26E5vmpRvqArxlisSPpC/nOYeJSz1tsUBO/GPvJrmukpmlijsgH85PM89lm/0KM673
-         4rTg==
+        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
+         :references:subject:cc:to:from:date;
+        bh=Msp32Hew4Bx+pZ9ih09OVDivmI04xZYLkcehNlFACf8=;
+        b=q3pC0BIOPQdpg321x52DmFzg8Blz72lBOyGoTIHPLVC/gqYpPbO0nrZHf3lNYIail+
+         IshqMb0RB9fqTJ8sSeFTeY1jYlwRWRhiKf/ZbmKzqakueU+WXf14/Wo7PYDq82aBFGaT
+         4y/V4M+ORK/ywvvYeEpMn5drpcrcdhfnCtvRzFt5aWrZ1/jQl5xGoGQ4uoUljfStBcIA
+         ibRPufnop+jcRDpp24kXxqd8hctYT9obCSc+ZW7k7al+jHcRYJOnJuPCOESedNbzvLm+
+         67SBF0fKzAbNv+8O4/JX9GlH3rUDZxefxkoZZXSdDl4cLkvzJF7sU1Co8s862RfvQFxS
+         JIyQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id i20si18240970ejb.107.2019.07.31.05.26.01
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id p204si23385296ywg.426.2019.07.31.05.26.47
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 05:26:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 31 Jul 2019 05:26:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 7C955AC64;
-	Wed, 31 Jul 2019 12:26:01 +0000 (UTC)
-Date: Wed, 31 Jul 2019 13:25:59 +0100
-From: Mel Gorman <mgorman@suse.de>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Hillf Danton <hdanton@sina.com>, Mike Kravetz <mike.kravetz@oracle.com>,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Michal Hocko <mhocko@kernel.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [RFC PATCH 1/3] mm, reclaim: make should_continue_reclaim
- perform dryrun detection
-Message-ID: <20190731122559.GH2708@suse.de>
-References: <20190724175014.9935-1-mike.kravetz@oracle.com>
- <20190724175014.9935-2-mike.kravetz@oracle.com>
- <20190725080551.GB2708@suse.de>
- <295a37b1-8257-9b4a-b586-9a4990cc9d35@suse.cz>
+       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098416.ppops.net [127.0.0.1])
+	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6VCNDLP074057
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:26:47 -0400
+Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
+	by mx0b-001b2d01.pphosted.com with ESMTP id 2u38f27jh2-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:26:47 -0400
+Received: from localhost
+	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
+	Wed, 31 Jul 2019 13:26:45 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Wed, 31 Jul 2019 13:26:37 +0100
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6VCQZF059244618
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Wed, 31 Jul 2019 12:26:36 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id DB81511C05B;
+	Wed, 31 Jul 2019 12:26:35 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id D43D911C04A;
+	Wed, 31 Jul 2019 12:26:33 +0000 (GMT)
+Received: from rapoport-lnx (unknown [9.148.8.168])
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Wed, 31 Jul 2019 12:26:33 +0000 (GMT)
+Date: Wed, 31 Jul 2019 15:26:32 +0300
+From: Mike Rapoport <rppt@linux.ibm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Hoan Tran OS <hoan@os.amperecomputing.com>, Will Deacon <will@kernel.org>,
+        Catalin Marinas <catalin.marinas@arm.com>,
+        Heiko Carstens <heiko.carstens@de.ibm.com>,
+        "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
+        Paul Mackerras <paulus@samba.org>, "H . Peter Anvin" <hpa@zytor.com>,
+        "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>,
+        Alexander Duyck <alexander.h.duyck@linux.intel.com>,
+        "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>,
+        Michael Ellerman <mpe@ellerman.id.au>,
+        "x86@kernel.org" <x86@kernel.org>,
+        Christian Borntraeger <borntraeger@de.ibm.com>,
+        Ingo Molnar <mingo@redhat.com>, Vlastimil Babka <vbabka@suse.cz>,
+        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
+        Open Source Submission <patches@amperecomputing.com>,
+        Pavel Tatashin <pavel.tatashin@microsoft.com>,
+        Vasily Gorbik <gor@linux.ibm.com>, Will Deacon <will.deacon@arm.com>,
+        Borislav Petkov <bp@alien8.de>, Thomas Gleixner <tglx@linutronix.de>,
+        "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>,
+        Oscar Salvador <osalvador@suse.de>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
+        "David S . Miller" <davem@davemloft.net>,
+        "willy@infradead.org" <willy@infradead.org>
+Subject: Re: [PATCH v2 0/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by
+ default for NUMA
+References: <586ae736-a429-cf94-1520-1a94ffadad88@os.amperecomputing.com>
+ <20190712121223.GR29483@dhcp22.suse.cz>
+ <20190712143730.au3662g4ua2tjudu@willie-the-truck>
+ <20190712150007.GU29483@dhcp22.suse.cz>
+ <730368c5-1711-89ae-e3ef-65418b17ddc9@os.amperecomputing.com>
+ <20190730081415.GN9330@dhcp22.suse.cz>
+ <20190731062420.GC21422@rapoport-lnx>
+ <20190731080309.GZ9330@dhcp22.suse.cz>
+ <20190731111422.GA14538@rapoport-lnx>
+ <20190731114016.GI9330@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <295a37b1-8257-9b4a-b586-9a4990cc9d35@suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190731114016.GI9330@dhcp22.suse.cz>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-TM-AS-GCONF: 00
+x-cbid: 19073112-0028-0000-0000-00000389A2B7
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19073112-0029-0000-0000-00002449F381
+Message-Id: <20190731122631.GB14538@rapoport-lnx>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-31_05:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=757 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1907310126
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 31, 2019 at 01:08:44PM +0200, Vlastimil Babka wrote:
-> On 7/26/19 9:40 AM, Hillf Danton wrote:
+On Wed, Jul 31, 2019 at 01:40:16PM +0200, Michal Hocko wrote:
+> On Wed 31-07-19 14:14:22, Mike Rapoport wrote:
+> > On Wed, Jul 31, 2019 at 10:03:09AM +0200, Michal Hocko wrote:
+> > > On Wed 31-07-19 09:24:21, Mike Rapoport wrote:
+> > > > [ sorry for a late reply too, somehow I missed this thread before ]
+> > > > 
+> > > > On Tue, Jul 30, 2019 at 10:14:15AM +0200, Michal Hocko wrote:
+> > > > > [Sorry for a late reply]
+> > > > > 
+> > > > > On Mon 15-07-19 17:55:07, Hoan Tran OS wrote:
+> > > > > > Hi,
+> > > > > > 
+> > > > > > On 7/12/19 10:00 PM, Michal Hocko wrote:
+> > > > > [...]
+> > > > > > > Hmm, I thought this was selectable. But I am obviously wrong here.
+> > > > > > > Looking more closely, it seems that this is indeed only about
+> > > > > > > __early_pfn_to_nid and as such not something that should add a config
+> > > > > > > symbol. This should have been called out in the changelog though.
+> > > > > > 
+> > > > > > Yes, do you have any other comments about my patch?
+> > > > > 
+> > > > > Not really. Just make sure to explicitly state that
+> > > > > CONFIG_NODES_SPAN_OTHER_NODES is only about __early_pfn_to_nid and that
+> > > > > doesn't really deserve it's own config and can be pulled under NUMA.
+> > > > > 
+> > > > > > > Also while at it, does HAVE_MEMBLOCK_NODE_MAP fall into a similar
+> > > > > > > bucket? Do we have any NUMA architecture that doesn't enable it?
+> > > > > > > 
+> > > > 
+> > > > HAVE_MEMBLOCK_NODE_MAP makes huge difference in node/zone initialization
+> > > > sequence so it's not only about a singe function.
+> > > 
+> > > The question is whether we want to have this a config option or enable
+> > > it unconditionally for each NUMA system.
 > > 
-> > On Thu, 25 Jul 2019 08:05:55 +0000 (UTC) Mel Gorman wrote:
-> >>
-> >> Agreed that the description could do with improvement. However, it
-> >> makes sense that if compaction reports it can make progress that it is
-> >> unnecessary to continue reclaiming.
-> > 
-> > Thanks Mike and Mel.
-> > 
-> > Hillf
-> > ---8<---
-> > From: Hillf Danton <hdanton@sina.com>
-> > Subject: [RFC PATCH 1/3] mm, reclaim: make should_continue_reclaim perform dryrun detection
-> > 
-> > Address the issue of should_continue_reclaim continuing true too often
-> > for __GFP_RETRY_MAYFAIL attempts when !nr_reclaimed and nr_scanned.
-> > This could happen during hugetlb page allocation causing stalls for
-> > minutes or hours.
-> > 
-> > We can stop reclaiming pages if compaction reports it can make a progress.
-> > A code reshuffle is needed to do that. And it has side-effects, however,
-> > with allocation latencies in other cases but that would come at the cost
-> > of potential premature reclaim which has consequences of itself.
+> > We can make it 'default NUMA', but we can't drop it completely because
+> > microblaze uses sparse_memory_present_with_active_regions() which is
+> > unavailable when HAVE_MEMBLOCK_NODE_MAP=n.
 > 
-> I don't really understand that paragraph, did Mel meant it like this?
-> 
+> I suppose you mean that microblaze is using
+> sparse_memory_present_with_active_regions even without CONFIG_NUMA,
+> right?
 
-Fundamentally, the balancing act is between a) reclaiming more now so
-that compaction is more likely to succeed or b) keep pages resident to
-avoid refaulting.
+Yes.
 
-With a) high order allocations are faster, less likely to stall and more
-likely to succeed. However, it can also prematurely reclaim pages and free
-more memory than is necessary for compaction to succeed in a reasonable
-amount of time. We also know from testing that it can hit corner cases
-with hugetlbfs where stalls happen for prolonged periods of time anyway
-and the series overall is known to fix those stalls.
+> I have to confess I do not understand that code. What is the deal
+> with setting node id there?
 
-> > Cc: Vlastimil Babka <vbabka@suse.cz>
-> > Cc: Johannes Weiner <hannes@cmpxchg.org>
-> > Signed-off-by: Hillf Danton <hdanton@sina.com>
-> 
-> I agree this is an improvement overall, but perhaps the patch does too
-> many things at once. The reshuffle is one thing and makes sense. The
-> change of the last return condition could perhaps be separate. Also
-> AFAICS the ultimate result is that when nr_reclaimed == 0, the function
-> will now always return false. Which makes the initial test for
-> __GFP_RETRY_MAYFAIL and the comments there misleading. There will no
-> longer be a full LRU scan guaranteed - as long as the scanned LRU chunk
-> yields no reclaimed page, we abort.
-> 
+The sparse_memory_present_with_active_regions() iterates over
+memblock.memory regions and uses the node id of each region as the
+parameter to memory_present(). The assumption here is that sometime before
+each region was assigned a proper non-negative node id. 
 
-I've no strong feelings on whether it is worth splitting the patch. In
-my mind it's more or less doing one thing even though the one thing is a
-relatively high-level problem.
+microblaze uses device tree for memory enumeration and the current FDT code
+does memblock_add() that implicitly sets nid in memblock.memory regions to -1.
+
+So in order to have proper node id passed to memory_present() microblaze
+has to call memblock_set_node() before it can use
+sparse_memory_present_with_active_regions().
+
+> -- 
+> Michal Hocko
+> SUSE Labs
 
 -- 
-Mel Gorman
-SUSE Labs
+Sincerely yours,
+Mike.
 
