@@ -2,210 +2,247 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 51445C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:15:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 50DBBC433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:17:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E88BF206A2
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:15:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E88BF206A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 1668F206A2
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 17:17:42 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="P0rJHAe2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1668F206A2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8DEBF8E000A; Wed, 31 Jul 2019 13:15:31 -0400 (EDT)
+	id A8AFA8E0009; Wed, 31 Jul 2019 13:17:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 88FD68E0001; Wed, 31 Jul 2019 13:15:31 -0400 (EDT)
+	id A147D8E0001; Wed, 31 Jul 2019 13:17:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7580B8E000A; Wed, 31 Jul 2019 13:15:31 -0400 (EDT)
+	id 8B5638E0009; Wed, 31 Jul 2019 13:17:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 404898E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:15:31 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id 30so43242104pgk.16
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 10:15:31 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 52CEE8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:17:41 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id x18so43637627pfj.4
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 10:17:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:references:mime-version:content-disposition:in-reply-to
-         :user-agent:message-id;
-        bh=QIfxT5RG9GGQYiggevbJ7wQU9KquJ88obAosMLH4YAM=;
-        b=n/oTksXl3cQkEBT6sKLcxrzoVlH2VsgnAgpaxthFhBBtnOKzBUDBYxaxXSUjFj5n8Y
-         1T83+hLiy6VcNLrggunN0cTbe4Vte9i+vcIhD1lXWs4jQ1XNeuEPXiPtCIdxxubo/FAQ
-         ADlw/3Ht1scd4TueOLoOLAp8jDGO1GQLlRCveziJ1HRCPeunxW5X6oRyGgTDKYLvoYFf
-         SXxsiUzQqoG60ksoMqWCMZgrBff/iHeUEhUIjrOkXLzIKJIjO7UMNGJYppEMkEYu7kHF
-         5DI+kAj/rnNUMt/aAbXdeBg4cCgB/Ijlr11qi1z9k0f2dmR6X3t+Q7ejTz+nzmCbWY0U
-         mV0w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAXijdhLP4IisDZX0p8tmWtSUreOlxc5hWuj5Dn+XmGtGD4OYJT0
-	Mr+QbuoaRZgNwL/icEOYlUp6EYN7gtF7vy7amc8qwQkcXySRb9AU7X/hMm7k77lJzihOmwFPZq5
-	LeLUazg2gBC05+IP1K3psqxYBOl8WEJqv/f1KgSeJVb+X9BBya0SfeXABSbav7I+1TQ==
-X-Received: by 2002:a17:90a:2567:: with SMTP id j94mr3980769pje.121.1564593330921;
-        Wed, 31 Jul 2019 10:15:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxEVzPcsLylIxN7tMzpyFeTdiLWf6rRtbf+oCgF+7zr7y4RkS28t4tXodjdagcUF1d3ktrz
-X-Received: by 2002:a17:90a:2567:: with SMTP id j94mr3980709pje.121.1564593330169;
-        Wed, 31 Jul 2019 10:15:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564593330; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=HV9OHEipfxCPgutiQGXqeRhXySlsjKTgVgxjP7nxxBU=;
+        b=iXgGkMhC3OEY2Mi/7wbRj7xJmlqCqkHZhJ4iNUnJF55NKSKyNUg1A9Kx6hR/4aQBTs
+         e/TdvZZ0uPBA/m+Hqk54jFGc7bl8ARJkr6nSk84pRwq93wJ+NcFGQMI6Plp1YgSVDUcu
+         KY0NEctOch2lECVDGeO2pRN5TUcOsR9PPuRLFzeyq8IQMA/vKeqUGCE4uXNIm2GJLOan
+         DNREq6Bs64CJaqiCt0r++TjGN2Jn/hvkWETxDBLYCVVofr9d4r0E42stiXc2Zi5uzFbL
+         xvJGRbJzcsGInNFUvi3j6AGZeTVsb3asJfJwb5Ne+3Hl6JAvKav9D0vK7hdC8i5Z1HRg
+         LB8A==
+X-Gm-Message-State: APjAAAVbDNHr7U7TxvF0aIspV2jIQvx7ghp8UC1NAgdPxwP2txzCMNhy
+	EybX5go2c5L7/S10VYpBRBLa/MMxNALFxec2lSjd0a3gd+ycysC2llu41RFu/OfrWLm6g42tBFB
+	CwZTPXN4iww020UpqjSm5ZX+jLLmiM3k43R23qKo4l9U0xhXN9MlJU49bmrseJwOh3Q==
+X-Received: by 2002:a17:902:5985:: with SMTP id p5mr25130445pli.177.1564593460943;
+        Wed, 31 Jul 2019 10:17:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwHDLeK4+wV4yOCDTlTl55H8QxZfqcOLYFo84Po7TX7/7lbFiuRnr1/RFesRk5HCPzRoPWo
+X-Received: by 2002:a17:902:5985:: with SMTP id p5mr25130379pli.177.1564593460006;
+        Wed, 31 Jul 2019 10:17:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564593460; cv=none;
         d=google.com; s=arc-20160816;
-        b=Y/Hq4JdQ1vuqvftZWoAd4MNjujS+BbTRVDY0oMLgk3H1JKVyntkiefT3N2TbZjb2gP
-         eKE9PJnTAu2tyulhX9Ch+yMWxtYssKVNW2BnRwN7KbPm8QxOxEYrUpjHXMcZcfW1bCU9
-         JH5SswGkO3BwPUQybu5TW51nudAIlXuLkcpYEC3+KcLyBi7fvTXTQMsPAZkS27AlniHd
-         Bsj9hvhV46D90Fh1zsQFF+1b7+914dFKbfx59SvZBm3lj9wEdqZrsanPncTd370bnEEx
-         62Lrs6USricmuOqFe7khNIPhVKJqwWKpowiIsWj1err2kaWV/KT4pB0K5gccV4wRWtOK
-         ePGA==
+        b=N/PqB+x8aKMIWj+MBdCXC2gF9sX6vGFXYG39/weBcoNnteyFiYeqrhE+kFK62wWNqf
+         cGou8D6Yau+PZtMv75Wj67lGDxY0Tb156gsIvX1hWBBw6rKd9jBJtctbWQJ7KvR7Rmi+
+         iO00iUz63LYNoxLXcPBsVfUQqbcMYT1x9s+hyhn9iq9pxzouEecLZocQxz3WGqXchLin
+         bGRwaZQfGNzXikir8uGHct7hJhjPKea12dkS1ot+WDAzbLaexwO7TeBGzoEN/QXu+nSL
+         yNRod+AL5UTV4FbwiJ3bNbSesLOsEzNDGcQyRYdb8h31pZxB/W9oWuyhL460Gi3nHT8N
+         AtAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:user-agent:in-reply-to:content-disposition:mime-version
-         :references:subject:cc:to:from:date;
-        bh=QIfxT5RG9GGQYiggevbJ7wQU9KquJ88obAosMLH4YAM=;
-        b=vFEqmNc9vYthvHCNDGDIfR4SeURoSGlNqTT8HAeAZVN9CnMFpf1vbvbXlMoAc3gvDA
-         BpUn9shqFZ3kmPNqZm36ZPDzWNklPfFR2LFj4zn+JM3FV7kMBYS5rA5fjDrqiRzuzye/
-         4Rx3YmfvPvCmjKTcfzEpEFoKUU7LiQrqsCD6VEPWuVBBp1U6lyTzGuA7LOBqvWX0rCDs
-         UMLS81a1/vHRu2qRnVOppdSVFuguBbqIGeF14d21pyVrhhnyHQ2B7l4hgasVbmb+cAUw
-         HpEk6J6+fq+Q0sUv1X6JcCntNn/xYqJVPVPlPQkTje6480/dxLIcCZTVuYWAziVjeBq5
-         Rerg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=HV9OHEipfxCPgutiQGXqeRhXySlsjKTgVgxjP7nxxBU=;
+        b=yV8Dx2Ff6h23o+5EuiwgjuUvzPeVm2MiuXRqzkUNksOODa5qTSj7dArrZ0K5do/pt5
+         cY/ttUFdKFqQhq2TA8lw6VIpT8dhOjq5rSMJ4TKxM0wDS6LA+zLYivvg3vh82WPj6bTg
+         4g6fgJZsZE3SJ2ssE1VS+XP560PGA6jtPl5mvY5fJ72NQn7rJYQxdTcbYs1C48E4IFu9
+         eTgDeDVaBTcXYvSprjjUeYs3ru6tEACxBucB79vFLkY8ZRw8bs+2KCZvtJFEV6TLFhpW
+         7M9lu1RmHYo4Bb8pH7sEzDG+M2LRsfkOYUjglgyGfZdM9LCBhE550YKNt69a17s5gBmi
+         odmg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id c22si29365401plz.361.2019.07.31.10.15.29
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=P0rJHAe2;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id s9si29115625plr.146.2019.07.31.10.17.39
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 10:15:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 31 Jul 2019 10:17:39 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098404.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6VH7pUL139778
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:15:29 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2u3ddd5e41-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:15:29 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Wed, 31 Jul 2019 18:15:26 +0100
-Received: from b06cxnps3074.portsmouth.uk.ibm.com (9.149.109.194)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Wed, 31 Jul 2019 18:15:18 +0100
-Received: from d06av26.portsmouth.uk.ibm.com (d06av26.portsmouth.uk.ibm.com [9.149.105.62])
-	by b06cxnps3074.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x6VHFGw050069666
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 31 Jul 2019 17:15:16 GMT
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 4E48CAE056;
-	Wed, 31 Jul 2019 17:15:16 +0000 (GMT)
-Received: from d06av26.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 918D8AE04D;
-	Wed, 31 Jul 2019 17:15:13 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.206.240])
-	by d06av26.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Wed, 31 Jul 2019 17:15:13 +0000 (GMT)
-Date: Wed, 31 Jul 2019 20:15:11 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Hoan Tran OS <hoan@os.amperecomputing.com>, Will Deacon <will@kernel.org>,
-        Catalin Marinas <catalin.marinas@arm.com>,
-        Heiko Carstens <heiko.carstens@de.ibm.com>,
-        "open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
-        Paul Mackerras <paulus@samba.org>, "H . Peter Anvin" <hpa@zytor.com>,
-        "sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>,
-        Alexander Duyck <alexander.h.duyck@linux.intel.com>,
-        "linux-s390@vger.kernel.org" <linux-s390@vger.kernel.org>,
-        Michael Ellerman <mpe@ellerman.id.au>,
-        "x86@kernel.org" <x86@kernel.org>,
-        Christian Borntraeger <borntraeger@de.ibm.com>,
-        Ingo Molnar <mingo@redhat.com>, Vlastimil Babka <vbabka@suse.cz>,
-        Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-        Open Source Submission <patches@amperecomputing.com>,
-        Pavel Tatashin <pavel.tatashin@microsoft.com>,
-        Vasily Gorbik <gor@linux.ibm.com>, Will Deacon <will.deacon@arm.com>,
-        Borislav Petkov <bp@alien8.de>, Thomas Gleixner <tglx@linutronix.de>,
-        "linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>,
-        Oscar Salvador <osalvador@suse.de>,
-        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        "linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
-        "David S . Miller" <davem@davemloft.net>,
-        "willy@infradead.org" <willy@infradead.org>
-Subject: Re: microblaze HAVE_MEMBLOCK_NODE_MAP dependency (was Re: [PATCH v2
- 0/5] mm: Enable CONFIG_NODES_SPAN_OTHER_NODES by default for NUMA)
-References: <730368c5-1711-89ae-e3ef-65418b17ddc9@os.amperecomputing.com>
- <20190730081415.GN9330@dhcp22.suse.cz>
- <20190731062420.GC21422@rapoport-lnx>
- <20190731080309.GZ9330@dhcp22.suse.cz>
- <20190731111422.GA14538@rapoport-lnx>
- <20190731114016.GI9330@dhcp22.suse.cz>
- <20190731122631.GB14538@rapoport-lnx>
- <20190731130037.GN9330@dhcp22.suse.cz>
- <20190731142129.GA24998@rapoport-lnx>
- <20190731144114.GY9330@dhcp22.suse.cz>
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=P0rJHAe2;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	MIME-Version:References:In-Reply-To:Message-Id:Date:Subject:Cc:To:From:Sender
+	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
+	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=HV9OHEipfxCPgutiQGXqeRhXySlsjKTgVgxjP7nxxBU=; b=P0rJHAe2ztcyEKOVHrZ1l4pFJ3
+	mEzC80jwBqdblXcD0Vkz2OWUd2FntcuKByR2b+2SengM4mEEM85AZc/w83DoO+PVSCi53R4FCES0T
+	fp5qVSMyZrkkY9IlLeapeoz9/sCFnrvS/Y7pM7IY+t/asRTihuD5iz6GqlTBjaIreECilnj50m7Rb
+	9Y/kg8tKY9CvoVRfvtS+En6Ewn+mdphPcaqI/P1zS7BkFNaLcS2mdUWcDsQaGecEsdsuwA1TAHF+a
+	+9y5GCC0A+IX3MQQZaoxthYtRihLqyIhIIWOYEyWJBOvjOQpJZcHUMC/CtOFpuV4qRmju87sgaZhg
+	n3QDaLew==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hssEN-0005dN-6i; Wed, 31 Jul 2019 17:17:39 +0000
+From: Matthew Wilcox <willy@infradead.org>
+To: linux-fsdevel@vger.kernel.org
+Cc: "Matthew Wilcox (Oracle)" <willy@infradead.org>,
+	hch@lst.de,
+	linux-xfs@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: [PATCH 2/2] xfs: Support large pages
+Date: Wed, 31 Jul 2019 10:17:34 -0700
+Message-Id: <20190731171734.21601-3-willy@infradead.org>
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190731171734.21601-1-willy@infradead.org>
+References: <20190731171734.21601-1-willy@infradead.org>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190731144114.GY9330@dhcp22.suse.cz>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-TM-AS-GCONF: 00
-x-cbid: 19073117-0016-0000-0000-000002980793
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19073117-0017-0000-0000-000032F707ED
-Message-Id: <20190731171510.GB24998@rapoport-lnx>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-31_08:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=928 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1907310172
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 31, 2019 at 04:41:14PM +0200, Michal Hocko wrote:
-> On Wed 31-07-19 17:21:29, Mike Rapoport wrote:
-> > On Wed, Jul 31, 2019 at 03:00:37PM +0200, Michal Hocko wrote:
-> > > 
-> > > I am sorry, but I still do not follow. Who is consuming that node id
-> > > information when NUMA=n. In other words why cannot we simply do
-> >  
-> > We can, I think nobody cared to change it.
-> 
-> It would be great if somebody with the actual HW could try it out.
-> I can throw a patch but I do not even have a cross compiler in my
-> toolbox.
+From: "Matthew Wilcox (Oracle)" <willy@infradead.org>
 
-Well, it compiles :)
+Mostly this is just checking the page size of each page instead of
+assuming PAGE_SIZE.  Clean up the logic in writepage a little.
+
+Based on a patch from Christoph Hellwig.
+
+Signed-off-by: Matthew Wilcox (Oracle) <willy@infradead.org>
+---
+ fs/xfs/xfs_aops.c | 37 +++++++++++++++++++------------------
+ 1 file changed, 19 insertions(+), 18 deletions(-)
+
+diff --git a/fs/xfs/xfs_aops.c b/fs/xfs/xfs_aops.c
+index f16d5f196c6b..4952cd7d8c6c 100644
+--- a/fs/xfs/xfs_aops.c
++++ b/fs/xfs/xfs_aops.c
+@@ -58,21 +58,22 @@ xfs_find_daxdev_for_inode(
+ static void
+ xfs_finish_page_writeback(
+ 	struct inode		*inode,
+-	struct bio_vec	*bvec,
++	struct bio_vec		*bvec,
+ 	int			error)
+ {
+-	struct iomap_page	*iop = to_iomap_page(bvec->bv_page);
++	struct page		*page = bvec->bv_page;
++	struct iomap_page	*iop = to_iomap_page(page);
  
-> > > diff --git a/arch/microblaze/mm/init.c b/arch/microblaze/mm/init.c
-> > > index a015a951c8b7..3a47e8db8d1c 100644
-> > > --- a/arch/microblaze/mm/init.c
-> > > +++ b/arch/microblaze/mm/init.c
-> > > @@ -175,14 +175,9 @@ void __init setup_memory(void)
-> > >  
-> > >  		start_pfn = memblock_region_memory_base_pfn(reg);
-> > >  		end_pfn = memblock_region_memory_end_pfn(reg);
-> > > -		memblock_set_node(start_pfn << PAGE_SHIFT,
-> > > -				  (end_pfn - start_pfn) << PAGE_SHIFT,
-> > > -				  &memblock.memory, 0);
-> > > +		memory_present(0, start_pfn << PAGE_SHIFT, end_pfn << PAGE_SHIFT);
-> > 
-> > memory_present() expects pfns, the shift is not needed.
-> 
-> Right.
-> 
-> -- 
-> Michal Hocko
-> SUSE Labs
-> 
-
+ 	if (error) {
+-		SetPageError(bvec->bv_page);
++		SetPageError(page);
+ 		mapping_set_error(inode->i_mapping, -EIO);
+ 	}
+ 
+-	ASSERT(iop || i_blocksize(inode) == PAGE_SIZE);
++	ASSERT(iop || i_blocksize(inode) == page_size(page));
+ 	ASSERT(!iop || atomic_read(&iop->write_count) > 0);
+ 
+ 	if (!iop || atomic_dec_and_test(&iop->write_count))
+-		end_page_writeback(bvec->bv_page);
++		end_page_writeback(page);
+ }
+ 
+ /*
+@@ -765,7 +766,7 @@ xfs_add_to_ioend(
+ 	struct xfs_mount	*mp = ip->i_mount;
+ 	struct block_device	*bdev = xfs_find_bdev_for_inode(inode);
+ 	unsigned		len = i_blocksize(inode);
+-	unsigned		poff = offset & (PAGE_SIZE - 1);
++	unsigned		poff = offset & (page_size(page) - 1);
+ 	bool			merged, same_page = false;
+ 	sector_t		sector;
+ 
+@@ -839,11 +840,11 @@ xfs_aops_discard_page(
+ 			page, ip->i_ino, offset);
+ 
+ 	error = xfs_bmap_punch_delalloc_range(ip, start_fsb,
+-			PAGE_SIZE / i_blocksize(inode));
++			page_size(page) / i_blocksize(inode));
+ 	if (error && !XFS_FORCED_SHUTDOWN(mp))
+ 		xfs_alert(mp, "page discard unable to remove delalloc mapping.");
+ out_invalidate:
+-	xfs_vm_invalidatepage(page, 0, PAGE_SIZE);
++	xfs_vm_invalidatepage(page, 0, page_size(page));
+ }
+ 
+ /*
+@@ -877,7 +878,7 @@ xfs_writepage_map(
+ 	uint64_t		file_offset;	/* file offset of page */
+ 	int			error = 0, count = 0, i;
+ 
+-	ASSERT(iop || i_blocksize(inode) == PAGE_SIZE);
++	ASSERT(iop || i_blocksize(inode) == page_size(page));
+ 	ASSERT(!iop || atomic_read(&iop->write_count) == 0);
+ 
+ 	/*
+@@ -886,7 +887,8 @@ xfs_writepage_map(
+ 	 * one.
+ 	 */
+ 	for (i = 0, file_offset = page_offset(page);
+-	     i < (PAGE_SIZE >> inode->i_blkbits) && file_offset < end_offset;
++	     i < (page_size(page) >> inode->i_blkbits) &&
++						file_offset < end_offset;
+ 	     i++, file_offset += len) {
+ 		if (iop && !test_bit(i, iop->uptodate))
+ 			continue;
+@@ -984,8 +986,7 @@ xfs_do_writepage(
+ 	struct xfs_writepage_ctx *wpc = data;
+ 	struct inode		*inode = page->mapping->host;
+ 	loff_t			offset;
+-	uint64_t              end_offset;
+-	pgoff_t                 end_index;
++	uint64_t		end_offset;
+ 
+ 	trace_xfs_writepage(inode, page, 0, 0);
+ 
+@@ -1024,10 +1025,9 @@ xfs_do_writepage(
+ 	 * ---------------------------------^------------------|
+ 	 */
+ 	offset = i_size_read(inode);
+-	end_index = offset >> PAGE_SHIFT;
+-	if (page->index < end_index)
+-		end_offset = (xfs_off_t)(page->index + 1) << PAGE_SHIFT;
+-	else {
++	end_offset = (xfs_off_t)(page->index + compound_nr(page)) << PAGE_SHIFT;
++
++	if (end_offset > offset) {
+ 		/*
+ 		 * Check whether the page to write out is beyond or straddles
+ 		 * i_size or not.
+@@ -1039,7 +1039,8 @@ xfs_do_writepage(
+ 		 * |				    |      Straddles     |
+ 		 * ---------------------------------^-----------|--------|
+ 		 */
+-		unsigned offset_into_page = offset & (PAGE_SIZE - 1);
++		unsigned offset_into_page = offset & (page_size(page) - 1);
++		pgoff_t end_index = offset >> PAGE_SHIFT;
+ 
+ 		/*
+ 		 * Skip the page if it is fully outside i_size, e.g. due to a
+@@ -1070,7 +1071,7 @@ xfs_do_writepage(
+ 		 * memory is zeroed when mapped, and writes to that region are
+ 		 * not written out to the file."
+ 		 */
+-		zero_user_segment(page, offset_into_page, PAGE_SIZE);
++		zero_user_segment(page, offset_into_page, page_size(page));
+ 
+ 		/* Adjust the end_offset to the end of file */
+ 		end_offset = offset;
 -- 
-Sincerely yours,
-Mike.
+2.20.1
 
