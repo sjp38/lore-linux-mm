@@ -2,189 +2,228 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A50A1C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 18:34:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61637C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 18:35:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5F8FC206B8
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 18:34:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0668F206B8
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 18:35:59 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="PPotgx+T"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F8FC206B8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (1024-bit key) header.d=wavecomp.com header.i=@wavecomp.com header.b="HXEavXJj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0668F206B8
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=mips.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 08FA28E0006; Wed, 31 Jul 2019 14:34:07 -0400 (EDT)
+	id AC81B8E0003; Wed, 31 Jul 2019 14:35:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 041078E0001; Wed, 31 Jul 2019 14:34:07 -0400 (EDT)
+	id A51258E0001; Wed, 31 Jul 2019 14:35:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E4AC08E0006; Wed, 31 Jul 2019 14:34:06 -0400 (EDT)
+	id 8A2848E0003; Wed, 31 Jul 2019 14:35:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B0C968E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 14:34:06 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id b18so43408231pgg.8
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:34:06 -0700 (PDT)
+Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 56B8C8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 14:35:58 -0400 (EDT)
+Received: by mail-oi1-f199.google.com with SMTP id f143so26697060oig.22
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:35:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
-         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
-         :message-id:in-reply-to:references:mime-version;
-        bh=S84BXpGsArP8gRpx4jT/dGDAfOA51Safqnff7k6UND8=;
-        b=cie1l6sERKk8u8U/T6Bz5wfzZVuvozdeC37DM37Z8F3rqM9E0qZohycd8BccKiNzt9
-         DV7GD22yfMFvd3j5g7gPknD4KM9eKImA9hR5ooJ+7MebWquTveYEH5CJyEB+9+KveyVi
-         Ro3J7JrYUYydNItBDDjnPzHzNF5zUB089yPchchux7YeMUSaAwCAQufEfBKxEEZtPNiv
-         lqRU736vH6F1t0yJrgdkeemdXX1NbYNyKa4JfdA4hK1fK7eSvrlcZ+Y6l3o6JlBc9Y4B
-         xJ02bFFs3XsgxfSPQuz8Ys+sWqkdCjAfTL1c6l/We/CSmLlrdX5Fhck4bBszjQ5FHwuj
-         8sOw==
-X-Gm-Message-State: APjAAAUO8x9vXMc3apK+U0FP72LgQG9BqvWuKOXV2D+eGoB10XYI2PRJ
-	6s2otFA8TDz7JpLwnA2hJ+N7PInm2vIM/CSONNIdQnbs76fRxl6yVZT4oVSLDwpMGBaFzOhRxFc
-	YqyyVEvGTNPoGRn/tURKfkHQ+4luB1LC/kig9lUHIzjpNiltgm1W5iMXJw8NmRfS2Hw==
-X-Received: by 2002:a17:902:8207:: with SMTP id x7mr122113037pln.63.1564598046302;
-        Wed, 31 Jul 2019 11:34:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxgaBNos6CoeotSKAHFoXEORDI0R1KkELO2hqaPDSa6rpi22hEuNOFX3O4YARsDgloJcygq
-X-Received: by 2002:a17:902:8207:: with SMTP id x7mr122113001pln.63.1564598045703;
-        Wed, 31 Jul 2019 11:34:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564598045; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:user-agent:content-id:content-transfer-encoding
+         :mime-version;
+        bh=8dNQpS/Jg0Nw3/hlZ1jZGketQBWFL/7YPXyZgDiZiWs=;
+        b=cbwXS410ZaKwqx1jX3Vp9PVIj1I90xMtAPo/twT1DpSggCARn7Xq9T+oOHofU72Tt8
+         CgbEH2136UFh16MKDq7OBzqIBISrm1g+/V4juyy56C7D2+JN/JHL4o0jDh8aG95vsLmh
+         ArRFl/fXmuSjlSmJg+nB3YN4ptkDDgiApDvCzFJkRh2Y9U03hRT0SOv+U7naGcaSWML2
+         pQm7UDZ930WOEde61xInKjgfB1mzz1GD7+uKxdcPKgTM3ARoybWtLTCrmJhfq6oUkyid
+         GPd1Ii3lTOEA3Rq2r1HYGcefQ9qi6KF4Wn6+OaoK6HVm73UVoY78CDl/J1jdwVKobBQC
+         ZRJA==
+X-Gm-Message-State: APjAAAUrRkfRMWsykPtQ+sujARg4HJQqGcwjmhOg/FmV8gRuBJbgCzak
+	8Y1bAQSWQn8mKCMYJfGR3qrvdX3fPQyxM19SBxPdGaO/BQ7pUTxeAtFsVmHxWg5afGMhpZVMgDC
+	O9isHxb5xqw2rGROpkjl3p11/f2dcWeMxTvL6dh2xlSg8sgeB2GkZ4UUL0gpyd64=
+X-Received: by 2002:a05:6830:1516:: with SMTP id k22mr86091704otp.189.1564598158033;
+        Wed, 31 Jul 2019 11:35:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwbDXJxL4RQlRyPv1hn82Fw86LRKepn1pwyt++Zlst57v0rsKJS7cXAHJK/e4N4b6wQAlDw
+X-Received: by 2002:a05:6830:1516:: with SMTP id k22mr86091619otp.189.1564598156571;
+        Wed, 31 Jul 2019 11:35:56 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1564598156; cv=pass;
         d=google.com; s=arc-20160816;
-        b=cC4OeG7VLCBPYK4Y5ExoBXF19mBQiDjKB7rRV6EvS9OaipHlAAyA72s5HzI34O8YNP
-         c+23fZQRA4JVSeKdFJ7eervM9Nd5gUJfqCFZgJboOmRf94Bb1gBLyUhFIfN/5VTvU/VA
-         v0gluRikrDy1IXbzAUB+Q2Q3QdEPelkOpyIc6mpXBkdj/eO7lJzCjb7CGBD3pTJDlIzm
-         MjUIRE3rdFr+fm7ZRCLEshZTIh1eqAaSV2l3cmaSydhFMzn+5TF51WL6OkDn981rqoE5
-         jh2QqhpdTmfECYMFbIaTChX64GxfEjOK0x9+o4MrukHj7b0IWONTvC0xbUdMf+r9WfyU
-         G4dg==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:references:in-reply-to:message-id:date:subject
-         :smtp-origin-cluster:cc:to:smtp-origin-hostname:from
-         :smtp-origin-hostprefix:dkim-signature;
-        bh=S84BXpGsArP8gRpx4jT/dGDAfOA51Safqnff7k6UND8=;
-        b=fY+5zVsn2dYIAwERzK04A3Nuv+lAzQ93gwok+etm40KQU6vbg/a51QFJVpd1d/N8D7
-         Qo0Vo5ECX1lGxE1zSPRIdz+Kvbci5psR33adraWQze1M11TnVuMHFtfdfsITIpEcoUg6
-         rErBKjWgasBjilml9A6GgUV+c88MWs6s8hB6QSkjtRBp1Q2t1r6BOHnXMW/ccTir21WQ
-         GW+5OHYu2lIvzk5C+xuYxnXMEZeR4SxuDASnFbHhYPdRE4DJYxUQBvwUIR36laZVg10+
-         eiqzawidxF5oLWwzPydGpxBij6elpGW8tgWmJ1LlK9+uik1dVkoi93/qaOnerm9sVvnn
-         73eA==
-ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=PPotgx+T;
-       spf=pass (google.com: domain of prvs=3115c6337e=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=3115c6337e=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id p17si28526464pgm.238.2019.07.31.11.34.05
+        b=X4BnJnxF+Ctao7fz/200YLDdSwN9s9jy9SdrOLSR6KVozavWDug1KZ/twQ/mWp5gco
+         TyUp1PufFr32aDxWRDef90xfpfKNuCC0Nr3VgVl0F6RmDLlP8fbxpWsbAUo4l46bC1iv
+         Gu+0nJePWud8oVOOH16L/b/d04sxNlupzv31v4LiQloaI2GvoGAZAj5wUrqlcuk88MAD
+         wjJkfSud1qc2TwBHibszEBbbcnmSNs+/FyU+KhoIuateLltN/co+Scb5/UVrixBFhChz
+         TE6Pk5ztcCTpZbr+H6uRZlsZKbooAeFcextg/gRqxLN5465Bp8vlaQGqAilOV1stfOcr
+         +v0g==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=mime-version:content-transfer-encoding:content-id:user-agent
+         :content-language:accept-language:in-reply-to:references:message-id
+         :date:thread-index:thread-topic:subject:cc:to:from:dkim-signature;
+        bh=8dNQpS/Jg0Nw3/hlZ1jZGketQBWFL/7YPXyZgDiZiWs=;
+        b=E+ghS82D4Ge6g/k26sWAEe9AgmcXnjOLAPAZtGdC2AlenkIuk0t6Egn1Gn50+UUsDY
+         wj9leaxWmT5QrEovD5gyyER6scGs4IlOxtf9EvAmOXVUEzHtqmueuRkKVcBo2Bmf9uog
+         HkOZUrM/WglzSXJNuu6i8bo60h75b1DTEWqXyOp6i041/KMttLHrLF+UeUZLCGWJFCbs
+         XUB4JPfgCv3yiJ14uPVF05SJDj2cwOVSgRv+bDPCbnlER1XGElAC5tCkaxVSTqf9g5w9
+         zsyNXNo3ZRQ7trXWeSqMk4DdoG2TzJJgqvCW67wrRb+NG6Mh73jWAiOXIGOxonkgpxKV
+         z/Gw==
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@wavecomp.com header.s=selector1 header.b=HXEavXJj;
+       arc=pass (i=1 spf=pass spfdomain=wavecomp.com dkim=pass dkdomain=mips.com dmarc=pass fromdomain=mips.com);
+       spf=pass (google.com: domain of pburton@wavecomp.com designates 40.107.76.103 as permitted sender) smtp.mailfrom=pburton@wavecomp.com
+Received: from NAM02-CY1-obe.outbound.protection.outlook.com (mail-eopbgr760103.outbound.protection.outlook.com. [40.107.76.103])
+        by mx.google.com with ESMTPS id l137si36948358oib.170.2019.07.31.11.35.56
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 11:34:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=3115c6337e=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
+        Wed, 31 Jul 2019 11:35:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pburton@wavecomp.com designates 40.107.76.103 as permitted sender) client-ip=40.107.76.103;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=PPotgx+T;
-       spf=pass (google.com: domain of prvs=3115c6337e=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=3115c6337e=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109334.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x6VIWkO9007320
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:34:05 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : in-reply-to : references : mime-version :
- content-type; s=facebook; bh=S84BXpGsArP8gRpx4jT/dGDAfOA51Safqnff7k6UND8=;
- b=PPotgx+T02mUnkJtzfdAahQCsMtNDPcOAJE4FsfH+HW1pFFI/GAnG3RGLnj/ayFXv3Hf
- K7xVsCp9+Mb36e/m12+ceQcP2hzCvMVdNcyS5aMsmOUD9uCKSOtfJoI6wv2iHyoVHkB1
- l6YE5YpZyMsDIU/I3dIEmMpkGyxrZ9ytfAE= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2u3c8bs5s9-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT)
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:34:04 -0700
-Received: from mx-out.facebook.com (2620:10d:c0a8:1b::d) by
- mail.thefacebook.com (2620:10d:c0a8:82::f) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Wed, 31 Jul 2019 11:33:57 -0700
-Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
-	id 6ABC962E1BBA; Wed, 31 Jul 2019 11:33:55 -0700 (PDT)
-Smtp-Origin-Hostprefix: devbig
-From: Song Liu <songliubraving@fb.com>
-Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
-To: <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
-        <akpm@linux-foundation.org>
-CC: <matthew.wilcox@oracle.com>, <kirill.shutemov@linux.intel.com>,
-        <oleg@redhat.com>, <kernel-team@fb.com>,
-        <william.kucharski@oracle.com>, <srikar@linux.vnet.ibm.com>,
-        Song Liu <songliubraving@fb.com>
-Smtp-Origin-Cluster: ftw2c04
-Subject: [PATCH v2 2/2] uprobe: collapse THP pmd after removing all uprobes
-Date: Wed, 31 Jul 2019 11:33:31 -0700
-Message-ID: <20190731183331.2565608-3-songliubraving@fb.com>
-X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190731183331.2565608-1-songliubraving@fb.com>
-References: <20190731183331.2565608-1-songliubraving@fb.com>
-X-FB-Internal: Safe
+       dkim=pass header.i=@wavecomp.com header.s=selector1 header.b=HXEavXJj;
+       arc=pass (i=1 spf=pass spfdomain=wavecomp.com dkim=pass dkdomain=mips.com dmarc=pass fromdomain=mips.com);
+       spf=pass (google.com: domain of pburton@wavecomp.com designates 40.107.76.103 as permitted sender) smtp.mailfrom=pburton@wavecomp.com
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=ErnyXIxFRHgzR6meCxotIVOjfLfbAPO9pLb0j7iNvAoLRT9AwgFrRPpAUvluY02Thi45CqWyLVkz5NWgm+Ld238zHv5RSksMr1bYfW6Z/LEqLWSz9PJNSfaersMXklr5JkRa58dpi+Zwv2ewSH1ND5lSppqTdDmX/FxaX706jGAvoDBcuE3B03s4RqecVezwY0cnw5jnlMTKgj7siLuGeEcEKqwo2YGQ2OcJx1cypNJR8625GqJc4iHjHl2jevl2jhN5oSQBnoLiIGaqqxkC6JXufJ9wU8+ebjm4RMB5Ass8mWSvyotUV5iLIDa8tmL5RYIC7aIXFlIXwpGYH37+Vw==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=8dNQpS/Jg0Nw3/hlZ1jZGketQBWFL/7YPXyZgDiZiWs=;
+ b=lSH2mEMbNhZUVWOZJI7Bvz6297NwjGJ2tM2MVBYnwAE/j8xbi9cSw8xjBWMiXv5xHmgNLHtDVWsItPfs1UKnE4LSdv/LXLlVt0jgtGnVoX2wiBMzAD3ADPv/9nWgF03jmlzLhx7TTYBt8Zvwz6d/Jp+PZPewMy6APMcznKveYJqLB89/opAl57tSkiQFiU3dqdYO1nI4AErx4lF5n6Att4plkPujZOLrrmmIWE+01XUKxmntMp1lS7lX0aXgxRQNlNGO2Nv7uvR7+NpseDcIlo8pjZJ8KK1Sime1aXwRf3WfuYAEPDEla1QCMOyDOX94jZoqEePY3yMUUrKYB9jOoQ==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
+ smtp.mailfrom=wavecomp.com;dmarc=pass action=none
+ header.from=mips.com;dkim=pass header.d=mips.com;arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=wavecomp.com;
+ s=selector1;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=8dNQpS/Jg0Nw3/hlZ1jZGketQBWFL/7YPXyZgDiZiWs=;
+ b=HXEavXJju8T5eXyV6meS6Pz8rey5vqwJ4INtcKYWqlAtWjZR+dB9penVqj3pSOiFACOzLYz0j6VH2AK8rg82chUXZvjhckKvXEI/ldDiObuaEKErTRkGKh6hb5zjkPoPh5hs/Tgc1wPJIKeaujUO0WDLUlaNZH20Ge/917D/Zkc=
+Received: from CY4PR2201MB1272.namprd22.prod.outlook.com (10.171.214.23) by
+ CY4PR2201MB1750.namprd22.prod.outlook.com (10.165.89.37) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2115.15; Wed, 31 Jul 2019 18:35:54 +0000
+Received: from CY4PR2201MB1272.namprd22.prod.outlook.com
+ ([fe80::c99b:131e:aaf3:bd81]) by CY4PR2201MB1272.namprd22.prod.outlook.com
+ ([fe80::c99b:131e:aaf3:bd81%4]) with mapi id 15.20.2115.005; Wed, 31 Jul 2019
+ 18:35:54 +0000
+From: Paul Burton <paul.burton@mips.com>
+To: Steven Price <steven.price@arm.com>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andy Lutomirski
+	<luto@kernel.org>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Arnd Bergmann
+	<arnd@arndb.de>, Borislav Petkov <bp@alien8.de>, Catalin Marinas
+	<catalin.marinas@arm.com>, Dave Hansen <dave.hansen@linux.intel.com>, Ingo
+ Molnar <mingo@redhat.com>, James Morse <james.morse@arm.com>,
+	=?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Peter Zijlstra
+	<peterz@infradead.org>, Thomas Gleixner <tglx@linutronix.de>, Will Deacon
+	<will@kernel.org>, "x86@kernel.org" <x86@kernel.org>, "H. Peter Anvin"
+	<hpa@zytor.com>, "linux-arm-kernel@lists.infradead.org"
+	<linux-arm-kernel@lists.infradead.org>, "linux-kernel@vger.kernel.org"
+	<linux-kernel@vger.kernel.org>, Mark Rutland <Mark.Rutland@arm.com>, "Liang,
+ Kan" <kan.liang@linux.intel.com>, Andrew Morton <akpm@linux-foundation.org>,
+	Ralf Baechle <ralf@linux-mips.org>, James Hogan <jhogan@kernel.org>,
+	"linux-mips@vger.kernel.org" <linux-mips@vger.kernel.org>
+Subject: Re: [PATCH v10 05/22] mips: mm: Add p?d_leaf() definitions
+Thread-Topic: [PATCH v10 05/22] mips: mm: Add p?d_leaf() definitions
+Thread-Index: AQHVR87Ju77hWp4AA06O29fl9/EI+w==
+Date: Wed, 31 Jul 2019 18:35:54 +0000
+Message-ID: <20190731183553.klqcwrvannde5vd7@pburton-laptop>
+References: <20190731154603.41797-1-steven.price@arm.com>
+ <20190731154603.41797-6-steven.price@arm.com>
+In-Reply-To: <20190731154603.41797-6-steven.price@arm.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: MWHPR04CA0069.namprd04.prod.outlook.com
+ (2603:10b6:300:6c::31) To CY4PR2201MB1272.namprd22.prod.outlook.com
+ (2603:10b6:910:6e::23)
+user-agent: NeoMutt/20180716
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=pburton@wavecomp.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [12.94.197.246]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 4e5d9b92-2934-4a14-393e-08d715e5ebb1
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:CY4PR2201MB1750;
+x-ms-traffictypediagnostic: CY4PR2201MB1750:
+x-microsoft-antispam-prvs:
+ <CY4PR2201MB175052BAC195319EF3E14C18C1DF0@CY4PR2201MB1750.namprd22.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:9508;
+x-forefront-prvs: 011579F31F
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10019020)(7916004)(39850400004)(136003)(366004)(396003)(376002)(346002)(189003)(199004)(6512007)(9686003)(33716001)(6116002)(14454004)(3846002)(6246003)(66556008)(64756008)(66446008)(66946007)(66476007)(53936002)(81166006)(81156014)(8936002)(58126008)(478600001)(54906003)(316002)(5660300002)(256004)(11346002)(305945005)(102836004)(71190400001)(7416002)(71200400001)(44832011)(99286004)(7736002)(25786009)(6436002)(486006)(4326008)(229853002)(66066001)(476003)(446003)(26005)(6486002)(6916009)(68736007)(42882007)(386003)(2906002)(76176011)(6506007)(52116002)(1076003)(8676002)(186003);DIR:OUT;SFP:1102;SCL:1;SRVR:CY4PR2201MB1750;H:CY4PR2201MB1272.namprd22.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: wavecomp.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ Ghlbs9lPlEfe+MQp8JFnIINZAfY79XqwfNm1xy9Yhak9chG0qpcC/yO6g9QO3aFag6mM8j0QLfYekb99M4ULWonkF4jJfotRBRCyqkslG2NBDI1aPdZEP3r1PVvuHSXWyEiv1c3I0Z8ONCcgFgt8SzRcEBKEas210OmJz96VwKqIhuDj1MMfIxOhdO+i+gRTBOEgTtbvP3wj1+3ReiihOILzplmjYtf812pzNPxAHS3pqEo+Ra+aaeoexvF0GUMamHV6EmT+E2vd5hO75X5AM7k279Jaj8kLw+17DfBGTcGK/GAy5g4616HF3wHzxpsmqD6CIJ12CKOCPFcRgk4kMkFExX+EwWSVUAxtBASwbNqlZ2h8jICp6P19tyW8KwDAxZ+tf1Tn8Ox70vVtrVo3NcCpritK7HpmBZKUqOrObbs=
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <5488D8D5D3898647984FD526517E363C@namprd22.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-07-31_09:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=421 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1907310187
-X-FB-Internal: deliver
+X-OriginatorOrg: mips.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 4e5d9b92-2934-4a14-393e-08d715e5ebb1
+X-MS-Exchange-CrossTenant-originalarrivaltime: 31 Jul 2019 18:35:54.4557
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 463607d3-1db3-40a0-8a29-970c56230104
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: pburton@wavecomp.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: CY4PR2201MB1750
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-After all uprobes are removed from the huge page (with PTE pgtable), it
-is possible to collapse the pmd and benefit from THP again. This patch
-does the collapse by calling collapse_pte_mapped_thp().
+Hi Steven,
 
-Signed-off-by: Song Liu <songliubraving@fb.com>
----
- kernel/events/uprobes.c | 9 +++++++++
- 1 file changed, 9 insertions(+)
+On Wed, Jul 31, 2019 at 04:45:46PM +0100, Steven Price wrote:
+> walk_page_range() is going to be allowed to walk page tables other than
+> those of user space. For this it needs to know when it has reached a
+> 'leaf' entry in the page tables. This information is provided by the
+> p?d_leaf() functions/macros.
+>=20
+> If _PAGE_HUGE is defined we can simply look for it. When not defined we
+> can be confident that there are no leaf pages in existence and fall back
+> on the generic implementation (added in a later patch) which returns 0.
+>=20
+> CC: Ralf Baechle <ralf@linux-mips.org>
+> CC: Paul Burton <paul.burton@mips.com>
+> CC: James Hogan <jhogan@kernel.org>
+> CC: linux-mips@vger.kernel.org
+> Signed-off-by: Steven Price <steven.price@arm.com>
 
-diff --git a/kernel/events/uprobes.c b/kernel/events/uprobes.c
-index 27b596f14463..e5c30941ea04 100644
---- a/kernel/events/uprobes.c
-+++ b/kernel/events/uprobes.c
-@@ -26,6 +26,7 @@
- #include <linux/percpu-rwsem.h>
- #include <linux/task_work.h>
- #include <linux/shmem_fs.h>
-+#include <linux/khugepaged.h>
- 
- #include <linux/uprobes.h>
- 
-@@ -472,6 +473,7 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
- 	struct page *old_page, *new_page;
- 	struct vm_area_struct *vma;
- 	int ret, is_register, ref_ctr_updated = 0;
-+	bool orig_page_huge = false;
- 
- 	is_register = is_swbp_insn(&opcode);
- 	uprobe = container_of(auprobe, struct uprobe, arch);
-@@ -529,6 +531,9 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
- 				/* let go new_page */
- 				put_page(new_page);
- 				new_page = NULL;
-+
-+				if (PageCompound(orig_page))
-+					orig_page_huge = true;
- 			}
- 			put_page(orig_page);
- 		}
-@@ -547,6 +552,10 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
- 	if (ret && is_register && ref_ctr_updated)
- 		update_ref_ctr(uprobe, mm, -1);
- 
-+	/* try collapse pmd for compound page */
-+	if (!ret && orig_page_huge)
-+		collapse_pte_mapped_thp(mm, vaddr & HPAGE_PMD_MASK);
-+
- 	return ret;
- }
- 
--- 
-2.17.1
+Acked-by: Paul Burton <paul.burton@mips.com>
+
+Thanks,
+    Paul
+
+> ---
+>  arch/mips/include/asm/pgtable.h | 5 +++++
+>  1 file changed, 5 insertions(+)
+>=20
+> diff --git a/arch/mips/include/asm/pgtable.h b/arch/mips/include/asm/pgta=
+ble.h
+> index 7d27194e3b45..238ca243ad31 100644
+> --- a/arch/mips/include/asm/pgtable.h
+> +++ b/arch/mips/include/asm/pgtable.h
+> @@ -627,6 +627,11 @@ static inline pmd_t pmdp_huge_get_and_clear(struct m=
+m_struct *mm,
+> =20
+>  #endif /* CONFIG_TRANSPARENT_HUGEPAGE */
+> =20
+> +#ifdef _PAGE_HUGE
+> +#define pmd_leaf(pmd)	((pmd_val(pmd) & _PAGE_HUGE) !=3D 0)
+> +#define pud_leaf(pud)	((pud_val(pud) & _PAGE_HUGE) !=3D 0)
+> +#endif
+> +
+>  #define gup_fast_permitted(start, end)	(!cpu_has_dc_aliases)
+> =20
+>  #include <asm-generic/pgtable.h>
+> --=20
+> 2.20.1
+>=20
 
