@@ -4,82 +4,82 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BD8E6C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:48:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2B3CFC433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:48:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 743D5206B8
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:48:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 743D5206B8
+	by mail.kernel.org (Postfix) with ESMTP id D7DCF206B8
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:48:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D7DCF206B8
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CA3D08E0031; Wed, 31 Jul 2019 11:48:04 -0400 (EDT)
+	id 243028E0032; Wed, 31 Jul 2019 11:48:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C546F8E000D; Wed, 31 Jul 2019 11:48:04 -0400 (EDT)
+	id 1F4E28E000D; Wed, 31 Jul 2019 11:48:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B1BBC8E0031; Wed, 31 Jul 2019 11:48:04 -0400 (EDT)
+	id 020478E0032; Wed, 31 Jul 2019 11:48:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 64F2A8E000D
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:48:04 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id m23so42622697edr.7
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:48:04 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A9DA58E000D
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:48:05 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b33so42650449edc.17
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:48:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=sFlY5wD9vuJqu5NJmOfaOAztANUwJRWulkWyU+Es/x8=;
-        b=sMzm2tEnPg0aTGK3IKyK3ouz4C3ai1jKTz9ski6KRUpl/bTAPTLaOPO6Yg5Q+mexws
-         fvdZCR/WGgJJ1DNcRa3SFr4gBVUUTk/oy5SYTHr78jfU7QONS1QQyWeQbqysRrNa6GIj
-         tk7FRr3aOJK28B9FUV4aKYPHqPmTR0siIgSjq6PfYaEG7kxo/VmqZdQfVftPrhzA6uYZ
-         hR097SS2PPXyj0r9OjYDoGH66XU2VHJUyPQ6VEVuSC5d8QbldZSOYWFg58ggrA2QIL1Z
-         Dy+XfEzcncC1irI01M4X9cZL591H1WHL3Z97cJ4VQmlWodbmjILNSO1ppT2WptdkrUTJ
-         XYtQ==
+        bh=aHAqICo5eTRSGwfWWKL3szs2vb6l+yyj2bXZq8YQTqI=;
+        b=IeqnessWtHpuHXBTlmDN9LYbmTVEKYuj7gItXvXhu8TLqJkkf9zOEvgtLjv8N3prcz
+         DqWuITaPtxODa/qYkPMyPzZiPqvkwU052l4AXqKKKIiAtgvRC7sdG+rBvGiI3PsImifR
+         L1N+6Pj6wuwqIPiINNaz423WU2toCFkqaEDICWvBLtzya4vn23HIOq98Q8afmjlPdkii
+         6xWXui8F79poKKcg0x69MdUro/nC5oRLi+LGQZPlLYMXqgHiZnk5gKpEWt3eHkbyEweW
+         YVDaKTO3m23l5ycZws/dteBpXYwTHxqB3JnOBrjSkVuyNNk7QwZj9vhxs2W0o/g0iivM
+         UW2A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
-X-Gm-Message-State: APjAAAWyrrjKWu1UeEV5VuipPTQXPhrWuBRhmUdhkz4z80ocsZdo41Ua
-	Q57YMTdejJPToPnN0dyajbG6CRcdrauKRB0q22zG0TaZ6MvYA1rIBL1Sb/GbXnYZY4ozlkGt9d5
-	WBmFg/L1hL98BD+MxHcSAivlaAJneODDPpzJ+zmBa9/S0XmA0J+jZ744peyxQ1xNCYg==
-X-Received: by 2002:a17:906:6bd4:: with SMTP id t20mr90947179ejs.294.1564588083985;
-        Wed, 31 Jul 2019 08:48:03 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzIUoS1lW/ToHHc2G4ErQsmKHSab9FRTKgCMwloKcPUzXNjb9qZF1+4iwhNNvPrFzWWnh9F
-X-Received: by 2002:a17:906:6bd4:: with SMTP id t20mr90947121ejs.294.1564588083065;
-        Wed, 31 Jul 2019 08:48:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564588083; cv=none;
+X-Gm-Message-State: APjAAAWZokNoKL0tmWeT3ggwXSgl9l8gTSXiuyJF6Q5OwPpqPzrdcf+Z
+	mxBCZNLxI+cjYUlWwTjWfzkrLwYNjNMLCgNjSh5mVLKd7YoTFUONpLcOuvj8mYuCukHC5Hhfnos
+	cWlg0ZwUzE3vgQA81iYT96THSK7IGthywz2CHnenUjR5GPAwEizhKHLnArK0kYU//hw==
+X-Received: by 2002:a50:84e2:: with SMTP id 89mr108671522edq.218.1564588085264;
+        Wed, 31 Jul 2019 08:48:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqybHL2oLV3jgHdWsZhjkn6g+XhSDjgkQCY1Cl5Gc2ZzbnwMifFffVGPhvs1rv2opvggJWlY
+X-Received: by 2002:a50:84e2:: with SMTP id 89mr108671456edq.218.1564588084419;
+        Wed, 31 Jul 2019 08:48:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564588084; cv=none;
         d=google.com; s=arc-20160816;
-        b=lUBesGu/bqmnhuVLja0IXuyorgfS+FaprMWXq3RO0BNiJMG5a++qBeIFlCQmwaORjd
-         HPLeP9k6kWDmxbuoo82HtIVHzrwsFNLegFKF74Bc6+/wZIzn7YgUK5KX+QiNLduCHuJM
-         mb/6ntTs5FKMb9ubLFoDLzhl0LEtmH6UuEmtjpmB5l7YH2a7c1VcS5m2dRug8JyuD7em
-         nYBUPgypNBNax3YgUOcCjocKaftbZTLha/LcFElH374y0yEEQquhYqjf3ZofxR4U6GEQ
-         6ZssYQWds8tlYgQua4d6lfFYRrKJL7zfGpOrlviL8CXl7GI9HySIbu0Wd18RFVpbmfzm
-         rZww==
+        b=rZmNn3MPHocL5ACb72qw6Gvz24SljYwKV/lMHrUBwSNfMhcbbhG8tV7wnL26cGdqo5
+         lO8nnCcKTkkCceBSKivv/9zttnDFz94JBNW0335hjbyguPgHz6yUxJY1XB7zKK8ALy+7
+         SVPxJdVFE3odPtwvK/DUcOnBA1jEeHQ3kBynQyBsFICGi79vzyNsRBvR02xsLhDgo9gi
+         qpLyE0UiOjL3SIeT1jlmJLJTr2rfNv0G0TIDidsYKd6QupN71mj1/UHuoufkWsOrdg3+
+         SVoIDcmpyb0ZreONS+18VZBdEsUjNL2cKx6NZ79qC9pvkHugLs8W26zLa126B+vwC32c
+         IOrg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=sFlY5wD9vuJqu5NJmOfaOAztANUwJRWulkWyU+Es/x8=;
-        b=iTpnmAtWhXqDgbHZwt6UKYj4pHKhyuSOC/IS1/rQxVA1J3Rp5KQclA2uPvIF+Q6v29
-         oKO3i1jWwHGoQ2N4ato+q7diO/z5esimHQF2c0i2AIdDUjV8Pe88fxSINCnvLuNBt1mf
-         QWm5S+Ccl5ZqIr6XqYbEHl4Gb0n/hQz2K5ykZbRXrLaBYitC+Oaj7Lk2xC3yVDIIewD+
-         wGeBcE1nG9maAh7hRNS9x3v/hUOW7TidTF4jMrJ4nj17kL1/oknJSCLQY9V1vGzuaiov
-         rU+qz3FzWcwCflU9uL0IAQSOWnWbHQAjB0yTY1DfK77fCX3txSsneoSOnYEQ6pvpWKgx
-         WLnQ==
+        bh=aHAqICo5eTRSGwfWWKL3szs2vb6l+yyj2bXZq8YQTqI=;
+        b=EYqh9D+dI20ezVVZKy6Oav0a42kjpHlCMEMr0yW/ApzJuaWR3JwfJ/3ZUMiKPL9F2Z
+         wEtQFAZpSA3/HXGk9fY1xOhgeHYq/o8Dzb9OdCU+obXVlGWAdskPQ965PTJ2sGxviFY/
+         C0vTTCV5kMbmkhxURZ38PP2XRQnkJ2pmImc1lKj/UWzOuCQqUA5kdNTiGKPGfSRhV+KP
+         9CH6IGRIkBnGX4ZmjcQEPr8wusTPpRDJKqFt4ZAmVKZFBzg3ZuskIKfl1RvZchEsacF/
+         ZzPhmAenWY6WlLRkHxj64qT3JXWirVqt+650V3MnEEXjvYJYebru8rGZ0XAh7WsCqUtv
+         Homw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m41si22024842edd.186.2019.07.31.08.48.02
+        by mx.google.com with ESMTPS id w37si20716103eda.288.2019.07.31.08.48.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 08:48:03 -0700 (PDT)
+        Wed, 31 Jul 2019 08:48:04 -0700 (PDT)
 Received-SPF: pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id A1F87AF95;
-	Wed, 31 Jul 2019 15:48:02 +0000 (UTC)
+	by mx1.suse.de (Postfix) with ESMTP id 01F74AFE4;
+	Wed, 31 Jul 2019 15:48:04 +0000 (UTC)
 From: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
 To: catalin.marinas@arm.com,
 	hch@lst.de,
@@ -90,21 +90,21 @@ To: catalin.marinas@arm.com,
 	devicetree@vger.kernel.org,
 	iommu@lists.linux-foundation.org,
 	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
+	Rob Herring <robh+dt@kernel.org>,
+	Frank Rowand <frowand.list@gmail.com>
 Cc: phill@raspberryi.org,
 	f.fainelli@gmail.com,
 	will@kernel.org,
-	robh+dt@kernel.org,
+	linux-kernel@vger.kernel.org,
 	eric@anholt.net,
 	mbrugger@suse.com,
 	nsaenzjulienne@suse.de,
 	akpm@linux-foundation.org,
-	frowand.list@gmail.com,
 	m.szyprowski@samsung.com,
 	linux-rpi-kernel@lists.infradead.org
-Subject: [PATCH 2/8] arm64: rename variables used to calculate ZONE_DMA32's size
-Date: Wed, 31 Jul 2019 17:47:45 +0200
-Message-Id: <20190731154752.16557-3-nsaenzjulienne@suse.de>
+Subject: [PATCH 3/8] of/fdt: add function to get the SoC wide DMA addressable memory size
+Date: Wed, 31 Jul 2019 17:47:46 +0200
+Message-Id: <20190731154752.16557-4-nsaenzjulienne@suse.de>
 X-Mailer: git-send-email 2.22.0
 In-Reply-To: <20190731154752.16557-1-nsaenzjulienne@suse.de>
 References: <20190731154752.16557-1-nsaenzjulienne@suse.de>
@@ -116,116 +116,117 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Let the name indicate that they are used to calculate ZONE_DMA32's size
-as opposed to ZONE_DMA.
+Some SoCs might have multiple interconnects each with their own DMA
+addressing limitations. This function parses the 'dma-ranges' on each of
+them and tries to guess the maximum SoC wide DMA addressable memory
+size.
+
+This is specially useful for arch code in order to properly setup CMA
+and memory zones.
 
 Signed-off-by: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
 ---
 
- arch/arm64/mm/init.c | 30 +++++++++++++++---------------
- 1 file changed, 15 insertions(+), 15 deletions(-)
+ drivers/of/fdt.c       | 72 ++++++++++++++++++++++++++++++++++++++++++
+ include/linux/of_fdt.h |  2 ++
+ 2 files changed, 74 insertions(+)
 
-diff --git a/arch/arm64/mm/init.c b/arch/arm64/mm/init.c
-index 6112d6c90fa8..8956c22634dd 100644
---- a/arch/arm64/mm/init.c
-+++ b/arch/arm64/mm/init.c
-@@ -50,7 +50,7 @@
- s64 memstart_addr __ro_after_init = -1;
- EXPORT_SYMBOL(memstart_addr);
- 
--phys_addr_t arm64_dma_phys_limit __ro_after_init;
-+phys_addr_t arm64_dma32_phys_limit __ro_after_init;
- 
- #ifdef CONFIG_KEXEC_CORE
- /*
-@@ -168,7 +168,7 @@ static void __init reserve_elfcorehdr(void)
-  * currently assumes that for memory starting above 4G, 32-bit devices will
-  * use a DMA offset.
-  */
--static phys_addr_t __init max_zone_dma_phys(void)
-+static phys_addr_t __init max_zone_dma32_phys(void)
- {
- 	phys_addr_t offset = memblock_start_of_DRAM() & GENMASK_ULL(63, 32);
- 	return min(offset + (1ULL << 32), memblock_end_of_DRAM());
-@@ -181,7 +181,7 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
- 	unsigned long max_zone_pfns[MAX_NR_ZONES]  = {0};
- 
- #ifdef CONFIG_ZONE_DMA32
--	max_zone_pfns[ZONE_DMA32] = PFN_DOWN(arm64_dma_phys_limit);
-+	max_zone_pfns[ZONE_DMA32] = PFN_DOWN(arm64_dma32_phys_limit);
- #endif
- 	max_zone_pfns[ZONE_NORMAL] = max;
- 
-@@ -194,16 +194,16 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
- {
- 	struct memblock_region *reg;
- 	unsigned long zone_size[MAX_NR_ZONES], zhole_size[MAX_NR_ZONES];
--	unsigned long max_dma = min;
-+	unsigned long max_dma32 = min;
- 
- 	memset(zone_size, 0, sizeof(zone_size));
- 
- 	/* 4GB maximum for 32-bit only capable devices */
- #ifdef CONFIG_ZONE_DMA32
--	max_dma = PFN_DOWN(arm64_dma_phys_limit);
--	zone_size[ZONE_DMA32] = max_dma - min;
-+	max_dma32 = PFN_DOWN(arm64_dma32_phys_limit);
-+	zone_size[ZONE_DMA32] = max_dma32 - min;
- #endif
--	zone_size[ZONE_NORMAL] = max - max_dma;
-+	zone_size[ZONE_NORMAL] = max - max_dma32;
- 
- 	memcpy(zhole_size, zone_size, sizeof(zhole_size));
- 
-@@ -215,14 +215,14 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
- 			continue;
- 
- #ifdef CONFIG_ZONE_DMA32
--		if (start < max_dma) {
--			unsigned long dma_end = min(end, max_dma);
-+		if (start < max_dma32) {
-+			unsigned long dma_end = min(end, max_dma32);
- 			zhole_size[ZONE_DMA32] -= dma_end - start;
- 		}
- #endif
--		if (end > max_dma) {
-+		if (end > max_dma32) {
- 			unsigned long normal_end = min(end, max);
--			unsigned long normal_start = max(start, max_dma);
-+			unsigned long normal_start = max(start, max_dma32);
- 			zhole_size[ZONE_NORMAL] -= normal_end - normal_start;
- 		}
- 	}
-@@ -407,9 +407,9 @@ void __init arm64_memblock_init(void)
- 
- 	/* 4GB maximum for 32-bit only capable devices */
- 	if (IS_ENABLED(CONFIG_ZONE_DMA32))
--		arm64_dma_phys_limit = max_zone_dma_phys();
-+		arm64_dma32_phys_limit = max_zone_dma32_phys();
- 	else
--		arm64_dma_phys_limit = PHYS_MASK + 1;
-+		arm64_dma32_phys_limit = PHYS_MASK + 1;
- 
- 	reserve_crashkernel();
- 
-@@ -417,7 +417,7 @@ void __init arm64_memblock_init(void)
- 
- 	high_memory = __va(memblock_end_of_DRAM() - 1) + 1;
- 
--	dma_contiguous_reserve(arm64_dma_phys_limit);
-+	dma_contiguous_reserve(arm64_dma32_phys_limit);
+diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
+index 9cdf14b9aaab..f2444c61a136 100644
+--- a/drivers/of/fdt.c
++++ b/drivers/of/fdt.c
+@@ -953,6 +953,78 @@ int __init early_init_dt_scan_chosen_stdout(void)
  }
+ #endif
  
- void __init bootmem_init(void)
-@@ -521,7 +521,7 @@ static void __init free_unused_memmap(void)
- void __init mem_init(void)
- {
- 	if (swiotlb_force == SWIOTLB_FORCE ||
--	    max_pfn > (arm64_dma_phys_limit >> PAGE_SHIFT))
-+	    max_pfn > (arm64_dma32_phys_limit >> PAGE_SHIFT))
- 		swiotlb_init(1);
- 	else
- 		swiotlb_force = SWIOTLB_NO_FORCE;
++/**
++ * early_init_dt_dma_zone_size - Look at all 'dma-ranges' and provide the
++ * maximum common dmable memory size.
++ *
++ * Some devices might have multiple interconnects each with their own DMA
++ * addressing limitations. For example the Raspberry Pi 4 has the following:
++ *
++ * soc {
++ *	dma-ranges = <0xc0000000  0x0 0x00000000  0x3c000000>;
++ *	[...]
++ * }
++ *
++ * v3dbus {
++ *	dma-ranges = <0x00000000  0x0 0x00000000  0x3c000000>;
++ *	[...]
++ * }
++ *
++ * scb {
++ *	dma-ranges = <0x0 0x00000000  0x0 0x00000000  0xfc000000>;
++ *	[...]
++ * }
++ *
++ * Here the area addressable by all devices is [0x00000000-0x3bffffff]. Hence
++ * the function will write in 'data' a size of 0x3c000000.
++ *
++ * Note that the implementation assumes all interconnects have the same physical
++ * memory view and that the mapping always start at the beginning of RAM.
++ */
++int __init early_init_dt_dma_zone_size(unsigned long node, const char *uname,
++				       int depth, void *data)
++{
++	const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
++	u64 phys_addr, dma_addr, size;
++	u64 *dma_zone_size = data;
++	int dma_addr_cells;
++	const __be32 *reg;
++	const void *prop;
++	int len;
++
++	if (depth == 0)
++		*dma_zone_size = 0;
++
++	/*
++	 * We avoid pci host controllers as they have their own way of using
++	 * 'dma-ranges'.
++	 */
++	if (type && !strcmp(type, "pci"))
++		return 0;
++
++	reg = of_get_flat_dt_prop(node, "dma-ranges", &len);
++	if (!reg)
++		return 0;
++
++	prop = of_get_flat_dt_prop(node, "#address-cells", NULL);
++	if (prop)
++		dma_addr_cells = be32_to_cpup(prop);
++	else
++		dma_addr_cells = 1; /* arm64's default addr_cell size */
++
++	if (len < (dma_addr_cells + dt_root_addr_cells + dt_root_size_cells))
++		return 0;
++
++	dma_addr = dt_mem_next_cell(dma_addr_cells, &reg);
++	phys_addr = dt_mem_next_cell(dt_root_addr_cells, &reg);
++	size = dt_mem_next_cell(dt_root_size_cells, &reg);
++
++	if (!*dma_zone_size || *dma_zone_size > size)
++		*dma_zone_size = size;
++
++	return 0;
++}
++
+ /**
+  * early_init_dt_scan_root - fetch the top level address and size cells
+  */
+diff --git a/include/linux/of_fdt.h b/include/linux/of_fdt.h
+index acf820e88952..2ad36b7bd4fa 100644
+--- a/include/linux/of_fdt.h
++++ b/include/linux/of_fdt.h
+@@ -72,6 +72,8 @@ extern int early_init_dt_reserve_memory_arch(phys_addr_t base, phys_addr_t size,
+ 					     bool no_map);
+ extern u64 dt_mem_next_cell(int s, const __be32 **cellp);
+ 
++extern int early_init_dt_dma_zone_size(unsigned long node, const char *uname,
++				       int depth, void *data);
+ /* Early flat tree scan hooks */
+ extern int early_init_dt_scan_root(unsigned long node, const char *uname,
+ 				   int depth, void *data);
 -- 
 2.22.0
 
