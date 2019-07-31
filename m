@@ -2,169 +2,234 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E9B5C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:43:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A96F3C433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:48:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3149A208E3
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:43:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3149A208E3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 60D6E208E4
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:48:36 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="TEShoLf6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60D6E208E4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B8FAE8E0009; Wed, 31 Jul 2019 12:43:48 -0400 (EDT)
+	id E98108E0003; Wed, 31 Jul 2019 12:48:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B18458E0001; Wed, 31 Jul 2019 12:43:48 -0400 (EDT)
+	id E49968E0001; Wed, 31 Jul 2019 12:48:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 991FE8E0009; Wed, 31 Jul 2019 12:43:48 -0400 (EDT)
+	id D38138E0003; Wed, 31 Jul 2019 12:48:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 5F25E8E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 12:43:48 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id d2so37859710pla.18
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:43:48 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E86E8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 12:48:35 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id d190so43562810pfa.0
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:48:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=pH3zblpaQqt46p89L32EHFGyiK0T3As5Sdc+17tjb88=;
-        b=rlziDCLuLJbW7tKpe/JVg4lQ76y+TNCJsQg4hVqHm+8ug/iUpVK0z7a4kHkOlReeuH
-         gz30ELR6SehVNjCtdfdXLLfz5G/YfLsVGw8H04XoegJO5IPhbx7sPTR72kRFB4f00NGl
-         WjWQ/AugI2fy/A5Qc6uY7o2lCyTrKgoFhG5Nnd7pyynfJdBDGMEwb5jCZZzhxAs8oJyz
-         UiCUqxuRSHm9xiOlHjd9U/xm3URZEzk/MtV9UHQOB15luW/tiZoJIhoVghTwhHthUJi6
-         VX1MSnX98RRkvVE4Cf+5pcR2daaa3BZE8wrvuQll6yqtG4znIVtRnbTkmK2OQrv/55G/
-         fbXg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAV1gJrou/7YGkmri7NqlZzT1qg4D25OmWrM5eqeiQimgqYPky/l
-	Zwa8x4XfaQ/xYDheXwbh5cw5Hnv01KbayGYNhhWAdu9tto+uCELDUVx0mgAT5YKvbKAl0MGvgAg
-	iPw7ZxOlQjGJzoEO7MR5KRmzEqAYY7sfHCmWnmJi7/qxl4ACT6SIh1YtV2/r3tDAQVQ==
-X-Received: by 2002:a17:902:b48f:: with SMTP id y15mr123818061plr.268.1564591428060;
-        Wed, 31 Jul 2019 09:43:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz9XG2zZ1efvgsoEev2iOf2yXo0Vr+Pkyx9jvwNs6WVJcJ5szL8LhcntctzEpq2+PzSFFvd
-X-Received: by 2002:a17:902:b48f:: with SMTP id y15mr123818014plr.268.1564591427429;
-        Wed, 31 Jul 2019 09:43:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564591427; cv=none;
+        h=x-gm-message-state:dkim-signature:from:date:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=0yU6+7Jqba/P/dYVUesQKoUXFUkl65XIpqFII+Vl9uI=;
+        b=EQpTccEnKNjCAI+jKbhcysAbdZ8Y41z7qfYdNJ5tPuhuZ4kP8ls3rq8WnVQIesRZ8t
+         SoZZVVTF+sh35tg4qaYh7amgO14V+CHrW7At/kXRmBAU6c2yd4mH1GdJ7fjQRjAiS3aa
+         HcP58QVaQgEmIcOxPTYzsnGpcq9IcHEBfOlJyt6MddPsL439QaUozixJmhiHjnN3J1io
+         EN1ikhEMfYSgzqrwQ0wpWNjRR5CnA5shT/udcTLC6nkz62d1rtwVRjeKwj1ICJRAwR7s
+         xw6NgjtJyXh0UlMKw4Q81TAJMs9+5JVjzxMrU2/kXRUdEUlNc0t2KilY8ynwKsQBCeGz
+         l1VQ==
+X-Gm-Message-State: APjAAAWrtU+YM5c+mZD7GhmCdCsC1IyOQUNAHImhLeTsPnOBfAAjHsEz
+	akmcwkHm3iwA5gjwfnmmgQY3bWLzozHkV7qk+boRlhaLaSqgSenVnNii+Ey5wjt9K1R/KjWkNOz
+	e4nt0ox5ANF8+I6U1b52hR99phvhORGBehKlQZLWvJjf+UW7eBQs+gAa6elnWttZXkA==
+X-Received: by 2002:a63:ff66:: with SMTP id s38mr116313306pgk.363.1564591715183;
+        Wed, 31 Jul 2019 09:48:35 -0700 (PDT)
+X-Received: by 2002:a63:ff66:: with SMTP id s38mr116313248pgk.363.1564591714243;
+        Wed, 31 Jul 2019 09:48:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564591714; cv=none;
         d=google.com; s=arc-20160816;
-        b=zMW4C5LzImJKzIADvMYTtEXcwMUa2GFZW9oLqjuiJOKCKStfFkHpkGoWTkyRjCqxmZ
-         9ZP68Nn919TmbunrpmkvtrG4AMqF6Nxm12lgGh0VoL9Tkt24ZnF9NPe0fq0oRoVMHgMB
-         NrqTvNfpTXtpzeE69dQgBOCJ/CyX9OQU6EPlrR2U8hwXN3gn/X6bTwlASTcGuHuPrMWr
-         L/Z1XX6/p0WkKIOlO98B1WO/iMGYLxU0QuyGhCH6tJWGZpPchEcvEW65H6PvgTCtrIGi
-         7wTdGs4iUCceBN7WU51zOYUu1UG4rjW3c6Wqtim+rOdS+36VyB8gVQVpaROFP6Og6hk5
-         2lYQ==
+        b=CNPKhS+jTaOWUXEUW6+ZRoeU44uS3wa2FGEuF8/TCSIvyueFgTIrEOEi4iGIIjyR9s
+         z9NU5Utav/KbIcxwGJbyKr5fBBva3rvOGOBK25HuQDSrkreGq2KWHOyP3Zxnw92+u3QI
+         2UD8PomgyekbDdBFkgASAmIsFOskG4A/LflDYLKS+rYb4ZkXqvRtv/UOF8IZXTaoWUid
+         spLmH1OClUIpRb32/TlngtrSxuzzvoJmsZDFPZTT2TxOG2wA4f2cGOV/+VAXLO4PxpxN
+         QVMrOu3N83eLv9ZadGt81GYP007wdRbIb/hK2X1vyLXYxlS9h80Oene0juyGyHn8mSH1
+         +A/g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=pH3zblpaQqt46p89L32EHFGyiK0T3As5Sdc+17tjb88=;
-        b=JWB8/yvJgh1ZzYMHAG/ZFRyHWPpZqqR1uuyBkSC6lc9W2+EivG1Yqd1EMvCpj94JOw
-         b8U30uLYdC9xZ4cu+RvCJuB1rJkUD4ynyVJo55hNEU8GUCG5w1whyxQgAQuNdaPvSs4H
-         wnEWJUeIe/4NZddZ2ZPVCV1wjk45EvwDmAXR9HDGZimz8gR0X24LTYRBPJwqCAtINXPP
-         WcNnjyeNzZEdXRRnJ0qzO/mII79IAVVBSGfX1szHCqDJt1v9x0ay26nvm2a5UGszxXAg
-         PCmTML5ZRZyYk8K4C//jYwjPjQoQNhEz/ltreLEtnTrEOXnIa0bPGwCG+s28LKoYelT7
-         A+QQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:date:from:dkim-signature;
+        bh=0yU6+7Jqba/P/dYVUesQKoUXFUkl65XIpqFII+Vl9uI=;
+        b=JzL6RH5AxU8vH/Mex40y/laOE0pwM8XJsswYy45F+9I+nGnKGXNPdcaM+QFSa09xgn
+         hXvSG9f9aBDXOXDbzUKPBNaSad/g6GRQKTm83Jlq0J5TmIecRosIHgSFj/z2tQa6FHv+
+         46JDTM4vEE8rsPP1zgQi0suAQv7aI8MKqVYkA5R04PJXaYoJ0kHT2OWZe93ORE6gRQ0R
+         e51gIxi77WtMSW4XQE7RrG/vTyyvlxxsjr2T1hqGdIobR6G65NAq1jsxbYiRjK6ijnFv
+         iYVqPVhK2Kp9QHz46u+a7/dhxFgcF0UkKIW60tdLcYz6qbdaMl7Pb6gsr0ziiWLDznMn
+         jiLA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id f10si1822617pjw.89.2019.07.31.09.43.47
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TEShoLf6;
+       spf=pass (google.com: domain of sergey.senozhatsky@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sergey.senozhatsky@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id f9sor82434448plr.31.2019.07.31.09.48.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 09:43:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        (Google Transport Security);
+        Wed, 31 Jul 2019 09:48:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sergey.senozhatsky@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dave.hansen@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dave.hansen@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 31 Jul 2019 09:43:46 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,330,1559545200"; 
-   d="scan'208";a="183748784"
-Received: from ray.jf.intel.com (HELO [10.7.201.140]) ([10.7.201.140])
-  by orsmga002.jf.intel.com with ESMTP; 31 Jul 2019 09:43:46 -0700
-Subject: Re: [PATCH v6 1/2] arm64: Define
- Documentation/arm64/tagged-address-abi.rst
-To: Vincenzo Frascino <vincenzo.frascino@arm.com>,
- linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
- linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org
-Cc: Catalin Marinas <catalin.marinas@arm.com>,
- Will Deacon <will.deacon@arm.com>, Andrey Konovalov <andreyknvl@google.com>,
- Szabolcs Nagy <szabolcs.nagy@arm.com>
-References: <cover.1563904656.git.andreyknvl@google.com>
- <20190725135044.24381-1-vincenzo.frascino@arm.com>
- <20190725135044.24381-2-vincenzo.frascino@arm.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <b74e7ce7-d58a-68a0-2f28-6648ec6302c0@intel.com>
-Date: Wed, 31 Jul 2019 09:43:46 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TEShoLf6;
+       spf=pass (google.com: domain of sergey.senozhatsky@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sergey.senozhatsky@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:date:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=0yU6+7Jqba/P/dYVUesQKoUXFUkl65XIpqFII+Vl9uI=;
+        b=TEShoLf6suD1oowWqmx+9hD1Z9ME22dg6oXWv+TZC0a59DtmlQsXGcIFRaKjW67vdc
+         xJuBNUNjTffMUMovFe3HEn12UKyKzcwMLSkUBMlxgvtMebyzn/R7rPDCUr1I5Humd5+0
+         ZUnKpZrKA1v1nxnaoUKzg3Hr5b0cYcTNuqqc4b0ExTtOj6SLqQqk3qUZHWxihx0AoILp
+         gUfNyHNB3ZWYYEgqiktawoBoqtMdZGnEp0p6A0BBZDVFA33JHeXqbE1n1ExBaJVPvRj7
+         nf220LhYoSaWsrlEKCnOevK8tDqEOu5Y1VGm9PD0fpTLKJL5CWc030WyaecUdDqbhAQo
+         QWlg==
+X-Google-Smtp-Source: APXvYqxFFgDlNniDL8CJHmZ07neF4gFczeMrZumpY8D33YQTsuHwvnRMvRsPvkoX1WVdvj5G5Yqdsg==
+X-Received: by 2002:a17:902:934a:: with SMTP id g10mr123637304plp.18.1564591713720;
+        Wed, 31 Jul 2019 09:48:33 -0700 (PDT)
+Received: from localhost ([121.137.63.184])
+        by smtp.gmail.com with ESMTPSA id d18sm24192770pgi.40.2019.07.31.09.48.32
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 31 Jul 2019 09:48:32 -0700 (PDT)
+From: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+X-Google-Original-From: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>
+Date: Thu, 1 Aug 2019 01:48:29 +0900
+To: Sergey Senozhatsky <sergey.senozhatsky@gmail.com>
+Cc: Jani Nikula <jani.nikula@linux.intel.com>,
+	Joonas Lahtinen <joonas.lahtinen@linux.intel.com>,
+	Rodrigo Vivi <rodrigo.vivi@intel.com>,
+	David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>,
+	Hugh Dickins <hughd@google.com>,
+	David Howells <dhowells@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, intel-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org
+Subject: Re: [linux-next] mm/i915: i915_gemfs_init() NULL dereference
+Message-ID: <20190731164829.GA399@tigerII.localdomain>
+References: <20190721142930.GA480@tigerII.localdomain>
 MIME-Version: 1.0
-In-Reply-To: <20190725135044.24381-2-vincenzo.frascino@arm.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190721142930.GA480@tigerII.localdomain>
+User-Agent: Mutt/1.12.1 (2019-06-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 7/25/19 6:50 AM, Vincenzo Frascino wrote:
-> With the relaxed ABI proposed through this document, it is now possible
-> to pass tagged pointers to the syscalls, when these pointers are in
-> memory ranges obtained by an anonymous (MAP_ANONYMOUS) mmap().
+On (07/21/19 23:29), Sergey Senozhatsky wrote:
+> 
+>  BUG: kernel NULL pointer dereference, address: 0000000000000000
+>  #PF: supervisor instruction fetch in kernel mode
+>  #PF: error_code(0x0010) - not-present page
+>  PGD 0 P4D 0 
+>  Oops: 0010 [#1] PREEMPT SMP PTI
+>  RIP: 0010:0x0
+>  Code: Bad RIP value.
+>  [..]
+>  Call Trace:
+>   i915_gemfs_init+0x6e/0xa0 [i915]
+>   i915_gem_init_early+0x76/0x90 [i915]
+>   i915_driver_probe+0x30a/0x1640 [i915]
+>   ? kernfs_activate+0x5a/0x80
+>   ? kernfs_add_one+0xdd/0x130
+>   pci_device_probe+0x9e/0x110
+>   really_probe+0xce/0x230
+>   driver_probe_device+0x4b/0xc0
+>   device_driver_attach+0x4e/0x60
+>   __driver_attach+0x47/0xb0
+>   ? device_driver_attach+0x60/0x60
+>   bus_for_each_dev+0x61/0x90
+>   bus_add_driver+0x167/0x1b0
+>   driver_register+0x67/0xaa
+>   ? 0xffffffffc0522000
+>   do_one_initcall+0x37/0x13f
+>   ? kmem_cache_alloc+0x11a/0x150
+>   do_init_module+0x51/0x200
+>   __se_sys_init_module+0xef/0x100
+>   do_syscall_64+0x49/0x250
+>   entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
-I don't see a lot of description of why this restriction is necessary.
-What's the problem with supporting MAP_SHARED?
+
+So "the new mount API" conversion probably looks like something below.
+But I'm not 100% sure.
+
+---
+ drivers/gpu/drm/i915/gem/i915_gemfs.c | 32 +++++++++++++++++++++------
+ 1 file changed, 25 insertions(+), 7 deletions(-)
+
+diff --git a/drivers/gpu/drm/i915/gem/i915_gemfs.c b/drivers/gpu/drm/i915/gem/i915_gemfs.c
+index 099f3397aada..2e365b26f8ee 100644
+--- a/drivers/gpu/drm/i915/gem/i915_gemfs.c
++++ b/drivers/gpu/drm/i915/gem/i915_gemfs.c
+@@ -7,12 +7,14 @@
+ #include <linux/fs.h>
+ #include <linux/mount.h>
+ #include <linux/pagemap.h>
++#include <linux/fs_context.h>
+ 
+ #include "i915_drv.h"
+ #include "i915_gemfs.h"
+ 
+ int i915_gemfs_init(struct drm_i915_private *i915)
+ {
++	struct fs_context *fc;
+ 	struct file_system_type *type;
+ 	struct vfsmount *gemfs;
+ 
+@@ -36,19 +38,35 @@ int i915_gemfs_init(struct drm_i915_private *i915)
+ 		struct super_block *sb = gemfs->mnt_sb;
+ 		/* FIXME: Disabled until we get W/A for read BW issue. */
+ 		char options[] = "huge=never";
+-		int flags = 0;
+ 		int err;
+ 
+-		err = sb->s_op->remount_fs(sb, &flags, options);
+-		if (err) {
+-			kern_unmount(gemfs);
+-			return err;
+-		}
++		fc = fs_context_for_reconfigure(sb->s_root, 0, 0);
++		if (IS_ERR(fc))
++			goto err;
++
++		if (!fc->ops->parse_monolithic)
++			goto err;
++
++		err = fc->ops->parse_monolithic(fc, options);
++		if (err)
++			goto err;
++
++		if (!fc->ops->reconfigure)
++			goto err;
++
++		err = fc->ops->reconfigure(fc);
++		if (err)
++			goto err;
+ 	}
+ 
+ 	i915->mm.gemfs = gemfs;
+-
+ 	return 0;
++
++err:
++	pr_err("i915 gemfs init() failed\n");
++	put_fs_context(fc);
++	kern_unmount(gemfs);
++	return -EINVAL;
+ }
+ 
+ void i915_gemfs_fini(struct drm_i915_private *i915)
+-- 
+2.22.0
 
