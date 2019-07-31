@@ -2,144 +2,175 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 483C4C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 20:05:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 70CBEC41514
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 20:25:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1325A2171F
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 20:04:59 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3A4392171F
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 20:25:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="hUxoFsGk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1325A2171F
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="nhwHsvp/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3A4392171F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8FC2B8E0003; Wed, 31 Jul 2019 16:04:59 -0400 (EDT)
+	id A24A38E0003; Wed, 31 Jul 2019 16:25:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8B5668E0001; Wed, 31 Jul 2019 16:04:59 -0400 (EDT)
+	id 9D52C8E0001; Wed, 31 Jul 2019 16:25:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 79B568E0003; Wed, 31 Jul 2019 16:04:59 -0400 (EDT)
+	id 8C4208E0003; Wed, 31 Jul 2019 16:25:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3FCEA8E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 16:04:59 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id n4so37642312plp.4
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:04:59 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 55B098E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 16:25:12 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id a20so43987636pfn.19
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 13:25:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=DvIle9Z7Le0W/koXErTIOG9PhIMMIXfJqWN4mPJ33BE=;
-        b=nupVAns5UkI4lTS2ZvGdKWI8pKAIyGdxBa9pDVd/WGUh7BsZ90cWu4xhVIpkyuIYsr
-         1eGcaJEzhgvln0Wu2Q9dpDN/d3ZWWxS6lgzIRzlou6S8We1L89LJJwwgk8hVbyv0Iv37
-         mQnsUKIW5dvaUgsN0HhyeG0nAVS21pootXbMblae/i5X+b02Cs2r3x7wUTTlmmvby2f0
-         wjZ0lugUnyfkqVDGA/wVSdjWIYvc/QG7CrxZxaRgkrQenQyXfxRHcL5pc3SgI+Ggq5fc
-         qnLrErF6L4GoY2cWIP76sGl5sUZ0JPxJ3EZWY4jduGQfk6uULU0M+04bISVT5rjLqYP/
-         MWyw==
-X-Gm-Message-State: APjAAAXwtdN8i4LO/sYj0FMyekRrIkua9lHGXISzrVCDCdyHMMNVSsNs
-	anbowYj81qrP6b+FCC/7+tzohBSGHHJs+Y8WwZyFoQh6U1YgWMo9IXguqxQmD2bQn+Yq5xwYUth
-	/Nhd+OqCIDvK3j9HhrVoeitx3ZsFpCPNqLLokbpGLhruFuGhxjovR3M6N6cRBnm/PNQ==
-X-Received: by 2002:a63:e148:: with SMTP id h8mr4270900pgk.275.1564603498722;
-        Wed, 31 Jul 2019 13:04:58 -0700 (PDT)
-X-Received: by 2002:a63:e148:: with SMTP id h8mr4270840pgk.275.1564603498064;
-        Wed, 31 Jul 2019 13:04:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564603498; cv=none;
+        bh=0pLvL4XoGYF6/S/bO4KhBdgKs6/M0DxlhP6T+btdb0E=;
+        b=a+FPFeueIWxsXod05CN7WpR96pta94lAs6L1t5mjmeZK4wbSf4Tbq4GlZmNQxitWTx
+         5fCOBkRi2ZluRqxFKIvFOmRcCPqMa28R0GQoikK52bzLQPhFg7UzbY0N0DLsgF8KZe7C
+         rXbzpIo9zjnRHMebOBNiO8O8be9maLLChPl+XxNtCFHKyNpPsFLrzj+dqOnt3A08a4Ht
+         hLfAFIWbmx+5qSawhgkbOSL0JVYF2UKz+nUpKgBnkPUF9qFWI0oIyY+n2CC8nOxJLX3B
+         oNUZOt7ZTxBLHV6YOEzB0SeuKRkxgv6xiHltDPfu1PXnQoDdJA86Bz0RjCaaQqQ8XXTK
+         VExw==
+X-Gm-Message-State: APjAAAXWuhOI745ScaC8eDgBeU/qZvgA0UxqyTPE6GaBww4b1p4Mfmh0
+	BPLW3+bsWhPgr++EEp79oJlxWDRDm5O0MleuvflLu1xrNVbeNI2BFuhi9fZF3NafEaqTxvSFUOJ
+	VMtdf3IslBh6BkhmdISQo6y6FcgzAV0DOKVsiGD05ULVSxR+PIjzk1TVETfmIj9ZGLw==
+X-Received: by 2002:aa7:85d8:: with SMTP id z24mr40606351pfn.218.1564604711982;
+        Wed, 31 Jul 2019 13:25:11 -0700 (PDT)
+X-Received: by 2002:aa7:85d8:: with SMTP id z24mr40606298pfn.218.1564604711156;
+        Wed, 31 Jul 2019 13:25:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564604711; cv=none;
         d=google.com; s=arc-20160816;
-        b=NRLkKMP8ETsntG0mlpUdotMps5qWlQQTIYEDkQuspTBtG0uxJ7fuTmL7R6fNglt/vC
-         mnkd9p7RC3Gp7DowQUwiNLPSSxgbtdP6dpOeHXB6/HMurUbRD6iJqCUilAexGE+2QOKr
-         NAnJGHY2M8z82muEB3lw6KzPYSOp20YOeqB26ZOUv7YC124IsjlzVPro8J6NqQIYPwNK
-         zzHtJ49eQlVbFua7CdhP5InPdsTjeOXgH24T0mh3N92DiCVl2I6EOm9Jdm0j7es4CQuV
-         sINOY1lxxxzn1pfDkEIe/G+JVJKcGbR371eLQddKrKz+8V/Nm2IafTj0+lzrcqQ0Xgc2
-         LwPw==
+        b=T40gHu50j0eIm8+w9AefJ53OzbY/n81vhux3pp4PsdaFxlL1IXoliRkNXXB4ErzUu7
+         0E8JPSyszPNtNJ3chBvIaCbwK4JQwxqari9dRBbJkgb9uaZrGRk/rvVPJGxECGApQFZo
+         yrwbHW+MQ4qDZ6x7nzFNgvsq8CIaZO+5l6JNDTosRF/FDW1+ln6lXiWBa5sBajc6y1Dr
+         7R0kbJ85TSRdUxVFOs20k+0V0ddc2bvDuk40X1CTQcpJL3Mxt+wQDtoy0EJpZXd0KcNl
+         Ge40+EuxH4ED45l+dUrS0neyNMNfGOvMDx1mnlI3t7YLadAwnJTE3Nd1tfxHUucrgOfr
+         hfRw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=in-reply-to:content-disposition:mime-version:references:message-id
          :subject:cc:to:from:date:dkim-signature;
-        bh=DvIle9Z7Le0W/koXErTIOG9PhIMMIXfJqWN4mPJ33BE=;
-        b=BQ1HpnecAVrH7rEI1YnuXGVdvoxGxhJFNyvFB0JV6op9BGTANkH3e8VPAwxXYSgIfK
-         /rJrgLFR1dFCqBsVfxxzgvOmHw8zgMbxNy5PPl/psz7leT8tLfpFDmn9ZPRWcmAxjpSR
-         ldW+ZiZSxZyKgpcgJeeonjB0cNaYl9lMjzi4qPyT9NN8zfAIO+7kgw+mcNJxjqVMs1uD
-         z6cIpWmawxM2/JT4vK6z5MNvd99j3yyopCiDARlX+erdH/i3LfXy3o6b9yKUI+EZz7qH
-         Rkm0+WGn7YMUf7MscNjlYh8Sdpia7xCdoCbJTP6g0c+ZMQnODVCqYA9+J9Hzt66iYV1o
-         DGXQ==
+        bh=0pLvL4XoGYF6/S/bO4KhBdgKs6/M0DxlhP6T+btdb0E=;
+        b=QIB9eW0oaOKySI8sO3/DWwtvwPvqXfiDJF1WuhIhTNwspGeogMmVviZCD0iLgPLd2i
+         qs9M2JWuuoNvMkohmMymrIp28e0A/zuSZ4clEBtxCs+vm16Qbwxd+VFF1ptk4yY/K42J
+         HluDvKU1diOg/m0pknbFmAULJMljtuQxjYmlPcoZRHwNOr13K4QHM7nCjRkWonM+YnTJ
+         2KTWemXIgwd6BlY5mXWRn1g0y7RwkSRkhuLzQuKQpbRnNST1kEk65I4INu0q/Lo7T7jc
+         odunEc3K1CnKETaGpF46/4kwwjtvv+Jo/UAp3MII8bcIAjkEDRhLg9X52g27k7H1ZVA/
+         Ah0w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=hUxoFsGk;
+       dkim=pass header.i=@chromium.org header.s=google header.b="nhwHsvp/";
        spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t22sor46375013pgg.51.2019.07.31.13.04.57
+        by mx.google.com with SMTPS id u184sor50935065pfc.69.2019.07.31.13.25.11
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Jul 2019 13:04:58 -0700 (PDT)
+        Wed, 31 Jul 2019 13:25:11 -0700 (PDT)
 Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=hUxoFsGk;
+       dkim=pass header.i=@chromium.org header.s=google header.b="nhwHsvp/";
        spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=chromium.org; s=google;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to;
-        bh=DvIle9Z7Le0W/koXErTIOG9PhIMMIXfJqWN4mPJ33BE=;
-        b=hUxoFsGkeADYymjGHq5GAFM8PLLF2oTqH90Qwa1lVGomKVeJv3LpYYq908h6tx+NC6
-         JboSViSFWGOnrHw3eax6eEOT2n+FS9htW1HchWAp3w0jojJ78gsyAANzR8f7TlGgYKbp
-         yQKiR7/Vje+a0p9TBadUOpZtoN9epeDzQlCK0=
-X-Google-Smtp-Source: APXvYqwIJxMJOxdtJ5g0WQFgFO3TDsvWgqhNn6FrJTk3e9UcxKXtIPqx/42ra07S8mgFqWWw/OG6iw==
-X-Received: by 2002:a63:1455:: with SMTP id 21mr71350404pgu.116.1564603497556;
-        Wed, 31 Jul 2019 13:04:57 -0700 (PDT)
+        bh=0pLvL4XoGYF6/S/bO4KhBdgKs6/M0DxlhP6T+btdb0E=;
+        b=nhwHsvp/32LnkrUUYeFQVJf6a5XG0VbCeyqdOhNKuGjJPAEI+E8IajZXhfy7iku3Nt
+         GXQW8AaA5AJ6NNU8XIXmhoOriXYI/zGZfxRpnj3GAYC0ps7JvrlOec9TzP8ptbdIwQYv
+         DKXypv6Fq73h5SZxLpblvCN/RVEvKIWxs0yCY=
+X-Google-Smtp-Source: APXvYqwwz4QXBj6X4jmRiK5RdWk3VtwUDMP0wQe48ogv57D0i040spqUEUMSR5b2sInVDU1XTItkNg==
+X-Received: by 2002:a62:ce8e:: with SMTP id y136mr49994255pfg.29.1564604710841;
+        Wed, 31 Jul 2019 13:25:10 -0700 (PDT)
 Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id g4sm84014438pfo.93.2019.07.31.13.04.56
+        by smtp.gmail.com with ESMTPSA id p23sm74797789pfn.10.2019.07.31.13.25.09
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 31 Jul 2019 13:04:56 -0700 (PDT)
-Date: Wed, 31 Jul 2019 13:04:55 -0700
+        Wed, 31 Jul 2019 13:25:09 -0700 (PDT)
+Date: Wed, 31 Jul 2019 13:25:08 -0700
 From: Kees Cook <keescook@chromium.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Laura Abbott <labbott@redhat.com>,
-	Alexander Potapenko <glider@google.com>,
-	kernel test robot <rong.a.chen@intel.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Christoph Lameter <cl@linux.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	"Serge E. Hallyn" <serge@hallyn.com>,
-	Nick Desaulniers <ndesaulniers@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Sandeep Patil <sspatil@android.com>,
-	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>,
-	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>,
-	linux-mm@kvack.org
-Subject: Re: [PATCH] mm: slub: Fix slab walking for init_on_free
-Message-ID: <201907311304.2AAF454F5C@keescook>
-References: <CAG_fn=VBGE=YvkZX0C45qu29zqfvLMP10w_owj4vfFxPcK5iow@mail.gmail.com>
- <20190731193240.29477-1-labbott@redhat.com>
- <20190731193509.GG4700@bombadil.infradead.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: "Isaac J. Manjarres" <isaacm@codeaurora.org>, crecklin@redhat.com,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	gregkh@linuxfoundation.org, psodagud@codeaurora.org,
+	tsoni@codeaurora.org, eberman@codeaurora.org,
+	stable@vger.kernel.org
+Subject: Re: [PATCH] mm/usercopy: Use memory range to be accessed for
+ wraparound check
+Message-ID: <201907311323.2C991F08@keescook>
+References: <1564509253-23287-1-git-send-email-isaacm@codeaurora.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190731193509.GG4700@bombadil.infradead.org>
+In-Reply-To: <1564509253-23287-1-git-send-email-isaacm@codeaurora.org>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 31, 2019 at 12:35:09PM -0700, Matthew Wilcox wrote:
-> On Wed, Jul 31, 2019 at 03:32:40PM -0400, Laura Abbott wrote:
-> > Fix this by ensuring the value we set with set_freepointer is either NULL
-> > or another value in the chain.
-> > 
-> > Reported-by: kernel test robot <rong.a.chen@intel.com>
-> > Signed-off-by: Laura Abbott <labbott@redhat.com>
+On Tue, Jul 30, 2019 at 10:54:13AM -0700, Isaac J. Manjarres wrote:
+> Currently, when checking to see if accessing n bytes starting at
+> address "ptr" will cause a wraparound in the memory addresses,
+> the check in check_bogus_address() adds an extra byte, which is
+> incorrect, as the range of addresses that will be accessed is
+> [ptr, ptr + (n - 1)].
 > 
-> Fixes: 6471384af2a6 ("mm: security: introduce init_on_alloc=1 and init_on_free=1 boot options")
+> This can lead to incorrectly detecting a wraparound in the
+> memory address, when trying to read 4 KB from memory that is
+> mapped to the the last possible page in the virtual address
+> space, when in fact, accessing that range of memory would not
+> cause a wraparound to occur.
+> 
+> Use the memory range that will actually be accessed when
+> considering if accessing a certain amount of bytes will cause
+> the memory address to wrap around.
+> 
+> Fixes: f5509cc18daa ("mm: Hardened usercopy")
+> Co-developed-by: Prasad Sodagudi <psodagud@codeaurora.org>
+> Signed-off-by: Prasad Sodagudi <psodagud@codeaurora.org>
+> Signed-off-by: Isaac J. Manjarres <isaacm@codeaurora.org>
+> Cc: stable@vger.kernel.org
+> Reviewed-by: William Kucharski <william.kucharski@oracle.com>
+> Acked-by: Kees Cook <keescook@chromium.org>
 
-Reviewed-by: Kees Cook <keescook@chromium.org>
+Ah, thanks for the reminder! (I got surprised by seeing my Ack in this
+email -- next time please use "v2" or "RESEND" to jog my memory.) This
+got lost last year; my bad.
+
+Andrew, can you take this or should I send it directly to Linus?
+
+-Kees
+
+> ---
+>  mm/usercopy.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+> 
+> diff --git a/mm/usercopy.c b/mm/usercopy.c
+> index 2a09796..98e92486 100644
+> --- a/mm/usercopy.c
+> +++ b/mm/usercopy.c
+> @@ -147,7 +147,7 @@ static inline void check_bogus_address(const unsigned long ptr, unsigned long n,
+>  				       bool to_user)
+>  {
+>  	/* Reject if object wraps past end of memory. */
+> -	if (ptr + n < ptr)
+> +	if (ptr + (n - 1) < ptr)
+>  		usercopy_abort("wrapped address", NULL, to_user, 0, ptr + n);
+>  
+>  	/* Reject if NULL or ZERO-allocation. */
+> -- 
+> The Qualcomm Innovation Center, Inc. is a member of the Code Aurora Forum,
+> a Linux Foundation Collaborative Project
+> 
 
 -- 
 Kees Cook
