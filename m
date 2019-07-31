@@ -2,158 +2,178 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A3852C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:46:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FE49C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:48:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 62BE9206A2
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:46:17 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="FkJBduK7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62BE9206A2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 61FB8206A2
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 13:48:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 61FB8206A2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=surriel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C8E88E0003; Wed, 31 Jul 2019 09:46:17 -0400 (EDT)
+	id F1F998E0003; Wed, 31 Jul 2019 09:48:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 079908E0001; Wed, 31 Jul 2019 09:46:17 -0400 (EDT)
+	id EA8578E0001; Wed, 31 Jul 2019 09:48:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E81FF8E0003; Wed, 31 Jul 2019 09:46:16 -0400 (EDT)
+	id D97B48E0003; Wed, 31 Jul 2019 09:48:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C895A8E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:46:16 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id s9so61623028qtn.14
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 06:46:16 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id B83748E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:48:17 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id x10so61453657qti.11
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 06:48:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id;
-        bh=8f2ucm94N3RAHWXp2XYv1ymSM73yXUEwnSMo5qDl8Gc=;
-        b=aXpvkHe074R1BTnErMNPxUtqsUWcNpseM1qFBB2BZeXTR+uscYlO+kkhPa1cgaRSbc
-         n/LBaubarZ8OR1V6FybY5IEWVfHBHc1bkPGZXnNZ0vNWamsSOwKAXuhxjibVE2LEFgXL
-         iB4BDFDZFhgR5rqVs7ItXNNTHM3OoLCpAKsdA4Ai2fJ/20gTZqASxngco4gzIqjpnsLe
-         Z19XDr8iEcshmOukOjdGaG4xFLEMdnHwyCa2XRRfNpgUSzRcA4DIc0ln5kV/s3Zt2sNf
-         4HIlgUoln/PMlmi2g4gw5n2CwbhGCqJ5P8Yp42vZOot73QpfUWEEHmP5nzj0jECZ0/aH
-         uGIw==
-X-Gm-Message-State: APjAAAUzuM1R36gPQMWD7bqSg5INdUCS8l8WTBf5Cayvt+bXKXI5noJ2
-	du7II4JolNoI7bFytgq5MwBIdyk/DTQSzwjhp3JUrGYAXHZChksFz4neZFxpypFYLdh7DBqyED3
-	SAI8wQe23ZbWNdzOobx3W2FDr3UtO7G6+8W5MejL3ZNADFcYxdmwYiro6KmRXscr/PA==
-X-Received: by 2002:a37:9dc8:: with SMTP id g191mr81613327qke.431.1564580776604;
-        Wed, 31 Jul 2019 06:46:16 -0700 (PDT)
-X-Received: by 2002:a37:9dc8:: with SMTP id g191mr81613287qke.431.1564580775992;
-        Wed, 31 Jul 2019 06:46:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564580775; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:user-agent
+         :mime-version:sender;
+        bh=a2UVqfb3vKkwAoFb8LMnoJhfpNx/nbwzZdgyGR+A5vg=;
+        b=esAtG69pfzHhNXHiPzkIuCl8WIloSbupQSatPZyKR627DlHCqRgYCusWJ3OseHAPCv
+         6dNog1rsBD1yngmagUAEWS23MXRyIGmM1XU6DlR2roXvZv5p6H1lZagpdje6DcVctoAV
+         0lxVxw9ATwwRMDH6SDXIxrNSiG477H+VloLpX0RZgQeV2FM7Iff/h84NS5DeVIOV9epB
+         etzxJ/5Xo+ZzJSQYNWwXMZcsr+035Dwuvd3Lqwa9K8dA50KoBNUCiF5t1y4jMSht81or
+         ZZ/MjIfxgPe3E+9TWEt3TaKnwtqQBYryDmWU9RwTsu8AiL3K2ICsDgTwnaSA28HGmGbi
+         ox7g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
+X-Gm-Message-State: APjAAAWCCI44KKeIlQ+dKhHOK2qbBB5kVcrtAcra2eeEdrN8GRtPWZx/
+	ZUVQjIRAEOJS7MezMq4iJXgnLCZe5uv6Bpm8AIQJPa20lNr8m7s2H+XxSKo3WQXruRhRRaXAD+Y
+	rSoEMQMKk++cdiYMePEF/sQMkTirv0kbWEGGMAkcFvXRooFo+jObTq04JJFco7qKErg==
+X-Received: by 2002:a37:4f4f:: with SMTP id d76mr72191412qkb.304.1564580897509;
+        Wed, 31 Jul 2019 06:48:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyXwEnCCWy5Pc6lAp6YSXwLXTqxTiKSTbkvIHmzMnkJuyS2gh14kH0QhBoJF4bplXGzrm1k
+X-Received: by 2002:a37:4f4f:: with SMTP id d76mr72191363qkb.304.1564580896724;
+        Wed, 31 Jul 2019 06:48:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564580896; cv=none;
         d=google.com; s=arc-20160816;
-        b=bTRFSPQEaME38hvZyoC1ebGtpkUHftE6eXmVdOlNRGclMN8W46XbEv4sMwG2YMQ5w4
-         bafTUs7D27MrhkhLMRmqptWN8Fakk7zooYbiNoU+9pEsRqsipgo14fTlN5l1+uEt3SFu
-         NyZdP7WmX32BRkA2s2HvXnQlzXyup9KrnRxf/SasUm7zeWODmz8H5PHyModk0FoP72v/
-         3Q1+Jxkr00FOSFAygTJ61k/iPHwGVDUXpfyaVRHbM/1QXg/68DMfedR5cteqVk52wHgO
-         IWyXsgHJ09BusDkNepazu+TlI6uETYN7VlMlSrhlTEwkn+v/RD7zQqVCRUbEiXiHdloZ
-         4dlw==
+        b=ELj/rowWQrqQpjVPVgw7OslP4x3JvLNtqKWPYPk91isTSClLxjKkm3lsvB2C5a01xx
+         buCSqVgO6DSQwB+lkGg8wFYu1HLnvtvdp8BZS7D9St4RawwFTlfTMsmyLIX6kLEI3Qe5
+         e+cE1OSY9+QJqbnBZMz9Z2LKXx747+CiL/LvTQk5C3z8H1FHp0R353YCefwNGRRJXzgT
+         XjGf0j8DRb84IgqKTVIxwRYab5syuDlgxpQeKC+wbHHOhDQSJMmGPMTZj/yZDuxJ79Tk
+         7kxE/HprStE0/CIA+xwznT69vTK2+W0bo0b6G8W+z1kvgk4pOZlRNqHMXXNQZEvwyuD8
+         7T8A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from:dkim-signature;
-        bh=8f2ucm94N3RAHWXp2XYv1ymSM73yXUEwnSMo5qDl8Gc=;
-        b=Vxuc0yMJVaiPIE4D6siUpE3S9lGbzi+GIid9aw6tWQe/MbFbN/qElapIgGxsLaWNB3
-         B4dUvYrBPo7nuVhskVS8KeGNSaX7fq7Ym0TWNqlyt/Dkte22kxxp2bfUsmixIriH6H3U
-         MQYW+buYk7zMnThYuwbB/6XribOQ7q8Cc5V7YTi+vP1qYKkkRqjcEeAbZpD6605tsYBM
-         Ygj34IKasuieI/x0fqdch7nwXJCn5t30VNTuI32fiIGR2h/QUTWGnDbS0mzzLKZ0YNaq
-         nk392NOQxsXQqQgnyNqK5AkB5EiEaAsX36Zs1nvKhI7wyrK4cfj03oXYnj0rp52nHEky
-         7h9g==
+        h=sender:mime-version:user-agent:references:in-reply-to:date:cc:to
+         :from:subject:message-id;
+        bh=a2UVqfb3vKkwAoFb8LMnoJhfpNx/nbwzZdgyGR+A5vg=;
+        b=FWhiUMIMx3RH32BIjjWOkddfhQhn0Jxy/bsfzbVZ9AP3Zt8w4erdMqEsHTogkn1mkq
+         UmvTTmk1EZSj5Pi1XVEUGzUmwEHtoft5xOxyCuPKEiECzD8gAtS7Il+pc4hDU/zmAXi9
+         hL1Klo6IrPg6BQyi3al6a+xxDppjw8TpgiE4din2dtqRnh44KNOrxbc23MJlOToiBSRG
+         9NGxl0Kmi/SWD65hN46yt7wpa9qyF0kNOW4TA0Vh6Ouqz8o6ZBaRwy+KFc5ExD/C7DbP
+         4QcSlLfGkFc7yUc7qeY2T9EMIvtsfU1qmWR4BW5Gkv64MJELXw6thrCEGrQnY4818XTJ
+         mCcw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=FkJBduK7;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r10sor30163978qtn.47.2019.07.31.06.46.15
+       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
+Received: from shelob.surriel.com (shelob.surriel.com. [96.67.55.147])
+        by mx.google.com with ESMTPS id r131si22247775qke.339.2019.07.31.06.48.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 31 Jul 2019 06:46:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@lca.pw header.s=google header.b=FkJBduK7;
-       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:to:cc:subject:date:message-id;
-        bh=8f2ucm94N3RAHWXp2XYv1ymSM73yXUEwnSMo5qDl8Gc=;
-        b=FkJBduK7o2U9DkS56fiFYacXOe0s7mfPx9W0zVWXLGIoBYvxPS2C2Ogl6X1ZM5uZB4
-         cNBAvSNVe+z5s06SyzfhFcV2RMEo+4pQRXPG6a+ptBnkhXvLwFhmgz0gt+BJW3wJbihR
-         nQ+IC+gD8EKjLqqM8uUq0xBkQAcLq2ShOD+pLbe7omO5lVwVExK79k9jyXMHHP9ALfdG
-         HN5osGJO/3roRO/n8DH2DeHGHAjojwdQ4gDaHzxo6r6GRyDbZlbArnEjESad9OoMyJV3
-         prsq8zmDCb3fv9cBiBkmI//oNrGrN1yzBD8iF6WSFS37+kW8o3ZD2SB4jdrbHoccKKeQ
-         LE/A==
-X-Google-Smtp-Source: APXvYqwYN2nhY1spLQvC2zasTrz/bvKwBvV9enaVBBRDKUn7AFldOujCtq9CUvaY4BxZgE1L7GHd6A==
-X-Received: by 2002:ac8:2af8:: with SMTP id c53mr88215379qta.387.1564580775668;
-        Wed, 31 Jul 2019 06:46:15 -0700 (PDT)
-Received: from qcai.nay.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id a67sm31086281qkg.131.2019.07.31.06.46.14
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 06:46:15 -0700 (PDT)
-From: Qian Cai <cai@lca.pw>
-To: akpm@linux-foundation.org
-Cc: miles.chen@mediatek.com,
-	mhocko@suse.com,
-	hannes@cmpxchg.org,
-	vdavydov.dev@gmail.com,
-	cgroups@vger.kernel.org ,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Qian Cai <cai@lca.pw>
-Subject: [PATCH -next] mm/memcg: fix a -Wparentheses compilation warning
-Date: Wed, 31 Jul 2019 09:45:53 -0400
-Message-Id: <1564580753-17531-1-git-send-email-cai@lca.pw>
-X-Mailer: git-send-email 1.8.3.1
+        Wed, 31 Jul 2019 06:48:14 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) client-ip=96.67.55.147;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: best guess record for domain of riel@shelob.surriel.com designates 96.67.55.147 as permitted sender) smtp.mailfrom=riel@shelob.surriel.com
+Received: from imladris.surriel.com ([96.67.55.152])
+	by shelob.surriel.com with esmtpsa (TLSv1.2:ECDHE-RSA-AES256-GCM-SHA384:256)
+	(Exim 4.92)
+	(envelope-from <riel@shelob.surriel.com>)
+	id 1hsoxZ-0000KL-F1; Wed, 31 Jul 2019 09:48:05 -0400
+Message-ID: <c91e6104acaef118ae09e4b4b0c70232c4583293.camel@surriel.com>
+Subject: Re: [PATCH v3] sched/core: Don't use dying mm as active_mm of
+ kthreads
+From: Rik van Riel <riel@surriel.com>
+To: Waiman Long <longman@redhat.com>, Peter Zijlstra <peterz@infradead.org>,
+  Ingo Molnar <mingo@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Andrew Morton
+	 <akpm@linux-foundation.org>, Phil Auld <pauld@redhat.com>, Michal Hocko
+	 <mhocko@kernel.org>
+Date: Wed, 31 Jul 2019 09:48:04 -0400
+In-Reply-To: <b5a462b8-8ef6-6d2c-89aa-b5009c194000@redhat.com>
+References: <20190729210728.21634-1-longman@redhat.com>
+	 <ec9effc07a94b28ecf364de40dee183bcfb146fc.camel@surriel.com>
+	 <3e2ff4c9-c51f-8512-5051-5841131f4acb@redhat.com>
+	 <8021be4426fdafdce83517194112f43009fb9f6d.camel@surriel.com>
+	 <b5a462b8-8ef6-6d2c-89aa-b5009c194000@redhat.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-xAvz8PAt4EpYAA5Kq7uu"
+User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+MIME-Version: 1.0
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The linux-next commit ("mm/memcontrol.c: fix use after free in
-mem_cgroup_iter()") [1] introduced a compilation warning,
 
-mm/memcontrol.c:1160:17: warning: using the result of an assignment as a
-condition without parentheses [-Wparentheses]
-        } while (memcg = parent_mem_cgroup(memcg));
-                 ~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
-mm/memcontrol.c:1160:17: note: place parentheses around the assignment
-to silence this warning
-        } while (memcg = parent_mem_cgroup(memcg));
-                       ^
-                 (                               )
-mm/memcontrol.c:1160:17: note: use '==' to turn this assignment into an
-equality comparison
-        } while (memcg = parent_mem_cgroup(memcg));
-                       ^
-                       ==
+--=-xAvz8PAt4EpYAA5Kq7uu
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Fix it by adding a pair of parentheses.
+On Tue, 2019-07-30 at 17:01 -0400, Waiman Long wrote:
+> On 7/29/19 8:26 PM, Rik van Riel wrote:
+> > On Mon, 2019-07-29 at 17:42 -0400, Waiman Long wrote:
+> >=20
+> > > What I have found is that a long running process on a mostly idle
+> > > system
+> > > with many CPUs is likely to cycle through a lot of the CPUs
+> > > during
+> > > its
+> > > lifetime and leave behind its mm in the active_mm of those
+> > > CPUs.  My
+> > > 2-socket test system have 96 logical CPUs. After running the test
+> > > program for a minute or so, it leaves behind its mm in about half
+> > > of
+> > > the
+> > > CPUs with a mm_count of 45 after exit. So the dying mm will stay
+> > > until
+> > > all those 45 CPUs get new user tasks to run.
+> > OK. On what kernel are you seeing this?
+> >=20
+> > On current upstream, the code in native_flush_tlb_others()
+> > will send a TLB flush to every CPU in mm_cpumask() if page
+> > table pages have been freed.
+> >=20
+> > That should cause the lazy TLB CPUs to switch to init_mm
+> > when the exit->zap_page_range path gets to the point where
+> > it frees page tables.
+> >=20
+> I was using the latest upstream 5.3-rc2 kernel. It may be the case
+> that
+> the mm has been switched, but the mm_count field of the active_mm of
+> the
+> kthread is not being decremented until a user task runs on a CPU.
 
-[1] https://lore.kernel.org/linux-mm/20190730015729.4406-1-miles.chen@mediatek.com/
+Is that something we could fix from the TLB flushing
+code?
 
-Signed-off-by: Qian Cai <cai@lca.pw>
----
- mm/memcontrol.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+When switching to init_mm, drop the refcount on the
+lazy mm?
 
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 694b6f8776dc..4f66a8305ae0 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -1157,7 +1157,7 @@ static void invalidate_reclaim_iterators(struct mem_cgroup *dead_memcg)
- 	do {
- 		__invalidate_reclaim_iterators(memcg, dead_memcg);
- 		last = memcg;
--	} while (memcg = parent_mem_cgroup(memcg));
-+	} while ((memcg = parent_mem_cgroup(memcg)));
- 
- 	/*
- 	 * When cgruop1 non-hierarchy mode is used,
--- 
-1.8.3.1
+That way that overhead is not added to the context
+switching code.
+
+--=20
+All Rights Reversed.
+
+--=-xAvz8PAt4EpYAA5Kq7uu
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEEKR73pCCtJ5Xj3yADznnekoTE3oMFAl1BnBUACgkQznnekoTE
+3oP8LggAs4XburHZ+HTI3IJjkgfu6S82BUog14l4Iqg4Pk4/KMkf5dPrftjy8atc
+BcB98mXDlfQCjyPd3gj8JZVlxmpwcendnEKgh1ErkLh5cDDTUnhil7dSQjCVLCBi
+KRxakwewtyuK1MwCtcDM0fd1GhNJS/VWfGzDh5BxSLFbQSNlhGZyxR92xMMe9ra0
+xIaIzzSdYJ9B9Uno9ZlaJdZwenrS/zEpE4iet6MSFaf/yy0gU0Bk07/x2IYNwsOB
+0diPL3V6VWTPG7k0fjfiaBoDjSdBaogMAPWEO+0fG2g4KQMsxyPg1Kgfrayw2NW7
+RSzLXBmZNFvkqJZMnErK1bmn937QQg==
+=14CR
+-----END PGP SIGNATURE-----
+
+--=-xAvz8PAt4EpYAA5Kq7uu--
 
