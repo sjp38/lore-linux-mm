@@ -7,114 +7,114 @@ X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3FAC7C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 12:39:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E7C45C41514
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 12:41:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C8530206B8
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 12:39:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AD086206B8
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 12:41:26 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="QYLt5oLx"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C8530206B8
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="CV7jH3ve"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AD086206B8
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4A48C8E0003; Wed, 31 Jul 2019 08:39:39 -0400 (EDT)
+	id 407108E000B; Wed, 31 Jul 2019 08:41:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 454E48E0001; Wed, 31 Jul 2019 08:39:39 -0400 (EDT)
+	id 3B7A48E0001; Wed, 31 Jul 2019 08:41:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 31C768E0003; Wed, 31 Jul 2019 08:39:39 -0400 (EDT)
+	id 27F958E000B; Wed, 31 Jul 2019 08:41:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 100878E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:39:39 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id m25so61229576qtn.18
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 05:39:39 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 07FC88E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:41:26 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id x1so61541043qts.9
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 05:41:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=ntHuD78E1C49ZvRvAJ6XgDuP1G4iMkkai3jqPaZStVQ=;
-        b=qjFZLgRATqKXxtBkJ/hFQuQXqhervtd603A7cdPhrMc/9yhGldGQ1xfyU6t1yO+GXt
-         iNeH+lZ0kf3mqHxDjr6NDi+Qb/I/SEYq8+Sj+WDty57yKPQwzHzE4wcMLC6/1QzxdSyd
-         Vd16IvxzOlVEbcpPgSYnH7fqAKVIy4RXOLKh0fpRQWvLO3jIFtGCjCA9duCPPpfDtord
-         QvuOmjQhtp+rav6eT2JGElfJcAeAocPENYSlVv365qM7avuZ1Rwt/JBFdFHpFQtLLSpX
-         gpsYuYWpq3v4A7Eu/jYgGnM5gjPEtSQRmbDTm6zUnFSD5CeTSemlH8rwYaR/SV/vu401
-         phzg==
-X-Gm-Message-State: APjAAAX+ENWwKS050oy99QyE0jUkP41tht6QItJcR2g6NssLJ0TGUfXn
-	UKb0gNLIwOHaEm81fiDsjChJ9F5pNIdl5nlct7RbuAubCwHCYtgA9y2AKrU9Af3/C2F45oObndr
-	6rR1sDShCKm38p4u4QrcTR1jqdAk4tuxeSSyP4UUSS5sgONgWWFhyzA2r55+ZfpamBQ==
-X-Received: by 2002:aed:23ef:: with SMTP id k44mr82675638qtc.202.1564576778795;
-        Wed, 31 Jul 2019 05:39:38 -0700 (PDT)
-X-Received: by 2002:aed:23ef:: with SMTP id k44mr82675578qtc.202.1564576777818;
-        Wed, 31 Jul 2019 05:39:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564576777; cv=none;
+        bh=ssT+JujOxDwS6NEpfq2Ge7MRteKET9yZx/jW5aTaxrI=;
+        b=BNSneiRdLx56/YLKk7LuKXcpI+bl9b6bhXXu5iNXtJ7Qa2Ug4pBLPTZ6/qM0QC9OUG
+         G3N3nLvjID/+CWTcB2RLSgU/Ae6r0OnX5sdpCaRhUd12w2IibPmBHgeALZRNbrzuHfp3
+         dz8NxHxaghS5/gbFF9sc2rrypbmivKchh8jq+DY6oy6OZum+hoXBy9WP28TZttduKdAx
+         QWDTi/aZwWg4iefZWnrDN6v9kykIA2CUR6cNuhzXgIU31E2utYq5wXg5W4nnE+Rf8akn
+         XFS7TIFpQAtRzRKx6RUWDLLrgaqnT8u1wnqoIyp/4IH8MnZPt7LRLBvDhk64wp2zvaUk
+         AElQ==
+X-Gm-Message-State: APjAAAVY1cwWdvRYFqNoOyBevovngdathE6RCwLBf3T2umqJy61A3kBw
+	y//oYjus/+2u9t2ieRKFUqaZpkxV2KobpQZDcFUhyyn1IuwEBszl71u/WBwm/jFhEedJckKO4wI
+	lI8AjCI2UuWo9bZqd+MCc4XoKtov7cJ7azboDBWi9CShkGQl05E+8EYAUCeyvs3Ud0A==
+X-Received: by 2002:a37:c408:: with SMTP id d8mr64845796qki.18.1564576885826;
+        Wed, 31 Jul 2019 05:41:25 -0700 (PDT)
+X-Received: by 2002:a37:c408:: with SMTP id d8mr64845752qki.18.1564576885261;
+        Wed, 31 Jul 2019 05:41:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564576885; cv=none;
         d=google.com; s=arc-20160816;
-        b=ocB49Jtpgy7JeL44Uf40E+1xWqZmQHvmwcb0k5ZOXQV7Zie9vHlmMFaD+zxxO0FedZ
-         ptD7Df7x9BanJZoSWBuW18Sx2Vfn836MVSN9h5fxDL2sh8LqryAL2vUXOpUTpvWFSJgp
-         V52FkLxwxOtNm3C+KsBb64L6PPQSVB60/8RmduabKQHgajZUeFTIK/RHUJlrn002Pa+L
-         dQJdE4JKoWVAkptv4bac5pXbOxltNrhW//zFFzZTHxDhV76N3jslpZ/45p2VvFlKrxYp
-         kVQIyXtdoUXn3WhWNqgr0cq4VoLFvTZiNZ6Y0VBvm8n8eTSSvJZebfLijWIo+jhKrbip
-         0FiA==
+        b=rq6PNJAg83G0OvdCWNr8FCHnz75K+hjR+t0ukTkwGRRGQr3QG315OQS9LAQfMoeoQW
+         S8miRXUOhl4KRJbXw+OFE7Ha3OBkMOP9BRmxPWdRRe1PfV75raBoz2T7TZ/waKsdA/zU
+         rR8i3NDH7QLX15ndXH8XGkLDdwXWZFkjDhMsHKSutN0wQybZm2OGwe43BU/W5Lysmk4m
+         XYeFMlsT0cNTLOizM5/TlSWng939NGvkdqMOG7O/oxcA3CEiUNfq5vBgiH4OzaX9hA+9
+         M9ITzMq+DOb5jJ/DWFlj1xDmD0WNoh7p6f88JdcsyvUAdY1cK3i6aj/+/KSCeNnq6W8T
+         97jQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ntHuD78E1C49ZvRvAJ6XgDuP1G4iMkkai3jqPaZStVQ=;
-        b=GzvqgLla7xmYzw3zsBU7EP0iCb7C7+9x6f0NAm4r5a27X8ew3v6JjtZ5OJKmu9iC31
-         4S4gV6/3p/Cl1J/TAzeX4tyKYaCiHRiIMglO8Z3x1NIzLeDTYeXwFQnJbBFeZEv2L2YK
-         WtPIeSZS0vTRYYQRX2tzgrBq4kyyuN4uSXaqJMb0A+YRrDdJceCQjOy6Jf3fvfGalIia
-         4iO/oTL6yZER1jOmBp7uRnZMtZt7u8DhOQHYkE+aaxiynRK2apsUlLVbt5dHPS++23NG
-         EGU7ULlpbsVjbmjeS3LC8RigMjLjpq/UvkbC3LBaC8zehssx6Rlxs7MZgL+TayDFG/xd
-         m97Q==
+        bh=ssT+JujOxDwS6NEpfq2Ge7MRteKET9yZx/jW5aTaxrI=;
+        b=o954B1NWt6eVtLwR51x2n+bLepP1l66iQA3oADBi3JYkemXLqFEehXz0upx04bFge2
+         6TCOIb08QAor5btGaVw9LNDflzBK7NBqgNWL9l6cYO5i+Pv4j9bFfGjKb1b1zoQcQ3yL
+         vvH91X3lxBCn+wSPvZl+S5uiHC2jdtoSdbDc6q4234STf4XQkkVNaqXYCsWzuedkup1M
+         7fUkuOLC+jHZUEsYs7z6M5kSogmbU2+qZ/nAnM0dh8Ck/gYVryO6vnT+jiDdUkBkjZEs
+         Az30rsqVfIkYKkHPbSeowk2INrjWm0OXKEdeG6Ny0vGFq+6HY8HwzWk0BpQDLIuTYy8s
+         on6w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=QYLt5oLx;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=CV7jH3ve;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w8sor37309118qkf.56.2019.07.31.05.39.37
+        by mx.google.com with SMTPS id v12sor58069440qvj.22.2019.07.31.05.41.25
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Jul 2019 05:39:37 -0700 (PDT)
+        Wed, 31 Jul 2019 05:41:25 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=QYLt5oLx;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=CV7jH3ve;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=ziepe.ca; s=google;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=ntHuD78E1C49ZvRvAJ6XgDuP1G4iMkkai3jqPaZStVQ=;
-        b=QYLt5oLxRfkO8iVQlcM8CFDLc+4aB1oq1G5gPzD6FWEByB19Sd3Eq075eKqH5NmW7r
-         yXUDMxL5fze2A5G71ENrhWbScZuetvwRZCvr7X56doCnXI9uRYUnRWTYeIM3gRLiUeyi
-         /eh7SRWLFZtd2zOIxcaSfePSYA3z8PqF8WyX2YtQr70udr1hR6V+9yQyJWWOm0FhCYn3
-         RrLimA3hfR0j6oFPuGpOrXLDhZfmxhVa2mCfh5ZGJrV7tIaubv2+pcRGOH8HyUhlMu/X
-         gRA+wBoXedUidty3leb/SYk1yPOT9L3tkNi4HVKQb4piuEQsqs8j7Li0axrda17mfn/2
-         BcXA==
-X-Google-Smtp-Source: APXvYqx/s09x34m2m60hGEG8oq9rNNiSt1/4j5qtIhV1B9Qgz5W3aPna7RR3oLU+V41Ml5DJ6UJ2Ng==
-X-Received: by 2002:a05:620a:1648:: with SMTP id c8mr79693913qko.106.1564576777216;
-        Wed, 31 Jul 2019 05:39:37 -0700 (PDT)
+        bh=ssT+JujOxDwS6NEpfq2Ge7MRteKET9yZx/jW5aTaxrI=;
+        b=CV7jH3veMykUxgu+H5gGaJEiM7dHfRA3AWXtjSYfzu48EjQ0oDP+S8cs1UxQbidp/W
+         MqKLYekmIDfV2RBQHTtrwRlnUCc5krtCPt3AASFeznsZkr+ipQT/XuC+Xn6vABBkKIFP
+         enujxa2gQmDcqqBPQMXqNzw5a+lpfG5eB2A37iznAHNxxA9jQHhaTnP+cwJR1UO9lidY
+         SP65bUUa5WqhqoZCyAGPCKh7SUkgLjT8qHxGXbgc7GA59ln/8F06imsHF08LgdqgZvE2
+         /+AQjQMxZnEgE6iMjDFEfdphXGCtwyg1L1ebJpvApgpgereLtbGxAEtwqnD5666T6XAv
+         R7qA==
+X-Google-Smtp-Source: APXvYqwbN0Zcgw/rqJW/uUJyj5pJV/gEvjkDyEf6dYni+Q8BnL4R5HKzXod/DVe6ENOwDm8+CZT9Rw==
+X-Received: by 2002:a0c:acab:: with SMTP id m40mr88924921qvc.52.1564576884920;
+        Wed, 31 Jul 2019 05:41:24 -0700 (PDT)
 Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id m12sm27127419qkk.123.2019.07.31.05.39.36
+        by smtp.gmail.com with ESMTPSA id u4sm29623865qkb.16.2019.07.31.05.41.24
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 31 Jul 2019 05:39:36 -0700 (PDT)
+        Wed, 31 Jul 2019 05:41:24 -0700 (PDT)
 Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
 	(envelope-from <jgg@ziepe.ca>)
-	id 1hsntH-0006OW-WA; Wed, 31 Jul 2019 09:39:36 -0300
-Date: Wed, 31 Jul 2019 09:39:35 -0300
+	id 1hsnv2-0006PN-6Q; Wed, 31 Jul 2019 09:41:24 -0300
+Date: Wed, 31 Jul 2019 09:41:24 -0300
 From: Jason Gunthorpe <jgg@ziepe.ca>
 To: Jason Wang <jasowang@redhat.com>
 Cc: mst@redhat.com, kvm@vger.kernel.org,
 	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
 	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
- with worker
-Message-ID: <20190731123935.GC3946@ziepe.ca>
+Subject: Re: [PATCH V2 4/9] vhost: reset invalidate_count in
+ vhost_set_vring_num_addr()
+Message-ID: <20190731124124.GD3946@ziepe.ca>
 References: <20190731084655.7024-1-jasowang@redhat.com>
- <20190731084655.7024-8-jasowang@redhat.com>
+ <20190731084655.7024-5-jasowang@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190731084655.7024-8-jasowang@redhat.com>
+In-Reply-To: <20190731084655.7024-5-jasowang@redhat.com>
 User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -122,165 +122,35 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 31, 2019 at 04:46:53AM -0400, Jason Wang wrote:
-> We used to use RCU to synchronize MMU notifier with worker. This leads
-> calling synchronize_rcu() in invalidate_range_start(). But on a busy
-> system, there would be many factors that may slow down the
-> synchronize_rcu() which makes it unsuitable to be called in MMU
-> notifier.
+On Wed, Jul 31, 2019 at 04:46:50AM -0400, Jason Wang wrote:
+> The vhost_set_vring_num_addr() could be called in the middle of
+> invalidate_range_start() and invalidate_range_end(). If we don't reset
+> invalidate_count after the un-registering of MMU notifier, the
+> invalidate_cont will run out of sync (e.g never reach zero). This will
+> in fact disable the fast accessor path. Fixing by reset the count to
+> zero.
 > 
-> A solution is SRCU but its overhead is obvious with the expensive full
-> memory barrier. Another choice is to use seqlock, but it doesn't
-> provide a synchronization method between readers and writers. The last
-> choice is to use vq mutex, but it need to deal with the worst case
-> that MMU notifier must be blocked and wait for the finish of swap in.
-> 
-> So this patch switches use a counter to track whether or not the map
-> was used. The counter was increased when vq try to start or finish
-> uses the map. This means, when it was even, we're sure there's no
-> readers and MMU notifier is synchronized. When it was odd, it means
-> there's a reader we need to wait it to be even again then we are
-> synchronized. 
-
-You just described a seqlock.
-
-We've been talking about providing this as some core service from mmu
-notifiers because nearly every use of this API needs it.
-
-IMHO this gets the whole thing backwards, the common pattern is to
-protect the 'shadow pte' data with a seqlock (usually open coded),
-such that the mmu notififer side has the write side of that lock and
-the read side is consumed by the thread accessing or updating the SPTE.
-
-
 > Reported-by: Michael S. Tsirkin <mst@redhat.com>
+
+Did Michael report this as well?
+
 > Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual address")
 > Signed-off-by: Jason Wang <jasowang@redhat.com>
->  drivers/vhost/vhost.c | 145 ++++++++++++++++++++++++++----------------
->  drivers/vhost/vhost.h |   7 +-
->  2 files changed, 94 insertions(+), 58 deletions(-)
+>  drivers/vhost/vhost.c | 4 ++++
+>  1 file changed, 4 insertions(+)
 > 
 > diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
-> index cfc11f9ed9c9..db2c81cb1e90 100644
+> index 2a3154976277..2a7217c33668 100644
 > +++ b/drivers/vhost/vhost.c
-> @@ -324,17 +324,16 @@ static void vhost_uninit_vq_maps(struct vhost_virtqueue *vq)
->  
->  	spin_lock(&vq->mmu_lock);
->  	for (i = 0; i < VHOST_NUM_ADDRS; i++) {
-> -		map[i] = rcu_dereference_protected(vq->maps[i],
-> -				  lockdep_is_held(&vq->mmu_lock));
-> +		map[i] = vq->maps[i];
->  		if (map[i]) {
->  			vhost_set_map_dirty(vq, map[i], i);
-> -			rcu_assign_pointer(vq->maps[i], NULL);
-> +			vq->maps[i] = NULL;
->  		}
+> @@ -2073,6 +2073,10 @@ static long vhost_vring_set_num_addr(struct vhost_dev *d,
+>  		d->has_notifier = false;
 >  	}
->  	spin_unlock(&vq->mmu_lock);
 >  
-> -	/* No need for synchronize_rcu() or kfree_rcu() since we are
-> -	 * serialized with memory accessors (e.g vq mutex held).
-> +	/* No need for synchronization since we are serialized with
-> +	 * memory accessors (e.g vq mutex held).
->  	 */
+> +	/* reset invalidate_count in case we are in the middle of
+> +	 * invalidate_start() and invalidate_end().
+> +	 */
+> +	vq->invalidate_count = 0;
+>  	vhost_uninit_vq_maps(vq);
+>  #endif
 >  
->  	for (i = 0; i < VHOST_NUM_ADDRS; i++)
-> @@ -362,6 +361,44 @@ static bool vhost_map_range_overlap(struct vhost_uaddr *uaddr,
->  	return !(end < uaddr->uaddr || start > uaddr->uaddr - 1 + uaddr->size);
->  }
->  
-> +static void inline vhost_vq_access_map_begin(struct vhost_virtqueue *vq)
-> +{
-> +	int ref = READ_ONCE(vq->ref);
-
-Is a lock/single threaded supposed to be held for this?
-
-> +
-> +	smp_store_release(&vq->ref, ref + 1);
-> +	/* Make sure ref counter is visible before accessing the map */
-> +	smp_load_acquire(&vq->ref);
-
-release/acquire semantics are intended to protect blocks of related
-data, so reading something with acquire and throwing away the result
-is nonsense.
-
-> +}
-> +
-> +static void inline vhost_vq_access_map_end(struct vhost_virtqueue *vq)
-> +{
-> +	int ref = READ_ONCE(vq->ref);
-
-If the write to vq->ref is not locked this algorithm won't work, if it
-is locked the READ_ONCE is not needed.
-
-> +	/* Make sure vq access is done before increasing ref counter */
-> +	smp_store_release(&vq->ref, ref + 1);
-> +}
-> +
-> +static void inline vhost_vq_sync_access(struct vhost_virtqueue *vq)
-> +{
-> +	int ref;
-> +
-> +	/* Make sure map change was done before checking ref counter */
-> +	smp_mb();
-
-This is probably smp_rmb after reading ref, and if you are setting ref
-with smp_store_release then this should be smp_load_acquire() without
-an explicit mb.
-
-> +	ref = READ_ONCE(vq->ref);
-> +	if (ref & 0x1) {
-> +		/* When ref change, we are sure no reader can see
-> +		 * previous map */
-> +		while (READ_ONCE(vq->ref) == ref) {
-> +			set_current_state(TASK_RUNNING);
-> +			schedule();
-> +		}
-> +	}
-
-This is basically read_seqcount_begin()' with a schedule instead of
-cpu_relax
-
-
-> +	/* Make sure ref counter was checked before any other
-> +	 * operations that was dene on map. */
-> +	smp_mb();
-
-should be in a smp_load_acquire()
-
-> +}
-> +
->  static void vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
->  				      int index,
->  				      unsigned long start,
-> @@ -376,16 +413,15 @@ static void vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
->  	spin_lock(&vq->mmu_lock);
->  	++vq->invalidate_count;
->  
-> -	map = rcu_dereference_protected(vq->maps[index],
-> -					lockdep_is_held(&vq->mmu_lock));
-> +	map = vq->maps[index];
->  	if (map) {
->  		vhost_set_map_dirty(vq, map, index);
-> -		rcu_assign_pointer(vq->maps[index], NULL);
-> +		vq->maps[index] = NULL;
->  	}
->  	spin_unlock(&vq->mmu_lock);
->  
->  	if (map) {
-> -		synchronize_rcu();
-> +		vhost_vq_sync_access(vq);
-
-What prevents racing with vhost_vq_access_map_end here?
-
->  		vhost_map_unprefetch(map);
->  	}
->  }
-
-Overall I don't like it. 
-
-We are trying to get rid of these botique mmu notifier patterns in
-drivers. 
-
-Jason
 
