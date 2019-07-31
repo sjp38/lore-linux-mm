@@ -2,179 +2,230 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C0F1C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 09:27:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BEEB5C433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 09:39:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D291120657
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 09:27:08 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=duncanthrax.net header.i=@duncanthrax.net header.b="VWmBZSuU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D291120657
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=stackframe.org
+	by mail.kernel.org (Postfix) with ESMTP id 72BB2206A3
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 09:39:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 72BB2206A3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6BD388E0003; Wed, 31 Jul 2019 05:27:08 -0400 (EDT)
+	id EF1758E0003; Wed, 31 Jul 2019 05:39:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 66DFC8E0001; Wed, 31 Jul 2019 05:27:08 -0400 (EDT)
+	id EA2148E0001; Wed, 31 Jul 2019 05:39:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 50F468E0003; Wed, 31 Jul 2019 05:27:08 -0400 (EDT)
+	id D69048E0003; Wed, 31 Jul 2019 05:39:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 015648E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 05:27:08 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id s18so33417152wru.16
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 02:27:07 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B38A48E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 05:39:23 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id s22so60882601qtb.22
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 02:39:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=tys11WF7FiBbva0mPM06RvxVHoTJLCHaJFi1kgHKOlY=;
-        b=YWtoTLiTJ5ibpeRuM0OZZc/91IcH1OGQmGCKUf8Dvg18ERx4VTgiRon8ynhNluabUM
-         jaJCuqgegtu2D0FByp/G3E+3XvtPynF5gJrW+UNR2aqsMc18lyZOsb0kKSxMQst58Yi7
-         qBDTbbJhu3lK/CiywM4G7C8krExMFJMLWh2oCWcIRaKnlQ0Gy1tW0IydAn6CfYuZidde
-         xb1TWHy9zIl9Bf27tCXDG3lNPiZV8Zt/v4qdLxhJbajy364IOMrG3NhQZL42SCGrMlRj
-         oK6zfxP4pB7wOhqQ3cfqE5PVGVjx/BzMXhpBYdy/bt9yl9lwDJde88L5nzBxc+jjkNzK
-         k/CQ==
-X-Gm-Message-State: APjAAAU1sgBLrO6ZAbH2F5gZqrlFm+20y/A3vRT5ogwbBs+he+8r9AWA
-	9MRqzlw/Zu3Z2DV6atmivE1XV+rM1q3oM87p9j74v3pivytRs4EJ2iURSQrvasxwmf1qJi58grU
-	mDSA7B6olh91+cRKNBZMw81PhCssoOwDj8zfkPLjgLVWdjLCwXIAQXeOCs7cZ1ss=
-X-Received: by 2002:adf:fa49:: with SMTP id y9mr5041702wrr.6.1564565227562;
-        Wed, 31 Jul 2019 02:27:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzbQPTlOKpo9pfXh2lP7HiIkLx3qyfEOijuuqmIudGZAIIYMiBml1vXhBjIgf9xq+fOee7W
-X-Received: by 2002:adf:fa49:: with SMTP id y9mr5041566wrr.6.1564565226515;
-        Wed, 31 Jul 2019 02:27:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564565226; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=2hZFfhjwWQ79elgtayDS9ndSc9ZrktgyA5IbLdSSeVE=;
+        b=aE8x94Q7YL7l1HcvyLZJKHWalqgcwU2j8HzFTu6Do1GNqnHuYwYdk9/rPBRXWi2ngL
+         v1l0uu8AvoX3iVM+uf6NGXUu1ACpWyafOOq7D6PkxCCFnNpP43zQXdD5nxB1XHyZzIDr
+         QWUQJk+ExIu9/8mCIdhypAuF2q2K0n5I3SICyyrUDmpjo2gEVw2aT8/Yzr5doZN5WQhU
+         4dYYgWoEu5c8oSx8BhYtO0jXZ2SNW37iH/2kmQm0SjFeSIxYULcppA05WiuKtRkNZcOZ
+         ZURa2nfWyKK0v8vn5Vs69rnXnbi9FDfL9FjO4dCRsZAKl2ejSSC2MuFuiH4WoOSB+heE
+         lmJg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUQrXnqDKm2tWNW49lkPyorphC1leGGAxlgMEziRW6VFGlf2VLV
+	r5ZiylPik4/70EGXy0bEDCk2svDBJuaWX3kTI1ArbUJstrl2d1/jWt+oj3Bs6fjlEvQgSwDaVMC
+	QfiSgnavg6FuFQNyeqICbUg4rn7ry6IDym2bhm97751npsRMBuVHe0wlhMAo8f4Ip6Q==
+X-Received: by 2002:a05:620a:1006:: with SMTP id z6mr46947368qkj.312.1564565963461;
+        Wed, 31 Jul 2019 02:39:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw1GMNdXdCyqyJbX2chcL1qhfJjmUvnsuUWAsAdYehZFmM41m47hmcA6Ik367XN1YxEmkG6
+X-Received: by 2002:a05:620a:1006:: with SMTP id z6mr46947338qkj.312.1564565962825;
+        Wed, 31 Jul 2019 02:39:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564565962; cv=none;
         d=google.com; s=arc-20160816;
-        b=Yt6PueerR11lcQmlBpTTKtrvUMAayRbXq1TtkX5C2oOXsplCkXmWch8cZUBsWE6x5E
-         7WNO0BCblhs0EU8KgdjLQh7csDWe6rnAIxP4pJwZdZ6kaM4E+vFFjLRYwUNI9nuNth6Z
-         irKY9zJY7G0/F8CVU74oynyGGU+JPDIPmPwqS6/RX2mssQJ+SC9NJY8V6IuNN9KoupyL
-         mkJHVBSr5s+fS0Vcdtlx3P51i2cSaTtsRH9NR0Kvra3LkUw5TsafXGlIVHXWaeWqFApA
-         xk1GEvdUzKf5yaTBVxoo+bZnMwHQ9qdtvK7KjNoblZ2pzeeWYMEkWLH1qAOfl252yDvq
-         TKPw==
+        b=EybGQvOb7xs0WHXaSkSuz6fwMXUgPLHuFf5ZtqB1csQporWHjje0DD+ECbOT68j2p/
+         ZlqKnkGzJnFcnAfqFwJqQqTjCBn2mdVCIWAAxAH467BDdQwyzVSfFgi+mLFfJc1YPlQl
+         CqO97kGwf144dp8FHrdHpqTuGx1bgBQgbdDZlIeUjkzLAL3xvNvp2I4d0iKD+DDtPQ1y
+         LNfVBi7Cf/ITEgXbzYgzwZAdlLnlnXYZlinKBAH8Tz94JOBVGoyuFNVUaHCqalVYjXdo
+         jV9yuDkt0N35btaMupRcrOj01EsY1alBQzfDXbY/Si6yPj4bj1z8I+UVcGzQS4sW0/2j
+         nWUg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=tys11WF7FiBbva0mPM06RvxVHoTJLCHaJFi1kgHKOlY=;
-        b=jk9UZsg2xZIi9zAUNlrAlnGuuVL+81ZlcSFriNozXfscswlqJvclitH/YvWURPSrdm
-         Rx7tU+2hk2+6t3kLFBa2wletUTerLRiyKIcYF00OV5Z1fkNt8OiNacVz2AMngKFfjuwY
-         e0ApFIhihdnSxHjQHA90RfiImiZ1V8l3S/+VfErWwadAsqZgM5Ogya9Mm24HzV76BDh0
-         QavuouglOnoFc3UPjIsl/vvmz5fvUuzxkSjpgjCkpFX3m/t8eaGNfwOtVRJOF1fVSbUn
-         jwlGt57UxJKtLPqmrikbnx6dYGx0B6SpEtXhJURN+lgQfdEILUMNWK8O96mbJ6c0NAxv
-         i51g==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=2hZFfhjwWQ79elgtayDS9ndSc9ZrktgyA5IbLdSSeVE=;
+        b=JtK+p+IGUfGBvuF7BH7nN09f8jM46p5/LcQCUaSlR8jE8pMsNXvRm/rcuPQBddj0Tc
+         efQ8CwCGTlSTeLFjZh17s6aInzCrqg3ppdjRGKOiT5WHntGZzxGf9TWVUxQ/RvE3ojp2
+         KkC6WKvOaz0CJ/zA8L/qgaja3E5moBf6NrvTmVPH11t/pagWDIi6b004vxUMSAswl+8C
+         oN0C5/h/KqRBA4xAcwMJ4Qu75kxG1C+b9xFicN9GpW8Q2E3GzOpeYsAHNAhtM+ibFtjd
+         CYm/9H4YR3ForEybjSVmrUq4kY558ProwxG7Uhj2gvjHtmyxZdrVgzfkp5HZrVGBV6/q
+         iXzg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@duncanthrax.net header.s=dkim header.b=VWmBZSuU;
-       spf=neutral (google.com: 2001:470:70c5:1111::170 is neither permitted nor denied by best guess record for domain of svens@stackframe.org) smtp.mailfrom=svens@stackframe.org
-Received: from smtp.duncanthrax.net (smtp.duncanthrax.net. [2001:470:70c5:1111::170])
-        by mx.google.com with ESMTPS id n16si63177321wrr.443.2019.07.31.02.27.06
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id p126si21058280qkf.349.2019.07.31.02.39.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 02:27:06 -0700 (PDT)
-Received-SPF: neutral (google.com: 2001:470:70c5:1111::170 is neither permitted nor denied by best guess record for domain of svens@stackframe.org) client-ip=2001:470:70c5:1111::170;
+        Wed, 31 Jul 2019 02:39:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@duncanthrax.net header.s=dkim header.b=VWmBZSuU;
-       spf=neutral (google.com: 2001:470:70c5:1111::170 is neither permitted nor denied by best guess record for domain of svens@stackframe.org) smtp.mailfrom=svens@stackframe.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=duncanthrax.net; s=dkim; h=In-Reply-To:Content-Type:MIME-Version:References
-	:Message-ID:Subject:Cc:To:From:Date;
-	bh=tys11WF7FiBbva0mPM06RvxVHoTJLCHaJFi1kgHKOlY=; b=VWmBZSuU83JjDnf9gMTaxrmzwn
-	L9+fc/xpWeDeXZSEI/yzPMyWYCcv0q+KeV8O2qeIlc0spZPwS8zCive5J22gcI0xvRa6BgxYG0eT8
-	ty5Kg3Pq+IeY2sPwZwChlunbSVDEXqnQBnphMnW8RDTnsCCyKFs/eIxGSi6de0U8qTQw=;
-Received: from frobwit.duncanthrax.net ([89.31.1.178] helo=t470p.stackframe.org)
-	by smtp.eurescom.eu with esmtpsa (TLS1.2:ECDHE_RSA_AES_256_GCM_SHA384:256)
-	(Exim 4.86_2)
-	(envelope-from <svens@stackframe.org>)
-	id 1hsksy-0002wy-IF; Wed, 31 Jul 2019 11:27:04 +0200
-Date: Wed, 31 Jul 2019 11:27:03 +0200
-From: Sven Schnelle <svens@stackframe.org>
-To: Steven Price <steven.price@arm.com>
-Cc: Anshuman Khandual <anshuman.khandual@arm.com>, linux-mm@kvack.org,
-	Helge Deller <deller@gmx.de>, Mark Rutland <Mark.Rutland@arm.com>,
-	x86@kernel.org, Arnd Bergmann <arnd@arndb.de>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	linux-kernel@vger.kernel.org,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
-	Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
-	James Morse <james.morse@arm.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Will Deacon <will@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-arm-kernel@lists.infradead.org,
-	"Liang, Kan" <kan.liang@linux.intel.com>
-Subject: Re: [PATCH v9 00/21] Generic page walk and ptdump
-Message-ID: <20190731092703.GA31316@t470p.stackframe.org>
-References: <20190722154210.42799-1-steven.price@arm.com>
- <794fb469-00c8-af10-92a8-cb7c0c83378b@arm.com>
- <270ce719-49f9-7c61-8b25-bc9548a2f478@arm.com>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id BAFEC30917AC;
+	Wed, 31 Jul 2019 09:39:21 +0000 (UTC)
+Received: from [10.36.117.32] (ovpn-117-32.ams2.redhat.com [10.36.117.32])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 5E8825D9C5;
+	Wed, 31 Jul 2019 09:39:19 +0000 (UTC)
+Subject: Re: [PATCH v2 0/5] Allocate memmap from hotadded memory
+To: Rashmica Gupta <rashmica.g@gmail.com>, Oscar Salvador <osalvador@suse.de>
+Cc: akpm@linux-foundation.org, mhocko@suse.com, dan.j.williams@intel.com,
+ pasha.tatashin@soleen.com, Jonathan.Cameron@huawei.com,
+ anshuman.khandual@arm.com, vbabka@suse.cz, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+References: <20190625075227.15193-1-osalvador@suse.de>
+ <2ebfbd36-11bd-9576-e373-2964c458185b@redhat.com>
+ <20190626080249.GA30863@linux>
+ <2750c11a-524d-b248-060c-49e6b3eb8975@redhat.com>
+ <20190626081516.GC30863@linux>
+ <887b902e-063d-a857-d472-f6f69d954378@redhat.com>
+ <9143f64391d11aa0f1988e78be9de7ff56e4b30b.camel@gmail.com>
+ <0cd2c142-66ba-5b6d-bc9d-fe68c1c65c77@redhat.com>
+ <b7de7d9d84e9dd47358a254d36f6a24dd48da963.camel@gmail.com>
+ <b3fd1177-45ef-fd9e-78c8-d05138c647da@redhat.com>
+ <7c49e493510ce04371d8d6cd6c436c347b1f8469.camel@gmail.com>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <5454a6b8-4abc-0922-63a4-a7c0e9d44fcf@redhat.com>
+Date: Wed, 31 Jul 2019 11:39:18 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <270ce719-49f9-7c61-8b25-bc9548a2f478@arm.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <7c49e493510ce04371d8d6cd6c436c347b1f8469.camel@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.41]); Wed, 31 Jul 2019 09:39:22 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Steven,
-
-On Mon, Jul 29, 2019 at 12:32:25PM +0100, Steven Price wrote:
+On 31.07.19 04:21, Rashmica Gupta wrote:
+> On Mon, 2019-07-29 at 10:06 +0200, David Hildenbrand wrote:
+>>>> Of course, other interfaces might make sense.
+>>>>
+>>>> You can then start using these memory blocks and hinder them from
+>>>> getting onlined (as a safety net) via memory notifiers.
+>>>>
+>>>> That would at least avoid you having to call
+>>>> add_memory/remove_memory/offline_pages/device_online/modifying
+>>>> memblock
+>>>> states manually.
+>>>
+>>> I see what you're saying and that definitely sounds safer.
+>>>
+>>> We would still need to call remove_memory and add_memory from
+>>> memtrace
+>>> as
+>>> just offlining memory doesn't remove it from the linear page tables
+>>> (if 
+>>> it's still in the page tables then hardware can prefetch it and if
+>>> hardware tracing is using it then the box checkstops).
+>>
+>> That prefetching part is interesting (and nasty as well). If we could
+>> at
+>> least get rid of the manual onlining/offlining, I would be able to
+>> sleep
+>> better at night ;) One step at a time.
+>>
 > 
-> parisc is more interesting and I'm not sure if this is necessarily
-> correct. I originally proposed a patch with the line "For parisc, we
-> don't support large pages, so add stubs returning 0" which got Acked by
-> Helge Deller. However going back to look at that again I see there was a
-> follow up thread[2] which possibly suggests I was wrong?
+> What are your thoughts on adding remove to state_store in
+> drivers/base/memory.c? And an accompanying add? So then userspace could
+> do "echo remove > memory34/state"? 
 
-I just started a week ago implementing ptdump for PA-RISC. Didn't notice that
-you're working on making it generic, which is nice. I'll adjust my code
-to use the infrastructure you're currently developing.
+I consider such an interface dangerous (removing random memory you don't
+own, especially in the context of Oscars work some blocks would suddenly
+not be removable again) and only of limited used. The requirement of
+memtrace is really special, and it only works somewhat reliably with
+boot memory.
 
-> Can anyone shed some light on whether parisc does support leaf entries
-> of the page table tree at a higher than the normal depth?
-> 
-> [1] https://lkml.org/lkml/2019/2/27/572
-> [2] https://lkml.org/lkml/2019/3/5/610
+FWIW, we do have a "probe" interface on some architectures but decided
+that a "remove" interface belongs into a debug/test kernel module. The
+memory block device API is already messed up enough (e.g., "removable"
+property which doesn't indicate at all if memory can be removed, only if
+it could be offlined) - we decided to keep changes at a minimum for now
+- rather clean up than add new stuff.
 
-My understanding is that PA-RISC only has leaf entries on PTE level.
+> Then most of the memtrace code could be moved to a userspace tool. The
+> only bit that we would need to keep in the kernel is setting up debugfs
+> files in memtrace_init_debugfs.
 
-> The intention is that the page table walker would be available for all
-> architectures so that it can be used in any generic code - PTDUMP simply
-> seemed like a good place to start.
-> 
-> > Now that pmd_leaf() and pud_leaf() are getting used in walk_page_range() these
-> > functions need to be defined on all arch irrespective if they use PTDUMP or not
-> > or otherwise just define it for archs which need them now for sure i.e x86 and
-> > arm64 (which are moving to new generic PTDUMP framework). Other archs can
-> > implement these later.
+The nice thing is, with remove_memory() you will now get an error in
+case all memory blocks are not offline yet. So it only boils down to
+calling add_memory()/remove_memory() without even checking the state of
+the blocks. (only nids have to be handled manually correctly)
 
-I'll take care of the PA-RISC part - for 32 bit your generic code works, for 64Bit
-i need to learn a bit more about the following hack:
+-- 
 
-arch/parisc/include/asm/pgalloc.h:15
-/* Allocate the top level pgd (page directory)
- *
- * Here (for 64 bit kernels) we implement a Hybrid L2/L3 scheme: we
- * allocate the first pmd adjacent to the pgd.  This means that we can
- * subtract a constant offset to get to it.  The pmd and pgd sizes are
- * arranged so that a single pmd covers 4GB (giving a full 64-bit
- * process access to 8TB) so our lookups are effectively L2 for the
- * first 4GB of the kernel (i.e. for all ILP32 processes and all the
- * kernel for machines with under 4GB of memory)
- */
+Thanks,
 
-I see that your change clear P?D entries when p?d_bad() returns true, which - i think -
-would be the case with the PA-RISC implementation.
-
-Regards
-Sven
+David / dhildenb
 
