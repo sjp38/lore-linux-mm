@@ -2,109 +2,102 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5A6FCC32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 14:15:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B7A6DC32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 14:17:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1DA71206A3
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 14:15:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1DA71206A3
+	by mail.kernel.org (Postfix) with ESMTP id 7E334206B8
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 14:17:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E334206B8
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BFD318E0005; Wed, 31 Jul 2019 10:15:47 -0400 (EDT)
+	id 2117C8E0005; Wed, 31 Jul 2019 10:17:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BAE068E0001; Wed, 31 Jul 2019 10:15:47 -0400 (EDT)
+	id 1C1E38E0001; Wed, 31 Jul 2019 10:17:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A9CA88E0005; Wed, 31 Jul 2019 10:15:47 -0400 (EDT)
+	id 0D8BF8E0005; Wed, 31 Jul 2019 10:17:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 74C928E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 10:15:47 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id o13so42518226edt.4
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 07:15:47 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id B2BB58E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 10:17:06 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id f19so42514174edv.16
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 07:17:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=IbdijOvBahuK4NE8cFNp9Rx7G9sham5GMp6tNhW4N+Y=;
-        b=JWLPOZhMnCNBCkrFebmvfYZG6iJSzt3S2tL4d0hn2OFbsSUMb2FxGHEBWnLnJB6TOg
-         gKdnP9fylCcEaRUECCQQhopgW4kJLA8m7q7kHYbc7f78ovZKzJhUSN58dIbJZGWr+IG3
-         af+l/LCLWmv1tdvH4H94N3Mm7/KvO/+xl9L9jLM50nlsRL2h+xY8xxWxOQ1in/rT8O6D
-         li8dP6+4bjpXKtGI7ZrMa4wD6d5wEujgGsZ+xF5G6CIdyrKFjxXtxSw81r0N30RyUxcd
-         aGAq9KtZCXZncIIdY2kjdPhr+E4Aoswuq98DtpUIL08PjSXCBYJT3ZxlqorXsKvVomMp
-         yOFw==
+        bh=lv2C26mM+/YHifXZ7gjVeOUQap9HrlBtkrYBA8q5Ggk=;
+        b=UPkQSFcbqBl3435x0znpYM+Uk3wUFG5Igd8uhE9Cf4m6/OChlH6ih4NCMz6dvwZv2O
+         lKp7F2O/sK8vFlZAzspXwpHhpoZyrTXjNwNEc8XhHfvbwOlaS0RiinW3HmoZCy9TrvHG
+         9KX2llIHN+NJx7sWMabcTFo/1xvZOMVwanWTHqoeiQ0xqo/zeASEqiyXByF/U94kwwE7
+         2ojwcBjcDmuEtu1x2JowUWdp2w6Q176Vb6jkFVFcE/ilK/A7XRMnsCOJ/aCVLgrPX813
+         BUAjLdyaftyBMmLb3oaAJHgDr3VPhHjdvqtUyVfWVd+nb8u+Yv2w5nAz5vrcBQ0nigdZ
+         phCg==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUQsOvaIeLnhf5x8LOzOI9pxctAwG+zggqKJenqBpB6zuP2+Pdb
-	jvlJvb77Ungxdzzxz/JmSxDGcM83ES9pzWiBJGsvBVKSd+2FrXrOXA2XFZOfsdX1k2Z7hpxjkZb
-	QOko/zyj2383XcY+Z/8py7+IN5A8eOJ3QwwaFOXp2bBx4jqH10bNKhtE/o2yKYfU=
-X-Received: by 2002:aa7:d28a:: with SMTP id w10mr107246029edq.251.1564582547061;
-        Wed, 31 Jul 2019 07:15:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzkwnfUx8wt+7E/2RMa4YyT2rG6aVx2KJF75VL5YolyuQftRyRXc7SFiJ3Vx8gpj2yjRX5R
-X-Received: by 2002:aa7:d28a:: with SMTP id w10mr107245968edq.251.1564582546464;
-        Wed, 31 Jul 2019 07:15:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564582546; cv=none;
+X-Gm-Message-State: APjAAAVUglVXwW07HFfPGIWNlWZssK3J9sXTw5+PajmB7UnDaO2OmHKN
+	/I2fijkniUlQkWmT4OTXiBtofTnRqlYPZuYxEIro3opvi220+Pzu92bzwxKAu7oeLU4TV7cbqxK
+	b0/Ev+1Cx8sxNxloU0sHXWUnWUKToWwvCOCVHKMdbva7gvyDa3GDGFF+UQRNp5Wc=
+X-Received: by 2002:aa7:c3d8:: with SMTP id l24mr110004743edr.58.1564582626299;
+        Wed, 31 Jul 2019 07:17:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyEhaZiZOeDIfr84v4K7PhNNlCBbcQTONWjOvuhpfJPNE/y76PZVlR2DMQlGr4f4G8HK5Ag
+X-Received: by 2002:aa7:c3d8:: with SMTP id l24mr110004681edr.58.1564582625670;
+        Wed, 31 Jul 2019 07:17:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564582625; cv=none;
         d=google.com; s=arc-20160816;
-        b=LP59lTiMx2Gs1D8iojzYZsYTYhweCDri8tIY3mc2NRyCax89rItD9NERGda0FkRg9H
-         MOETVR71PrsCJsF+VtX3JIbnnE7AA0Kq4pzoVl0gh0GeuYX6Ifds8d752mfXNl002kEd
-         y9u7XbpLsUb6AuNITdLcWFzVkG/5d6w9soEtuCBYDDLcS5xli7Wd69A1KVyHew1Yort5
-         NHr7iFg98SDIQq/V4QmiVP2hzh9NS3tZyHghHKEF4FT5a6ohskrSKMmlhzqVu1sVqYmU
-         gWK1uVSsw445vk1KfZXFLZx1yXc/ZME6Nl1icCQYL2gil10BXj7ItPjTRSXoLvs/ZpU9
-         wuow==
+        b=SgSba00ClaV5/rk/uHnhAE0okNMOEERonwrCTqwXD7s8sB9fjKikn8SJtmxPn1jvGM
+         NaNAzgVA4MmyFJ36q5HdqbNYZTuFJjkaQFxwbC349hnYPQMiUesb45lFzKeOJyJeA0/Q
+         0cd87AipLdVn/FwyE5BKypDBUXJp5TQ26Q/BJYynrjsS8xsKjx311N4xFr2mPRX+XVyO
+         5uY0nO0WjzVQmRksfIYIqLhzKh1D+4oVYwAdXBppjZtywD6uLIqRNPvSNgPqyxsIlJ5V
+         Rrg9VNoiPTjcm5rip0JZJxXY+nZ163ByBx7QHhHTNrj7glh+RL6UxCJW549CwTueS25w
+         2zGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=IbdijOvBahuK4NE8cFNp9Rx7G9sham5GMp6tNhW4N+Y=;
-        b=nE5x2WEMA/uuQgSZuwtml39/X5b1M28/F2Imq0Z76ip71qQj6gcucf7REbcGqbG9ga
-         XQxd8erDab/7wZWX00FJ8axYaD57JT21yOMwJeEzu4uOG7R5q7cxfSXyGhPMk+4mefse
-         XHE7Byw487YWPdXQZLBeIRblFcu5uERooJIXEfziRSvMVopmNWSQ2LF/6EYqlOSyNDvZ
-         whBIRV5c3s0UURIkEtIEeIisz/UoMI0mS+iaf5wLhptHKfMuhMVZ+MTHqmnraacbv06r
-         pXaKZmuNoKBs5LWuRce5Lx0Sft8s14JhpTOt6JwHql8EOLs1XaBPPFTtacn7dlHBGoEi
-         tIQw==
+        bh=lv2C26mM+/YHifXZ7gjVeOUQap9HrlBtkrYBA8q5Ggk=;
+        b=Dr9hy9F8i1l0GuWhpnuFcPPGbJ64VtTXdwxEN8dQD+q1wh/YsINdEPio3GcML3HKDI
+         rMQiNC46Yx52Wd+Wno1GIwjfBZQdxvnJsgOk6MrRpFGLxTUePMzRrXJe1Am8lRHQAY1c
+         VKDd/S3T16D8QPf+1DM3bzwESR2Kdeu9ku2sxkH4FM7p3tyf+5b2+re+UEgBMJa+z+/0
+         Qm9L1y/37RUJz5fKprg+XA8I28biQ9N1UvcqB6lcYsMZur7M7rOui3RJ6mx86F4mygTC
+         8hYAERBj9VO5WhV/YKJmc412vBgtdLlzaGcBnyqA4Ynsy4I+KG8EJZ5TQGr1l6uEw/zL
+         CDrg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y48si21195059edc.355.2019.07.31.07.15.46
+        by mx.google.com with ESMTPS id j9si18874405ejv.235.2019.07.31.07.17.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 07:15:46 -0700 (PDT)
+        Wed, 31 Jul 2019 07:17:05 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 1B30EADA2;
-	Wed, 31 Jul 2019 14:15:46 +0000 (UTC)
-Date: Wed, 31 Jul 2019 16:15:45 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 23B6BAE5C;
+	Wed, 31 Jul 2019 14:17:05 +0000 (UTC)
+Date: Wed, 31 Jul 2019 16:17:04 +0200
 From: Michal Hocko <mhocko@kernel.org>
 To: David Hildenbrand <david@redhat.com>
 Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael J. Wysocki" <rafael@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Oscar Salvador <osalvador@suse.de>
-Subject: Re: [PATCH v1] drivers/base/memory.c: Don't store end_section_nr in
- memory blocks
-Message-ID: <20190731141545.GV9330@dhcp22.suse.cz>
-References: <20190731122213.13392-1-david@redhat.com>
- <20190731124356.GL9330@dhcp22.suse.cz>
- <f0894c30-105a-2241-a505-7436bc15b864@redhat.com>
- <20190731132534.GQ9330@dhcp22.suse.cz>
- <58bd9479-051b-a13b-b6d0-c93aac2ed1b3@redhat.com>
- <92a8ba85-b913-177c-66a2-d86074e54700@redhat.com>
+	linux-acpi@vger.kernel.org,
+	"Rafael J . Wysocki" <rafael.j.wysocki@intel.com>,
+	Oscar Salvador <osalvador@suse.de>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [PATCH v1] drivers/acpi/scan.c: Document why we don't need the
+ device_hotplug_lock
+Message-ID: <20190731141704.GW9330@dhcp22.suse.cz>
+References: <20190731135306.31524-1-david@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <92a8ba85-b913-177c-66a2-d86074e54700@redhat.com>
+In-Reply-To: <20190731135306.31524-1-david@redhat.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -112,19 +105,49 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 31-07-19 16:04:10, David Hildenbrand wrote:
-> On 31.07.19 15:42, David Hildenbrand wrote:
-[...]
-> > Powerpc userspace queries it:
-> > https://groups.google.com/forum/#!msg/powerpc-utils-devel/dKjZCqpTxus/AwkstV2ABwAJ
+On Wed 31-07-19 15:53:06, David Hildenbrand wrote:
+> Let's document why the lock is not needed in acpi_scan_init(), right now
+> this is not really obvious.
 > 
-> FWIW, powerpc-utils also uses the "removable" property - which means
-> we're also stuck with that unfortunately. :(
+> Cc: Rafael J. Wysocki <rafael.j.wysocki@intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: David Hildenbrand <david@redhat.com>
 
-Yeah, I am aware of that and I strongly suspect this is actually in use
-because it is terribly unreliable for any non-idle system. There is
-simply no way to find out whether something is offlinable than to try
-it.
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+
+> ---
+> 
+> @Andrew, can you drop "drivers/acpi/scan.c: acquire device_hotplug_lock in
+> acpi_scan_init()" and add this patch instead? Thanks
+> 
+> ---
+>  drivers/acpi/scan.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
+> 
+> diff --git a/drivers/acpi/scan.c b/drivers/acpi/scan.c
+> index 0e28270b0fd8..8444af6cd514 100644
+> --- a/drivers/acpi/scan.c
+> +++ b/drivers/acpi/scan.c
+> @@ -2204,6 +2204,12 @@ int __init acpi_scan_init(void)
+>  	acpi_gpe_apply_masked_gpes();
+>  	acpi_update_all_gpes();
+>  
+> +	/*
+> +	 * Although we call__add_memory() that is documented to require the
+> +	 * device_hotplug_lock, it is not necessary here because this is an
+> +	 * early code when userspace or any other code path cannot trigger
+> +	 * hotplug/hotunplug operations.
+> +	 */
+>  	mutex_lock(&acpi_scan_lock);
+>  	/*
+>  	 * Enumerate devices in the ACPI namespace.
+> -- 
+> 2.21.0
+
 -- 
 Michal Hocko
 SUSE Labs
