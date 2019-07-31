@@ -7,100 +7,100 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 32087C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:09:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05333C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:09:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DE1E72064A
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:09:18 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B44352184B
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:09:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="MLb+AaSc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DE1E72064A
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="RoXYiUX1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B44352184B
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E207A8E001B; Wed, 31 Jul 2019 11:08:32 -0400 (EDT)
+	id 45CA98E0003; Wed, 31 Jul 2019 11:08:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DAD0B8E0003; Wed, 31 Jul 2019 11:08:32 -0400 (EDT)
+	id 40ED88E001A; Wed, 31 Jul 2019 11:08:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BFC0E8E001B; Wed, 31 Jul 2019 11:08:32 -0400 (EDT)
+	id 212A68E0003; Wed, 31 Jul 2019 11:08:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7273E8E0003
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A7F008E001A
 	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:08:32 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id y3so42572799edm.21
+Received: by mail-ed1-f69.google.com with SMTP id b3so42557473edd.22
         for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:08:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=zVlcJDBaDTqmSz97nQxl4DvHh1B1aL9m42IztWqYpgk=;
-        b=TmByCOrRsm5qYDKS0I9NxDKd9Ta4lNKFzml6OS7T+sPAT5Wr/OKztjxSDDYp5eYk/9
-         JjrvhB+7ZLzFGdEOLOF4VOgrXd/1rYVxYVzuaqh2JYUYPW8QwcpVfGHPRvwUuoVK3wZi
-         LK+GG49azhJt4rlIaVTWb4ltZKvnCUnqoIxml7s+/Mds9u8gt6ZykPGqdIqhXVkwcuBl
-         c4uBqN0mBsBBrQONysuJG06xUrxApYDg1irDNtdsmfJCqp0VHRdtDV2k3RSuo6GDsvgm
-         5lwX9wPcDJVatfwrovosyu846HhKKbIOh2p23klpHneo+gdPlvyeUebHBgTMZoGhXU/D
-         ywSw==
-X-Gm-Message-State: APjAAAU93P0sUmurnhg3fT4IPbvHmHHWnV6z5plSe79z+XY2Ej1gyBXz
-	IhuVkCdWnN6hEYHrKHgJ3yYRFehQQ0mnA31L8WZEuO0Lxqc6t319XPS9WYiRGE00fQZ8k3i/oxP
-	y40OcrCi4diQ5iPXIHzV/N2R98OO7ydMPQmVlwGz5s+YUWVY9VnxNSbrMG39BFv8=
-X-Received: by 2002:a17:906:f742:: with SMTP id jp2mr2568625ejb.87.1564585711997;
-        Wed, 31 Jul 2019 08:08:31 -0700 (PDT)
-X-Received: by 2002:a17:906:f742:: with SMTP id jp2mr2568496ejb.87.1564585710527;
+        bh=IPsK2XRosHpKRDn42pkA1hocZnIJH8axKf5oqIqvF+0=;
+        b=amRsmvFs0S4XhSpax78buvgeCNnbWvfXiQZweekF50QtGUYDn1831SsSuKbzp0jXEJ
+         IJ8oiY69hFO1A24aViEOBeM+VvslJhH9wEcFnJbJl3AjVYj2NpXWDPR9/G6UeT3ZgIBv
+         6g7X6K4CdQeaeFH3jd9uLst0+E+x+XcnEKDf9i6FsRi6RhRp2x9LAGCbWoECx5vgkwub
+         aBTMuk3FdVcE/Y6XVBolPK7EG6vS1wTgWQqjHug4Ot0IwMY5xIpAdKypMDUu20qypR1d
+         4twzsXImqRzXfKdweNTKuY1+fNxTBgmdWb9b6Po2DWY3fLFKlVVO92dx6nf33C2gmr2W
+         McTQ==
+X-Gm-Message-State: APjAAAVM7Kex9VSr6EJwq+HdXPudXlgmELAuL8Z5H0TP+nOxfPr3UTsY
+	QL1UKecw9OBef7rHneH2/h6n6TW1MyMle0xo5jwwM9wMD8enAh4ippw+/f7grE0tvUlHCmO5Dmt
+	5K4uv1cGyiwxLm8ihePwFxRFv4BLkCniIiEcJM5xJw4TLsom6c/UIGWpD6V43RBY=
+X-Received: by 2002:a50:ec0e:: with SMTP id g14mr68176220edr.210.1564585712195;
+        Wed, 31 Jul 2019 08:08:32 -0700 (PDT)
+X-Received: by 2002:a50:ec0e:: with SMTP id g14mr68176086edr.210.1564585710989;
         Wed, 31 Jul 2019 08:08:30 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1564585710; cv=none;
         d=google.com; s=arc-20160816;
-        b=jKZ/znf9fqYFvyvAo1HwqD1axA6647F5YhYZNOOUzrxL+JX4DXW1gQp4JNMPkXkOHQ
-         RQJy45Ox4EvNWrOaiKAUp4FRLROR8FwAgShzPZukS8tkSNlKGO062gdRH6ObMUHE85KZ
-         JbMcofogd7ZFKo7CYKfN3oMXHAFJ4NE8RzYgCa+Cpcx30eP4Ly9iUftId458/5RE4qTi
-         OatsWynis+QnuDLUi4XJLgLXLGfpc/B2eGa7T9sZnWzJXMbldOGkuYXyy6XLCQQ6jlxh
-         cv7GwVuptxFd9IIpcKmC+Ex7bnu9JR3OxR5jPAiuerIAxJU+dPdFpaz8heCYZy35fiYH
-         ISlg==
+        b=tNV646nl0sfW/VO154c9gL7lTmVRwj9SzeZ1xgUumIqrz5jF5kTF+h23v5vZ3o6DQR
+         mRhwK3RgENThaIIeeITSocLHBjwyWViA3+uCSaNWOCBvE7iHTabywTvkKy4MD04Fj3pl
+         P+Y+zLH0XHmCFPdQHbIsV6B5QU/tje+3eUS/MMM/As5Rauf10oRyM4HBcsMtmSk2ZO2U
+         kUYhk5FfAq8jv6tdD+tBcbktrj3sHNMzh1lWYoHhN+5/kiaWoG1TkTUorqP4f19470Eo
+         amEgyTFZXzvShd2qvR0shwV1jjgd0jl20g62Rf2RFjwqvT2tJkKLNxXN6Ckgvm9vAL1E
+         Hzgw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=zVlcJDBaDTqmSz97nQxl4DvHh1B1aL9m42IztWqYpgk=;
-        b=JB95Kh7xVvzu2AIVi2Q0cB8t9H6/JY9VqCkOUpb+dBhQr8OQJxGMAajV16ncLkv1tz
-         54qWwSTI164JphJKKs2Nq7fi2VrM7Uk5mPcmb6GFIkBrGVVfe8cWZ7Br9oTryW1yGApg
-         neIAthrkOx8Yb8lF23rOJ8G5O9kDyX22Vzjt1E+tstNAaT5cWd1cmb9ece31k0IL17T5
-         PIaQghWwYJ3aCTPYHutmdJq6CB29iUJ3pwt3VW2qJhwaeYkPr9LJ5EO+oeQj2e97hXNS
-         jJVDziDJfGrC9CAZQpJl8fI3mnj53yQDeRNs8DPSjk6XO2ZmdZE0DxUSkJYmKjk0uWoL
-         h0GQ==
+        bh=IPsK2XRosHpKRDn42pkA1hocZnIJH8axKf5oqIqvF+0=;
+        b=Rg5AkPYqCUsR05GoMs2LlDh9TZ9HCMFIxjPVepWczXTOaKZL1ZOtoEjQTtFTx8EgtA
+         mjVwYVu2FbyWYzuQP4Tnx1j7yJofG8bxOkCZEBX9jrGOPaMB1Ucmi035fr3YB72xbNoe
+         NW3wdrcy6fMyCSUOMmhUT7Dpit7H+ZhempwxAmBnTJ3rEv1A6Hlt127jCrIAL+B6fqVx
+         1bPsX+aEXAtWsGDgtJgbILcIw6vKjTaubfAX2NVpx9koBz3kRFHX+HCAH4xGr+uFG2Ad
+         ybIyVIpcDXAF3lFXwtesVmEaEXOFjXSp5eMCoZMgZS4LjoI0gFI6TiL0YLJWQQxzqoCT
+         3+QQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=MLb+AaSc;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=RoXYiUX1;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g25sor52126822edc.19.2019.07.31.08.08.30
+        by mx.google.com with SMTPS id h12sor22491441ejc.9.2019.07.31.08.08.30
         for <linux-mm@kvack.org>
         (Google Transport Security);
         Wed, 31 Jul 2019 08:08:30 -0700 (PDT)
 Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=MLb+AaSc;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=RoXYiUX1;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=zVlcJDBaDTqmSz97nQxl4DvHh1B1aL9m42IztWqYpgk=;
-        b=MLb+AaScf0hGsrpPSDd87+yWF18Ne5YphyrJDosl5qgEGBpjx5dqprcz8D6TDurakx
-         v7dksS8vdyH98KwRfDrtg/ZbAe6E5vhUhxog7UiBo5/z7ZxDluJryzZrq7ii40mFem3i
-         jMx9cmbPY8ZVw9geHuaHGUyOzRRTLmVrMwDlEzypgFsoq1OKR/Xmb+uMJ6IghodwNO1n
-         RZiP1ftmR0Lj/uf8ewWim1E6GUd1B5u7cpUbveVRjMCNi8uIaEVIr/L9O6TQUka6NeYB
-         zDwBJBoONjQlX/jht6jQVRNO6og/Cy7j8akyt5hXZpmDzorFoOnlfMMXa/CagiuWGoH+
-         adxA==
-X-Google-Smtp-Source: APXvYqyr56BhZiXrSd8f2fq+Z375JbAoHMRws8MKCqxmheMr9Uoh5vHG5eCnsq/pE6efizao1axriw==
-X-Received: by 2002:a05:6402:3d5:: with SMTP id t21mr107048118edw.13.1564585710210;
+        bh=IPsK2XRosHpKRDn42pkA1hocZnIJH8axKf5oqIqvF+0=;
+        b=RoXYiUX1XnPhAzuEc/754GCS7jv20HjdtnuA0D6/z6EQWRYWWlJYLUmYCp5A9gF6t0
+         xmdTvGf/RDPJGsWdvfduqJSiPxD1iQy03XbdfaIQyAILVGsn2EfooQl1HvX68XEmvKvE
+         YLVQ2+mjfACH42lwtOVvTBDcZBjRVOCatWgbntGFkKnEMI7/phw5FB2FZk9Pt9J7I72/
+         XSOCXiRLBenu+N9P+C9H7h3JIHVw5uD4w9ATyXvDePOwu1HaCpJlCNydaVH+dgiEvjFc
+         icfbQU69vCZT3uQOtoM3gTX73RLNevnI2i7LMnV1I9DzMb0PsfE3TEa5CJMzEo4Nvk/X
+         DA6w==
+X-Google-Smtp-Source: APXvYqw++kl/s7OZc/atZ5tqKoJq5up6RoggcbrTF/G7ZR/ZGQU8Rbyr5OdWAhG3JNmHVdhx6GXBWA==
+X-Received: by 2002:a17:906:914:: with SMTP id i20mr28046601ejd.213.1564585710645;
         Wed, 31 Jul 2019 08:08:30 -0700 (PDT)
 Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id s2sm5403001ejf.11.2019.07.31.08.08.24
+        by smtp.gmail.com with ESMTPSA id uz27sm12533468ejb.24.2019.07.31.08.08.24
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Wed, 31 Jul 2019 08:08:28 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 X-Google-Original-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Received: by box.localdomain (Postfix, from userid 1000)
-	id E8A5B1045FA; Wed, 31 Jul 2019 18:08:16 +0300 (+03)
+	id 1E0E2104600; Wed, 31 Jul 2019 18:08:17 +0300 (+03)
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
 	Thomas Gleixner <tglx@linutronix.de>,
@@ -120,9 +120,9 @@ Cc: Kees Cook <keescook@chromium.org>,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
 	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 36/59] keys/mktme: Require ACPI HMAT to register the MKTME Key Service
-Date: Wed, 31 Jul 2019 18:07:50 +0300
-Message-Id: <20190731150813.26289-37-kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 42/59] syscall/x86: Wire up a system call for MKTME encryption keys
+Date: Wed, 31 Jul 2019 18:07:56 +0300
+Message-Id: <20190731150813.26289-43-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
 References: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
@@ -136,48 +136,85 @@ List-ID: <linux-mm.kvack.org>
 
 From: Alison Schofield <alison.schofield@intel.com>
 
-The ACPI HMAT will be used by the MKTME key service to identify
-topologies that support the safe programming of encryption keys.
-Those decisions will happen at key creation time and during
-hotplug events.
+encrypt_mprotect() is a new system call to support memory encryption.
 
-To enable this, we at least need to have the ACPI HMAT present
-at init time. If it's not present, do not register the type.
-
-If the HMAT is not present, failure looks like this:
-[ ] MKTME: Registration failed. ACPI HMAT not present.
+It takes the same parameters as legacy mprotect, plus an additional
+key serial number that is mapped to an encryption keyid.
 
 Signed-off-by: Alison Schofield <alison.schofield@intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- security/keys/mktme_keys.c | 7 +++++++
- 1 file changed, 7 insertions(+)
+ arch/x86/entry/syscalls/syscall_32.tbl | 1 +
+ arch/x86/entry/syscalls/syscall_64.tbl | 1 +
+ include/linux/syscalls.h               | 2 ++
+ include/uapi/asm-generic/unistd.h      | 4 +++-
+ kernel/sys_ni.c                        | 2 ++
+ 5 files changed, 9 insertions(+), 1 deletion(-)
 
-diff --git a/security/keys/mktme_keys.c b/security/keys/mktme_keys.c
-index 2d90cc83e5ce..6265b62801e9 100644
---- a/security/keys/mktme_keys.c
-+++ b/security/keys/mktme_keys.c
-@@ -2,6 +2,7 @@
+diff --git a/arch/x86/entry/syscalls/syscall_32.tbl b/arch/x86/entry/syscalls/syscall_32.tbl
+index c00019abd076..1b30cd007a6a 100644
+--- a/arch/x86/entry/syscalls/syscall_32.tbl
++++ b/arch/x86/entry/syscalls/syscall_32.tbl
+@@ -440,3 +440,4 @@
+ 433	i386	fspick			sys_fspick			__ia32_sys_fspick
+ 434	i386	pidfd_open		sys_pidfd_open			__ia32_sys_pidfd_open
+ 435	i386	clone3			sys_clone3			__ia32_sys_clone3
++436	i386	encrypt_mprotect	sys_encrypt_mprotect		__ia32_sys_encrypt_mprotect
+diff --git a/arch/x86/entry/syscalls/syscall_64.tbl b/arch/x86/entry/syscalls/syscall_64.tbl
+index c29976eca4a8..716d8a89159b 100644
+--- a/arch/x86/entry/syscalls/syscall_64.tbl
++++ b/arch/x86/entry/syscalls/syscall_64.tbl
+@@ -357,6 +357,7 @@
+ 433	common	fspick			__x64_sys_fspick
+ 434	common	pidfd_open		__x64_sys_pidfd_open
+ 435	common	clone3			__x64_sys_clone3/ptregs
++436	common	encrypt_mprotect	__x64_sys_encrypt_mprotect
  
- /* Documentation/x86/mktme/ */
+ #
+ # x32-specific system call numbers start at 512 to avoid cache impact
+diff --git a/include/linux/syscalls.h b/include/linux/syscalls.h
+index 88145da7d140..4494b1d9c85a 100644
+--- a/include/linux/syscalls.h
++++ b/include/linux/syscalls.h
+@@ -1000,6 +1000,8 @@ asmlinkage long sys_fspick(int dfd, const char __user *path, unsigned int flags)
+ asmlinkage long sys_pidfd_send_signal(int pidfd, int sig,
+ 				       siginfo_t __user *info,
+ 				       unsigned int flags);
++asmlinkage long sys_encrypt_mprotect(unsigned long start, size_t len,
++				     unsigned long prot, key_serial_t serial);
  
-+#include <linux/acpi.h>
- #include <linux/cred.h>
- #include <linux/cpu.h>
- #include <linux/init.h>
-@@ -445,6 +446,12 @@ static int __init init_mktme(void)
+ /*
+  * Architecture-specific system calls
+diff --git a/include/uapi/asm-generic/unistd.h b/include/uapi/asm-generic/unistd.h
+index 1be0e798e362..7c1cd13f6aaf 100644
+--- a/include/uapi/asm-generic/unistd.h
++++ b/include/uapi/asm-generic/unistd.h
+@@ -850,9 +850,11 @@ __SYSCALL(__NR_pidfd_open, sys_pidfd_open)
+ #define __NR_clone3 435
+ __SYSCALL(__NR_clone3, sys_clone3)
+ #endif
++#define __NR_encrypt_mprotect 436
++__SYSCALL(__NR_encrypt_mprotect, sys_encrypt_mprotect)
  
- 	mktme_available_keyids = mktme_nr_keyids();
+ #undef __NR_syscalls
+-#define __NR_syscalls 436
++#define __NR_syscalls 437
  
-+	/* Require an ACPI HMAT to identify MKTME safe topologies */
-+	if (!acpi_hmat_present()) {
-+		pr_warn("MKTME: Registration failed. ACPI HMAT not present.\n");
-+		return -EINVAL;
-+	}
-+
- 	/* Mapping of Userspace Keys to Hardware KeyIDs */
- 	mktme_map = kvzalloc((sizeof(*mktme_map) * (mktme_nr_keyids() + 1)),
- 			     GFP_KERNEL);
+ /*
+  * 32 bit systems traditionally used different
+diff --git a/kernel/sys_ni.c b/kernel/sys_ni.c
+index 34b76895b81e..84c8c47cf9d6 100644
+--- a/kernel/sys_ni.c
++++ b/kernel/sys_ni.c
+@@ -349,6 +349,8 @@ COND_SYSCALL(pkey_mprotect);
+ COND_SYSCALL(pkey_alloc);
+ COND_SYSCALL(pkey_free);
+ 
++/* multi-key total memory encryption keys */
++COND_SYSCALL(encrypt_mprotect);
+ 
+ /*
+  * Architecture specific weak syscall entries.
 -- 
 2.21.0
 
