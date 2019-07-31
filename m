@@ -4,103 +4,103 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41952C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:14:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7DF83C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:14:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EC2FC21874
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:14:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 353B7208C3
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 15:14:04 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="IXEicb9B"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EC2FC21874
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="wnJQX8mA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 353B7208C3
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6A17F8E0024; Wed, 31 Jul 2019 11:13:53 -0400 (EDT)
+	id 1ED558E0026; Wed, 31 Jul 2019 11:13:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 653E08E0022; Wed, 31 Jul 2019 11:13:53 -0400 (EDT)
+	id 14BAA8E0022; Wed, 31 Jul 2019 11:13:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4CCC98E0024; Wed, 31 Jul 2019 11:13:53 -0400 (EDT)
+	id F2E138E0026; Wed, 31 Jul 2019 11:13:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id F11598E0022
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:13:52 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id w25so42570433edu.11
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:13:52 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id A49868E0022
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 11:13:53 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id e9so31480795edv.18
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 08:13:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=Sg6bxLoMlRes885QhQrq9mVE221k6YoeytqqLikFglU=;
-        b=V3RQLDJnwdxlHfDXIaQiCT3pcbn9CCLt8ThSLeWza9/6tgiQ37eID6lS3SyitCbU0y
-         jSs1PYIaIx3rSZm3kFnQGHbpNMsOpcyZKGGJ1Cvt1sJJcYEHJOflWr1oYsjs9MiqUJGh
-         z4u9nh1AVh/zLwpF1JKEsGigN692BTuYaMp/EElCX6Exnj3vyJ+/2dkMUuskjRUMBhbX
-         0VAPhlVJ9UsNGCoKfETCe8CYvG6V6Zr3i2a77RcPaXRS9bMlcZcrdGIv93ziIr2uHCwl
-         U4wpfDctzlckY9Pnx+ZLlEJr43CFCGO88cVM+jC3PxzozaGP7DqjMdz4oN8SjtFl5IQ8
-         zLgA==
-X-Gm-Message-State: APjAAAVN6OmxEN3zE7MuTUlzh51ZXXzByhUGQZByeKuR9pJsxR8qQClk
-	hIMg4pjvSw6YNHHYk3APp6VzNdbVgnvRsGSIg/fVpMnUq02yUdlrJMZ7VTBtLVSCZ+WH8NjYxmV
-	pzGz/a2yLHz8bnmxomW6E6i7R4zaSticsovcmV47bClXIVy0QD/I8oW7yMPYrY/Y=
-X-Received: by 2002:aa7:d985:: with SMTP id u5mr106095318eds.222.1564586032559;
+        bh=Eu+g52fZa4bEGKyIAIp4EBxePC6msthuJH3Uu+nPhTw=;
+        b=JCzNIsXg0AyBw/TF30uwu/DrpVXt6PejjmMD6//FQCKz+4xk6ZB15/qF+LSUOISRNX
+         tFuqHpzpn+YYiZG0UmzO2a3t05MYQkyOexJdOkxnO4Pz1Ca8yLD9wvgAMAkpJdsptREx
+         SKTdw5Uml9xUt0WOAmD/26e6Cy6XqOYmlaCF2i2CAmeSo1WpnrPrKrkA1ZNjmX40oSih
+         wLH8M+3i5fZhrgrEdRnxVMr/P+sURHQTwlNEdKGnIGYEXBqQojPEEBBNlofku92u0tZ9
+         ddjMMPNXhOc+cGBH5Q7ORc9ZYvdaMnOu9N1K2NwWIcCCeYEg0zNJi7DcFRzVO9nQ75lw
+         f12g==
+X-Gm-Message-State: APjAAAVyW/4PEAR7KlPc/Ze1EaLpeeqqtVQWIIy9uB10powLjsMqPY/p
+	YFfXsEJfWFmAMLUK/P4JvPXkHxfRu5bNg9OwxtW/SzT/6rk9oqRNulDTxyESVQcxQQy18bkFF7F
+	FLKH2PvnMJJJxPVh/fwLA6rGu0dFCqBm6SaGepcRLwLxQlBSd6BAAo0GF43riJ20=
+X-Received: by 2002:a50:9646:: with SMTP id y64mr107648944eda.111.1564586033262;
+        Wed, 31 Jul 2019 08:13:53 -0700 (PDT)
+X-Received: by 2002:a50:9646:: with SMTP id y64mr107648827eda.111.1564586032190;
         Wed, 31 Jul 2019 08:13:52 -0700 (PDT)
-X-Received: by 2002:aa7:d985:: with SMTP id u5mr106095159eds.222.1564586031029;
-        Wed, 31 Jul 2019 08:13:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564586031; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1564586032; cv=none;
         d=google.com; s=arc-20160816;
-        b=XNNsaBLvacQ+P+UJml7LwSTZlx6x5KC2rbpOFJsEtpzTAFxqElmTWdMrrsWjuQ8wsK
-         bYZreQKfTTGy/cV6S35AEDFeQYe1d19unxC3hLMuA/qE7TEX7iE3buiCTdQ2hj3I4USL
-         cbp2KTayeiA3Qh5VvfKo8JnJ2wJPDP3F8hmsl7k1LdlZ4JLlmPei9ZmlRQhNxpKQaPpK
-         G/YUtlBhTGo4Hj1mjqoNOXL9PJgglhBfZ06gdCpFO/QGwP3WTc5pG+M+50mufW3jJ8tY
-         SMxoSleaJ6mdkeWWn96a820zlyEKOlxgo5hlKIsE8XcDyVIud1EprQu+JgLO2oUrPCZQ
-         61yg==
+        b=Wq9JmBpDLMoz8UEyj660ZGiNd+uzbgUqBl+3FFIVg39BUQb5VZ8f3UIM6YVOgzJ2jq
+         R/YUaQ+6ZXiGZfpsKtorIj027q52PcQJpjLvWZOHUC/csJ/SJdP5ynbAt7MEDUITic1e
+         lP5MkgDq6x8Zke9Tal/8lmgwuQrSvQaqRkv6f/GrGpVOPENae3r9K97/yTuvI96WFusi
+         0Q5MDIkmgzXeL68QKW6z52We1K3+1MqWZAubOfNQA7JYYcnDto9A3NFDSyyks10y6Bir
+         ntkjv1gTZWhHtYo9/3lOdT2U23N+p8ybYGD023Y2YNk+c3+BTdxQKIWGjbqleoT0YWL8
+         iopQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=Sg6bxLoMlRes885QhQrq9mVE221k6YoeytqqLikFglU=;
-        b=R2X1Jgm4FGo92BQGrQN4gJgXbQmbBegw8+jopq+UG5YRCjbStT8gAB+INr7GFHYrGb
-         AA/pH2IYy6En2rtFpP7ECVDt5lAkir3oYlUEqKj7pHOZlUVovAReTCvZoFpT81Bmz9Lq
-         Vw09fW7mkW6jXBcIRLldUAqyomYz323zloz5nziNwPLx64mScWk791UaP2qIIbXLdUAu
-         NahARX1iOhSuKQkWqJJPP6kZJpg6r1Z4XVUIwn6/C0vKTnnj38/pPSTd7T5ahkpRQPdR
-         GwOA7duY5c+mmttDC3hw5RC0wldWU4AFBFQHdcdoJLGTpgaz/mUI2M+mCWTnt+jf/4vh
-         Bq+Q==
+        bh=Eu+g52fZa4bEGKyIAIp4EBxePC6msthuJH3Uu+nPhTw=;
+        b=THoyMWFb801ZvhwdF9WA9RSVWnLhWxPdB+CspdGTbpbx20Prs3B4lUC1YMu0RamMTG
+         a59N/Dn94z5N2v1kfGtueD8Mp2Xv9af+HG8UwJkoCRb3t98PD6y+Hl3+qsracuen9cwM
+         yC/Bd7RTDT7s2EQnOOZgHnO0zU8w121Cwc46F4if7gMyDSvxgqkMFlyuIfsX5Qc0rqX4
+         ATYRwbv3ww5gvCXke0VnFI/s9aZd0F8lbXKO76fDxTCV7KjvwuhIehmGsB5BHqpjKcBy
+         p9UaxiuMF3QdvX/rHO3cTvfzHhqLVF/7QYmngHq94fPBqD3xgMYMSnxd9PQgnl0OBHxk
+         18zA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=IXEicb9B;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=wnJQX8mA;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t1sor18065153ejg.7.2019.07.31.08.13.50
+        by mx.google.com with SMTPS id i6sor52104106edg.10.2019.07.31.08.13.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Jul 2019 08:13:51 -0700 (PDT)
+        Wed, 31 Jul 2019 08:13:52 -0700 (PDT)
 Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=IXEicb9B;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=wnJQX8mA;
        spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=shutemov-name.20150623.gappssmtp.com; s=20150623;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=Sg6bxLoMlRes885QhQrq9mVE221k6YoeytqqLikFglU=;
-        b=IXEicb9BiLYExfvQdFk4yaWrUYrtPs2P+FQ3xbHGAjJqFjc/Tjuex7il/QhhrAU3gJ
-         1B0zMUjyCzuoPb2CGvJQ7dAtThjRe7D5+pWm017eXRhJ5OYV8RCaNICnYmJ009+sfvzW
-         5NUoC3YokyUZoQB7sHYWULxV/2/f9TOcZ1/gPkf55duPH15/Vc4B/k9Omnv9/9Yv3CZU
-         SeCOWTrZNYeWEwYFisHEi4GPFxy3g1PXFpyNHAYa2qaeY0jn6aM8/D2yPWi1YGyBcl0J
-         4Kakk20YFCj7A+Ev81808+OjXvvP+eFNT1KH0KoZhORiukznX+DHLEGwFZnttRXtl3Xg
-         KF/A==
-X-Google-Smtp-Source: APXvYqzUHszTMCf0FqL0C12el1+4vYG6LYW8ml5drC1eMYBiTn4AhQh509XXdc2m4fyznpBj9tVZ/g==
-X-Received: by 2002:a17:906:d052:: with SMTP id bo18mr88285067ejb.311.1564586030665;
-        Wed, 31 Jul 2019 08:13:50 -0700 (PDT)
+        bh=Eu+g52fZa4bEGKyIAIp4EBxePC6msthuJH3Uu+nPhTw=;
+        b=wnJQX8mAznJJYoCaujK7jTh3QOUX6PWjjuHiLLJcqeV5ss0Z+2QOjKE/V/f7i2iOiK
+         nWVMBrRzOEuvD50CqQeMSrlLn2yn9nza0e9HYNf9Ci+gZHXztuPcnXQO8Dv/jueUicfh
+         7x8hxn+DoCcOemE+5xb8GVrcsoOF21pEeWL359gwrBqCcOEFkYVISmg99A9v32xeC8nY
+         K1fXvjaKfAQ0uf1yUKgRc0FXE0a1c8GjVdeZkh9RF4YCM+ZniD98ehoTPZKfBwPrhyWd
+         vT4LGzn8l+GiV/PrV8efZhSU7sLAmcDsKabNfPrtzDTZJ+6VtoCaBOiq1M24C/XlfUJi
+         ySJg==
+X-Google-Smtp-Source: APXvYqxAI13PpDAJZQellLR+hBXyuxC6IRUxmch2g01/3TCjBtlaolRAKh1msonh8wE/v8SwQy/t/w==
+X-Received: by 2002:a50:addc:: with SMTP id b28mr108191573edd.174.1564586031854;
+        Wed, 31 Jul 2019 08:13:51 -0700 (PDT)
 Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id u9sm17451892edm.71.2019.07.31.08.13.47
+        by smtp.gmail.com with ESMTPSA id l2sm16613746edn.59.2019.07.31.08.13.49
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 08:13:47 -0700 (PDT)
+        Wed, 31 Jul 2019 08:13:50 -0700 (PDT)
 From: "Kirill A. Shutemov" <kirill@shutemov.name>
 X-Google-Original-From: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
 Received: by box.localdomain (Postfix, from userid 1000)
-	id B852D103C08; Wed, 31 Jul 2019 18:08:16 +0300 (+03)
+	id 7A1691030BB; Wed, 31 Jul 2019 18:08:16 +0300 (+03)
 To: Andrew Morton <akpm@linux-foundation.org>,
 	x86@kernel.org,
 	Thomas Gleixner <tglx@linutronix.de>,
@@ -119,10 +119,10 @@ Cc: Kees Cook <keescook@chromium.org>,
 	kvm@vger.kernel.org,
 	keyrings@vger.kernel.org,
 	linux-kernel@vger.kernel.org,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: [PATCHv2 29/59] keys/mktme: Set up PCONFIG programming targets for MKTME keys
-Date: Wed, 31 Jul 2019 18:07:43 +0300
-Message-Id: <20190731150813.26289-30-kirill.shutemov@linux.intel.com>
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: [PATCHv2 20/59] x86/mm: Handle encrypted memory in page_to_virt() and __pa()
+Date: Wed, 31 Jul 2019 18:07:34 +0300
+Message-Id: <20190731150813.26289-21-kirill.shutemov@linux.intel.com>
 X-Mailer: git-send-email 2.21.0
 In-Reply-To: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
 References: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
@@ -134,105 +134,45 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Alison Schofield <alison.schofield@intel.com>
+Per-KeyID direct mappings require changes into how we find the right
+virtual address for a page and virt-to-phys address translations.
 
-MKTME Key service maintains the hardware key tables. These key tables
-are package scoped per the MKTME hardware definition. This means that
-each physical package on the system needs its key table programmed.
+page_to_virt() definition overwrites default macros provided by
+<linux/mm.h>.
 
-These physical packages are the targets of the new PCONFIG programming
-command. So, introduce a PCONFIG targets bitmap as well as a CPU mask
-that includes the lead CPUs capable of programming the targets.
-
-The lead CPU mask will be used every time a new key is programmed into
-the hardware.
-
-Keep the PCONFIG targets bit map around for future use during CPU
-hotplug events.
-
-Signed-off-by: Alison Schofield <alison.schofield@intel.com>
 Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 ---
- security/keys/mktme_keys.c | 42 ++++++++++++++++++++++++++++++++++++++
- 1 file changed, 42 insertions(+)
+ arch/x86/include/asm/page.h    | 3 +++
+ arch/x86/include/asm/page_64.h | 2 +-
+ 2 files changed, 4 insertions(+), 1 deletion(-)
 
-diff --git a/security/keys/mktme_keys.c b/security/keys/mktme_keys.c
-index 8ac75b1e6188..272bff8591b7 100644
---- a/security/keys/mktme_keys.c
-+++ b/security/keys/mktme_keys.c
-@@ -2,6 +2,7 @@
+diff --git a/arch/x86/include/asm/page.h b/arch/x86/include/asm/page.h
+index 39af59487d5f..aff30554f38e 100644
+--- a/arch/x86/include/asm/page.h
++++ b/arch/x86/include/asm/page.h
+@@ -72,6 +72,9 @@ static inline void copy_user_page(void *to, void *from, unsigned long vaddr,
+ extern bool __virt_addr_valid(unsigned long kaddr);
+ #define virt_addr_valid(kaddr)	__virt_addr_valid((unsigned long) (kaddr))
  
- /* Documentation/x86/mktme/ */
++#define page_to_virt(x) \
++	(__va(PFN_PHYS(page_to_pfn(x))) + page_keyid(x) * direct_mapping_size)
++
+ #endif	/* __ASSEMBLY__ */
  
-+#include <linux/cpu.h>
- #include <linux/init.h>
- #include <linux/key.h>
- #include <linux/key-type.h>
-@@ -17,6 +18,8 @@
- static DEFINE_SPINLOCK(mktme_lock);
- static unsigned int mktme_available_keyids;  /* Free Hardware KeyIDs */
- static struct kmem_cache *mktme_prog_cache;  /* Hardware programming cache */
-+static unsigned long *mktme_target_map;	     /* PCONFIG programming target */
-+static cpumask_var_t mktme_leadcpus;	     /* One CPU per PCONFIG target */
+ #include <asm-generic/memory_model.h>
+diff --git a/arch/x86/include/asm/page_64.h b/arch/x86/include/asm/page_64.h
+index f57fc3cc2246..a4f394e3471d 100644
+--- a/arch/x86/include/asm/page_64.h
++++ b/arch/x86/include/asm/page_64.h
+@@ -24,7 +24,7 @@ static inline unsigned long __phys_addr_nodebug(unsigned long x)
+ 	/* use the carry flag to determine if x was < __START_KERNEL_map */
+ 	x = y + ((x > y) ? phys_base : (__START_KERNEL_map - PAGE_OFFSET));
  
- enum mktme_keyid_state {
- 	KEYID_AVAILABLE,	/* Available to be assigned */
-@@ -257,6 +260,33 @@ struct key_type key_type_mktme = {
- 	.destroy	= mktme_destroy_key,
- };
+-	return x;
++	return x & direct_mapping_mask;
+ }
  
-+static void mktme_update_pconfig_targets(void)
-+{
-+	int cpu, target_id;
-+
-+	cpumask_clear(mktme_leadcpus);
-+	bitmap_clear(mktme_target_map, 0, sizeof(mktme_target_map));
-+
-+	for_each_online_cpu(cpu) {
-+		target_id = topology_physical_package_id(cpu);
-+		if (!__test_and_set_bit(target_id, mktme_target_map))
-+			__cpumask_set_cpu(cpu, mktme_leadcpus);
-+	}
-+}
-+
-+static int mktme_alloc_pconfig_targets(void)
-+{
-+	if (!alloc_cpumask_var(&mktme_leadcpus, GFP_KERNEL))
-+		return -ENOMEM;
-+
-+	mktme_target_map = bitmap_alloc(topology_max_packages(), GFP_KERNEL);
-+	if (!mktme_target_map) {
-+		free_cpumask_var(mktme_leadcpus);
-+		return -ENOMEM;
-+	}
-+	return 0;
-+}
-+
- static int __init init_mktme(void)
- {
- 	int ret;
-@@ -278,9 +308,21 @@ static int __init init_mktme(void)
- 	if (!mktme_prog_cache)
- 		goto free_map;
- 
-+	/* Hardware programming targets */
-+	if (mktme_alloc_pconfig_targets())
-+		goto free_cache;
-+
-+	/* Initialize first programming targets */
-+	mktme_update_pconfig_targets();
-+
- 	ret = register_key_type(&key_type_mktme);
- 	if (!ret)
- 		return ret;			/* SUCCESS */
-+
-+	free_cpumask_var(mktme_leadcpus);
-+	bitmap_free(mktme_target_map);
-+free_cache:
-+	kmem_cache_destroy(mktme_prog_cache);
- free_map:
- 	kvfree(mktme_map);
- 
+ #ifdef CONFIG_DEBUG_VIRTUAL
 -- 
 2.21.0
 
