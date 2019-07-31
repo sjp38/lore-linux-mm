@@ -2,129 +2,227 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BB439C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:16:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A1E26C433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:31:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8A5AD206A3
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:16:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A5AD206A3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 670CF206B8
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:31:33 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="SHr5KNNb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 670CF206B8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 058D38E0008; Wed, 31 Jul 2019 12:16:19 -0400 (EDT)
+	id DBA3F8E0009; Wed, 31 Jul 2019 12:31:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F23D98E0001; Wed, 31 Jul 2019 12:16:18 -0400 (EDT)
+	id D6B278E0001; Wed, 31 Jul 2019 12:31:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DEB1B8E0008; Wed, 31 Jul 2019 12:16:18 -0400 (EDT)
+	id C59E78E0009; Wed, 31 Jul 2019 12:31:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id C0C048E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 12:16:18 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id 5so58542451qki.2
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:16:18 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A6158E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 12:31:32 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id t9so34101499wrx.9
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:31:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=z45bc0/Hf5snDFXev62GUllh+0OaX0y5/9RK/czu9LA=;
-        b=ZlAE4htvcAsFu5kOkamUXwp5FfIK+2fnS+wlVupkAqUzhq2IIx3kIPndcdcdZ3SRQU
-         jd79VKRYAWL4d3JNZcrUeYhU0tY2QdIbQTtlIoHzsguystQ5JOoG36Wg2yHQ7FTeFtT3
-         MR0/fcaEY8RkgHcxztT5jv0wGYDP11wQdLF8k+5dj8H6kJ4bYXTuVRjItlBaY3AOcNa+
-         +aUKTDVWl2e78C0rlLt22M6e46wJEN915oaxmjrcaJKuTVGX/4jCF8/ZzZkHw5YPH3Rt
-         lrWZQMFZKdKryk05/4T4+yXfFCgpjZG+GGxlCtlPYmozujOeM8E47M4sOkVwgpqm9Jrd
-         ho0w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXScnlVPInsrwscrEGGzrdyVqDxWh3/ZR1bQueGEm27SxmPrBI8
-	WDYHChHkjaNNHircximodc8niagImA7EZs3Xdj5sOOLXc0qVlgSoQ7VKw2bJWu0rEs9FjOH6yVH
-	wVUpx+GUh1xeoI1mflPDzdBBGts0xBmUBvWEBxaN+Cmtky2NTK689tZRgOA02eWERYw==
-X-Received: by 2002:ac8:66ce:: with SMTP id m14mr43950881qtp.206.1564589778586;
-        Wed, 31 Jul 2019 09:16:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxLIp3bDVcK8sOQaVYNhaHE2PPUNAvUpM81pWGIlpU+8tgm73hHHktni1F6LK2ieyD94DPK
-X-Received: by 2002:ac8:66ce:: with SMTP id m14mr43950839qtp.206.1564589778065;
-        Wed, 31 Jul 2019 09:16:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564589778; cv=none;
+        h=x-gm-message-state:dkim-signature:message-id:subject:from:reply-to
+         :to:cc:date:in-reply-to:references:user-agent:mime-version;
+        bh=aBeApz032cBY82NlaE/wZB1uRgdQ2+KunU+o8z0uyps=;
+        b=O29/OMlb2w0D4Y3tJ/RYjyLXMDuZCWzLbFdD7qJqU622d47nxyn5oUH4XgOPa8DlDw
+         VlNMqj/V3/8XhqMfMppCibawgZtsYWkkyfLBJk8mgoSg7SYz3LWGINNzz3VElE0PJxQF
+         Ic8C78Dfr6sI++lJYwTKdRGSLC5h2K6TQRsrHCriF1TVkqxB2pZf5O7dm2C9ntnjKELC
+         0W/Ns21D3ygihoKkwuSbnzRHh+snVQcamHpSVezCWTJWzsiVmrVT4Kxsh+j/yfEI0N4c
+         4yYoGuOhNQKEJKhbktFgmGJdVwOGDtrGNM102XiJKLTuY4EdFNnc6jtcaNenY6XUk/Iz
+         LFrQ==
+X-Gm-Message-State: APjAAAVyB1o5qfHw/tALiN0Jf1P3tp+k47/BdV2AZ42iXB57li57eGy7
+	ZKT6hHY6ddP+UKFETNXpw0o1Xq1/ED+BhKxE3bvCpa0gWqGvu4XlxqLlGrt2ATVhWY/bm1EUvVY
+	p1SFuHt/QhQR/zv88TBKjcYrXNZ2awf1ctkIQ0bMQNKNpMcCCiltzb1ZjyqMj/PAUbw==
+X-Received: by 2002:a1c:3:: with SMTP id 3mr112912328wma.6.1564590692053;
+        Wed, 31 Jul 2019 09:31:32 -0700 (PDT)
+X-Received: by 2002:a1c:3:: with SMTP id 3mr112912263wma.6.1564590690922;
+        Wed, 31 Jul 2019 09:31:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564590690; cv=none;
         d=google.com; s=arc-20160816;
-        b=bL5t70E0HOQt+C97jTD78OjjVw4+HvDJIPdPnZUmYNU3/Nk4OlcrBbyr7m+Wary//F
-         XcxUREMry6bR8XdFbaVptGXw2TiuOiI3TqTXr/5WPcU3QxjSAzmuAuUIT32TMlSxdOZ+
-         +3zEH8Vyh3/W5fDL3COPVVujS5Y8LCuFMd8+tqfzJcnkD50M7WWdo+X97067mtv1qFno
-         7/2x12F/b8a2xbIgQMIn4helCdmWOcjHs72ucebeL6t2tIDpwdKmB3Nsdu3FIJYQQ/BJ
-         RebJCz6U0OQaCu9FmxfiB/OO8wcWDjA/NYWumSOEfUPzpgiL/xdckHFlSAzu36oMEmZM
-         xWPw==
+        b=s5KWMqdz5q/hxVGCJClt6xeWYgRud9MyPZjZ90UuVlfWBrtB9ue1azyRAqmFR7rqmZ
+         m2FrPr9hojWAogSX3U3/XRpGIbBxuMUW4W6mss+Oz7D018n0AguSyt0W6Z1mDRyYUgDB
+         T+N1egm4M0JOoimlGcg+zg+FJQHbMS8DGH5hBFnp919yZrctre+2ag5VsiN3dUzjUGjS
+         P2JSrk6gIKgaOkL1eePpV+boiYhDx+6ZU+VkrVxGkOPgqu7eoBsC+K17zVY76h7krBHa
+         ieUQUClkRWvc33MIqr82YWPtYz2bWNNqPbrNJYBRWqfQqNPdreptn09VW9VCqyo+myV/
+         j2AA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=z45bc0/Hf5snDFXev62GUllh+0OaX0y5/9RK/czu9LA=;
-        b=rRDS7/fPT5xuc2jbatW/a5HQTFY2nzROY+usxwIqlftQZ/OV/bb8DGTofahJDdLmIv
-         t1mipKsM/CNlm5k+wW1v6j+MlfHSF2c+UGBfusP6h4KDCoId9gUwDEimnQj4Axp3exep
-         OuH1Xo7T5a3Agev6sXRPzVxNljDAV00h2seU1dCWmeekPLw5mcJAI9Tm7fpy9r2yiZ+/
-         dZyCDm87W78D2BuwMVdN3wRxx1dyGzUiJpa+sDnDR+F7BBvujeC8GpFaG5peazacAP5R
-         Ah+uX6akxRx/PFpbU734zOte7T/c2PUqVZVVMJlWODzF3LZazEtvXI6r3ZmG80FjSG07
-         T0jg==
+        h=mime-version:user-agent:references:in-reply-to:date:cc:to:reply-to
+         :from:subject:message-id:dkim-signature;
+        bh=aBeApz032cBY82NlaE/wZB1uRgdQ2+KunU+o8z0uyps=;
+        b=Hl/BbMs2r9Ln98eeScqwAAILdzNccV5tWRE09dUN6Gm9SyE7uznHQTxV0/GPQ7b8QF
+         fSwPkc2HsqZYeR6RF+rHfyuL82qIm8IIMz7fiWwtIC9BZoo+YrgoiU8b2Bzb5Nln0YQH
+         5EuPtdprdRhtUdKz1O2BPq/0UnZ0Yok1lw4Ipj3P6s32E0UolNLmbTSk80W3S4SDifF4
+         lOb3g3M4UUfC3VH0V4YiSR6o3JrcarIJv/r/2pYFwn0yfjctBAIoXFHRbGL6BuHXvohn
+         qBh/slZ9heC/8e3FXzoixq4WO/1oAdu0sZlEi9EASzCgC6+TVOTx5M+B6qm6TLWaVBCl
+         z7Hw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d207si38948303qkc.51.2019.07.31.09.16.17
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SHr5KNNb;
+       spf=pass (google.com: domain of raistlin.df@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=raistlin.df@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id t81sor38327783wmt.6.2019.07.31.09.31.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 09:16:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Wed, 31 Jul 2019 09:31:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of raistlin.df@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 512C730A6986;
-	Wed, 31 Jul 2019 16:16:17 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.136])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 7B75B60BEC;
-	Wed, 31 Jul 2019 16:16:15 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Wed, 31 Jul 2019 18:16:17 +0200 (CEST)
-Date: Wed, 31 Jul 2019 18:16:14 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: Song Liu <songliubraving@fb.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	akpm@linux-foundation.org, matthew.wilcox@oracle.com,
-	kirill.shutemov@linux.intel.com, kernel-team@fb.com,
-	william.kucharski@oracle.com, srikar@linux.vnet.ibm.com
-Subject: Re: [PATCH 2/2] uprobe: collapse THP pmd after removing all uprobes
-Message-ID: <20190731161614.GC25078@redhat.com>
-References: <20190729054335.3241150-1-songliubraving@fb.com>
- <20190729054335.3241150-3-songliubraving@fb.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SHr5KNNb;
+       spf=pass (google.com: domain of raistlin.df@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=raistlin.df@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=message-id:subject:from:reply-to:to:cc:date:in-reply-to:references
+         :user-agent:mime-version;
+        bh=aBeApz032cBY82NlaE/wZB1uRgdQ2+KunU+o8z0uyps=;
+        b=SHr5KNNbtDdRhkUSWAXLI5qCbE2fDg9+y2YLSg0SLJV2b/baDdwhlUJOX75/cIIDaB
+         V+8m9X4EuRZhg9Rs/Jt1vuLMNlVOT4kfr7isiAsrm4OcCnletrLtCFWQoF963CKgh19f
+         kM+4IopiymIOiDPImMwV3aLVncVTbOu4GsFU9Mtttu5BNJkRdiVVKRGM3TnHtOlsN75F
+         p7bGzhTrSv8YDZK+BPx9D6FgmWobqoVU4ILuZBURWFZr2TRfZRkTjyhISQt7pvXD5vqw
+         8DZn3jE2BHv3DCRlN593hl8YdyMDuZi94QmnrzbEeQeFmvyIx4Su0DLAT0QKzK0tiZ5Q
+         Y6yw==
+X-Google-Smtp-Source: APXvYqxh6Bv/HiQuIAWU9sMSLvgcowpXMA+p+yq7EJ4FVh9xqE/gY1bAzYLd1A4k9ca/3jrBlm1EVg==
+X-Received: by 2002:a1c:7f93:: with SMTP id a141mr112184178wmd.131.1564590690106;
+        Wed, 31 Jul 2019 09:31:30 -0700 (PDT)
+Received: from [192.168.0.36] (87.78.186.89.cust.ip.kpnqwest.it. [89.186.78.87])
+        by smtp.gmail.com with ESMTPSA id z1sm72239957wrp.51.2019.07.31.09.31.27
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 31 Jul 2019 09:31:28 -0700 (PDT)
+Message-ID: <715155f37708852ea8075190aeb4f2ec9ab158fe.camel@gmail.com>
+Subject: Re: [RFC v2 00/27] Kernel Address Space Isolation
+From: Dario Faggioli <raistlin.df@gmail.com>
+Reply-To: dario.faggioli@linux.it
+To: Alexandre Chartre <alexandre.chartre@oracle.com>, Peter Zijlstra
+	 <peterz@infradead.org>
+Cc: pbonzini@redhat.com, rkrcmar@redhat.com, tglx@linutronix.de,
+ mingo@redhat.com,  bp@alien8.de, hpa@zytor.com,
+ dave.hansen@linux.intel.com, luto@kernel.org,  kvm@vger.kernel.org,
+ x86@kernel.org, linux-mm@kvack.org,  linux-kernel@vger.kernel.org,
+ konrad.wilk@oracle.com, jan.setjeeilers@oracle.com,  liran.alon@oracle.com,
+ jwadams@google.com, graf@amazon.de, rppt@linux.vnet.ibm.com,  Paul Turner
+ <pjt@google.com>
+Date: Wed, 31 Jul 2019 18:31:26 +0200
+In-Reply-To: <8b84ac05-f639-b708-0f7f-810935b323e8@oracle.com>
+References: <1562855138-19507-1-git-send-email-alexandre.chartre@oracle.com>
+	 <20190712114458.GU3402@hirez.programming.kicks-ass.net>
+	 <1f97f1d9-d209-f2ab-406d-fac765006f91@oracle.com>
+	 <20190712123653.GO3419@hirez.programming.kicks-ass.net>
+	 <b1b7f85f-dac3-80a3-c05c-160f58716ce8@oracle.com>
+	 <20190712130720.GQ3419@hirez.programming.kicks-ass.net>
+	 <8b84ac05-f639-b708-0f7f-810935b323e8@oracle.com>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-fcfXGdMTNOfnauu1DZWy"
+User-Agent: Evolution 3.32.3 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190729054335.3241150-3-songliubraving@fb.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Wed, 31 Jul 2019 16:16:17 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/28, Song Liu wrote:
->
-> @@ -525,6 +527,9 @@ int uprobe_write_opcode(struct arch_uprobe *auprobe, struct mm_struct *mm,
->  
->  				/* dec_mm_counter for old_page */
->  				dec_mm_counter(mm, MM_ANONPAGES);
-> +
-> +				if (PageCompound(orig_page))
-> +					orig_page_huge = true;
 
-I am wondering how find_get_page() can return a PageCompound() page...
+--=-fcfXGdMTNOfnauu1DZWy
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-IIUC, this is only possible if shmem_file(), right?
+Hello all,
 
-Oleg.
+I know this is a bit of an old thread, so apologies for being late to
+the party. :-)
+
+I would have a question about this:
+
+> > > On 7/12/19 2:36 PM, Peter Zijlstra wrote:
+> > > > On Fri, Jul 12, 2019 at 02:17:20PM +0200, Alexandre Chartre
+> > > > wrote:
+> > > > > On 7/12/19 1:44 PM, Peter Zijlstra wrote:
+> > > > > > AFAIK3 this wants/needs to be combined with core-scheduling=20
+> > > > > > to be
+> > > > > > useful, but not a single mention of that is anywhere.
+> > > > >=20
+> > > > > No. This is actually an alternative to core-scheduling.
+> > > > > Eventually, ASI
+> > > > > will kick all sibling hyperthreads when exiting isolation and
+> > > > > it needs to
+> > > > > run with the full kernel page-table (note that's currently
+> > > > > not in these
+> > > > > patches).
+>=20
+I.e., about the fact that ASI is presented as an alternative to
+core-scheduling or, at least, as it will only need integrate a small
+subset of the logic (and of the code) from core-scheduling, as said
+here:
+
+> I haven't looked at details about what has been done so far.
+> Hopefully, we
+> can do something not too complex, or reuse a (small) part of co-
+> scheduling.
+>=20
+Now, sticking to virtualization examples, if you don't have core-
+scheduling, it means that you can have two vcpus, one from VM A and the
+other from VM B, running on the same core, one on thread 0 and the
+other one on thread 1, at the same time.
+
+And if VM A's vcpu, running on thread 0, exits, then VM B's vcpu
+running in guest more on thread 1 can read host memory, as it is
+speculatively accessed (either "normally" or because of cache load
+gadgets) and brought in L1D cache by thread 0. And Indeed I do see how
+ASI protects us from this attack scenario.
+
+However, when the two VMs' vcpus are both running in guest mode, each
+one on a thread of the same core, VM B's vcpu running on thread 1 can
+exploit L1TF to peek at and steal secrets that VM A's vcpu, running on
+thread 0, is accessing, as they're brought into L1D cache... can't it?=20
+
+How can, ASI *without* core-scheduling, prevent this other attack
+scenario?
+
+Because I may very well be missing something, but it looks to me that
+it can't. In which case, I'm not sure we can call it "alternative" to
+core-scheduling.... Or is the second attack scenario that I tried to
+describe above, not considered interesting?
+
+Thanks and Regards
+--=20
+Dario Faggioli, Ph.D
+http://about.me/dario.faggioli
+Virtualization Software Engineer
+SUSE Labs, SUSE https://www.suse.com/
+-------------------------------------------------------------------
+<<This happens because _I_ choose it to happen!>> (Raistlin Majere)
+
+
+--=-fcfXGdMTNOfnauu1DZWy
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAABCAAdFiEES5ssOj3Vhr0WPnOLFkJ4iaW4c+4FAl1Bwl4ACgkQFkJ4iaW4
+c+5NchAAhQESRHjvBVeSBTZJyh+kcr5QKViHEitkFTtOCRshdOs/4NPb5B75STZv
+/sOxzEmdwENyJJ0aNuuLemobMIsvGbJmZYfXGPFoSH7YVT0kUNhi+6YjU28mqUXP
+3Pr5KJHLzLpDn7SeATXL6fo44Y0AFcPZbF6yq9LcyqNIg3kBxE6+NW0a0P3oR7SW
+KxuJwFLeWdzVdd+iwTV4La0+FBd3EUrJAOZ5yn0Oyhjw2+yzPSYc+2si0JffEF9V
+xAP/axNUAHF7R4lbgwhnXDLxHUAGdOwPlH2h6QPkz3C3Ef0g0EobWsJ1qUSLjJJ4
+N2h4Cb+FwjOta232LKbFT3u3Zusoe92jop66eoXl1ozrpInxSD+tmh9YLPUZxGRg
+fRMhGwGmBSne87c1S7fAw9q11lT6u8D817PGvn3t00H1wnuCBQap1XvoupAMOH7G
+XpRYPxsa9WmsABgx4WWbFyJbgpTZcwKj7S3OQSZRRtQa8qLnpD0/ot7LhqyP+x11
+FzQQ0Pqc/2Ou2Oubi6wJGDaw+cXIKoEwG6w9lYVuTGCFkTybXz+VPvsMlAmgWAsA
+raqSdvH3mu0nOzpVUgvLPygh/OKV5zICoCONGerEbDvr1TfvWGvK7+cDB4gQszhY
+4Hvg9+wEqYNbe41b1e571d7sYBhXokahSiSeTH6a/TgPzJNCrSg=
+=qx70
+-----END PGP SIGNATURE-----
+
+--=-fcfXGdMTNOfnauu1DZWy--
 
