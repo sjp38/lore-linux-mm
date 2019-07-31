@@ -2,102 +2,103 @@ Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08E55C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:58:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CF28C32751
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:58:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B29CE206B8
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:58:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D894A206B8
+	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 16:58:19 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=android.com header.i=@android.com header.b="cfX4VNn7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B29CE206B8
+	dkim=pass (2048-bit key) header.d=android.com header.i=@android.com header.b="jvJzTZBl"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D894A206B8
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=android.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 345EE8E0003; Wed, 31 Jul 2019 12:58:14 -0400 (EDT)
+	id 62D198E0005; Wed, 31 Jul 2019 12:58:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2F6A18E0001; Wed, 31 Jul 2019 12:58:14 -0400 (EDT)
+	id 5DCD78E0001; Wed, 31 Jul 2019 12:58:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 198208E0003; Wed, 31 Jul 2019 12:58:14 -0400 (EDT)
+	id 4A5B58E0005; Wed, 31 Jul 2019 12:58:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D7F318E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 12:58:13 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id h3so43233762pgc.19
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:58:13 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 16C068E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 12:58:19 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id d6so37809831pls.17
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 09:58:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=YkWr+p+vKLuVNlEdLhOL/tn/V0J5xAeOTfzwbmW2id8=;
-        b=qRaAjajXwEbGPiPnCoVOP1TgL4wfQOERvWM98rF/f5T1V38kfsWtocx1sBd4aSMHwl
-         9PQPsOguT7TV4Zr9TUIXygKiqvO38Ugx3Fc4iuvwtOPLAm4DYwU8z8xU4df2pRmql+nh
-         TqAefQsZEjsAjPPN0zDawiN81lxVGh0uPEX4pLsJ3KEO+DuO/wFWqRAxK+8VKO1Usw6z
-         tsTUxfR7S+/na39yYHD5rRVCIIWlBB19aP6tzwNmjxzya1/UXnCR/7kNDubGFk1u2KgJ
-         Km9mftVWJGwtEs+nmX3Wd0gXvLO1tsPtsr+56NXCBt6F6cODMPkmovP5lJUZBwBs38rw
-         WQpw==
-X-Gm-Message-State: APjAAAV5/G7JW1uksBvwlTkYVXiY02gafmQe9Y3q0THtLBOYbz8UpAGh
-	QusCkQGghnSUGQwEsI52fiTzpmsd8nxKwmH62fYdLyWBqL4ceIm2FPabTilhV7Zi3RtPv/tSPzt
-	aB/gT1MAsLVL9pxY09zWXIKwKgSvTAGz6lmnLul1OigIfTmWIsMuH9Em6dYYjdmzxjw==
-X-Received: by 2002:a17:90a:2488:: with SMTP id i8mr3817080pje.123.1564592293354;
-        Wed, 31 Jul 2019 09:58:13 -0700 (PDT)
-X-Received: by 2002:a17:90a:2488:: with SMTP id i8mr3817015pje.123.1564592291953;
-        Wed, 31 Jul 2019 09:58:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564592291; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=ec+TCYltRZ+0BbWthj8J/cCYhvIm8sHJdK79dSthSdY=;
+        b=FphVxiPxs1rzp+YVeJQ6X20PuH1r+fvpMIZ3iVjLsgGPpq8q/iTWk25zce2aF8h9HX
+         2B57BYOhzIF56vxrmpq9WXE9WGZpQ+0w1BpEZda2+it9EqGnfdqk0rIPyjA/ZC70wEzh
+         BLkHv2TyBeQ+11FSD5eQA6EriooSAh1hKDOrIhYsEq2VJC6B3CQRQZbQFiunLzKoCtC1
+         Md+vRk5cxwUDD02ilOYsM/ueXWoWMC6hB28nVVSXoS3AlLdq94JrobjHJudAhektajVg
+         zmJRoQLHz0WLO/Deuu37xLG89cH/g2uJeqSFyQ3BsUmAxM3i8ImUKQ16ZcIsLWLRwqc2
+         tf+A==
+X-Gm-Message-State: APjAAAWD0hOhd8i5hXGmAy86DLj7uCZASIyjlctCPEZt5mgJ/e3P4nN+
+	/N2kZo6ZDSWf0VgwNNY7uUzDLdSSP75PEjjUSHXzGBcsw2nH9T1gEqdGnQnt61H94d1Y9xOXmrL
+	xqc6RIC/gLlO6UJSjfYKlok4mUgGto8yxY2vQSMpKaF5v3Qrl1dUccnoHc75wMdaD9Q==
+X-Received: by 2002:a17:90a:b908:: with SMTP id p8mr3933519pjr.94.1564592298638;
+        Wed, 31 Jul 2019 09:58:18 -0700 (PDT)
+X-Received: by 2002:a17:90a:b908:: with SMTP id p8mr3933445pjr.94.1564592297425;
+        Wed, 31 Jul 2019 09:58:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564592297; cv=none;
         d=google.com; s=arc-20160816;
-        b=OIFjD2g9+ArpOe0nVD/uTP1MZ2GC+V1RYC/bLfTunVF3aQFXHE48j5/JzYpO4YF59E
-         2oIyG3cTO5ZRsoUSKWlKJZZ/q7bNc7asIsQIgVXj4N7EW8OeDwMattXUkYsr6LEFDwcR
-         RriAiCPhEl7Wgmy7u/ZPxf2po81T2b693/sn57H9pfuaaf2PR2eQJn94C94Q4FeYe+Vr
-         w5KCXLAkxNfCLdVV1ZvkwdR9Dm+coakov8+CdAlqEWcy4f+lYXnfGvKydDuLT1oPNq6z
-         u7DQMlxpSFUJm4V/YdUbVUhZbpktZ4JwvD0ycIid5lEk0kE/yo6tniuPDd+oS5+MXlhi
-         gSBA==
+        b=kb2thQMdcMGeoUzPNN9mQ9uO+RlIhm5tnP6edHZYGdthwGtKsCApJmQuwbo77Y/SI0
+         x7XSxRTunZOQw843vNWcOEp5hPw0RNByrKC1hRDSyzg/p0S4m7tIZ6XbXfLvFe+4jkLR
+         koMAd5AADJ9Bo5TEz1DS4xl1yAKSondyOEytEejW46asrtVF1uzjk+VENeSUjC0dmDri
+         MNsbpPsZxi3U9xbeU/B7oboAbOHYOZlRa9VwK5qjeykEerWTJL92ydXbaHW76kyyNKPQ
+         Xq+27tcKj4zQX8cTu4M3IEGj38bZhodQtYlfDzxEmrHn3isJdZz3GlAi6X1UIz6C/tNn
+         liXQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=YkWr+p+vKLuVNlEdLhOL/tn/V0J5xAeOTfzwbmW2id8=;
-        b=pUQ6wyxvrfr9hcWcY4St1kKrbo3tR3rJeqCCDvI52WevkFoJIWjaEEe/dXUpfu/NI2
-         fNch9xN3EyFgorZQOT+oKHV6QAvBiN4qefBVZpUaOowVO69p8WtH2sRublrZijupvaE6
-         +WE4jSGqk8qz39wFsf+MSE8wOArNk5BPul4Qe7pFtNdnLYtoxx4YIuHyrllJGwIFV0nt
-         XMi7ch0aqZysKn56/KYOJVzquOXjSzL0O6Du2vZBccWIUFNETHOkqGRU8z9ryqWJULhz
-         xutlLv9aDMqcfIcamPYkPivEzFPvX1S3elUiyobBdie/cJylgw1VmcXj/VfvRcwHskmI
-         lOZA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=ec+TCYltRZ+0BbWthj8J/cCYhvIm8sHJdK79dSthSdY=;
+        b=WMFWVES6ICX6ohlsztzbqPcGS8u21c4pS86Njwobaz3ZE4QgA66jus8v9okP0Viv1R
+         DJtau25DEmlMUav7jTQL/2X9r8tJqObDIeJSiZ1GO6GiieeErGP9bppJVnELyqzp/iWh
+         +yetYedXD7SwhuS2w8OP62uNViBwTTnK0+eQ3SzdYsoPFZ+0aoHB2CMrziVSK9qFsyD3
+         DexxewrY0nrstp9jjBcmki0N0BGvl07o3xG3SuDzlfoFoY3j2Ruufs41VpAr87J76L2Q
+         HxhnO284NymXha0glx1XrAgOwaY8b/yQCWSpE7miUuNrGyZYKISUgsy8cy6bUh4DSuVJ
+         viRw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@android.com header.s=20161025 header.b=cfX4VNn7;
-       spf=pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=salyzyn@android.com;
+       dkim=pass header.i=@android.com header.s=20161025 header.b=jvJzTZBl;
+       spf=pass (google.com: domain of salyzyn@android.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=salyzyn@android.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=android.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id ca12sor2885175pjb.6.2019.07.31.09.58.11
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id z64sor49951360pfz.10.2019.07.31.09.58.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 31 Jul 2019 09:58:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 31 Jul 2019 09:58:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of salyzyn@android.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@android.com header.s=20161025 header.b=cfX4VNn7;
-       spf=pass (google.com: domain of salyzyn@android.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=salyzyn@android.com;
+       dkim=pass header.i=@android.com header.s=20161025 header.b=jvJzTZBl;
+       spf=pass (google.com: domain of salyzyn@android.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=salyzyn@android.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=android.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=android.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=YkWr+p+vKLuVNlEdLhOL/tn/V0J5xAeOTfzwbmW2id8=;
-        b=cfX4VNn7i5fVUAJEVA4MBhomWV9u/SiICGvW/8hoXIHAFSEgly0mFbnQ+ACtuwiC3g
-         IpRmu1ckKjW2mFtirOT4pZeZvT2dDPhZMzF32ZvoQFr92hPVsLC2dNO3QsACLmwar0UV
-         QGuSfotvuKuTlqK5sSL0gn6Mhis1cY41gMWMYYlYUWkSVqwTLLDgqF7CYEi0YCD1g00b
-         7XO/I47/oxluNGrRhfkGi6MsDix8d8wmsmYqbtCrJdMXSv2+AjyqFMUYQjA2L9of7CoM
-         8oMQRrlSd8a/C7QbtWiQIXkLjDxq+jhIt0VkS66EI4A6SO7z2CwCPG6R7kaiAWc0Io97
-         PoBw==
-X-Google-Smtp-Source: APXvYqy8vRIpYoYhq+l1XHKOf/Pp65RQkYrvXTYdFcAiznSLIUoJDMNElyzOyLh9v1G4MbxuSIIkEQ==
-X-Received: by 2002:a17:90a:2041:: with SMTP id n59mr3794829pjc.6.1564592291310;
-        Wed, 31 Jul 2019 09:58:11 -0700 (PDT)
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=ec+TCYltRZ+0BbWthj8J/cCYhvIm8sHJdK79dSthSdY=;
+        b=jvJzTZBlmSeEYN+aZgAO0eQUN/Tk2RrbbnkPYld1oxWv6SRiwJlYMsrXwGgUEYUa4O
+         c8IP9mSiBWfPnPUoMsfcP+avh6N+yXfmsFTOhlk/oLSPrOg61dplHWROkWXV2YCWs182
+         J1E7UMPHDHumM9VHcwzfpneV57lGJ2pZrUb9g6VVDdWdrNFamw+D+bnFF2HIsMO1otBP
+         QaYE36dCS32zu5Yfvc5rPyb7yUgw4D3O28kjNq/esNyy56+NllVY419E9QCcXJj+lNZ9
+         n1nsl1oo8VqunmZKSa2BQZLlBHcA0KpEmN1VJDvIZg0i5KfyYr6715FMiAk9Bj8dpLw/
+         L5lw==
+X-Google-Smtp-Source: APXvYqwAtm9Oi2dzrneje86zRIini04LNIAE0QYgVNa/tnC71lp2ENoOwAUjSIsPUfgwsF181KbaYg==
+X-Received: by 2002:a62:6:: with SMTP id 6mr47453483pfa.159.1564592296986;
+        Wed, 31 Jul 2019 09:58:16 -0700 (PDT)
 Received: from nebulus.mtv.corp.google.com ([2620:15c:211:200:5404:91ba:59dc:9400])
-        by smtp.gmail.com with ESMTPSA id f72sm2245954pjg.10.2019.07.31.09.58.09
+        by smtp.gmail.com with ESMTPSA id f72sm2245954pjg.10.2019.07.31.09.58.14
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 31 Jul 2019 09:58:10 -0700 (PDT)
+        Wed, 31 Jul 2019 09:58:16 -0700 (PDT)
 From: Mark Salyzyn <salyzyn@android.com>
 To: linux-kernel@vger.kernel.org
 Cc: kernel-team@android.com,
@@ -173,10 +174,12 @@ Cc: kernel-team@android.com,
 	netdev@vger.kernel.org,
 	linux-security-module@vger.kernel.org,
 	stable@vger.kernel.org
-Subject: [PATCH v13 0/5] overlayfs override_creds=off
-Date: Wed, 31 Jul 2019 09:57:55 -0700
-Message-Id: <20190731165803.4755-1-salyzyn@android.com>
+Subject: [PATCH v13 1/5] overlayfs: check CAP_DAC_READ_SEARCH before issuing exportfs_decode_fh
+Date: Wed, 31 Jul 2019 09:57:56 -0700
+Message-Id: <20190731165803.4755-2-salyzyn@android.com>
 X-Mailer: git-send-email 2.22.0.770.g0f2c4a37fd-goog
+In-Reply-To: <20190731165803.4755-1-salyzyn@android.com>
+References: <20190731165803.4755-1-salyzyn@android.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -186,35 +189,8 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Patch series:
-
-overlayfs: check CAP_DAC_READ_SEARCH before issuing exportfs_decode_fh
-Add flags option to get xattr method paired to __vfs_getxattr
-overlayfs: handle XATTR_NOSECURITY flag for get xattr method
-overlayfs: internal getxattr operations without sepolicy checking
-overlayfs: override_creds=off option bypass creator_cred
-
-The first four patches address fundamental security issues that should
-be solved regardless of the override_creds=off feature.
-on them).
-
-The fifth adds the feature depends on these other fixes.
-
-By default, all access to the upper, lower and work directories is the
-recorded mounter's MAC and DAC credentials.  The incoming accesses are
-checked against the caller's credentials.
-
-If the principles of least privilege are applied for sepolicy, the
-mounter's credentials might not overlap the credentials of the caller's
-when accessing the overlayfs filesystem.  For example, a file that a
-lower DAC privileged caller can execute, is MAC denied to the
-generally higher DAC privileged mounter, to prevent an attack vector.
-
-We add the option to turn off override_creds in the mount options; all
-subsequent operations after mount on the filesystem will be only the
-caller's credentials.  The module boolean parameter and mount option
-override_creds is also added as a presence check for this "feature",
-existence of /sys/module/overlay/parameters/overlay_creds
+Assumption never checked, should fail if the mounter creds are not
+sufficient.
 
 Signed-off-by: Mark Salyzyn <salyzyn@android.com>
 Cc: Miklos Szeredi <miklos@szeredi.hu>
@@ -227,6 +203,7 @@ Cc: Stephen Smalley <sds@tycho.nsa.gov>
 Cc: linux-unionfs@vger.kernel.org
 Cc: linux-doc@vger.kernel.org
 Cc: linux-kernel@vger.kernel.org
+Cc: kernel-team@android.com
 Cc: Eric Van Hensbergen <ericvh@gmail.com>
 Cc: Latchesar Ionkov <lucho@ionkov.net>
 Cc: Dominique Martinet <asmadeus@codewreck.org>
@@ -290,50 +267,42 @@ Cc: netdev@vger.kernel.org
 Cc: linux-security-module@vger.kernel.org
 Cc: stable@vger.kernel.org # 4.4, 4.9, 4.14 & 4.19
 ---
-v13:
-- add flags argument to __vfs_getxattr
-- drop GFP_NOFS side-effect
-
-v12:
-- Restore squished out patch 2 and 3 in the series,
-  then change algorithm to add flags argument.
-  Per-thread flag is a large security surface.
-
-v11:
-- Squish out v10 introduced patch 2 and 3 in the series,
-  then and use per-thread flag instead for nesting.
-- Switch name to ovl_do_vds_getxattr for __vds_getxattr wrapper.
-- Add sb argument to ovl_revert_creds to match future work.
+v11 + v12 + v13 - rebase
 
 v10:
-- Return NULL on CAP_DAC_READ_SEARCH
-- Add __get xattr method to solve sepolicy logging issue
-- Drop unnecessary sys_admin sepolicy checking for administrative
-  driver internal xattr functions.
+- return NULL rather than ERR_PTR(-EPERM)
+- did _not_ add it ovl_can_decode_fh() because of changes since last
+  review, suspect needs to be added to ovl_lower_uuid_ok()?
+
+v8 + v9:
+- rebase
+
+v7:
+- This time for realz
 
 v6:
-- Drop CONFIG_OVERLAY_FS_OVERRIDE_CREDS.
-- Do better with the documentation, drop rationalizations.
-- pr_warn message adjusted to report consequences.
+- rebase
 
 v5:
-- beefed up the caveats in the Documentation
-- Is dependent on
-  "overlayfs: check CAP_DAC_READ_SEARCH before issuing exportfs_decode_fh"
-  "overlayfs: check CAP_MKNOD before issuing vfs_whiteout"
-- Added prwarn when override_creds=off
+- dependency of "overlayfs: override_creds=off option bypass creator_cred"
+---
+ fs/overlayfs/namei.c | 3 +++
+ 1 file changed, 3 insertions(+)
 
-v4:
-- spelling and grammar errors in text
-
-v3:
-- Change name from caller_credentials / creator_credentials to the
-  boolean override_creds.
-- Changed from creator to mounter credentials.
-- Updated and fortified the documentation.
-- Added CONFIG_OVERLAY_FS_OVERRIDE_CREDS
-
-v2:
-- Forward port changed attr to stat, resulting in a build error.
-- altered commit message.
+diff --git a/fs/overlayfs/namei.c b/fs/overlayfs/namei.c
+index e9717c2f7d45..9702f0d5309d 100644
+--- a/fs/overlayfs/namei.c
++++ b/fs/overlayfs/namei.c
+@@ -161,6 +161,9 @@ struct dentry *ovl_decode_real_fh(struct ovl_fh *fh, struct vfsmount *mnt,
+ 	if (!uuid_equal(&fh->uuid, &mnt->mnt_sb->s_uuid))
+ 		return NULL;
+ 
++	if (!capable(CAP_DAC_READ_SEARCH))
++		return NULL;
++
+ 	bytes = (fh->len - offsetof(struct ovl_fh, fid));
+ 	real = exportfs_decode_fh(mnt, (struct fid *)fh->fid,
+ 				  bytes >> 2, (int)fh->type,
+-- 
+2.22.0.770.g0f2c4a37fd-goog
 
