@@ -6,121 +6,129 @@ X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
 	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BDEAEC19759
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 14:15:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CDB77C19759
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 14:19:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6F1FB20838
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 14:15:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7D2EC20838
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 14:19:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="Xxvi13uM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F1FB20838
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="M+yZ5LoJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D2EC20838
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F41168E001A; Thu,  1 Aug 2019 10:15:15 -0400 (EDT)
+	id 0BF258E001B; Thu,  1 Aug 2019 10:19:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ECA8F8E0001; Thu,  1 Aug 2019 10:15:15 -0400 (EDT)
+	id 070128E0001; Thu,  1 Aug 2019 10:19:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D91928E001A; Thu,  1 Aug 2019 10:15:15 -0400 (EDT)
+	id E9F718E001B; Thu,  1 Aug 2019 10:19:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B80FA8E0001
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 10:15:15 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id e32so64667055qtc.7
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 07:15:15 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id CA32E8E0001
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 10:19:08 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id 41so58927832qtm.4
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 07:19:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=is8PyxvRhNytWxsxvai2fZ7Vunv6qUm5JlLk3gubz8A=;
-        b=dpSfT5Dg6QDZwva5fSF3PBWaP3NL3ejRttYkqp7r0ry1pxak5t+MxtxCWlz8gnidvC
-         gSCPE5C/CHpr7hcoR5ahxP/5ysSnhH/qfPLOHcY18VPMw5CKDa+Iqpa7ViT+OnHeewd3
-         +VQcjiKKX0H8KFNa04Mqdo6UD3UaB1tjIyhT4kSPl3/NM1X7B0iOjNlizyUrX0r6rL4h
-         lCzELk1Z+PblAxuL0BMa0yu1pMmAy3YsREdwIRxLM9EaYYxiF5KPrzSYxiOYFC/lAgWN
-         tDr09Pd9aOwgRkL3050c1k3hI8T01GooyfcK2xkecrr7THvEN1kG14cGqx8sXL4WPdaQ
-         8KkA==
-X-Gm-Message-State: APjAAAUiN3Wpd9JuDfmE+DQO7qvkyFMaSX7RXNmfyGXTFeWQSrDKSwui
-	OOGgPH4GVe6tSlMQVAgO7oRShCKALsy8xLaSvF7KIdY2KM9dxF/OAtsQA98XDBMSqazQV8k6KIv
-	7Pd/1BiHGKUFMaP8xXVJBkmCAk5XCEJpC1pCZH0OYSGIb2T2iUrommSIt1PEPeLhipA==
-X-Received: by 2002:ae9:df81:: with SMTP id t123mr26285717qkf.372.1564668915437;
-        Thu, 01 Aug 2019 07:15:15 -0700 (PDT)
-X-Received: by 2002:ae9:df81:: with SMTP id t123mr26285629qkf.372.1564668914595;
-        Thu, 01 Aug 2019 07:15:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564668914; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=hMA7vlwUroWdb0REjDf2neAobLqIjEsoQepgHkXMGQc=;
+        b=fpPIN1fncvrB1LXut9JiOelSVkhUjl7r8xd2CeqXh2q6ZF9/yWme79b+I6Zz4Au3qX
+         W+jQLB+IQszgxtCPqDDvvf3DoQxljLujDr447BSF4/VHThL6gXgWRrSDsRjAXj0u6x+Y
+         BBtRlo7F26n5Jibfjk1c0RB0XdMb9fYRM7WJv7NuuRNwYhP6QBScW5hMt0EYVoLC2wHK
+         kBjia1fAbaiesQaG8jBCQZhfA/a7PMSrZ8yzXitLTGNvUQ2A3rl54SROGgfM1ZGkMtAQ
+         O0jQNplbPvIOxVfL4YVp92J/XpJ97d2XDGTkbHHFrOTFpeL4wvUGqqMRT0KCCALHMKD7
+         Y5fw==
+X-Gm-Message-State: APjAAAW5IPBXQLVOGrkDlOvqpei1sy4i4gm7/XcAlXDCzDyouNIbhhIZ
+	/Lgsg/RuQ5woJs6KqYu+/25MGTZusQElOshVnzlDXZVWjlnrQj5WggZXG1b63ZLfqUNbofEWWax
+	OfcmIQK1uwySshzsRsb+YZVALDEVeUIUY+SzMoQZqTb5EBKvmd7gmB/QdFdgm14ETyA==
+X-Received: by 2002:ac8:45d0:: with SMTP id e16mr19919471qto.337.1564669148600;
+        Thu, 01 Aug 2019 07:19:08 -0700 (PDT)
+X-Received: by 2002:ac8:45d0:: with SMTP id e16mr19919425qto.337.1564669148017;
+        Thu, 01 Aug 2019 07:19:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564669148; cv=none;
         d=google.com; s=arc-20160816;
-        b=CE1rHnPXOKErzFaj1iSMLBBJe+E+PMdHDN8mRmLow+YOksYZoBpZ6o4tO8UOipg8BM
-         1FwYYO1ZO8Vc8jRZG4Tb0x4BaO900aP35dDfZgdFq9bSu11JTYglN4YMbSuhsHdft/eW
-         tqUVg0ed/7uH5u721oETwjLhqHvr/IJCFZGfHahCbI7vSGM6A+GgjvJoyqiRMcTZLZ4p
-         +mmRikNlh1+cFOIMQ2i5iYKu5PSLdg7M2tJS9d6GrUCe7aV8An1HylqXpc8HUn1BH7qE
-         75Us7+NHoflQrfsCWc6/R+pYj1aKDDGzi9Tx18WJu/zfGz/FGE5Gf2hBCoq67Pp54PAt
-         hw8A==
+        b=j3+/h9I/UCtDzjjBKXDCIt7hIwI/g9q5XED1IikUdNFnJPe37weLJXcBybqWZ4JZ0r
+         dGObN/NZ94BoTPKMhZ7svsVUfuY6AXmExyFGXdjkyrSg01DRj+QLVUhhuFfmemF9OiMZ
+         OGUIiL3DtA26qrqXVk6BNYCbX1+Z+k5Wc6EwIbqqGQ7t6HLvPwnN60c/xGvXh5zeRTwv
+         FHSrVQ9+1Q3yOtmNk0abEqd11sctpxQu+RhuDQn08zssCtlUnKRvss8qxWSeVJY4oQi7
+         N6m7jkmCiqSJXo/DF3qHun/l2X4WMQEH+cg+6KCIKOs7hDCubNxZUyCgkDyomxeruSNT
+         bt6A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=is8PyxvRhNytWxsxvai2fZ7Vunv6qUm5JlLk3gubz8A=;
-        b=P+WSMi86EcDGG84HwjtW7xSoXilEMME+aCw9gvx3m0qOpYVScz52Zkl2NFw13ZhaDc
-         sY2sT8E9JRUDyfrPuT8Z4JN26z2OaTlc4DnYnsnB0IynZcyYm+FAngIhVlCSPqFmZGsO
-         aVvLmnjRjDlpuPH0LQyvGpIk5RVEL8gYyMWdyk4kRsfU5sINXupvaTLTtO8V0RhjToSl
-         U7DhuRjYwq3Rss3cwc0JBm6ZdcMi3ZuXQBr3glxjLOYB+GzFK3oleW16GXWTjzKyrMk1
-         yA2PTgqnrizcNaqRJv0C0X3edV7Wec4xm4GkKqxj7ihbUJqB0M6CCcmvtq46EzFNdTi8
-         KDPQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=hMA7vlwUroWdb0REjDf2neAobLqIjEsoQepgHkXMGQc=;
+        b=k+uzNotvtpccFQM/0mE4OVElHE4v9Ad326kP9QGxnLtf1jxL30JVV4FlOHzvT/dDGd
+         X7EiKt4MVUbpLwjThBZM34W/r4plP+AKW7mVMvTAMwZ/L/TnsOgt8GE7rGWnn4mES38r
+         DCsrvS6nIkGKhogmF0QaNwjQJ0bVEyTnZbq48iyHQFKz4IoDC/EcIapDDKZ3Qb6IoCwq
+         upjjE88DAbKb0BxRyyieb0JqwK9LKkC9D5qt/iQ4CX/JDxXmr7EbsmeTZJEfFYQQ+Nns
+         3xoKf+9Z5XsuyZh7s/3l4fqn6DqTWN9lqnvJyQksVIJylX44VyGYwju2XTjKfi1RN4Hj
+         Q2kw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=Xxvi13uM;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=M+yZ5LoJ;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m17sor92727191qtp.16.2019.08.01.07.15.14
+        by mx.google.com with SMTPS id y9sor52901790qvs.7.2019.08.01.07.19.07
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 01 Aug 2019 07:15:14 -0700 (PDT)
+        Thu, 01 Aug 2019 07:19:08 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=Xxvi13uM;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=M+yZ5LoJ;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=ziepe.ca; s=google;
         h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=is8PyxvRhNytWxsxvai2fZ7Vunv6qUm5JlLk3gubz8A=;
-        b=Xxvi13uMIuNd1i7qKKgkImlPAjK1xDFLxSCWyTWQlSWc0W0RYQ1MIbkdfqnYLZG9yu
-         5JI71oibP9i2ddPwTU9YBExPCU3Dlsj9Hb5dtaQ5jQpFVrZe095cwJxIxT6yDBH5wF1p
-         wCJApD147HK5V4ZzkFqufCd3njndvpO/gboYNoDeFKB07FcDW1Fik2Hzi8KFbGkqeU8B
-         FnLAkMgm4iKJeXTHx5eicQowVzuFCmxijHVptaHIDUKgEIgd9VbBsMKuWbYIgOQnQmmN
-         1oNq+b5+5oWwfawyEFBafayDt06Az4m3upS8lvLUrhifXOq6NRLkSxQqkth2e/4StwnK
-         u5vw==
-X-Google-Smtp-Source: APXvYqzpRyNA15Vg4dJPptP9AquA0hd08+YvFQ9QkFLiFtu1omZ5ju/uevoFFYsI/1tqgZOzWDDXnw==
-X-Received: by 2002:ac8:1a7d:: with SMTP id q58mr88042253qtk.310.1564668914103;
-        Thu, 01 Aug 2019 07:15:14 -0700 (PDT)
+         :content-disposition:in-reply-to:user-agent;
+        bh=hMA7vlwUroWdb0REjDf2neAobLqIjEsoQepgHkXMGQc=;
+        b=M+yZ5LoJGbhm7g0i1sIHAJmyeoJlxlLUxNMBipkE5Gk2KmuVJyj40RCbT2OMJyeUYM
+         zJHmHpLP79mwX+1GU1gaWmI+ZgMsrzh906sNv8d/eg/a5Xw25HKRKuFNgKcyKLM02Ww0
+         rufqIlPpawx9cNcQ6Ahy2tSEtMjGQsDi0/1f8f63o7vcW+ionqvcAAZen0904J/Ypmil
+         ZGhx4rO03KDS05ILM46VGBWJuCbsSKMR9WjJEMoOyUFc9cwx/Lc3OXwHZWF/4cg/Lo1f
+         MMC8Huc/zfOSWQ3eMe0y7mSe9oVAGDhdbvvwgs3CG/GKyE01CIy0PPbv9CbdNkVNHI2q
+         Ytxw==
+X-Google-Smtp-Source: APXvYqwTQf1KGpY8PZ+10TO7pJmffd0/JJ0SGE6m65X5GOGwylr1cSmZUzuB803q9/jTvKSKgNYkxg==
+X-Received: by 2002:a0c:aed0:: with SMTP id n16mr93783119qvd.101.1564669147681;
+        Thu, 01 Aug 2019 07:19:07 -0700 (PDT)
 Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id e125sm29217763qkd.120.2019.08.01.07.15.13
+        by smtp.gmail.com with ESMTPSA id s127sm30805414qkd.107.2019.08.01.07.19.07
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 01 Aug 2019 07:15:13 -0700 (PDT)
+        Thu, 01 Aug 2019 07:19:07 -0700 (PDT)
 Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
 	(envelope-from <jgg@ziepe.ca>)
-	id 1htBrN-00082a-0Q; Thu, 01 Aug 2019 11:15:13 -0300
-Date: Thu, 1 Aug 2019 11:15:12 -0300
+	id 1htBv8-00084t-Lf; Thu, 01 Aug 2019 11:19:06 -0300
+Date: Thu, 1 Aug 2019 11:19:06 -0300
 From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Jason Wang <jasowang@redhat.com>
-Cc: mst@redhat.com, kvm@vger.kernel.org,
-	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
- with worker
-Message-ID: <20190801141512.GB23899@ziepe.ca>
-References: <20190731084655.7024-1-jasowang@redhat.com>
- <20190731084655.7024-8-jasowang@redhat.com>
- <20190731123935.GC3946@ziepe.ca>
- <7555c949-ae6f-f105-6e1d-df21ddae9e4e@redhat.com>
- <20190731193057.GG3946@ziepe.ca>
- <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Christian Benvenuti <benve@cisco.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	"Darrick J . Wong" <darrick.wong@oracle.com>,
+	Dave Chinner <david@fromorbit.com>, Ira Weiny <ira.weiny@intel.com>,
+	Jan Kara <jack@suse.cz>, Jens Axboe <axboe@kernel.dk>,
+	Jerome Glisse <jglisse@redhat.com>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Mike Rapoport <rppt@linux.ibm.com>, linux-block@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+	linux-xfs@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [PATCH v4 1/3] mm/gup: add make_dirty arg to
+ put_user_pages_dirty_lock()
+Message-ID: <20190801141906.GC23899@ziepe.ca>
+References: <20190730205705.9018-1-jhubbard@nvidia.com>
+ <20190730205705.9018-2-jhubbard@nvidia.com>
+ <20190801060755.GA14893@lst.de>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
+In-Reply-To: <20190801060755.GA14893@lst.de>
 User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -128,90 +136,44 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 01, 2019 at 01:02:18PM +0800, Jason Wang wrote:
+On Thu, Aug 01, 2019 at 08:07:55AM +0200, Christoph Hellwig wrote:
+> On Tue, Jul 30, 2019 at 01:57:03PM -0700, john.hubbard@gmail.com wrote:
+> > @@ -40,10 +40,7 @@
+> >  static void __qib_release_user_pages(struct page **p, size_t num_pages,
+> >  				     int dirty)
+> >  {
+> > -	if (dirty)
+> > -		put_user_pages_dirty_lock(p, num_pages);
+> > -	else
+> > -		put_user_pages(p, num_pages);
+> > +	put_user_pages_dirty_lock(p, num_pages, dirty);
+> >  }
 > 
-> On 2019/8/1 上午3:30, Jason Gunthorpe wrote:
-> > On Wed, Jul 31, 2019 at 09:28:20PM +0800, Jason Wang wrote:
-> > > On 2019/7/31 下午8:39, Jason Gunthorpe wrote:
-> > > > On Wed, Jul 31, 2019 at 04:46:53AM -0400, Jason Wang wrote:
-> > > > > We used to use RCU to synchronize MMU notifier with worker. This leads
-> > > > > calling synchronize_rcu() in invalidate_range_start(). But on a busy
-> > > > > system, there would be many factors that may slow down the
-> > > > > synchronize_rcu() which makes it unsuitable to be called in MMU
-> > > > > notifier.
-> > > > > 
-> > > > > A solution is SRCU but its overhead is obvious with the expensive full
-> > > > > memory barrier. Another choice is to use seqlock, but it doesn't
-> > > > > provide a synchronization method between readers and writers. The last
-> > > > > choice is to use vq mutex, but it need to deal with the worst case
-> > > > > that MMU notifier must be blocked and wait for the finish of swap in.
-> > > > > 
-> > > > > So this patch switches use a counter to track whether or not the map
-> > > > > was used. The counter was increased when vq try to start or finish
-> > > > > uses the map. This means, when it was even, we're sure there's no
-> > > > > readers and MMU notifier is synchronized. When it was odd, it means
-> > > > > there's a reader we need to wait it to be even again then we are
-> > > > > synchronized.
-> > > > You just described a seqlock.
-> > > 
-> > > Kind of, see my explanation below.
-> > > 
-> > > 
-> > > > We've been talking about providing this as some core service from mmu
-> > > > notifiers because nearly every use of this API needs it.
-> > > 
-> > > That would be very helpful.
-> > > 
-> > > 
-> > > > IMHO this gets the whole thing backwards, the common pattern is to
-> > > > protect the 'shadow pte' data with a seqlock (usually open coded),
-> > > > such that the mmu notififer side has the write side of that lock and
-> > > > the read side is consumed by the thread accessing or updating the SPTE.
-> > > 
-> > > Yes, I've considered something like that. But the problem is, mmu notifier
-> > > (writer) need to wait for the vhost worker to finish the read before it can
-> > > do things like setting dirty pages and unmapping page.  It looks to me
-> > > seqlock doesn't provide things like this.
-> > The seqlock is usually used to prevent a 2nd thread from accessing the
-> > VA while it is being changed by the mm. ie you use something seqlocky
-> > instead of the ugly mmu_notifier_unregister/register cycle.
+> __qib_release_user_pages should be removed now as a direct call to
+> put_user_pages_dirty_lock is a lot more clear.
 > 
+> > index 0b0237d41613..62e6ffa9ad78 100644
+> > +++ b/drivers/infiniband/hw/usnic/usnic_uiom.c
+> > @@ -75,10 +75,7 @@ static void usnic_uiom_put_pages(struct list_head *chunk_list, int dirty)
+> >  		for_each_sg(chunk->page_list, sg, chunk->nents, i) {
+> >  			page = sg_page(sg);
+> >  			pa = sg_phys(sg);
+> > -			if (dirty)
+> > -				put_user_pages_dirty_lock(&page, 1);
+> > -			else
+> > -				put_user_page(page);
+> > +			put_user_pages_dirty_lock(&page, 1, dirty);
+> >  			usnic_dbg("pa: %pa\n", &pa);
 > 
-> Yes, so we have two mappings:
-> 
-> [1] vring address to VA
-> [2] VA to PA
-> 
-> And have several readers and writers
-> 
-> 1) set_vring_num_addr(): writer of both [1] and [2]
-> 2) MMU notifier: reader of [1] writer of [2]
-> 3) GUP: reader of [1] writer of [2]
-> 4) memory accessors: reader of [1] and [2]
-> 
-> Fortunately, 1) 3) and 4) have already synchronized through vq->mutex. We
-> only need to deal with synchronization between 2) and each of the reset:
-> Sync between 1) and 2): For mapping [1], I do
-> mmu_notifier_unregister/register. This help to avoid holding any lock to do
-> overlap check.
+> There is a pre-existing bug here, as this needs to use the sg_page
+> iterator.  Probably worth throwing in a fix into your series while you
+> are at it.
 
-I suspect you could have done this with a RCU technique instead of
-register/unregister.
+Sadly usnic does not use the core rdma umem abstraction but open codes
+an old version of it.
 
-> Sync between 2) and 4): For mapping [1], both are readers, no need any
-> synchronization. For mapping [2], synchronize through RCU (or something
-> simliar to seqlock).
-
-You can't really use a seqlock, seqlocks are collision-retry locks,
-and the semantic here is that invalidate_range_start *MUST* not
-continue until thread doing #4 above is guarenteed no longer touching
-the memory.
-
-This must be a proper barrier, like a spinlock, mutex, or
-synchronize_rcu.
-
-And, again, you can't re-invent a spinlock with open coding and get
-something better.
+In this version each sge in the sgl is exactly one page. See
+usnic_uiom_get_pages - so I think this loop is not a bug?
 
 Jason
 
