@@ -1,207 +1,238 @@
 Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
-X-Spam-Level: *
-X-Spam-Status: No, score=1.2 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Level: 
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 28EE9C433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 06:51:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EDA3DC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 07:00:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B6E80216C8
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 06:51:16 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="r8pAoGTe"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6E80216C8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 90EC52089E
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 07:00:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90EC52089E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 62D648E0005; Thu,  1 Aug 2019 02:51:16 -0400 (EDT)
+	id 2A50D8E0003; Thu,  1 Aug 2019 03:00:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5DE8D8E0001; Thu,  1 Aug 2019 02:51:16 -0400 (EDT)
+	id 27C0A8E0001; Thu,  1 Aug 2019 03:00:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4A6E68E0005; Thu,  1 Aug 2019 02:51:16 -0400 (EDT)
+	id 16B948E0003; Thu,  1 Aug 2019 03:00:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F21C8E0001
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 02:51:16 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id 191so45017487pfy.20
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 23:51:16 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id E98E48E0001
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 03:00:50 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id e32so63710409qtc.7
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 00:00:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=Z+wSy2NIw56Ih4OG3All4gi2gj6xpW5h+aVJhlgDXzA=;
-        b=UTWFL1iTipQNFrmq3sgMInh+W2+RqPhSptvjtsikEhW6eesxl5l6R3A2RxtY1kOTtx
-         8nNKZJzARSg8E71B+ZRkmOKfgXJ6gwdzOswRqtIJLJRSbGzmKfOJeeFmWCmVJa6BnNO0
-         jHhDXP0sPMyMb9xfdmbcuiqX5By1CKkgDQzoqexSBkV1e2TP574k3NkwBJ9sYkNReO0Z
-         2DHxTy7RTc6id/mxMGPz+eb5eTVixTE7XbLRV3+T8Qyz7HxzMszxUqJ3VJWGpNnWYyu5
-         0p7RqpRjmnUJRuACJL8L+VkOrhsNSPiU+e5TtrrCnmV95a5junDt9+Xgly8R8X0wc1+v
-         DVOw==
-X-Gm-Message-State: APjAAAWjGCMgPzcvXkxVjuMJFEhp7V6u6Vl5T+RZsoTDD0I5m0GH5xSk
-	oFC4zUiL0ezXMRlxeRZzOoQ8JbvHw/Cfl1RBZYOFWOGEITa+Dv+WtYKXQT3dydG+0K5kVToQne7
-	B3kfEUhmJfA+GSp1R9RbnoTT5C2uIr+/zF8oSeHiO68ZUcn8W8VAIhS4xWDbX7tk=
-X-Received: by 2002:a63:6205:: with SMTP id w5mr857858pgb.199.1564642275481;
-        Wed, 31 Jul 2019 23:51:15 -0700 (PDT)
-X-Received: by 2002:a63:6205:: with SMTP id w5mr857818pgb.199.1564642274618;
-        Wed, 31 Jul 2019 23:51:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564642274; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=MwiLMAbjUiTXCp1KVUKFMkuCv5sA1xN+aWeYP/Q3b7I=;
+        b=XzrwDwy5lbIHk2MTzeTTmyJMlj8JtNSVEYzXfDKrjLl9pI/KLMhMg79rqyqVXVRDm3
+         9ZAmIcS9gFQp3fGCE0/oTVg8xRXXjQH3H0gssTg7rRJbj36Qa17NhIyck7t6VhGDINh6
+         BUi/60ySEHDX3nUGlfr6WJq4s02vuA6sA88v0CXpR6qWF2dnISOKXP8fHa+BHUJS9DJV
+         hAr7IaNsysmHO5R3EHuh8qpQLj95uH3br7luyFp+vlCTBHHZn3HTPHKqRfsrmi0+wxBm
+         G4SPL2Kw/O4yrJsvapbSCsRPjCQeFkQ27i4rJG9+kMt6NoJWV4LzFGsUTSq1FJ9BP+Rp
+         siPg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUbFCqbONlNF1B0s9iZUoGd4bS1kV58KB+k9ci/o+QDj94sfwAs
+	Tba8zr9TNDX8NvN9VDFtSgwdtUhX1jN1Y/pBnDtkOUEINsIpvp7myeEHS4fdXtzUuxj/WSOXUr1
+	aaRdJIjG49PUdEwQ32Me/ddgxoSOzJL+M3XTNk1ARKXFviObovZQjdw2fHh/3N6Z9+w==
+X-Received: by 2002:aed:3bb5:: with SMTP id r50mr85208975qte.89.1564642850691;
+        Thu, 01 Aug 2019 00:00:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxFWxpuR1ve9VY+y2n7ytalaeES9m52FoBWxr3K8MwCnLN8PCqdVLh666E71tIr5NA+REC8
+X-Received: by 2002:aed:3bb5:: with SMTP id r50mr85208933qte.89.1564642849912;
+        Thu, 01 Aug 2019 00:00:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564642849; cv=none;
         d=google.com; s=arc-20160816;
-        b=bowKB+i05xF5ZDk/EsBWfPP9x4kHfm7A7G9D7cHcZ7fflY9VOJjf9FPUJAfRBp0uoD
-         66qaxLuSvPP4mt8+BLxN6gvIMY4pMZd1kpeV2mu4xHUIcBfnINpAy8DhOVchEu5f7/MV
-         SqUVy/9IlZ64gumtV2GOENNrnGWoe8lvb/VUPK8sofk0KxmILlK8voU79u3cECd43FOS
-         3CzHilIzOvTJwkhB4Cnsq8vavpcal0HJzXVo39VaigZ+hkHFOLl9j7iiLaFPlFzpFcey
-         46pChmqjwpZTU3fQfrj5jKhzMOvmQ18F5MvklK3WO69z8Jm/bwpfoE1tSSSG531uswYT
-         /HQg==
+        b=kXyRDgrtOy5EpN0Y4t+nFtGodwnkKnzyjbiiy7E9wPm6odpHz+4ExuO9KkEsnEn0PY
+         srtl29f4WZl8DCdXRUIaa3usfqtkw7jWkBLPCoQtJrdqFPszktwywNcyO2RKAyajswzR
+         S+t45iY16WMnyYJ5yA879n30UyzdT7Hz/1HOO3lhIGUCUKAVfnsGza4TFX/Gc7y4oUHq
+         D1Ju356YlnpAMO5pp9JJrogF3MDfNs3G9d+Bd3/8vyv3dYzmXyibR5yr8P2F1wIiOzqR
+         fqCESsSmdSzNT9kLXekuYx7TFvi86QSkP3Zfj9LZRLyE3P4DqwzWu67u0sVtmrwJo4Pw
+         PJmQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:sender:dkim-signature;
-        bh=Z+wSy2NIw56Ih4OG3All4gi2gj6xpW5h+aVJhlgDXzA=;
-        b=V1nN5HhzNm7rO7Gqh8uHbs5pNt8qX1wJsOMOjTDdJLUEMer5EamvL9BTZyYx6AtX5v
-         iS6gdZzubfNl/X3+4qQXXyWPCKf+LXNfHpSBLm7q7ohJdHw+wtToiPjC2mZj7Vqmefsx
-         YhhNDQ54rz4Rs24wVjuu9r5YhoqdhjjhT2UyYBA+bPy3QtGxp3NgUqvY8ZIbLZKiwIiL
-         hvtzSGsQqUfy4O6BRAVrBh0D3EeTtaWC8wnTM3ZolMsX3LmMcgRhID+GSfgAOMNAqkqT
-         RNiiiPLZjqSiPTsrfH8tn5LO4y81c41LL7PQGYMGj0hrVIcJKuXAr0opiDjee5VuQvDY
-         dWAw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=MwiLMAbjUiTXCp1KVUKFMkuCv5sA1xN+aWeYP/Q3b7I=;
+        b=FgXumpVKviNoTXE/NfKRhnxAUEsJxFaaEmI4FFYRtS1IF4//2Gk64VF1llcnQApAEj
+         heVZws3ujSj/NF+kQSyRKr1fyRUDYLF1OnfMxSVk/TfRplcGh14OkiSpLS+VpIZ3ShJl
+         csHnZyufk8MHix91AVEuJtbQ6wdg8etNIC3/SSHU4dkPVw99prtIrLlbPQId+KQgCCOG
+         xeGpqkQttTLNYR3K8NK4TB3Gw2QdWjCSVLFLvEW5RqSm/3d/fwn4WmE9eBpwWEqy7csX
+         FYVFXJ5sBv5yYb/6HNsydq+vWWrZNwPh4OxGggxUUjo6DreN+qt/KXKvYqZAyP1orELi
+         HOqA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=r8pAoGTe;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g95sor84448283plb.67.2019.07.31.23.51.14
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j94si40219398qte.116.2019.08.01.00.00.49
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 31 Jul 2019 23:51:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Aug 2019 00:00:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=r8pAoGTe;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=Z+wSy2NIw56Ih4OG3All4gi2gj6xpW5h+aVJhlgDXzA=;
-        b=r8pAoGTe3awW6RqIb2JqB64N65oxWNjwZpK9U+UXIWwcqb+ujBDnbvMeMHHEzzir9v
-         d46oiI1XmFzexTj1Xu896UiMhyfqyE/kOe6/3stzVI7dx5oCND6SQ9PHDMkDB0pjvJav
-         W6FZZ89AqXASzs4uf4LnPBsZgpf65bHmKu+IHifu2EmNIRiRfTxKaU2SvCmAPbNeK+4g
-         Ha8hpTayyvBCWIgMwCCRN9Rg6EF6QjpCf89kkrQDr/hc8BzJxCZV1W1V9xZ3fDS78O/Z
-         EuNKEJUyvd76Zd9TySZxqHM8Tpk6OXyL9ztVUtRvTzf7kPDte1n4bWVX73xC/4c1hLhb
-         rmIQ==
-X-Google-Smtp-Source: APXvYqy7MQ5OSx4BlyyKB0FvW0mnEEtl3nm0LuK11aKIVzBcR5piytGZo7Q6qT+E/6AfdFy4BVnfUA==
-X-Received: by 2002:a17:902:b713:: with SMTP id d19mr125415539pls.267.1564642274050;
-        Wed, 31 Jul 2019 23:51:14 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id 33sm83795415pgy.22.2019.07.31.23.51.11
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 31 Jul 2019 23:51:12 -0700 (PDT)
-Date: Thu, 1 Aug 2019 15:51:08 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Qian Cai <cai@lca.pw>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	Michal Hocko <mhocko@suse.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: "mm: account nr_isolated_xxx in [isolate|putback]_lru_page"
- breaks OOM with swap
-Message-ID: <20190801065108.GA179251@google.com>
-References: <1564503928.11067.32.camel@lca.pw>
- <20190731053444.GA155569@google.com>
- <1564589346.11067.38.camel@lca.pw>
- <1564597080.11067.40.camel@lca.pw>
+       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 06749796ED;
+	Thu,  1 Aug 2019 07:00:49 +0000 (UTC)
+Received: from [10.36.116.245] (ovpn-116-245.ams2.redhat.com [10.36.116.245])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id BFC94608C2;
+	Thu,  1 Aug 2019 07:00:46 +0000 (UTC)
+Subject: Re: [PATCH v1] drivers/base/memory.c: Don't store end_section_nr in
+ memory blocks
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+ "Rafael J. Wysocki" <rafael@kernel.org>,
+ Andrew Morton <akpm@linux-foundation.org>,
+ Pavel Tatashin <pasha.tatashin@soleen.com>,
+ Dan Williams <dan.j.williams@intel.com>, Oscar Salvador <osalvador@suse.de>
+References: <20190731122213.13392-1-david@redhat.com>
+ <20190731124356.GL9330@dhcp22.suse.cz>
+ <f0894c30-105a-2241-a505-7436bc15b864@redhat.com>
+ <20190731132534.GQ9330@dhcp22.suse.cz>
+ <58bd9479-051b-a13b-b6d0-c93aac2ed1b3@redhat.com>
+ <20190731141411.GU9330@dhcp22.suse.cz>
+ <c92a4d6f-b0f2-e080-5157-b90ab61a8c49@redhat.com>
+ <20190731143714.GX9330@dhcp22.suse.cz>
+ <d9db33a5-ca83-13bd-5fcb-5f7d5b3c1bfb@redhat.com>
+ <20190801061344.GA11627@dhcp22.suse.cz>
+From: David Hildenbrand <david@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ SE+xAvmumFBY
+Organization: Red Hat GmbH
+Message-ID: <f8767e9a-034d-dca6-05e6-dc6bbcb4d005@redhat.com>
+Date: Thu, 1 Aug 2019 09:00:45 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
+In-Reply-To: <20190801061344.GA11627@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <1564597080.11067.40.camel@lca.pw>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Thu, 01 Aug 2019 07:00:49 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 31, 2019 at 02:18:00PM -0400, Qian Cai wrote:
-> On Wed, 2019-07-31 at 12:09 -0400, Qian Cai wrote:
-> > On Wed, 2019-07-31 at 14:34 +0900, Minchan Kim wrote:
-> > > On Tue, Jul 30, 2019 at 12:25:28PM -0400, Qian Cai wrote:
-> > > > OOM workloads with swapping is unable to recover with linux-next since
-> > > > next-
-> > > > 20190729 due to the commit "mm: account nr_isolated_xxx in
-> > > > [isolate|putback]_lru_page" breaks OOM with swap" [1]
-> > > > 
-> > > > [1] https://lore.kernel.org/linux-mm/20190726023435.214162-4-minchan@kerne
-> > > > l.
-> > > > org/
-> > > > T/#mdcd03bcb4746f2f23e6f508c205943726aee8355
-> > > > 
-> > > > For example, LTP oom01 test case is stuck for hours, while it finishes in
-> > > > a
-> > > > few
-> > > > minutes here after reverted the above commit. Sometimes, it prints those
-> > > > message
-> > > > while hanging.
-> > > > 
-> > > > [  509.983393][  T711] INFO: task oom01:5331 blocked for more than 122
-> > > > seconds.
-> > > > [  509.983431][  T711]       Not tainted 5.3.0-rc2-next-20190730 #7
-> > > > [  509.983447][  T711] "echo 0 > /proc/sys/kernel/hung_task_timeout_secs"
-> > > > disables this message.
-> > > > [  509.983477][  T711] oom01           D24656  5331   5157 0x00040000
-> > > > [  509.983513][  T711] Call Trace:
-> > > > [  509.983538][  T711] [c00020037d00f880] [0000000000000008] 0x8
-> > > > (unreliable)
-> > > > [  509.983583][  T711] [c00020037d00fa60] [c000000000023724]
-> > > > __switch_to+0x3a4/0x520
-> > > > [  509.983615][  T711] [c00020037d00fad0] [c0000000008d17bc]
-> > > > __schedule+0x2fc/0x950
-> > > > [  509.983647][  T711] [c00020037d00fba0] [c0000000008d1e68]
-> > > > schedule+0x58/0x150
-> > > > [  509.983684][  T711] [c00020037d00fbd0] [c0000000008d7614]
-> > > > rwsem_down_read_slowpath+0x4b4/0x630
-> > > > [  509.983727][  T711] [c00020037d00fc90] [c0000000008d7dfc]
-> > > > down_read+0x12c/0x240
-> > > > [  509.983758][  T711] [c00020037d00fd20] [c00000000005fb28]
-> > > > __do_page_fault+0x6f8/0xee0
-> > > > [  509.983801][  T711] [c00020037d00fe20] [c00000000000a364]
-> > > > handle_page_fault+0x18/0x38
-> > > 
-> > > Thanks for the testing! No surprise the patch make some bugs because
-> > > it's rather tricky.
-> > > 
-> > > Could you test this patch?
-> > 
-> > It does help the situation a bit, but the recover speed is still way slower
-> > than
-> > just reverting the commit "mm: account nr_isolated_xxx in
-> > [isolate|putback]_lru_page". For example, on this powerpc system, it used to
-> > take 4-min to finish oom01 while now still take 13-min.
-> > 
-> > The oom02 (testing NUMA mempolicy) takes even longer and I gave up after 26-
-> > min
-> > with several hang tasks below.
+On 01.08.19 08:13, Michal Hocko wrote:
+> On Wed 31-07-19 16:43:58, David Hildenbrand wrote:
+>> On 31.07.19 16:37, Michal Hocko wrote:
+>>> On Wed 31-07-19 16:21:46, David Hildenbrand wrote:
+>>> [...]
+>>>>> Thinking about it some more, I believe that we can reasonably provide
+>>>>> both APIs controlable by a command line parameter for backwards
+>>>>> compatibility. It is the hotplug code to control sysfs APIs.  E.g.
+>>>>> create one sysfs entry per add_memory_resource for the new semantic.
+>>>>
+>>>> Yeah, but the real question is: who needs it. I can only think about
+>>>> some DIMM scenarios (some, not all). I would be interested in more use
+>>>> cases. Of course, to provide and maintain two APIs we need a good reason.
+>>>
+>>> Well, my 3TB machine that has 7 movable nodes could really go with less
+>>> than
+>>> $ find /sys/devices/system/memory -name "memory*" | wc -l
+>>> 1729>
+>>
+>> The question is if it would be sufficient to increase the memory block
+>> size even further for these kinds of systems (e.g., via a boot parameter
+>> - I think we have that on uv systems) instead of having blocks of
+>> different sizes. Say, 128GB blocks because you're not going to hotplug
+>> 128MB DIMMs into such a system - at least that's my guess ;)
 > 
-> Also, oom02 is stuck on an x86 machine.
+> The system has
+> [    0.000000] ACPI: SRAT: Node 1 PXM 1 [mem 0x10000000000-0x17fffffffff]
+> [    0.000000] ACPI: SRAT: Node 2 PXM 2 [mem 0x80000000000-0x87fffffffff]
+> [    0.000000] ACPI: SRAT: Node 3 PXM 3 [mem 0x90000000000-0x97fffffffff]
+> [    0.000000] ACPI: SRAT: Node 4 PXM 4 [mem 0x100000000000-0x107fffffffff]
+> [    0.000000] ACPI: SRAT: Node 5 PXM 5 [mem 0x110000000000-0x117fffffffff]
+> [    0.000000] ACPI: SRAT: Node 6 PXM 6 [mem 0x180000000000-0x183fffffffff]
+> [    0.000000] ACPI: SRAT: Node 7 PXM 7 [mem 0x190000000000-0x191fffffffff]
+> 
+> hotplugable memory. I would love to have those 7 memory blocks to work
+> with. Any smaller grained split is just not helping as the platform will
+> not be able to hotremove it anyway.
+> 
 
-Yeb, above my patch had a bug to test page type after page was freed.
-However, after the review, I found other bugs but I don't think it's
-related to your problem, either. Okay, then, let's revert the patch.
+So the smallest granularity in your system is indeed 128GB (btw, nice
+system, I wish I had something like that), the biggest one 512GB.
 
-Andrew, could you revert the below patch?
-"mm: account nr_isolated_xxx in [isolate|putback]_lru_page"
+Using a memory block size of 128GB would imply on a 3TB system 24 memory
+blocks - which is tolerable IMHO. Especially, performance-wise there
+shouldn't be a real difference to 7 blocks. Hotunplug triggered via ACPI
+will take care of offlining the right DIMMs.
 
-It's just clean up patch and isn't related to new madvise hint system call now.
-Thus, it shouldn't be blocker.
+Of course, 7 blocks would be nicer, but as discussed, not possible with
+the current ABI.
 
-Anyway, I want to fix the problem when I have available time.
-Qian, What's the your config and system configuration on x86?
-Is it possible to reproduce in qemu?
-It would be really helpful if you tell me reproduce step on x86.
+What we could do right now is finally make "cat
+/sys/devices/system/memory/memory99/phys_device" indicate on x86-64 to
+which DIMM an added memory range belongs (if applicable). For now, it's
+only used on s390x. We could store for each memory block the
+"phys_index" - a.k.a. section number of the lowest memory block of a
+add_memory() range.
 
-Thanks.
+This would at least allow user space to identify all memory blocks that
+logically belong together (DIMM) without ABI changes.
+
+-- 
+
+Thanks,
+
+David / dhildenb
 
