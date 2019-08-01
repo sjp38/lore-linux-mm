@@ -2,150 +2,208 @@ Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D887C19759
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 16:00:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E44ABC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 16:00:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 02D8E206B8
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 16:00:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="bt6gngaa"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02D8E206B8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id B06F4206B8
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 16:00:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B06F4206B8
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 860698E002E; Thu,  1 Aug 2019 12:00:22 -0400 (EDT)
+	id 4687B8E002F; Thu,  1 Aug 2019 12:00:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7EA848E0001; Thu,  1 Aug 2019 12:00:22 -0400 (EDT)
+	id 3F5A88E0001; Thu,  1 Aug 2019 12:00:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6D88B8E002E; Thu,  1 Aug 2019 12:00:22 -0400 (EDT)
+	id 2BA2C8E002F; Thu,  1 Aug 2019 12:00:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2DF278E0001
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 12:00:22 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id g21so46005939pfb.13
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 09:00:22 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id CF5EB8E0001
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 12:00:29 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id w25so45148285edu.11
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 09:00:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=V+mqoypCyVp89zi7d87lU2RRcj8SerxFad94nqYfDDE=;
-        b=QK/dTHGBk4OvDc9IYR7gEUSCtDtcs3u0vmGrcW1kjrS/s9elzEaNxV4/Hs282Dqw17
-         +a7WnlK1NJq7HFVbPzRg8uSoAqmLMs1kLT8h6a1cu0C6JTrd7s6u9pdp7QHgEi7FSpPd
-         Zsc5TljYlsWm51d6/KjtJ+XM6HD/skV4QVbOGDoWlCUHiISzCzkTqKzu80Gz1g94GjRp
-         OcTd0xeeVvO+CWQJtN1rizP6by77WrpNhqly3mxDcCXwGegpfe/MrtZp5JsnAe2FwfES
-         H5Yh9xNwyDwRI4uEXC6B+eJU81+CiQ6Iz26+XsRkWq+3WGVXQ365Oxpyd2P+yD1lg4uK
-         Zw6A==
-X-Gm-Message-State: APjAAAXCInDdLhaaT7Tri/AjfWYIZnbrZOBR2H2BRiXpTON+P86JHmAQ
-	5b9Qh7NV6yls0+9V0aiss5AeFBNtl53kFVLfp7xdo55wg+JovpK+YeNujYFURviJqN7j7R74Hys
-	G1K/82l6xaKqv6ApwN0E2dVbvSySayfjAGSnMWsz0lM0laM1X9ejYbuyjkS85oE61zQ==
-X-Received: by 2002:a63:6c46:: with SMTP id h67mr112139865pgc.248.1564675221742;
-        Thu, 01 Aug 2019 09:00:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzcaMm5KpkonepvkfZEw2TpUt2/iV3e5G7y1HWC5YuCGZjYj5qXRGZCr9vw4l4+qMOkka8m
-X-Received: by 2002:a63:6c46:: with SMTP id h67mr112139720pgc.248.1564675220033;
-        Thu, 01 Aug 2019 09:00:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564675220; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:user-agent
+         :mime-version;
+        bh=1b/wt1U/lG3pg/LMYilipFpK6VhaOebkoQ+34IMQoiQ=;
+        b=XhYgE+5R30CcHHOQTMtWgIIvZwfrrkLlU6GXISOkjIOIYOKR/u62duGgQ1GfRV+/SI
+         Z5aXPwscHW5Mw9RCN4tNARUtwbzEBp4sol36nSMyV2yRlyVon5/QA2rGapUqKmgXw/7s
+         R5RCnRN7vAikEzgvyIlYyn1MU8S4P7WDWYQzxm1s+1ms7JLFpqIM1GJ2vKbt4f1SWYHF
+         hceHY5FNAvXfLdElbIvyQ5QQb1CE4krYt+eyhhwB4xnGGYJCNGPLUs8wmltVq8QcljSL
+         HlOyGkfNfebMPzRunkdTCT5geBhn1hnjVDPhA/u1p3nVShf291KoqPoz9L/wC7Q7mSf7
+         8fFA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
+X-Gm-Message-State: APjAAAXeWdF3rKOkDA5oMnWnZFSmF+HW8/qLScLqcZmoMULkz8L9mWR1
+	4lgY7n3yyB+Z3PcPFvxDrwS0pDQ0hlHqiE29t2QaiB4leqVdqgQzuFeTolsBT4KZFv9Uqe0j5In
+	iEfK9byveBhnd45M+kwEXWRWH1VmvAXl8UJUkq65KsRQ7a11si0DMfS8TZHe+EefXJA==
+X-Received: by 2002:a17:906:8591:: with SMTP id v17mr100150332ejx.244.1564675229402;
+        Thu, 01 Aug 2019 09:00:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyA/ACUlVczI36XSWHagapMU+nXJL8dD6MllVYOCMlJexV9ABCX6O+0aQlpQ+OiRBUAA4TQ
+X-Received: by 2002:a17:906:8591:: with SMTP id v17mr100150237ejx.244.1564675228541;
+        Thu, 01 Aug 2019 09:00:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564675228; cv=none;
         d=google.com; s=arc-20160816;
-        b=V8RAAhw941caEKw3OXV47qh5MBo3Qi3BDvWNiWO59IRK4PaDnQrYblL/uySdMD0I9j
-         EWUVD1aSGk5mDOanJDnBA4W8zKUmCfLXckH100TAPt+yIzOA3kGC3/srcuHnVUr/qpzG
-         o7Jh0m+KIiSe+ZGeceqSrmNB/eUez1+q+7/LRxTqPn7SQcqFIdUKaXlq/uNMyfq+nT9Z
-         s1OCShzH9UOLnhv7PW6K4JeLG9HejkboPwdHMj6VwcafZHCinNSf+goJLXohrTGuP/yw
-         2bLFzEN8+laQYXqcV3Sa08p6mK12Ur/KGcv+pAsawZUQbwMWw9WXncLncJ1Yq8iGCefm
-         H8rg==
+        b=yF59kaEpcQhc+0TPExQMXuKpXIjlSkGvydk164er+PLlKnDgQRQ94/BaTalEj5ZolI
+         TYTTXtAca5C2F8CikNGUPN3OYNHjcKbVd/ECGWT+Ody5FFqVxYNXDlMULTrrz5D5cgV0
+         qCxOdWKItB2e965gggKns1yAQ5p4qqxKOucJvqmAp1ZEiZVzHUoqPGt0lMUrlEauCRfp
+         e55Wo47Wb9fgF1M//5l72YOuNwel7aWPOkKkyzlCXvwUSWCA7CO4QG4mJnfli+DL/gA/
+         vJiduEKC1a0oboYgJqfXrUC7kXD6Noimx1UTdUDki/13aS4O1Fhd3NbmjBmjEJsslW8f
+         5NZA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=V+mqoypCyVp89zi7d87lU2RRcj8SerxFad94nqYfDDE=;
-        b=irgiPoq1dhGWjU6zLZ8/W4oeRBoEotCdxIMLPy6Pb+A5gXnP07cs6tuV6MIVoU6ckL
-         Gpd/aiZk3LOdzt77K9xBkwu72elV5o2pCQeMSGTvDE4RJtP1FYl/izc/wxllXbaM8cNs
-         1alrFpQFivmsLAigk3Z28bPHTMkI73IqUKHBKjJNDIhhJwcfxTFv0ycHGgSo3Y4LIryK
-         ZTVwe7rbvwGJUTjtw+INajTDhYWWnNnEE9EgrTXwwr6Wkqm7KyleyVNgiDHdwC02mfqC
-         d52GZNq1TgUHFEpvY0RAzs2TOlmavy0O1qYj5C6CzJsS3eYGtl7BGeixJFYkyChqBT28
-         SFCA==
+        h=mime-version:user-agent:references:in-reply-to:date:cc:to:from
+         :subject:message-id;
+        bh=1b/wt1U/lG3pg/LMYilipFpK6VhaOebkoQ+34IMQoiQ=;
+        b=l6CVOaHToVv1Xa5qTY3N0B55DytfFlarsVMiM0n94Fh1VjWtnJZPCHUCxmDrNmkgx9
+         dVP/LdfBYaWZQALFS9X0keO3IM3ZFs+JCR2eKioZZoL7Y2I1CqJfsYF2djEdHUgwh3ne
+         LyqpssjIcAo0CQgUQC4LfVviMAjOSqr/9Ou7nK/K3rjl1yuecEDd5DDpIWqr9q1sxmbC
+         PN47ELqIMnJv+gkM6WLNaPUw4F/DKBUbdi6Bgo3IQqGoaTcZXj2KgVIwBfBKykXxLGf9
+         +Tme1JHVW8SueBYWrEGHOep+v6M+794rSJMiiTIeLvZTeQ9XY93jVZ6HgAOzW+HZdhsZ
+         Nclg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=bt6gngaa;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id n124si30659605pga.214.2019.08.01.09.00.19
+       spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b21si22013916edw.264.2019.08.01.09.00.28
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 01 Aug 2019 09:00:20 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Aug 2019 09:00:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=bt6gngaa;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=V+mqoypCyVp89zi7d87lU2RRcj8SerxFad94nqYfDDE=; b=bt6gngaaXNa1IgChUaFBMxOpq
-	K1NbxFgScMZWeTQ73hgbZzAx4ufmsIUGLnz6lvvQJ6x5x9kT/i9sPC5jWyLi95xJWvW/47+MXAtDF
-	rIxaoHaEtcFSyXxXF43v5KfgS3OyU+4BBTPDlndKEqrlEelpyXpfgbdl/mRkRLZAk+Y2fHVQc94UV
-	tkOs/n9yRp+Ps6geOWY44SabkW5UBW5WXk+7k+AnO/GP2Wm1vCshU0UK/vFtMMGX9QwUueUrIm3Zn
-	t0n2fDCZJ7ATyuYUOHF42+YhnnsUNO6xeZyKRmo1uYSWE+FaIzApgbGwXzYKGGlgHQJHoe84ILoOy
-	DDx8UpF5Q==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1htDUz-00024S-4b; Thu, 01 Aug 2019 16:00:13 +0000
-Date: Thu, 1 Aug 2019 09:00:13 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Qian Cai <cai@lca.pw>
-Cc: catalin.marinas@arm.com, will@kernel.org, andreyknvl@google.com,
-	aryabinin@virtuozzo.com, glider@google.com, dvyukov@google.com,
-	linux-arm-kernel@lists.infradead.org, kasan-dev@googlegroups.com,
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH v2] arm64/mm: fix variable 'tag' set but not used
-Message-ID: <20190801160013.GK4700@bombadil.infradead.org>
-References: <1564670825-4050-1-git-send-email-cai@lca.pw>
+       spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 7FF1DAC2E;
+	Thu,  1 Aug 2019 16:00:27 +0000 (UTC)
+Message-ID: <ed5388412df78ad0a9ed69cdf3ac716eac075141.camel@suse.de>
+Subject: Re: [PATCH 6/8] dma-direct: turn ARCH_ZONE_DMA_BITS into a variable
+From: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+To: Christoph Hellwig <hch@lst.de>
+Cc: catalin.marinas@arm.com, wahrenst@gmx.net, marc.zyngier@arm.com, Robin
+ Murphy <robin.murphy@arm.com>, linux-arm-kernel@lists.infradead.org, 
+ devicetree@vger.kernel.org, iommu@lists.linux-foundation.org,
+ linux-mm@kvack.org,  Marek Szyprowski <m.szyprowski@samsung.com>,
+ phill@raspberryi.org, f.fainelli@gmail.com, will@kernel.org, 
+ linux-kernel@vger.kernel.org, robh+dt@kernel.org, eric@anholt.net, 
+ mbrugger@suse.com, akpm@linux-foundation.org, frowand.list@gmail.com, 
+ linux-rpi-kernel@lists.infradead.org, Benjamin Herrenschmidt
+ <benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael
+ Ellerman <mpe@ellerman.id.au>, Heiko Carstens <heiko.carstens@de.ibm.com>,
+ Vasily Gorbik <gor@linux.ibm.com>, Christian Borntraeger
+ <borntraeger@de.ibm.com>,  linuxppc-dev@lists.ozlabs.org,
+ linux-s390@vger.kernel.org
+Date: Thu, 01 Aug 2019 17:59:34 +0200
+In-Reply-To: <20190801140452.GB23435@lst.de>
+References: <20190731154752.16557-1-nsaenzjulienne@suse.de>
+	 <20190731154752.16557-7-nsaenzjulienne@suse.de>
+	 <20190801140452.GB23435@lst.de>
+Content-Type: multipart/signed; micalg="pgp-sha256";
+	protocol="application/pgp-signature"; boundary="=-1xpVXG9aO5tI8LW1PkIr"
+User-Agent: Evolution 3.32.4 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <1564670825-4050-1-git-send-email-cai@lca.pw>
-User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 01, 2019 at 10:47:05AM -0400, Qian Cai wrote:
 
-Given this:
+--=-1xpVXG9aO5tI8LW1PkIr
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-> -#define __tag_set(addr, tag)	(addr)
-> +static inline const void *__tag_set(const void *addr, u8 tag)
-> +{
-> +	return addr;
-> +}
-> +
->  #define __tag_reset(addr)	(addr)
->  #define __tag_get(addr)		0
->  #endif
-> @@ -301,8 +305,8 @@ static inline void *phys_to_virt(phys_addr_t x)
->  #define page_to_virt(page)	({					\
->  	unsigned long __addr =						\
->  		((__page_to_voff(page)) | PAGE_OFFSET);			\
-> -	unsigned long __addr_tag =					\
-> -		 __tag_set(__addr, page_kasan_tag(page));		\
-> +	const void *__addr_tag =					\
-> +		__tag_set((void *)__addr, page_kasan_tag(page));	\
->  	((void *)__addr_tag);						\
->  })
+Hi Christoph, thanks for the review.
 
-Can't you simplify that macro to:
+On Thu, 2019-08-01 at 16:04 +0200, Christoph Hellwig wrote:
+> A few nitpicks, otherwise this looks great:
+>=20
+> > @@ -201,7 +202,7 @@ static int __init mark_nonram_nosave(void)
+> >   * everything else. GFP_DMA32 page allocations automatically fall back=
+ to
+> >   * ZONE_DMA.
+> >   *
+> > - * By using 31-bit unconditionally, we can exploit ARCH_ZONE_DMA_BITS =
+to
+> > + * By using 31-bit unconditionally, we can exploit arch_zone_dma_bits =
+to
+> >   * inform the generic DMA mapping code.  32-bit only devices (if not
+> > handled
+> >   * by an IOMMU anyway) will take a first dip into ZONE_NORMAL and get
+> >   * otherwise served by ZONE_DMA.
+> > @@ -237,9 +238,18 @@ void __init paging_init(void)
+> >  	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
+> >  	       (long int)((top_of_ram - total_ram) >> 20));
+> > =20
+> > +	/*
+> > +	 * Allow 30-bit DMA for very limited Broadcom wifi chips on many
+> > +	 * powerbooks.
+> > +	 */
+> > +	if (IS_ENABLED(CONFIG_PPC32))
+> > +		arch_zone_dma_bits =3D 30;
+> > +	else
+> > +		arch_zone_dma_bits =3D 31;
+> > +
+>=20
+> So the above unconditionally comment obviously isn't true any more, and
+> Ben also said for the recent ppc32 hack he'd prefer dynamic detection.
+>=20
+> Maybe Ben and or other ppc folks can chime in an add a patch to the serie=
+s
+> to sort this out now that we have a dynamic ZONE_DMA threshold?
 
- #define page_to_virt(page)	({					\
- 	unsigned long __addr =						\
- 		((__page_to_voff(page)) | PAGE_OFFSET);			\
--	unsigned long __addr_tag =					\
--		 __tag_set(__addr, page_kasan_tag(page));		\
--	((void *)__addr_tag);						\
-+	__tag_set((void *)__addr, page_kasan_tag(page));		\
- })
+Noted, for now I'll remove the comment.
+
+> > diff --git a/kernel/dma/direct.c b/kernel/dma/direct.c
+> > index 59bdceea3737..40dfc9b4ee4c 100644
+> > --- a/kernel/dma/direct.c
+> > +++ b/kernel/dma/direct.c
+> > @@ -19,9 +19,7 @@
+> >   * Most architectures use ZONE_DMA for the first 16 Megabytes, but
+> >   * some use it for entirely different regions:
+> >   */
+> > -#ifndef ARCH_ZONE_DMA_BITS
+> > -#define ARCH_ZONE_DMA_BITS 24
+> > -#endif
+> > +unsigned int arch_zone_dma_bits __ro_after_init =3D 24;
+>=20
+> I'd prefer to drop the arch_ prefix and just calls this zone_dma_bits.
+> In the long run we really need to find a way to just automatically set
+> this from the meminit code, but that is out of scope for this series.
+> For now can you please just update the comment above to say something
+> like:
+>=20
+> /*
+>  * Most architectures use ZONE_DMA for the first 16 Megabytes, but some u=
+se it
+>  * it for entirely different regions.  In that case the arch code needs t=
+o
+>  * override the variable below for dma-direct to work properly.
+>  */
+
+Ok perfect.
+
+
+--=-1xpVXG9aO5tI8LW1PkIr
+Content-Type: application/pgp-signature; name="signature.asc"
+Content-Description: This is a digitally signed message part
+Content-Transfer-Encoding: 7bit
+
+-----BEGIN PGP SIGNATURE-----
+
+iQEzBAABCAAdFiEErOkkGDHCg2EbPcGjlfZmHno8x/4FAl1DDGYACgkQlfZmHno8
+x/7w9wgAsuuhgVK1nlC7WgrB2sfSYqL6HTJlDfkLJ2RMgzu/WSw4RJsje86on5R9
+NmRSTVntXnCdpTNiKcSEKP7MnrVtMh2TtopfTOCvgho/uDJsc4DPAqZaLHO4quzo
+ZfimsWkcpC6n/E8ybEcew+6U7BIyqJPtqxgdkXz98gLQ1NK1wJU2x0Gt+KXT5a/0
+hR3hA3whz8yIe4hwQTEiAzX/LnSP8+Yp+g1LLFjYveqt2RUbfC/udykYkLS7LdoO
+SJ6j5S/1jRpvusBjENkY3PQiRGrhfRnT4qxVSdpkK/rMG6pLMW4l9YjfbQCLOFhn
+8qxZKNifDs1KxpZjExjd4Lisum4nhw==
+=nw8i
+-----END PGP SIGNATURE-----
+
+--=-1xpVXG9aO5tI8LW1PkIr--
 
