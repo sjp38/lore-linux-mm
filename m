@@ -2,157 +2,229 @@ Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D42DC433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 11:28:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D57EC19759
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 11:46:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0E94D214DA
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 11:28:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 348A1214DA
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 11:46:16 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="AdP6kqdB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E94D214DA
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="DeAqgFnB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 348A1214DA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9CA568E000C; Thu,  1 Aug 2019 07:28:45 -0400 (EDT)
+	id C06F08E000D; Thu,  1 Aug 2019 07:46:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 953C18E0001; Thu,  1 Aug 2019 07:28:45 -0400 (EDT)
+	id B90418E0001; Thu,  1 Aug 2019 07:46:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 81B2D8E000C; Thu,  1 Aug 2019 07:28:45 -0400 (EDT)
+	id A58CB8E000D; Thu,  1 Aug 2019 07:46:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 3503A8E0001
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 07:28:45 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id b6so35335820wrp.21
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 04:28:45 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 831EA8E0001
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 07:46:15 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id d11so60963007qkb.20
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 04:46:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=xqlL4i3gNjqYtXtO6TQlV20Xxo/VOCfNj1pkiBeVGDw=;
-        b=QcxrH2F8Aj+c9NTzkwsB43j7SYWIGkxebn7YCAlPMrQC0EFnoiXYtOPDRbgt4IYzaC
-         gLlz/HgyigshOrCdf8GTWqiKWd+lS5O+1TpHJS6ziKOziICpwQf2yVIBiGK/eK2rJMII
-         F2dkJXsE+fpg8RDKIBdpDjNITehdC1OEuoVh3cHr0jCBNdWJrq0xyptR8G1IfaXSZvVF
-         LKJGT5dcFdrZ3kPLOs3J0Pe23973pEKIErOX9tuHGbs5Efa5hQmCjDT4LPRduCzq4R5a
-         17k6FY1P3kFSHdrWoi2eQjJ1Qz2UqL/KOeRQWrlLr3DxsG8ckegDmXH3lwCpl/GtgsQD
-         1EbQ==
-X-Gm-Message-State: APjAAAVApAVmLktk2M/uh1HvV6KWEOX42TQkaOyWTT2Q20jzT1WSVf/P
-	Zm8wOicLG3NtyfShufzpEfuNKGgQLoJgiuRidxrqgeSnvHRfq6QACg2jeSMlQGAy2msO65SNGmK
-	VvuKBmGHyGW+JqYkPHMmtfKcaI95BXy/axFKTd59nHS3VdR+5qEgNRHlflMat1a75JQ==
-X-Received: by 2002:a7b:c8c3:: with SMTP id f3mr52875843wml.124.1564658924630;
-        Thu, 01 Aug 2019 04:28:44 -0700 (PDT)
-X-Received: by 2002:a7b:c8c3:: with SMTP id f3mr52875782wml.124.1564658923831;
-        Thu, 01 Aug 2019 04:28:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564658923; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=ji9M1yX+YQfbla2NsLs+sY5Cv6jiMB46Tl3q0Srbae8=;
+        b=OWAeDGKzMIdCLeHq6c1Gvov+0U0oybh31ZjE7oUkJAnbbAfRMP9NRf3pDNDbSNXfQb
+         tDj9WFLL1tmUrG4NPvElOAiIj9kct8Jv6TOnu4Cm7S819ojkth7I4Mcyqs7FiGxJl6l4
+         LxLtImiR2DZy5b1FSmjIko0e2QOP7nudulZLSafCH03FyIkZU5puuS08LBa8dtuOu7Zv
+         zuym/uYgthXHObSaInjpHACmVXF6SyfmAL6p+7oRv+gl4ZcfxIQOHu8tLkcblqqk5SRm
+         x/Dfiiq+JBW6Jc3CkunEQ7wc++3nK3Hnl3LfPNwiBr9DaSM/KplFGBdPYjDRLDly0/XM
+         KtzQ==
+X-Gm-Message-State: APjAAAXO9ZFvs2BIyL6LP5gVDcSSIUtUGu7J/HV9pAGdSuG0prIJgXb/
+	/Y+wr8xz8rfvUU/i9+of5qcsUWj+Bb3EAFqDasnmL53uQREM2iqWeSOVSzHSy4cBLgByQ00jYBV
+	lR/+Wl/BG0NMX+waHUbKKYc93kdYsIrjP4qdtPAkD9UNDz5iRTlDORzJ1abd0BE+KSQ==
+X-Received: by 2002:a05:620a:310:: with SMTP id s16mr81547443qkm.420.1564659975249;
+        Thu, 01 Aug 2019 04:46:15 -0700 (PDT)
+X-Received: by 2002:a05:620a:310:: with SMTP id s16mr81547395qkm.420.1564659974253;
+        Thu, 01 Aug 2019 04:46:14 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564659974; cv=none;
         d=google.com; s=arc-20160816;
-        b=sYtPUOfZf5Iic55B4GD/LbTsOnJo5sp2Hlb+bikDgU7QMp5WZSSjQ9H2VM4rg4Dq2i
-         0T965/KwCYNr635lzwc8eSq02ym426ajy1YNkyCAOcvyDohp/vwNi5haP7Kj3kQb8P43
-         Y83oc66YZGy7NWYV5GM/oVKzOZ2U419y4TfRbS+Aw5ytgIkeULDZjCG/rgyGaNd2aAhF
-         THbd/SLB+sLan4Aec2+x0minhtNHgkt8bjowFKc+15qthlTHam06xQt5C4Z1QneTBkcG
-         LOzfg0dJmYjJl1MYftEc+JbeCpdu9tJp45Wg0XpTr5gI8g4AMg0HmEOllxfY9jOff5Q7
-         xnQQ==
+        b=DVIG+S2coKL+ILxAStdlr8k4L8mwFZDAk0YHZHj2TfwR/L68+1J0p9oTsSrdOXLuve
+         radSvtgDX7LLJKjvWCqg2MzGc1O9fxpCUQL4FJbtNqU6iHTY3Nr/4p5NalOE3XqtSCqc
+         MBd9V3pLiyiq/CGxLZIDL5c0eBsO9RIAjUBgswnmepplqbp5vRC3weNKPj2UQU/I7hbg
+         xtUfy0wc6kDwtRbNtgpH9ylzQxzLmduBu0+VsyGQJSsDN856EDECzlJH3B9OOIxEDODt
+         Abz8AQ+9r4wLwt6sOmqlXzsvcgmOufFcrSNHF8Q0smgy7VcsybQL1oHGGV8s7VdnE64d
+         EuTA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=xqlL4i3gNjqYtXtO6TQlV20Xxo/VOCfNj1pkiBeVGDw=;
-        b=TCL22eAxlWQIZnstixkHQyY9MkEMMfWhymMK3PdgJ6Bh2//ZipUMvZsAvMArRrKR68
-         D+h7Ib2aKsFH/4bp9WXk1+tnTp0ypb1d0oKh6XbRWXoy4g2sz7/lf75WzVhlaCAL8Hf6
-         DfH425tlLXUZog6ywW5r8pqAKxNgZbjaNzGWbqmV9mOKjLkcqfMFEpiT5w2NWVLnowPe
-         E1m5A74uFeleYeR58/0zpudnFlSVo0ZXmdzUx0hyVG6/UJjCahRPirWTKpe5/3s+DGQK
-         jZf5HzV+W3GQ+DG1RTn/2FDPRMnOlxdzGMbnZodgzXEB0apaB8O+IytDtXOTu+JFZVk+
-         yu+Q==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=ji9M1yX+YQfbla2NsLs+sY5Cv6jiMB46Tl3q0Srbae8=;
+        b=psV9Bgg6w7Lc9E5nb0r9HZYbrSUKxPAxT0tvN/ykWjGYDkuRjRoL+sgi1gBp6uA07q
+         9ZrrswAro76D4JAvikpv55G5U0bKcsM9QF+f4GddBlqNyW34U/tftMT+8mjJ9tASsMR6
+         0MQospy2VZxnP6I/T/aqwl5XuCo7WLkGXVOJNJGat4flwvX+84Uvw7yhRyNHbZCN6LWy
+         W7qYzPJrJJmgN3RvZQuj4pJRqzecAdjXPNJcTGHpBtVjgEAjFIoXmDLX3Hd6Dwzhc3hO
+         SpRw6nCcnPsaMbTzIF76gNnZYtiN5Za8g63b0M9soeNDjOglRL2sU4Dgsyuvk8Gi3+XO
+         s9sA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=AdP6kqdB;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=DeAqgFnB;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id x6sor40182140wmb.29.2019.08.01.04.28.43
+        by mx.google.com with SMTPS id 41sor60820589qvu.48.2019.08.01.04.46.14
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 01 Aug 2019 04:28:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Thu, 01 Aug 2019 04:46:14 -0700 (PDT)
+Received-SPF: pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=AdP6kqdB;
-       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@lca.pw header.s=google header.b=DeAqgFnB;
+       spf=pass (google.com: domain of cai@lca.pw designates 209.85.220.65 as permitted sender) smtp.mailfrom=cai@lca.pw
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=xqlL4i3gNjqYtXtO6TQlV20Xxo/VOCfNj1pkiBeVGDw=;
-        b=AdP6kqdBNqVzqPbTjcZqUCSeEuNZAZ0N2Hl7V0yyDQ97NwaxFQ3YPSdyfa5WscChBf
-         eQGOSebUDGwTIsy3ec9wtj4XhJSdNy2Nm7UQuj6m19HzgAcIqfK5QtKXngKhsE1bAzeh
-         Z8MDxuC/JtqX8MJIT/X74Qs9abmRPhqfAm5cJtPevPH0QqRG7ypBFY4LyQVHKu3J+qaA
-         Az3nbeoW6l241nTdt1fleedlEYCSx4Y7Xs61bGbsIt2U6eBnBODlCX0nRzxsXY2YSfmG
-         kNL4/CyfOJAdHhqkx81K3DomreRUeEF9m8TieokhBXNpFzz1ocBDIayWwDPw/PqD2BSX
-         2s0g==
-X-Google-Smtp-Source: APXvYqwGETwdoashndHC330DdqucKEGLjf3h8H2eI2Z/vsG8Q0EpDPaNd2yf/onQdcky1xXqUBZxaQrJFZevg/rqT08=
-X-Received: by 2002:a1c:770d:: with SMTP id t13mr42679017wmi.79.1564658923216;
- Thu, 01 Aug 2019 04:28:43 -0700 (PDT)
-MIME-Version: 1.0
-References: <CAG_fn=VBGE=YvkZX0C45qu29zqfvLMP10w_owj4vfFxPcK5iow@mail.gmail.com>
- <20190731193240.29477-1-labbott@redhat.com> <20190731193509.GG4700@bombadil.infradead.org>
- <201907311304.2AAF454F5C@keescook>
-In-Reply-To: <201907311304.2AAF454F5C@keescook>
-From: Alexander Potapenko <glider@google.com>
-Date: Thu, 1 Aug 2019 13:28:31 +0200
-Message-ID: <CAG_fn=VJm7M0wzMTti5RoegW56CY2YpikjEZryt8gMN5nOiyqw@mail.gmail.com>
-Subject: Re: [PATCH] mm: slub: Fix slab walking for init_on_free
-To: Kees Cook <keescook@chromium.org>
-Cc: Matthew Wilcox <willy@infradead.org>, Laura Abbott <labbott@redhat.com>, 
-	kernel test robot <rong.a.chen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, 
-	Christoph Lameter <cl@linux.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, 
-	"Serge E. Hallyn" <serge@hallyn.com>, Nick Desaulniers <ndesaulniers@google.com>, 
-	Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
-	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
-	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>, 
-	Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, 
-	LKP <lkp@01.org>, Linux Memory Management List <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+        d=lca.pw; s=google;
+        h=mime-version:subject:from:in-reply-to:date:cc
+         :content-transfer-encoding:message-id:references:to;
+        bh=ji9M1yX+YQfbla2NsLs+sY5Cv6jiMB46Tl3q0Srbae8=;
+        b=DeAqgFnBS/ODi7Z7oKwA7CiEzCSUtve9oUVSnmmseRmMIDejgfAbdrdaaQHfOSbJyh
+         G/5qzqgha8dwdYfvIYnT8lx56A9Oc3kz4XzulYsJUdC4ur1esvlRDIubDEGdby/dvn5X
+         vFeUteP296yILmYSMf4/E3/y7K0FljbPuLGIgiYZEF3S5Ol5lA1GvFEF+uY0FJ0ck1KL
+         iVcupjGeufbu/HhEG7G2Xj8Q9f87C5P/a0ok3xVwJkVksx88uMdiv6Jlaq/rDsD+hnCV
+         j1Pm2DzjKVQxL2vmTzo0dYpsBgQtUNbJqy4pSR6sdmMsC+wPsNFIhRdO43AyyCocJgXj
+         1jSg==
+X-Google-Smtp-Source: APXvYqxQzX6GSyEt/KYH4tIGLdfmqpWTbK24pum1MnBSCFJ90L7fLUP908m18PqJbphN1k7Ldv4qtQ==
+X-Received: by 2002:a05:6214:42e:: with SMTP id a14mr94443239qvy.19.1564659973840;
+        Thu, 01 Aug 2019 04:46:13 -0700 (PDT)
+Received: from [192.168.1.153] (pool-71-184-117-43.bstnma.fios.verizon.net. [71.184.117.43])
+        by smtp.gmail.com with ESMTPSA id 39sm39030400qts.41.2019.08.01.04.46.11
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Aug 2019 04:46:12 -0700 (PDT)
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 12.4 \(3445.104.11\))
+Subject: Re: "mm: account nr_isolated_xxx in [isolate|putback]_lru_page"
+ breaks OOM with swap
+From: Qian Cai <cai@lca.pw>
+In-Reply-To: <20190801065108.GA179251@google.com>
+Date: Thu, 1 Aug 2019 07:46:10 -0400
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ Johannes Weiner <hannes@cmpxchg.org>,
+ Michal Hocko <mhocko@suse.com>,
+ linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
 Content-Transfer-Encoding: quoted-printable
+Message-Id: <53837B9C-7E73-47DA-9373-5E989A9EEC4F@lca.pw>
+References: <1564503928.11067.32.camel@lca.pw>
+ <20190731053444.GA155569@google.com> <1564589346.11067.38.camel@lca.pw>
+ <1564597080.11067.40.camel@lca.pw> <20190801065108.GA179251@google.com>
+To: Minchan Kim <minchan@kernel.org>
+X-Mailer: Apple Mail (2.3445.104.11)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 31, 2019 at 10:05 PM Kees Cook <keescook@chromium.org> wrote:
->
-> On Wed, Jul 31, 2019 at 12:35:09PM -0700, Matthew Wilcox wrote:
-> > On Wed, Jul 31, 2019 at 03:32:40PM -0400, Laura Abbott wrote:
-> > > Fix this by ensuring the value we set with set_freepointer is either =
-NULL
-> > > or another value in the chain.
-> > >
-> > > Reported-by: kernel test robot <rong.a.chen@intel.com>
-> > > Signed-off-by: Laura Abbott <labbott@redhat.com>
-> >
-> > Fixes: 6471384af2a6 ("mm: security: introduce init_on_alloc=3D1 and ini=
-t_on_free=3D1 boot options")
->
-> Reviewed-by: Kees Cook <keescook@chromium.org>
-Reviewed-by: Alexander Potapenko <glider@google.com>
->
-> --
-> Kees Cook
 
 
+> On Aug 1, 2019, at 2:51 AM, Minchan Kim <minchan@kernel.org> wrote:
+>=20
+> On Wed, Jul 31, 2019 at 02:18:00PM -0400, Qian Cai wrote:
+>> On Wed, 2019-07-31 at 12:09 -0400, Qian Cai wrote:
+>>> On Wed, 2019-07-31 at 14:34 +0900, Minchan Kim wrote:
+>>>> On Tue, Jul 30, 2019 at 12:25:28PM -0400, Qian Cai wrote:
+>>>>> OOM workloads with swapping is unable to recover with linux-next =
+since
+>>>>> next-
+>>>>> 20190729 due to the commit "mm: account nr_isolated_xxx in
+>>>>> [isolate|putback]_lru_page" breaks OOM with swap" [1]
+>>>>>=20
+>>>>> [1] =
+https://lore.kernel.org/linux-mm/20190726023435.214162-4-minchan@kerne
+>>>>> l.
+>>>>> org/
+>>>>> T/#mdcd03bcb4746f2f23e6f508c205943726aee8355
+>>>>>=20
+>>>>> For example, LTP oom01 test case is stuck for hours, while it =
+finishes in
+>>>>> a
+>>>>> few
+>>>>> minutes here after reverted the above commit. Sometimes, it prints =
+those
+>>>>> message
+>>>>> while hanging.
+>>>>>=20
+>>>>> [  509.983393][  T711] INFO: task oom01:5331 blocked for more than =
+122
+>>>>> seconds.
+>>>>> [  509.983431][  T711]       Not tainted 5.3.0-rc2-next-20190730 =
+#7
+>>>>> [  509.983447][  T711] "echo 0 > =
+/proc/sys/kernel/hung_task_timeout_secs"
+>>>>> disables this message.
+>>>>> [  509.983477][  T711] oom01           D24656  5331   5157 =
+0x00040000
+>>>>> [  509.983513][  T711] Call Trace:
+>>>>> [  509.983538][  T711] [c00020037d00f880] [0000000000000008] 0x8
+>>>>> (unreliable)
+>>>>> [  509.983583][  T711] [c00020037d00fa60] [c000000000023724]
+>>>>> __switch_to+0x3a4/0x520
+>>>>> [  509.983615][  T711] [c00020037d00fad0] [c0000000008d17bc]
+>>>>> __schedule+0x2fc/0x950
+>>>>> [  509.983647][  T711] [c00020037d00fba0] [c0000000008d1e68]
+>>>>> schedule+0x58/0x150
+>>>>> [  509.983684][  T711] [c00020037d00fbd0] [c0000000008d7614]
+>>>>> rwsem_down_read_slowpath+0x4b4/0x630
+>>>>> [  509.983727][  T711] [c00020037d00fc90] [c0000000008d7dfc]
+>>>>> down_read+0x12c/0x240
+>>>>> [  509.983758][  T711] [c00020037d00fd20] [c00000000005fb28]
+>>>>> __do_page_fault+0x6f8/0xee0
+>>>>> [  509.983801][  T711] [c00020037d00fe20] [c00000000000a364]
+>>>>> handle_page_fault+0x18/0x38
+>>>>=20
+>>>> Thanks for the testing! No surprise the patch make some bugs =
+because
+>>>> it's rather tricky.
+>>>>=20
+>>>> Could you test this patch?
+>>>=20
+>>> It does help the situation a bit, but the recover speed is still way =
+slower
+>>> than
+>>> just reverting the commit "mm: account nr_isolated_xxx in
+>>> [isolate|putback]_lru_page". For example, on this powerpc system, it =
+used to
+>>> take 4-min to finish oom01 while now still take 13-min.
+>>>=20
+>>> The oom02 (testing NUMA mempolicy) takes even longer and I gave up =
+after 26-
+>>> min
+>>> with several hang tasks below.
+>>=20
+>> Also, oom02 is stuck on an x86 machine.
+>=20
+> Yeb, above my patch had a bug to test page type after page was freed.
+> However, after the review, I found other bugs but I don't think it's
+> related to your problem, either. Okay, then, let's revert the patch.
+>=20
+> Andrew, could you revert the below patch?
+> "mm: account nr_isolated_xxx in [isolate|putback]_lru_page"
+>=20
+> It's just clean up patch and isn't related to new madvise hint system =
+call now.
+> Thus, it shouldn't be blocker.
+>=20
+> Anyway, I want to fix the problem when I have available time.
+> Qian, What's the your config and system configuration on x86?
+> Is it possible to reproduce in qemu?
+> It would be really helpful if you tell me reproduce step on x86.
 
---=20
-Alexander Potapenko
-Software Engineer
+https://raw.githubusercontent.com/cailca/linux-mm/master/x86.config
 
-Google Germany GmbH
-Erika-Mann-Stra=C3=9Fe, 33
-80636 M=C3=BCnchen
+The config could work in Openstack, and I never tried in QEMU. It might =
+need
+a few modification here or there. The reproduced x86 server is,
 
-Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
-Registergericht und -nummer: Hamburg, HRB 86891
-Sitz der Gesellschaft: Hamburg
+HPE ProLiant DL385 Gen10
+AMD EPYC 7251 8-Core Processor
+Smart Storage PQI 12G SAS/PCIe 3
+Memory: 32768 MB
+NUMA Nodes: 8=
 
