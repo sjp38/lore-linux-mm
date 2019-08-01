@@ -2,282 +2,135 @@ Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1C26BC433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 08:07:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F08B7C433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 08:16:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 950E3205F4
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 08:07:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B46EE20665
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 08:16:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=linaro.org header.i=@linaro.org header.b="u2TOk2aU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 950E3205F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="C1DulZkK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B46EE20665
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2C0358E0003; Thu,  1 Aug 2019 04:07:09 -0400 (EDT)
+	id 3A3BA8E0006; Thu,  1 Aug 2019 04:16:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 222D48E0001; Thu,  1 Aug 2019 04:07:09 -0400 (EDT)
+	id 32DF08E0001; Thu,  1 Aug 2019 04:16:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 09CD98E0003; Thu,  1 Aug 2019 04:07:09 -0400 (EDT)
+	id 1CEB68E0006; Thu,  1 Aug 2019 04:16:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id ACCC78E0001
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 04:07:08 -0400 (EDT)
-Received: by mail-wm1-f71.google.com with SMTP id n13so13531516wmi.4
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 01:07:08 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id D0BB18E0001
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 04:16:05 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id i26so45117486pfo.22
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 01:16:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=g+A39RrdNsk5NIAgz6cbkqFXnqluhsaENg8UQpREXDE=;
-        b=KOUVMPGhxWt6q9p0nLBQb+Zzt5iK2RZkT15z88fx1cWPLGLkIVlrGgmS8PEIs85X2W
-         d/WOys4T0wZc+1QfWPD+Uu3FrYYa26b5PcZwbHrDiJO23KoM/YHXXVuHQxqCLk9MH5ay
-         SChRs8vd6kNf9ON3E7C85IV8LrPrmIWePKIN74nNmOjqmZwY1bRmHWirHJ78/lanYeLb
-         UybxfNcPghMhazh31AmHdQkNV6N7kKCtfyVZMOVhtGr5j7ic5BeNkZ4XhcjQ4dlB1ACo
-         FWE+P8c/osqYDjYoWMfGZ6mFTxqjYYv14d/6taTR5s8kj3e0etpKJPwx6l5oqBY/IAgW
-         KIVA==
-X-Gm-Message-State: APjAAAUL315d1vY4Bjxj8vWzzj/jGI9+2n3WdNQoxKm0QhOZvepT2NzD
-	HKB2qFQN3AAW8s59+j7gGkcF8YkhSE/gw5TA4ZDJhzDjVAmNW91cJgWAGhciiq0IaA54oNlNjsV
-	MWsVNVmXSU2xzxKcZh3f91QPy+jYd5nI/u9tWqGZf+IAG5edkycH+Thj5b+DzbbOPKg==
-X-Received: by 2002:a1c:305:: with SMTP id 5mr85521311wmd.101.1564646828150;
-        Thu, 01 Aug 2019 01:07:08 -0700 (PDT)
-X-Received: by 2002:a1c:305:: with SMTP id 5mr85521214wmd.101.1564646827078;
-        Thu, 01 Aug 2019 01:07:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564646827; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=K+R31uQAYJxVzLY0NV2lfQguJWjRp7kXscTfedazeQE=;
+        b=S+PeVIa4UGuEwQmE/mo5nzx6yT9pCiXEedXmV/yNqdCbPzr6FhhcoVs07kdjbvdgLd
+         v3QmbuqZhN8+BP59E7mT85AwKWy6t1FUTg/FTnRyESJc83f84sylQs2Lai8vKUcAnnGJ
+         hu8f4ti3w70I8EFidphfsOU2Nwf4kKLNf/7ron36JyYkImgThTOU2htBVr09Fug+WI9u
+         DlLTf+roMTrxmZ2InS58nvhWvYof53gI0nPhe2Ypu0AO+qaM0D7kUNkhMJf22eQVGjeA
+         rYkS+J4KEnNOuLFisbK2E/ps6WO5QoNtU2UdP8eM/cKNdpJZVhq4E9rzhuSWPg4Q/7p5
+         igtw==
+X-Gm-Message-State: APjAAAU8FahzwiwAF3tG0UeaPT86IWnwP8TJHbaYV3+6sOgdGXA72e3z
+	o/liY5pB129rKI68CA7IUbdwYb7yMXsBBC78XoG5qyuyYXIAXd1XOAvW9HY/qdQFuhSj1f1AqGC
+	KZ0xS++YW7m82vM+4zQeyNLlV4YLiy6wvvTQ2Iv3iEqcfhpGM0StQzLgIpuDTtzl9CQ==
+X-Received: by 2002:a63:5f95:: with SMTP id t143mr57433895pgb.304.1564647365304;
+        Thu, 01 Aug 2019 01:16:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyShnZ0GwRTdgozzKGxvU//M3JNNKAZFww9gPSABXcKu5Nw+8Dl+em8snw/UQcXMtHyslaM
+X-Received: by 2002:a63:5f95:: with SMTP id t143mr57433851pgb.304.1564647364617;
+        Thu, 01 Aug 2019 01:16:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564647364; cv=none;
         d=google.com; s=arc-20160816;
-        b=RZLrNVHfuvWOmNIhGrvHVSZBij6Md5KIBm7sJZoDGPm0bF0XT3GjpMxOtEjf3wgNTa
-         W/tiLs4irlEfbf7vc5GoDK4VNdi7RkKJpPgiWAzuqgsF8tuG7+r5naikCw4xL7tkiCu/
-         Tf8ZEEWKRqjwnQ67LaDZNLwGpFWCGyUCPYlWrVZs+1GZFJJzXijUMNekISsC+srnQYcG
-         tXOR7IQmHifplU04TbzabFGY03253vL3+MRIjrvIAm7FJb00fF2kNmcHvV9CN01UwKa4
-         LAR4xSgbHtGBZE3xrJ0wHwpvMGb1UV664CBmL2dYk7x3IdFVRq8GTaalZHeyFGZJ8pmz
-         f7Cw==
+        b=T9SRhkPrHuFn8Sy9klnydzPAwC8U7KSZrwzXREo+BAITcesBbOo+Yj8QBhvX73g/6W
+         7J/AOmGC+DmtzeKyufU70dBZ0/9DO8VHoxEyCvnj/QYSQLiTI7+ZJX3rFK5Z4FWnGl0F
+         Z/xEgOtQ13rYNqd0VQiga3K3Qrv3x/lLEm2WyZJ9c/ittgVpM/8cVMIpJSkZK35EWpq1
+         y8wBcWdnc23j98pFDNjYiyj8p4P+gvjWi1CIddWvpgmt7Vq590vutfxUh5TiU0IMZlD7
+         UmCII13IUIA6ynmoeg8Zfp++UVxK3O/CyGNwfFwUS5I1U1Bh+bad+SVSUe6dzLZhE1ot
+         SZjA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=g+A39RrdNsk5NIAgz6cbkqFXnqluhsaENg8UQpREXDE=;
-        b=wwIIO+AmgTCXpB+8KKRZpL179cjch8z5jkjIgFhAeTgqlOQcz11wX5qhyzBTkVS/ro
-         smtOjNVF30QUKDlq1fqk3u5nIwknFqeXGXmSC8b2gUKGkZ70YPWH3UX3FR/5Sor6tNEh
-         W4LUiUO6z1K+52yzjfATsD7X4i0YehHdFL0CEXHeuygQnpnew71F/ewViNWUwPvnU9EH
-         IpuZFli3G6upaPiiwRlXrUfxe4/qhxUeO9dT5GIHkbsxikIUy+2hKfmfuy4VqoOLyUls
-         1k6+MQlWFCf590Yt+Y6zlY+ffHMpxatV9q0hY5YIJQOLlD76gOdtxdFSWyM5YlSIsL01
-         BBxQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=K+R31uQAYJxVzLY0NV2lfQguJWjRp7kXscTfedazeQE=;
+        b=cwzAwJkYcGUNcnqWpQ6qZSpbQTI+e+j2izUMnlvIlIwMPtPNm54lUo6BdaeG3zqi6x
+         bl2OByNxbDQZrdgm7JPuy0gcwL2zmh9kw6bHnHIi7OPJY88gH3S2ZTFIWF38LQTiaHqC
+         wvbXb2BS4JMi0utUlPrj47PWczoUvFII3TKN8c1C/28CkeArL4cdNA+cW89W0v4cvC7C
+         He+J8j2M0GBULOdEuhAxspZytL9i43u3X7IDAdi7HkhjmhUBCoVeJzNtr0JXuVSnfaa3
+         RLN/BLyM7wygkz/xv1o6KwYTAlrSvsAjaKQtBS4UO97NMYIKmAkdPSf00VrLmmu5n2SQ
+         YU9g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b=u2TOk2aU;
-       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q12sor40168797wmf.23.2019.08.01.01.07.06
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=C1DulZkK;
+       spf=pass (google.com: best guess record for domain of batv+f91b4cf709acd1b15965+5821+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+f91b4cf709acd1b15965+5821+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id cl14si6238605plb.341.2019.08.01.01.16.04
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 01 Aug 2019 01:07:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 01 Aug 2019 01:16:04 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+f91b4cf709acd1b15965+5821+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@linaro.org header.s=google header.b=u2TOk2aU;
-       spf=pass (google.com: domain of ard.biesheuvel@linaro.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=ard.biesheuvel@linaro.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=linaro.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linaro.org; s=google;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=g+A39RrdNsk5NIAgz6cbkqFXnqluhsaENg8UQpREXDE=;
-        b=u2TOk2aUUxlciAz+S8fOw5ayEP5pxbanqpxoufcriztE503QaytjsfI44gjK93c4QO
-         dVvcNshn6LEorrP7xMHWDjDwSJDHwfu9rr//ENrK//P/JGBiyvFKlS9HN9pxi9vAmshI
-         JJMflJqGqOeIo1/OuWDprzizazOtEOuDzwoi5Iq+SB7KdbVeO2nIfjCdSEMb0fJveqYx
-         zxREg7xesyR6VqxYmn9zuDDBcdduiRHLhpT6pGZct2AQq9M2eIzI2J7qvBQKw73KbGbk
-         BmuBTVInsEUIKbHecZ0fv342yaPj3QrS5dmEkSZzo9vW5XurX1pxsLqpMir0kWwN0vpf
-         loYA==
-X-Google-Smtp-Source: APXvYqzTOK2O5h5i7JW+1tMKyl/PkCpm0VE489+sVZTr8Okvaw+gBGpGHjDiT6ztuZuItrRRz1jLp8E/08KPJe5mXB4=
-X-Received: by 2002:a7b:c0d0:: with SMTP id s16mr99294214wmh.136.1564646826613;
- Thu, 01 Aug 2019 01:07:06 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=C1DulZkK;
+       spf=pass (google.com: best guess record for domain of batv+f91b4cf709acd1b15965+5821+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+f91b4cf709acd1b15965+5821+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=K+R31uQAYJxVzLY0NV2lfQguJWjRp7kXscTfedazeQE=; b=C1DulZkKdXZyhRXjAkV96vjDd
+	k4fzHk6RD6Vq2mgb1I/HdfGKnnUP/1Bb20dVqsxjZpx2LkuN3GUqikSuzxznPdrdGUj3WzVGIn7wv
+	hVxKkmbIDTIZcD6IYvbOsOkS5uO9/xbJXAlLkJBQsJxEUkv4ZP2sYREiYdK27fuujk6b8cza33Hci
+	HJsVwY7lM87oOGPucyyFWLk0ZyO160eqTvURjI7PwB7fA1yJ/hvLVB1SAuS9PiGeGl5gpmOgDe7Xp
+	WHT8/6DDs7s1nY4aQ7Bvx1ORWYBl4/mU3ZdDFJesinhVaidQKyy1wMGkxbqR8Xg5CLbDSSF7lgyTo
+	a6yhXve7w==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1ht6Fn-0006B9-Qg; Thu, 01 Aug 2019 08:16:03 +0000
+Date: Thu, 1 Aug 2019 01:16:03 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH 11/24] xfs:: account for memory freed from metadata
+ buffers
+Message-ID: <20190801081603.GA10600@infradead.org>
+References: <20190801021752.4986-1-david@fromorbit.com>
+ <20190801021752.4986-12-david@fromorbit.com>
 MIME-Version: 1.0
-References: <1563861073-47071-1-git-send-email-guohanjun@huawei.com> <1563861073-47071-2-git-send-email-guohanjun@huawei.com>
-In-Reply-To: <1563861073-47071-2-git-send-email-guohanjun@huawei.com>
-From: Ard Biesheuvel <ard.biesheuvel@linaro.org>
-Date: Thu, 1 Aug 2019 11:06:55 +0300
-Message-ID: <CAKv+Gu-YVrCbUfPQQhO+SSrqq4iempwQN481op6uf+q2tD-0=A@mail.gmail.com>
-Subject: Re: [PATCH v12 1/2] mm: page_alloc: introduce memblock_next_valid_pfn()
- (again) for arm64
-To: Hanjun Guo <guohanjun@huawei.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Catalin Marinas <catalin.marinas@arm.com>, 
-	Jia He <hejianet@gmail.com>, Mike Rapoport <rppt@linux.ibm.com>, Will Deacon <will@kernel.org>, 
-	linux-arm-kernel <linux-arm-kernel@lists.infradead.org>, Linux-MM <linux-mm@kvack.org>, 
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190801021752.4986-12-david@fromorbit.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 23 Jul 2019 at 08:53, Hanjun Guo <guohanjun@huawei.com> wrote:
->
-> From: Jia He <hejianet@gmail.com>
->
-> Commit b92df1de5d28 ("mm: page_alloc: skip over regions of invalid pfns
-> where possible") optimized the loop in memmap_init_zone(). But it causes
-> possible panic on x86 due to specific memory mapping on x86_64 which will
-> skip valid pfns as well, so Daniel Vacek reverted it later.
->
-> But as suggested by Daniel Vacek, it is fine to using memblock to skip
-> gaps and finding next valid frame with CONFIG_HAVE_ARCH_PFN_VALID.
->
-> Daniel said:
-> "On arm and arm64, memblock is used by default. But generic version of
-> pfn_valid() is based on mem sections and memblock_next_valid_pfn() does
-> not always return the next valid one but skips more resulting in some
-> valid frames to be skipped (as if they were invalid). And that's why
-> kernel was eventually crashing on some !arm machines."
->
-> Introduce a new config option CONFIG_HAVE_MEMBLOCK_PFN_VALID and only
-> selected for arm64, using the new config option to guard the
-> memblock_next_valid_pfn().
->
-> This was tested on a HiSilicon Kunpeng920 based ARM64 server, the speedup
-> is pretty impressive for bootmem_init() at boot:
->
-> with 384G memory,
-> before: 13310ms
-> after:  1415ms
->
-> with 1T memory,
-> before: 20s
-> after:  2s
->
-> Suggested-by: Daniel Vacek <neelx@redhat.com>
-> Signed-off-by: Jia He <hejianet@gmail.com>
-> Signed-off-by: Hanjun Guo <guohanjun@huawei.com>
-> ---
->  arch/arm64/Kconfig     |  1 +
->  include/linux/mmzone.h |  9 +++++++++
->  mm/Kconfig             |  3 +++
->  mm/memblock.c          | 31 +++++++++++++++++++++++++++++++
->  mm/page_alloc.c        |  4 +++-
->  5 files changed, 47 insertions(+), 1 deletion(-)
->
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index 697ea0510729..058eb26579be 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -893,6 +893,7 @@ config ARCH_FLATMEM_ENABLE
->
->  config HAVE_ARCH_PFN_VALID
->         def_bool y
-> +       select HAVE_MEMBLOCK_PFN_VALID
->
->  config HW_PERF_EVENTS
->         def_bool y
-> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-> index 70394cabaf4e..24cb6bdb1759 100644
-> --- a/include/linux/mmzone.h
-> +++ b/include/linux/mmzone.h
-> @@ -1325,6 +1325,10 @@ static inline int pfn_present(unsigned long pfn)
->  #endif
->
->  #define early_pfn_valid(pfn)   pfn_valid(pfn)
-> +#ifdef CONFIG_HAVE_MEMBLOCK_PFN_VALID
-> +extern unsigned long memblock_next_valid_pfn(unsigned long pfn);
-> +#define next_valid_pfn(pfn)    memblock_next_valid_pfn(pfn)
-> +#endif
->  void sparse_init(void);
->  #else
->  #define sparse_init()  do {} while (0)
-> @@ -1347,6 +1351,11 @@ struct mminit_pfnnid_cache {
->  #define early_pfn_valid(pfn)   (1)
->  #endif
->
-> +/* fallback to default definitions */
-> +#ifndef next_valid_pfn
-> +#define next_valid_pfn(pfn)    (pfn + 1)
-> +#endif
 > +
->  void memory_present(int nid, unsigned long start, unsigned long end);
->
->  /*
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index f0c76ba47695..c578374b6413 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -132,6 +132,9 @@ config HAVE_MEMBLOCK_NODE_MAP
->  config HAVE_MEMBLOCK_PHYS_MAP
->         bool
->
-> +config HAVE_MEMBLOCK_PFN_VALID
-> +       bool
+> +		/*
+> +		 * Account for the buffer memory freed here so memory reclaim
+> +		 * sees this and not just the xfs_buf slab entry being freed.
+> +		 */
+> +		if (current->reclaim_state)
+> +			current->reclaim_state->reclaimed_pages += bp->b_page_count;
 > +
->  config HAVE_GENERIC_GUP
->         bool
->
-> diff --git a/mm/memblock.c b/mm/memblock.c
-> index 7d4f61ae666a..d57ba51bb9cd 100644
-> --- a/mm/memblock.c
-> +++ b/mm/memblock.c
-> @@ -1251,6 +1251,37 @@ int __init_memblock memblock_set_node(phys_addr_t base, phys_addr_t size,
->         return 0;
->  }
->  #endif /* CONFIG_HAVE_MEMBLOCK_NODE_MAP */
-> +
-> +#ifdef CONFIG_HAVE_MEMBLOCK_PFN_VALID
-> +unsigned long __init_memblock memblock_next_valid_pfn(unsigned long pfn)
-> +{
-> +       struct memblock_type *type = &memblock.memory;
-> +       unsigned int right = type->cnt;
-> +       unsigned int mid, left = 0;
-> +       phys_addr_t addr = PFN_PHYS(++pfn);
-> +
-> +       do {
-> +               mid = (right + left) / 2;
-> +
-> +               if (addr < type->regions[mid].base)
-> +                       right = mid;
-> +               else if (addr >= (type->regions[mid].base +
-> +                                 type->regions[mid].size))
-> +                       left = mid + 1;
-> +               else {
-> +                       /* addr is within the region, so pfn is valid */
-> +                       return pfn;
-> +               }
-> +       } while (left < right);
-> +
-> +       if (right == type->cnt)
-> +               return -1UL;
-> +       else
-> +               return PHYS_PFN(type->regions[right].base);
-> +}
-> +EXPORT_SYMBOL(memblock_next_valid_pfn);
-> +#endif /* CONFIG_HAVE_MEMBLOCK_PFN_VALID */
-> +
->  #ifdef CONFIG_DEFERRED_STRUCT_PAGE_INIT
->  /**
->   * __next_mem_pfn_range_in_zone - iterator for for_each_*_range_in_zone()
-> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-> index d66bc8abe0af..70933c40380a 100644
-> --- a/mm/page_alloc.c
-> +++ b/mm/page_alloc.c
-> @@ -5811,8 +5811,10 @@ void __meminit memmap_init_zone(unsigned long size, int nid, unsigned long zone,
->                  * function.  They do not exist on hotplugged memory.
->                  */
->                 if (context == MEMMAP_EARLY) {
-> -                       if (!early_pfn_valid(pfn))
-> +                       if (!early_pfn_valid(pfn)) {
-> +                               pfn = next_valid_pfn(pfn) - 1;
 
-This is the thing I objected to previously: subtracting 1 so the pfn++
-in the for() produces the correct value.
+I think this wants a mm-layer helper ala:
 
-Could we instead pull the next() operation into the for() construct as
-the third argument?
+static inline void shrinker_mark_pages_reclaimed(unsigned long nr_pages)
+{
+	if (current->reclaim_state)
+		current->reclaim_state->reclaimed_pages += nr_pages;
+}
 
->                                 continue;
-> +                       }
->                         if (!early_pfn_in_nid(pfn, nid))
->                                 continue;
->                         if (overlap_memmap_init(zone, &pfn))
-> --
-> 2.19.1
->
+plus good documentation on when to use it.
 
