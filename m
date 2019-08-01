@@ -2,141 +2,145 @@ Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BB767C19759
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 21:10:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 97692C433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 21:59:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 865AE2083B
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 21:10:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 865AE2083B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id 30D1B2080C
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 21:59:23 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="NFJ5mx3p"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30D1B2080C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 09BB86B0003; Thu,  1 Aug 2019 17:10:19 -0400 (EDT)
+	id 865F86B0003; Thu,  1 Aug 2019 17:59:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 073956B0005; Thu,  1 Aug 2019 17:10:19 -0400 (EDT)
+	id 83C986B0005; Thu,  1 Aug 2019 17:59:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ECA7F6B0006; Thu,  1 Aug 2019 17:10:18 -0400 (EDT)
+	id 72B9B6B0006; Thu,  1 Aug 2019 17:59:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id B27C16B0003
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 17:10:18 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id n1so40274826plk.11
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 14:10:18 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 52D3E6B0003
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 17:59:22 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id h4so80923027iol.5
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 14:59:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=apKJ3lw3F5pljeh+RYLDWKCm1PCyFvCjUDneWAzUmR4=;
-        b=E8azh+2ppGtXu+iEPBQgidLY3d5GQkcZMTQdBy8i0MdiwVWwka5KggZc7alLKMLJ0R
-         FdvaD09bPZ/0M7AqfGpPUwWcDkoEhvfp8oPyEoBydMKLHTRxjwBaBTGnHXV02lFqLsD/
-         w6x+v8oYhA4dxNDBJ+D++JaZIJ/64rRzqBbQ6peERVSPub8WJf2eTZPCj3hlrLCFg288
-         VxlRf/44LHG8A59BGDp02m7NGfgtQnubpq0ZO5JWEtAYC7S9QSQ1zhJJq013r4QvSBoO
-         97QMjiUteTMuT1bZAb0MQ+Rl4QorQDV15JSFYVu/J+gMxPR27//M5bKbf6v4q/EdoCRD
-         zQ1Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAUb1li/uGv6JwbX+uEU9muvbSRlIiecohpFi6CJna7suDscSmAM
-	38Ss+DUWMgoHk4tbeGdpt8TxRxs6mmyCB4De021vmYFPgGDnJxD/66UqskRYF4bQhmMJgI9n7hZ
-	QZHaCPo3n5UI2NG0n+SaD0gQX/84sj50WUA+mXLISQogNXm6Sg0Al9NE0CbAWtfI/Pg==
-X-Received: by 2002:a63:124a:: with SMTP id 10mr120432933pgs.254.1564693818202;
-        Thu, 01 Aug 2019 14:10:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzPudtiP9Vu/5z8Ll5PbqSxk68ATE8F/RHqcC0d1iMNm+/VxRT1f0BoWv0M88MQRG1mHQJA
-X-Received: by 2002:a63:124a:: with SMTP id 10mr120432845pgs.254.1564693816935;
-        Thu, 01 Aug 2019 14:10:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564693816; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=FlbNAsgaWkp1ShDCheHxAkj85en9Tu2y9Hru44fhYz0=;
+        b=jmfgnhDd6agb1J36NPPR3DoL4weF4iVB1zmkJ2nD6EI5r/WlG6klx4ri4V8ei3z60J
+         0eNRcTIIrcIoYekv3bWdapMWb7jskyRDSUBfqxIMW2SdhVWJXLfcx+eiI8KxiKHREtMU
+         DnX42NXIPHOfU/JgCrgugzLiTMjSArlWWNH/aLAyJK3CuVQqs72czsv6Oi/CpdouDND0
+         p/1PI3As2keFg6Ms26yDB4CM+zGRpKnnwZ6+HdrJsVpoGPzlE+BNxlenqwcMzqUslkb0
+         5Po2ZPguDWXfiUBG0/HI4a/8bxSD61mKgO8sa4+GQqLxvvAxr0pMLInlnLfms10jR5p4
+         p5vQ==
+X-Gm-Message-State: APjAAAUX4+k/QW9RY2DF/TGSzhxGEG4dbknWayyOsDAcg3O/ffHS+uRM
+	dpvP7nU/Wo3bUXokg1Sj6LLZdt+27jxadEqo1KDJnYEVj9wvomdEj4oureTYYu09elz2c0BRA3T
+	5Zu/E3A190EmPFNgQ7FBUdApRxliUAp042Eo2w1rDn2/lkIrcvMMVNSdWNoh2RcmWwQ==
+X-Received: by 2002:a6b:f910:: with SMTP id j16mr314049iog.256.1564696762069;
+        Thu, 01 Aug 2019 14:59:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxhjkk1nbAJMdgyHn2vhVzahAP2IBOBlFdNkdTlPoZYKmCKD4mvWnB15/yiRe8KwsQr5BP8
+X-Received: by 2002:a6b:f910:: with SMTP id j16mr313970iog.256.1564696761111;
+        Thu, 01 Aug 2019 14:59:21 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564696761; cv=none;
         d=google.com; s=arc-20160816;
-        b=nT9wyLcsl4KR4hqbB0qNkHwFkpuh51mxQTGslP9AwN3u+6Ji1ZOz767/l9yT+9aO+Z
-         5P2eCTcOqllebN8D9PJINImLUGaRhHbOCi5SdSL4j3vXgrjJGee9XDKY6FfHXvMGRDVL
-         4Sa9P5Vk51PJt99jG62wxVvPLZuzCyDOO1XuB8ZEqr0M1NkE7yXWjCDoKy7d3WzOjiTk
-         XfpNj5+9kyHkZuIx6JdEa7sf+RWyy2UfEIvOvdeGdHdQ9VpgsjT3eJuX4qMCEa9cwRaX
-         sMYUBf4un4hjGUm5xu0TXRnu/ldvJblvwpJsr1Gaxznl3u/+lQEtPqPIH5N7Cj6ryMR1
-         iIbQ==
+        b=Xgarl+Tw1lOpf7sEzQi57axIVOEcnLTNAV24d4rbd2/L6cRNcOzjTb3zP1cLSwqHJe
+         HHsKi6IK/qhQz4Q6xKr40qzfFTIF/q5Z+dBpJEQaW1KtTHWtwGT+QtUrH7tihjEdHsSK
+         SQ35vz2oMVbmCpNDl7H31903i+pXw/pPcW0f4c90M8qWBWSrLQm9OBzNDOac8Xx+yJ01
+         r1Pcv+mvWsy6KQwZq0W3wXcPceZ6AbeJ5Gkgs3GbHEygNg8FzCsQTfQuuf2j/Ru9uZVY
+         oI4yuCmPZ87YfzEJmcJVw3WkvMMWyZ+kidj9dkp46VoMJoGD5cHUfPJnF0V4H1I2RB7+
+         wi4Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=apKJ3lw3F5pljeh+RYLDWKCm1PCyFvCjUDneWAzUmR4=;
-        b=CoGYsOJtC/nHTckel8339ODsq4a9aEW6BAwEc56NJfm2KYOjLPg45iJ8OgbG7bsH1I
-         a5nfYQNwyp19JRDWqNMW1XB4GgvatO/rk6XYpX2+5AQX0pcuIK3Ghcjid39DlPURQszr
-         QuAefvL3kTlAyCzsUGtxLslu7VZd+QeCpu1VsgMUpds2zkhDTC2Do6jnsWUdJDtRrIM1
-         yxUfjIDYT52kNWGIYGU9xuev+x3vh3AU1bmkWvACSwOWDawCkaXxvnOk++HXi0A8H2OF
-         jsEuxwNx9Ep+8dDZ/9/FnCzN0J5zgTnXb1ROMTnz1yXVe2Xlcl8WhvL0tOu1BPZAPJoj
-         FoeA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=FlbNAsgaWkp1ShDCheHxAkj85en9Tu2y9Hru44fhYz0=;
+        b=evHmSEq2ios8XnH0NQbhSRSoQPI5xlXKr/eCSTWRBxtFKpOMMDNKDmG1UfKTg/ByhK
+         8+cp1eAOTDoPzoc6oE9ibRV2v6/Yg9n+m/UWg1/z/Tc4GNn7WSr6WGZcnJX3Avx/sN/r
+         KEpcgWIuknKVLG989wNFwMIpmc1pkLcTE3FOVQ6MuIUdq+b6ONXFxJbCAK/HLlXqbM2x
+         Q1CE1Ce7giSt0+k6soUfsl+TAFl9t0HNbi3uzhMvXA/USDdyFg21V4xTgLMJd1AgjeyW
+         p5JSMs/AOLBhICUktqiqmht0jPQnw+waPW1sQIZnIbR0ZS9asyVNhLAlR33oY//ADClp
+         0FtA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-56.freemail.mail.aliyun.com (out30-56.freemail.mail.aliyun.com. [115.124.30.56])
-        by mx.google.com with ESMTPS id s13si39319489pfe.140.2019.08.01.14.10.16
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=NFJ5mx3p;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
+        by mx.google.com with ESMTPS id q3si85349703ioj.22.2019.08.01.14.59.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Aug 2019 14:10:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) client-ip=115.124.30.56;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 01 Aug 2019 14:59:21 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.56 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R761e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04420;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TYQEJnk_1564693809;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TYQEJnk_1564693809)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 02 Aug 2019 05:10:14 +0800
-Subject: Re: [BUG]: mm/vmscan.c: shrink_slab does not work correctly with
- memcg disabled via commandline
-To: Jan Hadrava <had@kam.mff.cuni.cz>, Michal Hocko <mhocko@kernel.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
- wizards@kam.mff.cuni.cz, Kirill Tkhai <ktkhai@virtuozzo.com>,
- Johannes Weiner <hannes@cmpxchg.org>, Shakeel Butt <shakeelb@google.com>,
- Andrew Morton <akpm@linux-foundation.org>
-References: <20190801134250.scbfnjewahbt5zui@kam.mff.cuni.cz>
- <20190801140610.GM11627@dhcp22.suse.cz>
- <20190801155434.2dftso2wuggfuv7a@kam.mff.cuni.cz>
- <20190801163213.GO11627@dhcp22.suse.cz>
- <20190801174631.ulnlx3pi2g2rznzk@kam.mff.cuni.cz>
-From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <8db8ec82-5a66-a221-09f3-66d0b8b9a75f@linux.alibaba.com>
-Date: Thu, 1 Aug 2019 14:10:05 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
- Gecko/20100101 Thunderbird/52.7.0
+       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=NFJ5mx3p;
+       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
+	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=FlbNAsgaWkp1ShDCheHxAkj85en9Tu2y9Hru44fhYz0=; b=NFJ5mx3pun9BIYphO0C68UAUu
+	bNIl5t6nnsxHXQq8rOyvK1+2xENKG1banbuqonFceMoKyQfDoNijJJq1cmdDthZGkLdEJaHaa+JRR
+	sy9AZHK01JafhzTXpLIhZcM24Nt52lWl/kRGtNf5E6LX5xx1DNeoa8ZNntincpMLRDHuDoi7WC/+y
+	HA3O23EObKhT4TPP+bFOaHWWnfil3CE5Ggc/aCnZxceKFfwCToLfXOTGqgxuInpjTOEyU5G52eQ61
+	7gsEOZqcrfczHuU7P7Dx4ONddvwcraEmcYcTxxpMkFOgVNQGyPcL7cM+eMlCVnQ+Z2HDd9+SLiVEF
+	If+0fSSdQ==;
+Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
+	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1htJ6I-0002fJ-Mv; Thu, 01 Aug 2019 21:59:07 +0000
+Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
+	id 51E57202953B0; Thu,  1 Aug 2019 23:59:04 +0200 (CEST)
+Date: Thu, 1 Aug 2019 23:59:04 +0200
+From: Peter Zijlstra <peterz@infradead.org>
+To: Suren Baghdasaryan <surenb@google.com>
+Cc: Ingo Molnar <mingo@redhat.com>, lizefan@huawei.com,
+	Johannes Weiner <hannes@cmpxchg.org>, axboe@kernel.dk,
+	Dennis Zhou <dennis@kernel.org>,
+	Dennis Zhou <dennisszhou@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	linux-mm <linux-mm@kvack.org>, linux-doc@vger.kernel.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	kernel-team <kernel-team@android.com>,
+	Nick Kralevich <nnk@google.com>,
+	Thomas Gleixner <tglx@linutronix.de>
+Subject: Re: [PATCH 1/1] psi: do not require setsched permission from the
+ trigger creator
+Message-ID: <20190801215904.GC2332@hirez.programming.kicks-ass.net>
+References: <20190730013310.162367-1-surenb@google.com>
+ <20190730081122.GH31381@hirez.programming.kicks-ass.net>
+ <CAJuCfpH7NpuYKv-B9-27SpQSKhkzraw0LZzpik7_cyNMYcqB2Q@mail.gmail.com>
+ <20190801095112.GA31381@hirez.programming.kicks-ass.net>
+ <CAJuCfpHGpsU4bVcRxpc3wOybAOtiTKAsB=BNAtZcGnt10j5gbA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20190801174631.ulnlx3pi2g2rznzk@kam.mff.cuni.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAJuCfpHGpsU4bVcRxpc3wOybAOtiTKAsB=BNAtZcGnt10j5gbA@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Aug 01, 2019 at 11:28:30AM -0700, Suren Baghdasaryan wrote:
+> > By marking it FIFO-99 you're in effect saying that your stupid
+> > statistics gathering is more important than your life. It will preempt
+> > the task that's in control of the band-saw emergency break, it will
+> > preempt the task that's adjusting the electromagnetic field containing
+> > this plasma flow.
+> >
+> > That's insane.
+> 
+> IMHO an opt-in feature stops being "stupid" as soon as the user opted
+> in to use it, therefore explicitly indicating interest in it. However
+> I assume you are using "stupid" here to indicate that it's "less
+> important" rather than it's "useless".
 
-
-On 8/1/19 10:46 AM, Jan Hadrava wrote:
-> On Thu, Aug 01, 2019 at 06:32:13PM +0200, Michal Hocko wrote:
->> On Thu 01-08-19 17:54:34, Jan Hadrava wrote:
->>> Just to be sure, i run my tests and patch proposed in the original thread
->>> solves my issue in all four affected stable releases:
->> Cc Andrew.
-> Are you sure? I can't see any change in e-mail headers.
-
-Cc'ed Andrew.
-
->
->> I assume we can assume your Tested-by tag?
-> Well, these test only checked, that bug is present without the patch
-> and disappears after applying it. Anyway: I am ok with it.
-
-Thanks for testing it. I think you ran into the similar pre-mature OOM 
-issue as what Shakeel reported.
-
-Andrew,
-
-The patch has been in -mm tree 
-(mm-vmscan-check-if-mem-cgroup-is-disabled-or-not-before-calling-memcg-slab-shrinker.patch), 
-it seems we'd better to get this fix in the upcoming 5.3-rc so that it 
-could get into stable release soon.
-
->
->
+Quite; PSI does have its uses. RT just isn't one of them.
 
