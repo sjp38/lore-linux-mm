@@ -2,103 +2,105 @@ Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 05254C32753
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 03:02:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E1494C32751
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 03:08:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A630C214DA
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 03:02:40 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A630C214DA
+	by mail.kernel.org (Postfix) with ESMTP id B115A20693
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 03:08:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B115A20693
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 37E3F8E0003; Wed, 31 Jul 2019 23:02:40 -0400 (EDT)
+	id 501038E0003; Wed, 31 Jul 2019 23:08:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3069D8E0001; Wed, 31 Jul 2019 23:02:40 -0400 (EDT)
+	id 4D68D8E0001; Wed, 31 Jul 2019 23:08:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1A8ED8E0003; Wed, 31 Jul 2019 23:02:40 -0400 (EDT)
+	id 39F658E0003; Wed, 31 Jul 2019 23:08:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BD4598E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 23:02:39 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id b12so43737299ede.23
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 20:02:39 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id E0FD18E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 23:08:28 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id n3so43775041edr.8
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 20:08:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:subject
-         :to:cc:references:message-id:date:user-agent:mime-version
-         :in-reply-to:content-language:content-transfer-encoding;
-        bh=kHusHlcshI7cuaU2q9PclLCd+l4VuAZ8tZKzu0edbgA=;
-        b=Yc7V5Dvnze2qo92z3jWy11gmsaMcBjesry8TAWEGUCbGtdBI/APA2sWbBJSoHSP6+s
-         vlpMFxW7f8mYo+BSwQzz9zWoKJl9QeJyZljkCErA52IzMJuNmbcubnjF1S+1CFpnDe4s
-         YYdPISrM/nMYrZB9TuXEZjZ/v6pKTw8tXhGt29UUxZTeWsjvqIobZmEcI7A82ypiWE7A
-         SjjkkFgm4ewJq/5IGWMeOwIZz7RNTTIQnXbCjvULimIfzVXWQ+g2s/H3wB9Qb7t7aU28
-         cUSpbVMNOK4OBzRRfkYh+3pgtXg7hZ3E5te6ksZkQHCFiCFiWu9kROD1otF8sCAXoRkP
-         oktw==
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=ioGyMIf5J87yJPJciga4Wr241nzUrgiMYNiKAP7Dbd4=;
+        b=AQFeKxD37fS7QXVttoS796k13KAtjc+edpy3XU5/awEqi0n8E47qu51N1qlDDekPgt
+         PIM1GDM4AgTLOXFepYfClGrjGzjGy/yVWbpE2RvlwiOVBQiMToql8yIzy4H8JBwdd4rK
+         zgu8hhT/YHJ6CffTylzEeoAyssTyALlXGK3E4oFWP273kmWVAtZqxZkEyL8qEcpyAW5p
+         CUJcnsEAlHSc/d9HT3+AlM56LlNnrXHfhCF8Rkj0JP0etiAq1J6zYq+XsQfGdSHDz/df
+         mFdo1FuCqyI7DsyXJDh4jBt864X8L4KG71Rth41d/tQFkw22XaK5SNMszOEvspyCFODF
+         rmIQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAVl9/McjerQIOdHFMX5nRRKx0A/Sk9LhGeCrAeX0qIg18yU7TUr
-	tTCsdSxLyKQG4w2pQpKKcCnKypGPxpOXiXh2vrpmDUQf04li4uRDqStNbasBQTgRQstrGFZoaP1
-	8CrYtusT+1f5T2QaN3IqpC+QibdNvzKD1U9Y6xiaWFhNVQ9Qglmlh3TKujVhBlaZCPA==
-X-Received: by 2002:a17:906:7f91:: with SMTP id f17mr94852939ejr.250.1564628559130;
-        Wed, 31 Jul 2019 20:02:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw/O6/NdYypIMZ25azYbF++oPJFQLEm8pcKwDN+f7NepK5JYCDscldrS/2KzmDyhnuH9h2Z
-X-Received: by 2002:a17:906:7f91:: with SMTP id f17mr94852898ejr.250.1564628558327;
-        Wed, 31 Jul 2019 20:02:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564628558; cv=none;
+X-Gm-Message-State: APjAAAVyG6MmfZOHHjNiNeZgcWhYbt8R0ML5QF2PKeczrQK6f3OvnE3n
+	TNGoXweNewprYa39xwwITLAhklSCCvSsSJ9slaX2AKRJ3oPuQL3hegp3V2lZosfaHAuXMnR5kmR
+	PcyCkKmrnaAbgwYmewfotyy5pM3db8PTviH4vqbJOCJF5nSW/yH4McLJWz+WCeaIC2g==
+X-Received: by 2002:a17:906:304d:: with SMTP id d13mr94531937ejd.99.1564628908478;
+        Wed, 31 Jul 2019 20:08:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxupGCKSRqFUIwRhIWn+gU6eQ44mwa3KHZOcDPe2uOeJ0CLfOmRTfqSAJ4EBbF4b1xOg3wj
+X-Received: by 2002:a17:906:304d:: with SMTP id d13mr94531902ejd.99.1564628907791;
+        Wed, 31 Jul 2019 20:08:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564628907; cv=none;
         d=google.com; s=arc-20160816;
-        b=bY9NYPTxovC0i0NhqETMdT12KTLJQe31M1veCGIhZH1KwLdGHqUJpzp0PpudDzXgqx
-         zOLIIDNVVs88HsPtuEPmhODIfdACoAW9Bcm8JHu/AYqlk/k+7JFQvMIdLurzd4wznsrm
-         5+mdnkl/3WPoEvfpAlzGucF0HuXq4F62lNlK0QvNvQ5U6pa+RnIWpYmxLM/lfLA/NDuJ
-         ATLjEGAW9S1FraDhXAaABLGtyvE3EH9Ab3q9bO9lax2t7tlvyM6ZkXpINMipm2xtp9WW
-         jugO76RT8l0+6dA9LJuUpqN1i75EyK1oLOFMzZRhwzfNnInh4oJUMd3gHVUVDBzRZI4V
-         QhMQ==
+        b=nZmT9Iv+0hB3+I6ZdUHP1xRf3TAy6IjK++wAj+9fpDByzhkrDiVoU2tmbqXWwir4ZN
+         gLYuNjHpJE6B16CKQovMSmytAJgAMn3UUZ9G3bPqdUCoMxRUGhiRAf/0U296VkvcbEbk
+         YEhmyIQdfdZfMRsjKlGxBCaL/YHSYKpFQHyu9miFbZLS6axYd1pqfNs2M46k5XUnJJRq
+         CF2UsKxtJC4kTdKgjXd1QDI+FepFtADf9pIP9d0Gi7wkgyzFAi4mFZr4QwixbVtMXjcy
+         hF+QhPdwlTsF3CtlbWLSasM9TDIm1jt/fCMbnLPqPXldjVwcldfbLOLPHmDWmuRu+I5C
+         hTag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:subject:from;
-        bh=kHusHlcshI7cuaU2q9PclLCd+l4VuAZ8tZKzu0edbgA=;
-        b=iNLvHZfIqAeCWh2Y7BmRhUdB9V+gRBhYJRmkSyGTiTat9T/Gm6bD4wp4LnVGIWqe7X
-         9TRKIs63apqFeHB1v4NdlFSa64JSxNdXC+1SF9TwW/NVzPZ0MB3vaCP406cWkaKde/SI
-         U0vGCqDRuXG4mLEmeJFj22mF2nXY7+1oyy+Wh7G6YufqT4vFepIcqL74SIVdrREROZUJ
-         NOKA19BheFfX/AC3QeC+VTrR9Slj5TbpO9RIotS47QwXOTQw/6pordS8mfs/gN0ab34R
-         6IBpgsnQHCq4NoVeXVq5Tt8Px49/thTqCmcBaltT3KDkZVBiBtm2dGdH/7xiligeI/9w
-         Lzlg==
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=ioGyMIf5J87yJPJciga4Wr241nzUrgiMYNiKAP7Dbd4=;
+        b=macSCtIPf/zO6xemAc7jHjs9o/NxPuLICK23h/lf6eZ13kWCdbXWkmL2cd/LRh2KAW
+         fApWUJ4oJ7pP0ezGcdOcS5oSQ/rIjkEOrLUELkjG9QRFav6E14HeDZdFTDPDi1aiSJVG
+         lZuBx07ryxyG2EGCeO9ZZ4FfuYcvy3w1/DYqolAxWrJ9wXyxfVAjKLv1WwW0jVFunb+c
+         jsbQsR+yKNi1Y7OMqlTmq0ZyWDwHIxCiVVuvYlAY7DEDoiq7+L9bWA+YBdbhjIduTg8A
+         rCeZEFfF5bBvW2F5bT8tWH/7xD83yqqlqP4mRP4md/4/g4Gs4cac1/BMm/guGHw4N6DS
+         dc7g==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id c25si11500385ejx.201.2019.07.31.20.02.37
+        by mx.google.com with ESMTP id rl21si19514340ejb.20.2019.07.31.20.08.27
         for <linux-mm@kvack.org>;
-        Wed, 31 Jul 2019 20:02:38 -0700 (PDT)
+        Wed, 31 Jul 2019 20:08:27 -0700 (PDT)
 Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 36AED344;
-	Wed, 31 Jul 2019 20:02:37 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E54F5344;
+	Wed, 31 Jul 2019 20:08:26 -0700 (PDT)
 Received: from [10.163.1.81] (unknown [10.163.1.81])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id A2A7B3F575;
-	Wed, 31 Jul 2019 20:02:33 -0700 (PDT)
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: Re: [RFC 2/2] arm64/mm: Enable device memory allocation and free for
- vmemmap mapping
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E31B33F575;
+	Wed, 31 Jul 2019 20:08:20 -0700 (PDT)
+Subject: Re: [RFC 1/2] mm/sparsemem: Add vmem_altmap support in
+ vmemmap_populate_basepages()
 To: Will Deacon <will@kernel.org>
-Cc: linux-mm@kvack.org, Mark Rutland <mark.rutland@arm.com>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, linux-kernel@vger.kernel.org,
- linux-arm-kernel@lists.infradead.org
+Cc: linux-mm@kvack.org, Fenghua Yu <fenghua.yu@intel.com>,
+ Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
+ <will.deacon@arm.com>, x86@kernel.org, linux-kernel@vger.kernel.org,
+ Andy Lutomirski <luto@kernel.org>, Andrew Morton
+ <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org
 References: <1561697083-7329-1-git-send-email-anshuman.khandual@arm.com>
- <1561697083-7329-3-git-send-email-anshuman.khandual@arm.com>
- <20190731161103.kqv3v2xlq4vnyjhp@willie-the-truck>
-Message-ID: <349fb6e2-f9f1-c45a-e512-4ac253e2fd3d@arm.com>
-Date: Thu, 1 Aug 2019 08:33:09 +0530
+ <1561697083-7329-2-git-send-email-anshuman.khandual@arm.com>
+ <20190731161047.ypye54x5c5jje5sq@willie-the-truck>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <a753a841-c344-c708-fccd-39d838637bcb@arm.com>
+Date: Thu, 1 Aug 2019 08:39:01 +0530
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
  Thunderbird/52.9.1
 MIME-Version: 1.0
-In-Reply-To: <20190731161103.kqv3v2xlq4vnyjhp@willie-the-truck>
+In-Reply-To: <20190731161047.ypye54x5c5jje5sq@willie-the-truck>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -108,73 +110,44 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/31/2019 09:41 PM, Will Deacon wrote:
-> On Fri, Jun 28, 2019 at 10:14:43AM +0530, Anshuman Khandual wrote:
->> This enables vmemmap_populate() and vmemmap_free() functions to incorporate
->> struct vmem_altmap based device memory allocation and free requests. With
->> this device memory with specific atlmap configuration can be hot plugged
->> and hot removed as ZONE_DEVICE memory on arm64 platforms.
->>
->> Cc: Catalin Marinas <catalin.marinas@arm.com>
->> Cc: Will Deacon <will.deacon@arm.com>
->> Cc: Mark Rutland <mark.rutland@arm.com>
->> Cc: linux-arm-kernel@lists.infradead.org
->> Cc: linux-kernel@vger.kernel.org
->>
->> Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
->> ---
->>  arch/arm64/mm/mmu.c | 57 ++++++++++++++++++++++++++++++++++-------------------
->>  1 file changed, 37 insertions(+), 20 deletions(-)
->>
->> diff --git a/arch/arm64/mm/mmu.c b/arch/arm64/mm/mmu.c
->> index 39e18d1..8867bbd 100644
->> --- a/arch/arm64/mm/mmu.c
->> +++ b/arch/arm64/mm/mmu.c
->> @@ -735,15 +735,26 @@ int kern_addr_valid(unsigned long addr)
->>  }
->>  
->>  #ifdef CONFIG_MEMORY_HOTPLUG
->> -static void free_hotplug_page_range(struct page *page, size_t size)
->> +static void free_hotplug_page_range(struct page *page, size_t size,
->> +				    struct vmem_altmap *altmap)
->>  {
->> -	WARN_ON(!page || PageReserved(page));
->> -	free_pages((unsigned long)page_address(page), get_order(size));
->> +	if (altmap) {
->> +		/*
->> +		 * vmemmap_populate() creates vmemmap mapping either at pte
->> +		 * or pmd level. Unmapping request at any other level would
->> +		 * be a problem.
->> +		 */
->> +		WARN_ON((size != PAGE_SIZE) && (size != PMD_SIZE));
->> +		vmem_altmap_free(altmap, size >> PAGE_SHIFT);
->> +	} else {
->> +		WARN_ON(!page || PageReserved(page));
->> +		free_pages((unsigned long)page_address(page), get_order(size));
->> +	}
->>  }
->>  
->>  static void free_hotplug_pgtable_page(struct page *page)
->>  {
->> -	free_hotplug_page_range(page, PAGE_SIZE);
->> +	free_hotplug_page_range(page, PAGE_SIZE, NULL);
->>  }
->>  
->>  static void free_pte_table(pmd_t *pmdp, unsigned long addr)
->> @@ -807,7 +818,8 @@ static void free_pud_table(pgd_t *pgdp, unsigned long addr)
->>  }
->>  
->>  static void unmap_hotplug_pte_range(pmd_t *pmdp, unsigned long addr,
->> -				    unsigned long end, bool sparse_vmap)
->> +				    unsigned long end, bool sparse_vmap,
->> +				    struct vmem_altmap *altmap)
-> 
-> Do you still need the sparse_vmap parameter, or can you just pass a NULL
-> altmap pointer when sparse_vmap is false?
 
-Yes, we will still require sparse_vmap parameter because vmemmap mapping
-does not necessarily be created only for ZONE_DEVICE range with an altmap.
-vmemmap can still be present with altmap as NULL (regular memory and device
-memory without altmap) in which cases it will not be possible to
-differentiate between linear and vmemmap mapping.
+
+On 07/31/2019 09:40 PM, Will Deacon wrote:
+> On Fri, Jun 28, 2019 at 10:14:42AM +0530, Anshuman Khandual wrote:
+>> Generic vmemmap_populate_basepages() is used across platforms for vmemmap
+>> as standard or as fallback when huge pages mapping fails. On arm64 it is
+>> used for configs with ARM64_SWAPPER_USES_SECTION_MAPS applicable both for
+>> ARM64_16K_PAGES and ARM64_64K_PAGES which cannot use huge pages because of
+>> alignment requirements.
+>>
+>> This prevents those configs from allocating from device memory for vmemap
+>> mapping as vmemmap_populate_basepages() does not support vmem_altmap. This
+>> enables that required support. Each architecture should evaluate and decide
+>> on enabling device based base page allocation when appropriate. Hence this
+>> keeps it disabled for all architectures to preserve the existing semantics.
+> 
+> This commit message doesn't really make sense to me. There's a huge amount
+> of arm64-specific detail, followed by vague references to "this" and
+> "those" and "that" and I lost track of what you're trying to solve.
+
+Hmm, will clean up.
+
+> 
+> However, I puzzled through the code and I think it does make sense, so:
+> 
+> Acked-by: Will Deacon <will@kernel.org>
+> 
+> assuming you rewrite the commit message.
+
+Thanks, will do.
+
+> 
+> However, this has a dependency on your hot remove series which has open
+> comments from Mark Rutland afaict.
+
+Yeah it has dependency on the hot-remove series. The only outstanding issue
+there being whether to call free_empty_tables() in vmemmap tear down path
+or not. Mark had asked for more details regarding the implications in cases
+where free_empty_tables() is called or is not called. I did evaluate those
+details recently and we should be able to take a decision sooner.
 
