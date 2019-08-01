@@ -2,143 +2,211 @@ Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EA5BAC32753
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 18:19:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BB8BAC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 18:28:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9665620644
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 18:19:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 78192206A2
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 18:28:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="HlM3xjHD"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9665620644
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="T9SNBetj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78192206A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 141878E0006; Thu,  1 Aug 2019 14:19:57 -0400 (EDT)
+	id 114C28E0006; Thu,  1 Aug 2019 14:28:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0F3F08E0001; Thu,  1 Aug 2019 14:19:57 -0400 (EDT)
+	id 09E7C8E0001; Thu,  1 Aug 2019 14:28:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EFCC38E0006; Thu,  1 Aug 2019 14:19:56 -0400 (EDT)
+	id EA8958E0006; Thu,  1 Aug 2019 14:28:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B21258E0001
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 14:19:56 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id y9so40114109plp.12
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 11:19:56 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9E06B8E0001
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 14:28:44 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id f16so35711258wrw.5
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 11:28:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=5iAUdcOxMFuCect8GbQj41Pg/Zzzg1Ipw+dm1mRuSp0=;
-        b=nqn9IcYiGzi33bU2h1/Fj0ceIFINFmuKR5NCo8cmXQglegE7D7wHn5fm2wkQw1CtNj
-         xazHTvt6/FfuVfxpu5fXp+g9ymnaePNO1FCzgO2bQPUTty2TBxae8f2Li3IzH607UKzq
-         zldBlymuK/uqQ+B9fSqeQCM4QgLSFeu14fIwCSUSY+YG5bq0VGEWjeiANw0cp0J9jLhx
-         POANgSrDpb0hKN37KnPfF2aX/M/1N+3l8hc2wWtYaQ5gmntu5mo0K4KEGWjjIrXRrIDP
-         DGgCbD1rYHvq30ZFFNAL/cAsV8m9rrVxQPJmtp0jGjZ0nhJlvoXbCj2PdNGDIfEd+g86
-         2yPA==
-X-Gm-Message-State: APjAAAWyaybN6lOavwRl4yTqbDG8sYGTmq2xYi6W7lt7avYd42G9RVTL
-	xlGVy3MyiLzam32A8qRtl5kw5Z6IO1hRJOuYfKc8Ph2tpd08XsD+n9W0/KUINhoEJ7qRbY11nB9
-	+ktoRbezGNKdkP05/eaK1lubXbTl6+arqWdF3vOtt1YPbxDgIXafr3WQQfOr2Yg1AAw==
-X-Received: by 2002:a17:90a:8985:: with SMTP id v5mr116169pjn.136.1564683596160;
-        Thu, 01 Aug 2019 11:19:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz5gDNM1yV3o+KSZ0BVLCYttoxtTXXaOoosgBylQopIlapjG7xZ80jJU2s3Ho5I9sLCGONT
-X-Received: by 2002:a17:90a:8985:: with SMTP id v5mr116130pjn.136.1564683595470;
-        Thu, 01 Aug 2019 11:19:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564683595; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=0LASMwAA/tL/BAH/uT4ThFdb6tOVmHfjXl+JLumhDUs=;
+        b=t64BRpRIWrOc2eEO9pp9aCZVesCzZcGR+SeoyAW5WoSEtc8L6jHmu9CBbHb6/Y+4/I
+         +I+IT01B01QOyHgN3EAxZJ9H5I1uUVru9MxdTBY7BfKCedS7+gWKefwa/xKzqQqUo1D0
+         6lGes+kmWd14GAGMZqrhaXD/tyBteUi0npTfZlI5q+Cvm28VNVgYTVK92fPN6IQVGAeV
+         4QcWD0leRPUxhSEjVruOMFQ5hGRLz+AlAKFw4Y0+VfiVyPLFSDdRQaSHBOoTi7UI9MG1
+         v5A1r3ZIxdWDQTbtV0wB1P6ceIs1ktV9aPEBwNpKUfUnSNhSRKmEjw4Hn2vamp4HFu9j
+         ZLEg==
+X-Gm-Message-State: APjAAAV6znjyddGPwG0/LmXSDacCFJGQniC/APLLvAqL6/3cAQ0qiekf
+	zq+mYv41OLji5x/0rDUcg8fVeQlSA31K54QYiawNvv8qDTmOC+PoWvU6HtRkr0Uge5mwTZ4tYoF
+	I3RCSKTpcIQz0vClqa/cY7V9enCeHBA2+NspFJSpyZe8N8InytvFYiHUpG6cS1yIeqA==
+X-Received: by 2002:a05:6000:3:: with SMTP id h3mr27354256wrx.114.1564684124152;
+        Thu, 01 Aug 2019 11:28:44 -0700 (PDT)
+X-Received: by 2002:a05:6000:3:: with SMTP id h3mr27354180wrx.114.1564684122865;
+        Thu, 01 Aug 2019 11:28:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564684122; cv=none;
         d=google.com; s=arc-20160816;
-        b=tRDXZWitLpWBz/66ZkgdpORW5Xs8Fejw9603U+T4T1tluDJZIrZeLfQKxEkeb1sIvQ
-         LgeHCmX+zR51B0IYSJb54m6+amvLBeWQ/2w7IBgDzLAWcUUdjKjTRCLYbBFY6TobxwXN
-         hTpsMkh9XLEkMhKVWcDkJCnnlyw6PaxJyqpvIOcPlEHv16bC575Y3GpxIFV/bFmeKORj
-         dAfmd1fgCX9dKG5JheRcPx+0PVJrjEEA+Ck8T7VVqRevARm+/E5TIMDZXshNpDuN72Be
-         b0bkzyxVW+1UR6wl/6qmePmGKnrU3a9No+NnWGe3Dmjmp7R9hbvZ3b9eD0/tkhCxCSqX
-         NulQ==
+        b=TScj/7Oo7a/a0wuVKt1/0APp+8OQP0sN/85HUOX91HRxKYjFj7zJrx/RtkGZnGoR9a
+         /909R5n2gvY7Yi0Kp4e5Z3R2ekzH4BrUXO9QbqgoD/9Q0VyFuOEGZxqcJ1Epm4+H2Iii
+         SyBO1vm542cVDH04VmjIyrLQF1o0liF7Ah6FJF+sF+zNYkBK4hqpTkoyLMQVImC28Goq
+         bUsRddX/mrbTGf3gS7ODYkrx/6bYmbCxSmBFVZfUtJjfR7NmwLz8NfMw12qd1OfyOdWJ
+         UDsbWhIy2wG7WXrWVVhkTsivUSlvZs/h74qQHjLnaZ/X+n0QQS9EMKpoAGjajOBgEluD
+         UpMA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=5iAUdcOxMFuCect8GbQj41Pg/Zzzg1Ipw+dm1mRuSp0=;
-        b=h/bxyOt5dyJ25gPVNrFnF08sZQhPssDnA/NzH8i+DqpZFVyymUWfXGp6RMKDMklzUU
-         GkIpK6RlUnGaLvGiKi1Q9Iy+NFg2pIBWPCt+whxyH9wb1ghDNmyO1bgsUrkilJCzdJg0
-         Bj2ONxPMtr63xcG2/BMkQYFcw3RY7jQ9tIl9CS4BeqQJlarLNQAf6qiULqqfK7QEZZVS
-         riF+ZLeXUm6vY19yU59fgyNyp1GymFg6ZXM7vmnCnFJvhCU9c+cv0F6XmeS+1VSpdjJQ
-         rYWL6uFFK6k94jMPIeyVC3lDbti+2SF1iGot8Df6uJOFoUC1VGQVgFyrOmANL2nwoONs
-         aQDQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=0LASMwAA/tL/BAH/uT4ThFdb6tOVmHfjXl+JLumhDUs=;
+        b=RSsH+AY9wNaPOBfvdvojaQ6fPjoDn7cNxm06QDUdxAGwTj4kE8g473sRmCkI+EULcB
+         fGjnetVsWi2S0y3Hz/803mEfnD1IqgA6V+yZ6mSfrWafkIOF+Au5pIcMBdlK4a3roNYx
+         /bkXtw3o2etPlXQ1N4tpo7Eoh60pGgsr6reMQVWyGtRza+V1Hz7qvLnp3cWwXyH6a/bb
+         gIyDFNbDk7enIWE3LSGpZk9jShk3XwlJnmjfDbLTOsPPviRWE1dkawbU76RzyqzYXH7G
+         U7eEuSd4ZFL+0dhSWuhwGbkqBDFvsITddeoE4HnVZRl2fWDMtoGN+43H5kmmvIb9AL+2
+         uOCQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=HlM3xjHD;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id c23si34791752pfr.8.2019.08.01.11.19.55
+       dkim=pass header.i=@google.com header.s=20161025 header.b=T9SNBetj;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a9sor57114695wrm.30.2019.08.01.11.28.42
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Aug 2019 11:19:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Thu, 01 Aug 2019 11:28:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=HlM3xjHD;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 6429C20644;
-	Thu,  1 Aug 2019 18:19:54 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1564683594;
-	bh=q+8ENR75Wy6t1l+2MP7lncHhAHQqOj5Ajtb+pAArq+E=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=HlM3xjHDnfgu7lCpxFF7/2BzBSM1XM0GtsPJAEmUfWWJJ7gKt0QaaSWHN17Uuk/fq
-	 2dkuzuyXO0Bd8Twz7KMdE/VurZ/7pDM272K0QTEyne7qnWTy9o9IHGYocVBjUzOY0N
-	 tjYmdI27Vi8b9ktGRAtYe2yk+mMYtSxiVxZcKFaQ=
-Date: Thu, 1 Aug 2019 20:19:52 +0200
-From: Greg KH <gregkh@linuxfoundation.org>
-To: Masoud Sharbiani <msharbiani@apple.com>
-Cc: mhocko@kernel.org, hannes@cmpxchg.org, vdavydov.dev@gmail.com,
-	linux-mm@kvack.org, cgroups@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: Possible mem cgroup bug in kernels between 4.18.0 and 5.3-rc1.
-Message-ID: <20190801181952.GA8425@kroah.com>
-References: <5659221C-3E9B-44AD-9BBF-F74DE09535CD@apple.com>
+       dkim=pass header.i=@google.com header.s=20161025 header.b=T9SNBetj;
+       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=0LASMwAA/tL/BAH/uT4ThFdb6tOVmHfjXl+JLumhDUs=;
+        b=T9SNBetjpP9aJmtLho0U4R1eQMvjfbE8ive2XLdxBpmHiR/lhyGZRF3woDGof8407y
+         aTNpny9z7d3u6suklr4N8FS28ayUZIuEC1h8yJST1qoHX8vWCVzkefbjYJB5PKtbAsTS
+         hQ32//bcAcSebAShg+dlMfH6TBtbJHEvyD9MrEvs2VC07K7yyBlmc9VqFguoYTPTTsuB
+         v8dq8FtBZ4Le5ko2oQKgEi1mz1pTOlDqJ8eVXafDVRrupuPxgjJNiD46t8HThefgdM4B
+         uXmKssFvph5ey1jB1r8+DIb0wv8SO9fPWdVSqjmp3o5QBnc/vB45lgHTj6PJU5OGG6oE
+         VVhw==
+X-Google-Smtp-Source: APXvYqy4P6VCuqoeuVUZ2KjNmm94cVgmTRIX91RWIsWFdz3OKNqiO12BvCI7yWcc++1AFK4h3az4ABTYL1GOqRxeFXo=
+X-Received: by 2002:a5d:46cf:: with SMTP id g15mr4809916wrs.93.1564684122173;
+ Thu, 01 Aug 2019 11:28:42 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <5659221C-3E9B-44AD-9BBF-F74DE09535CD@apple.com>
-User-Agent: Mutt/1.12.1 (2019-06-15)
+References: <20190730013310.162367-1-surenb@google.com> <20190730081122.GH31381@hirez.programming.kicks-ass.net>
+ <CAJuCfpH7NpuYKv-B9-27SpQSKhkzraw0LZzpik7_cyNMYcqB2Q@mail.gmail.com> <20190801095112.GA31381@hirez.programming.kicks-ass.net>
+In-Reply-To: <20190801095112.GA31381@hirez.programming.kicks-ass.net>
+From: Suren Baghdasaryan <surenb@google.com>
+Date: Thu, 1 Aug 2019 11:28:30 -0700
+Message-ID: <CAJuCfpHGpsU4bVcRxpc3wOybAOtiTKAsB=BNAtZcGnt10j5gbA@mail.gmail.com>
+Subject: Re: [PATCH 1/1] psi: do not require setsched permission from the
+ trigger creator
+To: Peter Zijlstra <peterz@infradead.org>
+Cc: Ingo Molnar <mingo@redhat.com>, lizefan@huawei.com, 
+	Johannes Weiner <hannes@cmpxchg.org>, axboe@kernel.dk, Dennis Zhou <dennis@kernel.org>, 
+	Dennis Zhou <dennisszhou@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	linux-mm <linux-mm@kvack.org>, linux-doc@vger.kernel.org, 
+	LKML <linux-kernel@vger.kernel.org>, kernel-team <kernel-team@android.com>, 
+	Nick Kralevich <nnk@google.com>, Thomas Gleixner <tglx@linutronix.de>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 01, 2019 at 11:04:14AM -0700, Masoud Sharbiani wrote:
-> Hey folks,
-> I’ve come across an issue that affects most of 4.19, 4.20 and 5.2 linux-stable kernels that has only been fixed in 5.3-rc1.
-> It was introduced by
-> 
-> 29ef680 memcg, oom: move out_of_memory back to the charge path 
-> 
-> The gist of it is that if you have a memory control group for a process that repeatedly maps all of the pages of a file with  repeated calls to:
-> 
->    mmap(NULL, pages * PAGE_SIZE, PROT_WRITE|PROT_READ, MAP_FILE|MAP_PRIVATE, fd, 0)
-> 
-> The memory cg eventually runs out of memory, as it should. However,
-> prior to the 29ef680 commit, it would kill the running process with
-> OOM; After that commit ( and until 5.3-rc1; Haven’t pinpointed the
-> exact commit in between 5.2.0 and 5.3-rc1) the offending process goes
-> into %100 CPU usage, and doesn’t die (prior behavior) or fail the mmap
-> call (which is what happens if one runs the test program with a low
-> ulimit -v value).
-> 
-> Any ideas on how to chase this down further?
+Hi Peter,
+Thanks for sharing your thoughts. I understand your point and I tend
+to agree with it. I originally designed this using watchdog as the
+example of a critical system health signal and in the context of
+mobile device memory pressure is critical but I agree that there are
+more important things in life. I checked and your proposal to change
+it to FIFO-1 should still work for our purposes. Will test to make
+sure and reply to your patch. Couple clarifications in-line.
 
-Finding the exact patch that fixes this would be great, as then I can
-add it to the 4.19 and 5.2 stable kernels (4.20 is long end-of-life, no
-idea why you are messing with that one...)
+On Thu, Aug 1, 2019 at 2:51 AM Peter Zijlstra <peterz@infradead.org> wrote:
+>
+> On Tue, Jul 30, 2019 at 10:44:51AM -0700, Suren Baghdasaryan wrote:
+> > On Tue, Jul 30, 2019 at 1:11 AM Peter Zijlstra <peterz@infradead.org> wrote:
+> > >
+> > > On Mon, Jul 29, 2019 at 06:33:10PM -0700, Suren Baghdasaryan wrote:
+> > > > When a process creates a new trigger by writing into /proc/pressure/*
+> > > > files, permissions to write such a file should be used to determine whether
+> > > > the process is allowed to do so or not. Current implementation would also
+> > > > require such a process to have setsched capability. Setting of psi trigger
+> > > > thread's scheduling policy is an implementation detail and should not be
+> > > > exposed to the user level. Remove the permission check by using _nocheck
+> > > > version of the function.
+> > > >
+> > > > Suggested-by: Nick Kralevich <nnk@google.com>
+> > > > Signed-off-by: Suren Baghdasaryan <surenb@google.com>
+> > > > ---
+> > > >  kernel/sched/psi.c | 2 +-
+> > > >  1 file changed, 1 insertion(+), 1 deletion(-)
+> > > >
+> > > > diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
+> > > > index 7acc632c3b82..ed9a1d573cb1 100644
+> > > > --- a/kernel/sched/psi.c
+> > > > +++ b/kernel/sched/psi.c
+> > > > @@ -1061,7 +1061,7 @@ struct psi_trigger *psi_trigger_create(struct psi_group *group,
+> > > >                       mutex_unlock(&group->trigger_lock);
+> > > >                       return ERR_CAST(kworker);
+> > > >               }
+> > > > -             sched_setscheduler(kworker->task, SCHED_FIFO, &param);
+> > > > +             sched_setscheduler_nocheck(kworker->task, SCHED_FIFO, &param);
+> > >
+> > > ARGGH, wtf is there a FIFO-99!! thread here at all !?
+> >
+> > We need psi poll_kworker to be an rt-priority thread so that psi
+>
+> There is a giant difference between 'needs to be higher than OTHER' and
+> FIFO-99.
+>
+> > notifications are delivered to the userspace without delay even when
+> > the CPUs are very congested. Otherwise it's easy to delay psi
+> > notifications by running a simple CPU hogger executing "chrt -f 50 dd
+> > if=/dev/zero of=/dev/null". Because these notifications are
+>
+> So what; at that point that's exactly what you're asking for. Using RT
+> is for those who know what they're doing.
+>
+> > time-critical for reacting to memory shortages we can't allow for such
+> > delays.
+>
+> Furthermore, actual RT programs will have pre-allocated and locked any
+> memory they rely on. They don't give a crap about your pressure
+> nonsense.
+>
 
-thanks,
+This signal is used not to protect other RT tasks but to monitor
+overall system memory health for the sake of system responsiveness.
 
-greg k-h
+> > Notice that this kworker is created only if userspace creates a psi
+> > trigger. So unless you are using psi triggers you will never see this
+> > kthread created.
+>
+> By marking it FIFO-99 you're in effect saying that your stupid
+> statistics gathering is more important than your life. It will preempt
+> the task that's in control of the band-saw emergency break, it will
+> preempt the task that's adjusting the electromagnetic field containing
+> this plasma flow.
+>
+> That's insane.
+
+IMHO an opt-in feature stops being "stupid" as soon as the user opted
+in to use it, therefore explicitly indicating interest in it. However
+I assume you are using "stupid" here to indicate that it's "less
+important" rather than it's "useless".
+
+> I'm going to queue a patch to reduce this to FIFO-1, that will preempt
+> regular OTHER tasks but will not perturb (much) actual RT bits.
+>
+
+Thanks for posting the fix.
+
+> --
+> To unsubscribe from this group and stop receiving emails from it, send an email to kernel-team+unsubscribe@android.com.
+>
 
