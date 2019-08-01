@@ -2,234 +2,241 @@ Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ECD00C19759
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 06:28:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 78080C19759
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 06:40:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 957932089E
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 06:28:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 957932089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 20D96206A2
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 06:40:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 20D96206A2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 136548E0003; Thu,  1 Aug 2019 02:28:27 -0400 (EDT)
+	id C02128E0005; Thu,  1 Aug 2019 02:40:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0E7B88E0001; Thu,  1 Aug 2019 02:28:27 -0400 (EDT)
+	id B8BE18E0001; Thu,  1 Aug 2019 02:40:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F178C8E0003; Thu,  1 Aug 2019 02:28:26 -0400 (EDT)
+	id A2BD18E0005; Thu,  1 Aug 2019 02:40:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BDD758E0001
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 02:28:26 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id q9so44424785pgv.17
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 23:28:26 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 51A628E0001
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 02:40:46 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id n3so44048392edr.8
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 23:40:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=8L704N+Nw28s6SgYptXIPDn52cC8Xd8qI65fMO6wZDk=;
-        b=NZG8FV1jzCDSY305o7GQHA9wNOfJL3hn6J/Kzu6p9+z6jASNEYGAVhPp2XP9kKxd6n
-         P+t0TottehHPo4+hFHrmG/gfRtYBZPMYTiLp/wmdyOhlKqNC4ubaDcbE7gjuVYLzOLpG
-         N6JhRaQVUwWMus/NK+lxpMm45nlazoHhHLFY0/xYMsW3GgYplDyP9P9xpB7IAO5GtAeR
-         NAyUyK+6Tf3KSbZ0s9nBb3fJH4dY/swUk+Uj8Qxo1DyDJtvMPoE43lRkpH/JE4jrHT6X
-         4RQPvnx8IYD/p2XxhYd2l8Sw6JtEiU3ooiFL6b/5dJWzaZ/aaXXNkbyNv6d6nuXzOv9f
-         vTcw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAV6pf7OUQkijQOAwJ1DAZNypc5QwmjYVtAjgykh36IlRiVgErHq
-	o9h03U2ZNWp1lF6XvprKHC6Ev8DsGAbVeviA2W7qJ3CT4sKMh/Z0aRFYrTHnc4amquTVzZm8p1b
-	FmT9HjOmNRI8e8pxyU4ceym+Iic3VOZGRNDlWNUBcpx0QCehiqhCjrQTPYnkNsdo/nw==
-X-Received: by 2002:a65:57ca:: with SMTP id q10mr120812546pgr.52.1564640906181;
-        Wed, 31 Jul 2019 23:28:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzpLSmmVxAl4LFAidArJdvWyM5kmrOrVbPPExZK3UhlUh8IaZSS/LpdxWjSsZa4tHftsRO8
-X-Received: by 2002:a65:57ca:: with SMTP id q10mr120812496pgr.52.1564640905312;
-        Wed, 31 Jul 2019 23:28:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564640905; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=DvU+QCyPDRHzWl2t3RU2ZOsI0Akp1PvaRHyP4+ebKxE=;
+        b=Ue/t2UrWEDlCnU2kzWgkX493SDUQRgEyu33MXoYTR9Bn0sAspT6EBF9SkguGrmAgIS
+         NCyOeEzWsUfiu73jET1C6hUZ+54VGkA4Bh8/mOREv3VG/+ltSEzSVLwqkZ6VoXrnvHAz
+         ye2b9CNFSbhHrj39/Fuij3XelZh75A6V0x9+pXdRKc8MvJP2ARtR9o6NkH8knQT+d38j
+         e2J/sQpR/1FPRF4xN9WFztfQGuxPRDgg0ROnM5NRkeu5QJvwpc6rIRA68LMTrqZL/9jS
+         QhPsbPNAZb+iSGMbm/OgUkawXXb1jDq4ISUyi2KUbOeazQUeSaDUZeZINY6KmbkHPzGv
+         sehg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAU6begp2VXPC2L3eC6Hd4y5w4rNAuv75V38fYn4VixiGw3UzLMy
+	ahJhY25RgVrPFVz2u3p8Qx+bqzIJURbJsQVfTm6sEs59Wp9v1ZJLqWFZz/zYlInKA4OYnLZ8A4w
+	B4oZSoa6bRfp2iqJsb9Pcndlz8GeQuvMUA2Ghc23Ug0XMOpJVz8CgxZ+Oi58LUSBHkQ==
+X-Received: by 2002:a05:6402:1612:: with SMTP id f18mr110916393edv.231.1564641645888;
+        Wed, 31 Jul 2019 23:40:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzxtXW7BnHxMgVtliuLiXYq3tFWghfogNlMCreQch5uO7syYeqiZdUub7XosxhE8PB8X5f7
+X-Received: by 2002:a05:6402:1612:: with SMTP id f18mr110916355edv.231.1564641645122;
+        Wed, 31 Jul 2019 23:40:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564641645; cv=none;
         d=google.com; s=arc-20160816;
-        b=eHzZqIC2VvdK+aMZ0Yttrbefx0LrZvXXHfIYQhVLyaC6DCJmhTGOhkDqjlHothq4Eo
-         4av17mw6kHaRCCpN6hzFufnDFaLOg1QVNkEyQxFjgSCY9kIRDzJByMZMykNuAwLt1Dh3
-         WzGRPnSjundL+360rbepL879CsPp7r7YFXopDlMwEas7PiwwWh5RV+pz/C+p7sXwMwli
-         05PqKff0tM/6Rhc0P8683Bz0KFPcv6Br9YArWAgUN7SObTfubkG1Cpxho4FaGfUHgA/9
-         ZMS+wz3orHH6bYuF88zR/o7D2fPvlxt9WnLIBQTAT8ygF88F9BpfteLSiMusZOiUDCzO
-         Sn2A==
+        b=MkH/5E4BGeork0rO6/J5kza3lM/VC60EMpbMfquxhzpw+b79qsTCkwSnUjpCS9585m
+         DB/Db+/WefLUih+HKbSgxyt1JTvVlaVDaeeWgnlTAzSlz99lB2BjmXTkI3QpzA0+x7kB
+         hog6n4AmCtIMWvQzEWXDHG88lms55a6LzSWiPZlNY4ZdMwT2hjmbxPBpjzDFggl9Q56y
+         p2Acb5Xe0JaMvyuE711EW48n/hS0GfeL4HCJzTOBfF4IxTrmpRMLc7aWdLtfQJEBu0VV
+         h87MSV2vsyK7Re/CcN8msO6gYWE5iKPRHtreAiK9LQ4CkJUUoyFazaelZKXLLHCncN74
+         Pv5w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=8L704N+Nw28s6SgYptXIPDn52cC8Xd8qI65fMO6wZDk=;
-        b=DaCsYIdPMLdCSH23FQ6XDCtDBP+fgI9yKOkdUx32yALiSl6hjZjxN0mT/9nWAh6a6h
-         9iVySOFk4ZBCw9OO8DHg4qDyemfGLknvEbvmORv0HN+yn3NSwOVRw8eN30VHdWsS0BcW
-         HTrENno5BQxwXWwi79RKjx4lK9uhV/2h0PYjHbLE2JovnHCJkfTu4M5KOIPYbm4hRKIL
-         pF+UMMJ0mlMaaHRvfFvXNBt/H8VMxMaryifkX/7NPKrDkfwayJQE0yd7W4IsSH+XPia3
-         BpMvETkjO9IbKwqolOY4irSoNjm+ccSawASKS8Wt/EYZo+VzrMuf/eF4cX9zohS9vgC1
-         2tXg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=DvU+QCyPDRHzWl2t3RU2ZOsI0Akp1PvaRHyP4+ebKxE=;
+        b=Byu11h1N1WrrllzEomufN+p7NjuBVoR+0jsOuVcBxCZ8BClPARrLoFBU5r6s/oC1+w
+         u4iDvsSpu1Ucm6ziKZu+ZAYq/pPpP54qKKhP7qYlRJPfPhCuF202WQYT+B/QsJg71nYg
+         35v/osV/C5Ial5PzLFVJszATQL77Q6kv5QA15zMo6MnU6k9iIghDaSodUOhH5SRcjjLj
+         C41fhOnkaqV/s4gEuAcC+mU7CHXjUVzZWWy/rbxUe2vUdyYP2dPr33JTAAzWGxxMndUJ
+         L9HuHGfVdYnVu/DrwiE8cLrazTpcUqz47lDV7YuJx+EIRaZdF8WXSXCBkv+W/2CY0a/t
+         COdA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id n19si33339030pgh.219.2019.07.31.23.28.25
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 31 Jul 2019 23:28:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id f6si18745589eja.338.2019.07.31.23.40.44
+        for <linux-mm@kvack.org>;
+        Wed, 31 Jul 2019 23:40:44 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098396.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x716S0mw023992
-	for <linux-mm@kvack.org>; Thu, 1 Aug 2019 02:28:24 -0400
-Received: from e06smtp07.uk.ibm.com (e06smtp07.uk.ibm.com [195.75.94.103])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2u3s8skcv2-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 01 Aug 2019 02:28:24 -0400
-Received: from localhost
-	by e06smtp07.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 1 Aug 2019 07:28:21 +0100
-Received: from b06avi18626390.portsmouth.uk.ibm.com (9.149.26.192)
-	by e06smtp07.uk.ibm.com (192.168.101.137) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 1 Aug 2019 07:28:20 +0100
-Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
-	by b06avi18626390.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x716S2GR39190790
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 1 Aug 2019 06:28:03 GMT
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 75CAF11C050;
-	Thu,  1 Aug 2019 06:28:19 +0000 (GMT)
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 1F54311C05C;
-	Thu,  1 Aug 2019 06:28:18 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.168])
-	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Thu,  1 Aug 2019 06:28:18 +0000 (GMT)
-Received: by rapoport-lnx (sSMTP sendmail emulation); Thu, 01 Aug 2019 09:28:17 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-        Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH] mm/madvise: reduce code duplication in error handling paths
-Date: Thu,  1 Aug 2019 09:28:16 +0300
-X-Mailer: git-send-email 2.7.4
-X-TM-AS-GCONF: 00
-x-cbid: 19080106-0028-0000-0000-00000389E300
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19080106-0029-0000-0000-0000244A3637
-Message-Id: <1564640896-1210-1-git-send-email-rppt@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-01_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=502 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908010063
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id AF3BA337;
+	Wed, 31 Jul 2019 23:40:43 -0700 (PDT)
+Received: from [10.163.1.81] (unknown [10.163.1.81])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 84E463F694;
+	Wed, 31 Jul 2019 23:42:33 -0700 (PDT)
+Subject: Re: [PATCH v9 12/21] mm: pagewalk: Allow walking without vma
+To: Steven Price <steven.price@arm.com>, linux-mm@kvack.org
+Cc: Mark Rutland <Mark.Rutland@arm.com>, x86@kernel.org,
+ Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
+ Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
+ James Morse <james.morse@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Will Deacon <will@kernel.org>, Andrew Morton <akpm@linux-foundation.org>,
+ linux-arm-kernel@lists.infradead.org, "Liang, Kan"
+ <kan.liang@linux.intel.com>
+References: <20190722154210.42799-1-steven.price@arm.com>
+ <20190722154210.42799-13-steven.price@arm.com>
+ <7fc50563-7d5d-7270-5a6a-63769e9c335a@arm.com>
+ <5aff70f7-67a5-c7e8-5fec-8182dea0da0c@arm.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <b43b68c5-8245-52cc-31b8-613dc299a469@arm.com>
+Date: Thu, 1 Aug 2019 12:11:05 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
+MIME-Version: 1.0
+In-Reply-To: <5aff70f7-67a5-c7e8-5fec-8182dea0da0c@arm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The madvise_behavior() function converts -ENOMEM to -EAGAIN in several
-places using identical code.
 
-Move that code to a common error handling path.
 
-No functional changes.
+On 07/29/2019 05:59 PM, Steven Price wrote:
+> On 28/07/2019 15:20, Anshuman Khandual wrote:
+>>
+>>
+>> On 07/22/2019 09:12 PM, Steven Price wrote:
+>>> Since 48684a65b4e3: "mm: pagewalk: fix misbehavior of walk_page_range
+>>> for vma(VM_PFNMAP)", page_table_walk() will report any kernel area as
+>>> a hole, because it lacks a vma.
+>>>
+>>> This means each arch has re-implemented page table walking when needed,
+>>> for example in the per-arch ptdump walker.
+>>>
+>>> Remove the requirement to have a vma except when trying to split huge
+>>> pages.
+>>>
+>>> Signed-off-by: Steven Price <steven.price@arm.com>
+>>> ---
+>>>  mm/pagewalk.c | 25 +++++++++++++++++--------
+>>>  1 file changed, 17 insertions(+), 8 deletions(-)
+>>>
+>>> diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+>>> index 98373a9f88b8..1cbef99e9258 100644
+>>> --- a/mm/pagewalk.c
+>>> +++ b/mm/pagewalk.c
+>>> @@ -36,7 +36,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+>>>  	do {
+>>>  again:
+>>>  		next = pmd_addr_end(addr, end);
+>>> -		if (pmd_none(*pmd) || !walk->vma) {
+>>> +		if (pmd_none(*pmd)) {
+>>>  			if (walk->pte_hole)
+>>>  				err = walk->pte_hole(addr, next, walk);
+>>>  			if (err)
+>>> @@ -59,9 +59,14 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+>>>  		if (!walk->pte_entry)
+>>>  			continue;
+>>>  
+>>> -		split_huge_pmd(walk->vma, pmd, addr);
+>>> -		if (pmd_trans_unstable(pmd))
+>>> -			goto again;
+>>> +		if (walk->vma) {
+>>> +			split_huge_pmd(walk->vma, pmd, addr);
+>>
+>> Check for a PMD THP entry before attempting to split it ?
+> 
+> split_huge_pmd does the check for us:
+>> #define split_huge_pmd(__vma, __pmd, __address)				\
+>> 	do {								\
+>> 		pmd_t *____pmd = (__pmd);				\
+>> 		if (is_swap_pmd(*____pmd) || pmd_trans_huge(*____pmd)	\
+>> 					|| pmd_devmap(*____pmd))	\
+>> 			__split_huge_pmd(__vma, __pmd, __address,	\
+>> 						false, NULL);		\
+>> 	}  while (0)
+> 
+> And this isn't a change from the previous code - only that the entry is
+> no longer split when walk->vma==NULL.
 
-Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
----
- mm/madvise.c | 52 ++++++++++++++++------------------------------------
- 1 file changed, 16 insertions(+), 36 deletions(-)
+Does it make sense to name walk->vma check to differentiate between user
+and kernel page tables. IMHO that will help make things clear and explicit
+during page table walk.
 
-diff --git a/mm/madvise.c b/mm/madvise.c
-index 968df3a..55d78fd 100644
---- a/mm/madvise.c
-+++ b/mm/madvise.c
-@@ -105,28 +105,14 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 	case MADV_MERGEABLE:
- 	case MADV_UNMERGEABLE:
- 		error = ksm_madvise(vma, start, end, behavior, &new_flags);
--		if (error) {
--			/*
--			 * madvise() returns EAGAIN if kernel resources, such as
--			 * slab, are temporarily unavailable.
--			 */
--			if (error == -ENOMEM)
--				error = -EAGAIN;
--			goto out;
--		}
-+		if (error)
-+			goto out_convert_errno;
- 		break;
- 	case MADV_HUGEPAGE:
- 	case MADV_NOHUGEPAGE:
- 		error = hugepage_madvise(vma, &new_flags, behavior);
--		if (error) {
--			/*
--			 * madvise() returns EAGAIN if kernel resources, such as
--			 * slab, are temporarily unavailable.
--			 */
--			if (error == -ENOMEM)
--				error = -EAGAIN;
--			goto out;
--		}
-+		if (error)
-+			goto out_convert_errno;
- 		break;
- 	}
- 
-@@ -152,15 +138,8 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 			goto out;
- 		}
- 		error = __split_vma(mm, vma, start, 1);
--		if (error) {
--			/*
--			 * madvise() returns EAGAIN if kernel resources, such as
--			 * slab, are temporarily unavailable.
--			 */
--			if (error == -ENOMEM)
--				error = -EAGAIN;
--			goto out;
--		}
-+		if (error)
-+			goto out_convert_errno;
- 	}
- 
- 	if (end != vma->vm_end) {
-@@ -169,15 +148,8 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 			goto out;
- 		}
- 		error = __split_vma(mm, vma, end, 0);
--		if (error) {
--			/*
--			 * madvise() returns EAGAIN if kernel resources, such as
--			 * slab, are temporarily unavailable.
--			 */
--			if (error == -ENOMEM)
--				error = -EAGAIN;
--			goto out;
--		}
-+		if (error)
-+			goto out_convert_errno;
- 	}
- 
- success:
-@@ -185,6 +157,14 @@ static long madvise_behavior(struct vm_area_struct *vma,
- 	 * vm_flags is protected by the mmap_sem held in write mode.
- 	 */
- 	vma->vm_flags = new_flags;
-+
-+out_convert_errno:
-+	/*
-+	 * madvise() returns EAGAIN if kernel resources, such as
-+	 * slab, are temporarily unavailable.
-+	 */
-+	if (error == -ENOMEM)
-+		error = -EAGAIN;
- out:
- 	return error;
- }
--- 
-2.7.4
+> 
+>>> +			if (pmd_trans_unstable(pmd))
+>>> +				goto again;
+>>> +		} else if (pmd_leaf(*pmd)) {
+>>> +			continue;
+>>> +		}
+>>> +
+>>>  		err = walk_pte_range(pmd, addr, next, walk);
+>>>  		if (err)
+>>>  			break;
+>>> @@ -81,7 +86,7 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
+>>>  	do {
+>>>   again:
+>>>  		next = pud_addr_end(addr, end);
+>>> -		if (pud_none(*pud) || !walk->vma) {
+>>> +		if (pud_none(*pud)) {
+>>>  			if (walk->pte_hole)
+>>>  				err = walk->pte_hole(addr, next, walk);
+>>>  			if (err)
+>>> @@ -95,9 +100,13 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
+>>>  				break;
+>>>  		}
+>>>  
+>>> -		split_huge_pud(walk->vma, pud, addr);
+>>> -		if (pud_none(*pud))
+>>> -			goto again;
+>>> +		if (walk->vma) {
+>>> +			split_huge_pud(walk->vma, pud, addr);
+>>
+>> Check for a PUD THP entry before attempting to split it ?
+> 
+> Same as above.
+> 
+>>> +			if (pud_none(*pud))
+>>> +				goto again;
+>>> +		} else if (pud_leaf(*pud)) {
+>>> +			continue;
+>>> +		}
+>>
+>> This is bit cryptic. walk->vma check should be inside a helper is_user_page_table()
+>> or similar to make things clear. p4d_leaf() check missing in walk_p4d_range() for
+>> kernel page table walk ? Wondering if p?d_leaf() test should be moved earlier while
+>> calling p?d_entry() for kernel page table walk.
+> 
+> I wasn't sure if it was worth putting p4d_leaf() and pgd_leaf() checks
+> in (yet). No architecture that I know of uses such large pages.
+
+Just to be complete it does make sense to add the remaining possible leaf
+entry checks but will leave it upto you.
+
+> 
+> I'm not sure what you mean by moving the p?d_leaf() test earlier? Can
+> you explain with an example?
+
+In case its a kernel p?d_leaf() entry, then there is nothing to be done
+after calling respective walk->p?d_entry() functions. Hence this check
+should not complement user page table check (walk->vma) later in the
+function but instead be checked right after walk->p?d_entry(). But its
+not a big deal I guess.
 
