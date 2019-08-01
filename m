@@ -2,152 +2,142 @@ Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.7 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
+	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E1494C32751
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 03:08:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D3ACC32751
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 03:16:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B115A20693
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 03:08:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B115A20693
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id D98CF214DA
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 03:16:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D98CF214DA
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 501038E0003; Wed, 31 Jul 2019 23:08:29 -0400 (EDT)
+	id 7DE918E0005; Wed, 31 Jul 2019 23:16:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4D68D8E0001; Wed, 31 Jul 2019 23:08:29 -0400 (EDT)
+	id 790088E0001; Wed, 31 Jul 2019 23:16:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 39F658E0003; Wed, 31 Jul 2019 23:08:29 -0400 (EDT)
+	id 67F878E0005; Wed, 31 Jul 2019 23:16:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E0FD18E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 23:08:28 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id n3so43775041edr.8
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 20:08:28 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 31EDA8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 23:16:47 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id z1so44667345pfb.7
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 20:16:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=ioGyMIf5J87yJPJciga4Wr241nzUrgiMYNiKAP7Dbd4=;
-        b=AQFeKxD37fS7QXVttoS796k13KAtjc+edpy3XU5/awEqi0n8E47qu51N1qlDDekPgt
-         PIM1GDM4AgTLOXFepYfClGrjGzjGy/yVWbpE2RvlwiOVBQiMToql8yIzy4H8JBwdd4rK
-         zgu8hhT/YHJ6CffTylzEeoAyssTyALlXGK3E4oFWP273kmWVAtZqxZkEyL8qEcpyAW5p
-         CUJcnsEAlHSc/d9HT3+AlM56LlNnrXHfhCF8Rkj0JP0etiAq1J6zYq+XsQfGdSHDz/df
-         mFdo1FuCqyI7DsyXJDh4jBt864X8L4KG71Rth41d/tQFkw22XaK5SNMszOEvspyCFODF
-         rmIQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAVyG6MmfZOHHjNiNeZgcWhYbt8R0ML5QF2PKeczrQK6f3OvnE3n
-	TNGoXweNewprYa39xwwITLAhklSCCvSsSJ9slaX2AKRJ3oPuQL3hegp3V2lZosfaHAuXMnR5kmR
-	PcyCkKmrnaAbgwYmewfotyy5pM3db8PTviH4vqbJOCJF5nSW/yH4McLJWz+WCeaIC2g==
-X-Received: by 2002:a17:906:304d:: with SMTP id d13mr94531937ejd.99.1564628908478;
-        Wed, 31 Jul 2019 20:08:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxupGCKSRqFUIwRhIWn+gU6eQ44mwa3KHZOcDPe2uOeJ0CLfOmRTfqSAJ4EBbF4b1xOg3wj
-X-Received: by 2002:a17:906:304d:: with SMTP id d13mr94531902ejd.99.1564628907791;
-        Wed, 31 Jul 2019 20:08:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564628907; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-language:sender:precedence:list-id:archived-at:list-archive
+         :list-post:content-transfer-encoding;
+        bh=xCgJQgMTqjWOvoEVRK/I7Bd3sxY8Qudbi1mCECJGhX8=;
+        b=n6cN5lcihZlO+ejtKCmTIz+g+lQLZB5/GsLMLVLAMQumz9dOjIuxzn8vyK4pc0E3lD
+         +TASHCY85w5180DlLGwZXmcl1t+YgERQ/wlTOMDGNgmb5Mflv+gDTqb0rjbWZ5AxxIr4
+         FDfgSiKaYUA0y/mTzwoK0hTvvOjIu/UQEK5pZwEloPHDGTLuaJFsrVJTOkYOzwf2+Dno
+         37KUs+pnxqEfs1w2YTi69Bn97kke3LrECdF0lmUqwJfHntqCrIL2bylJhDRp8MLsZCsO
+         o3ZUtchSrXozvSES0SKou0TzmWzgxpTb2LcN9z7GtX3Q7TrhOc6QbnT9Vu5nII5XphE4
+         ytdw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.163 as permitted sender) smtp.mailfrom=hdanton@sina.com
+X-Gm-Message-State: APjAAAX9WEf9E3yAYMEi6IMq8AcJnm0ayb1gh4nDRDBvx3J5hko4BhAU
+	r4NX7cyjBrznH82YPxNuIaJRMMa5YvwK/koJ9bAq0hdYmZpjUN2ZHCTsB/zMpSd1FUcJWdo9KU8
+	GWjIyYgSyzhJacRh4L2LQ0ShG2lmJfF4sEyzWs2l/QbvX68Lw8XStbAibHBR5iaZ47Q==
+X-Received: by 2002:a63:5945:: with SMTP id j5mr116148297pgm.452.1564629406787;
+        Wed, 31 Jul 2019 20:16:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxaB+hDPw0YgLrfW2FEhJDD3OGpPP8uC0OuzK41+ODYtCTx+3BFxwDWE8nxplxuqSeQylJ5
+X-Received: by 2002:a63:5945:: with SMTP id j5mr116148258pgm.452.1564629405983;
+        Wed, 31 Jul 2019 20:16:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564629405; cv=none;
         d=google.com; s=arc-20160816;
-        b=nZmT9Iv+0hB3+I6ZdUHP1xRf3TAy6IjK++wAj+9fpDByzhkrDiVoU2tmbqXWwir4ZN
-         gLYuNjHpJE6B16CKQovMSmytAJgAMn3UUZ9G3bPqdUCoMxRUGhiRAf/0U296VkvcbEbk
-         YEhmyIQdfdZfMRsjKlGxBCaL/YHSYKpFQHyu9miFbZLS6axYd1pqfNs2M46k5XUnJJRq
-         CF2UsKxtJC4kTdKgjXd1QDI+FepFtADf9pIP9d0Gi7wkgyzFAi4mFZr4QwixbVtMXjcy
-         hF+QhPdwlTsF3CtlbWLSasM9TDIm1jt/fCMbnLPqPXldjVwcldfbLOLPHmDWmuRu+I5C
-         hTag==
+        b=EMqoN6wmnxh3R3uiKZ+vSu7NgnTjgrczE5QO8cSqFrpNMYNthVkewjZCpsoLVEjUsX
+         OoBgOaSMNvfMH8BRJJTi5iGw4zcmQcLovg+0tvVTIdg1el66E9hlVVr8XCXiw6U5R8Xw
+         3e5/fZ9KRGs1qvgyRgtdORMsCFK/bOxplMg4tpJMHsxvrBFVnLhSbqw2uIsIlUV/XKCM
+         uJ3RiIARdPOIVSLpx9iRVOud32fhbI+c3s8zaE1GbAtuI5wzjvdl0Izf40+pI+z115yR
+         cI36+VRQvIpv02rZ5dOMg2lwX9yQq5rgtoRjGCmcg5mTONpA3LjxmYriR09q+cjoMPkb
+         W6dg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=ioGyMIf5J87yJPJciga4Wr241nzUrgiMYNiKAP7Dbd4=;
-        b=macSCtIPf/zO6xemAc7jHjs9o/NxPuLICK23h/lf6eZ13kWCdbXWkmL2cd/LRh2KAW
-         fApWUJ4oJ7pP0ezGcdOcS5oSQ/rIjkEOrLUELkjG9QRFav6E14HeDZdFTDPDi1aiSJVG
-         lZuBx07ryxyG2EGCeO9ZZ4FfuYcvy3w1/DYqolAxWrJ9wXyxfVAjKLv1WwW0jVFunb+c
-         jsbQsR+yKNi1Y7OMqlTmq0ZyWDwHIxCiVVuvYlAY7DEDoiq7+L9bWA+YBdbhjIduTg8A
-         rCeZEFfF5bBvW2F5bT8tWH/7xD83yqqlqP4mRP4md/4/g4Gs4cac1/BMm/guGHw4N6DS
-         dc7g==
+        h=content-transfer-encoding:list-post:list-archive:archived-at
+         :list-id:precedence:sender:content-language:mime-version:references
+         :in-reply-to:message-id:date:subject:cc:to:from;
+        bh=xCgJQgMTqjWOvoEVRK/I7Bd3sxY8Qudbi1mCECJGhX8=;
+        b=BE17mciCVJ8gqUNxtshyrNLCTBVIpy9MuVD1OyHjwgBfacMdseiknhaDWiiJ88Pffy
+         RFy2qozgwS+O3JpTZlXVWZiVMWV0ss7xue+FyMTPCTU5ROT4uZYH2EjCGBYjDUnVNQkz
+         Vt5cqQ2VdNgE2yOYyOBAmMkdfEgvBpwwYvAATbaAMRBmpu2Z1dntXaHZeHId+khtKRDp
+         D2qhcsJTaAINREIqR+nrSgdEaXe9meqvURhvxIcwreNzhMQzpuzjYqoZewHvpGO1EXQM
+         d8oBSiAvoUqPNXoIbITpb+g2oK9r9D50eJPT5P4teGv0HxufZMFSQiFJYKvPeyicDW9L
+         cq1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id rl21si19514340ejb.20.2019.07.31.20.08.27
+       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.163 as permitted sender) smtp.mailfrom=hdanton@sina.com
+Received: from mail3-163.sinamail.sina.com.cn (mail3-163.sinamail.sina.com.cn. [202.108.3.163])
+        by mx.google.com with SMTP id m22si33654294pgh.190.2019.07.31.20.16.45
         for <linux-mm@kvack.org>;
-        Wed, 31 Jul 2019 20:08:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+        Wed, 31 Jul 2019 20:16:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hdanton@sina.com designates 202.108.3.163 as permitted sender) client-ip=202.108.3.163;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id E54F5344;
-	Wed, 31 Jul 2019 20:08:26 -0700 (PDT)
-Received: from [10.163.1.81] (unknown [10.163.1.81])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id E31B33F575;
-	Wed, 31 Jul 2019 20:08:20 -0700 (PDT)
-Subject: Re: [RFC 1/2] mm/sparsemem: Add vmem_altmap support in
- vmemmap_populate_basepages()
-To: Will Deacon <will@kernel.org>
-Cc: linux-mm@kvack.org, Fenghua Yu <fenghua.yu@intel.com>,
- Tony Luck <tony.luck@intel.com>, linux-ia64@vger.kernel.org,
- Catalin Marinas <catalin.marinas@arm.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, Will Deacon
- <will.deacon@arm.com>, x86@kernel.org, linux-kernel@vger.kernel.org,
- Andy Lutomirski <luto@kernel.org>, Andrew Morton
- <akpm@linux-foundation.org>, linux-arm-kernel@lists.infradead.org
-References: <1561697083-7329-1-git-send-email-anshuman.khandual@arm.com>
- <1561697083-7329-2-git-send-email-anshuman.khandual@arm.com>
- <20190731161047.ypye54x5c5jje5sq@willie-the-truck>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <a753a841-c344-c708-fccd-39d838637bcb@arm.com>
-Date: Thu, 1 Aug 2019 08:39:01 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.163 as permitted sender) smtp.mailfrom=hdanton@sina.com
+Received: from unknown (HELO localhost.localdomain)([222.131.77.31])
+	by sina.com with ESMTP
+	id 5D42599A00006103; Thu, 1 Aug 2019 11:16:44 +0800 (CST)
+X-Sender: hdanton@sina.com
+X-Auth-ID: hdanton@sina.com
+X-SMAIL-MID: 34768630411146
+From: Hillf Danton <hdanton@sina.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mel Gorman <mgorman@suse.de>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Michal Hocko <mhocko@kernel.org>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: Re: [RFC PATCH 1/3] mm, reclaim: make should_continue_reclaim perform dryrun detection
+Date: Thu,  1 Aug 2019 11:16:33 +0800
+Message-Id: <295a37b1-8257-9b4a-b586-9a4990cc9d35@suse.cz>
+In-Reply-To: <20190725080551.GB2708@suse.de>
+References: <20190724175014.9935-1-mike.kravetz@oracle.com> <20190724175014.9935-2-mike.kravetz@oracle.com> <20190725080551.GB2708@suse.de>
 MIME-Version: 1.0
-In-Reply-To: <20190731161047.ypye54x5c5jje5sq@willie-the-truck>
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset="UTF-8"
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+List-ID: <linux-kernel.vger.kernel.org>
+X-Mailing-List: linux-kernel@vger.kernel.org
+Archived-At: <https://lore.kernel.org/lkml/295a37b1-8257-9b4a-b586-9a4990cc9d35@suse.cz/>
+List-Archive: <https://lore.kernel.org/lkml/>
+List-Post: <mailto:linux-kernel@vger.kernel.org>
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
+Message-ID: <20190801031633.Y4GW2YtXQnnb-WbjqL8PxDroUmId5El6AOJE4bK5iso@z>
 
 
-
-On 07/31/2019 09:40 PM, Will Deacon wrote:
-> On Fri, Jun 28, 2019 at 10:14:42AM +0530, Anshuman Khandual wrote:
->> Generic vmemmap_populate_basepages() is used across platforms for vmemmap
->> as standard or as fallback when huge pages mapping fails. On arm64 it is
->> used for configs with ARM64_SWAPPER_USES_SECTION_MAPS applicable both for
->> ARM64_16K_PAGES and ARM64_64K_PAGES which cannot use huge pages because of
->> alignment requirements.
->>
->> This prevents those configs from allocating from device memory for vmemap
->> mapping as vmemmap_populate_basepages() does not support vmem_altmap. This
->> enables that required support. Each architecture should evaluate and decide
->> on enabling device based base page allocation when appropriate. Hence this
->> keeps it disabled for all architectures to preserve the existing semantics.
+On Wed, 31 Jul 2019 13:08:44 +0200 Vlastimil Babka wrote:
 > 
-> This commit message doesn't really make sense to me. There's a huge amount
-> of arm64-specific detail, followed by vague references to "this" and
-> "those" and "that" and I lost track of what you're trying to solve.
-
-Hmm, will clean up.
-
+> I agree this is an improvement overall, but perhaps the patch does too
+> many things at once. The reshuffle is one thing and makes sense. The
+> change of the last return condition could perhaps be separate. Also
+> AFAICS the ultimate result is that when nr_reclaimed == 0, the function
+> will now always return false. Which makes the initial test for
+> __GFP_RETRY_MAYFAIL and the comments there misleading. There will no
+> longer be a full LRU scan guaranteed - as long as the scanned LRU chunk
+> yields no reclaimed page, we abort.
 > 
-> However, I puzzled through the code and I think it does make sense, so:
-> 
-> Acked-by: Will Deacon <will@kernel.org>
-> 
-> assuming you rewrite the commit message.
+Thanks Vlastimil.
 
-Thanks, will do.
+We can drop the test for __GFP_RETRY_MAYFAIL imo after observing no
+regression produced by the reshuffle combined with dryrun detection
+for reasons that
+1) such a full lru scan is too expensive a cost for kswapd to pay for
+balancing a node. The kthread you see drops the costly order when
+appropriate. Which makes the helper in question false.
 
-> 
-> However, this has a dependency on your hot remove series which has open
-> comments from Mark Rutland afaict.
+2) it has been a while otoh that reclaimers play game with neither
+the costly order nor __GFP_RETRY_MAYFAIL taken into account, see
+commit 2bb0f34fe3c1 ("mm: vmscan: do not iterate all mem cgroups for
+global direct reclaim") for instance.
 
-Yeah it has dependency on the hot-remove series. The only outstanding issue
-there being whether to call free_empty_tables() in vmemmap tear down path
-or not. Mark had asked for more details regarding the implications in cases
-where free_empty_tables() is called or is not called. I did evaluate those
-details recently and we should be able to take a decision sooner.
+Hillf
 
