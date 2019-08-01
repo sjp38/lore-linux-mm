@@ -6,92 +6,92 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 58BCCC433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 02:18:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0438AC32751
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 02:20:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 091E420693
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 02:18:46 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 091E420693
+	by mail.kernel.org (Postfix) with ESMTP id B432C20693
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 02:20:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B432C20693
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 238348E0010; Wed, 31 Jul 2019 22:18:13 -0400 (EDT)
+	id 65C0E8E0006; Wed, 31 Jul 2019 22:20:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DDDE78E0014; Wed, 31 Jul 2019 22:18:12 -0400 (EDT)
+	id 60D2B8E0001; Wed, 31 Jul 2019 22:20:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9B7538E0003; Wed, 31 Jul 2019 22:18:12 -0400 (EDT)
+	id 4D62D8E0006; Wed, 31 Jul 2019 22:20:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F4438E0012
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 22:18:12 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id n9so40670720pgq.4
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 19:18:12 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 20CCF8E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 22:20:02 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id p29so35895271pgm.10
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 19:20:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=cfjpC4ZufL8zFJ9iILIMiNwPpuYb7M9uLZGTu5lO0a0=;
-        b=RyC5grk2oxYO+l2/ZCVbABNB9rH13qEmT6QkoNjmpB+sFNQM0Lw4LjIt31iEKoLMIM
-         GqIspjdE2a7/w06U45t2Iwj3WUIvu2tBrcX4GT5qxs0uGJfSVkxcS59Di8QXAQKnIHf8
-         HNBDyCS2dpiQhSkdKs8X9GFAsYj+DFaIU0nA/D25KJxJGXcvKwKc148uiHy/5WjSmh6F
-         /dKvsvq9Tqa7mK5EVp6G51csmeMe6MTuoS0E2HksvkUEm0DSY2jBZDFLc98cbOtgjrXi
-         jZg1XnFo8rp73Hn1VVKMwECNjCiyq7jxYJ65dIVEJyyVDHV+4SFZvxjJAdZg+6TQNBqt
-         N1Jw==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAV7LLvtqWV3m2oZ7DyzWT5AcNTXQDG+yESpq3icXSGsqjf4Blhw
-	sOyG8jA5zXwKLSm3NrDGKp4R9ULrc3cjl0OEhatVss7manMDg2ZE7wThjahfX/tS2DIVtT4WfwZ
-	O8UYf1ZdE9suTvmsIzl6XAZadtHHxnqoo/Ujk1IxetJLpSSKQeF2b/upLxLwCH2I=
-X-Received: by 2002:a62:5214:: with SMTP id g20mr50588045pfb.187.1564625891673;
-        Wed, 31 Jul 2019 19:18:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxEhyB0HQyBhEASZVkYdQ3mGrCAR9a93epWsfaZpWKnBIrZYCM5U9bnMH9kLuKwnfefocsF
-X-Received: by 2002:a62:5214:: with SMTP id g20mr50587486pfb.187.1564625881817;
-        Wed, 31 Jul 2019 19:18:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564625881; cv=none;
+        bh=H9r6HEnm/MBGNjDw3DjSsFkwO7PZ7T7uA6vsfNWR2w0=;
+        b=jkMPDVrK9lUbP9N1xfd7iPkPasaSWRnAL6NR/hGYVKpIRTisWtwX8pwM8199uKF03+
+         vNzESxXmd2V2Oawi7+D222Psh4lUJmUbrXrsjFWr+Q3vKj8yrfOZAvHMwalmY+mOBN4C
+         UEgASvPKHSC5+wO1J5rlNBUK3mKr5RXe6M6P8CXRhdTDG/QeaSXzdn6CNxABH7hkvtQU
+         DbruvNGTWuWu14Aqgb4nPqBZfFI5CwN5SZ1CMw+8JI27OyQ4PIBiKmlha/dHsk7gwAVZ
+         n4nDNE3Dt2Cg7dhydgacMoOcNojAuXahBxo6DUqQMT2JPy2rIDmAKc1Vt9DYr+IiNYNQ
+         POxg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAXfZRx0B0IZe+P1ulWflwLlK/8n45CEm6lVmmZxkfxI/4Dw4HqL
+	Gi0CCJClxEHagY6P6HGh3EzweXIetrnGqWo9SlyyQevjvmcPSIQ98vCwR1K4D9NCmO8M7D6ez4M
+	+KzLuKfh7iWjOUxT+JCCWTBzu3xzj1OYMAVDA9TjiByenN1n8qqjIhaz9rhvIpZs=
+X-Received: by 2002:aa7:8d88:: with SMTP id i8mr51477713pfr.28.1564626001801;
+        Wed, 31 Jul 2019 19:20:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwSJfZeG0it6v8Wnczo7BVqMrKuAgazMYli0MFoXJTIC0sjAQCJkz/QVCwjvzYf+LMh48Lh
+X-Received: by 2002:aa7:8d88:: with SMTP id i8mr51470605pfr.28.1564625882982;
+        Wed, 31 Jul 2019 19:18:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564625882; cv=none;
         d=google.com; s=arc-20160816;
-        b=DkJaU1a6i+MzNbvPchoGEYsW3ZKBJGWxTEyrCoYo81ltjtu+qWxW0jv9+2ppDEdldZ
-         glAwLH0rRUB7TM9K11YcGLcxrHgam9ovpZPB6XL+6xcd/x19ReeXSq0T3GauN2bpIoUn
-         zYwkByx8oSUrxuR+N+HzZ4tx7XsMvIs0JMqbncJBhbfyMOY2GMfRO26s7fkSX4ooi6we
-         xlOvFOIGJqv/OhTkxn34B/Sz3xUYjkegAQTWDIEglUeSOez1kWE6Pqy5YYeee/xyuG23
-         J3Ld1f1GEhLyo+hpjyq/ZshnnJlgb2EXNTCQ7DupqIZ7rbkXVWAxDTiBmUtzRWk/8dDl
-         /QPQ==
+        b=GzayZXOv443M2fbf9Q8hfmATXrbaJT4geLjkWEDcU2RmZikjKr2IHa1QIR3js/YhYP
+         8j4eh7/dD8MBI0tJaswd3Ctnm4Kwduhoxg1JqqgNlIRs8g3acQKzCcnKJ8bp575goXvN
+         z1L7bIet1aShuNP1Gxw49NlCz4TSvT37yjBGbYdyEjac9YwSDcUkYT3jtI2lk5FlSHOh
+         uqBRDekVbPcuBnBE94eiQ2yYt2vJBIPQaL1vufTPrd8VJn/SdvqWNgWHFnam8Wy0JYcJ
+         Uc/V58NALfOXrSB92em1W5qsB6XRovreEiQ2sNzZCD39/2Zzhi6PnN6XPJBXVLngiaIP
+         TPOQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=cfjpC4ZufL8zFJ9iILIMiNwPpuYb7M9uLZGTu5lO0a0=;
-        b=PZAA6zYkIXuBWKCATKBVHipisbbSrAfHg/BeS5FsTbzw31lUBbZ17tW2dGXf9O0XAM
-         8nVLWbK1IbSz9cWHWHmWTHKb3zlspqrPQWWDivI3wydWNu4eNd0amn2kiRQ2sndbnqAs
-         +3Yn00GsP1OMDuaZ+MWoa/ZZ0KgbU7ERCLxh8/opCrjKB7N3U7mWgSJjSWZkB84ifYws
-         yRyE6L9pQ9zJ7/AEkXT89zKqMImWzmb/LU5LdhS57MELf7TWYKl45AekyzkjQznoPIQQ
-         De6l9j1NZwXj7yWe2UbulyONUvF8wfekDKq+YpPwuFtmLl9hDVutI6J4xDnO7hRAdL8z
-         lwOg==
+        bh=H9r6HEnm/MBGNjDw3DjSsFkwO7PZ7T7uA6vsfNWR2w0=;
+        b=bZkvCZV8v8+GRfKlcC/D17eoNjkkiJL5wj7yNkj/7PI9lCpUCFls1U2VtfhuQjeDxG
+         /5GdKPVD7kaQyR6wzmsazP3UR4sdPFUhjY1+FjoD2/mPhqkTxOaI1SUAVkRO6ZyWRyRD
+         SuCuC0ho6IAqdhdOEemkzeMl5BQJN18eolgLzwMwtM1KwLQga1SEGZ7BWfg2j68hjyD1
+         EsdrBZGPeQ/1K2LfXGZ3VEpUeQXSAbnrVE2AiaNl6IcS/I1WHRHIWAL1sxmJcP/6AOSr
+         mvFhEEvaaVsvbEobq/igCZLlbSOjzrW5KfOJK3X9Fc12EwaV9m9XA0FgFgUJcjV1WdO3
+         JYtA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
-        by mx.google.com with ESMTP id 33si30601057pli.144.2019.07.31.19.18.01
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au. [211.29.132.246])
+        by mx.google.com with ESMTP id g15si2670695pjv.54.2019.07.31.19.18.02
         for <linux-mm@kvack.org>;
-        Wed, 31 Jul 2019 19:18:01 -0700 (PDT)
-Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
+        Wed, 31 Jul 2019 19:18:02 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.246;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
 Received: from dread.disaster.area (pa49-195-139-63.pa.nsw.optusnet.com.au [49.195.139.63])
-	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id B0A413617D2;
-	Thu,  1 Aug 2019 12:17:57 +1000 (AEST)
+	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id A345643EC85;
+	Thu,  1 Aug 2019 12:17:58 +1000 (AEST)
 Received: from discord.disaster.area ([192.168.253.110])
 	by dread.disaster.area with esmtp (Exim 4.92)
 	(envelope-from <david@fromorbit.com>)
-	id 1ht0eA-0003aW-RG; Thu, 01 Aug 2019 12:16:50 +1000
+	id 1ht0eB-0003b2-6Z; Thu, 01 Aug 2019 12:16:51 +1000
 Received: from dave by discord.disaster.area with local (Exim 4.92)
 	(envelope-from <david@fromorbit.com>)
-	id 1ht0fG-0001km-PT; Thu, 01 Aug 2019 12:17:58 +1000
+	id 1ht0fH-0001lE-44; Thu, 01 Aug 2019 12:17:59 +1000
 From: Dave Chinner <david@fromorbit.com>
 To: linux-xfs@vger.kernel.org
 Cc: linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org
-Subject: [PATCH 05/24] shrinker: clean up variable types and tracepoints
-Date: Thu,  1 Aug 2019 12:17:33 +1000
-Message-Id: <20190801021752.4986-6-david@fromorbit.com>
+Subject: [PATCH 14/24] xfs: tail updates only need to occur when LSN changes
+Date: Thu,  1 Aug 2019 12:17:42 +1000
+Message-Id: <20190801021752.4986-15-david@fromorbit.com>
 X-Mailer: git-send-email 2.22.0
 In-Reply-To: <20190801021752.4986-1-david@fromorbit.com>
 References: <20190801021752.4986-1-david@fromorbit.com>
@@ -101,7 +101,7 @@ X-Optus-CM-Score: 0
 X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0 cx=a_idp_d
 	a=fNT+DnnR6FjB+3sUuX8HHA==:117 a=fNT+DnnR6FjB+3sUuX8HHA==:17
 	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=FmdZ9Uzk2mMA:10 a=20KFwNOVAAAA:8
-	a=dfQxWFgAP5TgkvwPFjsA:9
+	a=yAjffBypbmNlQjcpRW8A:9
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -110,194 +110,169 @@ List-ID: <linux-mm.kvack.org>
 
 From: Dave Chinner <dchinner@redhat.com>
 
-The tracepoint information in the shrinker code don't make a lot of
-sense anymore and contain redundant information as a result of the
-changes in the patchset. Refine the information passed to the
-tracepoints so they expose the operation of the shrinkers more
-precisely and clean up the remaining code and varibles in the
-shrinker code so it all makes sense.
+We currently wake anything waiting on the log tail to move whenever
+the log item at the tail of the log is removed. Historically this
+was fine behaviour because there were very few items at any given
+LSN. But with delayed logging, there may be thousands of items at
+any given LSN, and we can't move the tail until they are all gone.
+
+Hence if we are removing them in near tail-first order, we might be
+waking up processes waiting on the tail LSN to change (e.g. log
+space waiters) repeatedly without them being able to make progress.
+This also occurs with the new sync push waiters, and can result in
+thousands of spurious wakeups every second when under heavy direct
+reclaim pressure.
+
+To fix this, check that the tail LSN has actually changed on the
+AIL before triggering wakeups. This will reduce the number of
+spurious wakeups when doing bulk AIL removal and make this code much
+more efficient.
+
+XXX: occasionally get a temporary hang in xfs_ail_push_sync() with
+this change - log force from log worker gets things moving again.
+Only happens under extreme memory pressure - possibly push racing
+with a tail update on an empty log. Needs further investigation.
 
 Signed-off-by: Dave Chinner <dchinner@redhat.com>
 ---
- include/trace/events/vmscan.h | 69 ++++++++++++++++-------------------
- mm/vmscan.c                   | 24 +++++-------
- 2 files changed, 41 insertions(+), 52 deletions(-)
+ fs/xfs/xfs_inode_item.c | 18 +++++++++++++-----
+ fs/xfs/xfs_trans_ail.c  | 37 ++++++++++++++++++++++++++++---------
+ fs/xfs/xfs_trans_priv.h |  4 ++--
+ 3 files changed, 43 insertions(+), 16 deletions(-)
 
-diff --git a/include/trace/events/vmscan.h b/include/trace/events/vmscan.h
-index a5ab2973e8dc..110637d9efa5 100644
---- a/include/trace/events/vmscan.h
-+++ b/include/trace/events/vmscan.h
-@@ -184,84 +184,77 @@ DEFINE_EVENT(mm_vmscan_direct_reclaim_end_template, mm_vmscan_memcg_softlimit_re
+diff --git a/fs/xfs/xfs_inode_item.c b/fs/xfs/xfs_inode_item.c
+index 7b942a63e992..16a7d6f752c9 100644
+--- a/fs/xfs/xfs_inode_item.c
++++ b/fs/xfs/xfs_inode_item.c
+@@ -731,19 +731,27 @@ xfs_iflush_done(
+ 	 * holding the lock before removing the inode from the AIL.
+ 	 */
+ 	if (need_ail) {
+-		bool			mlip_changed = false;
++		xfs_lsn_t	tail_lsn = 0;
  
- TRACE_EVENT(mm_shrink_slab_start,
- 	TP_PROTO(struct shrinker *shr, struct shrink_control *sc,
--		long nr_objects_to_shrink, unsigned long cache_items,
--		unsigned long long delta, unsigned long total_scan,
--		int priority),
-+		int64_t deferred_count, int64_t freeable_objects,
-+		int64_t scan_count, int priority),
- 
--	TP_ARGS(shr, sc, nr_objects_to_shrink, cache_items, delta, total_scan,
-+	TP_ARGS(shr, sc, deferred_count, freeable_objects, scan_count,
- 		priority),
- 
- 	TP_STRUCT__entry(
- 		__field(struct shrinker *, shr)
- 		__field(void *, shrink)
- 		__field(int, nid)
--		__field(long, nr_objects_to_shrink)
--		__field(gfp_t, gfp_flags)
--		__field(unsigned long, cache_items)
--		__field(unsigned long long, delta)
--		__field(unsigned long, total_scan)
-+		__field(int64_t, deferred_count)
-+		__field(int64_t, freeable_objects)
-+		__field(int64_t, scan_count)
- 		__field(int, priority)
-+		__field(gfp_t, gfp_flags)
- 	),
- 
- 	TP_fast_assign(
- 		__entry->shr = shr;
- 		__entry->shrink = shr->scan_objects;
- 		__entry->nid = sc->nid;
--		__entry->nr_objects_to_shrink = nr_objects_to_shrink;
--		__entry->gfp_flags = sc->gfp_mask;
--		__entry->cache_items = cache_items;
--		__entry->delta = delta;
--		__entry->total_scan = total_scan;
-+		__entry->deferred_count = deferred_count;
-+		__entry->freeable_objects = freeable_objects;
-+		__entry->scan_count = scan_count;
- 		__entry->priority = priority;
-+		__entry->gfp_flags = sc->gfp_mask;
- 	),
- 
--	TP_printk("%pS %p: nid: %d objects to shrink %ld gfp_flags %s cache items %ld delta %lld total_scan %ld priority %d",
-+	TP_printk("%pS %p: nid: %d scan count %lld freeable items %lld deferred count %lld priority %d gfp_flags %s",
- 		__entry->shrink,
- 		__entry->shr,
- 		__entry->nid,
--		__entry->nr_objects_to_shrink,
--		show_gfp_flags(__entry->gfp_flags),
--		__entry->cache_items,
--		__entry->delta,
--		__entry->total_scan,
--		__entry->priority)
-+		__entry->scan_count,
-+		__entry->freeable_objects,
-+		__entry->deferred_count,
-+		__entry->priority,
-+		show_gfp_flags(__entry->gfp_flags))
- );
- 
- TRACE_EVENT(mm_shrink_slab_end,
--	TP_PROTO(struct shrinker *shr, int nid, int shrinker_retval,
--		long unused_scan_cnt, long new_scan_cnt, long total_scan),
-+	TP_PROTO(struct shrinker *shr, int nid, int64_t freed_objects,
-+		int64_t scanned_objects, int64_t deferred_scan),
- 
--	TP_ARGS(shr, nid, shrinker_retval, unused_scan_cnt, new_scan_cnt,
--		total_scan),
-+	TP_ARGS(shr, nid, freed_objects, scanned_objects,
-+		deferred_scan),
- 
- 	TP_STRUCT__entry(
- 		__field(struct shrinker *, shr)
- 		__field(int, nid)
- 		__field(void *, shrink)
--		__field(long, unused_scan)
--		__field(long, new_scan)
--		__field(int, retval)
--		__field(long, total_scan)
-+		__field(long long, freed_objects)
-+		__field(long long, scanned_objects)
-+		__field(long long, deferred_scan)
- 	),
- 
- 	TP_fast_assign(
- 		__entry->shr = shr;
- 		__entry->nid = nid;
- 		__entry->shrink = shr->scan_objects;
--		__entry->unused_scan = unused_scan_cnt;
--		__entry->new_scan = new_scan_cnt;
--		__entry->retval = shrinker_retval;
--		__entry->total_scan = total_scan;
-+		__entry->freed_objects = freed_objects;
-+		__entry->scanned_objects = scanned_objects;
-+		__entry->deferred_scan = deferred_scan;
- 	),
- 
--	TP_printk("%pS %p: nid: %d unused scan count %ld new scan count %ld total_scan %ld last shrinker return val %d",
-+	TP_printk("%pS %p: nid: %d freed objects %lld scanned objects %lld, deferred scan %lld",
- 		__entry->shrink,
- 		__entry->shr,
- 		__entry->nid,
--		__entry->unused_scan,
--		__entry->new_scan,
--		__entry->total_scan,
--		__entry->retval)
-+		__entry->freed_objects,
-+		__entry->scanned_objects,
-+		__entry->deferred_scan)
- );
- 
- TRACE_EVENT(mm_vmscan_lru_isolate,
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index c583b4efb9bf..d5ce26b4d49d 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -505,7 +505,6 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 	int64_t scanned_objects = 0;
- 	int64_t next_deferred = 0;
- 	int64_t deferred_count = 0;
--	long new_nr;
- 	int nid = shrinkctl->nid;
- 	long batch_size = shrinker->batch ? shrinker->batch
- 					  : SHRINK_BATCH;
-@@ -564,8 +563,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
- 		scan_count = freeable_objects * 2;
- 
- 	trace_mm_shrink_slab_start(shrinker, shrinkctl, deferred_count,
--				   freeable_objects, scan_count,
--				   scan_count, priority);
-+				   freeable_objects, scan_count, priority);
- 
- 	/*
- 	 * If the shrinker can't run (e.g. due to gfp_mask constraints), then
-@@ -609,23 +607,21 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 		/* this is an opencoded batch version of xfs_trans_ail_delete */
+ 		spin_lock(&ailp->ail_lock);
+ 		list_for_each_entry(blip, &tmp, li_bio_list) {
+ 			if (INODE_ITEM(blip)->ili_logged &&
+-			    blip->li_lsn == INODE_ITEM(blip)->ili_flush_lsn)
+-				mlip_changed |= xfs_ail_delete_one(ailp, blip);
+-			else {
++			    blip->li_lsn == INODE_ITEM(blip)->ili_flush_lsn) {
++				/*
++				 * xfs_ail_delete_finish() only cares about the
++				 * lsn of the first tail item removed, any others
++				 * will be at the same or higher lsn so we just
++				 * ignore them.
++				 */
++				xfs_lsn_t lsn = xfs_ail_delete_one(ailp, blip);
++				if (!tail_lsn && lsn)
++					tail_lsn = lsn;
++			} else {
+ 				xfs_clear_li_failed(blip);
+ 			}
+ 		}
+-		xfs_ail_delete_finish(ailp, mlip_changed);
++		xfs_ail_delete_finish(ailp, tail_lsn);
  	}
  
- done:
-+	/*
-+	 * Calculate the remaining work that we need to defer to kswapd, and
-+	 * store it in a manner that handles concurrent updates. If we exhausted
-+	 * the scan, there is no need to do an update.
-+	 */
- 	if (deferred_count)
- 		next_deferred = deferred_count - scanned_objects;
- 	else if (scan_count > 0)
- 		next_deferred = scan_count;
--	/*
--	 * move the unused scan count back into the shrinker in a
--	 * manner that handles concurrent updates. If we exhausted the
--	 * scan, there is no need to do an update.
--	 */
+ 	/*
+diff --git a/fs/xfs/xfs_trans_ail.c b/fs/xfs/xfs_trans_ail.c
+index 9e3102179221..00d66175f41a 100644
+--- a/fs/xfs/xfs_trans_ail.c
++++ b/fs/xfs/xfs_trans_ail.c
+@@ -108,17 +108,25 @@ xfs_ail_next(
+  * We need the AIL lock in order to get a coherent read of the lsn of the last
+  * item in the AIL.
+  */
++static xfs_lsn_t
++__xfs_ail_min_lsn(
++	struct xfs_ail		*ailp)
++{
++	struct xfs_log_item	*lip = xfs_ail_min(ailp);
 +
- 	if (next_deferred > 0)
--		new_nr = atomic_long_add_return(next_deferred,
--						&shrinker->nr_deferred[nid]);
--	else
--		new_nr = atomic_long_read(&shrinker->nr_deferred[nid]);
-+		atomic_long_add(next_deferred, &shrinker->nr_deferred[nid]);
++	if (lip)
++		return lip->li_lsn;
++	return 0;
++}
++
+ xfs_lsn_t
+ xfs_ail_min_lsn(
+ 	struct xfs_ail		*ailp)
+ {
+-	xfs_lsn_t		lsn = 0;
+-	struct xfs_log_item	*lip;
++	xfs_lsn_t		lsn;
  
--	trace_mm_shrink_slab_end(shrinker, nid, freed, deferred_count, new_nr,
--					scan_count);
-+	trace_mm_shrink_slab_end(shrinker, nid, freed, scanned_objects,
-+				 next_deferred);
- 	return freed;
+ 	spin_lock(&ailp->ail_lock);
+-	lip = xfs_ail_min(ailp);
+-	if (lip)
+-		lsn = lip->li_lsn;
++	lsn = __xfs_ail_min_lsn(ailp);
+ 	spin_unlock(&ailp->ail_lock);
+ 
+ 	return lsn;
+@@ -779,12 +787,20 @@ xfs_trans_ail_update_bulk(
+ 	}
  }
  
+-bool
++/*
++ * Delete one log item from the AIL.
++ *
++ * If this item was at the tail of the AIL, return the LSN of the log item so
++ * that we can use it to check if the LSN of the tail of the log has moved
++ * when finishing up the AIL delete process in xfs_ail_delete_finish().
++ */
++xfs_lsn_t
+ xfs_ail_delete_one(
+ 	struct xfs_ail		*ailp,
+ 	struct xfs_log_item	*lip)
+ {
+ 	struct xfs_log_item	*mlip = xfs_ail_min(ailp);
++	xfs_lsn_t		lsn = lip->li_lsn;
+ 
+ 	trace_xfs_ail_delete(lip, mlip->li_lsn, lip->li_lsn);
+ 	xfs_ail_delete(ailp, lip);
+@@ -792,17 +808,20 @@ xfs_ail_delete_one(
+ 	clear_bit(XFS_LI_IN_AIL, &lip->li_flags);
+ 	lip->li_lsn = 0;
+ 
+-	return mlip == lip;
++	if (mlip == lip)
++		return lsn;
++	return 0;
+ }
+ 
+ void
+ xfs_ail_delete_finish(
+ 	struct xfs_ail		*ailp,
+-	bool			do_tail_update) __releases(ailp->ail_lock)
++	xfs_lsn_t		old_lsn) __releases(ailp->ail_lock)
+ {
+ 	struct xfs_mount	*mp = ailp->ail_mount;
+ 
+-	if (!do_tail_update) {
++	/* if the tail lsn hasn't changed, don't do updates or wakeups. */
++	if (!old_lsn || old_lsn == __xfs_ail_min_lsn(ailp)) {
+ 		spin_unlock(&ailp->ail_lock);
+ 		return;
+ 	}
+diff --git a/fs/xfs/xfs_trans_priv.h b/fs/xfs/xfs_trans_priv.h
+index 5ab70b9b896f..db589bb7468d 100644
+--- a/fs/xfs/xfs_trans_priv.h
++++ b/fs/xfs/xfs_trans_priv.h
+@@ -92,8 +92,8 @@ xfs_trans_ail_update(
+ 	xfs_trans_ail_update_bulk(ailp, NULL, &lip, 1, lsn);
+ }
+ 
+-bool xfs_ail_delete_one(struct xfs_ail *ailp, struct xfs_log_item *lip);
+-void xfs_ail_delete_finish(struct xfs_ail *ailp, bool do_tail_update)
++xfs_lsn_t xfs_ail_delete_one(struct xfs_ail *ailp, struct xfs_log_item *lip);
++void xfs_ail_delete_finish(struct xfs_ail *ailp, xfs_lsn_t old_lsn)
+ 			__releases(ailp->ail_lock);
+ void xfs_trans_ail_delete(struct xfs_ail *ailp, struct xfs_log_item *lip,
+ 		int shutdown_type);
 -- 
 2.22.0
 
