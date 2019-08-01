@@ -2,145 +2,229 @@ Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 97692C433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 21:59:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 855DCC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 22:27:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 30D1B2080C
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 21:59:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 29FC2206B8
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 22:27:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="NFJ5mx3p"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30D1B2080C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ZrRacyXd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 29FC2206B8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 865F86B0003; Thu,  1 Aug 2019 17:59:22 -0400 (EDT)
+	id BD20E6B0003; Thu,  1 Aug 2019 18:27:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 83C986B0005; Thu,  1 Aug 2019 17:59:22 -0400 (EDT)
+	id B82B56B0005; Thu,  1 Aug 2019 18:27:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 72B9B6B0006; Thu,  1 Aug 2019 17:59:22 -0400 (EDT)
+	id A24626B0006; Thu,  1 Aug 2019 18:27:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 52D3E6B0003
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 17:59:22 -0400 (EDT)
-Received: by mail-io1-f70.google.com with SMTP id h4so80923027iol.5
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 14:59:22 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 788F36B0003
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 18:27:04 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id r2so40111064oti.10
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 15:27:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=FlbNAsgaWkp1ShDCheHxAkj85en9Tu2y9Hru44fhYz0=;
-        b=jmfgnhDd6agb1J36NPPR3DoL4weF4iVB1zmkJ2nD6EI5r/WlG6klx4ri4V8ei3z60J
-         0eNRcTIIrcIoYekv3bWdapMWb7jskyRDSUBfqxIMW2SdhVWJXLfcx+eiI8KxiKHREtMU
-         DnX42NXIPHOfU/JgCrgugzLiTMjSArlWWNH/aLAyJK3CuVQqs72czsv6Oi/CpdouDND0
-         p/1PI3As2keFg6Ms26yDB4CM+zGRpKnnwZ6+HdrJsVpoGPzlE+BNxlenqwcMzqUslkb0
-         5Po2ZPguDWXfiUBG0/HI4a/8bxSD61mKgO8sa4+GQqLxvvAxr0pMLInlnLfms10jR5p4
-         p5vQ==
-X-Gm-Message-State: APjAAAUX4+k/QW9RY2DF/TGSzhxGEG4dbknWayyOsDAcg3O/ffHS+uRM
-	dpvP7nU/Wo3bUXokg1Sj6LLZdt+27jxadEqo1KDJnYEVj9wvomdEj4oureTYYu09elz2c0BRA3T
-	5Zu/E3A190EmPFNgQ7FBUdApRxliUAp042Eo2w1rDn2/lkIrcvMMVNSdWNoh2RcmWwQ==
-X-Received: by 2002:a6b:f910:: with SMTP id j16mr314049iog.256.1564696762069;
-        Thu, 01 Aug 2019 14:59:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxhjkk1nbAJMdgyHn2vhVzahAP2IBOBlFdNkdTlPoZYKmCKD4mvWnB15/yiRe8KwsQr5BP8
-X-Received: by 2002:a6b:f910:: with SMTP id j16mr313970iog.256.1564696761111;
-        Thu, 01 Aug 2019 14:59:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564696761; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
+         :message-id:user-agent:mime-version:content-transfer-encoding;
+        bh=jjVaiL9PlJtpvUqKX80XgUrDQiaG4FJpJKI6tyDVArI=;
+        b=IXuDIUMs7wLcWCA8i4nMjoIq5tlrr2KsM6BU5X4MM1IoWzJpaG117rGeQgMO18NGQ8
+         9+isGtFriIQYnd8DbJPb+2khercZQrVyBr/TxKBTZUrcg0SuCGRqd36qO/Lrynk/SQKi
+         qfXreE51wh4KtawMGhEolVtYHDrwGC8Qvp43pdCREtAGPc+8nKp+c5LX/OTDGsmBGIzi
+         fiZ2RDwN0gp6iLNC02spV9MFEVh5bBcF1kknfixUC9khxC9gPPXbi7WvXHhiWclvRh4n
+         YF725VVC57FfCmfM+ObyYuMSz6LG8MXHjod+rfbSNIN8X7m8zqHGX6lvVt+ui1TsNgWW
+         IoZg==
+X-Gm-Message-State: APjAAAU4nGFZT5ndsav5d+f6TLTGzSGV2jiPSxlqNoy8Ubm6I4VCONsc
+	yIKWpqeHfTH+mQWaSRVQATxyd9KNp6BDyYH+c/fLDOkHoJOTBqWgv8bCOg4+Fus+4tXvzGJygUH
+	Tfz387ewA3U7Ll7SVy9h8QNgBImESkbyYN5dmRKuWGAfhd0VdvspZX2EMrbOUWr5+wQ==
+X-Received: by 2002:a05:6830:204e:: with SMTP id f14mr2887204otp.19.1564698424033;
+        Thu, 01 Aug 2019 15:27:04 -0700 (PDT)
+X-Received: by 2002:a05:6830:204e:: with SMTP id f14mr2887138otp.19.1564698422730;
+        Thu, 01 Aug 2019 15:27:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564698422; cv=none;
         d=google.com; s=arc-20160816;
-        b=Xgarl+Tw1lOpf7sEzQi57axIVOEcnLTNAV24d4rbd2/L6cRNcOzjTb3zP1cLSwqHJe
-         HHsKi6IK/qhQz4Q6xKr40qzfFTIF/q5Z+dBpJEQaW1KtTHWtwGT+QtUrH7tihjEdHsSK
-         SQ35vz2oMVbmCpNDl7H31903i+pXw/pPcW0f4c90M8qWBWSrLQm9OBzNDOac8Xx+yJ01
-         r1Pcv+mvWsy6KQwZq0W3wXcPceZ6AbeJ5Gkgs3GbHEygNg8FzCsQTfQuuf2j/Ru9uZVY
-         oI4yuCmPZ87YfzEJmcJVw3WkvMMWyZ+kidj9dkp46VoMJoGD5cHUfPJnF0V4H1I2RB7+
-         wi4Q==
+        b=CIsmp+cgmMLUb0OsMRLAsyGTV6mRJeVa9CFkRvijN+21mRvOw/1ZyKhtH4crkFBEBC
+         Ri46bqEDysN+EblJIcoHuoT+QqiJW3aSXNzti7ZdG+3OB0Ha7dZD9iluO++m+RV3VP42
+         bVnz/VAGvGn5jEsbLSTv62y+zAY1+zV95tLGOiPWc6mEhCWsuvE9jsREOjGCnisi359a
+         q0rWh6KKtoDSorfcVlp4d2+rROINzgJSQjFtCYEU0+g5IIvnLskk0SGCAtT3XAgLlgJD
+         okEAy+WsOCHlhzvk8pYfGhRXyzogZjR8Vr+4lkazJ4mZYQlCum18WlsJ6pPX+dSfmgPP
+         Z+2Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=FlbNAsgaWkp1ShDCheHxAkj85en9Tu2y9Hru44fhYz0=;
-        b=evHmSEq2ios8XnH0NQbhSRSoQPI5xlXKr/eCSTWRBxtFKpOMMDNKDmG1UfKTg/ByhK
-         8+cp1eAOTDoPzoc6oE9ibRV2v6/Yg9n+m/UWg1/z/Tc4GNn7WSr6WGZcnJX3Avx/sN/r
-         KEpcgWIuknKVLG989wNFwMIpmc1pkLcTE3FOVQ6MuIUdq+b6ONXFxJbCAK/HLlXqbM2x
-         Q1CE1Ce7giSt0+k6soUfsl+TAFl9t0HNbi3uzhMvXA/USDdyFg21V4xTgLMJd1AgjeyW
-         p5JSMs/AOLBhICUktqiqmht0jPQnw+waPW1sQIZnIbR0ZS9asyVNhLAlR33oY//ADClp
-         0FtA==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :cc:to:from:subject:dkim-signature;
+        bh=jjVaiL9PlJtpvUqKX80XgUrDQiaG4FJpJKI6tyDVArI=;
+        b=YyaWnKKGdJ01gtrzzcxmHDrV9w2wIemdr6aeYXir/979STuxBpBMgTnX6goD/m9H/A
+         cq1Sjx8vCzSMD0FFwyBlsJfonZvH0VqjXzijkNl1Yw+jfXToJ/aOK5R4BLOXUJPc9pYy
+         lEmyoNiyICzloBkdJVWC9ur/nLaKkhIfLNaQazcEd2y0sfJIi14UwFVEmWAOHBbu5Om1
+         GcGVoHjx1zoVXeBOAk0Etc9w4Wm12zJV9vsNEMl9Yy/NHlo4CTNypvGS2DmSfAGb4Hmq
+         XDTTVLdxaVYwRelcvqjrZZFo9EluBZhzvv4EFCn+/Yus76/ILtFVsvW8dRd/9LVhp9LC
+         KlXA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=NFJ5mx3p;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-Received: from merlin.infradead.org (merlin.infradead.org. [2001:8b0:10b:1231::1])
-        by mx.google.com with ESMTPS id q3si85349703ioj.22.2019.08.01.14.59.20
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZrRacyXd;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id r186sor32028546oie.76.2019.08.01.15.27.02
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 01 Aug 2019 14:59:21 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) client-ip=2001:8b0:10b:1231::1;
+        (Google Transport Security);
+        Thu, 01 Aug 2019 15:27:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=merlin.20170209 header.b=NFJ5mx3p;
-       spf=pass (google.com: best guess record for domain of peterz@infradead.org designates 2001:8b0:10b:1231::1 as permitted sender) smtp.mailfrom=peterz@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=merlin.20170209; h=In-Reply-To:Content-Type:MIME-Version:
-	References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=FlbNAsgaWkp1ShDCheHxAkj85en9Tu2y9Hru44fhYz0=; b=NFJ5mx3pun9BIYphO0C68UAUu
-	bNIl5t6nnsxHXQq8rOyvK1+2xENKG1banbuqonFceMoKyQfDoNijJJq1cmdDthZGkLdEJaHaa+JRR
-	sy9AZHK01JafhzTXpLIhZcM24Nt52lWl/kRGtNf5E6LX5xx1DNeoa8ZNntincpMLRDHuDoi7WC/+y
-	HA3O23EObKhT4TPP+bFOaHWWnfil3CE5Ggc/aCnZxceKFfwCToLfXOTGqgxuInpjTOEyU5G52eQ61
-	7gsEOZqcrfczHuU7P7Dx4ONddvwcraEmcYcTxxpMkFOgVNQGyPcL7cM+eMlCVnQ+Z2HDd9+SLiVEF
-	If+0fSSdQ==;
-Received: from j217100.upc-j.chello.nl ([24.132.217.100] helo=hirez.programming.kicks-ass.net)
-	by merlin.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1htJ6I-0002fJ-Mv; Thu, 01 Aug 2019 21:59:07 +0000
-Received: by hirez.programming.kicks-ass.net (Postfix, from userid 1000)
-	id 51E57202953B0; Thu,  1 Aug 2019 23:59:04 +0200 (CEST)
-Date: Thu, 1 Aug 2019 23:59:04 +0200
-From: Peter Zijlstra <peterz@infradead.org>
-To: Suren Baghdasaryan <surenb@google.com>
-Cc: Ingo Molnar <mingo@redhat.com>, lizefan@huawei.com,
-	Johannes Weiner <hannes@cmpxchg.org>, axboe@kernel.dk,
-	Dennis Zhou <dennis@kernel.org>,
-	Dennis Zhou <dennisszhou@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm <linux-mm@kvack.org>, linux-doc@vger.kernel.org,
-	LKML <linux-kernel@vger.kernel.org>,
-	kernel-team <kernel-team@android.com>,
-	Nick Kralevich <nnk@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>
-Subject: Re: [PATCH 1/1] psi: do not require setsched permission from the
- trigger creator
-Message-ID: <20190801215904.GC2332@hirez.programming.kicks-ass.net>
-References: <20190730013310.162367-1-surenb@google.com>
- <20190730081122.GH31381@hirez.programming.kicks-ass.net>
- <CAJuCfpH7NpuYKv-B9-27SpQSKhkzraw0LZzpik7_cyNMYcqB2Q@mail.gmail.com>
- <20190801095112.GA31381@hirez.programming.kicks-ass.net>
- <CAJuCfpHGpsU4bVcRxpc3wOybAOtiTKAsB=BNAtZcGnt10j5gbA@mail.gmail.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZrRacyXd;
+       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=subject:from:to:cc:date:message-id:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=jjVaiL9PlJtpvUqKX80XgUrDQiaG4FJpJKI6tyDVArI=;
+        b=ZrRacyXdKI8lnbczd4//nr2xpTwQ3BkyvQbkNShzIE1E0SDVfeul5NXlmgkWqQfJTG
+         omf/6sfYJ95+PhEEsADPMGwTXt2GOvqIDxePdxXajthC8lzqpON1/ZHPp7/YI3F2HvtX
+         L/4pSxQvxeC40ffelKuabrC9d5+9G3Zca2k1WVIsj+pIK/8DrACq9tky0Ssc5t//qtZY
+         y27zx5mVNxtBnCOy3OpXcZ30VWvM8T6XyBiMJm853KEJlphOE6SDcZRM1STFMg1kQnUp
+         ej0iCu1ArOTU7GjQicbQAfy9u5GCQphYefiPdQ4vu406H8OIWTGJlpZTYn6TagPI927N
+         sXEg==
+X-Google-Smtp-Source: APXvYqwz7cn/2YMdeMQ0x9s9lVejvU6i/X+Wfx1SCCjJ0F2gKCgp6QocGTmCTwFXuNThq4TZh5DfzQ==
+X-Received: by 2002:aca:bf54:: with SMTP id p81mr718285oif.1.1564698422089;
+        Thu, 01 Aug 2019 15:27:02 -0700 (PDT)
+Received: from localhost.localdomain (50-39-177-61.bvtn.or.frontiernet.net. [50.39.177.61])
+        by smtp.gmail.com with ESMTPSA id i19sm24559702oib.12.2019.08.01.15.27.00
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Aug 2019 15:27:01 -0700 (PDT)
+Subject: [PATCH v3 0/6] mm / virtio: Provide support for unused page
+ reporting
+From: Alexander Duyck <alexander.duyck@gmail.com>
+To: nitesh@redhat.com, kvm@vger.kernel.org, david@redhat.com, mst@redhat.com,
+ dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ akpm@linux-foundation.org
+Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
+ konrad.wilk@oracle.com, willy@infradead.org, lcapitulino@redhat.com,
+ wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com,
+ dan.j.williams@intel.com, alexander.h.duyck@linux.intel.com
+Date: Thu, 01 Aug 2019 15:24:49 -0700
+Message-ID: <20190801222158.22190.96964.stgit@localhost.localdomain>
+User-Agent: StGit/0.17.1-dirty
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAJuCfpHGpsU4bVcRxpc3wOybAOtiTKAsB=BNAtZcGnt10j5gbA@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 01, 2019 at 11:28:30AM -0700, Suren Baghdasaryan wrote:
-> > By marking it FIFO-99 you're in effect saying that your stupid
-> > statistics gathering is more important than your life. It will preempt
-> > the task that's in control of the band-saw emergency break, it will
-> > preempt the task that's adjusting the electromagnetic field containing
-> > this plasma flow.
-> >
-> > That's insane.
-> 
-> IMHO an opt-in feature stops being "stupid" as soon as the user opted
-> in to use it, therefore explicitly indicating interest in it. However
-> I assume you are using "stupid" here to indicate that it's "less
-> important" rather than it's "useless".
+This series provides an asynchronous means of reporting to a hypervisor
+that a guest page is no longer in use and can have the data associated
+with it dropped. To do this I have implemented functionality that allows
+for what I am referring to as unused page reporting
 
-Quite; PSI does have its uses. RT just isn't one of them.
+The functionality for this is fairly simple. When enabled it will allocate
+statistics to track the number of reported pages in a given free area.
+When the number of free pages exceeds this value plus a high water value,
+currently 32, it will begin performing page reporting which consists of
+pulling pages off of free list and placing them into a scatter list. The
+scatterlist is then given to the page reporting device and it will perform
+the required action to make the pages "reported", in the case of
+virtio-balloon this results in the pages being madvised as MADV_DONTNEED
+and as such they are forced out of the guest. After this they are placed
+back on the free list, and an additional bit is added if they are not
+merged indicating that they are a reported buddy page instead of a
+standard buddy page. The cycle then repeats with additional non-reported
+pages being pulled until the free areas all consist of reported pages.
+
+I am leaving a number of things hard-coded such as limiting the lowest
+order processed to PAGEBLOCK_ORDER, and have left it up to the guest to
+determine what the limit is on how many pages it wants to allocate to
+process the hints. The upper limit for this is based on the size of the
+queue used to store the scatterlist.
+
+My primary testing has just been to verify the memory is being freed after
+allocation by running memhog 40g on a 40g guest and watching the total
+free memory via /proc/meminfo on the host. With this I have verified most
+of the memory is freed after each iteration. As far as performance I have
+been mainly focusing on the will-it-scale/page_fault1 test running with
+16 vcpus. With that I have seen up to a 2% difference between the base
+kernel without these patches and the patches with virtio-balloon enabled
+or disabled.
+
+One side effect of these patches is that the guest becomes much more
+resilient in terms of NUMA locality. With the pages being freed and then
+reallocated when used it allows for the pages to be much closer to the
+active thread, and as a result there can be situations where this patch
+set will out-perform the stock kernel when the guest memory is not local
+to the guest vCPUs.
+
+Patch 4 is a bit on the large side at about 600 lines of change, however
+I really didn't see a good way to break it up since each piece feeds into
+the next. So I couldn't add the statistics by themselves as it didn't
+really make sense to add them without something that will either read or
+increment/decrement them, or add the Hinted state without something that
+would set/unset it. As such I just ended up adding the entire thing as
+one patch. It makes it a bit bigger but avoids the issues in the previous
+set where I was referencing things that had not yet been added.
+
+Changes from the RFC:
+https://lore.kernel.org/lkml/20190530215223.13974.22445.stgit@localhost.localdomain/
+Moved aeration requested flag out of aerator and into zone->flags.
+Moved boundary out of free_area and into local variables for aeration.
+Moved aeration cycle out of interrupt and into workqueue.
+Left nr_free as total pages instead of splitting it between raw and aerated.
+Combined size and physical address values in virtio ring into one 64b value.
+
+Changes from v1:
+https://lore.kernel.org/lkml/20190619222922.1231.27432.stgit@localhost.localdomain/
+Dropped "waste page treatment" in favor of "page hinting"
+Renamed files and functions from "aeration" to "page_hinting"
+Moved from page->lru list to scatterlist
+Replaced wait on refcnt in shutdown with RCU and cancel_delayed_work_sync
+Virtio now uses scatterlist directly instead of intermediate array
+Moved stats out of free_area, now in separate area and pointed to from zone
+Merged patch 5 into patch 4 to improve review-ability
+Updated various code comments throughout
+
+Changes from v2:
+https://lore.kernel.org/lkml/20190724165158.6685.87228.stgit@localhost.localdomain/
+Dropped "page hinting" in favor of "page reporting"
+Renamed files from "hinting" to "reporting"
+Replaced "Hinted" page type with "Reported" page flag
+Added support for page poisoning while hinting is active
+Add QEMU patch that implements PAGE_POISON feature
+
+---
+
+Alexander Duyck (6):
+      mm: Adjust shuffle code to allow for future coalescing
+      mm: Move set/get_pcppage_migratetype to mmzone.h
+      mm: Use zone and order instead of free area in free_list manipulators
+      mm: Introduce Reported pages
+      virtio-balloon: Pull page poisoning config out of free page hinting
+      virtio-balloon: Add support for providing unused page reports to host
+
+
+ drivers/virtio/Kconfig              |    1 
+ drivers/virtio/virtio_balloon.c     |   75 ++++++++-
+ include/linux/mmzone.h              |  116 ++++++++------
+ include/linux/page-flags.h          |   11 +
+ include/linux/page_reporting.h      |  138 ++++++++++++++++
+ include/uapi/linux/virtio_balloon.h |    1 
+ mm/Kconfig                          |    5 +
+ mm/Makefile                         |    1 
+ mm/internal.h                       |   18 ++
+ mm/memory_hotplug.c                 |    1 
+ mm/page_alloc.c                     |  238 ++++++++++++++++++++--------
+ mm/page_reporting.c                 |  299 +++++++++++++++++++++++++++++++++++
+ mm/shuffle.c                        |   24 ---
+ mm/shuffle.h                        |   32 ++++
+ 14 files changed, 821 insertions(+), 139 deletions(-)
+ create mode 100644 include/linux/page_reporting.h
+ create mode 100644 mm/page_reporting.c
+
+--
 
