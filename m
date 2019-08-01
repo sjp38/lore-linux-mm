@@ -6,89 +6,90 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EFE1C19759
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 07:26:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EA05CC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 07:31:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5B3332171F
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 07:26:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5B3332171F
+	by mail.kernel.org (Postfix) with ESMTP id 9791721726
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 07:31:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9791721726
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 06E608E0003; Thu,  1 Aug 2019 03:26:41 -0400 (EDT)
+	id 2B4848E0005; Thu,  1 Aug 2019 03:31:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 01E4A8E0001; Thu,  1 Aug 2019 03:26:40 -0400 (EDT)
+	id 2650D8E0001; Thu,  1 Aug 2019 03:31:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E017C8E0003; Thu,  1 Aug 2019 03:26:40 -0400 (EDT)
+	id 1075B8E0005; Thu,  1 Aug 2019 03:31:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BF6F28E0001
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 03:26:40 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id h47so63834297qtc.20
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 00:26:40 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E634E8E0001
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 03:31:15 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id k31so63986148qte.13
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 00:31:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:openpgp:autocrypt:organization:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=EvvHEO5tE0fGymLLvw6c03+7JkaJaEC/ICWGtLpX47U=;
-        b=WYz/TGgiyusKJkPFRAuGr/f6nTMsko8HsX1+Pz8iB6lyITueP7xpjNtwGK3YQcgvHt
-         bqGpsimdwhMpiG1wl+Oji/BXk6LXs9CAfq9Q8yNzUbsCgdyfu/lTytlLyFLcqwUtq1k6
-         XjqM/LT8J+dnCb6LKTi+jYCCm9PHxv+MeJ3Y5KYUwQjkNS71Q+VOe5FlFlMj0EsFBFcq
-         3VUfv3Jt33Uv6A3lCeAWfKdV65yuAfWH0INd+NidMqnvcG6YvONVijolZVQqr1i3wrxI
-         p2d2FxxABUkeaCw8tfhDJU1Ki/VYyPbAoU5rh3fT2br1YbNncyzeg6JzYXhZ6deUCytN
-         iTwQ==
+        bh=XpiQ6TwTXce795bbnPzHI7n4KNP3Iu7eAjihinDuR3I=;
+        b=HA99oAIL+1PN6/wMi1NJY2Fwt1QKoad0wEazsqwk8mMJWaD3Mt6Z18yb1nOnPOd1hF
+         6YQLwaHEBk9P3E5xxA35eOAHcI2mBu3DCdHoOYsOGDFzke9bvcKqx9gVA+EC/KuFro9C
+         EnU7IwZz6LHZ4+R8V7zKOrWFifwkxxWabTpo41ejV42v10p5B1+4sG8w4+jVH2k0cF+L
+         gXBoMMHEVNuUf+v9lJRTEXks4KncJHuNG8lnJ+ZX65TZvRMSB8Mfve9XZo6bqYhEhVSb
+         J7LxyOsJ6JRmO/dUcqtJTYTwx93i63L1AL0C3NXrrywW23XTx6OshWA7MgpV5Va1e8ad
+         oWiQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXScJwSeDGm3F9T9CIUqovDVNi3Jd06rcj5Qom4n7sss5zXvnm8
-	f54N/JdQn2E2O3/9lhyxq7EMIsFqy0HVXnAXNIR55Uq+dEkQzEa+AGjD0yEkNQPp7Qfd0SX96Y/
-	5rO0wompL7h/18Ra+l9gyG2vBeR+R/SH6bqNVQKr5JaobGxO3zZMSbHow8N3hMtW+Dw==
-X-Received: by 2002:aed:3ed8:: with SMTP id o24mr85275525qtf.252.1564644400536;
-        Thu, 01 Aug 2019 00:26:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyonEB19M9Tu/moQqx21Z78djG0dwniz35ccCYDrNKSmru3WRMT4RjhAuSguQivrxNHqXvs
-X-Received: by 2002:aed:3ed8:: with SMTP id o24mr85275512qtf.252.1564644400047;
-        Thu, 01 Aug 2019 00:26:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564644400; cv=none;
+X-Gm-Message-State: APjAAAV69CTcGU81bVov42yaK0n7mUgUVn2SBt59L7oVnYuoVpfChkeW
+	FOkRmCLA41I7de2KLVLBHHUd/OLdhEI06nD5BPcP+RT7kvwwDaAiVrC+nvl6bSMc//yUctr8wdK
+	W5tlnLomBl/BPjNbwAcX1Choq3x3BbDFOVu9pz93c2NY2XZPNZ5i0YTrLT7w7X3rY0A==
+X-Received: by 2002:ae9:ee0b:: with SMTP id i11mr79664059qkg.424.1564644675712;
+        Thu, 01 Aug 2019 00:31:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyyi/LvModF1ZB28Vc5YHj2LA+Bqqi/W9B1lfUgUdo6vX2ro86EDPSK1F9g0CsXx1gLVEFT
+X-Received: by 2002:ae9:ee0b:: with SMTP id i11mr79664020qkg.424.1564644675181;
+        Thu, 01 Aug 2019 00:31:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564644675; cv=none;
         d=google.com; s=arc-20160816;
-        b=SFx+3G1Tm2Cn3hgqO9/HUUBYBSfptDM4n7fSnfz/c1n8IaV1lXCH1ZP23DL6hwZLej
-         /cTJhBFnUmzXgymz7p4nykOQFnOJseXOFzdzZgxhc/rRXDbD3bcIfadwr2MjXB/JGZXR
-         mtL3msrSFZ/6qKYgeSJ3r3/+ScrHK/HpvxCKoh0XflGu/NcsNHuF778hiSAAAAoVVupB
-         pDKiQ6P99eX4+m7IKpOC1y7LbvcBbGqiqHfbLEb2C578xvj1LJ5Rt5fiH6lRzUkOb/Ry
-         hZdpMffa5hvRu5RNNubrQNlqjm1Pc4RQ6zyvKNBbx+fFhV5wnpP+P1ZYgailgpg7MII6
-         zJLA==
+        b=PSVJiubI6YNT8xdElj5E31W1TQId8AsDgi0MyK9t5YTR1GgSwHYntoCIti3dqpdOtA
+         Es8Hl48eHpgJCu54OQdKbEAzzS22UcHDzzEI4J6FHj+Yu8XQF/ChnJ/g3kAHNaFTXcui
+         yOQ7LE0PhF5w0xf0fyweqB0xPBuiTNYlXAo1dFVHKavjwflIaUcaEyHGSuzi2/+Q4PJ9
+         SYWrNjdEyiRia8/N76uku7eLUtYaVqjMxRpJ06bTTqPwIviMo0/jEL7OdVdpOq+91yGo
+         5SYxJLh0wthjBtTN5bPf7HlhXCJ527SJ13NtniyhpRN7kDp2s9RniLOnMDXEOO9McmDh
+         goUQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=EvvHEO5tE0fGymLLvw6c03+7JkaJaEC/ICWGtLpX47U=;
-        b=NnnB97Yx3J1nL3YA/KQS/LL3gBRS0jcfygYIIWFpsptvPr27aR+L7sOGKlkGl2mjMM
-         gkntyvfTfMNh9ULX7FG9cq0PzV2n1mUq25nN59GcLUk3BxcFPsIqt+vz71vHOymoesHL
-         ovmFC99WAfeeWyQ0O5BBUaPMnsre/wHzcOXhsTKqJM6QHYN5+GjtuWBhAbGjGP96oahQ
-         0yOzIAD+OqRbmP72aqcAavSYGgF+hW6kScpHFlEZoU2g1yGGgcGJKORVILSoxRkbINxh
-         SAy0ii5v7bYrp9i3X0DmD5zGxVu8CmzzrTMJ3HzDSbBqTnepJNbjJQVJYfMArOr4qSSq
-         ShSQ==
+         :user-agent:date:message-id:organization:autocrypt:openpgp
+         :references:cc:to:from:subject;
+        bh=XpiQ6TwTXce795bbnPzHI7n4KNP3Iu7eAjihinDuR3I=;
+        b=h25xELiFw/rNUlc5ZHoUCjorcvAp4XeJCbY8FJ+lFpZLkxuhDSEJGlpA8j10AHw73R
+         arD42SEOq1LJ4sMXGWSS+JhUp5RC1lYIcOXptuKJ5/6O3b34bYsNOZQNIzIy1B5E5NOO
+         0PON5mirwbIadWno+3IGNEPK/RS9XWij653SXAJSuhV885cCUworAo/U2mW18MLNwajF
+         BKubX78sJcRB9aL31VcEu++w0oifCwtyh8GTR3eWU6WVjbqXJbx/GVAJxGXGY559rjCc
+         RppmgZ+THfEUhuUL7oIzz8HJwk0Bq0F8ssPIOYNOjO2YxIEb8tBklzNmqQBAojUYbFSf
+         BjQg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j27si40474558qki.118.2019.08.01.00.26.39
+        by mx.google.com with ESMTPS id t64si39774646qkb.359.2019.08.01.00.31.15
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Aug 2019 00:26:40 -0700 (PDT)
+        Thu, 01 Aug 2019 00:31:15 -0700 (PDT)
 Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 2E1A2796E4;
-	Thu,  1 Aug 2019 07:26:39 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 47F593B71F;
+	Thu,  1 Aug 2019 07:31:13 +0000 (UTC)
 Received: from [10.36.116.245] (ovpn-116-245.ams2.redhat.com [10.36.116.245])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 8DE33600C4;
-	Thu,  1 Aug 2019 07:26:36 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 5C4B25D6A7;
+	Thu,  1 Aug 2019 07:31:10 +0000 (UTC)
 Subject: Re: [PATCH v2 0/5] Allocate memmap from hotadded memory
+From: David Hildenbrand <david@redhat.com>
 To: Michal Hocko <mhocko@kernel.org>
 Cc: Rashmica Gupta <rashmica.g@gmail.com>, Oscar Salvador
  <osalvador@suse.de>, Andrew Morton <akpm@linux-foundation.org>,
@@ -107,7 +108,7 @@ References: <2750c11a-524d-b248-060c-49e6b3eb8975@redhat.com>
  <20190801071709.GE11627@dhcp22.suse.cz>
  <9bcbd574-7e23-5cfe-f633-646a085f935a@redhat.com>
  <20190801072430.GF11627@dhcp22.suse.cz>
-From: David Hildenbrand <david@redhat.com>
+ <e654aa97-6ab1-4069-60e6-fc099539729e@redhat.com>
 Openpgp: preference=signencrypt
 Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
@@ -153,70 +154,77 @@ Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
  +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
  SE+xAvmumFBY
 Organization: Red Hat GmbH
-Message-ID: <e654aa97-6ab1-4069-60e6-fc099539729e@redhat.com>
-Date: Thu, 1 Aug 2019 09:26:35 +0200
+Message-ID: <5e6137c9-5269-5756-beaa-d116652be8b9@redhat.com>
+Date: Thu, 1 Aug 2019 09:31:09 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.7.2
 MIME-Version: 1.0
-In-Reply-To: <20190801072430.GF11627@dhcp22.suse.cz>
+In-Reply-To: <e654aa97-6ab1-4069-60e6-fc099539729e@redhat.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Thu, 01 Aug 2019 07:26:39 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Thu, 01 Aug 2019 07:31:13 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 01.08.19 09:24, Michal Hocko wrote:
-> On Thu 01-08-19 09:18:47, David Hildenbrand wrote:
->> On 01.08.19 09:17, Michal Hocko wrote:
->>> On Thu 01-08-19 09:06:40, Rashmica Gupta wrote:
->>>> On Wed, 2019-07-31 at 14:08 +0200, Michal Hocko wrote:
->>>>> On Tue 02-07-19 18:52:01, Rashmica Gupta wrote:
->>>>> [...]
->>>>>>> 2) Why it was designed, what is the goal of the interface?
->>>>>>> 3) When it is supposed to be used?
->>>>>>>
->>>>>>>
->>>>>> There is a hardware debugging facility (htm) on some power chips.
->>>>>> To use
->>>>>> this you need a contiguous portion of memory for the output to be
->>>>>> dumped
->>>>>> to - and we obviously don't want this memory to be simultaneously
->>>>>> used by
->>>>>> the kernel.
+On 01.08.19 09:26, David Hildenbrand wrote:
+> On 01.08.19 09:24, Michal Hocko wrote:
+>> On Thu 01-08-19 09:18:47, David Hildenbrand wrote:
+>>> On 01.08.19 09:17, Michal Hocko wrote:
+>>>> On Thu 01-08-19 09:06:40, Rashmica Gupta wrote:
+>>>>> On Wed, 2019-07-31 at 14:08 +0200, Michal Hocko wrote:
+>>>>>> On Tue 02-07-19 18:52:01, Rashmica Gupta wrote:
+>>>>>> [...]
+>>>>>>>> 2) Why it was designed, what is the goal of the interface?
+>>>>>>>> 3) When it is supposed to be used?
+>>>>>>>>
+>>>>>>>>
+>>>>>>> There is a hardware debugging facility (htm) on some power chips.
+>>>>>>> To use
+>>>>>>> this you need a contiguous portion of memory for the output to be
+>>>>>>> dumped
+>>>>>>> to - and we obviously don't want this memory to be simultaneously
+>>>>>>> used by
+>>>>>>> the kernel.
+>>>>>>
+>>>>>> How much memory are we talking about here? Just curious.
 >>>>>
->>>>> How much memory are we talking about here? Just curious.
+>>>>> From what I've seen a couple of GB per node, so maybe 2-10GB total.
 >>>>
->>>> From what I've seen a couple of GB per node, so maybe 2-10GB total.
+>>>> OK, that is really a lot to keep around unused just in case the
+>>>> debugging is going to be used.
+>>>>
+>>>> I am still not sure the current approach of (ab)using memory hotplug is
+>>>> ideal. Sure there is some overlap but you shouldn't really need to
+>>>> offline the required memory range at all. All you need is to isolate the
+>>>> memory from any existing user and the page allocator. Have you checked
+>>>> alloc_contig_range?
+>>>>
 >>>
->>> OK, that is really a lot to keep around unused just in case the
->>> debugging is going to be used.
->>>
->>> I am still not sure the current approach of (ab)using memory hotplug is
->>> ideal. Sure there is some overlap but you shouldn't really need to
->>> offline the required memory range at all. All you need is to isolate the
->>> memory from any existing user and the page allocator. Have you checked
->>> alloc_contig_range?
->>>
+>>> Rashmica mentioned somewhere in this thread that the virtual mapping
+>>> must not be in place, otherwise the HW might prefetch some of this
+>>> memory, leading to errors with memtrace (which checks that in HW).
 >>
->> Rashmica mentioned somewhere in this thread that the virtual mapping
->> must not be in place, otherwise the HW might prefetch some of this
->> memory, leading to errors with memtrace (which checks that in HW).
+>> Does anything prevent from unmapping the pfn range from the direct
+>> mapping?
 > 
-> Does anything prevent from unmapping the pfn range from the direct
-> mapping?
+> I am not sure about the implications of having
+> pfn_valid()/pfn_present()/pfn_online() return true but accessing it
+> results in crashes. (suspend, kdump, whatever other technology touches
+> online memory)
 
-I am not sure about the implications of having
-pfn_valid()/pfn_present()/pfn_online() return true but accessing it
-results in crashes. (suspend, kdump, whatever other technology touches
-online memory)
+(oneidea: we could of course go ahead and mark the pages PG_offline
+before unmapping the pfn range to work around these issues)
 
-(sounds more like a hack to me than just going ahead and
-removing/readding the memory via a clean interface we have)
+> 
+> (sounds more like a hack to me than just going ahead and
+> removing/readding the memory via a clean interface we have)
+> 
+
 
 -- 
 
