@@ -1,151 +1,178 @@
-Return-Path: <SRS0=2Grs=V4=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A7BE0C32751
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 23:06:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EF141C32751
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 02:18:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 61FD820657
-	for <linux-mm@archiver.kernel.org>; Wed, 31 Jul 2019 23:06:49 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="uwHmDfLq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 61FD820657
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id A028E20693
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 02:18:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A028E20693
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DF2F18E0003; Wed, 31 Jul 2019 19:06:48 -0400 (EDT)
+	id 079A88E0006; Wed, 31 Jul 2019 22:18:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D7A998E0001; Wed, 31 Jul 2019 19:06:48 -0400 (EDT)
+	id 01B668E0001; Wed, 31 Jul 2019 22:18:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C1B398E0003; Wed, 31 Jul 2019 19:06:48 -0400 (EDT)
+	id E4C068E0006; Wed, 31 Jul 2019 22:18:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 899F78E0001
-	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 19:06:48 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id b18so43822801pgg.8
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 16:06:48 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id AD2458E0001
+	for <linux-mm@kvack.org>; Wed, 31 Jul 2019 22:18:01 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id n4so38136174plp.4
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 19:18:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:message-id:subject:from:to:cc
-         :date:in-reply-to:references:user-agent:mime-version
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=049t7JxvZTTTjSKZ1poKKugPV6OSOy/7hb4LReWg88o=;
-        b=fjZ4muedzayDEwysSyq1DlGjgDO3VoARRpQkDeuCOndPW4Au2xWUR5i+w2NCxnUYKi
-         51cyF6VOAvnuLgukk6oVgsAuQDM4vprWNNY9W02K8jGS8i1tJodcWqkNXG24IhnN959A
-         bLbSinSfmK9JqNKb+V0fgHZ8APoG68rTiHbBUHcHtwyHQL5Ls5FSONj0ro6S0r2tmY13
-         Qbh0bMpdjyFe5KKpcX1QelvHoMLT0BH9yazt30Qf8cR2kGsSJTiX/WB9st9U17khEH8I
-         ScUoQlFMmg29VmM6iJdSFGzoKIeH5QZmBbO6ONCXLmJ1bDaqQdOSlcRz9zCnn4zbLRqi
-         Qy1g==
-X-Gm-Message-State: APjAAAVOVlt4reH0QyJYFZ4tO9X90XyzUs3c5idOBtC22op/iKi5j/84
-	J2TB5FWZSZB4hX39rAtLVNaIGQ4Xr2YR5tJ+14012tPBl4n8cBCisCoPncr4wGlf7w+5sA9XrMn
-	dh5jCrq0QJs0wlPDg6m0bV+aVQjDWysWpXvIKcwWH95ln1Xi3gHe9VrRImwHqA+4bvA==
-X-Received: by 2002:a17:902:e287:: with SMTP id cf7mr121830183plb.32.1564614408152;
-        Wed, 31 Jul 2019 16:06:48 -0700 (PDT)
-X-Received: by 2002:a17:902:e287:: with SMTP id cf7mr121830141plb.32.1564614407514;
-        Wed, 31 Jul 2019 16:06:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564614407; cv=none;
+        bh=F++oM0IFb4Dzarbnf6aTsMjUhikuU7xqUEteruzc4xs=;
+        b=Lj7kkCa0JLxMKkpcEb1JRxeF/M/pvgEPRADM+sjnuhmGIOJiAaT5TADQgyJUHbM8r0
+         +wT9QD6FVdNNiLTc7tqMbZd8qDuJWhtwJJhO7XlFlJ7ZY1JpvPID4Z5IlrWIJQFkhnLM
+         7qoZeQcEJzN6pNgd/H5yEDSYlccEw3jhXUwASWXeiPQis/F9J79XW8PQSDfKq09+9mh2
+         TG6poVBo6rNWxlAncZSXx8cwL9Uw7vRHFz5acKNjUVcERCqmF2BV5lhsGfsX3bWYYFty
+         UBSTT9fjf3wK597AVvkCZ3CDKqd+FaE/HIvZHmhw5gERLOQrbt6WyBCs5eJKPX7C08Vr
+         NKIg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAXfYbps8Gi5L8/+LmvQyxvmjzp9lFRVjzPAPNUKkgghKf3mj5Ll
+	tGKda1DUJZUCZjMoYSDQqaLkN64FXvRZ8z0x0p9FiFL6jTJ9VYInrrOQ3yNn7SBkFM9b4XOke7X
+	HFqg0mN9aXcp+vkgnGNZIg+lQj0TfFAfWvPHvLOHcmCcDNuHathQKiN4iMj0FQS4=
+X-Received: by 2002:a63:7d49:: with SMTP id m9mr108749228pgn.161.1564625881168;
+        Wed, 31 Jul 2019 19:18:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzsF3fsjuUHP8x/r2eG96jpjV7sX22dC2PLXePJvWxBBTpqtrN2BgdA5KYWAISDEPhhIDJN
+X-Received: by 2002:a63:7d49:: with SMTP id m9mr108749172pgn.161.1564625880252;
+        Wed, 31 Jul 2019 19:18:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564625880; cv=none;
         d=google.com; s=arc-20160816;
-        b=vHcqnwqy85lUFfSfshrUpSVM78RLH2R8845WcNw+ySdkMTCWfTdImrxLqTqaLdy1LH
-         wCoqaun0plZbXUXCuqOGfvS6sznn5E1SJmGi3JKxNaW8yyaolA0Wi6b7DbakNsgB4kbK
-         RRvZM7YEIHS9W2ewE3/s0GSIzicqwjKCjNjSLHzb0ed84wZlBLH88hNp43/VZFjcsNQ/
-         DSYTvSlIDIjSv6arMUD+Ivgtl2I+vF0Gv4xSR8gIuByvkV/ulIzDAYSMCqv9biIGwSHA
-         M3dKsqkn3eY4ngk6tGdA7oeVhnZFD2st8BnbfpRsmFTqYnRBKK/4gRUCymg8RZKLBib6
-         9TZw==
+        b=NDT0LX4i8CMqHPk7owma8npyPug5Xt7TsrbzOBMLGYrVz5mF5YnL4s6K1AQx6iH8Lh
+         lbZXEKTo0Dd8mES94aanCYCa2iW7XMUKb4+oiUcTJLv7vclpqjNf+QL+5Hz+IN+HZrEW
+         pqhRZlIN99tkcu0u0ofheCWg8aEmH7fLKapd/9+ld8xLCc8w9jnCTSjCC7hjLaYJ+uoH
+         RUDB52fbiQnvfKM2grKFmQ7m6q7zTOwx+IuTdB5pH0sewL4xNBp3xskOb8N9TQT6Z8+T
+         DK3ioYMOFCiQDEkKn9Q9x4jj87afpKkE+L7YMPo7p9Reemc1M1hmtjDYoRqX5FB2Qd43
+         aAVw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:date:cc:to:from:subject:message-id:dkim-signature;
-        bh=049t7JxvZTTTjSKZ1poKKugPV6OSOy/7hb4LReWg88o=;
-        b=mBkkUUyBDJKoTKNgRDagFsHF/8R7j/4Xb/XqwI+4c6ajd3yLfaQacwLl0I7Zg/pFAZ
-         klXlgaPUGBO1kb9hVPrOWQUEFWkPpaHuixb4ZtmzpcW3P7tLlCBuYlIUDIu2KDHtttVu
-         V3n8KapffSI5mU3Z9S1EsIjOq1Q3Zs9/lKnVVhJ0UZHWpMu8bAymFAz1xKgiConEXCEX
-         ScgUhOkpEvgrKKjOucxDuqxiXhWVR72cajrGMukH2ko0mGohWSRRzPqid5M7L+KQi3dw
-         lRJPwFHSY8HBqCYOfy0x/kE+mx/7pzYRvHq6PUbXjppc8NnItxj6tI/QnvhUN1V7gfby
-         l39g==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=F++oM0IFb4Dzarbnf6aTsMjUhikuU7xqUEteruzc4xs=;
+        b=h/wUREVS36Zzq/r0LWIIdM9PaqN2I8e5D4I9d39IrDX6Wcy9F+WnnF9ibU8uarpDQK
+         Q+BFeO7KJiC3inuxQGZEOF2DgnOmcoE/INIry9v5NXQu48yDixNbWOR9OOM6Nfz40EUV
+         YdI3SE0crtGccX/35+WLGgfYm4TgcCUu5I4wLlBRDnYLzljdOtb4DychVgwN8Yj2+8ZV
+         D3B6U7HySqTTPWnCrWwMMpemGACC7Po7XAFKl42Z/lgUplpi78e36eGgGekFVJxgv3lc
+         mY+tigxPeBJWdOT8YUzJvClPM+1xwT9S0G3klzOOIYnEc7gdmQZ24WSeScOtziZKDGCr
+         rzKA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uwHmDfLq;
-       spf=pass (google.com: domain of rashmica.g@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rashmica.g@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y131sor50881204pfb.27.2019.07.31.16.06.47
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 31 Jul 2019 16:06:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rashmica.g@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au. [211.29.132.246])
+        by mx.google.com with ESMTP id ay21si2657132pjb.34.2019.07.31.19.17.59
+        for <linux-mm@kvack.org>;
+        Wed, 31 Jul 2019 19:18:00 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.246;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=uwHmDfLq;
-       spf=pass (google.com: domain of rashmica.g@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rashmica.g@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=message-id:subject:from:to:cc:date:in-reply-to:references
-         :user-agent:mime-version:content-transfer-encoding;
-        bh=049t7JxvZTTTjSKZ1poKKugPV6OSOy/7hb4LReWg88o=;
-        b=uwHmDfLq0KdRRrIpXBZ7eh2E2Di7CZCsc7Q4ENgQh9pTHk3z1+zjKf7oTZBOymsGIS
-         mnqtFBhdLcW/vLb9BKhOsF1r8tKUhH2SZyNqHdaOOW4EhxFLBdByJFXqYtU3rct1sR8x
-         DQ4pUSojQb0BZPBAzWpkCE8DfLkjinN+3dMTHyT3vVnRNHra0YbWT/Gfw69nX8iJwdAi
-         Lseiy9WWaE54CJg+RUrgeDBd7td8wHWw3TPatkiaa6sOTqPXRZqBLfjOGpLkCJMfxHJm
-         RnJ2r6c81O9ZleTk+YaUC2O/dZPpRL18733LECbGGYlK9s72ycaGCqYaL4b1Gc0DEXYt
-         w3Ng==
-X-Google-Smtp-Source: APXvYqxp2QruKLqLy7023Eu9qytL/7DmpVnAriEavxnn4B49X9D6LXrlXTRhvHAAadOvWaRD1E0HQA==
-X-Received: by 2002:a62:f20b:: with SMTP id m11mr50144512pfh.125.1564614407259;
-        Wed, 31 Jul 2019 16:06:47 -0700 (PDT)
-Received: from rashmica.ozlabs.ibm.com ([122.99.82.10])
-        by smtp.googlemail.com with ESMTPSA id p187sm110668968pfg.89.2019.07.31.16.06.43
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 31 Jul 2019 16:06:46 -0700 (PDT)
-Message-ID: <4ddee0dd719abd50350f997b8089fa26f6004c0c.camel@gmail.com>
-Subject: Re: [PATCH v2 0/5] Allocate memmap from hotadded memory
-From: Rashmica Gupta <rashmica.g@gmail.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Oscar Salvador <osalvador@suse.de>, David Hildenbrand
- <david@redhat.com>,  Andrew Morton <akpm@linux-foundation.org>, Dan
- Williams <dan.j.williams@intel.com>, pasha.tatashin@soleen.com, 
- Jonathan.Cameron@huawei.com, anshuman.khandual@arm.com, Vlastimil Babka
- <vbabka@suse.cz>, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Date: Thu, 01 Aug 2019 09:06:40 +1000
-In-Reply-To: <20190731120859.GJ9330@dhcp22.suse.cz>
-References: <20190625075227.15193-1-osalvador@suse.de>
-	 <2ebfbd36-11bd-9576-e373-2964c458185b@redhat.com>
-	 <20190626080249.GA30863@linux>
-	 <2750c11a-524d-b248-060c-49e6b3eb8975@redhat.com>
-	 <20190626081516.GC30863@linux>
-	 <887b902e-063d-a857-d472-f6f69d954378@redhat.com>
-	 <9143f64391d11aa0f1988e78be9de7ff56e4b30b.camel@gmail.com>
-	 <20190702074806.GA26836@linux>
-	 <CAC6rBskRyh5Tj9L-6T4dTgA18H0Y8GsMdC-X5_0Jh1SVfLLYtg@mail.gmail.com>
-	 <20190731120859.GJ9330@dhcp22.suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-195-139-63.pa.nsw.optusnet.com.au [49.195.139.63])
+	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id A28C443E4AA;
+	Thu,  1 Aug 2019 12:17:58 +1000 (AEST)
+Received: from discord.disaster.area ([192.168.253.110])
+	by dread.disaster.area with esmtp (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1ht0eB-0003b8-9B; Thu, 01 Aug 2019 12:16:51 +1000
+Received: from dave by discord.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1ht0fH-0001lK-7I; Thu, 01 Aug 2019 12:17:59 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: linux-xfs@vger.kernel.org
+Cc: linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org
+Subject: [PATCH 16/24] xfs: Lower CIL flush limit for large logs
+Date: Thu,  1 Aug 2019 12:17:44 +1000
+Message-Id: <20190801021752.4986-17-david@fromorbit.com>
+X-Mailer: git-send-email 2.22.0
+In-Reply-To: <20190801021752.4986-1-david@fromorbit.com>
+References: <20190801021752.4986-1-david@fromorbit.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Transfer-Encoding: 8bit
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0 cx=a_idp_d
+	a=fNT+DnnR6FjB+3sUuX8HHA==:117 a=fNT+DnnR6FjB+3sUuX8HHA==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=FmdZ9Uzk2mMA:10 a=20KFwNOVAAAA:8
+	a=y69QCnB_skpws7lHVjcA:9
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 2019-07-31 at 14:08 +0200, Michal Hocko wrote:
-> On Tue 02-07-19 18:52:01, Rashmica Gupta wrote:
-> [...]
-> > > 2) Why it was designed, what is the goal of the interface?
-> > > 3) When it is supposed to be used?
-> > > 
-> > > 
-> > There is a hardware debugging facility (htm) on some power chips.
-> > To use
-> > this you need a contiguous portion of memory for the output to be
-> > dumped
-> > to - and we obviously don't want this memory to be simultaneously
-> > used by
-> > the kernel.
-> 
-> How much memory are we talking about here? Just curious.
+From: Dave Chinner <dchinner@redhat.com>
 
-From what I've seen a couple of GB per node, so maybe 2-10GB total.
+The current CIL size aggregation limit is 1/8th the log size. This
+means for large logs we might be aggregating at least 250MB of dirty objects
+in memory before the CIL is flushed to the journal. With CIL shadow
+buffers sitting around, this means the CIL is often consuming >500MB
+of temporary memory that is all allocated under GFP_NOFS conditions.
+
+FLushing the CIL can take some time to do if there is other IO
+ongoing, and can introduce substantial log force latency by itself.
+It also pins the memory until the objects are in the AIL and can be
+written back and reclaimed by shrinkers. Hence this threshold also
+tends to determine the minimum amount of memory XFS can operate in
+under heavy modification without triggering the OOM killer.
+
+Modify the CIL space limit to prevent such huge amounts of pinned
+metadata from aggregating. We can 2MB of log IO in flight at once,
+so limit aggregation to 8x this size (arbitrary). This has some
+impact on performance (5-10% decrease on 16-way fsmark) and
+increases the amount of log traffic (~50% on same workload) but it
+is necessary to prevent rampant OOM killing under iworkloads that
+modify large amounts of metadata under heavy memory pressure.
+
+This was found via trace analysis or AIL behaviour. e.g. insertion
+from a single CIL flush:
+
+xfs_ail_insert: old lsn 0/0 new lsn 1/3033090 type XFS_LI_INODE flags IN_AIL
+
+$ grep xfs_ail_insert /mnt/scratch/s.t |grep "new lsn 1/3033090" |wc -l
+1721823
+$
+
+So there were 1.7 million objects inserted into the AIL from this
+CIL checkpoint, the first at 2323.392108, the last at 2325.667566 which
+was the end of the trace (i.e. it hadn't finished). Clearly a major
+problem.
+
+XXX: Need to try bigger sizes to see where the performance/stability
+boundary lies to see if some of the losses can be regained and log
+bandwidth increases minimised.
+
+XXX: Ideally this threshold should slide with memory pressure. We
+can allow large amounts of metadata to build up when there is no
+memory pressure, but then close the window as memory pressure builds
+up to reduce the footprint of the CIL until memory pressure passes.
+
+Signed-off-by: Dave Chinner <dchinner@redhat.com>
+---
+ fs/xfs/xfs_log_priv.h | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/fs/xfs/xfs_log_priv.h b/fs/xfs/xfs_log_priv.h
+index b880c23cb6e4..87c6191daef7 100644
+--- a/fs/xfs/xfs_log_priv.h
++++ b/fs/xfs/xfs_log_priv.h
+@@ -329,7 +329,8 @@ struct xfs_cil {
+  * enforced to ensure we stay within our maximum checkpoint size bounds.
+  * threshold, yet give us plenty of space for aggregation on large logs.
+  */
+-#define XLOG_CIL_SPACE_LIMIT(log)	(log->l_logsize >> 3)
++#define XLOG_CIL_SPACE_LIMIT(log)	\
++	min_t(int, (log)->l_logsize >> 3, XLOG_TOTAL_REC_SHIFT(log) << 3)
+ 
+ /*
+  * ticket grant locks, queues and accounting have their own cachlines
+-- 
+2.22.0
 
