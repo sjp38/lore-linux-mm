@@ -2,151 +2,157 @@ Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C906FC19759
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 11:19:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D42DC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 11:28:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6B07D2087E
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 11:19:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0E94D214DA
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 11:28:45 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="Yzt1J203"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B07D2087E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="AdP6kqdB"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E94D214DA
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B0A2C8E000B; Thu,  1 Aug 2019 07:19:49 -0400 (EDT)
+	id 9CA568E000C; Thu,  1 Aug 2019 07:28:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A923D8E0001; Thu,  1 Aug 2019 07:19:49 -0400 (EDT)
+	id 953C18E0001; Thu,  1 Aug 2019 07:28:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9813B8E000B; Thu,  1 Aug 2019 07:19:49 -0400 (EDT)
+	id 81B2D8E000C; Thu,  1 Aug 2019 07:28:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 48A908E0001
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 07:19:49 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id m23so44562980edr.7
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 04:19:49 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 3503A8E0001
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 07:28:45 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id b6so35335820wrp.21
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 04:28:45 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=qkKpSTDuuwbIMR/7MbiNrB08VgfKwqP+sli4OTfz1gY=;
-        b=mZ5VIIK5Dt9hmuK+a5qszcPoYRmGyawHMM+7L1hfbPhsga54pQjJ2K4e3aidzWA2ZR
-         YHL0rehwVE/ZAgmo6RMTJdfgMmjR/LM4kghWATNSWyWeLrXmefKZeABtLjs14Zkrvmgu
-         fSN/Z8C9dt0Q48O03NNhOMgxFEMyzVev1oFkoCeadCerFOwj/EB0cFawhkmu61afewrG
-         TCf51KBlnWhJiPX77MQYTGDJfaj4jJpGrVoMHtAEZPysBkjBsu6ryedOCzhQeyCOgacI
-         t7b/YAtgmS0jSJHzdqrF/+hFSCbVg9lQagCYfoKoCM3YbjUZXeR/rUpfEac01UHcuEWB
-         +Z6A==
-X-Gm-Message-State: APjAAAWFqzJdVvyFd3HdnLMmKXXJ9y+D6T+lp3npx0pp4Gt1YmP7huQT
-	K2F1ACt8hizkUdvK1M040pku7W/9r/KyvKjmPMJjjDe2CfTfzG0qVx+5nJoCp+sJmZ+ZB74xcgo
-	jHz1g4D4gN85XCAfzNvuDrVaNTLclhqBrxmYnbXEQNpDCSYzOuZExuHjH+25/p08=
-X-Received: by 2002:a50:ba57:: with SMTP id 23mr115008458eds.196.1564658388652;
-        Thu, 01 Aug 2019 04:19:48 -0700 (PDT)
-X-Received: by 2002:a50:ba57:: with SMTP id 23mr115008365eds.196.1564658387392;
-        Thu, 01 Aug 2019 04:19:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564658387; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc
+         :content-transfer-encoding;
+        bh=xqlL4i3gNjqYtXtO6TQlV20Xxo/VOCfNj1pkiBeVGDw=;
+        b=QcxrH2F8Aj+c9NTzkwsB43j7SYWIGkxebn7YCAlPMrQC0EFnoiXYtOPDRbgt4IYzaC
+         gLlz/HgyigshOrCdf8GTWqiKWd+lS5O+1TpHJS6ziKOziICpwQf2yVIBiGK/eK2rJMII
+         F2dkJXsE+fpg8RDKIBdpDjNITehdC1OEuoVh3cHr0jCBNdWJrq0xyptR8G1IfaXSZvVF
+         LKJGT5dcFdrZ3kPLOs3J0Pe23973pEKIErOX9tuHGbs5Efa5hQmCjDT4LPRduCzq4R5a
+         17k6FY1P3kFSHdrWoi2eQjJ1Qz2UqL/KOeRQWrlLr3DxsG8ckegDmXH3lwCpl/GtgsQD
+         1EbQ==
+X-Gm-Message-State: APjAAAVApAVmLktk2M/uh1HvV6KWEOX42TQkaOyWTT2Q20jzT1WSVf/P
+	Zm8wOicLG3NtyfShufzpEfuNKGgQLoJgiuRidxrqgeSnvHRfq6QACg2jeSMlQGAy2msO65SNGmK
+	VvuKBmGHyGW+JqYkPHMmtfKcaI95BXy/axFKTd59nHS3VdR+5qEgNRHlflMat1a75JQ==
+X-Received: by 2002:a7b:c8c3:: with SMTP id f3mr52875843wml.124.1564658924630;
+        Thu, 01 Aug 2019 04:28:44 -0700 (PDT)
+X-Received: by 2002:a7b:c8c3:: with SMTP id f3mr52875782wml.124.1564658923831;
+        Thu, 01 Aug 2019 04:28:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564658923; cv=none;
         d=google.com; s=arc-20160816;
-        b=0Y5oT2wFMu2TtesrjFNq8kHgrHNdFgQ2h5GcWHR9kZEeUzOy18rJZYIC8LXcoPdXCC
-         JCChN2EK5X+fupL8xeSsPnNab3+LBSa1i4286Mazvi/NMvQAQT+HtHWEd5/NgdCA9o25
-         kZ/WYT/HLu1J+DbKFdvJFF4AoxuuTI86cS9Km1ofAGEda169J8BbCVqRqiA8T8oS1GLO
-         l7uNlvjLLkCprK9RzA0B1cAjJhAMoiywMGUoodHaGQcuj4sROlvPhZr6JKIo4ytnepcm
-         UCaVchwYSbk2cCWI+nxG8a2QfXpZolhP/kUNk1iOq+s+653V+2rzaBQGVZAjk0PqFpUa
-         TKOw==
+        b=sYtPUOfZf5Iic55B4GD/LbTsOnJo5sp2Hlb+bikDgU7QMp5WZSSjQ9H2VM4rg4Dq2i
+         0T965/KwCYNr635lzwc8eSq02ym426ajy1YNkyCAOcvyDohp/vwNi5haP7Kj3kQb8P43
+         Y83oc66YZGy7NWYV5GM/oVKzOZ2U419y4TfRbS+Aw5ytgIkeULDZjCG/rgyGaNd2aAhF
+         THbd/SLB+sLan4Aec2+x0minhtNHgkt8bjowFKc+15qthlTHam06xQt5C4Z1QneTBkcG
+         LOzfg0dJmYjJl1MYftEc+JbeCpdu9tJp45Wg0XpTr5gI8g4AMg0HmEOllxfY9jOff5Q7
+         xnQQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=qkKpSTDuuwbIMR/7MbiNrB08VgfKwqP+sli4OTfz1gY=;
-        b=lha7CG/iWsTyji7eYG5mjDqza+994Ps1yhnSEs1y4X3jcRm6iYGnr52IpwtH8KcR7K
-         j65nZpQCfAiICtiuY+yZ7x2Hek9dfZ2vUYG235IXpVvv0L6DpARKUQth0+klZzvJFmsJ
-         mxQT6hQQK56wupiRltQ/oZ181X0fT5mzz9bOR0UxMjmUDNbwW8OdVtQPwvogsTpc5inQ
-         QcbcRjKLrCcdkLWZN0l4eVQKIuT6LCtxNKIf+ua5Y6WdJGYxqsNjesut3mZrb3//5bfd
-         eLJykItL414O30lyvz3pTQx5Df/e1y64ozr20MJCcC8B0HUtRrofh5SC1JIFTDtAXJzU
-         TTaw==
+        h=content-transfer-encoding:cc:to:subject:message-id:date:from
+         :in-reply-to:references:mime-version:dkim-signature;
+        bh=xqlL4i3gNjqYtXtO6TQlV20Xxo/VOCfNj1pkiBeVGDw=;
+        b=TCL22eAxlWQIZnstixkHQyY9MkEMMfWhymMK3PdgJ6Bh2//ZipUMvZsAvMArRrKR68
+         D+h7Ib2aKsFH/4bp9WXk1+tnTp0ypb1d0oKh6XbRWXoy4g2sz7/lf75WzVhlaCAL8Hf6
+         DfH425tlLXUZog6ywW5r8pqAKxNgZbjaNzGWbqmV9mOKjLkcqfMFEpiT5w2NWVLnowPe
+         E1m5A74uFeleYeR58/0zpudnFlSVo0ZXmdzUx0hyVG6/UJjCahRPirWTKpe5/3s+DGQK
+         jZf5HzV+W3GQ+DG1RTn/2FDPRMnOlxdzGMbnZodgzXEB0apaB8O+IytDtXOTu+JFZVk+
+         yu+Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=Yzt1J203;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@google.com header.s=20161025 header.b=AdP6kqdB;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c4sor54875961edn.29.2019.08.01.04.19.46
+        by mx.google.com with SMTPS id x6sor40182140wmb.29.2019.08.01.04.28.43
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 01 Aug 2019 04:19:47 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+        Thu, 01 Aug 2019 04:28:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=Yzt1J203;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@google.com header.s=20161025 header.b=AdP6kqdB;
+       spf=pass (google.com: domain of glider@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=glider@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=qkKpSTDuuwbIMR/7MbiNrB08VgfKwqP+sli4OTfz1gY=;
-        b=Yzt1J203i5UaLb2ByniXCHSrE3OhEgnQfeu54s8xJucGCdyxoKsLbHGRhZsFRJpNrV
-         F7zCOoVhdnnd+cfX0k0Bi0XvxD+Et5ZfpdlHyX/egg+VJ7fC6/tbb2Ewry0WiYu9rQ3L
-         wvgU+2TdbrfP3wwSbAVAtW0RUhVq4hOugmAZZrv8MT05kS4Eek87hzHHdcs8XxpBLYn0
-         7615oJ4D9zlLCIcJPyWyfvwwGm9vtX1ys+2UvvDqJQHTIcqwtjRDolSm3K57UNVyW7OO
-         BUDrc/ihfpfHmn05kCOru0irD6vVDgUhNNu3ncF+VJIGNavENV4OEmyrirRLZJuVEgf9
-         uiOg==
-X-Google-Smtp-Source: APXvYqyF6SX0CWzPPaoMgH0374aYW1XGVWRamvSqB0icTKG4hTO5BH/o437WyHbZv3Vt63NUESQFzg==
-X-Received: by 2002:a50:89a6:: with SMTP id g35mr116231607edg.145.1564658386729;
-        Thu, 01 Aug 2019 04:19:46 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id fk15sm13004072ejb.42.2019.08.01.04.19.45
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Aug 2019 04:19:46 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id AF846101E94; Thu,  1 Aug 2019 14:19:45 +0300 (+03)
-Date: Thu, 1 Aug 2019 14:19:45 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Song Liu <songliubraving@fb.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	akpm@linux-foundation.org, matthew.wilcox@oracle.com,
-	kirill.shutemov@linux.intel.com, oleg@redhat.com,
-	kernel-team@fb.com, william.kucharski@oracle.com,
-	srikar@linux.vnet.ibm.com
-Subject: Re: [PATCH v2 0/2] khugepaged: collapse pmd for pte-mapped THP
-Message-ID: <20190801111945.t5jw3vivvfun4n27@box>
-References: <20190731183331.2565608-1-songliubraving@fb.com>
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc:content-transfer-encoding;
+        bh=xqlL4i3gNjqYtXtO6TQlV20Xxo/VOCfNj1pkiBeVGDw=;
+        b=AdP6kqdBNqVzqPbTjcZqUCSeEuNZAZ0N2Hl7V0yyDQ97NwaxFQ3YPSdyfa5WscChBf
+         eQGOSebUDGwTIsy3ec9wtj4XhJSdNy2Nm7UQuj6m19HzgAcIqfK5QtKXngKhsE1bAzeh
+         Z8MDxuC/JtqX8MJIT/X74Qs9abmRPhqfAm5cJtPevPH0QqRG7ypBFY4LyQVHKu3J+qaA
+         Az3nbeoW6l241nTdt1fleedlEYCSx4Y7Xs61bGbsIt2U6eBnBODlCX0nRzxsXY2YSfmG
+         kNL4/CyfOJAdHhqkx81K3DomreRUeEF9m8TieokhBXNpFzz1ocBDIayWwDPw/PqD2BSX
+         2s0g==
+X-Google-Smtp-Source: APXvYqwGETwdoashndHC330DdqucKEGLjf3h8H2eI2Z/vsG8Q0EpDPaNd2yf/onQdcky1xXqUBZxaQrJFZevg/rqT08=
+X-Received: by 2002:a1c:770d:: with SMTP id t13mr42679017wmi.79.1564658923216;
+ Thu, 01 Aug 2019 04:28:43 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190731183331.2565608-1-songliubraving@fb.com>
-User-Agent: NeoMutt/20180716
+References: <CAG_fn=VBGE=YvkZX0C45qu29zqfvLMP10w_owj4vfFxPcK5iow@mail.gmail.com>
+ <20190731193240.29477-1-labbott@redhat.com> <20190731193509.GG4700@bombadil.infradead.org>
+ <201907311304.2AAF454F5C@keescook>
+In-Reply-To: <201907311304.2AAF454F5C@keescook>
+From: Alexander Potapenko <glider@google.com>
+Date: Thu, 1 Aug 2019 13:28:31 +0200
+Message-ID: <CAG_fn=VJm7M0wzMTti5RoegW56CY2YpikjEZryt8gMN5nOiyqw@mail.gmail.com>
+Subject: Re: [PATCH] mm: slub: Fix slab walking for init_on_free
+To: Kees Cook <keescook@chromium.org>
+Cc: Matthew Wilcox <willy@infradead.org>, Laura Abbott <labbott@redhat.com>, 
+	kernel test robot <rong.a.chen@intel.com>, Linus Torvalds <torvalds@linux-foundation.org>, 
+	Christoph Lameter <cl@linux.com>, Masahiro Yamada <yamada.masahiro@socionext.com>, 
+	"Serge E. Hallyn" <serge@hallyn.com>, Nick Desaulniers <ndesaulniers@google.com>, 
+	Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, Sandeep Patil <sspatil@android.com>, 
+	Randy Dunlap <rdunlap@infradead.org>, Jann Horn <jannh@google.com>, 
+	Mark Rutland <mark.rutland@arm.com>, Marco Elver <elver@google.com>, 
+	Andrew Morton <akpm@linux-foundation.org>, LKML <linux-kernel@vger.kernel.org>, 
+	LKP <lkp@01.org>, Linux Memory Management List <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 31, 2019 at 11:33:29AM -0700, Song Liu wrote:
-> Changes v1 => v2:
-> 1. Call collapse_pte_mapped_thp() directly from uprobe_write_opcode();
-> 2. Add VM_BUG_ON() for addr alignment in khugepaged_add_pte_mapped_thp()
->    and collapse_pte_mapped_thp().
-> 
-> This set is the newer version of 5/6 and 6/6 of [1]. Newer version of
-> 1-4 of the work [2] was recently picked by Andrew.
-> 
-> Patch 1 enables khugepaged to handle pte-mapped THP. These THPs are left
-> in such state when khugepaged failed to get exclusive lock of mmap_sem.
-> 
-> Patch 2 leverages work in 1 for uprobe on THP. After [2], uprobe only
-> splits the PMD. When the uprobe is disabled, we get pte-mapped THP.
-> After this set, these pte-mapped THP will be collapsed as pmd-mapped.
-> 
-> [1] https://lkml.org/lkml/2019/6/23/23
-> [2] https://www.spinics.net/lists/linux-mm/msg185889.html
-> 
-> Song Liu (2):
->   khugepaged: enable collapse pmd for pte-mapped THP
->   uprobe: collapse THP pmd after removing all uprobes
+On Wed, Jul 31, 2019 at 10:05 PM Kees Cook <keescook@chromium.org> wrote:
+>
+> On Wed, Jul 31, 2019 at 12:35:09PM -0700, Matthew Wilcox wrote:
+> > On Wed, Jul 31, 2019 at 03:32:40PM -0400, Laura Abbott wrote:
+> > > Fix this by ensuring the value we set with set_freepointer is either =
+NULL
+> > > or another value in the chain.
+> > >
+> > > Reported-by: kernel test robot <rong.a.chen@intel.com>
+> > > Signed-off-by: Laura Abbott <labbott@redhat.com>
+> >
+> > Fixes: 6471384af2a6 ("mm: security: introduce init_on_alloc=3D1 and ini=
+t_on_free=3D1 boot options")
+>
+> Reviewed-by: Kees Cook <keescook@chromium.org>
+Reviewed-by: Alexander Potapenko <glider@google.com>
+>
+> --
+> Kees Cook
 
-Looks good for the start.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
 
--- 
- Kirill A. Shutemov
+--=20
+Alexander Potapenko
+Software Engineer
+
+Google Germany GmbH
+Erika-Mann-Stra=C3=9Fe, 33
+80636 M=C3=BCnchen
+
+Gesch=C3=A4ftsf=C3=BChrer: Paul Manicle, Halimah DeLaine Prado
+Registergericht und -nummer: Hamburg, HRB 86891
+Sitz der Gesellschaft: Hamburg
 
