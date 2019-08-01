@@ -2,193 +2,166 @@ Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A3A97C19759
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 05:48:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CDA3DC19759
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 06:08:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 649B42089E
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 05:48:09 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 649B42089E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 7EDAE206A3
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 06:08:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7EDAE206A3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E74D08E0003; Thu,  1 Aug 2019 01:48:08 -0400 (EDT)
+	id BF40B8E0003; Thu,  1 Aug 2019 02:08:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DFC318E0001; Thu,  1 Aug 2019 01:48:08 -0400 (EDT)
+	id BA3D78E0001; Thu,  1 Aug 2019 02:08:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CEBE38E0003; Thu,  1 Aug 2019 01:48:08 -0400 (EDT)
+	id A92578E0003; Thu,  1 Aug 2019 02:08:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EB1C8E0001
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 01:48:08 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id d27so44006010eda.9
-        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 22:48:08 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5C5848E0001
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 02:08:00 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id a5so27154121wrt.3
+        for <linux-mm@kvack.org>; Wed, 31 Jul 2019 23:08:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=MxmSwMz1Eu5n5J+AS9xPKWYDeLJxJptueVgGgi4JSeU=;
-        b=cOzYM6Nk6OwVm5Kw10BSmb9f4uFF2YryaaeSqCTx7YYTf5LiCrXNhGnf13jq/Qt3AG
-         i9zh4cJT9A2wJUdvvO4vd5qf1uh2Od5V6OqKkTk5ztNRHlG7nrovPHwiJUk8rZDINnh6
-         VoM2iK6ZpNLIW+Jd4tyGHxJS46xRTvP67fFsqd22uCqOBoVzTfQhyQat7t/8M0T3nO28
-         weMga+slMZIIqfmEBCc5+LWys+2zfGSjMJqartkWYW44UEEEeKIVL+h0TrhB3aCl4Da6
-         8VbBD20TUFO1bGMJfPeHhNpPHEqpSwtGSP0v0N+HvBm3Q6FbH6QewtOvJbx7v/y8Zn3W
-         OLQw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAVSCPUlpcOYD3I89CmRox8m9UouH/lhC9wvFDyS/u3+KHFituOh
-	3AqDKfqdZ7scNY/IsSHZi4uerDZtFSMVYwFSoT21FjbAdS2fr9XFo0+TB8uV78O3g2fTdeoRy72
-	9kTHMg5g7VFAGkymsBB090KhVdds7NTnTau7n/1BYEidQgtYfg3MLROCV+KJZ6/GpJg==
-X-Received: by 2002:a17:906:3018:: with SMTP id 24mr13362844ejz.187.1564638487950;
-        Wed, 31 Jul 2019 22:48:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzan+0o+KNfWddWdoxz69FEyOS/XTP5+rkZBlZ1radhqFLu30IV6qZLj9TiMt8BYb/9ENog
-X-Received: by 2002:a17:906:3018:: with SMTP id 24mr13362799ejz.187.1564638486934;
-        Wed, 31 Jul 2019 22:48:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564638486; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=VQcYPtHxzMzUXVDsuQUJCCEVEdVeXdGSm3Qi6JZs/dA=;
+        b=QD2O5FjywMjk1YTzxfWKfzS1T+xZypiQJK5mZuETDaSEzS02Pi7Ej+d7DNx1dVvsh2
+         M1mgWYkGtYPC4776suhMdz82AjpQx6Gfo4L9+SFJLGiaMsjvoke+283PrtJVZ3ypxMtR
+         keuqXv7D6EWucD8dHcC9oPLLlyEbWvHYSkjRh4u+EW//cpuXy7bFlCjJiqt14NxyO7js
+         aVker27XSX9NsxmyumwDzl+ZHO6lG7+mRd4J6gNRnqUMoZk4HXnj3cHz1N/LrxCQDHzu
+         /tW/97PRQw7EEitONkPT4oenhK+zGZFlzjk03byb2uWn33Vh9NlBusOSaMXCruU7n2L8
+         Xy9A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAUGMi4/bRneZS/qkDdZfS8jwtgRnrJLLMplCKxnotfdcv1prqnw
+	PFOMEETfeIjLxeCDd3tQu6R1coKbt2JHemxACaFj3+K5ECeeMGz3/ij1DbKDHPIp8VGvPHL0HMB
+	eakG4dNv+JsyREojqDQ45OfZdrD0SLV5f2moOr96PYVfG8tV3o/y5o/GFrutscj11mA==
+X-Received: by 2002:a1c:c78d:: with SMTP id x135mr106946694wmf.82.1564639679857;
+        Wed, 31 Jul 2019 23:07:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw4de15b/0NaDt9ZyE4bkskzjZ3WkGTls9jC11IVBOxrPMpVBOUc74N1l6BVDPRt3qVS6+e
+X-Received: by 2002:a1c:c78d:: with SMTP id x135mr106946642wmf.82.1564639679087;
+        Wed, 31 Jul 2019 23:07:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564639679; cv=none;
         d=google.com; s=arc-20160816;
-        b=ufH4+aiVSWZVbiMM5rjFLQIhbPMXsa5oJDmLTF7jSaR7aLoJF4l1GSAAsAu5OUqZYb
-         H/2qOLfwykXsowYsIV1ntg3kkq0trpafa/BkQ2zpFUQE/j1iaB5gwhFgsCAYOqOIQ6c4
-         r93fD5zCx3Gz2yMgPimPz8wznzNfVvu1OovvJfCEYmAWiB+mlEk5rHzzdqyIf4I4zNFO
-         dF2fWMOk3mWTFltRs5WAQZA4bzVLwMD77QJ3oRknJh7oYO7VyhnfhgWP3of6wBHP1VAU
-         Z7xOlLiZiRUdRR3guauHQlYU0PrbB/PPPqCTLYiUI+MvMnbKQwmV1tiqCosVKJJe4yzW
-         C0Rw==
+        b=WHvGjUoUjugJbOFFGPgPIVS8MNF+2aPajhl/RQNUwZ6xDlR6/hVf33b8z7FIqsFWou
+         FhhBYp5tlMhELa+wzKsqai4x/dnw3ohpBNhV881Z9SRyVxyc5YUFbAlmc7AetlUKgz4g
+         k4KRrJShqGuoq/sBiHceNC/Mmax0tMHBlHHLI8g8wHRj5dyMi2/ZrD4e0ERmK6DSXUqb
+         ZjolLox/FYNLwFXSZeH2L+yYnqVy1AFBLvxNfib5IUFOCjrNFn2mu8hei8Tyvmstl9bq
+         8f4zhFzGRQVPXkvy+nUD5+peugBltRx4o64WwTnxvqPqqioUnJ4KD4RVH1HITKGkR7Pi
+         gwKA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=MxmSwMz1Eu5n5J+AS9xPKWYDeLJxJptueVgGgi4JSeU=;
-        b=yOTcTt4xcQ5MiTH2l+LQkH/NXQ8zSPwZXolVaU4i36NRPguox+mtE2PARXUeMjvM7Q
-         yDjUDDkRjuYL8pbz7EIoK9YR8wzomau/p39N+DTBohfXOQ9IhgLGhzKGlkVx/8hNWiWd
-         e5e1Vp8IjtxKpipJpmqbrB+xQHbCMMbKkp8DkJLcASxpQM3J1n3qLVhwqICUm0mPUZt4
-         YpfWfQNiYgQTJ7hFRRmeXMTGncz7BojbEfeyB6sTJahXNvcuXmrQ4Bdel18NrODqiiH4
-         S3WNvuZJuW7G5tvbUxUMTuNwp6VtVseahiU89J+vlOAZGwP/p+AesBCT9ASMETNggHeN
-         N33w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=VQcYPtHxzMzUXVDsuQUJCCEVEdVeXdGSm3Qi6JZs/dA=;
+        b=pbcRKNsFI7tQAWC10VA1BZ2XerEpqNc637J1HQi3PgzKA25a0KDnkcPyP5XIB3pATP
+         /a+jheSUwiUj4+OWbi0WoJf+UGcY3uJJOldHNzYVluIw7XjLk1k4BAchxDu7oqs4PcDE
+         JclY6iPKCeYMPNGY7FE/wT6qWf2+mLokHmzKssZ8yleUfDFjTrHkdYuDq+okUm7CHnKi
+         wPwRQxqAKJ/64mhQiKcGVXLP416OTk8Yp37lUJZ9w7os0MAeAHnW4bBA2tgQvsERl1th
+         ZKj1itzyI+h0d1jCmBhLBPchLy59jynBuk5oySkDhCxpyeVmMSKUWMUs0P45V6CfxVkb
+         GraQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id v30si21278616ejk.208.2019.07.31.22.48.06
-        for <linux-mm@kvack.org>;
-        Wed, 31 Jul 2019 22:48:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id n7si33844300wrj.323.2019.07.31.23.07.58
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 31 Jul 2019 23:07:59 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id DC921337;
-	Wed, 31 Jul 2019 22:48:05 -0700 (PDT)
-Received: from [10.163.1.81] (unknown [10.163.1.81])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 0BE013F694;
-	Wed, 31 Jul 2019 22:50:07 -0700 (PDT)
-Subject: Re: [PATCH] fork: Improve error message for corrupted page tables
-To: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: dave.hansen@intel.com, Ingo Molnar <mingo@kernel.org>,
- Peter Zijlstra <peterz@infradead.org>,
- Andrew Morton <akpm@linux-foundation.org>
-References: <20190730221820.7738-1-sai.praneeth.prakhya@intel.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <56ad91b8-1ea0-6736-5bc5-eea0ced01054@arm.com>
-Date: Thu, 1 Aug 2019 11:18:38 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by verein.lst.de (Postfix, from userid 2407)
+	id 9C9C468B05; Thu,  1 Aug 2019 08:07:55 +0200 (CEST)
+Date: Thu, 1 Aug 2019 08:07:55 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: john.hubbard@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Al Viro <viro@zeniv.linux.org.uk>,
+	Christian Benvenuti <benve@cisco.com>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	"Darrick J . Wong" <darrick.wong@oracle.com>,
+	Dave Chinner <david@fromorbit.com>, Ira Weiny <ira.weiny@intel.com>,
+	Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
+	Jens Axboe <axboe@kernel.dk>, Jerome Glisse <jglisse@redhat.com>,
+	"Kirill A . Shutemov" <kirill@shutemov.name>,
+	Matthew Wilcox <willy@infradead.org>,
+	Michal Hocko <mhocko@kernel.org>,
+	Mike Marciniszyn <mike.marciniszyn@intel.com>,
+	Mike Rapoport <rppt@linux.ibm.com>, linux-block@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+	linux-xfs@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
+	John Hubbard <jhubbard@nvidia.com>, Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH v4 1/3] mm/gup: add make_dirty arg to
+ put_user_pages_dirty_lock()
+Message-ID: <20190801060755.GA14893@lst.de>
+References: <20190730205705.9018-1-jhubbard@nvidia.com> <20190730205705.9018-2-jhubbard@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <20190730221820.7738-1-sai.praneeth.prakhya@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190730205705.9018-2-jhubbard@nvidia.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Jul 30, 2019 at 01:57:03PM -0700, john.hubbard@gmail.com wrote:
+> @@ -40,10 +40,7 @@
+>  static void __qib_release_user_pages(struct page **p, size_t num_pages,
+>  				     int dirty)
+>  {
+> -	if (dirty)
+> -		put_user_pages_dirty_lock(p, num_pages);
+> -	else
+> -		put_user_pages(p, num_pages);
+> +	put_user_pages_dirty_lock(p, num_pages, dirty);
+>  }
 
+__qib_release_user_pages should be removed now as a direct call to
+put_user_pages_dirty_lock is a lot more clear.
 
-On 07/31/2019 03:48 AM, Sai Praneeth Prakhya wrote:
-> When a user process exits, the kernel cleans up the mm_struct of the user
-> process and during cleanup, check_mm() checks the page tables of the user
-> process for corruption (E.g: unexpected page flags set/cleared). For
-> corrupted page tables, the error message printed by check_mm() isn't very
-> clear as it prints the loop index instead of page table type (E.g: Resident
-> file mapping pages vs Resident shared memory pages). Hence, improve the
-> error message so that it's more informative.
+> index 0b0237d41613..62e6ffa9ad78 100644
+> --- a/drivers/infiniband/hw/usnic/usnic_uiom.c
+> +++ b/drivers/infiniband/hw/usnic/usnic_uiom.c
+> @@ -75,10 +75,7 @@ static void usnic_uiom_put_pages(struct list_head *chunk_list, int dirty)
+>  		for_each_sg(chunk->page_list, sg, chunk->nents, i) {
+>  			page = sg_page(sg);
+>  			pa = sg_phys(sg);
+> -			if (dirty)
+> -				put_user_pages_dirty_lock(&page, 1);
+> -			else
+> -				put_user_page(page);
+> +			put_user_pages_dirty_lock(&page, 1, dirty);
+>  			usnic_dbg("pa: %pa\n", &pa);
 
-The loop index in check_mm() also happens to be the index in rss_stat[] which
-represents individual memory type stats. But you are right, index value here
-in the print does not make any sense.
+There is a pre-existing bug here, as this needs to use the sg_page
+iterator.  Probably worth throwing in a fix into your series while you
+are at it.
 
-> 
-> Without patch:
-> --------------
-> [  204.836425] mm/pgtable-generic.c:29: bad p4d 0000000089eb4e92(800000025f941467)
-> [  204.836544] BUG: Bad rss-counter state mm:00000000f75895ea idx:0 val:2
-> [  204.836615] BUG: Bad rss-counter state mm:00000000f75895ea idx:1 val:5
-> [  204.836685] BUG: non-zero pgtables_bytes on freeing mm: 20480
-> 
-> With patch:
-> -----------
-> [   69.815453] mm/pgtable-generic.c:29: bad p4d 0000000084653642(800000025ca37467)
-> [   69.815872] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_FILEPAGES val:2
-> [   69.815962] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_ANONPAGES val:5
-> [   69.816050] BUG: non-zero pgtables_bytes on freeing mm: 20480
+> @@ -63,15 +63,7 @@ struct siw_mem *siw_mem_id2obj(struct siw_device *sdev, int stag_index)
+>  static void siw_free_plist(struct siw_page_chunk *chunk, int num_pages,
+>  			   bool dirty)
+>  {
+> -	struct page **p = chunk->plist;
+> -
+> -	while (num_pages--) {
+> -		if (!PageDirty(*p) && dirty)
+> -			put_user_pages_dirty_lock(p, 1);
+> -		else
+> -			put_user_page(*p);
+> -		p++;
+> -	}
+> +	put_user_pages_dirty_lock(chunk->plist, num_pages, dirty);
 
-Yes, this is definitely better.
+siw_free_plist should just go away now.
 
-> 
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Suggested-by/Acked-by: Dave Hansen <dave.hansen@intel.com>
-
-Though I am not sure, should the above be two separate lines instead ?
-
-> Signed-off-by: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
-> ---
->  include/linux/mm_types_task.h | 7 +++++++
->  kernel/fork.c                 | 4 ++--
->  2 files changed, 9 insertions(+), 2 deletions(-)
-> 
-> diff --git a/include/linux/mm_types_task.h b/include/linux/mm_types_task.h
-> index d7016dcb245e..881f4ea3a1b5 100644
-> --- a/include/linux/mm_types_task.h
-> +++ b/include/linux/mm_types_task.h
-> @@ -44,6 +44,13 @@ enum {
->  	NR_MM_COUNTERS
->  };
->  
-> +static const char * const resident_page_types[NR_MM_COUNTERS] = {
-> +	"MM_FILEPAGES",
-> +	"MM_ANONPAGES",
-> +	"MM_SWAPENTS",
-> +	"MM_SHMEMPAGES",
-> +};
-
-Should index them to match respective typo macros.
-
-	[MM_FILEPAGES] = "MM_FILEPAGES",
-	[MM_ANONPAGES] = "MM_ANONPAGES",
-	[MM_SWAPENTS] = "MM_SWAPENTS",
-	[MM_SHMEMPAGES] = "MM_SHMEMPAGES",
-
-> +
->  #if USE_SPLIT_PTE_PTLOCKS && defined(CONFIG_MMU)
->  #define SPLIT_RSS_COUNTING
->  /* per-thread cached information, */
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index 2852d0e76ea3..6aef5842d4e0 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -649,8 +649,8 @@ static void check_mm(struct mm_struct *mm)
->  		long x = atomic_long_read(&mm->rss_stat.count[i]);
->  
->  		if (unlikely(x))
-> -			printk(KERN_ALERT "BUG: Bad rss-counter state "
-> -					  "mm:%p idx:%d val:%ld\n", mm, i, x);
-> +			pr_alert("BUG: Bad rss-counter state mm:%p type:%s val:%ld\n",
-> +				 mm, resident_page_types[i], x);
-It changes the print function as well, though very minor change but perhaps
-mention that in the commit message ?
+Otherwise this looks good to me.
 
