@@ -2,168 +2,214 @@ Return-Path: <SRS0=cJsh=V5=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.5 required=3.0 tests=MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AB932C433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 14:04:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8EDDC19759
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 14:06:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 74DF3214DA
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 14:04:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 74DF3214DA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 667CE20838
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 14:06:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 667CE20838
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C9BA8E0017; Thu,  1 Aug 2019 10:04:58 -0400 (EDT)
+	id 0533A8E0018; Thu,  1 Aug 2019 10:06:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 02BDC8E0001; Thu,  1 Aug 2019 10:04:57 -0400 (EDT)
+	id 003508E0001; Thu,  1 Aug 2019 10:06:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E36888E0017; Thu,  1 Aug 2019 10:04:57 -0400 (EDT)
+	id E34168E0018; Thu,  1 Aug 2019 10:06:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 938978E0001
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 10:04:57 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id i6so35407618wre.1
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 07:04:57 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 932828E0001
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 10:06:42 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id l14so44943837edw.20
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 07:06:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=YGCp3WnRy55OAoIwvD1C6aZvr5KPp1dJlrn5QrAMEWg=;
-        b=r5OCo+IzoSF4dCXrI10/A0AFB5ZKKtlZAtfQo5hHIh6hucsSUDtelWfu60fRQh8k+R
-         c9bPIs//oIE0HIKCaTLyPUUYc7XMgo7H0nv4WRgMYgBgRY8MnNAbNRvX7FPqDghPtOni
-         F0hCh03EDBL6uTq35S+pIky0bwPKI228ZxLIyVD4bUVyMeaoleszLm1hid8OGO04/uXW
-         E4NS/5+UPuI7vhpm7VdVCDF7B3+m4hBIMZyxbm3wp1BBBvELpVGsnjA3o8CgAOj4hg75
-         AhvH2cJs1hIs25gob7HxWpeyZld5uJ7S77g2zyQZKmEpoAUsWYlX9a1jF/+r3R/ZsKQN
-         EbeQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAXJQg82MGuy79+l3Yfmmfnx+uTTDOKHaBfa1uAOKsQEPEMtGSbT
-	xtvFazryCGopXnCdd6Ft43BPKX7JXpl1KTHf5Y1aRqvm4LNud59YS6XEXnpK8FUpE+Yy8wIs/QR
-	IRvpKg4YzZh+V2bZ2SmkuQFsXRF8dQYRQk78ZXAUPVqTj/+U7WQqcZQUhYWSNmjZY/w==
-X-Received: by 2002:a1c:9c8a:: with SMTP id f132mr116864568wme.29.1564668297131;
-        Thu, 01 Aug 2019 07:04:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzL5mXwMRU7XknBWvZQfBDFFyku9Yd7aC05S8OvMIRdTlM77oY9SZysnDru1PeTQMdDYneO
-X-Received: by 2002:a1c:9c8a:: with SMTP id f132mr116864490wme.29.1564668295968;
-        Thu, 01 Aug 2019 07:04:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564668295; cv=none;
+        bh=DwjmtomE8I2hqDHJ9yMU5T/xNv8OrkpuhJgP+fexi8Q=;
+        b=RHuwtGXhhXAsMeub0jmG2xGAI0XQycdbCKaWyZoZKus59KaObPMT7sGZ0/DnVLaN4q
+         VyuJ9pM3N0ULtMXwyqvLO757CUuOME0CnNelzRxJO8aP0767DRqFtdwzs9+ty4q2GNaw
+         Mbz1gdXN8hpiE0ql6KjxOlX9eBfTAVyvp84a/XTJbL0JkSh02a9FB4V8VXnkZaWRBHBY
+         D2gnic/AddPWwXRL094exAz+zr27c5UlTFIDArnRHMCX5UXLFnjHiYVM0g9d1NgYyK4L
+         eszWz/nWzoT8KBqP+d0qq+jcdq0JI0AT/10nkByCd+fl+ldq5EID6Gjh/hiN6iEFM7U8
+         b9KQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAVNMmj1f8h+i1Uj/NYJ79IfRP8s5RtLrkTgvEVfxoeEdXGjgCA4
+	gKJKLCzUsGkJzkIKnNzvuuiYJ32zGFodzNZ++LeEmnMbxCB1XjUUTxENAzQo7RoOL58VZeJ+9dh
+	S/r/SHkmEbIcSLD1vFIH4zw25eIIhGVr3WVHWrVYEiUSoGD7r6rxKSOZxfsjR5Cg=
+X-Received: by 2002:aa7:cf8e:: with SMTP id z14mr113520096edx.40.1564668402136;
+        Thu, 01 Aug 2019 07:06:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx0lUsfyUNb/FoNoki3P2/kMvaW1YnizfxOwTgUfH9gzkfz3Or2g6bY9yXhziT/GplVDaQB
+X-Received: by 2002:aa7:cf8e:: with SMTP id z14mr113519970edx.40.1564668401138;
+        Thu, 01 Aug 2019 07:06:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564668401; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ejsk9O/LusL/gG6IfI/jlADPKL36KI41lvxPw+3Hsk7fFhZnkMUt687LP5bb2IAauk
-         rPre/iVMZHTc+ueGVBLKWSeGTJFeMqlsuJ1losZtNmrs86ChCxFakJcf25eyEZAdW4Cz
-         5vZ9KA1BLC8uRCEShAvDB5Ev4BezwGD0f713QE0RoRIV8SqYQpeU21OreEDfW4japl94
-         U70vG3/2kebMRZ1xqj+ys3X+UvJY0fa95fs8q6j2cU4yufja9aHdula62SrXK9VrrMPp
-         Q/sYRkK5QNBjlpRrexFzWJiZXvgep+5p233P3LUaf9uU5yRS8kABN5wBqAt2PKKiheTn
-         Zh5A==
+        b=A/HJAxj9CYfZHRTH/upnKvrZwIAQtv6yRP8QU5XUqVNdERn0bHom/Kyylb+4izFFwy
+         BkPvjOTlKZtmAj4Byq8mgoUMgE9UbaAAXvkjL6hbkG0tNAMQPOVARv2mc9dL/U+dnQgu
+         hDl3ehvufrwIEcd8bzX+6wayyTSf/o/6jd4ywtIr5ntuf5V3tym4lcfJ7+tslYV2eGO0
+         2Rm+yaAyOZ/xaobWinZAZ/TzphAJMiW6ulPF5H97RDoXsbolIeBKeGC4r65dpr8J5hbI
+         xTU9qd1vGE74/BakV35eEl8i5TVW1Mnxz7+2YTG2UkpgFtflL+UypFJHO7EA3XwWQ8I6
+         0Spw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=YGCp3WnRy55OAoIwvD1C6aZvr5KPp1dJlrn5QrAMEWg=;
-        b=LN4EOIXfeU+Ng1kwHsnICkBGwldNQSmdQ/+wad6hot0nKZNP49BhNv0Kn1mVZxKT7p
-         dhW2rHOG1IbK6koSy1gD8FXFNJnmxAX+NO+6W45sdJI7djz42R7BmDUkQjC2xKMRruFp
-         xpmrSxFOhwX1yy/6GE6gUg6Jf0EMFsnibAWlBIOgpoPTd5vpO/5vmQsXMKQVPtJC69my
-         aO+NvBVvwyVEaTSMDF3R2g1kJZmrUEL/TNmjEtfIv30X61566/IBT8SdgRR9tEwWprJh
-         QPaf67xbW7KPvTlpUuAhtsnrH0PmYocEj3u9BVD5TDOm3Wi9pDIlU8h7wcN3GFAO0EIC
-         DcJA==
+        bh=DwjmtomE8I2hqDHJ9yMU5T/xNv8OrkpuhJgP+fexi8Q=;
+        b=VTnPMNk/cvgvsDtBegj1AhYdm6CK4/EiQt2FBEQKip+BUE3BtXYPtKRLeDkdDSaiN6
+         Fot6a4RqrQSPKy4d4flsrddjKRVjte9/g6tt/KaxaQ3Yfi78arkzGHxLBR/QminFrJ4v
+         op1aiLIvdv723Ac9YohRkWRLtS0A6Gvs8LLZ/6K2fNccSBEPTq/ytnM1K6cjcCehZGi7
+         LaUhSMBJRl07EToHQX97l+f1/Ites8ba574wsW8cNDhtSEmTStWGq/RDyVBZUWYWjDse
+         rRmkQCvZrLe5nJQ4/0h1IwzJK+vYfaQOiFJnLkYF/VX/LcIMpi2Qx96q1+aa5wAWdkYa
+         c9IQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id s128si55389577wmf.128.2019.08.01.07.04.55
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id ha23si13209636ejb.56.2019.08.01.07.06.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Aug 2019 07:04:55 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Thu, 01 Aug 2019 07:06:41 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by verein.lst.de (Postfix, from userid 2407)
-	id 5620168AFE; Thu,  1 Aug 2019 16:04:52 +0200 (CEST)
-Date: Thu, 1 Aug 2019 16:04:52 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
-Cc: catalin.marinas@arm.com, hch@lst.de, wahrenst@gmx.net,
-	marc.zyngier@arm.com, Robin Murphy <robin.murphy@arm.com>,
-	linux-arm-kernel@lists.infradead.org, devicetree@vger.kernel.org,
-	iommu@lists.linux-foundation.org, linux-mm@kvack.org,
-	Marek Szyprowski <m.szyprowski@samsung.com>, phill@raspberryi.org,
-	f.fainelli@gmail.com, will@kernel.org, linux-kernel@vger.kernel.org,
-	robh+dt@kernel.org, eric@anholt.net, mbrugger@suse.com,
-	akpm@linux-foundation.org, frowand.list@gmail.com,
-	linux-rpi-kernel@lists.infradead.org,
-	Benjamin Herrenschmidt <benh@kernel.crashing.org>,
-	Paul Mackerras <paulus@samba.org>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	Vasily Gorbik <gor@linux.ibm.com>,
-	Christian Borntraeger <borntraeger@de.ibm.com>,
-	linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org
-Subject: Re: [PATCH 6/8] dma-direct: turn ARCH_ZONE_DMA_BITS into a variable
-Message-ID: <20190801140452.GB23435@lst.de>
-References: <20190731154752.16557-1-nsaenzjulienne@suse.de> <20190731154752.16557-7-nsaenzjulienne@suse.de>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 92EAAB6AB;
+	Thu,  1 Aug 2019 14:06:40 +0000 (UTC)
+Date: Thu, 1 Aug 2019 16:06:10 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Jan Hadrava <had@kam.mff.cuni.cz>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	wizards@kam.mff.cuni.cz, Kirill Tkhai <ktkhai@virtuozzo.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Yang Shi <yang.shi@linux.alibaba.com>,
+	Shakeel Butt <shakeelb@google.com>
+Subject: Re: [BUG]: mm/vmscan.c: shrink_slab does not work correctly with
+ memcg disabled via commandline
+Message-ID: <20190801140610.GM11627@dhcp22.suse.cz>
+References: <20190801134250.scbfnjewahbt5zui@kam.mff.cuni.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190731154752.16557-7-nsaenzjulienne@suse.de>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+In-Reply-To: <20190801134250.scbfnjewahbt5zui@kam.mff.cuni.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-A few nitpicks, otherwise this looks great:
+Cc few more people
 
-> @@ -201,7 +202,7 @@ static int __init mark_nonram_nosave(void)
->   * everything else. GFP_DMA32 page allocations automatically fall back to
->   * ZONE_DMA.
->   *
-> - * By using 31-bit unconditionally, we can exploit ARCH_ZONE_DMA_BITS to
-> + * By using 31-bit unconditionally, we can exploit arch_zone_dma_bits to
->   * inform the generic DMA mapping code.  32-bit only devices (if not handled
->   * by an IOMMU anyway) will take a first dip into ZONE_NORMAL and get
->   * otherwise served by ZONE_DMA.
-> @@ -237,9 +238,18 @@ void __init paging_init(void)
->  	printk(KERN_DEBUG "Memory hole size: %ldMB\n",
->  	       (long int)((top_of_ram - total_ram) >> 20));
->  
-> +	/*
-> +	 * Allow 30-bit DMA for very limited Broadcom wifi chips on many
-> +	 * powerbooks.
-> +	 */
-> +	if (IS_ENABLED(CONFIG_PPC32))
-> +		arch_zone_dma_bits = 30;
-> +	else
-> +		arch_zone_dma_bits = 31;
-> +
+On Thu 01-08-19 15:42:50, Jan Hadrava wrote:
+> There seems to be a bug in mm/vmscan.c shrink_slab function when kernel is
+> compilled with CONFIG_MEMCG=y and it is then disabled at boot with commandline
+> parameter cgroup_disable=memory. SLABs are then not getting shrinked if the
+> system memory is consumed by userspace.
 
-So the above unconditionally comment obviously isn't true any more, and
-Ben also said for the recent ppc32 hack he'd prefer dynamic detection.
+This looks similar to http://lkml.kernel.org/r/1563385526-20805-1-git-send-email-yang.shi@linux.alibaba.com
+although the culprit commit has been identified to be different. Could
+you try it out please? Maybe we need more fixes.
 
-Maybe Ben and or other ppc folks can chime in an add a patch to the series
-to sort this out now that we have a dynamic ZONE_DMA threshold?
+keeping the rest of the email for the reference
 
-> diff --git a/kernel/dma/direct.c b/kernel/dma/direct.c
-> index 59bdceea3737..40dfc9b4ee4c 100644
-> --- a/kernel/dma/direct.c
-> +++ b/kernel/dma/direct.c
-> @@ -19,9 +19,7 @@
->   * Most architectures use ZONE_DMA for the first 16 Megabytes, but
->   * some use it for entirely different regions:
->   */
-> -#ifndef ARCH_ZONE_DMA_BITS
-> -#define ARCH_ZONE_DMA_BITS 24
-> -#endif
-> +unsigned int arch_zone_dma_bits __ro_after_init = 24;
+> This issue is present in linux-stable 4.19 and all newer lines.
+>     (tested on git tags v5.3-rc2 v5.2.5 v5.1.21 v4.19.63)
+> And it is no not present in 4.14.135 (v4.14.135).
+> 
+> Git bisect is pointing to commit:
+> 	b0dedc49a2daa0f44ddc51fbf686b2ef012fccbf
+> 
+> Particulary the last hunk seems to be causing it:
+> 
+> @@ -585,13 +657,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>                         .memcg = memcg,
+>                 };
+> 
+> -               /*
+> -                * If kernel memory accounting is disabled, we ignore
+> -                * SHRINKER_MEMCG_AWARE flag and call all shrinkers
+> -                * passing NULL for memcg.
+> -                */
+> -               if (memcg_kmem_enabled() &&
+> -                   !!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+> +               if (!!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+>                         continue;
+> 
+>                 if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
+> 
+> Following commit aeed1d325d429ac9699c4bf62d17156d60905519
+> deletes conditional continue (and so it fixes the problem). But it is creating
+> similar issue few lines earlier:
+> 
+> @@ -644,7 +642,7 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>         struct shrinker *shrinker;
+>         unsigned long freed = 0;
+> 
+> -       if (memcg && !mem_cgroup_is_root(memcg))
+> +       if (!mem_cgroup_is_root(memcg))
+>                 return shrink_slab_memcg(gfp_mask, nid, memcg, priority);
+> 
+>         if (!down_read_trylock(&shrinker_rwsem))
+> @@ -657,9 +655,6 @@ static unsigned long shrink_slab(gfp_t gfp_mask, int nid,
+>                         .memcg = memcg,
+>                 };
+> 
+> -               if (!!memcg != !!(shrinker->flags & SHRINKER_MEMCG_AWARE))
+> -                       continue;
+> -
+>                 if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
+>                         sc.nid = 0;
+> 
+> 
+> How was the bisection done:
+> 
+>  - Compile kernel with x86_64_defconfig + CONFIG_MEMCG=y
+>  - Boot VM with cgroup_disable=memory and filesystem with 500k Inodes and run
+>    simple script on it:
+>    - Observe number of active objects of ext4_inode_cache
+>      --> around 400, but anything under 1000 was accepted by the bisect script
+> 
+>    - Call `find / > /dev/null`
+>    - Again observe number of active objects of ext4_inode_cache
+>      --> around 7000, but anything over 6000 was accepted by the script
+> 
+>    - Consume whole memory by simple program `while(1){ malloc(1); }` until it
+>      gets killed by oom-killer.
+>    - Again observe number of active objects of ext4_inode_cache
+>      --> around 7000, script threshold: >= 6000 --> bug is there
+>      --> around 100, script threshold <= 1000 --> bug not present
+> 
+> Real-world appearance:
+> 
+> We encountered this issue after upgrading kernel from 4.9 to 4.19 on our backup
+> server. (Debian Stretch userspace, upgrade to Debian Buster distribution kernel
+> or custom build 4.19.60.) The server has around 12 M of used inodes and only
+> 4 GB of RAM. Whenever we run the backup, memory gets quickly consumed by kernel
+> SLABs (mainly ext4_inode_cache). Userspace starts receiving a lot of hits by
+> oom-killer after that so the server is completly unusable until reboot.
+> 
+> We just removed the cgroup_disable=memory parameter on our server. Memory
+> footprint of memcg is significantly smaller then it used to be in the time we
+> started using this parameter. But i still think that mentioned behaviour is a
+> bug and should be fixed.
+> 
+> By the way, it seems like the raspberrypi kernel was fighting this issue as well:
+> 	https://github.com/raspberrypi/linux/issues/2829
+> If I'm reading correctly: they disabled memcg via commandline due to some
+> memory leaks. Month later: they hit this issue and reenabled memcg.
+> 
+> 
+> Thanks,
+> Jan
 
-I'd prefer to drop the arch_ prefix and just calls this zone_dma_bits.
-In the long run we really need to find a way to just automatically set
-this from the meminit code, but that is out of scope for this series.
-For now can you please just update the comment above to say something
-like:
-
-/*
- * Most architectures use ZONE_DMA for the first 16 Megabytes, but some use it
- * it for entirely different regions.  In that case the arch code needs to
- * override the variable below for dma-direct to work properly.
- */
+-- 
+Michal Hocko
+SUSE Labs
 
