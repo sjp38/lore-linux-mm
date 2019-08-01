@@ -6,235 +6,193 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DA322C19759
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 08:44:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 12589C19759
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 08:44:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8B0B2216C8
-	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 08:44:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B0B2216C8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id C5E63216C8
+	for <linux-mm@archiver.kernel.org>; Thu,  1 Aug 2019 08:44:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C5E63216C8
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 207628E0003; Thu,  1 Aug 2019 04:44:42 -0400 (EDT)
+	id 737F98E0005; Thu,  1 Aug 2019 04:44:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1B97E8E0001; Thu,  1 Aug 2019 04:44:42 -0400 (EDT)
+	id 6E9D78E0001; Thu,  1 Aug 2019 04:44:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 081AB8E0003; Thu,  1 Aug 2019 04:44:42 -0400 (EDT)
+	id 5B0478E0005; Thu,  1 Aug 2019 04:44:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id D94CF8E0001
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 04:44:41 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id z13so60547218qka.15
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 01:44:41 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F0998E0001
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 04:44:47 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id y24so44396981edb.1
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 01:44:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=ySZnW3P5HdWDOuRz49nSCLDCln/WQG1asJkvWWv4ffQ=;
-        b=q8spCBMtshV3aAz/sTo6yAJiJTjl9N3Y/AUMot4Zn3iEjgXhTQfPGqh4jebl+/Z1tx
-         HQVmX+sEQMFYAEE36ccdQ6Jhj6fKQMAy2FCrYW7BdEwsdFnWz0Do9ZdFxMGuZyzNJ4Yn
-         B+aq8579RTTMI8SWMaGt93hwhXjuiZwanMNyfxG5VWSZr2o2mHrKdSZCznhYEWFbHX5I
-         HokDot2wv1mV+uynZKFAylOT1V4E13AUnd+8D0xVs6rQHIeVVLpxJqRrrg2JpNrZlx8u
-         LY33qNpmZogdCeLy6iYuWvQpSnlMNdk6DWxLGYGunW5enpq8R/fMwXDqeOeUPTwlfqBB
-         whMw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVgAZaUo4qfan71hytsDfMpPLI/uq6HUmSMvIWfOJSoZsNwWzCH
-	YhzWUzrMiKnMElgAcZ/tqlq0A3XWGubCzaNnqT02pCNu6Xws7/X5YFl6LgVTLSPXauJ3PGT890a
-	QIG3RMwEAhMKf3FNH1KhE7yeRJ8cCcl9rq2I5+eUhnC2KbVwTlhxfVhZudfIpcfmKtQ==
-X-Received: by 2002:a37:49c2:: with SMTP id w185mr75627963qka.407.1564649081641;
-        Thu, 01 Aug 2019 01:44:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxqNYp5V+EyDgseWy19UlbBPnFBMVtsDpdhkjfbCTmAaDBm9CL7OPAUpN0/n/rzcWB0mloc
-X-Received: by 2002:a37:49c2:: with SMTP id w185mr75627937qka.407.1564649080778;
-        Thu, 01 Aug 2019 01:44:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564649080; cv=none;
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=0cf7p1EELyrcDesKm+lDAPPGEumROAtL34wOSVGZwBU=;
+        b=nHru+Tm1XNy0jdt3GqIYAwL5ypYcDi2KgjnTucP/y1mjRvgbTllPrawIGn9JR8sJej
+         +2BNpANfVPUzt7JvLAv7Z46XcbCEMq5bIiSiEV6V3IB/Y7RPJHjCBekGagLiU+pspUaD
+         pbq655W3kKlELWVsFXJ1FgpqwQdOWXKImPKJcH93jSSDdUkw99hAjEbrip8dnCqZUF02
+         5WZvxb5/HqDpn07h5MLX4o4b1XIXbnVmr9D6Htluo/MVJECRC1zAbWRd09c+9V5vtOrx
+         RlK8gglwc2x0d/uJluLJWxE6xk2aJyHXx2dCuAyF0FGtI3scihAp8iVXxAtqPkdibBz7
+         u3bw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAU26MNXA2bWaHvR2Npmzou3vZDGMDkMAALYOAFOAFb6/qxP59e/
+	zz2xyUFP3WINril96+jkMhX6AcTZnlZ2CvVclswzyQxOckEaambSUbFgNmpNeIwXpacVd/xG0jL
+	4v0c5vVeco+u4pIYDoHy0q7/5XIHNHiHSPBpWBRSaX1HLZ5hEu1nIsLCQtT8Spn9KKA==
+X-Received: by 2002:a50:ad0c:: with SMTP id y12mr109831237edc.25.1564649086645;
+        Thu, 01 Aug 2019 01:44:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwWrX8G5fgMkHXi5ZUPOo4EM7hPW/MBHUkpvj4T5xaHwmuVxvQ9bVnrbk+Ifw/bs/va1W+T
+X-Received: by 2002:a50:ad0c:: with SMTP id y12mr109831187edc.25.1564649085733;
+        Thu, 01 Aug 2019 01:44:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564649085; cv=none;
         d=google.com; s=arc-20160816;
-        b=u6bDfwA/xCJhtnvu5GKi/df7K82OGaOfz6wT37Q+zGSBodUhAPsQ99ZuGx/Xb5z7sh
-         adU1iBNF3dxHZMElCgt3a2vfsyi73xUxV2ePQr/+RtdygUgEHiWThOVa3eF27Ek/6hP/
-         DyGtLQJN3mgzuemyZeF4pUxO+ZDkfTZQdnheCxljUltDvhI5z/TgUravyST59O3q+xiW
-         OxguApsJE9er9PIH8hIZqgDODYqQCt/obm8xIUp1hB0FdJ2tOQbbw28SE+83rZqTahsU
-         aMMd+OMg4sLgE7t8+Illj/cq0RxKsbqvi3yRe9BhrDTD8EtiQzPKJtgKkuiDu/SHdPDx
-         EaIg==
+        b=MxBdlZz+Npr/VEu5vWkNWKHQkN7fWiMToG1za31iZUxkH7KG/RfY70if8PnCLh8Mck
+         baZgP7I/jLd207MwyxTSMamrJ6qQ/jr3RBtsYJd/niaxwu7Ee+BGeYaR2RhgD93eoAKp
+         21YRJwUbOpFn/1yiAvb2sYHVJnYovnci/nvAFqnwnPFRJOfMa2zdBl1eZm6nM1cfjrpw
+         Lpq7KgVRqAWz4xNFY+Bi/cW+M6zrbKnbmZHrLMEyks2E8SkrFYUbiYfx+l2dhGc+bAN9
+         A8EmjVj4l2OVOtURnyXtqC5mpXrRM0PvjYmfFCryyJLmfZFlU/1YIQie8ZwsqI3pnWrV
+         stKg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=ySZnW3P5HdWDOuRz49nSCLDCln/WQG1asJkvWWv4ffQ=;
-        b=NJuNiIKr8XhpZXAYIMNzVYwLW2hdhX73xjf7aZerc1fjRniK4yUh1Yae3KOxTxBq3z
-         hizQ9PFYiEPrpOWpPDQOcXssMg5hq3cqmaJjFZvfPopYQBeOpjNF2wQGf2XaDWUD6DXA
-         RNxaey5gQmZpLFT4ffksFGezUgVY+Ui4Q0bds6NT1JexZv5vbFFlp+dPRng32WyGXxq/
-         GOQ7P9pUkeWVJn0UcVqQy1wC/rCwbRBnl4wjBMJK19mRSOoUbKJ4C9zPDg0dJWnFgM7Z
-         t3HhxTZU7AC6g3KYSuwv6I+Tvh/dkqcVjcfFktBo4e/V1tTCmtRq7Zy2o9HtTmNGNmfI
-         DAKw==
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=0cf7p1EELyrcDesKm+lDAPPGEumROAtL34wOSVGZwBU=;
+        b=rCjIGxVBNe6jFuUkexMgMWXpX1tzVqv2Ri5wCYKZ60szAVbgpfKLKUPGh2lZMnIjLd
+         NX2qunm5pGFaudwSZzs50AGaHxdDCs5zmqgfibzQHiDURFYve9OEDK4z0TCtnVakWRN4
+         luwpc3jGTYtX3k5+N7O9wkEQhiqf4x6oVxP76oQAEFR8XRRNkgfPaGlp7xe1ANUl1Nx5
+         At8PORSARDKJudh6zy3anvOMNiwNtoOh8I750caTtdvdXpIz75+Etp1CyvzyLn4zhpp/
+         4FPuUw2GF3dy2xrzJvOQl+NpKFBG79tlwujDjO19650kxYXo2oFp412SOMFUpGbh7GKC
+         Lagg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id f7si38735951qkc.162.2019.08.01.01.44.40
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id o7si19462623ejx.186.2019.08.01.01.44.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Aug 2019 01:44:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 01 Aug 2019 01:44:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id D52A7300CB07;
-	Thu,  1 Aug 2019 08:44:39 +0000 (UTC)
-Received: from [10.36.116.245] (ovpn-116-245.ams2.redhat.com [10.36.116.245])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 8BA8E5D9CA;
-	Thu,  1 Aug 2019 08:44:36 +0000 (UTC)
-Subject: Re: [PATCH v3 0/5] Allocate memmap from hotadded memory
-To: Oscar Salvador <osalvador@suse.de>
-Cc: akpm@linux-foundation.org, dan.j.williams@intel.com,
- pasha.tatashin@soleen.com, mhocko@suse.com, anshuman.khandual@arm.com,
- Jonathan.Cameron@huawei.com, vbabka@suse.cz, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
-References: <20190725160207.19579-1-osalvador@suse.de>
- <20190801073931.GA16659@linux>
- <1e5776e4-d01e-fe86-57c3-1c3c27aae52f@redhat.com>
- <20190801083856.GA17316@linux>
-From: David Hildenbrand <david@redhat.com>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id E7840AE86;
+	Thu,  1 Aug 2019 08:44:44 +0000 (UTC)
+Subject: Re: [RFC PATCH 1/3] mm, reclaim: make should_continue_reclaim perform
+ dryrun detection
+To: Mike Kravetz <mike.kravetz@oracle.com>, Hillf Danton <hdanton@sina.com>,
+ Mel Gorman <mgorman@suse.de>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>,
+ Andrew Morton <akpm@linux-foundation.org>
+References: <20190724175014.9935-1-mike.kravetz@oracle.com>
+ <20190724175014.9935-2-mike.kravetz@oracle.com>
+ <20190725080551.GB2708@suse.de>
+ <295a37b1-8257-9b4a-b586-9a4990cc9d35@suse.cz>
+ <f6e25e52-bb02-6d79-b9fd-3acc8358ec45@oracle.com>
+From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <9673cceb-afae-ae77-1bd8-56e07c814cc0@redhat.com>
-Date: Thu, 1 Aug 2019 10:44:35 +0200
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <60b15fed-2110-c783-d48c-20a1d45f354d@suse.cz>
+Date: Thu, 1 Aug 2019 10:44:44 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190801083856.GA17316@linux>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <f6e25e52-bb02-6d79-b9fd-3acc8358ec45@oracle.com>
+Content-Type: text/plain; charset=iso-8859-15
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Thu, 01 Aug 2019 08:44:40 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 01.08.19 10:39, Oscar Salvador wrote:
-> On Thu, Aug 01, 2019 at 10:17:23AM +0200, David Hildenbrand wrote:
->> I am not yet sure about two things:
+On 7/31/19 11:11 PM, Mike Kravetz wrote:
+> On 7/31/19 4:08 AM, Vlastimil Babka wrote:
 >>
->>
->> 1. Checking uninitialized pages for PageVmemmap() when onlining. I
->> consider this very bad.
->>
->> I wonder if it would be better to remember for each memory block the pfn
->> offset, which will be used when onlining/offlining.
->>
->> I have some patches that convert online_pages() to
->> __online_memory_block(struct memory block *mem) - which fits perfect to
->> the current user. So taking the offset and processing only these pages
->> when onlining would be easy. To do the same for offline_pages(), we
->> first have to rework memtrace code. But when offlining, all memmaps have
->> already been initialized.
+>> I agree this is an improvement overall, but perhaps the patch does too
+>> many things at once. The reshuffle is one thing and makes sense. The
+>> change of the last return condition could perhaps be separate. Also
+>> AFAICS the ultimate result is that when nr_reclaimed == 0, the function
+>> will now always return false. Which makes the initial test for
+>> __GFP_RETRY_MAYFAIL and the comments there misleading. There will no
+>> longer be a full LRU scan guaranteed - as long as the scanned LRU chunk
+>> yields no reclaimed page, we abort.
 > 
-> This is true, I did not really like that either, but was one of the things
-> I came up.
-> I already have some ideas how to avoid checking the page, I will work on it.
-
-I think it would be best if we find some way that during
-onlining/offlining we skip the vmemmap part completely. (e.g., as
-discussed via an offset in the memblock or similar)
-
+> Can someone help me understand why nr_scanned == 0 guarantees a full
+> LRU scan?  FWICS, nr_scanned used in this context is only incremented
+> in shrink_page_list and potentially shrink_zones.  In the stall case I
+> am looking at, there are MANY cases in which nr_scanned is only a few
+> pages and none of those are reclaimed.
 > 
->> 2. Setting the Vmemmap pages to the zone of the online type. This would
->> mean we would have unmovable data on pages marked to belong to the
->> movable zone. I would suggest to always set them to the NORMAL zone when
->> onlining - and inititalize the vmemmap of the vmemmap pages directly
->> during add_memory() instead.
+> Can we not get nr_scanned == 0 on an arbitrary chunk of the LRU?
 > 
-> IMHO, having vmemmap pages in ZONE_MOVABLE do not matter that match.
-> They are not counted as managed_pages, and they are not show-stopper for
-> moving all the other data around (migrate), they are just skipped.
-> Conceptually, they are not pages we can deal with.
+> I must be missing something, because I do not see how nr_scanned == 0
+> guarantees a full scan.
 
-I am not sure yet about the implications of having these belong to a
-zone they don't hmmmm. Will the pages be PG_reserved?
-
-> 
-> I thought they should lay wherever the range lays.
-> Having said that, I do not oppose to place them in ZONE_NORMAL, as they might
-> fit there better under the theory that ZONE_NORMAL have memory that might not be
-> movable/migratable.
-> 
-> As for initializing them in add_memory(), we cannot do that.
-> First problem is that we first need sparse_mem_map_populate to create
-> the mapping, and to take the pages from our altmap.
-> 
-> Then, we can access and initialize those pages.
-> So we cannot do that in add_memory() because that happens before.
-> 
-> And I really think that it fits much better in __add_pages than in add_memory.
-
-Sorry, I rather meant when adding memory, not when onlining. But you
-seem to do that already. :)
-
-> 
-> Given said that, I would appreciate some comments in patches#3 and patches#4,
-> specially patch#4.
-
-Will have a look!
-
-> So I would like to collect some feedback in those before sending a new version.
-> 
-> Thanks David
-> 
-
-
--- 
-
-Thanks,
-
-David / dhildenb
+Yeah, seems like it doesn't. More reasons to update/remove the comment.
+Can be a followup cleanup if you don't want to block the series.
 
