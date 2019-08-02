@@ -2,135 +2,104 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B065DC32750
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 10:50:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 16377C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 11:44:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 778CA20880
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 10:50:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 778CA20880
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id BB674206A3
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 11:44:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BB674206A3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C7A76B0003; Fri,  2 Aug 2019 06:50:48 -0400 (EDT)
+	id 0C88E6B0003; Fri,  2 Aug 2019 07:44:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 079676B0005; Fri,  2 Aug 2019 06:50:48 -0400 (EDT)
+	id 079BC6B0005; Fri,  2 Aug 2019 07:44:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E5BE16B0006; Fri,  2 Aug 2019 06:50:47 -0400 (EDT)
+	id ED0F86B0006; Fri,  2 Aug 2019 07:44:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 99F976B0003
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 06:50:47 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id l26so46733229eda.2
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 03:50:47 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A29FB6B0003
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 07:44:42 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id n3so46769621edr.8
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 04:44:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=rqeIBpVoEZA+mlsj09N5LDYm1PHoFezq9EsYluLQ5mc=;
-        b=eCjO6QvMHL/e0UfBkH/Bw9wlhxbpMMO7Wgb4VXYdDvbAr/WtkyY4oxPRKVAWiw274A
-         ps7XnRcEdRrXgoBl1xciWz0MLoljSgnlMbV9hbVMp66Wfec8nrgcU+NQ9Gwv3Dg2fzui
-         MdxqxhRbY/jmFuwByHiTWC0m6+ULXwNxuMF4Qtdr0qryfUPTbCwac/TzX0irO4rTTQru
-         K3a4rMD1TGO8QL+Chq4b0KPYjgTfx36H388sdNTdXfYDNq0kQQ7W9JPjFvst+iqvJf4C
-         /3aCRR/tqxEi0zuEx0rqDltQya6RzmVks7AotFF1kvNbHt2ryX/d5/SAS173AA0zaCN8
-         kffg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAVLFDDX0gaaWv2i3rhFI+wKV7c8K/3HlReYXCiD0VB4jrM4qhRr
-	74f/MOCSfKdaOpGZCEZGM4vGQWbzoTfXk7NgcVOl8DpuFLev9chhVQb5iV6MsGsLO3eG5TaLBzL
-	tKNROw5ulRlzJycwpsSxOt0V+uTqZ8eEP+651M6yNbCS/wzCAycQ6w6jdVotFHckVlQ==
-X-Received: by 2002:a50:b4cb:: with SMTP id x11mr120621268edd.284.1564743047203;
-        Fri, 02 Aug 2019 03:50:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzItyEpM0QmYeMLabS6NEW08sHYJKw3GbHaLcNe30jWaIjxILOBuHhd1evcXpHWC4Er+fCn
-X-Received: by 2002:a50:b4cb:: with SMTP id x11mr120621217edd.284.1564743046397;
-        Fri, 02 Aug 2019 03:50:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564743046; cv=none;
+        bh=M8TieNPi99QOG18so2PuFYh3e5+sQHpWy3chTWzm/rQ=;
+        b=TKa7VJvplxTkP2EYq/zTETUiKnAcQ53q+FpyyK2NJPwuxbcoe6bGud6I1UJzaU+kqv
+         YCcTeutd13hFnPYGtsXY9lOXkWO/mD+iPrMkxqEFbqNymU89HmEqqh8Ma16TapwRgpL4
+         mwZm/2wTym6e6oZyJ5TmMQfoDRL/irEDA8gGWnn0ZTNRSSdSQDOUYCSy0Bg46n6lwIsr
+         tBNpx/tYnq0UUrRDr/fGbAjlqkfWsW3j9KrmthaRAdl4W9SrVyI8BRDXJAOsXA4KjdBM
+         dhvCLTsYUzl3TQI3WGmYkXXka7/pDQCUKMIENZPWwk/iW36BwaVqGIXR5+HBWdv81vR3
+         jd5g==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWV+J0PK3Qd5cVBh105+MiBnZ/fhrrxCH308qHuUbE3byzEQsl0
+	7CS3p6PijR+8l3SpgxrkdzgTQ2sho1SnTdeNlMlBqQk+4qmLwrYdyX7gbnV/gyzWlaZbcjMF1My
+	nxSQkHrgSGY5C/Ehod2fjNKhQ49J/lPCIukPjHaEqgzQ8E9ZYUkOGUN05p7DqXo8=
+X-Received: by 2002:a50:b1e7:: with SMTP id n36mr119526723edd.227.1564746282125;
+        Fri, 02 Aug 2019 04:44:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzsf5j/vwTl49qgIUg09rsK5SHDUXjTz8cBYXTVGQVEsJuUqfBihC2nMdDCVQTsdTVy9Cfg
+X-Received: by 2002:a50:b1e7:: with SMTP id n36mr119526656edd.227.1564746281042;
+        Fri, 02 Aug 2019 04:44:41 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564746281; cv=none;
         d=google.com; s=arc-20160816;
-        b=jeXpyjAb9xK6JhNLLwMmIfTLzXaIiHvZqtlAPQSk5h7rPQ2cXsX8JmTAe+zJBjClu+
-         3ebo7Hl35Sp1AeIOmWlGzwQTbGVgNZ8lYN9DV4ftwxOSajC6p3wGlNEQy72cztIKhrDG
-         qUOPnzAtXFD3bhOitSj/ydyInL5dE9BEDUNRVjdcqHzNPV15HAi4C8lbKjGLpQxyOkd7
-         RVJF+dkKJhF+4b4BRnHbQ9zGOKcTee1mXI/0IWb0ZZAwxIJ1FxPKUUTxfqNSiSj8hDt3
-         M4ycfI/fwZxowxB2UQRDg12Fu5iZN6XqS73H9vnDR6A7ON0tBJEwhr0xsniQPk5EciRm
-         3tJw==
+        b=T2x+IBPDp6FKezfTWb2LIP2k73nK3xApB207h0gsk4pA7XE7qLLYQIdA6Kf4x5UB0a
+         IdSVCOhP/zTV1ekwNcuLxdtdRyeM7uGdS5Qh6QBEyqfmYLBM0bryqFGbaf0u/aYLyq1h
+         81TV+Tu6KmPYNNoCgGpSAYPQMpXqVFtJTOTv/PVc6Zf6Q6FEx1WZxMDtk+bg97m+4URT
+         jQRK2n5re6ZS/axa88TcYef1rRjYpSNgCWHLGJAnZ39oGTREQxKxD1sUX5sax1EiY+M1
+         utpRQysEsn3BOgLdOXFZafrmmGgfISuyLm7NvxHYfg7VcRXsOCZvys2WlwG8e6Wr4j2w
+         7NLg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=rqeIBpVoEZA+mlsj09N5LDYm1PHoFezq9EsYluLQ5mc=;
-        b=BPPX88l+tWkzFdQvlgs+n2tBHjlnB5QIq5iQWEB/ZH51G+s9PZzmj70gk1dxJzqgqw
-         RMKXEHLVCnQXmt74FcjBbTe7mFrp0AzZ3h5y7X/wzCix/Y2neWviadtNzOHr7Chf6adZ
-         n3OByd/2bjwBT9mSbzAubleZ0L3+6coB0erhDcbwxSBa6EusApGun/LGdGBYKpUDXIQl
-         zbr5kajpnwS7P5ygCuH1+tX6IYQuwQiTz0j1zITrBlC69fo+4l1Zx1/VAEbXoyvxsZsD
-         nl3TxEbDmMrEogQ11YmeJ7muKyyQ/2ZGFxgy7wkwub/xVZyi8lanesNzG8sRfgOIXS1Z
-         792Q==
+        bh=M8TieNPi99QOG18so2PuFYh3e5+sQHpWy3chTWzm/rQ=;
+        b=dkeiOrf7p9JGMz6HBoddo2xyxZbwrBAiVJN6hpGxsnlNY7o5na3Dh7Jdy1wqhAkDDK
+         faQkRDiVMpAPsG25BG/QkNnhzgZj3pTOdlS9u0qYlv4XLozj7vI3ML6vJULGRSFL65Xe
+         hOMNOT+GMzPsbNvyuSCTCboqc3Eo4vJ0zIUY24llvl/B5kkjqW2QvTK0o1BX1On97xYn
+         n5B1dbECX4dxRK9HYuRTLa2i+qJJMfTzCj2isKD12lpDBOJ4ZSoOvgoxBDLq4JamVl2B
+         FvB2TfnWcK8bV9riBUEBLVgPq6yOkTp+3o4M7/ihRpIYfUACVQIx7occOtbUffVdyevP
+         QhMQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id j24si21887908ejt.212.2019.08.02.03.50.46
-        for <linux-mm@kvack.org>;
-        Fri, 02 Aug 2019 03:50:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k41si23980062eda.98.2019.08.02.04.44.40
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Aug 2019 04:44:41 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6CBE3344;
-	Fri,  2 Aug 2019 03:50:45 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 9FF973F71F;
-	Fri,  2 Aug 2019 03:50:40 -0700 (PDT)
-Date: Fri, 2 Aug 2019 11:50:38 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Kevin Brodsky <kevin.brodsky@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	linux-kselftest@vger.kernel.org,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Kees Cook <keescook@chromium.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
-Subject: Re: [PATCH v19 02/15] arm64: Introduce prctl() options to control
- the tagged user addresses ABI
-Message-ID: <20190802105038.GC4175@arrakis.emea.arm.com>
-References: <cover.1563904656.git.andreyknvl@google.com>
- <1c05651c53f90d07e98ee4973c2786ccf315db12.1563904656.git.andreyknvl@google.com>
- <7a34470c-73f0-26ac-e63d-161191d4b1e4@intel.com>
- <2b274c6f-6023-8eb8-5a86-507e6000e13d@arm.com>
- <88c59d1e-eda9-fcfe-5ee3-64a331f34313@intel.com>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 6FCAAADFC;
+	Fri,  2 Aug 2019 11:44:40 +0000 (UTC)
+Date: Fri, 2 Aug 2019 13:44:38 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: Johannes Weiner <hannes@cmpxchg.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, cgroups@vger.kernel.org,
+	Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH RFC] mm/memcontrol: reclaim severe usage over high limit
+ in get_user_pages loop
+Message-ID: <20190802114438.GH6461@dhcp22.suse.cz>
+References: <156431697805.3170.6377599347542228221.stgit@buzz>
+ <20190729154952.GC21958@cmpxchg.org>
+ <20190729185509.GI9330@dhcp22.suse.cz>
+ <20190802094028.GG6461@dhcp22.suse.cz>
+ <105a2f1f-de5c-7bac-3aa5-87bd1dbcaed9@yandex-team.ru>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <88c59d1e-eda9-fcfe-5ee3-64a331f34313@intel.com>
+In-Reply-To: <105a2f1f-de5c-7bac-3aa5-87bd1dbcaed9@yandex-team.ru>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -138,31 +107,80 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 01, 2019 at 09:45:05AM -0700, Dave Hansen wrote:
-> On 8/1/19 5:38 AM, Kevin Brodsky wrote:
-> > This patch series only changes what is allowed or not at the syscall
-> > interface. It does not change the address space size. On arm64, TBI (Top
-> > Byte Ignore) has always been enabled for userspace, so it has never been
-> > possible to use the upper 8 bits of user pointers for addressing.
+On Fri 02-08-19 13:01:07, Konstantin Khlebnikov wrote:
 > 
-> Oh, so does the address space that's available already chop that out?
-
-Yes. Currently the hardware only supports 52-bit virtual addresses. It
-could be expanded (though it needs a 5th page table level) to 56-bit VA
-but it's not currently on our (hardware) plans. Beyond 56-bit, it cannot
-be done without breaking the software expectations (and hopefully I'll
-retire before we need this ;)).
-
-> > If other architectures were to support a similar functionality, then I
-> > agree that a common and more generic interface (if needed) would be
-> > helpful, but as it stands this is an arm64-specific prctl, and on arm64
-> > the address tag is defined by the architecture as bits [63:56].
 > 
-> It should then be an arch_prctl(), no?
+> On 02.08.2019 12:40, Michal Hocko wrote:
+> > On Mon 29-07-19 20:55:09, Michal Hocko wrote:
+> > > On Mon 29-07-19 11:49:52, Johannes Weiner wrote:
+> > > > On Sun, Jul 28, 2019 at 03:29:38PM +0300, Konstantin Khlebnikov wrote:
+> > > > > --- a/mm/gup.c
+> > > > > +++ b/mm/gup.c
+> > > > > @@ -847,8 +847,11 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+> > > > >   			ret = -ERESTARTSYS;
+> > > > >   			goto out;
+> > > > >   		}
+> > > > > -		cond_resched();
+> > > > > +		/* Reclaim memory over high limit before stocking too much */
+> > > > > +		mem_cgroup_handle_over_high(true);
+> > > > 
+> > > > I'd rather this remained part of the try_charge() call. The code
+> > > > comment in try_charge says this:
+> > > > 
+> > > > 	 * We can perform reclaim here if __GFP_RECLAIM but let's
+> > > > 	 * always punt for simplicity and so that GFP_KERNEL can
+> > > > 	 * consistently be used during reclaim.
+> > > > 
+> > > > The simplicity argument doesn't hold true anymore once we have to add
+> > > > manual calls into allocation sites. We should instead fix try_charge()
+> > > > to do synchronous reclaim for __GFP_RECLAIM and only punt to userspace
+> > > > return when actually needed.
+> > > 
+> > > Agreed. If we want to do direct reclaim on the high limit breach then it
+> > > should go into try_charge same way we do hard limit reclaim there. I am
+> > > not yet sure about how/whether to scale the excess. The only reason to
+> > > move reclaim to return-to-userspace path was GFP_NOWAIT charges. As you
+> > > say, maybe we should start by always performing the reclaim for
+> > > sleepable contexts first and only defer for non-sleeping requests.
+> > 
+> > In other words. Something like patch below (completely untested). Could
+> > you give it a try Konstantin?
+> 
+> This should work but also eliminate all benefits from deferred reclaim:
+> bigger batching and running without of any locks.
 
-I guess you just want renaming SET_TAGGED_ADDR_CTRL() to
-arch_prctl_tagged_addr_ctrl_set()? (similarly for 'get')
+Yes, but we already have to deal with for hard limit reclaim. Also I
+would like to see any actual data to back any more complex solution.
+We should definitely start simple.
+
+> After that gap between high and max will work just as reserve for atomic allocations.
+> 
+> > 
+> > diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+> > index ba9138a4a1de..53a35c526e43 100644
+> > --- a/mm/memcontrol.c
+> > +++ b/mm/memcontrol.c
+> > @@ -2429,8 +2429,12 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+> >   				schedule_work(&memcg->high_work);
+> >   				break;
+> >   			}
+> > -			current->memcg_nr_pages_over_high += batch;
+> > -			set_notify_resume(current);
+> > +			if (gfpflags_allow_blocking(gfp_mask)) {
+> > +				reclaim_high(memcg, nr_pages, GFP_KERNEL);
+
+ups, this should be s@GFP_KERNEL@gfp_mask@
+
+> > +			} else {
+> > +				current->memcg_nr_pages_over_high += batch;
+> > +				set_notify_resume(current);
+> > +			}
+> >   			break;
+> >   		}
+> >   	} while ((memcg = parent_mem_cgroup(memcg)));
+> > 
 
 -- 
-Catalin
+Michal Hocko
+SUSE Labs
 
