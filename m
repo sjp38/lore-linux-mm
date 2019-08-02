@@ -2,173 +2,172 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 792F5C0650F
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 23:15:26 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BDAFDC433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 23:18:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 37D162087E
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 23:15:26 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 37D162087E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 78F242187F
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 23:18:24 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="Zc85Mvjf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 78F242187F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C80666B0003; Fri,  2 Aug 2019 19:15:25 -0400 (EDT)
+	id 048E86B0003; Fri,  2 Aug 2019 19:18:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C09746B0005; Fri,  2 Aug 2019 19:15:25 -0400 (EDT)
+	id F3D5A6B0005; Fri,  2 Aug 2019 19:18:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AD2CB6B0006; Fri,  2 Aug 2019 19:15:25 -0400 (EDT)
+	id E2A546B0006; Fri,  2 Aug 2019 19:18:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 741606B0003
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 19:15:25 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id 6so49241892pfi.6
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 16:15:25 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A804E6B0003
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 19:18:23 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id r7so42515009plo.6
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 16:18:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=mKueldX8pj9f2LlmyxFsr2GucykjQg1bovTTwHtY3aE=;
-        b=n1m5MR8TTnnZ2nXIN6EvmchB4txOcZ5XpYVW/4eogaJNgugwRtIBMDR7akVk8TWBan
-         xrPQ63UTnHnXsAT9tbQt8S3kUIMzuEjxVSnj/x77E7Uy0xqNfWwXimuaCg2Jj87z3Gt0
-         pTxN8fM+e7dh2BFiTL5VcGjk7FUxbK3tY2U10oMFGrUSV6WVvlZGe3M+UyLT7TsXr5uc
-         5qWf08k4GDfVSvtlOJz/KlCGl4cUzU3GurGmIuq3q+hORJqOdH1SbomfcrTExkZsdvz9
-         CmoiyKzB8wK2s9wt+fdYk5LiCLTTgph92Ga82JNE74zzO7LDqtjCnLkpG1tAXcH2/12a
-         lDUQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWoKZ1k4jR4lJcs9TJVW4DEqgcTdxZSUcDAuz9hh0qQ4SPfIu2M
-	glIDp/fAuQAGVUexveaU/ebvUPMIdGiAFuxBCc0mkDi9ojKDK/srdTOB+0SgVAUUQ37TPTx0qiq
-	j1PlJ7SAP+LY1wvNb+P4V7GJSgUE+z5KsviOB8Ea7O7fKGZqs1WJLwjOV4l6sg3Wa0w==
-X-Received: by 2002:a17:902:8a87:: with SMTP id p7mr132945014plo.124.1564787725110;
-        Fri, 02 Aug 2019 16:15:25 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzsLQglseZRI1kpKrf0qBtJzz90H34o3U3k1gx9mVSuXPJy3nu+wVISPT1CJb5nHH+7Owtq
-X-Received: by 2002:a17:902:8a87:: with SMTP id p7mr132944958plo.124.1564787724227;
-        Fri, 02 Aug 2019 16:15:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564787724; cv=none;
+        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
+         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
+         :message-id:mime-version;
+        bh=zP/oZCNmT3XfZ0O8wKdyr35FShYUm1XHrIrNthNeVsc=;
+        b=hmqWkM5kzRsgFFmZccHXOqmm/NZ+lvszWsPhe5R6rK0vzd+QqcUCx+w6AJOBbBj+Jx
+         c/SZkjKx1bXdjV2UcVKb2PFVk+X/c9Peijj/d8v9LfowSbbJ/Dqg+KRZ0ve6Bz21aGfC
+         SyAQ4ILiJ/kgr+xm3yAhVsZp4gvYNM9kfDLs3sq+I6+B3UZ9MD8UZJ64HuODHk9JTqDU
+         sN4DD6zNyYLtK+NVedKzMlupwESGAouTQ0dgdvr5t1nL9qhr5QA24fQGcj08yj0WENce
+         UeiSBIBWCS5F7XmtPxwTTRxsnHKFDgcj6fwssVbNUemw++9+vx9OgcKlRyIcaD2vFAZS
+         vyqg==
+X-Gm-Message-State: APjAAAU9NHNBSwmGoVycH/P+HiN0LzzCO+TsKCr6wcM/yhlcNkE/r3Bq
+	pI3Y2uXCxfBT98kz6in1kkjwpgNXd4LkkRDQFPRu5bnULB2x6+7TCwoPyBiBgzEQxc0YaM/amem
+	yX/3f0v59d507SW6+ehRpmQfD0yQxVTsFg53pqUEA/QZjtDmjTT17CFcHV/xwJggATg==
+X-Received: by 2002:a17:902:9a95:: with SMTP id w21mr50164800plp.126.1564787903234;
+        Fri, 02 Aug 2019 16:18:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzkY6wMRPeyjgcyjR09exCTnClbEdNj8NbGdP676Ko/2r1oDQSITzMypE/w0lHYenY0yGt8
+X-Received: by 2002:a17:902:9a95:: with SMTP id w21mr50164757plp.126.1564787902498;
+        Fri, 02 Aug 2019 16:18:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564787902; cv=none;
         d=google.com; s=arc-20160816;
-        b=tyXa8DYQdBWEn3F+peS5lCV8txN3+yZGi9EbxKrg7LrXe0T5bOGG3hDIkgJHM6pT/L
-         5Iu90CQnWxizraiWW45m2w/sMJFaD/B2zpVcABJZ2SbSqgvTUb52hvUkiSaYLN/FlNwg
-         kB0qt9/cHm8temCdQ+/Yhq3pSNdqWLj/uirKbNqqei7ZMSvMh6jOjq3BF+pH9Xljy8N6
-         ZkCzbY55LjvaUgFUXsQhZ7+DShyZ4mz4ycJhq2NhJ+qclrPwZmdMUp8H+Q7Ga9yf8WS7
-         b7gbt1OHz5q11IlQzyznf2oIP0voOAR+kTt2PK6l2uZhhDlrsob8BWRAfOwBaVCTB0SN
-         LE5A==
+        b=XY7G1MgPs/PKiSSQd1uIHWcCJXqe+FbEBDGlBJ2Kho5uZZAytp2mCuJ8s5pKn9ohhc
+         9pa3cIh8edESyzPuOi9owJu5CCoGE3aVX/jvThnTDOQNunqxkqYYF4T9gonNANViA3i5
+         qXZgDXr/2IM/34RYO7Vj2pCgRdUCTeySCwgRzh+MUZArCjMbEtELdDVw86SFD3vXtZY4
+         RBkq41CeEYE18epFdShrqchkK04Tf68Zltj8mHwA8xRe8XrdubvRuRkH2e0V2KPxM6G3
+         B7g/rYbG91pQ1PgjA6dH5EN+oSCHLUIEUjsq+KOIuEre1LG4Yua/i3zpxZMA57dReKV0
+         P84A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:date:cc:to:from:subject:message-id;
-        bh=mKueldX8pj9f2LlmyxFsr2GucykjQg1bovTTwHtY3aE=;
-        b=T3tZts2Q97cI4IV1Fu7vz74Glh2j7ou8FToFDXrvwJjoGMNF3wKMqLSL204rS7lE7y
-         esPR0hOEak0EbXKwMVXTVDn51hD44/42n1kCVF5g4YSXRFo8725NLKbDw8xMZ01Ksupo
-         0mL4Rho7sfFTgc8l0GXIgDF5hn0Owq1ExMVOz+FsXfc3Nq4rjdP+yYhKGGZoQ7Xn2Cjz
-         +OLD7yN2Fcchb73et+dsvuSD0RmDQyrxcwdBUpeJCmPGa76Aen+n5UYK4vPdn7xqpPmF
-         bK1GZGl4KdOfeJxprYnPrPXNmP7F68t3p0oNjvok7i53hlBx1IbEUMnu7JYlLroJ3E59
-         aw9Q==
+        h=mime-version:message-id:date:subject:smtp-origin-cluster:cc:to
+         :smtp-origin-hostname:from:smtp-origin-hostprefix:dkim-signature;
+        bh=zP/oZCNmT3XfZ0O8wKdyr35FShYUm1XHrIrNthNeVsc=;
+        b=ZGZlemFwCzEfSeQenbAe67NoSkQc5ofxd4eh7TwNdUeo3DiJnsF5E1uVL7ckokIkQO
+         DI2swR8MPHH2kEPaOyVPZ48ob4QTjvGBwgWyAhSPGIntUdf3EfA1Ul9xTHkOoyenREOR
+         25BhSqumJkerUvq87mYLlH1+k0MdLwUke4y04EQW+2cvOeqNzre4FlRus9y1Vg2n3BsY
+         r1F6b+ahFa4O/Fi3qwz4U0OIkJTZS9M+TOvM575QilE+oFFaAltT58XEtlubZg7qFPqK
+         G6ICiZk+qd1IH1CiGh5RslCYigK2LxJ7ti7wVHWiZfzlIjbGpvaot/CtqjSXcpnxmyml
+         6RQQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id h27si32675585pgh.388.2019.08.02.16.15.24
+       dkim=pass header.i=@fb.com header.s=facebook header.b=Zc85Mvjf;
+       spf=pass (google.com: domain of prvs=3117788d8b=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=3117788d8b=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id i32si7391136pje.44.2019.08.02.16.18.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 16:15:24 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        Fri, 02 Aug 2019 16:18:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=3117788d8b=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 02 Aug 2019 16:15:23 -0700
-X-IronPort-AV: E=Sophos;i="5.64,339,1559545200"; 
-   d="scan'208";a="184721864"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga002-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 02 Aug 2019 16:15:23 -0700
-Message-ID: <c43723f2acdf257309dca55eac900dc71bca31c3.camel@linux.intel.com>
-Subject: Re: [PATCH v3 0/6] mm / virtio: Provide support for unused page
- reporting
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: Nitesh Narayan Lal <nitesh@redhat.com>, Alexander Duyck
-	 <alexander.duyck@gmail.com>, kvm@vger.kernel.org, david@redhat.com, 
-	mst@redhat.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, 
-	linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com, 
-	konrad.wilk@oracle.com, willy@infradead.org, lcapitulino@redhat.com, 
-	wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com, 
-	dan.j.williams@intel.com
-Date: Fri, 02 Aug 2019 16:15:23 -0700
-In-Reply-To: <ac434f1cad234920c0e75fe809ac05053395524b.camel@linux.intel.com>
-References: <20190801222158.22190.96964.stgit@localhost.localdomain>
-	 <9cddf98d-e2ce-0f8a-d46c-e15a54bc7391@redhat.com>
-	 <3f6c133ec1eabb8f4fd5c0277f8af254b934b14f.camel@linux.intel.com>
-	 <291a1259-fd20-1712-0f0f-5abdefdca95f@redhat.com>
-	 <ac434f1cad234920c0e75fe809ac05053395524b.camel@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+       dkim=pass header.i=@fb.com header.s=facebook header.b=Zc85Mvjf;
+       spf=pass (google.com: domain of prvs=3117788d8b=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=3117788d8b=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0109334.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x72NHvf9026581
+	for <linux-mm@kvack.org>; Fri, 2 Aug 2019 16:18:21 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : mime-version : content-type; s=facebook;
+ bh=zP/oZCNmT3XfZ0O8wKdyr35FShYUm1XHrIrNthNeVsc=;
+ b=Zc85MvjfmG7XFnhSGb9Y4KWBA8FVB+sNukkhmkmldF0TKh2dn/XSvkzKkQL8ppraWqo1
+ hxH0rWzIMH1Uvok2GE1ZjqL630ak/Mcbt8xb6wy19ixrKtqahVpbugp1EoSqzQiGL0fg
+ j8Zs22FgFDZyZVciTRaxIcgDTFoO3WLriUY= 
+Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
+	by mx0a-00082601.pphosted.com with ESMTP id 2u4py09vqs-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 02 Aug 2019 16:18:21 -0700
+Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
+ mail.thefacebook.com (2620:10d:c081:35::130) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
+ Fri, 2 Aug 2019 16:18:20 -0700
+Received: by devbig006.ftw2.facebook.com (Postfix, from userid 4523)
+	id 6514562E2BEF; Fri,  2 Aug 2019 16:18:19 -0700 (PDT)
+Smtp-Origin-Hostprefix: devbig
+From: Song Liu <songliubraving@fb.com>
+Smtp-Origin-Hostname: devbig006.ftw2.facebook.com
+To: <linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
+        <akpm@linux-foundation.org>
+CC: <matthew.wilcox@oracle.com>, <kirill.shutemov@linux.intel.com>,
+        <oleg@redhat.com>, <kernel-team@fb.com>,
+        <william.kucharski@oracle.com>, <srikar@linux.vnet.ibm.com>,
+        Song Liu <songliubraving@fb.com>
+Smtp-Origin-Cluster: ftw2c04
+Subject: [PATCH v4 0/2] khugepaged: collapse pmd for pte-mapped THP
+Date: Fri, 2 Aug 2019 16:18:15 -0700
+Message-ID: <20190802231817.548920-1-songliubraving@fb.com>
+X-Mailer: git-send-email 2.17.1
+X-FB-Internal: Safe
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-02_10:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=646 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908020241
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-08-02 at 10:28 -0700, Alexander Duyck wrote:
-> On Fri, 2019-08-02 at 12:19 -0400, Nitesh Narayan Lal wrote:
-> > On 8/2/19 11:13 AM, Alexander Duyck wrote:
-> > > On Fri, 2019-08-02 at 10:41 -0400, Nitesh Narayan Lal wrote:
-> > > > On 8/1/19 6:24 PM, Alexander Duyck wrote:
-> > > > > 
+Changes v3 => v4:
+1. Simplify locking for pte_mapped_thp (Oleg).
+2. Improve checks for the page in collapse_pte_mapped_thp() (Oleg).
+3. Move HPAGE_PMD_MASK to collapse_pte_mapped_thp() (kbuild test robot).
 
-<snip>
+Changes v2 => v3:
+1. Update vma/pmd check in collapse_pte_mapped_thp() (Oleg).
+2. Add Acked-by from Kirill
 
-> > > > > One side effect of these patches is that the guest becomes much more
-> > > > > resilient in terms of NUMA locality. With the pages being freed and then
-> > > > > reallocated when used it allows for the pages to be much closer to the
-> > > > > active thread, and as a result there can be situations where this patch
-> > > > > set will out-perform the stock kernel when the guest memory is not local
-> > > > > to the guest vCPUs.
-> > > > Was this the reason because of which you were seeing better results for
-> > > > page_fault1 earlier?
-> > > Yes I am thinking so. What I have found is that in the case where the
-> > > patches are not applied on the guest it takes a few runs for the numbers
-> > > to stabilize. What I think was going on is that I was running memhog to
-> > > initially fill the guest and that was placing all the pages on one node or
-> > > the other and as such was causing additional variability as the pages were
-> > > slowly being migrated over to the other node to rebalance the workload.
-> > > One way I tested it was by trying the unpatched case with a direct-
-> > > assigned device since that forces it to pin the memory. In that case I was
-> > > getting bad results consistently as all the memory was forced to come from
-> > > one node during the pre-allocation process.
-> > > 
-> > 
-> > I have also seen that the page_fault1 values take some time to get stabilize on
-> > an unmodified kernel.
-> > What I am wondering here is that if on a single NUMA guest doing the following
-> > will give the right/better idea or not:
-> > 
-> > 1. Pin the guest to a single NUMA node.
-> > 2. Run memhog so that it touches all the guest memory.
-> > 3. Run will-it-scale/page_fault1.
-> > 
-> > Compare/observe the values for the last core (this is considering the other core
-> > values doesn't drastically differ).
-> 
-> I'll rerun the test with qemu affinitized to one specific socket. It will
-> cut the core/thread count down to 8/16 on my test system. Also I will try
-> with THP and page shuffling enabled.
+Changes v1 => v2:
+1. Call collapse_pte_mapped_thp() directly from uprobe_write_opcode();
+2. Add VM_BUG_ON() for addr alignment in khugepaged_add_pte_mapped_thp()
+   and collapse_pte_mapped_thp().
 
-Okay so results with 8/16 all affinitized to one socket, THP enabled
-page_fault1, and shuffling enabled:
+This set is the newer version of 5/6 and 6/6 of [1]. Newer version of
+1-4 of the work [2] was recently picked by Andrew.
 
-With page reporting disabled in the hypervisor there wasn't much
-difference. I saw a range of 0.69% to -1.35% versus baseline, and an
-average of 0.16% improvement. So effectively no change.
+Patch 1 enables khugepaged to handle pte-mapped THP. These THPs are left
+in such state when khugepaged failed to get exclusive lock of mmap_sem.
 
-With page reporting enabled I saw a range of -2.10% to -4.50%, with an
-average of -3.05% regression. This is much closer to what I would expect
-for this patch set as the page faulting, double zeroing (once in host, and
-once in guest), and hinting process itself should have some overhead.
+Patch 2 leverages work in 1 for uprobe on THP. After [2], uprobe only
+splits the PMD. When the uprobe is disabled, we get pte-mapped THP.
+After this set, these pte-mapped THP will be collapsed as pmd-mapped.
+
+[1] https://lkml.org/lkml/2019/6/23/23
+[2] https://www.spinics.net/lists/linux-mm/msg185889.html
+
+Song Liu (2):
+  khugepaged: enable collapse pmd for pte-mapped THP
+  uprobe: collapse THP pmd after removing all uprobes
+
+ include/linux/khugepaged.h |  12 ++++
+ kernel/events/uprobes.c    |   9 +++
+ mm/khugepaged.c            | 125 ++++++++++++++++++++++++++++++++++++-
+ 3 files changed, 145 insertions(+), 1 deletion(-)
+
+--
+2.17.1
 
