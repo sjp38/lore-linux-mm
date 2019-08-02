@@ -2,176 +2,289 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9966CC433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 20:33:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8C007C32750
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 20:34:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 48E01206A3
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 20:33:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 03BF6206A3
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 20:34:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="qw5B+oHg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 48E01206A3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="n7l9h1kf";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="AyJ1DPUq"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 03BF6206A3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D96446B0003; Fri,  2 Aug 2019 16:33:49 -0400 (EDT)
+	id 7542A6B0003; Fri,  2 Aug 2019 16:34:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D463F6B0005; Fri,  2 Aug 2019 16:33:49 -0400 (EDT)
+	id 704606B0005; Fri,  2 Aug 2019 16:34:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C35636B0006; Fri,  2 Aug 2019 16:33:49 -0400 (EDT)
+	id 5A4DE6B0006; Fri,  2 Aug 2019 16:34:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 900156B0003
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 16:33:49 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 191so48969649pfy.20
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 13:33:49 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 3946A6B0003
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 16:34:58 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id f22so84428989ioj.9
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 13:34:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=76k/NEV4yV518KF6BPeXC0U+XVQr3xgUEZxyw7BoNew=;
-        b=i3B+AuB+35aadqGWHa6JPs7pExvkEgYRpFnUyh4RRj0YiZ+VGkdDEYPTFhOW9BDU/t
-         fYQ7KCztrbU4I8p4rR1Q1ay8RYj3QJgSmWb0rWNBGqnDnZRQ5ypfeeD6iebb4bKZ4t18
-         HK/glrAXv3GrXgEtlvyWOCInyEi1noBc1a6SykUCh8LsyFMNjzx1ogkEew9XsUJreUnT
-         Ty18ouxrTyGFS5kFgQvaoY7gnG4Bx9OVyCWJb2GrO3iumpjd9u3o2ivnF3Tf7s61sP8D
-         lldatYyIJecS+hrdyrsI5FGdCZDPKn9GvIB+GVw/nYwcVY24piAnRjMrCxwhS8tPyga2
-         6yog==
-X-Gm-Message-State: APjAAAWjSxOpoNYgMQxyGej7yCPdqMkZIwvOvo6jpGBdcJf1fwOLyjAZ
-	8MlSoW0yplqhXUJsyKftOQFF0HpN5cgnNqyAcVT1+25f59w29558PE/Rg4YCPZZ4fPbFEj1Y7lI
-	bLCuArJ5ec5sp9R1PrbAXrowenaPJ+mYC8pcYf558J+byyHS3xbukBCkrOIkZyXL1eg==
-X-Received: by 2002:a63:3281:: with SMTP id y123mr122801520pgy.72.1564778029094;
-        Fri, 02 Aug 2019 13:33:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwW2GbmBwa8N38VegaJPwIDvckwaSV1DhY+FwFKjkK9s1SwkT6eu0hZxdf2vkmKikLf2PV+
-X-Received: by 2002:a63:3281:: with SMTP id y123mr122801475pgy.72.1564778028084;
-        Fri, 02 Aug 2019 13:33:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564778028; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=gJ5pdp5J5yq16/Jzy51hwzJwWMCpsTQRVzo9hpL4LW0=;
+        b=kxG6FZ6UnQzFSfSAryaUZZMlD+mJTi90LYQqHYqN+dalF7s+n3+txtM6eqeyiOnfaq
+         sI+CH+ar/jBje6kl8ss05i3UoLDPv6/1sNelW0ir2rflDnOUMdsp18lxz0nkDbsRi8Tt
+         SJeKvZeq91cA/XVjkdbrE5tgLeB9NlO89BM/z9DD0tMmvWgSJXkR1As8ogKweklUZ8Fr
+         uZFKbYrpjIDstJIMQPbEqIzC4e1XaHlF9Vf0uBdgTZ1jT5CkxR/8xD/0eRUcU3VaVIGf
+         IPJDi2B1LkRVMcGMQASu3mjsELMnKWZRP62MIyX//+qAXcNtnkXWX+1QWAaTz/otAHBx
+         5FVQ==
+X-Gm-Message-State: APjAAAUF+6kqoKCT67fY9pwMi4MnRwLRTCGPnhsolQGd61UYkqyVmc+3
+	sXAMcLewA6dcbU+SQ8ZfHdBU9TPwPGyHEZ4fovQ/5ktrh0wc1w+c+VjLU9Jrg+Ie7tqLANrUFFd
+	ch0dLRBvFD0pg25JGkwm5NtWmC2fqAv3JQKhykK13S9j+HbmzTXKlTuxVAzSBjLVxtw==
+X-Received: by 2002:a5e:c744:: with SMTP id g4mr3427299iop.187.1564778097919;
+        Fri, 02 Aug 2019 13:34:57 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxlFonrICSZ4rFm371vWfGqBfKd+DN+RNxaEVdShf2RRZMdr6sE5r1ioE4+O3zkC/oZZmfH
+X-Received: by 2002:a5e:c744:: with SMTP id g4mr3427252iop.187.1564778097197;
+        Fri, 02 Aug 2019 13:34:57 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1564778097; cv=pass;
         d=google.com; s=arc-20160816;
-        b=Q8QY0Hm2SzTHMAso2W8Q/U6Xm5zhvxrfHg9O4rSsq5XAoLwkMyn//GU5qmAJbXkFTd
-         EO3Kl0jXq2W1FgPX+ncOIB+UeirctqqKttnVm6T9JUJDovfmDOvyoEfP0CZDt0APknjc
-         GncrbBTdJ6rtKum6Wn5cWE+vD7BN56NtrjjoJ8mqyY/n7fOuB4Xl0c3MlfGCA/Xnp8dM
-         76Gw6MalfWRI8gnXbyN0Ey3evP62UQ1khIT/CD/vEr2RBupXA6CZ1c6U2Mj5oOChl7b+
-         wNKhN35fxvKdd0GRt2uB7DSta8EbqkJ/8ujOng1SOZw/mo4byXxpQ3XaX6rVXGYIMn76
-         HM4Q==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=76k/NEV4yV518KF6BPeXC0U+XVQr3xgUEZxyw7BoNew=;
-        b=Te3AgfIzT1oVncyI5vurL8jHPsfJ9we7CrSQM2sKmVNKj1MloOtUwVTQZ8Bq5wUkoi
-         FQozBvWRXCAjoODG7cIYgAonWgYXyuPfyhjgI6Wp9PR22D4dDuJDf5wqG9y7Y+TWSQMs
-         m0rKTW/2Cs/Vc9r35+9WqStz9dTHe3TED1GEcELrmIRfLGpgxr6/6e3SyBulguNX91xA
-         Jgbf4upQdx1P8bB8zu7z4qbzy/mqeoEXpizYkz6C7koudreFerL78dJI/BbATkeb71f2
-         ZnX7hI60vk/cko+yxwneNpZrotWxHd6v9gNuuOjUaKXRTGMtdBBwkm+NfDYX1duXKy7V
-         hufg==
-ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qw5B+oHg;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id s17si37557816pfc.237.2019.08.02.13.33.47
+        b=Bg63u7zYVKw1BDpa9yiDJrPmBSuUrDKJv8t0T9NGTqftfs65yvrNhjEFeposHYYnE0
+         qJR1M3pFZzsmGibE30UgLXerP0lxA4HXETa8gPnxJxkUGV3vHeyOb6M765qxmJXz1QBl
+         P2MhXxu0HbWMEp3YeL3nsRVOz3cl8Oi8bu/YkQkZHjqxTzWFtKi9C8Vpi182p0dMKMy/
+         daqH8kmi8FA4ZqBbhX5MSYoGJjzI2Gtv2ahksMNgFTDvh6+35IAZ0dB0LPoD1Ro4cUdl
+         GaRds04UXNCe0nz45G6DUHy5naAnZa2WjQoGI0BU4jN7cWXlU0sAzIry21MhI5EHvMQD
+         qxCQ==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=gJ5pdp5J5yq16/Jzy51hwzJwWMCpsTQRVzo9hpL4LW0=;
+        b=SPUEm+3Ln2e86BeCv9vqatYnk0ywfNu5oq3Sl2l8pI+aKr32jP4CG0/Sozr/qJbQA2
+         3Ug8eORGdWEIoHnH2T8tyOy7KZYDXJIW6+s6gjSfPW4fovyPlybafVobNYVO8Zvkwjg9
+         kjGc5IwxXJ6mJBTDmSihLv7SOzSkr03Ug7jS/pfyiyXqFjmZML+CMZzjvhO58eBsyjlx
+         EiUYEzUMUs+I9OkNxvziutr7/MizRPn56+i3niqELi+c8SFjgkXVj7PbNRG6dN8qjAk0
+         USkLO1DuANWIvA1B0nOQJtHvMNMkLHVUhcLsN2tsmvC8oTwhvQgBx6Z+Ylo7mdywZiBu
+         6Yhw==
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=n7l9h1kf;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=AyJ1DPUq;
+       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
+       spf=pass (google.com: domain of prvs=3117788d8b=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=3117788d8b=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
+        by mx.google.com with ESMTPS id p21si91232641iod.30.2019.08.02.13.34.56
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 02 Aug 2019 13:33:48 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Aug 2019 13:34:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=3117788d8b=songliubraving@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=qw5B+oHg;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=76k/NEV4yV518KF6BPeXC0U+XVQr3xgUEZxyw7BoNew=; b=qw5B+oHgG/uhMN22taH88XDhp
-	RYDfcsmY7UOyJW7ubedNhxlXQpFF7q6uBVUZawl5Td3WP5lEzmJXzY3+gZuEWd8VB2VdlwjJtQ9hQ
-	I1HTX9QtjpmfM3Dai/QTgW4pD4GLm4laSQuEK2tuzWqRMT2rQ4Nk5TkhbKXnkIdnR7O/ZZUVqLz74
-	BQKTkwYEzr0Oo+2mtZPnsnCV73JFDrhmQNDZm1q8/HUulDPcUK5ygY6RysoT1VPfdeJqAKYalQTT/
-	bgWoc0pbnJfgwXHrtfjRk/R6ymW/UaK9wwVNJGrsvROr25wvI8WgCQsBYdeH3y4tKXwp1N2+q99XG
-	HQl9Dt7UQ==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hteFE-00046N-Fr; Fri, 02 Aug 2019 20:33:44 +0000
-Date: Fri, 2 Aug 2019 13:33:44 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: petr@vandrovec.name, bugzilla-daemon@bugzilla.kernel.org,
-	Christian Koenig <christian.koenig@amd.com>,
-	Huang Rui <ray.huang@amd.com>, David Airlie <airlied@linux.ie>,
-	Daniel Vetter <daniel@ffwll.ch>, dri-devel@lists.freedesktop.org,
-	linux-mm@kvack.org
-Subject: Re: [Bug 204407] New: Bad page state in process Xorg
-Message-ID: <20190802203344.GD5597@bombadil.infradead.org>
-References: <bug-204407-27@https.bugzilla.kernel.org/>
- <20190802132306.e945f4420bc2dcddd8d34f75@linux-foundation.org>
+       dkim=pass header.i=@fb.com header.s=facebook header.b=n7l9h1kf;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=AyJ1DPUq;
+       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
+       spf=pass (google.com: domain of prvs=3117788d8b=songliubraving@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=3117788d8b=songliubraving@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0044008.ppops.net [127.0.0.1])
+	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x72KXhlr014777;
+	Fri, 2 Aug 2019 13:34:55 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=gJ5pdp5J5yq16/Jzy51hwzJwWMCpsTQRVzo9hpL4LW0=;
+ b=n7l9h1kfFKHA9hD3Zp6psz2u/KsYPuSOQVKLWW4xtOSMZJkjpVD3N9Hx8KYMAn1RhQ7/
+ m+b+bxCqDXrg+mSeH8tHLO8a4YGr73NvGwmMLWAsFq4MIhOVJZVvZD1KL2i2qibCV2T1
+ HKvo35FPfkRNEozrTFVmo3SAxv0f9nEKsT4= 
+Received: from maileast.thefacebook.com ([163.114.130.16])
+	by mx0a-00082601.pphosted.com with ESMTP id 2u4g2vapfx-2
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
+	Fri, 02 Aug 2019 13:34:55 -0700
+Received: from ash-exopmbx101.TheFacebook.com (2620:10d:c0a8:82::b) by
+ ash-exhub101.TheFacebook.com (2620:10d:c0a8:82::e) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Fri, 2 Aug 2019 13:34:54 -0700
+Received: from ash-exhub204.TheFacebook.com (2620:10d:c0a8:83::4) by
+ ash-exopmbx101.TheFacebook.com (2620:10d:c0a8:82::b) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
+ 15.1.1713.5; Fri, 2 Aug 2019 13:34:54 -0700
+Received: from NAM04-CO1-obe.outbound.protection.outlook.com (100.104.31.183)
+ by o365-in.thefacebook.com (100.104.36.100) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id 15.1.1713.5
+ via Frontend Transport; Fri, 2 Aug 2019 13:34:54 -0700
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=DkIQrESId9JVaE2Mk0HCa41WjnE93efhK7GwghN/K9dpWjj2zLDsH/wGhr1QX+TceZYTeC90nr6qC9prFssd7F93uxFDcMULf+5+0p/VO3skGjtbuvdWMkcApRWFrz3UhNEqHwKE9tKv/+DSjuoDI9+ZXtLElMaa9CIjC40d24an40ORw6gSaWnL/HyctSPoS+PjBQKh0GB9dC8Cmre1/dQnLrQSrFHKnM3Zm59fRAH9uO0GIjThmNRdGVCdgm9RO/p3ORbQASvfvs0OUrAU0P9YgWnl8bhCLg0/bv0hXyDygf2Nko9e2+iHDu62UUuZNJtZ1EqDo+1rJPBP6ZHpoA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=gJ5pdp5J5yq16/Jzy51hwzJwWMCpsTQRVzo9hpL4LW0=;
+ b=JaVIsA9SBK/7EVy8XDN1v9Iv8IzzPmLena5MBa4dBfO5IaYyCDEttm17L7NvHta9xYHJPg4bYWu1rABqfj4swkY8QTeErABJeKErTeepMOtpuK6wXbTXWb1L1kzZf2bDXkrOPAN4UAMyIxnTHjJLAjJo8oB2wyWmIwU1jqBklBQJkga78DyfkVSr+qs6RPSlGThkcPTVQnk7HTOJ6oRwxlsA5jF944z/scLklVDtLw+ckLB6lPgm1MkL7BydJmJee0AWq0AfeRkhqWeLXk7eUSoiV1kv5GktvDbCPS18zEVFAr0st77/hMqjY4MJIoMgHSi9RzrSz37GjwhFYSk62g==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
+ smtp.mailfrom=fb.com;dmarc=pass action=none header.from=fb.com;dkim=pass
+ header.d=fb.com;arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector2-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=gJ5pdp5J5yq16/Jzy51hwzJwWMCpsTQRVzo9hpL4LW0=;
+ b=AyJ1DPUqLGogYcECsAbG7KeHJK6mjBYF3OkVkwQD9gif+8LH4NlSXzzqZVIhlKrtjcpbxCfE+B/fVH5FKz3X83kXiGOmMyP22PB7iE6uoWKVcQinjzTQIOWR7xEMXFt0W0bsqpXVIVr3wC3BMPefrWsd0YG1av2Ojx3omFhSc2s=
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
+ MWHPR15MB1710.namprd15.prod.outlook.com (10.174.96.7) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2115.15; Fri, 2 Aug 2019 20:34:53 +0000
+Received: from MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::d4fc:70c0:79a5:f41b]) by MWHPR15MB1165.namprd15.prod.outlook.com
+ ([fe80::d4fc:70c0:79a5:f41b%2]) with mapi id 15.20.2115.005; Fri, 2 Aug 2019
+ 20:34:52 +0000
+From: Song Liu <songliubraving@fb.com>
+To: Oleg Nesterov <oleg@redhat.com>
+CC: lkml <linux-kernel@vger.kernel.org>, Linux-MM <linux-mm@kvack.org>,
+        Andrew
+ Morton <akpm@linux-foundation.org>,
+        Matthew Wilcox
+	<matthew.wilcox@oracle.com>,
+        "Kirill A. Shutemov"
+	<kirill.shutemov@linux.intel.com>,
+        Kernel Team <Kernel-team@fb.com>,
+        "William
+ Kucharski" <william.kucharski@oracle.com>,
+        "srikar@linux.vnet.ibm.com"
+	<srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v3 1/2] khugepaged: enable collapse pmd for pte-mapped THP
+Thread-Topic: [PATCH v3 1/2] khugepaged: enable collapse pmd for pte-mapped
+ THP
+Thread-Index: AQHVSJnBcC4K72VM4ESRnUeFDmyc+aboC4IAgABGwoA=
+Date: Fri, 2 Aug 2019 20:34:52 +0000
+Message-ID: <BCCFF8C4-6A47-4E13-B1A6-9353D7E10AAD@fb.com>
+References: <20190801184823.3184410-1-songliubraving@fb.com>
+ <20190801184823.3184410-2-songliubraving@fb.com>
+ <20190802162136.GA2539@redhat.com>
+In-Reply-To: <20190802162136.GA2539@redhat.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-mailer: Apple Mail (2.3445.104.11)
+x-originating-ip: [2620:10d:c091:480::5569]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: c7c0e2d4-9c71-46bd-4a12-08d71788df83
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1710;
+x-ms-traffictypediagnostic: MWHPR15MB1710:
+x-microsoft-antispam-prvs: <MWHPR15MB17102CA68B547BCDF831ACA8B3D90@MWHPR15MB1710.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8273;
+x-forefront-prvs: 011787B9DD
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(376002)(346002)(136003)(366004)(39860400002)(396003)(189003)(199004)(71200400001)(81156014)(81166006)(71190400001)(14454004)(99286004)(57306001)(5660300002)(186003)(8676002)(66556008)(50226002)(6246003)(102836004)(64756008)(66946007)(76116006)(8936002)(6512007)(91956017)(305945005)(4326008)(66446008)(76176011)(54906003)(68736007)(229853002)(6916009)(2616005)(476003)(25786009)(2906002)(33656002)(66476007)(53936002)(11346002)(46003)(446003)(7736002)(6116002)(6486002)(478600001)(6506007)(486006)(36756003)(6436002)(316002)(86362001)(53546011)(256004)(14444005);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1710;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: 2tXKcJS0loXXvvHZu3eNXTx55AihpGi9y1W10tTXr8bYxCbPGNLQkHqIxN8uO2TjwYbW/R/FatIiiDivlMhOdS2+zAdb9eyqW8nxCJx7VORtMxO/1GJAm1BFBdmDuhCViVNU1VPNAK+9notijmq/c30UhfL0xa6DH3LtsWyw/X8S6MVo0PT+ltUarGoTEHKYcCXOfWr+w8yafnn3REjko1TqpaZFonzUPeWXQ1vEmqvVfMAR8OleoJ1XZi8jG8gxv/m7uciRiW4s3gVuLMxfJAJmC0CbP9CzbXVCJsszbPSnuY0fgTktlFCLSb0HVM3VlhfnpJQ8uja7JaZGs7DWJzBbEGPfbXXSHinwVHP7+4A3ykF8jhlEncH0Lq4SOsA6g/P8SJkF4Jz959KzoozHFqbhYN1foVv9G1qXluMCeRI=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <4B97E34F69EA784386431931B1CAC4C9@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190802132306.e945f4420bc2dcddd8d34f75@linux-foundation.org>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+X-MS-Exchange-CrossTenant-Network-Message-Id: c7c0e2d4-9c71-46bd-4a12-08d71788df83
+X-MS-Exchange-CrossTenant-originalarrivaltime: 02 Aug 2019 20:34:52.7127
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1710
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-02_08:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=705 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908020219
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 02, 2019 at 01:23:06PM -0700, Andrew Morton wrote:
-> > [259701.387365] BUG: Bad page state in process Xorg  pfn:2a300
-> > [259701.393593] page:ffffea0000a8c000 refcount:0 mapcount:-128
-> > mapping:0000000000000000 index:0x0
 
-mapcount -128 is PAGE_MAPCOUNT_RESERVE, aka PageBuddy.  I think somebody
-called put_page() once more than they should have.  The one before this
-caused it to be freed to the page allocator, which set PageBuddy.  Then
-this one happened and we got a complaint.
 
-> > [259701.402832] flags: 0x2000000000000000()
-> > [259701.407426] raw: 2000000000000000 ffffffff822ab778 ffffea0000a8f208
-> > 0000000000000000
-> > [259701.415900] raw: 0000000000000000 0000000000000003 00000000ffffff7f
-> > 0000000000000000
-> > [259701.424373] page dumped because: nonzero mapcount
+> On Aug 2, 2019, at 9:21 AM, Oleg Nesterov <oleg@redhat.com> wrote:
+>=20
+> On 08/01, Song Liu wrote:
+>>=20
+>> +static int khugepaged_add_pte_mapped_thp(struct mm_struct *mm,
+>> +					 unsigned long addr)
+>> +{
+>> +	struct mm_slot *mm_slot;
+>> +	int ret =3D 0;
+>> +
+>> +	/* hold mmap_sem for khugepaged_test_exit() */
+>> +	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
+>> +	VM_BUG_ON(addr & ~HPAGE_PMD_MASK);
+>> +
+>> +	if (unlikely(khugepaged_test_exit(mm)))
+>> +		return 0;
+>> +
+>> +	if (!test_bit(MMF_VM_HUGEPAGE, &mm->flags) &&
+>> +	    !test_bit(MMF_DISABLE_THP, &mm->flags)) {
+>> +		ret =3D __khugepaged_enter(mm);
+>> +		if (ret)
+>> +			return ret;
+>> +	}
+>=20
+> see my reply to v2
+>=20
+>> +void collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long haddr)
+>> +{
+>> +	struct vm_area_struct *vma =3D find_vma(mm, haddr);
+>> +	pmd_t *pmd =3D mm_find_pmd(mm, haddr);
+>> +	struct page *hpage =3D NULL;
+>> +	unsigned long addr;
+>> +	spinlock_t *ptl;
+>> +	int count =3D 0;
+>> +	pmd_t _pmd;
+>> +	int i;
+>> +
+>> +	VM_BUG_ON(haddr & ~HPAGE_PMD_MASK);
+>> +
+>> +	if (!vma || !vma->vm_file || !pmd)
+>                    ^^^^^^^^^^^^^
+>=20
+> I am not sure this is enough,
+>=20
+>> +		return;
+>> +
+>> +	/* step 1: check all mapped PTEs are to the right huge page */
+>> +	for (i =3D 0, addr =3D haddr; i < HPAGE_PMD_NR; i++, addr +=3D PAGE_SI=
+ZE) {
+>> +		pte_t *pte =3D pte_offset_map(pmd, addr);
+>> +		struct page *page;
+>> +
+>> +		if (pte_none(*pte))
+>> +			continue;
+>> +
+>> +		page =3D vm_normal_page(vma, addr, *pte);
+>=20
+> Why can't vm_normal_page() return NULL? Again, we do not if this vm_file
+> is the same shmem_file() or something else.
 
-It occurs to me that when a page is freed, we could record some useful bits
-of information in the page from the stack trace to help debug double-free 
-situations.  Even just stashing __builtin_return_address in page->mapping
-would be helpful, I think.
+Hmm.. I guess we also need to check page !=3D NULL.=20
 
-> > [259701.549382] Call Trace:
-> > [259701.549382]  dump_stack+0x46/0x60
-> > [259701.549382]  bad_page.cold.28+0x81/0xb4
-> > [259701.549382]  __free_pages_ok+0x236/0x240
-> > [259701.549382]  __ttm_dma_free_page+0x2f/0x40
-> > [259701.549382]  ttm_dma_unpopulate+0x29b/0x370
-> > [259701.549382]  ttm_tt_destroy.part.6+0x44/0x50
-> > [259701.549382]  ttm_bo_cleanup_memtype_use+0x29/0x70
-> > [259701.549382]  ttm_bo_put+0x225/0x280
-> > [259701.549382]  ttm_bo_vm_close+0x10/0x20
-> > [259701.549382]  remove_vma+0x20/0x40
-> > [259701.549382]  __do_munmap+0x2da/0x420
-> > [259701.549382]  __vm_munmap+0x66/0xc0
-> > [259701.549382]  __x64_sys_munmap+0x22/0x30
-> > [259701.549382]  do_syscall_64+0x5e/0x1a0
-> > [259701.549382]  ? prepare_exit_to_usermode+0x75/0xa0
-> > [259701.549382]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-> > [259701.549382] RIP: 0033:0x7f504d0ec1d7
-> > [259701.549382] Code: 10 e9 67 ff ff ff 0f 1f 44 00 00 48 8b 15 b1 6c 0c 00 f7
-> > d8 64 89 02 48 c7 c0 ff ff ff ff e9 6b ff ff ff b8 0b 00 00 00 0f 05 <48> 3d 01
-> > f0 ff ff 73 01 c3 48 8b 0d 89 6c 0c 00 f7 d8 64 89 01 48
-> > [259701.549382] RSP: 002b:00007ffe529db138 EFLAGS: 00000206 ORIG_RAX:
-> > 000000000000000b
-> > [259701.549382] RAX: ffffffffffffffda RBX: 0000564a5eabce70 RCX:
-> > 00007f504d0ec1d7
-> > [259701.549382] RDX: 00007ffe529db140 RSI: 0000000000400000 RDI:
-> > 00007f5044b65000
-> > [259701.549382] RBP: 0000564a5eafe460 R08: 000000000000000b R09:
-> > 000000010283e000
-> > [259701.549382] R10: 0000000000000001 R11: 0000000000000206 R12:
-> > 0000564a5e475b08
-> > [259701.549382] R13: 0000564a5e475c80 R14: 00007ffe529db190 R15:
-> > 0000000000000c80
-> > [259701.707238] Disabling lock debugging due to kernel taint
-> 
-> I assume the above is misbehaviour in the DRM code?
+For vm_file, I guess it is OK for it to be another file. As long as all
+pages in the pmd map to the same THP, we should be fine.=20
+
+>=20
+> And in fact I don't think it is safe to use vm_normal_page(vma, addr)
+> unless you know that vma includes this addr.
+
+Yeah, we need to check vma includes this address.=20
+
+>=20
+> to be honest, I am not even sure that unconditional mm_find_pmd() is safe
+> if this "something else" is really special.
+
+I cannot imagine why mm_find_pmd() could be unsafe.=20
+
+Thanks,
+Song
 
