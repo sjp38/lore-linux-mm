@@ -2,245 +2,165 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-5.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 17858C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 09:40:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0EB29C32750
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 09:40:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D021320679
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 09:40:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D021320679
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id D01B82086A
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 09:40:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D01B82086A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6A3356B0003; Fri,  2 Aug 2019 05:40:16 -0400 (EDT)
+	id 6C94F6B0005; Fri,  2 Aug 2019 05:40:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6543D6B0005; Fri,  2 Aug 2019 05:40:16 -0400 (EDT)
+	id 67B1E6B0006; Fri,  2 Aug 2019 05:40:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 541FD6B0006; Fri,  2 Aug 2019 05:40:16 -0400 (EDT)
+	id 542926B0008; Fri,  2 Aug 2019 05:40:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3395E6B0003
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 05:40:16 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id x1so63965949qkn.6
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 02:40:16 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 094636B0005
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 05:40:32 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id d27so46612049eda.9
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 02:40:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=C7kyb5ylqdODtDx8sU/53Gh74VhUAd0Uf9Vqy92YryQ=;
-        b=OlafGQHttDVdwv5X0A/9ocFJfRbVC9sEMHiqWF9d2aMb0zmS8vCBM6ailQiZrLHfMV
-         nK14284kVNRQQrS3/ZgxNj6nyS8ankKJGHfw7O9rc7OkHXLY9gONZQxdLVYiZwxpaOr5
-         Kxw8tY8Jkp1YBxn9bazzeZVJ4eCRvCfHueIrnC0ai0FqZhhvMkohepr6Ko6XFpG/z+TU
-         5Urs0ZzpjvuwI9h9vaNrBIYOCvt2fPFTkrp+le4ooSGSDeMm9RwSiuTbk6PT5edocm8S
-         I0OuxWx/ORELrZmOJAzfcc8wNd5ZayDuL75PJncqCuRJ8qMGHFBAvfJvQMOFBH1scL6B
-         7vFQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAW7oDqI0EYIyM9Cs/IEVKYwdpsyvIsLDpMEzx7wVzxrGjUi4bIE
-	gpV5l9l4deiyqDnZEXZeOguxopkkSmzsrwyhC25nN5GwWezasKL25DPkadrFvsSf4cIy7QvEEA8
-	WSxtzZah/GWy1+Caq7KhNbnruG1rA8kBQjXlOMdbbJUD+MYHzBWq9olXyFBxG56oOBw==
-X-Received: by 2002:aed:254c:: with SMTP id w12mr98005734qtc.127.1564738815962;
-        Fri, 02 Aug 2019 02:40:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyvbaHtVl5SdhMl0dpuVRZMBLe2DXAGFgRRF3bremhpvwgteNE5P3NtaWi1tdPu7jP8IMyq
-X-Received: by 2002:aed:254c:: with SMTP id w12mr98005685qtc.127.1564738815102;
-        Fri, 02 Aug 2019 02:40:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564738815; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=GVvRLyZwxdfn9nyNqh7UZq5Pv7RIZE41nfZGdWdwPoo=;
+        b=OwbSdottnNlUok3/h9FzOryDs5W+sVrr2TGvyw6FsUsOly+kqEbhF4aDP8YNST0GFD
+         KnIbtD7Imsfg02pq2bTMOrNN51dwWqn4g22jDL46TVnpT7QmTgO53julBN+4ukU9SXfj
+         PsR5+2GL/MTFXmsHzqiKHsv0l4tk5aYQMlAuLr4dUsnEgP0wgXGDiwArysfjq7buIGWi
+         bMKeLaH43QJj+/vOUMuSYUHhdfGeG0+2c2z8ubiVCv9ArhRJc7AgF2I30UT6bUJDY3Fj
+         dIEYhKG3rTFK0VBFEY5AZqThiXKlMKl+bbRQszqdAF7WwgYouq6m1mVbr/hnmAbLPY8G
+         Tq1A==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWgC+36FEYCN9TP37gR2xMXJvgN+ts9E9W490xeervR4ZDMGIkp
+	wKw9MQv2A4CEwR6imLuvYBnvSfRfhaik1vQh7ydKj2nFpX9WekUUYOMIVQBWj8Ii1dkMjKY0naq
+	mUIqxXR7qgaTrI0tNETPwJ4zMsk6ymd4TRu2XzbS1Sg8F6gWLTOTqv6pZbtmaUkE=
+X-Received: by 2002:a17:906:698e:: with SMTP id i14mr87663949ejr.122.1564738831596;
+        Fri, 02 Aug 2019 02:40:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyBF8m046a0V31cZSZZ+2QjmX/U87GcSZE6cxBbzPtqdvVPIZqRj7Erb/LouPfiICsd/ykb
+X-Received: by 2002:a17:906:698e:: with SMTP id i14mr87663898ejr.122.1564738830770;
+        Fri, 02 Aug 2019 02:40:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564738830; cv=none;
         d=google.com; s=arc-20160816;
-        b=YbejCbXOphG18uAutVhxRKq6eBRF0XKkMczWAfgk9JettcOrsLeVNfh1CKGXcSBMWj
-         CDiVGwTxCLeKaOj/zo5RHn3TbxjAw3EMXW+ku9Lh10+/XX0iP5m7OOSEyuAFIozmMBp5
-         YCApoC1LVgIAamYaJc6CukGPEiWiq6LJX0rNjlfUAEshn6iAc6lybxHgWG+A+Nyw6FMh
-         WIYHbCm615NmSdqfsPmh839HHrfCx4dXSNjBG4wLa5qGAnGHRhK+ql9YTZj+MSsWBo5m
-         7jCvcB93hqw1IJlafCuHUVt4nIJPHrrzitxgmylCfzvIs1eZtyh7067SlYNdciDt8Uyb
-         Ko8Q==
+        b=QMIvilVS2v7vSiVFyUUiymQgwmtPVsIV48lA2O4emm+5eNvYTDfFNuxARdHNL2oZxT
+         995VqZeS2u/5arpWk7TV3SOLhey3gPmD1RvUXLRrR45dRmDwxOYcEjvTS7UZYN5j69fE
+         dLB/an3DOSLRrftiYE3sIy8Xps75KhGpETe0g2bKLHM5HbazWzNI0j3/sTysr5u4ljkz
+         HekkJi1jOrsyrznzs/GoMFusR/8PvkhG1MGMg0id2bnp1AotJ0mTuOEtkrNgusl/0Z8W
+         MkwL8SdoPWXrkRYdTPpv4R7YqiqiueAKT7/Io45TjzSi1rDS4tK8iFZXGraS/KO+HjhY
+         sDDA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=C7kyb5ylqdODtDx8sU/53Gh74VhUAd0Uf9Vqy92YryQ=;
-        b=XaLJJlEPXiX2ZUFLlmLzDGU+nsvik3zV5R4oG/fkdGvkSyGu1aPbsg1Ou4OtVTlrtQ
-         ncI1ocjn8nHQ12T2NeDNBZ5v2/f6Qh2q8giQrBSycjqETeJFrFrg5pyFyJp+jKJ5904t
-         xM6ZmCawGe0TlF1QIqHaSBadrXCuUsErSyq76bxGiHqEjoxttrfZuo7ci42NKlaP2IkO
-         qihRkkjBR4Og+F+HoNu8EqSxdE0jypEckSz0Dz6nJ4Odatc8VmP/GxWBmKyXaWykCCuZ
-         PF6s2TWjUxkE5DIQBIVnuejiv08l0oK47sBseAsSJKbhz2FEJAn9hspXw/oIZsw413lb
-         SHhA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=GVvRLyZwxdfn9nyNqh7UZq5Pv7RIZE41nfZGdWdwPoo=;
+        b=P5l9CPrbuy9wCUZQbaaqh12QAbBrf7Ugc/JHc2nwcESJ+3V3N4efTiVS/w4RT1zC9a
+         jrOp4QTz6dHs4BfArzuLzyxYWWGeZk+rCV1uzjMdn2KHnFBIsJmQrGtwGVaXMoQsQGR7
+         gRZHHdXXU/ArWtG6WkzPoGEL1kIOjupSML2ya+Ld8PLqXow+kjQEcdgxItg44vBQ025K
+         /p912OZLNOKbOmlkxuwnHy6M1puxJN0c8vPD2t9Rk1VbftbKn03LQrK+VZDxbVG49Qwc
+         fSSB2Sks41evyowY5SUbpi6m2utDtSyzWrxprKTyq6WXsDka1JICI1W7FDLPN4hVTrRT
+         3UAg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id k39si45639048qtc.271.2019.08.02.02.40.14
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id dc19si22012992ejb.324.2019.08.02.02.40.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 02:40:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Fri, 02 Aug 2019 02:40:30 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 3DA173001A6C;
-	Fri,  2 Aug 2019 09:40:14 +0000 (UTC)
-Received: from [10.72.12.134] (ovpn-12-134.pek2.redhat.com [10.72.12.134])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 15D4F60BE2;
-	Fri,  2 Aug 2019 09:40:08 +0000 (UTC)
-Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
- with worker
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: mst@redhat.com, kvm@vger.kernel.org,
- virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org
-References: <20190731084655.7024-1-jasowang@redhat.com>
- <20190731084655.7024-8-jasowang@redhat.com> <20190731123935.GC3946@ziepe.ca>
- <7555c949-ae6f-f105-6e1d-df21ddae9e4e@redhat.com>
- <20190731193057.GG3946@ziepe.ca>
- <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
- <20190801141512.GB23899@ziepe.ca>
-From: Jason Wang <jasowang@redhat.com>
-Message-ID: <42ead87b-1749-4c73-cbe4-29dbeb945041@redhat.com>
-Date: Fri, 2 Aug 2019 17:40:07 +0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 30C32AE50;
+	Fri,  2 Aug 2019 09:40:30 +0000 (UTC)
+Date: Fri, 2 Aug 2019 11:40:28 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>,
+	Konstantin Khlebnikov <khlebnikov@yandex-team.ru>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	cgroups@vger.kernel.org, Vladimir Davydov <vdavydov.dev@gmail.com>
+Subject: Re: [PATCH RFC] mm/memcontrol: reclaim severe usage over high limit
+ in get_user_pages loop
+Message-ID: <20190802094028.GG6461@dhcp22.suse.cz>
+References: <156431697805.3170.6377599347542228221.stgit@buzz>
+ <20190729154952.GC21958@cmpxchg.org>
+ <20190729185509.GI9330@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <20190801141512.GB23899@ziepe.ca>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Fri, 02 Aug 2019 09:40:14 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190729185509.GI9330@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon 29-07-19 20:55:09, Michal Hocko wrote:
+> On Mon 29-07-19 11:49:52, Johannes Weiner wrote:
+> > On Sun, Jul 28, 2019 at 03:29:38PM +0300, Konstantin Khlebnikov wrote:
+> > > --- a/mm/gup.c
+> > > +++ b/mm/gup.c
+> > > @@ -847,8 +847,11 @@ static long __get_user_pages(struct task_struct *tsk, struct mm_struct *mm,
+> > >  			ret = -ERESTARTSYS;
+> > >  			goto out;
+> > >  		}
+> > > -		cond_resched();
+> > >  
+> > > +		/* Reclaim memory over high limit before stocking too much */
+> > > +		mem_cgroup_handle_over_high(true);
+> > 
+> > I'd rather this remained part of the try_charge() call. The code
+> > comment in try_charge says this:
+> > 
+> > 	 * We can perform reclaim here if __GFP_RECLAIM but let's
+> > 	 * always punt for simplicity and so that GFP_KERNEL can
+> > 	 * consistently be used during reclaim.
+> > 
+> > The simplicity argument doesn't hold true anymore once we have to add
+> > manual calls into allocation sites. We should instead fix try_charge()
+> > to do synchronous reclaim for __GFP_RECLAIM and only punt to userspace
+> > return when actually needed.
+> 
+> Agreed. If we want to do direct reclaim on the high limit breach then it
+> should go into try_charge same way we do hard limit reclaim there. I am
+> not yet sure about how/whether to scale the excess. The only reason to
+> move reclaim to return-to-userspace path was GFP_NOWAIT charges. As you
+> say, maybe we should start by always performing the reclaim for
+> sleepable contexts first and only defer for non-sleeping requests.
 
-On 2019/8/1 下午10:15, Jason Gunthorpe wrote:
-> On Thu, Aug 01, 2019 at 01:02:18PM +0800, Jason Wang wrote:
->> On 2019/8/1 上午3:30, Jason Gunthorpe wrote:
->>> On Wed, Jul 31, 2019 at 09:28:20PM +0800, Jason Wang wrote:
->>>> On 2019/7/31 下午8:39, Jason Gunthorpe wrote:
->>>>> On Wed, Jul 31, 2019 at 04:46:53AM -0400, Jason Wang wrote:
->>>>>> We used to use RCU to synchronize MMU notifier with worker. This leads
->>>>>> calling synchronize_rcu() in invalidate_range_start(). But on a busy
->>>>>> system, there would be many factors that may slow down the
->>>>>> synchronize_rcu() which makes it unsuitable to be called in MMU
->>>>>> notifier.
->>>>>>
->>>>>> A solution is SRCU but its overhead is obvious with the expensive full
->>>>>> memory barrier. Another choice is to use seqlock, but it doesn't
->>>>>> provide a synchronization method between readers and writers. The last
->>>>>> choice is to use vq mutex, but it need to deal with the worst case
->>>>>> that MMU notifier must be blocked and wait for the finish of swap in.
->>>>>>
->>>>>> So this patch switches use a counter to track whether or not the map
->>>>>> was used. The counter was increased when vq try to start or finish
->>>>>> uses the map. This means, when it was even, we're sure there's no
->>>>>> readers and MMU notifier is synchronized. When it was odd, it means
->>>>>> there's a reader we need to wait it to be even again then we are
->>>>>> synchronized.
->>>>> You just described a seqlock.
->>>> Kind of, see my explanation below.
->>>>
->>>>
->>>>> We've been talking about providing this as some core service from mmu
->>>>> notifiers because nearly every use of this API needs it.
->>>> That would be very helpful.
->>>>
->>>>
->>>>> IMHO this gets the whole thing backwards, the common pattern is to
->>>>> protect the 'shadow pte' data with a seqlock (usually open coded),
->>>>> such that the mmu notififer side has the write side of that lock and
->>>>> the read side is consumed by the thread accessing or updating the SPTE.
->>>> Yes, I've considered something like that. But the problem is, mmu notifier
->>>> (writer) need to wait for the vhost worker to finish the read before it can
->>>> do things like setting dirty pages and unmapping page.  It looks to me
->>>> seqlock doesn't provide things like this.
->>> The seqlock is usually used to prevent a 2nd thread from accessing the
->>> VA while it is being changed by the mm. ie you use something seqlocky
->>> instead of the ugly mmu_notifier_unregister/register cycle.
->>
->> Yes, so we have two mappings:
->>
->> [1] vring address to VA
->> [2] VA to PA
->>
->> And have several readers and writers
->>
->> 1) set_vring_num_addr(): writer of both [1] and [2]
->> 2) MMU notifier: reader of [1] writer of [2]
->> 3) GUP: reader of [1] writer of [2]
->> 4) memory accessors: reader of [1] and [2]
->>
->> Fortunately, 1) 3) and 4) have already synchronized through vq->mutex. We
->> only need to deal with synchronization between 2) and each of the reset:
->> Sync between 1) and 2): For mapping [1], I do
->> mmu_notifier_unregister/register. This help to avoid holding any lock to do
->> overlap check.
-> I suspect you could have done this with a RCU technique instead of
-> register/unregister.
+In other words. Something like patch below (completely untested). Could
+you give it a try Konstantin?
 
-
-Probably. But the issue to be addressed by this patch is the 
-synchronization between MMU notifier and vhost worker.
-
-
->
->> Sync between 2) and 4): For mapping [1], both are readers, no need any
->> synchronization. For mapping [2], synchronize through RCU (or something
->> simliar to seqlock).
-> You can't really use a seqlock, seqlocks are collision-retry locks,
-> and the semantic here is that invalidate_range_start *MUST* not
-> continue until thread doing #4 above is guarenteed no longer touching
-> the memory.
-
-
-Yes, that's the tricky part. For hardware like CPU, kicking through IPI 
-is sufficient for synchronization. But for vhost kthread, it requires a 
-low overhead synchronization.
-
-
->
-> This must be a proper barrier, like a spinlock, mutex, or
-> synchronize_rcu.
-
-
-I start with synchronize_rcu() but both you and Michael raise some 
-concern. Then I try spinlock and mutex:
-
-1) spinlock: add lots of overhead on datapath, this leads 0 performance 
-improvement.
-
-2) SRCU: full memory barrier requires on srcu_read_lock(), which still 
-leads little performance improvement
-
-3) mutex: a possible issue is need to wait for the page to be swapped in 
-(is this unacceptable ?), another issue is that we need hold vq lock 
-during range overlap check.
-
-4) using vhost_flush_work() instead of synchronize_rcu(): still need to 
-wait for swap. But can do overlap checking without the lock
-
-
->
-> And, again, you can't re-invent a spinlock with open coding and get
-> something better.
-
-
-So the question is if waiting for swap is considered to be unsuitable 
-for MMU notifiers. If not, it would simplify codes. If not, we still 
-need to figure out a possible solution.
-
-Btw, I come up another idea, that is to disable preemption when vhost 
-thread need to access the memory. Then register preempt notifier and if 
-vhost thread is preempted, we're sure no one will access the memory and 
-can do the cleanup.
-
-Thanks
-
-
->
-> Jason
+diff --git a/mm/memcontrol.c b/mm/memcontrol.c
+index ba9138a4a1de..53a35c526e43 100644
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2429,8 +2429,12 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+ 				schedule_work(&memcg->high_work);
+ 				break;
+ 			}
+-			current->memcg_nr_pages_over_high += batch;
+-			set_notify_resume(current);
++			if (gfpflags_allow_blocking(gfp_mask)) {
++				reclaim_high(memcg, nr_pages, GFP_KERNEL);
++			} else {
++				current->memcg_nr_pages_over_high += batch;
++				set_notify_resume(current);
++			}
+ 			break;
+ 		}
+ 	} while ((memcg = parent_mem_cgroup(memcg)));
+-- 
+Michal Hocko
+SUSE Labs
 
