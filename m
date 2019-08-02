@@ -2,252 +2,255 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 30296C32750
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 17:28:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 96B67C32750
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 17:36:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DB8E621726
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 17:28:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB8E621726
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 4E08C217D7
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 17:36:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="kmC6vmJ5";
+	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="fVqJADMC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E08C217D7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 742ED6B0006; Fri,  2 Aug 2019 13:28:31 -0400 (EDT)
+	id E1AB26B0006; Fri,  2 Aug 2019 13:36:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6F2F26B000D; Fri,  2 Aug 2019 13:28:31 -0400 (EDT)
+	id DCA646B000E; Fri,  2 Aug 2019 13:36:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5E2496B000E; Fri,  2 Aug 2019 13:28:31 -0400 (EDT)
+	id C76A46B0010; Fri,  2 Aug 2019 13:36:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2876A6B0006
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 13:28:31 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id g126so1331075pgc.22
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 10:28:31 -0700 (PDT)
+Received: from mail-vk1-f200.google.com (mail-vk1-f200.google.com [209.85.221.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9D00A6B0006
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 13:36:52 -0400 (EDT)
+Received: by mail-vk1-f200.google.com with SMTP id u202so32651635vku.5
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 10:36:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=oCfHqGN50JOQwYrb9+UyyhQ736wEtvw86chrYPBrKhQ=;
-        b=pb4oc77NdhKmNblBFU3uMIze4bKCHUiSP61bafUEvH8mq3I+j9HAlGtzscHCsQcRZt
-         rdioKeD95ChLurB9jOylaNyo9Y0PD+1WK3J61zoVbgkyK95OfCtSrc/fpSuiCkgP5hZ/
-         VpBR6Naj5wskpEn9Ko+fI/uZ92Dl6pDmN87WPTMpBv6V/8w/AXCZECV8vdF6HtYsH4Fw
-         hA4ch8GrHwWWeAWf8+bIJhHn0rDg1neAau+k8HIaq815iYGA8fn23GeNrgpznCgeu7wX
-         cvKx3uSG4ZMBT49ggVPz0hvAVuBJ9g16MQtypAualOwlrexZO29IbjoWZy14m0+ZOtjN
-         Unig==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWxELd0hgUsLWfjUsNmYXcEtKg8M4TNZ5YbYTg7aH6LMKulPLPZ
-	6Gi0PoT7HmYgZmxCZ1Jnxa8FXqti05LV9BDn9vknOzuz56obO4ONO0yquwhCFj9r2Dpes0+MRyi
-	bfqJ4MfLtJSDPizoJs3RLwJ21m0fi2QY3cyjnUMs2s0X0kEzpE/27ihn2rdi9OwulTQ==
-X-Received: by 2002:a63:31c1:: with SMTP id x184mr122377905pgx.128.1564766910679;
-        Fri, 02 Aug 2019 10:28:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzK9OUiwt4GpobwxZPf13uR9XOLdJI4ElpFEWiV4GsPEHolGROGwTK1XhP1WaLQ2WYZ3v44
-X-Received: by 2002:a63:31c1:: with SMTP id x184mr122377850pgx.128.1564766909582;
-        Fri, 02 Aug 2019 10:28:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564766909; cv=none;
+        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
+         :thread-topic:thread-index:date:message-id:references:in-reply-to
+         :accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=Kbqu2pkdbuE6Hfv0C18aO+pa2j5XdDTFvxFMkm7G37I=;
+        b=sYUqM7NO87SixeQU86qndsi661ffnzMVdJTjny2IRku2r9FkXvT9xSgS0q/OehFuf/
+         K/r1wlwo+k10a6rtli9vJxlkNd1i++IcAVDLcadefJ2sg+25fQLapCYMIqBdGBaCOBTA
+         D8qCxJnpjhGcHTE69slNG4NBJyFmfZR60pPW2c7gi5NgZQh0wUtDTbA2O/xGvKzisJ7g
+         +xOyQNLoUkxvCHhVggHd7Uz/sBa4DB2iq8NA3OKR55h+rTF8r3VGeGjL2NwO4Y7IDoPu
+         b4JSN9Hy2ML0FBmRgdsnR0Sdkgv3Xk+qJCrqFnj4zBJDd3CTilh89AAN3ZH8aoOtRaGM
+         ylNQ==
+X-Gm-Message-State: APjAAAUnHSuVh6I/i31FCYoSkfJls8fyrZ5J9dCJGYRSx7FG7+TVTJ8g
+	Sx8cXkmMBPkKgG2VAGbT06IJ6Rxy5SD5ud/CXMIxM4V4eKNnUyh1pkG8BT7Z8CjDG5LhqRUwkBo
+	gTi7P5RlXMcqRfyZVedrI1T2aQKGi8GB2SwXMSO2+gvZRXzBFnKizdonpGvElhzaoqw==
+X-Received: by 2002:a05:6102:217:: with SMTP id z23mr40559999vsp.19.1564767412296;
+        Fri, 02 Aug 2019 10:36:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx5hOcfo1HKxxUq6Ex50qZs4uJOCLQIr1P6WahWyjJu6S+dF9FrZwb9QaMCnWnHdE+aGxmX
+X-Received: by 2002:a05:6102:217:: with SMTP id z23mr40559975vsp.19.1564767411672;
+        Fri, 02 Aug 2019 10:36:51 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1564767411; cv=pass;
         d=google.com; s=arc-20160816;
-        b=FBGoSMc/+hkZjEBdiakmoDbXiR4H1gBpFQsnyBGOX4oAjRSpiyeDD9Z2gw5nbkJsYz
-         N3xCBsWm5lW9PI1pKntURcPpv771zIxCFnoatvUS7fOLfRGjC9afTbJ/onpJTS8OCzdC
-         d+hobAuvnLGo9HbNa3Dr7IpOE8gduHfQGQ1Zr5j7zYIHY2WYcF9fiuur3+buY3VwZaav
-         reZlntrxIZ6IVNh1LvS2Q+Z/vSntv8KMCVU19Iptfjj7T+vvyTnuGIjXsKwtlO4tnCEi
-         qfYMecjFVBBBX6+vfMSJwz2pHHOmXSn1un5lXnI5ZKFssW9RFa2KRwmZ6i69PptvAVZV
-         O8jQ==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:date:cc:to:from:subject:message-id;
-        bh=oCfHqGN50JOQwYrb9+UyyhQ736wEtvw86chrYPBrKhQ=;
-        b=NUJ6i4R+cuTcO/rdjEod29dTmx8thzSTq1KLZkme3gmpVau1EHoiEcRirHH5ColBLc
-         qWEZvEXdJZCAq+EpS5M+gwoR26OZMINl7aP39Z7xqlkJrfP/kC6ihic+n3I/4I1mHEZW
-         SUnw2T/3FBLXBpfVLryrs/GPWlVrJwOrAzvwPcOFJ9FhbDfcEPA6gJaJCZFlozPk1jif
-         0OcNRNRn+GXjdeVo6ftbemZUIBarU88y60X0z7/YvZuM9eMUVGOA1DU+bLpC45XnayM9
-         hjem3uQeTpCh+I1MJ0IrvBrcBNo+G3z/+rXs95rNVwFe9js1u5ZVH2iCwOHRRq0lh6sL
-         5qOw==
-ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
-        by mx.google.com with ESMTPS id v11si33154348plp.304.2019.08.02.10.28.29
+        b=DeQn9X/yWg0IfC8FQBfRq4J0ywxuE4PSuQ8IKeNi5nDvBbrET36Twocbq1AzK6/Wo0
+         hiyhjD4myI63x6I4Zu5+4GECu55dAEVyVvHx5uyWxcGs8XvO24aOa27JDNUUyp0peXxD
+         I/cGysB8WLkRXl5OCk6mG9EEzEN2B09vXvRuLk9iI4nlPSm/VfB1RFBtr2Js0+CVyrQY
+         2DdBGEj/DLe0aIS3cSlfBhwE0Mx6fXJmG8judcCRt5NrzIcpxH11Jrfx9kHeMjrmWdxB
+         jvPVaMpPhL4vCQUkdkK990+sBYKq37kYIFfJbEQA/HzJur81j1XcIvTzmiV/e9PhWsLl
+         vvMA==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
+        bh=Kbqu2pkdbuE6Hfv0C18aO+pa2j5XdDTFvxFMkm7G37I=;
+        b=C+PKgMVo/TDq9bHrf3r9oTxEtg2rrhJUZJulMa8GZ+bs+ePP1wujNEMYC8liLXWwA9
+         wP9xPWihdJHK6kcsgmWi94MU6nweZf72Ram90teDGXzBeFYBitVieW5VqrHCN9aHx3II
+         PPAkRFUzCc8E79/mTlCqqJ0ucH8VwzmyYmLNsE3prWUcx/Yb7NGcRk1kBZKU/DpZOz0m
+         s8wrDuV7FgWMUEskXEeMWmSPfvjtPDsxca5acr8DxGkNwmpMa3XM98kz/JBMX0AkOBjT
+         XRWA+YfLUO4BJ6bfOeMcOCqoLzLZCxePQ9rhVb61oMmSt75VTow1a5Raf4T0iwss6JVM
+         XTCw==
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@fb.com header.s=facebook header.b=kmC6vmJ5;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=fVqJADMC;
+       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
+       spf=pass (google.com: domain of prvs=31176506d8=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=31176506d8=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
+        by mx.google.com with ESMTPS id e19si17999693vsj.179.2019.08.02.10.36.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 10:28:29 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
+        Fri, 02 Aug 2019 10:36:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of prvs=31176506d8=guro@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 02 Aug 2019 10:28:28 -0700
-X-IronPort-AV: E=Sophos;i="5.64,338,1559545200"; 
-   d="scan'208";a="167292961"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga008-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 02 Aug 2019 10:28:28 -0700
-Message-ID: <ac434f1cad234920c0e75fe809ac05053395524b.camel@linux.intel.com>
-Subject: Re: [PATCH v3 0/6] mm / virtio: Provide support for unused page
- reporting
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: Nitesh Narayan Lal <nitesh@redhat.com>, Alexander Duyck
-	 <alexander.duyck@gmail.com>, kvm@vger.kernel.org, david@redhat.com, 
-	mst@redhat.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, 
-	linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com, 
-	konrad.wilk@oracle.com, willy@infradead.org, lcapitulino@redhat.com, 
-	wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com, 
-	dan.j.williams@intel.com
-Date: Fri, 02 Aug 2019 10:28:28 -0700
-In-Reply-To: <291a1259-fd20-1712-0f0f-5abdefdca95f@redhat.com>
-References: <20190801222158.22190.96964.stgit@localhost.localdomain>
-	 <9cddf98d-e2ce-0f8a-d46c-e15a54bc7391@redhat.com>
-	 <3f6c133ec1eabb8f4fd5c0277f8af254b934b14f.camel@linux.intel.com>
-	 <291a1259-fd20-1712-0f0f-5abdefdca95f@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+       dkim=pass header.i=@fb.com header.s=facebook header.b=kmC6vmJ5;
+       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=fVqJADMC;
+       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
+       spf=pass (google.com: domain of prvs=31176506d8=guro@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=31176506d8=guro@fb.com";
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
+Received: from pps.filterd (m0001255.ppops.net [127.0.0.1])
+	by mx0b-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x72HafEd030920;
+	Fri, 2 Aug 2019 10:36:47 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
+ : date : message-id : references : in-reply-to : content-type : content-id
+ : content-transfer-encoding : mime-version; s=facebook;
+ bh=Kbqu2pkdbuE6Hfv0C18aO+pa2j5XdDTFvxFMkm7G37I=;
+ b=kmC6vmJ5AUCWFUpb/FWyFQa+QOp+F0dxe7La3YqaxwpqNiMvwCl+H4ftFLOYrEk2eRAl
+ AzOnAUlthSm9T0ajATb6Z5ETg40CjYoxN3jjTlp4oLDtWBzRFb7IxkHIVHgi3PHJIJmk
+ hsxRxrUIYd5JKEzvWP+9YcwzgVOM9PJdUbs= 
+Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
+	by mx0b-00082601.pphosted.com with ESMTP id 2u4s4q050m-7
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
+	Fri, 02 Aug 2019 10:36:47 -0700
+Received: from prn-mbx08.TheFacebook.com (2620:10d:c081:6::22) by
+ prn-hub01.TheFacebook.com (2620:10d:c081:35::125) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Fri, 2 Aug 2019 10:36:44 -0700
+Received: from prn-hub01.TheFacebook.com (2620:10d:c081:35::125) by
+ prn-mbx08.TheFacebook.com (2620:10d:c081:6::22) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
+ 15.1.1713.5; Fri, 2 Aug 2019 10:36:44 -0700
+Received: from NAM04-BN3-obe.outbound.protection.outlook.com (192.168.54.28)
+ by o365-in.thefacebook.com (192.168.16.25) with Microsoft SMTP Server
+ (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
+ via Frontend Transport; Fri, 2 Aug 2019 10:36:44 -0700
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=aw7RmsxR3kWmLAYq6bZ3KnqqwXfBa0aioGbc+y20TXlmNnJ/GoelLf03z269HVvDj78Zes7shYKJKZALxhkL6POF0bzBmNzNeI9uO8ozXsnAf6d8JwJ1tPb1QwuQml5ZfPoVXRoETHbuGlPDYFoXr/0RYi6/Z7JFnuMtLAYScqNHB81D5nNJfcL6TkvbL6p1/+3rwOom4L9TzcFJpR+qfHGm/EcS5Fw1x53VfgAS+RlJzqSxRZus6GhpVp7LSY31oALmJwz3ZGB5Quwtr33xhZx/pWZzAd0KtEspCL83RgveLDywuLNxa60IC9AZg4PcDxYodK+xLKzE+h6ZL4ceJA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=Kbqu2pkdbuE6Hfv0C18aO+pa2j5XdDTFvxFMkm7G37I=;
+ b=lq75wxlCOkaXneKyOVPsUyuu7MWIUkDtIHwke2fCRP75e/5GZ7/bQ8fG71EFi4qjGav8d0P2ZuNRzbO1LE056QyV6LsOLNSkrXLD5X/0QqS44wUy7vL3Mp/DT+VvKZ1ytcWYwTnhMlBHdGxDx4qLwEOTdiWjVCjla6zmPAFTtsU3JiDfHq7uh/o+1YtJjPrz/y10gXUILtnaLlcSrpMADaLBtvWXcTPWFvjq6oVtu5bCOM0EZ3u22OQoWe7kKeUg73vAWjC8RFh8EjRPyrkiTHl1chIZ1Nt1zwxTXLe4Kh1RFQQz8vD1vhljSHNfcz3oplOn9FSMozWEbDtY6aevkA==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
+ smtp.mailfrom=fb.com;dmarc=pass action=none header.from=fb.com;dkim=pass
+ header.d=fb.com;arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
+ s=selector2-fb-onmicrosoft-com;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=Kbqu2pkdbuE6Hfv0C18aO+pa2j5XdDTFvxFMkm7G37I=;
+ b=fVqJADMCFCfakRO46fLBroI0kXlP/m5H9yiBvG5gQmp4U0FVddU80nHwWfy1D9zE3Fu+ZnIFrY4fiIE9P9hMUAhUF4cnW2OfBb59ahCZ6E9tKGZeweekhImPZLOtqy1jewhY/tq8K1cXkpVLZbMUjTH3gSE6eXVMKtkZCSt5CgI=
+Received: from DM6PR15MB2635.namprd15.prod.outlook.com (20.179.161.152) by
+ DM6PR15MB2745.namprd15.prod.outlook.com (20.179.163.26) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2136.17; Fri, 2 Aug 2019 17:36:42 +0000
+Received: from DM6PR15MB2635.namprd15.prod.outlook.com
+ ([fe80::fc39:8b78:f4df:a053]) by DM6PR15MB2635.namprd15.prod.outlook.com
+ ([fe80::fc39:8b78:f4df:a053%3]) with mapi id 15.20.2136.010; Fri, 2 Aug 2019
+ 17:36:42 +0000
+From: Roman Gushchin <guro@fb.com>
+To: Michal Hocko <mhocko@kernel.org>
+CC: Andrew Morton <akpm@linux-foundation.org>,
+        "linux-mm@kvack.org"
+	<linux-mm@kvack.org>,
+        Johannes Weiner <hannes@cmpxchg.org>,
+        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+        Kernel Team
+	<Kernel-team@fb.com>
+Subject: Re: [PATCH] mm: memcontrol: switch to rcu protection in
+ drain_all_stock()
+Thread-Topic: [PATCH] mm: memcontrol: switch to rcu protection in
+ drain_all_stock()
+Thread-Index: AQHVSMHRid8xy6v2VESi4846kGYnRKbngEUAgAAPfICAABD8gIAAeVaAgAAGFgA=
+Date: Fri, 2 Aug 2019 17:36:42 +0000
+Message-ID: <20190802173638.GC28431@tower.DHCP.thefacebook.com>
+References: <20190801233513.137917-1-guro@fb.com>
+ <20190802080422.GA6461@dhcp22.suse.cz> <20190802085947.GC6461@dhcp22.suse.cz>
+ <20190802170030.GB28431@tower.DHCP.thefacebook.com>
+ <20190802171451.GN6461@dhcp22.suse.cz>
+In-Reply-To: <20190802171451.GN6461@dhcp22.suse.cz>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-clientproxiedby: MWHPR17CA0063.namprd17.prod.outlook.com
+ (2603:10b6:300:93::25) To DM6PR15MB2635.namprd15.prod.outlook.com
+ (2603:10b6:5:1a6::24)
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [2620:10d:c090:200::a1bd]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 970329ea-ab62-4131-dfec-08d7176ffb51
+x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:DM6PR15MB2745;
+x-ms-traffictypediagnostic: DM6PR15MB2745:
+x-microsoft-antispam-prvs: <DM6PR15MB27459C7374B204C5DB7C6095BED90@DM6PR15MB2745.namprd15.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:10000;
+x-forefront-prvs: 011787B9DD
+x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(376002)(136003)(39860400002)(366004)(346002)(396003)(189003)(199004)(54534003)(102836004)(6916009)(8676002)(81166006)(81156014)(8936002)(478600001)(53936002)(6246003)(66556008)(64756008)(66446008)(229853002)(2906002)(66946007)(25786009)(6486002)(5660300002)(6512007)(4326008)(6116002)(9686003)(66476007)(1076003)(6436002)(33656002)(71200400001)(71190400001)(14454004)(68736007)(446003)(11346002)(186003)(476003)(7736002)(86362001)(486006)(305945005)(46003)(54906003)(256004)(99286004)(6506007)(386003)(316002)(76176011)(52116002);DIR:OUT;SFP:1102;SCL:1;SRVR:DM6PR15MB2745;H:DM6PR15MB2635.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: fb.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info: EhLmm4BHKqWYT9OJPp3+PmsufvIrRPbMQM4/MHJ3uXMf8wI6bVu1/6KCS7tZFh5vT2sNeYSyaCBMvO/Q5Y21xeYZgVIJt4Je9yc4OQNCEdYit2koIttTPKOpENlvOjjkXbwh1GzMs12hUcg58QO8pPV6waGLL+FjormPM3hyLLsV8frOC6uKCMFHDNombl45LfWLO6fnrchUnb61lvSPdZK4d0fbT9pbE/vZLsA/vvRtgew6iY8YYIeEIcG8GzjlxtLybiN4dA6SLzFQaBjDFhMiHC9u16JETBdPlq+PEGKPzQ1VB5zRBRMb0pjl+vKj4lnNSbBvlDxdmc1QzTqWmKtlS9QgzkLO66Ouv4xvWqdpyLC1TPsUNCyly1a3N8mkbA2ktCms2TKSpQtnByYM5yQbCzGlfzS0zGakWHkNIuA=
+Content-Type: text/plain; charset="us-ascii"
+Content-ID: <AF6B796117402648BDC1DDFF2537D4AA@namprd15.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+X-MS-Exchange-CrossTenant-Network-Message-Id: 970329ea-ab62-4131-dfec-08d7176ffb51
+X-MS-Exchange-CrossTenant-originalarrivaltime: 02 Aug 2019 17:36:42.4318
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: guro@fb.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR15MB2745
+X-OriginatorOrg: fb.com
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-02_07:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=772 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908020184
+X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-08-02 at 12:19 -0400, Nitesh Narayan Lal wrote:
-> On 8/2/19 11:13 AM, Alexander Duyck wrote:
-> > On Fri, 2019-08-02 at 10:41 -0400, Nitesh Narayan Lal wrote:
-> > > On 8/1/19 6:24 PM, Alexander Duyck wrote:
-> > > > This series provides an asynchronous means of reporting to a hypervisor
-> > > > that a guest page is no longer in use and can have the data associated
-> > > > with it dropped. To do this I have implemented functionality that allows
-> > > > for what I am referring to as unused page reporting
-> > > > 
-> > > > The functionality for this is fairly simple. When enabled it will allocate
-> > > > statistics to track the number of reported pages in a given free area.
-> > > > When the number of free pages exceeds this value plus a high water value,
-> > > > currently 32, it will begin performing page reporting which consists of
-> > > > pulling pages off of free list and placing them into a scatter list. The
-> > > > scatterlist is then given to the page reporting device and it will perform
-> > > > the required action to make the pages "reported", in the case of
-> > > > virtio-balloon this results in the pages being madvised as MADV_DONTNEED
-> > > > and as such they are forced out of the guest. After this they are placed
-> > > > back on the free list, and an additional bit is added if they are not
-> > > > merged indicating that they are a reported buddy page instead of a
-> > > > standard buddy page. The cycle then repeats with additional non-reported
-> > > > pages being pulled until the free areas all consist of reported pages.
-> > > > 
-> > > > I am leaving a number of things hard-coded such as limiting the lowest
-> > > > order processed to PAGEBLOCK_ORDER, and have left it up to the guest to
-> > > > determine what the limit is on how many pages it wants to allocate to
-> > > > process the hints. The upper limit for this is based on the size of the
-> > > > queue used to store the scatterlist.
-> > > > 
-> > > > My primary testing has just been to verify the memory is being freed after
-> > > > allocation by running memhog 40g on a 40g guest and watching the total
-> > > > free memory via /proc/meminfo on the host. With this I have verified most
-> > > > of the memory is freed after each iteration. As far as performance I have
-> > > > been mainly focusing on the will-it-scale/page_fault1 test running with
-> > > > 16 vcpus. With that I have seen up to a 2% difference between the base
-> > > > kernel without these patches and the patches with virtio-balloon enabled
-> > > > or disabled.
-> > > A couple of questions:
-> > > 
-> > > - The 2% difference which you have mentioned, is this visible for
-> > >   all the 16 cores or just the 16th core?
-> > > - I am assuming that the difference is seen for both "number of process"
-> > >   and "number of threads" launched by page_fault1. Is that right?
-> > Really, the 2% is bordering on just being noise. Sometimes it is better
-> > sometimes it is worse. However I think it is just slight variability in
-> > the tests since it doesn't usually form any specific pattern.
-> > 
-> > I have been able to tighten it down a bit by actually splitting my guest
-> > over 2 nodes and pinning the vCPUs so that the nodes in the guest match up
-> > to the nodes in the host. Doing that I have seen results where I had less
-> > than 1% variability between with the patches and without.
-> 
-> Interesting. I usually pin the guest to a single NUMA node to avoid this.
+On Fri, Aug 02, 2019 at 07:14:51PM +0200, Michal Hocko wrote:
+> On Fri 02-08-19 17:00:34, Roman Gushchin wrote:
+> > On Fri, Aug 02, 2019 at 10:59:47AM +0200, Michal Hocko wrote:
+> > > On Fri 02-08-19 10:04:22, Michal Hocko wrote:
+> > > > On Thu 01-08-19 16:35:13, Roman Gushchin wrote:
+> > > > > Commit 72f0184c8a00 ("mm, memcg: remove hotplug locking from try_=
+charge")
+> > > > > introduced css_tryget()/css_put() calls in drain_all_stock(),
+> > > > > which are supposed to protect the target memory cgroup from being
+> > > > > released during the mem_cgroup_is_descendant() call.
+> > > > >=20
+> > > > > However, it's not completely safe. In theory, memcg can go away
+> > > > > between reading stock->cached pointer and calling css_tryget().
+> > > >=20
+> > > > I have to remember how is this whole thing supposed to work, it's b=
+een
+> > > > some time since I've looked into that.
+> > >=20
+> > > OK, I guess I remember now and I do not see how the race is possible.
+> > > Stock cache is keeping its memcg alive because it elevates the refere=
+nce
+> > > counting for each cached charge. And that should keep the whole chain=
+ up
+> > > to the root (of draining) alive, no? Or do I miss something, could yo=
+u
+> > > generate a sequence of events that would lead to use-after-free?
+> >=20
+> > Right, but it's true when you reading a local percpu stock.
+> > But here we read a remote stock->cached pointer, which can be cleared
+> > by a remote concurrent drain_local_stock() execution.
+>=20
+> OK, I can see how refill_stock can race with drain_all_stock. I am not
+> sure I see drain_local_stock race because that should be triggered only
+> from drain_all_stock and only one cpu is allowed to do that. Maybe we
+> might have scheduled a work from the previous run?
 
-I was trying to put as much stress on this as I could so my thought was
-the more CPUs the better. Also an added advantage to splitting the guest
-over 2 nodes is that it split the zone locks up so that it reduced how
-much of a bottleneck it was.
+Exactly. Previously executed drain_all_stock() -> schedule_work ->
+drain_local_stock() on a remote cpu races with checking memcg pointer
+from drain_all_stock.
 
-> > One thing I am looking at now is modifying the page_fault1 test to use THP
-> > instead of 4K pages as I suspect there is a fair bit of overhead in
-> > accessing the pages 4K at a time vs 2M at a time. I am hoping with that I
-> > can put more pressure on the actual change and see if there are any
-> > additional spots I should optimize.
-> 
-> +1. Right now I don't think will-it-scale touches all the guest memory.
-> May I know how much memory does will-it-scale/page_fault1, occupies in your case
-> and how much do you get back with your patch-set?
+>=20
+> In any case, please document the race in the changelog please. This code
+> is indeed tricky and a comment would help as well.
 
-If I recall correctly each process/thread of the page_fault1 test occupies
-128MB or memory per iteration. When you consider the base case with 1
-thread is a half million iterations that should be something like up to
-64GB allocated and freed per thread.
+Sure, will send out v2 soon.
 
-One thing I overlooked testing this time around was a setup with memory
-shuffling enabled. That would cause the iterations to use a larger swath
-of memory as each 128G would have chunks randomly placed on the tail of
-the free lists. I will try to go and re-run a test on a pair of kernels
-with that enabled to see if that has any effect.
-
-> Do you have any plans of running any other benchmarks as well?
-> Just to see the impact on other sub-systems.
-
-The problem is other benchmarks such as netperf aren't going to show much
-since they tend to operate on 4K pages, and add a bunch of additional
-overhead such as skb allocation and network header processing.
-
-What I am trying to do is focus on benchmarking just the changes without
-getting too much other code pulled in. That is why I am thinking
-page_fault1 modified so that it will MADV_HUGEPAGE is probably the ideal
-test for this. Currently the 4K page size of page_fault1 is likely adding
-a bunch of overhead for us having to split and merge pages and that would
-be one of the reasons why the changes are essentially falling into the
-noise.
-
-By using THP it will be triggering allocations of higher-order pages and
-then freeing that memory at the higher order as well. By using THP it can
-do that much quicker and I can avoid the split/merge overhead. I am seeing
-something on the order of about 1.3 million iterations per thread versus
-the 500 thousand I was seeing with standard pages.
-
-> > > > One side effect of these patches is that the guest becomes much more
-> > > > resilient in terms of NUMA locality. With the pages being freed and then
-> > > > reallocated when used it allows for the pages to be much closer to the
-> > > > active thread, and as a result there can be situations where this patch
-> > > > set will out-perform the stock kernel when the guest memory is not local
-> > > > to the guest vCPUs.
-> > > Was this the reason because of which you were seeing better results for
-> > > page_fault1 earlier?
-> > Yes I am thinking so. What I have found is that in the case where the
-> > patches are not applied on the guest it takes a few runs for the numbers
-> > to stabilize. What I think was going on is that I was running memhog to
-> > initially fill the guest and that was placing all the pages on one node or
-> > the other and as such was causing additional variability as the pages were
-> > slowly being migrated over to the other node to rebalance the workload.
-> > One way I tested it was by trying the unpatched case with a direct-
-> > assigned device since that forces it to pin the memory. In that case I was
-> > getting bad results consistently as all the memory was forced to come from
-> > one node during the pre-allocation process.
-> > 
-> 
-> I have also seen that the page_fault1 values take some time to get stabilize on
-> an unmodified kernel.
-> What I am wondering here is that if on a single NUMA guest doing the following
-> will give the right/better idea or not:
-> 
-> 1. Pin the guest to a single NUMA node.
-> 2. Run memhog so that it touches all the guest memory.
-> 3. Run will-it-scale/page_fault1.
-> 
-> Compare/observe the values for the last core (this is considering the other core
-> values doesn't drastically differ).
-
-I'll rerun the test with qemu affinitized to one specific socket. It will
-cut the core/thread count down to 8/16 on my test system. Also I will try
-with THP and page shuffling enabled.
+Thanks!
 
