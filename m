@@ -6,209 +6,264 @@ X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 74EF0C32750
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 15:27:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F91EC433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 15:31:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3847F2087C
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 15:27:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3847F2087C
+	by mail.kernel.org (Postfix) with ESMTP id C52732087C
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 15:31:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C52732087C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E2ED36B0006; Fri,  2 Aug 2019 11:27:41 -0400 (EDT)
+	id 63C946B000D; Fri,  2 Aug 2019 11:31:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DDF3E6B0008; Fri,  2 Aug 2019 11:27:41 -0400 (EDT)
+	id 6134D6B000E; Fri,  2 Aug 2019 11:31:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CF4C86B000A; Fri,  2 Aug 2019 11:27:41 -0400 (EDT)
+	id 52A6A6B0010; Fri,  2 Aug 2019 11:31:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id AC9FD6B0006
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 11:27:41 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id f28so68340911qtg.2
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 08:27:41 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 341566B000D
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 11:31:29 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id m198so64737470qke.22
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 08:31:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=5RapArjsF7mW3eo1495Qi0PwyW6i71GjMNBqii8jOL8=;
-        b=ZihmsHJtaL+t2fRryLsjybZ+MUo6Cxi/+3GObk/SkF9dMeUWPTNuQLePdmrTyjzrdt
-         4xLaOry6lHwW/LBp/oyOXp0tg/zgX11WISc+w+g/i9B/QlF1U258hh2oO6VSruw7lOhv
-         sD9ed6raQ5d9Rs9mcrcC4Mar+mLfKgilQkngrmsTBFzzwxIahBdR7bSmk7L/TG/HTxsB
-         fnKxzYUYu5t4VBg+vO0FUDU8HpKU3mUNOX1dRSHFjSJ2GKxGcvWNkZC+TVTP4Xhd87yO
-         mmTZo16J/XODXk8ds7t78a1wFlcGNOyNsc6hRjqVNLxmOshu+hPtlF8QttaDFKMlEemZ
-         Q7/g==
+        bh=VbOdaqjppT6RsqnH/4zsfuqtLiXGz0XxiaSxTcRPwYY=;
+        b=HhFjBJtfShEQiJVvpEpOV/EGgxr8Lt//T30dx/rGLXa+dI0YWgRdnZMUDuswbcByeT
+         4gGWgXdhlVtUPy09qIcPkQ9Pe+qmpLEdGJMmArIVYtpglDrMqLAv9KjBKlAqhPB4KNRn
+         z9tBLx8gTBaZNBTBvsNQferuzi3hvRdxjqSiQ7nikodzzjSfUJ/Yyltr2k7HvijeSGBL
+         a2DrAn+su1jhFQj0w9iLMcmUYzLXcYV0M2jXrLgOu8xudJiMTBCk+IHfv3Gyyp31RTZn
+         uVvYBGuKOqmn91/HPpk3OPOeoMMOMKLJsR+2gTH/mbY13/PKLr70n4SnCFZVKj8dr27L
+         YCuQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAU+RQ5RO6oXLmlabkK3X6Kt+23zC/jYz/b/eoQmhJg/7qZnhWgB
-	SupU77cWzA39f+XBzgmM2HMsxErJyCnBJDWwVh7gkfJ/zSBioCBXwiIvIw2RX8NthIGiuLzx46k
-	TysFJ/x4q7GJw2zfC6RDkI7kHrR12tbBQ3GfryVfJ+bg9rPmwblpBoC4yH6I7jDPhPQ==
-X-Received: by 2002:aed:2b01:: with SMTP id p1mr97543955qtd.33.1564759661477;
-        Fri, 02 Aug 2019 08:27:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzoUxw65ge/RcyWPnSfraVc+jVHeBPQeZGT9EXnBVKqsaCLjwcgkG/b9TNo//MYSQKpVkfB
-X-Received: by 2002:aed:2b01:: with SMTP id p1mr97543906qtd.33.1564759660819;
-        Fri, 02 Aug 2019 08:27:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564759660; cv=none;
+X-Gm-Message-State: APjAAAUL8J6Qxi2lru2oOfW5AjXO0NKeV3uA4AfX8VE4G6Obqh3dzA1W
+	Qdqg38x3cZegq7bFlK/BDoflwPDnGwskDZTg+VRYM6RntWwgaunwmKjpkCExqMA9SsDAEUfGlwj
+	ZTQAOZreZMav5g1jCerROnf/Rxilq/eeJzta0SALwFg/z/LVzKZ45NATq9KW6q26cvw==
+X-Received: by 2002:a0c:bd18:: with SMTP id m24mr98818306qvg.118.1564759888916;
+        Fri, 02 Aug 2019 08:31:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxR12wFXhN9gYzw1f/QMYyyoEiRRvP+YjPHaA4RLmOnyhiqmemKMhyZJbrbTTeTgMilbzbw
+X-Received: by 2002:a0c:bd18:: with SMTP id m24mr98818229qvg.118.1564759888250;
+        Fri, 02 Aug 2019 08:31:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564759888; cv=none;
         d=google.com; s=arc-20160816;
-        b=yFrzMvdDhPqkyoBGuCGsEif5Zut9sa3LpM1fE2V+EQ4Ta6FYIdLYFrn2/Lw50qm1mu
-         cXu2onae2tw5MsTLE5IdldVBaillrxVcD/b50NRVSZ4EFXkxggO/bb1ec8sPNnlW3G1x
-         bElcrfsxWK2Ckrr29H6T/aDIRfpo5QCAHzLFZFmoYdIUoIkYa7sFfPeSuAlzWDXZOs1J
-         TtVCwgo+dl9lUaeq6DDX5Xq+uKkRgw1svgJC9hle9Lin0T8Xz+ThxgCf6QdB134A1ovJ
-         xc+YaBi29d9BsHNAXumnBC56b55o5GrTDF/ucjK+TqppUkr34+Z2zivgDCjjg30/X0ou
-         vE1w==
+        b=YWqVf2xRSXVPGa7d+njLQYCohPrMIA8Z+GKobgZ6aCsAEQEssAEbZvyf+hUb5yaKCU
+         OnQLgyBKocTdE2vKIj11+A8NFcW5r59HroT4J3UM9ehqMQQxMTlZT7bEz6OJOclccLOh
+         lENbgSi8ZfdAKRrbr16ANPkLyAqaqBcQ/nmZ1UDRxU3lpfgiIV3zx4aRSwIJUOXFg+iy
+         jjfmNnsg6xz7sgeBLS5/5z2s5Lokjr745SjBCx+xj+dsQ5Z/bRSNiyxbnIJ+6sElOWHD
+         l0+ynn7+Nsxy9lIAsEIZRFKKM0wtlzOJRQE4CWTLcKQZEcHCHIxaETAqCOz0V4/bDi9r
+         uxZg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=5RapArjsF7mW3eo1495Qi0PwyW6i71GjMNBqii8jOL8=;
-        b=hF8vtE94+bdngFyWYzrRlmEzkbZpGFcjt+aMVI+VPP+vicExte7B+9SGe7gzzoBlrk
-         pYAJV5ubd4WViPm0vdWYX/Y2XQCJ1wAh9wxe6j87HUPueb4HImFnCMsu3ed4LZyy7+iw
-         SuCRLbp4d6eBqSwygeBKBJJS4GfNKCK+Q2dWuWV67zYxRTal24q9VItYVcs+5lGSFYaC
-         jKmX1ppdBcAlwpsM5AThITVTfEtxZjYosHOEJwxk9RfqQghvNJ8wCvR/SpzX9ftylucv
-         zNzkzxebpM7wNq83ap7ZgMVtf8cJ+7Ne3shUt8fwReqjA9BuQ/8epQK1Jg6n/HU66QAO
-         +t7g==
+        bh=VbOdaqjppT6RsqnH/4zsfuqtLiXGz0XxiaSxTcRPwYY=;
+        b=mMckF8E8gW+fOEtKB0ADXaLYNnOV+NJAW3/P5UL1CcRPb1ZuNGVOS7B6MziGoRYyHw
+         dF3s9G9YlqQiuoL7lvHH+0vMV8Zap5eoRTHUCh/xCXUJLL8oeDmNFCpJXuGh2J2jWJC5
+         DYiQvdnP6kOQptgpgvmRM7Q2H/xjaMUN61NsJN0L7Pjq0vGR5xlrjRPKg96j2+qzb5AH
+         2492+rCbN8zfPcyY+ZzYzR/DzyZOQkLq0AYidt33XaUddSl+JyVziifZxSFXarKgZivh
+         KmvpPfJgjYWLvf1Jut/AxHXE8waZtmaDNZZsZIGi93GwdDO2dLs7OpBFYjetdi/i6XfV
+         hC3A==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id q31si3559419qvf.103.2019.08.02.08.27.40
+        by mx.google.com with ESMTPS id q7si44709337qkj.327.2019.08.02.08.31.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 08:27:40 -0700 (PDT)
+        Fri, 02 Aug 2019 08:31:28 -0700 (PDT)
 Received-SPF: pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 1098B307D985;
-	Fri,  2 Aug 2019 15:27:40 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 647AE4E927;
+	Fri,  2 Aug 2019 15:31:27 +0000 (UTC)
 Received: from bfoster (dhcp-41-2.bos.redhat.com [10.18.41.2])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 83B935D9D3;
-	Fri,  2 Aug 2019 15:27:39 +0000 (UTC)
-Date: Fri, 2 Aug 2019 11:27:37 -0400
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id BA1E160635;
+	Fri,  2 Aug 2019 15:31:26 +0000 (UTC)
+Date: Fri, 2 Aug 2019 11:31:24 -0400
 From: Brian Foster <bfoster@redhat.com>
 To: Dave Chinner <david@fromorbit.com>
 Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH 02/24] shrinkers: use will_defer for GFP_NOFS sensitive
- shrinkers
-Message-ID: <20190802152737.GB60893@bfoster>
+Subject: Re: [PATCH 03/24] mm: factor shrinker work calculations
+Message-ID: <20190802153124.GC60893@bfoster>
 References: <20190801021752.4986-1-david@fromorbit.com>
- <20190801021752.4986-3-david@fromorbit.com>
+ <20190801021752.4986-4-david@fromorbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190801021752.4986-3-david@fromorbit.com>
+In-Reply-To: <20190801021752.4986-4-david@fromorbit.com>
 User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Fri, 02 Aug 2019 15:27:40 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Fri, 02 Aug 2019 15:31:27 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 01, 2019 at 12:17:30PM +1000, Dave Chinner wrote:
+On Thu, Aug 01, 2019 at 12:17:31PM +1000, Dave Chinner wrote:
 > From: Dave Chinner <dchinner@redhat.com>
 > 
-> For shrinkers that currently avoid scanning when called under
-> GFP_NOFS contexts, conver them to use the new ->will_defer flag
-> rather than checking and returning errors during scans.
+> Start to clean up the shrinker code by factoring out the calculation
+> that determines how much work to do. This separates the calculation
+> from clamping and other adjustments that are done before the
+> shrinker work is run.
 > 
-> This makes it very clear that these shrinkers are not doing any work
-> because of the context limitations, not because there is no work
-> that can be done.
+> Also convert the calculation for the amount of work to be done to
+> use 64 bit logic so we don't have to keep jumping through hoops to
+> keep calculations within 32 bits on 32 bit systems.
 > 
 > Signed-off-by: Dave Chinner <dchinner@redhat.com>
 > ---
->  drivers/staging/android/ashmem.c |  8 ++++----
->  fs/gfs2/glock.c                  |  5 +++--
->  fs/gfs2/quota.c                  |  6 +++---
->  fs/nfs/dir.c                     |  6 +++---
->  fs/super.c                       |  6 +++---
->  fs/xfs/xfs_buf.c                 |  4 ++++
->  fs/xfs/xfs_qm.c                  | 11 ++++++++---
->  net/sunrpc/auth.c                |  5 ++---
->  8 files changed, 30 insertions(+), 21 deletions(-)
+>  mm/vmscan.c | 74 ++++++++++++++++++++++++++++++++++-------------------
+>  1 file changed, 47 insertions(+), 27 deletions(-)
 > 
-...
-> diff --git a/fs/xfs/xfs_buf.c b/fs/xfs/xfs_buf.c
-> index ca0849043f54..6e0f76532535 100644
-> --- a/fs/xfs/xfs_buf.c
-> +++ b/fs/xfs/xfs_buf.c
-> @@ -1680,6 +1680,10 @@ xfs_buftarg_shrink_count(
->  {
->  	struct xfs_buftarg	*btp = container_of(shrink,
->  					struct xfs_buftarg, bt_shrinker);
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index ae3035fe94bc..b7472953b0e6 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -464,13 +464,45 @@ EXPORT_SYMBOL(unregister_shrinker);
+>  
+>  #define SHRINK_BATCH 128
+>  
+> +/*
+> + * Calculate the number of new objects to scan this time around. Return
+> + * the work to be done. If there are freeable objects, return that number in
+> + * @freeable_objects.
+> + */
+> +static int64_t shrink_scan_count(struct shrink_control *shrinkctl,
+> +			    struct shrinker *shrinker, int priority,
+> +			    int64_t *freeable_objects)
+> +{
+> +	uint64_t delta;
+> +	uint64_t freeable;
 > +
-> +	if (!(sc->gfp_mask & __GFP_FS))
-> +		sc->will_defer = true;
+> +	freeable = shrinker->count_objects(shrinker, shrinkctl);
+> +	if (freeable == 0 || freeable == SHRINK_EMPTY)
+> +		return freeable;
 > +
->  	return list_lru_shrink_count(&btp->bt_lru, sc);
->  }
+> +	if (shrinker->seeks) {
+> +		delta = freeable >> (priority - 2);
+> +		do_div(delta, shrinker->seeks);
+> +	} else {
+> +		/*
+> +		 * These objects don't require any IO to create. Trim
+> +		 * them aggressively under memory pressure to keep
+> +		 * them from causing refetches in the IO caches.
+> +		 */
+> +		delta = freeable / 2;
+> +	}
+> +
+> +	*freeable_objects = freeable;
+> +	return delta > 0 ? delta : 0;
 
-This hunk looks like a behavior change / bug fix..? The rest of the
-patch converts existing logic to bail out of scans to use the new count
-time defer mechanism. The change is probably fine, but I think we should
-have a separate patch to introduce this behavior in the first place
-(which BTW could be sent as a standalone patch and just picked up by
-this on eventual rebase).
+I see Nikolay had some similar comments but FWIW delta is unsigned so
+I'm not sure the point of the > 0 check.
 
 Brian
 
->  
-> diff --git a/fs/xfs/xfs_qm.c b/fs/xfs/xfs_qm.c
-> index 5e7a37f0cf84..13c842e8f13b 100644
-> --- a/fs/xfs/xfs_qm.c
-> +++ b/fs/xfs/xfs_qm.c
-> @@ -502,9 +502,6 @@ xfs_qm_shrink_scan(
->  	unsigned long		freed;
->  	int			error;
->  
-> -	if ((sc->gfp_mask & (__GFP_FS|__GFP_DIRECT_RECLAIM)) != (__GFP_FS|__GFP_DIRECT_RECLAIM))
-> -		return 0;
-> -
->  	INIT_LIST_HEAD(&isol.buffers);
->  	INIT_LIST_HEAD(&isol.dispose);
->  
-> @@ -534,6 +531,14 @@ xfs_qm_shrink_count(
->  	struct xfs_quotainfo	*qi = container_of(shrink,
->  					struct xfs_quotainfo, qi_shrinker);
->  
-> +	/*
-> +	 * __GFP_DIRECT_RECLAIM is used here to avoid blocking kswapd
-> +	 */
-> +	if ((sc->gfp_mask & (__GFP_FS|__GFP_DIRECT_RECLAIM)) !=
-> +					(__GFP_FS|__GFP_DIRECT_RECLAIM)) {
-> +		sc->will_defer = true;
-> +	}
+> +}
 > +
->  	return list_lru_shrink_count(&qi->qi_lru, sc);
->  }
->  
-> diff --git a/net/sunrpc/auth.c b/net/sunrpc/auth.c
-> index cdb05b48de44..6babcbac4a00 100644
-> --- a/net/sunrpc/auth.c
-> +++ b/net/sunrpc/auth.c
-> @@ -527,9 +527,6 @@ static unsigned long
->  rpcauth_cache_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
->  
+>  static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+>  				    struct shrinker *shrinker, int priority)
 >  {
-> -	if ((sc->gfp_mask & GFP_KERNEL) != GFP_KERNEL)
-> -		return SHRINK_STOP;
+>  	unsigned long freed = 0;
+> -	unsigned long long delta;
+>  	long total_scan;
+> -	long freeable;
+> +	int64_t freeable_objects = 0;
+> +	int64_t scan_count;
+>  	long nr;
+>  	long new_nr;
+>  	int nid = shrinkctl->nid;
+> @@ -481,9 +513,10 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+>  	if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
+>  		nid = 0;
+>  
+> -	freeable = shrinker->count_objects(shrinker, shrinkctl);
+> -	if (freeable == 0 || freeable == SHRINK_EMPTY)
+> -		return freeable;
+> +	scan_count = shrink_scan_count(shrinkctl, shrinker, priority,
+> +					&freeable_objects);
+> +	if (scan_count == 0 || scan_count == SHRINK_EMPTY)
+> +		return scan_count;
+>  
+>  	/*
+>  	 * copy the current shrinker scan count into a local variable
+> @@ -492,25 +525,11 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+>  	 */
+>  	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
+>  
+> -	total_scan = nr;
+> -	if (shrinker->seeks) {
+> -		delta = freeable >> priority;
+> -		delta *= 4;
+> -		do_div(delta, shrinker->seeks);
+> -	} else {
+> -		/*
+> -		 * These objects don't require any IO to create. Trim
+> -		 * them aggressively under memory pressure to keep
+> -		 * them from causing refetches in the IO caches.
+> -		 */
+> -		delta = freeable / 2;
+> -	}
 > -
->  	/* nothing left, don't come back */
->  	if (list_empty(&cred_unused))
->  		return SHRINK_STOP;
-> @@ -541,6 +538,8 @@ static unsigned long
->  rpcauth_cache_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
+> -	total_scan += delta;
+> +	total_scan = nr + scan_count;
+>  	if (total_scan < 0) {
+>  		pr_err("shrink_slab: %pS negative objects to delete nr=%ld\n",
+>  		       shrinker->scan_objects, total_scan);
+> -		total_scan = freeable;
+> +		total_scan = scan_count;
+
+Why the change from the (now) freeable_objects value to scan_count?
+
+Brian
+
+>  		next_deferred = nr;
+>  	} else
+>  		next_deferred = total_scan;
+> @@ -527,19 +546,20 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+>  	 * Hence only allow the shrinker to scan the entire cache when
+>  	 * a large delta change is calculated directly.
+>  	 */
+> -	if (delta < freeable / 4)
+> -		total_scan = min(total_scan, freeable / 2);
+> +	if (scan_count < freeable_objects / 4)
+> +		total_scan = min_t(long, total_scan, freeable_objects / 2);
 >  
->  {
-> +	if ((sc->gfp_mask & GFP_KERNEL) != GFP_KERNEL)
-> +		sc->will_defer = true;
->  	return number_cred_unused * sysctl_vfs_cache_pressure / 100;
->  }
+>  	/*
+>  	 * Avoid risking looping forever due to too large nr value:
+>  	 * never try to free more than twice the estimate number of
+>  	 * freeable entries.
+>  	 */
+> -	if (total_scan > freeable * 2)
+> -		total_scan = freeable * 2;
+> +	if (total_scan > freeable_objects * 2)
+> +		total_scan = freeable_objects * 2;
+>  
+>  	trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
+> -				   freeable, delta, total_scan, priority);
+> +				   freeable_objects, scan_count,
+> +				   total_scan, priority);
+>  
+>  	/*
+>  	 * If the shrinker can't run (e.g. due to gfp_mask constraints), then
+> @@ -564,7 +584,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+>  	 * possible.
+>  	 */
+>  	while (total_scan >= batch_size ||
+> -	       total_scan >= freeable) {
+> +	       total_scan >= freeable_objects) {
+>  		unsigned long ret;
+>  		unsigned long nr_to_scan = min(batch_size, total_scan);
 >  
 > -- 
 > 2.22.0
