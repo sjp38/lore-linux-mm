@@ -2,102 +2,107 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 746A3C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 14:22:36 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 665C8C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 14:24:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3816D2173E
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 14:22:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3816D2173E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 2997720679
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 14:24:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="G2sxycFA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2997720679
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E5F226B000A; Fri,  2 Aug 2019 10:22:34 -0400 (EDT)
+	id B78B26B000A; Fri,  2 Aug 2019 10:24:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DE88F6B000C; Fri,  2 Aug 2019 10:22:34 -0400 (EDT)
+	id B28336B000C; Fri,  2 Aug 2019 10:24:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C62646B000D; Fri,  2 Aug 2019 10:22:34 -0400 (EDT)
+	id 9C8596B000D; Fri,  2 Aug 2019 10:24:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A7CC6B000A
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 10:22:34 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id i27so48347964pfk.12
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 07:22:34 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 660326B000A
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 10:24:52 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id s21so41680429plr.2
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 07:24:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=RMk/kiFyFZnRWtcRnl7bfSeKR/UZ4JlY5lTJe8BObXU=;
-        b=lL4qE7SRL74UBRNtTdJvcvQcZB1B2ExvhGEulMgZ9pF5uzub5pHDQydwEJR5vMnl+p
-         lILU+FFoXb9Yle94zCmJ5W08gLI1aXpDS4ZAtwb05cry50U57d2EOrH4j/51Bxf4P2I+
-         w/u/w2XaH4nTHVegM3wHm6U/TynT09EEynLIKfc8Umy7dguwZJFq/8nWh7duZ/s+H9Qp
-         W9cn3HBC5kxLB/ySr31yGgH6kRMkSFBQdW5sHp1HMS+4Ej+KhC4ic9JX+eCPGW4arlCF
-         9IG3qsWArmUUDH6AAL1EH1/gBS+jpPAkJNuCmWUYxNwlj2XQEa67aXcEhBz/8iDQzD9P
-         jIaA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=keith.busch@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUINevCvwMz/AwshFTUICqv3o9Dza4Q09qpiS+XiLQxG4dtYGJE
-	vFSZgWKWe1S7QCgJ6JvWaPyH1L+Dbi7RGfqMSJtUlZB/5VKOfaqJ6tRQew3BEO1Qwxipg5DFx69
-	RiQF/uDHs7wNGRCRNtYwS3r81rSZusZe5iTv9WAQeMNLFZOhv3Vyu4aryRyYRJNL/9g==
-X-Received: by 2002:a17:90a:350c:: with SMTP id q12mr4655806pjb.46.1564755754114;
-        Fri, 02 Aug 2019 07:22:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxvVKgDkFjwm7w6MQrtfxAIQKvpgyvS96tjG+6JERzm60vqN60xA0Wl7uVu4Ce706ZKJmlm
-X-Received: by 2002:a17:90a:350c:: with SMTP id q12mr4655740pjb.46.1564755753275;
-        Fri, 02 Aug 2019 07:22:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564755753; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=jvuzp+6FCROkRR+waxcd/xSBD2jk0LdlEwwlmE/QRVo=;
+        b=CbabUivdnOQXSFk4CFD+D0qPy7MpgZ9HAPGA0P4nbOCDXO3Vj/N8nkb2MM35Kys4QW
+         LCxsNEIpxW9uRu0pjQtRMMzcr40wbTPa+9AKolUjwgqZ36kKt6l4j4Y0cAy1T57luviB
+         E6xzPAjlnUvyFYdaT3R8Wn9M24HfndapRYUHHSld8ovrwSv0SdiybqS2xyXoEQmBL27w
+         uamHjiZDTXEtG582TQaM1LxSc4FE6HJJ86rexypuDEyEFsfOdXPCadxcNSDNa91m7uR7
+         IKNyUjQSsxlf65duC29TBVpZurfi3QvXH+xNx4r1umUzpg+QpuhyvvCDkB00oE5hK9zV
+         kLDA==
+X-Gm-Message-State: APjAAAUtIGeR8IQYpuD18z9LIzeYS65WACTDg3dG2mdpi+5fjU03zKf/
+	v2l6X4qXjyrlXBRUrbhS+q609nI5f3K+KcUxuqz/mGDuLu2D9J7X0fM4jfbArnUBtXonb8IBP3v
+	eJSxaaDJPLMs2LhDIqKHWas4eUUQr/svuzRW3utUY5nPA/Th1lm28nqrquWwYtzP3tw==
+X-Received: by 2002:a17:902:bc83:: with SMTP id bb3mr134914733plb.56.1564755891924;
+        Fri, 02 Aug 2019 07:24:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwTbcs3kvBcm1Qf9DRacc1OBiwTeU5ENpaIhfyOugYqgH3OLA4U6e3ssEyWdrdhOu4snyex
+X-Received: by 2002:a17:902:bc83:: with SMTP id bb3mr134914672plb.56.1564755891247;
+        Fri, 02 Aug 2019 07:24:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564755891; cv=none;
         d=google.com; s=arc-20160816;
-        b=VKbRMgdSD/ZJtLl7NWBuVDXVs+mS6lU9cRJHp6W7nBXJ43ay/6nN9zbUMhOyfXnohk
-         vKYyVHHrcd+2jeUnKgqcW4YO3rNEllDZ4Iqt3Zo+u/9aTUtRvu+HsQeX6alLULrSekPL
-         M1sCRsho/veF61J9m/97k9H/cxtArx7Hwg5QduFtg3heX7qQtxV41V9MwuCh0A60rM6v
-         FIUvw3Z/B2OLjds5wu0VzB4PAqUwCpx5sefXVJ6kIUMQ2h3F5v67Y37cmcHrF/tAAsKU
-         h8korV+iWHAbJCK0TvSH5AqETe1PGE4TemfM/+JSFzLwulhsTaQFcA6TVpus2ybRdqRX
-         gJdQ==
+        b=BOY5G9D4H154Ezm5XyCNGL5Mj/4dbxK2yrubDxaEDawZM2obNCppuMbWKDIWrx3zS7
+         /ixThv7XGGWF4fGgMkBtR58Ldt5xLgIy2PdV3nmNiodkdt7f6SwU4Vxa0bFVuY5Vk5Fv
+         wUIbWVH+LMQ2voowvoTTT3QZrdsq52iFwTlHGW5k2cxLIxpYnGvVsPNpS220v05LdQgS
+         VJZOquDc+io2ee9+BVdpMhb/NlwGFxERxKJsOhABoLgrdjixq7IltIKxV3yYBeFi0Cue
+         9shg60v3zOlP937wNyczKgySyNm9eJUQj07lmwbTztdJv6gomiUHYkRa6+1Fl+JqfW2L
+         sw3w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=RMk/kiFyFZnRWtcRnl7bfSeKR/UZ4JlY5lTJe8BObXU=;
-        b=iUQvUKNtLmKhkOj62yi9sqoTm7BMnOwcGrWxxzvrzxtTCPWr/ee94SIEzwBUz3/bd3
-         b0wSXAdWqIgATU7AMmMCYTlwbfuIEqs3z40NBiV/HQZaVIdiNL2TFBHe0OfRh3Dw5tqW
-         14GmyXL4CIYgdR4Y4pTk540Cq9geJUnoSlSmmI8iQy73I9SxPcEalolc0y0lQSzs2nDv
-         6lQQIvaf7rTDECpxTxeaL+tg4TUcFXf/8UGbH2rG8DRnu2OW+K2qSGzJk8qTtDSIUhA1
-         himtvIAhdlyYkOt2X4vI1pWqRGC6A5ZA0KZByebXSogNglSqAPq/oh6jifo68FdegLsE
-         EXVA==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=jvuzp+6FCROkRR+waxcd/xSBD2jk0LdlEwwlmE/QRVo=;
+        b=numLcspWyBaSm9UVljHLmw+twWfqjtLfAEfE95Y5WpOYIaKJS+H6MGfyagTbaOZjDX
+         6WXhaz7qE6Q0nn/ApJ343D+CtPkAQTckCtstFsjOmtV5JYmjGVKHTCurtjy5nhX+g2WV
+         /X4aSkQe4EmjfdljHgdTBqH6X6SB6nh4OgFOmj5m2rvJj12O4e3HYi9uI7OBE4in/Cry
+         XbkJIkc/gzfEpEQI4FhQ3zHM1SqSrf7/N+MbxkmJzQMYJ4RNUGxvl1TfVacooMgUsZ1M
+         qXRSL1P+u8pV3KV51irHmyyH+h6bRG34mjFVZIJUzFEF6UII+vLWqfiwvQ4EfJIdbn+h
+         oEjw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
-        by mx.google.com with ESMTPS id y6si38330245pfl.288.2019.08.02.07.22.33
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=G2sxycFA;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id j36si34514137plb.77.2019.08.02.07.24.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 07:22:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keith.busch@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Fri, 02 Aug 2019 07:24:51 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of keith.busch@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=keith.busch@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 02 Aug 2019 07:22:32 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,338,1559545200"; 
-   d="scan'208";a="167245949"
-Received: from unknown (HELO localhost.localdomain) ([10.232.112.69])
-  by orsmga008.jf.intel.com with ESMTP; 02 Aug 2019 07:22:29 -0700
-Date: Fri, 2 Aug 2019 08:19:52 -0600
-From: Keith Busch <keith.busch@intel.com>
-To: john.hubbard@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>,
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=G2sxycFA;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=jvuzp+6FCROkRR+waxcd/xSBD2jk0LdlEwwlmE/QRVo=; b=G2sxycFAx+YSXemaZWFj5rBoO
+	L5W+suRd87Fzi03i9UbUkz+K/l4OLA7u4vdCzpFKd8kbKkpNT5POJKTjl3Y9NgF+IfuEQiw+Ya9sZ
+	Uz98GhfWAglGYt98RBvfBnca/15T9G/n1hhy4hthNjlrIrfsKUlfX1Lr9suoRAYQ/pICfFJo13kmR
+	L+hbvfVY5BZygvFEilaamnzYAdT/2P4dTNkPPWEPWi3WZyJpk4mE3pZYxvO4hCe5QB9xougEB5c3g
+	IV0U5HMFOk+fqAqk6ui4QqQV5LiDqQxBtFq8kG3bamWa6AZ5dtGBvDFf6uxZiiuQmelcNvOe6qNsg
+	wQg03COuw==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1htYU7-0007La-VU; Fri, 02 Aug 2019 14:24:43 +0000
+Date: Fri, 2 Aug 2019 07:24:43 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Jan Kara <jack@suse.cz>
+Cc: Michal Hocko <mhocko@kernel.org>, john.hubbard@gmail.com,
+	Andrew Morton <akpm@linux-foundation.org>,
 	Christoph Hellwig <hch@infradead.org>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Dave Chinner <david@fromorbit.com>,
 	Dave Hansen <dave.hansen@linux.intel.com>,
-	Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
+	Ira Weiny <ira.weiny@intel.com>, Jason Gunthorpe <jgg@ziepe.ca>,
 	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
 	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
 	ceph-devel@vger.kernel.org, devel@driverdev.osuosl.org,
@@ -111,65 +116,52 @@ Cc: Andrew Morton <akpm@linux-foundation.org>,
 	linux-xfs@vger.kernel.org, netdev@vger.kernel.org,
 	rds-devel@oss.oracle.com, sparclinux@vger.kernel.org,
 	x86@kernel.org, xen-devel@lists.xenproject.org,
-	John Hubbard <jhubbard@nvidia.com>,
-	Dan Carpenter <dan.carpenter@oracle.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	"Michael S . Tsirkin" <mst@redhat.com>,
-	YueHaibing <yuehaibing@huawei.com>
-Subject: Re: [PATCH 26/34] mm/gup_benchmark.c: convert put_page() to
- put_user_page*()
-Message-ID: <20190802141952.GA18214@localhost.localdomain>
+	John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [PATCH 00/34] put_user_pages(): miscellaneous call sites
+Message-ID: <20190802142443.GB5597@bombadil.infradead.org>
 References: <20190802022005.5117-1-jhubbard@nvidia.com>
- <20190802022005.5117-27-jhubbard@nvidia.com>
+ <20190802091244.GD6461@dhcp22.suse.cz>
+ <20190802124146.GL25064@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190802022005.5117-27-jhubbard@nvidia.com>
-User-Agent: Mutt/1.9.1 (2017-09-22)
+In-Reply-To: <20190802124146.GL25064@quack2.suse.cz>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 01, 2019 at 07:19:57PM -0700, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
+On Fri, Aug 02, 2019 at 02:41:46PM +0200, Jan Kara wrote:
+> On Fri 02-08-19 11:12:44, Michal Hocko wrote:
+> > On Thu 01-08-19 19:19:31, john.hubbard@gmail.com wrote:
+> > [...]
+> > > 2) Convert all of the call sites for get_user_pages*(), to
+> > > invoke put_user_page*(), instead of put_page(). This involves dozens of
+> > > call sites, and will take some time.
+> > 
+> > How do we make sure this is the case and it will remain the case in the
+> > future? There must be some automagic to enforce/check that. It is simply
+> > not manageable to do it every now and then because then 3) will simply
+> > be never safe.
+> > 
+> > Have you considered coccinele or some other scripted way to do the
+> > transition? I have no idea how to deal with future changes that would
+> > break the balance though.
 > 
-> For pages that were retained via get_user_pages*(), release those pages
-> via the new put_user_page*() routines, instead of via put_page() or
-> release_pages().
-> 
-> This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
-> ("mm: introduce put_user_page*(), placeholder versions").
-> 
-> Cc: Dan Carpenter <dan.carpenter@oracle.com>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Cc: Keith Busch <keith.busch@intel.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Michael S. Tsirkin <mst@redhat.com>
-> Cc: YueHaibing <yuehaibing@huawei.com>
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> Yeah, that's why I've been suggesting at LSF/MM that we may need to create
+> a gup wrapper - say vaddr_pin_pages() - and track which sites dropping
+> references got converted by using this wrapper instead of gup. The
+> counterpart would then be more logically named as unpin_page() or whatever
+> instead of put_user_page().  Sure this is not completely foolproof (you can
+> create new callsite using vaddr_pin_pages() and then just drop refs using
+> put_page()) but I suppose it would be a high enough barrier for missed
+> conversions... Thoughts?
 
-Looks fine.
-
-Reviewed-by: Keith Busch <keith.busch@intel.com>
-
->  mm/gup_benchmark.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
-> 
-> diff --git a/mm/gup_benchmark.c b/mm/gup_benchmark.c
-> index 7dd602d7f8db..515ac8eeb6ee 100644
-> --- a/mm/gup_benchmark.c
-> +++ b/mm/gup_benchmark.c
-> @@ -79,7 +79,7 @@ static int __gup_benchmark_ioctl(unsigned int cmd,
->  	for (i = 0; i < nr_pages; i++) {
->  		if (!pages[i])
->  			break;
-> -		put_page(pages[i]);
-> +		put_user_page(pages[i]);
->  	}
->  	end_time = ktime_get();
->  	gup->put_delta_usec = ktime_us_delta(end_time, start_time);
-> -- 
+I think the API we really need is get_user_bvec() / put_user_bvec(),
+and I know Christoph has been putting some work into that.  That avoids
+doing refcount operations on hundreds of pages if the page in question is
+a huge page.  Once people are switched over to that, they won't be tempted
+to manually call put_page() on the individual constituent pages of a bvec.
 
