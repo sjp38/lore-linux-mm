@@ -2,167 +2,174 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 49C6CC32750
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 06:52:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 988DDC32750
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 07:40:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 082442086A
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 06:52:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 082442086A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 56EE4206A3
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 07:40:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 56EE4206A3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 94C976B0003; Fri,  2 Aug 2019 02:52:13 -0400 (EDT)
+	id CAB256B0003; Fri,  2 Aug 2019 03:40:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8FC0A6B0005; Fri,  2 Aug 2019 02:52:13 -0400 (EDT)
+	id C346F6B0005; Fri,  2 Aug 2019 03:40:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7EBE06B0006; Fri,  2 Aug 2019 02:52:13 -0400 (EDT)
+	id AFB676B0006; Fri,  2 Aug 2019 03:40:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 44F1F6B0003
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 02:52:13 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id e95so41082924plb.9
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 23:52:13 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5A8596B0003
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 03:40:52 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id a5so46410940edx.12
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 00:40:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:dlp-product
-         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
-        bh=a8n8TK7ZbNzHz/JQgi50vPSbInbioYYXQG4XpTwbReA=;
-        b=ffVBvS1x2jnKQtaHZFP84lSyECP7YQbp+EdhGpYragAkEND2gXpiQThsPUKjjuXvX1
-         FsZ4CckQ1adIAKvTyn4WBD2C38x+DiQ+McctlAwKqXYnpaIVC0OpcmX42vn7fD/ARTR5
-         ulI7M1s5QFIoQTiPU3SCVBaLxRb35UP4E7A9Y33GwrYYJvCMuJVLfHwJxpJLg1NGAwvy
-         KxgqAGyfZLZZDAgeAebOy9+efzZVlslypxS5O1PL5QecIHPhGsZPD60tEQBFlL9Fv6+V
-         xzuEuKORwEVzYEhEfpFkUHbmQH5Jce0GZ7YaKy4foKA9inqABz63N7vYPHtKZ8C/aVn8
-         VcMw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVglMNSS4oKLoynteaBWfd09DhuiR/w34DNZawIZF7QdNJl3RH+
-	Fkh22C1CURt6uBJXOcJoTzY3oQsgJ3+D5USPQDchyNF7smCb+VrNC8iGUsmtSOQEeKZ4wVLCEjW
-	C8H0/26U8XDvFy6wBUpT4LcGyIbqdTfX7abEbySDtNW1XwhmM7wWPFYkYIheCOVd4cQ==
-X-Received: by 2002:a17:902:29e6:: with SMTP id h93mr70629853plb.297.1564728732923;
-        Thu, 01 Aug 2019 23:52:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxPY3xKO9FJpgzqqFSydvduiu31B0cykqFFdAvS/Ynd4FY3Fu2SVY0Uyic0MB6xkOauf16n
-X-Received: by 2002:a17:902:29e6:: with SMTP id h93mr70629819plb.297.1564728732196;
-        Thu, 01 Aug 2019 23:52:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564728732; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=MRdroEo3VIs99Y4rdb59391cizh34si9TFzCKXY64Po=;
+        b=bHNxC6hZy9JcObl25wZJmUambD0rQ75CCNnccT1kxCuM/UxOJLkvvbI2XPtMDew+FQ
+         SNFBmMKrQkQTY6ze1ZCzIHVgFnzTpLZLGLXtJlK+LzK5t5I5g9LOA2fVy0Qn7+oUSnk+
+         uNDSPdRwgQ2jiw4D7PMU/toj3OOD6vMlgEpQdCqXcA66bBGkwV9O9yck/iohLUGZe9q/
+         LUFbsYkDMQN7RuSz30HXwonlSwVLcjYbnV97XLbOS5EYGuP2p7Z2V+ZbYOlCodACqTyZ
+         4USlZyyySa4GQpB8OrOOvGaDFGVfkohRdCQO280CiCRFQrU3FYpGEH+8XH7n1bCOyJ80
+         mrog==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUKGKugRVBmxIGv/EmtNWxiRwQebNMFXnFdanNnaMZzOJ6HQvY5
+	xDE+65L/mDh3Dfm5FIqdRjLRp/O9cEaUqiPVbqr5dvUDvjfQS6V+rpirMoTsXLUEl5VO49n8ONX
+	qhfX9uW3iG5VmJZcCCKy7+XNt613XqHAg0WYhUtPuWlnTGLVfWMWieMbewciKWbs=
+X-Received: by 2002:a17:906:7281:: with SMTP id b1mr8739483ejl.63.1564731651775;
+        Fri, 02 Aug 2019 00:40:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx9QcTg5O1rhiG9Px4tTSxhO+u91z4+SU8YhcFFljtDhdqPxEUREjnagfsSWwOhHFTXRql4
+X-Received: by 2002:a17:906:7281:: with SMTP id b1mr8739432ejl.63.1564731650790;
+        Fri, 02 Aug 2019 00:40:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564731650; cv=none;
         d=google.com; s=arc-20160816;
-        b=cS0luOFTvzhV25etidUpH6oS8BjcMjoNRiANYzoO6pv9IfCKSJbil+Q3bauM9K2zEE
-         fIEHymkmSekCOZZMgfdZCnyVPuHyg2BQFsvLI1AjbTw3c9WE2SUwDG5CzXRh0XAyBPRc
-         pjWZNO4c1C1Ze9ZQgqjvatCLsUiOJ+fIAD6dhAK9ov71swT9YtD1w+c0ZP28eHEqiCOh
-         zk3j7P/69hqN1jQRrFnTNkCEWoegodzVrgtTNsPztS5C6xXOTpdGtNUcl5x/VgmH+Y3P
-         cMtAZpcJi6mHFFzTM+rA0UYVuJ/089m4vT0yINi8V8Vq2oY5AE+0EiZoBQp0nmQQXQ+d
-         4pvA==
+        b=LzQtsKNvWGt3N6t0t9XG/GI8DQCL9RpL7bIWOZXB88ieVYzBoZbS7zqTmhwi6dT2gY
+         IhgjX9MDBjrq25gEKq36pgbVjYqlXdCD4u+4CqP7fRKfu8iwSBrgHeF4Sdk2h+xRQld0
+         5eodm5E3JY8JvzcPY3SZfOuHZDzwjGyqzVUmUvtQJJlN6rP2uVcB25vqvofULxSyfbfq
+         mXF0mrwWdc8XdClI0F72qVtF+RUV2Ug6zR/2lKlkiy9iCLDl882UksealKDuIGBSso1D
+         CAbHKzKZRPI/Ju1028mmMlr7Sc5pYoitPUvW+3rgMBJQ3dXyj+W4YQWBfdRA+BKXAwM2
+         wzGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
-         :dlp-product:content-language:accept-language:in-reply-to:references
-         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
-        bh=a8n8TK7ZbNzHz/JQgi50vPSbInbioYYXQG4XpTwbReA=;
-        b=JHkVIm3tbUBu1dH5AVzLQ472C+iFnmU054GtnBW7aWcU6x0bx11QiDx4sQVBkmh8v4
-         KDyiIrvp5uB8arVbmL+SKp6zmb/sc4D2OTJBXmr3AQblLTEpqfESl8l+fyikMj5sFuxz
-         U26GltAOJVWp+PwT36vb1j6zFsPR22TFYqAQKbZ1SE9HoaOCQrHHxkFipmBkRj4tCDz/
-         uzK67KwFd9hhBVqEn2FjvU5LeioLH5AbSg2JMXEgU/ERnWUnGggenvTsGum7VXtrrqGX
-         SFpBaZxQkk99jsEQPSYACetg5MBsTXuAdDw+iYc3G6Nf8SzvKO4KH8IJhYBmjCXjFrVg
-         nOEg==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date;
+        bh=MRdroEo3VIs99Y4rdb59391cizh34si9TFzCKXY64Po=;
+        b=TnagWCpuNLm2P+FH15Pm4S96QwbWMfFyh+2DTrgpUNo4e+piIXeN71bSKb+bsLpqHp
+         GAWozmFzvZHz2lpHViu+u1rM6gSUnbiynEMXIGPeMn9CDkC4dIN5RPJAM6AyCs9ge9D1
+         AAP6eTvXm5jXFiIolYakuhxy+arkBQS8WPT3ikpYMad7yXyJm9OtAyNRrVxsDQFuIRlH
+         hKQGomYIvKYf50m6kDeV/EnPtDYPBWNscVYLYy0S0r+cRZgFsIZN2eMsQalnaJfVwzIH
+         f/BovMsmuBSi/aRo81sCHkJlZmENIjmdr6zsmmQWVxp+S8yxH8ypw6Zj6xC6CYpLCE2A
+         dC/A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id 33si37902359pla.44.2019.08.01.23.52.11
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m9si22084431ejc.289.2019.08.02.00.40.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Aug 2019 23:52:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Fri, 02 Aug 2019 00:40:50 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga006.fm.intel.com ([10.253.24.20])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 01 Aug 2019 23:52:11 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,337,1559545200"; 
-   d="scan'208";a="372871607"
-Received: from orsmsx106.amr.corp.intel.com ([10.22.225.133])
-  by fmsmga006.fm.intel.com with ESMTP; 01 Aug 2019 23:52:11 -0700
-Received: from orsmsx114.amr.corp.intel.com ([169.254.8.96]) by
- ORSMSX106.amr.corp.intel.com ([169.254.1.52]) with mapi id 14.03.0439.000;
- Thu, 1 Aug 2019 23:52:11 -0700
-From: "Prakhya, Sai Praneeth" <sai.praneeth.prakhya@intel.com>
-To: Anshuman Khandual <anshuman.khandual@arm.com>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-CC: "Hansen, Dave" <dave.hansen@intel.com>, Ingo Molnar <mingo@kernel.org>,
-	Peter Zijlstra <peterz@infradead.org>, Andrew Morton
-	<akpm@linux-foundation.org>
-Subject: RE: [PATCH] fork: Improve error message for corrupted page tables
-Thread-Topic: [PATCH] fork: Improve error message for corrupted page tables
-Thread-Index: AQHVRyU2Tlnukuaks0aiZwfZ/9aV0qbmQJYAgAEtK5A=
-Date: Fri, 2 Aug 2019 06:52:10 +0000
-Message-ID: <FFF73D592F13FD46B8700F0A279B802F4F9D62D6@ORSMSX114.amr.corp.intel.com>
-References: <20190730221820.7738-1-sai.praneeth.prakhya@intel.com>
- <56ad91b8-1ea0-6736-5bc5-eea0ced01054@arm.com>
-In-Reply-To: <56ad91b8-1ea0-6736-5bc5-eea0ced01054@arm.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiNjE3Yzk5NjMtZDc4OC00ODc3LWI4OGEtOWEyMWE1MzM4ZmUxIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiRXVaNFc2KzJWZ0h5dk11WXE1K3NzaVdldmNMeGd5RXlzenJXZXJOM2x3cE1Ncmg3SnJ0Y0VoN1wvWUpWek0wV0gifQ==
-x-ctpclassification: CTP_NT
-dlp-product: dlpe-windows
-dlp-version: 11.0.600.7
-dlp-reaction: no-action
-x-originating-ip: [10.22.254.138]
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: base64
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id CDBA5AD88;
+	Fri,  2 Aug 2019 07:40:49 +0000 (UTC)
+Date: Fri, 2 Aug 2019 09:40:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Masoud Sharbiani <msharbiani@apple.com>
+Cc: gregkh@linuxfoundation.org, hannes@cmpxchg.org, vdavydov.dev@gmail.com,
+	linux-mm@kvack.org, cgroups@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: Possible mem cgroup bug in kernels between 4.18.0 and 5.3-rc1.
+Message-ID: <20190802074047.GQ11627@dhcp22.suse.cz>
+References: <5659221C-3E9B-44AD-9BBF-F74DE09535CD@apple.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <5659221C-3E9B-44AD-9BBF-F74DE09535CD@apple.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-PiA+DQo+ID4gQ2M6IEluZ28gTW9sbmFyIDxtaW5nb0BrZXJuZWwub3JnPg0KPiA+IENjOiBQZXRl
-ciBaaWpsc3RyYSA8cGV0ZXJ6QGluZnJhZGVhZC5vcmc+DQo+ID4gQ2M6IEFuZHJldyBNb3J0b24g
-PGFrcG1AbGludXgtZm91bmRhdGlvbi5vcmc+DQo+ID4gU3VnZ2VzdGVkLWJ5L0Fja2VkLWJ5OiBE
-YXZlIEhhbnNlbiA8ZGF2ZS5oYW5zZW5AaW50ZWwuY29tPg0KPiANCj4gVGhvdWdoIEkgYW0gbm90
-IHN1cmUsIHNob3VsZCB0aGUgYWJvdmUgYmUgdHdvIHNlcGFyYXRlIGxpbmVzIGluc3RlYWQgPw0K
-DQpTdXJlISBXaWxsIHNwbGl0IHRoZW0gaW4gVjIuDQoNCj4gDQo+ID4gU2lnbmVkLW9mZi1ieTog
-U2FpIFByYW5lZXRoIFByYWtoeWEgPHNhaS5wcmFuZWV0aC5wcmFraHlhQGludGVsLmNvbT4NCj4g
-PiAtLS0NCj4gPiAgaW5jbHVkZS9saW51eC9tbV90eXBlc190YXNrLmggfCA3ICsrKysrKysNCj4g
-PiAga2VybmVsL2ZvcmsuYyAgICAgICAgICAgICAgICAgfCA0ICsrLS0NCj4gPiAgMiBmaWxlcyBj
-aGFuZ2VkLCA5IGluc2VydGlvbnMoKyksIDIgZGVsZXRpb25zKC0pDQo+ID4NCj4gPiBkaWZmIC0t
-Z2l0IGEvaW5jbHVkZS9saW51eC9tbV90eXBlc190YXNrLmgNCj4gPiBiL2luY2x1ZGUvbGludXgv
-bW1fdHlwZXNfdGFzay5oIGluZGV4IGQ3MDE2ZGNiMjQ1ZS4uODgxZjRlYTNhMWI1DQo+ID4gMTAw
-NjQ0DQo+ID4gLS0tIGEvaW5jbHVkZS9saW51eC9tbV90eXBlc190YXNrLmgNCj4gPiArKysgYi9p
-bmNsdWRlL2xpbnV4L21tX3R5cGVzX3Rhc2suaA0KPiA+IEBAIC00NCw2ICs0NCwxMyBAQCBlbnVt
-IHsNCj4gPiAgCU5SX01NX0NPVU5URVJTDQo+ID4gIH07DQo+ID4NCj4gPiArc3RhdGljIGNvbnN0
-IGNoYXIgKiBjb25zdCByZXNpZGVudF9wYWdlX3R5cGVzW05SX01NX0NPVU5URVJTXSA9IHsNCj4g
-PiArCSJNTV9GSUxFUEFHRVMiLA0KPiA+ICsJIk1NX0FOT05QQUdFUyIsDQo+ID4gKwkiTU1fU1dB
-UEVOVFMiLA0KPiA+ICsJIk1NX1NITUVNUEFHRVMiLA0KPiA+ICt9Ow0KPiANCj4gU2hvdWxkIGlu
-ZGV4IHRoZW0gdG8gbWF0Y2ggcmVzcGVjdGl2ZSB0eXBvIG1hY3Jvcy4NCj4gDQo+IAlbTU1fRklM
-RVBBR0VTXSA9ICJNTV9GSUxFUEFHRVMiLA0KPiAJW01NX0FOT05QQUdFU10gPSAiTU1fQU5PTlBB
-R0VTIiwNCj4gCVtNTV9TV0FQRU5UU10gPSAiTU1fU1dBUEVOVFMiLA0KPiAJW01NX1NITUVNUEFH
-RVNdID0gIk1NX1NITUVNUEFHRVMiLA0KDQpTdXJlISBXaWxsIGNoYW5nZSBpdC4NCg0KPiA+ICsN
-Cj4gPiAgI2lmIFVTRV9TUExJVF9QVEVfUFRMT0NLUyAmJiBkZWZpbmVkKENPTkZJR19NTVUpICAj
-ZGVmaW5lDQo+ID4gU1BMSVRfUlNTX0NPVU5USU5HDQo+ID4gIC8qIHBlci10aHJlYWQgY2FjaGVk
-IGluZm9ybWF0aW9uLCAqLw0KPiA+IGRpZmYgLS1naXQgYS9rZXJuZWwvZm9yay5jIGIva2VybmVs
-L2ZvcmsuYyBpbmRleA0KPiA+IDI4NTJkMGU3NmVhMy4uNmFlZjU4NDJkNGUwIDEwMDY0NA0KPiA+
-IC0tLSBhL2tlcm5lbC9mb3JrLmMNCj4gPiArKysgYi9rZXJuZWwvZm9yay5jDQo+ID4gQEAgLTY0
-OSw4ICs2NDksOCBAQCBzdGF0aWMgdm9pZCBjaGVja19tbShzdHJ1Y3QgbW1fc3RydWN0ICptbSkN
-Cj4gPiAgCQlsb25nIHggPSBhdG9taWNfbG9uZ19yZWFkKCZtbS0+cnNzX3N0YXQuY291bnRbaV0p
-Ow0KPiA+DQo+ID4gIAkJaWYgKHVubGlrZWx5KHgpKQ0KPiA+IC0JCQlwcmludGsoS0VSTl9BTEVS
-VCAiQlVHOiBCYWQgcnNzLWNvdW50ZXIgc3RhdGUgIg0KPiA+IC0JCQkJCSAgIm1tOiVwIGlkeDol
-ZCB2YWw6JWxkXG4iLCBtbSwgaSwgeCk7DQo+ID4gKwkJCXByX2FsZXJ0KCJCVUc6IEJhZCByc3Mt
-Y291bnRlciBzdGF0ZSBtbTolcCB0eXBlOiVzDQo+IHZhbDolbGRcbiIsDQo+ID4gKwkJCQkgbW0s
-IHJlc2lkZW50X3BhZ2VfdHlwZXNbaV0sIHgpOw0KPiBJdCBjaGFuZ2VzIHRoZSBwcmludCBmdW5j
-dGlvbiBhcyB3ZWxsLCB0aG91Z2ggdmVyeSBtaW5vciBjaGFuZ2UgYnV0IHBlcmhhcHMNCj4gbWVu
-dGlvbiB0aGF0IGluIHRoZSBjb21taXQgbWVzc2FnZSA/DQoNClN1cmUhIFdpbGwgbWVudGlvbiBp
-dCBpbiBWMi4NCkkgaGF2ZSBjaGFuZ2VkIHByaW50aygpIHRvIHByX2FsZXJ0KCkgYmVjYXVzZSB0
-aGUgb3RoZXIgbWVzc2FnZSBpbiBjaGVja19tbSgpIHVzZXMgcHJfYWxlcnQoKS4NCg0KUmVnYXJk
-cywNClNhaQ0K
+On Thu 01-08-19 11:04:14, Masoud Sharbiani wrote:
+> Hey folks,
+> I’ve come across an issue that affects most of 4.19, 4.20 and 5.2 linux-stable kernels that has only been fixed in 5.3-rc1.
+> It was introduced by
+> 
+> 29ef680 memcg, oom: move out_of_memory back to the charge path 
+
+This commit shouldn't really change the OOM behavior for your particular
+test case. It would have changed MAP_POPULATE behavior but your usage is
+triggering the standard page fault path. The only difference with
+29ef680 is that the OOM killer is invoked during the charge path rather
+than on the way out of the page fault.
+
+Anyway, I tried to run your test case in a loop and leaker always ends
+up being killed as expected with 5.2. See the below oom report. There
+must be something else going on. How much swap do you have on your
+system?
+
+[337533.314245] leaker invoked oom-killer: gfp_mask=0x100cca(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=0
+[337533.314250] CPU: 3 PID: 23793 Comm: leaker Not tainted 5.2.0-rc7 #54
+[337533.314251] Hardware name: Dell Inc. Latitude E7470/0T6HHJ, BIOS 1.5.3 04/18/2016
+[337533.314252] Call Trace:
+[337533.314258]  dump_stack+0x67/0x8e
+[337533.314262]  dump_header+0x51/0x2e9
+[337533.314265]  ? preempt_count_sub+0xc6/0xd2
+[337533.314267]  ? _raw_spin_unlock_irqrestore+0x2c/0x3e
+[337533.314269]  oom_kill_process+0x90/0x11d
+[337533.314271]  out_of_memory+0x25c/0x26f
+[337533.314273]  mem_cgroup_out_of_memory+0x8a/0xa6
+[337533.314276]  try_charge+0x1d0/0x782
+[337533.314278]  ? preempt_count_sub+0xc6/0xd2
+[337533.314280]  mem_cgroup_try_charge+0x1a1/0x207
+[337533.314282]  __add_to_page_cache_locked+0xf9/0x2dd
+[337533.314285]  ? memcg_drain_all_list_lrus+0x125/0x125
+[337533.314286]  add_to_page_cache_lru+0x3c/0x96
+[337533.314288]  pagecache_get_page.part.7+0x1d6/0x240
+[337533.314290]  filemap_fault+0x267/0x54a
+[337533.314292]  ext4_filemap_fault+0x2d/0x41
+[337533.314294]  ? ext4_page_mkwrite+0x3cd/0x3cd
+[337533.314296]  __do_fault+0x47/0xa7
+[337533.314297]  __handle_mm_fault+0xaaa/0xf9d
+[337533.314300]  handle_mm_fault+0x174/0x1c3
+[337533.314303]  __do_page_fault+0x309/0x412
+[337533.314305]  do_page_fault+0x10b/0x131
+[337533.314307]  ? page_fault+0x8/0x30
+[337533.314309]  page_fault+0x1e/0x30
+[337533.314311] RIP: 0033:0x55a806ef8503
+[337533.314313] Code: 48 89 c6 48 8d 3d 28 0c 00 00 b8 00 00 00 00 e8 73 fb ff ff c7 45 ec 00 00 00 00 eb 36 8b 45 ec 48 63 d0 48 8b 45 c8 48 01 d0 <0f> b6 00 0f be c0 01 45 e4 8b 45 ec 25 ff 0f 00 00 85 c0 75 10 8b
+[337533.314314] RSP: 002b:00007ffcf6734730 EFLAGS: 00010206
+[337533.314316] RAX: 00007f2228f74000 RBX: 0000000000000000 RCX: 0000000000000000
+[337533.314317] RDX: 0000000000487000 RSI: 000055a806efc260 RDI: 0000000000000000
+[337533.314318] RBP: 00007ffcf6735780 R08: 0000000000000000 R09: 00007ffcf67345fc
+[337533.314319] R10: 0000000000000000 R11: 0000000000000246 R12: 000055a806ef8120
+[337533.314320] R13: 00007ffcf6735860 R14: 0000000000000000 R15: 0000000000000000
+[337533.314322] memory: usage 524288kB, limit 524288kB, failcnt 1240247
+[337533.314323] memory+swap: usage 2592556kB, limit 9007199254740988kB, failcnt 0
+[337533.314324] kmem: usage 7260kB, limit 9007199254740988kB, failcnt 0
+[337533.314325] Memory cgroup stats for /leaker: cache:80KB rss:516948KB rss_huge:0KB shmem:0KB mapped_file:0KB dirty:0KB writeback:0KB swap:2068268KB inactive_anon:258520KB active_anon:258412KB inactive_file:32KB active_file:12KB unevictable:0KB
+[337533.314332] Tasks state (memory values in pages):
+[337533.314333] [  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name
+[337533.314404] [  23777]     0 23777      596      400    36864        4             0 sh
+[337533.314407] [  23793]     0 23793   655928   126942  5226496   519670             0 leaker
+[337533.314408] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),oom_memcg=/leaker,task_memcg=/leaker,task=leaker,pid=23793,uid=0
+[337533.314412] Memory cgroup out of memory: Killed process 23793 (leaker) total-vm:2623712kB, anon-rss:506500kB, file-rss:1268kB, shmem-rss:0kB
+[337533.418036] oom_reaper: reaped process 23793 (leaker), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+-- 
+Michal Hocko
+SUSE Labs
 
