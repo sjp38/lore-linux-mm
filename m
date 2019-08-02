@@ -2,306 +2,257 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5B71FC32750
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 14:12:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 93B74C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 14:18:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E001020B7C
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 14:12:27 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3ADD32173E
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 14:18:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="K6typON+";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="kR66EuzE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E001020B7C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=apple.com header.i=@apple.com header.b="VKB8e4M8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3ADD32173E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=apple.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7152A6B0006; Fri,  2 Aug 2019 10:12:27 -0400 (EDT)
+	id C19186B000A; Fri,  2 Aug 2019 10:18:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 69E5E6B0008; Fri,  2 Aug 2019 10:12:27 -0400 (EDT)
+	id BC9656B000C; Fri,  2 Aug 2019 10:18:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5175F6B000A; Fri,  2 Aug 2019 10:12:27 -0400 (EDT)
+	id A8FFF6B000D; Fri,  2 Aug 2019 10:18:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1BC1D6B0006
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 10:12:27 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id i134so10270618pgd.11
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 07:12:27 -0700 (PDT)
+Received: from mail-io1-f70.google.com (mail-io1-f70.google.com [209.85.166.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 893986B000A
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 10:18:23 -0400 (EDT)
+Received: by mail-io1-f70.google.com with SMTP id w17so83372387iom.2
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 07:18:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-transfer-encoding
-         :mime-version;
-        bh=deEulwZ0m1CYmU9G9emLgJ5CQF17fbjreDXh/PvQ7Ac=;
-        b=oNaQKPf7qFd0xmoGuURgbQYqHsTN79GnMxI4/U2NdTnLCd5DE1T8jQ2NYObrezFOkt
-         7ylMVyoBV9WuRjUxpyH6ukxFIesJYVLfsu+xZx1s/UQM3L54maFZjBVt2zBjMCSqT1lK
-         U7e8Y4jHm71SIg6qyaAXv5mOB1BvB1cukj3xbyGbsFhaFMC/4hY32Gch1iT2KJFjYSN5
-         qwiEek6aWNnCNj+GHcnmAxG9caBe/nUs+81YJu4JzsewmVhGYG44RHEuKTvn4hlOWQD5
-         bN0y4me1hdm9mDUAEdMYnVbcFAs4f9iCV7aHrZZgKZpCdZx11KnNv/an8hv4HqlAOgs3
-         IrUQ==
-X-Gm-Message-State: APjAAAWSbgQXsIWPGj0Nr9IzNsIO/accfdSpgLuVvWX7W81iG9lO+GAk
-	JlSx4TL6BiX0ts5fC6NQ0xnob/ed8Qk3Rla70AOJTCE095QmpAgCHBkRoDYYmvseYGRHy4zGIIH
-	yyUteQNXBFiHPyOVIvfP0fGO8qEsRmgdZ2WTujvfa5mh7vet7y6wspExUKmQQOfMZYQ==
-X-Received: by 2002:a17:90a:2486:: with SMTP id i6mr4480832pje.125.1564755146679;
-        Fri, 02 Aug 2019 07:12:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzIma5+V29ofxAY/jDahQCE03thKy0JZ16mKACUbQSOvoHjN1lu05wCczlzIPGhiRNV9TvR
-X-Received: by 2002:a17:90a:2486:: with SMTP id i6mr4480749pje.125.1564755145656;
-        Fri, 02 Aug 2019 07:12:25 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1564755145; cv=pass;
+        h=x-gm-message-state:dkim-signature:sender:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=2TtxIQqEcQn+lObu8KFXWWIUpGphNyUfyHDO93O7QvY=;
+        b=Heq0SFB8CtL5y5jLTVrYNv6CG0OO8Xiwi+PO1wuiHNJ6Ws0N34cc10CGjm2zgW+4++
+         cTJ2zSxKIwpMJj1imLmym3AtQyxYmUwCML3h37ywk0V/4+AOZK/5dXXu/iBAZM662oBf
+         Pqqr51N80meHZSi6A63fBIgN4WgkC1Vw+QyjM1rSvYmwv/QgdgeaWwzEgDE+F3DJqgFn
+         lmnMb8hWjNX8ylKfWibtpSSrpHw1sdLbUF1IaI5YSg9g8zJtFT0kdwWC+HAJ/cHE5Bah
+         I7MG5Zkm9RMNa6IoDPNv9cLXB66EpfcGD5dv+D0A3MIx9mFgXVl+Fiw8rtdexoLYY+m6
+         deaA==
+X-Gm-Message-State: APjAAAXLE92g36AB+4/giR6E70cItw/D1Jmy1SN8qkkNHllctiFJ9mFT
+	vey4zHvwLTc9NkXPMURfouZk6dH9ppWfM4leMhrs8ccZnFtyQdS2FqzR7SWQgzYhGXhJyqOtYci
+	pNOi3CvyqkiT1nAf4Pkf3qZp4QBxQirnEIxsN4qaSDB8Mf7MZoN+vMS4otfbXuxNNjA==
+X-Received: by 2002:a5d:9618:: with SMTP id w24mr786367iol.279.1564755503276;
+        Fri, 02 Aug 2019 07:18:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxbuyZhu6Rroz/pwkulL9VFs/iKIyR1BFVpHcSSsNUDXs0K5ywyxsRNT5QQD12nACp/n5yz
+X-Received: by 2002:a5d:9618:: with SMTP id w24mr786308iol.279.1564755502447;
+        Fri, 02 Aug 2019 07:18:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564755502; cv=none;
         d=google.com; s=arc-20160816;
-        b=kUI9CJznOtXyMzALgQUQHbpAuuF4GB9aHltWg1eHPdgGJrlg6tVtp41HEZo7yAWG7+
-         5vPNDQWohxwsm3+uRrbAxu3vWQmYx01j62N8F54II6b4oASrQkfnpXJH+lZTo8f0wNlP
-         ltqCybqTIlrJEOPbBczJUxVlfgKj6HB6rmOqX8SxE4SeLeer3n1gyqyzEbQm+ztEdnS0
-         GdG2YnDupPgBP2mhRd6t+vQ+dxicaqttRgTwjzEVATLHyvLlFUMfSBvTtUoGG2eIvYXp
-         w0IjNi8BRAQT6Bd43uI/l85UO0BPM+AY8+A9JDir3iOlVvHjK02IciQ/XBvcPLu9bxDd
-         jWJw==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=deEulwZ0m1CYmU9G9emLgJ5CQF17fbjreDXh/PvQ7Ac=;
-        b=z4/W+MrubMXRlvWgfKoVN/jfnsAOYu8q8uLLFJHiE2tLda0cQoJEJCPNOkxWmOMvSs
-         z966KIjeY+zWfrvwqhaXDf0zxStuBKOZG09g6fkEyleAh21J6ZK5ZW/bgHbbUmoYGhpN
-         yd0qscJKPhZuyqRxlgMaJWH15p55IMGAMnbYs1xDl60uI69uP76uNfkvGcVGLRa5bqnk
-         a4nBDYPUv8bxbP3afD93xm2HTicdf2xgEWqdGdU53ub4QAGCAQiVitZ322fqnfuYUPmK
-         APdyMmZsFNW9SVkMjtl/a3CNDDqLFvJbiOnixQ7gUBPvmZlloxTq5lFU3uL8oz72vnvM
-         ePtw==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=K6typON+;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=kR66EuzE;
-       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
-       spf=pass (google.com: domain of prvs=31176fc4b7=clm@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=31176fc4b7=clm@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id g34si34316463pld.266.2019.08.02.07.12.25
+        b=rMUGZQA6y0v5MjpXGWdZD9EzH/XfPhqg28Ibdl0GyUzeilZkNgGECB/7slGlF9+l6t
+         +xgVGADO93SGBQaBr0CF6ainKDNpsBvmdutc4XFee9UNZmQOmPE1O3du9vLy87T8Xlfa
+         h/MbPCrj1ZmqJSH0TtVe+653RHrfgbahZSpq69GUz0ybwTVhCCtUxQ3FrGW7lUkFCazT
+         ZeICsu/pQ5D4X9gx2ALC5gYDPT1NNct/47HmVYga5UHbXIqigSE0KpHL03MZQkyayiaJ
+         1nuNLfKPX1RnZqxB6RDxpWblikPfVA2loa6Of8Y0U8PTYX5xFAv6deykeXJRxKS82cX/
+         vFng==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:sender:dkim-signature;
+        bh=2TtxIQqEcQn+lObu8KFXWWIUpGphNyUfyHDO93O7QvY=;
+        b=T0ZqPryZG/Z2KRQpECw0NRWFl1S/UOSb/9eW/zapy+yvfK8s+KSap3GZnnPjJn36QF
+         XR464SsIrRhi/GqSOK0OVkb+tNMh1P0ZCPqskPgxLLPZXIZU+GSSNFwLR3OhkCJ1fkTU
+         i0BFqSqNNvuIdNqa5uuqVrRWOXxZAoEpKF8STAx8oBLA6YxuuaQD8P2cw20f5Opgk4E+
+         A1OW3I1LBBzXROI9evF11kgb+WxPFitQaYkq25fK8wSYoKlQZer6SYPtrKnYSY/bziEb
+         impWQCokFL24Byp72LyWLMZJZOM+gsShUo0nHXSZojj9wzrp8yeK2KfvY5YGBcFC6dkX
+         FR8g==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@apple.com header.s=20180706 header.b=VKB8e4M8;
+       spf=pass (google.com: domain of msharbiani@apple.com designates 17.151.62.67 as permitted sender) smtp.mailfrom=msharbiani@apple.com;
+       dmarc=pass (p=QUARANTINE sp=REJECT dis=NONE) header.from=apple.com
+Received: from nwk-aaemail-lapp02.apple.com (nwk-aaemail-lapp02.apple.com. [17.151.62.67])
+        by mx.google.com with ESMTPS id n27si1906327jah.16.2019.08.02.07.18.22
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 07:12:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=31176fc4b7=clm@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        Fri, 02 Aug 2019 07:18:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of msharbiani@apple.com designates 17.151.62.67 as permitted sender) client-ip=17.151.62.67;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=K6typON+;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=kR66EuzE;
-       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
-       spf=pass (google.com: domain of prvs=31176fc4b7=clm@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=31176fc4b7=clm@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0044012.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x72EBu5X021884;
-	Fri, 2 Aug 2019 07:12:24 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type :
- content-transfer-encoding : mime-version; s=facebook;
- bh=deEulwZ0m1CYmU9G9emLgJ5CQF17fbjreDXh/PvQ7Ac=;
- b=K6typON+tD279NM23lStQqdjz+e+x5FJwmWKTttWP3rEoptFyXdlEJp5N3kJGMrXDZnj
- seKm3ztrgFCoqHpD5HdAGoo5JVonTHw+K0dV9XQ4rvmS6ADrcfLoMv7uEYjLrPIh1lLr
- SpM0qEzNKNrvEmL0I5fbPiRMbO2iYeHCBQg= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2u4j3j8x3v-4
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Fri, 02 Aug 2019 07:12:22 -0700
-Received: from ash-exhub104.TheFacebook.com (2620:10d:c0a8:82::d) by
- ash-exhub204.TheFacebook.com (2620:10d:c0a8:83::4) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Fri, 2 Aug 2019 07:12:08 -0700
-Received: from NAM04-BN3-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.35.175) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id 15.1.1713.5
- via Frontend Transport; Fri, 2 Aug 2019 07:12:08 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=MNq4f9rX50Frl9ZkkrbcBpG3NiofWUwEj7QJTIUMtK35k2RWvxdcFnJIcqG2oPWciBjNyaCJ8yklsPWC+UzH1Jdbwhf6tc1+7qxNk0gT+X5xZdPljbICxKXYOY4f23j3V+zH6gM5n5FWCTXNFJxdnfQYpduYyNG+nzoEolWZaayi3CNAEvhLUNDnIckGJnMGYFt4sOjH+qguUxisCu21etF5Np0K5SuVeJtFmfabW5bTrMgDV4kNhjxetJvwldhBiH3QmISReMetGh/o9JgkmxO1+HNmgvzghPFY34DOmMMemdoUM66DMVMPHqUHNUjJusvfK4f8zcSLaOxygyue4w==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=deEulwZ0m1CYmU9G9emLgJ5CQF17fbjreDXh/PvQ7Ac=;
- b=G2vWSiqidyV3jRmzuXWQ+mXFVNVx7upWggCSuOrwO/dr6140hjeyRP2zdJKmY9kxcK2fTXJczPx54qYixzt/xG4Ki3swIIjo85zeJdIVbBKvdxL1ms+sABv5G5gWPopcQ30NjQz+GtSbwhBb97uNkayW7ryxF/mavdAiFH8txrlEh0OMueZhOJQof+8SCDgFHsP9bsYh/y7U2rvmWqbU9ZoWjcH/qf7/qEPvTFTILyDdboeLehwlNBP5pMxts6wLR4mT4FPIirStrRfq0QN7msswJGE4ZNDSHSv6nVK1lDxbn2+f0rX8ApUX8XkclPE1cSvnVIeAE/MpmPL1fmXcXQ==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=fb.com;dmarc=pass action=none header.from=fb.com;dkim=pass
- header.d=fb.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=deEulwZ0m1CYmU9G9emLgJ5CQF17fbjreDXh/PvQ7Ac=;
- b=kR66EuzElwD7fCtJQYpKZjdPD3d/VlEGl6wpz1UQktqgxS0d7OSds42eF/EHAJrWkimVS9Q3fAAqekwZe6oXzEXBjf1Ek5cJM5KmMz86Ax6QCgSmVpNpWB+0CMGEIcQS5AYlrnajIOAM15hX989dkzfo82nnNN5vZv7Vs+k9eDg=
-Received: from DM5PR15MB1290.namprd15.prod.outlook.com (10.173.212.17) by
- DM5PR15MB1195.namprd15.prod.outlook.com (10.173.213.16) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2136.14; Fri, 2 Aug 2019 14:11:53 +0000
-Received: from DM5PR15MB1290.namprd15.prod.outlook.com
- ([fe80::4d32:13fc:cf5b:4746]) by DM5PR15MB1290.namprd15.prod.outlook.com
- ([fe80::4d32:13fc:cf5b:4746%7]) with mapi id 15.20.2136.010; Fri, 2 Aug 2019
- 14:11:53 +0000
-From: Chris Mason <clm@fb.com>
-To: Dave Chinner <david@fromorbit.com>
-CC: "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-fsdevel@vger.kernel.org"
-	<linux-fsdevel@vger.kernel.org>,
-        Jens Axboe <axboe@kernel.dk>
-Subject: Re: [PATCH 09/24] xfs: don't allow log IO to be throttled
-Thread-Topic: [PATCH 09/24] xfs: don't allow log IO to be throttled
-Thread-Index: AQHVSA9fnWuPStnf6EeOPJMMPtRTUqbmCewAgADwFYCAAO5UAA==
-Date: Fri, 2 Aug 2019 14:11:53 +0000
-Message-ID: <7093F5C3-53D2-4C49-9C0D-64B20C565D18@fb.com>
-References: <20190801021752.4986-1-david@fromorbit.com>
- <20190801021752.4986-10-david@fromorbit.com>
- <F1E7CC65-D2CB-4078-9AA3-9D172ECDE17B@fb.com>
- <20190801235849.GO7777@dread.disaster.area>
-In-Reply-To: <20190801235849.GO7777@dread.disaster.area>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: MailMate (1.12.5r5635)
-x-clientproxiedby: MN2PR12CA0004.namprd12.prod.outlook.com
- (2603:10b6:208:a8::17) To DM5PR15MB1290.namprd15.prod.outlook.com
- (2603:10b6:3:b8::17)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c091:480::30bb]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 1f39a4a2-31a7-4cc8-09b0-08d717535ea7
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:DM5PR15MB1195;
-x-ms-traffictypediagnostic: DM5PR15MB1195:
-x-microsoft-antispam-prvs: <DM5PR15MB11958402EA9646A7CF3B8637D3D90@DM5PR15MB1195.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:10000;
-x-forefront-prvs: 011787B9DD
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(39860400002)(346002)(396003)(376002)(366004)(136003)(199004)(189003)(81166006)(8676002)(81156014)(486006)(86362001)(71200400001)(71190400001)(6246003)(7736002)(2906002)(33656002)(6116002)(478600001)(36756003)(14454004)(8936002)(25786009)(14444005)(54906003)(50226002)(6916009)(76176011)(66446008)(305945005)(66946007)(66476007)(66556008)(99286004)(6512007)(53936002)(446003)(229853002)(4326008)(256004)(316002)(52116002)(476003)(102836004)(53546011)(386003)(11346002)(46003)(64756008)(186003)(6486002)(6506007)(68736007)(5660300002)(6436002)(2616005);DIR:OUT;SFP:1102;SCL:1;SRVR:DM5PR15MB1195;H:DM5PR15MB1290.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: GgOp6891Pr3yEfr+3dHN0QyU8VpiaY0ZQwxZfMQFGEpBNRoV8apWZD04Eut+eAr48qr9rIb+PggIunJdu/Gm8JJ3kNGdBJ47Btw82IRErtmxrFJ3NwefJqBDymzKnxK7BGR8Jn2G0NGMPRdsds9w06DDV8Lhk1+ay6qWAjcBGInIkoG+PNK1nzeMAV3+pkh5LYhrcKWFnpEpBLKKJluuUZfrx9Q16BrAsGNf09z4a5nJ1HhIvc17tLKw8sVye8R04hyhOE41RlhMkbaLbBa9zj8cBjkeNDmWj1Zm9sR0yAAEt3thySTcowqXLGP2wFolVBIi1FB2KFVU7PH/DdJtyTZKmkLNpjiKK/FgNagm8Kk/QWuZW89ntXbFax8ZYX4H5OiUZZk87USLyoRsGTpKZzEmTF3AFvgRtigDDU8SvFs=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 1f39a4a2-31a7-4cc8-09b0-08d717535ea7
-X-MS-Exchange-CrossTenant-originalarrivaltime: 02 Aug 2019 14:11:53.6443
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: clm@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM5PR15MB1195
-X-OriginatorOrg: fb.com
+       dkim=pass header.i=@apple.com header.s=20180706 header.b=VKB8e4M8;
+       spf=pass (google.com: domain of msharbiani@apple.com designates 17.151.62.67 as permitted sender) smtp.mailfrom=msharbiani@apple.com;
+       dmarc=pass (p=QUARANTINE sp=REJECT dis=NONE) header.from=apple.com
+Received: from pps.filterd (nwk-aaemail-lapp02.apple.com [127.0.0.1])
+	by nwk-aaemail-lapp02.apple.com (8.16.0.27/8.16.0.27) with SMTP id x72EHBMP005504;
+	Fri, 2 Aug 2019 07:18:19 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=apple.com; h=sender : content-type
+ : mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to; s=20180706;
+ bh=2TtxIQqEcQn+lObu8KFXWWIUpGphNyUfyHDO93O7QvY=;
+ b=VKB8e4M8vJ8xElL5VcYsUsjf0mb9bFMm5UAqisLnJyWsQjXxGbj9etZVYIhaJtM2q7Vk
+ YZLbfGclM6chXEAaMA0P/QHCKAL29n1JC/1d040c3Lp+P/mVjHbYiIN0QWbOvOkeEYdb
+ qVjFyzbjfz6Kym9h0q94adCOhkCbbnvLYUD54b9F1niOwQunYkmuHciT3AM7j0yASAhP
+ Sm2FUpLDIt9hvM79EMoJt7Mr+50UMAc+lFhxQM1+i4Wlyr9GEl3cXsHlLTaN//xkYmB/
+ F3N6B3J/b5mzTrQsD5QBIevWZke+jC1hppiXMVJCil9fur3SsD5WuTOhnpV64YY1TSrg 8Q== 
+Received: from mr2-mtap-s02.rno.apple.com (mr2-mtap-s02.rno.apple.com [17.179.226.134])
+	by nwk-aaemail-lapp02.apple.com with ESMTP id 2u2p72pbfg-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NO);
+	Fri, 02 Aug 2019 07:18:19 -0700
+Received: from nwk-mmpp-sz11.apple.com
+ (nwk-mmpp-sz11.apple.com [17.128.115.155]) by mr2-mtap-s02.rno.apple.com
+ (Oracle Communications Messaging Server 8.0.2.4.20190507 64bit (built May  7
+ 2019)) with ESMTPS id <0PVM00EEV52JVZ40@mr2-mtap-s02.rno.apple.com>; Fri,
+ 02 Aug 2019 07:18:19 -0700 (PDT)
+Received: from process_milters-daemon.nwk-mmpp-sz11.apple.com by
+ nwk-mmpp-sz11.apple.com
+ (Oracle Communications Messaging Server 8.0.2.4.20190507 64bit (built May  7
+ 2019)) id <0PVM00F004J8MZ00@nwk-mmpp-sz11.apple.com>; Fri,
+ 02 Aug 2019 07:18:19 -0700 (PDT)
+X-Va-A: 
+X-Va-T-CD: d66bf338104d7316df20fe4640a3b0ba
+X-Va-E-CD: b03d5acee32fc9f0c9dfd3776592dc73
+X-Va-R-CD: 1835f3c54d533384876758843bc94ede
+X-Va-CD: 0
+X-Va-ID: fc083513-02ff-4ce2-885c-103e48753e84
+X-V-A: 
+X-V-T-CD: d66bf338104d7316df20fe4640a3b0ba
+X-V-E-CD: b03d5acee32fc9f0c9dfd3776592dc73
+X-V-R-CD: 1835f3c54d533384876758843bc94ede
+X-V-CD: 0
+X-V-ID: ab3ee819-e4d3-4ca5-96aa-c7ef1969d272
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,,
+ definitions=2019-08-02_06:,, signatures=0
+Received: from [17.150.223.234] (unknown [17.150.223.234])
+ by nwk-mmpp-sz11.apple.com
+ (Oracle Communications Messaging Server 8.0.2.4.20190507 64bit (built May  7
+ 2019)) with ESMTPSA id <0PVM0043452IHJ50@nwk-mmpp-sz11.apple.com>; Fri,
+ 02 Aug 2019 07:18:19 -0700 (PDT)
+Content-type: text/plain; charset=utf-8
+MIME-version: 1.0 (Mac OS X Mail 12.4 \(3445.104.11\))
+Subject: Re: Possible mem cgroup bug in kernels between 4.18.0 and 5.3-rc1.
+From: Masoud Sharbiani <msharbiani@apple.com>
+In-reply-to: <20190802074047.GQ11627@dhcp22.suse.cz>
+Date: Fri, 02 Aug 2019 07:18:17 -0700
+Cc: gregkh@linuxfoundation.org, hannes@cmpxchg.org, vdavydov.dev@gmail.com,
+        linux-mm@kvack.org, cgroups@vger.kernel.org,
+        linux-kernel@vger.kernel.org
+Content-transfer-encoding: quoted-printable
+Message-id: <7E44073F-9390-414A-B636-B1AE916CC21E@apple.com>
+References: <5659221C-3E9B-44AD-9BBF-F74DE09535CD@apple.com>
+ <20190802074047.GQ11627@dhcp22.suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+X-Mailer: Apple Mail (2.3445.104.11)
 X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-02_06:,,
  signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908020147
-X-FB-Internal: deliver
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 1 Aug 2019, at 19:58, Dave Chinner wrote:
+=20
 
-> On Thu, Aug 01, 2019 at 01:39:34PM +0000, Chris Mason wrote:
->> On 31 Jul 2019, at 22:17, Dave Chinner wrote:
->>
->>> From: Dave Chinner <dchinner@redhat.com>
->>>
->>> Running metadata intensive workloads, I've been seeing the AIL
->>> pushing getting stuck on pinned buffers and triggering log forces.
->>> The log force is taking a long time to run because the log IO is
->>> getting throttled by wbt_wait() - the block layer writeback
->>> throttle. It's being throttled because there is a huge amount of
->>> metadata writeback going on which is filling the request queue.
->>>
->>> IOWs, we have a priority inversion problem here.
->>>
->>> Mark the log IO bios with REQ_IDLE so they don't get throttled
->>> by the block layer writeback throttle. When we are forcing the CIL,
->>> we are likely to need to to tens of log IOs, and they are issued as
->>> fast as they can be build and IO completed. Hence REQ_IDLE is
->>> appropriate - it's an indication that more IO will follow shortly.
->>>
->>> And because we also set REQ_SYNC, the writeback throttle will no
->>> treat log IO the same way it treats direct IO writes - it will not
->>> throttle them at all. Hence we solve the priority inversion problem
->>> caused by the writeback throttle being unable to distinguish between
->>> high priority log IO and background metadata writeback.
->>>
->>   [ cc Jens ]
->>
->> We spent a lot of time getting rid of these inversions in io.latency
->> (and the new io.cost), where REQ_META just blows through the=20
->> throttling
->> and goes into back charging instead.
->
-> Which simply reinforces the fact that that request type based
-> throttling is a fundamentally broken architecture.
->
->> It feels awkward to have one set of prio inversion workarounds for=20
->> io.*
->> and another for wbt.  Jens, should we make an explicit one that=20
->> doesn't
->> rely on magic side effects, or just decide that metadata is meta=20
->> enough
->> to break all the rules?
->
-> The problem isn't REQ_META blows throw the throttling, the problem
-> is that different REQ_META IOs have different priority.
+> On Aug 2, 2019, at 12:40 AM, Michal Hocko <mhocko@kernel.org> wrote:
+>=20
+> On Thu 01-08-19 11:04:14, Masoud Sharbiani wrote:
+>> Hey folks,
+>> I=E2=80=99ve come across an issue that affects most of 4.19, 4.20 and =
+5.2 linux-stable kernels that has only been fixed in 5.3-rc1.
+>> It was introduced by
+>>=20
+>> 29ef680 memcg, oom: move out_of_memory back to the charge path=20
+>=20
+> This commit shouldn't really change the OOM behavior for your =
+particular
+> test case. It would have changed MAP_POPULATE behavior but your usage =
+is
+> triggering the standard page fault path. The only difference with
+> 29ef680 is that the OOM killer is invoked during the charge path =
+rather
+> than on the way out of the page fault.
+>=20
+> Anyway, I tried to run your test case in a loop and leaker always ends
+> up being killed as expected with 5.2. See the below oom report. There
+> must be something else going on. How much swap do you have on your
+> system?
 
-Yes and no.  At some point important FS threads have the potential to=20
-wait on every single REQ_META IO on the box, so every single REQ_META IO=20
-has the potential to create priority inversions.
+I do not have swap defined.=20
+-m
 
->
-> IOWs, the problem here is that we are trying to infer priority from
-> the request type rather than an actual priority assigned by the
-> submitter. There is no way direct IO has higher priority in a
-> filesystem than log IO tagged with REQ_META as direct IO can require
-> log IO to make progress. Priority is a policy determined by the
-> submitter, not the mechanism doing the throttling.
->
-> Can we please move this all over to priorites based on
-> bio->b_ioprio? And then document how the range of priorities are
-> managed, such as:
->
-> (99 =3D highest prio to 0 =3D lowest)
->
-> swap out
-> swap in				>90
-> User hard RT max		89
-> User hard RT min		80
-> filesystem max			79
-> ionice max			60
-> background data writeback	40
-> ionice min			20
-> filesystem min			10
-> idle				0
->
-> So that we can appropriately prioritise different types of kernel
-> internal IO w.r.t user controlled IO priorities? This way we can
-> still tag the bios with the type of data they contain, but we
-> no longer use that to determine whether to throttle that IO or not -
-> throttling/scheduling should be done entirely on a priority basis.
 
-I think you and I are describing solutions to different problems.  The=20
-reason the back charging works so well in io.latency and io.cost is=20
-because the IO controllers are able to remember that a given cgroup=20
-created X amount of IO, and then just make that cgroup wait at a safe=20
-time, instead of trying to assign priority to things that have infinite=20
-priority.
-
-I can't really see bio->b_ioprio working without the rest of the IO=20
-controller logic creating a sensible system, and giving userland the=20
-framework to define weights etc.  My question is if it's worth trying=20
-inside of the wbt code, or if we should just let the metadata go=20
-through.
-
-Tejun reminded me that in a lot of ways, swap is user IO and it's=20
-actually fine to have it prioritized at the same level as user IO.  We=20
-don't want to let a low prio app thrash the drive swapping things in and=20
-out all the time, and it's actually fine to make them wait as long as=20
-other higher priority processes aren't waiting for the memory.  This=20
-depends on the cgroup config, so wrt your current patches it probably=20
-sounds crazy, but we have a lot of data around this from the fleet.
-
--chris
+>=20
+> [337533.314245] leaker invoked oom-killer: =
+gfp_mask=3D0x100cca(GFP_HIGHUSER_MOVABLE), order=3D0, oom_score_adj=3D0
+> [337533.314250] CPU: 3 PID: 23793 Comm: leaker Not tainted 5.2.0-rc7 =
+#54
+> [337533.314251] Hardware name: Dell Inc. Latitude E7470/0T6HHJ, BIOS =
+1.5.3 04/18/2016
+> [337533.314252] Call Trace:
+> [337533.314258]  dump_stack+0x67/0x8e
+> [337533.314262]  dump_header+0x51/0x2e9
+> [337533.314265]  ? preempt_count_sub+0xc6/0xd2
+> [337533.314267]  ? _raw_spin_unlock_irqrestore+0x2c/0x3e
+> [337533.314269]  oom_kill_process+0x90/0x11d
+> [337533.314271]  out_of_memory+0x25c/0x26f
+> [337533.314273]  mem_cgroup_out_of_memory+0x8a/0xa6
+> [337533.314276]  try_charge+0x1d0/0x782
+> [337533.314278]  ? preempt_count_sub+0xc6/0xd2
+> [337533.314280]  mem_cgroup_try_charge+0x1a1/0x207
+> [337533.314282]  __add_to_page_cache_locked+0xf9/0x2dd
+> [337533.314285]  ? memcg_drain_all_list_lrus+0x125/0x125
+> [337533.314286]  add_to_page_cache_lru+0x3c/0x96
+> [337533.314288]  pagecache_get_page.part.7+0x1d6/0x240
+> [337533.314290]  filemap_fault+0x267/0x54a
+> [337533.314292]  ext4_filemap_fault+0x2d/0x41
+> [337533.314294]  ? ext4_page_mkwrite+0x3cd/0x3cd
+> [337533.314296]  __do_fault+0x47/0xa7
+> [337533.314297]  __handle_mm_fault+0xaaa/0xf9d
+> [337533.314300]  handle_mm_fault+0x174/0x1c3
+> [337533.314303]  __do_page_fault+0x309/0x412
+> [337533.314305]  do_page_fault+0x10b/0x131
+> [337533.314307]  ? page_fault+0x8/0x30
+> [337533.314309]  page_fault+0x1e/0x30
+> [337533.314311] RIP: 0033:0x55a806ef8503
+> [337533.314313] Code: 48 89 c6 48 8d 3d 28 0c 00 00 b8 00 00 00 00 e8 =
+73 fb ff ff c7 45 ec 00 00 00 00 eb 36 8b 45 ec 48 63 d0 48 8b 45 c8 48 =
+01 d0 <0f> b6 00 0f be c0 01 45 e4 8b 45 ec 25 ff 0f 00 00 85 c0 75 10 =
+8b
+> [337533.314314] RSP: 002b:00007ffcf6734730 EFLAGS: 00010206
+> [337533.314316] RAX: 00007f2228f74000 RBX: 0000000000000000 RCX: =
+0000000000000000
+> [337533.314317] RDX: 0000000000487000 RSI: 000055a806efc260 RDI: =
+0000000000000000
+> [337533.314318] RBP: 00007ffcf6735780 R08: 0000000000000000 R09: =
+00007ffcf67345fc
+> [337533.314319] R10: 0000000000000000 R11: 0000000000000246 R12: =
+000055a806ef8120
+> [337533.314320] R13: 00007ffcf6735860 R14: 0000000000000000 R15: =
+0000000000000000
+> [337533.314322] memory: usage 524288kB, limit 524288kB, failcnt =
+1240247
+> [337533.314323] memory+swap: usage 2592556kB, limit =
+9007199254740988kB, failcnt 0
+> [337533.314324] kmem: usage 7260kB, limit 9007199254740988kB, failcnt =
+0
+> [337533.314325] Memory cgroup stats for /leaker: cache:80KB =
+rss:516948KB rss_huge:0KB shmem:0KB mapped_file:0KB dirty:0KB =
+writeback:0KB swap:2068268KB inactive_anon:258520KB active_anon:258412KB =
+inactive_file:32KB active_file:12KB unevictable:0KB
+> [337533.314332] Tasks state (memory values in pages):
+> [337533.314333] [  pid  ]   uid  tgid total_vm      rss pgtables_bytes =
+swapents oom_score_adj name
+> [337533.314404] [  23777]     0 23777      596      400    36864       =
+ 4             0 sh
+> [337533.314407] [  23793]     0 23793   655928   126942  5226496   =
+519670             0 leaker
+> [337533.314408] =
+oom-kill:constraint=3DCONSTRAINT_MEMCG,nodemask=3D(null),oom_memcg=3D/leak=
+er,task_memcg=3D/leaker,task=3Dleaker,pid=3D23793,uid=3D0
+> [337533.314412] Memory cgroup out of memory: Killed process 23793 =
+(leaker) total-vm:2623712kB, anon-rss:506500kB, file-rss:1268kB, =
+shmem-rss:0kB
+> [337533.418036] oom_reaper: reaped process 23793 (leaker), now =
+anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
+> --=20
+> Michal Hocko
+> SUSE Labs
 
