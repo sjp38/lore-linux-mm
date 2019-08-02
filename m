@@ -2,192 +2,200 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 64F09C32750
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 15:14:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D3823C32753
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 15:27:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2058A204EC
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 15:14:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2058A204EC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
+	by mail.kernel.org (Postfix) with ESMTP id A323D2087C
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 15:27:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A323D2087C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B7ACC6B000A; Fri,  2 Aug 2019 11:14:01 -0400 (EDT)
+	id 333626B0003; Fri,  2 Aug 2019 11:27:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B51C56B000E; Fri,  2 Aug 2019 11:14:01 -0400 (EDT)
+	id 2E3246B0005; Fri,  2 Aug 2019 11:27:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8DFCD6B0010; Fri,  2 Aug 2019 11:14:01 -0400 (EDT)
+	id 1F97B6B0006; Fri,  2 Aug 2019 11:27:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 43FA66B000A
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 11:14:01 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id g21so48434100pfb.13
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 08:14:01 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 0265F6B0003
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 11:27:14 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id z13so64854375qka.15
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 08:27:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=dQC4QQHwsy7W9GS1q2h0LgCu7EnesoVqk01uiLBVQG8=;
-        b=Ka/aW37yURAALh3KqrQ/AeadwkvfMvf4F3XiOQjeRpMNrqlCzmYH+OmicC5vgqR0BU
-         R3uC6DEqOLvFJkkWftv5sDHOjOP+/qxWppmumbD5VKHzVDvGeSGMhlu7pFGkciUqhspv
-         +GumBdP2k8uywQW56IL5DxE4ENpWr2Df8NRXccsRAUtIZxUfa9UfEcMoWmj+61N4Chbo
-         i4MlgtbriKBDK76dl3V4JyBtAQUCMjFjnqJ8MGAhOZRX/Rb2JeAOyQXXIwas+xaJzOG1
-         a+NTEnG8OUKwOTeZILerAeWX+79nSCicC9QuNKucofqi8J1XzaDPnonVnvSt2sgH7pPo
-         VSuQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVpganAawDSlfpE7KqLogyy9NbZsO/5Y5KO2rXPSAm5cKhMpm1X
-	OimqQRwjU++zRBXURpehilHmsYjOvTHFCFY6rD9Df7KrV7Jw2BON9I28KxfsH7bN9QzESJuXElc
-	oFLk+3TCbCNCZZYu+P0VCGJBLUOnWcE06fwwd3KPDxwhdk0KsJyDSOgu1/GRWbbgz3g==
-X-Received: by 2002:a63:561b:: with SMTP id k27mr25067072pgb.380.1564758840712;
-        Fri, 02 Aug 2019 08:14:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwrFys5IoVUMbfahJJcupfHrpONvBaq4CHy8QSvdE5tRJyIiNJhsTefoEilXz6F7cNFWFc+
-X-Received: by 2002:a63:561b:: with SMTP id k27mr25066965pgb.380.1564758839193;
-        Fri, 02 Aug 2019 08:13:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564758839; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=9g3fuW1kieIBwJn6JvepgsC8QM8o+MRbtjySYxaxCsQ=;
+        b=Ki3Nbh60MXy7Pl9haQXYYbYemox8nuTKepTjw6VKhQqjByUUvwjvl+aohivPLEQi0i
+         ckJOMEzA3IoVz4+APCuoToE5TQjX436Uemxt03byNFuTMQfbMhcYDX0JTIkqp6VYGPHo
+         1EJSL/ceH7+UwV/F5VatW8cEK/x0tfWheFixcchwcpJSFS/noT6qS+EhxQVIKY/My992
+         sn5lfD/nLE7iF77nNl3PigNA247AnsxMBcKyK/tiwjEV6XVdSPQeCLHfLejaDqgKveur
+         ieLxKkXbYTE80V2QTzH6z2Lus/V7QtIehpkCYwzo/BGsm8BnamFAjh51Pi86rH+cAdmm
+         7Ijw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXbI6yMgg/FHyrIP7lxxtY0f96A1n5hkOUjAZmI1HL7YPNba0je
+	uMRcY3B39RjWsrRJLXpAKYKaFYJH1J/g7a2AdQri6WoPd3fKSqPafI9a7H49PPxVvs2lIQvJVOS
+	c7PEiG9w22mjdUzPCENH8/9Pi7NuoxPz07uU5a6kSYCqEdrFYW2XCJnEyGsrsXkFRcg==
+X-Received: by 2002:ac8:1ba9:: with SMTP id z38mr97516361qtj.176.1564759633770;
+        Fri, 02 Aug 2019 08:27:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxtxYn/BlqmOfwlob24EvcoBvSGlDIoN51E7GtR64hM6Wyf7uNztrD31mjzcMCvbVmbjqFm
+X-Received: by 2002:ac8:1ba9:: with SMTP id z38mr97516309qtj.176.1564759633075;
+        Fri, 02 Aug 2019 08:27:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564759633; cv=none;
         d=google.com; s=arc-20160816;
-        b=HycbL8lN/7oPwHn9Y+jVe5WoU/ZYke5Bl52SR7QAlb+0y90SCd47Ln4exyxUkaK30+
-         WOJC2gx7Gon9eIdv7Mi5HM5W5LkIcpa9aT2E/GenSud9pBANTy7lmxjWMsSW7uLTPlyj
-         6NzfMDTA+LPBKyOdJUQ9DtmP1Cwr9LDuFLy8um9YcsyQ2Gj3CWsVLqVQHmzYZMKa4ECe
-         G447mS7t/M+mffP7mYr9IG+00Uofoi89AerD8G6Hi7cLHqwZ3Yd3Owe+vOolwQzCr+2Y
-         xiPW/2O16UxcAtE5S8Bqb9WZ63wmRXVelZiRcuTv2ukj7qywWWQlcQH12FA+aNYt4pMt
-         680w==
+        b=nIvyfQEApyk9SWW9Xs7O4uWVzhqyOn6R9iETUDpMVptlM/JUMxFwwIqppWbE2bWUM+
+         /HWzQWNu3Z0kmjt2vX3HmgYBC0kUSqmQwdfihTsIlW96+7rUyPeQZCY08BkwHIYCAC38
+         AKNrOVvrxs6CNvlYWOwKEmXYQQjYe9KDuLLBcp1mGRmvZaW6MPoY2pu7q2ewqXeZrWB+
+         VcYLAw9xkPcBqp1HJHJIZSPZahcbmVAM4NPZD34CEjd5/KFWDVURuWLr7HrdblavyBQT
+         /Zd8jwyiU5fNSgB477EbY2L9Ze00dmdf/uoct5LF2YlEoNELB9bYzyCDk5EYc4dPbyHf
+         ZZRQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:date:cc:to:from:subject:message-id;
-        bh=dQC4QQHwsy7W9GS1q2h0LgCu7EnesoVqk01uiLBVQG8=;
-        b=j5gdgJoELWylJgFYxz5XCDbnFTxg8NR/3GRx0ZlBSgzSpRrMOshcYo1Bd2QZzPNUR5
-         ef/hl9/jw/Gr4/3ez6JxFtvn6XQ8RM2GG5MaYEcjDtbUYOiulMu/eEdjaW/LT4fVd61/
-         1+0xkeKuU86hdFioBK/pu9Je5fxTzsIQ9gJ6axcEpxGxf1FQ5sGk1q1NmJ2Q79ajz0hG
-         t3rPNpHnKUHHRPZGqvp4zoJ5B4/jNJj+27AD8GsKRIf1IENEL+2o+99PWdYF2cJ6E1y+
-         eNUcibmSJd6x1h43WNxDoJegqhYxIXPbOquG3YJGiuP1xXmol65VhilPkZ2I8JWfmRt/
-         8KRw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=9g3fuW1kieIBwJn6JvepgsC8QM8o+MRbtjySYxaxCsQ=;
+        b=PSCsrjwjYBbPlaX1izTVrNGGidWqIDiSZ5KUWapnzNFLNQk1ID2J533B6Bd4+PNF61
+         PrNemI1BkwxpCxBMr5wQ/EPxvkhiOZOZPsB8/CpfN87C83IgcpxiUXWr3sai6kinefxl
+         uIAwKckdys77P0VwdeK3a+LRTP9S5R9k4DOHH2NzAcC0xrGCf05S6yf+q0QYw1SXFin9
+         Uo+pgqdkT5sLAhob5zEobUPkXdtZ3tBIEkMcnf2+0FGcaCOR1xHVyYTGz3iu6bc0EMy0
+         3UVmXF6o+MNwOzGKamquY3z7s5buHGOERwweEQF3SU/vuFQQR2x9INqJV9wb9nIsyUV8
+         Ajvw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id cl8si34609177plb.47.2019.08.02.08.13.58
+       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i16si46702535qta.372.2019.08.02.08.27.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 08:13:58 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        Fri, 02 Aug 2019 08:27:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga004.jf.intel.com ([10.7.209.38])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 02 Aug 2019 08:13:58 -0700
-X-IronPort-AV: E=Sophos;i="5.64,338,1559545200"; 
-   d="scan'208";a="324597851"
-Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
-  by orsmga004-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 02 Aug 2019 08:13:56 -0700
-Message-ID: <3f6c133ec1eabb8f4fd5c0277f8af254b934b14f.camel@linux.intel.com>
-Subject: Re: [PATCH v3 0/6] mm / virtio: Provide support for unused page
- reporting
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-To: Nitesh Narayan Lal <nitesh@redhat.com>, Alexander Duyck
-	 <alexander.duyck@gmail.com>, kvm@vger.kernel.org, david@redhat.com, 
-	mst@redhat.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, 
-	linux-mm@kvack.org, akpm@linux-foundation.org
-Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com, 
-	konrad.wilk@oracle.com, willy@infradead.org, lcapitulino@redhat.com, 
-	wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com, 
-	dan.j.williams@intel.com
-Date: Fri, 02 Aug 2019 08:13:56 -0700
-In-Reply-To: <9cddf98d-e2ce-0f8a-d46c-e15a54bc7391@redhat.com>
-References: <20190801222158.22190.96964.stgit@localhost.localdomain>
-	 <9cddf98d-e2ce-0f8a-d46c-e15a54bc7391@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
+       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 26D163082137;
+	Fri,  2 Aug 2019 15:27:12 +0000 (UTC)
+Received: from bfoster (dhcp-41-2.bos.redhat.com [10.18.41.2])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 98BF05D9D3;
+	Fri,  2 Aug 2019 15:27:11 +0000 (UTC)
+Date: Fri, 2 Aug 2019 11:27:09 -0400
+From: Brian Foster <bfoster@redhat.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH 01/24] mm: directed shrinker work deferral
+Message-ID: <20190802152709.GA60893@bfoster>
+References: <20190801021752.4986-1-david@fromorbit.com>
+ <20190801021752.4986-2-david@fromorbit.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190801021752.4986-2-david@fromorbit.com>
+User-Agent: Mutt/1.11.3 (2019-02-01)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Fri, 02 Aug 2019 15:27:12 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-08-02 at 10:41 -0400, Nitesh Narayan Lal wrote:
-> On 8/1/19 6:24 PM, Alexander Duyck wrote:
-> > This series provides an asynchronous means of reporting to a hypervisor
-> > that a guest page is no longer in use and can have the data associated
-> > with it dropped. To do this I have implemented functionality that allows
-> > for what I am referring to as unused page reporting
-> > 
-> > The functionality for this is fairly simple. When enabled it will allocate
-> > statistics to track the number of reported pages in a given free area.
-> > When the number of free pages exceeds this value plus a high water value,
-> > currently 32, it will begin performing page reporting which consists of
-> > pulling pages off of free list and placing them into a scatter list. The
-> > scatterlist is then given to the page reporting device and it will perform
-> > the required action to make the pages "reported", in the case of
-> > virtio-balloon this results in the pages being madvised as MADV_DONTNEED
-> > and as such they are forced out of the guest. After this they are placed
-> > back on the free list, and an additional bit is added if they are not
-> > merged indicating that they are a reported buddy page instead of a
-> > standard buddy page. The cycle then repeats with additional non-reported
-> > pages being pulled until the free areas all consist of reported pages.
-> > 
-> > I am leaving a number of things hard-coded such as limiting the lowest
-> > order processed to PAGEBLOCK_ORDER, and have left it up to the guest to
-> > determine what the limit is on how many pages it wants to allocate to
-> > process the hints. The upper limit for this is based on the size of the
-> > queue used to store the scatterlist.
-> > 
-> > My primary testing has just been to verify the memory is being freed after
-> > allocation by running memhog 40g on a 40g guest and watching the total
-> > free memory via /proc/meminfo on the host. With this I have verified most
-> > of the memory is freed after each iteration. As far as performance I have
-> > been mainly focusing on the will-it-scale/page_fault1 test running with
-> > 16 vcpus. With that I have seen up to a 2% difference between the base
-> > kernel without these patches and the patches with virtio-balloon enabled
-> > or disabled.
+On Thu, Aug 01, 2019 at 12:17:29PM +1000, Dave Chinner wrote:
+> From: Dave Chinner <dchinner@redhat.com>
 > 
-> A couple of questions:
+> Introduce a mechanism for ->count_objects() to indicate to the
+> shrinker infrastructure that the reclaim context will not allow
+> scanning work to be done and so the work it decides is necessary
+> needs to be deferred.
 > 
-> - The 2% difference which you have mentioned, is this visible for
->   all the 16 cores or just the 16th core?
-> - I am assuming that the difference is seen for both "number of process"
->   and "number of threads" launched by page_fault1. Is that right?
-
-Really, the 2% is bordering on just being noise. Sometimes it is better
-sometimes it is worse. However I think it is just slight variability in
-the tests since it doesn't usually form any specific pattern.
-
-I have been able to tighten it down a bit by actually splitting my guest
-over 2 nodes and pinning the vCPUs so that the nodes in the guest match up
-to the nodes in the host. Doing that I have seen results where I had less
-than 1% variability between with the patches and without.
-
-One thing I am looking at now is modifying the page_fault1 test to use THP
-instead of 4K pages as I suspect there is a fair bit of overhead in
-accessing the pages 4K at a time vs 2M at a time. I am hoping with that I
-can put more pressure on the actual change and see if there are any
-additional spots I should optimize.
-
-> > One side effect of these patches is that the guest becomes much more
-> > resilient in terms of NUMA locality. With the pages being freed and then
-> > reallocated when used it allows for the pages to be much closer to the
-> > active thread, and as a result there can be situations where this patch
-> > set will out-perform the stock kernel when the guest memory is not local
-> > to the guest vCPUs.
+> This simplifies the code by separating out the accounting of
+> deferred work from the actual doing of the work, and allows better
+> decisions to be made by the shrinekr control logic on what action it
+> can take.
 > 
-> Was this the reason because of which you were seeing better results for
-> page_fault1 earlier?
+> Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> ---
+>  include/linux/shrinker.h | 7 +++++++
+>  mm/vmscan.c              | 8 ++++++++
+>  2 files changed, 15 insertions(+)
+> 
+> diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+> index 9443cafd1969..af78c475fc32 100644
+> --- a/include/linux/shrinker.h
+> +++ b/include/linux/shrinker.h
+> @@ -31,6 +31,13 @@ struct shrink_control {
+>  
+>  	/* current memcg being shrunk (for memcg aware shrinkers) */
+>  	struct mem_cgroup *memcg;
+> +
+> +	/*
+> +	 * set by ->count_objects if reclaim context prevents reclaim from
+> +	 * occurring. This allows the shrinker to immediately defer all the
+> +	 * work and not even attempt to scan the cache.
+> +	 */
+> +	bool will_defer;
 
-Yes I am thinking so. What I have found is that in the case where the
-patches are not applied on the guest it takes a few runs for the numbers
-to stabilize. What I think was going on is that I was running memhog to
-initially fill the guest and that was placing all the pages on one node or
-the other and as such was causing additional variability as the pages were
-slowly being migrated over to the other node to rebalance the workload.
-One way I tested it was by trying the unpatched case with a direct-
-assigned device since that forces it to pin the memory. In that case I was
-getting bad results consistently as all the memory was forced to come from
-one node during the pre-allocation process.
+Functionality wise this seems fairly straightforward. FWIW, I find the
+'will_defer' name a little confusing because it implies to me that the
+shrinker is telling the caller about something it would do if called as
+opposed to explicitly telling the caller to defer. I'd just call it
+'defer' I guess, but that's just my .02. ;P
+
+>  };
+>  
+>  #define SHRINK_STOP (~0UL)
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 44df66a98f2a..ae3035fe94bc 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -541,6 +541,13 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+>  	trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
+>  				   freeable, delta, total_scan, priority);
+>  
+> +	/*
+> +	 * If the shrinker can't run (e.g. due to gfp_mask constraints), then
+> +	 * defer the work to a context that can scan the cache.
+> +	 */
+> +	if (shrinkctl->will_defer)
+> +		goto done;
+> +
+
+Who's responsible for clearing the flag? Perhaps we should do so here
+once it's acted upon since we don't call into the shrinker again?
+
+Note that I see this structure is reinitialized on every iteration in
+the caller, but there already is the SHRINK_EMPTY case where we call
+back into do_shrink_slab(). Granted the deferred state likely hasn't
+changed, but the fact that we'd call back into the count callback to set
+it again implies the logic could be a bit more explicit, particularly if
+this will eventually be used for more dynamic shrinker state that might
+change call to call (i.e., object dirty state, etc.).
+
+BTW, do we need to care about the ->nr_cached_objects() call from the
+generic superblock shrinker (super_cache_scan())?
+
+Brian
+
+>  	/*
+>  	 * Normally, we should not scan less than batch_size objects in one
+>  	 * pass to avoid too frequent shrinker calls, but if the slab has less
+> @@ -575,6 +582,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+>  		cond_resched();
+>  	}
+>  
+> +done:
+>  	if (next_deferred >= scanned)
+>  		next_deferred -= scanned;
+>  	else
+> -- 
+> 2.22.0
+> 
 
