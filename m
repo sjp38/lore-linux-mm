@@ -2,174 +2,241 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 988DDC32750
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 07:40:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9A32DC32753
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 07:51:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 56EE4206A3
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 07:40:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 56EE4206A3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 30CC42086A
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 07:51:30 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="KBK3hTK/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 30CC42086A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CAB256B0003; Fri,  2 Aug 2019 03:40:52 -0400 (EDT)
+	id 947AE6B0003; Fri,  2 Aug 2019 03:51:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C346F6B0005; Fri,  2 Aug 2019 03:40:52 -0400 (EDT)
+	id 8D0FC6B0005; Fri,  2 Aug 2019 03:51:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AFB676B0006; Fri,  2 Aug 2019 03:40:52 -0400 (EDT)
+	id 7731E6B0006; Fri,  2 Aug 2019 03:51:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5A8596B0003
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 03:40:52 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id a5so46410940edx.12
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 00:40:52 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E4D86B0003
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 03:51:29 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id f2so41139240plr.0
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 00:51:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=MRdroEo3VIs99Y4rdb59391cizh34si9TFzCKXY64Po=;
-        b=bHNxC6hZy9JcObl25wZJmUambD0rQ75CCNnccT1kxCuM/UxOJLkvvbI2XPtMDew+FQ
-         SNFBmMKrQkQTY6ze1ZCzIHVgFnzTpLZLGLXtJlK+LzK5t5I5g9LOA2fVy0Qn7+oUSnk+
-         uNDSPdRwgQ2jiw4D7PMU/toj3OOD6vMlgEpQdCqXcA66bBGkwV9O9yck/iohLUGZe9q/
-         LUFbsYkDMQN7RuSz30HXwonlSwVLcjYbnV97XLbOS5EYGuP2p7Z2V+ZbYOlCodACqTyZ
-         4USlZyyySa4GQpB8OrOOvGaDFGVfkohRdCQO280CiCRFQrU3FYpGEH+8XH7n1bCOyJ80
-         mrog==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUKGKugRVBmxIGv/EmtNWxiRwQebNMFXnFdanNnaMZzOJ6HQvY5
-	xDE+65L/mDh3Dfm5FIqdRjLRp/O9cEaUqiPVbqr5dvUDvjfQS6V+rpirMoTsXLUEl5VO49n8ONX
-	qhfX9uW3iG5VmJZcCCKy7+XNt613XqHAg0WYhUtPuWlnTGLVfWMWieMbewciKWbs=
-X-Received: by 2002:a17:906:7281:: with SMTP id b1mr8739483ejl.63.1564731651775;
-        Fri, 02 Aug 2019 00:40:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx9QcTg5O1rhiG9Px4tTSxhO+u91z4+SU8YhcFFljtDhdqPxEUREjnagfsSWwOhHFTXRql4
-X-Received: by 2002:a17:906:7281:: with SMTP id b1mr8739432ejl.63.1564731650790;
-        Fri, 02 Aug 2019 00:40:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564731650; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=GRZ1QpqxWwrxLrsE+faUJgmiyyqLFzDqXgNpqvG7ZzI=;
+        b=Lq75CnRudpkmCE81UkTw0j1+qfMc1b+aPNdKq0lL4vbiB6LkHtzoDo6liQ5uWatC6Z
+         RatqB/N8qouBmKXwnvdwgsnnG5h+Yxc+CQfsRCumMGum4ie6VXEnSnRZjb7LXVtw71rE
+         Oql+Ckv28mrvlI86/Gsn08li6ABnCLDbNo3SkfhDL9tD5DheB66FWnYDTPIBmLDcI6iK
+         R4cpx4qx/LoMR64c3SAcotynFR+XOPw5beZhguFXKvKsoqwMkhb0c60VtqlbEIWweDxm
+         iBXMq+Xi3SmaI+asVpLjHozglRGaREcld9Wmi21wEGKyGsskiYWyYKlzHOWzu72ppbcH
+         H9Dg==
+X-Gm-Message-State: APjAAAUXE94YSJdnJtGDKglX0kgC1k66iGR6mPN8oCEil3wB3cj60Elm
+	GkxtzIdOmD6i5LxO5/gyeLIy8zOJYmKxrRRDyIbjpcXXK0b0Uu60RpD9fMEZ/Uy+KKehtGppuiL
+	36B+IhcxMducnEQSGJOU9Joyi5nXb02sIKC0eUxQbk6V7tNQ1N6AfW6XMfGjL+W2ZEg==
+X-Received: by 2002:a17:90a:246f:: with SMTP id h102mr3024779pje.126.1564732288672;
+        Fri, 02 Aug 2019 00:51:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxKU7fjcKpfVMXknnKaZEPIpClgaru3Ma9kiST3fCu1B0MDe3ZQKGxHfMFXtORRWns//KYa
+X-Received: by 2002:a17:90a:246f:: with SMTP id h102mr3024710pje.126.1564732287678;
+        Fri, 02 Aug 2019 00:51:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564732287; cv=none;
         d=google.com; s=arc-20160816;
-        b=LzQtsKNvWGt3N6t0t9XG/GI8DQCL9RpL7bIWOZXB88ieVYzBoZbS7zqTmhwi6dT2gY
-         IhgjX9MDBjrq25gEKq36pgbVjYqlXdCD4u+4CqP7fRKfu8iwSBrgHeF4Sdk2h+xRQld0
-         5eodm5E3JY8JvzcPY3SZfOuHZDzwjGyqzVUmUvtQJJlN6rP2uVcB25vqvofULxSyfbfq
-         mXF0mrwWdc8XdClI0F72qVtF+RUV2Ug6zR/2lKlkiy9iCLDl882UksealKDuIGBSso1D
-         CAbHKzKZRPI/Ju1028mmMlr7Sc5pYoitPUvW+3rgMBJQ3dXyj+W4YQWBfdRA+BKXAwM2
-         wzGg==
+        b=l02KgGWlcJI1x8wU1DnVLd1DOjYrA62oeqCCeQUFXGA4lAkNq4xC8qRJnCUSi/XwQn
+         DCIuqtw+Ie1zi+L4HRdXE2x9s/1PL2c8M1hs8GdFup1q12BT/O4dyuW81TiUIhb81ssK
+         wYGFasctdxndGeTHu1JuFhOeiXiK7h5Y8DV9n0xrh3DdrlwHGY7DfM4lCiJA/wfWvUfQ
+         hiAxOf0ryBjb3Lh38fpZMLt/eWZAmhmAtyXzdkxyShNDL7pyQ9VjOcRNCl6034zJ5RFA
+         PqZ01ZlF3cRSVXugq2yXALEy5o2uPyLoT7LhSW04XgTDm3KVynvbSOR9WuJf1IPc8KjW
+         PfPQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=MRdroEo3VIs99Y4rdb59391cizh34si9TFzCKXY64Po=;
-        b=TnagWCpuNLm2P+FH15Pm4S96QwbWMfFyh+2DTrgpUNo4e+piIXeN71bSKb+bsLpqHp
-         GAWozmFzvZHz2lpHViu+u1rM6gSUnbiynEMXIGPeMn9CDkC4dIN5RPJAM6AyCs9ge9D1
-         AAP6eTvXm5jXFiIolYakuhxy+arkBQS8WPT3ikpYMad7yXyJm9OtAyNRrVxsDQFuIRlH
-         hKQGomYIvKYf50m6kDeV/EnPtDYPBWNscVYLYy0S0r+cRZgFsIZN2eMsQalnaJfVwzIH
-         f/BovMsmuBSi/aRo81sCHkJlZmENIjmdr6zsmmQWVxp+S8yxH8ypw6Zj6xC6CYpLCE2A
-         dC/A==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=GRZ1QpqxWwrxLrsE+faUJgmiyyqLFzDqXgNpqvG7ZzI=;
+        b=nq8fp5xSulWDzW5GZKOEReUIQ2dZ07EmpHM6aCzWbWIjY1zi2w/z3JAXzMix/RB5w2
+         8fKMA+W7V981NjHU4xJGNQGh/0CEjdhAvk6j3uRTNV7CKdCSP9Yt26NXweFDv+RQ1IuC
+         q4eYmWV4eHfE0S6PyXT9Dv4ITP7rO/uuDWbQTY8cQGBK4DycQ8KSE65vLSzRtWO8Wf8E
+         mycegCSbnyyi3csAvXfyljriT8V95y3h7GqwUP67U/W5GkkdSTbkfkPPRws/DWMxEeiU
+         +ywBMYMAkOeJ6m8jjB1SN81sOZQGXBWsQUUAKqEbLfSM2UL2075dCZefevYjhHf7eyfY
+         7caw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m9si22084431ejc.289.2019.08.02.00.40.50
+       dkim=pass header.i=@kernel.org header.s=default header.b="KBK3hTK/";
+       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id r14si38001121pfc.134.2019.08.02.00.51.27
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 00:40:50 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 02 Aug 2019 00:51:27 -0700 (PDT)
+Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id CDBA5AD88;
-	Fri,  2 Aug 2019 07:40:49 +0000 (UTC)
-Date: Fri, 2 Aug 2019 09:40:47 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Masoud Sharbiani <msharbiani@apple.com>
-Cc: gregkh@linuxfoundation.org, hannes@cmpxchg.org, vdavydov.dev@gmail.com,
-	linux-mm@kvack.org, cgroups@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: Possible mem cgroup bug in kernels between 4.18.0 and 5.3-rc1.
-Message-ID: <20190802074047.GQ11627@dhcp22.suse.cz>
-References: <5659221C-3E9B-44AD-9BBF-F74DE09535CD@apple.com>
+       dkim=pass header.i=@kernel.org header.s=default header.b="KBK3hTK/";
+       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
+Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id AAAA220644;
+	Fri,  2 Aug 2019 07:51:26 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1564732287;
+	bh=kzEEtbjjrdPAyzxrRRGRUcKmUt5I/OGfmVyN7CZTUMo=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=KBK3hTK/g/w1aS9eKJB4kyQ5nqJ6ZCuZXyoR+ReQBa1K4Bu7vGSDPSACtOCtfACHo
+	 a1B7nFMVv3skMPHQKGVGcFCv4Rbo6B9rHuqN756eyGLeuLaLvYRgs0qCHfIJBDNutS
+	 RXDR6sYF4uSLMhhhCLYAW7jWbFfdigVvBzm6JRxw=
+Date: Fri, 2 Aug 2019 09:51:24 +0200
+From: Greg KH <gregkh@linuxfoundation.org>
+To: Ajay Kaher <akaher@vmware.com>
+Cc: aarcange@redhat.com, jannh@google.com, oleg@redhat.com,
+	peterx@redhat.com, rppt@linux.ibm.com, jgg@mellanox.com,
+	mhocko@suse.com, jglisse@redhat.com, akpm@linux-foundation.org,
+	mike.kravetz@oracle.com, viro@zeniv.linux.org.uk,
+	riandrews@android.com, arve@android.com, yishaih@mellanox.com,
+	dledford@redhat.com, sean.hefty@intel.com, hal.rosenstock@gmail.com,
+	matanb@mellanox.com, leonro@mellanox.com,
+	torvalds@linux-foundation.org, linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org, devel@driverdev.osuosl.org,
+	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org,
+	stable@vger.kernel.org, srivatsab@vmware.com, amakhalov@vmware.com
+Subject: Re: [PATCH v5 1/3] [v4.9.y] coredump: fix race condition between
+ mmget_not_zero()/get_task_mm() and core dumping
+Message-ID: <20190802075124.GG26174@kroah.com>
+References: <1562005928-1929-1-git-send-email-akaher@vmware.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <5659221C-3E9B-44AD-9BBF-F74DE09535CD@apple.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <1562005928-1929-1-git-send-email-akaher@vmware.com>
+User-Agent: Mutt/1.12.1 (2019-06-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu 01-08-19 11:04:14, Masoud Sharbiani wrote:
-> Hey folks,
-> I’ve come across an issue that affects most of 4.19, 4.20 and 5.2 linux-stable kernels that has only been fixed in 5.3-rc1.
-> It was introduced by
+On Tue, Jul 02, 2019 at 12:02:05AM +0530, Ajay Kaher wrote:
+> From: Andrea Arcangeli <aarcange@redhat.com>
 > 
-> 29ef680 memcg, oom: move out_of_memory back to the charge path 
+> commit 04f5866e41fb70690e28397487d8bd8eea7d712a upstream.
+> 
+> The core dumping code has always run without holding the mmap_sem for
+> writing, despite that is the only way to ensure that the entire vma
+> layout will not change from under it.  Only using some signal
+> serialization on the processes belonging to the mm is not nearly enough.
+> This was pointed out earlier.  For example in Hugh's post from Jul 2017:
+> 
+>   https://lkml.kernel.org/r/alpine.LSU.2.11.1707191716030.2055@eggly.anvils
+> 
+>   "Not strictly relevant here, but a related note: I was very surprised
+>    to discover, only quite recently, how handle_mm_fault() may be called
+>    without down_read(mmap_sem) - when core dumping. That seems a
+>    misguided optimization to me, which would also be nice to correct"
+> 
+> In particular because the growsdown and growsup can move the
+> vm_start/vm_end the various loops the core dump does around the vma will
+> not be consistent if page faults can happen concurrently.
+> 
+> Pretty much all users calling mmget_not_zero()/get_task_mm() and then
+> taking the mmap_sem had the potential to introduce unexpected side
+> effects in the core dumping code.
+> 
+> Adding mmap_sem for writing around the ->core_dump invocation is a
+> viable long term fix, but it requires removing all copy user and page
+> faults and to replace them with get_dump_page() for all binary formats
+> which is not suitable as a short term fix.
+> 
+> For the time being this solution manually covers the places that can
+> confuse the core dump either by altering the vma layout or the vma flags
+> while it runs.  Once ->core_dump runs under mmap_sem for writing the
+> function mmget_still_valid() can be dropped.
+> 
+> Allowing mmap_sem protected sections to run in parallel with the
+> coredump provides some minor parallelism advantage to the swapoff code
+> (which seems to be safe enough by never mangling any vma field and can
+> keep doing swapins in parallel to the core dumping) and to some other
+> corner case.
+> 
+> In order to facilitate the backporting I added "Fixes: 86039bd3b4e6"
+> however the side effect of this same race condition in /proc/pid/mem
+> should be reproducible since before 2.6.12-rc2 so I couldn't add any
+> other "Fixes:" because there's no hash beyond the git genesis commit.
+> 
+> Because find_extend_vma() is the only location outside of the process
+> context that could modify the "mm" structures under mmap_sem for
+> reading, by adding the mmget_still_valid() check to it, all other cases
+> that take the mmap_sem for reading don't need the new check after
+> mmget_not_zero()/get_task_mm().  The expand_stack() in page fault
+> context also doesn't need the new check, because all tasks under core
+> dumping are frozen.
+> 
+> Link: http://lkml.kernel.org/r/20190325224949.11068-1-aarcange@redhat.com
+> Fixes: 86039bd3b4e6 ("userfaultfd: add new syscall to provide memory externalization")
+> Signed-off-by: Andrea Arcangeli <aarcange@redhat.com>
+> Reported-by: Jann Horn <jannh@google.com>
+> Suggested-by: Oleg Nesterov <oleg@redhat.com>
+> Acked-by: Peter Xu <peterx@redhat.com>
+> Reviewed-by: Mike Rapoport <rppt@linux.ibm.com>
+> Reviewed-by: Oleg Nesterov <oleg@redhat.com>
+> Reviewed-by: Jann Horn <jannh@google.com>
+> Acked-by: Jason Gunthorpe <jgg@mellanox.com>
+> Acked-by: Michal Hocko <mhocko@suse.com>
+> Cc: <stable@vger.kernel.org>
+> Signed-off-by: Andrew Morton <akpm@linux-foundation.org>
+> Signed-off-by: Linus Torvalds <torvalds@linux-foundation.org>
+> Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+> [akaher@vmware.com: stable 4.9 backport
+> -  handle binder_update_page_range - mhocko@suse.com]
+> Signed-off-by: Ajay Kaher <akaher@vmware.com>
+> ---
+> drivers/android/binder.c |  6 ++++++
+> fs/proc/task_mmu.c       | 18 ++++++++++++++++++
+> fs/userfaultfd.c         |  9 +++++++++
+> include/linux/mm.h       | 21 +++++++++++++++++++++
+> mm/mmap.c                |  6 +++++-
+> 5 files changed, 59 insertions(+), 1 deletion(-)
+> 
+> diff --git a/drivers/android/binder.c b/drivers/android/binder.c
+> index 80499f4..f05ab8f 100644
+> --- a/drivers/android/binder.c
+> +++ b/drivers/android/binder.c
+> @@ -581,6 +581,12 @@ static int binder_update_page_range(struct binder_proc *proc, int allocate,
+> 	if (mm) {
+> 		down_write(&mm->mmap_sem);
+> +		if (!mmget_still_valid(mm)) {
+> +			if (allocate == 0)
+> +				goto free_range;
+> +			goto err_no_vma;
+> +		}
+> +
+> 		vma = proc->vma;
+> 		if (vma && mm != proc->vma_vm_mm) {
+> 			pr_err("%d: vma mm and task mm mismatch\n",
+> diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+> index 5138e78..4b207b1 100644
+> --- a/fs/proc/task_mmu.c
+> +++ b/fs/proc/task_mmu.c
+> @@ -1057,6 +1057,24 @@ static ssize_t clear_refs_write(struct file *file, const char __user *buf,
 
-This commit shouldn't really change the OOM behavior for your particular
-test case. It would have changed MAP_POPULATE behavior but your usage is
-triggering the standard page fault path. The only difference with
-29ef680 is that the OOM killer is invoked during the charge path rather
-than on the way out of the page fault.
+This patch is oddly corrupted, and I can't figure out how to fix it up.
 
-Anyway, I tried to run your test case in a loop and leaker always ends
-up being killed as expected with 5.2. See the below oom report. There
-must be something else going on. How much swap do you have on your
-system?
+When applying it, I get following error:
 
-[337533.314245] leaker invoked oom-killer: gfp_mask=0x100cca(GFP_HIGHUSER_MOVABLE), order=0, oom_score_adj=0
-[337533.314250] CPU: 3 PID: 23793 Comm: leaker Not tainted 5.2.0-rc7 #54
-[337533.314251] Hardware name: Dell Inc. Latitude E7470/0T6HHJ, BIOS 1.5.3 04/18/2016
-[337533.314252] Call Trace:
-[337533.314258]  dump_stack+0x67/0x8e
-[337533.314262]  dump_header+0x51/0x2e9
-[337533.314265]  ? preempt_count_sub+0xc6/0xd2
-[337533.314267]  ? _raw_spin_unlock_irqrestore+0x2c/0x3e
-[337533.314269]  oom_kill_process+0x90/0x11d
-[337533.314271]  out_of_memory+0x25c/0x26f
-[337533.314273]  mem_cgroup_out_of_memory+0x8a/0xa6
-[337533.314276]  try_charge+0x1d0/0x782
-[337533.314278]  ? preempt_count_sub+0xc6/0xd2
-[337533.314280]  mem_cgroup_try_charge+0x1a1/0x207
-[337533.314282]  __add_to_page_cache_locked+0xf9/0x2dd
-[337533.314285]  ? memcg_drain_all_list_lrus+0x125/0x125
-[337533.314286]  add_to_page_cache_lru+0x3c/0x96
-[337533.314288]  pagecache_get_page.part.7+0x1d6/0x240
-[337533.314290]  filemap_fault+0x267/0x54a
-[337533.314292]  ext4_filemap_fault+0x2d/0x41
-[337533.314294]  ? ext4_page_mkwrite+0x3cd/0x3cd
-[337533.314296]  __do_fault+0x47/0xa7
-[337533.314297]  __handle_mm_fault+0xaaa/0xf9d
-[337533.314300]  handle_mm_fault+0x174/0x1c3
-[337533.314303]  __do_page_fault+0x309/0x412
-[337533.314305]  do_page_fault+0x10b/0x131
-[337533.314307]  ? page_fault+0x8/0x30
-[337533.314309]  page_fault+0x1e/0x30
-[337533.314311] RIP: 0033:0x55a806ef8503
-[337533.314313] Code: 48 89 c6 48 8d 3d 28 0c 00 00 b8 00 00 00 00 e8 73 fb ff ff c7 45 ec 00 00 00 00 eb 36 8b 45 ec 48 63 d0 48 8b 45 c8 48 01 d0 <0f> b6 00 0f be c0 01 45 e4 8b 45 ec 25 ff 0f 00 00 85 c0 75 10 8b
-[337533.314314] RSP: 002b:00007ffcf6734730 EFLAGS: 00010206
-[337533.314316] RAX: 00007f2228f74000 RBX: 0000000000000000 RCX: 0000000000000000
-[337533.314317] RDX: 0000000000487000 RSI: 000055a806efc260 RDI: 0000000000000000
-[337533.314318] RBP: 00007ffcf6735780 R08: 0000000000000000 R09: 00007ffcf67345fc
-[337533.314319] R10: 0000000000000000 R11: 0000000000000246 R12: 000055a806ef8120
-[337533.314320] R13: 00007ffcf6735860 R14: 0000000000000000 R15: 0000000000000000
-[337533.314322] memory: usage 524288kB, limit 524288kB, failcnt 1240247
-[337533.314323] memory+swap: usage 2592556kB, limit 9007199254740988kB, failcnt 0
-[337533.314324] kmem: usage 7260kB, limit 9007199254740988kB, failcnt 0
-[337533.314325] Memory cgroup stats for /leaker: cache:80KB rss:516948KB rss_huge:0KB shmem:0KB mapped_file:0KB dirty:0KB writeback:0KB swap:2068268KB inactive_anon:258520KB active_anon:258412KB inactive_file:32KB active_file:12KB unevictable:0KB
-[337533.314332] Tasks state (memory values in pages):
-[337533.314333] [  pid  ]   uid  tgid total_vm      rss pgtables_bytes swapents oom_score_adj name
-[337533.314404] [  23777]     0 23777      596      400    36864        4             0 sh
-[337533.314407] [  23793]     0 23793   655928   126942  5226496   519670             0 leaker
-[337533.314408] oom-kill:constraint=CONSTRAINT_MEMCG,nodemask=(null),oom_memcg=/leaker,task_memcg=/leaker,task=leaker,pid=23793,uid=0
-[337533.314412] Memory cgroup out of memory: Killed process 23793 (leaker) total-vm:2623712kB, anon-rss:506500kB, file-rss:1268kB, shmem-rss:0kB
-[337533.418036] oom_reaper: reaped process 23793 (leaker), now anon-rss:0kB, file-rss:0kB, shmem-rss:0kB
--- 
-Michal Hocko
-SUSE Labs
+patching file drivers/android/binder.c
+patch: **** malformed patch at line 102: diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+
+So something is odd here.
+
+Can you please fix this up, and resend the series so that they can be
+applied?
+
+thanks,
+
+greg k-h
 
