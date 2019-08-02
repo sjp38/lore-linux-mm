@@ -2,229 +2,211 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 66114C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 16:06:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 62831C41514
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 16:09:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 20316216C8
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 16:06:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 20316216C8
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id E4F642087C
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 16:09:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E4F642087C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 92E9B6B0003; Fri,  2 Aug 2019 12:06:32 -0400 (EDT)
+	id 693D66B0006; Fri,  2 Aug 2019 12:09:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8DF396B0005; Fri,  2 Aug 2019 12:06:32 -0400 (EDT)
+	id 644406B0008; Fri,  2 Aug 2019 12:09:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7CDE06B0006; Fri,  2 Aug 2019 12:06:32 -0400 (EDT)
+	id 4980D6B000D; Fri,  2 Aug 2019 12:09:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 307FB6B0003
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 12:06:32 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id n3so47274517edr.8
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 09:06:32 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 12C5F6B0006
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 12:09:50 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id q14so48554754pff.8
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 09:09:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=+MNXp8kagUIMDzOJZI83xJHbSrwpbTyc3oyuG7/SJOk=;
-        b=rbhbqfXuVN8EXeozwrl6RnseT+HRKqzECLWlYj/UEnm3o7O/fYZj3LeqsV/s6NmUy3
-         PYOyaOfURPNTdaisrynVuiLVfc4RpS+Kiv805JoX+5upK50gh01qkn6aR7E2G3Jfbub8
-         ukIYGWQVnUr4Pv32LWaaAbsKavWlBZ6/Ze8vAFXE3f+caYryaHXiHQxGYfvQK1xifOWY
-         qMLPjWhq/MTxggVeFtjNGnDI0gKd8Q2WHoXY3wpycsvA2DdDIHwwyTzVii3rJy6YamUN
-         dUi7k+AMtysryso9PuDxqtoz+yX0BP0sjRSGD3uN+0XnHNph3QFyR4WDonnyXgI5XvBF
-         nJNA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAWAQaBswEhB48yAffAth7ERzs0st09Hl/oJ0yqceYpllIJZpnGU
-	hNUXnuTOozEBBXbaKwqBspRt2RDmmAjYfKi6XoAE8sxp8J/4V4KJFc6c0tmm5sU/AlJHM4z9d1w
-	QY2k6NO12GjxPcZMvWB075mZkvKy9HEzZrI4rLKmqx6mC1u2M0p77i/jpaosLDv4GWQ==
-X-Received: by 2002:aa7:c99a:: with SMTP id c26mr117816492edt.118.1564761991642;
-        Fri, 02 Aug 2019 09:06:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzpZ2ZsC7qv1JWa4DOqEhdm187+gemlHQ15uJ82Cr/NEZs+hXV19ec6VUvkoygQfb5LgvAB
-X-Received: by 2002:aa7:c99a:: with SMTP id c26mr117816373edt.118.1564761990568;
-        Fri, 02 Aug 2019 09:06:30 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564761990; cv=none;
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:dlp-product
+         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
+        bh=LPCMYAL9J/0iBdkZNuzBqBYIM2wA9HqAOi3OoU2C+HY=;
+        b=GSNNa4UYupHJBcsI1QYyz/Hb7Sy8NgJPvaL/xrbUCPvFmQV+8aeX8ioRG+0z6YMWDd
+         FDeVWYh0S+ttqnQ1y46/DmlBF220hGDQnjDEluia0mOsoM/2hYgL4FbaV30lI3ebWMi9
+         URmwy3Ht4fVbf7YLN3EbKXfkCf7BRGCVCfEaXqOjIPSixey+Ccm4To9Xp83ByuAW3M4L
+         tusDaikju9SZBuH1KbcKRxSVXd7wKyNmNY4wTmtoIRa1z5C0z+frreOyhVuhK8F2N0rX
+         vNeAXMThWqeEbYPs0DFwSY4abNPIViL9Jl2He2PrVyLzQsaQbxVBU3aRFoBiLuz97z7M
+         VB3Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAX9Y+W343CQhGHnTNzrq90tRt57YY7MxoJDzDHXukpqFrNAmVZy
+	WeAV1P+IzL5h6wzKH+pFIPdAGMYRt3OowZmxOcBQTtkHkycpbtQZfn2dWta3HpJWgkaDWSeVuHI
+	m2O6U0qc1/cKBb2L2XJMrCNZ1ErUeNGK8TmOXDZ4KVzc63yDu3DBDlv9GrKWZeVlhIA==
+X-Received: by 2002:a65:6294:: with SMTP id f20mr128389405pgv.349.1564762189611;
+        Fri, 02 Aug 2019 09:09:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxKEfWYBdYx30f4v/yS9Cb4uS2PyZ5Hdic/WIgWOuF5RKoOPx9vxayKMM8Cb+vlsdjypNb2
+X-Received: by 2002:a65:6294:: with SMTP id f20mr128389343pgv.349.1564762188745;
+        Fri, 02 Aug 2019 09:09:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564762188; cv=none;
         d=google.com; s=arc-20160816;
-        b=pU3033Bjrm7g5D/OE67lXVCkoVvWB/WOyqs6y30qdvYgZAgn0m0Ac4k1HhwFml9F4Z
-         q0Q/QXrJCrK1xuGEXsjd5PXCTK3kE2DpwQ8qDuU9zX6dC7NCBHsUXZrnmzCQH812J1Qs
-         TjKeDo3Gi5u/1ZTQyPsSiGRg9qjhlO7trkhYCtOqx+K8mUA9o1BAwXSFom5LmESvA3gP
-         11XbBeoGrT54xH4VQ0tr4C4hPhktttupfjLdk9FTMKIZdezpK7EcLsWBSNXA/KEAtdLA
-         kY5u29IzZCJrdOKsOSB/cte0R8JtBneeH+siEB5CFMkj3dwi7mXuZNqBVn5VsK75Xdfp
-         8zbg==
+        b=t3Stjprro5yPUXRsuIcHc3gSHXrIJmnVttSgsVNOR2SMt1VajMnh6RwHSfyC/nPTtH
+         mGYEqxyRtTbcGq2DP3+Zve4bXw7SyFk/pDZK6SKHA6tInv8QGh2CShEBmDG0nqOdbV86
+         qIeCm4eOxwe4zgph+0H+yu4Q2i2eBOrDy60ZqT+6+WdFmyA0RAih3NqtlAKhwpR8fCRT
+         2QbA3Oms46u7NJHDT0fRgavNQ+Iuog3vNXpomkiMUPq+REr4KIQLkwZqUTCgUYSO1e3a
+         lU2DH7RhB4y7TdkmCIzTQfydv97dRWhqsofAl2D14zkU48Zj6wGW3w/K0qhUTwa6470P
+         USug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=+MNXp8kagUIMDzOJZI83xJHbSrwpbTyc3oyuG7/SJOk=;
-        b=Bpx6iPl2Upxv8AMKTzr1zdxeSha4pNhQD3syfl1MnHUe7fJYlA5j2vW/FNhuhSVUZw
-         ODo9oCRYCoFaOdmjDV2Ee7zwhgoHYSDtD/VFpGQPoAMW2zOHjGGFnbZEpY6OqeRFkyU2
-         icdMF66JNyEOApjFj3cws6+dYdKDIedq4/Cc3YnP5mHAZM3+V+RdT1xVlAon20saSfvf
-         n36Y3truYtqN1RhXNp259sfWcB8uNAUSQGkbtoYIGf3Sii2538AcQXOD9jRyuJcbhN0c
-         Iw269hzBZmdykpctBwiyZUz51dyKD9FuaWbLyrANeASGuiJmcl4VGfN1UbSvQhijg/KC
-         6xBA==
+        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
+         :dlp-product:content-language:accept-language:in-reply-to:references
+         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
+        bh=LPCMYAL9J/0iBdkZNuzBqBYIM2wA9HqAOi3OoU2C+HY=;
+        b=V5LiOv1LWT+kjFFggzS7GN8VXAstZABhbomsnFnSiny6zIbpTCKYrn5D5CRBzzD1Gz
+         0mBPfRmupig8G64abQcyi/t8c+r6LcqehH06A3+dENfz+GC+6T32H7fv1X9MB1RaETHx
+         hTXETzCu5YhwgiDmvOGTid8etLnTvpHmH/S4AwAhEnQjjRc642vsHUwGF/nXCaAT1Yea
+         oq3ftul+GJzcXdZOrkG4MtQvUJYIgnPU6mVuvgGX1JO22kjaeuJ00Gf99UlfDuabg5qj
+         0+D+ay8Q9ISzs0Cfh/RzVQagaszULzNgmqrBlSzukqOzwujSxFzoho0znUtr476bviwe
+         TWUg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id w50si25600631edd.84.2019.08.02.09.06.30
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id o2si11136897pfg.136.2019.08.02.09.09.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 09:06:30 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Fri, 02 Aug 2019 09:09:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id BDFEBAC91;
-	Fri,  2 Aug 2019 16:06:29 +0000 (UTC)
-From: Vlastimil Babka <vbabka@suse.cz>
-To: stable@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org,
-	x86@kernel.org,
-	Jann Horn <jannh@google.com>,
-	Ben Hutchings <ben.hutchings@codethink.co.uk>,
-	xen-devel@lists.xenproject.org,
-	Oscar Salvador <osalvador@suse.de>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Juergen Gross <jgross@suse.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Vitaly Kuznetsov <vkuznets@redhat.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
-	Borislav Petkov <bp@alien8.de>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Andy Lutomirski <luto@kernel.org>
-Subject: [PATCH STABLE 4.9] x86, mm, gup: prevent get_page() race with munmap in paravirt guest
-Date: Fri,  2 Aug 2019 18:06:14 +0200
-Message-Id: <20190802160614.8089-1-vbabka@suse.cz>
-X-Mailer: git-send-email 2.22.0
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from fmsmga006.fm.intel.com ([10.253.24.20])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 02 Aug 2019 09:09:47 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,338,1559545200"; 
+   d="scan'208";a="372996055"
+Received: from fmsmsx108.amr.corp.intel.com ([10.18.124.206])
+  by fmsmga006.fm.intel.com with ESMTP; 02 Aug 2019 09:09:47 -0700
+Received: from fmsmsx122.amr.corp.intel.com (10.18.125.37) by
+ FMSMSX108.amr.corp.intel.com (10.18.124.206) with Microsoft SMTP Server (TLS)
+ id 14.3.439.0; Fri, 2 Aug 2019 09:09:48 -0700
+Received: from crsmsx103.amr.corp.intel.com (172.18.63.31) by
+ fmsmsx122.amr.corp.intel.com (10.18.125.37) with Microsoft SMTP Server (TLS)
+ id 14.3.439.0; Fri, 2 Aug 2019 09:09:47 -0700
+Received: from crsmsx101.amr.corp.intel.com ([169.254.1.115]) by
+ CRSMSX103.amr.corp.intel.com ([169.254.4.51]) with mapi id 14.03.0439.000;
+ Fri, 2 Aug 2019 10:09:45 -0600
+From: "Weiny, Ira" <ira.weiny@intel.com>
+To: Juergen Gross <jgross@suse.com>, John Hubbard <jhubbard@nvidia.com>,
+	"john.hubbard@gmail.com" <john.hubbard@gmail.com>, Andrew Morton
+	<akpm@linux-foundation.org>
+CC: "devel@driverdev.osuosl.org" <devel@driverdev.osuosl.org>, Dave Chinner
+	<david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, "Williams, Dan
+ J" <dan.j.williams@intel.com>, "x86@kernel.org" <x86@kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Hansen
+	<dave.hansen@linux.intel.com>, "amd-gfx@lists.freedesktop.org"
+	<amd-gfx@lists.freedesktop.org>, "dri-devel@lists.freedesktop.org"
+	<dri-devel@lists.freedesktop.org>, "intel-gfx@lists.freedesktop.org"
+	<intel-gfx@lists.freedesktop.org>, "linux-arm-kernel@lists.infradead.org"
+	<linux-arm-kernel@lists.infradead.org>,
+	"linux-rpi-kernel@lists.infradead.org"
+	<linux-rpi-kernel@lists.infradead.org>, "devel@lists.orangefs.org"
+	<devel@lists.orangefs.org>, "xen-devel@lists.xenproject.org"
+	<xen-devel@lists.xenproject.org>, Boris Ostrovsky
+	<boris.ostrovsky@oracle.com>, "rds-devel@oss.oracle.com"
+	<rds-devel@oss.oracle.com>, =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+	<jglisse@redhat.com>, Jan Kara <jack@suse.cz>, "ceph-devel@vger.kernel.org"
+	<ceph-devel@vger.kernel.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>,
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+	"linux-crypto@vger.kernel.org" <linux-crypto@vger.kernel.org>,
+	"linux-fbdev@vger.kernel.org" <linux-fbdev@vger.kernel.org>,
+	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML
+	<linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org"
+	<linux-media@vger.kernel.org>, "linux-nfs@vger.kernel.org"
+	<linux-nfs@vger.kernel.org>, "linux-rdma@vger.kernel.org"
+	<linux-rdma@vger.kernel.org>, "linux-xfs@vger.kernel.org"
+	<linux-xfs@vger.kernel.org>, "netdev@vger.kernel.org"
+	<netdev@vger.kernel.org>, "sparclinux@vger.kernel.org"
+	<sparclinux@vger.kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>
+Subject: RE: [PATCH 20/34] xen: convert put_page() to put_user_page*()
+Thread-Topic: [PATCH 20/34] xen: convert put_page() to put_user_page*()
+Thread-Index: AQHVSNjlYWPmavKIo0aaO/eIo60VTqbnqrGAgAAT84CAAAYcgIAAQruQ
+Date: Fri, 2 Aug 2019 16:09:44 +0000
+Message-ID: <2807E5FD2F6FDA4886F6618EAC48510E79E66216@CRSMSX101.amr.corp.intel.com>
+References: <20190802022005.5117-1-jhubbard@nvidia.com>
+ <20190802022005.5117-21-jhubbard@nvidia.com>
+ <4471e9dc-a315-42c1-0c3c-55ba4eeeb106@suse.com>
+ <d5140833-e9ee-beb5-ff0a-2d13a4fe819f@nvidia.com>
+ <d4931311-db01-e8c3-0f8c-d64685dc2143@suse.com>
+In-Reply-To: <d4931311-db01-e8c3-0f8c-d64685dc2143@suse.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiZTRmN2E3MTYtMGM4Yi00ZWFmLTk2Y2YtNDU3NGNhMWI3OGZmIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoicmZLd2FNcXRLU2Rkc2k3dFluUytKTjZ2XC9UUlFtczVETG53ZjA3V1hcL0FrcFBtWE5EdUh2U1dwRnZrV1dScDdtIn0=
+x-ctpclassification: CTP_NT
+dlp-product: dlpe-windows
+dlp-version: 11.0.600.7
+dlp-reaction: no-action
+x-originating-ip: [172.18.205.10]
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The x86 version of get_user_pages_fast() relies on disabled interrupts to
-synchronize gup_pte_range() between gup_get_pte(ptep); and get_page() against
-a parallel munmap. The munmap side nulls the pte, then flushes TLBs, then
-releases the page. As TLB flush is done synchronously via IPI disabling
-interrupts blocks the page release, and get_page(), which assumes existing
-reference on page, is thus safe.
-However when TLB flush is done by a hypercall, e.g. in a Xen PV guest, there is
-no blocking thanks to disabled interrupts, and get_page() can succeed on a page
-that was already freed or even reused.
-
-We have recently seen this happen with our 4.4 and 4.12 based kernels, with
-userspace (java) that exits a thread, where mm_release() performs a futex_wake()
-on tsk->clear_child_tid, and another thread in parallel unmaps the page where
-tsk->clear_child_tid points to. The spurious get_page() succeeds, but futex code
-immediately releases the page again, while it's already on a freelist. Symptoms
-include a bad page state warning, general protection faults acessing a poisoned
-list prev/next pointer in the freelist, or free page pcplists of two cpus joined
-together in a single list. Oscar has also reproduced this scenario, with a
-patch inserting delays before the get_page() to make the race window larger.
-
-Fix this by removing the dependency on TLB flush interrupts the same way as the
-generic get_user_pages_fast() code by using page_cache_add_speculative() and
-revalidating the PTE contents after pinning the page. Mainline is safe since
-4.13 where the x86 gup code was removed in favor of the common code. Accessing
-the page table itself safely also relies on disabled interrupts and TLB flush
-IPIs that don't happen with hypercalls, which was acknowledged in commit
-9e52fc2b50de ("x86/mm: Enable RCU based page table freeing
-(CONFIG_HAVE_RCU_TABLE_FREE=y)"). That commit with follups should also be
-backported for full safety, although our reproducer didn't hit a problem
-without that backport.
-
-Reproduced-by: Oscar Salvador <osalvador@suse.de>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>
----
-
-Hi, I'm sending this stable-only patch for consideration because it's probably
-unrealistic to backport the 4.13 switch to generic GUP. I can look at 4.4 and
-3.16 if accepted. The RCU page table freeing could be also considered.
-Note the patch also includes page refcount protection. I found out that
-8fde12ca79af ("mm: prevent get_user_pages() from overflowing page refcount")
-backport to 4.9 missed the arch-specific gup implementations:
-https://lore.kernel.org/lkml/6650323f-dbc9-f069-000b-f6b0f941a065@suse.cz/
-
- arch/x86/mm/gup.c | 32 ++++++++++++++++++++++++++++++--
- 1 file changed, 30 insertions(+), 2 deletions(-)
-
-diff --git a/arch/x86/mm/gup.c b/arch/x86/mm/gup.c
-index 1680768d392c..d7db45bdfb3b 100644
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -97,6 +97,20 @@ static inline int pte_allows_gup(unsigned long pteval, int write)
- 	return 1;
- }
- 
-+/*
-+ * Return the compund head page with ref appropriately incremented,
-+ * or NULL if that failed.
-+ */
-+static inline struct page *try_get_compound_head(struct page *page, int refs)
-+{
-+	struct page *head = compound_head(page);
-+	if (WARN_ON_ONCE(page_ref_count(head) < 0))
-+		return NULL;
-+	if (unlikely(!page_cache_add_speculative(head, refs)))
-+		return NULL;
-+	return head;
-+}
-+
- /*
-  * The performance critical leaf functions are made noinline otherwise gcc
-  * inlines everything into a single function which results in too much
-@@ -112,7 +126,7 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
- 	ptep = pte_offset_map(&pmd, addr);
- 	do {
- 		pte_t pte = gup_get_pte(ptep);
--		struct page *page;
-+		struct page *head, *page;
- 
- 		/* Similar to the PMD case, NUMA hinting must take slow path */
- 		if (pte_protnone(pte)) {
-@@ -138,7 +152,21 @@ static noinline int gup_pte_range(pmd_t pmd, unsigned long addr,
- 		}
- 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
- 		page = pte_page(pte);
--		get_page(page);
-+
-+		head = try_get_compound_head(page, 1);
-+		if (!head) {
-+			put_dev_pagemap(pgmap);
-+			pte_unmap(ptep);
-+			return 0;
-+		}
-+
-+		if (unlikely(pte_val(pte) != pte_val(*ptep))) {
-+			put_page(head);
-+			put_dev_pagemap(pgmap);
-+			pte_unmap(ptep);
-+			return 0;
-+		}
-+
- 		put_dev_pagemap(pgmap);
- 		SetPageReferenced(page);
- 		pages[*nr] = page;
--- 
-2.22.0
+PiANCj4gT24gMDIuMDguMTkgMDc6NDgsIEpvaG4gSHViYmFyZCB3cm90ZToNCj4gPiBPbiA4LzEv
+MTkgOTozNiBQTSwgSnVlcmdlbiBHcm9zcyB3cm90ZToNCj4gPj4gT24gMDIuMDguMTkgMDQ6MTks
+IGpvaG4uaHViYmFyZEBnbWFpbC5jb20gd3JvdGU6DQo+ID4+PiBGcm9tOiBKb2huIEh1YmJhcmQg
+PGpodWJiYXJkQG52aWRpYS5jb20+DQo+ID4gLi4uDQo+ID4+PiBkaWZmIC0tZ2l0IGEvZHJpdmVy
+cy94ZW4vcHJpdmNtZC5jIGIvZHJpdmVycy94ZW4vcHJpdmNtZC5jIGluZGV4DQo+ID4+PiAyZjVj
+ZTcyMzBhNDMuLjI5ZTQ2MWRiZWUyZCAxMDA2NDQNCj4gPj4+IC0tLSBhL2RyaXZlcnMveGVuL3By
+aXZjbWQuYw0KPiA+Pj4gKysrIGIvZHJpdmVycy94ZW4vcHJpdmNtZC5jDQo+ID4+PiBAQCAtNjEx
+LDE1ICs2MTEsMTAgQEAgc3RhdGljIGludCBsb2NrX3BhZ2VzKA0KPiA+Pj4gwqAgc3RhdGljIHZv
+aWQgdW5sb2NrX3BhZ2VzKHN0cnVjdCBwYWdlICpwYWdlc1tdLCB1bnNpZ25lZCBpbnQNCj4gPj4+
+IG5yX3BhZ2VzKQ0KPiA+Pj4gwqAgew0KPiA+Pj4gLcKgwqDCoCB1bnNpZ25lZCBpbnQgaTsNCj4g
+Pj4+IC0NCj4gPj4+IMKgwqDCoMKgwqAgaWYgKCFwYWdlcykNCj4gPj4+IMKgwqDCoMKgwqDCoMKg
+wqDCoCByZXR1cm47DQo+ID4+PiAtwqDCoMKgIGZvciAoaSA9IDA7IGkgPCBucl9wYWdlczsgaSsr
+KSB7DQo+ID4+PiAtwqDCoMKgwqDCoMKgwqAgaWYgKHBhZ2VzW2ldKQ0KPiA+Pj4gLcKgwqDCoMKg
+wqDCoMKgwqDCoMKgwqAgcHV0X3BhZ2UocGFnZXNbaV0pOw0KPiA+Pj4gLcKgwqDCoCB9DQo+ID4+
+PiArwqDCoMKgIHB1dF91c2VyX3BhZ2VzKHBhZ2VzLCBucl9wYWdlcyk7DQo+ID4+DQo+ID4+IFlv
+dSBhcmUgbm90IGhhbmRsaW5nIHRoZSBjYXNlIHdoZXJlIHBhZ2VzW2ldIGlzIE5VTEwgaGVyZS4g
+T3IgYW0gSQ0KPiA+PiBtaXNzaW5nIGEgcGVuZGluZyBwYXRjaCB0byBwdXRfdXNlcl9wYWdlcygp
+IGhlcmU/DQo+ID4+DQo+ID4NCj4gPiBIaSBKdWVyZ2VuLA0KPiA+DQo+ID4gWW91IGFyZSBjb3Jy
+ZWN0LS10aGlzIG5vIGxvbmdlciBoYW5kbGVzIHRoZSBjYXNlcyB3aGVyZSBwYWdlc1tpXSBpcw0K
+PiA+IE5VTEwuIEl0J3MgaW50ZW50aW9uYWwsIHRob3VnaCBwb3NzaWJseSB3cm9uZy4gOikNCj4g
+Pg0KPiA+IEkgc2VlIHRoYXQgSSBzaG91bGQgaGF2ZSBhZGRlZCBteSBzdGFuZGFyZCBibHVyYiB0
+byB0aGlzIGNvbW1pdA0KPiA+IGRlc2NyaXB0aW9uLiBJIG1pc3NlZCB0aGlzIG9uZSwgYnV0IHNv
+bWUgb2YgdGhlIG90aGVyIHBhdGNoZXMgaGF2ZSBpdC4NCj4gPiBJdCBtYWtlcyB0aGUgZm9sbG93
+aW5nLCBwb3NzaWJseSBpbmNvcnJlY3QgY2xhaW06DQo+ID4NCj4gPiAiVGhpcyBjaGFuZ2VzIHRo
+ZSByZWxlYXNlIGNvZGUgc2xpZ2h0bHksIGJlY2F1c2UgZWFjaCBwYWdlIHNsb3QgaW4gdGhlDQo+
+ID4gcGFnZV9saXN0W10gYXJyYXkgaXMgbm8gbG9uZ2VyIGNoZWNrZWQgZm9yIE5VTEwuIEhvd2V2
+ZXIsIHRoYXQgY2hlY2sNCj4gPiB3YXMgd3JvbmcgYW55d2F5LCBiZWNhdXNlIHRoZSBnZXRfdXNl
+cl9wYWdlcygpIHBhdHRlcm4gb2YgdXNhZ2UgaGVyZQ0KPiA+IG5ldmVyIGFsbG93ZWQgZm9yIE5V
+TEwgZW50cmllcyB3aXRoaW4gYSByYW5nZSBvZiBwaW5uZWQgcGFnZXMuIg0KPiA+DQo+ID4gVGhl
+IHdheSBJJ3ZlIHNlZW4gdGhlc2UgcGFnZSBhcnJheXMgdXNlZCB3aXRoIGdldF91c2VyX3BhZ2Vz
+KCksIHRoaW5ncw0KPiA+IGFyZSBlaXRoZXIgZG9uZSBzaW5nbGUgcGFnZSwgb3Igd2l0aCBhIGNv
+bnRpZ3VvdXMgcmFuZ2UuIFNvIHVubGVzcyBJJ20NCj4gPiBtaXNzaW5nIGEgY2FzZSB3aGVyZSBz
+b21lb25lIGlzIGVpdGhlcg0KPiA+DQo+ID4gYSkgcmVsZWFzaW5nIGluZGl2aWR1YWwgcGFnZXMg
+d2l0aGluIGEgcmFuZ2UgKGFuZCB0aHVzIGxpa2VseSBtZXNzaW5nDQo+ID4gdXAgdGhlaXIgY291
+bnQgb2YgcGFnZXMgdGhleSBoYXZlKSwgb3INCj4gPg0KPiA+IGIpIGFsbG9jYXRpbmcgdHdvIGd1
+cCByYW5nZXMgd2l0aGluIHRoZSBzYW1lIHBhZ2VzW10gYXJyYXksIHdpdGggYSBnYXANCj4gPiBi
+ZXR3ZWVuIHRoZSBhbGxvY2F0aW9ucywNCj4gPg0KPiA+IC4uLnRoZW4gaXQgc2hvdWxkIGJlIGNv
+cnJlY3QuIElmIHNvLCB0aGVuIEknbGwgYWRkIHRoZSBhYm92ZSBibHVyYiB0bw0KPiA+IHRoaXMg
+cGF0Y2gncyBjb21taXQgZGVzY3JpcHRpb24uDQo+ID4NCj4gPiBJZiB0aGF0J3Mgbm90IHRoZSBj
+YXNlIChib3RoIGhlcmUsIGFuZCBpbiAzIG9yIDQgb3RoZXIgcGF0Y2hlcyBpbiB0aGlzDQo+ID4g
+c2VyaWVzLCB0aGVuIGFzIHlvdSBzYWlkLCBJIHNob3VsZCBhZGQgTlVMTCBjaGVja3MgdG8gcHV0
+X3VzZXJfcGFnZXMoKQ0KPiA+IGFuZCBwdXRfdXNlcl9wYWdlc19kaXJ0eV9sb2NrKCkuDQo+IA0K
+PiBJbiB0aGlzIGNhc2UgaXQgaXMgbm90IGNvcnJlY3QsIGJ1dCBjYW4gZWFzaWx5IGJlIGhhbmRs
+ZWQuIFRoZSBOVUxMIGNhc2UgY2FuDQo+IG9jY3VyIG9ubHkgaW4gYW4gZXJyb3IgY2FzZSB3aXRo
+IHRoZSBwYWdlcyBhcnJheSBmaWxsZWQgcGFydGlhbGx5IG9yIG5vdCBhdCBhbGwuDQo+IA0KPiBJ
+J2QgcHJlZmVyIHNvbWV0aGluZyBsaWtlIHRoZSBhdHRhY2hlZCBwYXRjaCBoZXJlLg0KDQpJJ20g
+bm90IGFuIGV4cGVydCBpbiB0aGlzIGNvZGUgYW5kIGhhdmUgbm90IGxvb2tlZCBhdCBpdCBjYXJl
+ZnVsbHkgYnV0IHRoYXQgcGF0Y2ggZG9lcyBzZWVtIHRvIGJlIHRoZSBiZXR0ZXIgZml4IHRoYW4g
+Zm9yY2luZyBOVUxMIGNoZWNrcyBvbiBldmVyeW9uZS4NCg0KSXJhDQoNCg==
 
