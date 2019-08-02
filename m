@@ -2,179 +2,118 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
-	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8E057C19759
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 03:33:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3A463C32750
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 03:37:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 079402080C
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 03:33:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 079402080C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
+	by mail.kernel.org (Postfix) with ESMTP id 059F6206A2
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 03:37:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 059F6206A2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5213E6B0003; Thu,  1 Aug 2019 23:33:48 -0400 (EDT)
+	id A9D6E6B0003; Thu,  1 Aug 2019 23:37:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4F8B66B0005; Thu,  1 Aug 2019 23:33:48 -0400 (EDT)
+	id A28E36B0005; Thu,  1 Aug 2019 23:37:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 40F086B027E; Thu,  1 Aug 2019 23:33:48 -0400 (EDT)
+	id 8EFA96B027E; Thu,  1 Aug 2019 23:37:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 0EA9C6B0003
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 23:33:48 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id q14so47261761pff.8
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 20:33:48 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5566B6B0003
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 23:37:18 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id l26so46132115eda.2
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 20:37:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:list-id:archived-at
-         :list-archive:list-post:content-transfer-encoding;
-        bh=xp3vv7qwhwCsSMT/IjsALKzRpIEeI7C7k39cd2Men+o=;
-        b=Eeaaii3ILcxMpQvNy157Ade/QiIYuJ9avIcEWNYwXgYMXwptyH14q8cAsMcw2JAPTq
-         9MLQ4PpYcN+ggcs1oJr7jQXBeDvkBQZuDHafzag+ZC/YnB0w5E6D1UmFi9RqnVJzoHUF
-         Az0zvjzH65gEqtwVmu7RsR/J0sW5Cf1kaoxmTS+dQQ0kLN34EuIQM62sQMmrRhvXHlSM
-         s02KWtYITVoBcWz0Gzj/NA6EpYx8O1/Ssrq8UJFN6SlhOOQktuLuRFmt9j1etEX1QxU+
-         Esg0hwSNsV701tEy3y2SNbky1rc0zhrpj/1GGFe4ZxWycX4NOAgcdphefN6XjJiF9nsI
-         44RQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) smtp.mailfrom=hdanton@sina.com
-X-Gm-Message-State: APjAAAVxzc8YKHxV6s7TYvk6uhxNDw68sZ7Y6QdhvpGZskSmpfeNY9L/
-	WdBmzwcpK7E3n7sed0UqKAK2IxWDglwV+JVlXRoQzF52mTWRIbaaw5+Cg+XRKizo0Feyu2A+u+P
-	+KRzvlRBeMJmAPKBOkPA7vNVTJv4n4tnr72aKEsq7I0Tr6p4+bO7iYq3wXugVVDXXKw==
-X-Received: by 2002:a63:2364:: with SMTP id u36mr118226121pgm.449.1564716827558;
-        Thu, 01 Aug 2019 20:33:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxSZI/uAlJzcHPYSR/KggOyVj/MEJ6Bs3kdmCfZfrVcMvkYh4aiU0zvoy8QXUVZdznPztDB
-X-Received: by 2002:a63:2364:: with SMTP id u36mr118226060pgm.449.1564716826401;
-        Thu, 01 Aug 2019 20:33:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564716826; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=dj8To32GNozkdDcD7uBRLcebbsMWwJlpoJHR1dabDtE=;
+        b=WILrufSFmA62uSrliGi4NX+/tyu513Jxpr6Rrz0uFVEs/EwTZ1bBorAMJYszv/+2P7
+         m2vbd/lY0yoVEKBupViS9QVmS/ipkuSRO+BlQJ92iEou9tseXrnlDAk3MctyTatUQY/G
+         OW9sdx03LsDEL1/iiJyhSxGkv6EKmlh9y4lthdtW/2AGAK5FizaaurZce7lHb4IoJcvH
+         F4UAg7mR5HcZ7B68YIyshOh8VDp5rGBsxEDwH/vqiNOu1w8/i6o9Wuo49cfyKq7/rWYr
+         PsbTN68I3R/R64yWGQ/csSJKFRi0ND4lXwPHNM8XaG6vq71QI95bcAzUNzIZ4fL1QZZb
+         aYfA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAXhgr+ECEZbvvrAHBA3fr6T0VchDP+5DeKS54nXBQ97jKli9wKo
+	Rmmbjh07RCF1JasCXyJxh9yOxeV9Jlux7ajltI12p7pgVWzY/s6ip13G0npPCbO9zQN490IDD7M
+	JTf1f3rbgCjwjq2czkhmpYXCtjXZb5lZ0k8pDxZ1vpdTHwBJbmUkozowq5yIUMgB+HQ==
+X-Received: by 2002:a50:c35b:: with SMTP id q27mr117432229edb.98.1564717037899;
+        Thu, 01 Aug 2019 20:37:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzmsqnF/tekTQfD5GriX+Xy7yngHKyvH8WkWOCITQI6zIc1l78DNO6Je3Y2wMcblbEnWwhO
+X-Received: by 2002:a50:c35b:: with SMTP id q27mr117432198edb.98.1564717037117;
+        Thu, 01 Aug 2019 20:37:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564717037; cv=none;
         d=google.com; s=arc-20160816;
-        b=C/uoapy3Gu9jpAKHWgn80eH88vFWB4YlB0Iyq+JGQ5GB1KEn/JzDbX/Z1BmH+EtfS2
-         DjavZw2rpNjBqspudPyygLYTPJezYBjCeY7Jv5X5CeyOnpechTZau8zS1WPKLLs7wYWy
-         yXe800rbVkGFE9MoQ634/UYrMDyQ2OxkyZVeIzcz38SDCqXZI+L6Ls8h/A01yCk3cNyX
-         f8dHIWAiJaARx2t1fmi0I8Bj8FdAHJ1ghKuSifZa1EGyxocsuv6aoaLzn1FFROEZYKoC
-         sSfrhLiXJURppHMsP6fvai64BiEbxzXpfuW8zsDAamFIGnU8Y4GJhkdq/Zlmaa4nHJfT
-         u4QA==
+        b=zH/W2IFs4FJvsHevL/NznKaKDN6eMvltZ9SW86xEDyDMkQDvzsDE6o7peI3dZEFof2
+         ZFdno694wSgJr3l8wuBu+1MQpI/Ley+H/oSQj8Ua0YuXkksHsVfypnJuPwY+VS8Xysdt
+         poOIcxEHvI5xWHEqQV8pOpWTV63h3PuuFIt2QgaMbifrD5oHlM/xlD1JR8RPNoLd8f5E
+         kF6soA+YpZMINk+ehV1xTmZcsXFVy5iCUD9WfGt2Mo6yj7S6SLLhsbRSwytpmLLPfiw/
+         phuzBCyUo64VQZRllvvAKhSLIt7ME19twCY1JXj0PIsFcl84LuMa0SGw9pdbU5mylVqR
+         kf3A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:list-post:list-archive:archived-at
-         :list-id:mime-version:message-id:date:subject:cc:to:from;
-        bh=xp3vv7qwhwCsSMT/IjsALKzRpIEeI7C7k39cd2Men+o=;
-        b=XDxIJ5+bxJNIqNotFv+X0YcMlxrU7OwbES/DIYxWSSmcHfxAGnHMAwx0mG+fTc0hB1
-         dfgxNmw8JvL3l7x+a3mLWDXVBgc8WOypDhzV6uMRfON35LaneV7P/Cthw7/aBuSwRL8H
-         63sYdnLCftGOWjEFRtVoXOxtrhfJtjY5B6IvZeE/7oI7jE9iqmxUvi47vtKfS/6uX9cV
-         7XXvj5PoFEB3nzc/FpR3g9c3jXqyGFEOFIhJAzdjiyq9jULxovO9l4z2NzGq0sN4RXqh
-         UtXHOEk5HDik07RYkCiotmqSDiMRIl4NPieHetL2BUXiPcaGhLYN4k3QnwR/teXYfNED
-         OupQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=dj8To32GNozkdDcD7uBRLcebbsMWwJlpoJHR1dabDtE=;
+        b=fRlICosvhnEqeKS6TRChryZbnTXuQkUzjHujH/KuQHY6DyrukhH3tN6omJDn+ysvXI
+         57xqrNELXXV9MaI9Cxl1lxktBxU85YhqLCIIisrk4vLVcpLwo20qFmcjKHyIVSPbyJFl
+         k5Taa68r489n+g/GuC/DgEaPNGo4r56hZSjzUQDkQhj7p2HRWXQHWOsFY7TzYrgvb474
+         1csrM1rKEj+9rudohwUgN9yMA3Uz1M+JqUfswRi6pSFuZslJwhqny3szIs82qtilzOW6
+         83D7xfdqDG9p9llW4o0oYye4TCg9iOS0ZKl6O52DwvAt3458IlE0YK+0XAw5uULx+y3m
+         Ckrg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) smtp.mailfrom=hdanton@sina.com
-Received: from mail3-162.sinamail.sina.com.cn (mail3-162.sinamail.sina.com.cn. [202.108.3.162])
-        by mx.google.com with SMTP id v136si36887519pfc.9.2019.08.01.20.33.45
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id b5si23456641edb.259.2019.08.01.20.37.16
         for <linux-mm@kvack.org>;
-        Thu, 01 Aug 2019 20:33:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) client-ip=202.108.3.162;
+        Thu, 01 Aug 2019 20:37:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) smtp.mailfrom=hdanton@sina.com
-Received: from unknown (HELO localhost.localdomain)([124.64.0.239])
-	by sina.com with ESMTP
-	id 5D43AF16000075DB; Fri, 2 Aug 2019 11:33:44 +0800 (CST)
-X-Sender: hdanton@sina.com
-X-Auth-ID: hdanton@sina.com
-X-SMAIL-MID: 68876130410446
-From: Hillf Danton <hdanton@sina.com>
-To: Roman Gushchin <guro@fb.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org,
-	Michal Hocko <mhocko@kernel.org>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	linux-kernel@vger.kernel.org,
-	kernel-team@fb.com,
-	Michal Hocko <mhocko@suse.com>
-Subject: Re: [PATCH] mm: memcontrol: switch to rcu protection in drain_all_stock()
-Date: Fri,  2 Aug 2019 11:33:33 +0800
-Message-Id: <20190801233513.137917-1-guro@fb.com>
-X-Mailer: git-send-email 2.17.1
-X-FB-Internal: Safe
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id F2A7C1570;
+	Thu,  1 Aug 2019 20:37:15 -0700 (PDT)
+Received: from [10.163.1.81] (unknown [10.163.1.81])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id EFD503F71F;
+	Thu,  1 Aug 2019 20:37:13 -0700 (PDT)
+Subject: Re: [PATCH] mm/madvise: reduce code duplication in error handling
+ paths
+To: Mike Rapoport <rppt@linux.ibm.com>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1564640896-1210-1-git-send-email-rppt@linux.ibm.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <aeb49e1a-5a21-57bb-04b8-6439620d12eb@arm.com>
+Date: Fri, 2 Aug 2019 09:07:55 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset="UTF-8"
-List-ID: <linux-kernel.vger.kernel.org>
-X-Mailing-List: linux-kernel@vger.kernel.org
-Archived-At: <https://lore.kernel.org/lkml/20190801233513.137917-1-guro@fb.com/>
-List-Archive: <https://lore.kernel.org/lkml/>
-List-Post: <mailto:linux-kernel@vger.kernel.org>
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <1564640896-1210-1-git-send-email-rppt@linux.ibm.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
-Message-ID: <20190802033333.OO_sZQO9dpFnZ1vumT_ij3msqGe1vh_tKY8duC4mJOQ@z>
 
 
-On Thu, 1 Aug 2019 16:35:13 -0700 Roman Gushchin wrote:
-> 
-> Commit 72f0184c8a00 ("mm, memcg: remove hotplug locking from try_charge")
-> introduced css_tryget()/css_put() calls in drain_all_stock(),
-> which are supposed to protect the target memory cgroup from being
-> released during the mem_cgroup_is_descendant() call.
-> 
-> However, it's not completely safe. In theory, memcg can go away
-> between reading stock->cached pointer and calling css_tryget().
 
-Good catch!
+On 08/01/2019 11:58 AM, Mike Rapoport wrote:
+> The madvise_behavior() function converts -ENOMEM to -EAGAIN in several
+> places using identical code.
 > 
-> So, let's read the stock->cached pointer and evaluate the memory
-> cgroup inside a rcu read section, and get rid of
-> css_tryget()/css_put() calls.
+> Move that code to a common error handling path.
+> 
+> No functional changes.
+> 
+> Signed-off-by: Mike Rapoport <rppt@linux.ibm.com>
 
-You need to either adjust the boundry of the rcu-protected section, or
-retain the call pairs, as the memcg cache is dereferenced again in
-drain_stock().
-> 
-> Signed-off-by: Roman Gushchin <guro@fb.com>
-> Cc: Michal Hocko <mhocko@suse.com>
-> ---
->  mm/memcontrol.c | 17 +++++++++--------
->  1 file changed, 9 insertions(+), 8 deletions(-)
-> 
-> diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-> index 5c7b9facb0eb..d856b64426b7 100644
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -2235,21 +2235,22 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
->  	for_each_online_cpu(cpu) {
->  		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
->  		struct mem_cgroup *memcg;
-> +		bool flush = false;
->  
-> +		rcu_read_lock();
->  		memcg = stock->cached;
-> -		if (!memcg || !stock->nr_pages || !css_tryget(&memcg->css))
-> -			continue;
-> -		if (!mem_cgroup_is_descendant(memcg, root_memcg)) {
-> -			css_put(&memcg->css);
-> -			continue;
-> -		}
-> -		if (!test_and_set_bit(FLUSHING_CACHED_CHARGE, &stock->flags)) {
-> +		if (memcg && stock->nr_pages &&
-> +		    mem_cgroup_is_descendant(memcg, root_memcg))
-> +			flush = true;
-> +		rcu_read_unlock();
-> +
-> +		if (flush &&
-> +		    !test_and_set_bit(FLUSHING_CACHED_CHARGE, &stock->flags)) {
->  			if (cpu == curcpu)
->  				drain_local_stock(&stock->work);
->  			else
->  				schedule_work_on(cpu, &stock->work);
->  		}
-> -		css_put(&memcg->css);
->  	}
->  	put_cpu();
->  	mutex_unlock(&percpu_charge_mutex);
-> -- 
-> 2.21.0
-> 
-
+Reviewed-by: Anshuman Khandual <anshuman.khandual@arm.com>
 
