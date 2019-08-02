@@ -7,110 +7,110 @@ X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B55EC433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 22:39:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B9D54C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 22:39:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D426E2067D
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 22:39:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 7BB492067D
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 22:39:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="m1L2JM/O"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D426E2067D
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="qtHtHKtJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7BB492067D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 60BAD6B0006; Fri,  2 Aug 2019 18:39:49 -0400 (EDT)
+	id B88D46B0008; Fri,  2 Aug 2019 18:39:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 594816B0008; Fri,  2 Aug 2019 18:39:49 -0400 (EDT)
+	id B135C6B000A; Fri,  2 Aug 2019 18:39:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4351A6B000A; Fri,  2 Aug 2019 18:39:49 -0400 (EDT)
+	id 98C1F6B000C; Fri,  2 Aug 2019 18:39:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EEFA6B0006
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 747886B000A
 	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 18:39:49 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id n190so66007068qkd.5
+Received: by mail-qt1-f199.google.com with SMTP id h47so69350502qtc.20
         for <linux-mm@kvack.org>; Fri, 02 Aug 2019 15:39:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=TC+FvVGBj7qXtMenbMrq0locSq4RPx9eaTkqkGiQRPY=;
-        b=Ta7ThbuaqGPexhGCB89g9KbbaqYq/ir8C+clomXr2m25GwFxMyF38eA/VBaqmGyLmu
-         26I8BlzAqfoIIxIjrpsIvvhkrWu361MYKPmSDhSnVnOmbmvsIIJMXHNhNYywVQDSAMTv
-         3y6oQndUMSvsIjvTCGgQ7ZTxBBmlwCskFOwUJaLHS4faWXQf8w58+VMYdxM/RUw8Hciv
-         vxui5/1jD+p/qyjt3iRJ+UmjmkfTjKnACP9li3u2y+KxQlLR5aqwwgrzLZI0DJJoo35d
-         ESanHkKEWTVI8Ferz1ABdszsrY1QK9Utlh5otsXqWeudrdomnmM9gMGylScyUYu98tR8
-         TGsQ==
-X-Gm-Message-State: APjAAAUEhmITliAtMYAoj7sGXuY6NdB1I/YsAkwneACwyg+aycEgtl36
-	IMfUSYxZ1ycIpAfvnBUtjoEcz19x31VVZ4uiNxOoziPZBPzJx76G+Ksi0NL3grppk48GfU8dhXf
-	iM7OKUNjDT0IxxhDn+IBKBYYfKXIn/jXi+YZS6J8cLBqinlyPPY6IUVsQyrV2u0zgSA==
-X-Received: by 2002:a37:a5cb:: with SMTP id o194mr95030267qke.371.1564785588843;
-        Fri, 02 Aug 2019 15:39:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwZYz4sfelj2ZRcXkYUlji8Jdc5wqCXYZSsusSvQFUgz/rHTPjP/MhxnUUNqAT2LSaBHElV
-X-Received: by 2002:a37:a5cb:: with SMTP id o194mr95030239qke.371.1564785588159;
+        bh=i3VDfrdTxe/wuzKQ7zGTLnN8YuBNc3qCXHzmo68f0Ho=;
+        b=tl8iKbaE6jWkguWO61WjZ794MNFzQ1otrSOR8ZYRL+cbOk7Cw9gS3HAb9yZpFFZ0+S
+         qU+nYeGcgLL19TNGT+EV+pgPC+jWV0qn24Pe6xe1ioKKu3dEHksj4e/V7HMcyG2yKnRN
+         h6DOAci3Ev2oKna3Rb8o9FnGFcsbcjnBdgTKQts+6tXpij42YHD0guqY/HkTSgGyz+8R
+         iZhTr2JCVvJDNTRSVqT+zDd4Pb2nFJIXAg/5K4HBzkW6VxEiV/Rtj6CWyNKGHVs0Yp1j
+         wW+Io+uAOIU/5U93l2N3GMPNkwh8XXKoEdqL92wOFJs40CLj2uz/kCJpvbt/pY+Z4XqN
+         a1ig==
+X-Gm-Message-State: APjAAAXoC1vlKFtz+n21HxOujynRM7d8tK8vZjB0O4ktvNd3UfQMbkL3
+	FI8JAo+xiZxZ0bwQMeMj8lcKAmuU9clOUzI8cW86hM1pCMZizFphjHudgDAxM2MecO6zlSnJIae
+	IyFizeLoFZntbletfvey4pdwcu2buI4Y4fpXr4+uVNwEd9yXEMQlTxabgAfjnJZfidQ==
+X-Received: by 2002:ac8:2e59:: with SMTP id s25mr95628995qta.94.1564785589211;
+        Fri, 02 Aug 2019 15:39:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxRBW5M+dOyhGG95FjrFgIAMUdmAxJsnXikkfQsPH1o48FrnSa73QMnvBRViDVgHnfesXqG
+X-Received: by 2002:ac8:2e59:: with SMTP id s25mr95628970qta.94.1564785588657;
         Fri, 02 Aug 2019 15:39:48 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1564785588; cv=none;
         d=google.com; s=arc-20160816;
-        b=N7h7B5Ool38biKkszmy0U+LMyKrpjn5livctMXN2qb6rLOSB/ajTBdMlsHS9Ybf+KU
-         0KCamKE9gCWbatq7mDBVaoJlkAuR6r95g0wBalKZkCUevBKI/ExkJdh8tU+6NrcBEKnu
-         +ShVR78L2F1hbvC4d/iia6uvlhf62WE5gsQC1W9tcetwu1/LdHhwyRQbDeo92aVbu8EX
-         j4BfGwCOJgTKWg/3CHjfvTXU/iO8GXMGMqZ84/dAoZpn5SotB3hxPqfTBKKnpVSww2ZF
-         y3AHitdmR04ZmE4bNGqEzdI6XBK8Yqvan6zOxChh+EbYy6nj/eBwatcIpuo2igtF9Fhg
-         2rHw==
+        b=uu5jMfegZ6GuKwJoL0GhzuPfr3ggS44CVetdNizBSBdrzBx/BXtfagRCR0QH7lohxR
+         lF+KrCMmdfd28Rq48BIjdl7o3Sghg32va3gEQZ3NRLslC9zJ5NgoqXBWsd8JPMKTd29c
+         IMPhTtAOJPAdVb58WX2fdaypEWIRsXe04rc/VbqfCSEju+rGfgtE2v1kEAjhwo5vW1Bn
+         S+RyX2ggjTBHKz1auZNZfzWCRaLxi2GC92Tb/u7SUPEU+Hayt51R3e9EeOeBjF5WKrwf
+         hwIbYjAsUmirync8jJHzBOniDY8h+Yy44Ych4/Tff1Dz80Qm/unbUkNtIvbeseILGkI/
+         n2MQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=TC+FvVGBj7qXtMenbMrq0locSq4RPx9eaTkqkGiQRPY=;
-        b=YORKEjETc6POSuHqZSvbc433Gs6qiwGMdc2uwLg7tCpvbeXYpp9dzYm5Ea8pf/AVDE
-         2R8Q71p21xiLqkLfGlrd/qBx0FExulMvVyHWBuDB8sx4EZmxZwcdA5JxZEAaSIqVGi/r
-         7auUe2jaG4VnNbfMHycmQP0yMPBUt5srhcSPc7BTL8i/MF6u00zFvQ5w7guziHH0awpe
-         ju7dO0owv3TtZ3pTxnGPvac/7/ea9uf/Q3S2dbMMeNJUJwAc6dJNK0K7KwuaQbVjTmuA
-         vu1QRjAe7eJOnc3kmlK+nAftno400Xlr7lXMfUps8b8HUFs18w1Z14DP5ul21+94Kp1L
-         FdNQ==
+        bh=i3VDfrdTxe/wuzKQ7zGTLnN8YuBNc3qCXHzmo68f0Ho=;
+        b=t0tUCVJ6W8Tbq9ONy/wAXgmMoaOV4i5xbE1aqK1XVeGVadJSkhIXDtGGAhzEcocZZP
+         jcK48tU5M42nup6g4OBhyugLAJbYQyiRPdUdVfDEJr1Axt8V7+e1T0oCy5+izgOHoVTp
+         kLfslGRENL4CJpK0hHQLbedW5wHxvnBezW5BePAZ/uiBy3PLfc9btB7sojdyoGT4y8dO
+         vzEH0gA0egUTqb0oBGMErvA9lbFpmRv2L3HCXQVu15P3GzQcwfuXbmxOZSXe3QybtLhC
+         tLK1tD4j8/vfr0mdt4lH2K168ii4dYMES7CqMgSvMCz4a+ro5BpZKclbIvCt/enEwXxk
+         AqLg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="m1L2JM/O";
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qtHtHKtJ;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id 7si40464324qtw.230.2019.08.02.15.39.47
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id v54si46819036qvc.169.2019.08.02.15.39.48
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 02 Aug 2019 15:39:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="m1L2JM/O";
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=qtHtHKtJ;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x72McvgT004454;
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x72Mcrws121628;
 	Fri, 2 Aug 2019 22:39:42 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references : mime-version :
  content-transfer-encoding; s=corp-2018-07-02;
- bh=TC+FvVGBj7qXtMenbMrq0locSq4RPx9eaTkqkGiQRPY=;
- b=m1L2JM/OMDW2n0WfQFY3LPGcIeqtXCva5LDPlsHXHDdJuc/MVSopGE/PoYJsSYbxUDjy
- jxnR4Gd1UZcJMjvsEnaYYKKqWE4LhYV2UDumzIkrEK3XmtjQ4mTB8ArgbaEi1WcbPHk8
- sl0k930q2/W7pWSlZpfy+dzLe+LjQl+OBzDc8W6dsZbA/uBf1KvsD3PpYB3k+k+0ytlt
- Sg2ok6ekSZJ4nMoRKfg+1ynJEzeDbmr045oVsVjJBm4UhH4Koik3et1pQuppKrSU41JB
- Dp3fqD5KpB3m//DdkKvtjhdNw+HHiJ/d9UX6k6dyHGdRw2P67qer4H0rQ3ium0NXtf0+ kQ== 
-Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by aserp2120.oracle.com with ESMTP id 2u0ejq4qt3-1
+ bh=i3VDfrdTxe/wuzKQ7zGTLnN8YuBNc3qCXHzmo68f0Ho=;
+ b=qtHtHKtJ128Htg1F2LqpKvwARk4kkr9i/AC2+Jqiae0dYYGxU0YXHUAMVuL6SsdI23eF
+ vtMk1OtPjkmmakhXOgJSrutwSiKpLSOs70/Z/N2GWdZjl3Gt5CNnNh0YjWzXmzfsuoL8
+ SVHTojg9FKZGXJUElDXLv9GYD9DjPJKnfGTBG9MfJJjgu8ba1sfUr1mYXcM/mjoMe0ia
+ 62PPDv6Mdcvuesb7kTI6nUbTO67UBZH4zczsRu+IaaewoJNtBpv+ELs5ehLblOHq+FHF
+ 3rUon932rBv7RhYi9vJ7PIjGJVbfnMFSy603UEVQzUwEpp6yxH0y+rNAEMdOdWotroya iQ== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by userp2130.oracle.com with ESMTP id 2u0e1ucydt-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
 	Fri, 02 Aug 2019 22:39:42 +0000
-Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x72MbhOw062691;
-	Fri, 2 Aug 2019 22:39:42 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserp3030.oracle.com with ESMTP id 2u4vsj1upr-1
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x72Mbe7w019249;
+	Fri, 2 Aug 2019 22:39:41 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by aserp3020.oracle.com with ESMTP id 2u49hunsqf-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 02 Aug 2019 22:39:42 +0000
+	Fri, 02 Aug 2019 22:39:41 +0000
 Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x72Mdd7M022130;
-	Fri, 2 Aug 2019 22:39:39 GMT
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x72MdbLN006549;
+	Fri, 2 Aug 2019 22:39:37 GMT
 Received: from monkey.oracle.com (/71.63.128.209)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Fri, 02 Aug 2019 15:39:39 -0700
+	with ESMTP ; Fri, 02 Aug 2019 15:39:37 -0700
 From: Mike Kravetz <mike.kravetz@oracle.com>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Hillf Danton <hdanton@sina.com>, Vlastimil Babka <vbabka@suse.cz>,
@@ -120,9 +120,9 @@ Cc: Hillf Danton <hdanton@sina.com>, Vlastimil Babka <vbabka@suse.cz>,
         David Rientjes <rientjes@google.com>,
         Andrew Morton <akpm@linux-foundation.org>,
         Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH 2/3] mm, compaction: raise compaction priority after it withdrawns
-Date: Fri,  2 Aug 2019 15:39:29 -0700
-Message-Id: <20190802223930.30971-3-mike.kravetz@oracle.com>
+Subject: [PATCH 1/3] mm, reclaim: make should_continue_reclaim perform dryrun detection
+Date: Fri,  2 Aug 2019 15:39:28 -0700
+Message-Id: <20190802223930.30971-2-mike.kravetz@oracle.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190802223930.30971-1-mike.kravetz@oracle.com>
 References: <20190802223930.30971-1-mike.kravetz@oracle.com>
@@ -145,114 +145,83 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Vlastimil Babka <vbabka@suse.cz>
+From: Hillf Danton <hdanton@sina.com>
 
-Mike Kravetz reports that "hugetlb allocations could stall for minutes or hours
-when should_compact_retry() would return true more often then it should.
-Specifically, this was in the case where compact_result was COMPACT_DEFERRED
-and COMPACT_PARTIAL_SKIPPED and no progress was being made."
+Address the issue of should_continue_reclaim continuing true too often
+for __GFP_RETRY_MAYFAIL attempts when !nr_reclaimed and nr_scanned.
+This could happen during hugetlb page allocation causing stalls for
+minutes or hours.
 
-The problem is that the compaction_withdrawn() test in should_compact_retry()
-includes compaction outcomes that are only possible on low compaction priority,
-and results in a retry without increasing the priority. This may result in
-furter reclaim, and more incomplete compaction attempts.
+We can stop reclaiming pages if compaction reports it can make a progress.
+A code reshuffle is needed to do that. And it has side-effects, however,
+with allocation latencies in other cases but that would come at the cost
+of potential premature reclaim which has consequences of itself.
 
-With this patch, compaction priority is raised when possible, or
-should_compact_retry() returns false.
+We can also bail out of reclaiming pages if we know that there are not
+enough inactive lru pages left to satisfy the costly allocation.
 
-The COMPACT_SKIPPED result doesn't really fit together with the other outcomes
-in compaction_withdrawn(), as that's a result caused by insufficient order-0
-pages, not due to low compaction priority. With this patch, it is moved to
-a new compaction_needs_reclaim() function, and for that outcome we keep the
-current logic of retrying if it looks like reclaim will be able to help.
+We can give up reclaiming pages too if we see dryrun occur, with the
+certainty of plenty of inactive pages. IOW with dryrun detected, we are
+sure we have reclaimed as many pages as we could.
 
-Reported-by: Mike Kravetz <mike.kravetz@oracle.com>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Mel Gorman <mgorman@suse.de>
+Cc: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: Johannes Weiner <hannes@cmpxchg.org>
+Signed-off-by: Hillf Danton <hdanton@sina.com>
 Tested-by: Mike Kravetz <mike.kravetz@oracle.com>
+Acked-by: Mel Gorman <mgorman@suse.de>
 ---
- include/linux/compaction.h | 22 +++++++++++++++++-----
- mm/page_alloc.c            | 16 ++++++++++++----
- 2 files changed, 29 insertions(+), 9 deletions(-)
+ mm/vmscan.c | 28 +++++++++++++++-------------
+ 1 file changed, 15 insertions(+), 13 deletions(-)
 
-diff --git a/include/linux/compaction.h b/include/linux/compaction.h
-index 9569e7c786d3..4b898cdbdf05 100644
---- a/include/linux/compaction.h
-+++ b/include/linux/compaction.h
-@@ -129,11 +129,8 @@ static inline bool compaction_failed(enum compact_result result)
- 	return false;
- }
- 
--/*
-- * Compaction  has backed off for some reason. It might be throttling or
-- * lock contention. Retrying is still worthwhile.
-- */
--static inline bool compaction_withdrawn(enum compact_result result)
-+/* Compaction needs reclaim to be performed first, so it can continue. */
-+static inline bool compaction_needs_reclaim(enum compact_result result)
- {
- 	/*
- 	 * Compaction backed off due to watermark checks for order-0
-@@ -142,6 +139,16 @@ static inline bool compaction_withdrawn(enum compact_result result)
- 	if (result == COMPACT_SKIPPED)
- 		return true;
- 
-+	return false;
-+}
-+
-+/*
-+ * Compaction has backed off for some reason after doing some work or none
-+ * at all. It might be throttling or lock contention. Retrying might be still
-+ * worthwhile, but with a higher priority if allowed.
-+ */
-+static inline bool compaction_withdrawn(enum compact_result result)
-+{
- 	/*
- 	 * If compaction is deferred for high-order allocations, it is
- 	 * because sync compaction recently failed. If this is the case
-@@ -207,6 +214,11 @@ static inline bool compaction_failed(enum compact_result result)
- 	return false;
- }
- 
-+static inline bool compaction_needs_reclaim(enum compact_result result)
-+{
-+	return false;
-+}
-+
- static inline bool compaction_withdrawn(enum compact_result result)
- {
- 	return true;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index d3bb601c461b..af29c05e23aa 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -3965,15 +3965,23 @@ should_compact_retry(struct alloc_context *ac, int order, int alloc_flags,
- 	if (compaction_failed(compact_result))
- 		goto check_priority;
- 
-+	/*
-+	 * compaction was skipped because there are not enough order-0 pages
-+	 * to work with, so we retry only if it looks like reclaim can help.
-+	 */
-+	if (compaction_needs_reclaim(compact_result)) {
-+		ret = compaction_zonelist_suitable(ac, order, alloc_flags);
-+		goto out;
-+	}
-+
- 	/*
- 	 * make sure the compaction wasn't deferred or didn't bail out early
- 	 * due to locks contention before we declare that we should give up.
--	 * But do not retry if the given zonelist is not suitable for
--	 * compaction.
-+	 * But the next retry should use a higher priority if allowed, so
-+	 * we don't just keep bailing out endlessly.
- 	 */
- 	if (compaction_withdrawn(compact_result)) {
--		ret = compaction_zonelist_suitable(ac, order, alloc_flags);
--		goto out;
-+		goto check_priority;
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 47aa2158cfac..a386c5351592 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -2738,18 +2738,6 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+ 			return false;
  	}
  
- 	/*
+-	/*
+-	 * If we have not reclaimed enough pages for compaction and the
+-	 * inactive lists are large enough, continue reclaiming
+-	 */
+-	pages_for_compaction = compact_gap(sc->order);
+-	inactive_lru_pages = node_page_state(pgdat, NR_INACTIVE_FILE);
+-	if (get_nr_swap_pages() > 0)
+-		inactive_lru_pages += node_page_state(pgdat, NR_INACTIVE_ANON);
+-	if (sc->nr_reclaimed < pages_for_compaction &&
+-			inactive_lru_pages > pages_for_compaction)
+-		return true;
+-
+ 	/* If compaction would go ahead or the allocation would succeed, stop */
+ 	for (z = 0; z <= sc->reclaim_idx; z++) {
+ 		struct zone *zone = &pgdat->node_zones[z];
+@@ -2765,7 +2753,21 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+ 			;
+ 		}
+ 	}
+-	return true;
++
++	/*
++	 * If we have not reclaimed enough pages for compaction and the
++	 * inactive lists are large enough, continue reclaiming
++	 */
++	pages_for_compaction = compact_gap(sc->order);
++	inactive_lru_pages = node_page_state(pgdat, NR_INACTIVE_FILE);
++	if (get_nr_swap_pages() > 0)
++		inactive_lru_pages += node_page_state(pgdat, NR_INACTIVE_ANON);
++
++	return inactive_lru_pages > pages_for_compaction &&
++		/*
++		 * avoid dryrun with plenty of inactive pages
++		 */
++		nr_scanned && nr_reclaimed;
+ }
+ 
+ static bool pgdat_memcg_congested(pg_data_t *pgdat, struct mem_cgroup *memcg)
 -- 
 2.20.1
 
