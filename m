@@ -2,166 +2,179 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 65980C32750
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 04:16:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 57915C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 04:36:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0EB842073D
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 04:16:36 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0EB842073D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
+	by mail.kernel.org (Postfix) with ESMTP id E743C206A2
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 04:36:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E743C206A2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 995EA6B0266; Fri,  2 Aug 2019 00:16:36 -0400 (EDT)
+	id 51A4F6B0266; Fri,  2 Aug 2019 00:36:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9451F6B026B; Fri,  2 Aug 2019 00:16:36 -0400 (EDT)
+	id 4C9FE6B026B; Fri,  2 Aug 2019 00:36:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 85B326B026D; Fri,  2 Aug 2019 00:16:36 -0400 (EDT)
+	id 3B8016B026D; Fri,  2 Aug 2019 00:36:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4DDA76B0266
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 00:16:36 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id r7so40884771plo.6
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 21:16:36 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E52616B0266
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 00:36:55 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id a5so46177751edx.12
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 21:36:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=02zIVBedhxNNCP2upK1zwemWX44mmpxddNoiRLuzFXk=;
-        b=fImUYVagunLjWz9SGzsjMwL6UpfJ/20Bcnr0zyo9XyRzbmSGcxFtmAH0xl9xhIWKmp
-         ibleGyw6h/JtbhnKsGPX9rAJymIWuhIq9fpxO6OcCeZRUsSE+Ulol46GwNJZhdRkPCsN
-         trAXxLVafhS5hw+V0FTUMyqMwtOs3U3VjLXbQ7oBUa38VP8wr80Vwm17Ci1GO5GHcAGU
-         AJYbp0Yr/yCGcZ15BaxgSiYqDn1J1MhNoYG230x1gulWeYr7vwEZkTM5O1A1HJerdtYp
-         Sm/Y/FRdhM6JF4z7n7OXBaL6Hb6D7tvDGaS8snmE3d9cXqm2YlaEOcoMIt2GSuhHK41x
-         4Gug==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
-X-Gm-Message-State: APjAAAUic7LYhMDltsMcDRQxomKX4WJuyFQqVwuEUHE9/Yu/miaJlXrS
-	RIX7ag4CVroPkvgXuswCEVRvepSGtpy2CReJaDKol2c+0eFIC/MK4iC/8uc/0iI0gzNmlidBhEw
-	OV0P59ykaazwhtB/+gc7POUim5UPqp1awcJabjkrWkHf8fKq+ENt0x3RPLgPdWHA0Eg==
-X-Received: by 2002:a63:9e56:: with SMTP id r22mr65574802pgo.221.1564719395874;
-        Thu, 01 Aug 2019 21:16:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz/MFqNQvhPP55/KwzPzMJhezVQH07WxiIAWqWvN6M+y0H3xI32PTP+8MU7mrAoWWobEQTi
-X-Received: by 2002:a63:9e56:: with SMTP id r22mr65574764pgo.221.1564719394958;
-        Thu, 01 Aug 2019 21:16:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564719394; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=GLZjJf/KAYQXPmcVnRlgokZDUTWpduGIGbM80MmMICo=;
+        b=HolywzthkegsD6ryMtfMyVtqlqkGxW8sQXA3lkyuaoYfphbQSTmiygM0LAv7QzSD1e
+         FChm7nCUi9p5lEEcI+faJeSoB6HdDc5J9pH0+NJORMAli30OhgoDYcbIUUq/Ey48S4xd
+         aJCKS3qTFZsY9bZH2Iq1O7pU0zQkw27bAhL1i5diyb9gYOic9Kna2pCTV0zEjU83tcez
+         wDQp+kmwrx2/qwajsmdP+8IlAYLL2hYNXlaRbQDziRlA5afB7m0NUaEEV5bF29YztpdM
+         shozBLUH/ykMSrhuYFE7NLKfhQP8ynWYbKWQY7M4rV8L7WVjWJ7WKild89GkhtHcdQUo
+         Tj+w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Gm-Message-State: APjAAAVbdjbFknRPMhd5sJIIqoal4aR5CtQ5L9/an0Hg5DzW3hfpoZI6
+	Kizda0DPS8snp/2PPtWNWplB23ec2lCzc6Hd+6NFrSUPnvmrn3vE+00JJnn3t3IHRCkTy84lotv
+	R9eHCDl1mchT/J/Ofz+M2T4V+cybNs2zdDj31fnNWubxgVu7GwxzbM6n47634ZY/pdw==
+X-Received: by 2002:a05:6402:1355:: with SMTP id y21mr40771535edw.169.1564720615467;
+        Thu, 01 Aug 2019 21:36:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxA9Cs+H+vnL4Uk3WAO7xqaUvwPWts5/Xxw/bEEDJr8ueKdU3S1xeH18RCQyfHjUqZiWXEO
+X-Received: by 2002:a05:6402:1355:: with SMTP id y21mr40771502edw.169.1564720614692;
+        Thu, 01 Aug 2019 21:36:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564720614; cv=none;
         d=google.com; s=arc-20160816;
-        b=YvpMpxpWaHd1f5BaCvy383dKUAcdDjKWJclIxm/tzy50lPvKh+ec82USIkRUkfP2Er
-         8zbVEN+cJQStLkOu2/CZl2hI25mZk+I0EasUWfZlZb+6i3k/4rROQsbsnnYBbjg8Tczg
-         mKnU7iWrT8uOTKQPEqHubXs0XW26JngkvCeOWFiJet3acqY0OXiulpzfScyqIo/eBlMg
-         LrSgMoZXXjK0T5MbobY4yL28kmNsE2TBXv76P5Yza4xGcN8Lv3Npb+z0jRU+h+4DVToi
-         jocoztt9tu2wsEN40gevr2qCn5QES1HqwAWpyk92gOH6k8b0/KCB57xQjxHXgTB0WKan
-         nGEg==
+        b=OqOu4DL/s7bE8oROnrdgpW3qhFiQ0eAFCRVpLj9++jPSi7KWY1PNnP2LsezFIXAC6o
+         ZttrR1vXZMjCplhimjbGKP7/HJ9eMugxmQmE2T+JB9cmwC55OqDuwKIpE/ZV3rRuCXyu
+         PGsXrB2pDjOClCTl/BBOmVqVsHRhz5q686kf7jKtyq9/uJ2fqyQQia4mMCMsDBoXYT70
+         jyubmlgqJk5Qo+y3rSv6PkGSqtgyZb6LuWN+CRbUt1sPrCN671y1wOgsp75fMUuJLFQf
+         0UsbhASdVtei847UrAWClr7agYRXJDBrZMn6HG8gEN0z2sqh8ZWlMdNumKIhTH0luIJo
+         K7Tw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from;
-        bh=02zIVBedhxNNCP2upK1zwemWX44mmpxddNoiRLuzFXk=;
-        b=JEmlLVwkQX6z4+u+W1d/sSDaT/T5rB0dbQ24xO3J5gBG7D8sNgAfDLn6eaAyRkLytK
-         NZW7F6zzs3JoBS5kV5kvri42s+ZVdh4MUVlUXNk1FMd6yrCq9A9RL4TANitXDQcD4Tc6
-         SAyzcRDixfdFxiTvPRM/pS9oiJawOBFg5m9EWv4zOvVE2U3IaDd25qJGEUBp7qt5E61Q
-         +s1wQPLyQD4p8l3Hv/TJo0ZCr9gxnFYDU1qD0XM3MCraZstsVeBz4UPDrKQyP28XW1pc
-         B1zRYOhY/S4HtqpAGQYaiPRkIwv7k0XJglrixJaoRAVOOPQrafWGXq15yaB/yVYlsJCP
-         PT0Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=GLZjJf/KAYQXPmcVnRlgokZDUTWpduGIGbM80MmMICo=;
+        b=dAvg5MdcQN82YwE7x27NbFnPBkk8A9ksZGFzIvI7uDfeyVeHrmBIQuBIxYih8Wxwiu
+         lDLAE3l0Hgh9SI6eMaeS3Nqhuhd1h1uzCsCBCDnqmUbS7X4evFXztQlfsk8BtlylZ0ja
+         sQOkQnWc90SCybRlco6zxqYGZdmI2GQhaZADD96Q2ME4Dfwoyh9ftMWvwlN3nIK0DEM5
+         EmQ8Vvlg15Zy/ATvTWYR6J9h4/P+cDbxtwwAq6eDe8/CJ1RJmovbWHvI0RLQkF0zlso3
+         6k7TK7ALOaojCS4dCJ+NtUgQ9uYGb44n9yy6lj1cNe/FkFjDEVEXIlo67hZHsXYoE8dA
+         QFww==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
-Received: from tyo161.gate.nec.co.jp (tyo161.gate.nec.co.jp. [114.179.232.161])
-        by mx.google.com with ESMTPS id 189si9579559pgj.416.2019.08.01.21.16.34
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id a7si24282932eda.219.2019.08.01.21.36.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 01 Aug 2019 21:16:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) client-ip=114.179.232.161;
+        Thu, 01 Aug 2019 21:36:54 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.161 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
-Received: from mailgate01.nec.co.jp ([114.179.233.122])
-	by tyo161.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x724GSWF011582
-	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
-	Fri, 2 Aug 2019 13:16:28 +0900
-Received: from mailsv01.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
-	by mailgate01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x724GS2O028837;
-	Fri, 2 Aug 2019 13:16:28 +0900
-Received: from mail03.kamome.nec.co.jp (mail03.kamome.nec.co.jp [10.25.43.7])
-	by mailsv01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x724F8vc002261;
-	Fri, 2 Aug 2019 13:16:28 +0900
-Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.150] [10.38.151.150]) by mail02.kamome.nec.co.jp with ESMTP id BT-MMP-7342834; Fri, 2 Aug 2019 13:15:59 +0900
-Received: from BPXM23GP.gisp.nec.co.jp ([10.38.151.215]) by
- BPXC22GP.gisp.nec.co.jp ([10.38.151.150]) with mapi id 14.03.0439.000; Fri, 2
- Aug 2019 13:15:58 +0900
-From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
-To: Mike Kravetz <mike.kravetz@oracle.com>
-CC: Li Wang <liwang@redhat.com>, Linux-MM <linux-mm@kvack.org>,
-        LTP List <ltp@lists.linux.it>,
-        "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>,
-        "mhocko@kernel.org" <mhocko@kernel.org>,
-        Cyril Hrubis <chrubis@suse.cz>
-Subject: =?utf-8?B?UmU6IFtNTSBCdWc/XSBtbWFwKCkgdHJpZ2dlcnMgU0lHQlVTIHdoaWxlIGRv?=
- =?utf-8?B?aW5nIHRoZeKAiyDigItudW1hX21vdmVfcGFnZXMoKSBmb3Igb2ZmbGluZWQg?=
- =?utf-8?Q?hugepage_in_background?=
-Thread-Topic: =?utf-8?B?W01NIEJ1Zz9dIG1tYXAoKSB0cmlnZ2VycyBTSUdCVVMgd2hpbGUgZG9pbmcg?=
- =?utf-8?B?dGhl4oCLIOKAi251bWFfbW92ZV9wYWdlcygpIGZvciBvZmZsaW5lZCBodWdl?=
- =?utf-8?Q?page_in_background?=
-Thread-Index: AQHVRc0JEN0QZXp8lkC2QA8h/0i/bKbhXVuAgADAW4CAATIAAIADHcSAgABCA4A=
-Date: Fri, 2 Aug 2019 04:15:57 +0000
-Message-ID: <20190802041557.GA16274@hori.linux.bs1.fc.nec.co.jp>
-References: <CAEemH2dMW6oh6Bbm=yqUADF+mDhuQgFTTGYftB+xAhqqdYV3Ng@mail.gmail.com>
- <47999e20-ccbe-deda-c960-473db5b56ea0@oracle.com>
- <CAEemH2d=vEfppCbCgVoGdHed2kuY3GWnZGhymYT1rnxjoWNdcQ@mail.gmail.com>
- <a65e748b-7297-8547-c18d-9fb07202d5a0@oracle.com>
- <27a48931-aff6-d001-de78-4f7bef584c32@oracle.com>
-In-Reply-To: <27a48931-aff6-d001-de78-4f7bef584c32@oracle.com>
-Accept-Language: en-US, ja-JP
-Content-Language: ja-JP
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-originating-ip: [10.34.125.150]
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <976644284DBF884BBF6BD709A3EA8805@gisp.nec.co.jp>
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of jgross@suse.com designates 195.135.220.15 as permitted sender) smtp.mailfrom=jgross@suse.com
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 56E85AD2B;
+	Fri,  2 Aug 2019 04:36:53 +0000 (UTC)
+Subject: Re: [PATCH 20/34] xen: convert put_page() to put_user_page*()
+To: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: devel@driverdev.osuosl.org, Dave Chinner <david@fromorbit.com>,
+ Christoph Hellwig <hch@infradead.org>,
+ Dan Williams <dan.j.williams@intel.com>, Ira Weiny <ira.weiny@intel.com>,
+ x86@kernel.org, linux-mm@kvack.org, Dave Hansen
+ <dave.hansen@linux.intel.com>, amd-gfx@lists.freedesktop.org,
+ dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org,
+ linux-arm-kernel@lists.infradead.org, linux-rpi-kernel@lists.infradead.org,
+ devel@lists.orangefs.org, xen-devel@lists.xenproject.org,
+ John Hubbard <jhubbard@nvidia.com>,
+ Boris Ostrovsky <boris.ostrovsky@oracle.com>, rds-devel@oss.oracle.com,
+ =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Jan Kara <jack@suse.cz>, ceph-devel@vger.kernel.org, kvm@vger.kernel.org,
+ linux-block@vger.kernel.org, linux-crypto@vger.kernel.org,
+ linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+ LKML <linux-kernel@vger.kernel.org>, linux-media@vger.kernel.org,
+ linux-nfs@vger.kernel.org, linux-rdma@vger.kernel.org,
+ linux-xfs@vger.kernel.org, netdev@vger.kernel.org,
+ sparclinux@vger.kernel.org, Jason Gunthorpe <jgg@ziepe.ca>
+References: <20190802022005.5117-1-jhubbard@nvidia.com>
+ <20190802022005.5117-21-jhubbard@nvidia.com>
+From: Juergen Gross <jgross@suse.com>
+Message-ID: <4471e9dc-a315-42c1-0c3c-55ba4eeeb106@suse.com>
+Date: Fri, 2 Aug 2019 06:36:51 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-TM-AS-MML: disable
+In-Reply-To: <20190802022005.5117-21-jhubbard@nvidia.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: de-DE
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-T24gVGh1LCBBdWcgMDEsIDIwMTkgYXQgMDU6MTk6NDFQTSAtMDcwMCwgTWlrZSBLcmF2ZXR6IHdy
-b3RlOg0KPiBPbiA3LzMwLzE5IDU6NDQgUE0sIE1pa2UgS3JhdmV0eiB3cm90ZToNCj4gPiBBIFNJ
-R0JVUyBpcyB0aGUgbm9ybWFsIGJlaGF2aW9yIGZvciBhIGh1Z2V0bGIgcGFnZSBmYXVsdCBmYWls
-dXJlIGR1ZSB0bw0KPiA+IGxhY2sgb2YgaHVnZSBwYWdlcy4gIFVnbHksIGJ1dCB0aGF0IGlzIHRo
-ZSBkZXNpZ24uICBJIGRvIG5vdCBiZWxpZXZlIHRoaXMNCj4gPiB0ZXN0IHNob3VsZCBub3QgYmUg
-ZXhwZXJpZW5jaW5nIHRoaXMgZHVlIHRvIHJlc2VydmF0aW9ucyB0YWtlbiBhdCBtbWFwDQo+ID4g
-dGltZS4gIEhvd2V2ZXIsIHRoZSB0ZXN0IGlzIGNvbWJpbmluZyBmYXVsdHMsIHNvZnQgb2ZmbGlu
-ZSBhbmQgcGFnZQ0KPiA+IG1pZ3JhdGlvbnMsIHNvIHRoZSB0aGVyZSBhcmUgbG90cyBvZiBtb3Zp
-bmcgcGFydHMuDQo+ID4gDQo+ID4gSSdsbCBjb250aW51ZSB0byBpbnZlc3RpZ2F0ZS4NCj4gDQo+
-IFRoZXJlIGFwcGVhcnMgdG8gYmUgYSByYWNlIHdpdGggaHVnZXRsYl9mYXVsdCBhbmQgdHJ5X3Rv
-X3VubWFwX29uZSBvZg0KPiB0aGUgbWlncmF0aW9uIHBhdGguDQo+IA0KPiBDYW4geW91IHRyeSB0
-aGlzIHBhdGNoIGluIHlvdXIgZW52aXJvbm1lbnQ/ICBJIGFtIG5vdCBzdXJlIGlmIGl0IHdpbGwN
-Cj4gYmUgdGhlIGZpbmFsIGZpeCwgYnV0IGp1c3Qgd2FudGVkIHRvIHNlZSBpZiBpdCBhZGRyZXNz
-ZXMgaXNzdWUgZm9yIHlvdS4NCj4gDQo+IGRpZmYgLS1naXQgYS9tbS9odWdldGxiLmMgYi9tbS9o
-dWdldGxiLmMNCj4gaW5kZXggZWRlN2U3ZjVkMWFiLi5mMzE1NmM1NDMyZTMgMTAwNjQ0DQo+IC0t
-LSBhL21tL2h1Z2V0bGIuYw0KPiArKysgYi9tbS9odWdldGxiLmMNCj4gQEAgLTM4NTYsNiArMzg1
-NiwyMCBAQCBzdGF0aWMgdm1fZmF1bHRfdCBodWdldGxiX25vX3BhZ2Uoc3RydWN0IG1tX3N0cnVj
-dCAqbW0sDQo+ICANCj4gIAkJcGFnZSA9IGFsbG9jX2h1Z2VfcGFnZSh2bWEsIGhhZGRyLCAwKTsN
-Cj4gIAkJaWYgKElTX0VSUihwYWdlKSkgew0KPiArCQkJLyoNCj4gKwkJCSAqIFdlIGNvdWxkIHJh
-Y2Ugd2l0aCBwYWdlIG1pZ3JhdGlvbiAodHJ5X3RvX3VubWFwX29uZSkNCj4gKwkJCSAqIHdoaWNo
-IGlzIG1vZGlmeWluZyBwYWdlIHRhYmxlIHdpdGggbG9jay4gIEhvd2V2ZXIsDQo+ICsJCQkgKiB3
-ZSBhcmUgbm90IGhvbGRpbmcgbG9jayBoZXJlLiAgQmVmb3JlIHJldHVybmluZw0KPiArCQkJICog
-ZXJyb3IgdGhhdCB3aWxsIFNJR0JVUyBjYWxsZXIsIGdldCBwdGwgYW5kIG1ha2UNCj4gKwkJCSAq
-IHN1cmUgdGhlcmUgcmVhbGx5IGlzIG5vIGVudHJ5Lg0KPiArCQkJICovDQo+ICsJCQlwdGwgPSBo
-dWdlX3B0ZV9sb2NrKGgsIG1tLCBwdGVwKTsNCj4gKwkJCWlmICghaHVnZV9wdGVfbm9uZShodWdl
-X3B0ZXBfZ2V0KHB0ZXApKSkgew0KPiArCQkJCXJldCA9IDA7DQo+ICsJCQkJc3Bpbl91bmxvY2so
-cHRsKTsNCj4gKwkJCQlnb3RvIG91dDsNCj4gKwkJCX0NCj4gKwkJCXNwaW5fdW5sb2NrKHB0bCk7
-DQoNClRoYW5rcyB5b3UgZm9yIGludmVzdGlnYXRpb24sIE1pa2UuDQpJIHRyaWVkIHRoaXMgY2hh
-bmdlIGFuZCBmb3VuZCBubyBTSUdCVVMsIHNvIGl0IHdvcmtzIHdlbGwuDQoNCkknbSBzdGlsbCBu
-b3QgY2xlYXIgYWJvdXQgaG93ICFodWdlX3B0ZV9ub25lKCkgYmVjb21lcyB0cnVlIGhlcmUsDQpi
-ZWNhdXNlIHdlIGVudGVyIGh1Z2V0bGJfbm9fcGFnZSgpIG9ubHkgd2hlbiBodWdlX3B0ZV9ub25l
-KCkgaXMgbm9uLW51bGwNCmFuZCAocmFjeSkgdHJ5X3RvX3VubWFwX29uZSgpIGZyb20gcGFnZSBt
-aWdyYXRpb24gc2hvdWxkIGNvbnZlcnQgdGhlDQpodWdlX3B0ZSBpbnRvIGEgbWlncmF0aW9uIGVu
-dHJ5LCBub3QgbnVsbC4NCg0KVGhhbmtzLA0KTmFveWEgSG9yaWd1Y2hp
+On 02.08.19 04:19, john.hubbard@gmail.com wrote:
+> From: John Hubbard <jhubbard@nvidia.com>
+> 
+> For pages that were retained via get_user_pages*(), release those pages
+> via the new put_user_page*() routines, instead of via put_page() or
+> release_pages().
+> 
+> This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
+> ("mm: introduce put_user_page*(), placeholder versions").
+> 
+> Cc: Boris Ostrovsky <boris.ostrovsky@oracle.com>
+> Cc: Juergen Gross <jgross@suse.com>
+> Cc: xen-devel@lists.xenproject.org
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> ---
+>   drivers/xen/gntdev.c  | 5 +----
+>   drivers/xen/privcmd.c | 7 +------
+>   2 files changed, 2 insertions(+), 10 deletions(-)
+> 
+> diff --git a/drivers/xen/gntdev.c b/drivers/xen/gntdev.c
+> index 4c339c7e66e5..2586b3df2bb6 100644
+> --- a/drivers/xen/gntdev.c
+> +++ b/drivers/xen/gntdev.c
+> @@ -864,10 +864,7 @@ static int gntdev_get_page(struct gntdev_copy_batch *batch, void __user *virt,
+>   
+>   static void gntdev_put_pages(struct gntdev_copy_batch *batch)
+>   {
+> -	unsigned int i;
+> -
+> -	for (i = 0; i < batch->nr_pages; i++)
+> -		put_page(batch->pages[i]);
+> +	put_user_pages(batch->pages, batch->nr_pages);
+>   	batch->nr_pages = 0;
+>   }
+>   
+> diff --git a/drivers/xen/privcmd.c b/drivers/xen/privcmd.c
+> index 2f5ce7230a43..29e461dbee2d 100644
+> --- a/drivers/xen/privcmd.c
+> +++ b/drivers/xen/privcmd.c
+> @@ -611,15 +611,10 @@ static int lock_pages(
+>   
+>   static void unlock_pages(struct page *pages[], unsigned int nr_pages)
+>   {
+> -	unsigned int i;
+> -
+>   	if (!pages)
+>   		return;
+>   
+> -	for (i = 0; i < nr_pages; i++) {
+> -		if (pages[i])
+> -			put_page(pages[i]);
+> -	}
+> +	put_user_pages(pages, nr_pages);
+
+You are not handling the case where pages[i] is NULL here. Or am I
+missing a pending patch to put_user_pages() here?
+
+
+Juergen
 
