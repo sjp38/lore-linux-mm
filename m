@@ -2,174 +2,252 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 349D9C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 17:24:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 30296C32750
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 17:28:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DEBC72087E
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 17:24:21 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="Bqm8lPIQ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DEBC72087E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id DB8E621726
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 17:28:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DB8E621726
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 633C96B0005; Fri,  2 Aug 2019 13:24:21 -0400 (EDT)
+	id 742ED6B0006; Fri,  2 Aug 2019 13:28:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5E5276B0006; Fri,  2 Aug 2019 13:24:21 -0400 (EDT)
+	id 6F2F26B000D; Fri,  2 Aug 2019 13:28:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4D37B6B000D; Fri,  2 Aug 2019 13:24:21 -0400 (EDT)
+	id 5E2496B000E; Fri,  2 Aug 2019 13:28:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 319A56B0005
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 13:24:21 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id e22so2904196qtp.9
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 10:24:21 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 2876A6B0006
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 13:28:31 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id g126so1331075pgc.22
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 10:28:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=b/ZbdcC0DDz1oNoCfSGh30lpnC4X+0hWOBfmleHyzyg=;
-        b=lv6KfmPMACRnvvecQ+qsXnCGS9BlsSZnB9AphF6UsNTx1mtHTD8UkaLI27B0/D8COo
-         WlsdyWBpcU3yjMBAdFc+GOb2M1aD8KvqDEjdWnrWHpkaRyfcqxBdVg9Lrorg+Ix9TV05
-         8nTakwpxhjazf8Dy5Atck4f1Yr8cbjqiZHAPVYENaTlu1Q8JLBCObujNMOkV0S3dpwqw
-         CLBdRT1SKaMBpHJlRF842lMjzzGOXHz76Cqtjg0G86ssGU3Q1AN0a179jaEIR+z17/kQ
-         39xcb/CmJ4PI4xLHuRfCfnvouiQm6/XH/fA2PtDRuNUj/nQuEvDJ8nJQwQPH81N44Z3I
-         2mpQ==
-X-Gm-Message-State: APjAAAUOgLj0qPhgyFWvqpJhzoldZiEeEnYssJ4U9VGvS5ZsoWSS2ceN
-	nFwvtbshr6C7hvD+iHK1Tuo/SGqPfuJXoz/fNkkPXZ/gsdY2YFKESIrKvmuQHU7Vb5Gc+vRw4m+
-	EIJ+9xYBb46SCWwWsHxUoi+NneK+gynNjYTjS0uUto6s7QACyAHXBM3dWgy2Jf05c1Q==
-X-Received: by 2002:ac8:f8c:: with SMTP id b12mr98570728qtk.381.1564766660941;
-        Fri, 02 Aug 2019 10:24:20 -0700 (PDT)
-X-Received: by 2002:ac8:f8c:: with SMTP id b12mr98570666qtk.381.1564766660119;
-        Fri, 02 Aug 2019 10:24:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564766660; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:user-agent
+         :mime-version:content-transfer-encoding;
+        bh=oCfHqGN50JOQwYrb9+UyyhQ736wEtvw86chrYPBrKhQ=;
+        b=pb4oc77NdhKmNblBFU3uMIze4bKCHUiSP61bafUEvH8mq3I+j9HAlGtzscHCsQcRZt
+         rdioKeD95ChLurB9jOylaNyo9Y0PD+1WK3J61zoVbgkyK95OfCtSrc/fpSuiCkgP5hZ/
+         VpBR6Naj5wskpEn9Ko+fI/uZ92Dl6pDmN87WPTMpBv6V/8w/AXCZECV8vdF6HtYsH4Fw
+         hA4ch8GrHwWWeAWf8+bIJhHn0rDg1neAau+k8HIaq815iYGA8fn23GeNrgpznCgeu7wX
+         cvKx3uSG4ZMBT49ggVPz0hvAVuBJ9g16MQtypAualOwlrexZO29IbjoWZy14m0+ZOtjN
+         Unig==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWxELd0hgUsLWfjUsNmYXcEtKg8M4TNZ5YbYTg7aH6LMKulPLPZ
+	6Gi0PoT7HmYgZmxCZ1Jnxa8FXqti05LV9BDn9vknOzuz56obO4ONO0yquwhCFj9r2Dpes0+MRyi
+	bfqJ4MfLtJSDPizoJs3RLwJ21m0fi2QY3cyjnUMs2s0X0kEzpE/27ihn2rdi9OwulTQ==
+X-Received: by 2002:a63:31c1:: with SMTP id x184mr122377905pgx.128.1564766910679;
+        Fri, 02 Aug 2019 10:28:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzK9OUiwt4GpobwxZPf13uR9XOLdJI4ElpFEWiV4GsPEHolGROGwTK1XhP1WaLQ2WYZ3v44
+X-Received: by 2002:a63:31c1:: with SMTP id x184mr122377850pgx.128.1564766909582;
+        Fri, 02 Aug 2019 10:28:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564766909; cv=none;
         d=google.com; s=arc-20160816;
-        b=Q66E4njJtqaEfzPMNzH5ww+t9+PNcUwdCU3vcTxjSm6ESBxVa4SwZKYknTAhKZ2d7R
-         B3K3iDooKQ0FA23mWFAIQj/u8WGalrAypY8SQlm/WXEY+MUtYHSkjlNM9pvde6OnN7SO
-         XXIuw4lQEEUcCxJDquokdaW0MjXg3Fm3Z80DgTEQ1yaaBHqAUJh/IFh5Y822aJSV0msh
-         6grMZcnYCMWHhcquOCaptEyMP4SQHOpUZApglMb9wPh4rJ56poydUHlDu+Xrdd3X5/CE
-         gR8ps2nB+DtcF7EsOoQoDsDWI+R5DYFNGxfe+GllMHT2Ru8tGIs4WEizrXidYE6G8xx9
-         DHHg==
+        b=FBGoSMc/+hkZjEBdiakmoDbXiR4H1gBpFQsnyBGOX4oAjRSpiyeDD9Z2gw5nbkJsYz
+         N3xCBsWm5lW9PI1pKntURcPpv771zIxCFnoatvUS7fOLfRGjC9afTbJ/onpJTS8OCzdC
+         d+hobAuvnLGo9HbNa3Dr7IpOE8gduHfQGQ1Zr5j7zYIHY2WYcF9fiuur3+buY3VwZaav
+         reZlntrxIZ6IVNh1LvS2Q+Z/vSntv8KMCVU19Iptfjj7T+vvyTnuGIjXsKwtlO4tnCEi
+         qfYMecjFVBBBX6+vfMSJwz2pHHOmXSn1un5lXnI5ZKFssW9RFa2KRwmZ6i69PptvAVZV
+         O8jQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=b/ZbdcC0DDz1oNoCfSGh30lpnC4X+0hWOBfmleHyzyg=;
-        b=0J34Zyd+sEmE16vOirtr1FeEOGZTgnOHNcPu+clnnj7iwr3Hso5eEw+x3G+YFssD4i
-         +7M64JdNWcgwZavjscWouZw4EyZGcioIkpfLd3MRXk+SXImDZMo2r5bX7kEMVJSEySBn
-         8p/PPfQAP5L/9amaMJCyjbvhhwFPIwH+13/UmLYGYXjsCeT4dgAQmq9/bFjjR2r6U5E+
-         lF5QhDufvVUdJO42CUedaAY+DPJwfM+dKDqSnAYSzPadK8PHzalXCLQ/HFemoYxZiFYF
-         Yh5uGwHZ9tkw+7vLXWNNyXBh//H7E1aWjzpdmYl8TqoZSkxAGwgERNjvw9JWh+BlCQao
-         6eDA==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:date:cc:to:from:subject:message-id;
+        bh=oCfHqGN50JOQwYrb9+UyyhQ736wEtvw86chrYPBrKhQ=;
+        b=NUJ6i4R+cuTcO/rdjEod29dTmx8thzSTq1KLZkme3gmpVau1EHoiEcRirHH5ColBLc
+         qWEZvEXdJZCAq+EpS5M+gwoR26OZMINl7aP39Z7xqlkJrfP/kC6ihic+n3I/4I1mHEZW
+         SUnw2T/3FBLXBpfVLryrs/GPWlVrJwOrAzvwPcOFJ9FhbDfcEPA6gJaJCZFlozPk1jif
+         0OcNRNRn+GXjdeVo6ftbemZUIBarU88y60X0z7/YvZuM9eMUVGOA1DU+bLpC45XnayM9
+         hjem3uQeTpCh+I1MJ0IrvBrcBNo+G3z/+rXs95rNVwFe9js1u5ZVH2iCwOHRRq0lh6sL
+         5qOw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=Bqm8lPIQ;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y7sor41986162qke.93.2019.08.02.10.24.20
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga03.intel.com (mga03.intel.com. [134.134.136.65])
+        by mx.google.com with ESMTPS id v11si33154348plp.304.2019.08.02.10.28.29
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 02 Aug 2019 10:24:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Aug 2019 10:28:29 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.65 as permitted sender) client-ip=134.134.136.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=Bqm8lPIQ;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=b/ZbdcC0DDz1oNoCfSGh30lpnC4X+0hWOBfmleHyzyg=;
-        b=Bqm8lPIQh1rFwvAVca4MuGFlAzmCDYu5Rh+vK2o/lwsywYkM8FWq8PDerS1S494YUd
-         YdRlqN86V3V07Ubkc9+u0LPC85tI9+nhfhgXLNTvG0jKt+2qsbDduSumpl+pf4RQrgiu
-         /morBoV3u7YQ2MvhfXY3yuO815LwFDOzG+OPNzn+Yxd+d20QcyXCyAmyX/G2jnPicg8x
-         ZmDxd4z0b8rzujaHcU5/9PkhjFkbO6/CdZXCXw4gkaClngdJY4k8vFwKphG0uzps+6rr
-         fSkdfl5lEpvi8p/j3nr2rpHVff4rM27uBG1YJZnrHv0lUAHajWA+r+eYkDKDxwpzjfU8
-         74YA==
-X-Google-Smtp-Source: APXvYqz3bf1RYWu6U39GeHZIQdaItvlh7ks4r7TbDlC8NTybQtBARJwkp1RvWALo25T9mXOBSdzKwA==
-X-Received: by 2002:a37:9d96:: with SMTP id g144mr92937157qke.288.1564766659730;
-        Fri, 02 Aug 2019 10:24:19 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id l19sm41977618qtb.6.2019.08.02.10.24.19
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Fri, 02 Aug 2019 10:24:19 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1htbHu-0005z3-NQ; Fri, 02 Aug 2019 14:24:18 -0300
-Date: Fri, 2 Aug 2019 14:24:18 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Jason Wang <jasowang@redhat.com>, kvm@vger.kernel.org,
-	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
- with worker
-Message-ID: <20190802172418.GB11245@ziepe.ca>
-References: <20190731084655.7024-1-jasowang@redhat.com>
- <20190731084655.7024-8-jasowang@redhat.com>
- <20190731123935.GC3946@ziepe.ca>
- <7555c949-ae6f-f105-6e1d-df21ddae9e4e@redhat.com>
- <20190731193057.GG3946@ziepe.ca>
- <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
- <20190801141512.GB23899@ziepe.ca>
- <42ead87b-1749-4c73-cbe4-29dbeb945041@redhat.com>
- <20190802124613.GA11245@ziepe.ca>
- <20190802100414-mutt-send-email-mst@kernel.org>
+       spf=pass (google.com: best guess record for domain of alexander.h.duyck@linux.intel.com designates 134.134.136.65 as permitted sender) smtp.mailfrom=alexander.h.duyck@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 02 Aug 2019 10:28:28 -0700
+X-IronPort-AV: E=Sophos;i="5.64,338,1559545200"; 
+   d="scan'208";a="167292961"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga008-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 02 Aug 2019 10:28:28 -0700
+Message-ID: <ac434f1cad234920c0e75fe809ac05053395524b.camel@linux.intel.com>
+Subject: Re: [PATCH v3 0/6] mm / virtio: Provide support for unused page
+ reporting
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: Nitesh Narayan Lal <nitesh@redhat.com>, Alexander Duyck
+	 <alexander.duyck@gmail.com>, kvm@vger.kernel.org, david@redhat.com, 
+	mst@redhat.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, 
+	linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com, 
+	konrad.wilk@oracle.com, willy@infradead.org, lcapitulino@redhat.com, 
+	wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com, 
+	dan.j.williams@intel.com
+Date: Fri, 02 Aug 2019 10:28:28 -0700
+In-Reply-To: <291a1259-fd20-1712-0f0f-5abdefdca95f@redhat.com>
+References: <20190801222158.22190.96964.stgit@localhost.localdomain>
+	 <9cddf98d-e2ce-0f8a-d46c-e15a54bc7391@redhat.com>
+	 <3f6c133ec1eabb8f4fd5c0277f8af254b934b14f.camel@linux.intel.com>
+	 <291a1259-fd20-1712-0f0f-5abdefdca95f@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190802100414-mutt-send-email-mst@kernel.org>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 02, 2019 at 10:27:21AM -0400, Michael S. Tsirkin wrote:
-> On Fri, Aug 02, 2019 at 09:46:13AM -0300, Jason Gunthorpe wrote:
-> > On Fri, Aug 02, 2019 at 05:40:07PM +0800, Jason Wang wrote:
-> > > > This must be a proper barrier, like a spinlock, mutex, or
-> > > > synchronize_rcu.
+On Fri, 2019-08-02 at 12:19 -0400, Nitesh Narayan Lal wrote:
+> On 8/2/19 11:13 AM, Alexander Duyck wrote:
+> > On Fri, 2019-08-02 at 10:41 -0400, Nitesh Narayan Lal wrote:
+> > > On 8/1/19 6:24 PM, Alexander Duyck wrote:
+> > > > This series provides an asynchronous means of reporting to a hypervisor
+> > > > that a guest page is no longer in use and can have the data associated
+> > > > with it dropped. To do this I have implemented functionality that allows
+> > > > for what I am referring to as unused page reporting
+> > > > 
+> > > > The functionality for this is fairly simple. When enabled it will allocate
+> > > > statistics to track the number of reported pages in a given free area.
+> > > > When the number of free pages exceeds this value plus a high water value,
+> > > > currently 32, it will begin performing page reporting which consists of
+> > > > pulling pages off of free list and placing them into a scatter list. The
+> > > > scatterlist is then given to the page reporting device and it will perform
+> > > > the required action to make the pages "reported", in the case of
+> > > > virtio-balloon this results in the pages being madvised as MADV_DONTNEED
+> > > > and as such they are forced out of the guest. After this they are placed
+> > > > back on the free list, and an additional bit is added if they are not
+> > > > merged indicating that they are a reported buddy page instead of a
+> > > > standard buddy page. The cycle then repeats with additional non-reported
+> > > > pages being pulled until the free areas all consist of reported pages.
+> > > > 
+> > > > I am leaving a number of things hard-coded such as limiting the lowest
+> > > > order processed to PAGEBLOCK_ORDER, and have left it up to the guest to
+> > > > determine what the limit is on how many pages it wants to allocate to
+> > > > process the hints. The upper limit for this is based on the size of the
+> > > > queue used to store the scatterlist.
+> > > > 
+> > > > My primary testing has just been to verify the memory is being freed after
+> > > > allocation by running memhog 40g on a 40g guest and watching the total
+> > > > free memory via /proc/meminfo on the host. With this I have verified most
+> > > > of the memory is freed after each iteration. As far as performance I have
+> > > > been mainly focusing on the will-it-scale/page_fault1 test running with
+> > > > 16 vcpus. With that I have seen up to a 2% difference between the base
+> > > > kernel without these patches and the patches with virtio-balloon enabled
+> > > > or disabled.
+> > > A couple of questions:
 > > > 
-> > > 
-> > > I start with synchronize_rcu() but both you and Michael raise some
-> > > concern.
+> > > - The 2% difference which you have mentioned, is this visible for
+> > >   all the 16 cores or just the 16th core?
+> > > - I am assuming that the difference is seen for both "number of process"
+> > >   and "number of threads" launched by page_fault1. Is that right?
+> > Really, the 2% is bordering on just being noise. Sometimes it is better
+> > sometimes it is worse. However I think it is just slight variability in
+> > the tests since it doesn't usually form any specific pattern.
 > > 
-> > I've also idly wondered if calling synchronize_rcu() under the various
-> > mm locks is a deadlock situation.
-> > 
-> > > Then I try spinlock and mutex:
-> > > 
-> > > 1) spinlock: add lots of overhead on datapath, this leads 0 performance
-> > > improvement.
-> > 
-> > I think the topic here is correctness not performance improvement
+> > I have been able to tighten it down a bit by actually splitting my guest
+> > over 2 nodes and pinning the vCPUs so that the nodes in the guest match up
+> > to the nodes in the host. Doing that I have seen results where I had less
+> > than 1% variability between with the patches and without.
 > 
-> The topic is whether we should revert
-> commit 7f466032dc9 ("vhost: access vq metadata through kernel virtual address")
+> Interesting. I usually pin the guest to a single NUMA node to avoid this.
+
+I was trying to put as much stress on this as I could so my thought was
+the more CPUs the better. Also an added advantage to splitting the guest
+over 2 nodes is that it split the zone locks up so that it reduced how
+much of a bottleneck it was.
+
+> > One thing I am looking at now is modifying the page_fault1 test to use THP
+> > instead of 4K pages as I suspect there is a fair bit of overhead in
+> > accessing the pages 4K at a time vs 2M at a time. I am hoping with that I
+> > can put more pressure on the actual change and see if there are any
+> > additional spots I should optimize.
 > 
-> or keep it in. The only reason to keep it is performance.
+> +1. Right now I don't think will-it-scale touches all the guest memory.
+> May I know how much memory does will-it-scale/page_fault1, occupies in your case
+> and how much do you get back with your patch-set?
 
-Yikes, I'm not sure you can ever win against copy_from_user using
-mmu_notifiers?  The synchronization requirements are likely always
-more expensive unless large and scattered copies are being done..
+If I recall correctly each process/thread of the page_fault1 test occupies
+128MB or memory per iteration. When you consider the base case with 1
+thread is a half million iterations that should be something like up to
+64GB allocated and freed per thread.
 
-The rcu is about the only simple approach that could be less
-expensive, and that gets back to the question if you can block an
-invalidate_start_range in synchronize_rcu or not..
+One thing I overlooked testing this time around was a setup with memory
+shuffling enabled. That would cause the iterations to use a larger swath
+of memory as each 128G would have chunks randomly placed on the tail of
+the free lists. I will try to go and re-run a test on a pair of kernels
+with that enabled to see if that has any effect.
 
-So, frankly, I'd revert it until someone could prove the rcu solution is
-OK..
+> Do you have any plans of running any other benchmarks as well?
+> Just to see the impact on other sub-systems.
 
-BTW, how do you get copy_from_user to work outside a syscall?
+The problem is other benchmarks such as netperf aren't going to show much
+since they tend to operate on 4K pages, and add a bunch of additional
+overhead such as skb allocation and network header processing.
 
-Also, why can't this just permanently GUP the pages? In fact, where
-does it put_page them anyhow? Worrying that 7f466 adds a get_user page
-but does not add a put_page??
+What I am trying to do is focus on benchmarking just the changes without
+getting too much other code pulled in. That is why I am thinking
+page_fault1 modified so that it will MADV_HUGEPAGE is probably the ideal
+test for this. Currently the 4K page size of page_fault1 is likely adding
+a bunch of overhead for us having to split and merge pages and that would
+be one of the reasons why the changes are essentially falling into the
+noise.
 
-Jason
+By using THP it will be triggering allocations of higher-order pages and
+then freeing that memory at the higher order as well. By using THP it can
+do that much quicker and I can avoid the split/merge overhead. I am seeing
+something on the order of about 1.3 million iterations per thread versus
+the 500 thousand I was seeing with standard pages.
+
+> > > > One side effect of these patches is that the guest becomes much more
+> > > > resilient in terms of NUMA locality. With the pages being freed and then
+> > > > reallocated when used it allows for the pages to be much closer to the
+> > > > active thread, and as a result there can be situations where this patch
+> > > > set will out-perform the stock kernel when the guest memory is not local
+> > > > to the guest vCPUs.
+> > > Was this the reason because of which you were seeing better results for
+> > > page_fault1 earlier?
+> > Yes I am thinking so. What I have found is that in the case where the
+> > patches are not applied on the guest it takes a few runs for the numbers
+> > to stabilize. What I think was going on is that I was running memhog to
+> > initially fill the guest and that was placing all the pages on one node or
+> > the other and as such was causing additional variability as the pages were
+> > slowly being migrated over to the other node to rebalance the workload.
+> > One way I tested it was by trying the unpatched case with a direct-
+> > assigned device since that forces it to pin the memory. In that case I was
+> > getting bad results consistently as all the memory was forced to come from
+> > one node during the pre-allocation process.
+> > 
+> 
+> I have also seen that the page_fault1 values take some time to get stabilize on
+> an unmodified kernel.
+> What I am wondering here is that if on a single NUMA guest doing the following
+> will give the right/better idea or not:
+> 
+> 1. Pin the guest to a single NUMA node.
+> 2. Run memhog so that it touches all the guest memory.
+> 3. Run will-it-scale/page_fault1.
+> 
+> Compare/observe the values for the last core (this is considering the other core
+> values doesn't drastically differ).
+
+I'll rerun the test with qemu affinitized to one specific socket. It will
+cut the core/thread count down to 8/16 on my test system. Also I will try
+with THP and page shuffling enabled.
 
