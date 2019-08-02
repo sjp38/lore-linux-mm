@@ -6,125 +6,127 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 44FE1C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 10:08:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06CBBC433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 10:20:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1894F20B7C
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 10:08:41 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1894F20B7C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id C70BB206A3
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 10:20:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C70BB206A3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 814156B0006; Fri,  2 Aug 2019 06:08:41 -0400 (EDT)
+	id 60E746B0006; Fri,  2 Aug 2019 06:20:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 79CA26B0008; Fri,  2 Aug 2019 06:08:41 -0400 (EDT)
+	id 5E6266B0008; Fri,  2 Aug 2019 06:20:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6B2316B000A; Fri,  2 Aug 2019 06:08:41 -0400 (EDT)
+	id 4D52F6B000A; Fri,  2 Aug 2019 06:20:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 394846B0006
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 06:08:41 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id y15so46679808edu.19
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 03:08:41 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id F22066B0006
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 06:20:35 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id w25so46626188edu.11
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 03:20:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=AqewJ3T81UosVhATq5r9DHsuzG0uNfiTZ0GWZ3z4lWM=;
-        b=ME3uFoPQWhJ1BwFoq1YUYqLghL+5m0JwStdObYH0oTvthK5g+bJjWRdqtaXln5jrVy
-         8ii0NgFv1yK52t09KSW4NFJHTgbmKOXjC0kg0UMbKuhJsH+DoSUaq1+Wh1aqx76MBFY5
-         6No3+mBEzsfe0RVg+Zj1uqoJer1rMw3HecBsWAj4ZGkXQkhfiNjAfrfM9aBFiWuObuS+
-         SJvkAAvTfXQVzJEUlwLMTTK1+C8qtIxVCOIdMiC2gwKNusSsrXrZ/PfKNHEZ3YoaCKI4
-         t7SQ9XjFFajVu0gRR64oqxj5h4aIDHzG/Mp/C2OvdLBkeL0cgdnX/CgIHgPxzBMmoazy
-         IKsA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAU6Kt1Xfoqi6s0ICHPQ4p6w1DDWjTAm8mqjIDNsiV2DcOiYj7po
-	YaKcYnRMFknXV+TI2xZzRydNiFAkl3OUPOawTNp6dpD227D3xvI8zdF+erGzMUTZPQwi0yjOSys
-	Qrcv5nh3ziTmMUZYDZxzZRCqOnX7ty9j4sO7nTvtZ0WLzt+o4WWxHY4ty6/TZM5LQfw==
-X-Received: by 2002:a50:a4ad:: with SMTP id w42mr115561028edb.230.1564740520797;
-        Fri, 02 Aug 2019 03:08:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwEnwcBv2k0kCI5hpP3NzogsYULy3TDmJac9hUUaaSlHcUv3w4mrhDAJ93naRieS/Jv+Ifa
-X-Received: by 2002:a50:a4ad:: with SMTP id w42mr115560970edb.230.1564740520049;
-        Fri, 02 Aug 2019 03:08:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564740520; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=QNAEBdHDLcTguWDKnVzev8+F1y6jsJiQcaikt82sJbI=;
+        b=S8MLgUcwHxLSr8PpLGHcABcys7JLaIawHuQc3qNm5vMXBH5VJlKpFRRGmVTVCnLdhD
+         hhco1Usdv2v0/yPo2rmKau0rV3OWz5kah/eSOgM34wMQvMteaIG9lCd5DnM7AhTMxX94
+         l22+zhdhf/8FFhI5WrBD9PmTsD0dx4dyT9FWxytHwskIt2dzcLISuwEQA+NPdaK6a9aL
+         Qodg4Z6xrRPedNi3cVcQOGh61Pvr7BAW9BLOepb28EH5Wl5tBTVhtn16mDjL/Ei7aFk2
+         7vD11ac3rwQtOOtlRnxnJSv+VB6iyH8FDu1CnbzFJ+RKRptvRRSlW3QlYcxZqKrpxlaF
+         LRGw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAWvAu7dOkIuPldsIcdoXSkgk7CO9BbbQ585izAsSaSd3H3Y8YB5
+	5s5O2mi/bTT6OYlFNX2bTRVirFC4u06nWW8PUME2zyARsh/NGIFtKpthWAJO47Mu1JvKxpXTg2n
+	cs1uTSq1/6zqmxES/HKRlydB8YXRnVdN7H3rObN0ty0pHbRGypSyRC6pyD1SYt3iR5w==
+X-Received: by 2002:a50:ac24:: with SMTP id v33mr118269818edc.30.1564741235573;
+        Fri, 02 Aug 2019 03:20:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyIt7ViG3usOaAtXzF1Eb4q577vnXqlJLzrp37ZxGu+O4fx0f1faVxbWxKVm27zA/7cpUGw
+X-Received: by 2002:a50:ac24:: with SMTP id v33mr118269765edc.30.1564741234847;
+        Fri, 02 Aug 2019 03:20:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564741234; cv=none;
         d=google.com; s=arc-20160816;
-        b=fQ0FpEzTijKyt06c8SjKr6ppHZAviUxMFp7sZXPvwLGDkIt5khGf8i7vM94mNMCGxW
-         ks1Z2ZWWIAqRoNAU6E4YmtjL2In5CCYtznq2xoRPtoo/AYNKavbWlp9hlHUJqdyLUGhQ
-         +YIPBaIqiHIPNN5f/NYA8Ehyb4it5eNoQGlxPRe6qvKaFgWfMDKAoQydM6w8q4F5tgDH
-         wz5R5BLxy7AiS2mjsmEiBjSdiEyDVfUZg9zFb4aZvUDeapr5P/3EuwGaVF3TyAEhgHtb
-         ncc3MS1esh0VGjgATRAThtm0NRVJvQzn7QSxeb3zYHIiwOmksI9+9Z9QrqNhK9lPYz4Z
-         VbWg==
+        b=dFFU+1bYUuRgRGm//fMOEJK/fSqk56wI8zKh5buFIrRXKuMsQSDz6kd2JS02DUkrus
+         qOomGFcHFsV2U4fZzkZutR7pK6YXSMaF+9zNLW+dJR3vQhHqdr5FjC1fXnvOEaBewQqP
+         QyN+h+Za562smMKvUCOGT0B1bTfcfsNhQQTabxCM/0GFNOeCwyG5InwjyJAKjVT9z+r9
+         OpyndV3Oxi4KPQOisrfelGyj3qM+9m5hgfH+00qSNgkvvKWzvnrn+48PzuefNpGqIz+X
+         vRKVz3wDDdp6u5kMJ60gXKqhV58dAVp0Nm14cXxOlRo33V5WGebaoV5iPUfZCuWd+Qci
+         ORAg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=AqewJ3T81UosVhATq5r9DHsuzG0uNfiTZ0GWZ3z4lWM=;
-        b=Yi9rhehNqC3LF1J0WHb8IZrQhxzd7C7ZJSj5wa5Ad0bcd3kGV8mrSLuWJFCVDXisnb
-         dDEymgngaTSl6fK+3vzzsS5RZs+aVu+4qm4SI95d2gLPoCZzvcjGrIMYDyCXpO7QrlKf
-         i1nrqWISZQDXpMBTc80urx+qDQ9dSKnANxCeOBaI3jqVpCQZVmmcR+m5KbIcu3TNL+3q
-         wsxNOQjJeXvshEzsOimedBBHjQYFyTeAfz/QlRY0VaHZgLK7xiDFEP9N7dkuaNAiHIaT
-         i6MtWKYseQZbGo9NpIs/5/ixj7O5f+Cu0TNi4mXnZyEO94gcpyE4XpTy24PYicohiyMB
-         D99w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=QNAEBdHDLcTguWDKnVzev8+F1y6jsJiQcaikt82sJbI=;
+        b=sHBka9EhKs6knGIkUS+h0rG4kHOUF1Xt3pdVSZQBmPif5gmCVmu8VoQS/sEKMRj6wM
+         S4qw5B2HZASQ4bkcycb9Ogw60HeNsYa5TqKNkn66N4ir4+tFX/hYlfsgpQCsrpbtHhsF
+         3NQO6/t/NyYCdrtVvp6VksI36tZQ/G9a2uy/hiW4HBW5hKfi4w+IffN9UjTPcHmkUPYC
+         1bS9DTV7mTiI347/G65wzExR70UmrJ8DRPVY3yhMF7AxEUOz05eWQqSqsImFYzwsuoRq
+         8avP+3M7RXOZDES+/IBLB5lncsxm4QAgj+tHV4eDCWOBGIFwxYaePNOTVaySKVwoO/En
+         g2jg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id l42si24788948edc.120.2019.08.02.03.08.39
-        for <linux-mm@kvack.org>;
-        Fri, 02 Aug 2019 03:08:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id n29si26207662edd.66.2019.08.02.03.20.34
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Aug 2019 03:20:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 2C9EB344;
-	Fri,  2 Aug 2019 03:08:39 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B1D323F71F;
-	Fri,  2 Aug 2019 03:08:37 -0700 (PDT)
-Date: Fri, 2 Aug 2019 11:08:35 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Dave Hansen <dave.hansen@intel.com>
-Cc: Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	linux-arm-kernel@lists.infradead.org, linux-doc@vger.kernel.org,
-	linux-mm@kvack.org, linux-arch@vger.kernel.org,
-	linux-kselftest@vger.kernel.org, linux-kernel@vger.kernel.org,
-	Will Deacon <will.deacon@arm.com>,
-	Andrey Konovalov <andreyknvl@google.com>,
-	Szabolcs Nagy <szabolcs.nagy@arm.com>
-Subject: Re: [PATCH v6 1/2] arm64: Define
- Documentation/arm64/tagged-address-abi.rst
-Message-ID: <20190802100835.GA4175@arrakis.emea.arm.com>
-References: <cover.1563904656.git.andreyknvl@google.com>
- <20190725135044.24381-1-vincenzo.frascino@arm.com>
- <20190725135044.24381-2-vincenzo.frascino@arm.com>
- <b74e7ce7-d58a-68a0-2f28-6648ec6302c0@intel.com>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 4649EAE03;
+	Fri,  2 Aug 2019 10:20:34 +0000 (UTC)
+Subject: Re: [RFC PATCH 2/3] mm, compaction: use MIN_COMPACT_COSTLY_PRIORITY
+ everywhere for costly orders
+To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+Cc: Hillf Danton <hdanton@sina.com>, Michal Hocko <mhocko@kernel.org>,
+ Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>,
+ Andrew Morton <akpm@linux-foundation.org>
+References: <20190724175014.9935-1-mike.kravetz@oracle.com>
+ <20190724175014.9935-3-mike.kravetz@oracle.com>
+ <278da9d8-6781-b2bc-8de6-6a71e879513c@suse.cz>
+ <0942e0c2-ac06-948e-4a70-a29829cbcd9c@oracle.com>
+ <89ba8e07-b0f8-4334-070e-02fbdfc361e3@suse.cz>
+ <2f1d6779-2b87-4699-abf7-0aa59a2e74d9@oracle.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <a0f01341-a5d8-d015-c37e-4932eaafd868@suse.cz>
+Date: Fri, 2 Aug 2019 12:20:33 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b74e7ce7-d58a-68a0-2f28-6648ec6302c0@intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <2f1d6779-2b87-4699-abf7-0aa59a2e74d9@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Dave,
-
-On Wed, Jul 31, 2019 at 09:43:46AM -0700, Dave Hansen wrote:
-> On 7/25/19 6:50 AM, Vincenzo Frascino wrote:
-> > With the relaxed ABI proposed through this document, it is now possible
-> > to pass tagged pointers to the syscalls, when these pointers are in
-> > memory ranges obtained by an anonymous (MAP_ANONYMOUS) mmap().
+On 8/1/19 10:33 PM, Mike Kravetz wrote:
+> On 8/1/19 6:01 AM, Vlastimil Babka wrote:
+>> Could you try testing the patch below instead? It should hopefully
+>> eliminate the stalls. If it makes hugepage allocation give up too early,
+>> we'll know we have to involve __GFP_RETRY_MAYFAIL in allowing the
+>> MIN_COMPACT_PRIORITY priority. Thanks!
 > 
-> I don't see a lot of description of why this restriction is necessary.
-> What's the problem with supporting MAP_SHARED?
+> Thanks.  This patch does eliminate the stalls I was seeing.
 
-We could support MAP_SHARED | MAP_ANONYMOUS (and based on some internal
-discussions, this would be fine with the hardware memory tagging as
-well). What we don't want in the ABI is to support file mmap() for
-top-byte-ignore (or MTE). If you see a use-case, please let us know.
+Great, thanks! I'll send a proper patch then.
 
--- 
-Catalin
+> In my testing, there is little difference in how many hugetlb pages are
+> allocated.  It does not appear to be giving up/failing too early.  But,
+> this is only with __GFP_RETRY_MAYFAIL.  The real concern would with THP
+> requests.  Any suggestions on how to test that?
+
+AFAICS the default THP defrag mode is unaffected, as GFP_TRANSHUGE_LIGHT doesn't
+include __GFP_DIRECT_RECLAIM, so it never reaches this code. Madvised THP
+allocations will be affected, which should best be tested the same way as Andrea
+and Mel did in the __GFP_THISNODE debate.
 
