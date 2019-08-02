@@ -2,204 +2,192 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4C418C32750
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 19:22:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 60438C32750
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 19:26:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EE6392086A
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 19:22:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1D1CB2171F
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 19:26:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="dj10JLqr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EE6392086A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="byi/JLB7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D1CB2171F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7D7F36B0003; Fri,  2 Aug 2019 15:22:54 -0400 (EDT)
+	id B57F76B0007; Fri,  2 Aug 2019 15:26:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 788406B0005; Fri,  2 Aug 2019 15:22:54 -0400 (EDT)
+	id B079A6B0008; Fri,  2 Aug 2019 15:26:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5DB876B0007; Fri,  2 Aug 2019 15:22:54 -0400 (EDT)
+	id 9CEE96B000A; Fri,  2 Aug 2019 15:26:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 252116B0003
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 15:22:54 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id m17so39100512pgh.21
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 12:22:54 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 67FED6B0007
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 15:26:41 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id l11so26635124pgc.14
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 12:26:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:smtp-origin-hostprefix:from
-         :smtp-origin-hostname:to:cc:smtp-origin-cluster:subject:date
-         :message-id:mime-version;
-        bh=19Ja20qRJPcfJ8p53GQiWI0ZYQb3kQ8wKj9C14D15zo=;
-        b=FBqYBHlfJa/dVkeR+Ud7QMTXf7nSV5eAhEHiLmXWo0MAQ1zjTclVSuHKFPztFBa4ou
-         YH9SXl8wBTzOBJFHPjc2GqdMuBv1+gnAJNfmR/JOM94k91jLj1rRBnt/m+w4MpLa87ub
-         hA7BLyEGLunTMr6Zvs17+f/DVcZ+Qw8KUWSyRYQHtQgwOPrm1CE6OxuSJacNLYuBhRNh
-         LkUGc3ZdDKqmJxGNp44NRmu9DoddpHe2Qj17gsOMYt/q4/zVxrUJB/VJF07LO6EttnBH
-         JgzedPNPu3b6yiiYywzcMl/U6lCqJ17Uc3baVsv7nkb73dQlLhBVYSpOlV9cxMxTJMTa
-         7b0w==
-X-Gm-Message-State: APjAAAU7RPgXfp/bil0ERQ51hQFjHldTPt2Ko8Joccax280cqLtkGY5O
-	Z2gWe6HjxqN9T8Cl9xZXlD8FwUTZSEaKLDwLHFME87EAWHGZ28zENirfGlcJM6jkY91Zbhk/sUh
-	JhKAKxPTGDH1r59qcBRfDAhCV33wDGRalxjhpUnLVX+HQ166ZkDBSE7rwqOhEeLuCvQ==
-X-Received: by 2002:a17:90a:f98a:: with SMTP id cq10mr5819273pjb.43.1564773773825;
-        Fri, 02 Aug 2019 12:22:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwRJw46RbN3iZEyGFXHk7IQ3SIzt4lrqFTxV9BMtZy0kDa8yUtDD/QCeL9BpOiVG+/K39ms
-X-Received: by 2002:a17:90a:f98a:: with SMTP id cq10mr5819231pjb.43.1564773773049;
-        Fri, 02 Aug 2019 12:22:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564773773; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=rRhheBqnK3+cjDjuz6CHnpsz5YflbO5z8PXp1A2YK5w=;
+        b=p+bZsru/LHCq4JAkIEKrmziNTHE+RD4QoDIcJ2ADJhxwoPLEkfffy6pESmZyTA5B8G
+         lHnSWVaOTrTpd2xtr+noDvZ9aFatkmMKipuI4n8pNuC7PZ9tTnTaV6rxQkFX8L6g87Aa
+         uvv+Zl2Uhvu0mYp8xDyaysDmH99drlb9cqPG/s1LtVMLuLQ20ktIUsuNSWO6fUNcUt0i
+         gaTOdKwSD5SkLmx+XN2ITX7fTN5AhhLXDz4N1Z4SQ7DwdfWN2hbiOi+WeCTVcSUK/lEO
+         7t5Wsw5+bjyxvNUuKujssgXj7rnvYqsClxc83KQwYFYElxi/L/KzHVxjoCMt8rpEt6O8
+         EhTA==
+X-Gm-Message-State: APjAAAV9ddZV6TJDFB0UE5geMc06Z8/Kz1+fIT/jDbVFKhdOhKixZRDM
+	fqZa6VBRTnX2hD5c8Exwe/VDFXcQwWL2cyB8uP0Uqvom7PpBbJViGUb/G7v1jvjK+y0FYAuUKHb
+	xP7GmDMM2o1Ph7HNEQBTWNxN/rn+pDP43MY79nAVcJsF+f9C5ILo8ts53olrKYlksag==
+X-Received: by 2002:a17:902:9a49:: with SMTP id x9mr134094144plv.282.1564774001103;
+        Fri, 02 Aug 2019 12:26:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwsSGTkasG7L8B++rgeAGkUyCuCexxhiD8j4EYGs2wSAEvDZWoChlzqiqwDwvFTWk4ACwS2
+X-Received: by 2002:a17:902:9a49:: with SMTP id x9mr134094105plv.282.1564774000452;
+        Fri, 02 Aug 2019 12:26:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564774000; cv=none;
         d=google.com; s=arc-20160816;
-        b=VT+oZw2bZm9zN4nJyAupDJIO3mJSt6vYgpj0MNuufU8oh5gH/iVu5Z6f/o2KfwwTeZ
-         Q5u4ywRb6LtgfurTnT3ky1AkJ43Vn/Vyvii4svKH9kes6vSl8yB+st2Sn4tlILdBVy8/
-         4hQMLS29qPEFKvS8Sx2r9lac2YKZ0U/r7o+FbycM105dQlpgkaOu/f+kyXk1uRQM1ThI
-         Pj9eAWcHCo+Z+sBvHGKOTEEv2cgKi4f3VQRWjUju3Vdlv/WQTHVOclLbDE0GZPAI5Ndw
-         GebJWtlc70P+ZVvHcIhBzHE6X+EyFyvU/gaU9g5RgWw94IcSUnwYh+7QNBkmaW4nE8Ee
-         9x7Q==
+        b=ROe38pcur/JxD7MtpGtDjd0TgR2+aaEt9oX+CWEl66doJbXqDN1IkTaMrx4T85uWsD
+         BenZEX43UdJEsBzFRmr+kTdsL8jWH6qxt3iF8jETRXfaicNr5Zy7OArRKRj+9z28t69M
+         s0civB0qsQK07gAqKbOA2vTmJVWT3MZ7ODGMKevMmLE3e7x8dpvhYcp3FzVIRIvV5ppT
+         YzR/b+ZMdcssYW4YS9V6cvk2EbA1XJqXFQj45oJhckinwzEut4ny7ad055NnQDdlIDpE
+         aoY+A6p7Eds3vZZ18GI/eEJhxQxgE608IjJYgzdx+DJ3MGtQefADcEBgmN6tM9FwnNgr
+         H5Zw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:subject:smtp-origin-cluster:cc:to
-         :smtp-origin-hostname:from:smtp-origin-hostprefix:dkim-signature;
-        bh=19Ja20qRJPcfJ8p53GQiWI0ZYQb3kQ8wKj9C14D15zo=;
-        b=QvC6vCRAMW6GvFjK2grGzi44AAAhqGpTnyQQZuf/x2Z0hXR6Jo249CY5k0DDsVMjiR
-         x1vABlmdBqBKclmZAC9NrioeXRKeurD7t5E/UuSVzIe/zkqJ5dNDHIOuo+DVScsKIR+D
-         HvE7sCEY8iO3CuIC3BSj5KezyFWDqm4LXunE4P9k8jJzea9ILNK2/CUEHavD5ydK4t3n
-         ERAlh/V57VPZazSaeBeOLf9osMTN4uNbTvjNIvi4KZW6iOg/DiOzQns2Lg4Aczo5RyME
-         g0aMLPA8Gkn88S4cZEM5PW55BiiMUoZeKOK9sqipt3cDBwlUaUOplcnG4iGvVi2BRQpE
-         aa3Q==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=rRhheBqnK3+cjDjuz6CHnpsz5YflbO5z8PXp1A2YK5w=;
+        b=IznznTU+QVVZa2h0KEncZgUhRi6BwRI3jN3+Ra883ATXwXqyuepMgRfvlDmPOS3wS/
+         zJf0m/sZRzTGRmjtRnZ2vjn58yKgNdrbGlBOTcJLS6Je5JZ40EUr29RvfDif9KF7aQ1e
+         lFgSvf0CUyT2sfxLQTjwwU6ZSFD6cIOyhDoSoeklEQ3bSNE164OXiuThFiE3PH8gy7jJ
+         N9oSZTRc7HO0fHJ7LgegoyeyhACkidn6GIzgoy+Ngk25dXf5rxujA3ecxUOxrZ+oAh6E
+         b/B25D1dXY883cTuHvwlFrY9vdU9HZzZMcZoHvI4L2LCd9OCw6DL0z38nKxYBhUF4TBG
+         Ojyw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=dj10JLqr;
-       spf=pass (google.com: domain of prvs=31176506d8=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=31176506d8=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0a-00082601.pphosted.com. [67.231.145.42])
-        by mx.google.com with ESMTPS id k13si38043093pgj.525.2019.08.02.12.22.52
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="byi/JLB7";
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id x4si37855707pln.70.2019.08.02.12.26.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 12:22:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=31176506d8=guro@fb.com designates 67.231.145.42 as permitted sender) client-ip=67.231.145.42;
+        Fri, 02 Aug 2019 12:26:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=dj10JLqr;
-       spf=pass (google.com: domain of prvs=31176506d8=guro@fb.com designates 67.231.145.42 as permitted sender) smtp.mailfrom="prvs=31176506d8=guro@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0044012.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x72JJqFj022956
-	for <linux-mm@kvack.org>; Fri, 2 Aug 2019 12:22:52 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : mime-version : content-type; s=facebook;
- bh=19Ja20qRJPcfJ8p53GQiWI0ZYQb3kQ8wKj9C14D15zo=;
- b=dj10JLqr4TfBGwCeyDo/3BMpKggBGMOPO+uvDx1zGiGrxvKvORY5RcF/eebwabL4khdX
- KUGZg43cUkrqp0VajwiIkwPNtKUFyyRNgJ9kfnis1SdSSRq4mUVLf09M9lo8sKdw0CIB
- 019IhIbD7iDU9LacYmcloNto77/2U8Abrdo= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by mx0a-00082601.pphosted.com with ESMTP id 2u4s2tgj9n-2
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 02 Aug 2019 12:22:52 -0700
-Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
- mail.thefacebook.com (2620:10d:c081:35::129) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
- Fri, 2 Aug 2019 12:22:51 -0700
-Received: by devvm2643.prn2.facebook.com (Postfix, from userid 111017)
-	id 6989B153186A0; Fri,  2 Aug 2019 12:22:47 -0700 (PDT)
-Smtp-Origin-Hostprefix: devvm
-From: Roman Gushchin <guro@fb.com>
-Smtp-Origin-Hostname: devvm2643.prn2.facebook.com
-To: Andrew Morton <akpm@linux-foundation.org>, <linux-mm@kvack.org>
-CC: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>,
-        <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>,
-        Roman Gushchin
-	<guro@fb.com>, Michal Hocko <mhocko@suse.com>,
-        Hillf Danton
-	<hdanton@sina.com>
-Smtp-Origin-Cluster: prn2c23
-Subject: [PATCH v2] mm: memcontrol: switch to rcu protection in drain_all_stock()
-Date: Fri, 2 Aug 2019 12:22:41 -0700
-Message-ID: <20190802192241.3253165-1-guro@fb.com>
-X-Mailer: git-send-email 2.17.1
-X-FB-Internal: Safe
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="byi/JLB7";
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d448e710000>; Fri, 02 Aug 2019 12:26:41 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Fri, 02 Aug 2019 12:26:39 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Fri, 02 Aug 2019 12:26:39 -0700
+Received: from [10.2.171.217] (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 2 Aug
+ 2019 19:26:39 +0000
+Subject: Re: [PATCH 20/34] xen: convert put_page() to put_user_page*()
+To: "Weiny, Ira" <ira.weiny@intel.com>, Juergen Gross <jgross@suse.com>,
+	"john.hubbard@gmail.com" <john.hubbard@gmail.com>, Andrew Morton
+	<akpm@linux-foundation.org>
+CC: "devel@driverdev.osuosl.org" <devel@driverdev.osuosl.org>, Dave Chinner
+	<david@fromorbit.com>, Christoph Hellwig <hch@infradead.org>, "Williams, Dan
+ J" <dan.j.williams@intel.com>, "x86@kernel.org" <x86@kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, Dave Hansen
+	<dave.hansen@linux.intel.com>, "amd-gfx@lists.freedesktop.org"
+	<amd-gfx@lists.freedesktop.org>, "dri-devel@lists.freedesktop.org"
+	<dri-devel@lists.freedesktop.org>, "intel-gfx@lists.freedesktop.org"
+	<intel-gfx@lists.freedesktop.org>, "linux-arm-kernel@lists.infradead.org"
+	<linux-arm-kernel@lists.infradead.org>,
+	"linux-rpi-kernel@lists.infradead.org"
+	<linux-rpi-kernel@lists.infradead.org>, "devel@lists.orangefs.org"
+	<devel@lists.orangefs.org>, "xen-devel@lists.xenproject.org"
+	<xen-devel@lists.xenproject.org>, Boris Ostrovsky
+	<boris.ostrovsky@oracle.com>, "rds-devel@oss.oracle.com"
+	<rds-devel@oss.oracle.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+	<jglisse@redhat.com>, Jan Kara <jack@suse.cz>, "ceph-devel@vger.kernel.org"
+	<ceph-devel@vger.kernel.org>, "kvm@vger.kernel.org" <kvm@vger.kernel.org>,
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+	"linux-crypto@vger.kernel.org" <linux-crypto@vger.kernel.org>,
+	"linux-fbdev@vger.kernel.org" <linux-fbdev@vger.kernel.org>,
+	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>, LKML
+	<linux-kernel@vger.kernel.org>, "linux-media@vger.kernel.org"
+	<linux-media@vger.kernel.org>, "linux-nfs@vger.kernel.org"
+	<linux-nfs@vger.kernel.org>, "linux-rdma@vger.kernel.org"
+	<linux-rdma@vger.kernel.org>, "linux-xfs@vger.kernel.org"
+	<linux-xfs@vger.kernel.org>, "netdev@vger.kernel.org"
+	<netdev@vger.kernel.org>, "sparclinux@vger.kernel.org"
+	<sparclinux@vger.kernel.org>, Jason Gunthorpe <jgg@ziepe.ca>
+References: <20190802022005.5117-1-jhubbard@nvidia.com>
+ <20190802022005.5117-21-jhubbard@nvidia.com>
+ <4471e9dc-a315-42c1-0c3c-55ba4eeeb106@suse.com>
+ <d5140833-e9ee-beb5-ff0a-2d13a4fe819f@nvidia.com>
+ <d4931311-db01-e8c3-0f8c-d64685dc2143@suse.com>
+ <2807E5FD2F6FDA4886F6618EAC48510E79E66216@CRSMSX101.amr.corp.intel.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <746b2412-f48a-9722-2763-253a1b9c899d@nvidia.com>
+Date: Fri, 2 Aug 2019 12:25:01 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-02_08:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=912 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908020203
-X-FB-Internal: deliver
+In-Reply-To: <2807E5FD2F6FDA4886F6618EAC48510E79E66216@CRSMSX101.amr.corp.intel.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1564774001; bh=rRhheBqnK3+cjDjuz6CHnpsz5YflbO5z8PXp1A2YK5w=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=byi/JLB7CNtV06561y8XoJ3SAPfLWvMAReG7pbHQL4vyYMWIeKNh0N7pvRnXFQG1L
+	 qdrcKeqyYLdfyHlBvNt3iltX04f4l9yslTmpDdtWvq1t3b7bkuO+rrbkZHys+WsmhV
+	 6Aa9W+8qQAz5X83c7tyDcDc6Mg36wKOuzq27pabbfn+69ez0SBMHEuaNtlKh20Fcaj
+	 gTip6LdymKj+uFDjnVTxb7sYVNWRS9rebCu5gBiFOf/CT8TUXKtD/8+Sk9b10OKO7l
+	 1Y0kk6maXEh1JdSy6qqRDc1JYyIdeVQu9Kdnt4cKXn6PzYq3IXSks/FI+pwJb3dRVj
+	 9ZhtT6T5hfRNQ==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Commit 72f0184c8a00 ("mm, memcg: remove hotplug locking from try_charge")
-introduced css_tryget()/css_put() calls in drain_all_stock(),
-which are supposed to protect the target memory cgroup from being
-released during the mem_cgroup_is_descendant() call.
+On 8/2/19 9:09 AM, Weiny, Ira wrote:
+>>
+>> On 02.08.19 07:48, John Hubbard wrote:
+>>> On 8/1/19 9:36 PM, Juergen Gross wrote:
+>>>> On 02.08.19 04:19, john.hubbard@gmail.com wrote:
+>>>>> From: John Hubbard <jhubbard@nvidia.com>
+>>> ...
+>>> If that's not the case (both here, and in 3 or 4 other patches in this
+>>> series, then as you said, I should add NULL checks to put_user_pages()
+>>> and put_user_pages_dirty_lock().
+>>
+>> In this case it is not correct, but can easily be handled. The NULL case can
+>> occur only in an error case with the pages array filled partially or not at all.
+>>
+>> I'd prefer something like the attached patch here.
+> 
+> I'm not an expert in this code and have not looked at it carefully but that patch does seem to be the better fix than forcing NULL checks on everyone.
+> 
 
-However, it's not completely safe. In theory, memcg can go away
-between reading stock->cached pointer and calling css_tryget().
+OK, I'll use Juergen's approach, and also check for that pattern in the
+other patches.
 
-This can happen if drain_all_stock() races with drain_local_stock()
-performed on the remote cpu as a result of a work, scheduled
-by the previous invocation of drain_all_stock().
 
-The race is a bit theoretical and there are few chances to trigger
-it, but the current code looks a bit confusing, so it makes sense
-to fix it anyway. The code looks like as if css_tryget() and
-css_put() are used to protect stocks drainage. It's not necessary
-because stocked pages are holding references to the cached cgroup.
-And it obviously won't work for works, scheduled on other cpus.
-
-So, let's read the stock->cached pointer and evaluate the memory
-cgroup inside a rcu read section, and get rid of
-css_tryget()/css_put() calls.
-
-v2: added some explanations to the commit message, no code changes
-
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Hillf Danton <hdanton@sina.com>
----
- mm/memcontrol.c | 17 +++++++++--------
- 1 file changed, 9 insertions(+), 8 deletions(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 5c7b9facb0eb..d856b64426b7 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -2235,21 +2235,22 @@ static void drain_all_stock(struct mem_cgroup *root_memcg)
- 	for_each_online_cpu(cpu) {
- 		struct memcg_stock_pcp *stock = &per_cpu(memcg_stock, cpu);
- 		struct mem_cgroup *memcg;
-+		bool flush = false;
- 
-+		rcu_read_lock();
- 		memcg = stock->cached;
--		if (!memcg || !stock->nr_pages || !css_tryget(&memcg->css))
--			continue;
--		if (!mem_cgroup_is_descendant(memcg, root_memcg)) {
--			css_put(&memcg->css);
--			continue;
--		}
--		if (!test_and_set_bit(FLUSHING_CACHED_CHARGE, &stock->flags)) {
-+		if (memcg && stock->nr_pages &&
-+		    mem_cgroup_is_descendant(memcg, root_memcg))
-+			flush = true;
-+		rcu_read_unlock();
-+
-+		if (flush &&
-+		    !test_and_set_bit(FLUSHING_CACHED_CHARGE, &stock->flags)) {
- 			if (cpu == curcpu)
- 				drain_local_stock(&stock->work);
- 			else
- 				schedule_work_on(cpu, &stock->work);
- 		}
--		css_put(&memcg->css);
- 	}
- 	put_cpu();
- 	mutex_unlock(&percpu_charge_mutex);
+thanks,
 -- 
-2.21.0
+John Hubbard
+NVIDIA
 
