@@ -2,365 +2,230 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A39BC32750
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 20:07:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C0FB8C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 20:23:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 00304205F4
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 20:07:14 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="fNGtePxM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 00304205F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id 77AA6206A3
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 20:23:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 77AA6206A3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 963E46B0006; Fri,  2 Aug 2019 16:07:14 -0400 (EDT)
+	id DEB5E6B0003; Fri,  2 Aug 2019 16:23:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9140C6B0008; Fri,  2 Aug 2019 16:07:14 -0400 (EDT)
+	id D9D646B0005; Fri,  2 Aug 2019 16:23:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7DC156B000A; Fri,  2 Aug 2019 16:07:14 -0400 (EDT)
+	id C640D6B0006; Fri,  2 Aug 2019 16:23:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BFFA6B0006
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 16:07:14 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id f3so47592507edx.10
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 13:07:14 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 8FAE76B0003
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 16:23:15 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id a21so41231469pgv.0
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 13:23:15 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:accept-language:content-language
-         :content-id:content-transfer-encoding:mime-version;
-        bh=B62krEMnULqaKcJvzNM9gnUzZfBmp8DvTgEeNrk/xNU=;
-        b=ED260hRQlR2qZv+RVXve7UBcL9ctzwM3gcu4Z6Q62eVcPWUeIM125IgD79BXhDYmf4
-         jhQdujV/j8PtpR7sdF/MuIGQUXnY2stsS7yofHe7B7+Pzn2rtSq2ffDKd+GJI9FctDnc
-         YlgGrZMZ0cycRM9nQ1GITAjWACqYgUA0zQElFZqFBA/HwogO9TgU3OkuPgnfIQVm68GV
-         r3kfNKa4LlKCmis+3bsaC/i4q+p7eJ6SAIZN8m2gP2cbVaoE0G/cftJeZcMXJA+3PGrP
-         VGK8lRgOUy19vGQj0IJ8EUQpq1VHsBftO882PF34xW4nxrj7Yt3X3jCXqnesbMEu39/c
-         EEMw==
-X-Gm-Message-State: APjAAAWyUiBVTdH0zdHskeIPYmSwVJ61VnQm8Pk1yfqDu/3RE0MU9H1C
-	iqmuWIptigS2quVWdPK6xP+iDw0GU/6Llp8jQW5f4/65SEgM2Q10sRi0+QqcBZg8yFQN/eBZ52o
-	6iJvQFl1wPGlqvnRz6ybN29WtrkkogKQSoXG71q9VcNpOXSEO+vKPCeVX6D15MrXYew==
-X-Received: by 2002:a50:aed6:: with SMTP id f22mr121880708edd.59.1564776433670;
-        Fri, 02 Aug 2019 13:07:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzDrSB5BIciP4HI0Rcz9r3u28A0ToGOCCD2TQZpx6eSfyIIyA5K5Au7SBjXvdbiWlHWv5Ic
-X-Received: by 2002:a50:aed6:: with SMTP id f22mr121880648edd.59.1564776432707;
-        Fri, 02 Aug 2019 13:07:12 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1564776432; cv=pass;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=xys9TyxEqEMujzeooIIYd3Bw4lde42i+TGmQE2EgBJg=;
+        b=FPuFvBS1QiJLYtv87J8tR5mksswid2igp7p4YJefnFNAj1LXNBssl/hkW1NCAWdKwV
+         0efvl+TTvEutqAT/lXt4EDKleJb3lYpeCFDw0RR+EVcx2Ev11BaqLGIqhdw1EMwlzxrs
+         EoHBpmy5pMO8fbCsaxoc4k9YN/8dSq5fydb6GG1bHzaQgm6LLrWBJrngBQUOrp62QTPe
+         F/u/IsRnRi7Hn8TS5l6dhzSmCL/c5g15NZLgrV2P2KkoU2e/A4PEimi4bAqHIK1zggyC
+         OZ6bCxUhUpg/DGbUBcqPzUR8j7Vk9S5rB14KTqAa0BdopT3mpUAojXswy5jahVhv3rVT
+         JHhw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+X-Gm-Message-State: APjAAAX5ZBF8bfsEB6XhUChG7jsxBG/KPQM2pneAdJ5cW4aVKbKwoA3A
+	Tw7Nevy2gEetO87EIQEAi3nlk6zmvIGM2SH9lelz5Nje9w7zxxm3PI9h13DtcXXHzRWIWTSXdS/
+	GSQnu3Ndz0oAe3TaaIZYSeaOxe72EBuXVVyVoUM8ayr2J9LvTKeAq18SovJWuoiM4UQ==
+X-Received: by 2002:a63:f401:: with SMTP id g1mr129695836pgi.314.1564777395141;
+        Fri, 02 Aug 2019 13:23:15 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwMxa4qCILrQ0z62pq7JoymlFn9+IMAMjdkWJcuzCh1iDS3DwhClhrKrBx4bab6MNrw7vf7
+X-Received: by 2002:a63:f401:: with SMTP id g1mr129695786pgi.314.1564777393965;
+        Fri, 02 Aug 2019 13:23:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564777393; cv=none;
         d=google.com; s=arc-20160816;
-        b=QNODRFTwHAKTX82cMDp/UyLdGhgNdZx1yLCrTzGuWxayG2aP0b+FLExwZpM08fzajt
-         kJaN0NzSDEg4zSBB+v5eH6+SE6E/dI2VK4un2lEny7gXLSz3aj+T7YeKOl14MMcH6tFy
-         SyPrO1377Z9iQeLD4kDdH3ubjnSwC0c+/FwSq0EPDe47fJYcFHH5DauElbi1FU88GJuh
-         knc4/lureV0mwVZhNpOh3QQQH8407Scnoalr6k76wpOCHCfUFFeId1VRQNjqGOHoIBF6
-         jOsLbs16wvB2QfhDEjnJVr30lpdLyH9AUlFQZqL8Zop2xAP9yvPQkUbfEtVXVteVN4//
-         0fDQ==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:message-id:date:thread-index:thread-topic:subject
-         :cc:to:from:dkim-signature;
-        bh=B62krEMnULqaKcJvzNM9gnUzZfBmp8DvTgEeNrk/xNU=;
-        b=jUn9FvkHLKxp+BPThFObV71nzvqrlRKYb5C/GSCNSQe+WLK18qHz0fLJLQi0E1FQbH
-         6K8i4CKxM9h7YRu975BdzbIJ63ykmpAGwAWZIPvI1E7Jfqz+QH5xAAK5dSJxUnFwnTR8
-         kQwisX2desxikUO9ZGCmPIpJRoddBWzcvoltZB+U5EcoGHHDrSSnJguRbo1kTytYguJp
-         sSkQVPL8y9eZPQN55u5bd0XES4zw+jGWF4WBZmSiT1EsyKjh1skreVmmsTjilsEJRs2J
-         OMaNl7tRdocpzkZG6+3ZQ2fRf8OXBtYM44ImnKgCZHw5JtBoZW3wSusAtDRT39m3RUGK
-         T91w==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=fNGtePxM;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.1.76 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR02-HE1-obe.outbound.protection.outlook.com (mail-eopbgr10076.outbound.protection.outlook.com. [40.107.1.76])
-        by mx.google.com with ESMTPS id s41si24407231edd.252.2019.08.02.13.07.12
+        b=GOZ0gDDTpUXPCbUk/I79yMRSrF/7Rfpfom/hWCAU5VCMqLggIK2cw0t0iOZJzrHrY/
+         iRmc405xD94VID9y6lpfmqoaBRUhv8D2agqSFBXhm5DbLYlliWTe7xkR0aXRSwtZBqf9
+         k8cBP1K5/K8UKlKtWFKkL7vmX40XZ7Hl7Qr3GFn6E84wAx7CgS1gN66jY1xYrjEOPMUA
+         Bv24YI3ToOBb8QhXOjyIhW4KlMJgiohO10u1WGjnFtd3fs+i7mnMr6Y1P5k8qCyEPWZ1
+         B+Xaj8FlKxfVtzMpG4370iAei1nu82E0itYlI5Fi7C4/kyy5BAO2GesxoZu3uQn2TyBS
+         pF2A==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date;
+        bh=xys9TyxEqEMujzeooIIYd3Bw4lde42i+TGmQE2EgBJg=;
+        b=xVUg7KsKDCEbQ0g2xGiu0c6B6ul/fgYI4CJiMHpkFqKvkkRagyevgtxM1WmRmVDdb+
+         tVUNOIEXw8qfArcbbUyhoBOq3X8KdYCGiUCg030uNqY+Wn6miG9D/56Y3ddxIVz79qkE
+         8yMVBSNEHUjQ0v3zOW9ZvoxSPO6sh2g9klNj4dEm4DbQ3fgTDEsNwHLYxvHme7diHFR0
+         gLJDxdfb73qTDgXPaLv1wlw1YPjweXwUuU6lZdVSYBQEjAHgnL7H//K5hj3BxJIHLaSq
+         DGUElSG144x2tnIGN/quFJrl8aUm+RtDuILVioKH8odRfi+pfkvidrX5ZtDGWwycA0wR
+         9rDA==
+ARC-Authentication-Results: i=1; mx.google.com;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.linuxfoundation.org (mail.linuxfoundation.org. [140.211.169.12])
+        by mx.google.com with ESMTPS id u71si40358964pgd.279.2019.08.02.13.23.13
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-SHA bits=128/128);
-        Fri, 02 Aug 2019 13:07:12 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.1.76 as permitted sender) client-ip=40.107.1.76;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 02 Aug 2019 13:23:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) client-ip=140.211.169.12;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=fNGtePxM;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.1.76 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=QSZNA9GSIWwXj6XX/DrO4X5PhBXdNLZiCIabdxsfHWv1u1kFzaBbMDNk7XxMcItDSe48McmDfogSpyRsiPHqzpv1NPddAi/MDrcXXJaw4FLTtOVlUTYCRo2svmOHO7V472sQiObvokj/Yc5joPHB+TBg67wAdtIo53ok0VC5J3jWqauzRG97RjaJhwB9pURsvqLgTwg3zs635wGs4F8ToCKEdOT5tHzs7IOj3QsqjwODoIG4Fr/P2NAae3OooV5JWig3RnV/ajwWvl6MSZdDRFxrJtuZ3k+8nRDxaZG2pK2y+vD6Jg3jTdzO9mt4362tBtD70yUp6I2sLnmMdtdCDQ==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=B62krEMnULqaKcJvzNM9gnUzZfBmp8DvTgEeNrk/xNU=;
- b=fyyIs7M+cs8lKzPwc/Pj2PfiMCDbMgrPpMZAG0P5VASnjnMwNYPTFZrvqu8sSq08BJQJ2lS/75qWNjNZ/IVfV82ex5W95Tm1l0D5gQuKXKdPauk66kOjfLNPTeCpIGf2IqW0RD0AytA5YFgljfFPBN93+zwMsh8vO/v7M+aPDR8tzebwPahPyt+uuSVIq/1Gb4Q1K7D64IYwV8iL8pEIWDYWZoTchdc6h61/6ZyQrlXmEFpIn6cV0yNDhQfcNYyr83oqC0zZq98G5/oms99Rmo+Oai5BfNliN3kbgLDW/SBeYVhQflqTUO+cIGWjyt2si/c3XgKaGDy2PLdwR0UNlw==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=mellanox.com;dmarc=pass action=none
- header.from=mellanox.com;dkim=pass header.d=mellanox.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=B62krEMnULqaKcJvzNM9gnUzZfBmp8DvTgEeNrk/xNU=;
- b=fNGtePxMWyWR0fEHVCuWrsD1lw1UML2bKWKVC4ycf/qETUp15y2QayH6dfgfSFTJ5WZxGPPCRyZVFrOggvY71BNxGU8M50z2mLn66N57oGmWotylQlj3WVtYs2kX/fVsKaazXs2bck+E69hyDPAliBXOC5K2rFgg1OKfV6yC+T4=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB6477.eurprd05.prod.outlook.com (20.179.26.150) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2136.17; Fri, 2 Aug 2019 20:07:11 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880%4]) with mapi id 15.20.2136.010; Fri, 2 Aug 2019
- 20:07:11 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: "dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Ben
- Goz <ben.goz@amd.com>, Oded Gabbay <oded.gabbay@amd.com>
-CC: Christoph Hellwig <hch@infradead.org>, "amd-gfx@lists.freedesktop.org"
-	<amd-gfx@lists.freedesktop.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"Kuehling, Felix" <Felix.Kuehling@amd.com>
-Subject: [PATCH hmm] drm/amdkfd: fix a use after free race with mmu_notififer
- unregister
-Thread-Topic: [PATCH hmm] drm/amdkfd: fix a use after free race with
- mmu_notififer unregister
-Thread-Index: AQHVSW3eVhbq/l2AtU+wYY32iYZXvQ==
-Date: Fri, 2 Aug 2019 20:07:10 +0000
-Message-ID: <20190802200705.GA10110@ziepe.ca>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YT1PR01CA0030.CANPRD01.PROD.OUTLOOK.COM (2603:10b6:b01::43)
- To VI1PR05MB4141.eurprd05.prod.outlook.com (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 635b10e8-0234-4922-9556-08d7178500d4
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6477;
-x-ms-traffictypediagnostic: VI1PR05MB6477:
-x-ms-exchange-purlcount: 1
-x-microsoft-antispam-prvs:
- <VI1PR05MB64775D6B9AF865A8D70EC94BCFD90@VI1PR05MB6477.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:5236;
-x-forefront-prvs: 011787B9DD
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(376002)(396003)(39860400002)(366004)(346002)(136003)(199004)(189003)(66946007)(4326008)(102836004)(1076003)(66446008)(64756008)(66556008)(66476007)(86362001)(186003)(14454004)(6436002)(6116002)(966005)(2906002)(66066001)(68736007)(386003)(316002)(26005)(5660300002)(476003)(486006)(3846002)(33656002)(8936002)(36756003)(256004)(14444005)(71200400001)(81156014)(81166006)(71190400001)(110136005)(6506007)(52116002)(53936002)(25786009)(54906003)(6512007)(9686003)(6306002)(8676002)(7736002)(478600001)(305945005)(6486002)(99286004)(2501003);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6477;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- Sx6FQxaCkoWS2vdDi4g2N3ZcMzBGGSgN5h5N9oOnvHml3UhJRjUSFejzuh/FlAaX0eUmw9+0+0K09o5u9fPmc+XRgeQ6utQVdwrlVzO8XhX9R3QT9Kc/HduzyGLok4Cc3JXaNMaGBYnm39IYyefUXlWVanKPebxjbyKTXiYDqAd/Pw2JHB/5yoLWcGlH0YPkXk+YKzx3SWCX6BzzZXN40KmeDVIF9pXzpMIOjixxLDa7QEqQELIvgo82KJsJTmrFQwWSfmrz6Uw+i59Q8j9iY02fC/dXj+HJ3HAUZl9Y3rULA5V1GTjDxcKQrjV1juPhzHOPH8ruNtlXe3SGTjmY4s5vH5cPhZXEccgc4JYc1ZuSaLl6pd7FsdnFFW+pZkeBHZHpsY/BdK6ZWTJo2ZZIytfyMZ1xoK72a4ZLGWQmB2U=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <DF401B70D0E89E45B2E3B3A0247EBB76@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
-MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 635b10e8-0234-4922-9556-08d7178500d4
-X-MS-Exchange-CrossTenant-originalarrivaltime: 02 Aug 2019 20:07:10.9864
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6477
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 140.211.169.12 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from X1 (unknown [76.191.170.112])
+	by mail.linuxfoundation.org (Postfix) with ESMTPSA id DF84613A2;
+	Fri,  2 Aug 2019 20:23:08 +0000 (UTC)
+Date: Fri, 2 Aug 2019 13:23:06 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: petr@vandrovec.name
+Cc: bugzilla-daemon@bugzilla.kernel.org, Christian Koenig
+ <christian.koenig@amd.com>, Huang Rui <ray.huang@amd.com>, David Airlie
+ <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>,
+ dri-devel@lists.freedesktop.org, linux-mm@kvack.org
+Subject: Re: [Bug 204407] New: Bad page state in process Xorg
+Message-Id: <20190802132306.e945f4420bc2dcddd8d34f75@linux-foundation.org>
+In-Reply-To: <bug-204407-27@https.bugzilla.kernel.org/>
+References: <bug-204407-27@https.bugzilla.kernel.org/>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When using mmu_notififer_unregister_no_release() the caller must ensure
-there is a SRCU synchronize before the mn memory is freed, otherwise use
-after free races are possible, for instance:
+(switched to email.  Please respond via emailed reply-to-all, not via the
+bugzilla web interface).
 
-     CPU0                                      CPU1
-                                      invalidate_range_start
-                                         hlist_for_each_entry_rcu(..)
- mmu_notifier_unregister_no_release(&p->mn)
- kfree(mn)
-                                      if (mn->ops->invalidate_range_end)
+On Thu, 01 Aug 2019 22:34:16 +0000 bugzilla-daemon@bugzilla.kernel.org wrote:
 
-The error unwind in amdkfd misses the SRCU synchronization.
+> https://bugzilla.kernel.org/show_bug.cgi?id=204407
+> 
+>             Bug ID: 204407
+>            Summary: Bad page state in process Xorg
+>            Product: Memory Management
+>            Version: 2.5
+>     Kernel Version: 5.3.0-rc2-00013
+>           Hardware: All
+>                 OS: Linux
+>               Tree: Mainline
+>             Status: NEW
+>           Severity: normal
+>           Priority: P1
+>          Component: Page Allocator
+>           Assignee: akpm@linux-foundation.org
+>           Reporter: petr@vandrovec.name
+>         Regression: No
+> 
+> Created attachment 284081
+>   --> https://bugzilla.kernel.org/attachment.cgi?id=284081&action=edit
+> dmesg
+> 
+> I've upgraded from 5.3-rc1 to 5.3-rc2, and when I started X server, system
+> became unhappy:
+> 
+> [259701.387365] BUG: Bad page state in process Xorg  pfn:2a300
+> [259701.393593] page:ffffea0000a8c000 refcount:0 mapcount:-128
+> mapping:0000000000000000 index:0x0
+> [259701.402832] flags: 0x2000000000000000()
+> [259701.407426] raw: 2000000000000000 ffffffff822ab778 ffffea0000a8f208
+> 0000000000000000
+> [259701.415900] raw: 0000000000000000 0000000000000003 00000000ffffff7f
+> 0000000000000000
+> [259701.424373] page dumped because: nonzero mapcount
+> [259701.429847] Modules linked in: af_packet xt_REDIRECT nft_compat x_tables
+> nft_counter nft_chain_nat nf_nat nf_conntrack nf_defrag_ipv4 nf_tables
+> nfnetlink ppdev parport fuse autofs4 binfmt_misc uinput twofish_generic
+> twofish_avx_x86_64 twofish_x86_64_3way twofish_x86_64 twofish_common
+> camellia_generic camellia_aesni_avx_x86_64 camellia_x86_64 serpent_avx_x86_64
+> serpent_sse2_x86_64 serpent_generic blowfish_generic blowfish_x86_64
+> blowfish_common cast5_avx_x86_64 cast5_generic cast_common des_generic cmac
+> xcbc rmd160 af_key xfrm_algo rpcsec_gss_krb5 nfsv4 nls_iso8859_2 cifs libarc4
+> nfsv3 nfsd auth_rpcgss nfs_acl nfs lockd grace fscache sunrpc ipv6 crc_ccitt
+> nf_defrag_ipv6 snd_hda_codec_hdmi pktcdvd coretemp hwmon intel_rapl_common
+> iosf_mbi x86_pkg_temp_thermal snd_hda_codec_realtek snd_hda_codec_generic
+> ledtrig_audio snd_hda_intel snd_hda_codec crct10dif_pclmul crc32_pclmul
+> snd_hwdep crc32c_intel snd_hda_core ghash_clmulni_intel snd_pcm_oss uas
+> iTCO_wdt aesni_intel e1000e
+> [259701.429873]  snd_mixer_oss iTCO_vendor_support aes_x86_64 snd_pcm
+> crypto_simd ptp mei_me dcdbas lpc_ich sr_mod cryptd usb_storage snd_timer
+> glue_helper mfd_core input_leds pps_core tpm_tis cdrom i2c_i801 snd mei
+> tpm_tis_core sg tpm [last unloaded: parport_pc]
+> [259701.539387] CPU: 10 PID: 4860 Comm: Xorg Tainted: G                T
+> 5.3.0-rc2-64-00013-g03f05a670a3d #69
+> [259701.549382] Hardware name: Dell Inc. Precision T3610/09M8Y8, BIOS A16
+> 02/05/2018
+> [259701.549382] Call Trace:
+> [259701.549382]  dump_stack+0x46/0x60
+> [259701.549382]  bad_page.cold.28+0x81/0xb4
+> [259701.549382]  __free_pages_ok+0x236/0x240
+> [259701.549382]  __ttm_dma_free_page+0x2f/0x40
+> [259701.549382]  ttm_dma_unpopulate+0x29b/0x370
+> [259701.549382]  ttm_tt_destroy.part.6+0x44/0x50
+> [259701.549382]  ttm_bo_cleanup_memtype_use+0x29/0x70
+> [259701.549382]  ttm_bo_put+0x225/0x280
+> [259701.549382]  ttm_bo_vm_close+0x10/0x20
+> [259701.549382]  remove_vma+0x20/0x40
+> [259701.549382]  __do_munmap+0x2da/0x420
+> [259701.549382]  __vm_munmap+0x66/0xc0
+> [259701.549382]  __x64_sys_munmap+0x22/0x30
+> [259701.549382]  do_syscall_64+0x5e/0x1a0
+> [259701.549382]  ? prepare_exit_to_usermode+0x75/0xa0
+> [259701.549382]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+> [259701.549382] RIP: 0033:0x7f504d0ec1d7
+> [259701.549382] Code: 10 e9 67 ff ff ff 0f 1f 44 00 00 48 8b 15 b1 6c 0c 00 f7
+> d8 64 89 02 48 c7 c0 ff ff ff ff e9 6b ff ff ff b8 0b 00 00 00 0f 05 <48> 3d 01
+> f0 ff ff 73 01 c3 48 8b 0d 89 6c 0c 00 f7 d8 64 89 01 48
+> [259701.549382] RSP: 002b:00007ffe529db138 EFLAGS: 00000206 ORIG_RAX:
+> 000000000000000b
+> [259701.549382] RAX: ffffffffffffffda RBX: 0000564a5eabce70 RCX:
+> 00007f504d0ec1d7
+> [259701.549382] RDX: 00007ffe529db140 RSI: 0000000000400000 RDI:
+> 00007f5044b65000
+> [259701.549382] RBP: 0000564a5eafe460 R08: 000000000000000b R09:
+> 000000010283e000
+> [259701.549382] R10: 0000000000000001 R11: 0000000000000206 R12:
+> 0000564a5e475b08
+> [259701.549382] R13: 0000564a5e475c80 R14: 00007ffe529db190 R15:
+> 0000000000000c80
+> [259701.707238] Disabling lock debugging due to kernel taint
 
-amdkfd keeps the kfd_process around until the mm is released, so split the
-flow to fully initialize the kfd_process and register it for find_process,
-and with the notifier. Past this point the kfd_process does not need to be
-cleaned up as it is fully ready.
+I assume the above is misbehaviour in the DRM code?
 
-The final failable step does a vm_mmap() and does not seem to impact the
-kfd_process global state. Since it also cannot be undone (and already has
-problems with undo if it internally fails), it has to be last.
+> 
+> Also - maybe related, maybe not - I've got three userspace crashes earlier on
+> this kernel (but never before):
+> 
+> [77154.886836] iscons.py[12441]: segfault at 2c ip 00000000080cf0b5 sp
+> 00000000f773fb60 error 4 in python[8048000+11a000]
+> [77154.898376] Code: 02 0f 84 4a 2e 00 00 8b 4d 08 8b bd 04 ff ff ff 8b 59 38
+> 8b 57 20 8b 7b 10 85 ff 0f 84 ee 22 00 00 8b 8d 04 ff ff ff 8b 59 08 <8b> 43 2c
+> 85 c0 0f 84 3c e3 ff ff 8b 51 34 8b 71 38 8b 79 3c ff 00
+> [119529.983163] in.telnetd[616]: segfault at 0 ip 0000555fdfa09a05 sp
+> 00007ffd8fc05380 error 4 in in.telnetd[555fdfa06000+b000]
+> [119529.995783] Code: 8d 3d c2 76 00 00 e8 9a 2b 00 00 e9 25 fe ff ff be f2 00
+> 00 00 48 8d 3d ac 76 00 00 e8 84 2b 00 00 eb 96 48 8b 05 63 ee 00 00 <0f> b6 00
+> e9 fa fe ff ff 44 89 ee 48 8d 3d 8c 76 00 00 e8 64 2b 00
+> [120884.183003] iscons.py[10779]: segfault at 2c ip 00000000080d0dc2 sp
+> 00000000f7702b60 error 4 in python[8048000+11a000]
+> [120884.195182] Code: 4c 24 08 89 44 24 04 89 3c 24 e8 d9 0b 01 00 8b 55 f0 8b
+> 7d e8 8b 4d ec 8b 85 04 ff ff ff 89 55 84 89 7d 8c 89 4d 88 8b 50 08 <8b> 7a 2c
+> 85 ff 0f 84 3c 10 00 00 8b bd 04 ff ff ff 89 f8 8b 57 34
+> 
+> I've investigated in.telnetd in detail as I was worried if there is some 0-day
+> being used on my system - and as far as I could tell, problem is that part of
+> the .bss turned to zeroes after process did fork/exec - there was NULL in the
+> variable that cannot have NULL as variable is set to non-NULL value during
+> in.telnetd initialization.
+> 
+> iscons crashes are from NULL pointer dereference too, and iscons does lot of
+> fork/exec as well.
 
-This way we don't have to try to unwind the mmu_notifier_register() and
-avoid the problem with the SRCU.
-
-Along the way this also fixes various other error unwind bugs in the flow.
-
-Fixes: 45102048f77e ("amdkfd: Add process queue manager module")
-Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
----
- drivers/gpu/drm/amd/amdkfd/kfd_process.c | 74 +++++++++++-------------
- 1 file changed, 35 insertions(+), 39 deletions(-)
-
-amdkfd folks, this little bug is blocking some rework I have for the
-mmu notifiers (ie mm/mmu_notifiers: remove unregister_no_release)
-
-Can I get your help to review and if needed polish this change? I'd
-like to send this patch through the hmm tree along with the rework,
-thanks
-
-You can see the larger series here:
-
-https://github.com/jgunthorpe/linux/commits/mmu_notifier
-
-Jason
-
-diff --git a/drivers/gpu/drm/amd/amdkfd/kfd_process.c b/drivers/gpu/drm/amd=
-/amdkfd/kfd_process.c
-index 8f1076c0c88a25..81e3ee3f1813bf 100644
---- a/drivers/gpu/drm/amd/amdkfd/kfd_process.c
-+++ b/drivers/gpu/drm/amd/amdkfd/kfd_process.c
-@@ -62,8 +62,8 @@ static struct workqueue_struct *kfd_restore_wq;
-=20
- static struct kfd_process *find_process(const struct task_struct *thread);
- static void kfd_process_ref_release(struct kref *ref);
--static struct kfd_process *create_process(const struct task_struct *thread=
-,
--					struct file *filep);
-+static struct kfd_process *create_process(const struct task_struct *thread=
-);
-+static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *f=
-ilep);
-=20
- static void evict_process_worker(struct work_struct *work);
- static void restore_process_worker(struct work_struct *work);
-@@ -289,7 +289,15 @@ struct kfd_process *kfd_create_process(struct file *fi=
-lep)
- 	if (process) {
- 		pr_debug("Process already found\n");
- 	} else {
--		process =3D create_process(thread, filep);
-+		process =3D create_process(thread);
-+		if (IS_ERR(process))
-+			goto out;
-+
-+		ret =3D kfd_process_init_cwsr_apu(process, filep);
-+		if (ret) {
-+			process =3D ERR_PTR(ret);
-+			goto out;
-+		}
-=20
- 		if (!procfs.kobj)
- 			goto out;
-@@ -609,64 +617,56 @@ static int kfd_process_device_init_cwsr_dgpu(struct k=
-fd_process_device *pdd)
- 	return 0;
- }
-=20
--static struct kfd_process *create_process(const struct task_struct *thread=
-,
--					struct file *filep)
-+/*
-+ * On return the kfd_process is fully operational and will be freed when t=
-he
-+ * mm is released
-+ */
-+static struct kfd_process *create_process(const struct task_struct *thread=
-)
- {
- 	struct kfd_process *process;
- 	int err =3D -ENOMEM;
-=20
- 	process =3D kzalloc(sizeof(*process), GFP_KERNEL);
--
- 	if (!process)
- 		goto err_alloc_process;
-=20
--	process->pasid =3D kfd_pasid_alloc();
--	if (process->pasid =3D=3D 0)
--		goto err_alloc_pasid;
--
--	if (kfd_alloc_process_doorbells(process) < 0)
--		goto err_alloc_doorbells;
--
- 	kref_init(&process->ref);
--
- 	mutex_init(&process->mutex);
--
- 	process->mm =3D thread->mm;
--
--	/* register notifier */
--	process->mmu_notifier.ops =3D &kfd_process_mmu_notifier_ops;
--	err =3D mmu_notifier_register(&process->mmu_notifier, process->mm);
--	if (err)
--		goto err_mmu_notifier;
--
--	hash_add_rcu(kfd_processes_table, &process->kfd_processes,
--			(uintptr_t)process->mm);
--
- 	process->lead_thread =3D thread->group_leader;
--	get_task_struct(process->lead_thread);
--
- 	INIT_LIST_HEAD(&process->per_device_data);
--
-+	INIT_DELAYED_WORK(&process->eviction_work, evict_process_worker);
-+	INIT_DELAYED_WORK(&process->restore_work, restore_process_worker);
-+	process->last_restore_timestamp =3D get_jiffies_64();
- 	kfd_event_init_process(process);
-+	process->is_32bit_user_mode =3D in_compat_syscall();
-+
-+	process->pasid =3D kfd_pasid_alloc();
-+	if (process->pasid =3D=3D 0)
-+		goto err_alloc_pasid;
-+
-+	if (kfd_alloc_process_doorbells(process) < 0)
-+		goto err_alloc_doorbells;
-=20
- 	err =3D pqm_init(&process->pqm, process);
- 	if (err !=3D 0)
- 		goto err_process_pqm_init;
-=20
- 	/* init process apertures*/
--	process->is_32bit_user_mode =3D in_compat_syscall();
- 	err =3D kfd_init_apertures(process);
- 	if (err !=3D 0)
- 		goto err_init_apertures;
-=20
--	INIT_DELAYED_WORK(&process->eviction_work, evict_process_worker);
--	INIT_DELAYED_WORK(&process->restore_work, restore_process_worker);
--	process->last_restore_timestamp =3D get_jiffies_64();
--
--	err =3D kfd_process_init_cwsr_apu(process, filep);
-+	/* Must be last, have to use release destruction after this */
-+	process->mmu_notifier.ops =3D &kfd_process_mmu_notifier_ops;
-+	err =3D mmu_notifier_register(&process->mmu_notifier, process->mm);
- 	if (err)
- 		goto err_init_cwsr;
-=20
-+	get_task_struct(process->lead_thread);
-+	hash_add_rcu(kfd_processes_table, &process->kfd_processes,
-+			(uintptr_t)process->mm);
-+
- 	return process;
-=20
- err_init_cwsr:
-@@ -675,15 +675,11 @@ static struct kfd_process *create_process(const struc=
-t task_struct *thread,
- err_init_apertures:
- 	pqm_uninit(&process->pqm);
- err_process_pqm_init:
--	hash_del_rcu(&process->kfd_processes);
--	synchronize_rcu();
--	mmu_notifier_unregister_no_release(&process->mmu_notifier, process->mm);
--err_mmu_notifier:
--	mutex_destroy(&process->mutex);
- 	kfd_free_process_doorbells(process);
- err_alloc_doorbells:
- 	kfd_pasid_free(process->pasid);
- err_alloc_pasid:
-+	mutex_destroy(&process->mutex);
- 	kfree(process);
- err_alloc_process:
- 	return ERR_PTR(err);
---=20
-2.22.0
+hm, that does sound unrelated.
 
