@@ -2,200 +2,172 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8E03C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 02:21:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 553EEC433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 02:39:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 74B91205F4
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 02:21:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0AB6C20665
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 02:39:03 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="DBN1w3/7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 74B91205F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="aftmkmmN"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0AB6C20665
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E59B26B0287; Thu,  1 Aug 2019 22:21:06 -0400 (EDT)
+	id 82FFB6B0003; Thu,  1 Aug 2019 22:39:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E097F6B0288; Thu,  1 Aug 2019 22:21:06 -0400 (EDT)
+	id 7E1116B0005; Thu,  1 Aug 2019 22:39:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CF9686B0289; Thu,  1 Aug 2019 22:21:06 -0400 (EDT)
+	id 6A8C96B0006; Thu,  1 Aug 2019 22:39:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9838C6B0287
-	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 22:21:06 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id y66so47106361pfb.21
-        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 19:21:06 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3DF8C6B0003
+	for <linux-mm@kvack.org>; Thu,  1 Aug 2019 22:39:03 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id v49so40372319otb.6
+        for <linux-mm@kvack.org>; Thu, 01 Aug 2019 19:39:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=cegKTIaYJ+tSle0YiC1yJpybmvJrVZXG5Xryw9OToL0=;
-        b=NNtXbjqLaBnQBdRLndzNGZoQ/ekOvc3276huPEgcODaCJs1bhAXuF+rZaj9C302DEo
-         1xDft1hXg8Yg1ptpgacv13OIlVAx4ZteKjkj6W8NDAlBaicgriCa/MOFkzN7pNoKILKd
-         QOYm3FgtssjuFGEWmsfqIlgyY0agjLzJT8OfuqJi4DfyLZ6IHfwbmG6ABZwBD7RN8z+Z
-         F+Zc7yzKx0uiv93a/gPdsQDtVQqCxM5Eyd8XaV4auKEuCAw7GwkdLVmLjKr5U4mblS3V
-         pAUg65ql+66Sy34YPdh9nUbCw0K029Lf7/aDD03u/C4dvVmk8iH2VoekJzaJ/a1F46Es
-         3bIA==
-X-Gm-Message-State: APjAAAUi+iPF/erXJvFm4lUeppE0nSaN8cZI81+RsCdxMpfL5/EoX6Ru
-	Ebjr8Nz6k02COHS1wOoh6uMytTXSFLUbQEzQcm1qaa8ot8pJSboK1GSuZcPWqDmgPpEc7UU5wA5
-	LZgydjEfH6pBNzKskrR6ApthPF9w3lejN+tdZyr1R5ZxQSgBZI3EUmuT+8y1pgTFlyA==
-X-Received: by 2002:a65:6850:: with SMTP id q16mr86409286pgt.423.1564712466190;
-        Thu, 01 Aug 2019 19:21:06 -0700 (PDT)
-X-Received: by 2002:a65:6850:: with SMTP id q16mr86409242pgt.423.1564712465486;
-        Thu, 01 Aug 2019 19:21:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564712465; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=uB7qKWJf2vIk7MCI51NrKGKnU0tjP3n9YQM4FSsQ99A=;
+        b=GJbpe7JmFH8VwEUr/hNjD9kN3QtuSY7mLg9zV8j+mLo4VeVoG6TworhLC/YhHy+g6O
+         ghHJ09fm5dU5nQv8UuVdM9mksVYbXtIUoGhL5smv/B70AUvmRjxor18VfIqMsdNJ6VDL
+         JJDNfpDYEwetepZDuHyCZgYoHnk5L1Pzg26/pPKPE1hFCHsose/X/fdPg/NsJO7LolJU
+         JzBy2/e6/MtAj5NI5vetiZBHcHS+aY2cnIV5ckVFXo0EClroaL8cE5QeTzBcn231kEyq
+         gWGu8ar7LLDD1scm3ecPlPXTA7fcWQCn9JAjBwp8CeZ0xzsBUZPQmYotEDlR87onL1if
+         jk+g==
+X-Gm-Message-State: APjAAAU+A0OxtZCKSvkJEETpF4WVxILLMTvHRFxS04K2D4w+q8cUpGCj
+	A8k3mXUGn5mLwKja//kYIvV1y/X0OaF5wUoLESiajrNIZe0mBmNLodtdMYkBP2H5VLxy3iAO/Oj
+	dfIEE4gPIzyAK66QOrlbKRvY5hD2U/KOLbrVzLyFjLoRVrEmtFVvQML0N39zymQgTOw==
+X-Received: by 2002:aca:5641:: with SMTP id k62mr1297130oib.142.1564713542803;
+        Thu, 01 Aug 2019 19:39:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzqw6SmA7w8aOeMENbtnK9KOAyxWgfR/MiljUVxaXJXO08oDhSclHYhVPMe9G1CIypQAdwz
+X-Received: by 2002:aca:5641:: with SMTP id k62mr1297105oib.142.1564713542129;
+        Thu, 01 Aug 2019 19:39:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564713542; cv=none;
         d=google.com; s=arc-20160816;
-        b=E8DHUJ5kL3zgMxyPV6lPAnMeJujqee2YbstX/lKFoFn6v9wLEg/kHA0biWIEopy3v0
-         M0B+8aLgjirhWDHDwwN8BN1nNcz7sWxb9eLBAmcsfYWmb1OVoze/49Veu0CHj80cow1S
-         273omC1a6ZIyankT6RG9jsC9YEJJTjohDBwLGkafqy9hXlaNeTx0TDjh104N4+g5VCuG
-         FlhtwkiFV9IqrcPq19dld/kurSFknw12hzLzVNUT0MN4x7ywUGJ09hVEDj1+dh38qZOV
-         IQ/y1y3JsH3uyHgO6q1neqJ+QTyxSfhHIfY6pKGsxlNrq1S5Em7kY+25qYWwBufa+lKu
-         SYFQ==
+        b=iWGgTjV9GiJqwNaUYjOw3k8XhupMZodQXL94g/XxKE2P4isijJBF5BmGMYIAXudMo+
+         nDiiG6DoYSasoeysAwfDfyT4jnMJiaA60iFC9SxvU3bXMHFagRnz6tlCYQNYflIerOyh
+         CknZmpeJD4gruN7oNRD9UJIRCRMv+Q+hzmTTB+PKvzkpPqYI6+mwTdU1Ti1/BMHlYEwj
+         QCnhN2v/PEU8SMuPLjXcKdqIh30U0qa7Aw0yftg0rDB45zCaXO/zYesrrIzVtC4q8NTW
+         qFkXpKZOCRzzzpl5y3RtRgJxlEiSziIEFJBeLSdFugWp8n0kz6uAtmBOKHtj43o2B/4k
+         T6JQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=cegKTIaYJ+tSle0YiC1yJpybmvJrVZXG5Xryw9OToL0=;
-        b=x0lJq0I7MeMZI0kTeKWXF+/SSOm4Nt0pah2fbGzcrfjBCz9wv7iI5y2tx8tU0Z4P9w
-         64aT+TpYxtmGLDLq7PI1DNcLalpOx7P4E+iLoFxTNrSYOSmLUzb0UYuOTq6rqA5NHJd6
-         sjWtpl9UWRuQjHK49yYxTHtaVjEwdqRBoLyh08NcGuK/HedBMwSw0/rTz9jJ3gR4VjuC
-         GK2hfuAiAvM64j04zA1eu2aoEISb1Bo5Q8C4I49Je+w28KoQjjKC6ywMb0OIl+WayfqF
-         8UEIlnfa+U0fq0uvWQilq15Lt8vkzH+IC2eRwLi1GyQyfwKIVwq18omzH6KQPwlKnN6s
-         hKWw==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=uB7qKWJf2vIk7MCI51NrKGKnU0tjP3n9YQM4FSsQ99A=;
+        b=o6GF1QEWYYQeHynBHVo+x0uG1O5y+LipTHkIXI/xZAS8skcLJ8iIfXbavwXqfzijkO
+         tY/gCblausDfMnQeyMuHsyc/wfjYzUmkKmM3UXc50ZuvNHo57Vd87qmyTWP+7uBXU5kn
+         7636jAG6/NYJqtKWgxHhepsIcicMSEIIq0RDbMk1Hc0VDpHBpAVCzHTal5MVKGP8PZmf
+         G+3UhiXGIZ3Dm4u2QbHgxVDb1TufFpguQFHtvTTkaEsUPdsB7FgrwpLX6aLaj6TWY3zK
+         n9wsV2Vlpo+STAmYvj4d0LZqUL0r1lWblH4eR2FraeqOTGXrmp+KMUHG/MPmHpI5PrtT
+         YUMg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="DBN1w3/7";
-       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k5sor8275693pjp.16.2019.08.01.19.21.05
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=aftmkmmN;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id s17si22680288oic.0.2019.08.01.19.39.01
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 01 Aug 2019 19:21:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 01 Aug 2019 19:39:02 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b="DBN1w3/7";
-       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references
-         :mime-version:content-transfer-encoding;
-        bh=cegKTIaYJ+tSle0YiC1yJpybmvJrVZXG5Xryw9OToL0=;
-        b=DBN1w3/7Hxm2aTYhnTNoj1HADN0/qC4HQ/EIZkVxJXA/K2S11Q3/N9TAattYeDs6aQ
-         J+nm7tV2AKcpGrK2TkCrU1wyclxrRwBj4vymoXpkg4vkH9XlaJfQ55nzl3mveOP2o9MV
-         NUxRk2vipQv8FWXVtFS9aXrUBeQOuTE0Ko4oz4Isj8tPzLI9EqzmjnQsyBDLHQ25vBM5
-         q3jhgaW+xd3z7DYehUibJdxR/1EjTpgU+Bek0hJIqh1wGhpzFJhljWoUMm0t5/61KoNk
-         q3ATC6nVfWca/Nm/vukTsQm8ST5Kyw83g7ix2hN//xECaTu+OgVyIUA+IQWq3fIPa/3T
-         uZLw==
-X-Google-Smtp-Source: APXvYqyVNDRGKP1+FIQlU/b+5yAYmGOv3Rdk0fT5tiuKvQ+opVgMWL9GCqpjN6ICYNfQCU9j4FRWrg==
-X-Received: by 2002:a17:90a:338b:: with SMTP id n11mr1859934pjb.21.1564712465215;
-        Thu, 01 Aug 2019 19:21:05 -0700 (PDT)
-Received: from blueforge.nvidia.com (searspoint.nvidia.com. [216.228.112.21])
-        by smtp.gmail.com with ESMTPSA id u9sm38179744pgc.5.2019.08.01.19.21.03
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 01 Aug 2019 19:21:04 -0700 (PDT)
-From: john.hubbard@gmail.com
-X-Google-Original-From: jhubbard@nvidia.com
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@infradead.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Ira Weiny <ira.weiny@intel.com>,
-	Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
-	LKML <linux-kernel@vger.kernel.org>,
-	amd-gfx@lists.freedesktop.org,
-	ceph-devel@vger.kernel.org,
-	devel@driverdev.osuosl.org,
-	devel@lists.orangefs.org,
-	dri-devel@lists.freedesktop.org,
-	intel-gfx@lists.freedesktop.org,
-	kvm@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org,
-	linux-block@vger.kernel.org,
-	linux-crypto@vger.kernel.org,
-	linux-fbdev@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org,
-	linux-media@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-nfs@vger.kernel.org,
-	linux-rdma@vger.kernel.org,
-	linux-rpi-kernel@lists.infradead.org,
-	linux-xfs@vger.kernel.org,
-	netdev@vger.kernel.org,
-	rds-devel@oss.oracle.com,
-	sparclinux@vger.kernel.org,
-	x86@kernel.org,
-	xen-devel@lists.xenproject.org,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: [PATCH 34/34] fs/binfmt_elf: convert put_page() to put_user_page*()
-Date: Thu,  1 Aug 2019 19:20:05 -0700
-Message-Id: <20190802022005.5117-35-jhubbard@nvidia.com>
-X-Mailer: git-send-email 2.22.0
-In-Reply-To: <20190802022005.5117-1-jhubbard@nvidia.com>
-References: <20190802022005.5117-1-jhubbard@nvidia.com>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=aftmkmmN;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d43a24e0000>; Thu, 01 Aug 2019 19:39:10 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 01 Aug 2019 19:39:01 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 01 Aug 2019 19:39:01 -0700
+Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 2 Aug
+ 2019 02:39:00 +0000
+Subject: Re: [PATCH 00/34] put_user_pages(): miscellaneous call sites
+To: <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>
+CC: Christoph Hellwig <hch@infradead.org>, Dan Williams
+	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen
+	<dave.hansen@linux.intel.com>, Ira Weiny <ira.weiny@intel.com>, Jan Kara
+	<jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, LKML
+	<linux-kernel@vger.kernel.org>, <amd-gfx@lists.freedesktop.org>,
+	<ceph-devel@vger.kernel.org>, <devel@driverdev.osuosl.org>,
+	<devel@lists.orangefs.org>, <dri-devel@lists.freedesktop.org>,
+	<intel-gfx@lists.freedesktop.org>, <kvm@vger.kernel.org>,
+	<linux-arm-kernel@lists.infradead.org>, <linux-block@vger.kernel.org>,
+	<linux-crypto@vger.kernel.org>, <linux-fbdev@vger.kernel.org>,
+	<linux-fsdevel@vger.kernel.org>, <linux-media@vger.kernel.org>,
+	<linux-mm@kvack.org>, <linux-nfs@vger.kernel.org>,
+	<linux-rdma@vger.kernel.org>, <linux-rpi-kernel@lists.infradead.org>,
+	<linux-xfs@vger.kernel.org>, <netdev@vger.kernel.org>,
+	<rds-devel@oss.oracle.com>, <sparclinux@vger.kernel.org>, <x86@kernel.org>,
+	<xen-devel@lists.xenproject.org>
+References: <20190802021653.4882-1-jhubbard@nvidia.com>
+From: John Hubbard <jhubbard@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <ec87b662-0fc2-0951-1337-a91b4888201b@nvidia.com>
+Date: Thu, 1 Aug 2019 19:39:00 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-NVConfidentiality: public
-Content-Transfer-Encoding: 8bit
+In-Reply-To: <20190802021653.4882-1-jhubbard@nvidia.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1564713550; bh=uB7qKWJf2vIk7MCI51NrKGKnU0tjP3n9YQM4FSsQ99A=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=aftmkmmNomCdfG4/nsU7QFjmse0kzSiVn7k6qdyITGQKtpIb7fXB3ira93x2ikjhP
+	 hh9fWh6OxSH7I4ITUxx9rk4nMXoUcCl6xE7j7d8OaKs0QzK3tWjGXYe1PPsA5+CMkF
+	 sKiN+5/hdBTh4TsmJWAPetkvcksKG1W7KX4K24lGpfHw6t/QQ4fbKf5zlriq/zHiCI
+	 WN7lLvY4tFrWOLTfdOFRIa/sFBuq00RVcHrLnsHi/Dnbw2dVeWXrugMTAYnP04jnRA
+	 tXP1GLNpYcsDC/T0sb/csl6pvYXC87xnKjlVca8dQdSp/cuFTGUobSHcHyKfqM9q/X
+	 eCw5n+JFkzHyg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Ira Weiny <ira.weiny@intel.com>
+On 8/1/19 7:16 PM, john.hubbard@gmail.com wrote:
+> From: John Hubbard <jhubbard@nvidia.com>
+> 
+> Hi,
+> 
+> These are best characterized as miscellaneous conversions: many (not all)
+> call sites that don't involve biovec or iov_iter, nor mm/. It also leaves
+> out a few call sites that require some more work. These are mostly pretty
+> simple ones.
+> 
+> It's probably best to send all of these via Andrew's -mm tree, assuming
+> that there are no significant merge conflicts with ongoing work in other
+> trees (which I doubt, given that these are small changes).
+> 
 
-For pages that were retained via get_user_pages*(), release those pages
-via the new put_user_page*() routines, instead of via put_page() or
-release_pages().
+In case anyone is wondering, this truncated series is due to a script failure:
+git-send-email chokes when it hits email addresses whose names have a
+comma in them, as happened here with patch 0003.  
 
-This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
-("mm: introduce put_user_page*(), placeholder versions").
+Please disregard this set and reply to the other thread.
 
-get_dump_page calls get_user_page so put_user_page must be used
-to match.
-
-Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-Signed-off-by: John Hubbard <jhubbard@nvidia.com>
----
- fs/binfmt_elf.c       | 2 +-
- fs/binfmt_elf_fdpic.c | 2 +-
- 2 files changed, 2 insertions(+), 2 deletions(-)
-
-diff --git a/fs/binfmt_elf.c b/fs/binfmt_elf.c
-index d4e11b2e04f6..92e4a5ca99d8 100644
---- a/fs/binfmt_elf.c
-+++ b/fs/binfmt_elf.c
-@@ -2377,7 +2377,7 @@ static int elf_core_dump(struct coredump_params *cprm)
- 				void *kaddr = kmap(page);
- 				stop = !dump_emit(cprm, kaddr, PAGE_SIZE);
- 				kunmap(page);
--				put_page(page);
-+				put_user_page(page);
- 			} else
- 				stop = !dump_skip(cprm, PAGE_SIZE);
- 			if (stop)
-diff --git a/fs/binfmt_elf_fdpic.c b/fs/binfmt_elf_fdpic.c
-index d86ebd0dcc3d..321724b3be22 100644
---- a/fs/binfmt_elf_fdpic.c
-+++ b/fs/binfmt_elf_fdpic.c
-@@ -1511,7 +1511,7 @@ static bool elf_fdpic_dump_segments(struct coredump_params *cprm)
- 				void *kaddr = kmap(page);
- 				res = dump_emit(cprm, kaddr, PAGE_SIZE);
- 				kunmap(page);
--				put_page(page);
-+				put_user_page(page);
- 			} else {
- 				res = dump_skip(cprm, PAGE_SIZE);
- 			}
+thanks,
 -- 
-2.22.0
+John Hubbard
+NVIDIA
 
