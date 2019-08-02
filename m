@@ -2,254 +2,174 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3FCC4C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 17:17:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 349D9C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 17:24:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E988820B7C
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 17:17:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DEBC72087E
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 17:24:21 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="lhaum2PD"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E988820B7C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="Bqm8lPIQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DEBC72087E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 834596B000D; Fri,  2 Aug 2019 13:17:41 -0400 (EDT)
+	id 633C96B0005; Fri,  2 Aug 2019 13:24:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7BFB36B000E; Fri,  2 Aug 2019 13:17:41 -0400 (EDT)
+	id 5E5276B0006; Fri,  2 Aug 2019 13:24:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6381D6B0010; Fri,  2 Aug 2019 13:17:41 -0400 (EDT)
+	id 4D37B6B000D; Fri,  2 Aug 2019 13:24:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 2F0886B000D
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 13:17:41 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id 8so42504088pgl.3
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 10:17:41 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 319A56B0005
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 13:24:21 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id e22so2904196qtp.9
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 10:24:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=djjrE6lfphI+2uZtSPLUJz7QIApveAhJ1PmPLeRGB14=;
-        b=rQJd9QLNL7UI3FP60ebZZ/z+zo1q1ccJK3ytvKFwYQeNz9fuHQwQJzLAqIg4BhputG
-         6CoE/F+MLCep4uEVa9v3wa9gQb1Fb87OzoEuvz6xiWLmkLb0iabO3p+/kZIqi5xKdoxE
-         A4VjATKD8ZeC2JUThXtFY2kpHzylsqjOaKB7KQ1lQlvTYlg3kL9wr1I8Vtgpn5kU/K1n
-         wKKnTOOacZdAdxhKIhVDCrtXQ1GEJ42realI0Eofy381MYBw8qNDz5z+9FcATvG1Qnaw
-         z1UPeNk2iztKF2z1jQD9ValPO3BZxHjmPtBFzZKWO8FQ0GbaaZeqH8iOIf3nngjKOlmm
-         TzsA==
-X-Gm-Message-State: APjAAAWLc6QlbW3H+d+leA8jHGqbx7cBhZN0034fOO0PZBiSrSfNriF6
-	e/DGZ6ByehpcjfD3crfyI08APDcMuZEIr4dAhqgsifWj/0Lq7tYuzjEOgKAjYIOY4wwIhlT/nTk
-	H+TNDKM5D71rRl0mQrpjLF2q7WUf6U/5OWckSFPC2C/nv0rcs91GVm6aVhH3esk/xwQ==
-X-Received: by 2002:a17:902:f301:: with SMTP id gb1mr130182619plb.292.1564766260785;
-        Fri, 02 Aug 2019 10:17:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzvjHaWtdErdHd5p+2LJGJOKxPuN57naaxVHVF294RMczyI/xYsKAvWOZcs8GNETN+OIi7A
-X-Received: by 2002:a17:902:f301:: with SMTP id gb1mr130182541plb.292.1564766259918;
-        Fri, 02 Aug 2019 10:17:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564766259; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=b/ZbdcC0DDz1oNoCfSGh30lpnC4X+0hWOBfmleHyzyg=;
+        b=lv6KfmPMACRnvvecQ+qsXnCGS9BlsSZnB9AphF6UsNTx1mtHTD8UkaLI27B0/D8COo
+         WlsdyWBpcU3yjMBAdFc+GOb2M1aD8KvqDEjdWnrWHpkaRyfcqxBdVg9Lrorg+Ix9TV05
+         8nTakwpxhjazf8Dy5Atck4f1Yr8cbjqiZHAPVYENaTlu1Q8JLBCObujNMOkV0S3dpwqw
+         CLBdRT1SKaMBpHJlRF842lMjzzGOXHz76Cqtjg0G86ssGU3Q1AN0a179jaEIR+z17/kQ
+         39xcb/CmJ4PI4xLHuRfCfnvouiQm6/XH/fA2PtDRuNUj/nQuEvDJ8nJQwQPH81N44Z3I
+         2mpQ==
+X-Gm-Message-State: APjAAAUOgLj0qPhgyFWvqpJhzoldZiEeEnYssJ4U9VGvS5ZsoWSS2ceN
+	nFwvtbshr6C7hvD+iHK1Tuo/SGqPfuJXoz/fNkkPXZ/gsdY2YFKESIrKvmuQHU7Vb5Gc+vRw4m+
+	EIJ+9xYBb46SCWwWsHxUoi+NneK+gynNjYTjS0uUto6s7QACyAHXBM3dWgy2Jf05c1Q==
+X-Received: by 2002:ac8:f8c:: with SMTP id b12mr98570728qtk.381.1564766660941;
+        Fri, 02 Aug 2019 10:24:20 -0700 (PDT)
+X-Received: by 2002:ac8:f8c:: with SMTP id b12mr98570666qtk.381.1564766660119;
+        Fri, 02 Aug 2019 10:24:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564766660; cv=none;
         d=google.com; s=arc-20160816;
-        b=iXbEN9p+3BYqoySkfzANIt2IbwJ7lWWTYkfuRVMR9XJq23bcrNhpHhLBI8+GEu1nvV
-         7mgWhPrbsm3zqwJeeewkr+kw6ggvBZoAbOisSPIGZzglya6YFys473+UkwvwNroi0I++
-         HezdNQvCRiM7rWR8HCkY9duUi0Wbk1/GvKtto+vmPyfFU9RdLn7EAMNjjNtlDZn8TQJK
-         9wnAgP2LTCz4/u76GNiMnGf3rYuAQBD/RB3H4Lry2S0tfToYQNIVwXqiZOQFYjd8i+eI
-         tY/NX8EJwpxMK7Vg9MuCkZBUJEdr0WGWhQYZCfccaeZOLlZY14mBdUflMwG+EgnpfC2h
-         4HQA==
+        b=Q66E4njJtqaEfzPMNzH5ww+t9+PNcUwdCU3vcTxjSm6ESBxVa4SwZKYknTAhKZ2d7R
+         B3K3iDooKQ0FA23mWFAIQj/u8WGalrAypY8SQlm/WXEY+MUtYHSkjlNM9pvde6OnN7SO
+         XXIuw4lQEEUcCxJDquokdaW0MjXg3Fm3Z80DgTEQ1yaaBHqAUJh/IFh5Y822aJSV0msh
+         6grMZcnYCMWHhcquOCaptEyMP4SQHOpUZApglMb9wPh4rJ56poydUHlDu+Xrdd3X5/CE
+         gR8ps2nB+DtcF7EsOoQoDsDWI+R5DYFNGxfe+GllMHT2Ru8tGIs4WEizrXidYE6G8xx9
+         DHHg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=djjrE6lfphI+2uZtSPLUJz7QIApveAhJ1PmPLeRGB14=;
-        b=yL8DYiMZS4ce4jOk8CPZKxjX8dmsrl7VcZd4RymJOLMWdn7cDwZUEbe4c4ckpPbBT1
-         Pd4g4atxbStB6s0cOtR0vXwvj8Wf1fiDCLFObBTyUGlNnnvOOErjGdl5eNJQAh9HkAYC
-         VeEx780vQa52cIDLi9XA6I0FDGbL7y8sOJWgcLjAdSSXSU2Z6xXQtSWPMAbSAZLQTEiZ
-         6RLYoxTy0SNDPCulnHnfspahiIYcjo7d0NtGOaHNifaR/UCc/IFWZDMoUelDuW9bLX19
-         fn+BiptgLUSPQMWIcs+M2RQCKjK6liYEvLNMJz4c6e2kDwqrH4tP73PUJfy7KURzATtz
-         d5Tw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=b/ZbdcC0DDz1oNoCfSGh30lpnC4X+0hWOBfmleHyzyg=;
+        b=0J34Zyd+sEmE16vOirtr1FeEOGZTgnOHNcPu+clnnj7iwr3Hso5eEw+x3G+YFssD4i
+         +7M64JdNWcgwZavjscWouZw4EyZGcioIkpfLd3MRXk+SXImDZMo2r5bX7kEMVJSEySBn
+         8p/PPfQAP5L/9amaMJCyjbvhhwFPIwH+13/UmLYGYXjsCeT4dgAQmq9/bFjjR2r6U5E+
+         lF5QhDufvVUdJO42CUedaAY+DPJwfM+dKDqSnAYSzPadK8PHzalXCLQ/HFemoYxZiFYF
+         Yh5uGwHZ9tkw+7vLXWNNyXBh//H7E1aWjzpdmYl8TqoZSkxAGwgERNjvw9JWh+BlCQao
+         6eDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=lhaum2PD;
-       spf=pass (google.com: domain of robh+dt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=robh+dt@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d37si34233702pla.288.2019.08.02.10.17.39
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=Bqm8lPIQ;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y7sor41986162qke.93.2019.08.02.10.24.20
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 10:17:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of robh+dt@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Fri, 02 Aug 2019 10:24:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=lhaum2PD;
-       spf=pass (google.com: domain of robh+dt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=robh+dt@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-qk1-f170.google.com (mail-qk1-f170.google.com [209.85.222.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 64955217F4
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 17:17:39 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1564766259;
-	bh=5vmjMpiDWDoHbfIEjw2l5ptTIfiiyZTgBi7QK8QIoHM=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=lhaum2PDzZjeWUO+WsAPOwKR/YgoXWAR0RXVBZYh5t5+PfmXONrVeQpGaqPVUFLNV
-	 zeDEVI0jHfexKJbsQD+EJtDab3k6iGED56EBhGxGJaIwBy9kSo1dYlZn9j/4qmkL4a
-	 R3PlUQKqZUXTeiEG8RYoleZ6v44K+IO5A8+pUoig=
-Received: by mail-qk1-f170.google.com with SMTP id m14so29663091qka.10
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 10:17:39 -0700 (PDT)
-X-Received: by 2002:a37:a48e:: with SMTP id n136mr93644586qke.223.1564766258476;
- Fri, 02 Aug 2019 10:17:38 -0700 (PDT)
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=Bqm8lPIQ;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=b/ZbdcC0DDz1oNoCfSGh30lpnC4X+0hWOBfmleHyzyg=;
+        b=Bqm8lPIQh1rFwvAVca4MuGFlAzmCDYu5Rh+vK2o/lwsywYkM8FWq8PDerS1S494YUd
+         YdRlqN86V3V07Ubkc9+u0LPC85tI9+nhfhgXLNTvG0jKt+2qsbDduSumpl+pf4RQrgiu
+         /morBoV3u7YQ2MvhfXY3yuO815LwFDOzG+OPNzn+Yxd+d20QcyXCyAmyX/G2jnPicg8x
+         ZmDxd4z0b8rzujaHcU5/9PkhjFkbO6/CdZXCXw4gkaClngdJY4k8vFwKphG0uzps+6rr
+         fSkdfl5lEpvi8p/j3nr2rpHVff4rM27uBG1YJZnrHv0lUAHajWA+r+eYkDKDxwpzjfU8
+         74YA==
+X-Google-Smtp-Source: APXvYqz3bf1RYWu6U39GeHZIQdaItvlh7ks4r7TbDlC8NTybQtBARJwkp1RvWALo25T9mXOBSdzKwA==
+X-Received: by 2002:a37:9d96:: with SMTP id g144mr92937157qke.288.1564766659730;
+        Fri, 02 Aug 2019 10:24:19 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id l19sm41977618qtb.6.2019.08.02.10.24.19
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 02 Aug 2019 10:24:19 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1htbHu-0005z3-NQ; Fri, 02 Aug 2019 14:24:18 -0300
+Date: Fri, 2 Aug 2019 14:24:18 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Jason Wang <jasowang@redhat.com>, kvm@vger.kernel.org,
+	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
+ with worker
+Message-ID: <20190802172418.GB11245@ziepe.ca>
+References: <20190731084655.7024-1-jasowang@redhat.com>
+ <20190731084655.7024-8-jasowang@redhat.com>
+ <20190731123935.GC3946@ziepe.ca>
+ <7555c949-ae6f-f105-6e1d-df21ddae9e4e@redhat.com>
+ <20190731193057.GG3946@ziepe.ca>
+ <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
+ <20190801141512.GB23899@ziepe.ca>
+ <42ead87b-1749-4c73-cbe4-29dbeb945041@redhat.com>
+ <20190802124613.GA11245@ziepe.ca>
+ <20190802100414-mutt-send-email-mst@kernel.org>
 MIME-Version: 1.0
-References: <20190731154752.16557-1-nsaenzjulienne@suse.de> <20190731154752.16557-4-nsaenzjulienne@suse.de>
-In-Reply-To: <20190731154752.16557-4-nsaenzjulienne@suse.de>
-From: Rob Herring <robh+dt@kernel.org>
-Date: Fri, 2 Aug 2019 11:17:26 -0600
-X-Gmail-Original-Message-ID: <CAL_JsqKF5nh3hcdLTG5+6RU3_TnFrNX08vD6qZ8wawoA3WSRpA@mail.gmail.com>
-Message-ID: <CAL_JsqKF5nh3hcdLTG5+6RU3_TnFrNX08vD6qZ8wawoA3WSRpA@mail.gmail.com>
-Subject: Re: [PATCH 3/8] of/fdt: add function to get the SoC wide DMA
- addressable memory size
-To: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Christoph Hellwig <hch@lst.de>, wahrenst@gmx.net, 
-	Marc Zyngier <marc.zyngier@arm.com>, Robin Murphy <robin.murphy@arm.com>, 
-	"moderated list:ARM/FREESCALE IMX / MXC ARM ARCHITECTURE" <linux-arm-kernel@lists.infradead.org>, devicetree@vger.kernel.org, 
-	Linux IOMMU <iommu@lists.linux-foundation.org>, linux-mm@kvack.org, 
-	Frank Rowand <frowand.list@gmail.com>, phill@raspberryi.org, 
-	Florian Fainelli <f.fainelli@gmail.com>, Will Deacon <will@kernel.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Eric Anholt <eric@anholt.net>, 
-	Matthias Brugger <mbrugger@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Marek Szyprowski <m.szyprowski@samsung.com>, 
-	"moderated list:BROADCOM BCM2835 ARM ARCHITECTURE" <linux-rpi-kernel@lists.infradead.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190802100414-mutt-send-email-mst@kernel.org>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 31, 2019 at 9:48 AM Nicolas Saenz Julienne
-<nsaenzjulienne@suse.de> wrote:
->
-> Some SoCs might have multiple interconnects each with their own DMA
-> addressing limitations. This function parses the 'dma-ranges' on each of
-> them and tries to guess the maximum SoC wide DMA addressable memory
-> size.
->
-> This is specially useful for arch code in order to properly setup CMA
-> and memory zones.
+On Fri, Aug 02, 2019 at 10:27:21AM -0400, Michael S. Tsirkin wrote:
+> On Fri, Aug 02, 2019 at 09:46:13AM -0300, Jason Gunthorpe wrote:
+> > On Fri, Aug 02, 2019 at 05:40:07PM +0800, Jason Wang wrote:
+> > > > This must be a proper barrier, like a spinlock, mutex, or
+> > > > synchronize_rcu.
+> > > 
+> > > 
+> > > I start with synchronize_rcu() but both you and Michael raise some
+> > > concern.
+> > 
+> > I've also idly wondered if calling synchronize_rcu() under the various
+> > mm locks is a deadlock situation.
+> > 
+> > > Then I try spinlock and mutex:
+> > > 
+> > > 1) spinlock: add lots of overhead on datapath, this leads 0 performance
+> > > improvement.
+> > 
+> > I think the topic here is correctness not performance improvement
+> 
+> The topic is whether we should revert
+> commit 7f466032dc9 ("vhost: access vq metadata through kernel virtual address")
+> 
+> or keep it in. The only reason to keep it is performance.
 
-We already have a way to setup CMA in reserved-memory, so why is this
-needed for that?
+Yikes, I'm not sure you can ever win against copy_from_user using
+mmu_notifiers?  The synchronization requirements are likely always
+more expensive unless large and scattered copies are being done..
 
-I have doubts this can really be generic...
+The rcu is about the only simple approach that could be less
+expensive, and that gets back to the question if you can block an
+invalidate_start_range in synchronize_rcu or not..
 
->
-> Signed-off-by: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
-> ---
->
->  drivers/of/fdt.c       | 72 ++++++++++++++++++++++++++++++++++++++++++
->  include/linux/of_fdt.h |  2 ++
->  2 files changed, 74 insertions(+)
->
-> diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
-> index 9cdf14b9aaab..f2444c61a136 100644
-> --- a/drivers/of/fdt.c
-> +++ b/drivers/of/fdt.c
-> @@ -953,6 +953,78 @@ int __init early_init_dt_scan_chosen_stdout(void)
->  }
->  #endif
->
-> +/**
-> + * early_init_dt_dma_zone_size - Look at all 'dma-ranges' and provide the
-> + * maximum common dmable memory size.
-> + *
-> + * Some devices might have multiple interconnects each with their own DMA
-> + * addressing limitations. For example the Raspberry Pi 4 has the following:
-> + *
-> + * soc {
-> + *     dma-ranges = <0xc0000000  0x0 0x00000000  0x3c000000>;
-> + *     [...]
-> + * }
-> + *
-> + * v3dbus {
-> + *     dma-ranges = <0x00000000  0x0 0x00000000  0x3c000000>;
-> + *     [...]
-> + * }
-> + *
-> + * scb {
-> + *     dma-ranges = <0x0 0x00000000  0x0 0x00000000  0xfc000000>;
-> + *     [...]
-> + * }
-> + *
-> + * Here the area addressable by all devices is [0x00000000-0x3bffffff]. Hence
-> + * the function will write in 'data' a size of 0x3c000000.
-> + *
-> + * Note that the implementation assumes all interconnects have the same physical
-> + * memory view and that the mapping always start at the beginning of RAM.
+So, frankly, I'd revert it until someone could prove the rcu solution is
+OK..
 
-Not really a valid assumption for general code.
+BTW, how do you get copy_from_user to work outside a syscall?
 
-> + */
-> +int __init early_init_dt_dma_zone_size(unsigned long node, const char *uname,
-> +                                      int depth, void *data)
+Also, why can't this just permanently GUP the pages? In fact, where
+does it put_page them anyhow? Worrying that 7f466 adds a get_user page
+but does not add a put_page??
 
-Don't use the old fdt scanning interface with depth/data. It's not
-really needed now because you can just use libfdt calls.
-
-> +{
-> +       const char *type = of_get_flat_dt_prop(node, "device_type", NULL);
-> +       u64 phys_addr, dma_addr, size;
-> +       u64 *dma_zone_size = data;
-> +       int dma_addr_cells;
-> +       const __be32 *reg;
-> +       const void *prop;
-> +       int len;
-> +
-> +       if (depth == 0)
-> +               *dma_zone_size = 0;
-> +
-> +       /*
-> +        * We avoid pci host controllers as they have their own way of using
-> +        * 'dma-ranges'.
-> +        */
-> +       if (type && !strcmp(type, "pci"))
-> +               return 0;
-> +
-> +       reg = of_get_flat_dt_prop(node, "dma-ranges", &len);
-> +       if (!reg)
-> +               return 0;
-> +
-> +       prop = of_get_flat_dt_prop(node, "#address-cells", NULL);
-> +       if (prop)
-> +               dma_addr_cells = be32_to_cpup(prop);
-> +       else
-> +               dma_addr_cells = 1; /* arm64's default addr_cell size */
-
-Relying on the defaults has been a dtc error longer than arm64 has
-existed. If they are missing, just bail.
-
-> +
-> +       if (len < (dma_addr_cells + dt_root_addr_cells + dt_root_size_cells))
-> +               return 0;
-> +
-> +       dma_addr = dt_mem_next_cell(dma_addr_cells, &reg);
-> +       phys_addr = dt_mem_next_cell(dt_root_addr_cells, &reg);
-> +       size = dt_mem_next_cell(dt_root_size_cells, &reg);
-> +
-> +       if (!*dma_zone_size || *dma_zone_size > size)
-> +               *dma_zone_size = size;
-> +
-> +       return 0;
-> +}
-
-It's possible to have multiple levels of nodes and dma-ranges. You
-need to handle that case too.
-
-Doing that and handling differing address translations will be
-complicated. IMO, I'd just do:
-
-if (of_fdt_machine_is_compatible(blob, "brcm,bcm2711"))
-    dma_zone_size = XX;
-
-2 lines of code is much easier to maintain than 10s of incomplete code
-and is clearer who needs this. Maybe if we have dozens of SoCs with
-this problem we should start parsing dma-ranges.
-
-Rob
+Jason
 
