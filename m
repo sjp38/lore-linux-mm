@@ -2,105 +2,127 @@ Return-Path: <SRS0=eSYi=V6=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7C42EC433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 08:32:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D7F14C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 08:59:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4CFE0218BA
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 08:32:34 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4CFE0218BA
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id 840F32173E
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 08:59:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 840F32173E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D6A936B0006; Fri,  2 Aug 2019 04:32:33 -0400 (EDT)
+	id C43516B0003; Fri,  2 Aug 2019 04:59:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D1B816B000A; Fri,  2 Aug 2019 04:32:33 -0400 (EDT)
+	id BCCE36B0005; Fri,  2 Aug 2019 04:59:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C31C36B000C; Fri,  2 Aug 2019 04:32:33 -0400 (EDT)
+	id A65E76B0006; Fri,  2 Aug 2019 04:59:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 909616B0006
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 04:32:33 -0400 (EDT)
-Received: by mail-wm1-f71.google.com with SMTP id t76so17903339wmt.9
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 01:32:33 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 5435B6B0003
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 04:59:51 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id b33so46508294edc.17
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 01:59:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=RX+XrhTRDThahj9YMbo2fzyu5amiqvcFL1ThmTcPgvw=;
-        b=XccV/Kp0JuJngaGImONcRlH/EldVShau5C/K1eqSAa1k7vN5AQwo40Iul3TPCeZeft
-         WqlkD58g5Tl3fBABsyvaZ9vCBUU2+2WbWWAUqQd4qsU/fmYgWh+KUxJXXXYMnOazrGtw
-         Bfm2LxcvTurs8pRh/SRqXzauoAgcGllbGp708AKx6uz1dvxkqEJeU+02oAkLtTyBxKrL
-         QYsfN0UnrwNgm3I6UFPtGLpvv+Ov+k/lac8Nu7Jo8OCbN3/wdFzv27pQ1l0rcGy+uzDK
-         NXW39ZND+w7GsWZTNqTsTUHi2qtkADa9yOfOJTWGHmLIV8nqm4jil7govAxD5Yw4DtgU
-         rYSg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAW3sXL+jGYeyRGC+uuHxkjee8pdC3Kb0XTCTX1cYtrCFp751U6P
-	YsMTPK/V1Xqml4dWJPLGJljkBnOr8Pnu6+94XWWe1JxhuuYMaB6hgYiS8qCrNdPzydTHxUX363y
-	NdhXw2EWNMd51ukjnxyL6D0B1hEdtfgjGhIV1qDl0rspAh5y2pN++EekIIKZDVkWXvg==
-X-Received: by 2002:a1c:8017:: with SMTP id b23mr3275558wmd.117.1564734753150;
-        Fri, 02 Aug 2019 01:32:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx4Xij5/BP3kBulZgvzjp3GUnxIsON7RrcjlrKmo4rD+mCOmf+jL5YK4d6Th5cT+5yRbzD8
-X-Received: by 2002:a1c:8017:: with SMTP id b23mr3275479wmd.117.1564734752412;
-        Fri, 02 Aug 2019 01:32:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564734752; cv=none;
+        bh=pwoBRHTt34v3MyGUXe9+vTyAcJC/7Y+fLlbaM5uT68c=;
+        b=MlqYaHqOZwZg93+cR+fW5Mn1x3Y+vu4E3nEil0Dh9+qOATO8/2PcvisGrcQp8BfBuT
+         hURINqIusATjQ9YQ4/TvYxpJLGf6HcPDdFsbTcp7Hnho7mZJ8ZYjMPQ6DX2jnCcFfTZm
+         23oR0m81NyiV8ypzdup8MyLM1UiSMmyPM4OfXeFuR20DlMDuncAks+pmfpkj+MqRUWNZ
+         NvQX/yWdxldoreCmprI677tt8+K5EG0weDSUKrtEP4NATCOMxrio1VoyEEcNw3QweQbn
+         mLJTsiQ17ho5WqDOoBUJeA3/e/Inm6+Tw8QekYKfbkrwSWlIS144upCLc9aS1HN8aoVx
+         7nhg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWkAxPPMZW/chdxAazXgqVNlSlA3X+dYqoT9KpjDNsmPp35RW+K
+	Pw+N1IgYF0AlCepWnMiPZKR2pRPWj1s5DKbpQvbV+YV8ofHOdj02j544Dgy0vy+MDt+DgTPuGuQ
+	RLkvM5+qcUzXgRT9lvdXA0E79j7yPCO9WFjuafxAX42+scdiK7UsxnOsc7Y90Pp0=
+X-Received: by 2002:a50:b13b:: with SMTP id k56mr121407491edd.192.1564736390796;
+        Fri, 02 Aug 2019 01:59:50 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzBi+rVeFHY86CcSZv4seuI+6BA27P+n3Dy3Xz3lcm4b1ocJ9XeeDbXx1F0thTogyL1T7m2
+X-Received: by 2002:a50:b13b:: with SMTP id k56mr121407459edd.192.1564736390115;
+        Fri, 02 Aug 2019 01:59:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564736390; cv=none;
         d=google.com; s=arc-20160816;
-        b=PEMEdCKMQuvSS6EIiK/nFPraW9xMRL1J/IgySDgkJIrbi4/1ZyVHtktp9LrIKP+wJy
-         hV5MedY11df+MRrxh2SDsPpKuWT8lGj4ecAJpl0s6+CBqtCtW0aqZ4AtbbluIeLevO0+
-         7Y+JCKihS8crATYg6UXQt+TTVelCOq5O8Dh2qrKm1dcYwA8qwvOZ1hnHHFWpU5jPWzjD
-         cK8me2Ac/psR1doZxY7AbRimGWjB7Wv7aFBUm3jhweu+2xuuDKADYNpJnIPvO2A1QLXY
-         BMk9reqBo2PMuDdqnfLFiKNLIaZT0UI58zopWNCC0U8FfSDEK4GWTym1zZJnwPnNNcsz
-         bq1g==
+        b=SYNo3c/pCtRc4sFJFv9Blr7TCBKlNCu2Z6xFZfErLPd+W5UAxsiJSzusi/Omu1wJGh
+         O0pMWGLY80W3EvaLL6mdrZo1Y1gnRXLFvNmoQdkbvCjl+83Pm9U8uQqgXJyg9ePtbkql
+         tlXuX8bNhBHKOWch0ohkAh6zFmDdKBjF4QJz8kSUGoC8rEx8dvoxaHa1gFJ89RpgYAp6
+         MYIn0+orpd1o1ms9gSbmQ03n8QRvZK9aOcANKiDWcJzkMbx8GtF12rFbuu+UH1CSHplF
+         7sUQEHjQnz6vZJfbz+g1cAyZNav9E6vTKNXzvMnU3XfcLWqNT4b4Qdt49T04Mr0JZZ5f
+         eOtg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=RX+XrhTRDThahj9YMbo2fzyu5amiqvcFL1ThmTcPgvw=;
-        b=gGfyAJuf3BJtYc41CAKaEXUmiSAjtrgPWUr9RnbVJdhGioGbNfC/xkf33nwJqcpCvd
-         6s+2uX32Ix8dA/QLBhizKzswkmoTP7rxE+STRjbqhmGHoI3RO804k+w9D8NzOoJsW704
-         i7KhXES8kX8Ytdb0aO2f5wvtLuenqJwO1WTdU20prsWpywaV4zulyVrARcfT2n9+ugQ3
-         umZxHukReYCKPDFsIuIuLVBQ7CXa3MT7WOZy7Rqp68kkK0oUNsKh+jaAb3/l+yCCTz7E
-         0YYCxn1WgSA3LRHK+Pd5alaJemZdq+/Lwfdq7wnF9rmcTAMtg/WYjJy/vfpuXUnWc1kV
-         eDRg==
+        bh=pwoBRHTt34v3MyGUXe9+vTyAcJC/7Y+fLlbaM5uT68c=;
+        b=eZic+YB+Ow7IMstusA1pO0mHYZ4eO/wVB6Yw9Dxj1Ai3fQi1V1BV/GKfTQz9Bpf9OK
+         +DgGWefiZ3gKsFpTPPZV6+Z3fsl9LjAPmwAkZShFLGKbdrqr+eR6ESigLdbJLf+p/hhP
+         Cq0NIKSycQXwmUmzNuan36z9g2Ws3CLeVNEg+89grTw09nn78NCtMpqhcpek7TRnlPvY
+         6khnWm0yyG3gU/56v+P8I6yT4LVdiI3sgD090L4KHGamKfBwBjqmkgjOHH7l0kGAOWbf
+         vJduVFa+gifKaFnBtNQzWrJUu1etLbEd037yO7EP20lwjH9cGvQWwqQNcHSeDowNg1kc
+         Ae4g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id x185si55098082wmb.21.2019.08.02.01.32.32
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m55si24192130edm.55.2019.08.02.01.59.49
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 01:32:32 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Fri, 02 Aug 2019 01:59:50 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by verein.lst.de (Postfix, from userid 2407)
-	id 86EAE68C7B; Fri,  2 Aug 2019 10:32:30 +0200 (CEST)
-Date: Fri, 2 Aug 2019 10:32:30 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: dan.j.williams@intel.com, akpm@linux-foundation.org
-Cc: linux-mm@kvack.org, linux-nvdimm@lists.01.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] memremap: move from kernel/ to mm/
-Message-ID: <20190802083230.GB11000@lst.de>
-References: <20190722094143.18387-1-hch@lst.de>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id AA743AB8C;
+	Fri,  2 Aug 2019 08:59:49 +0000 (UTC)
+Date: Fri, 2 Aug 2019 10:59:47 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Roman Gushchin <guro@fb.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	Johannes Weiner <hannes@cmpxchg.org>, linux-kernel@vger.kernel.org,
+	kernel-team@fb.com
+Subject: Re: [PATCH] mm: memcontrol: switch to rcu protection in
+ drain_all_stock()
+Message-ID: <20190802085947.GC6461@dhcp22.suse.cz>
+References: <20190801233513.137917-1-guro@fb.com>
+ <20190802080422.GA6461@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190722094143.18387-1-hch@lst.de>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+In-Reply-To: <20190802080422.GA6461@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Andrew,
+On Fri 02-08-19 10:04:22, Michal Hocko wrote:
+> On Thu 01-08-19 16:35:13, Roman Gushchin wrote:
+> > Commit 72f0184c8a00 ("mm, memcg: remove hotplug locking from try_charge")
+> > introduced css_tryget()/css_put() calls in drain_all_stock(),
+> > which are supposed to protect the target memory cgroup from being
+> > released during the mem_cgroup_is_descendant() call.
+> > 
+> > However, it's not completely safe. In theory, memcg can go away
+> > between reading stock->cached pointer and calling css_tryget().
+> 
+> I have to remember how is this whole thing supposed to work, it's been
+> some time since I've looked into that.
 
-I've seen you've queued this up in -mm, but the explicit intent here was
-to quickly merge this after -rc1 so that the move doesn't conflict with
-further development for 5.3.  Any chance you could send this patch on
-to Linus?
+OK, I guess I remember now and I do not see how the race is possible.
+Stock cache is keeping its memcg alive because it elevates the reference
+counting for each cached charge. And that should keep the whole chain up
+to the root (of draining) alive, no? Or do I miss something, could you
+generate a sequence of events that would lead to use-after-free?
+-- 
+Michal Hocko
+SUSE Labs
 
