@@ -6,178 +6,163 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 64990C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 10:31:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B065DC32750
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 10:50:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1ED772086A
-	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 10:31:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1ED772086A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 778CA20880
+	for <linux-mm@archiver.kernel.org>; Fri,  2 Aug 2019 10:50:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 778CA20880
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BD3666B0003; Fri,  2 Aug 2019 06:31:17 -0400 (EDT)
+	id 0C7A76B0003; Fri,  2 Aug 2019 06:50:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B84EB6B0005; Fri,  2 Aug 2019 06:31:17 -0400 (EDT)
+	id 079676B0005; Fri,  2 Aug 2019 06:50:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A71F76B0006; Fri,  2 Aug 2019 06:31:17 -0400 (EDT)
+	id E5BE16B0006; Fri,  2 Aug 2019 06:50:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 862806B0003
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 06:31:17 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id x17so64153327qkf.14
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 03:31:17 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 99F976B0003
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 06:50:47 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id l26so46733229eda.2
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 03:50:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=C0jTOdf0QLG91vRfjt/3kL9HwySWh5510tuu5CRfXFw=;
-        b=MUfn4PpT3HpXCZfw1dqejKVJz9W6O5BCF2mBVDgvWTkucpnmMQXfioDmyZrS2YzKnI
-         Y9fPl2e9/wqI56InG0HbYzLLP9BTzgSZ44J8QwApfFpN3QW0z4A9y7rzc6hVSAzoufrI
-         X7MGRsECcuQoo/qbCe5Hk3YqD23qn1U4w/Pj3jOVivePOSTN4admNhTkDXPEL3yQih9Q
-         7gkrMgXG/V8wyQYNp9p1D+GUq0Fyn1Ct1ygMLRdKW4+lJlJ0lOi0Ew7Lzq3d9yNCaChN
-         lZwx3+5Qss0zAp4g/7ktKMb3+3hjL6yr7kDDqA6rBPrpO40PXqlaWJE8YFUiPVvZA0xQ
-         hbpA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWxltLc0jxc/ue5qBVZoHuwi0Whw3l2729MVUh475sdzLz6LD2X
-	sXajnpMr3JHdzxTISBL3fSmnBlCRS3cP8f/TiyGc1YJAglRQ4/DjfeZXTPGs7jk11Ip2I5S/GWA
-	CfukTm/Q/4ViUI+B2H0GbU8JHSbtmCHRIxrUSj+2UKIqyvN4N9efyiNGuTjqs3gV6FQ==
-X-Received: by 2002:a37:a692:: with SMTP id p140mr87537127qke.432.1564741877324;
-        Fri, 02 Aug 2019 03:31:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyaGRm4GTXQBacT2EAlui1tkrArfL4d7L4VTADI2o8v68Okemh1QitSTOIMhFe3SowlSg+0
-X-Received: by 2002:a37:a692:: with SMTP id p140mr87537085qke.432.1564741876678;
-        Fri, 02 Aug 2019 03:31:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564741876; cv=none;
+        bh=rqeIBpVoEZA+mlsj09N5LDYm1PHoFezq9EsYluLQ5mc=;
+        b=eCjO6QvMHL/e0UfBkH/Bw9wlhxbpMMO7Wgb4VXYdDvbAr/WtkyY4oxPRKVAWiw274A
+         ps7XnRcEdRrXgoBl1xciWz0MLoljSgnlMbV9hbVMp66Wfec8nrgcU+NQ9Gwv3Dg2fzui
+         MdxqxhRbY/jmFuwByHiTWC0m6+ULXwNxuMF4Qtdr0qryfUPTbCwac/TzX0irO4rTTQru
+         K3a4rMD1TGO8QL+Chq4b0KPYjgTfx36H388sdNTdXfYDNq0kQQ7W9JPjFvst+iqvJf4C
+         /3aCRR/tqxEi0zuEx0rqDltQya6RzmVks7AotFF1kvNbHt2ryX/d5/SAS173AA0zaCN8
+         kffg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAVLFDDX0gaaWv2i3rhFI+wKV7c8K/3HlReYXCiD0VB4jrM4qhRr
+	74f/MOCSfKdaOpGZCEZGM4vGQWbzoTfXk7NgcVOl8DpuFLev9chhVQb5iV6MsGsLO3eG5TaLBzL
+	tKNROw5ulRlzJycwpsSxOt0V+uTqZ8eEP+651M6yNbCS/wzCAycQ6w6jdVotFHckVlQ==
+X-Received: by 2002:a50:b4cb:: with SMTP id x11mr120621268edd.284.1564743047203;
+        Fri, 02 Aug 2019 03:50:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzItyEpM0QmYeMLabS6NEW08sHYJKw3GbHaLcNe30jWaIjxILOBuHhd1evcXpHWC4Er+fCn
+X-Received: by 2002:a50:b4cb:: with SMTP id x11mr120621217edd.284.1564743046397;
+        Fri, 02 Aug 2019 03:50:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564743046; cv=none;
         d=google.com; s=arc-20160816;
-        b=a7AHa/d37XJ9M9Dc3p4xaKVpVv9LCgXFpBrthEMO3OoYBQG+A6BoKOByqXkRtOBWVu
-         swRyfCDNFHQbvZj6bwf+p53uvQwLFAuW3sA9JWYEQeaTtvZxF3olgJNS7Pdr3qkgB16o
-         dXZMoaygOOF6cE2rE6oZEqjtxo+oJDc1hF1rp+9HolMrQ19ipVje5Qidmg9pPdtzHz15
-         SPq8x1Shh8qqQssNa9/kXWbcJxOdJ6QmGuW2ZHAhtuag26LyI+1eJ0KmKfrGPHOVn9zH
-         4q5ipKB95tXiCDNWCQEumWo6cf9tWAyo3ENYqXFtTqSLkH66acLO/1ba29ESVGxWSHmT
-         nBkw==
+        b=jeXpyjAb9xK6JhNLLwMmIfTLzXaIiHvZqtlAPQSk5h7rPQ2cXsX8JmTAe+zJBjClu+
+         3ebo7Hl35Sp1AeIOmWlGzwQTbGVgNZ8lYN9DV4ftwxOSajC6p3wGlNEQy72cztIKhrDG
+         qUOPnzAtXFD3bhOitSj/ydyInL5dE9BEDUNRVjdcqHzNPV15HAi4C8lbKjGLpQxyOkd7
+         RVJF+dkKJhF+4b4BRnHbQ9zGOKcTee1mXI/0IWb0ZZAwxIJ1FxPKUUTxfqNSiSj8hDt3
+         M4ycfI/fwZxowxB2UQRDg12Fu5iZN6XqS73H9vnDR6A7ON0tBJEwhr0xsniQPk5EciRm
+         3tJw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=C0jTOdf0QLG91vRfjt/3kL9HwySWh5510tuu5CRfXFw=;
-        b=lbYAsgipSDUC+ugBmWbzZJZG5ZR/H8Mp+RBBsIlm5Fd+xNMntqrOAG66z1CorYXygZ
-         wb7Y8YUxcrOFIzMz34/Idh9UQiZ/ZUS3KvLf9fQL220wD9OMFXQ+S4PBu+zeL665YS6E
-         dUbZr3FGpsnA9QCvBeT15wayROZ2N4pvai0m/g8wvqoveoIAL6bj2lpW6sLHhDWhwl6X
-         LzW+GtqzXBb9TTF77MNGxMQSfKxQ6PajIIxVzk57tlR1NoFfEu/IuARCRn+s5CHXveHf
-         HR5iHkHQ+d6DOGa4A6bS1RZmZWuMfJ2pr/n57rhS046en6u4sw07t717VjI/+stC5Sxd
-         tXHw==
+        bh=rqeIBpVoEZA+mlsj09N5LDYm1PHoFezq9EsYluLQ5mc=;
+        b=BPPX88l+tWkzFdQvlgs+n2tBHjlnB5QIq5iQWEB/ZH51G+s9PZzmj70gk1dxJzqgqw
+         RMKXEHLVCnQXmt74FcjBbTe7mFrp0AzZ3h5y7X/wzCix/Y2neWviadtNzOHr7Chf6adZ
+         n3OByd/2bjwBT9mSbzAubleZ0L3+6coB0erhDcbwxSBa6EusApGun/LGdGBYKpUDXIQl
+         zbr5kajpnwS7P5ygCuH1+tX6IYQuwQiTz0j1zITrBlC69fo+4l1Zx1/VAEbXoyvxsZsD
+         nl3TxEbDmMrEogQ11YmeJ7muKyyQ/2ZGFxgy7wkwub/xVZyi8lanesNzG8sRfgOIXS1Z
+         792Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id o131si44509692qke.127.2019.08.02.03.31.16
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 03:31:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id j24si21887908ejt.212.2019.08.02.03.50.46
+        for <linux-mm@kvack.org>;
+        Fri, 02 Aug 2019 03:50:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of oleg@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=oleg@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id D090981F07;
-	Fri,  2 Aug 2019 10:31:15 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.136])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 043E860925;
-	Fri,  2 Aug 2019 10:31:13 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Fri,  2 Aug 2019 12:31:15 +0200 (CEST)
-Date: Fri, 2 Aug 2019 12:31:13 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: Song Liu <songliubraving@fb.com>
-Cc: lkml <linux-kernel@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"matthew.wilcox@oracle.com" <matthew.wilcox@oracle.com>,
-	"kirill.shutemov@linux.intel.com" <kirill.shutemov@linux.intel.com>,
-	Kernel Team <Kernel-team@fb.com>,
-	"william.kucharski@oracle.com" <william.kucharski@oracle.com>,
-	"srikar@linux.vnet.ibm.com" <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v2 1/2] khugepaged: enable collapse pmd for pte-mapped THP
-Message-ID: <20190802103112.GA20111@redhat.com>
-References: <20190731183331.2565608-1-songliubraving@fb.com>
- <20190731183331.2565608-2-songliubraving@fb.com>
- <20190801145032.GB31538@redhat.com>
- <36D3C0F0-17CE-42B9-9661-B376D608FA7D@fb.com>
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6CBE3344;
+	Fri,  2 Aug 2019 03:50:45 -0700 (PDT)
+Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 9FF973F71F;
+	Fri,  2 Aug 2019 03:50:40 -0700 (PDT)
+Date: Fri, 2 Aug 2019 11:50:38 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Dave Hansen <dave.hansen@intel.com>
+Cc: Kevin Brodsky <kevin.brodsky@arm.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	linux-kselftest@vger.kernel.org,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Kees Cook <keescook@chromium.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>
+Subject: Re: [PATCH v19 02/15] arm64: Introduce prctl() options to control
+ the tagged user addresses ABI
+Message-ID: <20190802105038.GC4175@arrakis.emea.arm.com>
+References: <cover.1563904656.git.andreyknvl@google.com>
+ <1c05651c53f90d07e98ee4973c2786ccf315db12.1563904656.git.andreyknvl@google.com>
+ <7a34470c-73f0-26ac-e63d-161191d4b1e4@intel.com>
+ <2b274c6f-6023-8eb8-5a86-507e6000e13d@arm.com>
+ <88c59d1e-eda9-fcfe-5ee3-64a331f34313@intel.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <36D3C0F0-17CE-42B9-9661-B376D608FA7D@fb.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Fri, 02 Aug 2019 10:31:15 +0000 (UTC)
+In-Reply-To: <88c59d1e-eda9-fcfe-5ee3-64a331f34313@intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 08/01, Song Liu wrote:
->
->
-> > On Aug 1, 2019, at 7:50 AM, Oleg Nesterov <oleg@redhat.com> wrote:
-> >
-> > On 07/31, Song Liu wrote:
-> >>
-> >> +static int khugepaged_add_pte_mapped_thp(struct mm_struct *mm,
-> >> +					 unsigned long addr)
-> >> +{
-> >> +	struct mm_slot *mm_slot;
-> >> +	int ret = 0;
-> >> +
-> >> +	/* hold mmap_sem for khugepaged_test_exit() */
-> >> +	VM_BUG_ON_MM(!rwsem_is_locked(&mm->mmap_sem), mm);
-> >> +	VM_BUG_ON(addr & ~HPAGE_PMD_MASK);
-> >> +
-> >> +	if (unlikely(khugepaged_test_exit(mm)))
-> >> +		return 0;
-> >> +
-> >> +	if (!test_bit(MMF_VM_HUGEPAGE, &mm->flags) &&
-> >> +	    !test_bit(MMF_DISABLE_THP, &mm->flags)) {
-> >> +		ret = __khugepaged_enter(mm);
-> >> +		if (ret)
-> >> +			return ret;
-> >> +	}
-> >
-> > could you explain why do we need mm->mmap_sem, khugepaged_test_exit() check
-> > and __khugepaged_enter() ?
->
-> If the mm doesn't have a mm_slot, we would like to create one here (by
-> calling __khugepaged_enter()).
+On Thu, Aug 01, 2019 at 09:45:05AM -0700, Dave Hansen wrote:
+> On 8/1/19 5:38 AM, Kevin Brodsky wrote:
+> > This patch series only changes what is allowed or not at the syscall
+> > interface. It does not change the address space size. On arm64, TBI (Top
+> > Byte Ignore) has always been enabled for userspace, so it has never been
+> > possible to use the upper 8 bits of user pointers for addressing.
+> 
+> Oh, so does the address space that's available already chop that out?
 
-I can be easily wrong, I never read this code before, but this doesn't
-look correct.
+Yes. Currently the hardware only supports 52-bit virtual addresses. It
+could be expanded (though it needs a 5th page table level) to 56-bit VA
+but it's not currently on our (hardware) plans. Beyond 56-bit, it cannot
+be done without breaking the software expectations (and hopefully I'll
+retire before we need this ;)).
 
-Firstly, mm->mmap_sem cam ONLY help if a) the task already has mm_slot
-and b) this mm_slot is khugepaged_scan.mm_slot. Otherwise khugepaged_exit()
-won't take mmap_sem for writing and thus we can't rely on test_exit().
+> > If other architectures were to support a similar functionality, then I
+> > agree that a common and more generic interface (if needed) would be
+> > helpful, but as it stands this is an arm64-specific prctl, and on arm64
+> > the address tag is defined by the architecture as bits [63:56].
+> 
+> It should then be an arch_prctl(), no?
 
-and this means that down_read(mmap_sem) before khugepaged_add_pte_mapped_thp()
-is pointless and can't help; this mm was found by vma_interval_tree_foreach().
+I guess you just want renaming SET_TAGGED_ADDR_CTRL() to
+arch_prctl_tagged_addr_ctrl_set()? (similarly for 'get')
 
-so __khugepaged_enter() can race with khugepaged_exit() and this is wrong
-in any case.
-
-> This happens when the THP is created by another mm, or by tmpfs with
-> "huge=always"; and then page table of this mm got split by split_huge_pmd().
-> With current kernel, this happens when we attach/detach uprobe to a file
-> in tmpfs with huge=always.
-
-Well. In this particular case khugepaged_enter() was likely already called
-by shmem_mmap() or khugepaged_enter_vma_merge(), or madvise.
-
-(in fact I think do_set_pmd() or shmem_fault() should call _enter() too,
- like do_huge_pmd_anonymous_page() does, but this is another story).
-
-
-And I forgot to mention... I don't understand why
-khugepaged_collapse_pte_mapped_thps() has to be called with khugepaged_mm_lock.
-
-Oleg.
+-- 
+Catalin
 
