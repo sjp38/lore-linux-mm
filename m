@@ -2,788 +2,433 @@ Return-Path: <SRS0=U/7Q=V7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 616C4C31E40
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 21:54:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D2E6C433FF
+	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 22:28:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F25DE21783
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 21:54:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F25DE21783
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id C249C214AE
+	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 22:28:36 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="gQ7OfVQ3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C249C214AE
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 836C86B0006; Sat,  3 Aug 2019 17:54:13 -0400 (EDT)
+	id 5857E6B0003; Sat,  3 Aug 2019 18:28:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E8266B0007; Sat,  3 Aug 2019 17:54:13 -0400 (EDT)
+	id 535956B0005; Sat,  3 Aug 2019 18:28:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6D72A6B0008; Sat,  3 Aug 2019 17:54:13 -0400 (EDT)
+	id 3FCD26B0006; Sat,  3 Aug 2019 18:28:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 448CC6B0006
-	for <linux-mm@kvack.org>; Sat,  3 Aug 2019 17:54:13 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id q26so71882635qtr.3
-        for <linux-mm@kvack.org>; Sat, 03 Aug 2019 14:54:13 -0700 (PDT)
+Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 1EE126B0003
+	for <linux-mm@kvack.org>; Sat,  3 Aug 2019 18:28:36 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id z19so87724963ioi.15
+        for <linux-mm@kvack.org>; Sat, 03 Aug 2019 15:28:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to;
-        bh=H1SVOFt/yThP/rkMBT/0eQhlCtO4ErcplAf5onE4G9U=;
-        b=HXIQyflhuGQS7o7Yb16PuakpJhMfp2SlQNo4DOU0fQnjiic+aEX2ecaanlek1mWDie
-         f70wPvUinJgtn8I6DB0rMiG+OsfDUgg0Zn1TCzuT3dZ5PJz39oyR+0/S1ULRuW7VNP06
-         sau9EMx8FnHgZP/uiCCH5MWuJWzsjEOdxlA/Be+KLGe3Rcy05BKFOZkGT9DatNz/vuAL
-         sRyHlI1rP3Gsj15BSaBtLyXtAZSdvvTC0wTUV88PVPYA2rjG4ZTtp2r1bl6pOZ40U17v
-         Ii+zr3sWOcTKcnx7hIvvntRTWaVcxgglxR/iNn6aGO3Dpz97gLcLA3qXNzL/9lIYknp7
-         E7uQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXt05n41vzkwJ6AF+I4OabqM6so4Vg/FRkUHOEn4Dvdr4iBT3ee
-	/vs7ev0ZOiKIkziUa9GbTBrrx93sNGUsgUwJtlMEVZkcOupcyzw7ThTbrIPxFscNr8BFpX2mLOW
-	npS25V2cmOFM44jv+kmsx5ZZ9EdBf4mvGcHkeC9PgOTzcfEhnQzw3/pcyA2mJCDVPfQ==
-X-Received: by 2002:aed:2f03:: with SMTP id l3mr103530990qtd.264.1564869252925;
-        Sat, 03 Aug 2019 14:54:12 -0700 (PDT)
-X-Received: by 2002:aed:2f03:: with SMTP id l3mr103530935qtd.264.1564869251371;
-        Sat, 03 Aug 2019 14:54:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564869251; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=UZU8IQYzscAihSaZnmtnPHPOXp262WKqqbOV44Kxtac=;
+        b=mXOCeeBCeIKoEcx2tj7sag4W1MkMJZGJ4jMQBczAeNsu0IXN5aKZDjp1TMF3+bL7Tz
+         H+kKXGFqW+vgnNc4jbUHpwNCvi4RJ+5N67DopgC41fKcjrsIYSwySADwg6whvEbxZ7+F
+         dNqqzBEPCDz5lf2mqYKgL8HBrVsPay9MxBzSYrs75Hgg4YLKzHxBsvlC+8Y4ylVR2HmP
+         roMlrPzi9Dq1umnRIVWmd3GHqfnRAUel9Wa7M5HnTarku9wRHeCVx3UGrhP3UnmpII9n
+         23U3WAnnWf8X+unxJFaiVT4+XkYJdzDELWfdx3/QLo9EvtN/GK77/coUOcKjP1vHP58U
+         f4Lg==
+X-Gm-Message-State: APjAAAUoqVIb5txPV9/aUL8NbsslmrG7rMt/mLOX51BDcUDLDGN9nUHA
+	sa8bLzQM+dfdCY08L896ZigPyhs8yyTt47PXM85GyPImol6qVrLUbyrwp0JVOLYoDIpMeAsdmmd
+	EcpysrNqoOeewJXlYlLhB4Ls41zxkxUrj0J7NlFkawG/EWmMGFzcdtHjfxsNeJ62D6A==
+X-Received: by 2002:a6b:fb0f:: with SMTP id h15mr28366832iog.266.1564871315775;
+        Sat, 03 Aug 2019 15:28:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwO+9UOPYoXQYM9i3AJSbyrUlGA7LyBioDlxzejohZxBJa0fY89bh4xTMTr41xjmsAF+brZ
+X-Received: by 2002:a6b:fb0f:: with SMTP id h15mr28366754iog.266.1564871314288;
+        Sat, 03 Aug 2019 15:28:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564871314; cv=none;
         d=google.com; s=arc-20160816;
-        b=K03XX9APnxCa1GDzUi7Ii/uz4RonRXV0A8U2Kbsa3sqyEFK3I1gojGMm2gMJgwPLdR
-         k50fCnG/eP1c7p9owO15WTJQ6GejeuK1vdaLuhMkgULHNvtjlmmVpskjRYIQExZIDrvq
-         zwiOPRNgXJfafeesd9KHgmmtKUwc5fuD66OlFLNveae3kaRDKDv2jnn58DHsYUzVsgiC
-         9FuWQehs7tMuP5l/4YiSAD24jEI86kvhzjPzL05yk9Hqx6Rv8IHD4CfTdnrp55g2vMgA
-         wSuJZ5aY6HiImhumrg5bhM24DQRJAQA6KVs8x/6nfZnP/jccK8lIOfnsDYZ5nW0vIvpU
-         Yhkg==
+        b=wz8DcXJi49Gp3/fkbbqWNu9nS4YbB747eUFfToL1SNU0+hbvPtm7wtDWxIgsOfiE39
+         0z1dKj9V5i8+DztpRpvBErR4pYg6KSZfQ+bSkpMBwMu1Ld8NbpPjZYzN1mwes0rSFJG2
+         JQuGsKS+IdxEMjnc46EftunbkE/nI5ba0q667sN5FTlEu06Udde+5b9PB6MwHirrNRfr
+         dTwUxCx4+PKyErsm0OdQuAgJvyfAIaR/R7UUAdxoowHhZ2UjkxSj/0N46tBrVJIsrlqN
+         yIS+0apkHz48BtTmLvNQcw7XMQnKu2R6mXwU8MA5dW64zXEoSUavufVDhPViILCRdpo3
+         ytYw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-transfer-encoding:content-disposition
-         :mime-version:references:message-id:subject:cc:to:from:date;
-        bh=H1SVOFt/yThP/rkMBT/0eQhlCtO4ErcplAf5onE4G9U=;
-        b=vr7VgzPrxoYHd8kFln+uw6X/tMIlBrou4a39TuqQUxZcnRRmtC39cVODGmNA2YqnZ8
-         FLsEY8w9vA3PPBbRz3Rtag6iKe38x8oTFLRtwV8bhsH/p4vq2TxbQYZ/qoHxRjlIRf62
-         eUohd0B3Fairbsz7R5BlmnAVq1yN92Z9h+ud5LSRkAhQqENC+7D7+v+MB7JPhKRGH3G3
-         uLbjBBW0FBe+/RHPtCyLFKRc1jzCIF+CBUYI2dHpusNH9TYRrfztk8cHhIYQjGH9YfYZ
-         jD8KMTNSU2k0NQlzGD46GZ4iArkA14bk9BUiS3XqzDNSCL1AIglt3SAEmItxrOcu8moq
-         zT8Q==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=UZU8IQYzscAihSaZnmtnPHPOXp262WKqqbOV44Kxtac=;
+        b=JISLM6I/HV3U3AXhdFV6Fp7CyQe7D8/GPsbnGrwQbXOvhvoAIKL6Xu+oJ85YadZ16F
+         b8WiI4eJP0G5bkgA4Dfq3FOB7HA9GAs+J2d8PlWm2Pb69KMz1guoGi8vHIjzX3Af8ZtV
+         RVO2IBP6wx/pV7Z9XnOvhjSt+Z2l1djsallKI06GNEYKhKOVhB+63vfMyychFEgbB0Ew
+         djZLoZANVB1cUdK2ClIq7Vl/XpsbtSfqohkku3gOY3UBrIyj/TTGwSQzfBGd7nn0KFth
+         hQ+3byAryqz64HrHUVyAxg1L3ELbav02gdwTcftNgjFpQ2gjbp2ebecNJ4JYpq0oKd1U
+         VmAA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id w84sor45225837qkb.44.2019.08.03.14.54.11
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=gQ7OfVQ3;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id z1si12132704ioc.55.2019.08.03.15.28.33
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 03 Aug 2019 14:54:11 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 03 Aug 2019 15:28:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqy2xJPkq1yyWqA762uWqtrjp2aYVi3s2Z7pybWgnX0PKkhuxdJpmmWR/cnca9tJ6wg6KdaenA==
-X-Received: by 2002:a05:620a:533:: with SMTP id h19mr95687295qkh.325.1564869250917;
-        Sat, 03 Aug 2019 14:54:10 -0700 (PDT)
-Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
-        by smtp.gmail.com with ESMTPSA id v17sm43365522qtc.23.2019.08.03.14.54.07
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sat, 03 Aug 2019 14:54:10 -0700 (PDT)
-Date: Sat, 3 Aug 2019 17:54:04 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Jason Wang <jasowang@redhat.com>
-Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
-	netdev@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, jgg@ziepe.ca,
-	"Paul E. McKenney" <paulmck@linux.ibm.com>
-Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
- with worker
-Message-ID: <20190803173825-mutt-send-email-mst@kernel.org>
-References: <20190731084655.7024-1-jasowang@redhat.com>
- <20190731084655.7024-8-jasowang@redhat.com>
- <20190731132438-mutt-send-email-mst@kernel.org>
- <130386548.6222676.1564646773879.JavaMail.zimbra@redhat.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=gQ7OfVQ3;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x73MPuZ2132045;
+	Sat, 3 Aug 2019 22:28:03 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=UZU8IQYzscAihSaZnmtnPHPOXp262WKqqbOV44Kxtac=;
+ b=gQ7OfVQ3rHduBEjrThd6yZHDga5vKw3DvHU09qVOZESiWe4ib/+mtFoySn8TSEtp+I3A
+ iheqWNU/1FMDxYwc1lUNs4N5mesCqTAgAYQVF7NUIottCehUNR5LbE3+ZF0kh4ckine3
+ Y/C/bLrLMDg8kkUEs9DQwxmmOVLDBwrEP0ok6BfR40jqUUkoP1YKufimzlhGA0jxEcXo
+ klPLnijNO9OwP4GpiS0Dn+MZWu2wgX4jnG+sgY9N2d3WmRZ/pJBTv0oD0esc3H/CQ/9F
+ oCbHozX/m5Q9eRsclGSZ/lnCRUeIGuJbdK3n56kJ+vPXuYWUInXrcvNVUwhApcDt4Dud HQ== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by aserp2120.oracle.com with ESMTP id 2u527pa245-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Sat, 03 Aug 2019 22:28:03 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x73MRstZ121099;
+	Sat, 3 Aug 2019 22:28:02 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userp3030.oracle.com with ESMTP id 2u4yctje4n-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Sat, 03 Aug 2019 22:28:02 +0000
+Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x73MRtIb022005;
+	Sat, 3 Aug 2019 22:27:55 GMT
+Received: from localhost.localdomain (/73.243.10.6)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Sat, 03 Aug 2019 22:27:52 +0000
+Subject: Re: [PATCH v3 2/2] mm,thp: Add experimental config option
+ RO_EXEC_FILEMAP_HUGE_FAULT_THP
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+        linux-fsdevel@vger.kernel.org,
+        Dave Hansen <dave.hansen@linux.intel.com>,
+        Song Liu <songliubraving@fb.com>,
+        Bob Kasten <robert.a.kasten@intel.com>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        Chad Mynhier <chad.mynhier@oracle.com>,
+        "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+        Johannes Weiner <jweiner@fb.com>, Matthew Wilcox <willy@infradead.org>
+References: <20190731082513.16957-1-william.kucharski@oracle.com>
+ <20190731082513.16957-3-william.kucharski@oracle.com>
+ <20190801123658.enpchkjkqt7cdkue@box>
+From: William Kucharski <william.kucharski@oracle.com>
+Message-ID: <c8d02a3b-e1ad-2b95-ce15-13d3ed4cca87@oracle.com>
+Date: Sat, 3 Aug 2019 16:27:51 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <130386548.6222676.1564646773879.JavaMail.zimbra@redhat.com>
+In-Reply-To: <20190801123658.enpchkjkqt7cdkue@box>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9338 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1908030268
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9338 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1908030267
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 01, 2019 at 04:06:13AM -0400, Jason Wang wrote:
-> On 2019/8/1 上午2:29, Michael S. Tsirkin wrote:
-> > On Wed, Jul 31, 2019 at 04:46:53AM -0400, Jason Wang wrote:
-> >> We used to use RCU to synchronize MMU notifier with worker. This leads
-> >> calling synchronize_rcu() in invalidate_range_start(). But on a busy
-> >> system, there would be many factors that may slow down the
-> >> synchronize_rcu() which makes it unsuitable to be called in MMU
-> >> notifier.
-> >>
-> >> A solution is SRCU but its overhead is obvious with the expensive full
-> >> memory barrier. Another choice is to use seqlock, but it doesn't
-> >> provide a synchronization method between readers and writers. The last
-> >> choice is to use vq mutex, but it need to deal with the worst case
-> >> that MMU notifier must be blocked and wait for the finish of swap in.
-> >>
-> >> So this patch switches use a counter to track whether or not the map
-> >> was used. The counter was increased when vq try to start or finish
-> >> uses the map. This means, when it was even, we're sure there's no
-> >> readers and MMU notifier is synchronized. When it was odd, it means
-> >> there's a reader we need to wait it to be even again then we are
-> >> synchronized. To avoid full memory barrier, store_release +
-> >> load_acquire on the counter is used.
-> >
-> > Unfortunately this needs a lot of review and testing, so this can't make
-> > rc2, and I don't think this is the kind of patch I can merge after rc3.
-> > Subtle memory barrier tricks like this can introduce new bugs while they
-> > are fixing old ones.
-> 
-> I admit the patch is tricky. Some questions:
-> 
-> - Do we must address the case of e.g swap in? If not, a simple
->   vhost_work_flush() instead of synchronize_rcu() may work.
-> - Having some hard thought, I think we can use seqlock, it looks
->   to me smp_wmb() is in write_segcount_begin() is sufficient, we don't
->   care vq->map read before smp_wmb(), and for the other we all have
->   good data devendency so smp_wmb() in the write_seqbegin_end() is
->   sufficient.
-
-If we need an mb in the begin() we can switch to
-dependent_ptr_mb. if you need me to fix it up
-and repost, let me know.
-
-Why isn't it a problem if the map is
-accessed outside the lock?
 
 
+On 8/1/19 6:36 AM, Kirill A. Shutemov wrote:
 
-> diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
-> index db2c81cb1e90..6d9501303258 100644
-> --- a/drivers/vhost/vhost.c
-> +++ b/drivers/vhost/vhost.c
-> @@ -363,39 +363,29 @@ static bool vhost_map_range_overlap(struct vhost_uaddr *uaddr,
->  
->  static void inline vhost_vq_access_map_begin(struct vhost_virtqueue *vq)
->  {
-> -	int ref = READ_ONCE(vq->ref);
-> -
-> -	smp_store_release(&vq->ref, ref + 1);
-> -	/* Make sure ref counter is visible before accessing the map */
-> -	smp_load_acquire(&vq->ref);
-> +	write_seqcount_begin(&vq->seq);
->  }
->  
->  static void inline vhost_vq_access_map_end(struct vhost_virtqueue *vq)
->  {
-> -	int ref = READ_ONCE(vq->ref);
-> -
-> -	/* Make sure vq access is done before increasing ref counter */
-> -	smp_store_release(&vq->ref, ref + 1);
-> +	write_seqcount_end(&vq->seq);
->  }
->  
->  static void inline vhost_vq_sync_access(struct vhost_virtqueue *vq)
->  {
-> -	int ref;
-> +	unsigned int ret;
->  
->  	/* Make sure map change was done before checking ref counter */
->  	smp_mb();
-> -
-> -	ref = READ_ONCE(vq->ref);
-> -	if (ref & 0x1) {
-> -		/* When ref change, we are sure no reader can see
-> +	ret = raw_read_seqcount(&vq->seq);
-> +	if (ret & 0x1) {
-> +		/* When seq changes, we are sure no reader can see
->  		 * previous map */
-> -		while (READ_ONCE(vq->ref) == ref) {
-> -			set_current_state(TASK_RUNNING);
-> +		while (raw_read_seqcount(&vq->seq) == ret)
->  			schedule();
+>>   #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+>> -#define HPAGE_PMD_SHIFT PMD_SHIFT
+>> -#define HPAGE_PMD_SIZE	((1UL) << HPAGE_PMD_SHIFT)
+>> -#define HPAGE_PMD_MASK	(~(HPAGE_PMD_SIZE - 1))
+>> -
+>> -#define HPAGE_PUD_SHIFT PUD_SHIFT
+>> -#define HPAGE_PUD_SIZE	((1UL) << HPAGE_PUD_SHIFT)
+>> -#define HPAGE_PUD_MASK	(~(HPAGE_PUD_SIZE - 1))
+>> +#define HPAGE_PMD_SHIFT		PMD_SHIFT
+>> +#define HPAGE_PMD_SIZE		((1UL) << HPAGE_PMD_SHIFT)
+>> +#define HPAGE_PMD_OFFSET	(HPAGE_PMD_SIZE - 1)
+>> +#define HPAGE_PMD_MASK		(~(HPAGE_PMD_OFFSET))
+>> +
+>> +#define HPAGE_PUD_SHIFT		PUD_SHIFT
+>> +#define HPAGE_PUD_SIZE		((1UL) << HPAGE_PUD_SHIFT)
+>> +#define HPAGE_PUD_OFFSET	(HPAGE_PUD_SIZE - 1)
+>> +#define HPAGE_PUD_MASK		(~(HPAGE_PUD_OFFSET))
+> 
+> OFFSET vs MASK semantics can be confusing without reading the definition.
+> We don't have anything similar for base page size, right (PAGE_OFFSET is
+> completely different thing :P)?
+
+I came up with the OFFSET definitions, the MASK definitions already existed
+in huge_mm.h, e.g.:
+
+#define HPAGE_PUD_MASK	(~(HPAGE_PUD_SIZE - 1))
+
+Is there different terminology you'd prefer to see me use here to clarify
+this?
 
 
-So why do we set state here? And should not we
-check need_sched?
+>> +#ifdef CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP
+>> +extern vm_fault_t filemap_huge_fault(struct vm_fault *vmf,
+>> +			enum page_entry_size pe_size);
+>> +#endif
+>> +
+> 
+> No need for #ifdef here.
+
+I wanted to avoid referencing an extern that wouldn't exist if the config
+option wasn't set; I can remove it.
 
 
-> -		}
->  	}
-> -	/* Make sure ref counter was checked before any other
-> -	 * operations that was dene on map. */
-> +	/* Make sure seq was checked before any other operations that
-> +	 * was dene on map. */
->  	smp_mb();
->  }
->  
-> @@ -691,7 +681,7 @@ void vhost_dev_init(struct vhost_dev *dev,
->  		vq->indirect = NULL;
->  		vq->heads = NULL;
->  		vq->dev = dev;
-> -		vq->ref = 0;
-> +		seqcount_init(&vq->seq);
->  		mutex_init(&vq->mutex);
->  		spin_lock_init(&vq->mmu_lock);
->  		vhost_vq_reset(dev, vq);
-> diff --git a/drivers/vhost/vhost.h b/drivers/vhost/vhost.h
-> index 3d10da0ae511..1a705e181a84 100644
-> --- a/drivers/vhost/vhost.h
-> +++ b/drivers/vhost/vhost.h
-> @@ -125,7 +125,7 @@ struct vhost_virtqueue {
->  	 */
->  	struct vhost_uaddr uaddrs[VHOST_NUM_ADDRS];
->  #endif
-> -	int ref;
-> +	seqcount_t seq;
->  	const struct vhost_umem_node *meta_iotlb[VHOST_NUM_ADDRS];
->  
->  	struct file *kick;
-> -- 
-> 2.18.1
+>> +
+>> +#ifndef	CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP
+>>   	if (PageSwapBacked(page)) {
+>>   		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
+>>   		if (PageTransHuge(page))
+>> @@ -206,6 +208,13 @@ static void unaccount_page_cache_page(struct address_space *mapping,
+>>   	} else {
+>>   		VM_BUG_ON_PAGE(PageTransHuge(page), page);
+>>   	}
+>> +#else
+>> +	if (PageSwapBacked(page))
+>> +		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
+>> +
+>> +	if (PageTransHuge(page))
+>> +		__dec_node_page_state(page, NR_SHMEM_THPS);
+>> +#endif
 > 
-> >
-> >
-> >
-> >
-> >
-> >>
-> >> Consider the read critical section is pretty small the synchronization
-> >> should be done very fast.
-> >>
-> >> Note the patch lead about 3% PPS dropping.
-> >
-> > Sorry what do you mean by this last sentence? This degrades performance
-> > compared to what?
-> 
-> Compare to without this patch.
+> Again, no need for #ifdef: the new definition should be fine for
+> everybody.
 
-OK is the feature still a performance win? or should we drop it for now?
+OK, I can do that; I didn't want to unnecessarily eliminate the
+VM_BUG_ON_PAGE(PageTransHuge(page)) call for everyone given this
+is CONFIG experimental code.
 
-> >
-> >>
-> >> Reported-by: Michael S. Tsirkin <mst@redhat.com>
-> >> Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual address")
-> >> Signed-off-by: Jason Wang <jasowang@redhat.com>
-> >> ---
-> >>  drivers/vhost/vhost.c | 145 ++++++++++++++++++++++++++----------------
-> >>  drivers/vhost/vhost.h |   7 +-
-> >>  2 files changed, 94 insertions(+), 58 deletions(-)
-> >>
-> >> diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
-> >> index cfc11f9ed9c9..db2c81cb1e90 100644
-> >> --- a/drivers/vhost/vhost.c
-> >> +++ b/drivers/vhost/vhost.c
-> >> @@ -324,17 +324,16 @@ static void vhost_uninit_vq_maps(struct vhost_virtqueue *vq)
-> >>  
-> >>  	spin_lock(&vq->mmu_lock);
-> >>  	for (i = 0; i < VHOST_NUM_ADDRS; i++) {
-> >> -		map[i] = rcu_dereference_protected(vq->maps[i],
-> >> -				  lockdep_is_held(&vq->mmu_lock));
-> >> +		map[i] = vq->maps[i];
-> >>  		if (map[i]) {
-> >>  			vhost_set_map_dirty(vq, map[i], i);
-> >> -			rcu_assign_pointer(vq->maps[i], NULL);
-> >> +			vq->maps[i] = NULL;
-> >>  		}
-> >>  	}
-> >>  	spin_unlock(&vq->mmu_lock);
-> >>  
-> >> -	/* No need for synchronize_rcu() or kfree_rcu() since we are
-> >> -	 * serialized with memory accessors (e.g vq mutex held).
-> >> +	/* No need for synchronization since we are serialized with
-> >> +	 * memory accessors (e.g vq mutex held).
-> >>  	 */
-> >>  
-> >>  	for (i = 0; i < VHOST_NUM_ADDRS; i++)
-> >> @@ -362,6 +361,44 @@ static bool vhost_map_range_overlap(struct vhost_uaddr *uaddr,
-> >>  	return !(end < uaddr->uaddr || start > uaddr->uaddr - 1 + uaddr->size);
-> >>  }
-> >>  
-> >> +static void inline vhost_vq_access_map_begin(struct vhost_virtqueue *vq)
-> >> +{
-> >> +	int ref = READ_ONCE(vq->ref);
-> >> +
-> >> +	smp_store_release(&vq->ref, ref + 1);
-> >> +	/* Make sure ref counter is visible before accessing the map */
-> >> +	smp_load_acquire(&vq->ref);
-> >
-> > The map access is after this sequence, correct?
-> 
-> Yes.
-> 
-> >
-> > Just going by the rules in Documentation/memory-barriers.txt,
-> > I think that this pair will not order following accesses with ref store.
-> >
-> > Documentation/memory-barriers.txt says:
-> >
-> >
-> > +     In addition, a RELEASE+ACQUIRE
-> > +     pair is -not- guaranteed to act as a full memory barrier.
-> >
-> >
-> >
-> > The guarantee that is made is this:
-> > 	after
-> >      an ACQUIRE on a given variable, all memory accesses preceding any prior
-> >      RELEASE on that same variable are guaranteed to be visible.
-> 
-> Yes, but it's not clear about the order of ACQUIRE the same location
-> of previous RELEASE. And it only has a example like:
-> 
-> "
-> 	*A = a;
-> 	RELEASE M
-> 	ACQUIRE N
-> 	*B = b;
-> 
-> could occur as:
-> 
-> 	ACQUIRE N, STORE *B, STORE *A, RELEASE M
-> "
-> 
-> But it doesn't explain what happen when
-> 
-> *A = a
-> RELEASE M
-> ACQUIRE M
-> *B = b;
-> 
-> And tools/memory-model/Documentation said
-> 
-> "
-> First, when a lock-acquire reads from a lock-release, the LKMM
-> requires that every instruction po-before the lock-release must
-> execute before any instruction po-after the lock-acquire.
-> "
-> 
-> Is this a hint that I was correct?
+> PageCompound() and PageTransCompound() are the same thing if THP is
+> enabled at compile time.
 
-I don't think it's correct since by this logic
-memory barriers can be nops on x86.
+> PageHuge() check here is looking out of place. I don't thing we can ever
+> will see hugetlb pages here.
 
-> >
-> >
-> > And if we also had the reverse rule we'd end up with a full barrier,
-> > won't we?
-> >
-> > Cc Paul in case I missed something here. And if I'm right,
-> > maybe we should call this out, adding
-> >
-> > 	"The opposite is not true: a prior RELEASE is not
-> > 	 guaranteed to be visible before memory accesses following
-> > 	 the subsequent ACQUIRE".
+What I'm trying to do is sanity check that what the cache contains is a THP 
+page. I added the PageHuge() check simply because PageTransCompound() is true 
+for both THP and hugetlbfs pages, and there's no routine that returns true JUST 
+for THP pages; perhaps there should be?
+
+>> +		 *	+ the enbry is a page page with an order other than
 > 
-> That kinds of violates the RELEASE?
+> Typo.
+
+Thanks, fixed.
+
 > 
-> "
->      This also acts as a one-way permeable barrier.  It guarantees that all
->      memory operations before the RELEASE operation will appear to happen
->      before the RELEASE operation with respect to the other components of the
-> "
+>> +		 *	  HPAGE_PMD_ORDER
+> 
+> If you see unexpected page order in page cache, something went horribly
+> wrong, right?
+
+This routine's main function other than validation is to make sure the page 
+cache has not been polluted between when we go out to read the large page and 
+when the page is added to the cache (more on that coming up.) For example, the 
+way I was able to tell readahead() was polluting future possible THP mappings is 
+because after a buffered read I would typically see 52 (the readahead size) 
+PAGESIZE pages for the next 2M range in the page cache.
+
+>> +		 *	+ the page's index is not what we expect it to be
+> 
+> Same here.
+
+Same rationale.
+
+> 
+>> +		 *	+ the page is not up-to-date
+>> +		 *	+ the page is unlocked
+> 
+> Confused here.
+
+These should never be true, but I wanted to double check for them anyway. I can 
+eliminate the checks if we are satisfied these states can "never" happen for a 
+cached page.
+
+> 
+> Do you expect caller to lock page before the check? If so, state it in the
+> comment for the function.
+
+It's my understanding that pages in the page cache should be locked, so I wanted 
+to check for that.
+
+This routine is validating entries we find in the page cache to see whether they 
+are conflicts or valid cached THP pages.
+
+> Wow. That's unreadable. Can we rewrite it something like (commenting each
+> check):
+
+I can definitely break it down into multiple checks; it is a bit dense, thus the 
+comment but you're correct, it will read better if broken down more.
 
 
-yes but we are talking about RELEASE itself versus stuff
-that comes after it.
+> You also need to check that VMA alignment is suitable for huge pages.
+> See transhuge_vma_suitable().
 
-> >
-> >
-> >
-> >> +}
-> >> +
-> >> +static void inline vhost_vq_access_map_end(struct vhost_virtqueue *vq)
-> >> +{
-> >> +	int ref = READ_ONCE(vq->ref);
-> >> +
-> >> +	/* Make sure vq access is done before increasing ref counter */
-> >> +	smp_store_release(&vq->ref, ref + 1);
-> >> +}
-> >> +
-> >> +static void inline vhost_vq_sync_access(struct vhost_virtqueue *vq)
-> >> +{
-> >> +	int ref;
-> >> +
-> >> +	/* Make sure map change was done before checking ref counter */
-> >> +	smp_mb();
-> >> +
-> >> +	ref = READ_ONCE(vq->ref);
-> >> +	if (ref & 0x1) {
-> >
-> > Please document the even/odd trick here too, not just in the commit log.
-> >
-> 
-> Ok.
-> 
-> >> +		/* When ref change,
-> >
-> > changes
-> >
-> >> we are sure no reader can see
-> >> +		 * previous map */
-> >> +		while (READ_ONCE(vq->ref) == ref) {
-> >
-> >
-> > what is the below line in aid of?
-> >
-> >> +			set_current_state(TASK_RUNNING);
+I don't really care if the start of the VMA is suitable, just whether I can map
+the current faulting page with a THP. As far as I know, there's nothing wrong
+with mapping all the pages before the VMA hits a properly aligned bound with
+PAGESIZE pages and then aligned chunks in the middle with THP.
 
-any answers here?
+>> +	if (unlikely(!(PageCompound(new_page)))) {
+> 
+> How can it happen?
 
-> >> +			schedule();
-> >
-> >                         if (need_resched())
-> >                                 schedule();
-> >
-> > ?
-> 
-> Yes, better.
-> 
-> >
-> >> +		}
-> >
-> > On an interruptible kernel, there's a risk here is that
-> > a task got preempted with an odd ref.
-> > So I suspect we'll have to disable preemption when we
-> > make ref odd.
-> 
-> I'm not sure I get, if the odd is not the original value we read,
-> we're sure it won't read the new map here I believe.
+That check was already removed for a pending v4, thanks. I wasn't sure if
+__page_cache_alloc() could ever erroneously return a non-compound page so
+I wanted to check for it.
 
-But we will spin for a very long time in this case.
+>> +	__SetPageLocked(new_page);
+> 
+> Again?
 
-> >
-> >
-> >> +	}
-> >> +	/* Make sure ref counter was checked before any other
-> >> +	 * operations that was dene on map. */
-> >
-> > was dene -> were done?
-> >
+This is the page that content was just read to; readpage() will unlock the page
+when it is done with I/O, but the page needs to be locked before it's inserted
+into the page cache.
+
+>> +	/* did it get truncated? */
+>> +	if (unlikely(new_page->mapping != mapping)) {
 > 
-> Yes.
+> Hm. IIRC this path only reachable for just allocated page that is not
+> exposed to anybody yet. How can it be truncated?
+
+Matthew advised I duplicate the similar routine from filemap_fault(), but that 
+may be because of the normal way pages get added to the cache, which I may need 
+to modify my code to do.
+
+>> +	ret = alloc_set_pte(vmf, NULL, hugepage);
 > 
-> >> +	smp_mb();
-> >> +}
-> >> +
-> >>  static void vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
-> >>  				      int index,
-> >>  				      unsigned long start,
-> >> @@ -376,16 +413,15 @@ static void vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
-> >>  	spin_lock(&vq->mmu_lock);
-> >>  	++vq->invalidate_count;
-> >>  
-> >> -	map = rcu_dereference_protected(vq->maps[index],
-> >> -					lockdep_is_held(&vq->mmu_lock));
-> >> +	map = vq->maps[index];
-> >>  	if (map) {
-> >>  		vhost_set_map_dirty(vq, map, index);
-> >> -		rcu_assign_pointer(vq->maps[index], NULL);
-> >> +		vq->maps[index] = NULL;
-> >>  	}
-> >>  	spin_unlock(&vq->mmu_lock);
-> >>  
-> >>  	if (map) {
-> >> -		synchronize_rcu();
-> >> +		vhost_vq_sync_access(vq);
-> >>  		vhost_map_unprefetch(map);
-> >>  	}
-> >>  }
-> >> @@ -457,7 +493,7 @@ static void vhost_init_maps(struct vhost_dev *dev)
-> >>  	for (i = 0; i < dev->nvqs; ++i) {
-> >>  		vq = dev->vqs[i];
-> >>  		for (j = 0; j < VHOST_NUM_ADDRS; j++)
-> >> -			RCU_INIT_POINTER(vq->maps[j], NULL);
-> >> +			vq->maps[j] = NULL;
-> >>  	}
-> >>  }
-> >>  #endif
-> >> @@ -655,6 +691,7 @@ void vhost_dev_init(struct vhost_dev *dev,
-> >>  		vq->indirect = NULL;
-> >>  		vq->heads = NULL;
-> >>  		vq->dev = dev;
-> >> +		vq->ref = 0;
-> >>  		mutex_init(&vq->mutex);
-> >>  		spin_lock_init(&vq->mmu_lock);
-> >>  		vhost_vq_reset(dev, vq);
-> >> @@ -921,7 +958,7 @@ static int vhost_map_prefetch(struct vhost_virtqueue *vq,
-> >>  	map->npages = npages;
-> >>  	map->pages = pages;
-> >>  
-> >> -	rcu_assign_pointer(vq->maps[index], map);
-> >> +	vq->maps[index] = map;
-> >>  	/* No need for a synchronize_rcu(). This function should be
-> >>  	 * called by dev->worker so we are serialized with all
-> >>  	 * readers.
-> >> @@ -1216,18 +1253,18 @@ static inline int vhost_put_avail_event(struct vhost_virtqueue *vq)
-> >>  	struct vring_used *used;
-> >>  
-> >>  	if (!vq->iotlb) {
-> >> -		rcu_read_lock();
-> >> +		vhost_vq_access_map_begin(vq);
-> >>  
-> >> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> >> +		map = vq->maps[VHOST_ADDR_USED];
-> >>  		if (likely(map)) {
-> >>  			used = map->addr;
-> >>  			*((__virtio16 *)&used->ring[vq->num]) =
-> >>  				cpu_to_vhost16(vq, vq->avail_idx);
-> >> -			rcu_read_unlock();
-> >> +			vhost_vq_access_map_end(vq);
-> >>  			return 0;
-> >>  		}
-> >>  
-> >> -		rcu_read_unlock();
-> >> +		vhost_vq_access_map_end(vq);
-> >>  	}
-> >>  #endif
-> >>  
-> >> @@ -1245,18 +1282,18 @@ static inline int vhost_put_used(struct vhost_virtqueue *vq,
-> >>  	size_t size;
-> >>  
-> >>  	if (!vq->iotlb) {
-> >> -		rcu_read_lock();
-> >> +		vhost_vq_access_map_begin(vq);
-> >>  
-> >> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> >> +		map = vq->maps[VHOST_ADDR_USED];
-> >>  		if (likely(map)) {
-> >>  			used = map->addr;
-> >>  			size = count * sizeof(*head);
-> >>  			memcpy(used->ring + idx, head, size);
-> >> -			rcu_read_unlock();
-> >> +			vhost_vq_access_map_end(vq);
-> >>  			return 0;
-> >>  		}
-> >>  
-> >> -		rcu_read_unlock();
-> >> +		vhost_vq_access_map_end(vq);
-> >>  	}
-> >>  #endif
-> >>  
-> >> @@ -1272,17 +1309,17 @@ static inline int vhost_put_used_flags(struct vhost_virtqueue *vq)
-> >>  	struct vring_used *used;
-> >>  
-> >>  	if (!vq->iotlb) {
-> >> -		rcu_read_lock();
-> >> +		vhost_vq_access_map_begin(vq);
-> >>  
-> >> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> >> +		map = vq->maps[VHOST_ADDR_USED];
-> >>  		if (likely(map)) {
-> >>  			used = map->addr;
-> >>  			used->flags = cpu_to_vhost16(vq, vq->used_flags);
-> >> -			rcu_read_unlock();
-> >> +			vhost_vq_access_map_end(vq);
-> >>  			return 0;
-> >>  		}
-> >>  
-> >> -		rcu_read_unlock();
-> >> +		vhost_vq_access_map_end(vq);
-> >>  	}
-> >>  #endif
-> >>  
-> >> @@ -1298,17 +1335,17 @@ static inline int vhost_put_used_idx(struct vhost_virtqueue *vq)
-> >>  	struct vring_used *used;
-> >>  
-> >>  	if (!vq->iotlb) {
-> >> -		rcu_read_lock();
-> >> +		vhost_vq_access_map_begin(vq);
-> >>  
-> >> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> >> +		map = vq->maps[VHOST_ADDR_USED];
-> >>  		if (likely(map)) {
-> >>  			used = map->addr;
-> >>  			used->idx = cpu_to_vhost16(vq, vq->last_used_idx);
-> >> -			rcu_read_unlock();
-> >> +			vhost_vq_access_map_end(vq);
-> >>  			return 0;
-> >>  		}
-> >>  
-> >> -		rcu_read_unlock();
-> >> +		vhost_vq_access_map_end(vq);
-> >>  	}
-> >>  #endif
-> >>  
-> >> @@ -1362,17 +1399,17 @@ static inline int vhost_get_avail_idx(struct vhost_virtqueue *vq,
-> >>  	struct vring_avail *avail;
-> >>  
-> >>  	if (!vq->iotlb) {
-> >> -		rcu_read_lock();
-> >> +		vhost_vq_access_map_begin(vq);
-> >>  
-> >> -		map = rcu_dereference(vq->maps[VHOST_ADDR_AVAIL]);
-> >> +		map = vq->maps[VHOST_ADDR_AVAIL];
-> >>  		if (likely(map)) {
-> >>  			avail = map->addr;
-> >>  			*idx = avail->idx;
-> >> -			rcu_read_unlock();
-> >> +			vhost_vq_access_map_end(vq);
-> >>  			return 0;
-> >>  		}
-> >>  
-> >> -		rcu_read_unlock();
-> >> +		vhost_vq_access_map_end(vq);
-> >>  	}
-> >>  #endif
-> >>  
-> >> @@ -1387,17 +1424,17 @@ static inline int vhost_get_avail_head(struct vhost_virtqueue *vq,
-> >>  	struct vring_avail *avail;
-> >>  
-> >>  	if (!vq->iotlb) {
-> >> -		rcu_read_lock();
-> >> +		vhost_vq_access_map_begin(vq);
-> >>  
-> >> -		map = rcu_dereference(vq->maps[VHOST_ADDR_AVAIL]);
-> >> +		map = vq->maps[VHOST_ADDR_AVAIL];
-> >>  		if (likely(map)) {
-> >>  			avail = map->addr;
-> >>  			*head = avail->ring[idx & (vq->num - 1)];
-> >> -			rcu_read_unlock();
-> >> +			vhost_vq_access_map_end(vq);
-> >>  			return 0;
-> >>  		}
-> >>  
-> >> -		rcu_read_unlock();
-> >> +		vhost_vq_access_map_end(vq);
-> >>  	}
-> >>  #endif
-> >>  
-> >> @@ -1413,17 +1450,17 @@ static inline int vhost_get_avail_flags(struct vhost_virtqueue *vq,
-> >>  	struct vring_avail *avail;
-> >>  
-> >>  	if (!vq->iotlb) {
-> >> -		rcu_read_lock();
-> >> +		vhost_vq_access_map_begin(vq);
-> >>  
-> >> -		map = rcu_dereference(vq->maps[VHOST_ADDR_AVAIL]);
-> >> +		map = vq->maps[VHOST_ADDR_AVAIL];
-> >>  		if (likely(map)) {
-> >>  			avail = map->addr;
-> >>  			*flags = avail->flags;
-> >> -			rcu_read_unlock();
-> >> +			vhost_vq_access_map_end(vq);
-> >>  			return 0;
-> >>  		}
-> >>  
-> >> -		rcu_read_unlock();
-> >> +		vhost_vq_access_map_end(vq);
-> >>  	}
-> >>  #endif
-> >>  
-> >> @@ -1438,15 +1475,15 @@ static inline int vhost_get_used_event(struct vhost_virtqueue *vq,
-> >>  	struct vring_avail *avail;
-> >>  
-> >>  	if (!vq->iotlb) {
-> >> -		rcu_read_lock();
-> >> -		map = rcu_dereference(vq->maps[VHOST_ADDR_AVAIL]);
-> >> +		vhost_vq_access_map_begin(vq);
-> >> +		map = vq->maps[VHOST_ADDR_AVAIL];
-> >>  		if (likely(map)) {
-> >>  			avail = map->addr;
-> >>  			*event = (__virtio16)avail->ring[vq->num];
-> >> -			rcu_read_unlock();
-> >> +			vhost_vq_access_map_end(vq);
-> >>  			return 0;
-> >>  		}
-> >> -		rcu_read_unlock();
-> >> +		vhost_vq_access_map_end(vq);
-> >>  	}
-> >>  #endif
-> >>  
-> >> @@ -1461,17 +1498,17 @@ static inline int vhost_get_used_idx(struct vhost_virtqueue *vq,
-> >>  	struct vring_used *used;
-> >>  
-> >>  	if (!vq->iotlb) {
-> >> -		rcu_read_lock();
-> >> +		vhost_vq_access_map_begin(vq);
-> >>  
-> >> -		map = rcu_dereference(vq->maps[VHOST_ADDR_USED]);
-> >> +		map = vq->maps[VHOST_ADDR_USED];
-> >>  		if (likely(map)) {
-> >>  			used = map->addr;
-> >>  			*idx = used->idx;
-> >> -			rcu_read_unlock();
-> >> +			vhost_vq_access_map_end(vq);
-> >>  			return 0;
-> >>  		}
-> >>  
-> >> -		rcu_read_unlock();
-> >> +		vhost_vq_access_map_end(vq);
-> >>  	}
-> >>  #endif
-> >>  
-> >> @@ -1486,17 +1523,17 @@ static inline int vhost_get_desc(struct vhost_virtqueue *vq,
-> >>  	struct vring_desc *d;
-> >>  
-> >>  	if (!vq->iotlb) {
-> >> -		rcu_read_lock();
-> >> +		vhost_vq_access_map_begin(vq);
-> >>  
-> >> -		map = rcu_dereference(vq->maps[VHOST_ADDR_DESC]);
-> >> +		map = vq->maps[VHOST_ADDR_DESC];
-> >>  		if (likely(map)) {
-> >>  			d = map->addr;
-> >>  			*desc = *(d + idx);
-> >> -			rcu_read_unlock();
-> >> +			vhost_vq_access_map_end(vq);
-> >>  			return 0;
-> >>  		}
-> >>  
-> >> -		rcu_read_unlock();
-> >> +		vhost_vq_access_map_end(vq);
-> >>  	}
-> >>  #endif
-> >>  
-> >> @@ -1843,13 +1880,11 @@ static bool iotlb_access_ok(struct vhost_virtqueue *vq,
-> >>  #if VHOST_ARCH_CAN_ACCEL_UACCESS
-> >>  static void vhost_vq_map_prefetch(struct vhost_virtqueue *vq)
-> >>  {
-> >> -	struct vhost_map __rcu *map;
-> >> +	struct vhost_map *map;
-> >>  	int i;
-> >>  
-> >>  	for (i = 0; i < VHOST_NUM_ADDRS; i++) {
-> >> -		rcu_read_lock();
-> >> -		map = rcu_dereference(vq->maps[i]);
-> >> -		rcu_read_unlock();
-> >> +		map = vq->maps[i];
-> >>  		if (unlikely(!map))
-> >>  			vhost_map_prefetch(vq, i);
-> >>  	}
-> >> diff --git a/drivers/vhost/vhost.h b/drivers/vhost/vhost.h
-> >> index a9a2a93857d2..f9e9558a529d 100644
-> >> --- a/drivers/vhost/vhost.h
-> >> +++ b/drivers/vhost/vhost.h
-> >> @@ -115,16 +115,17 @@ struct vhost_virtqueue {
-> >>  #if VHOST_ARCH_CAN_ACCEL_UACCESS
-> >>  	/* Read by memory accessors, modified by meta data
-> >>  	 * prefetching, MMU notifier and vring ioctl().
-> >> -	 * Synchonrized through mmu_lock (writers) and RCU (writers
-> >> -	 * and readers).
-> >> +	 * Synchonrized through mmu_lock (writers) and ref counters,
-> >> +	 * see vhost_vq_access_map_begin()/vhost_vq_access_map_end().
-> >>  	 */
-> >> -	struct vhost_map __rcu *maps[VHOST_NUM_ADDRS];
-> >> +	struct vhost_map *maps[VHOST_NUM_ADDRS];
-> >>  	/* Read by MMU notifier, modified by vring ioctl(),
-> >>  	 * synchronized through MMU notifier
-> >>  	 * registering/unregistering.
-> >>  	 */
-> >>  	struct vhost_uaddr uaddrs[VHOST_NUM_ADDRS];
-> >>  #endif
-> >> +	int ref;
-> >
-> > Is it important that this is signed? If not I'd do unsigned here:
-> > even though kernel does compile with 2s complement sign overflow,
-> > it seems cleaner not to depend on that.
+> It has to be
 > 
-> Not a must, let me fix.
+> 	ret = alloc_set_pte(vmf, vmf->memcg, hugepage);
 > 
-> Thanks
+> right?
+
+I can make that change; originally alloc_set_pte() didn't use the second 
+parameter at all when mapping a read-only page.
+
+Even now, if the page isn't writable, it would only be dereferenced by a
+VM_BUG_ON_PAGE() call if it's COW.
+
+> It looks backwards to me. I believe the page must be in page cache
+> *before* it got mapped.
 > 
-> >
-> >>  	const struct vhost_umem_node *meta_iotlb[VHOST_NUM_ADDRS];
-> >>  
-> >>  	struct file *kick;
-> >> -- 
-> >> 2.18.1
+> I expect all sorts of weird bug due to races when the page is mapped but
+> not visible via syscalls.
+
+You may be correct.
+
+My original thinking on this was that as a THP is going to be rarer and more 
+valuable to the system, I didn't want to add it to the page cache until its 
+contents had been fully read and it was mapped. Talking with Matthew it seems I 
+may need to change to do things the same way as PAGESIZE pages, where the page 
+is added to the cache prior to the readpage() call and we rely upon PageUptodate 
+to see if the reads were successful.
+
+My thinking had been if any part of reading a large page and mapping it had 
+failed, the code could just put_page() the newly allocated page and fallback to 
+mapping the page with PAGESIZE pages rather than add a THP to the cache.
+
+
+>> +#ifndef CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP
+> 
+> IS_ENABLED()?
+> 
+>>   	if (!IS_DAX(filp->f_mapping->host) || !IS_ENABLED(CONFIG_FS_DAX_PMD))
+>>   		goto out;
+>> +#endif
+
+This code short-circuits the address generation routine if the memory isn't DAX,
+and if this code is enabled I need it not to goto out but rather fall through to
+__thp_get_unmapped_area().
+
+>> +	if ((prot & PROT_READ) && (prot & PROT_EXEC) &&
+>> +		(!(prot & PROT_WRITE)) && (flags & MAP_PRIVATE) &&
+> 
+> Why require PROT_EXEC && PROT_READ. You only must ask for !PROT_WRITE.
+> 
+> And how do you protect against mprotect() later? Should you ask for
+> ro-file instead?
+
+My original goal was to only map program TEXT with THP, which means only
+RO EXEC code, not just any non-writable address space.
+
+If mprotect() is called, wouldn't the pages be COWed to PAGESIZE pages the
+first time the area was written to? I may be way off on this assumption.
+
+> All size considerations are already handled by thp_get_unmapped_area(). No
+> need to duplicate it here.
+
+Thanks, I'll remove them.
+
+> You might want to add thp_ro_get_unmapped_area() that would check file for
+> RO, before going for THP-suitable mapping.
+
+Once again, the question is whether we want to make this just RO or RO + EXEC
+to maintain my goal of just mapping program TEXT via THP. I'm willing to hear 
+arguments either way.
+
+> 
+>> +		addr = thp_get_unmapped_area(file, addr, len, pgoff, flags);
+>> +
+>> +		if (addr && (!(addr & HPAGE_PMD_OFFSET)))
+>> +			vm_maywrite = 0;
+> 
+> Oh. That's way too hacky. Better to ask for RO file instead.
+
+I did that because the existing code just blindly sets VM_MAYWRITE and I 
+obviously didn't want to, so making it a variable allowed me to shut it off if 
+it was a THP mapping.
+
+
+>> +#ifndef CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP
+>>   		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+>> +#endif
+>> +
+> 
+> Just remove it. Don't add more #ifdefs.
+
+OK; once again I didn't want to remove the existing VM_BUG_ON_PAGE() call
+because this was an experimental config for now.
+
+
+>> +#ifndef CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP
+>>   		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
+>> +#endif
+>> +
+> 
+> Ditto.
+
+Same rationale.
+
+Thanks for looking this over; I'm curious as to what others think about the need 
+for an RO file and the issue of when the large page gets added to the page cache.
+
+     -- Bill
 
