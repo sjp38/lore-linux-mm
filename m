@@ -2,217 +2,196 @@ Return-Path: <SRS0=U/7Q=V7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 96402C31E40
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 01:41:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 68476C433FF
+	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 02:37:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 594CC20B7C
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 01:41:42 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="OLRFKsHo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 594CC20B7C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id ED6462086A
+	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 02:37:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED6462086A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=I-love.SAKURA.ne.jp
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 13C806B0006; Fri,  2 Aug 2019 21:41:42 -0400 (EDT)
+	id 4960C6B0003; Fri,  2 Aug 2019 22:37:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0EFE06B0008; Fri,  2 Aug 2019 21:41:42 -0400 (EDT)
+	id 447266B0005; Fri,  2 Aug 2019 22:37:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F1E3E6B000A; Fri,  2 Aug 2019 21:41:41 -0400 (EDT)
+	id 2E7086B0006; Fri,  2 Aug 2019 22:37:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BAEE86B0006
-	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 21:41:41 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id r7so42677138plo.6
-        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 18:41:41 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 01D906B0003
+	for <linux-mm@kvack.org>; Fri,  2 Aug 2019 22:37:01 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id h26so42025020otr.21
+        for <linux-mm@kvack.org>; Fri, 02 Aug 2019 19:37:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=zc1wJBCk6oa4TZJ5kpnxYLs8I/mCQFC0KqXiV/MQqAc=;
-        b=ONk6uip+yxl8uO20TnIJjEU8N0DNNjV8CtrOClcGKkB7jxyl0x08gfCvno9Oz50FT5
-         XUTNT2st+/Ojj0HGZLqaJBZ+CEaQftg5xWzVkF/n084JmaI+F2n2ugT9uWpnFYL8CXmc
-         3xIkd6gAR3ryS6sQEKBuPWUd61NLDPiIZTEXWmOUsZSpYTkE23JOJWV5mvTTvNDo4kkQ
-         ZW4e7w1vB6zYGoEsBmK7SUlLRlMPM8tzQ0IT4unzEVuRXxp+VgcnqsqQUPpOGQsTPnzr
-         eB/Yhj+3D28fVN2Mk2tqpHdotLjgKYEGTj1oCuJr+DPfaIIH7ib974HV/zW7CrMcZLIp
-         DJoQ==
-X-Gm-Message-State: APjAAAUzYPKKGoF4jn6bpSzpbfcpgAdZTKNIfY5Bvv+WwGrhU7YFZxQ/
-	bblt4u49z9T0B/S4ufAahrgTtrDwMtpmw0XLhgqhiQLbJAsXeNy1LZR9OlWRYHj+pwK+bKHASl5
-	nSI3a046e0HtrAZsRJBpFWgJZ+tDnSJQcAqg4fajjPJ7Dv11MxsbVcppBluEghlPbeA==
-X-Received: by 2002:a17:902:9a04:: with SMTP id v4mr129932461plp.95.1564796501290;
-        Fri, 02 Aug 2019 18:41:41 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzcVIA72TpHyjJDXH1KQ3QLnDHYigq/BhXP+N/kLUfD+OrhboBfLNzrs7TjhvUPzER2CCpp
-X-Received: by 2002:a17:902:9a04:: with SMTP id v4mr129932429plp.95.1564796500484;
-        Fri, 02 Aug 2019 18:41:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564796500; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=XZazhZ0CmotngoVYbMsiDVatQHN2tXbP8fOcerYOWMg=;
+        b=H2rNDwdpSEsvaYV4Dg+NDUf9Bz/gdUaKj8/SnYXIx35kibzSKociKSqsDLMtxqY+6E
+         SdOa51t88O0mXHmoKF5sxYLsIf3QXVBDK7dLAP00S8ls2uht5NVsgyGxKQ7kHEpCnE8q
+         zRXfELi9zQDXrVmo0PEQ0yWlBf0VHcw2QFopz+7lZ1aRObROewshO3sNf1goTHZAompK
+         /N7vvijzBj/6hsYGvboKeNfrllpoaQLeDf4E9p4z/MUuP+Lek3ALFc/j4aov0hWsDKWK
+         nPYiCZwPrzOjAuNcNafX0mQCgvhwDeXI242WKPK069bCPnQB+aDYald/FVlBUg7Zwitv
+         0g9Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+X-Gm-Message-State: APjAAAUPBn3ZsFdq+2Y6ukm33brPS6cI0snxQg+P5734RcEkhkrKvmKN
+	+nTK+0hzKzyIhhiaCVJRQBDLioHEpoX2IQL3LsLApE22eXzU1Db8etoiaIt3wBu87elu0E+YuxB
+	DRC0oRICQWWfPOA3sLw4eIn6aYF9J72KCmkp0OXhZcX5tw96MYD//xZ+VA9HF5+5k6g==
+X-Received: by 2002:a05:6808:3:: with SMTP id u3mr4333194oic.141.1564799820600;
+        Fri, 02 Aug 2019 19:37:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzd2GJx0nTFIAiJEyQ5LazBbGboofM72mr4R4CMrLxtwX+oTGBYlnoHA/3e44z6GbHoOjVt
+X-Received: by 2002:a05:6808:3:: with SMTP id u3mr4333176oic.141.1564799819638;
+        Fri, 02 Aug 2019 19:36:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564799819; cv=none;
         d=google.com; s=arc-20160816;
-        b=oi0Clo6bcLgoMUb1i7xwY5GDm0bb4g0S08f8T6xezjFU7fhFuBkEXPoRUU6R3xrYHB
-         EF9FvAnvWUD2jec7FHupuM/IyyZWtxwcmH4wgMFXJj5CA50hvozjfTohfRwpNgUV7iXP
-         oH1XPNSRiiPXhXJ4Jlg5kB4Lc7K1TxtQJZD0Dk6N2cnm0Tihel/7cTPF9rT4VCH/gbdZ
-         rGTp/jbk9MW+1LqLwYjJ4qsGnphR7llSoSfJwhVU4g72Z8G0Rb4nJKo7fam73lueAIgL
-         ddzKhDxeTQ0hOZSfKTTIiJulkpZVkzqkgz0yIow9YLP/vRSw6pfL2eP+yYtZLI+SKcPc
-         +k6g==
+        b=zkZ/njduIY4MJpTMC8XFKaNiARd+dfYDqCvBWz6bU6ggbGYGEc97rCf9qX6vLD0vyl
+         rVEaNZFLVCGLZ/jrtKAMnGEu6nJxDRIA3WHtWakc+DZb0+nbikHyeLiykxTYROzKb3MN
+         WZ6X+nA18PpzqmkjIBkPzMzsuf8U6mlMyodvJco1Y7Vzlx1ZX2tERrZInHvqvSUzN8Pa
+         41n8vQQPS0i4HSYfM3fbe7viDM+82dd+1Bi8y0ZkNNuWNae7dzlpUPK7njP6Zrf6aVCq
+         D9IRK6qq8natYfe2sjTRzJd++q1oY60TJqmrzzDkAc/rs6AHT3S/g8aRGzkq3WD1Xj84
+         KJhQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=zc1wJBCk6oa4TZJ5kpnxYLs8I/mCQFC0KqXiV/MQqAc=;
-        b=G3PjO45QZYEa51hdvKDm+nSkjc6DLNJ0b38DvVbtWY0dPmDbhfZ6ousQBSrApxPq+0
-         jebphk6uSWwoh2N3lcaLLfPXoW7OGiYQQpfaCkT0Mhlg6ubIL2nUxgKy+eOE2yo/n/EM
-         3OZFwXZZMD3jChoJwb28oyNCB26Lg4GXcsuD1h6XWS7AGqT3W/E0z0ixhDFNCu1DLWYR
-         4iZ27aMk4rp2VeA/5MjCaLTRXZI3wkvqoHfhTrmwMiy1ZpcE4OU1pocjnRo06SRq7kU0
-         SfgfLVLLEE8yylYLDXTh7wYNzIJFSpChMShlIDvU6fvRrTaW4+oSLioDyaYhxco0fGL+
-         UFow==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=XZazhZ0CmotngoVYbMsiDVatQHN2tXbP8fOcerYOWMg=;
+        b=OVw36qibcCMfCjtiYxmOrphCjuKE1ohH4MMt+76Mdm3PWVqTY20V1iOFHcwKDBMj2z
+         W5WBqo84v8sSF5qVJpckUlAyd7cEFrL+jEWQ20v0rtGWeJkBHefGLBXY6MYcjPUWggxU
+         RZ5wlCluMZu3pVc+HgEYfwrhCxbHqY0ZRWH0eyTe3xcFWfFmWM0FhbEtSWhoAVZ3vrvM
+         fFTl58PkLyAKc2LouaMbAaDSFXUrSHiJoqIP3t78tz+5OaTqYJ8rRzSb+dI1Q8i7T320
+         ehrwMskR/SENWOice/d+T3CEddrDK7tqmu9mRT1Cx5BaFp4WsQk1ReM7Z40fM/EHvOWr
+         joaw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=OLRFKsHo;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id z26si38774266pgl.562.2019.08.02.18.41.40
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
+        by mx.google.com with ESMTPS id m84si39571179oib.153.2019.08.02.19.36.58
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 02 Aug 2019 18:41:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+        Fri, 02 Aug 2019 19:36:59 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=OLRFKsHo;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d44e6540001>; Fri, 02 Aug 2019 18:41:40 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Fri, 02 Aug 2019 18:41:39 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Fri, 02 Aug 2019 18:41:39 -0700
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Sat, 3 Aug
- 2019 01:41:38 +0000
-Subject: Re: [PATCH 31/34] nfs: convert put_page() to put_user_page*()
-To: Calum Mackay <calum.mackay@oracle.com>, <john.hubbard@gmail.com>, Andrew
- Morton <akpm@linux-foundation.org>
-CC: Christoph Hellwig <hch@infradead.org>, Dan Williams
-	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen
-	<dave.hansen@linux.intel.com>, Ira Weiny <ira.weiny@intel.com>, Jan Kara
-	<jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, LKML
-	<linux-kernel@vger.kernel.org>, <amd-gfx@lists.freedesktop.org>,
-	<ceph-devel@vger.kernel.org>, <devel@driverdev.osuosl.org>,
-	<devel@lists.orangefs.org>, <dri-devel@lists.freedesktop.org>,
-	<intel-gfx@lists.freedesktop.org>, <kvm@vger.kernel.org>,
-	<linux-arm-kernel@lists.infradead.org>, <linux-block@vger.kernel.org>,
-	<linux-crypto@vger.kernel.org>, <linux-fbdev@vger.kernel.org>,
-	<linux-fsdevel@vger.kernel.org>, <linux-media@vger.kernel.org>,
-	<linux-mm@kvack.org>, <linux-nfs@vger.kernel.org>,
-	<linux-rdma@vger.kernel.org>, <linux-rpi-kernel@lists.infradead.org>,
-	<linux-xfs@vger.kernel.org>, <netdev@vger.kernel.org>,
-	<rds-devel@oss.oracle.com>, <sparclinux@vger.kernel.org>, <x86@kernel.org>,
-	<xen-devel@lists.xenproject.org>, Trond Myklebust
-	<trond.myklebust@hammerspace.com>, Anna Schumaker <anna.schumaker@netapp.com>
-References: <20190802022005.5117-1-jhubbard@nvidia.com>
- <20190802022005.5117-32-jhubbard@nvidia.com>
- <1738cb1e-15d8-0bbe-5362-341664f6efc8@oracle.com>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <db136399-ed87-56ea-bd6e-e5d29b145eda@nvidia.com>
-Date: Fri, 2 Aug 2019 18:41:38 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
+Received: from fsav401.sakura.ne.jp (fsav401.sakura.ne.jp [133.242.250.100])
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x732aiRI033406;
+	Sat, 3 Aug 2019 11:36:44 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+Received: from www262.sakura.ne.jp (202.181.97.72)
+ by fsav401.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav401.sakura.ne.jp);
+ Sat, 03 Aug 2019 11:36:44 +0900 (JST)
+X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav401.sakura.ne.jp)
+Received: from [192.168.1.8] (softbank126012062002.bbtec.net [126.12.62.2])
+	(authenticated bits=0)
+	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x732aeeh033387
+	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
+	Sat, 3 Aug 2019 11:36:44 +0900 (JST)
+	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
+Subject: Re: Possible mem cgroup bug in kernels between 4.18.0 and 5.3-rc1.
+To: Masoud Sharbiani <msharbiani@apple.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Greg KH <gregkh@linuxfoundation.org>, hannes@cmpxchg.org,
+        vdavydov.dev@gmail.com, linux-mm@kvack.org, cgroups@vger.kernel.org,
+        linux-kernel@vger.kernel.org
+References: <5659221C-3E9B-44AD-9BBF-F74DE09535CD@apple.com>
+ <20190802074047.GQ11627@dhcp22.suse.cz>
+ <7E44073F-9390-414A-B636-B1AE916CC21E@apple.com>
+ <20190802144110.GL6461@dhcp22.suse.cz>
+ <5DE6F4AE-F3F9-4C52-9DFC-E066D9DD5EDC@apple.com>
+ <20190802191430.GO6461@dhcp22.suse.cz>
+ <A06C5313-B021-4ADA-9897-CE260A9011CC@apple.com>
+From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Message-ID: <f7733773-35bc-a1f6-652f-bca01ea90078@I-love.SAKURA.ne.jp>
+Date: Sat, 3 Aug 2019 11:36:36 +0900
+User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <1738cb1e-15d8-0bbe-5362-341664f6efc8@oracle.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <A06C5313-B021-4ADA-9897-CE260A9011CC@apple.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1564796500; bh=zc1wJBCk6oa4TZJ5kpnxYLs8I/mCQFC0KqXiV/MQqAc=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=OLRFKsHoXBw1TGfx4yjE0Mz6/NwSHjUP/99RYZUV8BmAJcU3vy970b00AWaqBbqwn
-	 eDliId8mLescIf+v3MwQ2SrvN7VrnEwLTirEIw8jXzAjeXgqN3dtxI2Suyrp0L+f3G
-	 YPfLBq5YLuEzykUeYyNQ/IXUTk0ew3pKoxF86cxfpvc0Iih+8axjrF9wmXCYOssEh/
-	 dFyCupj1u3LqFaTu0iXYZzaL8I/Fkdd+Hdao45WQIFetVoCK43sV9CCZfHZ6uY+1an
-	 0Rm4XSFjiP2H1hfdLpXkesSoEJK75cPPtD+8sANcEv6R5DjbxYeg7dbcB8wnnzerOG
-	 BX10+9E+Fxe0Q==
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/2/19 6:27 PM, Calum Mackay wrote:
-> On 02/08/2019 3:20 am, john.hubbard@gmail.com wrote:
-...=20
-> Since it's static, and only called twice, might it be better to change it=
-s two callers [nfs_direct_{read,write}_schedule_iovec()] to call put_user_p=
-ages() directly, and remove nfs_direct_release_pages() entirely?
->=20
-> thanks,
-> calum.
->=20
->=20
->> =C2=A0 =C2=A0 void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinf=
-o,
->>
-=20
-Hi Calum,
+Well, while mem_cgroup_oom() is actually called, due to hitting
 
-Absolutely! Is it OK to add your reviewed-by, with the following incrementa=
-l
-patch made to this one?
+        /*
+         * The OOM killer does not compensate for IO-less reclaim.
+         * pagefault_out_of_memory lost its gfp context so we have to
+         * make sure exclude 0 mask - all other users should have at least
+         * ___GFP_DIRECT_RECLAIM to get here.
+         */
+        if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
+                return true;
 
-diff --git a/fs/nfs/direct.c b/fs/nfs/direct.c
-index b00b89dda3c5..c0c1b9f2c069 100644
---- a/fs/nfs/direct.c
-+++ b/fs/nfs/direct.c
-@@ -276,11 +276,6 @@ ssize_t nfs_direct_IO(struct kiocb *iocb, struct iov_i=
-ter *iter)
-        return nfs_file_direct_write(iocb, iter);
- }
-=20
--static void nfs_direct_release_pages(struct page **pages, unsigned int npa=
-ges)
--{
--       put_user_pages(pages, npages);
--}
--
- void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinfo,
-                              struct nfs_direct_req *dreq)
- {
-@@ -510,7 +505,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nf=
-s_direct_req *dreq,
-                        pos +=3D req_len;
-                        dreq->bytes_left -=3D req_len;
-                }
--               nfs_direct_release_pages(pagevec, npages);
-+               put_user_pages(pagevec, npages);
-                kvfree(pagevec);
-                if (result < 0)
-                        break;
-@@ -933,7 +928,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct n=
-fs_direct_req *dreq,
-                        pos +=3D req_len;
-                        dreq->bytes_left -=3D req_len;
-                }
--               nfs_direct_release_pages(pagevec, npages);
-+               put_user_pages(pagevec, npages);
-                kvfree(pagevec);
-                if (result < 0)
-                        break;
+path inside out_of_memory(), OOM_SUCCESS is returned and retrying without
+making forward progress...
 
+----------------------------------------
+--- a/mm/memcontrol.c
++++ b/mm/memcontrol.c
+@@ -2447,6 +2447,8 @@ static int try_charge(struct mem_cgroup *memcg, gfp_t gfp_mask,
+         */
+        oom_status = mem_cgroup_oom(mem_over_limit, gfp_mask,
+                       get_order(nr_pages * PAGE_SIZE));
++       printk("mem_cgroup_oom(%pGg)=%u\n", &gfp_mask, oom_status);
++       dump_stack();
+        switch (oom_status) {
+        case OOM_SUCCESS:
+                nr_retries = MEM_CGROUP_RECLAIM_RETRIES;
+----------------------------------------
 
+----------------------------------------
+[   55.208578][ T2798] mem_cgroup_oom(GFP_NOFS)=0
+[   55.210424][ T2798] CPU: 3 PID: 2798 Comm: leaker Not tainted 5.3.0-rc2+ #637
+[   55.212985][ T2798] Hardware name: VMware, Inc. VMware Virtual Platform/440BX Desktop Reference Platform, BIOS 6.00 04/13/2018
+[   55.217260][ T2798] Call Trace:
+[   55.218597][ T2798]  dump_stack+0x67/0x95
+[   55.220200][ T2798]  try_charge+0x4ca/0x6d0
+[   55.221843][ T2798]  ? get_mem_cgroup_from_mm+0x1ff/0x2c0
+[   55.223855][ T2798]  mem_cgroup_try_charge+0x88/0x2d0
+[   55.225723][ T2798]  __add_to_page_cache_locked+0x27e/0x4c0
+[   55.227784][ T2798]  ? scan_shadow_nodes+0x30/0x30
+[   55.229577][ T2798]  add_to_page_cache_lru+0x72/0x180
+[   55.231467][ T2798]  iomap_readpages_actor+0xeb/0x1e0
+[   55.233376][ T2798]  ? iomap_migrate_page+0x120/0x120
+[   55.235382][ T2798]  iomap_apply+0xaf/0x150
+[   55.237049][ T2798]  iomap_readpages+0x9f/0x160
+[   55.239061][ T2798]  ? iomap_migrate_page+0x120/0x120
+[   55.241013][ T2798]  xfs_vm_readpages+0x54/0x130 [xfs]
+[   55.242960][ T2798]  read_pages+0x63/0x160
+[   55.244613][ T2798]  __do_page_cache_readahead+0x1cd/0x200
+[   55.246699][ T2798]  ondemand_readahead+0x201/0x4d0
+[   55.248562][ T2798]  page_cache_async_readahead+0x16e/0x2e0
+[   55.250740][ T2798]  ? page_cache_async_readahead+0xa5/0x2e0
+[   55.252881][ T2798]  filemap_fault+0x3f3/0xc20
+[   55.254813][ T2798]  ? xfs_ilock+0x1de/0x2c0 [xfs]
+[   55.256858][ T2798]  ? __xfs_filemap_fault+0x7f/0x270 [xfs]
+[   55.259118][ T2798]  ? down_read_nested+0x98/0x170
+[   55.261123][ T2798]  ? xfs_ilock+0x1de/0x2c0 [xfs]
+[   55.263146][ T2798]  __xfs_filemap_fault+0x92/0x270 [xfs]
+[   55.265210][ T2798]  xfs_filemap_fault+0x27/0x30 [xfs]
+[   55.267164][ T2798]  __do_fault+0x33/0xd0
+[   55.268784][ T2798]  do_fault+0x3be/0x5c0
+[   55.270390][ T2798]  __handle_mm_fault+0x462/0xc00
+[   55.272251][ T2798]  handle_mm_fault+0x17c/0x380
+[   55.274055][ T2798]  ? handle_mm_fault+0x46/0x380
+[   55.275877][ T2798]  __do_page_fault+0x24a/0x4c0
+[   55.277676][ T2798]  do_page_fault+0x27/0x1b0
+[   55.279399][ T2798]  page_fault+0x34/0x40
+[   55.281053][ T2798] RIP: 0033:0x4009f0
+[   55.282564][ T2798] Code: 03 00 00 00 e8 71 fd ff ff 48 83 f8 ff 49 89 c6 74 74 48 89 c6 bf c0 0c 40 00 31 c0 e8 69 fd ff ff 45 85 ff 7e 21 31 c9 66 90 <41> 0f be 14 0e 01 d3 f7 c1 ff 0f 00 00 75 05 41 c6 04 0e 2a 48 83
+[   55.289631][ T2798] RSP: 002b:00007fff1804ec00 EFLAGS: 00010206
+[   55.291835][ T2798] RAX: 000000000000001b RBX: 0000000000000000 RCX: 0000000001a1a000
+[   55.294745][ T2798] RDX: 0000000000000000 RSI: 000000007fffffe5 RDI: 0000000000000000
+[   55.297500][ T2798] RBP: 000000000000000c R08: 0000000000000000 R09: 00007f4e7392320d
+[   55.300225][ T2798] R10: 0000000000000002 R11: 0000000000000246 R12: 00000000000186a0
+[   55.303047][ T2798] R13: 0000000000000003 R14: 00007f4e530d6000 R15: 0000000002800000
+----------------------------------------
 
-thanks,
---=20
-John Hubbard
-NVIDIA
 
