@@ -6,96 +6,96 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C44B7C31E40
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 14:02:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B1113C433FF
+	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 14:02:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7D2F221773
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 14:02:09 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 683EA21726
+	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 14:02:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="b1oxKsey"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D2F221773
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="cYPLPoMt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 683EA21726
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B1B146B000D; Sat,  3 Aug 2019 10:02:08 -0400 (EDT)
+	id 8A8EB6B000E; Sat,  3 Aug 2019 10:02:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A560D6B000E; Sat,  3 Aug 2019 10:02:08 -0400 (EDT)
+	id 881626B0010; Sat,  3 Aug 2019 10:02:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 944C56B0010; Sat,  3 Aug 2019 10:02:08 -0400 (EDT)
+	id 770B66B0266; Sat,  3 Aug 2019 10:02:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6FEB06B000D
-	for <linux-mm@kvack.org>; Sat,  3 Aug 2019 10:02:08 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id s25so67324255qkj.18
-        for <linux-mm@kvack.org>; Sat, 03 Aug 2019 07:02:08 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4D80F6B000E
+	for <linux-mm@kvack.org>; Sat,  3 Aug 2019 10:02:11 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id 199so67648131qkj.9
+        for <linux-mm@kvack.org>; Sat, 03 Aug 2019 07:02:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:sender:from:to:cc:subject:date
          :message-id:in-reply-to:references;
-        bh=nLlHstn4NE1DLTa8MBcCUwC1TFpRtd2dCdrLnBskzhg=;
-        b=ERsIH9B5dQLL/Jg6hmvc2Ny5Ua8OifVyix0mvPsH1iU4UGoed9sQUi7rHH/JlVWATc
-         arPZYQkdQdn7SII/j0Z9gvosWDXbyoRAaROx7cmwZfEYkd9UAvy72TJTCJRIFAWA0l1k
-         8fMNhlp4Fpi/iEE7Z430++NgjzU2qOvSaxXvGyFbCqbtLbEb3LSVEqVQMoOsUFDoG/z0
-         miMvr2xTsMwNm0sSLKRPAE/VSlu0qFgzS+utNmj+oafH+CDLxh1kdIxWNARy01ITnVXS
-         Py/wTgmP2lOod+nBTPdnN13x4ZHFCCIyiuZdHblBGgzRUK2/h9SHcUqQzh2Bu2iF/AJ3
-         bRIQ==
-X-Gm-Message-State: APjAAAXr26WHNwkeULbfSS0sksloCjJgqXi81zo1iYHskfznyFkw7HS2
-	2Mko+3HrWZnMp8orNx4GywB+8a8qPb4D2RroHchyBuqno3AbOXHvLWvf8DrfW09UFXB5QqTt8df
-	ezqLHxH1tv3J9IlGNBEPmmxOHWq4citXf+KEPaB2b2fZqs7JIdANJjtkAzFDhF44=
-X-Received: by 2002:a05:620a:12c4:: with SMTP id e4mr4464285qkl.81.1564840928235;
-        Sat, 03 Aug 2019 07:02:08 -0700 (PDT)
-X-Received: by 2002:a05:620a:12c4:: with SMTP id e4mr4464208qkl.81.1564840927355;
-        Sat, 03 Aug 2019 07:02:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564840927; cv=none;
+        bh=D9orjRjfDP9pgbxu2ifvLHy1ukGCDC2EnGjf/tPTneg=;
+        b=oTPA7Qexkeiq4pY8qRtR96BHj6gYFf+o1RKZUjbkNMVrEn7GL4lKQlQw6Csqg2bAAF
+         0qP2l6dh/tZGy5SVYmZmnJO8BnDm3Uas1DzrBV5dksQIsEEF1NOSPJf1m/dtLnqgQ1tE
+         vX4I97cvX2TAO6YmcOT54zDUmUlTBeaJAR3EdYZT+AmbH4Zof6o5e9/kcAvwwdmmpRxZ
+         Ya9QP1Z1IhytM9GryspmNNUtGUa7QKOCUPLYrtnLRXjme6n7swS2wpwGiWR9TkWIDXji
+         ldwxbkvJHsH6RksjuLLkiOnGxPYF7jg7eKomIQkVrjS2y3iplqIS2Qq8NlZ2dwpuBwuO
+         7HaQ==
+X-Gm-Message-State: APjAAAXONW1vOav8sbX4YNQL8/OK8nfd6FiA7N4PwY60nIM623IucGDU
+	jtT305fKKCSzi2xOG8pVDUNZ7WS6wY5SDK9mm8Jbn2ATlm9ZPvcWBCAf5efyaXT43UYvuHSblqB
+	oKxQ7AsT1wqu+tfi0ulCwxQzbd/kMLUY8Fps5YWV8GbPdLKgqq+B5nzDWQohPjio=
+X-Received: by 2002:a0c:9891:: with SMTP id f17mr103091367qvd.49.1564840931056;
+        Sat, 03 Aug 2019 07:02:11 -0700 (PDT)
+X-Received: by 2002:a0c:9891:: with SMTP id f17mr103091240qvd.49.1564840929726;
+        Sat, 03 Aug 2019 07:02:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564840929; cv=none;
         d=google.com; s=arc-20160816;
-        b=xt8yoiA6NVKNpuOp9GDu7mKlonMnwcaQ8YbSv33lmbfClspZT2Ssvgzigs0Nq2dt/f
-         iJwzUH5C/v+CsnlEfkCVvJDcAMofBIUtmmyDd3ymKP/IawS8GU/0jDp3rBGRfUFg1oh9
-         Q2M53S+Am30at2d21vO63NkyTOiXAP9FH3ZjhmZ8F+nzQK3Q/ANQx6GL7tOvKse8UnHF
-         qKBsQjQT1cPY7WmQJJh6ewlDGMqCKAaIHY9l7EAt/g+r8RVFNNMzrKQm3wa8k7MVpTCZ
-         de53W1BDQdn3UUBwVJ3jk4xg9/0n+QHgshCp4cqJUrVIZVPGYo2Zq2QeejRwKdv0ItJH
-         oVFg==
+        b=Z6d14RWy6lFKRl3izdZ743qPamj/wYre0cE6Qs6SJkE/BQBoYX3QUtmnee+ntX4EO3
+         A6bW47cwYVM/ut1aL44mLkkVKd7JWNFH+IwGrpU+dm6C9g8aXeUEL2hKepqaONJo/k3b
+         OxCqtoLNauVi/Yf9vk+WUh5J/8TeZHgK7fm/kio9uLqPaMPrO09xa9MEqhd6KPe2tkfX
+         nWeVaFHi1RFj0wkPhN6UdZublYF86olzkK69J3AnhVE739SwQPypgqFGPYspSaXzH9OD
+         Uvielk0nHVrTkf6i6Wp89BNaTf8BEIfgjRu7k3d6RrqqSaPnOtn/lp0cQ/jcSE26cSpt
+         d2HQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=references:in-reply-to:message-id:date:subject:cc:to:from:sender
          :dkim-signature;
-        bh=nLlHstn4NE1DLTa8MBcCUwC1TFpRtd2dCdrLnBskzhg=;
-        b=h0vMLZvf5R9MgsX9zvELoKJ3MPP5/l+6utelzrUfUwF4fHuoG3ly69lcw21Biww2ck
-         N2hoLwndNgdRJFvwG7pvnCregqoPuZZag+FE+ZXZMf+IuTwlc4YSqw1WdezdEOHfXzNg
-         UgmLjgMUZWDjqP6H13hPUJvk7+hRjHxKyDCCtkH00yKVdH4Z8xeVNeNC+wxhFOZVJlCs
-         aqef14KmnSUWMEo6XCf2gNxbB178iURcMrX0VYDSx9y3nhHYbMpAnDk4Ui6yyjLMC/Cd
-         DDr7SqtSkOLaJNJXBrRFmbdnP9YDr6QRb5MucNGCWT5lV+eMztLOBk5mURxzz9evWk+2
-         vCdA==
+        bh=D9orjRjfDP9pgbxu2ifvLHy1ukGCDC2EnGjf/tPTneg=;
+        b=DGXJv4GwhhuSsigUK1Sevta3sEBkEmYsP1jLaL1CU5x2emMIWmRQFyupDiVz7HhGp6
+         1uKiU20p4MHHMPrqgy0MNW6nzZNgdevNr+GYpcKM+JFLOsUBTJrxmNw6cwmhbVCiLA2G
+         7CwcRQ9VlRmXbciWxU/NMjDh9McmKfhL1He5xFNYHZvKP5oY4IqJEDUjdSHyrrl5NHo0
+         9KichTirT1aahkmYKcJrbG+toyVSvTTng7mBwP54FPpHfpXJkLVxHhqtqL5X+6OqTjSV
+         moirVaFqCpGtfjKuLAkvDMadULd+avCjQS/cb2JVCNyT9tpxRT9wHkyE/JyEfOt39/GS
+         eM8A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=b1oxKsey;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cYPLPoMt;
        spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u27sor66605789qvf.16.2019.08.03.07.02.07
+        by mx.google.com with SMTPS id c8sor103963910qtc.13.2019.08.03.07.02.09
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sat, 03 Aug 2019 07:02:07 -0700 (PDT)
+        Sat, 03 Aug 2019 07:02:09 -0700 (PDT)
 Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=b1oxKsey;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cYPLPoMt;
        spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=sender:from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=nLlHstn4NE1DLTa8MBcCUwC1TFpRtd2dCdrLnBskzhg=;
-        b=b1oxKseyt1LyDYjoudvzC1hpTJo++RG9fGoMA1s5KW/D/iHMPVK750EZAfJwkzPSC6
-         uURCombHdllFO2iJlD57v5pIos+dxvvSVQwNR38Ny/GBOnKlw3SJFzjyc2Qsuc8Wwc4N
-         Nv28xKTg1sJX4TSYvunTzqqhf8k+Oc6jCcIbufFqWeH3EwtZeLgDx/DSQPLU8DuSyjcQ
-         tXnApdDsE/ZGqpT6H9+Ft332dtpil1zcgHKQRF3ZYGzFf9LB7cESicyzbnyBG2Jh2Q+8
-         1RzH6XX1hi4m9gPi55cwHUJjDsdDWzfPe3th0+5QgvDKEqfhnUeE8IgKdzsVYoJsOxdk
-         oCMw==
-X-Google-Smtp-Source: APXvYqzMiari5I3bSyI7xBIGI8+SdQjIZjsTWhlYOhUC+G2ITji3BPgjA4OSJA43R/PapwQ5OGKLAw==
-X-Received: by 2002:a0c:895b:: with SMTP id 27mr99111155qvq.94.1564840926938;
-        Sat, 03 Aug 2019 07:02:06 -0700 (PDT)
+        bh=D9orjRjfDP9pgbxu2ifvLHy1ukGCDC2EnGjf/tPTneg=;
+        b=cYPLPoMt3nONdxSxEBH2DXkIoLL+c9kekNeZLQCrDU7eCfsa88/QnKRrpo2uMjGpnt
+         8yr36k8tiB7bRtBvd+j8pp9LWfqhmue6miSiyxYELzY5FOgfWc3t58Snbg5xMh32u7rt
+         53KM77N+vC78kPnMnfPjHh98M4fvvJg+TDfRrGu/otL4kB49lI+RXnGcUJn6ggTljn6T
+         9eY1HB5jWO32Zsqkc6HchBQ3JKLeJC5KoocZEgyb7QzmFt3SrF//DO0yYyQMG7d5kpQr
+         HLMxXYD/noRAOoXbQ7C1kXaOd/Rh95WKAb4novdD59drxwXue25gMwWDx4RmQHus7pYV
+         t6ug==
+X-Google-Smtp-Source: APXvYqzq4ivE4tAq5lf09J8xU7TbLV1kaIEe1KkD0cgBL2Q8YLk017OZlnCCIbvPhSic+6Qi+z3/Ew==
+X-Received: by 2002:ac8:c45:: with SMTP id l5mr96088707qti.63.1564840929275;
+        Sat, 03 Aug 2019 07:02:09 -0700 (PDT)
 Received: from localhost ([2620:10d:c091:480::efce])
-        by smtp.gmail.com with ESMTPSA id z1sm38529457qkg.103.2019.08.03.07.02.06
+        by smtp.gmail.com with ESMTPSA id 18sm35265973qkh.77.2019.08.03.07.02.08
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 03 Aug 2019 07:02:06 -0700 (PDT)
+        Sat, 03 Aug 2019 07:02:08 -0700 (PDT)
 From: Tejun Heo <tj@kernel.org>
 To: axboe@kernel.dk,
 	jack@suse.cz,
@@ -110,9 +110,9 @@ Cc: cgroups@vger.kernel.org,
 	guro@fb.com,
 	akpm@linux-foundation.org,
 	Tejun Heo <tj@kernel.org>
-Subject: [PATCH 2/4] bdi: Add bdi->id
-Date: Sat,  3 Aug 2019 07:01:53 -0700
-Message-Id: <20190803140155.181190-3-tj@kernel.org>
+Subject: [PATCH 3/4] writeback, memcg: Implement cgroup_writeback_by_id()
+Date: Sat,  3 Aug 2019 07:01:54 -0700
+Message-Id: <20190803140155.181190-4-tj@kernel.org>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190803140155.181190-1-tj@kernel.org>
 References: <20190803140155.181190-1-tj@kernel.org>
@@ -122,157 +122,106 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There currently is no way to universally identify and lookup a bdi
-without holding a reference and pointer to it.  This patch adds an
-non-recycling bdi->id and implements bdi_get_by_id() which looks up
-bdis by their ids.  This will be used by memcg foreign inode flushing.
-
-I left bdi_list alone for simplicity and because while rb_tree does
-support rcu assignment it doesn't seem to guarantee lossless walk when
-walk is racing aginst tree rebalance operations.
+Implement cgroup_writeback_by_id() which initiates cgroup writeback
+from bdi and memcg IDs.  This will be used by memcg foreign inode
+flushing.
 
 Signed-off-by: Tejun Heo <tj@kernel.org>
 ---
- include/linux/backing-dev-defs.h |  2 +
- include/linux/backing-dev.h      |  1 +
- mm/backing-dev.c                 | 65 +++++++++++++++++++++++++++++++-
- 3 files changed, 66 insertions(+), 2 deletions(-)
+ fs/fs-writeback.c         | 64 +++++++++++++++++++++++++++++++++++++++
+ include/linux/writeback.h |  4 +++
+ 2 files changed, 68 insertions(+)
 
-diff --git a/include/linux/backing-dev-defs.h b/include/linux/backing-dev-defs.h
-index 8fb740178d5d..1075f2552cfc 100644
---- a/include/linux/backing-dev-defs.h
-+++ b/include/linux/backing-dev-defs.h
-@@ -185,6 +185,8 @@ struct bdi_writeback {
- };
- 
- struct backing_dev_info {
-+	u64 id;
-+	struct rb_node rb_node; /* keyed by ->id */
- 	struct list_head bdi_list;
- 	unsigned long ra_pages;	/* max readahead in PAGE_SIZE units */
- 	unsigned long io_pages;	/* max allowed IO size */
-diff --git a/include/linux/backing-dev.h b/include/linux/backing-dev.h
-index 02650b1253a2..84cdcfbc763f 100644
---- a/include/linux/backing-dev.h
-+++ b/include/linux/backing-dev.h
-@@ -24,6 +24,7 @@ static inline struct backing_dev_info *bdi_get(struct backing_dev_info *bdi)
- 	return bdi;
+diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+index 6129debdc938..5c79d7acefdb 100644
+--- a/fs/fs-writeback.c
++++ b/fs/fs-writeback.c
+@@ -880,6 +880,70 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
+ 		wb_put(last_wb);
  }
  
-+struct backing_dev_info *bdi_get_by_id(u64 id);
- void bdi_put(struct backing_dev_info *bdi);
- 
- __printf(2, 3)
-diff --git a/mm/backing-dev.c b/mm/backing-dev.c
-index e8e89158adec..4a8816e0b8d4 100644
---- a/mm/backing-dev.c
-+++ b/mm/backing-dev.c
-@@ -1,6 +1,7 @@
- // SPDX-License-Identifier: GPL-2.0-only
- 
- #include <linux/wait.h>
-+#include <linux/rbtree.h>
- #include <linux/backing-dev.h>
- #include <linux/kthread.h>
- #include <linux/freezer.h>
-@@ -22,10 +23,12 @@ EXPORT_SYMBOL_GPL(noop_backing_dev_info);
- static struct class *bdi_class;
- 
- /*
-- * bdi_lock protects updates to bdi_list. bdi_list has RCU reader side
-- * locking.
-+ * bdi_lock protects bdi_tree and updates to bdi_list. bdi_list has RCU
-+ * reader side locking.
-  */
- DEFINE_SPINLOCK(bdi_lock);
-+static u64 bdi_id_cursor;
-+static struct rb_root bdi_tree = RB_ROOT;
- LIST_HEAD(bdi_list);
- 
- /* bdi_wq serves all asynchronous writeback tasks */
-@@ -859,9 +862,58 @@ struct backing_dev_info *bdi_alloc_node(gfp_t gfp_mask, int node_id)
- }
- EXPORT_SYMBOL(bdi_alloc_node);
- 
-+struct rb_node **bdi_lookup_rb_node(u64 id, struct rb_node **parentp)
-+{
-+	struct rb_node **p = &bdi_tree.rb_node;
-+	struct rb_node *parent = NULL;
-+	struct backing_dev_info *bdi;
-+
-+	lockdep_assert_held(&bdi_lock);
-+
-+	while (*p) {
-+		parent = *p;
-+		bdi = rb_entry(parent, struct backing_dev_info, rb_node);
-+
-+		if (bdi->id > id)
-+			p = &(*p)->rb_left;
-+		else if (bdi->id < id)
-+			p = &(*p)->rb_right;
-+		else
-+			break;
-+	}
-+
-+	if (parentp)
-+		*parentp = parent;
-+	return p;
-+}
-+
 +/**
-+ * bdi_get_by_id - lookup and get bdi from its id
-+ * @id: bdi id to lookup
++ * cgroup_writeback_by_id - initiate cgroup writeback from bdi and memcg IDs
++ * @bdi_id: target bdi id
++ * @memcg_id: target memcg css id
++ * @nr_pages: number of pages to write
++ * @reason: reason why some writeback work initiated
++ * @done: target wb_completion
 + *
-+ * Find bdi matching @id and get it.  Returns NULL if the matching bdi
-+ * doesn't exist or is already unregistered.
++ * Initiate flush of the bdi_writeback identified by @bdi_id and @memcg_id
++ * with the specified parameters.
 + */
-+struct backing_dev_info *bdi_get_by_id(u64 id)
++int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr,
++			   enum wb_reason reason, struct wb_completion *done)
 +{
-+	struct backing_dev_info *bdi = NULL;
-+	struct rb_node **p;
++	struct backing_dev_info *bdi;
++	struct cgroup_subsys_state *memcg_css;
++	struct bdi_writeback *wb;
++	struct wb_writeback_work *work;
++	int ret;
 +
-+	spin_lock_irq(&bdi_lock);
-+	p = bdi_lookup_rb_node(id, NULL);
-+	if (*p) {
-+		bdi = rb_entry(*p, struct backing_dev_info, rb_node);
-+		bdi_get(bdi);
++	/* lookup bdi and memcg */
++	bdi = bdi_get_by_id(bdi_id);
++	if (!bdi)
++		return -ENOENT;
++
++	rcu_read_lock();
++	memcg_css = css_from_id(memcg_id, &memory_cgrp_subsys);
++	if (memcg_css && !css_tryget(memcg_css))
++		memcg_css = NULL;
++	rcu_read_unlock();
++	if (!memcg_css) {
++		ret = -ENOENT;
++		goto out_bdi_put;
 +	}
-+	spin_unlock_irq(&bdi_lock);
 +
-+	return bdi;
++	/* and find the associated wb */
++	wb = wb_get_create(bdi, memcg_css, GFP_NOWAIT | __GFP_NOWARN);
++	if (!wb) {
++		ret = -ENOMEM;
++		goto out_css_put;
++	}
++
++	/* issue the writeback work */
++	work = kzalloc(sizeof(*work), GFP_NOWAIT | __GFP_NOWARN);
++	if (work) {
++		work->nr_pages = nr;
++		work->sync_mode = WB_SYNC_NONE;
++		work->reason = reason;
++		work->done = done;
++		work->auto_free = 1;
++		wb_queue_work(wb, work);
++		ret = 0;
++	} else {
++		ret = -ENOMEM;
++	}
++
++	wb_put(wb);
++out_css_put:
++	css_put(memcg_css);
++out_bdi_put:
++	bdi_put(bdi);
++	return ret;
 +}
 +
- int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
- {
- 	struct device *dev;
-+	struct rb_node *parent, **p;
+ /**
+  * cgroup_writeback_umount - flush inode wb switches for umount
+  *
+diff --git a/include/linux/writeback.h b/include/linux/writeback.h
+index 8945aac31392..ad794f2a7d42 100644
+--- a/include/linux/writeback.h
++++ b/include/linux/writeback.h
+@@ -217,6 +217,10 @@ void wbc_attach_and_unlock_inode(struct writeback_control *wbc,
+ void wbc_detach_inode(struct writeback_control *wbc);
+ void wbc_account_cgroup_owner(struct writeback_control *wbc, struct page *page,
+ 			      size_t bytes);
++int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr_pages,
++			   enum wb_reason reason, struct wb_completion *done);
++int writeback_by_id(int id, unsigned long nr, enum wb_reason reason,
++		    struct wb_completion *done);
+ void cgroup_writeback_umount(void);
  
- 	if (bdi->dev)	/* The driver needs to use separate queues per device */
- 		return 0;
-@@ -877,7 +929,15 @@ int bdi_register_va(struct backing_dev_info *bdi, const char *fmt, va_list args)
- 	set_bit(WB_registered, &bdi->wb.state);
- 
- 	spin_lock_bh(&bdi_lock);
-+
-+	bdi->id = ++bdi_id_cursor;
-+
-+	p = bdi_lookup_rb_node(bdi->id, &parent);
-+	rb_link_node(&bdi->rb_node, parent, p);
-+	rb_insert_color(&bdi->rb_node, &bdi_tree);
-+
- 	list_add_tail_rcu(&bdi->bdi_list, &bdi_list);
-+
- 	spin_unlock_bh(&bdi_lock);
- 
- 	trace_writeback_bdi_register(bdi);
-@@ -918,6 +978,7 @@ EXPORT_SYMBOL(bdi_register_owner);
- static void bdi_remove_from_list(struct backing_dev_info *bdi)
- {
- 	spin_lock_bh(&bdi_lock);
-+	rb_erase(&bdi->rb_node, &bdi_tree);
- 	list_del_rcu(&bdi->bdi_list);
- 	spin_unlock_bh(&bdi_lock);
- 
+ /**
 -- 
 2.17.1
 
