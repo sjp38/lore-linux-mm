@@ -2,174 +2,163 @@ Return-Path: <SRS0=U/7Q=V7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-12.8 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1,
-	USER_IN_DEF_DKIM_WL autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 895CBC31E40
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 09:20:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 131A2C31E40
+	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 10:48:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0C2EF21783
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 09:20:01 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Ptvr43dy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C2EF21783
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id ACF172166E
+	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 10:48:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ACF172166E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6C55C6B0003; Sat,  3 Aug 2019 05:20:01 -0400 (EDT)
+	id 179176B0003; Sat,  3 Aug 2019 06:48:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 677396B0005; Sat,  3 Aug 2019 05:20:01 -0400 (EDT)
+	id 129F96B0005; Sat,  3 Aug 2019 06:48:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 516A96B0006; Sat,  3 Aug 2019 05:20:01 -0400 (EDT)
+	id F32F76B0006; Sat,  3 Aug 2019 06:48:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1AC986B0003
-	for <linux-mm@kvack.org>; Sat,  3 Aug 2019 05:20:01 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id i2so49856131pfe.1
-        for <linux-mm@kvack.org>; Sat, 03 Aug 2019 02:20:01 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id A77C56B0003
+	for <linux-mm@kvack.org>; Sat,  3 Aug 2019 06:48:37 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id f3so48419240edx.10
+        for <linux-mm@kvack.org>; Sat, 03 Aug 2019 03:48:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :in-reply-to:message-id:references:user-agent:mime-version;
-        bh=sTbQB+VsKCHhUtNcj2pWgbGTC92dmneZIV20ww0P/GA=;
-        b=EbcQIfCkfvRlH/0GLT9U+OW3qQD921UHfsgOykutA/l0VDlfdopVykSYN7+eRBAZSL
-         GW9LnMfIheFxKCMiXr4OShXg8VeKEIr7U+h8cFbqPxJz8ljCxvdpU/6FxlMf4Day44no
-         6Yp/IC4BWBGiTK+QnXT2Wsr5o3Glz8VzDJMrIgabXQENCA4hJlM/LRGUTleYAav7mP2d
-         iRvZL6E0gzECM0Wl94SINcLHptSCQB/egIF9GVG1FzIUEWHYzywzzuHakQqBYt6nmTwM
-         ZtOYJbPtuHPoevjfZ40s99YREPgIGoshYtuyKxMyf7CT1XYRHaailBTRXm90BBXzTDIU
-         E3FQ==
-X-Gm-Message-State: APjAAAXch8WrCt+o1WJKKjvw6aQu8arFCjAybq9NwjMayGjBC4ZEfhms
-	uknpPPeWYQ8xBg/rqoRmX49ekYqan8wBiOeowLLDlt5fqKJTyIl4Jlz3fFm8ZaOfVYUXV3Qfwtu
-	N79VmEFzw7Uj+KMVo345LZoVRPk5lf5JbYFVvFYC8doPKD5uv1O9TffSY6AJ/eg76qw==
-X-Received: by 2002:a17:90a:1ae2:: with SMTP id p89mr7971068pjp.26.1564824000670;
-        Sat, 03 Aug 2019 02:20:00 -0700 (PDT)
-X-Received: by 2002:a17:90a:1ae2:: with SMTP id p89mr7971034pjp.26.1564823999852;
-        Sat, 03 Aug 2019 02:19:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564823999; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=YGhWdKUQaNvwoPzCp5TamotOjGsrfFaijz/jdHexwMI=;
+        b=BY4TzrbMJT+iGXmsZkLQsxf9GSdaCsy0ovIIH+BNOFWKgAKBrNxvpDghtQrhNU5n0K
+         RlN4XMbiHOMCKPnnbyStj7nZc2Z8VT4gHDoMTA7WZJy6m9EyY/4yRtrNrBYKTutCsacH
+         7k1dGxh6BnsNQR35vu9owaUhhj3aSaqq1W9iVHmFrBHXB2fltQ+AUe8KZfyPN7QmGm0t
+         IYjJPwCr70eayHUFFeQh33PlrXdvLDl58W2/3z+vQiEEH4iM/hgg/U04pTLDxnaOgTd5
+         mtOCeOMHtxvPn4pSB58i9H6imOBMndF+mctsZwzoqtUb0kY7qV/8kSxWTXaSPlwtQGpE
+         U26Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAXt1MEg8mdJyTXSVxneErjCJzJYL5vdsCbcXurPVu9kE0j3jVVj
+	WzXmnF5NUdRnGoDnjWL3ZqhkiRMueVJvGtMW2SQAIlJ5Fcy9EWbDJy0ODDAA1GRPwu0Xbo6jVUS
+	zRLeD03gq8u3mv+k0ajrAoagwffuskWyI8uIZCiZQ8Pp3g0Ar4IWR606u1t2i5l/ymQ==
+X-Received: by 2002:a50:ac24:: with SMTP id v33mr123758039edc.30.1564829317076;
+        Sat, 03 Aug 2019 03:48:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzEL9tXmTOFF5KRdja4yEMRFRYgfnRW4TdELCKZliKqqO9vLJ1vPszkzixxEMCaseRiBfee
+X-Received: by 2002:a50:ac24:: with SMTP id v33mr123757983edc.30.1564829316078;
+        Sat, 03 Aug 2019 03:48:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564829316; cv=none;
         d=google.com; s=arc-20160816;
-        b=ULHpnn7EvJiqE33QrDE++qZJtqO/3kZ57cHbQ+ru4F72ej/+KYfE/xChbj03+eEFM4
-         0rWjdpOAjhwatd94AgPnBpDqK3fpjvrO8UcxO4IYZ+AshFa8e9+n0426qqhT0RW6eWy+
-         lKl31K9RbN2tcbn59knb8qo5OEJecDRIgeS9Wv3lQaPUfh3pxijHulGJMRpgdgfJqwDK
-         8XJ5pk2huvmOn7y8ne/ZHV9Xhamm3PaU/CiBCE3oOrrNiMB7K4HA++KWFhmPoUXVgU8b
-         9MpGDNckK1gEwvCQRMAM6EDPuBIgz6ot17OH+og+7jFL+MvW8zJASCioSfYnBFGqxa32
-         NLQA==
+        b=DzuAnckzFn5cjKBTBp3qob7/W70XYIfFwmibSAvTZ9SagsvFk2CPk++ofdhcXSVk5x
+         xAGXKA89Oms29pVeN/4YteYVooCkx4ge1gYReeyLPU3snuIlY75hzdY11fKId7wa1he+
+         lLHViOJvz69BhjQP1xL7iHI+ObcDrT3BefHupR8GMLvqEIMX+jXnmTUnTD122WKcEjR8
+         Kvt8MveHn2ieMkK1Q6YlSaebpyxqJCM/VyQtnwLo/8oMbrtCk/uH4edrxEAeIPm/ckKp
+         OcAtSf0mF78opeBGelEU0aneZM7Yx4rrNCRX/cY/iofTp1SYL5ff1efrAp4rUlRpqQJm
+         9kVQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:message-id:in-reply-to:subject
-         :cc:to:from:date:dkim-signature;
-        bh=sTbQB+VsKCHhUtNcj2pWgbGTC92dmneZIV20ww0P/GA=;
-        b=K7GzIkiikc8O09gXJE+jLrjoX1GBkQuzoIVwJNMRh5dQRYGZOO3jclRnRTCQvryJWB
-         SIkh4+JrAnQtyNuUoZartR1w+WzGQFJz8AcmJCZNBa/+KNoAXCqFkkjC3JQFzIXHWt9m
-         d/vqfwDeyx1XFWS97M467iWKXye1LikrPGNiLkQencYug23+8d4ERCRTNpUS2pvtZh5L
-         HgrvcP3ojasT18DGbHWr/AqmnH29yEnf1l9EyX5nqd46bHK+MYx2VQmLqH/MysHyICm0
-         LA+q0rl67jpjGcjzenzo76+DQgzvCWn7tHOeVp0bMYYFCwpFZvBWy5vY3/tpnrANMNn0
-         YlUQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=YGhWdKUQaNvwoPzCp5TamotOjGsrfFaijz/jdHexwMI=;
+        b=KRFYVultKkzCro+LyONBO6e3FjK6jyW5nnKSM5Wtx17RjdTpDkuC8C9pZwniek0RDE
+         ljTZyhn2ZFXaJdsWZ0lzYV+EethIvCD84omXuTEnXXqhjM0mLDOXR63UoDOu/jtKEWGw
+         LoWUWQ8JNlsXi7cG/TByFwrrG4zSCjA8l+rFfv5EAYlNnfN2q4KgjaIXRmjY1vqaIebb
+         d5lDG1jVQJoJs7BCCjaOCGp7KU/vV/715ChHnRnBGvYksEYZI4hsiHcVRfbOu8yfUSwL
+         zZpIWw5q8dnyZ72inkTWtiLPFkK22M+wZ9doxG5dzyWxHok5rbDbCCA8MKiY6UMny4b+
+         0ukw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Ptvr43dy;
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e1sor92979292pls.29.2019.08.03.02.19.59
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 03 Aug 2019 02:19:59 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id 11si23002147ejy.102.2019.08.03.03.48.35
+        for <linux-mm@kvack.org>;
+        Sat, 03 Aug 2019 03:48:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=Ptvr43dy;
-       spf=pass (google.com: domain of rientjes@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=rientjes@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:from:to:cc:subject:in-reply-to:message-id:references
-         :user-agent:mime-version;
-        bh=sTbQB+VsKCHhUtNcj2pWgbGTC92dmneZIV20ww0P/GA=;
-        b=Ptvr43dyAwRTJFjdQ46Q5UJRR3WgPxjCpPpAjd6xGriBSCteIUzFlOoUWc3fCEvnKb
-         fEcujK2zHXBktLD25UvZz5gWdJasFYke+5F2JdMBcyYwAQakJENftwGEvIUp2Dqc9JWE
-         nJkcZP0uIRK51V8AWwdL7MizTSzBHXEX7hguvWSKMwAb3EB6Fm6K2ga7NznP7iwDrV+z
-         F1aauptJ9+1ElBxHu7Iy4VbSxRatYSNJclwIjrs/U/Jp41zLs8pyXbofIN42ZBac4Vce
-         K0TFDXuOzVW3/0olqO1xYOc4ntEoG69p9Avv4+UCv8k3tSquaN71AzLQsGFDuId7dIiP
-         35GA==
-X-Google-Smtp-Source: APXvYqx2Q+kPZ0ijXEICO0VwuKwto0+SwFiX/JVQedWqNZh5AXZETxTBQ+tGP7fFaB1yNQ3767o2mw==
-X-Received: by 2002:a17:902:4643:: with SMTP id o61mr106674408pld.101.1564823998979;
-        Sat, 03 Aug 2019 02:19:58 -0700 (PDT)
-Received: from [2620:15c:17:3:3a5:23a7:5e32:4598] ([2620:15c:17:3:3a5:23a7:5e32:4598])
-        by smtp.gmail.com with ESMTPSA id a3sm11758412pje.3.2019.08.03.02.19.57
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sat, 03 Aug 2019 02:19:58 -0700 (PDT)
-Date: Sat, 3 Aug 2019 02:19:57 -0700 (PDT)
-From: David Rientjes <rientjes@google.com>
-X-X-Sender: rientjes@chino.kir.corp.google.com
-To: Laura Abbott <labbott@redhat.com>
-cc: Alexander Potapenko <glider@google.com>, 
-    kernel test robot <rong.a.chen@intel.com>, 
-    Linus Torvalds <torvalds@linux-foundation.org>, 
-    Kees Cook <keescook@chromium.org>, Christoph Lameter <cl@linux.com>, 
-    Masahiro Yamada <yamada.masahiro@socionext.com>, 
-    "Serge E. Hallyn" <serge@hallyn.com>, 
-    Nick Desaulniers <ndesaulniers@google.com>, 
-    Kostya Serebryany <kcc@google.com>, Dmitry Vyukov <dvyukov@google.com>, 
-    Sandeep Patil <sspatil@android.com>, Randy Dunlap <rdunlap@infradead.org>, 
-    Jann Horn <jannh@google.com>, Mark Rutland <mark.rutland@arm.com>, 
-    Marco Elver <elver@google.com>, Andrew Morton <akpm@linux-foundation.org>, 
-    LKML <linux-kernel@vger.kernel.org>, LKP <lkp@01.org>, linux-mm@kvack.org
-Subject: Re: [PATCH] mm: slub: Fix slab walking for init_on_free
-In-Reply-To: <20190731193240.29477-1-labbott@redhat.com>
-Message-ID: <alpine.DEB.2.21.1908030219420.112263@chino.kir.corp.google.com>
-References:  <20190731193240.29477-1-labbott@redhat.com>
-User-Agent: Alpine 2.21 (DEB 202 2017-01-01)
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id BD29F344;
+	Sat,  3 Aug 2019 03:48:34 -0700 (PDT)
+Received: from iMac.local (unknown [172.31.20.19])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id A39443F71F;
+	Sat,  3 Aug 2019 03:48:33 -0700 (PDT)
+Date: Sat, 3 Aug 2019 11:48:31 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, Matthew Wilcox <willy@infradead.org>,
+	Qian Cai <cai@lca.pw>
+Subject: Re: [PATCH v2] mm: kmemleak: Use mempool allocations for kmemleak
+ objects
+Message-ID: <20190803104830.GB58477@iMac.local>
+References: <20190727132334.9184-1-catalin.marinas@arm.com>
+ <20190730130215.919b31c19df935cc5f1483e6@linux-foundation.org>
+ <20190731154450.GB17773@arrakis.emea.arm.com>
+ <20190801064153.GD11627@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190801064153.GD11627@dhcp22.suse.cz>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 31 Jul 2019, Laura Abbott wrote:
+On Thu, Aug 01, 2019 at 08:41:53AM +0200, Michal Hocko wrote:
+> On Wed 31-07-19 16:44:50, Catalin Marinas wrote:
+> > On Tue, Jul 30, 2019 at 01:02:15PM -0700, Andrew Morton wrote:
+> > > On Sat, 27 Jul 2019 14:23:33 +0100 Catalin Marinas <catalin.marinas@arm.com> wrote:
+> > > > Add mempool allocations for struct kmemleak_object and
+> > > > kmemleak_scan_area as slightly more resilient than kmem_cache_alloc()
+> > > > under memory pressure. Additionally, mask out all the gfp flags passed
+> > > > to kmemleak other than GFP_KERNEL|GFP_ATOMIC.
+> > > > 
+> > > > A boot-time tuning parameter (kmemleak.mempool) is added to allow a
+> > > > different minimum pool size (defaulting to NR_CPUS * 4).
+> > > 
+> > > btw, the checkpatch warnings are valid:
+> > > 
+> > > WARNING: usage of NR_CPUS is often wrong - consider using cpu_possible(), num_possible_cpus(), for_each_possible_cpu(), etc
+> > > #70: FILE: mm/kmemleak.c:197:
+> > > +static int min_object_pool = NR_CPUS * 4;
+> > > 
+> > > WARNING: usage of NR_CPUS is often wrong - consider using cpu_possible(), num_possible_cpus(), for_each_possible_cpu(), etc
+> > > #71: FILE: mm/kmemleak.c:198:
+> > > +static int min_scan_area_pool = NR_CPUS * 1;
+> > > 
+> > > There can be situations where NR_CPUS is much larger than
+> > > num_possible_cpus().  Can we initialize these tunables within
+> > > kmemleak_init()?
+> > 
+> > We could and, at least on arm64, cpu_possible_mask is already
+> > initialised at that point. However, that's a totally made up number. I
+> > think we would better go for a Kconfig option (defaulting to, say, 1024)
+> > similar to the CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE and we grow it if
+> > people report better values in the future.
+> 
+> If you really want/need to make this configurable then the command line
+> parameter makes more sense - think of distribution kernel users for
+> example.
 
-> To properly clear the slab on free with slab_want_init_on_free,
-> we walk the list of free objects using get_freepointer/set_freepointer.
-> The value we get from get_freepointer may not be valid. This
-> isn't an issue since an actual value will get written later
-> but this means there's a chance of triggering a bug if we use
-> this value with set_freepointer:
-> 
-> [    4.478342] kernel BUG at mm/slub.c:306!
-> [    4.482437] invalid opcode: 0000 [#1] PREEMPT PTI
-> [    4.485750] CPU: 0 PID: 0 Comm: swapper Not tainted 5.2.0-05754-g6471384a #4
-> [    4.490635] RIP: 0010:kfree+0x58a/0x5c0
-> [    4.493679] Code: 48 83 05 78 37 51 02 01 0f 0b 48 83 05 7e 37 51 02 01 48 83 05 7e 37 51 02 01 48 83 05 7e 37 51 02 01 48 83 05 d6 37 51 02 01 <0f> 0b 48 83 05 d4 37 51 02 01 48 83 05 d4 37 51 02 01 48 83 05 d4
-> [    4.506827] RSP: 0000:ffffffff82603d90 EFLAGS: 00010002
-> [    4.510475] RAX: ffff8c3976c04320 RBX: ffff8c3976c04300 RCX: 0000000000000000
-> [    4.515420] RDX: ffff8c3976c04300 RSI: 0000000000000000 RDI: ffff8c3976c04320
-> [    4.520331] RBP: ffffffff82603db8 R08: 0000000000000000 R09: 0000000000000000
-> [    4.525288] R10: ffff8c3976c04320 R11: ffffffff8289e1e0 R12: ffffd52cc8db0100
-> [    4.530180] R13: ffff8c3976c01a00 R14: ffffffff810f10d4 R15: ffff8c3976c04300
-> [    4.535079] FS:  0000000000000000(0000) GS:ffffffff8266b000(0000) knlGS:0000000000000000
-> [    4.540628] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [    4.544593] CR2: ffff8c397ffff000 CR3: 0000000125020000 CR4: 00000000000406b0
-> [    4.549558] Call Trace:
-> [    4.551266]  apply_wqattrs_prepare+0x154/0x280
-> [    4.554357]  apply_workqueue_attrs_locked+0x4e/0xe0
-> [    4.557728]  apply_workqueue_attrs+0x36/0x60
-> [    4.560654]  alloc_workqueue+0x25a/0x6d0
-> [    4.563381]  ? kmem_cache_alloc_trace+0x1e3/0x500
-> [    4.566628]  ? __mutex_unlock_slowpath+0x44/0x3f0
-> [    4.569875]  workqueue_init_early+0x246/0x348
-> [    4.573025]  start_kernel+0x3c7/0x7ec
-> [    4.575558]  x86_64_start_reservations+0x40/0x49
-> [    4.578738]  x86_64_start_kernel+0xda/0xe4
-> [    4.581600]  secondary_startup_64+0xb6/0xc0
-> [    4.584473] Modules linked in:
-> [    4.586620] ---[ end trace f67eb9af4d8d492b ]---
-> 
-> Fix this by ensuring the value we set with set_freepointer is either NULL
-> or another value in the chain.
-> 
-> Reported-by: kernel test robot <rong.a.chen@intel.com>
-> Signed-off-by: Laura Abbott <labbott@redhat.com>
+I doubt you'd have pre-built distribution kernels with kmemleak enabled.
 
-Acked-by: David Rientjes <rientjes@google.com>
+> But I am still not sure why this is really needed. The initial
+> size is a "made up" number of course. There is no good estimation to
+> make (without a crystal ball). The value might be increased based on
+> real life usage.
+
+We had a similar situation with the early log buffer (before slab is
+initialised), initially 400 which was good enough for my needs (embedded
+systems) but others had entirely different requirements. A configurable
+(cmdline, Kconfig) option would make it easier for people to change,
+especially if coupled with a meaningful suggestion in dmesg.
+
+Another option is to use the early log as an emergency pool after
+initialisation instead of freeing it (it's currently __initdata) and
+drop the mempool idea. I may give this a go, at least we only have a
+single Kconfig option.
+
+-- 
+Catalin
 
