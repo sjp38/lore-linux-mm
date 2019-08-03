@@ -2,170 +2,147 @@ Return-Path: <SRS0=U/7Q=V7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2951FC31E40
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 15:52:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A67BDC433FF
+	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 15:53:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D220620578
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 15:52:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D220620578
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=I-love.SAKURA.ne.jp
+	by mail.kernel.org (Postfix) with ESMTP id 689B62085B
+	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 15:53:53 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="E4xysODT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 689B62085B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 836656B026F; Sat,  3 Aug 2019 11:52:05 -0400 (EDT)
+	id EC4CE6B0271; Sat,  3 Aug 2019 11:53:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E7826B0270; Sat,  3 Aug 2019 11:52:05 -0400 (EDT)
+	id E751B6B0272; Sat,  3 Aug 2019 11:53:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6FBB76B0271; Sat,  3 Aug 2019 11:52:05 -0400 (EDT)
+	id D3E926B0273; Sat,  3 Aug 2019 11:53:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4E7C06B026F
-	for <linux-mm@kvack.org>; Sat,  3 Aug 2019 11:52:05 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id y13so86753327iol.6
-        for <linux-mm@kvack.org>; Sat, 03 Aug 2019 08:52:05 -0700 (PDT)
+Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
+	by kanga.kvack.org (Postfix) with ESMTP id B55106B0271
+	for <linux-mm@kvack.org>; Sat,  3 Aug 2019 11:53:52 -0400 (EDT)
+Received: by mail-qt1-f199.google.com with SMTP id y19so71163679qtm.0
+        for <linux-mm@kvack.org>; Sat, 03 Aug 2019 08:53:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=SasNi8fLQPiXL8htvcKQhE4O5EY7caGl1AU/67aashc=;
-        b=fqjkZC4ov6q8KA0AK9Lu/R9p6E7TP96gLHB0FNIKcIaet3R8rw2QWnKPqBgbARbaFc
-         krD6TbdNu3zWis85gpmmYhElv5nowur4xBgmYrc17IWj5GCmwDc6Pq+DWlyImb7VQgEv
-         GIIWthla2bORkPnP7n/BwPmiKW1QGFmn5WYmqYfcl4x2hnSVJx3kyvMAKWKDcwCT9BYK
-         0+DFE+rk211gVahlEmSjwmHOLTU4laxu6jIGz/uCHzSicbrWmMU71XsOvqsArTJT/38c
-         u+HCYgcDcjZhlXOqBk8fR3CF3yiz6xzc8Xt2keKM3uwrlgCjYBw6vT3XXk7nlE9BFXXW
-         UAVA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-X-Gm-Message-State: APjAAAVXbizlo2PccphduFWsu1eawthqWwjxj6MYvTcEiSXVOT/XaLL9
-	dPivDPtE6krT7aCFdSeD/1MWFgE8Ptee40H6m5palu8xY9vazyZoK6eIRno1BWomHUJzzwFWs0q
-	rnpwEjJScTzeZrgCSB6h9JHakcC0qE8rN/l1PvrL7FrHN3AfOltF49VsK5tSLgikTtA==
-X-Received: by 2002:a5d:8c87:: with SMTP id g7mr32686002ion.85.1564847525056;
-        Sat, 03 Aug 2019 08:52:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwWN8gJ/bhQP3cr2SokQ21CX2u3Gr9fSQdSya9UoIs1V4CvMC+2MeEEW0KapFXG1Fvi8jUt
-X-Received: by 2002:a5d:8c87:: with SMTP id g7mr32685953ion.85.1564847524272;
-        Sat, 03 Aug 2019 08:52:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564847524; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=wr1/jf7OC4N1CyD2pZrJRAsqKQhTrW81tkA/dMeoZYU=;
+        b=pHEe+6460TXKuFywPWfuZSblKWshlaTXGynNgTS9D3nVA7kEVyne36AaNhJBLHQzrR
+         WKHfjF3lNfBx8Fblg2AnZWhhOcWMEdEKIooAIsljcpGl3oNcp9WkmpFc9WJ2I2Kf7sQt
+         5KB+EiDY+R66eLvz3lleu5xNbhGeBxT4Z22B8nR7ieVuago+RSATM+PE55su3L2UpQST
+         vO676TBncDrQm5ZD95EqoJT9G3se1A5vkgGAZzpbsEFK4H0d2ct66EmhIQYOlM9kSrhi
+         IgLOx60rm5ba9U2g/YpSnj7LiWyeFhbT6qhRdtnFbFxJ34MKurg0lr+elsuD2VJyJo+M
+         5GBA==
+X-Gm-Message-State: APjAAAVaoQ3Vmpr5y5qwLlBEo/JM3CbRan2HD77U+nI04zd3yGvAP4Cz
+	w2HMGrO2GcGcfupxQrXtHm+TDS2JZpevSYx6OKRhILv2YTJ3+nPHsGywYAAZtIHMdwOIKbKpNW2
+	8kKBTZhcEioOKaklJdR39bVQgmFAQNd6JDd2HOHQ4xN15/r+OvqpNZWOrawAKku0=
+X-Received: by 2002:a37:7847:: with SMTP id t68mr92741533qkc.128.1564847632478;
+        Sat, 03 Aug 2019 08:53:52 -0700 (PDT)
+X-Received: by 2002:a37:7847:: with SMTP id t68mr92741505qkc.128.1564847631867;
+        Sat, 03 Aug 2019 08:53:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564847631; cv=none;
         d=google.com; s=arc-20160816;
-        b=B930ZM7WE8qFK5xP1L385Sv6SrPtmgA0ISGa0idxnKm6VyX6DL9MrOwyT6YjHdeyCP
-         f+5YL7AMlsrHlBX1iEDl61maYACMi2s0Du0ivmiqBtj54/tpBSURl6cxzES9JklhZfdV
-         lJFvkUPv63rjRsdvyu+mkRIP+IsGX4Hc7XBzjMVYcMHnVCyGDLNzFnNPc8NYiN+kLdgs
-         BWfzzi1zcXu0RNmV7ZyRB55RrUx05TdKXrjI/EPd3ljCh2vB5jw/eynXhwIo8pUw694p
-         U1IyvuQ7W5EWfBr1s7qArVeAZ4IBqR8ct8fuVfIEDqOdpVn+i1jgkunAyB1B1qIJzieQ
-         rdrg==
+        b=MIOorzRCqQCVWQIKLeBEyANZk+eKcNZYLNhZ8BpQ+rlB7+s2NisOWtqLVI01Scn7CA
+         DV7T2HtvlHdOAT0O6Vbwej50rt1uspk8LPC9v+VaEh2aDVxdqorTHYwi/HrQMOLNQ5Pa
+         uB5j2HMWEtPNIWGx0mxB4flB3CDaYHlPRI8vK79fx9MaPa+mXqXzCZzEVbg1ny84mYpc
+         z/ckVPqGf2gEhye4Vh7EF5OJ1ZMwXwdSEypCN0Ds7BltUPzqaeFDi3jdafQrM77qxXp/
+         xcU8mg2rKbSjPwSb4IsmxkaGEJzgu0mWqnJXBUKuULpLBcL2QQjcty6tuXYp6/wTtYsd
+         BH6Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=SasNi8fLQPiXL8htvcKQhE4O5EY7caGl1AU/67aashc=;
-        b=i7o5vfcUVOrqUagsnEUjuhtutZiigSK0dhWjtgTdXzSHwxiz0pH7vcXldwBGqkluAV
-         2cVzgS3pVVowFLsgpbEjxhlfEMurERvUjR4zqyaLH1G7lGG0b1A0cs+PELfc2s0QD2Xv
-         EBZKZUIBCg0A8smdMTsAsdegHBLQnfGYz+w9ow4+0Rrp5RMGvnekAULmFwSEGrRWvMKJ
-         kCNY+nRZ8Qc7gQ66ak4viwzljgcoBqzgfJ8dSXIw5hKvx6MzX079HRhK6kuLzTBd0e7+
-         E/O2ybY3ydC0Hnzd7RUFHoqtOs7u8B/OZruj6P+kEH9eXd1jr4OYGB1fJUe2y8F0PFf7
-         NcCQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=wr1/jf7OC4N1CyD2pZrJRAsqKQhTrW81tkA/dMeoZYU=;
+        b=lyR293073LkvsPuZY7PbN12p8nPevtqc/Z+FhCvor3oaOX6/G6bVijiRP4qLGXcPkf
+         lmtlGpA+IH+pUoGKGxtHE3TFR/XcisxHqawsfoIQP/6QAqnxClSSHwH2MJJsFxlYOuQl
+         e8YOX6pnTHfzBmuiSitkMlYWG7GmYwUoIE87ntjnhhuvB6iJkmSEBO8XRViPdC+zavz/
+         nezmAmt72p56CUMlGmJP9OHYcH+5zvq5d7t9yHPFc5/eWlfiNSaXLt/QVdKicZf02vwN
+         T7efh9czrCHJsjT2OMadWQHF2OQciYvrSgKXOWc88+KKp6K9fY0XOMfbt3QuxfAbUeSc
+         /ZKw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from www262.sakura.ne.jp (www262.sakura.ne.jp. [202.181.97.72])
-        by mx.google.com with ESMTPS id m2si13624180iof.113.2019.08.03.08.52.03
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=E4xysODT;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g15sor45856747qkk.161.2019.08.03.08.53.51
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 03 Aug 2019 08:52:04 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) client-ip=202.181.97.72;
+        (Google Transport Security);
+        Sat, 03 Aug 2019 08:53:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of penguin-kernel@i-love.sakura.ne.jp designates 202.181.97.72 as permitted sender) smtp.mailfrom=penguin-kernel@i-love.sakura.ne.jp
-Received: from fsav304.sakura.ne.jp (fsav304.sakura.ne.jp [153.120.85.135])
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTP id x73Fppdx031874;
-	Sun, 4 Aug 2019 00:51:51 +0900 (JST)
-	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
-Received: from www262.sakura.ne.jp (202.181.97.72)
- by fsav304.sakura.ne.jp (F-Secure/fsigk_smtp/530/fsav304.sakura.ne.jp);
- Sun, 04 Aug 2019 00:51:51 +0900 (JST)
-X-Virus-Status: clean(F-Secure/fsigk_smtp/530/fsav304.sakura.ne.jp)
-Received: from [192.168.1.8] (softbank126012062002.bbtec.net [126.12.62.2])
-	(authenticated bits=0)
-	by www262.sakura.ne.jp (8.15.2/8.15.2) with ESMTPSA id x73Fphh5031830
-	(version=TLSv1.2 cipher=AES256-SHA bits=256 verify=NO);
-	Sun, 4 Aug 2019 00:51:51 +0900 (JST)
-	(envelope-from penguin-kernel@I-love.SAKURA.ne.jp)
-Subject: Re: Possible mem cgroup bug in kernels between 4.18.0 and 5.3-rc1.
-To: Masoud Sharbiani <msharbiani@apple.com>, Michal Hocko <mhocko@kernel.org>
-Cc: Greg KH <gregkh@linuxfoundation.org>, hannes@cmpxchg.org,
-        vdavydov.dev@gmail.com, linux-mm@kvack.org, cgroups@vger.kernel.org,
-        linux-kernel@vger.kernel.org
-References: <5659221C-3E9B-44AD-9BBF-F74DE09535CD@apple.com>
- <20190802074047.GQ11627@dhcp22.suse.cz>
- <7E44073F-9390-414A-B636-B1AE916CC21E@apple.com>
- <20190802144110.GL6461@dhcp22.suse.cz>
- <5DE6F4AE-F3F9-4C52-9DFC-E066D9DD5EDC@apple.com>
- <20190802191430.GO6461@dhcp22.suse.cz>
- <A06C5313-B021-4ADA-9897-CE260A9011CC@apple.com>
- <f7733773-35bc-a1f6-652f-bca01ea90078@I-love.SAKURA.ne.jp>
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Message-ID: <d7efccf4-7f07-10da-077d-a58dafbf627e@I-love.SAKURA.ne.jp>
-Date: Sun, 4 Aug 2019 00:51:18 +0900
-User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=E4xysODT;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=wr1/jf7OC4N1CyD2pZrJRAsqKQhTrW81tkA/dMeoZYU=;
+        b=E4xysODT5QEs0YiJh/6lyT4EBx4B7Mz7IMg6xczGcQ0G9Qk2AtE4TXZ+GCBgFJDEi1
+         lLnFymeOoSvdAYvHJIdCSSrgbeDE4a17sW8u6K0mHvhTIQr7wv8IU/Sst4zTTu0Ui9p9
+         jfnV5m2JmluBR+fiHIHyCypa6MemIx71M5jmKx6vtYPIEIc/gtcjHdvjaf5qkicR216B
+         vr2TNHeSv9J9+fUNK7YQ/gOyrhWAGf5rfXuyH6O/uIOIbbVZkbs1h8vugk98ksEkGk+E
+         kSQOd/o+FqbgLWKvjIyIdPT1Sa9ivX+Vce/lqYQCUaRKFWaUnKiHZKnPlvGognn7X6L+
+         Xw7Q==
+X-Google-Smtp-Source: APXvYqxgFYSi0U8M7Pxq58YMG2KJi0fk/qfGLpdfgkpRW+ewtu0h1e0nP4F1pryg35uOv1I+y7chQA==
+X-Received: by 2002:a37:6085:: with SMTP id u127mr96259447qkb.25.1564847631510;
+        Sat, 03 Aug 2019 08:53:51 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:480::7cfa])
+        by smtp.gmail.com with ESMTPSA id r205sm38568262qke.115.2019.08.03.08.53.50
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 03 Aug 2019 08:53:50 -0700 (PDT)
+Date: Sat, 3 Aug 2019 08:53:49 -0700
+From: Tejun Heo <tj@kernel.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: axboe@kernel.dk, jack@suse.cz, hannes@cmpxchg.org, mhocko@kernel.org,
+	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
+	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
+Subject: Re: [PATCH 2/4] bdi: Add bdi->id
+Message-ID: <20190803155349.GD136335@devbig004.ftw2.facebook.com>
+References: <20190803140155.181190-1-tj@kernel.org>
+ <20190803140155.181190-3-tj@kernel.org>
+ <20190803153908.GA932@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <f7733773-35bc-a1f6-652f-bca01ea90078@I-love.SAKURA.ne.jp>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190803153908.GA932@bombadil.infradead.org>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Masoud, will you try this patch?
+Hey, Matthew.
 
-By the way, is /sys/fs/cgroup/memory/leaker/memory.usage_in_bytes remains non-zero
-despite /sys/fs/cgroup/memory/leaker/tasks became empty due to memcg OOM killer expected?
-Deleting big-data-file.bin after memcg OOM killer reduces some, but still remains
-non-zero.
+On Sat, Aug 03, 2019 at 08:39:08AM -0700, Matthew Wilcox wrote:
+> On Sat, Aug 03, 2019 at 07:01:53AM -0700, Tejun Heo wrote:
+> > There currently is no way to universally identify and lookup a bdi
+> > without holding a reference and pointer to it.  This patch adds an
+> > non-recycling bdi->id and implements bdi_get_by_id() which looks up
+> > bdis by their ids.  This will be used by memcg foreign inode flushing.
+> > 
+> > I left bdi_list alone for simplicity and because while rb_tree does
+> > support rcu assignment it doesn't seem to guarantee lossless walk when
+> > walk is racing aginst tree rebalance operations.
+> 
+> This would seem like the perfect use for an allocating xarray.  That
+> does guarantee lossless walk under the RCU lock.  You could get rid of the
+> bdi_list too.
 
-----------------------------------------
-From 2f92c70f390f42185c6e2abb8dda98b1b7d02fa9 Mon Sep 17 00:00:00 2001
-From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Date: Sun, 4 Aug 2019 00:41:30 +0900
-Subject: [PATCH] memcg, oom: don't require __GFP_FS when invoking memcg OOM killer
+It definitely came to mind but there's a bunch of downsides to
+recycling IDs or using radix tree for non-compacting allocations.
 
-Masoud Sharbiani noticed that commit 29ef680ae7c21110 ("memcg, oom: move
-out_of_memory back to the charge path") broke memcg OOM called from
-__xfs_filemap_fault() path. It turned out that try_chage() is retrying
-forever without making forward progress because mem_cgroup_oom(GFP_NOFS)
-cannot invoke the OOM killer due to commit 3da88fb3bacfaa33 ("mm, oom:
-move GFP_NOFS check to out_of_memory"). Regarding memcg OOM, we need to
-bypass GFP_NOFS check in order to guarantee forward progress.
+Thanks.
 
-Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Reported-by: Masoud Sharbiani <msharbiani@apple.com>
-Bisected-by: Masoud Sharbiani <msharbiani@apple.com>
-Fixes: 29ef680ae7c21110 ("memcg, oom: move out_of_memory back to the charge path")
----
- mm/oom_kill.c | 5 +++--
- 1 file changed, 3 insertions(+), 2 deletions(-)
-
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index eda2e2a..26804ab 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -1068,9 +1068,10 @@ bool out_of_memory(struct oom_control *oc)
- 	 * The OOM killer does not compensate for IO-less reclaim.
- 	 * pagefault_out_of_memory lost its gfp context so we have to
- 	 * make sure exclude 0 mask - all other users should have at least
--	 * ___GFP_DIRECT_RECLAIM to get here.
-+	 * ___GFP_DIRECT_RECLAIM to get here. But mem_cgroup_oom() has to
-+	 * invoke the OOM killer even if it is a GFP_NOFS allocation.
- 	 */
--	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
-+	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS) && !is_memcg_oom(oc))
- 		return true;
- 
- 	/*
 -- 
-1.8.3.1
-
+tejun
 
