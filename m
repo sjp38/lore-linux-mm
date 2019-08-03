@@ -2,145 +2,259 @@ Return-Path: <SRS0=U/7Q=V7=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.5 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B6A34C31E40
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 16:17:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05ACDC31E40
+	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 17:42:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 791262087C
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 16:17:50 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8D7AF2087C
+	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 17:42:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="YTMLQb4x"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 791262087C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=apple.com header.i=@apple.com header.b="atDS6def"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8D7AF2087C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=apple.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 404546B0007; Sat,  3 Aug 2019 12:17:50 -0400 (EDT)
+	id DB0736B0003; Sat,  3 Aug 2019 13:42:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3B5326B0008; Sat,  3 Aug 2019 12:17:50 -0400 (EDT)
+	id D12826B0005; Sat,  3 Aug 2019 13:42:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2A4BC6B000C; Sat,  3 Aug 2019 12:17:50 -0400 (EDT)
+	id BD9CD6B0006; Sat,  3 Aug 2019 13:42:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id E9F1F6B0007
-	for <linux-mm@kvack.org>; Sat,  3 Aug 2019 12:17:49 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id 6so50345946pfz.10
-        for <linux-mm@kvack.org>; Sat, 03 Aug 2019 09:17:49 -0700 (PDT)
+Received: from mail-yb1-f197.google.com (mail-yb1-f197.google.com [209.85.219.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 94B956B0003
+	for <linux-mm@kvack.org>; Sat,  3 Aug 2019 13:42:47 -0400 (EDT)
+Received: by mail-yb1-f197.google.com with SMTP id a2so46804633ybb.14
+        for <linux-mm@kvack.org>; Sat, 03 Aug 2019 10:42:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=/X3WDI0mWhLkrrAZYpOBF14jsWJC/LWwN2nM68m2FXE=;
-        b=q2Y01GK/ZVDyryWGcMkQygXk3erumgJIt5RQwjcBXrYEuk5UqsHySfIGltpc74Y4BE
-         tQ/si0eQzC5kyA3iz7GRt10L0hHPk2wa4tDZI2asxhD3o7yp3Jg3K1DfOWzMWw9AyYt9
-         wYu4FhbscT3QFONDYXoOuEGveIEkC++abg70qJlSF1LjAm+hELMPdsxVtrJN8d+sNA7E
-         lqb078KLTLAYgi/FAL/UjsLkhL+Ki1DBGD63ZNipoSTHtbRHdKaUD6mXUemfCWy/q0fZ
-         V8WbYBxMGJ9kjxsXKXI9Ac1Pu4P2iWOWqGFOkVoUI6korHhBdS8u/lHdAMJLK9Wv2YI3
-         uj2A==
-X-Gm-Message-State: APjAAAXVzATMKLfNeilazm1hwc7riMYn5Y80cSJpgf0WLAeeaW5FhUv4
-	jisJhnZUdFaNcYhjJ/C6ySsfOnd6PSUbKkmut2ix64N5Eq2SuTRoII9WgAD24TUwQgu4kQ7louC
-	B9Y//hrYboNS8qYdhnPyYOxry0BUIBci9JVuEuX2r5acn/sF4xrC/iEQst5MbMdvGmQ==
-X-Received: by 2002:a17:90a:bd8c:: with SMTP id z12mr10072738pjr.60.1564849069420;
-        Sat, 03 Aug 2019 09:17:49 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyIexQR8KFuKicyntxDbgn7arElHcwzBF8LAhz+BwhozyyEVubkYy4d69xbZwft8/sWBGV9
-X-Received: by 2002:a17:90a:bd8c:: with SMTP id z12mr10072695pjr.60.1564849068723;
-        Sat, 03 Aug 2019 09:17:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564849068; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=bRkkC/ntl093lal8PH707LIzyeDQRUxXglb6XCpCp5g=;
+        b=GelquUVAVJjkzYzAbqKEug+YV6MoCOhJFm5IRzASNQz5TPO2mOgkqEclwXnK2tHS7c
+         Tbo4Kv9mJvEOwAn3bzZgZGbQJtVx6Di9sD1qdt87RO6ZwiX8mUDsXMCElwmuhpG/eMhD
+         auTM3qFLX8xe3jSH7kX+5ZqtPF1HS0Vwg0nQfVRXuOTjfMHfc+LEeCMfaXs+7aVOkaGx
+         twHZHwa8/W5mFdAiI4619IPDfdUClGO9sciZeSeB3YoR7aZxo2zMo54bW94FGcnymgl1
+         gDCQLVJAdjkOvaYjhW//l2BejLSmbRblYp8I7MGywjzfk1rDJxEsCkGZ3F3KiT+s5jL/
+         ty+Q==
+X-Gm-Message-State: APjAAAXOnBmVR7iKvCsheCnKnIEZ73D9Cbr60XVwYQlHYIaFQupxMHAR
+	g0k1vFNFbThCXw2MwE5Uldh8wp7tEQA/GoCCegDrdc6zx+5q/RPhPX3S47UISKBgniSa4oMpi83
+	wXSpXaY/bpPCCbFO+7YP4NhGx1DycZo3E0aBaDf2Pk1ZpXjKX2J9xVy3TgNk4xl5e3Q==
+X-Received: by 2002:a25:73c3:: with SMTP id o186mr5352298ybc.463.1564854167283;
+        Sat, 03 Aug 2019 10:42:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzfEtY9W0Qe9hzLcmq61vPtH7Kzt4E0EnpRPB5es0bfhop+4aHBS3fIGUmay/+Lj8q5CSJw
+X-Received: by 2002:a25:73c3:: with SMTP id o186mr5352257ybc.463.1564854166371;
+        Sat, 03 Aug 2019 10:42:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564854166; cv=none;
         d=google.com; s=arc-20160816;
-        b=TuoUUymKddqyHA0RpG9hLhwwz3mmvQlZ1isswIY8Q0hbqc5Q6IScu3qZrPHE9fZFcj
-         qtXNj6iqXug9hH6+CeS/Sg46gEqACvB/yDMxDnpFGG7iZGLic5xdjtCHsbhYqMd9ZyRb
-         vOHidFGZkZ1FEpmUFDzNup8Wpwz5r0L3zvr8oLMMjNzrHRvpg05gAEdIqwbyq7zNXroV
-         QwGfIS9V7EMdIEBQzxofVN5KEd6kNeYJiCGLNGuT+psv86muk5r3BCvJdASbWcZo9qVW
-         B0Fj9KfWQIsH7wzETZ3s5bSF7Sjhl3wzr+FEMiVTzq/2XzIQ3ZQyQnTelGXLOMsDkIGj
-         zAKQ==
+        b=BlbJYTkYEi8l7EWdabVzqlAAKPvFGP/1msx6FwD2xILi3jkqiOMfW44/31Yb9aYe7C
+         GeDV3E9DEXELQG4cUQqq+G/tBy5lxUYzdsfUE792Hv4ktXt4Pvstzvb5oQyuJQLc84Yi
+         MZi7x2zczjV8+90OSIDYeToZI60i62MDuM2MF1uuVfYxp6r0vFXiSOnjsjSeoObiZGT7
+         O1nffwmKBTwBur5o1PNsz/ApwM7OyeqZKxuLo5SX3j24yRwdzGmJJr+Lzhkd8D9F0d5e
+         qYAQ5NnC6k0Zo07rz3KCkRDsBXKpUkdWS4o9slzep7hpYXXISBr871aQ9eArvZ9RPel3
+         1w4A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=/X3WDI0mWhLkrrAZYpOBF14jsWJC/LWwN2nM68m2FXE=;
-        b=Z8pLN3ignzu8CI0JRwAGZy4ySU+wzjRBQbZOKQPMvb21FTxAkDGUGSvgvL70eXs5ep
-         eRbF3RAXclw7p6JjbjkQCKpRfPtApJI03bXv6brrg1EV5bEXfFTkB13vueciBtL6Oxoa
-         mihOw0DbQg3f0NDflBHZbokA4xManIsqYBKiMtRmEFjPSdGzhPUY7CW87B5N1Obf3rkR
-         XY4+gUxuX3w1/0FS8aU7wFXp7Vw2T+cny2ozqvo9jNBbGlB+Jyb0/3umA2J4Uffr3dO3
-         UMGmCapdG4hMktq5lEomZ/gJfjYt8QKjdLUAkDL39Qv4G65qH3/KWiwmTpdRA9T2wF3V
-         +WFg==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:sender:dkim-signature;
+        bh=bRkkC/ntl093lal8PH707LIzyeDQRUxXglb6XCpCp5g=;
+        b=z0Hfc4LDIx2Nl1vJS3Z/BnEiBsHmEmcgKBc9m0Egknm3Q0N2Y13uZHQ6ASCm3Eu8Vx
+         szUHeBRNj8wxqCUrg1r6Na87MhzkABdEtcApU+asbYBF9ejVa9seFAtFC00G9MDjPRDn
+         JRhobGzTt92KNCSP/xV4YqTnKq022uwbfaX3GYr0m47VS+7v5AfZwsSvQNG6A0C2QwS9
+         IdOZeIK3YPGkIu4tdOyq5+pDCCoguzxR0xSoAbV6AJ/FI94TogaR/k1L6CREswtv5ApL
+         pw1qpozLTNdHh2jsu3CobxkvoYNhWA+22wdB053tQjsUrcR08syLM048o0M0eIdG10/O
+         mVjQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=YTMLQb4x;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id 78si39946109pfz.268.2019.08.03.09.17.48
+       dkim=pass header.i=@apple.com header.s=20180706 header.b=atDS6def;
+       spf=pass (google.com: domain of msharbiani@apple.com designates 17.151.62.67 as permitted sender) smtp.mailfrom=msharbiani@apple.com;
+       dmarc=pass (p=QUARANTINE sp=REJECT dis=NONE) header.from=apple.com
+Received: from nwk-aaemail-lapp02.apple.com (nwk-aaemail-lapp02.apple.com. [17.151.62.67])
+        by mx.google.com with ESMTPS id t81si27864222ywb.392.2019.08.03.10.42.45
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sat, 03 Aug 2019 09:17:48 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sat, 03 Aug 2019 10:42:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of msharbiani@apple.com designates 17.151.62.67 as permitted sender) client-ip=17.151.62.67;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=YTMLQb4x;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=/X3WDI0mWhLkrrAZYpOBF14jsWJC/LWwN2nM68m2FXE=; b=YTMLQb4x9LXJC64dxUjr6v4Xk
-	GMXQsTaDR1vmYROgRuPGQmcgEYe76/aACMQQWCtkZimsYaMoot1ZvwPQDm2Ihc2qq7OidsOSLkgi5
-	5h4VKxOmA9p2bsT/wyW0eiE02ATnGIGZFQZ1DcJKqPFLLhndN++tne2fJkGXmLxkZ5sdM7ADQfEHj
-	ZUnzIYOL2jqDrOkrkXILUmtHBpDlM7HqH5QWkJ6gkEmQSJSg1PFxAP5KxYT78scR0A+zv9wLYi74s
-	ucUhUJiJLtSFE9BZiIREAP1CItRqGkb5o5/6a4VXeKUPosSTon4rRzJYDNgxMmGjhEAcUMcDZEnKr
-	HD/miYdsw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1htwj1-0007V1-Ge; Sat, 03 Aug 2019 16:17:43 +0000
-Date: Sat, 3 Aug 2019 09:17:43 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Tejun Heo <tj@kernel.org>
-Cc: axboe@kernel.dk, jack@suse.cz, hannes@cmpxchg.org, mhocko@kernel.org,
-	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
-	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
-Subject: Re: [PATCH 2/4] bdi: Add bdi->id
-Message-ID: <20190803161743.GB932@bombadil.infradead.org>
-References: <20190803140155.181190-1-tj@kernel.org>
- <20190803140155.181190-3-tj@kernel.org>
- <20190803153908.GA932@bombadil.infradead.org>
- <20190803155349.GD136335@devbig004.ftw2.facebook.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190803155349.GD136335@devbig004.ftw2.facebook.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+       dkim=pass header.i=@apple.com header.s=20180706 header.b=atDS6def;
+       spf=pass (google.com: domain of msharbiani@apple.com designates 17.151.62.67 as permitted sender) smtp.mailfrom=msharbiani@apple.com;
+       dmarc=pass (p=QUARANTINE sp=REJECT dis=NONE) header.from=apple.com
+Received: from pps.filterd (nwk-aaemail-lapp02.apple.com [127.0.0.1])
+	by nwk-aaemail-lapp02.apple.com (8.16.0.27/8.16.0.27) with SMTP id x73Hg31I061797;
+	Sat, 3 Aug 2019 10:42:40 -0700
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=apple.com; h=sender : content-type
+ : mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to; s=20180706;
+ bh=bRkkC/ntl093lal8PH707LIzyeDQRUxXglb6XCpCp5g=;
+ b=atDS6defcl+FOy7rii078Ax6ErNtRNuaV05osswNbt377/LhCv9iReo3Ig5SL0oohxEX
+ 34pTSV/vqUCGQjeDwxeQ9bto2hQzvkBJOJy+mJXEXlHfamDJ+U/phgU8vC8qwq5rgzWT
+ CKQFCVwA7VKDxEFHTZuQwmuf+jA14sKY/gDZuuvJ/IrER4xGmxld46m0Vn/x6/KYLiYP
+ 9ONqVEcP4T97iAIRtBVlRqKRHUppPyreqPgx9S3A6wCJhKDrxjIFd/FXQXJy7tqcc2tM
+ EGLJe05byUEnw0MN+z4t155hWgN3dE5X5nyKqTLt1Ir5nNyl7bvu1cUsvEnefiY+9aHs TQ== 
+Received: from ma1-mtap-s01.corp.apple.com (ma1-mtap-s01.corp.apple.com [17.40.76.5])
+	by nwk-aaemail-lapp02.apple.com with ESMTP id 2u56ujx5h7-17
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NO);
+	Sat, 03 Aug 2019 10:42:40 -0700
+Received: from nwk-mmpp-sz11.apple.com
+ (nwk-mmpp-sz11.apple.com [17.128.115.155]) by ma1-mtap-s01.corp.apple.com
+ (Oracle Communications Messaging Server 8.0.2.4.20190507 64bit (built May  7
+ 2019)) with ESMTPS id <0PVO00L5I96Z2T40@ma1-mtap-s01.corp.apple.com>; Sat,
+ 03 Aug 2019 10:42:38 -0700 (PDT)
+Received: from process_milters-daemon.nwk-mmpp-sz11.apple.com by
+ nwk-mmpp-sz11.apple.com
+ (Oracle Communications Messaging Server 8.0.2.4.20190507 64bit (built May  7
+ 2019)) id <0PVO00K0095HH200@nwk-mmpp-sz11.apple.com>; Sat,
+ 03 Aug 2019 10:42:37 -0700 (PDT)
+X-Va-A: 
+X-Va-T-CD: 2af4e3c096f98bec7d308668f2184085
+X-Va-E-CD: b03d5acee32fc9f0c9dfd3776592dc73
+X-Va-R-CD: 1835f3c54d533384876758843bc94ede
+X-Va-CD: 0
+X-Va-ID: 25033930-1b8f-487f-8f89-4f239138e815
+X-V-A: 
+X-V-T-CD: 2af4e3c096f98bec7d308668f2184085
+X-V-E-CD: b03d5acee32fc9f0c9dfd3776592dc73
+X-V-R-CD: 1835f3c54d533384876758843bc94ede
+X-V-CD: 0
+X-V-ID: 8093249f-89b7-424f-898d-6a35440e7308
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,,
+ definitions=2019-08-03_09:,, signatures=0
+Received: from [17.150.210.108] (unknown [17.150.210.108])
+ by nwk-mmpp-sz11.apple.com
+ (Oracle Communications Messaging Server 8.0.2.4.20190507 64bit (built May  7
+ 2019)) with ESMTPSA id <0PVO008PZ95GJO50@nwk-mmpp-sz11.apple.com>; Sat,
+ 03 Aug 2019 10:41:41 -0700 (PDT)
+Content-type: text/plain; charset=utf-8
+MIME-version: 1.0 (Mac OS X Mail 12.4 \(3445.104.11\))
+Subject: Re: Possible mem cgroup bug in kernels between 4.18.0 and 5.3-rc1.
+From: Masoud Sharbiani <msharbiani@apple.com>
+In-reply-to: <d7efccf4-7f07-10da-077d-a58dafbf627e@I-love.SAKURA.ne.jp>
+Date: Sat, 03 Aug 2019 10:41:40 -0700
+Cc: Michal Hocko <mhocko@kernel.org>, Greg KH <gregkh@linuxfoundation.org>,
+        hannes@cmpxchg.org, vdavydov.dev@gmail.com, linux-mm@kvack.org,
+        cgroups@vger.kernel.org, linux-kernel@vger.kernel.org
+Content-transfer-encoding: quoted-printable
+Message-id: <77568CFC-280C-4C0F-85FC-92F1212BC6FC@apple.com>
+References: <5659221C-3E9B-44AD-9BBF-F74DE09535CD@apple.com>
+ <20190802074047.GQ11627@dhcp22.suse.cz>
+ <7E44073F-9390-414A-B636-B1AE916CC21E@apple.com>
+ <20190802144110.GL6461@dhcp22.suse.cz>
+ <5DE6F4AE-F3F9-4C52-9DFC-E066D9DD5EDC@apple.com>
+ <20190802191430.GO6461@dhcp22.suse.cz>
+ <A06C5313-B021-4ADA-9897-CE260A9011CC@apple.com>
+ <f7733773-35bc-a1f6-652f-bca01ea90078@I-love.SAKURA.ne.jp>
+ <d7efccf4-7f07-10da-077d-a58dafbf627e@I-love.SAKURA.ne.jp>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+X-Mailer: Apple Mail (2.3445.104.11)
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-03_09:,,
+ signatures=0
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 03, 2019 at 08:53:49AM -0700, Tejun Heo wrote:
-> Hey, Matthew.
-> 
-> On Sat, Aug 03, 2019 at 08:39:08AM -0700, Matthew Wilcox wrote:
-> > On Sat, Aug 03, 2019 at 07:01:53AM -0700, Tejun Heo wrote:
-> > > There currently is no way to universally identify and lookup a bdi
-> > > without holding a reference and pointer to it.  This patch adds an
-> > > non-recycling bdi->id and implements bdi_get_by_id() which looks up
-> > > bdis by their ids.  This will be used by memcg foreign inode flushing.
-> > > 
-> > > I left bdi_list alone for simplicity and because while rb_tree does
-> > > support rcu assignment it doesn't seem to guarantee lossless walk when
-> > > walk is racing aginst tree rebalance operations.
-> > 
-> > This would seem like the perfect use for an allocating xarray.  That
-> > does guarantee lossless walk under the RCU lock.  You could get rid of the
-> > bdi_list too.
-> 
-> It definitely came to mind but there's a bunch of downsides to
-> recycling IDs or using radix tree for non-compacting allocations.
 
-Ah, I wasn't sure what would happen if you recycled an ID.  I agree, the
-radix tree is pretty horrid for monotonically increasing IDs.  I'm still
-working on the maple tree to replace it, but that's going slower than
-I would like, so I can't in good conscience ask you to wait for it to
-be ready.
+
+> On Aug 3, 2019, at 8:51 AM, Tetsuo Handa =
+<penguin-kernel@I-love.SAKURA.ne.jp> wrote:
+>=20
+> Masoud, will you try this patch?
+
+Gladly.
+It looks like it is working (and OOMing properly).
+
+
+>=20
+> By the way, is /sys/fs/cgroup/memory/leaker/memory.usage_in_bytes =
+remains non-zero
+> despite /sys/fs/cgroup/memory/leaker/tasks became empty due to memcg =
+OOM killer expected?
+> Deleting big-data-file.bin after memcg OOM killer reduces some, but =
+still remains
+> non-zero.
+
+Yes. I had not noticed that:
+
+[ 1114.190477] oom_reaper: reaped process 1942 (leaker), now =
+anon-rss:0kB, file-
+rss:0kB, shmem-rss:0kB
+./test-script.sh: line 16:  1942 Killed                  ./leaker -p =
+10240 -c 100000
+
+[root@localhost laleaker]# cat  =
+/sys/fs/cgroup/memory/leaker/memory.usage_in_bytes
+3194880
+[root@localhost laleaker]# cat  =
+/sys/fs/cgroup/memory/leaker/memory.limit_in_bytes
+536870912
+[root@localhost laleaker]# rm -f big-data-file.bin
+[root@localhost laleaker]# cat  =
+/sys/fs/cgroup/memory/leaker/memory.usage_in_bytes
+2838528
+
+Thanks!
+Masoud
+
+PS: Tried hand-back-porting it to 4.19-y and it didn=E2=80=99t work. I =
+think there are other patches between 4.19.0 and 5.3 that could be =
+necessary=E2=80=A6
+
+
+>=20
+> ----------------------------------------
+> =46rom 2f92c70f390f42185c6e2abb8dda98b1b7d02fa9 Mon Sep 17 00:00:00 =
+2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Sun, 4 Aug 2019 00:41:30 +0900
+> Subject: [PATCH] memcg, oom: don't require __GFP_FS when invoking =
+memcg OOM killer
+>=20
+> Masoud Sharbiani noticed that commit 29ef680ae7c21110 ("memcg, oom: =
+move
+> out_of_memory back to the charge path") broke memcg OOM called from
+> __xfs_filemap_fault() path. It turned out that try_chage() is retrying
+> forever without making forward progress because =
+mem_cgroup_oom(GFP_NOFS)
+> cannot invoke the OOM killer due to commit 3da88fb3bacfaa33 ("mm, oom:
+> move GFP_NOFS check to out_of_memory"). Regarding memcg OOM, we need =
+to
+> bypass GFP_NOFS check in order to guarantee forward progress.
+>=20
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Reported-by: Masoud Sharbiani <msharbiani@apple.com>
+> Bisected-by: Masoud Sharbiani <msharbiani@apple.com>
+> Fixes: 29ef680ae7c21110 ("memcg, oom: move out_of_memory back to the =
+charge path")
+> ---
+> mm/oom_kill.c | 5 +++--
+> 1 file changed, 3 insertions(+), 2 deletions(-)
+>=20
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index eda2e2a..26804ab 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -1068,9 +1068,10 @@ bool out_of_memory(struct oom_control *oc)
+> 	 * The OOM killer does not compensate for IO-less reclaim.
+> 	 * pagefault_out_of_memory lost its gfp context so we have to
+> 	 * make sure exclude 0 mask - all other users should have at =
+least
+> -	 * ___GFP_DIRECT_RECLAIM to get here.
+> +	 * ___GFP_DIRECT_RECLAIM to get here. But mem_cgroup_oom() has =
+to
+> +	 * invoke the OOM killer even if it is a GFP_NOFS allocation.
+> 	 */
+> -	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
+> +	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS) && =
+!is_memcg_oom(oc))
+> 		return true;
+>=20
+> 	/*
+> --=20
+> 1.8.3.1
+>=20
+>=20
 
