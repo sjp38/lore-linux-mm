@@ -5,101 +5,101 @@ X-Spam-Level:
 X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
 	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 08254C41517
-	for <linux-mm@archiver.kernel.org>; Sun,  4 Aug 2019 22:49:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6E17AC19759
+	for <linux-mm@archiver.kernel.org>; Sun,  4 Aug 2019 22:49:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B3710217F4
-	for <linux-mm@archiver.kernel.org>; Sun,  4 Aug 2019 22:49:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 288632089F
+	for <linux-mm@archiver.kernel.org>; Sun,  4 Aug 2019 22:49:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="MqpI7yn2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B3710217F4
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="dlbSsRNX"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 288632089F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D9C146B026A; Sun,  4 Aug 2019 18:49:39 -0400 (EDT)
+	id D9A4E6B026B; Sun,  4 Aug 2019 18:49:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D24836B026B; Sun,  4 Aug 2019 18:49:39 -0400 (EDT)
+	id D4D686B026C; Sun,  4 Aug 2019 18:49:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ADD4C6B026C; Sun,  4 Aug 2019 18:49:39 -0400 (EDT)
+	id BA0586B026E; Sun,  4 Aug 2019 18:49:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 7361B6B026A
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2019 18:49:39 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id m17so42450579pgh.21
-        for <linux-mm@kvack.org>; Sun, 04 Aug 2019 15:49:39 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 775466B026B
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2019 18:49:41 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id i26so52125495pfo.22
+        for <linux-mm@kvack.org>; Sun, 04 Aug 2019 15:49:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=j5bjFl/k0oxV1FIP4HazX0NuQurNmMvZSnaBil5PKNk=;
-        b=NqAWhTQJX+S/oLTXfwN1MAzdfRaYThEPrVAqHh58RLbTGqvbuVdAgSozNyKrx2q79a
-         4RKd0l9vwOkXQrLv8ZONUUJ4+D1Sh3jss2/QZ3dXr+mtw3aPbvWCezyui9ycTYj4z1Uc
-         g6cq4rphvnCl6ifVV92CDKO2jZ2jrMNM0IAAMZD9RKRrPyLDnOYdy0Y5Nhtnu6qKR9S0
-         e8tyyHFXGyvD+JbZUjVSA7MnlZdzF9OLnyKZ0wb7VRpa4WkNsZMh+LCDPRehLsCBy6AX
-         pNo/Dr30U54gcYb/h4fX2yVrjkHI/plOxwz6si9PnQDNmQ4KK48xEMER9FNvtkeEZhLJ
-         xe1g==
-X-Gm-Message-State: APjAAAWk9be7yrv49RgzuEJR3C3Jy+OQKE+9dKgm/c1aViXaX3ry7qUO
-	yA3IYibCxlwtHETn6+m8Mv1AigVP6zPh2rElUfZH+AAdntbng5O7TffFTSomxXTRL73QNgUWbrU
-	qjmNLUUdNica2g2OHbtj//RELiup7dcjEzApZQ83eHSR8Q8OaUlGg8ax+lVqo5q48qg==
-X-Received: by 2002:a62:2582:: with SMTP id l124mr69696149pfl.43.1564958979160;
-        Sun, 04 Aug 2019 15:49:39 -0700 (PDT)
-X-Received: by 2002:a62:2582:: with SMTP id l124mr69696136pfl.43.1564958978552;
-        Sun, 04 Aug 2019 15:49:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564958978; cv=none;
+        bh=60C6UutqWDg70MnmR2wOYRHcozVv05mGJual4EWfkd0=;
+        b=qy/Z3s/wvr313K7hQQnITUlviVoHtfWqwA2r+3D97NTRLj2jWg6c/lBer5wjBU37gh
+         9PgbcFClVb68CZzPirq+bVFecCk4UTpzStAxoKUHqVTGTR97yJCBJWmMKBrTZViFCDac
+         EDd6OcMC67TY61b/1VlAprloervYliyLeAPBOzWvZLnnV8kxWzI2J4x1za5L6BJBHAl7
+         F0jokaVZi4cSHGwvURVN0yw4McR2r5hUDjFoG2y54+ZUVELxMAJU8N19rroLSPJM8h6J
+         +WvM6GAPFsAXr6fEPx7cJfBtNtoETS2qKm8W98sJgl2YAyQEgOHpY8vyIBHiQDH3BR48
+         cdbw==
+X-Gm-Message-State: APjAAAWsy30tiwEEhas22RPJMDI9CRVX1qEumdAuPtrmB2PWRnlHMmHT
+	vuXGsBtJMijNStkiYv82mnIiBFkvvm7TJi12VuIgWo/eB+PI5OtHAlwvokmx9CFCbIIRtnR4gu7
+	Yo1WOpWcH/h95sMV6i2U/uHGm0VSbiZhFR0B9nTOemdOSE4Kv9T1bamyBxxL7l/bCnA==
+X-Received: by 2002:a17:90a:c68c:: with SMTP id n12mr15493138pjt.29.1564958981119;
+        Sun, 04 Aug 2019 15:49:41 -0700 (PDT)
+X-Received: by 2002:a17:90a:c68c:: with SMTP id n12mr15493102pjt.29.1564958980127;
+        Sun, 04 Aug 2019 15:49:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564958980; cv=none;
         d=google.com; s=arc-20160816;
-        b=L2iiparZqVBLKNOlf/ah5FMMAXHIuGDHLd6n6GmiBJHli4HbC5tJFGOfbaLBdLWgq2
-         MSHvKhxaXefrXLupCdVSEYP5n4PUBb76ud3NyYn2Ded1808yMS18dx3sFZMBisSCi4/h
-         dTFTj/oHnh4NDRZZjd+H8IltKGNldIV8GF67ENagTviH2QbEP9Kd95caq1j6Z2xjFDQC
-         kT2L9bNlconvVSm1UBnkOarq3HPpceyHJMx3f6xzH8Qm8EOYqXZdcWTFkT0pUJxK72/7
-         15B271+fTY0g6frsLmZGsvg5Fz7pZixQZwJNBLQDt0CXhmy+uZUyUvmx3fQmlN/A6HPT
-         AKYA==
+        b=qxJv4V2G+3HUYMGZ++mzBMF5SvanLRxzT1vcJT2eEC8Rbdv8Be+8ixmHhFt5d27fnC
+         4OKys6HLEEd39KvIX5zCcW9JZtVRhF97+FrrUQGyHlhl7VwwulxuPnsKJ4OA71pjV9o2
+         4VA8tWFt2KelaZfR+uCXXjMDBbHjKtrFZyOrmXGaYFlsNyhpHAebZInEO4Ix3FLGbEuu
+         4u1n9+bzXFMfrlv2gu0yKuzUK8xOOHKv+1+4jy0bjdi/v5i2pHrJ2t6e6zi0YJlOYXBP
+         8W4QTCyewM/Z57LPQ7WkQQn4sjtgsDzXvQ7uSK9iKFlazTN9DKsNehusu9f5+YhIrb7m
+         Jnjg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=j5bjFl/k0oxV1FIP4HazX0NuQurNmMvZSnaBil5PKNk=;
-        b=RIe6EaQvWF/oQq6HDon7ngLvN5KocEYphbzXO8fD3IavNXIj96I2089hwkbt9MbJaK
-         Z8YNkex5x3xJfu1c37prDrmPhdxGrmubl6OtthtR2xxxvDUsbKlatPy7WgVxvR/GpCCX
-         xlaYueGfBHIXvvVCCx7O0ew0dDYPOvdSn1zHVjsFJEnNDxFW1xgYtv/NQkWtxvHpQ9FO
-         UO+EtzUaV6UMo3XKJy71A8OLe5WLisatUziqo2YxSsVrhIEYgKXNxeAKmCYZlaRrvArM
-         G/+aPoYzbA824i0jK226jQqpfjUO05BMhv5CYsRQRWIEfTChuNR875tPNbzNf8Atsb3B
-         ZDbg==
+        bh=60C6UutqWDg70MnmR2wOYRHcozVv05mGJual4EWfkd0=;
+        b=ajVWZ/e4ErcGDkbaHORkcJ3b5koAMOimEqBfLSCor/P8g1sAMpsV2QKczxhjACm0EH
+         fErFYBjiVHBwaGsGcOINy1T3UlQ1yh8L96RkJWR7ujFlACG7zZVWi5Y6jAyno+NvGlGJ
+         YDhwB8sIwFLgPonx8xMwwvGmvBG7WfFvcJYHQnRu1q4V1MwRDOfy4/gv8olExfuTGkMi
+         lXXE2cL5bZgu4TCB27vBDq5Nn55AUasWyxgLwYX0D2jv+UI7gRP1WL+IjZi5jyAPaPBx
+         DMV9ilY/AIn+c2xLt3klWIIbQy8/oLNFW7U6XC/nVKrJ46pGKnCPN91EEkY7mgnB7xIF
+         hLOA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=MqpI7yn2;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dlbSsRNX;
        spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s96sor18039273pjc.17.2019.08.04.15.49.38
+        by mx.google.com with SMTPS id v138sor62614616pfc.40.2019.08.04.15.49.40
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Sun, 04 Aug 2019 15:49:38 -0700 (PDT)
+        Sun, 04 Aug 2019 15:49:40 -0700 (PDT)
 Received-SPF: pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=MqpI7yn2;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dlbSsRNX;
        spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=j5bjFl/k0oxV1FIP4HazX0NuQurNmMvZSnaBil5PKNk=;
-        b=MqpI7yn2v8JiaESKRamQoMhID5IYen684AVXtcKPVHm7ukeZx5WJLqHqdIEJqV0WrU
-         VfCpQM5hioJATjULHPTYB3nfhDV1hZvNLdoXtUM170GmrlC8kjyYeFhBDtjPQS6eYlGi
-         Z1KZbaNfekNsK96f9fHDqC8EM5JDem4jjQqa0uOUzUD0HnkcyB0RGrqGZafbKz+HSERm
-         ycJb8r/hMPkJxrohrkltdvb3Bv5T3e9OF54rrvF1bh8OIMrv7vUbWFQiw+cjVGvVjkWZ
-         fASWr56xEv6QUfwcZwREb2sSNIm1Ysoe7red/z7MjIlPR6uaG4NZls/tzbyEvLg9FjxD
-         24hg==
-X-Google-Smtp-Source: APXvYqwTnNt3iCmBWtT8pTi/FFYixGudghLt9/4mGGXij726CsdCF3vK7jbIkfaYxVJp0BLjNqynIA==
-X-Received: by 2002:a17:90a:b908:: with SMTP id p8mr15231945pjr.94.1564958978299;
-        Sun, 04 Aug 2019 15:49:38 -0700 (PDT)
+        bh=60C6UutqWDg70MnmR2wOYRHcozVv05mGJual4EWfkd0=;
+        b=dlbSsRNX77Ei4qlHR7ScPLtFWbFA/wSFhYs9NQOll92MElLIHH0XM5uWEMJZOCpSZn
+         fw6jxIpOESniygQ2CP+jqWxww/Yc9BpBnk334qu29zs2vzmgy87c6XuHVe23RKpRZPxO
+         jThG9GtjK3Wnrebfh/rbMsq7112krYjWlIxKkWaUHxL2oFoS1RUMIQu8ytggftTKUFm3
+         IZx5EXAb50Ed18W0N5uy/HOdcsYR51BeefJ+gL6tmEuCp3+fjY6YxhqUW4uaaLKgEtr0
+         EwxJMkmMabXGRdUgV0PB/zPRqhRIlzaqolidM2g4cvymDIwFa+iZFzPQhAPl2KRAIsyu
+         jBAw==
+X-Google-Smtp-Source: APXvYqxgxAYQpO8e4Spo4W3ynw/PKZNsgndpQrQdEvTtqBpVU8mbg8ThNNd4XLW1NQVXChaVjFCWhA==
+X-Received: by 2002:a05:6a00:4c:: with SMTP id i12mr70639006pfk.134.1564958979908;
+        Sun, 04 Aug 2019 15:49:39 -0700 (PDT)
 Received: from blueforge.nvidia.com (searspoint.nvidia.com. [216.228.112.21])
-        by smtp.gmail.com with ESMTPSA id r6sm35946836pjb.22.2019.08.04.15.49.36
+        by smtp.gmail.com with ESMTPSA id r6sm35946836pjb.22.2019.08.04.15.49.38
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 04 Aug 2019 15:49:37 -0700 (PDT)
+        Sun, 04 Aug 2019 15:49:39 -0700 (PDT)
 From: john.hubbard@gmail.com
 X-Google-Original-From: jhubbard@nvidia.com
 To: Andrew Morton <akpm@linux-foundation.org>
@@ -136,13 +136,17 @@ Cc: Christoph Hellwig <hch@infradead.org>,
 	x86@kernel.org,
 	xen-devel@lists.xenproject.org,
 	John Hubbard <jhubbard@nvidia.com>,
-	Arnd Bergmann <arnd@arndb.de>,
+	Matt Porter <mporter@kernel.crashing.org>,
+	Alexandre Bounine <alex.bou9@gmail.com>,
 	Al Viro <viro@zeniv.linux.org.uk>,
-	"Gustavo A . R . Silva" <gustavo@embeddedor.com>,
-	Kees Cook <keescook@chromium.org>
-Subject: [PATCH v2 12/34] vmci: convert put_page() to put_user_page*()
-Date: Sun,  4 Aug 2019 15:48:53 -0700
-Message-Id: <20190804224915.28669-13-jhubbard@nvidia.com>
+	Logan Gunthorpe <logang@deltatee.com>,
+	Christophe JAILLET <christophe.jaillet@wanadoo.fr>,
+	Ioan Nicu <ioan.nicu.ext@nokia.com>,
+	Kees Cook <keescook@chromium.org>,
+	Tvrtko Ursulin <tvrtko.ursulin@intel.com>
+Subject: [PATCH v2 13/34] rapidio: convert put_page() to put_user_page*()
+Date: Sun,  4 Aug 2019 15:48:54 -0700
+Message-Id: <20190804224915.28669-14-jhubbard@nvidia.com>
 X-Mailer: git-send-email 2.22.0
 In-Reply-To: <20190804224915.28669-1-jhubbard@nvidia.com>
 References: <20190804224915.28669-1-jhubbard@nvidia.com>
@@ -164,61 +168,58 @@ release_pages().
 This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
 ("mm: introduce put_user_page*(), placeholder versions").
 
-Note that this effectively changes the code's behavior in
-qp_release_pages(): it now ultimately calls set_page_dirty_lock(),
-instead of set_page_dirty(). This is probably more accurate.
-
-As Christoph Hellwig put it, "set_page_dirty() is only safe if we are
-dealing with a file backed page where we have reference on the inode it
-hangs off." [1]
-
-[1] https://lore.kernel.org/r/20190723153640.GB720@lst.de
-
-Cc: Arnd Bergmann <arnd@arndb.de>
+Cc: Matt Porter <mporter@kernel.crashing.org>
+Cc: Alexandre Bounine <alex.bou9@gmail.com>
 Cc: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Gustavo A. R. Silva <gustavo@embeddedor.com>
+Cc: Logan Gunthorpe <logang@deltatee.com>
+Cc: Christophe JAILLET <christophe.jaillet@wanadoo.fr>
+Cc: Ioan Nicu <ioan.nicu.ext@nokia.com>
 Cc: Kees Cook <keescook@chromium.org>
+Cc: Tvrtko Ursulin <tvrtko.ursulin@intel.com>
 Signed-off-by: John Hubbard <jhubbard@nvidia.com>
 ---
- drivers/misc/vmw_vmci/vmci_context.c    |  2 +-
- drivers/misc/vmw_vmci/vmci_queue_pair.c | 11 ++---------
- 2 files changed, 3 insertions(+), 10 deletions(-)
+ drivers/rapidio/devices/rio_mport_cdev.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
 
-diff --git a/drivers/misc/vmw_vmci/vmci_context.c b/drivers/misc/vmw_vmci/vmci_context.c
-index 16695366ec92..9daa52ee63b7 100644
---- a/drivers/misc/vmw_vmci/vmci_context.c
-+++ b/drivers/misc/vmw_vmci/vmci_context.c
-@@ -587,7 +587,7 @@ void vmci_ctx_unset_notify(struct vmci_ctx *context)
+diff --git a/drivers/rapidio/devices/rio_mport_cdev.c b/drivers/rapidio/devices/rio_mport_cdev.c
+index 8155f59ece38..0e8ea0e5a89e 100644
+--- a/drivers/rapidio/devices/rio_mport_cdev.c
++++ b/drivers/rapidio/devices/rio_mport_cdev.c
+@@ -572,14 +572,12 @@ static void dma_req_free(struct kref *ref)
+ 	struct mport_dma_req *req = container_of(ref, struct mport_dma_req,
+ 			refcount);
+ 	struct mport_cdev_priv *priv = req->priv;
+-	unsigned int i;
  
- 	if (notify_page) {
- 		kunmap(notify_page);
--		put_page(notify_page);
-+		put_user_page(notify_page);
+ 	dma_unmap_sg(req->dmach->device->dev,
+ 		     req->sgt.sgl, req->sgt.nents, req->dir);
+ 	sg_free_table(&req->sgt);
+ 	if (req->page_list) {
+-		for (i = 0; i < req->nr_pages; i++)
+-			put_page(req->page_list[i]);
++		put_user_pages(req->page_list, req->nr_pages);
+ 		kfree(req->page_list);
  	}
- }
  
-diff --git a/drivers/misc/vmw_vmci/vmci_queue_pair.c b/drivers/misc/vmw_vmci/vmci_queue_pair.c
-index 8531ae781195..e5434551d0ef 100644
---- a/drivers/misc/vmw_vmci/vmci_queue_pair.c
-+++ b/drivers/misc/vmw_vmci/vmci_queue_pair.c
-@@ -626,15 +626,8 @@ static void qp_release_queue_mutex(struct vmci_queue *queue)
- static void qp_release_pages(struct page **pages,
- 			     u64 num_pages, bool dirty)
- {
--	int i;
--
--	for (i = 0; i < num_pages; i++) {
--		if (dirty)
--			set_page_dirty(pages[i]);
--
--		put_page(pages[i]);
--		pages[i] = NULL;
--	}
-+	put_user_pages_dirty_lock(pages, num_pages, dirty);
-+	memset(pages, 0, num_pages * sizeof(struct page *));
- }
+@@ -815,7 +813,7 @@ rio_dma_transfer(struct file *filp, u32 transfer_mode,
+ 	struct mport_dma_req *req;
+ 	struct mport_dev *md = priv->md;
+ 	struct dma_chan *chan;
+-	int i, ret;
++	int ret;
+ 	int nents;
  
- /*
+ 	if (xfer->length == 0)
+@@ -946,8 +944,7 @@ rio_dma_transfer(struct file *filp, u32 transfer_mode,
+ 
+ err_pg:
+ 	if (!req->page_list) {
+-		for (i = 0; i < nr_pages; i++)
+-			put_page(page_list[i]);
++		put_user_pages(page_list, nr_pages);
+ 		kfree(page_list);
+ 	}
+ err_req:
 -- 
 2.22.0
 
