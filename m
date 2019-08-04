@@ -1,434 +1,176 @@
-Return-Path: <SRS0=U/7Q=V7=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=DZuJ=WA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3D2E6C433FF
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 22:28:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E0E78C31E40
+	for <linux-mm@archiver.kernel.org>; Sun,  4 Aug 2019 00:14:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C249C214AE
-	for <linux-mm@archiver.kernel.org>; Sat,  3 Aug 2019 22:28:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5FA762087C
+	for <linux-mm@archiver.kernel.org>; Sun,  4 Aug 2019 00:14:05 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="gQ7OfVQ3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C249C214AE
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="lAi4L6Z1"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5FA762087C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5857E6B0003; Sat,  3 Aug 2019 18:28:36 -0400 (EDT)
+	id ADB8D6B0003; Sat,  3 Aug 2019 20:14:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 535956B0005; Sat,  3 Aug 2019 18:28:36 -0400 (EDT)
+	id A8BCC6B0005; Sat,  3 Aug 2019 20:14:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3FCD26B0006; Sat,  3 Aug 2019 18:28:36 -0400 (EDT)
+	id 97B696B0006; Sat,  3 Aug 2019 20:14:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 1EE126B0003
-	for <linux-mm@kvack.org>; Sat,  3 Aug 2019 18:28:36 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id z19so87724963ioi.15
-        for <linux-mm@kvack.org>; Sat, 03 Aug 2019 15:28:36 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 791C26B0003
+	for <linux-mm@kvack.org>; Sat,  3 Aug 2019 20:14:04 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id z13so68579656qka.15
+        for <linux-mm@kvack.org>; Sat, 03 Aug 2019 17:14:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=UZU8IQYzscAihSaZnmtnPHPOXp262WKqqbOV44Kxtac=;
-        b=mXOCeeBCeIKoEcx2tj7sag4W1MkMJZGJ4jMQBczAeNsu0IXN5aKZDjp1TMF3+bL7Tz
-         H+kKXGFqW+vgnNc4jbUHpwNCvi4RJ+5N67DopgC41fKcjrsIYSwySADwg6whvEbxZ7+F
-         dNqqzBEPCDz5lf2mqYKgL8HBrVsPay9MxBzSYrs75Hgg4YLKzHxBsvlC+8Y4ylVR2HmP
-         roMlrPzi9Dq1umnRIVWmd3GHqfnRAUel9Wa7M5HnTarku9wRHeCVx3UGrhP3UnmpII9n
-         23U3WAnnWf8X+unxJFaiVT4+XkYJdzDELWfdx3/QLo9EvtN/GK77/coUOcKjP1vHP58U
-         f4Lg==
-X-Gm-Message-State: APjAAAUoqVIb5txPV9/aUL8NbsslmrG7rMt/mLOX51BDcUDLDGN9nUHA
-	sa8bLzQM+dfdCY08L896ZigPyhs8yyTt47PXM85GyPImol6qVrLUbyrwp0JVOLYoDIpMeAsdmmd
-	EcpysrNqoOeewJXlYlLhB4Ls41zxkxUrj0J7NlFkawG/EWmMGFzcdtHjfxsNeJ62D6A==
-X-Received: by 2002:a6b:fb0f:: with SMTP id h15mr28366832iog.266.1564871315775;
-        Sat, 03 Aug 2019 15:28:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwO+9UOPYoXQYM9i3AJSbyrUlGA7LyBioDlxzejohZxBJa0fY89bh4xTMTr41xjmsAF+brZ
-X-Received: by 2002:a6b:fb0f:: with SMTP id h15mr28366754iog.266.1564871314288;
-        Sat, 03 Aug 2019 15:28:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564871314; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=WqP5IEn9c1KXpbjHniLk8HqGR3ikHJzys8MEePZlMFc=;
+        b=YeEQAaZN/V841Ppy4q95Idpf4y1NPJwWDawt3GHL7g5qi7U7srveTpj0Rkz98NJImJ
+         NK6bbP9PzC+za3miUZP7YUKuoCyXOJmLJ6783ReTEmSDPq4VTW0cTENHWyLuv20xDRvh
+         MSMrIa5Y2lDh3HUkInAaF6gkmWmw+mf8xIuWmwoIZn3TEjg4gLHksatXQF7yu8FNiwIM
+         cjyIOYn9CDQUW+fEp7ahLvx0Nctgy3HS8PH3sxT0WLNU/oBC+9CrOEexGHkfnZMBreX0
+         yFlFPD4MD87bs8XfIsD2CPNQFAn6Q+8EgKeAvw5UWz2FNuU6vAXyX1WsBP77fYzkqqrz
+         FIoA==
+X-Gm-Message-State: APjAAAW1fg6WXK5ckdGrUHvnC6G8MQSrQ6sBWlxOkRbykTltFAcsnEbG
+	dOxAXuwlOBI2wK9bZtMqSw4Ms2ZmX2GcqX3ICSbytd6PDe7j6WWXeOrGULNIb4QGQHs1hQaek5G
+	goULfqOvmM4aRHWP6EyBa/CQLvYvU3xPIPyyylyQJWM1jjlFf6nrKC0afCUci2lLCvA==
+X-Received: by 2002:a0c:f5cc:: with SMTP id q12mr52243180qvm.79.1564877644215;
+        Sat, 03 Aug 2019 17:14:04 -0700 (PDT)
+X-Received: by 2002:a0c:f5cc:: with SMTP id q12mr52243160qvm.79.1564877643552;
+        Sat, 03 Aug 2019 17:14:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564877643; cv=none;
         d=google.com; s=arc-20160816;
-        b=wz8DcXJi49Gp3/fkbbqWNu9nS4YbB747eUFfToL1SNU0+hbvPtm7wtDWxIgsOfiE39
-         0z1dKj9V5i8+DztpRpvBErR4pYg6KSZfQ+bSkpMBwMu1Ld8NbpPjZYzN1mwes0rSFJG2
-         JQuGsKS+IdxEMjnc46EftunbkE/nI5ba0q667sN5FTlEu06Udde+5b9PB6MwHirrNRfr
-         dTwUxCx4+PKyErsm0OdQuAgJvyfAIaR/R7UUAdxoowHhZ2UjkxSj/0N46tBrVJIsrlqN
-         yIS+0apkHz48BtTmLvNQcw7XMQnKu2R6mXwU8MA5dW64zXEoSUavufVDhPViILCRdpo3
-         ytYw==
+        b=R9xGWozIH9B2PjQT3+0+gHOAOHYlY0PYMR6DBLUZzqEl5bHoQrOtj2LtKQLvgxHLAl
+         1Ol6PdvwnTEqkEsNFL0GwDZjHfHP8BLEJb/Z7q1Y4llOgZzVykekZDUXTHMifj+Avjzo
+         T+gFTb5zXSUJZztFgs9VVuSTDoTTgr2egilRcVM+ZcAcEBjql8R6UKQ23vQpTnzgrROP
+         QzIj45dBn0MuIZuI3bWr9KHuTgwd17zw2QDqXILDvKFV0/+HZ0J8bQ7dg04qJOPd+GDg
+         E89o8swBPlHyiYEygRjwh0Wy7JlJYuqXluvCcalCPkv8SlLYQSMT2ZwR6IRLf0Eklzyt
+         3JGA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=UZU8IQYzscAihSaZnmtnPHPOXp262WKqqbOV44Kxtac=;
-        b=JISLM6I/HV3U3AXhdFV6Fp7CyQe7D8/GPsbnGrwQbXOvhvoAIKL6Xu+oJ85YadZ16F
-         b8WiI4eJP0G5bkgA4Dfq3FOB7HA9GAs+J2d8PlWm2Pb69KMz1guoGi8vHIjzX3Af8ZtV
-         RVO2IBP6wx/pV7Z9XnOvhjSt+Z2l1djsallKI06GNEYKhKOVhB+63vfMyychFEgbB0Ew
-         djZLoZANVB1cUdK2ClIq7Vl/XpsbtSfqohkku3gOY3UBrIyj/TTGwSQzfBGd7nn0KFth
-         hQ+3byAryqz64HrHUVyAxg1L3ELbav02gdwTcftNgjFpQ2gjbp2ebecNJ4JYpq0oKd1U
-         VmAA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=WqP5IEn9c1KXpbjHniLk8HqGR3ikHJzys8MEePZlMFc=;
+        b=fXMUta+5dP5ay3aP3Qf8iw7F9cx+Usg4zVICSp+jIjj2/2pktojO/DKNpcakqaA8IX
+         BUz0RHlZAC9vjGqz5cX+8n9M/VVEteQZAUrCBMAK6dN90dm9W6oKEgBrzTWjz+XkBtc6
+         Z+ti0yNoTfMgjaawGFEDOphtAFOalZk1Lhj9R1cgEwBitnWdjxEaspWgBdVkeKl3Xfl+
+         P6CfcwnpqWaYKg8tk01dkMC8PZm9Aq7+M0ixbj3xS0dfiPKEUCjSQVL2gW9gl+TQ+UnZ
+         3HuvuA+aDkkvAzMpcT4oJL+D4r34mfIwe3ltyTtYnV9NeDUOAB0Yty6PdGMnDyusiP08
+         PGOg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=gQ7OfVQ3;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id z1si12132704ioc.55.2019.08.03.15.28.33
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=lAi4L6Z1;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id g32sor66086342qve.20.2019.08.03.17.14.03
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 03 Aug 2019 15:28:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
+        (Google Transport Security);
+        Sat, 03 Aug 2019 17:14:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=gQ7OfVQ3;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x73MPuZ2132045;
-	Sat, 3 Aug 2019 22:28:03 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=UZU8IQYzscAihSaZnmtnPHPOXp262WKqqbOV44Kxtac=;
- b=gQ7OfVQ3rHduBEjrThd6yZHDga5vKw3DvHU09qVOZESiWe4ib/+mtFoySn8TSEtp+I3A
- iheqWNU/1FMDxYwc1lUNs4N5mesCqTAgAYQVF7NUIottCehUNR5LbE3+ZF0kh4ckine3
- Y/C/bLrLMDg8kkUEs9DQwxmmOVLDBwrEP0ok6BfR40jqUUkoP1YKufimzlhGA0jxEcXo
- klPLnijNO9OwP4GpiS0Dn+MZWu2wgX4jnG+sgY9N2d3WmRZ/pJBTv0oD0esc3H/CQ/9F
- oCbHozX/m5Q9eRsclGSZ/lnCRUeIGuJbdK3n56kJ+vPXuYWUInXrcvNVUwhApcDt4Dud HQ== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by aserp2120.oracle.com with ESMTP id 2u527pa245-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sat, 03 Aug 2019 22:28:03 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x73MRstZ121099;
-	Sat, 3 Aug 2019 22:28:02 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userp3030.oracle.com with ESMTP id 2u4yctje4n-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sat, 03 Aug 2019 22:28:02 +0000
-Received: from abhmp0019.oracle.com (abhmp0019.oracle.com [141.146.116.25])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x73MRtIb022005;
-	Sat, 3 Aug 2019 22:27:55 GMT
-Received: from localhost.localdomain (/73.243.10.6)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Sat, 03 Aug 2019 22:27:52 +0000
-Subject: Re: [PATCH v3 2/2] mm,thp: Add experimental config option
- RO_EXEC_FILEMAP_HUGE_FAULT_THP
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-        linux-fsdevel@vger.kernel.org,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        Song Liu <songliubraving@fb.com>,
-        Bob Kasten <robert.a.kasten@intel.com>,
-        Mike Kravetz <mike.kravetz@oracle.com>,
-        Chad Mynhier <chad.mynhier@oracle.com>,
-        "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-        Johannes Weiner <jweiner@fb.com>, Matthew Wilcox <willy@infradead.org>
-References: <20190731082513.16957-1-william.kucharski@oracle.com>
- <20190731082513.16957-3-william.kucharski@oracle.com>
- <20190801123658.enpchkjkqt7cdkue@box>
-From: William Kucharski <william.kucharski@oracle.com>
-Message-ID: <c8d02a3b-e1ad-2b95-ce15-13d3ed4cca87@oracle.com>
-Date: Sat, 3 Aug 2019 16:27:51 -0600
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=lAi4L6Z1;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=WqP5IEn9c1KXpbjHniLk8HqGR3ikHJzys8MEePZlMFc=;
+        b=lAi4L6Z1XyIiSM5lL1y3xq2yW7AhMhA5cc/2JWhK4Uq58oYTXRY+SEfOyGjKf6kkCb
+         EPC9/wo5tKQKNgcCq7J5u94OLKKBkYAT9e7xtRKka5BNmKvZWgWXct5IFZiXhtUBed8m
+         rk3hbmVvbY+x2rSZElIcRMSuJak9sbEMLouEsX5kctrioFW3dP5ZTCHUO7a88gwJF86c
+         Kw4vjibh/yQ70e+pFUaKMHvh1MOZwG0UveYwUOrZxaDK9+spjQNaOE305bhzgGLhXZaG
+         1qCnoPNDxKWD7uKl46B5GsKjuaJdx75qFBHdD8Xa8h8Svul5AL5C3uyvDl1nKlcQKCkP
+         pPcQ==
+X-Google-Smtp-Source: APXvYqzsyyLWq0jXkEok0bUf3FHiInYAhbn8RrkmZKAfLQFhGrLDITCXgW1cHLxjIP+uPvSHKyq3TA==
+X-Received: by 2002:a05:6214:1312:: with SMTP id a18mr103640128qvv.241.1564877642991;
+        Sat, 03 Aug 2019 17:14:02 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id g35sm42675590qtg.92.2019.08.03.17.14.01
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Sat, 03 Aug 2019 17:14:01 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hu49w-0006gS-Bm; Sat, 03 Aug 2019 21:14:00 -0300
+Date: Sat, 3 Aug 2019 21:14:00 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Jason Wang <jasowang@redhat.com>, kvm@vger.kernel.org,
+	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
+ with worker
+Message-ID: <20190804001400.GA25543@ziepe.ca>
+References: <20190731123935.GC3946@ziepe.ca>
+ <7555c949-ae6f-f105-6e1d-df21ddae9e4e@redhat.com>
+ <20190731193057.GG3946@ziepe.ca>
+ <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
+ <20190801141512.GB23899@ziepe.ca>
+ <42ead87b-1749-4c73-cbe4-29dbeb945041@redhat.com>
+ <20190802124613.GA11245@ziepe.ca>
+ <20190802100414-mutt-send-email-mst@kernel.org>
+ <20190802172418.GB11245@ziepe.ca>
+ <20190803172944-mutt-send-email-mst@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20190801123658.enpchkjkqt7cdkue@box>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9338 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908030268
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9338 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908030267
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190803172944-mutt-send-email-mst@kernel.org>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 8/1/19 6:36 AM, Kirill A. Shutemov wrote:
-
->>   #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->> -#define HPAGE_PMD_SHIFT PMD_SHIFT
->> -#define HPAGE_PMD_SIZE	((1UL) << HPAGE_PMD_SHIFT)
->> -#define HPAGE_PMD_MASK	(~(HPAGE_PMD_SIZE - 1))
->> -
->> -#define HPAGE_PUD_SHIFT PUD_SHIFT
->> -#define HPAGE_PUD_SIZE	((1UL) << HPAGE_PUD_SHIFT)
->> -#define HPAGE_PUD_MASK	(~(HPAGE_PUD_SIZE - 1))
->> +#define HPAGE_PMD_SHIFT		PMD_SHIFT
->> +#define HPAGE_PMD_SIZE		((1UL) << HPAGE_PMD_SHIFT)
->> +#define HPAGE_PMD_OFFSET	(HPAGE_PMD_SIZE - 1)
->> +#define HPAGE_PMD_MASK		(~(HPAGE_PMD_OFFSET))
->> +
->> +#define HPAGE_PUD_SHIFT		PUD_SHIFT
->> +#define HPAGE_PUD_SIZE		((1UL) << HPAGE_PUD_SHIFT)
->> +#define HPAGE_PUD_OFFSET	(HPAGE_PUD_SIZE - 1)
->> +#define HPAGE_PUD_MASK		(~(HPAGE_PUD_OFFSET))
+On Sat, Aug 03, 2019 at 05:36:13PM -0400, Michael S. Tsirkin wrote:
+> On Fri, Aug 02, 2019 at 02:24:18PM -0300, Jason Gunthorpe wrote:
+> > On Fri, Aug 02, 2019 at 10:27:21AM -0400, Michael S. Tsirkin wrote:
+> > > On Fri, Aug 02, 2019 at 09:46:13AM -0300, Jason Gunthorpe wrote:
+> > > > On Fri, Aug 02, 2019 at 05:40:07PM +0800, Jason Wang wrote:
+> > > > > > This must be a proper barrier, like a spinlock, mutex, or
+> > > > > > synchronize_rcu.
+> > > > > 
+> > > > > 
+> > > > > I start with synchronize_rcu() but both you and Michael raise some
+> > > > > concern.
+> > > > 
+> > > > I've also idly wondered if calling synchronize_rcu() under the various
+> > > > mm locks is a deadlock situation.
+> > > > 
+> > > > > Then I try spinlock and mutex:
+> > > > > 
+> > > > > 1) spinlock: add lots of overhead on datapath, this leads 0 performance
+> > > > > improvement.
+> > > > 
+> > > > I think the topic here is correctness not performance improvement
+> > > 
+> > > The topic is whether we should revert
+> > > commit 7f466032dc9 ("vhost: access vq metadata through kernel virtual address")
+> > > 
+> > > or keep it in. The only reason to keep it is performance.
+> > 
+> > Yikes, I'm not sure you can ever win against copy_from_user using
+> > mmu_notifiers?
 > 
-> OFFSET vs MASK semantics can be confusing without reading the definition.
-> We don't have anything similar for base page size, right (PAGE_OFFSET is
-> completely different thing :P)?
+> Ever since copy_from_user started playing with flags (for SMAP) and
+> added speculation barriers there's a chance we can win by accessing
+> memory through the kernel address.
 
-I came up with the OFFSET definitions, the MASK definitions already existed
-in huge_mm.h, e.g.:
+You think copy_to_user will be more expensive than the minimum two
+atomics required to synchronize with another thread?
 
-#define HPAGE_PUD_MASK	(~(HPAGE_PUD_SIZE - 1))
+> > Also, why can't this just permanently GUP the pages? In fact, where
+> > does it put_page them anyhow? Worrying that 7f466 adds a get_user page
+> > but does not add a put_page??
 
-Is there different terminology you'd prefer to see me use here to clarify
-this?
+You didn't answer this.. Why not just use GUP?
 
-
->> +#ifdef CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP
->> +extern vm_fault_t filemap_huge_fault(struct vm_fault *vmf,
->> +			enum page_entry_size pe_size);
->> +#endif
->> +
-> 
-> No need for #ifdef here.
-
-I wanted to avoid referencing an extern that wouldn't exist if the config
-option wasn't set; I can remove it.
-
-
->> +
->> +#ifndef	CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP
->>   	if (PageSwapBacked(page)) {
->>   		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
->>   		if (PageTransHuge(page))
->> @@ -206,6 +208,13 @@ static void unaccount_page_cache_page(struct address_space *mapping,
->>   	} else {
->>   		VM_BUG_ON_PAGE(PageTransHuge(page), page);
->>   	}
->> +#else
->> +	if (PageSwapBacked(page))
->> +		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
->> +
->> +	if (PageTransHuge(page))
->> +		__dec_node_page_state(page, NR_SHMEM_THPS);
->> +#endif
-> 
-> Again, no need for #ifdef: the new definition should be fine for
-> everybody.
-
-OK, I can do that; I didn't want to unnecessarily eliminate the
-VM_BUG_ON_PAGE(PageTransHuge(page)) call for everyone given this
-is CONFIG experimental code.
-
-> PageCompound() and PageTransCompound() are the same thing if THP is
-> enabled at compile time.
-
-> PageHuge() check here is looking out of place. I don't thing we can ever
-> will see hugetlb pages here.
-
-What I'm trying to do is sanity check that what the cache contains is a THP 
-page. I added the PageHuge() check simply because PageTransCompound() is true 
-for both THP and hugetlbfs pages, and there's no routine that returns true JUST 
-for THP pages; perhaps there should be?
-
->> +		 *	+ the enbry is a page page with an order other than
-> 
-> Typo.
-
-Thanks, fixed.
-
-> 
->> +		 *	  HPAGE_PMD_ORDER
-> 
-> If you see unexpected page order in page cache, something went horribly
-> wrong, right?
-
-This routine's main function other than validation is to make sure the page 
-cache has not been polluted between when we go out to read the large page and 
-when the page is added to the cache (more on that coming up.) For example, the 
-way I was able to tell readahead() was polluting future possible THP mappings is 
-because after a buffered read I would typically see 52 (the readahead size) 
-PAGESIZE pages for the next 2M range in the page cache.
-
->> +		 *	+ the page's index is not what we expect it to be
-> 
-> Same here.
-
-Same rationale.
-
-> 
->> +		 *	+ the page is not up-to-date
->> +		 *	+ the page is unlocked
-> 
-> Confused here.
-
-These should never be true, but I wanted to double check for them anyway. I can 
-eliminate the checks if we are satisfied these states can "never" happen for a 
-cached page.
-
-> 
-> Do you expect caller to lock page before the check? If so, state it in the
-> comment for the function.
-
-It's my understanding that pages in the page cache should be locked, so I wanted 
-to check for that.
-
-This routine is validating entries we find in the page cache to see whether they 
-are conflicts or valid cached THP pages.
-
-> Wow. That's unreadable. Can we rewrite it something like (commenting each
-> check):
-
-I can definitely break it down into multiple checks; it is a bit dense, thus the 
-comment but you're correct, it will read better if broken down more.
-
-
-> You also need to check that VMA alignment is suitable for huge pages.
-> See transhuge_vma_suitable().
-
-I don't really care if the start of the VMA is suitable, just whether I can map
-the current faulting page with a THP. As far as I know, there's nothing wrong
-with mapping all the pages before the VMA hits a properly aligned bound with
-PAGESIZE pages and then aligned chunks in the middle with THP.
-
->> +	if (unlikely(!(PageCompound(new_page)))) {
-> 
-> How can it happen?
-
-That check was already removed for a pending v4, thanks. I wasn't sure if
-__page_cache_alloc() could ever erroneously return a non-compound page so
-I wanted to check for it.
-
->> +	__SetPageLocked(new_page);
-> 
-> Again?
-
-This is the page that content was just read to; readpage() will unlock the page
-when it is done with I/O, but the page needs to be locked before it's inserted
-into the page cache.
-
->> +	/* did it get truncated? */
->> +	if (unlikely(new_page->mapping != mapping)) {
-> 
-> Hm. IIRC this path only reachable for just allocated page that is not
-> exposed to anybody yet. How can it be truncated?
-
-Matthew advised I duplicate the similar routine from filemap_fault(), but that 
-may be because of the normal way pages get added to the cache, which I may need 
-to modify my code to do.
-
->> +	ret = alloc_set_pte(vmf, NULL, hugepage);
-> 
-> It has to be
-> 
-> 	ret = alloc_set_pte(vmf, vmf->memcg, hugepage);
-> 
-> right?
-
-I can make that change; originally alloc_set_pte() didn't use the second 
-parameter at all when mapping a read-only page.
-
-Even now, if the page isn't writable, it would only be dereferenced by a
-VM_BUG_ON_PAGE() call if it's COW.
-
-> It looks backwards to me. I believe the page must be in page cache
-> *before* it got mapped.
-> 
-> I expect all sorts of weird bug due to races when the page is mapped but
-> not visible via syscalls.
-
-You may be correct.
-
-My original thinking on this was that as a THP is going to be rarer and more 
-valuable to the system, I didn't want to add it to the page cache until its 
-contents had been fully read and it was mapped. Talking with Matthew it seems I 
-may need to change to do things the same way as PAGESIZE pages, where the page 
-is added to the cache prior to the readpage() call and we rely upon PageUptodate 
-to see if the reads were successful.
-
-My thinking had been if any part of reading a large page and mapping it had 
-failed, the code could just put_page() the newly allocated page and fallback to 
-mapping the page with PAGESIZE pages rather than add a THP to the cache.
-
-
->> +#ifndef CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP
-> 
-> IS_ENABLED()?
-> 
->>   	if (!IS_DAX(filp->f_mapping->host) || !IS_ENABLED(CONFIG_FS_DAX_PMD))
->>   		goto out;
->> +#endif
-
-This code short-circuits the address generation routine if the memory isn't DAX,
-and if this code is enabled I need it not to goto out but rather fall through to
-__thp_get_unmapped_area().
-
->> +	if ((prot & PROT_READ) && (prot & PROT_EXEC) &&
->> +		(!(prot & PROT_WRITE)) && (flags & MAP_PRIVATE) &&
-> 
-> Why require PROT_EXEC && PROT_READ. You only must ask for !PROT_WRITE.
-> 
-> And how do you protect against mprotect() later? Should you ask for
-> ro-file instead?
-
-My original goal was to only map program TEXT with THP, which means only
-RO EXEC code, not just any non-writable address space.
-
-If mprotect() is called, wouldn't the pages be COWed to PAGESIZE pages the
-first time the area was written to? I may be way off on this assumption.
-
-> All size considerations are already handled by thp_get_unmapped_area(). No
-> need to duplicate it here.
-
-Thanks, I'll remove them.
-
-> You might want to add thp_ro_get_unmapped_area() that would check file for
-> RO, before going for THP-suitable mapping.
-
-Once again, the question is whether we want to make this just RO or RO + EXEC
-to maintain my goal of just mapping program TEXT via THP. I'm willing to hear 
-arguments either way.
-
-> 
->> +		addr = thp_get_unmapped_area(file, addr, len, pgoff, flags);
->> +
->> +		if (addr && (!(addr & HPAGE_PMD_OFFSET)))
->> +			vm_maywrite = 0;
-> 
-> Oh. That's way too hacky. Better to ask for RO file instead.
-
-I did that because the existing code just blindly sets VM_MAYWRITE and I 
-obviously didn't want to, so making it a variable allowed me to shut it off if 
-it was a THP mapping.
-
-
->> +#ifndef CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP
->>   		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
->> +#endif
->> +
-> 
-> Just remove it. Don't add more #ifdefs.
-
-OK; once again I didn't want to remove the existing VM_BUG_ON_PAGE() call
-because this was an experimental config for now.
-
-
->> +#ifndef CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP
->>   		VM_BUG_ON_PAGE(!PageSwapBacked(page), page);
->> +#endif
->> +
-> 
-> Ditto.
-
-Same rationale.
-
-Thanks for looking this over; I'm curious as to what others think about the need 
-for an RO file and the issue of when the large page gets added to the page cache.
-
-     -- Bill
+Jason
 
