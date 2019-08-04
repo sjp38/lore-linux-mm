@@ -2,258 +2,228 @@ Return-Path: <SRS0=DZuJ=WA=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 716C6C433FF
-	for <linux-mm@archiver.kernel.org>; Sun,  4 Aug 2019 21:38:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2E757C32751
+	for <linux-mm@archiver.kernel.org>; Sun,  4 Aug 2019 21:40:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 177FF20880
-	for <linux-mm@archiver.kernel.org>; Sun,  4 Aug 2019 21:38:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 177FF20880
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id DA4702089F
+	for <linux-mm@archiver.kernel.org>; Sun,  4 Aug 2019 21:40:47 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="u39I0RWz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA4702089F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9147D6B0003; Sun,  4 Aug 2019 17:38:44 -0400 (EDT)
+	id 828C16B0003; Sun,  4 Aug 2019 17:40:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 89DB16B0005; Sun,  4 Aug 2019 17:38:44 -0400 (EDT)
+	id 7D8D96B0005; Sun,  4 Aug 2019 17:40:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 76E046B0006; Sun,  4 Aug 2019 17:38:44 -0400 (EDT)
+	id 6532E6B0006; Sun,  4 Aug 2019 17:40:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3625E6B0003
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2019 17:38:44 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id i33so44980481pld.15
-        for <linux-mm@kvack.org>; Sun, 04 Aug 2019 14:38:44 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A2926B0003
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2019 17:40:47 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id h5so51328390pgq.23
+        for <linux-mm@kvack.org>; Sun, 04 Aug 2019 14:40:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=IDAMZxZHu+QCARt2FDIBxqTYWEpiWgoZkIpP0fwhUVw=;
-        b=o1ubzwPl0w/FU2VztoaeCyS6CrZHb4XaDwurcBtaDEKKp+wZFuWEk6ZanmCufAawim
-         2gyayRulh5xjGd/F2t3dY0FU14c9SuE8TjN3j/2sbagmrjt/wyOHuJjt8ixr3MAuuqfp
-         meZCHA4VeMD3OFdjrwtU7B+Qi/lusn8jU4zJrwp1D5b/ZKe4No1x41qIJq5wSuVZy3nG
-         fokd6BZ0eyGHKyJBT9VWJpJiIjyPm227mgoSgYYR0dq9rUWXFXbHFP1YU1DQcPzkqOU/
-         fM/CcwrpsSSpXaHEt4fTz3leJT2lgsp+dQNKlXL9bVKeJWaH0SgHc6qNNVDXR8tvZK3K
-         a5Bg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAVwuKRnH8Z11TnPaUhv8cFW+8k2t5MhbIw3yK8+rCwQABYitivt
-	UsBtx86lEOaet3DnbsQQbSBO3b7C1nXraX1BseROGf4QFA7hp2KhzGkOTYppi0nH/kF28aU240E
-	rC8ym5e4/+Pb2HbtF0clu5P79lVKxgLoNsLbKw//GwBvQYt7zeXuuTrXXS8IVQ4g=
-X-Received: by 2002:a17:90a:2ec1:: with SMTP id h1mr15169487pjs.101.1564954723845;
-        Sun, 04 Aug 2019 14:38:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy4S0yFvM3mCCdRV6XlpgtVZqUN68QNjjpZjGDQFtWTJL+p+0ZAJ38ND+CbnjiILCC9+TKH
-X-Received: by 2002:a17:90a:2ec1:: with SMTP id h1mr15169441pjs.101.1564954722826;
-        Sun, 04 Aug 2019 14:38:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564954722; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=u7QfHgAZJphiJkiML+n7+9xiXsnu4L5blHeWg2XiOgc=;
+        b=hWXNKhFR+1dQqmN9xDFz4dPj13IaE9r3687EgNv+yJ9GJ/UyD96Wiji/PmaM34/wwB
+         40qwp29w+n9vOsLYdIdhsJ6x3OLU76X2SX2J+QIEaI08EWoFmMP0IF0pJHrvb3E9Ex0g
+         IdH+yCXeMw4MYgQ+GRIctxALiGvDyVMQt4+6LIBYCcZVxgXFOxockqMC0Db6akwAXK5p
+         RSAswA6Wo3l0X+SU/XnP84yVfYkHqeTxzAaIG4JsVJQxoD9J6d7sO+eN9uKJAGErkBPD
+         Mw94GaAiQEMH9U9WF+YKB8nNSWiYaBR6VuccoYv7w1/6RtdO3VtIag9wdhKyMpowOXJ/
+         xbzw==
+X-Gm-Message-State: APjAAAWwithUVAt7Tx5sBBUxzwYzFUx+cfTccqbp1Mltk0SNKWIhHDYo
+	w2Eq4bfIMr/g8EaZvN+konUPxwCx0j64clKxYg5YdxKWdhTAwsDXCMs21jVpAOisFz6fWZzWp1l
+	RsEvO7WFlRSvJ5po90MlKJf7D0Rqre2/gDkkahG6QaYxDY0/lcfzz0tvdX5OQM4OnLQ==
+X-Received: by 2002:a17:902:1129:: with SMTP id d38mr143223252pla.220.1564954846707;
+        Sun, 04 Aug 2019 14:40:46 -0700 (PDT)
+X-Received: by 2002:a17:902:1129:: with SMTP id d38mr143223211pla.220.1564954845921;
+        Sun, 04 Aug 2019 14:40:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564954845; cv=none;
         d=google.com; s=arc-20160816;
-        b=Drb+aWkuASXLbpuGqKhD/zM8qYY+QWxHfJIx2AvB3CfUVzwohgUCN7POOaC6OX0N07
-         8bPJ0r1WQodaAvCrdx6nvF5XT7OCIe+qKqPGWlFPpLJWq3Q98D9PJwLn0Mh68anEb++Q
-         SQl7nrcanNbCn42zokSjDJdC+RyHgS+bMAyAzDUP8Ar/wpqlQg57zxW8o1kR74b1o29F
-         F+NC1WtB1aDm0silxfoq7bd9D3yuUYWE/IEmEkLskdLZg423Uxm8TxYjgPvFQmlxCi0N
-         2OyipXkT4rHhkSOaJd5YLvUHLbdPNED7qtcc+3zZFcYdRWcj5/Rfi0EmPbWA/3pR1vr8
-         +3Jg==
+        b=X/YsOi6lWyNZnOVF4NOhiAAmzlpfuIyjd7iI48vVbYLEwwl505w83DJy7NGMH41XYx
+         8j042GbCtcxLm+BziOC6iGsWwYBP+sPtWz17Z+0jNxGF72n8VBmDmdZk/bPGlRVFZu76
+         kkmzhz5uTJmqJehjRVIldlskMWHnlz3rcZFMzvbbnWiuIARsm09xz2oGQKpImY1wjc9Q
+         X04zqAn4v6VrUqt9o5pQ99dqVOOK7Xjx3XRzJasMiH0sA9RHg3kVah+53xzioPr1rhmH
+         Mu78XwLCzTv7cRnISUHHxtXbo85tj8O1xRPEG6VCdwt/GyvOrSBKfHZOuzlzbJ45CPFW
+         njrQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=IDAMZxZHu+QCARt2FDIBxqTYWEpiWgoZkIpP0fwhUVw=;
-        b=spsmebUGOAdGIl9coZH/8R+rx3FpWQLtaAfPVXXrWM18YwBbWkV82lI6+ty9SAAJdw
-         GdmDvXqW5KOucZrRzokSlIbjzhKbAsaQMkLiraWAPE8rjzzkeR6liQ4EJBSJvyTTf8ua
-         7UW8h7+3jc2013a/Szv3Q9i3fCDUuYO3DinRhPA3xsmJ5r+C6MD+yF0Tkjo5pfZRzzGf
-         vPTCEOVkSBIwspEz5EwYfGTf5fXqrdD1jc107yK0kSNaZqo/Ksk5UAyIpBsbl+u3x3tN
-         yH6z46gah+xKZEL/piym+Egp5sEczHRLMCjC1J6SkeMcaOM4KW8rph6CAx+0sVRFL7i0
-         PDvg==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=u7QfHgAZJphiJkiML+n7+9xiXsnu4L5blHeWg2XiOgc=;
+        b=hX1sFiu3pocv9T6KdGEsnHJvM8fhcvHfyjCM7waGfkTz/z4nSvgNWk6MHobDEc1q6F
+         GhIM4kEQkrac8FpMXZ+O7FPMRj/PfhWl8B6lHBvVpesWsNWSedj7IxU5uNXE4VcD0jDj
+         E/NVrKwYNmMMcMAOPwd3gW3F4Q/IjsWnaUD/YHAIGhiMkL7yuX6nnqttj7AgInKdwwAg
+         SjcrBXksNBrXyOy2BA7HPZmNTPUbiOMeyQvKDNRPDMWqv0XfeS89OJznVGBOA2/74YlO
+         e/YLzsKhNhOmlXklFXiSGm/5HZ3RN1u45PR0NpxlJnDF+Rh/ayEeDBiPx2Jgin4A1Wcg
+         gyuw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
-        by mx.google.com with ESMTP id 65si39779334plf.368.2019.08.04.14.38.42
-        for <linux-mm@kvack.org>;
-        Sun, 04 Aug 2019 14:38:42 -0700 (PDT)
-Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=u39I0RWz;
+       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id bx14sor18439356pjb.21.2019.08.04.14.40.45
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sun, 04 Aug 2019 14:40:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
-	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id 93413363EA3;
-	Mon,  5 Aug 2019 07:38:40 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1huOC4-00042w-VB; Mon, 05 Aug 2019 07:37:32 +1000
-Date: Mon, 5 Aug 2019 07:37:32 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Nikolay Borisov <nborisov@suse.com>
-Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH 04/24] shrinker: defer work only to kswapd
-Message-ID: <20190804213732.GU7777@dread.disaster.area>
-References: <20190801021752.4986-1-david@fromorbit.com>
- <20190801021752.4986-5-david@fromorbit.com>
- <625f5e1e-b362-7a76-be01-7f1057646588@suse.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=u39I0RWz;
+       spf=pass (google.com: domain of john.hubbard@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=john.hubbard@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=u7QfHgAZJphiJkiML+n7+9xiXsnu4L5blHeWg2XiOgc=;
+        b=u39I0RWzXaT9LZiMOuWXB1YMfdm9l0k5XildL+8oy8WG+Xp+HlNRUNYjNYcsIgMMTB
+         ZpD/HwYg5a0o6ahOx9ZYRbmJlZZ3NLwUfe/ls4mO6JoAFJIx/C4wKRP28ihiEUB5VjhT
+         D58n4BNw9c55IlGQPpiJrVPRnoEMM0g6/Xf+ahwHFl/B88xU2qGxK/pemUTTRjimFwRi
+         t/D8fcfMolCCDTGQO+urRxWr1DbAd4j3hCpOP6OcV/VT/muTPpaFTvV1+DiX2EdeA9OL
+         XsnejpGlwKFc3nz+z9brQ1fZaYH/JKmBK+jueenTXLYIBOez7qe7f8v+Db7b0LHhvgd6
+         B7fA==
+X-Google-Smtp-Source: APXvYqzFCjqlZU+HDCyGiBEvpK2/pADBDo3dD7v/H/FvucfCIeD6scQK7TlMDTLTVLBWsfhNeMf1fA==
+X-Received: by 2002:a17:90a:bc0c:: with SMTP id w12mr14275839pjr.111.1564954845639;
+        Sun, 04 Aug 2019 14:40:45 -0700 (PDT)
+Received: from blueforge.nvidia.com (searspoint.nvidia.com. [216.228.112.21])
+        by smtp.gmail.com with ESMTPSA id 143sm123751024pgc.6.2019.08.04.14.40.43
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Sun, 04 Aug 2019 14:40:44 -0700 (PDT)
+From: john.hubbard@gmail.com
+X-Google-Original-From: jhubbard@nvidia.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Alexander Viro <viro@zeniv.linux.org.uk>,
+	=?UTF-8?q?Bj=C3=B6rn=20T=C3=B6pel?= <bjorn.topel@intel.com>,
+	Boaz Harrosh <boaz@plexistor.com>,
+	Christoph Hellwig <hch@lst.de>,
+	Daniel Vetter <daniel@ffwll.ch>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>,
+	David Airlie <airlied@linux.ie>,
+	"David S . Miller" <davem@davemloft.net>,
+	Ilya Dryomov <idryomov@gmail.com>,
+	Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Jens Axboe <axboe@kernel.dk>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Johannes Thumshirn <jthumshirn@suse.de>,
+	Magnus Karlsson <magnus.karlsson@intel.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Miklos Szeredi <miklos@szeredi.hu>,
+	Ming Lei <ming.lei@redhat.com>,
+	Sage Weil <sage@redhat.com>,
+	Santosh Shilimkar <santosh.shilimkar@oracle.com>,
+	Yan Zheng <zyan@redhat.com>,
+	netdev@vger.kernel.org,
+	dri-devel@lists.freedesktop.org,
+	linux-mm@kvack.org,
+	linux-rdma@vger.kernel.org,
+	bpf@vger.kernel.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: [PATCH v6 0/3] mm/gup: add make_dirty arg to put_user_pages_dirty_lock()
+Date: Sun,  4 Aug 2019 14:40:39 -0700
+Message-Id: <20190804214042.4564-1-jhubbard@nvidia.com>
+X-Mailer: git-send-email 2.22.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
+Content-Type: text/plain; charset=UTF-8
+X-NVConfidentiality: public
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <625f5e1e-b362-7a76-be01-7f1057646588@suse.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0 cx=a_idp_d
-	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=IkcTkHD0fZMA:10 a=FmdZ9Uzk2mMA:10
-	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=nQ34gEPkiAxst3lwC7UA:9
-	a=jnwo7tyyz5iTtFde:21 a=4Sqdatv-7O9S_ltl:21 a=QEXdDO2ut3YA:10
-	a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 04, 2019 at 07:48:01PM +0300, Nikolay Borisov wrote:
-> 
-> 
-> On 1.08.19 г. 5:17 ч., Dave Chinner wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> > 
-> > Right now deferred work is picked up by whatever GFP_KERNEL context
-> > reclaimer that wins the race to empty the node's deferred work
-> > counter. However, if there are lots of direct reclaimers, that
-> > work might be continually picked up by contexts taht can't do any
-> > work and so the opportunities to do the work are missed by contexts
-> > that could do them.
-> > 
-> > A further problem with the current code is that the deferred work
-> > can be picked up by a random direct reclaimer, resulting in that
-> > specific process having to do all the deferred reclaim work and
-> > hence can take extremely long latencies if the reclaim work blocks
-> > regularly. This is not good for direct reclaim fairness or for
-> > minimising long tail latency events.
-> > 
-> > To avoid these problems, simply limit deferred work to kswapd
-> > contexts. We know kswapd is a context that can always do reclaim
-> > work, and hence deferring work to kswapd allows the deferred work to
-> > be done in the background and not adversely affect any specific
-> > process context doing direct reclaim.
-> > 
-> > The advantage of this is that amount of work to be done in direct
-> > reclaim is now bound and predictable - it is entirely based on
-> > the cache's freeable objects and the reclaim priority. hence all
-> > direct reclaimers running at the same time should be doing
-> > relatively equal amounts of work, thereby reducing the incidence of
-> > long tail latencies due to uneven reclaim workloads.
-> > 
-> > Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> > ---
-> >  mm/vmscan.c | 93 ++++++++++++++++++++++++++++-------------------------
-> >  1 file changed, 50 insertions(+), 43 deletions(-)
-> > 
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index b7472953b0e6..c583b4efb9bf 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -500,15 +500,15 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-> >  				    struct shrinker *shrinker, int priority)
-> >  {
-> >  	unsigned long freed = 0;
-> > -	long total_scan;
-> >  	int64_t freeable_objects = 0;
-> >  	int64_t scan_count;
-> > -	long nr;
-> > +	int64_t scanned_objects = 0;
-> > +	int64_t next_deferred = 0;
-> > +	int64_t deferred_count = 0;
-> >  	long new_nr;
-> >  	int nid = shrinkctl->nid;
-> >  	long batch_size = shrinker->batch ? shrinker->batch
-> >  					  : SHRINK_BATCH;
-> > -	long scanned = 0, next_deferred;
-> >  
-> >  	if (!(shrinker->flags & SHRINKER_NUMA_AWARE))
-> >  		nid = 0;
-> > @@ -519,47 +519,53 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
-> >  		return scan_count;
-> >  
-> >  	/*
-> > -	 * copy the current shrinker scan count into a local variable
-> > -	 * and zero it so that other concurrent shrinker invocations
-> > -	 * don't also do this scanning work.
-> > +	 * If kswapd, we take all the deferred work and do it here. We don't let
-> > +	 * direct reclaim do this, because then it means some poor sod is going
-> > +	 * to have to do somebody else's GFP_NOFS reclaim, and it hides the real
-> > +	 * amount of reclaim work from concurrent kswapd operations. Hence we do
-> > +	 * the work in the wrong place, at the wrong time, and it's largely
-> > +	 * unpredictable.
-> > +	 *
-> > +	 * By doing the deferred work only in kswapd, we can schedule the work
-> > +	 * according the the reclaim priority - low priority reclaim will do
-> > +	 * less deferred work, hence we'll do more of the deferred work the more
-> > +	 * desperate we become for free memory. This avoids the need for needing
-> > +	 * to specifically avoid deferred work windup as low amount os memory
-> > +	 * pressure won't excessive trim caches anymore.
-> >  	 */
-> > -	nr = atomic_long_xchg(&shrinker->nr_deferred[nid], 0);
-> > +	if (current_is_kswapd()) {
-> > +		int64_t	deferred_scan;
-> >  
-> > -	total_scan = nr + scan_count;
-> > -	if (total_scan < 0) {
-> > -		pr_err("shrink_slab: %pS negative objects to delete nr=%ld\n",
-> > -		       shrinker->scan_objects, total_scan);
-> > -		total_scan = scan_count;
-> > -		next_deferred = nr;
-> > -	} else
-> > -		next_deferred = total_scan;
-> > +		deferred_count = atomic64_xchg(&shrinker->nr_deferred[nid], 0);
-> >  
-> > -	/*
-> > -	 * We need to avoid excessive windup on filesystem shrinkers
-> > -	 * due to large numbers of GFP_NOFS allocations causing the
-> > -	 * shrinkers to return -1 all the time. This results in a large
-> > -	 * nr being built up so when a shrink that can do some work
-> > -	 * comes along it empties the entire cache due to nr >>>
-> > -	 * freeable. This is bad for sustaining a working set in
-> > -	 * memory.
-> > -	 *
-> > -	 * Hence only allow the shrinker to scan the entire cache when
-> > -	 * a large delta change is calculated directly.
-> > -	 */
-> > -	if (scan_count < freeable_objects / 4)
-> > -		total_scan = min_t(long, total_scan, freeable_objects / 2);
-> > +		/* we want to scan 5-10% of the deferred work here at minimum */
-> > +		deferred_scan = deferred_count;
-> > +		if (priority)
-> > +			do_div(deferred_scan, priority);
-> > +		scan_count += deferred_scan;
-> > +
-> > +		/*
-> > +		 * If there is more deferred work than the number of freeable
-> > +		 * items in the cache, limit the amount of work we will carry
-> > +		 * over to the next kswapd run on this cache. This prevents
-> > +		 * deferred work windup.
-> > +		 */
-> > +		if (deferred_count > freeable_objects * 2)
-> > +			deferred_count = freeable_objects * 2;
-> 
-> nit : deferred_count = min(deferred_count, freeable_objects * 2).
+From: John Hubbard <jhubbard@nvidia.com>
 
-*nod*
+Changes since v5:
 
-> How can we have more deferred objects than are currently on the LRU?
+* Patch #1: Fixed a bug that I introduced in v4:
+  drivers/infiniband/sw/siw/siw_mem.c needs to refer to
+  umem->page_chunk[i].plist, rather than umem->page_chunk[i].
 
-deferred work is aggregated. Put enough direct reclaimers in action
-in GFP_NOFS context (e.g. fsmark create workload) and it will wind
-up the deferred count much faster than kswapd can drain it.
+Changes since v4:
 
-> Aren't deferred objects always some part of freeable objects.
+* Christophe Hellwig's review applied: deleted siw_free_plist() and
+  __qib_release_user_pages(), now that put_user_pages_dirty_lock() does
+  what those routines were doing.
 
-For a single scan, yes. In aggregate, no.
+* Applied Bjorn's ACK for net/xdp, and Christophe's Reviewed-by for patch
+  #1.
 
-Cheers,
+Changes since v3:
 
-Dave.
+* Fixed an unused variable warning in siw_mem.c
+
+Changes since v2:
+
+* Critical bug fix: remove a stray "break;" from the new routine.
+
+Changes since v1:
+
+* Instead of providing __put_user_pages(), add an argument to
+  put_user_pages_dirty_lock(), and delete put_user_pages_dirty().
+  This is based on the following points:
+
+    1. Lots of call sites become simpler if a bool is passed
+    into put_user_page*(), instead of making the call site
+    choose which put_user_page*() variant to call.
+
+    2. Christoph Hellwig's observation that set_page_dirty_lock()
+    is usually correct, and set_page_dirty() is usually a
+    bug, or at least questionable, within a put_user_page*()
+    calling chain.
+
+* Added the Infiniband driver back to the patch series, because it is
+  a caller of put_user_pages_dirty_lock().
+
+Unchanged parts from the v1 cover letter (except for the diffstat):
+
+Notes about the remaining patches to come:
+
+There are about 50+ patches in my tree [2], and I'll be sending out the
+remaining ones in a few more groups:
+
+    * The block/bio related changes (Jerome mostly wrote those, but I've
+      had to move stuff around extensively, and add a little code)
+
+    * mm/ changes
+
+    * other subsystem patches
+
+    * an RFC that shows the current state of the tracking patch set. That
+      can only be applied after all call sites are converted, but it's
+      good to get an early look at it.
+
+This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
+("mm: introduce put_user_page*(), placeholder versions").
+
+John Hubbard (3):
+  mm/gup: add make_dirty arg to put_user_pages_dirty_lock()
+  drivers/gpu/drm/via: convert put_page() to put_user_page*()
+  net/xdp: convert put_page() to put_user_page*()
+
+ drivers/gpu/drm/via/via_dmablit.c          |  10 +-
+ drivers/infiniband/core/umem.c             |   5 +-
+ drivers/infiniband/hw/hfi1/user_pages.c    |   5 +-
+ drivers/infiniband/hw/qib/qib_user_pages.c |  13 +--
+ drivers/infiniband/hw/usnic/usnic_uiom.c   |   5 +-
+ drivers/infiniband/sw/siw/siw_mem.c        |  19 +---
+ include/linux/mm.h                         |   5 +-
+ mm/gup.c                                   | 115 +++++++++------------
+ net/xdp/xdp_umem.c                         |   9 +-
+ 9 files changed, 64 insertions(+), 122 deletions(-)
+
 -- 
-Dave Chinner
-david@fromorbit.com
+2.22.0
 
