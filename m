@@ -2,152 +2,160 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F0ABEC433FF
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 15:57:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC663C433FF
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 16:00:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9834D2064A
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 15:57:07 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="KNZUDma6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9834D2064A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 7C4742064A
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 16:00:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7C4742064A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1BDF36B0005; Mon,  5 Aug 2019 11:57:07 -0400 (EDT)
+	id 1459C6B0007; Mon,  5 Aug 2019 12:00:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 16E916B0006; Mon,  5 Aug 2019 11:57:07 -0400 (EDT)
+	id 0F7C66B0008; Mon,  5 Aug 2019 12:00:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 05CCD6B0007; Mon,  5 Aug 2019 11:57:07 -0400 (EDT)
+	id EB28E6B000A; Mon,  5 Aug 2019 12:00:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DA3476B0005
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 11:57:06 -0400 (EDT)
-Received: by mail-io1-f72.google.com with SMTP id k21so92718413ioj.3
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 08:57:06 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C632A6B0007
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 12:00:30 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id j81so72692678qke.23
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 09:00:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:subject:from
-         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
-         :to;
-        bh=cbBP8N3KN1Lt/OuHm+MgfpoWdZsU7dxj+qA8fUVOQUI=;
-        b=T5FyxgbFJMJsjfoMxyUskpIFNN1lYL1DdT0nTG4oDgfHP1WJLhqwQKOeBHsYy0XhLE
-         kb4yVPuB/EI+jiM/d4W/U9QfLn8U98V10gyxtYVSYA3OWOK1U64iq70AWFJ9/XlNJakn
-         HHLDRHrggcv0mZd6EKXOLjJxLv9yRJdpBeaW+1ozm4XJymkLIa5MKlA7yLBiQrzYnysa
-         eXYU8p8gHeF6q7ct7wZg2xrrlmlG0I3rXB+9aun9Lht6zmbG4TGuUNO4KrZuoeo8CAoL
-         0KyjJLAbBJ5AZOGQEMk6j8CW9/+DocCsnZjm8KBRUIPXtiU//z85fpE+jEdZbeVNcwA+
-         nP5w==
-X-Gm-Message-State: APjAAAXslRfoQsR+BnVxUvKl/ptml+TQ0BSfFrYlavtWvtPTuIzzWhNA
-	AhKPL8o/K9TjQ+pw9nGULlrWyXrG4HPszu0JQdr6UVteankRs7XTwSg8Vw5hg6JxC1mce/nxmor
-	LbwG3xS8cfWeOrz/4mGdxy3dvhMtCLl2khq9rx833znPyr9FttAtK9/4F/J9hp/g+OQ==
-X-Received: by 2002:a6b:8bcb:: with SMTP id n194mr13647613iod.194.1565020626642;
-        Mon, 05 Aug 2019 08:57:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzR6j/eHIbq/uRs3DF9MpTw2ZiMjlFEJoXfFd3mALHIgJJmhazrCdyMQt3/G5CIAA672V3e
-X-Received: by 2002:a6b:8bcb:: with SMTP id n194mr13647538iod.194.1565020625739;
-        Mon, 05 Aug 2019 08:57:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565020625; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-transfer-encoding
+         :content-language;
+        bh=zcKy4zpOu3xJAfrODsf9ySJlPyH0YBSQM2oTekcof6Y=;
+        b=U+mqWDhD4j2qkKPDjZT04TLovDCHCHV1i8kV+m8S6S14MCCua6C5egfG51gV1rV+Rm
+         /8RDSqA/nlwx8HjBNArBaG2YSRp0nmg4C84oC3rPTqGXFT/Kb45gm80IV/EUKkiAuzAV
+         6O0pTka0/8NrDp4D1cfAZkF57WW3rSiFdZpEFCyLIGSxTxHpVmqiMd+q4JRArqmFE1IR
+         MoEktcX9WlbYAHXuXouOw1A2ZW98uOoOXxlNmmvuIXlV5M1i3gKxBKeKeKMkXxWgy+N/
+         sqyHDa1/43Ig2sbQb+QTnEZvQZvwQovkRZXl+g1v8n0t+NDU5qjSvQNEMwXDP0ZVQbGy
+         JIsQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXpuKd5Jhekkl435SFJOJs7Za4GJWQUWV5fdxAtUYOlvQZE+F3r
+	LVS3Z+yxVhJhPQj5LPS8Jog4eOt9YLLFxNh0zYhQNKRxSJ0t4jnmhQmj3KhbIV/5U+vYTdaqleC
+	QcA+F/UjYDOJaw++p/8faidFk9WaIF/HwMIjkPyj2I10f6irAq3OBQG8orOuhUSK7KA==
+X-Received: by 2002:a0c:ecc9:: with SMTP id o9mr27946867qvq.100.1565020830534;
+        Mon, 05 Aug 2019 09:00:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw0rm7fV0ZZTZk2+rccBoQtKkp0IgKruWKbYyUsmPXSbLcptfhLtj/5hihwhVt2aZcGAevi
+X-Received: by 2002:a0c:ecc9:: with SMTP id o9mr27946703qvq.100.1565020828723;
+        Mon, 05 Aug 2019 09:00:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565020828; cv=none;
         d=google.com; s=arc-20160816;
-        b=wWwAjSXon6hWfE2wBNKhRoc5VwGXHgtxOkrU6M5v64FFTseuYGGqnJ4HYovF+1BIoN
-         X0EGFcuNHX1BiWi7ASGlMLwCnqSVr9wk+j07q0twg+kZ4omrfS73p5JWCUaBzk9Z3BQc
-         t+s3A8D+mUGTddnpvVOjQ3poGVCxoGFeYwmAZNaS/muyXeYSwGwo4UBlayBvQ8UEr0RO
-         xet51lwd263h6j4oF97IbX++mihqB2/3KZIn0wYM9T978Kns6OZXGlGkX84BDwV0+C3m
-         KdjfMEwwiA5dpZQidlzejoaX//9tHzR7JRr7lpvFMVOPeH+10HmUSEmf4B/ZjsO0HksO
-         0VBQ==
+        b=KmsVhd+Ync6hGvjXXvbttAXOCBPmPTHk3CdQ1/QkYjAknMDtFpnOg4JFikMJ4hy/1P
+         noXurq7d27BpXKZqzuIkHcvMjotoROgDwaoWgiId9w6fTXDKEMrFX9ZO0Y6YKbLSCIvl
+         DnLWj1rCC6dVEKATPVywOanJxkN9k1J4e5bhqm2Hx7DoFsdN0geX/Xp4eAXdTiroQBnG
+         SEYuaY3WORyCk7HTy+wB3wNXodXJpsGKIP6KkiLrNRwLjOta4JTY+zp9f0uoNvbnPAuu
+         Rsqweoic8nV5LAM1kSTnjp/snckM1BbUVA+/al8vQho+/4G3L1v6aN5fASDvWZRM29iW
+         bMdA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=to:references:message-id:content-transfer-encoding:cc:date
-         :in-reply-to:from:subject:mime-version:dkim-signature;
-        bh=cbBP8N3KN1Lt/OuHm+MgfpoWdZsU7dxj+qA8fUVOQUI=;
-        b=LeDn/b1J4cUC+ZmH01jxb93SxLoTGrRgjNFprUp5nOHLJsVX3XIB2I9OZ2Dhspom5q
-         L7SZyA7ElzmXbvuw0zFbo7CLq8ir8279r9SN7Zcs/C2tRNbPMYaqkQwCrywNNK4PfOYh
-         mq/aI7ApsYdgOBEnK+BD3h2IfuF4DyxuSKJ/aBaRqwfBKUAGX1eeNqdU9vy5Asy7Ekgb
-         VByG0GWEt2+I4g/pdGuFalnb+oxEywGfH3wPkYU4np0GodTgwRhdZ637g1geAkhY7nyB
-         JpB1gmNnlmcuf3/ZQcjTpg2TbA9Qmzp8warGPcN7MjUkEyCQjL7gkKpzPAIy64chhgSv
-         Q/hA==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=zcKy4zpOu3xJAfrODsf9ySJlPyH0YBSQM2oTekcof6Y=;
+        b=qiQ91ibndZlMfWj0mjWi0aRLQB5uMzd5T+8jfo0KeGGrKc8J1EGOEUP0dTuLBB5VIF
+         HNjZ6guvFoS9iyBmr/Zeb8MCnBvP4YCtsHQnoX50EjixBUGHLhkCuEu1W4idP5CB3929
+         N6a355lsoL/TjmZPplSJbT0tYTJOhPSTxwTJEkBBnsrudML2qwlYIvTU/Y/PtuyWJa7i
+         YgsayFx8bDgftPW+n6u+2j4MlnzIYJpnavT3LH2rCBeVA0thvPjp2Uy34pgvhX6hISB4
+         P20yoF9mIisCRx4h3RMvQnlm+bYbE4EjXh+BivuIFO53iGiJPOvLyBTca0Ex4C1SheQp
+         MXhQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=KNZUDma6;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id a13si113430606jal.98.2019.08.05.08.57.05
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id d21si8659783qto.3.2019.08.05.09.00.28
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Aug 2019 08:57:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
+        Mon, 05 Aug 2019 09:00:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=KNZUDma6;
-       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x75FsNWh057944;
-	Mon, 5 Aug 2019 15:56:50 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
- mime-version : subject : from : in-reply-to : date : cc :
- content-transfer-encoding : message-id : references : to;
- s=corp-2018-07-02; bh=cbBP8N3KN1Lt/OuHm+MgfpoWdZsU7dxj+qA8fUVOQUI=;
- b=KNZUDma6fITUwU1tvaB+HpNehPHeFdN+M5R8VVACwjv2x5BUhh8NGDrgyEanbuRZ/97U
- qRGBId4ZPb80PXRgRx5w/Tx+l39RLzsQ9f65H/JOZil1CVs+Z8H+HtTylazqmHbKTInW
- +FuLkC33yFB+R5mwj/YMJXo9JiJW4WzCaXtx64AnF5pdQPbf2FKYuW8Cdma7NWSvLdNU
- HCluTFUDxSP9yrQJuWC/DsTUJwIOD2VuOrqOKHfLbx7IpYZBBTNDjM6ezUjoGyKgdU+J
- 8SESmc35GAPz7qxCw5jW8TKSnU4mR/G09hgXDvgxqTr+Z1cY3G38B1kwrKyyB6oOwkNz dA== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by aserp2120.oracle.com with ESMTP id 2u527pg47w-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 05 Aug 2019 15:56:49 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x75Fqpfq017054;
-	Mon, 5 Aug 2019 15:56:49 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by aserp3020.oracle.com with ESMTP id 2u5233baxv-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 05 Aug 2019 15:56:49 +0000
-Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x75FukQD028308;
-	Mon, 5 Aug 2019 15:56:47 GMT
-Received: from [192.168.0.110] (/73.243.10.6)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 05 Aug 2019 08:56:46 -0700
-Content-Type: text/plain;
-	charset=us-ascii
-Mime-Version: 1.0 (Mac OS X Mail 13.0 \(3570.1\))
-Subject: Re: [PATCH v3 2/2] mm,thp: Add experimental config option
- RO_EXEC_FILEMAP_HUGE_FAULT_THP
-From: William Kucharski <william.kucharski@oracle.com>
-In-Reply-To: <20190805132854.5dnqkfaajmstpelm@box.shutemov.name>
-Date: Mon, 5 Aug 2019 09:56:45 -0600
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-        linux-fsdevel@vger.kernel.org,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        Song Liu <songliubraving@fb.com>,
-        Bob Kasten <robert.a.kasten@intel.com>,
-        Mike Kravetz <mike.kravetz@oracle.com>,
-        Chad Mynhier <chad.mynhier@oracle.com>,
-        "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-        Johannes Weiner <jweiner@fb.com>, Matthew Wilcox <willy@infradead.org>
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id B8F2C30832E9;
+	Mon,  5 Aug 2019 16:00:27 +0000 (UTC)
+Received: from [10.18.17.163] (dhcp-17-163.bos.redhat.com [10.18.17.163])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 2F437608C1;
+	Mon,  5 Aug 2019 16:00:17 +0000 (UTC)
+Subject: Re: [PATCH v3 6/6] virtio-balloon: Add support for providing unused
+ page reports to host
+To: Alexander Duyck <alexander.duyck@gmail.com>, kvm@vger.kernel.org,
+ david@redhat.com, mst@redhat.com, dave.hansen@intel.com,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org
+Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
+ konrad.wilk@oracle.com, willy@infradead.org, lcapitulino@redhat.com,
+ wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com,
+ dan.j.williams@intel.com, alexander.h.duyck@linux.intel.com
+References: <20190801222158.22190.96964.stgit@localhost.localdomain>
+ <20190801223829.22190.36831.stgit@localhost.localdomain>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <1cff09a4-d302-639c-ab08-9d82e5fc1383@redhat.com>
+Date: Mon, 5 Aug 2019 12:00:16 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
+MIME-Version: 1.0
+In-Reply-To: <20190801223829.22190.36831.stgit@localhost.localdomain>
+Content-Type: text/plain; charset=utf-8
 Content-Transfer-Encoding: quoted-printable
-Message-Id: <19A86A16-B440-4B73-98FE-922A09484DFD@oracle.com>
-References: <20190731082513.16957-1-william.kucharski@oracle.com>
- <20190731082513.16957-3-william.kucharski@oracle.com>
- <20190801123658.enpchkjkqt7cdkue@box>
- <c8d02a3b-e1ad-2b95-ce15-13d3ed4cca87@oracle.com>
- <20190805132854.5dnqkfaajmstpelm@box.shutemov.name>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-X-Mailer: Apple Mail (2.3570.1)
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9340 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908050176
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9340 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908050176
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Mon, 05 Aug 2019 16:00:27 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -155,194 +163,213 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
+On 8/1/19 6:38 PM, Alexander Duyck wrote:
+> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+>
+> Add support for the page reporting feature provided by virtio-balloon.
+> Reporting differs from the regular balloon functionality in that is is
+> much less durable than a standard memory balloon. Instead of creating a=
 
-> On Aug 5, 2019, at 7:28 AM, Kirill A. Shutemov <kirill@shutemov.name> =
-wrote:
->=20
->>=20
->> Is there different terminology you'd prefer to see me use here to =
-clarify
->> this?
->=20
-> My point is that maybe we should just use ~HPAGE_P?D_MASK in code. The =
-new
-> HPAGE_P?D_OFFSET doesn't add much for readability in my opinion.
+> list of pages that cannot be accessed the pages are only inaccessible
+> while they are being indicated to the virtio interface. Once the
+> interface has acknowledged them they are placed back into their respect=
+ive
+> free lists and are once again accessible by the guest system.
+>
+> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> ---
+>  drivers/virtio/Kconfig              |    1 +
+>  drivers/virtio/virtio_balloon.c     |   56 +++++++++++++++++++++++++++=
+++++++++
+>  include/uapi/linux/virtio_balloon.h |    1 +
+>  3 files changed, 58 insertions(+)
+>
+> diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
+> index 078615cf2afc..4b2dd8259ff5 100644
+> --- a/drivers/virtio/Kconfig
+> +++ b/drivers/virtio/Kconfig
+> @@ -58,6 +58,7 @@ config VIRTIO_BALLOON
+>  	tristate "Virtio balloon driver"
+>  	depends on VIRTIO
+>  	select MEMORY_BALLOON
+> +	select PAGE_REPORTING
+>  	---help---
+>  	 This driver supports increasing and decreasing the amount
+>  	 of memory within a KVM guest.
+> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_ba=
+lloon.c
+> index 2c19457ab573..971fe924e34f 100644
+> --- a/drivers/virtio/virtio_balloon.c
+> +++ b/drivers/virtio/virtio_balloon.c
+> @@ -19,6 +19,7 @@
+>  #include <linux/mount.h>
+>  #include <linux/magic.h>
+>  #include <linux/pseudo_fs.h>
+> +#include <linux/page_reporting.h>
+> =20
+>  /*
+>   * Balloon device works in 4K page units.  So each page is pointed to =
+by
+> @@ -37,6 +38,9 @@
+>  #define VIRTIO_BALLOON_FREE_PAGE_SIZE \
+>  	(1 << (VIRTIO_BALLOON_FREE_PAGE_ORDER + PAGE_SHIFT))
+> =20
+> +/*  limit on the number of pages that can be on the reporting vq */
+> +#define VIRTIO_BALLOON_VRING_HINTS_MAX	16
+> +
+>  #ifdef CONFIG_BALLOON_COMPACTION
+>  static struct vfsmount *balloon_mnt;
+>  #endif
+> @@ -46,6 +50,7 @@ enum virtio_balloon_vq {
+>  	VIRTIO_BALLOON_VQ_DEFLATE,
+>  	VIRTIO_BALLOON_VQ_STATS,
+>  	VIRTIO_BALLOON_VQ_FREE_PAGE,
+> +	VIRTIO_BALLOON_VQ_REPORTING,
+>  	VIRTIO_BALLOON_VQ_MAX
+>  };
+> =20
+> @@ -113,6 +118,10 @@ struct virtio_balloon {
+> =20
+>  	/* To register a shrinker to shrink memory upon memory pressure */
+>  	struct shrinker shrinker;
+> +
+> +	/* Unused page reporting device */
+> +	struct virtqueue *reporting_vq;
+> +	struct page_reporting_dev_info ph_dev_info;
+>  };
+> =20
+>  static struct virtio_device_id id_table[] =3D {
+> @@ -152,6 +161,23 @@ static void tell_host(struct virtio_balloon *vb, s=
+truct virtqueue *vq)
+> =20
+>  }
+> =20
+> +void virtballoon_unused_page_report(struct page_reporting_dev_info *ph=
+_dev_info,
+> +				    unsigned int nents)
+> +{
+> +	struct virtio_balloon *vb =3D
+> +		container_of(ph_dev_info, struct virtio_balloon, ph_dev_info);
+> +	struct virtqueue *vq =3D vb->reporting_vq;
+> +	unsigned int unused;
+> +
+> +	/* We should always be able to add these buffers to an empty queue. *=
+/
+> +	virtqueue_add_inbuf(vq, ph_dev_info->sg, nents, vb,
+> +			    GFP_NOWAIT | __GFP_NOWARN);
 
-Fair enough, I'll make that change.
 
->> OK, I can do that; I didn't want to unnecessarily eliminate the
->> VM_BUG_ON_PAGE(PageTransHuge(page)) call for everyone given this
->> is CONFIG experimental code.
->=20
-> If you bring the feature, you bring the feature. Just drop these =
-VM_BUGs.
+I think you should handle allocation failure here. It is a possibility, i=
+sn't?
+Maybe return an error or even disable page hinting/reporting?
 
-OK.
 
-> I'm not sure. It will be costly comparing to PageTransCompound/Huge as =
-we
-> need to check more than flags.
->=20
-> To exclude hugetlb pages here, use VM_BUG_ON_PAGE(PageHuge(page), =
-page).
-> It will allow to catch wrong usage of the function.
+> +	virtqueue_kick(vq);
+> +
+> +	/* When host has read buffer, this completes via balloon_ack */
+> +	wait_event(vb->acked, virtqueue_get_buf(vq, &unused));
+> +}
+> +
+>  static void set_page_pfns(struct virtio_balloon *vb,
+>  			  __virtio32 pfns[], struct page *page)
+>  {
+> @@ -476,6 +502,7 @@ static int init_vqs(struct virtio_balloon *vb)
+>  	names[VIRTIO_BALLOON_VQ_DEFLATE] =3D "deflate";
+>  	names[VIRTIO_BALLOON_VQ_STATS] =3D NULL;
+>  	names[VIRTIO_BALLOON_VQ_FREE_PAGE] =3D NULL;
+> +	names[VIRTIO_BALLOON_VQ_REPORTING] =3D NULL;
+> =20
+>  	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+>  		names[VIRTIO_BALLOON_VQ_STATS] =3D "stats";
+> @@ -487,11 +514,19 @@ static int init_vqs(struct virtio_balloon *vb)
+>  		callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] =3D NULL;
+>  	}
+> =20
+> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING)) {
+> +		names[VIRTIO_BALLOON_VQ_REPORTING] =3D "reporting_vq";
+> +		callbacks[VIRTIO_BALLOON_VQ_REPORTING] =3D balloon_ack;
+> +	}
+> +
+>  	err =3D vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX,
+>  					 vqs, callbacks, names, NULL, NULL);
+>  	if (err)
+>  		return err;
+> =20
+> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING))
+> +		vb->reporting_vq =3D vqs[VIRTIO_BALLOON_VQ_REPORTING];
+> +
+>  	vb->inflate_vq =3D vqs[VIRTIO_BALLOON_VQ_INFLATE];
+>  	vb->deflate_vq =3D vqs[VIRTIO_BALLOON_VQ_DEFLATE];
+>  	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+> @@ -931,12 +966,30 @@ static int virtballoon_probe(struct virtio_device=
+ *vdev)
+>  		if (err)
+>  			goto out_del_balloon_wq;
+>  	}
+> +
+> +	vb->ph_dev_info.report =3D virtballoon_unused_page_report;
+> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING)) {
+> +		unsigned int capacity;
+> +
+> +		capacity =3D min_t(unsigned int,
+> +				 virtqueue_get_vring_size(vb->reporting_vq),
+> +				 VIRTIO_BALLOON_VRING_HINTS_MAX);
+> +		vb->ph_dev_info.capacity =3D capacity;
+> +
+> +		err =3D page_reporting_startup(&vb->ph_dev_info);
+> +		if (err)
+> +			goto out_unregister_shrinker;
+> +	}
+> +
+>  	virtio_device_ready(vdev);
+> =20
+>  	if (towards_target(vb))
+>  		virtballoon_changed(vdev);
+>  	return 0;
+> =20
+> +out_unregister_shrinker:
+> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+> +		virtio_balloon_unregister_shrinker(vb);
+>  out_del_balloon_wq:
+>  	if (virtio_has_feature(vdev, VIRTIO_BALLOON_F_FREE_PAGE_HINT))
+>  		destroy_workqueue(vb->balloon_wq);
+> @@ -965,6 +1018,8 @@ static void virtballoon_remove(struct virtio_devic=
+e *vdev)
+>  {
+>  	struct virtio_balloon *vb =3D vdev->priv;
+> =20
+> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING))
+> +		page_reporting_shutdown(&vb->ph_dev_info);
+>  	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_DEFLATE_ON_OOM))
+>  		virtio_balloon_unregister_shrinker(vb);
+>  	spin_lock_irq(&vb->stop_update_lock);
+> @@ -1034,6 +1089,7 @@ static int virtballoon_validate(struct virtio_dev=
+ice *vdev)
+>  	VIRTIO_BALLOON_F_DEFLATE_ON_OOM,
+>  	VIRTIO_BALLOON_F_FREE_PAGE_HINT,
+>  	VIRTIO_BALLOON_F_PAGE_POISON,
+> +	VIRTIO_BALLOON_F_REPORTING,
+>  };
+> =20
+>  static struct virtio_driver virtio_balloon_driver =3D {
+> diff --git a/include/uapi/linux/virtio_balloon.h b/include/uapi/linux/v=
+irtio_balloon.h
+> index a1966cd7b677..19974392d324 100644
+> --- a/include/uapi/linux/virtio_balloon.h
+> +++ b/include/uapi/linux/virtio_balloon.h
+> @@ -36,6 +36,7 @@
+>  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM	2 /* Deflate balloon on OOM */=
 
-That will also do it and that way we will better know if it ever =
-happens,
-which of course it shouldn't.
-
->> This routine's main function other than validation is to make sure =
-the page
->> cache has not been polluted between when we go out to read the large =
-page
->> and when the page is added to the cache (more on that coming up.) For
->> example, the way I was able to tell readahead() was polluting future
->> possible THP mappings is because after a buffered read I would =
-typically see
->> 52 (the readahead size) PAGESIZE pages for the next 2M range in the =
-page
->> cache.
->=20
-> My point is that you should only see compound pages here if they are
-> HPAGE_PMD_ORDER, shouldn't you? Any other order of compound page would =
-be
-> unexpected to say the least.
-
-Yes, compound pages should only be HPAGE_PMD_ORDER.
-
-The routine and the check will need to be updated if we ever can
-allocate/cache larger pages.
-
->> It's my understanding that pages in the page cache should be locked, =
-so I
->> wanted to check for that.
->=20
-> No. They are get locked temporary for some operation, but not all the
-> time.
-
-OK, thanks for that.
-
->> I don't really care if the start of the VMA is suitable, just whether =
-I can map
->> the current faulting page with a THP. As far as I know, there's =
-nothing wrong
->> with mapping all the pages before the VMA hits a properly aligned =
-bound with
->> PAGESIZE pages and then aligned chunks in the middle with THP.
->=20
-> You cannot map any paged as huge into wrongly aligned VMA.
->=20
-> THP's ->index must be aligned to HPAGE_PMD_NR, so if the combination =
-VMA's
-> ->vm_start and ->vm_pgoff doesn't allow for this, you must fallback to
-> mapping the page with PTEs. I don't see it handled properly here.
-
-It was my assumption that if say a VMA started at an address say one =
-page
-before a large page alignment, you could map that page with a PAGESIZE
-page but if VMA size allowed, there was a fault on the next page, and
-VMA size allowed, you could map that next range with a large page, =
-taking
-taking the approach of mapping chunks of the VMA with the largest page
-possible.
-
-Is it that the start of the VMA must always align or that the entire VMA
-must be properly aligned and a multiple of the PMD size (so you either =
-map
-with all large pages or none)?
-
->> This is the page that content was just read to; readpage() will =
-unlock the page
->> when it is done with I/O, but the page needs to be locked before it's =
-inserted
->> into the page cache.
->=20
-> Then you must to lock the page properly with lock_page().
->=20
-> __SetPageLocked() is fine for just allocated pages that was not =
-exposed
-> anywhere. After ->readpage() it's not the case and it's not safe to =
-use
-> __SetPageLocked() for them.
-
-In the current code, it's assumed it is not exposed, because a single =
-read
-of a large page that does no readahead before the page is inserted into =
-the
-cache means there are no external users of the page.
-
-Regardless, I can make this change as part of the changes I will need to =
-to
-reorder when the page is inserted into the cache.
-
->> I can make that change; originally alloc_set_pte() didn't use the =
-second
->> parameter at all when mapping a read-only page.
->>=20
->> Even now, if the page isn't writable, it would only be dereferenced =
-by a
->> VM_BUG_ON_PAGE() call if it's COW.
->=20
-> Please do change this. It has to be future-proof.
-
-OK, thanks.
-
->> My thinking had been if any part of reading a large page and mapping =
-it had
->> failed, the code could just put_page() the newly allocated page and =
-fallback
->> to mapping the page with PAGESIZE pages rather than add a THP to the =
-cache.
->=20
-> I think it's must change. We should not allow inconsistent view on =
-page
-> cache.
-
-Yes, I can see where it would be confusing to anyone looking at it that =
-assumed
-the page must already be in the cache before readpage() is called.
-
->> If mprotect() is called, wouldn't the pages be COWed to PAGESIZE =
-pages the
->> first time the area was written to? I may be way off on this =
-assumption.
->=20
-> Okay, fair enough. COW will happen for private mappings.
->=20
-> But for private mappings you don't need to enforce even RO. All =
-permission
-> mask should be fine.
-
-Thanks.
-
->> Once again, the question is whether we want to make this just RO or =
-RO + EXEC
->> to maintain my goal of just mapping program TEXT via THP. I'm willing =
-to
->> hear arguments either way.
->=20
-> It think the goal is to make feature useful and therefore we need to =
-make
-> it available for widest possible set of people.
->=20
-> I think is should be allowed for RO (based on how file was opened, not =
-on
-> PROT_*) + SHARED and for any PRIVATE mappings.
-
-That makes sense.
-
->> I did that because the existing code just blindly sets VM_MAYWRITE =
-and I
->> obviously didn't want to, so making it a variable allowed me to shut =
-it off
->> if it was a THP mapping.
->=20
-> I think touching VM_MAYWRITE here is wrong. It should reflect what =
-file
-> under the mapping allows.
-
-Fair enough.
-
-Thanks again!
-    -- Bill=
+>  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT	3 /* VQ to report free pages *=
+/
+>  #define VIRTIO_BALLOON_F_PAGE_POISON	4 /* Guest is using page poisonin=
+g */
+> +#define VIRTIO_BALLOON_F_REPORTING	5 /* Page reporting virtqueue */
+> =20
+>  /* Size of a PFN in the balloon interface. */
+>  #define VIRTIO_BALLOON_PFN_SHIFT 12
+>
+--=20
+Thanks
+Nitesh
 
