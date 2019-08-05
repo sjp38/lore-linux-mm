@@ -6,111 +6,112 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9CFA6C433FF
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 04:34:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 15B1CC433FF
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 04:36:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6F944217D9
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 04:34:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F944217D9
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id CC9B320644
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 04:36:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC9B320644
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E91D46B0005; Mon,  5 Aug 2019 00:34:34 -0400 (EDT)
+	id 716586B0003; Mon,  5 Aug 2019 00:36:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E42856B0006; Mon,  5 Aug 2019 00:34:34 -0400 (EDT)
+	id 6C7306B0005; Mon,  5 Aug 2019 00:36:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D0BA56B0007; Mon,  5 Aug 2019 00:34:34 -0400 (EDT)
+	id 5DBE46B0006; Mon,  5 Aug 2019 00:36:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 825B16B0005
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 00:34:34 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id d27so50762424eda.9
-        for <linux-mm@kvack.org>; Sun, 04 Aug 2019 21:34:34 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 3CCCE6B0003
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 00:36:49 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id z13so71413125qka.15
+        for <linux-mm@kvack.org>; Sun, 04 Aug 2019 21:36:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=E4nVoFm4rWvtu6MV96+qIH8hcwZsDiwuPirKWvmhsyU=;
-        b=iV8R2aVbmkJA5fCwccLOQOekq6YfdfeR9LQb81oPr/asWmIHH/m45AQ8C2cbRzOjWe
-         mweuGqJ9mjTY7RPEXNRW7FPmgYD4AXgHj4/NJnp2TdUXozihCFPgWi1MysETP5DmPHsY
-         BGBsxBYca5T0R+idHxTWhcTuUm5JH93yrm1cmO+KzthBMnADW8btUbwAwHB8e9J/yZKQ
-         WZA3DZJYEZa+X16l0oFdp3m3E9z1gLQm0Vj4INxynvkIDCY1g6eCxZ1jLc1/5f31znP1
-         FgwmjvemjJ+gGEqIxWckQ3PPViXaR6/PWCSu+zYUvZWMPHjkGOV6Eg7llTOnL3VX/khX
-         0A1Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAWiwAF8wEEm8rz3HIgA6Zr5tw4YELX1R2D2DuuB3ZihuaHbLEYY
-	3heDYD7JXuyWlJcoxJnCPcyznFW5b0y6d3zTNj7JCZpYkdzhX4XPG0oYZf8ZWuL2ZHxA+KnxWPM
-	APi6A2VX6INeDRrqvxLDIR/w/kZZ99EnEy/7qW+mypwls7HqCACdkGM9sSs2thI+v4A==
-X-Received: by 2002:a17:906:370c:: with SMTP id d12mr115987390ejc.140.1564979674080;
-        Sun, 04 Aug 2019 21:34:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx4RltM4qnt3S1+LMyQnO7vbSpU+zE+xq+4dmygPTD45QkwG4rEIPTGgXRKRKW/RsOCUmDQ
-X-Received: by 2002:a17:906:370c:: with SMTP id d12mr115987351ejc.140.1564979673178;
-        Sun, 04 Aug 2019 21:34:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564979673; cv=none;
+         :content-transfer-encoding:content-language;
+        bh=gR9sigFYcoTvk9gZJoQ+Y4sNtzlVCmazG54lrOB5Moc=;
+        b=pnLCM90+f/B5cJZRfq+tgpVOZ3pwbMPpNanqmXCiuj8CBgdBAvxxDh5iAEYLG2paWd
+         0WkM/ctj5iHZ2/zQdefMNrYEVcMYaH9DoL3Rv7KVRGVCKFP3D3s/fvYSszrpwNw9jUGa
+         H01gpQG0h8aGGe5L0DqSzF+cBApcxRtr1MFZShP8tvF1v1InZydnsL2Lmx1LS2bqlUon
+         eRx2Nbujg54ubDdMaQhypGcccNRDU9xQhQZwlg6lImJyEemDE5YxxP2gwclaMI2/xZoj
+         WMGxsmbPfWu7lGGBrvEtCsCvSthbhhGEZ7RLf1paD8Lj4x+UsIMZj+WTHQ18fOG1fZZb
+         63JQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAV6fbgwBEwyI5LKRUAcd05F7XLepEnGWGSzu0ekcsukow6MFGGn
+	5n/pzX3p80K8Ii4NQAi806GLX5uF7ZQ2MolbrKkEkqYmYQXipgvzFiLZoNvfdGaU7yBvGHEdTAj
+	QhVIZZxB+4V4x+nOBSqVYgYyOmV0hOD9A0hLynSyqi6DBO+j9z4T1nvDXeE/mJ7zxUA==
+X-Received: by 2002:a37:4f16:: with SMTP id d22mr101941016qkb.307.1564979809029;
+        Sun, 04 Aug 2019 21:36:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzZLJKQFgU+LkoLfltZ3qgo1vxBcJzz23XP6NcMq+bb9L1CnLYx8A3IQ0wkwdF87py85slc
+X-Received: by 2002:a37:4f16:: with SMTP id d22mr101940998qkb.307.1564979808509;
+        Sun, 04 Aug 2019 21:36:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564979808; cv=none;
         d=google.com; s=arc-20160816;
-        b=yDl1rfg9ItwPU3YXC4RQIRzF7cre/jNxx70uwP+jdcnN2yFILh/MDtHw3XmD/t5Htd
-         xMzFE2NDbmGd8URSrJIAZUNPyGm2n5lsVPd827LeMurAlw7BvI90Q2JFx8j32q7nIbKS
-         4lKPuP9iw3h7i+i/h8fEylvD4tq3eT29UARstEtialvCkW8+ixUwIDQ/yt3/MIbDhbBy
-         u6ViRydRxL4R6sRC5oAenE1Ec1aImrAo5+YNmAGwRLI7VmPbedJ9HJtlplh4e9uqMjc5
-         NghoVfcmGw5LsjPqH6kPAGT6pfqIiGlY2Hfc5Dk9E7g7NwQCSf2dk2j6EE89xTo0D6JH
-         A7gw==
+        b=O6qnYpKMm8n7cE5oqXk2K7w+G0tYh7lx24I0uaCw+yOghc7CrQtwN9Huskmz5GhESX
+         ABO/9ctP1zCwmQeHpS6xDuTqcf9clKM6CmJyjZOzYds4vUuycgMHMlUrb4QflK2YsvA+
+         Bntpc7ODO5iix96+NsDutdujPAOOPgtowqOPDY3nVhEnI3evOc1zEMGAIOzmTXmLpI7n
+         rJI6i+yWpvqGVK44gZBW4JcWAPIXVLx8/fBDDSzLu3vabtDkCGnDYoqD4wgKXB35c7QA
+         g5lBotn7jBb4h+XLkJ/QAVtyY1ho3pZqPPwL/TbMtUZ1k3LBAE6tXakyIjCP/hJKx3Yy
+         EoKQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=E4nVoFm4rWvtu6MV96+qIH8hcwZsDiwuPirKWvmhsyU=;
-        b=TubXzrHtllfB8nzJLhPnxm5ROxsZHidG85VUp1WaLWVX1j663f2gVHtaEekvDeMKkK
-         rXRELzANrX5SKRy5rAVOg9Lrie7YR70FspRYzoIr/PJsXFqtaYcOYNVm+D/I31ipv1Kq
-         BZiOSX1h3IsCQexuawFdRZnISXO5+Sq69ztKmp25f0DzhhPU5lxaZJRQilXmbKLIXU/A
-         nyeKrkee4NQ9j48nAB6l1FxurlGwxxTLMEmIa09jsA45JD/TB3lKF2elX0VvNXfkVGiI
-         42iqrz1WXbyHM/tLMvGbrjrKyKB/60qGWbe3+XYedWYaZdiM1F1TXldwQSK/rfbaR1CX
-         877g==
+        bh=gR9sigFYcoTvk9gZJoQ+Y4sNtzlVCmazG54lrOB5Moc=;
+        b=U8Gq0RxXxC9wGBZZs5n/5u/Qmk8umqJHcb54fYa+4YYjNSznB/SzPkl/CYP1FQoGbK
+         XBqfgLI35mixdrGyRj4nusQXbPIMGvkJwz5E6h9ssoHbEKBKlE8hHtTZTJnUvH0gNLdD
+         A6yv5jlmqT7MR8OWL8ZqLJfvncI7HqCX5Xh42HDK7scZne5b4Jr074aDOH05IEBrfCuh
+         EZi9tDjYZRid7HRqq5cG1GxO/KGsCDzCqBcNDhPI3HK5ag2u63KPPqtlBMSuZJW5Io/6
+         4sFPdaZxaetvmTHcEfAbCnW9amumZ0JNhdiwz/yyFqRGRwua4/pFvj1oNxuOTjYVKrQs
+         /Rmw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id c42si30662528eda.70.2019.08.04.21.34.31
-        for <linux-mm@kvack.org>;
-        Sun, 04 Aug 2019 21:34:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s124si18009695qkb.5.2019.08.04.21.36.48
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 04 Aug 2019 21:36:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id CF5F5337;
-	Sun,  4 Aug 2019 21:34:30 -0700 (PDT)
-Received: from [10.163.1.69] (unknown [10.163.1.69])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 620723F706;
-	Sun,  4 Aug 2019 21:34:22 -0700 (PDT)
-Subject: Re: [RFC] mm/pgtable/debug: Add test validating architecture page
- table helpers
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
- Michal Hocko <mhocko@kernel.org>, Mark Rutland <mark.rutland@arm.com>,
- Mark Brown <Mark.Brown@arm.com>, Steven Price <Steven.Price@arm.com>,
- Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Masahiro Yamada <yamada.masahiro@socionext.com>,
- Kees Cook <keescook@chromium.org>,
- Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
- Sri Krishna chowdary <schowdary@nvidia.com>,
- Dave Hansen <dave.hansen@intel.com>, linux-arm-kernel@lists.infradead.org,
- x86@kernel.org, linux-kernel@vger.kernel.org
-References: <1564037723-26676-1-git-send-email-anshuman.khandual@arm.com>
- <1564037723-26676-2-git-send-email-anshuman.khandual@arm.com>
- <20190725143920.GW363@bombadil.infradead.org>
- <c3bb0420-584c-de3b-2439-8702bc09595e@arm.com>
- <20190726195457.GI30641@bombadil.infradead.org>
- <10ed1022-a5c0-c80c-c0c9-025bb2307666@arm.com>
- <20190730170323.GA4700@bombadil.infradead.org>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <64beed43-7f8f-25de-e2e4-1dc07742dc7c@arm.com>
-Date: Mon, 5 Aug 2019 10:05:05 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9FDEA30A5408;
+	Mon,  5 Aug 2019 04:36:47 +0000 (UTC)
+Received: from [10.72.12.115] (ovpn-12-115.pek2.redhat.com [10.72.12.115])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id B7AA560856;
+	Mon,  5 Aug 2019 04:36:42 +0000 (UTC)
+Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
+ with worker
+To: "Michael S. Tsirkin" <mst@redhat.com>, Jason Gunthorpe <jgg@ziepe.ca>
+Cc: kvm@vger.kernel.org, virtualization@lists.linux-foundation.org,
+ netdev@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org
+References: <20190731084655.7024-1-jasowang@redhat.com>
+ <20190731084655.7024-8-jasowang@redhat.com> <20190731123935.GC3946@ziepe.ca>
+ <7555c949-ae6f-f105-6e1d-df21ddae9e4e@redhat.com>
+ <20190731193057.GG3946@ziepe.ca>
+ <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
+ <20190801141512.GB23899@ziepe.ca>
+ <42ead87b-1749-4c73-cbe4-29dbeb945041@redhat.com>
+ <20190802124613.GA11245@ziepe.ca>
+ <20190802100414-mutt-send-email-mst@kernel.org>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <e8ecb811-6653-cff4-bc11-81f4ccb0dbbf@redhat.com>
+Date: Mon, 5 Aug 2019 12:36:40 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190730170323.GA4700@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20190802100414-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.42]); Mon, 05 Aug 2019 04:36:47 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -118,102 +119,50 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-
-On 07/30/2019 10:33 PM, Matthew Wilcox wrote:
-> On Mon, Jul 29, 2019 at 02:02:52PM +0530, Anshuman Khandual wrote:
->> On 07/27/2019 01:24 AM, Matthew Wilcox wrote:
->>> On Fri, Jul 26, 2019 at 10:17:11AM +0530, Anshuman Khandual wrote:
->>>>> But 'page' isn't necessarily PMD-aligned.  I don't think we can rely on
->>>>> architectures doing the right thing if asked to make a PMD for a randomly
->>>>> aligned page.
->>>>>
->>>>> How about finding the physical address of something like kernel_init(),
->>>>
->>>> Physical address corresponding to the symbol in the kernel text segment ?
+On 2019/8/2 下午10:27, Michael S. Tsirkin wrote:
+> On Fri, Aug 02, 2019 at 09:46:13AM -0300, Jason Gunthorpe wrote:
+>> On Fri, Aug 02, 2019 at 05:40:07PM +0800, Jason Wang wrote:
+>>>> This must be a proper barrier, like a spinlock, mutex, or
+>>>> synchronize_rcu.
 >>>
->>> Yes.  We need the address of something that's definitely memory.
->>> The stack might be in vmalloc space.  We can't allocate memory from the
->>> allocator that's PUD-aligned.  This seems like a reasonable approximation
->>> to something that might work.
+>>> I start with synchronize_rcu() but both you and Michael raise some
+>>> concern.
+>> I've also idly wondered if calling synchronize_rcu() under the various
+>> mm locks is a deadlock situation.
 >>
->> Okay sure. What is about vmalloc space being PUD aligned and how that is
->> problematic here ? Could you please give some details. Just being curious.
-> 
-> Those were two different sentences.
-> 
-> We can't use the address of something on the stack, because we don't
-> know whether the stack is in vmalloc space or in the direct map.
+>>> Then I try spinlock and mutex:
+>>>
+>>> 1) spinlock: add lots of overhead on datapath, this leads 0 performance
+>>> improvement.
+>> I think the topic here is correctness not performance improvement
+> The topic is whether we should revert
+> commit 7f466032dc9 ("vhost: access vq metadata through kernel virtual address")
+>
+> or keep it in. The only reason to keep it is performance.
 
-Okay because kernel stack might be on vmalloc() space.
 
-> 
-> We can't use the address of something we've allocated from the page
-> allocator, because the page allocator can't give us PUD-aligned memory.
+Maybe it's time to introduce the config option?
 
-Because this test will be executed early during boot, alloc_contig_range()
-makes sense for this purpose. Something like alloc_gigantic_page() which other
-than getting the order from huge_page_order(h) is sort of a generic allocator.
-Shall we make core part of the function a generic allocator for broader usage
-in kernel in case the page allocator would not be sufficient like in this case
-which requires a PUD size and a PUD aligned memory.
-
-In case PUD aligned memory block cannot be allocated, pud_basic_tests() must
-be skipped and a PMD aligned memory block should be used instead as fallback
-for other tests.
 
 >
->>> I think that's a mistake.  As Russell said, the ARM p*d manipulation
->>> functions expect to operate on tables, not on individual entries
->>> constructed on the stack.
->>
->> Hmm. I assume that it will take care of dual 32 bit entry updates on arm
->> platform through various helper functions as Russel had mentioned earlier.
->> After we create page table with p?d_alloc() functions and pick an entry at
->> each page table level.
-> 
-> Right.
-> 
->>> So I think the right thing to do here is allocate an mm, then do the
->>> pgd_alloc / p4d_alloc / pud_alloc / pmd_alloc / pte_alloc() steps giving
->>> you real page tables that you can manipulate.
->>>
->>> Then destroy them, of course.  And don't access through them.
->>
->> mm_alloc() seems like a comprehensive helper to allocate and initialize a
->> mm_struct. But could we use mm_init() with 'current' in the driver context or we
->> need to create a dummy task_struct for this purpose. Some initial tests show that
->> p?d_alloc() and p?d_free() at each level with a fixed virtual address gives p?d_t
->> entries required at various page table level to test upon.
-> 
-> I think it's wise to start a new mm.  I'm not sure exactly what calls
-> to make to get one going.> 
->>>>>> +#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
->>>>>> +static void pud_basic_tests(void)
->>>>>
->>>>> Is this the right ifdef?
->>>>
->>>> IIUC THP at PUD is where the pud_t entries are directly operated upon and the
->>>> corresponding accessors are present only when HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
->>>> is enabled. Am I missing something here ?
->>>
->>> Maybe I am.  I thought we could end up operating on PUDs for kernel mappings,
->>> even without transparent hugepages turned on.
->>
->> In generic MM ? IIUC except ioremap mapping all other PUD handling for kernel virtual
->> range is platform specific. All the helpers used in the function pud_basic_tests() are
->> part of THP and used in mm/huge_memory.c
-> 
-> But what about hugetlbfs?  And vmalloc can also use larger pages these days.
-> I don't think these tests should be conditional on transparent hugepages.
+> Now as long as all this code is disabled anyway, we can experiment a
+> bit.
+>
+> I personally feel we would be best served by having two code paths:
+>
+> - Access to VM memory directly mapped into kernel
+> - Access to userspace
+>
+>
+> Having it all cleanly split will allow a bunch of optimizations, for
+> example for years now we planned to be able to process an incoming short
+> packet directly on softirq path, or an outgoing on directly within
+> eventfd.
 
-The current proposal restricts itself to very basic operations at each page
-table level for now. I have subsequent patches which adds various MM feature
-related specific helpers with respect to SPECIAL, DEVMAP, HugeTLB entries
-etc. We can also explore platform specific helpers for ioremap and vmalloc.
-But that is for subsequent patches and scope for current proposal is limited.
 
-THP (or PUD THP) config wrappers are here because these helpers mentioned in
-the current proposal are present only when THP (or PUD THP) is enabled but
-are absent otherwise. Without these wrappers, we will have build failures.
-Hence these wrappers are necessary.
+It's not hard consider we've already had our own accssors. But the 
+question is (as asked in another thread), do you want permanent GUP or 
+still use MMU notifiers.
+
+Thanks
 
