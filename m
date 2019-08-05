@@ -2,180 +2,347 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6559DC0650F
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 15:37:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F0ABEC433FF
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 15:57:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1582A21871
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 15:37:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9834D2064A
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 15:57:07 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="aZHdw82y"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1582A21871
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="KNZUDma6"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9834D2064A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A10506B0007; Mon,  5 Aug 2019 11:37:20 -0400 (EDT)
+	id 1BDF36B0005; Mon,  5 Aug 2019 11:57:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9BB7F6B0008; Mon,  5 Aug 2019 11:37:20 -0400 (EDT)
+	id 16E916B0006; Mon,  5 Aug 2019 11:57:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8AA9B6B000A; Mon,  5 Aug 2019 11:37:20 -0400 (EDT)
+	id 05CCD6B0007; Mon,  5 Aug 2019 11:57:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 57CF16B0007
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 11:37:20 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id z1so53688217pfb.7
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 08:37:20 -0700 (PDT)
+Received: from mail-io1-f72.google.com (mail-io1-f72.google.com [209.85.166.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DA3476B0005
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 11:57:06 -0400 (EDT)
+Received: by mail-io1-f72.google.com with SMTP id k21so92718413ioj.3
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 08:57:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=BRP6laDcYsaagqowX6PM5vV1ql9YojC3f98ieQbfibw=;
-        b=JNJkxhvstjI0Q2W5LiEBc2/27mSlC1o7/a5SkV7LpsNLz6nnoPtM95t+eSkBBH2SBR
-         0hyH95NT08bC/zqDC1oE8eFQSSqiK3F685roWwN4JWRJoPzvaWItQR/WPtHKJdiC5xfl
-         sELutstEKgt9eP94ZHI14su0HIRbRaw20tJCI52GchMjwSEjRxXqfWQKCgqONoGjkUoI
-         B2UPVyw3KOQ7IOMhv1IISHtsyvhz0w1xdgSHLCYvbRSFBwA8ogp8qw9G/M3fZHZ5ERt7
-         PTkUiMA8PEN2i0y0iYFfo9iUxhjgeStd7nJ6rxOUkfHmAQ2L9lyBCnny+6w/3LQH5WoA
-         WNHw==
-X-Gm-Message-State: APjAAAWhbmbjykfhrqg+CuCt1If8dJF8gxZbE0oJrrYwoR70t7hxTL94
-	UjGq0bR+ZPdvwYT+1DkW7LtRhYLVcPKjfN5bjkxXMOMy2i/zwUt53vz/kynJqtEIBffjMESbTiy
-	aMRt3YN/tvly6K2nYkKTsWGIkWKyqNSlnxoJLbnqngk+kp1RBHcQALPMbk6Lbi1Aikw==
-X-Received: by 2002:a63:f857:: with SMTP id v23mr111840394pgj.228.1565019439653;
-        Mon, 05 Aug 2019 08:37:19 -0700 (PDT)
-X-Received: by 2002:a63:f857:: with SMTP id v23mr111840356pgj.228.1565019438886;
-        Mon, 05 Aug 2019 08:37:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565019438; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:subject:from
+         :in-reply-to:date:cc:content-transfer-encoding:message-id:references
+         :to;
+        bh=cbBP8N3KN1Lt/OuHm+MgfpoWdZsU7dxj+qA8fUVOQUI=;
+        b=T5FyxgbFJMJsjfoMxyUskpIFNN1lYL1DdT0nTG4oDgfHP1WJLhqwQKOeBHsYy0XhLE
+         kb4yVPuB/EI+jiM/d4W/U9QfLn8U98V10gyxtYVSYA3OWOK1U64iq70AWFJ9/XlNJakn
+         HHLDRHrggcv0mZd6EKXOLjJxLv9yRJdpBeaW+1ozm4XJymkLIa5MKlA7yLBiQrzYnysa
+         eXYU8p8gHeF6q7ct7wZg2xrrlmlG0I3rXB+9aun9Lht6zmbG4TGuUNO4KrZuoeo8CAoL
+         0KyjJLAbBJ5AZOGQEMk6j8CW9/+DocCsnZjm8KBRUIPXtiU//z85fpE+jEdZbeVNcwA+
+         nP5w==
+X-Gm-Message-State: APjAAAXslRfoQsR+BnVxUvKl/ptml+TQ0BSfFrYlavtWvtPTuIzzWhNA
+	AhKPL8o/K9TjQ+pw9nGULlrWyXrG4HPszu0JQdr6UVteankRs7XTwSg8Vw5hg6JxC1mce/nxmor
+	LbwG3xS8cfWeOrz/4mGdxy3dvhMtCLl2khq9rx833znPyr9FttAtK9/4F/J9hp/g+OQ==
+X-Received: by 2002:a6b:8bcb:: with SMTP id n194mr13647613iod.194.1565020626642;
+        Mon, 05 Aug 2019 08:57:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzR6j/eHIbq/uRs3DF9MpTw2ZiMjlFEJoXfFd3mALHIgJJmhazrCdyMQt3/G5CIAA672V3e
+X-Received: by 2002:a6b:8bcb:: with SMTP id n194mr13647538iod.194.1565020625739;
+        Mon, 05 Aug 2019 08:57:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565020625; cv=none;
         d=google.com; s=arc-20160816;
-        b=0ifH/k+Pz13YmnNnXHh0kNHA8ezH202VGbZ/LDzdKNd72U8kgIg2uHeOo4aR4h5UOl
-         vH+vrLIMf2HHERSxLHCccZIYWVQV6+9j3Z1mF/MqGYa5FQx/tkzWsMupjWVfwZNbTOu+
-         20UNKON8FN90b84cqXUcWcaKkHcQ2xz0SEN995D2DiLL6kwaoO+gxZNWMeGrjIKHo0vA
-         qjHdPqurKZK2UW4Dz1bQTJtWhZUn5JBroxQ7w+V15Zjifuw0xi/jec98FnPTD4ihesSV
-         9OiXRe3QprIPypX7bJp41puzPDa4kE0jXHkEoA6Ag+i5hROznhQKffnofmPrN7rmdNWQ
-         aSPQ==
+        b=wWwAjSXon6hWfE2wBNKhRoc5VwGXHgtxOkrU6M5v64FFTseuYGGqnJ4HYovF+1BIoN
+         X0EGFcuNHX1BiWi7ASGlMLwCnqSVr9wk+j07q0twg+kZ4omrfS73p5JWCUaBzk9Z3BQc
+         t+s3A8D+mUGTddnpvVOjQ3poGVCxoGFeYwmAZNaS/muyXeYSwGwo4UBlayBvQ8UEr0RO
+         xet51lwd263h6j4oF97IbX++mihqB2/3KZIn0wYM9T978Kns6OZXGlGkX84BDwV0+C3m
+         KdjfMEwwiA5dpZQidlzejoaX//9tHzR7JRr7lpvFMVOPeH+10HmUSEmf4B/ZjsO0HksO
+         0VBQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=BRP6laDcYsaagqowX6PM5vV1ql9YojC3f98ieQbfibw=;
-        b=bTDeiXNpUAp63GJditQ9gm+mBIcIU1Xad6IqYFzPQUransldqQG16UvFbH2E1LaC0V
-         1f43qGSVfHfayCsIJvCkXiiALpd/r+jddz1cH1+OTB0qzClhrkWUxPEU+oGopB/7EJWl
-         5gkwshsobe7SZS8kcW4BtXI8aDqs8CCrJEUAs7veeYB3V5RLTL9iIvzebE3tslbwGNTZ
-         lVH0kgByzsn2PK+hxgbxoSRGj2/iYa6/3QXzvv8ekIiF0sCVQ6trquiIU6gSS+9wrK3P
-         UGXVINbJEUw46t5IlhTjxAYVMXOp3/C5jI1DCEoXQ33f763Op3n8UlxvaOo5IyZ6o9hP
-         42Rw==
+        h=to:references:message-id:content-transfer-encoding:cc:date
+         :in-reply-to:from:subject:mime-version:dkim-signature;
+        bh=cbBP8N3KN1Lt/OuHm+MgfpoWdZsU7dxj+qA8fUVOQUI=;
+        b=LeDn/b1J4cUC+ZmH01jxb93SxLoTGrRgjNFprUp5nOHLJsVX3XIB2I9OZ2Dhspom5q
+         L7SZyA7ElzmXbvuw0zFbo7CLq8ir8279r9SN7Zcs/C2tRNbPMYaqkQwCrywNNK4PfOYh
+         mq/aI7ApsYdgOBEnK+BD3h2IfuF4DyxuSKJ/aBaRqwfBKUAGX1eeNqdU9vy5Asy7Ekgb
+         VByG0GWEt2+I4g/pdGuFalnb+oxEywGfH3wPkYU4np0GodTgwRhdZ637g1geAkhY7nyB
+         JpB1gmNnlmcuf3/ZQcjTpg2TbA9Qmzp8warGPcN7MjUkEyCQjL7gkKpzPAIy64chhgSv
+         Q/hA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=aZHdw82y;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 75sor64590816pfv.11.2019.08.05.08.37.18
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=KNZUDma6;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id a13si113430606jal.98.2019.08.05.08.57.05
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Aug 2019 08:37:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Aug 2019 08:57:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=aZHdw82y;
-       spf=pass (google.com: domain of andreyknvl@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=andreyknvl@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=BRP6laDcYsaagqowX6PM5vV1ql9YojC3f98ieQbfibw=;
-        b=aZHdw82yWFty3hQVAzsHs2fUhyQvuwpZlVYSYWBLTB/8rupDAl0wKOFCYdmT2AVyM3
-         bU4fhnvSzDKnLtiQ3rS7cijZ1Vv3IIZe4rRpc4rEibhv0ZDXZ9WOzma5OQlcS+kYc8Mt
-         3aq2tOS5hdDp99Y8bIwoTjEQB80+ErgcnzBts/1QhdymZ2BjAdCta1VZ5xzoMpm6V2x1
-         DZCYNyCjuRGW+uCHqJqV4KCP0MbZCeI9Yg5elIeOIapd0UtWSDxj7AOKYYjvTfNTK9V9
-         yb22NKB3Py0XgnjBPYBGPZ2hy6herMOmpnsmUtGcyAepI5Z7zt4WR2w/bewU8Zp5+oIw
-         3psA==
-X-Google-Smtp-Source: APXvYqyQR0D20P/mnpoLOPlzIBaHmjQ7w8XW8u+YMSrUQUo8L+f9shx/FCzhOS5dVIpqRT8luECGQsvMeWq4moJNLGA=
-X-Received: by 2002:aa7:97bb:: with SMTP id d27mr73075178pfq.93.1565019438226;
- Mon, 05 Aug 2019 08:37:18 -0700 (PDT)
-MIME-Version: 1.0
-References: <1564670825-4050-1-git-send-email-cai@lca.pw>
-In-Reply-To: <1564670825-4050-1-git-send-email-cai@lca.pw>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 5 Aug 2019 17:37:06 +0200
-Message-ID: <CAAeHK+xMQ5m-_eeQUPM2DoN=6OV-1uC6NX3dVnSKcmEqwSM5ZA@mail.gmail.com>
-Subject: Re: [PATCH v2] arm64/mm: fix variable 'tag' set but not used
-To: Qian Cai <cai@lca.pw>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will@kernel.org>, 
-	Andrey Ryabinin <aryabinin@virtuozzo.com>, Alexander Potapenko <glider@google.com>, 
-	Dmitry Vyukov <dvyukov@google.com>, Linux ARM <linux-arm-kernel@lists.infradead.org>, 
-	kasan-dev <kasan-dev@googlegroups.com>, 
-	Linux Memory Management List <linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=KNZUDma6;
+       spf=pass (google.com: domain of william.kucharski@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=william.kucharski@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x75FsNWh057944;
+	Mon, 5 Aug 2019 15:56:50 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=content-type :
+ mime-version : subject : from : in-reply-to : date : cc :
+ content-transfer-encoding : message-id : references : to;
+ s=corp-2018-07-02; bh=cbBP8N3KN1Lt/OuHm+MgfpoWdZsU7dxj+qA8fUVOQUI=;
+ b=KNZUDma6fITUwU1tvaB+HpNehPHeFdN+M5R8VVACwjv2x5BUhh8NGDrgyEanbuRZ/97U
+ qRGBId4ZPb80PXRgRx5w/Tx+l39RLzsQ9f65H/JOZil1CVs+Z8H+HtTylazqmHbKTInW
+ +FuLkC33yFB+R5mwj/YMJXo9JiJW4WzCaXtx64AnF5pdQPbf2FKYuW8Cdma7NWSvLdNU
+ HCluTFUDxSP9yrQJuWC/DsTUJwIOD2VuOrqOKHfLbx7IpYZBBTNDjM6ezUjoGyKgdU+J
+ 8SESmc35GAPz7qxCw5jW8TKSnU4mR/G09hgXDvgxqTr+Z1cY3G38B1kwrKyyB6oOwkNz dA== 
+Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
+	by aserp2120.oracle.com with ESMTP id 2u527pg47w-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 05 Aug 2019 15:56:49 +0000
+Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
+	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x75Fqpfq017054;
+	Mon, 5 Aug 2019 15:56:49 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserp3020.oracle.com with ESMTP id 2u5233baxv-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 05 Aug 2019 15:56:49 +0000
+Received: from abhmp0005.oracle.com (abhmp0005.oracle.com [141.146.116.11])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x75FukQD028308;
+	Mon, 5 Aug 2019 15:56:47 GMT
+Received: from [192.168.0.110] (/73.243.10.6)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 05 Aug 2019 08:56:46 -0700
+Content-Type: text/plain;
+	charset=us-ascii
+Mime-Version: 1.0 (Mac OS X Mail 13.0 \(3570.1\))
+Subject: Re: [PATCH v3 2/2] mm,thp: Add experimental config option
+ RO_EXEC_FILEMAP_HUGE_FAULT_THP
+From: William Kucharski <william.kucharski@oracle.com>
+In-Reply-To: <20190805132854.5dnqkfaajmstpelm@box.shutemov.name>
+Date: Mon, 5 Aug 2019 09:56:45 -0600
+Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+        linux-fsdevel@vger.kernel.org,
+        Dave Hansen <dave.hansen@linux.intel.com>,
+        Song Liu <songliubraving@fb.com>,
+        Bob Kasten <robert.a.kasten@intel.com>,
+        Mike Kravetz <mike.kravetz@oracle.com>,
+        Chad Mynhier <chad.mynhier@oracle.com>,
+        "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+        Johannes Weiner <jweiner@fb.com>, Matthew Wilcox <willy@infradead.org>
+Content-Transfer-Encoding: quoted-printable
+Message-Id: <19A86A16-B440-4B73-98FE-922A09484DFD@oracle.com>
+References: <20190731082513.16957-1-william.kucharski@oracle.com>
+ <20190731082513.16957-3-william.kucharski@oracle.com>
+ <20190801123658.enpchkjkqt7cdkue@box>
+ <c8d02a3b-e1ad-2b95-ce15-13d3ed4cca87@oracle.com>
+ <20190805132854.5dnqkfaajmstpelm@box.shutemov.name>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+X-Mailer: Apple Mail (2.3570.1)
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9340 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1908050176
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9340 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1908050176
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 1, 2019 at 4:47 PM Qian Cai <cai@lca.pw> wrote:
->
-> When CONFIG_KASAN_SW_TAGS=n, set_tag() is compiled away. GCC throws a
-> warning,
->
-> mm/kasan/common.c: In function '__kasan_kmalloc':
-> mm/kasan/common.c:464:5: warning: variable 'tag' set but not used
-> [-Wunused-but-set-variable]
->   u8 tag = 0xff;
->      ^~~
->
-> Fix it by making __tag_set() a static inline function the same as
-> arch_kasan_set_tag() in mm/kasan/kasan.h for consistency because there
-> is a macro in arch/arm64/include/asm/kasan.h,
->
->  #define arch_kasan_set_tag(addr, tag) __tag_set(addr, tag)
->
-> However, when CONFIG_DEBUG_VIRTUAL=n and CONFIG_SPARSEMEM_VMEMMAP=y,
-> page_to_virt() will call __tag_set() with incorrect type of a
-> parameter, so fix that as well. Also, still let page_to_virt() return
-> "void *" instead of "const void *", so will not need to add a similar
-> cast in lowmem_page_address().
->
-> Signed-off-by: Qian Cai <cai@lca.pw>
-> ---
->
-> v2: Fix compilation warnings of CONFIG_DEBUG_VIRTUAL=n spotted by Will.
->
->  arch/arm64/include/asm/memory.h | 10 +++++++---
->  1 file changed, 7 insertions(+), 3 deletions(-)
->
-> diff --git a/arch/arm64/include/asm/memory.h b/arch/arm64/include/asm/memory.h
-> index b7ba75809751..fb04f10a78ab 100644
-> --- a/arch/arm64/include/asm/memory.h
-> +++ b/arch/arm64/include/asm/memory.h
-> @@ -210,7 +210,11 @@ static inline unsigned long kaslr_offset(void)
->  #define __tag_reset(addr)      untagged_addr(addr)
->  #define __tag_get(addr)                (__u8)((u64)(addr) >> 56)
->  #else
-> -#define __tag_set(addr, tag)   (addr)
-> +static inline const void *__tag_set(const void *addr, u8 tag)
-> +{
-> +       return addr;
-> +}
-> +
->  #define __tag_reset(addr)      (addr)
->  #define __tag_get(addr)                0
->  #endif
-> @@ -301,8 +305,8 @@ static inline void *phys_to_virt(phys_addr_t x)
->  #define page_to_virt(page)     ({                                      \
->         unsigned long __addr =                                          \
->                 ((__page_to_voff(page)) | PAGE_OFFSET);                 \
-> -       unsigned long __addr_tag =                                      \
-> -                __tag_set(__addr, page_kasan_tag(page));               \
-> +       const void *__addr_tag =                                        \
-> +               __tag_set((void *)__addr, page_kasan_tag(page));        \
->         ((void *)__addr_tag);                                           \
->  })
->
-> --
-> 1.8.3.1
->
 
-Reviewed-by: Andrey Konovalov <andreyknvl@google.com>
+
+> On Aug 5, 2019, at 7:28 AM, Kirill A. Shutemov <kirill@shutemov.name> =
+wrote:
+>=20
+>>=20
+>> Is there different terminology you'd prefer to see me use here to =
+clarify
+>> this?
+>=20
+> My point is that maybe we should just use ~HPAGE_P?D_MASK in code. The =
+new
+> HPAGE_P?D_OFFSET doesn't add much for readability in my opinion.
+
+Fair enough, I'll make that change.
+
+>> OK, I can do that; I didn't want to unnecessarily eliminate the
+>> VM_BUG_ON_PAGE(PageTransHuge(page)) call for everyone given this
+>> is CONFIG experimental code.
+>=20
+> If you bring the feature, you bring the feature. Just drop these =
+VM_BUGs.
+
+OK.
+
+> I'm not sure. It will be costly comparing to PageTransCompound/Huge as =
+we
+> need to check more than flags.
+>=20
+> To exclude hugetlb pages here, use VM_BUG_ON_PAGE(PageHuge(page), =
+page).
+> It will allow to catch wrong usage of the function.
+
+That will also do it and that way we will better know if it ever =
+happens,
+which of course it shouldn't.
+
+>> This routine's main function other than validation is to make sure =
+the page
+>> cache has not been polluted between when we go out to read the large =
+page
+>> and when the page is added to the cache (more on that coming up.) For
+>> example, the way I was able to tell readahead() was polluting future
+>> possible THP mappings is because after a buffered read I would =
+typically see
+>> 52 (the readahead size) PAGESIZE pages for the next 2M range in the =
+page
+>> cache.
+>=20
+> My point is that you should only see compound pages here if they are
+> HPAGE_PMD_ORDER, shouldn't you? Any other order of compound page would =
+be
+> unexpected to say the least.
+
+Yes, compound pages should only be HPAGE_PMD_ORDER.
+
+The routine and the check will need to be updated if we ever can
+allocate/cache larger pages.
+
+>> It's my understanding that pages in the page cache should be locked, =
+so I
+>> wanted to check for that.
+>=20
+> No. They are get locked temporary for some operation, but not all the
+> time.
+
+OK, thanks for that.
+
+>> I don't really care if the start of the VMA is suitable, just whether =
+I can map
+>> the current faulting page with a THP. As far as I know, there's =
+nothing wrong
+>> with mapping all the pages before the VMA hits a properly aligned =
+bound with
+>> PAGESIZE pages and then aligned chunks in the middle with THP.
+>=20
+> You cannot map any paged as huge into wrongly aligned VMA.
+>=20
+> THP's ->index must be aligned to HPAGE_PMD_NR, so if the combination =
+VMA's
+> ->vm_start and ->vm_pgoff doesn't allow for this, you must fallback to
+> mapping the page with PTEs. I don't see it handled properly here.
+
+It was my assumption that if say a VMA started at an address say one =
+page
+before a large page alignment, you could map that page with a PAGESIZE
+page but if VMA size allowed, there was a fault on the next page, and
+VMA size allowed, you could map that next range with a large page, =
+taking
+taking the approach of mapping chunks of the VMA with the largest page
+possible.
+
+Is it that the start of the VMA must always align or that the entire VMA
+must be properly aligned and a multiple of the PMD size (so you either =
+map
+with all large pages or none)?
+
+>> This is the page that content was just read to; readpage() will =
+unlock the page
+>> when it is done with I/O, but the page needs to be locked before it's =
+inserted
+>> into the page cache.
+>=20
+> Then you must to lock the page properly with lock_page().
+>=20
+> __SetPageLocked() is fine for just allocated pages that was not =
+exposed
+> anywhere. After ->readpage() it's not the case and it's not safe to =
+use
+> __SetPageLocked() for them.
+
+In the current code, it's assumed it is not exposed, because a single =
+read
+of a large page that does no readahead before the page is inserted into =
+the
+cache means there are no external users of the page.
+
+Regardless, I can make this change as part of the changes I will need to =
+to
+reorder when the page is inserted into the cache.
+
+>> I can make that change; originally alloc_set_pte() didn't use the =
+second
+>> parameter at all when mapping a read-only page.
+>>=20
+>> Even now, if the page isn't writable, it would only be dereferenced =
+by a
+>> VM_BUG_ON_PAGE() call if it's COW.
+>=20
+> Please do change this. It has to be future-proof.
+
+OK, thanks.
+
+>> My thinking had been if any part of reading a large page and mapping =
+it had
+>> failed, the code could just put_page() the newly allocated page and =
+fallback
+>> to mapping the page with PAGESIZE pages rather than add a THP to the =
+cache.
+>=20
+> I think it's must change. We should not allow inconsistent view on =
+page
+> cache.
+
+Yes, I can see where it would be confusing to anyone looking at it that =
+assumed
+the page must already be in the cache before readpage() is called.
+
+>> If mprotect() is called, wouldn't the pages be COWed to PAGESIZE =
+pages the
+>> first time the area was written to? I may be way off on this =
+assumption.
+>=20
+> Okay, fair enough. COW will happen for private mappings.
+>=20
+> But for private mappings you don't need to enforce even RO. All =
+permission
+> mask should be fine.
+
+Thanks.
+
+>> Once again, the question is whether we want to make this just RO or =
+RO + EXEC
+>> to maintain my goal of just mapping program TEXT via THP. I'm willing =
+to
+>> hear arguments either way.
+>=20
+> It think the goal is to make feature useful and therefore we need to =
+make
+> it available for widest possible set of people.
+>=20
+> I think is should be allowed for RO (based on how file was opened, not =
+on
+> PROT_*) + SHARED and for any PRIVATE mappings.
+
+That makes sense.
+
+>> I did that because the existing code just blindly sets VM_MAYWRITE =
+and I
+>> obviously didn't want to, so making it a variable allowed me to shut =
+it off
+>> if it was a THP mapping.
+>=20
+> I think touching VM_MAYWRITE here is wrong. It should reflect what =
+file
+> under the mapping allows.
+
+Fair enough.
+
+Thanks again!
+    -- Bill=
 
