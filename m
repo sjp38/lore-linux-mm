@@ -2,331 +2,249 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL
-	autolearn=ham autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ECD77C0650F
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 17:35:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05998C433FF
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 17:37:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 97074214C6
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 17:35:20 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8563720B1F
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 17:37:14 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="MXsZIH74"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 97074214C6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="OiLr8mXL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8563720B1F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0FDA06B0005; Mon,  5 Aug 2019 13:35:20 -0400 (EDT)
+	id 0D6346B0005; Mon,  5 Aug 2019 13:37:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0AE666B0006; Mon,  5 Aug 2019 13:35:20 -0400 (EDT)
+	id 085B16B0006; Mon,  5 Aug 2019 13:37:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EB7B46B0007; Mon,  5 Aug 2019 13:35:19 -0400 (EDT)
+	id E8F766B0007; Mon,  5 Aug 2019 13:37:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-io1-f69.google.com (mail-io1-f69.google.com [209.85.166.69])
-	by kanga.kvack.org (Postfix) with ESMTP id CB8256B0005
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 13:35:19 -0400 (EDT)
-Received: by mail-io1-f69.google.com with SMTP id q26so92866703ioi.10
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 10:35:19 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C72786B0005
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 13:37:13 -0400 (EDT)
+Received: by mail-io1-f69.google.com with SMTP id m26so93018265ioh.17
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 10:37:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=2ylHX28kDsFtD8dDqhQ9lJwkyPUh7ky+fY53QW66arU=;
-        b=Y0Bnl4D1D52rL85G9q6dAcsBWTE8ygew7UfVmI2pxSwI42SzlWotXRxNPAjSoWRBiR
-         i+oJO2yVBHMT68qCUSynSX1gzQF3AwDH7ofktVN5FajjKIs5H1rnl7ix3WaYBWORvvT0
-         QfQNy+3x/hfNgufnQt87ICNEcBdB2yuGuHhUz1kQ7M9TyqMP2uBSxsoPovaHkYhkk2jp
-         esMdsCa3gzm8jtc47KgIHMSMYdedV551gDpzVL2F63h+X3kVPE+OAg8bczx+PMbnWYk6
-         VeXZ/cB/XOCefwuiqWYCrdyq5j5R42NkiyMJBXKYJBLcFH8jFV4Z9sIDtpVgHzrEpeX8
-         8iJw==
-X-Gm-Message-State: APjAAAWWGizP4eFTlrQPOIjEEPMGHiFeucHaGZQ3qTfrsYF2jpXASkUj
-	oSul6nkKy61dE/CXbcXTeEMRIJAvhrVpSG5R1r5lR1rQA1iyqazdfTMUU4lkDVoZB4LsuHBCFBC
-	YWI6x4lKMgUKbkgJTL8i7dFQHOXyyZS45VgNdWpY/xug0WFUt71EIQNwG86d4w9Ywrw==
-X-Received: by 2002:a5e:a712:: with SMTP id b18mr34865241iod.220.1565026519584;
-        Mon, 05 Aug 2019 10:35:19 -0700 (PDT)
-X-Received: by 2002:a5e:a712:: with SMTP id b18mr34865168iod.220.1565026518559;
-        Mon, 05 Aug 2019 10:35:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565026518; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=hT6KvXWHsB1KFIxDjmguE5kZ2emdManS6SuK/ap0TkI=;
+        b=fj5JBrnsai2pSedtuBBYTBHY49hd3us0Ch+tnd1bbFnAZk0ixzOHpw7J/sX/sYVh6X
+         YPugmU6NtAPujN8kBxCB1fBjHsCBHlgnEoNVixvVEmqFcggxua/EEMFcOxWHaeFa7Ej8
+         TW5WyjuSWZAAPO0pAgmlPVYVF6cMA5hr0u5V2CaUWC8I4YCx8/DnvHIghifAE1/Izc9E
+         UC2Tvvqf8/vHzXfOa5W+V6mj9iEScmrlsgjOUbrCqt9kyRp8qhgdA6zihVUjAGbjmnec
+         +Hxj+Tz3GMJNu1r4Q5GgLCpMC+fxd0YzukM18dbBfhl0GfYZvJD1nIBWDw0FW7mRCL4k
+         tv1w==
+X-Gm-Message-State: APjAAAVzEc1dpR5VGAkYqeyLunuhcFFlqpqykhypp25JEVUnhEcTAch5
+	mGEvA6CXdomL75nzJzSYN50Z0jYRD8Cw3TZHxC9v3Vu0OwJ7kUihj6jkFgx1/t5RGa2QOPZhefQ
+	UW+QjgBfAFwVXjHIo9rYGZAAIIPpSdvUZM8WJ6VWGHi7eYqh2PGHojgBK65t/1X+aOg==
+X-Received: by 2002:a6b:c9d8:: with SMTP id z207mr135880507iof.184.1565026633514;
+        Mon, 05 Aug 2019 10:37:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxOPYZjx73ZsYBy/jA6nxAqQJAKvOJydE8VUeXXYG9mNUkZc6R6xdkKNbf7NoFbIlR/FmqR
+X-Received: by 2002:a6b:c9d8:: with SMTP id z207mr135880425iof.184.1565026632446;
+        Mon, 05 Aug 2019 10:37:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565026632; cv=none;
         d=google.com; s=arc-20160816;
-        b=pcFN56cu26E/8z9jx+bMKZnq0z2powYP4w0rneFJR9X394e0yZ7NOSa1IIHNCUBY6S
-         SkPw1d4IkhJFephNOB5FR0ZtHEvI/AolihiELr23hs3TeCuX7+63qRcR+S+SXuGpkGEL
-         g9jm/ca0WpSSSmqEmLT3I6KjuSExH04f+bZgDdxuszdme/FLNVHxk53d92azbY/Avup8
-         jbXlPRySvHnne4rPbxXbCNg2mqlK2sPJcNLkA8OzjL5A9po1wga5mozDJpbn4ddKRCjH
-         NxD3HggX/mnyBwBNrpyWv2dYgTZVzvtbY8irAbTfjkyZ092K5Jsc2KxL6VGSg1pBOvGd
-         4Ykw==
+        b=nQhzDB8N2c3VbZ2XkOyfOdthsBU7/AVfF24vh0ATmxRUwC1UwhO7qGqPXZwhvtsBq/
+         swrN4vlnd3Q0YAOzNukzK7D/Y9MQCe2/LbWmC1nFXYmF0qD4tnAL+01f4gtqiF2u+DWO
+         9tjhOVECStGC7elvcNZmFz2rafqWeNQ2Os5MvKf8dEoiD4Ai3kx/NzXTPwoo4AwhVWvU
+         J+WwxzUrRGzekObDEEnvmWtilv5y9EBEW6HCluzy9l/bN7ksC+RZwV0pegP3K3nVvtL2
+         Y4U8+GTVOD+2wWVK9RtJPxU1oGQq5TnYxHvV7ogb/R/BjEZxwvs9J0MWqLPGdxnduHtB
+         H06g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=2ylHX28kDsFtD8dDqhQ9lJwkyPUh7ky+fY53QW66arU=;
-        b=Mqcv+TTj09s+tzbUGIK+Vr9VdRIDzqqWHNxiraQwvHEFQSoaqemzreVbbAjDcQxh5S
-         DGxGjLQ43xjSZRVQw7Ymp2TxqxIJRjxJ0YZEsssYTYP4cgiMpxF4T6IKVy88wb1FYYKd
-         Vcj9TZopCdWg88UvV1Nk1lnEwgIUVW9QQ5sjANiQyaif4yVLfV0oftpHH3cUGw1B+2be
-         iVkdT4AS1VYpw79wVZCY/C2QR15JtN2Izx9GVu47PSRns1TNwXe1b9cn5MlW3pADXFHg
-         kWEkUMsbTt2/b9Q4HnlS/DP6vC10p9BQk1h94wL3ZYZ24OUD+ebLQMLXaAZpu8Jt1W1t
-         jtBg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=hT6KvXWHsB1KFIxDjmguE5kZ2emdManS6SuK/ap0TkI=;
+        b=J6gbKUkJgUMSACPT3mzmM/IbO7L75gim5BLx7P5qjkZyFoUAIXEJ+BC01fdiaMGC2Q
+         trUceFVy9M75TTff/Sy+Q/B9eYbj4ySAQf2Y4941gS3BM6Xzl6Qa0WjF/xgZJPkhaKuT
+         h6WW76oN9jMIPdDEnxahBPWDRXFkdjqKjm8swZsmfcYdfoq7s6Q7c0vKzt54GGPfODOS
+         boWVtCJWc/Lz1/Qetdb41ubtZghKQwDDeaeIxUBFuIHmLUjHcKg1t1Qaq55GjjQaTTfs
+         JWuJx/uSmM7jHjuODL7PqdMZ9SSL4lK1vi7Icvr3ob1hWZPjCqiryAuO3xz4lw2lidmh
+         FOPg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=MXsZIH74;
-       spf=pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=henryburns@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r3sor47068642jai.10.2019.08.05.10.35.18
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=OiLr8mXL;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id i8si97236327ioh.19.2019.08.05.10.37.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Aug 2019 10:35:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Aug 2019 10:37:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=MXsZIH74;
-       spf=pass (google.com: domain of henryburns@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=henryburns@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=2ylHX28kDsFtD8dDqhQ9lJwkyPUh7ky+fY53QW66arU=;
-        b=MXsZIH74B5Q/cl0qsNmmILDSFXHEL+ovfUHp+Zy75//dZbmMyTsCe0DjPgaXWYq59x
-         49iGpFNh+p3YD4OvRJbH8S+uP0L/eBXnBh9AKLLiRIB2aZybCNoL85Hnl9SJe67kefLs
-         adRR8GbBoQ8iIWJyTzuBpNdRbYj4aOg5DH2saIQX+BP0zTwlPZM8cARb1aCDQMMbzOfX
-         qFWPgXhK9b/oqh/98WdDK3l5cEogzCDB81YAB4tZyD7n4AK+x0RBC6TnVjIWt+PO61/g
-         CVpRh24fkfiM3vT4LHYtqWx2idgqVqBc4hKDUUCr0qEIgM7dS2090n8CcTxm3K2fnsyn
-         LwAA==
-X-Google-Smtp-Source: APXvYqxiDS7i6zrRpAvp6PN+3FDeC6l+K7xng+7XfVuSoKGBXYDZTwXnxbR0h+nfB5dfKiTVZzbg6OCWEKD+cFlaX5k=
-X-Received: by 2002:a02:8663:: with SMTP id e90mr153691969jai.98.1565026518071;
- Mon, 05 Aug 2019 10:35:18 -0700 (PDT)
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=OiLr8mXL;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x75HNUZP152617;
+	Mon, 5 Aug 2019 17:37:04 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=hT6KvXWHsB1KFIxDjmguE5kZ2emdManS6SuK/ap0TkI=;
+ b=OiLr8mXLp9u31cORyoaaREIyIKORwjH13EN6bFCVbvclkkezmlDizBdBEBu80X0kZjPU
+ 6mdIL2E/cEOnc3TE/qhc12FFff7EJdbvMBpF5ksrqkiJ9R0ZZ9mFkHlo4ZNFHTzsOivK
+ FgsDPX6yJI57BsElVQA6iGSPDLeQDZMQsXRw1+SDeHaGs1h33GOXnio164dS2DHbtcwd
+ wfJidCKwoYcPLiY5RHvmdUKJcbXU+/NzQXxkXYbZjL9DebV+0i27Gr7zaipblc4Okx3Z
+ pBlVaXQtentfLeoD93kLiCyCOUrJIrSTQcmhF8yWbRR1EJqCl1JVq8V5QmOBZCw2MNyL OQ== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by aserp2120.oracle.com with ESMTP id 2u527pgnch-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 05 Aug 2019 17:37:03 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x75HR43h045369;
+	Mon, 5 Aug 2019 17:37:03 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserp3030.oracle.com with ESMTP id 2u50abyfq1-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 05 Aug 2019 17:37:03 +0000
+Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x75Havpg013594;
+	Mon, 5 Aug 2019 17:36:57 GMT
+Received: from [192.168.1.222] (/71.63.128.209)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 05 Aug 2019 10:36:56 -0700
+Subject: =?UTF-8?Q?Re=3a_=5bMM_Bug=3f=5d_mmap=28=29_triggers_SIGBUS_while_do?=
+ =?UTF-8?B?aW5nIHRoZeKAiyDigItudW1hX21vdmVfcGFnZXMoKSBmb3Igb2ZmbGluZWQgaHVn?=
+ =?UTF-8?Q?epage_in_background?=
+To: Michal Hocko <mhocko@suse.com>
+Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Li Wang <liwang@redhat.com>,
+        Linux-MM <linux-mm@kvack.org>, LTP List <ltp@lists.linux.it>,
+        "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>,
+        Cyril Hrubis <chrubis@suse.cz>
+References: <CAEemH2dMW6oh6Bbm=yqUADF+mDhuQgFTTGYftB+xAhqqdYV3Ng@mail.gmail.com>
+ <47999e20-ccbe-deda-c960-473db5b56ea0@oracle.com>
+ <CAEemH2d=vEfppCbCgVoGdHed2kuY3GWnZGhymYT1rnxjoWNdcQ@mail.gmail.com>
+ <a65e748b-7297-8547-c18d-9fb07202d5a0@oracle.com>
+ <27a48931-aff6-d001-de78-4f7bef584c32@oracle.com>
+ <20190802041557.GA16274@hori.linux.bs1.fc.nec.co.jp>
+ <54a5c9f5-eade-0d8f-24f9-bff6f19d4905@oracle.com>
+ <20190805085740.GC7597@dhcp22.suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <7d78f6b9-afb8-79d1-003e-56de58fded00@oracle.com>
+Date: Mon, 5 Aug 2019 10:36:55 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-References: <20190802015332.229322-1-henryburns@google.com>
- <20190802015332.229322-2-henryburns@google.com> <20190805042821.GA102749@google.com>
-In-Reply-To: <20190805042821.GA102749@google.com>
-From: Henry Burns <henryburns@google.com>
-Date: Mon, 5 Aug 2019 10:34:41 -0700
-Message-ID: <CAGQXPTiHtNJsBz8dGCvejtmvGgPNHBoQHSmbX4XkxJ5DTmUWGg@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm/zsmalloc.c: Fix race condition in zs_destroy_pool
-To: Minchan Kim <minchan@kernel.org>
-Cc: Nitin Gupta <ngupta@vflare.org>, 
-	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Shakeel Butt <shakeelb@google.com>, 
-	Jonathan Adams <jwadams@google.com>, Linux MM <linux-mm@kvack.org>, 
-	LKML <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190805085740.GC7597@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9340 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1908050186
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9340 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1908050186
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 4, 2019 at 9:28 PM Minchan Kim <minchan@kernel.org> wrote:
->
-> Hi Henry,
->
-> On Thu, Aug 01, 2019 at 06:53:32PM -0700, Henry Burns wrote:
-> > In zs_destroy_pool() we call flush_work(&pool->free_work). However, we
-> > have no guarantee that migration isn't happening in the background
-> > at that time.
-> >
-> > Since migration can't directly free pages, it relies on free_work
-> > being scheduled to free the pages.  But there's nothing preventing an
-> > in-progress migrate from queuing the work *after*
-> > zs_unregister_migration() has called flush_work().  Which would mean
-> > pages still pointing at the inode when we free it.
->
-> We already unregister shrinker so there is no upcoming async free call
-> via shrinker so the only concern is zs_compact API direct call from
-> the user. Is that what what you desribe from the description?
+On 8/5/19 1:57 AM, Michal Hocko wrote:
+> On Fri 02-08-19 10:42:33, Mike Kravetz wrote:
+>> On 8/1/19 9:15 PM, Naoya Horiguchi wrote:
+>>> On Thu, Aug 01, 2019 at 05:19:41PM -0700, Mike Kravetz wrote:
+>>>> There appears to be a race with hugetlb_fault and try_to_unmap_one of
+>>>> the migration path.
+>>>>
+>>>> Can you try this patch in your environment?  I am not sure if it will
+>>>> be the final fix, but just wanted to see if it addresses issue for you.
+>>>>
+>>>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+>>>> index ede7e7f5d1ab..f3156c5432e3 100644
+>>>> --- a/mm/hugetlb.c
+>>>> +++ b/mm/hugetlb.c
+>>>> @@ -3856,6 +3856,20 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
+>>>>  
+>>>>  		page = alloc_huge_page(vma, haddr, 0);
+>>>>  		if (IS_ERR(page)) {
+>>>> +			/*
+>>>> +			 * We could race with page migration (try_to_unmap_one)
+>>>> +			 * which is modifying page table with lock.  However,
+>>>> +			 * we are not holding lock here.  Before returning
+>>>> +			 * error that will SIGBUS caller, get ptl and make
+>>>> +			 * sure there really is no entry.
+>>>> +			 */
+>>>> +			ptl = huge_pte_lock(h, mm, ptep);
+>>>> +			if (!huge_pte_none(huge_ptep_get(ptep))) {
+>>>> +				ret = 0;
+>>>> +				spin_unlock(ptl);
+>>>> +				goto out;
+>>>> +			}
+>>>> +			spin_unlock(ptl);
+>>>
+>>> Thanks you for investigation, Mike.
+>>> I tried this change and found no SIGBUS, so it works well.
+>>>
+>>> I'm still not clear about how !huge_pte_none() becomes true here,
+>>> because we enter hugetlb_no_page() only when huge_pte_none() is non-null
+>>> and (racy) try_to_unmap_one() from page migration should convert the
+>>> huge_pte into a migration entry, not null.
+>>
+>> Thanks for taking a look Naoya.
+>>
+>> In try_to_unmap_one(), there is this code block:
+>>
+>> 		/* Nuke the page table entry. */
+>> 		flush_cache_page(vma, address, pte_pfn(*pvmw.pte));
+>> 		if (should_defer_flush(mm, flags)) {
+>> 			/*
+>> 			 * We clear the PTE but do not flush so potentially
+>> 			 * a remote CPU could still be writing to the page.
+>> 			 * If the entry was previously clean then the
+>> 			 * architecture must guarantee that a clear->dirty
+>> 			 * transition on a cached TLB entry is written through
+>> 			 * and traps if the PTE is unmapped.
+>> 			 */
+>> 			pteval = ptep_get_and_clear(mm, address, pvmw.pte);
+>>
+>> 			set_tlb_ubc_flush_pending(mm, pte_dirty(pteval));
+>> 		} else {
+>> 			pteval = ptep_clear_flush(vma, address, pvmw.pte);
+>> 		}
+>>
+>> That happens before setting the migration entry.  Therefore, for a period
+>> of time the pte is NULL (huge_pte_none() returns true).
+>>
+>> try_to_unmap_one holds the page table lock, but hugetlb_fault does not take
+>> the lock to 'optimistically' check huge_pte_none().  When huge_pte_none
+>> returns true, it calls hugetlb_no_page which is where we try to allocate
+>> a page and fails.
+>>
+>> Does that make sense, or am I missing something?
+>>
+>> The patch checks for this specific condition: someone changing the pte
+>> from NULL to non-NULL while holding the lock.  I am not sure if this is
+>> the best way to fix.  But, it may be the easiest.
+> 
+> Please add a comment to explain this because this is quite subtle and
+> tricky. Unlike the regular page fault hugetlb_no_page is protected by a
+> large lock so a retry check seems unexpected.
 
-What I am describing is a call to zsmalloc_aops->migratepage() by
-kcompactd (which can call schedule work in either
-zs_page_migrate() or zs_page_putback should the zspage become empty).
+Will do.
 
-While we are migrating a page, we remove it from the class. Suppose
-zs_free() loses a race with migration. We would schedule
-async_free_zspage() to handle freeing that zspage, however we have no
-guarantee that migration has finished
-by the time we finish flush_work(&pool->work). In that case we then
-call iput(inode), and now we have a page
-pointing to a non-existent inode. (At which point something like
-kcompactd would potentially BUG() if it tries to get a page
-(from the inode) that doesn't exist anymore)
+Fixing up hugetlbfs locking is still 'on my list'.  There are known issues.
+The last RFC/attempt was this:
+http://lkml.kernel.org/r/20190201221705.15622-1-mike.kravetz@oracle.com
+I believe that patch would have handled this issue.
 
-
->
-> If so, can't we add a flag to indicate destroy of the pool and
-> global counter to indicate how many of zs_compact was nested?
->
-> So, zs_unregister_migration in zs_destroy_pool can set the flag to
-> prevent upcoming zs_compact call and wait until the global counter
-> will be zero. Once it's done, finally flush the work.
->
-> My point is it's not a per-class granuarity but global.
-
-We could have a pool level counter of isolated pages, and wait for
-that to finish before starting flush_work(&pool->work); However,
-that would require an atomic_long in zs_pool, and we would have to eat
-the cost of any contention over that lock. Still, it might be
-preferable to a per-class granularity.
-
->
-> Thanks.
->
-> >
-> > Since we know at destroy time all objects should be free, no new
-> > migrations can come in (since zs_page_isolate() fails for fully-free
-> > zspages).  This means it is sufficient to track a "# isolated zspages"
-> > count by class, and have the destroy logic ensure all such pages have
-> > drained before proceeding.  Keeping that state under the class
-> > spinlock keeps the logic straightforward.
-> >
-> > Signed-off-by: Henry Burns <henryburns@google.com>
-> > ---
-> >  mm/zsmalloc.c | 68 ++++++++++++++++++++++++++++++++++++++++++++++++---
-> >  1 file changed, 65 insertions(+), 3 deletions(-)
-> >
-> > diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> > index efa660a87787..1f16ed4d6a13 100644
-> > --- a/mm/zsmalloc.c
-> > +++ b/mm/zsmalloc.c
-> > @@ -53,6 +53,7 @@
-> >  #include <linux/zpool.h>
-> >  #include <linux/mount.h>
-> >  #include <linux/migrate.h>
-> > +#include <linux/wait.h>
-> >  #include <linux/pagemap.h>
-> >  #include <linux/fs.h>
-> >
-> > @@ -206,6 +207,10 @@ struct size_class {
-> >       int objs_per_zspage;
-> >       /* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
-> >       int pages_per_zspage;
-> > +#ifdef CONFIG_COMPACTION
-> > +     /* Number of zspages currently isolated by compaction */
-> > +     int isolated;
-> > +#endif
-> >
-> >       unsigned int index;
-> >       struct zs_size_stat stats;
-> > @@ -267,6 +272,8 @@ struct zs_pool {
-> >  #ifdef CONFIG_COMPACTION
-> >       struct inode *inode;
-> >       struct work_struct free_work;
-> > +     /* A workqueue for when migration races with async_free_zspage() */
-> > +     struct wait_queue_head migration_wait;
-> >  #endif
-> >  };
-> >
-> > @@ -1917,6 +1924,21 @@ static void putback_zspage_deferred(struct zs_pool *pool,
-> >
-> >  }
-> >
-> > +static inline void zs_class_dec_isolated(struct zs_pool *pool,
-> > +                                      struct size_class *class)
-> > +{
-> > +     assert_spin_locked(&class->lock);
-> > +     VM_BUG_ON(class->isolated <= 0);
-> > +     class->isolated--;
-> > +     /*
-> > +      * There's no possibility of racing, since wait_for_isolated_drain()
-> > +      * checks the isolated count under &class->lock after enqueuing
-> > +      * on migration_wait.
-> > +      */
-> > +     if (class->isolated == 0 && waitqueue_active(&pool->migration_wait))
-> > +             wake_up_all(&pool->migration_wait);
-> > +}
-> > +
-> >  static void replace_sub_page(struct size_class *class, struct zspage *zspage,
-> >                               struct page *newpage, struct page *oldpage)
-> >  {
-> > @@ -1986,6 +2008,7 @@ static bool zs_page_isolate(struct page *page, isolate_mode_t mode)
-> >        */
-> >       if (!list_empty(&zspage->list) && !is_zspage_isolated(zspage)) {
-> >               get_zspage_mapping(zspage, &class_idx, &fullness);
-> > +             class->isolated++;
-> >               remove_zspage(class, zspage, fullness);
-> >       }
-> >
-> > @@ -2085,8 +2108,14 @@ static int zs_page_migrate(struct address_space *mapping, struct page *newpage,
-> >        * Page migration is done so let's putback isolated zspage to
-> >        * the list if @page is final isolated subpage in the zspage.
-> >        */
-> > -     if (!is_zspage_isolated(zspage))
-> > +     if (!is_zspage_isolated(zspage)) {
-> > +             /*
-> > +              * We still hold the class lock while all of this is happening,
-> > +              * so we cannot race with zs_destroy_pool()
-> > +              */
-> >               putback_zspage_deferred(pool, class, zspage);
-> > +             zs_class_dec_isolated(pool, class);
-> > +     }
-> >
-> >       reset_page(page);
-> >       put_page(page);
-> > @@ -2131,9 +2160,11 @@ static void zs_page_putback(struct page *page)
-> >
-> >       spin_lock(&class->lock);
-> >       dec_zspage_isolation(zspage);
-> > -     if (!is_zspage_isolated(zspage))
-> > -             putback_zspage_deferred(pool, class, zspage);
-> >
-> > +     if (!is_zspage_isolated(zspage)) {
-> > +             putback_zspage_deferred(pool, class, zspage);
-> > +             zs_class_dec_isolated(pool, class);
-> > +     }
-> >       spin_unlock(&class->lock);
-> >  }
-> >
-> > @@ -2156,8 +2187,36 @@ static int zs_register_migration(struct zs_pool *pool)
-> >       return 0;
-> >  }
-> >
-> > +static bool class_isolated_are_drained(struct size_class *class)
-> > +{
-> > +     bool ret;
-> > +
-> > +     spin_lock(&class->lock);
-> > +     ret = class->isolated == 0;
-> > +     spin_unlock(&class->lock);
-> > +     return ret;
-> > +}
-> > +
-> > +/* Function for resolving migration */
-> > +static void wait_for_isolated_drain(struct zs_pool *pool)
-> > +{
-> > +     int i;
-> > +
-> > +     /*
-> > +      * We're in the process of destroying the pool, so there are no
-> > +      * active allocations. zs_page_isolate() fails for completely free
-> > +      * zspages, so we need only wait for each size_class's isolated
-> > +      * count to hit zero.
-> > +      */
-> > +     for (i = 0; i < ZS_SIZE_CLASSES; i++) {
-> > +             wait_event(pool->migration_wait,
-> > +                        class_isolated_are_drained(pool->size_class[i]));
-> > +     }
-> > +}
-> > +
-> >  static void zs_unregister_migration(struct zs_pool *pool)
-> >  {
-> > +     wait_for_isolated_drain(pool); /* This can block */
-> >       flush_work(&pool->free_work);
-> >       iput(pool->inode);
-> >  }
-> > @@ -2401,6 +2460,8 @@ struct zs_pool *zs_create_pool(const char *name)
-> >       if (!pool->name)
-> >               goto err;
-> >
-> > +     init_waitqueue_head(&pool->migration_wait);
-> > +
-> >       if (create_cache(pool))
-> >               goto err;
-> >
-> > @@ -2466,6 +2527,7 @@ struct zs_pool *zs_create_pool(const char *name)
-> >               class->index = i;
-> >               class->pages_per_zspage = pages_per_zspage;
-> >               class->objs_per_zspage = objs_per_zspage;
-> > +             class->isolated = 0;
-> >               spin_lock_init(&class->lock);
-> >               pool->size_class[i] = class;
-> >               for (fullness = ZS_EMPTY; fullness < NR_ZS_FULLNESS;
-> > --
-> > 2.22.0.770.g0f2c4a37fd-goog
-> >
+However, as mentioned above it may better to just patch this issue exposed
+by LTP and work on the more comprehensive change in the background.
+-- 
+Mike Kravetz
 
