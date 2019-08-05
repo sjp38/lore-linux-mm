@@ -2,198 +2,266 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B756BC0650F
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 08:42:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F42DC433FF
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 08:43:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7739820880
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 08:42:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7739820880
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id C4E4820880
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 08:43:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4E4820880
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EC3646B0003; Mon,  5 Aug 2019 04:42:32 -0400 (EDT)
+	id 59D1B6B0005; Mon,  5 Aug 2019 04:43:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E4D776B0005; Mon,  5 Aug 2019 04:42:32 -0400 (EDT)
+	id 526586B0006; Mon,  5 Aug 2019 04:43:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D15BB6B0006; Mon,  5 Aug 2019 04:42:32 -0400 (EDT)
+	id 353A76B0007; Mon,  5 Aug 2019 04:43:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 810B26B0003
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 04:42:32 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f3so51054048edx.10
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 01:42:32 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CFDC46B0005
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 04:43:01 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id i9so51080106edr.13
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 01:43:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=Xa0gaYwsBgonMG8mg5y+SXvLYUZ5MElxrTVPBeiFBVQ=;
-        b=F4bHHVYWvsnIBbPbfL93z5fsC/kqMPDWHggCEUnTfjBvAPFvjlJYiEFHH94IzaD0z0
-         ivAIvdrC7Tm8g/9aDTlJvnqpQ498tQZdf+Z5y0iI5Cz2KyzNbMV65LnnTP7xkpR7FUYw
-         mvBeALgXSCFq0myDL9Qzhf1vfxYR0L9+fXTsN+TH3qm7a2Y5WKBIyzyHQ3/rbntONfet
-         Z3/7vTJina9smry8unax/77lw/sWY1kk6oO5TwHLgZHcN7gQQE0McoxhnPiJxaLZeal7
-         WP4lQNtkqe6lI4UZdKuARneLy8Dc47p7p0Sxdy/m8jldEIh+2sDNfNZpwjM21bC2ARl9
-         JqfA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWrdCTKvEXkeuFakb/TvwQtgg5u/vSRPlh23yNvphXlic3LZDUf
-	Y8jCsvGnjheJB673nXYiEJWeELQ1yYnVYIq+vAKI0iEQvgRlRG2Vkfw3kkZoroKBO1qE/l04dSf
-	j7/JW/DX9oJYBID+/A4jwFL2Ffj0WOFJFWZwJoD9Uu5OSInmPDslTI+yw6CaHzT0=
-X-Received: by 2002:a17:907:20a6:: with SMTP id pw6mr105632359ejb.111.1564994551963;
-        Mon, 05 Aug 2019 01:42:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxuEwHzZ9Zi3vUu8Vo/4cVHfe1lemW+g2Cmi5F4G1H4IdsmCyNwEheIvA9QhrBgPl70i3vL
-X-Received: by 2002:a17:907:20a6:: with SMTP id pw6mr105632310ejb.111.1564994551049;
-        Mon, 05 Aug 2019 01:42:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564994551; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=/IHFKxXk+Yr8G4Z6c3nZJvSj4L0kjAeKcxjyzWSgJGw=;
+        b=q5chL/Q5yhsrbSmkLVTm+W3STw+0lwAxhCoumprC2mpTu2uTERRgwHwiSVL4bVXrc7
+         EG9Qy5YaQvUySu+iD8en++Kly272hsCUFthZkUYZaiqj+QGociQ0nWFouMYV0z4IpFYl
+         EnyszdSnMk1NqN3D2dyxH6OMdBJGtyhDp3iwbsJASGOeHVukGDxzc8ADXji8ab7P0KD1
+         pSdUV6sBg1iudIG+qLg+OSr829v+5sFhLXGIGzyv0SySk6ltHe4OwyfenzmN1VfwGnco
+         h42NFJqs1WTBT1nHfXIlBEj55AHxYlTFp7SjFHBXRfSVWgNMJrTy89kIY1ompkDA3buC
+         Sciw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAV80DTdBY6Pzv5Yfeo910X00yktqRQtxSGK6scX43Km22gIwJAj
+	Ayt3Vi6FD4oEbL7Wj2/DgRfylPYQ8Zg4DcTnWoo8lbyavH73jf9CHs1wq45NtA0Jiy1hjGv3tJ/
+	SFJF7MrexVOWaZvyrzOfNwZ+HOXg0blbSQAv+Yhv89cZ5/vTEsFqd5907qc84oCSj+Q==
+X-Received: by 2002:a17:906:d201:: with SMTP id w1mr84870565ejz.303.1564994581418;
+        Mon, 05 Aug 2019 01:43:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzvinEeftHyjvcpCfPYEj+61CS/2kPz4n+Yq65Dm4YGYak//msHrb5tFClTF2qknCpDKtma
+X-Received: by 2002:a17:906:d201:: with SMTP id w1mr84870513ejz.303.1564994580482;
+        Mon, 05 Aug 2019 01:43:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564994580; cv=none;
         d=google.com; s=arc-20160816;
-        b=FaI2aRcdN/Y40QNG3YLb+ZeP52J9u5ozJrH5jiIwDebirFDtxcPtmcP0VfmDBFItnT
-         /dtX/xeWY8EnK/5yURWV2XLAdhC03pd0HPKddYhUiIwud1zFnwXHbSsZhd3X5GIjQvY4
-         qjgV5jK8h8BuqjDa4DySZY22BSJWYL3Y4isbo7gouZV2ymY+rcPI14SEq4PCI1PDPgRF
-         TNXjx5wGbsHgBGRpU2EydSYjiih/lds0ZbyACXMaJnRMTDyIvN/shzu/aQ+5T3CfjwfR
-         qAfzNz8c9VNfjgQTQ3y1BtFQT2XCQUPBAoJ/cNFO8Vcltv9UeKPjitvHq1XT75BFNndp
-         4jMw==
+        b=kTagFpesMBaQVWSPJ6KcEm/b4EtSEBtIZt0tzc0m8AZjH3ZqaLh2JtMx05CMfm9U8u
+         v0kYN2yX8FYONPQdx6z5pHGKL8VpUkk++jJmNxRRuZbwk3jr28HN+rkWfzqHeBTWsixL
+         Y5wJ+t/e9eF+4oVcQXW9BouWeI6yyK7gBQz4YHMSI/1P1aw8TYPq/htkPxK16h2HTv7s
+         ZVgBZJv08JoYEmy/raQtU7hItccZkgVs94q2f+P8WcOLxJ3azad8bWgJQ9at1VrDIuSn
+         nmNzctu9lVur3duofq97oU81gylII9qGfBXZZBwivyfCyHfoQEg+mW/azK7bO69XUfGF
+         KjCw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=Xa0gaYwsBgonMG8mg5y+SXvLYUZ5MElxrTVPBeiFBVQ=;
-        b=Dd6cw6DNYXSdvYeGF7iBlwGu/eY2R8XYuIS+3YIbBg/57wq71fOLqFkbXu9m9Aq4vD
-         f6gRniFhoVF9dDaI8yrpTTI94Zt2g2W+tQBKMQUl7iHIEqs405bzTankqwwKMIVTQMO0
-         FNcgVPlSXBgsWvr4Oh3/c+13/aqJTYOZluI7RpsX63xtayf2kI65c2EWG+OGio9Nbdni
-         d/Q5UEVZtvxT7ehnUiUaF0GkoR/aetstN23AUwDCtu9VWuo8wtmVutNX8zadcaEgRSLo
-         2Uhwkj0ZKezxJXQdd8+p9oRaDRYeYIQtpgJ6mtbLyoZasibBr98WU65WaDmWI2e9T2bJ
-         3PZw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=/IHFKxXk+Yr8G4Z6c3nZJvSj4L0kjAeKcxjyzWSgJGw=;
+        b=XdyzGh5whl1fGzzKF30UqLNF2VMxIpKhdsmcijzJ3SLdaOISG/4J1uDegNMr9b8a2+
+         aGRfIU0P/kTHKgGRdaWo71ixpYDFwZZgA+c50AMOZL3ipkMhs+Vak5jd9yQyE4aVd5Te
+         lUbrlYasvTc71Ptf+9Z6a77CnrSmbQeyxXiaUl6OppNMC0YtX8iM7EDa1V9/Ibn7H4K+
+         x0QEDRNSYdvZH7Li5QfqFt/4fKk9TEhz8vQJ0Lt3aB0vV6kHtTt2opUj9Y/Xw3MiNKO4
+         oqIzJ53PD34k4n/fS7PGjHhEJVkrZI2UKP93/f9uZ0Zbloz5HnlUe1lBMZukT+eimXkA
+         AWAw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x22si24779187eju.379.2019.08.05.01.42.30
+        by mx.google.com with ESMTPS id y23si27102730edu.250.2019.08.05.01.43.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Aug 2019 01:42:31 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Mon, 05 Aug 2019 01:43:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 77027B60E;
-	Mon,  5 Aug 2019 08:42:30 +0000 (UTC)
-Date: Mon, 5 Aug 2019 10:42:28 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-Cc: Masoud Sharbiani <msharbiani@apple.com>,
-	Greg KH <gregkh@linuxfoundation.org>, hannes@cmpxchg.org,
-	vdavydov.dev@gmail.com, linux-mm@kvack.org, cgroups@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: Possible mem cgroup bug in kernels between 4.18.0 and 5.3-rc1.
-Message-ID: <20190805084228.GB7597@dhcp22.suse.cz>
-References: <5659221C-3E9B-44AD-9BBF-F74DE09535CD@apple.com>
- <20190802074047.GQ11627@dhcp22.suse.cz>
- <7E44073F-9390-414A-B636-B1AE916CC21E@apple.com>
- <20190802144110.GL6461@dhcp22.suse.cz>
- <5DE6F4AE-F3F9-4C52-9DFC-E066D9DD5EDC@apple.com>
- <20190802191430.GO6461@dhcp22.suse.cz>
- <A06C5313-B021-4ADA-9897-CE260A9011CC@apple.com>
- <f7733773-35bc-a1f6-652f-bca01ea90078@I-love.SAKURA.ne.jp>
- <d7efccf4-7f07-10da-077d-a58dafbf627e@I-love.SAKURA.ne.jp>
+	by mx1.suse.de (Postfix) with ESMTP id D5442B61C;
+	Mon,  5 Aug 2019 08:42:59 +0000 (UTC)
+Subject: Re: [PATCH 1/3] mm, reclaim: make should_continue_reclaim perform
+ dryrun detection
+To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+Cc: Hillf Danton <hdanton@sina.com>, Michal Hocko <mhocko@kernel.org>,
+ Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>,
+ Andrea Arcangeli <aarcange@redhat.com>, David Rientjes
+ <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+References: <20190802223930.30971-1-mike.kravetz@oracle.com>
+ <20190802223930.30971-2-mike.kravetz@oracle.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <bb16d3f0-0984-be32-4346-358abad92c4c@suse.cz>
+Date: Mon, 5 Aug 2019 10:42:59 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d7efccf4-7f07-10da-077d-a58dafbf627e@I-love.SAKURA.ne.jp>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190802223930.30971-2-mike.kravetz@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun 04-08-19 00:51:18, Tetsuo Handa wrote:
-> Masoud, will you try this patch?
+On 8/3/19 12:39 AM, Mike Kravetz wrote:
+> From: Hillf Danton <hdanton@sina.com>
 > 
-> By the way, is /sys/fs/cgroup/memory/leaker/memory.usage_in_bytes remains non-zero
-> despite /sys/fs/cgroup/memory/leaker/tasks became empty due to memcg OOM killer expected?
-> Deleting big-data-file.bin after memcg OOM killer reduces some, but still remains
-> non-zero.
+> Address the issue of should_continue_reclaim continuing true too often
+> for __GFP_RETRY_MAYFAIL attempts when !nr_reclaimed and nr_scanned.
+> This could happen during hugetlb page allocation causing stalls for
+> minutes or hours.
 > 
-> ----------------------------------------
-> >From 2f92c70f390f42185c6e2abb8dda98b1b7d02fa9 Mon Sep 17 00:00:00 2001
-> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Date: Sun, 4 Aug 2019 00:41:30 +0900
-> Subject: [PATCH] memcg, oom: don't require __GFP_FS when invoking memcg OOM killer
+> We can stop reclaiming pages if compaction reports it can make a progress.
+> A code reshuffle is needed to do that.
+
+> And it has side-effects, however,
+> with allocation latencies in other cases but that would come at the cost
+> of potential premature reclaim which has consequences of itself.
+
+Based on Mel's longer explanation, can we clarify the wording here? e.g.:
+
+There might be side-effect for other high-order allocations that would
+potentially benefit from more reclaim before compaction for them to be
+faster and less likely to stall, but the consequences of
+premature/over-reclaim are considered worse.
+
+> We can also bail out of reclaiming pages if we know that there are not
+> enough inactive lru pages left to satisfy the costly allocation.
 > 
-> Masoud Sharbiani noticed that commit 29ef680ae7c21110 ("memcg, oom: move
-> out_of_memory back to the charge path") broke memcg OOM called from
-> __xfs_filemap_fault() path.
+> We can give up reclaiming pages too if we see dryrun occur, with the
+> certainty of plenty of inactive pages. IOW with dryrun detected, we are
+> sure we have reclaimed as many pages as we could.
+> 
+> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+> Cc: Mel Gorman <mgorman@suse.de>
+> Cc: Michal Hocko <mhocko@kernel.org>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Johannes Weiner <hannes@cmpxchg.org>
+> Signed-off-by: Hillf Danton <hdanton@sina.com>
+> Tested-by: Mike Kravetz <mike.kravetz@oracle.com>
+> Acked-by: Mel Gorman <mgorman@suse.de>
 
-This is very well spotted! I really didn't think of GFP_NOFS although
-xfs in the mix could give me some clue.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+I will send some followup cleanup.
 
-> It turned out that try_chage() is retrying
-> forever without making forward progress because mem_cgroup_oom(GFP_NOFS)
-> cannot invoke the OOM killer due to commit 3da88fb3bacfaa33 ("mm, oom:
-> move GFP_NOFS check to out_of_memory"). Regarding memcg OOM, we need to
-> bypass GFP_NOFS check in order to guarantee forward progress.
+There should be also Mike's SOB?
 
-This deserves more information about the fix. Why is it OK to trigger
-OOM for GFP_NOFS allocations? Doesn't this lead to pre-mature OOM killer
-invocation?
 
-You can argue that memcg charges have ignored GFP_NOFS without seeing a
-lot of problems. But please document that in the changelog.
-
-It is 3da88fb3bacfaa33 that has introduced this heuristic and I have to
-confess I haven't realized the side effect on the memcg side because
-OOM was triggered only from the GFP_KERNEL context. So I would point
-to 3da88fb3bacfaa33 as introducing the regression albeit silent at the
-time.
-
-> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
-> Reported-by: Masoud Sharbiani <msharbiani@apple.com>
-> Bisected-by: Masoud Sharbiani <msharbiani@apple.com>
-> Fixes: 29ef680ae7c21110 ("memcg, oom: move out_of_memory back to the charge path")
-
-I would say
-Fixes: 3da88fb3bacfaa33 # necessary after 29ef680ae7c21110
-
-Other than that I am not really sure about a better fix. Let's see
-whether we see some pre-mature memcg OOM reports and think where to get
-from there.
-
-With updated changelog
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks!
 
 > ---
->  mm/oom_kill.c | 5 +++--
->  1 file changed, 3 insertions(+), 2 deletions(-)
+>  mm/vmscan.c | 28 +++++++++++++++-------------
+>  1 file changed, 15 insertions(+), 13 deletions(-)
 > 
-> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-> index eda2e2a..26804ab 100644
-> --- a/mm/oom_kill.c
-> +++ b/mm/oom_kill.c
-> @@ -1068,9 +1068,10 @@ bool out_of_memory(struct oom_control *oc)
->  	 * The OOM killer does not compensate for IO-less reclaim.
->  	 * pagefault_out_of_memory lost its gfp context so we have to
->  	 * make sure exclude 0 mask - all other users should have at least
-> -	 * ___GFP_DIRECT_RECLAIM to get here.
-> +	 * ___GFP_DIRECT_RECLAIM to get here. But mem_cgroup_oom() has to
-> +	 * invoke the OOM killer even if it is a GFP_NOFS allocation.
->  	 */
-> -	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
-> +	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS) && !is_memcg_oom(oc))
->  		return true;
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 47aa2158cfac..a386c5351592 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2738,18 +2738,6 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+>  			return false;
+>  	}
 >  
->  	/*
-> -- 
-> 1.8.3.1
+> -	/*
+> -	 * If we have not reclaimed enough pages for compaction and the
+> -	 * inactive lists are large enough, continue reclaiming
+> -	 */
+> -	pages_for_compaction = compact_gap(sc->order);
+> -	inactive_lru_pages = node_page_state(pgdat, NR_INACTIVE_FILE);
+> -	if (get_nr_swap_pages() > 0)
+> -		inactive_lru_pages += node_page_state(pgdat, NR_INACTIVE_ANON);
+> -	if (sc->nr_reclaimed < pages_for_compaction &&
+> -			inactive_lru_pages > pages_for_compaction)
+> -		return true;
+> -
+>  	/* If compaction would go ahead or the allocation would succeed, stop */
+>  	for (z = 0; z <= sc->reclaim_idx; z++) {
+>  		struct zone *zone = &pgdat->node_zones[z];
+> @@ -2765,7 +2753,21 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
+>  			;
+>  		}
+>  	}
+> -	return true;
+> +
+> +	/*
+> +	 * If we have not reclaimed enough pages for compaction and the
+> +	 * inactive lists are large enough, continue reclaiming
+> +	 */
+> +	pages_for_compaction = compact_gap(sc->order);
+> +	inactive_lru_pages = node_page_state(pgdat, NR_INACTIVE_FILE);
+> +	if (get_nr_swap_pages() > 0)
+> +		inactive_lru_pages += node_page_state(pgdat, NR_INACTIVE_ANON);
+> +
+> +	return inactive_lru_pages > pages_for_compaction &&
+> +		/*
+> +		 * avoid dryrun with plenty of inactive pages
+> +		 */
+> +		nr_scanned && nr_reclaimed;
+>  }
+>  
+>  static bool pgdat_memcg_congested(pg_data_t *pgdat, struct mem_cgroup *memcg)
 > 
-
--- 
-Michal Hocko
-SUSE Labs
 
