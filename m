@@ -2,313 +2,184 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.8 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	FSL_HELO_FAKE,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A49B0C0650F
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 04:28:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 45EB8C433FF
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 04:33:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4940C2070D
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 04:28:29 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="q1ipFvI4"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4940C2070D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id F1D272070D
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 04:33:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F1D272070D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BFE686B0003; Mon,  5 Aug 2019 00:28:28 -0400 (EDT)
+	id 7DD4F6B0003; Mon,  5 Aug 2019 00:33:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B88676B0005; Mon,  5 Aug 2019 00:28:28 -0400 (EDT)
+	id 78D576B0005; Mon,  5 Aug 2019 00:33:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A02E56B0006; Mon,  5 Aug 2019 00:28:28 -0400 (EDT)
+	id 654D56B0006; Mon,  5 Aug 2019 00:33:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 63A256B0003
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 00:28:28 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id a5so45524221pla.3
-        for <linux-mm@kvack.org>; Sun, 04 Aug 2019 21:28:28 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 478E66B0003
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 00:33:53 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id e18so71308596qkl.17
+        for <linux-mm@kvack.org>; Sun, 04 Aug 2019 21:33:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=neLfYtQtf2/5zAYlqzS+5CZgo15n+1ETxHEwoMa4onY=;
-        b=Uv6a2aDfVYAbyyQLuI3kFL6WNO9AChT4PGB8j0jKWju6iYOpMij61EK3mc6DQX+dXK
-         MJQ/bo4+QJCFWQEI/oVd/TpKWD6044Xyk96W0njLP6vPL+piS3nGb+qqmODyMRGWj9gm
-         ClaPgPcI+GpXPPt13CaqMrw3tJuvGzmZD0tAFDX33BaPsQQMcEM8Bd47vKYixpmdKKxL
-         AqeVIHJvPeNyKKAqp4Nw5PxXF92wFs4d4+oo2dSnR99xx2Bsjf/Km41q3tWlvWi+2Yv/
-         MPgP4MEmnoxt3Gc9q4kzzqDqlMV21bwiaUhaFdc0c74LcgwSFKxZxu7puIpeN4heKvT5
-         2lWw==
-X-Gm-Message-State: APjAAAVnKxEdfp8Fd/AjOhvzkmyWwCESNws7YEnr66LIhyX9ENypsHt3
-	Ctkfp94acCjtdAV/mt2k2oB2mdtGvLgz6B+ChUqI39yL2GA4f5HHC3T0EbpClnMFH8r/FdqkBWH
-	HSQT4IYhsSh3nqJ4bzEp6oZWWlRwCsFyxloyc0DMSuF0631IkiNizvEqMP1M49gs=
-X-Received: by 2002:a17:902:3341:: with SMTP id a59mr23633843plc.186.1564979308050;
-        Sun, 04 Aug 2019 21:28:28 -0700 (PDT)
-X-Received: by 2002:a17:902:3341:: with SMTP id a59mr23633797plc.186.1564979307211;
-        Sun, 04 Aug 2019 21:28:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564979307; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=fZFuQhJdAkJuKtn8/ribFpyU7cHuntr5HchtAz3a1cE=;
+        b=DOxfOliqvGf2Z6L21XV5l+5lLxmxBdymeM7G4Qo1v+PQ550cyNdJks1Xo9yaEePGn/
+         tOu0EQ+Rz/6EX4d4N1QWYsHpVyBFUogpFIrIL4aGZtr32XZKFC4jQAcIRGZ6L6v9QbaP
+         3/w7Rx/8xVunqw9no5L5IkA7NeehpDP3mlhCbxEpdlV95ZtpSaHwhb3jPQ7sas1VBDTz
+         U9OZ/RLqnp9iP1Ubv05L+++TZI3BbrHHv0wF7Hd/k2/BEJHu+T+ypz5wQU6drLSdkLNM
+         R0GXXEpCUZs4V9kF7FjObmqwLmC1UjoGaDQbZf5l68D6aR1iB4PKmfriLkpc8SxiZ4Wy
+         houA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXD62B7ZwB5j44ESnrDI0Bi0TtXmLaVeFwLy1erygBqq5bsmXh4
+	Wb+8T0YXKALkY+mVCb99O4iYiJHR3/WRWzD14NEwfBpcvTH/OvC0XCfF02rf3RQw6snEMuaJwVL
+	+oBwI4o9gTjroa04lxKe5locYFN0SsIOeO8swQ/jzSUCmyPfVjkjLN1nfmZeZaX6cQA==
+X-Received: by 2002:ac8:270e:: with SMTP id g14mr107430855qtg.65.1564979633040;
+        Sun, 04 Aug 2019 21:33:53 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwC4LzqdrYwtfqShJFn8Z26k0zQp6zxQAWwvuGGZAEsj6j9b2cSiGUm/qiMooow8aUtzyhj
+X-Received: by 2002:ac8:270e:: with SMTP id g14mr107430831qtg.65.1564979632400;
+        Sun, 04 Aug 2019 21:33:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564979632; cv=none;
         d=google.com; s=arc-20160816;
-        b=GPT68+HxSuxezwdReOHZ64+Lkl2/h6iT4TS9N1qEaQHm7L811EqTsbzO5Hb1nWjmHg
-         dtJ4oQqUWhLaasplh5IMC6EYbSvfZcEo2yFKBNB2o2CNvDogkx9x0M5GjIsp1TotCBpK
-         +UHnZgqSWGHLhXAh+Wgvj7J5z+iBDvpAQC9AiwiSr1E6wJjlGbU3Op2OCP/yDTEZA+3Y
-         /dTVT10HQn88rI8hoI0ungYTEOJU2LBBDmnNcTEptncyK/Mf0yyOCalBZw03aM8TBc1O
-         FjDbgFLESa8Hl+WOxqjx59603HAKaC4VuZBoBl9un7rQBJc8S5BptrUBbUBNUXBznclV
-         QZow==
+        b=vbHqOfekb39IbMkpk8c3q1fkcAO9tlUvTeAhyVdoab9Frui8DW4MfxBI5xJjeZ72b3
+         38xkdr3a2aWyT9dyQY3QMEuuNcx2dzvyoN1eQE55DkBYUevr7OLcmtG5+SUPvTjKcfGg
+         Z9QZsKOavLB8Y8HrNubzJ5zOq8niowWJyy+zttvwOrNVwX4Y0Z3zjilyfzzLG+qsUDlR
+         oUt/gpsbMPKHompUOf0kdtj/UxB+iN6wsn09DYI0gDWx6IkgwsPabSlxF0TVno4uJYZf
+         ePT+vNxzboxI+e32GM6xFfQiYKyPiNhXf9C5/wcvme9jNpKNcX64c5immhxC+9EBY75w
+         0XSA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:sender:dkim-signature;
-        bh=neLfYtQtf2/5zAYlqzS+5CZgo15n+1ETxHEwoMa4onY=;
-        b=blMTo8VevH4jbDYcdD28k0IqvN+zInS4k0Fo7+RqUHSZJlf2VSCM5eGW4MWO77MV8E
-         gAo8IaIk+LocZfeIPt8Hvtj4pXPQpYbM3jVvPsitfqtM7PYSPEpOwKADcSU0hAIPbl8X
-         z1fLbFmgo92D2YUHiS8Szx8ZyP3dH0MIO2VeRlnnNnoxL7rpf2q6asSFCyfMqf+2xM0B
-         tICO67/bBsGgjesPThRRzvU4adL99l5rXZLz99zmaf1yOA2aEk1v+J9jnXGQ94feW7jn
-         oaN+N8MdU5b+4BqYoSFEtBJeL9uDyGA+9ef/Ez65hA1klq4IkByFaZ7shC3mklkCyvI1
-         uv9w==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=fZFuQhJdAkJuKtn8/ribFpyU7cHuntr5HchtAz3a1cE=;
+        b=aNk+rly4FAKBOfsYI4H9KR/2T8FdfOi5N3zxpLWyt1IduwR41p55uo6YR6OL5aCdSf
+         kCuHolpH4LI7/nGzLkl+CJ/EtYk/dkJ0myx9P/nblnypRGNwCoxjlO1jclMDp6Yx2djU
+         bbxMkxu0BPzUDYwjobfDHWkAor2ZqeusGvD9qNuoB1MMzEs8V4qnrepnySVTIwZDm7ce
+         KhY+QpCTxyn2nOc5G4P3+sL0dJmbWmxwwZuC57dEeEN1YdXAWeYtoQNs2tMcSEEeVHjl
+         7Qy74cYImjkeuOFrJvoq+xux9XHfAwpUlLf8qsJ7ZeOrNhbkYgzqIto1KXae5SWsAHJC
+         p9qg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=q1ipFvI4;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q65sor64291301pfq.38.2019.08.04.21.28.27
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id l68si44505702qkb.227.2019.08.04.21.33.52
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sun, 04 Aug 2019 21:28:27 -0700 (PDT)
-Received-SPF: pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Sun, 04 Aug 2019 21:33:52 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=q1ipFvI4;
-       spf=pass (google.com: domain of minchan.kim@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=minchan.kim@gmail.com;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=sender:date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=neLfYtQtf2/5zAYlqzS+5CZgo15n+1ETxHEwoMa4onY=;
-        b=q1ipFvI4j6ea2a4EBkWomp8FvSOyBkMbG3hHhdySkgSrolRzBtLts02QIhmUq5tyB2
-         smDTxi+cqekRpSJEcuNGQiP4gXqDBOvwms0b9pTrZVfb+/iw5FaZlCm0I3jw+WjnS1uZ
-         +swBZIbz5ZuJruoyvJW1iblUkiW6nK6gvFlmSgu/qfGMKtsnPqy1DtCIgJmbJT5lnxyN
-         GTAjejewlUWJJAb2GR//Jf6ZNE3yVlMWmWLd9n6om5FD6/AHaSBQZK6orilggDroe65S
-         J3PWysKdDxe3DQZjA+kNTr1n0DccSsOSG59OCyRVnDdMQkz028ie1bDF98ZKQel8zchT
-         yoqQ==
-X-Google-Smtp-Source: APXvYqz5bWclr1fwqZI7VeLc85kZdA1Q8BcRKUB0aR1LdEv7ITFTyT4OmTHJkYqzMtNGqvuBEZDi1g==
-X-Received: by 2002:a65:6448:: with SMTP id s8mr135351216pgv.223.1564979306625;
-        Sun, 04 Aug 2019 21:28:26 -0700 (PDT)
-Received: from google.com ([2401:fa00:d:0:98f1:8b3d:1f37:3e8])
-        by smtp.gmail.com with ESMTPSA id z12sm64963021pfn.29.2019.08.04.21.28.23
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Sun, 04 Aug 2019 21:28:25 -0700 (PDT)
-Date: Mon, 5 Aug 2019 13:28:21 +0900
-From: Minchan Kim <minchan@kernel.org>
-To: Henry Burns <henryburns@google.com>
-Cc: Nitin Gupta <ngupta@vflare.org>,
-	Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>,
-	Shakeel Butt <shakeelb@google.com>,
-	Jonathan Adams <jwadams@google.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 2/2] mm/zsmalloc.c: Fix race condition in zs_destroy_pool
-Message-ID: <20190805042821.GA102749@google.com>
-References: <20190802015332.229322-1-henryburns@google.com>
- <20190802015332.229322-2-henryburns@google.com>
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 8E5ED793C9;
+	Mon,  5 Aug 2019 04:33:51 +0000 (UTC)
+Received: from [10.72.12.115] (ovpn-12-115.pek2.redhat.com [10.72.12.115])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id D987960127;
+	Mon,  5 Aug 2019 04:33:46 +0000 (UTC)
+Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
+ with worker
+To: "Michael S. Tsirkin" <mst@redhat.com>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>, kvm@vger.kernel.org,
+ virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org
+References: <20190731084655.7024-1-jasowang@redhat.com>
+ <20190731084655.7024-8-jasowang@redhat.com> <20190731123935.GC3946@ziepe.ca>
+ <7555c949-ae6f-f105-6e1d-df21ddae9e4e@redhat.com>
+ <20190731193057.GG3946@ziepe.ca>
+ <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
+ <20190801141512.GB23899@ziepe.ca>
+ <42ead87b-1749-4c73-cbe4-29dbeb945041@redhat.com>
+ <20190802094331-mutt-send-email-mst@kernel.org>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <6c3a0a1c-ce87-907b-7bc8-ec41bf9056d8@redhat.com>
+Date: Mon, 5 Aug 2019 12:33:45 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190802015332.229322-2-henryburns@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190802094331-mutt-send-email-mst@kernel.org>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.25]); Mon, 05 Aug 2019 04:33:51 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi Henry,
 
-On Thu, Aug 01, 2019 at 06:53:32PM -0700, Henry Burns wrote:
-> In zs_destroy_pool() we call flush_work(&pool->free_work). However, we
-> have no guarantee that migration isn't happening in the background
-> at that time.
-> 
-> Since migration can't directly free pages, it relies on free_work
-> being scheduled to free the pages.  But there's nothing preventing an
-> in-progress migrate from queuing the work *after*
-> zs_unregister_migration() has called flush_work().  Which would mean
-> pages still pointing at the inode when we free it.
+On 2019/8/2 下午10:03, Michael S. Tsirkin wrote:
+> On Fri, Aug 02, 2019 at 05:40:07PM +0800, Jason Wang wrote:
+>> Btw, I come up another idea, that is to disable preemption when vhost thread
+>> need to access the memory. Then register preempt notifier and if vhost
+>> thread is preempted, we're sure no one will access the memory and can do the
+>> cleanup.
+> Great, more notifiers :(
+>
+> Maybe can live with
+> 1- disable preemption while using the cached pointer
+> 2- teach vhost to recover from memory access failures,
+>     by switching to regular from/to user path
 
-We already unregister shrinker so there is no upcoming async free call
-via shrinker so the only concern is zs_compact API direct call from
-the user. Is that what what you desribe from the description?
 
-If so, can't we add a flag to indicate destroy of the pool and
-global counter to indicate how many of zs_compact was nested?
+I don't get this, I believe we want to recover from regular from/to user 
+path, isn't it?
 
-So, zs_unregister_migration in zs_destroy_pool can set the flag to
-prevent upcoming zs_compact call and wait until the global counter
-will be zero. Once it's done, finally flush the work.
 
-My point is it's not a per-class granuarity but global.
+>
+> So if you want to try that, fine since it's a step in
+> the right direction.
+>
+> But I think fundamentally it's not what we want to do long term.
 
-Thanks.
 
-> 
-> Since we know at destroy time all objects should be free, no new
-> migrations can come in (since zs_page_isolate() fails for fully-free
-> zspages).  This means it is sufficient to track a "# isolated zspages"
-> count by class, and have the destroy logic ensure all such pages have
-> drained before proceeding.  Keeping that state under the class
-> spinlock keeps the logic straightforward.
-> 
-> Signed-off-by: Henry Burns <henryburns@google.com>
-> ---
->  mm/zsmalloc.c | 68 ++++++++++++++++++++++++++++++++++++++++++++++++---
->  1 file changed, 65 insertions(+), 3 deletions(-)
-> 
-> diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-> index efa660a87787..1f16ed4d6a13 100644
-> --- a/mm/zsmalloc.c
-> +++ b/mm/zsmalloc.c
-> @@ -53,6 +53,7 @@
->  #include <linux/zpool.h>
->  #include <linux/mount.h>
->  #include <linux/migrate.h>
-> +#include <linux/wait.h>
->  #include <linux/pagemap.h>
->  #include <linux/fs.h>
->  
-> @@ -206,6 +207,10 @@ struct size_class {
->  	int objs_per_zspage;
->  	/* Number of PAGE_SIZE sized pages to combine to form a 'zspage' */
->  	int pages_per_zspage;
-> +#ifdef CONFIG_COMPACTION
-> +	/* Number of zspages currently isolated by compaction */
-> +	int isolated;
-> +#endif
->  
->  	unsigned int index;
->  	struct zs_size_stat stats;
-> @@ -267,6 +272,8 @@ struct zs_pool {
->  #ifdef CONFIG_COMPACTION
->  	struct inode *inode;
->  	struct work_struct free_work;
-> +	/* A workqueue for when migration races with async_free_zspage() */
-> +	struct wait_queue_head migration_wait;
->  #endif
->  };
->  
-> @@ -1917,6 +1924,21 @@ static void putback_zspage_deferred(struct zs_pool *pool,
->  
->  }
->  
-> +static inline void zs_class_dec_isolated(struct zs_pool *pool,
-> +					 struct size_class *class)
-> +{
-> +	assert_spin_locked(&class->lock);
-> +	VM_BUG_ON(class->isolated <= 0);
-> +	class->isolated--;
-> +	/*
-> +	 * There's no possibility of racing, since wait_for_isolated_drain()
-> +	 * checks the isolated count under &class->lock after enqueuing
-> +	 * on migration_wait.
-> +	 */
-> +	if (class->isolated == 0 && waitqueue_active(&pool->migration_wait))
-> +		wake_up_all(&pool->migration_wait);
-> +}
-> +
->  static void replace_sub_page(struct size_class *class, struct zspage *zspage,
->  				struct page *newpage, struct page *oldpage)
->  {
-> @@ -1986,6 +2008,7 @@ static bool zs_page_isolate(struct page *page, isolate_mode_t mode)
->  	 */
->  	if (!list_empty(&zspage->list) && !is_zspage_isolated(zspage)) {
->  		get_zspage_mapping(zspage, &class_idx, &fullness);
-> +		class->isolated++;
->  		remove_zspage(class, zspage, fullness);
->  	}
->  
-> @@ -2085,8 +2108,14 @@ static int zs_page_migrate(struct address_space *mapping, struct page *newpage,
->  	 * Page migration is done so let's putback isolated zspage to
->  	 * the list if @page is final isolated subpage in the zspage.
->  	 */
-> -	if (!is_zspage_isolated(zspage))
-> +	if (!is_zspage_isolated(zspage)) {
-> +		/*
-> +		 * We still hold the class lock while all of this is happening,
-> +		 * so we cannot race with zs_destroy_pool()
-> +		 */
->  		putback_zspage_deferred(pool, class, zspage);
-> +		zs_class_dec_isolated(pool, class);
-> +	}
->  
->  	reset_page(page);
->  	put_page(page);
-> @@ -2131,9 +2160,11 @@ static void zs_page_putback(struct page *page)
->  
->  	spin_lock(&class->lock);
->  	dec_zspage_isolation(zspage);
-> -	if (!is_zspage_isolated(zspage))
-> -		putback_zspage_deferred(pool, class, zspage);
->  
-> +	if (!is_zspage_isolated(zspage)) {
-> +		putback_zspage_deferred(pool, class, zspage);
-> +		zs_class_dec_isolated(pool, class);
-> +	}
->  	spin_unlock(&class->lock);
->  }
->  
-> @@ -2156,8 +2187,36 @@ static int zs_register_migration(struct zs_pool *pool)
->  	return 0;
->  }
->  
-> +static bool class_isolated_are_drained(struct size_class *class)
-> +{
-> +	bool ret;
-> +
-> +	spin_lock(&class->lock);
-> +	ret = class->isolated == 0;
-> +	spin_unlock(&class->lock);
-> +	return ret;
-> +}
-> +
-> +/* Function for resolving migration */
-> +static void wait_for_isolated_drain(struct zs_pool *pool)
-> +{
-> +	int i;
-> +
-> +	/*
-> +	 * We're in the process of destroying the pool, so there are no
-> +	 * active allocations. zs_page_isolate() fails for completely free
-> +	 * zspages, so we need only wait for each size_class's isolated
-> +	 * count to hit zero.
-> +	 */
-> +	for (i = 0; i < ZS_SIZE_CLASSES; i++) {
-> +		wait_event(pool->migration_wait,
-> +			   class_isolated_are_drained(pool->size_class[i]));
-> +	}
-> +}
-> +
->  static void zs_unregister_migration(struct zs_pool *pool)
->  {
-> +	wait_for_isolated_drain(pool); /* This can block */
->  	flush_work(&pool->free_work);
->  	iput(pool->inode);
->  }
-> @@ -2401,6 +2460,8 @@ struct zs_pool *zs_create_pool(const char *name)
->  	if (!pool->name)
->  		goto err;
->  
-> +	init_waitqueue_head(&pool->migration_wait);
-> +
->  	if (create_cache(pool))
->  		goto err;
->  
-> @@ -2466,6 +2527,7 @@ struct zs_pool *zs_create_pool(const char *name)
->  		class->index = i;
->  		class->pages_per_zspage = pages_per_zspage;
->  		class->objs_per_zspage = objs_per_zspage;
-> +		class->isolated = 0;
->  		spin_lock_init(&class->lock);
->  		pool->size_class[i] = class;
->  		for (fullness = ZS_EMPTY; fullness < NR_ZS_FULLNESS;
-> -- 
-> 2.22.0.770.g0f2c4a37fd-goog
-> 
+Yes.
+
+
+>
+> It's always been a fundamental problem with this patch series that only
+> metadata is accessed through a direct pointer.
+>
+> The difference in ways you handle metadata and data is what is
+> now coming and messing everything up.
+
+
+I do propose soemthing like this in the past: 
+https://www.spinics.net/lists/linux-virtualization/msg36824.html. But 
+looks like you have some concern about its locality.
+
+But the problem still there, GUP can do page fault, so still need to 
+synchronize it with MMU notifiers. The solution might be something like 
+moving GUP to a dedicated kind of vhost work.
+
+
+>
+> So if continuing the direct map approach,
+> what is needed is a cache of mapped VM memory, then on a cache miss
+> we'd queue work along the lines of 1-2 above.
+>
+> That's one direction to take. Another one is to give up on that and
+> write our own version of uaccess macros.  Add a "high security" flag to
+> the vhost module and if not active use these for userspace memory
+> access.
+
+
+Or using SET_BACKEND_FEATURES? But do you mean permanent GUP as I did in 
+original RFC https://lkml.org/lkml/2018/12/13/218?
+
+Thanks
+
+>
+>
 
