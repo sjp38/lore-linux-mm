@@ -2,196 +2,237 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D689DC0650F
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 18:55:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F3493C32754
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 19:23:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9594120B1F
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 18:55:52 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A6ADB214C6
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 19:23:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="KqQaDyfI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9594120B1F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="R/AKCL41"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A6ADB214C6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0253D6B0007; Mon,  5 Aug 2019 14:55:52 -0400 (EDT)
+	id 282556B0005; Mon,  5 Aug 2019 15:23:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F189D6B0008; Mon,  5 Aug 2019 14:55:51 -0400 (EDT)
+	id 232EC6B0006; Mon,  5 Aug 2019 15:23:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E08116B000A; Mon,  5 Aug 2019 14:55:51 -0400 (EDT)
+	id 121606B0007; Mon,  5 Aug 2019 15:23:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id A5E366B0007
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 14:55:51 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id x1so4261138plm.9
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 11:55:51 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id CE0B76B0005
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 15:23:19 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id w5so53322690pgs.5
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 12:23:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=IQcIqePmHwbU1aOJ0YM+1RcergtjpirpesFhw8kFv0g=;
-        b=EsbiiMYmx2G2Eh34VU7VEpmTvQA6WWtxgUQSnyj4Eb8IKTJDBfOLvbVsnZ843puVn7
-         CS4rxBaR8x+hKmILwx/Zj4dXyvGkoFzEgxvzKvQrLkRGoo6LxbILiP01tZOG1dAfOsS5
-         MoHIhLmXGZA920iswHAT6isbsZt9PE34Mr+1iXlq0oW/Fz8o7UFVBhonBd5Lh5CPUS3s
-         7eT/LZYRr+gNgmi7sl6si5gYI8WipsQBFl9VRwcfaVeDmq4aJBYMXgpDWUn1gMA1fnv/
-         AUSG2Q1vAJBCqSGD3dMURirZASnR2re2V0tQyXQ0pQqryuUOVoJFJjE91/An73T6vyRZ
-         YhVw==
-X-Gm-Message-State: APjAAAULCjQ7+U5zf9sgKRfCRcFk3zI5KjzYusfeAaQiImv98KgSLA3h
-	1dtUJs3fXmWZ6OAS+0xWcigL4AOYQcr5QLCPHbmQhuD3giwheQjxMoW2xVlMz1tyv+gqOqlgPwF
-	Wx6Y/m6ZpeTxB0s9D5W5Gh15L32wTT++rcASh8o99+L+kPV7kwKp247Vrv0KiZAIhFQ==
-X-Received: by 2002:a62:17d3:: with SMTP id 202mr74589441pfx.198.1565031351164;
-        Mon, 05 Aug 2019 11:55:51 -0700 (PDT)
-X-Received: by 2002:a62:17d3:: with SMTP id 202mr74589357pfx.198.1565031350071;
-        Mon, 05 Aug 2019 11:55:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565031350; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=OYv7G/n6BmXChQklNIbOOx9hrwihc7gguVZ2UT+xD58=;
+        b=a180qFWEtF+W2jwnzNPYD1u8hAO4KpH0IO38bVyjSJNK6zcRqFcIy/CCtMEWqLfKcM
+         MJZyTXSg7HaV03Fe4p71gluDhI59tT4pHa0/EOW361qrUvW57J73kFEl7uZJpE/uxbb4
+         Do3E4oYBnnYSe5VQNE06aLV5ix9pxbYI5llvtMTL7oeb6Antr6V65c7v7RHKTu260rg1
+         LReTpcBIrPJFax1roM/rLWI9LEEWWdUXYR2WAkEKKf0e2cQIMGzSvafxJQE58xzANlpU
+         8azZCkEkpZbzVsKPuJ7KkbhicaV0ErC03iV3LJG6YeMHlP+rUDP2oUla4n0k17hdVSeH
+         eJdA==
+X-Gm-Message-State: APjAAAWTtKYGzc4MbrNbkcba9q/4RPYLJRu/5tkl+9jb40q4M8injpnb
+	XMCtjgcuTmZu4aaiCznnTS58DHeIKEhb9KZ9fI2NoOowuFxMlhi8vSebar3Dli7wy1ekO2gDEGA
+	t1bcEhq8FC4COQMKdf+/oiLq9+Jfw5ql0f05btxC5UAb2gmMVVL48PwZt4gP1CgizBA==
+X-Received: by 2002:a17:902:4c:: with SMTP id 70mr145335557pla.308.1565032999420;
+        Mon, 05 Aug 2019 12:23:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzhMPX3EP7JIXKE5Kqkll4ho6TxSzBl/58oJYJdXlks9q7hxCOUPJwnEriL3iw96vyjLwzt
+X-Received: by 2002:a17:902:4c:: with SMTP id 70mr145335514pla.308.1565032998626;
+        Mon, 05 Aug 2019 12:23:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565032998; cv=none;
         d=google.com; s=arc-20160816;
-        b=gkRWKE2yUv5CnCDy+FE5mG7eRD5qU7sFjF01q5vGvGXRy5BTZ8bQqdx8dp3nFqzUMx
-         a19gNmrPhZaXmSGmwS3kP7/fldmBoWFanY8aKKGUQbTRiApiUdRIj6lPgTAxG0kHKYYl
-         hz0Qq1tQTFtqf7hAZhtRiARYdFvTY9WTvSgsrvHAbtTVdkeo4hn9/FNcEcLMGDpfn3Yo
-         ulbI8E6bPl9EvJzmejJfPMfyBimbuVnMm/vb02V1VvpRGPMyIbLsCe/4XrJQHDgkl62d
-         8SH9owhKtRwfIrsUYxHrZ1oYhgD2GYF7OmwVeJLO8hxjksgqDPgzRKSkCm1HHGkefeNe
-         oyKg==
+        b=ifGZAslT366JWmmeWB4PBw2nnNJ0oi0M1it6+p3b83pNqN+sQN2ff/5GF19DJlkb6l
+         gQy9BPRsJVjt7By54J6VrVEyUCaYttEJE/eQDyIJ1VfbtjuTm19k2oBX4giLhSJfu9g/
+         moWen1Bq7vqxc5N0Xsovass1N4Op+drSpLsfQoK2pWPy06ZLWoQ05/xc3uwEnq+n7xn+
+         6OUSrHfqM75vvTSaOynwA1xUIF/32FP4vzRpySugCzX8tSCBZTYxmklRJssSg+GEFT9V
+         /Gf2wAGuqTGiHovSOvsRmruxuDJxik+Z2v2VJTZs21JfhTDl0/1Cpd+ER9Redh3ln9Ih
+         /h0Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=IQcIqePmHwbU1aOJ0YM+1RcergtjpirpesFhw8kFv0g=;
-        b=poUjG2PuoD5EAJbCVMKTN6VsdcW0dFit3MYi94wMet6pHOnJ9GMsWaJWopqgqw1pDK
-         pfr1H9FfSCtAONIc63ZGQVZFzKd/zBRHl1R2a51BJCDEOLqxjCmbpk9kfBaP1PETFxg7
-         HsVS0PO+PrDD4RbJ3A5llsKFPI+QL7OVvxz6MjnAH4Nz/bU1/F/OP3xUnJtZD/E49nBW
-         Asr+6USCl15g/FospEG+n5PyAD6PICEyMNCY6dwEIsCSS6mw2prBS7eRT+5vCPGiFKPM
-         Jt67KKuuMYt+dHLEdPRnS7KwRJnE1jKAw17d00NsnlBwyGIpii0j2cEDfS33QV5RLCVv
-         bM/Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=OYv7G/n6BmXChQklNIbOOx9hrwihc7gguVZ2UT+xD58=;
+        b=ZxiBYypQ1eiiZHzkzy6xqApO0EmkXJODGqqSZBU+K8dJdaEvfMvIU0uOFOc9IV/6dG
+         WgZHPrb1AuEE2uLh+PdrqM9h9UZuQszvLKSpKKBeKHfkosnyfJFP0lOLMj40AsPhWgj0
+         FJrjwZDxonzGAsfMRvJvrK+XghWSmppCxELw7EtPezZOmGHu1oa3PRG6GWr53IWUsh3K
+         k/yUL6Yd4FqS2R7RS8xbRAuU2FayK/CdbwYhdDhRusX9QmHVgRNJJJhn/kLJB00cLqkQ
+         xyNuCQjQwPmWURWLkkvIsNnjVm6h/CLE70Vz5rPrq2XQP3vZ3HkaU9H3tbrWmZS3WWnG
+         s8Yw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=KqQaDyfI;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m23sor21875338pjv.21.2019.08.05.11.55.45
+       dkim=pass header.i=@kernel.org header.s=default header.b="R/AKCL41";
+       spf=pass (google.com: domain of robh+dt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=robh+dt@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id v1si44866048plp.264.2019.08.05.12.23.18
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Aug 2019 11:55:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Aug 2019 12:23:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of robh+dt@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=KqQaDyfI;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=IQcIqePmHwbU1aOJ0YM+1RcergtjpirpesFhw8kFv0g=;
-        b=KqQaDyfIGQaedidhq4D9gHxw/6dy36hac81f3g2RQhCbOg3VujyHZZjXZhRmA+3vPC
-         /ANIN0nWfn+cHMmYH7csSIIy+NTsFbTcbfVlULjuWBxTSdbQoJkOjvoEmI1aS12DMihn
-         pLSr8aI+EMOrwQb6UQb8FKD606UAYxgXjV1BOv07NWCXAdD8UbBzhw0YE/LzLhWUL6PS
-         3ak6oAICVtR/T3dZbNyhu2nVeneYM+vTRDTqfm3Cujvc7UDUB04vojzbSQwTry1wnfTK
-         z6zGGbXiY6ZJ/NF3fGRkxoLi4qbzxJmOi5legLVkoPyqU4r6YjJRi+hWYZ7IGz24otV2
-         dZ5g==
-X-Google-Smtp-Source: APXvYqzqA+KOZhPbDYXfQOwSJMtDyzmoVXzgNlQERlbradygWxcdNYFH5+0WgV6Y8Woa5qAU4AVWwA==
-X-Received: by 2002:a17:90a:32ec:: with SMTP id l99mr19767165pjb.44.1565031344784;
-        Mon, 05 Aug 2019 11:55:44 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::26a1])
-        by smtp.gmail.com with ESMTPSA id p7sm94739480pfp.131.2019.08.05.11.55.43
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 05 Aug 2019 11:55:44 -0700 (PDT)
-Date: Mon, 5 Aug 2019 14:55:42 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, "Artem S. Tashkinov" <aros@gmx.com>,
-	linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>,
-	Suren Baghdasaryan <surenb@google.com>
-Subject: Re: Let's talk about the elephant in the room - the Linux kernel's
- inability to gracefully handle low memory pressure
-Message-ID: <20190805185542.GA4128@cmpxchg.org>
-References: <d9802b6a-949b-b327-c4a6-3dbca485ec20@gmx.com>
- <ce102f29-3adc-d0fd-41ee-e32c1bcd7e8d@suse.cz>
- <20190805133119.GO7597@dhcp22.suse.cz>
+       dkim=pass header.i=@kernel.org header.s=default header.b="R/AKCL41";
+       spf=pass (google.com: domain of robh+dt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=robh+dt@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-qk1-f174.google.com (mail-qk1-f174.google.com [209.85.222.174])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id F245621738
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 19:23:17 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1565032998;
+	bh=d6p6NWXIzAr/w+L57W8Oyrx5VdZnumUCXtu9FxtaNsc=;
+	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
+	b=R/AKCL41e439d3YyW9Frd8+LqZmY/L/BTeDfKJwCw0IYn+fId94XDv2wn7Pml91f9
+	 dnKXgXpHTXeFphyc7/df75+ieHN1KnS+kSCTZqgR9c8Gkj9yb5S930ddLj/+yapLMz
+	 2x3mqfxdOrcNQAQnSXJqYUrWF68Oxa6/5KI536WM=
+Received: by mail-qk1-f174.google.com with SMTP id d15so60977376qkl.4
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 12:23:17 -0700 (PDT)
+X-Received: by 2002:a37:6944:: with SMTP id e65mr95063738qkc.119.1565032997083;
+ Mon, 05 Aug 2019 12:23:17 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190805133119.GO7597@dhcp22.suse.cz>
-User-Agent: Mutt/1.12.0 (2019-05-25)
+References: <20190731154752.16557-1-nsaenzjulienne@suse.de>
+ <20190731154752.16557-4-nsaenzjulienne@suse.de> <CAL_JsqKF5nh3hcdLTG5+6RU3_TnFrNX08vD6qZ8wawoA3WSRpA@mail.gmail.com>
+ <2050374ac07e0330e505c4a1637256428adb10c4.camel@suse.de>
+In-Reply-To: <2050374ac07e0330e505c4a1637256428adb10c4.camel@suse.de>
+From: Rob Herring <robh+dt@kernel.org>
+Date: Mon, 5 Aug 2019 13:23:05 -0600
+X-Gmail-Original-Message-ID: <CAL_Jsq+LjsRmFg-xaLgpVx3miXN3hid3aD+mgTW__j0SbEFYjQ@mail.gmail.com>
+Message-ID: <CAL_Jsq+LjsRmFg-xaLgpVx3miXN3hid3aD+mgTW__j0SbEFYjQ@mail.gmail.com>
+Subject: Re: [PATCH 3/8] of/fdt: add function to get the SoC wide DMA
+ addressable memory size
+To: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will@kernel.org>, 
+	Christoph Hellwig <hch@lst.de>, wahrenst@gmx.net, Marc Zyngier <marc.zyngier@arm.com>, 
+	Robin Murphy <robin.murphy@arm.com>, 
+	"moderated list:ARM/FREESCALE IMX / MXC ARM ARCHITECTURE" <linux-arm-kernel@lists.infradead.org>, devicetree@vger.kernel.org, 
+	Linux IOMMU <iommu@lists.linux-foundation.org>, linux-mm@kvack.org, 
+	Frank Rowand <frowand.list@gmail.com>, phill@raspberryi.org, 
+	Florian Fainelli <f.fainelli@gmail.com>, 
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Eric Anholt <eric@anholt.net>, 
+	Matthias Brugger <mbrugger@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Marek Szyprowski <m.szyprowski@samsung.com>, 
+	"moderated list:BROADCOM BCM2835 ARM ARCHITECTURE" <linux-rpi-kernel@lists.infradead.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 05, 2019 at 03:31:19PM +0200, Michal Hocko wrote:
-> On Mon 05-08-19 14:13:16, Vlastimil Babka wrote:
-> > On 8/4/19 11:23 AM, Artem S. Tashkinov wrote:
-> > > Hello,
-> > > 
-> > > There's this bug which has been bugging many people for many years
-> > > already and which is reproducible in less than a few minutes under the
-> > > latest and greatest kernel, 5.2.6. All the kernel parameters are set to
-> > > defaults.
-> > > 
-> > > Steps to reproduce:
-> > > 
-> > > 1) Boot with mem=4G
-> > > 2) Disable swap to make everything faster (sudo swapoff -a)
-> > > 3) Launch a web browser, e.g. Chrome/Chromium or/and Firefox
-> > > 4) Start opening tabs in either of them and watch your free RAM decrease
-> > > 
-> > > Once you hit a situation when opening a new tab requires more RAM than
-> > > is currently available, the system will stall hard. You will barely  be
-> > > able to move the mouse pointer. Your disk LED will be flashing
-> > > incessantly (I'm not entirely sure why). You will not be able to run new
-> > > applications or close currently running ones.
-> > 
-> > > This little crisis may continue for minutes or even longer. I think
-> > > that's not how the system should behave in this situation. I believe
-> > > something must be done about that to avoid this stall.
-> > 
-> > Yeah that's a known problem, made worse SSD's in fact, as they are able
-> > to keep refaulting the last remaining file pages fast enough, so there
-> > is still apparent progress in reclaim and OOM doesn't kick in.
-> > 
-> > At this point, the likely solution will be probably based on pressure
-> > stall monitoring (PSI). I don't know how far we are from a built-in
-> > monitor with reasonable defaults for a desktop workload, so CCing
-> > relevant folks.
-> 
-> Another potential approach would be to consider the refault information
-> we have already for file backed pages. Once we start reclaiming only
-> workingset pages then we should be trashing, right? It cannot be as
-> precise as the cost model which can be defined around PSI but it might
-> give us at least a fallback measure.
+On Mon, Aug 5, 2019 at 10:03 AM Nicolas Saenz Julienne
+<nsaenzjulienne@suse.de> wrote:
+>
+> Hi Rob,
+> Thanks for the review!
+>
+> On Fri, 2019-08-02 at 11:17 -0600, Rob Herring wrote:
+> > On Wed, Jul 31, 2019 at 9:48 AM Nicolas Saenz Julienne
+> > <nsaenzjulienne@suse.de> wrote:
+> > > Some SoCs might have multiple interconnects each with their own DMA
+> > > addressing limitations. This function parses the 'dma-ranges' on each of
+> > > them and tries to guess the maximum SoC wide DMA addressable memory
+> > > size.
+> > >
+> > > This is specially useful for arch code in order to properly setup CMA
+> > > and memory zones.
+> >
+> > We already have a way to setup CMA in reserved-memory, so why is this
+> > needed for that?
+>
+> Correct me if I'm wrong but I got the feeling you got the point of the patch
+> later on.
 
-NAK, this does *not* work. Not even as fallback.
+No, for CMA I don't. Can't we already pass a size and location for CMA
+region under /reserved-memory. The only advantage here is perhaps the
+CMA range could be anywhere in the DMA zone vs. a fixed location.
 
-There is no amount of refaults for which you can say whether they are
-a problem or not. It depends on the disk speed (obvious) but also on
-the workload's memory access patterns (somewhat less obvious).
+> > > Signed-off-by: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
+> > > ---
+> > >
+> > >  drivers/of/fdt.c       | 72 ++++++++++++++++++++++++++++++++++++++++++
+> > >  include/linux/of_fdt.h |  2 ++
+> > >  2 files changed, 74 insertions(+)
+> > >
+> > > diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
+> > > index 9cdf14b9aaab..f2444c61a136 100644
+> > > --- a/drivers/of/fdt.c
+> > > +++ b/drivers/of/fdt.c
+> > > @@ -953,6 +953,78 @@ int __init early_init_dt_scan_chosen_stdout(void)
+> > >  }
+> > >  #endif
+> > >
+> > > +/**
+> > > + * early_init_dt_dma_zone_size - Look at all 'dma-ranges' and provide the
+> > > + * maximum common dmable memory size.
+> > > + *
+> > > + * Some devices might have multiple interconnects each with their own DMA
+> > > + * addressing limitations. For example the Raspberry Pi 4 has the
+> > > following:
+> > > + *
+> > > + * soc {
+> > > + *     dma-ranges = <0xc0000000  0x0 0x00000000  0x3c000000>;
+> > > + *     [...]
+> > > + * }
+> > > + *
+> > > + * v3dbus {
+> > > + *     dma-ranges = <0x00000000  0x0 0x00000000  0x3c000000>;
+> > > + *     [...]
+> > > + * }
+> > > + *
+> > > + * scb {
+> > > + *     dma-ranges = <0x0 0x00000000  0x0 0x00000000  0xfc000000>;
+> > > + *     [...]
+> > > + * }
+> > > + *
+> > > + * Here the area addressable by all devices is [0x00000000-0x3bffffff].
+> > > Hence
+> > > + * the function will write in 'data' a size of 0x3c000000.
+> > > + *
+> > > + * Note that the implementation assumes all interconnects have the same
+> > > physical
+> > > + * memory view and that the mapping always start at the beginning of RAM.
+> >
+> > Not really a valid assumption for general code.
+>
+> Fair enough. On my defence I settled on that assumption after grepping all dts
+> and being unable to find a board that behaved otherwise.
+>
+> [...]
+>
+> > It's possible to have multiple levels of nodes and dma-ranges. You need to
+> > handle that case too. Doing that and handling differing address translations
+> > will be complicated.
+>
+> Understood.
+>
+> > IMO, I'd just do:
+> >
+> > if (of_fdt_machine_is_compatible(blob, "brcm,bcm2711"))
+> >     dma_zone_size = XX;
+> >
+> > 2 lines of code is much easier to maintain than 10s of incomplete code
+> > and is clearer who needs this. Maybe if we have dozens of SoCs with
+> > this problem we should start parsing dma-ranges.
+>
+> FYI that's what arm32 is doing at the moment and was my first instinct. But it
+> seems that arm64 has been able to survive so far without any machine specific
+> code and I have the feeling Catalin and Will will not be happy about this
+> solution. Am I wrong?
 
-For example, we have workloads whose cache set doesn't quite fit into
-memory, but everything else is pretty much statically allocated and it
-rarely touches any new or one-off filesystem data. So there is always
-a steady rate of mostly uninterrupted refaults, however, most data
-accesses are hitting the cache! And we have fast SSDs that compensate
-for the refaults that do occur. The workload runs *completely fine*.
+No doubt. I'm fine if the 2 lines live in drivers/of/.
 
-If the cache hit rate was lower and refaults would make up a bigger
-share of overall page accesses, or if there was a spinning disk in
-that machine, the machine would be completely livelocked - with the
-same exact number of refaults and the same amount of RAM!
+Note that I'm trying to reduce the number of early_init_dt_scan_*
+calls from arch code into the DT code so there's more commonality
+across architectures in the early DT scans. So ideally, this can all
+be handled under early_init_dt_scan() call.
 
-That's not just an approximation error that we could compensate
-for. The same rate of refaults in a system could mean anything from 0%
-(all refaults readahead, and IO is done before workload notices) to
-100% memory pressure (all refaults are cache misses and workload fully
-serialized on pages in question) - and anything in between (a subset
-of threads of the workload wait for a subset of the refaults).
-
-The refault rate by itself carries no signal on workload progress.
-
-This is the whole reason why psi was developed - to compare the time
-you spend on refaults (encodes IO speed and readhahead efficiency)
-compared to the time you spend on being productive (encodes refaults
-as share of overall memory accesses of a the workload).
+Rob
 
