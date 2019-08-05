@@ -2,200 +2,205 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 14C07C0650F
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 16:53:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 58186C0650F
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 16:55:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C20F22147A
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 16:53:14 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C20F22147A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 095E1216B7
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 16:55:01 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="CSOoOFmz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 095E1216B7
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 626986B0005; Mon,  5 Aug 2019 12:53:14 -0400 (EDT)
+	id 9A7D56B0005; Mon,  5 Aug 2019 12:55:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5D7CF6B0006; Mon,  5 Aug 2019 12:53:14 -0400 (EDT)
+	id 958286B0006; Mon,  5 Aug 2019 12:55:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4ED766B0007; Mon,  5 Aug 2019 12:53:14 -0400 (EDT)
+	id 7F96D6B0007; Mon,  5 Aug 2019 12:55:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 167C76B0005
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 12:53:14 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id j12so46535074pll.14
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 09:53:14 -0700 (PDT)
+Received: from mail-vs1-f72.google.com (mail-vs1-f72.google.com [209.85.217.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5F0906B0005
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 12:55:01 -0400 (EDT)
+Received: by mail-vs1-f72.google.com with SMTP id a11so21300251vso.9
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 09:55:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=DApK4ABjISnzW80o1RZHnHbfGyCGt5mCuBoyuEhzjrA=;
-        b=aXlfxsWWqgwYYMvJcpY0DgkcbH8nrBrXTTc29acxAUjJn2fwZ5AlFvlXzbC7MQV5rI
-         Wm3BdozeL4WFpKvTKkozUqh6Hm6/ma1XtDHM4VlNpXPx1FHgDb04x05RR+AWBMMty9Ea
-         FE02cE0ldIucB3Kp65FsjKfODgJShL+CTeE4xn5Ass69eXPE2aYAfXQR3smH1TPHkT/g
-         P0cTkCKKFePez8PfypQi5/02xoYUWdP2uOJiIi/XZ2Lw9Z7k/apWPArp1McGt9pw53st
-         2o6xxuzS4shqEw4yxiNDN1em38jzqcEHWGvBU3/CK2Htgh/ftx0zk5IXPs8A2MXOc3G7
-         2+nw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rodrigo.vivi@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=rodrigo.vivi@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUTl6zOtTk3JXIlE0K64EitY98ppYiqrd8/dq26mcPziEhIUNq7
-	JTsYXX6r9yyzKDGDfKO3WuWH3VDA426uYbzRQ1PpVeJJgsosmlmdE5Kp/W2pdacoVeI2wy//IxL
-	xCjPyzBwKGXgHQF8l56plhKQAEW3quSXVr+GYltSgHP6pbTxHI1SMnV1MqpLy8qCT4g==
-X-Received: by 2002:a17:902:934a:: with SMTP id g10mr147830899plp.18.1565023993750;
-        Mon, 05 Aug 2019 09:53:13 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzkfxRJfIZ5u3zY4dSze8/OHdCPGyKp63I2q5S/WLIhxCaZxIMdJitVn5lgCwaseyhy7I5A
-X-Received: by 2002:a17:902:934a:: with SMTP id g10mr147830854plp.18.1565023993043;
-        Mon, 05 Aug 2019 09:53:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565023993; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=AiaTx4RKmFmDRhFvPbii96+I2RlIDqHm4KrNnvPT2u0=;
+        b=qIdfxGt9wGGbGMsjytQET7DrmoxndcRlNZhoFdUMh/fAUQlQD97YgkjA3g9plW58Yf
+         kYOsgahMIioT08tflSWOBOBaCt5rZgL8GKD1OeS25nsATAz8WTHF0jqROKSkxjyZPLf1
+         8KzKN3EQUSCuX9d6SgVELKVxGCPS2c929FNlDMs3Ys8aQSqFDkFUBC4FeJDbqho+tbbz
+         edvPrtfZ+LIMGq8PcjJvfsZV1ix9vk+wGuhTpwXFgwISlrLM0nYBmkskPrlIHQAFOxGv
+         mCkssSUL2OTPrmkxtvxnwVu0GTM/Gw95OAn9wS0RzVzvwvB87ncJ8L7EtSBq4z4vqH7+
+         /NMw==
+X-Gm-Message-State: APjAAAXIhXLr5wFKPPOiqPBGlUIzbFFggObJLw21ldPnQ9OThCaLn4Sf
+	kBtiXfMZHp3O6xns47ksY5xft6t6agzguA8XqMzraBLfqigZMImxCF0+2EN0dny5QqvdktJS5bE
+	4Ht7FdWSEbnRhKUQ7htp/7FwKa5AUf3Wrq9hHRkE94eylK/NWgPN+gfoeu0kPHx0k5g==
+X-Received: by 2002:a1f:dd47:: with SMTP id u68mr14105389vkg.22.1565024100951;
+        Mon, 05 Aug 2019 09:55:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxWD2ffVHiKdaRNiJcnYCOphr7uK/uXAQ6nWa+EQ6BUhZkrNkx/5p0Nqzw8tayWCpns4quf
+X-Received: by 2002:a1f:dd47:: with SMTP id u68mr14105370vkg.22.1565024100301;
+        Mon, 05 Aug 2019 09:55:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565024100; cv=none;
         d=google.com; s=arc-20160816;
-        b=ziCSjhnCH/ZcHicrsQK1zQEMlZBzEdTBxXlvdP862pNvaWEzbPauiWmpl0hm/1nHcl
-         Llr/20nlOtozk+LMnWYMQJGchfJLiIhRLiCPePfS6Wfupl8yOORmOdaTm3YLVbTG0iw/
-         vobslAv6Z4+MO0OriT0ZMwTbyojMGNKjZhBWxOemDRPkddLunmWyzg8ze0jP9YLDxJqx
-         3s0sBReZXrOrQ3pPpsDYMBLQ2kquNX68FGv1oT68C2h9Hoiuz6XCpn5GjCX0+wpuumut
-         7j0diiAns6nUMgbbPEH81YFU7vxVNXlbVZPlvPk2BjTNn5kAmsUoNeNb6aVtF5onfUk1
-         qklg==
+        b=f23TMql1IdAGaCtNgXwNR8d0XN33d7QOwAIXWzOoG3+X9Lsri/5e9sutZ5WNWig1UU
+         9ncHwMmFOCatr80NIwg2SskmAyqrbVy/oUzHWzEDEg/PDflX5xym3kxik2AJJd1/3Ar+
+         7k7RSEvwoyX9Ja2aBufkhfIRjpx0YeBdOVAIOhZYlSp37gkz/H9OLDQfbYieq7/JRpRo
+         EXGBu6hEljl+KjbwnHYK8q3/ptf9tEO+RzAcW65J2ynKWfcK8xeu94lnejbyulGcG7Fj
+         14v/K5ULD9gljuVo2qu7Y/WE7JKAdhIQC9rqR5jYJWtd6Bw4Cek2IOJ12cZML7k57b9b
+         fYCA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=DApK4ABjISnzW80o1RZHnHbfGyCGt5mCuBoyuEhzjrA=;
-        b=DgaWXf9PJcuThKj4dCd9vceM2wt3bcK+ZNfcLsOKtIgCp/NY8mP0h7GCd3bUd0LWbm
-         8rkkBhcCXC16DbB08Yg3c5afzHi/J0RQvNzFLwYBrDAwa2u9I4tYLCApPxGQX5aUpuMd
-         uhkGO+JnkoGqk9lnQba1ySfziwF6kw6QRBK6tt/QHAIAED1klmltGdruVJHHMG7AsQd1
-         H2kxozwAroI+zczEh+pqERnXqGL2Nxpn3YYEdJ1sKR04YDvi3ove4z0qsnFGFfODMo4r
-         07Ax9BRrKgQj4vauvEZEhiDX0xHQ5cC6ZIB6N+zChnrVMP8+4GaKFxXtRs55qn4mF8Ff
-         fjiA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=AiaTx4RKmFmDRhFvPbii96+I2RlIDqHm4KrNnvPT2u0=;
+        b=cVExmnNIuUtAmMoyTs9+/FSEooTmQjvPDhJ7iNZMx4h6KKnrd+IPqxLfBQ3rfyMdj/
+         fGJv9YL9KyNWFBUcjY4JcZX+bVuhIJ+mbw4VTJJOtWvpJPVCINFnKlOfdmejW306kc/0
+         8JukhumjJdp12oPl2CqEJzM6lIgZoo+yr2oSG1d3bv+hwf/1+NXbVihPrQJfJM5ABFlU
+         YD7TqWZuV9eaSs/6EKaZgA5iWxHYUzI2wVf+2OJcoNoP2+hCS7/yL8UkZcxbJ9J1l0qx
+         8YVVQthLgL87dcQUuNtBG6X5qlBWhah0Cr1LWSm9PMF03sglp8t6j1EjH736XuP91VTF
+         vr1Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rodrigo.vivi@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=rodrigo.vivi@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id o12si12733266pjp.72.2019.08.05.09.53.12
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=CSOoOFmz;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
+        by mx.google.com with ESMTPS id e6si17251755vsq.346.2019.08.05.09.55.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Aug 2019 09:53:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rodrigo.vivi@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        Mon, 05 Aug 2019 09:55:00 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rodrigo.vivi@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=rodrigo.vivi@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Aug 2019 09:53:12 -0700
-X-IronPort-AV: E=Sophos;i="5.64,350,1559545200"; 
-   d="scan'208";a="168030649"
-Received: from rdvivi-losangeles.jf.intel.com (HELO intel.com) ([10.7.196.65])
-  by orsmga008-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Aug 2019 09:53:12 -0700
-Date: Mon, 5 Aug 2019 09:53:46 -0700
-From: Rodrigo Vivi <rodrigo.vivi@intel.com>
-To: john.hubbard@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-fbdev@vger.kernel.org,
-	Jan Kara <jack@suse.cz>, kvm@vger.kernel.org,
-	David Airlie <airlied@linux.ie>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Dave Chinner <david@fromorbit.com>, dri-devel@lists.freedesktop.org,
-	linux-mm@kvack.org, sparclinux@vger.kernel.org,
-	Ira Weiny <ira.weiny@intel.com>, ceph-devel@vger.kernel.org,
-	devel@driverdev.osuosl.org, rds-devel@oss.oracle.com,
-	linux-rdma@vger.kernel.org, x86@kernel.org,
-	amd-gfx@lists.freedesktop.org,
-	Christoph Hellwig <hch@infradead.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>, xen-devel@lists.xenproject.org,
-	devel@lists.orangefs.org, linux-media@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>, intel-gfx@lists.freedesktop.org,
-	linux-block@vger.kernel.org,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	linux-rpi-kernel@lists.infradead.org,
-	Dan Williams <dan.j.williams@intel.com>,
-	linux-arm-kernel@lists.infradead.org, linux-nfs@vger.kernel.org,
-	netdev@vger.kernel.org, LKML <linux-kernel@vger.kernel.org>,
-	linux-xfs@vger.kernel.org, linux-crypto@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH v2 06/34] drm/i915: convert put_page() to put_user_page*()
-Message-ID: <20190805165346.GB25953@intel.com>
-References: <20190804224915.28669-1-jhubbard@nvidia.com>
- <20190804224915.28669-7-jhubbard@nvidia.com>
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=CSOoOFmz;
+       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x75GiGpV039612;
+	Mon, 5 Aug 2019 16:54:53 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2018-07-02;
+ bh=AiaTx4RKmFmDRhFvPbii96+I2RlIDqHm4KrNnvPT2u0=;
+ b=CSOoOFmzfLHDAKdLl74xlQAFf0qqaSWA0Jy+V82mmEXmE6i1X98vzhCO8kFn5IgwLuko
+ 3KqiIPAx8c5Ri17YNKlWNUKtja37et/tXJRXH3sTvMC0oIDWxlXWvBDiNCePg/k+H/y9
+ YMya9tabSBUyrVgtRwswkL1zFE402XivlgzI3AxiwEzHXT6AcEUBNCw4gwQLX8DMM3hn
+ ntGN2gO8CApvxyYzP5ovCBKpgfSLqhs/ldzrQiR8+k9m4LlvsNmQHJd0pvb3MYuOpgbJ
+ MtBmxe90hEUBgDUQoKTg5mxLWaGpypmAD23wcspqqzlODjj+7RtneACpVf6+ysxWEfoR bQ== 
+Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
+	by userp2130.oracle.com with ESMTP id 2u51ptrk2j-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 05 Aug 2019 16:54:53 +0000
+Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
+	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x75GkrJB140464;
+	Mon, 5 Aug 2019 16:54:52 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userp3020.oracle.com with ESMTP id 2u51kmnj6g-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 05 Aug 2019 16:54:52 +0000
+Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x75GskDR008576;
+	Mon, 5 Aug 2019 16:54:46 GMT
+Received: from [192.168.1.222] (/71.63.128.209)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Mon, 05 Aug 2019 09:54:46 -0700
+Subject: Re: [PATCH 1/3] mm, reclaim: make should_continue_reclaim perform
+ dryrun detection
+To: Vlastimil Babka <vbabka@suse.cz>, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org
+Cc: Hillf Danton <hdanton@sina.com>, Michal Hocko <mhocko@kernel.org>,
+        Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>,
+        Andrea Arcangeli <aarcange@redhat.com>,
+        David Rientjes
+ <rientjes@google.com>,
+        Andrew Morton <akpm@linux-foundation.org>
+References: <20190802223930.30971-1-mike.kravetz@oracle.com>
+ <20190802223930.30971-2-mike.kravetz@oracle.com>
+ <bb16d3f0-0984-be32-4346-358abad92c4c@suse.cz>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <e2252a42-063a-8f34-c300-9250d783b2fb@oracle.com>
+Date: Mon, 5 Aug 2019 09:54:45 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190804224915.28669-7-jhubbard@nvidia.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
+In-Reply-To: <bb16d3f0-0984-be32-4346-358abad92c4c@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9340 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=962
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1908050184
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9340 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=987 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1908050184
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 04, 2019 at 03:48:47PM -0700, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
+On 8/5/19 1:42 AM, Vlastimil Babka wrote:
+> On 8/3/19 12:39 AM, Mike Kravetz wrote:
+>> From: Hillf Danton <hdanton@sina.com>
+>>
+>> Address the issue of should_continue_reclaim continuing true too often
+>> for __GFP_RETRY_MAYFAIL attempts when !nr_reclaimed and nr_scanned.
+>> This could happen during hugetlb page allocation causing stalls for
+>> minutes or hours.
+>>
+>> We can stop reclaiming pages if compaction reports it can make a progress.
+>> A code reshuffle is needed to do that.
 > 
-> For pages that were retained via get_user_pages*(), release those pages
-> via the new put_user_page*() routines, instead of via put_page() or
-> release_pages().
+>> And it has side-effects, however,
+>> with allocation latencies in other cases but that would come at the cost
+>> of potential premature reclaim which has consequences of itself.
 > 
-> This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
-> ("mm: introduce put_user_page*(), placeholder versions").
+> Based on Mel's longer explanation, can we clarify the wording here? e.g.:
 > 
-> This is a merge-able version of the fix, because it restricts
-> itself to put_user_page() and put_user_pages(), both of which
-> have not changed their APIs. Later, i915_gem_userptr_put_pages()
-> can be simplified to use put_user_pages_dirty_lock().
+> There might be side-effect for other high-order allocations that would
+> potentially benefit from more reclaim before compaction for them to be
+> faster and less likely to stall, but the consequences of
+> premature/over-reclaim are considered worse.
+> 
+>> We can also bail out of reclaiming pages if we know that there are not
+>> enough inactive lru pages left to satisfy the costly allocation.
+>>
+>> We can give up reclaiming pages too if we see dryrun occur, with the
+>> certainty of plenty of inactive pages. IOW with dryrun detected, we are
+>> sure we have reclaimed as many pages as we could.
+>>
+>> Cc: Mike Kravetz <mike.kravetz@oracle.com>
+>> Cc: Mel Gorman <mgorman@suse.de>
+>> Cc: Michal Hocko <mhocko@kernel.org>
+>> Cc: Vlastimil Babka <vbabka@suse.cz>
+>> Cc: Johannes Weiner <hannes@cmpxchg.org>
+>> Signed-off-by: Hillf Danton <hdanton@sina.com>
+>> Tested-by: Mike Kravetz <mike.kravetz@oracle.com>
+>> Acked-by: Mel Gorman <mgorman@suse.de>
+> 
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
+> I will send some followup cleanup.
+> 
+> There should be also Mike's SOB?
 
-Thanks for that.
-with this version we won't have any conflict.
+Will do.
+My apologies, the process of handling patches created by others is new
+to me.
 
-Ack for going through mm tree.
-
-> 
-> Cc: Jani Nikula <jani.nikula@linux.intel.com>
-> Cc: Joonas Lahtinen <joonas.lahtinen@linux.intel.com>
-> Cc: Rodrigo Vivi <rodrigo.vivi@intel.com>
-> Cc: David Airlie <airlied@linux.ie>
-> Cc: intel-gfx@lists.freedesktop.org
-> Cc: dri-devel@lists.freedesktop.org
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-> ---
->  drivers/gpu/drm/i915/gem/i915_gem_userptr.c | 6 +++---
->  1 file changed, 3 insertions(+), 3 deletions(-)
-> 
-> diff --git a/drivers/gpu/drm/i915/gem/i915_gem_userptr.c b/drivers/gpu/drm/i915/gem/i915_gem_userptr.c
-> index 2caa594322bc..76dda2923cf1 100644
-> --- a/drivers/gpu/drm/i915/gem/i915_gem_userptr.c
-> +++ b/drivers/gpu/drm/i915/gem/i915_gem_userptr.c
-> @@ -527,7 +527,7 @@ __i915_gem_userptr_get_pages_worker(struct work_struct *_work)
->  	}
->  	mutex_unlock(&obj->mm.lock);
->  
-> -	release_pages(pvec, pinned);
-> +	put_user_pages(pvec, pinned);
->  	kvfree(pvec);
->  
->  	i915_gem_object_put(obj);
-> @@ -640,7 +640,7 @@ static int i915_gem_userptr_get_pages(struct drm_i915_gem_object *obj)
->  		__i915_gem_userptr_set_active(obj, true);
->  
->  	if (IS_ERR(pages))
-> -		release_pages(pvec, pinned);
-> +		put_user_pages(pvec, pinned);
->  	kvfree(pvec);
->  
->  	return PTR_ERR_OR_ZERO(pages);
-> @@ -675,7 +675,7 @@ i915_gem_userptr_put_pages(struct drm_i915_gem_object *obj,
->  			set_page_dirty_lock(page);
->  
->  		mark_page_accessed(page);
-> -		put_page(page);
-> +		put_user_page(page);
->  	}
->  	obj->mm.dirty = false;
->  
-> -- 
-> 2.22.0
-> 
-> _______________________________________________
-> dri-devel mailing list
-> dri-devel@lists.freedesktop.org
-> https://lists.freedesktop.org/mailman/listinfo/dri-devel
+Also, will incorporate Mel's explanation.
+-- 
+Mike Kravetz
 
