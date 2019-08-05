@@ -2,211 +2,433 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D891C41514
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:28:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DB3DBC433FF
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:28:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5F05220657
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:28:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F05220657
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 81D0320657
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:28:55 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="dIP7M4jY"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81D0320657
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EFCBD6B0006; Mon,  5 Aug 2019 09:28:52 -0400 (EDT)
+	id 253656B0007; Mon,  5 Aug 2019 09:28:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EAE2C6B0007; Mon,  5 Aug 2019 09:28:52 -0400 (EDT)
+	id 204476B0008; Mon,  5 Aug 2019 09:28:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D9C5C6B0008; Mon,  5 Aug 2019 09:28:52 -0400 (EDT)
+	id 0CB416B000A; Mon,  5 Aug 2019 09:28:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8D0796B0006
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 09:28:52 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id l14so51594028edw.20
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 06:28:52 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id ADD556B0007
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 09:28:54 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id i9so51546528edr.13
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 06:28:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=M4AtJfFHttnOVm+krUA6Mxn07hZxWA0wVW7Vv89+ro4=;
-        b=FZfQSEPfKv91pXqE/PqkgPJlE/Y5v2T1q4/3XFDjooMdHGhSsuIRUFhIr5XRCQeUw+
-         ZFV5AiffLkXI6sgaRHujmVriWRIcRF4YbNR97e1KnBSUtEaaIqLbWW01wse1XoDCOne3
-         /pyJaNbWS5a0nBwqRWFcRuhRNxrVnOWQME+a2KkfYCtDr7pmpeURd43sezfhuKEcC/D8
-         AbxgmzjLRJ64kXQgQoF94/+4fV++YAtiXpi5FkRRjk5RZBFf8f8LeG0lDLADFj2SDvWG
-         xzd0LApS/loYG03vncRggfA//qlk8rdfD72ayt8pKZsYhV6l2WJqzReagokr7hPWyxRC
-         cWFQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAWErLI0T0rKN5HyIhnhfZp2II8aR3dJ4SuzFsfMZOII1u88IAOp
-	/fDzdpl6AFDjZSQUTZcDImAN/gJ0++mC80ErSiETd+GUwi7z9Brmc7V8l+hRTMQbSoT2Mj1wYgK
-	uBFPcUKWxxajll5tVND0BWvnB8RQragGyTfGL1Ue52LuAggvFLmMwgUvV/2JTbX5TUw==
-X-Received: by 2002:a17:906:5409:: with SMTP id q9mr120619742ejo.209.1565011732140;
-        Mon, 05 Aug 2019 06:28:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy4MJLuRN3Id9JsFRK7Bv0lIuU7lBG1eDpkM/42jK5GLV6w890c5YZsE9bgk//mUCCrZ20x
-X-Received: by 2002:a17:906:5409:: with SMTP id q9mr120619663ejo.209.1565011731261;
-        Mon, 05 Aug 2019 06:28:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565011731; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=3drHMUL5Pk9jHUy3pA1iUoQlGejiIQvjd4pNDp+8XBU=;
+        b=b+OiZUy6o4i3hWbpK9heG5SRJTcklRwHM8D06audfk545JUHS9m3L77kngyHZeuZr5
+         V/i7RW+8QIWWLo2Rxg5HCbO6FK3fr19Wyqij4m+0pVZmjNO+W8TyCEat76VWbqW/b5a7
+         Vaes0EprfdH8BlYhWNrxIJHVHz5YzXDWGSWENan0tAtYg9V069gOKJkWhJddwB4hYwiN
+         5JdNFqxq0+cHCrczG68VRfepgmPergAm1HRBEjy9cEbPxwJx/olBXEIQjf8qLnHrHcVw
+         u/9T9lWPvgDYrilz6KBGTyxjRfv3rvAUOoHnVv+REjXOpPPMoYxLf+hti4NWItiC1x7o
+         zJfQ==
+X-Gm-Message-State: APjAAAV0tQAFXdR+HeZa1j/bHtd6QMRizMNrPl4x0IohkeFcfXmYC6cp
+	gl+KUWjGXAPlBqDQ2MVUJfBKNDmSYiqatR+HbUdudgzIbBnmQs6RvM2i8AKb44Y1TdBXtZoRDxZ
+	JlEI5JtI9KBGLztoDRCd3JvEofCDaoK6/tHUiVZTdeOc9tALEPcBZiS/4YTlebdY=
+X-Received: by 2002:a05:6402:14c4:: with SMTP id f4mr131374524edx.170.1565011734126;
+        Mon, 05 Aug 2019 06:28:54 -0700 (PDT)
+X-Received: by 2002:a05:6402:14c4:: with SMTP id f4mr131374434edx.170.1565011733076;
+        Mon, 05 Aug 2019 06:28:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565011733; cv=none;
         d=google.com; s=arc-20160816;
-        b=CkrVpXx4Z7GbRE8HnRjkOOpCRLcvoXz/Y07EwXF090LUkCUeOnXMr2nvTNxqzbMBf4
-         B0gRv95OMOiz/qodhlvpBm1JbDllfWqbUnqgq+Jz+jv5n/cQ9AuH195bkUXdag+9sfDM
-         eRvCFBcBFLi6KZ610xX90iQ79rWKi7ien2lx6WnNm2tz9o6nFDQX6iqrtvwpCCW726MR
-         FdqaH+WpJbR5xgpu2kv+jjBNHc92yr3pAXYZbzZ/gwkfyr8XIXRAgWVHHwwkAn4MY7hz
-         Wq2A7gO2Da5zxu3AhgeQHylgwglYpnVckT6qW842Qmeenw6h5qx1Sj5DfUouuBma8HRg
-         Z/pA==
+        b=k449lNUGH2v/wVIHFwDidngFwG1UJWe7spt5S57s3e6Bmx+UErrflWjJfRXDv5ouMH
+         ryGTdKW6g41axM4hSM+y/imiycFq62iewnp131fBZsIXE07vzBXLO495rLwMdW6DyKwV
+         8Rtn35Wqd08jJXBNl+AqyBBChS+hcK9B7uk9LkOsLYHHyyjDT+bEqGB8MpRQXKaMFCF/
+         g1WeF/l9xBIGa4FHRw5MxOq1ACHM6h5pzVbZUOIWjLcD85x/Y9iWITS3O/GvTuRlA1vx
+         omRE9taLBUcVqgIvXA3vXTIQxZj0stSapCUxTJa/vSd7XME0QylqR1o5wSxcT49b3mTC
+         J7Lw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=M4AtJfFHttnOVm+krUA6Mxn07hZxWA0wVW7Vv89+ro4=;
-        b=ie3et09zLu7wvdNJjaUK0tWp85tGrk0Q0QXNumaRqjhFCepB9Su/nJgYG9BlL/P8iL
-         0ivJTvOmiHWB6LBmgqJLulBZernq2MlyzbSap+lRKSdHF4soxZCFD3jkVEIVtM3NE6GA
-         9y+fx6WbtbwGersSzbuujGBLjikpeWNqzLJWg4xbZB9BARzO7/dmaMEKhLcMVAKVXOk3
-         hJcWY8dp6qy3o86tbCNHoBvLcI2sUGslJkyyttaYvfONk8B//2Z9l4rRGRL2UacjYagf
-         niLM1uDuxFSPeB37vOaeYha56V6KwkltSBeqCkAq1jP03pRowHAqJXL0Pf2Zz3ah8rE3
-         8tTg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=3drHMUL5Pk9jHUy3pA1iUoQlGejiIQvjd4pNDp+8XBU=;
+        b=OjbF4Il21U71jw5iAG00TXE87lNfXK2Xs596arD1gNcO8GPAuYzTKj8vKZLtuuVY5Y
+         1cGl0csd15ozHTfa968pWHIjWIBA1ZQwakop/jNiNlCPelMTr41GjsgxS50kwmQ9LJ1O
+         vCY/4OwnmYtzp3A0niGLA9S1RqkLJ7oBGV6gLAIuVNd4SBoy9+l7W9hdYARmFhIIH2NY
+         nWa80JKXxmUDvw/3mpJG/PdN8zqg4iADCop+ijiBnCsS4WkmYGzgwkyrq5cMcYCI3hTn
+         URtlkAxtaI9R4Lqeas56lhX4b/UYzoiv9b5X/8crtCIK5xCnVBgbcnNfY60L5QZTpdlG
+         MyaA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c14si27929307ejb.99.2019.08.05.06.28.50
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=dIP7M4jY;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id dx6sor27238996ejb.37.2019.08.05.06.28.52
         for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Mon, 05 Aug 2019 06:28:53 -0700 (PDT)
+Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=dIP7M4jY;
+       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=3drHMUL5Pk9jHUy3pA1iUoQlGejiIQvjd4pNDp+8XBU=;
+        b=dIP7M4jYF7NOgVskzCarnMOatC6l4Eh4eyt+a2RnpIFWM+CmGKPApW29KhUqn7EvCZ
+         /VQK4beQoU0lu0cvKEGL3MekMq4A9SeKU+Vnzhs0csmdOVX+sbHjvMrL6FwbPkd4N4x5
+         5Y+lbiXf7q2U7TlxXSdWujk2wQ879+w0rcLxd2DIrUCEv2LqsYMyUnxw1EWP0UqA21TD
+         pZG82PZ0kiFunLKLNnFj4FF626FwvoDsOEdsl1o8eFOlOevmDfYThHIOodb9cxFbxJrM
+         W0Ti3c5XkcnutmDf3QkIjuXaT3t3SHOIw/Z27nGTqOpPjlYl8bP+SeJrHtpVEbEjAALS
+         Eknw==
+X-Google-Smtp-Source: APXvYqyIDSJ+D50ro0fjvb+CMm3L+NsThIV0XpOc/kkmQpoaeC5mv92T0iKKqp9tttnC+I07duFZJQ==
+X-Received: by 2002:a17:906:30d9:: with SMTP id b25mr113219736ejb.55.1565011732590;
+        Mon, 05 Aug 2019 06:28:52 -0700 (PDT)
+Received: from box.localdomain ([86.57.175.117])
+        by smtp.gmail.com with ESMTPSA id c24sm14299714ejb.33.2019.08.05.06.28.51
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 05 Aug 2019 06:28:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
-Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 804CCACB4;
-	Mon,  5 Aug 2019 13:28:50 +0000 (UTC)
-Subject: Re: [PATCH] fork: Improve error message for corrupted page tables
-To: "Prakhya, Sai Praneeth" <sai.praneeth.prakhya@intel.com>,
- Andrew Morton <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "Hansen, Dave" <dave.hansen@intel.com>, Ingo Molnar <mingo@kernel.org>,
- Peter Zijlstra <peterz@infradead.org>
-References: <20190730221820.7738-1-sai.praneeth.prakhya@intel.com>
- <20190731152753.b17d9c4418f4bf6815a27ad8@linux-foundation.org>
- <a05920e5994fb74af480255471a6c3f090f29b27.camel@intel.com>
- <20190731212052.5c262ad084cbd6cf475df005@linux-foundation.org>
- <FFF73D592F13FD46B8700F0A279B802F4F9D61B5@ORSMSX114.amr.corp.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <4236c0c5-9671-b9fe-b5eb-7d1908767905@suse.cz>
-Date: Mon, 5 Aug 2019 15:28:50 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: by box.localdomain (Postfix, from userid 1000)
+	id C01A91003C1; Mon,  5 Aug 2019 16:28:54 +0300 (+03)
+Date: Mon, 5 Aug 2019 16:28:54 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: William Kucharski <william.kucharski@oracle.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Song Liu <songliubraving@fb.com>,
+	Bob Kasten <robert.a.kasten@intel.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Chad Mynhier <chad.mynhier@oracle.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Johannes Weiner <jweiner@fb.com>,
+	Matthew Wilcox <willy@infradead.org>
+Subject: Re: [PATCH v3 2/2] mm,thp: Add experimental config option
+ RO_EXEC_FILEMAP_HUGE_FAULT_THP
+Message-ID: <20190805132854.5dnqkfaajmstpelm@box.shutemov.name>
+References: <20190731082513.16957-1-william.kucharski@oracle.com>
+ <20190731082513.16957-3-william.kucharski@oracle.com>
+ <20190801123658.enpchkjkqt7cdkue@box>
+ <c8d02a3b-e1ad-2b95-ce15-13d3ed4cca87@oracle.com>
 MIME-Version: 1.0
-In-Reply-To: <FFF73D592F13FD46B8700F0A279B802F4F9D61B5@ORSMSX114.amr.corp.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <c8d02a3b-e1ad-2b95-ce15-13d3ed4cca87@oracle.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/2/19 8:46 AM, Prakhya, Sai Praneeth wrote:
->>>>> +static const char * const resident_page_types[NR_MM_COUNTERS] = {
->>>>> +	"MM_FILEPAGES",
->>>>> +	"MM_ANONPAGES",
->>>>> +	"MM_SWAPENTS",
->>>>> +	"MM_SHMEMPAGES",
->>>>> +};
->>>>
->>>> But please let's not put this in a header file.  We're asking the
->>>> compiler to put a copy of all of this into every compilation unit
->>>> which includes the header.  Presumably the compiler is smart enough
->>>> not to do that, but it's not good practice.
->>>
->>> Thanks for the explanation. Makes sense to me.
->>>
->>> Just wanted to check before sending V2, Is it OK if I add this to
->>> kernel/fork.c? or do you have something else in mind?
->>
->> I was thinking somewhere like mm/util.c so the array could be used by other
->> code.  But it seems there is no such code.  Perhaps it's best to just leave fork.c as
->> it is now.
+On Sat, Aug 03, 2019 at 04:27:51PM -0600, William Kucharski wrote:
 > 
-> Ok, so does that mean have the struct in header file itself?
-
-If the struct definition (including the string values) was in mm/util.c,
-there would have to be a declaration in a header. If it's in fork.c with
-the only users, there doesn't need to be separate declaration in a header.
-
-> Sorry! for too many questions. I wanted to check with you before changing 
-> because it's *the* fork.c file (I presume random changes will not be encouraged here)
 > 
-> I am not yet clear on what's the right thing to do here :(
-> So, could you please help me in deciding.
-
-fork.c should be fine, IMHO
-
-> Regards,
-> Sai
+> On 8/1/19 6:36 AM, Kirill A. Shutemov wrote:
 > 
+> > >   #ifdef CONFIG_TRANSPARENT_HUGEPAGE
+> > > -#define HPAGE_PMD_SHIFT PMD_SHIFT
+> > > -#define HPAGE_PMD_SIZE	((1UL) << HPAGE_PMD_SHIFT)
+> > > -#define HPAGE_PMD_MASK	(~(HPAGE_PMD_SIZE - 1))
+> > > -
+> > > -#define HPAGE_PUD_SHIFT PUD_SHIFT
+> > > -#define HPAGE_PUD_SIZE	((1UL) << HPAGE_PUD_SHIFT)
+> > > -#define HPAGE_PUD_MASK	(~(HPAGE_PUD_SIZE - 1))
+> > > +#define HPAGE_PMD_SHIFT		PMD_SHIFT
+> > > +#define HPAGE_PMD_SIZE		((1UL) << HPAGE_PMD_SHIFT)
+> > > +#define HPAGE_PMD_OFFSET	(HPAGE_PMD_SIZE - 1)
+> > > +#define HPAGE_PMD_MASK		(~(HPAGE_PMD_OFFSET))
+> > > +
+> > > +#define HPAGE_PUD_SHIFT		PUD_SHIFT
+> > > +#define HPAGE_PUD_SIZE		((1UL) << HPAGE_PUD_SHIFT)
+> > > +#define HPAGE_PUD_OFFSET	(HPAGE_PUD_SIZE - 1)
+> > > +#define HPAGE_PUD_MASK		(~(HPAGE_PUD_OFFSET))
+> > 
+> > OFFSET vs MASK semantics can be confusing without reading the definition.
+> > We don't have anything similar for base page size, right (PAGE_OFFSET is
+> > completely different thing :P)?
+> 
+> I came up with the OFFSET definitions, the MASK definitions already existed
+> in huge_mm.h, e.g.:
+> 
+> #define HPAGE_PUD_MASK	(~(HPAGE_PUD_SIZE - 1))
+> 
+> Is there different terminology you'd prefer to see me use here to clarify
+> this?
+
+My point is that maybe we should just use ~HPAGE_P?D_MASK in code. The new
+HPAGE_P?D_OFFSET doesn't add much for readability in my opinion.
+
+> > > +#ifdef CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP
+> > > +extern vm_fault_t filemap_huge_fault(struct vm_fault *vmf,
+> > > +			enum page_entry_size pe_size);
+> > > +#endif
+> > > +
+> > 
+> > No need for #ifdef here.
+> 
+> I wanted to avoid referencing an extern that wouldn't exist if the config
+> option wasn't set; I can remove it.
+> 
+> 
+> > > +
+> > > +#ifndef	CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP
+> > >   	if (PageSwapBacked(page)) {
+> > >   		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
+> > >   		if (PageTransHuge(page))
+> > > @@ -206,6 +208,13 @@ static void unaccount_page_cache_page(struct address_space *mapping,
+> > >   	} else {
+> > >   		VM_BUG_ON_PAGE(PageTransHuge(page), page);
+> > >   	}
+> > > +#else
+> > > +	if (PageSwapBacked(page))
+> > > +		__mod_node_page_state(page_pgdat(page), NR_SHMEM, -nr);
+> > > +
+> > > +	if (PageTransHuge(page))
+> > > +		__dec_node_page_state(page, NR_SHMEM_THPS);
+> > > +#endif
+> > 
+> > Again, no need for #ifdef: the new definition should be fine for
+> > everybody.
+> 
+> OK, I can do that; I didn't want to unnecessarily eliminate the
+> VM_BUG_ON_PAGE(PageTransHuge(page)) call for everyone given this
+> is CONFIG experimental code.
+
+If you bring the feature, you bring the feature. Just drop these VM_BUGs.
+
+> > PageCompound() and PageTransCompound() are the same thing if THP is
+> > enabled at compile time.
+> 
+> > PageHuge() check here is looking out of place. I don't thing we can ever
+> > will see hugetlb pages here.
+> 
+> What I'm trying to do is sanity check that what the cache contains is a THP
+> page. I added the PageHuge() check simply because PageTransCompound() is
+> true for both THP and hugetlbfs pages, and there's no routine that returns
+> true JUST for THP pages; perhaps there should be?
+
+I'm not sure. It will be costly comparing to PageTransCompound/Huge as we
+need to check more than flags.
+
+To exclude hugetlb pages here, use VM_BUG_ON_PAGE(PageHuge(page), page).
+It will allow to catch wrong usage of the function.
+
+> 
+> > > +		 *	+ the enbry is a page page with an order other than
+> > 
+> > Typo.
+> 
+> Thanks, fixed.
+> 
+> > 
+> > > +		 *	  HPAGE_PMD_ORDER
+> > 
+> > If you see unexpected page order in page cache, something went horribly
+> > wrong, right?
+> 
+> This routine's main function other than validation is to make sure the page
+> cache has not been polluted between when we go out to read the large page
+> and when the page is added to the cache (more on that coming up.) For
+> example, the way I was able to tell readahead() was polluting future
+> possible THP mappings is because after a buffered read I would typically see
+> 52 (the readahead size) PAGESIZE pages for the next 2M range in the page
+> cache.
+
+My point is that you should only see compound pages here if they are
+HPAGE_PMD_ORDER, shouldn't you? Any other order of compound page would be
+unexpected to say the least.
+
+> > > +		 *	+ the page's index is not what we expect it to be
+> > 
+> > Same here.
+> 
+> Same rationale.
+> 
+> > 
+> > > +		 *	+ the page is not up-to-date
+> > > +		 *	+ the page is unlocked
+> > 
+> > Confused here.
+> 
+> These should never be true, but I wanted to double check for them anyway. I
+> can eliminate the checks if we are satisfied these states can "never" happen
+> for a cached page.
+> > Do you expect caller to lock page before the check? If so, state it in the
+> > comment for the function.
+> 
+> It's my understanding that pages in the page cache should be locked, so I
+> wanted to check for that.
+
+No. They are get locked temporary for some operation, but not all the
+time.
+
+> This routine is validating entries we find in the page cache to see whether
+> they are conflicts or valid cached THP pages.
+> 
+> > Wow. That's unreadable. Can we rewrite it something like (commenting each
+> > check):
+> 
+> I can definitely break it down into multiple checks; it is a bit dense, thus
+> the comment but you're correct, it will read better if broken down more.
+> 
+> 
+> > You also need to check that VMA alignment is suitable for huge pages.
+> > See transhuge_vma_suitable().
+> 
+> I don't really care if the start of the VMA is suitable, just whether I can map
+> the current faulting page with a THP. As far as I know, there's nothing wrong
+> with mapping all the pages before the VMA hits a properly aligned bound with
+> PAGESIZE pages and then aligned chunks in the middle with THP.
+
+You cannot map any paged as huge into wrongly aligned VMA.
+
+THP's ->index must be aligned to HPAGE_PMD_NR, so if the combination VMA's
+->vm_start and ->vm_pgoff doesn't allow for this, you must fallback to
+mapping the page with PTEs. I don't see it handled properly here.
+
+> > > +	if (unlikely(!(PageCompound(new_page)))) {
+> > 
+> > How can it happen?
+> 
+> That check was already removed for a pending v4, thanks. I wasn't sure if
+> __page_cache_alloc() could ever erroneously return a non-compound page so
+> I wanted to check for it.
+> 
+> > > +	__SetPageLocked(new_page);
+> > 
+> > Again?
+> 
+> This is the page that content was just read to; readpage() will unlock the page
+> when it is done with I/O, but the page needs to be locked before it's inserted
+> into the page cache.
+
+Then you must to lock the page properly with lock_page().
+
+__SetPageLocked() is fine for just allocated pages that was not exposed
+anywhere. After ->readpage() it's not the case and it's not safe to use
+__SetPageLocked() for them.
+
+> > > +	/* did it get truncated? */
+> > > +	if (unlikely(new_page->mapping != mapping)) {
+> > 
+> > Hm. IIRC this path only reachable for just allocated page that is not
+> > exposed to anybody yet. How can it be truncated?
+> 
+> Matthew advised I duplicate the similar routine from filemap_fault(), but
+> that may be because of the normal way pages get added to the cache, which I
+> may need to modify my code to do.
+> 
+> > > +	ret = alloc_set_pte(vmf, NULL, hugepage);
+> > 
+> > It has to be
+> > 
+> > 	ret = alloc_set_pte(vmf, vmf->memcg, hugepage);
+> > 
+> > right?
+> 
+> I can make that change; originally alloc_set_pte() didn't use the second
+> parameter at all when mapping a read-only page.
+> 
+> Even now, if the page isn't writable, it would only be dereferenced by a
+> VM_BUG_ON_PAGE() call if it's COW.
+
+Please do change this. It has to be future-proof.
+
+> > It looks backwards to me. I believe the page must be in page cache
+> > *before* it got mapped.
+> > 
+> > I expect all sorts of weird bug due to races when the page is mapped but
+> > not visible via syscalls.
+> 
+> You may be correct.
+> 
+> My original thinking on this was that as a THP is going to be rarer and more
+> valuable to the system, I didn't want to add it to the page cache until its
+> contents had been fully read and it was mapped. Talking with Matthew it
+> seems I may need to change to do things the same way as PAGESIZE pages,
+> where the page is added to the cache prior to the readpage() call and we
+> rely upon PageUptodate to see if the reads were successful.
+> 
+> My thinking had been if any part of reading a large page and mapping it had
+> failed, the code could just put_page() the newly allocated page and fallback
+> to mapping the page with PAGESIZE pages rather than add a THP to the cache.
+
+I think it's must change. We should not allow inconsistent view on page
+cache.
+
+> > > +#ifndef CONFIG_RO_EXEC_FILEMAP_HUGE_FAULT_THP
+> > 
+> > IS_ENABLED()?
+> > 
+> > >   	if (!IS_DAX(filp->f_mapping->host) || !IS_ENABLED(CONFIG_FS_DAX_PMD))
+> > >   		goto out;
+> > > +#endif
+> 
+> This code short-circuits the address generation routine if the memory isn't DAX,
+> and if this code is enabled I need it not to goto out but rather fall through to
+> __thp_get_unmapped_area().
+> 
+> > > +	if ((prot & PROT_READ) && (prot & PROT_EXEC) &&
+> > > +		(!(prot & PROT_WRITE)) && (flags & MAP_PRIVATE) &&
+> > 
+> > Why require PROT_EXEC && PROT_READ. You only must ask for !PROT_WRITE.
+> > 
+> > And how do you protect against mprotect() later? Should you ask for
+> > ro-file instead?
+> 
+> My original goal was to only map program TEXT with THP, which means only
+> RO EXEC code, not just any non-writable address space.
+> 
+> If mprotect() is called, wouldn't the pages be COWed to PAGESIZE pages the
+> first time the area was written to? I may be way off on this assumption.
+
+Okay, fair enough. COW will happen for private mappings.
+
+But for private mappings you don't need to enforce even RO. All permission
+mask should be fine.
+
+> > All size considerations are already handled by thp_get_unmapped_area(). No
+> > need to duplicate it here.
+> 
+> Thanks, I'll remove them.
+> 
+> > You might want to add thp_ro_get_unmapped_area() that would check file for
+> > RO, before going for THP-suitable mapping.
+> 
+> Once again, the question is whether we want to make this just RO or RO + EXEC
+> to maintain my goal of just mapping program TEXT via THP. I'm willing to
+> hear arguments either way.
+
+It think the goal is to make feature useful and therefore we need to make
+it available for widest possible set of people.
+
+I think is should be allowed for RO (based on how file was opened, not on
+PROT_*) + SHARED and for any PRIVATE mappings.
+
+> > 
+> > > +		addr = thp_get_unmapped_area(file, addr, len, pgoff, flags);
+> > > +
+> > > +		if (addr && (!(addr & HPAGE_PMD_OFFSET)))
+> > > +			vm_maywrite = 0;
+> > 
+> > Oh. That's way too hacky. Better to ask for RO file instead.
+> 
+> I did that because the existing code just blindly sets VM_MAYWRITE and I
+> obviously didn't want to, so making it a variable allowed me to shut it off
+> if it was a THP mapping.
+
+I think touching VM_MAYWRITE here is wrong. It should reflect what file
+under the mapping allows.
+
+-- 
+ Kirill A. Shutemov
 
