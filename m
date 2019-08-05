@@ -2,186 +2,317 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5C51BC32751
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 22:12:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B74BAC0650F
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 22:15:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0DCB2214C6
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 22:12:45 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="bnxLQDCy"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0DCB2214C6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id C995F2147A
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 22:15:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C995F2147A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A18FD6B000A; Mon,  5 Aug 2019 18:12:45 -0400 (EDT)
+	id 55C976B000A; Mon,  5 Aug 2019 18:15:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9C9B56B000C; Mon,  5 Aug 2019 18:12:45 -0400 (EDT)
+	id 50D096B000C; Mon,  5 Aug 2019 18:15:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8DFC36B000D; Mon,  5 Aug 2019 18:12:45 -0400 (EDT)
+	id 423FD6B000D; Mon,  5 Aug 2019 18:15:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5E0176B000A
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 18:12:45 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id d2so47072579pla.18
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 15:12:45 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0920D6B000A
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 18:15:28 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id 30so53543654pgk.16
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 15:15:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=LkAiUo1s42CQYX53EPRAoniYSqypvtE8JhgF1ACTWJI=;
-        b=JiWVDJXDrDkYcVhTQ3SIe472oBzmFWk7Oz513xhChRaK3e8fck9hxIJG8pvINj9wd4
-         MBYet2u2ii1whB/FIifLlnST4Cy14ZClmjsze9fKNrtqoaQHL8JKtxlBBjyIdul4iNZO
-         IwHAH9iGYX8H2azFwpx6AHJazGz0KyxRXA9chNJ/liwINFFyDxsnQ359uEWVxgblwvb4
-         7UI1GZes7iiNC3kmBV5UTmAJf2cmJcqOwjmoixeCJdKm1X2n4nXxwI/sBHeARmsi6c9J
-         lx1cHpfWU3u6yIQ2f6v8o6wKN7GFfLpRVm84QJXluAnos4x9Li6Fd/5kpI61Ljpb9SLk
-         DPqw==
-X-Gm-Message-State: APjAAAU7rocc7Ma9wFrk3xsE8tZMGU9+CyBBeLhPB+O6Srl3ygfvRCnb
-	4ZrxYMrV0zKoGvDAnl/sESSvkQymXm13XMqz8Qjm5Ckk71k3aqAWpbX5wh1h3JQQVUx81HTs7VJ
-	MT7OzBsewpY7AZdPHqRAIEr68VqXiy5oWDKCqlgK3USO4+uCnGtPwylpZ1txn8G9ZnQ==
-X-Received: by 2002:a63:9249:: with SMTP id s9mr97092pgn.356.1565043164755;
-        Mon, 05 Aug 2019 15:12:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyVDDsZQ5E81eU2hvUVQPZ6cbVpxlUoIipEOG/eRTdVBmIYngfnASmmGzFlTH7T5bHpSmAV
-X-Received: by 2002:a63:9249:: with SMTP id s9mr97040pgn.356.1565043163895;
-        Mon, 05 Aug 2019 15:12:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565043163; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-transfer-encoding:content-language;
+        bh=E9s6rDyybk9xJO2Gc2Gb+fxw6pP8QknRJo2+aWG09LA=;
+        b=hlCOQNB0D7hrPnRB74dXLmrNSFanMyGsUmMEb8dwA4EIS94GmMixuzLA/TUFKzkheu
+         xnbbi/YPW/8LqgPDY6LGOIrebq/w7ohrWPoGd7ttB4T2ZFtGBf6H63iTGthc8FgfnAkV
+         clVPv5nHOfczuSM6+eWl6OKzI11dcYB4TC/7ne08whwDj3B3s2eNJQHZl+PwhUQVNEIW
+         QyGHi4/wQwBypPZpQxkkLf9saFzHbwWUERAkTNpGBfzdOrZ6gZjNTEmpmSXgZAvsxRKO
+         S/DPsfBW9R4aimtFlY70jeK7LBW2hgZN33/9G1bOIdGtghJhlGeqXYOvTGikQuy3cKoM
+         1utw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAW7xBdRx2VkAldG/P9Fw0djYPDQRo/8big1ujsyiwOMXzZmMdkO
+	cAH0cmFSJe+vlhifcJA6M8GITb4fkIvnO+xXDoL0V4+ibUEQpl0ixeJeCJV3JnQlEDZtmKOuwzP
+	uqd8bQlKwt/H/NTpRchd+sW8lU3eqe6PvRx7SuLJAsFW+3yBJDecYVTJTgU+unCaT5g==
+X-Received: by 2002:a63:7d05:: with SMTP id y5mr71888pgc.425.1565043327598;
+        Mon, 05 Aug 2019 15:15:27 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwqH3b/WNeHcvB8DbsB7MMM6lUTYYOupfKq2MIFfS0GWSCJW4GgtB42vxZp5Lo35fE3oENc
+X-Received: by 2002:a63:7d05:: with SMTP id y5mr71817pgc.425.1565043326396;
+        Mon, 05 Aug 2019 15:15:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565043326; cv=none;
         d=google.com; s=arc-20160816;
-        b=gUdhALcw9O7j92Xrd/1+ogkyzFoGYN5U056MKpEWlybme9mKjezHbPEItAoAz9ecI1
-         YWyZ1CzO4Wq9UcDmnq/UAErMDD9tEAgvbYcof0DuymEXjv5LRX1xhR1yBkIPQmRhVfnA
-         IFAN2/BFcIpGk2aa3zmf2XG7TT0ZH/+kYAXXr7evS/3QwGKpr2WFgSdj9ujXZqd8EZh1
-         eu7cZ4tB9D9CynJr+v280lLt86lWKv0jpGMIb45iGZgA8/rrMsDThC0KeasRrdiEUCzl
-         qzZjyduetKyUhsstwkpfv07QXj7xGsHq0zwkFjVvyVI3CHrPb13Du5AGYb7/1JgTJBdd
-         nrtQ==
+        b=DdycbNwmW4NVbWcaOFuvtduPRI0ZHA8e6dO6O4FsMNZS7ffIdiXvgMOFfmtl6k2NlT
+         bMW/BX9slRUCL18WWYNL1mFM5Qh7fk/dna7j6MBNwIb1KktQVM3mdSUCi2Sz1NNX0Zam
+         AQVG6Mi41FJ6Va/fPJJ/OhcQuJZw397FTh4rg0GR2ZIDREDUV69KLrkWARZBNCPZuaFB
+         Cl8/5Kgra6RXg3Oh1iqDL7FtWgvJvt0J6W9QqZ4NN0B2HuOQF/WfQfcIwcPBvs+eGTeW
+         qxTWqiA1Q4hKhAsWeUbdqrHiwvPpJR/1Gx/gU2qKSi0RVmdOVqKRk3mWCRplrbnuCTrt
+         YHMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=LkAiUo1s42CQYX53EPRAoniYSqypvtE8JhgF1ACTWJI=;
-        b=nAlna8kg/yRJXpODPYl4GLYghZ1l1bv/FGoOD9Ssrqnbij4bGk/pHIR7QKk6RBNI8G
-         v0obnQNGCpamQGW8n+PwEIwnyymXKEwZ5BDs0oClJ3LY0ph0hBvKO9wIHuQ2RfFg8BTu
-         WaTsLYTLrh1zOF4QQCaReb7oLSBmGNlDYahhCzhZGpLsh2ciSaLerS4g53HqOmGe29IG
-         9RUBQyGzUMsLF8Aw2mdfI5qtIZAr0R6eDzuIFhW9vmM1+au2oqgm0VfS9V7oXOD24DOr
-         SusBnM2x1ixJSmKC9avgAOP8FaC4QO1adCt79wrgdO6hXqU621zHqi6KOCfbMd32kzt0
-         oCbw==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:from:subject;
+        bh=E9s6rDyybk9xJO2Gc2Gb+fxw6pP8QknRJo2+aWG09LA=;
+        b=sLlbLnofSWpaHWNXuba2mVHfa39HuIFjkvGKg7mU+kFUf+5eRTf3nXdsG+aNnHx2iH
+         jrpVn5RZioyoc0ZDWQpVzyV8CDtcmieAdM4tvCRtjgtppBigtW9UP16lW4EJKJxSZkBe
+         stRA9a7t//KJxib8jzPV5GRr7wG33nDevHQ3jolbC76hwtM8gWhDEsQNnHEkXHSYshph
+         VTEkbOno8sbO+CIs22sZD2fFLGJ7qncR/Iyj1m952jvp/OQSnvM39j8FqK+ClON16ksd
+         FDod8HWIKim1wYngJHIRNJ2vZdSDXfHw+r9HwSis2uk2De5VXlABid+aREXSgLhTwHmR
+         XrdQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=bnxLQDCy;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id d31si43285059pla.393.2019.08.05.15.12.43
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id x13si46982467pfn.105.2019.08.05.15.15.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Aug 2019 15:12:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Mon, 05 Aug 2019 15:15:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) client-ip=115.124.30.132;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=bnxLQDCy;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d48a9e50000>; Mon, 05 Aug 2019 15:12:53 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Mon, 05 Aug 2019 15:12:43 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Mon, 05 Aug 2019 15:12:43 -0700
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 5 Aug
- 2019 22:12:42 +0000
-Subject: Re: [PATCH] fs/io_uring.c: convert put_page() to put_user_page*()
-To: Ira Weiny <ira.weiny@intel.com>, <john.hubbard@gmail.com>
-CC: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig
-	<hch@infradead.org>, Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Jerome Glisse <jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>,
-	<linux-mm@kvack.org>, <linux-fsdevel@vger.kernel.org>, Alexander Viro
-	<viro@zeniv.linux.org.uk>, Jens Axboe <axboe@kernel.dk>,
-	<linux-block@vger.kernel.org>
-References: <20190805023206.8831-1-jhubbard@nvidia.com>
- <20190805220441.GA23416@iweiny-DESK2.sc.intel.com>
- <20190805220547.GB23416@iweiny-DESK2.sc.intel.com>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <dddaaf48-ce33-bdf4-86cb-47101d15eb6c@nvidia.com>
-Date: Mon, 5 Aug 2019 15:12:42 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R261e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01f04391;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=5;SR=0;TI=SMTPD_---0TYmEAnP_1565043321;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TYmEAnP_1565043321)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Tue, 06 Aug 2019 06:15:23 +0800
+Subject: Re: list corruption in deferred_split_scan()
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: Qian Cai <cai@lca.pw>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+ akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1562795006.8510.19.camel@lca.pw>
+ <1564002826.11067.17.camel@lca.pw>
+ <db71dacc-5074-65ef-d018-df695e25c769@linux.alibaba.com>
+Message-ID: <13487e44-273e-819d-89be-8b7823c2f936@linux.alibaba.com>
+Date: Mon, 5 Aug 2019 15:15:21 -0700
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
+ Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190805220547.GB23416@iweiny-DESK2.sc.intel.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
+In-Reply-To: <db71dacc-5074-65ef-d018-df695e25c769@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1565043173; bh=LkAiUo1s42CQYX53EPRAoniYSqypvtE8JhgF1ACTWJI=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=bnxLQDCyTODHWtH8f0QtXRcjnq5ZXER2WiGKW2qcCasfwe2n/ifRFjrKGHdyPOppn
-	 UvjQryp87QwL1sEmtQkKSxJDk/DZbvhqo+mDHQVATQ9bBcoKnLRVQZiK9wAKkQ0DdD
-	 Vs8tjYGY4h6UomzREoaPHuLbgC1/FrH1JcqhpCHDAF0gBBzIrmrClfnBUsOwA0/j9u
-	 PsvNWbbA7QRj75rUXOs05jEZLR3w7rJ4pZ8TDwjzAXpDSY7XDp7GNz9t5A3GCeDz0C
-	 mK1bTIxkCObFVZpc/YzRFWLAFY8D44N5xtlkq8ihB9nG04UOs+yqRWzkLpjzL4j7XF
-	 R+Vw9vNjJ4jPw==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/5/19 3:05 PM, Ira Weiny wrote:
-> On Mon, Aug 05, 2019 at 03:04:42PM -0700, 'Ira Weiny' wrote:
->> On Sun, Aug 04, 2019 at 07:32:06PM -0700, john.hubbard@gmail.com wrote:
->>> From: John Hubbard <jhubbard@nvidia.com>
->>>
->>> For pages that were retained via get_user_pages*(), release those pages
->>> via the new put_user_page*() routines, instead of via put_page() or
->>> release_pages().
->>>
->>> This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
->>> ("mm: introduce put_user_page*(), placeholder versions").
->>>
->>> Cc: Alexander Viro <viro@zeniv.linux.org.uk>
->>> Cc: Jens Axboe <axboe@kernel.dk>
->>> Cc: linux-fsdevel@vger.kernel.org
->>> Cc: linux-block@vger.kernel.org
->>> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+
+
+On 7/25/19 2:46 PM, Yang Shi wrote:
+>
+>
+> On 7/24/19 2:13 PM, Qian Cai wrote:
+>> On Wed, 2019-07-10 at 17:43 -0400, Qian Cai wrote:
+>>> Running LTP oom01 test case with swap triggers a crash below. Revert 
+>>> the
+>>> series
+>>> "Make deferred split shrinker memcg aware" [1] seems fix the issue.
+>> You might want to look harder on this commit, as reverted it alone on 
+>> the top of
+>>   5.2.0-next-20190711 fixed the issue.
 >>
->> Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-> 
-> <sigh>
-> 
-> I meant to say I wrote the same patch ...  For this one...
-> 
-> Reviewed-by: Ira Weiny <ira.weiny@intel.com>
-> 
+>> aefde94195ca mm: thp: make deferred split shrinker memcg aware [1]
+>>
+>> [1] 
+>> https://lore.kernel.org/linux-mm/1561507361-59349-5-git-send-email-yang.shi@
+>> linux.alibaba.com/
+>
+> This is the real meat of the patch series, which converted to memcg 
+> deferred split queue actually.
+>
+>>
+>>
+>> list_del corruption. prev->next should be ffffea0022b10098, but was
+>> 0000000000000000
+>
+> Finally I could reproduce the list corruption issue on my machine with 
+> THP swap (swap device is fast device). I should checked this with you 
+> at the first place. The problem can't be reproduced with rotate swap 
+> device. So, I'm supposed you were using THP swap too.
+>
+> Actually, I found two issues with THP swap:
+> 1. free_transhuge_page() is called in reclaim path instead of 
+> put_page. The mem_cgroup_uncharge() is called before 
+> free_transhuge_page() in reclaim path, which causes page->mem_cgroup 
+> is NULL so the wrong deferred_split_queue would be used, so the THP 
+> was not deleted from the memcg's list at all. Then the page might be 
+> split or reused later, page->mapping would be override.
+>
+> 2. There is a race condition caused by try_to_unmap() with THP swap. 
+> The try_to_unmap() just calls page_remove_rmap() to add THP to 
+> deferred split queue in reclaim path. This might cause the below race 
+> condition to corrupt the list:
+>
+>                   A                                      B
+> deferred_split_scan
+>     list_move
+>                                                try_to_unmap
+> list_add_tail
+>
+> list_splice <-- The list might get corrupted here
+>
+>                                                free_transhuge_page
+>                                                       list_del <-- 
+> kernel bug triggered
+>
+> I hope the below patch would solve your problem (tested locally).
 
-Hi Ira,
+Hi Qian,
 
-Say, in case you or anyone else is up for it: there are still about 
-two thirds of the 34 patches that could use a reviewed-by, in this series:
+Did the below patch solve your problem? I would like the fold the fix 
+into the series then target to 5.4 release.
 
-   https://lore.kernel.org/r/20190804224915.28669-1-jhubbard@nvidia.com
+Thanks,
+Yang
 
-...and even reviewing one or two quick ones would help--no need to look at
-all of them, especially if several people each look at a few.
-
-Also note that I'm keeping the gup_dma_core branch tracking the latest
-linux.git, and it seems to be working pretty well, aside from one warning
-that I haven't yet figured out (as per the latest commit):
-
-    git@github.com:johnhubbard/linux.git
-   
-
-thanks,
--- 
-John Hubbard
-NVIDIA
+>
+>
+> diff --git a/mm/huge_memory.c b/mm/huge_memory.c
+> index b7f709d..d6612ec 100644
+> --- a/mm/huge_memory.c
+> +++ b/mm/huge_memory.c
+> @@ -2830,6 +2830,19 @@ void deferred_split_huge_page(struct page *page)
+>
+>         VM_BUG_ON_PAGE(!PageTransHuge(page), page);
+>
+> +       /*
+> +        * The try_to_unmap() in page reclaim path might reach here too,
+> +        * this may cause a race condition to corrupt deferred split 
+> queue.
+> +        * And, if page reclaim is already handling the same page, it is
+> +        * unnecessary to handle it again in shrinker.
+> +        *
+> +        * Check PageSwapCache to determine if the page is being
+> +        * handled by page reclaim since THP swap would add the page into
+> +        * swap cache before reaching try_to_unmap().
+> +        */
+> +       if (PageSwapCache(page))
+> +               return;
+> +
+>         spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
+>         if (list_empty(page_deferred_list(page))) {
+>                 count_vm_event(THP_DEFERRED_SPLIT_PAGE);
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index a0301ed..40c684a 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -1485,10 +1485,9 @@ static unsigned long shrink_page_list(struct 
+> list_head *page_list,
+>                  * Is there need to periodically free_page_list? It would
+>                  * appear not as the counts should be low
+>                  */
+> -               if (unlikely(PageTransHuge(page))) {
+> -                       mem_cgroup_uncharge(page);
+> +               if (unlikely(PageTransHuge(page)))
+>                         (*get_compound_page_dtor(page))(page);
+> -               } else
+> +               else
+>                         list_add(&page->lru, &free_pages);
+>                 continue;
+>
+> @@ -1909,7 +1908,6 @@ static unsigned noinline_for_stack 
+> move_pages_to_lru(struct lruvec *lruvec,
+>
+>                         if (unlikely(PageCompound(page))) {
+> spin_unlock_irq(&pgdat->lru_lock);
+> -                               mem_cgroup_uncharge(page);
+> (*get_compound_page_dtor(page))(page);
+> spin_lock_irq(&pgdat->lru_lock);
+>                         } else
+>
+>> [  685.284254][ T3456] ------------[ cut here ]------------
+>> [  685.289616][ T3456] kernel BUG at lib/list_debug.c:53!
+>> [  685.294808][ T3456] invalid opcode: 0000 [#1] SMP DEBUG_PAGEALLOC 
+>> KASAN NOPTI
+>> [  685.301998][ T3456] CPU: 5 PID: 3456 Comm: oom01 Tainted:
+>> G        W         5.2.0-next-20190711+ #3
+>> [  685.311193][ T3456] Hardware name: HPE ProLiant DL385 
+>> Gen10/ProLiant DL385
+>> Gen10, BIOS A40 06/24/2019
+>> [  685.320485][ T3456] RIP: 0010:__list_del_entry_valid+0x8b/0xb6
+>> [  685.326364][ T3456] Code: f1 e0 ff 49 8b 55 08 4c 39 e2 75 2c 5b 
+>> b8 01 00 00
+>> 00 41 5c 41 5d 5d c3 4c 89 e2 48 89 de 48 c7 c7 c0 5a 73 a3 e8 d9 fa 
+>> bc ff <0f>
+>> 0b 48 c7 c7 60 a0 e1 a3 e8 13 52 01 00 4c 89 e6 48 c7 c7 20 5b
+>> [  685.345956][ T3456] RSP: 0018:ffff888e0c8a73c0 EFLAGS: 00010082
+>> [  685.351920][ T3456] RAX: 0000000000000054 RBX: ffffea0022b10098 RCX:
+>> ffffffffa2d5d708
+>> [  685.359807][ T3456] RDX: 0000000000000000 RSI: 0000000000000008 RDI:
+>> ffff8888442bd380
+>> [  685.367693][ T3456] RBP: ffff888e0c8a73d8 R08: ffffed1108857a71 R09:
+>> ffffed1108857a70
+>> [  685.375577][ T3456] R10: ffffed1108857a70 R11: ffff8888442bd387 R12:
+>> 0000000000000000
+>> [  685.383462][ T3456] R13: 0000000000000000 R14: ffffea0022b10034 R15:
+>> ffffea0022b10098
+>> [  685.391348][ T3456] FS:  00007fbe26db4700(0000) 
+>> GS:ffff888844280000(0000)
+>> knlGS:0000000000000000
+>> [  685.400194][ T3456] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+>> [  685.406681][ T3456] CR2: 00007fbcabb3f000 CR3: 0000001012e44000 CR4:
+>> 00000000001406a0
+>> [  685.414563][ T3456] Call Trace:
+>> [  685.417736][ T3456]  deferred_split_scan+0x337/0x740
+>> [  685.422741][ T3456]  ? split_huge_page_to_list+0xe10/0xe10
+>> [  685.428272][ T3456]  ? __radix_tree_lookup+0x12d/0x1e0
+>> [  685.433453][ T3456]  ? node_tag_get.part.0.constprop.6+0x40/0x40
+>> [  685.439505][ T3456]  do_shrink_slab+0x244/0x5a0
+>> [  685.444071][ T3456]  shrink_slab+0x253/0x440
+>> [  685.448375][ T3456]  ? unregister_shrinker+0x110/0x110
+>> [  685.453551][ T3456]  ? kasan_check_read+0x11/0x20
+>> [  685.458291][ T3456]  ? mem_cgroup_protected+0x20f/0x260
+>> [  685.463555][ T3456]  shrink_node+0x31e/0xa30
+>> [  685.467858][ T3456]  ? shrink_node_memcg+0x1560/0x1560
+>> [  685.473036][ T3456]  ? ktime_get+0x93/0x110
+>> [  685.477250][ T3456]  do_try_to_free_pages+0x22f/0x820
+>> [  685.482338][ T3456]  ? shrink_node+0xa30/0xa30
+>> [  685.486815][ T3456]  ? kasan_check_read+0x11/0x20
+>> [  685.491556][ T3456]  ? check_chain_key+0x1df/0x2e0
+>> [  685.496383][ T3456]  try_to_free_pages+0x242/0x4d0
+>> [  685.501209][ T3456]  ? do_try_to_free_pages+0x820/0x820
+>> [  685.506476][ T3456]  __alloc_pages_nodemask+0x9ce/0x1bc0
+>> [  685.511826][ T3456]  ? gfp_pfmemalloc_allowed+0xc0/0xc0
+>> [  685.517089][ T3456]  ? kasan_check_read+0x11/0x20
+>> [  685.521826][ T3456]  ? check_chain_key+0x1df/0x2e0
+>> [  685.526657][ T3456]  ? do_anonymous_page+0x343/0xe30
+>> [  685.531658][ T3456]  ? lock_downgrade+0x390/0x390
+>> [  685.536399][ T3456]  ? get_kernel_page+0xa0/0xa0
+>> [  685.541050][ T3456]  ? __lru_cache_add+0x108/0x160
+>> [  685.545879][ T3456]  alloc_pages_vma+0x89/0x2c0
+>> [  685.550444][ T3456]  do_anonymous_page+0x3e1/0xe30
+>> [  685.555271][ T3456]  ? __update_load_avg_cfs_rq+0x2c/0x490
+>> [  685.560796][ T3456]  ? finish_fault+0x120/0x120
+>> [  685.565361][ T3456]  ? alloc_pages_vma+0x21e/0x2c0
+>> [  685.570187][ T3456]  handle_pte_fault+0x457/0x12c0
+>> [  685.575014][ T3456]  __handle_mm_fault+0x79a/0xa50
+>> [  685.579841][ T3456]  ? vmf_insert_mixed_mkwrite+0x20/0x20
+>> [  685.585280][ T3456]  ? kasan_check_read+0x11/0x20
+>> [  685.590021][ T3456]  ? __count_memcg_events+0x8b/0x1c0
+>> [  685.595196][ T3456]  handle_mm_fault+0x17f/0x370
+>> [  685.599850][ T3456]  __do_page_fault+0x25b/0x5d0
+>> [  685.604501][ T3456]  do_page_fault+0x4c/0x2cf
+>> [  685.608892][ T3456]  ? page_fault+0x5/0x20
+>> [  685.613019][ T3456]  page_fault+0x1b/0x20
+>> [  685.617058][ T3456] RIP: 0033:0x410be0
+>> [  685.620840][ T3456] Code: 89 de e8 e3 23 ff ff 48 83 f8 ff 0f 84 
+>> 86 00 00 00
+>> 48 89 c5 41 83 fc 02 74 28 41 83 fc 03 74 62 e8 95 29 ff ff 31 d2 48 
+>> 98 90 <c6>
+>> 44 15 00 07 48 01 c2 48 39 d3 7f f3 31 c0 5b 5d 41 5c c3 0f 1f
+>> [  68[  687.120156][ T3456] Shutting down cpus with NMI
+>> [  687.124731][ T3456] Kernel Offset: 0x21800000 from 0xffffffff81000000
+>> (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
+>> [  687.136389][ T3456] ---[ end Kernel panic - not syncing: Fatal 
+>> exception ]---
+>
 
