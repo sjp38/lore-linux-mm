@@ -6,299 +6,291 @@ X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 28096C433FF
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 17:51:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2953BC0650F
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 17:53:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CDE2D20B1F
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 17:51:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CDE2D20B1F
+	by mail.kernel.org (Postfix) with ESMTP id D34FC20880
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 17:53:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D34FC20880
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 66FAD6B0005; Mon,  5 Aug 2019 13:51:58 -0400 (EDT)
+	id 7311A6B0005; Mon,  5 Aug 2019 13:53:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5F9F76B0006; Mon,  5 Aug 2019 13:51:58 -0400 (EDT)
+	id 6E1FC6B0006; Mon,  5 Aug 2019 13:53:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 498FD6B0007; Mon,  5 Aug 2019 13:51:58 -0400 (EDT)
+	id 5D0DF6B0007; Mon,  5 Aug 2019 13:53:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 273496B0005
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 13:51:58 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id q26so76553170qtr.3
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 10:51:58 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 392706B0005
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 13:53:30 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id x17so73323791qkf.14
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 10:53:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=KkQF/yyjV27vgv6xjjIeQuNRAaEq4R/gFnbFlVUyO6g=;
-        b=litM7iVPlDOoXCtYqXJy6BxujqMrbAOz/+WcjHEgVDPQkrH2J5GqeXkm1l5fmNSc1O
-         PjD98K2c+1XmKyPvPnDGow/q0p8JA1cZnqwBFv+hgfBJlj5CkQXe0jUhxAZE+HzxMTwh
-         jNX2gT/WDlcRqet6xjoCNr/g+GnKwpbFm5JeXd3EKqu/n3eCCGxlsoaLjTkApERsk8yZ
-         lVqiG+GW+rYrch9R3bes+1icpZwWJ2kesbjZZyXH+7BAmxIHd2yHFIFA9TPXvIk417PD
-         spQB9NwM+TTquo0RSkw2MI+JSQRlL32Lcv4BuaFiadFoN4CLDpbE3502bxfzzKHHq1TP
-         /WBA==
+        bh=jXhjQFJ0ZOzE3bKwin8aUxHfcUkaf9rAB7IY5UBlNj4=;
+        b=KmChhsyF7r3svJxXKdum/iIeajUvMpKSKjQSgn9msddw1YPgf6yvgkMLaG1dNC11kO
+         VG3HcpgXxGmmh8PPseXBbbzhzmxEKLmRP4w6ALrat5Mtwdch2xbh/J49ZZKpti4IBfrL
+         M4Ilz11ioCrE3BHV7zW/wX8sKFR6TDejtTfV9Un57g2Lxbb5dKwJdS2+6BcZdc3aECTa
+         tqNQwjP+9DKKEI2lXEVChd15TNZRCqvkrnTcL+6m2h+00uoBk0hwZ4KOshW1XUwtoxfm
+         ia3P4fD2zjwf96rvZUmZL4i/VASLNlh+M+DQV9d2VUyY/K8A2ssMBDGiW9mD0PUmsoBn
+         dHuA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVtB23tMVBV278k0c0sAbJLRiMc3FCdJeLfVcd9X/IONDtong5D
-	c88Q6/XbdqEjrq2dI4FrQ8DAkjNYTqmj+u6kl1SzbXE0PE9W16r4xoCmYdVy4kj+INrDg587Ig2
-	+NwaFBKSUfZyzSSTRP6ixhjZeFFaMOXMeYlsFIFsqfL67BWupF+z/cGWmwoWzmbDy4Q==
-X-Received: by 2002:ad4:55a9:: with SMTP id f9mr110690263qvx.133.1565027517928;
-        Mon, 05 Aug 2019 10:51:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyNSgz4SG4PVsU8utZwr6Vle3h+dcvkQZhB+0XvBUCg2Tv/Zgpf6YJp2Fg0Z+9CiocGScYs
-X-Received: by 2002:ad4:55a9:: with SMTP id f9mr110690206qvx.133.1565027517135;
-        Mon, 05 Aug 2019 10:51:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565027517; cv=none;
+X-Gm-Message-State: APjAAAX8ZWz7Orz6MLDEju38tpBCvc4mLmU2gIa/RbRlY4feVCdwO5mJ
+	wBLDF3XZ6d4Cx+/bBm/sg9+2RquCuDUEYkHIENcVS7gt2dL6ur0TvKaZydDZi/aEK+m7YdAV/RY
+	wgyuoDBKbR544xMxDnY4nYJlFEQgCrHasEo2l63zR582/FpwHYOQHdMjRGqD/ojgiYA==
+X-Received: by 2002:ae9:f107:: with SMTP id k7mr39035730qkg.215.1565027610021;
+        Mon, 05 Aug 2019 10:53:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyXdDPoB8yEsXGAE3wPwCr0FA9EkgNwy7u9KkUNDeB8+8j6bdTsK+lvPmske+d5gZ6u6KkM
+X-Received: by 2002:ae9:f107:: with SMTP id k7mr39035686qkg.215.1565027609327;
+        Mon, 05 Aug 2019 10:53:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565027609; cv=none;
         d=google.com; s=arc-20160816;
-        b=coHutKtqtUiPE6ntnijQQNsS0wsVooKcONvWpS+eNfninIcxcp2nmYw1IEubyeFoi8
-         ZuIID9epo+bLDz4cYgygJrglGn0+pDp6W6Iq3eTC8t5HXAaEoSo45KZ17YJAKq4E+2pp
-         wa3F9TJNUJLai2g0/RyX334sVcgBvscT2qgUbMie5NpaSlI0lfF1uFEXTYpzICb+P9K8
-         1hXKsi5VWiCCtQLr5T8ey+891Ubfwj+WFsNFYx5tcih/lt0co2iccY3xt7kSHaKCWLSL
-         W2WE+JkJGzdpI9oUqmh7M2mA/UTQtqNJDSEzScPh5QPAdB8iaXTvCeGdILWGweQy60/A
-         XssA==
+        b=dilLLnLsm/5Y+tZdt2HLn7e5OxEoYQeQBh0n0tXrvsXlmGdINn38xgz9thEnUikY3W
+         PBGX1+waf+U7LHiwGbIjmz7HWw0R+3chRWPXPN8x9b/v0QQQECQUC3W63QPuo22XzgNK
+         nfv5S+HWfrFV8rQ727bG2O+n2Jql0DgDaNmBVA+9rQzL/QQgTzRiUitoZzGsA/Lq3vYj
+         jMuzOfSU4DzCLww7kcoCbfacUy9dSuDpfXEz9EUD4ZP0r+MzKiYFtdEvUt8pyTHL3TNp
+         49iKI9WFLEUWpeJyz9FInDqeixUmMzMoO+6yk/jUaTTuy/I9DyW0edq5Nbg+t1I5WEba
+         43qQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=KkQF/yyjV27vgv6xjjIeQuNRAaEq4R/gFnbFlVUyO6g=;
-        b=R3De9Eyt8+KuVYqmjs0DcfMus/s+ugsgnE+1hNZjyCw090EeJGqUp0rwltPkQ4wacG
-         MuFKBmUWVTXvjYosbXIROkP0BwrfRvHstFnrJPkoXZTu2HNw9rfQL/i6WHw7SdE+fem/
-         5cOI+it+lKDfESNdqAwQy2735+VPqW/7QOhWI+ZOdL6FJdlqeydFt/nZfYVw5OreTbWF
-         STSCSTDCaOWzYGUuiU39STyg4DRiHZ8dLQH0gvzZ1Se6khPpkaOsGBHroLjryMtvObPA
-         +L9ov/9ui49JgmfeWva4/JWWf34Z+IBPPLRmCFZcoLSmLfOnkIHt0vzkuxUZAtwPT81U
-         +cww==
+        bh=jXhjQFJ0ZOzE3bKwin8aUxHfcUkaf9rAB7IY5UBlNj4=;
+        b=hFdNjVuMMTk9lsz6XFrPzKFGvslzH2fu7AJ2dNRQJ3EllYPp7smR2ctU/XK6EVUBm7
+         N/hPgblkxLwH5+ITa/tiwpQZ1PUBTO/n9XlK0yKqk+u/zU3He1iqTwRoHyl7e+tTo1vM
+         Weg8IcH7wpFZTBa4exgsi3hit4ZlRYT1ccsby1mKppXyY/kQkUDyDzNGhaYpy1tIEQdv
+         Rx34jSxMSylpRtj0vRk2NCEJIXvuGUJ+a6gvktebFIXP14ddwA+jLak366AOWHb9JySW
+         SrCjjX48U/pI2Qo4JMyyI8IrJHvRjAdhztb9p5Muf+qoImFfjO1UyAaTBlBEjhTh8tcC
+         Ea6w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x21si44423671qkj.215.2019.08.05.10.51.56
+        by mx.google.com with ESMTPS id w6si25791509qkj.178.2019.08.05.10.53.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Aug 2019 10:51:57 -0700 (PDT)
+        Mon, 05 Aug 2019 10:53:29 -0700 (PDT)
 Received-SPF: pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0ABA2300177B;
-	Mon,  5 Aug 2019 17:51:56 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 841A14E8AC;
+	Mon,  5 Aug 2019 17:53:28 +0000 (UTC)
 Received: from bfoster (dhcp-41-2.bos.redhat.com [10.18.41.2])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 7C46B5C1D6;
-	Mon,  5 Aug 2019 17:51:55 +0000 (UTC)
-Date: Mon, 5 Aug 2019 13:51:53 -0400
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 05BE85D704;
+	Mon,  5 Aug 2019 17:53:27 +0000 (UTC)
+Date: Mon, 5 Aug 2019 13:53:26 -0400
 From: Brian Foster <bfoster@redhat.com>
 To: Dave Chinner <david@fromorbit.com>
 Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH 13/24] xfs: synchronous AIL pushing
-Message-ID: <20190805175153.GC14760@bfoster>
+Subject: Re: [PATCH 14/24] xfs: tail updates only need to occur when LSN
+ changes
+Message-ID: <20190805175325.GD14760@bfoster>
 References: <20190801021752.4986-1-david@fromorbit.com>
- <20190801021752.4986-14-david@fromorbit.com>
+ <20190801021752.4986-15-david@fromorbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190801021752.4986-14-david@fromorbit.com>
+In-Reply-To: <20190801021752.4986-15-david@fromorbit.com>
 User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Mon, 05 Aug 2019 17:51:56 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Mon, 05 Aug 2019 17:53:28 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 01, 2019 at 12:17:41PM +1000, Dave Chinner wrote:
+On Thu, Aug 01, 2019 at 12:17:42PM +1000, Dave Chinner wrote:
 > From: Dave Chinner <dchinner@redhat.com>
 > 
-> Provide an interface to push the AIL to a target LSN and wait for
-> the tail of the log to move past that LSN. This is used to wait for
-> all items older than a specific LSN to either be cleaned (written
-> back) or relogged to a higher LSN in the AIL. The primary use for
-> this is to allow IO free inode reclaim throttling.
+> We currently wake anything waiting on the log tail to move whenever
+> the log item at the tail of the log is removed. Historically this
+> was fine behaviour because there were very few items at any given
+> LSN. But with delayed logging, there may be thousands of items at
+> any given LSN, and we can't move the tail until they are all gone.
 > 
-> Factor the common AIL deletion code that does all the wakeups into a
-> helper so we only have one copy of this somewhat tricky code to
-> interface with all the wakeups necessary when the LSN of the log
-> tail changes.
+> Hence if we are removing them in near tail-first order, we might be
+> waking up processes waiting on the tail LSN to change (e.g. log
+> space waiters) repeatedly without them being able to make progress.
+> This also occurs with the new sync push waiters, and can result in
+> thousands of spurious wakeups every second when under heavy direct
+> reclaim pressure.
+> 
+> To fix this, check that the tail LSN has actually changed on the
+> AIL before triggering wakeups. This will reduce the number of
+> spurious wakeups when doing bulk AIL removal and make this code much
+> more efficient.
+> 
+> XXX: occasionally get a temporary hang in xfs_ail_push_sync() with
+> this change - log force from log worker gets things moving again.
+> Only happens under extreme memory pressure - possibly push racing
+> with a tail update on an empty log. Needs further investigation.
 > 
 > Signed-off-by: Dave Chinner <dchinner@redhat.com>
 > ---
->  fs/xfs/xfs_inode_item.c | 12 +------
->  fs/xfs/xfs_trans_ail.c  | 69 +++++++++++++++++++++++++++++++++--------
->  fs/xfs/xfs_trans_priv.h |  6 +++-
->  3 files changed, 62 insertions(+), 25 deletions(-)
-> 
-...
-> diff --git a/fs/xfs/xfs_trans_ail.c b/fs/xfs/xfs_trans_ail.c
-> index 6ccfd75d3c24..9e3102179221 100644
-> --- a/fs/xfs/xfs_trans_ail.c
-> +++ b/fs/xfs/xfs_trans_ail.c
-> @@ -654,6 +654,37 @@ xfs_ail_push_all(
->  		xfs_ail_push(ailp, threshold_lsn);
->  }
->  
-> +/*
-> + * Push the AIL to a specific lsn and wait for it to complete.
-> + */
-> +void
-> +xfs_ail_push_sync(
-> +	struct xfs_ail		*ailp,
-> +	xfs_lsn_t		threshold_lsn)
-> +{
-> +	struct xfs_log_item	*lip;
-> +	DEFINE_WAIT(wait);
-> +
-> +	spin_lock(&ailp->ail_lock);
-> +	while ((lip = xfs_ail_min(ailp)) != NULL) {
-> +		prepare_to_wait(&ailp->ail_push, &wait, TASK_UNINTERRUPTIBLE);
-> +		if (XFS_FORCED_SHUTDOWN(ailp->ail_mount) ||
-> +		    XFS_LSN_CMP(threshold_lsn, lip->li_lsn) <= 0)
-> +			break;
-> +		/* XXX: cmpxchg? */
-> +		while (XFS_LSN_CMP(threshold_lsn, ailp->ail_target) > 0)
-> +			xfs_trans_ail_copy_lsn(ailp, &ailp->ail_target, &threshold_lsn);
 
-Why the need to repeatedly copy the ail_target like this? If the push
-target only ever moves forward, we should only need to do this once at
-the start of the function. In fact I'm kind of wondering why we can't
-just call xfs_ail_push(). If we check the tail item after grabbing the
-spin lock, we should be able to avoid any races with the waker, no?
+Ok, this addresses the wakeup granularity issue mentioned in the
+previous patch. Note that I was kind of wondering why we wouldn't base
+this on the l_tail_lsn update in xlog_assign_tail_lsn_locked() as
+opposed to the current approach.
 
-> +		wake_up_process(ailp->ail_task);
-> +		spin_unlock(&ailp->ail_lock);
-> +		schedule();
-> +		spin_lock(&ailp->ail_lock);
-> +	}
-> +	spin_unlock(&ailp->ail_lock);
-> +
-> +	finish_wait(&ailp->ail_push, &wait);
-> +}
-> +
-> +
->  /*
->   * Push out all items in the AIL immediately and wait until the AIL is empty.
->   */
-> @@ -764,6 +795,28 @@ xfs_ail_delete_one(
->  	return mlip == lip;
->  }
->  
-> +void
-> +xfs_ail_delete_finish(
-> +	struct xfs_ail		*ailp,
-> +	bool			do_tail_update) __releases(ailp->ail_lock)
-> +{
-> +	struct xfs_mount	*mp = ailp->ail_mount;
-> +
-> +	if (!do_tail_update) {
-> +		spin_unlock(&ailp->ail_lock);
-> +		return;
-> +	}
-> +
-
-Hmm.. so while what we really care about here are tail updates, this
-logic is currently driven by removing the min ail log item. That seems
-like a lot of potential churn if we're waking the pusher on every object
-written back covered by a single log record / checkpoint. Perhaps we
-should implement a bit more coarse wakeup logic such as only when the
-tail lsn actually changes, for example?
-
-FWIW, it also doesn't look like you've handled the case of relogged
-items moving the tail forward anywhere that I can see, so we might be
-missing some wakeups here. See xfs_trans_ail_update_bulk() for
-additional AIL manipulation.
-
-> +	if (!XFS_FORCED_SHUTDOWN(mp))
-> +		xlog_assign_tail_lsn_locked(mp);
-> +
-> +	wake_up_all(&ailp->ail_push);
-> +	if (list_empty(&ailp->ail_head))
-> +		wake_up_all(&ailp->ail_empty);
-> +	spin_unlock(&ailp->ail_lock);
-> +	xfs_log_space_wake(mp);
-> +}
-> +
->  /**
->   * Remove a log items from the AIL
->   *
-> @@ -789,10 +842,9 @@ void
->  xfs_trans_ail_delete(
->  	struct xfs_ail		*ailp,
->  	struct xfs_log_item	*lip,
-> -	int			shutdown_type) __releases(ailp->ail_lock)
-> +	int			shutdown_type)
->  {
->  	struct xfs_mount	*mp = ailp->ail_mount;
-> -	bool			mlip_changed;
->  
->  	if (!test_bit(XFS_LI_IN_AIL, &lip->li_flags)) {
->  		spin_unlock(&ailp->ail_lock);
-> @@ -805,17 +857,7 @@ xfs_trans_ail_delete(
->  		return;
->  	}
->  
-> -	mlip_changed = xfs_ail_delete_one(ailp, lip);
-> -	if (mlip_changed) {
-> -		if (!XFS_FORCED_SHUTDOWN(mp))
-> -			xlog_assign_tail_lsn_locked(mp);
-> -		if (list_empty(&ailp->ail_head))
-> -			wake_up_all(&ailp->ail_empty);
-> -	}
-> -
-> -	spin_unlock(&ailp->ail_lock);
-> -	if (mlip_changed)
-> -		xfs_log_space_wake(ailp->ail_mount);
-> +	xfs_ail_delete_finish(ailp, xfs_ail_delete_one(ailp, lip));
-
-Nit, but I'm not a fan of the function call buried in a function call
-parameter pattern. I tend to read over it at a glance so to me it's not
-worth the line of code it saves.
+For example, xlog_assign_tail_lsn_locked() could simply check the
+current min item against the current l_tail_lsn before it does the
+assignment and use that to trigger tail change events. If we wanted to
+also filter out the other wakeups (as this patch does) then we could
+just pass a bool pointer or something that returns whether the tail
+actually changed.
 
 Brian
 
+>  fs/xfs/xfs_inode_item.c | 18 +++++++++++++-----
+>  fs/xfs/xfs_trans_ail.c  | 37 ++++++++++++++++++++++++++++---------
+>  fs/xfs/xfs_trans_priv.h |  4 ++--
+>  3 files changed, 43 insertions(+), 16 deletions(-)
+> 
+> diff --git a/fs/xfs/xfs_inode_item.c b/fs/xfs/xfs_inode_item.c
+> index 7b942a63e992..16a7d6f752c9 100644
+> --- a/fs/xfs/xfs_inode_item.c
+> +++ b/fs/xfs/xfs_inode_item.c
+> @@ -731,19 +731,27 @@ xfs_iflush_done(
+>  	 * holding the lock before removing the inode from the AIL.
+>  	 */
+>  	if (need_ail) {
+> -		bool			mlip_changed = false;
+> +		xfs_lsn_t	tail_lsn = 0;
+>  
+>  		/* this is an opencoded batch version of xfs_trans_ail_delete */
+>  		spin_lock(&ailp->ail_lock);
+>  		list_for_each_entry(blip, &tmp, li_bio_list) {
+>  			if (INODE_ITEM(blip)->ili_logged &&
+> -			    blip->li_lsn == INODE_ITEM(blip)->ili_flush_lsn)
+> -				mlip_changed |= xfs_ail_delete_one(ailp, blip);
+> -			else {
+> +			    blip->li_lsn == INODE_ITEM(blip)->ili_flush_lsn) {
+> +				/*
+> +				 * xfs_ail_delete_finish() only cares about the
+> +				 * lsn of the first tail item removed, any others
+> +				 * will be at the same or higher lsn so we just
+> +				 * ignore them.
+> +				 */
+> +				xfs_lsn_t lsn = xfs_ail_delete_one(ailp, blip);
+> +				if (!tail_lsn && lsn)
+> +					tail_lsn = lsn;
+> +			} else {
+>  				xfs_clear_li_failed(blip);
+>  			}
+>  		}
+> -		xfs_ail_delete_finish(ailp, mlip_changed);
+> +		xfs_ail_delete_finish(ailp, tail_lsn);
+>  	}
+>  
+>  	/*
+> diff --git a/fs/xfs/xfs_trans_ail.c b/fs/xfs/xfs_trans_ail.c
+> index 9e3102179221..00d66175f41a 100644
+> --- a/fs/xfs/xfs_trans_ail.c
+> +++ b/fs/xfs/xfs_trans_ail.c
+> @@ -108,17 +108,25 @@ xfs_ail_next(
+>   * We need the AIL lock in order to get a coherent read of the lsn of the last
+>   * item in the AIL.
+>   */
+> +static xfs_lsn_t
+> +__xfs_ail_min_lsn(
+> +	struct xfs_ail		*ailp)
+> +{
+> +	struct xfs_log_item	*lip = xfs_ail_min(ailp);
+> +
+> +	if (lip)
+> +		return lip->li_lsn;
+> +	return 0;
+> +}
+> +
+>  xfs_lsn_t
+>  xfs_ail_min_lsn(
+>  	struct xfs_ail		*ailp)
+>  {
+> -	xfs_lsn_t		lsn = 0;
+> -	struct xfs_log_item	*lip;
+> +	xfs_lsn_t		lsn;
+>  
+>  	spin_lock(&ailp->ail_lock);
+> -	lip = xfs_ail_min(ailp);
+> -	if (lip)
+> -		lsn = lip->li_lsn;
+> +	lsn = __xfs_ail_min_lsn(ailp);
+>  	spin_unlock(&ailp->ail_lock);
+>  
+>  	return lsn;
+> @@ -779,12 +787,20 @@ xfs_trans_ail_update_bulk(
+>  	}
 >  }
 >  
->  int
-> @@ -834,6 +876,7 @@ xfs_trans_ail_init(
->  	spin_lock_init(&ailp->ail_lock);
->  	INIT_LIST_HEAD(&ailp->ail_buf_list);
->  	init_waitqueue_head(&ailp->ail_empty);
-> +	init_waitqueue_head(&ailp->ail_push);
+> -bool
+> +/*
+> + * Delete one log item from the AIL.
+> + *
+> + * If this item was at the tail of the AIL, return the LSN of the log item so
+> + * that we can use it to check if the LSN of the tail of the log has moved
+> + * when finishing up the AIL delete process in xfs_ail_delete_finish().
+> + */
+> +xfs_lsn_t
+>  xfs_ail_delete_one(
+>  	struct xfs_ail		*ailp,
+>  	struct xfs_log_item	*lip)
+>  {
+>  	struct xfs_log_item	*mlip = xfs_ail_min(ailp);
+> +	xfs_lsn_t		lsn = lip->li_lsn;
 >  
->  	ailp->ail_task = kthread_run(xfsaild, ailp, "xfsaild/%s",
->  			ailp->ail_mount->m_fsname);
+>  	trace_xfs_ail_delete(lip, mlip->li_lsn, lip->li_lsn);
+>  	xfs_ail_delete(ailp, lip);
+> @@ -792,17 +808,20 @@ xfs_ail_delete_one(
+>  	clear_bit(XFS_LI_IN_AIL, &lip->li_flags);
+>  	lip->li_lsn = 0;
+>  
+> -	return mlip == lip;
+> +	if (mlip == lip)
+> +		return lsn;
+> +	return 0;
+>  }
+>  
+>  void
+>  xfs_ail_delete_finish(
+>  	struct xfs_ail		*ailp,
+> -	bool			do_tail_update) __releases(ailp->ail_lock)
+> +	xfs_lsn_t		old_lsn) __releases(ailp->ail_lock)
+>  {
+>  	struct xfs_mount	*mp = ailp->ail_mount;
+>  
+> -	if (!do_tail_update) {
+> +	/* if the tail lsn hasn't changed, don't do updates or wakeups. */
+> +	if (!old_lsn || old_lsn == __xfs_ail_min_lsn(ailp)) {
+>  		spin_unlock(&ailp->ail_lock);
+>  		return;
+>  	}
+
 > diff --git a/fs/xfs/xfs_trans_priv.h b/fs/xfs/xfs_trans_priv.h
-> index 2e073c1c4614..5ab70b9b896f 100644
+> index 5ab70b9b896f..db589bb7468d 100644
 > --- a/fs/xfs/xfs_trans_priv.h
 > +++ b/fs/xfs/xfs_trans_priv.h
-> @@ -61,6 +61,7 @@ struct xfs_ail {
->  	int			ail_log_flush;
->  	struct list_head	ail_buf_list;
->  	wait_queue_head_t	ail_empty;
-> +	wait_queue_head_t	ail_push;
->  };
->  
->  /*
-> @@ -92,8 +93,10 @@ xfs_trans_ail_update(
+> @@ -92,8 +92,8 @@ xfs_trans_ail_update(
+>  	xfs_trans_ail_update_bulk(ailp, NULL, &lip, 1, lsn);
 >  }
 >  
->  bool xfs_ail_delete_one(struct xfs_ail *ailp, struct xfs_log_item *lip);
-> +void xfs_ail_delete_finish(struct xfs_ail *ailp, bool do_tail_update)
-> +			__releases(ailp->ail_lock);
+> -bool xfs_ail_delete_one(struct xfs_ail *ailp, struct xfs_log_item *lip);
+> -void xfs_ail_delete_finish(struct xfs_ail *ailp, bool do_tail_update)
+> +xfs_lsn_t xfs_ail_delete_one(struct xfs_ail *ailp, struct xfs_log_item *lip);
+> +void xfs_ail_delete_finish(struct xfs_ail *ailp, xfs_lsn_t old_lsn)
+>  			__releases(ailp->ail_lock);
 >  void xfs_trans_ail_delete(struct xfs_ail *ailp, struct xfs_log_item *lip,
-> -		int shutdown_type) __releases(ailp->ail_lock);
-> +		int shutdown_type);
->  
->  static inline void
->  xfs_trans_ail_remove(
-> @@ -111,6 +114,7 @@ xfs_trans_ail_remove(
->  }
->  
->  void			xfs_ail_push(struct xfs_ail *, xfs_lsn_t);
-> +void			xfs_ail_push_sync(struct xfs_ail *, xfs_lsn_t);
->  void			xfs_ail_push_all(struct xfs_ail *);
->  void			xfs_ail_push_all_sync(struct xfs_ail *);
->  struct xfs_log_item	*xfs_ail_min(struct xfs_ail  *ailp);
+>  		int shutdown_type);
 > -- 
 > 2.22.0
 > 
