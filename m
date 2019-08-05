@@ -6,92 +6,93 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CBB7C433FF
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:13:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D891C41514
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:28:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 06DA92067D
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:13:39 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06DA92067D
+	by mail.kernel.org (Postfix) with ESMTP id 5F05220657
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:28:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F05220657
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BFBEA6B0003; Mon,  5 Aug 2019 09:13:38 -0400 (EDT)
+	id EFCBD6B0006; Mon,  5 Aug 2019 09:28:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B857D6B0005; Mon,  5 Aug 2019 09:13:38 -0400 (EDT)
+	id EAE2C6B0007; Mon,  5 Aug 2019 09:28:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A26CB6B0006; Mon,  5 Aug 2019 09:13:38 -0400 (EDT)
+	id D9C5C6B0008; Mon,  5 Aug 2019 09:28:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 555CC6B0003
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 09:13:38 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id f3so51485621edx.10
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 06:13:38 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 8D0796B0006
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 09:28:52 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id l14so51594028edw.20
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 06:28:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=2lvrxNzruWGK/+O/cotP42X09fNeKC1oi6W7Y6FOT0U=;
-        b=lztyFUUxdTEfqdl/Ham7mf5bSESp7nOPlINenJBbuyA7esUG/ttWotFcBcpDMFfkq+
-         rtigDZJvNzoDN+zxhZXbWhARlgNTE/EuAu5Q5tYSdAEyp/fuMsfyng4JHEpWCnYn9CG/
-         JHl9sml7iKpCAlhhdbqJsxgjNuzwFURZJ2sLMQQx2a4+rFnqmBcGsAsxQKTAwWc0JpJ9
-         JQeeiJBoxhb+cEPvCIrpnYLwrRy2iUgr3VStS0N4RbFKcoLpgAIbXW1v/7V2c74+ky11
-         eTXRYC8uS98TOCeM4tgN3I5b4sNOAfBDJ/eppWw/L5yghLCl1Ht9e8Oa5uBrvtcy261Z
-         970A==
+        bh=M4AtJfFHttnOVm+krUA6Mxn07hZxWA0wVW7Vv89+ro4=;
+        b=FZfQSEPfKv91pXqE/PqkgPJlE/Y5v2T1q4/3XFDjooMdHGhSsuIRUFhIr5XRCQeUw+
+         ZFV5AiffLkXI6sgaRHujmVriWRIcRF4YbNR97e1KnBSUtEaaIqLbWW01wse1XoDCOne3
+         /pyJaNbWS5a0nBwqRWFcRuhRNxrVnOWQME+a2KkfYCtDr7pmpeURd43sezfhuKEcC/D8
+         AbxgmzjLRJ64kXQgQoF94/+4fV++YAtiXpi5FkRRjk5RZBFf8f8LeG0lDLADFj2SDvWG
+         xzd0LApS/loYG03vncRggfA//qlk8rdfD72ayt8pKZsYhV6l2WJqzReagokr7hPWyxRC
+         cWFQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAU4hcK8RkYpqT79Fdjd/7k3KbapOCosN9HPNcvZxvuuqVH6r8So
-	Mge0QiT3X0sKNgbI7OJx0SL4EzNMkiDjYZIIS2WLXNs3XwOtxQQYfu4MG/zR9u8cK9pqrnk6Gp7
-	MFcgU7d3zAAUwe5a28W5x7YaymmB0E4AqjOQqOVmv8OXWiEqm25zXx1ZkC3qpMWidsA==
-X-Received: by 2002:a17:906:40c:: with SMTP id d12mr116338400eja.29.1565010817928;
-        Mon, 05 Aug 2019 06:13:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyf2uMGlDKwEKmeQN5CBpIFavrNnzsSucKXActy3IVxpfJ3QwuXD0X2Q07ONt42msotDbQr
-X-Received: by 2002:a17:906:40c:: with SMTP id d12mr116338344eja.29.1565010817275;
-        Mon, 05 Aug 2019 06:13:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565010817; cv=none;
+X-Gm-Message-State: APjAAAWErLI0T0rKN5HyIhnhfZp2II8aR3dJ4SuzFsfMZOII1u88IAOp
+	/fDzdpl6AFDjZSQUTZcDImAN/gJ0++mC80ErSiETd+GUwi7z9Brmc7V8l+hRTMQbSoT2Mj1wYgK
+	uBFPcUKWxxajll5tVND0BWvnB8RQragGyTfGL1Ue52LuAggvFLmMwgUvV/2JTbX5TUw==
+X-Received: by 2002:a17:906:5409:: with SMTP id q9mr120619742ejo.209.1565011732140;
+        Mon, 05 Aug 2019 06:28:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy4MJLuRN3Id9JsFRK7Bv0lIuU7lBG1eDpkM/42jK5GLV6w890c5YZsE9bgk//mUCCrZ20x
+X-Received: by 2002:a17:906:5409:: with SMTP id q9mr120619663ejo.209.1565011731261;
+        Mon, 05 Aug 2019 06:28:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565011731; cv=none;
         d=google.com; s=arc-20160816;
-        b=jtWRSXcU8fYyLmk5EaLhvppfNAFh/6bkoBoYn386rNCIxTcyiMPFwhL5B5ya/P7CsZ
-         IkTcJ5Zt2M37V2iHWSNtVJ/2M9F92imAV6E6HqjlpmH1ezfifqlwNG8y6PJWzFj2ATj1
-         ceHO9quDNCFPbrNQRjuw503VLAe0ndEX3GBBO8UkDhuF3Sz2KdQG1N4VCVEjFj6O9KBU
-         npaR+9msxSex7YhMxbdTzRM13LgtTXxekNUwQgY1wbk12vPa+ysKXlk1i2/AIp+K4ji5
-         DUeqjnyElLbtgNZMGcyxNupvDQs/bs1TY1OnmSxjDxTCicKdDpKzwGG1Gdo/nAbdxhj6
-         r52w==
+        b=CkrVpXx4Z7GbRE8HnRjkOOpCRLcvoXz/Y07EwXF090LUkCUeOnXMr2nvTNxqzbMBf4
+         B0gRv95OMOiz/qodhlvpBm1JbDllfWqbUnqgq+Jz+jv5n/cQ9AuH195bkUXdag+9sfDM
+         eRvCFBcBFLi6KZ610xX90iQ79rWKi7ien2lx6WnNm2tz9o6nFDQX6iqrtvwpCCW726MR
+         FdqaH+WpJbR5xgpu2kv+jjBNHc92yr3pAXYZbzZ/gwkfyr8XIXRAgWVHHwwkAn4MY7hz
+         Wq2A7gO2Da5zxu3AhgeQHylgwglYpnVckT6qW842Qmeenw6h5qx1Sj5DfUouuBma8HRg
+         Z/pA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=2lvrxNzruWGK/+O/cotP42X09fNeKC1oi6W7Y6FOT0U=;
-        b=sEqkTguwokdqpiKi9Qe1X0edZiTzzFhndKDiONACOnsC/45YXSTddZogG/LsQPAuUs
-         0LvLHf008dnn1+eoAywKHz4NDWo4KuUN1feCrra7LDo1i0Radud+Imwgx+JAPh17qfVf
-         QJvonYyvDJOmlNu8ZhghZyD2+pN+rRDieL383YIWK7uO+9UaPeNgdh/HL5E5/8+8SXOA
-         37D9DtIkB1OwLNJ30fR1U+IbJ+Xmy0h1d934JBUeikG6ZF3ExAim/lA885pDnuMMUeSM
-         i/Avc76DgxvJs19TIHD9pKrU8MLwaQs3kMfw+V7uzHhC7+1hjW2xkbVC5v8D/AJD/cdf
-         d4og==
+        bh=M4AtJfFHttnOVm+krUA6Mxn07hZxWA0wVW7Vv89+ro4=;
+        b=ie3et09zLu7wvdNJjaUK0tWp85tGrk0Q0QXNumaRqjhFCepB9Su/nJgYG9BlL/P8iL
+         0ivJTvOmiHWB6LBmgqJLulBZernq2MlyzbSap+lRKSdHF4soxZCFD3jkVEIVtM3NE6GA
+         9y+fx6WbtbwGersSzbuujGBLjikpeWNqzLJWg4xbZB9BARzO7/dmaMEKhLcMVAKVXOk3
+         hJcWY8dp6qy3o86tbCNHoBvLcI2sUGslJkyyttaYvfONk8B//2Z9l4rRGRL2UacjYagf
+         niLM1uDuxFSPeB37vOaeYha56V6KwkltSBeqCkAq1jP03pRowHAqJXL0Pf2Zz3ah8rE3
+         8tTg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id t24si28820475edd.357.2019.08.05.06.13.36
+        by mx.google.com with ESMTPS id c14si27929307ejb.99.2019.08.05.06.28.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Aug 2019 06:13:36 -0700 (PDT)
+        Mon, 05 Aug 2019 06:28:51 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 49959B64F;
-	Mon,  5 Aug 2019 13:13:36 +0000 (UTC)
-Subject: Re: [PATCH 1/3] mm, reclaim: make should_continue_reclaim
- performdryrun detection
-To: Hillf Danton <hdanton@sina.com>
-Cc: Mike Kravetz <mike.kravetz@oracle.com>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@suse.de>,
- Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli
- <aarcange@redhat.com>, David Rientjes <rientjes@google.com>,
+	by mx1.suse.de (Postfix) with ESMTP id 804CCACB4;
+	Mon,  5 Aug 2019 13:28:50 +0000 (UTC)
+Subject: Re: [PATCH] fork: Improve error message for corrupted page tables
+To: "Prakhya, Sai Praneeth" <sai.praneeth.prakhya@intel.com>,
  Andrew Morton <akpm@linux-foundation.org>
-References: <20190805092751.4976-1-hdanton@sina.com>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "Hansen, Dave" <dave.hansen@intel.com>, Ingo Molnar <mingo@kernel.org>,
+ Peter Zijlstra <peterz@infradead.org>
+References: <20190730221820.7738-1-sai.praneeth.prakhya@intel.com>
+ <20190731152753.b17d9c4418f4bf6815a27ad8@linux-foundation.org>
+ <a05920e5994fb74af480255471a6c3f090f29b27.camel@intel.com>
+ <20190731212052.5c262ad084cbd6cf475df005@linux-foundation.org>
+ <FFF73D592F13FD46B8700F0A279B802F4F9D61B5@ORSMSX114.amr.corp.intel.com>
 From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
 Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
@@ -154,12 +155,12 @@ Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
  5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
  hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
  Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
-Message-ID: <f0d03357-e51c-ab1f-b1c2-38670d086ef4@suse.cz>
-Date: Mon, 5 Aug 2019 15:13:09 +0200
+Message-ID: <4236c0c5-9671-b9fe-b5eb-7d1908767905@suse.cz>
+Date: Mon, 5 Aug 2019 15:28:50 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190805092751.4976-1-hdanton@sina.com>
+In-Reply-To: <FFF73D592F13FD46B8700F0A279B802F4F9D61B5@ORSMSX114.amr.corp.intel.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -169,14 +170,43 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/5/19 11:27 AM, Hillf Danton wrote:
+On 8/2/19 8:46 AM, Prakhya, Sai Praneeth wrote:
+>>>>> +static const char * const resident_page_types[NR_MM_COUNTERS] = {
+>>>>> +	"MM_FILEPAGES",
+>>>>> +	"MM_ANONPAGES",
+>>>>> +	"MM_SWAPENTS",
+>>>>> +	"MM_SHMEMPAGES",
+>>>>> +};
+>>>>
+>>>> But please let's not put this in a header file.  We're asking the
+>>>> compiler to put a copy of all of this into every compilation unit
+>>>> which includes the header.  Presumably the compiler is smart enough
+>>>> not to do that, but it's not good practice.
+>>>
+>>> Thanks for the explanation. Makes sense to me.
+>>>
+>>> Just wanted to check before sending V2, Is it OK if I add this to
+>>> kernel/fork.c? or do you have something else in mind?
+>>
+>> I was thinking somewhere like mm/util.c so the array could be used by other
+>> code.  But it seems there is no such code.  Perhaps it's best to just leave fork.c as
+>> it is now.
+> 
+> Ok, so does that mean have the struct in header file itself?
 
-BTW, can you please do something about your mail client's lack of
-In-Reply-To/References headers, which breaks threadings?
+If the struct definition (including the string values) was in mm/util.c,
+there would have to be a declaration in a header. If it's in fork.c with
+the only users, there doesn't need to be separate declaration in a header.
 
-See Documentation/process/email-clients.rst:
-Email clients should generate and maintain References: or In-Reply-To:
-headers so that mail threading is not broken.
+> Sorry! for too many questions. I wanted to check with you before changing 
+> because it's *the* fork.c file (I presume random changes will not be encouraged here)
+> 
+> I am not yet clear on what's the right thing to do here :(
+> So, could you please help me in deciding.
 
-Thanks!
+fork.c should be fine, IMHO
+
+> Regards,
+> Sai
+> 
 
