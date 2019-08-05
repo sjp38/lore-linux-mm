@@ -2,228 +2,190 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 384FEC19759
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 00:27:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 77662C433FF
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 00:42:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BE8082086D
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 00:27:45 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="UxnSsely"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE8082086D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 2E4042075C
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 00:42:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E4042075C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ah.jp.nec.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2C8556B026C; Sun,  4 Aug 2019 20:27:45 -0400 (EDT)
+	id B6FCF6B026F; Sun,  4 Aug 2019 20:42:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 278B56B026E; Sun,  4 Aug 2019 20:27:45 -0400 (EDT)
+	id AF9E66B0270; Sun,  4 Aug 2019 20:42:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 168166B026F; Sun,  4 Aug 2019 20:27:45 -0400 (EDT)
+	id 972FE6B0271; Sun,  4 Aug 2019 20:42:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ua1-f71.google.com (mail-ua1-f71.google.com [209.85.222.71])
-	by kanga.kvack.org (Postfix) with ESMTP id E1D626B026C
-	for <linux-mm@kvack.org>; Sun,  4 Aug 2019 20:27:44 -0400 (EDT)
-Received: by mail-ua1-f71.google.com with SMTP id s1so7931360uao.2
-        for <linux-mm@kvack.org>; Sun, 04 Aug 2019 17:27:44 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BC866B026F
+	for <linux-mm@kvack.org>; Sun,  4 Aug 2019 20:42:11 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id d2so45200121pla.18
+        for <linux-mm@kvack.org>; Sun, 04 Aug 2019 17:42:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:cc:subject:to:references:from
-         :organization:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=csR1CFI12mg4Wfl/I1DmedWmi55eZjSHDbam/aE57Lg=;
-        b=fFroOef51GSQk7REnuGgOjExd2suRTnU0qKt9fIERP4/bHBgXJoLP/Y2JEsdv9+S7n
-         GQz2IuPHkcpwTpYjjSe9JEu5V0R912+GgiRQ1mgAr8TjS7laoh/3wAL5+SDFi8NXYohP
-         DYP/BXci9FbpMtfTjwCxrYBMveCH5cxxIBOvZjioXPRW3Xf7pxIEcgRnY+WqCYCUiJLY
-         SYw67L4vujZdKtbEjpyJRpxKjN/BmefPS+ACERwQhb4YMy3My4llS/yW8uuYMr1Z5BZg
-         r0OZGkAK+yNvSVa3Wcrb72YOcuK/Yg4f7R18mc2tHJ/jrYgBbBuQqi4kJ18UEc2PNKJF
-         0HFQ==
-X-Gm-Message-State: APjAAAXKummXvcJCUiu5crjI5Qb7BrVa+wARUIBggn84sUcPTUEUjq8w
-	XOlLXy+pisgh+zqwmcIWI216vSCgt+RPLkObvJAA0XwMds1VQrE1Zu1Vs63lMTPFAC7txucHX+d
-	HA9PAlXoQZtWKZvXWMNa38Qm8N4jS8ec+YXn9y1P/af863PFZi6rhK/2uJPCQSVcILA==
-X-Received: by 2002:a9f:230c:: with SMTP id 12mr22512981uae.85.1564964864581;
-        Sun, 04 Aug 2019 17:27:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzBOuR6+57a0HqQgrR+eSFnamx2k7hrwutmSSwo/YfvUdUjQeYuCYmkR1rg/aBrDKCoiVHk
-X-Received: by 2002:a9f:230c:: with SMTP id 12mr22512968uae.85.1564964863871;
-        Sun, 04 Aug 2019 17:27:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564964863; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:content-id
+         :content-transfer-encoding:mime-version;
+        bh=855I/seObYuUDpzQikhPL7R44O4YkmS7t2Xd0AeLlUU=;
+        b=h5n4zrQvn66te0QoxvLWoC9QhxfZHOUCB2snDy37h9PqzlpOYM3X+fzgs/hxnkDSN9
+         pshpCiDRPVB4+mmeZdLLtuSuQHy68uGstmBTRu6NakHrOASlswJ9PsUM9ze0eyNL7PtW
+         bMsvUZLhZL5pF10XduoWIc2KMhp0ckxHT9b0Haul7GnsTWlUYe/f1c6H3IDviYwkR0Vf
+         M3veX6MK3z4yg7jSO7x4tlXD6SdJd2rhM7alj4I+sgvhZ6hbVTQi42fvhdbR21JFKZr4
+         Y+MR+eELEY0jJeopR+3J/LPtX52XPCvRfU8m9jrZZMDByiToGlBDeJ/uqsq0LHtcrby/
+         V5Kw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+X-Gm-Message-State: APjAAAUtHTSjZ0OaYoXhZ4eJkYqx8xzrIKXiIZ5d2HsQIXmLnQ8/t/QQ
+	qWcAEGh4UNEdHVsYqw++cKNqSmKylikCUICiCTvVsTHmhQFrLSEiH3L6lO1m1ZuOcCobFhGzED1
+	SZOKyLgErPGQcXK8rsLEGNvym8ynvIt0CFBBwTcs+lOAEvRWNvLBDRWMb3ov9puxm+Q==
+X-Received: by 2002:a17:902:f082:: with SMTP id go2mr148816665plb.25.1564965730969;
+        Sun, 04 Aug 2019 17:42:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxxWj3Sj5vGvvEbya7g9URPdJJ62oBy6w1wuh1XTtlvD3921VBftc+xP72H0pIQEDsslFI9
+X-Received: by 2002:a17:902:f082:: with SMTP id go2mr148816602plb.25.1564965730094;
+        Sun, 04 Aug 2019 17:42:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564965730; cv=none;
         d=google.com; s=arc-20160816;
-        b=iJJuGQiHgm7yZBKIiG/8bGtNGuS7P26sXsdZxuU9zo5u7NmEJ+qUyt9XZoJkMLTwEg
-         HKNsnd450Yalt7gRPOuVgRBuDNYbhoj5nYAqiOFXYtqcvnJP1zRW2Mf16PhaVZuR+VEn
-         +xtMyPXmLZJu7dgP/WXeWmFomegkRyuMC2OeXjXKtXdLbIoRslN2jETah8KtM3CFEezY
-         WE/24ZE38fmRSPAbPdipzFjfwAuhOWZtM6R6RKHFcWtXF8BulMTqV7A4CnmWS74ezy/e
-         kPLbq4BwKbqqE4fekLdO08ohsuTpHu65fBgGpHTaykwWYyAYso4UIzPSGZc3EMakGUMs
-         n6qQ==
+        b=CP4Z3sAJQSRYu7iYtplE6asNIFMAfTyrushyNgqJChGQ0WaTKB34++l8m8cFcvl1hT
+         0HYIstSmJZciUMsKlqEkft4Sdqtc2chqzYnwJH8UXjhOnXfz49ntmazNl9zVyxq6nLw1
+         EEPl9R+ycc8o/lLjt4XeHVgTDPwmwSMYg5EGXXm0dtfPdlkTLQNfFdaKDlcnuqKM239S
+         ft3L52RZZ1FxA9wAh6NN0h+l/1R0RGb4PA02v0OfhOwse/f4W2tufMR5LekkNJ6m4BmJ
+         FBoIWUVTqIWTfCXhbgA8HTlrpWvapujBaswLLs1WQTw/YQtgIqSLnaTKtDYiO74DdubG
+         1QPA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:from:references:to:subject
-         :cc:dkim-signature;
-        bh=csR1CFI12mg4Wfl/I1DmedWmi55eZjSHDbam/aE57Lg=;
-        b=Tp1eVPOx0+SGCzl4PpBMu8yXwA6654hZOXozT5RVV1NXK5iMPMZw2+m4BCJSEyoBhN
-         p7CAsbNA7QZrEZvv7FAZD8etMzX1fu5HsAVvkMVy/3F1dpBAKFQH2yFMTFb/FqrfNZ0/
-         I+TlKuB8TU5IGkABxQSrwLEcWyybGgsY+dQKzY3v4U9YYFl5bM+OOmoLzNa0muI66/Ha
-         +FS366bD0MEdRMHZaeukYJDWMVzPrFG8m8ebMLc0D5/C5rkRpubH5kRP6jvlO7YoSIFY
-         RLaI2jM5O8kDn35vrMjmPI7VksQZdMizMgTCMvLNFFVwat0CCSHAo0i5WYNDR5VFdjyA
-         NJ2g==
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from;
+        bh=855I/seObYuUDpzQikhPL7R44O4YkmS7t2Xd0AeLlUU=;
+        b=w6mwokYZGEj8bjbnzPxu4WPulMZyPJ803r59cl9WdV/1MReEvB3QKbQnjX48rK7S/f
+         lAciebV/sAuLryuo8HdkIJQquGkn1FvKzJBpNBBBovtvwyVOs51DEqhi1r3ZyFeC2xVD
+         Ky+Tmcj9CygV9UXrAglbsKOZg+yEUHkXHVHKk+KxxhNpCArRpwstkxTHNgcm89feAhwa
+         MBiVEOKtz+iqC2srMJnwUoV6MrIXrJjo39KuLeFYoskAo14xuGGskfMK8p235K6s9Xfb
+         aI8Rn4chjTHp1N/B97CIoXbYQwmD9dAe5Y+UW/dAVXwgk3B6nX00CuxpgpNzLhnV/W3i
+         TUZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=UxnSsely;
-       spf=pass (google.com: domain of calum.mackay@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=calum.mackay@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id l16si17154945uao.70.2019.08.04.17.27.43
+       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+Received: from tyo162.gate.nec.co.jp (tyo162.gate.nec.co.jp. [114.179.232.162])
+        by mx.google.com with ESMTPS id c10si43052252pgw.174.2019.08.04.17.42.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 04 Aug 2019 17:27:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of calum.mackay@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
+        Sun, 04 Aug 2019 17:42:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) client-ip=114.179.232.162;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=UxnSsely;
-       spf=pass (google.com: domain of calum.mackay@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=calum.mackay@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x750PN8L099080;
-	Mon, 5 Aug 2019 00:27:22 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=cc : subject : to :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=csR1CFI12mg4Wfl/I1DmedWmi55eZjSHDbam/aE57Lg=;
- b=UxnSselyJSkDrlgtrJqirrqIgp3f8N92FZdRzvuEzRyV0BK1GmSaf9C8PKnong3YQqHb
- MCpznjeWe33FH9kWSVMHzf3ueNmMrgta/dHNshxU+ezcH/SlcYl3T1BbtssK9RamgmgB
- uxHaAwYQYSv2zhs8xcIQpAvtnAqvLsICBKD/Oi73oWTTrzZCg0llYMmo1CN1xJK1/n6p
- FN3jH23l0bDAY+8rbi5+pi71wYYr59UK7ki0dfZmNagJqJGpCz4Dhc49Z+1r5jDxqopk
- IUz6WPSid5pJVTZGy3yYzlDcCEYZUIldAG3FEELFmfGykxTqdKwI/FpOYaMM05PGsiiD Lg== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by aserp2120.oracle.com with ESMTP id 2u527pc6va-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 05 Aug 2019 00:27:22 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x750Mxa2125660;
-	Mon, 5 Aug 2019 00:27:22 GMT
-Received: from pps.reinject (localhost [127.0.0.1])
-	by aserp3020.oracle.com with ESMTP id 2u5232s8j6-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=FAIL);
-	Mon, 05 Aug 2019 00:27:22 +0000
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [127.0.0.1])
-	by pps.reinject (8.16.0.27/8.16.0.27) with SMTP id x750RLrL130645;
-	Mon, 5 Aug 2019 00:27:22 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserp3020.oracle.com with ESMTP id 2u5232s8hy-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 05 Aug 2019 00:27:21 +0000
-Received: from abhmp0012.oracle.com (abhmp0012.oracle.com [141.146.116.18])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x750R78g009479;
-	Mon, 5 Aug 2019 00:27:08 GMT
-Received: from mbp2018.cdmnet.org (/82.27.120.181)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Sun, 04 Aug 2019 17:27:07 -0700
-Cc: Christoph Hellwig <hch@infradead.org>,
-        Dan Williams <dan.j.williams@intel.com>,
-        Dave Chinner <david@fromorbit.com>,
-        Dave Hansen <dave.hansen@linux.intel.com>,
-        Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>,
-        Jason Gunthorpe <jgg@ziepe.ca>,
-        =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
-        LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
-        ceph-devel@vger.kernel.org, devel@driverdev.osuosl.org,
-        devel@lists.orangefs.org, dri-devel@lists.freedesktop.org,
-        intel-gfx@lists.freedesktop.org, kvm@vger.kernel.org,
-        linux-arm-kernel@lists.infradead.org, linux-block@vger.kernel.org,
-        linux-crypto@vger.kernel.org, linux-fbdev@vger.kernel.org,
-        linux-fsdevel@vger.kernel.org, linux-media@vger.kernel.org,
-        linux-mm@kvack.org, linux-nfs@vger.kernel.org,
-        linux-rdma@vger.kernel.org, linux-rpi-kernel@lists.infradead.org,
-        linux-xfs@vger.kernel.org, netdev@vger.kernel.org,
-        rds-devel@oss.oracle.com, sparclinux@vger.kernel.org, x86@kernel.org,
-        xen-devel@lists.xenproject.org, John Hubbard <jhubbard@nvidia.com>,
-        Trond Myklebust <trond.myklebust@hammerspace.com>,
-        Anna Schumaker <anna.schumaker@netapp.com>
-Subject: Re: [PATCH v2 31/34] fs/nfs: convert put_page() to put_user_page*()
-To: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-References: <20190804224915.28669-1-jhubbard@nvidia.com>
- <20190804224915.28669-32-jhubbard@nvidia.com>
-From: Calum Mackay <calum.mackay@oracle.com>
-Organization: Oracle
-Message-ID: <cf978e10-facc-ba5b-d7e4-d7fc2c3f7ebc@oracle.com>
-Date: Mon, 5 Aug 2019 01:26:59 +0100
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:70.0)
- Gecko/20100101 Thunderbird/70.0a1
+       spf=pass (google.com: domain of n-horiguchi@ah.jp.nec.com designates 114.179.232.162 as permitted sender) smtp.mailfrom=n-horiguchi@ah.jp.nec.com
+Received: from mailgate01.nec.co.jp ([114.179.233.122])
+	by tyo162.gate.nec.co.jp (8.15.1/8.15.1) with ESMTPS id x750g0v8026935
+	(version=TLSv1.2 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=NO);
+	Mon, 5 Aug 2019 09:42:00 +0900
+Received: from mailsv01.nec.co.jp (mailgate-v.nec.co.jp [10.204.236.94])
+	by mailgate01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x750g0MQ026221;
+	Mon, 5 Aug 2019 09:42:00 +0900
+Received: from mail02.kamome.nec.co.jp (mail02.kamome.nec.co.jp [10.25.43.5])
+	by mailsv01.nec.co.jp (8.15.1/8.15.1) with ESMTP id x750eAEq025447;
+	Mon, 5 Aug 2019 09:42:00 +0900
+Received: from bpxc99gp.gisp.nec.co.jp ([10.38.151.148] [10.38.151.148]) by mail02.kamome.nec.co.jp with ESMTP id BT-MMP-7382076; Mon, 5 Aug 2019 09:40:43 +0900
+Received: from BPXM23GP.gisp.nec.co.jp ([10.38.151.215]) by
+ BPXC20GP.gisp.nec.co.jp ([10.38.151.148]) with mapi id 14.03.0439.000; Mon, 5
+ Aug 2019 09:40:43 +0900
+From: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>
+To: Mike Kravetz <mike.kravetz@oracle.com>
+CC: Li Wang <liwang@redhat.com>, Linux-MM <linux-mm@kvack.org>,
+        LTP List <ltp@lists.linux.it>,
+        "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>,
+        "mhocko@kernel.org" <mhocko@kernel.org>,
+        Cyril Hrubis <chrubis@suse.cz>
+Subject: =?utf-8?B?UmU6IFtNTSBCdWc/XSBtbWFwKCkgdHJpZ2dlcnMgU0lHQlVTIHdoaWxlIGRv?=
+ =?utf-8?B?aW5nIHRoZeKAiyDigItudW1hX21vdmVfcGFnZXMoKSBmb3Igb2ZmbGluZWQg?=
+ =?utf-8?Q?hugepage_in_background?=
+Thread-Topic: =?utf-8?B?W01NIEJ1Zz9dIG1tYXAoKSB0cmlnZ2VycyBTSUdCVVMgd2hpbGUgZG9pbmcg?=
+ =?utf-8?B?dGhl4oCLIOKAi251bWFfbW92ZV9wYWdlcygpIGZvciBvZmZsaW5lZCBodWdl?=
+ =?utf-8?Q?page_in_background?=
+Thread-Index: AQHVRc0JEN0QZXp8lkC2QA8h/0i/bKbhXVuAgADAW4CAATIAAIADHcSAgABCA4CAAOFdgIADmX4A
+Date: Mon, 5 Aug 2019 00:40:42 +0000
+Message-ID: <20190805004042.GA16862@hori.linux.bs1.fc.nec.co.jp>
+References: <CAEemH2dMW6oh6Bbm=yqUADF+mDhuQgFTTGYftB+xAhqqdYV3Ng@mail.gmail.com>
+ <47999e20-ccbe-deda-c960-473db5b56ea0@oracle.com>
+ <CAEemH2d=vEfppCbCgVoGdHed2kuY3GWnZGhymYT1rnxjoWNdcQ@mail.gmail.com>
+ <a65e748b-7297-8547-c18d-9fb07202d5a0@oracle.com>
+ <27a48931-aff6-d001-de78-4f7bef584c32@oracle.com>
+ <20190802041557.GA16274@hori.linux.bs1.fc.nec.co.jp>
+ <54a5c9f5-eade-0d8f-24f9-bff6f19d4905@oracle.com>
+In-Reply-To: <54a5c9f5-eade-0d8f-24f9-bff6f19d4905@oracle.com>
+Accept-Language: en-US, ja-JP
+Content-Language: ja-JP
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-originating-ip: [10.34.125.150]
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <9C96D525978644469080C167ED48F070@gisp.nec.co.jp>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-In-Reply-To: <20190804224915.28669-32-jhubbard@nvidia.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9339 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908050001
+X-TM-AS-MML: disable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 04/08/2019 11:49 pm, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
-> 
-> For pages that were retained via get_user_pages*(), release those pages
-> via the new put_user_page*() routines, instead of via put_page() or
-> release_pages().
-> 
-> This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
-> ("mm: introduce put_user_page*(), placeholder versions").
-> 
-> Cc: Calum Mackay <calum.mackay@oracle.com>
-> Cc: Trond Myklebust <trond.myklebust@hammerspace.com>
-> Cc: Anna Schumaker <anna.schumaker@netapp.com>
-> Cc: linux-nfs@vger.kernel.org
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-> ---
->   fs/nfs/direct.c | 11 ++---------
->   1 file changed, 2 insertions(+), 9 deletions(-)
-
-Reviewed-by: Calum Mackay <calum.mackay@oracle.com>
-
-
-> diff --git a/fs/nfs/direct.c b/fs/nfs/direct.c
-> index 0cb442406168..c0c1b9f2c069 100644
-> --- a/fs/nfs/direct.c
-> +++ b/fs/nfs/direct.c
-> @@ -276,13 +276,6 @@ ssize_t nfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
->   	return nfs_file_direct_write(iocb, iter);
->   }
->   
-> -static void nfs_direct_release_pages(struct page **pages, unsigned int npages)
-> -{
-> -	unsigned int i;
-> -	for (i = 0; i < npages; i++)
-> -		put_page(pages[i]);
-> -}
-> -
->   void nfs_init_cinfo_from_dreq(struct nfs_commit_info *cinfo,
->   			      struct nfs_direct_req *dreq)
->   {
-> @@ -512,7 +505,7 @@ static ssize_t nfs_direct_read_schedule_iovec(struct nfs_direct_req *dreq,
->   			pos += req_len;
->   			dreq->bytes_left -= req_len;
->   		}
-> -		nfs_direct_release_pages(pagevec, npages);
-> +		put_user_pages(pagevec, npages);
->   		kvfree(pagevec);
->   		if (result < 0)
->   			break;
-> @@ -935,7 +928,7 @@ static ssize_t nfs_direct_write_schedule_iovec(struct nfs_direct_req *dreq,
->   			pos += req_len;
->   			dreq->bytes_left -= req_len;
->   		}
-> -		nfs_direct_release_pages(pagevec, npages);
-> +		put_user_pages(pagevec, npages);
->   		kvfree(pagevec);
->   		if (result < 0)
->   			break;
-> 
+T24gRnJpLCBBdWcgMDIsIDIwMTkgYXQgMTA6NDI6MzNBTSAtMDcwMCwgTWlrZSBLcmF2ZXR6IHdy
+b3RlOg0KPiBPbiA4LzEvMTkgOToxNSBQTSwgTmFveWEgSG9yaWd1Y2hpIHdyb3RlOg0KPiA+IE9u
+IFRodSwgQXVnIDAxLCAyMDE5IGF0IDA1OjE5OjQxUE0gLTA3MDAsIE1pa2UgS3JhdmV0eiB3cm90
+ZToNCj4gPj4gVGhlcmUgYXBwZWFycyB0byBiZSBhIHJhY2Ugd2l0aCBodWdldGxiX2ZhdWx0IGFu
+ZCB0cnlfdG9fdW5tYXBfb25lIG9mDQo+ID4+IHRoZSBtaWdyYXRpb24gcGF0aC4NCj4gPj4NCj4g
+Pj4gQ2FuIHlvdSB0cnkgdGhpcyBwYXRjaCBpbiB5b3VyIGVudmlyb25tZW50PyAgSSBhbSBub3Qg
+c3VyZSBpZiBpdCB3aWxsDQo+ID4+IGJlIHRoZSBmaW5hbCBmaXgsIGJ1dCBqdXN0IHdhbnRlZCB0
+byBzZWUgaWYgaXQgYWRkcmVzc2VzIGlzc3VlIGZvciB5b3UuDQo+ID4+DQo+ID4+IGRpZmYgLS1n
+aXQgYS9tbS9odWdldGxiLmMgYi9tbS9odWdldGxiLmMNCj4gPj4gaW5kZXggZWRlN2U3ZjVkMWFi
+Li5mMzE1NmM1NDMyZTMgMTAwNjQ0DQo+ID4+IC0tLSBhL21tL2h1Z2V0bGIuYw0KPiA+PiArKysg
+Yi9tbS9odWdldGxiLmMNCj4gPj4gQEAgLTM4NTYsNiArMzg1NiwyMCBAQCBzdGF0aWMgdm1fZmF1
+bHRfdCBodWdldGxiX25vX3BhZ2Uoc3RydWN0IG1tX3N0cnVjdCAqbW0sDQo+ID4+ICANCj4gPj4g
+IAkJcGFnZSA9IGFsbG9jX2h1Z2VfcGFnZSh2bWEsIGhhZGRyLCAwKTsNCj4gPj4gIAkJaWYgKElT
+X0VSUihwYWdlKSkgew0KPiA+PiArCQkJLyoNCj4gPj4gKwkJCSAqIFdlIGNvdWxkIHJhY2Ugd2l0
+aCBwYWdlIG1pZ3JhdGlvbiAodHJ5X3RvX3VubWFwX29uZSkNCj4gPj4gKwkJCSAqIHdoaWNoIGlz
+IG1vZGlmeWluZyBwYWdlIHRhYmxlIHdpdGggbG9jay4gIEhvd2V2ZXIsDQo+ID4+ICsJCQkgKiB3
+ZSBhcmUgbm90IGhvbGRpbmcgbG9jayBoZXJlLiAgQmVmb3JlIHJldHVybmluZw0KPiA+PiArCQkJ
+ICogZXJyb3IgdGhhdCB3aWxsIFNJR0JVUyBjYWxsZXIsIGdldCBwdGwgYW5kIG1ha2UNCj4gPj4g
+KwkJCSAqIHN1cmUgdGhlcmUgcmVhbGx5IGlzIG5vIGVudHJ5Lg0KPiA+PiArCQkJICovDQo+ID4+
+ICsJCQlwdGwgPSBodWdlX3B0ZV9sb2NrKGgsIG1tLCBwdGVwKTsNCj4gPj4gKwkJCWlmICghaHVn
+ZV9wdGVfbm9uZShodWdlX3B0ZXBfZ2V0KHB0ZXApKSkgew0KPiA+PiArCQkJCXJldCA9IDA7DQo+
+ID4+ICsJCQkJc3Bpbl91bmxvY2socHRsKTsNCj4gPj4gKwkJCQlnb3RvIG91dDsNCj4gPj4gKwkJ
+CX0NCj4gPj4gKwkJCXNwaW5fdW5sb2NrKHB0bCk7DQo+ID4gDQo+ID4gVGhhbmtzIHlvdSBmb3Ig
+aW52ZXN0aWdhdGlvbiwgTWlrZS4NCj4gPiBJIHRyaWVkIHRoaXMgY2hhbmdlIGFuZCBmb3VuZCBu
+byBTSUdCVVMsIHNvIGl0IHdvcmtzIHdlbGwuDQo+ID4gDQo+ID4gSSdtIHN0aWxsIG5vdCBjbGVh
+ciBhYm91dCBob3cgIWh1Z2VfcHRlX25vbmUoKSBiZWNvbWVzIHRydWUgaGVyZSwNCj4gPiBiZWNh
+dXNlIHdlIGVudGVyIGh1Z2V0bGJfbm9fcGFnZSgpIG9ubHkgd2hlbiBodWdlX3B0ZV9ub25lKCkg
+aXMgbm9uLW51bGwNCj4gPiBhbmQgKHJhY3kpIHRyeV90b191bm1hcF9vbmUoKSBmcm9tIHBhZ2Ug
+bWlncmF0aW9uIHNob3VsZCBjb252ZXJ0IHRoZQ0KPiA+IGh1Z2VfcHRlIGludG8gYSBtaWdyYXRp
+b24gZW50cnksIG5vdCBudWxsLg0KPiANCj4gVGhhbmtzIGZvciB0YWtpbmcgYSBsb29rIE5hb3lh
+Lg0KPiANCj4gSW4gdHJ5X3RvX3VubWFwX29uZSgpLCB0aGVyZSBpcyB0aGlzIGNvZGUgYmxvY2s6
+DQo+IA0KPiAJCS8qIE51a2UgdGhlIHBhZ2UgdGFibGUgZW50cnkuICovDQo+IAkJZmx1c2hfY2Fj
+aGVfcGFnZSh2bWEsIGFkZHJlc3MsIHB0ZV9wZm4oKnB2bXcucHRlKSk7DQo+IAkJaWYgKHNob3Vs
+ZF9kZWZlcl9mbHVzaChtbSwgZmxhZ3MpKSB7DQo+IAkJCS8qDQo+IAkJCSAqIFdlIGNsZWFyIHRo
+ZSBQVEUgYnV0IGRvIG5vdCBmbHVzaCBzbyBwb3RlbnRpYWxseQ0KPiAJCQkgKiBhIHJlbW90ZSBD
+UFUgY291bGQgc3RpbGwgYmUgd3JpdGluZyB0byB0aGUgcGFnZS4NCj4gCQkJICogSWYgdGhlIGVu
+dHJ5IHdhcyBwcmV2aW91c2x5IGNsZWFuIHRoZW4gdGhlDQo+IAkJCSAqIGFyY2hpdGVjdHVyZSBt
+dXN0IGd1YXJhbnRlZSB0aGF0IGEgY2xlYXItPmRpcnR5DQo+IAkJCSAqIHRyYW5zaXRpb24gb24g
+YSBjYWNoZWQgVExCIGVudHJ5IGlzIHdyaXR0ZW4gdGhyb3VnaA0KPiAJCQkgKiBhbmQgdHJhcHMg
+aWYgdGhlIFBURSBpcyB1bm1hcHBlZC4NCj4gCQkJICovDQo+IAkJCXB0ZXZhbCA9IHB0ZXBfZ2V0
+X2FuZF9jbGVhcihtbSwgYWRkcmVzcywgcHZtdy5wdGUpOw0KPiANCj4gCQkJc2V0X3RsYl91YmNf
+Zmx1c2hfcGVuZGluZyhtbSwgcHRlX2RpcnR5KHB0ZXZhbCkpOw0KPiAJCX0gZWxzZSB7DQo+IAkJ
+CXB0ZXZhbCA9IHB0ZXBfY2xlYXJfZmx1c2godm1hLCBhZGRyZXNzLCBwdm13LnB0ZSk7DQo+IAkJ
+fQ0KPiANCj4gVGhhdCBoYXBwZW5zIGJlZm9yZSBzZXR0aW5nIHRoZSBtaWdyYXRpb24gZW50cnku
+ICBUaGVyZWZvcmUsIGZvciBhIHBlcmlvZA0KPiBvZiB0aW1lIHRoZSBwdGUgaXMgTlVMTCAoaHVn
+ZV9wdGVfbm9uZSgpIHJldHVybnMgdHJ1ZSkuDQo+IA0KPiB0cnlfdG9fdW5tYXBfb25lIGhvbGRz
+IHRoZSBwYWdlIHRhYmxlIGxvY2ssIGJ1dCBodWdldGxiX2ZhdWx0IGRvZXMgbm90IHRha2UNCj4g
+dGhlIGxvY2sgdG8gJ29wdGltaXN0aWNhbGx5JyBjaGVjayBodWdlX3B0ZV9ub25lKCkuICBXaGVu
+IGh1Z2VfcHRlX25vbmUNCj4gcmV0dXJucyB0cnVlLCBpdCBjYWxscyBodWdldGxiX25vX3BhZ2Ug
+d2hpY2ggaXMgd2hlcmUgd2UgdHJ5IHRvIGFsbG9jYXRlDQo+IGEgcGFnZSBhbmQgZmFpbHMuDQo+
+IA0KPiBEb2VzIHRoYXQgbWFrZSBzZW5zZSwgb3IgYW0gSSBtaXNzaW5nIHNvbWV0aGluZz8NCg0K
+TWFrZSBzZW5zZSB0byBtZSwgdGhhbmtzLg0KDQo+IA0KPiBUaGUgcGF0Y2ggY2hlY2tzIGZvciB0
+aGlzIHNwZWNpZmljIGNvbmRpdGlvbjogc29tZW9uZSBjaGFuZ2luZyB0aGUgcHRlDQo+IGZyb20g
+TlVMTCB0byBub24tTlVMTCB3aGlsZSBob2xkaW5nIHRoZSBsb2NrLiAgSSBhbSBub3Qgc3VyZSBp
+ZiB0aGlzIGlzDQo+IHRoZSBiZXN0IHdheSB0byBmaXguICBCdXQsIGl0IG1heSBiZSB0aGUgZWFz
+aWVzdC4NCg0KWWVzLCBJIHRoaW5rIHNvLg0KDQotIE5hb3lh
 
