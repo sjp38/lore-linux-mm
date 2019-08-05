@@ -2,143 +2,210 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.5 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 773BCC0650F
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 11:58:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 068E8C433FF
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 12:02:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3B4192086D
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 11:58:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id AEBC620880
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 12:02:01 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="hngqHboW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B4192086D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=gmx.net header.i=@gmx.net header.b="iIMtsh8q"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AEBC620880
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=gmx.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DBBC96B0007; Mon,  5 Aug 2019 07:58:38 -0400 (EDT)
+	id 556E16B0006; Mon,  5 Aug 2019 08:02:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CF6586B0008; Mon,  5 Aug 2019 07:58:38 -0400 (EDT)
+	id 4B6066B0007; Mon,  5 Aug 2019 08:02:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B6F726B000A; Mon,  5 Aug 2019 07:58:38 -0400 (EDT)
+	id 32F486B0008; Mon,  5 Aug 2019 08:02:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F32C6B0007
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 07:58:38 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id j81so72045199qke.23
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 04:58:38 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D42B56B0006
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 08:02:00 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id g2so40895174wrq.19
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 05:02:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:reply-to:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=e8LeZYKHIbk2Da0fZqUR7a7Js8ma4FkwyhW8sZVdCZk=;
-        b=HZ19V6O311kq+j/rAbyDVRhW3kBPgQx9oRY0c7RljMhkjBPrXX/74yH4EVpw87kp+3
-         KlXJPVS+dbJmMK43YxXnEmHE26uDSipogi0+FCoc6LebshP/D4CX0C4h1DnSj93arUVt
-         GXxCB48EIsFBrxOPez105FVGRi178BEAd5YT7mzVnQjpQvuYPH/bFfshbe0Pc1z5vKi8
-         ocmEK1mITcTTlSyWwEH2T7XYjQI1tMheKQf0OCOx8vT0jbXxEBuz/p42HUctWix0IJB5
-         8XOPwew4tFT4udbiGEHdixlq/JnWAfvP13ARyPkHdSsXuoNN08ZG8WSqM6sAeGdVdLx2
-         zmJQ==
-X-Gm-Message-State: APjAAAW22cA+a0naOE3vCGL940fixMcW2nzNrEAY0hc+N0Xzj2U6hVtr
-	DyrMo5fwWXMMwOu+XqM+rUqmGhYgLMMlfDq2BEatrUu3k7nca9lJ6FRurI8Jqtqg9pwv/aQHc8K
-	J98xVFTYJTXUrHHCCb0QteKIwMskALSvCn36zd5yBchg0NA+azsJSydwcDUWoaIPslQ==
-X-Received: by 2002:a37:a358:: with SMTP id m85mr79061434qke.190.1565006318411;
-        Mon, 05 Aug 2019 04:58:38 -0700 (PDT)
-X-Received: by 2002:a37:a358:: with SMTP id m85mr79061417qke.190.1565006318011;
-        Mon, 05 Aug 2019 04:58:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565006318; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=RZH42r0qSuasH0iuqkft0iVsurL7klddbLTSy94oFU4=;
+        b=ctLfaOybg3RlB5puJbrR/tK6z+h2uWwhgz+L/z9z7U+Xp0yy1VuazOVjmqzQEvteo+
+         Bn+Pc+uiLY33TJ7PYfoZCKyJq+ROqA/TuUYs6q/2V8u1xQIuZGKxj7fwgm1lKVrRcV33
+         YQBs9huzO70kQL/pHI+0hRh9Cjs09Ar1Y1WgcZeGMdEERxzqOZYR15UxujOgzyBLZB/K
+         gcBc3x0FrWNVGEEWMRnJgUcAQ61p38f0Xcgs1X2uAjSsNZU8AZqB5Lb0+wk5tI6/DnQP
+         7KYovs4gmG7nwzBQm0xk44J7DBToVRTvWHhgPQ+9FpU/PMxecK4fIy+8RtOIbbacfvZk
+         1q8g==
+X-Gm-Message-State: APjAAAVGMnL27BMpeLdF9cckTDC0oSouyFfsYnvya6tQoueESapTpt0j
+	isK3Hs4/uRD/BUKz+lw6BDQcT7PLB4emrjzmJ6ef0Sarvyxabn0zRqE3jmPnlYNL/siJgVK8ih3
+	I/q6/lWFeWvpnKEVG6P1/J+pkNq1F2Xa3G7BiHUNsK/859OowZRFyy9qycidYrSIQfQ==
+X-Received: by 2002:a5d:54c7:: with SMTP id x7mr132978513wrv.39.1565006520404;
+        Mon, 05 Aug 2019 05:02:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyh3CqydWclCd+gr9BgT4nOOzAJhFnlvU6PzaJ0+ep+zOagbwSPmlVKVlap6y4ycpcox/Zo
+X-Received: by 2002:a5d:54c7:: with SMTP id x7mr132978452wrv.39.1565006519511;
+        Mon, 05 Aug 2019 05:01:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565006519; cv=none;
         d=google.com; s=arc-20160816;
-        b=agQMn5G4Kj9Avbx5pg1Qj3MfxUBCNMrRgVeCdlemfjiARgU4Oc4+24IS3eDba0Pee8
-         n3kSsxr0vnFjLZI5s1TAOOBR2xuuMLfEukVybLhCGqg9wwTB71yAriTATysW29Wcm1sy
-         wgV8hyU0NrAQzGJN5GlntpeL0qR2i0jks1UQq4uKvV4IBzivjxeBcp9geZWwe3/5qnjO
-         4gxpoR2wvogcVgqy3UsridnUbKkbD5rh0fSAYPdvcdf/KqMz7mLhf47DdOVFezdvjtwG
-         B8HxyCZZxu3DyBpR80akvVpeUpD4lGLSIyXOymlKSsPM3jZkyAzgBIivp7k1LdNCjgYP
-         aL4w==
+        b=L5rTlLCJynEzd8p/7kVNJ8gjzCQMAaTSppe9Z54Jg+dopr88tUEgzYPZmev/2pom80
+         OSP5+vaiYnf5EnihyhKWyGCB3naPxdqbulEFLuKIz/rAdG25+h2ycqiXv468aYfGDq09
+         g4Ly2LX+OhzmK3EROb+8rURBTFvzpfjJFCCXUdIfsLC7g5ndEg2MeVRiSMk0+GiFTH3f
+         vdjRHlmXZJ+2opVAT72XuPsZkHITzSH/iyvJxLYWOTWw4dkQi6FybHP2s7EkpAZlnSSl
+         SFSIZGgwCpLqwJznw3WwVe+KAKQN5ud/EiZZswTFXdA+aybpo97Aszzhl/ZB403Ftc5/
+         pydA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :reply-to:message-id:subject:cc:to:from:date:dkim-signature;
-        bh=e8LeZYKHIbk2Da0fZqUR7a7Js8ma4FkwyhW8sZVdCZk=;
-        b=fCx34kXp1qnNeHvgZVIeeFINAv4m/2v5odbrzxqk1ZX386OfJeUTbDlS/n0LWpDg+Q
-         lB9N64zhLlrbWcyiGrlNWx2gmTEgoJi9CJXiH6n2QZr//bd+EHA/d258g0S0cjGvUPL9
-         yDxkV6LKBL5zLqkAHC4LhQv8YmbzPIYqMOF+4YS577EBcbFNkQKudNcEnQqXT0/lfPgp
-         CtHOFU96tqy9GaXYikrDvZ4e41v8UrK0v4HGWMeqjee34uBHT9dcCUZ/m6UwBEOI5Lmx
-         J5RsxO53jVY+P+1SghjS3wpOKx3MNKFIMb1S996qR9lT4rrpEJs4oemO3cibLTc3AG/L
-         0DTQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :date:message-id:from:references:cc:to:subject:dkim-signature;
+        bh=RZH42r0qSuasH0iuqkft0iVsurL7klddbLTSy94oFU4=;
+        b=qEZF0onMAMs5ojyetVM4q3eJSfytEhU/xp2NZMm0g54mUXt/Pw108nab/0dANS9mFq
+         kls69KDudd+cfR/n/Bx8D/j0Nw+Ggiv76otSMtOTxMkFohQyBJnk+k2uZrULijLqbAgH
+         XMJ5dNH/E95rJkLxfUCKR9WOiTKeOG4eXp8xh/5oiyrT04vkLzIbHAyUFlfr0BzsgeBp
+         DqoM5NRHY54lmC1SUdIh+XIh8kvk0QpzrJAcelI8qvT8aUJKaMIm4GXicfuXKtnT4Wim
+         G/Jh+yaVtXoxPUb2qnNbbZWu1XFtHrOwTYizt/WiFkHl9vMIKaIx/L+OTuolkGDT5Evz
+         pYxQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hngqHboW;
-       spf=pass (google.com: domain of mathstuf@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mathstuf@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id s74sor46935885qka.199.2019.08.05.04.58.37
+       dkim=pass header.i=@gmx.net header.s=badeba3b8450 header.b=iIMtsh8q;
+       spf=pass (google.com: domain of aros@gmx.com designates 212.227.15.19 as permitted sender) smtp.mailfrom=aros@gmx.com
+Received: from mout.gmx.net (mout.gmx.net. [212.227.15.19])
+        by mx.google.com with ESMTPS id d16si72186925wrn.10.2019.08.05.05.01.59
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Aug 2019 04:58:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mathstuf@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Aug 2019 05:01:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of aros@gmx.com designates 212.227.15.19 as permitted sender) client-ip=212.227.15.19;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hngqHboW;
-       spf=pass (google.com: domain of mathstuf@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mathstuf@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=e8LeZYKHIbk2Da0fZqUR7a7Js8ma4FkwyhW8sZVdCZk=;
-        b=hngqHboWeegeHkoet35hMfGDZ/a/9CNOIPPlA7NKG//W57AWG953gR+21a8vIOnq2N
-         O0gY/5V/Q5CZoeXcwKWhnYHZmHPjIPfgIkS1CCntV3/YU320muttIZpPr7T73dzyk1eh
-         J8mE0rX4SOvyBpv2kyOrHfn251KwfVS42gfdsBq2ouwztwzMpiiUaEfyj5TeLH2fWGkN
-         5HoRjM9ml34Tua73Y6ycsRF6u7bIqTtdkUcIwAlHJz9fMvtiARFg4/EEIVv3xGLVOxGl
-         iVEyymREv3wB5kUc6CKPmRZoQQTpjQFt0L224wAgcxG3zATbmMyqyyyJRnhyA7k7657N
-         T2EA==
-X-Google-Smtp-Source: APXvYqyryDXftcMnqgW+D3kNypxJP/bHopPpzdZ1j1jlioL4L8ry7VpPYRyN6eeewLRhsKtQysUWHw==
-X-Received: by 2002:a05:620a:15a5:: with SMTP id f5mr100840063qkk.45.1565006317755;
-        Mon, 05 Aug 2019 04:58:37 -0700 (PDT)
-Received: from localhost (tripoint.kitware.com. [66.194.253.20])
-        by smtp.gmail.com with ESMTPSA id o10sm40861276qti.62.2019.08.05.04.58.37
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 05 Aug 2019 04:58:37 -0700 (PDT)
-Date: Mon, 5 Aug 2019 07:58:37 -0400
-From: Ben Boeckel <mathstuf@gmail.com>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Andy Lutomirski <luto@amacapital.net>,
-	David Howells <dhowells@redhat.com>,
-	Kees Cook <keescook@chromium.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Kai Huang <kai.huang@linux.intel.com>,
-	Jacob Pan <jacob.jun.pan@linux.intel.com>,
-	Alison Schofield <alison.schofield@intel.com>, linux-mm@kvack.org,
-	kvm@vger.kernel.org, keyrings@vger.kernel.org,
-	linux-kernel@vger.kernel.org,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCHv2 57/59] x86/mktme: Document the MKTME Key Service API
-Message-ID: <20190805115837.GB31656@rotor>
-Reply-To: mathstuf@gmail.com
-References: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
- <20190731150813.26289-58-kirill.shutemov@linux.intel.com>
+       dkim=pass header.i=@gmx.net header.s=badeba3b8450 header.b=iIMtsh8q;
+       spf=pass (google.com: domain of aros@gmx.com designates 212.227.15.19 as permitted sender) smtp.mailfrom=aros@gmx.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=gmx.net;
+	s=badeba3b8450; t=1565006506;
+	bh=KmcLdHf0XwKTJJgL+H3RVxeu5Ne9CquLQEwQPSvQMcY=;
+	h=X-UI-Sender-Class:Subject:To:Cc:References:From:Date:In-Reply-To;
+	b=iIMtsh8qB2coFc12upwLyWLPCpegsOyMNCIqdt6+P1VldhE9r1JiTpVjQzf0zFdu8
+	 /U7Gt5LJW4Sxs4vg/VtCFyxSwY1Uqv+QfQfJ7krIYXXTxxXoFVCbohPqgIRJtPYZTt
+	 RFrgBO4gM7Z83i5D6/9VW75w/UukoKQqZu6iEdPE=
+X-UI-Sender-Class: 01bb95c1-4bf8-414a-932a-4f6e2808ef9c
+Received: from [10.80.10.6] ([196.52.84.6]) by mail.gmx.com (mrgmx003
+ [212.227.17.184]) with ESMTPSA (Nemesis) id 0M6jIK-1iHtle1n8e-00wVpV; Mon, 05
+ Aug 2019 14:01:46 +0200
+Subject: Re: Let's talk about the elephant in the room - the Linux kernel's
+ inability to gracefully handle low memory pressure
+To: Hillf Danton <hdanton@sina.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org
+References: <20190805090514.5992-1-hdanton@sina.com>
+From: "Artem S. Tashkinov" <aros@gmx.com>
+Message-ID: <91360b32-f20a-9f2a-838f-bd00e991db40@gmx.com>
+Date: Mon, 5 Aug 2019 12:01:43 +0000
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
-Content-Disposition: inline
-In-Reply-To: <20190731150813.26289-58-kirill.shutemov@linux.intel.com>
-User-Agent: Mutt/1.12.0 (2019-05-25)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+In-Reply-To: <20190805090514.5992-1-hdanton@sina.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+X-Provags-ID: V03:K1:fwHdWITLjRI+5T9B5auq4PfprFdsXP/AYtLPf0YQchM4VGI0l4N
+ 1cdcOiAx8gY1azaY6k1Rk9Yh1nIq+LpDAzHIDJzXmPO0XAaoM8pIB1Yet7tSfQLa6h1eg2Y
+ 9xDOuwrbmAwQR9XZAZ+z1We9AJyR8nKW8q3u3bo8u461sIoGUMyIrtICdRXd1/Qmek4PA3s
+ wy/D4t23NlwZ9fLUcEPsw==
+X-UI-Out-Filterresults: notjunk:1;V03:K0:fCNy7Kaw2TU=:TGdcb/4vwRcYIRAUgaiQJ+
+ 2Ip3rrEOk3dVwx3k7sTysuG8eiidhH5MRSfX97tf7O8CelPpYodeZsrQyTLAsUKkDuQo0+Eh2
+ KbfDHEOsks0m/Ba52aqNlXvkggZrUTuY6JRKAMYffFCejJlKRYIejcmmBiHUY+eH2IR2eGAo2
+ WG2egJArJd6G+35QclPh9FcRSHMYu/eLIOAiYeOC9NCuYkVpHypd67WKRVJQxDE1oqUSv8LlP
+ gjeNalPkwNACua/OR6IfawJ5xBN5CTJAqcoXsfxPd4hrB+77HNnRIh7i+kPZlBNMZuAjQ7P8s
+ 170MOAblDh9VtD8uID1VgbYkTcw6frkpwATF8X+/Son6ei74L22tgeVRxW9sdN5gjn9wRz5tJ
+ 8NGnUGq+y603ovHGYnqqwwBzutX+A4s67xmQM3OgtBc4fbiubeX6ABkKfuVWbiaBjsJMrUhBt
+ ICvZ5VbdRBpKjWh0pKtt2IKUedNy9apMNWSyr3f2zwGnZqpE25+64WNzdrWk7LKdVN3ry+UJN
+ AjYHItEFaZZxzaX45DUilehlESyBtEDaS+W6+qPrbkhFq9Nvx/xp2dDrcOOtj2THnmmP9AYBK
+ pyiUVTjFj83CPWF2nyJCJnp8ZkT98qzuddE8QsOiSur9XES3dPlGEdlozsyPind2BAAEtnkQo
+ eDlArJKQ6Ppq6E0Bo+hOYgwWU/WTQ/8+YET6BIXSCw7410Wu7+LoxQDvN9Ly21X7WoSGT5R/I
+ ZhCRwh3NBMOLaVZKBl3t6RpiRRHIbbFzTAB8Vjf5ToUfFmv5qFr9wKggtytMkJEAaisaswLjo
+ FtTSb+DhntTzIEjkTe4R1oodw6aNFVLVDUlBxO27y/c3WHLoBJZ9yontI+/rzNiRyyBaFXAGE
+ wFdHvolcSxvEER6sXnnD6IHlpQNw45qPWAuZoXpZDBKjHxopOse1NTR61Fl1kMviqEIAvy4i0
+ cL94ueGli4wouXH1BFezu7zPC2/1t8qD8/uWUhdPboLJ0/viYimL1pTBFEdXXhGZZDyWyi8by
+ YK6fZMJfc17z8/3faZKnO1c+MsSXuZnkigJN0rkdZSc4Lo5ZN9Fv/6iZzQ8WYtTERj9tXomFC
+ G600hDIOQChv9MAf9ORIjc3BxrcMhY/LXSBhR99DqI8vCuDv/d5JH+AXO6MEheVYPXiwOENlq
+ 0S2jk=
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000696, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 31, 2019 at 18:08:11 +0300, Kirill A. Shutemov wrote:
-> +	key = add_key("mktme", "name", "no-encrypt", strlen(options_CPU),
-> +		      KEY_SPEC_THREAD_KEYRING);
+On 8/5/19 9:05 AM, Hillf Danton wrote:
+>
+> On Sun, 4 Aug 2019 09:23:17 +0000 "Artem S. Tashkinov" <aros@gmx.com> wr=
+ote:
+>> Hello,
+>>
+>> There's this bug which has been bugging many people for many years
+>> already and which is reproducible in less than a few minutes under the
+>> latest and greatest kernel, 5.2.6. All the kernel parameters are set to
+>> defaults.
+>
+> Thanks for report!
+>>
+>> Steps to reproduce:
+>>
+>> 1) Boot with mem=3D4G
+>> 2) Disable swap to make everything faster (sudo swapoff -a)
+>> 3) Launch a web browser, e.g. Chrome/Chromium or/and Firefox
+>> 4) Start opening tabs in either of them and watch your free RAM decreas=
+e
+>
+> We saw another corner-case cpu hog report under memory pressure also
+> with swap disabled. In that report the xfs filesystem was an factor
+> with CONFIG_MEMCG enabled. Anything special, say like
+>
+>   kernel:watchdog: BUG: soft lockup - CPU#7 stuck for 22s! [leaker1:7193=
+]
+> or
+>   [ 3225.313209] Xorg: page allocation failure: order:4, mode:0x40dc0(GF=
+P_KERNEL|__GFP_COMP|__GFP_ZERO), nodemask=3D(null),cpuset=3D/,mems_allowed=
+=3D0
+>
+> in your kernel log?
 
-Should this be `type=no-encrypt` here? Also, seems like copy/paste from
-the `type=cpu` case for the `strlen` call.
+I'm running ext4 only without LVM, encryption or anything like that.
+Plain GPT/MBR partitions with plenty of free space and no disk errors.
 
---Ben
+>>
+>> Once you hit a situation when opening a new tab requires more RAM than
+>> is currently available, the system will stall hard. You will barely  be
+>> able to move the mouse pointer. Your disk LED will be flashing
+>> incessantly (I'm not entirely sure why). You will not be able to run ne=
+w
+>> applications or close currently running ones.
+>
+> A cpu hog may come on top of memory hog in some scenario.
+
+It might have happened as well - I couldn't know since I wasn't able to
+open a terminal. Once the system recovered there was no trace of
+anything extraordinary.
+
+>>
+>> This little crisis may continue for minutes or even longer. I think
+>> that's not how the system should behave in this situation. I believe
+>> something must be done about that to avoid this stall.
+>
+> Yes, Sir.
+>>
+>> I'm almost sure some sysctl parameters could be changed to avoid this
+>> situation but something tells me this could be done for everyone and
+>> made default because some non tech-savvy users will just give up on
+>> Linux if they ever get in a situation like this and they won't be keen
+>> or even be able to Google for solutions.
+>
+> I am not willing to repeat that it is hard to produce a pill for all
+> patients, but the info you post will help solve the crisis sooner.
+>
+> Hillf
+>
+
+In case you have troubles reproducing this bug report I can publish a VM
+image - still everything is quite mundane: Fedora 30 + XFCE + web
+browser. Nothing else, nothing fancy.
+
+Regards,
+Artem
 
