@@ -2,217 +2,143 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E3B09C0650F
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 11:58:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 773BCC0650F
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 11:58:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9842A2147A
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 11:58:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3B4192086D
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 11:58:39 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=kroah.com header.i=@kroah.com header.b="YSU/9sxg";
-	dkim=pass (2048-bit key) header.d=messagingengine.com header.i=@messagingengine.com header.b="J/m9KWk/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9842A2147A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kroah.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="hngqHboW"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B4192086D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 35B6D6B0006; Mon,  5 Aug 2019 07:58:33 -0400 (EDT)
+	id DBBC96B0007; Mon,  5 Aug 2019 07:58:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 330CF6B0007; Mon,  5 Aug 2019 07:58:33 -0400 (EDT)
+	id CF6586B0008; Mon,  5 Aug 2019 07:58:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1F97D6B0008; Mon,  5 Aug 2019 07:58:33 -0400 (EDT)
+	id B6F726B000A; Mon,  5 Aug 2019 07:58:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id F2C396B0006
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 07:58:32 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id z13so72296884qka.15
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 04:58:32 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 8F32C6B0007
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 07:58:38 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id j81so72045199qke.23
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 04:58:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:date:from:to:cc
-         :subject:message-id:references:mime-version:content-disposition
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:reply-to:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=CpP+jXyBTmqGd87EE+i6YMktL/+9k4HJgd3+6RNm4e0=;
-        b=ljAbXrkRuL1zkGUPOUzBguElmdTF5c8gGTbRfURqUvTGAYot+RtZFY/gYF+mOPRxlR
-         H1c/jPwijHtj2qo+/6ZHlo1lzS1tahzM3954R7o5kPi+OcS0Bm9EKJACtW/o5n0e8d6M
-         +SROghPK7DlTNKE/Rlx86Z6lQl5BP2TfjF4U21QreO9VkIbtolYFUsHWFfCSU/7JExl+
-         ps79KM8Q5laUbTQ+W/WW4eDmY4swJBLezdCV6jNpl6Xh3vjhbTeG4whuFz9ETiK7firI
-         AJBS+MhnfA5acqUqGer1dBRZYb6HkXJjvW3aJ9GPCR2iCFEHi25lt+ZgSxlCgv+xMpBQ
-         5xNw==
-X-Gm-Message-State: APjAAAVxzkmn2dokAO4UWysUU0FJ4KVLIXWLyzrO8OssW6y3ItL9KHaf
-	U0JfyFNV7tqW6IRc7P2g33hKM72Ofpflzp5SCdVkr8ROvUwpOIUyTQYWeSUEK3VBCbSR5dbcgVa
-	lRAOLAPX8NDdfrGiuwHVWM0JdUeCbeRnkkVYt1JFW2NSKpk1IDKjMw1B80tug05WQpw==
-X-Received: by 2002:aed:2336:: with SMTP id h51mr103941800qtc.125.1565006312734;
-        Mon, 05 Aug 2019 04:58:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwy37zrVKJERBuhO0i8vREL+lFwAFdQCCPD8iKXvIsE2kSlVQc2N1IwQtakisVe4U8S+5nP
-X-Received: by 2002:aed:2336:: with SMTP id h51mr103941771qtc.125.1565006312064;
-        Mon, 05 Aug 2019 04:58:32 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565006312; cv=none;
+        bh=e8LeZYKHIbk2Da0fZqUR7a7Js8ma4FkwyhW8sZVdCZk=;
+        b=HZ19V6O311kq+j/rAbyDVRhW3kBPgQx9oRY0c7RljMhkjBPrXX/74yH4EVpw87kp+3
+         KlXJPVS+dbJmMK43YxXnEmHE26uDSipogi0+FCoc6LebshP/D4CX0C4h1DnSj93arUVt
+         GXxCB48EIsFBrxOPez105FVGRi178BEAd5YT7mzVnQjpQvuYPH/bFfshbe0Pc1z5vKi8
+         ocmEK1mITcTTlSyWwEH2T7XYjQI1tMheKQf0OCOx8vT0jbXxEBuz/p42HUctWix0IJB5
+         8XOPwew4tFT4udbiGEHdixlq/JnWAfvP13ARyPkHdSsXuoNN08ZG8WSqM6sAeGdVdLx2
+         zmJQ==
+X-Gm-Message-State: APjAAAW22cA+a0naOE3vCGL940fixMcW2nzNrEAY0hc+N0Xzj2U6hVtr
+	DyrMo5fwWXMMwOu+XqM+rUqmGhYgLMMlfDq2BEatrUu3k7nca9lJ6FRurI8Jqtqg9pwv/aQHc8K
+	J98xVFTYJTXUrHHCCb0QteKIwMskALSvCn36zd5yBchg0NA+azsJSydwcDUWoaIPslQ==
+X-Received: by 2002:a37:a358:: with SMTP id m85mr79061434qke.190.1565006318411;
+        Mon, 05 Aug 2019 04:58:38 -0700 (PDT)
+X-Received: by 2002:a37:a358:: with SMTP id m85mr79061417qke.190.1565006318011;
+        Mon, 05 Aug 2019 04:58:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565006318; cv=none;
         d=google.com; s=arc-20160816;
-        b=mEttjRV0aLKvAaQjXnnhxTBS2hkDW5LrQkNe5T3RavuLSSwsOXP40kHZz2um5w84VG
-         TfIToNT98FI75Zr0ZWBJ1F9N9TcYe/5KDBKre27OBKi895+BMPxM56w7btXLdWiRY+w6
-         Z+L1kntQLFeBAI1x2RFIpuWyQEzmsasUBM2+hfM/d14n+F5XIG0bzxIPNQNOj4hHCiNB
-         QbnOUICgSgDdYr16Crk//t5ojcA99LagADo4brphAyhVUxLFC6SZv40lHBw/hD67hNFy
-         Yhf955fR15GBVZH82jiJfRle4PkNQf3GAOt46HkULCIh5ZH+YUoJy4MAX8KqUIeBo5VC
-         bSew==
+        b=agQMn5G4Kj9Avbx5pg1Qj3MfxUBCNMrRgVeCdlemfjiARgU4Oc4+24IS3eDba0Pee8
+         n3kSsxr0vnFjLZI5s1TAOOBR2xuuMLfEukVybLhCGqg9wwTB71yAriTATysW29Wcm1sy
+         wgV8hyU0NrAQzGJN5GlntpeL0qR2i0jks1UQq4uKvV4IBzivjxeBcp9geZWwe3/5qnjO
+         4gxpoR2wvogcVgqy3UsridnUbKkbD5rh0fSAYPdvcdf/KqMz7mLhf47DdOVFezdvjtwG
+         B8HxyCZZxu3DyBpR80akvVpeUpD4lGLSIyXOymlKSsPM3jZkyAzgBIivp7k1LdNCjgYP
+         aL4w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature:dkim-signature;
-        bh=CpP+jXyBTmqGd87EE+i6YMktL/+9k4HJgd3+6RNm4e0=;
-        b=nBM1HXwHmn49y/36Whva2gGibXwaXCLkdXBG0pHjiV0R7dvJ21VJ5cl+0ui2vwlbOt
-         HBF4JRQwySc/4cDJ4FzKCVx3vQOmfwmmb5zeIcFznLJEFDi4oYCWOaf8VdjMRNoCGNdY
-         upbo/FT2t3ue9kq3Qdu0XV0vgTyPrmf+T9P7zDxzkRiMadQDfypbtV/KuoMuIIdhkCLw
-         30vZicYCyAQFIudzJU5XiuTXS66m4czR9RrfBZYPMsEuO7JbPUkxav+VGoxCNorRf6Gt
-         AKgIEckIZ+dIbz7frl4fptvs54OAIPZ3L96LD6ECXOfs9BCKoprdmoO02y35YIEUanif
-         dzQg==
+         :reply-to:message-id:subject:cc:to:from:date:dkim-signature;
+        bh=e8LeZYKHIbk2Da0fZqUR7a7Js8ma4FkwyhW8sZVdCZk=;
+        b=fCx34kXp1qnNeHvgZVIeeFINAv4m/2v5odbrzxqk1ZX386OfJeUTbDlS/n0LWpDg+Q
+         lB9N64zhLlrbWcyiGrlNWx2gmTEgoJi9CJXiH6n2QZr//bd+EHA/d258g0S0cjGvUPL9
+         yDxkV6LKBL5zLqkAHC4LhQv8YmbzPIYqMOF+4YS577EBcbFNkQKudNcEnQqXT0/lfPgp
+         CtHOFU96tqy9GaXYikrDvZ4e41v8UrK0v4HGWMeqjee34uBHT9dcCUZ/m6UwBEOI5Lmx
+         J5RsxO53jVY+P+1SghjS3wpOKx3MNKFIMb1S996qR9lT4rrpEJs4oemO3cibLTc3AG/L
+         0DTQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kroah.com header.s=fm1 header.b="YSU/9sxg";
-       dkim=pass header.i=@messagingengine.com header.s=fm3 header.b="J/m9KWk/";
-       spf=pass (google.com: domain of greg@kroah.com designates 66.111.4.230 as permitted sender) smtp.mailfrom=greg@kroah.com
-Received: from new4-smtp.messagingengine.com (new4-smtp.messagingengine.com. [66.111.4.230])
-        by mx.google.com with ESMTPS id t4si46811243qtq.2.2019.08.05.04.58.31
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hngqHboW;
+       spf=pass (google.com: domain of mathstuf@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mathstuf@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id s74sor46935885qka.199.2019.08.05.04.58.37
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Aug 2019 04:58:32 -0700 (PDT)
-Received-SPF: pass (google.com: domain of greg@kroah.com designates 66.111.4.230 as permitted sender) client-ip=66.111.4.230;
+        (Google Transport Security);
+        Mon, 05 Aug 2019 04:58:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mathstuf@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kroah.com header.s=fm1 header.b="YSU/9sxg";
-       dkim=pass header.i=@messagingengine.com header.s=fm3 header.b="J/m9KWk/";
-       spf=pass (google.com: domain of greg@kroah.com designates 66.111.4.230 as permitted sender) smtp.mailfrom=greg@kroah.com
-Received: from compute6.internal (compute6.nyi.internal [10.202.2.46])
-	by mailnew.nyi.internal (Postfix) with ESMTP id BD0F91E2C;
-	Mon,  5 Aug 2019 07:58:31 -0400 (EDT)
-Received: from mailfrontend1 ([10.202.2.162])
-  by compute6.internal (MEProxy); Mon, 05 Aug 2019 07:58:31 -0400
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=kroah.com; h=
-	date:from:to:cc:subject:message-id:references:mime-version
-	:content-type:in-reply-to; s=fm1; bh=CpP+jXyBTmqGd87EE+i6YMktL/+
-	9k4HJgd3+6RNm4e0=; b=YSU/9sxglEDrFB83JMjF5GYy1tJNN+/Hz/W4eHE00/3
-	BS634k/o0H3PihhmK1Zb32wPagLscjViaodRihFhCD4D1Xr/N7OuTcCbHdp+yp2b
-	hAxUeUDzLDmXF6HHzXkoD5FwVLNdoR9yahMQJK8k07kLoC38wxuUmJsIv3RETAn+
-	H9QPWEjzDXwKE3COFk/KG/iAldsp5igbzyKEg5WxbXcX8X5kFuvu/PL1xdmtAQVA
-	k6/bZwVVJezhner1ToP4BbOK8i5i1v19niZKf2QroMLgRxOyNX5VHVmN+VG4udYN
-	7snOYX6wZ0gPnEWBvZRAPYH8AoyXgXEdMrsCW5X4p7A==
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=
-	messagingengine.com; h=cc:content-type:date:from:in-reply-to
-	:message-id:mime-version:references:subject:to:x-me-proxy
-	:x-me-proxy:x-me-sender:x-me-sender:x-sasl-enc; s=fm3; bh=CpP+jX
-	yBTmqGd87EE+i6YMktL/+9k4HJgd3+6RNm4e0=; b=J/m9KWk/b9cprwIDZ0LVHU
-	NSpbZFZBe5Go/FrtVsGyrgXG4cyu/FpCCSn0H0cnNVddaTcdkJ5VHSHSj79LwoZI
-	QeRBGmt5qreO1w4HRZ2nIbCfdobl49bQU6qEPYCbFYf/otoStAv03MgCbIZq5mHu
-	hpFVmSMg9ic0ilmBUA4sh7VwrzNm+ZkLi9sOZaoNUcVPLCmnRYB6DQ6mOXaNXV3A
-	SVichjeuqWc/c9yS0TaGcnxpCMmJ0rhZjUxAdUFTPjxnG+eRpsZewbibfn3sqCU9
-	w/BHCyj93gOjODAS4jPgj4VMdzqA6jGvmjVkOn+7XYXDYuJslR7QzaQ0pKJ4xSfg
-	==
-X-ME-Sender: <xms:5hlIXcqMVKi6zxTmzvvHuT1PJZQtmmC1XN_iAqPr-G63OXDCke2BOg>
-X-ME-Proxy-Cause: gggruggvucftvghtrhhoucdtuddrgeduvddruddtjedggeeiucetufdoteggodetrfdotf
-    fvucfrrhhofhhilhgvmecuhfgrshhtofgrihhlpdfqfgfvpdfurfetoffkrfgpnffqhgen
-    uceurghilhhouhhtmecufedttdenucesvcftvggtihhpihgvnhhtshculddquddttddmne
-    cujfgurhepfffhvffukfhfgggtuggjfgesthdtredttdervdenucfhrhhomhepifhrvghg
-    ucfmjfcuoehgrhgvgheskhhrohgrhhdrtghomheqnecuffhomhgrihhnpehkvghrnhgvlh
-    drohhrghenucfkphepkeefrdekiedrkeelrddutdejnecurfgrrhgrmhepmhgrihhlfhhr
-    ohhmpehgrhgvgheskhhrohgrhhdrtghomhenucevlhhushhtvghrufhiiigvpedt
-X-ME-Proxy: <xmx:5hlIXSMFXTiUORDQChenY9N-xpSnU5cxldhyvUmIPpbStCHRo9JFyw>
-    <xmx:5hlIXXry_Fd0KQl8H9WVBkIZjErtgxBhonRW_5eSpbJc85k93DemqQ>
-    <xmx:5hlIXTeo0I6vFJ6Ck8XI_Ghi8pANBVVwSRh-EE8pdL-O_Kz3V7axuQ>
-    <xmx:5xlIXaPeOx7_ugFSNGIfd6OSrqrUuuHKHqwJUnqN-H8Y3UCQ9ojxlw>
-Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
-	by mail.messagingengine.com (Postfix) with ESMTPA id B723E80060;
-	Mon,  5 Aug 2019 07:58:29 -0400 (EDT)
-Date: Mon, 5 Aug 2019 13:58:24 +0200
-From: Greg KH <greg@kroah.com>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: stable@vger.kernel.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, x86@kernel.org, Jann Horn <jannh@google.com>,
-	Ben Hutchings <ben.hutchings@codethink.co.uk>,
-	xen-devel@lists.xenproject.org, Oscar Salvador <osalvador@suse.de>,
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=hngqHboW;
+       spf=pass (google.com: domain of mathstuf@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mathstuf@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=e8LeZYKHIbk2Da0fZqUR7a7Js8ma4FkwyhW8sZVdCZk=;
+        b=hngqHboWeegeHkoet35hMfGDZ/a/9CNOIPPlA7NKG//W57AWG953gR+21a8vIOnq2N
+         O0gY/5V/Q5CZoeXcwKWhnYHZmHPjIPfgIkS1CCntV3/YU320muttIZpPr7T73dzyk1eh
+         J8mE0rX4SOvyBpv2kyOrHfn251KwfVS42gfdsBq2ouwztwzMpiiUaEfyj5TeLH2fWGkN
+         5HoRjM9ml34Tua73Y6ycsRF6u7bIqTtdkUcIwAlHJz9fMvtiARFg4/EEIVv3xGLVOxGl
+         iVEyymREv3wB5kUc6CKPmRZoQQTpjQFt0L224wAgcxG3zATbmMyqyyyJRnhyA7k7657N
+         T2EA==
+X-Google-Smtp-Source: APXvYqyryDXftcMnqgW+D3kNypxJP/bHopPpzdZ1j1jlioL4L8ry7VpPYRyN6eeewLRhsKtQysUWHw==
+X-Received: by 2002:a05:620a:15a5:: with SMTP id f5mr100840063qkk.45.1565006317755;
+        Mon, 05 Aug 2019 04:58:37 -0700 (PDT)
+Received: from localhost (tripoint.kitware.com. [66.194.253.20])
+        by smtp.gmail.com with ESMTPSA id o10sm40861276qti.62.2019.08.05.04.58.37
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 05 Aug 2019 04:58:37 -0700 (PDT)
+Date: Mon, 5 Aug 2019 07:58:37 -0400
+From: Ben Boeckel <mathstuf@gmail.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Andrew Morton <akpm@linux-foundation.org>, x86@kernel.org,
 	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Juergen Gross <jgross@suse.com>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>,
-	Vitaly Kuznetsov <vkuznets@redhat.com>,
-	Linus Torvalds <torvalds@linux-foundation.org>,
+	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
 	Borislav Petkov <bp@alien8.de>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Andy Lutomirski <luto@kernel.org>
-Subject: Re: [PATCH STABLE 4.9] x86, mm, gup: prevent get_page() race with
- munmap in paravirt guest
-Message-ID: <20190805115824.GC8189@kroah.com>
-References: <20190802160614.8089-1-vbabka@suse.cz>
+	Peter Zijlstra <peterz@infradead.org>,
+	Andy Lutomirski <luto@amacapital.net>,
+	David Howells <dhowells@redhat.com>,
+	Kees Cook <keescook@chromium.org>,
+	Dave Hansen <dave.hansen@intel.com>,
+	Kai Huang <kai.huang@linux.intel.com>,
+	Jacob Pan <jacob.jun.pan@linux.intel.com>,
+	Alison Schofield <alison.schofield@intel.com>, linux-mm@kvack.org,
+	kvm@vger.kernel.org, keyrings@vger.kernel.org,
+	linux-kernel@vger.kernel.org,
+	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
+Subject: Re: [PATCHv2 57/59] x86/mktme: Document the MKTME Key Service API
+Message-ID: <20190805115837.GB31656@rotor>
+Reply-To: mathstuf@gmail.com
+References: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
+ <20190731150813.26289-58-kirill.shutemov@linux.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190802160614.8089-1-vbabka@suse.cz>
-User-Agent: Mutt/1.12.1 (2019-06-15)
+In-Reply-To: <20190731150813.26289-58-kirill.shutemov@linux.intel.com>
+User-Agent: Mutt/1.12.0 (2019-05-25)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 02, 2019 at 06:06:14PM +0200, Vlastimil Babka wrote:
-> The x86 version of get_user_pages_fast() relies on disabled interrupts to
-> synchronize gup_pte_range() between gup_get_pte(ptep); and get_page() against
-> a parallel munmap. The munmap side nulls the pte, then flushes TLBs, then
-> releases the page. As TLB flush is done synchronously via IPI disabling
-> interrupts blocks the page release, and get_page(), which assumes existing
-> reference on page, is thus safe.
-> However when TLB flush is done by a hypercall, e.g. in a Xen PV guest, there is
-> no blocking thanks to disabled interrupts, and get_page() can succeed on a page
-> that was already freed or even reused.
-> 
-> We have recently seen this happen with our 4.4 and 4.12 based kernels, with
-> userspace (java) that exits a thread, where mm_release() performs a futex_wake()
-> on tsk->clear_child_tid, and another thread in parallel unmaps the page where
-> tsk->clear_child_tid points to. The spurious get_page() succeeds, but futex code
-> immediately releases the page again, while it's already on a freelist. Symptoms
-> include a bad page state warning, general protection faults acessing a poisoned
-> list prev/next pointer in the freelist, or free page pcplists of two cpus joined
-> together in a single list. Oscar has also reproduced this scenario, with a
-> patch inserting delays before the get_page() to make the race window larger.
-> 
-> Fix this by removing the dependency on TLB flush interrupts the same way as the
-> generic get_user_pages_fast() code by using page_cache_add_speculative() and
-> revalidating the PTE contents after pinning the page. Mainline is safe since
-> 4.13 where the x86 gup code was removed in favor of the common code. Accessing
-> the page table itself safely also relies on disabled interrupts and TLB flush
-> IPIs that don't happen with hypercalls, which was acknowledged in commit
-> 9e52fc2b50de ("x86/mm: Enable RCU based page table freeing
-> (CONFIG_HAVE_RCU_TABLE_FREE=y)"). That commit with follups should also be
-> backported for full safety, although our reproducer didn't hit a problem
-> without that backport.
-> 
-> Reproduced-by: Oscar Salvador <osalvador@suse.de>
-> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Thomas Gleixner <tglx@linutronix.de>
-> Cc: Ingo Molnar <mingo@redhat.com>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Juergen Gross <jgross@suse.com>
-> Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> Cc: Vitaly Kuznetsov <vkuznets@redhat.com>
-> Cc: Linus Torvalds <torvalds@linux-foundation.org>
-> Cc: Borislav Petkov <bp@alien8.de>
-> Cc: Dave Hansen <dave.hansen@linux.intel.com>
-> Cc: Andy Lutomirski <luto@kernel.org>
-> ---
-> 
-> Hi, I'm sending this stable-only patch for consideration because it's probably
-> unrealistic to backport the 4.13 switch to generic GUP. I can look at 4.4 and
-> 3.16 if accepted. The RCU page table freeing could be also considered.
-> Note the patch also includes page refcount protection. I found out that
-> 8fde12ca79af ("mm: prevent get_user_pages() from overflowing page refcount")
-> backport to 4.9 missed the arch-specific gup implementations:
-> https://lore.kernel.org/lkml/6650323f-dbc9-f069-000b-f6b0f941a065@suse.cz/
+On Wed, Jul 31, 2019 at 18:08:11 +0300, Kirill A. Shutemov wrote:
+> +	key = add_key("mktme", "name", "no-encrypt", strlen(options_CPU),
+> +		      KEY_SPEC_THREAD_KEYRING);
 
-This looks sane to me, thank you for the backport.  I've queued it up
-now, and if anyone has any objections, please let me know.
+Should this be `type=no-encrypt` here? Also, seems like copy/paste from
+the `type=cpu` case for the `strlen` call.
 
-thanks,
-
-greg k-h
+--Ben
 
