@@ -2,389 +2,181 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C2F0CC433FF
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:10:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3CBB7C433FF
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:13:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 43BF42075B
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:10:58 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="saBskzTk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 43BF42075B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
+	by mail.kernel.org (Postfix) with ESMTP id 06DA92067D
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:13:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 06DA92067D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A01B06B0003; Mon,  5 Aug 2019 09:10:57 -0400 (EDT)
+	id BFBEA6B0003; Mon,  5 Aug 2019 09:13:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9B1236B0005; Mon,  5 Aug 2019 09:10:57 -0400 (EDT)
+	id B857D6B0005; Mon,  5 Aug 2019 09:13:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8A0676B0006; Mon,  5 Aug 2019 09:10:57 -0400 (EDT)
+	id A26CB6B0006; Mon,  5 Aug 2019 09:13:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 5387F6B0003
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 09:10:57 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id d2so46255904pla.18
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 06:10:57 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 555CC6B0003
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 09:13:38 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id f3so51485621edx.10
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 06:13:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=iKjp1sxUDmAX2wgfYH2j9XCohNundn8m7dMqKgSLwMI=;
-        b=EHaZ+XSOJecMPLq3gJoGSCPPOccFNAt+AYHXvxObeS2KdIfop2ataqc8+B6CNS9m2U
-         EHIRvar+OHTIi9GNJqCl6GQ8YsMzRFtomOqs1CqpMeA+rak+cucHzxVI1FNtbjbG16/q
-         Wd4sTv4e6pa2HkGibSzJ+aVzSzlGSzPtuVzpuFtaRhuTyjLphV7bU8+itk47n5Xr8K56
-         RCwQf7eIK2+uXooeTKAjJwcqees0fYoLiAcoOt6BncuiZQNpW4emwSFt5qn2+DvcMYFE
-         wcFdzdPNqkeBsMeoIeSf58LCBqh9K9EClRFUFvKMZrPtgRCXHHXKu3c6Qo/o98mkQONe
-         FfJQ==
-X-Gm-Message-State: APjAAAX8nJWCBxh0HbPmMtiUGxtwieJoF/QuF9lkT8qP9unj6uj62750
-	3IfPuTK3wX/iR33TEIs52vZXw7LXg8kTjv9y2SbPuVikWZj5sj4kOtN7RdKn5ogFhQWpc2LCJUD
-	onRnE/e4y2lPdSUVFkV4uA8gTknKq+2NmQu6KWJrTDOCWHV+zSLaz7ujMuOPpFe7LmA==
-X-Received: by 2002:a62:27c2:: with SMTP id n185mr62312826pfn.79.1565010656848;
-        Mon, 05 Aug 2019 06:10:56 -0700 (PDT)
-X-Received: by 2002:a62:27c2:: with SMTP id n185mr62312711pfn.79.1565010655327;
-        Mon, 05 Aug 2019 06:10:55 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565010655; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=2lvrxNzruWGK/+O/cotP42X09fNeKC1oi6W7Y6FOT0U=;
+        b=lztyFUUxdTEfqdl/Ham7mf5bSESp7nOPlINenJBbuyA7esUG/ttWotFcBcpDMFfkq+
+         rtigDZJvNzoDN+zxhZXbWhARlgNTE/EuAu5Q5tYSdAEyp/fuMsfyng4JHEpWCnYn9CG/
+         JHl9sml7iKpCAlhhdbqJsxgjNuzwFURZJ2sLMQQx2a4+rFnqmBcGsAsxQKTAwWc0JpJ9
+         JQeeiJBoxhb+cEPvCIrpnYLwrRy2iUgr3VStS0N4RbFKcoLpgAIbXW1v/7V2c74+ky11
+         eTXRYC8uS98TOCeM4tgN3I5b4sNOAfBDJ/eppWw/L5yghLCl1Ht9e8Oa5uBrvtcy261Z
+         970A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAU4hcK8RkYpqT79Fdjd/7k3KbapOCosN9HPNcvZxvuuqVH6r8So
+	Mge0QiT3X0sKNgbI7OJx0SL4EzNMkiDjYZIIS2WLXNs3XwOtxQQYfu4MG/zR9u8cK9pqrnk6Gp7
+	MFcgU7d3zAAUwe5a28W5x7YaymmB0E4AqjOQqOVmv8OXWiEqm25zXx1ZkC3qpMWidsA==
+X-Received: by 2002:a17:906:40c:: with SMTP id d12mr116338400eja.29.1565010817928;
+        Mon, 05 Aug 2019 06:13:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyf2uMGlDKwEKmeQN5CBpIFavrNnzsSucKXActy3IVxpfJ3QwuXD0X2Q07ONt42msotDbQr
+X-Received: by 2002:a17:906:40c:: with SMTP id d12mr116338344eja.29.1565010817275;
+        Mon, 05 Aug 2019 06:13:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565010817; cv=none;
         d=google.com; s=arc-20160816;
-        b=XrWgWN6CKxBcuAy2f2wDKKZC6R6Cz3i6ipEmJI5CNAfTkQUK1f8wlzuTSd/FbaztG1
-         NT8n5sa1DfEcbZyNuGFZvSCpv6l44uT0ULj15o05OZbkxxEAU7WeKzp8Tx50j3d5eBSS
-         HgTYR8zCxhGrkKu+uIN3N3eqQHoiU/8QunAIUKOhU2+I2sOt1vfh7pulCVWTe5KMs2tR
-         u+sx/VKde8u6skbP0NF+2Ww93+HVnBT/qXDuSH1uMlma0O968FSCV23th9MHTeVn8p5o
-         GgNbo1EepFx3PfhQJnRfp8faHuPRAuB8KGTTmB3e2QLsDhm5Bm5DV1rIxVUaZVqR5SWz
-         WYwg==
+        b=jtWRSXcU8fYyLmk5EaLhvppfNAFh/6bkoBoYn386rNCIxTcyiMPFwhL5B5ya/P7CsZ
+         IkTcJ5Zt2M37V2iHWSNtVJ/2M9F92imAV6E6HqjlpmH1ezfifqlwNG8y6PJWzFj2ATj1
+         ceHO9quDNCFPbrNQRjuw503VLAe0ndEX3GBBO8UkDhuF3Sz2KdQG1N4VCVEjFj6O9KBU
+         npaR+9msxSex7YhMxbdTzRM13LgtTXxekNUwQgY1wbk12vPa+ysKXlk1i2/AIp+K4ji5
+         DUeqjnyElLbtgNZMGcyxNupvDQs/bs1TY1OnmSxjDxTCicKdDpKzwGG1Gdo/nAbdxhj6
+         r52w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=iKjp1sxUDmAX2wgfYH2j9XCohNundn8m7dMqKgSLwMI=;
-        b=L94Idts9PyB8YglvucxPImE06pmRGGD7Ou8JzT+20HGQNxawzfIB1HRR79ECyl26g1
-         0AAq56dra/PZRQ0sAin5ZrnaRBYP84DFGxjW+Kk0eGtsqaXeuCHomnn+WSZq2M9NERi3
-         LJwnEjPAtZoOJyImusNACyNXtT/g24XkyMvtSK+uA8DNUJIbZ2R+QXXSGca+ssNn+4rI
-         k2P7UlSIBYZrrjbWBnJtLhAMlQbaTBYOMNXORnpc16wpth6vddpS6qT/sRAoJO9P0b/+
-         +rSsuRwDIpSB8F4zX/asnfPRsfNXHryuQ7EZKeUlKxP56UOuaQblcDoWX11KnpRXnmeE
-         6i2w==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=2lvrxNzruWGK/+O/cotP42X09fNeKC1oi6W7Y6FOT0U=;
+        b=sEqkTguwokdqpiKi9Qe1X0edZiTzzFhndKDiONACOnsC/45YXSTddZogG/LsQPAuUs
+         0LvLHf008dnn1+eoAywKHz4NDWo4KuUN1feCrra7LDo1i0Radud+Imwgx+JAPh17qfVf
+         QJvonYyvDJOmlNu8ZhghZyD2+pN+rRDieL383YIWK7uO+9UaPeNgdh/HL5E5/8+8SXOA
+         37D9DtIkB1OwLNJ30fR1U+IbJ+Xmy0h1d934JBUeikG6ZF3ExAim/lA885pDnuMMUeSM
+         i/Avc76DgxvJs19TIHD9pKrU8MLwaQs3kMfw+V7uzHhC7+1hjW2xkbVC5v8D/AJD/cdf
+         d4og==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=saBskzTk;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d6sor38358502pgd.65.2019.08.05.06.10.55
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id t24si28820475edd.357.2019.08.05.06.13.36
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Aug 2019 06:10:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Aug 2019 06:13:36 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=saBskzTk;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=joelfernandes.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=iKjp1sxUDmAX2wgfYH2j9XCohNundn8m7dMqKgSLwMI=;
-        b=saBskzTkvd5+FOutbmH6Dqo7LDxB6j1lLBCs9c9SMjidr9mCGA3JZWUpgJ24D1jEWP
-         BYegX6h+4En4gHMNnjD2hkiM6LzR+gIgnvCH+Qv7kghjhnQ196JBcG8u6X82QA91+dxZ
-         AT0bQGPEEfkSIGpd4JlN2XA3pwAzzkgJGuH/g=
-X-Google-Smtp-Source: APXvYqz6u3cCDYJg+E3Gaw42gMUYLq5q2x4d2s7eKbbvOoyG04W78eoEyJ1/Ww27pKnvOKH8Zeg+QQ==
-X-Received: by 2002:a63:3006:: with SMTP id w6mr14611039pgw.440.1565010654596;
-        Mon, 05 Aug 2019 06:10:54 -0700 (PDT)
-Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
-        by smtp.gmail.com with ESMTPSA id d129sm89649753pfc.168.2019.08.05.06.10.53
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 05 Aug 2019 06:10:53 -0700 (PDT)
-Date: Mon, 5 Aug 2019 09:10:52 -0400
-From: Joel Fernandes <joel@joelfernandes.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Brendan Gregg <bgregg@netflix.com>,
-	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
-	fmayer@google.com, joaodias@google.com,
-	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
-	kernel-team@android.com, linux-api@vger.kernel.org,
-	linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>,
-	Mike Rapoport <rppt@linux.ibm.com>, namhyung@google.com,
-	Roman Gushchin <guro@fb.com>,
-	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
-	tkjos@google.com, Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Vlastimil Babka <vbabka@suse.cz>, wvw@google.com
-Subject: Re: [PATCH v3 1/2] mm/page_idle: Add per-pid idle page tracking
- using virtual indexing
-Message-ID: <20190805131052.GA208558@google.com>
-References: <20190726152319.134152-1-joel@joelfernandes.org>
- <20190731085335.GD155569@google.com>
- <20190731171937.GA75376@google.com>
- <20190805075547.GA196934@google.com>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 49959B64F;
+	Mon,  5 Aug 2019 13:13:36 +0000 (UTC)
+Subject: Re: [PATCH 1/3] mm, reclaim: make should_continue_reclaim
+ performdryrun detection
+To: Hillf Danton <hdanton@sina.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>,
+ "linux-mm@kvack.org" <linux-mm@kvack.org>,
+ "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+ Michal Hocko <mhocko@kernel.org>, Mel Gorman <mgorman@suse.de>,
+ Johannes Weiner <hannes@cmpxchg.org>, Andrea Arcangeli
+ <aarcange@redhat.com>, David Rientjes <rientjes@google.com>,
+ Andrew Morton <akpm@linux-foundation.org>
+References: <20190805092751.4976-1-hdanton@sina.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <f0d03357-e51c-ab1f-b1c2-38670d086ef4@suse.cz>
+Date: Mon, 5 Aug 2019 15:13:09 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190805075547.GA196934@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190805092751.4976-1-hdanton@sina.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 05, 2019 at 04:55:47PM +0900, Minchan Kim wrote:
-> Hi Joel,
+On 8/5/19 11:27 AM, Hillf Danton wrote:
 
-Hi Minchan,
+BTW, can you please do something about your mail client's lack of
+In-Reply-To/References headers, which breaks threadings?
 
-> On Wed, Jul 31, 2019 at 01:19:37PM -0400, Joel Fernandes wrote:
-> > > > -static struct page *page_idle_get_page(unsigned long pfn)
-> > > > +static struct page *page_idle_get_page(struct page *page_in)
-> > > 
-> > > Looks weird function name after you changed the argument.
-> > > Maybe "bool check_valid_page(struct page *page)"?
-> > 
-> > 
-> > I don't think so, this function does a get_page_unless_zero() on the page as well.
-> > 
-> > > >  {
-> > > >  	struct page *page;
-> > > >  	pg_data_t *pgdat;
-> > > >  
-> > > > -	if (!pfn_valid(pfn))
-> > > > -		return NULL;
-> > > > -
-> > > > -	page = pfn_to_page(pfn);
-> > > > +	page = page_in;
-> > > >  	if (!page || !PageLRU(page) ||
-> > > >  	    !get_page_unless_zero(page))
-> > > >  		return NULL;
-> > > > @@ -51,6 +49,18 @@ static struct page *page_idle_get_page(unsigned long pfn)
-> > > >  	return page;
-> > > >  }
-> > > >  
-> > > > +/*
-> > > > + * This function tries to get a user memory page by pfn as described above.
-> > > > + */
-> > > > +static struct page *page_idle_get_page_pfn(unsigned long pfn)
-> > > 
-> > > So we could use page_idle_get_page name here.
-> > 
-> > 
-> > Based on above comment, I prefer to keep same name. Do you agree?
-> 
-> Yes, I agree. Just please add a comment about refcount in the description
-> on page_idle_get_page.
+See Documentation/process/email-clients.rst:
+Email clients should generate and maintain References: or In-Reply-To:
+headers so that mail threading is not broken.
 
-Ok.
-
-
-> > > > +	return page_idle_get_page(pfn_to_page(pfn));
-> > > > +}
-> > > > +
-> > > >  static bool page_idle_clear_pte_refs_one(struct page *page,
-> > > >  					struct vm_area_struct *vma,
-> > > >  					unsigned long addr, void *arg)
-> > > > @@ -118,6 +128,47 @@ static void page_idle_clear_pte_refs(struct page *page)
-> > > >  		unlock_page(page);
-> > > >  }
-> > > >  
-> > > > +/* Helper to get the start and end frame given a pos and count */
-> > > > +static int page_idle_get_frames(loff_t pos, size_t count, struct mm_struct *mm,
-> > > > +				unsigned long *start, unsigned long *end)
-> > > > +{
-> > > > +	unsigned long max_frame;
-> > > > +
-> > > > +	/* If an mm is not given, assume we want physical frames */
-> > > > +	max_frame = mm ? (mm->task_size >> PAGE_SHIFT) : max_pfn;
-> > > > +
-> > > > +	if (pos % BITMAP_CHUNK_SIZE || count % BITMAP_CHUNK_SIZE)
-> > > > +		return -EINVAL;
-> > > > +
-> > > > +	*start = pos * BITS_PER_BYTE;
-> > > > +	if (*start >= max_frame)
-> > > > +		return -ENXIO;
-> > > > +
-> > > > +	*end = *start + count * BITS_PER_BYTE;
-> > > > +	if (*end > max_frame)
-> > > > +		*end = max_frame;
-> > > > +	return 0;
-> > > > +}
-> > > > +
-> > > > +static bool page_really_idle(struct page *page)
-> > > 
-> > > Just minor:
-> > > Instead of creating new API, could we combine page_is_idle with
-> > > introducing furthere argument pte_check?
-> > 
-> > 
-> > I cannot see in the code where pte_check will be false when this is called? I
-> > could rename the function to page_idle_check_ptes() if that's Ok with you.
-> 
-> What I don't like is _*really*_ part of the funcion name.
-> 
-> I see several page_is_idle calls in huge_memory.c, migration.c, swap.c.
-> They could just check only page flag so they could use "false" with pte_check.
-
-I will rename it to page_idle_check_ptes(). If you want pte_check argument,
-that can be a later patch if/when there are other users for it in other
-files. Hope that's reasonable.
-
-
-> > > > +ssize_t page_idle_proc_generic(struct file *file, char __user *ubuff,
-> > > > +			       size_t count, loff_t *pos,
-> > > > +			       struct task_struct *tsk, int write)
-> > > > +{
-> > > > +	int ret;
-> > > > +	char *buffer;
-> > > > +	u64 *out;
-> > > > +	unsigned long start_addr, end_addr, start_frame, end_frame;
-> > > > +	struct mm_struct *mm = file->private_data;
-> > > > +	struct mm_walk walk = { .pmd_entry = pte_page_idle_proc_range, };
-> > > > +	struct page_node *cur;
-> > > > +	struct page_idle_proc_priv priv;
-> > > > +	bool walk_error = false;
-> > > > +	LIST_HEAD(idle_page_list);
-> > > > +
-> > > > +	if (!mm || !mmget_not_zero(mm))
-> > > > +		return -EINVAL;
-> > > > +
-> > > > +	if (count > PAGE_SIZE)
-> > > > +		count = PAGE_SIZE;
-> > > > +
-> > > > +	buffer = kzalloc(PAGE_SIZE, GFP_KERNEL);
-> > > > +	if (!buffer) {
-> > > > +		ret = -ENOMEM;
-> > > > +		goto out_mmput;
-> > > > +	}
-> > > > +	out = (u64 *)buffer;
-> > > > +
-> > > > +	if (write && copy_from_user(buffer, ubuff, count)) {
-> > > > +		ret = -EFAULT;
-> > > > +		goto out;
-> > > > +	}
-> > > > +
-> > > > +	ret = page_idle_get_frames(*pos, count, mm, &start_frame, &end_frame);
-> > > > +	if (ret)
-> > > > +		goto out;
-> > > > +
-> > > > +	start_addr = (start_frame << PAGE_SHIFT);
-> > > > +	end_addr = (end_frame << PAGE_SHIFT);
-> > > > +	priv.buffer = buffer;
-> > > > +	priv.start_addr = start_addr;
-> > > > +	priv.write = write;
-> > > > +
-> > > > +	priv.idle_page_list = &idle_page_list;
-> > > > +	priv.cur_page_node = 0;
-> > > > +	priv.page_nodes = kzalloc(sizeof(struct page_node) *
-> > > > +				  (end_frame - start_frame), GFP_KERNEL);
-> > > > +	if (!priv.page_nodes) {
-> > > > +		ret = -ENOMEM;
-> > > > +		goto out;
-> > > > +	}
-> > > > +
-> > > > +	walk.private = &priv;
-> > > > +	walk.mm = mm;
-> > > > +
-> > > > +	down_read(&mm->mmap_sem);
-> > > > +
-> > > > +	/*
-> > > > +	 * idle_page_list is needed because walk_page_vma() holds ptlock which
-> > > > +	 * deadlocks with page_idle_clear_pte_refs(). So we have to collect all
-> > > > +	 * pages first, and then call page_idle_clear_pte_refs().
-> > > > +	 */
-> > > 
-> > > Thanks for the comment, I was curious why you want to have
-> > > idle_page_list and the reason is here.
-> > > 
-> > > How about making this /proc/<pid>/page_idle per-process granuariy,
-> > > unlike system level /sys/xxx/page_idle? What I meant is not to check
-> > > rmap to see any reference from random process but just check only
-> > > access from the target process. It would be more proper as /proc/
-> > > <pid>/ interface and good for per-process tracking as well as
-> > > fast.
-> > 
-> > 
-> > I prefer not to do this for the following reasons:
-> > (1) It makes a feature lost, now accesses to shared pages will not be
-> > accounted properly. 
-> 
-> Do you really want to check global attribute by per-process interface?
-
-Pages are inherrently not per-process, they are global. A page does not
-necessarily belong to a process. An anonymous page can be shared. We are
-operating on pages in the end of the day.
-
-I think you are confusing the per-process file interface with the core
-mechanism. The core mechanism always operations on physical PAGES.
-
-
-> That would be doable with existing idle page tracking feature and that's
-> the one of reasons page idle tracking was born(e.g. even, page cache
-> for non-mapped) unlike clear_refs.
-
-I think you are misunderstanding the patch, the patch does not want to change
-the core mechanism. That is a bit out of scope for the patch. Page
-idle-tracking at the core of it looks at PTE of all processes. We are just
-using the VFN (virtual frame) interface to skip the need for separate pagemap
-look up -- that's it.
-
-
-> Once we create a new interface by per-process, just checking the process
-> -granuariy access check sounds more reasonable to me.
-
-It sounds reasonable but there is no reason to not do the full and proper
-page tracking for now, including shared pages. Otherwise it makes it
-inconsistent with the existing mechanism and can confuse the user about what
-to expect (especially for shared pages).
-
-
-> With that, we could catch only idle pages of the target process even though
-> the page was touched by several other processes.
-> If the user want to know global level access point, they could use
-> exisint interface(If there is a concern(e.g., security) to use existing
-> idle page tracking, let's discuss it as other topic how we could make
-> existing feature more useful).
-> 
-> IOW, my point is that we already have global access check(1. from ptes
-> among several processes, 2. from page flag for non-mapped pages) feature
-> from from existing idle page tracking interface and now we are about to create
-> new interface for per-process wise so I wanted to create a particular
-> feature which cannot be covered by existing iterface.
-
-Yes, it sounds like you want to create a different feature. Then that can be
-a follow-up different patch, and that is out of scope for this patch.
-
-
-> > (2) It makes it inconsistent with other idle page tracking mechanism. I
-> 
-> That's the my comment to create different idle page tracking we couldn't
-> do with existing interface.
-
-Yes, sure. But that can be a different patch and we can weigh the benefits of
-it at that time. I don't want to introduce a new page tracking mechanism, I
-am just trying to reuse the existing one.
-
-
-> > prefer if post per-process. At the heart of it, the tracking is always at the
-> 
-> What does it mean "post per-process"?
-
-Sorry it was a typo, I meant "the core mechanism should not be a per-process
-one, but a global one". We are just changing the interface in this patch, we
-are not changing the existing core mechanism. That gives us all the benefits
-of the existing code such as non-interference with page reclaim code, without
-introducing any new bugs. By the way I did fix a bug in the existing original
-code as well!
-
-
-> > physical page level -- I feel that is how it should be. Other drawback, is
-> > also we have to document this subtlety.
-> 
-> Sorry, Could you elaborate it a bit?
-
-I meant, with a new mechanism as the one you are proposing, we have to
-document that now shared pages will not be tracked properly. That is a
-'subtle difference' and will have to be documented appropriated in the
-'internals' section of the idle page tracking document.
-
-thanks,
-
- - Joel
+Thanks!
 
