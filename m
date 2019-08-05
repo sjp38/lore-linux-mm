@@ -2,247 +2,389 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 074C0C433FF
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 12:25:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C2F0CC433FF
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:10:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AE63921880
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 12:25:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 43BF42075B
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 13:10:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="zm4UWAlr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AE63921880
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="saBskzTk"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 43BF42075B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2F8396B0005; Mon,  5 Aug 2019 08:25:16 -0400 (EDT)
+	id A01B06B0003; Mon,  5 Aug 2019 09:10:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2A8A06B0007; Mon,  5 Aug 2019 08:25:16 -0400 (EDT)
+	id 9B1236B0005; Mon,  5 Aug 2019 09:10:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1976E6B0008; Mon,  5 Aug 2019 08:25:16 -0400 (EDT)
+	id 8A0676B0006; Mon,  5 Aug 2019 09:10:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id D54B16B0005
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 08:25:15 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id m17so43664115pgh.21
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 05:25:15 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 5387F6B0003
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 09:10:57 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id d2so46255904pla.18
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 06:10:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:from:date
-         :in-reply-to:message-id:mime-version:content-transfer-encoding;
-        bh=5nUYIWXAMGpUhwKnDXPeQEAKPFruK8eSTkg35uIyRus=;
-        b=ftPzGnwvtxtUtyA2B0pr1+1lYaw24u0bFDrrA0DVn3TlOWHOJplL+cyjA0Gf5KTPFU
-         azZe6Qxrc2hLHGsmXtj5vSWHSW8tnihGCT3bKWiEZF7+IokdAQ98V8inLO3IMdFVvq1X
-         hu2xxxQq0xzbsgmUuDgOJwmdmIG4sgmFCjcfx/WwlPg50q+i22Zv0bU1KrWkWfTtobTW
-         kD6R2NpDB6/azV4YriL2z4rZXwwww+L+snn+o3mx7cnd1JUX/dwi2M6VDnXTENVdeYN+
-         ksTSI6VmA01ByPLjipZjoSwJRF4455kFyYn6qxG8e/UINWflE4QKPGKtWxlZnVetmWPL
-         UaCw==
-X-Gm-Message-State: APjAAAUPfZqh6L4K2RfLt8DmKl2DNUMb37K6Rf8ZGxznrrHGB5Gn6NK9
-	YnHXOz/u/1syi9ljkS33YO4qA2BB5oHKD0jgGhjArX77FiuejOGAhhRNUsJBC52wKR2E/vm9SZX
-	5GHqXm4ZY084MeR1BNqQwXcpM5vMfgQyl+mJ3a67m6VnAx5Vilv9XMu4t0XTEC5frTg==
-X-Received: by 2002:a63:e213:: with SMTP id q19mr134401567pgh.180.1565007915243;
-        Mon, 05 Aug 2019 05:25:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx/14GA2tqXCDyJ6mSG15DN/k2aXB9eKg2kokiIyFiesgpXAQtL2n0IE3hRSuhfejRITLia
-X-Received: by 2002:a63:e213:: with SMTP id q19mr134401506pgh.180.1565007914240;
-        Mon, 05 Aug 2019 05:25:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565007914; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=iKjp1sxUDmAX2wgfYH2j9XCohNundn8m7dMqKgSLwMI=;
+        b=EHaZ+XSOJecMPLq3gJoGSCPPOccFNAt+AYHXvxObeS2KdIfop2ataqc8+B6CNS9m2U
+         EHIRvar+OHTIi9GNJqCl6GQ8YsMzRFtomOqs1CqpMeA+rak+cucHzxVI1FNtbjbG16/q
+         Wd4sTv4e6pa2HkGibSzJ+aVzSzlGSzPtuVzpuFtaRhuTyjLphV7bU8+itk47n5Xr8K56
+         RCwQf7eIK2+uXooeTKAjJwcqees0fYoLiAcoOt6BncuiZQNpW4emwSFt5qn2+DvcMYFE
+         wcFdzdPNqkeBsMeoIeSf58LCBqh9K9EClRFUFvKMZrPtgRCXHHXKu3c6Qo/o98mkQONe
+         FfJQ==
+X-Gm-Message-State: APjAAAX8nJWCBxh0HbPmMtiUGxtwieJoF/QuF9lkT8qP9unj6uj62750
+	3IfPuTK3wX/iR33TEIs52vZXw7LXg8kTjv9y2SbPuVikWZj5sj4kOtN7RdKn5ogFhQWpc2LCJUD
+	onRnE/e4y2lPdSUVFkV4uA8gTknKq+2NmQu6KWJrTDOCWHV+zSLaz7ujMuOPpFe7LmA==
+X-Received: by 2002:a62:27c2:: with SMTP id n185mr62312826pfn.79.1565010656848;
+        Mon, 05 Aug 2019 06:10:56 -0700 (PDT)
+X-Received: by 2002:a62:27c2:: with SMTP id n185mr62312711pfn.79.1565010655327;
+        Mon, 05 Aug 2019 06:10:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565010655; cv=none;
         d=google.com; s=arc-20160816;
-        b=FOhEljsf98amnBM3oz4OuP5ImTkv3GyulzHb1192OygrzQ7g3PW4MvYzjcQPmdDJgo
-         Rzs//yba5PKig0ecGoiv1HZFfXyrriJAyIBiApWhGe4HFxna7040pFGgl83VQqc29qnZ
-         qgcoNi0Lp3SZzcfw12ASFZkKDiC0yo8zAPAUY08Pr+0OoLu9FAziFGpi5iHNCojC1C0Q
-         S5/dN5SrC/4T6zUz5DS974sKydjlbd1EcHuJZbFG34jQURI3//5RzYTDlvIcZ0rIaidy
-         q2aFNYl1s4DLu1ZDerwrC/s722IXcIzjJcB4pmz3QDgNyOI5X3HOo8OApRxSviKXQfrr
-         uLLw==
+        b=XrWgWN6CKxBcuAy2f2wDKKZC6R6Cz3i6ipEmJI5CNAfTkQUK1f8wlzuTSd/FbaztG1
+         NT8n5sa1DfEcbZyNuGFZvSCpv6l44uT0ULj15o05OZbkxxEAU7WeKzp8Tx50j3d5eBSS
+         HgTYR8zCxhGrkKu+uIN3N3eqQHoiU/8QunAIUKOhU2+I2sOt1vfh7pulCVWTe5KMs2tR
+         u+sx/VKde8u6skbP0NF+2Ww93+HVnBT/qXDuSH1uMlma0O968FSCV23th9MHTeVn8p5o
+         GgNbo1EepFx3PfhQJnRfp8faHuPRAuB8KGTTmB3e2QLsDhm5Bm5DV1rIxVUaZVqR5SWz
+         WYwg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:in-reply-to:date
-         :from:cc:to:subject:dkim-signature;
-        bh=5nUYIWXAMGpUhwKnDXPeQEAKPFruK8eSTkg35uIyRus=;
-        b=qlUsqtk1sqhJ2VNYrJb1ZiAT4H/nVrzITZAa5205UBu5uvvmDtI0AeDBEanP6l0BtV
-         9fsg8/xnhur+pzyQ4zVznt14hSj1gNAjKixix1QkwrKY77QsOifXUhQ39U4Hh+W8mGtR
-         l93Q71GTXrGY4+bv3LaEywR3XhKjKtxS62sBUAyaCcThRe572LOiMVwGgzAzs+XyudCH
-         P6O5SvCli5ryiP22OYp6UrSmlQ4ovkpLmjeLRHnojP40PWn62DQnbo/+wCyfxKKK2A9R
-         ZEB72hnf2SKLoWwRpaO+NEBKzkrajRcWUqNdDxhHjZZ9tSr1szN9HYoOTDEPNa16r0En
-         1lbw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=iKjp1sxUDmAX2wgfYH2j9XCohNundn8m7dMqKgSLwMI=;
+        b=L94Idts9PyB8YglvucxPImE06pmRGGD7Ou8JzT+20HGQNxawzfIB1HRR79ECyl26g1
+         0AAq56dra/PZRQ0sAin5ZrnaRBYP84DFGxjW+Kk0eGtsqaXeuCHomnn+WSZq2M9NERi3
+         LJwnEjPAtZoOJyImusNACyNXtT/g24XkyMvtSK+uA8DNUJIbZ2R+QXXSGca+ssNn+4rI
+         k2P7UlSIBYZrrjbWBnJtLhAMlQbaTBYOMNXORnpc16wpth6vddpS6qT/sRAoJO9P0b/+
+         +rSsuRwDIpSB8F4zX/asnfPRsfNXHryuQ7EZKeUlKxP56UOuaQblcDoWX11KnpRXnmeE
+         6i2w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=zm4UWAlr;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id m5si38763729plt.167.2019.08.05.05.25.14
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=saBskzTk;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d6sor38358502pgd.65.2019.08.05.06.10.55
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Aug 2019 05:25:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Mon, 05 Aug 2019 06:10:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=zm4UWAlr;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 5EB6A2086D;
-	Mon,  5 Aug 2019 12:25:13 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565007913;
-	bh=+Xs0kj8VCQPLFkJyxL+QIyNc9IVmkOW/SLIz1vz17Hc=;
-	h=Subject:To:Cc:From:Date:In-Reply-To:From;
-	b=zm4UWAlryFn8ORRc8LfbaGxhXdT9dmF8Zqhxq/pFQj7868pEfdKqrEC/QwRJ/ydNX
-	 IW8rxcrECmwgh07+0Rq4DQGOJBmeC/VWSirtCy5pWi/Vkr6ibSzkIALadXzm9eYFs8
-	 M85A+RfjDwVGpoakl5JkRlqbNjYe8NISjF89c4tU=
-Subject: Patch "x86, mm, gup: prevent get_page() race with munmap in paravirt guest" has been added to the 4.9-stable tree
-To: ben.hutchings@codethink.co.uk,bp@alien8.de,dave.hansen@linux.intel.com,gregkh@linuxfoundation.org,jannh@google.com,jgross@suse.com,kirill.shutemov@linux.intel.com,linux-mm@kvack.org,luto@kernel.org,mingo@redhat.com,osalvador@suse.de,peterz@infradead.org,tglx@linutronix.de,torvalds@linux-foundation.org,vbabka@suse.cz,vkuznets@redhat.com,x86@kernel.org,xen-devel@lists.xenproject.org
-Cc: <stable-commits@vger.kernel.org>
-From: <gregkh@linuxfoundation.org>
-Date: Mon, 05 Aug 2019 14:25:11 +0200
-In-Reply-To: <20190802160614.8089-1-vbabka@suse.cz>
-Message-ID: <156500791117217@kroah.com>
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=saBskzTk;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=joelfernandes.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=iKjp1sxUDmAX2wgfYH2j9XCohNundn8m7dMqKgSLwMI=;
+        b=saBskzTkvd5+FOutbmH6Dqo7LDxB6j1lLBCs9c9SMjidr9mCGA3JZWUpgJ24D1jEWP
+         BYegX6h+4En4gHMNnjD2hkiM6LzR+gIgnvCH+Qv7kghjhnQ196JBcG8u6X82QA91+dxZ
+         AT0bQGPEEfkSIGpd4JlN2XA3pwAzzkgJGuH/g=
+X-Google-Smtp-Source: APXvYqz6u3cCDYJg+E3Gaw42gMUYLq5q2x4d2s7eKbbvOoyG04W78eoEyJ1/Ww27pKnvOKH8Zeg+QQ==
+X-Received: by 2002:a63:3006:: with SMTP id w6mr14611039pgw.440.1565010654596;
+        Mon, 05 Aug 2019 06:10:54 -0700 (PDT)
+Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
+        by smtp.gmail.com with ESMTPSA id d129sm89649753pfc.168.2019.08.05.06.10.53
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 05 Aug 2019 06:10:53 -0700 (PDT)
+Date: Mon, 5 Aug 2019 09:10:52 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Brendan Gregg <bgregg@netflix.com>,
+	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
+	fmayer@google.com, joaodias@google.com,
+	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+	kernel-team@android.com, linux-api@vger.kernel.org,
+	linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>,
+	Mike Rapoport <rppt@linux.ibm.com>, namhyung@google.com,
+	Roman Gushchin <guro@fb.com>,
+	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
+	tkjos@google.com, Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>, wvw@google.com
+Subject: Re: [PATCH v3 1/2] mm/page_idle: Add per-pid idle page tracking
+ using virtual indexing
+Message-ID: <20190805131052.GA208558@google.com>
+References: <20190726152319.134152-1-joel@joelfernandes.org>
+ <20190731085335.GD155569@google.com>
+ <20190731171937.GA75376@google.com>
+ <20190805075547.GA196934@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=ANSI_X3.4-1968
-Content-Transfer-Encoding: 8bit
-X-stable: commit
-X-Patchwork-Hint: ignore 
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190805075547.GA196934@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Mon, Aug 05, 2019 at 04:55:47PM +0900, Minchan Kim wrote:
+> Hi Joel,
 
-This is a note to let you know that I've just added the patch titled
+Hi Minchan,
 
-    x86, mm, gup: prevent get_page() race with munmap in paravirt guest
+> On Wed, Jul 31, 2019 at 01:19:37PM -0400, Joel Fernandes wrote:
+> > > > -static struct page *page_idle_get_page(unsigned long pfn)
+> > > > +static struct page *page_idle_get_page(struct page *page_in)
+> > > 
+> > > Looks weird function name after you changed the argument.
+> > > Maybe "bool check_valid_page(struct page *page)"?
+> > 
+> > 
+> > I don't think so, this function does a get_page_unless_zero() on the page as well.
+> > 
+> > > >  {
+> > > >  	struct page *page;
+> > > >  	pg_data_t *pgdat;
+> > > >  
+> > > > -	if (!pfn_valid(pfn))
+> > > > -		return NULL;
+> > > > -
+> > > > -	page = pfn_to_page(pfn);
+> > > > +	page = page_in;
+> > > >  	if (!page || !PageLRU(page) ||
+> > > >  	    !get_page_unless_zero(page))
+> > > >  		return NULL;
+> > > > @@ -51,6 +49,18 @@ static struct page *page_idle_get_page(unsigned long pfn)
+> > > >  	return page;
+> > > >  }
+> > > >  
+> > > > +/*
+> > > > + * This function tries to get a user memory page by pfn as described above.
+> > > > + */
+> > > > +static struct page *page_idle_get_page_pfn(unsigned long pfn)
+> > > 
+> > > So we could use page_idle_get_page name here.
+> > 
+> > 
+> > Based on above comment, I prefer to keep same name. Do you agree?
+> 
+> Yes, I agree. Just please add a comment about refcount in the description
+> on page_idle_get_page.
 
-to the 4.9-stable tree which can be found at:
-    http://www.kernel.org/git/?p=linux/kernel/git/stable/stable-queue.git;a=summary
-
-The filename of the patch is:
-     x86-mm-gup-prevent-get_page-race-with-munmap-in-paravirt-guest.patch
-and it can be found in the queue-4.9 subdirectory.
-
-If you, or anyone else, feels it should not be added to the stable tree,
-please let <stable@vger.kernel.org> know about it.
-
-
-From vbabka@suse.cz  Mon Aug  5 13:56:29 2019
-From: Vlastimil Babka <vbabka@suse.cz>
-Date: Fri,  2 Aug 2019 18:06:14 +0200
-Subject: x86, mm, gup: prevent get_page() race with munmap in paravirt guest
-To: stable@vger.kernel.org
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, x86@kernel.org, Jann Horn <jannh@google.com>, Ben Hutchings <ben.hutchings@codethink.co.uk>, xen-devel@lists.xenproject.org, Oscar Salvador <osalvador@suse.de>, Vlastimil Babka <vbabka@suse.cz>, Thomas Gleixner <tglx@linutronix.de>, Ingo Molnar <mingo@redhat.com>, Peter Zijlstra <peterz@infradead.org>, Juergen Gross <jgross@suse.com>, "Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>, Vitaly Kuznetsov <vkuznets@redhat.com>, Linus Torvalds <torvalds@linux-foundation.org>, Borislav Petkov <bp@alien8.de>, Dave Hansen <dave.hansen@linux.intel.com>, Andy Lutomirski <luto@kernel.org>
-Message-ID: <20190802160614.8089-1-vbabka@suse.cz>
-
-From: Vlastimil Babka <vbabka@suse.cz>
-
-The x86 version of get_user_pages_fast() relies on disabled interrupts to
-synchronize gup_pte_range() between gup_get_pte(ptep); and get_page() against
-a parallel munmap. The munmap side nulls the pte, then flushes TLBs, then
-releases the page. As TLB flush is done synchronously via IPI disabling
-interrupts blocks the page release, and get_page(), which assumes existing
-reference on page, is thus safe.
-However when TLB flush is done by a hypercall, e.g. in a Xen PV guest, there is
-no blocking thanks to disabled interrupts, and get_page() can succeed on a page
-that was already freed or even reused.
-
-We have recently seen this happen with our 4.4 and 4.12 based kernels, with
-userspace (java) that exits a thread, where mm_release() performs a futex_wake()
-on tsk->clear_child_tid, and another thread in parallel unmaps the page where
-tsk->clear_child_tid points to. The spurious get_page() succeeds, but futex code
-immediately releases the page again, while it's already on a freelist. Symptoms
-include a bad page state warning, general protection faults acessing a poisoned
-list prev/next pointer in the freelist, or free page pcplists of two cpus joined
-together in a single list. Oscar has also reproduced this scenario, with a
-patch inserting delays before the get_page() to make the race window larger.
-
-Fix this by removing the dependency on TLB flush interrupts the same way as the
-generic get_user_pages_fast() code by using page_cache_add_speculative() and
-revalidating the PTE contents after pinning the page. Mainline is safe since
-4.13 where the x86 gup code was removed in favor of the common code. Accessing
-the page table itself safely also relies on disabled interrupts and TLB flush
-IPIs that don't happen with hypercalls, which was acknowledged in commit
-9e52fc2b50de ("x86/mm: Enable RCU based page table freeing
-(CONFIG_HAVE_RCU_TABLE_FREE=y)"). That commit with follups should also be
-backported for full safety, although our reproducer didn't hit a problem
-without that backport.
-
-Reproduced-by: Oscar Salvador <osalvador@suse.de>
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Cc: Thomas Gleixner <tglx@linutronix.de>
-Cc: Ingo Molnar <mingo@redhat.com>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Juergen Gross <jgross@suse.com>
-Cc: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-Cc: Vitaly Kuznetsov <vkuznets@redhat.com>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Borislav Petkov <bp@alien8.de>
-Cc: Dave Hansen <dave.hansen@linux.intel.com>
-Cc: Andy Lutomirski <luto@kernel.org>
-Signed-off-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
----
-
----
- arch/x86/mm/gup.c |   32 ++++++++++++++++++++++++++++++--
- 1 file changed, 30 insertions(+), 2 deletions(-)
-
---- a/arch/x86/mm/gup.c
-+++ b/arch/x86/mm/gup.c
-@@ -98,6 +98,20 @@ static inline int pte_allows_gup(unsigne
- }
- 
- /*
-+ * Return the compund head page with ref appropriately incremented,
-+ * or NULL if that failed.
-+ */
-+static inline struct page *try_get_compound_head(struct page *page, int refs)
-+{
-+	struct page *head = compound_head(page);
-+	if (WARN_ON_ONCE(page_ref_count(head) < 0))
-+		return NULL;
-+	if (unlikely(!page_cache_add_speculative(head, refs)))
-+		return NULL;
-+	return head;
-+}
-+
-+/*
-  * The performance critical leaf functions are made noinline otherwise gcc
-  * inlines everything into a single function which results in too much
-  * register pressure.
-@@ -112,7 +126,7 @@ static noinline int gup_pte_range(pmd_t
- 	ptep = pte_offset_map(&pmd, addr);
- 	do {
- 		pte_t pte = gup_get_pte(ptep);
--		struct page *page;
-+		struct page *head, *page;
- 
- 		/* Similar to the PMD case, NUMA hinting must take slow path */
- 		if (pte_protnone(pte)) {
-@@ -138,7 +152,21 @@ static noinline int gup_pte_range(pmd_t
- 		}
- 		VM_BUG_ON(!pfn_valid(pte_pfn(pte)));
- 		page = pte_page(pte);
--		get_page(page);
-+
-+		head = try_get_compound_head(page, 1);
-+		if (!head) {
-+			put_dev_pagemap(pgmap);
-+			pte_unmap(ptep);
-+			return 0;
-+		}
-+
-+		if (unlikely(pte_val(pte) != pte_val(*ptep))) {
-+			put_page(head);
-+			put_dev_pagemap(pgmap);
-+			pte_unmap(ptep);
-+			return 0;
-+		}
-+
- 		put_dev_pagemap(pgmap);
- 		SetPageReferenced(page);
- 		pages[*nr] = page;
+Ok.
 
 
-Patches currently in stable-queue which might be from vbabka@suse.cz are
+> > > > +	return page_idle_get_page(pfn_to_page(pfn));
+> > > > +}
+> > > > +
+> > > >  static bool page_idle_clear_pte_refs_one(struct page *page,
+> > > >  					struct vm_area_struct *vma,
+> > > >  					unsigned long addr, void *arg)
+> > > > @@ -118,6 +128,47 @@ static void page_idle_clear_pte_refs(struct page *page)
+> > > >  		unlock_page(page);
+> > > >  }
+> > > >  
+> > > > +/* Helper to get the start and end frame given a pos and count */
+> > > > +static int page_idle_get_frames(loff_t pos, size_t count, struct mm_struct *mm,
+> > > > +				unsigned long *start, unsigned long *end)
+> > > > +{
+> > > > +	unsigned long max_frame;
+> > > > +
+> > > > +	/* If an mm is not given, assume we want physical frames */
+> > > > +	max_frame = mm ? (mm->task_size >> PAGE_SHIFT) : max_pfn;
+> > > > +
+> > > > +	if (pos % BITMAP_CHUNK_SIZE || count % BITMAP_CHUNK_SIZE)
+> > > > +		return -EINVAL;
+> > > > +
+> > > > +	*start = pos * BITS_PER_BYTE;
+> > > > +	if (*start >= max_frame)
+> > > > +		return -ENXIO;
+> > > > +
+> > > > +	*end = *start + count * BITS_PER_BYTE;
+> > > > +	if (*end > max_frame)
+> > > > +		*end = max_frame;
+> > > > +	return 0;
+> > > > +}
+> > > > +
+> > > > +static bool page_really_idle(struct page *page)
+> > > 
+> > > Just minor:
+> > > Instead of creating new API, could we combine page_is_idle with
+> > > introducing furthere argument pte_check?
+> > 
+> > 
+> > I cannot see in the code where pte_check will be false when this is called? I
+> > could rename the function to page_idle_check_ptes() if that's Ok with you.
+> 
+> What I don't like is _*really*_ part of the funcion name.
+> 
+> I see several page_is_idle calls in huge_memory.c, migration.c, swap.c.
+> They could just check only page flag so they could use "false" with pte_check.
 
-queue-4.9/x86-mm-gup-prevent-get_page-race-with-munmap-in-paravirt-guest.patch
+I will rename it to page_idle_check_ptes(). If you want pte_check argument,
+that can be a later patch if/when there are other users for it in other
+files. Hope that's reasonable.
+
+
+> > > > +ssize_t page_idle_proc_generic(struct file *file, char __user *ubuff,
+> > > > +			       size_t count, loff_t *pos,
+> > > > +			       struct task_struct *tsk, int write)
+> > > > +{
+> > > > +	int ret;
+> > > > +	char *buffer;
+> > > > +	u64 *out;
+> > > > +	unsigned long start_addr, end_addr, start_frame, end_frame;
+> > > > +	struct mm_struct *mm = file->private_data;
+> > > > +	struct mm_walk walk = { .pmd_entry = pte_page_idle_proc_range, };
+> > > > +	struct page_node *cur;
+> > > > +	struct page_idle_proc_priv priv;
+> > > > +	bool walk_error = false;
+> > > > +	LIST_HEAD(idle_page_list);
+> > > > +
+> > > > +	if (!mm || !mmget_not_zero(mm))
+> > > > +		return -EINVAL;
+> > > > +
+> > > > +	if (count > PAGE_SIZE)
+> > > > +		count = PAGE_SIZE;
+> > > > +
+> > > > +	buffer = kzalloc(PAGE_SIZE, GFP_KERNEL);
+> > > > +	if (!buffer) {
+> > > > +		ret = -ENOMEM;
+> > > > +		goto out_mmput;
+> > > > +	}
+> > > > +	out = (u64 *)buffer;
+> > > > +
+> > > > +	if (write && copy_from_user(buffer, ubuff, count)) {
+> > > > +		ret = -EFAULT;
+> > > > +		goto out;
+> > > > +	}
+> > > > +
+> > > > +	ret = page_idle_get_frames(*pos, count, mm, &start_frame, &end_frame);
+> > > > +	if (ret)
+> > > > +		goto out;
+> > > > +
+> > > > +	start_addr = (start_frame << PAGE_SHIFT);
+> > > > +	end_addr = (end_frame << PAGE_SHIFT);
+> > > > +	priv.buffer = buffer;
+> > > > +	priv.start_addr = start_addr;
+> > > > +	priv.write = write;
+> > > > +
+> > > > +	priv.idle_page_list = &idle_page_list;
+> > > > +	priv.cur_page_node = 0;
+> > > > +	priv.page_nodes = kzalloc(sizeof(struct page_node) *
+> > > > +				  (end_frame - start_frame), GFP_KERNEL);
+> > > > +	if (!priv.page_nodes) {
+> > > > +		ret = -ENOMEM;
+> > > > +		goto out;
+> > > > +	}
+> > > > +
+> > > > +	walk.private = &priv;
+> > > > +	walk.mm = mm;
+> > > > +
+> > > > +	down_read(&mm->mmap_sem);
+> > > > +
+> > > > +	/*
+> > > > +	 * idle_page_list is needed because walk_page_vma() holds ptlock which
+> > > > +	 * deadlocks with page_idle_clear_pte_refs(). So we have to collect all
+> > > > +	 * pages first, and then call page_idle_clear_pte_refs().
+> > > > +	 */
+> > > 
+> > > Thanks for the comment, I was curious why you want to have
+> > > idle_page_list and the reason is here.
+> > > 
+> > > How about making this /proc/<pid>/page_idle per-process granuariy,
+> > > unlike system level /sys/xxx/page_idle? What I meant is not to check
+> > > rmap to see any reference from random process but just check only
+> > > access from the target process. It would be more proper as /proc/
+> > > <pid>/ interface and good for per-process tracking as well as
+> > > fast.
+> > 
+> > 
+> > I prefer not to do this for the following reasons:
+> > (1) It makes a feature lost, now accesses to shared pages will not be
+> > accounted properly. 
+> 
+> Do you really want to check global attribute by per-process interface?
+
+Pages are inherrently not per-process, they are global. A page does not
+necessarily belong to a process. An anonymous page can be shared. We are
+operating on pages in the end of the day.
+
+I think you are confusing the per-process file interface with the core
+mechanism. The core mechanism always operations on physical PAGES.
+
+
+> That would be doable with existing idle page tracking feature and that's
+> the one of reasons page idle tracking was born(e.g. even, page cache
+> for non-mapped) unlike clear_refs.
+
+I think you are misunderstanding the patch, the patch does not want to change
+the core mechanism. That is a bit out of scope for the patch. Page
+idle-tracking at the core of it looks at PTE of all processes. We are just
+using the VFN (virtual frame) interface to skip the need for separate pagemap
+look up -- that's it.
+
+
+> Once we create a new interface by per-process, just checking the process
+> -granuariy access check sounds more reasonable to me.
+
+It sounds reasonable but there is no reason to not do the full and proper
+page tracking for now, including shared pages. Otherwise it makes it
+inconsistent with the existing mechanism and can confuse the user about what
+to expect (especially for shared pages).
+
+
+> With that, we could catch only idle pages of the target process even though
+> the page was touched by several other processes.
+> If the user want to know global level access point, they could use
+> exisint interface(If there is a concern(e.g., security) to use existing
+> idle page tracking, let's discuss it as other topic how we could make
+> existing feature more useful).
+> 
+> IOW, my point is that we already have global access check(1. from ptes
+> among several processes, 2. from page flag for non-mapped pages) feature
+> from from existing idle page tracking interface and now we are about to create
+> new interface for per-process wise so I wanted to create a particular
+> feature which cannot be covered by existing iterface.
+
+Yes, it sounds like you want to create a different feature. Then that can be
+a follow-up different patch, and that is out of scope for this patch.
+
+
+> > (2) It makes it inconsistent with other idle page tracking mechanism. I
+> 
+> That's the my comment to create different idle page tracking we couldn't
+> do with existing interface.
+
+Yes, sure. But that can be a different patch and we can weigh the benefits of
+it at that time. I don't want to introduce a new page tracking mechanism, I
+am just trying to reuse the existing one.
+
+
+> > prefer if post per-process. At the heart of it, the tracking is always at the
+> 
+> What does it mean "post per-process"?
+
+Sorry it was a typo, I meant "the core mechanism should not be a per-process
+one, but a global one". We are just changing the interface in this patch, we
+are not changing the existing core mechanism. That gives us all the benefits
+of the existing code such as non-interference with page reclaim code, without
+introducing any new bugs. By the way I did fix a bug in the existing original
+code as well!
+
+
+> > physical page level -- I feel that is how it should be. Other drawback, is
+> > also we have to document this subtlety.
+> 
+> Sorry, Could you elaborate it a bit?
+
+I meant, with a new mechanism as the one you are proposing, we have to
+document that now shared pages will not be tracked properly. That is a
+'subtle difference' and will have to be documented appropriated in the
+'internals' section of the idle page tracking document.
+
+thanks,
+
+ - Joel
 
