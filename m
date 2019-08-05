@@ -2,202 +2,198 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BC87EC433FF
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 08:24:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B756BC0650F
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 08:42:33 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7CB322067D
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 08:24:35 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7CB322067D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 7739820880
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 08:42:33 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7739820880
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 274FA6B0003; Mon,  5 Aug 2019 04:24:35 -0400 (EDT)
+	id EC3646B0003; Mon,  5 Aug 2019 04:42:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1FE916B0005; Mon,  5 Aug 2019 04:24:35 -0400 (EDT)
+	id E4D776B0005; Mon,  5 Aug 2019 04:42:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0C70F6B0006; Mon,  5 Aug 2019 04:24:35 -0400 (EDT)
+	id D15BB6B0006; Mon,  5 Aug 2019 04:42:32 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id DABCD6B0003
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 04:24:34 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id l16so68308532qtq.16
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 01:24:34 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 810B26B0003
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 04:42:32 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id f3so51054048edx.10
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 01:42:32 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=tGNgfIjx7s4Bi+x51evZvWWhhV+RcWd4cSHvcGzYnQs=;
-        b=gxbOdqO6f0xDBt6nJ8xRxXCb058IjuADT/WxQye0P3cqWMeytWjOZsYIMt2ILtsKyq
-         mYP7n7LidEBR/r92gbCeK45hWoVW5+kJO31QJF4EvZIoRHV+ve+0h8EvLFgjno6Z9UeJ
-         sojljTTZb9ec7j1D/4aW5367BsFz+JjGAjpP8Z3tIAjU4S9cHX3MQRNX4LO4o2Kk3V08
-         OlFva+Rw/Efj1PqnHqSQbbuf1wlWYht1hYe7OZ5vta2NHrurD5/bQbKQEAA8/S6X8i1/
-         bXG2Kz78KawA0YVXmSc+e3kU2v891O8yGF4uRQjbN/IR8FEB6Pnw66Ao/nNE/kiB9hW3
-         4Bww==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXCwzGOzofYso6Zc7FN+XZNKZ4BeEOofPtUtCm34FobX2HOK8ro
-	Xv2/peBxx6XlD3yhOX2IK4/MM8ZkYkNHmCM32wu+kIFzEOtRA4XSiR/eqGMw6qivYweUjxGD4jA
-	WGskCltG41Jp+zqkWH/9zeOozXOHOIkhJIFkSysqPVQqr2y9pUSS5141Roc17ZN59IQ==
-X-Received: by 2002:a0c:c382:: with SMTP id o2mr70316521qvi.75.1564993474669;
-        Mon, 05 Aug 2019 01:24:34 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzV0+3Rt3gN4gS5ChhA4xHJGS6tGa+IKNJ/6y6r/hEbmYdO/YN9pkL/sHDiv2fhC0ehGtNo
-X-Received: by 2002:a0c:c382:: with SMTP id o2mr70316496qvi.75.1564993474109;
-        Mon, 05 Aug 2019 01:24:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1564993474; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=Xa0gaYwsBgonMG8mg5y+SXvLYUZ5MElxrTVPBeiFBVQ=;
+        b=F4bHHVYWvsnIBbPbfL93z5fsC/kqMPDWHggCEUnTfjBvAPFvjlJYiEFHH94IzaD0z0
+         ivAIvdrC7Tm8g/9aDTlJvnqpQ498tQZdf+Z5y0iI5Cz2KyzNbMV65LnnTP7xkpR7FUYw
+         mvBeALgXSCFq0myDL9Qzhf1vfxYR0L9+fXTsN+TH3qm7a2Y5WKBIyzyHQ3/rbntONfet
+         Z3/7vTJina9smry8unax/77lw/sWY1kk6oO5TwHLgZHcN7gQQE0McoxhnPiJxaLZeal7
+         WP4lQNtkqe6lI4UZdKuARneLy8Dc47p7p0Sxdy/m8jldEIh+2sDNfNZpwjM21bC2ARl9
+         JqfA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWrdCTKvEXkeuFakb/TvwQtgg5u/vSRPlh23yNvphXlic3LZDUf
+	Y8jCsvGnjheJB673nXYiEJWeELQ1yYnVYIq+vAKI0iEQvgRlRG2Vkfw3kkZoroKBO1qE/l04dSf
+	j7/JW/DX9oJYBID+/A4jwFL2Ffj0WOFJFWZwJoD9Uu5OSInmPDslTI+yw6CaHzT0=
+X-Received: by 2002:a17:907:20a6:: with SMTP id pw6mr105632359ejb.111.1564994551963;
+        Mon, 05 Aug 2019 01:42:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxuEwHzZ9Zi3vUu8Vo/4cVHfe1lemW+g2Cmi5F4G1H4IdsmCyNwEheIvA9QhrBgPl70i3vL
+X-Received: by 2002:a17:907:20a6:: with SMTP id pw6mr105632310ejb.111.1564994551049;
+        Mon, 05 Aug 2019 01:42:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1564994551; cv=none;
         d=google.com; s=arc-20160816;
-        b=NMLDETgkBpPwodTRX3gUvqts3sRDc8FFbsiqgUj8dh+3Llmb38WOtbW2O8VY08pJKc
-         q5mlslIABBufh7hIlervfUnwQ/7ShT0wMPp549WQM5xcEINue2WE7ec13iTJe8lvg18N
-         ZfHrwsUAHHxT78tlrjQFH5cCBuie96VC/9+Cjp8bpfxwCk1AwWp06LGL/ZLARMm81vEw
-         kbxIUlm+82t3920AiACNYzgJ/ne20aOru/iIc0jdVC0xAA/XPEm13jRLwBu1AWLhyqjF
-         +Ys0L4Gemah9C9YSnaB6ckDgWVs5lukeiAL2TaRGx2+GqfcYuttbsraZ+3citsbvowl1
-         PDjQ==
+        b=FaI2aRcdN/Y40QNG3YLb+ZeP52J9u5ozJrH5jiIwDebirFDtxcPtmcP0VfmDBFItnT
+         /dtX/xeWY8EnK/5yURWV2XLAdhC03pd0HPKddYhUiIwud1zFnwXHbSsZhd3X5GIjQvY4
+         qjgV5jK8h8BuqjDa4DySZY22BSJWYL3Y4isbo7gouZV2ymY+rcPI14SEq4PCI1PDPgRF
+         TNXjx5wGbsHgBGRpU2EydSYjiih/lds0ZbyACXMaJnRMTDyIvN/shzu/aQ+5T3CfjwfR
+         qAfzNz8c9VNfjgQTQ3y1BtFQT2XCQUPBAoJ/cNFO8Vcltv9UeKPjitvHq1XT75BFNndp
+         4jMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=tGNgfIjx7s4Bi+x51evZvWWhhV+RcWd4cSHvcGzYnQs=;
-        b=LAw1L0ZzPqb94M9z1MPWNJD8RO9Fc2sM47ZyZKEyUuzEM0+/Asb8WRZs+/7H3L2m/1
-         2FnYOJr5mkin8YYCvu7DvdrgKUNxI98ZQDpbRvn2e6mIfBk8GZ3Jd3JR36Fe7oPWHN+d
-         Lha9+Eg1GYfHCZHs94u+KV2zbCVCM4B7riaCx9Zaaqcw1vzxBH3c7I6pez1I6Wn2OAEV
-         PicOgVAGHdvMjunPGY0kFo3x73h4opCQcoLIPOYtftohWqgopZonqfY/oc3cVA4SeTsq
-         7Er8UlOwNdo1E3KnqTg5Fjrzi+NgA0CePkgkpxXTawnP2KmGQIl2NalbDx5DQSc8I3Lj
-         s/pw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=Xa0gaYwsBgonMG8mg5y+SXvLYUZ5MElxrTVPBeiFBVQ=;
+        b=Dd6cw6DNYXSdvYeGF7iBlwGu/eY2R8XYuIS+3YIbBg/57wq71fOLqFkbXu9m9Aq4vD
+         f6gRniFhoVF9dDaI8yrpTTI94Zt2g2W+tQBKMQUl7iHIEqs405bzTankqwwKMIVTQMO0
+         FNcgVPlSXBgsWvr4Oh3/c+13/aqJTYOZluI7RpsX63xtayf2kI65c2EWG+OGio9Nbdni
+         d/Q5UEVZtvxT7ehnUiUaF0GkoR/aetstN23AUwDCtu9VWuo8wtmVutNX8zadcaEgRSLo
+         2Uhwkj0ZKezxJXQdd8+p9oRaDRYeYIQtpgJ6mtbLyoZasibBr98WU65WaDmWI2e9T2bJ
+         3PZw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id i46si52132482qte.104.2019.08.05.01.24.33
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x22si24779187eju.379.2019.08.05.01.42.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Aug 2019 01:24:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Mon, 05 Aug 2019 01:42:31 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5938630923D0;
-	Mon,  5 Aug 2019 08:24:33 +0000 (UTC)
-Received: from [10.72.12.115] (ovpn-12-115.pek2.redhat.com [10.72.12.115])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 9AC761000323;
-	Mon,  5 Aug 2019 08:24:28 +0000 (UTC)
-Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
- with worker
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, linux-mm@kvack.org,
- netdev@vger.kernel.org, linux-kernel@vger.kernel.org, kvm@vger.kernel.org,
- virtualization@lists.linux-foundation.org
-References: <20190731123935.GC3946@ziepe.ca>
- <7555c949-ae6f-f105-6e1d-df21ddae9e4e@redhat.com>
- <20190731193057.GG3946@ziepe.ca>
- <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
- <20190801141512.GB23899@ziepe.ca>
- <42ead87b-1749-4c73-cbe4-29dbeb945041@redhat.com>
- <20190802124613.GA11245@ziepe.ca>
- <20190802100414-mutt-send-email-mst@kernel.org>
- <e8ecb811-6653-cff4-bc11-81f4ccb0dbbf@redhat.com>
- <494ac30d-b750-52c8-b927-16cd4b9414c4@redhat.com>
- <20190805023106-mutt-send-email-mst@kernel.org>
-From: Jason Wang <jasowang@redhat.com>
-Message-ID: <86444f93-e507-cfd9-598b-51466bb02354@redhat.com>
-Date: Mon, 5 Aug 2019 16:24:27 +0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 77027B60E;
+	Mon,  5 Aug 2019 08:42:30 +0000 (UTC)
+Date: Mon, 5 Aug 2019 10:42:28 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+Cc: Masoud Sharbiani <msharbiani@apple.com>,
+	Greg KH <gregkh@linuxfoundation.org>, hannes@cmpxchg.org,
+	vdavydov.dev@gmail.com, linux-mm@kvack.org, cgroups@vger.kernel.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: Possible mem cgroup bug in kernels between 4.18.0 and 5.3-rc1.
+Message-ID: <20190805084228.GB7597@dhcp22.suse.cz>
+References: <5659221C-3E9B-44AD-9BBF-F74DE09535CD@apple.com>
+ <20190802074047.GQ11627@dhcp22.suse.cz>
+ <7E44073F-9390-414A-B636-B1AE916CC21E@apple.com>
+ <20190802144110.GL6461@dhcp22.suse.cz>
+ <5DE6F4AE-F3F9-4C52-9DFC-E066D9DD5EDC@apple.com>
+ <20190802191430.GO6461@dhcp22.suse.cz>
+ <A06C5313-B021-4ADA-9897-CE260A9011CC@apple.com>
+ <f7733773-35bc-a1f6-652f-bca01ea90078@I-love.SAKURA.ne.jp>
+ <d7efccf4-7f07-10da-077d-a58dafbf627e@I-love.SAKURA.ne.jp>
 MIME-Version: 1.0
-In-Reply-To: <20190805023106-mutt-send-email-mst@kernel.org>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Mon, 05 Aug 2019 08:24:33 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d7efccf4-7f07-10da-077d-a58dafbf627e@I-love.SAKURA.ne.jp>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Sun 04-08-19 00:51:18, Tetsuo Handa wrote:
+> Masoud, will you try this patch?
+> 
+> By the way, is /sys/fs/cgroup/memory/leaker/memory.usage_in_bytes remains non-zero
+> despite /sys/fs/cgroup/memory/leaker/tasks became empty due to memcg OOM killer expected?
+> Deleting big-data-file.bin after memcg OOM killer reduces some, but still remains
+> non-zero.
+> 
+> ----------------------------------------
+> >From 2f92c70f390f42185c6e2abb8dda98b1b7d02fa9 Mon Sep 17 00:00:00 2001
+> From: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Date: Sun, 4 Aug 2019 00:41:30 +0900
+> Subject: [PATCH] memcg, oom: don't require __GFP_FS when invoking memcg OOM killer
+> 
+> Masoud Sharbiani noticed that commit 29ef680ae7c21110 ("memcg, oom: move
+> out_of_memory back to the charge path") broke memcg OOM called from
+> __xfs_filemap_fault() path.
 
-On 2019/8/5 下午2:40, Michael S. Tsirkin wrote:
-> On Mon, Aug 05, 2019 at 12:41:45PM +0800, Jason Wang wrote:
->> On 2019/8/5 下午12:36, Jason Wang wrote:
->>> On 2019/8/2 下午10:27, Michael S. Tsirkin wrote:
->>>> On Fri, Aug 02, 2019 at 09:46:13AM -0300, Jason Gunthorpe wrote:
->>>>> On Fri, Aug 02, 2019 at 05:40:07PM +0800, Jason Wang wrote:
->>>>>>> This must be a proper barrier, like a spinlock, mutex, or
->>>>>>> synchronize_rcu.
->>>>>> I start with synchronize_rcu() but both you and Michael raise some
->>>>>> concern.
->>>>> I've also idly wondered if calling synchronize_rcu() under the various
->>>>> mm locks is a deadlock situation.
->>>>>
->>>>>> Then I try spinlock and mutex:
->>>>>>
->>>>>> 1) spinlock: add lots of overhead on datapath, this leads 0
->>>>>> performance
->>>>>> improvement.
->>>>> I think the topic here is correctness not performance improvement
->>>> The topic is whether we should revert
->>>> commit 7f466032dc9 ("vhost: access vq metadata through kernel
->>>> virtual address")
->>>>
->>>> or keep it in. The only reason to keep it is performance.
->>>
->>> Maybe it's time to introduce the config option?
->>
->> Or does it make sense if I post a V3 with:
->>
->> - introduce config option and disable the optimization by default
->>
->> - switch from synchronize_rcu() to vhost_flush_work(), but the rest are the
->> same
->>
->> This can give us some breath to decide which way should go for next release?
->>
->> Thanks
-> As is, with preempt enabled?  Nope I don't think blocking an invalidator
-> on swap IO is ok, so I don't believe this stuff is going into this
-> release at this point.
->
-> So it's more a question of whether it's better to revert and apply a clean
-> patch on top, or just keep the code around but disabled with an ifdef as is.
-> I'm open to both options, and would like your opinion on this.
+This is very well spotted! I really didn't think of GFP_NOFS although
+xfs in the mix could give me some clue.
 
+> It turned out that try_chage() is retrying
+> forever without making forward progress because mem_cgroup_oom(GFP_NOFS)
+> cannot invoke the OOM killer due to commit 3da88fb3bacfaa33 ("mm, oom:
+> move GFP_NOFS check to out_of_memory"). Regarding memcg OOM, we need to
+> bypass GFP_NOFS check in order to guarantee forward progress.
 
-Then I prefer to leave current code (VHOST_ARCH_CAN_ACCEL to 0) as is. 
-This can also save efforts on rebasing packed virtqueues.
+This deserves more information about the fix. Why is it OK to trigger
+OOM for GFP_NOFS allocations? Doesn't this lead to pre-mature OOM killer
+invocation?
 
-Thanks
+You can argue that memcg charges have ignored GFP_NOFS without seeing a
+lot of problems. But please document that in the changelog.
 
+It is 3da88fb3bacfaa33 that has introduced this heuristic and I have to
+confess I haven't realized the side effect on the memcg side because
+OOM was triggered only from the GFP_KERNEL context. So I would point
+to 3da88fb3bacfaa33 as introducing the regression albeit silent at the
+time.
 
->
->>>
->>>> Now as long as all this code is disabled anyway, we can experiment a
->>>> bit.
->>>>
->>>> I personally feel we would be best served by having two code paths:
->>>>
->>>> - Access to VM memory directly mapped into kernel
->>>> - Access to userspace
->>>>
->>>>
->>>> Having it all cleanly split will allow a bunch of optimizations, for
->>>> example for years now we planned to be able to process an incoming short
->>>> packet directly on softirq path, or an outgoing on directly within
->>>> eventfd.
->>>
->>> It's not hard consider we've already had our own accssors. But the
->>> question is (as asked in another thread), do you want permanent GUP or
->>> still use MMU notifiers.
->>>
->>> Thanks
->>>
->>> _______________________________________________
->>> Virtualization mailing list
->>> Virtualization@lists.linux-foundation.org
->>> https://lists.linuxfoundation.org/mailman/listinfo/virtualization
+> Signed-off-by: Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>
+> Reported-by: Masoud Sharbiani <msharbiani@apple.com>
+> Bisected-by: Masoud Sharbiani <msharbiani@apple.com>
+> Fixes: 29ef680ae7c21110 ("memcg, oom: move out_of_memory back to the charge path")
+
+I would say
+Fixes: 3da88fb3bacfaa33 # necessary after 29ef680ae7c21110
+
+Other than that I am not really sure about a better fix. Let's see
+whether we see some pre-mature memcg OOM reports and think where to get
+from there.
+
+With updated changelog
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+Thanks!
+
+> ---
+>  mm/oom_kill.c | 5 +++--
+>  1 file changed, 3 insertions(+), 2 deletions(-)
+> 
+> diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+> index eda2e2a..26804ab 100644
+> --- a/mm/oom_kill.c
+> +++ b/mm/oom_kill.c
+> @@ -1068,9 +1068,10 @@ bool out_of_memory(struct oom_control *oc)
+>  	 * The OOM killer does not compensate for IO-less reclaim.
+>  	 * pagefault_out_of_memory lost its gfp context so we have to
+>  	 * make sure exclude 0 mask - all other users should have at least
+> -	 * ___GFP_DIRECT_RECLAIM to get here.
+> +	 * ___GFP_DIRECT_RECLAIM to get here. But mem_cgroup_oom() has to
+> +	 * invoke the OOM killer even if it is a GFP_NOFS allocation.
+>  	 */
+> -	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS))
+> +	if (oc->gfp_mask && !(oc->gfp_mask & __GFP_FS) && !is_memcg_oom(oc))
+>  		return true;
+>  
+>  	/*
+> -- 
+> 1.8.3.1
+> 
+
+-- 
+Michal Hocko
+SUSE Labs
 
