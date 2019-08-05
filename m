@@ -2,282 +2,181 @@ Return-Path: <SRS0=3S0K=WB=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06500C0650F
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 18:32:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 53DB5C0650F
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 18:38:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8072620B1F
-	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 18:32:57 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="ma3t1IX8";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="O58nXwcc"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8072620B1F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id EFD0D208C3
+	for <linux-mm@archiver.kernel.org>; Mon,  5 Aug 2019 18:37:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EFD0D208C3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 147806B0005; Mon,  5 Aug 2019 14:32:57 -0400 (EDT)
+	id 5B19B6B0005; Mon,  5 Aug 2019 14:37:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0F8C26B0006; Mon,  5 Aug 2019 14:32:57 -0400 (EDT)
+	id 561706B0006; Mon,  5 Aug 2019 14:37:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EDBEA6B0007; Mon,  5 Aug 2019 14:32:56 -0400 (EDT)
+	id 403246B0007; Mon,  5 Aug 2019 14:37:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
-	by kanga.kvack.org (Postfix) with ESMTP id CCBD16B0005
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 14:32:56 -0400 (EDT)
-Received: by mail-yb1-f200.google.com with SMTP id l2so51781134ybl.18
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 11:32:56 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E21876B0005
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 14:37:58 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id m23so52055966edr.7
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 11:37:58 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-transfer-encoding
-         :mime-version;
-        bh=9qbfXk1Lco1cPfrw8/mqGA0q+VdFy7WDWzD1hMZHuus=;
-        b=VfUqc7IQBvT1IUMXbRtgLhJtn2R8NvDwizcdTQScjHTcjYblAquR4TlC67hXZBpEsj
-         bxR6Qn3yim8+gAQ3mSkIbnkQX6mcimi4Xe4eFe8LRFzjKIjLWg5X8GWn0BxL0cXfHyqi
-         SlU4BPaZNtauSM2r2KqNgsE2EwIBmvGBxSDtKi10j2v79WnwntCYHbJ1sV4GR6VMtZ1i
-         ti/rljQQEMY+LpkafkiT2tKEtUuFBK86NVqiH0r1jnOCUxcYCG3smyXIPTwxhTuX15It
-         vwUzhcya2HZF2xLL+UKCbVAaDhLnAnbpO36mW7STG5LGorFs9hdLP+RIdBgsBporjPS5
-         pvZQ==
-X-Gm-Message-State: APjAAAWVtv/4oIsdzAwWSSTBM9/s0YnLC2TuWZdkawjHwKY5QSWSYXCM
-	JgGd6wgwHg3zTE2wRJFlYsxtJsRhjje3anohywuaUDlHzZXG//efv8WQdnlL1FH2oG7ao47d8eH
-	C2AdodDToH1lW82oreQ0Vy/ijVUGxO11ZyQ5vfftl1BvQCRTjGXQ4PhKKxPb3p8oMGQ==
-X-Received: by 2002:a25:250b:: with SMTP id l11mr81896566ybl.267.1565029976485;
-        Mon, 05 Aug 2019 11:32:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzV3vgyfQxXGi1UYH2C9F9e5yD0UYQWgoFkY2jord8alJa4d7Qp/wG5h0Oa7MaZEoN7EsxZ
-X-Received: by 2002:a25:250b:: with SMTP id l11mr81896533ybl.267.1565029975648;
-        Mon, 05 Aug 2019 11:32:55 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1565029975; cv=pass;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=QnMP5V4tX9f4Y9q/ieWYyfElykzEdDl040Nwb94s+cc=;
+        b=rD9Ik85RjY2vSEC0HQzQiF4+CfSK6fzH+tgkzXpRlYoj0e8fWe0gIU17n4wkvSowtw
+         kAWhdARlZ//eVR3T60n+x+LODsIDuWE0+8pby3q/BbWd1ueskIHi6a0Iiutb4EEaxpya
+         ewU+k/J4O+pMQ7gDqqqZLZwep5J/x6feYbZ4+3pDr+447isPFRg7/XafW7+0gbiQ4zvc
+         OImkaXevikoVG9TxrSx0LVL2zho4Glo6xVFty8X4iEQjSbmWrJ6Wr6ZVU9YUxR8UD91C
+         yTog1CM2dLqIH0ZhfE8yACijbDcE6e0gumDCKrYPWuQweWdPRz0m/MYdOxGqnQH5AU59
+         iJNQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAVwCDged4/oLFqWTSQrxvEtLRqh6+VKTaeu2jCmThO0tGJ4yur7
+	XnO3RXuuO2EXeyECzdNuqKqKb+KApIQ6a1+wGSmjlZ90Zl6DwJAxXEks9ruHItZUm2Z+ZbH8WBo
+	hLO+NCBC931pCrP9mETpigKz592kreEJLAKZieXN0KqmKfG3wVRY69d5IfH79CZ1/6A==
+X-Received: by 2002:a50:fa05:: with SMTP id b5mr133094261edq.269.1565030278450;
+        Mon, 05 Aug 2019 11:37:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz+1QbntKNR63zg3tQFqYQ5jLPKhjNgPDYG/Uin3/1utuqKGNxjBbPLNwjhNZz0hKs3EiNN
+X-Received: by 2002:a50:fa05:: with SMTP id b5mr133094206edq.269.1565030277762;
+        Mon, 05 Aug 2019 11:37:57 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565030277; cv=none;
         d=google.com; s=arc-20160816;
-        b=L3h/bRqwefm2sXa4XurtIhYSwLrAyi0/UP8Vq3BkdaaEcyDtH6DC8BOVdNwTmQbQdO
-         0TuwTZDod+D0R6eF77XxYdChmpffOmW9wlmNMW08MeK7Hdu8gvnc8kizrkSq4hYYLmyD
-         4TR87kujKalTuy68Z+7VZbEnh4OKxjY5HsZ3LQxahENu875BLUQw48KZip8WpwTa2x+K
-         OxGtaYwNH+2c6Mglg485DeaF2nm7/EsFqSH2P5/DZN+vEiVYFJSFNhZlqaQEGw4EohPp
-         SWlwosoNJl5NpD8PkCsH4Q8N1BB53ROuudgDSipi5xpxc0P3a4BmwbWzzdwqc861EKMm
-         olrQ==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=9qbfXk1Lco1cPfrw8/mqGA0q+VdFy7WDWzD1hMZHuus=;
-        b=HjhzUGAX4FXwccPDW1l9BB0aKs0XpkBejsquuv3wy7GhZFeU/tEnVuasfDOXITUneg
-         /RBzpD+RRiTnuiGEXyG2tSq/Inq4+AEkNB88TQiCbZBDpZNBMhYlsEE7WZIdWMdzqKI8
-         MyYvPHdzaZL02nb0WlxUVHj3lQaZdH/JaWMHeWK1HaKEyCTVsP812z2eftUNtM1Kr7Um
-         d9Uk8X2UqofJ16OqCgSD2VvkifpzdIKfinKMCEZkfd5iVTDg5Wre/Mcdu8e+MjwfIR4q
-         Ds+gDNEVRdV5QEG9Uej0QruSix9516DY71XN3enxQVjLH4xTxWu3DnFCX4EaKXf58YaB
-         GCow==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=ma3t1IX8;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=O58nXwcc;
-       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
-       spf=pass (google.com: domain of prvs=3120956f4d=clm@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=3120956f4d=clm@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id 7si1389153ybj.62.2019.08.05.11.32.55
+        b=I9OOmhsdOkQP+NTdGofzu1sgB4wPleLwCW0ZwibqcBbhYBoee6j6UdN/eArw2+tPjm
+         l1wclSvZd1Emy2OyWdI5kUfTkEV8TyqsMI+fhllGjJq4CqbTdSRki/2O2Z9wuLGkXjoK
+         y6KtjOEQH2O7U8zZ3LXqMiM7onmvKEtqWYtkdLwoj4qvQnbIGmGD5mEJYldnvvDCWfzT
+         NATSnx4aoNWUwjJDmVv/S/uqHqZ5ro1zTnkYw/YUfYj+k4cNMPFImz1tjWPgqTiT+FZD
+         kZb+FHZ2WIPRxdOi2d/LuxZr8lHP+O6tknPpTJU9bpNh1epE26A9QAtFWY3JvBBi7gs4
+         stsA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=QnMP5V4tX9f4Y9q/ieWYyfElykzEdDl040Nwb94s+cc=;
+        b=XlpEJAfK0s+p4jL1Els7ymPJurmmCbhqZhuZcllF9P2nHpfTzYcgPxFv8Q+Wfkfac1
+         6mpCYN2IlXLN8WOvolWienYBNgX1J+lK+O4fqc5NI1QQAWn5EcyuhMq/qQLSqC9E7L8N
+         MddFssDEeXVz+KheJEgnK5dvWTGK5q1FEHbRNl0I6VxMyBF/2l7JKavIKkxpmmii0aAI
+         KOiXe6S7pT6RjrX5ii0KAD74c6I1ac6G9JVKt9Ry114gtyD9iicrnsc+DzfpWJT+Rqrv
+         B++qufIgjhGnEfG3t8OtGIjtNoXmURez85wY760AqZTBhNfN6oHj4J5C/D/HogJ1YVL0
+         DMKQ==
+ARC-Authentication-Results: i=1; mx.google.com;
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id sa28si26748892ejb.308.2019.08.05.11.37.57
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Aug 2019 11:32:55 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=3120956f4d=clm@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        Mon, 05 Aug 2019 11:37:57 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b=ma3t1IX8;
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=O58nXwcc;
-       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
-       spf=pass (google.com: domain of prvs=3120956f4d=clm@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=3120956f4d=clm@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0001303.ppops.net [127.0.0.1])
-	by m0001303.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x75IRJNu002185;
-	Mon, 5 Aug 2019 11:32:54 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type :
- content-transfer-encoding : mime-version; s=facebook;
- bh=9qbfXk1Lco1cPfrw8/mqGA0q+VdFy7WDWzD1hMZHuus=;
- b=ma3t1IX8PYl5s8rvpVzdCj2aybWxwfNsKD8PV6TgPHRzJ3pkeQFlCWil0ksLYxjOLaoW
- mrPCGwfSjzJ6+7T+kh/uZ9E8mEYaCdVjPLbM/z3tl6lg3Msyx78QmrQpju1f3r5GS9YL
- L8fTYD+tdm9BU0JUXXExqMIZMxo0vBwvZpw= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by m0001303.ppops.net with ESMTP id 2u55xdy6bb-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT);
-	Mon, 05 Aug 2019 11:32:54 -0700
-Received: from prn-mbx07.TheFacebook.com (2620:10d:c081:6::21) by
- prn-hub06.TheFacebook.com (2620:10d:c081:35::130) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Mon, 5 Aug 2019 11:32:53 -0700
-Received: from prn-hub05.TheFacebook.com (2620:10d:c081:35::129) by
- prn-mbx07.TheFacebook.com (2620:10d:c081:6::21) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id
- 15.1.1713.5; Mon, 5 Aug 2019 11:32:53 -0700
-Received: from NAM04-SN1-obe.outbound.protection.outlook.com (192.168.54.28)
- by o365-in.thefacebook.com (192.168.16.29) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA384) id 15.1.1713.5
- via Frontend Transport; Mon, 5 Aug 2019 11:32:52 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=ma3wNNmc+pFEYsEZL8jwATk9SILxX24OX+nehT9FqRmLsNQvwXXBl5SvjgSxXGS7pk6f7gOq8iIATRVEC51tsbljMLAQY9JgplaQhuptstvtBLQ1NmWWhiUHdI3XCsC0/HhKA1HK0y+FWf26L+QutwHojR2LtoWUwyT+03UQyCTTdKdRy6H2KcDSrQJYbxSTC6tz4tuF6DG4qbVbiRQNVIM/hxMkVubAYts+CqVJUGaY1nroftaxHj8XbgoM90NHO8mLVHPN2sDHB+I7QBAQYxSHlu6idiqHzeydncJMKmrxDD3v4ucTvP2z13CXLhXx9RClraUlbai8ul9HBU4ylw==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=9qbfXk1Lco1cPfrw8/mqGA0q+VdFy7WDWzD1hMZHuus=;
- b=ANQHyPgsbfxQCzpIJ8WvuSBDmipph0Oc66VJ1tJ+ny0HsE4ZIUe+bv5TA4Zv+NPvYCUEc2RUPsgpvZ/t73CvcjXLEjC2TlhCDvhJuBXx/zTUSX3e0UODsLKqm+eYOJARS/qEcoWD1O3X1N7bi2ZBx2+DrOl5RZ2EePCZ21ZeFfxnp45iG1jK6y/5FpDcRO4IRUAPtwkHVqt2sYMnaz4QmBDqMA82dlIQ2F618/Uc8LKFYUdMP+5r32ki3kHsM+PWhxn8Bwi2IalUPLyJyEVU/ocIvgcp6x4yYeiy+ZkjBWYcPusg2898xC+O3fqe/IdT/9Ucr88ZzKLNxT5bhWfs6Q==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=fb.com;dmarc=pass action=none header.from=fb.com;dkim=pass
- header.d=fb.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=9qbfXk1Lco1cPfrw8/mqGA0q+VdFy7WDWzD1hMZHuus=;
- b=O58nXwccK3qE9Yckg0LLNFtU3y8k8xKmi4WOOlUX+mCrmDJAx102EzM6h0KvCQsI49GmHMMW250FVoM9V8snPxpr2NERXcUSoPuqCBo2DGa4qN6CYtDHjZRgNCaF4FanE4YLpbJ9XY+ridJth2Ns4DPx4trGYdiUMqzAF5K6mq8=
-Received: from DM5PR15MB1290.namprd15.prod.outlook.com (10.173.212.17) by
- DM5PR15MB1227.namprd15.prod.outlook.com (10.173.209.144) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2136.16; Mon, 5 Aug 2019 18:32:51 +0000
-Received: from DM5PR15MB1290.namprd15.prod.outlook.com
- ([fe80::4d32:13fc:cf5b:4746]) by DM5PR15MB1290.namprd15.prod.outlook.com
- ([fe80::4d32:13fc:cf5b:4746%7]) with mapi id 15.20.2136.018; Mon, 5 Aug 2019
- 18:32:51 +0000
-From: Chris Mason <clm@fb.com>
-To: Dave Chinner <david@fromorbit.com>
-CC: "linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>,
-        "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        "linux-fsdevel@vger.kernel.org"
-	<linux-fsdevel@vger.kernel.org>,
-        Jens Axboe <axboe@kernel.dk>
-Subject: Re: [PATCH 09/24] xfs: don't allow log IO to be throttled
-Thread-Topic: [PATCH 09/24] xfs: don't allow log IO to be throttled
-Thread-Index: AQHVSA9fnWuPStnf6EeOPJMMPtRTUqbmCewAgADwFYCAAO5UAIAAm3UAgARkcwA=
-Date: Mon, 5 Aug 2019 18:32:51 +0000
-Message-ID: <C823BAA1-18D5-4C25-9506-59A740817E8C@fb.com>
-References: <20190801021752.4986-1-david@fromorbit.com>
- <20190801021752.4986-10-david@fromorbit.com>
- <F1E7CC65-D2CB-4078-9AA3-9D172ECDE17B@fb.com>
- <20190801235849.GO7777@dread.disaster.area>
- <7093F5C3-53D2-4C49-9C0D-64B20C565D18@fb.com>
- <20190802232814.GP7777@dread.disaster.area>
-In-Reply-To: <20190802232814.GP7777@dread.disaster.area>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: MailMate (1.12.5r5635)
-x-clientproxiedby: MN2PR16CA0021.namprd16.prod.outlook.com
- (2603:10b6:208:134::34) To DM5PR15MB1290.namprd15.prod.outlook.com
- (2603:10b6:3:b8::17)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c091:480::1e29]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 6c6ed047-c29b-4882-47b2-08d719d35285
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:DM5PR15MB1227;
-x-ms-traffictypediagnostic: DM5PR15MB1227:
-x-microsoft-antispam-prvs: <DM5PR15MB1227DB1CFB86A63FD3D4FA0FD3DA0@DM5PR15MB1227.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:10000;
-x-forefront-prvs: 01208B1E18
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(376002)(366004)(346002)(136003)(396003)(39860400002)(51444003)(189003)(199004)(66946007)(76176011)(68736007)(25786009)(46003)(6916009)(81156014)(71190400001)(6512007)(33656002)(81166006)(2906002)(6486002)(229853002)(6116002)(6436002)(53936002)(54906003)(6506007)(386003)(4326008)(50226002)(36756003)(446003)(52116002)(11346002)(2616005)(486006)(476003)(186003)(6246003)(99286004)(7736002)(71200400001)(305945005)(86362001)(14454004)(8676002)(5660300002)(8936002)(66476007)(256004)(66556008)(316002)(53546011)(102836004)(66446008)(64756008)(478600001)(14444005);DIR:OUT;SFP:1102;SCL:1;SRVR:DM5PR15MB1227;H:DM5PR15MB1290.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: pv1nSFJBqcrMtZIVyFkO/DliXWIxTLCi5wqnNfVwf9527AbfyPNInwq9NfdhrKBPALdwnp1D7z89KC5GqbFFtEBiS54d9A1nB3u6soTQB8+rM1hz4p8f7fvB59dzvSz8UDsVYKw9ctfcudj0Zadi5Cm+XMkV7QTTVyEfH677YhzLCHnsAlGWnQikHp8W0k3260PrfbozOATxfF9f/dHvwp8vFVksX8qRRqGeAiZKshcN4S9yKz4gLEAlYQeyYrqlvkc+5GnPMs1flZ1Ac0eFXVxceOsmxjF5synBvIrzktCGdNsdIcHApcHs8m/NcmK3kf86cKctPgusHOajvwPnrREOM2LHdat/HtcsSy8qOWZDyz6gmAkPjpraqNaPl3Hcibpjg8JREf5Nj6Kxul6Nx0E+sYNMDmKy5Qs1U6CMQmI=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 04F0EACC4;
+	Mon,  5 Aug 2019 18:37:56 +0000 (UTC)
+Subject: Re: [PATCH 1/3] mm, reclaim: make should_continue_reclaim perform
+ dryrun detection
+To: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+Cc: Hillf Danton <hdanton@sina.com>, Michal Hocko <mhocko@kernel.org>,
+ Mel Gorman <mgorman@suse.de>, Johannes Weiner <hannes@cmpxchg.org>,
+ Andrea Arcangeli <aarcange@redhat.com>, David Rientjes
+ <rientjes@google.com>, Andrew Morton <akpm@linux-foundation.org>
+References: <20190802223930.30971-1-mike.kravetz@oracle.com>
+ <20190802223930.30971-2-mike.kravetz@oracle.com>
+ <bb16d3f0-0984-be32-4346-358abad92c4c@suse.cz>
+ <0d31cc14-13cd-13e0-cf2d-dd8a8d3049ff@suse.cz>
+ <b4dbe25f-4499-af28-94bb-d12147505326@oracle.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <58ef5953-a18f-e8a8-7dc5-093dba11b18d@suse.cz>
+Date: Mon, 5 Aug 2019 20:34:11 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 6c6ed047-c29b-4882-47b2-08d719d35285
-X-MS-Exchange-CrossTenant-originalarrivaltime: 05 Aug 2019 18:32:51.3723
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: clm@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM5PR15MB1227
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-05_09:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908050189
-X-FB-Internal: deliver
+In-Reply-To: <b4dbe25f-4499-af28-94bb-d12147505326@oracle.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2 Aug 2019, at 19:28, Dave Chinner wrote:
+On 8/5/19 6:58 PM, Mike Kravetz wrote:
+>> Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+> 
+> Acked-by: Mike Kravetz <mike.kravetz@oracle.com>
+> 
+> Would you like me to add this to the series, or do you want to send later?
 
-> On Fri, Aug 02, 2019 at 02:11:53PM +0000, Chris Mason wrote:
->> On 1 Aug 2019, at 19:58, Dave Chinner wrote:
->> I can't really see bio->b_ioprio working without the rest of the IO
->> controller logic creating a sensible system,
->
-> That's exactly the problem we need to solve. The current situation
-> is ... untenable. Regardless of whether the io.latency controller
-> works well, the fact is that the wbt subsystem is active on -all-
-> configurations and the way it "prioritises" is completely broken.
-
-Completely broken is probably a little strong.   Before wbt, it was=20
-impossible to do buffered IO without periodically saturating the drive=20
-in unexpected ways.  We've got a lot of data showing it helping, and=20
-it's pretty easy to setup a new A/B experiment to demonstrate it's=20
-usefulness in current kernels.  But that doesn't mean it's perfect.
-
->
->> framework to define weights etc.  My question is if it's worth trying
->> inside of the wbt code, or if we should just let the metadata go
->> through.
->
-> As I said, that doesn't  solve the problem. We /want/ critical
-> journal IO to have higher priority that background metadata
-> writeback. Just ignoring REQ_META doesn't help us there - it just
-> moves the priority inversion to blocking on request queue tags.
-
-Does XFS background metadata IO ever get waited on by critical journal=20
-threads?  My understanding is that all of the filesystems do this from=20
-time to time.  Without a way to bump the priority of throttled=20
-background metadata IO, I can't see how to avoid prio inversions without=20
-running background metadata at the same prio as all of the critical=20
-journal IO.
-
->
->> Tejun reminded me that in a lot of ways, swap is user IO and it's
->> actually fine to have it prioritized at the same level as user IO. =20
->> We
->
-> I think that's wrong. Swap *in* could have user priority but swap
-> *out* is global as there is no guarantee that the page being swapped
-> belongs to the user context that is reclaiming memory.
->
-> Lots of other user and kernel reclaim contexts may be waiting on
-> that swap to complete, so it's important that swap out is not
-> arbitrarily delayed or susceptible to priority inversions. i.e. swap
-> out must take priority over swap-in and other user IO because that
-> IO may require allocation to make progress via swapping to free
-> "user" file data cached in memory....
->
->> don't want to let a low prio app thrash the drive swapping things in=20
->> and
->> out all the time,
->
-> Low priority apps will be throttled on *swap in* IO - i.e. by their
-> incoming memory demand. High priority apps should be swapping out
-> low priority app memory if there are shortages - that's what priority
-> defines....
->
->> other higher priority processes aren't waiting for the memory.  This
->> depends on the cgroup config, so wrt your current patches it probably
->> sounds crazy, but we have a lot of data around this from the fleet.
->
-> I'm not using cgroups.
->
-> Core infrastructure needs to work without cgroups being configured
-> to confine everything in userspace to "safe" bounds, and right now
-> just running things in the root cgroup doesn't appear to work very
-> well at all.
-
-I'm not disagreeing with this part, my real point is there isn't a=20
-single answer.  It's possible for swap to be critical to the running of=20
-the box in some workloads, and totally unimportant in others.
-
--chris
+Please add, thanks!
 
