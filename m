@@ -2,102 +2,91 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B11FC433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 10:47:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 80E40C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 10:48:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3167420818
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 10:47:20 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="e1W5PQo6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3167420818
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
+	by mail.kernel.org (Postfix) with ESMTP id 4C21B20818
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 10:48:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4C21B20818
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CED3C6B0003; Tue,  6 Aug 2019 06:47:19 -0400 (EDT)
+	id DD6C16B0008; Tue,  6 Aug 2019 06:47:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CC4C86B0008; Tue,  6 Aug 2019 06:47:19 -0400 (EDT)
+	id DADEC6B000A; Tue,  6 Aug 2019 06:47:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BB46B6B000A; Tue,  6 Aug 2019 06:47:19 -0400 (EDT)
+	id C76256B000C; Tue,  6 Aug 2019 06:47:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 849D76B0003
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 06:47:19 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id j96so2245236plb.5
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 03:47:19 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7CE5B6B0008
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 06:47:59 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b12so53593650eds.14
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 03:47:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=781gQFojuZXlLR9f0Rnz2BsSQ1xNulNQY/lDauCDdSA=;
-        b=Pr2HKxLHHEXB9L7IkEAc6NxNKXShOStvINp7Aq680JOROdqzX+0COArw79n1yquNG1
-         3nKkf2FX+eRmiV68SEy8KUkqwt66T7yvghlZNzxdr5J1M1G8vYht5YRan055vBM/5n1f
-         c08RCuwLXnLT6Akmycx7BJjqqhF+9EsO7wyxaMJETInmPv4TJNLc7biETJROMTuLkv0N
-         Uhe7xvXxJhoXt8NDQ00a2ckHFkMHylHC109TrX5Ovqo5IUv0oktln2TAgSa9vu6EVDz5
-         fWe3nXtzCzXAH84CPFdjQxqpJObzzl5cqM95d0kKJI3E61ZNb/8h1AWCZZqsLtlObzD4
-         a2Bw==
-X-Gm-Message-State: APjAAAUZbXTWmQVPfKxDh5nSfQqOxZoWMnpFq8xHEEkVS3hMc+SQl22p
-	+R0RfG6CdCVr7i1yC4SeCTTJwQNzfgwHjOnAA4UCFoCakg6tLZNm6YS8id9AHUnpPLvoaGENexK
-	7dmwOrS3cszdqsB0WnNmnk9GusgvAIyIFQi2FQNk2zt2pzk4CNQA1J/6go4H9xaG9ew==
-X-Received: by 2002:a17:902:4501:: with SMTP id m1mr2558914pld.264.1565088439226;
-        Tue, 06 Aug 2019 03:47:19 -0700 (PDT)
-X-Received: by 2002:a17:902:4501:: with SMTP id m1mr2558873pld.264.1565088438451;
-        Tue, 06 Aug 2019 03:47:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565088438; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=9l07xguLsmumbO3r6+6QNpZxDkbKD+pBUTJaKO0rO1c=;
+        b=fBgkDl8obVarpLbgYSIHda8x5h4r9JMVzgWPOV/G+6n8Nv3uMbkAh/i2A6oujlXJc2
+         /1d3yI3Grd1pJq9UNe7fL4oe94M0m5qGTnREXLRbhayyhh6Bc7Yq0KVpDLwfhWwpZEGQ
+         mrJOcu14Eu74Di/OprYr60tyMY1iCAhub/GtJUcPD/qKOyQYM8oJfDqFwgfPYsMfhCV8
+         kgpCPZT0MiQBjCYI2zWoGFuErR+Tk4nlNMqY5n+3U2PSH9+2HS33/Hry28FCqo/OPoCY
+         CKybQd2mtcdvbe6gSlUGsbQzRN4tfgPV2h0DImdroCj07NuoNFgQCdeKcUj8VHcVTjUW
+         RUlg==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAW90LSfft90H23slNzk6ugyuBqKcfKqJP/mozHTiT3sq4mvWp2m
+	dJx0JzjUw4g9qhnGKTSl6fvPyEsGYkCXDknpmxyRXbq/dBiWsmlCKQZ3+efbEr8i5qRRUm5rdJH
+	ceAmFBF7RaqaYSLdL3Z7spVyM51v5q8aaDKzMiMPzHrFNZ+BMz+94lOrCwGAzifA=
+X-Received: by 2002:a50:f410:: with SMTP id r16mr3108432edm.120.1565088479093;
+        Tue, 06 Aug 2019 03:47:59 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxAZGpPUwg5j9pucwml5izKhwv09+xcqPP8LsyzjzljxrtvyUGFkZGbhVhH8w9E9cv75rTP
+X-Received: by 2002:a50:f410:: with SMTP id r16mr3108368edm.120.1565088478310;
+        Tue, 06 Aug 2019 03:47:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565088478; cv=none;
         d=google.com; s=arc-20160816;
-        b=KxGMG43EuDK2i5r2x7GbT+iTdo2qVhyM2BwaMooYgbvy9NVGj6Vcn8E6lgvBt0OfC8
-         v6xBAM8kdnERZk+6Bwgw7FTCsySmyYFY2dtBsK0ln05f0+pCWUDvaBrfTxqnVW9JtxWf
-         jcbNZ1EiO1WWsboDVPLl0T3jS8vbvsH8TLHcAH+7D1E43PZ1qe56RDOV9Kb37iWX7liQ
-         v54nNf7R7yUp/O1QfDPoFJdgLPu7cNJdBr6PwAJGwvSgXr+CjpNCzIoxDnts37YwONSQ
-         Xkwok0ImdcNFU3Mxt+xgXw7qMJZKEMCQH4b41uw7EWA+lSjU3cGacU8lrwzvvQMU6lyR
-         gyDg==
+        b=UFH53FThSuElL3lcHb/p9eGQpnPCztH3wp25YOz7D4GqJ/rYbHhXn9J88uH5ka/7MV
+         OjEX0RRm8pYIOUWJBkJ+zY2Wg5A0VkkUVf9maO9f1UGHvPPGqSSvr5wi84Xh8uS4tvQF
+         aE6Wvlutk/j03kp3EuULx3O3W3Yq0vCNwonTWkyY1//fJ+hVBTnpgXPwAIvAgH5vK61z
+         P5hcf2YJW4BxQ3iVuMdSa+F3y8YfvQ/hPbA8BpurfEW7yGDKZOI5ZCp2GWXPz89POtiW
+         T5D5i8f2LGx2Mb/2L/UztK3OFCE+oCfsfg+DN7TioxObgpWZW0I0qngZHaD4rxMcey46
+         loNw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=781gQFojuZXlLR9f0Rnz2BsSQ1xNulNQY/lDauCDdSA=;
-        b=rkcisf8RnjJ2salM4KfE3AnUa9N59bToOp0Ia5Ou9D/Hwh4b7R2fUQWu7VMPf26gsL
-         ZIMzpVMsgzlAq0x8V9DyGJlC36EXaVtpjJLOVwTWzYeMYthH51nrUKk+GtJwlT2nX45q
-         vsmsqPhZAahLPn6lr+9fuNJaLruNIyyOG+qoENGBoS5PoPEhDtEB37Y/IqpHxCJcRHrE
-         /DX9kZzgo9krUSt01cUHZHtlmZrhnibE/k+2IJESmw97kYM4TlgeDK0pQSnwAu1Loqdi
-         kPFsxIzn0Vm9dbw1hfZ/yyh+gNheDFo7RMfHxY0bnE+bvF9zLfYQCXY5uNHFzij86nTu
-         me0Q==
+         :message-id:subject:cc:to:from:date;
+        bh=9l07xguLsmumbO3r6+6QNpZxDkbKD+pBUTJaKO0rO1c=;
+        b=LkiHdCT9cNOmagWz0SBeyg/KI08Fph/srhUKactN/8VXRrhGxKUJMTXXf6svbob4Tn
+         qfKXrhhTjh4Gl1PTWggilz72xe0YHpuau/IgZdHTD0sqAORz+8Gs32hodIekv13Q1/GK
+         MBlPzX4wPDk4zFzmsro3pkd/4DVM92ZpAFRbArT/hsBWcS4edPlR51NuKazzP//Qj6qh
+         yx1FAkJSWf/gIsuYhPZHWEBL+Oz440zGj3Ya25qPqhgsNt2S99UojNqnusSClmGUdE7d
+         4oFSIXCEk2Hj7wBCJzzA4BZ2VxF9CChYVu4S/6NgwlJSfu0gIaaqR+x/H6tJfZHVjkld
+         nqyA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=e1W5PQo6;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id t6sor102503656plo.20.2019.08.06.03.47.18
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k8si30304397edd.67.2019.08.06.03.47.58
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Aug 2019 03:47:18 -0700 (PDT)
-Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Aug 2019 03:47:58 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=e1W5PQo6;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=joelfernandes.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=781gQFojuZXlLR9f0Rnz2BsSQ1xNulNQY/lDauCDdSA=;
-        b=e1W5PQo6UI3vE5fsYo9GNTQns85aj/gUpDhLx9+3D64tPpFl02X83oJkMy9XzTBNmf
-         x7k9LQX1mYX3Ou3y4IWdZK6NAO3h5S7a8ijztUPEK9VYoOKSdCKcExDxxqYFFPD7vS3L
-         s8MA9DjsMd/kXQN1m2atBXnvStSWMRuGddxJk=
-X-Google-Smtp-Source: APXvYqyckGHtBm2UKAu71b4v/ySxM/JXAjxm9Txb7Dg6O/cihgtEDSFSoalvYdEzzWgdgOHwA+AgNw==
-X-Received: by 2002:a17:902:654f:: with SMTP id d15mr2365106pln.253.1565088438061;
-        Tue, 06 Aug 2019 03:47:18 -0700 (PDT)
-Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
-        by smtp.gmail.com with ESMTPSA id a21sm95934459pfi.27.2019.08.06.03.47.16
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 06 Aug 2019 03:47:17 -0700 (PDT)
-Date: Tue, 6 Aug 2019 06:47:15 -0400
-From: Joel Fernandes <joel@joelfernandes.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 73D9CAFCC;
+	Tue,  6 Aug 2019 10:47:57 +0000 (UTC)
+Date: Tue, 6 Aug 2019 12:47:55 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: linux-kernel@vger.kernel.org, Robin Murphy <robin.murphy@arm.com>,
+	Alexey Dobriyan <adobriyan@gmail.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
 	Catalin Marinas <catalin.marinas@arm.com>,
@@ -109,20 +98,21 @@ Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
 	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
 	Mike Rapoport <rppt@linux.ibm.com>, minchan@kernel.org,
 	namhyung@google.com, paulmck@linux.ibm.com,
-	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
+	Roman Gushchin <guro@fb.com>,
 	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
 	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
 	Vladimir Davydov <vdavydov.dev@gmail.com>,
 	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
-Subject: Re: [PATCH v4 1/5] mm/page_idle: Add per-pid idle page tracking
- using virtual indexing
-Message-ID: <20190806104715.GC218260@google.com>
+Subject: Re: [PATCH v4 3/5] [RFC] arm64: Add support for idle bit in swap PTE
+Message-ID: <20190806104755.GR11812@dhcp22.suse.cz>
 References: <20190805170451.26009-1-joel@joelfernandes.org>
- <20190806085605.GL11812@dhcp22.suse.cz>
+ <20190805170451.26009-3-joel@joelfernandes.org>
+ <20190806084203.GJ11812@dhcp22.suse.cz>
+ <20190806103627.GA218260@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190806085605.GL11812@dhcp22.suse.cz>
+In-Reply-To: <20190806103627.GA218260@google.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -130,52 +120,35 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 06, 2019 at 10:56:05AM +0200, Michal Hocko wrote:
-> On Mon 05-08-19 13:04:47, Joel Fernandes (Google) wrote:
-> > The page_idle tracking feature currently requires looking up the pagemap
-> > for a process followed by interacting with /sys/kernel/mm/page_idle.
-> > Looking up PFN from pagemap in Android devices is not supported by
-> > unprivileged process and requires SYS_ADMIN and gives 0 for the PFN.
+On Tue 06-08-19 06:36:27, Joel Fernandes wrote:
+> On Tue, Aug 06, 2019 at 10:42:03AM +0200, Michal Hocko wrote:
+> > On Mon 05-08-19 13:04:49, Joel Fernandes (Google) wrote:
+> > > This bit will be used by idle page tracking code to correctly identify
+> > > if a page that was swapped out was idle before it got swapped out.
+> > > Without this PTE bit, we lose information about if a page is idle or not
+> > > since the page frame gets unmapped.
 > > 
-> > This patch adds support to directly interact with page_idle tracking at
-> > the PID level by introducing a /proc/<pid>/page_idle file.  It follows
-> > the exact same semantics as the global /sys/kernel/mm/page_idle, but now
-> > looking up PFN through pagemap is not needed since the interface uses
-> > virtual frame numbers, and at the same time also does not require
-> > SYS_ADMIN.
-> > 
-> > In Android, we are using this for the heap profiler (heapprofd) which
-> > profiles and pin points code paths which allocates and leaves memory
-> > idle for long periods of time. This method solves the security issue
-> > with userspace learning the PFN, and while at it is also shown to yield
-> > better results than the pagemap lookup, the theory being that the window
-> > where the address space can change is reduced by eliminating the
-> > intermediate pagemap look up stage. In virtual address indexing, the
-> > process's mmap_sem is held for the duration of the access.
+> > And why do we need that? Why cannot we simply assume all swapped out
+> > pages to be idle? They were certainly idle enough to be reclaimed,
+> > right? Or what does idle actualy mean here?
 > 
-> As already mentioned in one of the previous versions. The interface
-> seems sane and the usecase as well. So I do not really have high level
-> objections.
+> Yes, but other than swapping, in Android a page can be forced to be swapped
+> out as well using the new hints that Minchan is adding?
 
-That is great to know.
+Yes and that is effectivelly making them idle, no?
 
-> From a quick look at the patch I would just object to pulling swap idle
-> tracking into this patch because it makes the review harder and it is
-> essentially a dead code until a later patch. I am also not sure whether
-> that is really necessary and it really begs for an explicit
-> justification.
-
-Ok I will split it out, and also expand on the need for it a bit more.
-
+> Also, even if they were idle enough to be swapped, there is a chance that they
+> were marked as idle and *accessed* before the swapping. Due to swapping, the
+> "page was accessed since we last marked it as idle" information is lost. I am
+> able to verify this.
 > 
-> I will try to go through the patch more carefully later as time allows.
+> Idle in this context means the same thing as in page idle tracking terms, the
+> page was not accessed by userspace since we last marked it as idle (using
+> /proc/<pid>/page_idle).
 
-Thanks a lot.
+Please describe a usecase and why that information might be useful.
 
-> > Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
-> -- 
-> Michal Hocko
-> SUSE Labs
-
- - Joel
+-- 
+Michal Hocko
+SUSE Labs
 
