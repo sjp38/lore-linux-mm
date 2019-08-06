@@ -7,100 +7,100 @@ X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7DF0BC433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:44:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8C17C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:44:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3CE3420717
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:44:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 79AEF20C01
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:44:53 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="a+FlUpPM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3CE3420717
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="kGCc9AZ3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79AEF20C01
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C77356B0007; Tue,  6 Aug 2019 13:44:39 -0400 (EDT)
+	id 1C8726B0008; Tue,  6 Aug 2019 13:44:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C28396B0008; Tue,  6 Aug 2019 13:44:39 -0400 (EDT)
+	id 179DF6B000A; Tue,  6 Aug 2019 13:44:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AEFDF6B000A; Tue,  6 Aug 2019 13:44:39 -0400 (EDT)
+	id 068E76B000C; Tue,  6 Aug 2019 13:44:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 8DC116B0007
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 13:44:39 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id d11so76458271qkb.20
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 10:44:39 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id DAEF16B0008
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 13:44:52 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id c1so76327610qkl.7
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 10:44:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=2I3grgZ/J9vjahvSqFuu/xLlITG6j2k/vYLpAp6Amls=;
-        b=VkSY5CPgAK6lzINTxkOyxFwk1DsIRIVKMX717lUfioxvu2ToaPnxAuaT3l2oDq4Xs+
-         n8dpZWQ+YXBYPN6iw5LagG3qH1sqDGRGlfsUxFQcYI3IkM6tMi2+H8MTSx1C8u+H1bbo
-         k2QfP6AhEmaEnDmLdqujDzxViOsTTma++BpG0FPI6alIeqiovgw0Mp7s2i2/Lnjl5qD3
-         RsbrhoYxOGes9NvPSI9HG9MrSE30LTV5Ehbuo6hH3YQOqYt2E4R//8X3ED27XGd+/320
-         pRbHPB4m90z8T5tXrTXcPSDSnVocxVdXA2nhwZ+7Hb2Npw+lF8+sLI+9W0yrVMT/pQuH
-         Q3xA==
-X-Gm-Message-State: APjAAAXQ/1qTniU3MijcU9etL26D/8vcea1o1p03U2var5jEYoH3aoiw
-	oIfDbJ+rVfK44SB1b8zPC+/E0BCx/dI0lytcrFKlrKHOQ7eV94/d98JO/B1rWkUaCvZcTJ/xxzz
-	6gyVYU5Y1lOG6nbIq1lCfkvIPB3kC5KhPxRGjLJQ9PvfQVWMxU2XGkLSYnkVDxeTJmA==
-X-Received: by 2002:aed:3ea1:: with SMTP id n30mr4205487qtf.342.1565113479296;
-        Tue, 06 Aug 2019 10:44:39 -0700 (PDT)
-X-Received: by 2002:aed:3ea1:: with SMTP id n30mr4205447qtf.342.1565113478748;
-        Tue, 06 Aug 2019 10:44:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565113478; cv=none;
+        bh=bZtzSRQjhSrRQjuTGnm0cayQZPAGjzejTXG905wfdw0=;
+        b=jOD81PBnRER+UYp4LhZCzp5RE8I6RF+oyGq/QiAv0kVzJ2ghVq1p9+lizwSXqcLyt/
+         dym41irwHAmbSIkaSquIru2Z9MAbYhFEL2i+6nEWLUFVpA93wRsEOvWjw8Fb0VCRdo5o
+         JqpFelUTn4xvda5dVHEluAgoi1vc0QNNLAPwJxJ9TjdFw4iKgyuwVuvTVSQpHmbfwbcs
+         Wiuxb1UFSy9ypLI1mIh4qVBFWyRSvpt0SfZF41a9v0zERCjDn0jLGBlta9jZP69LaXjR
+         ZwbWuPghEtAOqJGTa28mkHLEbFJ+qYfC11Dpaskljf7dPmD5VyqeFJ12XhiIP6FhBxAp
+         ZAbg==
+X-Gm-Message-State: APjAAAV+DRbH/jiaOJEjsxi/mRfDZsnIHJxyJEfuJgWQW196Wz3wVJZ0
+	GN8QPlFLAzIsLHfk6WU2bC1vwxrR7+eAS+sUjH3y1DYsdk/OX17cV0liE3vVF4VGBsJsDRqGd8O
+	RjbcDabHmkDLqGXkUlcf4l/aeoB86f83qnbTCBysEvpvSsB2wCAKMjDE02ShXL3Gzlg==
+X-Received: by 2002:a37:7847:: with SMTP id t68mr4284635qkc.128.1565113492682;
+        Tue, 06 Aug 2019 10:44:52 -0700 (PDT)
+X-Received: by 2002:a37:7847:: with SMTP id t68mr4284607qkc.128.1565113492254;
+        Tue, 06 Aug 2019 10:44:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565113492; cv=none;
         d=google.com; s=arc-20160816;
-        b=roo1Z6s5YFFYLFKDOVX/BA2qDNpktIr22Z1hL52BFbm+j4bR5QL7BZTIK86OXmk2cN
-         m1E0wM1PooISlqbClsvhH9b6K1PSaobL5IHFXZAMFu7RH9DUHyy5hYAR0hdt5OVFCXeY
-         Z7264R0/xfTmzHMkzUDZL1mmXOor2g6w5hHhxB3UdFVqJo35M1Lqhe6SUh4fmjmqx5lz
-         xBG26hG5+2eFuqiqOh2fw+G1EocVfeYCJGSgLRCC7nfTrumzRs3Nj4flmOQtQNT6J+YP
-         JIemLH2rV25aR0djvTJKovpSZOnNmCjFPEvNO/FXZFBEHA4KVfxram/fCn3kg/oeai+8
-         VHag==
+        b=s10r3rxkq7D0IGHaiXwI4yvBU9SP3Consc/dkeMnr8qXS4KLf05b7AlM9qJLdREcX7
+         KWDumkjAlBPgoglnDlZChX61/RajQ316gu0Enr/3z9cyWWGYajS2Ezi9qp6pasebSkQ8
+         oLgo8JF7lxo4WGgYnDalFV4z08pxO2jmbpSRi2cIVdLI+ZM5f+UyjTLCO4fmXpaOR8E0
+         81nI+6R1vZry99ga0wVwE8jUUDXAhXjgEjeYjM/m2xNo0t+if/Lle0UlrBQUTtaiH7gM
+         Z1f3ahuKzmSNAnHFTb4wcFK+cqavX7FfR5TIi6cfDaNxn1FpVUeXIOsXHqcuJ8tC6oJe
+         /qrA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=2I3grgZ/J9vjahvSqFuu/xLlITG6j2k/vYLpAp6Amls=;
-        b=pzq7eBbrmbi9CsELn+cYIqKBCLP+PfTheLteyr7DdidtBTMQCDjFuQyZ6IcHuM54cr
-         iCh+z4xXjNx4/p9xmO9w5P8qRENj8W4b5WVvvOuiszHc6YfZBSSERqV84SAk78fHbrok
-         fFtgboOXz0Gt2mQ7YZNXAShb+zAWooLu+Obul0e1cm/HLe1Epf7rPbhLr8W7lB8uqYdW
-         mfDvkcqYnykW3EPcUq3RdCZer9SjmWLQShU+dJGsfxuCIvcgUhUaUHgr6vLzC/PYXfhY
-         e0L924mLX4vJMda0EIMiEkduie/3jLAoJHcdgeilspmwtsARj7AwysOuIFzO3siYXMrx
-         FReg==
+        bh=bZtzSRQjhSrRQjuTGnm0cayQZPAGjzejTXG905wfdw0=;
+        b=dqoNMj7thwBB8CyIO8/x/nbUlzM3Q3LD2IldXlXW5Bke0h22w9ZysZUCmsIrpgKEOR
+         OnsyTghqZcy7Giwgej7K92S8rrtEo+jtNHe0n3aSHvYdi9x+qHE6ojdK+uZ6UnniUYx7
+         VvAB0hrtF1Pmx0rUXSE2lLUB8h2AmBuROcHJiROUY5HegIOi7TQNI+wQXTl5fHJMxgcs
+         oaX1mtD4rDvo7L8kGMWSbtji6ra1X5mOGmYxzk9uf8pk6cBOK+swEARERuL4zPT8Acf8
+         QkeHB2N6ZK629QKsm1ktC9iIC1bcJemgzxir6Hu6FGDsryjDMglOmRbAZ21GGH59zXYA
+         CuJQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=a+FlUpPM;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=kGCc9AZ3;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z68sor50537604qkb.143.2019.08.06.10.44.38
+        by mx.google.com with SMTPS id 8sor113539006qtz.21.2019.08.06.10.44.52
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 06 Aug 2019 10:44:38 -0700 (PDT)
+        Tue, 06 Aug 2019 10:44:52 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=a+FlUpPM;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=kGCc9AZ3;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=ziepe.ca; s=google;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=2I3grgZ/J9vjahvSqFuu/xLlITG6j2k/vYLpAp6Amls=;
-        b=a+FlUpPMj54ngc2/wzpnUtdmboVj9jOXSHKH/KtrlsaDDTF+4/b1FPDz2QFwEeg1rz
-         toYHqJ4grC/Zrmy66au/tF6Xp/GKKcRCxOW4nEVINsOTZE+UABenhA41pYRrtsHlIMvp
-         Nn3XoKBGu7pNa90wuuXeU6vI4KIN35sIQDY2+B49rW0uXGXipKd2iMbP0zvgC1X9Q5AA
-         ElTW3gUtiOMCLtIVvCF4ky6LpJZ0pbBAQDWXAaM8GADHJRXL3Q/ScIQSuBrcNYhW/MZ4
-         lFfb7gJrmnotB3O3ZucXNGj9Aoegb9k7du/Rw1dzmNZgaivujgybGTKauFX4u4s2pKkF
-         9f0w==
-X-Google-Smtp-Source: APXvYqymlpp4BycD0qGnpnv+d7FFVmLpdZkWfIi+lh2JiL6V9IwlA24sYISFadK7zx21lftJy/jhgQ==
-X-Received: by 2002:a37:4a8a:: with SMTP id x132mr4450025qka.42.1565113478452;
-        Tue, 06 Aug 2019 10:44:38 -0700 (PDT)
+        bh=bZtzSRQjhSrRQjuTGnm0cayQZPAGjzejTXG905wfdw0=;
+        b=kGCc9AZ3EnQ1hENpi10zxnp8FPxEY+gZ4u/zkReV8Gk0g4EsnIsOyP2vX5idcMBB+N
+         VqjEaaMot6kbdFxVmOlEm3tUIYXwEQT/y/7s11UZ+8vUXizamKWn9OUzoZVObkKRPWF5
+         PC2DJb3kBYP003JMyG9RuoIAMt1yp2NAIcUhv0kLoc/5yOiIHRVEpLR3JQfH/W8OKUNe
+         XjpQ60F11rN9ibmfNaecBWtkVeRv7sFxnhwEglCFAfG9t9UMxDtUa5fCeFlLC9UqkNOe
+         29/8m0lfjCMFnxcTMwNskT+B5FKI1Hwf/xwSEWFHQlKgvBiwTtYdYbvXxZ38LEH2twL7
+         VMaQ==
+X-Google-Smtp-Source: APXvYqyZhLDncBVUJEIu2HEUQvEmb0gPiZCNGeOuB4xFtTfpcIsHYizrdBS0HYUKqNFQSDBwyqBK0g==
+X-Received: by 2002:ac8:43d8:: with SMTP id w24mr4245586qtn.25.1565113492016;
+        Tue, 06 Aug 2019 10:44:52 -0700 (PDT)
 Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id 2sm45957746qtz.73.2019.08.06.10.44.37
+        by smtp.gmail.com with ESMTPSA id i22sm46601023qti.30.2019.08.06.10.44.51
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 06 Aug 2019 10:44:37 -0700 (PDT)
+        Tue, 06 Aug 2019 10:44:51 -0700 (PDT)
 Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
 	(envelope-from <jgg@ziepe.ca>)
-	id 1hv3Vl-0008VN-Do; Tue, 06 Aug 2019 14:44:37 -0300
-Date: Tue, 6 Aug 2019 14:44:37 -0300
+	id 1hv3Vz-0008Vn-5w; Tue, 06 Aug 2019 14:44:51 -0300
+Date: Tue, 6 Aug 2019 14:44:51 -0300
 From: Jason Gunthorpe <jgg@ziepe.ca>
 To: Christoph Hellwig <hch@lst.de>
 Cc: =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
@@ -109,14 +109,14 @@ Cc: =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
 	Ralph Campbell <rcampbell@nvidia.com>, linux-mm@kvack.org,
 	nouveau@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
 	amd-gfx@lists.freedesktop.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 15/15] amdgpu: remove CONFIG_DRM_AMDGPU_USERPTR
-Message-ID: <20190806174437.GK11627@ziepe.ca>
+Subject: Re: [PATCH 14/15] mm: make HMM_MIRROR an implicit option
+Message-ID: <20190806174451.GL11627@ziepe.ca>
 References: <20190806160554.14046-1-hch@lst.de>
- <20190806160554.14046-16-hch@lst.de>
+ <20190806160554.14046-15-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190806160554.14046-16-hch@lst.de>
+In-Reply-To: <20190806160554.14046-15-hch@lst.de>
 User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -124,21 +124,17 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 06, 2019 at 07:05:53PM +0300, Christoph Hellwig wrote:
-> The option is just used to select HMM mirror support and has a very
-> confusing help text.  Just pull in the HMM mirror code by default
-> instead.
+On Tue, Aug 06, 2019 at 07:05:52PM +0300, Christoph Hellwig wrote:
+> Make HMM_MIRROR an option that is selected by drivers wanting to use it
+> instead of a user visible option as it is just a low-level
+> implementation detail.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
 > ---
->  drivers/gpu/drm/Kconfig                 |  2 ++
->  drivers/gpu/drm/amd/amdgpu/Kconfig      | 10 ----------
->  drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c |  6 ------
->  drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.h | 12 ------------
->  4 files changed, 2 insertions(+), 28 deletions(-)
-
-Felix, was this an effort to avoid the arch restriction on hmm or
-something? Also can't see why this was like this.
+>  drivers/gpu/drm/amd/amdgpu/Kconfig |  4 +++-
+>  drivers/gpu/drm/nouveau/Kconfig    |  4 +++-
+>  mm/Kconfig                         | 14 ++++++--------
+>  3 files changed, 12 insertions(+), 10 deletions(-)
 
 Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
 
