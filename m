@@ -2,202 +2,188 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7F760C433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:36:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3FC32C31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:36:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3FBD5206A2
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:36:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FBD5206A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id ED4662075B
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:36:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED4662075B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C648F6B0003; Tue,  6 Aug 2019 04:36:09 -0400 (EDT)
+	id 957966B0269; Tue,  6 Aug 2019 04:36:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C15CD6B0006; Tue,  6 Aug 2019 04:36:09 -0400 (EDT)
+	id 907526B026A; Tue,  6 Aug 2019 04:36:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B042F6B0269; Tue,  6 Aug 2019 04:36:09 -0400 (EDT)
+	id 7D0D56B026B; Tue,  6 Aug 2019 04:36:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D84B6B0003
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:36:09 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id i9so53323101edr.13
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:36:09 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 2F7D86B0269
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:36:48 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id f19so53354630edv.16
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:36:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=usHodNDDdHnrrq29Ie86wdnv1GycZfA8HH8x6PHNn/I=;
-        b=Dymw8c92XLRmAVh8t960vLRwhodeS6YtXYgv9uIcbEGbIcl1XPZOMFqKRWQPe0NY0E
-         hhHk2xDlpKzMTQl6zjGpL0oW1K0yJFajXvrME0/7Dv3PrYKZ2YYzEmuQ49gkinMAWUHh
-         POnNBwi0dVqh8cKymGzV9ikNbgtsVRWCF3gI+1t3AtyHN/ZZFr/6iOFfFqWQRQZy1c8G
-         B7y7g7t27+ENpK0+8evUPVJTWMeKNMUIuefeS+Qnhdv+w7PpnarGKqNDAvb+hvyJxlCe
-         pIRDmeufsj3QO3bMjEgeYDhOuZP7NQ3NR468eXdxZIbSN/ok8Xl2gxCrpYEB1M9/6ekQ
-         lO1g==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWhbIjBuca7YHjA5NyCSqBfrgN1UiNmHcAhlJw5Yi/GW25Us97d
-	DOxO2BF7t7TjBT8CH0BfgTUmYPu45K/DruYvpBD+ORTKRt5bZAUvE5i+fG52SIs5sLhkVf4Yb7Z
-	NjN9OriKBxjfN82a4qLVO+YTzDKzfDlCTmdPgn7x3OIfTeMBiakxOwjB4P/65blk=
-X-Received: by 2002:a17:906:1916:: with SMTP id a22mr1938878eje.271.1565080568926;
-        Tue, 06 Aug 2019 01:36:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzcbDuLYAVtcw3YnV0iWKbhvZLl/Usl2TIb9lL7sR/X1SGWP7mI589gJ7DXVIQAFoPyB9M9
-X-Received: by 2002:a17:906:1916:: with SMTP id a22mr1938826eje.271.1565080568105;
-        Tue, 06 Aug 2019 01:36:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565080568; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=b+V8DQAbpNdgLAyXYiZw06kEN5mFkKHhR0gv7dh4JGI=;
+        b=bqa7+vCozU7VGuUQxXKaAlQz4A+mqH/FWcCz3Im1z/HjwqYo25iIDJnRooh8pvK7Ag
+         EJx+v7HojRKDuIoSJylJoL2Yr2Wci2qlDeHqjKKC5A4D11wTI1BgTjXfm2E72k2NnE+V
+         3rDOWc/zElPj6EJIxQ5KakWPlBK/7uyMPHtyfXcfuhOI9Xxe6A0751HRh9psYPqWLUum
+         TzcgMRuKMF6XiMQORh3sTWY8iVpSue3arA6xi+2uM5Z2TQq/XXKFT86bQeIMKCibjs/e
+         4FrOpwMuLHrM8CwzlkkS1deoNTjnujfFAWdq4qkPalBYqUDjcD9H5vpPzERDAHGXP3IH
+         LB0Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAU/4xMRO8Wy99/RDpmt0cHvwGV3+ZZHLpm+3d3mEiyVQXi95EYZ
+	y5HQxugpzyJLp1MTHvdGRFt4rDUTRhSYVuEUx1pqKMpxkExdejj6uTd0T1QnuUwJyqPFtKXfBZT
+	VOiFiILiqtUrQziz9gRuN7mNWUrPvplml6YYCD2nTpiBhrAPeChE9UQzxy6pUwO1c0Q==
+X-Received: by 2002:a17:906:802:: with SMTP id e2mr1978366ejd.59.1565080607756;
+        Tue, 06 Aug 2019 01:36:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxkL5hPAJrLmKyPStU2/fy6i9+4VUAV1YrJboKW6SkWvRSeBHXsqkER7Shg+gkUBTO9LEwN
+X-Received: by 2002:a17:906:802:: with SMTP id e2mr1978324ejd.59.1565080607025;
+        Tue, 06 Aug 2019 01:36:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565080607; cv=none;
         d=google.com; s=arc-20160816;
-        b=gDsN22uSJiNRu7HoPpyGIoLwqUCFAaETm+WPChv6Qa61/GvH5gr5vEnclpqhDbdpqd
-         FOK/6eVtFiqHRN/rDsxlff9uLQBYnJeVeitWBR9wTuASOcY+pX9Iaa0+kdeP3oDgPQck
-         tFD35lInHhFB2AFOpZByKu4ulAFnBBfUxn/I9cU35RNGBZT7OzYNwkRPQe/qObc/K8z2
-         S8zC9544/bOTb/R0DAR5pnZwsnRHJOlQkZsVCEx5BdB/Yi8fn0loIeTWnZyYM1GCcImj
-         EMmoFkj0Lh02LlXDCWH4sX3Jz6wVp8H76kj+dA71XaTEXING8N7xb/B574mi/nAQ4qjV
-         sy2g==
+        b=TNoLNvNIpyXXGBQAz/NzezYPgJwBPpfmPuLpUO1weqa4e28/pbxKeJ6T/hj9ORb1vZ
+         V/T/jF/yqdQJZIM5r0IKiysclfEq6tTmXrcuvohfWbznBrGrxbmsy1r/wD+oBXooK2VY
+         Tje6DUzLh19cqvb4YzXdY6vDlyFv3P8Ouqe4doXUVcENW+32/1eg5KU9KILcV16vrWcP
+         e/hTgDFWAkJ+RTv6sn6CWyHm5gx09pugfNIdoyMxixT9ZJwt37T4b9dM8oiw8X/8ERb7
+         7Ou0ShxGvRagJeRYXcEDrz57Le4FTySRngnzA7MwMx90F3zKL2PNT7qKoInBmVu83/B+
+         scPw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=usHodNDDdHnrrq29Ie86wdnv1GycZfA8HH8x6PHNn/I=;
-        b=P4Gh2sYk0GkWCzyjHK1QL9Fkcx6szuQV/uOstCF5g17JwalefigjWzw3LRfRlKixTu
-         7zjzRO4Sd/OJHj5MHqWxJ4LTCOS79BIjiYudwbRVYvi66kjt92yC6IbneKv5DAxasyUe
-         rrt09e4GGaD1qjCF27kFztTUcrFGnX2Jjig9l96/qMj7i8F6ct197HWppQksJMi7tpgf
-         4LPxGzYU8Ry0snKmBbXqg3JRr6vdVQbbeiBLQtSWWjzT49gI/hETaE3x9W9zwPuxsNu5
-         nRnJaFXfiQE0bov1JXosNDpF+MOKwJ95mo4KwLjuaGnTRa12Xnw9PFWIoZckpH0om9ZC
-         t+sQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=b+V8DQAbpNdgLAyXYiZw06kEN5mFkKHhR0gv7dh4JGI=;
+        b=c8bobn/J/LEMiBFL3Ud9Q0VFp6LSDR9ouDlY/HCSdtakuQcXu784Vvrsp3bZOE9sJ6
+         48LfsL+BsD8jjrQkACBavecG9ilkq+Li+bmfC6fWnCf8s6cMEq3kUEmLqD24WUNrENPO
+         cXZMfkcWJoljsxFo8h27wh58DNcfqWqvT9qdVMUDxloLnTqGCcX0+N9mmBYaxORphCyl
+         fgOHb2o6+hbQApdwL4PauxzxN6UDcJnwyOlWsdX6z+4t5uTEBb9q4i8n74fRMYdEIv2i
+         kxChitXyHrV9ifXD9lKEm3OYamKW93Vr1zQLLwwmaMW53DfNZYg08hS7SPfJiOaNZq1a
+         R9cQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id c45si31426833eda.303.2019.08.06.01.36.07
+        by mx.google.com with ESMTPS id e24si28355174ejc.241.2019.08.06.01.36.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 01:36:08 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Tue, 06 Aug 2019 01:36:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 3ACB5ABC7;
-	Tue,  6 Aug 2019 08:36:07 +0000 (UTC)
-Date: Tue, 6 Aug 2019 10:36:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@intel.com,
-	Ingo Molnar <mingo@kernel.org>, Vlastimil Babka <vbabka@suse.cz>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: Re: [PATCH V2] fork: Improve error message for corrupted page tables
-Message-ID: <20190806083605.GA19060@dhcp22.suse.cz>
-References: <3ef8a340deb1c87b725d44edb163073e2b6eca5a.1565059496.git.sai.praneeth.prakhya@intel.com>
+	by mx1.suse.de (Postfix) with ESMTP id A0BBEAF90;
+	Tue,  6 Aug 2019 08:36:46 +0000 (UTC)
+Subject: Re: [PATCH] mm/mempolicy.c: Remove unnecessary nodemask check in
+ kernel_migrate_pages()
+To: Kefeng Wang <wangkefeng.wang@huawei.com>,
+ Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org
+Cc: Andrea Arcangeli <aarcange@redhat.com>,
+ Dan Williams <dan.j.williams@intel.com>, Michal Hocko <mhocko@suse.com>,
+ Oscar Salvador <osalvador@suse.de>, linux-mm@kvack.org,
+ Linux API <linux-api@vger.kernel.org>,
+ "linux-man@vger.kernel.org" <linux-man@vger.kernel.org>
+References: <20190806023634.55356-1-wangkefeng.wang@huawei.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <80f8da83-f425-1aab-f47e-8da41ec6dcbf@suse.cz>
+Date: Tue, 6 Aug 2019 10:36:40 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <3ef8a340deb1c87b725d44edb163073e2b6eca5a.1565059496.git.sai.praneeth.prakhya@intel.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190806023634.55356-1-wangkefeng.wang@huawei.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 05-08-19 20:05:27, Sai Praneeth Prakhya wrote:
-> When a user process exits, the kernel cleans up the mm_struct of the user
-> process and during cleanup, check_mm() checks the page tables of the user
-> process for corruption (E.g: unexpected page flags set/cleared). For
-> corrupted page tables, the error message printed by check_mm() isn't very
-> clear as it prints the loop index instead of page table type (E.g: Resident
-> file mapping pages vs Resident shared memory pages). The loop index in
-> check_mm() is used to index rss_stat[] which represents individual memory
-> type stats. Hence, instead of printing index, print memory type, thereby
-> improving error message.
+On 8/6/19 4:36 AM, Kefeng Wang wrote:
+> 1) task_nodes = cpuset_mems_allowed(current);
+>    -> cpuset_mems_allowed() guaranteed to return some non-empty
+>       subset of node_states[N_MEMORY].
+
+Right, there's an explicit guarantee.
+
+> 2) nodes_and(*new, *new, task_nodes);
+>    -> after nodes_and(), the 'new' should be empty or appropriate
+>       nodemask(online node and with memory).
 > 
-> Without patch:
-> --------------
-> [  204.836425] mm/pgtable-generic.c:29: bad p4d 0000000089eb4e92(800000025f941467)
-> [  204.836544] BUG: Bad rss-counter state mm:00000000f75895ea idx:0 val:2
-> [  204.836615] BUG: Bad rss-counter state mm:00000000f75895ea idx:1 val:5
-> [  204.836685] BUG: non-zero pgtables_bytes on freeing mm: 20480
-> 
-> With patch:
-> -----------
-> [   69.815453] mm/pgtable-generic.c:29: bad p4d 0000000084653642(800000025ca37467)
-> [   69.815872] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_FILEPAGES val:2
-> [   69.815962] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_ANONPAGES val:5
-> [   69.816050] BUG: non-zero pgtables_bytes on freeing mm: 20480
+> After 1) and 2), we could remove unnecessary check whether the 'new'
+> AND node_states[N_MEMORY] is empty.
 
-I like this. On any occasion I am investigating an issue with an rss
-inbalance I have to go back to kernel sources to see which pte type that
-is.
+Yeah looks like the check is there due to evolution of the code, where initially
+it was added to prevent calling the syscall with bogus nodes, but now that's
+achieved by cpuset_mems_allowed().
 
-> Also, change print function (from printk(KERN_ALERT, ..) to pr_alert()) so
-> that it matches the other print statement.
-
-good change as well. Maybe we should also lower the loglevel (in a
-separate patch) as well. While this is not nice because we are
-apparently leaking memory behind it shouldn't be really critical enough
-to jump on normal consoles.
-
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Andrea Arcangeli <aarcange@redhat.com>
 > Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Anshuman Khandual <anshuman.khandual@arm.com>
-> Acked-by: Dave Hansen <dave.hansen@intel.com>
-> Suggested-by: Dave Hansen <dave.hansen@intel.com>
-> Signed-off-by: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
+> Cc: Dan Williams <dan.j.williams@intel.com>
+> Cc: Michal Hocko <mhocko@suse.com>
+> Cc: Oscar Salvador <osalvador@suse.de>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: linux-mm@kvack.org
+> Signed-off-by: Kefeng Wang <wangkefeng.wang@huawei.com>
 
-Acked-by: Michal Hocko <mhocko@suse.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
 > ---
 > 
-> Changes from V1 to V2:
-> ----------------------
-> 1. Move struct definition from header file to fork.c file, so that it won't be
->    included in every compilation unit. As this struct is used *only* in fork.c,
->    include the definition in fork.c itself.
-> 2. Index the struct to match respective macros.
-> 3. Mention about print function change in commit message.
+> [QUESTION]
 > 
->  kernel/fork.c | 11 +++++++++--
->  1 file changed, 9 insertions(+), 2 deletions(-)
+> SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
+>                 const unsigned long __user *, old_nodes,
+>                 const unsigned long __user *, new_nodes)
+> {
+>         return kernel_migrate_pages(pid, maxnode, old_nodes, new_nodes);
+> }
 > 
-> diff --git a/kernel/fork.c b/kernel/fork.c
-> index d8ae0f1b4148..f34f441c50c0 100644
-> --- a/kernel/fork.c
-> +++ b/kernel/fork.c
-> @@ -125,6 +125,13 @@ int nr_threads;			/* The idle threads do not count.. */
->  
->  static int max_threads;		/* tunable limit on nr_threads */
->  
-> +static const char * const resident_page_types[NR_MM_COUNTERS] = {
-> +	[MM_FILEPAGES]		= "MM_FILEPAGES",
-> +	[MM_ANONPAGES]		= "MM_ANONPAGES",
-> +	[MM_SWAPENTS]		= "MM_SWAPENTS",
-> +	[MM_SHMEMPAGES]		= "MM_SHMEMPAGES",
-> +};
-> +
->  DEFINE_PER_CPU(unsigned long, process_counts) = 0;
->  
->  __cacheline_aligned DEFINE_RWLOCK(tasklist_lock);  /* outer */
-> @@ -649,8 +656,8 @@ static void check_mm(struct mm_struct *mm)
->  		long x = atomic_long_read(&mm->rss_stat.count[i]);
->  
->  		if (unlikely(x))
-> -			printk(KERN_ALERT "BUG: Bad rss-counter state "
-> -					  "mm:%p idx:%d val:%ld\n", mm, i, x);
-> +			pr_alert("BUG: Bad rss-counter state mm:%p type:%s val:%ld\n",
-> +				 mm, resident_page_types[i], x);
->  	}
->  
->  	if (mm_pgtables_bytes(mm))
-> -- 
-> 2.7.4
+> The migrate_pages() takes pid argument, witch is the ID of the process
+> whose pages are to be moved. should the cpuset_mems_allowed(current) be
+> cpuset_mems_allowed(task)?
 
--- 
-Michal Hocko
-SUSE Labs
+The check for cpuset_mems_allowed(task) is just above the code you change, so
+the new nodes have to be subset of the target task's cpuset.
+But they also have to be allowed by the calling task's cpuset. In manpage of
+migrate_pages(2), this is hinted by the NOTES "Use get_mempolicy(2) with the
+MPOL_F_MEMS_ALLOWED flag to obtain the set of nodes that are allowed by the
+calling process's cpuset..."
+
+But perhaps the manpage should be better clarified:
+
+- the EINVAL case includes "Or, none of the node IDs specified by new_nodes are
+on-line and allowed by the process's current cpuset context, or none of the
+specified nodes contain memory." - this should probably say "calling process" to
+disambiguate
+- the EPERM case should mention that new_nodes have to be subset of the target
+process' cpuset context. The caller should also have CAP_SYS_NICE and
+ptrace_may_access()
+
+>  mm/mempolicy.c | 4 ----
+>  1 file changed, 4 deletions(-)
+> 
+> diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+> index f48693f75b37..fceb44066184 100644
+> --- a/mm/mempolicy.c
+> +++ b/mm/mempolicy.c
+> @@ -1467,10 +1467,6 @@ static int kernel_migrate_pages(pid_t pid, unsigned long maxnode,
+>  	if (nodes_empty(*new))
+>  		goto out_put;
+>  
+> -	nodes_and(*new, *new, node_states[N_MEMORY]);
+> -	if (nodes_empty(*new))
+> -		goto out_put;
+> -
+>  	err = security_task_movememory(task);
+>  	if (err)
+>  		goto out_put;
+> 
 
