@@ -2,359 +2,186 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=FROM_EXCESS_BASE64,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F0347C433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 01:09:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 833A2C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 01:33:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 965ED208C3
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 01:09:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="jTdOuUxe"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 965ED208C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id 4077B2147A
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 01:33:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4077B2147A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 305EF6B0007; Mon,  5 Aug 2019 21:09:05 -0400 (EDT)
+	id CB8416B0005; Mon,  5 Aug 2019 21:33:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2B6016B0008; Mon,  5 Aug 2019 21:09:05 -0400 (EDT)
+	id C414E6B0008; Mon,  5 Aug 2019 21:33:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 157D86B000A; Mon,  5 Aug 2019 21:09:05 -0400 (EDT)
+	id B08C66B000A; Mon,  5 Aug 2019 21:33:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id B54E36B0007
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 21:09:04 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id b6so41522944wrp.21
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 18:09:04 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 751DF6B0005
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 21:33:44 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id 145so54713643pfw.16
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 18:33:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=iVqZVjXC+NUGVfC+h8fgNnfytH+DNTshiUOlL2pd8nw=;
-        b=AkM1xmMOObWEwt4X8eWxGpHX8EsHAyhP7fp2tLdWJOnyamUoDk3jDoE4aohZPeg9dy
-         EB7ahvqNltxPTf6ptVR/ln7EfoGPKeCRU56RP9DmIL6jqzELb4OUydFXQiL4n51IIM9m
-         gXvGWDUPP7fe/btyubLUQdVgCFRs/itJC3t116397h/mv0bAbY8Fdj2hBZgJMR91Y9Ix
-         RUoLFXPAdQe3lQVZ8TPtmtVsvAoOuq8JmJJ0DsG1Xrrm+CO2Znn9PQaT9f63wI/7bVRG
-         dx3/5fkCeRcZwPdM0Jfe8QIyBAU2FOvzEHrpAfqUuzrWmaYeERXDLTIStyemVaP6njup
-         NNqQ==
-X-Gm-Message-State: APjAAAWQBq3V3T1Ndv+uS9/FcqEORE/aHANGhfwNulMXKvMbujcHzDWq
-	o6MUbM1o4ivrN3vh3jgDk4gkJZkuSAsMO/lmnagU41xBFjnRPGhYELkrF2kuJgp1STcdbVntYx1
-	PLAN4GunPj4BPFtJ2YlwpJ4IlDkKVLE0sJmUH5T0AxhgerMo3KeP0X3bPuFuBH/8Vzg==
-X-Received: by 2002:a05:6000:11c6:: with SMTP id i6mr631501wrx.193.1565053743995;
-        Mon, 05 Aug 2019 18:09:03 -0700 (PDT)
-X-Received: by 2002:a05:6000:11c6:: with SMTP id i6mr631413wrx.193.1565053742576;
-        Mon, 05 Aug 2019 18:09:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565053742; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:references:message-id:date:user-agent:mime-version
+         :in-reply-to:content-language:content-transfer-encoding;
+        bh=Jgunc0VzKPPT337tIgA99pIQxve5Qfra/3N36KHQ8iw=;
+        b=qV0ZaUNF5jv2Nl89RsfW2EMsbEhqSrFQCHR4YmWrGs509aYQCnHfyJZsUo21eElX6k
+         mzBWrBl12IE5UzrLRW+I1qIHzIpKT/93FDm1mCHuArXbElP9uM54QH43k952WKGjAaa/
+         HjlWFL5o6P+DbMccEn7ez8j+jUnNgLOXjmq1PGLtZXb255pe5QcNjB3VbafsYF3tfWi7
+         IRKrbQBsIX/8WRNWSe4XgH3v3ICxY9xDhYrWfvexuW2AO06Wh7utzsyxYyVmFje2+N5i
+         n5f2pqGzieb9Ym7zLXhTeJoDTRxkMRsO3PslgM4oQQy6Rd/N0xUnQWmxF8cxjon65szb
+         hT/Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWyA6c7r8raXK9BfsPTBRGzmB6ihnubF2TL+JM+tGY2/zttSsNc
+	MOVQthuBcrBidNZUxBwMT2egnWfERuqMEqhQG3UaN2NJrByT6TMyV7CHbZXR6EXUiv0c29uOXnT
+	SqdA9sESCg0KojnRUE89zA4++RmqlZPLK6HRB2kFQ7roPDg4k+NooMLXzmk2puiCUMw==
+X-Received: by 2002:a17:902:3081:: with SMTP id v1mr606802plb.169.1565055224128;
+        Mon, 05 Aug 2019 18:33:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwxXXKGC/jZYG8HcrW4jwWZIz7IFSwVQU3N7afDYyEVCn6RMN/SPkXp2Vk2I/iH/Sk6Xnxh
+X-Received: by 2002:a17:902:3081:: with SMTP id v1mr606752plb.169.1565055223100;
+        Mon, 05 Aug 2019 18:33:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565055223; cv=none;
         d=google.com; s=arc-20160816;
-        b=zyX/2PGhYNUAS9b8wgPvHEH24V/OjwMrT04CND0UlVIbIKyJqzFU6pF+I17HnSsxWR
-         N+y0SYSEVvNwd8ckiLqA9slVnhIrAjDho2BwTMN4Mt2ypp3xWxsUHEYXEaKiCWgvfEwA
-         oFsTSi999s3jxCu0Au7tpwtWaTQy6SW+MeEIyvMU5AIu8gqtAPH4tmeS/phOeUkxIbWo
-         Qzt1qOLQnKQ/6gJ8GYQmP7yvc15+qMFMfcQPI1Wkv3+0z6kMgP0Gh/2UkZwsdXKRrEwf
-         +Zc0WYyb2k4o88ZWmBd3WsGi/epp/1ZSYVDbOv7YQno2CZI0+SyvsMNLf4ekgN8wnfHy
-         SHwA==
+        b=tR4ttxa7xUj8DdAzLIEPGVRbKoB+dphyDTUPeBCnNIj3oZTyEwF62xCPbr6B5Ugq95
+         esnGqK/AxAO1Y1ajznD3CyOgEQegkHlq/g5DoO4YHSP/C/GP2yVEV+sFOXjCl7Mmeq5r
+         NNEionI1eBoTwp/ehiFvRULQ2RqSp76hDMlb8W6fo3dSlCLAslK+46QVXh6EcTc6npxB
+         ArmWd+19euNu5mB27o1ERHkMdVdX6g6nxx9ibGcTctGhWPiTlBWXtNU3giiFqUStIhHS
+         Q89gNJT0svK3rvgz2G+1jw4pkBH7YwkiqBKPoLew/9vw1VAMzXMrdWnAu/U+lYMCDUAW
+         sezA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=iVqZVjXC+NUGVfC+h8fgNnfytH+DNTshiUOlL2pd8nw=;
-        b=SKHMDhvUrJlcfWRrwsqeFQliy7vIgWnKU8UNAz8G0ycGiOsF51Cd+1AVRjtERCzmqT
-         slPAfKDVNv38vEJK0h0yPRhOLwF0UZpMb5c/XjS0UYBwTca0w/rjKQxU2ebpLbtknt4h
-         NxUA6v2UViBl+UBGIxVlr5UhaBrt79/xVPqYMdGctx0EMWpeO5IhRPtn7EiK/jEbRbkM
-         w3kgPtiuec47p2NvAlLXX0mw35wDxnKbpHnZixDCL0FV1Lf0ZjrlwnuqkKANCvjeujjw
-         t8rOgjb8hc6NLWf+pQbMgCCofekyvksNCZzuiMAy7RD7OhnfCWaJ5xphHQdQtz5f2DAM
-         L0cg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:references:cc:to:from:subject;
+        bh=Jgunc0VzKPPT337tIgA99pIQxve5Qfra/3N36KHQ8iw=;
+        b=q+93Ob4VLKCEFxZXkjCGNAi/awhsl85pV+6wpggUi9oJHjf4hgKYXrTkX8J83lvni1
+         g3XjFIK4kvnoKAjDs3/s1h8Xrz4nHsGEFYzXUoHQHJT1j8zQze7ttbU6TEF7vh+jxV2e
+         0EBwPFuTmy9PmTVqBJs48+rqJghwr1ACIVpbteBtaiVh4bnOApcvSf/Vh04csHuIgR3/
+         8/L3HUJWQPrkIqHJbqm82RT+jHwBUTEXvstOpQO23s7ZESekhxBGYyje/HZ7CbFATxna
+         OtpIi6Fv2EkjmCPamF2td0TJ2GmBELIkxz2T7BTfic/AbbZkrwdWmd14ukKxCXPysSpo
+         f/NQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=jTdOuUxe;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g9sor46801772wma.8.2019.08.05.18.09.02
+       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-132.freemail.mail.aliyun.com (out30-132.freemail.mail.aliyun.com. [115.124.30.132])
+        by mx.google.com with ESMTPS id n9si41369851plk.166.2019.08.05.18.33.42
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Aug 2019 18:09:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Aug 2019 18:33:43 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.132 as permitted sender) client-ip=115.124.30.132;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=jTdOuUxe;
-       spf=pass (google.com: domain of surenb@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=surenb@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=iVqZVjXC+NUGVfC+h8fgNnfytH+DNTshiUOlL2pd8nw=;
-        b=jTdOuUxe4X5DIbTkp7zKbIMXEGHIvKCveM85P/4Vap3UlmOofGxD5bhqh9nC06UTlk
-         IVUDJnN5QxrSyfviw57HABanS8nZWMid4b/CAiK5dujQ1T2IlUVrollykWC5KqVc6jo5
-         VFBGKpMda6VjCUkXZaDncSCKI5yGAWa6uVXdwub6b4AcBDNbMcv9SWo9XvdXt3tRwALr
-         x1Lv7xIpF8b2n6HpqEqYxh3NXnimYRgUuV3XwN/d2ZD+YEZsEJt+BUCrjSZgwaYj+5g/
-         XfUoOkUT4F7BtaDRE+/8vw7V2xK1266tqwTsK7Pf9ZiB0kIcUtZ6ZylzX1Xj0M7LZQ8o
-         DgfQ==
-X-Google-Smtp-Source: APXvYqxgwhh6Ilq1Gzk+Epc1PEfJ7MQCK3+a4sQ3CiEMsHNi3JYN+Vwpu+IVK0w7A7m04j95OQzTSqlHn+u52Wgcm8k=
-X-Received: by 2002:a1c:9a4b:: with SMTP id c72mr788952wme.102.1565053741788;
- Mon, 05 Aug 2019 18:09:01 -0700 (PDT)
+       spf=pass (google.com: domain of yun.wang@linux.alibaba.com designates 115.124.30.132 as permitted sender) smtp.mailfrom=yun.wang@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R641e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e04407;MF=yun.wang@linux.alibaba.com;NM=1;PH=DS;RN=13;SR=0;TI=SMTPD_---0TYmOEx4_1565055217;
+Received: from testdeMacBook-Pro.local(mailfrom:yun.wang@linux.alibaba.com fp:SMTPD_---0TYmOEx4_1565055217)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Tue, 06 Aug 2019 09:33:40 +0800
+Subject: Re: [PATCH v2 0/4] per-cgroup numa suite
+From: =?UTF-8?B?546L6LSH?= <yun.wang@linux.alibaba.com>
+To: Peter Zijlstra <peterz@infradead.org>, hannes@cmpxchg.org,
+ mhocko@kernel.org, vdavydov.dev@gmail.com, Ingo Molnar <mingo@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, mcgrof@kernel.org,
+ keescook@chromium.org, linux-fsdevel@vger.kernel.org,
+ cgroups@vger.kernel.org, =?UTF-8?Q?Michal_Koutn=c3=bd?= <mkoutny@suse.com>,
+ Hillf Danton <hdanton@sina.com>
+References: <209d247e-c1b2-3235-2722-dd7c1f896483@linux.alibaba.com>
+ <60b59306-5e36-e587-9145-e90657daec41@linux.alibaba.com>
+ <65c1987f-bcce-2165-8c30-cf8cf3454591@linux.alibaba.com>
+Message-ID: <789b95a2-6a92-eb30-85c5-af8e5dcc8048@linux.alibaba.com>
+Date: Tue, 6 Aug 2019 09:33:37 +0800
+User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.13; rv:60.0)
+ Gecko/20100101 Thunderbird/60.7.0
 MIME-Version: 1.0
-References: <d9802b6a-949b-b327-c4a6-3dbca485ec20@gmx.com> <ce102f29-3adc-d0fd-41ee-e32c1bcd7e8d@suse.cz>
- <20190805193148.GB4128@cmpxchg.org>
-In-Reply-To: <20190805193148.GB4128@cmpxchg.org>
-From: Suren Baghdasaryan <surenb@google.com>
-Date: Mon, 5 Aug 2019 18:08:50 -0700
-Message-ID: <CAJuCfpHhR+9ybt9ENzxMbdVUd_8rJN+zFbDm+5CeE2Desu82Gg@mail.gmail.com>
-Subject: Re: Let's talk about the elephant in the room - the Linux kernel's
- inability to gracefully handle low memory pressure
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>, "Artem S. Tashkinov" <aros@gmx.com>, LKML <linux-kernel@vger.kernel.org>, 
-	linux-mm <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <65c1987f-bcce-2165-8c30-cf8cf3454591@linux.alibaba.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 5, 2019 at 12:31 PM Johannes Weiner <hannes@cmpxchg.org> wrote:
->
-> On Mon, Aug 05, 2019 at 02:13:16PM +0200, Vlastimil Babka wrote:
-> > On 8/4/19 11:23 AM, Artem S. Tashkinov wrote:
-> > > Hello,
-> > >
-> > > There's this bug which has been bugging many people for many years
-> > > already and which is reproducible in less than a few minutes under the
-> > > latest and greatest kernel, 5.2.6. All the kernel parameters are set to
-> > > defaults.
-> > >
-> > > Steps to reproduce:
-> > >
-> > > 1) Boot with mem=4G
-> > > 2) Disable swap to make everything faster (sudo swapoff -a)
-> > > 3) Launch a web browser, e.g. Chrome/Chromium or/and Firefox
-> > > 4) Start opening tabs in either of them and watch your free RAM decrease
-> > >
-> > > Once you hit a situation when opening a new tab requires more RAM than
-> > > is currently available, the system will stall hard. You will barely  be
-> > > able to move the mouse pointer. Your disk LED will be flashing
-> > > incessantly (I'm not entirely sure why). You will not be able to run new
-> > > applications or close currently running ones.
-> >
-> > > This little crisis may continue for minutes or even longer. I think
-> > > that's not how the system should behave in this situation. I believe
-> > > something must be done about that to avoid this stall.
-> >
-> > Yeah that's a known problem, made worse SSD's in fact, as they are able
-> > to keep refaulting the last remaining file pages fast enough, so there
-> > is still apparent progress in reclaim and OOM doesn't kick in.
-> >
-> > At this point, the likely solution will be probably based on pressure
-> > stall monitoring (PSI). I don't know how far we are from a built-in
-> > monitor with reasonable defaults for a desktop workload, so CCing
-> > relevant folks.
->
-> Yes, psi was specifically developed to address this problem. Before
-> it, the kernel had to make all decisions based on relative event rates
-> but had no notion of time. Whereas to the user, time is clearly an
-> issue, and in fact makes all the difference. So psi quantifies the
-> time the workload spends executing vs. spinning its wheels.
->
-> But choosing a universal cutoff for killing is not possible, since it
-> depends on the workload and the user's expectation: GUI and other
-> latency-sensitive applications care way before a compile job or video
-> encoding would care.
->
-> Because of that, there are things like oomd and lmkd as mentioned, to
-> leave the exact policy decision to userspace.
->
-> That being said, I think we should be able to provide a bare minimum
-> inside the kernel to avoid complete livelocks where the user does not
-> believe the machine would be able to recover without a reboot.
->
-> The goal wouldn't be a glitch-free user experience - the kernel does
-> not know enough about the applications to even attempt that. It should
-> just not hang indefinitely. Maybe similar to the hung task detector.
->
-> How about something like the below patch? With that, the kernel
-> catches excessive thrashing that happens before reclaim fails:
->
-> [root@ham ~]# stress -d 128 -m 5
-> stress: info: [344] dispatching hogs: 0 cpu, 0 io, 5 vm, 128 hdd
-> Excessive and sustained system-wide memory pressure!
-> kworker/1:2 invoked oom-killer: gfp_mask=0x0(), order=0, oom_score_adj=0
-> CPU: 1 PID: 77 Comm: kworker/1:2 Not tainted 5.3.0-rc1-mm1-00121-ge34a5cf28771 #142
-> Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.12.0-20181126_142135-anatol 04/01/2014
-> Workqueue: events psi_avgs_work
-> Call Trace:
->  dump_stack+0x46/0x60
->  dump_header+0x5c/0x3d5
->  ? irq_work_queue+0x46/0x50
->  ? wake_up_klogd+0x2b/0x30
->  ? vprintk_emit+0xe5/0x190
->  oom_kill_process.cold.10+0xb/0x10
->  out_of_memory+0x1ea/0x260
->  update_averages.cold.8+0x14/0x25
->  ? collect_percpu_times+0x84/0x1f0
->  psi_avgs_work+0x80/0xc0
->  process_one_work+0x1bb/0x310
->  worker_thread+0x28/0x3c0
->  ? process_one_work+0x310/0x310
->  kthread+0x108/0x120
->  ? __kthread_create_on_node+0x170/0x170
->  ret_from_fork+0x35/0x40
-> Mem-Info:
-> active_anon:109463 inactive_anon:109564 isolated_anon:298
->  active_file:4676 inactive_file:4073 isolated_file:455
->  unevictable:0 dirty:8475 writeback:8 unstable:0
->  slab_reclaimable:2585 slab_unreclaimable:4932
->  mapped:413 shmem:2 pagetables:1747 bounce:0
->  free:13472 free_pcp:17 free_cma:0
->
-> Possible snags and questions:
->
-> 1. psi is an optional feature right now, but these livelocks commonly
->    affect desktop users. What should be the default behavior?
->
-> 2. Should we make the pressure cutoff and time period configurable?
->
->    I fear we would open a can of worms similar to the existing OOM
->    killer, where users are trying to use a kernel self-protection
->    mechanism to implement workload QoS and priorities - things that
->    should firmly be kept in userspace.
->
-> 3. swapoff annotation. Due to the swapin annotation, swapoff currently
->    raises memory pressure. It probably shouldn't. But this will be a
->    bigger problem if we trigger the oom killer based on it.
->
-> 4. Killing once every 10s assumes basically one big culprit. If the
->    pressure is created by many different processes, fixing the
->    situation could take quite a while.
->
->    What oomd does to solve this is to monitor the PGSCAN counters
->    after a kill, to tell whether pressure is persisting, or just from
->    residual refaults after the culprit has been dealt with.
->
->    We may need to do something similar here. Or find a solution to
->    encode that distinction into psi itself, and it would also take
->    care of the swapoff problem, since it's basically the same thing -
->    residual refaults without any reclaim pressure to sustain them.
->
-> Anyway, here is the draft patch:
->
-> From e34a5cf28771d69f13faa0e933adeae44b26b8aa Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Mon, 5 Aug 2019 13:15:16 -0400
-> Subject: [PATCH] psi oom
->
-> ---
->  include/linux/psi_types.h |  4 +++
->  kernel/sched/psi.c        | 52 +++++++++++++++++++++++++++++++++++++++
->  2 files changed, 56 insertions(+)
->
-> diff --git a/include/linux/psi_types.h b/include/linux/psi_types.h
-> index 07aaf9b82241..390446b07ac7 100644
-> --- a/include/linux/psi_types.h
-> +++ b/include/linux/psi_types.h
-> @@ -162,6 +162,10 @@ struct psi_group {
->         u64 polling_total[NR_PSI_STATES - 1];
->         u64 polling_next_update;
->         u64 polling_until;
-> +
-> +       /* Out-of-memory situation tracking */
-> +       bool oom_pressure;
-> +       u64 oom_pressure_start;
->  };
->
->  #else /* CONFIG_PSI */
-> diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
-> index f28342dc65ec..1027b6611ec2 100644
-> --- a/kernel/sched/psi.c
-> +++ b/kernel/sched/psi.c
-> @@ -139,6 +139,7 @@
->  #include <linux/ctype.h>
->  #include <linux/file.h>
->  #include <linux/poll.h>
-> +#include <linux/oom.h>
->  #include <linux/psi.h>
->  #include "sched.h"
->
-> @@ -177,6 +178,8 @@ struct psi_group psi_system = {
->         .pcpu = &system_group_pcpu,
->  };
->
-> +static void psi_oom_tick(struct psi_group *group, u64 now);
-> +
->  static void psi_avgs_work(struct work_struct *work);
->
->  static void group_init(struct psi_group *group)
-> @@ -403,6 +406,8 @@ static u64 update_averages(struct psi_group *group, u64 now)
->                 calc_avgs(group->avg[s], missed_periods, sample, period);
->         }
->
-> +       psi_oom_tick(group, now);
-> +
->         return avg_next_update;
->  }
->
-> @@ -1280,3 +1285,50 @@ static int __init psi_proc_init(void)
->         return 0;
->  }
->  module_init(psi_proc_init);
-> +
-> +#define OOM_PRESSURE_LEVEL     80
-> +#define OOM_PRESSURE_PERIOD    (10 * NSEC_PER_SEC)
+Hi, Folks
 
-80% of the last 10 seconds spent in full stall would definitely be a
-problem. If the system was already low on memory (which it probably
-is, or we would not be reclaiming so hard and registering such a big
-stall) then oom-killer would probably kill something before 8 seconds
-are passed. If my line of thinking is correct, then do we really
-benefit from such additional protection mechanism? I might be wrong
-here because my experience is limited to embedded systems with
-relatively small amounts of memory.
+Please feel free to comment if you got any concerns :-)
 
-> +
-> +static void psi_oom_tick(struct psi_group *group, u64 now)
-> +{
-> +       struct oom_control oc = {
-> +               .order = 0,
-> +       };
-> +       unsigned long pressure;
-> +       bool high;
-> +
-> +       /*
-> +        * Protect the system from livelocking due to thrashing. Leave
-> +        * per-cgroup policies to oomd, lmkd etc.
-> +        */
-> +       if (group != &psi_system)
-> +               return;
-> +
-> +       pressure = LOAD_INT(group->avg[PSI_MEM_FULL][0]);
-> +       high = pressure >= OOM_PRESSURE_LEVEL;
-> +
-> +       if (!group->oom_pressure && !high)
-> +               return;
-> +
-> +       if (!group->oom_pressure && high) {
-> +               group->oom_pressure = true;
-> +               group->oom_pressure_start = now;
-> +               return;
-> +       }
-> +
-> +       if (group->oom_pressure && !high) {
-> +               group->oom_pressure = false;
-> +               return;
-> +       }
-> +
-> +       if (now < group->oom_pressure_start + OOM_PRESSURE_PERIOD)
-> +               return;
-> +
-> +       group->oom_pressure = false;
-> +
-> +       if (!mutex_trylock(&oom_lock))
-> +               return;
-> +       pr_warn("Excessive and sustained system-wide memory pressure!\n");
-> +       out_of_memory(&oc);
-> +       mutex_unlock(&oom_lock);
-> +}
-> --
-> 2.22.0
->
+Hi, Peter
+
+How do you think about this version?
+
+Please let us know if it's still not good enough to be accepted :-)
+
+Regards,
+Michael Wang
+
+On 2019/7/16 上午11:38, 王贇 wrote:
+> During our torturing on numa stuff, we found problems like:
+> 
+>   * missing per-cgroup information about the per-node execution status
+>   * missing per-cgroup information about the numa locality
+> 
+> That is when we have a cpu cgroup running with bunch of tasks, no good
+> way to tell how it's tasks are dealing with numa.
+> 
+> The first two patches are trying to complete the missing pieces, but
+> more problems appeared after monitoring these status:
+> 
+>   * tasks not always running on the preferred numa node
+>   * tasks from same cgroup running on different nodes
+> 
+> The task numa group handler will always check if tasks are sharing pages
+> and try to pack them into a single numa group, so they will have chance to
+> settle down on the same node, but this failed in some cases:
+> 
+>   * workloads share page caches rather than share mappings
+>   * workloads got too many wakeup across nodes
+> 
+> Since page caches are not traced by numa balancing, there are no way to
+> realize such kind of relationship, and when there are too many wakeup,
+> task will be drag from the preferred node and then migrate back by numa
+> balancing, repeatedly.
+> 
+> Here the third patch try to address the first issue, we could now give hint
+> to kernel about the relationship of tasks, and pack them into single numa
+> group.
+> 
+> And the forth patch introduced numa cling, which try to address the wakup
+> issue, now we try to make task stay on the preferred node on wakeup in fast
+> path, in order to address the unbalancing risk, we monitoring the numa
+> migration failure ratio, and pause numa cling when it reach the specified
+> degree.
+> 
+> Since v1:
+>   * move statistics from memory cgroup into cpu group
+>   * statistics now accounting in hierarchical way
+>   * locality now accounted into 8 regions equally
+>   * numa cling no longer override select_idle_sibling, instead we
+>     prevent numa swap migration with tasks cling to dst-node, also
+>     prevent wake affine to drag tasks away which already cling to
+>     prev-cpu
+>   * other refine on comments and names
+> 
+> Michael Wang (4):
+>   v2 numa: introduce per-cgroup numa balancing locality statistic
+>   v2 numa: append per-node execution time in cpu.numa_stat
+>   v2 numa: introduce numa group per task group
+>   v4 numa: introduce numa cling feature
+> 
+>  include/linux/sched.h        |   8 +-
+>  include/linux/sched/sysctl.h |   3 +
+>  kernel/sched/core.c          |  85 ++++++++
+>  kernel/sched/debug.c         |   7 +
+>  kernel/sched/fair.c          | 510 ++++++++++++++++++++++++++++++++++++++++++-
+>  kernel/sched/sched.h         |  41 ++++
+>  kernel/sysctl.c              |   9 +
+>  7 files changed, 651 insertions(+), 12 deletions(-)
+> 
 
