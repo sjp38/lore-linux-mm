@@ -2,151 +2,190 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 18297C433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 22:05:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C502FC31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 22:19:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BE9AA2189E
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 22:05:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 74E262189E
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 22:19:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="RyUHGmb+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE9AA2189E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="meFIABtu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 74E262189E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2B30F6B0003; Tue,  6 Aug 2019 18:05:41 -0400 (EDT)
+	id 20BE36B0003; Tue,  6 Aug 2019 18:19:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 23CDB6B0006; Tue,  6 Aug 2019 18:05:41 -0400 (EDT)
+	id 1BDE96B0006; Tue,  6 Aug 2019 18:19:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B6E76B0007; Tue,  6 Aug 2019 18:05:41 -0400 (EDT)
+	id 084326B0007; Tue,  6 Aug 2019 18:19:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C9C8F6B0003
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 18:05:40 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id j9so1739466pgk.20
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 15:05:40 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id C78486B0003
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 18:19:24 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id k20so55759674pgg.15
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 15:19:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=rN4rO17/aT7+L127LeaBuWusoBpU6GuMzRTNeTvQtyA=;
-        b=io/h/A1dQ9ZhFHZMTn0Hg2UU6yKBpPYI0Gn3n74SlLuQoHKWHV+OXZOPzGdBtgtqdg
-         b78JeOfHzw3tkWM6C0lnvK9ai/fI1A/J1uyjeZ/QR/ovlaAjMYRPGBmNaaGLaLm04uc6
-         pbd9NFIqT5PIowijZPPMHe6TUa1qowyKwKDyWNnt/p/B1n9pSjYCEhcsBZ5/BChp7gvA
-         OVLfpkimkqfH1oVNN1GX8Qkrjm4hhC4QS2jZfQ3B/WNWn7dp2UT/Xqusbfw/fL6cKKLF
-         doF47Km591AMhpZmJ9PleLf9ZdMKa0G0Su3QkxH1QxfH9CxHd1dY0r9qB/WRmGQ7yGv/
-         kS7A==
-X-Gm-Message-State: APjAAAX28qzsYswCYIvTm36sm0PM6cg532iQqYoY2NFbY7bKZydWsBhi
-	XrqasGy1euyUVGBz4YoVG6vUiVwZaMhPpeO8VPet0p0iM73Hm0ZFv4OrGhznKk8GGnX9j76mN7t
-	/L/eGk4CX3QC2Iia+nkcR0KzfMlBo6yRbKCYCGBk0flJb8BhhoZlPllf3eBZ2tM2V/w==
-X-Received: by 2002:a17:902:9a07:: with SMTP id v7mr5237922plp.245.1565129140449;
-        Tue, 06 Aug 2019 15:05:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxpuIPv/nHhFqeccntwrW9zFcoRdUDqeD11LPXMvpwcPIZmKQZBa/i0GdwDpye1huKZGa2p
-X-Received: by 2002:a17:902:9a07:: with SMTP id v7mr5237882plp.245.1565129139809;
-        Tue, 06 Aug 2019 15:05:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565129139; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=cLMFtcOvaClrMbvdwLd+qf/TT0K3oNYe27UnDzPlpx0=;
+        b=PpjdWlgYzh7bPQh0R4qlLtyptbaHuvEDs97xW+8Bmb+h+TH/1JjMdwp87yFJuleeyU
+         xw0CNVxbMaqjmL5XjbrjnWccRLqx/Ca8nEgzo8lOoo2MQv3zGce2tY7WVwlJtM8ymi1Y
+         ZCMq6OX7PQQIVXbeqXqhRDc0smEX+NkDCkofxb6HSm8i5jI/RjxG7ANyE4qUlsBet2A+
+         OKmxP/Z66VzTrG0AbCHgYBAOAjKIdbO0zyit0XqxN5lMq4vPcxG63NzUNzueExBSsXzr
+         uEM7DHf4Eu0gBQrE+gRiwkDfePrDJktmwTNy8PETLBWKzgH0RKhGXmqGuoP/9DdgukWI
+         FUCg==
+X-Gm-Message-State: APjAAAX0RAzSfLCedvy/nGPH/dHoBx9O0USVVIkOmsm7WV0iJxRqM+8x
+	AuXTAoJCK9r6KyF1taDAAZhXoTHMdMEpoaiFVLenY3zW4qoqWiRoZf83RxWT9uNsNq6QYBkVU+H
+	hUmsKbc05IHGX0OO2gdkQVqXj7nblA3c1Ehj3D4dAkM/aexQ3bSx9scnX3Bnt1J+IVg==
+X-Received: by 2002:aa7:8a92:: with SMTP id a18mr6086965pfc.216.1565129964480;
+        Tue, 06 Aug 2019 15:19:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzFVVClMBD649/0ABT2VxRJqKkoOc3Rm02dZOjExlqL23++BJBHwbKasqbs4stEH6Wq2u0H
+X-Received: by 2002:aa7:8a92:: with SMTP id a18mr6086913pfc.216.1565129963564;
+        Tue, 06 Aug 2019 15:19:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565129963; cv=none;
         d=google.com; s=arc-20160816;
-        b=W7wcc7DuQIEXQSeOTip7XjYNlFIx76dwluHl23pku5WI3XnBvZkfBqDNdyhgdnI8y9
-         0IrjlZPb2q8IxZygiyMvVDgQYilJ2f3ruEPMl2uBuoehWh1MMP7SPrTHvqZzj+Fe6Bfq
-         DQcFUcg9IubUrlqYvMWhn7dTrJFsPr0hIFSWZEZt5rOP2gNxjsITRJ+jh63HAP2ohEv8
-         LyUjdKZAPCiw4eAjNTjZzzns3OdYukVB2yxppFDitcX1xkuHBYJNvfJK/FuKAxGK+x7s
-         uHaWdImdfuv0wrlERn23xKT3B0TDs+vxiiSTBl9huzC7aSF/d5d6In9VU8aE4lbPIQxn
-         ZB9Q==
+        b=ewANjxf8aQjt1oWhJHw3inTYqCfV6zxGQsZdg3Zie9AJD/CB3zkdd1H5eVPJBT1W88
+         ntY7eCUlzd+z+/VIDpkd1goM6T14wINIiMz+SJVEVQLssHEWTgoSJYvJODU2zeDAadW4
+         qVTffJkSgAendgWMRC4VQmux4eFVcr9k7nAsLIiRA5y7rnPiesLp8e0J/Lou9XkdxBUo
+         VLbU0qceaUSXw5Bgtu6bD4wlgIMILEmi3V/EOEFhmH03B2j0xGUusHRPoYiFUR83s+xY
+         kuwzwuxtCorfk7VTy0da5ye74P2LgJgl3hU3LOYzMOGNGgrj+dN4bCoSVfGbacXwDdfQ
+         47ug==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=rN4rO17/aT7+L127LeaBuWusoBpU6GuMzRTNeTvQtyA=;
-        b=bggK5a9dkDI7fo9uqvzaKy2nZwoi6atvQi7Z6uGzPQpqA6tF9fP0fVvoFDOWixh5y+
-         84mSAhzLira4e0col+JKLXUpwrPGWia2ed5ues2cV9YzGgwBes8SsKlxWU2HuzL6VD7d
-         o9vQNSnlqfe6PNN7UnOQ+LZXbXg8OLtBp6xdiDKld7yBLR68Tadhxe2G0NhpvaDM2MU9
-         KYvkrH7Vh3QAD5hEw7F6/T1+CckBb1q5rMcqGJB1cpyPYXn145niEUQmAU4Nyyb1jQQK
-         asMfmuL0/Vs+id2NQYO4kJ0wHYVR6pDZWK6Gsb7qBgW+LT5KVIM7a5y3nqA8MjTZ26I8
-         PDBQ==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=cLMFtcOvaClrMbvdwLd+qf/TT0K3oNYe27UnDzPlpx0=;
+        b=a6ijeYCtq+T9VhU8kF4su3ZSmfnah/Hw/UqqCKO1/fjxF1OG54ug+DFNPCwFfas1t5
+         9yC0RMKzGW2rKt51LXnQLkbSfEfYVNg5gPg4b+QaKkz26FFhE8UQgfSIYe+XZ2ay0Qea
+         6fbNUS7rxeOlsvVaeJnyzlHPZ0OxuNy0ubzYlJtBqRHDPAF675qg01i0blMW8474895v
+         jHyvtMR/l2IUsY1oPo1o6RkC9nSTYsv9uWtHjZY/U0YFcRpkW0pobUTJWjtufqB3Pxm9
+         OugxQIDKIKUdf49V5cQWuxdaU339njwSEpZnr/dXpurGPpIi9ef2CqG6Sck15TLQf25X
+         Bszw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=RyUHGmb+;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id g11si74276793plm.390.2019.08.06.15.05.39
+       dkim=pass header.i=@kernel.org header.s=default header.b=meFIABtu;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id j66si43077697plb.375.2019.08.06.15.19.23
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 15:05:39 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+        Tue, 06 Aug 2019 15:19:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=RyUHGmb+;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d49f9b40003>; Tue, 06 Aug 2019 15:05:40 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Tue, 06 Aug 2019 15:05:39 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Tue, 06 Aug 2019 15:05:39 -0700
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Tue, 6 Aug
- 2019 22:05:38 +0000
-Subject: Re: [PATCH 0/3] mm/: 3 more put_user_page() conversions
-To: Andrew Morton <akpm@linux-foundation.org>, <john.hubbard@gmail.com>
-CC: Christoph Hellwig <hch@infradead.org>, Ira Weiny <ira.weiny@intel.com>,
-	Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse
-	<jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>,
-	<linux-mm@kvack.org>, <linux-fsdevel@vger.kernel.org>
-References: <20190805222019.28592-1-jhubbard@nvidia.com>
- <20190806145938.3c136b6c4eb4f758c1b1a0ae@linux-foundation.org>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <d606c822-df9e-965e-38b6-458f6c3dfe14@nvidia.com>
-Date: Tue, 6 Aug 2019 15:05:38 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
-MIME-Version: 1.0
-In-Reply-To: <20190806145938.3c136b6c4eb4f758c1b1a0ae@linux-foundation.org>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
+       dkim=pass header.i=@kernel.org header.s=default header.b=meFIABtu;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id AB7B121874;
+	Tue,  6 Aug 2019 22:19:21 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1565129963;
+	bh=uggloegaAwke9A4UP4qBuMyVFR/d5SRDz42VgcGIwio=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=meFIABtuhORcSvMNLD1Hv0nThWvFZI0Qr53BkMiWwh6sZaACsB8AxS19EWRhOD245
+	 XPjeM7EQeanIE0mnWrDAF2RVaT5KRg5MyslBzowrxK7IAG3AckB1mYjDZTe7CHOPId
+	 5LjvjYRK0qyrzcwOxuFdWnbt8prbQySEv0+MClOM=
+Date: Tue, 6 Aug 2019 15:19:21 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
+Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
+ Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>, Catalin
+ Marinas <catalin.marinas@arm.com>, Christian Hansen <chansen3@cisco.com>,
+ dancol@google.com, fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
+ Ingo Molnar <mingo@redhat.com>, joelaf@google.com, Jonathan Corbet
+ <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
+ kernel-team@android.com, linux-api@vger.kernel.org,
+ linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Mike Rapoport
+ <rppt@linux.ibm.com>, minchan@kernel.org, namhyung@google.com,
+ paulmck@linux.ibm.com, Robin Murphy <robin.murphy@arm.com>, Roman Gushchin
+ <guro@fb.com>, Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
+ Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com, Vladimir Davydov
+ <vdavydov.dev@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Will Deacon
+ <will@kernel.org>, Brendan Gregg <brendan.d.gregg@gmail.com>
+Subject: Re: [PATCH v4 1/5] mm/page_idle: Add per-pid idle page tracking
+ using virtual indexing
+Message-Id: <20190806151921.edec128271caccb5214fc1bd@linux-foundation.org>
+In-Reply-To: <20190805170451.26009-1-joel@joelfernandes.org>
+References: <20190805170451.26009-1-joel@joelfernandes.org>
+X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
 Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1565129140; bh=rN4rO17/aT7+L127LeaBuWusoBpU6GuMzRTNeTvQtyA=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=RyUHGmb+ONciHZR8TDcra6EGCiFc19hpKqbxJhOr5CXgF0u+AJ08BIc8YQ9TMG9TO
-	 A9s2SNx+MQOxeMTHn3uY/yVZ5GdJ//1j13FexJcRa0b9agZTk3/VsNKAH6byhf+8uY
-	 5C2+0NZac11xcQJNzTAlaXEQrJF+y+w2GMYO4mfiet5sOmrqRPueGIQPRDaGbCCyUm
-	 T+fKwawV4VNNTsWpspkvC/lbu2zcbyLpZf2kqrj2Ity9iXJjT6Gv7fZLHNEGEUHcJR
-	 HBk/OIw+SgIgy6VNZXjdZlETfaPAxScsnN9sFdRA5kaIWJpurj4C2Oq0zVysHK5aGX
-	 iXaXX6n53Ozzg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/6/19 2:59 PM, Andrew Morton wrote:
-> On Mon,  5 Aug 2019 15:20:16 -0700 john.hubbard@gmail.com wrote:
-> 
->> Here are a few more mm/ files that I wasn't ready to send with the
->> larger 34-patch set.
-> 
-> Seems that a v3 of "put_user_pages(): miscellaneous call sites" is in
-> the works, so can we make that a 37 patch series?
-> 
+(cc Brendan's other email address, hoping for review input ;))
 
-Sure, I'll add them to that.
+On Mon,  5 Aug 2019 13:04:47 -0400 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+> The page_idle tracking feature currently requires looking up the pagemap
+> for a process followed by interacting with /sys/kernel/mm/page_idle.
+> Looking up PFN from pagemap in Android devices is not supported by
+> unprivileged process and requires SYS_ADMIN and gives 0 for the PFN.
+> 
+> This patch adds support to directly interact with page_idle tracking at
+> the PID level by introducing a /proc/<pid>/page_idle file.  It follows
+> the exact same semantics as the global /sys/kernel/mm/page_idle, but now
+> looking up PFN through pagemap is not needed since the interface uses
+> virtual frame numbers, and at the same time also does not require
+> SYS_ADMIN.
+> 
+> In Android, we are using this for the heap profiler (heapprofd) which
+> profiles and pin points code paths which allocates and leaves memory
+> idle for long periods of time. This method solves the security issue
+> with userspace learning the PFN, and while at it is also shown to yield
+> better results than the pagemap lookup, the theory being that the window
+> where the address space can change is reduced by eliminating the
+> intermediate pagemap look up stage. In virtual address indexing, the
+> process's mmap_sem is held for the duration of the access.
+
+Quite a lot of changes to the page_idle code.  Has this all been
+runtime tested on architectures where
+CONFIG_HAVE_ARCH_PTE_SWP_PGIDLE=n?  That could be x86 with a little
+Kconfig fiddle-for-testing-purposes.
+
+> 8 files changed, 376 insertions(+), 45 deletions(-)
+
+Quite a lot of new code unconditionally added to major architectures. 
+Are we confident that everyone will want this feature?
+
+>
+> ...
+>
+> +static int proc_page_idle_open(struct inode *inode, struct file *file)
+> +{
+> +	struct mm_struct *mm;
+> +
+> +	mm = proc_mem_open(inode, PTRACE_MODE_READ);
+> +	if (IS_ERR(mm))
+> +		return PTR_ERR(mm);
+> +	file->private_data = mm;
+> +	return 0;
+> +}
+> +
+> +static int proc_page_idle_release(struct inode *inode, struct file *file)
+> +{
+> +	struct mm_struct *mm = file->private_data;
+> +
+> +	if (mm)
+
+I suspect the test isn't needed?  proc_page_idle_release) won't be
+called if proc_page_idle_open() failed?
+
+> +		mmdrop(mm);
+> +	return 0;
+> +}
+>
+> ...
+>
 
