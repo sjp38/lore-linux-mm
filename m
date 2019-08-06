@@ -2,157 +2,160 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D407FC31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:56:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E8DD0C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:58:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9640D20B1F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:56:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9640D20B1F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id ABB49208C3
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:58:00 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="dfOb3Fvj"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ABB49208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E51616B026F; Tue,  6 Aug 2019 04:56:10 -0400 (EDT)
+	id 416686B0271; Tue,  6 Aug 2019 04:58:00 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E022C6B0270; Tue,  6 Aug 2019 04:56:10 -0400 (EDT)
+	id 3C7326B0272; Tue,  6 Aug 2019 04:58:00 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CF08E6B0271; Tue,  6 Aug 2019 04:56:10 -0400 (EDT)
+	id 28FE46B0273; Tue,  6 Aug 2019 04:58:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 82C2A6B026F
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:56:10 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id b12so53382749eds.14
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:56:10 -0700 (PDT)
+Received: from mail-oi1-f197.google.com (mail-oi1-f197.google.com [209.85.167.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 029EC6B0271
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:58:00 -0400 (EDT)
+Received: by mail-oi1-f197.google.com with SMTP id d204so34163057oib.9
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:57:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=BZlqMb+QyegauaZukyQF7oO5hMid9fvH6tiqPMt0jfc=;
-        b=bWg36EviknIGguobrXKdIWenkYvF1Iqba+aWurAdbGDczj/CAU1kvxOnYlPd8L0rZX
-         s9GkM57SF8in08lNFAez+LqoU6yXmHGqTvY97u0MBX26P9CDp4kizdKX1D/MUhYSsYXm
-         iubZX3Zt9zFLpVfKpAiIpLuq2+gXWvcKj9YaQyBjh8t/u2bFlXbQPjfWheEfaLgKq1iz
-         iV4vkyF8YowgTQede/FXLtrcVI+eQPkS3Qxump0Z6dSFBd2CytzpB+lu1gEiv4g4zLRN
-         RzCimunUY9brtlrPJGVgZSCv7jy5FrODFsJpWu1ysYWlOea5v+fDR1PwhS2sEmTGMJol
-         iRrA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAV/7QKfJINfUyoUDn3bjRTozgI4jTLIxBzuUj4/AI66nyJx8CEf
-	algUFlkRCQsSEtuoEv92O7h/89S1veHQvytaJ2N1YWhGXlJ3F3CSHUa2DLVDYYJZeOWI5umCOjP
-	jYbB0yvFTwGFSmGQgXKxZagevh0g1U16tcudtNOztZ6t0xKQf7Lx9cuX9QC1wFeA=
-X-Received: by 2002:a17:906:8313:: with SMTP id j19mr2057175ejx.276.1565081770089;
-        Tue, 06 Aug 2019 01:56:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyfKTfj/VR2XxpW2oh/RBk3SZ7fOn6XkDNmiyR4t2kvZs2HoCuMJi6+64gSlsgONjmxtIvx
-X-Received: by 2002:a17:906:8313:: with SMTP id j19mr2057141ejx.276.1565081769368;
-        Tue, 06 Aug 2019 01:56:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565081769; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=gE0o1u+Kp3vsV3cubSr1zZnXWybJYFzA8GFpX6alo2g=;
+        b=PHHPfJQwydMqgJJvV9ukkiqKydS/6peBB3GMve4RBtzXThDn7YM+x7Q54+BO1GCgEY
+         3GTyUBqnTAcgGlNZf3mnrwoNvEvSNzA+liS15XSLqG+lnFUdrtYDsMaGjhvVgLVbdGrB
+         RSKQlzhoIq8OdFN7S0gsUFff6y56Eqg4p4Gje7UCVJG1eI5cFXL1xtiTwrznamXpHcg3
+         9ORdwoRM2O8gLrhAyahLGgA0SAqWPSEVc1oQ8jzC1aQ1lf2/qPMxNQNscfih1jo7tq2Z
+         LZa+uNew3J/kxPcID+1i8qTHqqGZwWOQt+7d9eff9+Nw9vLkkBtZ41/PupqS2rdmughh
+         FhkQ==
+X-Gm-Message-State: APjAAAWZ5XxMd9iFPyZI/tSXgKQN+bKpEyTVr8PfEI6VF7eqdCo8uU6l
+	Dr1YGElwbJ0Lph8F6aZPHcSdKxUsV9HxNeOHa+GhFBvTtyAo/FudqPHYcfKfd+oAUpXqcKRJEy8
+	ItGOg8nT39fyvLYg4T/C72R7R4G852DvQAUzW7SiLrNfbC076Ihz1OXy9hK5iDW0ttw==
+X-Received: by 2002:a05:6602:c7:: with SMTP id z7mr2594707ioe.130.1565081879615;
+        Tue, 06 Aug 2019 01:57:59 -0700 (PDT)
+X-Received: by 2002:a05:6602:c7:: with SMTP id z7mr2594676ioe.130.1565081879067;
+        Tue, 06 Aug 2019 01:57:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565081879; cv=none;
         d=google.com; s=arc-20160816;
-        b=xSuvMT4ZAnnkSlkMqg54NpvrfqLvc5bJhx/egAluJAYi7qJfwwc1i9Nz8ulOBiatLp
-         9mZ2UCd1BRA6XDqzqCVr+oJylK5jQ7DGAmOaIwmAX9ayAVFUf5fYUoTCikedaqztmdbp
-         Wu8S5Aj0DFGQ0+9LrX5NDFB4TrXcgwlV9jcSP3qSwpDqa1QyrcLyjx+pvrgEde0ZnSq8
-         oxeg6mLdchyyxTPtKLAV/XI+fi8JHfB1xxjmS0ZTLsfReNu0sY0bgmaPyxN+pHHt6mZh
-         kQ0jyBNFIFKhq8DRtgWHvS11vTrAM28i582nFEQjFOKsFnP9iTnD7hwfASO57QFgLTNN
-         wQOg==
+        b=OewF+UZ1ZfeK+uOGqZ97XMxBnjY6gu7VLjS9T9YmXIZFu1kfOAa6gn+7t++t74NAo/
+         ZA9FwPQ4RVc6ZnLD9flxCfQsErGliAUR0WbzSL7PhsUQtLltKTT0vnSWK+E4fLhV+pf6
+         ghXe/AxRn0ZqQD7vyfbsHGFtSjFzXd64kw9mIUZtndbj/rm+uX0B+xnZOK2Xbc3LNqaC
+         DGlxh5Kt5aQcu5iDsqnwb2SUkeE4M60g0V76B+3E8d2Z4sNS0ni1bzMP8uxqjUNO4hsP
+         hrbMLSxNQ6KJKWfuT6i2in1zFSkqWbYa2jKYjjgmlMO0uW7aiqH2mlmu0BygC/orvZ/B
+         wUHw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=BZlqMb+QyegauaZukyQF7oO5hMid9fvH6tiqPMt0jfc=;
-        b=kCAZsJye+PIYYi9iRjQ1VBghEzGo/NJx4AdFPM1HbFCOR0fEzVazikhNLyUuBQghc0
-         tfdkK0BdKP9LwXP3KLvTHm2zGZCetJIr1nvUSW1CW0QC6dx7CpNm2wR2ATHTqWL8XxA1
-         A2SbDgg+JFcOjYKYPDWFFdBIdeSrfDqboEyzkmrfx68+bRHGmcAmS4v3dmuGI6Uhdqg4
-         igkcONHwWfCsYY4GhZHuZ5x/fpsH7c1oQGlzJsj1BupHRDflB5OspmEv9xk5JK5Hup7g
-         Gr5z7XtLOIf2XgdOmP5GGoR9KiaSoCv5ZyYKdGiegzKBia/lll/ICZir2BkmEKFmZ/PO
-         bWSQ==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=gE0o1u+Kp3vsV3cubSr1zZnXWybJYFzA8GFpX6alo2g=;
+        b=tdwfnwiW4v+Z5/ViyyItfw6525b2XauQPBfL7AiYE+kRivm56M1yYGf3H6pRjg7drY
+         GCtY1KTCAEapGCmYLIN5cuRSB8il6k63n71IAFdaU/oJ9010549SQjbzZq7NFbbE/ryN
+         noSC4YmvgYs940qO0Z5rDgIPut/Ln5ai6WH8pyX0IaQcPvrqI510uCWetojJawBMU8pF
+         VSDna1uBYYENv/IE6C50EEtjZFnxpskd1l3OnWxa2bXv3YmuvBdOHZvhJSzgUI7dGaWr
+         MAW7DJvAApMAm0N1PqhMQpYPvvblFs4Fs1OVIv0cqj2giQMgKfpylD+A2Cm/eOjnlYis
+         l39A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id mj3si26151130ejb.17.2019.08.06.01.56.09
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dfOb3Fvj;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id x12sor58373577iom.3.2019.08.06.01.57.59
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 01:56:09 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 06 Aug 2019 01:57:59 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 86300ACA0;
-	Tue,  6 Aug 2019 08:56:08 +0000 (UTC)
-Date: Tue, 6 Aug 2019 10:56:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
-	fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
-	Ingo Molnar <mingo@redhat.com>, joelaf@google.com,
-	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
-	kernel-team@android.com, linux-api@vger.kernel.org,
-	linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-mm@kvack.org, Mike Rapoport <rppt@linux.ibm.com>,
-	minchan@kernel.org, namhyung@google.com, paulmck@linux.ibm.com,
-	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
-	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
-	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
-Subject: Re: [PATCH v4 1/5] mm/page_idle: Add per-pid idle page tracking
- using virtual indexing
-Message-ID: <20190806085605.GL11812@dhcp22.suse.cz>
-References: <20190805170451.26009-1-joel@joelfernandes.org>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=dfOb3Fvj;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=gE0o1u+Kp3vsV3cubSr1zZnXWybJYFzA8GFpX6alo2g=;
+        b=dfOb3Fvjjkm059hxUGPKs9bxGY6uhwu7/RFqrA46WGAw+/aDVq0VBC+EutdH9jCUOk
+         OYGWdgHinGykJCe9C8+peda3Fp1hpfey9SdZ2sZXABrhnElJYH1flwyaSCQwU2GsXIgY
+         j2RnJeGDK0NG5pbt8wr8jv7BsdRkPNZ1ZkiRcitKabQR6wgFwb8ngL1+jOe6yp5odEso
+         S7hDwkH5W2tsHyxCeBngCPYU2yqcbXeoGdzzgiFuceJxf1a/K39cJXgBSidAyFc2fbCG
+         6uJtOZConUW7JqauzekxIoMxc/HwIda1dXIeXd8OD2RXiwLwqza0NggupV2QUMbnfrW7
+         g+CQ==
+X-Google-Smtp-Source: APXvYqziPeGcB5LCSD+BGdmedq44yvaZbzyjSzgxslV3Q3XyVq172HDFOAoMXjQs929XN2SDXhtvtWbAhqiYpyLzB6U=
+X-Received: by 2002:a02:c519:: with SMTP id s25mr2991620jam.11.1565081878798;
+ Tue, 06 Aug 2019 01:57:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190805170451.26009-1-joel@joelfernandes.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <1565075940-23121-1-git-send-email-laoar.shao@gmail.com>
+ <20190806073525.GC11812@dhcp22.suse.cz> <20190806074137.GE11812@dhcp22.suse.cz>
+In-Reply-To: <20190806074137.GE11812@dhcp22.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Tue, 6 Aug 2019 16:57:22 +0800
+Message-ID: <CALOAHbBNV9BNmGhnV-HXOdx9QfArLHqBHsBe0cm-gxsGVSoenw@mail.gmail.com>
+Subject: Re: [PATCH v2] mm/vmscan: shrink slab in node reclaim
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	Daniel Jordan <daniel.m.jordan@oracle.com>, Mel Gorman <mgorman@techsingularity.net>, 
+	Christoph Lameter <cl@linux.com>, Yafang Shao <shaoyafang@didiglobal.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 05-08-19 13:04:47, Joel Fernandes (Google) wrote:
-> The page_idle tracking feature currently requires looking up the pagemap
-> for a process followed by interacting with /sys/kernel/mm/page_idle.
-> Looking up PFN from pagemap in Android devices is not supported by
-> unprivileged process and requires SYS_ADMIN and gives 0 for the PFN.
-> 
-> This patch adds support to directly interact with page_idle tracking at
-> the PID level by introducing a /proc/<pid>/page_idle file.  It follows
-> the exact same semantics as the global /sys/kernel/mm/page_idle, but now
-> looking up PFN through pagemap is not needed since the interface uses
-> virtual frame numbers, and at the same time also does not require
-> SYS_ADMIN.
-> 
-> In Android, we are using this for the heap profiler (heapprofd) which
-> profiles and pin points code paths which allocates and leaves memory
-> idle for long periods of time. This method solves the security issue
-> with userspace learning the PFN, and while at it is also shown to yield
-> better results than the pagemap lookup, the theory being that the window
-> where the address space can change is reduced by eliminating the
-> intermediate pagemap look up stage. In virtual address indexing, the
-> process's mmap_sem is held for the duration of the access.
+On Tue, Aug 6, 2019 at 3:41 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Tue 06-08-19 09:35:25, Michal Hocko wrote:
+> > On Tue 06-08-19 03:19:00, Yafang Shao wrote:
+> > > In the node reclaim, may_shrinkslab is 0 by default,
+> > > hence shrink_slab will never be performed in it.
+> > > While shrik_slab should be performed if the relcaimable slab is over
+> > > min slab limit.
+> > >
+> > > Add scan_control::no_pagecache so shrink_node can decide to reclaim page
+> > > cache, slab, or both as dictated by min_unmapped_pages and min_slab_pages.
+> > > shrink_node will do at least one of the two because otherwise node_reclaim
+> > > returns early.
+> > >
+> > > __node_reclaim can detect when enough slab has been reclaimed because
+> > > sc.reclaim_state.reclaimed_slab will tell us how many pages are
+> > > reclaimed in shrink slab.
+> > >
+> > > This issue is very easy to produce, first you continuously cat a random
+> > > non-exist file to produce more and more dentry, then you read big file
+> > > to produce page cache. And finally you will find that the denty will
+> > > never be shrunk in node reclaim (they can only be shrunk in kswapd until
+> > > the watermark is reached).
+> > >
+> > > Regarding vm.zone_reclaim_mode, we always set it to zero to disable node
+> > > reclaim. Someone may prefer to enable it if their different workloads work
+> > > on different nodes.
+> >
+> > Considering that this is a long term behavior of a rarely used node
+> > reclaim I would rather not touch it unless some _real_ workload suffers
+> > from this behavior. Or is there any reason to fix this even though there
+> > is no evidence of real workloads suffering from the current behavior?
+>
+> I have only now noticed that you have added
+> Fixes: 1c30844d2dfe ("mm: reclaim small amounts of memory when an external fragmentation event occurs")
+>
+> could you be more specific how that commit introduced a bug in the node
+> reclaim? It has introduced may_shrink_slab but the direct reclaim seems
+> to set it to 1.
 
-As already mentioned in one of the previous versions. The interface
-seems sane and the usecase as well. So I do not really have high level
-objections.
+As you said, the direct reclaim path set it to 1, but the
+__node_reclaim() forgot to process may_shrink_slab.
 
-From a quick look at the patch I would just object to pulling swap idle
-tracking into this patch because it makes the review harder and it is
-essentially a dead code until a later patch. I am also not sure whether
-that is really necessary and it really begs for an explicit
-justification.
-
-I will try to go through the patch more carefully later as time allows.
-
-> Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
--- 
-Michal Hocko
-SUSE Labs
+Thanks
+Yafang
 
