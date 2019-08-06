@@ -2,109 +2,129 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0FFABC31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:15:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 282B4C31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:19:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C82CD20B1F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:15:02 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C82CD20B1F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id D0CA120B1F
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:19:25 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="hT7m/kPE"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D0CA120B1F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7331D6B0010; Tue,  6 Aug 2019 07:15:02 -0400 (EDT)
+	id 7A4AE6B000D; Tue,  6 Aug 2019 07:19:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6E2EB6B0266; Tue,  6 Aug 2019 07:15:02 -0400 (EDT)
+	id 72E076B000E; Tue,  6 Aug 2019 07:19:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5AACB6B0269; Tue,  6 Aug 2019 07:15:02 -0400 (EDT)
+	id 5A7586B0010; Tue,  6 Aug 2019 07:19:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0F2816B0010
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 07:15:02 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id i6so41921433wre.1
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 04:15:02 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 1FE996B000D
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 07:19:25 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id d6so48115037pls.17
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 04:19:25 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=JXREWNjRkHdGvBX35rCser8QFf3UouELVLmMXS31nd8=;
-        b=AbX7xRlaNFHsKmtzVQ0pekIZI+nkGJNWG2I6VrRBcfasBYb0NsdppGX0RYrYlVBXqL
-         8oPJ8/DmvfAh5tgbj/aMO086bQXH0vVNSEvew+yrv9U7DW8TOQx9026mzSq9gVL5OjOA
-         HL5FBX07BHEWWI25iMlQqfEV1rOwi8AlEoT+O55S92TI385AW2sKoVbs2hpIGX/F1Tbo
-         paIe36MSQSOgQIaR7NZOyKAt0jlNkVFjjMtWTfRjoD62Z5ZOUPgKU5cGbbWCUGa977JP
-         FLJQlQ1hGCKmwE4NDTZcqsGP0KGg+LlzcDV2ii7oPN2tx2hdW7HCf+S4TJbTZUbgEYGS
-         x4FQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.253 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAXIqEud5Gadt3eqzxN+gXvWrVSvIKbi9zYZTmBGvUbC9W2+MFbx
-	kqFoUm8A4bqOYnd9gdFvIlZKc4/FMWoEdu2T7LUs24KwRtRnmNo7eu7h/Px02haip6WBdpuU53w
-	sk7qC15FauAtZoImwVSPmSke80I/H5PfqEW+wBddKiHOiLkvskXTyeAzNVU/0rN/pzw==
-X-Received: by 2002:a5d:4492:: with SMTP id j18mr1725133wrq.53.1565090101614;
-        Tue, 06 Aug 2019 04:15:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw289PGdZAaKw7netOcE5OS0r6+sww22i0RwL1ubv6qiNVUeDuv1Bbd768RPA6LaTs7f/B0
-X-Received: by 2002:a5d:4492:: with SMTP id j18mr1725053wrq.53.1565090100843;
-        Tue, 06 Aug 2019 04:15:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565090100; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=jNBh4Uwy6QLd0fk5I8Y9B9xP/9fw2xkjlyVlCT+yndM=;
+        b=OWfKiLNkAPI3vgmjQyJxICUNs91jSCZpIrLjSSXN5HQPQ9EJflCKj5MEXsEUZkndzG
+         9S6Doz2mvifEf3QUG+NtcMvBa+CmzpSUITERCWkQ0g9RuyE15qFn2lWYZ2MxO/kqSKvY
+         y1GHaOe5gTEVUzp2QEQG4mGNAV+TZIBc5OVRYQ3SJNM3zAg+EHlj2mnaHErdAzF4MJO+
+         J5R/AqMYJLXMQTfig48BiFHUMd4zwIrH1cI28P3aeHuRpCKxyMxbzIWiwE4hmlED8Hoj
+         YM5MzAB+dDp0dn7dS53hwBuYrW9bF1hMkpVALfTNr4ieFXNEj5AHWG8FQsHe8rp7WKrg
+         hFfQ==
+X-Gm-Message-State: APjAAAXkn8PnK9qUmxx4JxGter1Ue42fNfk1e5gt3n9Szx8LGFPiSQQa
+	NikcfNLygEBcsExPI3wN4RpJffrEfx2kQR7GHHiUEU4rmcLEwY5pxH9A3Bhq4ox3pR+9lATJowb
+	0JYoc/wOPYjkaB2f3QLJUBvBI13ESZt2nAxlS5jEPNiHjemskUpVASBb9VtrO5JEYxA==
+X-Received: by 2002:a17:902:b696:: with SMTP id c22mr2658532pls.305.1565090364731;
+        Tue, 06 Aug 2019 04:19:24 -0700 (PDT)
+X-Received: by 2002:a17:902:b696:: with SMTP id c22mr2658489pls.305.1565090364068;
+        Tue, 06 Aug 2019 04:19:24 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565090364; cv=none;
         d=google.com; s=arc-20160816;
-        b=mYDVIdXeuMEWri0YDp9jMQzrR8n19DuJTTbLufjswd+N+x6qhm/e+zGz4BNvJtx02A
-         Hl6nkNksvrhrSId2b7GATLrVYolsLlhDj1h50rV/FFk4zy66j+V7p5iWNjHG5qv61bOI
-         jrToHu7uNLbeatE5lGW5h3RN+crKV2Azmn8IF5wFkyLEVHNUHr0yThy+QMDS2Mj1MM9/
-         TYrZs8HpdjWbTglYNZBF/5mrG4x/hdlFR5OqTVRgb4Qbe0dwxIMGs8syLe+XOPH3wOd+
-         9/4LYHGI5q8mRehsrqGdpoNOAi6La0FEOzTA7JB32Q55QQLlOIAL42Ti3qHTj6yFNKTq
-         Vstw==
+        b=wk3vp+5A2UUjuidmG4h9B1U9ia8S42QHzRFXI6VnKoBC52kgewQha/LACc8ZgubGVS
+         ljkQfMH3SIBgqnZGj6cJXMauSQ8H+mGNz4j/ALvpDTBGzmGaRdBXjsJYaZTS1qG+Ujyv
+         H/cn5no4XpNwvXJYXyXugFR8owLWAZwU28czRRhVw+k0ffVTIv3BMDUO+OObUWbImG2Q
+         zYGKW1fWvWPpiSmOb5ulOUzS03UJWkqXYv2E4zMJguuQyRAHHmgMEgXyq+fEjasNGAU8
+         0gbUeYRAgWrwmwSHQFDCYIk2xOLLRbhjM05Wk5naRt+4jpEPixFrUHtgos/M3JoXZ9RM
+         n6MQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=JXREWNjRkHdGvBX35rCser8QFf3UouELVLmMXS31nd8=;
-        b=azEfNQOG5gXhw7USSNTCd3+mAWTiVCMCp44qHJHiEqb14ZCyJ29xdx8KR/OObPzAUs
-         GJWgcBsEau6rXmT7/B6GDSXAfUhSVb0V0TUc5i8XsfDuN+ztPgK1cvCiQ2UTWWOEwPpC
-         bQTx2EiO0IvUTp5YQ1myso+bWiM0+axoXSmua3E6qpZvks3sJJV4VuVylipNhAnLhx1M
-         fgv2BmatrexeN75D655qYmN1i75mGTJSv9a2ekiWv1734uER7KJxO6QTEutqia+dAXMb
-         dmO9zlGnE4OXOSsJD5eGmdKJvbKcIgL5N3YmbaZjXL9Q9esszrZO86DVojsn4yvSaCV1
-         wdWg==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=jNBh4Uwy6QLd0fk5I8Y9B9xP/9fw2xkjlyVlCT+yndM=;
+        b=ZG9hbvm2LsSl/wcM6QHgL54iYya+qOLlOH5SN7tbOFvumdekHXmEnhxANLKGHupHDX
+         kAr6ahDSo81bYLOQqS7JowKz93T/9Sccbg5ftYXaIz3uHCEjlBsMLt8HWqd4hpSP/IoW
+         Bfe2STHSG7Q5s28fDCZM2yMHIcnQjGsMi7YgxGGwvlKwJxa3J2ybXaFoqO0EXeuabhEH
+         /fCc5axcbGsNI2coD9Xn7o+7JY/88sxCmo/JGH4AxzSCXZnJiXopSsnsi9TU/zhg+dJM
+         khTiZpmaV6XkGhEBbcx76cQhU71RKVaXy2UX7UuE7VwGgOA31u0t+7Kdh1gU5rgjl2W0
+         YbSA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.253 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp34.blacknight.com (outbound-smtp34.blacknight.com. [46.22.139.253])
-        by mx.google.com with ESMTPS id l15si74937393wrm.327.2019.08.06.04.15.00
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b="hT7m/kPE";
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id v11sor24690944pju.18.2019.08.06.04.19.23
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 04:15:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.253 as permitted sender) client-ip=46.22.139.253;
+        (Google Transport Security);
+        Tue, 06 Aug 2019 04:19:24 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 46.22.139.253 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (unknown [81.17.254.10])
-	by outbound-smtp34.blacknight.com (Postfix) with ESMTPS id 76A809FA
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 12:15:00 +0100 (IST)
-Received: (qmail 6100 invoked from network); 6 Aug 2019 11:15:00 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[84.203.18.93])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 6 Aug 2019 11:15:00 -0000
-Date: Tue, 6 Aug 2019 12:14:59 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>,
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b="hT7m/kPE";
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=joelfernandes.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=jNBh4Uwy6QLd0fk5I8Y9B9xP/9fw2xkjlyVlCT+yndM=;
+        b=hT7m/kPEBbfuocAKw5Xl9iF6rszGIOiOU1pdk9Yl9uQaoSvBKVDI9XOMkrfdb7LwCJ
+         TwHeWzeGX8FvyMCo3V+QlzvodG0odf5bOEzj1zCP1QE3OBESAFt9TvXGZ4VZEvsAcJtG
+         tqZe0a8M+Hv2lAOkMv1yerWslMxtF2wkEcWqQ=
+X-Google-Smtp-Source: APXvYqywqnwTAaGR6Bs8KS7aVh05Rc6pWzLeu7k4oiw+pFIGujdN2uTYttGBWidHSRA8eyinnS/N7A==
+X-Received: by 2002:a17:90a:c20e:: with SMTP id e14mr2839075pjt.0.1565090363666;
+        Tue, 06 Aug 2019 04:19:23 -0700 (PDT)
+Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
+        by smtp.gmail.com with ESMTPSA id w16sm109123479pfj.85.2019.08.06.04.19.22
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 06 Aug 2019 04:19:22 -0700 (PDT)
+Date: Tue, 6 Aug 2019 07:19:21 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Daniel Jordan <daniel.m.jordan@oracle.com>,
-	Christoph Lameter <cl@linux.com>,
-	Yafang Shao <shaoyafang@didiglobal.com>
-Subject: Re: [PATCH v2] mm/vmscan: shrink slab in node reclaim
-Message-ID: <20190806111459.GH2739@techsingularity.net>
-References: <1565075940-23121-1-git-send-email-laoar.shao@gmail.com>
- <20190806073525.GC11812@dhcp22.suse.cz>
- <20190806074137.GE11812@dhcp22.suse.cz>
- <CALOAHbBNV9BNmGhnV-HXOdx9QfArLHqBHsBe0cm-gxsGVSoenw@mail.gmail.com>
- <20190806090516.GM11812@dhcp22.suse.cz>
- <CALOAHbDO5qmqKt8YmCkTPhh+m34RA+ahgYVgiLx1RSOJ-gM4Dw@mail.gmail.com>
- <20190806092531.GN11812@dhcp22.suse.cz>
- <CALOAHbAzRC9m8bw8ounK5GF2Ss-yxvzAvRw10HNj-Y78iEx2Qg@mail.gmail.com>
+	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
+	fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>, kernel-team@android.com,
+	linux-api@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+	Mike Rapoport <rppt@linux.ibm.com>, minchan@kernel.org,
+	namhyung@google.com, paulmck@linux.ibm.com,
+	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
+	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
+	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
+Subject: Re: [PATCH v4 4/5] page_idle: Drain all LRU pagevec before idle
+ tracking
+Message-ID: <20190806111921.GB117316@google.com>
+References: <20190805170451.26009-1-joel@joelfernandes.org>
+ <20190805170451.26009-4-joel@joelfernandes.org>
+ <20190806084357.GK11812@dhcp22.suse.cz>
+ <20190806104554.GB218260@google.com>
+ <20190806105149.GT11812@dhcp22.suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CALOAHbAzRC9m8bw8ounK5GF2Ss-yxvzAvRw10HNj-Y78iEx2Qg@mail.gmail.com>
+In-Reply-To: <20190806105149.GT11812@dhcp22.suse.cz>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -112,53 +132,55 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 06, 2019 at 05:32:54PM +0800, Yafang Shao wrote:
-> On Tue, Aug 6, 2019 at 5:25 PM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Tue 06-08-19 17:15:05, Yafang Shao wrote:
-> > > On Tue, Aug 6, 2019 at 5:05 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > [...]
-> > > > > As you said, the direct reclaim path set it to 1, but the
-> > > > > __node_reclaim() forgot to process may_shrink_slab.
-> > > >
-> > > > OK, I am blind obviously. Sorry about that. Anyway, why cannot we simply
-> > > > get back to the original behavior by setting may_shrink_slab in that
-> > > > path as well?
-> > >
-> > > You mean do it as the commit 0ff38490c836 did  before ?
-> > > I haven't check in which commit the shrink_slab() is removed from
-> >
-> > What I've had in mind was essentially this:
-> >
-> > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > index 7889f583ced9..8011288a80e2 100644
-> > --- a/mm/vmscan.c
-> > +++ b/mm/vmscan.c
-> > @@ -4088,6 +4093,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
-> >                 .may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
-> >                 .may_swap = 1,
-> >                 .reclaim_idx = gfp_zone(gfp_mask),
-> > +               .may_shrinkslab = 1;
-> >         };
-> >
-> >         trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, order,
-> >
-> > shrink_node path already does shrink slab when the flag allows that. In
-> > other words get us back to before 1c30844d2dfe because that has clearly
-> > changed the long term node reclaim behavior just recently.
-> > --
+On Tue, Aug 06, 2019 at 12:51:49PM +0200, Michal Hocko wrote:
+> On Tue 06-08-19 06:45:54, Joel Fernandes wrote:
+> > On Tue, Aug 06, 2019 at 10:43:57AM +0200, Michal Hocko wrote:
+> > > On Mon 05-08-19 13:04:50, Joel Fernandes (Google) wrote:
+> > > > During idle tracking, we see that sometimes faulted anon pages are in
+> > > > pagevec but are not drained to LRU. Idle tracking considers pages only
+> > > > on LRU. Drain all CPU's LRU before starting idle tracking.
+> > > 
+> > > Please expand on why does this matter enough to introduce a potentially
+> > > expensinve draining which has to schedule a work on each CPU and wait
+> > > for them to finish.
+> > 
+> > Sure, I can expand. I am able to find multiple issues involving this. One
+> > issue looks like idle tracking is completely broken. It shows up in my
+> > testing as if a page that is marked as idle is always "accessed" -- because
+> > it was never marked as idle (due to not draining of pagevec).
+> > 
+> > The other issue shows up as a failure in my "swap test", with the following
+> > sequence:
+> > 1. Allocate some pages
+> > 2. Write to them
+> > 3. Mark them as idle                                    <--- fails
+> > 4. Introduce some memory pressure to induce swapping.
+> > 5. Check the swap bit I introduced in this series.      <--- fails to set idle
+> >                                                              bit in swap PTE.
+> > 
+> > Draining the pagevec in advance fixes both of these issues.
 > 
-> If we do it like this, then vm.min_slab_ratio will not take effect if
-> there're enough relcaimable page cache.
-> Seems there're bugs in the original behavior as well.
+> This belongs to the changelog.
+
+Sure, will add.
+
+
+> > This operation even if expensive is only done once during the access of the
+> > page_idle file. Did you have a better fix in mind?
 > 
+> Can we set the idle bit also for non-lru pages as long as they are
+> reachable via pte?
 
-Typically that would be done as a separate patch with a standalone
-justification for it. The first patch should simply restore expected
-behaviour with a Fixes: tag noting that the change in behaviour was
-unintentional.
+Not at the moment with the current page idle tracking code. PageLRU(page)
+flag is checked in page_idle_get_page().
 
--- 
-Mel Gorman
-SUSE Labs
+Even if we could set it for non-LRU, the idle bit (page flag) would not be
+cleared if page is not on LRU because page-reclaim code (page_referenced() I
+believe) would not clear it. This whole mechanism depends on page-reclaim. Or
+did I miss your point?
+
+
+thanks,
+
+ - Joel
 
