@@ -2,190 +2,259 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F74DC32754
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:13:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DD93C31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:25:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4736621738
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:13:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0EB3420C01
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:25:56 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="rTAT9bH7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4736621738
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="hBknxIUa"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0EB3420C01
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B7D2C6B0007; Tue,  6 Aug 2019 13:13:47 -0400 (EDT)
+	id 8DBFE6B0007; Tue,  6 Aug 2019 13:25:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B545B6B0008; Tue,  6 Aug 2019 13:13:47 -0400 (EDT)
+	id 8657C6B0008; Tue,  6 Aug 2019 13:25:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A6BC96B000A; Tue,  6 Aug 2019 13:13:47 -0400 (EDT)
+	id 6DEBB6B000A; Tue,  6 Aug 2019 13:25:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 71B5A6B0007
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 13:13:47 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id k9so48737874pls.13
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 10:13:47 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 418166B0007
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 13:25:56 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id d13so49998325oth.20
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 10:25:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=5ea3uMryef/vRDBptNhuCg1V2qLJggsyW+xZZJ8QfN0=;
-        b=AvPH2wKiStxfj4RUY6IKgzHOSCfiEAcpPdie9tuFkM18mBl4cd8tSwpoJtSppsUPKw
-         4gioAQpWXm7R1CQtY+VDbK22eLeO16wklbLvNeajW8ykVBu9AbAHkc+zGw4cC4ry4PGg
-         ETq5tfAqXnzvW9sZkq+2jbevAqeR2vPPb/Xh9IecS5LlomTjLs/wwtl1QxVqZFs8V+oG
-         oF+cbNv3kUduX97Dh+mI9FPquSiVuUADT0JT4XeKH7AEJ+6uXuLRP1rJZXOtVsnTMVZ+
-         JUP5cTj+nIvvysbjcYm88eUMPrAAVYXIX9txmSR8vGYISCtl78YAA8Q3FoZtsRQP+Jry
-         jHMQ==
-X-Gm-Message-State: APjAAAX2PjURKE949F7EJvhKjJZdaRCu+5eH8Y+iTsVCzxW7TSQffqsw
-	aTqsCD3XLO9pp8WeddI4H3LtB3FDDK4bKDmJoLkJ3+Hgai8XfDQYoQ0JhWx9Vr1d9C1QmOVPHDB
-	WszzKcz7Qlr4NkFAljU94KCxsGy6+1WfGZRljpeWEO2Ud0VD40Zhli8zVO6Q/CThV+A==
-X-Received: by 2002:a17:902:1107:: with SMTP id d7mr4128065pla.184.1565111627032;
-        Tue, 06 Aug 2019 10:13:47 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwlz7y44ZVKpYSsmJ39cIf2XK4aGWA9bliegIgqoJRVhGHzL6NzYSR6bEdttnQf29/6L9w8
-X-Received: by 2002:a17:902:1107:: with SMTP id d7mr4128011pla.184.1565111626113;
-        Tue, 06 Aug 2019 10:13:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565111626; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:in-reply-to:references;
+        bh=Wehduxv3rRQK2E7/irEvOjIfxwzfa7zL656bjo3lVcY=;
+        b=r42c244aHXoiP3AcuZ3MiwARoe7g2cc3w37jOSmLNRhA0YUh6NlxsfpelqpANhlZdp
+         ZvAIm6h5h8YEzwVZTBQpzsgn1c0EQIrH8I2rDwKAMrZ76ru6haatSGcoM57R+ahjeeiM
+         8HEB2HePCkCyvHoCmm5JKJJAtqJ08AcoHXXSozgrr2MYl5HPTqblkQnvoj5TemNkaaYo
+         d219mBlDvg8jt/HSoZIeqglzIeonSVSVvpdCq0ec4wMYX7dk2HBp1x+Dz4M3YgDk67fR
+         QX9gcSnPG+eYoDEE8qYJY+RZyoIwnh5+RkExVpPU10JpMeNYjDIVDZ6BObYlLHnU1HH1
+         RQNg==
+X-Gm-Message-State: APjAAAXlZMXEspql62gsLVtJzIMSwcvR1LZHWheY6i8Ezx0e7SZk1VR6
+	3EulzAPqyXhnNLI8oB3VMWUPY9UGECkQzZd+0ImJADAjMTT9t39oKFX25Sn5NofRi7zIxuYy+7O
+	H3HYqRFMmgufR1t2bBJX1Xlb/OPKzLzICN1tjQx55eeDr6RB0Imz/xxYv5S7v7CzS7w==
+X-Received: by 2002:a5e:c302:: with SMTP id a2mr4288435iok.62.1565112355924;
+        Tue, 06 Aug 2019 10:25:55 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxjwOccqoA4VhG+kdh52Quh40haLd6ADQJsZ1WYgq7pnJNupp9vXkiXB9FZdFETQOK9/z7j
+X-Received: by 2002:a5e:c302:: with SMTP id a2mr4288388iok.62.1565112355261;
+        Tue, 06 Aug 2019 10:25:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565112355; cv=none;
         d=google.com; s=arc-20160816;
-        b=zk++1Tdv3zIGXoLRAFTmqyHuVLRUTzfa/1EhUpMmkRku5Lo5t0OUAjkiXwhes8dAX6
-         TbLsmOmhJfcFLbU2oIDVyKZ/tmPQ1any9T+yXc49LXsg+2nJuPQ4tRRApiXQpCUTP23/
-         xBfB912HiJi85d75nmwSMolCPxfNaywKAbcpVynL5HFnm04I92SvHCzR1xqyRY4sXDU8
-         ifjHUbGL8p1kc/UwaW/CAkdYiN5Y+uFRzI52ZWjIXFXMwCqauH77fsT3OwbjtDIgsdlc
-         jn7e0fSOpJL4yrELa2AXjrYEc7tl9OIkklerHlcL0Uz+c33WJ6oGx18uCqzU0HVmyehz
-         HKUw==
+        b=H8HJhmxkrWZ2jgOCHPQZyNXhcG/wQMLe41SnMx3O2CXoRHrSvqKR/bET6Rxs3QTip9
+         IazsM8tXelfxWXIZK182UI5FPcrH3AsKUXXENT3LDVmmoSAfY0x22lDvyTor5aRxo/sr
+         0iFCqKkxRip1mMAAV8wFcxz+cfJdojTLtcDjsNN6uzB6TdJ9VK5d2XkGT5Rud+qGSpLp
+         zz5DgOuJvONlKJrFAvHKH7COpSlRbONKttKfFDrJrd/+QAFIHCIJLDUVsz9zRTSkhUNW
+         LPFHZxlueKtF3CjR5pvyVqAk9jWGdA+blO48bUW7DIDdZjot6x18oAfvyPMtJrQg/TXH
+         pK1Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=5ea3uMryef/vRDBptNhuCg1V2qLJggsyW+xZZJ8QfN0=;
-        b=mS1mkboxh7vWYPZ7Pbcb8yMdbAbRRlnDx2nMQj8Hq3C1AwBKymTR2CxXGCa+80VhQG
-         hjz9ldPJhoUnSY7e9vkC/YULB1HhThdG/r25Cdrfz9Nc0L6LglpbldE+ELgp81KOC0yK
-         L2dfiAuehoH2JRMyCSNvCvruzEim8mDbUW73GGAcNMwC8X4kh/kpZHXGwUBhyh7vqAWq
-         coHle0zg/ZCVem2JAgiOUcCSYVcSxOzXxJ0Q7X+MozvsaBNs1qw/4GO16cfemp3z1BqJ
-         pzEYw2OyZan3zGuvuaia5l+sylI41NXz21zVv2/Kv17IGpvyk2pa9dddFe/9pxhtAg8C
-         PydA==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from
+         :dkim-signature;
+        bh=Wehduxv3rRQK2E7/irEvOjIfxwzfa7zL656bjo3lVcY=;
+        b=ZGUHPAfJYdkbA7UGhCCgNDjKHQvdDp2xK6dz7GUyXdHLTIT8vqB6xORVaz8DNHxih7
+         hR189THnjKYz3fPgdjEWIVWhK/zAUduogdp44PMeO69tVl/2DE9sCmZyGRHRBQmD8UI9
+         7kOp0SHsL1Bf31+T9KdN03tNkDj7lqEVOOPFv3B8UwgWvUQUCmA5/Jxzum4KoPWceCAG
+         cG0iIymPU7Tv15WtBF5DuFJh/p/qz9uBKFG4S+yfwx6+L3z1qBOT7z9jJFe4hNGBxm4q
+         i+2EABNJHIWeYh6tH+0LrW6icgexiWwh+Tvs4JOxL+WPu88G2pVqBG46ps4jRVsSqs6S
+         ZxHw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=rTAT9bH7;
-       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id y22si42465969plp.192.2019.08.06.10.13.45
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=hBknxIUa;
+       spf=pass (google.com: domain of jane.chu@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=jane.chu@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id n28si101496646jac.89.2019.08.06.10.25.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 10:13:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Tue, 06 Aug 2019 10:25:55 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jane.chu@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=rTAT9bH7;
-       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from willie-the-truck (236.31.169.217.in-addr.arpa [217.169.31.236])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 7ACF82086D;
-	Tue,  6 Aug 2019 17:13:39 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565111625;
-	bh=GcwPgkJicx4YCfVs1IPwu6WwyqpK78qeXeT/YMfDkko=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=rTAT9bH7GKNJUZdS8BRtbH8phw4qgZ5+dRNFkldjVWk6dGxX0O1d/RnE/0V20gryu
-	 PTJMl31RRRdUsoRUBPiBr87DgRaB/HWSPKLtCibTJQQUtSYBOvQ2oBVDM1HUaAlT2q
-	 mkbOtB7+YYYk5DiFCNquMbqioXWuU2alu3yKrGRo=
-Date: Tue, 6 Aug 2019 18:13:36 +0100
-From: Will Deacon <will@kernel.org>
-To: Will Deacon <will.deacon@arm.com>
-Cc: Andrey Konovalov <andreyknvl@google.com>,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>, kvm@vger.kernel.org,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	dri-devel@lists.freedesktop.org, Kostya Serebryany <kcc@google.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>,
-	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Leon Romanovsky <leon@kernel.org>, linux-rdma@vger.kernel.org,
-	amd-gfx@lists.freedesktop.org,
-	Christoph Hellwig <hch@infradead.org>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Linux ARM <linux-arm-kernel@lists.infradead.org>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Evgeniy Stepanov <eugenis@google.com>, linux-media@vger.kernel.org,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Kees Cook <keescook@chromium.org>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Linux Memory Management List <linux-mm@kvack.org>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	LKML <linux-kernel@vger.kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>, enh <enh@google.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
-Subject: Re: [PATCH v19 00/15] arm64: untag user pointers passed to the kernel
-Message-ID: <20190806171335.4dzjex5asoertaob@willie-the-truck>
-References: <cover.1563904656.git.andreyknvl@google.com>
- <CAAeHK+yc0D_nd7nTRsY4=qcSx+eQR0VLut3uXMf4NEiE-VpeCw@mail.gmail.com>
- <20190724140212.qzvbcx5j2gi5lcoj@willie-the-truck>
- <CAAeHK+xXzdQHpVXL7f1T2Ef2P7GwFmDMSaBH4VG8fT3=c_OnjQ@mail.gmail.com>
- <20190724142059.GC21234@fuggles.cambridge.arm.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190724142059.GC21234@fuggles.cambridge.arm.com>
-User-Agent: NeoMutt/20170113 (1.7.2)
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=hBknxIUa;
+       spf=pass (google.com: domain of jane.chu@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=jane.chu@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x76H9Ipb161050;
+	Tue, 6 Aug 2019 17:25:52 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
+ subject : date : message-id : in-reply-to : references; s=corp-2018-07-02;
+ bh=Wehduxv3rRQK2E7/irEvOjIfxwzfa7zL656bjo3lVcY=;
+ b=hBknxIUazqQ/wOMEAxX01bZsUVuXvxlyO1N+0qKl94WEryTvqPeXObRSc32gqFSQAL62
+ UQOkmWB0thwiyDWYfW+Dxcjp2iUJid2d0EFP9GF5inTIXcNtpipmO4fOfb/1e15sAo8x
+ 3cO1kTl99VB5L813rDMfLXILyzoqiU7wpcxdqG2/5BQVco6f/Jm00YTqz+Ibg/LHzzJd
+ XfgVKP1rMsj2IsWSZcKvp0oJTFREKswS+eGx2UQKed2eH8qea+yZxJECWPhh6cYP2w2p
+ q/A/4BZRbg+8u2RYrbxP5Yk+niKSUA+fD7A3T8SfEkj+xkAElK8rSSgHwUXkt1bguqBf dw== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by aserp2120.oracle.com with ESMTP id 2u527pqgqp-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 06 Aug 2019 17:25:52 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x76H8NZp068899;
+	Tue, 6 Aug 2019 17:25:51 GMT
+Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
+	by userp3030.oracle.com with ESMTP id 2u7666qy69-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 06 Aug 2019 17:25:51 +0000
+Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
+	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x76HPooi011529;
+	Tue, 6 Aug 2019 17:25:50 GMT
+Received: from brm-x32-03.us.oracle.com (/10.80.150.35)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 06 Aug 2019 10:25:50 -0700
+From: Jane Chu <jane.chu@oracle.com>
+To: n-horiguchi@ah.jp.nec.com, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org
+Cc: linux-nvdimm@lists.01.org
+Subject: [PATCH v4 1/2] mm/memory-failure.c clean up around tk pre-allocation
+Date: Tue,  6 Aug 2019 11:25:44 -0600
+Message-Id: <1565112345-28754-2-git-send-email-jane.chu@oracle.com>
+X-Mailer: git-send-email 1.8.3.1
+In-Reply-To: <1565112345-28754-1-git-send-email-jane.chu@oracle.com>
+References: <1565112345-28754-1-git-send-email-jane.chu@oracle.com>
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9341 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=940
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1908060156
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9341 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=994 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1908060156
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 24, 2019 at 03:20:59PM +0100, Will Deacon wrote:
-> On Wed, Jul 24, 2019 at 04:16:49PM +0200, Andrey Konovalov wrote:
-> > On Wed, Jul 24, 2019 at 4:02 PM Will Deacon <will@kernel.org> wrote:
-> > > On Tue, Jul 23, 2019 at 08:03:29PM +0200, Andrey Konovalov wrote:
-> > > > Should this go through the mm or the arm tree?
-> > >
-> > > I would certainly prefer to take at least the arm64 bits via the arm64 tree
-> > > (i.e. patches 1, 2 and 15). We also need a Documentation patch describing
-> > > the new ABI.
-> > 
-> > Sounds good! Should I post those patches together with the
-> > Documentation patches from Vincenzo as a separate patchset?
-> 
-> Yes, please (although as you say below, we need a new version of those
-> patches from Vincenzo to address the feedback on v5). The other thing I
-> should say is that I'd be happy to queue the other patches in the series
-> too, but some of them are missing acks from the relevant maintainers (e.g.
-> the mm/ and fs/ changes).
+add_to_kill() expects the first 'tk' to be pre-allocated, it makes
+subsequent allocations on need basis, this makes the code a bit
+difficult to read. Move all the allocation internal to add_to_kill()
+and drop the **tk argument.
 
-Ok, I've queued patches 1, 2, and 15 on a stable branch here:
+Signed-off-by: Jane Chu <jane.chu@oracle.com>
+---
+ mm/memory-failure.c | 40 +++++++++++++---------------------------
+ 1 file changed, 13 insertions(+), 27 deletions(-)
 
-  https://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux.git/log/?h=for-next/tbi
-
-which should find its way into -next shortly via our for-next/core branch.
-If you want to make changes, please send additional patches on top.
-
-This is targetting 5.4, but I will drop it before the merge window if
-we don't have both of the following in place:
-
-  * Updated ABI documentation with Acks from Catalin and Kevin
-  * The other patches in the series either Acked (so I can pick them up)
-    or queued via some other tree(s) for 5.4.
-
-Make sense?
-
-Cheers,
-
-Will
+diff --git a/mm/memory-failure.c b/mm/memory-failure.c
+index d9cc660..51d5b20 100644
+--- a/mm/memory-failure.c
++++ b/mm/memory-failure.c
+@@ -304,25 +304,19 @@ static unsigned long dev_pagemap_mapping_shift(struct page *page,
+ /*
+  * Schedule a process for later kill.
+  * Uses GFP_ATOMIC allocations to avoid potential recursions in the VM.
+- * TBD would GFP_NOIO be enough?
+  */
+ static void add_to_kill(struct task_struct *tsk, struct page *p,
+ 		       struct vm_area_struct *vma,
+-		       struct list_head *to_kill,
+-		       struct to_kill **tkc)
++		       struct list_head *to_kill)
+ {
+ 	struct to_kill *tk;
+ 
+-	if (*tkc) {
+-		tk = *tkc;
+-		*tkc = NULL;
+-	} else {
+-		tk = kmalloc(sizeof(struct to_kill), GFP_ATOMIC);
+-		if (!tk) {
+-			pr_err("Memory failure: Out of memory while machine check handling\n");
+-			return;
+-		}
++	tk = kmalloc(sizeof(struct to_kill), GFP_ATOMIC);
++	if (!tk) {
++		pr_err("Memory failure: Out of memory while machine check handling\n");
++		return;
+ 	}
++
+ 	tk->addr = page_address_in_vma(p, vma);
+ 	tk->addr_valid = 1;
+ 	if (is_zone_device_page(p))
+@@ -341,6 +335,7 @@ static void add_to_kill(struct task_struct *tsk, struct page *p,
+ 			page_to_pfn(p), tsk->comm);
+ 		tk->addr_valid = 0;
+ 	}
++
+ 	get_task_struct(tsk);
+ 	tk->tsk = tsk;
+ 	list_add_tail(&tk->nd, to_kill);
+@@ -432,7 +427,7 @@ static struct task_struct *task_early_kill(struct task_struct *tsk,
+  * Collect processes when the error hit an anonymous page.
+  */
+ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
+-			      struct to_kill **tkc, int force_early)
++				int force_early)
+ {
+ 	struct vm_area_struct *vma;
+ 	struct task_struct *tsk;
+@@ -457,7 +452,7 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
+ 			if (!page_mapped_in_vma(page, vma))
+ 				continue;
+ 			if (vma->vm_mm == t->mm)
+-				add_to_kill(t, page, vma, to_kill, tkc);
++				add_to_kill(t, page, vma, to_kill);
+ 		}
+ 	}
+ 	read_unlock(&tasklist_lock);
+@@ -468,7 +463,7 @@ static void collect_procs_anon(struct page *page, struct list_head *to_kill,
+  * Collect processes when the error hit a file mapped page.
+  */
+ static void collect_procs_file(struct page *page, struct list_head *to_kill,
+-			      struct to_kill **tkc, int force_early)
++				int force_early)
+ {
+ 	struct vm_area_struct *vma;
+ 	struct task_struct *tsk;
+@@ -492,7 +487,7 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
+ 			 * to be informed of all such data corruptions.
+ 			 */
+ 			if (vma->vm_mm == t->mm)
+-				add_to_kill(t, page, vma, to_kill, tkc);
++				add_to_kill(t, page, vma, to_kill);
+ 		}
+ 	}
+ 	read_unlock(&tasklist_lock);
+@@ -501,26 +496,17 @@ static void collect_procs_file(struct page *page, struct list_head *to_kill,
+ 
+ /*
+  * Collect the processes who have the corrupted page mapped to kill.
+- * This is done in two steps for locking reasons.
+- * First preallocate one tokill structure outside the spin locks,
+- * so that we can kill at least one process reasonably reliable.
+  */
+ static void collect_procs(struct page *page, struct list_head *tokill,
+ 				int force_early)
+ {
+-	struct to_kill *tk;
+-
+ 	if (!page->mapping)
+ 		return;
+ 
+-	tk = kmalloc(sizeof(struct to_kill), GFP_NOIO);
+-	if (!tk)
+-		return;
+ 	if (PageAnon(page))
+-		collect_procs_anon(page, tokill, &tk, force_early);
++		collect_procs_anon(page, tokill, force_early);
+ 	else
+-		collect_procs_file(page, tokill, &tk, force_early);
+-	kfree(tk);
++		collect_procs_file(page, tokill, force_early);
+ }
+ 
+ static const char *action_name[] = {
+-- 
+1.8.3.1
 
