@@ -2,160 +2,157 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 529CFC433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:33:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EAD28C31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:51:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1F8392086D
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:33:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F8392086D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id A156C20C01
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:51:04 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="MlysRV02"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A156C20C01
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B677D6B0005; Tue,  6 Aug 2019 14:33:14 -0400 (EDT)
+	id 2F5EA6B0003; Tue,  6 Aug 2019 14:51:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B186E6B0006; Tue,  6 Aug 2019 14:33:14 -0400 (EDT)
+	id 2A65E6B0006; Tue,  6 Aug 2019 14:51:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A2EBA6B0007; Tue,  6 Aug 2019 14:33:14 -0400 (EDT)
+	id 1BCBD6B0007; Tue,  6 Aug 2019 14:51:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EE056B0005
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 14:33:14 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id y22so48824507plr.20
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 11:33:14 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AEE666B0003
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 14:51:03 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id e14so17780592ljj.3
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 11:51:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=Cm9hk9u0afn+ZjMDnzSZ+v/EgUHwNgOxDe/V4NqAJfw=;
-        b=B326qM9GLNfslPrGSI3Stw9jQZvbKQ/y62C0JrmRVSEC/CEeYioStLm54P+vnzItWe
-         /aEiJAZ9x9jcBvvMCghixHZyAb6uIAgNuc13A8OjqPMRBdult1Uy//tLEfzEZuMe9M9Q
-         eBlrnKMHHu5yejzUslilcf8FUYfTqXocsDAHm8Jos5ibiRTq1nlh5RuZPMQW6Obf6wKc
-         +x0subxcCC37SOLVCU1lnZhJaB930jaRGb4Nrz2SOo7SnmJRsYlbHm2cPezHRQjjVJY/
-         0GxKeu3JF43+g7ZRNeXP+ETYghfmK4c/zOBDqCikxVG61g/AUgjsAtMXi7ImSPcpGtr1
-         gn0Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXBRtCTYSmLGhHY+H0NVc11TROyTUZF+H6C5d9Lb96mStOuk8ig
-	II7/oNdJzdp7tcNzhRrlDcUE9qW9pX6Q0ClNY9DO87QzFZPYxItLkqSGrhdj8q/JfpL0dxkC+Yu
-	8kkHizgrHIsA4P2iuxrxfK0kQ4wHdUWQmSM7rVFSH5QsU2a6a7pf9yx1SjC2nTWXEBA==
-X-Received: by 2002:aa7:9210:: with SMTP id 16mr5259042pfo.11.1565116394091;
-        Tue, 06 Aug 2019 11:33:14 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzxrsPP5qmiLpZe0O8fnIyI0hSGXZOVZ3LDQvwTeAb7mRRFOluRkKZ94spq6wqEka+FsKtP
-X-Received: by 2002:aa7:9210:: with SMTP id 16mr5258978pfo.11.1565116393225;
-        Tue, 06 Aug 2019 11:33:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565116393; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=YFrdn8TjmQNSnIaAcCuqbEzq3mrXCDg59WKear6Xdpg=;
+        b=AosiePcxzR5VOcaw1njVRez8LTjfgMxbnvhfyMY0I1Mi48HkZiwVUeVknE/ygtlXrn
+         wsYuX1FRU7TPsqvLmzo9prd0/y/mjEBnhgFW3xPiyR41/a4LbFrTMjGRf0uApQ29adgW
+         +Cf56hUucANs/ofpdkzIvI6N+lqA/Trr+hSZk5ji5wC7/rS6bzFeOXjSCN1pxexk6+pR
+         Q4TM25UH2buxfyLPmF5Ytj78EnD+54khxORQaksjD9ZU878VOFKmUHzh4wt4V6+h8JhI
+         kPy2amMdXEf9AvqXnbx4mUWvujoH/BPhJMEWtxow3yPVabSo5X0I8CViQ64/QlCyWjFN
+         UVJw==
+X-Gm-Message-State: APjAAAViMTlBsgg9T5OjbqwJ5C+sr70Q8RndesHLQxcw+YfP1grViyYW
+	gLybJNyTEc+uXf6BGIFGkyS7DOVKIy/nD9F304Qg2rMlvefAeYbLp147oZKMKwvzW3NtdnC+wCB
+	vnpEf1SlZ0PqA3M+SvWZumUNhpVhCu1hOf85Fyu27KzTwRqUJj1TnftnyFn2fVDbFeg==
+X-Received: by 2002:a2e:8999:: with SMTP id c25mr2543707lji.169.1565117462904;
+        Tue, 06 Aug 2019 11:51:02 -0700 (PDT)
+X-Received: by 2002:a2e:8999:: with SMTP id c25mr2543676lji.169.1565117461954;
+        Tue, 06 Aug 2019 11:51:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565117461; cv=none;
         d=google.com; s=arc-20160816;
-        b=mF128fXN/Hh9as+puykq1deUnoAYz0364t4PAxeZIrn9gRKEL7AfWzKddFTE48bcJE
-         9lepTfTzohVwk6RFTuK77I6claSyLVRbgPF8ZxE4TyqLAoDPedfcgqt21hir58LFfjd0
-         nEBRD0SaCNYQ80///J4HjEUj5B0SmplTWnEVd39MdEI4Gnc3CzuYXrc/+kiAUjXlKt2s
-         JGKTY2ZmJnDxHVzI37gZvyY7jjA9rNotuWJYUtnVS06ykjdMkKA8l4mK/En2jWHPrhkR
-         mENylgEtph5j0JkWempKJ7S4/vokSLER9v8l45IROmiLjBjiXD3EblvJLHajnfdnOepC
-         zXGg==
+        b=n6CnwyTS5GCo6lSGlgqef2YkEJJGwfXwd5VMjaydEj2s2ET5mBvCCHOrGEGmx9ojKW
+         AzsSGXRR6gOjQHPCN+6nFwLzv1sIorFDEcHtQxBqAq0qFQ0UQ81xVj1zQRsUCB36CEWa
+         arhiJGRRDZR8sHBQGzqJ4srWGqiTXujf0Mdh98FFvRBNpCKJGgyJjLTfTwUYlNunzQf7
+         3aLCDMISMgQlm6Bpj1o6FwXDuSLupdCdnPRNxHHUZlPAx0V6f4k3sIh/fS/01JQFYSxF
+         uG7j9FBiJ9rhUD4QOumZgx9uDsGMh88xUUjfhi9TeeLPd3yPFqDVLzHrAZujbObf5NnU
+         FCMw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:date:cc:to:from:subject:message-id;
-        bh=Cm9hk9u0afn+ZjMDnzSZ+v/EgUHwNgOxDe/V4NqAJfw=;
-        b=sDmgrWVk8S/3sNjN4RQqTAxt3yeegnwjc6WMJKFfLpir2NV7DK5LZzxRIN7uAhJz0I
-         9HGPfc/Aa3F2/gazWRGDSiE2/FskPs1XC3RWCtsYh2VZZ580ijnWOlMg4yqOlzgu1TwM
-         5ugbXqDA1CDTW+49fGZLPVQnYfoCi6wAT/bh8GWDX2w9MC+8cBL5d8yDA8syp/2yW2rr
-         4fav/S6RmKID4E17rjRiQ2VYQeNge0PX9iTgw9Hm+Jl1Nh34F/ZGu+d9qS+VP5rvMBga
-         36qauDqC2s2zleVIXUNxya4We/GpJs07rxohG1nqushCMchdZYwSkJeqVfPz7Ub3VU2g
-         x/Dg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=YFrdn8TjmQNSnIaAcCuqbEzq3mrXCDg59WKear6Xdpg=;
+        b=VPVGgCtyspkTVA/oaI2iZjMBz5bpBWpdJCeSRSZE3vADGCc6fK2US/JLn9Tq0Xqij+
+         B6rsQuluqotd1mMYOuWk3pX1wKh+yyL2TTRQVnCcx3PrSnUSc/YM7gXEAivZTYp9j9Vt
+         d31K22hb1/ZqOisFZzykpibRg9CauUsI3RsP4ekKTq2WpnZ4uzN9fchcLM/ZFEc9ph0w
+         ft8Y0jwX7RYp6KfWakkJHSoRQdEJ3ahvgybkrQivGDuvASM4iTSfkV3Q0lJ465t0grMZ
+         G25PRQS+PwngDdl0uWJq6SXvxI/x7dlBOE9kU3MVCHzt5Yn778953KbL62gO8XfBccgk
+         FV8A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
-        by mx.google.com with ESMTPS id j187si47327308pge.591.2019.08.06.11.33.12
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=MlysRV02;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id 6sor46643851ljs.44.2019.08.06.11.51.01
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 11:33:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
+        (Google Transport Security);
+        Tue, 06 Aug 2019 11:51:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Aug 2019 11:33:12 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,353,1559545200"; 
-   d="scan'208";a="168378909"
-Received: from sai-dev-mach.sc.intel.com ([143.183.140.153])
-  by orsmga008.jf.intel.com with ESMTP; 06 Aug 2019 11:33:12 -0700
-Message-ID: <9a09db3d4827bc6bf49c4579d495d71015f2c5a6.camel@intel.com>
-Subject: Re: [PATCH V2] fork: Improve error message for corrupted page tables
-From: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
-To: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, 
-	linux-mm@kvack.org
-Cc: Ingo Molnar <mingo@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter
- Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>,
- Anshuman Khandual <anshuman.khandual@arm.com>
-Date: Tue, 06 Aug 2019 11:30:02 -0700
-In-Reply-To: <73b77479-cdd2-6d53-14ae-25ec4c4c3d25@intel.com>
-References: 
-	<3ef8a340deb1c87b725d44edb163073e2b6eca5a.1565059496.git.sai.praneeth.prakhya@intel.com>
-	 <73b77479-cdd2-6d53-14ae-25ec4c4c3d25@intel.com>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5-0ubuntu0.18.10.1 
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=MlysRV02;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linux-foundation.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=YFrdn8TjmQNSnIaAcCuqbEzq3mrXCDg59WKear6Xdpg=;
+        b=MlysRV02mcMixM5P973XDGPSxckBz4Nea7C3SNGSHcfQXpMYCeOaEo4xQvZFVIgIBy
+         AFFjp9IQ8QdVB/2B+8z1j1rT4dC0Ak27vpobppoYytcpWfuMnn4/z0OVQMXSAxk5j/X4
+         5pVDLEKsr8UIaKS0UpizhCPTazxnvNME05Bg0=
+X-Google-Smtp-Source: APXvYqzjyD9hRBQOyybXTeJHDz8sThkFpnPcNCbJ6vWYcWT7YFfOFluDWeNgg/9ayepOmlv91Z6egA==
+X-Received: by 2002:a2e:854d:: with SMTP id u13mr2604871ljj.236.1565117460080;
+        Tue, 06 Aug 2019 11:51:00 -0700 (PDT)
+Received: from mail-lf1-f50.google.com (mail-lf1-f50.google.com. [209.85.167.50])
+        by smtp.gmail.com with ESMTPSA id b11sm18038184ljf.8.2019.08.06.11.50.58
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Aug 2019 11:50:59 -0700 (PDT)
+Received: by mail-lf1-f50.google.com with SMTP id 62so57145982lfa.8
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 11:50:58 -0700 (PDT)
+X-Received: by 2002:a19:c20b:: with SMTP id l11mr3479307lfc.106.1565117458380;
+ Tue, 06 Aug 2019 11:50:58 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+References: <CAPM=9tzJQ+26n_Df1eBPG1A=tXf4xNuVEjbG3aZj-aqYQ9nnAg@mail.gmail.com>
+ <CAPM=9twvwhm318btWy_WkQxOcpRCzjpok52R8zPQxQrnQ8QzwQ@mail.gmail.com>
+ <CAHk-=wjC3VX5hSeGRA1SCLjT+hewPbbG4vSJPFK7iy26z4QAyw@mail.gmail.com>
+ <CAHk-=wiD6a189CXj-ugRzCxA9r1+siSCA0eP_eoZ_bk_bLTRMw@mail.gmail.com>
+ <48890b55-afc5-ced8-5913-5a755ce6c1ab@shipmail.org> <CAHk-=whwcMLwcQZTmWgCnSn=LHpQG+EBbWevJEj5YTKMiE_-oQ@mail.gmail.com>
+ <CAHk-=wghASUU7QmoibQK7XS09na7rDRrjSrWPwkGz=qLnGp_Xw@mail.gmail.com> <20190806073831.GA26668@infradead.org>
+In-Reply-To: <20190806073831.GA26668@infradead.org>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Tue, 6 Aug 2019 11:50:42 -0700
+X-Gmail-Original-Message-ID: <CAHk-=wi7L0MDG7DY39Hx6v8jUMSq3ZCE3QTnKKirba_8KAFNyw@mail.gmail.com>
+Message-ID: <CAHk-=wi7L0MDG7DY39Hx6v8jUMSq3ZCE3QTnKKirba_8KAFNyw@mail.gmail.com>
+Subject: Re: drm pull for v5.3-rc1
+To: Christoph Hellwig <hch@infradead.org>
+Cc: =?UTF-8?Q?Thomas_Hellstr=C3=B6m_=28VMware=29?= <thomas@shipmail.org>, 
+	Dave Airlie <airlied@gmail.com>, Thomas Hellstrom <thellstrom@vmware.com>, 
+	Daniel Vetter <daniel.vetter@ffwll.ch>, LKML <linux-kernel@vger.kernel.org>, 
+	dri-devel <dri-devel@lists.freedesktop.org>, Jerome Glisse <jglisse@redhat.com>, 
+	Jason Gunthorpe <jgg@mellanox.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Steven Price <steven.price@arm.com>, Linux-MM <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, 2019-08-06 at 09:30 -0700, Dave Hansen wrote:
-> On 8/5/19 8:05 PM, Sai Praneeth Prakhya wrote:
-> > +static const char * const resident_page_types[NR_MM_COUNTERS] = {
-> > +	[MM_FILEPAGES]		= "MM_FILEPAGES",
-> > +	[MM_ANONPAGES]		= "MM_ANONPAGES",
-> > +	[MM_SWAPENTS]		= "MM_SWAPENTS",
-> > +	[MM_SHMEMPAGES]		= "MM_SHMEMPAGES",
-> > +};
-> 
-> One trick to ensure that this gets updated if the names are ever
-> updated.  You can do:
-> 
-> #define NAMED_ARRAY_INDEX(x)	[x] = __stringify(x),
-> 
-> and
-> 
-> static const char * const resident_page_types[NR_MM_COUNTERS] = {
-> 	NAMED_ARRAY_INDEX(MM_FILE_PAGES),
-> 	NAMED_ARRAY_INDEX(MM_SHMEMPAGES),
-> 	...
-> };
+On Tue, Aug 6, 2019 at 12:38 AM Christoph Hellwig <hch@infradead.org> wrote:
+>
+> Seems like no one took this up.  Below is a version which I think is
+> slightly better by also moving the mm_walk structure initialization
+> into the helpers, with an outcome of just a handful of added lines.
 
-Thanks for the suggestion Dave. I will add this in V3.
-Even with this, (if ever) anyone who changes the name of page types or adds an
-new entry would still need to update struct resident_page_types[]. So, I will
-add the comment as suggested by Vlastimil.
+Ack. Agreed, I think that's a nicer interface.
 
-> 
-> That makes sure that any name changes make it into the strings.  Then
-> stick a:
-> 
-> 	BUILD_BUG_ON(NR_MM_COUNTERS != ARRAY_SIZE(resident_page_types));
-> 
-> somewhere.  That makes sure that any new array indexes get a string
-> added in the array.  Otherwise you get nice, early, compile-time errors.
+In fact, I do note that a lot of the users don't actually use the
+"void *private" argument at all - they just want the walker - and just
+pass in a NULL private pointer. So we have things like this:
 
-Sure! this sounds good and a small nit-bit :)
-For the BUILD_BUG_ON() to work, the definition of struct should be changed as
-below
+> +       if (walk_page_range(&init_mm, va, va + size, &set_nocache_walk_ops,
+> +                       NULL)) {
 
-static const char * const resident_page_types[] = {
-...
-}
+and in a perfect world we'd have arguments with default values so that
+we could skip those entirely for when people just don't need it.
 
-i.e. we should not specify the size of array.
+I'm not a huge fan of C++ because of a lot of the complexity (and some
+really bad decisions), but many of the _syntactic_ things in C++ would
+be nice to use. This one doesn't seem to be one that the gcc people
+have picked up as an extension ;(
 
-Regards,
-Sai
+Yes, yes, we could do it with a macro, I guess.
+
+   #define walk_page_range(mm, start,end, ops, ...) \
+       __walk_page_range(mm, start, end, (NULL , ## __VA_ARGS__))
+
+but I'm not sure it's worthwhile.
+
+                  Linus
 
