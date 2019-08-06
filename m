@@ -2,215 +2,224 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D70CC433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 21:12:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 587E8C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 21:12:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2772A2173B
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 21:12:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2772A2173B
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id 1B5CA2173B
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 21:12:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B5CA2173B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C021A6B000A; Tue,  6 Aug 2019 17:12:16 -0400 (EDT)
+	id C03DE6B000C; Tue,  6 Aug 2019 17:12:20 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B8BF76B000C; Tue,  6 Aug 2019 17:12:16 -0400 (EDT)
+	id B8B796B000D; Tue,  6 Aug 2019 17:12:20 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A2EFE6B000D; Tue,  6 Aug 2019 17:12:16 -0400 (EDT)
+	id A061A6B000E; Tue,  6 Aug 2019 17:12:20 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 671F66B000A
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 17:12:16 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id d190so56678629pfa.0
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 14:12:16 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 67CF66B000C
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 17:12:20 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id 145so56760403pfv.18
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 14:12:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=+zQmWPq5+aFI95vRO496qxNObYjvPJ49w0Mm37Od4W0=;
-        b=m2Pw92Kr+7bdLfaVDZBWm9JiaiJR2To2npn+rU2pCrJU8pyIZyTDuwFtInXnU//r0h
-         78irTJ1gwk46Yem8996QrRFQwq2MuXtJJM1lf8jjS0/v1RX7KWcl7t3+QgltzbGX2HG2
-         PfY2UchwX5jJtIceOqScDX04ly7lIwceObqMjVRIhoAcZRX28vLmFtNJ0qckQP8b86nE
-         Yxp8Oe0EbF9y2Kin6wiJi60Mm+3uqwdYOO2MhE5zBo31lrP0MWUi4JVIwCizJ6yXb4pD
-         z6GQcu+s2RxKyvHskopLo2cyN/7tcnJnOMd+3V/J4MY1wP2xHYZ+VIZEhHpR6wfOj51N
-         2Iyg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAUeLFQe+AY68sfwbvbbkIjErrS6jokcGL6aOC/9i7fOQjpPUMW7
-	/lwYOKkMT3WHILwpAOEM/bkPAvpSHynI7aKA91IknvAyaf0P9L4TwJO0zi+SsIRyoMlxaJDbJzk
-	uWCrreNaE5J4CaAxeviFoIq9vSNcm/QPh+7BdEzJLJ7BicPWKnkzK+0tczbH2Bv4=
-X-Received: by 2002:aa7:96a4:: with SMTP id g4mr5928763pfk.193.1565125936067;
-        Tue, 06 Aug 2019 14:12:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxbmXw39stMU06b6LdoNPqGQjNHMQdNbBCG8HdxsId3T4tWELdDnp8IH4vHX3kP8BIAkoFu
-X-Received: by 2002:aa7:96a4:: with SMTP id g4mr5928707pfk.193.1565125935293;
-        Tue, 06 Aug 2019 14:12:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565125935; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=QEpJYLubIDBXtWixvYjG+4He7aI4srfrwHfe7SV8UdA=;
+        b=bBqaghdrvWI4LIPFfyklVN73w/cUsoGkwXulXkcGRczPp9jCGgsdevqWCxWiPus9cg
+         d+raRxZpWAY5aV3RRDnd6mEPHiby4Hcr+Y/gGAcVT6j1+nr2nZj8zUI8quPkvGpt6zly
+         ZiSsOTYHOZ5PR8taIhLvwfr3tpCzroMVGx3MJuGB3TnMfxeT2F96eCP2hgaxifGCaJPl
+         sKFg68J5sjSPA1kPt4SFfGANTE/n9cs9G+vwhjHbWWuf8tY4rUbQMqtFGKQh+U5ckKt0
+         CcHKXEckrLBam+Q43IDsgvqmnH20wHpa94ALpf0wONno2mL7URkodeLQjLlqmDpC15By
+         DszQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWRyyY8qO1D4JrCNKHno+k92g7vT6IOkFIMlG/CUo2x65OEnuiA
+	GUC+Wc9prGj8nNUoeJ9RaAxoAPRnVAzTEWTdXEnIhtSm+HlOlXpuOil96TfLAM7Lho2Ux5adQTu
+	lulBUeAwa2y0mxDQZREnlxxRSfymqUfHoTCV5+TDF7QcF7tCNUvEkxgfpE6+dKU1s3A==
+X-Received: by 2002:aa7:8481:: with SMTP id u1mr5459520pfn.243.1565125940079;
+        Tue, 06 Aug 2019 14:12:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwBhIr4U9t271pcVdDwZZwpY7EwpoFF4a2g+RzS0SjTDLpoXL13h+QpEP68dOiw4iig6kRY
+X-Received: by 2002:aa7:8481:: with SMTP id u1mr5459472pfn.243.1565125939219;
+        Tue, 06 Aug 2019 14:12:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565125939; cv=none;
         d=google.com; s=arc-20160816;
-        b=ihp1Z8YDT46kq28ZsAneQJobJ1zm1e7rgTdd8lbzXSiRV+0OFQzqxu3bz8Mk+u2c9R
-         QXHyI2B7SIzS/29djc+g7YjIthgCsD9IJ5lkm9gugJW+hT80hXT1CKGqrwMPpRNyj23t
-         +nPaVzPP7HaJuzrryEaaMfHd8QmZjAjaTCYy8k6jPf1f0Nv7lVkUdp/kr4uwGmDME/8N
-         +T1ztiNP5opPix6Vrl0QSO05x5jit4gPrmVs8agS3x9eJ+Y52/tQKxY9ra9ybIQckA6U
-         9dnaIPZzgcIgL3R4ZLSTH2WShianlp7svCQ6wLC6FAtqycFWlmZsOmZQr5uTADUOHMRP
-         W+Kg==
+        b=XZWa8e3EqWz1rzi7MGJN3shKU03zG4XlB7LRZxiCrHFl0IBJSAgAz3FzcCKTJxU8V2
+         g58sg1A3RNLOBUOq397YREUEYi35FDR9x+fK+Z+4Ml3tvbaHAjBz3DyClDV+YSz93/7K
+         ioUJVpfuBo/i+E6/vhs5UorKSnEgcCCHSBlT4ylqV55lfT6CEpkbiLJycTNUgujVChea
+         KE/2q5fEdTBcA8MJF/ooinzNYXcmqxevtglkznFFY8TbIM9u0cc4Q8DTjLcpzhSDwQS9
+         lqj+9TYbwWRaKjl8FMx0uzzN2eUZ/N+wqb2liuekQMLFHtvbqmRsyXiWn7x6J0N+c5Yi
+         Y0kQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=+zQmWPq5+aFI95vRO496qxNObYjvPJ49w0Mm37Od4W0=;
-        b=bKPvkvPuRnu2nGFPCT/+ghs5V8Cqmgoyha1U2SPYM9g8WlABEgFnFS6poI9HOjmyAF
-         3PMsfLlyl+cV83J8+xhd0x0a+FkkRELCab0QS+kXfJSgdMw0sFqA+M9KDYrjEK3Sbh8/
-         TO2hcOuJ/2K7T/KuG/BqR12miczy8fGOpWJItvKMXxYdcgaUaGfqfC34FfiF7PBbYnJZ
-         cgbojRoT3GaX/3jhBQY+29wAFvAcr3pARdnZbytStckXYwriNITRJAm3y8EaGDilJrcy
-         cpglmtiNqgMLI7BxtKUrlBb05r3wLSY685gaPT9tN6AvVkMFyDc88k0wJEaVsc3ZymXz
-         wdfw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=QEpJYLubIDBXtWixvYjG+4He7aI4srfrwHfe7SV8UdA=;
+        b=Foid88glP2jUCZRb+rUEjAYLi/sNh6a5/4epZjv0KaSACf07+zegZ9qWQCP3PN9XPV
+         FIT47FCHD73AsVftuEVjVfLpU+NEElgBgWsRObUhcPiRkxvOONIhUl123X95+6fWO4UF
+         SptthN51OqGYE4LnHxeZpRfsL5Aa4Yn1L/furAIQDyLjbf1ah1ezK2ax6vfQfQGr0VcF
+         BCDAp8DrnKDx3WEVMuoRPSW0mzCJfP0tMJXw54I937HVjL1whBknqZMJ6ja8uvz7k0zV
+         qbrMyUATP/2Po9JUp6df8MCTPtrNSHGF/g5t3Nqs1I8QXQorB7lu0unQJt+ufzyQ503f
+         oltg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
-        by mx.google.com with ESMTP id q1si42861459pll.324.2019.08.06.14.12.14
-        for <linux-mm@kvack.org>;
-        Tue, 06 Aug 2019 14:12:15 -0700 (PDT)
-Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
+       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
+        by mx.google.com with ESMTPS id d11si36949965pga.407.2019.08.06.14.12.19
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Aug 2019 14:12:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
-	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id BFB9F360F14;
-	Wed,  7 Aug 2019 07:12:13 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1hv6ja-000529-Mq; Wed, 07 Aug 2019 07:11:06 +1000
-Date: Wed, 7 Aug 2019 07:11:06 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Brian Foster <bfoster@redhat.com>
-Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH 14/24] xfs: tail updates only need to occur when LSN
- changes
-Message-ID: <20190806211106.GG7777@dread.disaster.area>
-References: <20190801021752.4986-1-david@fromorbit.com>
- <20190801021752.4986-15-david@fromorbit.com>
- <20190805175325.GD14760@bfoster>
- <20190805232826.GZ7777@dread.disaster.area>
- <20190806053338.GD7777@dread.disaster.area>
- <20190806125321.GC2979@bfoster>
+       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Aug 2019 14:12:18 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,353,1559545200"; 
+   d="scan'208";a="349548305"
+Received: from sai-dev-mach.sc.intel.com ([143.183.140.153])
+  by orsmga005.jf.intel.com with ESMTP; 06 Aug 2019 14:12:17 -0700
+From: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
+To: linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org
+Cc: dave.hansen@intel.com,
+	anshuman.khandual@arm.com,
+	vbabka@suse.cz,
+	mhocko@suse.com,
+	Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>,
+	Ingo Molnar <mingo@kernel.org>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Andrew Morton <akpm@linux-foundation.org>
+Subject: [PATCH V3] fork: Improve error message for corrupted page tables
+Date: Tue,  6 Aug 2019 14:09:07 -0700
+Message-Id: <da75b5153f617f4c5739c08ee6ebeb3d19db0fbc.1565123758.git.sai.praneeth.prakhya@intel.com>
+X-Mailer: git-send-email 2.19.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190806125321.GC2979@bfoster>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0 cx=a_idp_d
-	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
-	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=7LOOWS8BD3-zdqQ4NSgA:9
-	a=0SBu78-PGVJL_xDw:21 a=18nxT3l6xtBxF0ub:21 a=CjuIK1q_8ugA:10
-	a=biEYGPWJfzWAr4FL6Ov7:22
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 06, 2019 at 08:53:21AM -0400, Brian Foster wrote:
-> On Tue, Aug 06, 2019 at 03:33:38PM +1000, Dave Chinner wrote:
-> > On Tue, Aug 06, 2019 at 09:28:26AM +1000, Dave Chinner wrote:
-> > > On Mon, Aug 05, 2019 at 01:53:26PM -0400, Brian Foster wrote:
-> > > > On Thu, Aug 01, 2019 at 12:17:42PM +1000, Dave Chinner wrote:
-> > > > > From: Dave Chinner <dchinner@redhat.com>
-> > > > > 
-> > > > > We currently wake anything waiting on the log tail to move whenever
-> > > > > the log item at the tail of the log is removed. Historically this
-> > > > > was fine behaviour because there were very few items at any given
-> > > > > LSN. But with delayed logging, there may be thousands of items at
-> > > > > any given LSN, and we can't move the tail until they are all gone.
-> > > > > 
-> > > > > Hence if we are removing them in near tail-first order, we might be
-> > > > > waking up processes waiting on the tail LSN to change (e.g. log
-> > > > > space waiters) repeatedly without them being able to make progress.
-> > > > > This also occurs with the new sync push waiters, and can result in
-> > > > > thousands of spurious wakeups every second when under heavy direct
-> > > > > reclaim pressure.
-> > > > > 
-> > > > > To fix this, check that the tail LSN has actually changed on the
-> > > > > AIL before triggering wakeups. This will reduce the number of
-> > > > > spurious wakeups when doing bulk AIL removal and make this code much
-> > > > > more efficient.
-> > > > > 
-> > > > > XXX: occasionally get a temporary hang in xfs_ail_push_sync() with
-> > > > > this change - log force from log worker gets things moving again.
-> > > > > Only happens under extreme memory pressure - possibly push racing
-> > > > > with a tail update on an empty log. Needs further investigation.
-> > > > > 
-> > > > > Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> > > > > ---
-> > > > 
-> > > > Ok, this addresses the wakeup granularity issue mentioned in the
-> > > > previous patch. Note that I was kind of wondering why we wouldn't base
-> > > > this on the l_tail_lsn update in xlog_assign_tail_lsn_locked() as
-> > > > opposed to the current approach.
-> > > 
-> > > Because I didn't think of it? :)
-> > > 
-> > > There's so much other stuff in this patch set I didn't spend a
-> > > lot of time thinking about other alternatives. this was a simple
-> > > code transformation that did what I wanted, and I went on to burning
-> > > brain cells on other more complex issues that needs to be solved...
-> > > 
-> > > > For example, xlog_assign_tail_lsn_locked() could simply check the
-> > > > current min item against the current l_tail_lsn before it does the
-> > > > assignment and use that to trigger tail change events. If we wanted to
-> > > > also filter out the other wakeups (as this patch does) then we could
-> > > > just pass a bool pointer or something that returns whether the tail
-> > > > actually changed.
-> > > 
-> > > Yeah, I'll have a look at this - I might rework it as additional
-> > > patches now the code is looking at decisions based on LSN rather
-> > > than if the tail log item changed...
-> > 
-> > Ok, this is not worth the complexity. The wakeup code has to be able
-> > to tell the difference between a changed tail lsn and an empty AIL
-> > so that wakeups can be issued when the AIL is finally emptied.
-> > Unmount (xfs_ail_push_all_sync()) relies on this, and
-> > xlog_assign_tail_lsn_locked() hides the empty AIL from the caller
-> > by returning log->l_last_sync_lsn to the caller.
-> > 
-> 
-> Wouldn't either case just be a wakeup from xlog_assign_tail_lsn_locked()
-> (which should probably be renamed if we took that approach)? It's called
-> when we've removed the min item from the AIL and so potentially need to
-> update the tail lsn. 
+When a user process exits, the kernel cleans up the mm_struct of the user
+process and during cleanup, check_mm() checks the page tables of the user
+process for corruption (E.g: unexpected page flags set/cleared). For
+corrupted page tables, the error message printed by check_mm() isn't very
+clear as it prints the loop index instead of page table type (E.g: Resident
+file mapping pages vs Resident shared memory pages). The loop index in
+check_mm() is used to index rss_stat[] which represents individual memory
+type stats. Hence, instead of printing index, print memory type, thereby
+improving error message.
 
-Not easily, because xlog_assign_tail_lsn_locked() is also used to
-grab the current tail when we are formatting the log header during a
-CIL checkpoint. We do not want to be doing wakeups there.
+Without patch:
+--------------
+[  204.836425] mm/pgtable-generic.c:29: bad p4d 0000000089eb4e92(800000025f941467)
+[  204.836544] BUG: Bad rss-counter state mm:00000000f75895ea idx:0 val:2
+[  204.836615] BUG: Bad rss-counter state mm:00000000f75895ea idx:1 val:5
+[  204.836685] BUG: non-zero pgtables_bytes on freeing mm: 20480
 
-And, to tell the truth, I don't really want to screw with a function
-that provides on-disk information for log recovery in this
-series. That brings a whole new level of jeopardy to this patch set
-I'd prefer to avoid....
+With patch:
+-----------
+[   69.815453] mm/pgtable-generic.c:29: bad p4d 0000000084653642(800000025ca37467)
+[   69.815872] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_FILEPAGES val:2
+[   69.815962] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_ANONPAGES val:5
+[   69.816050] BUG: non-zero pgtables_bytes on freeing mm: 20480
 
-> > Hence the wakeup code still has to check for an empty AIL if the
-> > tail has changed if we use the return value of
-> > xlog_assign_tail_lsn_locked() as the tail LSN. At which point, the
-> > logic becomes somewhat convoluted, and it's far simpler to use
-> > __xfs_ail_min_lsn as it returns when the log is empty.
-> > 
-> > So, nice idea, but it doesn't make the code simpler or easier to
-> > understand....
-> 
-> It's not that big of a deal either way. BTW on another quick look, I
-> think something like xfs_ail_update_tail(ailp, old_tail) is a bit more
-> self-documenting that xfs_ail_delete_finish(ailp, old_lsn).
+Also, change print function (from printk(KERN_ALERT, ..) to pr_alert()) so
+that it matches the other print statement.
 
-I had already renamed it to xfs_ail_update_finish() when I updated
-the last patch to include the bulk update case.
+Cc: Ingo Molnar <mingo@kernel.org>
+Cc: Peter Zijlstra <peterz@infradead.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Acked-by: Michal Hocko <mhocko@suse.com>
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Acked-by: Dave Hansen <dave.hansen@intel.com>
+Suggested-by: Dave Hansen <dave.hansen@intel.com>
+Reviewed-by: Anshuman Khandual <anshuman.khandual@arm.com>
+Signed-off-by: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
+---
 
-Cheers,
+Changes from V2 to V3:
+----------------------
+1. Add comment that suggests to update resident_page_types[] if there are any
+   changes to exisiting page types in <linux/mm_types_task.h>
+2. Add a build check to enforce resident_page_types[] is always in sync
+3. Use a macro to populate elements of resident_page_types[]
 
-Dave.
+Changes from V1 to V2:
+----------------------
+1. Move struct definition from header file to fork.c file, so that it won't be
+   included in every compilation unit. As this struct is used *only* in fork.c,
+   include the definition in fork.c itself.
+2. Index the struct to match respective macros.
+3. Mention about print function change in commit message.
+
+ include/linux/mm_types_task.h |  4 ++++
+ kernel/fork.c                 | 16 ++++++++++++++--
+ 2 files changed, 18 insertions(+), 2 deletions(-)
+
+diff --git a/include/linux/mm_types_task.h b/include/linux/mm_types_task.h
+index d7016dcb245e..c1bc6731125c 100644
+--- a/include/linux/mm_types_task.h
++++ b/include/linux/mm_types_task.h
+@@ -36,6 +36,10 @@ struct vmacache {
+ 	struct vm_area_struct *vmas[VMACACHE_SIZE];
+ };
+ 
++/*
++ * When updating this, please also update struct resident_page_types[] in
++ * kernel/fork.c
++ */
+ enum {
+ 	MM_FILEPAGES,	/* Resident file mapping pages */
+ 	MM_ANONPAGES,	/* Resident anonymous pages */
+diff --git a/kernel/fork.c b/kernel/fork.c
+index d8ae0f1b4148..7583e0fde0ed 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -125,6 +125,15 @@ int nr_threads;			/* The idle threads do not count.. */
+ 
+ static int max_threads;		/* tunable limit on nr_threads */
+ 
++#define NAMED_ARRAY_INDEX(x)	[x] = __stringify(x)
++
++static const char * const resident_page_types[] = {
++	NAMED_ARRAY_INDEX(MM_FILEPAGES),
++	NAMED_ARRAY_INDEX(MM_ANONPAGES),
++	NAMED_ARRAY_INDEX(MM_SWAPENTS),
++	NAMED_ARRAY_INDEX(MM_SHMEMPAGES),
++};
++
+ DEFINE_PER_CPU(unsigned long, process_counts) = 0;
+ 
+ __cacheline_aligned DEFINE_RWLOCK(tasklist_lock);  /* outer */
+@@ -645,12 +654,15 @@ static void check_mm(struct mm_struct *mm)
+ {
+ 	int i;
+ 
++	BUILD_BUG_ON_MSG(ARRAY_SIZE(resident_page_types) != NR_MM_COUNTERS,
++			 "Please make sure 'struct resident_page_types[]' is updated as well");
++
+ 	for (i = 0; i < NR_MM_COUNTERS; i++) {
+ 		long x = atomic_long_read(&mm->rss_stat.count[i]);
+ 
+ 		if (unlikely(x))
+-			printk(KERN_ALERT "BUG: Bad rss-counter state "
+-					  "mm:%p idx:%d val:%ld\n", mm, i, x);
++			pr_alert("BUG: Bad rss-counter state mm:%p type:%s val:%ld\n",
++				 mm, resident_page_types[i], x);
+ 	}
+ 
+ 	if (mm_pgtables_bytes(mm))
 -- 
-Dave Chinner
-david@fromorbit.com
+2.7.4
 
