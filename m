@@ -2,166 +2,193 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 69B57C433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 03:13:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 68167C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 03:27:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 08A8F20B1F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 03:13:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08A8F20B1F
+	by mail.kernel.org (Postfix) with ESMTP id 1723820C01
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 03:27:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="J9nWhfi9"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1723820C01
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 937F96B0003; Mon,  5 Aug 2019 23:13:11 -0400 (EDT)
+	id A66B66B0003; Mon,  5 Aug 2019 23:27:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8E93F6B0005; Mon,  5 Aug 2019 23:13:11 -0400 (EDT)
+	id 9EFBC6B0005; Mon,  5 Aug 2019 23:27:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7FEF46B0006; Mon,  5 Aug 2019 23:13:11 -0400 (EDT)
+	id 88FFC6B0006; Mon,  5 Aug 2019 23:27:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 4C04F6B0003
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 23:13:11 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id w12so11731553pgo.2
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 20:13:11 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5605A6B0003
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 23:27:17 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id d13so47838878oth.20
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 20:27:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:user-agent
-         :mime-version:content-transfer-encoding;
-        bh=sHPq+pRx/+dTblW9pr6QipciNsC2rS/a9IQw+GuW4FY=;
-        b=h80pEg+7IQubkZgL2kXzIZGUYcqRjO3pTrk30yAS/iWPGK4kZQbL0vf3L2j/TBgTIM
-         SgcTLDYQwj5K/ebAa++Y6weGXpn4bymfLt3BcMz0Lq1AjqqZKpCreD2BoSBR1ZqaHi3L
-         waac1XyffNPH9VN5yVjf2Y2vqRoIy6KFQ+FIkDN2Zk/L82IfeBD6pYpAuWJUmqeKjmoN
-         jxnssZ4V+33YKxdcfuP7216vkU83oYSMz1uazpaN51zN20FQQ6ICJCzgG3bQreRLLF5S
-         /oap9LD47jTHDM62bJkTAMCm5vjrQqFlGwF2L1g5o7ymFBBAS+J6GgxXyF2j5jgLaGUu
-         BS4w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAXLP6AGlmA8ZEYrEGcXbalrs3w0fqpZOVh+U+4qZkzxuBNULPo9
-	GcTFi+dGVc0QsnuQQnWuixCg2Z4VWSgbF/U8vRLvovO25/xhZWtCyBXLW2uHwOsa06iuBewSxUR
-	FK+TuuN9U+6r+Ui+2D+Bt1bq+6ZL4eoiI+p8BvrqtfDYMLbV99dEJW3XACDvjY0sPwQ==
-X-Received: by 2002:a17:902:f81:: with SMTP id 1mr893304plz.191.1565061190992;
-        Mon, 05 Aug 2019 20:13:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxNA/mZLxqIdg930j7a6y8kdieKF2R/VGIHD2+x4N4m9qyhdgrDqG+cT9S+Xp5s+tW6Q9JD
-X-Received: by 2002:a17:902:f81:: with SMTP id 1mr893270plz.191.1565061190293;
-        Mon, 05 Aug 2019 20:13:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565061190; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Nxtz2kZ+l7OR4MFHv2stHBbHUHxdL1vfEFCmbcfh8CA=;
+        b=KMKsqVxJ7Z9mK9rL1Fe4YpbNc4OheAxopcaE3fcLNa1nS0uenV+EwEnmuLaENcj2zv
+         hl46V9GQyyZRIiXYGak2ltJYUeLdQz4/jTtPtuBmCNKptFdwsXGPr88fzuNRNIU67y3n
+         wS3kv4Qfc/sh8EXZ7pErU/J1OiepXPF6RG3Eujuq/ELT7pivQFkqkCsY1r5Rh0Vc7TdI
+         slJsUSLUi1fWACcFdAoDKRmknFlz7RFV3+gr37omRElrvyVCQWOqSr9f2OHwau9kqju7
+         N9OA9BXU/bQQ6rZScvUJAucsPn5eEciQQ+JwcQGXHGctQGo2jRDOIvhSk5OeKteu/I60
+         M5gA==
+X-Gm-Message-State: APjAAAXDOiG06S7cORunFlxW9OEYb8jwjw4bS2aJMXODE95SfdUAZWxH
+	GhcAJ1+pZUUs+1enJWQoiVzbSHgLLXGPi7WqZJ6A2G+zImTJgKaFQeg1dfT7oNRcJ75kVYyto6y
+	T0SKVoh+61BoMMVJ3mpFmQcVkba5mGIIrEjlv0BNkbjGWLfeKLjvr93JQPF+nq71aCA==
+X-Received: by 2002:a05:6830:1681:: with SMTP id k1mr1040035otr.256.1565062036964;
+        Mon, 05 Aug 2019 20:27:16 -0700 (PDT)
+X-Received: by 2002:a05:6830:1681:: with SMTP id k1mr1039997otr.256.1565062036106;
+        Mon, 05 Aug 2019 20:27:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565062036; cv=none;
         d=google.com; s=arc-20160816;
-        b=HyXxhrBCxixfsLpTQ+mwWQplkzHnzGFkozzow6hkSZIeL9SfgRXkogRPLFsYSGUjwb
-         Qlp8t5F0r3QGY52aW2q0Kj5aFdeWJ2RzYJxFSbRRuhcaCLuaJk5WdY+nsTFWaAyaTRHN
-         z+PUHtjy6ePCU5e7ys+l17Xz3R+Fdv5yzV5nUnKWC+uPmR/KHkNZyVzqrHwGsEzNEH8G
-         3KlgWd+fHm9Xt/pLIBtdXYz+k+nf5BI1QjRBW7BSS5phYd7e7CpEysA5topx+2FS74OI
-         eybKFk9i/0Tf2qIxI58kAc8uEf2EBF8xH6xFj0BeVxWV6lYvh2pMEeN60dzv73Vhcg5R
-         k5+Q==
+        b=YhdgjdrG/VdGYnLu00kZgZc4VN/pUBwamiUYttlfgPnBeFaei5oO6wBCDbyYjEhCbo
+         oAnZdEE6Vuk1II4CR2Ed22P2bW4B4SvvvZAfGXaF1kAOM6+60EjiwGvuent6GdL9KGFx
+         cEIw+Esyvjpp+Xa+xMl5illPS0lVYTGMYoWzvAggIcYWPMslD63MzKnukIjDSpH3CRei
+         opO16I1z/gjrn2kDB5fQx9GJWb41ibLDm4b+chiuN3NCa14Ud1mM4jC950sPccg7PrlZ
+         lMz1alYs8iM8NfNG3iQIhz/jqkOdfHyHnYEzoPx3+vEay4zpp7AcsawC4Vb64+kJGynn
+         t3AQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:date:cc:to:from:subject:message-id;
-        bh=sHPq+pRx/+dTblW9pr6QipciNsC2rS/a9IQw+GuW4FY=;
-        b=Kon5vm2FnYniSqAD015T3lQs9CXn0dw1BQvK+AU2CUtyqFd/jCe5srX0x+EjiZkklS
-         ghI1h+WbV26pph7qT61OdP7TDz9qvR8yNUhRFDGH+oRdgNTTvhm/Cqllc+A7+LerAOsT
-         mjvggUV0OqqCXv5Djt+mH3+8dK2fTRZf1LuUU9Tdzk1bPE2q7bs/YCACwphGc7kgTmNF
-         yB7g3DrrQSrX0MFPyp2NA8r/Cghpom5LlHXd/lyMuY1lq/hjIq4ITZVXqtKltuAD/NDN
-         p7Uo4eseuhS7IuCPUflFjeN8pXEvGv7jp92WQNHoJ4BagSWXFYdasWqufqmCqUSwS208
-         7aMg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Nxtz2kZ+l7OR4MFHv2stHBbHUHxdL1vfEFCmbcfh8CA=;
+        b=qQN3PTWz0UoHyiK7HjiTGKNpXSjsfgzmeJyutuSL/ZOZ/6uGx7y8V9SYe/38x0xdzm
+         PCSZTxC4o60G/Lp8ZDwdCRv+Vb79DylXoBpAz9PXegQsVFdSRk9Pcs1aiTyiuYkUOF0m
+         l2kYPGX+6HV5WYtV0fGEtmAnwpPchuECMWKo/VBeFI2MYGb4LK5UNa2bnv1/k7/r0qxf
+         LvgilL80m/BO8jdq9nTxuv6sH0847aUSzTol3i7EBOpeDXa6VBSXJCEOxE3aTTTV/B7v
+         IvXBMBj3Hd3Jsyas243uPVxckv9X1V0zWkY9tv5rRzpueQU3vfp8hcOR7jQKoGAyM9fj
+         lxNw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=J9nWhfi9;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
-        by mx.google.com with ESMTPS id g13si48817282pgo.274.2019.08.05.20.13.10
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q133sor36824028oic.63.2019.08.05.20.27.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Aug 2019 20:13:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
+        (Google Transport Security);
+        Mon, 05 Aug 2019 20:27:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=J9nWhfi9;
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga002.fm.intel.com ([10.253.24.26])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Aug 2019 20:13:09 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,352,1559545200"; 
-   d="scan'208";a="202666879"
-Received: from sai-dev-mach.sc.intel.com ([143.183.140.153])
-  by fmsmga002.fm.intel.com with ESMTP; 05 Aug 2019 20:13:09 -0700
-Message-ID: <1c6a18dd63e6005045034ccc7b04390ab3c605e5.camel@intel.com>
-Subject: Re: [PATCH] fork: Improve error message for corrupted page tables
-From: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
-To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton
- <akpm@linux-foundation.org>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
-	"linux-mm@kvack.org"
-	 <linux-mm@kvack.org>, "Hansen, Dave" <dave.hansen@intel.com>, Ingo Molnar
-	 <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>
-Date: Mon, 05 Aug 2019 20:09:59 -0700
-In-Reply-To: <4236c0c5-9671-b9fe-b5eb-7d1908767905@suse.cz>
-References: <20190730221820.7738-1-sai.praneeth.prakhya@intel.com>
-	 <20190731152753.b17d9c4418f4bf6815a27ad8@linux-foundation.org>
-	 <a05920e5994fb74af480255471a6c3f090f29b27.camel@intel.com>
-	 <20190731212052.5c262ad084cbd6cf475df005@linux-foundation.org>
-	 <FFF73D592F13FD46B8700F0A279B802F4F9D61B5@ORSMSX114.amr.corp.intel.com>
-	 <4236c0c5-9671-b9fe-b5eb-7d1908767905@suse.cz>
-Content-Type: text/plain; charset="UTF-8"
-User-Agent: Evolution 3.30.5-0ubuntu0.18.10.1 
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=Nxtz2kZ+l7OR4MFHv2stHBbHUHxdL1vfEFCmbcfh8CA=;
+        b=J9nWhfi9ZP583VeloWxqen9o8Z08nPXCs2Mg+X3S6ICi4P0yXoDyV5Ww7hSDCD6rnq
+         rGGBQ5hhMBUlQPbK8q1/eLX+2LSiqtTinvh2tgmcqMPjVlxIypXqVOv6omJUvp+VC6IP
+         rMZ5pxEXcSZ35hDaCFpvOZd/Nk7N/K4dTb57qARzZp86bvb6ajq9SqGVJmDAjki99Zfn
+         NnNWG45uHpYle+tuGgJ2aDK6SF3vuXxiMwdSi4HH7Hz2C+dev9gpTmTqtqzvnpxIjXy2
+         1nlOjCSHfoswnQ1PsB7vf1rlohQoJrGyhchm4mBW7MjUJwYFeNCM/a4tpCfob5/lM/Lf
+         jp5g==
+X-Google-Smtp-Source: APXvYqzqOFl+rejoEX8/ERi13dLIbgq21jpzsPxnsRuP8cMnosl8/EC6nixIh/y4rOGQU3UUzihpDdFgKpHGnTa/ZDA=
+X-Received: by 2002:aca:ec82:: with SMTP id k124mr966027oih.73.1565062035500;
+ Mon, 05 Aug 2019 20:27:15 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 7bit
+References: <20190725023100.31141-1-t-fukasawa@vx.jp.nec.com>
+ <20190725023100.31141-3-t-fukasawa@vx.jp.nec.com> <20190725090341.GC13855@dhcp22.suse.cz>
+ <40b3078e-fb8b-87ef-5c4e-6321956cc940@vx.jp.nec.com> <20190726070615.GB6142@dhcp22.suse.cz>
+ <3a926ce5-75b9-ea94-d6e4-6888872e0dc4@vx.jp.nec.com>
+In-Reply-To: <3a926ce5-75b9-ea94-d6e4-6888872e0dc4@vx.jp.nec.com>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 5 Aug 2019 20:27:03 -0700
+Message-ID: <CAPcyv4iCXWgxkLi3eM_EaqD0cuzmRyg5k4c9CeS1TyN+bajXFw@mail.gmail.com>
+Subject: Re: [PATCH 2/2] /proc/kpageflags: do not use uninitialized struct pages
+To: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
+Cc: Michal Hocko <mhocko@kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
+	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, "adobriyan@gmail.com" <adobriyan@gmail.com>, 
+	"hch@lst.de" <hch@lst.de>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, 
+	Junichi Nomura <j-nomura@ce.jp.nec.com>, "stable@vger.kernel.org" <stable@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, 2019-08-05 at 15:28 +0200, Vlastimil Babka wrote:
-> On 8/2/19 8:46 AM, Prakhya, Sai Praneeth wrote:
-> > > > > > +static const char * const resident_page_types[NR_MM_COUNTERS] = {
-> > > > > > +	"MM_FILEPAGES",
-> > > > > > +	"MM_ANONPAGES",
-> > > > > > +	"MM_SWAPENTS",
-> > > > > > +	"MM_SHMEMPAGES",
-> > > > > > +};
-> > > > > 
-> > > > > But please let's not put this in a header file.  We're asking the
-> > > > > compiler to put a copy of all of this into every compilation unit
-> > > > > which includes the header.  Presumably the compiler is smart enough
-> > > > > not to do that, but it's not good practice.
-> > > > 
-> > > > Thanks for the explanation. Makes sense to me.
-> > > > 
-> > > > Just wanted to check before sending V2, Is it OK if I add this to
-> > > > kernel/fork.c? or do you have something else in mind?
-> > > 
-> > > I was thinking somewhere like mm/util.c so the array could be used by
-> > > other
-> > > code.  But it seems there is no such code.  Perhaps it's best to just
-> > > leave fork.c as
-> > > it is now.
-> > 
-> > Ok, so does that mean have the struct in header file itself?
-> 
-> If the struct definition (including the string values) was in mm/util.c,
-> there would have to be a declaration in a header. If it's in fork.c with
-> the only users, there doesn't need to be separate declaration in a header.
+On Sun, Aug 4, 2019 at 10:31 PM Toshiki Fukasawa
+<t-fukasawa@vx.jp.nec.com> wrote:
+>
+> On 2019/07/26 16:06, Michal Hocko wrote:
+> > On Fri 26-07-19 06:25:49, Toshiki Fukasawa wrote:
+> >>
+> >>
+> >> On 2019/07/25 18:03, Michal Hocko wrote:
+> >>> On Thu 25-07-19 02:31:18, Toshiki Fukasawa wrote:
+> >>>> A kernel panic was observed during reading /proc/kpageflags for
+> >>>> first few pfns allocated by pmem namespace:
+> >>>>
+> >>>> BUG: unable to handle page fault for address: fffffffffffffffe
+> >>>> [  114.495280] #PF: supervisor read access in kernel mode
+> >>>> [  114.495738] #PF: error_code(0x0000) - not-present page
+> >>>> [  114.496203] PGD 17120e067 P4D 17120e067 PUD 171210067 PMD 0
+> >>>> [  114.496713] Oops: 0000 [#1] SMP PTI
+> >>>> [  114.497037] CPU: 9 PID: 1202 Comm: page-types Not tainted 5.3.0-rc1 #1
+> >>>> [  114.497621] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.11.0-0-g63451fca13-prebuilt.qemu-project.org 04/01/2014
+> >>>> [  114.498706] RIP: 0010:stable_page_flags+0x27/0x3f0
+> >>>> [  114.499142] Code: 82 66 90 66 66 66 66 90 48 85 ff 0f 84 d1 03 00 00 41 54 55 48 89 fd 53 48 8b 57 08 48 8b 1f 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48> 8b 00 f6 c4 02 0f 84 57 03 00 00 45 31 e4 48 8b 55 08 48 89 ef
+> >>>> [  114.500788] RSP: 0018:ffffa5e601a0fe60 EFLAGS: 00010202
+> >>>> [  114.501373] RAX: fffffffffffffffe RBX: ffffffffffffffff RCX: 0000000000000000
+> >>>> [  114.502009] RDX: 0000000000000001 RSI: 00007ffca13a7310 RDI: ffffd07489000000
+> >>>> [  114.502637] RBP: ffffd07489000000 R08: 0000000000000001 R09: 0000000000000000
+> >>>> [  114.503270] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000240000
+> >>>> [  114.503896] R13: 0000000000080000 R14: 00007ffca13a7310 R15: ffffa5e601a0ff08
+> >>>> [  114.504530] FS:  00007f0266c7f540(0000) GS:ffff962dbbac0000(0000) knlGS:0000000000000000
+> >>>> [  114.505245] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> >>>> [  114.505754] CR2: fffffffffffffffe CR3: 000000023a204000 CR4: 00000000000006e0
+> >>>> [  114.506401] Call Trace:
+> >>>> [  114.506660]  kpageflags_read+0xb1/0x130
+> >>>> [  114.507051]  proc_reg_read+0x39/0x60
+> >>>> [  114.507387]  vfs_read+0x8a/0x140
+> >>>> [  114.507686]  ksys_pread64+0x61/0xa0
+> >>>> [  114.508021]  do_syscall_64+0x5f/0x1a0
+> >>>> [  114.508372]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+> >>>> [  114.508844] RIP: 0033:0x7f0266ba426b
+> >>>>
+> >>>> The reason for the panic is that stable_page_flags() which parses
+> >>>> the page flags uses uninitialized struct pages reserved by the
+> >>>> ZONE_DEVICE driver.
+> >>>
+> >>> Why pmem hasn't initialized struct pages?
+> >>
+> >> We proposed to initialize in previous approach but that wasn't merged.
+> >> (See https://marc.info/?l=linux-mm&m=152964792500739&w=2)
+> >>
+> >>> Isn't that a bug that should be addressed rather than paper over it like this?
+> >>
+> >> I'm not sure. What do you think, Dan?
+> >
+> > Yeah, I am really curious about details. Why do we keep uninitialized
+> > struct pages at all? What is a random pfn walker supposed to do? What
+> > kind of metadata would be clobbered? In other words much more details
+> > please.
+> >
+> I also want to know. I do not think that initializing struct pages will
+> clobber any metadata.
 
-Makes sense.
+The nvdimm implementation uses vmem_altmap to arrange for the 'struct
+page' array to be allocated from a reservation of a pmem namespace. A
+namespace in this mode contains an info-block that consumes the first
+8K of the namespace capacity, capacity designated for page mapping,
+capacity for padding the start of data to optionally 4K, 2MB, or 1GB
+(on x86), and then the namespace data itself. The implementation
+specifies a section aligned (now sub-section aligned) address to
+arch_add_memory() to establish the linear mapping to map the metadata,
+and then vmem_altmap indicates to memmap_init_zone() which pfns
+represent data. The implementation only specifies enough 'struct page'
+capacity for pfn_to_page() to operate on the data space, not the
+namespace metadata space.
 
-> 
-> > Sorry! for too many questions. I wanted to check with you before changing 
-> > because it's *the* fork.c file (I presume random changes will not be
-> > encouraged here)
-> > 
-> > I am not yet clear on what's the right thing to do here :(
-> > So, could you please help me in deciding.
-> 
-> fork.c should be fine, IMHO
-
-I was leaning to add struct definition in fork.c as well but just wanted to
-check with Andrew before posting V2.
-
-Thanks for the reply though :)
-
-Regards,
-Sai
+The proposal to validate ZONE_DEVICE pfns against the altmap seems the
+right approach to me.
 
