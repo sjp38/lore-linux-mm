@@ -2,205 +2,175 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C1113C433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:29:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7FF15C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:31:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 81CB02075B
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:29:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81CB02075B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 41B86206A2
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:31:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 41B86206A2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2CD156B000A; Tue,  6 Aug 2019 04:29:13 -0400 (EDT)
+	id BCCB86B000D; Tue,  6 Aug 2019 04:31:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2ACF66B000C; Tue,  6 Aug 2019 04:29:13 -0400 (EDT)
+	id B7D0C6B000E; Tue,  6 Aug 2019 04:31:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 16CFF6B000D; Tue,  6 Aug 2019 04:29:13 -0400 (EDT)
+	id A92686B0010; Tue,  6 Aug 2019 04:31:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BD4356B000A
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:29:12 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id r21so53350001edc.6
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:29:12 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5DBBE6B000D
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:31:47 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id c31so53387152ede.5
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:31:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=iR9MoQ3t9Si+1vsvMXnJ/bwYAiwL4QPBUb5NFrEXrwM=;
-        b=d8ptN0O2HMQuHXY0vUffP3IONaOVi7tqZ1gCJTEUdZ3Slgmrk1TIgQau6X6mD3X7Bj
-         iYHx3poTZ3/cwNpoDA3lK9vk8Cg7hEZgHbpsqg75ryn/X3pNJTI5kLBnlS9A7RQjgyCj
-         i2Kvr2ncW3EaTiDUIFdtIx+YH3d+xEtQpzkXm+g2nWAwRTVAOK8Mf2T50HGoYrDonJNo
-         jemFX0evbiTOD2s+n1NqVxPEsVrDWOMLKnFh5ptk9B0M7QI/RKxerBCMvq3yCYfkF1KU
-         pi+1v8Z9ahuv21GSPns6a0h+dazcfERL5Ku6zA1qy1yu/1AdAR7VWf6FVKhGpbg7qmGv
-         HSTw==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAW0a4PGxKZClKOwdSXQyMiuETeLrJuRhe9JcxoMzruB8Cnzyw0t
-	FKBeesF0ppkgATUKNavNvF/PZmLnf/6PUOQX9J9r6Avwmy7+QFDKRm5XyS2d4fyP354I6RBlQr8
-	Qu24mcGyS2ltRh6aeRSt9ee3broedOVf5ap+nvMz01CG4Vb/unVaPLJ0TP0BWs2A=
-X-Received: by 2002:a50:9f4e:: with SMTP id b72mr2513476edf.252.1565080152325;
-        Tue, 06 Aug 2019 01:29:12 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx1kf2Rjd7qWS9mWfHXmsxO4Os0s7O5/X0EjdWOBGLZxQ7JGN6+FiJ5BiRqIEcjX+QZjAgm
-X-Received: by 2002:a50:9f4e:: with SMTP id b72mr2513436edf.252.1565080151609;
-        Tue, 06 Aug 2019 01:29:11 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565080151; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=2o3MEAl09JNQzVuEHRq57iPBSS9omAtfIoIZ2Acqt/c=;
+        b=hEfhek1OSznwiYJ4u+bfPiW567MnES0IqDmqXy9Yn07i19QtwiadQb/NJgXzR1rQyK
+         EupDG2XZySJFQNVjJK/BbCEcT8UHEAJ62g4R7UtZrMTcMumcS/+UQGy6OIhWm0mKnNlC
+         MXh0EMHr2i6Wn0Dn/5hkLRs6EhYo/5V5yQabw25O6X/xrAEV6ZqArCndQBnh3riKvUSv
+         nHJYhUMtunMcw4qo3Y45CHJhg1KK/0dUItxxfjnZCQNZtNFfOc4pvX5/lm7x95pB5c9I
+         lzI/9h/4nOLRuWYqx14IB8znOfRBsR/auhW36Xg7ks1Vq5xG6tSRIIJk/fNOF1yC3/Tn
+         /0NQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAU4VoqhnICUDBBlPYTK8F0tOAcwHcaHDbPd8dB5aeAT/eHD9c8Z
+	uHnr1X0sT0HwaeDLwPzN3VQ1tSO1p74RUR+rXyr0qBnRW1RphEHkd+B8IniyNatSXYOOQqvGc6l
+	bnGwDOnmbrGa59YAxFuBC8X8cZyo3TNhmd9l9K8uxibLRh4pnzAvuUMmuGqQzKUSHcg==
+X-Received: by 2002:a50:940b:: with SMTP id p11mr2621446eda.194.1565080306949;
+        Tue, 06 Aug 2019 01:31:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzQIOLpuKfTNe5sz1MqIRlEZ8rMQqAAvaDgdNeNTy570dllCAB/KiY2CljJsUL+W8e7CeD2
+X-Received: by 2002:a50:940b:: with SMTP id p11mr2621409eda.194.1565080306307;
+        Tue, 06 Aug 2019 01:31:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565080306; cv=none;
         d=google.com; s=arc-20160816;
-        b=nWyQOLxxBU6/mfl7b6tOxWNx/lqpfAxFynlstv9e0iSAhLZfLd4ADQnMqRWN3ia0+i
-         q48yaZcjK+DiAcbVlSjc1CKc9Mghxm/q7wN4r480r1diZ2vx7/1QWbPv5ZCFaLn+vyJ+
-         HtxhEzO5AdrDieRJhZz1CVJM05CkuS5EO4UmhD4oK8ukPJZtZMSvjCFYeLF3UXiawDp1
-         4Uhr/FrYgnX0+/TPS7mZOTkVi8iPxg8BWvLP09qiuMIqu7j84LVkskGw44FcjVKaN84u
-         fcmfRDWsDkfmdG0NHEQCQ111806AQEQ1/vt+YAodTybcGqbRQHw3TJHfjfS5yt0NhXBW
-         l8ew==
+        b=T9g4Z9UdH2Iv11dExrODAaXCzQK5N+6vFiN6n0rtxP2TW+8EnnOilM1H2vv99ecDbK
+         YMAjuQfTHgIewp1ZDWyxowcYEG5mjCq0Qz28do4MDS/6BMNwRlU2bZBOnPtYjt1jkZYl
+         Levot4Yqs5R8rp/btYBWJ8d709jYF0X64DdGEN9i2t/aXG7wQapOuRJ+YD+ochvw5CbU
+         B5LOz1h/XX7XR/xmOmjGPiw83esJSq47EtiRg+ku3OMwxg4nBe4GzqKKx1mF3wbldfRq
+         +Jrm50jmbb9XsBRYAWHFcfVoEYtma3z4MqUZ5hf0j+zV3l7UG7PUyb7wmpM3cdNv8Wyn
+         kaQg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=iR9MoQ3t9Si+1vsvMXnJ/bwYAiwL4QPBUb5NFrEXrwM=;
-        b=Kgw83O1lNcl+oZuqD/uMADRNLBk64d7QptTjbyUFggB3P/rMtAkLWupcxOJCDI7xNb
-         SEYm+rd7aQnN2PEzEO0zSf5lREn3DVjaF5yQ6y4ZZeRVb3PsDcgEinjvO42H8dfUpzqH
-         ZHu/kmKSWRVbT8eBZRRFuqeJ7y67GoDW7rBiZrJW0qDrH9JheV4wI+3llhdB2+y/ELAA
-         SJ1r/Sa5VKzulQxKCbb7w+4SAWGyKhy/DsyXmy7j4mIA0hdduC1xUnwxnhfStDoj5y9K
-         v8Zxjswie4uP6t5cNVtqVtg/Q1UDCsp/wIqhRSJ2EIL4wENK2r/hQFPfgJFpnQ7WP9h0
-         A/tA==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=2o3MEAl09JNQzVuEHRq57iPBSS9omAtfIoIZ2Acqt/c=;
+        b=QZQA3GY9P+xPj3Pf4mPMIKHAD2QZlQLfFefPctepo7VueQvcPUSTstImf1PWSd9R/A
+         6m/CwmI24xReXGrA9xYHje25guVvSWtHoPVs0hSHZoLoADIecEZLxLb8ZS0T0nBb84Xe
+         31q+BuM7ymYz/d0z+F3lvks7XHdN76y5IgtI/DFB5ru0ecs15BbDp3Pr+P4gsrs5d9B4
+         UWZalfok5PJ1jJ2vV6NegVO0TIGy6InOPCsQgDOGcLn56Qxo4qudfw+ntifD0pNAU1WA
+         +Ff0to1WyPKCCvOBA9YruvRanElh+UaBcze0T5Ft5vsRkmxq73I69CA9Ebh4nbFzoHHu
+         NyTA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s41si29683980edd.252.2019.08.06.01.29.11
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 01:29:11 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id o10si28215109ejx.110.2019.08.06.01.31.46
+        for <linux-mm@kvack.org>;
+        Tue, 06 Aug 2019 01:31:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 9C99FAF1D;
-	Tue,  6 Aug 2019 08:29:10 +0000 (UTC)
-Date: Tue, 6 Aug 2019 10:29:07 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Minchan Kim <minchan@kernel.org>
-Cc: syzbot <syzbot+8e6326965378936537c3@syzkaller.appspotmail.com>,
-	akpm@linux-foundation.org, chris@chrisdown.name, chris@zankel.net,
-	dancol@google.com, dave.hansen@intel.com, hannes@cmpxchg.org,
-	hdanton@sina.com, james.bottomley@hansenpartnership.com,
-	kirill.shutemov@linux.intel.com, ktkhai@virtuozzo.com,
-	laoar.shao@gmail.com, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, mgorman@techsingularity.net,
-	oleksandr@redhat.com, ralf@linux-mips.org, rth@twiddle.net,
-	sfr@canb.auug.org.au, shakeelb@google.com, sonnyrao@google.com,
-	surenb@google.com, syzkaller-bugs@googlegroups.com,
-	timmurray@google.com, yang.shi@linux.alibaba.com
-Subject: Re: kernel BUG at mm/vmscan.c:LINE! (2)
-Message-ID: <20190806082907.GI11812@dhcp22.suse.cz>
-References: <000000000000a9694d058f261963@google.com>
- <20190802200643.GA181880@google.com>
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6D59F337;
+	Tue,  6 Aug 2019 01:31:45 -0700 (PDT)
+Received: from [10.163.1.69] (unknown [10.163.1.69])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 6B3763F706;
+	Tue,  6 Aug 2019 01:31:42 -0700 (PDT)
+Subject: Re: [PATCH V2] fork: Improve error message for corrupted page tables
+To: Vlastimil Babka <vbabka@suse.cz>,
+ Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Cc: dave.hansen@intel.com, Ingo Molnar <mingo@kernel.org>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Andrew Morton <akpm@linux-foundation.org>
+References: <3ef8a340deb1c87b725d44edb163073e2b6eca5a.1565059496.git.sai.praneeth.prakhya@intel.com>
+ <5ba88460-cf01-3d53-6d13-45e650b4eacd@suse.cz>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <926d50ce-4742-0ae7-474c-ef561fe23cdd@arm.com>
+Date: Tue, 6 Aug 2019 14:02:26 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190802200643.GA181880@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <5ba88460-cf01-3d53-6d13-45e650b4eacd@suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat 03-08-19 05:06:43, Minchan Kim wrote:
-> On Fri, Aug 02, 2019 at 10:58:05AM -0700, syzbot wrote:
-> > Hello,
-> > 
-> > syzbot found the following crash on:
-> > 
-> > HEAD commit:    0d8b3265 Add linux-next specific files for 20190729
-> > git tree:       linux-next
-> > console output: https://syzkaller.appspot.com/x/log.txt?x=1663c7d0600000
-> > kernel config:  https://syzkaller.appspot.com/x/.config?x=ae96f3b8a7e885f7
-> > dashboard link: https://syzkaller.appspot.com/bug?extid=8e6326965378936537c3
-> > compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
-> > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=133c437c600000
-> > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=15645854600000
-> > 
-> > The bug was bisected to:
-> > 
-> > commit 06a833a1167e9cbb43a9a4317ec24585c6ec85cb
-> > Author: Minchan Kim <minchan@kernel.org>
-> > Date:   Sat Jul 27 05:12:38 2019 +0000
-> > 
-> >     mm: introduce MADV_PAGEOUT
-> > 
-> > bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=1545f764600000
-> > final crash:    https://syzkaller.appspot.com/x/report.txt?x=1745f764600000
-> > console output: https://syzkaller.appspot.com/x/log.txt?x=1345f764600000
-> > 
-> > IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> > Reported-by: syzbot+8e6326965378936537c3@syzkaller.appspotmail.com
-> > Fixes: 06a833a1167e ("mm: introduce MADV_PAGEOUT")
-> > 
-> > raw: 01fffc0000090025 dead000000000100 dead000000000122 ffff88809c49f741
-> > raw: 0000000000020000 0000000000000000 00000002ffffffff ffff88821b6eaac0
-> > page dumped because: VM_BUG_ON_PAGE(PageActive(page))
-> > page->mem_cgroup:ffff88821b6eaac0
-> > ------------[ cut here ]------------
-> > kernel BUG at mm/vmscan.c:1156!
-> > invalid opcode: 0000 [#1] PREEMPT SMP KASAN
-> > CPU: 1 PID: 9846 Comm: syz-executor110 Not tainted 5.3.0-rc2-next-20190729
-> > #54
-> > Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> > Google 01/01/2011
-> > RIP: 0010:shrink_page_list+0x2872/0x5430 mm/vmscan.c:1156
+
+
+On 08/06/2019 01:23 PM, Vlastimil Babka wrote:
 > 
-> My old version had PG_active flag clear but it seems to lose it with revising
-> patchsets. Thanks, Sizbot!
+> On 8/6/19 5:05 AM, Sai Praneeth Prakhya wrote:
+>> When a user process exits, the kernel cleans up the mm_struct of the user
+>> process and during cleanup, check_mm() checks the page tables of the user
+>> process for corruption (E.g: unexpected page flags set/cleared). For
+>> corrupted page tables, the error message printed by check_mm() isn't very
+>> clear as it prints the loop index instead of page table type (E.g: Resident
+>> file mapping pages vs Resident shared memory pages). The loop index in
+>> check_mm() is used to index rss_stat[] which represents individual memory
+>> type stats. Hence, instead of printing index, print memory type, thereby
+>> improving error message.
+>>
+>> Without patch:
+>> --------------
+>> [  204.836425] mm/pgtable-generic.c:29: bad p4d 0000000089eb4e92(800000025f941467)
+>> [  204.836544] BUG: Bad rss-counter state mm:00000000f75895ea idx:0 val:2
+>> [  204.836615] BUG: Bad rss-counter state mm:00000000f75895ea idx:1 val:5
+>> [  204.836685] BUG: non-zero pgtables_bytes on freeing mm: 20480
+>>
+>> With patch:
+>> -----------
+>> [   69.815453] mm/pgtable-generic.c:29: bad p4d 0000000084653642(800000025ca37467)
+>> [   69.815872] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_FILEPAGES val:2
+>> [   69.815962] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_ANONPAGES val:5
+>> [   69.816050] BUG: non-zero pgtables_bytes on freeing mm: 20480
+>>
+>> Also, change print function (from printk(KERN_ALERT, ..) to pr_alert()) so
+>> that it matches the other print statement.
+>>
+>> Cc: Ingo Molnar <mingo@kernel.org>
+>> Cc: Vlastimil Babka <vbabka@suse.cz>
+>> Cc: Peter Zijlstra <peterz@infradead.org>
+>> Cc: Andrew Morton <akpm@linux-foundation.org>
+>> Cc: Anshuman Khandual <anshuman.khandual@arm.com>
+>> Acked-by: Dave Hansen <dave.hansen@intel.com>
+>> Suggested-by: Dave Hansen <dave.hansen@intel.com>
+>> Signed-off-by: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
 > 
-> >From 66d64988619ef7e86b0002b2fc20fdf5b84ad49c Mon Sep 17 00:00:00 2001
-> From: Minchan Kim <minchan@kernel.org>
-> Date: Sat, 3 Aug 2019 04:54:02 +0900
-> Subject: [PATCH] mm: Clear PG_active on MADV_PAGEOUT
+> Acked-by: Vlastimil Babka <vbabka@suse.cz>
 > 
-> shrink_page_list expects every pages as argument should be no active
-> LRU pages so we need to clear PG_active.
-
-Ups, missed that during review.
-
+> I would also add something like this to reduce risk of breaking it in the
+> future:
 > 
-> Reported-by: syzbot+8e6326965378936537c3@syzkaller.appspotmail.com
-> Fixes: 06a833a1167e ("mm: introduce MADV_PAGEOUT")
-
-This is not a valid sha1 because it likely comes from linux-next. I
-guess Andrew will squash it into mm-introduce-madv_pageout.patch
-
-Just for the record
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-And thanks for syzkaller to exercise the new interface so quickly!
-
-> Signed-off-by: Minchan Kim <minchan@kernel.org>
-> ---
->  mm/vmscan.c | 1 +
->  1 file changed, 1 insertion(+)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 47aa2158cfac2..e2a8d3f5bbe48 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2181,6 +2181,7 @@ unsigned long reclaim_pages(struct list_head *page_list)
->  		}
+> ----8<----
+> diff --git a/include/linux/mm_types_task.h b/include/linux/mm_types_task.h
+> index d7016dcb245e..a6f83cbe4603 100644
+> --- a/include/linux/mm_types_task.h
+> +++ b/include/linux/mm_types_task.h
+> @@ -36,6 +36,9 @@ struct vmacache {
+>  	struct vm_area_struct *vmas[VMACACHE_SIZE];
+>  };
 >  
->  		if (nid == page_to_nid(page)) {
-> +			ClearPageActive(page);
->  			list_move(&page->lru, &node_page_list);
->  			continue;
->  		}
-> -- 
-> 2.22.0.770.g0f2c4a37fd-goog
+> +/*
+> + * When touching this, update also resident_page_types in kernel/fork.c
+> + */
+>  enum {
+>  	MM_FILEPAGES,	/* Resident file mapping pages */
+>  	MM_ANONPAGES,	/* Resident anonymous pages */
+> 
 
--- 
-Michal Hocko
-SUSE Labs
+Agreed and with that
+
+Reviewed-by: Anshuman Khandual <anshuman.khandual@arm.com>
 
