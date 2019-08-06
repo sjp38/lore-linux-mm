@@ -2,131 +2,174 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0CFF5C433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:58:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A4798C31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 12:04:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CD83920B1F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:58:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD83920B1F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 6689320B1F
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 12:04:19 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="kwN8iZgG"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6689320B1F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4A08E6B0006; Tue,  6 Aug 2019 07:58:27 -0400 (EDT)
+	id E39676B0006; Tue,  6 Aug 2019 08:04:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4507C6B0008; Tue,  6 Aug 2019 07:58:27 -0400 (EDT)
+	id DE9E76B0008; Tue,  6 Aug 2019 08:04:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 319A16B000A; Tue,  6 Aug 2019 07:58:27 -0400 (EDT)
+	id CD86B6B000A; Tue,  6 Aug 2019 08:04:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D9D836B0006
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 07:58:26 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id n3so53706861edr.8
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 04:58:26 -0700 (PDT)
+Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AA2E86B0006
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 08:04:18 -0400 (EDT)
+Received: by mail-qk1-f198.google.com with SMTP id c207so75373235qkb.11
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 05:04:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=1eHBI4smRB1TfNdo1TOqzaG0cVcwD1VCiSmymOE0Bmk=;
-        b=FIUscWhXRrYvJ4TwDY5UnzRs9oZc/ctbIYRMDAZJgGJNEq155mcXtEoRM5PjSPgEmq
-         EzKLDGFi1qQrSea3ar2EmCJqYnwirYHZASwgljDRNxO4bbRFfHOnqUYKdWkZv1r2XzX9
-         3MH5CvIWpVEFegCJmxNbO2vCjKSjSOr829d76pIpZFUPZQY4zw/1p2TU33MQ0GHpSUst
-         jsU2tWUOefeEYARF8/DhbrD/dfNLK1tXrOKqZtTv36w0YjFoH0j9FlkyVuIwia5Wk6YV
-         nRXVir2ReruenKFvslBcVSufBQ/9aNuL5xw8i4kw2pxVMC97CEsGJE5evZoYLbK4acuw
-         qBjg==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAVZk92AOmYh7rD/8TjpdsXuIncJ24HARmrt8N2J7FqtJNQ3kawF
-	TNHjBGBHJSp69bid03kNoyLKwZ6diKnQY2p17gZh7flpdFrm2RtoUkp8SR0bSeW9CZfP4TJEEbF
-	6WBuuWmSDj5y1tYiO/FwMNgwpTYti2Q3fcFvzDl3qhng08HFkd3mhFKotGpeJo/M=
-X-Received: by 2002:a17:906:6c85:: with SMTP id s5mr2769451ejr.199.1565092706480;
-        Tue, 06 Aug 2019 04:58:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwBgD1XsOZxLOfk4yd+wpKUOg01b37HvK0o7XPNf4Z5xeyOFccwZGqRD1bSBkDWeG9fR8JQ
-X-Received: by 2002:a17:906:6c85:: with SMTP id s5mr2769420ejr.199.1565092705915;
-        Tue, 06 Aug 2019 04:58:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565092705; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=/FPGr6jzHPYMmvLrWMP/4jeZ5wMtWr8MomConqYdxCw=;
+        b=eA/g+kLA6YEn24f+HIUmWeirvauxjbODYTEKwZHuVCa95HUR0w+XrfqpM/TQqOr2K2
+         gIxJdMZMrQ0bQZf6NRT+QJxOR5A+m+X3KBTD1gdhuhjM7s9pwRYrGeeaEq94oYwXhToK
+         cSpLZv+d3Cm/S4iAu0sh4xx+dFCHV19sMv7SLq6Aa/dYPRyDpD1vi0ug7tjbF03fR0B3
+         ShFh/pJi95d1CfbAuiTzVaP4Cyb5P8vZtL7lTm82xyGYx/gKLnptw2Pq68cuC21F1+fZ
+         UunN4MIntZb0s/5/Ou4VauHwgNH8KJsd+kPfHXoaheJ3qjxFNYoiKSQT42eYu3IOAIz8
+         6PCQ==
+X-Gm-Message-State: APjAAAVmnsqR3wvyZ5y47gVJqj6m3FTf2QhJl6W5QYerhJCYj5m91+LH
+	5cLx7VkiYeV0bH1Dbg2gYAGvWtPfSzRDIUmQ9N7b8p/oPzQsJe4sn1NMaVu/X+mVzH9CVUen9+l
+	6T1nILpi3MXjHjjCkPFiQa3/qRkRy8buS8KFcb7hl69FjGfqopxW0yOu5k4QOQwI9SQ==
+X-Received: by 2002:a05:620a:12a9:: with SMTP id x9mr2824406qki.279.1565093058463;
+        Tue, 06 Aug 2019 05:04:18 -0700 (PDT)
+X-Received: by 2002:a05:620a:12a9:: with SMTP id x9mr2824344qki.279.1565093057759;
+        Tue, 06 Aug 2019 05:04:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565093057; cv=none;
         d=google.com; s=arc-20160816;
-        b=zx+mYrn1dVtkSjZAuWpX+gTeb43/fDr0dXJCQ8nZwOcLJ3UW6IHlIG6AISEmRY/Zbr
-         9GhYSGyJVGocRvg0RQKvs/XGAivzrWmz1/U/CRUKp/WHP4ptX5FQT5u6ttnQGskeUC8m
-         BisPTsIFVsnGCrD12G+F4kiFdm3mB6T6PvCODD2Q2alwEv9jVj180lsl7GpoPmS1H6V9
-         V1jO6KUX1FQ3alUIZhqz0dLycWaphsSAoumiTvno8OkP+TjtCzB8DFLwQd2EU9UQqsXm
-         MlJuNL176ovWIGUBN6Dc1QHOx3TZCyzfwh4h+NNqBawwm6a9dQRbbxHEIpcdcSuJiFpv
-         zV4Q==
+        b=ThD3KxK1n5WToyaVlyrKR117cPrN8/s8gx9U4gLgontpZhv4Qls3+8YE3qvgyH3x9Q
+         rszk35Qk1wLVWpPC0frbe4pJUg+NbgqNbztx3eeCPZXYGAwqrMdIX6KzELYUdfcwpBFY
+         B1EauS5e0DIbVQHQL3uCSxuNXYXbcCIw1hLEvaR360NxLBvbN088DGVY3HIWcRbjaSyz
+         1zNyFxSEol6eO5/mpIy7TiKUUNG1aEA1D1dnKKu5BO5FCL//jlXicZ+gu/iS0KN/Imih
+         gadx/vj+sTTFe8uF3JlVpxYPH5k7cdgqduwQqFl/CPH/pDBQGHayioh8wlz835xtjTy8
+         nTkA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=1eHBI4smRB1TfNdo1TOqzaG0cVcwD1VCiSmymOE0Bmk=;
-        b=jdp3Uudu2kQxle627u23CwQDFn3cyeoI5hMwWCZbJ63X+4nxQFqP6Ch2Kd6q4xeMNk
-         Eu4t/Q4GOQiGkF2NmqBV9CFjjB/80C+HKypm66oKFe1RIIO6o2i2NrzJy2UZQxr3x+ry
-         ETqNsLRBwUoATtJLtUqI8GmHNOokGd1ledPc/HanmN1fN961tYRUvLyS94ZW5Okwj+oW
-         iGwKt8pUKtnqTZ+lE6l4fnG3wmbNYRa88b20hrsHp0fqIS1PrtZaGpOKA2hN4kcwirZc
-         EyUju0dGWGM2MtElcEIYRfgYU2mvGk1khWVqlz8GkaIC9bCW3h3xMYhpr5v0VxdY758v
-         aEoA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=/FPGr6jzHPYMmvLrWMP/4jeZ5wMtWr8MomConqYdxCw=;
+        b=c99EyKvrRfd0IkbOfZPx8UkdgD/7kL+j72/R+w0VSnk6XPggzvAH5x+yFvtkcm3Ep0
+         IAIMaw6EmI2al74vtfXM6BpWa6+2MLWbd77Fu/KH0j9cStBWZlv/jhTixUit305CalPJ
+         ls3cL/TU6VpBVCrSCGZL4L7DHm9PJ/YBnNuyOzT697sFwFHVnsTMFvVWSz9SSIS4VpK6
+         jVoWJzlqlTu04wapVlmr0qMpvAORKMkjG+Ml8N7XTIypOtY7fh/w/mR0OHLYvE3Pl+3Z
+         vMXj4Blg2EhYmSfB0pECudpubFpkvuDABqsYJpxzvFxwRRnFULkvcssizZpHK1IKDtRc
+         JYrA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b43si30487885edd.433.2019.08.06.04.58.25
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=kwN8iZgG;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id b34sor113258578qta.71.2019.08.06.05.04.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 04:58:25 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 06 Aug 2019 05:04:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 0098EAD88;
-	Tue,  6 Aug 2019 11:58:24 +0000 (UTC)
-Date: Tue, 6 Aug 2019 13:58:23 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Daniel Jordan <daniel.m.jordan@oracle.com>,
-	Christoph Lameter <cl@linux.com>,
-	Yafang Shao <shaoyafang@didiglobal.com>
-Subject: Re: [PATCH v2] mm/vmscan: shrink slab in node reclaim
-Message-ID: <20190806115823.GZ11812@dhcp22.suse.cz>
-References: <20190806073525.GC11812@dhcp22.suse.cz>
- <20190806074137.GE11812@dhcp22.suse.cz>
- <CALOAHbBNV9BNmGhnV-HXOdx9QfArLHqBHsBe0cm-gxsGVSoenw@mail.gmail.com>
- <20190806090516.GM11812@dhcp22.suse.cz>
- <CALOAHbDO5qmqKt8YmCkTPhh+m34RA+ahgYVgiLx1RSOJ-gM4Dw@mail.gmail.com>
- <20190806092531.GN11812@dhcp22.suse.cz>
- <20190806095028.GG2739@techsingularity.net>
- <CALOAHbAwSevM9rpReKzJUhwoZrz_FdbBzSgRtkUfWe9BMGxWJA@mail.gmail.com>
- <20190806102845.GP11812@dhcp22.suse.cz>
- <CALOAHbCJg4DqdgKpr8LWqc636ig=phCZWUduEmwYFUtw5gq=tw@mail.gmail.com>
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=kwN8iZgG;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:content-transfer-encoding:in-reply-to
+         :user-agent;
+        bh=/FPGr6jzHPYMmvLrWMP/4jeZ5wMtWr8MomConqYdxCw=;
+        b=kwN8iZgGsA616k+ie7zVtqoKkPJCUoU9iiNH6foaeOBTxgKFKg+cZig/4zEdPfsbAE
+         imTkOw+N/gal+1pboal/fWK91KxOgzhhMdL0iTRREJABvKyEt3Ufx9IKidWtLDpA7wlG
+         9D0U+Ocv+7+jGN8gmxkVmfJqgoulbE7JQaMbA++nVny+EMylWeaEfpgkD0hSjvguAUdx
+         LTme6+JAjIDsU31cell6nZpPIOasOpsE3BLX48Nh53wDpRS1MGS6UPgJlSEriefVBoaW
+         X9Q/yQXt7r0a9KNgEj2XwtztzIPh4TLr8mCicotwiPelZo/OQ+sSdt6ODRD0nTuMLItg
+         nPCQ==
+X-Google-Smtp-Source: APXvYqyl6pRejslnyvYVBtbHRarAvLE8/IwB9kBOqtljVW3kFuK45lKI6xsfV3oqosPPvOz7rhnfwA==
+X-Received: by 2002:ac8:252e:: with SMTP id 43mr2606764qtm.61.1565093057443;
+        Tue, 06 Aug 2019 05:04:17 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id c45sm44553632qte.70.2019.08.06.05.04.16
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 06 Aug 2019 05:04:16 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1huyCO-0003hy-5t; Tue, 06 Aug 2019 09:04:16 -0300
+Date: Tue, 6 Aug 2019 09:04:16 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Jason Wang <jasowang@redhat.com>
+Cc: mst@redhat.com, kvm@vger.kernel.org,
+	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
+ with worker
+Message-ID: <20190806120416.GB11627@ziepe.ca>
+References: <20190731084655.7024-1-jasowang@redhat.com>
+ <20190731084655.7024-8-jasowang@redhat.com>
+ <20190731123935.GC3946@ziepe.ca>
+ <7555c949-ae6f-f105-6e1d-df21ddae9e4e@redhat.com>
+ <20190731193057.GG3946@ziepe.ca>
+ <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
+ <20190801141512.GB23899@ziepe.ca>
+ <42ead87b-1749-4c73-cbe4-29dbeb945041@redhat.com>
+ <20190802124613.GA11245@ziepe.ca>
+ <11b2a930-eae4-522c-4132-3f8a2da05666@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <CALOAHbCJg4DqdgKpr8LWqc636ig=phCZWUduEmwYFUtw5gq=tw@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <11b2a930-eae4-522c-4132-3f8a2da05666@redhat.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 06-08-19 18:59:52, Yafang Shao wrote:
-> On Tue, Aug 6, 2019 at 6:28 PM Michal Hocko <mhocko@kernel.org> wrote:
-[...]
-> > Really, I wouldn't be opposing normally but node_reclaim is an odd ball
-> > rarely used and changing its behavior based on some trivial testing
-> > doesn't sound very convincing to me.
-> >
+On Mon, Aug 05, 2019 at 12:20:45PM +0800, Jason Wang wrote:
 > 
-> Well.  I'm not insist if Andrew prefer your change.
+> On 2019/8/2 下午8:46, Jason Gunthorpe wrote:
+> > On Fri, Aug 02, 2019 at 05:40:07PM +0800, Jason Wang wrote:
+> > > > This must be a proper barrier, like a spinlock, mutex, or
+> > > > synchronize_rcu.
+> > > 
+> > > I start with synchronize_rcu() but both you and Michael raise some
+> > > concern.
+> > I've also idly wondered if calling synchronize_rcu() under the various
+> > mm locks is a deadlock situation.
+> 
+> 
+> Maybe, that's why I suggest to use vhost_work_flush() which is much
+> lightweight can can achieve the same function. It can guarantee all previous
+> work has been processed after vhost_work_flush() return.
 
-Btw. feel free to use the diff I've send for the real patch with the
-changelog. Thanks!
--- 
-Michal Hocko
-SUSE Labs
+If things are already running in a work, then yes, you can piggyback
+on the existing spinlocks inside the workqueue and be Ok
+
+However, if that work is doing any copy_from_user, then the flush
+becomes dependent on swap and it won't work again...
+
+> > > 1) spinlock: add lots of overhead on datapath, this leads 0 performance
+> > > improvement.
+> > I think the topic here is correctness not performance improvement> 
+ 
+> But the whole series is to speed up vhost.
+
+So? Starting with a whole bunch of crazy, possibly broken, locking and
+claiming a performance win is not reasonable.
+
+> Spinlock is correct but make the whole series meaningless consider it won't
+> bring any performance improvement.
+
+You can't invent a faster spinlock by opencoding some wild
+scheme. There is nothing special about the usage here, it needs a
+blocking lock, plain and simple.
+
+Jason
 
