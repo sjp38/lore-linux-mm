@@ -6,87 +6,86 @@ X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
 	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 01635C433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:42:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A9598C31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:44:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AFD612086D
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:42:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFD612086D
+	by mail.kernel.org (Postfix) with ESMTP id 6B58920C01
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:44:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B58920C01
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 55B806B026B; Tue,  6 Aug 2019 04:42:08 -0400 (EDT)
+	id 18A446B026D; Tue,  6 Aug 2019 04:44:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4E5CB6B026C; Tue,  6 Aug 2019 04:42:08 -0400 (EDT)
+	id 13AFD6B026E; Tue,  6 Aug 2019 04:44:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 386F16B026D; Tue,  6 Aug 2019 04:42:08 -0400 (EDT)
+	id 028826B026F; Tue,  6 Aug 2019 04:44:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id D9C3D6B026B
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:42:07 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id z20so53385779edr.15
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:42:07 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id A45DC6B026D
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:44:06 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id n3so53335270edr.8
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:44:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=rG6e8LoqBh2XHaVq7F+hfldPruTmFehiVX4YY5vROA8=;
-        b=RQVL+UlNPZ8BIIHnAOk4M7pD2hJLbUWR2C6KxWznAhD0qw1HE5B1vrTZryX71wLGiI
-         9/stzcHt0UaqSEU1B694ujZF3uXOEBlIuGraZaRDfOZQUehzzogFeWhDMPlA6ijhBDmV
-         3r1uR1ELZBH2GmrS9y/diE0OAJ+yZyNE5Lqix0b/Zse/0AE644nw9Wlh0a0cx+Dt22Pz
-         yOlfm1QwdxA5k1UekAKeJ0Zim/BhSSZI0L54aMfslw0o2QJiMoeRjiyibiJol5GM8v/k
-         JfVnC1UV2hJQMYjpzdPBXbLcQc74DG1ZIi85C25DR8b6swbg4QBYk4a/dA3URtYgl1dM
-         n0vA==
+        bh=0inXmfqIH0ti+18qEKndWcJf66x8UBbUJ5ojeLuaRww=;
+        b=I6BMDI2Xple4093EkNdICQkzWcur6yIuK8Ql/849t2buU3SozeLMGVOkc+oB8WTdza
+         qKmJz6I2afQHLTSRrOh1AN0g97OHzGseOZY8NWLhEYX4Y2KVc7D2F28bjSmaLAqMt2Pw
+         T4Kk9ARPHNT490J+MgZVOMtbSBDOikj2lsXtIGb+xBqDGlxL4BSc0ChgwfaSsxLug6f/
+         MtlTt9ZG/9tqHePhawDRTN1wa7KciQqK51MJ4RLV36E0HvVy179q8krKDSELHA4nnKdM
+         lhTOEMMJZDen5/PUQ7dg4IDJl0qWyw54/eQQyn+72YwDOfqFRpMl9CNxW1QEu02jil7g
+         E6kg==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAV+IbHSvYSk+54Jd4rWli19plFXP+CYFgTzwWRe8TtE0XaAgXJx
-	cf9G97vtgS1ITW5RjQ7z55v3F9GdP1XiYDSHJllrjOWfwbak8+GikExdGcJmboT6EahEeRyj9x5
-	ilLZeuXA+0mc/5LrDpFzRwgvXHtkcah1duxx4By0vl1uSKGwYd0hkDTllsqQeY8A=
-X-Received: by 2002:a17:906:f0cd:: with SMTP id dk13mr2060434ejb.84.1565080927458;
-        Tue, 06 Aug 2019 01:42:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzOlZglzPLUdyjeel0/4vYu5642ymszME93xBtOQrADS6yVcfLdvtxvVUKAfa5xyEXyVZom
-X-Received: by 2002:a17:906:f0cd:: with SMTP id dk13mr2060397ejb.84.1565080926710;
-        Tue, 06 Aug 2019 01:42:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565080926; cv=none;
+X-Gm-Message-State: APjAAAVXMIPbwdWl9AaDamdssIw5pDody/CQTC1BI3VOOuslBOmQ5ClO
+	WIygJ/zeHAPO1BA6YPK9g+tDYX5N1yItdzEz64IUV+Ii5qKMkFqnmFcpMk82Ifq/n4q1e48/L55
+	R29K0bHjcl2K+UTRIsCDLK104nw6i0gSGJR/VBf3T9iUAuZoP7YT3Dc34z7jdc7k=
+X-Received: by 2002:a17:906:e0cd:: with SMTP id gl13mr2028838ejb.52.1565081046216;
+        Tue, 06 Aug 2019 01:44:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyyRnctsWqqWOCLRkVc3E7DV7T2YqN2iUi5xc/AGfIVuVcgxq/B99HgP5Imzvyc2L+eH5wN
+X-Received: by 2002:a17:906:e0cd:: with SMTP id gl13mr2028812ejb.52.1565081045498;
+        Tue, 06 Aug 2019 01:44:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565081045; cv=none;
         d=google.com; s=arc-20160816;
-        b=bNlWvoK8F7cTops8gPwDKxnQIC9qQNQ0vOFv2AIAZZl6tIiXNbvqh2YROKYeN+GyXL
-         OqFN/H6g2uuQCn7JFTkL4doqMeKyeU8exuA8FvjeXuMdvUG+o2+AdS8/3r7HH08pFU8g
-         dah8WYFs0kBPM9WYayBVZJWbGHUq90iuF21aPoAJ8u+I50vhxrjpLgSVzSjiWACldyKv
-         cX2kopqnqXOut/aeBcMI3v5i5Euif4t8J2st01R8sU8KGNK14wsRq3NR0xWFApovnvrQ
-         IR3OBvjUR5XX2pgv0Daeum3vkXAyc4D9U5loiSPmsShiVZIbrIfKPFdXfgHjRi4j8Mgr
-         F0Yg==
+        b=UHtgfiNszADdtCTcR24OHz4h8VmRSOA+k5LpFqsQzwIQJYWbk1bB0hRrdv0GLhOJt6
+         N68Y8NvkdGXQKP007n5JThtWa1DUrDYtwjrCKkS7rqeXzr+8BKUTuQhdCYOHLMl5iPBj
+         avsdOa1ISoKv5/ARBIB7le8pPuIpSfFANwqf4mUSvttUWPno+SFr81xCLoYvMzCvRWnL
+         XenjehKhdeElvmOCiw87CpHc9N/gEWc8mmKn7wjRJpNrMuEYicUHVI1BLhDNEDZki7Wu
+         IsUq+Lg7mLbevFiKtAcRfP+PtaBlvGI9Lq2VQMg5pnzIA+EjfjZYv1nMhagmMcxyLGDC
+         zTHw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=rG6e8LoqBh2XHaVq7F+hfldPruTmFehiVX4YY5vROA8=;
-        b=UgCZVVAGq0MxYhctFm+w6gs3s7GU9gy42fAJqkU928QLN8ifVIMhbhJMF3nA7+kYid
-         XUwwN+XGVPCZdTOa4r7gvpgM668j39UGkaiVUY3QdbsxauFrzczsryJzF7K0DXD5LNi9
-         0F2ULVYrDVlBy4Dub0PeAkuBhtue2My1rCo4Bu1NI1VUA+EwGZ2T0KLyWCHOEAJr/AES
-         n/A0GhbOg9p64AL7g+EBCiUjSmIImJY8d++GbO/2TSopi0cm0uLOGHRZ+RE4Um9+fUhq
-         xLnSMiBUWDpN8ihdcEtAnLn4A/56sjZT/H5WibhmBSU6alCAO4VQxyU9fSaeD1qU27fC
-         5SEA==
+        bh=0inXmfqIH0ti+18qEKndWcJf66x8UBbUJ5ojeLuaRww=;
+        b=iWXA7hCH6A6jukhoJmKRVX/TtdAAZZz25/3j9sbGIbyLZL2Eq9SRFm2hgoezg8C9wW
+         Oe3iZu3ucXdL0luT0ydaw+OHC9D7c5Mg52W1sTa4QEYoHyhhwCGo5OTjpW8xfuwTs+U9
+         pfQowOtNe0q8rq7LxOW8+EF1IwNnbdRHJJG86yiAht+vyXdaj2Qg0AQJ6lESyhw58wqN
+         1aNOoj1bN+RjSNsNJessl0oIQ54sQmhl3hUOZolw5AlIL7Aa8CVN5Vv8UKE/LYf2ym4P
+         wBQrfPZr1/l2mLVUO+E5kJai0wG0eq6fPNUUJxeGkAA1pX+INm0qL75/sOj1K7expbao
+         XrSw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id q25si27029746ejt.301.2019.08.06.01.42.06
+        by mx.google.com with ESMTPS id a5si27767515ejb.103.2019.08.06.01.44.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 01:42:06 -0700 (PDT)
+        Tue, 06 Aug 2019 01:44:05 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id B55EBABC7;
-	Tue,  6 Aug 2019 08:42:05 +0000 (UTC)
-Date: Tue, 6 Aug 2019 10:42:03 +0200
+	by mx1.suse.de (Postfix) with ESMTP id C4ACEAC97;
+	Tue,  6 Aug 2019 08:44:04 +0000 (UTC)
+Date: Tue, 6 Aug 2019 10:43:57 +0200
 From: Michal Hocko <mhocko@kernel.org>
 To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Cc: linux-kernel@vger.kernel.org, Robin Murphy <robin.murphy@arm.com>,
-	Alexey Dobriyan <adobriyan@gmail.com>,
+Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
 	Andrew Morton <akpm@linux-foundation.org>,
 	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
 	Catalin Marinas <catalin.marinas@arm.com>,
@@ -98,19 +97,20 @@ Cc: linux-kernel@vger.kernel.org, Robin Murphy <robin.murphy@arm.com>,
 	linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
 	linux-mm@kvack.org, Mike Rapoport <rppt@linux.ibm.com>,
 	minchan@kernel.org, namhyung@google.com, paulmck@linux.ibm.com,
-	Roman Gushchin <guro@fb.com>,
+	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
 	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
 	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
 	Vladimir Davydov <vdavydov.dev@gmail.com>,
 	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
-Subject: Re: [PATCH v4 3/5] [RFC] arm64: Add support for idle bit in swap PTE
-Message-ID: <20190806084203.GJ11812@dhcp22.suse.cz>
+Subject: Re: [PATCH v4 4/5] page_idle: Drain all LRU pagevec before idle
+ tracking
+Message-ID: <20190806084357.GK11812@dhcp22.suse.cz>
 References: <20190805170451.26009-1-joel@joelfernandes.org>
- <20190805170451.26009-3-joel@joelfernandes.org>
+ <20190805170451.26009-4-joel@joelfernandes.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190805170451.26009-3-joel@joelfernandes.org>
+In-Reply-To: <20190805170451.26009-4-joel@joelfernandes.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -118,78 +118,51 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 05-08-19 13:04:49, Joel Fernandes (Google) wrote:
-> This bit will be used by idle page tracking code to correctly identify
-> if a page that was swapped out was idle before it got swapped out.
-> Without this PTE bit, we lose information about if a page is idle or not
-> since the page frame gets unmapped.
+On Mon 05-08-19 13:04:50, Joel Fernandes (Google) wrote:
+> During idle tracking, we see that sometimes faulted anon pages are in
+> pagevec but are not drained to LRU. Idle tracking considers pages only
+> on LRU. Drain all CPU's LRU before starting idle tracking.
 
-And why do we need that? Why cannot we simply assume all swapped out
-pages to be idle? They were certainly idle enough to be reclaimed,
-right? Or what does idle actualy mean here?
+Please expand on why does this matter enough to introduce a potentially
+expensinve draining which has to schedule a work on each CPU and wait
+for them to finish.
 
-> In this patch we reuse PTE_DEVMAP bit since idle page tracking only
-> works on user pages in the LRU. Device pages should not consitute those
-> so it should be unused and safe to use.
-> 
-> Cc: Robin Murphy <robin.murphy@arm.com>
 > Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
 > ---
->  arch/arm64/Kconfig                    |  1 +
->  arch/arm64/include/asm/pgtable-prot.h |  1 +
->  arch/arm64/include/asm/pgtable.h      | 15 +++++++++++++++
->  3 files changed, 17 insertions(+)
+>  mm/page_idle.c | 6 ++++++
+>  1 file changed, 6 insertions(+)
 > 
-> diff --git a/arch/arm64/Kconfig b/arch/arm64/Kconfig
-> index 3adcec05b1f6..9d1412c693d7 100644
-> --- a/arch/arm64/Kconfig
-> +++ b/arch/arm64/Kconfig
-> @@ -128,6 +128,7 @@ config ARM64
->  	select HAVE_ARCH_MMAP_RND_BITS
->  	select HAVE_ARCH_MMAP_RND_COMPAT_BITS if COMPAT
->  	select HAVE_ARCH_PREL32_RELOCATIONS
-> +	select HAVE_ARCH_PTE_SWP_PGIDLE
->  	select HAVE_ARCH_SECCOMP_FILTER
->  	select HAVE_ARCH_STACKLEAK
->  	select HAVE_ARCH_THREAD_STRUCT_WHITELIST
-> diff --git a/arch/arm64/include/asm/pgtable-prot.h b/arch/arm64/include/asm/pgtable-prot.h
-> index 92d2e9f28f28..917b15c5d63a 100644
-> --- a/arch/arm64/include/asm/pgtable-prot.h
-> +++ b/arch/arm64/include/asm/pgtable-prot.h
-> @@ -18,6 +18,7 @@
->  #define PTE_SPECIAL		(_AT(pteval_t, 1) << 56)
->  #define PTE_DEVMAP		(_AT(pteval_t, 1) << 57)
->  #define PTE_PROT_NONE		(_AT(pteval_t, 1) << 58) /* only when !PTE_VALID */
-> +#define PTE_SWP_PGIDLE		PTE_DEVMAP		 /* for idle page tracking during swapout */
+> diff --git a/mm/page_idle.c b/mm/page_idle.c
+> index a5b00d63216c..2972367a599f 100644
+> --- a/mm/page_idle.c
+> +++ b/mm/page_idle.c
+> @@ -180,6 +180,8 @@ static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
+>  	unsigned long pfn, end_pfn;
+>  	int bit, ret;
 >  
->  #ifndef __ASSEMBLY__
+> +	lru_add_drain_all();
+> +
+>  	ret = page_idle_get_frames(pos, count, NULL, &pfn, &end_pfn);
+>  	if (ret == -ENXIO)
+>  		return 0;  /* Reads beyond max_pfn do nothing */
+> @@ -211,6 +213,8 @@ static ssize_t page_idle_bitmap_write(struct file *file, struct kobject *kobj,
+>  	unsigned long pfn, end_pfn;
+>  	int bit, ret;
 >  
-> diff --git a/arch/arm64/include/asm/pgtable.h b/arch/arm64/include/asm/pgtable.h
-> index 3f5461f7b560..558f5ebd81ba 100644
-> --- a/arch/arm64/include/asm/pgtable.h
-> +++ b/arch/arm64/include/asm/pgtable.h
-> @@ -212,6 +212,21 @@ static inline pte_t pte_mkdevmap(pte_t pte)
->  	return set_pte_bit(pte, __pgprot(PTE_DEVMAP));
->  }
+> +	lru_add_drain_all();
+> +
+>  	ret = page_idle_get_frames(pos, count, NULL, &pfn, &end_pfn);
+>  	if (ret)
+>  		return ret;
+> @@ -428,6 +432,8 @@ ssize_t page_idle_proc_generic(struct file *file, char __user *ubuff,
+>  	walk.private = &priv;
+>  	walk.mm = mm;
 >  
-> +static inline int pte_swp_page_idle(pte_t pte)
-> +{
-> +	return 0;
-> +}
+> +	lru_add_drain_all();
 > +
-> +static inline pte_t pte_swp_mkpage_idle(pte_t pte)
-> +{
-> +	return set_pte_bit(pte, __pgprot(PTE_SWP_PGIDLE));
-> +}
-> +
-> +static inline pte_t pte_swp_clear_page_idle(pte_t pte)
-> +{
-> +	return clear_pte_bit(pte, __pgprot(PTE_SWP_PGIDLE));
-> +}
-> +
->  static inline void set_pte(pte_t *ptep, pte_t pte)
->  {
->  	WRITE_ONCE(*ptep, pte);
+>  	down_read(&mm->mmap_sem);
+>  
+>  	/*
 > -- 
 > 2.22.0.770.g0f2c4a37fd-goog
 
