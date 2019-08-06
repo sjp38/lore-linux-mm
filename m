@@ -2,216 +2,202 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 912D4C41514
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:31:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 17110C31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:35:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6151F20818
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:31:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6151F20818
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id BFD0A2089E
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:35:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="n0OHWqXe"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFD0A2089E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E04566B0003; Tue,  6 Aug 2019 07:31:21 -0400 (EDT)
+	id 4D9F76B000D; Tue,  6 Aug 2019 07:35:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DB47D6B000A; Tue,  6 Aug 2019 07:31:21 -0400 (EDT)
+	id 489D16B000E; Tue,  6 Aug 2019 07:35:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CA2256B000D; Tue,  6 Aug 2019 07:31:21 -0400 (EDT)
+	id 351456B0010; Tue,  6 Aug 2019 07:35:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id A99936B0003
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 07:31:21 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id r58so78665020qtb.5
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 04:31:21 -0700 (PDT)
+Received: from mail-oi1-f198.google.com (mail-oi1-f198.google.com [209.85.167.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D9D56B000D
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 07:35:18 -0400 (EDT)
+Received: by mail-oi1-f198.google.com with SMTP id i16so34528642oie.1
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 04:35:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to;
-        bh=6MKE3WpJRvmKRFMaN2W9lDZcPJmjUwMQHP29v6g6oiE=;
-        b=QF9rEmhTz/UEfhnQ7XMpsHghfYE1HCcqQAlgNcfOu34hs1vOFTofyz17IWbPc/Md7y
-         /zul40lMbWj1ef0eLwGXSPyPNV5ozIYFlwhLAiEoMk6kp/q9Llj8lDZPcxVxfLcqzR0r
-         xhJ7cy8vnkmeEp742LEoxJHQ+ksbC4BkaxuO7rQvziJsPEfj3Q9UeFo8BA1DXwvvXm6T
-         jKln27rSi9xQwkPhBB5MJLuuLmKKpoccUqF2R6g0LvyzMROu7ketmekM+W3d212dwB/a
-         4B/m0uvzhUxtVNos7kL1Sx0kMvXV78MaFz0EMnFKrmuaZ4CVlt2s4OIKOBJs4L232el+
-         6LkQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUnxmgwjICvFpg8zQ7OBzwhT6Az0+PHMszBmRE197ukS9BMqtpB
-	CzpZpM5cGcVz49XYhJ+3Jt3B1LJbSamDojOcZ+4Fg4DO7RID60JLPxWTa9tfuZsoMUBHNmZ2C+R
-	vOy0qMGSUcyAeRSKU6XF/qn6h4KCxgqOih8UimHtEbMgbEbOVnsC0YdIc47dNbzZuoA==
-X-Received: by 2002:a05:620a:690:: with SMTP id f16mr2556535qkh.97.1565091081431;
-        Tue, 06 Aug 2019 04:31:21 -0700 (PDT)
-X-Received: by 2002:a05:620a:690:: with SMTP id f16mr2556485qkh.97.1565091080793;
-        Tue, 06 Aug 2019 04:31:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565091080; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=g7uMPvg5GtFcBZDsCTSW0/ygIwWmVJGwGpp1PepWeI4=;
+        b=p3cOnD8+Zmkh8buIC2a6k3s8+fIuhtOxGEvJMuOIuFd9SWcPwsL5AKdCHwuYTdA9ah
+         y39TQNQg93eUW2QOeoii9QTwC8tdx1wnpK/fnb4heVVLA8JMxdCrO//XFJkQp9wTScv2
+         5KuwfQpN3rpoiPHN0tFvQvvUZJC6ITPWeqHGV1xjcfQPYvg4HWI5uHa8BbqZkduW9lCI
+         RlQij3JWNlxxqhVFcpkkaf+amuHbl+Md1bL4m16pYv+JnVGZy1/Pg3uaHI/xBRYgpF2U
+         T5QKG3AYMN5DCMTLvDqYm7BeumkoCrCmpySgB7PkBhACMF21btBFoX06B6cicl3+Mnwm
+         KraQ==
+X-Gm-Message-State: APjAAAW180L5GLXRYdvxRPZ4bnk1UlRV8ljzxqOcz7wAO4MnZJISXzRq
+	EzXuP2c0jrmLjmn1Rio7RfKl0MHeNxlNq33ErBBRp3ZlL4VmYuSiGLWXeQ8agDbRsioZvLcOKXD
+	ivCYfbn4dDN4OSwCoAN/oDcqX2YAVNKRr72l3XAQEfpMfxJeRDHauzWl0uRzU0L29fg==
+X-Received: by 2002:a6b:6516:: with SMTP id z22mr3025653iob.7.1565091317688;
+        Tue, 06 Aug 2019 04:35:17 -0700 (PDT)
+X-Received: by 2002:a6b:6516:: with SMTP id z22mr3025613iob.7.1565091316988;
+        Tue, 06 Aug 2019 04:35:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565091316; cv=none;
         d=google.com; s=arc-20160816;
-        b=PGO0SxJi1vEcBQAl32tBxbvYUQaE8fRSpR1+27lpbEPPFNya89wS73fDZsP2x+wxgK
-         LHoc+r9p/jpRAwF5M/GN9AXlhr2X246bTWG5JVqFHlgIPx7Pv5w0QWqdGnmmYnsECeDx
-         eiIVAmkWEpLcVK1qfboQ8jAjJTM9AQbP1VqmbEHIwvx6uQnU+15iAbWtvMcmN8wN3L95
-         6wFT3VZoWES8vWvo1Wk6S8cfwckeG9ZZtkRcH3TF1pH5wcebUi6o6n18McnwEK+Tmlsr
-         udaJNxe65zUkLTcrSTO1c54NBJMuZq1JcxmuCxZkXl7IaREySR1kw+OPClZJNZ5vTqgU
-         6NBg==
+        b=Fswhwp/654iUDoVqJIc1bqV5b75a58V7ckAqBi/NUDs0FRhoz6gqygyjPwzTsHapPb
+         Hei+VWxfgbKN5QgrVK+rlz0zthyiy/JNV5PGaepUXWppKh/Hj8ezH3BFJyOK3bXAU5fJ
+         F0V/ajM6rU22fwvh59Gw2pltUaJTT+quNUcAQlDR8N/5iLuwS7Hfty4u8G2HFm3XZVim
+         CGaIIEX4Fjd3V7DoS4tVUnI3plAayQ6RBN1n6DYmbGrMtv0WEGSFafivS9y2Vig8RpP6
+         w5Cf1JbHA0WppQKgcblIVJMLzxljePtglWgpUR2PCumimpZO+ha2fsLzoUD9B0BDQI0l
+         v80w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date;
-        bh=6MKE3WpJRvmKRFMaN2W9lDZcPJmjUwMQHP29v6g6oiE=;
-        b=ukAAyWVaegcLjJLFhj40JB1LGBD4Y7v5CBHDEYHq8hMIFfwVaxohLo0jrOrApwW+D0
-         XqZgrtUbWiW0ZcQHzGCoqF2Tb2EAivOhlUsT0540dUZW3xFY2ZpcQg8ivzZVLis4CQBJ
-         aldJhHxftb4gffVLAOqfjlIl70a6l3lM+dVc2YwW6uxsV1SpIN+qAVGNMrI3UiCl3WU4
-         bzWOAij8oo6Oo5RUAhyI8qiea/WOgMpfma3Cp+bdyUzfbWZywN23WWME+oPsPDDSaGHL
-         YNXh3qKFqc9mI3/3Ec6u3Uyxbw3iCUtcHbz+4j/MQOPImhYOjughxOvnv2UbhzMcuyOe
-         NObg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=g7uMPvg5GtFcBZDsCTSW0/ygIwWmVJGwGpp1PepWeI4=;
+        b=DYFNKd2n39WUyPkUE9uwI55mMZXmSId2fTSQWE9AudO47KTjp4Xe1wq8ZwaD7lK02L
+         Ucjy/tb8vQNa0dtj/m8wHn+hrYv0QvfqmpMks5aHtzbb466WSjNXxoJ5wTYEiN2jgrRd
+         RzqkFF+pctx/cydlawHKeqg5bM8ldCJwgL8lVSazbKm8howuVONdT0fD6nMXeyQE1Oco
+         4uaIKi9ibWXoLtlCa9a+6qtDFoqg9Y+9fc4CWYzbWvaBTKqYKf1aiu0U1p4tTtPFJcS8
+         NMUJEdCQDllTHDIf2hnSiq25Ksy67Tr1p/ReA/Ee99iWrTdUADM//nHbIuSVdYTcGUoQ
+         4IAg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=n0OHWqXe;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 56sor112732064qtp.70.2019.08.06.04.31.20
+        by mx.google.com with SMTPS id 7sor58405345ioo.94.2019.08.06.04.35.16
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 06 Aug 2019 04:31:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Tue, 06 Aug 2019 04:35:16 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Google-Smtp-Source: APXvYqzvrf13MUE19LiIf1x3M2bj2D6eaCY1fg59zYnBrXL5jz1U6+gizBe5cXM8McsO2BykNMm8bA==
-X-Received: by 2002:ac8:7a9a:: with SMTP id x26mr2526029qtr.251.1565091080543;
-        Tue, 06 Aug 2019 04:31:20 -0700 (PDT)
-Received: from redhat.com ([147.234.38.1])
-        by smtp.gmail.com with ESMTPSA id d31sm44554913qta.39.2019.08.06.04.31.14
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 06 Aug 2019 04:31:19 -0700 (PDT)
-Date: Tue, 6 Aug 2019 07:31:11 -0400
-From: "Michael S. Tsirkin" <mst@redhat.com>
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>,
-	Alexander Duyck <alexander.duyck@gmail.com>, kvm@vger.kernel.org,
-	david@redhat.com, dave.hansen@intel.com,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	akpm@linux-foundation.org, yang.zhang.wz@gmail.com,
-	pagupta@redhat.com, riel@surriel.com, konrad.wilk@oracle.com,
-	willy@infradead.org, lcapitulino@redhat.com, wei.w.wang@intel.com,
-	aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com
-Subject: Re: [PATCH v3 6/6] virtio-balloon: Add support for providing unused
- page reports to host
-Message-ID: <20190806073047-mutt-send-email-mst@kernel.org>
-References: <20190801222158.22190.96964.stgit@localhost.localdomain>
- <20190801223829.22190.36831.stgit@localhost.localdomain>
- <1cff09a4-d302-639c-ab08-9d82e5fc1383@redhat.com>
- <ed48ecdb833808bf6b08bc54fa98503cbad493f3.camel@linux.intel.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=n0OHWqXe;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=g7uMPvg5GtFcBZDsCTSW0/ygIwWmVJGwGpp1PepWeI4=;
+        b=n0OHWqXe49WvcDNicMYxwO6SWqdhG/Vd3p4sUn09wrnxG3voAqnyJTXIFWCugmHlMV
+         PSNkUsM0wZ4CmivauF84zcvdRSUkp8/d+7EHpid8JSvH+ctMXBqoF8AL7V3tfZjnYd3g
+         7z/bHV4zdN5AijM7KOyvgTp3zzDZ/59O6ppby3M8FOGX/SkRzxMB9yg+LcnUixyPAAkT
+         pNYJ+ynNrLH3JX4zQaRao85jyR2p0Jbul0bWs3vmCExJJnHZhczVMQmTCbcRqxk+6ScF
+         o7gSwwuD7pWxQzaAwgjgqqIBzVl23VVEAg+3WvXt1R8/QYRA7jWQb90uGD2aUA4UCZsR
+         NH1A==
+X-Google-Smtp-Source: APXvYqwrUa6Oi+X8F0H0Stxcr3/U+LJMZpjTMuRxm492IxbAhmYPiTDZlVVq2uCbUCKoLEB5RfyGtZGwd4X+hrd4hI4=
+X-Received: by 2002:a5d:8702:: with SMTP id u2mr3212395iom.228.1565091316701;
+ Tue, 06 Aug 2019 04:35:16 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <ed48ecdb833808bf6b08bc54fa98503cbad493f3.camel@linux.intel.com>
+References: <20190806073525.GC11812@dhcp22.suse.cz> <20190806074137.GE11812@dhcp22.suse.cz>
+ <CALOAHbBNV9BNmGhnV-HXOdx9QfArLHqBHsBe0cm-gxsGVSoenw@mail.gmail.com>
+ <20190806090516.GM11812@dhcp22.suse.cz> <CALOAHbDO5qmqKt8YmCkTPhh+m34RA+ahgYVgiLx1RSOJ-gM4Dw@mail.gmail.com>
+ <20190806092531.GN11812@dhcp22.suse.cz> <20190806095028.GG2739@techsingularity.net>
+ <CALOAHbAwSevM9rpReKzJUhwoZrz_FdbBzSgRtkUfWe9BMGxWJA@mail.gmail.com>
+ <20190806102845.GP11812@dhcp22.suse.cz> <CALOAHbCJg4DqdgKpr8LWqc636ig=phCZWUduEmwYFUtw5gq=tw@mail.gmail.com>
+ <20190806110905.GU11812@dhcp22.suse.cz>
+In-Reply-To: <20190806110905.GU11812@dhcp22.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Tue, 6 Aug 2019 19:34:40 +0800
+Message-ID: <CALOAHbAjN=bfCAc-TTBQazqg9GhiwQf2S5varJ2L=KaS-dVb+w@mail.gmail.com>
+Subject: Re: [PATCH v2] mm/vmscan: shrink slab in node reclaim
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Andrew Morton <akpm@linux-foundation.org>, 
+	Linux MM <linux-mm@kvack.org>, Daniel Jordan <daniel.m.jordan@oracle.com>, 
+	Christoph Lameter <cl@linux.com>, Yafang Shao <shaoyafang@didiglobal.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 05, 2019 at 09:27:16AM -0700, Alexander Duyck wrote:
-> On Mon, 2019-08-05 at 12:00 -0400, Nitesh Narayan Lal wrote:
-> > On 8/1/19 6:38 PM, Alexander Duyck wrote:
-> > > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> > > 
-> > > Add support for the page reporting feature provided by virtio-balloon.
-> > > Reporting differs from the regular balloon functionality in that is is
-> > > much less durable than a standard memory balloon. Instead of creating a
-> > > list of pages that cannot be accessed the pages are only inaccessible
-> > > while they are being indicated to the virtio interface. Once the
-> > > interface has acknowledged them they are placed back into their respective
-> > > free lists and are once again accessible by the guest system.
-> > > 
-> > > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> > > ---
-> > >  drivers/virtio/Kconfig              |    1 +
-> > >  drivers/virtio/virtio_balloon.c     |   56 +++++++++++++++++++++++++++++++++++
-> > >  include/uapi/linux/virtio_balloon.h |    1 +
-> > >  3 files changed, 58 insertions(+)
-> > > 
-> > > diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
-> > > index 078615cf2afc..4b2dd8259ff5 100644
-> > > --- a/drivers/virtio/Kconfig
-> > > +++ b/drivers/virtio/Kconfig
-> > > @@ -58,6 +58,7 @@ config VIRTIO_BALLOON
-> > >  	tristate "Virtio balloon driver"
-> > >  	depends on VIRTIO
-> > >  	select MEMORY_BALLOON
-> > > +	select PAGE_REPORTING
-> > >  	---help---
-> > >  	 This driver supports increasing and decreasing the amount
-> > >  	 of memory within a KVM guest.
-> > > diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
-> > > index 2c19457ab573..971fe924e34f 100644
-> > > --- a/drivers/virtio/virtio_balloon.c
-> > > +++ b/drivers/virtio/virtio_balloon.c
-> > > @@ -19,6 +19,7 @@
-> > >  #include <linux/mount.h>
-> > >  #include <linux/magic.h>
-> > >  #include <linux/pseudo_fs.h>
-> > > +#include <linux/page_reporting.h>
-> > >  
-> > >  /*
-> > >   * Balloon device works in 4K page units.  So each page is pointed to by
-> > > @@ -37,6 +38,9 @@
-> > >  #define VIRTIO_BALLOON_FREE_PAGE_SIZE \
-> > >  	(1 << (VIRTIO_BALLOON_FREE_PAGE_ORDER + PAGE_SHIFT))
-> > >  
-> > > +/*  limit on the number of pages that can be on the reporting vq */
-> > > +#define VIRTIO_BALLOON_VRING_HINTS_MAX	16
-> > > +
-> > >  #ifdef CONFIG_BALLOON_COMPACTION
-> > >  static struct vfsmount *balloon_mnt;
-> > >  #endif
-> > > @@ -46,6 +50,7 @@ enum virtio_balloon_vq {
-> > >  	VIRTIO_BALLOON_VQ_DEFLATE,
-> > >  	VIRTIO_BALLOON_VQ_STATS,
-> > >  	VIRTIO_BALLOON_VQ_FREE_PAGE,
-> > > +	VIRTIO_BALLOON_VQ_REPORTING,
-> > >  	VIRTIO_BALLOON_VQ_MAX
-> > >  };
-> > >  
-> > > @@ -113,6 +118,10 @@ struct virtio_balloon {
-> > >  
-> > >  	/* To register a shrinker to shrink memory upon memory pressure */
-> > >  	struct shrinker shrinker;
-> > > +
-> > > +	/* Unused page reporting device */
-> > > +	struct virtqueue *reporting_vq;
-> > > +	struct page_reporting_dev_info ph_dev_info;
-> > >  };
-> > >  
-> > >  static struct virtio_device_id id_table[] = {
-> > > @@ -152,6 +161,23 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
-> > >  
-> > >  }
-> > >  
-> > > +void virtballoon_unused_page_report(struct page_reporting_dev_info *ph_dev_info,
-> > > +				    unsigned int nents)
-> > > +{
-> > > +	struct virtio_balloon *vb =
-> > > +		container_of(ph_dev_info, struct virtio_balloon, ph_dev_info);
-> > > +	struct virtqueue *vq = vb->reporting_vq;
-> > > +	unsigned int unused;
-> > > +
-> > > +	/* We should always be able to add these buffers to an empty queue. */
-> > > +	virtqueue_add_inbuf(vq, ph_dev_info->sg, nents, vb,
-> > > +			    GFP_NOWAIT | __GFP_NOWARN);
-> > 
-> > I think you should handle allocation failure here. It is a possibility, isn't?
-> > Maybe return an error or even disable page hinting/reporting?
-> > 
-> 
-> I don't think it is an issue I have to worry about. Specifically I am
-> limiting the size of the scatterlist based on the size of the vq. As such
-> I will never exceed the size and should be able to use it to store the
-> scatterlist directly.
+On Tue, Aug 6, 2019 at 7:09 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Tue 06-08-19 18:59:52, Yafang Shao wrote:
+> > On Tue, Aug 6, 2019 at 6:28 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > >
+> > > On Tue 06-08-19 17:54:02, Yafang Shao wrote:
+> > > > On Tue, Aug 6, 2019 at 5:50 PM Mel Gorman <mgorman@techsingularity.net> wrote:
+> > > > >
+> > > > > On Tue, Aug 06, 2019 at 11:25:31AM +0200, Michal Hocko wrote:
+> > > > > > On Tue 06-08-19 17:15:05, Yafang Shao wrote:
+> > > > > > > On Tue, Aug 6, 2019 at 5:05 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > > > > > [...]
+> > > > > > > > > As you said, the direct reclaim path set it to 1, but the
+> > > > > > > > > __node_reclaim() forgot to process may_shrink_slab.
+> > > > > > > >
+> > > > > > > > OK, I am blind obviously. Sorry about that. Anyway, why cannot we simply
+> > > > > > > > get back to the original behavior by setting may_shrink_slab in that
+> > > > > > > > path as well?
+> > > > > > >
+> > > > > > > You mean do it as the commit 0ff38490c836 did  before ?
+> > > > > > > I haven't check in which commit the shrink_slab() is removed from
+> > > > > >
+> > > > > > What I've had in mind was essentially this:
+> > > > > >
+> > > > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > > > > index 7889f583ced9..8011288a80e2 100644
+> > > > > > --- a/mm/vmscan.c
+> > > > > > +++ b/mm/vmscan.c
+> > > > > > @@ -4088,6 +4093,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+> > > > > >               .may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
+> > > > > >               .may_swap = 1,
+> > > > > >               .reclaim_idx = gfp_zone(gfp_mask),
+> > > > > > +             .may_shrinkslab = 1;
+> > > > > >       };
+> > > > > >
+> > > > > >       trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, order,
+> > > > > >
+> > > > > > shrink_node path already does shrink slab when the flag allows that. In
+> > > > > > other words get us back to before 1c30844d2dfe because that has clearly
+> > > > > > changed the long term node reclaim behavior just recently.
+> > > > >
+> > > > > I'd be fine with this change. It was not intentional to significantly
+> > > > > change the behaviour of node reclaim in that patch.
+> > > > >
+> > > >
+> > > > But if we do it like this, there will be bug in the knob vm.min_slab_ratio.
+> > > > Right ?
+> > >
+> > > Yes, and the answer for that is a question why do we even care? Which
+> > > real life workload does suffer from the of min_slab_ratio misbehavior.
+> > > Also it is much more preferred to fix an obvious bug/omission which
+> > > lack of may_shrinkslab in node reclaim seem to be than a larger rewrite
+> > > with a harder to see changes.
+> > >
+> >
+> > Fixing the bug in min_slab_ratio doesn't  require much change, as it
+> > just introduce a new bit in scan_control which doesn't require more
+> > space
+> > and a if-branch in shrink_node() which doesn't take much cpu cycles
+> > neither, and it will not take much maintaince neither as no_pagecache
+> > is 0 by default and then we don't need to worry about what if we
+> > forget it.
+>
+> You are still missing my point, I am afraid. I am not saying your change
+> is wrong or complex. I am saying that there is an established behavior
+> (even when wrong) that node-reclaim dependent loads might depend on.
+> Your testing doesn't really suggest you have done much testing beyond
+> the targeted one which is quite artificial to say the least.
+>
+> Maybe there are workloads which do depend on proper min_slab_ratio
+> behavior but it would be much more preferable to hear from them rather
+> than change the behavior based on the code inspection and a
+> microbenchmark.
+>
+> Is my thinking more clear now?
+>
 
-I agree. But it can't hurt to BUG_ON for good measure.
+Thanks for your clarification.
+I get your point now.
 
--- 
-MST
+Thanks
+Yafang
 
