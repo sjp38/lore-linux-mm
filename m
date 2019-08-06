@@ -8,98 +8,98 @@ X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3AA1AC32751
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:00:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 05E99C31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:00:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E576821743
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:00:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B620A2070C
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:00:46 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ov06WqFF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E576821743
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="f3hrVj8Z"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B620A2070C
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7764E6B0005; Tue,  6 Aug 2019 04:00:41 -0400 (EDT)
+	id 5C9FF6B0006; Tue,  6 Aug 2019 04:00:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 726AA6B0006; Tue,  6 Aug 2019 04:00:41 -0400 (EDT)
+	id 57A7D6B0008; Tue,  6 Aug 2019 04:00:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6166A6B0008; Tue,  6 Aug 2019 04:00:41 -0400 (EDT)
+	id 4686B6B000A; Tue,  6 Aug 2019 04:00:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BDD76B0005
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:00:41 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id o6so47847420plk.23
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:00:41 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 0F24C6B0006
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:00:46 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id w12so12139516pgo.2
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:00:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=QJLvXO26uNAgUTLj60JeKo10xs/5jo+93bjXJtmEioQ=;
-        b=glZDmRnKk9Qii1+E9LxRk+kQjIcnLMCZ19ggMo4xvTja5O+g6i/VDN//TN4DbCbaES
-         6JHPu/VVeXw2fjwSl+jtwysOi7Oih0igdNO75CsIVnBV7dO8cB9AhLW/+e9+Ov0V4it2
-         dDGk3UFXQ2AHpxY1ZlbGWhjVNPVW+HaItalx0IFWVeQSKqUNfA8YLFZyILDajhdb1SR8
-         Z6N5YNiICE19Q1MGSefOtXfNVQRTKS+28JsWMJkOG4NWFbGHfmaqoQk5SzM/QboQp0BS
-         PAYNajtU1TcAM2AH105jvOnzJipeeBkuCrggkCDlX4j8Fco5vIjbyPkmHKYCb6znkGoY
-         WrEA==
-X-Gm-Message-State: APjAAAW5BpEuAR7WOFirc7GzQ5XN8z4uzufijZw1HzUPcfyW/wqRHqmY
-	oimpAQ368539YBbDQKjq5EVgdIg3vjd5XiZmKFGHJEl3dDdA7nGbiD2Gn4NRvokdEcyXgLn6aWa
-	KT4uZWq63EmhbBZ9SMXCMt2ww1EF95FeB/bGK0K9f1GUb06S6ZOgJdMPuvG/Q/CR22A==
-X-Received: by 2002:a63:3112:: with SMTP id x18mr1869482pgx.385.1565078440514;
-        Tue, 06 Aug 2019 01:00:40 -0700 (PDT)
-X-Received: by 2002:a63:3112:: with SMTP id x18mr1869384pgx.385.1565078439513;
-        Tue, 06 Aug 2019 01:00:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565078439; cv=none;
+        bh=VPlLXY0wXzdcZsw+gwjQql0L/1vV4IXahw59/Pbnezs=;
+        b=jBXNJJ26wAsPkXVU6xLPrhSi01MQ0zbfq5pomqEg6AysiWhVdqINWwYc7ULchWiNHE
+         H2zhyDPsK7jeC0lKFCLHAKlwHFO/nSZdVkN4dFUgXR9Q1A9+WjeS5wnGtYqFpM/M++gf
+         LF9FEvOTL7fFfcCr0STznepOn+9PKl5mXwVPl/xT+9Ro1vZ6GYqp6w5vu9T8i1YrJBQ6
+         mk64JemDUnveQN6eXhY8tpzv2ElzFZ/ESxJKZ5swrj7Bv9ZO2hNE74PnHvmqm19Rpoy0
+         VmDIFXvqgcYee9ANcXzF8p6JWLnYAlTR7iCKX+Fm4cpB61YT8A2r87bMT7KN3o55QpIV
+         /Cug==
+X-Gm-Message-State: APjAAAX/lXw+ZHlkIAqrafcNnJfh/0Dj+HKAbLOhF+S0FrStlNax5BEs
+	ggsxU4hJ2Stpl1t5QHAENxBT+pznOcN2gAD+mb5dhRhqtJInON8mobpvsbsCfIPATb2ljacYrEL
+	l8L13jAIT85gl51Hr2lJBPs5AY4OGDflQxAwGKWUDcMWl/xS7InNBa2AaJfpgoV3IoA==
+X-Received: by 2002:a62:be04:: with SMTP id l4mr2260972pff.77.1565078445678;
+        Tue, 06 Aug 2019 01:00:45 -0700 (PDT)
+X-Received: by 2002:a62:be04:: with SMTP id l4mr2260898pff.77.1565078444711;
+        Tue, 06 Aug 2019 01:00:44 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565078444; cv=none;
         d=google.com; s=arc-20160816;
-        b=y6mWM+u09oHQ7HIOBcVRHyjGMBgbApFc0SADLFLg1V3NbgfS6tY3GAz3i39I5kGl88
-         B0NTf38z3/WrxMrZfRkuyEGUeV/b+EgU64LhXOME2p/I6XRuirViFhAsP0b1XbR5Bx13
-         H6DBJbBKVjvcPQnhxEtm/TcYPetEnf1KHu4mMStjCnWSJQdnTY9MQZALoGMoUpUP5Nhu
-         Z3IO9JVXHrA6HXKjR/AUsO2V/bbKavSommiLgSwlg/sYh1ZkvfqWjrQt8sTwiwFQGB2n
-         r52Nfj3cixa5QplATTaX9a+pY7mMo/jEpG3kCYzyVvX3x3SlsX4xdxKP65qImjWYsZCR
-         E6qA==
+        b=Um7Z9Mucxn6cggENcQSKOUmOkmYKGidJThQm6ak+aQcur2tg+1n4fhc3gAxwCV6wz+
+         ZWdeemiZb2R7S8TsmIYzBPVr7FckieO5DpW2Tg5h/cJDY8nMy0MolTwF9WtGZptHNxUj
+         V6qyBDD7YEyJNAAThtsPIz8XJST0oWaHcbUU2O0iM9x+f1v2OqklsDaVcuGSjk9f0+bJ
+         1yDz/10uhbTZ5XfPFdw4PRT9Yf1LFBG1hiMm6YCSxv17PZKz65SLvuUHpGDqVrtTtPny
+         p295GY524JBU1+WwmsrEp+6cDrg/kT9qrSjZas+PIK0X21snBhcNj+UpxYm7C7PAnHkx
+         2LJQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=QJLvXO26uNAgUTLj60JeKo10xs/5jo+93bjXJtmEioQ=;
-        b=oK8SoKXAh25rF3Axu+PpTek7bEzxOw2ZQtKo1d1CSW3ffkFmtPFcZjt/hbTi5dnZhh
-         fiW7l4OgXiO7vy+pEcjP75uKYopU14SC+jw27EgA8ZWGIJkTi9+MumfcCJkvd/Gg0ah+
-         0cn1vTB95oGuTZKqis+8tigNzskmTqBW4DiLeAAfucFTGSs7aCvLJvvxi5yw/PtGl3a3
-         XvwEDPdfQ64nD44SUUsbUeJZVXCKHJvwdL1wJfZSwKhO+EL4rXJYv6dMfaQIfLUPPpV0
-         CqAlVgcVZTNRwpsW47p+JHJOJNyof5N161iIMRHvJfzbNfJQSxFPKXrGGmcr1FIaJrLV
-         2bOA==
+        bh=VPlLXY0wXzdcZsw+gwjQql0L/1vV4IXahw59/Pbnezs=;
+        b=gnDEE9jIOSXkn3W/ZO9LPNcOYIrgQK6jZD7tQxLv/2ryn56bSRL+G/shKia9mSVekc
+         FIlhi1i3SYlMzjlpk0hxjCZHeqBzUg2kVbmKZGJalVABhGNpphVw3zohTMpqtHbYQUzU
+         RqVMYGD3YyYYxtUvtjKYAvIiOKQ5qJhKa0FhqBiBo1Fe6MZ4YW4Tnwz+8rzNxRoWOvgX
+         iHj/9juzCHyHgiQzegJ3k8/gPO2fcG96mxHqOLTbNpO4X8U1ac9Ujna1Jec4DMf+oIxZ
+         yFiAqouW4CI8uXkx2qxf1b7RMb6/AZa6QPJpD1NGhuflBCKCBY6YHpg7e/QFhrt0rPjU
+         7wDQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ov06WqFF;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=f3hrVj8Z;
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b10sor32607680pla.6.2019.08.06.01.00.39
+        by mx.google.com with SMTPS id r2sor66518235pfh.6.2019.08.06.01.00.44
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 06 Aug 2019 01:00:39 -0700 (PDT)
+        Tue, 06 Aug 2019 01:00:44 -0700 (PDT)
 Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ov06WqFF;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=f3hrVj8Z;
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=QJLvXO26uNAgUTLj60JeKo10xs/5jo+93bjXJtmEioQ=;
-        b=Ov06WqFFY5F/mrImBwDzAGW2EMBWCuuAhDL1ZdsHVeP80acUV+W08iVCFtalIXtiqs
-         Zb2ePWkpruGrrBPtU/pHKyjQbllrpPlgiUhu7jXat9twql0Kp/09g9hxcrSxf6bpAsKk
-         Cb95Vt3v/XsCzvrZo1Ettv33EwB0GMhW3PeHDCdoLR4rQqrEa1uy3+OwC4vl7keb48uh
-         gy8GVUJ8aue7XghwW9YnFWsBme4do20rvhV5SARX11rG7UTIpsQNvJ63B8inkppv8xS5
-         nCu07LatsWfyhe9v1QL5e59QtWMNu7ENLerKRwFz1MIWpsqbYYDH28du8EGWHcXg1wQk
-         299Q==
-X-Google-Smtp-Source: APXvYqzCPLsm7dfAooib/V/VTYqbHUQPePIInQAoDof4+Yj607pvI0yjcNDlSnn6Ie1lWQ4lqIBACg==
-X-Received: by 2002:a17:902:549:: with SMTP id 67mr1920696plf.86.1565078439075;
-        Tue, 06 Aug 2019 01:00:39 -0700 (PDT)
+        bh=VPlLXY0wXzdcZsw+gwjQql0L/1vV4IXahw59/Pbnezs=;
+        b=f3hrVj8ZgSrkyz6mbiTGMtbGJs5//kmK0LanZLxVWpezH8VpgJt8y1ox4rbd5P+7Xu
+         rzgSCTmtRAEF7TnsRnCMRtWtnaxg/idNjkjI98rTH/vcVoKdlRfMtcn+GTAVn9u5nrbY
+         /kXvVE+IL6jIN3PrJOjEjy2+1PFE9ioV7h3oak9qXBxVb3sVGREH58rI+mP/pBGg9T1W
+         dSGuAXe3gUK4/mKwGZhLSa6+q0H8YIiD5gO4WY1k9Liar/mnk7rLB2o2y49Q6Ee68fry
+         dmqFLhb6R1cXymhQ7T2tOsaMakcuCNSQbzfwW8Unea6HJvVUNiD4Iic21I5EDOenle3t
+         h1/A==
+X-Google-Smtp-Source: APXvYqyiwHAHgTc4msK2mvodCQr/+/YaQdZ92NMfmgPYPCboKZknrpOFM/qqY3qhKWJuKDfTi9GXsQ==
+X-Received: by 2002:a62:5c47:: with SMTP id q68mr2350903pfb.205.1565078444317;
+        Tue, 06 Aug 2019 01:00:44 -0700 (PDT)
 Received: from mylaptop.redhat.com ([209.132.188.80])
-        by smtp.gmail.com with ESMTPSA id p7sm96840679pfp.131.2019.08.06.01.00.34
+        by smtp.gmail.com with ESMTPSA id p7sm96840679pfp.131.2019.08.06.01.00.39
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 01:00:38 -0700 (PDT)
+        Tue, 06 Aug 2019 01:00:43 -0700 (PDT)
 From: Pingfan Liu <kernelfans@gmail.com>
 To: linux-mm@kvack.org
 Cc: Pingfan Liu <kernelfans@gmail.com>,
@@ -113,9 +113,9 @@ Cc: Pingfan Liu <kernelfans@gmail.com>,
 	Andrea Arcangeli <aarcange@redhat.com>,
 	Matthew Wilcox <willy@infradead.org>,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 2/3] mm/migrate: see hole as invalid source page
-Date: Tue,  6 Aug 2019 16:00:10 +0800
-Message-Id: <1565078411-27082-2-git-send-email-kernelfans@gmail.com>
+Subject: [PATCH 3/3] mm/migrate: remove the duplicated code migrate_vma_collect_hole()
+Date: Tue,  6 Aug 2019 16:00:11 +0800
+Message-Id: <1565078411-27082-3-git-send-email-kernelfans@gmail.com>
 X-Mailer: git-send-email 2.7.5
 In-Reply-To: <1565078411-27082-1-git-send-email-kernelfans@gmail.com>
 References: <1565078411-27082-1-git-send-email-kernelfans@gmail.com>
@@ -128,19 +128,9 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-MIGRATE_PFN_MIGRATE marks a valid pfn, further more, suitable to migrate.
-As for hole, there is no valid pfn, not to mention migration.
-
-Before this patch, hole has already relied on the following code to be
-filtered out. Hence it is more reasonable to see hole as invalid source
-page.
-migrate_vma_prepare()
-{
-		struct page *page = migrate_pfn_to_page(migrate->src[i]);
-
-		if (!page || (migrate->src[i] & MIGRATE_PFN_MIGRATE))
-		     \_ this condition
-}
+After the previous patch which sees hole as invalid source,
+migrate_vma_collect_hole() has the same code as migrate_vma_collect_skip().
+Removing the duplicated code.
 
 Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
 Cc: "Jérôme Glisse" <jglisse@redhat.com>
@@ -155,35 +145,63 @@ Cc: Matthew Wilcox <willy@infradead.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 ---
- mm/migrate.c | 6 ++----
- 1 file changed, 2 insertions(+), 4 deletions(-)
+ mm/migrate.c | 22 +++-------------------
+ 1 file changed, 3 insertions(+), 19 deletions(-)
 
 diff --git a/mm/migrate.c b/mm/migrate.c
-index c2ec614..832483f 100644
+index 832483f..95e038d 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -2136,10 +2136,9 @@ static int migrate_vma_collect_hole(unsigned long start,
- 	unsigned long addr;
+@@ -2128,22 +2128,6 @@ struct migrate_vma {
+ 	unsigned long		end;
+ };
  
- 	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
--		migrate->src[migrate->npages] = MIGRATE_PFN_MIGRATE;
-+		migrate->src[migrate->npages] = 0;
- 		migrate->dst[migrate->npages] = 0;
- 		migrate->npages++;
--		migrate->cpages++;
- 	}
+-static int migrate_vma_collect_hole(unsigned long start,
+-				    unsigned long end,
+-				    struct mm_walk *walk)
+-{
+-	struct migrate_vma *migrate = walk->private;
+-	unsigned long addr;
+-
+-	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
+-		migrate->src[migrate->npages] = 0;
+-		migrate->dst[migrate->npages] = 0;
+-		migrate->npages++;
+-	}
+-
+-	return 0;
+-}
+-
+ static int migrate_vma_collect_skip(unsigned long start,
+ 				    unsigned long end,
+ 				    struct mm_walk *walk)
+@@ -2173,7 +2157,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
  
- 	return 0;
-@@ -2228,8 +2227,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
- 		pfn = pte_pfn(pte);
+ again:
+ 	if (pmd_none(*pmdp))
+-		return migrate_vma_collect_hole(start, end, walk);
++		return migrate_vma_collect_skip(start, end, walk);
  
- 		if (pte_none(pte)) {
--			mpfn = MIGRATE_PFN_MIGRATE;
--			migrate->cpages++;
-+			mpfn = 0;
- 			goto next;
+ 	if (pmd_trans_huge(*pmdp)) {
+ 		struct page *page;
+@@ -2206,7 +2190,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
+ 				return migrate_vma_collect_skip(start, end,
+ 								walk);
+ 			if (pmd_none(*pmdp))
+-				return migrate_vma_collect_hole(start, end,
++				return migrate_vma_collect_skip(start, end,
+ 								walk);
  		}
+ 	}
+@@ -2337,7 +2321,7 @@ static void migrate_vma_collect(struct migrate_vma *migrate)
  
+ 	mm_walk.pmd_entry = migrate_vma_collect_pmd;
+ 	mm_walk.pte_entry = NULL;
+-	mm_walk.pte_hole = migrate_vma_collect_hole;
++	mm_walk.pte_hole = migrate_vma_collect_skip;
+ 	mm_walk.hugetlb_entry = NULL;
+ 	mm_walk.test_walk = NULL;
+ 	mm_walk.vma = migrate->vma;
 -- 
 2.7.5
 
