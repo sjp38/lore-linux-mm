@@ -2,174 +2,288 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A4798C31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 12:04:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 80132C31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 12:28:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6689320B1F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 12:04:19 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="kwN8iZgG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6689320B1F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 113892070D
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 12:27:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 113892070D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E39676B0006; Tue,  6 Aug 2019 08:04:18 -0400 (EDT)
+	id 85A5C6B0003; Tue,  6 Aug 2019 08:27:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DE9E76B0008; Tue,  6 Aug 2019 08:04:18 -0400 (EDT)
+	id 7E3B16B0005; Tue,  6 Aug 2019 08:27:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CD86B6B000A; Tue,  6 Aug 2019 08:04:18 -0400 (EDT)
+	id 684FE6B0006; Tue,  6 Aug 2019 08:27:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id AA2E86B0006
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 08:04:18 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id c207so75373235qkb.11
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 05:04:18 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4178C6B0003
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 08:27:59 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id 41so72899669qtm.4
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 05:27:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=/FPGr6jzHPYMmvLrWMP/4jeZ5wMtWr8MomConqYdxCw=;
-        b=eA/g+kLA6YEn24f+HIUmWeirvauxjbODYTEKwZHuVCa95HUR0w+XrfqpM/TQqOr2K2
-         gIxJdMZMrQ0bQZf6NRT+QJxOR5A+m+X3KBTD1gdhuhjM7s9pwRYrGeeaEq94oYwXhToK
-         cSpLZv+d3Cm/S4iAu0sh4xx+dFCHV19sMv7SLq6Aa/dYPRyDpD1vi0ug7tjbF03fR0B3
-         ShFh/pJi95d1CfbAuiTzVaP4Cyb5P8vZtL7lTm82xyGYx/gKLnptw2Pq68cuC21F1+fZ
-         UunN4MIntZb0s/5/Ou4VauHwgNH8KJsd+kPfHXoaheJ3qjxFNYoiKSQT42eYu3IOAIz8
-         6PCQ==
-X-Gm-Message-State: APjAAAVmnsqR3wvyZ5y47gVJqj6m3FTf2QhJl6W5QYerhJCYj5m91+LH
-	5cLx7VkiYeV0bH1Dbg2gYAGvWtPfSzRDIUmQ9N7b8p/oPzQsJe4sn1NMaVu/X+mVzH9CVUen9+l
-	6T1nILpi3MXjHjjCkPFiQa3/qRkRy8buS8KFcb7hl69FjGfqopxW0yOu5k4QOQwI9SQ==
-X-Received: by 2002:a05:620a:12a9:: with SMTP id x9mr2824406qki.279.1565093058463;
-        Tue, 06 Aug 2019 05:04:18 -0700 (PDT)
-X-Received: by 2002:a05:620a:12a9:: with SMTP id x9mr2824344qki.279.1565093057759;
-        Tue, 06 Aug 2019 05:04:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565093057; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=pX46rPlyDOkLMOPTQspppEkXuhmoJ8IczFHKTJbxoCc=;
+        b=Ody5GDiVaKVepj7jv7arpqsgNMk+2X0D/uA5rzdnhH3nZsEGs9t2D5LJ7qbljokb7P
+         yu0tuyvRinUfN+pdL3phd3sa+Vo0diaR13KsnBxELV4wkPusNKR/5uOhmvcYAMfBwahd
+         tvDUp/PwIHHoIYue6wwXe9V0kgyjsUOlQr7EC7QyCKWlR4omnmtLq+8zULhVjYQ8rOPK
+         uynw1opzr/eL6Lvu9NlQvFQpy4HvLgaBfocp7mKpTMcDwy1cooz0LDYm8CQPt6I81MFI
+         7oFbNO8f9y/+kvWLl7LkaH6xUWvM+XQ57n5lrHl3CNAYD4DoXNvN6gZepjQQp0FIWE0j
+         lVSg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVql6Jwq0MUjLkpdtVaVtf2ROTiUvBLEQFPD968Z5sldfwVB7Ji
+	fTOjOsPlZSB9Zm1rXu28uHVAoY2ix+W3Pgbizbqu6AZUXTg4gIzdwNRTYRRUSYTlOnL+oPljmPB
+	xDOpRFRqRFF99Fv1Hj6fNOzZ/wAoEDWWZVv0FubPBUJQHFZ3BgSvEHYCyNuxms3hd4g==
+X-Received: by 2002:a0c:8690:: with SMTP id 16mr2786877qvf.228.1565094478994;
+        Tue, 06 Aug 2019 05:27:58 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwedsgUcV6ETSdoM7209TmMXkVksXvl6v1bMR7jNG1ylVmSeXWvUtWCq0GAMX5mhozLdsn6
+X-Received: by 2002:a0c:8690:: with SMTP id 16mr2786817qvf.228.1565094478150;
+        Tue, 06 Aug 2019 05:27:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565094478; cv=none;
         d=google.com; s=arc-20160816;
-        b=ThD3KxK1n5WToyaVlyrKR117cPrN8/s8gx9U4gLgontpZhv4Qls3+8YE3qvgyH3x9Q
-         rszk35Qk1wLVWpPC0frbe4pJUg+NbgqNbztx3eeCPZXYGAwqrMdIX6KzELYUdfcwpBFY
-         B1EauS5e0DIbVQHQL3uCSxuNXYXbcCIw1hLEvaR360NxLBvbN088DGVY3HIWcRbjaSyz
-         1zNyFxSEol6eO5/mpIy7TiKUUNG1aEA1D1dnKKu5BO5FCL//jlXicZ+gu/iS0KN/Imih
-         gadx/vj+sTTFe8uF3JlVpxYPH5k7cdgqduwQqFl/CPH/pDBQGHayioh8wlz835xtjTy8
-         nTkA==
+        b=H9gbqTsG7FUVrdMmvKn+Q70m/keC/ctNOUYtwDlLW43+q0gY31FJLQICsRU2rGw3LO
+         n/SKJEccptyOVeqF40ICsb9h1vTmwN62zYcDwoI6Mp/6Ege8iXkNzdWQDhttk7JWeMvQ
+         CqIAhxeyeFGwDT+ffyQTtr9YO6no8ad4LcRMUb98vQfsyFN3FoVJ1cjD7eq1s4y3yu84
+         Fo18yCaVjj9k13l4ZHXU4em0E1kiA5lvD2mXiqLpBYlH1N6l6vbIqLgpWZJnCwtevKxa
+         MLKhQsyU10WM5x+kO1mlelEjalnckbOR4kA/dMM5ciVUPze4YLt+anKJ6o5PJqCnKkrK
+         kzWA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date:dkim-signature;
-        bh=/FPGr6jzHPYMmvLrWMP/4jeZ5wMtWr8MomConqYdxCw=;
-        b=c99EyKvrRfd0IkbOfZPx8UkdgD/7kL+j72/R+w0VSnk6XPggzvAH5x+yFvtkcm3Ep0
-         IAIMaw6EmI2al74vtfXM6BpWa6+2MLWbd77Fu/KH0j9cStBWZlv/jhTixUit305CalPJ
-         ls3cL/TU6VpBVCrSCGZL4L7DHm9PJ/YBnNuyOzT697sFwFHVnsTMFvVWSz9SSIS4VpK6
-         jVoWJzlqlTu04wapVlmr0qMpvAORKMkjG+Ml8N7XTIypOtY7fh/w/mR0OHLYvE3Pl+3Z
-         vMXj4Blg2EhYmSfB0pECudpubFpkvuDABqsYJpxzvFxwRRnFULkvcssizZpHK1IKDtRc
-         JYrA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=pX46rPlyDOkLMOPTQspppEkXuhmoJ8IczFHKTJbxoCc=;
+        b=CPkd3FyuzoEYTw+Hdm06Piqhvr3n/JS4lIFDV5j/iso8x1WFfoamrWij2UJpHlVd+q
+         HEITbpJyyh2+fwW5A8splBkSsZVblaO122kgNvTcMBEQOiwFus1y9OYUw3qEXPCrz6dC
+         +ajAFi9C7L4kVaH5Van/+TGlE5JF08VsZBjOFNcYShSVwYPYyBL5HzadRpMQMp+Ahgoo
+         a9UXfpdDIaCa9aGrfvDm9H5ROBN2RZmXeQR95xfmQ7kopDY5fPVThcfIizl3u/BUjE2c
+         KhnRShz2Qs8+7i6HjqKaMirW75nd7wrQVuhWe+bL3kdikMn2jz0kqYZK0jpEoNsf0vog
+         HTvA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=kwN8iZgG;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id b34sor113258578qta.71.2019.08.06.05.04.17
+       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id t62si47954935qkh.89.2019.08.06.05.27.57
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Aug 2019 05:04:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Aug 2019 05:27:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=kwN8iZgG;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=/FPGr6jzHPYMmvLrWMP/4jeZ5wMtWr8MomConqYdxCw=;
-        b=kwN8iZgGsA616k+ie7zVtqoKkPJCUoU9iiNH6foaeOBTxgKFKg+cZig/4zEdPfsbAE
-         imTkOw+N/gal+1pboal/fWK91KxOgzhhMdL0iTRREJABvKyEt3Ufx9IKidWtLDpA7wlG
-         9D0U+Ocv+7+jGN8gmxkVmfJqgoulbE7JQaMbA++nVny+EMylWeaEfpgkD0hSjvguAUdx
-         LTme6+JAjIDsU31cell6nZpPIOasOpsE3BLX48Nh53wDpRS1MGS6UPgJlSEriefVBoaW
-         X9Q/yQXt7r0a9KNgEj2XwtztzIPh4TLr8mCicotwiPelZo/OQ+sSdt6ODRD0nTuMLItg
-         nPCQ==
-X-Google-Smtp-Source: APXvYqyl6pRejslnyvYVBtbHRarAvLE8/IwB9kBOqtljVW3kFuK45lKI6xsfV3oqosPPvOz7rhnfwA==
-X-Received: by 2002:ac8:252e:: with SMTP id 43mr2606764qtm.61.1565093057443;
-        Tue, 06 Aug 2019 05:04:17 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id c45sm44553632qte.70.2019.08.06.05.04.16
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 06 Aug 2019 05:04:16 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1huyCO-0003hy-5t; Tue, 06 Aug 2019 09:04:16 -0300
-Date: Tue, 6 Aug 2019 09:04:16 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Jason Wang <jasowang@redhat.com>
-Cc: mst@redhat.com, kvm@vger.kernel.org,
-	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
- with worker
-Message-ID: <20190806120416.GB11627@ziepe.ca>
-References: <20190731084655.7024-1-jasowang@redhat.com>
- <20190731084655.7024-8-jasowang@redhat.com>
- <20190731123935.GC3946@ziepe.ca>
- <7555c949-ae6f-f105-6e1d-df21ddae9e4e@redhat.com>
- <20190731193057.GG3946@ziepe.ca>
- <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
- <20190801141512.GB23899@ziepe.ca>
- <42ead87b-1749-4c73-cbe4-29dbeb945041@redhat.com>
- <20190802124613.GA11245@ziepe.ca>
- <11b2a930-eae4-522c-4132-3f8a2da05666@redhat.com>
+       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 1E0F730B9BE0;
+	Tue,  6 Aug 2019 12:27:57 +0000 (UTC)
+Received: from bfoster (dhcp-41-2.bos.redhat.com [10.18.41.2])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 7CA8861140;
+	Tue,  6 Aug 2019 12:27:56 +0000 (UTC)
+Date: Tue, 6 Aug 2019 08:27:54 -0400
+From: Brian Foster <bfoster@redhat.com>
+To: Dave Chinner <david@fromorbit.com>
+Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH 01/24] mm: directed shrinker work deferral
+Message-ID: <20190806122754.GA2979@bfoster>
+References: <20190801021752.4986-1-david@fromorbit.com>
+ <20190801021752.4986-2-david@fromorbit.com>
+ <20190802152709.GA60893@bfoster>
+ <20190804014930.GR7777@dread.disaster.area>
+ <20190805174226.GB14760@bfoster>
+ <20190805234318.GB7777@dread.disaster.area>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-Content-Transfer-Encoding: 8bit
-In-Reply-To: <11b2a930-eae4-522c-4132-3f8a2da05666@redhat.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190805234318.GB7777@dread.disaster.area>
+User-Agent: Mutt/1.12.0 (2019-05-25)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Tue, 06 Aug 2019 12:27:57 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 05, 2019 at 12:20:45PM +0800, Jason Wang wrote:
-> 
-> On 2019/8/2 下午8:46, Jason Gunthorpe wrote:
-> > On Fri, Aug 02, 2019 at 05:40:07PM +0800, Jason Wang wrote:
-> > > > This must be a proper barrier, like a spinlock, mutex, or
-> > > > synchronize_rcu.
+On Tue, Aug 06, 2019 at 09:43:18AM +1000, Dave Chinner wrote:
+> On Mon, Aug 05, 2019 at 01:42:26PM -0400, Brian Foster wrote:
+> > On Sun, Aug 04, 2019 at 11:49:30AM +1000, Dave Chinner wrote:
+> > > On Fri, Aug 02, 2019 at 11:27:09AM -0400, Brian Foster wrote:
+> > > > On Thu, Aug 01, 2019 at 12:17:29PM +1000, Dave Chinner wrote:
+> > > > >  };
+> > > > >  
+> > > > >  #define SHRINK_STOP (~0UL)
+> > > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > > > index 44df66a98f2a..ae3035fe94bc 100644
+> > > > > --- a/mm/vmscan.c
+> > > > > +++ b/mm/vmscan.c
+> > > > > @@ -541,6 +541,13 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+> > > > >  	trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
+> > > > >  				   freeable, delta, total_scan, priority);
+> > > > >  
+> > > > > +	/*
+> > > > > +	 * If the shrinker can't run (e.g. due to gfp_mask constraints), then
+> > > > > +	 * defer the work to a context that can scan the cache.
+> > > > > +	 */
+> > > > > +	if (shrinkctl->will_defer)
+> > > > > +		goto done;
+> > > > > +
+> > > > 
+> > > > Who's responsible for clearing the flag? Perhaps we should do so here
+> > > > once it's acted upon since we don't call into the shrinker again?
 > > > 
-> > > I start with synchronize_rcu() but both you and Michael raise some
-> > > concern.
-> > I've also idly wondered if calling synchronize_rcu() under the various
-> > mm locks is a deadlock situation.
+> > > Each shrinker invocation has it's own shrink_control context - they
+> > > are not shared between shrinkers - the higher level is responsible
+> > > for setting up the control state of each individual shrinker
+> > > invocation...
+> > > 
+> > 
+> > Yes, but more specifically, it appears to me that each level is
+> > responsible for setting up control state managed by that level. E.g.,
+> > shrink_slab_memcg() initializes the unchanging state per iteration and
+> > do_shrink_slab() (re)sets the scan state prior to ->scan_objects().
 > 
+> do_shrink_slab() is responsible for iterating the scan in
+> shrinker->batch sizes, that's all it's doing there. We have to do
+> some accounting work from scan to scan. However, if ->will_defer is
+> set, we skip that entire loop, so it's largely irrelevant IMO.
 > 
-> Maybe, that's why I suggest to use vhost_work_flush() which is much
-> lightweight can can achieve the same function. It can guarantee all previous
-> work has been processed after vhost_work_flush() return.
 
-If things are already running in a work, then yes, you can piggyback
-on the existing spinlocks inside the workqueue and be Ok
+The point is very simply that there are scenarios where ->will_defer
+might be true or might be false on do_shrink_slab() entry and I'm just
+noting it as a potential landmine. It's not a bug in the current code
+from what I can tell. I can't imagine why we wouldn't just reset the
+flag prior to the ->count_objects() call, but alas I'm not a maintainer
+of this code so I'll leave it to other reviewers/maintainers at this
+point..
 
-However, if that work is doing any copy_from_user, then the flush
-becomes dependent on swap and it won't work again...
+> > > > Granted the deferred state likely hasn't
+> > > > changed, but the fact that we'd call back into the count callback to set
+> > > > it again implies the logic could be a bit more explicit, particularly if
+> > > > this will eventually be used for more dynamic shrinker state that might
+> > > > change call to call (i.e., object dirty state, etc.).
+> > > > 
+> > > > BTW, do we need to care about the ->nr_cached_objects() call from the
+> > > > generic superblock shrinker (super_cache_scan())?
+> > > 
+> > > No, and we never had to because it is inside the superblock shrinker
+> > > and the superblock shrinker does the GFP_NOFS context checks.
+> > > 
+> > 
+> > Ok. Though tbh this topic has me wondering whether a shrink_control
+> > boolean is the right approach here. Do you envision ->will_defer being
+> > used for anything other than allocation context restrictions? If not,
+> 
+> Not at this point. If there are other control flags needed, we can
+> ad them in future - I don't like the idea of having a single control
+> flag mean different things in different contexts.
+> 
 
-> > > 1) spinlock: add lots of overhead on datapath, this leads 0 performance
-> > > improvement.
-> > I think the topic here is correctness not performance improvement> 
+I don't think we're talking about the same thing here..
+
+> > perhaps we should do something like optionally set alloc flags required
+> > for direct scanning in the struct shrinker itself and let the core
+> > shrinker code decide when to defer to kswapd based on the shrink_control
+> > flags and the current shrinker. That way an arbitrary shrinker can't
+> > muck around with core behavior in unintended ways. Hm?
+> 
+> Arbitrary shrinkers can't "muck about" with the core behaviour any
+> more than they already could with this code. If you want to screw up
+> the core reclaim by always returning SHRINK_STOP to ->scan_objects
+> instead of doing work, then there is nothing stopping you from doing
+> that right now. Formalising there work deferral into a flag in the
+> shrink_control doesn't really change that at all, adn as such I
+> don't see any need for over-complicating the mechanism here....
+> 
+
+If you add a generic "defer work" knob to the shrinker mechanism, but
+only process it as an "allocation context" check, I expect it could be
+easily misused. For example, some shrinkers may decide to set the the
+flag dynamically based on in-core state. This will work when called from
+some contexts but not from others (unrelated to allocation context),
+which is confusing. Therefore, what I'm saying is that if the only
+current use case is to defer work from shrinkers that currently skip
+work due to allocation context restraints, this might be better codified
+with something like the appended (untested) example patch. This may or
+may not be a preferable interface to the flag, but it's certainly not an
+overcomplication...
+
+Brian
+
+--- 8< ---
+
+diff --git a/fs/super.c b/fs/super.c
+index 113c58f19425..4e05ed9d6154 100644
+--- a/fs/super.c
++++ b/fs/super.c
+@@ -69,13 +69,6 @@ static unsigned long super_cache_scan(struct shrinker *shrink,
  
-> But the whole series is to speed up vhost.
-
-So? Starting with a whole bunch of crazy, possibly broken, locking and
-claiming a performance win is not reasonable.
-
-> Spinlock is correct but make the whole series meaningless consider it won't
-> bring any performance improvement.
-
-You can't invent a faster spinlock by opencoding some wild
-scheme. There is nothing special about the usage here, it needs a
-blocking lock, plain and simple.
-
-Jason
+ 	sb = container_of(shrink, struct super_block, s_shrink);
+ 
+-	/*
+-	 * Deadlock avoidance.  We may hold various FS locks, and we don't want
+-	 * to recurse into the FS that called us in clear_inode() and friends..
+-	 */
+-	if (!(sc->gfp_mask & __GFP_FS))
+-		return SHRINK_STOP;
+-
+ 	if (!trylock_super(sb))
+ 		return SHRINK_STOP;
+ 
+@@ -264,6 +257,7 @@ static struct super_block *alloc_super(struct file_system_type *type, int flags,
+ 	s->s_shrink.count_objects = super_cache_count;
+ 	s->s_shrink.batch = 1024;
+ 	s->s_shrink.flags = SHRINKER_NUMA_AWARE | SHRINKER_MEMCG_AWARE;
++	s->s_shrink.direct_mask = __GFP_FS;
+ 	if (prealloc_shrinker(&s->s_shrink))
+ 		goto fail;
+ 	if (list_lru_init_memcg(&s->s_dentry_lru, &s->s_shrink))
+diff --git a/include/linux/shrinker.h b/include/linux/shrinker.h
+index 9443cafd1969..e94e4edf7f1e 100644
+--- a/include/linux/shrinker.h
++++ b/include/linux/shrinker.h
+@@ -75,6 +75,8 @@ struct shrinker {
+ #endif
+ 	/* objs pending delete, per node */
+ 	atomic_long_t *nr_deferred;
++
++	gfp_t	direct_mask;
+ };
+ #define DEFAULT_SEEKS 2 /* A good number if you don't know better. */
+ 
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 44df66a98f2a..fb339399e26a 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -541,6 +541,15 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 	trace_mm_shrink_slab_start(shrinker, shrinkctl, nr,
+ 				   freeable, delta, total_scan, priority);
+ 
++	/*
++	 * If the shrinker can't run (e.g. due to gfp_mask constraints), then
++	 * defer the work to a context that can scan the cache.
++	 */
++	if (shrinker->direct_mask &&
++	    ((shrinkctl->gfp_mask & shrinker->direct_mask) !=
++	     shrinker->direct_mask))
++		goto done;
++
+ 	/*
+ 	 * Normally, we should not scan less than batch_size objects in one
+ 	 * pass to avoid too frequent shrinker calls, but if the slab has less
+@@ -575,6 +584,7 @@ static unsigned long do_shrink_slab(struct shrink_control *shrinkctl,
+ 		cond_resched();
+ 	}
+ 
++done:
+ 	if (next_deferred >= scanned)
+ 		next_deferred -= scanned;
+ 	else
 
