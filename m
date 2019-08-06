@@ -2,207 +2,190 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A223BC433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 16:47:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F74DC32754
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:13:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2F5B3208C3
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 16:47:23 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4736621738
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:13:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=os.amperecomputing.com header.i=@os.amperecomputing.com header.b="TC7OSRko"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F5B3208C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=os.amperecomputing.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="rTAT9bH7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4736621738
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 85CE76B026C; Tue,  6 Aug 2019 12:47:23 -0400 (EDT)
+	id B7D2C6B0007; Tue,  6 Aug 2019 13:13:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 80BFA6B026F; Tue,  6 Aug 2019 12:47:23 -0400 (EDT)
+	id B545B6B0008; Tue,  6 Aug 2019 13:13:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 686D46B0270; Tue,  6 Aug 2019 12:47:23 -0400 (EDT)
+	id A6BC96B000A; Tue,  6 Aug 2019 13:13:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 183F86B026C
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 12:47:23 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id i9so54282154edr.13
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 09:47:23 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 71B5A6B0007
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 13:13:47 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id k9so48737874pls.13
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 10:13:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=1q4pi+o5btussKVzkefj+dnCarsO1mLnz4hoIdPDodU=;
-        b=G6Vta5vPdo0PH6+ozy0oYvzHtEexqTxvbTVrgTkUxQlWs/k9Qg8Pp86V8S1Zj9e+JC
-         KhLnU6CpfgQn+dyUftzDR1B2ZRUSZgqdDkDSCU/YO13JBkgzRJD5WmT3qi3TmQ/7obH2
-         PPJkQqDg8JN+k+KFzYOzB14xkaOh96XI5LAYyuLeTNvS8JUVTwCy1wPdGxbRE3jno2t+
-         A1wLuc41d8K9bisHjGcC5a/hmaPxfZqu0riyjVqfrVY4gl9tjobd7wfDIRLQPAZPTnqs
-         FRx9nj+hy8oZ3jjeeEPqb6nywgfEPkkKZqqzVYpp/8gLj74fPjDVL/LjlpSJKxUD0mrq
-         UrZw==
-X-Gm-Message-State: APjAAAXjh6eEp0qDtXWGu82iVP9Y27XBL1b1DO8ouBNPB2Pqe+I6p4CG
-	muY+GfrC9GLzWOBnGi0ZYTDxjXC9V3gKDip2tRU2S2pRkzPYDkTQgpUjZ1V4JfBmKuYpRB+WI+J
-	Wxf2XrP2XAaRmBbtaC6NqsLjnW/V6XecopoYjUIQenkiGptzHUjzK9gyOHnUJ0ysONw==
-X-Received: by 2002:a17:906:9410:: with SMTP id q16mr4219980ejx.90.1565110042456;
-        Tue, 06 Aug 2019 09:47:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqybQSerbpk/pqawuVY673aYzPHrr2zfKSzxSNYNE+SNQQ1hgCh2BkbjgAwg04Jhc7WsKaCH
-X-Received: by 2002:a17:906:9410:: with SMTP id q16mr4219922ejx.90.1565110041571;
-        Tue, 06 Aug 2019 09:47:21 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1565110041; cv=pass;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=5ea3uMryef/vRDBptNhuCg1V2qLJggsyW+xZZJ8QfN0=;
+        b=AvPH2wKiStxfj4RUY6IKgzHOSCfiEAcpPdie9tuFkM18mBl4cd8tSwpoJtSppsUPKw
+         4gioAQpWXm7R1CQtY+VDbK22eLeO16wklbLvNeajW8ykVBu9AbAHkc+zGw4cC4ry4PGg
+         ETq5tfAqXnzvW9sZkq+2jbevAqeR2vPPb/Xh9IecS5LlomTjLs/wwtl1QxVqZFs8V+oG
+         oF+cbNv3kUduX97Dh+mI9FPquSiVuUADT0JT4XeKH7AEJ+6uXuLRP1rJZXOtVsnTMVZ+
+         JUP5cTj+nIvvysbjcYm88eUMPrAAVYXIX9txmSR8vGYISCtl78YAA8Q3FoZtsRQP+Jry
+         jHMQ==
+X-Gm-Message-State: APjAAAX2PjURKE949F7EJvhKjJZdaRCu+5eH8Y+iTsVCzxW7TSQffqsw
+	aTqsCD3XLO9pp8WeddI4H3LtB3FDDK4bKDmJoLkJ3+Hgai8XfDQYoQ0JhWx9Vr1d9C1QmOVPHDB
+	WszzKcz7Qlr4NkFAljU94KCxsGy6+1WfGZRljpeWEO2Ud0VD40Zhli8zVO6Q/CThV+A==
+X-Received: by 2002:a17:902:1107:: with SMTP id d7mr4128065pla.184.1565111627032;
+        Tue, 06 Aug 2019 10:13:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwlz7y44ZVKpYSsmJ39cIf2XK4aGWA9bliegIgqoJRVhGHzL6NzYSR6bEdttnQf29/6L9w8
+X-Received: by 2002:a17:902:1107:: with SMTP id d7mr4128011pla.184.1565111626113;
+        Tue, 06 Aug 2019 10:13:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565111626; cv=none;
         d=google.com; s=arc-20160816;
-        b=KXBQQiwHB6kfxZ1f87H1sInfIEoFYXJSvGeAuYbftpFfo8yPByP91gpWlaWYZmPxLV
-         6CydYuSUV/u/UVC8kjoxoFtpi7Rq9NfSY01xs9NhMzqBNqYDfgzpBHxrWFXT/8O7JKsE
-         jF53RWf5ggIMRd+PORbTKhfisfXuia0rIssZzY3U9pp/c6mIqLUsx6/efQnXM522/LT2
-         N5o+xZAUZBpsMuI2InfnQVorj9Cjzu2FPymmwwZaZiMZUyoja+jy2mCOApR52AeoIn6I
-         tFNeuqIO8cL1z2jm8Vh9GASmjLHQ4wvcEBgGsdg7tow7ng/V6rVTw75cvbyEogOStXn0
-         1mmQ==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=1q4pi+o5btussKVzkefj+dnCarsO1mLnz4hoIdPDodU=;
-        b=drw99Etlt5Qtn81OhK/ZDimy93lrFlMj/YFurFiGF8atxyCDhb/nNX1Z/gwwlAK6jE
-         YZcfceAfuUrWyEgMA4R89H3oMlrNFotQZoJV6VAwb/Ds3lPrif3AEUFataTBKUDYV48c
-         yqZbD5f6P7ax0h8X8fs7yPfhn3mz1alQtr4GjTb2pgmMED5LH8Ts4o0xbE0wNzjWEPqh
-         FmYUtTj8I9Wn+7od+kTda1lPA2bj+btcSBmTghctAIvlOjM7Kgft5YhFU6ucjRAT6Tgb
-         r59xVLP6C7Pt5CKk79ct1xw9ip7lNOKga904mLONbbg41R5h59xoEpZyQqS5HQIovxhR
-         Knew==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@os.amperecomputing.com header.s=selector1 header.b=TC7OSRko;
-       arc=pass (i=1 spf=pass spfdomain=os.amperecomputing.com dkim=pass dkdomain=os.amperecomputing.com dmarc=pass fromdomain=os.amperecomputing.com);
-       spf=pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.73.123 as permitted sender) smtp.mailfrom=hoan@os.amperecomputing.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amperecomputing.com
-Received: from NAM05-DM3-obe.outbound.protection.outlook.com (mail-eopbgr730123.outbound.protection.outlook.com. [40.107.73.123])
-        by mx.google.com with ESMTPS id t21si30086667edw.253.2019.08.06.09.47.21
+        b=zk++1Tdv3zIGXoLRAFTmqyHuVLRUTzfa/1EhUpMmkRku5Lo5t0OUAjkiXwhes8dAX6
+         TbLsmOmhJfcFLbU2oIDVyKZ/tmPQ1any9T+yXc49LXsg+2nJuPQ4tRRApiXQpCUTP23/
+         xBfB912HiJi85d75nmwSMolCPxfNaywKAbcpVynL5HFnm04I92SvHCzR1xqyRY4sXDU8
+         ifjHUbGL8p1kc/UwaW/CAkdYiN5Y+uFRzI52ZWjIXFXMwCqauH77fsT3OwbjtDIgsdlc
+         jn7e0fSOpJL4yrELa2AXjrYEc7tl9OIkklerHlcL0Uz+c33WJ6oGx18uCqzU0HVmyehz
+         HKUw==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=5ea3uMryef/vRDBptNhuCg1V2qLJggsyW+xZZJ8QfN0=;
+        b=mS1mkboxh7vWYPZ7Pbcb8yMdbAbRRlnDx2nMQj8Hq3C1AwBKymTR2CxXGCa+80VhQG
+         hjz9ldPJhoUnSY7e9vkC/YULB1HhThdG/r25Cdrfz9Nc0L6LglpbldE+ELgp81KOC0yK
+         L2dfiAuehoH2JRMyCSNvCvruzEim8mDbUW73GGAcNMwC8X4kh/kpZHXGwUBhyh7vqAWq
+         coHle0zg/ZCVem2JAgiOUcCSYVcSxOzXxJ0Q7X+MozvsaBNs1qw/4GO16cfemp3z1BqJ
+         pzEYw2OyZan3zGuvuaia5l+sylI41NXz21zVv2/Kv17IGpvyk2pa9dddFe/9pxhtAg8C
+         PydA==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@kernel.org header.s=default header.b=rTAT9bH7;
+       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id y22si42465969plp.192.2019.08.06.10.13.45
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 09:47:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.73.123 as permitted sender) client-ip=40.107.73.123;
+        Tue, 06 Aug 2019 10:13:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@os.amperecomputing.com header.s=selector1 header.b=TC7OSRko;
-       arc=pass (i=1 spf=pass spfdomain=os.amperecomputing.com dkim=pass dkdomain=os.amperecomputing.com dmarc=pass fromdomain=os.amperecomputing.com);
-       spf=pass (google.com: domain of hoan@os.amperecomputing.com designates 40.107.73.123 as permitted sender) smtp.mailfrom=hoan@os.amperecomputing.com;
-       dmarc=pass (p=QUARANTINE sp=QUARANTINE dis=NONE) header.from=amperecomputing.com
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=WAAQZ5U9VK0nfqnww9K6q3aXKU5H2jEtvHmZBhATJUQo7r1cwj2XZiQ6wpMCsRtWbbklKHomDc3b7+piseMzuoHl1qaVLX7lbG8/dNg1Nhf/bGeZ7z2UXGvZ4kACizEMsvgROQ1zjwxBChtE9awrQLQkaXKhRLHwuHSw20jj1pfUQJdaIROZMa/VlRAY71dHI/jlZQqg2kzcsEPvnEK00YYkrobq+HsexkcDhI5q1ce+5SQ6ZEWc2Rjrj8xQKeKf2f8flcc6GuIWVh27Afs04XuthPhYDvWHOxvED3WcC+bQFjG4Wgot4AIu9BwV9InpnnsljTF/T/j1iw96X0/Qow==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=1q4pi+o5btussKVzkefj+dnCarsO1mLnz4hoIdPDodU=;
- b=IxSukqaw9/jYzlehclZ3kPJlr49jQXuqDhSv2MIh0+Sy6uEDWEIia/igYSIFIo+ImI2S3afB/pwYG36GO/AANadKN2+G234qmPydOFXZ71SK4IU2hxYIrMeMtaLHvnCohrnKaPUtejLCREFpJwmE2ryN9NrZ2/rAcRHWFGZ3+f/gPgSa4Sq+iN3S+ddwvOLn6GmxsXPdLar2lkhTq/2KNPTPNXE5hXP0Uy4DeZKgQ90ZIXtRZ8xyHwI8EH4tJOJXGCBNnqXAtDlz/WSxeboqBW0d7fZ8nhgv47MsxEZfMNBqrmCA09KrcC9sGRCxuY3Rcz2tHPymzKzQwIJNz3mB3w==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=os.amperecomputing.com; dmarc=pass action=none
- header.from=os.amperecomputing.com; dkim=pass
- header.d=os.amperecomputing.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
- d=os.amperecomputing.com; s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=1q4pi+o5btussKVzkefj+dnCarsO1mLnz4hoIdPDodU=;
- b=TC7OSRkoTwLBAfNE+1PMd8V1wo35CPIfx6smg0BqvOCvElobRUYcbkMZU6cN9vZUYo+unKDBr6G+2BW+InX3roFjvN2mJcSC+Adn9kI1A5HU0tbrNCyfb1LufSTvr4WC2ugW+1mv1OJOkkcgYHUek0mZV2AxmerRs6ZyiyvM/1s=
-Received: from DM6PR01MB4090.prod.exchangelabs.com (20.176.105.203) by
- DM6PR01MB5433.prod.exchangelabs.com (20.179.55.146) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2157.13; Tue, 6 Aug 2019 16:47:12 +0000
-Received: from DM6PR01MB4090.prod.exchangelabs.com
- ([fe80::612a:862d:745e:ba9a]) by DM6PR01MB4090.prod.exchangelabs.com
- ([fe80::612a:862d:745e:ba9a%3]) with mapi id 15.20.2136.018; Tue, 6 Aug 2019
- 16:47:12 +0000
-From: Hoan Tran OS <hoan@os.amperecomputing.com>
-To: Thomas Gleixner <tglx@linutronix.de>, Catalin Marinas
-	<catalin.marinas@arm.com>, Will Deacon <will.deacon@arm.com>
-CC: Andrew Morton <akpm@linux-foundation.org>, Michal Hocko <mhocko@suse.com>,
-	Vlastimil Babka <vbabka@suse.cz>, Oscar Salvador <osalvador@suse.de>, Pavel
- Tatashin <pavel.tatashin@microsoft.com>, Mike Rapoport <rppt@linux.ibm.com>,
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>, Benjamin Herrenschmidt
-	<benh@kernel.crashing.org>, Paul Mackerras <paulus@samba.org>, Michael
- Ellerman <mpe@ellerman.id.au>, Ingo Molnar <mingo@redhat.com>, Borislav
- Petkov <bp@alien8.de>, "H . Peter Anvin" <hpa@zytor.com>, "David S . Miller"
-	<davem@davemloft.net>, Heiko Carstens <heiko.carstens@de.ibm.com>, Vasily
- Gorbik <gor@linux.ibm.com>, Christian Borntraeger <borntraeger@de.ibm.com>,
-	"open list:MEMORY MANAGEMENT" <linux-mm@kvack.org>,
-	"linux-arm-kernel@lists.infradead.org"
-	<linux-arm-kernel@lists.infradead.org>, "linux-s390@vger.kernel.org"
-	<linux-s390@vger.kernel.org>, "sparclinux@vger.kernel.org"
-	<sparclinux@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>,
-	"linuxppc-dev@lists.ozlabs.org" <linuxppc-dev@lists.ozlabs.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Open Source
- Submission <patches@amperecomputing.com>
-Subject: Re: [PATCH v2 3/5] x86: Kconfig: Remove CONFIG_NODES_SPAN_OTHER_NODES
-Thread-Topic: [PATCH v2 3/5] x86: Kconfig: Remove
- CONFIG_NODES_SPAN_OTHER_NODES
-Thread-Index: AQHVOD/6mMbG4b3xtkKwY5B+a64PmqbMCfcAgCJyqYA=
-Date: Tue, 6 Aug 2019 16:47:12 +0000
-Message-ID: <910accd6-c491-acfd-237a-97edec7c0b42@os.amperecomputing.com>
-References: <1562887528-5896-1-git-send-email-Hoan@os.amperecomputing.com>
- <1562887528-5896-4-git-send-email-Hoan@os.amperecomputing.com>
- <alpine.DEB.2.21.1907152042110.1767@nanos.tec.linutronix.de>
-In-Reply-To: <alpine.DEB.2.21.1907152042110.1767@nanos.tec.linutronix.de>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: CY4PR1101CA0013.namprd11.prod.outlook.com
- (2603:10b6:910:15::23) To DM6PR01MB4090.prod.exchangelabs.com
- (2603:10b6:5:27::11)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=hoan@os.amperecomputing.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [4.28.12.214]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: c93d5fa5-ac1f-49fd-a8ac-08d71a8dbab7
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:DM6PR01MB5433;
-x-ms-traffictypediagnostic: DM6PR01MB5433:
-x-ms-exchange-transport-forked: True
-x-microsoft-antispam-prvs:
- <DM6PR01MB5433497C54778940D6030A34F1D50@DM6PR01MB5433.prod.exchangelabs.com>
-x-ms-oob-tlc-oobclassifiers: OLM:7691;
-x-forefront-prvs: 0121F24F22
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(4636009)(346002)(376002)(396003)(136003)(39840400004)(366004)(189003)(199004)(6486002)(476003)(2616005)(305945005)(25786009)(31696002)(102836004)(7736002)(229853002)(86362001)(446003)(8936002)(6246003)(4326008)(107886003)(81156014)(14454004)(81166006)(2906002)(256004)(6512007)(186003)(68736007)(53936002)(8676002)(11346002)(26005)(478600001)(31686004)(52116002)(99286004)(110136005)(54906003)(6116002)(76176011)(3846002)(5660300002)(6436002)(66066001)(316002)(66446008)(7416002)(386003)(6506007)(71190400001)(71200400001)(53546011)(486006)(64756008)(66476007)(66556008)(66946007);DIR:OUT;SFP:1102;SCL:1;SRVR:DM6PR01MB5433;H:DM6PR01MB4090.prod.exchangelabs.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:0;
-received-spf: None (protection.outlook.com: os.amperecomputing.com does not
- designate permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- 3TNs1b7ZsCFx1KxEXxgLO/GCjIDmgIU/jlKbs0U+kgzd9i6WRN6dNfv4Gf3J3G0MZSYUE7dA+M3jjAWnvRUJ0RZQQWkN886BBHkiSeOAzCI4jjOvaxwfp5w/v/NkdgdbLHnSFHCW6WUBS1tFEZfkLwOrtdnQvfDfHYmO04FVUGfTzFQCiA27szJBnvOxCq1/poAnprv++8NnMrI06RFlRJh0mf9opefB1QedOZqqroxlAjaX33JXsxqTzX9ClLWqCo/FCTx9hDgCMXxHV28K6SVbDltdJj+xxjpqg3Jmc4+b6S9g6Nwx9SDFTgCtgYL9mmg5dtj+aY3L76q32j+gCi/AwETvA4FarogJcurviSS56JG8TS8Oy5NhzNcK9B28yk1IkcXJVFlPpVnZMjBZr9Lpwz+STX1tQbG68YienVM=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <56E2A1BBE7566D44917A8A23D9C7B097@prod.exchangelabs.com>
-Content-Transfer-Encoding: base64
+       dkim=pass header.i=@kernel.org header.s=default header.b=rTAT9bH7;
+       spf=pass (google.com: domain of will@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=will@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from willie-the-truck (236.31.169.217.in-addr.arpa [217.169.31.236])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 7ACF82086D;
+	Tue,  6 Aug 2019 17:13:39 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1565111625;
+	bh=GcwPgkJicx4YCfVs1IPwu6WwyqpK78qeXeT/YMfDkko=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=rTAT9bH7GKNJUZdS8BRtbH8phw4qgZ5+dRNFkldjVWk6dGxX0O1d/RnE/0V20gryu
+	 PTJMl31RRRdUsoRUBPiBr87DgRaB/HWSPKLtCibTJQQUtSYBOvQ2oBVDM1HUaAlT2q
+	 mkbOtB7+YYYk5DiFCNquMbqioXWuU2alu3yKrGRo=
+Date: Tue, 6 Aug 2019 18:13:36 +0100
+From: Will Deacon <will@kernel.org>
+To: Will Deacon <will.deacon@arm.com>
+Cc: Andrey Konovalov <andreyknvl@google.com>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>, kvm@vger.kernel.org,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
+	dri-devel@lists.freedesktop.org, Kostya Serebryany <kcc@google.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>,
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Leon Romanovsky <leon@kernel.org>, linux-rdma@vger.kernel.org,
+	amd-gfx@lists.freedesktop.org,
+	Christoph Hellwig <hch@infradead.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Evgeniy Stepanov <eugenis@google.com>, linux-media@vger.kernel.org,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Kees Cook <keescook@chromium.org>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>, enh <enh@google.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Subject: Re: [PATCH v19 00/15] arm64: untag user pointers passed to the kernel
+Message-ID: <20190806171335.4dzjex5asoertaob@willie-the-truck>
+References: <cover.1563904656.git.andreyknvl@google.com>
+ <CAAeHK+yc0D_nd7nTRsY4=qcSx+eQR0VLut3uXMf4NEiE-VpeCw@mail.gmail.com>
+ <20190724140212.qzvbcx5j2gi5lcoj@willie-the-truck>
+ <CAAeHK+xXzdQHpVXL7f1T2Ef2P7GwFmDMSaBH4VG8fT3=c_OnjQ@mail.gmail.com>
+ <20190724142059.GC21234@fuggles.cambridge.arm.com>
 MIME-Version: 1.0
-X-OriginatorOrg: os.amperecomputing.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: c93d5fa5-ac1f-49fd-a8ac-08d71a8dbab7
-X-MS-Exchange-CrossTenant-originalarrivaltime: 06 Aug 2019 16:47:12.6231
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 3bc2b170-fd94-476d-b0ce-4229bdc904a7
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: Hoan@os.amperecomputing.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR01MB5433
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190724142059.GC21234@fuggles.cambridge.arm.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-SGkgVGhvbWFzLA0KDQoNCk9uIDcvMTUvMTkgMTE6NDMgQU0sIFRob21hcyBHbGVpeG5lciB3cm90
-ZToNCj4gT24gVGh1LCAxMSBKdWwgMjAxOSwgSG9hbiBUcmFuIE9TIHdyb3RlOg0KPiANCj4+IFJl
-bW92ZSBDT05GSUdfTk9ERVNfU1BBTl9PVEhFUl9OT0RFUyBhcyBpdCdzIGVuYWJsZWQNCj4+IGJ5
-IGRlZmF1bHQgd2l0aCBOVU1BLg0KPiANCj4gQXMgSSB0b2xkIHlvdSBiZWZvcmUgdGhpcyBkb2Vz
-IG5vdCBtZW50aW9uIHRoYXQgdGhlIG9wdGlvbiBpcyBub3cgZW5hYmxlZA0KPiBldmVuIGZvciB4
-ODYoMzJiaXQpIGNvbmZpZ3VyYXRpb25zIHdoaWNoIGRpZCBub3QgZW5hYmxlIGl0IGJlZm9yZSBh
-bmQgZG9lcw0KPiBub3QgbG9uZ2VyIGRlcGVuZCBvbiBYODZfNjRfQUNQSV9OVU1BLg0KDQpBZ3Jl
-ZWQsIGxldCBtZSBhZGQgaXQgaW50byB0aGlzIHBhdGNoIGRlc2NyaXB0aW9uLg0KDQo+IA0KPiBB
-bmQgdGhlcmUgaXMgc3RpbGwgbm8gcmF0aW9uYWxlIHdoeSB0aGlzIG1ha2VzIHNlbnNlLg0KPiAN
-Cg0KQXMgd2Uga25vdyBhYm91dCB0aGUgbWVtbWFwX2luaXRfem9uZSgpIGZ1bmN0aW9uLCBpdCBp
-cyB1c2VkIHRvIA0KaW5pdGlhbGl6ZSBhbGwgcGFnZXMuIER1cmluZyBpbml0aWFsaXppbmcsIGVh
-cmx5X3Bmbl9pbl9uaWQoKSBmdW5jdGlvbiANCm1ha2VzIHN1cmUgdGhlIHBhZ2UgaXMgaW4gdGhl
-IHNhbWUgbm9kZSBpZC4gT3RoZXJ3aXNlLCANCm1lbW1hcF9pbml0X3pvbmUoKSBvbmx5IGNoZWNr
-cyB0aGUgcGFnZSB2YWxpZGl0eS4gSXQgd29uJ3Qgd29yayB3aXRoIA0Kbm9kZSBtZW1vcnkgc3Bh
-bnMgYWNyb3NzIHRoZSBvdGhlcnMuDQoNClRoZSBvcHRpb24gQ09ORklHX05PREVTX1NQQU5fT1RI
-RVJfTk9ERVMgaXMgb25seSB1c2VkIHRvIGVuYWJsZSANCmVhcmx5X3Bmbl9pbl9uaWQoKSBmdW5j
-dGlvbi4NCg0KSXQgb2NjdXJzIGR1cmluZyBib290LXRpbWUgYW5kIHdvbid0IGFmZmVjdCB0aGUg
-cnVuLXRpbWUgcGVyZm9ybWFuY2UuDQpBbmQgSSBzYXcgdGhlIG1ham9yaXR5IE5VTUEgYXJjaGl0
-ZWN0dXJlcyBlbmFibGUgdGhpcyBvcHRpb24gYnkgZGVmYXVsdCANCndpdGggTlVNQS4NCg0KVGhh
-bmtzIGFuZCBSZWdhcmRzDQpIb2FuDQoNCg0KPiBUaGFua3MsDQo+IA0KPiAJdGdseA0KPiANCg==
+On Wed, Jul 24, 2019 at 03:20:59PM +0100, Will Deacon wrote:
+> On Wed, Jul 24, 2019 at 04:16:49PM +0200, Andrey Konovalov wrote:
+> > On Wed, Jul 24, 2019 at 4:02 PM Will Deacon <will@kernel.org> wrote:
+> > > On Tue, Jul 23, 2019 at 08:03:29PM +0200, Andrey Konovalov wrote:
+> > > > Should this go through the mm or the arm tree?
+> > >
+> > > I would certainly prefer to take at least the arm64 bits via the arm64 tree
+> > > (i.e. patches 1, 2 and 15). We also need a Documentation patch describing
+> > > the new ABI.
+> > 
+> > Sounds good! Should I post those patches together with the
+> > Documentation patches from Vincenzo as a separate patchset?
+> 
+> Yes, please (although as you say below, we need a new version of those
+> patches from Vincenzo to address the feedback on v5). The other thing I
+> should say is that I'd be happy to queue the other patches in the series
+> too, but some of them are missing acks from the relevant maintainers (e.g.
+> the mm/ and fs/ changes).
+
+Ok, I've queued patches 1, 2, and 15 on a stable branch here:
+
+  https://git.kernel.org/pub/scm/linux/kernel/git/arm64/linux.git/log/?h=for-next/tbi
+
+which should find its way into -next shortly via our for-next/core branch.
+If you want to make changes, please send additional patches on top.
+
+This is targetting 5.4, but I will drop it before the merge window if
+we don't have both of the following in place:
+
+  * Updated ABI documentation with Acks from Catalin and Kevin
+  * The other patches in the series either Acked (so I can pick them up)
+    or queued via some other tree(s) for 5.4.
+
+Make sense?
+
+Cheers,
+
+Will
 
