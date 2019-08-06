@@ -2,104 +2,104 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
-	autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B53BEC31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 23:16:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E34BAC31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 23:16:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 55E4C20B1F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 23:16:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8B86B20B1F
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 23:16:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="iT2jZ5QE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55E4C20B1F
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="DzuN0SMd"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B86B20B1F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5D6B06B0269; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
+	id 84E956B000E; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 51A696B000E; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
+	id 636FE6B026B; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 344976B026A; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
+	id 4B0646B0010; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id E68476B000E
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 19:16:18 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id r200so77455359qke.19
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 16:16:18 -0700 (PDT)
+Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 166166B0010
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
+Received: by mail-qt1-f200.google.com with SMTP id s22so80308648qtb.22
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 16:16:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=dzzOeMTojFZzc4SDmpKjinKIrvNC9sVRWsnQeUnBSlc=;
-        b=oVprc+cYRaQ+at5BJA8EEyDs5Mb/SRY+EMSQ3+uk2y2K2xuIkROjzuZJjzqoG4x2FT
-         COfbx7aVmuauLMP5sEEVOW01vu0KAhHJg9ULdh3Wqu3Nd9zR3SNaW5ag6Mthvw0Kb3TI
-         726f+BV+CUEnKvtab4cT29lI6xyNVxIYZFdT7UBQI/7dlpz08LoYBhx1xH6+bgQhoRYP
-         /3kWwhwDYq+rthm1hKU/5djTGmbDLutSFsX9T1wpjRkb+tNXHcF8EI3HpXybQoIGUodE
-         qt/9olkxGHM8SHeIKBcqmDmIBaZwDSJLLykx5pOy4b3hv9EckKInwGUudWSdkYtqCdR5
-         oDEg==
-X-Gm-Message-State: APjAAAWrmwIN1AAUOpjmRhCFv/FWLCa5pY29y6DHBYGiT4oN5m8pCPCq
-	gKC6YP6vzAH3Sl9474zEW15WqKzQZqvVFizXmErxOlKLJKhsoUbnGZeOXvDRj7X1/nUYZm48icp
-	UBp68C2S6F+ovLQ36hv80HxJWBhUVPAHKAGgMcqxA3Zs2tjdCWeKQ1juVPyrk4yCjlw==
-X-Received: by 2002:a37:6290:: with SMTP id w138mr5415702qkb.139.1565133378681;
+        bh=JxsVo1tSo9nOofaC+CW71G9A/3jHBgy7XZ2Y+iDU6wk=;
+        b=uTc8Ahom1cnHgnzgHIAoGn2LluLZz53bfP5h8Lm9MACqKnQ9d3VLIh7Tfcy3bsDL3W
+         lfx+T2d8WpoXq6s2N9jck/qSGwCgDV/6XuHtwAK56fiwY7yxD3jXCLV80G+SSbXPstm1
+         Ghhpk+oSCuEosu4Gk1KSScz+JckUzk9FpMnMfqql/nMjib8Mn9dbIet772egwt6pQUpk
+         ZGjN91a3odb43jO7h3ZWDSbmL9JsEKkZgUgITozouHgxcC+kudAPaxfV4dbKujuSkARi
+         22Ji/SUxHQZBuhtaPW7qUxNtw1AT/Eknzyn2Wo9ZRIJYAHfzOyIJZBhEf7RQaGeCHiVY
+         1+Wg==
+X-Gm-Message-State: APjAAAVqBOe7QzjUGbapYYo5HfRwNrrLinLlMKuMjmQoDgTHk9iL+5Hj
+	FIDYWNlU7AXZLRMX9xCX/xGQEglC9FV/8X8QuyybZFkMtyWH/8kTnXUztAN2bYTeSc5GJKDxXao
+	1td4xfgera00z3SrFmjikfmGGtpZg7dSudAlZjo7H2xdzdw7bJ3m/mwKboO93qjRw7w==
+X-Received: by 2002:ac8:1418:: with SMTP id k24mr5231134qtj.54.1565133378866;
         Tue, 06 Aug 2019 16:16:18 -0700 (PDT)
-X-Received: by 2002:a37:6290:: with SMTP id w138mr5415635qkb.139.1565133377391;
+X-Received: by 2002:ac8:1418:: with SMTP id k24mr5231080qtj.54.1565133377704;
         Tue, 06 Aug 2019 16:16:17 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1565133377; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZwJnKoaMjTbE1uGzLJMGv4QitbVVl8iZ+P9FMFZK+lsTzWWplnehfAU5e242VUQHUz
-         DGAPvDwVSrLrJfU6mUGjOgtfAmF0E7Lb4L3Ort/jUZtyWTnwQftUMtc+RN3Qt6NOpbIl
-         eQ/jVaFh7uCCW3cVkiRMxyvhdSZRz5PphzTLK8B2lra3tjKLQNGFkH85nvZb+qb3eofo
-         m+Vuj3Sy5hIImt6JAHskNNK39b3w3terK3oTlZ5C2RXi+sM7aNr5FCNJbLqWA2F3F+C1
-         JT4RI8ukU6+nD9wsEzZKTDJ4rq8simoQZWlRljFKsK1dAX4Z2VznpDagNfjGqfZHG9LH
-         RzRw==
+        b=q26GJFyi8DjBsqTjryNBpFhGGQ4wmpmFZyiRpOpUhY498zsfGRvOKHGq11hMpHtNQV
+         NLO2jDYH0uTSZISZlRYKKHPZ3MDZI1x6q01lS4d+t4xPZ+iUDtJP4C88WF9Z/RCU/vbk
+         7NUr4xSqvcBwf6qio9HTu+cp1KGFY259Y8QXXOWhmoIK5rwMhVQFQ1UUwGPmpVwjB9yz
+         vzYmnxSz7c23lsA8wXTWlWKO8eyOzVpWlE8DSyqCr4/v7N7wEbLCLRKYlFjxpiwSu1cx
+         EhZ/PWQWCFzb7AkpFWiUI4Dv0sFXKk6tNh/o0l2tPEjQm+ccyvWsYd7elT2TB6uZup4C
+         hoQQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=dzzOeMTojFZzc4SDmpKjinKIrvNC9sVRWsnQeUnBSlc=;
-        b=VvLs6h27m7WnsIUZS2o1xLA6ZonRagGx2HAcJZGzzBZr4PId6G0U1BLTlxIHWEMkf7
-         G5UW4UDn5qhb9B4doQfGc1gb/3dkxkg2NaDO/iTDYvxxtYfW++VEEhsuXL5IefE80yHG
-         1zS247gKrGYAeqkw76TKcui5Q+UX0J1mKC07dM+2GE+Uf3LI1fFuq6O2tAAkV4lugBDt
-         c5gzH9Ai0UGF+PCcZoWccbH9O/ii8Ek3T9c9zhwBptkdAEAlxnssjrTZbBFW/49mMiko
-         LVKl4C/G7RVPyawSxWwyVTDIpHyNAvDJFCpJu3pX/kPHbyEg+yi84dR8M7Vs8NJ/BHZD
-         tG4w==
+        bh=JxsVo1tSo9nOofaC+CW71G9A/3jHBgy7XZ2Y+iDU6wk=;
+        b=A//8xwuSxl8izmmmzuNyLCpHFliIuFlv6z9CkbjFU2uSgPh/LDSwbb5VfIgn5wH73i
+         OwGLBQOx1DBVDjt7HkW9GYPmrYhSPsV7PSxmiVB5EG6pdja/+4oH8N0FH8RHrOSNHB9R
+         fANMEd8gFY7LTsIKLQ/U7WgbAgvTv6CQwh0yBCM2lKoQ5yluIxyMlHyd6/BlTWRXopkx
+         kGbhVwo/dZnZpRBQJw6owg1vLMCBrTLJyDJdzUHnOUprV/7WXrpi6n2ApcqHTDB8WU//
+         dx8GU3gv1RcEMBtVgLYUni08+iTtYskSgefMuvxCiwcAevOz8snnT4kUgoaW7VHiIQvr
+         yKAg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=iT2jZ5QE;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=DzuN0SMd;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id y9sor66575713qvs.7.2019.08.06.16.16.17
+        by mx.google.com with SMTPS id c8sor116877792qtc.13.2019.08.06.16.16.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
         Tue, 06 Aug 2019 16:16:17 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=iT2jZ5QE;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=DzuN0SMd;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=ziepe.ca; s=google;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=dzzOeMTojFZzc4SDmpKjinKIrvNC9sVRWsnQeUnBSlc=;
-        b=iT2jZ5QEHCnRmwj3Fy7Flix3yuM6JMZfZlMd66YumfXZFQGPbYnOuPrN2Nfkw15MlA
-         AIO8aK6lBmEInROdH9Of3/332lc2HB5S42qr/W/2UIUKnnEndBMdeXDMUMGuGmW1p/5X
-         2V9fSmgrxz5r4ozB8rfrhYVEEKHdIhsoNUQQsTCfq9bfSXzc1vCmzCjIC9mqI2MdlycL
-         losCEg5d1lwwYehJqUjfY/pnKpJgJIYYu7a4Y2tCpde7gotzr2SCMXURkOCZhZ1LHzu9
-         LGt3R9vq4t3nIrE8fpnUEuW7OeTfeGz53wQSaHM3MZcXljasEHmfZblbVGzG8efyMB8t
-         WlBg==
-X-Google-Smtp-Source: APXvYqzZwoBudgHBaayJbkJ+GNCYTi4q4UlbCBCz8/DGe/Mgsz0vD7Z3MTdLgeaTsGPYtDKzYwIczQ==
-X-Received: by 2002:a0c:9932:: with SMTP id h47mr5359549qvd.147.1565133376933;
-        Tue, 06 Aug 2019 16:16:16 -0700 (PDT)
+        bh=JxsVo1tSo9nOofaC+CW71G9A/3jHBgy7XZ2Y+iDU6wk=;
+        b=DzuN0SMd6m3Y09EQ3hGtHT0JB2aJvet1X6xSjLP8soFwijScUkjfei+cE2aizwyqi8
+         8Jha5XC787VVWgoXYljT8xUpYPYOFigvSiU+1J03D3b5wV89VGY0fRB+2O+s8PxEW8Cc
+         XHLP7NRjVVVDcyhUMTRcguAhGAT3GgYfCIM3KKJYjCw6SRWgG0LgRecPMWYG/h7iyqhL
+         SibXtCYOyQ2FlxTLqndgSo2yQc+yBvh9wTZCUo6uritT4lvyCwq2m+CMyMiFrNowhMlw
+         wZUotLzWJuJo3OH1QCGYmHg/VKilwJSVIFt6wDKRQhIZCMQPFq5BgAju/1yQr1cKLEEf
+         ycrA==
+X-Google-Smtp-Source: APXvYqxBbEyHGgxF5Nl8cVhIwdz1mu4o1neH5++dyqiahCeO4T26lyxvhtz3KCxPPf/9Z4FNDxc5Wg==
+X-Received: by 2002:aed:3ac1:: with SMTP id o59mr5389656qte.260.1565133377305;
+        Tue, 06 Aug 2019 16:16:17 -0700 (PDT)
 Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id p23sm39124569qke.44.2019.08.06.16.16.14
+        by smtp.gmail.com with ESMTPSA id b13sm52681923qtk.55.2019.08.06.16.16.14
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 06 Aug 2019 16:16:14 -0700 (PDT)
+        Tue, 06 Aug 2019 16:16:17 -0700 (PDT)
 Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
 	(envelope-from <jgg@ziepe.ca>)
-	id 1hv8gg-0006eg-7x; Tue, 06 Aug 2019 20:16:14 -0300
+	id 1hv8gg-0006f4-G2; Tue, 06 Aug 2019 20:16:14 -0300
 From: Jason Gunthorpe <jgg@ziepe.ca>
 To: linux-mm@kvack.org
 Cc: Andrea Arcangeli <aarcange@redhat.com>,
@@ -121,9 +121,9 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>,
 	Gavin Shan <shangw@linux.vnet.ibm.com>,
 	Andrea Righi <andrea@betterlinux.com>,
 	Jason Gunthorpe <jgg@mellanox.com>
-Subject: [PATCH v3 hmm 05/11] hmm: use mmu_notifier_get/put for 'struct hmm'
-Date: Tue,  6 Aug 2019 20:15:42 -0300
-Message-Id: <20190806231548.25242-6-jgg@ziepe.ca>
+Subject: [PATCH v3 hmm 09/11] drm/amdkfd: fix a use after free race with mmu_notifer unregister
+Date: Tue,  6 Aug 2019 20:15:46 -0300
+Message-Id: <20190806231548.25242-10-jgg@ziepe.ca>
 X-Mailer: git-send-email 2.22.0
 In-Reply-To: <20190806231548.25242-1-jgg@ziepe.ca>
 References: <20190806231548.25242-1-jgg@ziepe.ca>
@@ -137,379 +137,180 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jason Gunthorpe <jgg@mellanox.com>
 
-This is a significant simplification, it eliminates all the remaining
-'hmm' stuff in mm_struct, eliminates krefing along the critical notifier
-paths, and takes away all the ugly locking and abuse of page_table_lock.
+When using mmu_notifer_unregister_no_release() the caller must ensure
+there is a SRCU synchronize before the mn memory is freed, otherwise use
+after free races are possible, for instance:
 
-mmu_notifier_get() provides the single struct hmm per struct mm which
-eliminates mm->hmm.
+     CPU0                                      CPU1
+                                      invalidate_range_start
+                                         hlist_for_each_entry_rcu(..)
+ mmu_notifier_unregister_no_release(&p->mn)
+ kfree(mn)
+                                      if (mn->ops->invalidate_range_end)
 
-It also directly guarantees that no mmu_notifier op callback is callable
-while concurrent free is possible, this eliminates all the krefs inside
-the mmu_notifier callbacks.
+The error unwind in amdkfd misses the SRCU synchronization.
 
-The remaining krefs in the range code were overly cautious, drivers are
-already not permitted to free the mirror while a range exists.
+amdkfd keeps the kfd_process around until the mm is released, so split the
+flow to fully initialize the kfd_process and register it for find_process,
+and with the notifier. Past this point the kfd_process does not need to be
+cleaned up as it is fully ready.
 
+The final failable step does a vm_mmap() and does not seem to impact the
+kfd_process global state. Since it also cannot be undone (and already has
+problems with undo if it internally fails), it has to be last.
+
+This way we don't have to try to unwind the mmu_notifier_register() and
+avoid the problem with the SRCU.
+
+Along the way this also fixes various other error unwind bugs in the flow.
+
+Fixes: 45102048f77e ("amdkfd: Add process queue manager module")
+Reviewed-by: Felix Kuehling <Felix.Kuehling@amd.com>
 Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
 ---
- drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c |   1 +
- drivers/gpu/drm/nouveau/nouveau_drm.c   |   3 +
- include/linux/hmm.h                     |  12 +--
- include/linux/mm_types.h                |   6 --
- kernel/fork.c                           |   1 -
- mm/hmm.c                                | 121 ++++++------------------
- 6 files changed, 33 insertions(+), 111 deletions(-)
+ drivers/gpu/drm/amd/amdkfd/kfd_process.c | 78 +++++++++++-------------
+ 1 file changed, 37 insertions(+), 41 deletions(-)
 
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-index f2e8b4238efd49..d50774a5f98ef7 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
-@@ -1464,6 +1464,7 @@ static void __exit amdgpu_exit(void)
- 	amdgpu_unregister_atpx_handler();
- 	amdgpu_sync_fini();
- 	amdgpu_fence_slab_fini();
-+	mmu_notifier_synchronize();
- }
+diff --git a/drivers/gpu/drm/amd/amdkfd/kfd_process.c b/drivers/gpu/drm/amd/amdkfd/kfd_process.c
+index 8f1076c0c88a25..c06e6190f21ffa 100644
+--- a/drivers/gpu/drm/amd/amdkfd/kfd_process.c
++++ b/drivers/gpu/drm/amd/amdkfd/kfd_process.c
+@@ -62,8 +62,8 @@ static struct workqueue_struct *kfd_restore_wq;
  
- module_init(amdgpu_init);
-diff --git a/drivers/gpu/drm/nouveau/nouveau_drm.c b/drivers/gpu/drm/nouveau/nouveau_drm.c
-index 7c2fcaba42d6c3..a0e48a482452d7 100644
---- a/drivers/gpu/drm/nouveau/nouveau_drm.c
-+++ b/drivers/gpu/drm/nouveau/nouveau_drm.c
-@@ -28,6 +28,7 @@
- #include <linux/pci.h>
- #include <linux/pm_runtime.h>
- #include <linux/vga_switcheroo.h>
-+#include <linux/mmu_notifier.h>
+ static struct kfd_process *find_process(const struct task_struct *thread);
+ static void kfd_process_ref_release(struct kref *ref);
+-static struct kfd_process *create_process(const struct task_struct *thread,
+-					struct file *filep);
++static struct kfd_process *create_process(const struct task_struct *thread);
++static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep);
  
- #include <drm/drmP.h>
- #include <drm/drm_crtc_helper.h>
-@@ -1292,6 +1293,8 @@ nouveau_drm_exit(void)
- #ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
- 	platform_driver_unregister(&nouveau_platform_driver);
- #endif
-+	if (IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM))
-+		mmu_notifier_synchronize();
- }
- 
- module_init(nouveau_drm_init);
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index 82265118d94abd..c3902449db6412 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -84,15 +84,12 @@
-  * @notifiers: count of active mmu notifiers
-  */
- struct hmm {
--	struct mm_struct	*mm;
--	struct kref		kref;
-+	struct mmu_notifier	mmu_notifier;
- 	spinlock_t		ranges_lock;
- 	struct list_head	ranges;
- 	struct list_head	mirrors;
--	struct mmu_notifier	mmu_notifier;
- 	struct rw_semaphore	mirrors_sem;
- 	wait_queue_head_t	wq;
--	struct rcu_head		rcu;
- 	long			notifiers;
- };
- 
-@@ -436,13 +433,6 @@ long hmm_range_dma_unmap(struct hmm_range *range,
-  */
- #define HMM_RANGE_DEFAULT_TIMEOUT 1000
- 
--/* Below are for HMM internal use only! Not to be used by device driver! */
--static inline void hmm_mm_init(struct mm_struct *mm)
--{
--	mm->hmm = NULL;
--}
--#else /* IS_ENABLED(CONFIG_HMM_MIRROR) */
--static inline void hmm_mm_init(struct mm_struct *mm) {}
- #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
- 
- #endif /* LINUX_HMM_H */
-diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
-index 3a37a89eb7a7c3..525d25d93330f2 100644
---- a/include/linux/mm_types.h
-+++ b/include/linux/mm_types.h
-@@ -25,7 +25,6 @@
- 
- struct address_space;
- struct mem_cgroup;
--struct hmm;
- 
- /*
-  * Each physical page in the system has a struct page associated with
-@@ -502,11 +501,6 @@ struct mm_struct {
- 		atomic_long_t hugetlb_usage;
- #endif
- 		struct work_struct async_put_work;
--
--#ifdef CONFIG_HMM_MIRROR
--		/* HMM needs to track a few things per mm */
--		struct hmm *hmm;
--#endif
- 	} __randomize_layout;
- 
- 	/*
-diff --git a/kernel/fork.c b/kernel/fork.c
-index d8ae0f1b414802..bd4a0762f12f3e 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -1007,7 +1007,6 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
- 	mm_init_owner(mm, p);
- 	RCU_INIT_POINTER(mm->exe_file, NULL);
- 	mmu_notifier_mm_init(mm);
--	hmm_mm_init(mm);
- 	init_tlb_flush_pending(mm);
- #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
- 	mm->pmd_huge_pte = NULL;
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 9a908902e4cc38..00f94f94906afc 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -26,101 +26,37 @@
- #include <linux/mmu_notifier.h>
- #include <linux/memory_hotplug.h>
- 
--static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
--
--/**
-- * hmm_get_or_create - register HMM against an mm (HMM internal)
-- *
-- * @mm: mm struct to attach to
-- * Return: an HMM object, either by referencing the existing
-- *          (per-process) object, or by creating a new one.
-- *
-- * This is not intended to be used directly by device drivers. If mm already
-- * has an HMM struct then it get a reference on it and returns it. Otherwise
-- * it allocates an HMM struct, initializes it, associate it with the mm and
-- * returns it.
-- */
--static struct hmm *hmm_get_or_create(struct mm_struct *mm)
-+static struct mmu_notifier *hmm_alloc_notifier(struct mm_struct *mm)
- {
- 	struct hmm *hmm;
- 
--	lockdep_assert_held_write(&mm->mmap_sem);
--
--	/* Abuse the page_table_lock to also protect mm->hmm. */
--	spin_lock(&mm->page_table_lock);
--	hmm = mm->hmm;
--	if (mm->hmm && kref_get_unless_zero(&mm->hmm->kref))
--		goto out_unlock;
--	spin_unlock(&mm->page_table_lock);
--
--	hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
-+	hmm = kzalloc(sizeof(*hmm), GFP_KERNEL);
- 	if (!hmm)
--		return NULL;
-+		return ERR_PTR(-ENOMEM);
+ static void evict_process_worker(struct work_struct *work);
+ static void restore_process_worker(struct work_struct *work);
+@@ -289,7 +289,15 @@ struct kfd_process *kfd_create_process(struct file *filep)
+ 	if (process) {
+ 		pr_debug("Process already found\n");
+ 	} else {
+-		process = create_process(thread, filep);
++		process = create_process(thread);
++		if (IS_ERR(process))
++			goto out;
 +
- 	init_waitqueue_head(&hmm->wq);
- 	INIT_LIST_HEAD(&hmm->mirrors);
- 	init_rwsem(&hmm->mirrors_sem);
--	hmm->mmu_notifier.ops = NULL;
- 	INIT_LIST_HEAD(&hmm->ranges);
- 	spin_lock_init(&hmm->ranges_lock);
--	kref_init(&hmm->kref);
- 	hmm->notifiers = 0;
--	hmm->mm = mm;
--
--	hmm->mmu_notifier.ops = &hmm_mmu_notifier_ops;
--	if (__mmu_notifier_register(&hmm->mmu_notifier, mm)) {
--		kfree(hmm);
--		return NULL;
--	}
--
--	mmgrab(hmm->mm);
--
--	/*
--	 * We hold the exclusive mmap_sem here so we know that mm->hmm is
--	 * still NULL or 0 kref, and is safe to update.
--	 */
--	spin_lock(&mm->page_table_lock);
--	mm->hmm = hmm;
--
--out_unlock:
--	spin_unlock(&mm->page_table_lock);
--	return hmm;
-+	return &hmm->mmu_notifier;
++		ret = kfd_process_init_cwsr_apu(process, filep);
++		if (ret) {
++			process = ERR_PTR(ret);
++			goto out;
++		}
+ 
+ 		if (!procfs.kobj)
+ 			goto out;
+@@ -609,81 +617,69 @@ static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
+ 	return 0;
  }
  
--static void hmm_free_rcu(struct rcu_head *rcu)
-+static void hmm_free_notifier(struct mmu_notifier *mn)
+-static struct kfd_process *create_process(const struct task_struct *thread,
+-					struct file *filep)
++/*
++ * On return the kfd_process is fully operational and will be freed when the
++ * mm is released
++ */
++static struct kfd_process *create_process(const struct task_struct *thread)
  {
--	struct hmm *hmm = container_of(rcu, struct hmm, rcu);
-+	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
+ 	struct kfd_process *process;
+ 	int err = -ENOMEM;
  
--	mmdrop(hmm->mm);
-+	WARN_ON(!list_empty(&hmm->ranges));
-+	WARN_ON(!list_empty(&hmm->mirrors));
- 	kfree(hmm);
- }
- 
--static void hmm_free(struct kref *kref)
--{
--	struct hmm *hmm = container_of(kref, struct hmm, kref);
+ 	process = kzalloc(sizeof(*process), GFP_KERNEL);
 -
--	spin_lock(&hmm->mm->page_table_lock);
--	if (hmm->mm->hmm == hmm)
--		hmm->mm->hmm = NULL;
--	spin_unlock(&hmm->mm->page_table_lock);
--
--	mmu_notifier_unregister_no_release(&hmm->mmu_notifier, hmm->mm);
--	mmu_notifier_call_srcu(&hmm->rcu, hmm_free_rcu);
--}
--
--static inline void hmm_put(struct hmm *hmm)
--{
--	kref_put(&hmm->kref, hmm_free);
--}
--
- static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
- {
- 	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
- 	struct hmm_mirror *mirror;
+ 	if (!process)
+ 		goto err_alloc_process;
  
--	/* Bail out if hmm is in the process of being freed */
--	if (!kref_get_unless_zero(&hmm->kref))
--		return;
+-	process->pasid = kfd_pasid_alloc();
+-	if (process->pasid == 0)
+-		goto err_alloc_pasid;
 -
- 	/*
- 	 * Since hmm_range_register() holds the mmget() lock hmm_release() is
- 	 * prevented as long as a range exists.
-@@ -137,8 +73,6 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
- 			mirror->ops->release(mirror);
- 	}
- 	up_read(&hmm->mirrors_sem);
+-	if (kfd_alloc_process_doorbells(process) < 0)
+-		goto err_alloc_doorbells;
 -
--	hmm_put(hmm);
- }
- 
- static void notifiers_decrement(struct hmm *hmm)
-@@ -169,9 +103,6 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
- 	unsigned long flags;
- 	int ret = 0;
- 
--	if (!kref_get_unless_zero(&hmm->kref))
--		return 0;
+ 	kref_init(&process->ref);
 -
- 	spin_lock_irqsave(&hmm->ranges_lock, flags);
- 	hmm->notifiers++;
- 	list_for_each_entry(range, &hmm->ranges, list) {
-@@ -206,7 +137,6 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
- out:
- 	if (ret)
- 		notifiers_decrement(hmm);
--	hmm_put(hmm);
- 	return ret;
- }
- 
-@@ -215,17 +145,15 @@ static void hmm_invalidate_range_end(struct mmu_notifier *mn,
- {
- 	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
- 
--	if (!kref_get_unless_zero(&hmm->kref))
--		return;
+ 	mutex_init(&process->mutex);
 -
- 	notifiers_decrement(hmm);
--	hmm_put(hmm);
- }
- 
- static const struct mmu_notifier_ops hmm_mmu_notifier_ops = {
- 	.release		= hmm_release,
- 	.invalidate_range_start	= hmm_invalidate_range_start,
- 	.invalidate_range_end	= hmm_invalidate_range_end,
-+	.alloc_notifier		= hmm_alloc_notifier,
-+	.free_notifier		= hmm_free_notifier,
- };
- 
- /*
-@@ -237,18 +165,27 @@ static const struct mmu_notifier_ops hmm_mmu_notifier_ops = {
-  *
-  * To start mirroring a process address space, the device driver must register
-  * an HMM mirror struct.
-+ *
-+ * The caller cannot unregister the hmm_mirror while any ranges are
-+ * registered.
-+ *
-+ * Callers using this function must put a call to mmu_notifier_synchronize()
-+ * in their module exit functions.
-  */
- int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
- {
-+	struct mmu_notifier *mn;
+ 	process->mm = thread->mm;
+-
+-	/* register notifier */
+-	process->mmu_notifier.ops = &kfd_process_mmu_notifier_ops;
+-	err = mmu_notifier_register(&process->mmu_notifier, process->mm);
+-	if (err)
+-		goto err_mmu_notifier;
+-
+-	hash_add_rcu(kfd_processes_table, &process->kfd_processes,
+-			(uintptr_t)process->mm);
+-
+ 	process->lead_thread = thread->group_leader;
+-	get_task_struct(process->lead_thread);
+-
+ 	INIT_LIST_HEAD(&process->per_device_data);
+-
++	INIT_DELAYED_WORK(&process->eviction_work, evict_process_worker);
++	INIT_DELAYED_WORK(&process->restore_work, restore_process_worker);
++	process->last_restore_timestamp = get_jiffies_64();
+ 	kfd_event_init_process(process);
++	process->is_32bit_user_mode = in_compat_syscall();
 +
- 	lockdep_assert_held_write(&mm->mmap_sem);
++	process->pasid = kfd_pasid_alloc();
++	if (process->pasid == 0)
++		goto err_alloc_pasid;
++
++	if (kfd_alloc_process_doorbells(process) < 0)
++		goto err_alloc_doorbells;
  
- 	/* Sanity check */
- 	if (!mm || !mirror || !mirror->ops)
- 		return -EINVAL;
+ 	err = pqm_init(&process->pqm, process);
+ 	if (err != 0)
+ 		goto err_process_pqm_init;
  
--	mirror->hmm = hmm_get_or_create(mm);
--	if (!mirror->hmm)
--		return -ENOMEM;
-+	mn = mmu_notifier_get_locked(&hmm_mmu_notifier_ops, mm);
-+	if (IS_ERR(mn))
-+		return PTR_ERR(mn);
-+	mirror->hmm = container_of(mn, struct hmm, mmu_notifier);
+ 	/* init process apertures*/
+-	process->is_32bit_user_mode = in_compat_syscall();
+ 	err = kfd_init_apertures(process);
+ 	if (err != 0)
+ 		goto err_init_apertures;
  
- 	down_write(&mirror->hmm->mirrors_sem);
- 	list_add(&mirror->list, &mirror->hmm->mirrors);
-@@ -272,7 +209,7 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror)
- 	down_write(&hmm->mirrors_sem);
- 	list_del(&mirror->list);
- 	up_write(&hmm->mirrors_sem);
--	hmm_put(hmm);
-+	mmu_notifier_put(&hmm->mmu_notifier);
- }
- EXPORT_SYMBOL(hmm_mirror_unregister);
+-	INIT_DELAYED_WORK(&process->eviction_work, evict_process_worker);
+-	INIT_DELAYED_WORK(&process->restore_work, restore_process_worker);
+-	process->last_restore_timestamp = get_jiffies_64();
+-
+-	err = kfd_process_init_cwsr_apu(process, filep);
++	/* Must be last, have to use release destruction after this */
++	process->mmu_notifier.ops = &kfd_process_mmu_notifier_ops;
++	err = mmu_notifier_register(&process->mmu_notifier, process->mm);
+ 	if (err)
+-		goto err_init_cwsr;
++		goto err_register_notifier;
++
++	get_task_struct(process->lead_thread);
++	hash_add_rcu(kfd_processes_table, &process->kfd_processes,
++			(uintptr_t)process->mm);
  
-@@ -880,14 +817,13 @@ int hmm_range_register(struct hmm_range *range,
- 	range->end = end;
+ 	return process;
  
- 	/* Prevent hmm_release() from running while the range is valid */
--	if (!mmget_not_zero(hmm->mm))
-+	if (!mmget_not_zero(hmm->mmu_notifier.mm))
- 		return -EFAULT;
- 
- 	/* Initialize range to track CPU page table updates. */
- 	spin_lock_irqsave(&hmm->ranges_lock, flags);
- 
- 	range->hmm = hmm;
--	kref_get(&hmm->kref);
- 	list_add(&range->list, &hmm->ranges);
- 
- 	/*
-@@ -919,8 +855,7 @@ void hmm_range_unregister(struct hmm_range *range)
- 	spin_unlock_irqrestore(&hmm->ranges_lock, flags);
- 
- 	/* Drop reference taken by hmm_range_register() */
--	mmput(hmm->mm);
--	hmm_put(hmm);
-+	mmput(hmm->mmu_notifier.mm);
- 
- 	/*
- 	 * The range is now invalid and the ref on the hmm is dropped, so
-@@ -970,14 +905,14 @@ long hmm_range_fault(struct hmm_range *range, unsigned int flags)
- 	struct mm_walk mm_walk;
- 	int ret;
- 
--	lockdep_assert_held(&hmm->mm->mmap_sem);
-+	lockdep_assert_held(&hmm->mmu_notifier.mm->mmap_sem);
- 
- 	do {
- 		/* If range is no longer valid force retry. */
- 		if (!range->valid)
- 			return -EBUSY;
- 
--		vma = find_vma(hmm->mm, start);
-+		vma = find_vma(hmm->mmu_notifier.mm, start);
- 		if (vma == NULL || (vma->vm_flags & device_vma))
- 			return -EFAULT;
- 
+-err_init_cwsr:
++err_register_notifier:
+ 	kfd_process_free_outstanding_kfd_bos(process);
+ 	kfd_process_destroy_pdds(process);
+ err_init_apertures:
+ 	pqm_uninit(&process->pqm);
+ err_process_pqm_init:
+-	hash_del_rcu(&process->kfd_processes);
+-	synchronize_rcu();
+-	mmu_notifier_unregister_no_release(&process->mmu_notifier, process->mm);
+-err_mmu_notifier:
+-	mutex_destroy(&process->mutex);
+ 	kfd_free_process_doorbells(process);
+ err_alloc_doorbells:
+ 	kfd_pasid_free(process->pasid);
+ err_alloc_pasid:
++	mutex_destroy(&process->mutex);
+ 	kfree(process);
+ err_alloc_process:
+ 	return ERR_PTR(err);
 -- 
 2.22.0
 
