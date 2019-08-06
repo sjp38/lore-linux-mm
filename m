@@ -7,78 +7,78 @@ X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A2ADAC433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 16:06:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B4837C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 16:06:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4CF9520818
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 16:06:21 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 66F2220818
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 16:06:24 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="MUB+vxB5"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4CF9520818
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="tzhuPYOZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66F2220818
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0B4496B000E; Tue,  6 Aug 2019 12:06:20 -0400 (EDT)
+	id 795306B0010; Tue,  6 Aug 2019 12:06:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0159F6B0010; Tue,  6 Aug 2019 12:06:19 -0400 (EDT)
+	id 6F2D06B0266; Tue,  6 Aug 2019 12:06:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D83F16B0266; Tue,  6 Aug 2019 12:06:19 -0400 (EDT)
+	id 5C2C96B0269; Tue,  6 Aug 2019 12:06:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D3E06B000E
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 12:06:19 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 6so56188919pfz.10
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 09:06:19 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 18EB86B0010
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 12:06:21 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id g126so8667632pgc.22
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 09:06:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=Q9JVQd7TJgJOaVqaurRsAZJZ/a1e9OVXXKhPpucQrUU=;
-        b=Nt2iU0MDfDXZpTJiqMwUBGHCmcVRuhfJCrhDe+KMT5XRY2kWDG5AxatvodNcPu7ZAJ
-         l0hp9W/LShQ2790Qn5OZe8TVeOH/KJCpsk3JVRIKBWHZnrACJGbdYW9EGjCddOmXHV1A
-         pP6fQaAJ+nWREX3FC0/VCaW5d31P54KeVXJ5TWbh74g4hUwNmJyz53tG9/jxM9mrDI5c
-         MEWzQyu/uFGjzioqYh0lKw6/cgePoz3P1r8+hj3B90ZKNGyHtl/7FmXn/vp4shLAsV+E
-         jB/Ym64IGTD1bxiuOC7iHotrPSSdS+QOj67XR7y4Ue0lwj9Ksebr/CeP461x87b7+dPq
-         jxGQ==
-X-Gm-Message-State: APjAAAUSOA3GTyuULF4xP9PkniM+hgNSGzKUnuZOK95L8Fpffx1fQJ1F
-	fnwYXILIHePcOzKNc9o1vwSInz7l/fL57ayxiMmgH/U0MugaIoiOh0elvcOVl6soD2wpi8I06VL
-	1U40Z3s+yn4mIjp/haRBaJgDryJmA+PI+xcCFJMx8OYol/KtPyJlntJ/zxTG8rqQ=
-X-Received: by 2002:a17:902:b713:: with SMTP id d19mr3954555pls.267.1565107579211;
-        Tue, 06 Aug 2019 09:06:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzJY84jSwBRVzEChCiRnQsG+zZKLLtECZCof4RYKxdSb2Qdjhx1HIzGGG/5mDwMlN17Sa+y
-X-Received: by 2002:a17:902:b713:: with SMTP id d19mr3954412pls.267.1565107577531;
-        Tue, 06 Aug 2019 09:06:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565107577; cv=none;
+        bh=CFSretyqs/RdirX2o42+13inYYFm9UN8GL7VmbVQVoQ=;
+        b=OEVC72W/wPNJivIBWfl/q5FIUJlOggKTGRSnbDJfTRbLIWYa/5dJ/Df0r/H/EC0m4/
+         82CBAdQcOGFZ57Vsshj3rCzqLtO6ZjB7BwjK7xIVHxoeIScOLaARW/A1F/GqHo0kCxeI
+         5HetvPBwt9BVax0zceW7fHdj/gb1gVmuQGBw/z4kjmfRW1LaMe07ImOmWAJkM5Mrtfhi
+         XehUULuPetkXF2zGsBUx8imbyfUVcXVl4ZM4uLByVVpvxIRJu2IoGkbhId9F8znixBnX
+         +QPJpgXBKwmiiH8OJHtclhp/MNG1j2AXUR+QNoC6pEP78627+j7aNZj6M4y1AqckKSBM
+         TbQQ==
+X-Gm-Message-State: APjAAAUm2E9TbIMnpw4aKFL19LgOsLodKMQYjYIcj8HpFLxvlkGUAF5U
+	eayiIzeVcG2Klz70c7ONGE5CASGpSu6hbDhKh541yhNmvj9a6/rFP3GdQ5Pun1q4XhPGl1cwoK/
+	t5Xx+3i5opnlpHyEYeVat5As9YHkdMsqvo904OOvEr9Rr49g56PJ3Ozmod5h8/DM=
+X-Received: by 2002:a17:90a:a116:: with SMTP id s22mr3928119pjp.47.1565107580757;
+        Tue, 06 Aug 2019 09:06:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwV6wE0WRtrlet2OaHfJIHmB+UUj7K0ktPa9zlRBlvnBfAQD7eUPz4xU2Noahfo75IrUrX0
+X-Received: by 2002:a17:90a:a116:: with SMTP id s22mr3928061pjp.47.1565107580004;
+        Tue, 06 Aug 2019 09:06:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565107580; cv=none;
         d=google.com; s=arc-20160816;
-        b=w0WY2jOFHB+qcMMqtE1uQrclo1uydvKHvoixUwl7S+A+DZlZVNqI4Hldr1EkNqnt9V
-         08OwnoMGQUTF4iLJpjmqpy7wMO9yTpWKqOKs8RzulTeTG2zLsHzLmIniibjU/UW89qZI
-         vF7HX5+losi1T4EplWqWWb6qLl4FKt1vHjFytHu7kJgJcWhNctK/mo56TV3g6f2Wf9iX
-         QNy1u0p94XPTvkafIEKGXUmgjzT1nDfANyWewFNfdddEfVkjtA388kb5Od4Pj9s+ltpI
-         gLSoZyl7921MRKm+Est7PhFEMXQwLRYtIdoCj28Cfv1kDprcin+J6ntymdKvYqn93ww8
-         +apA==
+        b=c1PPNqceBHUT2K0dHzM3bHhdVIJW/67GnQjoyJrwpaCvHSEpV6AHGxbK3E9BKQUGqR
+         jBsPTBEwNmLp2T2aGM77utsjt56hTvm4O38PunFLRgvDj7yjFX098IRdm9PNW+6kI0T1
+         VfMpzCdaknnAL+p7MTdyQfi+xC4FD8Uqb+bg6zDhEzUeQGObUeQnnvcyGKRP/I5BDyPs
+         5MHsN4ken1dZ6PMPXcDk9doybTJqY9drOc2u8ww0NS9cZKDKFuA7EmAeD9HRj6jibN2+
+         7mGG/4Xi9sz0iSWv5YVGE9UOuaF8vYjlHfXfjjcRmTd2vSx/B+rsHG58sYetzA1Ry0t/
+         UAxQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=Q9JVQd7TJgJOaVqaurRsAZJZ/a1e9OVXXKhPpucQrUU=;
-        b=Gg6rb7tgxlNj3bBzCt4YPVTIVCNSuvMTIK2ZhdVQVsBmKIDNcFimpUkKQc/tdvx3ZW
-         QddvMXGtXmyQYx/S4QL33xg5uvIlWpMGm68LUiUkP8QIOTNXrGKMyBXqLSzmjn3Rn3kR
-         WyfG+Uw7knL3iGdpEzaq07IkTbUA1DaLAAaq66CgsfgXxtwmep/I4blD5nnAnFmFVilI
-         3XbMfs8JV9uV3Am/YNgmBH/OuEK7v6v6jx9Q/a/+x61qWER9c7To93v8AtUCWPfP3EQe
-         /9h5tiMUJ71mb7c1DuyN7f7Ry8QzsxQ4v9k+JGb8ZmpagGKrG3Lsr9/QZWTM0msr6GGs
-         VAqA==
+        bh=CFSretyqs/RdirX2o42+13inYYFm9UN8GL7VmbVQVoQ=;
+        b=MRepd75gEOlzTggA3b34GuO2tooh9YaEEAj5giNNLhuysmP+O42g0GsfYLFkg6aJWn
+         kSxiOpcg9mHCp7dGUUwE8M7LgRHEJatD52hzqnHGENYiqL2qx//iW4wzC8mPlSA+4H3F
+         5FdrrR8a2LiyA7dQwwJ3pBzbKGAb+HpTEAC7ssQeRiVPMCcvcxt2BBxmGcomrh/hWHNa
+         y+7SqK88v/qillWp+WP2u2JD2shMH8Sp0Fc8IuaMRF9WL9iJRWKmlnUNIIDobvPk5fyF
+         +hjStGogSlq+jcpbyjr+LNEQx4rgfSJVCr8Xwuopln7JJIoO75e6Yt867a+WjTH9PK4R
+         FEDg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=MUB+vxB5;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=tzhuPYOZ;
        spf=pass (google.com: best guess record for domain of batv+71fb6172ac18b852553b+5826+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+71fb6172ac18b852553b+5826+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id d1si42643375pla.75.2019.08.06.09.06.17
+        by mx.google.com with ESMTPS id y3si15502587pjv.50.2019.08.06.09.06.19
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 06 Aug 2019 09:06:17 -0700 (PDT)
+        Tue, 06 Aug 2019 09:06:19 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+71fb6172ac18b852553b+5826+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=MUB+vxB5;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=tzhuPYOZ;
        spf=pass (google.com: best guess record for domain of batv+71fb6172ac18b852553b+5826+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+71fb6172ac18b852553b+5826+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
@@ -86,15 +86,15 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	:Reply-To:Content-Type:Content-ID:Content-Description:Resent-Date:Resent-From
 	:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
 	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=Q9JVQd7TJgJOaVqaurRsAZJZ/a1e9OVXXKhPpucQrUU=; b=MUB+vxB5rP4ER3qjacjm5Pc9YP
-	3rAbr813U0gZg9RKoi/v6hUQNTqTGuX2TKWFEsWPO2TzaiCevtIz8l3d9wFFfuVazPHbL4Q7e3/V7
-	297l7eXFcTe1sz/yBPuXzv3RlMt4n22/OHc3vCQp/7VMF48E3Fa0iWiBY0lbRVYM+hpUv8UAxCNJG
-	nyFiAT9g8ZXX7m01dK89ZkBAMY31IThBAc5yPgsvVZTgPBBqOroW6dAYgn51tTUBJSlbkLe3o6Jnu
-	gbVCcpEJ8Iwmt/ac+R1QY9t3e2kTHFs8ljzE8q6wgdh4Wr+DcSGIhSXm/BTvvok7Sm1Dl9CrS/CR+
-	iv/kqmIQ==;
+	bh=CFSretyqs/RdirX2o42+13inYYFm9UN8GL7VmbVQVoQ=; b=tzhuPYOZCfgFbsA9DJibfh/0Jh
+	woYpb6mEK7ChEy3EQSIGvnXDPse4koxKMp2IVNjgzLQ6T38WsL385CiPX1vHD2Jucbed+H/5Pu4lp
+	H/90sdP/K9vSYZY7RNildl5jevquWCkAzhbCbvPIWLnT8ZyEjqMSz1km+VUCFKhynvVxvf7KPyJzg
+	9mcmtQVc/phVgwX4EZ1FmOwnOHVrXcWWe9j1QCmpobC8EUhF4daYBvAmBpQimWumDoicwaVczgeco
+	1Y8lm/34Pe/d56aQqfFjYbBd3j92PHqKQzIpa9qOWRMFQHFJdLuWEV9jOHRkdM2ZEkyYHq03VPBtC
+	QFOhtlvA==;
 Received: from [195.167.85.94] (helo=localhost)
 	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
-	id 1hv1yY-0000ZU-88; Tue, 06 Aug 2019 16:06:14 +0000
+	id 1hv1ya-0000aD-R6; Tue, 06 Aug 2019 16:06:17 +0000
 From: Christoph Hellwig <hch@lst.de>
 To: =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
 	Jason Gunthorpe <jgg@mellanox.com>,
@@ -106,9 +106,9 @@ Cc: Ralph Campbell <rcampbell@nvidia.com>,
 	dri-devel@lists.freedesktop.org,
 	amd-gfx@lists.freedesktop.org,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 07/15] mm: remove the page_shift member from struct hmm_range
-Date: Tue,  6 Aug 2019 19:05:45 +0300
-Message-Id: <20190806160554.14046-8-hch@lst.de>
+Subject: [PATCH 08/15] mm: remove the mask variable in hmm_vma_walk_hugetlb_entry
+Date: Tue,  6 Aug 2019 19:05:46 +0300
+Message-Id: <20190806160554.14046-9-hch@lst.de>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190806160554.14046-1-hch@lst.de>
 References: <20190806160554.14046-1-hch@lst.de>
@@ -121,189 +121,47 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-All users pass PAGE_SIZE here, and if we wanted to support single
-entries for huge pages we should really just add a HMM_FAULT_HUGEPAGE
-flag instead that uses the huge page size instead of having the
-caller calculate that size once, just for the hmm code to verify it.
+The pagewalk code already passes the value as the hmask parameter.
 
 Signed-off-by: Christoph Hellwig <hch@lst.de>
-Acked-by: Felix Kuehling <Felix.Kuehling@amd.com>
 ---
- drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c |  1 -
- drivers/gpu/drm/nouveau/nouveau_svm.c   |  1 -
- include/linux/hmm.h                     | 22 -------------
- mm/hmm.c                                | 42 ++++++-------------------
- 4 files changed, 9 insertions(+), 57 deletions(-)
+ mm/hmm.c | 7 ++-----
+ 1 file changed, 2 insertions(+), 5 deletions(-)
 
-diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
-index 71d6e7087b0b..8bf79288c4e2 100644
---- a/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
-+++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c
-@@ -818,7 +818,6 @@ int amdgpu_ttm_tt_get_user_pages(struct amdgpu_bo *bo, struct page **pages)
- 				0 : range->flags[HMM_PFN_WRITE];
- 	range->pfn_flags_mask = 0;
- 	range->pfns = pfns;
--	range->page_shift = PAGE_SHIFT;
- 	range->start = start;
- 	range->end = start + ttm->num_pages * PAGE_SIZE;
- 
-diff --git a/drivers/gpu/drm/nouveau/nouveau_svm.c b/drivers/gpu/drm/nouveau/nouveau_svm.c
-index 41fad4719ac6..668d4bd0c118 100644
---- a/drivers/gpu/drm/nouveau/nouveau_svm.c
-+++ b/drivers/gpu/drm/nouveau/nouveau_svm.c
-@@ -680,7 +680,6 @@ nouveau_svm_fault(struct nvif_notify *notify)
- 			 args.i.p.addr + args.i.p.size, fn - fi);
- 
- 		/* Have HMM fault pages within the fault window to the GPU. */
--		range.page_shift = PAGE_SHIFT;
- 		range.start = args.i.p.addr;
- 		range.end = args.i.p.addr + args.i.p.size;
- 		range.pfns = args.phys;
-diff --git a/include/linux/hmm.h b/include/linux/hmm.h
-index c5b51376b453..51e18fbb8953 100644
---- a/include/linux/hmm.h
-+++ b/include/linux/hmm.h
-@@ -158,7 +158,6 @@ enum hmm_pfn_value_e {
-  * @values: pfn value for some special case (none, special, error, ...)
-  * @default_flags: default flags for the range (write, read, ... see hmm doc)
-  * @pfn_flags_mask: allows to mask pfn flags so that only default_flags matter
-- * @page_shift: device virtual address shift value (should be >= PAGE_SHIFT)
-  * @pfn_shifts: pfn shift value (should be <= PAGE_SHIFT)
-  * @valid: pfns array did not change since it has been fill by an HMM function
-  */
-@@ -172,31 +171,10 @@ struct hmm_range {
- 	const uint64_t		*values;
- 	uint64_t		default_flags;
- 	uint64_t		pfn_flags_mask;
--	uint8_t			page_shift;
- 	uint8_t			pfn_shift;
- 	bool			valid;
- };
- 
--/*
-- * hmm_range_page_shift() - return the page shift for the range
-- * @range: range being queried
-- * Return: page shift (page size = 1 << page shift) for the range
-- */
--static inline unsigned hmm_range_page_shift(const struct hmm_range *range)
--{
--	return range->page_shift;
--}
--
--/*
-- * hmm_range_page_size() - return the page size for the range
-- * @range: range being queried
-- * Return: page size for the range in bytes
-- */
--static inline unsigned long hmm_range_page_size(const struct hmm_range *range)
--{
--	return 1UL << hmm_range_page_shift(range);
--}
--
- /*
-  * hmm_range_wait_until_valid() - wait for range to be valid
-  * @range: range affected by invalidation to wait on
 diff --git a/mm/hmm.c b/mm/hmm.c
-index 926735a3aef9..f26d6abc4ed2 100644
+index f26d6abc4ed2..03d37e102e3b 100644
 --- a/mm/hmm.c
 +++ b/mm/hmm.c
-@@ -344,13 +344,12 @@ static int hmm_vma_walk_hole_(unsigned long addr, unsigned long end,
- 	struct hmm_vma_walk *hmm_vma_walk = walk->private;
- 	struct hmm_range *range = hmm_vma_walk->range;
- 	uint64_t *pfns = range->pfns;
--	unsigned long i, page_size;
-+	unsigned long i;
- 
- 	hmm_vma_walk->last = addr;
--	page_size = hmm_range_page_size(range);
--	i = (addr - range->start) >> range->page_shift;
-+	i = (addr - range->start) >> PAGE_SHIFT;
- 
--	for (; addr < end; addr += page_size, i++) {
-+	for (; addr < end; addr += PAGE_SIZE, i++) {
- 		pfns[i] = range->values[HMM_PFN_NONE];
- 		if (fault || write_fault) {
- 			int ret;
-@@ -772,7 +771,7 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
+@@ -771,19 +771,16 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
  				      struct mm_walk *walk)
  {
  #ifdef CONFIG_HUGETLB_PAGE
--	unsigned long addr = start, i, pfn, mask, size, pfn_inc;
-+	unsigned long addr = start, i, pfn, mask;
+-	unsigned long addr = start, i, pfn, mask;
++	unsigned long addr = start, i, pfn;
  	struct hmm_vma_walk *hmm_vma_walk = walk->private;
  	struct hmm_range *range = hmm_vma_walk->range;
  	struct vm_area_struct *vma = walk->vma;
-@@ -783,24 +782,12 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
+-	struct hstate *h = hstate_vma(vma);
+ 	uint64_t orig_pfn, cpu_flags;
+ 	bool fault, write_fault;
+ 	spinlock_t *ptl;
  	pte_t entry;
  	int ret = 0;
  
--	size = huge_page_size(h);
--	mask = size - 1;
--	if (range->page_shift != PAGE_SHIFT) {
--		/* Make sure we are looking at a full page. */
--		if (start & mask)
--			return -EINVAL;
--		if (end < (start + size))
--			return -EINVAL;
--		pfn_inc = size >> PAGE_SHIFT;
--	} else {
--		pfn_inc = 1;
--		size = PAGE_SIZE;
--	}
-+	mask = huge_page_size(h) - 1;
- 
+-	mask = huge_page_size(h) - 1;
+-
  	ptl = huge_pte_lock(hstate_vma(vma), walk->mm, pte);
  	entry = huge_ptep_get(pte);
  
--	i = (start - range->start) >> range->page_shift;
-+	i = (start - range->start) >> PAGE_SHIFT;
- 	orig_pfn = range->pfns[i];
- 	range->pfns[i] = range->values[HMM_PFN_NONE];
- 	cpu_flags = pte_to_hmm_pfn_flags(range, entry);
-@@ -812,8 +799,8 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
+@@ -799,7 +796,7 @@ static int hmm_vma_walk_hugetlb_entry(pte_t *pte, unsigned long hmask,
  		goto unlock;
  	}
  
--	pfn = pte_pfn(entry) + ((start & mask) >> range->page_shift);
--	for (; addr < end; addr += size, i++, pfn += pfn_inc)
-+	pfn = pte_pfn(entry) + ((start & mask) >> PAGE_SHIFT);
-+	for (; addr < end; addr += PAGE_SIZE, i++, pfn++)
+-	pfn = pte_pfn(entry) + ((start & mask) >> PAGE_SHIFT);
++	pfn = pte_pfn(entry) + ((start & ~hmask) >> PAGE_SHIFT);
+ 	for (; addr < end; addr += PAGE_SIZE, i++, pfn++)
  		range->pfns[i] = hmm_device_entry_from_pfn(range, pfn) |
  				 cpu_flags;
- 	hmm_vma_walk->last = end;
-@@ -850,14 +837,13 @@ static void hmm_pfns_clear(struct hmm_range *range,
-  */
- int hmm_range_register(struct hmm_range *range, struct hmm_mirror *mirror)
- {
--	unsigned long mask = ((1UL << range->page_shift) - 1UL);
- 	struct hmm *hmm = mirror->hmm;
- 	unsigned long flags;
- 
- 	range->valid = false;
- 	range->hmm = NULL;
- 
--	if ((range->start & mask) || (range->end & mask))
-+	if ((range->start & (PAGE_SIZE - 1)) || (range->end & (PAGE_SIZE - 1)))
- 		return -EINVAL;
- 	if (range->start >= range->end)
- 		return -EINVAL;
-@@ -964,16 +950,6 @@ long hmm_range_fault(struct hmm_range *range, unsigned int flags)
- 		if (vma == NULL || (vma->vm_flags & device_vma))
- 			return -EFAULT;
- 
--		if (is_vm_hugetlb_page(vma)) {
--			if (huge_page_shift(hstate_vma(vma)) !=
--			    range->page_shift &&
--			    range->page_shift != PAGE_SHIFT)
--				return -EINVAL;
--		} else {
--			if (range->page_shift != PAGE_SHIFT)
--				return -EINVAL;
--		}
--
- 		if (!(vma->vm_flags & VM_READ)) {
- 			/*
- 			 * If vma do not allow read access, then assume that it
 -- 
 2.20.1
 
