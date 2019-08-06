@@ -2,190 +2,164 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C502FC31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 22:19:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 54BCBC31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 22:23:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 74E262189E
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 22:19:25 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="meFIABtu"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 74E262189E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	by mail.kernel.org (Postfix) with ESMTP id 1DD7F2086D
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 22:23:32 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1DD7F2086D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 20BE36B0003; Tue,  6 Aug 2019 18:19:25 -0400 (EDT)
+	id 9F7896B0003; Tue,  6 Aug 2019 18:23:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1BDE96B0006; Tue,  6 Aug 2019 18:19:25 -0400 (EDT)
+	id 9A8D96B0006; Tue,  6 Aug 2019 18:23:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 084326B0007; Tue,  6 Aug 2019 18:19:25 -0400 (EDT)
+	id 897E16B0007; Tue,  6 Aug 2019 18:23:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C78486B0003
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 18:19:24 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id k20so55759674pgg.15
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 15:19:24 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 545676B0003
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 18:23:31 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id i134so18531412pgd.11
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 15:23:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=cLMFtcOvaClrMbvdwLd+qf/TT0K3oNYe27UnDzPlpx0=;
-        b=PpjdWlgYzh7bPQh0R4qlLtyptbaHuvEDs97xW+8Bmb+h+TH/1JjMdwp87yFJuleeyU
-         xw0CNVxbMaqjmL5XjbrjnWccRLqx/Ca8nEgzo8lOoo2MQv3zGce2tY7WVwlJtM8ymi1Y
-         ZCMq6OX7PQQIVXbeqXqhRDc0smEX+NkDCkofxb6HSm8i5jI/RjxG7ANyE4qUlsBet2A+
-         OKmxP/Z66VzTrG0AbCHgYBAOAjKIdbO0zyit0XqxN5lMq4vPcxG63NzUNzueExBSsXzr
-         uEM7DHf4Eu0gBQrE+gRiwkDfePrDJktmwTNy8PETLBWKzgH0RKhGXmqGuoP/9DdgukWI
-         FUCg==
-X-Gm-Message-State: APjAAAX0RAzSfLCedvy/nGPH/dHoBx9O0USVVIkOmsm7WV0iJxRqM+8x
-	AuXTAoJCK9r6KyF1taDAAZhXoTHMdMEpoaiFVLenY3zW4qoqWiRoZf83RxWT9uNsNq6QYBkVU+H
-	hUmsKbc05IHGX0OO2gdkQVqXj7nblA3c1Ehj3D4dAkM/aexQ3bSx9scnX3Bnt1J+IVg==
-X-Received: by 2002:aa7:8a92:: with SMTP id a18mr6086965pfc.216.1565129964480;
-        Tue, 06 Aug 2019 15:19:24 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzFVVClMBD649/0ABT2VxRJqKkoOc3Rm02dZOjExlqL23++BJBHwbKasqbs4stEH6Wq2u0H
-X-Received: by 2002:aa7:8a92:: with SMTP id a18mr6086913pfc.216.1565129963564;
-        Tue, 06 Aug 2019 15:19:23 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565129963; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=OHxWVEDOP78ImK32Kw9h7tfqnmFm79uZH2X336QYRXs=;
+        b=kKol8JVD8KU0OdCTE3qrbdR6ppvZlJ+fc081VJ0n2ArTx2TERfwGaTbf/5l3SLGHnj
+         jbwVjazo8o4EJ7XE8kJ+o+6FHlWdxr7oMdGEUddexwYuwe8Zj5V62ktomzBUkXE/mpq4
+         3TwLNLUSlVZSbkdYoaZ6SqVXKk3vu3/5ywFS547VdagQEOvo0uDGp3hVWWu+WxCJm0H9
+         /dr1P6DfJ1xa+gXZBqPYyJuVFFnGKjRRGRUInpqDyR9EQgGkzExfdjHqYRYnhCeJRPG5
+         D195hmItDV6Ovl3NQG2Eph2bJmnaEcVW5+7JgyH794eH0+eL4E7Yju09pePhwmBRtGKp
+         4w6A==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAXr7l2/ZvFtYB8gSoUZxX+8P1PFbcTRs1mbalqffHG65YhRuSfy
+	brP8aHM4D7Rd8LE/CQQwkI3j9b4mGq/TN6m13hCtOy9v7rILn4dmVac3qYQBmKTjgH4SGiHN0F5
+	auClHoikPCMwwxLvHpQFj4ui7Z8nkvG9YeLC7UPNVhrXekRX07hu7Y+fEXkdCD1k=
+X-Received: by 2002:a63:506:: with SMTP id 6mr4910356pgf.434.1565130210929;
+        Tue, 06 Aug 2019 15:23:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxQO3LoaSOCmBTxfld7s2h5w93tZJ6ibDbnbtgiffcVR34qHFvY28qSi2VXgL6AWawNGANx
+X-Received: by 2002:a63:506:: with SMTP id 6mr4910310pgf.434.1565130210010;
+        Tue, 06 Aug 2019 15:23:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565130210; cv=none;
         d=google.com; s=arc-20160816;
-        b=ewANjxf8aQjt1oWhJHw3inTYqCfV6zxGQsZdg3Zie9AJD/CB3zkdd1H5eVPJBT1W88
-         ntY7eCUlzd+z+/VIDpkd1goM6T14wINIiMz+SJVEVQLssHEWTgoSJYvJODU2zeDAadW4
-         qVTffJkSgAendgWMRC4VQmux4eFVcr9k7nAsLIiRA5y7rnPiesLp8e0J/Lou9XkdxBUo
-         VLbU0qceaUSXw5Bgtu6bD4wlgIMILEmi3V/EOEFhmH03B2j0xGUusHRPoYiFUR83s+xY
-         kuwzwuxtCorfk7VTy0da5ye74P2LgJgl3hU3LOYzMOGNGgrj+dN4bCoSVfGbacXwDdfQ
-         47ug==
+        b=WcEO5l1ZLRvTbhAzapl5T6m9RqEk8W/82moja4OuYnXwdpGfL1UWdMlNrh2haoAo2h
+         UsZpVY4vzJn5KwebmoWDCGYqZX4tKT9v7PKribZ6d7JTWP9FJQFDyLwD+iuWD4yyUPIl
+         BI8gBYD554K6hqFT+DbYqdDfkBZf4ADHklMtJoQ96jKrFxogSteazdnj8CDZUiZwLtOZ
+         a7RE6pmAa3bkoFZFuAE15kjuBE/qSEyJeiL2KAM1LzlUqYBmviJbMDh7DRImgXCXhOY5
+         iDXdgtz4HY65c4Ah5VrJgML8zxOTa7Gsgf39rWL5w3bkfOEVSYamCyU6aZO5c/S8Q/I3
+         is4A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=cLMFtcOvaClrMbvdwLd+qf/TT0K3oNYe27UnDzPlpx0=;
-        b=a6ijeYCtq+T9VhU8kF4su3ZSmfnah/Hw/UqqCKO1/fjxF1OG54ug+DFNPCwFfas1t5
-         9yC0RMKzGW2rKt51LXnQLkbSfEfYVNg5gPg4b+QaKkz26FFhE8UQgfSIYe+XZ2ay0Qea
-         6fbNUS7rxeOlsvVaeJnyzlHPZ0OxuNy0ubzYlJtBqRHDPAF675qg01i0blMW8474895v
-         jHyvtMR/l2IUsY1oPo1o6RkC9nSTYsv9uWtHjZY/U0YFcRpkW0pobUTJWjtufqB3Pxm9
-         OugxQIDKIKUdf49V5cQWuxdaU339njwSEpZnr/dXpurGPpIi9ef2CqG6Sck15TLQf25X
-         Bszw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=OHxWVEDOP78ImK32Kw9h7tfqnmFm79uZH2X336QYRXs=;
+        b=DOzXRXGBiCV0MS7hlku5w64fL7+kQYNq9lO7xMAFtd1IsgZrOyc9Tc0Ua68F4I8kJj
+         nUDM6hMcCZvYBEM3cdmBEGThp8bcgTtrPaGY13HfvSijTMm1O517s6EuZMn6m7NcM0q5
+         4UhSsIKYEkHdcvl/+mNKb/qp/GSIgvBTaGrdeEWpw+9F4LxoDox1pAuQPJ+bcjPVUnnq
+         HGji38jQPddASiKghNWpx0uzvG2a9TkGvLQw/hdCp+rjtlUMmZchYeF6pTf4uTWNdTyP
+         3IQ6pNcJkLJ3L5n6o/KESP+GcmEe50RgP/ERsFIE3fEb0ymCXrrf3umj4S1+4ha1WizI
+         0qOA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=meFIABtu;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id j66si43077697plb.375.2019.08.06.15.19.23
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 15:19:23 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
+        by mx.google.com with ESMTP id o2si49921617pfp.113.2019.08.06.15.23.29
+        for <linux-mm@kvack.org>;
+        Tue, 06 Aug 2019 15:23:29 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=meFIABtu;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id AB7B121874;
-	Tue,  6 Aug 2019 22:19:21 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565129963;
-	bh=uggloegaAwke9A4UP4qBuMyVFR/d5SRDz42VgcGIwio=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=meFIABtuhORcSvMNLD1Hv0nThWvFZI0Qr53BkMiWwh6sZaACsB8AxS19EWRhOD245
-	 XPjeM7EQeanIE0mnWrDAF2RVaT5KRg5MyslBzowrxK7IAG3AckB1mYjDZTe7CHOPId
-	 5LjvjYRK0qyrzcwOxuFdWnbt8prbQySEv0+MClOM=
-Date: Tue, 6 Aug 2019 15:19:21 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
- Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>, Catalin
- Marinas <catalin.marinas@arm.com>, Christian Hansen <chansen3@cisco.com>,
- dancol@google.com, fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
- Ingo Molnar <mingo@redhat.com>, joelaf@google.com, Jonathan Corbet
- <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
- kernel-team@android.com, linux-api@vger.kernel.org,
- linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
- linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Mike Rapoport
- <rppt@linux.ibm.com>, minchan@kernel.org, namhyung@google.com,
- paulmck@linux.ibm.com, Robin Murphy <robin.murphy@arm.com>, Roman Gushchin
- <guro@fb.com>, Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
- Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com, Vladimir Davydov
- <vdavydov.dev@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Will Deacon
- <will@kernel.org>, Brendan Gregg <brendan.d.gregg@gmail.com>
-Subject: Re: [PATCH v4 1/5] mm/page_idle: Add per-pid idle page tracking
- using virtual indexing
-Message-Id: <20190806151921.edec128271caccb5214fc1bd@linux-foundation.org>
-In-Reply-To: <20190805170451.26009-1-joel@joelfernandes.org>
-References: <20190805170451.26009-1-joel@joelfernandes.org>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
+	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id C8B133611E5;
+	Wed,  7 Aug 2019 08:23:27 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hv7qW-0005QF-J6; Wed, 07 Aug 2019 08:22:20 +1000
+Date: Wed, 7 Aug 2019 08:22:20 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Brian Foster <bfoster@redhat.com>
+Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH 01/24] mm: directed shrinker work deferral
+Message-ID: <20190806222220.GL7777@dread.disaster.area>
+References: <20190801021752.4986-1-david@fromorbit.com>
+ <20190801021752.4986-2-david@fromorbit.com>
+ <20190802152709.GA60893@bfoster>
+ <20190804014930.GR7777@dread.disaster.area>
+ <20190805174226.GB14760@bfoster>
+ <20190805234318.GB7777@dread.disaster.area>
+ <20190806122754.GA2979@bfoster>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190806122754.GA2979@bfoster>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0 cx=a_idp_d
+	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=7-415B0cAAAA:8 a=Lk4mrrDYMWaqc0wFPJcA:9 a=CjuIK1q_8ugA:10
+	a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-(cc Brendan's other email address, hoping for review input ;))
+On Tue, Aug 06, 2019 at 08:27:54AM -0400, Brian Foster wrote:
+> If you add a generic "defer work" knob to the shrinker mechanism, but
+> only process it as an "allocation context" check, I expect it could be
+> easily misused. For example, some shrinkers may decide to set the the
+> flag dynamically based on in-core state.
 
-On Mon,  5 Aug 2019 13:04:47 -0400 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
+Which is already the case. e.g. There are shrinkers that don't do
+anything because a try-lock fails.  I haven't attempted to change
+them, but they are a clear example of how even ->scan_object to
+->scan_object the shrinker context can change. 
 
-> The page_idle tracking feature currently requires looking up the pagemap
-> for a process followed by interacting with /sys/kernel/mm/page_idle.
-> Looking up PFN from pagemap in Android devices is not supported by
-> unprivileged process and requires SYS_ADMIN and gives 0 for the PFN.
-> 
-> This patch adds support to directly interact with page_idle tracking at
-> the PID level by introducing a /proc/<pid>/page_idle file.  It follows
-> the exact same semantics as the global /sys/kernel/mm/page_idle, but now
-> looking up PFN through pagemap is not needed since the interface uses
-> virtual frame numbers, and at the same time also does not require
-> SYS_ADMIN.
-> 
-> In Android, we are using this for the heap profiler (heapprofd) which
-> profiles and pin points code paths which allocates and leaves memory
-> idle for long periods of time. This method solves the security issue
-> with userspace learning the PFN, and while at it is also shown to yield
-> better results than the pagemap lookup, the theory being that the window
-> where the address space can change is reduced by eliminating the
-> intermediate pagemap look up stage. In virtual address indexing, the
-> process's mmap_sem is held for the duration of the access.
+> This will work when called from
+> some contexts but not from others (unrelated to allocation context),
+> which is confusing. Therefore, what I'm saying is that if the only
+> current use case is to defer work from shrinkers that currently skip
+> work due to allocation context restraints, this might be better codified
+> with something like the appended (untested) example patch. This may or
+> may not be a preferable interface to the flag, but it's certainly not an
+> overcomplication...
 
-Quite a lot of changes to the page_idle code.  Has this all been
-runtime tested on architectures where
-CONFIG_HAVE_ARCH_PTE_SWP_PGIDLE=n?  That could be x86 with a little
-Kconfig fiddle-for-testing-purposes.
+I don't think this is the right way to go.
 
-> 8 files changed, 376 insertions(+), 45 deletions(-)
+I want the filesystem shrinkers to become entirely non-blocking so
+that we can dynamically decide on an object-by-object basis whether
+we can reclaim the object in GFP_NOFS context.
 
-Quite a lot of new code unconditionally added to major architectures. 
-Are we confident that everyone will want this feature?
+That is, a clean XFS inode that requires no special cleanup can be
+reclaimed even in GFP_NOFS context. The problem we have is that
+dentry reclaim can drop the last reference to an inode, causing
+inactivation and hence modification. However, if it's only going to
+move to the inode LRU and not evict the inode, we can reclaim that
+dentry. Similarly for inodes - if evicting the inode is not going to
+block or modify the inode, we can reclaim the inode even under
+GFP_NOFS constraints. And the same for XFS indoes - it if's clean
+we can reclaim it, GFP_NOFS context or not.
 
->
-> ...
->
-> +static int proc_page_idle_open(struct inode *inode, struct file *file)
-> +{
-> +	struct mm_struct *mm;
-> +
-> +	mm = proc_mem_open(inode, PTRACE_MODE_READ);
-> +	if (IS_ERR(mm))
-> +		return PTR_ERR(mm);
-> +	file->private_data = mm;
-> +	return 0;
-> +}
-> +
-> +static int proc_page_idle_release(struct inode *inode, struct file *file)
-> +{
-> +	struct mm_struct *mm = file->private_data;
-> +
-> +	if (mm)
+IMO, that's the direction we need to be heading in, and in those
+cases the "deferred work" tends towards a count of objects we could
+not reclaim during the scan because they require blocking work to be
+done. i.e. deferred work is a boolean now because the GFP_NOFS
+decision is boolean, but it's lays the ground work for deferred work
+to be integrated at a much finer-grained level in the shrinker
+scanning routines in future...
 
-I suspect the test isn't needed?  proc_page_idle_release) won't be
-called if proc_page_idle_open() failed?
+Cheers,
 
-> +		mmdrop(mm);
-> +	return 0;
-> +}
->
-> ...
->
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
