@@ -7,99 +7,99 @@ X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6B00EC31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 23:16:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B53BEC31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 23:16:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1F86320B1F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 23:16:28 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 55E4C20B1F
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 23:16:30 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="Aqt2P6wk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F86320B1F
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="iT2jZ5QE"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55E4C20B1F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9849A6B000A; Tue,  6 Aug 2019 19:16:18 -0400 (EDT)
+	id 5D6B06B0269; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 934AC6B000E; Tue,  6 Aug 2019 19:16:18 -0400 (EDT)
+	id 51A696B000E; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7AE976B0010; Tue,  6 Aug 2019 19:16:18 -0400 (EDT)
+	id 344976B026A; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 43BD86B000A
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E68476B000E
 	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 19:16:18 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id 41so74634930qtm.4
+Received: by mail-qk1-f199.google.com with SMTP id r200so77455359qke.19
         for <linux-mm@kvack.org>; Tue, 06 Aug 2019 16:16:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=mjtpPFkSq3UiLsyLXzaYFfxy47hSUzru4mJ5ITxeLVU=;
-        b=XWuIficMIRLJ01IPjvlZm8Pr0wbiUkQWKWFkpuHFYnX+M3B/xneLSeHX55OafCOtZi
-         ouc+/d2E2xlTkCr7GgztsPgUK2CN0GUcjLdQfVmSQs7/U0KOLQb/wvbjPLJ3fF8rVrMV
-         vjFo3MIqQ008RXyDMaFo5PwCd87MKprgaCeeixOzcaQxMJAsOd048MBd68TPI3qi7OBt
-         NCAj6yAZCi8RS6xhzvuy9o0DSlphQYsJOHP48+Sf6NiF9yJqa1ge6yqPBKwtw6YptRZt
-         fOSRbLegbIjrB3ylw0GYzcozJYa+CCyMtBodl6IUBsgdHjcZ9hTLnsRDgI9/g4Loth7h
-         HN5w==
-X-Gm-Message-State: APjAAAWrDJuibgC0beqKsOT8EzXYUPSyWjV+1vKeL8pMrJ956miQKjnr
-	bPxIabEcoY7+vPyc7LTkoTan6Qxl4N963QpPXruhbp5EEgNEbnxnHF4jV9mYEkX4fJ6YlvGbZsZ
-	yupc+W2RGjUXgpDODB+NDzwDlkKqaIoBDDPekuxkigQ96YdI1wyd12sRn3dThUt+jhg==
-X-Received: by 2002:a0c:b758:: with SMTP id q24mr5480432qve.45.1565133378068;
+        bh=dzzOeMTojFZzc4SDmpKjinKIrvNC9sVRWsnQeUnBSlc=;
+        b=oVprc+cYRaQ+at5BJA8EEyDs5Mb/SRY+EMSQ3+uk2y2K2xuIkROjzuZJjzqoG4x2FT
+         COfbx7aVmuauLMP5sEEVOW01vu0KAhHJg9ULdh3Wqu3Nd9zR3SNaW5ag6Mthvw0Kb3TI
+         726f+BV+CUEnKvtab4cT29lI6xyNVxIYZFdT7UBQI/7dlpz08LoYBhx1xH6+bgQhoRYP
+         /3kWwhwDYq+rthm1hKU/5djTGmbDLutSFsX9T1wpjRkb+tNXHcF8EI3HpXybQoIGUodE
+         qt/9olkxGHM8SHeIKBcqmDmIBaZwDSJLLykx5pOy4b3hv9EckKInwGUudWSdkYtqCdR5
+         oDEg==
+X-Gm-Message-State: APjAAAWrmwIN1AAUOpjmRhCFv/FWLCa5pY29y6DHBYGiT4oN5m8pCPCq
+	gKC6YP6vzAH3Sl9474zEW15WqKzQZqvVFizXmErxOlKLJKhsoUbnGZeOXvDRj7X1/nUYZm48icp
+	UBp68C2S6F+ovLQ36hv80HxJWBhUVPAHKAGgMcqxA3Zs2tjdCWeKQ1juVPyrk4yCjlw==
+X-Received: by 2002:a37:6290:: with SMTP id w138mr5415702qkb.139.1565133378681;
         Tue, 06 Aug 2019 16:16:18 -0700 (PDT)
-X-Received: by 2002:a0c:b758:: with SMTP id q24mr5480373qve.45.1565133377012;
+X-Received: by 2002:a37:6290:: with SMTP id w138mr5415635qkb.139.1565133377391;
         Tue, 06 Aug 2019 16:16:17 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1565133377; cv=none;
         d=google.com; s=arc-20160816;
-        b=tEFL2UHfdhP4irVQTS4lk27XWXFHPG08nT+kXeRw0IF5toCaSJ9YwU5pM0y1cH8XNs
-         ZnKLxvXzJXfnOQTbg9r+bmuRx7Fm0vnWZlrZC5XxxLDHLrt5be3+lEZTsD+VLEBxMCy0
-         q+Ys/OOn8x2dZkAUV5LJa68WZCmQZLlYlK4D+X41Nwy1E+5mwQnk64K9r4huzHcYwmfe
-         QZqWgKwLhqSfZIfCAtTfUuViNB5jX6Pzsg2ebWtMGGCrPVpqkKUy4NVtRBDpWBro8njb
-         TaGqRM+wH+srpKZzagvtFzzDChUEcrAbxNbNhbnKT5FPG80uFMmNbkZBHncY9D2RYuy+
-         NYWQ==
+        b=ZwJnKoaMjTbE1uGzLJMGv4QitbVVl8iZ+P9FMFZK+lsTzWWplnehfAU5e242VUQHUz
+         DGAPvDwVSrLrJfU6mUGjOgtfAmF0E7Lb4L3Ort/jUZtyWTnwQftUMtc+RN3Qt6NOpbIl
+         eQ/jVaFh7uCCW3cVkiRMxyvhdSZRz5PphzTLK8B2lra3tjKLQNGFkH85nvZb+qb3eofo
+         m+Vuj3Sy5hIImt6JAHskNNK39b3w3terK3oTlZ5C2RXi+sM7aNr5FCNJbLqWA2F3F+C1
+         JT4RI8ukU6+nD9wsEzZKTDJ4rq8simoQZWlRljFKsK1dAX4Z2VznpDagNfjGqfZHG9LH
+         RzRw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=mjtpPFkSq3UiLsyLXzaYFfxy47hSUzru4mJ5ITxeLVU=;
-        b=ug7+kxoksDrxImSTDPQLV3/A8/0Ty+ZboQRYwGLn89A96zf9lJ1CG5spdXz3v87n3C
-         qcB7PXpsHmcpZJjlVMnq6BIHWWkmuq+L8H4wrOyM8246z7il+iHin3q3bJRXrqoQHy/l
-         rjBCiCtCApmbPeQBg0MaUU4PJYOtTPLczEsvfPi90skCkyWEPndWLwkESbv9djLwfkqX
-         xoWuOtZMOUJj8ISwOTRl4BGhc+aIYdhROWT7xlFiaXhGB87qtunaFD2VPFULg/PHxRX+
-         KfuEQhzoUYSYRRs68bz5T+S1EBKDldSXbV5QigmzGlBr+fhV3D/mQYN2qFFjcgYHkZW/
-         Jbgg==
+        bh=dzzOeMTojFZzc4SDmpKjinKIrvNC9sVRWsnQeUnBSlc=;
+        b=VvLs6h27m7WnsIUZS2o1xLA6ZonRagGx2HAcJZGzzBZr4PId6G0U1BLTlxIHWEMkf7
+         G5UW4UDn5qhb9B4doQfGc1gb/3dkxkg2NaDO/iTDYvxxtYfW++VEEhsuXL5IefE80yHG
+         1zS247gKrGYAeqkw76TKcui5Q+UX0J1mKC07dM+2GE+Uf3LI1fFuq6O2tAAkV4lugBDt
+         c5gzH9Ai0UGF+PCcZoWccbH9O/ii8Ek3T9c9zhwBptkdAEAlxnssjrTZbBFW/49mMiko
+         LVKl4C/G7RVPyawSxWwyVTDIpHyNAvDJFCpJu3pX/kPHbyEg+yi84dR8M7Vs8NJ/BHZD
+         tG4w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=Aqt2P6wk;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=iT2jZ5QE;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id f4sor114378526qti.68.2019.08.06.16.16.16
+        by mx.google.com with SMTPS id y9sor66575713qvs.7.2019.08.06.16.16.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
         Tue, 06 Aug 2019 16:16:17 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=Aqt2P6wk;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=iT2jZ5QE;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=ziepe.ca; s=google;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=mjtpPFkSq3UiLsyLXzaYFfxy47hSUzru4mJ5ITxeLVU=;
-        b=Aqt2P6wkNDk7Ey4zJ/R2dr20/+p+3YhHJwj0w4amgSQKlEOzS7bH+L1Oepqzsr46++
-         aqXCSW5qQ+ZwByqVsAB+aLiCdaOPYHZoHMNlOBje6tt/3/uvpiTCTJbTvN+WthemRndl
-         /kJKQxc7MJH2ISRonRwzYob3+PusKHZyNLKSSWfe24VwuwxIhBYqxbeduEP8ekflzqn+
-         3yA1G3kjs09AVnNH83BdYQtbyyY6PmgYHmcfgbvOmvx4hl79v7MqlTCtxlX6HMoPt34s
-         F8GhD+KbHjGiBPnxWQSt/UpHQqEubqay3aXPCjsT8vtbafoNOzsV5GtwtBxXRIkev7JZ
-         fWtQ==
-X-Google-Smtp-Source: APXvYqz63tweA2E8MzBrzK5yWz5htOs/6XLwX1oleep4fUjPNFszgc4r2awnmY97Q4W0cA2HokN6fA==
-X-Received: by 2002:aed:2435:: with SMTP id r50mr1433667qtc.43.1565133376646;
+        bh=dzzOeMTojFZzc4SDmpKjinKIrvNC9sVRWsnQeUnBSlc=;
+        b=iT2jZ5QEHCnRmwj3Fy7Flix3yuM6JMZfZlMd66YumfXZFQGPbYnOuPrN2Nfkw15MlA
+         AIO8aK6lBmEInROdH9Of3/332lc2HB5S42qr/W/2UIUKnnEndBMdeXDMUMGuGmW1p/5X
+         2V9fSmgrxz5r4ozB8rfrhYVEEKHdIhsoNUQQsTCfq9bfSXzc1vCmzCjIC9mqI2MdlycL
+         losCEg5d1lwwYehJqUjfY/pnKpJgJIYYu7a4Y2tCpde7gotzr2SCMXURkOCZhZ1LHzu9
+         LGt3R9vq4t3nIrE8fpnUEuW7OeTfeGz53wQSaHM3MZcXljasEHmfZblbVGzG8efyMB8t
+         WlBg==
+X-Google-Smtp-Source: APXvYqzZwoBudgHBaayJbkJ+GNCYTi4q4UlbCBCz8/DGe/Mgsz0vD7Z3MTdLgeaTsGPYtDKzYwIczQ==
+X-Received: by 2002:a0c:9932:: with SMTP id h47mr5359549qvd.147.1565133376933;
         Tue, 06 Aug 2019 16:16:16 -0700 (PDT)
 Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id x206sm40603751qkb.127.2019.08.06.16.16.14
+        by smtp.gmail.com with ESMTPSA id p23sm39124569qke.44.2019.08.06.16.16.14
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Tue, 06 Aug 2019 16:16:14 -0700 (PDT)
 Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
 	(envelope-from <jgg@ziepe.ca>)
-	id 1hv8gg-0006es-Bw; Tue, 06 Aug 2019 20:16:14 -0300
+	id 1hv8gg-0006eg-7x; Tue, 06 Aug 2019 20:16:14 -0300
 From: Jason Gunthorpe <jgg@ziepe.ca>
 To: linux-mm@kvack.org
 Cc: Andrea Arcangeli <aarcange@redhat.com>,
@@ -121,9 +121,9 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>,
 	Gavin Shan <shangw@linux.vnet.ibm.com>,
 	Andrea Righi <andrea@betterlinux.com>,
 	Jason Gunthorpe <jgg@mellanox.com>
-Subject: [PATCH v3 hmm 07/11] RDMA/odp: remove ib_ucontext from ib_umem
-Date: Tue,  6 Aug 2019 20:15:44 -0300
-Message-Id: <20190806231548.25242-8-jgg@ziepe.ca>
+Subject: [PATCH v3 hmm 05/11] hmm: use mmu_notifier_get/put for 'struct hmm'
+Date: Tue,  6 Aug 2019 20:15:42 -0300
+Message-Id: <20190806231548.25242-6-jgg@ziepe.ca>
 X-Mailer: git-send-email 2.22.0
 In-Reply-To: <20190806231548.25242-1-jgg@ziepe.ca>
 References: <20190806231548.25242-1-jgg@ziepe.ca>
@@ -137,111 +137,379 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jason Gunthorpe <jgg@mellanox.com>
 
-At this point the ucontext is only being stored to access the ib_device,
-so just store the ib_device directly instead. This is more natural and
-logical as the umem has nothing to do with the ucontext.
+This is a significant simplification, it eliminates all the remaining
+'hmm' stuff in mm_struct, eliminates krefing along the critical notifier
+paths, and takes away all the ugly locking and abuse of page_table_lock.
+
+mmu_notifier_get() provides the single struct hmm per struct mm which
+eliminates mm->hmm.
+
+It also directly guarantees that no mmu_notifier op callback is callable
+while concurrent free is possible, this eliminates all the krefs inside
+the mmu_notifier callbacks.
+
+The remaining krefs in the range code were overly cautious, drivers are
+already not permitted to free the mirror while a range exists.
 
 Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
 ---
- drivers/infiniband/core/umem.c     |  4 ++--
- drivers/infiniband/core/umem_odp.c | 13 ++++++-------
- include/rdma/ib_umem.h             |  2 +-
- 3 files changed, 9 insertions(+), 10 deletions(-)
+ drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c |   1 +
+ drivers/gpu/drm/nouveau/nouveau_drm.c   |   3 +
+ include/linux/hmm.h                     |  12 +--
+ include/linux/mm_types.h                |   6 --
+ kernel/fork.c                           |   1 -
+ mm/hmm.c                                | 121 ++++++------------------
+ 6 files changed, 33 insertions(+), 111 deletions(-)
 
-diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
-index c59aa57d36510f..5ab9165ffbef0a 100644
---- a/drivers/infiniband/core/umem.c
-+++ b/drivers/infiniband/core/umem.c
-@@ -242,7 +242,7 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
- 			return ERR_PTR(-ENOMEM);
- 	}
- 
--	umem->context    = context;
-+	umem->ibdev = context->device;
- 	umem->length     = size;
- 	umem->address    = addr;
- 	umem->writable   = ib_access_writable(access);
-@@ -370,7 +370,7 @@ void ib_umem_release(struct ib_umem *umem)
- 		return;
- 	}
- 
--	__ib_umem_release(umem->context->device, umem, 1);
-+	__ib_umem_release(umem->ibdev, umem, 1);
- 
- 	atomic64_sub(ib_umem_num_pages(umem), &umem->owning_mm->pinned_vm);
- 	__ib_umem_release_tail(umem);
-diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
-index a02e6e3d7b72fb..da72318e17592f 100644
---- a/drivers/infiniband/core/umem_odp.c
-+++ b/drivers/infiniband/core/umem_odp.c
-@@ -103,7 +103,7 @@ static void ib_umem_notifier_release(struct mmu_notifier *mn,
- 		 */
- 		smp_wmb();
- 		complete_all(&umem_odp->notifier_completion);
--		umem_odp->umem.context->device->ops.invalidate_range(
-+		umem_odp->umem.ibdev->ops.invalidate_range(
- 			umem_odp, ib_umem_start(umem_odp),
- 			ib_umem_end(umem_odp));
- 	}
-@@ -116,7 +116,7 @@ static int invalidate_range_start_trampoline(struct ib_umem_odp *item,
- 					     u64 start, u64 end, void *cookie)
- {
- 	ib_umem_notifier_start_account(item);
--	item->umem.context->device->ops.invalidate_range(item, start, end);
-+	item->umem.ibdev->ops.invalidate_range(item, start, end);
- 	return 0;
+diff --git a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+index f2e8b4238efd49..d50774a5f98ef7 100644
+--- a/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
++++ b/drivers/gpu/drm/amd/amdgpu/amdgpu_drv.c
+@@ -1464,6 +1464,7 @@ static void __exit amdgpu_exit(void)
+ 	amdgpu_unregister_atpx_handler();
+ 	amdgpu_sync_fini();
+ 	amdgpu_fence_slab_fini();
++	mmu_notifier_synchronize();
  }
  
-@@ -319,7 +319,7 @@ struct ib_umem_odp *ib_umem_odp_alloc_implicit(struct ib_udata *udata,
- 	if (!umem_odp)
- 		return ERR_PTR(-ENOMEM);
- 	umem = &umem_odp->umem;
--	umem->context = context;
-+	umem->ibdev = context->device;
- 	umem->writable = ib_access_writable(access);
- 	umem->owning_mm = current->mm;
- 	umem_odp->is_implicit_odp = 1;
-@@ -364,7 +364,7 @@ struct ib_umem_odp *ib_umem_odp_alloc_child(struct ib_umem_odp *root,
- 	if (!odp_data)
- 		return ERR_PTR(-ENOMEM);
- 	umem = &odp_data->umem;
--	umem->context    = root->umem.context;
-+	umem->ibdev = root->umem.ibdev;
- 	umem->length     = size;
- 	umem->address    = addr;
- 	umem->writable   = root->umem.writable;
-@@ -477,8 +477,7 @@ static int ib_umem_odp_map_dma_single_page(
- 		u64 access_mask,
- 		unsigned long current_seq)
+ module_init(amdgpu_init);
+diff --git a/drivers/gpu/drm/nouveau/nouveau_drm.c b/drivers/gpu/drm/nouveau/nouveau_drm.c
+index 7c2fcaba42d6c3..a0e48a482452d7 100644
+--- a/drivers/gpu/drm/nouveau/nouveau_drm.c
++++ b/drivers/gpu/drm/nouveau/nouveau_drm.c
+@@ -28,6 +28,7 @@
+ #include <linux/pci.h>
+ #include <linux/pm_runtime.h>
+ #include <linux/vga_switcheroo.h>
++#include <linux/mmu_notifier.h>
+ 
+ #include <drm/drmP.h>
+ #include <drm/drm_crtc_helper.h>
+@@ -1292,6 +1293,8 @@ nouveau_drm_exit(void)
+ #ifdef CONFIG_NOUVEAU_PLATFORM_DRIVER
+ 	platform_driver_unregister(&nouveau_platform_driver);
+ #endif
++	if (IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM))
++		mmu_notifier_synchronize();
+ }
+ 
+ module_init(nouveau_drm_init);
+diff --git a/include/linux/hmm.h b/include/linux/hmm.h
+index 82265118d94abd..c3902449db6412 100644
+--- a/include/linux/hmm.h
++++ b/include/linux/hmm.h
+@@ -84,15 +84,12 @@
+  * @notifiers: count of active mmu notifiers
+  */
+ struct hmm {
+-	struct mm_struct	*mm;
+-	struct kref		kref;
++	struct mmu_notifier	mmu_notifier;
+ 	spinlock_t		ranges_lock;
+ 	struct list_head	ranges;
+ 	struct list_head	mirrors;
+-	struct mmu_notifier	mmu_notifier;
+ 	struct rw_semaphore	mirrors_sem;
+ 	wait_queue_head_t	wq;
+-	struct rcu_head		rcu;
+ 	long			notifiers;
+ };
+ 
+@@ -436,13 +433,6 @@ long hmm_range_dma_unmap(struct hmm_range *range,
+  */
+ #define HMM_RANGE_DEFAULT_TIMEOUT 1000
+ 
+-/* Below are for HMM internal use only! Not to be used by device driver! */
+-static inline void hmm_mm_init(struct mm_struct *mm)
+-{
+-	mm->hmm = NULL;
+-}
+-#else /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+-static inline void hmm_mm_init(struct mm_struct *mm) {}
+ #endif /* IS_ENABLED(CONFIG_HMM_MIRROR) */
+ 
+ #endif /* LINUX_HMM_H */
+diff --git a/include/linux/mm_types.h b/include/linux/mm_types.h
+index 3a37a89eb7a7c3..525d25d93330f2 100644
+--- a/include/linux/mm_types.h
++++ b/include/linux/mm_types.h
+@@ -25,7 +25,6 @@
+ 
+ struct address_space;
+ struct mem_cgroup;
+-struct hmm;
+ 
+ /*
+  * Each physical page in the system has a struct page associated with
+@@ -502,11 +501,6 @@ struct mm_struct {
+ 		atomic_long_t hugetlb_usage;
+ #endif
+ 		struct work_struct async_put_work;
+-
+-#ifdef CONFIG_HMM_MIRROR
+-		/* HMM needs to track a few things per mm */
+-		struct hmm *hmm;
+-#endif
+ 	} __randomize_layout;
+ 
+ 	/*
+diff --git a/kernel/fork.c b/kernel/fork.c
+index d8ae0f1b414802..bd4a0762f12f3e 100644
+--- a/kernel/fork.c
++++ b/kernel/fork.c
+@@ -1007,7 +1007,6 @@ static struct mm_struct *mm_init(struct mm_struct *mm, struct task_struct *p,
+ 	mm_init_owner(mm, p);
+ 	RCU_INIT_POINTER(mm->exe_file, NULL);
+ 	mmu_notifier_mm_init(mm);
+-	hmm_mm_init(mm);
+ 	init_tlb_flush_pending(mm);
+ #if defined(CONFIG_TRANSPARENT_HUGEPAGE) && !USE_SPLIT_PMD_PTLOCKS
+ 	mm->pmd_huge_pte = NULL;
+diff --git a/mm/hmm.c b/mm/hmm.c
+index 9a908902e4cc38..00f94f94906afc 100644
+--- a/mm/hmm.c
++++ b/mm/hmm.c
+@@ -26,101 +26,37 @@
+ #include <linux/mmu_notifier.h>
+ #include <linux/memory_hotplug.h>
+ 
+-static const struct mmu_notifier_ops hmm_mmu_notifier_ops;
+-
+-/**
+- * hmm_get_or_create - register HMM against an mm (HMM internal)
+- *
+- * @mm: mm struct to attach to
+- * Return: an HMM object, either by referencing the existing
+- *          (per-process) object, or by creating a new one.
+- *
+- * This is not intended to be used directly by device drivers. If mm already
+- * has an HMM struct then it get a reference on it and returns it. Otherwise
+- * it allocates an HMM struct, initializes it, associate it with the mm and
+- * returns it.
+- */
+-static struct hmm *hmm_get_or_create(struct mm_struct *mm)
++static struct mmu_notifier *hmm_alloc_notifier(struct mm_struct *mm)
  {
--	struct ib_ucontext *context = umem_odp->umem.context;
--	struct ib_device *dev = context->device;
-+	struct ib_device *dev = umem_odp->umem.ibdev;
- 	dma_addr_t dma_addr;
- 	int remove_existing_mapping = 0;
+ 	struct hmm *hmm;
+ 
+-	lockdep_assert_held_write(&mm->mmap_sem);
+-
+-	/* Abuse the page_table_lock to also protect mm->hmm. */
+-	spin_lock(&mm->page_table_lock);
+-	hmm = mm->hmm;
+-	if (mm->hmm && kref_get_unless_zero(&mm->hmm->kref))
+-		goto out_unlock;
+-	spin_unlock(&mm->page_table_lock);
+-
+-	hmm = kmalloc(sizeof(*hmm), GFP_KERNEL);
++	hmm = kzalloc(sizeof(*hmm), GFP_KERNEL);
+ 	if (!hmm)
+-		return NULL;
++		return ERR_PTR(-ENOMEM);
++
+ 	init_waitqueue_head(&hmm->wq);
+ 	INIT_LIST_HEAD(&hmm->mirrors);
+ 	init_rwsem(&hmm->mirrors_sem);
+-	hmm->mmu_notifier.ops = NULL;
+ 	INIT_LIST_HEAD(&hmm->ranges);
+ 	spin_lock_init(&hmm->ranges_lock);
+-	kref_init(&hmm->kref);
+ 	hmm->notifiers = 0;
+-	hmm->mm = mm;
+-
+-	hmm->mmu_notifier.ops = &hmm_mmu_notifier_ops;
+-	if (__mmu_notifier_register(&hmm->mmu_notifier, mm)) {
+-		kfree(hmm);
+-		return NULL;
+-	}
+-
+-	mmgrab(hmm->mm);
+-
+-	/*
+-	 * We hold the exclusive mmap_sem here so we know that mm->hmm is
+-	 * still NULL or 0 kref, and is safe to update.
+-	 */
+-	spin_lock(&mm->page_table_lock);
+-	mm->hmm = hmm;
+-
+-out_unlock:
+-	spin_unlock(&mm->page_table_lock);
+-	return hmm;
++	return &hmm->mmu_notifier;
+ }
+ 
+-static void hmm_free_rcu(struct rcu_head *rcu)
++static void hmm_free_notifier(struct mmu_notifier *mn)
+ {
+-	struct hmm *hmm = container_of(rcu, struct hmm, rcu);
++	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
+ 
+-	mmdrop(hmm->mm);
++	WARN_ON(!list_empty(&hmm->ranges));
++	WARN_ON(!list_empty(&hmm->mirrors));
+ 	kfree(hmm);
+ }
+ 
+-static void hmm_free(struct kref *kref)
+-{
+-	struct hmm *hmm = container_of(kref, struct hmm, kref);
+-
+-	spin_lock(&hmm->mm->page_table_lock);
+-	if (hmm->mm->hmm == hmm)
+-		hmm->mm->hmm = NULL;
+-	spin_unlock(&hmm->mm->page_table_lock);
+-
+-	mmu_notifier_unregister_no_release(&hmm->mmu_notifier, hmm->mm);
+-	mmu_notifier_call_srcu(&hmm->rcu, hmm_free_rcu);
+-}
+-
+-static inline void hmm_put(struct hmm *hmm)
+-{
+-	kref_put(&hmm->kref, hmm_free);
+-}
+-
+ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+ {
+ 	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
+ 	struct hmm_mirror *mirror;
+ 
+-	/* Bail out if hmm is in the process of being freed */
+-	if (!kref_get_unless_zero(&hmm->kref))
+-		return;
+-
+ 	/*
+ 	 * Since hmm_range_register() holds the mmget() lock hmm_release() is
+ 	 * prevented as long as a range exists.
+@@ -137,8 +73,6 @@ static void hmm_release(struct mmu_notifier *mn, struct mm_struct *mm)
+ 			mirror->ops->release(mirror);
+ 	}
+ 	up_read(&hmm->mirrors_sem);
+-
+-	hmm_put(hmm);
+ }
+ 
+ static void notifiers_decrement(struct hmm *hmm)
+@@ -169,9 +103,6 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+ 	unsigned long flags;
  	int ret = 0;
-@@ -691,7 +690,7 @@ void ib_umem_odp_unmap_dma_pages(struct ib_umem_odp *umem_odp, u64 virt,
+ 
+-	if (!kref_get_unless_zero(&hmm->kref))
+-		return 0;
+-
+ 	spin_lock_irqsave(&hmm->ranges_lock, flags);
+ 	hmm->notifiers++;
+ 	list_for_each_entry(range, &hmm->ranges, list) {
+@@ -206,7 +137,6 @@ static int hmm_invalidate_range_start(struct mmu_notifier *mn,
+ out:
+ 	if (ret)
+ 		notifiers_decrement(hmm);
+-	hmm_put(hmm);
+ 	return ret;
+ }
+ 
+@@ -215,17 +145,15 @@ static void hmm_invalidate_range_end(struct mmu_notifier *mn,
  {
- 	int idx;
- 	u64 addr;
--	struct ib_device *dev = umem_odp->umem.context->device;
-+	struct ib_device *dev = umem_odp->umem.ibdev;
+ 	struct hmm *hmm = container_of(mn, struct hmm, mmu_notifier);
  
- 	virt = max_t(u64, virt, ib_umem_start(umem_odp));
- 	bound = min_t(u64, bound, ib_umem_end(umem_odp));
-diff --git a/include/rdma/ib_umem.h b/include/rdma/ib_umem.h
-index 1052d0d62be7d2..a91b2af64ec47b 100644
---- a/include/rdma/ib_umem.h
-+++ b/include/rdma/ib_umem.h
-@@ -42,7 +42,7 @@ struct ib_ucontext;
- struct ib_umem_odp;
+-	if (!kref_get_unless_zero(&hmm->kref))
+-		return;
+-
+ 	notifiers_decrement(hmm);
+-	hmm_put(hmm);
+ }
  
- struct ib_umem {
--	struct ib_ucontext     *context;
-+	struct ib_device       *ibdev;
- 	struct mm_struct       *owning_mm;
- 	size_t			length;
- 	unsigned long		address;
+ static const struct mmu_notifier_ops hmm_mmu_notifier_ops = {
+ 	.release		= hmm_release,
+ 	.invalidate_range_start	= hmm_invalidate_range_start,
+ 	.invalidate_range_end	= hmm_invalidate_range_end,
++	.alloc_notifier		= hmm_alloc_notifier,
++	.free_notifier		= hmm_free_notifier,
+ };
+ 
+ /*
+@@ -237,18 +165,27 @@ static const struct mmu_notifier_ops hmm_mmu_notifier_ops = {
+  *
+  * To start mirroring a process address space, the device driver must register
+  * an HMM mirror struct.
++ *
++ * The caller cannot unregister the hmm_mirror while any ranges are
++ * registered.
++ *
++ * Callers using this function must put a call to mmu_notifier_synchronize()
++ * in their module exit functions.
+  */
+ int hmm_mirror_register(struct hmm_mirror *mirror, struct mm_struct *mm)
+ {
++	struct mmu_notifier *mn;
++
+ 	lockdep_assert_held_write(&mm->mmap_sem);
+ 
+ 	/* Sanity check */
+ 	if (!mm || !mirror || !mirror->ops)
+ 		return -EINVAL;
+ 
+-	mirror->hmm = hmm_get_or_create(mm);
+-	if (!mirror->hmm)
+-		return -ENOMEM;
++	mn = mmu_notifier_get_locked(&hmm_mmu_notifier_ops, mm);
++	if (IS_ERR(mn))
++		return PTR_ERR(mn);
++	mirror->hmm = container_of(mn, struct hmm, mmu_notifier);
+ 
+ 	down_write(&mirror->hmm->mirrors_sem);
+ 	list_add(&mirror->list, &mirror->hmm->mirrors);
+@@ -272,7 +209,7 @@ void hmm_mirror_unregister(struct hmm_mirror *mirror)
+ 	down_write(&hmm->mirrors_sem);
+ 	list_del(&mirror->list);
+ 	up_write(&hmm->mirrors_sem);
+-	hmm_put(hmm);
++	mmu_notifier_put(&hmm->mmu_notifier);
+ }
+ EXPORT_SYMBOL(hmm_mirror_unregister);
+ 
+@@ -880,14 +817,13 @@ int hmm_range_register(struct hmm_range *range,
+ 	range->end = end;
+ 
+ 	/* Prevent hmm_release() from running while the range is valid */
+-	if (!mmget_not_zero(hmm->mm))
++	if (!mmget_not_zero(hmm->mmu_notifier.mm))
+ 		return -EFAULT;
+ 
+ 	/* Initialize range to track CPU page table updates. */
+ 	spin_lock_irqsave(&hmm->ranges_lock, flags);
+ 
+ 	range->hmm = hmm;
+-	kref_get(&hmm->kref);
+ 	list_add(&range->list, &hmm->ranges);
+ 
+ 	/*
+@@ -919,8 +855,7 @@ void hmm_range_unregister(struct hmm_range *range)
+ 	spin_unlock_irqrestore(&hmm->ranges_lock, flags);
+ 
+ 	/* Drop reference taken by hmm_range_register() */
+-	mmput(hmm->mm);
+-	hmm_put(hmm);
++	mmput(hmm->mmu_notifier.mm);
+ 
+ 	/*
+ 	 * The range is now invalid and the ref on the hmm is dropped, so
+@@ -970,14 +905,14 @@ long hmm_range_fault(struct hmm_range *range, unsigned int flags)
+ 	struct mm_walk mm_walk;
+ 	int ret;
+ 
+-	lockdep_assert_held(&hmm->mm->mmap_sem);
++	lockdep_assert_held(&hmm->mmu_notifier.mm->mmap_sem);
+ 
+ 	do {
+ 		/* If range is no longer valid force retry. */
+ 		if (!range->valid)
+ 			return -EBUSY;
+ 
+-		vma = find_vma(hmm->mm, start);
++		vma = find_vma(hmm->mmu_notifier.mm, start);
+ 		if (vma == NULL || (vma->vm_flags & device_vma))
+ 			return -EFAULT;
+ 
 -- 
 2.22.0
 
