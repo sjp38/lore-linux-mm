@@ -2,201 +2,160 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E403BC31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:22:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 529CFC433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:33:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A8B7220717
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:22:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A8B7220717
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 1F8392086D
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:33:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F8392086D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5A63D6B0006; Tue,  6 Aug 2019 14:22:17 -0400 (EDT)
+	id B677D6B0005; Tue,  6 Aug 2019 14:33:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5539A6B0007; Tue,  6 Aug 2019 14:22:17 -0400 (EDT)
+	id B186E6B0006; Tue,  6 Aug 2019 14:33:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 46B2C6B0008; Tue,  6 Aug 2019 14:22:17 -0400 (EDT)
+	id A2EBA6B0007; Tue,  6 Aug 2019 14:33:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 271636B0006
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 14:22:17 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id f28so79805997qtg.2
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 11:22:17 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 6EE056B0005
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 14:33:14 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id y22so48824507plr.20
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 11:33:14 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=udIwRQKBxYqLyzD8onTe02z1jJFu+JV1PRVr7oBr+Ck=;
-        b=crKwwONok23Ybm9vRUW87pfABjm2UHTfHt53T3Osp9/CHAsuFYCTn5OXqTZWXBq0OI
-         o4jR6nvZg8rWjIkpLYj/jZOKQf1yLrgNR9eiotXzNzbED5NDkLf1VQTMDl3/w70nm04r
-         YkiZRdqffKBiuGssFNJksYK2aux1JTdPHv+01SJiXhVmO2nTThmlvu2ajqY9QZewFF+k
-         hA8zYzPQwidY2uH8jjUVRKBYjeGrFmrO7SaVKzJto4dl0MOurkt2yh41Cc403MUxJDLe
-         hgc/hpCAjUXbpmOY4Y+sfAlf+BBmN03MYA/+R47v/Rp/v9wp05Y6CziQ97axnUOkJMEg
-         rNEw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAW3k3W8QRv7SdwzSdFEkH9lVZDg7i5vymNWVQzcnIzvoJaOuW+G
-	TwYf3cgMkktwKQl++UWsjthIsFArpvdnDNkpe7lMa4ILuJif78jGtSmS/xMzG26FcaPlqqsmFEe
-	WrbwAcpe6/Y6JheRoivtgnyHP3KeKhkGrpHnpSXJf8sLZUzNez1Fi/1YUsNgNvKpCeA==
-X-Received: by 2002:ad4:55a9:: with SMTP id f9mr4358018qvx.133.1565115736952;
-        Tue, 06 Aug 2019 11:22:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxIQjkW1IULOPqy75l4i/MDb/a0H9JSBVQyyeKvIdTXmBteX6I+QuVRe2Nl84H3S1N2Xjz9
-X-Received: by 2002:ad4:55a9:: with SMTP id f9mr4357988qvx.133.1565115736384;
-        Tue, 06 Aug 2019 11:22:16 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565115736; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:user-agent
+         :mime-version:content-transfer-encoding;
+        bh=Cm9hk9u0afn+ZjMDnzSZ+v/EgUHwNgOxDe/V4NqAJfw=;
+        b=B326qM9GLNfslPrGSI3Stw9jQZvbKQ/y62C0JrmRVSEC/CEeYioStLm54P+vnzItWe
+         /aEiJAZ9x9jcBvvMCghixHZyAb6uIAgNuc13A8OjqPMRBdult1Uy//tLEfzEZuMe9M9Q
+         eBlrnKMHHu5yejzUslilcf8FUYfTqXocsDAHm8Jos5ibiRTq1nlh5RuZPMQW6Obf6wKc
+         +x0subxcCC37SOLVCU1lnZhJaB930jaRGb4Nrz2SOo7SnmJRsYlbHm2cPezHRQjjVJY/
+         0GxKeu3JF43+g7ZRNeXP+ETYghfmK4c/zOBDqCikxVG61g/AUgjsAtMXi7ImSPcpGtr1
+         gn0Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXBRtCTYSmLGhHY+H0NVc11TROyTUZF+H6C5d9Lb96mStOuk8ig
+	II7/oNdJzdp7tcNzhRrlDcUE9qW9pX6Q0ClNY9DO87QzFZPYxItLkqSGrhdj8q/JfpL0dxkC+Yu
+	8kkHizgrHIsA4P2iuxrxfK0kQ4wHdUWQmSM7rVFSH5QsU2a6a7pf9yx1SjC2nTWXEBA==
+X-Received: by 2002:aa7:9210:: with SMTP id 16mr5259042pfo.11.1565116394091;
+        Tue, 06 Aug 2019 11:33:14 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzxrsPP5qmiLpZe0O8fnIyI0hSGXZOVZ3LDQvwTeAb7mRRFOluRkKZ94spq6wqEka+FsKtP
+X-Received: by 2002:aa7:9210:: with SMTP id 16mr5258978pfo.11.1565116393225;
+        Tue, 06 Aug 2019 11:33:13 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565116393; cv=none;
         d=google.com; s=arc-20160816;
-        b=SeEOepRGVhlgPjbduJeV5Uc+Ro96/2teEZs6cZkewd6uXZ0fkK+JmYRRQeNoe6GFQ+
-         oc9QmijGLEEv/swjGt79qCTYiCJFA+xr3udx54kYNp8gxWoI57FG56rz0MX7sqUc4rHR
-         e9sd2JfX1+hhG6hj3YWiI/GGxfSsl+sdPW0b9fDVKvokdOMsDtLOAau+EFuHYivhxZgf
-         42uSbQWKDP9aniwU3yPiQOuhYB+n8XCV/IR7lO3RO2tvgtyRHNJNFrx1op5IAGLJ9uJw
-         BgyeuT4k5Fe1UjjgpYhBRu0bkcsP3yAgNaWEhyrkJwXMv4RjLJzFp81yJHLb1JIQANAf
-         WVcQ==
+        b=mF128fXN/Hh9as+puykq1deUnoAYz0364t4PAxeZIrn9gRKEL7AfWzKddFTE48bcJE
+         9lepTfTzohVwk6RFTuK77I6claSyLVRbgPF8ZxE4TyqLAoDPedfcgqt21hir58LFfjd0
+         nEBRD0SaCNYQ80///J4HjEUj5B0SmplTWnEVd39MdEI4Gnc3CzuYXrc/+kiAUjXlKt2s
+         JGKTY2ZmJnDxHVzI37gZvyY7jjA9rNotuWJYUtnVS06ykjdMkKA8l4mK/En2jWHPrhkR
+         mENylgEtph5j0JkWempKJ7S4/vokSLER9v8l45IROmiLjBjiXD3EblvJLHajnfdnOepC
+         zXGg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=udIwRQKBxYqLyzD8onTe02z1jJFu+JV1PRVr7oBr+Ck=;
-        b=vZ4sR77mwxMv6Bhyh3AsK3nvVMUQ1j08sR1k720JMGRps4cHHHiINyMxjCdVW0zD6C
-         SCdn50kVTwlY/MjmfJ6cV469L0nfeAcoLdFcd5ZD+CXM0WwgjMdj/3nufHZd0Z/7umWO
-         xeJDa+GatE15CvCOatdq3n7A881qfLNT5JXl2UCA3Y+Twg8MLYqk4+MVzuG6RbVPfj8I
-         0sKEpB66CoBocS+aBmp2LiCOX/QFL5BtzbxVB2ZH64H9ypN5zxzkLEWpQ+JsvjgVSGdF
-         9EL/dyC0sM0jNFFX3fWoKxyo0aS1M1ndaRqUCbWr4sx17blDz3IA5svXc1HnEzcS62Wp
-         /vVw==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:date:cc:to:from:subject:message-id;
+        bh=Cm9hk9u0afn+ZjMDnzSZ+v/EgUHwNgOxDe/V4NqAJfw=;
+        b=sDmgrWVk8S/3sNjN4RQqTAxt3yeegnwjc6WMJKFfLpir2NV7DK5LZzxRIN7uAhJz0I
+         9HGPfc/Aa3F2/gazWRGDSiE2/FskPs1XC3RWCtsYh2VZZ580ijnWOlMg4yqOlzgu1TwM
+         5ugbXqDA1CDTW+49fGZLPVQnYfoCi6wAT/bh8GWDX2w9MC+8cBL5d8yDA8syp/2yW2rr
+         4fav/S6RmKID4E17rjRiQ2VYQeNge0PX9iTgw9Hm+Jl1Nh34F/ZGu+d9qS+VP5rvMBga
+         36qauDqC2s2zleVIXUNxya4We/GpJs07rxohG1nqushCMchdZYwSkJeqVfPz7Ub3VU2g
+         x/Dg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id c18si339683qte.53.2019.08.06.11.22.16
+       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga12.intel.com (mga12.intel.com. [192.55.52.136])
+        by mx.google.com with ESMTPS id j187si47327308pge.591.2019.08.06.11.33.12
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 11:22:16 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 06 Aug 2019 11:33:13 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.136 as permitted sender) client-ip=192.55.52.136;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 936F71E30F;
-	Tue,  6 Aug 2019 18:22:15 +0000 (UTC)
-Received: from bfoster (dhcp-41-2.bos.redhat.com [10.18.41.2])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 0E1B95C258;
-	Tue,  6 Aug 2019 18:22:14 +0000 (UTC)
-Date: Tue, 6 Aug 2019 14:22:13 -0400
-From: Brian Foster <bfoster@redhat.com>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH 18/24] xfs: reduce kswapd blocking on inode locking.
-Message-ID: <20190806182213.GF2979@bfoster>
-References: <20190801021752.4986-1-david@fromorbit.com>
- <20190801021752.4986-19-david@fromorbit.com>
+       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 192.55.52.136 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Aug 2019 11:33:12 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,353,1559545200"; 
+   d="scan'208";a="168378909"
+Received: from sai-dev-mach.sc.intel.com ([143.183.140.153])
+  by orsmga008.jf.intel.com with ESMTP; 06 Aug 2019 11:33:12 -0700
+Message-ID: <9a09db3d4827bc6bf49c4579d495d71015f2c5a6.camel@intel.com>
+Subject: Re: [PATCH V2] fork: Improve error message for corrupted page tables
+From: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
+To: Dave Hansen <dave.hansen@intel.com>, linux-kernel@vger.kernel.org, 
+	linux-mm@kvack.org
+Cc: Ingo Molnar <mingo@kernel.org>, Vlastimil Babka <vbabka@suse.cz>, Peter
+ Zijlstra <peterz@infradead.org>, Andrew Morton <akpm@linux-foundation.org>,
+ Anshuman Khandual <anshuman.khandual@arm.com>
+Date: Tue, 06 Aug 2019 11:30:02 -0700
+In-Reply-To: <73b77479-cdd2-6d53-14ae-25ec4c4c3d25@intel.com>
+References: 
+	<3ef8a340deb1c87b725d44edb163073e2b6eca5a.1565059496.git.sai.praneeth.prakhya@intel.com>
+	 <73b77479-cdd2-6d53-14ae-25ec4c4c3d25@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5-0ubuntu0.18.10.1 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190801021752.4986-19-david@fromorbit.com>
-User-Agent: Mutt/1.12.0 (2019-05-25)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Tue, 06 Aug 2019 18:22:15 +0000 (UTC)
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 01, 2019 at 12:17:46PM +1000, Dave Chinner wrote:
-> From: Dave Chinner <dchinner@redhat.com>
+On Tue, 2019-08-06 at 09:30 -0700, Dave Hansen wrote:
+> On 8/5/19 8:05 PM, Sai Praneeth Prakhya wrote:
+> > +static const char * const resident_page_types[NR_MM_COUNTERS] = {
+> > +	[MM_FILEPAGES]		= "MM_FILEPAGES",
+> > +	[MM_ANONPAGES]		= "MM_ANONPAGES",
+> > +	[MM_SWAPENTS]		= "MM_SWAPENTS",
+> > +	[MM_SHMEMPAGES]		= "MM_SHMEMPAGES",
+> > +};
 > 
-> When doing async node reclaiming, we grab a batch of inodes that we
-> are likely able to reclaim and ignore those that are already
-> flushing. However, when we actually go to reclaim them, the first
-> thing we do is lock the inode. If we are racing with something
-> else reclaiming the inode or flushing it because it is dirty,
-> we block on the inode lock. Hence we can still block kswapd here.
+> One trick to ensure that this gets updated if the names are ever
+> updated.  You can do:
 > 
-> Further, if we flush an inode, we also cluster all the other dirty
-> inodes in that cluster into the same IO, flush locking them all.
-> However, if the workload is operating on sequential inodes (e.g.
-> created by a tarball extraction) most of these inodes will be
-> sequntial in the cache and so in the same batch
-> we've already grabbed for reclaim scanning.
+> #define NAMED_ARRAY_INDEX(x)	[x] = __stringify(x),
 > 
-> As a result, it is common for all the inodes in the batch to be
-> dirty and it is common for the first inode flushed to also flush all
-> the inodes in the reclaim batch. In which case, they are now all
-> going to be flush locked and we do not want to block on them.
+> and
 > 
+> static const char * const resident_page_types[NR_MM_COUNTERS] = {
+> 	NAMED_ARRAY_INDEX(MM_FILE_PAGES),
+> 	NAMED_ARRAY_INDEX(MM_SHMEMPAGES),
+> 	...
+> };
 
-Hmm... I think I'm missing something with this description. For dirty
-inodes that are flushed in a cluster via reclaim as described, aren't we
-already blocking on all of the flush locks by virtue of the synchronous
-I/O associated with the flush of the first dirty inode in that
-particular cluster?
+Thanks for the suggestion Dave. I will add this in V3.
+Even with this, (if ever) anyone who changes the name of page types or adds an
+new entry would still need to update struct resident_page_types[]. So, I will
+add the comment as suggested by Vlastimil.
 
-Brian
+> 
+> That makes sure that any name changes make it into the strings.  Then
+> stick a:
+> 
+> 	BUILD_BUG_ON(NR_MM_COUNTERS != ARRAY_SIZE(resident_page_types));
+> 
+> somewhere.  That makes sure that any new array indexes get a string
+> added in the array.  Otherwise you get nice, early, compile-time errors.
 
-> Hence, for async reclaim (SYNC_TRYLOCK) make sure we always use
-> trylock semantics and abort reclaim of an inode as quickly as we can
-> without blocking kswapd.
-> 
-> Found via tracing and finding big batches of repeated lock/unlock
-> runs on inodes that we just flushed by write clustering during
-> reclaim.
-> 
-> Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> ---
->  fs/xfs/xfs_icache.c | 23 ++++++++++++++++++-----
->  1 file changed, 18 insertions(+), 5 deletions(-)
-> 
-> diff --git a/fs/xfs/xfs_icache.c b/fs/xfs/xfs_icache.c
-> index 2fa2f8dcf86b..e6b9030875b9 100644
-> --- a/fs/xfs/xfs_icache.c
-> +++ b/fs/xfs/xfs_icache.c
-> @@ -1104,11 +1104,23 @@ xfs_reclaim_inode(
->  
->  restart:
->  	error = 0;
-> -	xfs_ilock(ip, XFS_ILOCK_EXCL);
-> -	if (!xfs_iflock_nowait(ip)) {
-> -		if (!(sync_mode & SYNC_WAIT))
-> +	/*
-> +	 * Don't try to flush the inode if another inode in this cluster has
-> +	 * already flushed it after we did the initial checks in
-> +	 * xfs_reclaim_inode_grab().
-> +	 */
-> +	if (sync_mode & SYNC_TRYLOCK) {
-> +		if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
->  			goto out;
-> -		xfs_iflock(ip);
-> +		if (!xfs_iflock_nowait(ip))
-> +			goto out_unlock;
-> +	} else {
-> +		xfs_ilock(ip, XFS_ILOCK_EXCL);
-> +		if (!xfs_iflock_nowait(ip)) {
-> +			if (!(sync_mode & SYNC_WAIT))
-> +				goto out_unlock;
-> +			xfs_iflock(ip);
-> +		}
->  	}
->  
->  	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
-> @@ -1215,9 +1227,10 @@ xfs_reclaim_inode(
->  
->  out_ifunlock:
->  	xfs_ifunlock(ip);
-> +out_unlock:
-> +	xfs_iunlock(ip, XFS_ILOCK_EXCL);
->  out:
->  	xfs_iflags_clear(ip, XFS_IRECLAIM);
-> -	xfs_iunlock(ip, XFS_ILOCK_EXCL);
->  	/*
->  	 * We could return -EAGAIN here to make reclaim rescan the inode tree in
->  	 * a short while. However, this just burns CPU time scanning the tree
-> -- 
-> 2.22.0
-> 
+Sure! this sounds good and a small nit-bit :)
+For the BUILD_BUG_ON() to work, the definition of struct should be changed as
+below
+
+static const char * const resident_page_types[] = {
+...
+}
+
+i.e. we should not specify the size of array.
+
+Regards,
+Sai
 
