@@ -2,161 +2,140 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 898B4C41514
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:08:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A0D47C31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:11:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 588DA217F4
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:08:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 588DA217F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 6B69C20651
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:11:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B69C20651
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F383D6B0005; Tue,  6 Aug 2019 04:08:32 -0400 (EDT)
+	id F36366B0005; Tue,  6 Aug 2019 04:11:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EE8906B0008; Tue,  6 Aug 2019 04:08:32 -0400 (EDT)
+	id EE6266B0008; Tue,  6 Aug 2019 04:11:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DB0AD6B000A; Tue,  6 Aug 2019 04:08:32 -0400 (EDT)
+	id DAE5B6B000A; Tue,  6 Aug 2019 04:11:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f199.google.com (mail-qt1-f199.google.com [209.85.160.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BA1846B0005
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:08:32 -0400 (EDT)
-Received: by mail-qt1-f199.google.com with SMTP id l9so77970398qtu.12
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:08:32 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id A5BC56B0005
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:11:52 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id w5so54462231pgs.5
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:11:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=U+gUm+QDpVvbOCHGsRktkVvtBBUcta0H2JMJrhhjCWw=;
-        b=htKueqySnr4v6bT+5e6VsynTMtuqqkwUU3JIA7X5vcKjo3xqt2iBBiSCvLH82BE1w2
-         NXQSOXCwlRzFfmeUt0/817xjy7Hxmhleuu876gBldyze1HpBSOFYQ5tfcfg+FPg7yKtO
-         XhkJAAfcDITClPcyC1a9gW7XK09pUNR6szubXPvZxWppSuO6u0wRqtKts75yoMM8qr+R
-         Zh6ZYzmDelg3u3kcPZ4yBwJhbZ1XLKFYQPnnczzcSR5cLinfNhGUT5jq1bOsgT0rW113
-         VJfuRmNT+hnE7kSZZ3Q4bx68RIBM+pjhXDKwm3S9L3vrHmMnDIlxRJil58EVQO5ud8C/
-         hKfQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAX9Wl7OFo+oh8NADcbYjkTBgxriNj3WavQKYYiMKeZZh4By5mb6
-	xSLBzc8VSPi/YKtYCI0ykDVRhkY7aVqbBFGvW64RVQ9q8013hUZtG7pdg4BE/xWdemolwQ85F5n
-	eFl36X6lg5XsOZ+aSCid/yUKVRfpO99hXW7rw9PJFou7lMNRHmB/LZVSDk9zeVbr2wg==
-X-Received: by 2002:a37:dc1:: with SMTP id 184mr2087527qkn.10.1565078912535;
-        Tue, 06 Aug 2019 01:08:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxvWAfvN8d8lQ7rUh+QCp0WLSEofEif1k+LkhNt9RcrPCCIIykm1Y4ACCk/y5z6cZHLGWpt
-X-Received: by 2002:a37:dc1:: with SMTP id 184mr2087503qkn.10.1565078911999;
-        Tue, 06 Aug 2019 01:08:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565078911; cv=none;
+         :subject:date:message-id;
+        bh=tKyFaqoYLiLE8zFE9yQm610ngJHuDZlGyPi6JHiIzME=;
+        b=QUdu46Yv8Hq3LBSIOHxBh6Y5GJWx78NioAc16oIR4xscBtwu/EcP/YOlI/cEXQlRrf
+         VrKoYm9xma73w9cBLyXsqCXIbHz/bSTZAZsIEvOVxHfnWc2Ss3plW4WzczIeHioUSZv0
+         S3dgT6i9nfHRW5NKkqZ3qY8Y+eyCiiXpftj/dtpMqXhYzC5PdtcxeoAWVEWiDIEFvuIT
+         3GnIRVn1yrwHhBgPqTzwiKB5hsxkzgNDbux08IPs4s6QVoF93qeRaiFdDg0XexFLCY3Z
+         ruf0zww9EJs+Vski2o8//VbuNr2pXho6IXhb0wGOApHtrkjAkz0LdtqPZWvJchF0u0X4
+         QURg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXf17aPQEQ1rYiYz1QGHaVQbC+LYHcTkfiXH4fisnp0OjbK5wQ7
+	39lNIaf+VCEfhQrRrem4oZaW0L6ZmA9JeKohkUsi18ECBZL1BeriEnwP5UC/LejdQt31XcXBOtA
+	ERDsqNjbJKbE5KdYDrZBlwTLsTXWXavQF4ZX3TIc4wjntefk113mesx7bNm+z36op9Q==
+X-Received: by 2002:a17:90a:8984:: with SMTP id v4mr1885068pjn.133.1565079112371;
+        Tue, 06 Aug 2019 01:11:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxPGxt7H27/vQ7sQkraYAUGOe9GwV6a6m2QvNEACyz7CaJLJb4GGMbSVzX2ZmVAzb2CsF+k
+X-Received: by 2002:a17:90a:8984:: with SMTP id v4mr1885032pjn.133.1565079111690;
+        Tue, 06 Aug 2019 01:11:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565079111; cv=none;
         d=google.com; s=arc-20160816;
-        b=L5XM5p63Pl1q2X3c2KniU5RTIJjUpb7ipIUj/FqrAMyVju8COLdMhcrPqcRnViY36X
-         A0H615BqbGUKumv2ZzVn7pcozcKBX0bwt8c93pPsDEHax+ZxmZtwb25R36MOfSmURmvj
-         nH1m8O5VX1tTJce/txxCJl8fWiYC9FsGDCtv7m352Rm6DIoj23fERkYej1if4p1eIGYR
-         dwk9RMYVv+XK7r2b31WIMtOfHm9vBt+YQnkjyM772rkZfEVEJyDHC2JdEBVzXLuFRI1n
-         vb7KbmPYbNfzV0QjjXztVXiDt7eGTx83PTTlH1XbYV4QO9qvkdCQubDqI2D5dh4d5Ikj
-         lJeA==
+        b=BgnBR1u6Zz/Y5f8I6nfkBVaXfsSq4uA3f2eM19UEc6Zb5r1GN8viKHuAOaOXwa2J2V
+         ClmUUtCJnRfwR0BiNH1RDZcnQBNbetxl9SNCTXjA7dzG03HKIJ8FWIapMMFtyxYm2uL6
+         JvF4lfduVUR46dGGLaEtqiZuXIIeEKFp+CVs1kmrk+CDK9orABDpq5zmBxCB4MSe4bzC
+         SJopkNYt79EkHigAe2NHjjkFBkjYVhYp0CL7u9gqfj4B5cMTvBZR4yjI/GmYDM0xCHmL
+         E3hHkhjKMmArN1XtRSotKCxHeDTDb0zdqaLFT300AWnPDo5gtKb50JBotCUGwk9odJf4
+         2KXQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=U+gUm+QDpVvbOCHGsRktkVvtBBUcta0H2JMJrhhjCWw=;
-        b=DsNrzv4gkTMVRTdkHlPh16LDcVHBomebjPQ2mADksTIE6YAaBeqPcAtUMrQEZDd87E
-         dhfTNkz7IPUBFLKK5HoZ4a3y4Z0USGe7zjh4PJd3PpUVcz4WTPm41FhDhq1vBnjRKly0
-         j/ntOpDPfQM5HuY1KFXiFknCYxVEkpk6eZtzNVY1eBctcrzvD17swEIYYxTySmawqWa4
-         b2/Ep1XRoQdH3uwVg2nEF+av2pJJxUbVHbLzRRXwYMcwRSdU9+rOIfxzLt5ex56ZKnno
-         +JEPlYeCT2lPFVfFL4Hq9bG3TDBfuUaVgmuPJqENTXyhK1U7mjHzMk1BhDMKHhsxmGPw
-         WHsg==
+        h=message-id:date:subject:cc:to:from;
+        bh=tKyFaqoYLiLE8zFE9yQm610ngJHuDZlGyPi6JHiIzME=;
+        b=0fUswuL3tszpSzaDmjIG5cVTch/IrqmVYZRDjpECtcbUT5fIcuM+rddEj9VYBfUUp+
+         WncsSvrctyKNko0y1kcXtEeF88a3RFowlDktzM57wHKjMKw+1FZ0wWGO4ujVyp+TvxPE
+         t3wOFKekaNXBZnC1SVVEI1Kjm/NOFcYmMO/Iud/c0Z5lGUZUeSXzUZBza1hua86+r5o0
+         eLNsjcLIojbwoNsr/6AgZBv6jzI+9bAY2AMVndCnBNfuI2jchPt8QdpIUubHL2kEpPc2
+         UMGvnzq4UvGrc5rb49K7W/0V2068U0TdCyJ9WGrCLae+jcHGEn05g0nH61dFOCx5FxU5
+         UtOw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j4si51224856qtb.288.2019.08.06.01.08.31
+       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id 24si43691938pfp.107.2019.08.06.01.11.51
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 01:08:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 06 Aug 2019 01:11:51 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 351893CA18;
-	Tue,  6 Aug 2019 08:08:31 +0000 (UTC)
-Received: from t460s.redhat.com (ovpn-117-71.ams2.redhat.com [10.36.117.71])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 4A1F65D704;
-	Tue,  6 Aug 2019 08:08:27 +0000 (UTC)
-From: David Hildenbrand <david@redhat.com>
-To: linux-kernel@vger.kernel.org
+       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga003.jf.intel.com ([10.7.209.27])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Aug 2019 01:11:50 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,352,1559545200"; 
+   d="scan'208";a="176561599"
+Received: from richard.sh.intel.com (HELO localhost) ([10.239.159.54])
+  by orsmga003.jf.intel.com with ESMTP; 06 Aug 2019 01:11:48 -0700
+From: Wei Yang <richardw.yang@linux.intel.com>
+To: akpm@linux-foundation.org,
+	mhocko@suse.com,
+	vbabka@suse.cz,
+	kirill.shutemov@linux.intel.com
 Cc: linux-mm@kvack.org,
-	David Hildenbrand <david@redhat.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	"Rafael J. Wysocki" <rafael@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Michal Hocko <mhocko@suse.com>,
-	Oscar Salvador <osalvador@suse.de>
-Subject: [PATCH v1] drivers/base/memory.c: Fixup documentation of removable/phys_index/block_size_bytes
-Date: Tue,  6 Aug 2019 10:08:26 +0200
-Message-Id: <20190806080826.5963-1-david@redhat.com>
-MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Tue, 06 Aug 2019 08:08:31 +0000 (UTC)
+	linux-kernel@vger.kernel.org,
+	Wei Yang <richardw.yang@linux.intel.com>
+Subject: [PATCH] mm/mmap.c: refine data locality of find_vma_prev
+Date: Tue,  6 Aug 2019 16:11:23 +0800
+Message-Id: <20190806081123.22334-1-richardw.yang@linux.intel.com>
+X-Mailer: git-send-email 2.17.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Let's rephrase to memory block terminology and add some further
-clarifications.
+When addr is out of the range of the whole rb_tree, pprev will points to
+the biggest node. find_vma_prev gets is by going through the right most
+node of the tree.
 
-Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-Cc: "Rafael J. Wysocki" <rafael@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Oscar Salvador <osalvador@suse.de>
-Signed-off-by: David Hildenbrand <david@redhat.com>
+Since only the last node is the one it is looking for, it is not
+necessary to assign pprev to those middle stage nodes. By assigning
+pprev to the last node directly, it tries to improve the function
+locality a little.
+
+Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
 ---
- drivers/base/memory.c | 11 ++++++-----
- 1 file changed, 6 insertions(+), 5 deletions(-)
+ mm/mmap.c | 7 +++----
+ 1 file changed, 3 insertions(+), 4 deletions(-)
 
-diff --git a/drivers/base/memory.c b/drivers/base/memory.c
-index cb80f2bdd7de..790b3bcd63a6 100644
---- a/drivers/base/memory.c
-+++ b/drivers/base/memory.c
-@@ -116,10 +116,8 @@ static unsigned long get_memory_block_size(void)
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 7e8c3e8ae75f..284bc7e51f9c 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2271,11 +2271,10 @@ find_vma_prev(struct mm_struct *mm, unsigned long addr,
+ 		*pprev = vma->vm_prev;
+ 	} else {
+ 		struct rb_node *rb_node = mm->mm_rb.rb_node;
+-		*pprev = NULL;
+-		while (rb_node) {
+-			*pprev = rb_entry(rb_node, struct vm_area_struct, vm_rb);
++		while (rb_node && rb_node->rb_right)
+ 			rb_node = rb_node->rb_right;
+-		}
++		*pprev = rb_node ? NULL
++			 : rb_entry(rb_node, struct vm_area_struct, vm_rb);
+ 	}
+ 	return vma;
  }
- 
- /*
-- * use this as the physical section index that this memsection
-- * uses.
-+ * Show the first physical section index (number) of this memory block.
-  */
--
- static ssize_t phys_index_show(struct device *dev,
- 			       struct device_attribute *attr, char *buf)
- {
-@@ -131,7 +129,10 @@ static ssize_t phys_index_show(struct device *dev,
- }
- 
- /*
-- * Show whether the section of memory is likely to be hot-removable
-+ * Show whether the memory block is likely to be offlineable (or is already
-+ * offline). Once offline, the memory block could be removed. The return
-+ * value does, however, not indicate that there is a way to remove the
-+ * memory block.
-  */
- static ssize_t removable_show(struct device *dev, struct device_attribute *attr,
- 			      char *buf)
-@@ -455,7 +456,7 @@ static DEVICE_ATTR_RO(phys_device);
- static DEVICE_ATTR_RO(removable);
- 
- /*
-- * Block size attribute stuff
-+ * Show the memory block size (shared by all memory blocks).
-  */
- static ssize_t block_size_bytes_show(struct device *dev,
- 				     struct device_attribute *attr, char *buf)
 -- 
-2.21.0
+2.17.1
 
