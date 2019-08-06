@@ -2,192 +2,186 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AE4D0C433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:12:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 746EDC31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:14:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 67F4020B1F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:12:14 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2E56A20B1F
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:14:51 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="dzc5ZzSl"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 67F4020B1F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="KPa6QKnx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2E56A20B1F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 141856B000E; Tue,  6 Aug 2019 07:12:14 -0400 (EDT)
+	id A8D856B000D; Tue,  6 Aug 2019 07:14:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0F2C26B0010; Tue,  6 Aug 2019 07:12:14 -0400 (EDT)
+	id A3E146B000E; Tue,  6 Aug 2019 07:14:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F236C6B0266; Tue,  6 Aug 2019 07:12:13 -0400 (EDT)
+	id 92CF56B0010; Tue,  6 Aug 2019 07:14:50 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A0ABE6B000E
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 07:12:13 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id n3so53617689edr.8
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 04:12:13 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 5E2186B000D
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 07:14:50 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id e20so55703325pfd.3
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 04:14:50 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=IVUZ3vCUTZaoNKcACCnsP7M9ScGcHtHaH8K8c7i8HGE=;
-        b=e3rPS72OccER/k9PnCFR9+Q3nj657xerMswLW+a1p7T+oO23JFCVfO+26YVaV6yK5h
-         hbXCz29805R5OHz7oM9+sACIWIGTaYygN5ShgM97DRa/tqKMk9+34cN4pxvMrBrCkgwp
-         BnZyVocsHVTlcFMQJ9/EUof/7yJdA8SrMH+AVQ+DKydMPQxhiV/EghhIRqlQV13DwBep
-         cmjlFuDEiLQz0DpMs9W6WOFrtLgSDBJ+KxGFlNbAdYXGIuCa/8btWncrPD8c4iwcgOBu
-         qXCIu1K28nL3upz3yVNfkN+fwhWgphGhm+/fYHLiEY0XsqGkRWMmf2wKfet3dJW8Jov7
-         5f8A==
-X-Gm-Message-State: APjAAAVUG0RjvE8ZhriJuxwvvq8sO7/Y3g/wwvJ8OcKJDEEBzQ3yhyqE
-	RlonKJscxcNGT94zrwqxFvAk2OEal9GWEpn/4F/Puvap+KsUNdOjFMM/M/Ar9vy4ktKWeU51A2n
-	yOGa6ALK8iT3LBi5BjjvOsUE5gzONM/2EXEBs24H5BNqwitg4yUMFl7jouEFPDoPZng==
-X-Received: by 2002:a50:b566:: with SMTP id z35mr3228123edd.129.1565089933127;
-        Tue, 06 Aug 2019 04:12:13 -0700 (PDT)
-X-Received: by 2002:a50:b566:: with SMTP id z35mr3228063edd.129.1565089932329;
-        Tue, 06 Aug 2019 04:12:12 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565089932; cv=none;
+        bh=KvkNmNHsbEsshqDq0R83F3R8IDaL+JW1sWF+nvR0WDc=;
+        b=LMS45erX+yk2ACXMD6n8tT7v/ZF2QfmWWsgvQiBAJ/mPW9es8vLZnzSlEau7f7bmnz
+         NjlPUrl2wTSVCiQivRPWfeTJYzYEW8ujSzxZYP5Xu9uvvkcdwJhWtxzP53mPK59GWH6k
+         ye7KHWYGUbnXnSMxsRVcqSdBmKW5KJlHfnnJgunnGXCfmyaPsO+maZiUfkjhRiQgQir4
+         X7PV7Kh+MMCyfEWsIzydF/3lMNU5vVKJmAszwJzwwHslagrDSs2YhuNoUoOBSoeaFA9d
+         DwmeelLzcPczPlpJPlm//p8BdCcycvLxwNg5saZnI5T0nVJnsQ4rVXDu+dP3Nq7+67sc
+         iwaA==
+X-Gm-Message-State: APjAAAXOjtdBEX+Mf6zphpDR+cP2SthDWdwJ5HmRz3V4e7MsuzojNhM4
+	yacJKApooVY1afHhfRvhAGRZMuEnOwA+EuLES5diC52h5NWBnKTNZLkB1YBPYaGSZTiHEX4Wpsv
+	CTiAiFX6GH7SloADlV74sprlA+5GDJJDuhja7zDgrH17UU/vNHtnDSDB9hayhLoMHXA==
+X-Received: by 2002:a17:902:b70c:: with SMTP id d12mr2564044pls.314.1565090090067;
+        Tue, 06 Aug 2019 04:14:50 -0700 (PDT)
+X-Received: by 2002:a17:902:b70c:: with SMTP id d12mr2564000pls.314.1565090089359;
+        Tue, 06 Aug 2019 04:14:49 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565090089; cv=none;
         d=google.com; s=arc-20160816;
-        b=ucX/oFIKmFkMpC5mi9oXEq14Mcf7sTp+HePjSY2SChfqvShqXwaOzywGXnwPHnKnew
-         D6bOtWZaIxQmC1olYeK9aLVRfdfs03ifa4uHmTRkmssLmoZFLUzv4S8Bk4v/vOTyhssZ
-         FCaWCHbC96ns3iG+DP7M7A8nVop5TLW7wnFwnAg/ttG+0LD3NjuQz4wr/SKUZfR5iNbr
-         tCJEIi/QX7SMXnnr66JPwST2rznW2W8EULDKWrepBpMS80a7+uGH77riG7Svr8lQAb9F
-         hfsg78L+v5/+9jmv6VX3dg56z+b/Ox3hqknzVckk93SflnrbcXXZyoc7SyNWzjQvHuJu
-         jzTw==
+        b=Elgt7SeeBgNEnEI4ZazKiK5Pen3S9B2JnQoLB242zCXRaKZpctKmJITk7XoIoZV0o0
+         0SIo3Q71SR7qmfd+e2rSJEXN9d0YpsCAsclnHYLfkes4HjKrP1dpQz3jo8LUhCN9ZI9w
+         qPHoU8EluQQVFD2J8D07KH3bZ5ShUungfPrZTrwdOohPa9qq6PrtnFIQsh9c2D4sq934
+         BirFf7fRgP1oxtb5+z2uSgiqJrUPDcHjS9AQlFpuBRphpHIGege63RrgiAcwByZG+B5I
+         J12NTrb/BgWgjA+k1XS71+MnySy5FANCkdXz+r0XIHgnRj7BGLTypD7BNAUbwwrArxVK
+         DQEQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=IVUZ3vCUTZaoNKcACCnsP7M9ScGcHtHaH8K8c7i8HGE=;
-        b=r6a1mNyoQuY01X1wSrea1aJSSk1+rITj8dq0R+3uKcrWsLksZLtBNa6WCnGxEdR98v
-         ac5gIB4+idwN4/cKW0/H6gavnH/A6xtT4YSgLRiA7LYj8m9gz/MXbmIq72T/IkljI0r8
-         PGkCy0bg4ZnRajB1fSs6yLqcQNaO2fXeKRi3mV/Ic4Oa4dcVBKeINiNAJ0A9mfENfWM7
-         7gXher0Kb/Mg8jHBlqkl6fWNdo7TpUa/JDWv23OMwxSpMBYtJkz0Avn+N8mgjgNh/hPu
-         9AfkTbnSV3L00T1GMkxPeVy6+7q45P2QAdcoUB/nir/Y6c8bAujaZuUuqv75VNH8sil2
-         e5nA==
+        bh=KvkNmNHsbEsshqDq0R83F3R8IDaL+JW1sWF+nvR0WDc=;
+        b=nT71p3Zd+cH4qDaMu7y6uz/qo1IHHjSGAOHH0amKzjEEV6Tj70Isg9ThkZr83ih2N/
+         ELnTSpkXpKUAdi65jk0C8+Sd6vSSy7viBkJwUCuORmLKSIJ9DtgSLW3HnQfQZbPmopv3
+         lq4X8TBjh70/jGBBO0E9exBYupq/Vwb1RtUrXGqseEc0RXWRhd57IHA2lSCBxW91WIeV
+         flUrxlz1LGXwggsg5qyR6fULSYZDrF8or7r03UPxkVwn5XAn9Gvn/ah1oCdd5u4SLPca
+         LyGnfcT2ed+tWXU9atINhPG7eY6AHHCFDauWZYJcUErbGALxUm0g4EnSGQoIsdxgcJsR
+         e6Ow==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=dzc5ZzSl;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=KPa6QKnx;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id z2sor67284563edb.16.2019.08.06.04.12.12
+        by mx.google.com with SMTPS id l64sor60306909pgd.60.2019.08.06.04.14.49
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 06 Aug 2019 04:12:12 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+        Tue, 06 Aug 2019 04:14:49 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=dzc5ZzSl;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=KPa6QKnx;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        d=joelfernandes.org; s=google;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=IVUZ3vCUTZaoNKcACCnsP7M9ScGcHtHaH8K8c7i8HGE=;
-        b=dzc5ZzSlafWAy4fTC2ybrGXSCublaxnDUYbea0pzEG0z1VVySMMflBJVhE69+xqsxQ
-         ESDT9/Cp7bfZI3bAbHXvis/zbWvnBL2Tt5UimOA9lpTrAdZc/C2ry9LQNpbmWXzDlqEI
-         Uv2TeJm+Zisvbj8s0NnelXo1te8MM6RBy56cFCUBrFEBGLwOhQJX5pQ5s/Fi5zOv1P3N
-         vxUj4YVvG++IvGchx4EZYQq6T2UHYO58Gx0S8bgicbKPJVYzkmuJrWWXexEv9O9yPDpe
-         TLWBH3Igl7oDCOQj92KYngp53w9jybNVCctzRFInXAgzw/hzdUgcgskgBuK259f86s2x
-         WiOQ==
-X-Google-Smtp-Source: APXvYqztbyBgleEnQ54uuSvw10HgZnTrh29ZTTFUfYTHSJDyykKw0nXSNOlE5//gAzIYtisxx3tk1Q==
-X-Received: by 2002:a50:f98a:: with SMTP id q10mr3146171edn.267.1565089931994;
-        Tue, 06 Aug 2019 04:12:11 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id c48sm20888241edb.10.2019.08.06.04.12.11
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 04:12:11 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id CC6D01003C7; Tue,  6 Aug 2019 14:12:10 +0300 (+03)
-Date: Tue, 6 Aug 2019 14:12:10 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: William Kucharski <william.kucharski@oracle.com>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Song Liu <songliubraving@fb.com>,
-	Bob Kasten <robert.a.kasten@intel.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Chad Mynhier <chad.mynhier@oracle.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Johannes Weiner <jweiner@fb.com>,
-	Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v3 2/2] mm,thp: Add experimental config option
- RO_EXEC_FILEMAP_HUGE_FAULT_THP
-Message-ID: <20190806111210.7xpmjsd4hq54vuml@box>
-References: <20190731082513.16957-1-william.kucharski@oracle.com>
- <20190731082513.16957-3-william.kucharski@oracle.com>
- <20190801123658.enpchkjkqt7cdkue@box>
- <c8d02a3b-e1ad-2b95-ce15-13d3ed4cca87@oracle.com>
- <20190805132854.5dnqkfaajmstpelm@box.shutemov.name>
- <19A86A16-B440-4B73-98FE-922A09484DFD@oracle.com>
+        bh=KvkNmNHsbEsshqDq0R83F3R8IDaL+JW1sWF+nvR0WDc=;
+        b=KPa6QKnxrNTQGpt5Be94ogXIM0tXRuHNl0Aci8ksuKqx+9Lg0NCMbyYGZ0PixtmM1F
+         9+/1CJaHeIjkQbsXxRId0/VfGyWslK1AzTbonPe21m7278Ic8LGGTroo8d6GKLHYwRIn
+         kQu/hhkwu4/wt6irUWyPejLfppauPTVejq9Ns=
+X-Google-Smtp-Source: APXvYqy6yyBYEGtjUPHZ5dr0UVaP823zcPxj13PdfdTPtKDAgMLJjNwSEplUX7wpUqySjdepMyEjAg==
+X-Received: by 2002:a63:1749:: with SMTP id 9mr2661368pgx.0.1565090088827;
+        Tue, 06 Aug 2019 04:14:48 -0700 (PDT)
+Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
+        by smtp.gmail.com with ESMTPSA id z13sm87648050pfa.94.2019.08.06.04.14.47
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 06 Aug 2019 04:14:47 -0700 (PDT)
+Date: Tue, 6 Aug 2019 07:14:46 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Robin Murphy <robin.murphy@arm.com>,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
+	fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>, kernel-team@android.com,
+	linux-api@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+	Mike Rapoport <rppt@linux.ibm.com>, minchan@kernel.org,
+	namhyung@google.com, paulmck@linux.ibm.com,
+	Roman Gushchin <guro@fb.com>,
+	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
+	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
+Subject: Re: [PATCH v4 3/5] [RFC] arm64: Add support for idle bit in swap PTE
+Message-ID: <20190806111446.GA117316@google.com>
+References: <20190805170451.26009-1-joel@joelfernandes.org>
+ <20190805170451.26009-3-joel@joelfernandes.org>
+ <20190806084203.GJ11812@dhcp22.suse.cz>
+ <20190806103627.GA218260@google.com>
+ <20190806104755.GR11812@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <19A86A16-B440-4B73-98FE-922A09484DFD@oracle.com>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <20190806104755.GR11812@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 05, 2019 at 09:56:45AM -0600, William Kucharski wrote:
-> >> I don't really care if the start of the VMA is suitable, just whether I can map
-> >> the current faulting page with a THP. As far as I know, there's nothing wrong
-> >> with mapping all the pages before the VMA hits a properly aligned bound with
-> >> PAGESIZE pages and then aligned chunks in the middle with THP.
+On Tue, Aug 06, 2019 at 12:47:55PM +0200, Michal Hocko wrote:
+> On Tue 06-08-19 06:36:27, Joel Fernandes wrote:
+> > On Tue, Aug 06, 2019 at 10:42:03AM +0200, Michal Hocko wrote:
+> > > On Mon 05-08-19 13:04:49, Joel Fernandes (Google) wrote:
+> > > > This bit will be used by idle page tracking code to correctly identify
+> > > > if a page that was swapped out was idle before it got swapped out.
+> > > > Without this PTE bit, we lose information about if a page is idle or not
+> > > > since the page frame gets unmapped.
+> > > 
+> > > And why do we need that? Why cannot we simply assume all swapped out
+> > > pages to be idle? They were certainly idle enough to be reclaimed,
+> > > right? Or what does idle actualy mean here?
 > > 
-> > You cannot map any paged as huge into wrongly aligned VMA.
-> > 
-> > THP's ->index must be aligned to HPAGE_PMD_NR, so if the combination VMA's
-> > ->vm_start and ->vm_pgoff doesn't allow for this, you must fallback to
-> > mapping the page with PTEs. I don't see it handled properly here.
+> > Yes, but other than swapping, in Android a page can be forced to be swapped
+> > out as well using the new hints that Minchan is adding?
 > 
-> It was my assumption that if say a VMA started at an address say one page
-> before a large page alignment, you could map that page with a PAGESIZE
-> page but if VMA size allowed, there was a fault on the next page, and
-> VMA size allowed, you could map that next range with a large page, taking
-> taking the approach of mapping chunks of the VMA with the largest page
-> possible.
-> 
-> Is it that the start of the VMA must always align or that the entire VMA
-> must be properly aligned and a multiple of the PMD size (so you either map
-> with all large pages or none)?
+> Yes and that is effectivelly making them idle, no?
 
-IIUC, you are missing ->vm_pgoff from the picture. The newly allocated
-page must land into page cache aligned on HPAGE_PMD_NR boundary. In other
-word you cannout have huge page with ->index, let say, 1.
+That depends on how you think of it. If you are thinking of a monitoring
+process like a heap profiler, then from the heap profiler's (that only cares
+about the process it is monitoring) perspective it will look extremely odd if
+pages that are recently accessed by the process appear to be idle which would
+falsely look like those processes are leaking memory. The reality being,
+Android forced those pages into swap because of other reasons. I would like
+for the swapping mechanism, whether forced swapping or memory reclaim, not to
+interfere with the idle detection.
 
-VMA is only suitable for at least one file-THP page if:
+This is just an effort to make the idle tracking a little bit better. We
+would like to not lose the 'accessed' information of the pages.
 
- - (vma->vm_start >> PAGE_SHIFT) % (HPAGE_PMD_NR - 1) is equal to
-    vma->vm_pgoff % (HPAGE_PMD_NR - 1)
+Initially, I had proposed what you are suggesting as well however the above
+reasons made me to do it like this. Also Minchan and Konstantin suggested
+this, so there are more people interested in the swap idle bit. Minchan, can
+you provide more thoughts here? (He is on 2-week vacation from today so
+hopefully replies before he vanishes ;-)).
 
-    This guarantees right alignment in the backing page cache.
+Also assuming all swap pages as idle has other "semantic" issues. It is quite
+odd if a swapped page is automatically marked as idle without userspace
+telling it to. Consider the following set of events: 1. Userspace marks only
+a certain memory region as idle. 2. Userspace reads back the bits
+corresponding to a bigger region. Part of this bigger region is swapped.
+Userspace expects all of the pages it did not mark, to have idle bit set to
+'0' because it never marked them as idle. However if it is now surprised by
+what it read back (not all '0' read back). Since a page is swapped, it will
+be now marked "automatically" as idle as per your proposal, even if userspace
+never marked it explicity before. This would be quite confusing/ambiguous.
 
- - *and* vma->vm_end - round_up(vma->vm_start, HPAGE_PMD_SIZE) is equal or
-   greater than HPAGE_PMD_SIZE.
+I will include this and other information in future commit messages.
 
-Does it make sense?
+thanks,
 
-> 
-> >> This is the page that content was just read to; readpage() will unlock the page
-> >> when it is done with I/O, but the page needs to be locked before it's inserted
-> >> into the page cache.
-> > 
-> > Then you must to lock the page properly with lock_page().
-> > 
-> > __SetPageLocked() is fine for just allocated pages that was not exposed
-> > anywhere. After ->readpage() it's not the case and it's not safe to use
-> > __SetPageLocked() for them.
-> 
-> In the current code, it's assumed it is not exposed, because a single read
-> of a large page that does no readahead before the page is inserted into the
-> cache means there are no external users of the page.
-
-You've exposed the page to the filesystem once you call ->readpage().
-It *may* track the page somehow after the call.
-
--- 
- Kirill A. Shutemov
+ - Joel
 
