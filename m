@@ -2,174 +2,209 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 341C2C31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 10:45:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CA176C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 10:45:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D4ECF20C01
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 10:45:19 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8056020818
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 10:45:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="dCNqxHY8"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4ECF20C01
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="BK0x5edz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8056020818
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6863F6B0003; Tue,  6 Aug 2019 06:45:19 -0400 (EDT)
+	id 107006B0005; Tue,  6 Aug 2019 06:45:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6370F6B0005; Tue,  6 Aug 2019 06:45:19 -0400 (EDT)
+	id 092226B0006; Tue,  6 Aug 2019 06:45:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5255A6B0006; Tue,  6 Aug 2019 06:45:19 -0400 (EDT)
+	id E9B0C6B0008; Tue,  6 Aug 2019 06:45:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 040C36B0003
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 06:45:19 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id o13so53597828edt.4
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 03:45:18 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id B670C6B0005
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 06:45:57 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id i27so55645632pfk.12
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 03:45:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=mLxh1xnnQMfeNrHf0aYqKYeviGu5yN55vYMo0/wqLZk=;
-        b=g1GzfnHM0fD0qEs5If7woBQffswTZKslLMxovU+tTnh8e6JwFqXx5E5gtlZzkpaVGy
-         fLdtt0X9OyCZJFtYBhZSNIk6yZt3lzZ0x3oywfwmsBsO2cu9Te8Yd8m4j7zNB8+RB4VH
-         eHYxclCDZnuj0tHXiu82RUJwW7i7GfWrSDRlyGMNyjTa2zYnZW5nnz4WcLkJLu8H8SlJ
-         HfxUvmby+kOXHMHjTqFHk8LRJNymnxfYCsOrYMXhfJzclya3MY9VWAMQ1oOc4ATdIh8z
-         iTYWEeICgM+sVWK5Dlj6lMv9H6l4kUlG/wHz4sS4wXiAfU+qkCNSWSsNpArwkKOlMY0u
-         7GTA==
-X-Gm-Message-State: APjAAAU8Vq9kZNGxxo1fiOQJYDsdeoHWAX3Dicbj4LuQASzOpOrs7+Kf
-	SyBoDp8gQo92MtN7oi9P1YDOGu4VTOme1JlocExBDCc0EujKLYnRDqjcCFR+xE4XL4Ybk+NPnAM
-	wFlj2z0EhUXOV+KE7upiaZ1v/3qphiSi8EysBhDsfij04WB/TQ21KP4X6tui3VXo38g==
-X-Received: by 2002:a17:906:1fd4:: with SMTP id e20mr2494151ejt.242.1565088318578;
-        Tue, 06 Aug 2019 03:45:18 -0700 (PDT)
-X-Received: by 2002:a17:906:1fd4:: with SMTP id e20mr2494099ejt.242.1565088317792;
-        Tue, 06 Aug 2019 03:45:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565088317; cv=none;
+        bh=ABKgADdiGa23iy+5xy09f6OBQqR3I/07f0qdbQrp2Ug=;
+        b=ermsDNiAZTAThcnPXaoy2ZaXv7fXUACU7V5QmgGY3QeDf64qKCUQUg1yqKss7kYs3y
+         zFqYFQo/aK70M8cNdls5BN9g+oZun1cPFQl29tUDml8iFrzjROvN3pWWiKGiwCdYrAU2
+         5vpFTSWB6zX9hiYhkbqw8OGEchE2aSNnBj6MHQ/2rUbxN2gp//qC0e4bypd95W8/R2gN
+         mrBvv/JYiHRRIN7aclYMlY1qIJ+yftSLy7uxmPjlIgVLnnO9W9iUjFUi1IvcaiA5vXco
+         VbYpXM3O2KzI4yRj3BfMEHeFKedz129apqWs4DE47Fo5QFvix1dX5w1TTPQQrIwJ0rgZ
+         saxg==
+X-Gm-Message-State: APjAAAUd0PSvdaGtcPdIg/kPU+5JqZm6iGIe6e0xJvltseQMdcR943rF
+	QoG4nErjxRDY2AnKz4Fvyp0+omw1hmn607sLE1Nt5hJQlrM+GJrrj35wFhpTtxWWtIA2dx0dcbd
+	bf/8jtvzf/Mt+XfjLrMfS4b0OOsW3Tijmklw5GGPw6gv+K3vEG+JtismCYE9TY0gneA==
+X-Received: by 2002:a17:902:381:: with SMTP id d1mr2482515pld.331.1565088357161;
+        Tue, 06 Aug 2019 03:45:57 -0700 (PDT)
+X-Received: by 2002:a17:902:381:: with SMTP id d1mr2482475pld.331.1565088356528;
+        Tue, 06 Aug 2019 03:45:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565088356; cv=none;
         d=google.com; s=arc-20160816;
-        b=N5xKl2s2XjR8rX7XRHvnBrxNxtKzRotQmhmyNKeh1JBYd2eY0KstkuK3u5TIuk5kr0
-         yR1Wqz0ExIpI8VLwst7V4fUGxaIJLJOFn1yId+3F7iPvisvU4jfBbEQXSY//htrKMApp
-         cHL4XEDfqTH9x6Tedjt+vSE1eZARUx7KOfx/SI19OaZh43UBjNOa1oOm3wMEaQ6Qlb2c
-         IpDCCkMCO6iFjispNYFuUJ6cDDUg10tvKzrZ7Tnkgn3unPNHDm48/WN5Hdwm2gt7zjBY
-         eciCWskMa8O+Hw20HwN0fH0EFsUci428mTG74skEN78afz2HTkcmtVjeV8Ze8xovpMIr
-         +3JA==
+        b=kMo6SYKwBHqogQiZEHW6CRP5LsnUfM9N/dbQECaunm8sRBTCuSt/YCpU+CxjvtdM5B
+         5+yiUsiGCaHWpOQ+F5O0musXJl75zPC+MYVcdbm6f7JlDgiT0eCcZjeN8Y/34UCdVJQ7
+         ecf88PcdRIE/5TbxqsQp9Mcfw40RjKeb/5ie8PInaz+vRqihcxRFNPvSQ0WpxNk8n9qj
+         TfTXTxcGVJcp7XEwm4sIBuqvxLajEIX9ilpnZ8TFUmZIJfAd4H1lqc6yE0VEpL8XWiRt
+         9sTO6aU2+ddWKPxZQrMy9PRjt56L9plV8F3D/HmHXf5/PlQEwSYIMRuOiVWUAxIU5JwB
+         eN4g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=mLxh1xnnQMfeNrHf0aYqKYeviGu5yN55vYMo0/wqLZk=;
-        b=m0kMUaF8tHn6Y9uwssPtI827vqKbUm79ViZfp3J636QNw3ASlDcuU6GxiafeehyfGY
-         9TADK6r6yp89KAPpYM0ZRpBw4qJmV2wv8gCTQys7r1ho/wmYJjgE/s56AZVGxAC6fEGW
-         BxTsq6rVKXC8iHNwwmp2iZy9zlviZYuu6UgBQp/ajn6QFKzhnliYdbXABcRN6f9V/5H8
-         jDJehhgMwM0/aVmKUXDjLqJZd8hv8NAWR0qQ/fXMp06Ursld7UtOJbzcvChPbqnqha30
-         neuDajghzdmUjhuRrt5gHHQcGO1KUgAK25b/XSj8r9EWeqjUHjx6wI+RJdjjQyfivbL7
-         W5hA==
+        bh=ABKgADdiGa23iy+5xy09f6OBQqR3I/07f0qdbQrp2Ug=;
+        b=Vd9fkz4k0ixWlFzUNn6/vTzsdl6NiuC76R+p5PjQwg/vGKwyDjzxj+CT7mSj7KKVBU
+         80ARDE8vMySNGPuKY0XDGZXTUUNRKJS/CQj5gvi60DFqNlHmsWtqdBic+CIz7dlD2mPN
+         lWe3nRJe9LPB5kV/bZgFeb/CB2PPKXyCSO/Buht0I73mndFK1ssmsMYWL4rHwPum5ywK
+         xZXiOCZAO+hpVgY3cUmVjfmBuGFNXtIFbHAN4Ih364ZVDy1Oe8nvO4B3ldBpBM4FtFpd
+         3gAxTwPadBMqXGXPkUWhZ39aZrsxOLawGFCLhcGvBGfH4oblc+SkXJC5uJz3wYFh9jua
+         S8LA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=dCNqxHY8;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=BK0x5edz;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id k24sor16694980ejk.18.2019.08.06.03.45.17
+        by mx.google.com with SMTPS id a23sor67226529pfa.54.2019.08.06.03.45.56
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 06 Aug 2019 03:45:17 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+        Tue, 06 Aug 2019 03:45:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=dCNqxHY8;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=BK0x5edz;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        d=joelfernandes.org; s=google;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=mLxh1xnnQMfeNrHf0aYqKYeviGu5yN55vYMo0/wqLZk=;
-        b=dCNqxHY8plIDmYXpsy08QCX+iLvxPKZniVm+ncSZ3Buz54doFAW+0MiXkxSfa6aZ8N
-         jTXJVTUqheLEyn7aW+R/fuDvBVdUs6Xh1fwu7j26vjbyzEwKEDlhCUidQu4KmRqzZOVa
-         oDhQ+hqdK6ua5BH0xjQgzzSY2YytIfxpQZbUbhHRfBt+5myVtlvcOTS0tg2Us6YrayDX
-         spYFcJQpsTWAHLAWlWQ4c+a7j4DzTav2yKnrSBmM6urDLun3EPrbW9LTSp94TCS/Nqy6
-         yUFovGgvKMukOtEtX/dZWO89MRVjVrn4dfNeI+KJg31PeTSFYAKqz3WMNOK0C1qeIyJD
-         lgzQ==
-X-Google-Smtp-Source: APXvYqz/KhBA+ZSNGOJbjZoeKD/ak+4bM/swWsBeb0rTxPioOaajmtlsxRIAU93xegZHr6XtYLs1kQ==
-X-Received: by 2002:a17:906:340e:: with SMTP id c14mr2544571ejb.170.1565088317410;
-        Tue, 06 Aug 2019 03:45:17 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id e43sm20620511ede.62.2019.08.06.03.45.16
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 03:45:16 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id 3AED71003C7; Tue,  6 Aug 2019 13:45:16 +0300 (+03)
-Date: Tue, 6 Aug 2019 13:45:16 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Qian Cai <cai@lca.pw>
-Cc: akpm@linux-foundation.org, arnd@arndb.de,
-	kirill.shutemov@linux.intel.com, mhocko@suse.com,
-	linux-mm@kvack.org, linux-arch@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] asm-generic: fix variable 'p4d' set but not used
-Message-ID: <20190806104516.yvioe2t4w2vwvs64@box>
-References: <1564774882-22926-1-git-send-email-cai@lca.pw>
+        bh=ABKgADdiGa23iy+5xy09f6OBQqR3I/07f0qdbQrp2Ug=;
+        b=BK0x5edz5Iheer/fK6xR02+EYpWEe73+fBNaVu3psDyEfFgQR4iTDEjMX3llLyVbBQ
+         oo5c2wtKKMdHq+s0dbGvvCrA28tZJ7WgRbNvmF9B9TCPhzQEMI365I16VRvzSe8CiyqZ
+         ulIdft17U/LPUUnWy2+R0724GxrzxbZjJPUj8=
+X-Google-Smtp-Source: APXvYqyKhAOOvSnRzmdX9OiAK7Cu7h4b/c73qpWbsn3JUV5APW6ELiBP2MjwevD8QijB6PWnNqvwJA==
+X-Received: by 2002:aa7:90d4:: with SMTP id k20mr2919746pfk.78.1565088356112;
+        Tue, 06 Aug 2019 03:45:56 -0700 (PDT)
+Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
+        by smtp.gmail.com with ESMTPSA id b126sm126571952pfa.126.2019.08.06.03.45.54
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Tue, 06 Aug 2019 03:45:55 -0700 (PDT)
+Date: Tue, 6 Aug 2019 06:45:54 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
+	fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>, kernel-team@android.com,
+	linux-api@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+	Mike Rapoport <rppt@linux.ibm.com>, minchan@kernel.org,
+	namhyung@google.com, paulmck@linux.ibm.com,
+	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
+	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
+	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
+Subject: Re: [PATCH v4 4/5] page_idle: Drain all LRU pagevec before idle
+ tracking
+Message-ID: <20190806104554.GB218260@google.com>
+References: <20190805170451.26009-1-joel@joelfernandes.org>
+ <20190805170451.26009-4-joel@joelfernandes.org>
+ <20190806084357.GK11812@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <1564774882-22926-1-git-send-email-cai@lca.pw>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <20190806084357.GK11812@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 02, 2019 at 03:41:22PM -0400, Qian Cai wrote:
-> GCC throws a warning on an arm64 system since the commit 9849a5697d3d
-> ("arch, mm: convert all architectures to use 5level-fixup.h"),
+On Tue, Aug 06, 2019 at 10:43:57AM +0200, Michal Hocko wrote:
+> On Mon 05-08-19 13:04:50, Joel Fernandes (Google) wrote:
+> > During idle tracking, we see that sometimes faulted anon pages are in
+> > pagevec but are not drained to LRU. Idle tracking considers pages only
+> > on LRU. Drain all CPU's LRU before starting idle tracking.
 > 
-> mm/kasan/init.c: In function 'kasan_free_p4d':
-> mm/kasan/init.c:344:9: warning: variable 'p4d' set but not used
-> [-Wunused-but-set-variable]
->   p4d_t *p4d;
->          ^~~
-> 
-> because p4d_none() in "5level-fixup.h" is compiled away while it is a
-> static inline function in "pgtable-nopud.h". However, if converted
-> p4d_none() to a static inline there, powerpc would be unhappy as it
-> reads those in assembler language in
-> "arch/powerpc/include/asm/book3s/64/pgtable.h",
-> 
-> ./include/asm-generic/5level-fixup.h: Assembler messages:
-> ./include/asm-generic/5level-fixup.h:20: Error: unrecognized opcode:
-> `static'
-> ./include/asm-generic/5level-fixup.h:21: Error: junk at end of line,
-> first unrecognized character is `{'
-> ./include/asm-generic/5level-fixup.h:22: Error: unrecognized opcode:
-> `return'
-> ./include/asm-generic/5level-fixup.h:23: Error: junk at end of line,
-> first unrecognized character is `}'
-> ./include/asm-generic/5level-fixup.h:25: Error: unrecognized opcode:
-> `static'
-> ./include/asm-generic/5level-fixup.h:26: Error: junk at end of line,
-> first unrecognized character is `{'
-> ./include/asm-generic/5level-fixup.h:27: Error: unrecognized opcode:
-> `return'
-> ./include/asm-generic/5level-fixup.h:28: Error: junk at end of line,
-> first unrecognized character is `}'
-> ./include/asm-generic/5level-fixup.h:30: Error: unrecognized opcode:
-> `static'
-> ./include/asm-generic/5level-fixup.h:31: Error: junk at end of line,
-> first unrecognized character is `{'
-> ./include/asm-generic/5level-fixup.h:32: Error: unrecognized opcode:
-> `return'
-> ./include/asm-generic/5level-fixup.h:33: Error: junk at end of line,
-> first unrecognized character is `}'
-> make[2]: *** [scripts/Makefile.build:375:
-> arch/powerpc/kvm/book3s_hv_rmhandlers.o] Error 1
-> 
-> Fix it by reference the variable in the macro instead.
-> 
-> Signed-off-by: Qian Cai <cai@lca.pw>
+> Please expand on why does this matter enough to introduce a potentially
+> expensinve draining which has to schedule a work on each CPU and wait
+> for them to finish.
 
-Acked-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
+Sure, I can expand. I am able to find multiple issues involving this. One
+issue looks like idle tracking is completely broken. It shows up in my
+testing as if a page that is marked as idle is always "accessed" -- because
+it was never marked as idle (due to not draining of pagevec).
 
--- 
- Kirill A. Shutemov
+The other issue shows up as a failure in my "swap test", with the following
+sequence:
+1. Allocate some pages
+2. Write to them
+3. Mark them as idle                                    <--- fails
+4. Introduce some memory pressure to induce swapping.
+5. Check the swap bit I introduced in this series.      <--- fails to set idle
+                                                             bit in swap PTE.
+
+Draining the pagevec in advance fixes both of these issues.
+
+This operation even if expensive is only done once during the access of the
+page_idle file. Did you have a better fix in mind?
+
+thanks,
+
+ - Joel
+
+
+> > Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+> > ---
+> >  mm/page_idle.c | 6 ++++++
+> >  1 file changed, 6 insertions(+)
+> > 
+> > diff --git a/mm/page_idle.c b/mm/page_idle.c
+> > index a5b00d63216c..2972367a599f 100644
+> > --- a/mm/page_idle.c
+> > +++ b/mm/page_idle.c
+> > @@ -180,6 +180,8 @@ static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
+> >  	unsigned long pfn, end_pfn;
+> >  	int bit, ret;
+> >  
+> > +	lru_add_drain_all();
+> > +
+> >  	ret = page_idle_get_frames(pos, count, NULL, &pfn, &end_pfn);
+> >  	if (ret == -ENXIO)
+> >  		return 0;  /* Reads beyond max_pfn do nothing */
+> > @@ -211,6 +213,8 @@ static ssize_t page_idle_bitmap_write(struct file *file, struct kobject *kobj,
+> >  	unsigned long pfn, end_pfn;
+> >  	int bit, ret;
+> >  
+> > +	lru_add_drain_all();
+> > +
+> >  	ret = page_idle_get_frames(pos, count, NULL, &pfn, &end_pfn);
+> >  	if (ret)
+> >  		return ret;
+> > @@ -428,6 +432,8 @@ ssize_t page_idle_proc_generic(struct file *file, char __user *ubuff,
+> >  	walk.private = &priv;
+> >  	walk.mm = mm;
+> >  
+> > +	lru_add_drain_all();
+> > +
+> >  	down_read(&mm->mmap_sem);
+> >  
+> >  	/*
+> > -- 
+> > 2.22.0.770.g0f2c4a37fd-goog
+> 
+> -- 
+> Michal Hocko
+> SUSE Labs
 
