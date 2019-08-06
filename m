@@ -2,146 +2,191 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D11EC433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:53:21 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1ACDCC31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:57:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 27A9D20B1F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:53:21 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="Z0mI1c0b"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 27A9D20B1F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id CF60820B1F
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:57:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF60820B1F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C6D346B0005; Tue,  6 Aug 2019 07:53:20 -0400 (EDT)
+	id 53E0F6B0003; Tue,  6 Aug 2019 07:57:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BFE6D6B0006; Tue,  6 Aug 2019 07:53:20 -0400 (EDT)
+	id 4EF406B0006; Tue,  6 Aug 2019 07:57:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A70096B0008; Tue,  6 Aug 2019 07:53:20 -0400 (EDT)
+	id 4050F6B0008; Tue,  6 Aug 2019 07:57:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f198.google.com (mail-qk1-f198.google.com [209.85.222.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 81C616B0005
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 07:53:20 -0400 (EDT)
-Received: by mail-qk1-f198.google.com with SMTP id v68so1551896qkc.4
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 04:53:20 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E4DF56B0003
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 07:57:07 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id b33so53688664edc.17
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 04:57:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=eo4243fxJunv120eldJ+yINhsaoHQ/b07ic+MhyUnUY=;
-        b=oNBpSNnuZ9wx52M0gDaWaTERphpaeawwDOxXo9wJfrJ012ZEPYU31QMtitHThIbKUd
-         NpeRRmufREsvbSg7o4z0/6bQdshipN+gYUGWRJx3sKZmF95zmD2NQV43BD8+fhJaNgLy
-         cgFnxDC5Cr1zSb86yqmmCQl3IVv//y37yzhQJ2xSaTBugCpu2jrTfnTXsU8/hSl36KPW
-         HosdDUn5eD8SrlwvMcEWTIHl49BDBSZgZWwODU4IbV4gUnl4qZbylUXGLwkNCr1uj2gl
-         FMBXQRmqmCu21MEpYFhyrIKVWSURgyWs9+g07v/COmG8RXfbWJYfIczRlmBQGdTK4z9V
-         QziA==
-X-Gm-Message-State: APjAAAXpOX3MIKlX11EkABW+fhHOfIcguryYGUdk3PWBr7/FLUtgKmy5
-	D6JvVJktYCoI2f0jeMOVdL6BRXp3hwAwoFnCefbZQQjNXyQ5nLzy8+TequjKIx7peUjVGdKKRi0
-	UFaEI0R0tpvoRkBQC/we895Q0AJ/OQziXmzS2RKRlYLWNzQ+6pFV1Me7aMgZyECZQEA==
-X-Received: by 2002:ae9:e10e:: with SMTP id g14mr2737416qkm.486.1565092400319;
-        Tue, 06 Aug 2019 04:53:20 -0700 (PDT)
-X-Received: by 2002:ae9:e10e:: with SMTP id g14mr2737372qkm.486.1565092399706;
-        Tue, 06 Aug 2019 04:53:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565092399; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=GRpeJyT3ltpVrhNYWQh1yp5wYV2JE6Z63T2HfbENV84=;
+        b=PtGcwz5rUxUxkgguH5L1wB+Nkt88Ff0OLglN2yBHSBS2988asZjnnpRoDsoT/sMqf9
+         b1p+AjArtH9llLlb0MuRRnjc1v3XOfQRmWr2KXQaaag6keuNwP5o+iIgymaE1OL3v/M8
+         TkY454IBqmyNw11fzxiHID4yzdXdCHi4keBa7fU5cXsllr7Yai/6Z87X42gFOJEaq2A7
+         R9eU7uc2Weuxdf6G+MqBApTDwCGgOAl0G+kuncz6SSUgeFt87Ka91HlbD/rmaAx4tMPZ
+         EDMOokcSMt1CKSartqP0T34p3IJQUbjxetm4h172JLvIYhWwO5ytJxJSpnKGpRBMFkJ4
+         mIZQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAV5S8LueL3w2QsIRF3BBqXQjxeS3HoagBqinvRfTlebbn+ZwZ4I
+	W26llIKmV0PfNb/DmxW7imdNDDrHx1DYtfieDemFDMFHTYIlIE0BpxVDSSHeojVa868eHllotbv
+	kbLBpt6TGEIknjSJtYqxS3LGTByjg8ReFLcNudS/DJHoX4YZCpcoNa89oAG3Ih/o=
+X-Received: by 2002:a17:906:7c8d:: with SMTP id w13mr2674339ejo.264.1565092627455;
+        Tue, 06 Aug 2019 04:57:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyDHE/px4Mm6zbwvIc0ChO6qU8qrhGLCsuQjLupQ/5XVJvhYOHYEkk3YYxZlR8T0/e27quU
+X-Received: by 2002:a17:906:7c8d:: with SMTP id w13mr2674295ejo.264.1565092626666;
+        Tue, 06 Aug 2019 04:57:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565092626; cv=none;
         d=google.com; s=arc-20160816;
-        b=BphzVJNduTfsCLUG7o8mp5MDElKndJ8+M4olZrkPCnH4v47D802AVFfogMY+dAM/Ea
-         5Qnyh9CAOjsx+mlRm8a6wFsuZo7zYLq1v62I0UiXFwiA+UXWjMbNp0mRKdIYoJxcE/u4
-         TKUwmT9dhnlBO28tXji7Ck5RZL+AlU1k/ZDHc7hH79/UAu+5Y/UiIyqb8sqVVgT9cNjn
-         6YwUX7upPo35LHewKLPf8tVDuodOOIm4cDCuEF4PvvYcvQoFXCr0h5M5Komje51y407c
-         Juc8aP1/Pc0AqWvVV+iOCeoEmixFXC+c4jkSo8LoEuAq6BeJGPPl2PZvHOdFD6TgQXZV
-         w/8A==
+        b=Hv1AdzWTUrPnKymVSM/l94WOiwnttOy9magzMRLOE6OzyfsMxHDdswqo95VxTIX+Jp
+         B1kOG8++iz2Uv/MZ5ZpzH2Xf97OkhhEjbBJGBJ0zuc9bGyCmbgGAZe5/I7ETgD0lhnzJ
+         KIdxbMf6Qpb3lcRKOelRz6mgfV0DO2GOVCABVUOqK+XEHeOTEcwj62mlR/qhtrHK9Era
+         R9yeyU4oSJvmJPXrB+IuDxAsHiId45kPOx946yaBze3E+ByuyC9r0ARsxtRNGppui3WD
+         aEx4FXJVZdJC4fviTI8O8s/7YKA0yTelY9+b0ljJvcBEOnyowLe+92MIDK+s1QnsUCgF
+         aQ1A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=eo4243fxJunv120eldJ+yINhsaoHQ/b07ic+MhyUnUY=;
-        b=r8CThg80p1tsk73aeM7y+ot6upqw++4wij0mdBS1pb3uw9f0ePVrv4WdYfVOJ1lpG2
-         MQOiI9nYqQziTvXsI3LDAh6qH1fMpvjMjJWzFAK2tRhurbxBxkYveEb9JArag1aLCkhd
-         5YtOtkvQWB7NFQoMZZc+3G/uL1vMWFkaupMqap21zN7mVJLZjdk3JBd+IIWK1u//BhwW
-         cCyuDYQzlpoSUe+7sc/eYVNZwsYD3pWHycZ+zewUu6bsgjx/4Q16SJ4yG2XiMqVYowX8
-         quvL8CQ/uEbM+MlFwnh+OR+qMuJTqqeoeaCoXNVjLr5dkX2Jyf+cAzBWd129i5BTbltZ
-         AOAg==
+         :message-id:subject:cc:to:from:date;
+        bh=GRpeJyT3ltpVrhNYWQh1yp5wYV2JE6Z63T2HfbENV84=;
+        b=iRFwh/8c4XK0t+loIEkGPgswCPXmE5tJIBh+BLIOhy2/2aR1q8yKV9X0dkcMR5GJrk
+         7OQ5YZwX8oRL1jDvW/ySmxP8hlMtaKIauIDyB+GZGg9MDzAoETrwEgP8ofOpQiWnHAER
+         H6ygeW814qoNShcSBK65NFqhQQtlGwbFzqvZvJTQ5H0qfH0yx0vIPafqRdX9NkRjRzUg
+         OMokSWz0yNk6UctZkbnFr9Y+jFnjKdyTD1nUs1JRsTjcmY5ddLKh6iTaENxfIdb3rhqO
+         e33viJNtnrP/Swpvu9dJ/GV2lprGvXgvZOfgkL0aE8aTHGfF+0D42+Th12T94zsQ5Ueq
+         vR4w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=Z0mI1c0b;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id i12sor49195097qkg.86.2019.08.06.04.53.19
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id y25si30069996edc.377.2019.08.06.04.57.06
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Aug 2019 04:53:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Aug 2019 04:57:06 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=Z0mI1c0b;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=eo4243fxJunv120eldJ+yINhsaoHQ/b07ic+MhyUnUY=;
-        b=Z0mI1c0biLAyuHhq5HIH9liJ9V9NmYB6TCZCXG/MS5n6b7MXngGDqXWAvW9Q3wU70f
-         Yuj4Gf5hmNpwIefJdv3jpcVqzwrm17rlQpqCpa8h75KznnlVcHW+bOQ8mi52XzW32i5X
-         xMyKUlZMHS1zgPqQftCrIwo83eGAnrddpriXhq4ERkbDt3WwCS0upZb4/WtoahuAO8kW
-         rLLLe/brCqzVyuGIKUWxPpcJJrKlwgWXPRE3jAKSeJ2mD0cdUXjpM0rJYi2yNTADYoYQ
-         aDzSN7ZZQHTrS2/K7nALIkgZpt7+fyciFkxjLncICC8fqlQT1qsJ9jdY2CtN6k6kVuIQ
-         kuUg==
-X-Google-Smtp-Source: APXvYqw8Kp97Codo4loFeh85jsMCmVqW5Bh1vzUEuORvgfGzgHvIynQzybQA5mb0rqsqpydwn040qg==
-X-Received: by 2002:a05:620a:127c:: with SMTP id b28mr2606352qkl.299.1565092399391;
-        Tue, 06 Aug 2019 04:53:19 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id r14sm40128814qke.47.2019.08.06.04.53.18
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 06 Aug 2019 04:53:18 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1huy1l-0003cs-Vr; Tue, 06 Aug 2019 08:53:17 -0300
-Date: Tue, 6 Aug 2019 08:53:17 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Jason Wang <jasowang@redhat.com>, kvm@vger.kernel.org,
-	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
- with worker
-Message-ID: <20190806115317.GA11627@ziepe.ca>
-References: <20190731193057.GG3946@ziepe.ca>
- <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
- <20190801141512.GB23899@ziepe.ca>
- <42ead87b-1749-4c73-cbe4-29dbeb945041@redhat.com>
- <20190802124613.GA11245@ziepe.ca>
- <20190802100414-mutt-send-email-mst@kernel.org>
- <20190802172418.GB11245@ziepe.ca>
- <20190803172944-mutt-send-email-mst@kernel.org>
- <20190804001400.GA25543@ziepe.ca>
- <20190804040034-mutt-send-email-mst@kernel.org>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id CF36EAD95;
+	Tue,  6 Aug 2019 11:57:05 +0000 (UTC)
+Date: Tue, 6 Aug 2019 13:57:03 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: linux-kernel@vger.kernel.org, Robin Murphy <robin.murphy@arm.com>,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
+	fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>, kernel-team@android.com,
+	linux-api@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+	Mike Rapoport <rppt@linux.ibm.com>, minchan@kernel.org,
+	namhyung@google.com, paulmck@linux.ibm.com,
+	Roman Gushchin <guro@fb.com>,
+	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
+	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
+Subject: Re: [PATCH v4 3/5] [RFC] arm64: Add support for idle bit in swap PTE
+Message-ID: <20190806115703.GY11812@dhcp22.suse.cz>
+References: <20190805170451.26009-1-joel@joelfernandes.org>
+ <20190805170451.26009-3-joel@joelfernandes.org>
+ <20190806084203.GJ11812@dhcp22.suse.cz>
+ <20190806103627.GA218260@google.com>
+ <20190806104755.GR11812@dhcp22.suse.cz>
+ <20190806111446.GA117316@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190804040034-mutt-send-email-mst@kernel.org>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190806111446.GA117316@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 04, 2019 at 04:07:17AM -0400, Michael S. Tsirkin wrote:
-> > > > Also, why can't this just permanently GUP the pages? In fact, where
-> > > > does it put_page them anyhow? Worrying that 7f466 adds a get_user page
-> > > > but does not add a put_page??
+On Tue 06-08-19 07:14:46, Joel Fernandes wrote:
+> On Tue, Aug 06, 2019 at 12:47:55PM +0200, Michal Hocko wrote:
+> > On Tue 06-08-19 06:36:27, Joel Fernandes wrote:
+> > > On Tue, Aug 06, 2019 at 10:42:03AM +0200, Michal Hocko wrote:
+> > > > On Mon 05-08-19 13:04:49, Joel Fernandes (Google) wrote:
+> > > > > This bit will be used by idle page tracking code to correctly identify
+> > > > > if a page that was swapped out was idle before it got swapped out.
+> > > > > Without this PTE bit, we lose information about if a page is idle or not
+> > > > > since the page frame gets unmapped.
+> > > > 
+> > > > And why do we need that? Why cannot we simply assume all swapped out
+> > > > pages to be idle? They were certainly idle enough to be reclaimed,
+> > > > right? Or what does idle actualy mean here?
+> > > 
+> > > Yes, but other than swapping, in Android a page can be forced to be swapped
+> > > out as well using the new hints that Minchan is adding?
 > > 
-> > You didn't answer this.. Why not just use GUP?
-> > 
-> > Jason
+> > Yes and that is effectivelly making them idle, no?
 > 
-> Sorry I misunderstood the question. Permanent GUP breaks lots of
-> functionality we need such as THP and numa balancing.
+> That depends on how you think of it.
 
-Really? It doesn't look like that many pages are involved..
+I would much prefer to have it documented so that I do not have to guess ;)
 
-Jason
+> If you are thinking of a monitoring
+> process like a heap profiler, then from the heap profiler's (that only cares
+> about the process it is monitoring) perspective it will look extremely odd if
+> pages that are recently accessed by the process appear to be idle which would
+> falsely look like those processes are leaking memory. The reality being,
+> Android forced those pages into swap because of other reasons. I would like
+> for the swapping mechanism, whether forced swapping or memory reclaim, not to
+> interfere with the idle detection.
+
+Hmm, but how are you going to handle situation when the page is unmapped
+and refaulted again (e.g. a normal reclaim of a pagecache)? You are
+losing that information same was as in the swapout case, no? Or am I
+missing something?
+
+> This is just an effort to make the idle tracking a little bit better. We
+> would like to not lose the 'accessed' information of the pages.
+> 
+> Initially, I had proposed what you are suggesting as well however the above
+> reasons made me to do it like this. Also Minchan and Konstantin suggested
+> this, so there are more people interested in the swap idle bit. Minchan, can
+> you provide more thoughts here? (He is on 2-week vacation from today so
+> hopefully replies before he vanishes ;-)).
+
+We can move on with the rest of the series in the mean time but I would
+like to see a proper justification for the swap entries and why they
+should be handled special.
+
+> Also assuming all swap pages as idle has other "semantic" issues. It is quite
+> odd if a swapped page is automatically marked as idle without userspace
+> telling it to. Consider the following set of events: 1. Userspace marks only
+> a certain memory region as idle. 2. Userspace reads back the bits
+> corresponding to a bigger region. Part of this bigger region is swapped.
+> Userspace expects all of the pages it did not mark, to have idle bit set to
+> '0' because it never marked them as idle. However if it is now surprised by
+> what it read back (not all '0' read back). Since a page is swapped, it will
+> be now marked "automatically" as idle as per your proposal, even if userspace
+> never marked it explicity before. This would be quite confusing/ambiguous.
+
+OK, I see. I guess the primary question I have is how do you distinguish
+Idle page which got unmapped and faulted in again from swapped out page
+and refaulted - including the time the pte is not present.
+-- 
+Michal Hocko
+SUSE Labs
 
