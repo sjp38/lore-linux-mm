@@ -2,284 +2,211 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 90D1AC433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 15:40:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1411AC433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 15:59:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 43C6921871
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 15:40:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 43C6921871
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id C828F2070D
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 15:59:19 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="U4ft/FAH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C828F2070D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CAC646B000D; Tue,  6 Aug 2019 11:40:27 -0400 (EDT)
+	id 43A0B6B0007; Tue,  6 Aug 2019 11:59:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C365D6B000E; Tue,  6 Aug 2019 11:40:27 -0400 (EDT)
+	id 3EB026B0008; Tue,  6 Aug 2019 11:59:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AAFDA6B0010; Tue,  6 Aug 2019 11:40:27 -0400 (EDT)
+	id 28BB06B000A; Tue,  6 Aug 2019 11:59:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 859C46B000D
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 11:40:27 -0400 (EDT)
-Received: by mail-qk1-f200.google.com with SMTP id j81so75834533qke.23
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 08:40:27 -0700 (PDT)
+Received: from mail-vs1-f69.google.com (mail-vs1-f69.google.com [209.85.217.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 024556B0007
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 11:59:19 -0400 (EDT)
+Received: by mail-vs1-f69.google.com with SMTP id v20so22080955vsi.12
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 08:59:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:organization:message-id:date
-         :user-agent:mime-version:in-reply-to:content-transfer-encoding
-         :content-language;
-        bh=qxm1sW0Au0pmkVG6LcKZfJIeMDt5cDfaoivNKTDBNYs=;
-        b=ih2HGQ39cCjNkuCcZAIpoThhoU57dNj7/H/O0anfiGxM7TufRvQj2lngQXEa/IFnJD
-         EXzw2eG5gyOcX1/SP4cbyd4ln31wGc5jdk/YCW9nqRuvcqPNpPc7sW+bDJT+dPEODK7I
-         DMljhY2aVGl+/O1nCJe0GNzGFGrm6NTSU8hK+kULBEXblk4lAY+hCmNbv93DVNVgHYjZ
-         D+SGYNvIDmIEskeVl1u0u3RTLQdwP+W9R6fV8xua6ydVb51lgfJC2Zm/PjEZpGps2NjX
-         19h7OepCE6MaFAmpT52yzhsvd1E931jtJ13075V83pQFYntSoWEs/PGE6xrIH2SQTDg3
-         bBGw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAW8tsZKNO0hLztuxB+/6N6O+deMgEsSf+dOEsNfUTCcIRe9NRnj
-	nBMQxOYERjrKU19wTDN5a5LGu+MD0k7242lrFn2lljuK0jP6hAoRbSc+3SV5tP2EY9klnGADuot
-	vWXj0BkCkE04HkgA6wa633eXmrr5H9iEtXKetFuhOzGKOcLBX/IsnCOp6wMRzS48yiw==
-X-Received: by 2002:a37:aa06:: with SMTP id t6mr3841736qke.226.1565106027297;
-        Tue, 06 Aug 2019 08:40:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz2SF1wFiVitHeSH0YL/VP0C5uMyvz7z/HGY8GpJoUKiuDE8tk3aoV3TBX7smfapXcXdRNF
-X-Received: by 2002:a37:aa06:: with SMTP id t6mr3841679qke.226.1565106026603;
-        Tue, 06 Aug 2019 08:40:26 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565106026; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=clwHSPklDLht0xV/j0pRzn5NpoQ0QSZPVxcpj8s526Y=;
+        b=EWy8EiPv/tgZqwhY+kcKjcXn9FScrcFkZ2SqMWqiEUerzoQTVZZ77/ENenEx7s9xGp
+         IGpDOlBoBRtL2ZSX7mHmtsGXTc0NpGyYOtRDYVhGlJr5QwH7NIEH7Me0eZWRiNF0nNRJ
+         PtbptCaA/3FdE1Pt4phG2XVauowRBdiGgiFsncF2xgRZSF6e1S6J1bxsDyUMVIo/Jz6r
+         zvRfIy7ZbnC+xO1baANNX6t5KGOrlryL2beUWL+6rS9Pi5tRAvV2FNRCPlwpNFy9Q2G8
+         i2cM5W5dqGe/Si02kICcL4/lvuU72GmhCGMch5yjRjjAdepxMaAAyz7PKfNTRG2tGCJU
+         saeg==
+X-Gm-Message-State: APjAAAUQHY8ZMOUfyHIizjQK1XDFtOFcK1nPtWGogI1Rw91lx+3e62c1
+	VSnbiyW7yrT6LV1xvHVykqhRVr6w2llwhfoc/0VdPjEaHVzG8uKpfqJXAHgnhfkqTJUZGqA69tj
+	oCJ7NUHrdPb7v8faMmo6b4kc/Xpsf2mSY9SDIwZJtVcI0eczisCkZkluSMEC1pQsdBQ==
+X-Received: by 2002:a67:d46:: with SMTP id 67mr2740644vsn.181.1565107158635;
+        Tue, 06 Aug 2019 08:59:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyMtk8bDXA2+FPkqqABmjchK32//ThZXtcP7v9hCtsTFOhmWYBdfro2Sqt8wxBgFPEem+BR
+X-Received: by 2002:a67:d46:: with SMTP id 67mr2740584vsn.181.1565107157570;
+        Tue, 06 Aug 2019 08:59:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565107157; cv=none;
         d=google.com; s=arc-20160816;
-        b=sS8oXTkYxqjrlTGZbDAgAb2L9ihNPsfv/cGzqoHOPj8VK88P1ObYLCKfRvEi1rB1PE
-         u85r+ZinQ+Xo2o6GvO8PFS60uf8B+2+6AyMJ3yT7+e2sqSNmhTsEpSLv+Jn3iXjb5s0S
-         rbe002BuEMNBh1rds6hKvz0TB8ErYsVP4Kku+tZOIsrxC0FanE9G64+tBZ7L1EC8F/hp
-         xlcDKwdcedyugImUreNTyHEAyq6WfVD+PalEkY6mA7aXubFNYnjyhibCR3+340wZ67xZ
-         mbTqvm6sO9v80DkKuHDgKntCqNICMiB/KnDVo7TE81p+y6joKSuIQ5MRqPbTMrizs+OC
-         NqBw==
+        b=tvJ6bqmclpmhrMO48bLGxc/7DB6A8RvpmS7D0wC9ESWTvyARWwm5qnETDOulhDdY0G
+         TAMO6JeJhsCk2LbGaVsdiGuf/97Rtx47D1X7kqaqNjly/rYUkDxhvrdCefeTA5mORBWP
+         VhQCCsfrqzNSb+bB/qFrnNcScl3aq/oSiyENnG2RmTb0iwTxeM9fzEn3ZIozQrFpiA9D
+         rKjpJHcqgBXb4e6MTs99u0GhPUScx6BDzY229J+ody7kYUx4JZ/r4IEYoSJE1O3GKlzt
+         cZpzgWyw6TLcAAADBRKI+wisG8d9glbk6SKr8KQyDT+okLi/xcvsY+tJZ94Vusxh3k5J
+         67HQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:organization:autocrypt:openpgp:from
-         :references:cc:to:subject;
-        bh=qxm1sW0Au0pmkVG6LcKZfJIeMDt5cDfaoivNKTDBNYs=;
-        b=QsxYKyeTtZmlu0I1ySPiKp9Sse/3rv2nx+/2e5m/bRAKKexr80j5Zg4tZXPEpQ4ch7
-         WMsy6B4ZXFWAwQXZNO706r5wDdd/d9nGc/j0m8nAO/sGf88475T18aWOe0+pKNh5IJQ8
-         PkUCFpEUh63VucQ9PZs8ZTxSG4rXe9tZUJv4X/PIz8/Irfwv9I9yG0T7gFuF10+ijXsA
-         GRwo83LxhmLVDMek1o/GSWTdgOrM5XU7Do7hMdPfikQ0EHGNvl9JJMMfD1L6c5CmYdrE
-         N/U1KNewIhp1p9wZ+v7GFYPB2xOosbA7Dt0mdCJJdNgFExXGXjOULmQNIeOdcNfU9Rr6
-         is5g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=clwHSPklDLht0xV/j0pRzn5NpoQ0QSZPVxcpj8s526Y=;
+        b=TpjBXFI+wLozkoxENkBxpAUYEX8ucieJXd0GdSO2zNv75GVIj+p2ji+E/wUy9kNTUw
+         ocCmwsPLNAJBBNpl0RyiO2xGi26BQ4SDqGgVE/GzB8ElG1Jb/7C26zaC6g7wXRNKIaug
+         hAj+h9eCe7xHuIh79wCaPteTDiQaHRhLuhQ5Ic2HAfYEAg+CmTCJgYKD+ve6ERlpsgey
+         yQBJqB4OzLmBpsJ6YXMOWQfTPIIyMX/Icb0Xu9NG7uBxrx1+5nuXa8g7FGhYseN6oMGE
+         R0kQD/c1llXNtIJAz3XduWSPt+cHVlq44mju1WugLtAvU/pkr4bl0oCttVNzomTZMzYo
+         ZQxQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n9si32106365qte.44.2019.08.06.08.40.26
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="U4ft/FAH";
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
+        by mx.google.com with ESMTPS id i40si5661200uah.246.2019.08.06.08.59.17
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 08:40:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Tue, 06 Aug 2019 08:59:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id AAB6EFA8C0;
-	Tue,  6 Aug 2019 15:40:25 +0000 (UTC)
-Received: from [10.40.205.241] (unknown [10.40.205.241])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 76F8460619;
-	Tue,  6 Aug 2019 15:40:17 +0000 (UTC)
-Subject: Re: [PATCH v3 6/6] virtio-balloon: Add support for providing unused
- page reports to host
-To: Alexander Duyck <alexander.h.duyck@linux.intel.com>,
- "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Alexander Duyck <alexander.duyck@gmail.com>, kvm@vger.kernel.org,
- david@redhat.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, akpm@linux-foundation.org, yang.zhang.wz@gmail.com,
- pagupta@redhat.com, riel@surriel.com, konrad.wilk@oracle.com,
- willy@infradead.org, lcapitulino@redhat.com, wei.w.wang@intel.com,
- aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com
-References: <20190801222158.22190.96964.stgit@localhost.localdomain>
- <20190801223829.22190.36831.stgit@localhost.localdomain>
- <1cff09a4-d302-639c-ab08-9d82e5fc1383@redhat.com>
- <ed48ecdb833808bf6b08bc54fa98503cbad493f3.camel@linux.intel.com>
- <20190806073047-mutt-send-email-mst@kernel.org>
- <dcd778623685079f66bfccb5dc0195e6f5bc992d.camel@linux.intel.com>
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- VujM7c/b4pps
-Organization: Red Hat Inc,
-Message-ID: <85b045b4-9d43-6929-49b9-786bd25eaed2@redhat.com>
-Date: Tue, 6 Aug 2019 11:40:13 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b="U4ft/FAH";
+       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
+Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x76FrVou096277;
+	Tue, 6 Aug 2019 15:59:08 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
+ : subject : message-id : references : mime-version : content-type :
+ in-reply-to; s=corp-2018-07-02;
+ bh=clwHSPklDLht0xV/j0pRzn5NpoQ0QSZPVxcpj8s526Y=;
+ b=U4ft/FAHTbOI04nmVl8Mn/IfK9CBWAcDYDdTlRqXfd6uLbkTOiiK6bqz+2mb8N8BcEYK
+ ciQWxWvCS6w0skCnFN/IHXZDlMuncaZf3pgs3TNileaFX6FnwbjqV5vo88Ev6IhMIxcZ
+ yy4wMgJGd9tccq+Tpg/+mTCgqKGFBZ2OKBWjKzhQddaHH0DDpNIX6u0nMatBJ4SI6lEc
+ Ony1KiY6K+YSonf0OXMBACUxZXhysS9yXG9SjI8hXtsbNjpQczkzDB7Yu6QmLGhGvOf+
+ RqckJEQTygn/nX47zCdrAeoHCP9DBCsD8nV/lf1zdgjVAQB5bKmIcy2TGW7h2Njm4Tmw kg== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by aserp2120.oracle.com with ESMTP id 2u527pq2k0-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 06 Aug 2019 15:59:08 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x76Frd6Y089344;
+	Tue, 6 Aug 2019 15:59:08 GMT
+Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
+	by userp3030.oracle.com with ESMTP id 2u7666pasv-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 06 Aug 2019 15:59:07 +0000
+Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
+	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x76Fx616026621;
+	Tue, 6 Aug 2019 15:59:06 GMT
+Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 06 Aug 2019 08:59:05 -0700
+Date: Tue, 6 Aug 2019 11:59:04 -0400
+From: Daniel Jordan <daniel.m.jordan@oracle.com>
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>,
+        Andrew Morton <akpm@linux-foundation.org>,
+        Linux MM <linux-mm@kvack.org>,
+        Daniel Jordan <daniel.m.jordan@oracle.com>,
+        Christoph Lameter <cl@linux.com>,
+        Yafang Shao <shaoyafang@didiglobal.com>
+Subject: Re: [PATCH v2] mm/vmscan: shrink slab in node reclaim
+Message-ID: <20190806155904.rwd7tmbbpmif4edh@ca-dmjordan1.us.oracle.com>
+References: <1565075940-23121-1-git-send-email-laoar.shao@gmail.com>
+ <20190806073525.GC11812@dhcp22.suse.cz>
+ <20190806074137.GE11812@dhcp22.suse.cz>
+ <CALOAHbBNV9BNmGhnV-HXOdx9QfArLHqBHsBe0cm-gxsGVSoenw@mail.gmail.com>
+ <20190806090516.GM11812@dhcp22.suse.cz>
+ <CALOAHbDO5qmqKt8YmCkTPhh+m34RA+ahgYVgiLx1RSOJ-gM4Dw@mail.gmail.com>
+ <20190806092531.GN11812@dhcp22.suse.cz>
+ <CALOAHbAzRC9m8bw8ounK5GF2Ss-yxvzAvRw10HNj-Y78iEx2Qg@mail.gmail.com>
+ <20190806111459.GH2739@techsingularity.net>
+ <CALOAHbCxBdGtTo9SneNtnDKWDNEZ-TcisE9OM9OagkfSuB8WTQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <dcd778623685079f66bfccb5dc0195e6f5bc992d.camel@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Tue, 06 Aug 2019 15:40:25 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CALOAHbCxBdGtTo9SneNtnDKWDNEZ-TcisE9OM9OagkfSuB8WTQ@mail.gmail.com>
+User-Agent: NeoMutt/20180716
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9341 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1908060152
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9341 signatures=668685
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1908060152
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Tue, Aug 06, 2019 at 07:35:29PM +0800, Yafang Shao wrote:
+> On Tue, Aug 6, 2019 at 7:15 PM Mel Gorman <mgorman@techsingularity.net> wrote:
+> >
+> > On Tue, Aug 06, 2019 at 05:32:54PM +0800, Yafang Shao wrote:
+> > > On Tue, Aug 6, 2019 at 5:25 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > > >
+> > > > On Tue 06-08-19 17:15:05, Yafang Shao wrote:
+> > > > > On Tue, Aug 6, 2019 at 5:05 PM Michal Hocko <mhocko@kernel.org> wrote:
+> > > > [...]
+> > > > > > > As you said, the direct reclaim path set it to 1, but the
+> > > > > > > __node_reclaim() forgot to process may_shrink_slab.
+> > > > > >
+> > > > > > OK, I am blind obviously. Sorry about that. Anyway, why cannot we simply
+> > > > > > get back to the original behavior by setting may_shrink_slab in that
+> > > > > > path as well?
+> > > > >
+> > > > > You mean do it as the commit 0ff38490c836 did  before ?
+> > > > > I haven't check in which commit the shrink_slab() is removed from
+> > > >
+> > > > What I've had in mind was essentially this:
+> > > >
+> > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
+> > > > index 7889f583ced9..8011288a80e2 100644
+> > > > --- a/mm/vmscan.c
+> > > > +++ b/mm/vmscan.c
+> > > > @@ -4088,6 +4093,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+> > > >                 .may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
+> > > >                 .may_swap = 1,
+> > > >                 .reclaim_idx = gfp_zone(gfp_mask),
+> > > > +               .may_shrinkslab = 1;
+> > > >         };
+> > > >
+> > > >         trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, order,
+> > > >
+> > > > shrink_node path already does shrink slab when the flag allows that. In
+> > > > other words get us back to before 1c30844d2dfe because that has clearly
+> > > > changed the long term node reclaim behavior just recently.
+> > > > --
+> > >
+> > > If we do it like this, then vm.min_slab_ratio will not take effect if
+> > > there're enough relcaimable page cache.
+> > > Seems there're bugs in the original behavior as well.
+> > >
+> >
+> > Typically that would be done as a separate patch with a standalone
+> > justification for it. The first patch should simply restore expected
+> > behaviour with a Fixes: tag noting that the change in behaviour was
+> > unintentional.
+> >
+> 
+> Sure, I will do it.
 
-On 8/6/19 11:16 AM, Alexander Duyck wrote:
-> On Tue, 2019-08-06 at 07:31 -0400, Michael S. Tsirkin wrote:
->> On Mon, Aug 05, 2019 at 09:27:16AM -0700, Alexander Duyck wrote:
->>> On Mon, 2019-08-05 at 12:00 -0400, Nitesh Narayan Lal wrote:
->>>> On 8/1/19 6:38 PM, Alexander Duyck wrote:
->>>>> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
->>>>>
->>>>> Add support for the page reporting feature provided by virtio-balloon.
->>>>> Reporting differs from the regular balloon functionality in that is is
->>>>> much less durable than a standard memory balloon. Instead of creating a
->>>>> list of pages that cannot be accessed the pages are only inaccessible
->>>>> while they are being indicated to the virtio interface. Once the
->>>>> interface has acknowledged them they are placed back into their respective
->>>>> free lists and are once again accessible by the guest system.
->>>>>
->>>>> Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
->>>>> ---
->>>>>  drivers/virtio/Kconfig              |    1 +
->>>>>  drivers/virtio/virtio_balloon.c     |   56 +++++++++++++++++++++++++++++++++++
->>>>>  include/uapi/linux/virtio_balloon.h |    1 +
->>>>>  3 files changed, 58 insertions(+)
->>>>>
->>>>> diff --git a/drivers/virtio/Kconfig b/drivers/virtio/Kconfig
->>>>> index 078615cf2afc..4b2dd8259ff5 100644
->>>>> --- a/drivers/virtio/Kconfig
->>>>> +++ b/drivers/virtio/Kconfig
->>>>> @@ -58,6 +58,7 @@ config VIRTIO_BALLOON
->>>>>  	tristate "Virtio balloon driver"
->>>>>  	depends on VIRTIO
->>>>>  	select MEMORY_BALLOON
->>>>> +	select PAGE_REPORTING
->>>>>  	---help---
->>>>>  	 This driver supports increasing and decreasing the amount
->>>>>  	 of memory within a KVM guest.
->>>>> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
->>>>> index 2c19457ab573..971fe924e34f 100644
->>>>> --- a/drivers/virtio/virtio_balloon.c
->>>>> +++ b/drivers/virtio/virtio_balloon.c
->>>>> @@ -19,6 +19,7 @@
->>>>>  #include <linux/mount.h>
->>>>>  #include <linux/magic.h>
->>>>>  #include <linux/pseudo_fs.h>
->>>>> +#include <linux/page_reporting.h>
->>>>>  
->>>>>  /*
->>>>>   * Balloon device works in 4K page units.  So each page is pointed to by
->>>>> @@ -37,6 +38,9 @@
->>>>>  #define VIRTIO_BALLOON_FREE_PAGE_SIZE \
->>>>>  	(1 << (VIRTIO_BALLOON_FREE_PAGE_ORDER + PAGE_SHIFT))
->>>>>  
->>>>> +/*  limit on the number of pages that can be on the reporting vq */
->>>>> +#define VIRTIO_BALLOON_VRING_HINTS_MAX	16
->>>>> +
->>>>>  #ifdef CONFIG_BALLOON_COMPACTION
->>>>>  static struct vfsmount *balloon_mnt;
->>>>>  #endif
->>>>> @@ -46,6 +50,7 @@ enum virtio_balloon_vq {
->>>>>  	VIRTIO_BALLOON_VQ_DEFLATE,
->>>>>  	VIRTIO_BALLOON_VQ_STATS,
->>>>>  	VIRTIO_BALLOON_VQ_FREE_PAGE,
->>>>> +	VIRTIO_BALLOON_VQ_REPORTING,
->>>>>  	VIRTIO_BALLOON_VQ_MAX
->>>>>  };
->>>>>  
->>>>> @@ -113,6 +118,10 @@ struct virtio_balloon {
->>>>>  
->>>>>  	/* To register a shrinker to shrink memory upon memory pressure */
->>>>>  	struct shrinker shrinker;
->>>>> +
->>>>> +	/* Unused page reporting device */
->>>>> +	struct virtqueue *reporting_vq;
->>>>> +	struct page_reporting_dev_info ph_dev_info;
->>>>>  };
->>>>>  
->>>>>  static struct virtio_device_id id_table[] = {
->>>>> @@ -152,6 +161,23 @@ static void tell_host(struct virtio_balloon *vb, struct virtqueue *vq)
->>>>>  
->>>>>  }
->>>>>  
->>>>> +void virtballoon_unused_page_report(struct page_reporting_dev_info *ph_dev_info,
->>>>> +				    unsigned int nents)
->>>>> +{
->>>>> +	struct virtio_balloon *vb =
->>>>> +		container_of(ph_dev_info, struct virtio_balloon, ph_dev_info);
->>>>> +	struct virtqueue *vq = vb->reporting_vq;
->>>>> +	unsigned int unused;
->>>>> +
->>>>> +	/* We should always be able to add these buffers to an empty queue. */
->>>>> +	virtqueue_add_inbuf(vq, ph_dev_info->sg, nents, vb,
->>>>> +			    GFP_NOWAIT | __GFP_NOWARN);
->>>> I think you should handle allocation failure here. It is a possibility, isn't?
->>>> Maybe return an error or even disable page hinting/reporting?
->>>>
->>> I don't think it is an issue I have to worry about. Specifically I am
->>> limiting the size of the scatterlist based on the size of the vq. As such
->>> I will never exceed the size and should be able to use it to store the
->>> scatterlist directly.
->> I agree. But it can't hurt to BUG_ON for good measure.
->>
-> I wouldn't use a BUG_ON as that seems overkill. No need to panic the
-> kernel just because we couldn't report some idle pages.
->
-> I can probably do something like:
-> 	if (WARN_ON(err))
-> 		return;
-
-+1
-
->
-> That way the unused page reporting can run to completion still and the
-> fact that we aren't really hinting on the pages would effectively be no
-> different then if we had a direct assigned device or shared memory in the
-> hypervisor.
->
+Do you plan to send the second patch?  If not I think we should at least update
+the documentation for the admittedly obscure vm.min_slab_ratio to reflect its
+effect on node reclaim, which is currently none.
 
