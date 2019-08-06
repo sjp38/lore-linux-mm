@@ -2,82 +2,82 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 15F9FC433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 05:51:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AAEF5C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 05:52:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C4E95206A2
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 05:51:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6F20620880
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 05:52:52 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="u3O8WGEJ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4E95206A2
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="q4fdESRb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F20620880
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6ECF66B000A; Tue,  6 Aug 2019 01:51:43 -0400 (EDT)
+	id 00E366B000A; Tue,  6 Aug 2019 01:52:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 69CA96B000C; Tue,  6 Aug 2019 01:51:43 -0400 (EDT)
+	id F000C6B000C; Tue,  6 Aug 2019 01:52:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 58B1B6B000D; Tue,  6 Aug 2019 01:51:43 -0400 (EDT)
+	id DC8DE6B000D; Tue,  6 Aug 2019 01:52:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 234B66B000A
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 01:51:43 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id j9so257641pgk.20
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 22:51:43 -0700 (PDT)
+Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
+	by kanga.kvack.org (Postfix) with ESMTP id A62036B000A
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 01:52:51 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id w12so11950912pgo.2
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 22:52:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=m+FFhH6JYl0+VCC7puYYO1iplwknB7XNzlWvEFcSM1M=;
-        b=TED6rYUgg08Y+ydZHOtfpNLzW9lq74Rc5JcSvYG+undqzJPTE6vDGXHSSHeHoyy3rp
-         Vnf9xWD703GSkyVJry5MGm4A68m3NpJp9hWf6azNiHiwWkA15FogHFuK6kAvKLguux6h
-         nNLpJ3maoivrvp3/4J4wUXuHq/Xm99wwev8yModGOmthLq9lT/0z/0bJJ4RxAgAU00FO
-         YWqq2bmCTWXN2vPAzD5wmolhs2g0d68KjpBY5glZCzKbdFKJgvsXXIfrv4N865ZQFEkF
-         8grWkBDNORLpK02BIdzFw/XgOV0TeV1lKPI84qyh+KSXTsV0EufLd1VIXqGDrQs6g+fv
-         jsKg==
-X-Gm-Message-State: APjAAAX8B9D2zp4CC+H1Dhu6cNqDfAd8xI5jWNtZW3JKdGw1+xBds5BE
-	Q9lK9iJY0BpXUawS+xsTKEteckaMHO9qV0year1H0xCKTHvTdtVMwI+TziDYbkzRwZpVNJkoHUn
-	n0V9MUij8Sd911BueIkVme9ldX0UWHnvdTktmtN5sq6MCBV6aQDJqE8D0siw4RO1ikw==
-X-Received: by 2002:a62:b615:: with SMTP id j21mr1839741pff.190.1565070702744;
-        Mon, 05 Aug 2019 22:51:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyIDXKwuGfESp2xY9ERCMpa5bEtfL0mVYsRMOCm8gH/wVYWCUHnSnBtmfYSuxXgvHOnxBpK
-X-Received: by 2002:a62:b615:: with SMTP id j21mr1839703pff.190.1565070702106;
-        Mon, 05 Aug 2019 22:51:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565070702; cv=none;
+        bh=iZC/LxWLoozeZ5gTwVtLdiR4/XxQSz/euJz+TZ/eCnw=;
+        b=rgb9QkjR/6OH/79OqFbdlGkxZ6qC/5L0g/jk5yfothNpAZoDPs4IOR/Bc8v/uvhb8m
+         aVgrm75+PGIuK8CT9rE5qBiq7Ameuufx6+8VbbB3CX2IS5aJv/OsysPUng6FjAA11gJh
+         InM8E+gbZSmkjzmDWI3z7tMqUqCgVMnwy8EbrLy0fM8J7pzwiLPlVGaJ6haYbdyZNqo/
+         SV9NEuXYvYuB18iCsXv1S5YZOH6dJaGOJV1QzkmYR1UDpV/y1ILXs3kn0WbNLjoGUHQG
+         NZopR9hkMbgt1eqPhdKDooz1jKlplvzjVVqcsV8mXgrpeVNLCgyygwjqLW3Rdw9rzG06
+         WwFA==
+X-Gm-Message-State: APjAAAX8HTuuPC+jhFM8OD1XoNMs6yxZJKz+6pCNwyIKTeQC56MEzBaN
+	gzX6b3kQ086HIFhobqwxsjqd56tzclhwwWgRWxPB2HPF8DfD8U5cEM/m5wXf5HVbqUuaxyUcTnH
+	K1FOnFy2vqbermBHt7F/cqZv49YeeVifauS3WDxWvsrSR6bqj69j45VsenUJUIstZNw==
+X-Received: by 2002:a17:902:8ec3:: with SMTP id x3mr1401497plo.313.1565070771346;
+        Mon, 05 Aug 2019 22:52:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyXR++b2TI042vObIgsxkEXuqR4kMaMrpbKk99P6UkF/VEA4pZJubH7hlshSrzdse/eUOCN
+X-Received: by 2002:a17:902:8ec3:: with SMTP id x3mr1401465plo.313.1565070770736;
+        Mon, 05 Aug 2019 22:52:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565070770; cv=none;
         d=google.com; s=arc-20160816;
-        b=BFYtvSW+z/WFDFy0QcsJLagi5yltftu32aMaUfHU/Vio7en14iIZMmo76K2fUA3aXB
-         +nzXq7MKbUWcagDFvhb01IRSoIHvlO3cNolfcUQzBEO+ew1ZiCmMuzepbGmyVxSCxYaZ
-         UyXFLRksWhm4sBm79sszb/gM8/NddnGV+Ltp4oELyXTdveZj7Ab0vUkNZTkFV/IgKoPF
-         wKtsAYxnoZyQw8f/L6O4IfH/V2I+OCbmruBFP0m9uRU4At4otlaq1fM+A3oenuGr2Msz
-         uS/Lz9sSEvP+1jPY4P1ecSNDYix+yGVVmgPa5+xT/QL/PIP3kgjdv6Kuly7dNb4iJvWN
-         yQEA==
+        b=g923wvqtCyYOBFuDeIcB6ouXM7+XwhSb/O/pML0HEhzq+kTy7KDrK/xovnPrRkVNPB
+         v2pS2KmlBYyXfNv4Xb2gxLXKQYP1WQ5Jn3flMRMiXnODsz4oGe+zMhhVmRiSPg9Z3rP2
+         vkYyCmPJvO2eHtCgse5Ib1f1w3Ml9HjZsc+iPZQeHhCRxzQ/yNxZVZxJPCiIg7qC8EDf
+         8RC3200fsSAbzd/7jCPWk9MY9Fb0f8/VYE+JKTyyHqI2eAT/FWMcx6s9YN0JtApPQ/yb
+         eSdxcAprv5m7Yuu7WzQ+pdxzWDyMLc5902Z+VtF/90FiZnJC1k21Fu2hVKrJ80z+xETw
+         k/xA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=m+FFhH6JYl0+VCC7puYYO1iplwknB7XNzlWvEFcSM1M=;
-        b=Y2ag10I9SLBcaHDYrbpcNtjA2he0dKGw+yhvxoqvmrb700RVYrRWZnAjJ/RN8gi76I
-         +cTfcQAmbNMqclLE9bClQlccBk2XyHgEy9ms+RXgxmgUrCTF1y41KBRBA9vgKyzdBP1G
-         Zo/FxtcCmHmynVIMyf7b74W/m252QKWWlCAVivxpYffjdFl8ug9wUORCVYW2T0hRhumM
-         UK2FaWNlZLQunXGEULqisGlc2Q+UKhMZJnj+UYrXJGsvMpa5s0gn/7rODz5gedDuti+A
-         5A+BJPjAxg56fqYFrcMpkMBsFV1MT6g8x0IccBvcTHkHJiCgbhijSJsmJWYBCUJZHTzz
-         1SnQ==
+        bh=iZC/LxWLoozeZ5gTwVtLdiR4/XxQSz/euJz+TZ/eCnw=;
+        b=xWMnw9GKwmlovwBRmIsUhQx9vDoe5Vsws3hslWXZLwSRf2JtPcmGxI8fvIkcvG0lId
+         MMzMoDDOUE7mFwO5cuFm4+unooyXYH04O7s9ZoX9D1GoHddRe9xlMQp60myH01L6TWxX
+         ir3Rr2JKr1Q/QR0GrxieXqgw16MvMi3dNeskdaaDV5PPWEfJgAsS2j6ga6Mu+VZ7AqRM
+         6+rbTP3C/1gVtflJ5wSZrtvoU/T7tqCLG6DpC4phvpqBOqF/3XXejWq4wghzBwesYFjR
+         thwDqwlhyA1jlpvkoQzmgrzJqaJrBuSXMRz9EXf977ss4mSpTqAL6V1MUs6HxVLz2Ybc
+         FZpw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=u3O8WGEJ;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=q4fdESRb;
        spf=pass (google.com: best guess record for domain of batv+71fb6172ac18b852553b+5826+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+71fb6172ac18b852553b+5826+infradead.org+hch@bombadil.srs.infradead.org
 Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id h4si14070304pje.41.2019.08.05.22.51.41
+        by mx.google.com with ESMTPS id x3si23636302plb.164.2019.08.05.22.52.50
         for <linux-mm@kvack.org>
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 05 Aug 2019 22:51:41 -0700 (PDT)
+        Mon, 05 Aug 2019 22:52:50 -0700 (PDT)
 Received-SPF: pass (google.com: best guess record for domain of batv+71fb6172ac18b852553b+5826+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=u3O8WGEJ;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=q4fdESRb;
        spf=pass (google.com: best guess record for domain of batv+71fb6172ac18b852553b+5826+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+71fb6172ac18b852553b+5826+infradead.org+hch@bombadil.srs.infradead.org
 DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
@@ -85,30 +85,27 @@ DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
 	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
 	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
 	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=m+FFhH6JYl0+VCC7puYYO1iplwknB7XNzlWvEFcSM1M=; b=u3O8WGEJ5SkndaXpMMJfWkypL
-	4dnNwB9DdlDQnIXYmKW6f97UCH2dGrKxK7t5s/AtxtJO85oN20L9FOpTbJ+TQ0eREGbmRIdB0Y2v/
-	+EyD+GW9Yg2L8LyAScZkezBBFcUCRazZ378duIe7vAmVuOUd5+sBwLfcS/Ze53V/dHIfTnqs5nfuw
-	kGEsuKahLO44X6fGWKK3kXqBzfok3Js1ShzBYRTqDhSpG7jW2WXVISrXTJkLpArRvseUvzkvsisqw
-	ee9DVV25DCNDdBV05ziUDt2DVJI7X/1zV184FnB+H1QERyWnmI5fIiG9f/aiWzu9NjyGtFSZzxuxh
-	BhMD+3Lbw==;
+	 bh=iZC/LxWLoozeZ5gTwVtLdiR4/XxQSz/euJz+TZ/eCnw=; b=q4fdESRb6K3x66Fw7txqEcKK5
+	4KlVi6yIEoU7IvWdoy9lZ6LSDjSRpCegCickw8Trb/Haj10d8zo2wciqzZ6s9G9DczOJhnIObH/TH
+	wYOxI58cGZXCii9uduwIFPZDFo8r61nR9BiczF4vm13RE9hiAGOE3MeK4LGa/WwEABECUcOtqpsEu
+	s6kYqRzozSPGGJ5z50LuBMxFjeW5CrWOidhdOTTy4QCimsu6DoRb/mi/rPSeo6rZxITF9BYMzS04c
+	NNHfGBn8IsfKmDXkiArhcjJW2V7TIY5fOvthXcFsyOwVVYRcMF2SlByBldUA+uRdrNKtjz7gZdhby
+	Stz3sgd0w==;
 Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1husNo-00083e-2r; Tue, 06 Aug 2019 05:51:40 +0000
-Date: Mon, 5 Aug 2019 22:51:40 -0700
+	id 1husOv-00085U-Uz; Tue, 06 Aug 2019 05:52:49 +0000
+Date: Mon, 5 Aug 2019 22:52:49 -0700
 From: Christoph Hellwig <hch@infradead.org>
 To: Dave Chinner <david@fromorbit.com>
-Cc: Christoph Hellwig <hch@infradead.org>, linux-xfs@vger.kernel.org,
-	linux-mm@kvack.org, linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH 11/24] xfs:: account for memory freed from metadata
- buffers
-Message-ID: <20190806055139.GA25736@infradead.org>
+Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH 12/24] xfs: correctly acount for reclaimable slabs
+Message-ID: <20190806055249.GB25736@infradead.org>
 References: <20190801021752.4986-1-david@fromorbit.com>
- <20190801021752.4986-12-david@fromorbit.com>
- <20190801081603.GA10600@infradead.org>
- <20190801092133.GK7777@dread.disaster.area>
+ <20190801021752.4986-13-david@fromorbit.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190801092133.GK7777@dread.disaster.area>
+In-Reply-To: <20190801021752.4986-13-david@fromorbit.com>
 User-Agent: Mutt/1.11.4 (2019-03-13)
 X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
@@ -117,17 +114,19 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 01, 2019 at 07:21:33PM +1000, Dave Chinner wrote:
-> > static inline void shrinker_mark_pages_reclaimed(unsigned long nr_pages)
-> > {
-> > 	if (current->reclaim_state)
-> > 		current->reclaim_state->reclaimed_pages += nr_pages;
-> > }
-> > 
-> > plus good documentation on when to use it.
+On Thu, Aug 01, 2019 at 12:17:40PM +1000, Dave Chinner wrote:
+> From: Dave Chinner <dchinner@redhat.com>
 > 
-> Sure, but that's something for patch 6, not this one :)
+> The XFS inode item slab actually reclaimed by inode shrinker
+> callbacks from the memory reclaim subsystem. These should be marked
+> as reclaimable so the mm subsystem has the full picture of how much
+> memory it can actually reclaim from the XFS slab caches.
 
-Sounds good, I just skimmend through the XFS patches.  While we are at
-it:  there is a double : in the subject line.
+Looks good,
+
+Reviewed-by: Christoph Hellwig <hch@lst.de>
+
+Btw, I wonder if we should just kill off our KM_ZONE_* defined.  They
+just make it a little harder to figure out what is actually going on
+without a real benefit.
 
