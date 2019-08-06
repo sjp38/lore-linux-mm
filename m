@@ -2,150 +2,159 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84AA2C31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 09:29:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D3D5AC31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 09:33:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4B70120B1F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 09:29:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B70120B1F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 90DFB20B1F
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 09:33:32 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="ZLr0lrZo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 90DFB20B1F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC3046B027E; Tue,  6 Aug 2019 05:29:54 -0400 (EDT)
+	id 201136B0281; Tue,  6 Aug 2019 05:33:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D73B06B027F; Tue,  6 Aug 2019 05:29:54 -0400 (EDT)
+	id 18C066B0282; Tue,  6 Aug 2019 05:33:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C3C406B0280; Tue,  6 Aug 2019 05:29:54 -0400 (EDT)
+	id 052626B0283; Tue,  6 Aug 2019 05:33:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 79CD76B027E
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 05:29:54 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id a5so53433964edx.12
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 02:29:54 -0700 (PDT)
+Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
+	by kanga.kvack.org (Postfix) with ESMTP id CC7E06B0281
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 05:33:31 -0400 (EDT)
+Received: by mail-ot1-f69.google.com with SMTP id a17so48670011otd.19
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 02:33:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=T2ELb0ZhBbYWqNNSohuWnmj+NPgNYqQ4wB6/MjFV1gw=;
-        b=ce5x8DSV80BRz5ehgJ+1Qr/2nZA/ZDYMBtEetNepprWt+CHDU3tQnh8oyH5s8dWcWA
-         moRbW7WkgkSSq4mkhqqs98ZEXoKyswIll6M4NShajlKozAioiZ3CtxL/+53hMoUal+CD
-         HxbjRo2ByrCWzw9taH2J3vWJ423Mq3+4GsqOKsn+lBks0+CA0OYQV1q7t0fuYHdaqVqe
-         HTQ3NjJ+iikcQZ4oV1n5nmhe0ustRJEwrLAWT0Rl7vzgjpKqMYyFLY5tbAMuQvSA4ppj
-         sWwoUTRj4DkCDtBksdIxOAyIjU9GIiSXgJZUu8lrHypwI66BDcQwfme+zqXXQJkhybbK
-         ZXLw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAUyytCY38/rPE3apTjE4DB7ky1wZIzJV9/a+BArm1B8Yteb0NBE
-	DbhI7VFtOeG8a3GgRGI+7+Na8BnV7bmFFp8Gwz/JGx6ulFY1R2sidxHh2WJdNULDewiBlDoLWHn
-	YBt9sLKpyskkqsCASYL1syIsXHfLE7fp5jB9QazOcu4Xtw8rIrzSHZyUaJy+a3Ygg7A==
-X-Received: by 2002:a17:906:b6c6:: with SMTP id ec6mr2179119ejb.183.1565083794041;
-        Tue, 06 Aug 2019 02:29:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyPqJ3L0jQOmujc/p9iK6fH4lyMOxow+qdSYDqCe23AJ6Sp/uQZkfl9v1tArc0wupBUJanp
-X-Received: by 2002:a17:906:b6c6:: with SMTP id ec6mr2179088ejb.183.1565083793331;
-        Tue, 06 Aug 2019 02:29:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565083793; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=Ne/CvbOnBLgfS9/yNTYOkRPiZmiUfD2bjxFIFlqe8wA=;
+        b=FkZTPKXmmY9gzS+U0P5uojXy8niqhq2UcmGF16TSE63FtNlOtNV758WEarZcA+DljO
+         unN6bZc7T5Ip7JZ+KZoF06BrupUneQmGXTxC9AMduDvkpfQ3YHrCuCvoo3IrNWboJpAd
+         i8LiEiDiIxzvD9oHhswtohoefX74+ABpDYgvD0sBtbLcQfhLAPPhjTJOpKl7WWyI/QaV
+         XikVZIwemcIDOASDJyusN0KbMRbQ5kTWOglXglIdpJ60iLpjhqCjWNZG6ZJ6lbOdrKMQ
+         FsfHPy49Ji1ww4Wijbr0x4b1Z2HLEIpw+liONkw2ZqWCA8C3wyLLjVPMXbhuTh0PNjgM
+         NIgg==
+X-Gm-Message-State: APjAAAWC6p6LOo8uO4RdJbr2iL5L28j1DZJX0oRGgqdfgcZtwnjcRNOh
+	GgPDHkt+6fzjboqrteS8FI/O2k3BL797mE8SEUy9dlwEwTB1QZ4VMJr3Zss+ihnL5fEzaXZoVJG
+	3njrgo3BueckQ+s6lpmZmNUMoCc9aH4lsftSlbQx3vNMJ2APeg0RFt1MOBSQ/1r7+Kg==
+X-Received: by 2002:a6b:7d49:: with SMTP id d9mr2657798ioq.50.1565084011570;
+        Tue, 06 Aug 2019 02:33:31 -0700 (PDT)
+X-Received: by 2002:a6b:7d49:: with SMTP id d9mr2657744ioq.50.1565084010745;
+        Tue, 06 Aug 2019 02:33:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565084010; cv=none;
         d=google.com; s=arc-20160816;
-        b=D05ZwRWtmagtRumgoNvlgyfO3b7nITrXSiguuNdXWhZu6FgcHmtdPMDPMxKFI3m+mK
-         s/c+pJZaZwqUIPzPGk7cePhYs7xyNhlVCnJximqzXPhclb0kfYsAudEbuA1FOFZEL7Yp
-         NEJplL19qqigRMk4Cesy3U2i7PhIGwoYr4+ROsgbU2RKlQCtSEY0XaQ8U8x7IXHiM++d
-         HKBqz1EpzgmYflWgogZ+y/hCrGPP5kJOo7Z9/+kK9wtU2k/wTM1CnQPtRCuoAVwJ7vUe
-         m67AlrVH6Jd5JCdABZA+cswAFJTJE1k1279lTktn9ntEA9S/XpHANnfskZV64FKVqmUj
-         y8Uw==
+        b=Ic21lk8ApRQ8vW6NFqu3D+xkW+D74isIyFloNwXjJwjbI38ooN/R91Hw+sm406l3oX
+         beOmdYCMjW0PA+NO84oQSKHZzlmqwnukgW95Fy5uEWxjBfUJoFusopv9gRkxkSaAO2h0
+         4q+UWbuBV7mvNqJt/AHw1Ssk99ng5wbg436yKW6NhtnnJ9zcMGp3OQY8q7PyxuSedvB2
+         KTzKt/qSLjzxPttK8QgTrbIBWee7t204gSFwX8eMwQCziOye+dGv7dLQRLKOHEwyw2QI
+         bsfy2JrZ6Fja9jEzCLp8RCI4UNlsTX7UxbuCi9dF9OlyDMZbTxf77If7ygsGvMAJ4wfF
+         Zk+g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=T2ELb0ZhBbYWqNNSohuWnmj+NPgNYqQ4wB6/MjFV1gw=;
-        b=XpLF441QZFXuVkHfm+uqkBt+Cv4LU83FauZtwWtzlzRLCT89b3HT37gUmV5wQyZL2b
-         SNzdlqKlU9t3PUOIuUfZgsS5c7wm+NQFCNZtVqeSXv9QEqhtYxJkEYo+pm8x7zZHAk9x
-         SOKrzeKwp2Ml5blKtK7EgBwBXDqv0HthE8zI/xAs4/5ga19/ORc9HLOllics85jvdXLG
-         kxCsPxzizUAiwIw5qoMlxEdJg/FFzb0MsC5wV23Qnnc/hMLFZjJDfVRHL3j6p/RDhGkF
-         yvJV2eJt4DKP7tb7aXPIzV0ztVBNqN5822BXqLPCiGEAi/XZr9X2zmmTxpphLTdLvr0g
-         X7vw==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=Ne/CvbOnBLgfS9/yNTYOkRPiZmiUfD2bjxFIFlqe8wA=;
+        b=Q0WyBLPfhNfWZlxk3oukK8Qlr4TDCoZoJzBAP/sGsPqtGAYfxXT+XN9XkxnhSHAXVx
+         BMxlsMw9c9uvEW5atA32CJoREHv5kKp+natIEoqBLdUQ4f1eJTPyVPs5a5Dc9UAosnXS
+         Sa0aMvXhZ51mU48t6n0EJlvFVuP1x7FsarvCPtLNe9SSqj8+Fcp834DtuxBrPEXB9GyI
+         0HYayOPY4s3MwAz1I2xowwyJicuY2zo6dUT1g3eVZRHgSIicEL61//YDvw9Fhrb/kHqJ
+         n0Tzb4i3R/SJIbDFnZUTBeFskbAWDkd5IYfimuxAxckIRDMgpzjB8NMSu7g/ZgOKJazU
+         Tnmg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id h7si29931591edb.218.2019.08.06.02.29.53
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZLr0lrZo;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id i26sor64279011jaf.1.2019.08.06.02.33.30
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 02:29:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 06 Aug 2019 02:33:30 -0700 (PDT)
+Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id DB23AAE6F;
-	Tue,  6 Aug 2019 09:29:52 +0000 (UTC)
-Subject: Re: [PATCH] mm/mmap.c: refine data locality of find_vma_prev
-To: Wei Yang <richardw.yang@linux.intel.com>, akpm@linux-foundation.org,
- mhocko@suse.com, kirill.shutemov@linux.intel.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <20190806081123.22334-1-richardw.yang@linux.intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <3e57ba64-732b-d5be-1ad6-eecc731ef405@suse.cz>
-Date: Tue, 6 Aug 2019 11:29:52 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=ZLr0lrZo;
+       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=Ne/CvbOnBLgfS9/yNTYOkRPiZmiUfD2bjxFIFlqe8wA=;
+        b=ZLr0lrZoRDnWCAW7vuJlaS1M16eS6AP3Eqf/ON/ftkGlK62IgTSOJANaaQnABKI8hV
+         GNOQnaWB1Xp+Cazi58qXpCa5JisbwWoW9YmPHD91Ckmaab1W7tH2nuRvBLD2zIHZu7e3
+         caU3P4b9tTExn6sfiYX/AG8WOwPiR5tN09GLCc9d4QLb28++RFzg4E2AY65q2N41+4/T
+         eFBdVmLBMiM8xKlaqo4swE4/0TCGi+pnjZ/Zu3Y4sPK+z8kbNIj9Rzh5xKIUzcwy1R9b
+         LJ1KcKEFq80pyVBc8Kw2SOtV6/R/aI32mjJM+opYSzv9gULoNt10xc4Z1qoQd6v84uBv
+         r5cg==
+X-Google-Smtp-Source: APXvYqx3T9wRQ5ZAh3QMlR+IMwtLMVjPEa9eTZ2g3iOAdondtGN5zwQNW6hoYWiYVoK4l4hmUCFE3TbrUaWkZO6sZg0=
+X-Received: by 2002:a02:1a86:: with SMTP id 128mr3193268jai.95.1565084010515;
+ Tue, 06 Aug 2019 02:33:30 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190806081123.22334-1-richardw.yang@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+References: <1565075940-23121-1-git-send-email-laoar.shao@gmail.com>
+ <20190806073525.GC11812@dhcp22.suse.cz> <20190806074137.GE11812@dhcp22.suse.cz>
+ <CALOAHbBNV9BNmGhnV-HXOdx9QfArLHqBHsBe0cm-gxsGVSoenw@mail.gmail.com>
+ <20190806090516.GM11812@dhcp22.suse.cz> <CALOAHbDO5qmqKt8YmCkTPhh+m34RA+ahgYVgiLx1RSOJ-gM4Dw@mail.gmail.com>
+ <20190806092531.GN11812@dhcp22.suse.cz>
+In-Reply-To: <20190806092531.GN11812@dhcp22.suse.cz>
+From: Yafang Shao <laoar.shao@gmail.com>
+Date: Tue, 6 Aug 2019 17:32:54 +0800
+Message-ID: <CALOAHbAzRC9m8bw8ounK5GF2Ss-yxvzAvRw10HNj-Y78iEx2Qg@mail.gmail.com>
+Subject: Re: [PATCH v2] mm/vmscan: shrink slab in node reclaim
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
+	Daniel Jordan <daniel.m.jordan@oracle.com>, Mel Gorman <mgorman@techsingularity.net>, 
+	Christoph Lameter <cl@linux.com>, Yafang Shao <shaoyafang@didiglobal.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/6/19 10:11 AM, Wei Yang wrote:
-> When addr is out of the range of the whole rb_tree, pprev will points to
-> the biggest node. find_vma_prev gets is by going through the right most
+On Tue, Aug 6, 2019 at 5:25 PM Michal Hocko <mhocko@kernel.org> wrote:
+>
+> On Tue 06-08-19 17:15:05, Yafang Shao wrote:
+> > On Tue, Aug 6, 2019 at 5:05 PM Michal Hocko <mhocko@kernel.org> wrote:
+> [...]
+> > > > As you said, the direct reclaim path set it to 1, but the
+> > > > __node_reclaim() forgot to process may_shrink_slab.
+> > >
+> > > OK, I am blind obviously. Sorry about that. Anyway, why cannot we simply
+> > > get back to the original behavior by setting may_shrink_slab in that
+> > > path as well?
+> >
+> > You mean do it as the commit 0ff38490c836 did  before ?
+> > I haven't check in which commit the shrink_slab() is removed from
+>
+> What I've had in mind was essentially this:
+>
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 7889f583ced9..8011288a80e2 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -4088,6 +4093,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
+>                 .may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
+>                 .may_swap = 1,
+>                 .reclaim_idx = gfp_zone(gfp_mask),
+> +               .may_shrinkslab = 1;
+>         };
+>
+>         trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, order,
+>
+> shrink_node path already does shrink slab when the flag allows that. In
+> other words get us back to before 1c30844d2dfe because that has clearly
+> changed the long term node reclaim behavior just recently.
+> --
 
-s/biggest/last/ ? or right-most?
+If we do it like this, then vm.min_slab_ratio will not take effect if
+there're enough relcaimable page cache.
+Seems there're bugs in the original behavior as well.
 
-> node of the tree.
-> 
-> Since only the last node is the one it is looking for, it is not
-> necessary to assign pprev to those middle stage nodes. By assigning
-> pprev to the last node directly, it tries to improve the function
-> locality a little.
-
-In the end, it will always write to the cacheline of pprev. The caller has most
-likely have it on stack, so it's already hot, and there's no other CPU stealing
-it. So I don't understand where the improved locality comes from. The compiler
-can also optimize the patched code so the assembly is identical to the previous
-code, or vice versa. Did you check for differences?
-
-The previous code is somewhat more obvious to me, so unless I'm missing
-something, readability and less churn suggests to not change.
-
-> Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
-> ---
->  mm/mmap.c | 7 +++----
->  1 file changed, 3 insertions(+), 4 deletions(-)
-> 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 7e8c3e8ae75f..284bc7e51f9c 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2271,11 +2271,10 @@ find_vma_prev(struct mm_struct *mm, unsigned long addr,
->  		*pprev = vma->vm_prev;
->  	} else {
->  		struct rb_node *rb_node = mm->mm_rb.rb_node;
-> -		*pprev = NULL;
-> -		while (rb_node) {
-> -			*pprev = rb_entry(rb_node, struct vm_area_struct, vm_rb);
-> +		while (rb_node && rb_node->rb_right)
->  			rb_node = rb_node->rb_right;
-> -		}
-> +		*pprev = rb_node ? NULL
-> +			 : rb_entry(rb_node, struct vm_area_struct, vm_rb);
->  	}
->  	return vma;
->  }
-> 
+Thanks
+Yafang
 
