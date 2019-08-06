@@ -6,115 +6,107 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1ACDCC31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:57:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0CFF5C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:58:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CF60820B1F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:57:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CF60820B1F
+	by mail.kernel.org (Postfix) with ESMTP id CD83920B1F
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 11:58:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CD83920B1F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 53E0F6B0003; Tue,  6 Aug 2019 07:57:08 -0400 (EDT)
+	id 4A08E6B0006; Tue,  6 Aug 2019 07:58:27 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4EF406B0006; Tue,  6 Aug 2019 07:57:08 -0400 (EDT)
+	id 4507C6B0008; Tue,  6 Aug 2019 07:58:27 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4050F6B0008; Tue,  6 Aug 2019 07:57:08 -0400 (EDT)
+	id 319A16B000A; Tue,  6 Aug 2019 07:58:27 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E4DF56B0003
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 07:57:07 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id b33so53688664edc.17
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 04:57:07 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D9D836B0006
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 07:58:26 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id n3so53706861edr.8
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 04:58:26 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=GRpeJyT3ltpVrhNYWQh1yp5wYV2JE6Z63T2HfbENV84=;
-        b=PtGcwz5rUxUxkgguH5L1wB+Nkt88Ff0OLglN2yBHSBS2988asZjnnpRoDsoT/sMqf9
-         b1p+AjArtH9llLlb0MuRRnjc1v3XOfQRmWr2KXQaaag6keuNwP5o+iIgymaE1OL3v/M8
-         TkY454IBqmyNw11fzxiHID4yzdXdCHi4keBa7fU5cXsllr7Yai/6Z87X42gFOJEaq2A7
-         R9eU7uc2Weuxdf6G+MqBApTDwCGgOAl0G+kuncz6SSUgeFt87Ka91HlbD/rmaAx4tMPZ
-         EDMOokcSMt1CKSartqP0T34p3IJQUbjxetm4h172JLvIYhWwO5ytJxJSpnKGpRBMFkJ4
-         mIZQ==
+        bh=1eHBI4smRB1TfNdo1TOqzaG0cVcwD1VCiSmymOE0Bmk=;
+        b=FIUscWhXRrYvJ4TwDY5UnzRs9oZc/ctbIYRMDAZJgGJNEq155mcXtEoRM5PjSPgEmq
+         EzKLDGFi1qQrSea3ar2EmCJqYnwirYHZASwgljDRNxO4bbRFfHOnqUYKdWkZv1r2XzX9
+         3MH5CvIWpVEFegCJmxNbO2vCjKSjSOr829d76pIpZFUPZQY4zw/1p2TU33MQ0GHpSUst
+         jsU2tWUOefeEYARF8/DhbrD/dfNLK1tXrOKqZtTv36w0YjFoH0j9FlkyVuIwia5Wk6YV
+         nRXVir2ReruenKFvslBcVSufBQ/9aNuL5xw8i4kw2pxVMC97CEsGJE5evZoYLbK4acuw
+         qBjg==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAV5S8LueL3w2QsIRF3BBqXQjxeS3HoagBqinvRfTlebbn+ZwZ4I
-	W26llIKmV0PfNb/DmxW7imdNDDrHx1DYtfieDemFDMFHTYIlIE0BpxVDSSHeojVa868eHllotbv
-	kbLBpt6TGEIknjSJtYqxS3LGTByjg8ReFLcNudS/DJHoX4YZCpcoNa89oAG3Ih/o=
-X-Received: by 2002:a17:906:7c8d:: with SMTP id w13mr2674339ejo.264.1565092627455;
-        Tue, 06 Aug 2019 04:57:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyDHE/px4Mm6zbwvIc0ChO6qU8qrhGLCsuQjLupQ/5XVJvhYOHYEkk3YYxZlR8T0/e27quU
-X-Received: by 2002:a17:906:7c8d:: with SMTP id w13mr2674295ejo.264.1565092626666;
-        Tue, 06 Aug 2019 04:57:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565092626; cv=none;
+X-Gm-Message-State: APjAAAVZk92AOmYh7rD/8TjpdsXuIncJ24HARmrt8N2J7FqtJNQ3kawF
+	TNHjBGBHJSp69bid03kNoyLKwZ6diKnQY2p17gZh7flpdFrm2RtoUkp8SR0bSeW9CZfP4TJEEbF
+	6WBuuWmSDj5y1tYiO/FwMNgwpTYti2Q3fcFvzDl3qhng08HFkd3mhFKotGpeJo/M=
+X-Received: by 2002:a17:906:6c85:: with SMTP id s5mr2769451ejr.199.1565092706480;
+        Tue, 06 Aug 2019 04:58:26 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwBgD1XsOZxLOfk4yd+wpKUOg01b37HvK0o7XPNf4Z5xeyOFccwZGqRD1bSBkDWeG9fR8JQ
+X-Received: by 2002:a17:906:6c85:: with SMTP id s5mr2769420ejr.199.1565092705915;
+        Tue, 06 Aug 2019 04:58:25 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565092705; cv=none;
         d=google.com; s=arc-20160816;
-        b=Hv1AdzWTUrPnKymVSM/l94WOiwnttOy9magzMRLOE6OzyfsMxHDdswqo95VxTIX+Jp
-         B1kOG8++iz2Uv/MZ5ZpzH2Xf97OkhhEjbBJGBJ0zuc9bGyCmbgGAZe5/I7ETgD0lhnzJ
-         KIdxbMf6Qpb3lcRKOelRz6mgfV0DO2GOVCABVUOqK+XEHeOTEcwj62mlR/qhtrHK9Era
-         R9yeyU4oSJvmJPXrB+IuDxAsHiId45kPOx946yaBze3E+ByuyC9r0ARsxtRNGppui3WD
-         aEx4FXJVZdJC4fviTI8O8s/7YKA0yTelY9+b0ljJvcBEOnyowLe+92MIDK+s1QnsUCgF
-         aQ1A==
+        b=zx+mYrn1dVtkSjZAuWpX+gTeb43/fDr0dXJCQ8nZwOcLJ3UW6IHlIG6AISEmRY/Zbr
+         9GhYSGyJVGocRvg0RQKvs/XGAivzrWmz1/U/CRUKp/WHP4ptX5FQT5u6ttnQGskeUC8m
+         BisPTsIFVsnGCrD12G+F4kiFdm3mB6T6PvCODD2Q2alwEv9jVj180lsl7GpoPmS1H6V9
+         V1jO6KUX1FQ3alUIZhqz0dLycWaphsSAoumiTvno8OkP+TjtCzB8DFLwQd2EU9UQqsXm
+         MlJuNL176ovWIGUBN6Dc1QHOx3TZCyzfwh4h+NNqBawwm6a9dQRbbxHEIpcdcSuJiFpv
+         zV4Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=GRpeJyT3ltpVrhNYWQh1yp5wYV2JE6Z63T2HfbENV84=;
-        b=iRFwh/8c4XK0t+loIEkGPgswCPXmE5tJIBh+BLIOhy2/2aR1q8yKV9X0dkcMR5GJrk
-         7OQ5YZwX8oRL1jDvW/ySmxP8hlMtaKIauIDyB+GZGg9MDzAoETrwEgP8ofOpQiWnHAER
-         H6ygeW814qoNShcSBK65NFqhQQtlGwbFzqvZvJTQ5H0qfH0yx0vIPafqRdX9NkRjRzUg
-         OMokSWz0yNk6UctZkbnFr9Y+jFnjKdyTD1nUs1JRsTjcmY5ddLKh6iTaENxfIdb3rhqO
-         e33viJNtnrP/Swpvu9dJ/GV2lprGvXgvZOfgkL0aE8aTHGfF+0D42+Th12T94zsQ5Ueq
-         vR4w==
+        bh=1eHBI4smRB1TfNdo1TOqzaG0cVcwD1VCiSmymOE0Bmk=;
+        b=jdp3Uudu2kQxle627u23CwQDFn3cyeoI5hMwWCZbJ63X+4nxQFqP6Ch2Kd6q4xeMNk
+         Eu4t/Q4GOQiGkF2NmqBV9CFjjB/80C+HKypm66oKFe1RIIO6o2i2NrzJy2UZQxr3x+ry
+         ETqNsLRBwUoATtJLtUqI8GmHNOokGd1ledPc/HanmN1fN961tYRUvLyS94ZW5Okwj+oW
+         iGwKt8pUKtnqTZ+lE6l4fnG3wmbNYRa88b20hrsHp0fqIS1PrtZaGpOKA2hN4kcwirZc
+         EyUju0dGWGM2MtElcEIYRfgYU2mvGk1khWVqlz8GkaIC9bCW3h3xMYhpr5v0VxdY758v
+         aEoA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id y25si30069996edc.377.2019.08.06.04.57.06
+        by mx.google.com with ESMTPS id b43si30487885edd.433.2019.08.06.04.58.25
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 04:57:06 -0700 (PDT)
+        Tue, 06 Aug 2019 04:58:25 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id CF36EAD95;
-	Tue,  6 Aug 2019 11:57:05 +0000 (UTC)
-Date: Tue, 6 Aug 2019 13:57:03 +0200
+	by mx1.suse.de (Postfix) with ESMTP id 0098EAD88;
+	Tue,  6 Aug 2019 11:58:24 +0000 (UTC)
+Date: Tue, 6 Aug 2019 13:58:23 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Joel Fernandes <joel@joelfernandes.org>
-Cc: linux-kernel@vger.kernel.org, Robin Murphy <robin.murphy@arm.com>,
-	Alexey Dobriyan <adobriyan@gmail.com>,
+To: Yafang Shao <laoar.shao@gmail.com>
+Cc: Mel Gorman <mgorman@techsingularity.net>,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
-	fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
-	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>,
-	Kees Cook <keescook@chromium.org>, kernel-team@android.com,
-	linux-api@vger.kernel.org, linux-doc@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
-	Mike Rapoport <rppt@linux.ibm.com>, minchan@kernel.org,
-	namhyung@google.com, paulmck@linux.ibm.com,
-	Roman Gushchin <guro@fb.com>,
-	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
-	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
-Subject: Re: [PATCH v4 3/5] [RFC] arm64: Add support for idle bit in swap PTE
-Message-ID: <20190806115703.GY11812@dhcp22.suse.cz>
-References: <20190805170451.26009-1-joel@joelfernandes.org>
- <20190805170451.26009-3-joel@joelfernandes.org>
- <20190806084203.GJ11812@dhcp22.suse.cz>
- <20190806103627.GA218260@google.com>
- <20190806104755.GR11812@dhcp22.suse.cz>
- <20190806111446.GA117316@google.com>
+	Linux MM <linux-mm@kvack.org>,
+	Daniel Jordan <daniel.m.jordan@oracle.com>,
+	Christoph Lameter <cl@linux.com>,
+	Yafang Shao <shaoyafang@didiglobal.com>
+Subject: Re: [PATCH v2] mm/vmscan: shrink slab in node reclaim
+Message-ID: <20190806115823.GZ11812@dhcp22.suse.cz>
+References: <20190806073525.GC11812@dhcp22.suse.cz>
+ <20190806074137.GE11812@dhcp22.suse.cz>
+ <CALOAHbBNV9BNmGhnV-HXOdx9QfArLHqBHsBe0cm-gxsGVSoenw@mail.gmail.com>
+ <20190806090516.GM11812@dhcp22.suse.cz>
+ <CALOAHbDO5qmqKt8YmCkTPhh+m34RA+ahgYVgiLx1RSOJ-gM4Dw@mail.gmail.com>
+ <20190806092531.GN11812@dhcp22.suse.cz>
+ <20190806095028.GG2739@techsingularity.net>
+ <CALOAHbAwSevM9rpReKzJUhwoZrz_FdbBzSgRtkUfWe9BMGxWJA@mail.gmail.com>
+ <20190806102845.GP11812@dhcp22.suse.cz>
+ <CALOAHbCJg4DqdgKpr8LWqc636ig=phCZWUduEmwYFUtw5gq=tw@mail.gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190806111446.GA117316@google.com>
+In-Reply-To: <CALOAHbCJg4DqdgKpr8LWqc636ig=phCZWUduEmwYFUtw5gq=tw@mail.gmail.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -122,70 +114,18 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 06-08-19 07:14:46, Joel Fernandes wrote:
-> On Tue, Aug 06, 2019 at 12:47:55PM +0200, Michal Hocko wrote:
-> > On Tue 06-08-19 06:36:27, Joel Fernandes wrote:
-> > > On Tue, Aug 06, 2019 at 10:42:03AM +0200, Michal Hocko wrote:
-> > > > On Mon 05-08-19 13:04:49, Joel Fernandes (Google) wrote:
-> > > > > This bit will be used by idle page tracking code to correctly identify
-> > > > > if a page that was swapped out was idle before it got swapped out.
-> > > > > Without this PTE bit, we lose information about if a page is idle or not
-> > > > > since the page frame gets unmapped.
-> > > > 
-> > > > And why do we need that? Why cannot we simply assume all swapped out
-> > > > pages to be idle? They were certainly idle enough to be reclaimed,
-> > > > right? Or what does idle actualy mean here?
-> > > 
-> > > Yes, but other than swapping, in Android a page can be forced to be swapped
-> > > out as well using the new hints that Minchan is adding?
-> > 
-> > Yes and that is effectivelly making them idle, no?
+On Tue 06-08-19 18:59:52, Yafang Shao wrote:
+> On Tue, Aug 6, 2019 at 6:28 PM Michal Hocko <mhocko@kernel.org> wrote:
+[...]
+> > Really, I wouldn't be opposing normally but node_reclaim is an odd ball
+> > rarely used and changing its behavior based on some trivial testing
+> > doesn't sound very convincing to me.
+> >
 > 
-> That depends on how you think of it.
+> Well.  I'm not insist if Andrew prefer your change.
 
-I would much prefer to have it documented so that I do not have to guess ;)
-
-> If you are thinking of a monitoring
-> process like a heap profiler, then from the heap profiler's (that only cares
-> about the process it is monitoring) perspective it will look extremely odd if
-> pages that are recently accessed by the process appear to be idle which would
-> falsely look like those processes are leaking memory. The reality being,
-> Android forced those pages into swap because of other reasons. I would like
-> for the swapping mechanism, whether forced swapping or memory reclaim, not to
-> interfere with the idle detection.
-
-Hmm, but how are you going to handle situation when the page is unmapped
-and refaulted again (e.g. a normal reclaim of a pagecache)? You are
-losing that information same was as in the swapout case, no? Or am I
-missing something?
-
-> This is just an effort to make the idle tracking a little bit better. We
-> would like to not lose the 'accessed' information of the pages.
-> 
-> Initially, I had proposed what you are suggesting as well however the above
-> reasons made me to do it like this. Also Minchan and Konstantin suggested
-> this, so there are more people interested in the swap idle bit. Minchan, can
-> you provide more thoughts here? (He is on 2-week vacation from today so
-> hopefully replies before he vanishes ;-)).
-
-We can move on with the rest of the series in the mean time but I would
-like to see a proper justification for the swap entries and why they
-should be handled special.
-
-> Also assuming all swap pages as idle has other "semantic" issues. It is quite
-> odd if a swapped page is automatically marked as idle without userspace
-> telling it to. Consider the following set of events: 1. Userspace marks only
-> a certain memory region as idle. 2. Userspace reads back the bits
-> corresponding to a bigger region. Part of this bigger region is swapped.
-> Userspace expects all of the pages it did not mark, to have idle bit set to
-> '0' because it never marked them as idle. However if it is now surprised by
-> what it read back (not all '0' read back). Since a page is swapped, it will
-> be now marked "automatically" as idle as per your proposal, even if userspace
-> never marked it explicity before. This would be quite confusing/ambiguous.
-
-OK, I see. I guess the primary question I have is how do you distinguish
-Idle page which got unmapped and faulted in again from swapped out page
-and refaulted - including the time the pte is not present.
+Btw. feel free to use the diff I've send for the real patch with the
+changelog. Thanks!
 -- 
 Michal Hocko
 SUSE Labs
