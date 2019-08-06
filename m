@@ -2,115 +2,115 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ABAA5C0650F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 01:48:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6531FC0650F
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 01:48:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 585F120C01
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 01:48:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 0C0DB2147A
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 01:48:13 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="D8oNjiVe"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 585F120C01
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Ffw9c4N5"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C0DB2147A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D49FD6B0003; Mon,  5 Aug 2019 21:48:11 -0400 (EDT)
+	id 1D8AF6B0008; Mon,  5 Aug 2019 21:48:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CF9D16B0006; Mon,  5 Aug 2019 21:48:11 -0400 (EDT)
+	id 188956B0005; Mon,  5 Aug 2019 21:48:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B9AC46B0008; Mon,  5 Aug 2019 21:48:11 -0400 (EDT)
+	id ED3306B000C; Mon,  5 Aug 2019 21:48:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 99F746B0003
+Received: from mail-ua1-f70.google.com (mail-ua1-f70.google.com [209.85.222.70])
+	by kanga.kvack.org (Postfix) with ESMTP id AD2756B0005
 	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 21:48:11 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id m198so74172704qke.22
+Received: by mail-ua1-f70.google.com with SMTP id h37so8129649uad.16
         for <linux-mm@kvack.org>; Mon, 05 Aug 2019 18:48:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=fr5eyPRRWPi1rDqCT8/skQQ0aW1iOdHkBGzG8QNDcy4=;
-        b=AB9LSFZ0XzLJbkkwitumNhcFBADuuMhnwCZ8OjyngChXbZjW7iMnV28a/18IV/WKTc
-         4TqwiIbIc9FDgz5Q1QvUoiIrJEEF7JkaYDjP/WlAEqvr5/RN9rK5wKDnNZxdGY285ytE
-         iP6+nU1AaY6y31PwmLVflpFKwxeR7UxwuwQwFOyZ0ozqca54JtgMPLnU4muINaOmNzq/
-         ZeWWMunNqu9YRx/jmWW15d8O0q2d/3DgG8IStNrnYSW0F6fVnI3Yd6jWh3JLoyFHL75I
-         ie2M03xBTO5wMUyNaO/mSaPccVIjvT7xdZd9bAxpn5XVZ8EBIRvDjNHK85fLgviBt76V
-         amyw==
-X-Gm-Message-State: APjAAAXYAZrXj5Q8KH6llBD4xG7bLOZD5EhHZUlMGnQ0n4jRhYXUh03I
-	wIK8hvzGQrDT0Z7SqVrP42TZKkc5JO3+0zH9CWEXb33Cv64IS2DVmGUMGfjdafXaSCXA3VyY1ej
-	j+o1+zBlI4/AirmaL7ADoaJnsVafBKPi4404N+40E6ZRGBGUwedULpguJeUTF6bKOhw==
-X-Received: by 2002:ac8:2225:: with SMTP id o34mr953264qto.222.1565056091375;
+        bh=NkfExKMcLKaKUZb76g5CsxS1F+1fcLfxs/msqSWpJyg=;
+        b=TLtRu7MBdDyLcAIF2/qX1YqHyQsSwWApcnqmn4Dyd5AJtexgnokLHY/bMJGZQZUmyJ
+         ft7YYEP5yBsndy3G5zvZ9i2wCx5sB29480PkWZC3OIan6fLKElKeJUj1FnJqfecO9xKz
+         UVDwcQR3H5wxKU9JyjzBWo58l8x2rzMNb+2dC0kEZea0RdlXXv1E8kudA93UddJD8QUq
+         v631fxJSOTyhXUzhPeg0RMVzXLA4fOQSDOn7PSvXE7olz9LAUBx3XdAsdKETxGc1qS15
+         SExkSWPIvuhJwNwe9c/e+3/mBTpiBd/IhdvAWNgFRTD/BIIrHWsbbH6/RagA2uagluqI
+         zhbA==
+X-Gm-Message-State: APjAAAU86SXGq627fXgzACQ7+5ssvqn8XkipHhGQF0lg28FiLfzahbkk
+	QlxI7csajwIwydAZE4LAraKjAX/QJyIBDoA2aY8HdObpp8wSKkPmjEWea4xcpGVdCrHX5BPQhTu
+	b86bWk0GIZEQlLcwIvYryp/1DX1JljPZszxDBJTh4Wq8r85FeWaG7X4kCVkO723iU8g==
+X-Received: by 2002:a67:a44b:: with SMTP id p11mr717109vsh.237.1565056091315;
         Mon, 05 Aug 2019 18:48:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzjZggzlt2FDTobnn3FltRTjirjtuzGfcU0BjoJg/VXB1BnJofrv0m8hZc3Ftbza3ibYAjS
-X-Received: by 2002:ac8:2225:: with SMTP id o34mr953242qto.222.1565056090677;
+X-Google-Smtp-Source: APXvYqxYGCduO/ts8TXdo+Vh4BUEhUhA0bKtA0bbXfXaZJKaorBEwym0f/M3ryelS3Bgd7ZDkCz8
+X-Received: by 2002:a67:a44b:: with SMTP id p11mr717093vsh.237.1565056090490;
         Mon, 05 Aug 2019 18:48:10 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1565056090; cv=none;
         d=google.com; s=arc-20160816;
-        b=bOavXC42efqLX4gAPGi9fSVoFj1Mm3O09bkRDeERCQAJ+sHZOrufSvllpt6dVWs7ew
-         SDYAMIkbpeoAUxuk8wslr+yWAzFD4dc/QEH3EJYliueApqkkW9FgbxBPJBBFppjZBF2X
-         +BgMQzH4rHRHIr3vP9/IzY81FkcBUvAgCjTTMxmKK0guPqlPBAGFBMvqMAxDX6bE68oW
-         3/LBxZhSJyimruGG0kbukikcUQQ0UBJc4bAaaMGUgdW4LFJu8B3dngxBSc/qAtJwVocT
-         No/nk9VVGPc79uJ7+3h6OZTiAHouaca0ovGaZAkIFWczz6egI/xi/bmYr/tQn7g9f0sF
-         C6Cg==
+        b=Q8DsJxX18GiIIUiPgceEDP9d/CSCCxVt41IdE6dFkfbtAkbe+eMB71iiK9gZnl1VIc
+         qlt24OaXqBQCPvJ4hCH3hoyDcr3C1PGj8CYlsOZ0XFKdu2G2xbjnHQv7qcWkLS6ccRww
+         aHXrlzk0QGG8DKFuhXZqddgtFGgPnfjb3KVK6/BTs8dRtiMn6v9CyY+Jmh3W9qh216p2
+         gNbxehUBv7jdd6yLQD/hbAZeIwXx7839ycYxjvup+nH0wXXecATjTdE22rWBj7hytLpK
+         MgME52bdgN2y7sRryS7B1XS/stWyubKUeXwiQOBaVrpG/y254zzNGomfGZpZRXBHF7An
+         z7Sg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=fr5eyPRRWPi1rDqCT8/skQQ0aW1iOdHkBGzG8QNDcy4=;
-        b=gGDPAg+PRSndJYZ4qUG0/FC+LLzCmn8xIyAxvOMDZa0qzWCkwmuFxQSDcXA5qINI2V
-         51/mmSegUXmazUZho9eRU68JW1u3ZbYmMTVj983VpFFcer3/4Pncg3nMpYxXlKGhwt86
-         D6HAeFGWd1de5fA0gxQOUckfNmStdk8vQKbyC0Q3RFX2/2dBjoxzeBTkzlo1UPHZsLtH
-         wDVZiREl0c7AY/OJAP7wjRbmDSK1HQ/65jnO1BvZbOVKLAArwov4SSbV/q1MF0XSjX1w
-         nVS76stRUFu/7ynbGNt2ot77uAHRMDlkKvYvfMd4Edd8SlzoiQuEXZZQ3Tm1njMl8T9T
-         W+gA==
+        bh=NkfExKMcLKaKUZb76g5CsxS1F+1fcLfxs/msqSWpJyg=;
+        b=qbUkcCvcA6ojqaoJ6tyTA6/3TJu2yjI0aQODBns3dv9OCHdtQbsQ0QH3kH+HmDzPXT
+         zh4GmJ7uItg8msw0A6T+biVPymNhm25Vgq9xoAmJGbnQOj77ioDWAS+jzrnXj5ckbEWc
+         O0HYe4NmIr/naT/RSeXrvAoNPsU0DTc4P5pQYHYKdH9qM5U/D9BONFCp60jXepzIFQ6a
+         GDB+51WdNkWRc7Y40c3XiQGSUESWX3CEvEUhGJet9mcpgvhSY2Hgrgr6VghSxdsd8USt
+         XuDiJRJnE6cV2jYg797Spp9JI371KQTk15GmwTbX5Kucef1Gj1I2SJ9W63+h4mqn8WM/
+         rjsw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=D8oNjiVe;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Ffw9c4N5;
        spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id q203si4347142qke.253.2019.08.05.18.48.10
+        by mx.google.com with ESMTPS id h9si15656024vsk.245.2019.08.05.18.48.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Mon, 05 Aug 2019 18:48:10 -0700 (PDT)
 Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=D8oNjiVe;
+       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=Ffw9c4N5;
        spf=pass (google.com: domain of mike.kravetz@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
 Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x761jJ5f152854;
-	Tue, 6 Aug 2019 01:48:06 GMT
+	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x761i73Z151869;
+	Tue, 6 Aug 2019 01:48:05 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references : mime-version :
  content-transfer-encoding; s=corp-2018-07-02;
- bh=fr5eyPRRWPi1rDqCT8/skQQ0aW1iOdHkBGzG8QNDcy4=;
- b=D8oNjiVeBbBG2MWiIYLecowUjrtkG6Oal3VR7bQ6Tq4XmhC3HUSvX6hveVydUDg+uCSf
- fKsU20yt/rHoLw6ROp/IekRVGI4s/cWGUmKBSV7E8/r7r/O2wc1tbqncE7nR6+Yu66hj
- 1qJvG2d/5kbJSHgu3Un/N1D+KaOJXSGD1SzDh7SVXW6cfVCl6R6JAnJFoc4vKwwNQlqN
- s9Hb0KVzO9OZdGzBATWoa1/t84ZevYXdnjOvmoB7ZbtVUdiJTy5OA7qOqvWX8RaT+UkC
- 9v6Wrar1BRo08b+nRfu68R4Ga8X0BI0eFRjdsT+zcX2559xT3mapK8BHVejeI9Dkppus Ag== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by aserp2120.oracle.com with ESMTP id 2u527pjm9r-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 06 Aug 2019 01:48:06 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x761m4bW086383;
-	Tue, 6 Aug 2019 01:48:05 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userp3020.oracle.com with ESMTP id 2u51kn4a0w-1
+ bh=NkfExKMcLKaKUZb76g5CsxS1F+1fcLfxs/msqSWpJyg=;
+ b=Ffw9c4N5uibqiguUP/+Kxijh2it7kC65bqaiLVF+uWAkM+cwU5wJ4EsIKqnXh6+wpYu2
+ Kx8+9zR8F4/87DVsm2/Tt/M00ITVQct/1bVvATEnZh58tDT9gCtnBUwxDEEEhBv8mK9j
+ LZWUgTr4agZ6G+Qgi7TywPysOh08PaowpFUPpv92PqocSw6ExE7oSQW9aTU4nkMT79uM
+ 8M/h2aAuOMu1CtGcUaRZW8C6j4MyXJj8fLDNFRceZXkF4B3VlPGUtRbCNpfMMrgDZTDi
+ x2VP7NCKE/XPFSHQwFyWPL4ZnJPx83LojZBM1mXFf7EKftIYAWf6mQaILaFQdnDjNE3/ Ng== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by aserp2120.oracle.com with ESMTP id 2u527pjm9n-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
 	Tue, 06 Aug 2019 01:48:05 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x761m4fm032603;
+	Tue, 6 Aug 2019 01:48:04 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserp3030.oracle.com with ESMTP id 2u50ac9ax6-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 06 Aug 2019 01:48:04 +0000
 Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x761ludm016081;
-	Tue, 6 Aug 2019 01:47:56 GMT
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x761lxFd016089;
+	Tue, 6 Aug 2019 01:47:59 GMT
 Received: from monkey.oracle.com (/71.63.128.209)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 05 Aug 2019 18:47:55 -0700
+	with ESMTP ; Mon, 05 Aug 2019 18:47:59 -0700
 From: Mike Kravetz <mike.kravetz@oracle.com>
 To: linux-mm@kvack.org, linux-kernel@vger.kernel.org
 Cc: Hillf Danton <hdanton@sina.com>, Vlastimil Babka <vbabka@suse.cz>,
@@ -120,22 +120,22 @@ Cc: Hillf Danton <hdanton@sina.com>, Vlastimil Babka <vbabka@suse.cz>,
         David Rientjes <rientjes@google.com>,
         Andrew Morton <akpm@linux-foundation.org>,
         Mike Kravetz <mike.kravetz@oracle.com>
-Subject: [PATCH v2 2/4] mm, reclaim: cleanup should_continue_reclaim()
-Date: Mon,  5 Aug 2019 18:47:42 -0700
-Message-Id: <20190806014744.15446-3-mike.kravetz@oracle.com>
+Subject: [PATCH v2 4/4] hugetlbfs: don't retry when pool page allocations start to fail
+Date: Mon,  5 Aug 2019 18:47:44 -0700
+Message-Id: <20190806014744.15446-5-mike.kravetz@oracle.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190806014744.15446-1-mike.kravetz@oracle.com>
 References: <20190806014744.15446-1-mike.kravetz@oracle.com>
 MIME-Version: 1.0
 Content-Transfer-Encoding: 8bit
 X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9340 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
  phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
  adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
  engine=8.0.1-1906280000 definitions=main-1908060020
 X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9340 signatures=668685
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
  lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
  definitions=main-1908060019
@@ -145,103 +145,227 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Vlastimil Babka <vbabka@suse.cz>
+When allocating hugetlbfs pool pages via /proc/sys/vm/nr_hugepages,
+the pages will be interleaved between all nodes of the system.  If
+nodes are not equal, it is quite possible for one node to fill up
+before the others.  When this happens, the code still attempts to
+allocate pages from the full node.  This results in calls to direct
+reclaim and compaction which slow things down considerably.
 
-After commit "mm, reclaim: make should_continue_reclaim perform dryrun
-detection", closer look at the function shows, that nr_reclaimed == 0
-means the function will always return false. And since non-zero
-nr_reclaimed implies non_zero nr_scanned, testing nr_scanned serves no
-purpose, and so does the testing for __GFP_RETRY_MAYFAIL.
+When allocating pool pages, note the state of the previous allocation
+for each node.  If previous allocation failed, do not use the
+aggressive retry algorithm on successive attempts.  The allocation
+will still succeed if there is memory available, but it will not try
+as hard to free up memory.
 
-This patch thus cleans up the function to test only !nr_reclaimed upfront,
-and remove the __GFP_RETRY_MAYFAIL test and nr_scanned parameter
-completely.  Comment is also updated, explaining that approximating "full
-LRU list has been scanned" with nr_scanned == 0 didn't really work.
-
-Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
-Acked-by: Mike Kravetz <mike.kravetz@oracle.com>
 Signed-off-by: Mike Kravetz <mike.kravetz@oracle.com>
 ---
-Commit message reformatted to avoid line wrap.
+v2 - Removed __GFP_NORETRY from bit mask allocations and added more
+     comments.  OK to pass NULL to NODEMASK_FREE.
 
- mm/vmscan.c | 43 ++++++++++++++-----------------------------
- 1 file changed, 14 insertions(+), 29 deletions(-)
+ mm/hugetlb.c | 89 ++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 79 insertions(+), 10 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index a386c5351592..227d10cd704b 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -2704,7 +2704,6 @@ static bool in_reclaim_compaction(struct scan_control *sc)
-  */
- static inline bool should_continue_reclaim(struct pglist_data *pgdat,
- 					unsigned long nr_reclaimed,
--					unsigned long nr_scanned,
- 					struct scan_control *sc)
- {
- 	unsigned long pages_for_compaction;
-@@ -2715,28 +2714,18 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
- 	if (!in_reclaim_compaction(sc))
- 		return false;
- 
--	/* Consider stopping depending on scan and reclaim activity */
--	if (sc->gfp_mask & __GFP_RETRY_MAYFAIL) {
--		/*
--		 * For __GFP_RETRY_MAYFAIL allocations, stop reclaiming if the
--		 * full LRU list has been scanned and we are still failing
--		 * to reclaim pages. This full LRU scan is potentially
--		 * expensive but a __GFP_RETRY_MAYFAIL caller really wants to succeed
--		 */
--		if (!nr_reclaimed && !nr_scanned)
--			return false;
--	} else {
--		/*
--		 * For non-__GFP_RETRY_MAYFAIL allocations which can presumably
--		 * fail without consequence, stop if we failed to reclaim
--		 * any pages from the last SWAP_CLUSTER_MAX number of
--		 * pages that were scanned. This will return to the
--		 * caller faster at the risk reclaim/compaction and
--		 * the resulting allocation attempt fails
--		 */
--		if (!nr_reclaimed)
--			return false;
--	}
-+	/*
-+	 * Stop if we failed to reclaim any pages from the last SWAP_CLUSTER_MAX
-+	 * number of pages that were scanned. This will return to the caller
-+	 * with the risk reclaim/compaction and the resulting allocation attempt
-+	 * fails. In the past we have tried harder for __GFP_RETRY_MAYFAIL
-+	 * allocations through requiring that the full LRU list has been scanned
-+	 * first, by assuming that zero delta of sc->nr_scanned means full LRU
-+	 * scan, but that approximation was wrong, and there were corner cases
-+	 * where always a non-zero amount of pages were scanned.
-+	 */
-+	if (!nr_reclaimed)
-+		return false;
- 
- 	/* If compaction would go ahead or the allocation would succeed, stop */
- 	for (z = 0; z <= sc->reclaim_idx; z++) {
-@@ -2763,11 +2752,7 @@ static inline bool should_continue_reclaim(struct pglist_data *pgdat,
- 	if (get_nr_swap_pages() > 0)
- 		inactive_lru_pages += node_page_state(pgdat, NR_INACTIVE_ANON);
- 
--	return inactive_lru_pages > pages_for_compaction &&
--		/*
--		 * avoid dryrun with plenty of inactive pages
--		 */
--		nr_scanned && nr_reclaimed;
-+	return inactive_lru_pages > pages_for_compaction;
+diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+index ede7e7f5d1ab..2be0b055958a 100644
+--- a/mm/hugetlb.c
++++ b/mm/hugetlb.c
+@@ -1405,12 +1405,25 @@ pgoff_t __basepage_index(struct page *page)
  }
  
- static bool pgdat_memcg_congested(pg_data_t *pgdat, struct mem_cgroup *memcg)
-@@ -2936,7 +2921,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 			wait_iff_congested(BLK_RW_ASYNC, HZ/10);
+ static struct page *alloc_buddy_huge_page(struct hstate *h,
+-		gfp_t gfp_mask, int nid, nodemask_t *nmask)
++		gfp_t gfp_mask, int nid, nodemask_t *nmask,
++		nodemask_t *node_alloc_noretry)
+ {
+ 	int order = huge_page_order(h);
+ 	struct page *page;
++	bool alloc_try_hard = true;
  
- 	} while (should_continue_reclaim(pgdat, sc->nr_reclaimed - nr_reclaimed,
--					 sc->nr_scanned - nr_scanned, sc));
-+					 sc));
+-	gfp_mask |= __GFP_COMP|__GFP_RETRY_MAYFAIL|__GFP_NOWARN;
++	/*
++	 * By default we always try hard to allocate the page with
++	 * __GFP_RETRY_MAYFAIL flag.  However, if we are allocating pages in
++	 * a loop (to adjust global huge page counts) and previous allocation
++	 * failed, do not continue to try hard on the same node.  Use the
++	 * node_alloc_noretry bitmap to manage this state information.
++	 */
++	if (node_alloc_noretry && node_isset(nid, *node_alloc_noretry))
++		alloc_try_hard = false;
++	gfp_mask |= __GFP_COMP|__GFP_NOWARN;
++	if (alloc_try_hard)
++		gfp_mask |= __GFP_RETRY_MAYFAIL;
+ 	if (nid == NUMA_NO_NODE)
+ 		nid = numa_mem_id();
+ 	page = __alloc_pages_nodemask(gfp_mask, order, nid, nmask);
+@@ -1419,6 +1432,22 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
+ 	else
+ 		__count_vm_event(HTLB_BUDDY_PGALLOC_FAIL);
  
- 	/*
- 	 * Kswapd gives up on balancing particular nodes after too
++	/*
++	 * If we did not specify __GFP_RETRY_MAYFAIL, but still got a page this
++	 * indicates an overall state change.  Clear bit so that we resume
++	 * normal 'try hard' allocations.
++	 */
++	if (node_alloc_noretry && page && !alloc_try_hard)
++		node_clear(nid, *node_alloc_noretry);
++
++	/*
++	 * If we tried hard to get a page but failed, set bit so that
++	 * subsequent attempts will not try as hard until there is an
++	 * overall state change.
++	 */
++	if (node_alloc_noretry && !page && alloc_try_hard)
++		node_set(nid, *node_alloc_noretry);
++
+ 	return page;
+ }
+ 
+@@ -1427,7 +1456,8 @@ static struct page *alloc_buddy_huge_page(struct hstate *h,
+  * should use this function to get new hugetlb pages
+  */
+ static struct page *alloc_fresh_huge_page(struct hstate *h,
+-		gfp_t gfp_mask, int nid, nodemask_t *nmask)
++		gfp_t gfp_mask, int nid, nodemask_t *nmask,
++		nodemask_t *node_alloc_noretry)
+ {
+ 	struct page *page;
+ 
+@@ -1435,7 +1465,7 @@ static struct page *alloc_fresh_huge_page(struct hstate *h,
+ 		page = alloc_gigantic_page(h, gfp_mask, nid, nmask);
+ 	else
+ 		page = alloc_buddy_huge_page(h, gfp_mask,
+-				nid, nmask);
++				nid, nmask, node_alloc_noretry);
+ 	if (!page)
+ 		return NULL;
+ 
+@@ -1450,14 +1480,16 @@ static struct page *alloc_fresh_huge_page(struct hstate *h,
+  * Allocates a fresh page to the hugetlb allocator pool in the node interleaved
+  * manner.
+  */
+-static int alloc_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed)
++static int alloc_pool_huge_page(struct hstate *h, nodemask_t *nodes_allowed,
++				nodemask_t *node_alloc_noretry)
+ {
+ 	struct page *page;
+ 	int nr_nodes, node;
+ 	gfp_t gfp_mask = htlb_alloc_mask(h) | __GFP_THISNODE;
+ 
+ 	for_each_node_mask_to_alloc(h, nr_nodes, node, nodes_allowed) {
+-		page = alloc_fresh_huge_page(h, gfp_mask, node, nodes_allowed);
++		page = alloc_fresh_huge_page(h, gfp_mask, node, nodes_allowed,
++						node_alloc_noretry);
+ 		if (page)
+ 			break;
+ 	}
+@@ -1601,7 +1633,7 @@ static struct page *alloc_surplus_huge_page(struct hstate *h, gfp_t gfp_mask,
+ 		goto out_unlock;
+ 	spin_unlock(&hugetlb_lock);
+ 
+-	page = alloc_fresh_huge_page(h, gfp_mask, nid, nmask);
++	page = alloc_fresh_huge_page(h, gfp_mask, nid, nmask, NULL);
+ 	if (!page)
+ 		return NULL;
+ 
+@@ -1637,7 +1669,7 @@ struct page *alloc_migrate_huge_page(struct hstate *h, gfp_t gfp_mask,
+ 	if (hstate_is_gigantic(h))
+ 		return NULL;
+ 
+-	page = alloc_fresh_huge_page(h, gfp_mask, nid, nmask);
++	page = alloc_fresh_huge_page(h, gfp_mask, nid, nmask, NULL);
+ 	if (!page)
+ 		return NULL;
+ 
+@@ -2207,13 +2239,33 @@ static void __init gather_bootmem_prealloc(void)
+ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
+ {
+ 	unsigned long i;
++	nodemask_t *node_alloc_noretry;
++
++	if (!hstate_is_gigantic(h)) {
++		/*
++		 * Bit mask controlling how hard we retry per-node allocations.
++		 * Ignore errors as lower level routines can deal with
++		 * node_alloc_noretry == NULL.  If this kmalloc fails at boot
++		 * time, we are likely in bigger trouble.
++		 */
++		node_alloc_noretry = kmalloc(sizeof(*node_alloc_noretry),
++						GFP_KERNEL);
++	} else {
++		/* allocations done at boot time */
++		node_alloc_noretry = NULL;
++	}
++
++	/* bit mask controlling how hard we retry per-node allocations */
++	if (node_alloc_noretry)
++		nodes_clear(*node_alloc_noretry);
+ 
+ 	for (i = 0; i < h->max_huge_pages; ++i) {
+ 		if (hstate_is_gigantic(h)) {
+ 			if (!alloc_bootmem_huge_page(h))
+ 				break;
+ 		} else if (!alloc_pool_huge_page(h,
+-					 &node_states[N_MEMORY]))
++					 &node_states[N_MEMORY],
++					 node_alloc_noretry))
+ 			break;
+ 		cond_resched();
+ 	}
+@@ -2225,6 +2277,8 @@ static void __init hugetlb_hstate_alloc_pages(struct hstate *h)
+ 			h->max_huge_pages, buf, i);
+ 		h->max_huge_pages = i;
+ 	}
++
++	kfree(node_alloc_noretry);
+ }
+ 
+ static void __init hugetlb_init_hstates(void)
+@@ -2323,6 +2377,17 @@ static int set_max_huge_pages(struct hstate *h, unsigned long count, int nid,
+ 			      nodemask_t *nodes_allowed)
+ {
+ 	unsigned long min_count, ret;
++	NODEMASK_ALLOC(nodemask_t, node_alloc_noretry, GFP_KERNEL);
++
++	/*
++	 * Bit mask controlling how hard we retry per-node allocations.
++	 * If we can not allocate the bit mask, do not attempt to allocate
++	 * the requested huge pages.
++	 */
++	if (node_alloc_noretry)
++		nodes_clear(*node_alloc_noretry);
++	else
++		return -ENOMEM;
+ 
+ 	spin_lock(&hugetlb_lock);
+ 
+@@ -2356,6 +2421,7 @@ static int set_max_huge_pages(struct hstate *h, unsigned long count, int nid,
+ 	if (hstate_is_gigantic(h) && !IS_ENABLED(CONFIG_CONTIG_ALLOC)) {
+ 		if (count > persistent_huge_pages(h)) {
+ 			spin_unlock(&hugetlb_lock);
++			NODEMASK_FREE(node_alloc_noretry);
+ 			return -EINVAL;
+ 		}
+ 		/* Fall through to decrease pool */
+@@ -2388,7 +2454,8 @@ static int set_max_huge_pages(struct hstate *h, unsigned long count, int nid,
+ 		/* yield cpu to avoid soft lockup */
+ 		cond_resched();
+ 
+-		ret = alloc_pool_huge_page(h, nodes_allowed);
++		ret = alloc_pool_huge_page(h, nodes_allowed,
++						node_alloc_noretry);
+ 		spin_lock(&hugetlb_lock);
+ 		if (!ret)
+ 			goto out;
+@@ -2429,6 +2496,8 @@ static int set_max_huge_pages(struct hstate *h, unsigned long count, int nid,
+ 	h->max_huge_pages = persistent_huge_pages(h);
+ 	spin_unlock(&hugetlb_lock);
+ 
++	NODEMASK_FREE(node_alloc_noretry);
++
+ 	return 0;
+ }
+ 
 -- 
 2.20.1
 
