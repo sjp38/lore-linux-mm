@@ -2,111 +2,158 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.5 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
-	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D475C433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 02:10:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0EFBCC0650F
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 02:32:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DA8812147A
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 02:10:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA8812147A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
+	by mail.kernel.org (Postfix) with ESMTP id CBFA72147A
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 02:32:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CBFA72147A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 485FF6B0003; Mon,  5 Aug 2019 22:10:18 -0400 (EDT)
+	id 49CD46B0003; Mon,  5 Aug 2019 22:32:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 436D66B0005; Mon,  5 Aug 2019 22:10:18 -0400 (EDT)
+	id 44D696B0005; Mon,  5 Aug 2019 22:32:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2FE276B0006; Mon,  5 Aug 2019 22:10:18 -0400 (EDT)
+	id 33CA56B0006; Mon,  5 Aug 2019 22:32:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 0E88E6B0003
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 22:10:18 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id n19so47654983ota.14
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 19:10:18 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id F07C16B0003
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 22:32:07 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id 21so54825139pfu.9
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 19:32:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=tQX9MurGiQLcuHKEu+jVXFfbyrUikSawVnABrZ+VLwc=;
-        b=oG+G+SU2hAXmdH1d/Df1UW5ulsnbSw9H9/397NQ4BG6eM04eYQFbJ4cZyrWv01ZQ+o
-         zTQknBzrpc5oHZAIpY2Y1+KrZhO/B0JmLueSd9QmnIHK3Y9f2fGLz9jfDXvoGTX2czre
-         suQNSClDo1/SvBH+dFKapkpNyQnWaIRmcbrRYMV/46Zh5HGbdI0Z4lbP9bB5BPbV6Qe0
-         vUjj+Mu6TP2cNqpdsfyMEEWZ4sxzx+JPnh9Viuubh06OL2Zy66NCScrKjsmby2Mas7eH
-         EMuVIrlktF4kWkDaMUqtRVq67rCSZkunk1pIMG/kIUcvLZ90FtHwOpYHHNVxbaONZNob
-         kKQQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.7.213 as permitted sender) smtp.mailfrom=hdanton@sina.com
-X-Gm-Message-State: APjAAAUCXtMwwaNgyw78RZEDoes1BaPrcnP4tVW3vUyxgRht7F1+lYLC
-	JkGpHvilJfG9kkfQ8Hqha1xTEsm33MWrJd0gzhQtu3buhxfSosMyi9yZfOFLM9Is5NN0Ufl6d5b
-	9vLVzINTX7cwQ3+cSuSIv87M9FbOr4Qeit3RtfYPoGr0RPLjFRH68J0cnjuljHwGIvQ==
-X-Received: by 2002:aca:cc85:: with SMTP id c127mr78853oig.81.1565057417696;
-        Mon, 05 Aug 2019 19:10:17 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxWQcNRffNnJkzU5GMgj/pXFSvmbwL9GARaJFScpZITIbq+m6cC681kfvb9f56q2CV1OxBs
-X-Received: by 2002:aca:cc85:: with SMTP id c127mr78834oig.81.1565057417033;
-        Mon, 05 Aug 2019 19:10:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565057417; cv=none;
+        bh=IENhd9oHOmXMmgeMAoF/njM9H/dCoUuEPXf+2wU0+yU=;
+        b=hAAV7OSda2uSvYsnk/E+MOk/rlehMs9QxfIWeQ5I4Vxcy5+U/wsYO75nEANLdGie+G
+         by9hhauj4j0nfpO3xaeaLMvWt0FkglGsF2rDH66DxU0fjlgmvA7glz0hhPg2Q3CJ/bsC
+         ww3GDSwDYC8XKj0V/Z/AEMCQqKEyyhtz2lsea4xzcCyVMMfvmvqZswIvC1ZJwvI5P1K7
+         ufp8KvUe6cfkz9GA8Q4n0vyYl8IHuCe1CyCeeRklx2u2BG1QZaLxwBFxcWriZyD4CD1M
+         ormqan2sGG7b7YjzP+Xcp9FwhPiz2qEd+/HTWxM67DmvDU09U5WnUCKTWOmtor1QvqED
+         hl8Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of wangkefeng.wang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=wangkefeng.wang@huawei.com
+X-Gm-Message-State: APjAAAW8AHmKrqGyrPU8pGq0eS7BwThw4A2tn9ZblF1AvMXIv+EXUftF
+	sidz1banCVuioYYxMrEqwfAY4vyYc8iwkcPz2zvzfrn3h8uAAeBwSWDDvOZQ2gR2RVCvMkMzp0J
+	RqJeJE33/MBdfBM0h1cCoSwqVDy2S2TIQasGuwOJWTT8zLBvmBwFEzEseXS9AwX3GbA==
+X-Received: by 2002:aa7:8dd2:: with SMTP id j18mr1173718pfr.88.1565058727588;
+        Mon, 05 Aug 2019 19:32:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyCrDfhF2rgyn0YWKKjXb8TzlfXc6ZHvq0NYGT4xRVrGC8nhNdsET76w2mhp/YwfHvmGVM9
+X-Received: by 2002:aa7:8dd2:: with SMTP id j18mr1173662pfr.88.1565058726776;
+        Mon, 05 Aug 2019 19:32:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565058726; cv=none;
         d=google.com; s=arc-20160816;
-        b=a+U5lHd7R72P7ESkXREKthpS/hX/vwCDL6ah1wtD03kAlaxgZOWCnhVb9sKb+25oSc
-         6H190k+ku2WEnBcSoybK6qspP5YoHmsh4QkCn5fteStj5VgD2RSy+kujzjOscDF9LXGX
-         LFYMrJMs3GWPbJn/vM3/BEFieupP0xmQQKQe7lvKtmKJQFGNloJdxHafGweL+yQ1C+eG
-         165I6fEz6qV8v65X5oewSeYoxbT2z4rhzu2fyIPFLQRHlWLZnMNCFQv1lhfSUlVnMZ3s
-         4JZCilL7irc+2X+6Q227zikIUGl1CUjXv6UIHE1ZRDrxQpLBKRye5p41oL1QbWTnxggu
-         hpqg==
+        b=ppwkyP0eFncpi1lTZk2t+KGaTX9P1/7ndy/b83x5AhGoaVnH1Nht8XvPJJCdD8HJkQ
+         EaqzUvrvrAdOI4IztS08WHkGM8/BnOnTPGLTLKwjXWhfwT7OiFM0UgKzkvJw8aF5L2+6
+         XSCmpDonPAytS1LykwsrVt/eaHOtIDmoWkcxrmmJ/TvF95UXXH4cJPCLOZe7el8fn8Sx
+         ggUVfv/pPQ0/FhIHPEGZEsS7/QOOHXbxYbnZCunOjZu9+pNqqPNJOMQgDPJXg1k2Bg98
+         7x0QMnrlg7Kyh5EB8f4QAYnPpLNu29T1Hbj+nebycCwD/tgWQxawb0+p5lhMsXesY0I+
+         HKhA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:message-id:date:subject:cc
          :to:from;
-        bh=tQX9MurGiQLcuHKEu+jVXFfbyrUikSawVnABrZ+VLwc=;
-        b=yyIx2+gUegcJRrHqgX7almVJ0LTueHGuIhx0OtkBq1inFvrNh1oaTEy22bSC7VTmuN
-         ZM0OjZ6oN2jMQkw4cx9/LROAwlLcOWvj2xkFK6HBOG24vOBJf6ZVjSf+5IvtltnrwJ1T
-         Kyiy80lZM2iNMo81IW7eS1ElOhDBFIDZqMxvOcE+Z8/DabVogXGs6oXYTyAj7F+R5cBY
-         AJj2BnX6uLEHHplJfLUzsbTyhb/3A6hTku7Itj/bwhD6JOQOyibU/DCFOOE3RqR0deAB
-         YS4uYnXm3748r6YEmeOgCBG5YwioRHgp8ccTO+NrBccRiOH7e05oBCbEb4CoLtQVAvTS
-         2cxQ==
+        bh=IENhd9oHOmXMmgeMAoF/njM9H/dCoUuEPXf+2wU0+yU=;
+        b=a2M1ZBLAhd3Hg2xM9EQPMj+CaWs2MozzYVeDS44CUuR5iz5Z5WHFYii8BnVvB3Kb9E
+         4DXBzKr5XT0LQfyBk6j4ppHlN2v6fN7kUYktrcfrSndCZ5ZCE/qPcoKsDU1qemSB69xf
+         6v2Vwo+d3WqWnUHktEfHwoE+xrYnQus7xaTzDX9d0ddwfgQ40kgfjjT37V45IutGlkQ9
+         vucT51ZgpDiXrmUEK7/T2hgVU0lYCkv7v8+cfQ6jI7XoXvyqX1NsOwpvCyiI63M4eAWL
+         iwYaMFYouuYXafTFSf/PPpOKB5Cf/DUbVK8Esv8ZvBLuu+G0kymu5M6Ouc6AJ2t3xdvA
+         0YEg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.7.213 as permitted sender) smtp.mailfrom=hdanton@sina.com
-Received: from mail7-213.sinamail.sina.com.cn (mail7-213.sinamail.sina.com.cn. [202.108.7.213])
-        by mx.google.com with SMTP id 53si43299862otv.320.2019.08.05.19.10.16
-        for <linux-mm@kvack.org>;
-        Mon, 05 Aug 2019 19:10:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hdanton@sina.com designates 202.108.7.213 as permitted sender) client-ip=202.108.7.213;
+       spf=pass (google.com: domain of wangkefeng.wang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=wangkefeng.wang@huawei.com
+Received: from huawei.com (szxga04-in.huawei.com. [45.249.212.190])
+        by mx.google.com with ESMTPS id 5si43657749plx.200.2019.08.05.19.32.06
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 05 Aug 2019 19:32:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of wangkefeng.wang@huawei.com designates 45.249.212.190 as permitted sender) client-ip=45.249.212.190;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.7.213 as permitted sender) smtp.mailfrom=hdanton@sina.com
-Received: from unknown (HELO localhost.localdomain)([124.64.0.239])
-	by sina.com with ESMTP
-	id 5D48E17D00007430; Tue, 6 Aug 2019 10:10:06 +0800 (CST)
-X-Sender: hdanton@sina.com
-X-Auth-ID: hdanton@sina.com
-X-SMAIL-MID: 66226550201212
-From: Hillf Danton <hdanton@sina.com>
-To: "Artem S. Tashkinov" <aros@gmx.com>
-Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>
-Subject: Re: Let's talk about the elephant in the room - the Linux kernel'sinability to gracefully handle low memory pressure
-Date: Tue,  6 Aug 2019 10:09:54 +0800
-Message-Id: <20190806020954.1356-1-hdanton@sina.com>
+       spf=pass (google.com: domain of wangkefeng.wang@huawei.com designates 45.249.212.190 as permitted sender) smtp.mailfrom=wangkefeng.wang@huawei.com
+Received: from DGGEMS411-HUB.china.huawei.com (unknown [172.30.72.58])
+	by Forcepoint Email with ESMTP id 5BC7D11547BD51E5C9F0;
+	Tue,  6 Aug 2019 10:32:05 +0800 (CST)
+Received: from localhost.localdomain.localdomain (10.175.113.25) by
+ DGGEMS411-HUB.china.huawei.com (10.3.19.211) with Microsoft SMTP Server id
+ 14.3.439.0; Tue, 6 Aug 2019 10:31:58 +0800
+From: Kefeng Wang <wangkefeng.wang@huawei.com>
+To: Andrew Morton <akpm@linux-foundation.org>, <linux-kernel@vger.kernel.org>
+CC: Kefeng Wang <wangkefeng.wang@huawei.com>, Andrea Arcangeli
+	<aarcange@redhat.com>, Dan Williams <dan.j.williams@intel.com>, Michal Hocko
+	<mhocko@suse.com>, Oscar Salvador <osalvador@suse.de>, Vlastimil Babka
+	<vbabka@suse.cz>, <linux-mm@kvack.org>
+Subject: [PATCH] mm/mempolicy.c: Remove unnecessary nodemask check in kernel_migrate_pages()
+Date: Tue, 6 Aug 2019 10:36:34 +0800
+Message-ID: <20190806023634.55356-1-wangkefeng.wang@huawei.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
 Content-Transfer-Encoding: 8bit
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000005, version=1.2.4
+Content-Type: text/plain
+X-Originating-IP: [10.175.113.25]
+X-CFilter-Loop: Reflected
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+1) task_nodes = cpuset_mems_allowed(current);
+   -> cpuset_mems_allowed() guaranteed to return some non-empty
+      subset of node_states[N_MEMORY].
 
-On Mon, 5 Aug 2019 20:01:58 +0800 "Artem S. Tashkinov" wrote:
->
-> I'm running ext4 only without LVM, encryption or anything like that.
-> Plain GPT/MBR partitions with plenty of free space and no disk errors.
+2) nodes_and(*new, *new, task_nodes);
+   -> after nodes_and(), the 'new' should be empty or appropriate
+      nodemask(online node and with memory).
 
-Can you try to mount a swap partitaion, say near the size of your RAM,
-with other things not changed, and see if any difference it makes?
+After 1) and 2), we could remove unnecessary check whether the 'new'
+AND node_states[N_MEMORY] is empty.
 
-Or a swap file if a free partitaion is unavailable.
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Dan Williams <dan.j.williams@intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Oscar Salvador <osalvador@suse.de>
+Cc: Vlastimil Babka <vbabka@suse.cz>
+Cc: linux-mm@kvack.org
+Signed-off-by: Kefeng Wang <wangkefeng.wang@huawei.com>
+---
 
-Thanks
-Hillf
+[QUESTION]
+
+SYSCALL_DEFINE4(migrate_pages, pid_t, pid, unsigned long, maxnode,
+                const unsigned long __user *, old_nodes,
+                const unsigned long __user *, new_nodes)
+{
+        return kernel_migrate_pages(pid, maxnode, old_nodes, new_nodes);
+}
+
+The migrate_pages() takes pid argument, witch is the ID of the process
+whose pages are to be moved. should the cpuset_mems_allowed(current) be
+cpuset_mems_allowed(task)?
+
+ mm/mempolicy.c | 4 ----
+ 1 file changed, 4 deletions(-)
+
+diff --git a/mm/mempolicy.c b/mm/mempolicy.c
+index f48693f75b37..fceb44066184 100644
+--- a/mm/mempolicy.c
++++ b/mm/mempolicy.c
+@@ -1467,10 +1467,6 @@ static int kernel_migrate_pages(pid_t pid, unsigned long maxnode,
+ 	if (nodes_empty(*new))
+ 		goto out_put;
+ 
+-	nodes_and(*new, *new, node_states[N_MEMORY]);
+-	if (nodes_empty(*new))
+-		goto out_put;
+-
+ 	err = security_task_movememory(task);
+ 	if (err)
+ 		goto out_put;
+-- 
+2.20.1
 
