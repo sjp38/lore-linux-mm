@@ -2,169 +2,117 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 11667C433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:59:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3DBBDC31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 19:00:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 998F52075B
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:59:12 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="KzkDXYOp"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 998F52075B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 9BF9020C01
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 19:00:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9BF9020C01
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=deneb.enyo.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 18FEC6B0003; Tue,  6 Aug 2019 14:59:12 -0400 (EDT)
+	id 3B1DB6B0003; Tue,  6 Aug 2019 15:00:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 142B86B0006; Tue,  6 Aug 2019 14:59:12 -0400 (EDT)
+	id 362786B0006; Tue,  6 Aug 2019 15:00:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 008156B0007; Tue,  6 Aug 2019 14:59:11 -0400 (EDT)
+	id 278A96B0007; Tue,  6 Aug 2019 15:00:25 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id AA5FB6B0003
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 14:59:11 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id r4so42756974wrt.13
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 11:59:11 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id E98F26B0003
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 15:00:24 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id t9so42764142wrx.9
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 12:00:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=KdYR5EY08dTrABja8SUaSb/bjYgZpuHfqWAB/BpsnN0=;
-        b=SwjxUl3/c6/+BSpjz9UzWKmNOSd+OHmAvkaOVSGVx53SwK51YJ8YjHnwZzZsghOhYl
-         aFYY3IPlD4pgqDvRJzwhmWCfJEhkmp9nSEK5epelbghH2PZK6ZoOIgyYTMeiI/Mv0x0p
-         rj0li1rKb2gYknGRdoAoJUgv77L7NbDSSqnNUgtAx5Kwg9WXbCX8QDFRAzZRKPnHivV9
-         j3ibdjHqu3rrDM9see3fimnjWLxWCuFyTppR/9uvITe8MBKqvjDYtIPMbGQSvH6CSuUz
-         1/TvKEfanwjV2wMSmsqNPtfQKM0ITrORi7J6MzxrUhDRnxczPKb0V6B4f/N/K2O0hGZd
-         /kWg==
-X-Gm-Message-State: APjAAAXqq8flyWFrAUzH+KmDwVsB3OnK5rofDToJEjkE1fv2JZ9UO0lJ
-	UTSdXse9OQluY2VH/c6p8U9MVVYc6P9tp1agjTURFIQ805LbxNA7eGGlOo8anqJoFmw+ObVpEOb
-	UYWMXJZ/dmHZq0Babe6sqtbmhVIVIMX+ot307w87nz6wP1ls6JFYdyw3fSREEN94bcA==
-X-Received: by 2002:a05:600c:2c7:: with SMTP id 7mr6158220wmn.45.1565117951227;
-        Tue, 06 Aug 2019 11:59:11 -0700 (PDT)
-X-Received: by 2002:a05:600c:2c7:: with SMTP id 7mr6158197wmn.45.1565117950485;
-        Tue, 06 Aug 2019 11:59:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565117950; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:references:date:in-reply-to:message-id:mime-version;
+        bh=06Vxtr2Wc/eDVW5tuEvJPvh+yz73HGZIHg+aJ7zQxXM=;
+        b=dGSnYZ2IOlEKWW5NDmagnJsGG5F69IIspyzSb0Ssmk1WZ6G6HYVYx3IomhmxTZgYPS
+         qeGW0vE/eAm5hXqAjGZ395SP3rqcB/lr1KOGQ0BKcofHOxTrtjXj+tWHPJqoYDymBhjC
+         xkqd2zKarvaprgRW6SGofWPQ2RQrgrhhSYVCnd+LDYduRYmGG968O/TvtrHZmph+FB58
+         svxRKWNA4tVOa7mic7ClxCsq4Pr0c6PL+r8hJpEEzDNQ4BPNWU8nw3Y9oET4zaqqfcQZ
+         yhsbrzmX2W20a+pT1nqELKRgjJx7/tNYisiIYW8UTxHEtOzEIgjDV0SZoqe1eT5uGBqJ
+         95uA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of fw@deneb.enyo.de designates 5.158.152.32 as permitted sender) smtp.mailfrom=fw@deneb.enyo.de
+X-Gm-Message-State: APjAAAXdrCO0r9sxEL8fesLEH1je3h7WXuWPXAQ8UOKrJkX8L5J03NIV
+	ZMTIGYaUIzrlRAQjhkB3Mmir9jyphqfHZmkDh9HKOiMLqMsv3a+GOX0W5AuRpAywDaXJHqMyVR0
+	QFtrAkeM6yLs3LeyySqfbbpMW3zIhQ3hrxEWKyj1abB9oihcJd2C3A0YCcyHeAFCPtQ==
+X-Received: by 2002:adf:ec0f:: with SMTP id x15mr6083339wrn.165.1565118024545;
+        Tue, 06 Aug 2019 12:00:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyJgunN2nhmUA82iOI5AR1O62VVB/ME9Gr7VNCOdoyte/ItrFADDVwaE+S+dN7zeEUjCQ7g
+X-Received: by 2002:adf:ec0f:: with SMTP id x15mr6083307wrn.165.1565118023820;
+        Tue, 06 Aug 2019 12:00:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565118023; cv=none;
         d=google.com; s=arc-20160816;
-        b=vJkX5r75XCXLcMn1bSwAiQ+AtC1abE0BHIrafyVz6PJJfmiHt/LV6maacFD9hxOfzz
-         g2jtF+dguFch9jMyAcr9haHBD5QYczEUmKzcBT+lMziHJUCchILixZumTfZUv0/knkyN
-         L3pwd45FmXse39fPIFXUtnw9PPeiu+MQmgsUl8oQHRRu9H99U5DF/x3tNSiOW0V7ViBp
-         OwbdKUlYOJXpcsMCpVihHT90TCGmdRJ9LfKQRS2RsY1IdhwTnFT/1K+6bU/j7z0yBZSH
-         gv+TZtXELFmjgKr3a20L/M/kjgVNOG3YB4frTAtQLNOHceYu9n5VztttxawmL/m+HC3i
-         vrlQ==
+        b=CJaCx0nJogRmTCTuUQkyBuyReRUPMgmKB8L5K7uijtCMLcMLz4MZy2tkDgz5dcfVYg
+         K2s3qHgoLA5ySknMJcBRVlzRwYE9qk0D5bLAnzQeBhalMFujgh5Q5IF9M0nX314HC9us
+         hTAup6KlaIWc4wTv//XRgRmqXV6Z6yByuMaD6yUk/YE+v5QqVHSPaUz+iQZsqtzoHLm0
+         /yEmg6cNIUAp43MXyG3co3hU6WlKMwPupRum4EJoXpBQXTMeVlKuoEpq502iMFbtBw5/
+         AV9D7nWhvKXvu+kTh8nyOEsCLiReVsCI2O0Vg6vtJcEsSCD4D98qKnG0UdGixcT839D4
+         4T1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=KdYR5EY08dTrABja8SUaSb/bjYgZpuHfqWAB/BpsnN0=;
-        b=jRKNypFtTwCJMAuAZPQazFNQ6uaNeAkCr/3lNM1Y3QOi1LFoRTSWrL0Qwa4i6XWs8Y
-         bgcfYS0S0B3yp9XLia71oNluJ7p80HC1x/2ZG4vCRz8TpXPo1KsKem8wi2Of8bqB54v8
-         34PEQ/ERz6pskZc1LQcfaVoobPSho9XtNdECO0fiwTkieWT+pDwP66N6DInjXnL3mK7G
-         YS/ol/tUCEMQkkmq+Z1O0iUAF43uvR07I8HVt0fDFlLhDfmqphBipPf3Gjl7mcPKVGYL
-         E//AXUOtkq/pL1T0EQK0EtzFDbmk19iiYVUzG685T6l2nMws6KjuwaSuzwCJu7k/oRIv
-         R+FQ==
+        h=mime-version:message-id:in-reply-to:date:references:subject:cc:to
+         :from;
+        bh=06Vxtr2Wc/eDVW5tuEvJPvh+yz73HGZIHg+aJ7zQxXM=;
+        b=bt7vcivenONyMTIRQEh+Zh7Lc3qIlTrncnycvwh4crKxC5FHLOTFHLGdJb6T54MBhp
+         BGnMKgxF4lzVt6C6G2j8zf9Bn8lqf/0Y0UQYfZe+j5q96QA47nyaC0vD7S7PTJ+M43Ko
+         fFXlug4tNh4gaRCs/0havOcaFD+FaF+QarxxwUk4By0A/7+q+LUNKMB/lxjZf47aA4dC
+         v282dO0K9bI0LmRhv1rtvLlGaLXymi1z2udWh0GVEQeh7mlICjz4PGTmGU3oE0lhKbhn
+         QbdjJBX5Fvx1VZ7chtcl09q37VZxaTrB111n42CrzCMPiF7P+VrHjZAh7kB4V7X1cCW3
+         p9uA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=KzkDXYOp;
-       spf=pass (google.com: domain of alexdeucher@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexdeucher@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o2sor61028649wrn.43.2019.08.06.11.59.10
+       spf=pass (google.com: best guess record for domain of fw@deneb.enyo.de designates 5.158.152.32 as permitted sender) smtp.mailfrom=fw@deneb.enyo.de
+Received: from albireo.enyo.de (albireo.enyo.de. [5.158.152.32])
+        by mx.google.com with ESMTPS id b194si66245239wme.81.2019.08.06.12.00.23
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Aug 2019 11:59:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexdeucher@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 06 Aug 2019 12:00:23 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of fw@deneb.enyo.de designates 5.158.152.32 as permitted sender) client-ip=5.158.152.32;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=KzkDXYOp;
-       spf=pass (google.com: domain of alexdeucher@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexdeucher@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=KdYR5EY08dTrABja8SUaSb/bjYgZpuHfqWAB/BpsnN0=;
-        b=KzkDXYOptvkwojTFBCmVBlV+3tIliyzrdwY+53s8Esprf/Qgz2f1eCQC0QZw//ozZE
-         RcNDjvbJB0Cq3mVPeQ15pOOzXvlweppXj6YAayOw27YWsleceaonHnL4Nzg52TLIthMV
-         rYjlL0699xdOcqu7sevttzOxuBg4lN0lkzV2K+uunyzS+RpjhuoPhqdSTlnWnb+T7JCY
-         HjZ7JWiEwVAUgYx71nCzkRtYctAe5o7uJNxjGtB37j8Kd+2mGvXbEYuFLbnlo+SIJTJp
-         +5YjsJV6IoI9YUlqfsHsDvbDUa1C/1KA3eKWNZE2oqsn4qlL+cyH/WoPyn6i66w9Lttj
-         o0FA==
-X-Google-Smtp-Source: APXvYqyvIOyL3ta7PNqlaft8AIjrG08VwxtlFNFvdOLUq+AjfF7aZKuWk+kMq57BwYyz3aJneYaERa/Thq7ouYxDQUo=
-X-Received: by 2002:adf:dfc5:: with SMTP id q5mr6393234wrn.142.1565117950081;
- Tue, 06 Aug 2019 11:59:10 -0700 (PDT)
+       spf=pass (google.com: best guess record for domain of fw@deneb.enyo.de designates 5.158.152.32 as permitted sender) smtp.mailfrom=fw@deneb.enyo.de
+Received: from [172.17.203.2] (helo=deneb.enyo.de)
+	by albireo.enyo.de with esmtps (TLS1.2:ECDHE_RSA_AES_256_GCM_SHA384:256)
+	id 1hv4h3-0002lu-RA; Tue, 06 Aug 2019 19:00:21 +0000
+Received: from fw by deneb.enyo.de with local (Exim 4.92)
+	(envelope-from <fw@deneb.enyo.de>)
+	id 1hv4h3-0007iX-OO; Tue, 06 Aug 2019 21:00:21 +0200
+From: Florian Weimer <fw@deneb.enyo.de>
+To: "Artem S. Tashkinov" <aros@gmx.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm <linux-mm@kvack.org>
+Subject: Re: Let's talk about the elephant in the room - the Linux kernel's inability to gracefully handle low memory pressure
+References: <d9802b6a-949b-b327-c4a6-3dbca485ec20@gmx.com>
+Date: Tue, 06 Aug 2019 21:00:21 +0200
+In-Reply-To: <d9802b6a-949b-b327-c4a6-3dbca485ec20@gmx.com> (Artem
+	S. Tashkinov's message of "Sun, 4 Aug 2019 09:23:17 +0000")
+Message-ID: <874l2u3yre.fsf@mid.deneb.enyo.de>
 MIME-Version: 1.0
-References: <20190806160554.14046-1-hch@lst.de> <20190806160554.14046-16-hch@lst.de>
- <20190806174437.GK11627@ziepe.ca> <587b1c3c-83c4-7de9-242f-6516528049f4@amd.com>
-In-Reply-To: <587b1c3c-83c4-7de9-242f-6516528049f4@amd.com>
-From: Alex Deucher <alexdeucher@gmail.com>
-Date: Tue, 6 Aug 2019 14:58:58 -0400
-Message-ID: <CADnq5_Puv-N=FVpNXhv7gOWZ8=tgBD2VjrKpVzEE0imWqJdD1A@mail.gmail.com>
-Subject: Re: [PATCH 15/15] amdgpu: remove CONFIG_DRM_AMDGPU_USERPTR
-To: "Kuehling, Felix" <Felix.Kuehling@amd.com>
-Cc: Jason Gunthorpe <jgg@ziepe.ca>, Christoph Hellwig <hch@lst.de>, 
-	"Deucher, Alexander" <Alexander.Deucher@amd.com>, "Koenig, Christian" <Christian.Koenig@amd.com>, 
-	Ralph Campbell <rcampbell@nvidia.com>, 
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, 
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Ben Skeggs <bskeggs@redhat.com>
-Content-Type: text/plain; charset="UTF-8"
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+Content-Type: text/plain
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000004, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 6, 2019 at 1:51 PM Kuehling, Felix <Felix.Kuehling@amd.com> wrote:
->
-> On 2019-08-06 13:44, Jason Gunthorpe wrote:
-> > On Tue, Aug 06, 2019 at 07:05:53PM +0300, Christoph Hellwig wrote:
-> >> The option is just used to select HMM mirror support and has a very
-> >> confusing help text.  Just pull in the HMM mirror code by default
-> >> instead.
-> >>
-> >> Signed-off-by: Christoph Hellwig <hch@lst.de>
-> >> ---
-> >>   drivers/gpu/drm/Kconfig                 |  2 ++
-> >>   drivers/gpu/drm/amd/amdgpu/Kconfig      | 10 ----------
-> >>   drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c |  6 ------
-> >>   drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.h | 12 ------------
-> >>   4 files changed, 2 insertions(+), 28 deletions(-)
-> > Felix, was this an effort to avoid the arch restriction on hmm or
-> > something? Also can't see why this was like this.
->
-> This option predates KFD's support of userptrs, which in turn predates
-> HMM. Radeon has the same kind of option, though it doesn't affect HMM in
-> that case.
->
-> Alex, Christian, can you think of a good reason to maintain userptr
-> support as an option in amdgpu? I suspect it was originally meant as a
-> way to allow kernels with amdgpu without MMU notifiers. Now it would
-> allow a kernel with amdgpu without HMM or MMU notifiers. I don't know if
-> this is a useful thing to have.
+* Artem S. Tashkinov:
 
-Right.  There were people that didn't have MMU notifiers that wanted
-support for the GPU.  For a lot of older APIs, a lack of userptr
-support was not a big deal (it just disabled some optimizations and
-API extensions), but as it becomes more relevant it may make sense to
-just make it a requirement.
-
-Alex
-
+> There's this bug which has been bugging many people for many years
+> already and which is reproducible in less than a few minutes under the
+> latest and greatest kernel, 5.2.6. All the kernel parameters are set to
+> defaults.
 >
-> Regards,
->    Felix
+> Steps to reproduce:
 >
-> >
-> > Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
-> >
-> > Jason
-> _______________________________________________
-> amd-gfx mailing list
-> amd-gfx@lists.freedesktop.org
-> https://lists.freedesktop.org/mailman/listinfo/amd-gfx
+> 1) Boot with mem=4G
+> 2) Disable swap to make everything faster (sudo swapoff -a)
+> 3) Launch a web browser, e.g. Chrome/Chromium or/and Firefox
+> 4) Start opening tabs in either of them and watch your free RAM decrease
+
+Do you see this with Intel graphics?  I think these drivers still use
+the GEM shrinker, which effectively bypasses most kernel memory
+management heuristics.
 
