@@ -2,165 +2,177 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 72D8EC433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 07:53:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 51AB3C31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:00:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0D0022070C
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 07:53:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D0022070C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 171502070C
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:00:37 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="TLB7WEzM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 171502070C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B4D0D6B0003; Tue,  6 Aug 2019 03:53:49 -0400 (EDT)
+	id 9E7706B0003; Tue,  6 Aug 2019 04:00:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AFC946B0005; Tue,  6 Aug 2019 03:53:49 -0400 (EDT)
+	id 999586B0005; Tue,  6 Aug 2019 04:00:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9C3426B0006; Tue,  6 Aug 2019 03:53:49 -0400 (EDT)
+	id 8869A6B0006; Tue,  6 Aug 2019 04:00:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 50CBC6B0003
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 03:53:49 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id b33so53228087edc.17
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 00:53:49 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 4F2F26B0003
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:00:36 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id h5so54451521pgq.23
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:00:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=dUQpSTRSkme2qCFPs7T/GiUjxsKsRdExsttZXy7UD+Y=;
-        b=jbuEDhkv/p+/Dy/MsARuMWRvnQP9JV4nKqP1YhlHNBJL0k7GQzwIU6s/KLMQVp5zvf
-         Nu+wND7c5Zx8H/Q0vjtaxBBBPfQFPrAxXAjtKFG2W4ALtL4ho2ghM6MXqnDfuYQYBT19
-         rggfDro8LLIcB04zHcPilolmRFZa1oMEdSzJ6nSudJjgs9Zy4D7H8TreXe95cw3w4MGu
-         ZwMO6VHlzXqOHnUW0bMPg1Ofn0HHP97+67m/hkkVJ65WqM099lmfH33DtBD8MnGg65/5
-         RKgMfDFTkpCHetGpf7wb+Eagtd8K+yVNALSEo1MlWXI9CrC3pExiHU3l8p/DcMhm/kKU
-         9dng==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAUl3LmsiN2b9/KFpndNARNdFy4N6Avz17OjyzP/Kyt5B9YrSDDP
-	Tgeo/IpNMyb3I/2VVUmy+yNIUoD/sg+S/HyzR8cl6xGDiD/O8AC2kaFr0b7c0Zp5ZP48EKcHG/q
-	0jp9Cz2yHZtTyS1ZfKFIM6UCaMu1bbt1oTrO1o/y6b49LtYbbvFGcm1GaqpJ3LodGQQ==
-X-Received: by 2002:aa7:d4cf:: with SMTP id t15mr2384448edr.215.1565078028898;
-        Tue, 06 Aug 2019 00:53:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyKf/DBggv0oLmTW2F9W1Fb/5r188gAM09Ii+ncn6f44SVmHyBc3thS4QSleARZBgKKtmwe
-X-Received: by 2002:aa7:d4cf:: with SMTP id t15mr2384420edr.215.1565078028238;
-        Tue, 06 Aug 2019 00:53:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565078028; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=aV69onuQcwDqEYz62/w3oHFd2R0PARV3h+ba+PwsLJU=;
+        b=TimuRRJUKA2h99Qd6s73LRsUSkrbs9oka9Pw0YQWStVRQM9xDzfYsOKgfV3dPNbezu
+         3ITUaw6m1gUldo7LnNL+W4pRFmSLQzM2w0fCjo0bN7m32Zi7ELIFBxC4hfU0pDHPdk+u
+         XdQr/VodK94sYcVRQ0gKK6DxWL3hw3cYTbuenZ2WnTG+lPoZwf4SY78OxsaVmuhLXMao
+         +Ee7kEedQRUmij6F68mgor10RI7cgz94/ESyClWL+NMdLYzxbv6tHA0yoDYnigqVrrxD
+         AfgnWXThCpDQr1dFLx+KLWJbItstP3+1tpgNpfznCHbsahzRZrb3d8qxQy1W+FyT5XhQ
+         C7lQ==
+X-Gm-Message-State: APjAAAVY+JrJKzcwqaMP6NI7OdqLNUe/GSbW32xImgndkx61AkM6cKq8
+	nWt4Czf9m2ajdRujeAQN0lCM17RJTmN6Zx6KRPPImqf1rc8NmY8/rmr4getYSl2cmMbJDa+a4wo
+	TTpXsJ7fRiF9LD6nAerB7DHpGon9D+iu1Z4LANN4dJaIj6aWUfuPjNe7D0sZmqjgbww==
+X-Received: by 2002:a62:1c93:: with SMTP id c141mr2402487pfc.9.1565078435946;
+        Tue, 06 Aug 2019 01:00:35 -0700 (PDT)
+X-Received: by 2002:a62:1c93:: with SMTP id c141mr2402324pfc.9.1565078434272;
+        Tue, 06 Aug 2019 01:00:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565078434; cv=none;
         d=google.com; s=arc-20160816;
-        b=sKxFXwIgXq4Ef70r+QQtmrn6hEcRISYSI3w5qf20Az02xP3Utr6TX1iNepbtYqXE/j
-         Lcoe3H+pIon93tpMYjdrixmfOOYnKbfC3Q1irAQvTSwkvs+/ZRvpk3BWKoWqo/Xdf7z4
-         fXsnjN3mp3dtA+HYmQEEgYGgNlMibVaRuNBaVItZ6+vNdJhX+yXwUILXfnhnCYs02WBQ
-         oDwE/arP1mTfgTxhkNPmEEFTfKYJlGAn28nDn/Wv0cYW8+lK/KRZ7rIumA3iFT/39Swg
-         BAyLT8PM2gwS6OFQAU48V1y7VRXOgeshdA8rLAG6xwG4Er3xq/uH/WVm9pPGsDNxIiZ0
-         iOzw==
+        b=hWTwiGZO5f0s3rK8dy2YYFoXbXOOfpT55naYhmgz//Xfhsnl5nmF/lar4+mSpN9/3W
+         /FFLHDsubvYd0GE33A04/tnUsTH23uyCUB1PVEvXvClqV0OqlQbOCS0AuvR7XuCFc1l0
+         0iEj+fTEuTQJNRJ/YtJpJ4To+BacNiohsMfmw6lohLgrXalA6TlaTFTFutEoWFrlDxI4
+         br9kaqEaS9brb6h9n/a8SGfJUIb8wQQSOCphwsgJJumiMrDeB/yOUy8AdGs3Z8UV0Qx+
+         ttr00gwIK0yuODrQeyhV3kKoDrA3aQ8AWMtHpEvFRF2rETFgPsBbKfcOweWb9soaCdSg
+         Ru7Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=dUQpSTRSkme2qCFPs7T/GiUjxsKsRdExsttZXy7UD+Y=;
-        b=oWVhUB/Rrm6IBBJjCVX5U3U8u5o27d391NBa+6bv3NPXGjGhUOq/XDR0L/8rZluiEs
-         tMxJ0Zydh2piOM94CnDeDnJjw8gWeJCoc7lJqPmli0Kn8mmK60Qzd6NQx3qHy3Kbwg4n
-         Quka3HtaAAJSvfclA3AUbCTdulNUrn7XoBXIrUTqihwXSeYgWKjt1iXbFQkll/4fKP77
-         CKWqGOw8bZG1Wj6vnPCT7dwCd5f5nG56QXwweViOkXVWqHE8OJ7gL0BW3F66KU/sepDP
-         dbhpAYZzV/plqmr5dVGbzG1aLBN0xkv3b+wIXXLTfhseM+LsLa5KCsc4jrzs0v5TESir
-         jLRw==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=aV69onuQcwDqEYz62/w3oHFd2R0PARV3h+ba+PwsLJU=;
+        b=VR9VaUDBsk4m4T0bhS2U0e3p/SQjFTXqPG8XBG1OXl+hbaRww+LR3VABkT8jaeXFfb
+         i1aEprzahtDDsqZFxOWLrySGK10VXCxMxv4ad4OneU49ZNIKoKLFCK8+sBfz/h2gUOkj
+         7a1+WKObxjS3oulKgPs9z09zn49QP8DxIYUTrolkQdltWdBYpCFdZ/Bej3VRL4y/4JYn
+         U/jJBs+xSX1yuhR5B/MCB46vdI+WiJgnDkajTprpWlpanSQrxq6AF+29SWeg4Cri7nKA
+         zE6lOVsIR9JU6dbvF3ZplUiTFvu/ueRrUHqeLb4yd0xUlRt622a0G53xgwadfDanXZxh
+         cUbA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m44si31340650edc.110.2019.08.06.00.53.47
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TLB7WEzM;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id a1sor41470990pfc.63.2019.08.06.01.00.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 00:53:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Tue, 06 Aug 2019 01:00:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 84A25AD29;
-	Tue,  6 Aug 2019 07:53:47 +0000 (UTC)
-Subject: Re: [PATCH V2] fork: Improve error message for corrupted page tables
-To: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Cc: dave.hansen@intel.com, Ingo Molnar <mingo@kernel.org>,
- Peter Zijlstra <peterz@infradead.org>,
- Andrew Morton <akpm@linux-foundation.org>,
- Anshuman Khandual <anshuman.khandual@arm.com>
-References: <3ef8a340deb1c87b725d44edb163073e2b6eca5a.1565059496.git.sai.praneeth.prakhya@intel.com>
-From: Vlastimil Babka <vbabka@suse.cz>
-Message-ID: <5ba88460-cf01-3d53-6d13-45e650b4eacd@suse.cz>
-Date: Tue, 6 Aug 2019 09:53:46 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TLB7WEzM;
+       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=aV69onuQcwDqEYz62/w3oHFd2R0PARV3h+ba+PwsLJU=;
+        b=TLB7WEzMV1FG9qsC+tFG0uVO2zJplwy4NMtcXZmIe83n8bPedvYIg0kRV+0BKaC2/W
+         qA1bhXaKHBsjod4hTqmfQwF/lUsR277uCh8BUc5BQAE/w4nKQrmd9u5fBIRR3tWkijJN
+         P5PrCFxtrlEUtjIManUEPXxHYB6fAs1VwWq1OkSVqmhXQKqSYhkRRd1j5LGp6QOrTvkB
+         sGzDPsINgXkaDyPTnVx/qVsPefVhLgtJSuNlRD6IbkGv6hdmE3xmprXG4kWR5dvjsvc6
+         Zcxp+1RmUOKxSrb97ji+pRTFedoopdRumI6BPcbOWQ/ZBZwy1O8iwqkQ+sCrr5SwppNd
+         dRDA==
+X-Google-Smtp-Source: APXvYqzcRDSMRahvNSlA2NE7YehHcCK+DdqZfd9iDDVrttQjMFGM+2BAVpZ47/jY+R7q00gXTs3ESQ==
+X-Received: by 2002:a62:be04:: with SMTP id l4mr2260030pff.77.1565078433810;
+        Tue, 06 Aug 2019 01:00:33 -0700 (PDT)
+Received: from mylaptop.redhat.com ([209.132.188.80])
+        by smtp.gmail.com with ESMTPSA id p7sm96840679pfp.131.2019.08.06.01.00.28
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Aug 2019 01:00:33 -0700 (PDT)
+From: Pingfan Liu <kernelfans@gmail.com>
+To: linux-mm@kvack.org
+Cc: Pingfan Liu <kernelfans@gmail.com>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Jan Kara <jack@suse.cz>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Michal Hocko <mhocko@suse.com>,
+	Mike Kravetz <mike.kravetz@oracle.com>,
+	Andrea Arcangeli <aarcange@redhat.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	linux-kernel@vger.kernel.org
+Subject: [PATCH 1/3] mm/migrate: clean up useless code in migrate_vma_collect_pmd()
+Date: Tue,  6 Aug 2019 16:00:09 +0800
+Message-Id: <1565078411-27082-1-git-send-email-kernelfans@gmail.com>
+X-Mailer: git-send-email 2.7.5
 MIME-Version: 1.0
-In-Reply-To: <3ef8a340deb1c87b725d44edb163073e2b6eca5a.1565059496.git.sai.praneeth.prakhya@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
+Cc: "Jérôme Glisse" <jglisse@redhat.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mel Gorman <mgorman@techsingularity.net>
+Cc: Jan Kara <jack@suse.cz>
+Cc: "Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>
+Cc: Michal Hocko <mhocko@suse.com>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>
+Cc: Andrea Arcangeli <aarcange@redhat.com>
+Cc: Matthew Wilcox <willy@infradead.org>
+To: linux-mm@kvack.org
+Cc: linux-kernel@vger.kernel.org
+---
+ mm/migrate.c | 5 +----
+ 1 file changed, 1 insertion(+), 4 deletions(-)
 
-On 8/6/19 5:05 AM, Sai Praneeth Prakhya wrote:
-> When a user process exits, the kernel cleans up the mm_struct of the user
-> process and during cleanup, check_mm() checks the page tables of the user
-> process for corruption (E.g: unexpected page flags set/cleared). For
-> corrupted page tables, the error message printed by check_mm() isn't very
-> clear as it prints the loop index instead of page table type (E.g: Resident
-> file mapping pages vs Resident shared memory pages). The loop index in
-> check_mm() is used to index rss_stat[] which represents individual memory
-> type stats. Hence, instead of printing index, print memory type, thereby
-> improving error message.
-> 
-> Without patch:
-> --------------
-> [  204.836425] mm/pgtable-generic.c:29: bad p4d 0000000089eb4e92(800000025f941467)
-> [  204.836544] BUG: Bad rss-counter state mm:00000000f75895ea idx:0 val:2
-> [  204.836615] BUG: Bad rss-counter state mm:00000000f75895ea idx:1 val:5
-> [  204.836685] BUG: non-zero pgtables_bytes on freeing mm: 20480
-> 
-> With patch:
-> -----------
-> [   69.815453] mm/pgtable-generic.c:29: bad p4d 0000000084653642(800000025ca37467)
-> [   69.815872] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_FILEPAGES val:2
-> [   69.815962] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_ANONPAGES val:5
-> [   69.816050] BUG: non-zero pgtables_bytes on freeing mm: 20480
-> 
-> Also, change print function (from printk(KERN_ALERT, ..) to pr_alert()) so
-> that it matches the other print statement.
-> 
-> Cc: Ingo Molnar <mingo@kernel.org>
-> Cc: Vlastimil Babka <vbabka@suse.cz>
-> Cc: Peter Zijlstra <peterz@infradead.org>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Anshuman Khandual <anshuman.khandual@arm.com>
-> Acked-by: Dave Hansen <dave.hansen@intel.com>
-> Suggested-by: Dave Hansen <dave.hansen@intel.com>
-> Signed-off-by: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-I would also add something like this to reduce risk of breaking it in the
-future:
-
-----8<----
-diff --git a/include/linux/mm_types_task.h b/include/linux/mm_types_task.h
-index d7016dcb245e..a6f83cbe4603 100644
---- a/include/linux/mm_types_task.h
-+++ b/include/linux/mm_types_task.h
-@@ -36,6 +36,9 @@ struct vmacache {
- 	struct vm_area_struct *vmas[VMACACHE_SIZE];
- };
+diff --git a/mm/migrate.c b/mm/migrate.c
+index 8992741..c2ec614 100644
+--- a/mm/migrate.c
++++ b/mm/migrate.c
+@@ -2230,7 +2230,6 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
+ 		if (pte_none(pte)) {
+ 			mpfn = MIGRATE_PFN_MIGRATE;
+ 			migrate->cpages++;
+-			pfn = 0;
+ 			goto next;
+ 		}
  
-+/*
-+ * When touching this, update also resident_page_types in kernel/fork.c
-+ */
- enum {
- 	MM_FILEPAGES,	/* Resident file mapping pages */
- 	MM_ANONPAGES,	/* Resident anonymous pages */
+@@ -2255,7 +2254,6 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
+ 			if (is_zero_pfn(pfn)) {
+ 				mpfn = MIGRATE_PFN_MIGRATE;
+ 				migrate->cpages++;
+-				pfn = 0;
+ 				goto next;
+ 			}
+ 			page = vm_normal_page(migrate->vma, addr, pte);
+@@ -2265,10 +2263,9 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
+ 
+ 		/* FIXME support THP */
+ 		if (!page || !page->mapping || PageTransCompound(page)) {
+-			mpfn = pfn = 0;
++			mpfn = 0;
+ 			goto next;
+ 		}
+-		pfn = page_to_pfn(page);
+ 
+ 		/*
+ 		 * By getting a reference on the page we pin it and that blocks
+-- 
+2.7.5
 
