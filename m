@@ -6,121 +6,122 @@ X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DFC71C31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:39:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21468C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:40:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8BABE20717
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:39:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8BABE20717
+	by mail.kernel.org (Postfix) with ESMTP id C100120717
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 17:40:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C100120717
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3A16C6B0007; Tue,  6 Aug 2019 13:39:49 -0400 (EDT)
+	id 7728F6B0008; Tue,  6 Aug 2019 13:40:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 353346B0008; Tue,  6 Aug 2019 13:39:49 -0400 (EDT)
+	id 721926B000A; Tue,  6 Aug 2019 13:40:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1F4376B000A; Tue,  6 Aug 2019 13:39:49 -0400 (EDT)
+	id 5EA3A6B000C; Tue,  6 Aug 2019 13:40:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D68E66B0007
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 13:39:48 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id 28so4846837pgm.12
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 10:39:48 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2656B6B0008
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 13:40:21 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id 145so56349323pfw.16
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 10:40:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=c6BG0Km/Tslaw/+Xwtlcret2Xibp1hCoRdnt5yzUBsM=;
-        b=YVRJwFq/Dvz1wss/IsDZyLxxEXvumxTzdhcyylOO+1i3FaQIotRXPNgxWKPSgnn6o7
-         Msv8nCPCpOcB9IJmeCziMxcwAnRpim7wYkAtG41F17S9rCif3HEhRub10mzADiPBSs+a
-         X4J3yEvWr+gLGR/hSflK9tHc99IIK6MqsQKwUUVTSRnWnVN+stCVoSmfvdEfbtg6xz/k
-         kGeTRknfTRXPL5tLGmLRd3c1ysUi760j78my+8m6v3g9pZXE6lus9hZntJCsNI5dytSZ
-         JUWidAKKWYFtVwI0jMINJ3KDe/2JaArk/WnEN1tcONwv8ywfpfiTkC1ucu8BArWuczgW
-         OPjg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAVox4Y3VZPledLQ52wYBPTigY5UU8WpDN0Z4UWfbDqhFeMQwHtC
-	gsjNNL8C2T5IIKdArtYQShmJetiUf8M/FpiiWQJNjIxkUW7LxnllAipbx6e/H8mH576gloTm69Y
-	va4rGY+AJJkbXUcZtwDs/AKFd6Lop1TGCGqNMnZYpjJExuOcfFUm87N8JeqGUOJtabA==
-X-Received: by 2002:a65:4808:: with SMTP id h8mr4048914pgs.22.1565113188261;
-        Tue, 06 Aug 2019 10:39:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwxDIlFzU5oVp56NtJKHlE9VrGeG6ucmof1s5JP5U63SOD2Vf+Gljtcs4q6jM6o7X+3dTYG
-X-Received: by 2002:a65:4808:: with SMTP id h8mr4048860pgs.22.1565113187261;
-        Tue, 06 Aug 2019 10:39:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565113187; cv=none;
+        bh=Vs4zormtri2zMSHG4XyrvuMjcO2hY2E78NXVryq5r2A=;
+        b=ryo2qvotWCldzVCE6PCvByRlxXRi6ROT6dC1tFkICu0PQlKl6zmrmWkaHiDAiI++v0
+         sk76pTkVlR0K44oG2bAYxzmDr+Bqute+cHIgX66fGDrIsOdnmeHbRbtgsUh49zOghCRl
+         Ya0xUG4HK+fO95auPixmfKINdY7CYI644dwkSAky/LJz5ixuX5s4oAk5d06LNP0FnJew
+         z5ZwpbsEpNo5nDKr83Tc3EorC8p0BOahEMer/e1VwVd04pMkHPirAba3m/igFtZzh66x
+         WaaxjBeSYsLF7ed0sj5ponPiuCz2kgooxHgu27RW/ehUrq+x21HNMSObHsCuwxovdf+5
+         +I1w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAU59lHrxth58prorSvpoL24Y12BYWgo+4vh/xobP4lghr4A5fHG
+	clmpqwsG44CJwSVi4KArN2vLLXP5S0IuZdZDTX9vlGxy2OotRt5ywsVG07M/U/r1JhguP7W0s2l
+	PzkGmSk1MkrZ+MD1/kiglfPPwomWE4biCVc75PZIeSfdCKe03Zw+ZnwNm0x34TzH+VA==
+X-Received: by 2002:a17:902:76c6:: with SMTP id j6mr4294126plt.102.1565113220638;
+        Tue, 06 Aug 2019 10:40:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyKlZ43NwfHZSlw3oiRcw2Bpl/uFnkRJ3SXaMcsrd8kbz2pVeEUuE3O6ckZvIW/oQMZcW2H
+X-Received: by 2002:a17:902:76c6:: with SMTP id j6mr4294075plt.102.1565113219767;
+        Tue, 06 Aug 2019 10:40:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565113219; cv=none;
         d=google.com; s=arc-20160816;
-        b=EAVT94wbCDOxuUHodr2tbLwIwm3+MPQ4BmkWGHYt/zorwscwTbRI0Hxsw0I9DkGpar
-         3HDXAgEGD3YZaIJppubPRXJ6Ae+XkR8hWl9ubco0g+AQYKeS9BpaHcgfsK5VTKwIgDrR
-         w7E5JeDToBTJh7pxcf6dFD35A1gHVLgu6HL1x/I5VwxYYAwhJ3542STEXzNmhptm+/8a
-         KlWdzyrhMF+GaDpZKm72pfugGoOeDZLV/Ne8JrtPxhCLviRKca62JJZapq/iwbu+E8xB
-         gjiJfo83+FHelWZNa4RqCn4TsEIseq9rj1mCt8EaPmRrr/z21JkeJHK2vKLZk636cNVP
-         kveg==
+        b=VlRME90T8RMUCV1WdLMzs8QbZ5HZAlvUeD8nzIHvEErBNNRVc7H/uAwN+pCI9Qi35P
+         Un2IPYNx/ppSuj/XzE0cna57r1KuNbI/69qShxIEGFLwi0nVXFd/r/bRQf5D7EA3nctF
+         hccqRupZ/OCQffyPniKO+OO36lr8JjdEPHXzo8FMwcJQPq81HXibLKVt+zdeigJy1Qyu
+         W2gRjiowb7TH7VNi1xNbQpC92aHCj9PvQvzoeJyZKwaTceuT4kmlmzkaQ0zwOiSySmqT
+         B7XvntzYyWcAwBSPrmnvWzaaOTe+/nkODl2F9l4v900f8ovbDzDHdGcIAwqhv3nS7G5S
+         5V4w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=c6BG0Km/Tslaw/+Xwtlcret2Xibp1hCoRdnt5yzUBsM=;
-        b=H/7GjzPSl0la09kf6UpbmyohApFcAPZXZjXPc5ZfOicpIl82ZOQiDaK3I7nUAIlF1d
-         LQdNcqijMLDe9Oypr5HFGyxy4233HOwPtcHD2e5hFIVIWPmuF+UaS9TClxforKPRODNn
-         hB5+MIQ2cUA72Yu0r8ztMN7QX4n8tCpNkzHJ36GBVtsuI6LogBpUitkBimpmTOMkfIra
-         kNOxzFiGmVTKI2cO1pfro/CMyJ3EmncFnNLmgkiJNqohf/M0G8HWUKrLu4XDUOWEwLmT
-         Buq9VjgINBGgraWEum+vZarapEEjT3SfgcvWKZ0/Xuiv60b8D7vzXEMSu34jgzZTY3tS
-         lyfQ==
+        bh=Vs4zormtri2zMSHG4XyrvuMjcO2hY2E78NXVryq5r2A=;
+        b=OFpbZ1yNuNXQqBcXngDv2FI+Ay0IN2gIixH7qSXDzfWqfILWKH68AlYAjBuIDb9wl9
+         9zotYSBQ3iWv9rsbP1INWIV1kPBzc2Ck/+LHtTrlSTx9coQFecJS6k7ihcj53nYQ1KlH
+         jzsYiomZjm7umP2g+ObVopkXA7pWMnPQl6mxv7pmjHpjOqRJydQNZOxd7glwUSIjj1E9
+         vfX0g8q28Xk23kG3MOkRfUHDYlsoxQwgfbm2MkNFiJbzEejLWAF0inD9otJcPxXKBJCJ
+         dcO2nf4xiImKGDHuXyuHYSDJ9VtraaamOVjtYeQ+TCYxQCZl6yTEvEYxwuZX6TGMj9J+
+         qlOA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
-        by mx.google.com with ESMTPS id j18si14959227pjn.42.2019.08.06.10.39.47
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id a63si43935858pla.348.2019.08.06.10.40.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 10:39:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
+        Tue, 06 Aug 2019 10:40:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: UNKNOWN
 X-Amp-Original-Verdict: FILE UNKNOWN
 X-Amp-File-Uploaded: False
-Received: from fmsmga008.fm.intel.com ([10.253.24.58])
-  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Aug 2019 10:39:46 -0700
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Aug 2019 10:40:19 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.64,353,1559545200"; 
-   d="scan'208";a="174242846"
+   d="scan'208";a="168363539"
 Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga008.fm.intel.com with ESMTP; 06 Aug 2019 10:39:46 -0700
-Date: Tue, 6 Aug 2019 10:39:46 -0700
+  by orsmga008.jf.intel.com with ESMTP; 06 Aug 2019 10:40:17 -0700
+Date: Tue, 6 Aug 2019 10:40:17 -0700
 From: Ira Weiny <ira.weiny@intel.com>
 To: john.hubbard@gmail.com
 Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Hellwig <hch@infradead.org>,
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	=?iso-8859-1?Q?Bj=F6rn_T=F6pel?= <bjorn.topel@intel.com>,
+	Boaz Harrosh <boaz@plexistor.com>, Christoph Hellwig <hch@lst.de>,
+	Daniel Vetter <daniel@ffwll.ch>,
 	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>, Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
+	Dave Chinner <david@fromorbit.com>, David Airlie <airlied@linux.ie>,
+	"David S . Miller" <davem@davemloft.net>,
+	Ilya Dryomov <idryomov@gmail.com>, Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@ziepe.ca>, Jens Axboe <axboe@kernel.dk>,
 	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	LKML <linux-kernel@vger.kernel.org>, amd-gfx@lists.freedesktop.org,
-	ceph-devel@vger.kernel.org, devel@driverdev.osuosl.org,
-	devel@lists.orangefs.org, dri-devel@lists.freedesktop.org,
-	intel-gfx@lists.freedesktop.org, kvm@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org, linux-block@vger.kernel.org,
-	linux-crypto@vger.kernel.org, linux-fbdev@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-media@vger.kernel.org,
-	linux-mm@kvack.org, linux-nfs@vger.kernel.org,
-	linux-rdma@vger.kernel.org, linux-rpi-kernel@lists.infradead.org,
-	linux-xfs@vger.kernel.org, netdev@vger.kernel.org,
-	rds-devel@oss.oracle.com, sparclinux@vger.kernel.org,
-	x86@kernel.org, xen-devel@lists.xenproject.org,
-	John Hubbard <jhubbard@nvidia.com>, Christoph Hellwig <hch@lst.de>,
-	Matthew Wilcox <willy@infradead.org>
-Subject: Re: [PATCH v2 01/34] mm/gup: add make_dirty arg to
+	Johannes Thumshirn <jthumshirn@suse.de>,
+	Magnus Karlsson <magnus.karlsson@intel.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Miklos Szeredi <miklos@szeredi.hu>, Ming Lei <ming.lei@redhat.com>,
+	Sage Weil <sage@redhat.com>,
+	Santosh Shilimkar <santosh.shilimkar@oracle.com>,
+	Yan Zheng <zyan@redhat.com>, netdev@vger.kernel.org,
+	dri-devel@lists.freedesktop.org, linux-mm@kvack.org,
+	linux-rdma@vger.kernel.org, bpf@vger.kernel.org,
+	LKML <linux-kernel@vger.kernel.org>,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [PATCH v6 1/3] mm/gup: add make_dirty arg to
  put_user_pages_dirty_lock()
-Message-ID: <20190806173945.GA4748@iweiny-DESK2.sc.intel.com>
-References: <20190804224915.28669-1-jhubbard@nvidia.com>
- <20190804224915.28669-2-jhubbard@nvidia.com>
+Message-ID: <20190806174017.GB4748@iweiny-DESK2.sc.intel.com>
+References: <20190804214042.4564-1-jhubbard@nvidia.com>
+ <20190804214042.4564-2-jhubbard@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190804224915.28669-2-jhubbard@nvidia.com>
+In-Reply-To: <20190804214042.4564-2-jhubbard@nvidia.com>
 User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -128,7 +129,7 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 04, 2019 at 03:48:42PM -0700, john.hubbard@gmail.com wrote:
+On Sun, Aug 04, 2019 at 02:40:40PM -0700, john.hubbard@gmail.com wrote:
 > From: John Hubbard <jhubbard@nvidia.com>
 > 
 > Provide a more capable variation of put_user_pages_dirty_lock(),
@@ -158,6 +159,11 @@ On Sun, Aug 04, 2019 at 03:48:42PM -0700, john.hubbard@gmail.com wrote:
 > Cc: Ira Weiny <ira.weiny@intel.com>
 > Cc: Jason Gunthorpe <jgg@ziepe.ca>
 > Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+
+I assume this is superseded by the patch in the large series?
+
+Ira
+
 > ---
 >  drivers/infiniband/core/umem.c             |   5 +-
 >  drivers/infiniband/hw/hfi1/user_pages.c    |   5 +-
@@ -356,11 +362,6 @@ On Sun, Aug 04, 2019 at 03:48:42PM -0700, john.hubbard@gmail.com wrote:
 > - * @pages:  array of pages to be marked dirty and released.
 > + * put_user_pages_dirty_lock() - release and optionally dirty gup-pinned pages
 > + * @pages:  array of pages to be maybe marked dirty, and definitely released.
-
-Better would be.
-
-@pages:  array of pages to be put
-
 >   * @npages: number of pages in the @pages array.
 > + * @make_dirty: whether to mark the pages dirty
 >   *
@@ -373,14 +374,6 @@ Better would be.
 > + * compound page) dirty, if @make_dirty is true, and if the page was previously
 > + * listed as clean. In any case, releases all pages using put_user_page(),
 > + * possibly via put_user_pages(), for the non-dirty case.
-
-I don't think users of this interface need this level of detail.  I think
-something like.
-
- * For each page in the @pages array, release the page.  If @make_dirty is
- * true, mark the page dirty prior to release.
-
-
 >   *
 >   * Please see the put_user_page() documentation for details.
 >   *
@@ -425,17 +418,6 @@ something like.
 > +	 * physically contiguous and part of the same compound page, then a
 > +	 * single operation to the head page should suffice.
 > +	 */
-
-I think this comment belongs to the for loop below...  or just something about
-how to make this and put_user_pages() more efficient.  It is odd, that this is
-the same comment as in put_user_pages()...
-
-The code is good.  So... Other than the comments.
-
-Reviewed-by: Ira Weiny <ira.weiny@intel.com>
-
-Ira
-
 > +
 > +	if (!make_dirty) {
 > +		put_user_pages(pages, npages);
