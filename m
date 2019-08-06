@@ -2,196 +2,161 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-10.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 73443C433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 21:33:35 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DDC3CC433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 21:35:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 25E4E217F5
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 21:33:34 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="IO2DxLoL"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 25E4E217F5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id A081A217D7
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 21:35:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A081A217D7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A1F706B000A; Tue,  6 Aug 2019 17:33:34 -0400 (EDT)
+	id 4C76A6B000A; Tue,  6 Aug 2019 17:35:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9F5F96B000C; Tue,  6 Aug 2019 17:33:34 -0400 (EDT)
+	id 49D046B000C; Tue,  6 Aug 2019 17:35:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 90B386B000D; Tue,  6 Aug 2019 17:33:34 -0400 (EDT)
+	id 3B3566B000D; Tue,  6 Aug 2019 17:35:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5C0586B000A
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 17:33:34 -0400 (EDT)
-Received: by mail-pl1-f197.google.com with SMTP id 65so49061514plf.16
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 14:33:34 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 057726B000A
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 17:35:03 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id s21so49042558plr.2
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 14:35:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=iDYJ7U3nkVgsQNyTJOd+SzW5VeEmpFyQjCRy1sAmQDA=;
-        b=U/HrKf7vpJtk7/t74/q29sJg6OqQsRHj4fb2aiTlStBJVKfZ37yMD0O6+udG8wbVwx
-         GOARcRnSLOBB5RYDmliwn8XHEpdUlc2UVXxrrpjjf5Z5IMdYOsC2xTwkCsJXtI5My8uD
-         QgKJNK9HWqpE+W4rawUgXJ3OVheCDCeBuJ9KHq5VMWDoGNyVHuivtJzfwidIOYBVs4Q9
-         90gLxRhSGjPbxTCF+4gP2k+vNlCVYwxXWwXbn4NxtneKaZhhsm8RVZ5AGSC5Yh4+cK9R
-         YOdX9IuuO/rgtKfoBmdgDNzQDvBBoyKqCWph0VrLS4yMvSyLP35NXv2HdCjI2Er07r0W
-         rkVg==
-X-Gm-Message-State: APjAAAUbsOsnklGQaD1g4XlIf0/tF4tX2izf7TkmLILWy6I0/QaVInBx
-	o7nsv0OVV8VUqdD0KPgYxPgAX7912wLNzAU2NdkG20FvLxn07mQk749wfXRVUiqmUCVTo9vU7tG
-	m+PUA+bdSkO3ZCTthhI/FVPqNY2Lh+yzN2aHSkMp2wH59gJugRNC7wFMaWg7CJzQ1ag==
-X-Received: by 2002:aa7:9514:: with SMTP id b20mr5923031pfp.223.1565127213971;
-        Tue, 06 Aug 2019 14:33:33 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqynttEK9AFGdl1xvLwhaoF+6KshMkUp2RmGpj5gFSoVJbvgFEC9kSz/BufMVuV9HdfNg2Jd
-X-Received: by 2002:aa7:9514:: with SMTP id b20mr5922972pfp.223.1565127213133;
-        Tue, 06 Aug 2019 14:33:33 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565127213; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=hcKtHWLzMT1sAsPcpTTLuTPqh6Fqj85o6v+fD64k/LU=;
+        b=SRXzDZRRHzBBn5VoXYiwLGj5vMDeGsdOnL2d8CV5WOLp9gxnH2g58m6xzDU3/sHM45
+         C7cujHOSBdnPU0QhJ2J2o9nEo95pOYuUMqdKS8mmsEI5gzlgnXrVwi0Fzat1Yjcay3r+
+         PBpkw4LSxI3MTMkQ328EC/2tSBtEe2Ns4tVD1bRT4UXmhpJ1fDlSjCbq0KaOCfNKiTvm
+         i/ZOU0nFpMLI8zROs7sfoNPoXO3rxI4EVmKmxJ8+1D1i80RZQzhArKeky3SewuXRSuwV
+         d8OT1RPSL217PWVDJSyUvdOkvGYmlfstED0yk21u0zUgTvl7Z7wdzn3eZKdrsoyojME/
+         JUZQ==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAVcQ/iKzbNeZ4DM5zjQmWeyU1P7aOmwD94xKb9vKMCEFKxWyRpG
+	5gDl8js3PMbQ8kBb0NNHbIlRRZKBF37c2u+QoDpIqSYbN42uWZrnrNkvptoEbdZkpBjXbR7V6Ep
+	CMav94UytOONmed0lr+mL73yTb8d8UlV8z4pezxGyWpR9UPRLZIsr+K4XckrI7FI=
+X-Received: by 2002:a17:902:bc83:: with SMTP id bb3mr5287141plb.56.1565127302708;
+        Tue, 06 Aug 2019 14:35:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzkcfzK23oVrXm2mUncah3E4LA6OKEPGFlEsLXRRrul5Zj+DKsVI30wma9AiInN6WvcAxmq
+X-Received: by 2002:a17:902:bc83:: with SMTP id bb3mr5287094plb.56.1565127302018;
+        Tue, 06 Aug 2019 14:35:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565127302; cv=none;
         d=google.com; s=arc-20160816;
-        b=eKCTAbL2+p1C4BvuZOwn6c/E5hwhhjL66N3HxlV09Tp6pq191s5a4rD8Y+ETOh076q
-         do976xz8Bvx9D904uKrAKjG1BE/Rw4EqF7/mCf2RDf0uUIOuPCnqAOV2iVTM21atSmit
-         44cs0uOnLSq+A8HZXkYvx7rQsBHVsZ5PHFqHOa4y1YkgfG7J9Yn7jJr6t/AtClU997le
-         EEr9J9xg1aGHGR9e3DuY/ubGD91+e6HdrgZruRJoxOQ4ESkVyns++uq76f8yWHG6BD4A
-         rZOQjR7Won4i2EjDNnwik4oFfDZKAeJthj6hyzERRCQ4cn/sy3i2rwx6ikzorrnxWi3R
-         4uSA==
+        b=frH2ouFW79Q1R/MQBbQpLgAzyhsxSuSmlaLC8yxSqE/i76hGj1WXdaOspuDxsoaRFO
+         WvAZKSRMWTDz10Z/E0hLQBRY/5rdnVxhiVHbcAf4ILgQeXOtVGEeu9HdBKaiszyBvOTf
+         NqF0O8vx3w/UiKaq3P7zwDpm/x5Dsa2s/8D0WShy13DcdMNXG+rpnnpCk6uPmgoN8j3p
+         arkoAibg+miqkoNKUBOZzQZXKXTdzj6WF/wN0bpJVdhZo/NWHS4L0IRIe+omvOtYkJNG
+         vvi57ctFKesPoftP92dWqMrCKFtjAy6AI/1R0wiIYbhDbqaEAwuC0uPZbroAc7jUn3BJ
+         JD4A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=iDYJ7U3nkVgsQNyTJOd+SzW5VeEmpFyQjCRy1sAmQDA=;
-        b=Tv2nzdHUsMpXdHGZoDfxAfQdNSARkKiIWbRbhMkkk2q6owKur/uXtUP/LFYE7qMOdX
-         XcUGr3y0QKKtNukfxi8guwXRI6R55P4wgfx5AluMrNQreCGGgdoz7FqoyDj2aAbsmGj2
-         Z+CDph5k3vn1tMJLPBI4/HFe6kZ3nVakQIQel9DW6zGbYLFnQK6wXzsOD5Uj74jZAzzD
-         fxcdbPvegiaa2qtx0bjWGLGKsc+9V6i5eCnebjDLO9yxfy1ihEBGofMfkcNuYlVEp/Wz
-         H31k/T1uXarMQEZwBr1mJXF6TvPAQRlWKctBZaxbjcJXP2wS0tIYLWkuu1ySdeCPLTEf
-         tzOA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=hcKtHWLzMT1sAsPcpTTLuTPqh6Fqj85o6v+fD64k/LU=;
+        b=Wit5+IUS43CphW0JcmFv+M3Oby+uSpxzlKZE4iIIv+TF04d5/ny+7P9qyHIUcxoFcG
+         PKE4UXPk0op5/OPZyegz4hkQdgdYyo1lsqsCNsmCi4P04/TMg2k9TbMaYPpVlzeCa1VN
+         tBdrayiHAh+73EnkiswJ+B+1mmjJki+rrz9nVP4j9a8hp4YgwREWz0/Eezhb2Txiechh
+         HFLdM6aiADOuXZtCxIsxhQsUcwlEPHDugJbVUT0MEUDIWl6RJsu2t45u6Qb7FCB+pKUA
+         QDmSqLXOTLz+0Q1Bh/gPi0kXi6WjxtGaX1r5PqT9fk8QSDKAgnFbBiIQdWROp5GV1E/L
+         WV2A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=IO2DxLoL;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id u9si32906083pgf.198.2019.08.06.14.33.32
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 14:33:33 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
+        by mx.google.com with ESMTP id 3si43632598plh.265.2019.08.06.14.35.01
+        for <linux-mm@kvack.org>;
+        Tue, 06 Aug 2019 14:35:01 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=IO2DxLoL;
-       spf=pass (google.com: domain of sashal@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=sashal@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from sasha-vm.mshome.net (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id C973A21743;
-	Tue,  6 Aug 2019 21:33:31 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565127212;
-	bh=TN/yZ7FjGl5BN0jJpt8bZnFuEvxtK5gvDFA4qWawSi8=;
-	h=From:To:Cc:Subject:Date:In-Reply-To:References:From;
-	b=IO2DxLoLP2XBTcG6DKhj+LtbEryyetM83hLNmJuHMzuRKI1DKItYI61T3Y9eWyOTY
-	 /WdZgZ1Jo2dpipEoIzfC557ZT7OgPUEwDvZfoguzUH6oEDsrLLk91pDrEHNz1nronB
-	 shkGE3xB2I3bz6k9TSoERWwkMIU5rIxQeJSWY5CM=
-From: Sasha Levin <sashal@kernel.org>
-To: linux-kernel@vger.kernel.org,
-	stable@vger.kernel.org
-Cc: Christoph Hellwig <hch@lst.de>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Sasha Levin <sashal@kernel.org>,
-	linux-mm@kvack.org,
-	linux-doc@vger.kernel.org
-Subject: [PATCH AUTOSEL 5.2 10/59] mm/hmm: always return EBUSY for invalid ranges in hmm_range_{fault,snapshot}
-Date: Tue,  6 Aug 2019 17:32:30 -0400
-Message-Id: <20190806213319.19203-10-sashal@kernel.org>
-X-Mailer: git-send-email 2.20.1
-In-Reply-To: <20190806213319.19203-1-sashal@kernel.org>
-References: <20190806213319.19203-1-sashal@kernel.org>
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
+	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id A0FAD36124A;
+	Wed,  7 Aug 2019 07:35:00 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hv75d-0005Dj-JD; Wed, 07 Aug 2019 07:33:53 +1000
+Date: Wed, 7 Aug 2019 07:33:53 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Brian Foster <bfoster@redhat.com>
+Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH 18/24] xfs: reduce kswapd blocking on inode locking.
+Message-ID: <20190806213353.GJ7777@dread.disaster.area>
+References: <20190801021752.4986-1-david@fromorbit.com>
+ <20190801021752.4986-19-david@fromorbit.com>
+ <20190806182213.GF2979@bfoster>
 MIME-Version: 1.0
-X-stable: review
-X-Patchwork-Hint: Ignore
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190806182213.GF2979@bfoster>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0 cx=a_idp_d
+	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=5n85yxmU3CNEWdoKYM4A:9
+	a=CjuIK1q_8ugA:10 a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Christoph Hellwig <hch@lst.de>
+On Tue, Aug 06, 2019 at 02:22:13PM -0400, Brian Foster wrote:
+> On Thu, Aug 01, 2019 at 12:17:46PM +1000, Dave Chinner wrote:
+> > From: Dave Chinner <dchinner@redhat.com>
+> > 
+> > When doing async node reclaiming, we grab a batch of inodes that we
+> > are likely able to reclaim and ignore those that are already
+> > flushing. However, when we actually go to reclaim them, the first
+> > thing we do is lock the inode. If we are racing with something
+> > else reclaiming the inode or flushing it because it is dirty,
+> > we block on the inode lock. Hence we can still block kswapd here.
+> > 
+> > Further, if we flush an inode, we also cluster all the other dirty
+> > inodes in that cluster into the same IO, flush locking them all.
+> > However, if the workload is operating on sequential inodes (e.g.
+> > created by a tarball extraction) most of these inodes will be
+> > sequntial in the cache and so in the same batch
+> > we've already grabbed for reclaim scanning.
+> > 
+> > As a result, it is common for all the inodes in the batch to be
+> > dirty and it is common for the first inode flushed to also flush all
+> > the inodes in the reclaim batch. In which case, they are now all
+> > going to be flush locked and we do not want to block on them.
+> > 
+> 
+> Hmm... I think I'm missing something with this description. For dirty
+> inodes that are flushed in a cluster via reclaim as described, aren't we
+> already blocking on all of the flush locks by virtue of the synchronous
+> I/O associated with the flush of the first dirty inode in that
+> particular cluster?
 
-[ Upstream commit 2bcbeaefde2f0384d6ad351c151b1a9fe7791a0a ]
+Currently we end up issuing IO and waiting for it, so by the time we
+get to the next inode in the cluster, it's already been cleaned and
+unlocked.
 
-We should not have two different error codes for the same
-condition. EAGAIN must be reserved for the FAULT_FLAG_ALLOW_RETRY retry
-case and signals to the caller that the mmap_sem has been unlocked.
+However, as we go to non-blocking scanning, if we hit one
+flush-locked inode in a batch, it's entirely likely that the rest of
+the inodes in the batch are also flush locked, and so we should
+always try to skip over them in non-blocking reclaim.
 
-Use EBUSY for the !valid case so that callers can get the locking right.
+This is really just a stepping stone in the logic to the way the
+LRU isolation function works - it's entirely non-blocking and full
+of lock order inversions, so everything has to run under try-lock
+semantics. This is essentially starting that restructuring, based on
+the observation that sequential inodes are flushed in batches...
 
-Link: https://lore.kernel.org/r/20190724065258.16603-2-hch@lst.de
-Tested-by: Ralph Campbell <rcampbell@nvidia.com>
-Signed-off-by: Christoph Hellwig <hch@lst.de>
-Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
-Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
-Reviewed-by: Felix Kuehling <Felix.Kuehling@amd.com>
-[jgg: elaborated commit message]
-Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
-Signed-off-by: Sasha Levin <sashal@kernel.org>
----
- Documentation/vm/hmm.rst |  2 +-
- mm/hmm.c                 | 10 ++++------
- 2 files changed, 5 insertions(+), 7 deletions(-)
+Cheers,
 
-diff --git a/Documentation/vm/hmm.rst b/Documentation/vm/hmm.rst
-index 7cdf7282e0229..65b6c1109cc81 100644
---- a/Documentation/vm/hmm.rst
-+++ b/Documentation/vm/hmm.rst
-@@ -231,7 +231,7 @@ respect in order to keep things properly synchronized. The usage pattern is::
-       ret = hmm_range_snapshot(&range);
-       if (ret) {
-           up_read(&mm->mmap_sem);
--          if (ret == -EAGAIN) {
-+          if (ret == -EBUSY) {
-             /*
-              * No need to check hmm_range_wait_until_valid() return value
-              * on retry we will get proper error with hmm_range_snapshot()
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 4c405dfbd2b3d..27dd9a8816272 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -995,7 +995,7 @@ EXPORT_SYMBOL(hmm_range_unregister);
-  * @range: range
-  * Returns: -EINVAL if invalid argument, -ENOMEM out of memory, -EPERM invalid
-  *          permission (for instance asking for write and range is read only),
-- *          -EAGAIN if you need to retry, -EFAULT invalid (ie either no valid
-+ *          -EBUSY if you need to retry, -EFAULT invalid (ie either no valid
-  *          vma or it is illegal to access that range), number of valid pages
-  *          in range->pfns[] (from range start address).
-  *
-@@ -1019,7 +1019,7 @@ long hmm_range_snapshot(struct hmm_range *range)
- 	do {
- 		/* If range is no longer valid force retry. */
- 		if (!range->valid)
--			return -EAGAIN;
-+			return -EBUSY;
- 
- 		vma = find_vma(hmm->mm, start);
- 		if (vma == NULL || (vma->vm_flags & device_vma))
-@@ -1117,10 +1117,8 @@ long hmm_range_fault(struct hmm_range *range, bool block)
- 
- 	do {
- 		/* If range is no longer valid force retry. */
--		if (!range->valid) {
--			up_read(&hmm->mm->mmap_sem);
--			return -EAGAIN;
--		}
-+		if (!range->valid)
-+			return -EBUSY;
- 
- 		vma = find_vma(hmm->mm, start);
- 		if (vma == NULL || (vma->vm_flags & device_vma))
+Dave.
 -- 
-2.20.1
+Dave Chinner
+david@fromorbit.com
 
