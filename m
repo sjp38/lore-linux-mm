@@ -2,130 +2,202 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8CB0C433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:33:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7F760C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:36:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 76F84206A2
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:33:54 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="SzqphmH9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 76F84206A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 3FBD5206A2
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:36:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FBD5206A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0F5566B0010; Tue,  6 Aug 2019 04:33:54 -0400 (EDT)
+	id C648F6B0003; Tue,  6 Aug 2019 04:36:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 07EA46B0266; Tue,  6 Aug 2019 04:33:54 -0400 (EDT)
+	id C15CD6B0006; Tue,  6 Aug 2019 04:36:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E88816B0269; Tue,  6 Aug 2019 04:33:53 -0400 (EDT)
+	id B042F6B0269; Tue,  6 Aug 2019 04:36:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f198.google.com (mail-vk1-f198.google.com [209.85.221.198])
-	by kanga.kvack.org (Postfix) with ESMTP id C79AE6B0010
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:33:53 -0400 (EDT)
-Received: by mail-vk1-f198.google.com with SMTP id l186so37527719vke.19
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:33:53 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D84B6B0003
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:36:09 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id i9so53323101edr.13
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:36:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=L3laO+k8rafvoIENNnOkb7QDUkGKtpfBuwQzQEPVcpk=;
-        b=Q3VMR6e4LvuOCMwoL7BXLeQ7N1ViEBZjTJ0xyh4deQGj7QtJrHPFbBXO7fKTDvuxjH
-         E4HN85apjMsoR/5jAgv0IB0QftHA7ifMqGZ8JpFMJ6owM5drL7emSrO9lHlU/njW8tfG
-         01DFl64ud66bJKexvntLflu3bjQLxfU+6ZBtbkVknNlUzHib4DqF9eKNf6z2R2w7rK/L
-         SEQqSugDyLg6jAPql78lHxJ8YTWHI51bQvFrZEDERvfElkIHsnVNDz85VQvftV5eXzkM
-         zJexrrlMWXZ7sbFs2JLdUfmOBblijstSHAsPWyNfaqHC++1N2f5UwxG5JYi91KUWuL/P
-         pOjg==
-X-Gm-Message-State: APjAAAUEAfS3r5/+BE0b0+ds+XVVfEvlLocMXMSd0n5HpIXw47wgZ0TI
-	2bdC6OXRFxVU3e3InSITJiLLznw87xWRE+Chpkhin30gz3Li+QdZ+8BcT4WTByo86tAcCb67SzX
-	8zl/Z4dXW+pKkyVrRImFnuWCkf9H6qwHzuJl+mC3QReaEtpPX6TYNLBlZJC6778QwTQ==
-X-Received: by 2002:ab0:4744:: with SMTP id i4mr1529882uac.63.1565080433432;
-        Tue, 06 Aug 2019 01:33:53 -0700 (PDT)
-X-Received: by 2002:ab0:4744:: with SMTP id i4mr1529854uac.63.1565080432941;
-        Tue, 06 Aug 2019 01:33:52 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565080432; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=usHodNDDdHnrrq29Ie86wdnv1GycZfA8HH8x6PHNn/I=;
+        b=Dymw8c92XLRmAVh8t960vLRwhodeS6YtXYgv9uIcbEGbIcl1XPZOMFqKRWQPe0NY0E
+         hhHk2xDlpKzMTQl6zjGpL0oW1K0yJFajXvrME0/7Dv3PrYKZ2YYzEmuQ49gkinMAWUHh
+         POnNBwi0dVqh8cKymGzV9ikNbgtsVRWCF3gI+1t3AtyHN/ZZFr/6iOFfFqWQRQZy1c8G
+         B7y7g7t27+ENpK0+8evUPVJTWMeKNMUIuefeS+Qnhdv+w7PpnarGKqNDAvb+hvyJxlCe
+         pIRDmeufsj3QO3bMjEgeYDhOuZP7NQ3NR468eXdxZIbSN/ok8Xl2gxCrpYEB1M9/6ekQ
+         lO1g==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWhbIjBuca7YHjA5NyCSqBfrgN1UiNmHcAhlJw5Yi/GW25Us97d
+	DOxO2BF7t7TjBT8CH0BfgTUmYPu45K/DruYvpBD+ORTKRt5bZAUvE5i+fG52SIs5sLhkVf4Yb7Z
+	NjN9OriKBxjfN82a4qLVO+YTzDKzfDlCTmdPgn7x3OIfTeMBiakxOwjB4P/65blk=
+X-Received: by 2002:a17:906:1916:: with SMTP id a22mr1938878eje.271.1565080568926;
+        Tue, 06 Aug 2019 01:36:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzcbDuLYAVtcw3YnV0iWKbhvZLl/Usl2TIb9lL7sR/X1SGWP7mI589gJ7DXVIQAFoPyB9M9
+X-Received: by 2002:a17:906:1916:: with SMTP id a22mr1938826eje.271.1565080568105;
+        Tue, 06 Aug 2019 01:36:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565080568; cv=none;
         d=google.com; s=arc-20160816;
-        b=zdHpyp9BrQbZT+4ajtFW1cAcv08cTEvL5YY2wk21bX2eRvnpyHhc1RGtKVQ5eFh5U+
-         T7yJYUqzvXd7xZmBLU7IvmMLuXd6z4TRnG5JqpQtIJgFMtJnh6wqgxWPnA15MtDW5SVZ
-         nmejgHBElTRJf2sP+f8YgJStEFrXBRgfGXFK6ljnNgyOGvMrnREB46pRz8bKT2gyRSnf
-         nFNMM/55QoK7sRNRhTOZ/AS+p0kxgI/nZHiP77N8zqtWaZrjT026N2abciW9w42mmdZE
-         hMydBMzJQRwDnHJEzr9NFmz2+98j9AviLnYFoUxODf7kVw2p3eerhkCQT8MFbYFm/1bo
-         koRQ==
+        b=gDsN22uSJiNRu7HoPpyGIoLwqUCFAaETm+WPChv6Qa61/GvH5gr5vEnclpqhDbdpqd
+         FOK/6eVtFiqHRN/rDsxlff9uLQBYnJeVeitWBR9wTuASOcY+pX9Iaa0+kdeP3oDgPQck
+         tFD35lInHhFB2AFOpZByKu4ulAFnBBfUxn/I9cU35RNGBZT7OzYNwkRPQe/qObc/K8z2
+         S8zC9544/bOTb/R0DAR5pnZwsnRHJOlQkZsVCEx5BdB/Yi8fn0loIeTWnZyYM1GCcImj
+         EMmoFkj0Lh02LlXDCWH4sX3Jz6wVp8H76kj+dA71XaTEXING8N7xb/B574mi/nAQ4qjV
+         sy2g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=L3laO+k8rafvoIENNnOkb7QDUkGKtpfBuwQzQEPVcpk=;
-        b=tXL6v0/bPThyxPtmVTIIgLmL3E4rLjb51GNZMVjmjIAnmH+E8vHJixmAbKI0HYm2ep
-         AMPFxPCovi/RaRS+9ygFZi7GM0syAU5rP9Crpg9jIncm0XUe8uTghYZFp29vZm+qTVML
-         2Oxmi7bKlqpjFT4y2/exh88LqUqSS0krduXjztCBoQo2oltQszcjCHbXD2h7NDyOEpqi
-         K49+RjxlLDgAbBc/5Rl7vfGNXuITYCO3OO6xVvavxpoMil6le72Tg8ZxQCqrVOMY1h+u
-         BM6bvKoYx9nAzGYfkk1f2nSm5OdRLLvmHHdQtuwD1EKy/ZY7+qFeydaB0LGXk42NO8va
-         Rf2Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=usHodNDDdHnrrq29Ie86wdnv1GycZfA8HH8x6PHNn/I=;
+        b=P4Gh2sYk0GkWCzyjHK1QL9Fkcx6szuQV/uOstCF5g17JwalefigjWzw3LRfRlKixTu
+         7zjzRO4Sd/OJHj5MHqWxJ4LTCOS79BIjiYudwbRVYvi66kjt92yC6IbneKv5DAxasyUe
+         rrt09e4GGaD1qjCF27kFztTUcrFGnX2Jjig9l96/qMj7i8F6ct197HWppQksJMi7tpgf
+         4LPxGzYU8Ry0snKmBbXqg3JRr6vdVQbbeiBLQtSWWjzT49gI/hETaE3x9W9zwPuxsNu5
+         nRnJaFXfiQE0bov1JXosNDpF+MOKwJ95mo4KwLjuaGnTRa12Xnw9PFWIoZckpH0om9ZC
+         t+sQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SzqphmH9;
-       spf=pass (google.com: domain of oded.gabbay@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oded.gabbay@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id n27sor42703300vsj.45.2019.08.06.01.33.52
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id c45si31426833eda.303.2019.08.06.01.36.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Aug 2019 01:33:52 -0700 (PDT)
-Received-SPF: pass (google.com: domain of oded.gabbay@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Aug 2019 01:36:08 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SzqphmH9;
-       spf=pass (google.com: domain of oded.gabbay@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=oded.gabbay@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=L3laO+k8rafvoIENNnOkb7QDUkGKtpfBuwQzQEPVcpk=;
-        b=SzqphmH9Xcr/8QNjmRCurEieXSoyqucXzM/i0jQtfbn7fCyXLgcnseGNHc6O2zl0H8
-         lcXNVaaPPFwrjISof3c2HskBLmzDayr30vm+Qic8693HY+xSJZSrxgebQJ66vpu9D/Eq
-         vQkLuOeWxkEuWjQUPFyc/vmh3iGJQgTI2NTzHt5n2Zxk6utihlQvgJuoPQh/WsEFNuYY
-         tpX2Vz3PLkto6LaLhBGh7VJXzWoigJWHVsrd09RKw7dK7au28CNsw1fRB6UcV4P62b5V
-         ln+954kRxd9UlqSh7T3eMX/xRSj1iLKCZOI/4sDOi2f4lKvulstRs6VTYv3pBuqxzkrE
-         4vtg==
-X-Google-Smtp-Source: APXvYqxKu72JAW2RGZxe7DiW01lI2DmuzDe2HpznDq1juAM1vrYh+aMD/Tbtq+3dWIh9uqqTzDYnPm88keMhsQByGds=
-X-Received: by 2002:a67:e3d5:: with SMTP id k21mr1519155vsm.172.1565080432608;
- Tue, 06 Aug 2019 01:33:52 -0700 (PDT)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 3ACB5ABC7;
+	Tue,  6 Aug 2019 08:36:07 +0000 (UTC)
+Date: Tue, 6 Aug 2019 10:36:05 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, dave.hansen@intel.com,
+	Ingo Molnar <mingo@kernel.org>, Vlastimil Babka <vbabka@suse.cz>,
+	Peter Zijlstra <peterz@infradead.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Anshuman Khandual <anshuman.khandual@arm.com>
+Subject: Re: [PATCH V2] fork: Improve error message for corrupted page tables
+Message-ID: <20190806083605.GA19060@dhcp22.suse.cz>
+References: <3ef8a340deb1c87b725d44edb163073e2b6eca5a.1565059496.git.sai.praneeth.prakhya@intel.com>
 MIME-Version: 1.0
-References: <20190802200705.GA10110@ziepe.ca> <c59ebe8b-9b18-24b8-b02c-8ccaa7df4dc9@amd.com>
- <20190806073105.GA20575@infradead.org>
-In-Reply-To: <20190806073105.GA20575@infradead.org>
-From: Oded Gabbay <oded.gabbay@gmail.com>
-Date: Tue, 6 Aug 2019 11:33:26 +0300
-Message-ID: <CAFCwf10aRHeXuOg+5o6=VgzM1dhFQde=b0jZSmgF4DfibYcp_A@mail.gmail.com>
-Subject: Re: [PATCH hmm] drm/amdkfd: fix a use after free race with
- mmu_notififer unregister
-To: Christoph Hellwig <hch@infradead.org>
-Cc: "Kuehling, Felix" <Felix.Kuehling@amd.com>, Jason Gunthorpe <jgg@mellanox.com>, 
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, Ben Goz <ben.goz@amd.com>, 
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3ef8a340deb1c87b725d44edb163073e2b6eca5a.1565059496.git.sai.praneeth.prakhya@intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 6, 2019 at 10:31 AM Christoph Hellwig <hch@infradead.org> wrote:
->
-> Btw, who maintains amkfd these days?  MAINTAINERS still lists
-> Oded, but he seems to have moved on to Habanalabs and maintains that
-> drivers now while not having any action on amdkfd for over a year.
+On Mon 05-08-19 20:05:27, Sai Praneeth Prakhya wrote:
+> When a user process exits, the kernel cleans up the mm_struct of the user
+> process and during cleanup, check_mm() checks the page tables of the user
+> process for corruption (E.g: unexpected page flags set/cleared). For
+> corrupted page tables, the error message printed by check_mm() isn't very
+> clear as it prints the loop index instead of page table type (E.g: Resident
+> file mapping pages vs Resident shared memory pages). The loop index in
+> check_mm() is used to index rss_stat[] which represents individual memory
+> type stats. Hence, instead of printing index, print memory type, thereby
+> improving error message.
+> 
+> Without patch:
+> --------------
+> [  204.836425] mm/pgtable-generic.c:29: bad p4d 0000000089eb4e92(800000025f941467)
+> [  204.836544] BUG: Bad rss-counter state mm:00000000f75895ea idx:0 val:2
+> [  204.836615] BUG: Bad rss-counter state mm:00000000f75895ea idx:1 val:5
+> [  204.836685] BUG: non-zero pgtables_bytes on freeing mm: 20480
+> 
+> With patch:
+> -----------
+> [   69.815453] mm/pgtable-generic.c:29: bad p4d 0000000084653642(800000025ca37467)
+> [   69.815872] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_FILEPAGES val:2
+> [   69.815962] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_ANONPAGES val:5
+> [   69.816050] BUG: non-zero pgtables_bytes on freeing mm: 20480
 
-I've sent a patch to update the MAINTAINERS file a month ago to
-dri-devel and Dave
-(https://lists.freedesktop.org/archives/dri-devel/2019-July/225272.html)
+I like this. On any occasion I am investigating an issue with an rss
+inbalance I have to go back to kernel sources to see which pte type that
+is.
 
-Thanks,
-Oded
+> Also, change print function (from printk(KERN_ALERT, ..) to pr_alert()) so
+> that it matches the other print statement.
 
-Oded
+good change as well. Maybe we should also lower the loglevel (in a
+separate patch) as well. While this is not nice because we are
+apparently leaking memory behind it shouldn't be really critical enough
+to jump on normal consoles.
+
+> Cc: Ingo Molnar <mingo@kernel.org>
+> Cc: Vlastimil Babka <vbabka@suse.cz>
+> Cc: Peter Zijlstra <peterz@infradead.org>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Anshuman Khandual <anshuman.khandual@arm.com>
+> Acked-by: Dave Hansen <dave.hansen@intel.com>
+> Suggested-by: Dave Hansen <dave.hansen@intel.com>
+> Signed-off-by: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+> ---
+> 
+> Changes from V1 to V2:
+> ----------------------
+> 1. Move struct definition from header file to fork.c file, so that it won't be
+>    included in every compilation unit. As this struct is used *only* in fork.c,
+>    include the definition in fork.c itself.
+> 2. Index the struct to match respective macros.
+> 3. Mention about print function change in commit message.
+> 
+>  kernel/fork.c | 11 +++++++++--
+>  1 file changed, 9 insertions(+), 2 deletions(-)
+> 
+> diff --git a/kernel/fork.c b/kernel/fork.c
+> index d8ae0f1b4148..f34f441c50c0 100644
+> --- a/kernel/fork.c
+> +++ b/kernel/fork.c
+> @@ -125,6 +125,13 @@ int nr_threads;			/* The idle threads do not count.. */
+>  
+>  static int max_threads;		/* tunable limit on nr_threads */
+>  
+> +static const char * const resident_page_types[NR_MM_COUNTERS] = {
+> +	[MM_FILEPAGES]		= "MM_FILEPAGES",
+> +	[MM_ANONPAGES]		= "MM_ANONPAGES",
+> +	[MM_SWAPENTS]		= "MM_SWAPENTS",
+> +	[MM_SHMEMPAGES]		= "MM_SHMEMPAGES",
+> +};
+> +
+>  DEFINE_PER_CPU(unsigned long, process_counts) = 0;
+>  
+>  __cacheline_aligned DEFINE_RWLOCK(tasklist_lock);  /* outer */
+> @@ -649,8 +656,8 @@ static void check_mm(struct mm_struct *mm)
+>  		long x = atomic_long_read(&mm->rss_stat.count[i]);
+>  
+>  		if (unlikely(x))
+> -			printk(KERN_ALERT "BUG: Bad rss-counter state "
+> -					  "mm:%p idx:%d val:%ld\n", mm, i, x);
+> +			pr_alert("BUG: Bad rss-counter state mm:%p type:%s val:%ld\n",
+> +				 mm, resident_page_types[i], x);
+>  	}
+>  
+>  	if (mm_pgtables_bytes(mm))
+> -- 
+> 2.7.4
+
+-- 
+Michal Hocko
+SUSE Labs
 
