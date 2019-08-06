@@ -2,155 +2,205 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FF2DC31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:24:09 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C1113C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:29:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 60C02206A2
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:24:09 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="si46cByK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60C02206A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 81CB02075B
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:29:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81CB02075B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E698C6B0005; Tue,  6 Aug 2019 04:24:07 -0400 (EDT)
+	id 2CD156B000A; Tue,  6 Aug 2019 04:29:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DF3606B0008; Tue,  6 Aug 2019 04:24:07 -0400 (EDT)
+	id 2ACF66B000C; Tue,  6 Aug 2019 04:29:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CBC046B000A; Tue,  6 Aug 2019 04:24:07 -0400 (EDT)
+	id 16CFF6B000D; Tue,  6 Aug 2019 04:29:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 9D9396B0005
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:24:07 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id h12so48475280otn.18
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:24:07 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BD4356B000A
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:29:12 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id r21so53350001edc.6
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:29:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=4TafmbL0Q/NgLabIQNToGEAZ2JWkHWsiwx7ruxH9mdw=;
-        b=bFnU+Zdmbt98Fhxe6ON5H4YWp6yViNqzStNQqgfd85R2/EVuaOqE6/y8L0TDPlUrNq
-         9yLkSq3EFPT0Sa1PKLoe4q79GzR7O93uipNH5nAnqNLMRKFIy//6cKUCKmB2+fLl48kb
-         7BhL52eIZu/ab3fLog+J8fQye8xVOjYha9msdYLLqgm0ixAQ4XQK8pZrRgyMeE3HnyDj
-         O01Xc1LJSSAW3sjl1c3841LWO6/K6KrAA7dru2dDi6N8i1xOWbBpvHtbnTBLwBLhiKQA
-         m+V+Ve5z/VwZ9VItn6MDxI1YHuAD+DNl0H9Y5kVf7gqGZBHPfMXaW2KxiP9pzodpQHgf
-         pk5A==
-X-Gm-Message-State: APjAAAWyKYPPcQYxywhG1MYbNeyIoW5BPUsd9d2CqsymfEKzE8QG8T+l
-	aR4TawH/e2rhFyt4bWbfIrgJrzh4SNnVwH/49Zfwkvty3LupuQ0qqPE5QR52mWu2Ts2OI52WMu9
-	AA/fzgmJBx4zC8+6VeltMGHN8bCAV4F0pq4nGtYjVXp8DRvPAAE6QtTTRzcX2etL9Lw==
-X-Received: by 2002:a02:1c0a:: with SMTP id c10mr3003279jac.69.1565079847300;
-        Tue, 06 Aug 2019 01:24:07 -0700 (PDT)
-X-Received: by 2002:a02:1c0a:: with SMTP id c10mr3003230jac.69.1565079846502;
-        Tue, 06 Aug 2019 01:24:06 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565079846; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=iR9MoQ3t9Si+1vsvMXnJ/bwYAiwL4QPBUb5NFrEXrwM=;
+        b=d8ptN0O2HMQuHXY0vUffP3IONaOVi7tqZ1gCJTEUdZ3Slgmrk1TIgQau6X6mD3X7Bj
+         iYHx3poTZ3/cwNpoDA3lK9vk8Cg7hEZgHbpsqg75ryn/X3pNJTI5kLBnlS9A7RQjgyCj
+         i2Kvr2ncW3EaTiDUIFdtIx+YH3d+xEtQpzkXm+g2nWAwRTVAOK8Mf2T50HGoYrDonJNo
+         jemFX0evbiTOD2s+n1NqVxPEsVrDWOMLKnFh5ptk9B0M7QI/RKxerBCMvq3yCYfkF1KU
+         pi+1v8Z9ahuv21GSPns6a0h+dazcfERL5Ku6zA1qy1yu/1AdAR7VWf6FVKhGpbg7qmGv
+         HSTw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAW0a4PGxKZClKOwdSXQyMiuETeLrJuRhe9JcxoMzruB8Cnzyw0t
+	FKBeesF0ppkgATUKNavNvF/PZmLnf/6PUOQX9J9r6Avwmy7+QFDKRm5XyS2d4fyP354I6RBlQr8
+	Qu24mcGyS2ltRh6aeRSt9ee3broedOVf5ap+nvMz01CG4Vb/unVaPLJ0TP0BWs2A=
+X-Received: by 2002:a50:9f4e:: with SMTP id b72mr2513476edf.252.1565080152325;
+        Tue, 06 Aug 2019 01:29:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqx1kf2Rjd7qWS9mWfHXmsxO4Os0s7O5/X0EjdWOBGLZxQ7JGN6+FiJ5BiRqIEcjX+QZjAgm
+X-Received: by 2002:a50:9f4e:: with SMTP id b72mr2513436edf.252.1565080151609;
+        Tue, 06 Aug 2019 01:29:11 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565080151; cv=none;
         d=google.com; s=arc-20160816;
-        b=gmacyrUFDbITakCLMxaVTZQkl9J/U3lROIjTy1EfUL+OPn6uh+qWuyj4oINOQbI81g
-         RhXRoBprnZ4SZ7Uo3msUw4iPcEHkuCLxX9XchwfEV2os7xxuhsY+zQ1njImuygPSiojg
-         U+tWg3A0ZUq3u8iGXwljzp+/zTa4iRY0h6ydMAmxdEYFFT+oR5JH5ZvWKJb1F+J5Lw+e
-         Uo9ehpPyURWsJRd6g72lHdxciT1zxuGgD0TSFPUIiSVnkgsuNFKKitgfaHp5stEAcqJ8
-         jfUe2HCC3/qQrdMLZBQgWq+r5bEfaRva1XbTRg6tDSYTlGrbXShlFmt5zseKpsEq92Bq
-         tTVg==
+        b=nWyQOLxxBU6/mfl7b6tOxWNx/lqpfAxFynlstv9e0iSAhLZfLd4ADQnMqRWN3ia0+i
+         q48yaZcjK+DiAcbVlSjc1CKc9Mghxm/q7wN4r480r1diZ2vx7/1QWbPv5ZCFaLn+vyJ+
+         HtxhEzO5AdrDieRJhZz1CVJM05CkuS5EO4UmhD4oK8ukPJZtZMSvjCFYeLF3UXiawDp1
+         4Uhr/FrYgnX0+/TPS7mZOTkVi8iPxg8BWvLP09qiuMIqu7j84LVkskGw44FcjVKaN84u
+         fcmfRDWsDkfmdG0NHEQCQ111806AQEQ1/vt+YAodTybcGqbRQHw3TJHfjfS5yt0NhXBW
+         l8ew==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=4TafmbL0Q/NgLabIQNToGEAZ2JWkHWsiwx7ruxH9mdw=;
-        b=oTbY+gmWcSIhO1Vz+xliW8yNEL32SkDPq6qREMoSjjkKV6Qzi13J1A6a4t4/2+LD/u
-         kSy9q7NcTRWWPsOPO2KMHmSD/AYhxYvGCko4+Emv/RGDtS+ba49Hdw5lCw5UYhRsjch9
-         mwXUUuOOfckskgRMebnzSO+QGd0HnWr+X8Uo/aHZ7EIu7wlUjIkzBD+1cPJznuNIxZ6c
-         EZ0RCyOBKDL/2ujzX9qr3ZfhxVRfLAeXV+q3uAukQs20lGNNiR385KuFa8opLRBI7bUW
-         dL2OvY5D5brtXljmcC1pSiH6AR8Wb2jH/zXLsqOS9HuknR3PFaphNs4OOsHjrywGCznS
-         V3qQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=iR9MoQ3t9Si+1vsvMXnJ/bwYAiwL4QPBUb5NFrEXrwM=;
+        b=Kgw83O1lNcl+oZuqD/uMADRNLBk64d7QptTjbyUFggB3P/rMtAkLWupcxOJCDI7xNb
+         SEYm+rd7aQnN2PEzEO0zSf5lREn3DVjaF5yQ6y4ZZeRVb3PsDcgEinjvO42H8dfUpzqH
+         ZHu/kmKSWRVbT8eBZRRFuqeJ7y67GoDW7rBiZrJW0qDrH9JheV4wI+3llhdB2+y/ELAA
+         SJ1r/Sa5VKzulQxKCbb7w+4SAWGyKhy/DsyXmy7j4mIA0hdduC1xUnwxnhfStDoj5y9K
+         v8Zxjswie4uP6t5cNVtqVtg/Q1UDCsp/wIqhRSJ2EIL4wENK2r/hQFPfgJFpnQ7WP9h0
+         A/tA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=si46cByK;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c19sor58260648iod.22.2019.08.06.01.24.06
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id s41si29683980edd.252.2019.08.06.01.29.11
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Aug 2019 01:24:06 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Aug 2019 01:29:11 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=si46cByK;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=4TafmbL0Q/NgLabIQNToGEAZ2JWkHWsiwx7ruxH9mdw=;
-        b=si46cByKJ94AK2EJXpCvhtQF/qsZfxqvYK0vv5GVmibr0NWJ5CwPh50it6gj4NByo7
-         NkrC+zhQdtieYpp/194VciKrN/8KikpkusuFLDMzrPblM+atEKtLZDbZjiOL8fRncj/g
-         XPcPK6IHxY8yjx8J9EjJEupxhjcTD6MB+ibc+IIRESC/vRqOwd4yr9qshGWG0UjXXJJL
-         2cMZ7+CWMT6pX7CUiDO+OCoKJDr/yoj0Xva6MfCam79XVAAOC8HLCfAzMRpS/dlq3rgg
-         WftJizHf7KnnWBZ7j6S+wt/3IiTQLITCIh0HxaSM65G1kO/t+CpsPu7sqtlSRcS5657X
-         Sd8g==
-X-Google-Smtp-Source: APXvYqwsxkHAQDoTNQ09nbiwWJ34yXvkNqrvy9KjIO2snXp141h8+tvVR6uFkYagkZy/6FHrqKWeXCOed3fQM+I1tss=
-X-Received: by 2002:a5e:8a46:: with SMTP id o6mr2277051iom.36.1565079845875;
- Tue, 06 Aug 2019 01:24:05 -0700 (PDT)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 9C99FAF1D;
+	Tue,  6 Aug 2019 08:29:10 +0000 (UTC)
+Date: Tue, 6 Aug 2019 10:29:07 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Minchan Kim <minchan@kernel.org>
+Cc: syzbot <syzbot+8e6326965378936537c3@syzkaller.appspotmail.com>,
+	akpm@linux-foundation.org, chris@chrisdown.name, chris@zankel.net,
+	dancol@google.com, dave.hansen@intel.com, hannes@cmpxchg.org,
+	hdanton@sina.com, james.bottomley@hansenpartnership.com,
+	kirill.shutemov@linux.intel.com, ktkhai@virtuozzo.com,
+	laoar.shao@gmail.com, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, mgorman@techsingularity.net,
+	oleksandr@redhat.com, ralf@linux-mips.org, rth@twiddle.net,
+	sfr@canb.auug.org.au, shakeelb@google.com, sonnyrao@google.com,
+	surenb@google.com, syzkaller-bugs@googlegroups.com,
+	timmurray@google.com, yang.shi@linux.alibaba.com
+Subject: Re: kernel BUG at mm/vmscan.c:LINE! (2)
+Message-ID: <20190806082907.GI11812@dhcp22.suse.cz>
+References: <000000000000a9694d058f261963@google.com>
+ <20190802200643.GA181880@google.com>
 MIME-Version: 1.0
-References: <1565075940-23121-1-git-send-email-laoar.shao@gmail.com> <20190806073525.GC11812@dhcp22.suse.cz>
-In-Reply-To: <20190806073525.GC11812@dhcp22.suse.cz>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Tue, 6 Aug 2019 16:23:29 +0800
-Message-ID: <CALOAHbD6ick6gnSed-7kjoGYRqXpDE4uqBAnSng6nvoydcRTcQ@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/vmscan: shrink slab in node reclaim
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
-	Daniel Jordan <daniel.m.jordan@oracle.com>, Mel Gorman <mgorman@techsingularity.net>, 
-	Christoph Lameter <cl@linux.com>, Yafang Shao <shaoyafang@didiglobal.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190802200643.GA181880@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 6, 2019 at 3:35 PM Michal Hocko <mhocko@kernel.org> wrote:
->
-> On Tue 06-08-19 03:19:00, Yafang Shao wrote:
-> > In the node reclaim, may_shrinkslab is 0 by default,
-> > hence shrink_slab will never be performed in it.
-> > While shrik_slab should be performed if the relcaimable slab is over
-> > min slab limit.
-> >
-> > Add scan_control::no_pagecache so shrink_node can decide to reclaim page
-> > cache, slab, or both as dictated by min_unmapped_pages and min_slab_pages.
-> > shrink_node will do at least one of the two because otherwise node_reclaim
-> > returns early.
-> >
-> > __node_reclaim can detect when enough slab has been reclaimed because
-> > sc.reclaim_state.reclaimed_slab will tell us how many pages are
-> > reclaimed in shrink slab.
-> >
-> > This issue is very easy to produce, first you continuously cat a random
-> > non-exist file to produce more and more dentry, then you read big file
-> > to produce page cache. And finally you will find that the denty will
-> > never be shrunk in node reclaim (they can only be shrunk in kswapd until
-> > the watermark is reached).
-> >
-> > Regarding vm.zone_reclaim_mode, we always set it to zero to disable node
-> > reclaim. Someone may prefer to enable it if their different workloads work
-> > on different nodes.
->
-> Considering that this is a long term behavior of a rarely used node
-> reclaim I would rather not touch it unless some _real_ workload suffers
-> from this behavior. Or is there any reason to fix this even though there
-> is no evidence of real workloads suffering from the current behavior?
-> --
+On Sat 03-08-19 05:06:43, Minchan Kim wrote:
+> On Fri, Aug 02, 2019 at 10:58:05AM -0700, syzbot wrote:
+> > Hello,
+> > 
+> > syzbot found the following crash on:
+> > 
+> > HEAD commit:    0d8b3265 Add linux-next specific files for 20190729
+> > git tree:       linux-next
+> > console output: https://syzkaller.appspot.com/x/log.txt?x=1663c7d0600000
+> > kernel config:  https://syzkaller.appspot.com/x/.config?x=ae96f3b8a7e885f7
+> > dashboard link: https://syzkaller.appspot.com/bug?extid=8e6326965378936537c3
+> > compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+> > syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=133c437c600000
+> > C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=15645854600000
+> > 
+> > The bug was bisected to:
+> > 
+> > commit 06a833a1167e9cbb43a9a4317ec24585c6ec85cb
+> > Author: Minchan Kim <minchan@kernel.org>
+> > Date:   Sat Jul 27 05:12:38 2019 +0000
+> > 
+> >     mm: introduce MADV_PAGEOUT
+> > 
+> > bisection log:  https://syzkaller.appspot.com/x/bisect.txt?x=1545f764600000
+> > final crash:    https://syzkaller.appspot.com/x/report.txt?x=1745f764600000
+> > console output: https://syzkaller.appspot.com/x/log.txt?x=1345f764600000
+> > 
+> > IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> > Reported-by: syzbot+8e6326965378936537c3@syzkaller.appspotmail.com
+> > Fixes: 06a833a1167e ("mm: introduce MADV_PAGEOUT")
+> > 
+> > raw: 01fffc0000090025 dead000000000100 dead000000000122 ffff88809c49f741
+> > raw: 0000000000020000 0000000000000000 00000002ffffffff ffff88821b6eaac0
+> > page dumped because: VM_BUG_ON_PAGE(PageActive(page))
+> > page->mem_cgroup:ffff88821b6eaac0
+> > ------------[ cut here ]------------
+> > kernel BUG at mm/vmscan.c:1156!
+> > invalid opcode: 0000 [#1] PREEMPT SMP KASAN
+> > CPU: 1 PID: 9846 Comm: syz-executor110 Not tainted 5.3.0-rc2-next-20190729
+> > #54
+> > Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> > Google 01/01/2011
+> > RIP: 0010:shrink_page_list+0x2872/0x5430 mm/vmscan.c:1156
+> 
+> My old version had PG_active flag clear but it seems to lose it with revising
+> patchsets. Thanks, Sizbot!
+> 
+> >From 66d64988619ef7e86b0002b2fc20fdf5b84ad49c Mon Sep 17 00:00:00 2001
+> From: Minchan Kim <minchan@kernel.org>
+> Date: Sat, 3 Aug 2019 04:54:02 +0900
+> Subject: [PATCH] mm: Clear PG_active on MADV_PAGEOUT
+> 
+> shrink_page_list expects every pages as argument should be no active
+> LRU pages so we need to clear PG_active.
 
-When we do performance tuning on some workloads(especially if this
-workload is NUMA sensitive), sometimes we may enable it on our test
-environment and then do some benchmark to  dicide whether or not
-applying it on the production envrioment. Although the result is not
-good enough as expected, it is really a performance tuning knob.
+Ups, missed that during review.
 
-Thanks
-Yafang
+> 
+> Reported-by: syzbot+8e6326965378936537c3@syzkaller.appspotmail.com
+> Fixes: 06a833a1167e ("mm: introduce MADV_PAGEOUT")
+
+This is not a valid sha1 because it likely comes from linux-next. I
+guess Andrew will squash it into mm-introduce-madv_pageout.patch
+
+Just for the record
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+And thanks for syzkaller to exercise the new interface so quickly!
+
+> Signed-off-by: Minchan Kim <minchan@kernel.org>
+> ---
+>  mm/vmscan.c | 1 +
+>  1 file changed, 1 insertion(+)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index 47aa2158cfac2..e2a8d3f5bbe48 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2181,6 +2181,7 @@ unsigned long reclaim_pages(struct list_head *page_list)
+>  		}
+>  
+>  		if (nid == page_to_nid(page)) {
+> +			ClearPageActive(page);
+>  			list_move(&page->lru, &node_page_list);
+>  			continue;
+>  		}
+> -- 
+> 2.22.0.770.g0f2c4a37fd-goog
+
+-- 
+Michal Hocko
+SUSE Labs
 
