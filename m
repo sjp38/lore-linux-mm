@@ -2,166 +2,159 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,HTML_MESSAGE,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BEEBDC31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 15:29:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B4C3C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 15:39:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6FEF92070D
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 15:29:39 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B62E420717
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 15:39:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="iig6OvdK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6FEF92070D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="pQAib5PL"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B62E420717
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0A71F6B000D; Tue,  6 Aug 2019 11:29:39 -0400 (EDT)
+	id 163336B0005; Tue,  6 Aug 2019 11:39:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 058BA6B000E; Tue,  6 Aug 2019 11:29:39 -0400 (EDT)
+	id 143676B0006; Tue,  6 Aug 2019 11:39:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E62166B0010; Tue,  6 Aug 2019 11:29:38 -0400 (EDT)
+	id 0507B6B000D; Tue,  6 Aug 2019 11:39:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
-	by kanga.kvack.org (Postfix) with ESMTP id C760A6B000D
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 11:29:38 -0400 (EDT)
-Received: by mail-vk1-f199.google.com with SMTP id p193so37878320vkd.7
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 08:29:38 -0700 (PDT)
+Received: from mail-oi1-f200.google.com (mail-oi1-f200.google.com [209.85.167.200])
+	by kanga.kvack.org (Postfix) with ESMTP id D3DFA6B0005
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 11:39:35 -0400 (EDT)
+Received: by mail-oi1-f200.google.com with SMTP id e11so35212405oiy.0
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 08:39:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=mwKRUbvea1RoZlHkju0Jgt8karMzwfEnhDclcwgcZ5k=;
-        b=kHJD+cKZ9L+OkWylVwEWJvCDe2JPC968HP6BlFJSKhgYwjdvCbzPguhuk9H64t2vc1
-         YprBUfC2vyzFy6tybWalvmvi4j0Mo1vKeRwrVMDMr5YrLVYag/nMOibH4nSPv+gLMr4l
-         Pn67RC55tBf1Zx5ntOzsU2xVFHhQajeplnwF+94rjbeecDgApfg30AIsHKhgKGAwwufg
-         8Mxrv63lP2rJmC51RVMRvu1h1V4evcP6XQZXoK7XZ1Lr9wdQxqTzghH76mNnfL4pONaw
-         BP7ERPopV6xGbbXJMPg04FNd+jyJEJBSc0u9uAn2pfcGEm4F4nK+Pg7GrG2YxLga81It
-         0rDw==
-X-Gm-Message-State: APjAAAUn/W9V8xFiYEuMBrO/YbOI4LcYRFYrR5Rz1cvsnO5DntWsCy/O
-	1GyCheCyd9E/1Q/nDCBc1U+9TXYPHtnUmNcojfgsXZFvrD3yAjDvHTQFiCBlHFTX/n/WNSE2HSq
-	25n4QJ+BgXJCVDMw5Ub76UDoGzclCQBVtEo34tP5pXhEKoBpY8V0dal0X1NPN28gYhA==
-X-Received: by 2002:a67:f8d4:: with SMTP id c20mr2565224vsp.239.1565105378580;
-        Tue, 06 Aug 2019 08:29:38 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyWJ0SMMWeOKubpvL0fwPjpejeL9SJK76kcZn1zLT7nvDopkmeIMJ6lXUt7XQlEf3roAXGq
-X-Received: by 2002:a67:f8d4:: with SMTP id c20mr2565182vsp.239.1565105377968;
-        Tue, 06 Aug 2019 08:29:37 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565105377; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:from:date:message-id
+         :subject:to;
+        bh=gt3S7UkVzjw6LIvcKPfkFEn5u9lYh4HRDfRBOdHZyYs=;
+        b=cW+elY1PYwLmbReoNoxa0UIhf3QpBP0jxDNBGofRKbv8tpWLQP7me3cESVyxMeMREJ
+         g0NsmkqIGr/6ERsQfEkS3yb47hq6YZLixDo8n+nmIWMK+ib9IxJzaqWKJbmWHzxOrRhB
+         iL2xeG4ZsyDOvXmDk3JcBE25+hJOYwMLroCmC7Gkzc0TJTWhGsQM16/QTkXm3OhDWOva
+         Zuj9fhf62pQMnIFzhP6u3ecQoeJ4RswPzCvNtky5K3shCJ4JVrq6wz999yE2pi9c8+LB
+         nDjdkuqPZa9ah6UxEBYezfoR8kgejEWRomrQBejVNBpAQF5bwR4OvxiUJa8bWiwtW5iK
+         gqBA==
+X-Gm-Message-State: APjAAAWy9oDc+FicjK9MN/ptt3avUH3enCeVTDpDsAsafDoecC1MQ8F6
+	CuaRf4Z1QzSq/xl3in46EmcmBoIidvlo3HVhIg9qlaXil42s62akrTTrMyl8nS69+FhgW/dDEFb
+	zp+D8Vlt3L7HQ57a/oP/LxPqoBD8t/CT3nmEiU9KoPdVNJaeRIJyC4uUC0VyM63Kzqw==
+X-Received: by 2002:a5d:9618:: with SMTP id w24mr4092497iol.279.1565105975464;
+        Tue, 06 Aug 2019 08:39:35 -0700 (PDT)
+X-Received: by 2002:a5d:9618:: with SMTP id w24mr4092428iol.279.1565105974393;
+        Tue, 06 Aug 2019 08:39:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565105974; cv=none;
         d=google.com; s=arc-20160816;
-        b=Rb6WK+Q9wpx1C4Iq2QIN/jHx825ktzujPp9i5RB7Mt3+fQE6DsQa47jrq5K+oEOFIy
-         jBXR9asW7mFr9MCwIkyQpzli5kx3H8MGEIkfD5IUEjNdqanUerQOv/2T+Zk8TN8R++Ei
-         MxOsqdgfN6IMXauQZrWxDxo0bz9SeU3wcwQ2FshwYeIGTykYZj4lNc7hnUEXGf+NaLnC
-         dO8pO1IlhT4sNk8L2829tEKERl7STStaEoGC5RlmVO5Hw90kmdyqPzc7xVQ3zG07R5CR
-         WDcgNVVPwTK1aYmSBtgCIqwEJuze9Y4B9+GtfQ3E8GJso79fFUPhyVmxaudUWbr7mtFJ
-         fQxg==
+        b=tqyAc17jJQTXwdxYI4pxnKJBZ6AgVougZgpTNH7Pq4eP68GJHcR3TwtxQp3oNxS1E1
+         gLAPc/bFzt0cAbA2tlav/OhfZaa6yHFQfY0RgIOjvSX11ZKTI5Mffvft88FmT6EJNubh
+         +78sKDzh/gFhf2QiVyn7VM8LRgYu6HXB1R+dhT6ezU1jAkWDi3iMZ38yVDpMLn99JSiH
+         ugRaFMB/vZaKjjEEvjMovRjQKwWy2SkGJCQqsRYnZsVxGgmfeCX17Za3nYywXr1K2AfY
+         Af5hSLyZx/cyxSRZErhFX6nAtsfPI856hjMYwUE036dSrWCyBDBpm44TfhpWhvWWb8ji
+         8rRA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=mwKRUbvea1RoZlHkju0Jgt8karMzwfEnhDclcwgcZ5k=;
-        b=09vXcSuNFeAhM2VgpTRyfTBfvPYdzE+xWPxSAFnsctLdanzfciLP5fxZJJ1FUk0DaK
-         PXNVFVrjEFjGNLy0XTczrBQuUhZgzTM8ntEUl/5DKBdvpkvX0ygpuYHxWGXu+qda+IG2
-         q29sX1vpKRTLmY7jmS79D7nS34fPoZZMj1Z/+pk+g39WVo8NiSzxvzm01w1s2W4xipTy
-         KMT5gmS9xpt8E2XNEvdlvTpirwHN8eydXBekI7g/xoNL32k4VBCN5O44lDoWhI1CEav5
-         N67x4Vg5G5eo2TSUvgj0lbx4ucAETKGP3BvUAAOYagcSd3r6apmi1UoWusGADSWL8TVr
-         xcUg==
+        h=to:subject:message-id:date:from:mime-version:dkim-signature;
+        bh=gt3S7UkVzjw6LIvcKPfkFEn5u9lYh4HRDfRBOdHZyYs=;
+        b=SjuK8Bj7CLgdWH1UmjegvnOIzOedIPo3xP5TsaMwmHD+14DTRcR1KRPKYegUxZtmDS
+         e9s8nmd9mLlnk7R0LA3UxHR7REj0MPQARSJlSOIQz5eWPXGe5XiLpDFwQyfQKNRZSPdS
+         cunDfLyHwIn4n/Al2f0EtsY0hZU+by3SggabXGsGQU9HYHvc7XZeIl0UNuTK9f5a7QiS
+         oRm3Q0kzfGGnrQRkPNRqKfIdQZK7AzTT+ogGMUdcJ3vyzxmgKwUS8UqEjnfYAxBV4tdw
+         Vt2ontyy8T7XMMNS3UxbkdUqQc0a2+pnLYFnhFl22Dq3zvcWx/AkOlpDGirz/R+ZFyF2
+         SiDA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=iig6OvdK;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from aserp2120.oracle.com (aserp2120.oracle.com. [141.146.126.78])
-        by mx.google.com with ESMTPS id 123si18746849vsu.37.2019.08.06.08.29.37
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pQAib5PL;
+       spf=pass (google.com: domain of a.reversat@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=a.reversat@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c21sor59646479iom.119.2019.08.06.08.39.34
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 08:29:37 -0700 (PDT)
-Received-SPF: pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.78 as permitted sender) client-ip=141.146.126.78;
+        (Google Transport Security);
+        Tue, 06 Aug 2019 08:39:34 -0700 (PDT)
+Received-SPF: pass (google.com: domain of a.reversat@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=iig6OvdK;
-       spf=pass (google.com: domain of daniel.m.jordan@oracle.com designates 141.146.126.78 as permitted sender) smtp.mailfrom=daniel.m.jordan@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (aserp2120.oracle.com [127.0.0.1])
-	by aserp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x76FOAhJ069454;
-	Tue, 6 Aug 2019 15:29:23 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=date : from : to : cc
- : subject : message-id : references : mime-version : content-type :
- in-reply-to; s=corp-2018-07-02;
- bh=mwKRUbvea1RoZlHkju0Jgt8karMzwfEnhDclcwgcZ5k=;
- b=iig6OvdK7UxDLlknJ1toSnH2yi64wvYF+aLrAnHBB/pIt0JXlxAu5wPqXqkksQwhkhI4
- NcqrdG1H1GzCWFcTKX1OIIYBYbnzKNfv15BIBMuyXp6mB1ee03fYFIdmPdqtk0gSBH4+
- TGAVQNYg2w4kjKb6hZJaBAp/LwHPkb8Q6ByghVT4Wc3qan/CWqwmVJgJOE2Po3r0vopA
- Pxg6sy850+H2hCVMPmBXYk0gxuoA0NGXrWD+TF69bU/Gep59Umc0dED89QOAfC+zwLTD
- yyz6MGEpooNMlolbCvbjSqkZFXj4fxO13ntx9uDCVIg/xri/pLcuwDHfHQ1BS0WU6bVt qA== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by aserp2120.oracle.com with ESMTP id 2u527ppvfc-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 06 Aug 2019 15:29:23 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x76FGvP2005403;
-	Tue, 6 Aug 2019 15:29:22 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by userp3030.oracle.com with ESMTP id 2u7666nukg-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 06 Aug 2019 15:29:22 +0000
-Received: from abhmp0012.oracle.com (abhmp0012.oracle.com [141.146.116.18])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x76FTJtK013350;
-	Tue, 6 Aug 2019 15:29:20 GMT
-Received: from ca-dmjordan1.us.oracle.com (/10.211.9.48)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 06 Aug 2019 08:29:19 -0700
-Date: Tue, 6 Aug 2019 11:29:18 -0400
-From: Daniel Jordan <daniel.m.jordan@oracle.com>
-To: Yafang Shao <laoar.shao@gmail.com>
-Cc: Michal Hocko <mhocko@kernel.org>,
-        Andrew Morton <akpm@linux-foundation.org>,
-        Linux MM <linux-mm@kvack.org>,
-        Daniel Jordan <daniel.m.jordan@oracle.com>,
-        Mel Gorman <mgorman@techsingularity.net>,
-        Christoph Lameter <cl@linux.com>,
-        Yafang Shao <shaoyafang@didiglobal.com>
-Subject: Re: [PATCH v2] mm/vmscan: shrink slab in node reclaim
-Message-ID: <20190806152918.hs74nr7xa5rl7nrg@ca-dmjordan1.us.oracle.com>
-References: <1565075940-23121-1-git-send-email-laoar.shao@gmail.com>
- <20190806073525.GC11812@dhcp22.suse.cz>
- <CALOAHbD6ick6gnSed-7kjoGYRqXpDE4uqBAnSng6nvoydcRTcQ@mail.gmail.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=pQAib5PL;
+       spf=pass (google.com: domain of a.reversat@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=a.reversat@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:from:date:message-id:subject:to;
+        bh=gt3S7UkVzjw6LIvcKPfkFEn5u9lYh4HRDfRBOdHZyYs=;
+        b=pQAib5PLARsBrZVN0xKr1AbRs2+IZj7BHjQOid7d93wjbVJHjoo8lzthx2DKPJ6IBe
+         DvsSY2UiShge/HH3jMjFre2KxgYoEx3tCpRBNA39hbJ4Q2MWp3SXxHKu/KIrrEnqUY2P
+         d8CEM3XLzALfQazBv//GBTjfKLHJ/raRB3pxHE1EwMItgC9xNKuW9/ME6IVbYiRJUK+V
+         e6IPNu4a6ceSVwRNyVtZLHS8CNCCBtzTswCETFfk6teP8z2tasFxyefZqh4sJHCtt7Lq
+         /oJTZ+IUwGN2rcqsWdQ8ebRQyqbA/yR8bFEzufgQQGDdPBXxOZ1zX3UQr2H/IxXgWZck
+         8gVQ==
+X-Google-Smtp-Source: APXvYqzHM+OwCqOEibmv7e5QtMK/krXngaJ1fMi8SyR+ovgJWuTNDyX2RJJzye+8PIdERFUKXm88EqhQ6bOwqlIpOew=
+X-Received: by 2002:a02:5b05:: with SMTP id g5mr4772443jab.114.1565105973854;
+ Tue, 06 Aug 2019 08:39:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CALOAHbD6ick6gnSed-7kjoGYRqXpDE4uqBAnSng6nvoydcRTcQ@mail.gmail.com>
-User-Agent: NeoMutt/20180716
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9341 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=938
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908060150
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9341 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=986 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908060150
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+From: Antoine Reversat <a.reversat@gmail.com>
+Date: Tue, 6 Aug 2019 11:39:22 -0400
+Message-ID: <CAA=2nCbZWGvUPVeYZJB7fU7Fkmnu0MEYMDr_RYkTEY79CeLOjw@mail.gmail.com>
+Subject: [BUG] Kernel panic on >= 4.12 because of NX
+To: linux-mm@kvack.org
+Content-Type: multipart/alternative; boundary="0000000000009b853c058f74a19c"
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000215, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 06, 2019 at 04:23:29PM +0800, Yafang Shao wrote:
-> On Tue, Aug 6, 2019 at 3:35 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > Considering that this is a long term behavior of a rarely used node
-> > reclaim I would rather not touch it unless some _real_ workload suffers
-> > from this behavior. Or is there any reason to fix this even though there
-> > is no evidence of real workloads suffering from the current behavior?
-> > --
-> 
-> When we do performance tuning on some workloads(especially if this
-> workload is NUMA sensitive), sometimes we may enable it on our test
-> environment and then do some benchmark to  dicide whether or not
-> applying it on the production envrioment. Although the result is not
-> good enough as expected, it is really a performance tuning knob.
+--0000000000009b853c058f74a19c
+Content-Type: text/plain; charset="UTF-8"
 
-So am I understanding correctly that you sometimes enable node reclaim in
-production workloads when you find the numbers justify it?  If so, which ones?
+Sorry for the maybe not so helpful title.
+
+Here is the problem :
+I'm running Linux on a Mac pro 1,1 (the first x86 mac pro). It's a dual
+xeon 5150 with ECC ram. I have 2 ram kits in it : 2x512M and 2x2G (this one
+:
+http://www.ec.kingston.com/ecom/hyperx_us/partsinfo.asp?root=&ktcpartno=KTA-MP667AK2/4G
+)
+
+If I only have the 2x512M kit everything works fine for all kernel versions
+but if I have both kits or just the 2x2G kit any kernel above 4.10 panics
+very early on (picture of said panic https://imgur.com/a/PipU5Oc). The
+picture was taken on 4.15 (using earlyprintk=efi,keep) on other versions
+even using earlyprintk I don't get any output.
+
+I have been trying several kernels and everything up to 4.11 works no
+problem. Then on 4.11 I got a panic which mentionned NX and pages being in
+W+X which prompted me to try noexec=off on newer versions and that fixes
+the panic. This works up to 5.2.5.
+
+/proc/cpuinfo reports that the CPU support the NX flag.
+
+I would need help in order to troubleshoot this further.
+
+--0000000000009b853c058f74a19c
+Content-Type: text/html; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
+
+<div dir=3D"ltr"><div>Sorry for the maybe not so helpful title.</div><div><=
+br></div><div>Here is the problem :</div><div>I&#39;m running Linux on a Ma=
+c pro 1,1 (the first x86 mac pro). It&#39;s a dual xeon 5150 with ECC ram. =
+I have 2 ram kits in it : 2x512M and 2x2G (this one : <a href=3D"http://www=
+.ec.kingston.com/ecom/hyperx_us/partsinfo.asp?root=3D&amp;ktcpartno=3DKTA-M=
+P667AK2/4G">http://www.ec.kingston.com/ecom/hyperx_us/partsinfo.asp?root=3D=
+&amp;ktcpartno=3DKTA-MP667AK2/4G</a>)</div><div><br></div><div>If I only ha=
+ve the 2x512M kit everything works fine for all kernel versions but if I ha=
+ve both kits or just the 2x2G kit any kernel above 4.10 panics very early o=
+n (picture of said panic <a href=3D"https://imgur.com/a/PipU5Oc">https://im=
+gur.com/a/PipU5Oc</a>). The picture was taken on 4.15 (using earlyprintk=3D=
+efi,keep) on other versions even using earlyprintk I don&#39;t get any outp=
+ut.<br></div><div><br></div><div>I have been trying several kernels and eve=
+rything up to 4.11 works no problem. Then on 4.11 I got a panic which menti=
+onned NX and pages being in W+X which prompted me to try noexec=3Doff on ne=
+wer versions and that fixes the panic. This works up to 5.2.5.<br></div><di=
+v><br></div><div>/proc/cpuinfo reports that the CPU support the NX flag. <b=
+r></div><div><br></div><div>I would need help in order to troubleshoot this=
+ further.<br></div></div>
+
+--0000000000009b853c058f74a19c--
 
