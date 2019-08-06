@@ -2,256 +2,189 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 09B0BC31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 03:34:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id F110FC433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 05:34:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B196B20C01
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 03:34:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="nn0bwJ1R"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B196B20C01
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 9D2F0214C6
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 05:34:50 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D2F0214C6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5CD6B6B0003; Mon,  5 Aug 2019 23:34:40 -0400 (EDT)
+	id 090136B0003; Tue,  6 Aug 2019 01:34:50 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 57D226B0005; Mon,  5 Aug 2019 23:34:40 -0400 (EDT)
+	id 042106B0005; Tue,  6 Aug 2019 01:34:50 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 446A86B0006; Mon,  5 Aug 2019 23:34:40 -0400 (EDT)
+	id E4A3C6B0006; Tue,  6 Aug 2019 01:34:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-oi1-f199.google.com (mail-oi1-f199.google.com [209.85.167.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D1C46B0003
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 23:34:40 -0400 (EDT)
-Received: by mail-oi1-f199.google.com with SMTP id m24so20470964oih.16
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 20:34:40 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id AEFCF6B0003
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 01:34:49 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id s21so47589819plr.2
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 22:34:49 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=EDNp+Ta6gMJd0qC2k/c4bi4bSV6V5T/LLbiFwKzHxR8=;
-        b=GUezK2LZ6HSihVnbsiEQgGL7klVS7ju6UPFCSUQ0bUUbXsyY8LJFGd9o86/mikNzV4
-         +j4kM8NA+RlN5MuAsXlfdUyr8DjbksCGpuy9JmTf10G1JgwvfjOFbeXUKlaHQA7eqgdL
-         KHNRAl76z6FgIrcaz02aPQo7HmoMBtmnLgBpGWgv65sdYBjSLpiUjyUIJmZcL+nhV3hB
-         H+bB05YP++fc4PoWHgOJ7/L4JWgwOFJrpfcMJIQN1aIVctJShFMrcEPBKLratD/4tevQ
-         ABROONmR2tRAxS+I/NDbn6hqdESpvJWxkgV0vIq5i8hnoyv8E791DQlZ9U++SDptfEtH
-         3o+Q==
-X-Gm-Message-State: APjAAAUwXfyHvf9ZVWw0+b10Xj/jiJIpZri9+kjASpUtEqzskihVdyRQ
-	VYjVf4HC7Gu3a8gdGYlWrOG3uII1DrmdougzR6K/sD0yxHRjHGct5LbCUP4T8499t8g42WiocId
-	EfKp3D61Akh52Avf4evCzp8tltrU6+LhVN4e7lZmLlRyxvzV6a8nX6jWRTNN9ECoCkQ==
-X-Received: by 2002:a9d:4f02:: with SMTP id d2mr1160199otl.328.1565062479823;
-        Mon, 05 Aug 2019 20:34:39 -0700 (PDT)
-X-Received: by 2002:a9d:4f02:: with SMTP id d2mr1160159otl.328.1565062479018;
-        Mon, 05 Aug 2019 20:34:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565062479; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=p0ugPinTk/G6H2s3p7eqd4HWDQnabhYpwt3GHVqzRqU=;
+        b=NG1QQSzw1/gudbsKyCUrePDULkklntJhgVRzJwnXejHAGBUwtSqWE8GEm5adi2aIFM
+         50KHQlaHFg0mz8wwIe93nAgHGzh7UsVUKUa0wrpM6sMAAAHYIJ+HNZ7aIcor1HbIfga0
+         lCMYk2EWOXMkYydp+C9jzCDALvqM9zW0qY3edkJU9d9TIcw71kgBhOvtoy4vKmFNnJb+
+         mvqT5ifrJsplze4HS21gt1CusgGW402JQBjwS/vz7LgECf99ytduN3ioll4uLFslyFYf
+         wlhnxo0wmOCqimgwgyC2/v1NM75YURmiNiNJaWtWVHeGYYN3cm7OPSRyPpT3FuL/sxoZ
+         WXVw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAUi9M4dIJwscbtEEJOqcdB5Gp6IazfuAxlSdcnPvFjI9T3t6BPD
+	swWhDJYmczU2DVchtCvyvn/Rbh/YuRfakDKtjGKzy8mlDkYA2E5QHQAYbS6VI59RHwc7v7Myc3W
+	oLCCrc/SEWuBngIgMdE1fLQ1QC8vNJppebIPa7Qv8ZqrJgBAQ9zqmcODBckjzPRs=
+X-Received: by 2002:a17:90a:3aed:: with SMTP id b100mr1336180pjc.63.1565069689346;
+        Mon, 05 Aug 2019 22:34:49 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqycHW+f2rbk3O+UrJQ1Igi9tbVvF1a2Gq3d71zogGZNOq0eiTpa98jqaaa9dziBFDvYPS7x
+X-Received: by 2002:a17:90a:3aed:: with SMTP id b100mr1336121pjc.63.1565069688282;
+        Mon, 05 Aug 2019 22:34:48 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565069688; cv=none;
         d=google.com; s=arc-20160816;
-        b=ppixDHLlyanD1efr6eF8lNq8qdh/lGd2e4iuOUCo7WlD9c/CAxzB+7M/2ntbDrc2Zh
-         TbkSE+O9+XinV+dJDUEqM2LkaK73PGzMy/6bloSnzrGSpktlbJ98VnW1/5VbNLTA8HId
-         cXqzORufQheekQgDbr2popOBzV77YE1Z6MQD+XBwB6VyNGlbQXFsyXJKmfYguvuIs+zf
-         sc/LzGseFH6x9LIuBtVUyPs4iXtm9kjQagLr3wJM3e1cL2O8UKhdCD2Q71g6snAQ0ydQ
-         4q9ARkgPPWxb4EygFz3TCXaexPvtpO8I0zODqoisEbwVCviTViEuqfN1kRRc1Q6XL2P0
-         Z5MQ==
+        b=KhjuTwcDQvoE9HoL3iZiYdQQ9KSXLs1yVE5YOGprfDbV4QaZgGrmuqZQa77+oo3MbN
+         GAMWcM+lPOO/avy2Qcufby54hhmLXVsPKKzqb/AX2dflTPY7jvUdolslPMJ1kiXHF9dU
+         oOOFH5JLCjCC4VY9OTs5B2FQeRlJwfGytmQGaxZLrox4K8mDwrwElUvVy3ARYxaFIU75
+         Opq4UAYO6GT+S7Lu+lIBfBk0YfQeuBuzj+MNrny+H5JTzI0qT6wdS5uSbL8tgHO5e3iZ
+         mLgc7iunM+tUaK5E5+DHtP+duNec2SIueB69YVffAd5/Jgl4bvdrnbubovqrnfydrNOT
+         hqfQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=EDNp+Ta6gMJd0qC2k/c4bi4bSV6V5T/LLbiFwKzHxR8=;
-        b=Pq+FcNKxQF/ii4JoiMUgvKWXWiwAuVOJLH4ma2aWrThEl/IlrS+meqRV3Bwm1s97nV
-         BafSympwJbE5Gi9LGg178T1REBolakmGDX0v/bpnmxklBBLeKQBG69uwdhGyvct65+jU
-         CelYdA8r35Nap5MtUOiNCLycyh2mj2bb7RbtkLBLE39Y9fkqTrX1WZGZshjdjHaLc8ND
-         XfJy2SzeA0wdz24osVi3aH9XK1/k22MKNJhbvrmQGUUKNtmz+8/FZZ9Cy6T/3tA8FK68
-         Z8+kV1tJ0Q3cJi6ysTWSG+xT+VMUZpGGZTa9tm/GHtIpK/6/Xnu6a0w3p2nJFclRnkLd
-         XWAQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=p0ugPinTk/G6H2s3p7eqd4HWDQnabhYpwt3GHVqzRqU=;
+        b=aPm2dqU7SwUXAIb1/zddywPEYxfQHyFBR8ir8A6IyyR3Y+CQug24xGqwJUqozLLUC6
+         c8WTJ+A6cs+H8dLf7q6XeYv40Fq2jmktCVm9zkg92UZvrGpPUpHgbT0VrXhrBfkAAdS4
+         yvlpljugmrF5kHb8lCU1cV/IEY/GXxFVqXht+PdGegN7H25Q5T35X4ePwrBOkUl/vDM5
+         oS/C7wbXvdbBmOym6GUKtPgrBMtkmqB0Q7WSy5OkU+PcqJxzhkkAwhST2UizKUq8ZkFX
+         fqdM9wBQBneSJf4caFvZZb1pRkSRZ+mZWtSeKTUiWsPs6SJqX60lKEfGhs2ZVfwrtnN6
+         lDvw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=nn0bwJ1R;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id p7sor44060570otl.66.2019.08.05.20.34.38
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Mon, 05 Aug 2019 20:34:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
+        by mx.google.com with ESMTP id f32si13848939pjg.42.2019.08.05.22.34.47
+        for <linux-mm@kvack.org>;
+        Mon, 05 Aug 2019 22:34:48 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=nn0bwJ1R;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=EDNp+Ta6gMJd0qC2k/c4bi4bSV6V5T/LLbiFwKzHxR8=;
-        b=nn0bwJ1RnVN1nEe84bPQ5rDHBY+AzXx+HWUuwzICcqVcJMeHxe5JqmfezZ9ENy7151
-         Y7XfozR3s+z3o+1SRpCsIomH1I4/71dbKwluj9hzrMZyxVP3siXr/DLPk19bCB90fuA/
-         qssGAnfVRmjZGh6GbUrbI8oZt2qbUBTNNFqPhuHXyMm+dxjj2uBM9rCAxNF9agh/21dg
-         C77KxXfM3Fc0f/OfI7WA2fvrGVG8Fm81ayptDyCEw6yMpkdYqjXDGix+3TGUdQCX15yG
-         SokJgfKMpMpLVDI79V5B6WUZ4ftPcLroIKg5CXmUyqP9tOlfE7DT1mBtI7Bpa+SaP9x9
-         ngtA==
-X-Google-Smtp-Source: APXvYqyk7Z6pXQU/U/Aq1loGZvmfCCCy0tb/anU7jipDeMdIHPjvkC9zTXxSnuSL/q3ljtFTcXRuSPhHRCUnbxEi7Ew=
-X-Received: by 2002:a9d:7a8b:: with SMTP id l11mr1016089otn.247.1565062478674;
- Mon, 05 Aug 2019 20:34:38 -0700 (PDT)
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
+	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id A50683650E3;
+	Tue,  6 Aug 2019 15:34:45 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hus6M-0007a7-6z; Tue, 06 Aug 2019 15:33:38 +1000
+Date: Tue, 6 Aug 2019 15:33:38 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Brian Foster <bfoster@redhat.com>
+Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH 14/24] xfs: tail updates only need to occur when LSN
+ changes
+Message-ID: <20190806053338.GD7777@dread.disaster.area>
+References: <20190801021752.4986-1-david@fromorbit.com>
+ <20190801021752.4986-15-david@fromorbit.com>
+ <20190805175325.GD14760@bfoster>
+ <20190805232826.GZ7777@dread.disaster.area>
 MIME-Version: 1.0
-References: <20190725023100.31141-1-t-fukasawa@vx.jp.nec.com> <20190725023100.31141-3-t-fukasawa@vx.jp.nec.com>
-In-Reply-To: <20190725023100.31141-3-t-fukasawa@vx.jp.nec.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Mon, 5 Aug 2019 20:34:27 -0700
-Message-ID: <CAPcyv4iRQqfJXr1pe5XXPZ2sQrYbL8qAShgOQ+cBDiEVxWUZPA@mail.gmail.com>
-Subject: Re: [PATCH 2/2] /proc/kpageflags: do not use uninitialized struct pages
-To: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
-Cc: "linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>, "mhocko@kernel.org" <mhocko@kernel.org>, 
-	"adobriyan@gmail.com" <adobriyan@gmail.com>, "hch@lst.de" <hch@lst.de>, 
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Junichi Nomura <j-nomura@ce.jp.nec.com>, 
-	"stable@vger.kernel.org" <stable@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190805232826.GZ7777@dread.disaster.area>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0 cx=a_idp_d
+	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=tDGkv3wj-1Xd4aaGj3EA:9
+	a=QHoE4VTwHAm25SPf:21 a=IVeHmRXT_aZo3Dbf:21 a=CjuIK1q_8ugA:10
+	a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Jul 24, 2019 at 7:46 PM Toshiki Fukasawa
-<t-fukasawa@vx.jp.nec.com> wrote:
->
-> A kernel panic was observed during reading /proc/kpageflags for
-> first few pfns allocated by pmem namespace:
->
-> BUG: unable to handle page fault for address: fffffffffffffffe
-> [  114.495280] #PF: supervisor read access in kernel mode
-> [  114.495738] #PF: error_code(0x0000) - not-present page
-> [  114.496203] PGD 17120e067 P4D 17120e067 PUD 171210067 PMD 0
-> [  114.496713] Oops: 0000 [#1] SMP PTI
-> [  114.497037] CPU: 9 PID: 1202 Comm: page-types Not tainted 5.3.0-rc1 #1
-> [  114.497621] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.11.0-0-g63451fca13-prebuilt.qemu-project.org 04/01/2014
-> [  114.498706] RIP: 0010:stable_page_flags+0x27/0x3f0
-> [  114.499142] Code: 82 66 90 66 66 66 66 90 48 85 ff 0f 84 d1 03 00 00 41 54 55 48 89 fd 53 48 8b 57 08 48 8b 1f 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48> 8b 00 f6 c4 02 0f 84 57 03 00 00 45 31 e4 48 8b 55 08 48 89 ef
-> [  114.500788] RSP: 0018:ffffa5e601a0fe60 EFLAGS: 00010202
-> [  114.501373] RAX: fffffffffffffffe RBX: ffffffffffffffff RCX: 0000000000000000
-> [  114.502009] RDX: 0000000000000001 RSI: 00007ffca13a7310 RDI: ffffd07489000000
-> [  114.502637] RBP: ffffd07489000000 R08: 0000000000000001 R09: 0000000000000000
-> [  114.503270] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000240000
-> [  114.503896] R13: 0000000000080000 R14: 00007ffca13a7310 R15: ffffa5e601a0ff08
-> [  114.504530] FS:  00007f0266c7f540(0000) GS:ffff962dbbac0000(0000) knlGS:0000000000000000
-> [  114.505245] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> [  114.505754] CR2: fffffffffffffffe CR3: 000000023a204000 CR4: 00000000000006e0
-> [  114.506401] Call Trace:
-> [  114.506660]  kpageflags_read+0xb1/0x130
-> [  114.507051]  proc_reg_read+0x39/0x60
-> [  114.507387]  vfs_read+0x8a/0x140
-> [  114.507686]  ksys_pread64+0x61/0xa0
-> [  114.508021]  do_syscall_64+0x5f/0x1a0
-> [  114.508372]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-> [  114.508844] RIP: 0033:0x7f0266ba426b
->
-> The reason for the panic is that stable_page_flags() which parses
-> the page flags uses uninitialized struct pages reserved by the
-> ZONE_DEVICE driver.
->
-> Earlier approach to fix this was discussed here:
-> https://marc.info/?l=linux-mm&m=152964770000672&w=2
->
-> This is another approach. To avoid using the uninitialized struct page,
-> immediately return with KPF_RESERVED at the beginning of
-> stable_page_flags() if the page is reserved by ZONE_DEVICE driver.
->
-> Cc: stable@vger.kernel.org
-> Signed-off-by: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>
-> ---
->  fs/proc/page.c           |  3 +++
->  include/linux/memremap.h |  6 ++++++
->  kernel/memremap.c        | 20 ++++++++++++++++++++
->  3 files changed, 29 insertions(+)
->
-> diff --git a/fs/proc/page.c b/fs/proc/page.c
-> index 69064ad..decd3fe 100644
-> --- a/fs/proc/page.c
-> +++ b/fs/proc/page.c
-> @@ -97,6 +97,9 @@ u64 stable_page_flags(struct page *page)
->         if (!page)
->                 return BIT_ULL(KPF_NOPAGE);
->
-> +       if (pfn_zone_device_reserved(page_to_pfn(page)))
-> +               return BIT_ULL(KPF_RESERVED);
+On Tue, Aug 06, 2019 at 09:28:26AM +1000, Dave Chinner wrote:
+> On Mon, Aug 05, 2019 at 01:53:26PM -0400, Brian Foster wrote:
+> > On Thu, Aug 01, 2019 at 12:17:42PM +1000, Dave Chinner wrote:
+> > > From: Dave Chinner <dchinner@redhat.com>
+> > > 
+> > > We currently wake anything waiting on the log tail to move whenever
+> > > the log item at the tail of the log is removed. Historically this
+> > > was fine behaviour because there were very few items at any given
+> > > LSN. But with delayed logging, there may be thousands of items at
+> > > any given LSN, and we can't move the tail until they are all gone.
+> > > 
+> > > Hence if we are removing them in near tail-first order, we might be
+> > > waking up processes waiting on the tail LSN to change (e.g. log
+> > > space waiters) repeatedly without them being able to make progress.
+> > > This also occurs with the new sync push waiters, and can result in
+> > > thousands of spurious wakeups every second when under heavy direct
+> > > reclaim pressure.
+> > > 
+> > > To fix this, check that the tail LSN has actually changed on the
+> > > AIL before triggering wakeups. This will reduce the number of
+> > > spurious wakeups when doing bulk AIL removal and make this code much
+> > > more efficient.
+> > > 
+> > > XXX: occasionally get a temporary hang in xfs_ail_push_sync() with
+> > > this change - log force from log worker gets things moving again.
+> > > Only happens under extreme memory pressure - possibly push racing
+> > > with a tail update on an empty log. Needs further investigation.
+> > > 
+> > > Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> > > ---
+> > 
+> > Ok, this addresses the wakeup granularity issue mentioned in the
+> > previous patch. Note that I was kind of wondering why we wouldn't base
+> > this on the l_tail_lsn update in xlog_assign_tail_lsn_locked() as
+> > opposed to the current approach.
+> 
+> Because I didn't think of it? :)
+> 
+> There's so much other stuff in this patch set I didn't spend a
+> lot of time thinking about other alternatives. this was a simple
+> code transformation that did what I wanted, and I went on to burning
+> brain cells on other more complex issues that needs to be solved...
+> 
+> > For example, xlog_assign_tail_lsn_locked() could simply check the
+> > current min item against the current l_tail_lsn before it does the
+> > assignment and use that to trigger tail change events. If we wanted to
+> > also filter out the other wakeups (as this patch does) then we could
+> > just pass a bool pointer or something that returns whether the tail
+> > actually changed.
+> 
+> Yeah, I'll have a look at this - I might rework it as additional
+> patches now the code is looking at decisions based on LSN rather
+> than if the tail log item changed...
 
-I think this should be KPF_NOPAGE. KPF_RESERVED implies a page is present.
+Ok, this is not worth the complexity. The wakeup code has to be able
+to tell the difference between a changed tail lsn and an empty AIL
+so that wakeups can be issued when the AIL is finally emptied.
+Unmount (xfs_ail_push_all_sync()) relies on this, and
+xlog_assign_tail_lsn_locked() hides the empty AIL from the caller
+by returning log->l_last_sync_lsn to the caller.
 
-> +
->         k = page->flags;
->         u = 0;
->
-> diff --git a/include/linux/memremap.h b/include/linux/memremap.h
-> index f8a5b2a..2cfc3c2 100644
-> --- a/include/linux/memremap.h
-> +++ b/include/linux/memremap.h
-> @@ -124,6 +124,7 @@ static inline struct vmem_altmap *pgmap_altmap(struct dev_pagemap *pgmap)
->  }
->
->  #ifdef CONFIG_ZONE_DEVICE
-> +bool pfn_zone_device_reserved(unsigned long pfn);
->  void *devm_memremap_pages(struct device *dev, struct dev_pagemap *pgmap);
->  void devm_memunmap_pages(struct device *dev, struct dev_pagemap *pgmap);
->  struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
-> @@ -132,6 +133,11 @@ struct dev_pagemap *get_dev_pagemap(unsigned long pfn,
->  unsigned long vmem_altmap_offset(struct vmem_altmap *altmap);
->  void vmem_altmap_free(struct vmem_altmap *altmap, unsigned long nr_pfns);
->  #else
-> +static inline bool pfn_zone_device_reserved(unsigned long pfn)
-> +{
-> +       return false;
-> +}
-> +
->  static inline void *devm_memremap_pages(struct device *dev,
->                 struct dev_pagemap *pgmap)
->  {
-> diff --git a/kernel/memremap.c b/kernel/memremap.c
-> index 6ee03a8..bc3471c 100644
-> --- a/kernel/memremap.c
-> +++ b/kernel/memremap.c
-> @@ -72,6 +72,26 @@ static unsigned long pfn_next(unsigned long pfn)
->         return pfn + 1;
->  }
->
-> +/*
-> + * This returns true if the page is reserved by ZONE_DEVICE driver.
-> + */
-> +bool pfn_zone_device_reserved(unsigned long pfn)
-> +{
-> +       struct dev_pagemap *pgmap;
-> +       struct vmem_altmap *altmap;
-> +       bool ret = false;
-> +
-> +       pgmap = get_dev_pagemap(pfn, NULL);
+Hence the wakeup code still has to check for an empty AIL if the
+tail has changed if we use the return value of
+xlog_assign_tail_lsn_locked() as the tail LSN. At which point, the
+logic becomes somewhat convoluted, and it's far simpler to use
+__xfs_ail_min_lsn as it returns when the log is empty.
 
-Ugh this will drastically slow down kpageflags_read() for all other
-pfn ranges. What about burning another section flag to indicate
-'device' sections so that we have a quick lookup for
-pfn_is_zone_device()?
+So, nice idea, but it doesn't make the code simpler or easier to
+understand....
 
-> +       if (!pgmap)
-> +               return ret;
+Cheers,
 
-If pfn_is_zone_device() returns true than a failure to retrieve the
-dev_pagemap should result in this routine returning true as well
-because it means the driver hosting the device is in the process of
-tearing down the mapping.
-
-> +       altmap = pgmap_altmap(pgmap);
-> +       if (altmap && pfn < (altmap->base_pfn + altmap->reserve))
-> +               ret = true;
-> +       put_dev_pagemap(pgmap);
-> +
-> +       return ret;
-> +}
-> +
->  #define for_each_device_pfn(pfn, map) \
->         for (pfn = pfn_first(map); pfn < pfn_end(map); pfn = pfn_next(pfn))
->
-> --
-> 1.8.3.1
->
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
