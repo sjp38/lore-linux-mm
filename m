@@ -7,100 +7,100 @@ X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 21507C433FF
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:00:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 08C70C31E40
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:02:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CCFBC20B1F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:00:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id B9ACD20B1F
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 18:02:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="BTdL1q7u"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CCFBC20B1F
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="Fz9mT5h+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9ACD20B1F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6784B6B000A; Tue,  6 Aug 2019 14:00:29 -0400 (EDT)
+	id 42C506B000A; Tue,  6 Aug 2019 14:02:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 600C86B000C; Tue,  6 Aug 2019 14:00:29 -0400 (EDT)
+	id 3DDCC6B000C; Tue,  6 Aug 2019 14:02:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 47A9A6B000D; Tue,  6 Aug 2019 14:00:29 -0400 (EDT)
+	id 2CC5B6B000D; Tue,  6 Aug 2019 14:02:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 24F3D6B000A
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 14:00:29 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id x11so75115944qto.23
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 11:00:29 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 0CAD56B000A
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 14:02:11 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id d11so76509635qkb.20
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 11:02:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=bxAi2AWxQLWDF2luvIMl7f/UII4L9fAd8kmJBO8r+QM=;
-        b=C1zn1HsT8vVqQ0t6KqZ1/Ejss9dftHK6ImvGHjo4pVfR/KXHVSaZZkI3qz7JRGyINZ
-         LF89Z/4L6TmlUPoPs0q4tiDMneRfDAHxnuI1qnMxqr0n37i85RK//9oZpx4Z84KH1ayv
-         G/pgd4wd8UE7fOnN9nuYo1QTQCraInRHmSYi097eLSR0F5Sc9uz7mN5mF7QqslyqTzFp
-         WEoN+Grh0KLyNbMBUHxpviYPjJTeWsDg4VHWMTy3x/0oGoUBngKYk8WLN38QBcpFaVsx
-         Yo6ShOqDDDgtom6Hx3zValXOL2dL8VZyeMu6eMCvD020+bC8A+OzCO8aiFLfJV1WhNMj
-         gpFg==
-X-Gm-Message-State: APjAAAUe1XWVfL0lelYdMHTEp5wFuYGw2HUSDSMpkODi7+I8W8qZ9lZw
-	Ws5Y3AQrO8JUpsyIuk7Ke8ozUfJtO1m8wPApGi2n49vbRMqJckhZXN+STVV146cPRrMGLNXGgyL
-	20+85EUdexzYRqJbk64zxP1Fdhs1gfZBbwQV9o7Wi9ewXAso86670VICYGrlDHk3vFg==
-X-Received: by 2002:aed:3944:: with SMTP id l62mr4350948qte.34.1565114428940;
-        Tue, 06 Aug 2019 11:00:28 -0700 (PDT)
-X-Received: by 2002:aed:3944:: with SMTP id l62mr4350906qte.34.1565114428520;
-        Tue, 06 Aug 2019 11:00:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565114428; cv=none;
+        bh=DWmSMnF3B1mTPtWIyEYX2euOl5QowlPflL5LrFAqjMw=;
+        b=WpB3R6yppVtM+zb3M54Rdf3akA0u/jv7HoAHNPKONeKxrrmLUPgX/r1FXzI89xU7gL
+         az8fOAgPF/jQjmzk3wHwA8oljx0m3RKKpzcg5Z77Sxl3xciGrdi7NWPZfKsHN4/HO/Q9
+         z0qaxGY56IJzB+SIf6BrVmRB/X4AGUH2E3JGyhZSfev/r64HBfmjoDLhmrxMsEDG9WO6
+         vMWYjs7TIyKwCsFYvFfYlvgsdjGG6ocq3leCc5rOlui1Jz0DLvqGXl+nxGq+6H6X4ZGU
+         dZQfS/dPxLqKsIt8+dTX1bt0kDKbq2liGIaa3xDdXOEubHYivyCgZFaoZu6TakXwGywG
+         u4Hg==
+X-Gm-Message-State: APjAAAUMz7XceNsVddd4j9i9LbP17YHzpNnTPITlcpoEcEN6HhR+fKUt
+	Fsu6LrUE4hT6rdQh4pxrBpjDJszHYNY88V9CDcTWrLt8gudIdjTBST1bBbm8ZCAwcaHUsRsVx2n
+	WNMhSp/clb4YT8pk+GwXCMRtDU6friUBbhEIu4cnx8eXWnvWfkRRiS1QAusgUB8mAuw==
+X-Received: by 2002:a05:620a:15ce:: with SMTP id o14mr4582057qkm.30.1565114530813;
+        Tue, 06 Aug 2019 11:02:10 -0700 (PDT)
+X-Received: by 2002:a05:620a:15ce:: with SMTP id o14mr4582014qkm.30.1565114530374;
+        Tue, 06 Aug 2019 11:02:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565114530; cv=none;
         d=google.com; s=arc-20160816;
-        b=bH7sUn8qzdA9Ac/8VseDTBk2H6MqghoY2LRWlumqeDWd+QJ7y8b+kYQIQsie+DW2en
-         GYhK1kRnoFhmFmIBpcvAIlKPFi89+8UphxqaIFPqZbCH62SKtWxZ6Tbe9bXbOPde3SUp
-         kk0bgS06yBHBDsk1tt4WmAAGR7Tc2EoV3kNmABWKmqoCs7GgnV5cHYsWjNYo+h7g3tot
-         Z3kWs19CVBSTkxrOoNoqwc5zI+3vytkwS9f0j36B0HiHXVyRhlM23sLzrAsTdpgROCSW
-         mskEDfNQzwbeyHelGa+KU3sN7PvcB4w1n+RTClIxfEtQJuV+gJCLPz7usm+bNduI6w7H
-         ylhQ==
+        b=DcBKxkqT/aX0Xdk+FrP6siuo2isJxfvcnFlGnWJT6MjLh1Hi6jWHtPxROsOZAMRdMq
+         cmchZ4LcxV4JIvmTWP9Co6CTSRVY0ttayNaL5kSEcSx71nTdRiaDqCo+qUDYgtURJEbk
+         LlrNvoFn8ZlBQVUgBemuON1/AJyrF//Z4vCQEEkIAUKXpf/QxhST+kYULF3Zbc8cy0wM
+         Gb+64d1206/2RWxy0nqGyyj0h9XTDmLXIrXCtxnIn9a2qrwOF+hJa8J75ImI5BZtJPoK
+         y1wwmtE+9YhUZpYqfVH5fT3Ofp/Zzw+9tYbFmkCpw+OPDSi794lb36o+HwEunaBlmOZ3
+         2dsA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=bxAi2AWxQLWDF2luvIMl7f/UII4L9fAd8kmJBO8r+QM=;
-        b=MHh563orWe2isbRwq98FvtxecyKIjO5ekpsiC2zAipItwOI9l2NywwiqaDoM3+JDde
-         UibelrLkgeZqq2YITRtDXWaPQw/j/+VY1ouWCrpu2Sm2bpXSS+YLSPtBPnv+l8RyO1fP
-         159E4i59POgx2PiohiJENp0GoM16rSFSSSIge6nEYm9iJLFV1tmbS2NJrh2BssqEGp1O
-         SRoJ7Neg44iRX7kF/UbELwNemBip1X1dhVazLqntJmhDNfTq9p8DgP2xJaKQdnLEc6cW
-         BQ5vod72kP843LbQA3BKODkkbR2fgzI1APv90Zm3gitLIS+DIyR4CRDIPZ44zwDA8+49
-         1ubg==
+        bh=DWmSMnF3B1mTPtWIyEYX2euOl5QowlPflL5LrFAqjMw=;
+        b=HtzsNNDqWbh5XTKbPnbjqUyM+Sp+KrWCXnX5E5WF6GR1LdzKIQqBYzLRn1wDSAZtMD
+         r8ASRTEH9JtuQPTdegxPYanpR3OAZogQ+FTWZ2JioGdW6IlP2MTUPfg1GaOD7YeWjPFV
+         eJyLxheNaKWqih3wqaNTOICeRf7wpBzmjp4Zd68/YQcMfumHPBPKX3hWbgV8sn9a84y+
+         4KW8HyF9sAe7NXH/UVOvRGoJO/wha7PnSmMULGSAJgZ1oSmsq5FWkTL/8Asx8hoAvkDc
+         Sr6gOyPJ+szwKh4RrShUeRASjTXoAgSEXEJA4OdyPWwC33Y0xUfrSfny/ijjSzByyoFL
+         IRAg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=BTdL1q7u;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=Fz9mT5h+;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h3sor74196017qvc.37.2019.08.06.11.00.28
+        by mx.google.com with SMTPS id w13sor114165395qta.62.2019.08.06.11.02.10
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 06 Aug 2019 11:00:28 -0700 (PDT)
+        Tue, 06 Aug 2019 11:02:10 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=BTdL1q7u;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=Fz9mT5h+;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=ziepe.ca; s=google;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=bxAi2AWxQLWDF2luvIMl7f/UII4L9fAd8kmJBO8r+QM=;
-        b=BTdL1q7uIftWEibqtpJ2qBvmgEl0z+WwHsvtywklotBDG0PpIzsdOkQu2MzqaTeVMo
-         J8yB+abqQuKUfiuWe/VFhxZeK+LmVGsRDJrUW0pAsCMH6f998wxdNClpsRBWqGB3q9lb
-         DIpOye+uQcyUXo3ondmYhnMZVp8o4EzhV4Jc5CR26nszzO7s8uyzHULN5JfFJg0w74zH
-         z8baH6w71w2QWD+OqIA5XxvbMLZRSmwRHv4BH8MQpHSlnp9Rj+9dezQk76GZ8Y6Ui0Zs
-         IOpf4eY2syFgOUh+A2Lc1gcx6oZthg+JUv4GWxh92CjWmzVf23Jl3OmhSvoxCjauSNqR
-         3A3w==
-X-Google-Smtp-Source: APXvYqwCmY0NZ93DbaUKqBGemthRcu66UNlk2zMQT2HujC+QqBl8bAE/pDy0q9npLsbnQ5I+0N19GQ==
-X-Received: by 2002:a0c:c107:: with SMTP id f7mr4227804qvh.150.1565114428225;
-        Tue, 06 Aug 2019 11:00:28 -0700 (PDT)
+        bh=DWmSMnF3B1mTPtWIyEYX2euOl5QowlPflL5LrFAqjMw=;
+        b=Fz9mT5h+F2iLSvCsBQC5ggiqblN5sutWqjuhuF03Psd+Uf9SPIthU1SFjsJOpswgqI
+         i/rgIdKvSW+0tmW7prrn9Y9533G5r4E6d8zM2DnGZ+TNNPM1MBH1FT1zMnZwkyxWU56W
+         iIxNzxmjUm0QE0MLJTbJe3z6JqTvYF91SW6QufY/zMDl+9YGG4y5cVhS4ePPcReybl3S
+         5KnATeu6yNsS0v/Exp3ApYHy7cwB4/w0c77CJqZUqewRB2Fv001+6QZuzn3886W/04vb
+         HuXkgysTL1jkEq+Yt2WQvBYWRBxT7DYd/4ML1Ga5aZt50ou9KZTiM8DcK7BJNDl2Ss0U
+         6iSw==
+X-Google-Smtp-Source: APXvYqzwT9xNxemQscVlJmSlpGsNQA9yiKA1TtYWgT1CZ65aDe7RTogerUHwfzBX65WGTnxLLbQenA==
+X-Received: by 2002:ac8:f99:: with SMTP id b25mr4258745qtk.142.1565114530121;
+        Tue, 06 Aug 2019 11:02:10 -0700 (PDT)
 Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id o12sm36309954qkg.99.2019.08.06.11.00.27
+        by smtp.gmail.com with ESMTPSA id w10sm263879qts.77.2019.08.06.11.02.09
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 06 Aug 2019 11:00:27 -0700 (PDT)
+        Tue, 06 Aug 2019 11:02:09 -0700 (PDT)
 Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
 	(envelope-from <jgg@ziepe.ca>)
-	id 1hv3l5-0000Eu-8Q; Tue, 06 Aug 2019 15:00:27 -0300
-Date: Tue, 6 Aug 2019 15:00:27 -0300
+	id 1hv3mj-0000H9-63; Tue, 06 Aug 2019 15:02:09 -0300
+Date: Tue, 6 Aug 2019 15:02:09 -0300
 From: Jason Gunthorpe <jgg@ziepe.ca>
 To: Christoph Hellwig <hch@lst.de>
 Cc: =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
@@ -109,14 +109,15 @@ Cc: =?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
 	Ralph Campbell <rcampbell@nvidia.com>, linux-mm@kvack.org,
 	nouveau@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
 	amd-gfx@lists.freedesktop.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 11/15] mm: cleanup the hmm_vma_handle_pmd stub
-Message-ID: <20190806180027.GM11627@ziepe.ca>
+Subject: Re: [PATCH 08/15] mm: remove the mask variable in
+ hmm_vma_walk_hugetlb_entry
+Message-ID: <20190806180209.GN11627@ziepe.ca>
 References: <20190806160554.14046-1-hch@lst.de>
- <20190806160554.14046-12-hch@lst.de>
+ <20190806160554.14046-9-hch@lst.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190806160554.14046-12-hch@lst.de>
+In-Reply-To: <20190806160554.14046-9-hch@lst.de>
 User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -124,14 +125,12 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 06, 2019 at 07:05:49PM +0300, Christoph Hellwig wrote:
-> Stub out the whole function when CONFIG_TRANSPARENT_HUGEPAGE is not set
-> to make the function easier to read.
+On Tue, Aug 06, 2019 at 07:05:46PM +0300, Christoph Hellwig wrote:
+> The pagewalk code already passes the value as the hmask parameter.
 > 
 > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> ---
->  mm/hmm.c | 18 ++++++++----------
->  1 file changed, 8 insertions(+), 10 deletions(-)
+>  mm/hmm.c | 7 ++-----
+>  1 file changed, 2 insertions(+), 5 deletions(-)
 
 Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
 
