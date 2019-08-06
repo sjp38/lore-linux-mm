@@ -7,99 +7,99 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E34BAC31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 23:16:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 16B0FC32751
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 23:16:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8B86B20B1F
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 23:16:32 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C3DE220B1F
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 23:16:34 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="DzuN0SMd"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8B86B20B1F
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="EO1RyLd4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C3DE220B1F
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 84E956B000E; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
+	id B8CB46B0010; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 636FE6B026B; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
+	id AE7BB6B026C; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4B0646B0010; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
+	id 58B036B0266; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 166166B0010
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1F1E36B0269
 	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 19:16:19 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id s22so80308648qtb.22
+Received: by mail-qk1-f200.google.com with SMTP id v68so3425563qkc.4
         for <linux-mm@kvack.org>; Tue, 06 Aug 2019 16:16:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=JxsVo1tSo9nOofaC+CW71G9A/3jHBgy7XZ2Y+iDU6wk=;
-        b=uTc8Ahom1cnHgnzgHIAoGn2LluLZz53bfP5h8Lm9MACqKnQ9d3VLIh7Tfcy3bsDL3W
-         lfx+T2d8WpoXq6s2N9jck/qSGwCgDV/6XuHtwAK56fiwY7yxD3jXCLV80G+SSbXPstm1
-         Ghhpk+oSCuEosu4Gk1KSScz+JckUzk9FpMnMfqql/nMjib8Mn9dbIet772egwt6pQUpk
-         ZGjN91a3odb43jO7h3ZWDSbmL9JsEKkZgUgITozouHgxcC+kudAPaxfV4dbKujuSkARi
-         22Ji/SUxHQZBuhtaPW7qUxNtw1AT/Eknzyn2Wo9ZRIJYAHfzOyIJZBhEf7RQaGeCHiVY
-         1+Wg==
-X-Gm-Message-State: APjAAAVqBOe7QzjUGbapYYo5HfRwNrrLinLlMKuMjmQoDgTHk9iL+5Hj
-	FIDYWNlU7AXZLRMX9xCX/xGQEglC9FV/8X8QuyybZFkMtyWH/8kTnXUztAN2bYTeSc5GJKDxXao
-	1td4xfgera00z3SrFmjikfmGGtpZg7dSudAlZjo7H2xdzdw7bJ3m/mwKboO93qjRw7w==
-X-Received: by 2002:ac8:1418:: with SMTP id k24mr5231134qtj.54.1565133378866;
+        bh=pkHeCt/hoSJAt//UHPk0X0I7hZeOiqjMeNu5wqmOhVU=;
+        b=Zcm96D7HlMaeFnzdL1alVnEd3CErhAVOSBv0Ma+QnaspdLoOpG+b5yH1I8EIENCFb3
+         BnI0XL+AKAi9FodzlllSxVs/J56Z3DZmIKUW7xb8GjhFPgaaKeb2/6EILaJTlCto5G+H
+         vp+9+YrSuWs447kl72qKTdJE+HKFCVzEHKW0eJKJUb4Cktdd6mx4DVI8CB1Tu/f+LH1h
+         p4AFwrtpb9P47uVXa0l5bbJepdYSLe5/uZis9FxjP5+dZApKvlsOgHW41+kRiWmkExgw
+         cq4NvctZskl3bZN34wAhv34sToh8RfR5SWPfjR74EZXJU4QIhYgV5qUwRlEUrFYSE8la
+         4RmQ==
+X-Gm-Message-State: APjAAAXEyth3N9WotiN03M1/0Gh0Z+42L6ChdYvov7g+NM1jNcpfE3JX
+	6d5g21Us2OW8bRKQnqXMPZ3UW+ZSpB5oU3nQvT2GQScWbcXQyFQ2g3aEx4BNlB7c7NP7lVK7vlA
+	aILhgQGer8OeaOvixuQ5AxpbWGxGynQl6bR2H1yq4vhdDA7H4vYxwFHZTdysyyqxLJQ==
+X-Received: by 2002:ac8:3118:: with SMTP id g24mr5474265qtb.390.1565133378925;
         Tue, 06 Aug 2019 16:16:18 -0700 (PDT)
-X-Received: by 2002:ac8:1418:: with SMTP id k24mr5231080qtj.54.1565133377704;
-        Tue, 06 Aug 2019 16:16:17 -0700 (PDT)
+X-Received: by 2002:ac8:3118:: with SMTP id g24mr5474209qtb.390.1565133378003;
+        Tue, 06 Aug 2019 16:16:18 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1565133377; cv=none;
         d=google.com; s=arc-20160816;
-        b=q26GJFyi8DjBsqTjryNBpFhGGQ4wmpmFZyiRpOpUhY498zsfGRvOKHGq11hMpHtNQV
-         NLO2jDYH0uTSZISZlRYKKHPZ3MDZI1x6q01lS4d+t4xPZ+iUDtJP4C88WF9Z/RCU/vbk
-         7NUr4xSqvcBwf6qio9HTu+cp1KGFY259Y8QXXOWhmoIK5rwMhVQFQ1UUwGPmpVwjB9yz
-         vzYmnxSz7c23lsA8wXTWlWKO8eyOzVpWlE8DSyqCr4/v7N7wEbLCLRKYlFjxpiwSu1cx
-         EhZ/PWQWCFzb7AkpFWiUI4Dv0sFXKk6tNh/o0l2tPEjQm+ccyvWsYd7elT2TB6uZup4C
-         hoQQ==
+        b=nmV0juFwbl9lZl9mISg565RPA/jh9Kvk0hkz1LNev2WBE4WYKrfgkxbi64MH8mOq9s
+         6liV199/shxZWbsv+AL0c/owNZz5fwu5DuXQjSRX/1Kv+vUlQ24t1Ep4mVH7V2B4jQAb
+         vXJjTfGvq/GXAIDEgWoM1kSLG/9PTeco6S2fFiAusg/JOip0mnY9bCpG9CM3/6DHje7v
+         hLChIaFEEFlV4RRRGuYMUlITOHDCnxnp/q4YW3AUFC9/xZAtDf5AtXED80wwrRUitoRU
+         UMtDHVDAN8HBr6HMd7ayyuC+BYJivhbwMfpttZIo1RQYC1PiifEsldXo9AP7WXCVKZWG
+         PGoA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from:dkim-signature;
-        bh=JxsVo1tSo9nOofaC+CW71G9A/3jHBgy7XZ2Y+iDU6wk=;
-        b=A//8xwuSxl8izmmmzuNyLCpHFliIuFlv6z9CkbjFU2uSgPh/LDSwbb5VfIgn5wH73i
-         OwGLBQOx1DBVDjt7HkW9GYPmrYhSPsV7PSxmiVB5EG6pdja/+4oH8N0FH8RHrOSNHB9R
-         fANMEd8gFY7LTsIKLQ/U7WgbAgvTv6CQwh0yBCM2lKoQ5yluIxyMlHyd6/BlTWRXopkx
-         kGbhVwo/dZnZpRBQJw6owg1vLMCBrTLJyDJdzUHnOUprV/7WXrpi6n2ApcqHTDB8WU//
-         dx8GU3gv1RcEMBtVgLYUni08+iTtYskSgefMuvxCiwcAevOz8snnT4kUgoaW7VHiIQvr
-         yKAg==
+        bh=pkHeCt/hoSJAt//UHPk0X0I7hZeOiqjMeNu5wqmOhVU=;
+        b=AO67JpGa4S+R79lH6AHNyK6Fa1vh/JCJVKY1Q8k0Dm+QPiab0jG1PU1QSBxpmJbe9f
+         huuN390XFqokzCxo8SfbbGCrciKiF2R+4U092hQOt7Mu/2/nnB3FrYZNlrJ/ch9ycXDF
+         mGaXGUnLWO0iM3bRMWvxveA0KiFDk//AW01bA16S0Kl7g9EHAL0Xe6Lrope7VQchZM5i
+         J2aqncqGwcYb9Jv1991cUEEnYDYcDNOWP1pG3MQsd9mtNu30mn1iNcqRnrFajg/8oOIS
+         6zZoMaFbaSCtO368cp+8XFPnkzVvUQ2+DWJKFFb8m9SDG1ZATDOA1OyMEyQyhUPoqLHn
+         6n/g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=DzuN0SMd;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=EO1RyLd4;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id c8sor116877792qtc.13.2019.08.06.16.16.17
+        by mx.google.com with SMTPS id u9sor114030169qth.4.2019.08.06.16.16.17
         for <linux-mm@kvack.org>
         (Google Transport Security);
         Tue, 06 Aug 2019 16:16:17 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=DzuN0SMd;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=EO1RyLd4;
        spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=ziepe.ca; s=google;
         h=from:to:cc:subject:date:message-id:in-reply-to:references
          :mime-version:content-transfer-encoding;
-        bh=JxsVo1tSo9nOofaC+CW71G9A/3jHBgy7XZ2Y+iDU6wk=;
-        b=DzuN0SMd6m3Y09EQ3hGtHT0JB2aJvet1X6xSjLP8soFwijScUkjfei+cE2aizwyqi8
-         8Jha5XC787VVWgoXYljT8xUpYPYOFigvSiU+1J03D3b5wV89VGY0fRB+2O+s8PxEW8Cc
-         XHLP7NRjVVVDcyhUMTRcguAhGAT3GgYfCIM3KKJYjCw6SRWgG0LgRecPMWYG/h7iyqhL
-         SibXtCYOyQ2FlxTLqndgSo2yQc+yBvh9wTZCUo6uritT4lvyCwq2m+CMyMiFrNowhMlw
-         wZUotLzWJuJo3OH1QCGYmHg/VKilwJSVIFt6wDKRQhIZCMQPFq5BgAju/1yQr1cKLEEf
-         ycrA==
-X-Google-Smtp-Source: APXvYqxBbEyHGgxF5Nl8cVhIwdz1mu4o1neH5++dyqiahCeO4T26lyxvhtz3KCxPPf/9Z4FNDxc5Wg==
-X-Received: by 2002:aed:3ac1:: with SMTP id o59mr5389656qte.260.1565133377305;
+        bh=pkHeCt/hoSJAt//UHPk0X0I7hZeOiqjMeNu5wqmOhVU=;
+        b=EO1RyLd4d0AnXDRqElYRzxtyKz38WeGeNBRIkYdo+3VFgs/T0oIQs20Zy/5GKhTnqI
+         UfyYPmrt29HX9vdxZVEwKEX/vOCaV33r4IcvjjLv+dvBVpY91WnTDcNJXzjaMgjBsFFt
+         FdxAfV5Xk74BDXvs4obq2oP6Eu9zK7wtAWH8j4mJyF0Ged8Qf759ly97ojGQOxxLbF+m
+         EBz8VKm2ELuy2OvTFchRCVHhBVH+J3NM3xKbJA1b+9RKe4syO0dO8Tpu7jcVbUS84W+G
+         X1zRmwp67vSBaYZNs5bfg6X3fWLEdZzDSXoP+HJcr6VhTvigDkmOWFIoLfep3TCPpIME
+         lbKg==
+X-Google-Smtp-Source: APXvYqy6Nsusk0wHFyYvRxTipEB7NphBo9CKaHBj+WOx7SnMsQAhKID5TREjs8PZo1+pA73I5XbxVg==
+X-Received: by 2002:ac8:2b01:: with SMTP id 1mr5497725qtu.177.1565133377682;
         Tue, 06 Aug 2019 16:16:17 -0700 (PDT)
 Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id b13sm52681923qtk.55.2019.08.06.16.16.14
+        by smtp.gmail.com with ESMTPSA id r14sm36816958qkm.100.2019.08.06.16.16.14
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
         Tue, 06 Aug 2019 16:16:17 -0700 (PDT)
 Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
 	(envelope-from <jgg@ziepe.ca>)
-	id 1hv8gg-0006f4-G2; Tue, 06 Aug 2019 20:16:14 -0300
+	id 1hv8gg-0006fG-Jc; Tue, 06 Aug 2019 20:16:14 -0300
 From: Jason Gunthorpe <jgg@ziepe.ca>
 To: linux-mm@kvack.org
 Cc: Andrea Arcangeli <aarcange@redhat.com>,
@@ -121,9 +121,9 @@ Cc: Andrea Arcangeli <aarcange@redhat.com>,
 	Gavin Shan <shangw@linux.vnet.ibm.com>,
 	Andrea Righi <andrea@betterlinux.com>,
 	Jason Gunthorpe <jgg@mellanox.com>
-Subject: [PATCH v3 hmm 09/11] drm/amdkfd: fix a use after free race with mmu_notifer unregister
-Date: Tue,  6 Aug 2019 20:15:46 -0300
-Message-Id: <20190806231548.25242-10-jgg@ziepe.ca>
+Subject: [PATCH v3 hmm 11/11] mm/mmu_notifiers: remove unregister_no_release
+Date: Tue,  6 Aug 2019 20:15:48 -0300
+Message-Id: <20190806231548.25242-12-jgg@ziepe.ca>
 X-Mailer: git-send-email 2.22.0
 In-Reply-To: <20190806231548.25242-1-jgg@ziepe.ca>
 References: <20190806231548.25242-1-jgg@ziepe.ca>
@@ -137,180 +137,90 @@ List-ID: <linux-mm.kvack.org>
 
 From: Jason Gunthorpe <jgg@mellanox.com>
 
-When using mmu_notifer_unregister_no_release() the caller must ensure
-there is a SRCU synchronize before the mn memory is freed, otherwise use
-after free races are possible, for instance:
+mmu_notifier_unregister_no_release() and mmu_notifier_call_srcu() no
+longer have any users, they have all been converted to use
+mmu_notifier_put().
 
-     CPU0                                      CPU1
-                                      invalidate_range_start
-                                         hlist_for_each_entry_rcu(..)
- mmu_notifier_unregister_no_release(&p->mn)
- kfree(mn)
-                                      if (mn->ops->invalidate_range_end)
+So delete this difficult to use interface.
 
-The error unwind in amdkfd misses the SRCU synchronization.
-
-amdkfd keeps the kfd_process around until the mm is released, so split the
-flow to fully initialize the kfd_process and register it for find_process,
-and with the notifier. Past this point the kfd_process does not need to be
-cleaned up as it is fully ready.
-
-The final failable step does a vm_mmap() and does not seem to impact the
-kfd_process global state. Since it also cannot be undone (and already has
-problems with undo if it internally fails), it has to be last.
-
-This way we don't have to try to unwind the mmu_notifier_register() and
-avoid the problem with the SRCU.
-
-Along the way this also fixes various other error unwind bugs in the flow.
-
-Fixes: 45102048f77e ("amdkfd: Add process queue manager module")
-Reviewed-by: Felix Kuehling <Felix.Kuehling@amd.com>
 Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
 ---
- drivers/gpu/drm/amd/amdkfd/kfd_process.c | 78 +++++++++++-------------
- 1 file changed, 37 insertions(+), 41 deletions(-)
+ include/linux/mmu_notifier.h |  5 -----
+ mm/mmu_notifier.c            | 31 -------------------------------
+ 2 files changed, 36 deletions(-)
 
-diff --git a/drivers/gpu/drm/amd/amdkfd/kfd_process.c b/drivers/gpu/drm/amd/amdkfd/kfd_process.c
-index 8f1076c0c88a25..c06e6190f21ffa 100644
---- a/drivers/gpu/drm/amd/amdkfd/kfd_process.c
-+++ b/drivers/gpu/drm/amd/amdkfd/kfd_process.c
-@@ -62,8 +62,8 @@ static struct workqueue_struct *kfd_restore_wq;
+diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+index 31aa971315a142..52929e5ef70826 100644
+--- a/include/linux/mmu_notifier.h
++++ b/include/linux/mmu_notifier.h
+@@ -271,8 +271,6 @@ extern int __mmu_notifier_register(struct mmu_notifier *mn,
+ 				   struct mm_struct *mm);
+ extern void mmu_notifier_unregister(struct mmu_notifier *mn,
+ 				    struct mm_struct *mm);
+-extern void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
+-					       struct mm_struct *mm);
+ extern void __mmu_notifier_mm_destroy(struct mm_struct *mm);
+ extern void __mmu_notifier_release(struct mm_struct *mm);
+ extern int __mmu_notifier_clear_flush_young(struct mm_struct *mm,
+@@ -513,9 +511,6 @@ static inline void mmu_notifier_range_init(struct mmu_notifier_range *range,
+ 	set_pte_at(___mm, ___address, __ptep, ___pte);			\
+ })
  
- static struct kfd_process *find_process(const struct task_struct *thread);
- static void kfd_process_ref_release(struct kref *ref);
--static struct kfd_process *create_process(const struct task_struct *thread,
--					struct file *filep);
-+static struct kfd_process *create_process(const struct task_struct *thread);
-+static int kfd_process_init_cwsr_apu(struct kfd_process *p, struct file *filep);
+-extern void mmu_notifier_call_srcu(struct rcu_head *rcu,
+-				   void (*func)(struct rcu_head *rcu));
+-
+ #else /* CONFIG_MMU_NOTIFIER */
  
- static void evict_process_worker(struct work_struct *work);
- static void restore_process_worker(struct work_struct *work);
-@@ -289,7 +289,15 @@ struct kfd_process *kfd_create_process(struct file *filep)
- 	if (process) {
- 		pr_debug("Process already found\n");
- 	} else {
--		process = create_process(thread, filep);
-+		process = create_process(thread);
-+		if (IS_ERR(process))
-+			goto out;
-+
-+		ret = kfd_process_init_cwsr_apu(process, filep);
-+		if (ret) {
-+			process = ERR_PTR(ret);
-+			goto out;
-+		}
+ struct mmu_notifier_range {
+diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+index 4a770b5211b71d..2ec48f8ba9e288 100644
+--- a/mm/mmu_notifier.c
++++ b/mm/mmu_notifier.c
+@@ -21,18 +21,6 @@
+ /* global SRCU for all MMs */
+ DEFINE_STATIC_SRCU(srcu);
  
- 		if (!procfs.kobj)
- 			goto out;
-@@ -609,81 +617,69 @@ static int kfd_process_device_init_cwsr_dgpu(struct kfd_process_device *pdd)
- 	return 0;
+-/*
+- * This function allows mmu_notifier::release callback to delay a call to
+- * a function that will free appropriate resources. The function must be
+- * quick and must not block.
+- */
+-void mmu_notifier_call_srcu(struct rcu_head *rcu,
+-			    void (*func)(struct rcu_head *rcu))
+-{
+-	call_srcu(&srcu, rcu, func);
+-}
+-EXPORT_SYMBOL_GPL(mmu_notifier_call_srcu);
+-
+ /*
+  * This function can't run concurrently against mmu_notifier_register
+  * because mm->mm_users > 0 during mmu_notifier_register and exit_mmap
+@@ -453,25 +441,6 @@ void mmu_notifier_unregister(struct mmu_notifier *mn, struct mm_struct *mm)
  }
+ EXPORT_SYMBOL_GPL(mmu_notifier_unregister);
  
--static struct kfd_process *create_process(const struct task_struct *thread,
--					struct file *filep)
-+/*
-+ * On return the kfd_process is fully operational and will be freed when the
-+ * mm is released
-+ */
-+static struct kfd_process *create_process(const struct task_struct *thread)
+-/*
+- * Same as mmu_notifier_unregister but no callback and no srcu synchronization.
+- */
+-void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
+-					struct mm_struct *mm)
+-{
+-	spin_lock(&mm->mmu_notifier_mm->lock);
+-	/*
+-	 * Can not use list_del_rcu() since __mmu_notifier_release
+-	 * can delete it before we hold the lock.
+-	 */
+-	hlist_del_init_rcu(&mn->hlist);
+-	spin_unlock(&mm->mmu_notifier_mm->lock);
+-
+-	BUG_ON(atomic_read(&mm->mm_count) <= 0);
+-	mmdrop(mm);
+-}
+-EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
+-
+ static void mmu_notifier_free_rcu(struct rcu_head *rcu)
  {
- 	struct kfd_process *process;
- 	int err = -ENOMEM;
- 
- 	process = kzalloc(sizeof(*process), GFP_KERNEL);
--
- 	if (!process)
- 		goto err_alloc_process;
- 
--	process->pasid = kfd_pasid_alloc();
--	if (process->pasid == 0)
--		goto err_alloc_pasid;
--
--	if (kfd_alloc_process_doorbells(process) < 0)
--		goto err_alloc_doorbells;
--
- 	kref_init(&process->ref);
--
- 	mutex_init(&process->mutex);
--
- 	process->mm = thread->mm;
--
--	/* register notifier */
--	process->mmu_notifier.ops = &kfd_process_mmu_notifier_ops;
--	err = mmu_notifier_register(&process->mmu_notifier, process->mm);
--	if (err)
--		goto err_mmu_notifier;
--
--	hash_add_rcu(kfd_processes_table, &process->kfd_processes,
--			(uintptr_t)process->mm);
--
- 	process->lead_thread = thread->group_leader;
--	get_task_struct(process->lead_thread);
--
- 	INIT_LIST_HEAD(&process->per_device_data);
--
-+	INIT_DELAYED_WORK(&process->eviction_work, evict_process_worker);
-+	INIT_DELAYED_WORK(&process->restore_work, restore_process_worker);
-+	process->last_restore_timestamp = get_jiffies_64();
- 	kfd_event_init_process(process);
-+	process->is_32bit_user_mode = in_compat_syscall();
-+
-+	process->pasid = kfd_pasid_alloc();
-+	if (process->pasid == 0)
-+		goto err_alloc_pasid;
-+
-+	if (kfd_alloc_process_doorbells(process) < 0)
-+		goto err_alloc_doorbells;
- 
- 	err = pqm_init(&process->pqm, process);
- 	if (err != 0)
- 		goto err_process_pqm_init;
- 
- 	/* init process apertures*/
--	process->is_32bit_user_mode = in_compat_syscall();
- 	err = kfd_init_apertures(process);
- 	if (err != 0)
- 		goto err_init_apertures;
- 
--	INIT_DELAYED_WORK(&process->eviction_work, evict_process_worker);
--	INIT_DELAYED_WORK(&process->restore_work, restore_process_worker);
--	process->last_restore_timestamp = get_jiffies_64();
--
--	err = kfd_process_init_cwsr_apu(process, filep);
-+	/* Must be last, have to use release destruction after this */
-+	process->mmu_notifier.ops = &kfd_process_mmu_notifier_ops;
-+	err = mmu_notifier_register(&process->mmu_notifier, process->mm);
- 	if (err)
--		goto err_init_cwsr;
-+		goto err_register_notifier;
-+
-+	get_task_struct(process->lead_thread);
-+	hash_add_rcu(kfd_processes_table, &process->kfd_processes,
-+			(uintptr_t)process->mm);
- 
- 	return process;
- 
--err_init_cwsr:
-+err_register_notifier:
- 	kfd_process_free_outstanding_kfd_bos(process);
- 	kfd_process_destroy_pdds(process);
- err_init_apertures:
- 	pqm_uninit(&process->pqm);
- err_process_pqm_init:
--	hash_del_rcu(&process->kfd_processes);
--	synchronize_rcu();
--	mmu_notifier_unregister_no_release(&process->mmu_notifier, process->mm);
--err_mmu_notifier:
--	mutex_destroy(&process->mutex);
- 	kfd_free_process_doorbells(process);
- err_alloc_doorbells:
- 	kfd_pasid_free(process->pasid);
- err_alloc_pasid:
-+	mutex_destroy(&process->mutex);
- 	kfree(process);
- err_alloc_process:
- 	return ERR_PTR(err);
+ 	struct mmu_notifier *mn = container_of(rcu, struct mmu_notifier, rcu);
 -- 
 2.22.0
 
