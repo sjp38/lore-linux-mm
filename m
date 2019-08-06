@@ -8,97 +8,98 @@ X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 51AB3C31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:00:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3AA1AC32751
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:00:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 171502070C
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:00:37 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E576821743
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 08:00:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="TLB7WEzM"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 171502070C
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Ov06WqFF"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E576821743
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9E7706B0003; Tue,  6 Aug 2019 04:00:36 -0400 (EDT)
+	id 7764E6B0005; Tue,  6 Aug 2019 04:00:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 999586B0005; Tue,  6 Aug 2019 04:00:36 -0400 (EDT)
+	id 726AA6B0006; Tue,  6 Aug 2019 04:00:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8869A6B0006; Tue,  6 Aug 2019 04:00:36 -0400 (EDT)
+	id 6166A6B0008; Tue,  6 Aug 2019 04:00:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 4F2F26B0003
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:00:36 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id h5so54451521pgq.23
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:00:36 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 2BDD76B0005
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 04:00:41 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id o6so47847420plk.23
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 01:00:41 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=aV69onuQcwDqEYz62/w3oHFd2R0PARV3h+ba+PwsLJU=;
-        b=TimuRRJUKA2h99Qd6s73LRsUSkrbs9oka9Pw0YQWStVRQM9xDzfYsOKgfV3dPNbezu
-         3ITUaw6m1gUldo7LnNL+W4pRFmSLQzM2w0fCjo0bN7m32Zi7ELIFBxC4hfU0pDHPdk+u
-         XdQr/VodK94sYcVRQ0gKK6DxWL3hw3cYTbuenZ2WnTG+lPoZwf4SY78OxsaVmuhLXMao
-         +Ee7kEedQRUmij6F68mgor10RI7cgz94/ESyClWL+NMdLYzxbv6tHA0yoDYnigqVrrxD
-         AfgnWXThCpDQr1dFLx+KLWJbItstP3+1tpgNpfznCHbsahzRZrb3d8qxQy1W+FyT5XhQ
-         C7lQ==
-X-Gm-Message-State: APjAAAVY+JrJKzcwqaMP6NI7OdqLNUe/GSbW32xImgndkx61AkM6cKq8
-	nWt4Czf9m2ajdRujeAQN0lCM17RJTmN6Zx6KRPPImqf1rc8NmY8/rmr4getYSl2cmMbJDa+a4wo
-	TTpXsJ7fRiF9LD6nAerB7DHpGon9D+iu1Z4LANN4dJaIj6aWUfuPjNe7D0sZmqjgbww==
-X-Received: by 2002:a62:1c93:: with SMTP id c141mr2402487pfc.9.1565078435946;
-        Tue, 06 Aug 2019 01:00:35 -0700 (PDT)
-X-Received: by 2002:a62:1c93:: with SMTP id c141mr2402324pfc.9.1565078434272;
-        Tue, 06 Aug 2019 01:00:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565078434; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=QJLvXO26uNAgUTLj60JeKo10xs/5jo+93bjXJtmEioQ=;
+        b=glZDmRnKk9Qii1+E9LxRk+kQjIcnLMCZ19ggMo4xvTja5O+g6i/VDN//TN4DbCbaES
+         6JHPu/VVeXw2fjwSl+jtwysOi7Oih0igdNO75CsIVnBV7dO8cB9AhLW/+e9+Ov0V4it2
+         dDGk3UFXQ2AHpxY1ZlbGWhjVNPVW+HaItalx0IFWVeQSKqUNfA8YLFZyILDajhdb1SR8
+         Z6N5YNiICE19Q1MGSefOtXfNVQRTKS+28JsWMJkOG4NWFbGHfmaqoQk5SzM/QboQp0BS
+         PAYNajtU1TcAM2AH105jvOnzJipeeBkuCrggkCDlX4j8Fco5vIjbyPkmHKYCb6znkGoY
+         WrEA==
+X-Gm-Message-State: APjAAAW5BpEuAR7WOFirc7GzQ5XN8z4uzufijZw1HzUPcfyW/wqRHqmY
+	oimpAQ368539YBbDQKjq5EVgdIg3vjd5XiZmKFGHJEl3dDdA7nGbiD2Gn4NRvokdEcyXgLn6aWa
+	KT4uZWq63EmhbBZ9SMXCMt2ww1EF95FeB/bGK0K9f1GUb06S6ZOgJdMPuvG/Q/CR22A==
+X-Received: by 2002:a63:3112:: with SMTP id x18mr1869482pgx.385.1565078440514;
+        Tue, 06 Aug 2019 01:00:40 -0700 (PDT)
+X-Received: by 2002:a63:3112:: with SMTP id x18mr1869384pgx.385.1565078439513;
+        Tue, 06 Aug 2019 01:00:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565078439; cv=none;
         d=google.com; s=arc-20160816;
-        b=hWTwiGZO5f0s3rK8dy2YYFoXbXOOfpT55naYhmgz//Xfhsnl5nmF/lar4+mSpN9/3W
-         /FFLHDsubvYd0GE33A04/tnUsTH23uyCUB1PVEvXvClqV0OqlQbOCS0AuvR7XuCFc1l0
-         0iEj+fTEuTQJNRJ/YtJpJ4To+BacNiohsMfmw6lohLgrXalA6TlaTFTFutEoWFrlDxI4
-         br9kaqEaS9brb6h9n/a8SGfJUIb8wQQSOCphwsgJJumiMrDeB/yOUy8AdGs3Z8UV0Qx+
-         ttr00gwIK0yuODrQeyhV3kKoDrA3aQ8AWMtHpEvFRF2rETFgPsBbKfcOweWb9soaCdSg
-         Ru7Q==
+        b=y6mWM+u09oHQ7HIOBcVRHyjGMBgbApFc0SADLFLg1V3NbgfS6tY3GAz3i39I5kGl88
+         B0NTf38z3/WrxMrZfRkuyEGUeV/b+EgU64LhXOME2p/I6XRuirViFhAsP0b1XbR5Bx13
+         H6DBJbBKVjvcPQnhxEtm/TcYPetEnf1KHu4mMStjCnWSJQdnTY9MQZALoGMoUpUP5Nhu
+         Z3IO9JVXHrA6HXKjR/AUsO2V/bbKavSommiLgSwlg/sYh1ZkvfqWjrQt8sTwiwFQGB2n
+         r52Nfj3cixa5QplATTaX9a+pY7mMo/jEpG3kCYzyVvX3x3SlsX4xdxKP65qImjWYsZCR
+         E6qA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=aV69onuQcwDqEYz62/w3oHFd2R0PARV3h+ba+PwsLJU=;
-        b=VR9VaUDBsk4m4T0bhS2U0e3p/SQjFTXqPG8XBG1OXl+hbaRww+LR3VABkT8jaeXFfb
-         i1aEprzahtDDsqZFxOWLrySGK10VXCxMxv4ad4OneU49ZNIKoKLFCK8+sBfz/h2gUOkj
-         7a1+WKObxjS3oulKgPs9z09zn49QP8DxIYUTrolkQdltWdBYpCFdZ/Bej3VRL4y/4JYn
-         U/jJBs+xSX1yuhR5B/MCB46vdI+WiJgnDkajTprpWlpanSQrxq6AF+29SWeg4Cri7nKA
-         zE6lOVsIR9JU6dbvF3ZplUiTFvu/ueRrUHqeLb4yd0xUlRt622a0G53xgwadfDanXZxh
-         cUbA==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from:dkim-signature;
+        bh=QJLvXO26uNAgUTLj60JeKo10xs/5jo+93bjXJtmEioQ=;
+        b=oK8SoKXAh25rF3Axu+PpTek7bEzxOw2ZQtKo1d1CSW3ffkFmtPFcZjt/hbTi5dnZhh
+         fiW7l4OgXiO7vy+pEcjP75uKYopU14SC+jw27EgA8ZWGIJkTi9+MumfcCJkvd/Gg0ah+
+         0cn1vTB95oGuTZKqis+8tigNzskmTqBW4DiLeAAfucFTGSs7aCvLJvvxi5yw/PtGl3a3
+         XvwEDPdfQ64nD44SUUsbUeJZVXCKHJvwdL1wJfZSwKhO+EL4rXJYv6dMfaQIfLUPPpV0
+         CqAlVgcVZTNRwpsW47p+JHJOJNyof5N161iIMRHvJfzbNfJQSxFPKXrGGmcr1FIaJrLV
+         2bOA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TLB7WEzM;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ov06WqFF;
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a1sor41470990pfc.63.2019.08.06.01.00.34
+        by mx.google.com with SMTPS id b10sor32607680pla.6.2019.08.06.01.00.39
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Tue, 06 Aug 2019 01:00:34 -0700 (PDT)
+        Tue, 06 Aug 2019 01:00:39 -0700 (PDT)
 Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=TLB7WEzM;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Ov06WqFF;
        spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
        dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
-        h=from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding;
-        bh=aV69onuQcwDqEYz62/w3oHFd2R0PARV3h+ba+PwsLJU=;
-        b=TLB7WEzMV1FG9qsC+tFG0uVO2zJplwy4NMtcXZmIe83n8bPedvYIg0kRV+0BKaC2/W
-         qA1bhXaKHBsjod4hTqmfQwF/lUsR277uCh8BUc5BQAE/w4nKQrmd9u5fBIRR3tWkijJN
-         P5PrCFxtrlEUtjIManUEPXxHYB6fAs1VwWq1OkSVqmhXQKqSYhkRRd1j5LGp6QOrTvkB
-         sGzDPsINgXkaDyPTnVx/qVsPefVhLgtJSuNlRD6IbkGv6hdmE3xmprXG4kWR5dvjsvc6
-         Zcxp+1RmUOKxSrb97ji+pRTFedoopdRumI6BPcbOWQ/ZBZwy1O8iwqkQ+sCrr5SwppNd
-         dRDA==
-X-Google-Smtp-Source: APXvYqzcRDSMRahvNSlA2NE7YehHcCK+DdqZfd9iDDVrttQjMFGM+2BAVpZ47/jY+R7q00gXTs3ESQ==
-X-Received: by 2002:a62:be04:: with SMTP id l4mr2260030pff.77.1565078433810;
-        Tue, 06 Aug 2019 01:00:33 -0700 (PDT)
+        h=from:to:cc:subject:date:message-id:in-reply-to:references
+         :mime-version:content-transfer-encoding;
+        bh=QJLvXO26uNAgUTLj60JeKo10xs/5jo+93bjXJtmEioQ=;
+        b=Ov06WqFFY5F/mrImBwDzAGW2EMBWCuuAhDL1ZdsHVeP80acUV+W08iVCFtalIXtiqs
+         Zb2ePWkpruGrrBPtU/pHKyjQbllrpPlgiUhu7jXat9twql0Kp/09g9hxcrSxf6bpAsKk
+         Cb95Vt3v/XsCzvrZo1Ettv33EwB0GMhW3PeHDCdoLR4rQqrEa1uy3+OwC4vl7keb48uh
+         gy8GVUJ8aue7XghwW9YnFWsBme4do20rvhV5SARX11rG7UTIpsQNvJ63B8inkppv8xS5
+         nCu07LatsWfyhe9v1QL5e59QtWMNu7ENLerKRwFz1MIWpsqbYYDH28du8EGWHcXg1wQk
+         299Q==
+X-Google-Smtp-Source: APXvYqzCPLsm7dfAooib/V/VTYqbHUQPePIInQAoDof4+Yj607pvI0yjcNDlSnn6Ie1lWQ4lqIBACg==
+X-Received: by 2002:a17:902:549:: with SMTP id 67mr1920696plf.86.1565078439075;
+        Tue, 06 Aug 2019 01:00:39 -0700 (PDT)
 Received: from mylaptop.redhat.com ([209.132.188.80])
-        by smtp.gmail.com with ESMTPSA id p7sm96840679pfp.131.2019.08.06.01.00.28
+        by smtp.gmail.com with ESMTPSA id p7sm96840679pfp.131.2019.08.06.01.00.34
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 01:00:33 -0700 (PDT)
+        Tue, 06 Aug 2019 01:00:38 -0700 (PDT)
 From: Pingfan Liu <kernelfans@gmail.com>
 To: linux-mm@kvack.org
 Cc: Pingfan Liu <kernelfans@gmail.com>,
@@ -112,10 +113,12 @@ Cc: Pingfan Liu <kernelfans@gmail.com>,
 	Andrea Arcangeli <aarcange@redhat.com>,
 	Matthew Wilcox <willy@infradead.org>,
 	linux-kernel@vger.kernel.org
-Subject: [PATCH 1/3] mm/migrate: clean up useless code in migrate_vma_collect_pmd()
-Date: Tue,  6 Aug 2019 16:00:09 +0800
-Message-Id: <1565078411-27082-1-git-send-email-kernelfans@gmail.com>
+Subject: [PATCH 2/3] mm/migrate: see hole as invalid source page
+Date: Tue,  6 Aug 2019 16:00:10 +0800
+Message-Id: <1565078411-27082-2-git-send-email-kernelfans@gmail.com>
 X-Mailer: git-send-email 2.7.5
+In-Reply-To: <1565078411-27082-1-git-send-email-kernelfans@gmail.com>
+References: <1565078411-27082-1-git-send-email-kernelfans@gmail.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=UTF-8
 Content-Transfer-Encoding: 8bit
@@ -124,6 +127,20 @@ Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
+
+MIGRATE_PFN_MIGRATE marks a valid pfn, further more, suitable to migrate.
+As for hole, there is no valid pfn, not to mention migration.
+
+Before this patch, hole has already relied on the following code to be
+filtered out. Hence it is more reasonable to see hole as invalid source
+page.
+migrate_vma_prepare()
+{
+		struct page *page = migrate_pfn_to_page(migrate->src[i]);
+
+		if (!page || (migrate->src[i] & MIGRATE_PFN_MIGRATE))
+		     \_ this condition
+}
 
 Signed-off-by: Pingfan Liu <kernelfans@gmail.com>
 Cc: "Jérôme Glisse" <jglisse@redhat.com>
@@ -138,41 +155,35 @@ Cc: Matthew Wilcox <willy@infradead.org>
 To: linux-mm@kvack.org
 Cc: linux-kernel@vger.kernel.org
 ---
- mm/migrate.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
+ mm/migrate.c | 6 ++----
+ 1 file changed, 2 insertions(+), 4 deletions(-)
 
 diff --git a/mm/migrate.c b/mm/migrate.c
-index 8992741..c2ec614 100644
+index c2ec614..832483f 100644
 --- a/mm/migrate.c
 +++ b/mm/migrate.c
-@@ -2230,7 +2230,6 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
+@@ -2136,10 +2136,9 @@ static int migrate_vma_collect_hole(unsigned long start,
+ 	unsigned long addr;
+ 
+ 	for (addr = start & PAGE_MASK; addr < end; addr += PAGE_SIZE) {
+-		migrate->src[migrate->npages] = MIGRATE_PFN_MIGRATE;
++		migrate->src[migrate->npages] = 0;
+ 		migrate->dst[migrate->npages] = 0;
+ 		migrate->npages++;
+-		migrate->cpages++;
+ 	}
+ 
+ 	return 0;
+@@ -2228,8 +2227,7 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
+ 		pfn = pte_pfn(pte);
+ 
  		if (pte_none(pte)) {
- 			mpfn = MIGRATE_PFN_MIGRATE;
- 			migrate->cpages++;
--			pfn = 0;
- 			goto next;
- 		}
- 
-@@ -2255,7 +2254,6 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
- 			if (is_zero_pfn(pfn)) {
- 				mpfn = MIGRATE_PFN_MIGRATE;
- 				migrate->cpages++;
--				pfn = 0;
- 				goto next;
- 			}
- 			page = vm_normal_page(migrate->vma, addr, pte);
-@@ -2265,10 +2263,9 @@ static int migrate_vma_collect_pmd(pmd_t *pmdp,
- 
- 		/* FIXME support THP */
- 		if (!page || !page->mapping || PageTransCompound(page)) {
--			mpfn = pfn = 0;
+-			mpfn = MIGRATE_PFN_MIGRATE;
+-			migrate->cpages++;
 +			mpfn = 0;
  			goto next;
  		}
--		pfn = page_to_pfn(page);
  
- 		/*
- 		 * By getting a reference on the page we pin it and that blocks
 -- 
 2.7.5
 
