@@ -2,190 +2,166 @@ Return-Path: <SRS0=yRuK=WC=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 031DAC31E40
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 03:08:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69B57C433FF
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 03:13:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C4F67214C6
-	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 03:08:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4F67214C6
+	by mail.kernel.org (Postfix) with ESMTP id 08A8F20B1F
+	for <linux-mm@archiver.kernel.org>; Tue,  6 Aug 2019 03:13:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08A8F20B1F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5E0036B0003; Mon,  5 Aug 2019 23:08:43 -0400 (EDT)
+	id 937F96B0003; Mon,  5 Aug 2019 23:13:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5905E6B0005; Mon,  5 Aug 2019 23:08:43 -0400 (EDT)
+	id 8E93F6B0005; Mon,  5 Aug 2019 23:13:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4A7016B0006; Mon,  5 Aug 2019 23:08:43 -0400 (EDT)
+	id 7FEF46B0006; Mon,  5 Aug 2019 23:13:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 132466B0003
-	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 23:08:43 -0400 (EDT)
-Received: by mail-pl1-f199.google.com with SMTP id g18so47434804plj.19
-        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 20:08:43 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 4C04F6B0003
+	for <linux-mm@kvack.org>; Mon,  5 Aug 2019 23:13:11 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id w12so11731553pgo.2
+        for <linux-mm@kvack.org>; Mon, 05 Aug 2019 20:13:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version:content-transfer-encoding;
-        bh=IscKUNC/tUfe05zT8fDwZ8+8yxegkCQx+SviNtvePb4=;
-        b=BK6OpqI/gFx9Jh+dejSGcCDl5zG615khxtqGk3ZWB2UfA2Bu2jLe1jWKseYcAbUzYw
-         T5pw5Fgh0hB5E+OLHkcTz0tuJlBK35gbw2RYVPXk/aQd8ZhlqS2JzziHTCcQKhpUPra9
-         GjjWq5u5wHDm5BIseOx4JFOC3qH6snyjdH9MP7CCRU1L4NVTjxliIjb+x8ZDPSYFMJEF
-         0Zsr09rzUeZADgRSUo2ZK4VWoMApbd2QexsVpccjT/xjsPYdcEFeB5/NgXjkPQJXAs1u
-         aga1ieZkwiQUrOxLoNjPTOGhmhVrVIxQbT2qvCqTuoykwloaFFwdukmJVdOMCizC8MRK
-         78VQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAUc0oVHP1xEORbHbgz9ImdLBt2nJ/r7UAuImAJzND72gn8Rws0V
-	9kfV7Q3xvpOTz3Cdj68pMykLKhPeShmUO+MedsniPx/Akdcyhscgj3kWFg6+jbHnisBglmNSbOO
-	/rW42V+FNie3k+qwnztofJR+3++TXHU2aAL0s9iQgTeKOZjE1OsF2/eV6aJLePV9DCg==
-X-Received: by 2002:a65:4b8b:: with SMTP id t11mr991718pgq.130.1565060922554;
-        Mon, 05 Aug 2019 20:08:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyUOcbDZtR9Hmc7GWjcZ4Mix0lkGpApGNheZKykH4rKSYHgvJTAfo974g54wZllYqp9M4OT
-X-Received: by 2002:a65:4b8b:: with SMTP id t11mr991672pgq.130.1565060921573;
-        Mon, 05 Aug 2019 20:08:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565060921; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references:user-agent
+         :mime-version:content-transfer-encoding;
+        bh=sHPq+pRx/+dTblW9pr6QipciNsC2rS/a9IQw+GuW4FY=;
+        b=h80pEg+7IQubkZgL2kXzIZGUYcqRjO3pTrk30yAS/iWPGK4kZQbL0vf3L2j/TBgTIM
+         SgcTLDYQwj5K/ebAa++Y6weGXpn4bymfLt3BcMz0Lq1AjqqZKpCreD2BoSBR1ZqaHi3L
+         waac1XyffNPH9VN5yVjf2Y2vqRoIy6KFQ+FIkDN2Zk/L82IfeBD6pYpAuWJUmqeKjmoN
+         jxnssZ4V+33YKxdcfuP7216vkU83oYSMz1uazpaN51zN20FQQ6ICJCzgG3bQreRLLF5S
+         /oap9LD47jTHDM62bJkTAMCm5vjrQqFlGwF2L1g5o7ymFBBAS+J6GgxXyF2j5jgLaGUu
+         BS4w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXLP6AGlmA8ZEYrEGcXbalrs3w0fqpZOVh+U+4qZkzxuBNULPo9
+	GcTFi+dGVc0QsnuQQnWuixCg2Z4VWSgbF/U8vRLvovO25/xhZWtCyBXLW2uHwOsa06iuBewSxUR
+	FK+TuuN9U+6r+Ui+2D+Bt1bq+6ZL4eoiI+p8BvrqtfDYMLbV99dEJW3XACDvjY0sPwQ==
+X-Received: by 2002:a17:902:f81:: with SMTP id 1mr893304plz.191.1565061190992;
+        Mon, 05 Aug 2019 20:13:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxNA/mZLxqIdg930j7a6y8kdieKF2R/VGIHD2+x4N4m9qyhdgrDqG+cT9S+Xp5s+tW6Q9JD
+X-Received: by 2002:a17:902:f81:: with SMTP id 1mr893270plz.191.1565061190293;
+        Mon, 05 Aug 2019 20:13:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565061190; cv=none;
         d=google.com; s=arc-20160816;
-        b=Of9YlPpeHiFCp1W/h0w78cDmoyQvOP2dCOYPKoZa9XLxNpSXVRI/BBjwTQ+37guaYf
-         NbrdmTN/Xj+bd7Ma2fvZsyu47xm62v9l1iNR7LqXR8l/8/aOs0z8mYfm2w4Sk7bmS5GN
-         rcKjQq9hcp63qy/oo+HFoGMxa6kmkbciUHu/jSJPJ+1659VFipbb3OmBashwd6cl+SrZ
-         eHWs65eS8WtlzdeEY2lmsndO7uQdrnyghxlmVsPeRqtCH65/uUCP6+XuBTzA4Y1OcU31
-         26nD0Bb6fNdv78RLdx6naSy1vt1fB98jJEJwhJ+am5MoWJ0LNrXjQfgfSxZykPikMgRH
-         wtiw==
+        b=HyXxhrBCxixfsLpTQ+mwWQplkzHnzGFkozzow6hkSZIeL9SfgRXkogRPLFsYSGUjwb
+         Qlp8t5F0r3QGY52aW2q0Kj5aFdeWJ2RzYJxFSbRRuhcaCLuaJk5WdY+nsTFWaAyaTRHN
+         z+PUHtjy6ePCU5e7ys+l17Xz3R+Fdv5yzV5nUnKWC+uPmR/KHkNZyVzqrHwGsEzNEH8G
+         3KlgWd+fHm9Xt/pLIBtdXYz+k+nf5BI1QjRBW7BSS5phYd7e7CpEysA5topx+2FS74OI
+         eybKFk9i/0Tf2qIxI58kAc8uEf2EBF8xH6xFj0BeVxWV6lYvh2pMEeN60dzv73Vhcg5R
+         k5+Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from;
-        bh=IscKUNC/tUfe05zT8fDwZ8+8yxegkCQx+SviNtvePb4=;
-        b=FtuChzsDZqZb1hJqmxXXTBg0djIhO1WzaMvYkM+ifEYNuIhbFnjCCHkHtZoqIcYjwZ
-         /tGBOHJ5m4SPory3pu9t3oub54Y7Y6MTmQicd9VXKD6LK+Ges8I/GAX8yhm+W1/okfjr
-         hIztSyxySc67jJZCKYs2wgaBFb7a6Cszv/X6sOM02TnplibMQAasCbrybZdIhWMCvMBp
-         hjLqigm30vMYpK9pLkqu+KfhTwKYiSZ1+2Dg9TdboBNK9HRhcbX9zK4uwNdjI0zD5Bq1
-         cQSzY748RDtX20Xqs4c48ZL08vbztWuk/6KMOdxIqIyTYS53H6al2AeFTXXJpAKUf7al
-         HJQg==
+        h=content-transfer-encoding:mime-version:user-agent:references
+         :in-reply-to:date:cc:to:from:subject:message-id;
+        bh=sHPq+pRx/+dTblW9pr6QipciNsC2rS/a9IQw+GuW4FY=;
+        b=Kon5vm2FnYniSqAD015T3lQs9CXn0dw1BQvK+AU2CUtyqFd/jCe5srX0x+EjiZkklS
+         ghI1h+WbV26pph7qT61OdP7TDz9qvR8yNUhRFDGH+oRdgNTTvhm/Cqllc+A7+LerAOsT
+         mjvggUV0OqqCXv5Djt+mH3+8dK2fTRZf1LuUU9Tdzk1bPE2q7bs/YCACwphGc7kgTmNF
+         yB7g3DrrQSrX0MFPyp2NA8r/Cghpom5LlHXd/lyMuY1lq/hjIq4ITZVXqtKltuAD/NDN
+         p7Uo4eseuhS7IuCPUflFjeN8pXEvGv7jp92WQNHoJ4BagSWXFYdasWqufqmCqUSwS208
+         7aMg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga18.intel.com (mga18.intel.com. [134.134.136.126])
-        by mx.google.com with ESMTPS id r190si44767128pfr.102.2019.08.05.20.08.41
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id g13si48817282pgo.274.2019.08.05.20.13.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Mon, 05 Aug 2019 20:08:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.126 as permitted sender) client-ip=134.134.136.126;
+        Mon, 05 Aug 2019 20:13:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.126 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
+       spf=pass (google.com: domain of sai.praneeth.prakhya@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=sai.praneeth.prakhya@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga008.jf.intel.com ([10.7.209.65])
-  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Aug 2019 20:08:41 -0700
+Received: from fmsmga002.fm.intel.com ([10.253.24.26])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 05 Aug 2019 20:13:09 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.64,352,1559545200"; 
-   d="scan'208";a="168166998"
+   d="scan'208";a="202666879"
 Received: from sai-dev-mach.sc.intel.com ([143.183.140.153])
-  by orsmga008.jf.intel.com with ESMTP; 05 Aug 2019 20:08:40 -0700
+  by fmsmga002.fm.intel.com with ESMTP; 05 Aug 2019 20:13:09 -0700
+Message-ID: <1c6a18dd63e6005045034ccc7b04390ab3c605e5.camel@intel.com>
+Subject: Re: [PATCH] fork: Improve error message for corrupted page tables
 From: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
-To: linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org
-Cc: dave.hansen@intel.com,
-	Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>,
-	Ingo Molnar <mingo@kernel.org>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Anshuman Khandual <anshuman.khandual@arm.com>
-Subject: [PATCH V2] fork: Improve error message for corrupted page tables
-Date: Mon,  5 Aug 2019 20:05:27 -0700
-Message-Id: <3ef8a340deb1c87b725d44edb163073e2b6eca5a.1565059496.git.sai.praneeth.prakhya@intel.com>
-X-Mailer: git-send-email 2.19.1
+To: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton
+ <akpm@linux-foundation.org>
+Cc: "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, 
+	"linux-mm@kvack.org"
+	 <linux-mm@kvack.org>, "Hansen, Dave" <dave.hansen@intel.com>, Ingo Molnar
+	 <mingo@kernel.org>, Peter Zijlstra <peterz@infradead.org>
+Date: Mon, 05 Aug 2019 20:09:59 -0700
+In-Reply-To: <4236c0c5-9671-b9fe-b5eb-7d1908767905@suse.cz>
+References: <20190730221820.7738-1-sai.praneeth.prakhya@intel.com>
+	 <20190731152753.b17d9c4418f4bf6815a27ad8@linux-foundation.org>
+	 <a05920e5994fb74af480255471a6c3f090f29b27.camel@intel.com>
+	 <20190731212052.5c262ad084cbd6cf475df005@linux-foundation.org>
+	 <FFF73D592F13FD46B8700F0A279B802F4F9D61B5@ORSMSX114.amr.corp.intel.com>
+	 <4236c0c5-9671-b9fe-b5eb-7d1908767905@suse.cz>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5-0ubuntu0.18.10.1 
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When a user process exits, the kernel cleans up the mm_struct of the user
-process and during cleanup, check_mm() checks the page tables of the user
-process for corruption (E.g: unexpected page flags set/cleared). For
-corrupted page tables, the error message printed by check_mm() isn't very
-clear as it prints the loop index instead of page table type (E.g: Resident
-file mapping pages vs Resident shared memory pages). The loop index in
-check_mm() is used to index rss_stat[] which represents individual memory
-type stats. Hence, instead of printing index, print memory type, thereby
-improving error message.
+On Mon, 2019-08-05 at 15:28 +0200, Vlastimil Babka wrote:
+> On 8/2/19 8:46 AM, Prakhya, Sai Praneeth wrote:
+> > > > > > +static const char * const resident_page_types[NR_MM_COUNTERS] = {
+> > > > > > +	"MM_FILEPAGES",
+> > > > > > +	"MM_ANONPAGES",
+> > > > > > +	"MM_SWAPENTS",
+> > > > > > +	"MM_SHMEMPAGES",
+> > > > > > +};
+> > > > > 
+> > > > > But please let's not put this in a header file.  We're asking the
+> > > > > compiler to put a copy of all of this into every compilation unit
+> > > > > which includes the header.  Presumably the compiler is smart enough
+> > > > > not to do that, but it's not good practice.
+> > > > 
+> > > > Thanks for the explanation. Makes sense to me.
+> > > > 
+> > > > Just wanted to check before sending V2, Is it OK if I add this to
+> > > > kernel/fork.c? or do you have something else in mind?
+> > > 
+> > > I was thinking somewhere like mm/util.c so the array could be used by
+> > > other
+> > > code.  But it seems there is no such code.  Perhaps it's best to just
+> > > leave fork.c as
+> > > it is now.
+> > 
+> > Ok, so does that mean have the struct in header file itself?
+> 
+> If the struct definition (including the string values) was in mm/util.c,
+> there would have to be a declaration in a header. If it's in fork.c with
+> the only users, there doesn't need to be separate declaration in a header.
 
-Without patch:
---------------
-[  204.836425] mm/pgtable-generic.c:29: bad p4d 0000000089eb4e92(800000025f941467)
-[  204.836544] BUG: Bad rss-counter state mm:00000000f75895ea idx:0 val:2
-[  204.836615] BUG: Bad rss-counter state mm:00000000f75895ea idx:1 val:5
-[  204.836685] BUG: non-zero pgtables_bytes on freeing mm: 20480
+Makes sense.
 
-With patch:
------------
-[   69.815453] mm/pgtable-generic.c:29: bad p4d 0000000084653642(800000025ca37467)
-[   69.815872] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_FILEPAGES val:2
-[   69.815962] BUG: Bad rss-counter state mm:00000000014a6c03 type:MM_ANONPAGES val:5
-[   69.816050] BUG: non-zero pgtables_bytes on freeing mm: 20480
+> 
+> > Sorry! for too many questions. I wanted to check with you before changing 
+> > because it's *the* fork.c file (I presume random changes will not be
+> > encouraged here)
+> > 
+> > I am not yet clear on what's the right thing to do here :(
+> > So, could you please help me in deciding.
+> 
+> fork.c should be fine, IMHO
 
-Also, change print function (from printk(KERN_ALERT, ..) to pr_alert()) so
-that it matches the other print statement.
+I was leaning to add struct definition in fork.c as well but just wanted to
+check with Andrew before posting V2.
 
-Cc: Ingo Molnar <mingo@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>
-Cc: Peter Zijlstra <peterz@infradead.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Anshuman Khandual <anshuman.khandual@arm.com>
-Acked-by: Dave Hansen <dave.hansen@intel.com>
-Suggested-by: Dave Hansen <dave.hansen@intel.com>
-Signed-off-by: Sai Praneeth Prakhya <sai.praneeth.prakhya@intel.com>
----
+Thanks for the reply though :)
 
-Changes from V1 to V2:
-----------------------
-1. Move struct definition from header file to fork.c file, so that it won't be
-   included in every compilation unit. As this struct is used *only* in fork.c,
-   include the definition in fork.c itself.
-2. Index the struct to match respective macros.
-3. Mention about print function change in commit message.
-
- kernel/fork.c | 11 +++++++++--
- 1 file changed, 9 insertions(+), 2 deletions(-)
-
-diff --git a/kernel/fork.c b/kernel/fork.c
-index d8ae0f1b4148..f34f441c50c0 100644
---- a/kernel/fork.c
-+++ b/kernel/fork.c
-@@ -125,6 +125,13 @@ int nr_threads;			/* The idle threads do not count.. */
- 
- static int max_threads;		/* tunable limit on nr_threads */
- 
-+static const char * const resident_page_types[NR_MM_COUNTERS] = {
-+	[MM_FILEPAGES]		= "MM_FILEPAGES",
-+	[MM_ANONPAGES]		= "MM_ANONPAGES",
-+	[MM_SWAPENTS]		= "MM_SWAPENTS",
-+	[MM_SHMEMPAGES]		= "MM_SHMEMPAGES",
-+};
-+
- DEFINE_PER_CPU(unsigned long, process_counts) = 0;
- 
- __cacheline_aligned DEFINE_RWLOCK(tasklist_lock);  /* outer */
-@@ -649,8 +656,8 @@ static void check_mm(struct mm_struct *mm)
- 		long x = atomic_long_read(&mm->rss_stat.count[i]);
- 
- 		if (unlikely(x))
--			printk(KERN_ALERT "BUG: Bad rss-counter state "
--					  "mm:%p idx:%d val:%ld\n", mm, i, x);
-+			pr_alert("BUG: Bad rss-counter state mm:%p type:%s val:%ld\n",
-+				 mm, resident_page_types[i], x);
- 	}
- 
- 	if (mm_pgtables_bytes(mm))
--- 
-2.7.4
+Regards,
+Sai
 
