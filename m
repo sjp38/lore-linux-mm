@@ -2,142 +2,160 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6EDE3C32751
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 20:17:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A239AC32754
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 20:34:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 338F021E6E
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 20:17:02 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 66EE121BE3
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 20:34:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="sEN1paER"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 338F021E6E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="gA2Gxo3V"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 66EE121BE3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C12076B0007; Wed,  7 Aug 2019 16:17:01 -0400 (EDT)
+	id 352C46B0003; Wed,  7 Aug 2019 16:34:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BC2586B0008; Wed,  7 Aug 2019 16:17:01 -0400 (EDT)
+	id 329A56B0006; Wed,  7 Aug 2019 16:34:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AD86F6B000A; Wed,  7 Aug 2019 16:17:01 -0400 (EDT)
+	id 23F176B0007; Wed,  7 Aug 2019 16:34:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 75B886B0007
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 16:17:01 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id j96so8098995plb.5
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 13:17:01 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 027D86B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 16:34:18 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id r15so4863266qtt.6
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 13:34:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=XpaIVnkd/BjfYjmfO2aXpXQJdXfWej63oBAOIpZvzZY=;
-        b=OXBbgLKMZCGHqnv6JbcrSaF+zK/OuQQdCKvRrjXg4cgWXTnkk/n0j8e5PIc4sAQyhE
-         G5QSsm3uKVMUoTyX0RKIq2lLlSlq4EOG38yvOSYIXXNWioT2PeDddZpTNvP0tlCNdEgl
-         blJ8UkVPQf6CbLG8ay5CWTCnceDBQZGsXmAaZVJemNKtzgUJR6CLQ7zYo7dgahPp8vk3
-         3/xA7vnpOr3d3Kib9MGCephAS1+QOgWvBD/1folU/UQwjN8iV9uZBE5kztH6aKDIetU3
-         EUVo98XUhoFSETbA+Z7YZyAkpQcXFooyRe1YKsluOwPYXFtbOSOINVpxddk64ghc196x
-         1Z0w==
-X-Gm-Message-State: APjAAAVlV+teLhg5Q6gscV7puhlOPoK4V3ox6DwI6gp8PRb/6xNtrmpl
-	L/YFSMW8MYqLgSzJatJuHHSdgKLBelGtsf/KUOjcxHTvn8lszIq5FZWbzdGi86uROh/tK2nQ1cI
-	eBbOVg2IQivrpbL1qHxJ/rXoej0ySM5voRZTnv3jlxoVtQBTzGSt0gsKzTADAl9HenA==
-X-Received: by 2002:a63:3006:: with SMTP id w6mr9360158pgw.440.1565209020997;
-        Wed, 07 Aug 2019 13:17:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw2QXnjTCJ9CdEDL6tRzdIlJEZ8pypGSs1XXoQkSAR/XvaanBu7kq4m8lt0/DTODyoQ234z
-X-Received: by 2002:a63:3006:: with SMTP id w6mr9360115pgw.440.1565209020232;
-        Wed, 07 Aug 2019 13:17:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565209020; cv=none;
+        h=x-gm-message-state:dkim-signature:sender:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=IC+13V8Mtk7y8HC7bnHIWtqIcy1I5HJyllIeTOClBTQ=;
+        b=RRo/GOXlQU+KY31Hk3PXMIFZD0gFnVGHAUSsU3HP3pm3nR0hUswS05SqvWIGh0SjmW
+         xVEyYV1uHOV+krKkLemigbHqyYz9Q+HDhSWKfXhgRPIV6WV/dry274cxY0lLPcik6LWw
+         tXRncQsfgwVtKaOoykuERFs6m3qwDpKP3nZNi1jL0xASAzppcfFVcPnant+Mn2dFWnza
+         jvL+GxHQMnWg7zkSAKPrXo7j9cCl+/3ZMXFwF19wE9AXcLe4MnsKuyorfTH9wZspeOg+
+         NoAYEm7puqdUkX0T8XlES48ToyuGnD9GKIUPghqyzq97oYXPcGKyNm7Jk/nLteGMWJh3
+         bm2A==
+X-Gm-Message-State: APjAAAX+QBsVkm89xBcsPq2vOE+zupg2F4pNlgyd+6tXEEJy2g6R43Z5
+	Sg3fmsAUl45GNmGxRsA8noYThlJiOEDZIATJ2AAL5G1LYs1RWNGMSQ1C17680hATB/Ljz6AiGyT
+	aQmhF+Nla4UP6B3K/CQhxwZJqw7M36HbGSTff9RIeZ/wQRHvHIUCimpiwJ8CdTPY=
+X-Received: by 2002:ac8:7488:: with SMTP id v8mr5931697qtq.312.1565210057702;
+        Wed, 07 Aug 2019 13:34:17 -0700 (PDT)
+X-Received: by 2002:ac8:7488:: with SMTP id v8mr5931663qtq.312.1565210057104;
+        Wed, 07 Aug 2019 13:34:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565210057; cv=none;
         d=google.com; s=arc-20160816;
-        b=HTG+VeK3SApfAuWUZiU58GvjHENplbssnbvQID7lCAHuUex3HWR875n5O+iyqeMHj6
-         ZS0n9ynbjnYnT2urkXOU5N0rJWXCgebq4UiLckvIqDzyPl1pWuBj6Pst2PmZG0MYtfP1
-         6bdu7pfOW/nWNi98jVUpARRcbQrbu4CQ6ZaHj5HKQ9HKwsrOvxbp1AahD7rIufAr6w6z
-         f2gnPViTlgAk1LygUgUSzTTFeKw3+JbWdJTKDTyQJJC/0blaD9Ad7N86SCOJu+zqP8Vg
-         xGnUjrFWYi/p9zjNxlkU08aM3hI2cllllRAm1egfcvF1Q/9cfCjwrQp66FmJ9qrCSuLg
-         cokw==
+        b=gSebMxeysPMSgT8U40sbNbfJFSbFGUsOXF0iOQWTG1UYGAHgAi+0OpfNpNwCJRICLe
+         Lou0N0p4Rii2hPhnPTdEc61dli2qT7RWB4YjfgKgnY7frlq/c1gWyWtyBz0JIX6SMisc
+         WAzxVpy5QS2JXn+lcCbTUlYWiLvx2heojVIypfJldOEGM7Ejfu9XytmVRXCpn34rxLR1
+         f/8SW+yy5fy/eFczJ2cpyG5Hss6Mz4BCxgHb1iLdAhqNxyzCWu6BiCgTCCjad43LGufU
+         x5drHdibCZkl+7sbhQMFNJECDcywcLvwri5JHOX8OLsK0ji2sOTt61tkWLe90P54jjPl
+         nVMQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=XpaIVnkd/BjfYjmfO2aXpXQJdXfWej63oBAOIpZvzZY=;
-        b=vmi128TaxtbJEcdIvV/HOUSt2ERpg4l77Rgr6vLp4zki+tEqxgVGXFgBgby9zC6mXW
-         7nVJo4kchNERA93AiCe1270J4H/0xJo6G14D4RG2a8nngcudZamHyF31rw8d3txPNHsc
-         uFC6jJAVV6aNkTl/kW890GwyLfQ1L6aPP2hPkZgysYWeXNtDuCem8nivHSmKUOn+ZmJ/
-         wTM7OCH7irdAh8UZYOl+HuU7ZJG8zpYaMf7736ccLj2swh5kF4ny2X7q/xaRURGIKLHI
-         QEBX851je744e0t+BWGxbq5kts5dKm7zXL32sLNiiegJNcWamvyGZ5tIUaItL0wR45E1
-         Xhyw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:sender:dkim-signature;
+        bh=IC+13V8Mtk7y8HC7bnHIWtqIcy1I5HJyllIeTOClBTQ=;
+        b=Iv7tWCUYFAEKT/PkIxou1sa6goqXLlEyvhze/m0eOVzeY9+zOPoZFD/cCcHPrikjOH
+         gepVrkTQ8k4dMX9zvQsgFZrYlpKNOmeahWPZ0aC9Xkst53RCh3K2kgvJPWGzEAjBdKb8
+         7pKwoPcRnTMF2JYD9gCu7/zKpZn6KJFf3OcRpLIT1Fppkr0+0LmjEM+9sahOE7u0B9Le
+         NYOYB+iXGP6gdnKYTRiHv4L3rMqjSFzSsEX36VpX9MDtlCEZ/tTKHADmY2NTvQtqaJWT
+         5bfjG0I3uTRBoWatVEvpo+4LVslVsKqmd3vxtkIqT1aodAGQrz9fkiNsIaaGIV00FTJl
+         Kseg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=sEN1paER;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id w2si49507179pfi.183.2019.08.07.13.17.00
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gA2Gxo3V;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id n16sor2343464qtl.23.2019.08.07.13.34.17
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Aug 2019 13:17:00 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Wed, 07 Aug 2019 13:34:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=sEN1paER;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 2EAC82199C;
-	Wed,  7 Aug 2019 20:16:59 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565209019;
-	bh=9jrCLwX3LNqceRPrIp1jyjebmoHx3o9gZO1ZatQ4skM=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=sEN1paERUMluEqczWXfNlPMKbSdmYQaq4T7rTni0CxSxEnrjjHKQ765sgQWu8A8s0
-	 QKx24YVdqUtvGPcVbdAJxRFJMxYJyV6Ah+0UPLJtP5uaP8snDxXhkkuBKnRyRw75Aq
-	 iNGGe6IBLOd1dbfd+9eQdQKz0RAljH5GsNO+CLMo=
-Date: Wed, 7 Aug 2019 13:16:58 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Steven Price <steven.price@arm.com>
-Cc: Mark Rutland <Mark.Rutland@arm.com>, x86@kernel.org, Arnd Bergmann
- <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>, Peter Zijlstra
- <peterz@infradead.org>, Catalin Marinas <catalin.marinas@arm.com>, Dave
- Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, =?ISO-8859-1?Q?J=E9r=F4me?= Glisse
- <jglisse@redhat.com>, Ingo Molnar <mingo@redhat.com>, Borislav Petkov
- <bp@alien8.de>, Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin"
- <hpa@zytor.com>, James Morse <james.morse@arm.com>, Thomas Gleixner
- <tglx@linutronix.de>, Will Deacon <will@kernel.org>,
- linux-arm-kernel@lists.infradead.org, "Liang, Kan"
- <kan.liang@linux.intel.com>, "Kirill A. Shutemov"
- <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCH v10 20/22] x86: mm: Convert dump_pagetables to use
- walk_page_range
-Message-Id: <20190807131658.08793793a97fa4310af4f495@linux-foundation.org>
-In-Reply-To: <066fa4ca-5a46-ba86-607f-9c3e16f79cde@arm.com>
-References: <20190731154603.41797-1-steven.price@arm.com>
-	<20190731154603.41797-21-steven.price@arm.com>
-	<20190806165823.3f735b45a7c4163aca20a767@linux-foundation.org>
-	<066fa4ca-5a46-ba86-607f-9c3e16f79cde@arm.com>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=gA2Gxo3V;
+       spf=pass (google.com: domain of htejun@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=htejun@gmail.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=sender:date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=IC+13V8Mtk7y8HC7bnHIWtqIcy1I5HJyllIeTOClBTQ=;
+        b=gA2Gxo3VVUUiZocJ2EWD7FWO7YBQ8ft67UkLPK3AQg2nN2DoElFq/GksGEaLO+Xxs7
+         yBG49lmFjj6YiLTjAaIGIQ41gk0yijO+ArJDE8dr0MOM8hPWXP6zZJu4zTmZ5U0pgrQi
+         HknnD6KZRyK/MCSoGtYJTTYotU0YW8UoTRgeuRn+pC5MZtc7pzuYv6kj3xs5K4Iq01gZ
+         86PLHXMC6iInXVPSj6NydUiB8ADQvz4JihwAriUqmR/FNZBo1PmtDfw6VQ/NCCRIFgf2
+         ZxOvpizlKlGxc62Gw+giLRS40hco+rKNH4/JXvGmrSXjrc5JQOrAHKmp7zbC6NOQ0jDG
+         Tr4A==
+X-Google-Smtp-Source: APXvYqzu1jOsh0kIjF9dIWwpYxRpLf5Yj5gvt8IrWIJbtljX2Px5uBUwWjZwjoub/a03bW3NQndjfA==
+X-Received: by 2002:ac8:45d2:: with SMTP id e18mr9931619qto.258.1565210056622;
+        Wed, 07 Aug 2019 13:34:16 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::2:49ab])
+        by smtp.gmail.com with ESMTPSA id t11sm6284977qkt.85.2019.08.07.13.34.15
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Aug 2019 13:34:15 -0700 (PDT)
+Date: Wed, 7 Aug 2019 13:34:14 -0700
+From: Tejun Heo <tj@kernel.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: axboe@kernel.dk, jack@suse.cz, hannes@cmpxchg.org, mhocko@kernel.org,
+	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
+	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-team@fb.com, guro@fb.com
+Subject: Re: [PATCH 2/4] bdi: Add bdi->id
+Message-ID: <20190807203414.GA554060@devbig004.ftw2.facebook.com>
+References: <20190803140155.181190-1-tj@kernel.org>
+ <20190803140155.181190-3-tj@kernel.org>
+ <20190806160102.11366694af6b56d9c4ca6ea3@linux-foundation.org>
+ <20190807183151.GM136335@devbig004.ftw2.facebook.com>
+ <20190807120037.72018c136db40e88d89c05d1@linux-foundation.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190807120037.72018c136db40e88d89c05d1@linux-foundation.org>
+User-Agent: Mutt/1.5.21 (2010-09-15)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Aug 2019 13:58:21 +0100 Steven Price <steven.price@arm.com> wrote:
+Hello,
 
-> > ./arch/x86/include/asm/pgtable_64_types.h:56:22: error: initializer element is not constant
-> >  #define PTRS_PER_PGD 512
-> >                       ^
-> 
-> This is very unhelpful of GCC - it's actually PTRS_PER_P4D which isn't
-> constant!
+On Wed, Aug 07, 2019 at 12:00:37PM -0700, Andrew Morton wrote:
+> OK, but why is recycling a problem?  For example, file descriptors
+> recycle as aggressively as is possible, and that doesn't cause any
+> trouble.  Presumably recycling is a problem with cgroups because of
+> some sort of stale reference problem?
 
-Well.  You had every right to assume that an all-caps macro is a
-compile-time constant.
+Oh, because there are use cases where the consumers are detached from
+the lifetime synchronization.  In this example, the benefit of using
+IDs is that memcgs don't need to pin foreign bdi_wb's and just look up
+and verify when it wants to flush them.  If we use pointers, we have
+to pin the objects which then requires either shooting down those
+references with timers or somehow doing reverse lookup to shoot them
+down when bdi_wb is taken offline.  If we use IDs which can be
+recycling aggressively, there can be pathological cases where remote
+flushes are issued on the wrong target possibly repeatedly, which may
+or may not be a real problem.
 
-We are innocent victims of Kirill's c65e774fb3f6af2 ("x86/mm: Make
-PGDIR_SHIFT and PTRS_PER_P4D variable") which lazily converted these
-macros into runtime-only, under some Kconfig settings.  It should have
-changed those macros into static inlined lower-case functions.
+For cgroup ID, the problem is more immediate.  We give out the IDs to
+userspace and there is no way to shoot those references down when the
+cgroup goes away and the ID gets recycled, so when the user comes back
+and asks "I want to attach this bpf program to the cgroup identified
+with this ID", we can end up attaching it to the wrong cgroup if we
+recycle IDs.  cgroup ended up with two separate IDs, which is kinda
+dumb.
+
+tl;dr is that it's either cumbersome or impossible to synchronize the
+users of these IDs, so if they get recycled, they end up identifying
+the wrong thing.
+
+Thanks.
+
+-- 
+tejun
 
