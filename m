@@ -2,99 +2,127 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 787B7C433FF
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 09:31:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EC079C32754
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 10:00:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 38BB722324
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 09:31:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38BB722324
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 8462D21E6A
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 10:00:18 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="tCgJHesT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8462D21E6A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AEA916B0003; Wed,  7 Aug 2019 05:31:00 -0400 (EDT)
+	id CCF006B0003; Wed,  7 Aug 2019 06:00:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A99356B0006; Wed,  7 Aug 2019 05:31:00 -0400 (EDT)
+	id C58736B0006; Wed,  7 Aug 2019 06:00:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9624F6B0007; Wed,  7 Aug 2019 05:31:00 -0400 (EDT)
+	id AD2206B0007; Wed,  7 Aug 2019 06:00:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 46C266B0003
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 05:31:00 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id e9so44619867edv.18
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 02:31:00 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 716686B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 06:00:17 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id 71so51058835pld.1
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 03:00:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=u8DxubnbwlYyct+CxY1dL8JgNQvxL7DlXIBxPgc6/aM=;
-        b=Ha6Wj1C0TPAQNfUT3E+ZJwtAAf0sTJu9WkAf5dWdD4e9tZjL8vvhFf9YbkjH9Jf8b6
-         UA94k2KLZXo50YLM8hmA6ewniCDJs/7XWwDda4eQXJj/XSzf1hY0AY2DK6x09qSUaVsM
-         VSr3bDukikS3dv/8jl8l0jwiBUqPfO/F9JfaeFgyHH2VMWOg3jeS34wcRA3O3qeOh8g1
-         cTvM+kYC+rtF3Or5at5pdMDW/xGgx/2VrMThHZFlSmtOhSz+V8WYjn9Co84WRtht3PqQ
-         u9Pp7GlyAgZZvLhWjbF5SHjZAI5VdvvfeUEqTeLVOf7T1UpEP44QGoCkkq1zWYZXfHQ8
-         XmoA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAX6WRv6ZqlR21/JN1gHXG/hYApZtEva4TmRNPi56T+/NhVRgUt4
-	6e+vcsGuKwf8LVw9hlj8aAIcbmdfbdOgy1arzWwHkCm73mXIV+bV8aZ++2rRS3BOFuwQSaXMEA0
-	07tBiRgY4i/yWXaW2DMhmJBdSvGfLNx3FwKgpKzd5GUKIhEPPutGhuRlDnT9l3S4=
-X-Received: by 2002:a50:9422:: with SMTP id p31mr8464382eda.127.1565170259397;
-        Wed, 07 Aug 2019 02:30:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz3C9SEA52gbPi3o9kik8Acqp5J1LexX67R03u2FhLzg4cb9Rp19oYgT5Q7AxXR9/q2bPqd
-X-Received: by 2002:a50:9422:: with SMTP id p31mr8464267eda.127.1565170257635;
-        Wed, 07 Aug 2019 02:30:57 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565170257; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=ZzlW9YyeiJ854Q1Ko1IPtbBbq0BYDBiTFOQHxFAcEc0=;
+        b=VKEEdt4zR+4Hulf400s/1ffA1cThcrKSxYNME18us15Eg8QjhOVARDhjMJOy108O4g
+         h8R0GIoQtMiITow1opjQZkvgIml8lnijZhRDwE/AgjMljCWEz4YTDEGwpTVJ7q0UmxAb
+         cEJz5FPhUbs9nSHA8c+Jq5FPQnLl4Eb/SD/0f5yX4a371tlainNhmMPuOkPDZjs7BldW
+         CylD3vNl3miwFbSDRmo3sdcgFhatUPqHEva+ieOpehe8Q1o77RLpzajsVwwuDm7xQ6iU
+         JxzKfRmzLgxZbrbWU3DWWbBRqneEmbRJzoOSOiS+R5JkdrtXXusStoYPSR//ijdgByCr
+         IAtA==
+X-Gm-Message-State: APjAAAU9bwu7f0DmMHN9wlvGQhpbHb2s/MncHrZHSoOuivw0OlDtJkdZ
+	sqF2JC+ItLpLg+DZ6czdXw2q5Uja3cOZ6JCATUXcU1w4hppZL5ryWs4jdvpLJx9iMFiln+C/wjk
+	NgpZponNKakEVOX+Xd2c/kdrYjuXELgZZFvcyJuIQ/cnjlhO/4nwcb+sj+h/o9ghKVg==
+X-Received: by 2002:a63:8a49:: with SMTP id y70mr7303827pgd.271.1565172016936;
+        Wed, 07 Aug 2019 03:00:16 -0700 (PDT)
+X-Received: by 2002:a63:8a49:: with SMTP id y70mr7303741pgd.271.1565172015900;
+        Wed, 07 Aug 2019 03:00:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565172015; cv=none;
         d=google.com; s=arc-20160816;
-        b=Tji4DvBosb+aiHv9fvC7AlD9s7Xs4Sl7eUz/v9hOhAccrsutU65TzN975o0OKQczeD
-         iUGKLlVmDCZmS5NzOCjICjX6Lb0H4OqqFrxKobbKrQJ0T2mY1PDmd49ZA9JyFaICuqZQ
-         Cjm8idGfQ6tTaNnWjTk57BXfpr/EVKWjr3UuqKWKHaU7mGbCKhLeVWQeriVI6x1F15I2
-         3pldFpG6exl9tk8PklpRrkxr43AzwrXNwT/o75dsTPuWgiPq0sZrOUB/Aj7Xe3HDhJpp
-         Ho5jfopwzfJ8c8G4sXzHGhWaoAFHIVf29IfDizM0AYoBhJa2DRO+TMbF2LdvkyMRJ3NO
-         YHxg==
+        b=djfsjPSbyX/vR1lpcGPOeK9YLQXuiKvNphSiX9CM1ASpatRH1IdsgcpuPPDvvyu/cp
+         tfXcFo/AZl4zd+1NK4pwuY+zu9ZQEOgwQc3mgMH2mqa0EOVqefMMpDUgvX9KcaPQw9ac
+         XGJ5TZCDzitC4mVYs88P7bwM7t+6LvplQOAuJkUYH/syHa965Sxc6ZrRQj30eCAWIRaw
+         ZvPPScEc56QL4anrIA9w6qiunKOM7R01avruF/2LvQxkL5J2jqN6L4ylEW06bdFRz44v
+         XQU9eiUWmwjRSnbx90uFwg4ZZGOoypNaRc+XVfXkq5MpTqomTCmeglc/fgBhlz5MSoVv
+         JWDQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=u8DxubnbwlYyct+CxY1dL8JgNQvxL7DlXIBxPgc6/aM=;
-        b=dQcFxH99yjZBxGpqbj4kVZmUs7m/ShL3i2mzplYTzmn5/dGqYsFsF4d+Ts7Q72Yaqb
-         og2Y+fqE12ei2wxeu0axCIq4cYvddswWT052sJ55yv2Arc6cJ13ac4mf9wtDpqnGM+PM
-         dFanIXQsMf4KJb/1UutyocVj5F8EXJPQT8dGGuy7CR93WgYoDwhLGb81lIZvOsxLI9LV
-         +iWwwx3HtGIwewc2YferddVHNwtcMkxh+382N3e2IY36PHYCgBjT3zUpzrmMMlxFC5rJ
-         /tW+1Xl29gyvtbeFYK36Nw1Io4SthTjxeH5EcMJrA7BpcWVXFEHTPULqsrYPOoCa3O5j
-         40mw==
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=ZzlW9YyeiJ854Q1Ko1IPtbBbq0BYDBiTFOQHxFAcEc0=;
+        b=Abp3xwKRa4SD9uX1GM21PSwjoK7dxrOVq/eTIGnO+plQmMaTVxB5SvjbJKf215ueGX
+         ZkHWe3JNlYXKHlqLhVxEckEOfxXkGH7MotKqEAyXWkdO4udXvYDji2cbK54iC2/ZIZkI
+         ijJVYRhC3zYQmAztFgpy22wU/pyUZI5J//HWf+1IdqB8MIM+0TmWCIKSeDkIRZnOM5xu
+         pkOs7AFy5/1H/OM7jsEU10XJK3RyfcdbhRVwKX/l7qW5zP3C2U5iPdouNXolTgrmHgph
+         QYBzJEYgbFxLTzYk+zoZiN50y1W8Jhxmwehs30+/3Xq4HpW8J1Rc5Cod6GANdnMcdGaZ
+         RUOg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id e49si32096179edb.184.2019.08.07.02.30.57
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=tCgJHesT;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q11sor70718883pfc.49.2019.08.07.03.00.15
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Aug 2019 02:30:57 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        (Google Transport Security);
+        Wed, 07 Aug 2019 03:00:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 29699B08C;
-	Wed,  7 Aug 2019 09:30:57 +0000 (UTC)
-Date: Wed, 7 Aug 2019 11:30:56 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-mm@kvack.org, linux-xfs@vger.kernel.org,
-	Mel Gorman <mgorman@suse.de>, Vlastimil Babka <vbabka@suse.cz>
-Subject: Re: [PATCH] [Regression, v5.0] mm: boosted kswapd reclaim b0rks
- system cache balance
-Message-ID: <20190807093056.GS11812@dhcp22.suse.cz>
-References: <20190807091858.2857-1-david@fromorbit.com>
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=tCgJHesT;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=joelfernandes.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=ZzlW9YyeiJ854Q1Ko1IPtbBbq0BYDBiTFOQHxFAcEc0=;
+        b=tCgJHesT9hyuTLNhA2JU2/UNk19RK2nU5AFtCBJaYk5S3w1NDvpmaFeth5Yo8wYH0s
+         oM4Lnuq7N9b9hZ/RVsWSEyFtN0JZddKU9+yGb3onrTbH8MixdAzzdFWXDrrSZxkzHWDG
+         kUybN6h9P7J8OPDKxwZ6UTFwzfLKIdRbmfvNc=
+X-Google-Smtp-Source: APXvYqy9F4k99hNGDmUxs4p0Ff8mjnfF/NFd08nAV9/aNP72bhh+a9yeZ5zU0WZFHIFPpVKE8BbX4A==
+X-Received: by 2002:aa7:9117:: with SMTP id 23mr8530297pfh.206.1565172015496;
+        Wed, 07 Aug 2019 03:00:15 -0700 (PDT)
+Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
+        by smtp.gmail.com with ESMTPSA id b136sm120273213pfb.73.2019.08.07.03.00.14
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 07 Aug 2019 03:00:14 -0700 (PDT)
+Date: Wed, 7 Aug 2019 06:00:13 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
+	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
+	fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>, kernel-team@android.com,
+	linux-api@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+	Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.ibm.com>,
+	minchan@kernel.org, namhyung@google.com, paulmck@linux.ibm.com,
+	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
+	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
+	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>,
+	Brendan Gregg <brendan.d.gregg@gmail.com>
+Subject: Re: [PATCH v4 1/5] mm/page_idle: Add per-pid idle page tracking
+ using virtual indexing
+Message-ID: <20190807100013.GC169551@google.com>
+References: <20190805170451.26009-1-joel@joelfernandes.org>
+ <20190806151921.edec128271caccb5214fc1bd@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190807091858.2857-1-david@fromorbit.com>
+In-Reply-To: <20190806151921.edec128271caccb5214fc1bd@linux-foundation.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -102,200 +130,91 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Cc Mel and Vlastimil as it seems like fallout from 1c30844d2dfe2]
+On Tue, Aug 06, 2019 at 03:19:21PM -0700, Andrew Morton wrote:
+> (cc Brendan's other email address, hoping for review input ;))
 
-On Wed 07-08-19 19:18:58, Dave Chinner wrote:
-> From: Dave Chinner <dchinner@redhat.com>
-> 
-> When running a simple, steady state 4kB file creation test to
-> simulate extracting tarballs larger than memory full of small files
-> into the filesystem, I noticed that once memory fills up the cache
-> balance goes to hell.
-> 
-> The workload is creating one dirty cached inode for every dirty
-> page, both of which should require a single IO each to clean and
-> reclaim, and creation of inodes is throttled by the rate at which
-> dirty writeback runs at (via balance dirty pages). Hence the ingest
-> rate of new cached inodes and page cache pages is identical and
-> steady. As a result, memory reclaim should quickly find a steady
-> balance between page cache and inode caches.
-> 
-> It doesn't.
-> 
-> The moment memory fills, the page cache is reclaimed at a much
-> faster rate than the inode cache, and evidence suggests taht the
-> inode cache shrinker is not being called when large batches of pages
-> are being reclaimed. In roughly the same time period that it takes
-> to fill memory with 50% pages and 50% slab caches, memory reclaim
-> reduces the page cache down to just dirty pages and slab caches fill
-> the entirity of memory.
-> 
-> At the point where the page cache is reduced to just the dirty
-> pages, there is a clear change in write IO patterns. Up to this
-> point it has been running at a steady 1500 write IOPS for ~200MB/s
-> of write throughtput (data, journal and metadata). Once the page
-> cache is trimmed to just dirty pages, the write IOPS immediately
-> start spiking to 5-10,000 IOPS and there is a noticable change in
-> IO sizes and completion times. The SSD is fast enough to soak these
-> up, so the measured performance is only slightly affected (numbers
-> below). It results in > ~50% throughput slowdowns on a spinning
-> disk with a NVRAM RAID cache in front of it, though. I didn't
-> capture the numbers at the time, and it takes far to long for me to
-> care to run it again and get them.
-> 
-> SSD perf degradation as the LRU empties to just dirty pages:
-> 
-> FSUse%        Count         Size    Files/sec     App Overhead
-> ......
->      0      4320000         4096      51349.6          1370049
->      0      4480000         4096      48492.9          1362823
->      0      4640000         4096      48473.8          1435623
->      0      4800000         4096      46846.6          1370959
->      0      4960000         4096      47086.6          1567401
->      0      5120000         4096      46288.8          1368056
->      0      5280000         4096      46003.2          1391604
->      0      5440000         4096      46033.4          1458440
->      0      5600000         4096      45035.1          1484132
->      0      5760000         4096      43757.6          1492594
->      0      5920000         4096      40739.4          1552104
->      0      6080000         4096      37309.4          1627355
->      0      6240000         4096      42003.3          1517357
-> .....
-> real    3m28.093s
-> user    0m57.852s
-> sys     14m28.193s
-> 
-> Average rate: 51724.6+/-2.4e+04 files/sec.
-> 
-> At first memory full point:
-> 
-> MemFree:          432676 kB
-> Active(file):      89820 kB
-> Inactive(file):  7330892 kB
-> Dirty:           1603576 kB
-> Writeback:          2908 kB
-> Slab:            6579384 kB
-> SReclaimable:    3727612 kB
-> SUnreclaim:      2851772 kB
-> 
-> A few seconds later at about half the page cache reclaimed:
-> 
-> MemFree:         1880588 kB
-> Active(file):      89948 kB
-> Inactive(file):  3021796 kB
-> Dirty:           1097072 kB
-> Writeback:          2600 kB
-> Slab:            8900912 kB
-> SReclaimable:    5060104 kB
-> SUnreclaim:      3840808 kB
-> 
-> And at about the 6080000 count point in the results above, right to
-> the end of the test:
-> 
-> MemFree:          574900 kB
-> Active(file):      89856 kB
-> Inactive(file):   483120 kB
-> Dirty:            372436 kB
-> Writeback:           324 kB
-> KReclaimable:    6506496 kB
-> Slab:           11898956 kB
-> SReclaimable:    6506496 kB
-> SUnreclaim:      5392460 kB
-> 
-> 
-> So the LRU is largely full of dirty pages, and we're getting spikes
-> of random writeback from memory reclaim so it's all going to shit.
-> Behaviour never recovers, the page cache remains pinned at just dirty
-> pages, and nothing I could tune would make any difference.
-> vfs_cache_pressure makes no difference - I would it up so high it
-> should trim the entire inode caches in a singel pass, yet it didn't
-> do anything. It was clear from tracing and live telemetry that the
-> shrinkers were pretty much not running except when there was
-> absolutely no memory free at all, and then they did the minimum
-> necessary to free memory to make progress.
-> 
-> So I went looking at the code, trying to find places where pages got
-> reclaimed and the shrinkers weren't called. There's only one -
-> kswapd doing boosted reclaim as per commit 1c30844d2dfe ("mm: reclaim
-> small amounts of memory when an external fragmentation event
-> occurs"). I'm not even using THP or allocating huge pages, so this
-> code should not be active or having any effect onmemory reclaim at
-> all, yet the majority of reclaim is being done with "boost" and so
-> it's not reclaiming slab caches at all. It will only free clean
-> pages from the LRU.
-> 
-> And so when we do run out memory, it switches to normal reclaim,
-> which hits dirty pages on the LRU and does some shrinker work, too,
-> but then appears to switch back to boosted reclaim one watermarks
-> are reached.
-> 
-> The patch below restores page cache vs inode cache balance for this
-> steady state workload. It balances out at about 40% page cache, 60%
-> slab cache, and sustained performance is 10-15% higher than without
-> this patch because the IO patterns remain in control of dirty
-> writeback and the filesystem, not kswapd.
-> 
-> Performance with boosted reclaim also running shrinkers over the
-> same steady state portion of the test as above.
-> 
-> FSUse%        Count         Size    Files/sec     App Overhead
-> ......
->      0      4320000         4096      51341.9          1409983
->      0      4480000         4096      51157.5          1486421
->      0      4640000         4096      52041.5          1421837
->      0      4800000         4096      52124.2          1442169
->      0      4960000         4096      56266.6          1388865
->      0      5120000         4096      52892.2          1357650
->      0      5280000         4096      51879.5          1326590
->      0      5440000         4096      52178.7          1362889
->      0      5600000         4096      53863.0          1345956
->      0      5760000         4096      52538.7          1321422
->      0      5920000         4096      53144.5          1336966
->      0      6080000         4096      53647.7          1372146
->      0      6240000         4096      52434.7          1362534
-> 
-> .....
-> real    3m11.543s
-> user    0m57.506s
-> sys     14m20.913s
-> 
-> Average rate: 57634.2+/-2.8e+04 files/sec.
-> 
-> So it completed ~10% faster (both wall time and create rate) and had
-> far better IO patterns so the differences would be even more
-> pronounced on slow storage.
-> 
-> This patch is not a fix, just a demonstration of the fact that the
-> heuristics this "boosted reclaim for compaction" are based on are
-> flawed, will have nasty side effects for users that don't use THP
-> and so needs revisiting.
-> 
-> Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> ---
->  mm/vmscan.c | 4 ++--
->  1 file changed, 2 insertions(+), 2 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index 9034570febd9..702e6523f8ad 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2748,10 +2748,10 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
->  			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
->  			node_lru_pages += lru_pages;
->  
-> -			if (sc->may_shrinkslab) {
-> +			//if (sc->may_shrinkslab) {
->  				shrink_slab(sc->gfp_mask, pgdat->node_id,
->  				    memcg, sc->priority);
-> -			}
-> +			//}
->  
->  			/* Record the group's reclaim efficiency */
->  			vmpressure(sc->gfp_mask, memcg, false,
-> -- 
-> 2.23.0.rc1
+;)
 
--- 
-Michal Hocko
-SUSE Labs
+> On Mon,  5 Aug 2019 13:04:47 -0400 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
+> 
+> > The page_idle tracking feature currently requires looking up the pagemap
+> > for a process followed by interacting with /sys/kernel/mm/page_idle.
+> > Looking up PFN from pagemap in Android devices is not supported by
+> > unprivileged process and requires SYS_ADMIN and gives 0 for the PFN.
+> > 
+> > This patch adds support to directly interact with page_idle tracking at
+> > the PID level by introducing a /proc/<pid>/page_idle file.  It follows
+> > the exact same semantics as the global /sys/kernel/mm/page_idle, but now
+> > looking up PFN through pagemap is not needed since the interface uses
+> > virtual frame numbers, and at the same time also does not require
+> > SYS_ADMIN.
+> > 
+> > In Android, we are using this for the heap profiler (heapprofd) which
+> > profiles and pin points code paths which allocates and leaves memory
+> > idle for long periods of time. This method solves the security issue
+> > with userspace learning the PFN, and while at it is also shown to yield
+> > better results than the pagemap lookup, the theory being that the window
+> > where the address space can change is reduced by eliminating the
+> > intermediate pagemap look up stage. In virtual address indexing, the
+> > process's mmap_sem is held for the duration of the access.
+> 
+> Quite a lot of changes to the page_idle code.  Has this all been
+> runtime tested on architectures where
+> CONFIG_HAVE_ARCH_PTE_SWP_PGIDLE=n?  That could be x86 with a little
+> Kconfig fiddle-for-testing-purposes.
+
+I will do this Kconfig fiddle test with CONFIG_HAVE_ARCH_PTE_SWP_PGIDLE=n and test
+the patch as well.
+
+In previous series, this flag was not there (which should have been
+equivalent to the above test), and things are working fine.
+
+> > 8 files changed, 376 insertions(+), 45 deletions(-)
+> 
+> Quite a lot of new code unconditionally added to major architectures. 
+> Are we confident that everyone will want this feature?
+
+I did not follow, could you clarify more? All of this diff stat is not to
+architecture code:
+
+ arch/Kconfig                  |   3 ++
+ fs/proc/base.c                |   3 ++
+ fs/proc/internal.h            |   1 +
+ fs/proc/task_mmu.c            |  43 +++++++++++++++++++++
+ include/asm-generic/pgtable.h |   6 +++
+ include/linux/page_idle.h     |   4 ++
+ mm/page_idle.c                | 359 +++++++++++++++++++++++++++++..
+ mm/rmap.c                     |   2 +
+ 8 files changed, 376 insertions(+), 45 deletions(-)
+
+The arcitecture change is in a later patch, and is not that many lines.
+
+Also, I am planning to split the swap functionality of the patch into a
+separate one for easier review.
+
+> > +static int proc_page_idle_open(struct inode *inode, struct file *file)
+> > +{
+> > +	struct mm_struct *mm;
+> > +
+> > +	mm = proc_mem_open(inode, PTRACE_MODE_READ);
+> > +	if (IS_ERR(mm))
+> > +		return PTR_ERR(mm);
+> > +	file->private_data = mm;
+> > +	return 0;
+> > +}
+> > +
+> > +static int proc_page_idle_release(struct inode *inode, struct file *file)
+> > +{
+> > +	struct mm_struct *mm = file->private_data;
+> > +
+> > +	if (mm)
+> 
+> I suspect the test isn't needed?  proc_page_idle_release) won't be
+> called if proc_page_idle_open() failed?
+
+Yes you are right, will remove the test.
+
+thanks,
+
+ - Joel
 
