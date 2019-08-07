@@ -2,273 +2,141 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 31CC3C32751
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 18:47:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DD014C32751
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 19:00:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 896492086D
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 18:47:36 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A0AAC21EF2
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 19:00:41 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="eufME0A1"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 896492086D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="YlgkEarD"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A0AAC21EF2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EEE466B0007; Wed,  7 Aug 2019 14:47:35 -0400 (EDT)
+	id 2FD526B0007; Wed,  7 Aug 2019 15:00:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E9EFA6B0008; Wed,  7 Aug 2019 14:47:35 -0400 (EDT)
+	id 287146B0008; Wed,  7 Aug 2019 15:00:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D8D5A6B000A; Wed,  7 Aug 2019 14:47:35 -0400 (EDT)
+	id 1274A6B000A; Wed,  7 Aug 2019 15:00:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f69.google.com (mail-ot1-f69.google.com [209.85.210.69])
-	by kanga.kvack.org (Postfix) with ESMTP id AD8D16B0007
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 14:47:35 -0400 (EDT)
-Received: by mail-ot1-f69.google.com with SMTP id b25so56442705otp.12
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 11:47:35 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id CB4056B0007
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 15:00:40 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id 65so53574515plf.16
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 12:00:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=I3GxMdQgJ16JYM6vB9EqrOMBguT7ZpbwaC2gFsJYblY=;
-        b=BBjn9DfdZVtFJBfxYEQ5pRWxD3sYgeNvzTA8lGqi5XUpmbQFaqo/7duDCtpiFhvFQy
-         VHNtM2UX7V39KJbr/Y/UHs2DSB6pRKWczt6bLEw302BJnkqma4JNetWKX/7uPbkyAby8
-         MKMndiw0N9oGsFn1N4ZEO+ASzypXV6Qlkmvu9BRMZIKvkIO6aatX4hptRlC1/qtZumqV
-         s6gPkOLgDTJw3oK7oCbGn6S6Gs+2Ls+jc5TF1HauAg6C6OBKaoeyKUuD0x+JHvf5gLVc
-         moQ1osfRri/ruya2Skta/0iLjP9pr4Xrxe+ougfVL8pUh1JXemZSskqe4y2Sd+AJ4sbB
-         ebaQ==
-X-Gm-Message-State: APjAAAUyYzAU5Aic+mc2Iw36RntX55X5v7ZAQ2K210a8kqoXABEqjhHY
-	kTM2P132wjFutzsqv695tXZt8F/CitiPF+RVETC1K/cVF0ADgArUbV3qaL5l0otyiGZsTS1m0OB
-	b/fIitxiKdNKV4j2WNrxCp3TyURzUPdE8154Z7L7fwHXjTeSWcyA6Sq/0CKEWhOUmdQ==
-X-Received: by 2002:a9d:6394:: with SMTP id w20mr9788736otk.151.1565203655330;
-        Wed, 07 Aug 2019 11:47:35 -0700 (PDT)
-X-Received: by 2002:a9d:6394:: with SMTP id w20mr9788697otk.151.1565203654563;
-        Wed, 07 Aug 2019 11:47:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565203654; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=ffPtFma0ynnYbg79ruyQpLlhb0Qy2mS6FwTYq/42PQM=;
+        b=A+sF5MU7idHIYImsrekr1frbioseAN+Cvt3jWmq7NtK2eBHLOutIbcSG3HT99Qe0sv
+         MwBGwFYEP/g9LgNiqXFY3uFacWWQTOe+P1MbcJKPX7rt+XS+PejyNhTqKwMXegDtRxG5
+         dsBPFoyB7vn1qJWGoik5lY+sWmC3FPGSfo1gNgNDN9ohVXEx1pJDAD4K5QL9yrkIs9Yn
+         3/QdiIMXq/c4caM/hhk1Pt+jimj5M1vzccbHZIdby7goBNje8tjnRcbsXR4XFMBJKYiG
+         k7ES98VTfJug3wEXjZmQlDVzOhB72vnCdEZB9OYAw2bp4+YSBgNolTHu8rOBd9moK8Xd
+         Sa8g==
+X-Gm-Message-State: APjAAAX35jOgAZviZTcdEP7XzjB1jeI8BCDHVYf9+7gKHl/q2WAQQNJc
+	BVOsPEONYkIV3w/KvUFAxoqv+G4RwpiHJqpH8zDZ9NLJ+il4BI/ov1Eyp4BM7irroyUW3wtEsGK
+	g19j1oyFn8BcVPLPLDQOOU7vHtxOf/mAxA5px6skGZlU1nSDtcWN6ZATY8LhiHT14XA==
+X-Received: by 2002:a17:90a:898e:: with SMTP id v14mr1317163pjn.119.1565204440161;
+        Wed, 07 Aug 2019 12:00:40 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxgiEW3+96kJJAAd7khf4ePkSeZ/SazBr83uTCBkmBi9d6PVXFaa6QTnbPo2CadgXrexPkR
+X-Received: by 2002:a17:90a:898e:: with SMTP id v14mr1317074pjn.119.1565204439312;
+        Wed, 07 Aug 2019 12:00:39 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565204439; cv=none;
         d=google.com; s=arc-20160816;
-        b=jTGon61Qvwnr6/E9TgxqVNZV42AagWQ4Nms2o8vKu1Z+H8CvpWs7GgU1w+ZkDqo2cs
-         H9O74vMXSZBrQs8Kr8UUWaHL2ogMWzbPYSwi+/LBLtt6XrlCRcqDRZpVfPTtRKy/TcfI
-         wnS43F8K7ctSkZx4O9ncQTXUj7W392R9TnWLDMHlZRQHKBhDi+YGGoasevOH9IbBsziz
-         mY0+osaSuLR84D8SG2IOzx7NKKLWov7ouW9NOKs3JteVjuvq31ItlujHqd8YCiMv3AR9
-         4aABriL6PHhDATOMegIG44l+7qe16zKSQnH5g0eDVU9LhOuZ0G+qTfQKHrgh0Zor09yM
-         D2Tw==
+        b=PkVOhD4Z8Doko1JKf2isnqqCBH7BjbYEUP+FOAJKVJWYsrVG9DajV8SnI41UfdcJwq
+         LCARTbIbZbjA2cPqSlwNIjZ9HNrT33pLpG7VGGaty8tQ8fJ5G6lSVNobUrOapzhJAhoX
+         cGeBwFMX2jJaP5CTHYLKNiI/7VcBnmnA5a4ZsTxRCnHLDhJ/PQXqIOMA0pEEoSvOoWvA
+         IFIWMghENtY5hjpiaksFWqr1pRbUU2RhYAQdR2XhLiKk/WSLl6oPm9Ul3a6uWNTGF88P
+         5WtrNrhQ3eggdR8TX9ykW8IDg5DKKTiLuJ4SOHjSmv0r8ItcmYbXN9NzOhLnrp30YpPu
+         Hr0A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=I3GxMdQgJ16JYM6vB9EqrOMBguT7ZpbwaC2gFsJYblY=;
-        b=M7xdqBN+1K3zFQJ3DfyOU8/fY4BF6yO/xz/xUe5KXJpVJbL1/FYp+a2XOnPRS/hHbj
-         dCHKMdk6Lo6SOJmWniDHmuA22XE9xSqeN7OE4texfP6qiDBkwz7EmFQ1zZdLA+Zk139Z
-         cKhWIlM0IDAj8AGISdWTPFR06KAv+vJvZhHe/uttNDxRJ0oTdM+O7QuUTJZC7PDfJTxq
-         a+11pQr4fBbltC4CDgkW0fsbKC3L/ILka5ZwYjITyhzDc3RMvb4t78aavl5ccdqavSf8
-         VZ88zRFC8H55u61UiFwM5IUzRnUdbyNvVbrbe6IB0OK5p34k8ObLImKCm9x/NObs4Kqf
-         BYeg==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=ffPtFma0ynnYbg79ruyQpLlhb0Qy2mS6FwTYq/42PQM=;
+        b=d9IiN3uidHMV7WS6HxpJUGQ7rZ/qvICKE1naIcjc1geh3PwIbK3NuDWbB6BQL1fXw5
+         Nj+gtLPcqu0vnII1y8eghPMP133cbeFTdJFTyTYTXigpEOIM5VUiRve9XGIO+LwGa2wK
+         T9FZzozXvg3efmreMeuk86YRjxmW2TuLq3kYTkztoIyZJ+kYCB3QJuS+PDOmQPzu3Jsr
+         bSuaPcMi89VozMv8MA0KHjwv1LwmVQQVucBHXtzZe4Q2T55Buy9XaVxcS+lK4Kmx/G7p
+         TBfloQs3PLFhlHa6IMPm1y5jtS5Blm29/3Zd0EeZ+5TdH4uW5OvGkp9NUmUdnFym+vLx
+         gQtw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=eufME0A1;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q131sor39710168oib.29.2019.08.07.11.47.34
+       dkim=pass header.i=@kernel.org header.s=default header.b=YlgkEarD;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id u46si50288426pgn.578.2019.08.07.12.00.39
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 07 Aug 2019 11:47:34 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Aug 2019 12:00:39 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@intel-com.20150623.gappssmtp.com header.s=20150623 header.b=eufME0A1;
-       spf=pass (google.com: domain of dan.j.williams@intel.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=I3GxMdQgJ16JYM6vB9EqrOMBguT7ZpbwaC2gFsJYblY=;
-        b=eufME0A1waHaRExGiJHdT+bpIpihtaHYpBR1S379jGewd0U+Nt66U62LNva1+eZKmu
-         dhy9pkKzSiX3YZhVm29ptFSIyBc9Y+KnM3g54IwyRgUpFlNR3nZhM4VXnbG2uBy1zBFV
-         nKr26w6ffs+NE6K7g1U5MxcWnDwNmXhcoKU5rHdq7KGHSgy0NS2q5OLROhpdNqxicJ7A
-         nR0Y2nywQGDNILibe7GM19qh275ev59HXQR5ieMatT6CC257JjLV53yo6QaYKhXIebDW
-         LbLROTSOvx0EAQM7DBPCTCsnUDDTtIUa1KL4qhkROxa+QLttpESgrtP/pw7SxNnTfnyE
-         BuOg==
-X-Google-Smtp-Source: APXvYqx9iyAol+nPIwV+xm+JH3PQpbIYdFfNm3nAIBIucjDzbmxREKqG7SEfBZVZpdTmNeOyHJgfGURXESCs2jM413Q=
-X-Received: by 2002:aca:fc50:: with SMTP id a77mr916746oii.0.1565203653206;
- Wed, 07 Aug 2019 11:47:33 -0700 (PDT)
-MIME-Version: 1.0
-References: <20190806160554.14046-1-hch@lst.de> <20190806160554.14046-5-hch@lst.de>
- <20190807174548.GJ1571@mellanox.com>
-In-Reply-To: <20190807174548.GJ1571@mellanox.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 7 Aug 2019 11:47:22 -0700
-Message-ID: <CAPcyv4hPCuHBLhSJgZZEh0CbuuJNPLFDA3f-79FX5uVOO0yubA@mail.gmail.com>
-Subject: Re: [PATCH 04/15] mm: remove the pgmap field from struct hmm_vma_walk
-To: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Ben Skeggs <bskeggs@redhat.com>, Felix Kuehling <Felix.Kuehling@amd.com>, 
-	Ralph Campbell <rcampbell@nvidia.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>, 
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, 
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@kernel.org header.s=default header.b=YlgkEarD;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 8554B21EF2;
+	Wed,  7 Aug 2019 19:00:38 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1565204438;
+	bh=H8GQL47oZOjHGMHt6mc7yPh3DyXvvruf/VfI2fdq1XA=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=YlgkEarDGN0iPkWPaV/pbw5ncD7rQmx4yJoKPQ9nlm4ouA1+CTa9RxYW+98Vy24gI
+	 qJ6E09hPzeZhxEQ6ywpXQDT2SLGtRgRNv3zVoSJY1Fz2VgEHGrOKuc89UnlAoTAMXS
+	 uihlSf1Qg+aa309BG0I7DD0CeJ2fpdTb3Y3u8rXk=
+Date: Wed, 7 Aug 2019 12:00:37 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, jack@suse.cz, hannes@cmpxchg.org, mhocko@kernel.org,
+ vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
+ linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+ kernel-team@fb.com, guro@fb.com
+Subject: Re: [PATCH 2/4] bdi: Add bdi->id
+Message-Id: <20190807120037.72018c136db40e88d89c05d1@linux-foundation.org>
+In-Reply-To: <20190807183151.GM136335@devbig004.ftw2.facebook.com>
+References: <20190803140155.181190-1-tj@kernel.org>
+	<20190803140155.181190-3-tj@kernel.org>
+	<20190806160102.11366694af6b56d9c4ca6ea3@linux-foundation.org>
+	<20190807183151.GM136335@devbig004.ftw2.facebook.com>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 7, 2019 at 10:45 AM Jason Gunthorpe <jgg@mellanox.com> wrote:
->
-> On Tue, Aug 06, 2019 at 07:05:42PM +0300, Christoph Hellwig wrote:
-> > There is only a single place where the pgmap is passed over a function
-> > call, so replace it with local variables in the places where we deal
-> > with the pgmap.
-> >
-> > Signed-off-by: Christoph Hellwig <hch@lst.de>
-> >  mm/hmm.c | 62 ++++++++++++++++++++++++--------------------------------
-> >  1 file changed, 27 insertions(+), 35 deletions(-)
-> >
-> > diff --git a/mm/hmm.c b/mm/hmm.c
-> > index 9a908902e4cc..d66fa29b42e0 100644
-> > +++ b/mm/hmm.c
-> > @@ -278,7 +278,6 @@ EXPORT_SYMBOL(hmm_mirror_unregister);
-> >
-> >  struct hmm_vma_walk {
-> >       struct hmm_range        *range;
-> > -     struct dev_pagemap      *pgmap;
-> >       unsigned long           last;
-> >       unsigned int            flags;
-> >  };
-> > @@ -475,6 +474,7 @@ static int hmm_vma_handle_pmd(struct mm_walk *walk,
-> >  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
-> >       struct hmm_vma_walk *hmm_vma_walk = walk->private;
-> >       struct hmm_range *range = hmm_vma_walk->range;
-> > +     struct dev_pagemap *pgmap = NULL;
-> >       unsigned long pfn, npages, i;
-> >       bool fault, write_fault;
-> >       uint64_t cpu_flags;
-> > @@ -490,17 +490,14 @@ static int hmm_vma_handle_pmd(struct mm_walk *walk,
-> >       pfn = pmd_pfn(pmd) + pte_index(addr);
-> >       for (i = 0; addr < end; addr += PAGE_SIZE, i++, pfn++) {
-> >               if (pmd_devmap(pmd)) {
-> > -                     hmm_vma_walk->pgmap = get_dev_pagemap(pfn,
-> > -                                           hmm_vma_walk->pgmap);
-> > -                     if (unlikely(!hmm_vma_walk->pgmap))
-> > +                     pgmap = get_dev_pagemap(pfn, pgmap);
-> > +                     if (unlikely(!pgmap))
-> >                               return -EBUSY;
->
-> Unrelated to this patch, but what is the point of getting checking
-> that the pgmap exists for the page and then immediately releasing it?
-> This code has this pattern in several places.
->
-> It feels racy
+On Wed, 7 Aug 2019 11:31:51 -0700 Tejun Heo <tj@kernel.org> wrote:
 
-Agree, not sure what the intent is here. The only other reason call
-get_dev_pagemap() is to just check in general if the pfn is indeed
-owned by some ZONE_DEVICE instance, but if the intent is to make sure
-the device is still attached/enabled that check is invalidated at
-put_dev_pagemap().
+> Hello,
+> 
+> On Tue, Aug 06, 2019 at 04:01:02PM -0700, Andrew Morton wrote:
+> > On Sat,  3 Aug 2019 07:01:53 -0700 Tejun Heo <tj@kernel.org> wrote:
+> > > There currently is no way to universally identify and lookup a bdi
+> > > without holding a reference and pointer to it.  This patch adds an
+> > > non-recycling bdi->id and implements bdi_get_by_id() which looks up
+> > > bdis by their ids.  This will be used by memcg foreign inode flushing.
+> > 
+> > Why is the id non-recycling?  Presumably to address some
+> > lifetime/lookup issues, but what are they?
+> 
+> The ID by itself is used to point to the bdi from cgroup and idr
+> recycles really aggressively.  Combined with, for example, loop device
+> based containers, stale pointing can become pretty common.  We're
+> having similar issues with cgroup IDs.
 
-If it's the former case, validating ZONE_DEVICE pfns, I imagine we can
-do something cheaper with a helper that is on the order of the same
-cost as pfn_valid(). I.e. replace PTE_DEVMAP with a mem_section flag
-or something similar.
+OK, but why is recycling a problem?  For example, file descriptors
+recycle as aggressively as is possible, and that doesn't cause any
+trouble.  Presumably recycling is a problem with cgroups because of
+some sort of stale reference problem?
 
->
-> >               }
-> >               pfns[i] = hmm_device_entry_from_pfn(range, pfn) | cpu_flags;
-> >       }
-> > -     if (hmm_vma_walk->pgmap) {
-> > -             put_dev_pagemap(hmm_vma_walk->pgmap);
-> > -             hmm_vma_walk->pgmap = NULL;
->
-> Putting the value in the hmm_vma_walk would have made some sense to me
-> if the pgmap was not set to NULL all over the place. Then the most
-> xa_loads would be eliminated, as I would expect the pgmap tends to be
-> mostly uniform for these use cases.
->
-> Is there some reason the pgmap ref can't be held across
-> faulting/sleeping? ie like below.
-
-No restriction on holding refs over faulting / sleeping.
-
->
-> Anyhow, I looked over this pretty carefully and the change looks
-> functionally OK, I just don't know why the code is like this in the
-> first place.
->
-> Reviewed-by: Jason Gunthorpe <jgg@mellanox.com>
->
-> diff --git a/mm/hmm.c b/mm/hmm.c
-> index 9a908902e4cc38..4e30128c23a505 100644
-> --- a/mm/hmm.c
-> +++ b/mm/hmm.c
-> @@ -497,10 +497,6 @@ static int hmm_vma_handle_pmd(struct mm_walk *walk,
->                 }
->                 pfns[i] = hmm_device_entry_from_pfn(range, pfn) | cpu_flags;
->         }
-> -       if (hmm_vma_walk->pgmap) {
-> -               put_dev_pagemap(hmm_vma_walk->pgmap);
-> -               hmm_vma_walk->pgmap = NULL;
-> -       }
->         hmm_vma_walk->last = end;
->         return 0;
->  #else
-> @@ -604,10 +600,6 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, unsigned long addr,
->         return 0;
->
->  fault:
-> -       if (hmm_vma_walk->pgmap) {
-> -               put_dev_pagemap(hmm_vma_walk->pgmap);
-> -               hmm_vma_walk->pgmap = NULL;
-> -       }
->         pte_unmap(ptep);
->         /* Fault any virtual address we were asked to fault */
->         return hmm_vma_walk_hole_(addr, end, fault, write_fault, walk);
-> @@ -690,16 +682,6 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
->                         return r;
->                 }
->         }
-> -       if (hmm_vma_walk->pgmap) {
-> -               /*
-> -                * We do put_dev_pagemap() here and not in hmm_vma_handle_pte()
-> -                * so that we can leverage get_dev_pagemap() optimization which
-> -                * will not re-take a reference on a pgmap if we already have
-> -                * one.
-> -                */
-> -               put_dev_pagemap(hmm_vma_walk->pgmap);
-> -               hmm_vma_walk->pgmap = NULL;
-> -       }
->         pte_unmap(ptep - 1);
->
->         hmm_vma_walk->last = addr;
-> @@ -751,10 +733,6 @@ static int hmm_vma_walk_pud(pud_t *pudp,
->                         pfns[i] = hmm_device_entry_from_pfn(range, pfn) |
->                                   cpu_flags;
->                 }
-> -               if (hmm_vma_walk->pgmap) {
-> -                       put_dev_pagemap(hmm_vma_walk->pgmap);
-> -                       hmm_vma_walk->pgmap = NULL;
-> -               }
->                 hmm_vma_walk->last = end;
->                 return 0;
->         }
-> @@ -1026,6 +1004,14 @@ long hmm_range_fault(struct hmm_range *range, unsigned int flags)
->                         /* Keep trying while the range is valid. */
->                 } while (ret == -EBUSY && range->valid);
->
-> +               /*
-> +                * We do put_dev_pagemap() here so that we can leverage
-> +                * get_dev_pagemap() optimization which will not re-take a
-> +                * reference on a pgmap if we already have one.
-> +                */
-> +               if (hmm_vma_walk->pgmap)
-> +                       put_dev_pagemap(hmm_vma_walk->pgmap);
-> +
-
-Seems ok, but only if the caller is guaranteeing that the range does
-not span outside of a single pagemap instance. If that guarantee is
-met why not just have the caller pass in a pinned pagemap? If that
-guarantee is not met, then I think we're back to your race concern.
 
