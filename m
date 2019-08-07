@@ -2,239 +2,235 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 02062C433FF
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 12:58:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A9130C32754
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 13:17:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B81B121BE3
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 12:58:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B81B121BE3
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 42BD421E6E
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 13:17:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 42BD421E6E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4CF306B0003; Wed,  7 Aug 2019 08:58:29 -0400 (EDT)
+	id AB57A6B0003; Wed,  7 Aug 2019 09:17:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4831F6B0006; Wed,  7 Aug 2019 08:58:29 -0400 (EDT)
+	id A65CF6B0006; Wed,  7 Aug 2019 09:17:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 36F696B0007; Wed,  7 Aug 2019 08:58:29 -0400 (EDT)
+	id 905516B0007; Wed,  7 Aug 2019 09:17:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id DA64F6B0003
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 08:58:28 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id m23so56011508edr.7
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 05:58:28 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 4196E6B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 09:17:10 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id l26so56148610eda.2
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 06:17:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=Ld9G8s52mUgVqlwLTqPePoM9iCKTubDk7WMu/oo2f+A=;
-        b=ggTMx8jo6lmVKNluHC72cnh+xLMyHr0qw4DQrAhQu6ptV8NVuTt3B1ohzGQeL13MbF
-         JMUY1wWMKWkU965PBpf0LGFVqK9r8MKyDWuzSgAIxAlQqLewlzbYfZmKhPlh59+CaRKg
-         F5tqqjAO0Mugjgr/52FR45dW8vWqwFxVBLSVc086hhXULT5GUlhGX5k+b1Mjw/rBhP/X
-         blTkWJA4CKwaomyw46CYuyP37Mc1/gz8YTDIFFrG4Ocq3H76yTD4OjbbFnGS2SyB73fh
-         dbq+yAClRm4bF4ZfIuEmLWMl21Qy9oV7jQmlH4/+4DT6U5wiAgPthTDCh9JxpZ39g6Nv
-         GyKg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAUOean3AeCnTzmvPBNaYrV7WenCzcNpf4uOom6H6dKZVhki4si9
-	H67CkhfPgv3JHJQNN9YR2OH0kdUjIFFe936gb+KS4CGDb5rbj51Bq8vvpB+2Bm3oEixuWjNjxlG
-	FVZctmB0s/Wk6e3H5bnb1UNm3oq1UrE21UxYpoL0vgl1/Tn7RSvq92TZHYP0XWYECEA==
-X-Received: by 2002:a17:906:9385:: with SMTP id l5mr8108464ejx.8.1565182708404;
-        Wed, 07 Aug 2019 05:58:28 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyI6gWfS1kyaWB2bnTabq2hK+XWcliKvwcebf9DswIYYEdh9qJI891Dr9pihiITeb6Ru+8C
-X-Received: by 2002:a17:906:9385:: with SMTP id l5mr8108393ejx.8.1565182707196;
-        Wed, 07 Aug 2019 05:58:27 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565182707; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=6bbpWCfLPXd0AVJQI3D0LytYMfYJgdGWYxQ9L3NDXHg=;
+        b=kfJV6A1SmX4woiKyvZaNPaaw1kKolc1vFpi6F4Tf68lSRq/8q/OnqQTnHHEFmHYjsT
+         Ti4yPeeLRpSM6k+Ori5GNkrIfP3apJYCbCjOYSq/Y61XsmIQPBxdUmCaYhXT+q+5NK5g
+         BgJdGiwKe6OYfIq4oAMVjZYoSBerhT75EsW0JQg4P2cX2ah3VB4R4gLv64ylC3zqTCut
+         qxvSBUo8WouZ/f5JQeRDVJaUecIhIlrnzGQ0ArogxTYGsSNdVojh7ARe7CIlNpPK53aF
+         2C7BL/s02T71Gbenh23yFWGeRTSDdm4GZqGgGoP5BpSjKMwDx1HueTninoL+4xAQUM9x
+         7qOA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUkbBbD7W6BlZzN1gg/e8/rtwv30NXtOZzok7r97Io8KqANwRGF
+	xhlNfjK5XtOPjdoOmrpDR1BpusdpoBx3yoVr6hq1vZDWXjJeP2G2C+W1vzuN54/e7trtq0BgaN5
+	sfpJCCZ6DdlB/iI1TdaigHcn/Nt24cSJc0LZ3QEd5NDmF7bTwEoELfwRqW1Pm1fU=
+X-Received: by 2002:a17:906:9447:: with SMTP id z7mr8334733ejx.165.1565183829736;
+        Wed, 07 Aug 2019 06:17:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxq9eqwUH3sXEiHxZ1hRFvD6rDAxU8vRIauMv0uFFfnm3WJzYl+Io8s58tGySLR6ApXd69n
+X-Received: by 2002:a17:906:9447:: with SMTP id z7mr8334624ejx.165.1565183828467;
+        Wed, 07 Aug 2019 06:17:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565183828; cv=none;
         d=google.com; s=arc-20160816;
-        b=qr7yD/LPVXfqpZ67HE0yIpG15Y5GyxqRZdtWgCgrpSmPIiZa0r2QtuLkzN7Uxjdii7
-         yP+8OU2Guu8rLYJiJ0ZhfZM3mOxxPl1ZhPgVZZtfuRkthY3/8p3l6i4ovKUlJOyCiXni
-         dOfyzWZkQWTdJzNdX3VtmA95dOCTUe+i090E5ivDpLGhg1wkwVQd6A/RVvSbi2R3z5o+
-         9fUigrTbKJAye/c43P+iESQ9IBd/M7iCJ14/l2jPzadqB0vdF2kRjux1T8PyUwR8SpCR
-         fiOoB1nFEAPKec+MjgeO23dVIWPH7Y2U2mKQg+RMprMlgzLlTc6sDzboffudBpQ/Ohet
-         yZqg==
+        b=X5vbXBwWwMpbs3hcuqT4nZKH9Uu8Obm51XUMl7hxl+OXWiiemdxC0Cimzv0muSB8t4
+         9rNs6oEsxIvaKmL7XRj7UbOE+QvIQ2GZTYab6jgeRVEUvreFZQXvup4SfNqSB/AAtVv5
+         gltZcpef6Sl0cOmtIYyY06jGkeKmSJxMaDBfYLxSqxid3WMA3UXWuop0xF4qhvTIcyuI
+         LNeXXlRv5nQsE2Qxfane/sbBIVqc310Qgn/w8itt7fyIV8F6hIoh5VKnKujhR19h537o
+         grbViwT9AvkB3f58awS6MaNHBAUp6tVzgmCSsgO1qldW5dvEPD6OmgDVu1Nyc05MWdHe
+         /pRA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=Ld9G8s52mUgVqlwLTqPePoM9iCKTubDk7WMu/oo2f+A=;
-        b=CDmtxaxiQD9P9ZFhcML4Ue9yjntX9OQOhad/A/B9r/W+e63co/WerKiLhoooa28Zo0
-         BHB0eiNtsLyZawCVppPmNRBXuNfiTzPFyskjnM89E/GIMx9LZssI0erl5uvHEM4ViCiC
-         03EH8sufKqRDdeRBfn7e0iH0q76Ql7NGLNbYJ+0Cztxn1xrJho8dpMnpNFHWbgd3xh1g
-         QocSwr5Qfw/xq2VDoUdjWDLYOeECdBOXQa1NQJvzQhzTq2CvNJMYMmiz2L3D4GN/MgfJ
-         sBhuGavZQ4qSAE4v89EbAz1Oz4gKyU3de7QsIK+P2PpEc73f+He3Figuo372Ndj3TJck
-         oVlw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=6bbpWCfLPXd0AVJQI3D0LytYMfYJgdGWYxQ9L3NDXHg=;
+        b=L89L+4ny6FCb6ehr5DbgGVNNc069GXku94gSN5A7yhE6hd5Ctvt5/yyy+j5J3RO1Cb
+         9jnYuLCpAMP7KpsOfqeSCP83FniAdpuUv3n+HJpTb+84gzX7vWWcnsCbN850rlA6wrFe
+         SigoETNQvV+gyP2gk7uhxAUROiXj8RtYCPO89LG8eUqo1oM2m5sBy7V1K6sIGnLncRRN
+         9BnYdGnaOLUFASGY0dCZpeNoYvLvW7tXiR4S6v6cik24CmEeQE8GezIXuN8YFnNMvLhW
+         8MaQFIg+IzuRU2VWNP8AI5dkEk8Xn37rvR1m8t9rLIXu2+oDKVBqtL3eYJe9Vui4z1yE
+         CrDw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id p32si32493868eda.51.2019.08.07.05.58.25
-        for <linux-mm@kvack.org>;
-        Wed, 07 Aug 2019 05:58:26 -0700 (PDT)
-Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id m12si33736739edm.38.2019.08.07.06.17.08
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Aug 2019 06:17:08 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D9E2B28;
-	Wed,  7 Aug 2019 05:58:24 -0700 (PDT)
-Received: from [10.1.196.133] (e112269-lin.cambridge.arm.com [10.1.196.133])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 493D93F575;
-	Wed,  7 Aug 2019 05:58:22 -0700 (PDT)
-Subject: Re: [PATCH v10 20/22] x86: mm: Convert dump_pagetables to use
- walk_page_range
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Mark Rutland <Mark.Rutland@arm.com>, x86@kernel.org,
- Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
- Peter Zijlstra <peterz@infradead.org>,
- Catalin Marinas <catalin.marinas@arm.com>,
- Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org,
- linux-mm@kvack.org, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
- Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
- Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
- James Morse <james.morse@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
- Will Deacon <will@kernel.org>, linux-arm-kernel@lists.infradead.org,
- "Liang, Kan" <kan.liang@linux.intel.com>
-References: <20190731154603.41797-1-steven.price@arm.com>
- <20190731154603.41797-21-steven.price@arm.com>
- <20190806165823.3f735b45a7c4163aca20a767@linux-foundation.org>
-From: Steven Price <steven.price@arm.com>
-Message-ID: <066fa4ca-5a46-ba86-607f-9c3e16f79cde@arm.com>
-Date: Wed, 7 Aug 2019 13:58:21 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id CD87EAE34;
+	Wed,  7 Aug 2019 13:17:07 +0000 (UTC)
+Date: Wed, 7 Aug 2019 15:17:06 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
+	"adobriyan@gmail.com" <adobriyan@gmail.com>,
+	"hch@lst.de" <hch@lst.de>,
+	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+	Junichi Nomura <j-nomura@ce.jp.nec.com>,
+	"stable@vger.kernel.org" <stable@vger.kernel.org>
+Subject: Re: [PATCH 2/2] /proc/kpageflags: do not use uninitialized struct
+ pages
+Message-ID: <20190807131706.GA11812@dhcp22.suse.cz>
+References: <20190725023100.31141-1-t-fukasawa@vx.jp.nec.com>
+ <20190725023100.31141-3-t-fukasawa@vx.jp.nec.com>
+ <20190725090341.GC13855@dhcp22.suse.cz>
+ <40b3078e-fb8b-87ef-5c4e-6321956cc940@vx.jp.nec.com>
+ <20190726070615.GB6142@dhcp22.suse.cz>
+ <3a926ce5-75b9-ea94-d6e4-6888872e0dc4@vx.jp.nec.com>
+ <CAPcyv4iCXWgxkLi3eM_EaqD0cuzmRyg5k4c9CeS1TyN+bajXFw@mail.gmail.com>
+ <20190806064636.GU7597@dhcp22.suse.cz>
+ <CAPcyv4i5FjTOnPbXNcTzvt+e6RQYow0JRQwSFuxaa62LSuvzHQ@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <20190806165823.3f735b45a7c4163aca20a767@linux-foundation.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4i5FjTOnPbXNcTzvt+e6RQYow0JRQwSFuxaa62LSuvzHQ@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/08/2019 00:58, Andrew Morton wrote:
-> On Wed, 31 Jul 2019 16:46:01 +0100 Steven Price <steven.price@arm.com> wrote:
+On Tue 06-08-19 09:15:25, Dan Williams wrote:
+> On Mon, Aug 5, 2019 at 11:47 PM Michal Hocko <mhocko@kernel.org> wrote:
+> >
+> > On Mon 05-08-19 20:27:03, Dan Williams wrote:
+> > > On Sun, Aug 4, 2019 at 10:31 PM Toshiki Fukasawa
+> > > <t-fukasawa@vx.jp.nec.com> wrote:
+> > > >
+> > > > On 2019/07/26 16:06, Michal Hocko wrote:
+> > > > > On Fri 26-07-19 06:25:49, Toshiki Fukasawa wrote:
+> > > > >>
+> > > > >>
+> > > > >> On 2019/07/25 18:03, Michal Hocko wrote:
+> > > > >>> On Thu 25-07-19 02:31:18, Toshiki Fukasawa wrote:
+> > > > >>>> A kernel panic was observed during reading /proc/kpageflags for
+> > > > >>>> first few pfns allocated by pmem namespace:
+> > > > >>>>
+> > > > >>>> BUG: unable to handle page fault for address: fffffffffffffffe
+> > > > >>>> [  114.495280] #PF: supervisor read access in kernel mode
+> > > > >>>> [  114.495738] #PF: error_code(0x0000) - not-present page
+> > > > >>>> [  114.496203] PGD 17120e067 P4D 17120e067 PUD 171210067 PMD 0
+> > > > >>>> [  114.496713] Oops: 0000 [#1] SMP PTI
+> > > > >>>> [  114.497037] CPU: 9 PID: 1202 Comm: page-types Not tainted 5.3.0-rc1 #1
+> > > > >>>> [  114.497621] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.11.0-0-g63451fca13-prebuilt.qemu-project.org 04/01/2014
+> > > > >>>> [  114.498706] RIP: 0010:stable_page_flags+0x27/0x3f0
+> > > > >>>> [  114.499142] Code: 82 66 90 66 66 66 66 90 48 85 ff 0f 84 d1 03 00 00 41 54 55 48 89 fd 53 48 8b 57 08 48 8b 1f 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48> 8b 00 f6 c4 02 0f 84 57 03 00 00 45 31 e4 48 8b 55 08 48 89 ef
+> > > > >>>> [  114.500788] RSP: 0018:ffffa5e601a0fe60 EFLAGS: 00010202
+> > > > >>>> [  114.501373] RAX: fffffffffffffffe RBX: ffffffffffffffff RCX: 0000000000000000
+> > > > >>>> [  114.502009] RDX: 0000000000000001 RSI: 00007ffca13a7310 RDI: ffffd07489000000
+> > > > >>>> [  114.502637] RBP: ffffd07489000000 R08: 0000000000000001 R09: 0000000000000000
+> > > > >>>> [  114.503270] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000240000
+> > > > >>>> [  114.503896] R13: 0000000000080000 R14: 00007ffca13a7310 R15: ffffa5e601a0ff08
+> > > > >>>> [  114.504530] FS:  00007f0266c7f540(0000) GS:ffff962dbbac0000(0000) knlGS:0000000000000000
+> > > > >>>> [  114.505245] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> > > > >>>> [  114.505754] CR2: fffffffffffffffe CR3: 000000023a204000 CR4: 00000000000006e0
+> > > > >>>> [  114.506401] Call Trace:
+> > > > >>>> [  114.506660]  kpageflags_read+0xb1/0x130
+> > > > >>>> [  114.507051]  proc_reg_read+0x39/0x60
+> > > > >>>> [  114.507387]  vfs_read+0x8a/0x140
+> > > > >>>> [  114.507686]  ksys_pread64+0x61/0xa0
+> > > > >>>> [  114.508021]  do_syscall_64+0x5f/0x1a0
+> > > > >>>> [  114.508372]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
+> > > > >>>> [  114.508844] RIP: 0033:0x7f0266ba426b
+> > > > >>>>
+> > > > >>>> The reason for the panic is that stable_page_flags() which parses
+> > > > >>>> the page flags uses uninitialized struct pages reserved by the
+> > > > >>>> ZONE_DEVICE driver.
+> > > > >>>
+> > > > >>> Why pmem hasn't initialized struct pages?
+> > > > >>
+> > > > >> We proposed to initialize in previous approach but that wasn't merged.
+> > > > >> (See https://marc.info/?l=linux-mm&m=152964792500739&w=2)
+> > > > >>
+> > > > >>> Isn't that a bug that should be addressed rather than paper over it like this?
+> > > > >>
+> > > > >> I'm not sure. What do you think, Dan?
+> > > > >
+> > > > > Yeah, I am really curious about details. Why do we keep uninitialized
+> > > > > struct pages at all? What is a random pfn walker supposed to do? What
+> > > > > kind of metadata would be clobbered? In other words much more details
+> > > > > please.
+> > > > >
+> > > > I also want to know. I do not think that initializing struct pages will
+> > > > clobber any metadata.
+> > >
+> > > The nvdimm implementation uses vmem_altmap to arrange for the 'struct
+> > > page' array to be allocated from a reservation of a pmem namespace. A
+> > > namespace in this mode contains an info-block that consumes the first
+> > > 8K of the namespace capacity, capacity designated for page mapping,
+> > > capacity for padding the start of data to optionally 4K, 2MB, or 1GB
+> > > (on x86), and then the namespace data itself. The implementation
+> > > specifies a section aligned (now sub-section aligned) address to
+> > > arch_add_memory() to establish the linear mapping to map the metadata,
+> > > and then vmem_altmap indicates to memmap_init_zone() which pfns
+> > > represent data. The implementation only specifies enough 'struct page'
+> > > capacity for pfn_to_page() to operate on the data space, not the
+> > > namespace metadata space.
+> >
+> > Maybe I am dense but I do not really understand what prevents those
+> > struct pages to be initialized to whatever state nvidimm subsystem
+> > expects them to be? Is that a initialization speed up optimization?
 > 
->> Make use of the new functionality in walk_page_range to remove the
->> arch page walking code and use the generic code to walk the page tables.
->>
->> The effective permissions are passed down the chain using new fields
->> in struct pg_state.
->>
->> The KASAN optimisation is implemented by including test_p?d callbacks
->> which can decide to skip an entire tree of entries
->>
->> ...
->>
->> +static const struct ptdump_range ptdump_ranges[] = {
->> +#ifdef CONFIG_X86_64
->>  
->> -#define pgd_large(a) (pgtable_l5_enabled() ? pgd_large(a) : p4d_large(__p4d(pgd_val(a))))
->> -#define pgd_none(a)  (pgtable_l5_enabled() ? pgd_none(a) : p4d_none(__p4d(pgd_val(a))))
->> +#define normalize_addr_shift (64 - (__VIRTUAL_MASK_SHIFT + 1))
->> +#define normalize_addr(u) ((signed long)(u << normalize_addr_shift) \
->> +				>> normalize_addr_shift)
->>  
->> -static inline bool is_hypervisor_range(int idx)
->> -{
->> -#ifdef CONFIG_X86_64
->> -	/*
->> -	 * A hole in the beginning of kernel address space reserved
->> -	 * for a hypervisor.
->> -	 */
->> -	return	(idx >= pgd_index(GUARD_HOLE_BASE_ADDR)) &&
->> -		(idx <  pgd_index(GUARD_HOLE_END_ADDR));
->> +	{0, PTRS_PER_PGD * PGD_LEVEL_MULT / 2},
->> +	{normalize_addr(PTRS_PER_PGD * PGD_LEVEL_MULT / 2), ~0UL},
+> No, not an optimization. If anything a regrettable choice in the
+> initial implementation to not reserve struct page space for the
+> metadata area. Certainly the kernel could fix this going forward, and
+> there are some configurations where even the existing allocation could
+> store those pfns, but there are others that need that reservation. So
+> there is a regression risk for some currently working configurations.
 > 
-> This blows up because PGD_LEVEL_MULT is sometimes not a constant.
+> As always we could try making the reservation change and fail to
+> instantiate old namespaces that don't reserve enough capacity to see
+> who screams. I think the risk is low, but non-zero. That makes my
+> first choice to teach kpageflags_read() about the constraint.
+
+Thanks for the explanation!
+
+> > > The proposal to validate ZONE_DEVICE pfns against the altmap seems the
+> > > right approach to me.
+> >
+> > This however means that all pfn walkers have to be aware of these
+> > special struct pages somehow and that is error prone.
 > 
-> x86_64 allmodconfig:
-> 
-> In file included from ./arch/x86/include/asm/pgtable_types.h:249:0,
->                  from ./arch/x86/include/asm/paravirt_types.h:45,
->                  from ./arch/x86/include/asm/ptrace.h:94,
->                  from ./arch/x86/include/asm/math_emu.h:5,
->                  from ./arch/x86/include/asm/processor.h:12,
->                  from ./arch/x86/include/asm/cpufeature.h:5,
->                  from ./arch/x86/include/asm/thread_info.h:53,
->                  from ./include/linux/thread_info.h:38,
->                  from ./arch/x86/include/asm/preempt.h:7,
->                  from ./include/linux/preempt.h:78,
->                  from ./include/linux/spinlock.h:51,
->                  from ./include/linux/wait.h:9,
->                  from ./include/linux/wait_bit.h:8,
->                  from ./include/linux/fs.h:6,
->                  from ./include/linux/debugfs.h:15,
->                  from arch/x86/mm/dump_pagetables.c:11:
-> ./arch/x86/include/asm/pgtable_64_types.h:56:22: error: initializer element is not constant
->  #define PTRS_PER_PGD 512
->                       ^
+> True, but what other blind pfn walkers do we have besides
+> kpageflags_read()? I expect most other pfn_to_page() code paths are
+> constrained to known pfns and avoid this surprise, but yes I need to
+> go audit those.
 
-This is very unhelpful of GCC - it's actually PTRS_PER_P4D which isn't
-constant!
+Well, most pfn walkers in the MM code do go within a zone boundary. Many
+check also the zone to ensure interleaving zones are handled properly. I
+hope that these special zone device ranges are not going to interleave
+with other normal zones. But as always having a subtle land mine like
+this is really not nice. All valid pfns should have a real and
+initialized struct pages.
 
-> arch/x86/mm/dump_pagetables.c:363:6: note: in expansion of macro ‘PTRS_PER_PGD’
->   {0, PTRS_PER_PGD * PGD_LEVEL_MULT / 2},
->       ^~~~~~~~~~~~
-> ./arch/x86/include/asm/pgtable_64_types.h:56:22: note: (near initialization for ‘ptdump_ranges[0].end’)
->  #define PTRS_PER_PGD 512
->                       ^
-> arch/x86/mm/dump_pagetables.c:363:6: note: in expansion of macro ‘PTRS_PER_PGD’
->   {0, PTRS_PER_PGD * PGD_LEVEL_MULT / 2},
->       ^~~~~~~~~~~~
-> arch/x86/mm/dump_pagetables.c:360:27: error: initializer element is not constant
->  #define normalize_addr(u) ((signed long)(u << normalize_addr_shift) \
->                            ^
-> arch/x86/mm/dump_pagetables.c:364:3: note: in expansion of macro ‘normalize_addr’
->   {normalize_addr(PTRS_PER_PGD * PGD_LEVEL_MULT / 2), ~0UL},
->    ^~~~~~~~~~~~~~
-> arch/x86/mm/dump_pagetables.c:360:27: note: (near initialization for ‘ptdump_ranges[1].start’)
->  #define normalize_addr(u) ((signed long)(u << normalize_addr_shift) \
->                            ^
-> arch/x86/mm/dump_pagetables.c:364:3: note: in expansion of macro ‘normalize_addr’
->   {normalize_addr(PTRS_PER_PGD * PGD_LEVEL_MULT / 2), ~0UL},
-> 
-> I don't know what to do about this so I'll drop the series.
-
-My best solution to this is to simply make ptdump_ranges dynamic (see
-below). But there are other problems with this series (thanks for
-spotting them), so I'll send out another version later.
-
-Thanks,
-
-Steve
-
-----8<-----
-diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
-index 998c7f46763c..8fc129ff985e 100644
---- a/arch/x86/mm/dump_pagetables.c
-+++ b/arch/x86/mm/dump_pagetables.c
-@@ -353,7 +353,10 @@ static void note_page(struct ptdump_state *pt_st,
-unsigned long addr, int level,
-        }
- }
-
--static const struct ptdump_range ptdump_ranges[] = {
-+static void ptdump_walk_pgd_level_core(struct seq_file *m, struct
-mm_struct *mm,
-+                                      bool checkwx, bool dmesg)
-+{
-+       const struct ptdump_range ptdump_ranges[] = {
- #ifdef CONFIG_X86_64
-
- #define normalize_addr_shift (64 - (__VIRTUAL_MASK_SHIFT + 1))
-@@ -368,9 +371,6 @@ static const struct ptdump_range ptdump_ranges[] = {
-        {0, 0}
- };
-
--static void ptdump_walk_pgd_level_core(struct seq_file *m, struct
-mm_struct *mm,
--                                      bool checkwx, bool dmesg)
--{
-        struct pg_state st = {
-                .ptdump = {
-                        .note_page      = note_page,
+-- 
+Michal Hocko
+SUSE Labs
 
