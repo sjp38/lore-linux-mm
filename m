@@ -2,184 +2,283 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CFF0C32751
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 21:55:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 151C2C32751
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 22:09:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D71C02187F
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 21:55:53 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="iLFial3W"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D71C02187F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
+	by mail.kernel.org (Postfix) with ESMTP id 9DF5C21872
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 22:09:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9DF5C21872
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 75A9F6B0003; Wed,  7 Aug 2019 17:55:53 -0400 (EDT)
+	id E2DA16B0003; Wed,  7 Aug 2019 18:09:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6E46F6B0006; Wed,  7 Aug 2019 17:55:53 -0400 (EDT)
+	id DDF306B0006; Wed,  7 Aug 2019 18:09:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 586246B0007; Wed,  7 Aug 2019 17:55:53 -0400 (EDT)
+	id CCE166B0007; Wed,  7 Aug 2019 18:09:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 206306B0003
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 17:55:53 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id h27so57558856pfq.17
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 14:55:53 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 9621B6B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 18:09:30 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id n9so52945123pgq.4
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 15:09:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=fPDNifyL3Y36NBVemhHSXF79qGomK0S4tenrlniMG8c=;
-        b=Fbost1nlOYCemWPISqFm/8PibMjxRKUUeE/V3QW3UtDoPjaut0spdphG+Su89qdNlA
-         4vjh3FhO3I732HPfBpYNCRD8rgzFQ+um7Jz+Hgdm8wE8e79naVzMogFh0jRIq89uaJi6
-         +dN4+jjhsOBe6S6ieEFtcKa0kzy79ldkGQgzFL7RflvFiRfbmK22B7Mn2zZmz+482dfB
-         87P4KJ8wlV8wN6IrAYwow7aUAJfWnF+Q1JXQvBtG/Vd1KhKdxQUxtnuhK8EiFnG3Mbnk
-         J3fGTA/zXhzNnUOozNjiiMdpg9X8790Mdm5qiTTjon6MtavTcx08kbiBlX2XrOriKTEB
-         P9nQ==
-X-Gm-Message-State: APjAAAU58L0BdrWcDxSD7eGyvpGtcoaNu8aC8DkUA33RItJUG5Q12HY2
-	d2Bv2mlc9nrGn43Rkjk9nzog3zSUMQAsDAWn4k4i2lhiBfi0CySfVrfvAs0vu4KkNdqg8XrWNMz
-	Y6YbNU4DYLWZmU6wZRA19z4+vo5BHbuownnfvl2UEqlw0jLQy7sYXV9zA5R6RRohjKg==
-X-Received: by 2002:a17:902:f089:: with SMTP id go9mr10162514plb.81.1565214952760;
-        Wed, 07 Aug 2019 14:55:52 -0700 (PDT)
-X-Received: by 2002:a17:902:f089:: with SMTP id go9mr10162480plb.81.1565214951954;
-        Wed, 07 Aug 2019 14:55:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565214951; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=vmPkNBgNlFQ9adG63g0GQxKzNCZ9DMpZw6H199DEceM=;
+        b=L304Bi1xMl3jvMRhepaa8v6shC5YyqUqG1vPWmYOWJHXB0QROtRSkai8MQHDwnZkhm
+         /wt1flWkeYy1wWZeXAmb9PCYZcCOBzz9ODhc5GKDpHkxbB6g0o+k0sHUTA5PEIf0JuGM
+         i61Shgg03LopoeSWKmvRxsJcTTzP4IF4eNkWPl/h8h2thXuIGpqhrzHABzwAbwkeUr/Y
+         dlLN4Ib7jitq2eIk9qVJagfu7ROCkKzfi+I+F/c5WMOP775FG7QFIDcJeQI4fqxNzSVa
+         RQpe9m0S+M0bERiBJuvGYVNsV/Jgd3BJL9h1REp93swsEON0LE1Kfan4qKgIPs/8j7Dy
+         mC4w==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAWTJuKKqqVy/dUh/FWq2SBhoP5YrCoMoJNPRcTH/cvdqnUMI//7
+	poW3dR/MF3DEF9sem3jlrVl53Fk8laMFxnOzrHD+g8BSWmcupU/IXSeDMQa/AtTKbbAAy+X5ren
+	3IohKqar63m/NbWHDXP7m51NGymy84/BQPl+7iNV267WtwcAqIWcX2kn06qEtQdo=
+X-Received: by 2002:a17:902:100a:: with SMTP id b10mr10052985pla.338.1565215770085;
+        Wed, 07 Aug 2019 15:09:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwJZLk2doJP3qNRt1qyLZxLod1XVoQUmIp9ELfgKd8M10tQrrxDEkkDdo3quqdTyF7B6n9K
+X-Received: by 2002:a17:902:100a:: with SMTP id b10mr10052912pla.338.1565215768900;
+        Wed, 07 Aug 2019 15:09:28 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565215768; cv=none;
         d=google.com; s=arc-20160816;
-        b=mDqwF9z8B4AqRDqcRkGAR1548LZKg4ab6XWxkQrt/U6MrTf6Bd7mjCg27FSpUdgNM1
-         ialXUhXm7qIAkrlFvQZ7RiEKDjzb3wJlj1P4xkuVZx51Ujnj72NPVbhXc/66VMkoRCa9
-         KDnJLSfANrDuIjZ+ko/JeX+TY7cCbVkZTxGRi2Te3zTUZZ6HHnqdlGhK/9gJeVbGY/b+
-         lLzY2HnMMFkoNRGuaP9xRl6tzwNk9dnguq+rhDXwj/P/z283662IOfx1CdmMJCn2GoNU
-         6H2DKW+sNqD1ti+oKVSkBO74lkM5ybptu+5zTYta3v06buLyWjW3OqFq9MKOrojtOL84
-         0lGQ==
+        b=KmIkuL4QU0Dr7Q69IO6x0Gagws76JySdG5UpoIuHxt1hLmOMedcu6tkhq/ErKdYtJh
+         b1mStmM4w8/gUtDJltDaDcOPuq++VDuxLCKk6t0tFq87k0qrWYKymA64ZPeDyPS3AFKV
+         DWJhWeiVFAdwHtz8wI08n8N8eVm+eglbT6p/9t/vi44GX1avG4FP28yyW5+pXwid/MAC
+         MwkKIxQUFJ5s7+lUTTGq4NLFYXFfePLZngStlTqx6o8xzK/ObEmtL5PG0d+HKQu+SHy7
+         2uTX5qEwTKQUd0F+z+aXeZCQ/shsc/TGfZQZvhEJ3WPYlGwPykHD+w63DMsid0uaoQXH
+         9HNQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=fPDNifyL3Y36NBVemhHSXF79qGomK0S4tenrlniMG8c=;
-        b=GVf8YinoXnhWq+1TlzJ8m4RBpn5QtdnGBMxdkKs2NQNcPHlZwepRPR21rM2HIb52EW
-         Kom9Rhirky4f3qoDaoveiKGu0WcumgORHq4WCf0c/Tf8eOH8qGrohExWAlHJ8VrjWAm9
-         8gSTn+/JRROI/YCiGSGAvvxem2MXMPsf6virP1+qc8NTO87ia3NNKj0EKiA8q6f48T9q
-         SZeBUkW0/hLB/WS0Vo9HZBUwTxCtl6QGiKyJXGDTtR5O/P4DLzlO2ZD4/qct9Gbz1WEm
-         uqKz/gf/8EOX5dZVUGvBd+dk5JoRl/UxfAib59yKHm6GNrT8EJms/jRwggHWU6XZj5qI
-         Sh3Q==
+         :message-id:subject:cc:to:from:date;
+        bh=vmPkNBgNlFQ9adG63g0GQxKzNCZ9DMpZw6H199DEceM=;
+        b=lQayR3UbeIQfL3oUHSCWJiYlipGqlkHJeCMHOhy87UL+FqpynAv1+7kyDnkcurhYTB
+         t9kENv1KSItyN0UchQeTTiqV6qk8zc4QM3x1OsDvg6ItTYTezhvtEaIXXG5pfiFQv2vo
+         gDusQ2HbyDaA5c19zI795UsIjsONabRbtsBt9FAujJKJRAvQk9HkknG2men+hO9ki3ke
+         261HpbZuHqgFpwMoB3q1CYD7+Q5Cs6xDa3fhG4/XbzRHAgoHGeAuhsc28ybRzNzFNdP5
+         W6OCmjbGjZm4viY7NiXEK9Eo8jYrSfuP7M3HKqNi/IfzqWd9yIqM4Oko4BpUZxujaA7R
+         ImuA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=iLFial3W;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d6sor72286524pfd.59.2019.08.07.14.55.51
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 07 Aug 2019 14:55:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au. [211.29.132.246])
+        by mx.google.com with ESMTP id r4si56783812pfg.26.2019.08.07.15.09.28
+        for <linux-mm@kvack.org>;
+        Wed, 07 Aug 2019 15:09:28 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.246;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=iLFial3W;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=joelfernandes.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=fPDNifyL3Y36NBVemhHSXF79qGomK0S4tenrlniMG8c=;
-        b=iLFial3WG2Y7hC5RmH/BPZMbk7K/mSRsub86lIBJhU4yCFb7muLzqQlM2Rw/ElKGgC
-         SFjKYwdRoliyNAlbyClW8nV7pvHzWz0n8BGIO7Li2Qvwc3w0FvMgmdrCGjAVrSK9JbBy
-         BL0fPr4WaEXa+YoPzJ+O512HUakd8rmUXyXUM=
-X-Google-Smtp-Source: APXvYqxtYbX1J2T4gE/+OoiVyWtnb2A4+C1faUKsGzqUpJz/BeHl7Ul7v7RUi0zJvoSnKkCTeSkNNg==
-X-Received: by 2002:aa7:9afc:: with SMTP id y28mr11421501pfp.252.1565214951446;
-        Wed, 07 Aug 2019 14:55:51 -0700 (PDT)
-Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
-        by smtp.gmail.com with ESMTPSA id z4sm79672843pgp.80.2019.08.07.14.55.50
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 07 Aug 2019 14:55:50 -0700 (PDT)
-Date: Wed, 7 Aug 2019 17:55:49 -0400
-From: Joel Fernandes <joel@joelfernandes.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
-	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
-	fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
-	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>,
-	Kees Cook <keescook@chromium.org>, kernel-team@android.com,
-	linux-api@vger.kernel.org, linux-doc@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
-	Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.ibm.com>,
-	minchan@kernel.org, namhyung@google.com, paulmck@linux.ibm.com,
-	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
-	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
-	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
-Subject: Re: [PATCH v5 1/6] mm/page_idle: Add per-pid idle page tracking
- using virtual index
-Message-ID: <20190807215549.GB14622@google.com>
-References: <20190807171559.182301-1-joel@joelfernandes.org>
- <20190807130402.49c9ea8bf144d2f83bfeb353@linux-foundation.org>
- <20190807204530.GB90900@google.com>
- <20190807135840.92b852e980a9593fe91fbf59@linux-foundation.org>
- <20190807213105.GA14622@google.com>
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
+	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id 6B24D43E8B3;
+	Thu,  8 Aug 2019 08:09:24 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hvU6T-0005vh-8G; Thu, 08 Aug 2019 08:08:17 +1000
+Date: Thu, 8 Aug 2019 08:08:17 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Mel Gorman <mgorman@suse.de>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org,
+	linux-xfs@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
+Subject: Re: [PATCH] [Regression, v5.0] mm: boosted kswapd reclaim b0rks
+ system cache balance
+Message-ID: <20190807220817.GN7777@dread.disaster.area>
+References: <20190807091858.2857-1-david@fromorbit.com>
+ <20190807093056.GS11812@dhcp22.suse.cz>
+ <20190807150316.GL2708@suse.de>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190807213105.GA14622@google.com>
+In-Reply-To: <20190807150316.GL2708@suse.de>
 User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0
+	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=WvVMi4Q-HNuRTT1wiOIA:9
+	a=WZxntg31Pt30XY-5:21 a=cyQMZgHOg-pEZ9Yp:21 a=CjuIK1q_8ugA:10
+	a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 07, 2019 at 05:31:05PM -0400, Joel Fernandes wrote:
-> On Wed, Aug 07, 2019 at 01:58:40PM -0700, Andrew Morton wrote:
-> > On Wed, 7 Aug 2019 16:45:30 -0400 Joel Fernandes <joel@joelfernandes.org> wrote:
+On Wed, Aug 07, 2019 at 04:03:16PM +0100, Mel Gorman wrote:
+> On Wed, Aug 07, 2019 at 11:30:56AM +0200, Michal Hocko wrote:
+> > [Cc Mel and Vlastimil as it seems like fallout from 1c30844d2dfe2]
 > > 
-> > > On Wed, Aug 07, 2019 at 01:04:02PM -0700, Andrew Morton wrote:
-> > > > On Wed,  7 Aug 2019 13:15:54 -0400 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
-> > > > 
-> > > > > In Android, we are using this for the heap profiler (heapprofd) which
-> > > > > profiles and pin points code paths which allocates and leaves memory
-> > > > > idle for long periods of time. This method solves the security issue
-> > > > > with userspace learning the PFN, and while at it is also shown to yield
-> > > > > better results than the pagemap lookup, the theory being that the window
-> > > > > where the address space can change is reduced by eliminating the
-> > > > > intermediate pagemap look up stage. In virtual address indexing, the
-> > > > > process's mmap_sem is held for the duration of the access.
-> > > > 
-> > > > So is heapprofd a developer-only thing?  Is heapprofd included in
-> > > > end-user android loads?  If not then, again, wouldn't it be better to
-> > > > make the feature Kconfigurable so that Android developers can enable it
-> > > > during development then disable it for production kernels?
+> 
+> More than likely.
+> 
+> > On Wed 07-08-19 19:18:58, Dave Chinner wrote:
+> > > From: Dave Chinner <dchinner@redhat.com>
 > > > 
-> > > Almost all of this code is already configurable with
-> > > CONFIG_IDLE_PAGE_TRACKING. If you disable it, then all of this code gets
-> > > disabled.
+> > > When running a simple, steady state 4kB file creation test to
+> > > simulate extracting tarballs larger than memory full of small files
+> > > into the filesystem, I noticed that once memory fills up the cache
+> > > balance goes to hell.
 > > > 
-> > > Or are you referring to something else that needs to be made configurable?
-> > 
-> > Yes - the 300+ lines of code which this patchset adds!
-> > 
-> > The impacted people will be those who use the existing
-> > idle-page-tracking feature but who will not use the new feature.  I
-> > guess we can assume this set is small...
 > 
-> Yes, I think this set should be small. The code size increase of page_idle.o
-> is from ~1KB to ~2KB. Most of the extra space is consumed by
-> page_idle_proc_generic() function which this patch adds. I don't think adding
-> another CONFIG option to disable this while keeping existing
-> CONFIG_IDLE_PAGE_TRACKING enabled, is worthwhile but I am open to the
-> addition of such an option if anyone feels strongly about it. I believe that
-> once this patch is merged, most like this new interface being added is what
+> Ok, I'm assuming you are using fsmark with -k to keep files around,
+> and -S0 to leave cleaning to the background flush, a number of files per
+> iteration to get regular reporting and a total number of iterations to
+> fill memory to hit what you're seeing. I've created a configuration that
+> should do this but it'll take a long time to run on a local test machine.
 
-s/most like/most likely/
+./fs_mark  -D  10000  -S0  -n  10000  -s  4096  -L  60 \
+-d /mnt/scratch/0  -d  /mnt/scratch/1  -d  /mnt/scratch/2 \
+-d /mnt/scratch/3  -d  /mnt/scratch/4  -d  /mnt/scratch/5 \
+-d /mnt/scratch/6  -d  /mnt/scratch/7  -d  /mnt/scratch/8 \
+-d /mnt/scratch/9  -d  /mnt/scratch/10  -d  /mnt/scratch/11 \
+-d /mnt/scratch/12  -d  /mnt/scratch/13  -d  /mnt/scratch/14 \
+-d /mnt/scratch/15
 
-> will be used more than the old interface (for some of the usecases) so it
-> makes sense to keep it alive with CONFIG_IDLE_PAGE_TRACKING.
+This doesn't delete files at all, creates 160,000 files per
+iteration in directories of 10,000 files at a time, and runs 60
+iterations. It leaves all writeback (data and metadata) to
+background kernel mechanisms.
+
+> I'm not 100% certain I guessed right as to get fsmark reports while memory
+> fills, it would have to be fewer files so each iteration would have to
+> preserve files. If the number of files per iteration is large enough to
+> fill memory then the drop in files/sec is not visible from the fs_mark
+> output (or we are using different versions). I guess you could just be
+> calculating average files/sec over the entire run based on elapsed time.
+
+The files/s average is the average of the fsmark iteration output.
+(i.e. the rate at which it creates each group of 160k files).
+
 > 
-> thanks,
+> > > The workload is creating one dirty cached inode for every dirty
+> > > page, both of which should require a single IO each to clean and
+> > > reclaim, and creation of inodes is throttled by the rate at which
+> > > dirty writeback runs at (via balance dirty pages). Hence the ingest
+> > > rate of new cached inodes and page cache pages is identical and
+> > > steady. As a result, memory reclaim should quickly find a steady
+> > > balance between page cache and inode caches.
+> > > 
+> > > It doesn't.
+> > > 
+> > > The moment memory fills, the page cache is reclaimed at a much
+> > > faster rate than the inode cache, and evidence suggests taht the
+> > > inode cache shrinker is not being called when large batches of pages
+> > > are being reclaimed. In roughly the same time period that it takes
+> > > to fill memory with 50% pages and 50% slab caches, memory reclaim
+> > > reduces the page cache down to just dirty pages and slab caches fill
+> > > the entirity of memory.
+> > > 
+> > > At the point where the page cache is reduced to just the dirty
+> > > pages, there is a clear change in write IO patterns. Up to this
+> > > point it has been running at a steady 1500 write IOPS for ~200MB/s
+> > > of write throughtput (data, journal and metadata).
 > 
->  - Joel
+> As observed by iostat -x or something else? Sum of r/s and w/s would
+
+PCP + live pmcharts. Same as I've done for 15+ years :)
+
+I could look at iostat, but it's much easier to watch graphs run
+and then be able to double click on any point and get the actual
+value.
+
+I've attached a screen shot of the test machine overview while the
+vanilla kernel runs the fsmark test (cpu, iops, IO bandwidth, XFS
+create/remove/lookup ops, context switch rate and memory usage) at a
+1 second sample rate. You can see the IO patterns change, the
+context switch rate go nuts and the CPU usage pattern change when
+the page cache hits empty.
+
+> approximate iops but not the breakdown of whether it is data, journal
+> or metadata writes.
+
+I have that in other charts - the log chart tells me how many log
+IOs are being done (constant 30MB/s in ~150 IOs/sec). And the >1GB/s
+IO spike every 30s is the metadata writeback being aggregated into
+large IOs by metadata writeback. That doesn't change, either...
+
+> The rest can be inferred from a blktrace but I would
+> prefer to replicate your setup as close as possible. If you're not using
+> fs_mark to report Files/sec, are you simply monitoring df -i over time?
+
+The way I run fsmark is iterative - the count field tells you how
+many inodes it has created...
+
+> > > So I went looking at the code, trying to find places where pages got
+> > > reclaimed and the shrinkers weren't called. There's only one -
+> > > kswapd doing boosted reclaim as per commit 1c30844d2dfe ("mm: reclaim
+> > > small amounts of memory when an external fragmentation event
+> > > occurs"). I'm not even using THP or allocating huge pages, so this
+> > > code should not be active or having any effect onmemory reclaim at
+> > > all, yet the majority of reclaim is being done with "boost" and so
+> > > it's not reclaiming slab caches at all. It will only free clean
+> > > pages from the LRU.
+> > > 
+> > > And so when we do run out memory, it switches to normal reclaim,
+> > > which hits dirty pages on the LRU and does some shrinker work, too,
+> > > but then appears to switch back to boosted reclaim one watermarks
+> > > are reached.
+> > > 
+> > > The patch below restores page cache vs inode cache balance for this
+> > > steady state workload. It balances out at about 40% page cache, 60%
+> > > slab cache, and sustained performance is 10-15% higher than without
+> > > this patch because the IO patterns remain in control of dirty
+> > > writeback and the filesystem, not kswapd.
+> > > 
+> > > Performance with boosted reclaim also running shrinkers over the
+> > > same steady state portion of the test as above.
+> > > 
 > 
+> The boosting was not intended to target THP specifically -- it was meant
+> to help recover early from any fragmentation-related event for any user
+> that might need it. Hence, it's not tied to THP but even with THP
+> disabled, the boosting will still take effect.
+> 
+> One band-aid would be to disable watermark boosting entirely when THP is
+> disabled but that feels wrong. However, I would be interested in hearing
+> if sysctl vm.watermark_boost_factor=0 has the same effect as your patch.
+
+<runs test>
+
+Ok, it still runs it out of page cache, but it doesn't drive page
+cache reclaim as hard once there's none left. The IO patterns are
+less peaky, context switch rates are increased from ~3k/s to 15k/s
+but remain pretty steady.
+
+Test ran 5s faster and  file rate improved by ~2%. So it's better
+once the page cache is largerly fully reclaimed, but it doesn't
+prevent the page cache from being reclaimed instead of inodes....
+
+
+> On that basis, it may justify ripping out the may_shrinkslab logic
+> everywhere. The downside is that some microbenchmarks will notice.
+> Specifically IO benchmarks that fill memory and reread (particularly
+> rereading the metadata via any inode operation) may show reduced
+> results.
+
+Sure, but right now benchmarks that rely on page cache being
+retained are being screwed over :)
+
+> Such benchmarks can be strongly affected by whether the inode
+> information is still memory resident and watermark boosting reduces
+> the changes the data is still resident in memory. Technically still a
+> regression but a tunable one.
+
+/proc/sys/vm/vfs_cache_pressure is for tuning page cache/inode cache
+balance. It should not occur as a side effect of watermark boosting.
+Everyone knows about vfs_cache_pressure. Lots of people complain
+when it doesn't work, and that's something watermark boosting to
+change cache balance does.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
