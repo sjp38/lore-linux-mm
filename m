@@ -2,192 +2,175 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C6FBC19759
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:40:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D264EC19759
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:50:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E60E721E6E
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:40:36 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="cZhyddtf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E60E721E6E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 9776921BF6
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:50:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9776921BF6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8367C6B000A; Wed,  7 Aug 2019 02:40:36 -0400 (EDT)
+	id 2FDFA6B000A; Wed,  7 Aug 2019 02:50:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7E7366B000C; Wed,  7 Aug 2019 02:40:36 -0400 (EDT)
+	id 2ADBC6B000C; Wed,  7 Aug 2019 02:50:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6AEE76B000D; Wed,  7 Aug 2019 02:40:36 -0400 (EDT)
+	id 19CEB6B000D; Wed,  7 Aug 2019 02:50:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 2FB6B6B000A
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 02:40:36 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id k9so50114625pls.13
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 23:40:36 -0700 (PDT)
+Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
+	by kanga.kvack.org (Postfix) with ESMTP id E60026B000A
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 02:50:04 -0400 (EDT)
+Received: by mail-qt1-f197.google.com with SMTP id e22so15631786qtp.9
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 23:50:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=jn0FnBY7ADCh0laBLX/xGqPiB9Jg8oG9YEaLS2KH1Js=;
-        b=sHYZWkyasq2NjPHs1AtxIJZCcBfBjFCaJBoqh2LxAnQ4Adhf6Qmkvwd5sk93UUuYKU
-         ScbJAuWvYvlpKCTzCDSJtABbrQ4iIqDHLivFiFH/uqmD3lrTkOaeYsScC6pHlkm5jXpI
-         b9UYScwHuO6dKcKXStMMUIPIwHSXjYOAQ5H3XdkKh+pC8gXreqJF2jnsm9yPGHNllGOG
-         m41Nz0XaNpV3dSN3dVwb0qLJv3LmjaHCkZJBcaa/f6eKwmoMkwl/UgnKZ/vmMfaeONdd
-         I5HVFWxAZflGbadyPZrzy/BB9Xt+XQyIGFguUfzHuwaZh9yV7Rml/b+iXKRybZFjNw3K
-         kZRQ==
-X-Gm-Message-State: APjAAAWCDh1I49YaTCnSewT2zCGMmGUbs1XHwNadybpaRrJzIPeF1qS/
-	ViTNNfoOk5YkNSOf2mRfPjbvxl7576oUEXdh/uyOl49cpAB3n8TKyPGWV1EIzYZkC5IUWTa+DRh
-	p+z8WKdYt9dlrI0Wqbdajf0pXp5V/3AMqHG7gNtb+3v77y8Y/MXQYDr2lbwSiZwCqsw==
-X-Received: by 2002:a17:902:8a8a:: with SMTP id p10mr6928616plo.88.1565160035855;
-        Tue, 06 Aug 2019 23:40:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyfDXgsXudhewG1YKUkLZuwRfmBlhhwDH9E5dMXbswhbx7HdoVTi+NkKc59N7RViQbFJtdX
-X-Received: by 2002:a17:902:8a8a:: with SMTP id p10mr6928589plo.88.1565160035177;
-        Tue, 06 Aug 2019 23:40:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565160035; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=toE+6wtOlbNkJ/08bfCqpbMSQNddZO3CiuIGldc+Ghs=;
+        b=jYNNbSZl8ojwTQHX9GJp/PBe0BB79P2Amyy3sBLPDR1NgHHK6fxDSV0/836cxaFIIo
+         N3uIlwHyn+5x6CCcsfk2715dVgCDvoFWB6sruqcuNS7893qqFJzOQbMIdETuPsVKcl/y
+         +gNJ7ZNwvGfsY5h8zOsLWRZkYbOBe7olpHx+KrJkoU4nMh7E5shh8znY8BXzXo+UggXN
+         qfSNpiF+ebMwFIy+M08CCkmd0g0phBLVigEqIzS2ETyKZvnqDbBbojtdCHwkSQDx4mzO
+         eFVI2b6bAL0+0CGy2Bg0Ik66j0O98Hi+uTovoim/PGwaZGqGr6GvzTAAdSqMS6rF1c5g
+         m2hQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXjNu8JqAgpleO3d8hlOO8kDL9SdY0sHoL2lUNTgMCL06v6j+d8
+	jsJjrjmGZkDXtrrMT+TE1+jQS2nu4hFQyIiDlubHI4pvGUzPM82o+oDzt4bh2D+taMoFe2iUOEN
+	s0UVaUo+Dt1L3IAe46WT6RDTLY7H4lRSRCUuVqAzI2dJ91pCjI+9xm0ypNX/rn8ckUA==
+X-Received: by 2002:ac8:2b90:: with SMTP id m16mr6556517qtm.384.1565160604688;
+        Tue, 06 Aug 2019 23:50:04 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz7zGDW3O/a3acJl0GmUsHiN48Q0owenHeNRzO9iEbvGRb3d9KJqxtoY6gdEpW+/NN3Qood
+X-Received: by 2002:ac8:2b90:: with SMTP id m16mr6556480qtm.384.1565160603989;
+        Tue, 06 Aug 2019 23:50:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565160603; cv=none;
         d=google.com; s=arc-20160816;
-        b=sccVd7SF+n5PJ2izS65ZVhMPL7UGEHZCiUEkbJYoQ6Bj828Gx22D85zkaOhklZqhtW
-         JSNoGme6tIxrxXp0c1bK8cYQcZDiuEqQbpfuBG2iMSb8g+8MpktKAZ02CHmmb2CV8Y1f
-         Vp7a0J1hYhxip863I/x8vvuF1xk5U+xN+11dUMM6qdhvKIAU8dD7v13qf5DmdTH28K6E
-         fGFsyCkMMMtCILJxpR+ydsiZl5T88iYmfKqI82QBdcKVR5I7x2uJEWxbfzZLKqp0EyKZ
-         66ulbr3LIo6c4WaiVGU7E/DT6dGE5K0LWYid0KE7BzVBsErgf8y+aGnrRO3x6YjuihD1
-         VoRA==
+        b=PKgZhhnuxjshpsQm+qOPEJn/UdqZ4LJ1kGHJ477GAsPnsaf8/wZOlJBCs/flJPZoHx
+         bLpXHxvd0QazwWmeADDt+wfKAsScDYDVpp6GltzlaoiJgZCz21wS7UVXQ10LqJeS5xbV
+         Rz96Yh98qITM36VpZ+rYOEFIYZ11xEOjRBEMhjAVfXHr12UOmRq7qSO4+gXsS4xApxlZ
+         8gHo5MNMlrifWpZG8jc6SuE0iRvJ0AbYApg0OMD/sBjuohWoca+TUHappTB3CvNdJdav
+         oCVSF37sFDWE2m+JlDihkVDyF88BBeMaYDpGnqLl2jLKqQ4e7o9U017Lg3vcJl0u80nx
+         wDDw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=jn0FnBY7ADCh0laBLX/xGqPiB9Jg8oG9YEaLS2KH1Js=;
-        b=V+bHWxY3ZelTO33gMDjK8xMYbg7rBlYTLtw0c6kkC7Mji5XyS+rT3X6TANJfvPKQkY
-         29sVzTIR9hdYFk+GZGSmNW6kxSyt59d4E+kM5QlDzrrJ/eWbB8UclL0hTu3v+k4Eb6F4
-         jpCJLYdAvOnMsSiFrAvRz0qHq2N7+Sc3fh/rKpi/u6+YjSf0deHIdgTS3ZzcQjgP5WpT
-         sNzamB9gGM/UoPnoL9NTV3g38dlLfM20fQymH+OHzYxNBdobI2aZCFmX/VKkgeuJU61x
-         HrBm4mV6WgCqrSyvv2x1EJL47P9DhOD8it2pCN/W9F0J8joYZ9Sm5jAekstASKFlsXW3
-         2V6w==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=toE+6wtOlbNkJ/08bfCqpbMSQNddZO3CiuIGldc+Ghs=;
+        b=GyLm0wN+KBQQ3decQh3Dw0dStGhQm6c2ne6/Wxy4KDLnI41LP13M7wcIse684U/Qfx
+         RHbg9ZDb7X6r9NvPxHtYVmVJBwDGKGUErbFplZtSOioel/GEH3czrG8TtM1JL5EczaUZ
+         pSnUNSFX9Nj96IH5w1v23QvmSK+kEAh2jzCcRJ7eZV9F9assCCx5P4jN88f7zJbtCWSA
+         WParOK88VRrN6y1bdYJECvUwkRjhsMGADfvqkUey/OCrtnnXC4KTSNIBwhPCeNiZa6n9
+         CsrunvnXn7XN8eeUMCpqSVPLqJQDeTHB7s67ohVNi/LXAUSz7gPQACTMJ6Yi+VveIq4I
+         H5zw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=cZhyddtf;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id v4si43109863plp.212.2019.08.06.23.40.34
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id j26si2076853qkl.156.2019.08.06.23.50.03
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 23:40:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Tue, 06 Aug 2019 23:50:03 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=cZhyddtf;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d4a726c0000>; Tue, 06 Aug 2019 23:40:44 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Tue, 06 Aug 2019 23:40:34 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Tue, 06 Aug 2019 23:40:34 -0700
-Received: from [10.2.165.207] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 7 Aug
- 2019 06:40:34 +0000
-Subject: Re: [PATCH 00/12] block/bio, fs: convert put_page() to
- put_user_page*()
-To: Christoph Hellwig <hch@infradead.org>
-CC: <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>,
-	Alexander Viro <viro@zeniv.linux.org.uk>, Anna Schumaker
-	<anna.schumaker@netapp.com>, "David S . Miller" <davem@davemloft.net>,
-	Dominique Martinet <asmadeus@codewreck.org>, Eric Van Hensbergen
-	<ericvh@gmail.com>, Jason Gunthorpe <jgg@ziepe.ca>, Jason Wang
-	<jasowang@redhat.com>, Jens Axboe <axboe@kernel.dk>, Latchesar Ionkov
-	<lucho@ionkov.net>, "Michael S . Tsirkin" <mst@redhat.com>, Miklos Szeredi
-	<miklos@szeredi.hu>, Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Christoph Hellwig <hch@lst.de>, Matthew Wilcox <willy@infradead.org>,
-	<linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
-	<ceph-devel@vger.kernel.org>, <kvm@vger.kernel.org>,
-	<linux-block@vger.kernel.org>, <linux-cifs@vger.kernel.org>,
-	<linux-fsdevel@vger.kernel.org>, <linux-nfs@vger.kernel.org>,
-	<linux-rdma@vger.kernel.org>, <netdev@vger.kernel.org>,
-	<samba-technical@lists.samba.org>, <v9fs-developer@lists.sourceforge.net>,
-	<virtualization@lists.linux-foundation.org>
-References: <20190724042518.14363-1-jhubbard@nvidia.com>
- <20190724061750.GA19397@infradead.org>
- <c35aa2bf-c830-9e57-78ca-9ce6fb6cb53b@nvidia.com>
- <20190807063448.GA6002@infradead.org>
-X-Nvconfidentiality: public
-From: John Hubbard <jhubbard@nvidia.com>
-Message-ID: <3ab1e69f-88c6-3e16-444d-cab78c3bf1d1@nvidia.com>
-Date: Tue, 6 Aug 2019 23:38:59 -0700
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 2729730DDBD8;
+	Wed,  7 Aug 2019 06:50:03 +0000 (UTC)
+Received: from [10.72.12.139] (ovpn-12-139.pek2.redhat.com [10.72.12.139])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 7BBF825263;
+	Wed,  7 Aug 2019 06:49:58 +0000 (UTC)
+Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
+ with worker
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: mst@redhat.com, kvm@vger.kernel.org,
+ virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org
+References: <20190731084655.7024-1-jasowang@redhat.com>
+ <20190731084655.7024-8-jasowang@redhat.com> <20190731123935.GC3946@ziepe.ca>
+ <7555c949-ae6f-f105-6e1d-df21ddae9e4e@redhat.com>
+ <20190731193057.GG3946@ziepe.ca>
+ <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
+ <20190801141512.GB23899@ziepe.ca>
+ <42ead87b-1749-4c73-cbe4-29dbeb945041@redhat.com>
+ <20190802124613.GA11245@ziepe.ca>
+ <11b2a930-eae4-522c-4132-3f8a2da05666@redhat.com>
+ <20190806120416.GB11627@ziepe.ca>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <4b448aa5-2c92-a6ca-67d6-d30fad67254c@redhat.com>
+Date: Wed, 7 Aug 2019 14:49:57 +0800
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190807063448.GA6002@infradead.org>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
+In-Reply-To: <20190806120416.GB11627@ziepe.ca>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
 Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1565160044; bh=jn0FnBY7ADCh0laBLX/xGqPiB9Jg8oG9YEaLS2KH1Js=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=cZhyddtfeWnuDzmY91G/o97CceVB5RM0qm7xIS+BT+DJS1yACOaMbPnxtDPonJo3O
-	 Ckk802AdQClg27dtVTwqZlP1rJ45uR/xJxU2tj1bAWtx6wGx8MnDwDr9/hAcMofdtY
-	 YSzbF7dvdBOxPO1CMgg0kHDyQnZ9XI/sZkIaiXVixuZIn5BzSqRh7aOyfPS3OIiva2
-	 EdoAoTR8kqTmNnuIpmqz0Mts9lp7nFil4TrfQHcFTrur14aYk9UOgpcZdRREzoyCup
-	 0KYEKb/ZJNSFduxPI76a4ilG78VxY7/mJHog1LdnWqMnq4OYf6DhFN3qt02E1MzswR
-	 TFH77+TyL//6w==
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Wed, 07 Aug 2019 06:50:03 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/6/19 11:34 PM, Christoph Hellwig wrote:
-> On Mon, Aug 05, 2019 at 03:54:35PM -0700, John Hubbard wrote:
->> On 7/23/19 11:17 PM, Christoph Hellwig wrote:
-...
->>> I think we can do this in a simple and better way.  We have 5 ITER_*
->>> types.  Of those ITER_DISCARD as the name suggests never uses pages, so
->>> we can skip handling it.  ITER_PIPE is rejected =D1=96n the direct I/O =
-path,
->>> which leaves us with three.
->>>
+
+On 2019/8/6 下午8:04, Jason Gunthorpe wrote:
+> On Mon, Aug 05, 2019 at 12:20:45PM +0800, Jason Wang wrote:
+>> On 2019/8/2 下午8:46, Jason Gunthorpe wrote:
+>>> On Fri, Aug 02, 2019 at 05:40:07PM +0800, Jason Wang wrote:
+>>>>> This must be a proper barrier, like a spinlock, mutex, or
+>>>>> synchronize_rcu.
+>>>> I start with synchronize_rcu() but both you and Michael raise some
+>>>> concern.
+>>> I've also idly wondered if calling synchronize_rcu() under the various
+>>> mm locks is a deadlock situation.
 >>
->> Hi Christoph,
->>
->> Are you working on anything like this?
->=20
-> I was hoping I could steer you towards it.  But if you don't want to do
-> it yourself I'll add it to my ever growing todo list.
->=20
-
-Sure, I'm up for this. The bvec-related items are the next logical part
-of the gup/dma conversions to work on, and I just wanted to avoid solving t=
-he
-same problem if you were already in the code.
+>> Maybe, that's why I suggest to use vhost_work_flush() which is much
+>> lightweight can can achieve the same function. It can guarantee all previous
+>> work has been processed after vhost_work_flush() return.
+> If things are already running in a work, then yes, you can piggyback
+> on the existing spinlocks inside the workqueue and be Ok
+>
+> However, if that work is doing any copy_from_user, then the flush
+> becomes dependent on swap and it won't work again...
 
 
->> Or on the put_user_bvec() idea?
->=20
-> I have a prototype from two month ago:
->=20
-> http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/gup-bvec
->=20
-> but that only survived the most basic testing, so it'll need more work,
-> which I'm not sure when I'll find time for.
->=20
+Yes it do copy_from_user(), so we can't do this.
 
-I'll take a peek, and probably pester you with a few questions if I get
-confused. :)
 
-thanks,
---=20
-John Hubbard
-NVIDIA
+>
+>>>> 1) spinlock: add lots of overhead on datapath, this leads 0 performance
+>>>> improvement.
+>>> I think the topic here is correctness not performance improvement>
+>   
+>> But the whole series is to speed up vhost.
+> So? Starting with a whole bunch of crazy, possibly broken, locking and
+> claiming a performance win is not reasonable.
+
+
+Yes, I admit this patch is tricky, I'm not going to push this. Will post 
+a V3.
+
+
+>
+>> Spinlock is correct but make the whole series meaningless consider it won't
+>> bring any performance improvement.
+> You can't invent a faster spinlock by opencoding some wild
+> scheme. There is nothing special about the usage here, it needs a
+> blocking lock, plain and simple.
+>
+> Jason
+
+
+Will post V3. Let's see if you are happy with that version.
+
+Thanks
+
 
