@@ -2,219 +2,165 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EC079C32754
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 10:00:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C1066C41514
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 10:04:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8462D21E6A
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 10:00:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="tCgJHesT"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8462D21E6A
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
+	by mail.kernel.org (Postfix) with ESMTP id 5D8C021E6C
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 10:04:47 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5D8C021E6C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CCF006B0003; Wed,  7 Aug 2019 06:00:17 -0400 (EDT)
+	id D68256B0003; Wed,  7 Aug 2019 06:04:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C58736B0006; Wed,  7 Aug 2019 06:00:17 -0400 (EDT)
+	id D3F6C6B0006; Wed,  7 Aug 2019 06:04:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AD2206B0007; Wed,  7 Aug 2019 06:00:17 -0400 (EDT)
+	id C078E6B0007; Wed,  7 Aug 2019 06:04:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 716686B0003
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 06:00:17 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id 71so51058835pld.1
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 03:00:17 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 738746B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 06:04:46 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id e9so44673624edv.18
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 03:04:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=ZzlW9YyeiJ854Q1Ko1IPtbBbq0BYDBiTFOQHxFAcEc0=;
-        b=VKEEdt4zR+4Hulf400s/1ffA1cThcrKSxYNME18us15Eg8QjhOVARDhjMJOy108O4g
-         h8R0GIoQtMiITow1opjQZkvgIml8lnijZhRDwE/AgjMljCWEz4YTDEGwpTVJ7q0UmxAb
-         cEJz5FPhUbs9nSHA8c+Jq5FPQnLl4Eb/SD/0f5yX4a371tlainNhmMPuOkPDZjs7BldW
-         CylD3vNl3miwFbSDRmo3sdcgFhatUPqHEva+ieOpehe8Q1o77RLpzajsVwwuDm7xQ6iU
-         JxzKfRmzLgxZbrbWU3DWWbBRqneEmbRJzoOSOiS+R5JkdrtXXusStoYPSR//ijdgByCr
-         IAtA==
-X-Gm-Message-State: APjAAAU9bwu7f0DmMHN9wlvGQhpbHb2s/MncHrZHSoOuivw0OlDtJkdZ
-	sqF2JC+ItLpLg+DZ6czdXw2q5Uja3cOZ6JCATUXcU1w4hppZL5ryWs4jdvpLJx9iMFiln+C/wjk
-	NgpZponNKakEVOX+Xd2c/kdrYjuXELgZZFvcyJuIQ/cnjlhO/4nwcb+sj+h/o9ghKVg==
-X-Received: by 2002:a63:8a49:: with SMTP id y70mr7303827pgd.271.1565172016936;
-        Wed, 07 Aug 2019 03:00:16 -0700 (PDT)
-X-Received: by 2002:a63:8a49:: with SMTP id y70mr7303741pgd.271.1565172015900;
-        Wed, 07 Aug 2019 03:00:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565172015; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=xNh67J09UClLaXZNUq/U9zrE2IHPqKErv+9PvHvj8ic=;
+        b=ciQDJQGuZoPVP3Wt3NrOrtp3rp5JlAgWXGQXy5EXpm3qGbyYTzLKaJWe3jzln6eNJI
+         9A5pY2fKbr9Zzq34nqDwpNQ8JdObcHVeB1GTH5PQar0nNZ/U4gVU5Z1Ddu0K7o28O2pw
+         nDw5xNzaxS5nMEcAeF6N477jS8m7Kb1E9Ta4Y4VfmufsMrqI9xcxyOVroS/XGwFfM6fs
+         szW3XDkaqAJskM7zGfK0fxTVF7YVNy/cPdlYIr1rCtVjwBf6kCXTAqznzqCL5qsfFAP3
+         MXwkODMWYJTdLh1SHqNpcM/IOI9qp/Fotvhn1Dnnl8YHARWr7SmR0q+iIswFp7EVaqEp
+         C3Ug==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAXkyuwoXLtDJVt/tT5phTtmNfMfwgp3muFYVMWL8xO87KBP95Tg
+	it+jxc6bydxzQZhIKJR77yWZK+/2QDlodDbAYBtFbtD4u+/gG1nusmtddjJykmiAJQnUAgUK3KG
+	Or0ZViKOdXD9o0izlMDCkQwOOvO1iZ6Zi9cslfC2/x+lwKcLQMcr8zS3fRv1EBWwSMg==
+X-Received: by 2002:a50:a4ef:: with SMTP id x44mr8838582edb.304.1565172286042;
+        Wed, 07 Aug 2019 03:04:46 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqztSe63ndvi+WHBlXSbgYjmcrp2UvyEaL93nrRiNHeY+gs3vwhNSrK1UAVGVANJRHs/GMqy
+X-Received: by 2002:a50:a4ef:: with SMTP id x44mr8838509edb.304.1565172285202;
+        Wed, 07 Aug 2019 03:04:45 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565172285; cv=none;
         d=google.com; s=arc-20160816;
-        b=djfsjPSbyX/vR1lpcGPOeK9YLQXuiKvNphSiX9CM1ASpatRH1IdsgcpuPPDvvyu/cp
-         tfXcFo/AZl4zd+1NK4pwuY+zu9ZQEOgwQc3mgMH2mqa0EOVqefMMpDUgvX9KcaPQw9ac
-         XGJ5TZCDzitC4mVYs88P7bwM7t+6LvplQOAuJkUYH/syHa965Sxc6ZrRQj30eCAWIRaw
-         ZvPPScEc56QL4anrIA9w6qiunKOM7R01avruF/2LvQxkL5J2jqN6L4ylEW06bdFRz44v
-         XQU9eiUWmwjRSnbx90uFwg4ZZGOoypNaRc+XVfXkq5MpTqomTCmeglc/fgBhlz5MSoVv
-         JWDQ==
+        b=GHQKn/7GOQdbZQmp/drGJ7fZM+jAUmD0+wFPiMb3w9aH++5qB0GRQLRflW+KrI6BTH
+         QVB3spSjz7IJAaZ7PrmWePcZ/fi+hxrR4Ysm6EqBZhLCOe+4Ufm3Cxz+4TwY8Ayh62rf
+         weM3OdLyQYnPfVynFvBtGMBkZ/liXfX1C1O11KiqZ7AxLNENLBBex9ENTHHYdkLWQ2n3
+         RAhw4gi26ZpySwkodQ/PoygQ+V+hFOz4mWd7KoJ968AdH0kqOQwZtnrE8oRR84dTEKrG
+         lQJ0rIkoHq+Z/g+w1Pmw12bFmte6CGY9WXAfnIsfq3RKUDthf7ZGJtIpSEZE9dfwy4AR
+         /Adw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=ZzlW9YyeiJ854Q1Ko1IPtbBbq0BYDBiTFOQHxFAcEc0=;
-        b=Abp3xwKRa4SD9uX1GM21PSwjoK7dxrOVq/eTIGnO+plQmMaTVxB5SvjbJKf215ueGX
-         ZkHWe3JNlYXKHlqLhVxEckEOfxXkGH7MotKqEAyXWkdO4udXvYDji2cbK54iC2/ZIZkI
-         ijJVYRhC3zYQmAztFgpy22wU/pyUZI5J//HWf+1IdqB8MIM+0TmWCIKSeDkIRZnOM5xu
-         pkOs7AFy5/1H/OM7jsEU10XJK3RyfcdbhRVwKX/l7qW5zP3C2U5iPdouNXolTgrmHgph
-         QYBzJEYgbFxLTzYk+zoZiN50y1W8Jhxmwehs30+/3Xq4HpW8J1Rc5Cod6GANdnMcdGaZ
-         RUOg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=xNh67J09UClLaXZNUq/U9zrE2IHPqKErv+9PvHvj8ic=;
+        b=aY97prRIneAElyKkZC3u0KoXHcJl78+/3KYvcXVD+e75qdRwuukJILzfWfj1Gh/65Y
+         Nf3exvpdunjniX46awHSdaCVVzgUpq/j44gSkA0pDR3Q8Eesj9xlYrUo2R/6nr9Zleet
+         2TDh+mWGgXndtmNJtGHMUvis19He9ylrTW52UfLdcg6cfD+B8FIFfwaBM2sCf9qRclUW
+         BvRap9kM1nCefPt9fDmGDsVTRA1AoY3Oxd7ASK52dwXQMkL8XAV0KJ4fV/9Z4jW3/827
+         /iM27StSJxeWkYYWyVGdMosSfOi8YJSf99H2pdQIDFhdHedABu+qDs/nr7/zGhbKs1GV
+         htww==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=tCgJHesT;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id q11sor70718883pfc.49.2019.08.07.03.00.15
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id v4si28142024eje.340.2019.08.07.03.04.45
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 07 Aug 2019 03:00:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Aug 2019 03:04:45 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@joelfernandes.org header.s=google header.b=tCgJHesT;
-       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=joelfernandes.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=ZzlW9YyeiJ854Q1Ko1IPtbBbq0BYDBiTFOQHxFAcEc0=;
-        b=tCgJHesT9hyuTLNhA2JU2/UNk19RK2nU5AFtCBJaYk5S3w1NDvpmaFeth5Yo8wYH0s
-         oM4Lnuq7N9b9hZ/RVsWSEyFtN0JZddKU9+yGb3onrTbH8MixdAzzdFWXDrrSZxkzHWDG
-         kUybN6h9P7J8OPDKxwZ6UTFwzfLKIdRbmfvNc=
-X-Google-Smtp-Source: APXvYqy9F4k99hNGDmUxs4p0Ff8mjnfF/NFd08nAV9/aNP72bhh+a9yeZ5zU0WZFHIFPpVKE8BbX4A==
-X-Received: by 2002:aa7:9117:: with SMTP id 23mr8530297pfh.206.1565172015496;
-        Wed, 07 Aug 2019 03:00:15 -0700 (PDT)
-Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
-        by smtp.gmail.com with ESMTPSA id b136sm120273213pfb.73.2019.08.07.03.00.14
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 07 Aug 2019 03:00:14 -0700 (PDT)
-Date: Wed, 7 Aug 2019 06:00:13 -0400
-From: Joel Fernandes <joel@joelfernandes.org>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
-	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
-	fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
-	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>,
-	Kees Cook <keescook@chromium.org>, kernel-team@android.com,
-	linux-api@vger.kernel.org, linux-doc@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
-	Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.ibm.com>,
-	minchan@kernel.org, namhyung@google.com, paulmck@linux.ibm.com,
-	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
-	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
-	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>,
-	Brendan Gregg <brendan.d.gregg@gmail.com>
-Subject: Re: [PATCH v4 1/5] mm/page_idle: Add per-pid idle page tracking
- using virtual indexing
-Message-ID: <20190807100013.GC169551@google.com>
-References: <20190805170451.26009-1-joel@joelfernandes.org>
- <20190806151921.edec128271caccb5214fc1bd@linux-foundation.org>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 7D95DAD20;
+	Wed,  7 Aug 2019 10:04:44 +0000 (UTC)
+Subject: Re: [PATCH] mm/compaction: remove unnecessary zone parameter in
+ isolate_migratepages()
+To: Pengfei Li <lpf.vector@gmail.com>, akpm@linux-foundation.org
+Cc: mgorman@techsingularity.net, cai@lca.pw, aryabinin@virtuozzo.com,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190806151616.21107-1-lpf.vector@gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <5d07663b-3915-b6a4-4886-fc78dc3ef209@suse.cz>
+Date: Wed, 7 Aug 2019 12:04:38 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190806151921.edec128271caccb5214fc1bd@linux-foundation.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190806151616.21107-1-lpf.vector@gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 06, 2019 at 03:19:21PM -0700, Andrew Morton wrote:
-> (cc Brendan's other email address, hoping for review input ;))
-
-;)
-
-> On Mon,  5 Aug 2019 13:04:47 -0400 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
+On 8/6/19 5:16 PM, Pengfei Li wrote:
+> Like commit 40cacbcb3240 ("mm, compaction: remove unnecessary zone
+> parameter in some instances"), remove unnecessary zone parameter.
 > 
-> > The page_idle tracking feature currently requires looking up the pagemap
-> > for a process followed by interacting with /sys/kernel/mm/page_idle.
-> > Looking up PFN from pagemap in Android devices is not supported by
-> > unprivileged process and requires SYS_ADMIN and gives 0 for the PFN.
-> > 
-> > This patch adds support to directly interact with page_idle tracking at
-> > the PID level by introducing a /proc/<pid>/page_idle file.  It follows
-> > the exact same semantics as the global /sys/kernel/mm/page_idle, but now
-> > looking up PFN through pagemap is not needed since the interface uses
-> > virtual frame numbers, and at the same time also does not require
-> > SYS_ADMIN.
-> > 
-> > In Android, we are using this for the heap profiler (heapprofd) which
-> > profiles and pin points code paths which allocates and leaves memory
-> > idle for long periods of time. This method solves the security issue
-> > with userspace learning the PFN, and while at it is also shown to yield
-> > better results than the pagemap lookup, the theory being that the window
-> > where the address space can change is reduced by eliminating the
-> > intermediate pagemap look up stage. In virtual address indexing, the
-> > process's mmap_sem is held for the duration of the access.
+> No functional change.
 > 
-> Quite a lot of changes to the page_idle code.  Has this all been
-> runtime tested on architectures where
-> CONFIG_HAVE_ARCH_PTE_SWP_PGIDLE=n?  That could be x86 with a little
-> Kconfig fiddle-for-testing-purposes.
+> Signed-off-by: Pengfei Li <lpf.vector@gmail.com>
 
-I will do this Kconfig fiddle test with CONFIG_HAVE_ARCH_PTE_SWP_PGIDLE=n and test
-the patch as well.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-In previous series, this flag was not there (which should have been
-equivalent to the above test), and things are working fine.
-
-> > 8 files changed, 376 insertions(+), 45 deletions(-)
+> ---
+>  mm/compaction.c | 13 ++++++-------
+>  1 file changed, 6 insertions(+), 7 deletions(-)
 > 
-> Quite a lot of new code unconditionally added to major architectures. 
-> Are we confident that everyone will want this feature?
-
-I did not follow, could you clarify more? All of this diff stat is not to
-architecture code:
-
- arch/Kconfig                  |   3 ++
- fs/proc/base.c                |   3 ++
- fs/proc/internal.h            |   1 +
- fs/proc/task_mmu.c            |  43 +++++++++++++++++++++
- include/asm-generic/pgtable.h |   6 +++
- include/linux/page_idle.h     |   4 ++
- mm/page_idle.c                | 359 +++++++++++++++++++++++++++++..
- mm/rmap.c                     |   2 +
- 8 files changed, 376 insertions(+), 45 deletions(-)
-
-The arcitecture change is in a later patch, and is not that many lines.
-
-Also, I am planning to split the swap functionality of the patch into a
-separate one for easier review.
-
-> > +static int proc_page_idle_open(struct inode *inode, struct file *file)
-> > +{
-> > +	struct mm_struct *mm;
-> > +
-> > +	mm = proc_mem_open(inode, PTRACE_MODE_READ);
-> > +	if (IS_ERR(mm))
-> > +		return PTR_ERR(mm);
-> > +	file->private_data = mm;
-> > +	return 0;
-> > +}
-> > +
-> > +static int proc_page_idle_release(struct inode *inode, struct file *file)
-> > +{
-> > +	struct mm_struct *mm = file->private_data;
-> > +
-> > +	if (mm)
+> diff --git a/mm/compaction.c b/mm/compaction.c
+> index 952dc2fb24e5..685c3e3d0a0f 100644
+> --- a/mm/compaction.c
+> +++ b/mm/compaction.c
+> @@ -1737,8 +1737,7 @@ static unsigned long fast_find_migrateblock(struct compact_control *cc)
+>   * starting at the block pointed to by the migrate scanner pfn within
+>   * compact_control.
+>   */
+> -static isolate_migrate_t isolate_migratepages(struct zone *zone,
+> -					struct compact_control *cc)
+> +static isolate_migrate_t isolate_migratepages(struct compact_control *cc)
+>  {
+>  	unsigned long block_start_pfn;
+>  	unsigned long block_end_pfn;
+> @@ -1756,8 +1755,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  	 */
+>  	low_pfn = fast_find_migrateblock(cc);
+>  	block_start_pfn = pageblock_start_pfn(low_pfn);
+> -	if (block_start_pfn < zone->zone_start_pfn)
+> -		block_start_pfn = zone->zone_start_pfn;
+> +	if (block_start_pfn < cc->zone->zone_start_pfn)
+> +		block_start_pfn = cc->zone->zone_start_pfn;
+>  
+>  	/*
+>  	 * fast_find_migrateblock marks a pageblock skipped so to avoid
+> @@ -1787,8 +1786,8 @@ static isolate_migrate_t isolate_migratepages(struct zone *zone,
+>  		if (!(low_pfn % (SWAP_CLUSTER_MAX * pageblock_nr_pages)))
+>  			cond_resched();
+>  
+> -		page = pageblock_pfn_to_page(block_start_pfn, block_end_pfn,
+> -									zone);
+> +		page = pageblock_pfn_to_page(block_start_pfn,
+> +						block_end_pfn, cc->zone);
+>  		if (!page)
+>  			continue;
+>  
+> @@ -2158,7 +2157,7 @@ compact_zone(struct compact_control *cc, struct capture_control *capc)
+>  			cc->rescan = true;
+>  		}
+>  
+> -		switch (isolate_migratepages(cc->zone, cc)) {
+> +		switch (isolate_migratepages(cc)) {
+>  		case ISOLATE_ABORT:
+>  			ret = COMPACT_CONTENDED;
+>  			putback_movable_pages(&cc->migratepages);
 > 
-> I suspect the test isn't needed?  proc_page_idle_release) won't be
-> called if proc_page_idle_open() failed?
-
-Yes you are right, will remove the test.
-
-thanks,
-
- - Joel
 
