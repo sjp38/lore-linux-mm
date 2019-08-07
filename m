@@ -2,210 +2,239 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 747DBC32754
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 12:07:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 02062C433FF
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 12:58:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1D8E621E6C
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 12:07:41 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="FwqxEndr"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1D8E621E6C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id B81B121BE3
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 12:58:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B81B121BE3
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5923A6B0003; Wed,  7 Aug 2019 08:07:41 -0400 (EDT)
+	id 4CF306B0003; Wed,  7 Aug 2019 08:58:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5439E6B0006; Wed,  7 Aug 2019 08:07:41 -0400 (EDT)
+	id 4831F6B0006; Wed,  7 Aug 2019 08:58:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 40A2F6B0007; Wed,  7 Aug 2019 08:07:41 -0400 (EDT)
+	id 36F696B0007; Wed,  7 Aug 2019 08:58:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f200.google.com (mail-qt1-f200.google.com [209.85.160.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 236A86B0003
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 08:07:41 -0400 (EDT)
-Received: by mail-qt1-f200.google.com with SMTP id d26so82126106qte.19
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 05:07:41 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id DA64F6B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 08:58:28 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id m23so56011508edr.7
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 05:58:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=v26ljGQm8kb1b/B+MgY9iqkRnu2IlPlITotoyjOaRLE=;
-        b=aYWB5KK0/Uh9dkeMnDkGSuzqrBXNSNELnK3piWedvSN6BBz/y+6W5lGUKCwjN5ZKPO
-         dcam4QOm8omBpWtjcS6CR6mtwrGIlQG51g+zedQ4+yl3CpP8172Gsg2oA4GRyNTINCKe
-         U7yaLZZOPCq4h1ODWj8cdqSg5QvIghXnFngqH1q0DH1p67o9RZyZCpPUqEzluLJrztDF
-         JjTlZCVd2fftRYd1wOcrxWtZD7/P73uhDBdkDbZTReKBEGbpFZdkcO7yO398FgE+em07
-         fIQ6aY5YHmKkupUJRg/BOD4UTq/L+BHlrtMcAVlHnzf7sxx6699IBDRxBszOcEZgc/fN
-         jnUw==
-X-Gm-Message-State: APjAAAXnQuMtyayH+znZCLF7NFfVq6sTEmFLrD0thS7q9dsc7INbA/g1
-	UFJsl+riAFIjvgXR5b+u5bd4Ghu5Nb4gwJs4zZvhNpzV10cBuF3Wpv9c8fsz3mylBXrBlZIvoK8
-	KJhDIWlbqjD2RWu43ZaPvuUwpZ/Ee4CpVnQub3FrZ8MA6tiOIamCn2DIw1ArQtQ/fbA==
-X-Received: by 2002:aed:37e7:: with SMTP id j94mr7534184qtb.75.1565179660823;
-        Wed, 07 Aug 2019 05:07:40 -0700 (PDT)
-X-Received: by 2002:aed:37e7:: with SMTP id j94mr7534120qtb.75.1565179660111;
-        Wed, 07 Aug 2019 05:07:40 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565179660; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=Ld9G8s52mUgVqlwLTqPePoM9iCKTubDk7WMu/oo2f+A=;
+        b=ggTMx8jo6lmVKNluHC72cnh+xLMyHr0qw4DQrAhQu6ptV8NVuTt3B1ohzGQeL13MbF
+         JMUY1wWMKWkU965PBpf0LGFVqK9r8MKyDWuzSgAIxAlQqLewlzbYfZmKhPlh59+CaRKg
+         F5tqqjAO0Mugjgr/52FR45dW8vWqwFxVBLSVc086hhXULT5GUlhGX5k+b1Mjw/rBhP/X
+         blTkWJA4CKwaomyw46CYuyP37Mc1/gz8YTDIFFrG4Ocq3H76yTD4OjbbFnGS2SyB73fh
+         dbq+yAClRm4bF4ZfIuEmLWMl21Qy9oV7jQmlH4/+4DT6U5wiAgPthTDCh9JxpZ39g6Nv
+         GyKg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: APjAAAUOean3AeCnTzmvPBNaYrV7WenCzcNpf4uOom6H6dKZVhki4si9
+	H67CkhfPgv3JHJQNN9YR2OH0kdUjIFFe936gb+KS4CGDb5rbj51Bq8vvpB+2Bm3oEixuWjNjxlG
+	FVZctmB0s/Wk6e3H5bnb1UNm3oq1UrE21UxYpoL0vgl1/Tn7RSvq92TZHYP0XWYECEA==
+X-Received: by 2002:a17:906:9385:: with SMTP id l5mr8108464ejx.8.1565182708404;
+        Wed, 07 Aug 2019 05:58:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyI6gWfS1kyaWB2bnTabq2hK+XWcliKvwcebf9DswIYYEdh9qJI891Dr9pihiITeb6Ru+8C
+X-Received: by 2002:a17:906:9385:: with SMTP id l5mr8108393ejx.8.1565182707196;
+        Wed, 07 Aug 2019 05:58:27 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565182707; cv=none;
         d=google.com; s=arc-20160816;
-        b=qeM8wbYEI08lXuCYW58vbkDtNIonc39HdtCqcq6EW2wCRQzwaqNGU+Mqjiw0vs449R
-         KT8SNfdRwP2W8bv1AsrFujJKRKNCgIUiEK+E+9EXd0WXbRgk8uV+lYXR684mI25ltExH
-         vSgpgozFjUTyz+yUqf3hR81Y5HR5NNc3F/BmFSwK431rMd+K3hTO4Kwh7cEgRdRlB2dI
-         CKJCRmrA+5hBvYaz1kJRusRtI8GjGUIgyWwbxPKjk5LkDv0C4fYVs2w+sLBH2+WovUBQ
-         mtWPCD5VSd/bGgweAihKroBGknsq0wfjxkiKXPlVhzTr+QLFcxR1jjzcBIxXZ9w7KE6U
-         t+lg==
+        b=qr7yD/LPVXfqpZ67HE0yIpG15Y5GyxqRZdtWgCgrpSmPIiZa0r2QtuLkzN7Uxjdii7
+         yP+8OU2Guu8rLYJiJ0ZhfZM3mOxxPl1ZhPgVZZtfuRkthY3/8p3l6i4ovKUlJOyCiXni
+         dOfyzWZkQWTdJzNdX3VtmA95dOCTUe+i090E5ivDpLGhg1wkwVQd6A/RVvSbi2R3z5o+
+         9fUigrTbKJAye/c43P+iESQ9IBd/M7iCJ14/l2jPzadqB0vdF2kRjux1T8PyUwR8SpCR
+         fiOoB1nFEAPKec+MjgeO23dVIWPH7Y2U2mKQg+RMprMlgzLlTc6sDzboffudBpQ/Ohet
+         yZqg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=v26ljGQm8kb1b/B+MgY9iqkRnu2IlPlITotoyjOaRLE=;
-        b=PIvOdnNjMz6QYobUgVVknXAFL6EqGbuwl+0Dp2jMuxcSRk+4HvbhaGSScgk/jD1rT2
-         pBTh6hTXxZtFQ3K6mhj1BQulOeV8MdWi0jlqwIN//QfH313OEXwuYU2Dy+al16tWuy36
-         /yJir4K+P9bTZpv/cV/O7w00KJThB3Pzht/7JMPgeFEJt6BA8/ltRXJXD1QQJVvAkdj6
-         m2SKM79W/1gVIUCJfbLUYacdZAcGfngHUets34qBq0oWCUSCKDbOnHOLEgNNFIXoGfEt
-         gu4vGtxPoLcVZRF/OzRKft2iQw16fpLlM7FmtX3pwluEI86n5U5Wj/d6XTv308r+6fQL
-         Ba+g==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=Ld9G8s52mUgVqlwLTqPePoM9iCKTubDk7WMu/oo2f+A=;
+        b=CDmtxaxiQD9P9ZFhcML4Ue9yjntX9OQOhad/A/B9r/W+e63co/WerKiLhoooa28Zo0
+         BHB0eiNtsLyZawCVppPmNRBXuNfiTzPFyskjnM89E/GIMx9LZssI0erl5uvHEM4ViCiC
+         03EH8sufKqRDdeRBfn7e0iH0q76Ql7NGLNbYJ+0Cztxn1xrJho8dpMnpNFHWbgd3xh1g
+         QocSwr5Qfw/xq2VDoUdjWDLYOeECdBOXQa1NQJvzQhzTq2CvNJMYMmiz2L3D4GN/MgfJ
+         sBhuGavZQ4qSAE4v89EbAz1Oz4gKyU3de7QsIK+P2PpEc73f+He3Figuo372Ndj3TJck
+         oVlw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=FwqxEndr;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 4sor330835qvr.47.2019.08.07.05.07.39
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 07 Aug 2019 05:07:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id p32si32493868eda.51.2019.08.07.05.58.25
+        for <linux-mm@kvack.org>;
+        Wed, 07 Aug 2019 05:58:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@ziepe.ca header.s=google header.b=FwqxEndr;
-       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=v26ljGQm8kb1b/B+MgY9iqkRnu2IlPlITotoyjOaRLE=;
-        b=FwqxEndrrseDTfa7IA+ahMyXJcw275sq/ogyK1cE9Brfp/+cA5dthaNKeo43mipwCW
-         6M3TrldZWv7JXH9KLIINp0G6YhemLDU3zOb98Y6ixjqND8Edt4vtD4dtABJZtPFOlNWQ
-         7o+i/B+d4dsypsLc9FAuuiUZqdV3+cuQPd1u7fGeYNEYgtw4WFPR67fjUunxQzqjk+D+
-         m/Hrc+kRzSQLc/Y4MNwDwO+mVI0ImT4tvNWKY8DSYiKFsYOn0c9EH2FZcaFik8oOhgro
-         wCckNCtxQRpeA/pGd5OtN/Hmf4FSEtEBQR4gGNGlbagAyW+no63yQWaSBO4AtHGy6HOL
-         lRNA==
-X-Google-Smtp-Source: APXvYqwdlTEXDfbCbN8MO6nqW9FtHXr3xg/qpTMHDicPu2B1XqjJOXbR74uxCwKcBjwiEflnXc1c9w==
-X-Received: by 2002:a0c:e790:: with SMTP id x16mr7775534qvn.120.1565179659437;
-        Wed, 07 Aug 2019 05:07:39 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id p32sm45431550qtb.67.2019.08.07.05.07.38
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 07 Aug 2019 05:07:38 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hvKjC-0000z1-4M; Wed, 07 Aug 2019 09:07:38 -0300
-Date: Wed, 7 Aug 2019 09:07:38 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Jason Wang <jasowang@redhat.com>
-Cc: mst@redhat.com, kvm@vger.kernel.org,
-	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org
-Subject: Re: [PATCH V4 7/9] vhost: do not use RCU to synchronize MMU notifier
- with worker
-Message-ID: <20190807120738.GB1557@ziepe.ca>
-References: <20190807070617.23716-1-jasowang@redhat.com>
- <20190807070617.23716-8-jasowang@redhat.com>
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D9E2B28;
+	Wed,  7 Aug 2019 05:58:24 -0700 (PDT)
+Received: from [10.1.196.133] (e112269-lin.cambridge.arm.com [10.1.196.133])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 493D93F575;
+	Wed,  7 Aug 2019 05:58:22 -0700 (PDT)
+Subject: Re: [PATCH v10 20/22] x86: mm: Convert dump_pagetables to use
+ walk_page_range
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mark Rutland <Mark.Rutland@arm.com>, x86@kernel.org,
+ Arnd Bergmann <arnd@arndb.de>, Ard Biesheuvel <ard.biesheuvel@linaro.org>,
+ Peter Zijlstra <peterz@infradead.org>,
+ Catalin Marinas <catalin.marinas@arm.com>,
+ Dave Hansen <dave.hansen@linux.intel.com>, linux-kernel@vger.kernel.org,
+ linux-mm@kvack.org, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
+ Ingo Molnar <mingo@redhat.com>, Borislav Petkov <bp@alien8.de>,
+ Andy Lutomirski <luto@kernel.org>, "H. Peter Anvin" <hpa@zytor.com>,
+ James Morse <james.morse@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
+ Will Deacon <will@kernel.org>, linux-arm-kernel@lists.infradead.org,
+ "Liang, Kan" <kan.liang@linux.intel.com>
+References: <20190731154603.41797-1-steven.price@arm.com>
+ <20190731154603.41797-21-steven.price@arm.com>
+ <20190806165823.3f735b45a7c4163aca20a767@linux-foundation.org>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <066fa4ca-5a46-ba86-607f-9c3e16f79cde@arm.com>
+Date: Wed, 7 Aug 2019 13:58:21 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190807070617.23716-8-jasowang@redhat.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190806165823.3f735b45a7c4163aca20a767@linux-foundation.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 07, 2019 at 03:06:15AM -0400, Jason Wang wrote:
-> We used to use RCU to synchronize MMU notifier with worker. This leads
-> calling synchronize_rcu() in invalidate_range_start(). But on a busy
-> system, there would be many factors that may slow down the
-> synchronize_rcu() which makes it unsuitable to be called in MMU
-> notifier.
+On 07/08/2019 00:58, Andrew Morton wrote:
+> On Wed, 31 Jul 2019 16:46:01 +0100 Steven Price <steven.price@arm.com> wrote:
 > 
-> So this patch switches use seqlock counter to track whether or not the
-> map was used. The counter was increased when vq try to start or finish
-> uses the map. This means, when it was even, we're sure there's no
-> readers and MMU notifier is synchronized. When it was odd, it means
-> there's a reader we need to wait it to be even again then we are
-> synchronized. Consider the read critical section is pretty small the
-> synchronization should be done very fast.
+>> Make use of the new functionality in walk_page_range to remove the
+>> arch page walking code and use the generic code to walk the page tables.
+>>
+>> The effective permissions are passed down the chain using new fields
+>> in struct pg_state.
+>>
+>> The KASAN optimisation is implemented by including test_p?d callbacks
+>> which can decide to skip an entire tree of entries
+>>
+>> ...
+>>
+>> +static const struct ptdump_range ptdump_ranges[] = {
+>> +#ifdef CONFIG_X86_64
+>>  
+>> -#define pgd_large(a) (pgtable_l5_enabled() ? pgd_large(a) : p4d_large(__p4d(pgd_val(a))))
+>> -#define pgd_none(a)  (pgtable_l5_enabled() ? pgd_none(a) : p4d_none(__p4d(pgd_val(a))))
+>> +#define normalize_addr_shift (64 - (__VIRTUAL_MASK_SHIFT + 1))
+>> +#define normalize_addr(u) ((signed long)(u << normalize_addr_shift) \
+>> +				>> normalize_addr_shift)
+>>  
+>> -static inline bool is_hypervisor_range(int idx)
+>> -{
+>> -#ifdef CONFIG_X86_64
+>> -	/*
+>> -	 * A hole in the beginning of kernel address space reserved
+>> -	 * for a hypervisor.
+>> -	 */
+>> -	return	(idx >= pgd_index(GUARD_HOLE_BASE_ADDR)) &&
+>> -		(idx <  pgd_index(GUARD_HOLE_END_ADDR));
+>> +	{0, PTRS_PER_PGD * PGD_LEVEL_MULT / 2},
+>> +	{normalize_addr(PTRS_PER_PGD * PGD_LEVEL_MULT / 2), ~0UL},
 > 
-> Reported-by: Michael S. Tsirkin <mst@redhat.com>
-> Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual address")
-> Signed-off-by: Jason Wang <jasowang@redhat.com>
->  drivers/vhost/vhost.c | 141 ++++++++++++++++++++++++++----------------
->  drivers/vhost/vhost.h |   7 ++-
->  2 files changed, 90 insertions(+), 58 deletions(-)
+> This blows up because PGD_LEVEL_MULT is sometimes not a constant.
 > 
-> diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
-> index cfc11f9ed9c9..57bfbb60d960 100644
-> +++ b/drivers/vhost/vhost.c
-> @@ -324,17 +324,16 @@ static void vhost_uninit_vq_maps(struct vhost_virtqueue *vq)
->  
->  	spin_lock(&vq->mmu_lock);
->  	for (i = 0; i < VHOST_NUM_ADDRS; i++) {
-> -		map[i] = rcu_dereference_protected(vq->maps[i],
-> -				  lockdep_is_held(&vq->mmu_lock));
-> +		map[i] = vq->maps[i];
->  		if (map[i]) {
->  			vhost_set_map_dirty(vq, map[i], i);
-> -			rcu_assign_pointer(vq->maps[i], NULL);
-> +			vq->maps[i] = NULL;
->  		}
->  	}
->  	spin_unlock(&vq->mmu_lock);
->  
-> -	/* No need for synchronize_rcu() or kfree_rcu() since we are
-> -	 * serialized with memory accessors (e.g vq mutex held).
-> +	/* No need for synchronization since we are serialized with
-> +	 * memory accessors (e.g vq mutex held).
->  	 */
->  
->  	for (i = 0; i < VHOST_NUM_ADDRS; i++)
-> @@ -362,6 +361,40 @@ static bool vhost_map_range_overlap(struct vhost_uaddr *uaddr,
->  	return !(end < uaddr->uaddr || start > uaddr->uaddr - 1 + uaddr->size);
->  }
->  
-> +static void inline vhost_vq_access_map_begin(struct vhost_virtqueue *vq)
-> +{
-> +	write_seqcount_begin(&vq->seq);
-> +}
-> +
-> +static void inline vhost_vq_access_map_end(struct vhost_virtqueue *vq)
-> +{
-> +	write_seqcount_end(&vq->seq);
-> +}
+> x86_64 allmodconfig:
+> 
+> In file included from ./arch/x86/include/asm/pgtable_types.h:249:0,
+>                  from ./arch/x86/include/asm/paravirt_types.h:45,
+>                  from ./arch/x86/include/asm/ptrace.h:94,
+>                  from ./arch/x86/include/asm/math_emu.h:5,
+>                  from ./arch/x86/include/asm/processor.h:12,
+>                  from ./arch/x86/include/asm/cpufeature.h:5,
+>                  from ./arch/x86/include/asm/thread_info.h:53,
+>                  from ./include/linux/thread_info.h:38,
+>                  from ./arch/x86/include/asm/preempt.h:7,
+>                  from ./include/linux/preempt.h:78,
+>                  from ./include/linux/spinlock.h:51,
+>                  from ./include/linux/wait.h:9,
+>                  from ./include/linux/wait_bit.h:8,
+>                  from ./include/linux/fs.h:6,
+>                  from ./include/linux/debugfs.h:15,
+>                  from arch/x86/mm/dump_pagetables.c:11:
+> ./arch/x86/include/asm/pgtable_64_types.h:56:22: error: initializer element is not constant
+>  #define PTRS_PER_PGD 512
+>                       ^
 
-The write side of a seqlock only provides write barriers. Access to
+This is very unhelpful of GCC - it's actually PTRS_PER_P4D which isn't
+constant!
 
-	map = vq->maps[VHOST_ADDR_USED];
+> arch/x86/mm/dump_pagetables.c:363:6: note: in expansion of macro ‘PTRS_PER_PGD’
+>   {0, PTRS_PER_PGD * PGD_LEVEL_MULT / 2},
+>       ^~~~~~~~~~~~
+> ./arch/x86/include/asm/pgtable_64_types.h:56:22: note: (near initialization for ‘ptdump_ranges[0].end’)
+>  #define PTRS_PER_PGD 512
+>                       ^
+> arch/x86/mm/dump_pagetables.c:363:6: note: in expansion of macro ‘PTRS_PER_PGD’
+>   {0, PTRS_PER_PGD * PGD_LEVEL_MULT / 2},
+>       ^~~~~~~~~~~~
+> arch/x86/mm/dump_pagetables.c:360:27: error: initializer element is not constant
+>  #define normalize_addr(u) ((signed long)(u << normalize_addr_shift) \
+>                            ^
+> arch/x86/mm/dump_pagetables.c:364:3: note: in expansion of macro ‘normalize_addr’
+>   {normalize_addr(PTRS_PER_PGD * PGD_LEVEL_MULT / 2), ~0UL},
+>    ^~~~~~~~~~~~~~
+> arch/x86/mm/dump_pagetables.c:360:27: note: (near initialization for ‘ptdump_ranges[1].start’)
+>  #define normalize_addr(u) ((signed long)(u << normalize_addr_shift) \
+>                            ^
+> arch/x86/mm/dump_pagetables.c:364:3: note: in expansion of macro ‘normalize_addr’
+>   {normalize_addr(PTRS_PER_PGD * PGD_LEVEL_MULT / 2), ~0UL},
+> 
+> I don't know what to do about this so I'll drop the series.
 
-Still needs a read side barrier, and then I think this will be no
-better than a normal spinlock.
+My best solution to this is to simply make ptdump_ranges dynamic (see
+below). But there are other problems with this series (thanks for
+spotting them), so I'll send out another version later.
 
-It also doesn't seem like this algorithm even needs a seqlock, as this
-is just a one bit flag
+Thanks,
 
-atomic_set_bit(using map)
-smp_mb__after_atomic()
-.. maps [...]
-atomic_clear_bit(using map)
+Steve
 
+----8<-----
+diff --git a/arch/x86/mm/dump_pagetables.c b/arch/x86/mm/dump_pagetables.c
+index 998c7f46763c..8fc129ff985e 100644
+--- a/arch/x86/mm/dump_pagetables.c
++++ b/arch/x86/mm/dump_pagetables.c
+@@ -353,7 +353,10 @@ static void note_page(struct ptdump_state *pt_st,
+unsigned long addr, int level,
+        }
+ }
 
-map = NULL;
-smp_mb__before_atomic();
-while (atomic_read_bit(using map))
-   relax()
+-static const struct ptdump_range ptdump_ranges[] = {
++static void ptdump_walk_pgd_level_core(struct seq_file *m, struct
+mm_struct *mm,
++                                      bool checkwx, bool dmesg)
++{
++       const struct ptdump_range ptdump_ranges[] = {
+ #ifdef CONFIG_X86_64
 
-Again, not clear this could be faster than a spinlock when the
-barriers are correct...
+ #define normalize_addr_shift (64 - (__VIRTUAL_MASK_SHIFT + 1))
+@@ -368,9 +371,6 @@ static const struct ptdump_range ptdump_ranges[] = {
+        {0, 0}
+ };
 
-Jason
+-static void ptdump_walk_pgd_level_core(struct seq_file *m, struct
+mm_struct *mm,
+-                                      bool checkwx, bool dmesg)
+-{
+        struct pg_state st = {
+                .ptdump = {
+                        .note_page      = note_page,
 
