@@ -2,106 +2,107 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 11885C433FF
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 23:11:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 84988C32751
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 23:17:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7E7112184E
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 23:11:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E7112184E
+	by mail.kernel.org (Postfix) with ESMTP id 50ABD21871
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 23:17:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50ABD21871
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BB5C36B0003; Wed,  7 Aug 2019 19:11:55 -0400 (EDT)
+	id C9B256B0003; Wed,  7 Aug 2019 19:17:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B667E6B0006; Wed,  7 Aug 2019 19:11:55 -0400 (EDT)
+	id C4BE86B0006; Wed,  7 Aug 2019 19:17:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A55286B0007; Wed,  7 Aug 2019 19:11:55 -0400 (EDT)
+	id AEC9C6B0007; Wed,  7 Aug 2019 19:17:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F17E6B0003
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 19:11:55 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id x10so57753379pfa.23
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 16:11:55 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 78FAB6B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 19:17:56 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id q11so54259666pll.22
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 16:17:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=N552WPF67/0vE4Km/PTEr4e4DxeHnwKPyk5yz3Mn+2A=;
-        b=BfguDnHDzsED5QSvp4Rz1i3J3Ru0dLRR5Fy4v31D8UgtnqNMhDi/o9omBgnbgJNVZ1
-         DToxy/J4mBw86bqlb4BDCG2CY9Ulf99kqqv6HbFJYiI5aGtLJT0QrLcWmOOV4FdoxwpI
-         RTqWD8XU4GzCDkO4ACKElGkyzzYeaVV/n/PSkf/9lImLRG2Zisv90DpZK90sIs746nvO
-         +HAjWZZyh6GHIqEZgIEqce9G/TKykJuZtsz1F/nGm5Mt2HvcEmXAg+/d5U4B9Yp2Gk/2
-         ncyW5SrysPXW5lB6nVAidSdjfW6UdmZzuOxBXqAaI1YX/QCpMr6bmBmrSYikhJXvGXAN
-         UCXg==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAVYtabGAHmy5+x8roOxgipqHWk8156vLpSXzPoOyfLFg4qQXfO+
-	sgDnYqzQPwJ6MP40brG4FWR8XKwP0Bf92oA6mCJM+zzSXbAdI4nIrPy3ETSVrh6rgsWyq7dQeGE
-	fXUpx4XTk6DIKG3uH7PyCbnIP1c7nhYcY1rL9qnX7agu+fWyEzrFKBo5LYnr29/k=
-X-Received: by 2002:a62:1883:: with SMTP id 125mr11928404pfy.178.1565219514885;
-        Wed, 07 Aug 2019 16:11:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw9OPjBVQLa5jyCXX7XCmp51q8NCvKASXSwiEMJFjcTp/S9VJuzlV9I7F8bJGlBCx/MoIF3
-X-Received: by 2002:a62:1883:: with SMTP id 125mr11928291pfy.178.1565219513381;
-        Wed, 07 Aug 2019 16:11:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565219513; cv=none;
+        bh=8e5UYK7tmtxZx7Mc6TvypuzxakJP04H3mZpgOtQtbA4=;
+        b=Y8AqT2nnHYu9BW9A6pue5bq6VhkxdZs/sKZy6r/lEo3E7cHiH0MRXuNlwuGSZmyY1a
+         jWV5DekqBepV97iCvjlJK7AuY7gdWiO3RNCuAfPZKSDat3Y2YC7MaZTYLumLk4G+Dw0s
+         j3KtlIlq5FIUVBEyL4t0Qhd1zKmipR1ABd1cwb+URQZShBtx0zBrmIBzluZ7lYZnqmVA
+         p+LFJu1wes050K/OML2hJwYeSZOfac56tpjavqvbBnBpCq8rIP5bE1J6L71KUC4IomPf
+         yRz80UVIU/TewlYk+zhQjze4AzJT0DTtHiDu59hlJkqaMGGgbsoMvvy/W0fzZiH+kYom
+         gEPw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAX7+Jey33kAUFJRXzOPtNOCQvFyO031+cXq9ZGO4GpOxzAn++e4
+	XPJ9EFUtarWlEZuw/mtTBizKHvnGFC7uUxNaNoQRC0RhBT9vD5lOxyVVjS/HHvTOOv8izUShYh6
+	6tFEyPotG90PZTJT9oUKmXONfkVFqoqNfJASpa+xq4odHOr+S2ECiieKjjeauhBQ=
+X-Received: by 2002:a17:902:f81:: with SMTP id 1mr10411918plz.191.1565219876062;
+        Wed, 07 Aug 2019 16:17:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwjGH/006PnOcyb8Rx6o/WTVurpVK8IQ9hLTKTb3LLgdq0d73IZcg0+vyrI/v3D4hyfqxwL
+X-Received: by 2002:a17:902:f81:: with SMTP id 1mr10411887plz.191.1565219875377;
+        Wed, 07 Aug 2019 16:17:55 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565219875; cv=none;
         d=google.com; s=arc-20160816;
-        b=YKQg6I0MkaZ3NSB/Ny7bZfu1wDeub6XN413OGWDl01XAWiUDKKK0hcIHStpbgw29+n
-         u+rzKcyyZjuYX/Ma63kQ3Bl7IZMuA1HPqjYG81ebiaojNd07qrypWUPY7XrJsfomaWac
-         irbtXtoah2tHnIVx5XSicryAnbM8wjye0TMGjBdvieURBAA5mMjvj+aHPxvMizL9EQ5J
-         K80njiBnDznFJFcjOx9COmbMt66nNjdASv78uiCb1DhZRuPZwyuUS+OZE0qa7Q40tGEt
-         sA8UHkgPPNmFcBy05Y+1FYJJvgZ3AFs9tue/ENVW0ddcRmyLQrPqf4C5AMTdEZ33m1aG
-         V6lw==
+        b=gbw8RPIcMf1OkrwrQydqHOXKptHc4jhm4gQOiucnO57Q1iL3ILfPEUuv40/d3IhV2J
+         /PENBmNTVtn6QTFXRcx2L2uor0ypVGuJo+uYweeCj7dOgjdiEcHzYAWN8ZS35oqOTONj
+         4+32qJUhZ7nCDIOIIErvh993I3u9RVTikM1XRBmlNL0zNK8kcOgm06D5xKFiQlCtFprH
+         pEx304o2U6IVDc/IIOlL6UJMHBRLjjd9+IBW2Xlfq4YouIpzmvyUGG+ka7AIeSyTpDCD
+         4UFyxKitEm7LuLOx6Ji6k2MADsUlXo0g9Qe7/0kmflLU5XsVRS/WUbZHY1xZXFvMnShW
+         g0Fg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=N552WPF67/0vE4Km/PTEr4e4DxeHnwKPyk5yz3Mn+2A=;
-        b=FrK2o8HzAV3CNvmn/b9aTLKewSPRDzX/JKnlPQL9ohui0tZP8IzuRVwKopXjMnaz3p
-         Rby3VRwLxkbfoYpocN/tHSi+nvEoEAJ7oMdDlSbiOcdA/qHcp1ZwwePaKKsHqKvGhoHR
-         YKZTIAChZ6VXL9qZwvJFgjsaTnvBoc8xL37Ed3sLnpU9fzicaUeyAuHQiagCVAjbF5R2
-         jrYStw/t4j2fB6K9J2/1GbwVYr7PnC+kVH2Xwv3bxIIpYgpHjmgv1EtWuxVjeQxHaJIv
-         dlA2DjEwekJVUdDsb1Jgv+0QC6nJcg4+XYWu1hdy+WwA9tqGNo1oamL39WZq9Vj7mgts
-         iYHQ==
+        bh=8e5UYK7tmtxZx7Mc6TvypuzxakJP04H3mZpgOtQtbA4=;
+        b=wR7ADdLqubzNkIN03FRXHfsQQGOicCuJfvwok8kn4CaWpJeoPcs3EjNDpE9x7vUe9c
+         N5Rauvi1GJmsttLwdman7UFRe6yr/C9jiuZSidgd+wX6D0iOLvsVgKkDsJdwq7zp3vVK
+         8YVVRd6VdGxOAKsXhinDjJWOvGV7ignoo17zNFCkw71NZOJJlIpM0gyqHH1tO8TkjAc2
+         lJdYJFd2e64Lf/XyR1y8tFzJDpInmPKfM2XAdl6iUB+i5QnK4QyhiH4vQdk0OMfeER9q
+         ajhpEUSKq0FjyHkaflqINHPNF7AYNckqfXELg+HNvrVSmyDBCHg2gZfJWWXpaJl32e0m
+         uxTA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au. [211.29.132.246])
-        by mx.google.com with ESMTP id y62si23749445pgy.348.2019.08.07.16.11.52
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
+        by mx.google.com with ESMTP id d7si50062398pgv.86.2019.08.07.16.17.55
         for <linux-mm@kvack.org>;
-        Wed, 07 Aug 2019 16:11:53 -0700 (PDT)
-Received-SPF: neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.246;
+        Wed, 07 Aug 2019 16:17:55 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
 Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
-	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id F0A4D43E6F6;
-	Thu,  8 Aug 2019 09:11:51 +1000 (AEST)
+	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id 19A37361CB0;
+	Thu,  8 Aug 2019 09:17:54 +1000 (AEST)
 Received: from dave by dread.disaster.area with local (Exim 4.92)
 	(envelope-from <david@fromorbit.com>)
-	id 1hvV4u-0006IK-EC; Thu, 08 Aug 2019 09:10:44 +1000
-Date: Thu, 8 Aug 2019 09:10:44 +1000
+	id 1hvVAl-0006Iz-1P; Thu, 08 Aug 2019 09:16:47 +1000
+Date: Thu, 8 Aug 2019 09:16:47 +1000
 From: Dave Chinner <david@fromorbit.com>
 To: Brian Foster <bfoster@redhat.com>
 Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
 	linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH 20/24] xfs: use AIL pushing for inode reclaim IO
-Message-ID: <20190807231044.GR7777@dread.disaster.area>
+Subject: Re: [PATCH 18/24] xfs: reduce kswapd blocking on inode locking.
+Message-ID: <20190807231647.GS7777@dread.disaster.area>
 References: <20190801021752.4986-1-david@fromorbit.com>
- <20190801021752.4986-21-david@fromorbit.com>
- <20190807180915.GA20425@bfoster>
+ <20190801021752.4986-19-david@fromorbit.com>
+ <20190806182213.GF2979@bfoster>
+ <20190806213353.GJ7777@dread.disaster.area>
+ <20190807113009.GC19707@bfoster>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190807180915.GA20425@bfoster>
+In-Reply-To: <20190807113009.GC19707@bfoster>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Optus-CM-Score: 0
 X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0
 	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
 	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
-	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=2u6jjkzSJdERxq6WDqUA:9
-	a=II6kCMbtO0gN6Dj7:21 a=dWF_ZXg1rf0HNZcO:21 a=CjuIK1q_8ugA:10
+	a=7-415B0cAAAA:8 a=LIETh8aiTdfSQb0hYlUA:9 a=CjuIK1q_8ugA:10
 	a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -109,253 +110,29 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 07, 2019 at 02:09:15PM -0400, Brian Foster wrote:
-> On Thu, Aug 01, 2019 at 12:17:48PM +1000, Dave Chinner wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> > 
-> > Inode reclaim currently issues it's own inode IO when it comes
-> > across dirty inodes. This is used to throttle direct reclaim down to
-> > the rate at which we can reclaim dirty inodes. Failure to throttle
-> > in this manner results in the OOM killer being trivial to trigger
-> > even when there is lots of free memory available.
-> > 
-> > However, having direct reclaimers issue IO causes an amount of
-> > IO thrashing to occur. We can have up to the number of AGs in the
-> > filesystem concurrently issuing IO, plus the AIL pushing thread as
-> > well. This means we can many competing sources of IO and they all
-> > end up thrashing and competing for the request slots in the block
-> > device.
-> > 
-> > Similar to dirty page throttling and the BDI flusher thread, we can
-> > use the AIL pushing thread the sole place we issue inode writeback
-> > from and everything else waits for it to make progress. To do this,
-> > reclaim will skip over dirty inodes, but in doing so will record the
-> > lowest LSN of all the dirty inodes it skips. It will then push the
-> > AIL to this LSN and wait for it to complete that work.
-> > 
-> > In doing so, we block direct reclaim on the IO of at least one IO,
-> > thereby providing some level of throttling for when we encounter
-> > dirty inodes. However we gain the ability to scan and reclaim
-> > clean inodes in a non-blocking fashion. This allows us to
-> > remove all the per-ag reclaim locking that avoids excessive direct
-> > reclaim, as repeated concurrent direct reclaim will hit the same
-> > dirty inodes on block waiting on the same IO to complete.
-> > 
-> 
-> The last part of the above sentence sounds borked..
+On Wed, Aug 07, 2019 at 07:30:09AM -0400, Brian Foster wrote:
+> Second (and not necessarily caused by this patch), the ireclaim flag
+> semantics are kind of a mess. As you've already noted, we currently
+> block on some locks even with SYNC_TRYLOCK, yet the cluster flushing
+> code has no concept of these flags (so we always trylock, never wait on
+> unpin, for some reason use the shared ilock vs. the exclusive ilock,
+> etc.). Further, with this patch TRYLOCK|WAIT basically means that if we
+> happen to get the lock, we flush and wait on I/O so we can free the
+> inode(s), but if somebody else has flushed the inode (we don't get the
+> flush lock) we decide not to wait on the I/O that might (or might not)
+> already be in progress. I find that a bit inconsistent. It also makes me
+> slightly concerned that we're (ab)using flag semantics for a bug fix
+> (waiting on inodes we've just flushed from the same task), but it looks
+> like this is all going to change quite a bit still so I'm not going to
+> worry too much about this mostly existing mess until I grok the bigger
+> picture changes... :P
 
-s/on/and/
-
-:)
-
-> >  /*
-> > - * Grab the inode for reclaim exclusively.
-> > - * Return 0 if we grabbed it, non-zero otherwise.
-> > + * Grab the inode for reclaim.
-> > + *
-> > + * Return false if we aren't going to reclaim it, true if it is a reclaim
-> > + * candidate.
-> > + *
-> > + * If the inode is clean or unreclaimable, return NULLCOMMITLSN to tell the
-> > + * caller it does not require flushing. Otherwise return the log item lsn of the
-> > + * inode so the caller can determine it's inode flush target.  If we get the
-> > + * clean/dirty state wrong then it will be sorted in xfs_reclaim_inode() once we
-> > + * have locks held.
-> >   */
-> > -STATIC int
-> > +STATIC bool
-> >  xfs_reclaim_inode_grab(
-> >  	struct xfs_inode	*ip,
-> > -	int			flags)
-> > +	int			flags,
-> > +	xfs_lsn_t		*lsn)
-> >  {
-> >  	ASSERT(rcu_read_lock_held());
-> > +	*lsn = 0;
-> 
-> The comment above says we return NULLCOMMITLSN. Given the rest of the
-> code, I'm assuming we should just fix up the comment.
-
-Yup, I think I've already fixed it.
-
-> > -restart:
-> > -	error = 0;
-> >  	/*
-> >  	 * Don't try to flush the inode if another inode in this cluster has
-> >  	 * already flushed it after we did the initial checks in
-> >  	 * xfs_reclaim_inode_grab().
-> >  	 */
-> > -	if (sync_mode & SYNC_TRYLOCK) {
-> > -		if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
-> > -			goto out;
-> > -		if (!xfs_iflock_nowait(ip))
-> > -			goto out_unlock;
-> > -	} else {
-> > -		xfs_ilock(ip, XFS_ILOCK_EXCL);
-> > -		if (!xfs_iflock_nowait(ip)) {
-> > -			if (!(sync_mode & SYNC_WAIT))
-> > -				goto out_unlock;
-> > -			xfs_iflock(ip);
-> > -		}
-> > -	}
-> > +	if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
-> > +		goto out;
-> > +	if (!xfs_iflock_nowait(ip))
-> > +		goto out_unlock;
-> >  
-> 
-> Do we even need the flush lock here any more if we're never going to
-> flush from this context?
-
-Ideally, no. But the inode my currently be being flushed, in which
-case the incore inode is clean, but we can't reclaim it yet. Hence
-we need the flush lock to serialise against IO completion.
-
-> The shutdown case just below notwithstanding
-> (which I'm also wondering if we should just drop given we abort from
-> xfs_iflush() on shutdown), the pin count is an atomic and the dirty
-> state changes under ilock.
-
-The shutdown case has to handle pinned inodes, not just inodes being
-flushed.
-
-> Maybe I'm missing something else, but the reason I ask is that the
-> increased flush lock contention in codepaths that don't actually flush
-> once it's acquired gives me a bit of concern that we could reduce
-> effectiveness of the one task that actually does (xfsaild).
-
-The flush lock isn't a contended lock - it's actually a bit that is
-protected by the i_flags_lock, so if we are contending on anything
-it will be the flags lock. And, well, see the LRU isolate function
-conversion of this code, becuase it changes how the flags lock is
-used for reclaim but I haven't seen any contention as a result of
-that change....
-
-> 
-> > -	 * Never flush out dirty data during non-blocking reclaim, as it would
-> > -	 * just contend with AIL pushing trying to do the same job.
-> > +	 * If it is pinned, we only want to flush this if there's nothing else
-> > +	 * to be flushed as it requires a log force. Hence we essentially set
-> > +	 * the LSN to flush the entire AIL which will end up triggering a log
-> > +	 * force to unpin this inode, but that will only happen if there are not
-> > +	 * other inodes in the scan that only need writeback.
-> >  	 */
-> > -	if (!(sync_mode & SYNC_WAIT))
-> > +	if (xfs_ipincount(ip)) {
-> > +		*lsn = ip->i_itemp->ili_last_lsn;
-> 
-> ->ili_last_lsn comes from xfs_cil_ctx->sequence, which I don't think is
-> actually a physical LSN suitable for AIL pushing. The lsn assigned to
-> the item once it's physically logged and AIL inserted comes from
-> ctx->start_lsn, which comes from the iclog header and so is a physical
-> LSN.
-
-Yup, I've already noticed and fixed that bug :)
-
-> >  	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
-> >  		unsigned long	first_index = 0;
-> >  		int		done = 0;
-> >  		int		nr_found = 0;
-> >  
-> >  		ag = pag->pag_agno + 1;
-> > -
-> > -		if (trylock) {
-> > -			if (!mutex_trylock(&pag->pag_ici_reclaim_lock)) {
-> > -				skipped++;
-> > -				xfs_perag_put(pag);
-> > -				continue;
-> > -			}
-> > -			first_index = pag->pag_ici_reclaim_cursor;
-> > -		} else
-> > -			mutex_lock(&pag->pag_ici_reclaim_lock);
-> 
-> I understand that the eliminated blocking drops a dependency on the
-> perag reclaim exclusion as described by the commit log, but I'm not sure
-> it's enough to justify removing it entirely. For one, the reclaim cursor
-> management looks potentially racy.
-
-We really don't care if the cursor updates are racy. All that will
-result in is some inode ranges being scanned twice in quick
-succession. All this does now is prevent reclaim from starting at
-the start of the AG every time it runs, so we end up with most
-reclaimers iterating over previously unscanned inodes.
-
-> Also, doesn't this exclusion provide
-> some balance for reclaim across AGs? E.g., if a bunch of reclaim threads
-> come in at the same time, this allows them to walk across AGs instead of
-> potentially stumbling over eachother in the batching/grabbing code.
-
-What they do now is leapfrog each other and work through the same
-AGs much faster. The overall pattern of reclaim doesn't actually
-change much, just the speed at which individual AGs are scanned.
-
-But that was not what the locking was put in place for. THe locking
-was put in place to be able to throttle the number of concurrent
-reclaimers issuing IO. If the reclaimers leapfrogged like they do
-without the locking, then we end up with non-sequential inode
-writeback patterns, and writeback performance goes really bad,
-really quickly. Hence the locking is there to ensure we get
-sequential inode writeback patterns from each AG that is being
-reclaimed from. That can be optimised by block layer merging, and so
-even though we might have a lot of concurrent reclaimers, we get
-lots of large, well-formed IOs from each of them.
-
-IOWs, the locking was all about preventing the IO patterns from
-breaking down under memory pressure, not about optimising how
-reclaimers interact with each other.
-
-> I see again that most of this code seems to ultimately go away, replaced
-> by an LRU mechanism so we no longer operate on a per-ag basis. I can see
-> how this becomes irrelevant with that mechanism, but I think it might
-> make more sense to drop this locking along with the broader mechanism in
-> the last patch or two of the series rather than doing it here.
-
-Fundamentally, this patch is all about shifting the IO and blocking
-mechanisms to the AIL. This locking is no longer necessary, and it
-actually gets in the way of doing non-blocking reclaim and shifting
-the IO to the AIL. i.e. we block where we no longer need to, and
-that causes more problems for this change than it solves.
-
-> If
-> nothing else, that eliminates the need for the reviewer to consider this
-> transient "old mechanism + new locking" state as opposed to reasoning
-> about the old mechanism vs. new mechanism and why the old locking simply
-> no longer applies.
-
-I think you're putting to much "make every step of the transition
-perfect" focus on this. We've got to drop this locking to make
-reclaim non-blocking, and we have to make reclaim non-blocking
-before we can move to a LRU mechanisms that relies on LRU removal
-being completely non-blocking and cannot issue IO. It's a waste of
-time trying to break this down further and further into "perfect"
-patches - it works well enough and without functional regressions so
-it does not create landmines for people doing bisects, and that's
-largely all that matters in the middle of a large patchset that is
-making large algorithm changes...
-
-> > +		first_index = pag->pag_ici_reclaim_cursor;
-> >  
-> >  		do {
-> >  			struct xfs_inode *batch[XFS_LOOKUP_BATCH];
-> ...
-> > diff --git a/fs/xfs/xfs_trans_ail.c b/fs/xfs/xfs_trans_ail.c
-> > index 00d66175f41a..5802139f786b 100644
-> > --- a/fs/xfs/xfs_trans_ail.c
-> > +++ b/fs/xfs/xfs_trans_ail.c
-> > @@ -676,8 +676,10 @@ xfs_ail_push_sync(
-> >  	spin_lock(&ailp->ail_lock);
-> >  	while ((lip = xfs_ail_min(ailp)) != NULL) {
-> >  		prepare_to_wait(&ailp->ail_push, &wait, TASK_UNINTERRUPTIBLE);
-> > +	trace_printk("lip lsn 0x%llx thres 0x%llx targ 0x%llx",
-> > +			lip->li_lsn, threshold_lsn, ailp->ail_target);
-> >  		if (XFS_FORCED_SHUTDOWN(ailp->ail_mount) ||
-> > -		    XFS_LSN_CMP(threshold_lsn, lip->li_lsn) <= 0)
-> > +		    XFS_LSN_CMP(threshold_lsn, lip->li_lsn) < 0)
-> >  			break;
-> 
-> Stale/mislocated changes?
-
-I've already cleaned that one up, too.
+Yes, SYNC_TRYLOCK/SYNC_WAIT semantics are a mess, but they all go
+away later in the patchset.  Non-blocking reclaim makes SYNC_TRYLOCK
+go away because everything becomes try-lock based, and SYNC_WAIT goes
+away because only the xfs_reclaim_inodes() function needs to wait
+for reclaim completion and so that gets it's own LRU walker
+implementation and the mode parameter is removed.
 
 Cheers,
 
