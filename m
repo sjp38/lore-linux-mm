@@ -2,148 +2,144 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4FFB6C32751
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 21:01:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 41E07C32751
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 21:12:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0E4C5217F5
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 21:01:34 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 02B29217D9
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 21:12:54 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="oVKMpM2e"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0E4C5217F5
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="rZ0i7K+4"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 02B29217D9
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AB7D26B0003; Wed,  7 Aug 2019 17:01:33 -0400 (EDT)
+	id 9503B6B0003; Wed,  7 Aug 2019 17:12:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A8F7F6B0006; Wed,  7 Aug 2019 17:01:33 -0400 (EDT)
+	id 8D9AC6B0006; Wed,  7 Aug 2019 17:12:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9A4FA6B0007; Wed,  7 Aug 2019 17:01:33 -0400 (EDT)
+	id 7A1CB6B0007; Wed,  7 Aug 2019 17:12:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 675266B0003
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 17:01:33 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id h27so57470726pfq.17
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 14:01:33 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 471286B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 17:12:54 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id a21so49425947pgv.0
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 14:12:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=9Bqfh4I9+7QrHMf7ofuM1/JRfKOR22mvXehSEW2OYNI=;
-        b=IV6CQkcvx0iQvV+D7wL0DGMIwkL9yuLHGdEeJCVVJwDp5AUGhUjQnuCul/Ts2I007c
-         MhSb0L5OD/uOPh0aZ1FD4LUobQ7S0rKhvotcrJbprSCO2E3R42ncHQN+SgXi2HUUNTcH
-         psTShZfmAOcOZmKGqrK6pFvHCPhlaS9pcWEBCalpj3hpLcNSUf6AAFSP784+3TVhPT+Y
-         fK7TOuHoFdVHG1Z5blwRd6TKdppzlQriAU1dOv4jrGSL1myhaAA6/4nxt9tyL/x2L7yc
-         GTuxfTvi27xRpS7r5UzMTlzSH8f+xyYmcsPZJ0rvUEWxwjjXj716RYVxMJ2TcmWvFbK/
-         C0ng==
-X-Gm-Message-State: APjAAAXOEGsm1pzdMcCIoB3YbXZLpjwDjetEpw55e0WB5FiUbIkG5bHA
-	QOdMuB1nI3YVkdywmqHrWMy8rQNfR7pLBcmdLlJC7rv5L7jtwTZGKkZGnklwhIPaqyd/3lCz9jK
-	HEO2kvptYaS3pYhh6YP8RzIOsxYrncoayYVxBx8kb1cKgiyMjZWWvFCCIleN312pzUQ==
-X-Received: by 2002:a63:5f09:: with SMTP id t9mr9462587pgb.351.1565211692775;
-        Wed, 07 Aug 2019 14:01:32 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxZSryOo3JNbFJZqzsmwUhHs/pxLlsC5tk8pa2NnFnBoskLOvbT7nG2G8ER9xvIpl0sVEyi
-X-Received: by 2002:a63:5f09:: with SMTP id t9mr9462526pgb.351.1565211691907;
-        Wed, 07 Aug 2019 14:01:31 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565211691; cv=none;
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=HDsbOqdqt6WL/tNlrJsj+N++Ozhrzy+jd8MDoupW4xM=;
+        b=bBmnEo7omVKj+HawDBLsskJu/x51uJN4DZv8xQFLqgDOonRbKXgqFgXKwrnrN8iZpJ
+         4EVwzXNBfWt9mFMxZ3LrPhP2ddVjY9TtHjfV2vylvFtuglxTn02BotZfXo1m1u+OrBnr
+         mubYhVhkxamkl099yeXYXBmoGjF5EouomKGFhQC7fTAxNmFkZBnWRKFWNYnmgfP0zm2X
+         PiFv+5XrKUwTtBbYp9sIJH/Ck8o7qmRfwGlsH6i7fFp510IhQg3/jHfn3ASBdBh4T4N2
+         ywWQXoj9t0iWD8i7rqHDdFub8YSxgq6tZayPBxWbq6E8T8IlbLJ8qxJpyM/u/ybaFXru
+         uG4g==
+X-Gm-Message-State: APjAAAXmmLY5aFLBcU7pqZMpdV5+kIVqp/1mBfmgrH4+yQCsnS8GzXW3
+	Nmh3PGhmKymGUFj9c5kE7d7UFHVe9d2l2h29rCnurowoE2FciMPCxztgGs2T6Xcs7URP+qOcAbQ
+	IbfCKf0kzpAf/+oUCJnQ0yyLGddCDWLA8a7UO8dHv0Yg9yOxzOvPZT3qVziZFV0czKQ==
+X-Received: by 2002:a63:5823:: with SMTP id m35mr9637070pgb.329.1565212373547;
+        Wed, 07 Aug 2019 14:12:53 -0700 (PDT)
+X-Received: by 2002:a63:5823:: with SMTP id m35mr9637014pgb.329.1565212372778;
+        Wed, 07 Aug 2019 14:12:52 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565212372; cv=none;
         d=google.com; s=arc-20160816;
-        b=v+g+Z0vzqGxYgKuO4crjX3xc3GWyg13WN6fz0dcb7eomEtvNExpOdBP9F1x5kWHhui
-         jJMOYSb1bpjrAXolPIGOuhwfeluDPnSauWHIONVC4ORRbL8ZYhGehG4wdGyEBbqkrV5V
-         MY7Q4avWVEMnIye2XxmZTxE2BoyguC86p3PT81htluK4tSxc3sL8cF7ceED8Yu5WNUYw
-         wigtPBAflRkV/ZjMq45JbTBsTj6tnYztzC0+Dd/Q3I4cOoogWvsbORYZtcW44Zu0LZM8
-         aMVbxYhiq0X5s/0hga4MxJFPfW0tn31ZZLrM4LyCeWvX4Fof4xHZnZnaU5Pd6mTtr0Pk
-         7V4w==
+        b=v5HveeshfSLAu+dz6vOsYWDm6ov8oKVuHRqzhO2GS9iM7exzb9MLt/pM2Ovf6CRrdS
+         h+D6ucM0LSaMULRdyQH1YKvvCyAjAo7J9Qbn94TRYPbFX46jhuKHJFIo+nJhKqBLH8sK
+         ap5kN11nLDbtKrOzMlbj/D3yVLZFjLVed/YvaXKgoJoFAum/DCxvUy2oB2pRBzcPaspJ
+         hKzp75swhXEJg09bstcdrH7/RdOBo5SIg1YcPmSOKlEA8Nez+9UhIyoJ2Rg/8AtZy5KP
+         HZpPfcFv+ZT9MctJ2hRSNpKWBQfNA5VBUUnWS3n9tXrTtsT5dlqORoMKg7xr2WGRzlKB
+         3Aiw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=9Bqfh4I9+7QrHMf7ofuM1/JRfKOR22mvXehSEW2OYNI=;
-        b=HsoRkePgmDTEdCU/mE+2u8t7rilYzuF44qYARuRL0uDNsgapcEK1VO/bsyLpePOCSz
-         AtHUQPHH5VYXS8pQpF/ylHJ7cMNq9IUSm64tzQSUMWmlO7UdrGTqBr3nnSUmB2TQopTe
-         29h9avBgwxEq7H5psPvOEzrZU3cYAmb34ZsHnufJMl3WMIIQOu/9TSuAp5CqKfyhIfhR
-         EWjMAoz8/sPhirtKQA6CvMMR2/421Y/OL2Ev17ZaJibW+Wxqg/zqTYeKQDfNDsqAK7Q0
-         IjBjzrmdK7nGJPeyBgsx/+sHpdL9g/adjTeMXlxjGigTcE/KBm0RWaiNATyQf6XrCrGY
-         Q4uA==
+        bh=HDsbOqdqt6WL/tNlrJsj+N++Ozhrzy+jd8MDoupW4xM=;
+        b=eQiNxXaNWdzwqmJ8WWe3iXGS3pAcv1CIV/LZCU6QWGsZ3NDpYHiM3ag4Io1bT5v3U3
+         PcEZ8RMchi9fiJ1GzYeEtS51RL3U0TFZ9ATp7qNWLSGyERDvIe8HYLZKIu4fjjO4QlzM
+         Ss3bdG4vBYCNt8cf3yDJjdIL8WWigagD1FztJB4KU5yEhKENdGMVcak2DhwnKE2FKsX4
+         L/cklsUz+gbM7DsPCr+aDPEqXgsy4sqEmzF1hyuQJLwVgKycmNeKGV9UJwmPcJ0ACVeO
+         cLKx0dPlIyebg8KYFFvztAAhEypz7J6ZDbf4XWfs3+Cv0x2LgMDldbQ7KmWhVbLE0TXa
+         2kxw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=oVKMpM2e;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id w8si11212577pgp.414.2019.08.07.14.01.31
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=rZ0i7K+4;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id p10sor61777373pgi.61.2019.08.07.14.12.47
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Aug 2019 14:01:31 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Wed, 07 Aug 2019 14:12:48 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=oVKMpM2e;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 42E452173C;
-	Wed,  7 Aug 2019 21:01:31 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565211691;
-	bh=+qBbfBSMAH7Y3GHuWbe+rylHpzCgkxGkF76I78EmJxY=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=oVKMpM2eI1851tBovePX/3oFkhm0jedmWGpX0lOJRCyhVvcrHTCVgDWE9WFHNn1rP
-	 WFubGz9PQLZVC6YbI6q6EFc8Pfl349VJXeEIbnTNvRnETpfhuKci6P9uqPrkNuoWI2
-	 OZaLmDlzO29vPnGG+m4zGuD1EldUfhdTABKXMH6k=
-Date: Wed, 7 Aug 2019 14:01:30 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Michal Hocko <mhocko@kernel.org>, Suren Baghdasaryan
- <surenb@google.com>, Vlastimil Babka <vbabka@suse.cz>, "Artem S. Tashkinov"
- <aros@gmx.com>, LKML <linux-kernel@vger.kernel.org>, linux-mm
- <linux-mm@kvack.org>
+       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=rZ0i7K+4;
+       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.41 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=HDsbOqdqt6WL/tNlrJsj+N++Ozhrzy+jd8MDoupW4xM=;
+        b=rZ0i7K+4dO7YAgZr7g3eTN78Jx4YSreaML2nif7MCjeuCG2DcmetfvCHzYeNrxmOvI
+         GgNIgk9auMbqEEL4L2Dq9xyLKXeJMKWWeLM4AqNXM7Br7+IG2anIx5/oI+zxEGfohjvB
+         v1zGLGk/Qlid4kz6oWC1tVPUNHQkwN67sJEI0W3zw1nH6nLbmXJXLircrwcOItO9oRbX
+         TvYbSjDDcgzXn5vO5RhaOWZo/FQL/WpG6HO+tCEHlomMbyhrislSd4//md2/z6bniBmJ
+         8ZWDyU7PRL4sXRr65HxiDpbWjxA2+qAgo6lB/V7mYpK7VZHAmXLX/usE4cNGwbcvxUml
+         yhRQ==
+X-Google-Smtp-Source: APXvYqzHU2Qv90JaGiam0/j3y7qiJAsqUy0QsTn9ntikZSQbDjZ92rTTHkhUSHGxO7ewruuC5ndDhw==
+X-Received: by 2002:a63:2b84:: with SMTP id r126mr9751854pgr.308.1565212367528;
+        Wed, 07 Aug 2019 14:12:47 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::1:f7c1])
+        by smtp.gmail.com with ESMTPSA id u16sm24716337pgm.83.2019.08.07.14.12.46
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 07 Aug 2019 14:12:46 -0700 (PDT)
+Date: Wed, 7 Aug 2019 17:12:45 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Suren Baghdasaryan <surenb@google.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	"Artem S. Tashkinov" <aros@gmx.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
 Subject: Re: Let's talk about the elephant in the room - the Linux kernel's
  inability to gracefully handle low memory pressure
-Message-Id: <20190807140130.7418e783654a9c53e6b6cd1b@linux-foundation.org>
+Message-ID: <20190807211245.GA11071@cmpxchg.org>
+References: <ce102f29-3adc-d0fd-41ee-e32c1bcd7e8d@suse.cz>
+ <20190805193148.GB4128@cmpxchg.org>
+ <CAJuCfpHhR+9ybt9ENzxMbdVUd_8rJN+zFbDm+5CeE2Desu82Gg@mail.gmail.com>
+ <398f31f3-0353-da0c-fc54-643687bb4774@suse.cz>
+ <20190806142728.GA12107@cmpxchg.org>
+ <20190806143608.GE11812@dhcp22.suse.cz>
+ <CAJuCfpFmOzj-gU1NwoQFmS_pbDKKd2XN=CS1vUV4gKhYCJOUtw@mail.gmail.com>
+ <20190806220150.GA22516@cmpxchg.org>
+ <20190807075927.GO11812@dhcp22.suse.cz>
+ <20190807205138.GA24222@cmpxchg.org>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 In-Reply-To: <20190807205138.GA24222@cmpxchg.org>
-References: <d9802b6a-949b-b327-c4a6-3dbca485ec20@gmx.com>
-	<ce102f29-3adc-d0fd-41ee-e32c1bcd7e8d@suse.cz>
-	<20190805193148.GB4128@cmpxchg.org>
-	<CAJuCfpHhR+9ybt9ENzxMbdVUd_8rJN+zFbDm+5CeE2Desu82Gg@mail.gmail.com>
-	<398f31f3-0353-da0c-fc54-643687bb4774@suse.cz>
-	<20190806142728.GA12107@cmpxchg.org>
-	<20190806143608.GE11812@dhcp22.suse.cz>
-	<CAJuCfpFmOzj-gU1NwoQFmS_pbDKKd2XN=CS1vUV4gKhYCJOUtw@mail.gmail.com>
-	<20190806220150.GA22516@cmpxchg.org>
-	<20190807075927.GO11812@dhcp22.suse.cz>
-	<20190807205138.GA24222@cmpxchg.org>
-X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+User-Agent: Mutt/1.12.0 (2019-05-25)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 7 Aug 2019 16:51:38 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
-
-> However, eb414681d5a0 ("psi: pressure stall information for CPU,
-> memory, and IO") introduced a memory pressure metric that quantifies
-> the share of wallclock time in which userspace waits on reclaim,
-> refaults, swapins. By using absolute time, it encodes all the above
-> mentioned variables of hardware capacity and workload behavior. When
-> memory pressure is 40%, it means that 40% of the time the workload is
-> stalled on memory, period. This is the actual measure for the lack of
-> forward progress that users can experience. It's also something they
-> expect the kernel to manage and remedy if it becomes non-existent.
-> 
-> To accomplish this, this patch implements a thrashing cutoff for the
-> OOM killer. If the kernel determines a sustained high level of memory
-> pressure, and thus a lack of forward progress in userspace, it will
-> trigger the OOM killer to reduce memory contention.
-> 
+On Wed, Aug 07, 2019 at 04:51:42PM -0400, Johannes Weiner wrote:
 > Per default, the OOM killer will engage after 15 seconds of at least
 > 80% memory pressure. These values are tunable via sysctls
 > vm.thrashing_oom_period and vm.thrashing_oom_level.
 
-Could be implemented in userspace?
-</troll>
+Let's go with this:
+
+Per default, the OOM killer will engage after 15 seconds of at least
+80% memory pressure. From experience, at 80% the user is experiencing
+multi-second reaction times. 15 seconds is chosen to be long enough to
+not OOM kill a short-lived spike that might resolve itself, yet short
+enough for users to not press the reset button just yet.
 
