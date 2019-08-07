@@ -2,244 +2,365 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A9D29C433FF
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 22:43:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 11885C433FF
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 23:11:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 602AF217D9
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 22:43:27 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="mL9CoipY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 602AF217D9
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 7E7112184E
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 23:11:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7E7112184E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 11BD66B0008; Wed,  7 Aug 2019 18:43:27 -0400 (EDT)
+	id BB5C36B0003; Wed,  7 Aug 2019 19:11:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0CD556B000A; Wed,  7 Aug 2019 18:43:27 -0400 (EDT)
+	id B667E6B0006; Wed,  7 Aug 2019 19:11:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F26196B000D; Wed,  7 Aug 2019 18:43:26 -0400 (EDT)
+	id A55286B0007; Wed,  7 Aug 2019 19:11:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id BDE7A6B0008
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 18:43:26 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id h5so56468734pgq.23
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 15:43:26 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 6F17E6B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 19:11:55 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id x10so57753379pfa.23
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 16:11:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:from:to:cc:date
-         :message-id:in-reply-to:references:user-agent:mime-version
-         :content-transfer-encoding;
-        bh=R9EIePxtKgh7rutMNGBvqWvR/nyIQIv1yBQVlI6lc80=;
-        b=rFO+vemmWn3maA0OXMlj+TyszWf56bVkr273fhWvhheB4kQMFUMYxjXQ0WtkXGttfh
-         m1z7YGCXFoX+kSBiwgRVb7KXd+DqKqTn447JWZV6dVUxlZc9kBXeSOnQr2caZX4LgZm4
-         kDuSJ1/M0z7AaTPSXrflOZ92Ha9EF5ofyDLRnir87mzNQol3AYW+/jEekQV4Gl7jkf5p
-         oC1ZW1/rUlNbg+SvkIQQPcMmTmzVUKp69GKfHpQFfyNHBJBWLyYTuZ1M//GPuo3g8LqC
-         YhpfSovMH3PU/nE2dvzxDWqu73OSvlN1qsGsrQHxZS9pfsQcl5HzXsEH4c4zAJ2urjJM
-         PTRA==
-X-Gm-Message-State: APjAAAUfg3NaEbJlpKVha/upLy7/D0RSHxFVFsqRBorOWjinmaIl7o9O
-	Pr2zRajdbZ7FrGYCk7HK85Jvf+MwKJ+ozxG2WX1Ws2D40CucePzSqZfyEkAiFyNFLZF9fPcEoZE
-	PdOkZoAZCFm87yZATA+8LO3cIgIbv263h3OnuiwCJ4idX8nv/8p15pBPNrgwktPKtUw==
-X-Received: by 2002:a65:4b89:: with SMTP id t9mr9562196pgq.55.1565217806170;
-        Wed, 07 Aug 2019 15:43:26 -0700 (PDT)
-X-Received: by 2002:a65:4b89:: with SMTP id t9mr9562163pgq.55.1565217805252;
-        Wed, 07 Aug 2019 15:43:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565217805; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=N552WPF67/0vE4Km/PTEr4e4DxeHnwKPyk5yz3Mn+2A=;
+        b=BfguDnHDzsED5QSvp4Rz1i3J3Ru0dLRR5Fy4v31D8UgtnqNMhDi/o9omBgnbgJNVZ1
+         DToxy/J4mBw86bqlb4BDCG2CY9Ulf99kqqv6HbFJYiI5aGtLJT0QrLcWmOOV4FdoxwpI
+         RTqWD8XU4GzCDkO4ACKElGkyzzYeaVV/n/PSkf/9lImLRG2Zisv90DpZK90sIs746nvO
+         +HAjWZZyh6GHIqEZgIEqce9G/TKykJuZtsz1F/nGm5Mt2HvcEmXAg+/d5U4B9Yp2Gk/2
+         ncyW5SrysPXW5lB6nVAidSdjfW6UdmZzuOxBXqAaI1YX/QCpMr6bmBmrSYikhJXvGXAN
+         UCXg==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAVYtabGAHmy5+x8roOxgipqHWk8156vLpSXzPoOyfLFg4qQXfO+
+	sgDnYqzQPwJ6MP40brG4FWR8XKwP0Bf92oA6mCJM+zzSXbAdI4nIrPy3ETSVrh6rgsWyq7dQeGE
+	fXUpx4XTk6DIKG3uH7PyCbnIP1c7nhYcY1rL9qnX7agu+fWyEzrFKBo5LYnr29/k=
+X-Received: by 2002:a62:1883:: with SMTP id 125mr11928404pfy.178.1565219514885;
+        Wed, 07 Aug 2019 16:11:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw9OPjBVQLa5jyCXX7XCmp51q8NCvKASXSwiEMJFjcTp/S9VJuzlV9I7F8bJGlBCx/MoIF3
+X-Received: by 2002:a62:1883:: with SMTP id 125mr11928291pfy.178.1565219513381;
+        Wed, 07 Aug 2019 16:11:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565219513; cv=none;
         d=google.com; s=arc-20160816;
-        b=UKbLypT08DYg64f1DIDmaWP2td5ggKeOZPycQlVIWrGh/wkJU/RQZujECbP7aKVk3X
-         MLxaf0fAu7BhFQRootjj5IYaPOgdnb7JHbLk/SC6MVv1o8PUsJZY1xPPfyCp30du8+oi
-         HYCRPGnOp4tMatxhT9bFjCGyKS0Y7kkOmV3KbYiik71vjFMQ89v0ivf+6iUFj6WbHS8M
-         0SUirBjbtMdaXR9hLFfTHMA7f+npwYSg1zgFJbcpT6+LzneQop1pXyCiNLl5OyZlmHse
-         LgOQ5wMNNi9hfekEhCVtUQHvlVEh+YYxnlYZXrkvzwQekPSVYslllrTeiuo3ZxUG6JfB
-         3clw==
+        b=YKQg6I0MkaZ3NSB/Ny7bZfu1wDeub6XN413OGWDl01XAWiUDKKK0hcIHStpbgw29+n
+         u+rzKcyyZjuYX/Ma63kQ3Bl7IZMuA1HPqjYG81ebiaojNd07qrypWUPY7XrJsfomaWac
+         irbtXtoah2tHnIVx5XSicryAnbM8wjye0TMGjBdvieURBAA5mMjvj+aHPxvMizL9EQ5J
+         K80njiBnDznFJFcjOx9COmbMt66nNjdASv78uiCb1DhZRuPZwyuUS+OZE0qa7Q40tGEt
+         sA8UHkgPPNmFcBy05Y+1FYJJvgZ3AFs9tue/ENVW0ddcRmyLQrPqf4C5AMTdEZ33m1aG
+         V6lw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:user-agent:references
-         :in-reply-to:message-id:date:cc:to:from:subject:dkim-signature;
-        bh=R9EIePxtKgh7rutMNGBvqWvR/nyIQIv1yBQVlI6lc80=;
-        b=PeE7wtjluzqxwWvyVdYVKS8Nl7pJGT7c+qjynW46iDandVXaFl263GQylBYoKXlX/6
-         GZW0TGrl34sgSkz+m7mKS55YOrirsvBf/SVOby9U66rBSU9m4Qt0kW6iNIexhFuNUQ3l
-         yiC5I8fskfVij54JA5rN7pdxn0tea6nSdG4uVujhLaxzF+MuNgIUvJNLTEs8Um5mLSSW
-         QBKdN5y9V4/3PFu2MaqMUH70Og85bz79IGKF8YHlEdKuok82uZZHjGn/9aDom0guPv8I
-         0UVxj3GSlI4xvr0/f81uj2GMYug+9b8PrXiGQmgAMbzplr4Bqy1f9ZMPd0PoUvk+P1jS
-         LDEQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=N552WPF67/0vE4Km/PTEr4e4DxeHnwKPyk5yz3Mn+2A=;
+        b=FrK2o8HzAV3CNvmn/b9aTLKewSPRDzX/JKnlPQL9ohui0tZP8IzuRVwKopXjMnaz3p
+         Rby3VRwLxkbfoYpocN/tHSi+nvEoEAJ7oMdDlSbiOcdA/qHcp1ZwwePaKKsHqKvGhoHR
+         YKZTIAChZ6VXL9qZwvJFgjsaTnvBoc8xL37Ed3sLnpU9fzicaUeyAuHQiagCVAjbF5R2
+         jrYStw/t4j2fB6K9J2/1GbwVYr7PnC+kVH2Xwv3bxIIpYgpHjmgv1EtWuxVjeQxHaJIv
+         dlA2DjEwekJVUdDsb1Jgv+0QC6nJcg4+XYWu1hdy+WwA9tqGNo1oamL39WZq9Vj7mgts
+         iYHQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mL9CoipY;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id v10sor109796920plg.28.2019.08.07.15.43.25
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 07 Aug 2019 15:43:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au. [211.29.132.246])
+        by mx.google.com with ESMTP id y62si23749445pgy.348.2019.08.07.16.11.52
+        for <linux-mm@kvack.org>;
+        Wed, 07 Aug 2019 16:11:53 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.246;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=mL9CoipY;
-       spf=pass (google.com: domain of alexander.duyck@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=alexander.duyck@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=subject:from:to:cc:date:message-id:in-reply-to:references
-         :user-agent:mime-version:content-transfer-encoding;
-        bh=R9EIePxtKgh7rutMNGBvqWvR/nyIQIv1yBQVlI6lc80=;
-        b=mL9CoipYppYg9TvgaxvW3rlAJ3cRgHGNuMlvCCVxbFer5O88XcNEYdHLJUlBnTbmcS
-         D/ddFTZlvnguCqCjBdBZojggBwQK+k4JAC6YJiDQvHJDhO06ebhFIn32qxshi0LUy1+9
-         Q0Ows9tRakkUSbaQRO6KpylgPFrCPMuO07wxB1COscKMaI+XtA0OH+cZFiVNe9dib6gm
-         NgU6IOL7XT9bjhTmkGvJFh2Db0VsELCYdDlsJiAQgp+5VECNKpiAyTKsm16d3r5Iw0nq
-         3Ydx9X+Nkoy3/I1P2Mu70YRQgBmsBxk+5WIJsajIoHRW1MiyIuhr+3mzskgQR1lJWrD0
-         3vKw==
-X-Google-Smtp-Source: APXvYqzt2235UK45pP6zV7IF86Iz17ZaDjI4fbCSaevrbzSonGjf1QqChod57+61jhscibCu/vVY4w==
-X-Received: by 2002:a17:902:b212:: with SMTP id t18mr3980622plr.246.1565217804789;
-        Wed, 07 Aug 2019 15:43:24 -0700 (PDT)
-Received: from localhost.localdomain ([2001:470:b:9c3:9e5c:8eff:fe4f:f2d0])
-        by smtp.gmail.com with ESMTPSA id x67sm96679320pfb.21.2019.08.07.15.43.24
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Aug 2019 15:43:24 -0700 (PDT)
-Subject: [PATCH v4 QEMU 3/3] virtio-balloon: Provide a interface for unused
- page reporting
-From: Alexander Duyck <alexander.duyck@gmail.com>
-To: nitesh@redhat.com, kvm@vger.kernel.org, david@redhat.com, mst@redhat.com,
- dave.hansen@intel.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- akpm@linux-foundation.org
-Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
- konrad.wilk@oracle.com, willy@infradead.org, lcapitulino@redhat.com,
- wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com,
- dan.j.williams@intel.com, alexander.h.duyck@linux.intel.com
-Date: Wed, 07 Aug 2019 15:43:23 -0700
-Message-ID: <20190807224323.7333.15220.stgit@localhost.localdomain>
-In-Reply-To: <20190807224037.6891.53512.stgit@localhost.localdomain>
-References: <20190807224037.6891.53512.stgit@localhost.localdomain>
-User-Agent: StGit/0.17.1-dirty
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
+	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id F0A4D43E6F6;
+	Thu,  8 Aug 2019 09:11:51 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hvV4u-0006IK-EC; Thu, 08 Aug 2019 09:10:44 +1000
+Date: Thu, 8 Aug 2019 09:10:44 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Brian Foster <bfoster@redhat.com>
+Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH 20/24] xfs: use AIL pushing for inode reclaim IO
+Message-ID: <20190807231044.GR7777@dread.disaster.area>
+References: <20190801021752.4986-1-david@fromorbit.com>
+ <20190801021752.4986-21-david@fromorbit.com>
+ <20190807180915.GA20425@bfoster>
 MIME-Version: 1.0
-Content-Type: text/plain; charset="utf-8"
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190807180915.GA20425@bfoster>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0
+	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=2u6jjkzSJdERxq6WDqUA:9
+	a=II6kCMbtO0gN6Dj7:21 a=dWF_ZXg1rf0HNZcO:21 a=CjuIK1q_8ugA:10
+	a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+On Wed, Aug 07, 2019 at 02:09:15PM -0400, Brian Foster wrote:
+> On Thu, Aug 01, 2019 at 12:17:48PM +1000, Dave Chinner wrote:
+> > From: Dave Chinner <dchinner@redhat.com>
+> > 
+> > Inode reclaim currently issues it's own inode IO when it comes
+> > across dirty inodes. This is used to throttle direct reclaim down to
+> > the rate at which we can reclaim dirty inodes. Failure to throttle
+> > in this manner results in the OOM killer being trivial to trigger
+> > even when there is lots of free memory available.
+> > 
+> > However, having direct reclaimers issue IO causes an amount of
+> > IO thrashing to occur. We can have up to the number of AGs in the
+> > filesystem concurrently issuing IO, plus the AIL pushing thread as
+> > well. This means we can many competing sources of IO and they all
+> > end up thrashing and competing for the request slots in the block
+> > device.
+> > 
+> > Similar to dirty page throttling and the BDI flusher thread, we can
+> > use the AIL pushing thread the sole place we issue inode writeback
+> > from and everything else waits for it to make progress. To do this,
+> > reclaim will skip over dirty inodes, but in doing so will record the
+> > lowest LSN of all the dirty inodes it skips. It will then push the
+> > AIL to this LSN and wait for it to complete that work.
+> > 
+> > In doing so, we block direct reclaim on the IO of at least one IO,
+> > thereby providing some level of throttling for when we encounter
+> > dirty inodes. However we gain the ability to scan and reclaim
+> > clean inodes in a non-blocking fashion. This allows us to
+> > remove all the per-ag reclaim locking that avoids excessive direct
+> > reclaim, as repeated concurrent direct reclaim will hit the same
+> > dirty inodes on block waiting on the same IO to complete.
+> > 
+> 
+> The last part of the above sentence sounds borked..
 
-Add support for what I am referring to as "unused page reporting".
-Basically the idea is to function very similar to how the balloon works
-in that we basically end up madvising the page as not being used. However
-we don't really need to bother with any deflate type logic since the page
-will be faulted back into the guest when it is read or written to.
+s/on/and/
 
-This is meant to be a simplification of the existing balloon interface
-to use for providing hints to what memory needs to be freed. I am assuming
-this is safe to do as the deflate logic does not actually appear to do very
-much other than tracking what subpages have been released and which ones
-haven't.
+:)
 
-Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
----
- hw/virtio/virtio-balloon.c         |   46 ++++++++++++++++++++++++++++++++++--
- include/hw/virtio/virtio-balloon.h |    2 +-
- 2 files changed, 45 insertions(+), 3 deletions(-)
+> >  /*
+> > - * Grab the inode for reclaim exclusively.
+> > - * Return 0 if we grabbed it, non-zero otherwise.
+> > + * Grab the inode for reclaim.
+> > + *
+> > + * Return false if we aren't going to reclaim it, true if it is a reclaim
+> > + * candidate.
+> > + *
+> > + * If the inode is clean or unreclaimable, return NULLCOMMITLSN to tell the
+> > + * caller it does not require flushing. Otherwise return the log item lsn of the
+> > + * inode so the caller can determine it's inode flush target.  If we get the
+> > + * clean/dirty state wrong then it will be sorted in xfs_reclaim_inode() once we
+> > + * have locks held.
+> >   */
+> > -STATIC int
+> > +STATIC bool
+> >  xfs_reclaim_inode_grab(
+> >  	struct xfs_inode	*ip,
+> > -	int			flags)
+> > +	int			flags,
+> > +	xfs_lsn_t		*lsn)
+> >  {
+> >  	ASSERT(rcu_read_lock_held());
+> > +	*lsn = 0;
+> 
+> The comment above says we return NULLCOMMITLSN. Given the rest of the
+> code, I'm assuming we should just fix up the comment.
 
-diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
-index 003b3ebcfdfb..7a30df63bc77 100644
---- a/hw/virtio/virtio-balloon.c
-+++ b/hw/virtio/virtio-balloon.c
-@@ -320,6 +320,40 @@ static void balloon_stats_set_poll_interval(Object *obj, Visitor *v,
-     balloon_stats_change_timer(s, 0);
- }
- 
-+static void virtio_balloon_handle_report(VirtIODevice *vdev, VirtQueue *vq)
-+{
-+    VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
-+    VirtQueueElement *elem;
-+
-+    while ((elem = virtqueue_pop(vq, sizeof(VirtQueueElement)))) {
-+    	unsigned int i;
-+
-+        for (i = 0; i < elem->in_num; i++) {
-+            void *addr = elem->in_sg[i].iov_base;
-+            size_t size = elem->in_sg[i].iov_len;
-+            ram_addr_t ram_offset;
-+            size_t rb_page_size;
-+            RAMBlock *rb;
-+
-+            if (qemu_balloon_is_inhibited() || dev->poison_val)
-+                continue;
-+
-+            rb = qemu_ram_block_from_host(addr, false, &ram_offset);
-+            rb_page_size = qemu_ram_pagesize(rb);
-+
-+            /* For now we will simply ignore unaligned memory regions */
-+            if ((ram_offset | size) & (rb_page_size - 1))
-+                continue;
-+
-+            ram_block_discard_range(rb, ram_offset, size);
-+        }
-+
-+        virtqueue_push(vq, elem, 0);
-+        virtio_notify(vdev, vq);
-+        g_free(elem);
-+    }
-+}
-+
- static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueue *vq)
- {
-     VirtIOBalloon *s = VIRTIO_BALLOON(vdev);
-@@ -627,7 +661,8 @@ static size_t virtio_balloon_config_size(VirtIOBalloon *s)
-         return sizeof(struct virtio_balloon_config);
-     }
-     if (virtio_has_feature(features, VIRTIO_BALLOON_F_PAGE_POISON) ||
--        virtio_has_feature(features, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
-+        virtio_has_feature(features, VIRTIO_BALLOON_F_FREE_PAGE_HINT) ||
-+        virtio_has_feature(features, VIRTIO_BALLOON_F_REPORTING)) {
-         return sizeof(struct virtio_balloon_config);
-     }
-     return offsetof(struct virtio_balloon_config, free_page_report_cmd_id);
-@@ -715,7 +750,8 @@ static uint64_t virtio_balloon_get_features(VirtIODevice *vdev, uint64_t f,
-     VirtIOBalloon *dev = VIRTIO_BALLOON(vdev);
-     f |= dev->host_features;
-     virtio_add_feature(&f, VIRTIO_BALLOON_F_STATS_VQ);
--    if (virtio_has_feature(f, VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
-+    if (virtio_has_feature(f, VIRTIO_BALLOON_F_FREE_PAGE_HINT) ||
-+        virtio_has_feature(f, VIRTIO_BALLOON_F_REPORTING)) {
-         virtio_add_feature(&f, VIRTIO_BALLOON_F_PAGE_POISON);
-     }
- 
-@@ -805,6 +841,10 @@ static void virtio_balloon_device_realize(DeviceState *dev, Error **errp)
-     s->dvq = virtio_add_queue(vdev, 128, virtio_balloon_handle_output);
-     s->svq = virtio_add_queue(vdev, 128, virtio_balloon_receive_stats);
- 
-+    if (virtio_has_feature(s->host_features, VIRTIO_BALLOON_F_REPORTING)) {
-+        s->rvq = virtio_add_queue(vdev, 32, virtio_balloon_handle_report);
-+    }
-+
-     if (virtio_has_feature(s->host_features,
-                            VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
-         s->free_page_vq = virtio_add_queue(vdev, VIRTQUEUE_MAX_SIZE,
-@@ -931,6 +971,8 @@ static Property virtio_balloon_properties[] = {
-      */
-     DEFINE_PROP_BOOL("qemu-4-0-config-size", VirtIOBalloon,
-                      qemu_4_0_config_size, false),
-+    DEFINE_PROP_BIT("unused-page-reporting", VirtIOBalloon, host_features,
-+                    VIRTIO_BALLOON_F_REPORTING, true),
-     DEFINE_PROP_LINK("iothread", VirtIOBalloon, iothread, TYPE_IOTHREAD,
-                      IOThread *),
-     DEFINE_PROP_END_OF_LIST(),
-diff --git a/include/hw/virtio/virtio-balloon.h b/include/hw/virtio/virtio-balloon.h
-index 7fe78e5c14d7..db5bf7127112 100644
---- a/include/hw/virtio/virtio-balloon.h
-+++ b/include/hw/virtio/virtio-balloon.h
-@@ -42,7 +42,7 @@ enum virtio_balloon_free_page_report_status {
- 
- typedef struct VirtIOBalloon {
-     VirtIODevice parent_obj;
--    VirtQueue *ivq, *dvq, *svq, *free_page_vq;
-+    VirtQueue *ivq, *dvq, *svq, *free_page_vq, *rvq;
-     uint32_t free_page_report_status;
-     uint32_t num_pages;
-     uint32_t actual;
+Yup, I think I've already fixed it.
+
+> > -restart:
+> > -	error = 0;
+> >  	/*
+> >  	 * Don't try to flush the inode if another inode in this cluster has
+> >  	 * already flushed it after we did the initial checks in
+> >  	 * xfs_reclaim_inode_grab().
+> >  	 */
+> > -	if (sync_mode & SYNC_TRYLOCK) {
+> > -		if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
+> > -			goto out;
+> > -		if (!xfs_iflock_nowait(ip))
+> > -			goto out_unlock;
+> > -	} else {
+> > -		xfs_ilock(ip, XFS_ILOCK_EXCL);
+> > -		if (!xfs_iflock_nowait(ip)) {
+> > -			if (!(sync_mode & SYNC_WAIT))
+> > -				goto out_unlock;
+> > -			xfs_iflock(ip);
+> > -		}
+> > -	}
+> > +	if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
+> > +		goto out;
+> > +	if (!xfs_iflock_nowait(ip))
+> > +		goto out_unlock;
+> >  
+> 
+> Do we even need the flush lock here any more if we're never going to
+> flush from this context?
+
+Ideally, no. But the inode my currently be being flushed, in which
+case the incore inode is clean, but we can't reclaim it yet. Hence
+we need the flush lock to serialise against IO completion.
+
+> The shutdown case just below notwithstanding
+> (which I'm also wondering if we should just drop given we abort from
+> xfs_iflush() on shutdown), the pin count is an atomic and the dirty
+> state changes under ilock.
+
+The shutdown case has to handle pinned inodes, not just inodes being
+flushed.
+
+> Maybe I'm missing something else, but the reason I ask is that the
+> increased flush lock contention in codepaths that don't actually flush
+> once it's acquired gives me a bit of concern that we could reduce
+> effectiveness of the one task that actually does (xfsaild).
+
+The flush lock isn't a contended lock - it's actually a bit that is
+protected by the i_flags_lock, so if we are contending on anything
+it will be the flags lock. And, well, see the LRU isolate function
+conversion of this code, becuase it changes how the flags lock is
+used for reclaim but I haven't seen any contention as a result of
+that change....
+
+> 
+> > -	 * Never flush out dirty data during non-blocking reclaim, as it would
+> > -	 * just contend with AIL pushing trying to do the same job.
+> > +	 * If it is pinned, we only want to flush this if there's nothing else
+> > +	 * to be flushed as it requires a log force. Hence we essentially set
+> > +	 * the LSN to flush the entire AIL which will end up triggering a log
+> > +	 * force to unpin this inode, but that will only happen if there are not
+> > +	 * other inodes in the scan that only need writeback.
+> >  	 */
+> > -	if (!(sync_mode & SYNC_WAIT))
+> > +	if (xfs_ipincount(ip)) {
+> > +		*lsn = ip->i_itemp->ili_last_lsn;
+> 
+> ->ili_last_lsn comes from xfs_cil_ctx->sequence, which I don't think is
+> actually a physical LSN suitable for AIL pushing. The lsn assigned to
+> the item once it's physically logged and AIL inserted comes from
+> ctx->start_lsn, which comes from the iclog header and so is a physical
+> LSN.
+
+Yup, I've already noticed and fixed that bug :)
+
+> >  	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
+> >  		unsigned long	first_index = 0;
+> >  		int		done = 0;
+> >  		int		nr_found = 0;
+> >  
+> >  		ag = pag->pag_agno + 1;
+> > -
+> > -		if (trylock) {
+> > -			if (!mutex_trylock(&pag->pag_ici_reclaim_lock)) {
+> > -				skipped++;
+> > -				xfs_perag_put(pag);
+> > -				continue;
+> > -			}
+> > -			first_index = pag->pag_ici_reclaim_cursor;
+> > -		} else
+> > -			mutex_lock(&pag->pag_ici_reclaim_lock);
+> 
+> I understand that the eliminated blocking drops a dependency on the
+> perag reclaim exclusion as described by the commit log, but I'm not sure
+> it's enough to justify removing it entirely. For one, the reclaim cursor
+> management looks potentially racy.
+
+We really don't care if the cursor updates are racy. All that will
+result in is some inode ranges being scanned twice in quick
+succession. All this does now is prevent reclaim from starting at
+the start of the AG every time it runs, so we end up with most
+reclaimers iterating over previously unscanned inodes.
+
+> Also, doesn't this exclusion provide
+> some balance for reclaim across AGs? E.g., if a bunch of reclaim threads
+> come in at the same time, this allows them to walk across AGs instead of
+> potentially stumbling over eachother in the batching/grabbing code.
+
+What they do now is leapfrog each other and work through the same
+AGs much faster. The overall pattern of reclaim doesn't actually
+change much, just the speed at which individual AGs are scanned.
+
+But that was not what the locking was put in place for. THe locking
+was put in place to be able to throttle the number of concurrent
+reclaimers issuing IO. If the reclaimers leapfrogged like they do
+without the locking, then we end up with non-sequential inode
+writeback patterns, and writeback performance goes really bad,
+really quickly. Hence the locking is there to ensure we get
+sequential inode writeback patterns from each AG that is being
+reclaimed from. That can be optimised by block layer merging, and so
+even though we might have a lot of concurrent reclaimers, we get
+lots of large, well-formed IOs from each of them.
+
+IOWs, the locking was all about preventing the IO patterns from
+breaking down under memory pressure, not about optimising how
+reclaimers interact with each other.
+
+> I see again that most of this code seems to ultimately go away, replaced
+> by an LRU mechanism so we no longer operate on a per-ag basis. I can see
+> how this becomes irrelevant with that mechanism, but I think it might
+> make more sense to drop this locking along with the broader mechanism in
+> the last patch or two of the series rather than doing it here.
+
+Fundamentally, this patch is all about shifting the IO and blocking
+mechanisms to the AIL. This locking is no longer necessary, and it
+actually gets in the way of doing non-blocking reclaim and shifting
+the IO to the AIL. i.e. we block where we no longer need to, and
+that causes more problems for this change than it solves.
+
+> If
+> nothing else, that eliminates the need for the reviewer to consider this
+> transient "old mechanism + new locking" state as opposed to reasoning
+> about the old mechanism vs. new mechanism and why the old locking simply
+> no longer applies.
+
+I think you're putting to much "make every step of the transition
+perfect" focus on this. We've got to drop this locking to make
+reclaim non-blocking, and we have to make reclaim non-blocking
+before we can move to a LRU mechanisms that relies on LRU removal
+being completely non-blocking and cannot issue IO. It's a waste of
+time trying to break this down further and further into "perfect"
+patches - it works well enough and without functional regressions so
+it does not create landmines for people doing bisects, and that's
+largely all that matters in the middle of a large patchset that is
+making large algorithm changes...
+
+> > +		first_index = pag->pag_ici_reclaim_cursor;
+> >  
+> >  		do {
+> >  			struct xfs_inode *batch[XFS_LOOKUP_BATCH];
+> ...
+> > diff --git a/fs/xfs/xfs_trans_ail.c b/fs/xfs/xfs_trans_ail.c
+> > index 00d66175f41a..5802139f786b 100644
+> > --- a/fs/xfs/xfs_trans_ail.c
+> > +++ b/fs/xfs/xfs_trans_ail.c
+> > @@ -676,8 +676,10 @@ xfs_ail_push_sync(
+> >  	spin_lock(&ailp->ail_lock);
+> >  	while ((lip = xfs_ail_min(ailp)) != NULL) {
+> >  		prepare_to_wait(&ailp->ail_push, &wait, TASK_UNINTERRUPTIBLE);
+> > +	trace_printk("lip lsn 0x%llx thres 0x%llx targ 0x%llx",
+> > +			lip->li_lsn, threshold_lsn, ailp->ail_target);
+> >  		if (XFS_FORCED_SHUTDOWN(ailp->ail_mount) ||
+> > -		    XFS_LSN_CMP(threshold_lsn, lip->li_lsn) <= 0)
+> > +		    XFS_LSN_CMP(threshold_lsn, lip->li_lsn) < 0)
+> >  			break;
+> 
+> Stale/mislocated changes?
+
+I've already cleaned that one up, too.
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
