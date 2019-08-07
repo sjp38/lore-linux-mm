@@ -2,175 +2,141 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D264EC19759
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:50:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BA923C19759
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:55:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9776921BF6
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:50:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9776921BF6
+	by mail.kernel.org (Postfix) with ESMTP id 8BE5021E6A
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:55:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8BE5021E6A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2FDFA6B000A; Wed,  7 Aug 2019 02:50:05 -0400 (EDT)
+	id 0FEC46B000A; Wed,  7 Aug 2019 02:55:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2ADBC6B000C; Wed,  7 Aug 2019 02:50:05 -0400 (EDT)
+	id 0B0936B000C; Wed,  7 Aug 2019 02:55:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 19CEB6B000D; Wed,  7 Aug 2019 02:50:05 -0400 (EDT)
+	id F07176B000D; Wed,  7 Aug 2019 02:55:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id E60026B000A
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 02:50:04 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id e22so15631786qtp.9
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 23:50:04 -0700 (PDT)
+Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
+	by kanga.kvack.org (Postfix) with ESMTP id D2AFF6B000A
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 02:55:02 -0400 (EDT)
+Received: by mail-qt1-f198.google.com with SMTP id 41so75497650qtm.4
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 23:55:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=toE+6wtOlbNkJ/08bfCqpbMSQNddZO3CiuIGldc+Ghs=;
-        b=jYNNbSZl8ojwTQHX9GJp/PBe0BB79P2Amyy3sBLPDR1NgHHK6fxDSV0/836cxaFIIo
-         N3uIlwHyn+5x6CCcsfk2715dVgCDvoFWB6sruqcuNS7893qqFJzOQbMIdETuPsVKcl/y
-         +gNJ7ZNwvGfsY5h8zOsLWRZkYbOBe7olpHx+KrJkoU4nMh7E5shh8znY8BXzXo+UggXN
-         qfSNpiF+ebMwFIy+M08CCkmd0g0phBLVigEqIzS2ETyKZvnqDbBbojtdCHwkSQDx4mzO
-         eFVI2b6bAL0+0CGy2Bg0Ik66j0O98Hi+uTovoim/PGwaZGqGr6GvzTAAdSqMS6rF1c5g
-         m2hQ==
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=+Pfi8JFD6WhijRBrJVHHc8gcz0yOnQpAUmEE4+7Nm2M=;
+        b=lB0lwFBS0jgmx/kiAk8Dz46CNTex6LPmDzaKbmmBTMG3nte7ukkC5ElgZ17kTNcOTK
+         Lj8VK6ADXr1ZtYWGgSIv7jbi6eZ3MICSBO2UG/mOOTWuyeN4deuvKbwhp5ZIW7SKtb8y
+         ZwBPezSd75mtcG0k3WkZC1oEEwJOj32qRxFqrbzb+Dn3No/Ev0ZpNdNMkpmN4y686oef
+         a6qu0zQ3xtDTnILzX331b+VW8K1QP7qkqn4hgwpIAbIgxys1uqJTJBYY6dxf7C2n8QOr
+         NlNqb+BYvpxCtCL3Gnjg211XEy33tW8tZYK9Y9zJPn1EoDAGVJ0yLfbrnKYeJqLPs0oC
+         PVwQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXjNu8JqAgpleO3d8hlOO8kDL9SdY0sHoL2lUNTgMCL06v6j+d8
-	jsJjrjmGZkDXtrrMT+TE1+jQS2nu4hFQyIiDlubHI4pvGUzPM82o+oDzt4bh2D+taMoFe2iUOEN
-	s0UVaUo+Dt1L3IAe46WT6RDTLY7H4lRSRCUuVqAzI2dJ91pCjI+9xm0ypNX/rn8ckUA==
-X-Received: by 2002:ac8:2b90:: with SMTP id m16mr6556517qtm.384.1565160604688;
-        Tue, 06 Aug 2019 23:50:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz7zGDW3O/a3acJl0GmUsHiN48Q0owenHeNRzO9iEbvGRb3d9KJqxtoY6gdEpW+/NN3Qood
-X-Received: by 2002:ac8:2b90:: with SMTP id m16mr6556480qtm.384.1565160603989;
-        Tue, 06 Aug 2019 23:50:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565160603; cv=none;
+X-Gm-Message-State: APjAAAXqnQu0hx1FtX7UwpkL+hHFIobNYVcrCZ2sVDa5xFSKuEnd9e87
+	76i52kfqIyCb2aonJAtm/42M1wK7OSeXQHIEA57pkshgVQmT+EPef/+6v+nHRlE3jwyCOGZ4LHI
+	yh+GHER5+hcPcYld9tEz/VWyRNZTyaLkQp96Arvnherb7eGAIIF9pugtsqOrq10gsIg==
+X-Received: by 2002:ac8:180e:: with SMTP id q14mr6625885qtj.327.1565160902654;
+        Tue, 06 Aug 2019 23:55:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwndRg6y4pN22M7ZkMUbMVCdnHJ7C4/kzYSdRYsPP7jTYLC0i8oBfIEcxuaNr9AldFR46zT
+X-Received: by 2002:ac8:180e:: with SMTP id q14mr6625864qtj.327.1565160902125;
+        Tue, 06 Aug 2019 23:55:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565160902; cv=none;
         d=google.com; s=arc-20160816;
-        b=PKgZhhnuxjshpsQm+qOPEJn/UdqZ4LJ1kGHJ477GAsPnsaf8/wZOlJBCs/flJPZoHx
-         bLpXHxvd0QazwWmeADDt+wfKAsScDYDVpp6GltzlaoiJgZCz21wS7UVXQ10LqJeS5xbV
-         Rz96Yh98qITM36VpZ+rYOEFIYZ11xEOjRBEMhjAVfXHr12UOmRq7qSO4+gXsS4xApxlZ
-         8gHo5MNMlrifWpZG8jc6SuE0iRvJ0AbYApg0OMD/sBjuohWoca+TUHappTB3CvNdJdav
-         oCVSF37sFDWE2m+JlDihkVDyF88BBeMaYDpGnqLl2jLKqQ4e7o9U017Lg3vcJl0u80nx
-         wDDw==
+        b=WZPdLdvXstj0HaHr6bexgRb7irpAsAeutseb8acv16Q2qXkpvGKkPlagvVzC35v/tz
+         Cbatm2z5mmy1DvsqyYll9QNHqXelj3UAZQED6zD3km43bUz+kWf7IsdjGzYLrSHzuIS5
+         psZgn04cjpZkdeeI99J0Ume80KjSq+N7T76PCqlue2gGtfXta+oeFkmjWSO5jahQz/7X
+         u81A9Qvl+JaXBoyigUlGfO3+X7CcMlRWZxEze6lqQlR3cgjIJAujrSrPnEv2B1Nl9G+G
+         VTmOp2yjp1SH3f/18U5x1s4YhW7Fpx4pZfXiW/8PSex7AiQKWjDhZc1yWwDIsYe++N6j
+         PWbA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=toE+6wtOlbNkJ/08bfCqpbMSQNddZO3CiuIGldc+Ghs=;
-        b=GyLm0wN+KBQQ3decQh3Dw0dStGhQm6c2ne6/Wxy4KDLnI41LP13M7wcIse684U/Qfx
-         RHbg9ZDb7X6r9NvPxHtYVmVJBwDGKGUErbFplZtSOioel/GEH3czrG8TtM1JL5EczaUZ
-         pSnUNSFX9Nj96IH5w1v23QvmSK+kEAh2jzCcRJ7eZV9F9assCCx5P4jN88f7zJbtCWSA
-         WParOK88VRrN6y1bdYJECvUwkRjhsMGADfvqkUey/OCrtnnXC4KTSNIBwhPCeNiZa6n9
-         CsrunvnXn7XN8eeUMCpqSVPLqJQDeTHB7s67ohVNi/LXAUSz7gPQACTMJ6Yi+VveIq4I
-         H5zw==
+        h=message-id:date:subject:cc:to:from;
+        bh=+Pfi8JFD6WhijRBrJVHHc8gcz0yOnQpAUmEE4+7Nm2M=;
+        b=m0yfP1TtqpSUC9CPUZ/TVKp+1TaPAHQQxmnFjYXD5lFOlbDDjAFzwvPf1PuXfEvfVd
+         ppvIjbqpwfMYokbvWxL+p28nPU/w46GumfV5/Jpj6FFPeh4hXxfFpCNltYnQVi3duivv
+         ghvYJyXZG2tCZzKcp7u0TfFBLH+HeyugMuIXTz31jIYnRK+EbLUYUb18BeBoNuVwjXHB
+         Ubx3H++CK9qJ0AsS3fUap0aUSRayE9biFw7TP80j1hzLgeDjCIYbkgeJ5VpSKkH+lvOu
+         dEiXb++DfsDhUgiUoPUY7WZ7fXYfrIwRrB5q4LM+FDxkF94epUTWXvMbhTPiCf+2y4yk
+         s+uA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
 Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id j26si2076853qkl.156.2019.08.06.23.50.03
+        by mx.google.com with ESMTPS id g37si2350523qvd.137.2019.08.06.23.55.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 23:50:03 -0700 (PDT)
+        Tue, 06 Aug 2019 23:55:02 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 2729730DDBD8;
-	Wed,  7 Aug 2019 06:50:03 +0000 (UTC)
-Received: from [10.72.12.139] (ovpn-12-139.pek2.redhat.com [10.72.12.139])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 7BBF825263;
-	Wed,  7 Aug 2019 06:49:58 +0000 (UTC)
-Subject: Re: [PATCH V2 7/9] vhost: do not use RCU to synchronize MMU notifier
- with worker
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: mst@redhat.com, kvm@vger.kernel.org,
- virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org
-References: <20190731084655.7024-1-jasowang@redhat.com>
- <20190731084655.7024-8-jasowang@redhat.com> <20190731123935.GC3946@ziepe.ca>
- <7555c949-ae6f-f105-6e1d-df21ddae9e4e@redhat.com>
- <20190731193057.GG3946@ziepe.ca>
- <a3bde826-6329-68e4-2826-8a9de4c5bd1e@redhat.com>
- <20190801141512.GB23899@ziepe.ca>
- <42ead87b-1749-4c73-cbe4-29dbeb945041@redhat.com>
- <20190802124613.GA11245@ziepe.ca>
- <11b2a930-eae4-522c-4132-3f8a2da05666@redhat.com>
- <20190806120416.GB11627@ziepe.ca>
+	by mx1.redhat.com (Postfix) with ESMTPS id 58CDC8EA41;
+	Wed,  7 Aug 2019 06:55:01 +0000 (UTC)
+Received: from hp-dl380pg8-01.lab.eng.pek2.redhat.com (hp-dl380pg8-01.lab.eng.pek2.redhat.com [10.73.8.10])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 9C5081000324;
+	Wed,  7 Aug 2019 06:54:55 +0000 (UTC)
 From: Jason Wang <jasowang@redhat.com>
-Message-ID: <4b448aa5-2c92-a6ca-67d6-d30fad67254c@redhat.com>
-Date: Wed, 7 Aug 2019 14:49:57 +0800
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
-MIME-Version: 1.0
-In-Reply-To: <20190806120416.GB11627@ziepe.ca>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 8bit
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.49]); Wed, 07 Aug 2019 06:50:03 +0000 (UTC)
+To: mst@redhat.com,
+	kvm@vger.kernel.org,
+	virtualization@lists.linux-foundation.org,
+	netdev@vger.kernel.org
+Cc: linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org,
+	jgg@ziepe.ca,
+	Jason Wang <jasowang@redhat.com>
+Subject: [PATCH V3 00/10] Fixes for metadata accelreation
+Date: Wed,  7 Aug 2019 02:54:39 -0400
+Message-Id: <20190807065449.23373-1-jasowang@redhat.com>
+X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Wed, 07 Aug 2019 06:55:01 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi all:
 
-On 2019/8/6 下午8:04, Jason Gunthorpe wrote:
-> On Mon, Aug 05, 2019 at 12:20:45PM +0800, Jason Wang wrote:
->> On 2019/8/2 下午8:46, Jason Gunthorpe wrote:
->>> On Fri, Aug 02, 2019 at 05:40:07PM +0800, Jason Wang wrote:
->>>>> This must be a proper barrier, like a spinlock, mutex, or
->>>>> synchronize_rcu.
->>>> I start with synchronize_rcu() but both you and Michael raise some
->>>> concern.
->>> I've also idly wondered if calling synchronize_rcu() under the various
->>> mm locks is a deadlock situation.
->>
->> Maybe, that's why I suggest to use vhost_work_flush() which is much
->> lightweight can can achieve the same function. It can guarantee all previous
->> work has been processed after vhost_work_flush() return.
-> If things are already running in a work, then yes, you can piggyback
-> on the existing spinlocks inside the workqueue and be Ok
->
-> However, if that work is doing any copy_from_user, then the flush
-> becomes dependent on swap and it won't work again...
+This series try to fix several issues introduced by meta data
+accelreation series. Please review.
 
+Changes from V2:
+- use seqlck helper to synchronize MMU notifier with vhost worker
 
-Yes it do copy_from_user(), so we can't do this.
+Changes from V1:
 
+- try not use RCU to syncrhonize MMU notifier with vhost worker
+- set dirty pages after no readers
+- return -EAGAIN only when we find the range is overlapped with
+  metadata
 
->
->>>> 1) spinlock: add lots of overhead on datapath, this leads 0 performance
->>>> improvement.
->>> I think the topic here is correctness not performance improvement>
->   
->> But the whole series is to speed up vhost.
-> So? Starting with a whole bunch of crazy, possibly broken, locking and
-> claiming a performance win is not reasonable.
+Jason Wang (9):
+  vhost: don't set uaddr for invalid address
+  vhost: validate MMU notifier registration
+  vhost: fix vhost map leak
+  vhost: reset invalidate_count in vhost_set_vring_num_addr()
+  vhost: mark dirty pages during map uninit
+  vhost: don't do synchronize_rcu() in vhost_uninit_vq_maps()
+  vhost: do not use RCU to synchronize MMU notifier with worker
+  vhost: correctly set dirty pages in MMU notifiers callback
+  vhost: do not return -EAGAIN for non blocking invalidation too early
 
+Michael S. Tsirkin (1):
+  vhost: disable metadata prefetch optimization
 
-Yes, I admit this patch is tricky, I'm not going to push this. Will post 
-a V3.
+ drivers/vhost/vhost.c | 228 +++++++++++++++++++++++++++---------------
+ drivers/vhost/vhost.h |  10 +-
+ 2 files changed, 151 insertions(+), 87 deletions(-)
 
-
->
->> Spinlock is correct but make the whole series meaningless consider it won't
->> bring any performance improvement.
-> You can't invent a faster spinlock by opencoding some wild
-> scheme. There is nothing special about the usage here, it needs a
-> blocking lock, plain and simple.
->
-> Jason
-
-
-Will post V3. Let's see if you are happy with that version.
-
-Thanks
-
+-- 
+2.18.1
 
