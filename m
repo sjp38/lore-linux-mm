@@ -2,430 +2,193 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4E945C433FF
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 18:09:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 17C9FC433FF
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 18:17:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F066121E70
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 18:09:21 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F066121E70
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id AFFEF21E70
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 18:17:44 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="XVrvAlpr"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFFEF21E70
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C251C6B0007; Wed,  7 Aug 2019 14:09:20 -0400 (EDT)
+	id 3E0816B0007; Wed,  7 Aug 2019 14:17:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BAE566B0008; Wed,  7 Aug 2019 14:09:20 -0400 (EDT)
+	id 36AEB6B0008; Wed,  7 Aug 2019 14:17:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A26F46B000A; Wed,  7 Aug 2019 14:09:20 -0400 (EDT)
+	id 1BD496B000A; Wed,  7 Aug 2019 14:17:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B3266B0007
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 14:09:20 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id z93so1080008qtc.22
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 11:09:20 -0700 (PDT)
+Received: from mail-lj1-f198.google.com (mail-lj1-f198.google.com [209.85.208.198])
+	by kanga.kvack.org (Postfix) with ESMTP id A0D126B0007
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 14:17:43 -0400 (EDT)
+Received: by mail-lj1-f198.google.com with SMTP id 9so18291256ljp.7
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 11:17:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=hkZn7yTJ/Q9yA2+VNwCeJYTWTRr2/02IYTYzHz27tO8=;
-        b=m/SBGw/MA/LEh4nig03U7y/+Ra799lDi3MBhnas5Io3B4bBNCW7s6EIs9TyNzzlklH
-         Ecj0/wSEJzIJ9WViSnmTMSPMf4KmYf5v/dpPLs738RvLZHo58H2Gi2z480ybCvyFay/w
-         yEDVIH0UdXO+Lg7uTHf7bW45nJieXRxHdURn/XWH6BOGfIWrFG6YOoiS+Qx6TTTS0DzX
-         jcwDhSUZvGQUBBwLhpx39BFXXiALZDAkB84+wt9Ic7ZooTeO9qxV1s3xqXRrLBJDxBhT
-         lrdQPzIfS0RiqjpX2vMhL7S55BCaGQ505CM2JXVn8nnrh0ZKUUCtzB6V7yMPWCXlkFg7
-         bsjg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWn1E/5iUfpiYNysrxvxXHNQXPYI9x4ZyRiRB0UdvzTuZr8BBvR
-	6b9VBy10mSuAjzTsQeaDtu+DFkGJ6b8D3jUqAHsGa8J3kTF9QUMMcItjqXv5Kz33PgGC61s8K9R
-	OCxfz/cdlyjnlIL3UyZ/GefDt7G9qi5Cj5MQFxalD8ZZDd0jCkLM37eryz9KrhG3r2g==
-X-Received: by 2002:a37:4cd3:: with SMTP id z202mr8953791qka.203.1565201360174;
-        Wed, 07 Aug 2019 11:09:20 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwksNyd+sTBnMi8EJcSX76GJ//xk+cnJ1yKDkv61t0Zxe4y7Zax8po6s3VHIcxxn5IKQYcI
-X-Received: by 2002:a37:4cd3:: with SMTP id z202mr8953698qka.203.1565201359071;
-        Wed, 07 Aug 2019 11:09:19 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565201359; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=2EXPUC9MWpnXQilcdUkMQeiZeh83FjcLgirnjUQqTlo=;
+        b=PEOK6Vlp8ruXrEjs1N9pgCesdDw4WM+JrUWNM0FSo37NI8uW6tOfXH6GHGqCY1R5/k
+         GB+mmu6+J/5w/QqVaW+QZRAlAdb4q+DkrLlG3exDs7WmDERTGDFweGS4WDZb+ytU00rJ
+         HjYOM/rD6tDD/HxgrPzOG9xH/JNlBs0tD/5OmkAq4EPKJuL3RYRwv8INTyB1uyyjBu+x
+         z9EyxJFB6WLoMj9TWrYLTQ29k34tk5BiKXYuNbRjiau1AklmUo8jSWwVE7P9TawaqUat
+         qx3Zz7kg1TMUeJebJ3ia+1mJ83Oo1jOZ1JjajtCYdB1N7HbW5WtBCMT9CUQaCK2p+CR7
+         kD0g==
+X-Gm-Message-State: APjAAAXqydmgxGZgi+rCsnBep4DxgUsvJ9t0T+Xf5ltWVR1WTlMRcXA4
+	LROfnk+6VdOaYuQhtOPf5E4Mr3xlcQo1agYJhmpXBO6X28ywtxvGxAicoTlT78mPCePmqbSBzpt
+	nX29x/U+JhJ4YYxAmSpuco98Y45v7qIYjKV5FMGlu3a5DykLATv//jBO4UPi6Ormi+Q==
+X-Received: by 2002:a19:cbd3:: with SMTP id b202mr6612357lfg.185.1565201862848;
+        Wed, 07 Aug 2019 11:17:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw4KMrzpOjKE9SiL2DkvovWxeDB3zo6jGXJVUXdr9w8a5eLrNpZM+bl+9HWW+mIXL1tMvX5
+X-Received: by 2002:a19:cbd3:: with SMTP id b202mr6612318lfg.185.1565201861950;
+        Wed, 07 Aug 2019 11:17:41 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1565201861; cv=pass;
         d=google.com; s=arc-20160816;
-        b=cDtRkEQME288Uvwx2riwa3coOsMYjBvkXppuqxBGpHjjIk8amrN3WYKqDlaQYE2227
-         HdLs+GFUoS0YzIymiznyu2yjubbu1y/dwze2vISOLms9VjFK63JHhpJ2dqPbtqk9OtOx
-         obNa+W4u6xgLKps6FzK2BAO6r883LTQwZwR8zkBC4Mx6AHzVN7kmwPvpE8v2TI5Mp4Lf
-         jY9fB+G3JJQmMpsSRXn6eotwb2B93Im+ou/qRbnugXpCOzg76weSxsAHsr8iD7xgPPDN
-         IhQa15ByH1LZT95C8ktlgaiEjqbOb5YtnijVuzgO3cBTN0xQwE3auZVTAIqS0AmNwKUz
-         1IFw==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=hkZn7yTJ/Q9yA2+VNwCeJYTWTRr2/02IYTYzHz27tO8=;
-        b=Bg9tvu5DzCgAh95dYApQqg++tlGWQsX38VFY5la1xDurMg5SKT9HSyU9vbO3gjLvpq
-         4N93FGXodnYKKA873reBdaI6yMGmc62y8lqJeSsBqjTfZk8d0rAmDEPpy6dd+RI0OIN9
-         W/SPuoIDL6AxHGw3NaqdTDZmPLtZoynX3v2VTteccVEZwIAip47ZBiB+2FvP0JM+05ts
-         B1GNC2AT2BxmdtTWWNjMIvJKahwd6WpbxaOk0zyUQm4O9Ym1XM0/thn9ZsOmutaiapwf
-         aoRZU64n6ydKnZatISaPO/WaPUhuxpFAeEIWICmdUw5F9T6cFbFPKDXzs3N1zFdS87IV
-         lqYA==
-ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id m8si33285882qka.230.2019.08.07.11.09.18
+        b=TPHXs5YDlCtHaw+8Otsw6eb1ZdVCdkogBg1n4RtJvh8f8TsViNNhquWTK3p2aBgAUN
+         wrp7bvjPqI2nTCo0H9pGc8v6lQqxti8D5OFa8AmQk5YV1kbu1aQkgjz+Bgx3Uz85Dx5J
+         S8Bu5DJNgJX0yNpp+i5R5XonS4Hr1aRv4ALacR3WxgIxCRGQ802WHrxV1PIfxBCrX5Zg
+         vvjuOCGMfGF+wFPzrROTDvGmkx/9nK3UtMNd9GWGULIEqJT8BOjq63tLklhL16CzrHG1
+         tdgCiXARfND0N3S+r8QUPjQ9nwnl7+a3ZaTTmxQUJOeT8prYeu02zR4q/tNw59GZRVgB
+         0yOw==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=2EXPUC9MWpnXQilcdUkMQeiZeh83FjcLgirnjUQqTlo=;
+        b=fXrnorQjCdjVFqk4/9VlU0/GnCoSk0mSAYu5aXsaTngoogARAU4Q0wD1CdC15Pyo9+
+         0y2QLDgI9ukoFuWpobYmLTTBLyuRGVOx9ETpT6isylcAouF32mQN5fiH6+fN/Oow6KMt
+         YefFdYv3LC5/Per2AGwYZe4nB6RzfgunoVVvSPwL+25fyqEkDyx8/otTuwLYVExdiacF
+         cs9jOXnspA/4pydqeHDA5Tsguws+3Njo2+Tbt+i4uWMX2xb0Mbni0ckiiXl/u+fTCVgf
+         P9CTxf2JPQ2YSHEj6v0Ag6x2pG8U6j8OvulM2Hf4uS6ztBpOzLMr6A6QI5WsQqojTLZA
+         DSMg==
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=XVrvAlpr;
+       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.0.50 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR02-AM5-obe.outbound.protection.outlook.com (mail-eopbgr00050.outbound.protection.outlook.com. [40.107.0.50])
+        by mx.google.com with ESMTPS id x15si81976861ljh.120.2019.08.07.11.17.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Aug 2019 11:09:19 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Wed, 07 Aug 2019 11:17:41 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.0.50 as permitted sender) client-ip=40.107.0.50;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 42FE62F366C;
-	Wed,  7 Aug 2019 18:09:18 +0000 (UTC)
-Received: from bfoster (dhcp-41-2.bos.redhat.com [10.18.41.2])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id A2BD010016E8;
-	Wed,  7 Aug 2019 18:09:17 +0000 (UTC)
-Date: Wed, 7 Aug 2019 14:09:15 -0400
-From: Brian Foster <bfoster@redhat.com>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH 20/24] xfs: use AIL pushing for inode reclaim IO
-Message-ID: <20190807180915.GA20425@bfoster>
-References: <20190801021752.4986-1-david@fromorbit.com>
- <20190801021752.4986-21-david@fromorbit.com>
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=XVrvAlpr;
+       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.0.50 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=DQje8g+Ju47ImkZwiBuVOtSQHMkxvF0Wci+I/rnWd4JZ8GxXH78Brlpty7+pmS/s0wq56AcUeNT3AltTxYJfVReWuMYDi/LXp3qYWjfNWuLjaUO66wCW0USMFIRwa8FuP5UEg/2qnORN/7VbyJJc2NBAr17to8XHJ+WGQCNVfwLX0eccIgNOtx9kgve19yZRnpGWn79MXTIHPdTtDFmkjgovl6IDR2SCIng/RjiwHACrha4/THw4eb3XBSLnpMVnqe4vN1uW+lcvlMXi9zQeSdGooit6i0g3aZs8b63+rY52g7MLCjL6u5KDZC1qJbOWp3qM98sWV9plI3jOHUPdbQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=2EXPUC9MWpnXQilcdUkMQeiZeh83FjcLgirnjUQqTlo=;
+ b=VHq4j2uISXpKY39PO7d5XO2QvgjsSja0yPAs75Ph/HgBFSb4Wf7GWNc5nLRUHbTfKlKc68UZXWA5Q/pABCwEWRzrSekHIAFdUkEDiTrtqfLvG6D3iFI6pY/BVmibVaOt5TbFpFy6bI0mrP9Sb1oS8JqIRIJoqLBCx5lcZwijjeEw99lektl21mAa7wZpwLDGXns093ggStamS7b1erQHGrYC6Rng/nP70WA/0Gv0dte4uTsPSrYLm+F2o+kvqUgm+zf4S3ixIuhogx69QWXMcKF2CApciwkInJMoD2oqL1/2XixaOFH0duMYFbv283SMyfRvvIvhnDvRhl/vg9QHXw==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
+ smtp.mailfrom=mellanox.com;dmarc=pass action=none
+ header.from=mellanox.com;dkim=pass header.d=mellanox.com;arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=2EXPUC9MWpnXQilcdUkMQeiZeh83FjcLgirnjUQqTlo=;
+ b=XVrvAlprNK3yw7vO6hrlpoO7EMfq+IJe+Brm5elZxCR+n5Abs7XT34Xt7xU0KbaCm3SCTY7LmfWiTzQNDLU1HxCt5IRHqPEv4YfNvu2VSd6os3pyMbstgtcKDaTBL3joAOx29+r7m8x10HZNoP486tAU6SrllQnvTbLaL4idbfo=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB6461.eurprd05.prod.outlook.com (20.179.24.213) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2136.16; Wed, 7 Aug 2019 18:17:39 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::5c6f:6120:45cd:2880]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::5c6f:6120:45cd:2880%4]) with mapi id 15.20.2136.018; Wed, 7 Aug 2019
+ 18:17:39 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Christoph Hellwig <hch@lst.de>, John Hubbard <jhubbard@nvidia.com>
+CC: =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Ben Skeggs
+	<bskeggs@redhat.com>, Felix Kuehling <Felix.Kuehling@amd.com>, Ralph Campbell
+	<rcampbell@nvidia.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: hmm cleanups, v2
+Thread-Topic: hmm cleanups, v2
+Thread-Index: AQHVTHDXDUnAIZqjmEOq1Yke5EzQp6bv/+GA
+Date: Wed, 7 Aug 2019 18:17:39 +0000
+Message-ID: <20190807181733.GL1571@mellanox.com>
+References: <20190806160554.14046-1-hch@lst.de>
+In-Reply-To: <20190806160554.14046-1-hch@lst.de>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: YT1PR01CA0004.CANPRD01.PROD.OUTLOOK.COM (2603:10b6:b01::17)
+ To VI1PR05MB4141.eurprd05.prod.outlook.com (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [156.34.55.100]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: b9004f64-56d0-4808-36e5-08d71b6387c7
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB6461;
+x-ms-traffictypediagnostic: VI1PR05MB6461:
+x-ms-exchange-purlcount: 1
+x-microsoft-antispam-prvs:
+ <VI1PR05MB646181193F251A672B9334EDCFD40@VI1PR05MB6461.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:8882;
+x-forefront-prvs: 01221E3973
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(4636009)(39860400002)(396003)(366004)(346002)(376002)(136003)(199004)(189003)(966005)(6116002)(53936002)(229853002)(8676002)(6486002)(33656002)(7736002)(71190400001)(476003)(26005)(8936002)(81156014)(81166006)(486006)(71200400001)(36756003)(256004)(2616005)(305945005)(446003)(3846002)(2906002)(11346002)(14454004)(6506007)(4326008)(66946007)(66476007)(6246003)(54906003)(86362001)(386003)(66556008)(64756008)(66446008)(5660300002)(99286004)(478600001)(6306002)(6512007)(102836004)(68736007)(7416002)(186003)(1076003)(316002)(76176011)(6436002)(52116002)(110136005)(25786009)(66066001);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB6461;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ evQ9V92IoJTtn2zv2EdFZ9MNnfJPb2jedbASOg3TsWMb6M6dSvkP4p/klz0PwZ4o44H6NWNbOVS+G54hOrPtmpy6hqKzKV3Zp+0ciGNSFKpNdqWp50tSKaUBzE8aGYos4X5xC7Azbrl16BzFBJC6GFbIbD8VVYM4S1xXr9vlaZBHMoORPochpoM95SMZ8Y2+84yQpxmSK0stvOu3wHH64J6INsj0YzE5ws0AoXuOrwj2tx/ttYvAIsyBPvpoXOXjHMDUGTrOXoFUtKLqn6orpS/QMtNTdnIleogvsVDRCBC2HAJkfw0X8WuTxaJ3bKrV3kIEiJUrDDzaxDndXaaReZ/2U5EwdogoSOpXOYkpFyy9TsaDX4GDMuJwd6QTPa2PAYJCcx9edMWxz7k3iqZ0LGiJH8Q+9Dq2NGk6d+QSVRk=
+Content-Type: text/plain; charset="utf-8"
+Content-ID: <B71F314D18668A44A07719FC1462D90A@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190801021752.4986-21-david@fromorbit.com>
-User-Agent: Mutt/1.12.0 (2019-05-25)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Wed, 07 Aug 2019 18:09:18 +0000 (UTC)
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: b9004f64-56d0-4808-36e5-08d71b6387c7
+X-MS-Exchange-CrossTenant-originalarrivaltime: 07 Aug 2019 18:17:39.1325
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB6461
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 01, 2019 at 12:17:48PM +1000, Dave Chinner wrote:
-> From: Dave Chinner <dchinner@redhat.com>
-> 
-> Inode reclaim currently issues it's own inode IO when it comes
-> across dirty inodes. This is used to throttle direct reclaim down to
-> the rate at which we can reclaim dirty inodes. Failure to throttle
-> in this manner results in the OOM killer being trivial to trigger
-> even when there is lots of free memory available.
-> 
-> However, having direct reclaimers issue IO causes an amount of
-> IO thrashing to occur. We can have up to the number of AGs in the
-> filesystem concurrently issuing IO, plus the AIL pushing thread as
-> well. This means we can many competing sources of IO and they all
-> end up thrashing and competing for the request slots in the block
-> device.
-> 
-> Similar to dirty page throttling and the BDI flusher thread, we can
-> use the AIL pushing thread the sole place we issue inode writeback
-> from and everything else waits for it to make progress. To do this,
-> reclaim will skip over dirty inodes, but in doing so will record the
-> lowest LSN of all the dirty inodes it skips. It will then push the
-> AIL to this LSN and wait for it to complete that work.
-> 
-> In doing so, we block direct reclaim on the IO of at least one IO,
-> thereby providing some level of throttling for when we encounter
-> dirty inodes. However we gain the ability to scan and reclaim
-> clean inodes in a non-blocking fashion. This allows us to
-> remove all the per-ag reclaim locking that avoids excessive direct
-> reclaim, as repeated concurrent direct reclaim will hit the same
-> dirty inodes on block waiting on the same IO to complete.
-> 
-
-The last part of the above sentence sounds borked..
-
-> Hence direct reclaim will be throttled directly by the rate at which
-> dirty inodes are cleaned by AIL pushing, rather than by delays
-> caused by competing IO submissions. This allows us to remove all the
-> locking that limits direct reclaim concurrency and greatly
-> simplifies the inode reclaim code now that it just skips dirty
-> inodes.
-> 
-> Note: this patch by itself isn't completely able to throttle direct
-> reclaim sufficiently to prevent OOM killer madness. We can't do that
-> until we change the way we index reclaimable inodes in the next
-> patch and can feed back state to the mm core sanely.  However, we
-> can't change the way we index reclaimable inodes until we have
-> IO-less non-blocking reclaim for both direct reclaim and kswapd
-> reclaim.  Catch-22...
-> 
-> Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> ---
->  fs/xfs/xfs_icache.c    | 208 +++++++++++++++++------------------------
->  fs/xfs/xfs_mount.c     |   4 -
->  fs/xfs/xfs_mount.h     |   1 -
->  fs/xfs/xfs_trans_ail.c |   4 +-
->  4 files changed, 90 insertions(+), 127 deletions(-)
-> 
-> diff --git a/fs/xfs/xfs_icache.c b/fs/xfs/xfs_icache.c
-> index 0bd4420a7e16..4c4c5bc12147 100644
-> --- a/fs/xfs/xfs_icache.c
-> +++ b/fs/xfs/xfs_icache.c
-> @@ -22,6 +22,7 @@
->  #include "xfs_dquot_item.h"
->  #include "xfs_dquot.h"
->  #include "xfs_reflink.h"
-> +#include "xfs_log.h"
->  
->  #include <linux/iversion.h>
->  
-> @@ -967,28 +968,42 @@ xfs_inode_ag_iterator_tag(
->  }
->  
->  /*
-> - * Grab the inode for reclaim exclusively.
-> - * Return 0 if we grabbed it, non-zero otherwise.
-> + * Grab the inode for reclaim.
-> + *
-> + * Return false if we aren't going to reclaim it, true if it is a reclaim
-> + * candidate.
-> + *
-> + * If the inode is clean or unreclaimable, return NULLCOMMITLSN to tell the
-> + * caller it does not require flushing. Otherwise return the log item lsn of the
-> + * inode so the caller can determine it's inode flush target.  If we get the
-> + * clean/dirty state wrong then it will be sorted in xfs_reclaim_inode() once we
-> + * have locks held.
->   */
-> -STATIC int
-> +STATIC bool
->  xfs_reclaim_inode_grab(
->  	struct xfs_inode	*ip,
-> -	int			flags)
-> +	int			flags,
-> +	xfs_lsn_t		*lsn)
->  {
->  	ASSERT(rcu_read_lock_held());
-> +	*lsn = 0;
-
-The comment above says we return NULLCOMMITLSN. Given the rest of the
-code, I'm assuming we should just fix up the comment.
-
->  
->  	/* quick check for stale RCU freed inode */
->  	if (!ip->i_ino)
-> -		return 1;
-> +		return false;
->  
->  	/*
-> -	 * If we are asked for non-blocking operation, do unlocked checks to
-> -	 * see if the inode already is being flushed or in reclaim to avoid
-> -	 * lock traffic.
-> +	 * Do unlocked checks to see if the inode already is being flushed or in
-> +	 * reclaim to avoid lock traffic. If the inode is not clean, return the
-> +	 * it's position in the AIL for the caller to push to.
->  	 */
-> -	if ((flags & SYNC_TRYLOCK) &&
-> -	    __xfs_iflags_test(ip, XFS_IFLOCK | XFS_IRECLAIM))
-> -		return 1;
-> +	if (!xfs_inode_clean(ip)) {
-> +		*lsn = ip->i_itemp->ili_item.li_lsn;
-> +		return false;
-> +	}
-> +
-> +	if (__xfs_iflags_test(ip, XFS_IFLOCK | XFS_IRECLAIM))
-> +		return false;
->  
->  	/*
->  	 * The radix tree lock here protects a thread in xfs_iget from racing
-...
-> @@ -1050,92 +1065,67 @@ xfs_reclaim_inode_grab(
->   *	clean		=> reclaim
->   *	dirty, async	=> requeue
->   *	dirty, sync	=> flush, wait and reclaim
-> + *
-> + * Returns true if the inode was reclaimed, false otherwise.
->   */
-> -STATIC int
-> +STATIC bool
->  xfs_reclaim_inode(
->  	struct xfs_inode	*ip,
->  	struct xfs_perag	*pag,
-> -	int			sync_mode)
-> +	xfs_lsn_t		*lsn)
->  {
-> -	struct xfs_buf		*bp = NULL;
-> -	xfs_ino_t		ino = ip->i_ino; /* for radix_tree_delete */
-> -	int			error;
-> +	xfs_ino_t		ino;
-> +
-> +	*lsn = 0;
->  
-> -restart:
-> -	error = 0;
->  	/*
->  	 * Don't try to flush the inode if another inode in this cluster has
->  	 * already flushed it after we did the initial checks in
->  	 * xfs_reclaim_inode_grab().
->  	 */
-> -	if (sync_mode & SYNC_TRYLOCK) {
-> -		if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
-> -			goto out;
-> -		if (!xfs_iflock_nowait(ip))
-> -			goto out_unlock;
-> -	} else {
-> -		xfs_ilock(ip, XFS_ILOCK_EXCL);
-> -		if (!xfs_iflock_nowait(ip)) {
-> -			if (!(sync_mode & SYNC_WAIT))
-> -				goto out_unlock;
-> -			xfs_iflock(ip);
-> -		}
-> -	}
-> +	if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
-> +		goto out;
-> +	if (!xfs_iflock_nowait(ip))
-> +		goto out_unlock;
->  
-
-Do we even need the flush lock here any more if we're never going to
-flush from this context? The shutdown case just below notwithstanding
-(which I'm also wondering if we should just drop given we abort from
-xfs_iflush() on shutdown), the pin count is an atomic and the dirty
-state changes under ilock.
-
-Maybe I'm missing something else, but the reason I ask is that the
-increased flush lock contention in codepaths that don't actually flush
-once it's acquired gives me a bit of concern that we could reduce
-effectiveness of the one task that actually does (xfsaild).
-
-> +	/* If we are in shutdown, we don't care about blocking. */
->  	if (XFS_FORCED_SHUTDOWN(ip->i_mount)) {
->  		xfs_iunpin_wait(ip);
->  		/* xfs_iflush_abort() drops the flush lock */
->  		xfs_iflush_abort(ip, false);
->  		goto reclaim;
->  	}
-> -	if (xfs_ipincount(ip)) {
-> -		if (!(sync_mode & SYNC_WAIT))
-> -			goto out_ifunlock;
-> -		xfs_iunpin_wait(ip);
-> -	}
-> -	if (xfs_iflags_test(ip, XFS_ISTALE) || xfs_inode_clean(ip)) {
-> -		xfs_ifunlock(ip);
-> -		goto reclaim;
-> -	}
->  
->  	/*
-> -	 * Never flush out dirty data during non-blocking reclaim, as it would
-> -	 * just contend with AIL pushing trying to do the same job.
-> +	 * If it is pinned, we only want to flush this if there's nothing else
-> +	 * to be flushed as it requires a log force. Hence we essentially set
-> +	 * the LSN to flush the entire AIL which will end up triggering a log
-> +	 * force to unpin this inode, but that will only happen if there are not
-> +	 * other inodes in the scan that only need writeback.
->  	 */
-> -	if (!(sync_mode & SYNC_WAIT))
-> +	if (xfs_ipincount(ip)) {
-> +		*lsn = ip->i_itemp->ili_last_lsn;
-
-->ili_last_lsn comes from xfs_cil_ctx->sequence, which I don't think is
-actually a physical LSN suitable for AIL pushing. The lsn assigned to
-the item once it's physically logged and AIL inserted comes from
-ctx->start_lsn, which comes from the iclog header and so is a physical
-LSN.
-
-That said, this usage of ili_last_lsn seems to disappear by the end of
-the series...
-
->  		goto out_ifunlock;
-> +	}
->  
-...
-> @@ -1205,39 +1189,28 @@ xfs_reclaim_inode(
->   * corrupted, we still want to try to reclaim all the inodes. If we don't,
->   * then a shut down during filesystem unmount reclaim walk leak all the
->   * unreclaimed inodes.
-> + *
-> + * Return the number of inodes freed.
->   */
->  STATIC int
->  xfs_reclaim_inodes_ag(
->  	struct xfs_mount	*mp,
->  	int			flags,
-> -	int			*nr_to_scan)
-> +	int			nr_to_scan)
->  {
->  	struct xfs_perag	*pag;
-> -	int			error = 0;
-> -	int			last_error = 0;
->  	xfs_agnumber_t		ag;
-> -	int			trylock = flags & SYNC_TRYLOCK;
-> -	int			skipped;
-> +	xfs_lsn_t		lsn, lowest_lsn = NULLCOMMITLSN;
-> +	long			freed = 0;
->  
-> -restart:
->  	ag = 0;
-> -	skipped = 0;
->  	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
->  		unsigned long	first_index = 0;
->  		int		done = 0;
->  		int		nr_found = 0;
->  
->  		ag = pag->pag_agno + 1;
-> -
-> -		if (trylock) {
-> -			if (!mutex_trylock(&pag->pag_ici_reclaim_lock)) {
-> -				skipped++;
-> -				xfs_perag_put(pag);
-> -				continue;
-> -			}
-> -			first_index = pag->pag_ici_reclaim_cursor;
-> -		} else
-> -			mutex_lock(&pag->pag_ici_reclaim_lock);
-
-I understand that the eliminated blocking drops a dependency on the
-perag reclaim exclusion as described by the commit log, but I'm not sure
-it's enough to justify removing it entirely. For one, the reclaim cursor
-management looks potentially racy. Also, doesn't this exclusion provide
-some balance for reclaim across AGs? E.g., if a bunch of reclaim threads
-come in at the same time, this allows them to walk across AGs instead of
-potentially stumbling over eachother in the batching/grabbing code.
-
-I see again that most of this code seems to ultimately go away, replaced
-by an LRU mechanism so we no longer operate on a per-ag basis. I can see
-how this becomes irrelevant with that mechanism, but I think it might
-make more sense to drop this locking along with the broader mechanism in
-the last patch or two of the series rather than doing it here. If
-nothing else, that eliminates the need for the reviewer to consider this
-transient "old mechanism + new locking" state as opposed to reasoning
-about the old mechanism vs. new mechanism and why the old locking simply
-no longer applies.
-
-> +		first_index = pag->pag_ici_reclaim_cursor;
->  
->  		do {
->  			struct xfs_inode *batch[XFS_LOOKUP_BATCH];
-...
-> diff --git a/fs/xfs/xfs_trans_ail.c b/fs/xfs/xfs_trans_ail.c
-> index 00d66175f41a..5802139f786b 100644
-> --- a/fs/xfs/xfs_trans_ail.c
-> +++ b/fs/xfs/xfs_trans_ail.c
-> @@ -676,8 +676,10 @@ xfs_ail_push_sync(
->  	spin_lock(&ailp->ail_lock);
->  	while ((lip = xfs_ail_min(ailp)) != NULL) {
->  		prepare_to_wait(&ailp->ail_push, &wait, TASK_UNINTERRUPTIBLE);
-> +	trace_printk("lip lsn 0x%llx thres 0x%llx targ 0x%llx",
-> +			lip->li_lsn, threshold_lsn, ailp->ail_target);
->  		if (XFS_FORCED_SHUTDOWN(ailp->ail_mount) ||
-> -		    XFS_LSN_CMP(threshold_lsn, lip->li_lsn) <= 0)
-> +		    XFS_LSN_CMP(threshold_lsn, lip->li_lsn) < 0)
->  			break;
-
-Stale/mislocated changes?
-
-Brian
-
->  		/* XXX: cmpxchg? */
->  		while (XFS_LSN_CMP(threshold_lsn, ailp->ail_target) > 0)
-> -- 
-> 2.22.0
-> 
+T24gVHVlLCBBdWcgMDYsIDIwMTkgYXQgMDc6MDU6MzhQTSArMDMwMCwgQ2hyaXN0b3BoIEhlbGx3
+aWcgd3JvdGU6DQo+IA0KPiBIaSBKw6lyw7RtZSwgQmVuLCBGZWxpeCBhbmQgSmFzb24sDQo+IA0K
+PiBiZWxvdyBpcyBhIHNlcmllcyBhZ2FpbnN0IHRoZSBobW0gdHJlZSB3aGljaCBjbGVhbnMgdXAg
+dmFyaW91cyBtaW5vcg0KPiBiaXRzIGFuZCBhbGxvd3MgSE1NX01JUlJPUiB0byBiZSBidWlsdCBv
+biBhbGwgYXJjaGl0ZWN0dXJlcy4NCj4gDQo+IERpZmZzdGF0Og0KPiANCj4gICAgIDExIGZpbGVz
+IGNoYW5nZWQsIDk0IGluc2VydGlvbnMoKyksIDIxMCBkZWxldGlvbnMoLSkNCj4gDQo+IEEgZ2l0
+IHRyZWUgaXMgYWxzbyBhdmFpbGFibGUgYXQ6DQo+IA0KPiAgICAgZ2l0Oi8vZ2l0LmluZnJhZGVh
+ZC5vcmcvdXNlcnMvaGNoL21pc2MuZ2l0IGhtbS1jbGVhbnVwcy4yDQo+IA0KPiBHaXR3ZWI6DQo+
+IA0KPiAgICAgaHR0cDovL2dpdC5pbmZyYWRlYWQub3JnL3VzZXJzL2hjaC9taXNjLmdpdC9zaG9y
+dGxvZy9yZWZzL2hlYWRzL2htbS1jbGVhbnVwcy4yDQo+IA0KPiBDaGFuZ2VzIHNpbmNlIHYxOg0K
+PiAgLSBmaXggdGhlIGNvdmVyIGxldHRlciBzdWJqZWN0DQo+ICAtIGltcHJvdmUgdmFyaW91cyBw
+YXRjaCBkZXNjcmlwdGlvbnMNCj4gIC0gdXNlIHN2bW0tPm1tIGluIG5vdXZlYXVfcmFuZ2VfZmF1
+bHQNCj4gIC0gaW52ZXJzZSB0aGUgaG1hc2sgZmllbGQgd2hlbiB1c2luZyBpdA0KPiAgLSBzZWxl
+Y3QgSE1NX01JUlJPUiBpbnN0ZWFkIG9mIG1ha2luZyBpdCBhIHVzZXIgdmlzaWJsZSBvcHRpb24N
+CiANCkkgdGhpbmsgaXQgaXMgc3RyYWlnaHRmb3J3YXJkIGVub3VnaCB0byBtb3ZlIGludG8gLW5l
+eHQsIHNvIGFwcGxpZWQgdG8NCnRoZSBobW0uZ2l0IGxldHMgZ2V0IHNvbWUgbW9yZSByZXZpZXdl
+ZC1ieXMvdGVzdGVkLWJ5IHRob3VnaC4NCg0KRm9yIG5vdyBJIGRyb3BwZWQgJ3JlbW92ZSB0aGUg
+cGdtYXAgZmllbGQgZnJvbSBzdHJ1Y3QgaG1tX3ZtYV93YWxrJw0KanVzdCB0byBoZWFyIHRoZSBm
+b2xsb3d1cCBhbmQgJ2FtZGdwdTogcmVtb3ZlDQpDT05GSUdfRFJNX0FNREdQVV9VU0VSUFRSJyB1
+bnRpbCB0aGUgQU1EIHRlYW0gQWNrcw0KDQpUaGFua3MsDQpKYXNvbg0K
 
