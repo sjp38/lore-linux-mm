@@ -2,168 +2,184 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F15AEC32751
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 21:34:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CFF0C32751
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 21:55:54 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A855721872
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 21:34:48 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D71C02187F
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 21:55:53 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="fgAle9Op"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A855721872
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="iLFial3W"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D71C02187F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4848B6B0003; Wed,  7 Aug 2019 17:34:48 -0400 (EDT)
+	id 75A9F6B0003; Wed,  7 Aug 2019 17:55:53 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4353B6B0006; Wed,  7 Aug 2019 17:34:48 -0400 (EDT)
+	id 6E46F6B0006; Wed,  7 Aug 2019 17:55:53 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2FCD46B0007; Wed,  7 Aug 2019 17:34:48 -0400 (EDT)
+	id 586246B0007; Wed,  7 Aug 2019 17:55:53 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id ECC1A6B0003
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 17:34:47 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id q1so695337pgt.2
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 14:34:47 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 206306B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 17:55:53 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id h27so57558856pfq.17
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 14:55:53 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:references:mime-version:content-disposition:in-reply-to
          :user-agent;
-        bh=L+M4+2pGsDRUyWSE4KWHyF4gGN/CTdrXfy8qftEaVU8=;
-        b=IeE3s87hWSmYHol8yifw8XgaiDGu3anLy0z5fe1+eZ+mLLO2/2KcZoVfZ0bGKtw9mt
-         F553HC3QxfBNi4GHjKt2Hw4gEoEyDupcR8auLsHALXUG/5S/StmMNf6JDGubk92LhzSg
-         t+3RWhc51kMsn4SqUkHb7Jlzaai043H1HKorknq2+rjUGsrl+D3pZStI7eV29RsQ4Xx/
-         Vt/bOUiVM3bruJ8T708QfO2fnbP34SQSD7ed9hy1ELBVIRXDuet0RgSviSxRTzxlQBhb
-         WjmTKoVwOzVDVcBDPuFe5TohmpiQDHI4yw/cBx6+OrqFvsDIBeKZgNaeirE9mg8T9IDO
-         PXiA==
-X-Gm-Message-State: APjAAAUeMOYVqPPaWBVNxi68HNQwqRsfjVpIdHOl6+q0AiQKKBqBG5iw
-	zXJHLKXKncHskR3OVpsB7nW56swslHW/zNKjsL9LPyzpoV05inWyotJyyB0CVXf7gONRpo0lfNB
-	NYtDfxWDLaLodAbnk9ht9J9u727vnzl837aNO/87Botyadf3+rTmcY/YCBTSZ3IUvsg==
-X-Received: by 2002:a17:902:ba8b:: with SMTP id k11mr10118435pls.107.1565213687576;
-        Wed, 07 Aug 2019 14:34:47 -0700 (PDT)
-X-Received: by 2002:a17:902:ba8b:: with SMTP id k11mr10118387pls.107.1565213686861;
-        Wed, 07 Aug 2019 14:34:46 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565213686; cv=none;
+        bh=fPDNifyL3Y36NBVemhHSXF79qGomK0S4tenrlniMG8c=;
+        b=Fbost1nlOYCemWPISqFm/8PibMjxRKUUeE/V3QW3UtDoPjaut0spdphG+Su89qdNlA
+         4vjh3FhO3I732HPfBpYNCRD8rgzFQ+um7Jz+Hgdm8wE8e79naVzMogFh0jRIq89uaJi6
+         +dN4+jjhsOBe6S6ieEFtcKa0kzy79ldkGQgzFL7RflvFiRfbmK22B7Mn2zZmz+482dfB
+         87P4KJ8wlV8wN6IrAYwow7aUAJfWnF+Q1JXQvBtG/Vd1KhKdxQUxtnuhK8EiFnG3Mbnk
+         J3fGTA/zXhzNnUOozNjiiMdpg9X8790Mdm5qiTTjon6MtavTcx08kbiBlX2XrOriKTEB
+         P9nQ==
+X-Gm-Message-State: APjAAAU58L0BdrWcDxSD7eGyvpGtcoaNu8aC8DkUA33RItJUG5Q12HY2
+	d2Bv2mlc9nrGn43Rkjk9nzog3zSUMQAsDAWn4k4i2lhiBfi0CySfVrfvAs0vu4KkNdqg8XrWNMz
+	Y6YbNU4DYLWZmU6wZRA19z4+vo5BHbuownnfvl2UEqlw0jLQy7sYXV9zA5R6RRohjKg==
+X-Received: by 2002:a17:902:f089:: with SMTP id go9mr10162514plb.81.1565214952760;
+        Wed, 07 Aug 2019 14:55:52 -0700 (PDT)
+X-Received: by 2002:a17:902:f089:: with SMTP id go9mr10162480plb.81.1565214951954;
+        Wed, 07 Aug 2019 14:55:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565214951; cv=none;
         d=google.com; s=arc-20160816;
-        b=JiG0XsXO7dhpL5rMzC3kpuZLsiURRUxI7k52jEEW6GEw6pQXZBCOA9Tf1dx9DhO/DP
-         VanPseI3ZfnF7ZAfne997ee4YaCMM3XH/K3ySsZgvTY5qNJNWKncqI58MeNaDD3IX9ZU
-         8RNiDM5SingiPDIBlwHCd6h3WJvTeq9hdm4QE/e2B3B7UNE4dOqCW53Kxkg1AJ5jPxFp
-         fPc0LB+id64j3/dySU6V5hNWU+qXLUDeg+hHo/MFz5drly7omoIiqrFeMYH/rgwfPfPH
-         4zOiu1IP+F1eYTTjFoHfoGmOUBNACYJm8f6fHdgXCVPuJgFT8WTYcXxtMCFlC3woeMkn
-         IaEQ==
+        b=mDqwF9z8B4AqRDqcRkGAR1548LZKg4ab6XWxkQrt/U6MrTf6Bd7mjCg27FSpUdgNM1
+         ialXUhXm7qIAkrlFvQZ7RiEKDjzb3wJlj1P4xkuVZx51Ujnj72NPVbhXc/66VMkoRCa9
+         KDnJLSfANrDuIjZ+ko/JeX+TY7cCbVkZTxGRi2Te3zTUZZ6HHnqdlGhK/9gJeVbGY/b+
+         lLzY2HnMMFkoNRGuaP9xRl6tzwNk9dnguq+rhDXwj/P/z283662IOfx1CdmMJCn2GoNU
+         6H2DKW+sNqD1ti+oKVSkBO74lkM5ybptu+5zTYta3v06buLyWjW3OqFq9MKOrojtOL84
+         0lGQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=L+M4+2pGsDRUyWSE4KWHyF4gGN/CTdrXfy8qftEaVU8=;
-        b=EZP1In0e8bOF7LOpnhUZaFZfw4Ry6gzPFWNmiYGvQPkTP5i2zL3DXn00YG2RzBxY2a
-         LeFj7RhxaGyL6SiShIHwKQ8nNgMDrcEUHC2EDcmbeLd3GptWcCyc82kvb0ZWWj94Dnh1
-         NpOpkv6Zxh5tZQP1A443eD6JKZqHuA6GY4t/eLAZVYr/zYIsohPpLKF/BoAL0ga4Ep5d
-         mupLEHYxOKj7K1Np7l9MsANWSR8BHkXZ3bD8hRVi8SvI3qRVDjyq9XOSnGg/hBiwQDZ9
-         f4fMSqxWAdXvEu46ciwbIJqw0/4Rl70SAGHRzy4gI3zj3beZ9WYp40s/U2k2W6mDuccm
-         AywQ==
+        bh=fPDNifyL3Y36NBVemhHSXF79qGomK0S4tenrlniMG8c=;
+        b=GVf8YinoXnhWq+1TlzJ8m4RBpn5QtdnGBMxdkKs2NQNcPHlZwepRPR21rM2HIb52EW
+         Kom9Rhirky4f3qoDaoveiKGu0WcumgORHq4WCf0c/Tf8eOH8qGrohExWAlHJ8VrjWAm9
+         8gSTn+/JRROI/YCiGSGAvvxem2MXMPsf6virP1+qc8NTO87ia3NNKj0EKiA8q6f48T9q
+         SZeBUkW0/hLB/WS0Vo9HZBUwTxCtl6QGiKyJXGDTtR5O/P4DLzlO2ZD4/qct9Gbz1WEm
+         uqKz/gf/8EOX5dZVUGvBd+dk5JoRl/UxfAib59yKHm6GNrT8EJms/jRwggHWU6XZj5qI
+         Sh3Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=fgAle9Op;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=iLFial3W;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 31sor64740052pgy.17.2019.08.07.14.34.46
+        by mx.google.com with SMTPS id d6sor72286524pfd.59.2019.08.07.14.55.51
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Wed, 07 Aug 2019 14:34:46 -0700 (PDT)
-Received-SPF: pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Wed, 07 Aug 2019 14:55:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cmpxchg-org.20150623.gappssmtp.com header.s=20150623 header.b=fgAle9Op;
-       spf=pass (google.com: domain of hannes@cmpxchg.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=hannes@cmpxchg.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=cmpxchg.org
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=iLFial3W;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        d=joelfernandes.org; s=google;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=L+M4+2pGsDRUyWSE4KWHyF4gGN/CTdrXfy8qftEaVU8=;
-        b=fgAle9OpDpnJ7GKQv0WtHbnZoKzcB8hPE4HOnQKm0VzYK81k8Q7cif033smKCs6zXw
-         UxFxvbTClbbOkt2DzoYqMPsWd/JtUR6WO/58/L6gGzELqNPyroeUg1AQD8SOr0c1Tt80
-         ondZOC7Xw7YyiyOFPPNOS67ELbBfwxbTaqzUZ/2NpGl9wW+yd5G/1UTq5bmKSivBOJNk
-         Myiix8N6eWA5kgUgyOtBLebt4+a81tQ5C+Foveh+lL7Te+X1eQ5mi29r6dV5y5lm+CMQ
-         inJiYzjr2BoXWtPGe/7WyAz1JuhnIy2buR4K9S+62kEZ8/xkaLWQome9OUbJHLbDCf5y
-         3Emw==
-X-Google-Smtp-Source: APXvYqx9Uyn/xw2tiJ8g/Ou75InfUAPJucpury6bca7dwFHlpwvJgJOH8wkakJmYsrVu3gqwJHNNlw==
-X-Received: by 2002:a63:1f1b:: with SMTP id f27mr9431471pgf.233.1565213686124;
-        Wed, 07 Aug 2019 14:34:46 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::1:f7c1])
-        by smtp.gmail.com with ESMTPSA id y14sm45924523pge.7.2019.08.07.14.34.45
+        bh=fPDNifyL3Y36NBVemhHSXF79qGomK0S4tenrlniMG8c=;
+        b=iLFial3WG2Y7hC5RmH/BPZMbk7K/mSRsub86lIBJhU4yCFb7muLzqQlM2Rw/ElKGgC
+         SFjKYwdRoliyNAlbyClW8nV7pvHzWz0n8BGIO7Li2Qvwc3w0FvMgmdrCGjAVrSK9JbBy
+         BL0fPr4WaEXa+YoPzJ+O512HUakd8rmUXyXUM=
+X-Google-Smtp-Source: APXvYqxtYbX1J2T4gE/+OoiVyWtnb2A4+C1faUKsGzqUpJz/BeHl7Ul7v7RUi0zJvoSnKkCTeSkNNg==
+X-Received: by 2002:aa7:9afc:: with SMTP id y28mr11421501pfp.252.1565214951446;
+        Wed, 07 Aug 2019 14:55:51 -0700 (PDT)
+Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
+        by smtp.gmail.com with ESMTPSA id z4sm79672843pgp.80.2019.08.07.14.55.50
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 07 Aug 2019 14:34:45 -0700 (PDT)
-Date: Wed, 7 Aug 2019 17:34:43 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
+        Wed, 07 Aug 2019 14:55:50 -0700 (PDT)
+Date: Wed, 7 Aug 2019 17:55:49 -0400
+From: Joel Fernandes <joel@joelfernandes.org>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@kernel.org>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	"Artem S. Tashkinov" <aros@gmx.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Subject: Re: Let's talk about the elephant in the room - the Linux kernel's
- inability to gracefully handle low memory pressure
-Message-ID: <20190807213443.GA11227@cmpxchg.org>
-References: <20190805193148.GB4128@cmpxchg.org>
- <CAJuCfpHhR+9ybt9ENzxMbdVUd_8rJN+zFbDm+5CeE2Desu82Gg@mail.gmail.com>
- <398f31f3-0353-da0c-fc54-643687bb4774@suse.cz>
- <20190806142728.GA12107@cmpxchg.org>
- <20190806143608.GE11812@dhcp22.suse.cz>
- <CAJuCfpFmOzj-gU1NwoQFmS_pbDKKd2XN=CS1vUV4gKhYCJOUtw@mail.gmail.com>
- <20190806220150.GA22516@cmpxchg.org>
- <20190807075927.GO11812@dhcp22.suse.cz>
- <20190807205138.GA24222@cmpxchg.org>
- <20190807140130.7418e783654a9c53e6b6cd1b@linux-foundation.org>
+Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
+	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
+	fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>, kernel-team@android.com,
+	linux-api@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+	Michal Hocko <mhocko@suse.com>, Mike Rapoport <rppt@linux.ibm.com>,
+	minchan@kernel.org, namhyung@google.com, paulmck@linux.ibm.com,
+	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
+	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
+	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
+Subject: Re: [PATCH v5 1/6] mm/page_idle: Add per-pid idle page tracking
+ using virtual index
+Message-ID: <20190807215549.GB14622@google.com>
+References: <20190807171559.182301-1-joel@joelfernandes.org>
+ <20190807130402.49c9ea8bf144d2f83bfeb353@linux-foundation.org>
+ <20190807204530.GB90900@google.com>
+ <20190807135840.92b852e980a9593fe91fbf59@linux-foundation.org>
+ <20190807213105.GA14622@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190807140130.7418e783654a9c53e6b6cd1b@linux-foundation.org>
-User-Agent: Mutt/1.12.0 (2019-05-25)
+In-Reply-To: <20190807213105.GA14622@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 07, 2019 at 02:01:30PM -0700, Andrew Morton wrote:
-> On Wed, 7 Aug 2019 16:51:38 -0400 Johannes Weiner <hannes@cmpxchg.org> wrote:
-> 
-> > However, eb414681d5a0 ("psi: pressure stall information for CPU,
-> > memory, and IO") introduced a memory pressure metric that quantifies
-> > the share of wallclock time in which userspace waits on reclaim,
-> > refaults, swapins. By using absolute time, it encodes all the above
-> > mentioned variables of hardware capacity and workload behavior. When
-> > memory pressure is 40%, it means that 40% of the time the workload is
-> > stalled on memory, period. This is the actual measure for the lack of
-> > forward progress that users can experience. It's also something they
-> > expect the kernel to manage and remedy if it becomes non-existent.
+On Wed, Aug 07, 2019 at 05:31:05PM -0400, Joel Fernandes wrote:
+> On Wed, Aug 07, 2019 at 01:58:40PM -0700, Andrew Morton wrote:
+> > On Wed, 7 Aug 2019 16:45:30 -0400 Joel Fernandes <joel@joelfernandes.org> wrote:
 > > 
-> > To accomplish this, this patch implements a thrashing cutoff for the
-> > OOM killer. If the kernel determines a sustained high level of memory
-> > pressure, and thus a lack of forward progress in userspace, it will
-> > trigger the OOM killer to reduce memory contention.
+> > > On Wed, Aug 07, 2019 at 01:04:02PM -0700, Andrew Morton wrote:
+> > > > On Wed,  7 Aug 2019 13:15:54 -0400 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
+> > > > 
+> > > > > In Android, we are using this for the heap profiler (heapprofd) which
+> > > > > profiles and pin points code paths which allocates and leaves memory
+> > > > > idle for long periods of time. This method solves the security issue
+> > > > > with userspace learning the PFN, and while at it is also shown to yield
+> > > > > better results than the pagemap lookup, the theory being that the window
+> > > > > where the address space can change is reduced by eliminating the
+> > > > > intermediate pagemap look up stage. In virtual address indexing, the
+> > > > > process's mmap_sem is held for the duration of the access.
+> > > > 
+> > > > So is heapprofd a developer-only thing?  Is heapprofd included in
+> > > > end-user android loads?  If not then, again, wouldn't it be better to
+> > > > make the feature Kconfigurable so that Android developers can enable it
+> > > > during development then disable it for production kernels?
+> > > 
+> > > Almost all of this code is already configurable with
+> > > CONFIG_IDLE_PAGE_TRACKING. If you disable it, then all of this code gets
+> > > disabled.
+> > > 
+> > > Or are you referring to something else that needs to be made configurable?
 > > 
-> > Per default, the OOM killer will engage after 15 seconds of at least
-> > 80% memory pressure. These values are tunable via sysctls
-> > vm.thrashing_oom_period and vm.thrashing_oom_level.
+> > Yes - the 300+ lines of code which this patchset adds!
+> > 
+> > The impacted people will be those who use the existing
+> > idle-page-tracking feature but who will not use the new feature.  I
+> > guess we can assume this set is small...
 > 
-> Could be implemented in userspace?
-> </troll>
+> Yes, I think this set should be small. The code size increase of page_idle.o
+> is from ~1KB to ~2KB. Most of the extra space is consumed by
+> page_idle_proc_generic() function which this patch adds. I don't think adding
+> another CONFIG option to disable this while keeping existing
+> CONFIG_IDLE_PAGE_TRACKING enabled, is worthwhile but I am open to the
+> addition of such an option if anyone feels strongly about it. I believe that
+> once this patch is merged, most like this new interface being added is what
 
-We do in fact do this with oomd.
+s/most like/most likely/
 
-But it requires a comprehensive cgroup setup, with complete memory and
-IO isolation, to protect that daemon from the memory pressure and
-excessive paging of the rest of the system (mlock doesn't really cut
-it because you need to potentially allocate quite a few proc dentries
-and inodes just to walk the process tree and determine a kill target).
-
-In a fleet that works fine, since we need to maintain that cgroup
-infra anyway. But for other users, that's a lot of stack for basic
-"don't hang forever if I allocate too much memory" functionality.
+> will be used more than the old interface (for some of the usecases) so it
+> makes sense to keep it alive with CONFIG_IDLE_PAGE_TRACKING.
+> 
+> thanks,
+> 
+>  - Joel
+> 
 
