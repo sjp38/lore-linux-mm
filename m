@@ -2,155 +2,192 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CF493C19759
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:40:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2C6FBC19759
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:40:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8AFD6214C6
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:40:08 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E60E721E6E
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:40:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="dLjgyEgY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8AFD6214C6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="cZhyddtf"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E60E721E6E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3F25E6B0007; Wed,  7 Aug 2019 02:40:08 -0400 (EDT)
+	id 8367C6B000A; Wed,  7 Aug 2019 02:40:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3A13E6B0008; Wed,  7 Aug 2019 02:40:08 -0400 (EDT)
+	id 7E7366B000C; Wed,  7 Aug 2019 02:40:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 26AA26B000A; Wed,  7 Aug 2019 02:40:08 -0400 (EDT)
+	id 6AEE76B000D; Wed,  7 Aug 2019 02:40:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id DF2BD6B0007
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 02:40:07 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id a5so50133783pla.3
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 23:40:07 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 2FB6B6B000A
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 02:40:36 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id k9so50114625pls.13
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 23:40:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=7uoByRa+Al/xx5bip7rUm8otbKddClrdMOGAdUETRbE=;
-        b=VWLm9An7Pl6r6BM7oJ8Mz961eajBcTk+J4Th5N+hlEfCm2n1hU+8ohzxwjZ2lQGSnF
-         K0Eu6s3jO/wTBBqrIci9SlknVA0WQ0F1Tpcwt1F+Myg6zPZ1Fo3AXS8WYM+ii2RJafXY
-         LCd7Zmt0qJdPjs/3OIdjowGyU0+RP4QhxZxrpLKSgjLbGdkuBRbL4TBPjBmVnlyrSPuM
-         TQ4jDX4VEWT67f4IoIzX0byWC4Cnx/fik2vwWxeY/Cj0fSXV2CFMjH260Mi0UsehEq8T
-         WXi+o3Zsp8I+mzHng5zabewmhME2bWIHjJ1NpOEbbAKvntdGZkZa7i+zG7bPv2gDGwLJ
-         3JJQ==
-X-Gm-Message-State: APjAAAXXPYBOSIAv+efMFuKMsjHk5fphMSnKqe2xWUZ1L22adlDP6SZE
-	5pbbtXGzh1nFInEO6QO+Xm8gpCRKkTVYZuHJE+QLkTT1tAS3+L0YoSosLI+msSkXc/3XQo1PbII
-	AyrCgr7kiHJUzyIntHOLSI9UrF0pjf2lmTcFnCsyPvLhLLrMdIAcBysHwTKsx5E+mLw==
-X-Received: by 2002:a17:90a:d14a:: with SMTP id t10mr6956954pjw.85.1565160007595;
-        Tue, 06 Aug 2019 23:40:07 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzlmT/yAAf7qRF9/Lr3LD8OP3WuV2fTriiRH2kQB+HBjVaukn1EVRzU80sBfXCxttQu6BTM
-X-Received: by 2002:a17:90a:d14a:: with SMTP id t10mr6956925pjw.85.1565160007019;
-        Tue, 06 Aug 2019 23:40:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565160007; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=jn0FnBY7ADCh0laBLX/xGqPiB9Jg8oG9YEaLS2KH1Js=;
+        b=sHYZWkyasq2NjPHs1AtxIJZCcBfBjFCaJBoqh2LxAnQ4Adhf6Qmkvwd5sk93UUuYKU
+         ScbJAuWvYvlpKCTzCDSJtABbrQ4iIqDHLivFiFH/uqmD3lrTkOaeYsScC6pHlkm5jXpI
+         b9UYScwHuO6dKcKXStMMUIPIwHSXjYOAQ5H3XdkKh+pC8gXreqJF2jnsm9yPGHNllGOG
+         m41Nz0XaNpV3dSN3dVwb0qLJv3LmjaHCkZJBcaa/f6eKwmoMkwl/UgnKZ/vmMfaeONdd
+         I5HVFWxAZflGbadyPZrzy/BB9Xt+XQyIGFguUfzHuwaZh9yV7Rml/b+iXKRybZFjNw3K
+         kZRQ==
+X-Gm-Message-State: APjAAAWCDh1I49YaTCnSewT2zCGMmGUbs1XHwNadybpaRrJzIPeF1qS/
+	ViTNNfoOk5YkNSOf2mRfPjbvxl7576oUEXdh/uyOl49cpAB3n8TKyPGWV1EIzYZkC5IUWTa+DRh
+	p+z8WKdYt9dlrI0Wqbdajf0pXp5V/3AMqHG7gNtb+3v77y8Y/MXQYDr2lbwSiZwCqsw==
+X-Received: by 2002:a17:902:8a8a:: with SMTP id p10mr6928616plo.88.1565160035855;
+        Tue, 06 Aug 2019 23:40:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyfDXgsXudhewG1YKUkLZuwRfmBlhhwDH9E5dMXbswhbx7HdoVTi+NkKc59N7RViQbFJtdX
+X-Received: by 2002:a17:902:8a8a:: with SMTP id p10mr6928589plo.88.1565160035177;
+        Tue, 06 Aug 2019 23:40:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565160035; cv=none;
         d=google.com; s=arc-20160816;
-        b=fqPIAjIskfWoKlkTd9T1CzD/hxjsZZVQm5OpbfguHRNeHdwpwf6ctn0F7S8XQWd22v
-         xXYywqBosmqxhtg26N8Rvgafkh09nQlNiBaR+2oWQvFWuXDMtJT+SXdBthrWNZFiLSLP
-         6ElrDAEGZYkJQlnSJ2tRKizbEU8Z8d4LE2TmZ3ghy28c4MlP8OwwitnNLRGmS5OrRFL/
-         4den7wsSVosFcAsmCLN+5JTKyYqnuMc5rM5lfuEru1sgBZ/QaJcBmRYNvZFaNul0HqfN
-         w1C2MhSxus4ZP4j+2/mIn95YLA1B+A7h2httEd2ieRQHM7zM8k5BG7O+J4V6Y5c861qp
-         3kiw==
+        b=sccVd7SF+n5PJ2izS65ZVhMPL7UGEHZCiUEkbJYoQ6Bj828Gx22D85zkaOhklZqhtW
+         JSNoGme6tIxrxXp0c1bK8cYQcZDiuEqQbpfuBG2iMSb8g+8MpktKAZ02CHmmb2CV8Y1f
+         Vp7a0J1hYhxip863I/x8vvuF1xk5U+xN+11dUMM6qdhvKIAU8dD7v13qf5DmdTH28K6E
+         fGFsyCkMMMtCILJxpR+ydsiZl5T88iYmfKqI82QBdcKVR5I7x2uJEWxbfzZLKqp0EyKZ
+         66ulbr3LIo6c4WaiVGU7E/DT6dGE5K0LWYid0KE7BzVBsErgf8y+aGnrRO3x6YjuihD1
+         VoRA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=7uoByRa+Al/xx5bip7rUm8otbKddClrdMOGAdUETRbE=;
-        b=unkoDSnU3W4pjs2gpYXLkfASonH9gsabbP0+BXDAZHH31w6vJE2pfbbQAMqgsKubwz
-         Z2tWBNbM0wGBj/12fLBygNMve84PiXks6HdMOLBQ1kZ72Vmnv9OtTBHo1qlcer1kFdD9
-         1MWDaX+BfgjNeptixSngJTrj6iqSey/1IPpHVJe7HL0/48CB7fa1/cp0lQ8K8B7Ori36
-         8WisTuY3JqU094TRxgCqS3CJGzPWqKYEqVm/QF5B4NG3yP/wz9vlTi9SIeSqmqyvsIh5
-         6MihaXO4II5CCt9IBErXOuxrCmi2ZbQ+QEOcVAIJBdNnmlkVVu9dBZ9Le1k3oxvgO5+2
-         5RHg==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=jn0FnBY7ADCh0laBLX/xGqPiB9Jg8oG9YEaLS2KH1Js=;
+        b=V+bHWxY3ZelTO33gMDjK8xMYbg7rBlYTLtw0c6kkC7Mji5XyS+rT3X6TANJfvPKQkY
+         29sVzTIR9hdYFk+GZGSmNW6kxSyt59d4E+kM5QlDzrrJ/eWbB8UclL0hTu3v+k4Eb6F4
+         jpCJLYdAvOnMsSiFrAvRz0qHq2N7+Sc3fh/rKpi/u6+YjSf0deHIdgTS3ZzcQjgP5WpT
+         sNzamB9gGM/UoPnoL9NTV3g38dlLfM20fQymH+OHzYxNBdobI2aZCFmX/VKkgeuJU61x
+         HrBm4mV6WgCqrSyvv2x1EJL47P9DhOD8it2pCN/W9F0J8joYZ9Sm5jAekstASKFlsXW3
+         2V6w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=dLjgyEgY;
-       spf=pass (google.com: best guess record for domain of batv+ecabc3e5d1f7686a0adb+5827+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ecabc3e5d1f7686a0adb+5827+infradead.org+hch@bombadil.srs.infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id x9si37679216plv.182.2019.08.06.23.40.06
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=cZhyddtf;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id v4si43109863plp.212.2019.08.06.23.40.34
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 06 Aug 2019 23:40:07 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of batv+ecabc3e5d1f7686a0adb+5827+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Aug 2019 23:40:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=dLjgyEgY;
-       spf=pass (google.com: best guess record for domain of batv+ecabc3e5d1f7686a0adb+5827+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ecabc3e5d1f7686a0adb+5827+infradead.org+hch@bombadil.srs.infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=7uoByRa+Al/xx5bip7rUm8otbKddClrdMOGAdUETRbE=; b=dLjgyEgYjD1Os5q21xXo4cPVG
-	9DH2AgUTdtbRF+g2nPIvPt5xl1Kb4pJ9PgP55ZxyrfEJopI8Y6zDiY54klLdOvkh50jjPzNLjN2g3
-	YJMwWzn4POHUA71za7cjK1UnTdmYk1umo1Q09nkIrCUrPUZmCC7kliZRklsJpjnPvb1jHKRK8B0LY
-	3exvnq5asy/EFK1Fz/4Pa7KlySZu1MpQqfwFN3NHTROnZmA5wy3d66hMcRR0PhsSe730aQcDCEiNP
-	Dz+EPfLNHWPuIyFAKQ++QPOeCkLMVt2t+i+At2EeInDwGgyJYOL+Ta8BJGxsLgFDTCd5axhBG1yp8
-	ZV8RsxtYw==;
-Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hvFc8-0007MG-7S; Wed, 07 Aug 2019 06:40:00 +0000
-Date: Tue, 6 Aug 2019 23:40:00 -0700
-From: Christoph Hellwig <hch@infradead.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>,
-	Christoph Hellwig <hch@infradead.org>,
-	Thomas =?iso-8859-1?Q?Hellstr=F6m_=28VMware=29?= <thomas@shipmail.org>,
-	Dave Airlie <airlied@gmail.com>,
-	Thomas Hellstrom <thellstrom@vmware.com>,
-	Daniel Vetter <daniel.vetter@ffwll.ch>,
-	LKML <linux-kernel@vger.kernel.org>,
-	dri-devel <dri-devel@lists.freedesktop.org>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Steven Price <steven.price@arm.com>, Linux-MM <linux-mm@kvack.org>
-Subject: Re: drm pull for v5.3-rc1
-Message-ID: <20190807064000.GC6002@infradead.org>
-References: <CAPM=9tzJQ+26n_Df1eBPG1A=tXf4xNuVEjbG3aZj-aqYQ9nnAg@mail.gmail.com>
- <CAPM=9twvwhm318btWy_WkQxOcpRCzjpok52R8zPQxQrnQ8QzwQ@mail.gmail.com>
- <CAHk-=wjC3VX5hSeGRA1SCLjT+hewPbbG4vSJPFK7iy26z4QAyw@mail.gmail.com>
- <CAHk-=wiD6a189CXj-ugRzCxA9r1+siSCA0eP_eoZ_bk_bLTRMw@mail.gmail.com>
- <48890b55-afc5-ced8-5913-5a755ce6c1ab@shipmail.org>
- <CAHk-=whwcMLwcQZTmWgCnSn=LHpQG+EBbWevJEj5YTKMiE_-oQ@mail.gmail.com>
- <CAHk-=wghASUU7QmoibQK7XS09na7rDRrjSrWPwkGz=qLnGp_Xw@mail.gmail.com>
- <20190806073831.GA26668@infradead.org>
- <CAHk-=wi7L0MDG7DY39Hx6v8jUMSq3ZCE3QTnKKirba_8KAFNyw@mail.gmail.com>
- <20190806190937.GD30179@bombadil.infradead.org>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=cZhyddtf;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d4a726c0000>; Tue, 06 Aug 2019 23:40:44 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Tue, 06 Aug 2019 23:40:34 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Tue, 06 Aug 2019 23:40:34 -0700
+Received: from [10.2.165.207] (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 7 Aug
+ 2019 06:40:34 +0000
+Subject: Re: [PATCH 00/12] block/bio, fs: convert put_page() to
+ put_user_page*()
+To: Christoph Hellwig <hch@infradead.org>
+CC: <john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>,
+	Alexander Viro <viro@zeniv.linux.org.uk>, Anna Schumaker
+	<anna.schumaker@netapp.com>, "David S . Miller" <davem@davemloft.net>,
+	Dominique Martinet <asmadeus@codewreck.org>, Eric Van Hensbergen
+	<ericvh@gmail.com>, Jason Gunthorpe <jgg@ziepe.ca>, Jason Wang
+	<jasowang@redhat.com>, Jens Axboe <axboe@kernel.dk>, Latchesar Ionkov
+	<lucho@ionkov.net>, "Michael S . Tsirkin" <mst@redhat.com>, Miklos Szeredi
+	<miklos@szeredi.hu>, Trond Myklebust <trond.myklebust@hammerspace.com>,
+	Christoph Hellwig <hch@lst.de>, Matthew Wilcox <willy@infradead.org>,
+	<linux-mm@kvack.org>, LKML <linux-kernel@vger.kernel.org>,
+	<ceph-devel@vger.kernel.org>, <kvm@vger.kernel.org>,
+	<linux-block@vger.kernel.org>, <linux-cifs@vger.kernel.org>,
+	<linux-fsdevel@vger.kernel.org>, <linux-nfs@vger.kernel.org>,
+	<linux-rdma@vger.kernel.org>, <netdev@vger.kernel.org>,
+	<samba-technical@lists.samba.org>, <v9fs-developer@lists.sourceforge.net>,
+	<virtualization@lists.linux-foundation.org>
+References: <20190724042518.14363-1-jhubbard@nvidia.com>
+ <20190724061750.GA19397@infradead.org>
+ <c35aa2bf-c830-9e57-78ca-9ce6fb6cb53b@nvidia.com>
+ <20190807063448.GA6002@infradead.org>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <3ab1e69f-88c6-3e16-444d-cab78c3bf1d1@nvidia.com>
+Date: Tue, 6 Aug 2019 23:38:59 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190806190937.GD30179@bombadil.infradead.org>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
+In-Reply-To: <20190807063448.GA6002@infradead.org>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1565160044; bh=jn0FnBY7ADCh0laBLX/xGqPiB9Jg8oG9YEaLS2KH1Js=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=cZhyddtfeWnuDzmY91G/o97CceVB5RM0qm7xIS+BT+DJS1yACOaMbPnxtDPonJo3O
+	 Ckk802AdQClg27dtVTwqZlP1rJ45uR/xJxU2tj1bAWtx6wGx8MnDwDr9/hAcMofdtY
+	 YSzbF7dvdBOxPO1CMgg0kHDyQnZ9XI/sZkIaiXVixuZIn5BzSqRh7aOyfPS3OIiva2
+	 EdoAoTR8kqTmNnuIpmqz0Mts9lp7nFil4TrfQHcFTrur14aYk9UOgpcZdRREzoyCup
+	 0KYEKb/ZJNSFduxPI76a4ilG78VxY7/mJHog1LdnWqMnq4OYf6DhFN3qt02E1MzswR
+	 TFH77+TyL//6w==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 06, 2019 at 12:09:38PM -0700, Matthew Wilcox wrote:
-> Has anyone looked at turning the interface inside-out?  ie something like:
-> 
-> 	struct mm_walk_state state = { .mm = mm, .start = start, .end = end, };
-> 
-> 	for_each_page_range(&state, page) {
-> 		... do something with page ...
-> 	}
-> 
-> with appropriate macrology along the lines of:
-> 
-> #define for_each_page_range(state, page)				\
-> 	while ((page = page_range_walk_next(state)))
-> 
-> Then you don't need to package anything up into structs that are shared
-> between the caller and the iterated function.
+On 8/6/19 11:34 PM, Christoph Hellwig wrote:
+> On Mon, Aug 05, 2019 at 03:54:35PM -0700, John Hubbard wrote:
+>> On 7/23/19 11:17 PM, Christoph Hellwig wrote:
+...
+>>> I think we can do this in a simple and better way.  We have 5 ITER_*
+>>> types.  Of those ITER_DISCARD as the name suggests never uses pages, so
+>>> we can skip handling it.  ITER_PIPE is rejected =D1=96n the direct I/O =
+path,
+>>> which leaves us with three.
+>>>
+>>
+>> Hi Christoph,
+>>
+>> Are you working on anything like this?
+>=20
+> I was hoping I could steer you towards it.  But if you don't want to do
+> it yourself I'll add it to my ever growing todo list.
+>=20
 
-I'm not an all that huge fan of super magic macro loops.  But in this
-case I don't see how it could even work, as we get special callbacks
-for huge pages and holes, and people are trying to add a few more ops
-as well.
+Sure, I'm up for this. The bvec-related items are the next logical part
+of the gup/dma conversions to work on, and I just wanted to avoid solving t=
+he
+same problem if you were already in the code.
+
+
+>> Or on the put_user_bvec() idea?
+>=20
+> I have a prototype from two month ago:
+>=20
+> http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/gup-bvec
+>=20
+> but that only survived the most basic testing, so it'll need more work,
+> which I'm not sure when I'll find time for.
+>=20
+
+I'll take a peek, and probably pester you with a few questions if I get
+confused. :)
+
+thanks,
+--=20
+John Hubbard
+NVIDIA
 
