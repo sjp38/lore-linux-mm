@@ -2,440 +2,282 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E5B2C433FF
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 15:02:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 18BCBC433FF
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 15:03:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DAEB521E6C
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 15:02:56 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="onI4no/d"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DAEB521E6C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id BE9D121BF2
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 15:03:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE9D121BF2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5D0316B0007; Wed,  7 Aug 2019 11:02:56 -0400 (EDT)
+	id 730126B0008; Wed,  7 Aug 2019 11:03:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 581CA6B0008; Wed,  7 Aug 2019 11:02:56 -0400 (EDT)
+	id 6E08C6B000A; Wed,  7 Aug 2019 11:03:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 448936B000A; Wed,  7 Aug 2019 11:02:56 -0400 (EDT)
+	id 5A9D26B000C; Wed,  7 Aug 2019 11:03:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 0ACFC6B0007
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 11:02:56 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id 65so52398453plf.16
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 08:02:56 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 0BBB16B0008
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 11:03:22 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id d27so56323029eda.9
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 08:03:22 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
-         :content-transfer-encoding:dkim-signature;
-        bh=wGZQLypYopVpR2zcFxaVbPhYio/AUJ4Ba+D3g3fb9YU=;
-        b=aWNUCgNVfkARkdQAsaE6+HoI72GQsILqZhQHXHZ/Q2JNUHewRyyUUwkOdVfYPeY6N9
-         rXzVW+GeDLTyw0Ogh5ZBveYHgJWSaLgYI1fi4K4Tz0UXTEFOIJa6c3oYZtT+52tt9/Ca
-         Go1i0vMe6gao/TkT+UigM+5W5E0/iYjWmYubB7EEGDQwYq50vIu9IZOpNQQYg0vn7iGR
-         ZjPH8qVjUUznmaFHd3HhwPAozPyXM9BmjP4W0FRD3WyrCry864lOjd2SnAzZoEfUJ2ak
-         8L8zMP2KqQIwoHFhjeQRmx1ncVF6ArNm8H3gUK7abs0+b0MX7hpd2Y20hCkSypJJllmP
-         suTg==
-X-Gm-Message-State: APjAAAV7dWGAqTC+nsJhe+X6DrJUnfFPxERZFm1Oxpzq3zKKj20G2QzR
-	RkaClauhHY4UN6PdWbYSt0nCmf1ycyIE0RMpuaQJWQ52y7rlPQWRpYKNf/NOpIYDgbi5/SAz5yD
-	9HuCccO8FK1nQWzbHfvCm5hI7zuezS0+vX1wxPSMUOe/W3bKuttiifQf0ksLhN+g40A==
-X-Received: by 2002:a17:90a:9f08:: with SMTP id n8mr379112pjp.102.1565190175622;
-        Wed, 07 Aug 2019 08:02:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyNS77qzzCyT7DfWgLPLaln+t6XRnAiTviaOdLOaIavyTfVqC6huWXQaZf4T+dumxlBfqMx
-X-Received: by 2002:a17:90a:9f08:: with SMTP id n8mr378950pjp.102.1565190173874;
-        Wed, 07 Aug 2019 08:02:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565190173; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=FtU1yk4qb3OKy6rZUt25Aap3Qbq8Nbypo+xEHB95J80=;
+        b=hIky2SWXJyEgQyO8xhsNLTkR5WEdkAxL0X7bI/jhD0VyeF3v5nlmVteM7Q3xhlj9qV
+         O7UgdtwKOWwl53yfoA3exvxbIa/6uCK48taZGoovS0A1StwYb0FtmEolpboPeZ6tPXx0
+         uRqx23xmNDqjxzMIxDP8Kq5xr6R9lQrwVF5jTk1k9qtpGq1bpv9wxdoujNjGbqJd1gvo
+         +XCadJWxA9252W2JaY0OMdHsE2r/xDt3qHN+Xau1u+vKSA4qzLkutMNfmjawpFRhxvR3
+         9OYPD6/Q1U7k90pQq8YuVkF125sKZxD9ZTVrmOzXzHpoBFfQiUKuSJP40+vSWFXI1FBX
+         zS7w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
+X-Gm-Message-State: APjAAAWMucLWcVRc+SO4BjMw312g2ONfq5rcHcYyZ64cFUaOazv8t5se
+	IhwIudsygN9tHM5tcZEEKNMgCswaDbcwYDr7tUmv1fNhuQoc5KR/2Qfn64G6skS9+VgFaGWV9Oc
+	td46igu4Rz6HYOoUlJCIAd0M9zR1+B0+y3DN3BBgJyweSsaNPNP7aHQR+jSBUA2ndHQ==
+X-Received: by 2002:a17:906:2ecc:: with SMTP id s12mr8781723eji.110.1565190201555;
+        Wed, 07 Aug 2019 08:03:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxaFtZqA3OPILkUBXeQwn1byObS77EfdBIC/1QsxcXXfSLODM/rXi687VEqsVUtQTqMX918
+X-Received: by 2002:a17:906:2ecc:: with SMTP id s12mr8781625eji.110.1565190200474;
+        Wed, 07 Aug 2019 08:03:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565190200; cv=none;
         d=google.com; s=arc-20160816;
-        b=G7CIdpgx/N+/WEfxwpnWFkpu7c+4v1UQhM7+KBlR4hhpOMQF2Zb6O0DbMXH8Zm5yBy
-         WLX+Hc/wggzOB74sYdAFk+RzBbDcW1x8jEBVCWwYD6ygDaBSpGjhJDGa6QmNXBR1kGa8
-         Clbi5MdvgXdcUP3mPCPRqGH8BQT5rh89rdfSe4+I2n4EcQ0NFFff8bv2b+rEEUf4huKV
-         tDXC6VPiL60Nys81pOW4N2fyHf9bYgc1yDCdaG7nHsv48VDYx4e0zj7LkKC8JTYLRnCy
-         SeXGC0j1iS/mX107/v7VUSuusd5TNzoJ+leSpWJ/Q63IcMw2rN9zF3ycBCxfA8dejZfv
-         TDiQ==
+        b=TowcTN6wk4bl3oueYc2nqgJdVrIlCES/5nyU4c95dAP04PYf32rh/11mohsyJW1Y25
+         ZKTej1AQz4AfX/x9/Uot31Q3AlGprTIKD4ao2jREtZBxJL0/znLov21lIHmv79mLYJI0
+         csNm2Pe+Ym28fB1/o19H86pVqRhs0qLdeFSdUayKAO+gLpwfC/Lpi304DtV2ayBgv16L
+         8gGLCpTKuAsbsNxHmolJMz+a7ZMPYrNEftb6huLo2025rf2I64E12TQMcT5yGxpHtTXl
+         P0VFkKNJlfMnkPi3Fzotvv5IYBh2CLFXRNIA5P/zS6U8N+XT7fGTQ9Yt7wS8lDPermC0
+         7HNw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:mime-version:message-id
-         :date:subject:cc:to:from;
-        bh=wGZQLypYopVpR2zcFxaVbPhYio/AUJ4Ba+D3g3fb9YU=;
-        b=nNi8VJs2jL5qehJCcXFKatNP/9CWoKU/OvNIFMasrbDfgsmN1O6LjMjgtE9mrz4kfz
-         0qLx7sPYXcWZ3a3wuzvE5kEZ/bu6O9VZ1cSPR5I25Lz/8AK7xnUhNKP6v/95cul/OPqQ
-         R5yHAiCG+VClyP22cqCcStGhoTRCW/6Kqu0pK+iADMc88HJ/ppWsIEI4oXJzmhpbivc8
-         cA5mq4lD7Ag7x1d2Fe69P/2iM9bybCB50u3I97ihk4qcK+++1wYz3FiDnlpECjFJf0Ag
-         iUI0avQNErLdQte5VD8qBStgXIGDOGfTFPS3ETOkjnuOrL/M+sDt8HkZwDH6T5ty50y5
-         HUCQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=FtU1yk4qb3OKy6rZUt25Aap3Qbq8Nbypo+xEHB95J80=;
+        b=Tu33KVPxKaoOKkpUCDAp7U7NSWdrlLadUKqQu3GKNiMubteZav+PyzIzXV2sGhqASs
+         qQu/2dbT+C04PtX56aprruD3pIKk8MqxlWctG5s3WogU3wht7wTNkax2nQEiivrehn2Q
+         XLWtddFEkhUavY1EHa+IbetTE2g4UuQ4gpHjWGZPAN6vDzVOOCA8XiPLVKOGgrO4P1RH
+         IarMpB/yqQOq9trPGQuS/fTGJTBzP8Rpek/f4/nhmdi5MWijkg6VUIaMPDMwfGul8T9G
+         tR4ntUq8eLlcPiRWHlTNNvaaT64VDTCFQLb0E+J+tcu0CFLnMUMUA6zLU+AZBsDZQoqN
+         Q4GA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b="onI4no/d";
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id 12si50045541pfi.199.2019.08.07.08.02.53
+       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id gt25si28853119ejb.314.2019.08.07.08.03.20
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Aug 2019 08:02:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
+        Wed, 07 Aug 2019 08:03:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b="onI4no/d";
-       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d4ae8270000>; Wed, 07 Aug 2019 08:03:03 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Wed, 07 Aug 2019 08:02:53 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Wed, 07 Aug 2019 08:02:53 -0700
-Received: from HQMAIL101.nvidia.com (172.20.187.10) by HQMAIL105.nvidia.com
- (172.20.187.12) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 7 Aug
- 2019 15:02:51 +0000
-Received: from hqnvemgw02.nvidia.com (172.16.227.111) by HQMAIL101.nvidia.com
- (172.20.187.10) with Microsoft SMTP Server (TLS) id 15.0.1473.3 via Frontend
- Transport; Wed, 7 Aug 2019 15:02:51 +0000
-Received: from rcampbell-dev.nvidia.com (Not Verified[10.110.48.66]) by hqnvemgw02.nvidia.com with Trustwave SEG (v7,5,8,10121)
-	id <B5d4ae81b0001>; Wed, 07 Aug 2019 08:02:51 -0700
-From: Ralph Campbell <rcampbell@nvidia.com>
-To: <linux-mm@kvack.org>
-CC: <linux-kernel@vger.kernel.org>, <amd-gfx@lists.freedesktop.org>,
-	<dri-devel@lists.freedesktop.org>, <nouveau@lists.freedesktop.org>, "Ralph
- Campbell" <rcampbell@nvidia.com>, Christoph Hellwig <hch@lst.de>, "Jason
- Gunthorpe" <jgg@mellanox.com>, =?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?=
-	<jglisse@redhat.com>, Ben Skeggs <bskeggs@redhat.com>
-Subject: [PATCH] nouveau/hmm: map pages after migration
-Date: Wed, 7 Aug 2019 08:02:14 -0700
-Message-ID: <20190807150214.3629-1-rcampbell@nvidia.com>
-X-Mailer: git-send-email 2.20.1
+       spf=pass (google.com: domain of mgorman@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=mgorman@suse.de
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id A90F5AFA7;
+	Wed,  7 Aug 2019 15:03:19 +0000 (UTC)
+Date: Wed, 7 Aug 2019 16:03:16 +0100
+From: Mel Gorman <mgorman@suse.de>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Dave Chinner <david@fromorbit.com>, linux-mm@kvack.org,
+	linux-xfs@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
+Subject: Re: [PATCH] [Regression, v5.0] mm: boosted kswapd reclaim b0rks
+ system cache balance
+Message-ID: <20190807150316.GL2708@suse.de>
+References: <20190807091858.2857-1-david@fromorbit.com>
+ <20190807093056.GS11812@dhcp22.suse.cz>
 MIME-Version: 1.0
-X-NVConfidentiality: public
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1565190183; bh=wGZQLypYopVpR2zcFxaVbPhYio/AUJ4Ba+D3g3fb9YU=;
-	h=X-PGP-Universal:From:To:CC:Subject:Date:Message-ID:X-Mailer:
-	 MIME-Version:X-NVConfidentiality:Content-Type:
-	 Content-Transfer-Encoding;
-	b=onI4no/dzvK1PtPWj65mZ6yPUlwn8/J0b9uUMp9Gvf3H4GtcbOW+7/L5rdTHF2ETc
-	 3YZGE3df9PSQ3bF5C7qx35edzqpGaNjgEh+YiPJ/NXmOL/oWRaSP2xl0vXnxKmTThp
-	 VHowUrXZRgJXidLqcHRBgiTla88UXGmU5lb9ia4WCMGeX4t1n+W+RvCuG2kdqH2A/J
-	 gjLkZmrb+Yp9FpC49MVJGEQRgCltJ9RxHwLF/DwVpMzcT3TVa8QX6pcReCIWmAxoJm
-	 HndelJGx0uUj/+tU5oFE7rL9qW9N2BSYa2tT+tIWCAizkGKToV2vsiRQHZxHIt9l/H
-	 dZv3+xu/Z+hTg==
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20190807093056.GS11812@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When memory is migrated to the GPU it is likely to be accessed by GPU
-code soon afterwards. Instead of waiting for a GPU fault, map the
-migrated memory into the GPU page tables with the same access permissions
-as the source CPU page table entries. This preserves copy on write
-semantics.
+On Wed, Aug 07, 2019 at 11:30:56AM +0200, Michal Hocko wrote:
+> [Cc Mel and Vlastimil as it seems like fallout from 1c30844d2dfe2]
+> 
 
-Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-Cc: Christoph Hellwig <hch@lst.de>
-Cc: Jason Gunthorpe <jgg@mellanox.com>
-Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
-Cc: Ben Skeggs <bskeggs@redhat.com>
----
+More than likely.
 
-This patch is based on top of Christoph Hellwig's 9 patch series
-https://lore.kernel.org/linux-mm/20190729234611.GC7171@redhat.com/T/#u
-"turn the hmm migrate_vma upside down" but without patch 9
-"mm: remove the unused MIGRATE_PFN_WRITE" and adds a use for the flag.
+> On Wed 07-08-19 19:18:58, Dave Chinner wrote:
+> > From: Dave Chinner <dchinner@redhat.com>
+> > 
+> > When running a simple, steady state 4kB file creation test to
+> > simulate extracting tarballs larger than memory full of small files
+> > into the filesystem, I noticed that once memory fills up the cache
+> > balance goes to hell.
+> > 
 
+Ok, I'm assuming you are using fsmark with -k to keep files around,
+and -S0 to leave cleaning to the background flush, a number of files per
+iteration to get regular reporting and a total number of iterations to
+fill memory to hit what you're seeing. I've created a configuration that
+should do this but it'll take a long time to run on a local test machine.
 
- drivers/gpu/drm/nouveau/nouveau_dmem.c | 45 +++++++++-----
- drivers/gpu/drm/nouveau/nouveau_svm.c  | 86 ++++++++++++++++++++++++++
- drivers/gpu/drm/nouveau/nouveau_svm.h  | 19 ++++++
- 3 files changed, 133 insertions(+), 17 deletions(-)
+I'm not 100% certain I guessed right as to get fsmark reports while memory
+fills, it would have to be fewer files so each iteration would have to
+preserve files. If the number of files per iteration is large enough to
+fill memory then the drop in files/sec is not visible from the fs_mark
+output (or we are using different versions). I guess you could just be
+calculating average files/sec over the entire run based on elapsed time.
 
-diff --git a/drivers/gpu/drm/nouveau/nouveau_dmem.c b/drivers/gpu/drm/nouve=
-au/nouveau_dmem.c
-index ef9de82b0744..c83e6f118817 100644
---- a/drivers/gpu/drm/nouveau/nouveau_dmem.c
-+++ b/drivers/gpu/drm/nouveau/nouveau_dmem.c
-@@ -25,11 +25,13 @@
- #include "nouveau_dma.h"
- #include "nouveau_mem.h"
- #include "nouveau_bo.h"
-+#include "nouveau_svm.h"
-=20
- #include <nvif/class.h>
- #include <nvif/object.h>
- #include <nvif/if500b.h>
- #include <nvif/if900b.h>
-+#include <nvif/if000c.h>
-=20
- #include <linux/sched/mm.h>
- #include <linux/hmm.h>
-@@ -560,11 +562,12 @@ nouveau_dmem_init(struct nouveau_drm *drm)
- }
-=20
- static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm=
-,
--		struct vm_area_struct *vma, unsigned long addr,
--		unsigned long src, dma_addr_t *dma_addr)
-+		struct vm_area_struct *vma, unsigned long src,
-+		dma_addr_t *dma_addr, u64 *pfn)
- {
- 	struct device *dev =3D drm->dev->dev;
- 	struct page *dpage, *spage;
-+	unsigned long paddr;
-=20
- 	spage =3D migrate_pfn_to_page(src);
- 	if (!spage || !(src & MIGRATE_PFN_MIGRATE))
-@@ -572,17 +575,21 @@ static unsigned long nouveau_dmem_migrate_copy_one(st=
-ruct nouveau_drm *drm,
-=20
- 	dpage =3D nouveau_dmem_page_alloc_locked(drm);
- 	if (!dpage)
--		return 0;
-+		goto out;
-=20
- 	*dma_addr =3D dma_map_page(dev, spage, 0, PAGE_SIZE, DMA_BIDIRECTIONAL);
- 	if (dma_mapping_error(dev, *dma_addr))
- 		goto out_free_page;
-=20
-+	paddr =3D nouveau_dmem_page_addr(dpage);
- 	if (drm->dmem->migrate.copy_func(drm, 1, NOUVEAU_APER_VRAM,
--			nouveau_dmem_page_addr(dpage), NOUVEAU_APER_HOST,
--			*dma_addr))
-+			paddr, NOUVEAU_APER_HOST, *dma_addr))
- 		goto out_dma_unmap;
-=20
-+	*pfn =3D NVIF_VMM_PFNMAP_V0_V | NVIF_VMM_PFNMAP_V0_VRAM |
-+		((paddr >> PAGE_SHIFT) << NVIF_VMM_PFNMAP_V0_ADDR_SHIFT);
-+	if (src & MIGRATE_PFN_WRITE)
-+		*pfn |=3D NVIF_VMM_PFNMAP_V0_W;
- 	return migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
-=20
- out_dma_unmap:
-@@ -590,18 +597,19 @@ static unsigned long nouveau_dmem_migrate_copy_one(st=
-ruct nouveau_drm *drm,
- out_free_page:
- 	nouveau_dmem_page_free_locked(drm, dpage);
- out:
-+	*pfn =3D NVIF_VMM_PFNMAP_V0_NONE;
- 	return 0;
- }
-=20
- static void nouveau_dmem_migrate_chunk(struct migrate_vma *args,
--		struct nouveau_drm *drm, dma_addr_t *dma_addrs)
-+		struct nouveau_drm *drm, dma_addr_t *dma_addrs, u64 *pfns)
- {
- 	struct nouveau_fence *fence;
- 	unsigned long addr =3D args->start, nr_dma =3D 0, i;
-=20
- 	for (i =3D 0; addr < args->end; i++) {
- 		args->dst[i] =3D nouveau_dmem_migrate_copy_one(drm, args->vma,
--				addr, args->src[i], &dma_addrs[nr_dma]);
-+				args->src[i], &dma_addrs[nr_dma], &pfns[i]);
- 		if (args->dst[i])
- 			nr_dma++;
- 		addr +=3D PAGE_SIZE;
-@@ -615,10 +623,6 @@ static void nouveau_dmem_migrate_chunk(struct migrate_=
-vma *args,
- 		dma_unmap_page(drm->dev->dev, dma_addrs[nr_dma], PAGE_SIZE,
- 				DMA_BIDIRECTIONAL);
- 	}
--	/*
--	 * FIXME optimization: update GPU page table to point to newly migrated
--	 * memory.
--	 */
- 	migrate_vma_finalize(args);
- }
-=20
-@@ -631,11 +635,12 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
- 	unsigned long npages =3D (end - start) >> PAGE_SHIFT;
- 	unsigned long max =3D min(SG_MAX_SINGLE_ALLOC, npages);
- 	dma_addr_t *dma_addrs;
-+	u64 *pfns;
- 	struct migrate_vma args =3D {
- 		.vma		=3D vma,
- 		.start		=3D start,
+> > The workload is creating one dirty cached inode for every dirty
+> > page, both of which should require a single IO each to clean and
+> > reclaim, and creation of inodes is throttled by the rate at which
+> > dirty writeback runs at (via balance dirty pages). Hence the ingest
+> > rate of new cached inodes and page cache pages is identical and
+> > steady. As a result, memory reclaim should quickly find a steady
+> > balance between page cache and inode caches.
+> > 
+> > It doesn't.
+> > 
+> > The moment memory fills, the page cache is reclaimed at a much
+> > faster rate than the inode cache, and evidence suggests taht the
+> > inode cache shrinker is not being called when large batches of pages
+> > are being reclaimed. In roughly the same time period that it takes
+> > to fill memory with 50% pages and 50% slab caches, memory reclaim
+> > reduces the page cache down to just dirty pages and slab caches fill
+> > the entirity of memory.
+> > 
+> > At the point where the page cache is reduced to just the dirty
+> > pages, there is a clear change in write IO patterns. Up to this
+> > point it has been running at a steady 1500 write IOPS for ~200MB/s
+> > of write throughtput (data, journal and metadata).
+
+As observed by iostat -x or something else? Sum of r/s and w/s would
+approximate iops but not the breakdown of whether it is data, journal
+or metadata writes. The rest can be inferred from a blktrace but I would
+prefer to replicate your setup as close as possible. If you're not using
+fs_mark to report Files/sec, are you simply monitoring df -i over time?
+
+> > <SNIP additional detail on fs_mark output>
+> > <SNIP additional detail on monitoring meminfo over time>
+> > <SNIP observations on dirty handling>
+
+All understood.
+
+> > So I went looking at the code, trying to find places where pages got
+> > reclaimed and the shrinkers weren't called. There's only one -
+> > kswapd doing boosted reclaim as per commit 1c30844d2dfe ("mm: reclaim
+> > small amounts of memory when an external fragmentation event
+> > occurs"). I'm not even using THP or allocating huge pages, so this
+> > code should not be active or having any effect onmemory reclaim at
+> > all, yet the majority of reclaim is being done with "boost" and so
+> > it's not reclaiming slab caches at all. It will only free clean
+> > pages from the LRU.
+> > 
+> > And so when we do run out memory, it switches to normal reclaim,
+> > which hits dirty pages on the LRU and does some shrinker work, too,
+> > but then appears to switch back to boosted reclaim one watermarks
+> > are reached.
+> > 
+> > The patch below restores page cache vs inode cache balance for this
+> > steady state workload. It balances out at about 40% page cache, 60%
+> > slab cache, and sustained performance is 10-15% higher than without
+> > this patch because the IO patterns remain in control of dirty
+> > writeback and the filesystem, not kswapd.
+> > 
+> > Performance with boosted reclaim also running shrinkers over the
+> > same steady state portion of the test as above.
+> > 
+
+The boosting was not intended to target THP specifically -- it was meant
+to help recover early from any fragmentation-related event for any user
+that might need it. Hence, it's not tied to THP but even with THP
+disabled, the boosting will still take effect.
+
+One band-aid would be to disable watermark boosting entirely when THP is
+disabled but that feels wrong. However, I would be interested in hearing
+if sysctl vm.watermark_boost_factor=0 has the same effect as your patch.
+
+The intention behind avoiding slab reclaim from kswapd context is that the
+boost is due to a fragmentation-causing event. Compaction cannot move slab
+pages so reclaiming them in response to fragmentation does not directly
+help. However, it can indirectly help by avoiding fragmentation-causing
+events due to slab allocation like inodes and also mean that reclaim
+behaviour is not special cased.
+
+On that basis, it may justify ripping out the may_shrinkslab logic
+everywhere. The downside is that some microbenchmarks will notice.
+Specifically IO benchmarks that fill memory and reread (particularly
+rereading the metadata via any inode operation) may show reduced
+results. Such benchmarks can be strongly affected by whether the inode
+information is still memory resident and watermark boosting reduces
+the changes the data is still resident in memory. Technically still a
+regression but a tunable one.
+
+Hence the following "it builds" patch that has zero supporting data on
+whether it's a good idea or not.
+
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index dbdc46a84f63..6051a9007150 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -88,9 +88,6 @@ struct scan_control {
+ 	/* Can pages be swapped as part of reclaim? */
+ 	unsigned int may_swap:1;
+ 
+-	/* e.g. boosted watermark reclaim leaves slabs alone */
+-	unsigned int may_shrinkslab:1;
+-
+ 	/*
+ 	 * Cgroups are not reclaimed below their configured memory.low,
+ 	 * unless we threaten to OOM. If any cgroups are skipped due to
+@@ -2714,10 +2711,8 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+ 			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
+ 			node_lru_pages += lru_pages;
+ 
+-			if (sc->may_shrinkslab) {
+-				shrink_slab(sc->gfp_mask, pgdat->node_id,
+-				    memcg, sc->priority);
+-			}
++			shrink_slab(sc->gfp_mask, pgdat->node_id,
++			    memcg, sc->priority);
+ 
+ 			/* Record the group's reclaim efficiency */
+ 			vmpressure(sc->gfp_mask, memcg, false,
+@@ -3194,7 +3189,6 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
+ 		.may_writepage = !laptop_mode,
+ 		.may_unmap = 1,
+ 		.may_swap = 1,
+-		.may_shrinkslab = 1,
  	};
--	unsigned long c, i;
-+	unsigned long i;
- 	int ret =3D -ENOMEM;
-=20
- 	args.src =3D kcalloc(max, sizeof(args.src), GFP_KERNEL);
-@@ -649,19 +654,25 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
- 	if (!dma_addrs)
- 		goto out_free_dst;
-=20
--	for (i =3D 0; i < npages; i +=3D c) {
--		c =3D min(SG_MAX_SINGLE_ALLOC, npages);
--		args.end =3D start + (c << PAGE_SHIFT);
-+	pfns =3D nouveau_pfns_alloc(max);
-+	if (!pfns)
-+		goto out_free_dma;
-+
-+	for (i =3D 0; i < npages; i +=3D max) {
-+		args.end =3D start + (max << PAGE_SHIFT);
- 		ret =3D migrate_vma_setup(&args);
- 		if (ret)
--			goto out_free_dma;
-+			goto out_free_pfns;
-=20
- 		if (args.cpages)
--			nouveau_dmem_migrate_chunk(&args, drm, dma_addrs);
-+			nouveau_dmem_migrate_chunk(&args, drm, dma_addrs,
-+						   pfns);
- 		args.start =3D args.end;
- 	}
-=20
- 	ret =3D 0;
-+out_free_pfns:
-+	nouveau_pfns_free(pfns);
- out_free_dma:
- 	kfree(dma_addrs);
- out_free_dst:
-diff --git a/drivers/gpu/drm/nouveau/nouveau_svm.c b/drivers/gpu/drm/nouvea=
-u/nouveau_svm.c
-index a74530b5a523..3e6d7f226576 100644
---- a/drivers/gpu/drm/nouveau/nouveau_svm.c
-+++ b/drivers/gpu/drm/nouveau/nouveau_svm.c
-@@ -70,6 +70,12 @@ struct nouveau_svm {
- #define SVM_DBG(s,f,a...) NV_DEBUG((s)->drm, "svm: "f"\n", ##a)
- #define SVM_ERR(s,f,a...) NV_WARN((s)->drm, "svm: "f"\n", ##a)
-=20
-+struct nouveau_pfnmap_args {
-+	struct nvif_ioctl_v0 i;
-+	struct nvif_ioctl_mthd_v0 m;
-+	struct nvif_vmm_pfnmap_v0 p;
-+};
-+
- struct nouveau_ivmm {
- 	struct nouveau_svmm *svmm;
- 	u64 inst;
-@@ -734,6 +740,86 @@ nouveau_svm_fault(struct nvif_notify *notify)
- 	return NVIF_NOTIFY_KEEP;
- }
-=20
-+static inline struct nouveau_pfnmap_args *
-+nouveau_pfns_to_args(void *pfns)
-+{
-+	struct nvif_vmm_pfnmap_v0 *p =3D
-+		container_of(pfns, struct nvif_vmm_pfnmap_v0, phys);
-+
-+	return container_of(p, struct nouveau_pfnmap_args, p);
-+}
-+
-+u64 *
-+nouveau_pfns_alloc(unsigned long npages)
-+{
-+	struct nouveau_pfnmap_args *args;
-+
-+	args =3D kzalloc(sizeof(*args) + npages * sizeof(args->p.phys[0]),
-+			GFP_KERNEL);
-+	if (!args)
-+		return NULL;
-+
-+	args->i.type =3D NVIF_IOCTL_V0_MTHD;
-+	args->m.method =3D NVIF_VMM_V0_PFNMAP;
-+	args->p.page =3D PAGE_SHIFT;
-+
-+	return args->p.phys;
-+}
-+
-+void
-+nouveau_pfns_free(u64 *pfns)
-+{
-+	struct nouveau_pfnmap_args *args =3D nouveau_pfns_to_args(pfns);
-+
-+	kfree(args);
-+}
-+
-+static struct nouveau_svmm *
-+nouveau_find_svmm(struct nouveau_svm *svm, struct mm_struct *mm)
-+{
-+	struct nouveau_ivmm *ivmm;
-+
-+	list_for_each_entry(ivmm, &svm->inst, head) {
-+		if (ivmm->svmm->mm =3D=3D mm)
-+			return ivmm->svmm;
-+	}
-+	return NULL;
-+}
-+
-+void
-+nouveau_pfns_map(struct nouveau_drm *drm, struct mm_struct *mm,
-+		 unsigned long addr, u64 *pfns, unsigned long npages)
-+{
-+	struct nouveau_svm *svm =3D drm->svm;
-+	struct nouveau_svmm *svmm;
-+	struct nouveau_pfnmap_args *args;
-+	int ret;
-+
-+	if (!svm)
-+		return;
-+
-+	mutex_lock(&svm->mutex);
-+	svmm =3D nouveau_find_svmm(svm, mm);
-+	if (!svmm) {
-+		mutex_unlock(&svm->mutex);
-+		return;
-+	}
-+	mutex_unlock(&svm->mutex);
-+
-+	args =3D nouveau_pfns_to_args(pfns);
-+	args->p.addr =3D addr;
-+	args->p.size =3D npages << PAGE_SHIFT;
-+
-+	mutex_lock(&svmm->mutex);
-+
-+	svmm->vmm->vmm.object.client->super =3D true;
-+	ret =3D nvif_object_ioctl(&svmm->vmm->vmm.object, args, sizeof(*args) +
-+				npages * sizeof(args->p.phys[0]), NULL);
-+	svmm->vmm->vmm.object.client->super =3D false;
-+
-+	mutex_unlock(&svmm->mutex);
-+}
-+
- static void
- nouveau_svm_fault_buffer_fini(struct nouveau_svm *svm, int id)
- {
-diff --git a/drivers/gpu/drm/nouveau/nouveau_svm.h b/drivers/gpu/drm/nouvea=
-u/nouveau_svm.h
-index e839d8189461..c00c177e51ed 100644
---- a/drivers/gpu/drm/nouveau/nouveau_svm.h
-+++ b/drivers/gpu/drm/nouveau/nouveau_svm.h
-@@ -18,6 +18,11 @@ void nouveau_svmm_fini(struct nouveau_svmm **);
- int nouveau_svmm_join(struct nouveau_svmm *, u64 inst);
- void nouveau_svmm_part(struct nouveau_svmm *, u64 inst);
- int nouveau_svmm_bind(struct drm_device *, void *, struct drm_file *);
-+
-+u64 *nouveau_pfns_alloc(unsigned long npages);
-+void nouveau_pfns_free(u64 *pfns);
-+void nouveau_pfns_map(struct nouveau_drm *drm, struct mm_struct *mm,
-+		      unsigned long addr, u64 *pfns, unsigned long npages);
- #else /* IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM) */
- static inline void nouveau_svm_init(struct nouveau_drm *drm) {}
- static inline void nouveau_svm_fini(struct nouveau_drm *drm) {}
-@@ -44,5 +49,19 @@ static inline int nouveau_svmm_bind(struct drm_device *d=
-evice, void *p,
- {
- 	return -ENOSYS;
- }
-+
-+u64 *nouveau_pfns_alloc(unsigned long npages)
-+{
-+	return NULL;
-+}
-+
-+void nouveau_pfns_free(u64 *pfns)
-+{
-+}
-+
-+void nouveau_pfns_map(struct nouveau_drm *drm, struct mm_struct *mm,
-+		      unsigned long addr, u64 *pfns, unsigned long npages)
-+{
-+}
- #endif /* IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM) */
- #endif
---=20
-2.20.1
+ 
+ 	/*
+@@ -3238,7 +3232,6 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
+ 		.may_unmap = 1,
+ 		.reclaim_idx = MAX_NR_ZONES - 1,
+ 		.may_swap = !noswap,
+-		.may_shrinkslab = 1,
+ 	};
+ 	unsigned long lru_pages;
+ 
+@@ -3286,7 +3279,6 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
+ 		.may_writepage = !laptop_mode,
+ 		.may_unmap = 1,
+ 		.may_swap = may_swap,
+-		.may_shrinkslab = 1,
+ 	};
+ 
+ 	set_task_reclaim_state(current, &sc.reclaim_state);
+@@ -3598,7 +3590,6 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
+ 		 */
+ 		sc.may_writepage = !laptop_mode && !nr_boost_reclaim;
+ 		sc.may_swap = !nr_boost_reclaim;
+-		sc.may_shrinkslab = !nr_boost_reclaim;
+ 
+ 		/*
+ 		 * Do some background aging of the anon list, to give
+
+-- 
+Mel Gorman
+SUSE Labs
 
