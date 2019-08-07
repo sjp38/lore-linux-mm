@@ -2,235 +2,217 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A9130C32754
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 13:17:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 500BEC32751
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 14:02:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 42BD421E6E
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 13:17:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 42BD421E6E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 1224E21E6E
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 14:02:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1224E21E6E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AB57A6B0003; Wed,  7 Aug 2019 09:17:10 -0400 (EDT)
+	id 981EE6B0003; Wed,  7 Aug 2019 10:02:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A65CF6B0006; Wed,  7 Aug 2019 09:17:10 -0400 (EDT)
+	id 931996B0006; Wed,  7 Aug 2019 10:02:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 905516B0007; Wed,  7 Aug 2019 09:17:10 -0400 (EDT)
+	id 848C06B0007; Wed,  7 Aug 2019 10:02:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 4196E6B0003
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 09:17:10 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id l26so56148610eda.2
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 06:17:10 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 666A26B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 10:02:18 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id l14so79019692qke.16
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 07:02:18 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=6bbpWCfLPXd0AVJQI3D0LytYMfYJgdGWYxQ9L3NDXHg=;
-        b=kfJV6A1SmX4woiKyvZaNPaaw1kKolc1vFpi6F4Tf68lSRq/8q/OnqQTnHHEFmHYjsT
-         Ti4yPeeLRpSM6k+Ori5GNkrIfP3apJYCbCjOYSq/Y61XsmIQPBxdUmCaYhXT+q+5NK5g
-         BgJdGiwKe6OYfIq4oAMVjZYoSBerhT75EsW0JQg4P2cX2ah3VB4R4gLv64ylC3zqTCut
-         qxvSBUo8WouZ/f5JQeRDVJaUecIhIlrnzGQ0ArogxTYGsSNdVojh7ARe7CIlNpPK53aF
-         2C7BL/s02T71Gbenh23yFWGeRTSDdm4GZqGgGoP5BpSjKMwDx1HueTninoL+4xAQUM9x
-         7qOA==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUkbBbD7W6BlZzN1gg/e8/rtwv30NXtOZzok7r97Io8KqANwRGF
-	xhlNfjK5XtOPjdoOmrpDR1BpusdpoBx3yoVr6hq1vZDWXjJeP2G2C+W1vzuN54/e7trtq0BgaN5
-	sfpJCCZ6DdlB/iI1TdaigHcn/Nt24cSJc0LZ3QEd5NDmF7bTwEoELfwRqW1Pm1fU=
-X-Received: by 2002:a17:906:9447:: with SMTP id z7mr8334733ejx.165.1565183829736;
-        Wed, 07 Aug 2019 06:17:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxq9eqwUH3sXEiHxZ1hRFvD6rDAxU8vRIauMv0uFFfnm3WJzYl+Io8s58tGySLR6ApXd69n
-X-Received: by 2002:a17:906:9447:: with SMTP id z7mr8334624ejx.165.1565183828467;
-        Wed, 07 Aug 2019 06:17:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565183828; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=Hmes6i97EUWXjJ7pVOvb6iTylz+Ec7pLW61tcZ8T28Y=;
+        b=SzEOnsUAZOJkAgr20aTJ13ENh7EyR6TY2hhemvV2Hx4z7nG5TLrEqGgH5XdGMx6H5o
+         2QcuIe86y6G1s5uVQosQfefIt/4D2/8BFPyo27dz4Njj7pFvYYpz0dPp5Zm6I0eby7S/
+         OmfydHBFOaTR/28EsRYC+ssTJqStjzWzrnTPqCdA1PrxtZHNeqSYA+16TwaZ/K92RmTp
+         MpqE9jZBvrQmMc4hXDVznJMt5O4ywh2Js0flmwAWc0yNNREhIWKbCQ4Iyg/2SKepKklZ
+         HgtQa6Oi1mCB43m07ux0OKDc6VUY24Tvd85mHUN0vrDwSRsjFW4TB6XzefFVs95k9Ag/
+         WYCw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAWpiIh6NMjugHvgX8kfEcW66AA7wJnyS8UwVaWdzwPZCyXu3kxc
+	HqS0hvm51+yOpN7Om3K2673cuJ65Z2FnEbcMQW6oJU6kjGJ2BLNGnSIGjmJ8w2FWn52QqeQOlWV
+	rquGK+kAKIWLkNzVNQYWFCvjtm5JccUNfJmmIIm+0wzFJMJHtfechNo1lHoH3TmcWVw==
+X-Received: by 2002:ae9:f447:: with SMTP id z7mr7798597qkl.468.1565186538114;
+        Wed, 07 Aug 2019 07:02:18 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyuFRvc8aa31roNALIQeZ0B339xUtrdi4mt2rc6KdimpDYlK+a+iLhb8+uEbU/keddHI4t3
+X-Received: by 2002:ae9:f447:: with SMTP id z7mr7798495qkl.468.1565186537107;
+        Wed, 07 Aug 2019 07:02:17 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565186537; cv=none;
         d=google.com; s=arc-20160816;
-        b=X5vbXBwWwMpbs3hcuqT4nZKH9Uu8Obm51XUMl7hxl+OXWiiemdxC0Cimzv0muSB8t4
-         9rNs6oEsxIvaKmL7XRj7UbOE+QvIQ2GZTYab6jgeRVEUvreFZQXvup4SfNqSB/AAtVv5
-         gltZcpef6Sl0cOmtIYyY06jGkeKmSJxMaDBfYLxSqxid3WMA3UXWuop0xF4qhvTIcyuI
-         LNeXXlRv5nQsE2Qxfane/sbBIVqc310Qgn/w8itt7fyIV8F6hIoh5VKnKujhR19h537o
-         grbViwT9AvkB3f58awS6MaNHBAUp6tVzgmCSsgO1qldW5dvEPD6OmgDVu1Nyc05MWdHe
-         /pRA==
+        b=nwHWsoFu/dRIDK7MCEu7nPVt29euyjWrbNhOc41E8qzjEiFzKphKtaWq3qEtjm8/vl
+         /7Qf2ufHX/JBilducYuIvO1KKdifS96bKZmv8M02pX5G/hegdd5IsRMrpCpqi1X54ZZJ
+         FW88rAqCx6ZEd5r1UAsq4Zlj69uRE00OLLi8BdvPzkC/eM/4zg+vygAUVnMksx4mXF45
+         ohwzKU89OwRQfnJ8WXho1XfIOsdtlfNXVE1WOaSD57vXhZt4006wc4Scw8RTo78TQnYS
+         BHi9TGZdjbCjCh124L2fF0pVFMm0yQwIFS0WaBSsUyMsUFMt3kzfwOPRJR6LsGtSTmP+
+         8JKg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=6bbpWCfLPXd0AVJQI3D0LytYMfYJgdGWYxQ9L3NDXHg=;
-        b=L89L+4ny6FCb6ehr5DbgGVNNc069GXku94gSN5A7yhE6hd5Ctvt5/yyy+j5J3RO1Cb
-         9jnYuLCpAMP7KpsOfqeSCP83FniAdpuUv3n+HJpTb+84gzX7vWWcnsCbN850rlA6wrFe
-         SigoETNQvV+gyP2gk7uhxAUROiXj8RtYCPO89LG8eUqo1oM2m5sBy7V1K6sIGnLncRRN
-         9BnYdGnaOLUFASGY0dCZpeNoYvLvW7tXiR4S6v6cik24CmEeQE8GezIXuN8YFnNMvLhW
-         8MaQFIg+IzuRU2VWNP8AI5dkEk8Xn37rvR1m8t9rLIXu2+oDKVBqtL3eYJe9Vui4z1yE
-         CrDw==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=Hmes6i97EUWXjJ7pVOvb6iTylz+Ec7pLW61tcZ8T28Y=;
+        b=CLAk2l5q06GE0PaT2mBJSEn36RzIqJxJMlqBA6xQl76ZdJeS9RBUq2dSPDK83t3EvM
+         6L5C0FCeeZhpPaYoPlvARj46dodDfN6QErR3D5+wAU/0SZ3w8emTrowT4y2RlLaWg7j/
+         xSRoL9g0s12cpw6S5kdAw7XeVaDuLMfUNnRQ+P4I9kxqM5mxrJH6xZBi8R3VIboPB+2F
+         RR9uml6WB9v58vU7HumChz6iX+rQ/Vsf7Ed4o496n/w11AcnH+THTkE7bLrOMzlJ4EeH
+         7Stq68OnsFR5lb8IyFBIhtTVgkKbqqk0Q42vx4XiExNklahC2FhZXy9FdtQ3BRJdSnbC
+         VNsg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id m12si33736739edm.38.2019.08.07.06.17.08
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id b138si501573qkg.81.2019.08.07.07.02.16
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Aug 2019 06:17:08 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Wed, 07 Aug 2019 07:02:17 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id CD87EAE34;
-	Wed,  7 Aug 2019 13:17:07 +0000 (UTC)
-Date: Wed, 7 Aug 2019 15:17:06 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Toshiki Fukasawa <t-fukasawa@vx.jp.nec.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"akpm@linux-foundation.org" <akpm@linux-foundation.org>,
-	"adobriyan@gmail.com" <adobriyan@gmail.com>,
-	"hch@lst.de" <hch@lst.de>,
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	Junichi Nomura <j-nomura@ce.jp.nec.com>,
-	"stable@vger.kernel.org" <stable@vger.kernel.org>
-Subject: Re: [PATCH 2/2] /proc/kpageflags: do not use uninitialized struct
- pages
-Message-ID: <20190807131706.GA11812@dhcp22.suse.cz>
-References: <20190725023100.31141-1-t-fukasawa@vx.jp.nec.com>
- <20190725023100.31141-3-t-fukasawa@vx.jp.nec.com>
- <20190725090341.GC13855@dhcp22.suse.cz>
- <40b3078e-fb8b-87ef-5c4e-6321956cc940@vx.jp.nec.com>
- <20190726070615.GB6142@dhcp22.suse.cz>
- <3a926ce5-75b9-ea94-d6e4-6888872e0dc4@vx.jp.nec.com>
- <CAPcyv4iCXWgxkLi3eM_EaqD0cuzmRyg5k4c9CeS1TyN+bajXFw@mail.gmail.com>
- <20190806064636.GU7597@dhcp22.suse.cz>
- <CAPcyv4i5FjTOnPbXNcTzvt+e6RQYow0JRQwSFuxaa62LSuvzHQ@mail.gmail.com>
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 16CE351F0B;
+	Wed,  7 Aug 2019 14:02:16 +0000 (UTC)
+Received: from [10.72.12.139] (ovpn-12-139.pek2.redhat.com [10.72.12.139])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id A825B608AB;
+	Wed,  7 Aug 2019 14:02:13 +0000 (UTC)
+Subject: Re: [PATCH V4 7/9] vhost: do not use RCU to synchronize MMU notifier
+ with worker
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: mst@redhat.com, kvm@vger.kernel.org,
+ virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org
+References: <20190807070617.23716-1-jasowang@redhat.com>
+ <20190807070617.23716-8-jasowang@redhat.com> <20190807120738.GB1557@ziepe.ca>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <ba5f375f-435a-91fd-7fca-bfab0915594b@redhat.com>
+Date: Wed, 7 Aug 2019 22:02:12 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4i5FjTOnPbXNcTzvt+e6RQYow0JRQwSFuxaa62LSuvzHQ@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190807120738.GB1557@ziepe.ca>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Wed, 07 Aug 2019 14:02:16 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 06-08-19 09:15:25, Dan Williams wrote:
-> On Mon, Aug 5, 2019 at 11:47 PM Michal Hocko <mhocko@kernel.org> wrote:
-> >
-> > On Mon 05-08-19 20:27:03, Dan Williams wrote:
-> > > On Sun, Aug 4, 2019 at 10:31 PM Toshiki Fukasawa
-> > > <t-fukasawa@vx.jp.nec.com> wrote:
-> > > >
-> > > > On 2019/07/26 16:06, Michal Hocko wrote:
-> > > > > On Fri 26-07-19 06:25:49, Toshiki Fukasawa wrote:
-> > > > >>
-> > > > >>
-> > > > >> On 2019/07/25 18:03, Michal Hocko wrote:
-> > > > >>> On Thu 25-07-19 02:31:18, Toshiki Fukasawa wrote:
-> > > > >>>> A kernel panic was observed during reading /proc/kpageflags for
-> > > > >>>> first few pfns allocated by pmem namespace:
-> > > > >>>>
-> > > > >>>> BUG: unable to handle page fault for address: fffffffffffffffe
-> > > > >>>> [  114.495280] #PF: supervisor read access in kernel mode
-> > > > >>>> [  114.495738] #PF: error_code(0x0000) - not-present page
-> > > > >>>> [  114.496203] PGD 17120e067 P4D 17120e067 PUD 171210067 PMD 0
-> > > > >>>> [  114.496713] Oops: 0000 [#1] SMP PTI
-> > > > >>>> [  114.497037] CPU: 9 PID: 1202 Comm: page-types Not tainted 5.3.0-rc1 #1
-> > > > >>>> [  114.497621] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS rel-1.11.0-0-g63451fca13-prebuilt.qemu-project.org 04/01/2014
-> > > > >>>> [  114.498706] RIP: 0010:stable_page_flags+0x27/0x3f0
-> > > > >>>> [  114.499142] Code: 82 66 90 66 66 66 66 90 48 85 ff 0f 84 d1 03 00 00 41 54 55 48 89 fd 53 48 8b 57 08 48 8b 1f 48 8d 42 ff 83 e2 01 48 0f 44 c7 <48> 8b 00 f6 c4 02 0f 84 57 03 00 00 45 31 e4 48 8b 55 08 48 89 ef
-> > > > >>>> [  114.500788] RSP: 0018:ffffa5e601a0fe60 EFLAGS: 00010202
-> > > > >>>> [  114.501373] RAX: fffffffffffffffe RBX: ffffffffffffffff RCX: 0000000000000000
-> > > > >>>> [  114.502009] RDX: 0000000000000001 RSI: 00007ffca13a7310 RDI: ffffd07489000000
-> > > > >>>> [  114.502637] RBP: ffffd07489000000 R08: 0000000000000001 R09: 0000000000000000
-> > > > >>>> [  114.503270] R10: 0000000000000000 R11: 0000000000000000 R12: 0000000000240000
-> > > > >>>> [  114.503896] R13: 0000000000080000 R14: 00007ffca13a7310 R15: ffffa5e601a0ff08
-> > > > >>>> [  114.504530] FS:  00007f0266c7f540(0000) GS:ffff962dbbac0000(0000) knlGS:0000000000000000
-> > > > >>>> [  114.505245] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> > > > >>>> [  114.505754] CR2: fffffffffffffffe CR3: 000000023a204000 CR4: 00000000000006e0
-> > > > >>>> [  114.506401] Call Trace:
-> > > > >>>> [  114.506660]  kpageflags_read+0xb1/0x130
-> > > > >>>> [  114.507051]  proc_reg_read+0x39/0x60
-> > > > >>>> [  114.507387]  vfs_read+0x8a/0x140
-> > > > >>>> [  114.507686]  ksys_pread64+0x61/0xa0
-> > > > >>>> [  114.508021]  do_syscall_64+0x5f/0x1a0
-> > > > >>>> [  114.508372]  entry_SYSCALL_64_after_hwframe+0x44/0xa9
-> > > > >>>> [  114.508844] RIP: 0033:0x7f0266ba426b
-> > > > >>>>
-> > > > >>>> The reason for the panic is that stable_page_flags() which parses
-> > > > >>>> the page flags uses uninitialized struct pages reserved by the
-> > > > >>>> ZONE_DEVICE driver.
-> > > > >>>
-> > > > >>> Why pmem hasn't initialized struct pages?
-> > > > >>
-> > > > >> We proposed to initialize in previous approach but that wasn't merged.
-> > > > >> (See https://marc.info/?l=linux-mm&m=152964792500739&w=2)
-> > > > >>
-> > > > >>> Isn't that a bug that should be addressed rather than paper over it like this?
-> > > > >>
-> > > > >> I'm not sure. What do you think, Dan?
-> > > > >
-> > > > > Yeah, I am really curious about details. Why do we keep uninitialized
-> > > > > struct pages at all? What is a random pfn walker supposed to do? What
-> > > > > kind of metadata would be clobbered? In other words much more details
-> > > > > please.
-> > > > >
-> > > > I also want to know. I do not think that initializing struct pages will
-> > > > clobber any metadata.
-> > >
-> > > The nvdimm implementation uses vmem_altmap to arrange for the 'struct
-> > > page' array to be allocated from a reservation of a pmem namespace. A
-> > > namespace in this mode contains an info-block that consumes the first
-> > > 8K of the namespace capacity, capacity designated for page mapping,
-> > > capacity for padding the start of data to optionally 4K, 2MB, or 1GB
-> > > (on x86), and then the namespace data itself. The implementation
-> > > specifies a section aligned (now sub-section aligned) address to
-> > > arch_add_memory() to establish the linear mapping to map the metadata,
-> > > and then vmem_altmap indicates to memmap_init_zone() which pfns
-> > > represent data. The implementation only specifies enough 'struct page'
-> > > capacity for pfn_to_page() to operate on the data space, not the
-> > > namespace metadata space.
-> >
-> > Maybe I am dense but I do not really understand what prevents those
-> > struct pages to be initialized to whatever state nvidimm subsystem
-> > expects them to be? Is that a initialization speed up optimization?
-> 
-> No, not an optimization. If anything a regrettable choice in the
-> initial implementation to not reserve struct page space for the
-> metadata area. Certainly the kernel could fix this going forward, and
-> there are some configurations where even the existing allocation could
-> store those pfns, but there are others that need that reservation. So
-> there is a regression risk for some currently working configurations.
-> 
-> As always we could try making the reservation change and fail to
-> instantiate old namespaces that don't reserve enough capacity to see
-> who screams. I think the risk is low, but non-zero. That makes my
-> first choice to teach kpageflags_read() about the constraint.
 
-Thanks for the explanation!
+On 2019/8/7 下午8:07, Jason Gunthorpe wrote:
+> On Wed, Aug 07, 2019 at 03:06:15AM -0400, Jason Wang wrote:
+>> We used to use RCU to synchronize MMU notifier with worker. This leads
+>> calling synchronize_rcu() in invalidate_range_start(). But on a busy
+>> system, there would be many factors that may slow down the
+>> synchronize_rcu() which makes it unsuitable to be called in MMU
+>> notifier.
+>>
+>> So this patch switches use seqlock counter to track whether or not the
+>> map was used. The counter was increased when vq try to start or finish
+>> uses the map. This means, when it was even, we're sure there's no
+>> readers and MMU notifier is synchronized. When it was odd, it means
+>> there's a reader we need to wait it to be even again then we are
+>> synchronized. Consider the read critical section is pretty small the
+>> synchronization should be done very fast.
+>>
+>> Reported-by: Michael S. Tsirkin <mst@redhat.com>
+>> Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual address")
+>> Signed-off-by: Jason Wang <jasowang@redhat.com>
+>>   drivers/vhost/vhost.c | 141 ++++++++++++++++++++++++++----------------
+>>   drivers/vhost/vhost.h |   7 ++-
+>>   2 files changed, 90 insertions(+), 58 deletions(-)
+>>
+>> diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
+>> index cfc11f9ed9c9..57bfbb60d960 100644
+>> +++ b/drivers/vhost/vhost.c
+>> @@ -324,17 +324,16 @@ static void vhost_uninit_vq_maps(struct vhost_virtqueue *vq)
+>>   
+>>   	spin_lock(&vq->mmu_lock);
+>>   	for (i = 0; i < VHOST_NUM_ADDRS; i++) {
+>> -		map[i] = rcu_dereference_protected(vq->maps[i],
+>> -				  lockdep_is_held(&vq->mmu_lock));
+>> +		map[i] = vq->maps[i];
+>>   		if (map[i]) {
+>>   			vhost_set_map_dirty(vq, map[i], i);
+>> -			rcu_assign_pointer(vq->maps[i], NULL);
+>> +			vq->maps[i] = NULL;
+>>   		}
+>>   	}
+>>   	spin_unlock(&vq->mmu_lock);
+>>   
+>> -	/* No need for synchronize_rcu() or kfree_rcu() since we are
+>> -	 * serialized with memory accessors (e.g vq mutex held).
+>> +	/* No need for synchronization since we are serialized with
+>> +	 * memory accessors (e.g vq mutex held).
+>>   	 */
+>>   
+>>   	for (i = 0; i < VHOST_NUM_ADDRS; i++)
+>> @@ -362,6 +361,40 @@ static bool vhost_map_range_overlap(struct vhost_uaddr *uaddr,
+>>   	return !(end < uaddr->uaddr || start > uaddr->uaddr - 1 + uaddr->size);
+>>   }
+>>   
+>> +static void inline vhost_vq_access_map_begin(struct vhost_virtqueue *vq)
+>> +{
+>> +	write_seqcount_begin(&vq->seq);
+>> +}
+>> +
+>> +static void inline vhost_vq_access_map_end(struct vhost_virtqueue *vq)
+>> +{
+>> +	write_seqcount_end(&vq->seq);
+>> +}
+> The write side of a seqlock only provides write barriers. Access to
+>
+> 	map = vq->maps[VHOST_ADDR_USED];
+>
+> Still needs a read side barrier, and then I think this will be no
+> better than a normal spinlock.
+>
+> It also doesn't seem like this algorithm even needs a seqlock, as this
+> is just a one bit flag
 
-> > > The proposal to validate ZONE_DEVICE pfns against the altmap seems the
-> > > right approach to me.
-> >
-> > This however means that all pfn walkers have to be aware of these
-> > special struct pages somehow and that is error prone.
-> 
-> True, but what other blind pfn walkers do we have besides
-> kpageflags_read()? I expect most other pfn_to_page() code paths are
-> constrained to known pfns and avoid this surprise, but yes I need to
-> go audit those.
 
-Well, most pfn walkers in the MM code do go within a zone boundary. Many
-check also the zone to ensure interleaving zones are handled properly. I
-hope that these special zone device ranges are not going to interleave
-with other normal zones. But as always having a subtle land mine like
-this is really not nice. All valid pfns should have a real and
-initialized struct pages.
+Right, so then I tend to use spinlock first for correctness.
 
--- 
-Michal Hocko
-SUSE Labs
+
+>
+> atomic_set_bit(using map)
+> smp_mb__after_atomic()
+> .. maps [...]
+> atomic_clear_bit(using map)
+>
+>
+> map = NULL;
+> smp_mb__before_atomic();
+> while (atomic_read_bit(using map))
+>     relax()
+>
+> Again, not clear this could be faster than a spinlock when the
+> barriers are correct...
+
+
+Yes, for next release we may want to use the idea from Michael like to 
+mitigate the impact of mb.
+
+https://lwn.net/Articles/775871/
+
+Thanks
+
+
+>
+> Jason
 
