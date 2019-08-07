@@ -2,286 +2,178 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6FD69C433FF
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 00:07:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0A4CEC31E40
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 00:31:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 210442089E
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 00:07:44 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="3R53FdYb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 210442089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 9DF75214C6
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 00:31:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9DF75214C6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B085B6B0003; Tue,  6 Aug 2019 20:07:43 -0400 (EDT)
+	id 06EF36B0003; Tue,  6 Aug 2019 20:31:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AB8E86B0006; Tue,  6 Aug 2019 20:07:43 -0400 (EDT)
+	id 01F446B0006; Tue,  6 Aug 2019 20:31:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 959026B0007; Tue,  6 Aug 2019 20:07:43 -0400 (EDT)
+	id E77C66B0007; Tue,  6 Aug 2019 20:31:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 6BD6B6B0003
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 20:07:43 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id d13so51189906oth.20
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 17:07:43 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id B08CA6B0003
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 20:31:35 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id b18so55937069pgg.8
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 17:31:35 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:from:to:cc:references
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=AIsoL8wBQu2vc4iTjiuL85c4WFOrTsYj/OoeOmTUV04=;
-        b=onTIt0+4PJCMI4NDFv3z65blKLxjryQFJr0w259u0etoj9ZZmqIkC4yjN2dklALQBc
-         44V0PdB8dfzI2nevnUCbuWNRn4SRYsMj6AzP0WTbmh/hgXz+gWySxzOluAHhknue8OmQ
-         Cd+s6iDuZ2qnbPBRW9fcIrpTGxeH8Lgd+RcVcXJni4gOYBXEameDMbc8vx+qFxU5pgHr
-         kd+9LN97iTRIxSd/AjcEqK8R0vqIeC7NmxyDJ8J+NkGuh+Iw/kAmztjUWPY8y2eAsDDQ
-         /QC2rrc0b/K/s4dBjBs2Uh1b+BYnBPG92AlmKaATLr3Jy/i77wog40XqHARWN3ezE37q
-         yYkg==
-X-Gm-Message-State: APjAAAX606oL5l9qBJs93hBgu+Jm4qJtee32+FqSmlvAt0wyI5FsDLrg
-	RU2UBjF1opm1lw5DgVPoN+Io5WoOp/Y0+8+xV62JW19I2d5Twnik1RUBjZioCsnVyBEUc7sgKJm
-	/pu8yTIlGDxIP/41zXUlLv0GxD6llQbnC3QeM30SY4V6K0vxIiBOpupErlW9OOhmqog==
-X-Received: by 2002:a02:3f1d:: with SMTP id d29mr7364291jaa.116.1565136463119;
-        Tue, 06 Aug 2019 17:07:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxAuN+REK3Kuki3f7Tqpm+tuYqxDcOL3a5nlryu/Jhg+CaVvE8OB4KLzxDqMJcJjG73hOmz
-X-Received: by 2002:a02:3f1d:: with SMTP id d29mr7364232jaa.116.1565136462381;
-        Tue, 06 Aug 2019 17:07:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565136462; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:reply-to:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=SySmh9v0GsDAOq2yi8gIRmrsRpj1/7GNlPLQ68dhFiA=;
+        b=YPujIxndJDmbpcz0V7RzW61aWycUJqQLjssTE+yn9zTK1yrSRxQ4gIs7xVuCGsw1Jv
+         ZTbpWyJUCxGfXgTWEuGe2gmLEthl3MtDfSTczRJAt55O4z1WIOE8VhzU/rbikvaOkKgA
+         GsPkIgoESBoDFc2wpOCRBJVftO7tZPP+2YRfDjvrnbK+02/FjzOravUknp+/yLxHzLVu
+         kPmWWLC3XPujiLH9sG9eR+lY6J1wX2ifwD8BNkOv0SV76uRE6m6owAfV0JLRHnzlWC2W
+         6HmWG21pupVjTbz8r2Z/XQH1hcH9PgAwh/9ttZl3/0wb2r6JxKCdDkZ7Oa2r1I9B1NvD
+         NS+Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWy43iNXVu3wgbPHZ58N0TwoL11/AwzZQ6K4gDkMMnM8kQ8RaTs
+	6UzXP7adwv5FQjEqj6uXKQ8RE6GkmSAnr1wvyj5vIUfnyERpveoPn/FLNSfELHdQFa8pXwO0wwR
+	BENN6f0RHgHQ+RyjbYSgqZAe812j/1TlHYXR+3hRQP4J0BhvrTRSj+B9jKr7bqtJM+Q==
+X-Received: by 2002:a17:90a:220a:: with SMTP id c10mr5841778pje.33.1565137895221;
+        Tue, 06 Aug 2019 17:31:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyQvdE4uWmt6mpGg69mPAhaeYM1QRGcjn4ePIPm1bjSVGX5k0EVXXJjOKPCyiuyxTBoRRi2
+X-Received: by 2002:a17:90a:220a:: with SMTP id c10mr5841718pje.33.1565137894195;
+        Tue, 06 Aug 2019 17:31:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565137894; cv=none;
         d=google.com; s=arc-20160816;
-        b=r50cq6upOcbaSSAf0Y5NLk+Iw5Lm+tt38TzPjpW0MpxmvIYLm7PpqRExMHVphKyyBe
-         EQoAFQkC1CUQ0YvX2C5LsBjvCoZxHJboeC+x1nwlVkM/DvL6uFV6hMdoJoZwQ7bF1/Ox
-         11xUk2Qx5dJFVkbwqd0vCdP/YUBVp8HS8xympS77UflGsQfhNPEdJQly6G0xiUk2NaRH
-         lToOsYQZt1cziLZkmtQq9kyFQ7oh9W3ykh3ZBiYXUA6spNZepsUzCHEVMJaltldl5+iX
-         U0B32MP0Pn7/aFVk8Lp1GFRkdWMzYYFzw8dTCKsgzgAHtrylW38G2pPgMkS1jntGuh8j
-         feZw==
+        b=dPbaP1jhfJVbOrZD7K49VNCSVCG59MdSPy7yowtvKhyqlen/LcJFKqPTsGP4cTRHse
+         NC9TLvWD6MEOVuSo9gGTjryfdNMQ23hKbLgBKw7ajylvaL7ogMJM19pAhMV8DiVGzBfq
+         TRkJyS18kGoZtXgGK+45arFgu5LU+TUm6ydL9YmLRyNtpv/SJ7vcPNDyxqH45YOyFA85
+         m0gkMaJg7OikUy5kGZAfhSLK0tMIweMt7xlRfGXF+hDSvCT02gg+RsVc+Td1Snhl93wH
+         guqSk32fRaBflKFx4Pqhxr00E2dgraKTGzxVwzrReXOc9chUj8FNqh11jyq2uoDLZ3ge
+         omWg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:references:cc:to:from:subject
-         :dkim-signature;
-        bh=AIsoL8wBQu2vc4iTjiuL85c4WFOrTsYj/OoeOmTUV04=;
-        b=dec0PbcrY/a9UAzqT9+G3QO0VmuK8d3EYTs1My7PjTfapgJC2uB/FDVQRuOlB3dQa+
-         BtdqNgNn0c21GXur9uTJRvAZjGy9zpK4j0Dm/9rsa/VXZm4a0WqXnXTDXwDg01Hjp+O1
-         HmBTI8eRx0QmmwWld+/hKZCm4hImCeiluPZfzuqOmggM7Ts0+8cXJeJ8k4IXJqzbQ2W0
-         Z3R0VSKTLVJOy1MuNQ9BdHytSwj6S7P59CSyr6inKjkb4rMDAHZNxlKKTdy3YfzmwLkf
-         mxmnirjgcLE/+VYmaOhFnyzAZ65CpQJ3kx4cTfcKAY6u261aO4nqoGFyAUt9jRhXRAEH
-         q/WQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :reply-to:message-id:subject:cc:to:from:date;
+        bh=SySmh9v0GsDAOq2yi8gIRmrsRpj1/7GNlPLQ68dhFiA=;
+        b=GohRH6FoNtK7dcqzSaJHyymSxHvj5G/6v7u7Asrt4yamQeBnj68UiwBYig1zIUAb0b
+         FuvXmNXJnDjpyH/uEc+40AdhwXYd7bs66cNB08jZmKtgIKpXoPJpVkvm9sYfKWgkjNr8
+         0upLNvWHH5SP9rJ4rSkK9jC5MD3JVyzJV8whzJdXGMDTKUXLflAPXx7AbJZVRlVNEGOG
+         6Hrr7Z/IWUMk+TxriOKlJ/iwAKH1fXPvefQMfZNuY0TekDgx7gcc3K7l8syA2ysb8Tog
+         d7tV1agOv2EbrTcqBAbBigVG6yWKqzvxij1nqkAkyWRkfNXc7hdTJdwBYhCNWC734Dad
+         2Vwg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=3R53FdYb;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id l2si115574069jac.58.2019.08.06.17.07.42
+       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id a65si22047403pgc.213.2019.08.06.17.31.33
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 06 Aug 2019 17:07:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        Tue, 06 Aug 2019 17:31:34 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=3R53FdYb;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7703ipf027165;
-	Wed, 7 Aug 2019 00:07:32 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : from : to :
- cc : references : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=AIsoL8wBQu2vc4iTjiuL85c4WFOrTsYj/OoeOmTUV04=;
- b=3R53FdYbnHq32gvkH6ecMl+MlL5GANPBFc19pvu9hyqrxYTQWCLG8jeNPjzmbRQL6g7G
- 4qTGPck/phr3GDQVMyDpQTnDDB2Rm+VwoI262envxmPpzb9Q7en61rSwBB054TJWJ4+T
- KX+/iJuEr9GFF3CXyknL9YVcBFzder8rzMQhg73cTBGHqsWlZH4go6+w5AXom5KpsA78
- z5RiBP2zH0/szCYPWEw0gnTzcYLThESfeH9sBfVsZwlGSGgV6FcBHNYE60b7awBvGwaJ
- ucufm/WYbBEAXEDlWdxG9FTkOP0ntHIuVQQmY73+RoZJnNomcQwvB3RMVuB0HBQI2Lh0 FA== 
-Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
-	by userp2120.oracle.com with ESMTP id 2u52wr94y9-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 07 Aug 2019 00:07:32 +0000
-Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
-	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7702gsf048603;
-	Wed, 7 Aug 2019 00:07:31 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by userp3030.oracle.com with ESMTP id 2u766716ca-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 07 Aug 2019 00:07:31 +0000
-Received: from abhmp0011.oracle.com (abhmp0011.oracle.com [141.146.116.17])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x7707R3E003180;
-	Wed, 7 Aug 2019 00:07:27 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Tue, 06 Aug 2019 17:07:26 -0700
-Subject: =?UTF-8?Q?Re=3a_=5bMM_Bug=3f=5d_mmap=28=29_triggers_SIGBUS_while_do?=
- =?UTF-8?B?aW5nIHRoZeKAiyDigItudW1hX21vdmVfcGFnZXMoKSBmb3Igb2ZmbGluZWQgaHVn?=
- =?UTF-8?Q?epage_in_background?=
-From: Mike Kravetz <mike.kravetz@oracle.com>
-To: Michal Hocko <mhocko@suse.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Li Wang <liwang@redhat.com>,
-        Linux-MM <linux-mm@kvack.org>, LTP List <ltp@lists.linux.it>,
-        "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>,
-        Cyril Hrubis <chrubis@suse.cz>
-References: <CAEemH2dMW6oh6Bbm=yqUADF+mDhuQgFTTGYftB+xAhqqdYV3Ng@mail.gmail.com>
- <47999e20-ccbe-deda-c960-473db5b56ea0@oracle.com>
- <CAEemH2d=vEfppCbCgVoGdHed2kuY3GWnZGhymYT1rnxjoWNdcQ@mail.gmail.com>
- <a65e748b-7297-8547-c18d-9fb07202d5a0@oracle.com>
- <27a48931-aff6-d001-de78-4f7bef584c32@oracle.com>
- <20190802041557.GA16274@hori.linux.bs1.fc.nec.co.jp>
- <54a5c9f5-eade-0d8f-24f9-bff6f19d4905@oracle.com>
- <20190805085740.GC7597@dhcp22.suse.cz>
- <7d78f6b9-afb8-79d1-003e-56de58fded00@oracle.com>
-Message-ID: <3c104b29-ffe2-07cb-440e-cb88d8e11acb@oracle.com>
-Date: Tue, 6 Aug 2019 17:07:25 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 06 Aug 2019 17:31:33 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,353,1559545200"; 
+   d="scan'208";a="176033856"
+Received: from richard.sh.intel.com (HELO localhost) ([10.239.159.54])
+  by fmsmga007.fm.intel.com with ESMTP; 06 Aug 2019 17:31:31 -0700
+Date: Wed, 7 Aug 2019 08:31:09 +0800
+From: Wei Yang <richardw.yang@linux.intel.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Wei Yang <richardw.yang@linux.intel.com>, akpm@linux-foundation.org,
+	mhocko@suse.com, kirill.shutemov@linux.intel.com,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/mmap.c: refine data locality of find_vma_prev
+Message-ID: <20190807003109.GB24750@richard>
+Reply-To: Wei Yang <richardw.yang@linux.intel.com>
+References: <20190806081123.22334-1-richardw.yang@linux.intel.com>
+ <3e57ba64-732b-d5be-1ad6-eecc731ef405@suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <7d78f6b9-afb8-79d1-003e-56de58fded00@oracle.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9341 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908060212
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9341 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908060212
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <3e57ba64-732b-d5be-1ad6-eecc731ef405@suse.cz>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/5/19 10:36 AM, Mike Kravetz wrote:
->>>>> Can you try this patch in your environment?  I am not sure if it will
->>>>> be the final fix, but just wanted to see if it addresses issue for you.
->>>>>
->>>>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->>>>> index ede7e7f5d1ab..f3156c5432e3 100644
->>>>> --- a/mm/hugetlb.c
->>>>> +++ b/mm/hugetlb.c
->>>>> @@ -3856,6 +3856,20 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
->>>>>  
->>>>>  		page = alloc_huge_page(vma, haddr, 0);
->>>>>  		if (IS_ERR(page)) {
->>>>> +			/*
->>>>> +			 * We could race with page migration (try_to_unmap_one)
->>>>> +			 * which is modifying page table with lock.  However,
->>>>> +			 * we are not holding lock here.  Before returning
->>>>> +			 * error that will SIGBUS caller, get ptl and make
->>>>> +			 * sure there really is no entry.
->>>>> +			 */
->>>>> +			ptl = huge_pte_lock(h, mm, ptep);
->>>>> +			if (!huge_pte_none(huge_ptep_get(ptep))) {
->>>>> +				ret = 0;
->>>>> +				spin_unlock(ptl);
->>>>> +				goto out;
->>>>> +			}
->>>>> +			spin_unlock(ptl);
->>>>
->>>> Thanks you for investigation, Mike.
->>>> I tried this change and found no SIGBUS, so it works well.
+On Tue, Aug 06, 2019 at 11:29:52AM +0200, Vlastimil Babka wrote:
+>On 8/6/19 10:11 AM, Wei Yang wrote:
+>> When addr is out of the range of the whole rb_tree, pprev will points to
+>> the biggest node. find_vma_prev gets is by going through the right most
+>
+>s/biggest/last/ ? or right-most?
+>
+>> node of the tree.
+>> 
+>> Since only the last node is the one it is looking for, it is not
+>> necessary to assign pprev to those middle stage nodes. By assigning
+>> pprev to the last node directly, it tries to improve the function
+>> locality a little.
+>
+>In the end, it will always write to the cacheline of pprev. The caller has most
+>likely have it on stack, so it's already hot, and there's no other CPU stealing
+>it. So I don't understand where the improved locality comes from. The compiler
+>can also optimize the patched code so the assembly is identical to the previous
+>code, or vice versa. Did you check for differences?
 
-Here is another way to address the issue.  Take the hugetlb fault mutex in
-the migration code when modifying the page tables.  IIUC, the fault mutex
-was introduced to prevent this same issue when there were two page faults
-on the same page (and we were unable to allocate an 'extra' page).  The
-downside to such an approach is that we add more hugetlbfs specific code
-to try_to_unmap_one.
+Vlastimil
 
-diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
-index edf476c8cfb9..df0e74f9962e 100644
---- a/include/linux/hugetlb.h
-+++ b/include/linux/hugetlb.h
-@@ -485,6 +485,17 @@ static inline int hstate_index(struct hstate *h)
- 	return h - hstates;
- }
- 
-+/*
-+ * Convert the address within this vma to the page offset within
-+ * the mapping, in pagecache page units; huge pages here.
-+ */
-+static inline pgoff_t vma_hugecache_offset(struct hstate *h,
-+			struct vm_area_struct *vma, unsigned long address)
-+{
-+	return ((address - vma->vm_start) >> huge_page_shift(h)) +
-+		(vma->vm_pgoff >> huge_page_order(h));
-+}
-+
- pgoff_t __basepage_index(struct page *page);
- 
- /* Return page->index in PAGE_SIZE units */
-diff --git a/mm/hugetlb.c b/mm/hugetlb.c
-index ede7e7f5d1ab..959aed5b7969 100644
---- a/mm/hugetlb.c
-+++ b/mm/hugetlb.c
-@@ -615,17 +615,6 @@ static long region_count(struct resv_map *resv, long f, long t)
- 	return chg;
- }
- 
--/*
-- * Convert the address within this vma to the page offset within
-- * the mapping, in pagecache page units; huge pages here.
-- */
--static pgoff_t vma_hugecache_offset(struct hstate *h,
--			struct vm_area_struct *vma, unsigned long address)
--{
--	return ((address - vma->vm_start) >> huge_page_shift(h)) +
--			(vma->vm_pgoff >> huge_page_order(h));
--}
--
- pgoff_t linear_hugepage_index(struct vm_area_struct *vma,
- 				     unsigned long address)
- {
-diff --git a/mm/rmap.c b/mm/rmap.c
-index e5dfe2ae6b0d..f8c95482c23e 100644
---- a/mm/rmap.c
-+++ b/mm/rmap.c
-@@ -1350,6 +1350,7 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 	bool ret = true;
- 	struct mmu_notifier_range range;
- 	enum ttu_flags flags = (enum ttu_flags)arg;
-+	u32 hugetlb_hash = 0;
- 
- 	/* munlock has nothing to gain from examining un-locked vmas */
- 	if ((flags & TTU_MUNLOCK) && !(vma->vm_flags & VM_LOCKED))
-@@ -1377,6 +1378,19 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 				min(vma->vm_end, address +
- 				    (PAGE_SIZE << compound_order(page))));
- 	if (PageHuge(page)) {
-+		struct hstate *h = hstate_vma(vma);
-+
-+		/*
-+		 * Take the hugetlb fault mutex so that we do not race with
-+		 * page faults while modifying page table.  Mutex must be
-+		 * acquired before ptl below.
-+		 */
-+		hugetlb_hash = hugetlb_fault_mutex_hash(h,
-+					vma->vm_file->f_mapping,
-+					vma_hugecache_offset(h, vma, address),
-+					address);
-+		mutex_lock(&hugetlb_fault_mutex_table[hugetlb_hash]);
-+
- 		/*
- 		 * If sharing is possible, start and end will be adjusted
- 		 * accordingly.
-@@ -1659,6 +1673,8 @@ static bool try_to_unmap_one(struct page *page, struct vm_area_struct *vma,
- 	}
- 
- 	mmu_notifier_invalidate_range_end(&range);
-+	if (PageHuge(page))
-+		mutex_unlock(&hugetlb_fault_mutex_table[hugetlb_hash]);
- 
- 	return ret;
- }
+Thanks for your comment.
 
+I believe you get a point. I may not use the word locality. This patch tries
+to reduce some unnecessary assignment of pprev.
 
-Michal, Naoya any preferences on how this should be fixed?  I'll send a
-proper patch if we agree on an approach.
+Original code would assign the value on each node during iteration, this is
+what I want to reduce.
+
+The generated code looks different from my side. Would you mind sharing me how
+you compare the generated code?
+
+>
+>The previous code is somewhat more obvious to me, so unless I'm missing
+>something, readability and less churn suggests to not change.
+>
+>> Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
+>> ---
+>>  mm/mmap.c | 7 +++----
+>>  1 file changed, 3 insertions(+), 4 deletions(-)
+>> 
+>> diff --git a/mm/mmap.c b/mm/mmap.c
+>> index 7e8c3e8ae75f..284bc7e51f9c 100644
+>> --- a/mm/mmap.c
+>> +++ b/mm/mmap.c
+>> @@ -2271,11 +2271,10 @@ find_vma_prev(struct mm_struct *mm, unsigned long addr,
+>>  		*pprev = vma->vm_prev;
+>>  	} else {
+>>  		struct rb_node *rb_node = mm->mm_rb.rb_node;
+>> -		*pprev = NULL;
+>> -		while (rb_node) {
+>> -			*pprev = rb_entry(rb_node, struct vm_area_struct, vm_rb);
+>> +		while (rb_node && rb_node->rb_right)
+>>  			rb_node = rb_node->rb_right;
+>> -		}
+>> +		*pprev = rb_node ? NULL
+>> +			 : rb_entry(rb_node, struct vm_area_struct, vm_rb);
+>>  	}
+>>  	return vma;
+>>  }
+>> 
+
 -- 
-Mike Kravetz
+Wei Yang
+Help you, Help me
 
