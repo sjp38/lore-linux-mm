@@ -2,211 +2,697 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 360AAC32751
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 16:59:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 884DDC32756
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 17:16:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D5221222FC
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 16:59:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3DBCB21EF2
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 17:16:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="OjQfnav/";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="iMZeJU8p"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D5221222FC
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="EaKbMWOI"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3DBCB21EF2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 63E766B0003; Wed,  7 Aug 2019 12:59:41 -0400 (EDT)
+	id C759F6B0007; Wed,  7 Aug 2019 13:16:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5C9B86B0006; Wed,  7 Aug 2019 12:59:41 -0400 (EDT)
+	id C01BA6B0008; Wed,  7 Aug 2019 13:16:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 41C306B0007; Wed,  7 Aug 2019 12:59:41 -0400 (EDT)
+	id A7A1B6B000A; Wed,  7 Aug 2019 13:16:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 1D4176B0003
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 12:59:41 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id p18so6121050qke.9
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 09:59:41 -0700 (PDT)
+Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 655F26B0007
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 13:16:11 -0400 (EDT)
+Received: by mail-pl1-f200.google.com with SMTP id n4so52606473plp.4
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 10:16:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:dkim-signature:from:to:cc:subject
-         :thread-topic:thread-index:date:message-id:references:in-reply-to
-         :accept-language:content-language:content-id
-         :content-transfer-encoding:mime-version;
-        bh=4j5K2HWRx8Bh6Oju13KR7IhFUpgfEB1OrwxwTgXeUU8=;
-        b=D8DqoQChcDg28AwXKr474EkLLwS3NjETpQ1bT7vJQTgt6N9KJ09kK3WY7GGIW78Dfe
-         ca50xb8kNMspVr6kij47McnauHX1mU2u5A0+RXU3BnNXknS5Hq2yZaM1zfarNUyr21mg
-         zRSCqSqqzF2Q7WMECLLrbrgRjmYZwR0FbiTlc6Uqceb+gGsp4F+UDL7dEnBGe852jPdl
-         nT9NazDoh7z4HDRtD8jJx14/S1QZKWRFwl1ZV3TbINMuLYdiBCBd0EViU/kidte0N2YF
-         tuRrKMxYXPGMkS8fqRaDF05vJVe1Mf9F0s8Zz/yM5NXyFFZnkQO6lTxL+dmVSzbJ/gpj
-         K++Q==
-X-Gm-Message-State: APjAAAUfax21TEW+hiLFRiEcnDzTqB7H+46UPWr8RTBLOkJZERKl20MB
-	+Weu1DCIfzaC+Da+t+YoXkdbtY6QlEgOF+MiXhKcs4qyRCF6ghBfVpYAexLX+kEdizWxZUTBgmy
-	e5oqhzG7cXAU/PtVxKQUgvXMfEaTyOUiuUutFIujNGtoET+p+HgvhFNg65jYNeuTatw==
-X-Received: by 2002:a37:f511:: with SMTP id l17mr8434495qkk.99.1565197180854;
-        Wed, 07 Aug 2019 09:59:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy8/ULOANwge5x8/c1s7imoD8/63HQ5+OFZYDaL9APngzf1qrZP3laQADipY1QEyiE/74zF
-X-Received: by 2002:a37:f511:: with SMTP id l17mr8434463qkk.99.1565197180225;
-        Wed, 07 Aug 2019 09:59:40 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1565197180; cv=pass;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=kwNMw3tfSAgsxfQd6cmcDmIiNN49UpfqFGiK+CAE+vw=;
+        b=bK1sH/RgbU3lAebUog6qbrPgA0qf+L1vl3qvQ8/ZOJNXMnsuECxFySVV9aNStD1n6k
+         nN+7J4X3WN0j7Ula+v+NIOW3J1UGCWJszozmRAiv3ppxCLlpz8StSWgJ1wAMQQtFII5F
+         J4izyJ5TukcBxZ9Q69kBx6ByMeolCJ8B135zkmNt+J5z7s6aFdwn9pQOZdIlW/8NC3yT
+         rHGae0mbp1s60KfICbaqHQ7XxWULuK0jIBI31Pqx17It9uAcUk4lf1cDnQon9pjDHYvL
+         Y/8xgchWnp86BF0ZUZTmVunTScwlIwhjHVaeqoa7Bio11zMymIIC8bjm5qu03WHunjhS
+         6YQA==
+X-Gm-Message-State: APjAAAW9OjJs+KaiKBnJWp/erJVMvdLQl97Xs/Os7a2zesf3CrIPeU5R
+	6tGcGSbODp9ipXWtCKv3oujvcAtfNzZM6rsDxe992Mqp88zxNPdlZUVx/v8Xo9EidY/nkesPsJ4
+	PFXoG5t/BP0BCiF9bV0szyIiu1rs/Kx8On0UCuayAPPKBGejk9xtZPz7r5sqa/0EWTQ==
+X-Received: by 2002:a17:90a:3086:: with SMTP id h6mr1006731pjb.14.1565198170802;
+        Wed, 07 Aug 2019 10:16:10 -0700 (PDT)
+X-Received: by 2002:a17:90a:3086:: with SMTP id h6mr1006605pjb.14.1565198169008;
+        Wed, 07 Aug 2019 10:16:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565198169; cv=none;
         d=google.com; s=arc-20160816;
-        b=gtEhHDJPjFhw3CWc8fnIksKIY/0ToSbU0A/7Vi3CP2Wk92beVr81lpS75eZptVWY5T
-         FO1rAKdYZ47nxbLTn2TGKiAFZJr54vUKUDQgMBvGjmp5WoKGB0DSK7fZtuDDPzWGn9yo
-         sHxDxKZggJY/Wk/R7HJznXhc/wQaxwkoaLLmbqqC1gsgzfJVmJSRc3Kdtm5Qf+pNpw+W
-         CRp2i1ui4+fg0T9Id+tN1k2jSCy2nTV/ony58M3/gX5bQ/uKpYERKlFaIvBOOjH52UrS
-         yfS8azq7gdUM5QdqdpUuIMM81YmQBmsjaWNWM8gLEdi7ICE3FznJnA9P/x+WuvM5+3SH
-         LOyg==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature:dkim-signature;
-        bh=4j5K2HWRx8Bh6Oju13KR7IhFUpgfEB1OrwxwTgXeUU8=;
-        b=jUxBgJOoJ+4XAvifMSSiECp9i/3RT6bOLt2UNgrnIkrv+DQ0xsRi4QDso3p1/sofuh
-         Rga5BduC0/wwlFyHvrlN6yUIyifyYrGxMfbLyJC4yf9G2VtHkESOCxReuM+ereQcQCPZ
-         /Rc5kQZ86W2s89jHbjCc26p/yQLHoruDx1U74vWZzZiFcOR2SwIVC8vYyjlVrgvie/rQ
-         OnCW8y2f6X/2K+tQCK57d0WjsPamSOV3cFyIBw4VixnFvRi2ureELQXbxySvdJ7AsLXo
-         Ps/vR26EKjqf19+EZtaezsmbpj2qXobCwDUYqg1sSxui1LTgcU6PSkU/x8/Dr8f40Rek
-         5XBg==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="OjQfnav/";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=iMZeJU8p;
-       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
-       spf=pass (google.com: domain of prvs=31225916b7=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=31225916b7=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com. [67.231.153.30])
-        by mx.google.com with ESMTPS id q187si49821429qkb.241.2019.08.07.09.59.39
+        b=PXCDQgXN8V1IPyDHHAShrMOMacvrnlt/bKCrmfxOr9y2ivHigrWUNM52tHzkpbZnQg
+         XZD7y3b46fjnpTN8JFicKl9O0Ei+/AjGiFNcUcApl5QV4Ifna/+UfJJXsqjKkUWqZ3p3
+         h3vbs3EKzlCF2I+hlbzggQHZJcRfebE5xlZpzg/lIpMrPFGv0thQCyni4LrQeTjc44M2
+         rPmrR8Bu0rluANa6wsSBG22akwazGgS4PeWPny+hBbvnbjHaK5+q/561gKctL8dKKIGC
+         p1q+wlz20jEW08OyCRXsNo4iCVsqjXB91XpnmQilJUjG85aUxSt1Q3b0zDjAwOkRkZ/2
+         UUdQ==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=kwNMw3tfSAgsxfQd6cmcDmIiNN49UpfqFGiK+CAE+vw=;
+        b=VE9dxQ+Ucf9z+nYOlmG4KYR08+guqTHZGEoXxThS3qmOtUPbr0Pp5RMYL4VYTkBoD0
+         GtCwKfRg5URobN+qibNMJSUSkXwP1aiJzcd516r0sQpPXmlc0KuHNBjdWLINXhUVpz1c
+         LhgM6prfinjKdunelIlFU3pGF038eL5WDGLMNXiS9Eqo2iS1dU/ikOyMvVLfy9VagkHP
+         sNnrcUhN1qtCtjl3/I/IdCA5OPUH2m4CcTYQsbfqukItcRVWtvTubuKmJ7IO7HDQZ394
+         6+hepeXlLata72TU+59dY4HPiDfYUMuKi/oK/KNvj6Vo2EkETTgR9e15FgqzHp6q0ZRy
+         aOgA==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=EaKbMWOI;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y1sor45127766plb.65.2019.08.07.10.16.08
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Aug 2019 09:59:40 -0700 (PDT)
-Received-SPF: pass (google.com: domain of prvs=31225916b7=songliubraving@fb.com designates 67.231.153.30 as permitted sender) client-ip=67.231.153.30;
+        (Google Transport Security);
+        Wed, 07 Aug 2019 10:16:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@fb.com header.s=facebook header.b="OjQfnav/";
-       dkim=pass header.i=@fb.onmicrosoft.com header.s=selector2-fb-onmicrosoft-com header.b=iMZeJU8p;
-       arc=pass (i=1 spf=pass spfdomain=fb.com dkim=pass dkdomain=fb.com dmarc=pass fromdomain=fb.com);
-       spf=pass (google.com: domain of prvs=31225916b7=songliubraving@fb.com designates 67.231.153.30 as permitted sender) smtp.mailfrom="prvs=31225916b7=songliubraving@fb.com";
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=fb.com
-Received: from pps.filterd (m0109332.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x77GxCm9022590;
-	Wed, 7 Aug 2019 09:59:17 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=4j5K2HWRx8Bh6Oju13KR7IhFUpgfEB1OrwxwTgXeUU8=;
- b=OjQfnav/+GRyyP9ws0OQfNWyOClMK95fNTr2CHbug2dyBTtZXJ+O8naA7a6fDD60uWRo
- +YgjIpQ+HaTnkG6+sfeBxX0m4zicZYRufYHmrFdzHmnKeeRenB3he2bSZzReS14hLlcE
- 6eKrW2Ao8fY59t+MZtsF6Bl8oZhYtN4r+Wg= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2u7vjs9crw-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Wed, 07 Aug 2019 09:59:16 -0700
-Received: from ash-exhub202.TheFacebook.com (2620:10d:c0a8:83::6) by
- ash-exhub103.TheFacebook.com (2620:10d:c0a8:82::c) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Wed, 7 Aug 2019 09:59:15 -0700
-Received: from NAM04-SN1-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.36.103) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id 15.1.1713.5
- via Frontend Transport; Wed, 7 Aug 2019 09:59:15 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=KuHJs1VYhXs3L3YTY5/U7xq4Yd/P4glFqNHJ08oAdD9gDQQ1bxf8K/La8I1JUgmepz/w0s3augeTPmnV9KD1KRgp4lxo7XHm2cQIRI+zoAbtnuaz0KbCUzL+SwO3E+VNbALnxOQAXzaXZhFv2T6Sf57h3tTS72lFIbOO8PeKon7liDMRuUU2e8T3BipVLKj9RQbAa0OdBnZv8LAb2thYetpKLYG+zAnzwKho3eea4vo6/AVK8DWj32ju39dZUSwIyfD7zPB5S3jH3BJD0zAKF+H4qTUXHicCiPs30iFrhBo0MxXFKKLv8rGcGrVZRO6K3wai8UzVHBzoDSTo0b6Alw==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=4j5K2HWRx8Bh6Oju13KR7IhFUpgfEB1OrwxwTgXeUU8=;
- b=YasDCOoaCMG1WroKLyAhCq24TXpg+5UmG7S4Ky9Qh3aafgLpNiIHoUua7d+VpLzSG9hpIOzquW00Bx+FGLFKURJXACk+Gm00VJPYMSsikZ/d9m4y+SsbhnN30agL01xYvJu87p5qk+YQCJ+CvKZJK8A4WZwHeKHygO6QeE6D1g7RjNdVET4xBTAYvBeC6pMAKcnUndk3vzcTCq80IUm4oNtfGbAHnKDkW6U0njp04rvh/XbCEH7CgPcLUNLlT4uKgaN2u5GsUmuURDyVYIJ/V3DUGR23GqT0P5anoDKsfZJR9udTapfdqlhz1pYT7CeBvIEJN5i3GzliIxF7UiOx1g==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=fb.com;dmarc=pass action=none header.from=fb.com;dkim=pass
- header.d=fb.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=4j5K2HWRx8Bh6Oju13KR7IhFUpgfEB1OrwxwTgXeUU8=;
- b=iMZeJU8pvkdV57/BoIbOhMyV1+zafNJmr2wetxXUP1iDU0P+GVD2ZpnOpg0NFC/GHl3GgxtgTNodKqPMExaEN1snlWia+SkkCQzid5wQ4h+LvmHEuJn7D9OhlRa8UUbLZU7Xz+SpK59E1PS7U4wmD+RDA++Tr36BdrbE6EVehEk=
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com (10.175.3.22) by
- MWHPR15MB1326.namprd15.prod.outlook.com (10.175.4.135) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2136.16; Wed, 7 Aug 2019 16:59:14 +0000
-Received: from MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::79c8:442d:b528:802d]) by MWHPR15MB1165.namprd15.prod.outlook.com
- ([fe80::79c8:442d:b528:802d%9]) with mapi id 15.20.2136.018; Wed, 7 Aug 2019
- 16:59:14 +0000
-From: Song Liu <songliubraving@fb.com>
-To: Randy Dunlap <rdunlap@infradead.org>
-CC: Stephen Rothwell <sfr@canb.auug.org.au>,
-        Linux Next Mailing List
-	<linux-next@vger.kernel.org>,
-        Linux Kernel Mailing List
-	<linux-kernel@vger.kernel.org>,
-        Linux MM <linux-mm@kvack.org>,
-        Andrew Morton
-	<akpm@linux-foundation.org>
-Subject: Re: linux-next: Tree for Aug 7 (mm/khugepaged.c)
-Thread-Topic: linux-next: Tree for Aug 7 (mm/khugepaged.c)
-Thread-Index: AQHVTTJXJMBKk+9UcEyVbeuM3CTH0abv6HuA
-Date: Wed, 7 Aug 2019 16:59:14 +0000
-Message-ID: <DCC6982B-17EF-4143-8CE8-9D0EC28FA06B@fb.com>
-References: <20190807183606.372ca1a4@canb.auug.org.au>
- <c18b2828-cdf3-5248-609f-d89a24f558d1@infradead.org>
-In-Reply-To: <c18b2828-cdf3-5248-609f-d89a24f558d1@infradead.org>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-mailer: Apple Mail (2.3445.104.11)
-x-originating-ip: [2620:10d:c090:200::3:1a00]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 3314d6ed-f0b2-43b2-03b1-08d71b5893c8
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:MWHPR15MB1326;
-x-ms-traffictypediagnostic: MWHPR15MB1326:
-x-microsoft-antispam-prvs: <MWHPR15MB1326B5F8FB2FA5A4468B95D3B3D40@MWHPR15MB1326.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:2887;
-x-forefront-prvs: 01221E3973
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(366004)(396003)(346002)(39860400002)(136003)(376002)(51914003)(189003)(199004)(53754006)(46003)(53936002)(66946007)(8676002)(102836004)(86362001)(476003)(33656002)(66446008)(57306001)(478600001)(50226002)(8936002)(6436002)(66556008)(66476007)(81156014)(81166006)(53546011)(76116006)(14454004)(256004)(64756008)(76176011)(68736007)(6916009)(6506007)(6116002)(316002)(2906002)(4326008)(7736002)(446003)(486006)(305945005)(25786009)(36756003)(229853002)(6246003)(54906003)(4744005)(71190400001)(71200400001)(6486002)(2616005)(5660300002)(99286004)(11346002)(6512007)(186003);DIR:OUT;SFP:1102;SCL:1;SRVR:MWHPR15MB1326;H:MWHPR15MB1165.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: bpSc9KJPogcX4Xp5xpzav9nvkaYAB25bazC5aCIBXBGAf15/cQhBwvJS+ayhbWQH7DacdfeBiorHWkE06yHzZaI3Gpl2z+xveehvLDkZQppT8aJ+9cp9JFYJETdSrhoG/T8fg4ihH4PNU2vj3uZ6+ZLkrS0Jf9h8kdDrRFGeOwW4HuqpA9ONpbdIK7kpd1IDIh2+Y5uDMZI2wrWFKwjXVwlqrT3wNIrY36koyb2exdFonaz9dW+XY1vGhaOi2uQZ6a7vjX7i/0Mo/TRV9IK6KZmUjBMzjPKPEAy6ZHOAAKk7s+xRIthw6g6sVT4Nw1fBOkMnsN+msCTXx6EuntslPeh5mAWqqZ9y2qLNBQ7OiGn9qcMErVCIbBL+MNee1I3VLrkvPdH0SkiFG2d8ZZHo6X0j11ihrD0Zc7lPR5fCdOs=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <EF0D9557DC1D95428B318AB2E57338AE@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       dkim=pass header.i=@joelfernandes.org header.s=google header.b=EaKbMWOI;
+       spf=pass (google.com: domain of joel@joelfernandes.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=joel@joelfernandes.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=joelfernandes.org; s=google;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=kwNMw3tfSAgsxfQd6cmcDmIiNN49UpfqFGiK+CAE+vw=;
+        b=EaKbMWOI4W9lbLhaIFF7P4qLAUMsBQ6NB48fzxhcwctLHl4ntf/fKgT2JH1ar4MFFx
+         amsgfw+40lW7z3Q5c3BocesXT2wnD+sz8VN51IxjL1MtI9j1BcKaClUHGRa3kA2H1ljH
+         qHTBnLJkhIaxTL5mKVSHGnnW8VNwHX8sqwj/w=
+X-Google-Smtp-Source: APXvYqwOvh5fv9YPPkELPqezqZMHunyYysuKQkQRLMtPFm/lOj5teF51zHN97WthIhWg3ihU+CA5dQ==
+X-Received: by 2002:a17:902:d70a:: with SMTP id w10mr8605610ply.251.1565198168180;
+        Wed, 07 Aug 2019 10:16:08 -0700 (PDT)
+Received: from joelaf.cam.corp.google.com ([2620:15c:6:12:9c46:e0da:efbf:69cc])
+        by smtp.gmail.com with ESMTPSA id a1sm62692130pgh.61.2019.08.07.10.16.04
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 07 Aug 2019 10:16:07 -0700 (PDT)
+From: "Joel Fernandes (Google)" <joel@joelfernandes.org>
+To: linux-kernel@vger.kernel.org
+Cc: "Joel Fernandes (Google)" <joel@joelfernandes.org>,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Borislav Petkov <bp@alien8.de>,
+	Brendan Gregg <bgregg@netflix.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Christian Hansen <chansen3@cisco.com>,
+	dancol@google.com,
+	fmayer@google.com,
+	"H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@redhat.com>,
+	joelaf@google.com,
+	Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>,
+	kernel-team@android.com,
+	linux-api@vger.kernel.org,
+	linux-doc@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org,
+	linux-mm@kvack.org,
+	Michal Hocko <mhocko@suse.com>,
+	Mike Rapoport <rppt@linux.ibm.com>,
+	minchan@kernel.org,
+	namhyung@google.com,
+	paulmck@linux.ibm.com,
+	Robin Murphy <robin.murphy@arm.com>,
+	Roman Gushchin <guro@fb.com>,
+	Stephen Rothwell <sfr@canb.auug.org.au>,
+	surenb@google.com,
+	Thomas Gleixner <tglx@linutronix.de>,
+	tkjos@google.com,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>,
+	Will Deacon <will@kernel.org>
+Subject: [PATCH v5 1/6] mm/page_idle: Add per-pid idle page tracking using virtual index
+Date: Wed,  7 Aug 2019 13:15:54 -0400
+Message-Id: <20190807171559.182301-1-joel@joelfernandes.org>
+X-Mailer: git-send-email 2.22.0.770.g0f2c4a37fd-goog
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: 3314d6ed-f0b2-43b2-03b1-08d71b5893c8
-X-MS-Exchange-CrossTenant-originalarrivaltime: 07 Aug 2019 16:59:14.5056
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: songliubraving@fb.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: MWHPR15MB1326
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-07_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1011 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=870 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908070166
-X-FB-Internal: deliver
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-SGkgUmFuZHksDQoNCj4gT24gQXVnIDcsIDIwMTksIGF0IDg6MTEgQU0sIFJhbmR5IER1bmxhcCA8
-cmR1bmxhcEBpbmZyYWRlYWQub3JnPiB3cm90ZToNCj4gDQo+IE9uIDgvNy8xOSAxOjM2IEFNLCBT
-dGVwaGVuIFJvdGh3ZWxsIHdyb3RlOg0KPj4gSGkgYWxsLA0KPj4gDQo+PiBDaGFuZ2VzIHNpbmNl
-IDIwMTkwODA2Og0KPj4gDQo+IA0KPiBvbiBpMzg2Og0KPiANCj4gd2hlbiBDT05GSUdfU0hNRU0g
-aXMgbm90IHNldC9lbmFibGVkOg0KPiANCj4gLi4vbW0va2h1Z2VwYWdlZC5jOiBJbiBmdW5jdGlv
-biDigJhraHVnZXBhZ2VkX3NjYW5fbW1fc2xvdOKAmToNCj4gLi4vbW0va2h1Z2VwYWdlZC5jOjE4
-NzQ6MjogZXJyb3I6IGltcGxpY2l0IGRlY2xhcmF0aW9uIG9mIGZ1bmN0aW9uIOKAmGtodWdlcGFn
-ZWRfY29sbGFwc2VfcHRlX21hcHBlZF90aHBz4oCZOyBkaWQgeW91IG1lYW4g4oCYY29sbGFwc2Vf
-cHRlX21hcHBlZF90aHDigJk/IFstV2Vycm9yPWltcGxpY2l0LWZ1bmN0aW9uLWRlY2xhcmF0aW9u
-XQ0KPiAga2h1Z2VwYWdlZF9jb2xsYXBzZV9wdGVfbWFwcGVkX3RocHMobW1fc2xvdCk7DQo+ICBe
-fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fg0KDQpUaGFua3MgZm9yIHRoZSByZXBv
-cnQuIA0KDQpTaGFsbCBJIHJlc2VuZCB0aGUgcGF0Y2gsIG9yIHNoYWxsIEkgc2VuZCBmaXggb24g
-dG9wIG9mIGN1cnJlbnQgcGF0Y2g/DQoNCkJlc3QsDQpTb25n
+The page_idle tracking feature currently requires looking up the pagemap
+for a process followed by interacting with /sys/kernel/mm/page_idle.
+Looking up PFN from pagemap in Android devices is not supported by
+unprivileged process and requires SYS_ADMIN and gives 0 for the PFN.
+
+This patch adds support to directly interact with page_idle tracking at
+the PID level by introducing a /proc/<pid>/page_idle file.  It follows
+the exact same semantics as the global /sys/kernel/mm/page_idle, but now
+looking up PFN through pagemap is not needed since the interface uses
+virtual frame numbers, and at the same time also does not require
+SYS_ADMIN.
+
+In Android, we are using this for the heap profiler (heapprofd) which
+profiles and pin points code paths which allocates and leaves memory
+idle for long periods of time. This method solves the security issue
+with userspace learning the PFN, and while at it is also shown to yield
+better results than the pagemap lookup, the theory being that the window
+where the address space can change is reduced by eliminating the
+intermediate pagemap look up stage. In virtual address indexing, the
+process's mmap_sem is held for the duration of the access.
+
+Signed-off-by: Joel Fernandes (Google) <joel@joelfernandes.org>
+---
+v3->v4: Minor fixups (Minchan)
+        Add swap pte handling (Konstantin, Minchan)
+v2->v3:
+Fixed a bug where I was doing a kfree that is not needed due to not
+needing to do GFP_ATOMIC allocations.
+
+v1->v2:
+Mark swap ptes as idle (Minchan)
+Avoid need for GFP_ATOMIC (Andrew)
+Get rid of idle_page_list lock by moving list to stack
+
+Internal review -> v1:
+Fixes from Suren.
+Corrections to change log, docs (Florian, Sandeep)
+
+ fs/proc/base.c            |   3 +
+ fs/proc/internal.h        |   1 +
+ fs/proc/task_mmu.c        |  42 +++++
+ include/linux/page_idle.h |   4 +
+ mm/page_idle.c            | 337 +++++++++++++++++++++++++++++++++-----
+ 5 files changed, 342 insertions(+), 45 deletions(-)
+
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index ebea9501afb8..fd2f74bd4e35 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -3039,6 +3039,9 @@ static const struct pid_entry tgid_base_stuff[] = {
+ 	REG("smaps",      S_IRUGO, proc_pid_smaps_operations),
+ 	REG("smaps_rollup", S_IRUGO, proc_pid_smaps_rollup_operations),
+ 	REG("pagemap",    S_IRUSR, proc_pagemap_operations),
++#ifdef CONFIG_IDLE_PAGE_TRACKING
++	REG("page_idle", S_IRUSR|S_IWUSR, proc_page_idle_operations),
++#endif
+ #endif
+ #ifdef CONFIG_SECURITY
+ 	DIR("attr",       S_IRUGO|S_IXUGO, proc_attr_dir_inode_operations, proc_attr_dir_operations),
+diff --git a/fs/proc/internal.h b/fs/proc/internal.h
+index cd0c8d5ce9a1..bc9371880c63 100644
+--- a/fs/proc/internal.h
++++ b/fs/proc/internal.h
+@@ -293,6 +293,7 @@ extern const struct file_operations proc_pid_smaps_operations;
+ extern const struct file_operations proc_pid_smaps_rollup_operations;
+ extern const struct file_operations proc_clear_refs_operations;
+ extern const struct file_operations proc_pagemap_operations;
++extern const struct file_operations proc_page_idle_operations;
+ 
+ extern unsigned long task_vsize(struct mm_struct *);
+ extern unsigned long task_statm(struct mm_struct *,
+diff --git a/fs/proc/task_mmu.c b/fs/proc/task_mmu.c
+index 582c5e680176..192ffc4e24d7 100644
+--- a/fs/proc/task_mmu.c
++++ b/fs/proc/task_mmu.c
+@@ -1650,6 +1650,48 @@ const struct file_operations proc_pagemap_operations = {
+ 	.open		= pagemap_open,
+ 	.release	= pagemap_release,
+ };
++
++#ifdef CONFIG_IDLE_PAGE_TRACKING
++static ssize_t proc_page_idle_read(struct file *file, char __user *buf,
++				   size_t count, loff_t *ppos)
++{
++	return page_idle_proc_read(file, buf, count, ppos);
++}
++
++static ssize_t proc_page_idle_write(struct file *file, const char __user *buf,
++				 size_t count, loff_t *ppos)
++{
++	return page_idle_proc_write(file, (char __user *)buf, count, ppos);
++}
++
++static int proc_page_idle_open(struct inode *inode, struct file *file)
++{
++	struct mm_struct *mm;
++
++	mm = proc_mem_open(inode, PTRACE_MODE_READ);
++	if (IS_ERR(mm))
++		return PTR_ERR(mm);
++	file->private_data = mm;
++	return 0;
++}
++
++static int proc_page_idle_release(struct inode *inode, struct file *file)
++{
++	struct mm_struct *mm = file->private_data;
++
++	mmdrop(mm);
++	return 0;
++}
++
++const struct file_operations proc_page_idle_operations = {
++	.llseek		= mem_lseek, /* borrow this */
++	.read		= proc_page_idle_read,
++	.write		= proc_page_idle_write,
++	.open		= proc_page_idle_open,
++	.release	= proc_page_idle_release,
++};
++#endif /* CONFIG_IDLE_PAGE_TRACKING */
++
+ #endif /* CONFIG_PROC_PAGE_MONITOR */
+ 
+ #ifdef CONFIG_NUMA
+diff --git a/include/linux/page_idle.h b/include/linux/page_idle.h
+index 1e894d34bdce..a765a6d14e1a 100644
+--- a/include/linux/page_idle.h
++++ b/include/linux/page_idle.h
+@@ -106,6 +106,10 @@ static inline void clear_page_idle(struct page *page)
+ }
+ #endif /* CONFIG_64BIT */
+ 
++ssize_t page_idle_proc_write(struct file *file,
++	char __user *buf, size_t count, loff_t *ppos);
++ssize_t page_idle_proc_read(struct file *file,
++	char __user *buf, size_t count, loff_t *ppos);
+ #else /* !CONFIG_IDLE_PAGE_TRACKING */
+ 
+ static inline bool page_is_young(struct page *page)
+diff --git a/mm/page_idle.c b/mm/page_idle.c
+index 295512465065..9de4f4c67a8c 100644
+--- a/mm/page_idle.c
++++ b/mm/page_idle.c
+@@ -5,17 +5,22 @@
+ #include <linux/sysfs.h>
+ #include <linux/kobject.h>
+ #include <linux/mm.h>
+-#include <linux/mmzone.h>
+-#include <linux/pagemap.h>
+-#include <linux/rmap.h>
+ #include <linux/mmu_notifier.h>
++#include <linux/mmzone.h>
+ #include <linux/page_ext.h>
+ #include <linux/page_idle.h>
++#include <linux/pagemap.h>
++#include <linux/rmap.h>
++#include <linux/sched/mm.h>
++#include <linux/swap.h>
++#include <linux/swapops.h>
+ 
+ #define BITMAP_CHUNK_SIZE	sizeof(u64)
+ #define BITMAP_CHUNK_BITS	(BITMAP_CHUNK_SIZE * BITS_PER_BYTE)
+ 
+ /*
++ * Get a reference to a page for idle tracking purposes, with additional checks.
++ *
+  * Idle page tracking only considers user memory pages, for other types of
+  * pages the idle flag is always unset and an attempt to set it is silently
+  * ignored.
+@@ -25,18 +30,13 @@
+  * page tracking. With such an indicator of user pages we can skip isolated
+  * pages, but since there are not usually many of them, it will hardly affect
+  * the overall result.
+- *
+- * This function tries to get a user memory page by pfn as described above.
+  */
+-static struct page *page_idle_get_page(unsigned long pfn)
++static struct page *page_idle_get_page(struct page *page_in)
+ {
+ 	struct page *page;
+ 	pg_data_t *pgdat;
+ 
+-	if (!pfn_valid(pfn))
+-		return NULL;
+-
+-	page = pfn_to_page(pfn);
++	page = page_in;
+ 	if (!page || !PageLRU(page) ||
+ 	    !get_page_unless_zero(page))
+ 		return NULL;
+@@ -51,6 +51,18 @@ static struct page *page_idle_get_page(unsigned long pfn)
+ 	return page;
+ }
+ 
++/*
++ * This function tries to get a user memory page by pfn as described above.
++ */
++static struct page *page_idle_get_page_pfn(unsigned long pfn)
++{
++
++	if (!pfn_valid(pfn))
++		return NULL;
++
++	return page_idle_get_page(pfn_to_page(pfn));
++}
++
+ static bool page_idle_clear_pte_refs_one(struct page *page,
+ 					struct vm_area_struct *vma,
+ 					unsigned long addr, void *arg)
+@@ -118,6 +130,47 @@ static void page_idle_clear_pte_refs(struct page *page)
+ 		unlock_page(page);
+ }
+ 
++/* Helper to get the start and end frame given a pos and count */
++static int page_idle_get_frames(loff_t pos, size_t count, struct mm_struct *mm,
++				unsigned long *start, unsigned long *end)
++{
++	unsigned long max_frame;
++
++	/* If an mm is not given, assume we want physical frames */
++	max_frame = mm ? (mm->task_size >> PAGE_SHIFT) : max_pfn;
++
++	if (pos % BITMAP_CHUNK_SIZE || count % BITMAP_CHUNK_SIZE)
++		return -EINVAL;
++
++	*start = pos * BITS_PER_BYTE;
++	if (*start >= max_frame)
++		return -ENXIO;
++
++	*end = *start + count * BITS_PER_BYTE;
++	if (*end > max_frame)
++		*end = max_frame;
++	return 0;
++}
++
++static bool page_idle_pte_check(struct page *page)
++{
++	if (!page)
++		return false;
++
++	if (page_is_idle(page)) {
++		/*
++		 * The page might have been referenced via a
++		 * pte, in which case it is not idle. Clear
++		 * refs and recheck.
++		 */
++		page_idle_clear_pte_refs(page);
++		if (page_is_idle(page))
++			return true;
++	}
++
++	return false;
++}
++
+ static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
+ 				     struct bin_attribute *attr, char *buf,
+ 				     loff_t pos, size_t count)
+@@ -125,35 +178,21 @@ static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,
+ 	u64 *out = (u64 *)buf;
+ 	struct page *page;
+ 	unsigned long pfn, end_pfn;
+-	int bit;
++	int bit, ret;
+ 
+-	if (pos % BITMAP_CHUNK_SIZE || count % BITMAP_CHUNK_SIZE)
+-		return -EINVAL;
+-
+-	pfn = pos * BITS_PER_BYTE;
+-	if (pfn >= max_pfn)
+-		return 0;
+-
+-	end_pfn = pfn + count * BITS_PER_BYTE;
+-	if (end_pfn > max_pfn)
+-		end_pfn = max_pfn;
++	ret = page_idle_get_frames(pos, count, NULL, &pfn, &end_pfn);
++	if (ret == -ENXIO)
++		return 0;  /* Reads beyond max_pfn do nothing */
++	else if (ret)
++		return ret;
+ 
+ 	for (; pfn < end_pfn; pfn++) {
+ 		bit = pfn % BITMAP_CHUNK_BITS;
+ 		if (!bit)
+ 			*out = 0ULL;
+-		page = page_idle_get_page(pfn);
+-		if (page) {
+-			if (page_is_idle(page)) {
+-				/*
+-				 * The page might have been referenced via a
+-				 * pte, in which case it is not idle. Clear
+-				 * refs and recheck.
+-				 */
+-				page_idle_clear_pte_refs(page);
+-				if (page_is_idle(page))
+-					*out |= 1ULL << bit;
+-			}
++		page = page_idle_get_page_pfn(pfn);
++		if (page && page_idle_pte_check(page)) {
++			*out |= 1ULL << bit;
+ 			put_page(page);
+ 		}
+ 		if (bit == BITMAP_CHUNK_BITS - 1)
+@@ -170,23 +209,16 @@ static ssize_t page_idle_bitmap_write(struct file *file, struct kobject *kobj,
+ 	const u64 *in = (u64 *)buf;
+ 	struct page *page;
+ 	unsigned long pfn, end_pfn;
+-	int bit;
++	int bit, ret;
+ 
+-	if (pos % BITMAP_CHUNK_SIZE || count % BITMAP_CHUNK_SIZE)
+-		return -EINVAL;
+-
+-	pfn = pos * BITS_PER_BYTE;
+-	if (pfn >= max_pfn)
+-		return -ENXIO;
+-
+-	end_pfn = pfn + count * BITS_PER_BYTE;
+-	if (end_pfn > max_pfn)
+-		end_pfn = max_pfn;
++	ret = page_idle_get_frames(pos, count, NULL, &pfn, &end_pfn);
++	if (ret)
++		return ret;
+ 
+ 	for (; pfn < end_pfn; pfn++) {
+ 		bit = pfn % BITMAP_CHUNK_BITS;
+ 		if ((*in >> bit) & 1) {
+-			page = page_idle_get_page(pfn);
++			page = page_idle_get_page_pfn(pfn);
+ 			if (page) {
+ 				page_idle_clear_pte_refs(page);
+ 				set_page_idle(page);
+@@ -224,6 +256,221 @@ struct page_ext_operations page_idle_ops = {
+ };
+ #endif
+ 
++/*  page_idle tracking for /proc/<pid>/page_idle */
++
++struct page_node {
++	struct page *page;
++	unsigned long addr;
++	struct list_head list;
++};
++
++struct page_idle_proc_priv {
++	unsigned long start_addr;
++	char *buffer;
++	int write;
++
++	/* Pre-allocate and provide nodes to pte_page_idle_proc_add() */
++	struct page_node *page_nodes;
++	int cur_page_node;
++	struct list_head *idle_page_list;
++};
++
++/*
++ * Add page to list to be set as idle later.
++ */
++static void pte_page_idle_proc_add(struct page *page,
++			       unsigned long addr, struct mm_walk *walk)
++{
++	struct page *page_get = NULL;
++	struct page_node *pn;
++	int bit;
++	unsigned long frames;
++	struct page_idle_proc_priv *priv = walk->private;
++	u64 *chunk = (u64 *)priv->buffer;
++
++	if (priv->write) {
++		VM_BUG_ON(!page);
++
++		/* Find whether this page was asked to be marked */
++		frames = (addr - priv->start_addr) >> PAGE_SHIFT;
++		bit = frames % BITMAP_CHUNK_BITS;
++		chunk = &chunk[frames / BITMAP_CHUNK_BITS];
++		if (((*chunk >> bit) & 1) == 0)
++			return;
++	}
++
++	if (page) {
++		page_get = page_idle_get_page(page);
++		if (!page_get)
++			return;
++	}
++
++	/*
++	 * For all other pages, add it to a list since we have to walk rmap,
++	 * which acquires ptlock, and we cannot walk rmap right now.
++	 */
++	pn = &(priv->page_nodes[priv->cur_page_node++]);
++	pn->page = page_get;
++	pn->addr = addr;
++	list_add(&pn->list, priv->idle_page_list);
++}
++
++static int pte_page_idle_proc_range(pmd_t *pmd, unsigned long addr,
++				    unsigned long end,
++				    struct mm_walk *walk)
++{
++	pte_t *pte;
++	spinlock_t *ptl;
++	struct page *page;
++	struct vm_area_struct *vma = walk->vma;
++
++	ptl = pmd_trans_huge_lock(pmd, vma);
++	if (ptl) {
++		if (pmd_present(*pmd)) {
++			page = follow_trans_huge_pmd(vma, addr, pmd,
++						     FOLL_DUMP|FOLL_WRITE);
++			if (!IS_ERR_OR_NULL(page))
++				pte_page_idle_proc_add(page, addr, walk);
++		}
++		spin_unlock(ptl);
++		return 0;
++	}
++
++	if (pmd_trans_unstable(pmd))
++		return 0;
++
++	pte = pte_offset_map_lock(vma->vm_mm, pmd, addr, &ptl);
++	for (; addr != end; pte++, addr += PAGE_SIZE) {
++		if (!pte_present(*pte))
++			continue;
++
++		page = vm_normal_page(vma, addr, *pte);
++		if (page)
++			pte_page_idle_proc_add(page, addr, walk);
++	}
++
++	pte_unmap_unlock(pte - 1, ptl);
++	return 0;
++}
++
++ssize_t page_idle_proc_generic(struct file *file, char __user *ubuff,
++			       size_t count, loff_t *pos, int write)
++{
++	int ret;
++	char *buffer;
++	u64 *out;
++	unsigned long start_addr, end_addr, start_frame, end_frame;
++	struct mm_struct *mm = file->private_data;
++	struct mm_walk walk = { .pmd_entry = pte_page_idle_proc_range, };
++	struct page_node *cur;
++	struct page_idle_proc_priv priv;
++	bool walk_error = false;
++	LIST_HEAD(idle_page_list);
++
++	if (!mm || !mmget_not_zero(mm))
++		return -EINVAL;
++
++	if (count > PAGE_SIZE)
++		count = PAGE_SIZE;
++
++	buffer = kzalloc(PAGE_SIZE, GFP_KERNEL);
++	if (!buffer) {
++		ret = -ENOMEM;
++		goto out_mmput;
++	}
++	out = (u64 *)buffer;
++
++	if (write && copy_from_user(buffer, ubuff, count)) {
++		ret = -EFAULT;
++		goto out;
++	}
++
++	ret = page_idle_get_frames(*pos, count, mm, &start_frame, &end_frame);
++	if (ret)
++		goto out;
++
++	start_addr = (start_frame << PAGE_SHIFT);
++	end_addr = (end_frame << PAGE_SHIFT);
++	priv.buffer = buffer;
++	priv.start_addr = start_addr;
++	priv.write = write;
++
++	priv.idle_page_list = &idle_page_list;
++	priv.cur_page_node = 0;
++	priv.page_nodes = kzalloc(sizeof(struct page_node) *
++				  (end_frame - start_frame), GFP_KERNEL);
++	if (!priv.page_nodes) {
++		ret = -ENOMEM;
++		goto out;
++	}
++
++	walk.private = &priv;
++	walk.mm = mm;
++
++	down_read(&mm->mmap_sem);
++
++	/*
++	 * idle_page_list is needed because walk_page_vma() holds ptlock which
++	 * deadlocks with page_idle_clear_pte_refs(). So we have to collect all
++	 * pages first, and then call page_idle_clear_pte_refs().
++	 */
++	ret = walk_page_range(start_addr, end_addr, &walk);
++	if (ret)
++		walk_error = true;
++
++	list_for_each_entry(cur, &idle_page_list, list) {
++		int bit, index;
++		unsigned long off;
++		struct page *page = cur->page;
++
++		if (unlikely(walk_error))
++			goto remove_page;
++
++		if (write) {
++			if (page) {
++				page_idle_clear_pte_refs(page);
++				set_page_idle(page);
++			}
++		} else {
++			if (page_idle_pte_check(page)) {
++				off = ((cur->addr) >> PAGE_SHIFT) - start_frame;
++				bit = off % BITMAP_CHUNK_BITS;
++				index = off / BITMAP_CHUNK_BITS;
++				out[index] |= 1ULL << bit;
++			}
++		}
++remove_page:
++		if (page)
++			put_page(page);
++	}
++
++	if (!write && !walk_error)
++		ret = copy_to_user(ubuff, buffer, count);
++
++	up_read(&mm->mmap_sem);
++	kfree(priv.page_nodes);
++out:
++	kfree(buffer);
++out_mmput:
++	mmput(mm);
++	if (!ret)
++		ret = count;
++	return ret;
++
++}
++
++ssize_t page_idle_proc_read(struct file *file, char __user *ubuff,
++			    size_t count, loff_t *pos)
++{
++	return page_idle_proc_generic(file, ubuff, count, pos, 0);
++}
++
++ssize_t page_idle_proc_write(struct file *file, char __user *ubuff,
++			     size_t count, loff_t *pos)
++{
++	return page_idle_proc_generic(file, ubuff, count, pos, 1);
++}
++
+ static int __init page_idle_init(void)
+ {
+ 	int err;
+-- 
+2.22.0.770.g0f2c4a37fd-goog
 
