@@ -2,160 +2,175 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 46429C19759
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 05:29:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E6E8C32751
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:35:19 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0386E218C5
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 05:29:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9D4C8214C6
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 06:35:18 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="nCFuvFNj"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0386E218C5
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="otE89qYM"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9D4C8214C6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8DF2B6B0007; Wed,  7 Aug 2019 01:29:10 -0400 (EDT)
+	id 0BE4D6B0003; Wed,  7 Aug 2019 02:35:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 868316B0008; Wed,  7 Aug 2019 01:29:10 -0400 (EDT)
+	id 06F596B0006; Wed,  7 Aug 2019 02:35:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6E2086B000A; Wed,  7 Aug 2019 01:29:10 -0400 (EDT)
+	id EA1C36B0007; Wed,  7 Aug 2019 02:35:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 32B006B0007
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 01:29:10 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id j96so3920777plb.5
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 22:29:10 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B1EEA6B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 02:35:17 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id y22so50067128plr.20
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 23:35:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=1vTjKKjPXcwvezFpuQlHk79++RRKGCelf1VGueOrrEQ=;
-        b=kt65VtiJzH1D7lWHs85peBSGx3Cjyc6dk3owfzZn4/7ZWOfwYs7/+C5Orxg90Qz9rJ
-         N2IJOJ87hH9xfaBrQzTpIzXQErMrgB8CJr5tQWVsD+HvlDNUukhNBONZGE3uPWQMCA3B
-         HX32kn9+wFGy3+4D0cufLK1xNi09qCB9Vyk3ta1G9imbLd+YBkl1773GUyaM52x3iaLo
-         GoRLXHifD8Kap+ABUCPrcb0hv6NI6cuwSjVrwTBV2Q33aOc5a1T6fHnOrCI9A76xuXZR
-         11tYgpLXSoi/1Q2332zvTv6stQYY+1/ym+tvS0ewnn1tYgRHyXRsGWYjvtV7Sr5DMLSF
-         5KrA==
-X-Gm-Message-State: APjAAAVCg8bAwK15BYQQoCaWxvvD3mINJNvaHk/yBIOBoMIfH2/tt/Tb
-	Slz/k+b/CbFD4PIJKinLs/JtQ9UbvhEj2pedhly6pNXYHwoqdQ7y4oBpUu3KPYq3ffJA6bCew66
-	qDIn9b1ONJMwPYePCDCaXCINaOMcS76NfD+JpuzpBAh7ffwmsSsOpurqy18ivtK3Skw==
-X-Received: by 2002:a17:90a:2525:: with SMTP id j34mr6847366pje.11.1565155749889;
-        Tue, 06 Aug 2019 22:29:09 -0700 (PDT)
-X-Received: by 2002:a17:90a:2525:: with SMTP id j34mr6847344pje.11.1565155749223;
-        Tue, 06 Aug 2019 22:29:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565155749; cv=none;
+         :message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to:user-agent;
+        bh=h/YO9E7Kk2GlCfqzWsOaLMxcaYYFJaO+2uQZpeggUB0=;
+        b=rf3j5s6Q4ObZv8ZmWeZ2PsRAWrG2/cRr4UE1X0dQaRJP9Xfj7lM16MW3yNNmdbv0uy
+         8ojw05mLLSasOyHCjUuHTBoMOp5v6qqXb5y/HNxKxrijnIFmRKvUHf73m/m+CQrLpuK5
+         5j/uAmxhCTRZn2wHQE3irpT78xaviurzQ7IxqpabQsUSJiXqUnqbXsXVzKjtOhD+agO8
+         Sy8JC1OErLImgzMWxj0T/4PSPhe7kiPUxdjbVnRSPlPghsmYXl3SyCcb7jd/GMwHTWav
+         FiaxeN+Idxum2/fKyWE3P1PDuRUp6IJCgCzayACyi3F98CVe3+6vSnYPVr1+8rtkFAUq
+         3aMQ==
+X-Gm-Message-State: APjAAAVqwJ9nEYyXRS45XyA0NkTHBXrfdPWb1hQWxem+Uo4iYWYDCLJH
+	i7/CtaL3jv/xDVn7t1WhSwLrNxj7hiFX82NATGFbTSmGehlbMMVQ+DGp7q0925f+cw+wePfpYPL
+	rj7TAIXZgKCTf6Xhu4o0USSpUnsOCue4CwOQGnOnJf/AUe1OJghNwBK6d3wmzYdc3xQ==
+X-Received: by 2002:a17:902:8a94:: with SMTP id p20mr6725363plo.312.1565159717214;
+        Tue, 06 Aug 2019 23:35:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqymZyBxaR5rv2OaxLR9QM3ZazqgwrBX5rsWhCSPLfrFDz5fu+SNSSqD650DxFAFM0bY9D03
+X-Received: by 2002:a17:902:8a94:: with SMTP id p20mr6725318plo.312.1565159716375;
+        Tue, 06 Aug 2019 23:35:16 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565159716; cv=none;
         d=google.com; s=arc-20160816;
-        b=LXU4C6v+L7S4/hvK2WZ8d/JaVy6Hz8BPsKfu+aRMb842dfJAb7dyoEDQHqukfISS2O
-         vy+AufOM1koPfHVXXA5Ea3ZjA063O2F7FZh+Srh0FXc8DK37OtmAJKPqNbUqiMU/euTk
-         E6cnT609fWeMpj1kSSXTcCqaQ2R/sBIj7eUU8Z78O6GoaMZyCJSoWL2auK6c5DfYIlwk
-         fa+UWkIXVTA1lNIYL9TwEAdhDXOevhhA2JON/tNBaksdUKmNJbIB2OGeArTmvaBxcKrU
-         2pkEiQ1V6FHdG7FJ4aN11M447loJJ0wb0o9OKi4x2hMCLH5TGYr6nyVlkq7IhKmQlJ9T
-         zZAA==
+        b=0bxvTDFKgBhX56serEThNxdZ1QBoUj67hAG/6i0x5e1UtK0yyNmosYiRlZcb8ehVJP
+         jW5G/evmwmOL6Eif0cA+aCZ69l4mHcWFnzVlE09qeQiXBrYn3UbBf+MfMOKGs1Zgo/sa
+         FgRIG928L8PLxxJS/kjefiR4DEH1kh7OSA+pkSTnDQZm5LycFS7NwXHNToUq1D3hUbrO
+         fyZATn9DdfSoOrXRoMCCdw+DQGWtG4D/0QSAWswnDqDZTQRwb+g5Z5sLlgY6+BEeYEcn
+         hKe/dyMihewmp0v9FvoFGhn1cLB8HvEnvLbrbE/Q3g1bSDBh38pah89+s0FZylG19AlJ
+         w9IA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=1vTjKKjPXcwvezFpuQlHk79++RRKGCelf1VGueOrrEQ=;
-        b=kl0PEPLZ7VG7QL5tjioCQ2VDI/M7bAbqgZS2+tnfByg6xv+OTkqaGjrEkoOuXpcwIQ
-         zIwocLDYTKlENA6fYpzvlsYunV78G1fhh7Y7pEohHOpt93h4x3aB7GUxeYsiOwthktEH
-         iXGGvbDNeBIefDIT/BjSGf86fB9kXmX/c8A9mNYXdWA26r8B7G/zqHFq1bC9ZfOzJOfI
-         suGkRaUTF0KfwaJ3Kmxu6jSiFLVagy6JQeQsFV54+HT7Bv7bIuZuIF8daOo1ZfGB7SYu
-         Vjhxg1X8KZ1s8AbrzaiwSMqUvJNQrn/ZkZ+1+aHQxIV5gDAc1SfJCIVnDZddl/cKghFz
-         SXOA==
+        h=user-agent:in-reply-to:content-transfer-encoding
+         :content-disposition:mime-version:references:message-id:subject:cc
+         :to:from:date:dkim-signature;
+        bh=h/YO9E7Kk2GlCfqzWsOaLMxcaYYFJaO+2uQZpeggUB0=;
+        b=Q2O1bi7R9TpDo90z4sW6bWxYbNMrJNbZref7Ym9qm0cTGiFmg3L/FP1rtvkN9s4WmZ
+         /S+m10ygpRUHni2F8nwIlNPtLHBHNSjHnaFSgBs4je5dpVEpslVs50Pm2+cMJ6TOBa3R
+         Pn4G5DWR6iO00FC+XVLl7/Zyw1o0dF0HjOpDNTi6SPuv8lAgCLu2foyd9Gf9mPrleCDF
+         ao9uxW5g4iht+wmjJ2fOOuGW2cUptq0EzqHevyAZDDArWAaX6hFSCpW9eNgiQgIuRubD
+         zQK3KDK0hpQ7pf6OJc35rSDFLJvaHdQ4kmHJE3RNjd1KOk+3gQlJ7Neb32KKbX+AAeKs
+         L40g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nCFuvFNj;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e16sor27710193pjp.20.2019.08.06.22.29.09
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=otE89qYM;
+       spf=pass (google.com: best guess record for domain of batv+ecabc3e5d1f7686a0adb+5827+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ecabc3e5d1f7686a0adb+5827+infradead.org+hch@bombadil.srs.infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id z72si50219149pgd.34.2019.08.06.23.35.16
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Aug 2019 22:29:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=nCFuvFNj;
-       spf=pass (google.com: domain of kernelfans@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=kernelfans@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=1vTjKKjPXcwvezFpuQlHk79++RRKGCelf1VGueOrrEQ=;
-        b=nCFuvFNjI+cgrH3oDF1fIJi/Gq7hJFsokBsK8Uk0siw2EVuKNJSVN0AMOq6AEhD4Dx
-         E6gEWGICMUy//3HQJjqquj7/B4tN4HRsxaKuilwqEnslFkay5kXcE4m4Z+7pnIfDNX4z
-         J2MmaMZx/wIlbGaJqxZafWOrIgP0h2OmTm+nFq+KC5BQjgYoFj4YY61UuWYfPrzIK1NE
-         OeM5sPFCAxPN4PUucNSQx0XuJcGZW5qJ7jDu+Ylt3wKlLwGa3tGfCcU6uunEtQEA6FsO
-         GrtjjJOB+u2Fqwe4751ta6gDwDK1jAz6djR9iimXtoy14zH+CavZcZL7RtJ9tlZ9aCbF
-         f4qw==
-X-Google-Smtp-Source: APXvYqy8DYamhO+Xxeu70pQ++qwQXuBclAgixKYv4wKka+YwFq7p/cQW6qI5JZSet/yTl8yH7Gy/lg==
-X-Received: by 2002:a17:90a:30cf:: with SMTP id h73mr6810509pjb.42.1565155748748;
-        Tue, 06 Aug 2019 22:29:08 -0700 (PDT)
-Received: from mypc ([209.132.188.80])
-        by smtp.gmail.com with ESMTPSA id v63sm91853525pfv.174.2019.08.06.22.29.05
         (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 06 Aug 2019 22:29:08 -0700 (PDT)
-Date: Wed, 7 Aug 2019 13:28:58 +0800
-From: Pingfan Liu <kernelfans@gmail.com>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: linux-mm@kvack.org,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+        Tue, 06 Aug 2019 23:35:16 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of batv+ecabc3e5d1f7686a0adb+5827+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+Authentication-Results: mx.google.com;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=otE89qYM;
+       spf=pass (google.com: best guess record for domain of batv+ecabc3e5d1f7686a0adb+5827+infradead.org+hch@bombadil.srs.infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=BATV+ecabc3e5d1f7686a0adb+5827+infradead.org+hch@bombadil.srs.infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Transfer-Encoding
+	:Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
+	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=h/YO9E7Kk2GlCfqzWsOaLMxcaYYFJaO+2uQZpeggUB0=; b=otE89qYM9WmETe4AtaYSwZhaVp
+	x2hWnzTkK/+H6YrywBw2CCvGkAGS0+cMqYBTGZ1bytkCsNKOywsxuaErRoaQPCJFZ74nyD+BaWD0D
+	Fqio4bMq3iSkQd4EZDyn1AS+qiOZ+zvMv6fNRqFHw53t3ciAgH4Z1x8wvN/D7EYKreU7FK2EDXOVj
+	PtXuttuf2InvZsTot7swxCxX4U2Gh/2vRud2yGtuCEvw7oeWsTGK9Fxhm2aMTINFjUbhDSIHyQW9d
+	1InA9ls8uWP73McSrAt6icdTTX2iY22SDv4qsGs3F3dJNdqSF3NdiMXvEekNoqV5nkE99PNfKXpGY
+	TVYojzfw==;
+Received: from hch by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hvFX6-0004to-Ui; Wed, 07 Aug 2019 06:34:48 +0000
+Date: Tue, 6 Aug 2019 23:34:48 -0700
+From: Christoph Hellwig <hch@infradead.org>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Christoph Hellwig <hch@infradead.org>, john.hubbard@gmail.com,
 	Andrew Morton <akpm@linux-foundation.org>,
-	Mel Gorman <mgorman@techsingularity.net>, Jan Kara <jack@suse.cz>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Michal Hocko <mhocko@suse.com>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 1/3] mm/migrate: clean up useless code in
- migrate_vma_collect_pmd()
-Message-ID: <20190807052858.GA9749@mypc>
-References: <1565078411-27082-1-git-send-email-kernelfans@gmail.com>
- <20190806133503.GC30179@bombadil.infradead.org>
+	Alexander Viro <viro@zeniv.linux.org.uk>,
+	Anna Schumaker <anna.schumaker@netapp.com>,
+	"David S . Miller" <davem@davemloft.net>,
+	Dominique Martinet <asmadeus@codewreck.org>,
+	Eric Van Hensbergen <ericvh@gmail.com>,
+	Jason Gunthorpe <jgg@ziepe.ca>, Jason Wang <jasowang@redhat.com>,
+	Jens Axboe <axboe@kernel.dk>, Latchesar Ionkov <lucho@ionkov.net>,
+	"Michael S . Tsirkin" <mst@redhat.com>,
+	Miklos Szeredi <miklos@szeredi.hu>,
+	Trond Myklebust <trond.myklebust@hammerspace.com>,
+	Christoph Hellwig <hch@lst.de>,
+	Matthew Wilcox <willy@infradead.org>, linux-mm@kvack.org,
+	LKML <linux-kernel@vger.kernel.org>, ceph-devel@vger.kernel.org,
+	kvm@vger.kernel.org, linux-block@vger.kernel.org,
+	linux-cifs@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-nfs@vger.kernel.org, linux-rdma@vger.kernel.org,
+	netdev@vger.kernel.org, samba-technical@lists.samba.org,
+	v9fs-developer@lists.sourceforge.net,
+	virtualization@lists.linux-foundation.org
+Subject: Re: [PATCH 00/12] block/bio, fs: convert put_page() to
+ put_user_page*()
+Message-ID: <20190807063448.GA6002@infradead.org>
+References: <20190724042518.14363-1-jhubbard@nvidia.com>
+ <20190724061750.GA19397@infradead.org>
+ <c35aa2bf-c830-9e57-78ca-9ce6fb6cb53b@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
+Content-Type: text/plain; charset=utf-8
 Content-Disposition: inline
-In-Reply-To: <20190806133503.GC30179@bombadil.infradead.org>
-User-Agent: Mutt/1.11.3 (2019-02-01)
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <c35aa2bf-c830-9e57-78ca-9ce6fb6cb53b@nvidia.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
+X-SRS-Rewrite: SMTP reverse-path rewritten from <hch@infradead.org> by bombadil.infradead.org. See http://www.infradead.org/rpr.html
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 06, 2019 at 06:35:03AM -0700, Matthew Wilcox wrote:
+On Mon, Aug 05, 2019 at 03:54:35PM -0700, John Hubbard wrote:
+> On 7/23/19 11:17 PM, Christoph Hellwig wrote:
+> > On Tue, Jul 23, 2019 at 09:25:06PM -0700, john.hubbard@gmail.com wrote:
+> >> * Store, in the iov_iter, a "came from gup (get_user_pages)" parameter.
+> >>   Then, use the new iov_iter_get_pages_use_gup() to retrieve it when
+> >>   it is time to release the pages. That allows choosing between put_page()
+> >>   and put_user_page*().
+> >>
+> >> * Pass in one more piece of information to bio_release_pages: a "from_gup"
+> >>   parameter. Similar use as above.
+> >>
+> >> * Change the block layer, and several file systems, to use
+> >>   put_user_page*().
+> > 
+> > I think we can do this in a simple and better way.  We have 5 ITER_*
+> > types.  Of those ITER_DISCARD as the name suggests never uses pages, so
+> > we can skip handling it.  ITER_PIPE is rejected іn the direct I/O path,
+> > which leaves us with three.
+> > 
 > 
-> This needs something beyond the subject line.  Maybe ...
+> Hi Christoph,
 > 
-> After these assignments, we either restart the loop with a fresh variable,
-> or we assign to the variable again without using the value we've assigned.
-> 
-> Reviewed-by: Matthew Wilcox (Oracle) <willy@infradead.org>
-> 
-> >  			goto next;
-> >  		}
-> > -		pfn = page_to_pfn(page);
-> 
-> After you've done all this, as far as I can tell, the 'pfn' variable is
-> only used in one arm of the conditions, so it can be moved there.
-> 
-> ie something like:
-> 
-> -               unsigned long mpfn, pfn;
-> +               unsigned long mpfn;
-> ...
-> -               pfn = pte_pfn(pte);
-> ...
-> +                       unsigned long pfn = pte_pfn(pte);
-> +
-> 
-This makes code better. Thank you for the suggestion. Will send v2 for
-this patch.
+> Are you working on anything like this?
 
-Regards,
-	Pingfan
+I was hoping I could steer you towards it.  But if you don't want to do
+it yourself I'll add it to my ever growing todo list.
+
+> Or on the put_user_bvec() idea?
+
+I have a prototype from two month ago:
+
+http://git.infradead.org/users/hch/misc.git/shortlog/refs/heads/gup-bvec
+
+but that only survived the most basic testing, so it'll need more work,
+which I'm not sure when I'll find time for.
 
