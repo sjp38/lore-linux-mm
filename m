@@ -2,189 +2,346 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3B1DDC433FF
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 01:03:47 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 54C15C32751
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 01:12:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BE38C21743
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 01:03:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EDD17217D7
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 01:12:17 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="P0vLbZ2o"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE38C21743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="OdvxSIVx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EDD17217D7
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 279546B0003; Tue,  6 Aug 2019 21:03:46 -0400 (EDT)
+	id 99F166B0003; Tue,  6 Aug 2019 21:12:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 22A616B0006; Tue,  6 Aug 2019 21:03:46 -0400 (EDT)
+	id 950116B0006; Tue,  6 Aug 2019 21:12:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0F2136B0007; Tue,  6 Aug 2019 21:03:46 -0400 (EDT)
+	id 866046B0007; Tue,  6 Aug 2019 21:12:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D87266B0003
-	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 21:03:45 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id n19so51414430ota.14
-        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 18:03:45 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A8CD6B0003
+	for <linux-mm@kvack.org>; Tue,  6 Aug 2019 21:12:17 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id a21so49089893pgv.0
+        for <linux-mm@kvack.org>; Tue, 06 Aug 2019 18:12:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=o7q9Ldtb0xrmlDmXW0fcFFYVPswO62v529sdZO8NY2c=;
-        b=mMis4+qadzWBwM3TzI77/Wh19uJu04yb/ZLxvJj0JD3ur7ZyJ1Y+dztVKMQEAd0zQb
-         jDyoWfKFi2ymp/0Zdu/WqAyAaoWkvLeMn4TrxfsKdik+Bitow6kCqpu1aCK80EEWp0ld
-         U+75Id5IZK1bkb9oh4KtUCEModZ2qhghHSjtzSonbVG5RB2ecXLM7OD2MgfTOK+1sJlt
-         ohvq4NEZON5/J8sSDmC8K8/K6FglhaNtst2JnZV8P3tp/fUYR1qNYo2oettF5aZ8z0S/
-         zeNKtZmH6NoUaT8qA/65nsP+P9Lfj7aQig18GZVGRU1D9YabqUjQS6vTpeczRty/VfPm
-         U9aQ==
-X-Gm-Message-State: APjAAAUBHdvfIMc9/a3ecstBZs8JiAl09Fp8HGnINPBJPFSWRQ4Ou3xr
-	BmvOllIyolWZfpApW6liKojbQjYhFQFC5MAUOMtx91XcQUdTgXnFcRN9weTCraT/KNqwguTvUYJ
-	338bSBSeZI1+AOvvEiqaM0JvUr3cI6d8D/vUd2uG0OWeIEbJAjl4LgoA2ucRg+J5RZw==
-X-Received: by 2002:a6b:fb0f:: with SMTP id h15mr6891810iog.266.1565139825616;
-        Tue, 06 Aug 2019 18:03:45 -0700 (PDT)
-X-Received: by 2002:a6b:fb0f:: with SMTP id h15mr6891772iog.266.1565139825011;
-        Tue, 06 Aug 2019 18:03:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565139825; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:subject:message-id
+         :user-agent;
+        bh=8dQo2FbgNdOt95hNxoi8mMrSJmfD906/4KRYT3AvXZk=;
+        b=sTbbJ+hUNwhmuM4eY20SZtMRdUhssWwikZzkl/Jz9gmYvI1ltgcsRN38YFj4yRbfhq
+         ZhehuR6mh/baKFKmsRzz27pnkBl8WFs352qks65unUHYASFRFRl61pQvB9+S6DXJ2bJI
+         qmMvUlkQTUpMUk7FOPPxELLI0/5OxVwpQBwBYbExD4WpPD1+cHoO+fkHjpkDll3lBgsE
+         wHUb3bmqWR8yL2k3seEGlrwVVmjGUFxeBXwQY2Cg/SBy4hKcgeiXKhWXUM+mydBfZ82y
+         iUbPYC0A6LirIlYBgW1uH5HV+pGriR3JC8fUHC/tU0F+bN+UtUg1wS+aWheqkGClQTFj
+         HgOA==
+X-Gm-Message-State: APjAAAUKsi7ueeX4JWBwosDsnwWUYUXs5R6TavTmL7j9YCmxqG7Lgl5t
+	FCIvJPC9i4ajYUqBCDCZZjsC22VPCKS6+tN8a8K1kBPmvrNC+xOi70yiwUFSa62LEtWNre5HSCM
+	BDV3boNW9TfT6TzvaFo+jH3IVNl4mgB5u1gpuddRU+7GtNbjbqQaazWYee0CWZMNbmQ==
+X-Received: by 2002:a63:c50f:: with SMTP id f15mr5474188pgd.372.1565140336620;
+        Tue, 06 Aug 2019 18:12:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwSXLpqPXUpFiJjy8dHGt1i7XJlmemw5I54jgEwhCtCczkdC2GS42MAFqvOhPpYARhFiHL6
+X-Received: by 2002:a63:c50f:: with SMTP id f15mr5474111pgd.372.1565140335118;
+        Tue, 06 Aug 2019 18:12:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565140335; cv=none;
         d=google.com; s=arc-20160816;
-        b=ujTdkkRCH/6HxJT3maXDRkHIHkUbPKED52aVCdD+Z5ecHcEx6Smp6pXZaTfEEaiEZr
-         ia6b1nxmqIEIjADXgW5dNhiYoDrHSoF2n+XSFDchFHIb1JGpDXNKwEyQM/+MK16AMeIH
-         1YyHlhhIWhBR1SRXD900ND/hi0KUoL5woAusxKp+oMcLcRewOtuo+9Xvuc5w5Mj6UVGw
-         dxjRqDuI3SksvTUyk5paJUGxqtP22I3XWfRGOVcqQG7ylh95r7yTrpy2r8e3QhL/lJye
-         QbFDPTUdCfT1KB2GqaqrcPlBWUmtoqXS6gDA4+UJgUssgAVe8Ve0jVEYzghbpTYG5Qfr
-         769w==
+        b=FdM9ZVs+hRTQ996YHsk2WE3YI0bRnsvMHJcEmNMlmeEAa6LGQ1HsOjovceVWn3lx4L
+         yI5qWWq/McMWanQIYdBqIVgfaDB/T2bdmwQUvjM+18ExDG+T0wmgZUF5Ohfld6/hKh9+
+         FvJ0hjcFBJ1aNIoW/tPJKfPsl3YOwkeGRJSrDEESwFltQqCCKumpdTvCo/1UQo3zM4j7
+         7dMVmXTYn5KrCtaGkUeHU0eCZCjJ9NGjtnjUAIM6Xdrk4HrSU6yt7At+civcQjvuyliU
+         Mwb5Dtuv+vM8yo9j+nAwAzubgRvOrm1WlJqk00vU2d5xlZ+/os4PaDQyjFvS5y3BzjVy
+         VlqQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=o7q9Ldtb0xrmlDmXW0fcFFYVPswO62v529sdZO8NY2c=;
-        b=fBWJK3Oc5Gi1Zh4EI3bpEwNAN7fGX6vYyDUwqJd63bors+kP0o8V5xW9MbKM01Q4RE
-         q1J4p2jvWn5eVvjVk6/9Ys5fBtzeVx01SJO3uOLrTYiTel108bs40Kuh0w6bHyb4T16C
-         plvi4B1eGJ0tfrlIbebED+sbcPxHK6PAKpQec8166c0BQ8f5AqLMLD/6ynf9+0R9V4QN
-         xB74MBp0aezqJVVmvddSZjncqd8BhL40/tUwNm3vjTY9A817yllcDl4X94Nz/qb4jHiD
-         ++EPuLd8vBglEWQ/uiN9tZOvgYb+FnVMxmq0KZxA1gXEmMEB+y4LshTevyqh+CaeEl8O
-         lr7A==
+        h=user-agent:message-id:subject:to:from:date:dkim-signature;
+        bh=8dQo2FbgNdOt95hNxoi8mMrSJmfD906/4KRYT3AvXZk=;
+        b=WaZeKHFdzgA5cVAqiVw5M0VdFvrhSbxoozl+Cl5NL0+2Y4kNE8LS5F9KBuKcLlgTW2
+         ReFh5yeOHGhdRuRhSE9gI4QNByn8edbbr+ySKD7V/rVx6bs7lcZ10KqtnoTUWvLiMm6c
+         aCDsE9gcHGhaD5JvBj1GAKi90J33t/5R/hmLT7ZFidKvXzvnqbeiQQn6SyTi2GTq7+wG
+         XXjrru/UQcMIqNSHr7WbPaAwhZFCWXeL3qS+bJm6L4/dyZJyuGj47vPii1qjjSupjNfU
+         qd2A+0h16JmFUt3FbdFHll9q6H3JVyfWptt50sTgftpINRk59CvgW2B0f1CjCgCApiKh
+         aWyA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=P0vLbZ2o;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r3sor56074000jai.10.2019.08.06.18.03.44
+       dkim=pass header.i=@kernel.org header.s=default header.b=OdvxSIVx;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id c189si60612069pfa.110.2019.08.06.18.12.14
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Tue, 06 Aug 2019 18:03:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Tue, 06 Aug 2019 18:12:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=P0vLbZ2o;
-       spf=pass (google.com: domain of laoar.shao@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=laoar.shao@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=o7q9Ldtb0xrmlDmXW0fcFFYVPswO62v529sdZO8NY2c=;
-        b=P0vLbZ2o8+YLbFgZTjg+azBmoH2Q3WXZ/ZsQF/jNf3Vv/yA10iUdEjF9PYyfE4d3j5
-         j5GsCufeDTIvBNIdnKkcQgmGXjWdGDHpVwPkFRkGgRwWmRZxYvrhBtMNC+x6/iFe8FIZ
-         03JlUr6knh+OttbLxby9y/8t+USxSTbmXEWT35lQStcHe63Icr8gzKRGs95d6hIoyWnH
-         ro+plkdrae+HNaJGkKJdBMsXrvwKzpcxDtcIioaw1UY3Uo0l9oX+R7QAiy8tdMtB68+D
-         z1xqJ4CNDe5YBFJTY9V7CDUUoCFAg0NEVizsq48vgzjVDtPpOebxOQVtOzDr3YAVm1gW
-         HsYw==
-X-Google-Smtp-Source: APXvYqzUm/MfzCeqAeImu38R/S9t7BBxWojU2TR11JcHGZLjTFjwFAN0OpE8zqy6wcQCeI4Mq7nTtprUXFW+TAWnwqU=
-X-Received: by 2002:a05:6638:81:: with SMTP id v1mr7203634jao.72.1565139824762;
- Tue, 06 Aug 2019 18:03:44 -0700 (PDT)
-MIME-Version: 1.0
-References: <1565075940-23121-1-git-send-email-laoar.shao@gmail.com>
- <20190806073525.GC11812@dhcp22.suse.cz> <20190806074137.GE11812@dhcp22.suse.cz>
- <CALOAHbBNV9BNmGhnV-HXOdx9QfArLHqBHsBe0cm-gxsGVSoenw@mail.gmail.com>
- <20190806090516.GM11812@dhcp22.suse.cz> <CALOAHbDO5qmqKt8YmCkTPhh+m34RA+ahgYVgiLx1RSOJ-gM4Dw@mail.gmail.com>
- <20190806092531.GN11812@dhcp22.suse.cz> <CALOAHbAzRC9m8bw8ounK5GF2Ss-yxvzAvRw10HNj-Y78iEx2Qg@mail.gmail.com>
- <20190806111459.GH2739@techsingularity.net> <CALOAHbCxBdGtTo9SneNtnDKWDNEZ-TcisE9OM9OagkfSuB8WTQ@mail.gmail.com>
- <20190806155904.rwd7tmbbpmif4edh@ca-dmjordan1.us.oracle.com>
-In-Reply-To: <20190806155904.rwd7tmbbpmif4edh@ca-dmjordan1.us.oracle.com>
-From: Yafang Shao <laoar.shao@gmail.com>
-Date: Wed, 7 Aug 2019 09:03:08 +0800
-Message-ID: <CALOAHbBPSJx4ZmsEDt6LfbVSPW1CfYTrbQvGas_SDWVd_v0wEw@mail.gmail.com>
-Subject: Re: [PATCH v2] mm/vmscan: shrink slab in node reclaim
-To: Daniel Jordan <daniel.m.jordan@oracle.com>
-Cc: Mel Gorman <mgorman@techsingularity.net>, Michal Hocko <mhocko@kernel.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Linux MM <linux-mm@kvack.org>, 
-	Christoph Lameter <cl@linux.com>, Yafang Shao <shaoyafang@didiglobal.com>
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@kernel.org header.s=default header.b=OdvxSIVx;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 6327E214C6;
+	Wed,  7 Aug 2019 01:12:14 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1565140334;
+	bh=8sGcRubh7pOJ3yj30hfObaM3CNBlhlDnEhkMu1r2d7k=;
+	h=Date:From:To:Subject:From;
+	b=OdvxSIVxASGJu8VugIFP7w61NFOljj/KPM80spgid+T00wM9xjfNvAiZael7OqTa/
+	 NBnsoLsbaMvtl3vMUPHPi/Sybqr8z0aWQcoFNeGfkSPwcaW9XcBAFCdYzqHJ9PdCWB
+	 wfOBg5J2BUuh10LpDJoI9B5im6VHj8siMEWMhbIA=
+Date: Tue, 06 Aug 2019 18:12:13 -0700
+From: akpm@linux-foundation.org
+To: broonie@kernel.org, linux-fsdevel@vger.kernel.org,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-next@vger.kernel.org, mhocko@suse.cz, mm-commits@vger.kernel.org,
+ sfr@canb.auug.org.au
+Subject:  mmotm 2019-08-06-18-11 uploaded
+Message-ID: <20190807011213.B-aq50pvQ%akpm@linux-foundation.org>
+User-Agent: s-nail v14.8.16
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 6, 2019 at 11:59 PM Daniel Jordan
-<daniel.m.jordan@oracle.com> wrote:
->
-> On Tue, Aug 06, 2019 at 07:35:29PM +0800, Yafang Shao wrote:
-> > On Tue, Aug 6, 2019 at 7:15 PM Mel Gorman <mgorman@techsingularity.net> wrote:
-> > >
-> > > On Tue, Aug 06, 2019 at 05:32:54PM +0800, Yafang Shao wrote:
-> > > > On Tue, Aug 6, 2019 at 5:25 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > > > >
-> > > > > On Tue 06-08-19 17:15:05, Yafang Shao wrote:
-> > > > > > On Tue, Aug 6, 2019 at 5:05 PM Michal Hocko <mhocko@kernel.org> wrote:
-> > > > > [...]
-> > > > > > > > As you said, the direct reclaim path set it to 1, but the
-> > > > > > > > __node_reclaim() forgot to process may_shrink_slab.
-> > > > > > >
-> > > > > > > OK, I am blind obviously. Sorry about that. Anyway, why cannot we simply
-> > > > > > > get back to the original behavior by setting may_shrink_slab in that
-> > > > > > > path as well?
-> > > > > >
-> > > > > > You mean do it as the commit 0ff38490c836 did  before ?
-> > > > > > I haven't check in which commit the shrink_slab() is removed from
-> > > > >
-> > > > > What I've had in mind was essentially this:
-> > > > >
-> > > > > diff --git a/mm/vmscan.c b/mm/vmscan.c
-> > > > > index 7889f583ced9..8011288a80e2 100644
-> > > > > --- a/mm/vmscan.c
-> > > > > +++ b/mm/vmscan.c
-> > > > > @@ -4088,6 +4093,7 @@ static int __node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned in
-> > > > >                 .may_unmap = !!(node_reclaim_mode & RECLAIM_UNMAP),
-> > > > >                 .may_swap = 1,
-> > > > >                 .reclaim_idx = gfp_zone(gfp_mask),
-> > > > > +               .may_shrinkslab = 1;
-> > > > >         };
-> > > > >
-> > > > >         trace_mm_vmscan_node_reclaim_begin(pgdat->node_id, order,
-> > > > >
-> > > > > shrink_node path already does shrink slab when the flag allows that. In
-> > > > > other words get us back to before 1c30844d2dfe because that has clearly
-> > > > > changed the long term node reclaim behavior just recently.
-> > > > > --
-> > > >
-> > > > If we do it like this, then vm.min_slab_ratio will not take effect if
-> > > > there're enough relcaimable page cache.
-> > > > Seems there're bugs in the original behavior as well.
-> > > >
-> > >
-> > > Typically that would be done as a separate patch with a standalone
-> > > justification for it. The first patch should simply restore expected
-> > > behaviour with a Fixes: tag noting that the change in behaviour was
-> > > unintentional.
-> > >
-> >
-> > Sure, I will do it.
->
-> Do you plan to send the second patch?  If not I think we should at least update
-> the documentation for the admittedly obscure vm.min_slab_ratio to reflect its
-> effect on node reclaim, which is currently none.
+The mm-of-the-moment snapshot 2019-08-06-18-11 has been uploaded to
 
-I don't have a explicit plan when to post the second patch because I'm
-not sure when it will be ready.
-If your workload depends on vm.min_slab_ratio, you could post a fix
-for it if you would like to. I will appreciate it.
+   http://www.ozlabs.org/~akpm/mmotm/
 
-I don't think it is a good idea to document it, because this is not a
-limitation, while it is really a issue.
+mmotm-readme.txt says
 
-Thanks
-Yafang
+README for mm-of-the-moment:
+
+http://www.ozlabs.org/~akpm/mmotm/
+
+This is a snapshot of my -mm patch queue.  Uploaded at random hopefully
+more than once a week.
+
+You will need quilt to apply these patches to the latest Linus release (5.x
+or 5.x-rcY).  The series file is in broken-out.tar.gz and is duplicated in
+http://ozlabs.org/~akpm/mmotm/series
+
+The file broken-out.tar.gz contains two datestamp files: .DATE and
+.DATE-yyyy-mm-dd-hh-mm-ss.  Both contain the string yyyy-mm-dd-hh-mm-ss,
+followed by the base kernel version against which this patch series is to
+be applied.
+
+This tree is partially included in linux-next.  To see which patches are
+included in linux-next, consult the `series' file.  Only the patches
+within the #NEXT_PATCHES_START/#NEXT_PATCHES_END markers are included in
+linux-next.
+
+
+A full copy of the full kernel tree with the linux-next and mmotm patches
+already applied is available through git within an hour of the mmotm
+release.  Individual mmotm releases are tagged.  The master branch always
+points to the latest release, so it's constantly rebasing.
+
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/
+
+
+
+The directory http://www.ozlabs.org/~akpm/mmots/ (mm-of-the-second)
+contains daily snapshots of the -mm tree.  It is updated more frequently
+than mmotm, and is untested.
+
+A git copy of this tree is available at
+
+	http://git.cmpxchg.org/cgit.cgi/linux-mmots.git/
+
+and use of this tree is similar to
+http://git.cmpxchg.org/cgit.cgi/linux-mmotm.git/, described above.
+
+
+This mmotm tree contains the following patches against 5.3-rc3:
+(patches marked "*" will be included in linux-next)
+
+  origin.patch
+* proc-kpageflags-prevent-an-integer-overflow-in-stable_page_flags.patch
+* proc-kpageflags-do-not-use-uninitialized-struct-pages.patch
+* mm-document-zone-device-struct-page-field-usage.patch
+* mm-hmm-fix-zone_device-anon-page-mapping-reuse.patch
+* mm-hmm-fix-bad-subpage-pointer-in-try_to_unmap_one.patch
+* mm-hmm-fix-bad-subpage-pointer-in-try_to_unmap_one-v3.patch
+* mm-mempolicy-make-the-behavior-consistent-when-mpol_mf_move-and-mpol_mf_strict-were-specified.patch
+* mm-mempolicy-make-the-behavior-consistent-when-mpol_mf_move-and-mpol_mf_strict-were-specified-v4.patch
+* mm-mempolicy-handle-vma-with-unmovable-pages-mapped-correctly-in-mbind.patch
+* mm-mempolicy-handle-vma-with-unmovable-pages-mapped-correctly-in-mbind-v4.patch
+* mm-z3foldc-fix-z3fold_destroy_pool-ordering.patch
+* mm-z3foldc-fix-z3fold_destroy_pool-race-condition.patch
+* mm-memcontrol-fix-use-after-free-in-mem_cgroup_iter.patch
+* mm-memcontrol-fix-use-after-free-in-mem_cgroup_iter-fix.patch
+* mm-vmallocc-fix-percpu-free-vm-area-search-criteria.patch
+* mm-kmemleak-disable-early-logging-in-case-of-error.patch
+* mm-usercopy-use-memory-range-to-be-accessed-for-wraparound-check.patch
+* asm-generic-fix-variable-p4d-set-but-not-used.patch
+* mm-workingset-fix-vmstat-counters-for-shadow-nodes.patch
+* seq_file-fix-problem-when-seeking-mid-record.patch
+* kbuild-clean-compressed-initramfs-image.patch
+* ocfs2-use-jbd2_inode-dirty-range-scoping.patch
+* jbd2-remove-jbd2_journal_inode_add_.patch
+* ocfs-further-debugfs-cleanups.patch
+* ocfs2-clear-zero-in-unaligned-direct-io.patch
+* ocfs2-clear-zero-in-unaligned-direct-io-checkpatch-fixes.patch
+* ocfs2-wait-for-recovering-done-after-direct-unlock-request.patch
+* ocfs2-checkpoint-appending-truncate-log-transaction-before-flushing.patch
+* fs-ocfs2-fix-possible-null-pointer-dereferences-in-ocfs2_xa_prepare_entry.patch
+* fs-ocfs2-fix-possible-null-pointer-dereferences-in-ocfs2_xa_prepare_entry-fix.patch
+* fs-ocfs2-fix-a-possible-null-pointer-dereference-in-ocfs2_write_end_nolock.patch
+* fs-ocfs2-fix-a-possible-null-pointer-dereference-in-ocfs2_info_scan_inode_alloc.patch
+* ramfs-support-o_tmpfile.patch
+  mm.patch
+* mm-slab-extend-slab-shrink-to-shrink-all-memcg-caches.patch
+* mm-slab-move-memcg_cache_params-structure-to-mm-slabh.patch
+* kmemleak-increase-debug_kmemleak_early_log_size-default-to-16k.patch
+* mm-kmemleak-use-mempool-allocations-for-kmemleak-objects.patch
+* mm-page_poison-fix-a-typo-in-a-comment.patch
+* mm-rmapc-remove-set-but-not-used-variable-cstart.patch
+* mm-introduce-page_size.patch
+* mm-introduce-page_shift.patch
+* mm-introduce-page_shift-fix.patch
+* mm-introduce-compound_nr.patch
+* mm-replace-list_move_tail-with-add_page_to_lru_list_tail.patch
+* mm-filemap-dont-initiate-writeback-if-mapping-has-no-dirty-pages.patch
+* mm-filemap-rewrite-mapping_needs_writeback-in-less-fancy-manner.patch
+* mm-page-cache-store-only-head-pages-in-i_pages.patch
+* mm-page-cache-store-only-head-pages-in-i_pages-fix.patch
+* mm-throttle-allocators-when-failing-reclaim-over-memoryhigh.patch
+* mm-throttle-allocators-when-failing-reclaim-over-memoryhigh-fix.patch
+* mm-throttle-allocators-when-failing-reclaim-over-memoryhigh-fix-fix.patch
+* mm-throttle-allocators-when-failing-reclaim-over-memoryhigh-fix-fix-fix.patch
+* mm-throttle-allocators-when-failing-reclaim-over-memoryhigh-fix-fix-fix-fix.patch
+* mm-vmscan-expose-cgroup_ino-for-memcg-reclaim-tracepoints.patch
+* mm-memcontrol-switch-to-rcu-protection-in-drain_all_stock.patch
+* mm-gup-add-make_dirty-arg-to-put_user_pages_dirty_lock.patch
+* mm-gup-add-make_dirty-arg-to-put_user_pages_dirty_lock-fix.patch
+* drivers-gpu-drm-via-convert-put_page-to-put_user_page.patch
+* net-xdp-convert-put_page-to-put_user_page.patch
+* mm-remove-redundant-assignment-of-entry.patch
+* mm-mmap-fix-the-adjusted-length-error.patch
+* mm-release-the-spinlock-on-zap_pte_range.patch
+* mm-memory_hotplug-remove-move_pfn_range.patch
+* mm-memory_hotplug-remove-move_pfn_range-fix.patch
+* drivers-base-nodec-simplify-unregister_memory_block_under_nodes.patch
+* drivers-base-memoryc-fixup-documentation-of-removable-phys_index-block_size_bytes.patch
+* driver-base-memoryc-validate-memory-block-size-early.patch
+* mm-sparse-fix-memory-leak-of-sparsemap_buf-in-aliged-memory.patch
+* mm-sparse-fix-memory-leak-of-sparsemap_buf-in-aliged-memory-fix.patch
+* mm-sparse-fix-align-without-power-of-2-in-sparse_buffer_alloc.patch
+* mm-vmalloc-do-not-keep-unpurged-areas-in-the-busy-tree.patch
+* mm-vmalloc-modify-struct-vmap_area-to-reduce-its-size.patch
+* mm-compaction-clear-total_migratefree_scanned-before-scanning-a-new-zone.patch
+* mm-compaction-clear-total_migratefree_scanned-before-scanning-a-new-zone-fix.patch
+* mm-compaction-clear-total_migratefree_scanned-before-scanning-a-new-zone-fix-fix.patch
+* mm-compaction-clear-total_migratefree_scanned-before-scanning-a-new-zone-fix-2.patch
+* mm-compaction-clear-total_migratefree_scanned-before-scanning-a-new-zone-fix-2-fix.patch
+* mm-compaction-remove-unnecessary-zone-parameter-in-isolate_migratepages.patch
+* mm-mempolicyc-remove-unnecessary-nodemask-check-in-kernel_migrate_pages.patch
+* mm-oom-avoid-printk-iteration-under-rcu.patch
+* mm-oom-avoid-printk-iteration-under-rcu-fix.patch
+* mm-oom_killer-add-task-uid-to-info-message-on-an-oom-kill.patch
+* mm-oom_killer-add-task-uid-to-info-message-on-an-oom-kill-fix.patch
+* memcg-oom-dont-require-__gfp_fs-when-invoking-memcg-oom-killer.patch
+* mm-reclaim-make-should_continue_reclaim-perform-dryrun-detection.patch
+* mm-reclaim-cleanup-should_continue_reclaim.patch
+* mm-compaction-raise-compaction-priority-after-it-withdrawns.patch
+* hugetlbfs-dont-retry-when-pool-page-allocations-start-to-fail.patch
+* mm-move-memcmp_pages-and-pages_identical.patch
+* uprobe-use-original-page-when-all-uprobes-are-removed.patch
+* uprobe-use-original-page-when-all-uprobes-are-removed-v2.patch
+* mm-thp-introduce-foll_split_pmd.patch
+* mm-thp-introduce-foll_split_pmd-v11.patch
+* uprobe-use-foll_split_pmd-instead-of-foll_split.patch
+* khugepaged-enable-collapse-pmd-for-pte-mapped-thp.patch
+* uprobe-collapse-thp-pmd-after-removing-all-uprobes.patch
+* thp-update-split_huge_page_pmd-commnet.patch
+* filemap-check-compound_headpage-mapping-in-filemap_fault.patch
+* filemap-check-compound_headpage-mapping-in-pagecache_get_page.patch
+* filemap-update-offset-check-in-filemap_fault.patch
+* mmthp-stats-for-file-backed-thp.patch
+* khugepaged-rename-collapse_shmem-and-khugepaged_scan_shmem.patch
+* mmthp-add-read-only-thp-support-for-non-shmem-fs.patch
+* mmthp-avoid-writes-to-file-with-thp-in-pagecache.patch
+* psi-annotate-refault-stalls-from-io-submission.patch
+* psi-annotate-refault-stalls-from-io-submission-fix.patch
+* psi-annotate-refault-stalls-from-io-submission-fix-2.patch
+* riscv-kbuild-add-virtual-memory-system-selection.patch
+* mm-fs-move-randomize_stack_top-from-fs-to-mm.patch
+* arm64-make-use-of-is_compat_task-instead-of-hardcoding-this-test.patch
+* arm64-consider-stack-randomization-for-mmap-base-only-when-necessary.patch
+* arm64-mm-move-generic-mmap-layout-functions-to-mm.patch
+* arm64-mm-make-randomization-selected-by-generic-topdown-mmap-layout.patch
+* arm-properly-account-for-stack-randomization-and-stack-guard-gap.patch
+* arm-use-stack_top-when-computing-mmap-base-address.patch
+* arm-use-generic-mmap-top-down-layout-and-brk-randomization.patch
+* mips-properly-account-for-stack-randomization-and-stack-guard-gap.patch
+* mips-use-stack_top-when-computing-mmap-base-address.patch
+* mips-adjust-brk-randomization-offset-to-fit-generic-version.patch
+* mips-replace-arch-specific-way-to-determine-32bit-task-with-generic-version.patch
+* mips-use-generic-mmap-top-down-layout-and-brk-randomization.patch
+* riscv-make-mmap-allocation-top-down-by-default.patch
+* mm-introduce-madv_cold.patch
+* mm-change-pageref_reclaim_clean-with-page_refreclaim.patch
+* mm-introduce-madv_pageout.patch
+* mm-introduce-madv_pageout-fix.patch
+* mm-factor-out-common-parts-between-madv_cold-and-madv_pageout.patch
+* mm-madvise-reduce-code-duplication-in-error-handling-paths.patch
+* zpool-add-malloc_support_movable-to-zpool_driver.patch
+* zswap-use-movable-memory-if-zpool-support-allocate-movable-memory.patch
+* mm-proportional-memorylowmin-reclaim.patch
+* mm-make-memoryemin-the-baseline-for-utilisation-determination.patch
+* mm-make-memoryemin-the-baseline-for-utilisation-determination-fix.patch
+* mm-vmscan-remove-unused-lru_pages-argument.patch
+* mm-dont-expose-page-to-fast-gup-before-its-ready.patch
+* info-task-hung-in-generic_file_write_iter.patch
+* info-task-hung-in-generic_file_write-fix.patch
+* kernel-hung_taskc-monitor-killed-tasks.patch
+* linux-coffh-add-include-guard.patch
+* hung_task-allow-printing-warnings-every-check-interval.patch
+* linux-bitsh-clarify-macro-argument-names.patch
+* linux-bitsh-add-compile-time-sanity-check-of-genmask-inputs.patch
+* rbtree-sync-up-the-tools-copy-of-the-code-with-the-main-one.patch
+* augmented-rbtree-add-comments-for-rb_declare_callbacks-macro.patch
+* augmented-rbtree-add-new-rb_declare_callbacks_max-macro.patch
+* augmented-rbtree-add-new-rb_declare_callbacks_max-macro-fix.patch
+* augmented-rbtree-add-new-rb_declare_callbacks_max-macro-fix-3.patch
+* augmented-rbtree-rework-the-rb_declare_callbacks-macro-definition.patch
+* lib-genallocc-export-symbol-addr_in_gen_pool.patch
+* lib-genallocc-rename-addr_in_gen_pool-to-gen_pool_has_addr.patch
+* lib-genallocc-rename-addr_in_gen_pool-to-gen_pool_has_addr-fix.patch
+* string-add-stracpy-and-stracpy_pad-mechanisms.patch
+* documentation-checkpatch-prefer-stracpy-strscpy-over-strcpy-strlcpy-strncpy.patch
+* kernel-doc-core-api-include-stringh-into-core-api.patch
+* kernel-doc-core-api-include-stringh-into-core-api-v2.patch
+* writeback-fix-wstringop-truncation-warnings.patch
+* strscpy-reject-buffer-sizes-larger-than-int_max.patch
+* lib-fix-possible-incorrect-result-from-rational-fractions-helper.patch
+* checkpatch-dont-interpret-stack-dumps-as-commit-ids.patch
+* checkpatch-improve-spdx-license-checking.patch
+* checkpatchpl-warn-on-invalid-commit-id.patch
+* checkpatch-add-_notifier_head-as-var-definition.patch
+* checkpatch-exclude-sizeof-sub-expressions-from-macro_arg_reuse.patch
+* fs-reiserfs-remove-unnecessary-check-of-bh-in-remove_from_transaction.patch
+* fat-add-nobarrier-to-workaround-the-strange-behavior-of-device.patch
+* fork-improve-error-message-for-corrupted-page-tables.patch
+* cpumask-nicer-for_each_cpumask_and-signature.patch
+* kexec-bail-out-upon-sigkill-when-allocating-memory.patch
+* kexec-restore-arch_kexec_kernel_image_probe-declaration.patch
+* aio-simplify-read_events.patch
+* kgdb-dont-use-a-notifier-to-enter-kgdb-at-panic-call-directly.patch
+* scripts-gdb-handle-split-debug.patch
+* ipc-consolidate-all-xxxctl_down-functions.patch
+  linux-next.patch
+  diff-sucks.patch
+* pinctrl-fix-pxa2xxc-build-warnings.patch
+* mips-add-support-for-generic-vdso-fix.patch
+* mm-treewide-clarify-pgtable_page_ctordtor-naming.patch
+* drivers-tty-serial-sh-scic-suppress-warning.patch
+* fix-read-buffer-overflow-in-delta-ipc.patch
+  make-sure-nobodys-leaking-resources.patch
+  releasing-resources-with-children.patch
+  mutex-subsystem-synchro-test-module.patch
+  kernel-forkc-export-kernel_thread-to-modules.patch
+  workaround-for-a-pci-restoring-bug.patch
 
