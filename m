@@ -2,156 +2,148 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7247DC32751
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 19:58:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A96A3C32751
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 20:01:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 05B962229C
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 19:58:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6985821E73
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 20:01:25 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="NKiybbKg"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 05B962229C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="zQWA7F1K"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6985821E73
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 654AB6B0003; Wed,  7 Aug 2019 15:58:31 -0400 (EDT)
+	id 0AC356B0003; Wed,  7 Aug 2019 16:01:25 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 604B66B0006; Wed,  7 Aug 2019 15:58:31 -0400 (EDT)
+	id 05EE96B0006; Wed,  7 Aug 2019 16:01:25 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4F32E6B0007; Wed,  7 Aug 2019 15:58:31 -0400 (EDT)
+	id E8CE36B0007; Wed,  7 Aug 2019 16:01:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 185256B0003
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 15:58:31 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id b30so71524pla.16
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 12:58:31 -0700 (PDT)
+Received: from mail-pl1-f197.google.com (mail-pl1-f197.google.com [209.85.214.197])
+	by kanga.kvack.org (Postfix) with ESMTP id B53FA6B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 16:01:24 -0400 (EDT)
+Received: by mail-pl1-f197.google.com with SMTP id q11so53827754pll.22
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 13:01:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=0khcKVDc1M1qvkv6DyyrH2FLY7iQ9qgNyVVoVFfpCEY=;
-        b=ctZVzfgBcFsbQEN/DmDRVX4ShCercGL9OtKgF2nv6DOnvMm6eJGC0GwbJBYZfqI9cP
-         0mBxKvfb/AybKBp2X7HQq85d5ZeRj29V6eZI+A3CC6XmBAneWHDfwo5PftOVLlgMKn0s
-         LtHWu/jr0OqRPmR5t7sY/7lSdNc/j7EWbiFyj2s6uslr+U+Ezj8RAZXyfS7qhqyeyDOe
-         k+0Yje4D3wBwLzEU87ubtyxBPCRUaB9Xk5I1uUSTdZIlt+Hr6MlZn+WIEJjWp+WXwdid
-         hZTymBc7hOTcgwY060Fnu60yTTyTW/vqe9WF0zkHItQBsWU5A8tT2FqSE7wO3gCNXyw+
-         hJ1w==
-X-Gm-Message-State: APjAAAVnhxeKKCf/fDxkpIwlz6Xhgu5qRPi8yWgTCplTLNC6Lww1p1Cc
-	SZQLHVvWc7no1I7y767p4BksoigakJBXWHYsrDQw73+iUCuuZjXwQr6UxB1a4GtctaSCrnXbQvV
-	aN9ZnY1EyTsMiWy8CqTVku7ULyome8iiG8//MAlix3eUPLlUme2rXxipUzBSUxCsG3w==
-X-Received: by 2002:a17:902:8b88:: with SMTP id ay8mr9404410plb.139.1565207910685;
-        Wed, 07 Aug 2019 12:58:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzbViP+qZDS7Q2BS5RX32iS7TJHgrRjmc3auhWIiDirLmXT99DBjkWUs4JW3mE5yJurdRrP
-X-Received: by 2002:a17:902:8b88:: with SMTP id ay8mr9404356plb.139.1565207909849;
-        Wed, 07 Aug 2019 12:58:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565207909; cv=none;
+         :message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=R7q4DOl8O4PE+6BWh0cAXRcqIQUKkm71xqz/IGPsB+c=;
+        b=PnPjqmKBkh27TxnKTZlMCECRtdnDws6z2rKbcghTk4Pc8RHBsWb7Dm00JhJdR/U0cm
+         8Ki6REtb44RKvbunA+BEXg53ZXUzU12dV0JJHfaWB067wjSlYX3hgcQoHPcrUMnV+1fM
+         Q2y+PL1RnzrqfESyi720vHyOHVFntJH6hU56EIlEDhVkZCTdoIJ1eSrVuWWg5zMD079N
+         Br2aVN4tpt4LqEuJNOD59InznvWR/9iiBP6g4Qa3DhAKU1Balz3e1lSXjrHS5zmvrmcZ
+         KYL1yz2NbKPsjMbLN+rWjfo/z0KxnXAXrtkFmTFxjaUCfuD1ShcZNxgINl5kJC3o8ZFC
+         mROQ==
+X-Gm-Message-State: APjAAAUt0tIpgJYrATyRJSk4Ur8A4dir7mkWQzHi56lU2gwIVMJOAppZ
+	sStXLuiMTOAgpzp+bFkwB2lx7SAeg6KWy8WcqwfZu9X9Ge2yPfcXYaEPvqs1V3FkozNEmHX0bfD
+	ZDqx5MsnZII2ZYxmk1tleoIP607d0QJdHaHTXSRGM9l9yq4H23OXjE/UK9P3ruPuREg==
+X-Received: by 2002:a17:902:d892:: with SMTP id b18mr9130979plz.165.1565208084412;
+        Wed, 07 Aug 2019 13:01:24 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyLDsg68ZLs2/G19yhqDXUo9xATLFgpzQ/YcemeOFTd1zvgNviCW9iXETxPTfzXGMdL0LCh
+X-Received: by 2002:a17:902:d892:: with SMTP id b18mr9130926plz.165.1565208083705;
+        Wed, 07 Aug 2019 13:01:23 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565208083; cv=none;
         d=google.com; s=arc-20160816;
-        b=rMU7IHGxVD8dHLB9SO1AlZby2v9oidDmO4P5kxd5UN1UuEBkoJDRy5d1qciBzoZx2o
-         viw1/foSHgR2ux33xbDxKHZ0Aa+52kVDTK8SI8DXwri/OHD8m41EOcWw44nvzKbzYu28
-         5/C2BPtCtAZr1ipi08iuYh+LQ1r3Orv7ECpBzjnbldCsvOk0Wlj/KFDXlzVCmxOjNss6
-         KvSYJVDKzZU6MAbapYPGAPQBRloN3ozyrIaV4WeQJ2qoLEDKZg11N9BeovT0jlZLzw19
-         SizuGFuEXeqVSyo1tJDUdKyBUuyGXzmgtg6OlU1Vjw7Dwi3kTUzCxBosBqXFZWzE86zj
-         M2QA==
+        b=uUnXYxVlrx0lS9VbClJoL3vhywV4Ebzp8W1R6jrpoM4Nv+ijHUC+EcOMFXuH5KpS//
+         ekWGzjbilkmODDYGsB0wRKvyCx1U2qlULq8CZe0eFRVEdBVevYy1WbtM3ZVAlXYoUF4j
+         ps94vndPNExdBJCSXv19L3C40fro1qBMIBgc+PATa0kXLv1yPOMa4ZLyGmGciDdhuzk1
+         r3xfJ6Tq+VzP6To+FEuyCly3rXL6p0mR3k/mbbRUFuR/H4o/xRFQTFYAMZLS8jGOZyyf
+         pvgjcUhZjXyKSMcsMSWp5Gk6NjuPOtNnSGFFrOOdEUYVl3Yv1qspPxoONVkm3RwL32AI
+         0/Fg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
+        h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=0khcKVDc1M1qvkv6DyyrH2FLY7iQ9qgNyVVoVFfpCEY=;
-        b=NlOFpcRtHe5w6svWI485RQObD1XfHmUXaJJyrbUpptEH9iAubmikpnjP18l+tSHhjt
-         zXcNYJ1FAdmcfH2lAto53x1beTRzMjj+cVwioTlL3UyRP7pkZ+naXmzb4CV7aJdOuanJ
-         LNFBT2uQPOSMRw6h7QdfSuSRzJOsioejiqLiLjYh3wxLWNETgAPOXfvrjRFCbthuvw6C
-         GXAUuns8GIqNYIACd5czwm4Cs+uebLRJEMDPRXR3WRwd6ZYrY2AzrLd2g9F2FjaEB3Zt
-         g6Bq2oyq6+v0ck9ZVxU4EobDDjnooXC3M+easbvlIPEXdsHei4i1O7cEP9cj2JBc7s5k
-         S0Pg==
+        bh=R7q4DOl8O4PE+6BWh0cAXRcqIQUKkm71xqz/IGPsB+c=;
+        b=snJQ1eDTCVlkPupOJkbyDdmZrZ6efxBzljKD49O8C9yFkmExpevHDs+Fg1PzdtEWMu
+         9TvW+CUApHAbOMK5UhhVRrZHGw6S0XLjk7KhIUq9+0dlkqIvg9BCIWla4S8c3jI5XMJe
+         FHYzrTh5BAENazjqLno3RSS5XjdKTLrEsX6jeTjAfA50Hg1yCIF8IEc8lybYdAQO8jRa
+         pXm0XOSGhQKFflLUf2+qfDrtmo6lgyUekBWqfy4OGz/wjS4ZLBwydd1tBrbUhSZomdJk
+         3g+gxG5/vmYuZj2liyvFvk9v96BllanysaWd8o5IqKbmFES+w9CovlEJeF7hO31ic8j8
+         3TFA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=NKiybbKg;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id g98si43212pje.92.2019.08.07.12.58.29
+       dkim=pass header.i=@kernel.org header.s=default header.b=zQWA7F1K;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id u15si51473680pgn.178.2019.08.07.13.01.23
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 07 Aug 2019 12:58:29 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Aug 2019 13:01:23 -0700 (PDT)
+Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=NKiybbKg;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=0khcKVDc1M1qvkv6DyyrH2FLY7iQ9qgNyVVoVFfpCEY=; b=NKiybbKgcU+q44Ei2Q7De+6iG
-	ztSVcmsSn3guhAcPw69spDGchYJkKSr1zXigAqS6E+/ezF9+17Tb+bACFAXyPfUqF/uFE0MY485Tg
-	fB+PtHAnG4/yAHlBfyE/FFeAvsWT+B00FogAwQYkPKzKvRauSfgXOcvkb9Koh/u9Gb4PI1GoAEOES
-	3Anly3YV9QI6OjClj93Ke5Yz6q8JbpuvvuNMDrJ6Z2XOrTA3dWNiKylx+0PaB+GYdZpDq5oPLm6iz
-	QyUpcCEL7SDOvTvaiyoK7SPkfuTN/IJHhdVmQY2GbhB0lXBj28pRQ9M1sw38VJgN+0meBi77p0wAu
-	t0Ume/Jnw==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hvS4j-0008Gx-Ai; Wed, 07 Aug 2019 19:58:21 +0000
-Date: Wed, 7 Aug 2019 12:58:21 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: syzbot <syzbot+3de312463756f656b47d@syzkaller.appspotmail.com>
-Cc: allison@lohutok.net, andreyknvl@google.com, cai@lca.pw,
-	gregkh@linuxfoundation.org, keescook@chromium.org,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-usb@vger.kernel.org, syzkaller-bugs@googlegroups.com,
-	tglx@linutronix.de, Jiri Kosina <jkosina@suse.cz>
-Subject: Re: BUG: bad usercopy in hidraw_ioctl
-Message-ID: <20190807195821.GD5482@bombadil.infradead.org>
-References: <000000000000ce6527058f8bf0d0@google.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <000000000000ce6527058f8bf0d0@google.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+       dkim=pass header.i=@kernel.org header.s=default header.b=zQWA7F1K;
+       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
+Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 6D7B42229C;
+	Wed,  7 Aug 2019 20:01:22 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1565208083;
+	bh=4Y+9zhlp+p8rLuzDnvz16xcsN6RE4cU24OrOaFTWccE=;
+	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
+	b=zQWA7F1KoIQRCIl1yVyS0BiJUwsrwYEryJKxMHNxcX6ONB8eZ93zxVmeDQ44zmmr7
+	 94PMczCgAY0emIRaZfVAe7SJ/fxtD+5a/tCkNgG8bpb7LPhysLSpabBlToJlvBBdXz
+	 27kDL9DLZKISnabXM7rW3N8cStMFHWeqYCj5Xb7E=
+Date: Wed, 7 Aug 2019 13:01:22 -0700
+From: Andrew Morton <akpm@linux-foundation.org>
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
+ Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>, Catalin
+ Marinas <catalin.marinas@arm.com>, Christian Hansen <chansen3@cisco.com>,
+ dancol@google.com, fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
+ Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook
+ <keescook@chromium.org>, kernel-team@android.com,
+ linux-api@vger.kernel.org, linux-doc@vger.kernel.org,
+ linux-fsdevel@vger.kernel.org, linux-mm@kvack.org, Michal Hocko
+ <mhocko@suse.com>, Mike Rapoport <rppt@linux.ibm.com>, minchan@kernel.org,
+ namhyung@google.com, paulmck@linux.ibm.com, Robin Murphy
+ <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>, Stephen Rothwell
+ <sfr@canb.auug.org.au>, surenb@google.com, Thomas Gleixner
+ <tglx@linutronix.de>, tkjos@google.com, Vladimir Davydov
+ <vdavydov.dev@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Will Deacon
+ <will@kernel.org>, Brendan Gregg <brendan.d.gregg@gmail.com>
+Subject: Re: [PATCH v4 1/5] mm/page_idle: Add per-pid idle page tracking
+ using virtual indexing
+Message-Id: <20190807130122.f148548c05ec07e7b716457e@linux-foundation.org>
+In-Reply-To: <20190807100013.GC169551@google.com>
+References: <20190805170451.26009-1-joel@joelfernandes.org>
+	<20190806151921.edec128271caccb5214fc1bd@linux-foundation.org>
+	<20190807100013.GC169551@google.com>
+X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 07, 2019 at 12:28:06PM -0700, syzbot wrote:
-> usercopy: Kernel memory exposure attempt detected from wrapped address
-> (offset 0, size 0)!
-> ------------[ cut here ]------------
-> kernel BUG at mm/usercopy.c:98!
+On Wed, 7 Aug 2019 06:00:13 -0400 Joel Fernandes <joel@joelfernandes.org> wrote:
 
-This report is confusing because the arguments to usercopy_abort() are wrong.
+> > > 8 files changed, 376 insertions(+), 45 deletions(-)
+> > 
+> > Quite a lot of new code unconditionally added to major architectures. 
+> > Are we confident that everyone will want this feature?
+> 
+> I did not follow, could you clarify more? All of this diff stat is not to
+> architecture code:
 
-        /* Reject if object wraps past end of memory. */
-        if (ptr + n < ptr)
-                usercopy_abort("wrapped address", NULL, to_user, 0, ptr + n);
 
-ptr + n is not 'size', it's what wrapped.  I don't know what 'offset'
-should be set to, but 'size' should be 'n'.  Presumably we don't want to
-report 'ptr' because it'll leak a kernel address ... reporting 'n' will
-leak a range for a kernel address, but I think that's OK?  Admittedly an
-attacker can pass in various values for 'n', but it'll be quite noisy
-and leave a trace in the kernel logs for forensics to find afterwards.
+My point is that the patchset adds a lot of new code with no way in
+which users can opt out.  Almost everyone gets a fatter kernel - how
+many of those users will actually benefit from it?
 
-> Call Trace:
->  check_bogus_address mm/usercopy.c:151 [inline]
->  __check_object_size mm/usercopy.c:260 [inline]
->  __check_object_size.cold+0xb2/0xba mm/usercopy.c:250
->  check_object_size include/linux/thread_info.h:119 [inline]
->  check_copy_size include/linux/thread_info.h:150 [inline]
->  copy_to_user include/linux/uaccess.h:151 [inline]
->  hidraw_ioctl+0x38c/0xae0 drivers/hid/hidraw.c:392
+If "not many" then shouldn't we be making it Kconfigurable?
 
-The root problem would appear to be:
-
-                                else if (copy_to_user(user_arg + offsetof(
-                                        struct hidraw_report_descriptor,
-                                        value[0]),
-                                        dev->hid->rdesc,
-                                        min(dev->hid->rsize, len)))
-
-That 'min' should surely be a 'max'?
-
-Jiri, this looks like it was your code back in 2007.
+Are there userspace tools which present this info to users or which
+provide monitoring of some form?  Do major distros ship those tools? 
+Do people use them?  etcetera.
 
