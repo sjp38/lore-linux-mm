@@ -2,222 +2,183 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
-	version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DFC64C32751
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 11:42:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F5E8C433FF
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 11:46:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7928C21BF6
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 11:42:10 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D89522086D
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 11:46:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="mKYy+2iH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7928C21BF6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="U08Ufgqo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D89522086D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D45D26B0007; Wed,  7 Aug 2019 07:42:09 -0400 (EDT)
+	id 63D9E6B0007; Wed,  7 Aug 2019 07:46:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CCE996B0008; Wed,  7 Aug 2019 07:42:09 -0400 (EDT)
+	id 5D0546B0008; Wed,  7 Aug 2019 07:46:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B97376B000A; Wed,  7 Aug 2019 07:42:09 -0400 (EDT)
+	id 48ECB6B000A; Wed,  7 Aug 2019 07:46:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f69.google.com (mail-lf1-f69.google.com [209.85.167.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 522356B0007
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 07:42:09 -0400 (EDT)
-Received: by mail-lf1-f69.google.com with SMTP id h13so2154541lfm.0
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 04:42:09 -0700 (PDT)
+Received: from mail-qk1-f200.google.com (mail-qk1-f200.google.com [209.85.222.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 267DF6B0007
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 07:46:36 -0400 (EDT)
+Received: by mail-qk1-f200.google.com with SMTP id d11so78830286qkb.20
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 04:46:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:references:in-reply-to:accept-language
-         :content-language:content-id:content-transfer-encoding:mime-version;
-        bh=aL+citF68CAxs6Y8RXNOO5t8vu7g/fcgeL4uoy5a6ZE=;
-        b=MtVF/WlmRReo9IB9CWO30QlBOc9U7HVf7BLIIsmHS2lBGOOxszGiVtI/kx3+N2iALO
-         cJrNgptr7PlLadSk9UOyPwfdIuQHoD0AiV6cEz9dRveKdhfowLjGz5u1fHFuSXP6Z7tq
-         A+4HDWZ/bm43M0j3j+oV+SagA67ZnkVWGBWAP00u2+UoMhRQVdnJc1vYOfTHwklRcn1+
-         4V2gkozi1QqPIZAceWEjKSki5KwN9jsOl0nGae58pEOY5yg4/cCDj1/k11uQjLYnziO3
-         fVM4upROO5Z4J7D9g7SQB3xe09wKKfX+8f/mbZMQUgIo0DdtdkQJttCew1ecE9ywq5Om
-         Ke+g==
-X-Gm-Message-State: APjAAAXVgjy4e8gWcUZeZlHTQRrw7dXpz3ZrXR7mTimPYbTnHVsMvZgc
-	pcWZVIJVfB3eOUZClYu2JdIICCtzJMq2GCievX9rnE7F9sX4CnaC8lQ/itp0lEHofzlKedVsLDJ
-	fJhNfxR8Wd8qR8AeeRz9lwWf2ZbQVSWatZg22AQT+cPc360OyDLf0sAfvefnc34inWQ==
-X-Received: by 2002:a2e:b0e6:: with SMTP id h6mr4343104ljl.18.1565178128630;
-        Wed, 07 Aug 2019 04:42:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwFedsH3nYZNqk3OIxj220i2Z5Xt4izRTLC7h1JEWu0aXw/P5jP4CkZ48aR0+ik2qY1sTy4
-X-Received: by 2002:a2e:b0e6:: with SMTP id h6mr4343057ljl.18.1565178127614;
-        Wed, 07 Aug 2019 04:42:07 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1565178127; cv=pass;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=9tcMRoCrJOgypBCjgMnEianhaeJlCGMLrqGgBoLjIDU=;
+        b=NKheLfl1pJ6I3B2ji2R11ZBTgmY6GTqvFATvJBNbF60NTc57BGW7n6mdyUfrXI9iEh
+         e9KGUSheZHDVRmrS3znNZKjHWayEIJUqlKYcKfBSd9ivRoVFAgoHKqc0PItoFwz35b1Q
+         FCrX5AWap98xREbnWDf143TjTE/VFIwsochoXecYPi4BzVa+jpA0HuVJaSnkN3VxqI2m
+         HJMGOVAqssjVNPwA0yalN3nrvhrwoRKEBVQXimqYbUvUGSqx8ffgHjv+yeuObuuGqGzL
+         gFPKIziYUc8ske47QmR+wPyWLskwiNFTztf9x9B4M7ywrmZKqbv+yZpJxliv1VbtHrup
+         MBCg==
+X-Gm-Message-State: APjAAAW2R2MvezEw1A1wLiDI/Wxo1RiX+51g/0AarDfRJ9rhJjOxs+2y
+	wCHdZBlrl+GX5J9z7D6yBtnsLb4IrVjtKEgQizjhaRRh1TW5JuBdVWc4Nd2HEyOSHZZom4FmesG
+	FWPpdy5PkPfd36gWr4V2P3VI/fBhTYu1QqpYY7l6lkqyic/ayJFE88X0VswdC6SmbtQ==
+X-Received: by 2002:a0c:98e9:: with SMTP id g38mr7511027qvd.187.1565178395901;
+        Wed, 07 Aug 2019 04:46:35 -0700 (PDT)
+X-Received: by 2002:a0c:98e9:: with SMTP id g38mr7510993qvd.187.1565178395254;
+        Wed, 07 Aug 2019 04:46:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565178395; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZvKxoqjRL07cHLO6xs6RV6vI+PtB7ODDknjimuKJkEsQe1QKu4X3VzHuGdE2uGoKcY
-         EuNSX3t4RTzfVO18gQkoA6EAc7+4/WCMdOaJQEXKut63JFKz5GAhlJQ7+jRbUte6R1vt
-         lamAIUzdsSoaKEx/bgGEe5b5Ehar+8ndviBNh4mS3EUwRmav8JWDHDOANuq5rT11roG5
-         K+Y4o+GwDJi2YrWHdbWsTyuMBchHC+58lzyORsg5CZh/KSdWhSAtPdaHhfHgn16by1tZ
-         mOkaB4hA0i37erw7yjRZcJmAdWa2v+b2XkE9jn5C0iJ24tsKboh8CjLAzdyxy6IN1pIb
-         W7Pw==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:in-reply-to:references:message-id:date:thread-index
-         :thread-topic:subject:cc:to:from:dkim-signature;
-        bh=aL+citF68CAxs6Y8RXNOO5t8vu7g/fcgeL4uoy5a6ZE=;
-        b=yHXzl0oT7EvpHkF3efnamhEMtuw2KjKMFypzDSEsIp8NrCXU7HtTx4vViXI9qw+kuu
-         kmSZ5mOQig7FEBNhYtLGec4Y1VBCQdT0xfdl84UHKVuepg4WJgNmdnB45+XZokNz43eh
-         2fgaPS+oP3lrBIXnIQ2z1JZj8UPbbMGbRvJDP+PEGELIU2jAGf3u9I0NzZ0g6FKRIheO
-         7YnBNQnfrDl5giQH1lpTbW94LKd4E8ghe+MqvXKoUzQkbTSRF7N3uDYJsq1dkrx3yMqu
-         k6ZyrtyknR30UKTtbro7nyNib/DSdZ/yPBxkeb8UFOHSFoY4ThoTRUSiKHGSTw90QhtJ
-         oUhA==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=mKYy+2iH;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.14.88 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-Received: from EUR01-VE1-obe.outbound.protection.outlook.com (mail-eopbgr140088.outbound.protection.outlook.com. [40.107.14.88])
-        by mx.google.com with ESMTPS id i124si11790596lfd.13.2019.08.07.04.42.07
+        b=ZhOOpygQlDw1d1Hs6J5Op63qp5Vwy2mvh55DctU1lAaLxsrsfnNHNO9PrKt68Hl3CF
+         0JaFSLw+e/PRs3eobPs3sUNb3bnvacXroKc9uAn4xQgQWPr6MoGFMTOuEqu14fb63+fy
+         sK5kJGo30wayJ2aGyZj4qVfvl1lQqgigi+xGldDffWMoTe3mSWE56MBy10qklxrXi1Y7
+         A6dXXFS0NkBN+dlozH6fwWPe5lcK/rXzCmDMJF6jaH8dHObEPvx/U5Kc6obaAM0LGuk+
+         PWwytVnVShm5SwnWTBsMd/53J0H6rPLqk2PGwWP9fbcXvI1ZA+9SKzW0PY49JZm7x+1p
+         P0hg==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=9tcMRoCrJOgypBCjgMnEianhaeJlCGMLrqGgBoLjIDU=;
+        b=wP77EVIcExkq52X9KpqlfO4DkOS7e6XIPXr42AQPAP2bZI+M42t72gO2rWc9wO/ypo
+         ZQcHpcIY5Uv2Mi9RagMoidgx3w9GuQP8zhPNvOtREZb8l1kqhy7Vz4EmDGt7VkzsDOmP
+         UcGLRzK4reEoSn27I9FxC2BhPY6yeuteYNLJBCELzyINYr76dfJYNoJhOzvfRxVRDb7f
+         lOllCfapyQj+Z4PbuUaIJZ4ofAZ75TFO5agfM0Jo/Dpe6Vi0iWBdq+pB8ClEoMTKRfp1
+         KLzuryATCrbkiz5OKaWvpQII+vACq4OXtSSoIL+958xPFC1cJLB6lzaYGpbXweOiF/RE
+         DxYg==
+ARC-Authentication-Results: i=1; mx.google.com;
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=U08Ufgqo;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id q20sor442020qtq.33.2019.08.07.04.46.35
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Aug 2019 04:42:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.14.88 as permitted sender) client-ip=40.107.14.88;
+        (Google Transport Security);
+        Wed, 07 Aug 2019 04:46:35 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=mKYy+2iH;
-       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
-       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.14.88 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=ZVr3jfMo76HyKmLduAUrKb8WFb6ymaUtSVWaW1IhKEtpy+EnHcFtfOwM3BEjFy3nmrloTq+dGyxZ3TxU+xix8ehL5gleoF6nfuJc7krGZNNbYw7kB7xSttsSej+ZppUJk5glVGhyHgLAiBzAdijUrdsFlwqH60QHJxaM4CT4xR1Ye8X4TYrngu74IXmCqpiK87picL0qIwdISMpM5OnWFAImnIeEcgKuboRP/zL4nMZYacgfg2RsSaYzlan20Dld9vTLp1WvxgvH4XHc8P/LWmWDhehP2ICeYZpW976YC7Jo6mbk8bvLnCFYT6p+/+urIY91h4uG6zzb4C0RS6sW1w==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=aL+citF68CAxs6Y8RXNOO5t8vu7g/fcgeL4uoy5a6ZE=;
- b=IszXDIPi99jN2PerFFVxuRT76q/+SWjdvGDhsl4K/S3g4elKx9DYWt6gGMCtFLMEnQ8Iz7qZ8vtbZ3MD0XRYOqrqsFPKujEd6/Km3buCJR3m17CcT6kllPwO/5QH/KsiZIcmmGa+7lTQuU5wThPvkLUrgvqJcBHB2pT09p6XDO+oOsXHKNumg1c8t3GerfoCIB0CVv8eHPVuTn+LXctEqALLCASxMDzY4LrYn4YNEQZG4FvyU/yuZ3UiyqAFVYA5IHq+R3SXyyGLIw2RUv/cQ20XTMf/pzuU3nMN7tYUWt1zIn5OtnvOio65y1lqXI7QVsWV1DPCMQATnUz50ltTpA==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1;spf=pass
- smtp.mailfrom=mellanox.com;dmarc=pass action=none
- header.from=mellanox.com;dkim=pass header.d=mellanox.com;arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=aL+citF68CAxs6Y8RXNOO5t8vu7g/fcgeL4uoy5a6ZE=;
- b=mKYy+2iHsozehJuxnw2Y8sf/QMwxnQla+qM2hpFCgrK84l2hGEG7x8dV1TShUhZACyb8JgBO40qZOXA6fAM9GJTdhr8DWRuLBCmDYb0HkiDsVzSp2YBcLWOjz3N0B6FqRu1UDADmhKFMWLxeluH+jJrbtMgf0N0p3EZLy+M7doY=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB4224.eurprd05.prod.outlook.com (52.133.12.13) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2136.14; Wed, 7 Aug 2019 11:42:05 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::5c6f:6120:45cd:2880%4]) with mapi id 15.20.2136.018; Wed, 7 Aug 2019
- 11:42:05 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: "Kuehling, Felix" <Felix.Kuehling@amd.com>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>, Andrea Arcangeli
-	<aarcange@redhat.com>, Christoph Hellwig <hch@lst.de>, John Hubbard
-	<jhubbard@nvidia.com>, =?iso-8859-1?Q?J=E9r=F4me_Glisse?=
-	<jglisse@redhat.com>, Ralph Campbell <rcampbell@nvidia.com>, "Deucher,
- Alexander" <Alexander.Deucher@amd.com>, "Koenig, Christian"
-	<Christian.Koenig@amd.com>, "Zhou, David(ChunMing)" <David1.Zhou@amd.com>,
-	Dimitri Sivanich <sivanich@sgi.com>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, "amd-gfx@lists.freedesktop.org"
-	<amd-gfx@lists.freedesktop.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>, "linux-rdma@vger.kernel.org"
-	<linux-rdma@vger.kernel.org>, "iommu@lists.linux-foundation.org"
-	<iommu@lists.linux-foundation.org>, "intel-gfx@lists.freedesktop.org"
-	<intel-gfx@lists.freedesktop.org>, Gavin Shan <shangw@linux.vnet.ibm.com>,
-	Andrea Righi <andrea@betterlinux.com>
-Subject: Re: [PATCH v3 hmm 10/11] drm/amdkfd: use mmu_notifier_put
-Thread-Topic: [PATCH v3 hmm 10/11] drm/amdkfd: use mmu_notifier_put
-Thread-Index: AQHVTKz0LjDSzhEB4EaA22+m0WS24abuyVUAgADHj4A=
-Date: Wed, 7 Aug 2019 11:42:05 +0000
-Message-ID: <20190807114159.GA1571@mellanox.com>
-References: <20190806231548.25242-1-jgg@ziepe.ca>
- <20190806231548.25242-11-jgg@ziepe.ca>
- <d58a1a8f-f80c-edfe-4b57-6fde9c0ca180@amd.com>
-In-Reply-To: <d58a1a8f-f80c-edfe-4b57-6fde9c0ca180@amd.com>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: YT1PR01CA0007.CANPRD01.PROD.OUTLOOK.COM (2603:10b6:b01::20)
- To VI1PR05MB4141.eurprd05.prod.outlook.com (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 1087a58d-cdab-450f-eed7-08d71b2c4559
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(5600148)(711020)(4605104)(1401327)(4618075)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(2017052603328)(7193020);SRVR:VI1PR05MB4224;
-x-ms-traffictypediagnostic: VI1PR05MB4224:
-x-microsoft-antispam-prvs:
- <VI1PR05MB42240F0964A805F21C3C18CECFD40@VI1PR05MB4224.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:10000;
-x-forefront-prvs: 01221E3973
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(39860400002)(346002)(376002)(396003)(366004)(136003)(199004)(189003)(186003)(446003)(478600001)(11346002)(7736002)(14444005)(316002)(6246003)(33656002)(2616005)(476003)(71200400001)(71190400001)(4326008)(8676002)(256004)(2906002)(486006)(386003)(8936002)(6916009)(7416002)(102836004)(6486002)(68736007)(99286004)(52116002)(305945005)(229853002)(26005)(54906003)(6506007)(53546011)(3846002)(6116002)(81156014)(6512007)(66556008)(14454004)(36756003)(66066001)(1076003)(53936002)(81166006)(66476007)(76176011)(25786009)(5660300002)(6436002)(64756008)(66446008)(86362001)(66946007);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4224;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;A:1;MX:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- IgSPmRJlcx5V/wGT4V9R6qOKgkgatfYgsL3FNjghYwzUEfezLy17OMRBs0OLS1AEpzQMLrIeMb4FmHDcS6BVivZf99xzE08ks276NRr4Z2vz7zSyVNi/dibZowxwQPcXCs3/1DH7tyLjc53VdBy+Vq30x1L+pT/WopWnLZxOIFgTLShW/o/kN9FSSqckMwK5jVKt28X34Z/T/oRe3CXyYFgXq1u+kQP0vr4KorDAIXQQKQ43kmQvmDtY8xVzn4+77l54rLKVRcmWfLJ1JcwxDtXTq45K9fOY7cjlA6Qh5+nvCQkLYc4I/hMSr1oWxVwJluom/aQvzZaqYEk2rfws6uGHlc24pD74d8UvjGQEcF3pU5ZdQxmHs3AEQBpgJ/uDKBFDuAynhLq+kBCGkJK1whhSyI+3j+qC0V5XDgb3iNM=
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <FEC4B53D5BFE794F897559B0282A7946@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+       dkim=pass header.i=@ziepe.ca header.s=google header.b=U08Ufgqo;
+       spf=pass (google.com: domain of jgg@ziepe.ca designates 209.85.220.65 as permitted sender) smtp.mailfrom=jgg@ziepe.ca
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=9tcMRoCrJOgypBCjgMnEianhaeJlCGMLrqGgBoLjIDU=;
+        b=U08UfgqoDECwAr2QVZQUgZK40EFADE7BB9s9xvrIZg9BnRq7d95CB83a2OkP1WEJcj
+         FJHxKesZGFWoqIF2Qvx18DQ0QvKbjikgKunvpDQdaSIZ0xtKT4N7Aaxnh+uo7IY4chsI
+         EfR9d/3Agjm/w1qM55xjv8+yMuR6GmpagkJuTiZ1huMV62pE12VP4QStafaX4bqEbCF5
+         nKofSYhlitBlOo14ZSx+w2EM6o/0BqEsL16SZ9EMLbCiY4rRVsTQde2O8lzNMJEb+Cq/
+         Vx2rLEgsoxjAWUNTBox+Ov8foZ2VXl/0VY0B4PKb+rOpSVgQBrfb34kDq3jWYLCsqCZd
+         XwCA==
+X-Google-Smtp-Source: APXvYqwgiLU0pSR3tJqkM4Nqx6SM116MNW2dWYs7m0gkaOSNuRmQOq6FVBT9RTAhBGfUW5xdKQEVPQ==
+X-Received: by 2002:aed:24d9:: with SMTP id u25mr7755713qtc.111.1565178394864;
+        Wed, 07 Aug 2019 04:46:34 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id a135sm40043046qkg.72.2019.08.07.04.46.34
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Wed, 07 Aug 2019 04:46:34 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hvKOn-0000fJ-NF; Wed, 07 Aug 2019 08:46:33 -0300
+Date: Wed, 7 Aug 2019 08:46:33 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: "Koenig, Christian" <Christian.Koenig@amd.com>
+Cc: Alex Deucher <alexdeucher@gmail.com>,
+	"Kuehling, Felix" <Felix.Kuehling@amd.com>,
+	Christoph Hellwig <hch@lst.de>,
+	"Deucher, Alexander" <Alexander.Deucher@amd.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
+	Ben Skeggs <bskeggs@redhat.com>
+Subject: Re: [PATCH 15/15] amdgpu: remove CONFIG_DRM_AMDGPU_USERPTR
+Message-ID: <20190807114633.GA1557@ziepe.ca>
+References: <20190806160554.14046-1-hch@lst.de>
+ <20190806160554.14046-16-hch@lst.de>
+ <20190806174437.GK11627@ziepe.ca>
+ <587b1c3c-83c4-7de9-242f-6516528049f4@amd.com>
+ <CADnq5_Puv-N=FVpNXhv7gOWZ8=tgBD2VjrKpVzEE0imWqJdD1A@mail.gmail.com>
+ <20190806200356.GU11627@ziepe.ca>
+ <4a040a3f-8981-3e94-2436-8295a0caa534@amd.com>
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 1087a58d-cdab-450f-eed7-08d71b2c4559
-X-MS-Exchange-CrossTenant-originalarrivaltime: 07 Aug 2019 11:42:05.4715
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4224
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4a040a3f-8981-3e94-2436-8295a0caa534@amd.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 06, 2019 at 11:47:44PM +0000, Kuehling, Felix wrote:
-> On 2019-08-06 19:15, Jason Gunthorpe wrote:
-> > From: Jason Gunthorpe <jgg@mellanox.com>
-> >
-> > The sequence of mmu_notifier_unregister_no_release(),
-> > mmu_notifier_call_srcu() is identical to mmu_notifier_put() with the
-> > free_notifier callback.
-> >
-> > As this is the last user of those APIs, converting it means we can drop
-> > them.
-> >
-> > Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
->=20
-> Reviewed-by: Felix Kuehling <Felix.Kuehling@amd.com>
->=20
-> >   drivers/gpu/drm/amd/amdkfd/kfd_priv.h    |  3 ---
-> >   drivers/gpu/drm/amd/amdkfd/kfd_process.c | 10 ++++------
-> >   2 files changed, 4 insertions(+), 9 deletions(-)
-> >
-> > I'm really not sure what this is doing, but it is very strange to have =
-a
-> > release with no other callback. It would be good if this would change t=
-o use
-> > get as well.
-> KFD uses the MMU notifier to detect process termination and free all the=
-=20
-> resources associated with the process. This was first added for APUs=20
-> where the IOMMUv2 is set up to perform address translations using the=20
-> CPU page table for device memory access. That's where the association of=
-=20
-> KFD process resources with the lifetime of the mm_struct comes from.
+On Wed, Aug 07, 2019 at 06:57:24AM +0000, Koenig, Christian wrote:
+> Am 06.08.19 um 22:03 schrieb Jason Gunthorpe:
+> > On Tue, Aug 06, 2019 at 02:58:58PM -0400, Alex Deucher wrote:
+> >> On Tue, Aug 6, 2019 at 1:51 PM Kuehling, Felix <Felix.Kuehling@amd.com> wrote:
+> >>> On 2019-08-06 13:44, Jason Gunthorpe wrote:
+> >>>> On Tue, Aug 06, 2019 at 07:05:53PM +0300, Christoph Hellwig wrote:
+> >>>>> The option is just used to select HMM mirror support and has a very
+> >>>>> confusing help text.  Just pull in the HMM mirror code by default
+> >>>>> instead.
+> >>>>>
+> >>>>> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> >>>>>    drivers/gpu/drm/Kconfig                 |  2 ++
+> >>>>>    drivers/gpu/drm/amd/amdgpu/Kconfig      | 10 ----------
+> >>>>>    drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.c |  6 ------
+> >>>>>    drivers/gpu/drm/amd/amdgpu/amdgpu_ttm.h | 12 ------------
+> >>>>>    4 files changed, 2 insertions(+), 28 deletions(-)
+> >>>> Felix, was this an effort to avoid the arch restriction on hmm or
+> >>>> something? Also can't see why this was like this.
+> >>> This option predates KFD's support of userptrs, which in turn predates
+> >>> HMM. Radeon has the same kind of option, though it doesn't affect HMM in
+> >>> that case.
+> >>>
+> >>> Alex, Christian, can you think of a good reason to maintain userptr
+> >>> support as an option in amdgpu? I suspect it was originally meant as a
+> >>> way to allow kernels with amdgpu without MMU notifiers. Now it would
+> >>> allow a kernel with amdgpu without HMM or MMU notifiers. I don't know if
+> >>> this is a useful thing to have.
+> >> Right.  There were people that didn't have MMU notifiers that wanted
+> >> support for the GPU.
+> > ?? Is that even a real thing? mmu_notifier does not have much kconfig
+> > dependency.
+> 
+> Yes, that used to be a very real thing.
+> 
+> Initially a lot of users didn't wanted mmu notifiers to be enabled 
+> because of the performance overhead they costs.
 
-When all the HW objects that could do DMA to this process are
-destroyed then the mmu notififer should be torn down. The module
-should remain locked until the DMA objects are destroyed.
+Seems strange to hear these days, every distro ships with it on, it is
+needed for kvm.
 
-I'm still unclear why this is needed, the IOMMU for PASID already has
-notififers, and already blocks access when the mm_struct goes away,
-why add a second layer of tracking?
+> Then we had the problem that HMM mirror wasn't available on a lot of 
+> architectures.
+
+Some patches for hmm are ready now that will fix this
 
 Jason
 
