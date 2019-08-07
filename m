@@ -2,212 +2,138 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B3675C433FF
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 15:10:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 88EB3C41517
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 15:11:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6B1B821BF2
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 15:10:40 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 4D9AD21E73
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 15:11:06 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="aEUlb5wI"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B1B821BF2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="WY6tCtRo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D9AD21E73
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 04D816B0007; Wed,  7 Aug 2019 11:10:40 -0400 (EDT)
+	id CA8AC6B0008; Wed,  7 Aug 2019 11:11:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F40336B0008; Wed,  7 Aug 2019 11:10:39 -0400 (EDT)
+	id C59726B000A; Wed,  7 Aug 2019 11:11:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DB9D46B000A; Wed,  7 Aug 2019 11:10:39 -0400 (EDT)
+	id B482F6B000C; Wed,  7 Aug 2019 11:11:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B234F6B0007
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 11:10:39 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id b25so55214641otp.12
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 08:10:39 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BD566B0008
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 11:11:05 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id 65so52450401plf.16
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 08:11:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
          :message-id:date:user-agent:mime-version:in-reply-to
          :content-language:content-transfer-encoding;
-        bh=r5hYy0y7ReIvBBGIGF8JhtoWuvMamCNlmDIGrsGw3Ds=;
-        b=Oe2xtElyeq2I3bNG8CfueE7/fEErpT9yc4aysuoFzq1REx3Cnge/UiV2Dwe9EMVUs3
-         b4CxdRy9HI/PKKN7cK6Wpon3u9Z8erLe5dmi0kBHDC73JbALCUYBer0kCxMdX+Yk2sAg
-         KzlBAEzynTqJzLPShkPqSQSSKtoUzYYz7wHFlr3ZbAbWwctOX9e1VgRQQfyapBAgoRze
-         IC3mBmGmi4f3qJWrUmJ0QcbqHA/H546ZKECU119Qg8x3fQmCsJP2PbsiP+U1pXtNNCh9
-         zt0rBI3jicBY+gxF3xE54i1wn/crk3lUTfMOoKXntBZAJcrVwADW/+J3B61i5eIuqkHv
-         WgkQ==
-X-Gm-Message-State: APjAAAV2youBXO+UedMgfOetFC37jnQGSamqQnDHS6BtrFyic/CU3rEO
-	tEzx3rLpiSvU0ZSdeAqUaBCp6Pk3D+jNufmLjZ36xgpdq8KjnCrC1ZcCFPrSszpjRo02Dgi8uBf
-	4shyJquv2T8ys0wMH118+fWtRLOtv3/8U97aXTo3SPpH4Cr+U+A3geMnnfcavzN86AA==
-X-Received: by 2002:a05:6638:348:: with SMTP id x8mr2283554jap.31.1565190639337;
-        Wed, 07 Aug 2019 08:10:39 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwYghQUkAEti9yWol9eqL0gy11XGyZxmhByDWPxiPoj+29xqaFB43TP1baGh3Ybt5eHFVzj
-X-Received: by 2002:a05:6638:348:: with SMTP id x8mr2283480jap.31.1565190638605;
-        Wed, 07 Aug 2019 08:10:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565190638; cv=none;
+        bh=qNky4UNJfhbaacqAKPCp1Cl/iNKLfOo72Ypj0bndXBI=;
+        b=n9dEmGGYG3nAFN/Qd4x+lcVgWCXo1V3L283/0kXmDZpI+q7wDk7KE6BRG5MY10NXyX
+         yh4tfuBCNmMsTa551kyvIi/04uDuMT5VFADB+FpEI/+QV16R/YBCWTN4bxH4/5sg2P98
+         wGYruZwjOnR4x4IX+ot33YOmo8zQDpcL98RdgePri4as0WEWD59wmdOLXfpYxGeFIqm6
+         8okihT8rBxxrcTfpAOcOV0uZ7RTdUO+DCFyLBE8vKGQooa4podaltN+6790ie9xwUXbh
+         UaUf0htFI/veyFj7c46y/WxnNouPhzgw5fx+tq+R9EfppAVeBCs/t7bVqPu8/CjOBQpK
+         uoLw==
+X-Gm-Message-State: APjAAAV7J9WJghQEoYXTuKGX7fhnBWMGuFhSLi2GSIqVBUlohVqaD49M
+	qjWNWU0zDWgw+Ij9l3VK0uFWP0KdR+BliEwdKR4DeCnTZaZvFxI4sQLFXGIi7qkUGZK3od4qCOW
+	Z4PdPsqnv44AbYBWxOrD88we3lQAlDzr4uGYivZXTDR7q/vb4zL504yVF1C2N+XTuQA==
+X-Received: by 2002:a17:902:361:: with SMTP id 88mr8693242pld.123.1565190665179;
+        Wed, 07 Aug 2019 08:11:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyPkyTweE7MWY+4VbU1N44nSb5I27TuMYONUrofh7NAtUpyYtOhhTBsyTdS+dUDtS/x8nuv
+X-Received: by 2002:a17:902:361:: with SMTP id 88mr8693192pld.123.1565190664527;
+        Wed, 07 Aug 2019 08:11:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565190664; cv=none;
         d=google.com; s=arc-20160816;
-        b=wIwL2I8JKYBGKqxSLXoat+rIkTuBCZba0lgQatBHX1Y/DNgIo/WUT2vOWQCC7IT8to
-         y261WceKMapQMNDl0yOuyKkImMzLZZsO+F6su+/e4xy/rpOCOXw7biwMeNTiqyItx0QH
-         wqTELND5Ujo7nSvISVAyuqKGWbWXmM9i+qnomDE5yi+GWmHSeXYd8vAt4nIacss2t3iA
-         viT8DMy0P7eJkv8b9/DNNQH8XYr2sojmOILSPbdOqcsmgoVVr1+jT/B8WouPlN2Wwq5e
-         qKRaimngAsCl6fazZIbqgYhFLe3Fp3INB+Cps39Cccoi0D8p74FVtqrUhkjpVPNkRdlt
-         HqwA==
+        b=DyYje+WtnXuyMqpxH1GAHuxAuqvh/133f3wlDWnpZqsecINtYRoEYxOi5/ZN7A0zJu
+         fs3MnIUTHFRgW84ykXHhBd0epmBoc3dE4geiKdBDmsN2xQA5Q9qU0nIMQPsh7V4V4J4l
+         koE71E6b5p5SDcFj4kdw6dixhE7Zh3S/g9UIxHBT3SLGszzmtOGZR/vF643RUgGJUTy5
+         +VC8fEOmNvjnaPxshK4OQj/ALi7fAI9psHBxyE4Kwo3Qhk6WwSaWOfoGnmFJwerlNf0E
+         uNdv49jCU3C+NemWBjbNXtXvPlu/V4RZgVrhnQowjzVYxIh6eoB6cpI/J5wiMgPjxh01
+         slBg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:from:references:cc:to:subject
          :dkim-signature;
-        bh=r5hYy0y7ReIvBBGIGF8JhtoWuvMamCNlmDIGrsGw3Ds=;
-        b=xLC8VdcfvY5PuAyy8Z8wkP8MX5qnRAQR3lxodIp1XNVKWjaZY5UmZXPZ7I4qPMRhxW
-         1sEujXy6w56yNenKenJxeClym5R0Tw+IbWWQdhUOksPLNpwMhrg6CzmgFq9GafvuMRgZ
-         4zcRfdb8dWiN/CR38/Mas/OtEKd509OUNa8NnaTAwyfChce+vWAPxIWogKJSOdE3NUGw
-         pvjiFGmp17ZrKUSd95ltdn1vSUO//mqqQxwYeujE7yduOkK20mZnEdPq8REWHZLjvQPn
-         KofrBboIjfyaDCY3JsDYauQr8INSAwOR55t7PzEKZS+GQgVSOfnhAHV3GwGvlsaWa2+a
-         bVGQ==
+        bh=qNky4UNJfhbaacqAKPCp1Cl/iNKLfOo72Ypj0bndXBI=;
+        b=Pwy/OjgwFMrJGkUYZiPqXwOhonnbuizwwaX33Cjd7SLYCwopq1wDl6ul6yOMrXIoMB
+         VAFo9XsN8EghfjOa+75DKyYF7AWhjomGsRoCoYM66rPbQqevS3qe5t5af9RLAmCLsgtZ
+         S0/35vZawEOXy9WByiKOiC4LA4PyjJPSRZOavfvAgDkhC2HP5aU6hdQmqz/ZipwteZ7j
+         kSt9tV3Yg9cuXoqR62MiLVhHkieARDgzToqk0LhShq90HyLd7Vw39oncN/9pzv455MEX
+         ycwy0WmRRZQgSngLIL2R6YIePYuJUgL+jr40dqZwdBYxrYvN9W1KJroiqnh6vHoXiV7y
+         DVxw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=aEUlb5wI;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2120.oracle.com (userp2120.oracle.com. [156.151.31.85])
-        by mx.google.com with ESMTPS id e10si1448670jac.49.2019.08.07.08.10.38
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WY6tCtRo;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id p3si44350559plo.185.2019.08.07.08.11.04
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Aug 2019 08:10:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) client-ip=156.151.31.85;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 07 Aug 2019 08:11:04 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=aEUlb5wI;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.85 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
-	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x77FANI8161267;
-	Wed, 7 Aug 2019 15:10:31 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=r5hYy0y7ReIvBBGIGF8JhtoWuvMamCNlmDIGrsGw3Ds=;
- b=aEUlb5wIH9S5rzPKUC7S8GI7QZ0KJ3RFmchbm+rawRIhZBTgNBLAbEos0YKxw7F4nuK5
- KodWcMJ35Z+iHDFKKIJd5ICJpOhVm9lWPs9yaVL7HLRpjctzEYNcRjq+p3svxGYHd/1v
- xgft/+a8dSGx5Vj+pDOCUEdx/HYoGUNu+A8WR0UPAlepzh5y6wrdlxWjSc9d3E30wdqg
- biEJ78AWog3IsjJIpLTh6yx+Ax+pyQkwBEImXStJEnMCPy4ScpnHXcaO7KtPoFj77uv5
- BwiR17Iaie6u51h6oDTVDbea5ewTdcqPA9Voz7ukTIAfhHw96QTsSaZG6fsKubDZHrhg 5w== 
-Received: from userp3020.oracle.com (userp3020.oracle.com [156.151.31.79])
-	by userp2120.oracle.com with ESMTP id 2u52wrcyka-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 07 Aug 2019 15:10:31 +0000
-Received: from pps.filterd (userp3020.oracle.com [127.0.0.1])
-	by userp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x77FA9Ii172827;
-	Wed, 7 Aug 2019 15:10:31 GMT
-Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
-	by userp3020.oracle.com with ESMTP id 2u763j04ue-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Wed, 07 Aug 2019 15:10:30 +0000
-Received: from abhmp0017.oracle.com (abhmp0017.oracle.com [141.146.116.23])
-	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x77FATHA014733;
-	Wed, 7 Aug 2019 15:10:29 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 07 Aug 2019 08:10:28 -0700
-Subject: =?UTF-8?Q?Re=3a_=5bMM_Bug=3f=5d_mmap=28=29_triggers_SIGBUS_while_do?=
- =?UTF-8?B?aW5nIHRoZeKAiyDigItudW1hX21vdmVfcGFnZXMoKSBmb3Igb2ZmbGluZWQgaHVn?=
- =?UTF-8?Q?epage_in_background?=
-To: Michal Hocko <mhocko@suse.com>
-Cc: Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>, Li Wang <liwang@redhat.com>,
-        Linux-MM <linux-mm@kvack.org>, LTP List <ltp@lists.linux.it>,
-        "xishi.qiuxishi@alibaba-inc.com" <xishi.qiuxishi@alibaba-inc.com>,
-        Cyril Hrubis <chrubis@suse.cz>
-References: <CAEemH2dMW6oh6Bbm=yqUADF+mDhuQgFTTGYftB+xAhqqdYV3Ng@mail.gmail.com>
- <47999e20-ccbe-deda-c960-473db5b56ea0@oracle.com>
- <CAEemH2d=vEfppCbCgVoGdHed2kuY3GWnZGhymYT1rnxjoWNdcQ@mail.gmail.com>
- <a65e748b-7297-8547-c18d-9fb07202d5a0@oracle.com>
- <27a48931-aff6-d001-de78-4f7bef584c32@oracle.com>
- <20190802041557.GA16274@hori.linux.bs1.fc.nec.co.jp>
- <54a5c9f5-eade-0d8f-24f9-bff6f19d4905@oracle.com>
- <20190805085740.GC7597@dhcp22.suse.cz>
- <7d78f6b9-afb8-79d1-003e-56de58fded00@oracle.com>
- <3c104b29-ffe2-07cb-440e-cb88d8e11acb@oracle.com>
- <20190807073909.GL11812@dhcp22.suse.cz>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <d2bb2c10-a08c-dfde-a51b-827a85b50946@oracle.com>
-Date: Wed, 7 Aug 2019 08:10:27 -0700
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WY6tCtRo;
+       spf=pass (google.com: best guess record for domain of rdunlap@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=rdunlap@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=Content-Transfer-Encoding:
+	Content-Type:In-Reply-To:MIME-Version:Date:Message-ID:From:References:Cc:To:
+	Subject:Sender:Reply-To:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=qNky4UNJfhbaacqAKPCp1Cl/iNKLfOo72Ypj0bndXBI=; b=WY6tCtRotzKTFTGqidAnSGXlR
+	213xSXqebqIXDv0n3X6EupaDMeXze0yMpcbn6ON+Z2ieSbg6eAiELkkVrjVPeIEgbJyguwULVr6Ks
+	qbkWwxLEuUIigtlIuNxZDfZsl+Sn9NJu8C1bYGcKfJknsrJ9f5tk6CC9srZAM62OuD0VSwrSqYfRh
+	WnLi+sjttk850La810W1krlCZ8m7OYPXWFAud3XSRJDveTkYep5BXDDbTk06DA3yxC4clJZHlkxJz
+	dRxo67TYYEjsls/wHXjBZWRTIsY21t1p6IIsmqIDwPmxtARnYw1F4cy+agJIz5UtcIToY0SB91q3n
+	kByFPx/Qg==;
+Received: from static-50-53-52-16.bvtn.or.frontiernet.net ([50.53.52.16] helo=[192.168.1.17])
+	by bombadil.infradead.org with esmtpsa (Exim 4.92 #3 (Red Hat Linux))
+	id 1hvNag-0004IV-RD; Wed, 07 Aug 2019 15:11:02 +0000
+Subject: Re: linux-next: Tree for Aug 7 (mm/khugepaged.c)
+To: Stephen Rothwell <sfr@canb.auug.org.au>,
+ Linux Next Mailing List <linux-next@vger.kernel.org>
+Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+ Linux MM <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>,
+ Song Liu <songliubraving@fb.com>
+References: <20190807183606.372ca1a4@canb.auug.org.au>
+From: Randy Dunlap <rdunlap@infradead.org>
+Message-ID: <c18b2828-cdf3-5248-609f-d89a24f558d1@infradead.org>
+Date: Wed, 7 Aug 2019 08:11:00 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190807073909.GL11812@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8
+In-Reply-To: <20190807183606.372ca1a4@canb.auug.org.au>
+Content-Type: text/plain; charset=windows-1252
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9342 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908070160
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9342 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908070160
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/7/19 12:39 AM, Michal Hocko wrote:
-> On Tue 06-08-19 17:07:25, Mike Kravetz wrote:
->> On 8/5/19 10:36 AM, Mike Kravetz wrote:
->>>>>>> Can you try this patch in your environment?  I am not sure if it will
->>>>>>> be the final fix, but just wanted to see if it addresses issue for you.
->>>>>>>
->>>>>>> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
->>>>>>> index ede7e7f5d1ab..f3156c5432e3 100644
->>>>>>> --- a/mm/hugetlb.c
->>>>>>> +++ b/mm/hugetlb.c
->>>>>>> @@ -3856,6 +3856,20 @@ static vm_fault_t hugetlb_no_page(struct mm_struct *mm,
->>>>>>>  
->>>>>>>  		page = alloc_huge_page(vma, haddr, 0);
->>>>>>>  		if (IS_ERR(page)) {
->>>>>>> +			/*
->>>>>>> +			 * We could race with page migration (try_to_unmap_one)
->>>>>>> +			 * which is modifying page table with lock.  However,
->>>>>>> +			 * we are not holding lock here.  Before returning
->>>>>>> +			 * error that will SIGBUS caller, get ptl and make
->>>>>>> +			 * sure there really is no entry.
->>>>>>> +			 */
->>>>>>> +			ptl = huge_pte_lock(h, mm, ptep);
->>>>>>> +			if (!huge_pte_none(huge_ptep_get(ptep))) {
->>>>>>> +				ret = 0;
->>>>>>> +				spin_unlock(ptl);
->>>>>>> +				goto out;
->>>>>>> +			}
->>>>>>> +			spin_unlock(ptl);
->>>>>>
->>>>>> Thanks you for investigation, Mike.
->>>>>> I tried this change and found no SIGBUS, so it works well.
->>
->> Here is another way to address the issue.  Take the hugetlb fault mutex in
->> the migration code when modifying the page tables.  IIUC, the fault mutex
->> was introduced to prevent this same issue when there were two page faults
->> on the same page (and we were unable to allocate an 'extra' page).  The
->> downside to such an approach is that we add more hugetlbfs specific code
->> to try_to_unmap_one.
+On 8/7/19 1:36 AM, Stephen Rothwell wrote:
+> Hi all,
 > 
-> I would rather go with the hugetlb_no_page which is better isolated.
+> Changes since 20190806:
+> 
 
-Sounds good.
+on i386:
 
-And, after more thought modifying try_to_unmap_one will not work.  Why?
-It violates lock ordering.  Current ordering is hugetlb_mutex, page lock
-then page table lock.  The page lock is taken before calling try_to_unmap_one.
-In addition, try_to_unmap is unmapping from multiple vmas so we can not
-know the values for hugetlb hash before taking page lock as the hash values
-are vma specific.  So, without many modifications we can not add hugetlb
-fault mutex to this code path.
+when CONFIG_SHMEM is not set/enabled:
+
+../mm/khugepaged.c: In function ‘khugepaged_scan_mm_slot’:
+../mm/khugepaged.c:1874:2: error: implicit declaration of function ‘khugepaged_collapse_pte_mapped_thps’; did you mean ‘collapse_pte_mapped_thp’? [-Werror=implicit-function-declaration]
+  khugepaged_collapse_pte_mapped_thps(mm_slot);
+  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
 -- 
-Mike Kravetz
+~Randy
 
