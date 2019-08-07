@@ -2,98 +2,115 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 53481C32751
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 14:30:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 427EAC32751
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 14:56:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 14DF021E70
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 14:30:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 14DF021E70
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id EE88321E6C
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 14:56:09 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="AC2sFIrC"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EE88321E6C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 80C776B0007; Wed,  7 Aug 2019 10:30:44 -0400 (EDT)
+	id 8475D6B0003; Wed,  7 Aug 2019 10:56:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7959C6B0008; Wed,  7 Aug 2019 10:30:44 -0400 (EDT)
+	id 7D1166B0006; Wed,  7 Aug 2019 10:56:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 65D616B000A; Wed,  7 Aug 2019 10:30:44 -0400 (EDT)
+	id 6715B6B0007; Wed,  7 Aug 2019 10:56:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 161AA6B0007
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 10:30:44 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id e9so45127580edv.18
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 07:30:44 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B3906B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 10:56:09 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id 71so52405238pld.1
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 07:56:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=OmNZf17ZKGN6g8JA/2I7YchHz7R0kl+zAp4OE7QfRr8=;
-        b=s7uM+lA0LaNT5RGHCG0RQGMHuHTUx4RrZX6l8eUdJ8FpWBjbxqpY7V0Lt+VxibSpzQ
-         TIsBJ4tW3jPDk3e+rfQd4GJViUoeKQATo+guN7GpHsUcywdpu6wrbpn+nbX1j7CckZsU
-         5sdBusz28lcUs8ebUNvfU7mR9C4fMtyfj5jv2GOkWf4P71sdQ40/xAQLYiH6E4lGPhSs
-         hnuDWpljFgJYTplMxD1cgur81Mat0oIJQnhpYK1ELfhyV3LiQgjbmvXT4GnqWXcDK2vG
-         QogCwouTp8E5pb99fkGdSqjS+iHg1OnjmBjqrmZvf/XNgeKxqNiHe6FhUDR29fRt+3gE
-         pk8Q==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-X-Gm-Message-State: APjAAAVaEBX91cbnjjL/9unvPTGs0ofiU+ik1EhzSzYWu0JU+NrS907M
-	PgJ6+V6TsZfWbfX6pZo+h09vavqi4XFqniWAuQh6YIxm06c5gb5UGaxbmKNcekBIH83lIx0Daek
-	kg9+Tx+96zNm2s1ISBIivVF1RHUvL1t5heKb1lOs69giVQpwRb9Dx/KuWnfYkSP/rZw==
-X-Received: by 2002:a05:6402:78c:: with SMTP id d12mr10183861edy.160.1565188243669;
-        Wed, 07 Aug 2019 07:30:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxaKgzbxBbO/VeFhFLzg4DmK5c9eXRM5XnNWbQ51sBYPDQUeEu1YgA6kpvbJ6YV5UG1rOiI
-X-Received: by 2002:a05:6402:78c:: with SMTP id d12mr10183760edy.160.1565188242764;
-        Wed, 07 Aug 2019 07:30:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565188242; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=WHDkGIkGDhi7s/aX5RIG2h076WJQgiwTmFKZsiix88I=;
+        b=jGzjBOu8Ne780tLL8+Z4zYM/od6c8rwQfqsr9Qt8F4NgeAn5k/XqcZFy+bVtwISHL8
+         sEFi7eMWSZ3RP1AVPjGVdwg1vq3/jb3F15IaPwEUHv1ckncuX5hQNC8GgIrE7CuoXRrm
+         DPC1+2z4qgTHjF6qMjAyjXv78x8FGzk+X6iBvixyQzc2sHCsudXgEM3Z+rHwMGrfr/Ec
+         By52Ss4wEtfHNBVl0IESuu8Mxjjiyoi6q4MR4MB7t0kUOFkmZlfB7YWoPVy6c83OB7T4
+         tgMRHIGDfylb28Dz4CKjAkwEZB0PqqcnLDxbefDt6b4fWZLQX7DDLrH8RXVYVy3gktJs
+         +o3A==
+X-Gm-Message-State: APjAAAWeWi0wS4bPU6Va1Q2OLtawc7QPrVdOPtUd+o+7e3ukkvk+g/Kd
+	GZFdjaebbYAv1Qc27Sxi3iUoCoHapGS9gLAEsEGPKutGfOpIIDRvY1OmeRYJ/ga9JfSwuGuMeyo
+	0hv3BJJHLSj1x+RYipjpQAO8xE2uqWFc7ccjY2OeqUogN2osz3nRcgjj4JNMRfQe3uw==
+X-Received: by 2002:a17:902:2b8a:: with SMTP id l10mr8502306plb.283.1565189768687;
+        Wed, 07 Aug 2019 07:56:08 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzhbn3JI3Dq9wL6ccYYTWhLzCAbvX7JqyEUsSzWFNin0R/rJcAaXmDnA8CkN+C/BzaFbhlV
+X-Received: by 2002:a17:902:2b8a:: with SMTP id l10mr8502266plb.283.1565189767883;
+        Wed, 07 Aug 2019 07:56:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565189767; cv=none;
         d=google.com; s=arc-20160816;
-        b=pO5lDijxt5Dws2W2y2e7V8SuYtInnNPJ4nSkH34uZJliIERcB1uqW75q6jsVghRqnM
-         iJdOgsbYNCwgausP5ji2KAfMNt1v81R68AZDpp8yZEQocavLiO/SmvkpNhbGk6RTyhm6
-         om6uw3syHjOCpJs6dPEred3IIlxndYgYKBhA6O4//uAnylPYFfVIfFGrDvpR0vqzMiEJ
-         BP+ddeWRN7V2WcOaG0WI/jsjwlRVDv4FLBAp2+9/vdBj2T4aYeAj0NN1B9sThSpGcGQs
-         mDsZBl0RBjVaVFKF0/N5l+geAlwyebm38cpKQhU0bfxL/9/GvGXT6kCauLrv2CWKTpfW
-         jWnA==
+        b=s9OXscl+32MKXZ6wz930dGqAVsw+iOCxxZpzLUN/Ka8zfXSB3amgjzxTEzgK2du+J9
+         KS+WXZ78gtSNPaSCOqW1/mouysa1JDWsTJIo+CBj9W1IPqvoyPtlKFG47X4eghKstILu
+         nvafIcE2HjITdGsiPFHxDi2NONITHne/8/rQypQTXK3UzUNwiGfJYRgLpxeYataB6Z/6
+         KmKASgkjvuj62PF7BWdH7etU1h6vuPPpGI7CLftbHMN17/tx4+VkjIYcitYi+szi0mwx
+         Sj2RSMnbr31EUXVy2QqLMOPKZKDs2KKz2on5bNZmyEEBfRztY+b8iVaMEWG1ELjQZ4KA
+         36bA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=OmNZf17ZKGN6g8JA/2I7YchHz7R0kl+zAp4OE7QfRr8=;
-        b=CP1JfVHfRBgPciJmhSFvVWrM3JRD4vAD/MtLian2xw1txIkoHmb48/FeKfUGFosCr5
-         69Y9donaE5WaYJeaEhE5bSCIe8DYhzM8S0K8vsdBq7MFKEUHXvqSlFcmJicPWMQjM4n7
-         c6j6GqWEJxSw3IY+amIjq83oTqTv/VyztntXaP7y5FVBxn4rWOw9ixsK7bd1VlLi2yeI
-         yei3WtFfkEqAXVzxNGZI0wUXYecqwWWDZE8XcLeVTOT1OLIKn+DcQXFwvaPwOHa+taNZ
-         zw/N8FG/O+1Ql0ZaNqMf3TUmp7q7B8nWa+Xcq+sZPZ3nd1vW0nkNAAJcd+8VSof9AOwb
-         9VBQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=WHDkGIkGDhi7s/aX5RIG2h076WJQgiwTmFKZsiix88I=;
+        b=tGUmktsngMN4KNhApEbBWJUFYGisrVJ0Bd2GQGLzlLOHct7la0fjlTPaR09xXUQqbp
+         J5XV5AFfFZlWDafC0tQDsTIg7e3sW/YO4xQJVPxAcLUSKl7wgluB3wGIfxarvUrvJRwG
+         kqxhRrkdd2pqo47NhJczqe+gPw8uk1gNJkXxOs+RJ9NPf16rnAwMLv9vLawWge1xSef1
+         09+CM9zk+fM7QUuS8h1y9C3O0hMxlHbxy9F5rvh16hG0Fwx33ndInItuA/+M9Igl0XeQ
+         j+epOpTP49YYGxVqzzNCcHMPlaaIssrOTJLENJE0EYBaztGO9A4EMIdMR+7sFFGAEzQ0
+         Pa2w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id y9si32063552edb.262.2019.08.07.07.30.41
-        for <linux-mm@kvack.org>;
-        Wed, 07 Aug 2019 07:30:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=AC2sFIrC;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id d9si15626829pgq.119.2019.08.07.07.56.07
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Wed, 07 Aug 2019 07:56:07 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5B8EE344;
-	Wed,  7 Aug 2019 07:30:41 -0700 (PDT)
-Received: from [10.1.196.133] (e112269-lin.cambridge.arm.com [10.1.196.133])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C3CB23F706;
-	Wed,  7 Aug 2019 07:30:39 -0700 (PDT)
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=AC2sFIrC;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=WHDkGIkGDhi7s/aX5RIG2h076WJQgiwTmFKZsiix88I=; b=AC2sFIrClzvrAuopVrXvwugiY
+	8pjCjcoNMRxBAbOu1e+IYWnWwBn23rrvVb3+zo9jSy/rEqV0jtM6OKmuaKJgIPCd+ZEJGVHI1xCUM
+	V33yiZR1LBHycuELJYuk3ChIMHbwC3+U3UkD+itrcmrRrXwcGTUiy4Emh3dDvFH8iJCGHKTIyZkSS
+	JkM7h5vZfpkNwqmfAGioAVQ7oEBCMiwDFERlYOCfEHok0Ct0gRQBQZhg0acgBiGO6N99OC8PyFqGX
+	RBH5duCu835KJqDGvsVYJ2T0t8xRO3dI5YDATQhUwKO6u2/VVkIlC73MRjL16m50yadyh4WpPfYWx
+	CslHyrvIQ==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hvNM9-00082M-J1; Wed, 07 Aug 2019 14:56:01 +0000
+Date: Wed, 7 Aug 2019 07:56:01 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Steven Price <steven.price@arm.com>
+Cc: Christoph Hellwig <hch@infradead.org>,
+	Linus Torvalds <torvalds@linux-foundation.org>,
+	Thomas =?iso-8859-1?Q?Hellstr=F6m_=28VMware=29?= <thomas@shipmail.org>,
+	Dave Airlie <airlied@gmail.com>,
+	Thomas Hellstrom <thellstrom@vmware.com>,
+	Daniel Vetter <daniel.vetter@ffwll.ch>,
+	LKML <linux-kernel@vger.kernel.org>,
+	dri-devel <dri-devel@lists.freedesktop.org>,
+	Jerome Glisse <jglisse@redhat.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Linux-MM <linux-mm@kvack.org>
 Subject: Re: drm pull for v5.3-rc1
-To: Matthew Wilcox <willy@infradead.org>,
- Christoph Hellwig <hch@infradead.org>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>,
- =?UTF-8?Q?Thomas_Hellstr=c3=b6m_=28VMware=29?= <thomas@shipmail.org>,
- Dave Airlie <airlied@gmail.com>, Thomas Hellstrom <thellstrom@vmware.com>,
- Daniel Vetter <daniel.vetter@ffwll.ch>, LKML <linux-kernel@vger.kernel.org>,
- dri-devel <dri-devel@lists.freedesktop.org>,
- Jerome Glisse <jglisse@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>,
- Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
-References: <CAPM=9twvwhm318btWy_WkQxOcpRCzjpok52R8zPQxQrnQ8QzwQ@mail.gmail.com>
- <CAHk-=wjC3VX5hSeGRA1SCLjT+hewPbbG4vSJPFK7iy26z4QAyw@mail.gmail.com>
- <CAHk-=wiD6a189CXj-ugRzCxA9r1+siSCA0eP_eoZ_bk_bLTRMw@mail.gmail.com>
+Message-ID: <20190807145601.GB5482@bombadil.infradead.org>
+References: <CAHk-=wiD6a189CXj-ugRzCxA9r1+siSCA0eP_eoZ_bk_bLTRMw@mail.gmail.com>
  <48890b55-afc5-ced8-5913-5a755ce6c1ab@shipmail.org>
  <CAHk-=whwcMLwcQZTmWgCnSn=LHpQG+EBbWevJEj5YTKMiE_-oQ@mail.gmail.com>
  <CAHk-=wghASUU7QmoibQK7XS09na7rDRrjSrWPwkGz=qLnGp_Xw@mail.gmail.com>
@@ -102,79 +119,105 @@ References: <CAPM=9twvwhm318btWy_WkQxOcpRCzjpok52R8zPQxQrnQ8QzwQ@mail.gmail.com>
  <20190806190937.GD30179@bombadil.infradead.org>
  <20190807064000.GC6002@infradead.org>
  <20190807141517.GA5482@bombadil.infradead.org>
-From: Steven Price <steven.price@arm.com>
-Message-ID: <62cbe523-e8a4-cdfd-90c2-80260cefa5de@arm.com>
-Date: Wed, 7 Aug 2019 15:30:38 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+ <62cbe523-e8a4-cdfd-90c2-80260cefa5de@arm.com>
 MIME-Version: 1.0
-In-Reply-To: <20190807141517.GA5482@bombadil.infradead.org>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-GB
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <62cbe523-e8a4-cdfd-90c2-80260cefa5de@arm.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 07/08/2019 15:15, Matthew Wilcox wrote:
-> On Tue, Aug 06, 2019 at 11:40:00PM -0700, Christoph Hellwig wrote:
->> On Tue, Aug 06, 2019 at 12:09:38PM -0700, Matthew Wilcox wrote:
->>> Has anyone looked at turning the interface inside-out?  ie something like:
->>>
->>> 	struct mm_walk_state state = { .mm = mm, .start = start, .end = end, };
->>>
->>> 	for_each_page_range(&state, page) {
->>> 		... do something with page ...
->>> 	}
->>>
->>> with appropriate macrology along the lines of:
->>>
->>> #define for_each_page_range(state, page)				\
->>> 	while ((page = page_range_walk_next(state)))
->>>
->>> Then you don't need to package anything up into structs that are shared
->>> between the caller and the iterated function.
->>
->> I'm not an all that huge fan of super magic macro loops.  But in this
->> case I don't see how it could even work, as we get special callbacks
->> for huge pages and holes, and people are trying to add a few more ops
->> as well.
+On Wed, Aug 07, 2019 at 03:30:38PM +0100, Steven Price wrote:
+> On 07/08/2019 15:15, Matthew Wilcox wrote:
+> > On Tue, Aug 06, 2019 at 11:40:00PM -0700, Christoph Hellwig wrote:
+> >> On Tue, Aug 06, 2019 at 12:09:38PM -0700, Matthew Wilcox wrote:
+> >>> Has anyone looked at turning the interface inside-out?  ie something like:
+> >>>
+> >>> 	struct mm_walk_state state = { .mm = mm, .start = start, .end = end, };
+> >>>
+> >>> 	for_each_page_range(&state, page) {
+> >>> 		... do something with page ...
+> >>> 	}
+> >>>
+> >>> with appropriate macrology along the lines of:
+> >>>
+> >>> #define for_each_page_range(state, page)				\
+> >>> 	while ((page = page_range_walk_next(state)))
+> >>>
+> >>> Then you don't need to package anything up into structs that are shared
+> >>> between the caller and the iterated function.
+> >>
+> >> I'm not an all that huge fan of super magic macro loops.  But in this
+> >> case I don't see how it could even work, as we get special callbacks
+> >> for huge pages and holes, and people are trying to add a few more ops
+> >> as well.
+> > 
+> > We could have bits in the mm_walk_state which indicate what things to return
+> > and what things to skip.  We could (and probably should) also use different
+> > iterator names if people actually want to iterate different things.  eg
+> > for_each_pte_range(&state, pte) as well as for_each_page_range().
+> > 
 > 
-> We could have bits in the mm_walk_state which indicate what things to return
-> and what things to skip.  We could (and probably should) also use different
-> iterator names if people actually want to iterate different things.  eg
-> for_each_pte_range(&state, pte) as well as for_each_page_range().
+> The iterator approach could be awkward for the likes of my generic
+> ptdump implementation[1]. It would require an iterator which returns all
+> levels and allows skipping levels when required (to prevent KASAN
+> slowing things down too much). So something like:
 > 
+> start_walk_range(&state);
+> for_each_page_range(&state, page) {
+> 	switch(page->level) {
+> 	case PTE:
+> 		...
+> 	case PMD:
+> 		if (...)
+> 			skip_pmd(&state);
+> 		...
+> 	case HOLE:
+> 		....
+> 	...
+> 	}
+> }
+> end_walk_range(&state);
+> 
+> It seems a little fragile - e.g. we wouldn't (easily) get type checking
+> that you are actually treating a PTE as a pte_t. The state mutators like
+> skip_pmd() also seem a bit clumsy.
 
-The iterator approach could be awkward for the likes of my generic
-ptdump implementation[1]. It would require an iterator which returns all
-levels and allows skipping levels when required (to prevent KASAN
-slowing things down too much). So something like:
+Once you're on-board with using a state structure, you can use it in all
+kinds of fun ways.  For example:
 
-start_walk_range(&state);
-for_each_page_range(&state, page) {
-	switch(page->level) {
-	case PTE:
+struct mm_walk_state {
+	struct mm_struct *mm;
+	unsigned long start;
+	unsigned long end;
+	unsigned long curr;
+	p4d_t p4d;
+	pud_t pud;
+	pmd_t pmd;
+	pte_t pte;
+	enum page_entry_size size;
+	int flags;
+};
+
+For this user, I'd expect something like ...
+
+	DECLARE_MM_WALK_FLAGS(state, mm, start, end,
+				MM_WALK_HOLES | MM_WALK_ALL_SIZES);
+
+	walk_each_pte(state) {
+		switch (state->size) {
+		case PE_SIZE_PTE:
+			... 
+		case PE_SIZE_PMD:
+			if (...(state->pmd))
+				continue;
 		...
-	case PMD:
-		if (...)
-			skip_pmd(&state);
-		...
-	case HOLE:
-		....
-	...
+		}
 	}
-}
-end_walk_range(&state);
 
-It seems a little fragile - e.g. we wouldn't (easily) get type checking
-that you are actually treating a PTE as a pte_t. The state mutators like
-skip_pmd() also seem a bit clumsy.
-
-Steve
-
-[1]
-https://lore.kernel.org/lkml/20190731154603.41797-20-steven.price@arm.com/
+There's no need to have start / end walk function calls.
 
