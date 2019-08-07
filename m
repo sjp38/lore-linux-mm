@@ -6,137 +6,139 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
 	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CA184C433FF
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 20:04:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A3E1AC32751
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 20:10:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8468A222FC
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 20:04:05 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5F90521E6E
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 20:10:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="YVf9MEhf"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8468A222FC
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="afz14CAR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F90521E6E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1950F6B0007; Wed,  7 Aug 2019 16:04:05 -0400 (EDT)
+	id 0F3886B0007; Wed,  7 Aug 2019 16:10:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 145616B0008; Wed,  7 Aug 2019 16:04:05 -0400 (EDT)
+	id 07CA46B0008; Wed,  7 Aug 2019 16:10:32 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0342B6B000A; Wed,  7 Aug 2019 16:04:04 -0400 (EDT)
+	id E5F746B000A; Wed,  7 Aug 2019 16:10:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id BD1B06B0007
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 16:04:04 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id d6so53850516pls.17
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 13:04:04 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id ABAB66B0007
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 16:10:31 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id d6so53888051pls.17
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 13:10:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
          :message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=TCrKpv/9CorIIjiGQ/BTwwHa+JmbCtLDQrzBhZE1H5A=;
-        b=GYtf3qbr7nUN4VIw4WKCgaHj9s2LMgCnEV5cX+KXh1XyD0X14iieVjR3TJn4bd+pCM
-         yja8cJDC/RhBiKUQp6UrXnfgk7qAn8WDv9pQMtVeZZ+XcJa7CeW4DSo0QtuXIXcLNL9J
-         bF266Y7EXpfhX5hNbeO2Tw+kNPvs2eO/VKPMF9gIPyP7sOoIZCvu76tc3JZguLN4cCQi
-         EoyZLwC8ApUP9qe/StepaKjf0pH6tFTtyJr0zPzzar8KUAqQ6/lFSgGz95WC8VmK0ID+
-         7pbl+rSRoiftjgF/8nwPEArTlTaNJUb+SIFKUgW+gxVBDJ3VIF0RAek0Fv8XA4G7U3yW
-         BLNw==
-X-Gm-Message-State: APjAAAWGZQzLsjXp4yYMAD7ztYcpHEuOYYV5pVvaXRfhFCCj5lGocNtV
-	aXL9F/6d0LhUdEytsGXCTbZf27KSP7znFSzD5lfgtSJg4lSE+nz6GkyDSOY3NCtPvObNuY8sYNA
-	pi8qvKQqzJAPgRmdlOhcwLfRONKdFjhgsx9X+nqnRv57ES0NF61CwxJ5h2bBYGGpSxw==
-X-Received: by 2002:a17:902:5985:: with SMTP id p5mr9662300pli.177.1565208244428;
-        Wed, 07 Aug 2019 13:04:04 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxjq0GOV0/nAJTiR/1t2smBi0UUDNQdECRK3S98tRLR2mRsgcf87q8Ez9b7iXI4xGr8WeiF
-X-Received: by 2002:a17:902:5985:: with SMTP id p5mr9662246pli.177.1565208243722;
-        Wed, 07 Aug 2019 13:04:03 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565208243; cv=none;
+        bh=v7Yn28bZjwjyS2wTpAsPSZ8rrKC98YMZy1/3poQ2pFk=;
+        b=JKJrcxjKpNUXywLzo4reRy6yg/cJKdp3IwBYnxYq7C49AZW+uCkDOATkVdO+oOH3IC
+         Lxmi2E9GgHQyRIO7GXHMpi3bAUdFkI0ozfsqyOaixVNyRvl7sl3IAwfthi+aO81rFRdS
+         VEXDYzsAH+z9G+2eAeTPOa3rKyCVsPvlMY6NyGw3elK8VLEi56+JXpmjONrHlQPOFhMO
+         LjhTil9CPW8ATqVRv7fIVNHOLaH8arK4uA3DiqSkK0fUi3bI/R2ZRCnzSOhNHMXCdigh
+         Mw163s8jWH8BKwO/vHwTrBz1tKAhHDNSt9hgObgyXny8ycHeIspA+g8MPpMDC1u0tCB1
+         9t/Q==
+X-Gm-Message-State: APjAAAXDJNMvJ8Bn1HHaI+uJofXO5MJ47hwPGeVz74U+jP/GY1EvF/kd
+	MvKrhI+BWMQVXWdHpk0C1RThpk/QZgGJb79M4TZzfOX0PuROwqo87qpnliA+2+JW67PPV5ESKde
+	BsbnD3MfB9GiL3f8ZRow/usnj+OoTcJydpEEG+/NsXfRb+4M4cDTJFhxkQ7NZR35BOg==
+X-Received: by 2002:a17:902:704c:: with SMTP id h12mr9337099plt.318.1565208631263;
+        Wed, 07 Aug 2019 13:10:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzg5X+Afr7g0xTZx3Z9cHCaMzAaKw4Iuqau5OB++/Nm+T7D1Z0vLeyU71Q7hkia5ddgdkvc
+X-Received: by 2002:a17:902:704c:: with SMTP id h12mr9337048plt.318.1565208630575;
+        Wed, 07 Aug 2019 13:10:30 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565208630; cv=none;
         d=google.com; s=arc-20160816;
-        b=QkMtuX1uSyTHgiyZkRPVN8SzuH8dc66WHv2YTWVqY3yEX1GeLO4qBVYNr7iCqgTijn
-         J73NAfuMj9h7weG3c8gUSIsI4dY416JdzQSsCNVUHr04WZiSco1NQMEMeO9aPSYE4Lvo
-         CbD3xV8H5t7wlNdSlESr1bl/7IZV2pqG3kos2XPeKcxIR9wAOOmp3MbqkuVLUt/En/rS
-         ncAV9VbLiyi4LN3oNVlIIJNd3nlV1hlvM7CBSjy6bJPY2MZMIgh/8hMY5R05hGIY76D3
-         uBZRyEuDvjKxxO/VpDK3QGCR51RsbzoGkRHbqCcef3k8DCase5ti0bmw44jXjj59XwwR
-         Z9ag==
+        b=Q/w8E8Za/Iltm5onb6j/u9IhJL9z5GJHOhmGTwYoqOOYllgL68bvdqJ53qq6rAYAVx
+         rSszSfxFjKtnlQl9Fq4V89bEKRiYfpzzC3EQIGIgVWPfTu0s0MyIDfkFeARV2Q0noUi7
+         1Gul+j/CWSXSodUfXGobGGHE9sq8UNElT0rHALGk76HMEPPA08TA6VyhVvJoDFnfAJYj
+         /Xtsc5sdUbkqnVP7vHHdAnUUGACzfeIJgYJyJ+18wmpima84iIF24HQyIoA7rE5zT/Cp
+         e2RziYEX3c3pTNOqlHupMUed5XARpIleZ7+qdaXC8um3bowPkfcwwgFt0E+g+/OZjnZV
+         8HLw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=TCrKpv/9CorIIjiGQ/BTwwHa+JmbCtLDQrzBhZE1H5A=;
-        b=iQKILhBzVFqfsuJtsAp0Jw6ah6GFene/NK5eLBfMZ7C0YpX0b3tz9a+06hpE7hFyJp
-         zXkFBVzftNB4gl+z1KS9h9kJH9Hhujpq5rJAQJwPcm3XgYpW3UZtkc03gz0qfQtQGymy
-         zZs7+Q7qcTLz9jsGn4XzGRFqIUR8WlSx072dgiQdFob7Tz9KSYS2MSCn3uv2abovvMSb
-         kHqoK7RTamWCtnDtCl+OI39L1NkN//2YgHuirpM1bExV+y0KWy8gvgD4vwk6DuvtODLa
-         xyA+HQbjVcHlSyFhi9qfM6BvtEpTV85nmNekCzJE/uPiOVres2vSUX5XEwxaE263Vili
-         pQhQ==
+        bh=v7Yn28bZjwjyS2wTpAsPSZ8rrKC98YMZy1/3poQ2pFk=;
+        b=SMytd0xDZu1oTJn0y5U2KauEOqW9e2NedpxFa9jTdifk2z/lyE4c5R+FIqPGCLKU/j
+         QNJVL48sLdHHnhQQ14UpsnsQ+fjkCLPH/bQIbp0fbDidkIh/ET1BGl5Rr1pQoVsYr12o
+         6i85GY6mLG6neMLcvaZbYAE56tHCMC9C0Oql3BEySRYaOSncuT8T5iutAndsAm+lL0Fg
+         9ckNy3ZaFSqxsdgRxDUJmHKKAIh4tigGRFPUsdlSBXX7uraVOqZPn6rVI8Y2SGePxFo1
+         XVfggI+pbc/Beu9x7wMcQvKrACL4v0w+1n1wmbXsoqsfEeMUr2OZ7d8j8VQSpa347O3D
+         BOpA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=YVf9MEhf;
+       dkim=pass header.i=@kernel.org header.s=default header.b=afz14CAR;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id ce10si2566272plb.180.2019.08.07.13.04.03
+        by mx.google.com with ESMTPS id a17si52672800pff.195.2019.08.07.13.10.30
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Aug 2019 13:04:03 -0700 (PDT)
+        Wed, 07 Aug 2019 13:10:30 -0700 (PDT)
 Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=YVf9MEhf;
+       dkim=pass header.i=@kernel.org header.s=default header.b=afz14CAR;
        spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
 Received: from akpm3.svl.corp.google.com (unknown [104.133.8.65])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 5A4402229C;
-	Wed,  7 Aug 2019 20:04:02 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id 04C1021922;
+	Wed,  7 Aug 2019 20:10:29 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565208243;
-	bh=bAnZKDOHa6S/AueqvOn27z8E6ylUixYsDkIKVgnZVKU=;
+	s=default; t=1565208630;
+	bh=Jx7y/Ln14SESvaQs28ji2Po6nmIukoITtbZFc+CJc+0=;
 	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=YVf9MEhf32W89lIFkjGgA88GCVZUVwxfcFmTKmPUg1Q1y6FDrsnr0QeqCQi2SxSAj
-	 boCVYX0PmLYKtZPc0GeShN1mYQGBwDMs4u3zZmSSnElYlW9VIKtGrr+WQfA7EMdUZ7
-	 l8JiW40t7+5cKUXM2gftIZQ0r8IJhj4wMos6tTo0=
-Date: Wed, 7 Aug 2019 13:04:02 -0700
+	b=afz14CARnD4KLD2Z5M0+ZTfbOtpHoXYlolGDnDkCNGSkIWv5zbksHxBVq/TE0vpoO
+	 ATEyB6ZOp/MmuNOpdZ2f3Q5WKgAYPaN2KpyqOCBnvEJrYjfDqmRDcgfShQN1aeYPyC
+	 6Rbexj2erKrr2x2qb4cEdspf+G4+gdgiWdtMeVJA=
+Date: Wed, 7 Aug 2019 13:10:29 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-To: "Joel Fernandes (Google)" <joel@joelfernandes.org>
-Cc: linux-kernel@vger.kernel.org, Alexey Dobriyan <adobriyan@gmail.com>,
- Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>, Catalin
- Marinas <catalin.marinas@arm.com>, Christian Hansen <chansen3@cisco.com>,
- dancol@google.com, fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
- Ingo Molnar <mingo@redhat.com>, joelaf@google.com, Jonathan Corbet
- <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
- kernel-team@android.com, linux-api@vger.kernel.org,
- linux-doc@vger.kernel.org, linux-fsdevel@vger.kernel.org,
- linux-mm@kvack.org, Michal Hocko <mhocko@suse.com>, Mike Rapoport
- <rppt@linux.ibm.com>, minchan@kernel.org, namhyung@google.com,
- paulmck@linux.ibm.com, Robin Murphy <robin.murphy@arm.com>, Roman Gushchin
- <guro@fb.com>, Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
- Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com, Vladimir Davydov
- <vdavydov.dev@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Will Deacon
- <will@kernel.org>
-Subject: Re: [PATCH v5 1/6] mm/page_idle: Add per-pid idle page tracking
- using virtual index
-Message-Id: <20190807130402.49c9ea8bf144d2f83bfeb353@linux-foundation.org>
-In-Reply-To: <20190807171559.182301-1-joel@joelfernandes.org>
-References: <20190807171559.182301-1-joel@joelfernandes.org>
+To: Song Liu <songliubraving@fb.com>
+Cc: Randy Dunlap <rdunlap@infradead.org>, Stephen Rothwell
+ <sfr@canb.auug.org.au>, Linux Next Mailing List
+ <linux-next@vger.kernel.org>, Linux Kernel Mailing List
+ <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>
+Subject: Re: linux-next: Tree for Aug 7 (mm/khugepaged.c)
+Message-Id: <20190807131029.f7f191aaeeb88cc435c6306f@linux-foundation.org>
+In-Reply-To: <DCC6982B-17EF-4143-8CE8-9D0EC28FA06B@fb.com>
+References: <20190807183606.372ca1a4@canb.auug.org.au>
+	<c18b2828-cdf3-5248-609f-d89a24f558d1@infradead.org>
+	<DCC6982B-17EF-4143-8CE8-9D0EC28FA06B@fb.com>
 X-Mailer: Sylpheed 3.7.0 (GTK+ 2.24.32; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed,  7 Aug 2019 13:15:54 -0400 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
+On Wed, 7 Aug 2019 16:59:14 +0000 Song Liu <songliubraving@fb.com> wrote:
 
-> In Android, we are using this for the heap profiler (heapprofd) which
-> profiles and pin points code paths which allocates and leaves memory
-> idle for long periods of time. This method solves the security issue
-> with userspace learning the PFN, and while at it is also shown to yield
-> better results than the pagemap lookup, the theory being that the window
-> where the address space can change is reduced by eliminating the
-> intermediate pagemap look up stage. In virtual address indexing, the
-> process's mmap_sem is held for the duration of the access.
+> Hi Randy,
+> 
+> > On Aug 7, 2019, at 8:11 AM, Randy Dunlap <rdunlap@infradead.org> wrote:
+> > 
+> > On 8/7/19 1:36 AM, Stephen Rothwell wrote:
+> >> Hi all,
+> >> 
+> >> Changes since 20190806:
+> >> 
+> > 
+> > on i386:
+> > 
+> > when CONFIG_SHMEM is not set/enabled:
+> > 
+> > ../mm/khugepaged.c: In function ‘khugepaged_scan_mm_slot’:
+> > ../mm/khugepaged.c:1874:2: error: implicit declaration of function ‘khugepaged_collapse_pte_mapped_thps’; did you mean ‘collapse_pte_mapped_thp’? [-Werror=implicit-function-declaration]
+> >  khugepaged_collapse_pte_mapped_thps(mm_slot);
+> >  ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+> 
+> Thanks for the report. 
+> 
+> Shall I resend the patch, or shall I send fix on top of current patch?
 
-So is heapprofd a developer-only thing?  Is heapprofd included in
-end-user android loads?  If not then, again, wouldn't it be better to
-make the feature Kconfigurable so that Android developers can enable it
-during development then disable it for production kernels?
+Either is OK.  If the difference is small I will turn it into an
+incremental patch so that I (and others) can see what changed.
 
