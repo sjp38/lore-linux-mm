@@ -2,217 +2,179 @@ Return-Path: <SRS0=t1E5=WD=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 79E76C433FF
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 14:28:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 53481C32751
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 14:30:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 15E0E21E70
-	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 14:28:53 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="1kfH0kuK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 15E0E21E70
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	by mail.kernel.org (Postfix) with ESMTP id 14DF021E70
+	for <linux-mm@archiver.kernel.org>; Wed,  7 Aug 2019 14:30:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 14DF021E70
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 770FA6B0003; Wed,  7 Aug 2019 10:28:53 -0400 (EDT)
+	id 80C776B0007; Wed,  7 Aug 2019 10:30:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 721A56B0006; Wed,  7 Aug 2019 10:28:53 -0400 (EDT)
+	id 7959C6B0008; Wed,  7 Aug 2019 10:30:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 610EF6B0007; Wed,  7 Aug 2019 10:28:53 -0400 (EDT)
+	id 65D616B000A; Wed,  7 Aug 2019 10:30:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 143786B0003
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 10:28:53 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b12so56214024ede.23
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 07:28:53 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 161AA6B0007
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 10:30:44 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id e9so45127580edv.18
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 07:30:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=AK75Iich5LWx3hmzjSJRalUSa9mHCHUU+BYMHbZIZMc=;
-        b=DlZWSdzIf+tGjDDEkM5EriXTYAU97gXX8eM6TFjvohwoXqlGN6Y3BnFNYNpB2+u8nz
-         407WjBK6nfpfOuhZAoBEoFVc3/tTFiZ6PEkvmOXlnmCX1PSDgngVTqZJrr9wc/d28tHC
-         zXm4wcMObRdVVDAcxVnFQ9RvwRZOQGQNbpS32vwmxZ/6//Hs7qBpbYI6w/68U6Jr++rN
-         TEGflLO4A7X+Gfg1/uurgAMDLJY1/Kg1P3KpVgh+frNB3sYwSWaWdRiCNCVAcLCRSpEE
-         q9hNdAwLYaVwWio1M4ycKUxIlapO3OBs7oHKJgpDwJ3qViEB3VstaetcRZ/qstJjyCi/
-         UNvQ==
-X-Gm-Message-State: APjAAAW0a8xA9DzZgY2iC0vs4PnrgRvWGM3yZuk+pRP/4M9QZXLPCVD4
-	7rib3fTR/m7v5ee5B1374WT4/lXx1qZkHN5PXQ2SbCIV1cNq9zf+kPIsl4SUMVxP+NRy0MBS8eS
-	jXck4o75fwb9QL09pFe0TsM4R1FoX1RnYFfOaO8erayZgBNHzyKfgLsRFgIe5oJVNVg==
-X-Received: by 2002:a17:906:ad86:: with SMTP id la6mr8635094ejb.43.1565188132518;
-        Wed, 07 Aug 2019 07:28:52 -0700 (PDT)
-X-Received: by 2002:a17:906:ad86:: with SMTP id la6mr8635029ejb.43.1565188131577;
-        Wed, 07 Aug 2019 07:28:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565188131; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=OmNZf17ZKGN6g8JA/2I7YchHz7R0kl+zAp4OE7QfRr8=;
+        b=s7uM+lA0LaNT5RGHCG0RQGMHuHTUx4RrZX6l8eUdJ8FpWBjbxqpY7V0Lt+VxibSpzQ
+         TIsBJ4tW3jPDk3e+rfQd4GJViUoeKQATo+guN7GpHsUcywdpu6wrbpn+nbX1j7CckZsU
+         5sdBusz28lcUs8ebUNvfU7mR9C4fMtyfj5jv2GOkWf4P71sdQ40/xAQLYiH6E4lGPhSs
+         hnuDWpljFgJYTplMxD1cgur81Mat0oIJQnhpYK1ELfhyV3LiQgjbmvXT4GnqWXcDK2vG
+         QogCwouTp8E5pb99fkGdSqjS+iHg1OnjmBjqrmZvf/XNgeKxqNiHe6FhUDR29fRt+3gE
+         pk8Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: APjAAAVaEBX91cbnjjL/9unvPTGs0ofiU+ik1EhzSzYWu0JU+NrS907M
+	PgJ6+V6TsZfWbfX6pZo+h09vavqi4XFqniWAuQh6YIxm06c5gb5UGaxbmKNcekBIH83lIx0Daek
+	kg9+Tx+96zNm2s1ISBIivVF1RHUvL1t5heKb1lOs69giVQpwRb9Dx/KuWnfYkSP/rZw==
+X-Received: by 2002:a05:6402:78c:: with SMTP id d12mr10183861edy.160.1565188243669;
+        Wed, 07 Aug 2019 07:30:43 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxaKgzbxBbO/VeFhFLzg4DmK5c9eXRM5XnNWbQ51sBYPDQUeEu1YgA6kpvbJ6YV5UG1rOiI
+X-Received: by 2002:a05:6402:78c:: with SMTP id d12mr10183760edy.160.1565188242764;
+        Wed, 07 Aug 2019 07:30:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565188242; cv=none;
         d=google.com; s=arc-20160816;
-        b=0JutrujMn9owNSBbAc07E0Qo68NjcdlTuBlaj0Fw1d4RWJeAtm4iEaTAzPjtwbBvR6
-         nmJV1p9OBLvb2DGO0HY68Fz6gTLivCZhnN+Rcz/eZuYqWJ0U6H+zCkBQFZ9dVsM+NTmY
-         zwuA8mJ6JJLPRYpeBNMnFlzhGIJLfnu0Zbv20+hTHRfqe0e4qQbUtXGVs38k5j83MoPd
-         ZR9F1C6DM64OFBjXfqhAGNxQdSpHuDTM5mSOoKrW4yqTiLd09i+yFPLteG4fyZlxwy36
-         eq91GqJ9CLt9JB9cibMCVrDdQsT3HK6UrIcLgB2bHLVARD/a9VkVl1Cu6yVihRmAx8K+
-         mUTg==
+        b=pO5lDijxt5Dws2W2y2e7V8SuYtInnNPJ4nSkH34uZJliIERcB1uqW75q6jsVghRqnM
+         iJdOgsbYNCwgausP5ji2KAfMNt1v81R68AZDpp8yZEQocavLiO/SmvkpNhbGk6RTyhm6
+         om6uw3syHjOCpJs6dPEred3IIlxndYgYKBhA6O4//uAnylPYFfVIfFGrDvpR0vqzMiEJ
+         BP+ddeWRN7V2WcOaG0WI/jsjwlRVDv4FLBAp2+9/vdBj2T4aYeAj0NN1B9sThSpGcGQs
+         mDsZBl0RBjVaVFKF0/N5l+geAlwyebm38cpKQhU0bfxL/9/GvGXT6kCauLrv2CWKTpfW
+         jWnA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=AK75Iich5LWx3hmzjSJRalUSa9mHCHUU+BYMHbZIZMc=;
-        b=qNfglxrRr3f9LeP3eDgytxpTopmRG2cMQk+HNx35KlxO++QrchPwXQmuDGu9qrFPDd
-         m7mmUUXH+j7KmdyIIc1M+vQHFFnFl3Ae4RfmSjV+QzrL72Uk6yKzh0cL/zNnXObSNj03
-         8LwSYeebuHgvjch2Uw+T06JUfjQ7c8gotbJivNo5Khpett1t2E6LuUXomB7bzv3JDRcr
-         Ne4ZF1ZtDkbzZHeuNlFmjx1CM6+sNajAIkgs6pQ/hdk4562Z6Mloqqs+oWZ1yDSRlkhP
-         T5jR91mIF0LpcF2GbWElLSePjFm59e96Dc05j5ygd9G77aHOQihzs9nSvuswe0euortL
-         GSaw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=OmNZf17ZKGN6g8JA/2I7YchHz7R0kl+zAp4OE7QfRr8=;
+        b=CP1JfVHfRBgPciJmhSFvVWrM3JRD4vAD/MtLian2xw1txIkoHmb48/FeKfUGFosCr5
+         69Y9donaE5WaYJeaEhE5bSCIe8DYhzM8S0K8vsdBq7MFKEUHXvqSlFcmJicPWMQjM4n7
+         c6j6GqWEJxSw3IY+amIjq83oTqTv/VyztntXaP7y5FVBxn4rWOw9ixsK7bd1VlLi2yeI
+         yei3WtFfkEqAXVzxNGZI0wUXYecqwWWDZE8XcLeVTOT1OLIKn+DcQXFwvaPwOHa+taNZ
+         zw/N8FG/O+1Ql0ZaNqMf3TUmp7q7B8nWa+Xcq+sZPZ3nd1vW0nkNAAJcd+8VSof9AOwb
+         9VBQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=1kfH0kuK;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id d11sor72598209edy.4.2019.08.07.07.28.51
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Wed, 07 Aug 2019 07:28:51 -0700 (PDT)
-Received-SPF: neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id y9si32063552edb.262.2019.08.07.07.30.41
+        for <linux-mm@kvack.org>;
+        Wed, 07 Aug 2019 07:30:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@shutemov-name.20150623.gappssmtp.com header.s=20150623 header.b=1kfH0kuK;
-       spf=neutral (google.com: 209.85.220.65 is neither permitted nor denied by best guess record for domain of kirill@shutemov.name) smtp.mailfrom=kirill@shutemov.name
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=AK75Iich5LWx3hmzjSJRalUSa9mHCHUU+BYMHbZIZMc=;
-        b=1kfH0kuKZirattxRfWIXAb8r/8XsqrwQ5+d4RJ0mmXY7DEH4SwvLktRN8ao5mQqeIV
-         Y3ts078FX51cmkr90vSJtL/7kpBoPXXkQupeiLZiWKerWAGmgFJ5Zvn2S/5gBdKtsK7G
-         gF0VS9r1jf+JhGubMnetDvc2e92Z6Z5+z4U8O8JMtfrTP/Llowbkfpl8b3oqAvhid7ve
-         8wnfPsAKUAEzIX6F9HxCD3lF0DRbTNLYuN6fS7wGv7dIqOlhNFeAz1z8FZ5C16HANqQj
-         /iY4mVqDeK/M8VJxQ2dSgEi0eZ/FsqFz9IbyUsa9c4zxZs+yPBtOzLgGcVj2gGvMJA17
-         Vpqg==
-X-Google-Smtp-Source: APXvYqwSHTgb4vN8z+yJxmNxZpsglNgVTEuyS2yIdiGBZDefygaCQHxYo93g2XFzgfEA6Rl1wRLUyg==
-X-Received: by 2002:a50:84a1:: with SMTP id 30mr10145054edq.44.1565188131065;
-        Wed, 07 Aug 2019 07:28:51 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id oh24sm15018422ejb.35.2019.08.07.07.28.50
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Aug 2019 07:28:50 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id 81A7010073F; Wed,  7 Aug 2019 17:28:50 +0300 (+03)
-Date: Wed, 7 Aug 2019 17:28:50 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: "Lendacky, Thomas" <Thomas.Lendacky@amd.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	"x86@kernel.org" <x86@kernel.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>, "H. Peter Anvin" <hpa@zytor.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Andy Lutomirski <luto@amacapital.net>,
-	David Howells <dhowells@redhat.com>,
-	Kees Cook <keescook@chromium.org>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Kai Huang <kai.huang@linux.intel.com>,
-	Jacob Pan <jacob.jun.pan@linux.intel.com>,
-	Alison Schofield <alison.schofield@intel.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"kvm@vger.kernel.org" <kvm@vger.kernel.org>,
-	"keyrings@vger.kernel.org" <keyrings@vger.kernel.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-	"Kirill A . Shutemov" <kirill.shutemov@linux.intel.com>
-Subject: Re: [PATCHv2 47/59] kvm, x86, mmu: setup MKTME keyID to spte for
- given PFN
-Message-ID: <20190807142850.mjp4ctqc7wttpser@box>
-References: <20190731150813.26289-1-kirill.shutemov@linux.intel.com>
- <20190731150813.26289-48-kirill.shutemov@linux.intel.com>
- <a3aee9ea-a3ce-1219-b7ff-5a1b291bffdd@amd.com>
+       spf=pass (google.com: domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 5B8EE344;
+	Wed,  7 Aug 2019 07:30:41 -0700 (PDT)
+Received: from [10.1.196.133] (e112269-lin.cambridge.arm.com [10.1.196.133])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C3CB23F706;
+	Wed,  7 Aug 2019 07:30:39 -0700 (PDT)
+Subject: Re: drm pull for v5.3-rc1
+To: Matthew Wilcox <willy@infradead.org>,
+ Christoph Hellwig <hch@infradead.org>
+Cc: Linus Torvalds <torvalds@linux-foundation.org>,
+ =?UTF-8?Q?Thomas_Hellstr=c3=b6m_=28VMware=29?= <thomas@shipmail.org>,
+ Dave Airlie <airlied@gmail.com>, Thomas Hellstrom <thellstrom@vmware.com>,
+ Daniel Vetter <daniel.vetter@ffwll.ch>, LKML <linux-kernel@vger.kernel.org>,
+ dri-devel <dri-devel@lists.freedesktop.org>,
+ Jerome Glisse <jglisse@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Linux-MM <linux-mm@kvack.org>
+References: <CAPM=9twvwhm318btWy_WkQxOcpRCzjpok52R8zPQxQrnQ8QzwQ@mail.gmail.com>
+ <CAHk-=wjC3VX5hSeGRA1SCLjT+hewPbbG4vSJPFK7iy26z4QAyw@mail.gmail.com>
+ <CAHk-=wiD6a189CXj-ugRzCxA9r1+siSCA0eP_eoZ_bk_bLTRMw@mail.gmail.com>
+ <48890b55-afc5-ced8-5913-5a755ce6c1ab@shipmail.org>
+ <CAHk-=whwcMLwcQZTmWgCnSn=LHpQG+EBbWevJEj5YTKMiE_-oQ@mail.gmail.com>
+ <CAHk-=wghASUU7QmoibQK7XS09na7rDRrjSrWPwkGz=qLnGp_Xw@mail.gmail.com>
+ <20190806073831.GA26668@infradead.org>
+ <CAHk-=wi7L0MDG7DY39Hx6v8jUMSq3ZCE3QTnKKirba_8KAFNyw@mail.gmail.com>
+ <20190806190937.GD30179@bombadil.infradead.org>
+ <20190807064000.GC6002@infradead.org>
+ <20190807141517.GA5482@bombadil.infradead.org>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <62cbe523-e8a4-cdfd-90c2-80260cefa5de@arm.com>
+Date: Wed, 7 Aug 2019 15:30:38 +0100
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <a3aee9ea-a3ce-1219-b7ff-5a1b291bffdd@amd.com>
-User-Agent: NeoMutt/20180716
+In-Reply-To: <20190807141517.GA5482@bombadil.infradead.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 06, 2019 at 08:26:52PM +0000, Lendacky, Thomas wrote:
-> On 7/31/19 10:08 AM, Kirill A. Shutemov wrote:
-> > From: Kai Huang <kai.huang@linux.intel.com>
-> > 
-> > Setup keyID to SPTE, which will be eventually programmed to shadow MMU
-> > or EPT table, according to page's associated keyID, so that guest is
-> > able to use correct keyID to access guest memory.
-> > 
-> > Note current shadow_me_mask doesn't suit MKTME's needs, since for MKTME
-> > there's no fixed memory encryption mask, but can vary from keyID 1 to
-> > maximum keyID, therefore shadow_me_mask remains 0 for MKTME.
-> > 
-> > Signed-off-by: Kai Huang <kai.huang@linux.intel.com>
-> > Signed-off-by: Kirill A. Shutemov <kirill.shutemov@linux.intel.com>
-> > ---
-> >  arch/x86/kvm/mmu.c | 18 +++++++++++++++++-
-> >  1 file changed, 17 insertions(+), 1 deletion(-)
-> > 
-> > diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-> > index 8f72526e2f68..b8742e6219f6 100644
-> > --- a/arch/x86/kvm/mmu.c
-> > +++ b/arch/x86/kvm/mmu.c
-> > @@ -2936,6 +2936,22 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
-> >  #define SET_SPTE_WRITE_PROTECTED_PT	BIT(0)
-> >  #define SET_SPTE_NEED_REMOTE_TLB_FLUSH	BIT(1)
-> >  
-> > +static u64 get_phys_encryption_mask(kvm_pfn_t pfn)
-> > +{
-> > +#ifdef CONFIG_X86_INTEL_MKTME
-> > +	struct page *page;
-> > +
-> > +	if (!pfn_valid(pfn))
-> > +		return 0;
-> > +
-> > +	page = pfn_to_page(pfn);
-> > +
-> > +	return ((u64)page_keyid(page)) << mktme_keyid_shift();
-> > +#else
-> > +	return shadow_me_mask;
-> > +#endif
-> > +}
+On 07/08/2019 15:15, Matthew Wilcox wrote:
+> On Tue, Aug 06, 2019 at 11:40:00PM -0700, Christoph Hellwig wrote:
+>> On Tue, Aug 06, 2019 at 12:09:38PM -0700, Matthew Wilcox wrote:
+>>> Has anyone looked at turning the interface inside-out?  ie something like:
+>>>
+>>> 	struct mm_walk_state state = { .mm = mm, .start = start, .end = end, };
+>>>
+>>> 	for_each_page_range(&state, page) {
+>>> 		... do something with page ...
+>>> 	}
+>>>
+>>> with appropriate macrology along the lines of:
+>>>
+>>> #define for_each_page_range(state, page)				\
+>>> 	while ((page = page_range_walk_next(state)))
+>>>
+>>> Then you don't need to package anything up into structs that are shared
+>>> between the caller and the iterated function.
+>>
+>> I'm not an all that huge fan of super magic macro loops.  But in this
+>> case I don't see how it could even work, as we get special callbacks
+>> for huge pages and holes, and people are trying to add a few more ops
+>> as well.
 > 
-> This patch breaks AMD virtualization (SVM) in general (non-SEV and SEV
-> guests) when SME is active. Shouldn't this be a run time, vs build time,
-> check for MKTME being active?
+> We could have bits in the mm_walk_state which indicate what things to return
+> and what things to skip.  We could (and probably should) also use different
+> iterator names if people actually want to iterate different things.  eg
+> for_each_pte_range(&state, pte) as well as for_each_page_range().
+> 
 
-Thanks, I've missed this.
+The iterator approach could be awkward for the likes of my generic
+ptdump implementation[1]. It would require an iterator which returns all
+levels and allows skipping levels when required (to prevent KASAN
+slowing things down too much). So something like:
 
-This fixup should help:
+start_walk_range(&state);
+for_each_page_range(&state, page) {
+	switch(page->level) {
+	case PTE:
+		...
+	case PMD:
+		if (...)
+			skip_pmd(&state);
+		...
+	case HOLE:
+		....
+	...
+	}
+}
+end_walk_range(&state);
 
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index 00d17bdfec0f..54931acf260e 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -2947,18 +2947,17 @@ static bool kvm_is_mmio_pfn(kvm_pfn_t pfn)
- 
- static u64 get_phys_encryption_mask(kvm_pfn_t pfn)
- {
--#ifdef CONFIG_X86_INTEL_MKTME
- 	struct page *page;
- 
-+	if (!mktme_enabled())
-+		return shadow_me_mask;
-+
- 	if (!pfn_valid(pfn))
- 		return 0;
- 
- 	page = pfn_to_page(pfn);
- 
- 	return ((u64)page_keyid(page)) << mktme_keyid_shift();
--#else
--	return shadow_me_mask;
--#endif
- }
- 
- static int set_spte(struct kvm_vcpu *vcpu, u64 *sptep,
--- 
- Kirill A. Shutemov
+It seems a little fragile - e.g. we wouldn't (easily) get type checking
+that you are actually treating a PTE as a pte_t. The state mutators like
+skip_pmd() also seem a bit clumsy.
+
+Steve
+
+[1]
+https://lore.kernel.org/lkml/20190731154603.41797-20-steven.price@arm.com/
 
