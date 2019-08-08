@@ -2,152 +2,152 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 73F69C0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 05:52:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C5119C433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 06:02:14 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 384F021873
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 05:52:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 384F021873
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id 89DB12186A
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 06:02:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 89DB12186A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id CAC436B0003; Thu,  8 Aug 2019 01:52:36 -0400 (EDT)
+	id 15A4E6B0007; Thu,  8 Aug 2019 02:02:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C5C6F6B0006; Thu,  8 Aug 2019 01:52:36 -0400 (EDT)
+	id 10AFF6B0008; Thu,  8 Aug 2019 02:02:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B4BBF6B0007; Thu,  8 Aug 2019 01:52:36 -0400 (EDT)
+	id 020D06B000A; Thu,  8 Aug 2019 02:02:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 829AE6B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 01:52:36 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id q11so54779736pll.22
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 22:52:36 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id AC3506B0007
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 02:02:13 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id b33so57517447edc.17
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 23:02:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=dzMkON2qhgxuXDp9xv9SOiizlU4XQ1qhVLRlqGAALTI=;
-        b=Ntk0U2uDrPrHy4XeOLQ9lt4C2sihNVaEhdjVsWFtfdaMgogwQYw5Gfn2c3HSA6YjRT
-         v7pJPy8zgxXjBxqqtXw4zby6nHdBRqSkFnsJBTO0t8z5Ep88KUBfWr8zNPms440rJS8r
-         L++rcAuofypSP9R6Z7v8neaARLEKoKKfTn799823v1P9Rcn9ixFei0TCWIMZZKVkapMH
-         PmBzfnPNABA9FdOeHSna1AY5qRUE6YGsRBajDbPp7ohnZSRLR+kGtl76M5auhTVoORSg
-         R7NO91WMAUwYCKuY9ZwpKc+nmLQLnDByciqGMqKNmjx6z5IqVEg5B/MUUv2N+QJf8+gT
-         8G5A==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAXNKwIMnbXfF6b0ujMhKw5giEBY6+rdaO/8bMrfL4cGt8Onu/LN
-	yGM4IHay7itPK1EqSHY/PeASlURj2O0MKtBFhpxvWUpCu0HL5J6u16kCahRQabuA+JJyPgaJX2E
-	ZFplzSFkSmc99bI1WP8UkT6EnYZB6jJUMBdmxFrNY0Xp/RLHZ9TE+MU3pT+qBtEU=
-X-Received: by 2002:a17:90a:d997:: with SMTP id d23mr2142522pjv.84.1565243556227;
-        Wed, 07 Aug 2019 22:52:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwE/RJMHkbx/sBPqozNFk7ZLJuxdrbrcrAQk8PBZ2cadP+GEUQcawarOZobDHPB70hCY5pW
-X-Received: by 2002:a17:90a:d997:: with SMTP id d23mr2142479pjv.84.1565243555503;
-        Wed, 07 Aug 2019 22:52:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565243555; cv=none;
+        bh=mMMbJZ3j+NPo4KunwM+dB0OCXYM/A9TaVqSTcJGrnKI=;
+        b=LX8VJ1vu27xhEFacJPB5CDGuNAZnNCiQuG2ojDA678bnV1Rc9Yz4zf+zrMAxqDWgm8
+         Zdece9PbHCbWmbHelkRXT9lr7NEkiEcDVL7nSjKZsr32vsm0O7Ahaww4YHFxCIoWQJBt
+         wY+jHKqupokEunPu2llgDNMvq6F/PKse0P6xj9qWCu6XX9sOQ5lJpy6j/xx2HMRp7M8T
+         T7Mew7tReGYd4WxKdsgz8kDCKy9AIuPpIW28wxrjQOYooY8T7WKZ+edUjGdjsrGvs5M5
+         WzUIwZNaN6c9zsUC3LML5+zDfYwL1QnUD2S9tPhn47kFjmfv8AQu/jJ+tpwNP/NNPt4R
+         jmdw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAW2iagYHAB+1+r1E9yqaNZrCOjEgID6hA/9fjIrqC3Qx0q0vQlP
+	1jOSyftnsp0zMwtv0v908zc8ndsFVotO163ur3SD8UQ5GfAuNzR36zpHudo3gXRAoLq0g2g0Ljw
+	fDSMFGS/cf7+bL1kECw/vlHBBunAx8ruvep6GJrzJ7pi3mtbAX4ImcB1gEwSJtFk=
+X-Received: by 2002:a17:906:f211:: with SMTP id gt17mr11640124ejb.263.1565244133217;
+        Wed, 07 Aug 2019 23:02:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzkjoFy7dWdpyT1talHh/WPIHW/Wyjz3YyvpOVShmsoCzybwu+oiBlijRGmnqwOmiAMnXtq
+X-Received: by 2002:a17:906:f211:: with SMTP id gt17mr11640057ejb.263.1565244132353;
+        Wed, 07 Aug 2019 23:02:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565244132; cv=none;
         d=google.com; s=arc-20160816;
-        b=emDoKp8grxuruhcnm0mjIkyjv0AEW1MgAdx5MwaomkEknR9LgzvtkZ3kW3jahbdDQV
-         UPczxu/tYErUktKe8+aExhNgOOfDSgEDmXyNIYSmByYwt5nPJEw2OEXg97SddI/W/xoT
-         Yrzkpuube7JTbqSWIXvZp4Iqx5GODZzSnqySHnOhvRl4kwqEFe8igP77K3XjZB8PDDJR
-         hMWvdNGA2Mvfa2BWcP5kUMLbP7Ei/vtqREgsnrYrQy41GT2uJZlKAJBupO3HngqLSLGL
-         0xWRFx1EUgjIzXe7g8YxOglMz8OCTR1VaVwvgDA3sNZiMq5kSYmN2DnezA4sT1HzEcrY
-         C48A==
+        b=SLzCiBlAwtjCwDyIwq5kRljjp+IS1XRlZSrm2T5GXT3n8xOhaxsEjAs6juyaomT+Uf
+         QECAOCGkNxlLiDLjyi9fltEERs/Qas0HhVVQCegdqM8QSb3I1CDfsY0j6L4SvwHkj9Fc
+         MSVC5ylo/0uNHylsKb0wZa0gL12lcxyAlWHhg6a9jKjia3BWV8x0NiRcdIeokslc9YaS
+         lHKDhV3cJP2sK8sMcMYykKKId2td2EglnmOm+ae1ui4r45yMjqB0mUVNjyHNkfGt1HyS
+         x18mjAYttHzV7nHSL4NOnlKj8M/uFzLFBoZI0yGqRRI8W4KeHQvlr8IKSA9fpxxc8G6s
+         74oA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=dzMkON2qhgxuXDp9xv9SOiizlU4XQ1qhVLRlqGAALTI=;
-        b=L4EY98GSKSyu13Lh9RdcpIf00zPqt3jpFgmfhyDSQ3qnvvbLzFHKKbf1iVFI9SkBfi
-         OGRDxTUDaQ/R8H9dc/xRu1yoKK4rtkxHiL2p+MXJIH+w4Hnw7eGcqE4wwXiK6sMNmaRV
-         6u54Ah+dTvDSqKqwA6HfKZL212UQVrahrFNaNqcdPbr3JBHi2/OuqU+ug0CnS6Fy+aja
-         rakSWsALDJUrS+LI23c0wStj45bLIWbFFh4QJ9Wkt1N/cgMKRkfrEFjh0xhXN6ENks0u
-         3Wtgc3DDEd6PKmWSNZv60mLrXW99MYUzB+hhV+GmiXUsEeHej/kXCjSJTRMEcKsJqxZj
-         c2WQ==
+        bh=mMMbJZ3j+NPo4KunwM+dB0OCXYM/A9TaVqSTcJGrnKI=;
+        b=q4b1snj9ZOJcfNlYl6xhNEDWVTPM8rTb5CPfgp8xJKq+rJeei4t33YJQWO7pMH6rhz
+         PMCVVUvek7236kCqOaVLwB+J5fwI9HgbMf1Ld7UrmW8blyn8mOio3EAleDFplpXJ1G6w
+         jOVRdjWZdS7HHWApDTA9nQIQHXhlsxF1Zs4+DCPyGjCTf2IZUskhKdvvm+NHcwZ+c3tf
+         gZqCXxt6mtu1miRABXASuH3DqoFHE+y3eMIV+XOF8YIO9qsNspyJr1fONE1INCZrluS1
+         AZwhbV/qh6/8zl6azkx02VV5tK2o672/BLioW9Y0DjFeI8WysK8FJa7d06I656FqaR2b
+         0O1A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
-        by mx.google.com with ESMTP id a1si1067257pjs.58.2019.08.07.22.52.35
-        for <linux-mm@kvack.org>;
-        Wed, 07 Aug 2019 22:52:35 -0700 (PDT)
-Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z26si28392298ejf.145.2019.08.07.23.02.12
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Aug 2019 23:02:12 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
-	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id 26295362962;
-	Thu,  8 Aug 2019 15:52:32 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1hvbKf-0000HC-Hf; Thu, 08 Aug 2019 15:51:25 +1000
-Date: Thu, 8 Aug 2019 15:51:25 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Mel Gorman <mgorman@techsingularity.net>
-Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org,
-	linux-xfs@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
-Subject: Re: [PATCH] [Regression, v5.0] mm: boosted kswapd reclaim b0rks
- system cache balance
-Message-ID: <20190808055125.GV7777@dread.disaster.area>
-References: <20190807091858.2857-1-david@fromorbit.com>
- <20190807093056.GS11812@dhcp22.suse.cz>
- <20190807150316.GL2708@suse.de>
- <20190807220817.GN7777@dread.disaster.area>
- <20190807235534.GK2739@techsingularity.net>
- <20190808003025.GU7777@dread.disaster.area>
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id B2659B68F;
+	Thu,  8 Aug 2019 06:02:11 +0000 (UTC)
+Date: Thu, 8 Aug 2019 08:02:10 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Wei Yang <richardw.yang@linux.intel.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org,
+	kirill.shutemov@linux.intel.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/mmap.c: refine data locality of find_vma_prev
+Message-ID: <20190808060210.GE11812@dhcp22.suse.cz>
+References: <20190806081123.22334-1-richardw.yang@linux.intel.com>
+ <3e57ba64-732b-d5be-1ad6-eecc731ef405@suse.cz>
+ <20190807003109.GB24750@richard>
+ <20190807075101.GN11812@dhcp22.suse.cz>
+ <20190808032638.GA28138@richard>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190808003025.GU7777@dread.disaster.area>
+In-Reply-To: <20190808032638.GA28138@richard>
 User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0
-	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
-	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=BNQjUj_GC9DrHHjaN18A:9
-	a=CjuIK1q_8ugA:10 a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 08, 2019 at 10:30:25AM +1000, Dave Chinner wrote:
-> On Thu, Aug 08, 2019 at 12:55:34AM +0100, Mel Gorman wrote:
-> > On Thu, Aug 08, 2019 at 08:08:17AM +1000, Dave Chinner wrote:
-> > > On Wed, Aug 07, 2019 at 04:03:16PM +0100, Mel Gorman wrote:
-> > > > On Wed, Aug 07, 2019 at 11:30:56AM +0200, Michal Hocko wrote:
-> > > > The boosting was not intended to target THP specifically -- it was meant
-> > > > to help recover early from any fragmentation-related event for any user
-> > > > that might need it. Hence, it's not tied to THP but even with THP
-> > > > disabled, the boosting will still take effect.
-> > > > 
-> > > > One band-aid would be to disable watermark boosting entirely when THP is
-> > > > disabled but that feels wrong. However, I would be interested in hearing
-> > > > if sysctl vm.watermark_boost_factor=0 has the same effect as your patch.
-> > > 
-> > > <runs test>
-> > > 
-> > > Ok, it still runs it out of page cache, but it doesn't drive page
-> > > cache reclaim as hard once there's none left. The IO patterns are
-> > > less peaky, context switch rates are increased from ~3k/s to 15k/s
-> > > but remain pretty steady.
-> > > 
-> > > Test ran 5s faster and  file rate improved by ~2%. So it's better
-> > > once the page cache is largerly fully reclaimed, but it doesn't
-> > > prevent the page cache from being reclaimed instead of inodes....
-> > > 
-> > 
-> > Ok. Ideally you would also confirm the patch itself works as you want.
-> > It *should* but an actual confirmation would be nice.
+On Thu 08-08-19 11:26:38, Wei Yang wrote:
+> On Wed, Aug 07, 2019 at 09:51:01AM +0200, Michal Hocko wrote:
+> >On Wed 07-08-19 08:31:09, Wei Yang wrote:
+> >> On Tue, Aug 06, 2019 at 11:29:52AM +0200, Vlastimil Babka wrote:
+> >> >On 8/6/19 10:11 AM, Wei Yang wrote:
+> >> >> When addr is out of the range of the whole rb_tree, pprev will points to
+> >> >> the biggest node. find_vma_prev gets is by going through the right most
+> >> >
+> >> >s/biggest/last/ ? or right-most?
+> >> >
+> >> >> node of the tree.
+> >> >> 
+> >> >> Since only the last node is the one it is looking for, it is not
+> >> >> necessary to assign pprev to those middle stage nodes. By assigning
+> >> >> pprev to the last node directly, it tries to improve the function
+> >> >> locality a little.
+> >> >
+> >> >In the end, it will always write to the cacheline of pprev. The caller has most
+> >> >likely have it on stack, so it's already hot, and there's no other CPU stealing
+> >> >it. So I don't understand where the improved locality comes from. The compiler
+> >> >can also optimize the patched code so the assembly is identical to the previous
+> >> >code, or vice versa. Did you check for differences?
+> >> 
+> >> Vlastimil
+> >> 
+> >> Thanks for your comment.
+> >> 
+> >> I believe you get a point. I may not use the word locality. This patch tries
+> >> to reduce some unnecessary assignment of pprev.
+> >> 
+> >> Original code would assign the value on each node during iteration, this is
+> >> what I want to reduce.
+> >
+> >Is there any measurable difference (on micro benchmarks or regular
+> >workloads)?
 > 
-> Yup, I'll get to that later today.
+> I wrote a test case to compare these two methods, but not find visible
+> difference in run time.
 
-Looks good, does what it says on the tin.
-
-Reviewed-by: Dave Chinner <dchinner@redhat.com>
-
+What is the point in changing this code if it doesn't lead to any
+measurable improvement?
 -- 
-Dave Chinner
-david@fromorbit.com
+Michal Hocko
+SUSE Labs
 
