@@ -2,156 +2,203 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A26E3C0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:07:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B8278C433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:23:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6C2B62173E
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:07:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6C2B62173E
+	by mail.kernel.org (Postfix) with ESMTP id 4783F217F4
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:23:13 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Sv3ezScU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4783F217F4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DD4FC6B0003; Thu,  8 Aug 2019 16:07:18 -0400 (EDT)
+	id D059F6B0003; Thu,  8 Aug 2019 16:23:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D84ED6B0006; Thu,  8 Aug 2019 16:07:18 -0400 (EDT)
+	id CB67D6B0006; Thu,  8 Aug 2019 16:23:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C4E106B0007; Thu,  8 Aug 2019 16:07:18 -0400 (EDT)
+	id BA46B6B0007; Thu,  8 Aug 2019 16:23:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 777D26B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 16:07:18 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f19so58890738edv.16
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 13:07:18 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 80DC36B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 16:23:12 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id x10so59849627pfa.23
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 13:23:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=I8XsaFXf8iQlq8E+z7qOR+Ik+xepl7WhVzVrX1wGvAk=;
-        b=n+6Qywa9jqFkYzy2VtXDTKEeXI6eVAFiUzEFFPB6czodY6BJVlMxKJZjredh9y9XMB
-         hD6ywYKg9MQlF7EKBlDF1+k+zXIzwDxWjDNA7MBjnkk/SbXMd9ncgurCjhBo7lc7GDAO
-         Kvg4TBSR3Z3Y+yZOYhW3qee0bYkgEpzvhNwiZ515NZi7RzRAV8IIqxyV2nnQZhTlPQij
-         V8CQGxFZd4kC095aCUsLmsQIKfTgn3V4E2EpdUF78/piHdpNDGUOUnoyBGzYEua0eucE
-         68GAreWSAwsuiZSki5GcmwLHMeJcLkWSE2aVMr35+llMF9/ya8d1zy5T0JMjRo7VhewI
-         ax2g==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAUEZ7dsv86rzO8/CNV06XTNnHt+PTWyNkx85Ou0O+VxivAuQc5L
-	YfT8SVsapulu1wSf21jWvZVqdL1XovePX3pPjx934IoDSsVfWmi9NOIR3Rid0CdMN1Nbm6Gu10e
-	Km+hd5bcA/zjEMVVdsHyecG/95E9dj+wZC/KBl6u82ZwGPf8twoGDaJH9VTCA8pA=
-X-Received: by 2002:a50:9799:: with SMTP id e25mr17581491edb.79.1565294838066;
-        Thu, 08 Aug 2019 13:07:18 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzJ2LdJtgrGBV689+vVFhhejTMYI1j9PFhmphltV0B7y8c1zSwRnSNiYHEKy7euVglfFfwA
-X-Received: by 2002:a50:9799:: with SMTP id e25mr17581438edb.79.1565294837291;
-        Thu, 08 Aug 2019 13:07:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565294837; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=khUis8U74kkcKVpZjn/Mp0bv9eDyEII73MVGVvtvdsQ=;
+        b=JXAax7+daCffvfE5uX/Ef4VLR+K7UjGcJRyFTwAWGZjnkTiZaOmM4axEsfUwp4x7Y6
+         2CSGiSVBImSrQTJ12JtvtOJo0slnjs10Vw/8MXGVvirYVYnGUzR3bE6390gnPTB+Ytq5
+         yXMYcBSX5KpJf0jSsRQPPhJTNgvQP6+SRJfVioUcwCRYKWjUvRrzsUD8aiHntM6wxjMe
+         l00lgl2IbQnXjPCPZ5dl1PIUv9bOm5+aH0Jw4fxIQsLwoIZgg0frZo4AvAZlwZ5M9vtG
+         vsBuo7umzQk/RDT3E94Uco29b87LO7tAY94KG/blKR33K+ctjOjp2tQovTa3AGmWXHcd
+         USIw==
+X-Gm-Message-State: APjAAAUbc5pF3jOhxX9cTpaSaTqlq9Gb1BKw2QllEK0LwghzQNKnG8yr
+	FZEqTCakBajzTh5gFJm5oThM5O3RzoI4HUx4oTBbdXOSfJDw20NowFHW3NmIHDn7AhRBDanhH/2
+	C5gXdLHv8Y7RJItg5UqxydUZczPco7uZUWpDgaxwatCS9D90CC0x/YTzR2lHflcLC1w==
+X-Received: by 2002:a65:49cc:: with SMTP id t12mr13305738pgs.83.1565295791800;
+        Thu, 08 Aug 2019 13:23:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzT+uWR10wt+NcaKrUaziYpBi6K8VR3dgnKFKHc3huk1NtaaLCOYkb7N9jP8jbIl1bCabbd
+X-Received: by 2002:a65:49cc:: with SMTP id t12mr13305698pgs.83.1565295790774;
+        Thu, 08 Aug 2019 13:23:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565295790; cv=none;
         d=google.com; s=arc-20160816;
-        b=Xvdz458rWHc592sLHNG7XKkRPTxbej9uDHEZESz8xAlePihNI1B0d15hRyoB5+6tVR
-         QHR+hXDo5IAxux9EL21ajJF8gqYKi8d20t6pcg7vkAvNOwEESNyRZv0uWcUNfBx43gbk
-         pdF1e5BsFIaPWCazpzyFYr/24r/GOREa03wz66D8ql0gLN0AbN0ugLi4UGkyqebrqSFG
-         KxBjqCSOSoZiyzm2Hq0wyBZ2H6rs/Z0r7IFq3qO+n5o7Ov9pdINfOtCfnukl0ferwIoE
-         ZLqlGCOgbYe17sMS/eJJ3V1jI5HZqnSWsq6Nz/QXj2RVHWvgntG6YJVlJf0oAYgGgVZ5
-         Y8Cw==
+        b=uZ10LL6K+Ir3gRmitZEg13YRv4OMklRQJsKiERt1v8ko0s47LeCxPUEBXqxRETGN8P
+         06hoXYhVobfSg1Y21De9WRWIF67gYsvvTBIFmhU7N3nb9FNRacF4mS8zeirOwNu4oZJq
+         EdwtG2rUAkbEwdofLlj7oZARXWC9w+cjk37mPIMHCAsrLsvdvSL52g2WzAEbXc3rpzgM
+         A23Gjm7Fpx4c+XW2+s5cQQpMMrIzHCPvxQEqkzDGEZerJHCzUoTPKbt43kjNBsuX3ZDe
+         1rwr3sq0NUFcCwyGA51ea/vypAo9NvfTugNggwffppRPf7Hn1EBUCcMOTta8Vj7MqhJB
+         fUfA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=I8XsaFXf8iQlq8E+z7qOR+Ik+xepl7WhVzVrX1wGvAk=;
-        b=XS082YVSX0wjiJvoKAiNIHOOqhtHXBdDHn65Wz6NIf8mTGQJTQ8F1V6q7xWJR8rTzt
-         f93gWj8Dt5LjtoVFE1rUNtYHzr6FsGjPaTt3+8UoXJmW+xCddiEz5JkJoHdQKMIRicyz
-         iOaw47lYrroE0FgY6MF5VSHxXaErsxVzqnsoNMUquWL06OVAqLY9uY2tLddgJFa2ZmD0
-         oT3jGHxlq1dUDZoRlbUUwQPEP2R+RlZ/n2AEc6agIcOuCubkav2Ft6xEaRxSbM1Ez+eT
-         +ewQeSY+tRy7QRiLHWFwMNtoH7dCl0VNWP65IlEsVyu4Vmt+3brKlBpn2ybqOrI/NxK6
-         qShw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=khUis8U74kkcKVpZjn/Mp0bv9eDyEII73MVGVvtvdsQ=;
+        b=GhFnVTXIueyRu7a3iVwZfjT4NMI2l/lvl4cNbFA8VpwFraw1s1SR3OA/wmJ83tQ6Tt
+         npXqda1j90fyadqdg1mDtTSQzgoirnEUy6DobmF/WdL9t4EgRKam26uWD1oSabWXbRhM
+         /lAvP76Y1LHow6Nn1ImiLsNaiycpQoyJslx9Jn/4Cqi3WR95tmAX8OSJIDRSfKsave88
+         fRpjqf+46nPj6s2EzsWCGeU7k8LfJ0OWfeCSXWTRy+GVZ4GfhmSamq7bO8hzZjP/poQe
+         TxQwinrVP+yH8xv7v1TpcKiagronpLZevMg+fQcVUm34BIBJhcwxlCcoOTd6mAnNG7y2
+         QXVA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id p6si11071114ejg.75.2019.08.08.13.07.16
+       dkim=pass header.i=@kernel.org header.s=default header.b=Sv3ezScU;
+       spf=pass (google.com: domain of shuah@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=shuah@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
+        by mx.google.com with ESMTPS id 21si56029511pfo.138.2019.08.08.13.23.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 13:07:17 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 08 Aug 2019 13:23:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of shuah@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 83B03AD2A;
-	Thu,  8 Aug 2019 20:07:16 +0000 (UTC)
-Date: Thu, 8 Aug 2019 22:07:15 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Edward Chron <echron@arista.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	David Rientjes <rientjes@google.com>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Ivan Delalande <colona@arista.com>
-Subject: Re: [PATCH] mm/oom: Add killed process selection information
-Message-ID: <20190808200715.GI18351@dhcp22.suse.cz>
-References: <20190808183247.28206-1-echron@arista.com>
- <20190808185119.GF18351@dhcp22.suse.cz>
- <CAM3twVT0_f++p1jkvGuyMYtaYtzgEiaUtb8aYNCmNScirE4=og@mail.gmail.com>
+       dkim=pass header.i=@kernel.org header.s=default header.b=Sv3ezScU;
+       spf=pass (google.com: domain of shuah@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=shuah@kernel.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from [192.168.1.112] (c-24-9-64-241.hsd1.co.comcast.net [24.9.64.241])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id 7DE1C2173C;
+	Thu,  8 Aug 2019 20:23:09 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1565295790;
+	bh=RHraHwfrbwkREg74Xy9SOBTOzh4EzmM+GX9f7LiI4tg=;
+	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
+	b=Sv3ezScU40/zyzSwPkXgXdl2Zfpk274kLgsFqRrBhADRQrvgV8spmG+hFWG1IoYWT
+	 Pbp2ldUVK7N9APpheUobyrSNhYkO7tImql2TTefGzCTJJ5SKTkMgTlB32mCMLnkk8a
+	 RywI5Y4D5/UX4eBw5YX0L4x6Q7BQPy92DbnCOaC8=
+Subject: Re: [RFC PATCH] hugetlbfs: Add hugetlb_cgroup reservation limits
+To: Mina Almasry <almasrymina@google.com>, mike.kravetz@oracle.com
+Cc: rientjes@google.com, shakeelb@google.com, gthelen@google.com,
+ akpm@linux-foundation.org, khalid.aziz@oracle.com,
+ linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ linux-kselftest@vger.kernel.org, shuah <shuah@kernel.org>
+References: <20190808194002.226688-1-almasrymina@google.com>
+From: shuah <shuah@kernel.org>
+Message-ID: <528b37c6-3e7a-c6fc-a322-beecb89011a5@kernel.org>
+Date: Thu, 8 Aug 2019 14:23:08 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAM3twVT0_f++p1jkvGuyMYtaYtzgEiaUtb8aYNCmNScirE4=og@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190808194002.226688-1-almasrymina@google.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[please do not top-post]
+On 8/8/19 1:40 PM, Mina Almasry wrote:
+> Problem:
+> Currently tasks attempting to allocate more hugetlb memory than is available get
+> a failure at mmap/shmget time. This is thanks to Hugetlbfs Reservations [1].
+> However, if a task attempts to allocate hugetlb memory only more than its
+> hugetlb_cgroup limit allows, the kernel will allow the mmap/shmget call,
+> but will SIGBUS the task when it attempts to fault the memory in.
+> 
+> We have developers interested in using hugetlb_cgroups, and they have expressed
+> dissatisfaction regarding this behavior. We'd like to improve this
+> behavior such that tasks violating the hugetlb_cgroup limits get an error on
+> mmap/shmget time, rather than getting SIGBUS'd when they try to fault
+> the excess memory in.
+> 
+> The underlying problem is that today's hugetlb_cgroup accounting happens
+> at hugetlb memory *fault* time, rather than at *reservation* time.
+> Thus, enforcing the hugetlb_cgroup limit only happens at fault time, and
+> the offending task gets SIGBUS'd.
+> 
+> Proposed Solution:
+> A new page counter named hugetlb.xMB.reservation_[limit|usage]_in_bytes. This
+> counter has slightly different semantics than
+> hugetlb.xMB.[limit|usage]_in_bytes:
+> 
+> - While usage_in_bytes tracks all *faulted* hugetlb memory,
+> reservation_usage_in_bytes tracks all *reserved* hugetlb memory.
+> 
+> - If a task attempts to reserve more memory than limit_in_bytes allows,
+> the kernel will allow it to do so. But if a task attempts to reserve
+> more memory than reservation_limit_in_bytes, the kernel will fail this
+> reservation.
+> 
+> This proposal is implemented in this patch, with tests to verify
+> functionality and show the usage.
+> 
+> Alternatives considered:
+> 1. A new cgroup, instead of only a new page_counter attached to
+>     the existing hugetlb_cgroup. Adding a new cgroup seemed like a lot of code
+>     duplication with hugetlb_cgroup. Keeping hugetlb related page counters under
+>     hugetlb_cgroup seemed cleaner as well.
+> 
+> 2. Instead of adding a new counter, we considered adding a sysctl that modifies
+>     the behavior of hugetlb.xMB.[limit|usage]_in_bytes, to do accounting at
+>     reservation time rather than fault time. Adding a new page_counter seems
+>     better as userspace could, if it wants, choose to enforce different cgroups
+>     differently: one via limit_in_bytes, and another via
+>     reservation_limit_in_bytes. This could be very useful if you're
+>     transitioning how hugetlb memory is partitioned on your system one
+>     cgroup at a time, for example. Also, someone may find usage for both
+>     limit_in_bytes and reservation_limit_in_bytes concurrently, and this
+>     approach gives them the option to do so.
+> 
+> Caveats:
+> 1. This support is implemented for cgroups-v1. I have not tried
+>     hugetlb_cgroups with cgroups v2, and AFAICT it's not supported yet.
+>     This is largely because we use cgroups-v1 for now. If required, I
+>     can add hugetlb_cgroup support to cgroups v2 in this patch or
+>     a follow up.
+> 2. Most complicated bit of this patch I believe is: where to store the
+>     pointer to the hugetlb_cgroup to uncharge at unreservation time?
+>     Normally the cgroup pointers hang off the struct page. But, with
+>     hugetlb_cgroup reservations, one task can reserve a specific page and another
+>     task may fault it in (I believe), so storing the pointer in struct
+>     page is not appropriate. Proposed approach here is to store the pointer in
+>     the resv_map. See patch for details.
+> 
+> [1]: https://www.kernel.org/doc/html/latest/vm/hugetlbfs_reserv.html
+> 
+> Signed-off-by: Mina Almasry <almasrymina@google.com>
+> ---
+>   include/linux/hugetlb.h                       |  10 +-
+>   include/linux/hugetlb_cgroup.h                |  19 +-
+>   mm/hugetlb.c                                  | 256 ++++++++--
+>   mm/hugetlb_cgroup.c                           | 153 +++++-
 
-On Thu 08-08-19 12:21:30, Edward Chron wrote:
-> It is helpful to the admin that looks at the kill message and records this
-> information. OOMs can come in bunches.
-> Knowing how much resource the oom selected process was using at the time of
-> the OOM event is very useful, these fields document key process and system
-> memory/swap values and can be quite helpful.
+Is there a reason why all these changes are in a single patch?
+I can see these split in at least 2 or 3 patches with the test
+as a separate patch.
 
-I do agree and we already print that information. rss with a break down
-to anonymous, file backed and shmem, is usually a large part of the oom
-victims foot print. It is not a complete information because there might
-be a lot of memory hidden by other resource (open files etc.). We do not
-print that information because it is not considered in the oom
-selection. It is also not guaranteed to be freed upon the task exit.
- 
-> Also can't you disable printing the oom eligible task list? For systems
-> with very large numbers of oom eligible processes that would seem to be
-> very desirable.
+Makes it lot easier to review.
 
-Yes that is indeed the case. But how does the oom_score and
-oom_score_adj alone without comparing it to other eligible tasks help in
-isolation?
-
-[...]
-
-> I'm not sure that change would be supported upstream but again in our
-> experience we've found it helpful, since you asked.
-
-Could you be more specific about how that information is useful except
-for recording it? I am all for giving an useful information in the OOM
-report but I would like to hear a sound justification for each
-additional piece of information.
-
-E.g. this helped us to understand why the task has been selected - this
-is usually dump_tasks portion of the report because it gives a picture
-of what the OOM killer sees when choosing who to kill.
-
-Then we have the summary to give us an estimation on how much
-memory will get freed when the victim dies - rss is a very rough
-estimation. But is a portion of the overal memory or oom_score{_adj}
-important to print as well? Those are relative values. Say you get
-memory-usage:10%, oom_score:42 and oom_score_adj:0. What are you going
-to tell from that information?
--- 
-Michal Hocko
-SUSE Labs
+thanks,
+-- Shuah
 
