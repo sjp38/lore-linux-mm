@@ -2,368 +2,353 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0C598C433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 18:29:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D272AC0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 18:33:07 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AF096217D7
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 18:29:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF096217D7
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
+	by mail.kernel.org (Postfix) with ESMTP id 3712E217F4
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 18:33:07 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=arista.com header.i=@arista.com header.b="VEsafay3"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3712E217F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=arista.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 45B116B0003; Thu,  8 Aug 2019 14:29:51 -0400 (EDT)
+	id C45AD6B0003; Thu,  8 Aug 2019 14:33:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 430896B0006; Thu,  8 Aug 2019 14:29:51 -0400 (EDT)
+	id BF7AF6B0006; Thu,  8 Aug 2019 14:33:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2FA0F6B0007; Thu,  8 Aug 2019 14:29:51 -0400 (EDT)
+	id ABF256B0007; Thu,  8 Aug 2019 14:33:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D44D46B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 14:29:50 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id f9so45509713wrq.14
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 11:29:50 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7698F6B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 14:33:06 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id j9so4203349pgk.20
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 11:33:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:mime-version:content-disposition:user-agent;
-        bh=DMKsmv2cBCIJYQLkMc9993AXiE3libtfLlDJll9ON10=;
-        b=qIkwAcG2X7033R6H7BDjAIWPZPhb+lv077UM96nJl96hsHAsQL2J34HVQWNElJ9i0U
-         HyEdGgO/Rwk5mGbl+Cwt+5dTjni7zfWFGs5iPjIJNeBIuBilOteTDr7VBJecCUD2ueSK
-         bf0OLlNukLF/7vFr61i5TaAz3d8vaiZzq72iBS58ID1zlJbK6s+uKrofSggTJw+KtTrH
-         MwHKZCQYYjl7u/2zfR5TVlTKqgZ8unbKLHTvKFmKpUyTfgNFeSXnBLXcKxpZJgWcJVu2
-         p0MtQJkSwv60+ddlf6mEW/0wQLOFz3Pov0OdHE8j+BReSX0Tedyl+EUJpgvjrg8FKvH/
-         Kwlw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.66 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-X-Gm-Message-State: APjAAAWYfv6t9fXzkukeNeSg8etPuon8KE/uYVyq0FkP5GUvOdEp7HZU
-	fRrwwdQy0CpVsI3JxpIst+vt1tAtS/NmJYj2MIS69tPsCcKl8nStgWCbOtNa/urvTcMnmyum6wF
-	V++TY1XHjPdKIHPuTzFGAn/hZQl81jL2XLqlLMi5MVmwXFT/5J5Bp8MfdKHxVfjSkgQ==
-X-Received: by 2002:a7b:ce18:: with SMTP id m24mr5781370wmc.126.1565288990318;
-        Thu, 08 Aug 2019 11:29:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwAu++vuSJ1RnYEI5ps8fIGw9c8dMKzvdezxexs78oMDT8lhs9yCBchpPI1gZPY1FW1yHUQ
-X-Received: by 2002:a7b:ce18:: with SMTP id m24mr5781265wmc.126.1565288988861;
-        Thu, 08 Aug 2019 11:29:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565288988; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
+         :message-id:mime-version:content-transfer-encoding;
+        bh=wT3T8uxsvhilc5G/Tu7ixGp1PL3OKIzCeyPA7IhRvw8=;
+        b=li6klYHyLRczIy76dlU+Qq2HGGMi4m69MzEeJQOhTews3EdWHi6uI3YU+fERoC22Pl
+         I/ChXk8VE8bn9hFDlh8DwnakrhB5b2bYwU9vm+pfKuq1rRJxsArrQcJqafXOWZvNVOKa
+         puEP9/iZvdeWDeE4RfiI1jMrbfOAspeV1aVVVT5PjkJhf8knBi390Fu8RAC4PIHwm1OC
+         P8jbaNL9u9IYe8iE97z650HdyVmOs+wHA9N/SIDkBpwdouvLSguzOesNrK0V+8V0kM8E
+         EU78KeUPVEz9xjIRfo7tNnULCHGzLdUVeoKgL23yrzzFIHTVXkLteD7+ZHZ0LCpni7e7
+         5ODw==
+X-Gm-Message-State: APjAAAUCslGog8a82OWTPkaDMhVxBJZGp5qK7k5Q2uulPcfsRSFoE/4U
+	JH+mgZGf67P6QnxA2Zgx1iBXZ8dFPgnmQmxuqcnmUGH/vPk5fiHkAWFYgNya1+4hRruUK12vAsH
+	LMmsTvhVEeM675bvZb+Sd2XyqGFqa8g2HN1Ln/4F6Agb8Ph7432sCIVqSnMCNU1xDQg==
+X-Received: by 2002:a65:620a:: with SMTP id d10mr13793205pgv.8.1565289185950;
+        Thu, 08 Aug 2019 11:33:05 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzS1rpNo045aJ0GnwRio2PH+v/CRJeioxw5tXYCba4YCGKP6EsKDqaIXMhkhRmU+u3uDY6l
+X-Received: by 2002:a65:620a:: with SMTP id d10mr13793126pgv.8.1565289184783;
+        Thu, 08 Aug 2019 11:33:04 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565289184; cv=none;
         d=google.com; s=arc-20160816;
-        b=pp8IEgWZPin0MlugSN0HUZz7Xno8yooybSIyMbNc2jHxwsv9gzFrAzZNZexpUBQh9/
-         jzDtnYuoWjLn6CP67nQ0+NMFornm1lvgv7RyhAt2YfV7tWCbO9PVRnJqHXJUdh5oI9HU
-         yQMVIxES8XD0PnuRHcM4OYbkF11mtQi0Sr023j+UlnTMtL4gbw1OCbVEewps5tuMoBpo
-         dYPqy1033TPoDt/9XJgIHfhKOMa/iL7ziQof08xmTkD8BJYzbHkdhUcwN4fzP+zZkPm5
-         B4is/vB0bUXQTYFk+55ij+VJJI/ENh3RG2LaWej/BTzbfDpw4fqStCoJmumdd66xDhrA
-         Ma8g==
+        b=XqfU+36OrwRkSeP3dxTmFnZW5HE8NJX/JuLvtDXNnC7EE746AEyt3271YRyeLyWpOs
+         hGbiWLrazAfG3q4lZ9DWAL3WYnR+Z4yw9vOIOqfaUTzixMsE6c9xBTFlqMHsCyt1nqp4
+         YWB8XLbIYXIDCpjO8s1zQkkfSDrdn/mzNsZbsHvaLKDh860BGrXHL2kwlskdn5LfSCuy
+         RzasDEP6tu+bSIN4+gKCSx+r3aPojrmwSJq0C8o2qdM2tzUuWz/rBZPA9y7qhf8TEKxG
+         2USCu6UpYA12umD4K4NbdKmIiIeTo/EnvS4qAHUCHPrrILFr2sOhYB+cM74+Xl/ePXMi
+         uplQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:content-disposition:mime-version:message-id:subject:cc
-         :to:from:date;
-        bh=DMKsmv2cBCIJYQLkMc9993AXiE3libtfLlDJll9ON10=;
-        b=Z/CaN80p52m7ps/oNJnWprfo6Jd9RNTBvO5yXADDM4xJ1sdfB83fgEnWooOWAeSTX3
-         eWyf0PU8BtmRQ42v5e6gQQqgmHLR9Kqbx/83KuTXHfVLxwQtmdtyKugHgW52XVGPIbAz
-         FgHVOnMuMU4A6MUmPzysyAk6Yb1rjI8TSQwj48FXHgie56z5q9LwS722SeOD6xa0Ihxs
-         3TzAD7bZkoSd26oo2+JcQVC5+828w8b8a2TB2LfQ/RZEfzKB8Q0vqdXz8BoVNsgFxMec
-         Qs9rlILVfs34kXLXQeck1rJDMS4HGLjTO7uwOLETkwqb/HYqr91jSLok8kcigd8I4mSu
-         cKyA==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from:dkim-signature;
+        bh=wT3T8uxsvhilc5G/Tu7ixGp1PL3OKIzCeyPA7IhRvw8=;
+        b=oEwW0NDP7nSIL/dXvAAXHyrRsH6uZ+2KGGEF4CUCqM7z/vzNoN0Ur2Al7m2g2YkfqT
+         i7nokqYUHKJeSAbAL6MMYW3JozVDyVorh8YpjbBnnaiaEWUwsdfRiqN/z1SMkGRLCK11
+         YjNZY+7Na3iJX8/ch05CSGB5eMyU1wf7sm20IkTZyuPurZo8Xhi+Ov/lOduRoFHccITk
+         l/sVK7QK9vxgMpEt+E1v8CavtCXQ2oSVzsAr05KmyC6KLSlus6An24a5OGCthnmPbjKs
+         yWrQ6Mv06KIRXraW9Dm95dWSgJv15XHzXh1SPEMEASxQtZylyR6d+5InrzEG+QgEY/ir
+         a9vA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.66 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from outbound-smtp33.blacknight.com (outbound-smtp33.blacknight.com. [81.17.249.66])
-        by mx.google.com with ESMTPS id o9si54154059wrm.7.2019.08.08.11.29.48
+       dkim=pass header.i=@arista.com header.s=Arista-A header.b=VEsafay3;
+       spf=pass (google.com: domain of echron@arista.com designates 162.210.129.12 as permitted sender) smtp.mailfrom=echron@arista.com;
+       dmarc=pass (p=QUARANTINE sp=REJECT dis=NONE) header.from=arista.com
+Received: from smtp.aristanetworks.com (mx.aristanetworks.com. [162.210.129.12])
+        by mx.google.com with ESMTPS id f26si41099038pfk.81.2019.08.08.11.33.04
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 11:29:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.66 as permitted sender) client-ip=81.17.249.66;
+        Thu, 08 Aug 2019 11:33:04 -0700 (PDT)
+Received-SPF: pass (google.com: domain of echron@arista.com designates 162.210.129.12 as permitted sender) client-ip=162.210.129.12;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.66 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
-Received: from mail.blacknight.com (unknown [81.17.254.16])
-	by outbound-smtp33.blacknight.com (Postfix) with ESMTPS id 6FCFED03CD
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 19:29:48 +0100 (IST)
-Received: (qmail 30928 invoked from network); 8 Aug 2019 18:29:48 -0000
-Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[84.203.18.93])
-  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 8 Aug 2019 18:29:48 -0000
-Date: Thu, 8 Aug 2019 19:29:46 +0100
-From: Mel Gorman <mgorman@techsingularity.net>
+       dkim=pass header.i=@arista.com header.s=Arista-A header.b=VEsafay3;
+       spf=pass (google.com: domain of echron@arista.com designates 162.210.129.12 as permitted sender) smtp.mailfrom=echron@arista.com;
+       dmarc=pass (p=QUARANTINE sp=REJECT dis=NONE) header.from=arista.com
+Received: from smtp.aristanetworks.com (localhost [127.0.0.1])
+	by smtp.aristanetworks.com (Postfix) with ESMTP id 55FA1427D9F;
+	Thu,  8 Aug 2019 11:33:45 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=arista.com;
+	s=Arista-A; t=1565289225;
+	bh=wT3T8uxsvhilc5G/Tu7ixGp1PL3OKIzCeyPA7IhRvw8=;
+	h=From:To:Cc:Subject:Date;
+	b=VEsafay3g9WIqrjD9haNX+x23eCGDrXxTE0V8upopDUlWe/lPcATaM9odkhJ9QR++
+	 Au4D3fSf8h62w9LOzFz2b+d5hjLq5kW84wkHPYnv8ft+lmyQLNcut4TLqIKAWvMp6k
+	 WyuxvBI6odO2aKXsTKpAgYaHAZV+qvckM8nH0t9bvuCn3u+dNYC1tmq8kN9WHdRcA9
+	 ObapSM5RnUH3Wn2aiOL+5vD7W2dG3Ojn1ReRGYCgi+J4k4w3B9nXff0AQnKheJloZc
+	 rMwKUOWhNjpd3jAcZ0stOZLuZ+R10+S8XF0Z1JAtPx/Q9G1BelqEuzHIPj2tHMaMGX
+	 QXFvPLpFF5SgA==
+Received: from egc101.sjc.aristanetworks.com (unknown [172.20.210.50])
+	by smtp.aristanetworks.com (Postfix) with ESMTP id 51E3E427D83;
+	Thu,  8 Aug 2019 11:33:45 -0700 (PDT)
+From: Edward Chron <echron@arista.com>
 To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, Michal Hocko <mhocko@kernel.org>,
-	linux-mm@kvack.org, linux-xfs@vger.kernel.org,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-Subject: [PATCH] mm, vmscan: Do not special-case slab reclaim when watermarks
- are boosted
-Message-ID: <20190808182946.GM2739@techsingularity.net>
+Cc: Michal Hocko <mhocko@suse.com>,
+	Roman Gushchin <guro@fb.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	David Rientjes <rientjes@google.com>,
+	Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>,
+	Shakeel Butt <shakeelb@google.com>,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	colona@arista.com,
+	Edward Chron <echron@arista.com>
+Subject: [PATCH] mm/oom: Add killed process selection information
+Date: Thu,  8 Aug 2019 11:32:47 -0700
+Message-Id: <20190808183247.28206-1-echron@arista.com>
+X-Mailer: git-send-email 2.20.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-15
-Content-Disposition: inline
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Dave Chinner reported a problem pointing a finger at commit
-1c30844d2dfe ("mm: reclaim small amounts of memory when an
-external fragmentation event occurs"). The report is extensive (see
-https://lore.kernel.org/linux-mm/20190807091858.2857-1-david@fromorbit.com/)
-and it's worth recording the most relevant parts (colorful language and
-typos included).
+For an OOM event: print oomscore, memory pct, oom adjustment of the process
+that OOM kills and the totalpages value in kB (KiB) used in the calculation
+with the OOM killed process message. This is helpful to document why the
+process was selected by OOM at the time of the OOM event.
 
-	When running a simple, steady state 4kB file creation test to
-	simulate extracting tarballs larger than memory full of small
-	files into the filesystem, I noticed that once memory fills up
-	the cache balance goes to hell.
+Sample message output:
+Jul 21 20:07:48 yoursystem kernel: Out of memory: Killed process 2826
+ (processname) total-vm:1056800kB, anon-rss:1052784kB, file-rss:4kB,
+ shmem-rss:0kB memory-usage:3.2% oom_score:1032 oom_score_adj:1000
+ total-pages: 32791748kB
 
-	The workload is creating one dirty cached inode for every dirty
-	page, both of which should require a single IO each to clean and
-	reclaim, and creation of inodes is throttled by the rate at which
-	dirty writeback runs at (via balance dirty pages). Hence the ingest
-	rate of new cached inodes and page cache pages is identical and
-	steady. As a result, memory reclaim should quickly find a steady
-	balance between page cache and inode caches.
-
-	The moment memory fills, the page cache is reclaimed at a much
-	faster rate than the inode cache, and evidence suggests taht
-	the inode cache shrinker is not being called when large batches
-	of pages are being reclaimed. In roughly the same time period
-	that it takes to fill memory with 50% pages and 50% slab caches,
-	memory reclaim reduces the page cache down to just dirty pages
-	and slab caches fill the entirity of memory.
-
-	The LRU is largely full of dirty pages, and we're getting spikes
-	of random writeback from memory reclaim so it's all going to shit.
-	Behaviour never recovers, the page cache remains pinned at just
-	dirty pages, and nothing I could tune would make any difference.
-	vfs_cache_pressure makes no difference - I would it up so high
-	it should trim the entire inode caches in a singel pass, yet it
-	didn't do anything. It was clear from tracing and live telemetry
-	that the shrinkers were pretty much not running except when
-	there was absolutely no memory free at all, and then they did
-	the minimum necessary to free memory to make progress.
-
-	So I went looking at the code, trying to find places where pages
-	got reclaimed and the shrinkers weren't called. There's only one
-	- kswapd doing boosted reclaim as per commit 1c30844d2dfe ("mm:
-	reclaim small amounts of memory when an external fragmentation
-	event occurs").
-
-The watermark boosting introduced by the commit is triggered in response
-to an allocation "fragmentation event". The boosting was not intended to
-target THP specifically and triggers even if THP is disabled. However,
-with Dave's perfectly reasonable workload, fragmentation events can be
-very common given the ratio of slab to page cache allocations so boosting
-remains active for long periods of time.
-
-As high-order allocations might use compaction and compaction cannot move
-slab pages the decision was made in the commit to special-case kswapd
-when watermarks are boosted -- kswapd avoids reclaiming slab as reclaiming
-slab does not directly help compaction.
-
-As Dave notes, this decision means that slab can be artificially protected
-for long periods of time and messes up the balance with slab and page
-caches.
-
-Removing the special casing can still indirectly help fragmentation by
-avoiding fragmentation-causing events due to slab allocation as pages
-from a slab pageblock will have some slab objects freed.  Furthermore,
-with the special casing, reclaim behaviour is unpredictable as kswapd
-sometimes examines slab and sometimes does not in a manner that is tricky
-to tune or analyse.
-
-This patch removes the special casing. The downside is that this is not a
-universal performance win. Some benchmarks that depend on the residency
-of data when rereading metadata may see a regression when slab reclaim
-is restored to its original behaviour. Similarly, some benchmarks that
-only read-once or write-once may perform better when page reclaim is too
-aggressive. The primary upside is that slab shrinker is less surprising
-(arguably more sane but that's a matter of opinion), behaves consistently
-regardless of the fragmentation state of the system and properly obeys
-VM sysctls.
-
-A fsmark benchmark configuration was constructed similar to
-what Dave reported and is codified by the mmtest configuration
-config-io-fsmark-small-file-stream.  It was evaluated on a 1-socket machine
-to avoid dealing with NUMA-related issues and the timing of reclaim. The
-storage was an SSD Samsung Evo and a fresh trimmed XFS filesystem was
-used for the test data.
-
-This is not an exact replication of Dave's setup. The configuration
-scales its parameters depending on the memory size of the SUT to behave
-similarly across machines. The parameters mean the first sample reported
-by fs_mark is using 50% of RAM which will barely be throttled and look
-like a big outlier. Dave used fake NUMA to have multiple kswapd instances
-which I didn't replicate.  Finally, the number of iterations differ from
-Dave's test as the target disk was not large enough.  While not identical,
-it should be representative.
-
-fsmark
-                                   5.3.0-rc3              5.3.0-rc3
-                                     vanilla          shrinker-v1r1
-Min       1-files/sec     4444.80 (   0.00%)     4765.60 (   7.22%)
-1st-qrtle 1-files/sec     5005.10 (   0.00%)     5091.70 (   1.73%)
-2nd-qrtle 1-files/sec     4917.80 (   0.00%)     4855.60 (  -1.26%)
-3rd-qrtle 1-files/sec     4667.40 (   0.00%)     4831.20 (   3.51%)
-Max-1     1-files/sec    11421.50 (   0.00%)     9999.30 ( -12.45%)
-Max-5     1-files/sec    11421.50 (   0.00%)     9999.30 ( -12.45%)
-Max-10    1-files/sec    11421.50 (   0.00%)     9999.30 ( -12.45%)
-Max-90    1-files/sec     4649.60 (   0.00%)     4780.70 (   2.82%)
-Max-95    1-files/sec     4491.00 (   0.00%)     4768.20 (   6.17%)
-Max-99    1-files/sec     4491.00 (   0.00%)     4768.20 (   6.17%)
-Max       1-files/sec    11421.50 (   0.00%)     9999.30 ( -12.45%)
-Hmean     1-files/sec     5004.75 (   0.00%)     5075.96 (   1.42%)
-Stddev    1-files/sec     1778.70 (   0.00%)     1369.66 (  23.00%)
-CoeffVar  1-files/sec       33.70 (   0.00%)       26.05 (  22.71%)
-BHmean-99 1-files/sec     5053.72 (   0.00%)     5101.52 (   0.95%)
-BHmean-95 1-files/sec     5053.72 (   0.00%)     5101.52 (   0.95%)
-BHmean-90 1-files/sec     5107.05 (   0.00%)     5131.41 (   0.48%)
-BHmean-75 1-files/sec     5208.45 (   0.00%)     5206.68 (  -0.03%)
-BHmean-50 1-files/sec     5405.53 (   0.00%)     5381.62 (  -0.44%)
-BHmean-25 1-files/sec     6179.75 (   0.00%)     6095.14 (  -1.37%)
-
-                   5.3.0-rc3   5.3.0-rc3
-                     vanillashrinker-v1r1
-Duration User         501.82      497.29
-Duration System      4401.44     4424.08
-Duration Elapsed     8124.76     8358.05
-
-This is showing a slight skew for the max result representing a
-large outlier for the 1st, 2nd and 3rd quartile are similar indicating
-that the bulk of the results show little difference. Note that an
-earlier version of the fsmark configuration showed a regression but
-that included more samples taken while memory was still filling.
-
-Note that the elapsed time is higher. Part of this is that the
-configuration included time to delete all the test files when the test
-completes -- the test automation handles the possibility of testing fsmark
-with multiple thread counts. Without the patch, many of these objects
-would be memory resident which is part of what the patch is addressing.
-
-There are other important observations that justify the patch.
-
-1. With the vanilla kernel, the number of dirty pages in the system
-   is very low for much of the test. With this patch, dirty pages
-   is generally kept at 10% which matches vm.dirty_background_ratio
-   which is normal expected historical behaviour.
-
-2. With the vanilla kernel, the ratio of Slab/Pagecache is close to
-   0.95 for much of the test i.e. Slab is being left alone and dominating
-   memory consumption. With the patch applied, the ratio varies between
-   0.35 and 0.45 with the bulk of the measured ratios roughly half way
-   between those values. This is a different balance to what Dave reported
-   but it was at least consistent.
-
-3. Slabs are scanned throughout the entire test with the patch applied.
-   The vanille kernel has periods with no scan activity and then relatively
-   massive spikes.
-
-4. Without the patch, kswapd scan rates are very variable. With the patch,
-   the scan rates remain quite stead.
-
-4. Overall vmstats are closer to normal expectations
-
-	                                5.3.0-rc3      5.3.0-rc3
-	                                  vanilla  shrinker-v1r1
-    Ops Direct pages scanned             99388.00      328410.00
-    Ops Kswapd pages scanned          45382917.00    33451026.00
-    Ops Kswapd pages reclaimed        30869570.00    25239655.00
-    Ops Direct pages reclaimed           74131.00        5830.00
-    Ops Kswapd efficiency %                 68.02          75.45
-    Ops Kswapd velocity                   5585.75        4002.25
-    Ops Page reclaim immediate         1179721.00      430927.00
-    Ops Slabs scanned                 62367361.00    73581394.00
-    Ops Direct inode steals               2103.00        1002.00
-    Ops Kswapd inode steals             570180.00     5183206.00
-
-	o Vanilla kernel is hitting direct reclaim more frequently,
-	  not very much in absolute terms but the fact the patch
-	  reduces it is interesting
-	o "Page reclaim immediate" in the vanilla kernel indicates
-	  dirty pages are being encountered at the tail of the LRU.
-	  This is generally bad and means in this case that the LRU
-	  is not long enough for dirty pages to be cleaned by the
-	  background flush in time. This is much reduced by the
-	  patch.
-	o With the patch, kswapd is reclaiming 10 times more slab
-	  pages than with the vanilla kernel. This is indicative
-	  of the watermark boosting over-protecting slab
-
-A more complete set of tests were run that were part of the basis
-for introducing boosting and while there are some differences, they
-are well within tolerances.
-
-Bottom line, the special casing kswapd to avoid slab behaviour is
-unpredictable and can lead to abnormal results for normal workloads. This
-patch restores the expected behaviour that slab and page cache is
-balanced consistently for a workload with a steady allocation ratio of
-slab/pagecache pages. It also means that if there are workloads that
-favour the preservation of slab over pagecache that it can be tuned via
-vm.vfs_cache_pressure where as the vanilla kernel effectively ignores
-the parameter when boosting is active.
-
-Fixes: 1c30844d2dfe ("mm: reclaim small amounts of memory when an external fragmentation event occurs")
-Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-Reviewed-by: Dave Chinner <dchinner@redhat.com>
-Cc: stable@vger.kernel.org # v5.0+
+Signed-off-by: Edward Chron <echron@arista.com>
 ---
- mm/vmscan.c | 13 ++-----------
- 1 file changed, 2 insertions(+), 11 deletions(-)
+ fs/proc/base.c      |  2 +-
+ include/linux/oom.h | 18 +++++++++++-
+ mm/oom_kill.c       | 67 +++++++++++++++++++++++++++++++++------------
+ 3 files changed, 68 insertions(+), 19 deletions(-)
 
-diff --git a/mm/vmscan.c b/mm/vmscan.c
-index dbdc46a84f63..c77d1e3761a7 100644
---- a/mm/vmscan.c
-+++ b/mm/vmscan.c
-@@ -88,9 +88,6 @@ struct scan_control {
- 	/* Can pages be swapped as part of reclaim? */
- 	unsigned int may_swap:1;
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index ebea9501afb8..41880990e6a8 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -550,7 +550,7 @@ static int proc_oom_score(struct seq_file *m, struct pid_namespace *ns,
+ 	unsigned long totalpages = totalram_pages() + total_swap_pages;
+ 	unsigned long points = 0;
  
--	/* e.g. boosted watermark reclaim leaves slabs alone */
--	unsigned int may_shrinkslab:1;
--
+-	points = oom_badness(task, totalpages) * 1000 / totalpages;
++	points = oom_badness(task, totalpages, NULL) * 1000 / totalpages;
+ 	seq_printf(m, "%lu\n", points);
+ 
+ 	return 0;
+diff --git a/include/linux/oom.h b/include/linux/oom.h
+index c696c265f019..7f7ab125c21c 100644
+--- a/include/linux/oom.h
++++ b/include/linux/oom.h
+@@ -49,6 +49,8 @@ struct oom_control {
+ 	unsigned long totalpages;
+ 	struct task_struct *chosen;
+ 	unsigned long chosen_points;
++	unsigned long chosen_mempts;
++	unsigned long chosen_adj;
+ 
+ 	/* Used to print the constraint info. */
+ 	enum oom_constraint constraint;
+@@ -105,10 +107,24 @@ static inline vm_fault_t check_stable_address_space(struct mm_struct *mm)
+ 	return 0;
+ }
+ 
++/*
++ * Optional argument that can be passed to oom_badness in the arg field
++ *
++ * Input fields that can be filled in: memcg and nodemask
++ * Output fields that can be returned: mempts, adj
++ */
++struct oom_bad_parms {
++	struct mem_cgroup *memcg;
++	const nodemask_t *nodemask;
++	unsigned long mempts;
++	long adj;
++};
++
+ bool __oom_reap_task_mm(struct mm_struct *mm);
+ 
+ extern unsigned long oom_badness(struct task_struct *p,
+-		unsigned long totalpages);
++				 unsigned long totalpages,
++				 struct oom_bad_parms *obp);
+ 
+ extern bool out_of_memory(struct oom_control *oc);
+ 
+diff --git a/mm/oom_kill.c b/mm/oom_kill.c
+index eda2e2a0bdc6..0548845dbef8 100644
+--- a/mm/oom_kill.c
++++ b/mm/oom_kill.c
+@@ -42,6 +42,7 @@
+ #include <linux/kthread.h>
+ #include <linux/init.h>
+ #include <linux/mmu_notifier.h>
++#include <linux/oom.h>
+ 
+ #include <asm/tlb.h>
+ #include "internal.h"
+@@ -195,7 +196,8 @@ static bool is_dump_unreclaim_slabs(void)
+  * predictable as possible.  The goal is to return the highest value for the
+  * task consuming the most memory to avoid subsequent oom failures.
+  */
+-unsigned long oom_badness(struct task_struct *p, unsigned long totalpages)
++unsigned long oom_badness(struct task_struct *p, unsigned long totalpages,
++			  struct oom_bad_parms *obp)
+ {
+ 	long points;
+ 	long adj;
+@@ -208,15 +210,16 @@ unsigned long oom_badness(struct task_struct *p, unsigned long totalpages)
+ 		return 0;
+ 
  	/*
- 	 * Cgroups are not reclaimed below their configured memory.low,
- 	 * unless we threaten to OOM. If any cgroups are skipped due to
-@@ -2714,10 +2711,8 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
- 			shrink_node_memcg(pgdat, memcg, sc, &lru_pages);
- 			node_lru_pages += lru_pages;
+-	 * Do not even consider tasks which are explicitly marked oom
+-	 * unkillable or have been already oom reaped or the are in
+-	 * the middle of vfork
++	 * Do not consider tasks which have already been oom reaped or
++	 * that are in the middle of vfork.
+ 	 */
+ 	adj = (long)p->signal->oom_score_adj;
+-	if (adj == OOM_SCORE_ADJ_MIN ||
+-			test_bit(MMF_OOM_SKIP, &p->mm->flags) ||
+-			in_vfork(p)) {
++	if (test_bit(MMF_OOM_SKIP, &p->mm->flags) || in_vfork(p)) {
+ 		task_unlock(p);
++		if (obp != NULL) {
++			obp->mempts = 0;
++			obp->adj = adj;
++		}
+ 		return 0;
+ 	}
  
--			if (sc->may_shrinkslab) {
--				shrink_slab(sc->gfp_mask, pgdat->node_id,
--				    memcg, sc->priority);
--			}
-+			shrink_slab(sc->gfp_mask, pgdat->node_id, memcg,
-+					sc->priority);
+@@ -228,6 +231,16 @@ unsigned long oom_badness(struct task_struct *p, unsigned long totalpages)
+ 		mm_pgtables_bytes(p->mm) / PAGE_SIZE;
+ 	task_unlock(p);
  
- 			/* Record the group's reclaim efficiency */
- 			vmpressure(sc->gfp_mask, memcg, false,
-@@ -3194,7 +3189,6 @@ unsigned long try_to_free_pages(struct zonelist *zonelist, int order,
- 		.may_writepage = !laptop_mode,
- 		.may_unmap = 1,
- 		.may_swap = 1,
--		.may_shrinkslab = 1,
- 	};
++	/* Also return raw mempts and oom_score_adj along */
++	if (obp != NULL) {
++		obp->mempts = points;
++		obp->adj = adj;
++	}
++
++	/* Unkillable oom task skipped but returns mempts and oom_score_adj */
++	if (adj == OOM_SCORE_ADJ_MIN)
++		return 0;
++
+ 	/* Normalize to oom_score_adj units */
+ 	adj *= totalpages / 1000;
+ 	points += adj;
+@@ -310,6 +323,8 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
+ {
+ 	struct oom_control *oc = arg;
+ 	unsigned long points;
++	struct oom_bad_parms obp = { .memcg = NULL, .nodemask = oc->nodemask,
++				     .mempts = 0, .adj = 0 };
+ 
+ 	if (oom_unkillable_task(task))
+ 		goto next;
+@@ -339,7 +354,7 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
+ 		goto select;
+ 	}
+ 
+-	points = oom_badness(task, oc->totalpages);
++	points = oom_badness(task, oc->totalpages, &obp);
+ 	if (!points || points < oc->chosen_points)
+ 		goto next;
+ 
+@@ -349,6 +364,8 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
+ 	get_task_struct(task);
+ 	oc->chosen = task;
+ 	oc->chosen_points = points;
++	oc->chosen_mempts = obp.mempts;
++	oc->chosen_adj = obp.adj;
+ next:
+ 	return 0;
+ abort:
+@@ -375,6 +392,9 @@ static void select_bad_process(struct oom_control *oc)
+ 				break;
+ 		rcu_read_unlock();
+ 	}
++
++	oc->chosen_points = oc->chosen_points * 1000 / oc->totalpages;
++	oc->chosen_mempts = oc->chosen_mempts * 1000 / oc->totalpages;
+ }
+ 
+ static int dump_task(struct task_struct *p, void *arg)
+@@ -853,7 +873,8 @@ static bool task_will_free_mem(struct task_struct *task)
+ 	return ret;
+ }
+ 
+-static void __oom_kill_process(struct task_struct *victim, const char *message)
++static void __oom_kill_process(struct task_struct *victim, const char *message,
++				struct oom_control *oc)
+ {
+ 	struct task_struct *p;
+ 	struct mm_struct *mm;
+@@ -884,12 +905,24 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
+ 	 */
+ 	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
+ 	mark_oom_victim(victim);
+-	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
+-		message, task_pid_nr(victim), victim->comm,
+-		K(victim->mm->total_vm),
+-		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
+-		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
+-		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
++
++	if (oc != NULL && oc->chosen_mempts > 0)
++		pr_info("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB, memory-usage:%lu.%1lu%% oom_score:%lu oom_score_adj:%ld total-pages: %lukB",
++			message, task_pid_nr(victim), victim->comm,
++			K(victim->mm->total_vm),
++			K(get_mm_counter(victim->mm, MM_ANONPAGES)),
++			K(get_mm_counter(victim->mm, MM_FILEPAGES)),
++			K(get_mm_counter(victim->mm, MM_SHMEMPAGES)),
++			oc->chosen_mempts / 10, oc->chosen_mempts % 10,
++			oc->chosen_points, oc->chosen_adj, K(oc->totalpages));
++	else
++		pr_info("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB",
++			message, task_pid_nr(victim), victim->comm,
++			K(victim->mm->total_vm),
++			K(get_mm_counter(victim->mm, MM_ANONPAGES)),
++			K(get_mm_counter(victim->mm, MM_FILEPAGES)),
++			K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
++
+ 	task_unlock(victim);
  
  	/*
-@@ -3238,7 +3232,6 @@ unsigned long mem_cgroup_shrink_node(struct mem_cgroup *memcg,
- 		.may_unmap = 1,
- 		.reclaim_idx = MAX_NR_ZONES - 1,
- 		.may_swap = !noswap,
--		.may_shrinkslab = 1,
- 	};
- 	unsigned long lru_pages;
+@@ -942,7 +975,7 @@ static int oom_kill_memcg_member(struct task_struct *task, void *message)
+ 	if (task->signal->oom_score_adj != OOM_SCORE_ADJ_MIN &&
+ 	    !is_global_init(task)) {
+ 		get_task_struct(task);
+-		__oom_kill_process(task, message);
++		__oom_kill_process(task, message, NULL);
+ 	}
+ 	return 0;
+ }
+@@ -979,7 +1012,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
+ 	 */
+ 	oom_group = mem_cgroup_get_oom_group(victim, oc->memcg);
  
-@@ -3286,7 +3279,6 @@ unsigned long try_to_free_mem_cgroup_pages(struct mem_cgroup *memcg,
- 		.may_writepage = !laptop_mode,
- 		.may_unmap = 1,
- 		.may_swap = may_swap,
--		.may_shrinkslab = 1,
- 	};
+-	__oom_kill_process(victim, message);
++	__oom_kill_process(victim, message, oc);
  
- 	set_task_reclaim_state(current, &sc.reclaim_state);
-@@ -3598,7 +3590,6 @@ static int balance_pgdat(pg_data_t *pgdat, int order, int classzone_idx)
- 		 */
- 		sc.may_writepage = !laptop_mode && !nr_boost_reclaim;
- 		sc.may_swap = !nr_boost_reclaim;
--		sc.may_shrinkslab = !nr_boost_reclaim;
- 
- 		/*
- 		 * Do some background aging of the anon list, to give
+ 	/*
+ 	 * If necessary, kill all tasks in the selected memory cgroup.
+-- 
+2.20.1
 
