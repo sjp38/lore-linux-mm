@@ -2,177 +2,151 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B5455C32756
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:27:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 13D40C0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:34:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 75F022173C
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:27:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9133B2189F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:34:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="baL8kVkz"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75F022173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (1024-bit key) header.d=shipmail.org header.i=@shipmail.org header.b="Lf5+Mxhb"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9133B2189F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shipmail.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 169DD6B0003; Thu,  8 Aug 2019 16:27:11 -0400 (EDT)
+	id 053276B0003; Thu,  8 Aug 2019 16:34:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 11BD76B0006; Thu,  8 Aug 2019 16:27:11 -0400 (EDT)
+	id 003BE6B0006; Thu,  8 Aug 2019 16:34:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 009816B0007; Thu,  8 Aug 2019 16:27:10 -0400 (EDT)
+	id E35176B0007; Thu,  8 Aug 2019 16:34:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id C21796B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 16:27:10 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id 191so59817892pfy.20
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 13:27:10 -0700 (PDT)
+Received: from mail-lj1-f200.google.com (mail-lj1-f200.google.com [209.85.208.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C2156B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 16:34:10 -0400 (EDT)
+Received: by mail-lj1-f200.google.com with SMTP id x19so18929080ljh.21
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 13:34:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=WTcQccWDVPotg15phg3zTAF2oauPTn+igOIs1LWZuPo=;
-        b=B/9CMdjN1Q/77E6AATU3p9YWkZTDzVsadHrg1/rDQc8y7XoP+CebaA6m3zCQuzX99l
-         Jb0zSEruJBzNcMeaaqLCg+MrcM8REGUBr6vmoZ8p2TYciSvOhlu3+rEuEr9bBbOLDBu8
-         cbNBFObLHfYrmJSGxR1nMkQsF2MEIjk3gsnOqCmVmWv6Nnk/3arUZKyNT7wV2UTeeHL/
-         tse2UEvfEyZfwobwivehdcfT7ilpXSlwmvne/LrhoNQoA22Z4w4mV7GxFQgDSSVpvMiN
-         zepg7w7EILxIkFfYM4rYOtpdsu4Cd6LvaxM3f9L/2ThcZ98rSNn1uxIl3OuMAvfwR2OQ
-         /NZw==
-X-Gm-Message-State: APjAAAXZTEOTXsXTCvhBLefJTgKrOooKm710HDTPKNyitYMWjBmAbd9v
-	9M0zJl2rScX/9bJLuiKZXjVtFz/IVWQNtUjtxSIf7fUBN+7kbvaDosqXVVFqG/DmwGs8NePms3p
-	rb2nhKEFTpSHWKL4Kirdqti1lsKTqBCQzMZK11mZZ5MKRfti7C4haHnX91xBDVhLb2A==
-X-Received: by 2002:a62:107:: with SMTP id 7mr17644531pfb.4.1565296030411;
-        Thu, 08 Aug 2019 13:27:10 -0700 (PDT)
-X-Received: by 2002:a62:107:: with SMTP id 7mr17644473pfb.4.1565296029649;
-        Thu, 08 Aug 2019 13:27:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565296029; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=+bZQck0RMkLGxqQNS5jCLDjNYAJR+40kPw6DqiBJ6eY=;
+        b=lVyd7jvNVsFzc4dJJcubUHp6NguzmhhrqJ/Fn2omAh1FANbaK61j6souLyxHSV4qer
+         MqNNjABJjU/DPvY3OLccAtEpWZf7tJvf10+bpCG6RQ2MhdV+ucWXvAXZqvLnbJD8rP7B
+         bFtHbCdSiI/p3hAf119DwWnv1f8YpGHL7VLuNKll4stvHuGdeQvaFsxQXJlRsmuJvFkg
+         em3UEpOXuG/Vxle6zLtCrnaeIpMRhnlXQig32sQm/957lZ8+9mQCgCyel62XHEAnZvha
+         G1AUJiack0f8VvgxobJ3/tDOeKJy/FZdijqm3pNoD06bRc0ofvUHRV0f016aLMKewmMg
+         5Efg==
+X-Gm-Message-State: APjAAAXveCTg5H2uEfsc3aIBO+c/UY5xEEdzLsPNo/X/WG4DLpwDsH0H
+	kzGnu5JEDD6OMqdd/R8gPmjXTggXEZFXs8+NxVUpFDA7RLaDRr6R2dB1JFmMnZCi762vAlVIbOH
+	S3kVNb2okVrF0Ujxl3B1/zZi7StUHkKg+o1rGy/alU/ivup8qRAwx8f8yaLpn+gcizQ==
+X-Received: by 2002:a2e:1290:: with SMTP id 16mr8995129ljs.88.1565296449626;
+        Thu, 08 Aug 2019 13:34:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwFvMDVgSvLfissXWDJ+TyUsx3Sh2DTi4s7G22pTDCvJnHrIDvxUe68f7ayN1AfiD9i2PkA
+X-Received: by 2002:a2e:1290:: with SMTP id 16mr8995099ljs.88.1565296448747;
+        Thu, 08 Aug 2019 13:34:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565296448; cv=none;
         d=google.com; s=arc-20160816;
-        b=juvmwWSxevKo5R4fuf9yF05YHE2NoTxjQI/bh0aabuxRIvxjFUUzrD59cQ+yIePA++
-         x2EeY1e9wSTMwtYFO+iaAmIUXDlcANmJirZIeC6ns+SW0ljh82buuCc2eUvHGVqeUyzQ
-         /M6L3/8ouxTCrPjR/+xsaOV5OjiS5sLpbsn15NOzzC1GoX0EijfsvtxK2KNK1SMjY5Wv
-         eBcm3KN3gk61cw2ouJDxCRmxp0vjUJkRJE1xKXJ/ZF9131BrlvzsLuW0Od2F5dhmv+nV
-         /7yaUC45i8SyYQfdhuq6KyOE7hyyKTFlI/X1iDIkt20gub95HwnocizBEcGR/uc26G/5
-         Sw+g==
+        b=xPUM82TeH8LsxdHTYzoWI2N17uuTIj7IvjWpStqRyU9Y5y/CpXhr8yfOKPQA+n4L82
+         PLhzV+J4hKvyw1ZbjjD/GotPqbFMjvL238PSHqIInClWaQfZZ1qy+Q6lIHG8M9XgpUyE
+         x4HkLDoLCHHW9rBWdjUh89VMKJyJsv9+qcFDr8rklAznxQo+VaXOFubRAgwvBb64igBL
+         KtwZNEkbzxzQCW72ncJmTiwLgB7Jb/lHFu2mJTCcReSBDCM1lvSnknTaJfLvaGrRHs3v
+         pVOxUn/VDK535ZWuD0Loj6cB0UJdxViEad1aA5Ov4V2L3+MOzy4jCzlRNahp45+ki0XA
+         rR/Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=WTcQccWDVPotg15phg3zTAF2oauPTn+igOIs1LWZuPo=;
-        b=JA06dGmSx77VO8ISMU2uGgkV5wUL00LoZzy4WCA4a3H0irAvuKybal4dKTv+NE5OBf
-         4wWEaYVJcLQ7ghE7G8sdD2znph2RMc4WDbR5NKpQgM4V2cjnc6J4hY6eQ1XhVBrO+eCF
-         grZ23eGzz7rwC1svGzf0n1w5xrM3UJ1dcCkrJEv7gACHL2mE1CxlIpMghX74+gK01pn5
-         rUqm2rCInunK9FjXue4XkAejS8nhkNxAt/P5DAhI+SmIK2xwzcUCqNtrQ5i2OUQzqewQ
-         Wo57xwN4cVURiRo3Ax4OwWhD8k+cxE4iH+M0Wb24x7jGbyhXAoNLDGBvX3qM3OtaFXfl
-         XyFA==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=+bZQck0RMkLGxqQNS5jCLDjNYAJR+40kPw6DqiBJ6eY=;
+        b=SpwI+wWgnERh/9729hTQFEFskQFKzVZS9kkk+Txxpnayvd/b4gtOV/SphMlqGp6E53
+         9vMBKqhjqcJ8wUITekrgi5RJaOwy9XaS1Q4L3vvGLPtGyZRtudXozZxsNu3Ti3AC6Db1
+         tsr2p9cN7Y861NxiJDol4D0G5cWtAycjgLV8/HHx1rOBZHmZ7RyLPThJg8v2WMfHB+cX
+         3IE1s/Mdv5i5rsULS8TBJVROAqHiKFVyjvMDVQtKeZVq75gmSVM4sWPpSSkwCBx43uLe
+         2J2pZW1teDGH/8ZuNYoFGzwFWKNQHJTH6XFAOdsulGVYLhlapIsG0Fla6Kq5EywTN1EW
+         jeRg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=baL8kVkz;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id o32sor113649700pld.12.2019.08.08.13.27.09
+       dkim=pass (test mode) header.i=@shipmail.org header.s=mail header.b=Lf5+Mxhb;
+       spf=pass (google.com: domain of thomas@shipmail.org designates 79.136.2.40 as permitted sender) smtp.mailfrom=thomas@shipmail.org
+Received: from pio-pvt-msa1.bahnhof.se (pio-pvt-msa1.bahnhof.se. [79.136.2.40])
+        by mx.google.com with ESMTPS id d15si85335367ljj.171.2019.08.08.13.34.07
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Aug 2019 13:27:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 08 Aug 2019 13:34:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of thomas@shipmail.org designates 79.136.2.40 as permitted sender) client-ip=79.136.2.40;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=baL8kVkz;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=WTcQccWDVPotg15phg3zTAF2oauPTn+igOIs1LWZuPo=;
-        b=baL8kVkzYdf3Yw7iok/ISH9qw6Z5IgHF4JsMSBGfdZmgc/JdCO+HpcWQGGMZ/YHvH6
-         SSVI1kBNX28mBZcYh+JlM/bQag427pRge8EruzV2ieAIq88fFgNsZ3WJqshOscuVs3Iz
-         d3XBgLRYWP/OlBSFKX0cWHM3Fb5cJyhJJWQKs=
-X-Google-Smtp-Source: APXvYqxwm9iB2DDzVLvhxV2ThVMadzVdxUASbdYGfIVkvlE3ECQjJubaoQGdIuoteqU4Z4An/jmJ/g==
-X-Received: by 2002:a17:902:9a85:: with SMTP id w5mr15426653plp.221.1565296029267;
-        Thu, 08 Aug 2019 13:27:09 -0700 (PDT)
-Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id 14sm93977517pfy.40.2019.08.08.13.27.08
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 08 Aug 2019 13:27:08 -0700 (PDT)
-Date: Thu, 8 Aug 2019 13:27:07 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Matthew Wilcox <willy@infradead.org>
-Cc: syzbot <syzbot+3de312463756f656b47d@syzkaller.appspotmail.com>,
-	allison@lohutok.net, andreyknvl@google.com, cai@lca.pw,
-	gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, linux-usb@vger.kernel.org,
-	syzkaller-bugs@googlegroups.com, tglx@linutronix.de,
-	Jiri Kosina <jkosina@suse.cz>
-Subject: Re: BUG: bad usercopy in hidraw_ioctl
-Message-ID: <201908081319.E2123D5A@keescook>
-References: <000000000000ce6527058f8bf0d0@google.com>
- <20190807195821.GD5482@bombadil.infradead.org>
+       dkim=pass (test mode) header.i=@shipmail.org header.s=mail header.b=Lf5+Mxhb;
+       spf=pass (google.com: domain of thomas@shipmail.org designates 79.136.2.40 as permitted sender) smtp.mailfrom=thomas@shipmail.org
+Received: from localhost (localhost [127.0.0.1])
+	by pio-pvt-msa1.bahnhof.se (Postfix) with ESMTP id B14B03F5D5;
+	Thu,  8 Aug 2019 22:34:07 +0200 (CEST)
+Authentication-Results: pio-pvt-msa1.bahnhof.se;
+	dkim=pass (1024-bit key; unprotected) header.d=shipmail.org header.i=@shipmail.org header.b="Lf5+Mxhb";
+	dkim-atps=neutral
+X-Virus-Scanned: Debian amavisd-new at bahnhof.se
+Received: from pio-pvt-msa1.bahnhof.se ([127.0.0.1])
+	by localhost (pio-pvt-msa1.bahnhof.se [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id N-GpX9dXhaTB; Thu,  8 Aug 2019 22:34:06 +0200 (CEST)
+Received: from mail1.shipmail.org (h-205-35.A357.priv.bahnhof.se [155.4.205.35])
+	(Authenticated sender: mb878879)
+	by pio-pvt-msa1.bahnhof.se (Postfix) with ESMTPA id B78203F5A8;
+	Thu,  8 Aug 2019 22:34:05 +0200 (CEST)
+Received: from localhost.localdomain (h-205-35.A357.priv.bahnhof.se [155.4.205.35])
+	by mail1.shipmail.org (Postfix) with ESMTPSA id E0D65360301;
+	Thu,  8 Aug 2019 22:34:04 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=shipmail.org; s=mail;
+	t=1565296444; bh=EIk0/MUpwLpbdNkCz481ROZL1qwhrG0hJX4BjHbekd8=;
+	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
+	b=Lf5+MxhbJc+lwsstwp0LgCIZkWOVlVZhKQueAOEsO3kwvFF8OliImWzJw26HVXTf/
+	 PUGGY9SB6hV4Qh3dGW73STTF+vVQ5BqMuvG9UanaRrb8uTJbuZ+CSLxEvu9rTo6c1n
+	 mm8RZL/XZ8xyPu1syz5148DT/U61+whiMp3kL398=
+Subject: Re: [PATCH 2/3] pagewalk: seperate function pointers from iterator
+ data
+To: Christoph Hellwig <hch@lst.de>,
+ Linus Torvalds <torvalds@linux-foundation.org>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: Jerome Glisse <jglisse@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>,
+ Steven Price <steven.price@arm.com>, linux-mm@kvack.org,
+ linux-kernel@vger.kernel.org
+References: <20190808154240.9384-1-hch@lst.de>
+ <20190808154240.9384-3-hch@lst.de>
+From: Thomas Hellstrom <thomas@shipmail.org>
+Message-ID: <087f19ee-0278-b828-feb0-ff4a2c830a0f@shipmail.org>
+Date: Thu, 8 Aug 2019 22:34:04 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190807195821.GD5482@bombadil.infradead.org>
+In-Reply-To: <20190808154240.9384-3-hch@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 07, 2019 at 12:58:21PM -0700, Matthew Wilcox wrote:
-> On Wed, Aug 07, 2019 at 12:28:06PM -0700, syzbot wrote:
-> > usercopy: Kernel memory exposure attempt detected from wrapped address
-> > (offset 0, size 0)!
-> > ------------[ cut here ]------------
-> > kernel BUG at mm/usercopy.c:98!
-> 
-> This report is confusing because the arguments to usercopy_abort() are wrong.
-> 
->         /* Reject if object wraps past end of memory. */
->         if (ptr + n < ptr)
->                 usercopy_abort("wrapped address", NULL, to_user, 0, ptr + n);
+On 8/8/19 5:42 PM, Christoph Hellwig wrote:
+> The mm_walk structure currently mixed data and code.  Split out the
+> operations vectors into a new mm_walk_ops structure, and while we
+> are changing the API also declare the mm_walk structure inside the
+> walk_page_range and walk_page_vma functions.
+>
+> Based on patch from Linus Torvalds.
+>
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
 
-This test actually contains an off-by-one which was recently fixed:
-https://lore.kernel.org/linux-mm/1564509253-23287-1-git-send-email-isaacm@codeaurora.org/
+Typo: For the patch title s/seperate/separate/
 
-So, this is actually a false positive if "ptr + n" yields a 0
-(e.g. 0xffffffff + 1 == 0).
+Otherwise for the series
 
-> ptr + n is not 'size', it's what wrapped.  I don't know what 'offset'
-> should be set to, but 'size' should be 'n'.  Presumably we don't want to
-> report 'ptr' because it'll leak a kernel address ... reporting 'n' will
+Reviewed-by: Thomas Hellstrom <thellstrom@vmware.com>
 
-Right, I left offset 0 (this is normally the offset into a reported area
-like a specific kmalloc region, but isn't meaningful here IMO). And I
-left the size as "how far we wrapped". (Which is pretty telling: we
-wrapped 0 bytes ... *cough*.)
+/Thomas
 
-> leak a range for a kernel address, but I think that's OK?  Admittedly an
-> attacker can pass in various values for 'n', but it'll be quite noisy
-> and leave a trace in the kernel logs for forensics to find afterwards.
-> 
-> > Call Trace:
-> >  check_bogus_address mm/usercopy.c:151 [inline]
-> >  __check_object_size mm/usercopy.c:260 [inline]
-> >  __check_object_size.cold+0xb2/0xba mm/usercopy.c:250
-> >  check_object_size include/linux/thread_info.h:119 [inline]
-> >  check_copy_size include/linux/thread_info.h:150 [inline]
-> >  copy_to_user include/linux/uaccess.h:151 [inline]
-> >  hidraw_ioctl+0x38c/0xae0 drivers/hid/hidraw.c:392
-> 
-> The root problem would appear to be:
-> 
->                                 else if (copy_to_user(user_arg + offsetof(
->                                         struct hidraw_report_descriptor,
->                                         value[0]),
->                                         dev->hid->rdesc,
->                                         min(dev->hid->rsize, len)))
-> 
-> That 'min' should surely be a 'max'?
-> 
-> Jiri, this looks like it was your code back in 2007.
-
-I think this code is correct and the usercopy reporting fix already in
--mm solves the problem.
-
--- 
-Kees Cook
 
