@@ -2,123 +2,146 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06532C0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 17:43:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 27F5DC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 17:50:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BF20F2173C
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 17:43:31 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF20F2173C
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id DBA50217F4
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 17:50:58 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=linux-foundation.org header.i=@linux-foundation.org header.b="bgbHJGPT"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBA50217F4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 69F036B0003; Thu,  8 Aug 2019 13:43:31 -0400 (EDT)
+	id 5FCC96B0003; Thu,  8 Aug 2019 13:50:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 62BB26B0006; Thu,  8 Aug 2019 13:43:31 -0400 (EDT)
+	id 586D16B0006; Thu,  8 Aug 2019 13:50:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 518816B0007; Thu,  8 Aug 2019 13:43:31 -0400 (EDT)
+	id 4021C6B0007; Thu,  8 Aug 2019 13:50:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 13FF46B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 13:43:31 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id w25so58611349edu.11
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 10:43:31 -0700 (PDT)
+Received: from mail-lf1-f71.google.com (mail-lf1-f71.google.com [209.85.167.71])
+	by kanga.kvack.org (Postfix) with ESMTP id CA3C86B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 13:50:57 -0400 (EDT)
+Received: by mail-lf1-f71.google.com with SMTP id z14so11517298lfq.21
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 10:50:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=rNH82QolQNP9Pv+6bY7Cdvt8l3HvRf6sz/YqpahQXY4=;
-        b=oelhfL852sk7H1++cFDl74JHCpaAotKRQMYgHvhI4/A3NS2uM6c0WeabXEB9x/exs5
-         Q3tBv7SVuVNGhgTflbS7XovF9afFI98o5znOSJIcceoDW2bi9M8YgIAEEJbVuIyzQu1B
-         VHWb1lIWqdDyMHzOUV6CNnftSFpHy12nZ+ur0CPADpWZM2iY7LL/XdS6I2HRLz+ghLe5
-         T5VFYuX53EA+p0DHoXSrACCU/ga7Fkxs07gnDjePF72QdJ+Co3M03vNm5dfasiIHOAIz
-         yldR/b98Y3xWu69O5GnrAlxmfqXVV7oyjV7YGl2i1Rw4hlkWUiZ/EVndpRo0johvW/sT
-         YN8g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-X-Gm-Message-State: APjAAAXkoc85IRpyacKX7XlJOPxU2dYKGQH+EpgcAhYPs2lz6T8lWKmv
-	kNME9p2TWSkngtu/h3x9bvBhxqZ6JRQYGz2RXHJgiBvPR5kQn56llCZdj8Dfmk4RNKESw60etkg
-	c5egbpBGIKg3siZMLBuNmBMZ7orGWtmXY4EyenSf9tZsFnZw1dJvs0WFs2hBhD6jXRQ==
-X-Received: by 2002:a50:ee0d:: with SMTP id g13mr17288868eds.113.1565286210660;
-        Thu, 08 Aug 2019 10:43:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxSSQ3HV8d68BgMkRy1NUxZWQfB6vP0O1sXMteJD5PXt3/6I34WK0JwEO2TEyQX+ZJO1fJL
-X-Received: by 2002:a50:ee0d:: with SMTP id g13mr17288797eds.113.1565286209889;
-        Thu, 08 Aug 2019 10:43:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565286209; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=PaqvtAtk6zixEgRbfRi83KAjX0fbzFPUrAlK05McGqs=;
+        b=TX54Wavez6tBOsh2qCNkwYd+HZdoUVcYTKIFnx7tOBJJq32zktx2HTIzFMfLz/EQ9e
+         rqezAOWCB5tqpvxwThFaZIMEMnfRpJe3IyFTTTxIyMQzI9qpu6I3jftST7QK8iKJ/N1t
+         Mwr/QzZzVJKI6yNxW1ZjA0vC9jEqzpjnAfFEVfjc/nI0iLOZDnUzugIR23wnpYkR9A7z
+         lXI6+wfs2oT4Wx1o54ag2cQHPC142oVhqtc1+2zfM5ZEfHZFuulxnwDfTu3sU7PkwSq8
+         +DWadwHli54E/ceMLE2Qk+7cnaHmxxVtpA4+scYFBdDd1ZPjCEI0Zhdu6TC7jemcowBI
+         Sgyw==
+X-Gm-Message-State: APjAAAV9KMoG6fl1EBWGeS0Tge4A5Llm1jV0+2Kldu61KeNz+Mc/ZH15
+	2lFL+vY9gM8QyWBhDTIr9nNcgXEc3GRcov7Tj+Upth5B+6/z+R76sJVAgY4Up5IG9l3e7wDEZ6/
+	qno6oqo26HPhNeWBsZKetT17NVPQismt4mZg9paex4BvvrmyT2XH3xz1F2pF4Zop0qg==
+X-Received: by 2002:ac2:46f8:: with SMTP id q24mr10212127lfo.89.1565286657017;
+        Thu, 08 Aug 2019 10:50:57 -0700 (PDT)
+X-Received: by 2002:ac2:46f8:: with SMTP id q24mr10212099lfo.89.1565286656287;
+        Thu, 08 Aug 2019 10:50:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565286656; cv=none;
         d=google.com; s=arc-20160816;
-        b=riIupXxGjGSgKu9TNpvNnz0RLz57NLfXsSsBjOO45WRqGFlyAFWIm2LEmjDi8h2dII
-         3l+OfmWtceDTyxHt1iLppWx24D1mF17K+Ua1lBo/SOD2s8IRvm/6Fsa81PXt+0/A0iz8
-         T3FCEcvd0W/l6FhgjKXy5v1RqZv89Ki5enKRyKhry3Vx2Sjk7r8OBSYpuQlkTrYvMva7
-         /ehexxALGhB5q6aqhW0ATv4ipLP8BZKXCYAJJi0zvIDC+zpp5kY55sHNyTjX35IA+PvD
-         9/b5HkRK63FEQjlA0dyAwD13DyEqXf0c5gcp3goJ0iZV/XaHlWxKtieRJ+TatgXHOVGc
-         1tCA==
+        b=U9Ajh9/MYNNND+pjspPZfrhPUqfZ5h/c2ifalbMRppT24PfO/OHm8F3AlBPhXCftHB
+         P2KqdYNMJawRd7WA4zBcetAUIrETOaZj5jNvcuXme0YHE8zwkpPIATqeYQbd7vCrPkWd
+         14fBNnwsOwisCC/gSoEwepqV+LXo0Oq1PmqvaO0VJSDfdl9+VXCWTsFJeibACZUPB1l2
+         6UyFa9NBj9A7X224E7bDrRu3sVltzWp0d/qD+3xLs2ScXl7yt6TWnpHbyJ92BP5dNMGh
+         wwyYwk9nDI9fOG7Duf1WjBsDLWHjryJbfziGRRddv2q3ExFO+lIGRgYINc4WKpzpBZKp
+         tRog==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=rNH82QolQNP9Pv+6bY7Cdvt8l3HvRf6sz/YqpahQXY4=;
-        b=XSRU24QIWht3FBZaSdvKN74vgqLcVQG+VIUAlQIS370nhkVfdtsW4H7+CKVzl7WhCH
-         plhnP+XyZ6bq2cSg1PaNz8KUxoG2RRHnphBGWBjrIDfNDWDR6FiQN4AlCI9k31bdwURp
-         nwtnUS8cDfSYhuKuWwD8/qGAYxhUxdDYzGOHU6f0DD1wEJ+dYAK5y+TLTcdfkgUpe4hT
-         iUL7TEHNnn9t3DpB2IkLQxfZurfAJNEx/LYWpdPrtnliEKL3HX8Uj35qpOk02RRsoKkv
-         CzIWk5vlB5hN4Mz2qcRxyW3l/wbE1dVJDx8vgIRxLko2yEIBYNAR6t05gOx6ax3chSZg
-         3kIA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=PaqvtAtk6zixEgRbfRi83KAjX0fbzFPUrAlK05McGqs=;
+        b=fj22nrYN3XikrFkh5ZNp5vHsSONufQG1rwBRHJBFy0JvzOaTV/hEpSbcHDqxE4mJyM
+         vm86GbZaR1snXYAcaD71ohwXEf1lJyG+FY8gBYT/+Yyl6qFv4/lmCIDnvujGRnRhq3jF
+         qR35WGHSkrGAKzu9+ZITsVpQpPYGwgyXQTLV/N4wjAiOy18SxGZ3AwgNQ9pjA6D2hSuU
+         Xx/6EYdQ1xLjcWOvOpOvLPf1SuyrH2w2xHhwC8bXSjLHWOOiPtcd413BQ6tVPs7LT9zn
+         ytGegP0ogtG2Py2Gr/uqFhDvcJNR1MzKMjV/w5Dr8hBbDFZ45HFq/3yADRoYugRQA1qz
+         1Dgg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id c4si34882381edq.280.2019.08.08.10.43.29
-        for <linux-mm@kvack.org>;
-        Thu, 08 Aug 2019 10:43:29 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=bgbHJGPT;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id y26sor1862944lfe.54.2019.08.08.10.50.56
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 08 Aug 2019 10:50:56 -0700 (PDT)
+Received-SPF: pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id EF16815A2;
-	Thu,  8 Aug 2019 10:43:28 -0700 (PDT)
-Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B55B33F575;
-	Thu,  8 Aug 2019 10:43:27 -0700 (PDT)
-Date: Thu, 8 Aug 2019 18:43:25 +0100
-From: Mark Rutland <mark.rutland@arm.com>
-To: Daniel Axtens <dja@axtens.net>
-Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, x86@kernel.org,
-	aryabinin@virtuozzo.com, glider@google.com, luto@kernel.org,
-	linux-kernel@vger.kernel.org, dvyukov@google.com
-Subject: Re: [PATCH v3 1/3] kasan: support backing vmalloc space with real
- shadow memory
-Message-ID: <20190808174325.GD47131@lakrids.cambridge.arm.com>
-References: <20190731071550.31814-1-dja@axtens.net>
- <20190731071550.31814-2-dja@axtens.net>
- <20190808135037.GA47131@lakrids.cambridge.arm.com>
+       dkim=pass header.i=@linux-foundation.org header.s=google header.b=bgbHJGPT;
+       spf=pass (google.com: domain of torvalds@linuxfoundation.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=torvalds@linuxfoundation.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=linux-foundation.org; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=PaqvtAtk6zixEgRbfRi83KAjX0fbzFPUrAlK05McGqs=;
+        b=bgbHJGPTR7Koz+c795LwPw5LpjTkYHSGo/WjpWK8uhqHWX4RU/bw/U9W/Ciokdadeu
+         SGeRFfN9p7jgody3HoUb/XyE+F1uRIDJUun78fKUfuAUfCCMsxPiNoI47NPA99/T2Ok4
+         kVZRDdHEM2k89KQ/yjYtrD7kr74Ot3DoZ7wk0=
+X-Google-Smtp-Source: APXvYqwNYlSfLNEdDUY9+5DFyLy5ZPjvrIXMPZYljRt1kgLm0VfHBfs4jIBqwroCmsdEpyg3q/0JIA==
+X-Received: by 2002:ac2:5314:: with SMTP id c20mr10065872lfh.1.1565286655040;
+        Thu, 08 Aug 2019 10:50:55 -0700 (PDT)
+Received: from mail-lf1-f49.google.com (mail-lf1-f49.google.com. [209.85.167.49])
+        by smtp.gmail.com with ESMTPSA id j3sm17042351lfp.34.2019.08.08.10.50.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Aug 2019 10:50:53 -0700 (PDT)
+Received: by mail-lf1-f49.google.com with SMTP id c19so67500981lfm.10
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 10:50:53 -0700 (PDT)
+X-Received: by 2002:ac2:5c42:: with SMTP id s2mr10385649lfp.61.1565286653238;
+ Thu, 08 Aug 2019 10:50:53 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190808135037.GA47131@lakrids.cambridge.arm.com>
-User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
+References: <20190808154240.9384-1-hch@lst.de>
+In-Reply-To: <20190808154240.9384-1-hch@lst.de>
+From: Linus Torvalds <torvalds@linux-foundation.org>
+Date: Thu, 8 Aug 2019 10:50:37 -0700
+X-Gmail-Original-Message-ID: <CAHk-=wh3jZnD3zaYJpW276WL=N0Vgo4KGW8M2pcFymHthwf0Vg@mail.gmail.com>
+Message-ID: <CAHk-=wh3jZnD3zaYJpW276WL=N0Vgo4KGW8M2pcFymHthwf0Vg@mail.gmail.com>
+Subject: Re: cleanup the walk_page_range interface
+To: Christoph Hellwig <hch@lst.de>
+Cc: Andrew Morton <akpm@linux-foundation.org>, =?UTF-8?Q?Thomas_Hellstr=C3=B6m?= <thomas@shipmail.org>, 
+	Jerome Glisse <jglisse@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>, 
+	Steven Price <steven.price@arm.com>, Linux-MM <linux-mm@kvack.org>, 
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 08, 2019 at 02:50:37PM +0100, Mark Rutland wrote:
-> Hi Daniel,
-> 
-> This is looking really good!
-> 
-> I spotted a few more things we need to deal with, so I've suggested some
-> (not even compile-tested) code for that below. Mostly that's just error
-> handling, and using helpers to avoid things getting too verbose.
+On Thu, Aug 8, 2019 at 8:42 AM Christoph Hellwig <hch@lst.de> wrote:
+>
+> this series is based on a patch from Linus to split the callbacks
+> passed to walk_page_range and walk_page_vma into a separate structure
+> that can be marked const, with various cleanups from me on top.
 
-FWIW, I had a quick go at that, and I've pushed the (corrected) results
-to my git repo, along with an initial stab at arm64 support (which is
-currently broken):
+The whole series looks good to me. Ack.
 
-https://git.kernel.org/pub/scm/linux/kernel/git/mark/linux.git/log/?h=kasan/vmalloc
+> Note that both Thomas and Steven have series touching this area pending,
+> and there are a couple consumer in flux too - the hmm tree already
+> conflicts with this series, and I have potential dma changes on top of
+> the consumers in Thomas and Steven's series, so we'll probably need a
+> git tree similar to the hmm one to synchronize these updates.
 
-Thanks,
-Mark.
+I'd be willing to just merge this now, if that helps. The conversion
+is mechanical, and my only slight worry would be that at least for my
+original patch I didn't build-test the (few) non-x86
+architecture-specific cases. But I did end up looking at them fairly
+closely  (basically using some grep/sed scripts to see that the
+conversions I did matched the same patterns). And your changes look
+like obvious improvements too where any mistake would have been caught
+by the compiler.
+
+So I'm not all that worried from a functionality standpoint, and if
+this will help the next merge window, I'll happily pull now.
+
+             Linus
 
