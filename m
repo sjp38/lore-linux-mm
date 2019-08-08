@@ -2,250 +2,163 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C5806C0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 14:28:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D7A1C0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 14:33:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7657621743
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 14:28:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7657621743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id 3441E217F4
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 14:33:40 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="cCOBoICU"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3441E217F4
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 004426B0003; Thu,  8 Aug 2019 10:28:53 -0400 (EDT)
+	id C0DF26B0003; Thu,  8 Aug 2019 10:33:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EF66E6B0006; Thu,  8 Aug 2019 10:28:52 -0400 (EDT)
+	id BBF1C6B0006; Thu,  8 Aug 2019 10:33:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DE6676B0007; Thu,  8 Aug 2019 10:28:52 -0400 (EDT)
+	id A876C6B0007; Thu,  8 Aug 2019 10:33:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A7B436B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 10:28:52 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id n9so54336603pgq.4
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 07:28:52 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 5D1B56B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 10:33:39 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id f19so58362062edv.16
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 07:33:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version;
-        bh=kQBL0PYTul2vp4+gsnrLKbiCJ8tcxgOTtMZDvmAvlm4=;
-        b=Bqsh9a8dJdnyNu+81mllnmQVDAFb+gmw3xfbC2EyBUs5uzH+vkEfdAmX96sZKmsQaV
-         OVEZx2AhWNOpBS+2yj6y6cxko/oDazpICq9N+SeYz+g7hfjaCIi4MnXVCM3Ya0rJqeml
-         NhnCmfV6UmIvI7AgCWn8KnuwPxSxvdnunvZSRQM/d1FkIj47ihgSc3EqYIW0/zqcSeen
-         4WE1w6NJLQAlIHM26hYgegIe27jQuWFpblh/h9RWW7gSpbgHyjI9U9qyatJTMcM0ZEMO
-         dekv+4Rh7LrElMeJUQ3Rgu6xWVitPHh68be08NSyV35j6hCztJD+u8SZaGgCatMhD25s
-         ywlg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-X-Gm-Message-State: APjAAAVM/dSPdZNgp8yGy1N4B4fVEiXkuRgl8iyQyt3Sa+V70Z5bzSrD
-	qiftLNCOj0Q8XqPuVfv7NOVHfIRMGJgxGjyBUDpZLDodPt3h8eXpVkVdsUl7lz7R+bcJh5AdHmH
-	1LvI+iaJSj7rQN63XZ/lY2NlvfffFN3BQdX2X2dVprDA66aEIStEoeQT93KQE7MLzSg==
-X-Received: by 2002:a17:90a:b104:: with SMTP id z4mr4405585pjq.102.1565274532252;
-        Thu, 08 Aug 2019 07:28:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy53QLOZas+oXahdi3kxAGUBZ33RjG0uyYK8G+502gROKmSMAMzxHhuguzlQDkfUdABgYJ2
-X-Received: by 2002:a17:90a:b104:: with SMTP id z4mr4405476pjq.102.1565274530984;
-        Thu, 08 Aug 2019 07:28:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565274530; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:reply-to:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=1+hRXOJC+ZDM/4/kVVufU5PRo9dpiWo2Z8YGtmpPW2I=;
+        b=gTr4s3Ij1Aqhfdmqz6LXVsILYmYEfFYGqDd/TRR+DWe6dXhlTTUXmb/aSDJHwRYD1b
+         B6BiiOzXPjCbmBOXSFmSVu3lJF+sOjiVQ+5jRG42klOUxxDHgAX0ZYX2dfp806sq3pUp
+         I4pVMywlQeZwcbtWQ44lb0CgHdTx20spSG7QTfA6LS9At9Xcz9ybj0L+2FJ19BoOB3rz
+         zc3emdTsWvwE3h9OqQZXRi3FKsHzSnDzIEtxQ4hsY2diVAp7x98VhW5+Gu8JDOkG0j+l
+         QiCkhc9B3++SU4KMYLJTjGGID4bkZ0kxrHpgXyhTXS3Mm9fj/2OCxvvvHopT2KzBi7An
+         qolQ==
+X-Gm-Message-State: APjAAAUz9swzDLk0vGqfrVtfdJ+DeYK6aduoBI8fWZVJPQ3KBFqVWC5B
+	8/5MMLiUrz2tfsKVnYGRROdKEkGrVKy7uCsmnK38GqYWL9rrzpv81iWkMcwzQu5Uk2H9h3XGWKl
+	nMDeaSg1JrTWodtamUIj8zGjDxhDXpMvq3wSBRTVexHg/aY1MWYdDcSICfW7ahBJMNw==
+X-Received: by 2002:a50:f70c:: with SMTP id g12mr16386449edn.139.1565274818967;
+        Thu, 08 Aug 2019 07:33:38 -0700 (PDT)
+X-Received: by 2002:a50:f70c:: with SMTP id g12mr16386385edn.139.1565274818262;
+        Thu, 08 Aug 2019 07:33:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565274818; cv=none;
         d=google.com; s=arc-20160816;
-        b=fgyFMZzLJ+rJ4qRNBc/zPteTmcgp89Ws7rRF2RMxvr5e7XV34G3n3BLdTPd7BBWQ68
-         MoAs1RIFRD1lu8E6NslCd0FiBLpme8N4rOH5vHKIt0OPpXVp6dc5gJjpqlVI7Q48+irK
-         lsZVIx5MOqluQjMb2PT/zWZC+lnbtACbmD3YZPY3DD/PBQ/d7ZaWQBY3v3oqGNrj8sF5
-         +fIEgy47Y/nQLECe/1+QXK/ERyxCq+R0Ir7XMM2gRC7UghP4ofMJorFQX7tm/WPAAKnO
-         mmO9WhFdiCqf8+sdG88s4izGwGq3B9j2YHlxuEuhdFHh+pSEbpAJALtVd320QR+X58cy
-         F12Q==
+        b=lI93ixc/yWkfpSq2iP6Jk3bfuK/W7Dbx2eGyaOeBopvV2N6M4l4pilaqYQDveFEY+6
+         xCMYgVDtfW8l0ZTgGU8dVSip1HXECr1dbu2j/n1DtCeZ8y4HQkctz1Rs3RUN4ebAJf83
+         FxsEsxe+lUm81nCViHZ1v5e6/WtFxYG/SoXF9LWfDguIUM6NaqkK0/5yeHUKhloGYYVq
+         2eXi19obJ+v4/dP4EOO8sVPwhhSv5aQdr2TgBYfTfc9wTxx7dibnnJMvDCw0eGeAKiRF
+         s/ypDtmeJHosuU6rzmRn/RVU6oHSRML0Padb73VTrBT6dWXYIXh1XsGv16x80XMS2QFb
+         4a1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:subject:cc:to:from;
-        bh=kQBL0PYTul2vp4+gsnrLKbiCJ8tcxgOTtMZDvmAvlm4=;
-        b=k+7VwY3qwlPOWMqAeHoNsbBf6Mswu60fTCy77mbJVlhXCpTad2jQxWu9iP1Fn8M2d6
-         A57M6E6+lu1+mgpFKrNvIEFv6nvKeY+XGoVOaZeq1pHrY+jVpIxguw+JNXPUtGJfwkN2
-         uVf5Zl2/VsDI5OBbzoLJa1YlHQwJWP7LqCNWzrPKh0RVU/lsp7Bs1mNU1AOt32cKbl/w
-         MimDQvxkJDMPmtb9NahgGwN7ZQNhCRRxlA+lBZiFEt2V9LKlc49e4TD9hRIjJcRWoWrF
-         xnipmz8AfjNQbQ3fS2Q3lHeNMv8xnpVzEnMdXVYiSoPyg2G2pdbGf65M6vVcKrF74MQo
-         KYZQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :reply-to:message-id:subject:cc:to:from:date:dkim-signature;
+        bh=1+hRXOJC+ZDM/4/kVVufU5PRo9dpiWo2Z8YGtmpPW2I=;
+        b=oA7Ialpfq7nx8O/tvv3CD2AsIQTTj5vD1AMKar77FUiRR1rafDxHXaU9tYWiC6ZJFZ
+         jyALk9aEgq0nblIH4ForcMkSK/ZFbynlhoTD669KhhfylK2XseWkWq8pcPdGV4pE7tMF
+         hvBMyD7fgq6EO+Q/AkFKz0vhsKmzLj9GtGuxSCTv5PChUw8YEujNz70nxb3oYIlvAScv
+         Fg8pM1DCJAGJrqJ6yNTtUgl0T8mZ1wiv+QgggTIpWAiASJCwmNkyBtLI7ZEWRzL4M3fP
+         4BfcVwDOO0tODXVT2R9QtPXMNlE2HrrgDYT5vA9Q/DXlyc8xxrcDIYlxI1oEMjQw8g8n
+         k3Aw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-Received: from mailgw01.mediatek.com ([210.61.82.183])
-        by mx.google.com with ESMTP id a15si8546025pgw.313.2019.08.08.07.28.50
-        for <linux-mm@kvack.org>;
-        Thu, 08 Aug 2019 07:28:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) client-ip=210.61.82.183;
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cCOBoICU;
+       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id m20sor33220461ejk.32.2019.08.08.07.33.38
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Thu, 08 Aug 2019 07:33:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-X-UUID: ad55d4d908ed454083dd1205e0106285-20190808
-X-UUID: ad55d4d908ed454083dd1205e0106285-20190808
-Received: from mtkexhb01.mediatek.inc [(172.21.101.102)] by mailgw01.mediatek.com
-	(envelope-from <miles.chen@mediatek.com>)
-	(Cellopoint E-mail Firewall v4.1.10 Build 0707 with TLS)
-	with ESMTP id 943411608; Thu, 08 Aug 2019 22:28:42 +0800
-Received: from MTKCAS06.mediatek.inc (172.21.101.30) by
- mtkmbs07n1.mediatek.inc (172.21.101.16) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Thu, 8 Aug 2019 22:28:44 +0800
-Received: from mtksdccf07.mediatek.inc (172.21.84.99) by MTKCAS06.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Thu, 8 Aug 2019 22:28:44 +0800
-From: <miles.chen@mediatek.com>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David
- Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew
- Morton <akpm@linux-foundation.org>
-CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
-	<linux-mediatek@lists.infradead.org>, <wsd_upstream@mediatek.com>, Miles Chen
-	<miles.chen@mediatek.com>
-Subject: [RFC PATCH] mm: slub: print kernel addresses when CONFIG_SLUB_DEBUG=y
-Date: Thu, 8 Aug 2019 22:28:43 +0800
-Message-ID: <20190808142843.32151-1-miles.chen@mediatek.com>
-X-Mailer: git-send-email 2.18.0
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cCOBoICU;
+       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=1+hRXOJC+ZDM/4/kVVufU5PRo9dpiWo2Z8YGtmpPW2I=;
+        b=cCOBoICU8CNt81EgZopFsi62bJmq0dCGhRRyOBZrHz6x4zgZMVW0I0qIH4tqKn99Ch
+         KCuglEQChTF0oNH1RULG7gBFl9ROMSdkWPvDjWYgtyOrwC7lBeww1a4RHafAsavxSbuz
+         Fm5M+8QkjJbkTLchwoDqDiNyYbvLWr++v5jvUHZn519FGt5V8pAxBJ4xQpWhD/gIuloD
+         XKVlh5ov7P2gm1HzEQ48jtXVuZeHjUX32eyJr6Bqts2hiTE9KbIsnJiV+CpxXmKThH2e
+         wmRBJg1RkKYjzuvNjK7zAtt1JAO3piFKSeZxcWyHrAMwdAXPw6YlB+ETRwL/ZUXfkWia
+         2s4Q==
+X-Google-Smtp-Source: APXvYqw60Qv6BR5nyiLLGJOB6JFXkK8yFSkjUH6a9VxpLPc86WgYOyY4BHMmwi1P9oj0mhGac7YRMA==
+X-Received: by 2002:a17:906:4354:: with SMTP id z20mr13315954ejm.163.1565274817932;
+        Thu, 08 Aug 2019 07:33:37 -0700 (PDT)
+Received: from localhost ([185.92.221.13])
+        by smtp.gmail.com with ESMTPSA id m17sm255658ejc.91.2019.08.08.07.33.37
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 08 Aug 2019 07:33:37 -0700 (PDT)
+Date: Thu, 8 Aug 2019 14:33:36 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+To: Vlastimil Babka <vbabka@suse.cz>
+Cc: Wei Yang <richardw.yang@linux.intel.com>,
+	Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org,
+	kirill.shutemov@linux.intel.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/mmap.c: refine data locality of find_vma_prev
+Message-ID: <20190808143336.kgq4f6j5gfixtcb4@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20190806081123.22334-1-richardw.yang@linux.intel.com>
+ <3e57ba64-732b-d5be-1ad6-eecc731ef405@suse.cz>
+ <20190807003109.GB24750@richard>
+ <20190807075101.GN11812@dhcp22.suse.cz>
+ <20190808032638.GA28138@richard>
+ <d4aab7f0-b653-8636-b5a7-97d3291f289d@suse.cz>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-MTK: N
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <d4aab7f0-b653-8636-b5a7-97d3291f289d@suse.cz>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Miles Chen <miles.chen@mediatek.com>
+On Thu, Aug 08, 2019 at 10:49:29AM +0200, Vlastimil Babka wrote:
+>On 8/8/19 5:26 AM, Wei Yang wrote:
+>> 
+>> @@ -2270,12 +2270,9 @@ find_vma_prev(struct mm_struct *mm, unsigned long addr,
+>>         if (vma) {
+>>                 *pprev = vma->vm_prev;
+>>         } else {
+>> -               struct rb_node *rb_node = mm->mm_rb.rb_node;
+>> -               *pprev = NULL;
+>> -               while (rb_node) {
+>> -                       *pprev = rb_entry(rb_node, struct vm_area_struct, vm_rb);
+>> -                       rb_node = rb_node->rb_right;
+>> -               }
+>> +               struct rb_node *rb_node = rb_last(&mm->mm_rb);
+>> +               *pprev = !rb_node ? NULL :
+>> +                        rb_entry(rb_node, struct vm_area_struct, vm_rb);
+>>         }
+>>         return vma;
+>> 
+>> Not sure this style would help a little in understanding the code?
+>
+>Yeah using rb_last() would be nicer than basically repeating its
+>implementation, so it's fine as a cleanup without performance implications.
+>
 
-This RFC patch is sent to discuss the printing address with %p issue.
+Thanks, I would send this version with proper change log.
 
-Since commit ad67b74d2469d9b8 ("printk: hash addresses printed with %p"),
-%p gives obfuscated addresses now. When CONFIG_SLUB_DEBUG=y, it is still
-useful to get real virtual addresses.
+>>> -- 
+>>> Michal Hocko
+>>> SUSE Labs
+>> 
 
-Possible approaches are:
-1. stop printing kernel addresses
-2. print kernel addresses with %pK,
-3. print kernel addresses with %px.
-4. do nothing
-
-This patch takes %px approach and shows the output here.
-(%px will causes checkpatch warnings, let us ignore the warning here to
-have the discussion). Also, use DUMP_PREFIX_OFFSET instead of
-DUMP_PREFIX_ADDRESS.
-
-Before this patch:
-
-INFO: Slab 0x(____ptrval____) objects=25 used=10 fp=0x(____ptrval____)
-INFO: Object 0x(____ptrval____) @offset=1408 fp=0x(____ptrval____)
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb
-Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-...
-FIX kmalloc-128: Object at 0x(____ptrval____) not freed
-
-After this patch:
-
-INFO: Slab 0xffffffbf00f57000 objects=25 used=23 fp=0xffffffc03d5c3500
-INFO: Object 0xffffffc03d5c3500 @offset=13568 fp=0xffffffc03d5c0800
-Redzone 00000000: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000010: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000020: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000030: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000040: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000050: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000060: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000070: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Object 00000000: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000010: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000020: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000030: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000040: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000050: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000060: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000070: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5
-Redzone 00000000: bb bb bb bb bb bb bb bb
-Padding 00000000: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-Padding 00000010: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-Padding 00000020: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-Padding 00000030: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-...
-FIX kmalloc-128: Object at 0xffffffc03d5c3500 not freed
-
-Signed-off-by: Miles Chen <miles.chen@mediatek.com>
----
- mm/slub.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
-
-diff --git a/mm/slub.c b/mm/slub.c
-index 8834563cdb4b..bc1fb8e81557 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -528,7 +528,7 @@ static void print_section(char *level, char *text, u8 *addr,
- 			  unsigned int length)
- {
- 	metadata_access_enable();
--	print_hex_dump(level, text, DUMP_PREFIX_ADDRESS, 16, 1, addr,
-+	print_hex_dump(level, text, DUMP_PREFIX_OFFSET, 16, 1, addr,
- 			length, 1);
- 	metadata_access_disable();
- }
-@@ -611,7 +611,7 @@ static void print_tracking(struct kmem_cache *s, void *object)
- 
- static void print_page_info(struct page *page)
- {
--	pr_err("INFO: Slab 0x%p objects=%u used=%u fp=0x%p flags=0x%04lx\n",
-+	pr_err("INFO: Slab 0x%px objects=%u used=%u fp=0x%px flags=0x%04lx\n",
- 	       page, page->objects, page->inuse, page->freelist, page->flags);
- 
- }
-@@ -653,7 +653,7 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
- 
- 	print_page_info(page);
- 
--	pr_err("INFO: Object 0x%p @offset=%tu fp=0x%p\n\n",
-+	pr_err("INFO: Object 0x%px @offset=%tu fp=0x%px\n\n",
- 	       p, p - addr, get_freepointer(s, p));
- 
- 	if (s->flags & SLAB_RED_ZONE)
-@@ -991,7 +991,7 @@ static void trace(struct kmem_cache *s, struct page *page, void *object,
- 								int alloc)
- {
- 	if (s->flags & SLAB_TRACE) {
--		pr_info("TRACE %s %s 0x%p inuse=%d fp=0x%p\n",
-+		pr_info("TRACE %s %s 0x%px inuse=%d fp=0x%p\n",
- 			s->name,
- 			alloc ? "alloc" : "free",
- 			object, page->inuse,
-@@ -1212,7 +1212,7 @@ static noinline int free_debug_processing(
- 	slab_unlock(page);
- 	spin_unlock_irqrestore(&n->list_lock, flags);
- 	if (!ret)
--		slab_fix(s, "Object at 0x%p not freed", object);
-+		slab_fix(s, "Object at 0x%px not freed", object);
- 	return ret;
- }
- 
-@@ -3693,7 +3693,7 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
- 	for_each_object(p, s, addr, page->objects) {
- 
- 		if (!test_bit(slab_index(p, s, addr), map)) {
--			pr_err("INFO: Object 0x%p @offset=%tu\n", p, p - addr);
-+			pr_err("INFO: Object 0x%px @offset=%tu\n", p, p - addr);
- 			print_tracking(s, p);
- 		}
- 	}
 -- 
-2.18.0
+Wei Yang
+Help you, Help me
 
