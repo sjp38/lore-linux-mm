@@ -2,209 +2,281 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D7B33C0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 11:09:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BD85AC32756
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 11:41:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 82AB52173E
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 11:09:24 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 82AB52173E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 4E07421880
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 11:41:49 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E07421880
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 137966B0003; Thu,  8 Aug 2019 07:09:24 -0400 (EDT)
+	id A6DD86B0003; Thu,  8 Aug 2019 07:41:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0C12E6B0006; Thu,  8 Aug 2019 07:09:24 -0400 (EDT)
+	id A1EE06B0006; Thu,  8 Aug 2019 07:41:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E7C2D6B0007; Thu,  8 Aug 2019 07:09:23 -0400 (EDT)
+	id 8E51B6B0007; Thu,  8 Aug 2019 07:41:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 91E926B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 07:09:23 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id d27so58023508eda.9
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 04:09:23 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C3D56B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 07:41:48 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id c1so82015192qkl.7
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 04:41:48 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=VcAu0vWiaogKbjBYkJMxyEU2lb/0O17kaTeHoDrcCP4=;
-        b=W4Cl1WmdqGDhvojnu/6APg1Vxx+JW5oSVabGBv2GlBkOXMApTc5RtMsRb/trNKSrQs
-         1Tj5pRcl4I0Q55bQTO3fpWxZ7VU8Rth7DUd5gz/BTy1QVIDFt7Pf6LKfFEJKit1KWbEb
-         W52Wm3Vn6O8eZ14eiU6YeMmz/3pAy22ennNPpZ8lYOXs71Uy6Gv+GEXs8GOcPmo/ar5K
-         p5vQzFpb0MV2wVuWLvuAhvAvGo2GQLw499akl3yYXaRp7+/TU/XeA8A1gx5Q+LAKQx9O
-         DUv26mfxhYhwQjWmWFDVF4OgLg+cfnFAV0KsbiL4loCKjdc2LYlwn7tRsSlpoamZGWnq
-         LQnw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAVkRgnxDbY2uv9KzuskQ92OYTEqwDFwhcdjZBXP9J+xepx7Kd16
-	CHtUlnTlzQv4pt9borbghX1ROqqDQ7L3inkcXLHB7AvEQzlaCwtxA3G7tKjQ/S2SXMdyUVCdRGO
-	ARBWQweZjUH94iHcQf/DQtaVntKej85Ec7gXh8kt1QghbG/t+RJZ5OWPzc+jMTcnj0Q==
-X-Received: by 2002:a50:eb96:: with SMTP id y22mr15096755edr.211.1565262563164;
-        Thu, 08 Aug 2019 04:09:23 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxszYRGC1MVs1cDHr07qYduKQmOlEpixzupbFddX6vXzzVMd9kPbL5kxf5UZ+rUsx/SLz/Z
-X-Received: by 2002:a50:eb96:: with SMTP id y22mr15096687edr.211.1565262562357;
-        Thu, 08 Aug 2019 04:09:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565262562; cv=none;
+         :references:from:openpgp:autocrypt:organization:message-id:date
+         :user-agent:mime-version:in-reply-to:content-transfer-encoding
+         :content-language;
+        bh=gSWLePucTyrtPWgndVt+7eEfubqzXrM3RGZiLs/5V0M=;
+        b=jNTO5nIYskYVZTFAfVxLYoUdYUW4dYwuUQgy73LV4AZrb/0mbEpzKKC3FiMmC9fjJn
+         zKs0YyK5jwRIwioirsCrym4IbbrkZnQo7wgcZP/Ex5YSf/yovM7E+wlq3h666K73O06e
+         YZdhlfG815LSWwPbpDzT10rTyCroNwdiI5bOiK4zOXH8lXyWFL+mAQP2E+bbxNcjgrZJ
+         nd4LS+HzRhHhllVFFuj8RRUM8fjK59/54+76lguCxCiHLnrAvdA3Br4mSW3sDa/2nEn8
+         EdyLwDEH7BlzfpbgBwceptsBIPpuhAnJBDhR87/6mZKz+X0p6EtHF68ms3V3PIuedkD0
+         fCzg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAUsv5dr1XOxyWgxJFKnwXy69Lb2p4aMP0iTRjufBcr5bE2lYP+d
+	5LVRykvVF02zmxU//eCO7L6kW/hnB5CxXrniMfHBDnXJ4apZrRQCUENuhJr6dOUapmNXcy/O0SK
+	2m/I2BwZEnqxsxotwNaEITtMJreELL2bNpcBzMqG3wNJEtBs+VqwOu7Az4Z9JuV2m7g==
+X-Received: by 2002:a37:3d7:: with SMTP id 206mr12876751qkd.252.1565264508144;
+        Thu, 08 Aug 2019 04:41:48 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxfP/Ug4CwLKpAXLkQdwX/CvYQHEsGuLziDbIHmDru8PaiokblaDP7PKUA2DfngMlbvtf3+
+X-Received: by 2002:a37:3d7:: with SMTP id 206mr12876690qkd.252.1565264507150;
+        Thu, 08 Aug 2019 04:41:47 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565264507; cv=none;
         d=google.com; s=arc-20160816;
-        b=GAqkmrviziej6924Aw2Qtx9zsxzXVOmBMJ5y70vZL0P+WoI8eEwi4u2VVUvlSjMruN
-         vZ19YXurkx5XazwlxA+sH9Dy3LY3K/lYYBSSaFXg9yXOPmsUzKVzlklEhCQd6oX1DMvg
-         +l2pOMmnHnOrXihuyP4Mfdy7yVKlJBRexEV1NYAjKUrcRsJ4ljx9GyDUY52NnK697IP4
-         nemetp9zArpSDJFQwHNGDNIOxqgCFfO5Am5g5sJIsaLGF0j4mszheCNjVfCORjrkazsd
-         dvlAZbY7nVZhI9HU7SPtiS5UkDgA4tMgPXWzT5zNVqxQaF8PN75gpvxVi2sRrqkggZAS
-         y8wQ==
+        b=h++cwJGirfhyibfccx5hj7GNvKPRHUksxfKtZkh2fIhncXfj46GpQ/PHU+rUBBjrmj
+         we+Qt+USlkc8YFahFRvZk7Hv+cUUQf3AELaG2HvGxYPSoe8upowktvw1nSfXZ2Tcc3/C
+         w7vSiLVMX84JDuYt1Rdt23ffX77TDKIDirteUS07RaAqh48e0hmkkn6Lcmxc07y2XjB6
+         TpqeMQcFsd/2G7BpWG0BYZ1QQ7FSdNOtcJWo1Iz+8xV6os4LO7k9LuRSGFgrC85OreOs
+         PR/FIJr3DImNVQM4QS3ZSHazo1ZqUenDzK9wNcMaozDRygGSV11rsSw3IP+EeNfc+MDE
+         QtOw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=VcAu0vWiaogKbjBYkJMxyEU2lb/0O17kaTeHoDrcCP4=;
-        b=t75snamuF4Ifl4oSsKFaPxmyJJGyNHvFgt5CEdHUzLBMFP8u3199FZV5cMxtTIpiLI
-         +DzMCEvJGqE4JwtHX9gL+ai+zZQFx56SUcROvx1BoPkVGLXThBjXmAoml+52wNo7nJ8d
-         VYbVS5A4L3DjWdYzySRoeSEGE5GljCgMEXcS0F/UjOZR+lSibYLflWXrTa3csqo9+QII
-         S8b/My9mY+QqPoq0qx9rmtO/QkPzXCeIXS2XX8R69S0veLioIUWwXFvWM/0pSP5wrbxg
-         CTabScAvIuE2N4aFQ1aDfmOdIHSBsrfnBNPeJVAgdR0I09nfkkS2xeMJeUWQBXf/Ud/W
-         VmAQ==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:organization:autocrypt:openpgp:from
+         :references:cc:to:subject;
+        bh=gSWLePucTyrtPWgndVt+7eEfubqzXrM3RGZiLs/5V0M=;
+        b=luVev7r9wn5Nr5zEoNHgvf94AnvSccr2S3yJxVTaUPp6bkZSPJZebWtCEKS4Q+6mGs
+         WT7lILpjz9pGeoDAFcVeP/zW9yP0bohk7dWnTAlJAcdS6jeTWToF8dqBapdtfUrHgvQo
+         D8tTsiRCvAr+8ywlOoD08mP8Dnmoes+boZTWwTL7PmIsGvijc0m88OTiNQCHkzkcJPSQ
+         dY1+SqY3dZ0MzHN8dSc4G9NyavXkrJsDYSjsGsfSBsV7Y/CSt5Y6U08Wt91xm+POLEhP
+         fvtH+wUWDXo75wXsJmhhopsCeluF8uOTLgODbMA0Im4aQBcUqnv8lNECU98CWcjL72Kk
+         9j5A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id f1si31385673ejb.158.2019.08.08.04.09.22
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id s1si57767003qtb.333.2019.08.08.04.41.46
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 04:09:22 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 08 Aug 2019 04:41:47 -0700 (PDT)
+Received-SPF: pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 8B21DAE16;
-	Thu,  8 Aug 2019 11:09:21 +0000 (UTC)
-Subject: Re: [PATCH 1/3] mm/mlock.c: convert put_page() to put_user_page*()
-To: Michal Hocko <mhocko@kernel.org>, John Hubbard <jhubbard@nvidia.com>
-Cc: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>,
- Christoph Hellwig <hch@infradead.org>, Ira Weiny <ira.weiny@intel.com>,
- Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
- Jerome Glisse <jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>,
- linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
- Dan Williams <dan.j.williams@intel.com>, Daniel Black
- <daniel@linux.ibm.com>, Matthew Wilcox <willy@infradead.org>,
- Mike Kravetz <mike.kravetz@oracle.com>
-References: <20190805222019.28592-1-jhubbard@nvidia.com>
- <20190805222019.28592-2-jhubbard@nvidia.com>
- <20190807110147.GT11812@dhcp22.suse.cz>
- <01b5ed91-a8f7-6b36-a068-31870c05aad6@nvidia.com>
- <20190808062155.GF11812@dhcp22.suse.cz>
-From: Vlastimil Babka <vbabka@suse.cz>
+       spf=pass (google.com: domain of nitesh@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=nitesh@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 0EDE930A5A6D;
+	Thu,  8 Aug 2019 11:41:46 +0000 (UTC)
+Received: from [10.18.17.163] (dhcp-17-163.bos.redhat.com [10.18.17.163])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 13462600C8;
+	Thu,  8 Aug 2019 11:41:32 +0000 (UTC)
+Subject: Re: [RFC][Patch v11 1/2] mm: page_hinting: core infrastructure
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>, Paolo Bonzini <pbonzini@redhat.com>,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>,
+ dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>,
+ john.starks@microsoft.com, Dave Hansen <dave.hansen@intel.com>,
+ Michal Hocko <mhocko@suse.com>
+References: <20190710195158.19640-1-nitesh@redhat.com>
+ <20190710195158.19640-2-nitesh@redhat.com>
+ <CAKgT0Ue3mVZ_J0GgMUP4PBW4SUD1=L9ixD5nUZybw9_vmBAT0A@mail.gmail.com>
+ <3c6c6b93-eb21-a04c-d0db-6f1b134540db@redhat.com>
+ <CAKgT0UcaKhAf+pTeE1CRxqhiPtR2ipkYZZ2+aChetV7=LDeSeA@mail.gmail.com>
+ <521db934-3acd-5287-6e75-67feead8ca63@redhat.com>
+ <CAKgT0Uf7xsdh9OgBq-kyTkyvh8Qo9kV4uiWTVP7NKqzO4X0wyg@mail.gmail.com>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
 Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <875dca95-b037-d0c7-38bc-4b4c4deea2c7@suse.cz>
-Date: Thu, 8 Aug 2019 13:09:20 +0200
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <d8a0762b-d478-8b7f-08b2-ed753e2c0f93@redhat.com>
+Date: Thu, 8 Aug 2019 07:41:26 -0400
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190808062155.GF11812@dhcp22.suse.cz>
+In-Reply-To: <CAKgT0Uf7xsdh9OgBq-kyTkyvh8Qo9kV4uiWTVP7NKqzO4X0wyg@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.47]); Thu, 08 Aug 2019 11:41:46 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/8/19 8:21 AM, Michal Hocko wrote:
-> On Wed 07-08-19 16:32:08, John Hubbard wrote:
->> On 8/7/19 4:01 AM, Michal Hocko wrote:
->>> On Mon 05-08-19 15:20:17, john.hubbard@gmail.com wrote:
->>>> From: John Hubbard <jhubbard@nvidia.com>
->>>>
->>>> For pages that were retained via get_user_pages*(), release those pages
->>>> via the new put_user_page*() routines, instead of via put_page() or
->>>> release_pages().
->>>
->>> Hmm, this is an interesting code path. There seems to be a mix of pages
->>> in the game. We get one page via follow_page_mask but then other pages
->>> in the range are filled by __munlock_pagevec_fill and that does a direct
->>> pte walk. Is using put_user_page correct in this case? Could you explain
->>> why in the changelog?
->>>
+
+On 7/12/19 12:22 PM, Alexander Duyck wrote:
+> On Thu, Jul 11, 2019 at 6:13 PM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
 >>
->> Actually, I think follow_page_mask() gets all the pages, right? And the
->> get_page() in __munlock_pagevec_fill() is there to allow a pagevec_release() 
->> later.
-> 
-> Maybe I am misreading the code (looking at Linus tree) but munlock_vma_pages_range
-> calls follow_page for the start address and then if not THP tries to
-> fill up the pagevec with few more pages (up to end), do the shortcut
-> via manual pte walk as an optimization and use generic get_page there.
+>> On 7/11/19 7:20 PM, Alexander Duyck wrote:
+>>> On Thu, Jul 11, 2019 at 10:58 AM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+>>>> On 7/10/19 5:56 PM, Alexander Duyck wrote:
+>>>>> On Wed, Jul 10, 2019 at 12:52 PM Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+>>>>>> This patch introduces the core infrastructure for free page hinting in
+>>>>>> virtual environments. It enables the kernel to track the free pages which
+>>>>>> can be reported to its hypervisor so that the hypervisor could
+>>>>>> free and reuse that memory as per its requirement.
+>>>>>>
+>>>>>> While the pages are getting processed in the hypervisor (e.g.,
+>>>>>> via MADV_FREE), the guest must not use them, otherwise, data loss
+>>>>>> would be possible. To avoid such a situation, these pages are
+>>>>>> temporarily removed from the buddy. The amount of pages removed
+>>>>>> temporarily from the buddy is governed by the backend(virtio-balloon
+>>>>>> in our case).
+>>>>>>
+>>>>>> To efficiently identify free pages that can to be hinted to the
+>>>>>> hypervisor, bitmaps in a coarse granularity are used. Only fairly big
+>>>>>> chunks are reported to the hypervisor - especially, to not break up THP
+>>>>>> in the hypervisor - "MAX_ORDER - 2" on x86, and to save space. The bits
+>>>>>> in the bitmap are an indication whether a page *might* be free, not a
+>>>>>> guarantee. A new hook after buddy merging sets the bits.
+>>>>>>
+>>>>>> Bitmaps are stored per zone, protected by the zone lock. A workqueue
+>>>>>> asynchronously processes the bitmaps, trying to isolate and report pages
+>>>>>> that are still free. The backend (virtio-balloon) is responsible for
+>>>>>> reporting these batched pages to the host synchronously. Once reporting/
+>>>>>> freeing is complete, isolated pages are returned back to the buddy.
+>>>>>>
+>>>>>> There are still various things to look into (e.g., memory hotplug, more
+>>>>>> efficient locking, possible races when disabling).
+>>>>>>
+>>>>>> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
+>>> So just FYI, I thought I would try the patches. It looks like there
+>>> might be a bug somewhere that is causing it to free memory it
+>>> shouldn't be. After about 10 minutes my VM crashed with a system log
+>>> full of various NULL pointer dereferences.
+>> That's interesting, I have tried the patches with MADV_DONTNEED as well.
+>> I just retried it but didn't see any crash. May I know what kind of
+>> workload you are running?
+> I was running the page_fault1 test on a VM with 80G of memory.
+>
+>>>  The only change I had made
+>>> is to use MADV_DONTNEED instead of MADV_FREE in QEMU since my headers
+>>> didn't have MADV_FREE on the host. It occurs to me one advantage of
+>>> MADV_DONTNEED over MADV_FREE is that you are more likely to catch
+>>> these sort of errors since it zeros the pages instead of leaving them
+>>> intact.
+>> For development purpose maybe. For the final patch-set I think we
+>> discussed earlier why we should keep MADV_FREE.
+> I'm still not convinced MADV_FREE is a net win, at least for
+> performance. You are still paying the cost for the VMEXIT in order to
+> regain ownership of the page. In the case that you are under memory
+> pressure it is essentially equivalent to MADV_DONTNEED. Also it
+> doesn't really do much to help with the memory footprint of the VM
+> itself. With the MADV_DONTNEED the pages are freed back and you have a
+> greater liklihood of reducing the overall memory footprint of the
+> entire system since you would be more likely to be assigned pages that
+> were recently used rather than having to access a cold page.
 
-That's true. However, I'm not sure munlocking is where the
-put_user_page() machinery is intended to be used anyway? These are
-short-term pins for struct page manipulation, not e.g. dirtying of page
-contents. Reading commit fc1d8e7cca2d I don't think this case falls
-within the reasoning there. Perhaps not all GUP users should be
-converted to the planned separate GUP tracking, and instead we should
-have a GUP/follow_page_mask() variant that keeps using get_page/put_page?
+I was able to reproduce this bug and have fixed it.
+I tried testing the fix by running will-it-scale/page_fault1 for around 12 hours.
+For now, I have also moved to MADV_DONTNEED.
 
+
+> <snip>
+>
+>>>>>> +void page_hinting_enqueue(struct page *page, int order)
+>>>>>> +{
+>>>>>> +       int zone_idx;
+>>>>>> +
+>>>>>> +       if (!page_hitning_conf || order < PAGE_HINTING_MIN_ORDER)
+>>>>>> +               return;
+>>>>> I would think it is going to be expensive to be jumping into this
+>>>>> function for every freed page. You should probably have an inline
+>>>>> taking care of the order check before you even get here since it would
+>>>>> be faster that way.
+>>>> I see, I can take a look. Thanks.
+>>>>>> +
+>>>>>> +       bm_set_pfn(page);
+>>>>>> +       if (atomic_read(&page_hinting_active))
+>>>>>> +               return;
+>>>>> So I would think this piece is racy. Specifically if you set a PFN
+>>>>> that is somewhere below the PFN you are currently processing in your
+>>>>> scan it is going to remain unset until you have another page freed
+>>>>> after the scan is completed. I would worry you can end up with a batch
+>>>>> free of memory resulting in a group of pages sitting at the start of
+>>>>> your bitmap unhinted.
+>>>> True, but that will be hinted next time threshold is met.
+>>> Yes, but that assumes that there is another free immediately coming.
+>>> It is possible that you have a big application run and then
+>>> immediately shut down and have it free all its memory at once. Worst
+>>> case scenario would be that it starts by freeing from the end and
+>>> works toward the start. With that you could theoretically end up with
+>>> a significant chunk of memory waiting some time for another big free
+>>> to come along.
+>> Any suggestion on some benchmark/test application which I could run to
+>> see this kind of behavior?
+> Like I mentioned before, try doing a VM with a bigger memory
+> footprint. You could probably just do a stack of VMs like what we were
+> doing with the memhog test. Basically the longer it takes to process
+> all the pages the greater the liklihood that there are still pages
+> left when they are freed.
+-- 
+Thanks
+Nitesh
 
