@@ -2,459 +2,224 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7FAAEC0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 11:48:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 151CCC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 12:04:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2F9EF21881
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 11:48:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F9EF21881
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id AB82C21874
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 12:04:11 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="LZ6hfttc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AB82C21874
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C3F806B0003; Thu,  8 Aug 2019 07:48:31 -0400 (EDT)
+	id 3F2F46B0003; Thu,  8 Aug 2019 08:04:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BEEBE6B0006; Thu,  8 Aug 2019 07:48:31 -0400 (EDT)
+	id 3A4486B0006; Thu,  8 Aug 2019 08:04:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AB59E6B0007; Thu,  8 Aug 2019 07:48:31 -0400 (EDT)
+	id 245C56B0007; Thu,  8 Aug 2019 08:04:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5AD376B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 07:48:31 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id w25so58020191edu.11
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 04:48:31 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id C6FBE6B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 08:04:10 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id y15so58114392edu.19
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 05:04:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=PCTROE2Vr480DbUw+aSPYsLyLeWozMnXxRU4eDxnkfU=;
-        b=dp0HhriwF60jnaUcFFLI39yCL9O2ZsNVzrD1qkibFaXQTdzZ16dRfVew1EdveQiUrB
-         sIXuYy4zhzcnTRF8vgH68vatyDCaNJekw78SJDKdqJSXHGDoKawWUc7onEvKEGdRysiH
-         JvgEoEv7zIFYS8IiWTVflx8GLS3kaRwD5q7UXs9gLvymKyMyRRelfSC5VPq2dWTY9ZRs
-         TvcalKdLQZwbNo/7RUspdjt5pCAjVVqT57XV68GdeYWTOEOZdKQA5lSdf2ks7S20YBxv
-         6hcH28jgRnWt73KKnzl/RfLdtb59tYSLNShT2wHQN25BOon0VAasqCXpo0JyejkfoQ8+
-         /a1g==
-X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAX0K1azfWnbrJF4Nkhb0PtRS/fH22Jne2WksNkaREywqmT8yB0W
-	PzgapyUUj18LEszPj66zCdiKysrCQJaYmH0NB27vJMhoUA2OSHO3wFMfSEvzXio5PqjfCwsnzKP
-	W9homBCZPZMvJpswidVglUsdvnxiiD2/bwEJ+pE/E7hEKAIhsm0A4zCJWBCnnVVs=
-X-Received: by 2002:a17:907:217c:: with SMTP id rl28mr12787350ejb.131.1565264910879;
-        Thu, 08 Aug 2019 04:48:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwUzF+WebWyJaD8v/yapt41/d40M83/6WAUamq75BJ48wfR/PWlQMZ/5Oa40MYhe/1Ejwwk
-X-Received: by 2002:a17:907:217c:: with SMTP id rl28mr12787263ejb.131.1565264909415;
-        Thu, 08 Aug 2019 04:48:29 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565264909; cv=none;
+        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
+         :thread-index:date:message-id:references:in-reply-to:accept-language
+         :content-language:content-id:content-transfer-encoding:mime-version;
+        bh=Z6JHyuoFRG4Z1jLgBh1JdhtifZdosmYbWLGiJHq3JBM=;
+        b=flFowDM4CasV5Xa0blX5ogRWDFT/5ZNQAdpOtQvw8G+RL2xUCUenOGtWozktAzN43S
+         6LT/cEJVb9JBCuXLQ6CtMg4tf51FjcS91Z6hd6MCtov7FvGarTt1xFTxbBSUNj6McUlI
+         FXcQOd54d3IUo81Iv3Z1UTzb1yW+DF9Y8WUE6lFeEYome08GtFcgcSi9jXQzh36DRq6L
+         dq1Qbc8KCwcHYytJX8kSx8TYZBaYCNN0Xf4z2MP36gXzToc8l5toJ5MI9NI91d8gZYZv
+         a2yJ5peEzCncvXMa4uOXfsBryvjd03L/Lv6Hjlt+tM4q/B+4xalpiUteoQSFgWRMBvZu
+         KxWQ==
+X-Gm-Message-State: APjAAAXgiazqxr3+Yilv+hoXUVdTCL2VfTVWkwJCfluMlSZ3xkHQ1Uf0
+	iUQrti9xKOGNCKnV9k46ZqCrY1RlIqTqjkudf+E1bHN1W+ztD8vzaxfBXvqKFTHdhjrMrDs9ImC
+	nfmzuqsbAwTSs3GyzQhndm1g6g4wPN1XOa7YTdERKyZQRClarYCotAMoywX71A54TEA==
+X-Received: by 2002:a17:906:d1d0:: with SMTP id bs16mr13271854ejb.286.1565265850241;
+        Thu, 08 Aug 2019 05:04:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwBJ8CYbNeD+1oKOVky/f7X11gQQIUwcXFkSSaY+8bjz4iQTwC9m85ED9mnZwbSjoqqnDBI
+X-Received: by 2002:a17:906:d1d0:: with SMTP id bs16mr13271775ejb.286.1565265849264;
+        Thu, 08 Aug 2019 05:04:09 -0700 (PDT)
+ARC-Seal: i=2; a=rsa-sha256; t=1565265849; cv=pass;
         d=google.com; s=arc-20160816;
-        b=xkFA3OrEsPpdh6uWP0Ro4ZrtYHiC98w5mFRdtSGL5MzIi6xHPJPCcDe1L3dOzcfBbN
-         qT2e70E5NOJI3uK4GQvT2NUfR3L0PiYloSVzNbjQjMqiQ044O/5Jc7LsnVnTrS7CYCTj
-         oZ9bDtL4U+JYzKwMV+QB4xkWljK+IiX2ffS1dZ1ySPHyvBGSfL/8vaVwxQB2LEqI4iZh
-         XAm4VqDhgs63++Xh+x9bjTYhr7K6/VaAYBH7bUi2/UVWb7Kz5ubscFDqWXxrqcgK5CwB
-         uObgDMDdAc9PHsbeMh1GHwEo9DWCru2+k885dGB/CwC/rnVVGa0mSNhwXJnQEVY/jHTy
-         F7tQ==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=PCTROE2Vr480DbUw+aSPYsLyLeWozMnXxRU4eDxnkfU=;
-        b=W4/fs+ZZvQD+88WnVOO8bkuTFplJh2BNhGo0lzxAtoT5CkBqE3n9IeBPZ9KFDsEWoK
-         mbog+RSe3eIzG+nN2DPB/WX2Hef1AFvsuwp1sdoHan8Tj0iMIbfKR8VNCnI4wfXOfHV9
-         B+RT5q3xfKgKNXEz1DGlzTcafslV5Duh1XGFrfBKLYjrvdOlm4fW3CGfuaka25fwn0sz
-         NIaJ9rk5lJgsbM7q3B5fX6bxdBwvEFAoZOt0er3No6BqtS1n2iyI2ZurrXY0XIZ39DBV
-         6OQIzijwFJeze6FDlqpF6SGOi6QoPk0NtgKlY9AXeQ7cCfUMX2AJK6qltzVR3czYArau
-         MIhw==
-ARC-Authentication-Results: i=1; mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id s35si35854369edb.337.2019.08.08.04.48.29
+        b=LteyqpIbtI0rzYqZh/U20vK3cNHJcvtf/u3KUIZaewm5NQOCcmo2VpQ7sS7Q9h6lw8
+         76NVTCc9CK7qJXKqhjfHCYSM3WHTG9j9KH7J4OpqSZI3KGsnuPivwszbeQMk3MwQWgkc
+         PuElLto2dcZ/i2mAJgI6xSV3WNqP8hTDaM3R2z2CeIHSKrT28UFJ8zMEGNgnkPeVC7Z4
+         slyM40i8R5mZE5vWIttz+9xpOUmih6pIG3sedQ27Y655/W80BotEV44Gy52VadnRbxLH
+         Ew733jicuDl2al4pudjxp4APezynH0irwilJZ/cgrtCMHmLgmCQtu1IWVdswhAEDlsXf
+         Ue/A==
+ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=mime-version:content-transfer-encoding:content-id:content-language
+         :accept-language:in-reply-to:references:message-id:date:thread-index
+         :thread-topic:subject:cc:to:from:dkim-signature;
+        bh=Z6JHyuoFRG4Z1jLgBh1JdhtifZdosmYbWLGiJHq3JBM=;
+        b=VOCSgDtYo5gf+Pt0qfsAv9EYdQHNO588QWhiJB+HV2plSlYWVxxU+foU8gxWnWwkuK
+         /uWxk6A+50KQ+2czcOZhlzoKPH4uWhJ8UFEFesILRdLQm3hdaCgw9wNOjwzou71t5q6n
+         j3xUxtV3W+4DHeYHYAjx0rMgyjXvCGTZZN2I8fYEzppDkeN7jQpoqiuTv8fwGqE3gMLo
+         G6Sivqh9n8MRXyhxJdiTHNZixzXdXbgAEoW5fjg/c3pc0D5xtv4YhMpQmFEU/5OhLN2I
+         cBjeomGmqbJd3LDpMQoJvdHTWB2nNCHePffEMfnxW1qg4SbdfVmqBDhaL39M1MIiiOvn
+         1xfA==
+ARC-Authentication-Results: i=2; mx.google.com;
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=LZ6hfttc;
+       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.2.74 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+Received: from EUR02-VE1-obe.outbound.protection.outlook.com (mail-eopbgr20074.outbound.protection.outlook.com. [40.107.2.74])
+        by mx.google.com with ESMTPS id 13si1084081eds.115.2019.08.08.05.04.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 04:48:29 -0700 (PDT)
-Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+        Thu, 08 Aug 2019 05:04:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jgg@mellanox.com designates 40.107.2.74 as permitted sender) client-ip=40.107.2.74;
 Authentication-Results: mx.google.com;
-       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
-       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id BF094AD78;
-	Thu,  8 Aug 2019 11:48:28 +0000 (UTC)
-Date: Thu, 8 Aug 2019 13:48:26 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Suren Baghdasaryan <surenb@google.com>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	"Artem S. Tashkinov" <aros@gmx.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-Subject: Re: Let's talk about the elephant in the room - the Linux kernel's
- inability to gracefully handle low memory pressure
-Message-ID: <20190808114826.GC18351@dhcp22.suse.cz>
-References: <ce102f29-3adc-d0fd-41ee-e32c1bcd7e8d@suse.cz>
- <20190805193148.GB4128@cmpxchg.org>
- <CAJuCfpHhR+9ybt9ENzxMbdVUd_8rJN+zFbDm+5CeE2Desu82Gg@mail.gmail.com>
- <398f31f3-0353-da0c-fc54-643687bb4774@suse.cz>
- <20190806142728.GA12107@cmpxchg.org>
- <20190806143608.GE11812@dhcp22.suse.cz>
- <CAJuCfpFmOzj-gU1NwoQFmS_pbDKKd2XN=CS1vUV4gKhYCJOUtw@mail.gmail.com>
- <20190806220150.GA22516@cmpxchg.org>
- <20190807075927.GO11812@dhcp22.suse.cz>
- <20190807205138.GA24222@cmpxchg.org>
+       dkim=pass header.i=@Mellanox.com header.s=selector2 header.b=LZ6hfttc;
+       arc=pass (i=1 spf=pass spfdomain=mellanox.com dkim=pass dkdomain=mellanox.com dmarc=pass fromdomain=mellanox.com);
+       spf=pass (google.com: domain of jgg@mellanox.com designates 40.107.2.74 as permitted sender) smtp.mailfrom=jgg@mellanox.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mellanox.com
+ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
+ b=QTZnenFcp8PjNtDs2nfArifIZUoGReHzdOAxa8rrsffpM7OnG7VqgizvOMl2pqvdawgwAlZ7N4lkC9itDxYGcEGQIu+clBIIpmO/iI2CUzwzw9AcQS+xwlgnyv/TgDhJu/jf4SXcd4VIel27SNn30+3ZgBl/a+A81BzvLz5gcX3ABygksouOJ8FYpvJjlAZR3ZN2CiDq8+EepsVCTNA4U/f+BMIxJ0EDdtm/Ca7boCKlmO+RPG5PEMuYaN49T7NtQgFb4161+0jIeasOS0UolKZ2CFOjb+S24ZTmUdhlWbkqM28S/+iwq3xGxMZxudBVoQ7xBarZRlpaxYs+U0HktA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
+ s=arcselector9901;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=Z6JHyuoFRG4Z1jLgBh1JdhtifZdosmYbWLGiJHq3JBM=;
+ b=RSf0QmEIFFefChcUL7kmtW1T1J298InTV7XWgXpWEyzAtpLEM+27r4HRp4kksOZjO1yi5G6ZrUnseO7gVk0diat5JulnCYgxjE6Xf4V3H3+RY2U8x4mebPYkY26+9+DEHGx81OCSGadqArAYQx8+3lnZi5L7h+HNy+5iN6qT0DLHwOpcGCLSH6CqCVMKOQL5wKGprkt11rR+mrHo0je4H5uN/tgqdLBGfEenSsXRtBJtCk6jUtZnEMWbAfnADcah8Ext6WoraP7s5bc9yZ68DVPPpaIGxgLnYHXGGIwCdfobs67RcIhMQahFK1YmAnZXLT2Hi97ZEvh+lfkjtYB+Vg==
+ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
+ smtp.mailfrom=mellanox.com; dmarc=pass action=none header.from=mellanox.com;
+ dkim=pass header.d=mellanox.com; arc=none
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
+ s=selector2;
+ h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
+ bh=Z6JHyuoFRG4Z1jLgBh1JdhtifZdosmYbWLGiJHq3JBM=;
+ b=LZ6hfttcOwTsBEVbf7Aufg5uQMzLBOl9AUnk4SFt96hre8Ci9XJF50Ob/ieIj2zcbmUElDbYO9dmisercdH0fYIy6dKzAgfc7T5kp/W7jxwu6vONKXfiI4wO4HyG3htpQV14AJ0zWOqPMDcmU0cO5Lhl+tsBMcjxLIX5cwF+HcQ=
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
+ VI1PR05MB5245.eurprd05.prod.outlook.com (20.178.10.144) with Microsoft SMTP
+ Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
+ 15.20.2157.15; Thu, 8 Aug 2019 12:04:07 +0000
+Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::5c6f:6120:45cd:2880]) by VI1PR05MB4141.eurprd05.prod.outlook.com
+ ([fe80::5c6f:6120:45cd:2880%4]) with mapi id 15.20.2136.022; Thu, 8 Aug 2019
+ 12:04:07 +0000
+From: Jason Gunthorpe <jgg@mellanox.com>
+To: Michal Hocko <mhocko@suse.com>
+CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	=?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Andrea Arcangeli
+	<aarcange@redhat.com>, Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH] mm/mmn: prevent unpaired invalidate_start and
+ invalidate_end with non-blocking
+Thread-Topic: [PATCH] mm/mmn: prevent unpaired invalidate_start and
+ invalidate_end with non-blocking
+Thread-Index: AQHVTVSfVNc5Iz/dOkyoKdT7iQpJS6bw6QyAgAA/BwA=
+Date: Thu, 8 Aug 2019 12:04:07 +0000
+Message-ID: <20190808120402.GA1975@mellanox.com>
+References: <20190807191627.GA3008@ziepe.ca>
+ <20190808081827.GB18351@dhcp22.suse.cz>
+In-Reply-To: <20190808081827.GB18351@dhcp22.suse.cz>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-clientproxiedby: YTOPR0101CA0033.CANPRD01.PROD.OUTLOOK.COM
+ (2603:10b6:b00:15::46) To VI1PR05MB4141.eurprd05.prod.outlook.com
+ (2603:10a6:803:4d::16)
+authentication-results: spf=none (sender IP is )
+ smtp.mailfrom=jgg@mellanox.com; 
+x-ms-exchange-messagesentrepresentingtype: 1
+x-originating-ip: [156.34.55.100]
+x-ms-publictraffictype: Email
+x-ms-office365-filtering-correlation-id: 8ed16110-3589-4d7b-0b2a-08d71bf883eb
+x-ms-office365-filtering-ht: Tenant
+x-microsoft-antispam:
+ BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB5245;
+x-ms-traffictypediagnostic: VI1PR05MB5245:
+x-microsoft-antispam-prvs:
+ <VI1PR05MB52456A4870BCCCAA2D30D0ADCFD70@VI1PR05MB5245.eurprd05.prod.outlook.com>
+x-ms-oob-tlc-oobclassifiers: OLM:9508;
+x-forefront-prvs: 012349AD1C
+x-forefront-antispam-report:
+ SFV:NSPM;SFS:(10009020)(4636009)(136003)(39860400002)(396003)(366004)(376002)(346002)(189003)(199004)(8676002)(36756003)(446003)(8936002)(11346002)(6506007)(386003)(53936002)(76176011)(14454004)(478600001)(66066001)(26005)(186003)(81156014)(86362001)(4326008)(486006)(6512007)(81166006)(2616005)(6486002)(476003)(229853002)(6246003)(6916009)(102836004)(6436002)(316002)(54906003)(66476007)(66946007)(71200400001)(33656002)(71190400001)(66556008)(66446008)(64756008)(305945005)(99286004)(5660300002)(256004)(7736002)(52116002)(3846002)(6116002)(2906002)(25786009)(1076003);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB5245;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
+received-spf: None (protection.outlook.com: mellanox.com does not designate
+ permitted sender hosts)
+x-ms-exchange-senderadcheck: 1
+x-microsoft-antispam-message-info:
+ KZTcSVtcYGW6p7NBSRWNWxLKEzdrcCBn7ObM9yVnb+WSDGDV/DWPsQ933R8uCybq5L/v3nEZVvw1BUFYsxmGlD1dPFO04/l+rjvZLCu3pYVxFo5RHrqzrlmbj32AJx15UsY+jHZfcQKFbp1VeQeVhtyWtk8j/I9j7noh5UXtoKH5xPKX9bMX5d4snIJwOdim+z1ACbTLMFinwk/k4US4xWwAUREkKq5ZDwb3xXsgJJQU8EkUWZ2fJq1bjfInmSLLzGpSFQthEM3juidWXBTqcPv2M347zgJTOEzQgHcRF5k9j2CqQkWYjAyhYzKkO/0QMn9/i8w75L6/MtzLxnmzEKJuTnRAOm98OHxKCexOq/9fM/czHM4vgwNs1lxCQVaBoP6cNNy9sYeexFRy1SohTxMcyRg7fTJmXR1Eo/CDm6U=
+x-ms-exchange-transport-forked: True
+Content-Type: text/plain; charset="iso-8859-1"
+Content-ID: <7D014773B682B5419ED6854A7ADDBC70@eurprd05.prod.outlook.com>
+Content-Transfer-Encoding: quoted-printable
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190807205138.GA24222@cmpxchg.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+X-OriginatorOrg: Mellanox.com
+X-MS-Exchange-CrossTenant-Network-Message-Id: 8ed16110-3589-4d7b-0b2a-08d71bf883eb
+X-MS-Exchange-CrossTenant-originalarrivaltime: 08 Aug 2019 12:04:07.7801
+ (UTC)
+X-MS-Exchange-CrossTenant-fromentityheader: Hosted
+X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
+X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
+X-MS-Exchange-CrossTenant-userprincipalname: jgg@mellanox.com
+X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB5245
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed 07-08-19 16:51:38, Johannes Weiner wrote:
-[...]
-> >From 9efda85451062dea4ea287a886e515efefeb1545 Mon Sep 17 00:00:00 2001
-> From: Johannes Weiner <hannes@cmpxchg.org>
-> Date: Mon, 5 Aug 2019 13:15:16 -0400
-> Subject: [PATCH] psi: trigger the OOM killer on severe thrashing
-> 
-> Over the last few years we have had many reports that the kernel can
-> enter an extended livelock situation under sufficient memory
-> pressure. The system becomes unresponsive and fully IO bound for
-> indefinite periods of time, and often the user has no choice but to
-> reboot.
+On Thu, Aug 08, 2019 at 10:18:27AM +0200, Michal Hocko wrote:
+> On Wed 07-08-19 19:16:32, Jason Gunthorpe wrote:
+> > Many users of the mmu_notifier invalidate_range callbacks maintain
+> > locking/counters/etc on a paired basis and have long expected that
+> > invalidate_range start/end are always paired.
+> >=20
+> > The recent change to add non-blocking notifiers breaks this assumption
+> > when multiple notifiers are present in the list as an EAGAIN return fro=
+m a
+> > later notifier causes all earlier notifiers to get their
+> > invalidate_range_end() skipped.
+> >=20
+> > During the development of non-blocking each user was audited to be sure
+> > they can skip their invalidate_range_end() if their start returns -EAGA=
+IN,
+> > so the only place that has a problem is when there are multiple
+> > subscriptions.
+> >=20
+> > Due to the RCU locking we can't reliably generate a subset of the linke=
+d
+> > list representing the notifiers already called, and generate an
+> > invalidate_range_end() pairing.
+> >=20
+> > Rather than design an elaborate fix, for now, just block non-blocking
+> > requests early on if there are multiple subscriptions.
+>=20
+> Which means that the oom path cannot really release any memory for
+> ranges covered by these notifiers which is really unfortunate because
+> that might cover a lot of memory. Especially when the particular range
+> might not be tracked at all, right?
 
-or sysrq+f
+Yes, it is a very big hammer to avoid a bug where the locking schemes
+get corrupted and the impacted drivers deadlock.
 
-> Even though the system is clearly struggling with a shortage
-> of memory, the OOM killer is not engaging reliably.
-> 
-> The reason is that with bigger RAM, and in particular with faster
-> SSDs, page reclaim does not necessarily fail in the traditional sense
-> anymore. In the time it takes the CPU to run through the vast LRU
-> lists, there are almost always some cache pages that have finished
-> reading in and can be reclaimed, even before userspace had a chance to
-> access them. As a result, reclaim is nominally succeeding, but
-> userspace is refault-bound and not making significant progress.
-> 
-> While this is clearly noticable to human beings, the kernel could not
-> actually determine this state with the traditional memory event
-> counters. We might see a certain rate of reclaim activity or refaults,
-> but how long, or whether at all, userspace is unproductive because of
-> it depends on IO speed, readahead efficiency, as well as memory access
-> patterns and concurrency of the userspace applications. The same
-> number of the VM events could be unnoticed in one system / workload
-> combination, and result in an indefinite lockup in a different one.
-> 
-> However, eb414681d5a0 ("psi: pressure stall information for CPU,
-> memory, and IO") introduced a memory pressure metric that quantifies
-> the share of wallclock time in which userspace waits on reclaim,
-> refaults, swapins. By using absolute time, it encodes all the above
-> mentioned variables of hardware capacity and workload behavior. When
-> memory pressure is 40%, it means that 40% of the time the workload is
-> stalled on memory, period. This is the actual measure for the lack of
-> forward progress that users can experience. It's also something they
-> expect the kernel to manage and remedy if it becomes non-existent.
-> 
-> To accomplish this, this patch implements a thrashing cutoff for the
-> OOM killer. If the kernel determines a sustained high level of memory
-> pressure, and thus a lack of forward progress in userspace, it will
-> trigger the OOM killer to reduce memory contention.
-> 
-> Per default, the OOM killer will engage after 15 seconds of at least
-> 80% memory pressure. These values are tunable via sysctls
-> vm.thrashing_oom_period and vm.thrashing_oom_level.
+If you really don't like it then we have to push ahead on either an
+rcu-safe undo algorithm or some locking thing. I've been looking at
+the locking thing, so we can wait a bit more and see.=20
 
-As I've said earlier I would be somehow more comfortable with a kernel
-command line/module parameter based tuning because it is less of a
-stable API and potential future stall detector might be completely
-independent on PSI and the current metric exported. But I can live with
-that because a period and level sounds quite generic.
+At least it doesn't seem urgent right now as nobody is reporting
+hitting this bug, but we are moving toward cases where a process will
+have 4 notififers (amdgpu kfd, hmm, amd iommu, RDMA ODP), so the
+chance is higher
 
-> Ideally, this would be standard behavior for the kernel, but since it
-> involves a new metric and OOM killing, let's be safe and make it an
-> opt-in via CONFIG_THRASHING_OOM. Setting vm.thrashing_oom_level to 0
-> also disables the feature at runtime.
-> 
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-> Reported-by: "Artem S. Tashkinov" <aros@gmx.com>
+> If a different fix is indeed too elaborate then make sure to let users
+> known that there is a restriction in place and dump something useful
+> into the kernel log.
 
-I am not deeply familiar with PSI internals but from a quick look it
-seems that update_averages is called from the OOM safe context (worker).
+The 'simple' alternative I see is to use a rcu safe undo algorithm,
+such as sorting the hlist. This is not so much code, but it is tricky
+stuff.
 
-I have scratched my head how to deal with this "progress is made but it
-is all in vain" problem inside the reclaim path but I do not think this
-will ever work and having a watchdog like this sound like step in the
-right direction. I didn't even expect it would look as simple. Really a
-nice work Johannes!
-
-Let's see how this ends up working in practice though.
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-Thanks!
-
-> ---
->  Documentation/admin-guide/sysctl/vm.rst | 24 ++++++++
->  include/linux/psi.h                     |  5 ++
->  include/linux/psi_types.h               |  6 ++
->  kernel/sched/psi.c                      | 74 +++++++++++++++++++++++++
->  kernel/sysctl.c                         | 20 +++++++
->  mm/Kconfig                              | 20 +++++++
->  6 files changed, 149 insertions(+)
-> 
-> diff --git a/Documentation/admin-guide/sysctl/vm.rst b/Documentation/admin-guide/sysctl/vm.rst
-> index 64aeee1009ca..0332cb52bcfc 100644
-> --- a/Documentation/admin-guide/sysctl/vm.rst
-> +++ b/Documentation/admin-guide/sysctl/vm.rst
-> @@ -66,6 +66,8 @@ files can be found in mm/swap.c.
->  - stat_interval
->  - stat_refresh
->  - numa_stat
-> +- thrashing_oom_level
-> +- thrashing_oom_period
->  - swappiness
->  - unprivileged_userfaultfd
->  - user_reserve_kbytes
-> @@ -825,6 +827,28 @@ When page allocation performance is not a bottleneck and you want all
->  	echo 1 > /proc/sys/vm/numa_stat
->  
->  
-> +thrashing_oom_level
-> +===================
-> +
-> +This defines the memory pressure level for severe thrashing at which
-> +the OOM killer will be engaged.
-> +
-> +The default is 80. This means the system is considered to be thrashing
-> +severely when all active tasks are collectively stalled on memory
-> +(waiting for page reclaim, refaults, swapins etc) for 80% of the time.
-> +
-> +A setting of 0 will disable thrashing-based OOM killing.
-> +
-> +
-> +thrashing_oom_period
-> +===================
-> +
-> +This defines the number of seconds the system must sustain severe
-> +thrashing at thrashing_oom_level before the OOM killer is invoked.
-> +
-> +The default is 15.
-> +
-> +
->  swappiness
->  ==========
->  
-> diff --git a/include/linux/psi.h b/include/linux/psi.h
-> index 7b3de7321219..661ce45900f9 100644
-> --- a/include/linux/psi.h
-> +++ b/include/linux/psi.h
-> @@ -37,6 +37,11 @@ __poll_t psi_trigger_poll(void **trigger_ptr, struct file *file,
->  			poll_table *wait);
->  #endif
->  
-> +#ifdef CONFIG_THRASHING_OOM
-> +extern unsigned int sysctl_thrashing_oom_level;
-> +extern unsigned int sysctl_thrashing_oom_period;
-> +#endif
-> +
->  #else /* CONFIG_PSI */
->  
->  static inline void psi_init(void) {}
-> diff --git a/include/linux/psi_types.h b/include/linux/psi_types.h
-> index 07aaf9b82241..7c57d7e5627e 100644
-> --- a/include/linux/psi_types.h
-> +++ b/include/linux/psi_types.h
-> @@ -162,6 +162,12 @@ struct psi_group {
->  	u64 polling_total[NR_PSI_STATES - 1];
->  	u64 polling_next_update;
->  	u64 polling_until;
-> +
-> +#ifdef CONFIG_THRASHING_OOM
-> +	/* Severe thrashing state tracking */
-> +	bool oom_pressure;
-> +	u64 oom_pressure_start;
-> +#endif
->  };
->  
->  #else /* CONFIG_PSI */
-> diff --git a/kernel/sched/psi.c b/kernel/sched/psi.c
-> index f28342dc65ec..4b1b620d6359 100644
-> --- a/kernel/sched/psi.c
-> +++ b/kernel/sched/psi.c
-> @@ -139,6 +139,7 @@
->  #include <linux/ctype.h>
->  #include <linux/file.h>
->  #include <linux/poll.h>
-> +#include <linux/oom.h>
->  #include <linux/psi.h>
->  #include "sched.h"
->  
-> @@ -177,6 +178,14 @@ struct psi_group psi_system = {
->  	.pcpu = &system_group_pcpu,
->  };
->  
-> +#ifdef CONFIG_THRASHING_OOM
-> +static void psi_oom_tick(struct psi_group *group, u64 now);
-> +#else
-> +static inline void psi_oom_tick(struct psi_group *group, u64 now)
-> +{
-> +}
-> +#endif
-> +
->  static void psi_avgs_work(struct work_struct *work);
->  
->  static void group_init(struct psi_group *group)
-> @@ -403,6 +412,8 @@ static u64 update_averages(struct psi_group *group, u64 now)
->  		calc_avgs(group->avg[s], missed_periods, sample, period);
->  	}
->  
-> +	psi_oom_tick(group, now);
-> +
->  	return avg_next_update;
->  }
->  
-> @@ -1280,3 +1291,66 @@ static int __init psi_proc_init(void)
->  	return 0;
->  }
->  module_init(psi_proc_init);
-> +
-> +#ifdef CONFIG_THRASHING_OOM
-> +/*
-> + * Trigger the OOM killer when detecting severe thrashing.
-> + *
-> + * Per default we define severe thrashing as 15 seconds of 80% memory
-> + * pressure (i.e. all active tasks are collectively stalled on memory
-> + * 80% of the time).
-> + */
-> +unsigned int sysctl_thrashing_oom_level = 80;
-> +unsigned int sysctl_thrashing_oom_period = 15;
-> +
-> +static void psi_oom_tick(struct psi_group *group, u64 now)
-> +{
-> +	struct oom_control oc = {
-> +		.order = 0,
-> +	};
-> +	unsigned long pressure;
-> +	bool high;
-> +
-> +	/* Disabled at runtime */
-> +	if (!sysctl_thrashing_oom_level)
-> +		return;
-> +
-> +	/*
-> +	 * Protect the system from livelocking due to thrashing. Leave
-> +	 * per-cgroup policies to oomd, lmkd etc.
-> +	 */
-> +	if (group != &psi_system)
-> +		return;
-> +
-> +	pressure = LOAD_INT(group->avg[PSI_MEM_FULL][0]);
-> +	high = pressure >= sysctl_thrashing_oom_level;
-> +
-> +	if (!group->oom_pressure && !high)
-> +		return;
-> +
-> +	if (!group->oom_pressure && high) {
-> +		group->oom_pressure = true;
-> +		group->oom_pressure_start = now;
-> +		return;
-> +	}
-> +
-> +	if (group->oom_pressure && !high) {
-> +		group->oom_pressure = false;
-> +		return;
-> +	}
-> +
-> +	if (now < group->oom_pressure_start +
-> +	    (u64)sysctl_thrashing_oom_period * NSEC_PER_SEC)
-> +		return;
-> +
-> +	pr_warn("Severe thrashing detected! (%ds of %d%% memory pressure)\n",
-> +		sysctl_thrashing_oom_period, sysctl_thrashing_oom_level);
-> +
-> +	group->oom_pressure = false;
-> +
-> +	if (!mutex_trylock(&oom_lock))
-> +		return;
-> +	out_of_memory(&oc);
-> +	mutex_unlock(&oom_lock);
-> +}
-> +#endif /* CONFIG_THRASHING_OOM */
-> diff --git a/kernel/sysctl.c b/kernel/sysctl.c
-> index f12888971d66..3b9b3deb1836 100644
-> --- a/kernel/sysctl.c
-> +++ b/kernel/sysctl.c
-> @@ -68,6 +68,7 @@
->  #include <linux/bpf.h>
->  #include <linux/mount.h>
->  #include <linux/userfaultfd_k.h>
-> +#include <linux/psi.h>
->  
->  #include "../lib/kstrtox.h"
->  
-> @@ -1746,6 +1747,25 @@ static struct ctl_table vm_table[] = {
->  		.extra1		= SYSCTL_ZERO,
->  		.extra2		= SYSCTL_ONE,
->  	},
-> +#endif
-> +#ifdef CONFIG_THRASHING_OOM
-> +	{
-> +		.procname	= "thrashing_oom_level",
-> +		.data		= &sysctl_thrashing_oom_level,
-> +		.maxlen		= sizeof(unsigned int),
-> +		.mode		= 0644,
-> +		.proc_handler	= proc_dointvec_minmax,
-> +		.extra1		= SYSCTL_ZERO,
-> +		.extra2		= &one_hundred,
-> +	},
-> +	{
-> +		.procname	= "thrashing_oom_period",
-> +		.data		= &sysctl_thrashing_oom_period,
-> +		.maxlen		= sizeof(unsigned int),
-> +		.mode		= 0644,
-> +		.proc_handler	= proc_dointvec_minmax,
-> +		.extra1		= SYSCTL_ZERO,
-> +	},
->  #endif
->  	{ }
->  };
-> diff --git a/mm/Kconfig b/mm/Kconfig
-> index 56cec636a1fc..cef13b423beb 100644
-> --- a/mm/Kconfig
-> +++ b/mm/Kconfig
-> @@ -736,4 +736,24 @@ config ARCH_HAS_PTE_SPECIAL
->  config ARCH_HAS_HUGEPD
->  	bool
->  
-> +config THRASHING_OOM
-> +	bool "Trigger the OOM killer on severe thrashing"
-> +	select PSI
-> +	help
-> +	  Under memory pressure, the kernel can enter severe thrashing
-> +	  or swap storms during which the system is fully IO-bound and
-> +	  does not respond to any user input. The OOM killer does not
-> +	  always engage because page reclaim manages to make nominal
-> +	  forward progress, but the system is effectively livelocked.
-> +
-> +	  This feature uses pressure stall information (PSI) to detect
-> +	  severe thrashing and trigger the OOM killer.
-> +
-> +	  The OOM killer will be engaged when the system sustains a
-> +	  memory pressure level of 80% for 15 seconds. This can be
-> +	  adjusted using the vm.thrashing_oom_[level|period] sysctls.
-> +
-> +	  Say Y if you have observed your system becoming unresponsive
-> +	  for extended periods under memory pressure.
-> +
->  endmenu
-> -- 
-> 2.22.0
-
--- 
-Michal Hocko
-SUSE Labs
+Jason
 
