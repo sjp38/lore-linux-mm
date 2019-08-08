@@ -2,196 +2,159 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0C197C0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 07:53:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9525EC0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 08:13:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BFFB1217D7
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 07:53:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BFFB1217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 55E9A2187F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 08:13:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55E9A2187F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=daenzer.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 660836B0008; Thu,  8 Aug 2019 03:53:22 -0400 (EDT)
+	id D7D7E6B0003; Thu,  8 Aug 2019 04:13:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 60FB96B000A; Thu,  8 Aug 2019 03:53:22 -0400 (EDT)
+	id D2D386B0006; Thu,  8 Aug 2019 04:13:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4FF316B000C; Thu,  8 Aug 2019 03:53:22 -0400 (EDT)
+	id C43286B0007; Thu,  8 Aug 2019 04:13:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 1890B6B0008
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 03:53:22 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id r142so58504371pfc.2
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 00:53:22 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 7BE9E6B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 04:13:02 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id k10so2048109wru.23
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 01:13:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=4Cn12r9OX9wL6vQp492Xp9qM2ktAqHqEiUHONLQCdAI=;
-        b=oqf9zbXbyViZjSGCuOrEEKPQltFmAEV+NQJkmU7F/mXbSDzwcTjLkJz4SIasSH3oEP
-         D5iOFlEbrvpSjgIlR3I+G5Qs4hXhfts05Lpt+iLfx68ONgPtOQptnEPTaM4Bu3bMvuGo
-         YV3yEvF1wcpalL+0UpJLXkJRwa42AAK8D1kEb98ChaU0lXgOVWIfxkSgvgA9NO9vvClB
-         zmA1Q2RMovb8w8L39orDMk8KkSMxzei4P5rGA+ZmbjB84ZXHQ87AA9gLoZRyWDY8nt5G
-         FArKsccee/CH/hL1vqtetrZMqWX5D3NtlCqzNTAXjGeTIb4MECuX2YHVQKcJvnU3JZma
-         7BTg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAW25NbEbLFAgajbKQWFVCAcKySLkFbHS6HZcgvepsh3JgvUwqyg
-	pSE8abje2fRHFJtaeV3vEHJ2FwRavlTRNbNTpBVajbGMgd7cBPeePterVaH5n//RjSKC4+PSJKG
-	Mr91xoTtDN3KXmq2qqnNVKCqzTa5sRRZ6W3NE9hgglhDrjQ0Mftki/29wxYvANxdFwg==
-X-Received: by 2002:a62:483:: with SMTP id 125mr14399752pfe.245.1565250801725;
-        Thu, 08 Aug 2019 00:53:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxi7B1H45a8GY1Y0nsTdSB7m/mytQJJj/lT6gRnnHo2i0h+XW+umMS3ZSV4af4Qmrq3T2Mk
-X-Received: by 2002:a62:483:: with SMTP id 125mr14399714pfe.245.1565250801037;
-        Thu, 08 Aug 2019 00:53:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565250801; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=ht+cKz/ZavS5MqjrNKDCdafFyHie5jHNrzKYloHpxhg=;
+        b=nxXlS5pi53mz3Khp8HCkEao5eBDMpiW+lEXjYHaKLTIuODIngMjn1VCN1FQwpPI+Bu
+         peqxybkqDsNN5p0EJhRvpU92qjE6TFi8o+bOwqdOt+lHlWbzF4qjxh2cGoWpG1xh2kiR
+         csaL8spNjwKBHVqcVyYtqxIds586u7Uq4n2Jphh5BctTtYLMwnBJ22gxElbiWlboZu+6
+         ETJOjbF6cSjbObSXnL1CjBvveMrGFQ9MuSv46IxKqnoFHGSSpnDpOZlKw5FXeuQtqE4a
+         YtEEHp3PQxb6iC3lRrKzgkCCa/YRQy7o1lDdISQe9Nvkc0Iz/VtZ1bAYAYglic5xqiDg
+         t7Qw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
+X-Gm-Message-State: APjAAAXGNFQlIEWYlhRTNSiPsg9Psa/1HsGdO7s26vbUAwPr2gsqOUZ9
+	rt7JnK3tBmceiwETZ7vYAw9iahuGHm45Dcfjgc0DZXPGuM7TrzVmbik6BTcC5QP3c2socdKpuLw
+	NFIp+8FQiRXMI3i0QIXMhCSrox7D8CXE/IpZB4JZgopFOIxHglAZo8AokfdfYaGo=
+X-Received: by 2002:adf:dd88:: with SMTP id x8mr5453346wrl.331.1565251982040;
+        Thu, 08 Aug 2019 01:13:02 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzBsKKOIx1ZQgfcpAxllEDV9191/p/cAw1R/hDlvLkDowiQ/vlPXZWqxShTRViGvMfSFfHL
+X-Received: by 2002:adf:dd88:: with SMTP id x8mr5453272wrl.331.1565251981407;
+        Thu, 08 Aug 2019 01:13:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565251981; cv=none;
         d=google.com; s=arc-20160816;
-        b=K0gwphxm0LNww5lEDBl4Nz0+HgIhZSqvDnPXysDLgzsRQPn7h+MvBn7IID+z0rH3UD
-         PqZ4jkten1bfZp3Qb5LrLSb6Sntd2d/QD0W/f/FdVq3BKyZbpIFmOZbiaeMnmaR2If9t
-         VaSeeMwdZdR6g8vYnK0qHlJVW33cYK7Z4xPsqCtgXtSGClq8pBBFTeG+OXBbVYB6GYMR
-         UQFpVyTh0aaM4WBYYsqT4xAVdCL07A7DP0ZYM1qtKark9/+f7onLf1CezQybifwJlN7h
-         r4km5jGQ1V8AphUJlmBFodK3pEhTHuWwjbGviVCQU47CH2e+r/wSe7CycsftvAUB6uYu
-         2Z6g==
+        b=z/43LRCSHc7gCo3WLPZjGv3UDk09wy0QXhLFd9z/NFGQEJ7dWrFi+NS24W1H9fzvPX
+         gEv4ceBUAoDgfFXyA0K8JBpSXab8alBMK80YYCpL5AmNJRYAJ+HdEm2hzak9sSP7p7cV
+         s7aGyXWZjFPDhOQIfR3shr7Uyl0CSqFu8cpuDqNksVsIO3fCBO5ujQI+KsnNcF9qE8CI
+         LEaE4z1/GyZ9A9glAutZqaegatJmhIoLjVsi6Eg4Rz0ke2BDv1MVN2/ekM1xbUM4sEsT
+         /p9lVCFgEuvCcJPlh3oQ5OCie0cr3AtNkNWClDy378WLc1uJGK18Et3XfZ1HoD8xz5Ok
+         dmXQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=4Cn12r9OX9wL6vQp492Xp9qM2ktAqHqEiUHONLQCdAI=;
-        b=ihYjSGjpjthv1CjHnAq+z+aqPF0CS5Z8aVQXJJBHx+ajEyomCstzFmgJ5yJHL1QL+M
-         DPDxdi8l1CnJc3s/km6r87dro29VVDaBmKc7o55qRbTTx3tlNdRla/WkHQhgm6kRf/oc
-         3dQ1Y/fzhnHHHoK9wGrQ1CjdaQXZ7VDFz3V9MZovEkeRVRqssY37QtYHn2qHQs6puAJK
-         PKAs2dnVFBhVgfY0GKi0+kvsXw2ZBXQqFj1lz+/5YyFasms8wn58VGJpxJKfhl4ggIoO
-         kMrYWD7u/pkwgzDoNnsa9fO+5MmnV7hMGgyzYheirLIT1Tzfu9rJrN5ViQy48f1KpBFB
-         pUbg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=ht+cKz/ZavS5MqjrNKDCdafFyHie5jHNrzKYloHpxhg=;
+        b=XawW7t43zdB78F3RCfgcZi+9V0QRTIuZ5zJUNmzTRM0bz8XIpNfvYL3wdKkK5u+93J
+         zh7JYxBJwifLpUZo8VZ1qe3/pOSaF51t9adTYYyS7kgKACz1HPiMumY9zdUuCVUUp7cc
+         9lMvIQiRu0yzl8y927wlX2TBEieKwLiFhlgUbVbEBrLqDzw62O6vgvR6+oLLBal3LoPD
+         MW69mpQEI2r/3OV+aqekL3Qiqeu/HdHA/JmS38dCVK9VsUIG4+O+Fd1EsPaf3JiKJQ7M
+         e2tktTfnRgO4X50q/l6lMk5vlSCQMRyr8p1kfJDdBeV+5e6LkUHcMuKRk37mMriB9eGw
+         pVJg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id z14si1359455pju.64.2019.08.08.00.53.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 00:53:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
+Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
+        by mx.google.com with ESMTP id e4si4421993wrw.104.2019.08.08.01.13.01
+        for <linux-mm@kvack.org>;
+        Thu, 08 Aug 2019 01:13:01 -0700 (PDT)
+Received-SPF: neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) client-ip=148.251.143.178;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of rppt@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=rppt@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098394.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x787rBWH012911
-	for <linux-mm@kvack.org>; Thu, 8 Aug 2019 03:53:20 -0400
-Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2u8e1f3ynd-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Thu, 08 Aug 2019 03:53:17 -0400
-Received: from localhost
-	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <rppt@linux.ibm.com>;
-	Thu, 8 Aug 2019 08:52:16 +0100
-Received: from b06cxnps4076.portsmouth.uk.ibm.com (9.149.109.198)
-	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Thu, 8 Aug 2019 08:52:12 +0100
-Received: from d06av24.portsmouth.uk.ibm.com (d06av24.portsmouth.uk.ibm.com [9.149.105.60])
-	by b06cxnps4076.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x787qBCv41943078
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 8 Aug 2019 07:52:11 GMT
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 636E842045;
-	Thu,  8 Aug 2019 07:52:11 +0000 (GMT)
-Received: from d06av24.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id B04B142047;
-	Thu,  8 Aug 2019 07:52:09 +0000 (GMT)
-Received: from rapoport-lnx (unknown [9.148.8.168])
-	by d06av24.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Thu,  8 Aug 2019 07:52:09 +0000 (GMT)
-Received: by rapoport-lnx (sSMTP sendmail emulation); Thu, 08 Aug 2019 10:52:09 +0300
-From: Mike Rapoport <rppt@linux.ibm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Nicholas Piggin <npiggin@gmail.com>, Tony Luck <tony.luck@intel.com>,
-        Yoshinori Sato <ysato@users.sourceforge.jp>,
-        linux-arch@vger.kernel.org, linux-ia64@vger.kernel.org,
-        linux-sh@vger.kernel.org, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, Mike Rapoport <rppt@linux.ibm.com>
-Subject: [PATCH 0/3] mm: remove quicklist page table caches
-Date: Thu,  8 Aug 2019 10:52:05 +0300
-X-Mailer: git-send-email 2.7.4
-X-TM-AS-GCONF: 00
-x-cbid: 19080807-0020-0000-0000-0000035D2ABA
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19080807-0021-0000-0000-000021B22C72
-Message-Id: <1565250728-21721-1-git-send-email-rppt@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-08_04:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908080090
+       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
+Received: from localhost (localhost [127.0.0.1])
+	by netline-mail3.netline.ch (Postfix) with ESMTP id D93432B200C;
+	Thu,  8 Aug 2019 10:13:00 +0200 (CEST)
+X-Virus-Scanned: Debian amavisd-new at netline-mail3.netline.ch
+Received: from netline-mail3.netline.ch ([127.0.0.1])
+	by localhost (netline-mail3.netline.ch [127.0.0.1]) (amavisd-new, port 10024)
+	with LMTP id HMzk0c21TQZi; Thu,  8 Aug 2019 10:13:00 +0200 (CEST)
+Received: from thor (116.245.63.188.dynamic.wline.res.cust.swisscom.ch [188.63.245.116])
+	by netline-mail3.netline.ch (Postfix) with ESMTPSA id 3C3C12AA0BD;
+	Thu,  8 Aug 2019 10:13:00 +0200 (CEST)
+Received: from localhost ([::1])
+	by thor with esmtp (Exim 4.92)
+	(envelope-from <michel@daenzer.net>)
+	id 1hvdXf-0005ZI-Rb; Thu, 08 Aug 2019 10:12:59 +0200
+Subject: Re: The issue with page allocation 5.3 rc1-rc2 (seems drm culprit
+ here)
+To: Alex Deucher <alexdeucher@gmail.com>,
+ Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Cc: Hillf Danton <hdanton@sina.com>, Harry Wentland <harry.wentland@amd.com>,
+ Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+ dri-devel <dri-devel@lists.freedesktop.org>,
+ Linux Memory Management List <linux-mm@kvack.org>,
+ amd-gfx list <amd-gfx@lists.freedesktop.org>,
+ "Deucher, Alexander" <Alexander.Deucher@amd.com>,
+ Dave Airlie <airlied@gmail.com>, "Koenig, Christian"
+ <Christian.Koenig@amd.com>
+References: <20190806014830.7424-1-hdanton@sina.com>
+ <CABXGCsMRGRpd9AoJdvZqdpqCP3QzVGzfDPiX=PzVys6QFBLAvA@mail.gmail.com>
+ <CADnq5_O08v3_NUZ_zUZJFYwv_tUY7TFFz2GGudqgWEX6nh5LFA@mail.gmail.com>
+From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
+Openpgp: preference=signencrypt
+Autocrypt: addr=michel@daenzer.net; prefer-encrypt=mutual; keydata=
+ mQGiBDsehS8RBACbsIQEX31aYSIuEKxEnEX82ezMR8z3LG8ktv1KjyNErUX9Pt7AUC7W3W0b
+ LUhu8Le8S2va6hi7GfSAifl0ih3k6Bv1Itzgnd+7ZmSrvCN8yGJaHNQfAevAuEboIb+MaVHo
+ 9EMJj4ikOcRZCmQWw7evu/D9uQdtkCnRY9iJiAGxbwCguBHtpoGMxDOINCr5UU6qt+m4O+UD
+ /355ohBBzzyh49lTj0kTFKr0Ozd20G2FbcqHgfFL1dc1MPyigej2gLga2osu2QY0ObvAGkOu
+ WBi3LTY8Zs8uqFGDC4ZAwMPoFy3yzu3ne6T7d/68rJil0QcdQjzzHi6ekqHuhst4a+/+D23h
+ Za8MJBEcdOhRhsaDVGAJSFEQB1qLBACOs0xN+XblejO35gsDSVVk8s+FUUw3TSWJBfZa3Imp
+ V2U2tBO4qck+wqbHNfdnU/crrsHahjzBjvk8Up7VoY8oT+z03sal2vXEonS279xN2B92Tttr
+ AgwosujguFO/7tvzymWC76rDEwue8TsADE11ErjwaBTs8ZXfnN/uAANgPLQjTWljaGVsIERh
+ ZW56ZXIgPG1pY2hlbEBkYWVuemVyLm5ldD6IXgQTEQIAHgUCQFXxJgIbAwYLCQgHAwIDFQID
+ AxYCAQIeAQIXgAAKCRBaga+OatuyAIrPAJ9ykonXI3oQcX83N2qzCEStLNW47gCeLWm/QiPY
+ jqtGUnnSbyuTQfIySkK5AQ0EOx6FRRAEAJZkcvklPwJCgNiw37p0GShKmFGGqf/a3xZZEpjI
+ qNxzshFRFneZze4f5LhzbX1/vIm5+ZXsEWympJfZzyCmYPw86QcFxyZflkAxHx9LeD+89Elx
+ bw6wT0CcLvSv8ROfU1m8YhGbV6g2zWyLD0/naQGVb8e4FhVKGNY2EEbHgFBrAAMGA/0VktFO
+ CxFBdzLQ17RCTwCJ3xpyP4qsLJH0yCoA26rH2zE2RzByhrTFTYZzbFEid3ddGiHOBEL+bO+2
+ GNtfiYKmbTkj1tMZJ8L6huKONaVrASFzLvZa2dlc2zja9ZSksKmge5BOTKWgbyepEc5qxSju
+ YsYrX5xfLgTZC5abhhztpYhGBBgRAgAGBQI7HoVFAAoJEFqBr45q27IAlscAn2Ufk2d6/3p4
+ Cuyz/NX7KpL2dQ8WAJ9UD5JEakhfofed8PSqOM7jOO3LCA==
+Message-ID: <6d5110ab-6539-378d-f643-0a1d4cf0ff73@daenzer.net>
+Date: Thu, 8 Aug 2019 10:12:59 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
+MIME-Version: 1.0
+In-Reply-To: <CADnq5_O08v3_NUZ_zUZJFYwv_tUY7TFFz2GGudqgWEX6nh5LFA@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-CA
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi,
+On 2019-08-08 7:31 a.m., Alex Deucher wrote:
+> On Wed, Aug 7, 2019 at 11:49 PM Mikhail Gavrilov
+> <mikhail.v.gavrilov@gmail.com> wrote:
+>>
+>> Unfortunately error "gnome-shell: page allocation failure: order:4,
+>> mode:0x40cc0(GFP_KERNEL|__GFP_COMP),
+>> nodemask=(null),cpuset=/,mems_allowed=0" still happens even with
+>> applying this patch.
+> 
+> I think we can just drop the kmalloc altogether.  How about this patch?
 
-I while ago Nicholas proposed to remove quicklist page table caches [1].
+Memory allocated by kvz/malloc needs to be freed with kvfree.
 
-I've rebased his patch on the curren upstream and switched ia64 and sh to
-use generic versions of PTE allocation.
-
-[1] https://lore.kernel.org/linux-mm/20190711030339.20892-1-npiggin@gmail.com
-
-Mike Rapoport (2):
-  ia64: switch to generic version of pte allocation
-  sh: switch to generic version of pte allocation
-
-Nicholas Piggin (1):
-  mm: remove quicklist page table caches
-
- arch/alpha/include/asm/pgalloc.h      |   2 -
- arch/arc/include/asm/pgalloc.h        |   1 -
- arch/arm/include/asm/pgalloc.h        |   2 -
- arch/arm64/include/asm/pgalloc.h      |   2 -
- arch/csky/include/asm/pgalloc.h       |   2 -
- arch/hexagon/include/asm/pgalloc.h    |   2 -
- arch/ia64/Kconfig                     |   4 --
- arch/ia64/include/asm/pgalloc.h       |  52 +++--------------
- arch/m68k/include/asm/pgtable_mm.h    |   2 -
- arch/m68k/include/asm/pgtable_no.h    |   2 -
- arch/microblaze/include/asm/pgalloc.h |  89 +++--------------------------
- arch/microblaze/mm/pgtable.c          |   4 --
- arch/mips/include/asm/pgalloc.h       |   2 -
- arch/nds32/include/asm/pgalloc.h      |   2 -
- arch/nios2/include/asm/pgalloc.h      |   2 -
- arch/openrisc/include/asm/pgalloc.h   |   2 -
- arch/parisc/include/asm/pgalloc.h     |   2 -
- arch/powerpc/include/asm/pgalloc.h    |   2 -
- arch/riscv/include/asm/pgalloc.h      |   4 --
- arch/s390/include/asm/pgtable.h       |   1 -
- arch/sh/include/asm/pgalloc.h         |  44 +--------------
- arch/sh/mm/Kconfig                    |   3 -
- arch/sparc/include/asm/pgalloc_32.h   |   2 -
- arch/sparc/include/asm/pgalloc_64.h   |   2 -
- arch/sparc/mm/init_32.c               |   1 -
- arch/um/include/asm/pgalloc.h         |   2 -
- arch/unicore32/include/asm/pgalloc.h  |   2 -
- arch/x86/include/asm/pgtable_32.h     |   1 -
- arch/x86/include/asm/pgtable_64.h     |   1 -
- arch/xtensa/include/asm/tlbflush.h    |   3 -
- fs/proc/meminfo.c                     |   4 --
- include/asm-generic/pgalloc.h         |   5 --
- include/linux/quicklist.h             |  94 -------------------------------
- kernel/sched/idle.c                   |   1 -
- lib/show_mem.c                        |   5 --
- mm/Kconfig                            |   5 --
- mm/Makefile                           |   1 -
- mm/mmu_gather.c                       |   2 -
- mm/quicklist.c                        | 103 ----------------------------------
- 39 files changed, 16 insertions(+), 446 deletions(-)
- delete mode 100644 include/linux/quicklist.h
- delete mode 100644 mm/quicklist.c
 
 -- 
-2.7.4
+Earthling Michel Dänzer               |              https://www.amd.com
+Libre software enthusiast             |             Mesa and X developer
 
