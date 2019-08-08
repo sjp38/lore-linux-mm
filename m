@@ -2,460 +2,231 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+X-Spam-Status: No, score=-5.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EDAB3C0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 16:20:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 20A91C433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 16:25:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 949DC217D7
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 16:20:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 949DC217D7
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id C76232173E
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 16:25:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C76232173E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2BF636B0008; Thu,  8 Aug 2019 12:20:52 -0400 (EDT)
+	id 729366B0008; Thu,  8 Aug 2019 12:25:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 26EB26B000D; Thu,  8 Aug 2019 12:20:52 -0400 (EDT)
+	id 6B11B6B000D; Thu,  8 Aug 2019 12:25:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1378C6B000E; Thu,  8 Aug 2019 12:20:52 -0400 (EDT)
+	id 504B06B000E; Thu,  8 Aug 2019 12:25:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f198.google.com (mail-qt1-f198.google.com [209.85.160.198])
-	by kanga.kvack.org (Postfix) with ESMTP id E745A6B0008
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 12:20:51 -0400 (EDT)
-Received: by mail-qt1-f198.google.com with SMTP id m25so85732013qtn.18
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 09:20:51 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 16C636B0008
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 12:25:12 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id x19so58004381pgx.1
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 09:25:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=MxTE/+oxCefbdlHmbdDUrpFZur160jUZHoFCaid+s0I=;
-        b=uYmkhpPSzT50J4tKmjRY7+D6iKgmD38woEfhX2URocuPVsq6y9sUlzjBBDmBlz0wXn
-         4yq82HBHQ49xj+tqaWRlNEpqJpwBx2cusZyjWVZ/Xth+sEvH4dJ/3H4j0/VNSsSxxrpT
-         BSOD0WUPfOzRPeOlkapRu9sgXKv32db2EY044aMczXpZM7yCLWdu46XOz593Z0QHTD3L
-         2mi7dvaHYaCMiINRkFW3mKcyrBSc4P9hReEE8TM9hC2IEuLUEQfrEadKjobzCeoe63WI
-         jKzqScmuwxsGqNgAIWeDEpjYIZRiyIUwU8Om3sgbyH8mc/Di5LDZjYDorYh51Q48hZ3f
-         tzkw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAWoWdDTTBJJ/wDHcBf0ZjQLD+SB9yakJiqPffHTrqtWQphHlWSO
-	vPj3O3P/MmZI7wCkunYhw8o0kMm/k06eJ6afCX/JrfRViKGbYg171arpD8Z18C2rXmBmepEeRRB
-	ahf2X4ivApS/8PYk4G1cKw9cN4eR/FQOKfKuJ+8jSX4V+ftjbuS7U0d+AAgUt188lzw==
-X-Received: by 2002:a37:4bcc:: with SMTP id y195mr14138372qka.55.1565281251661;
-        Thu, 08 Aug 2019 09:20:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwb4e5WfMkmw4PC72ng5+IGqcJ0/H8Axm2yeZiEAPzwukIyihIKxr3BUP6CnSYWzYiWF7yX
-X-Received: by 2002:a37:4bcc:: with SMTP id y195mr14138268qka.55.1565281250451;
-        Thu, 08 Aug 2019 09:20:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565281250; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:dlp-product
+         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
+        bh=cyg3urfbldxmSarQ0sZ799BO8vuWuhjBfrN3fdn8+ps=;
+        b=fVk61ZGFN9k2gSbezdRMeYOV9ASqhocx26ttyUVa5WAMzzIyipLOUns2Rix+3kCOWI
+         OgtZvhkg5cN0phIh0MXRvXSjWXnAihBH9+Bhrys+eFGX59cPCagtwh9oYCW/mQuVF+8a
+         Jx96VnNyJsxdtVt0CC3+WFFjkSBdYZNuv7HJIsNREJePDPIfgygwiWg2v5ofx3kEkR6u
+         BdMJYsGyI6uxLl17EqSuEbX89T2JIwiA/x75Kx4Jgt/mJDVmiDdtSuthwkBJj2pbUcEe
+         WCh6M/8WCXv5FCb1Ctz7e4tUIEULkihNir9p2YndhwoIIuolMqCxbAZU92dXsqu/jxQ2
+         9O1g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVmc815vMelbBmQEAdZ7oEmBJEb9nnh5PYVct5BbfaewNjyZPTa
+	/v1hC8Z4MuBwrCtmyP2pdzQuywLwaDfcPRw7hdAWn32pxJE+pnuInTfAbterHMyNqEqWoA0JWGQ
+	W5hzV1p/KWjAfF/KoxPX/KJYNKNAJh38Q5xO0vTBqf62E3+Kkrc1ofaMVRBGgZMkWfw==
+X-Received: by 2002:a17:90a:26a1:: with SMTP id m30mr5005510pje.59.1565281511668;
+        Thu, 08 Aug 2019 09:25:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzaIFoThdZvCRWQZwDpUveeMv2DQVf2hs2vNppjlIrXSi5mQTf0Gqo2WAAQHw8YaPy8+1Wf
+X-Received: by 2002:a17:90a:26a1:: with SMTP id m30mr5005423pje.59.1565281510510;
+        Thu, 08 Aug 2019 09:25:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565281510; cv=none;
         d=google.com; s=arc-20160816;
-        b=mmV5BKp5+p3ZyUeqoAL/QUEPPbjOpX7l+tXNhetAbZzHYINbHcwgj8IJC5pxF32jno
-         3RJHK5a/i782m4NqNM4dnv5G+9j5IdqOM7PBKc/w9GECa6wOLNb3vWdkVXiTAuhjI0SB
-         vID/L/lpiM6gqaKkLXcvlljeLR+wcbE7rzBxwNp64N3sKPaFg4hed1Z6W7GWvBIbV6PK
-         g5VDkvcX6MtQv6BrIGyM0gEyGMaYsrMClnzQ3ukCKwQO+Vuy5wIMETNv6Bm1YtQw8f4W
-         Gi3ABxYYTKWCpu0U54TqlqJcGRtS5ZsxDkxjyrzY/O6eVZzUzfdk53Xkx20abid8wZ5K
-         isLQ==
+        b=EJxsO/OJ0J0hEtE8Y9St/LouqTRIE8t9D0vnvofT8rxe6yGa69W7HjU20dd43UXYyZ
+         Ztm319qdyYfvQci2hLieHFFgFEs/xrKWvf96qb/OHTrBCNl/NhOiCotAoSposI9wdlPf
+         bvCg0xSaZLj7nRwlfWEghjISc6WYOJv1//1JhhlQf128z2z/aajatwKysMUqqO7zN2cP
+         RqZNGDqZ4u9AlFzBbmbvp0g1qgIGEka/xkye0c6L7sSW3kOXdGfliMupJM8+a7zsbc1Q
+         MOIgE8rkcLr4bbXWmn3L+FhFl6sAxYvE2i5CBrLasgh3mneG7SE6xzt7udWbeRCN+gdz
+         A70Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=MxTE/+oxCefbdlHmbdDUrpFZur160jUZHoFCaid+s0I=;
-        b=P4HWCKbkNYD1J0UXCKRwmzXGAfxr6i97Sn9xgigpM0QW0byt/JAdTFgVEW3kHf5xdN
-         /KgF0I3UJQlXOXveoosaWhXkYbQlZA3OE751OorbATeovpWwoOy5MCq/YJCeb6ykE8MJ
-         R0hs+BQW9Y7gXySOAbjHAcehtXOBKYx388h7tZe9A/O+uYuhiWGWsLPDod5gFueq2yUa
-         MXHK0UHJo2ggJOugn2fIHgfMgvoqlUkSxJv85bCj7CepXsf8QScZ3fa9sUQqY/VHNqBi
-         B/RZbZlHQohqAAfhRj/qPYzc10MkQLg5oEm7tzJ0kLZVMwoy+FOuUxPJ9Sa2rmL+NZZl
-         /6pQ==
+        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
+         :dlp-product:content-language:accept-language:in-reply-to:references
+         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
+        bh=cyg3urfbldxmSarQ0sZ799BO8vuWuhjBfrN3fdn8+ps=;
+        b=NSsHDY/LSO/2jRvNNle+T3qzAd2iMYwe6aBT9cKFZaOk/v5QLHWSGFl2FVYZIstvcj
+         4zcfr5IrTHBkWtMHnbg+HYcHaxZbJM+6IZwH+cUKPYzvryn+CkyZk5LhEPcpp7fUctqo
+         ywoYh5dZRTJgL6eI26EEs1V2Nxav6lFzv6oWVOiQqay5qjHDh3ft+WsKjSZF+N19IA9u
+         H4dO3bSGMDkT4JtELrPK7NlNbCBsIsPLDL6pU6OemTcA2/FBqUbiYLzVtZqHuce4oBpU
+         jcPoF1ErBlbZ46hV/w0a79qd23K0VP3yAPKl/9bOpKl+piFtGUzNnfayApJHDFkqGq6c
+         H1xg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id y198si52515503qka.85.2019.08.08.09.20.50
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga11.intel.com (mga11.intel.com. [192.55.52.93])
+        by mx.google.com with ESMTPS id l102si2220130pje.78.2019.08.08.09.25.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 09:20:50 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 08 Aug 2019 09:25:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) client-ip=192.55.52.93;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id A8A0F88302;
-	Thu,  8 Aug 2019 16:20:49 +0000 (UTC)
-Received: from bfoster (dhcp-41-2.bos.redhat.com [10.18.41.2])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 145EF60BAD;
-	Thu,  8 Aug 2019 16:20:48 +0000 (UTC)
-Date: Thu, 8 Aug 2019 12:20:47 -0400
-From: Brian Foster <bfoster@redhat.com>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH 20/24] xfs: use AIL pushing for inode reclaim IO
-Message-ID: <20190808162047.GA24551@bfoster>
-References: <20190801021752.4986-1-david@fromorbit.com>
- <20190801021752.4986-21-david@fromorbit.com>
- <20190807180915.GA20425@bfoster>
- <20190807231044.GR7777@dread.disaster.area>
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.93 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga001.jf.intel.com ([10.7.209.18])
+  by fmsmga102.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 Aug 2019 09:25:09 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,362,1559545200"; 
+   d="scan'208";a="258761935"
+Received: from fmsmsx104.amr.corp.intel.com ([10.18.124.202])
+  by orsmga001.jf.intel.com with ESMTP; 08 Aug 2019 09:25:08 -0700
+Received: from fmsmsx119.amr.corp.intel.com (10.18.124.207) by
+ fmsmsx104.amr.corp.intel.com (10.18.124.202) with Microsoft SMTP Server (TLS)
+ id 14.3.439.0; Thu, 8 Aug 2019 09:25:07 -0700
+Received: from crsmsx104.amr.corp.intel.com (172.18.63.32) by
+ FMSMSX119.amr.corp.intel.com (10.18.124.207) with Microsoft SMTP Server (TLS)
+ id 14.3.439.0; Thu, 8 Aug 2019 09:25:07 -0700
+Received: from crsmsx101.amr.corp.intel.com ([169.254.1.115]) by
+ CRSMSX104.amr.corp.intel.com ([169.254.6.74]) with mapi id 14.03.0439.000;
+ Thu, 8 Aug 2019 10:25:05 -0600
+From: "Weiny, Ira" <ira.weiny@intel.com>
+To: John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@kernel.org>
+CC: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, "Andrew
+ Morton" <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>,
+	"Williams, Dan J" <dan.j.williams@intel.com>, Dave Chinner
+	<david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, "Jason
+ Gunthorpe" <jgg@ziepe.ca>, =?utf-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+	<jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>,
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
+	"ceph-devel@vger.kernel.org" <ceph-devel@vger.kernel.org>,
+	"devel@driverdev.osuosl.org" <devel@driverdev.osuosl.org>,
+	"devel@lists.orangefs.org" <devel@lists.orangefs.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"intel-gfx@lists.freedesktop.org" <intel-gfx@lists.freedesktop.org>,
+	"kvm@vger.kernel.org" <kvm@vger.kernel.org>,
+	"linux-arm-kernel@lists.infradead.org"
+	<linux-arm-kernel@lists.infradead.org>, "linux-block@vger.kernel.org"
+	<linux-block@vger.kernel.org>, "linux-crypto@vger.kernel.org"
+	<linux-crypto@vger.kernel.org>, "linux-fbdev@vger.kernel.org"
+	<linux-fbdev@vger.kernel.org>, "linux-fsdevel@vger.kernel.org"
+	<linux-fsdevel@vger.kernel.org>, "linux-media@vger.kernel.org"
+	<linux-media@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>,
+	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
+	"linux-rpi-kernel@lists.infradead.org"
+	<linux-rpi-kernel@lists.infradead.org>, "linux-xfs@vger.kernel.org"
+	<linux-xfs@vger.kernel.org>, "netdev@vger.kernel.org"
+	<netdev@vger.kernel.org>, "rds-devel@oss.oracle.com"
+	<rds-devel@oss.oracle.com>, "sparclinux@vger.kernel.org"
+	<sparclinux@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>,
+	"xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>
+Subject: RE: [PATCH 00/34] put_user_pages(): miscellaneous call sites
+Thread-Topic: [PATCH 00/34] put_user_pages(): miscellaneous call sites
+Thread-Index: AQHVSNjU1EYxEMQcyke2Y16AlWiV+abn98YAgAA6ZwCAABzEgIAAB8CAgABJHoCABynCAIAAAqCAgAC1jYCAAIj3AIAAatiQ
+Date: Thu, 8 Aug 2019 16:25:04 +0000
+Message-ID: <2807E5FD2F6FDA4886F6618EAC48510E79E79644@CRSMSX101.amr.corp.intel.com>
+References: <20190802022005.5117-1-jhubbard@nvidia.com>
+ <20190802091244.GD6461@dhcp22.suse.cz>
+ <20190802124146.GL25064@quack2.suse.cz>
+ <20190802142443.GB5597@bombadil.infradead.org>
+ <20190802145227.GQ25064@quack2.suse.cz>
+ <076e7826-67a5-4829-aae2-2b90f302cebd@nvidia.com>
+ <20190807083726.GA14658@quack2.suse.cz>
+ <20190807084649.GQ11812@dhcp22.suse.cz>
+ <20190808023637.GA1508@iweiny-DESK2.sc.intel.com>
+ <e648a7f3-6a1b-c9ea-1121-7ab69b6b173d@nvidia.com>
+In-Reply-To: <e648a7f3-6a1b-c9ea-1121-7ab69b6b173d@nvidia.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiNzg1NWU5YjgtN2QxYy00YWI4LWFkMDAtZTkzNjZiYzAyZWZhIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoidDZjeGJDdmV4UkoyZDkrSFdhT0RlXC9jalFDREdKeXlsWlJnSkxPamJtaXZuU2VIUmFYNG12UFE5cVIrbkR6QzkifQ==
+x-ctpclassification: CTP_NT
+dlp-product: dlpe-windows
+dlp-version: 11.2.0.6
+dlp-reaction: no-action
+x-originating-ip: [172.18.205.10]
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190807231044.GR7777@dread.disaster.area>
-User-Agent: Mutt/1.12.0 (2019-05-25)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.28]); Thu, 08 Aug 2019 16:20:49 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 08, 2019 at 09:10:44AM +1000, Dave Chinner wrote:
-> On Wed, Aug 07, 2019 at 02:09:15PM -0400, Brian Foster wrote:
-> > On Thu, Aug 01, 2019 at 12:17:48PM +1000, Dave Chinner wrote:
-> > > From: Dave Chinner <dchinner@redhat.com>
-> > > 
-> > > Inode reclaim currently issues it's own inode IO when it comes
-> > > across dirty inodes. This is used to throttle direct reclaim down to
-> > > the rate at which we can reclaim dirty inodes. Failure to throttle
-> > > in this manner results in the OOM killer being trivial to trigger
-> > > even when there is lots of free memory available.
-> > > 
-> > > However, having direct reclaimers issue IO causes an amount of
-> > > IO thrashing to occur. We can have up to the number of AGs in the
-> > > filesystem concurrently issuing IO, plus the AIL pushing thread as
-> > > well. This means we can many competing sources of IO and they all
-> > > end up thrashing and competing for the request slots in the block
-> > > device.
-> > > 
-> > > Similar to dirty page throttling and the BDI flusher thread, we can
-> > > use the AIL pushing thread the sole place we issue inode writeback
-> > > from and everything else waits for it to make progress. To do this,
-> > > reclaim will skip over dirty inodes, but in doing so will record the
-> > > lowest LSN of all the dirty inodes it skips. It will then push the
-> > > AIL to this LSN and wait for it to complete that work.
-> > > 
-> > > In doing so, we block direct reclaim on the IO of at least one IO,
-> > > thereby providing some level of throttling for when we encounter
-> > > dirty inodes. However we gain the ability to scan and reclaim
-> > > clean inodes in a non-blocking fashion. This allows us to
-> > > remove all the per-ag reclaim locking that avoids excessive direct
-> > > reclaim, as repeated concurrent direct reclaim will hit the same
-> > > dirty inodes on block waiting on the same IO to complete.
-> > > 
-...
-> > > -restart:
-> > > -	error = 0;
-> > >  	/*
-> > >  	 * Don't try to flush the inode if another inode in this cluster has
-> > >  	 * already flushed it after we did the initial checks in
-> > >  	 * xfs_reclaim_inode_grab().
-> > >  	 */
-> > > -	if (sync_mode & SYNC_TRYLOCK) {
-> > > -		if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
-> > > -			goto out;
-> > > -		if (!xfs_iflock_nowait(ip))
-> > > -			goto out_unlock;
-> > > -	} else {
-> > > -		xfs_ilock(ip, XFS_ILOCK_EXCL);
-> > > -		if (!xfs_iflock_nowait(ip)) {
-> > > -			if (!(sync_mode & SYNC_WAIT))
-> > > -				goto out_unlock;
-> > > -			xfs_iflock(ip);
-> > > -		}
-> > > -	}
-> > > +	if (!xfs_ilock_nowait(ip, XFS_ILOCK_EXCL))
-> > > +		goto out;
-> > > +	if (!xfs_iflock_nowait(ip))
-> > > +		goto out_unlock;
-> > >  
-> > 
-> > Do we even need the flush lock here any more if we're never going to
-> > flush from this context?
-> 
-> Ideally, no. But the inode my currently be being flushed, in which
-> case the incore inode is clean, but we can't reclaim it yet. Hence
-> we need the flush lock to serialise against IO completion.
-> 
-
-Ok, so xfs_inode_clean() checks ili_fields and that state is cleared at
-flush time (under the flush lock). Hmm, so xfs_inode_clean() basically
-determines whether the inode needs flushing or not, not necessarily
-whether the in-core inode is clean with respect to the on-disk inode. I
-wonder if we could enhance that or provide a new helper variant to cover
-the latter as well, perhaps by also looking at ->ili_last_fields (with a
-separate lock). Anyways, that's a matter for a separate patch..
-
-> > The shutdown case just below notwithstanding
-> > (which I'm also wondering if we should just drop given we abort from
-> > xfs_iflush() on shutdown), the pin count is an atomic and the dirty
-> > state changes under ilock.
-> 
-> The shutdown case has to handle pinned inodes, not just inodes being
-> flushed.
-> 
-> > Maybe I'm missing something else, but the reason I ask is that the
-> > increased flush lock contention in codepaths that don't actually flush
-> > once it's acquired gives me a bit of concern that we could reduce
-> > effectiveness of the one task that actually does (xfsaild).
-> 
-> The flush lock isn't a contended lock - it's actually a bit that is
-> protected by the i_flags_lock, so if we are contending on anything
-> it will be the flags lock. And, well, see the LRU isolate function
-> conversion of this code, becuase it changes how the flags lock is
-> used for reclaim but I haven't seen any contention as a result of
-> that change....
-> 
-
-True, but I guess it's not so much the lock contention I'm concerned
-about as opposed to the resulting impact of increased nonblocking
-reclaim scanning on xfsaild. As of right now reclaim activity is highly
-throttled and if a direct reclaimer does ultimatly acquire the flush
-lock, it will perform the flush.
-
-With reduced blocking/throttling and no reclaim flushing, I'm wondering
-how possible it is for a bunch of direct reclaimers to come in and
-effectively cycle over the same batch of dirty inodes repeatedly and
-faster than xfsaild to the point where xfsaild can't make progress
-actually flushing some of these inodes. Looking again, the combination
-of the unlocked dirty check before grabbing the inode and sync AIL push
-after each pass might be enough to prevent this from being a problem.
-The former allows a direct reclaimer to skip the lock cycle if the inode
-is obviously dirty and if the lock cycle was necessary to detect dirty
-state, the associated task will wait for a while before coming around
-again.
-
-...
-> > >  	while ((pag = xfs_perag_get_tag(mp, ag, XFS_ICI_RECLAIM_TAG))) {
-> > >  		unsigned long	first_index = 0;
-> > >  		int		done = 0;
-> > >  		int		nr_found = 0;
-> > >  
-> > >  		ag = pag->pag_agno + 1;
-> > > -
-> > > -		if (trylock) {
-> > > -			if (!mutex_trylock(&pag->pag_ici_reclaim_lock)) {
-> > > -				skipped++;
-> > > -				xfs_perag_put(pag);
-> > > -				continue;
-> > > -			}
-> > > -			first_index = pag->pag_ici_reclaim_cursor;
-> > > -		} else
-> > > -			mutex_lock(&pag->pag_ici_reclaim_lock);
-> > 
-> > I understand that the eliminated blocking drops a dependency on the
-> > perag reclaim exclusion as described by the commit log, but I'm not sure
-> > it's enough to justify removing it entirely. For one, the reclaim cursor
-> > management looks potentially racy.
-> 
-> We really don't care if the cursor updates are racy. All that will
-> result in is some inode ranges being scanned twice in quick
-> succession. All this does now is prevent reclaim from starting at
-> the start of the AG every time it runs, so we end up with most
-> reclaimers iterating over previously unscanned inodes.
-> 
-
-That might happen, sure, but a racing update may also cause a reclaimer
-in progress to jump backwards and rescan a set of inodes it just
-finished with (assuming some were dirty and left around). If that
-happens once or twice it's probably not a big deal, but if you have a
-bunch of reclaimer threads repeatedly stammering over the same ranges
-over and over again, ISTM the whole thing could slow down to a crawl and
-do quite a bit less real scanning work than request by the shrinker
-core.
-
-> > Also, doesn't this exclusion provide
-> > some balance for reclaim across AGs? E.g., if a bunch of reclaim threads
-> > come in at the same time, this allows them to walk across AGs instead of
-> > potentially stumbling over eachother in the batching/grabbing code.
-> 
-> What they do now is leapfrog each other and work through the same
-> AGs much faster. The overall pattern of reclaim doesn't actually
-> change much, just the speed at which individual AGs are scanned.
-> 
-> But that was not what the locking was put in place for. THe locking
-> was put in place to be able to throttle the number of concurrent
-> reclaimers issuing IO. If the reclaimers leapfrogged like they do
-> without the locking, then we end up with non-sequential inode
-> writeback patterns, and writeback performance goes really bad,
-> really quickly. Hence the locking is there to ensure we get
-> sequential inode writeback patterns from each AG that is being
-> reclaimed from. That can be optimised by block layer merging, and so
-> even though we might have a lot of concurrent reclaimers, we get
-> lots of large, well-formed IOs from each of them.
-> 
-> IOWs, the locking was all about preventing the IO patterns from
-> breaking down under memory pressure, not about optimising how
-> reclaimers interact with each other.
-> 
-
-I don't dispute any of that, but that doesn't necessarily mean that code
-added since the locking was added doesn't depend on the serialization
-that was already in place at the time to function sanely. I'm not asking
-for performance/optimization here.
-
-> > I see again that most of this code seems to ultimately go away, replaced
-> > by an LRU mechanism so we no longer operate on a per-ag basis. I can see
-> > how this becomes irrelevant with that mechanism, but I think it might
-> > make more sense to drop this locking along with the broader mechanism in
-> > the last patch or two of the series rather than doing it here.
-> 
-> Fundamentally, this patch is all about shifting the IO and blocking
-> mechanisms to the AIL. This locking is no longer necessary, and it
-> actually gets in the way of doing non-blocking reclaim and shifting
-> the IO to the AIL. i.e. we block where we no longer need to, and
-> that causes more problems for this change than it solves.
-> 
-
-I could see the issue of blocking where we no longer need to, but this
-patch could also change the contextual blocking behavior without
-necessarily removing the lock entirely. Or better yet, drop the trylock
-and reduce the scope of the lock to the inode grabbing and cursor update
-(and re-sample the cursor on each iteration). The cursor update index
-doesn't change after we grab the last inode we're going to try and
-reclaim, but we currently hold the lock across the entire batch reclaim.
-Doing the lookup and grab under the lock and then releasing it once we
-start to reclaim allows multiple threads to drive reclaim of the same AG
-as you want, but prevents those tasks from disrupting eachother. We
-still would have a blocking lock in this path, but it's purely
-structural and we'd only block for what would otherwise be time spent
-scanning over already handled inodes (i.e.  wasted CPU time). IOW, if
-there's contention on the lock, then by definition some other task has
-the same lookup index.
-
-> > If
-> > nothing else, that eliminates the need for the reviewer to consider this
-> > transient "old mechanism + new locking" state as opposed to reasoning
-> > about the old mechanism vs. new mechanism and why the old locking simply
-> > no longer applies.
-> 
-> I think you're putting to much "make every step of the transition
-> perfect" focus on this. We've got to drop this locking to make
-> reclaim non-blocking, and we have to make reclaim non-blocking
-> before we can move to a LRU mechanisms that relies on LRU removal
-> being completely non-blocking and cannot issue IO. It's a waste of
-> time trying to break this down further and further into "perfect"
-> patches - it works well enough and without functional regressions so
-> it does not create landmines for people doing bisects, and that's
-> largely all that matters in the middle of a large patchset that is
-> making large algorithm changes...
-> 
-
-I'm not really worried about maintaining perfection throughout every
-step of this series. I just think this patch is a bit too fast and
-loose.
-
-In logistical terms, this patch and the next few continue to modify the
-perag based reclaim mechanism, the second to last patch adds a new
-reclaim mechanism to reclaim via the newly added LRU, and the final
-patch removes the old/unused perag bits. The locking we're talking about
-here is part of that old/unused mechanism that is ripped out in the
-final patch, not common code shared between the two, so I don't see a
-problem with either leaving it or changing it around as described above.
-An untested patch (based on top of this one) for the latter is appended
-for reference..
-
-Brian
-
---- 8< ---
-
-diff --git a/fs/xfs/xfs_icache.c b/fs/xfs/xfs_icache.c
-index 4c4c5bc12147..87f3ca86dfd1 100644
---- a/fs/xfs/xfs_icache.c
-+++ b/fs/xfs/xfs_icache.c
-@@ -1210,12 +1210,14 @@ xfs_reclaim_inodes_ag(
- 		int		nr_found = 0;
- 
- 		ag = pag->pag_agno + 1;
--		first_index = pag->pag_ici_reclaim_cursor;
- 
- 		do {
- 			struct xfs_inode *batch[XFS_LOOKUP_BATCH];
- 			int	i;
- 
-+			mutex_lock(&pag->pag_ici_reclaim_lock);
-+			first_index = pag->pag_ici_reclaim_cursor;
-+
- 			rcu_read_lock();
- 			nr_found = radix_tree_gang_lookup_tag(
- 					&pag->pag_ici_root,
-@@ -1225,6 +1227,7 @@ xfs_reclaim_inodes_ag(
- 			if (!nr_found) {
- 				done = 1;
- 				rcu_read_unlock();
-+				mutex_unlock(&pag->pag_ici_reclaim_lock);
- 				break;
- 			}
- 
-@@ -1266,6 +1269,11 @@ xfs_reclaim_inodes_ag(
- 
- 			/* unlock now we've grabbed the inodes. */
- 			rcu_read_unlock();
-+			if (!done)
-+				pag->pag_ici_reclaim_cursor = first_index;
-+			else
-+				pag->pag_ici_reclaim_cursor = 0;
-+			mutex_unlock(&pag->pag_ici_reclaim_lock);
- 
- 			for (i = 0; i < nr_found; i++) {
- 				if (!batch[i])
-@@ -1281,10 +1289,6 @@ xfs_reclaim_inodes_ag(
- 
- 		} while (nr_found && !done && nr_to_scan > 0);
- 
--		if (!done)
--			pag->pag_ici_reclaim_cursor = first_index;
--		else
--			pag->pag_ici_reclaim_cursor = 0;
- 		xfs_perag_put(pag);
- 	}
- 
-diff --git a/fs/xfs/xfs_mount.c b/fs/xfs/xfs_mount.c
-index bcf8f64d1b1f..a1805021c92f 100644
---- a/fs/xfs/xfs_mount.c
-+++ b/fs/xfs/xfs_mount.c
-@@ -148,6 +148,7 @@ xfs_free_perag(
- 		ASSERT(atomic_read(&pag->pag_ref) == 0);
- 		xfs_iunlink_destroy(pag);
- 		xfs_buf_hash_destroy(pag);
-+		mutex_destroy(&pag->pag_ici_reclaim_lock);
- 		call_rcu(&pag->rcu_head, __xfs_free_perag);
- 	}
- }
-@@ -199,6 +200,7 @@ xfs_initialize_perag(
- 		pag->pag_agno = index;
- 		pag->pag_mount = mp;
- 		spin_lock_init(&pag->pag_ici_lock);
-+		mutex_init(&pag->pag_ici_reclaim_lock);
- 		INIT_RADIX_TREE(&pag->pag_ici_root, GFP_ATOMIC);
- 		if (xfs_buf_hash_init(pag))
- 			goto out_free_pag;
-@@ -240,6 +242,7 @@ xfs_initialize_perag(
- out_hash_destroy:
- 	xfs_buf_hash_destroy(pag);
- out_free_pag:
-+	mutex_destroy(&pag->pag_ici_reclaim_lock);
- 	kmem_free(pag);
- out_unwind_new_pags:
- 	/* unwind any prior newly initialized pags */
-@@ -249,6 +252,7 @@ xfs_initialize_perag(
- 			break;
- 		xfs_buf_hash_destroy(pag);
- 		xfs_iunlink_destroy(pag);
-+		mutex_destroy(&pag->pag_ici_reclaim_lock);
- 		kmem_free(pag);
- 	}
- 	return error;
-diff --git a/fs/xfs/xfs_mount.h b/fs/xfs/xfs_mount.h
-index 3ed6d942240f..a585860eaa94 100644
---- a/fs/xfs/xfs_mount.h
-+++ b/fs/xfs/xfs_mount.h
-@@ -390,6 +390,7 @@ typedef struct xfs_perag {
- 	spinlock_t	pag_ici_lock;	/* incore inode cache lock */
- 	struct radix_tree_root pag_ici_root;	/* incore inode cache root */
- 	int		pag_ici_reclaimable;	/* reclaimable inodes */
-+	struct mutex	pag_ici_reclaim_lock;	/* serialisation point */
- 	unsigned long	pag_ici_reclaim_cursor;	/* reclaim restart point */
- 
- 	/* buffer cache index */
+PiANCj4gT24gOC83LzE5IDc6MzYgUE0sIElyYSBXZWlueSB3cm90ZToNCj4gPiBPbiBXZWQsIEF1
+ZyAwNywgMjAxOSBhdCAxMDo0Njo0OUFNICswMjAwLCBNaWNoYWwgSG9ja28gd3JvdGU6DQo+ID4+
+IE9uIFdlZCAwNy0wOC0xOSAxMDozNzoyNiwgSmFuIEthcmEgd3JvdGU6DQo+ID4+PiBPbiBGcmkg
+MDItMDgtMTkgMTI6MTQ6MDksIEpvaG4gSHViYmFyZCB3cm90ZToNCj4gPj4+PiBPbiA4LzIvMTkg
+Nzo1MiBBTSwgSmFuIEthcmEgd3JvdGU6DQo+ID4+Pj4+IE9uIEZyaSAwMi0wOC0xOSAwNzoyNDo0
+MywgTWF0dGhldyBXaWxjb3ggd3JvdGU6DQo+ID4+Pj4+PiBPbiBGcmksIEF1ZyAwMiwgMjAxOSBh
+dCAwMjo0MTo0NlBNICswMjAwLCBKYW4gS2FyYSB3cm90ZToNCj4gPj4+Pj4+PiBPbiBGcmkgMDIt
+MDgtMTkgMTE6MTI6NDQsIE1pY2hhbCBIb2NrbyB3cm90ZToNCj4gPj4+Pj4+Pj4gT24gVGh1IDAx
+LTA4LTE5IDE5OjE5OjMxLCBqb2huLmh1YmJhcmRAZ21haWwuY29tIHdyb3RlOg0KPiAgIFsuLi5d
+DQo+ID4gQmVmb3JlIEkgZ28gb24sIEkgd291bGQgbGlrZSB0byBzYXkgdGhhdCB0aGUgImltYmFs
+YW5jZSIgb2YNCj4gPiBnZXRfdXNlcl9wYWdlcygpIGFuZCBwdXRfcGFnZSgpIGJvdGhlcnMgbWUg
+ZnJvbSBhIHB1cmlzdCBzdGFuZHBvaW50Li4uDQo+ID4gSG93ZXZlciwgc2luY2UgdGhpcyBkaXNj
+dXNzaW9uIGNyb3BwZWQgdXAgSSB3ZW50IGFoZWFkIGFuZCBwb3J0ZWQgbXkNCj4gPiB3b3JrIHRv
+IExpbnVzJyBjdXJyZW50IG1hc3Rlcg0KPiA+ICg1LjMtcmMzKykgYW5kIGluIGRvaW5nIHNvIEkg
+b25seSBoYWQgdG8gc3RlYWwgYSBiaXQgb2YgSm9obnMgY29kZS4uLg0KPiA+IFNvcnJ5IEpvaG4u
+Li4gIDotKA0KPiA+DQo+ID4gSSBkb24ndCBoYXZlIHRoZSBjb21taXQgbWVzc2FnZXMgYWxsIGNs
+ZWFuZWQgdXAgYW5kIEkga25vdyB0aGVyZSBtYXkNCj4gPiBiZSBzb21lIGRpc2N1c3Npb24gb24g
+dGhlc2UgbmV3IGludGVyZmFjZXMgYnV0IEkgd2FudGVkIHRvIHRocm93IHRoaXMNCj4gPiBzZXJp
+ZXMgb3V0IHRoZXJlIGJlY2F1c2UgSSB0aGluayBpdCBtYXkgYmUgd2hhdCBKYW4gYW5kIE1pY2hh
+bCBhcmUNCj4gPiBkcml2aW5nIGF0IChvciBhdCBsZWFzdCBpbiB0aGF0IGRpcmVjdGlvbi4NCj4g
+Pg0KPiA+IFJpZ2h0IG5vdyBvbmx5IFJETUEgYW5kIERBWCBGUydzIGFyZSBzdXBwb3J0ZWQuICBP
+dGhlciB1c2VycyBvZiBHVVANCj4gPiB3aWxsIHN0aWxsIGZhaWwgb24gYSBEQVggZmlsZSBhbmQg
+cmVndWxhciBmaWxlcyB3aWxsIHN0aWxsIGJlIGF0DQo+ID4gcmlzay5bMl0NCj4gPg0KPiA+IEkn
+dmUgcHVzaGVkIHRoaXMgd29yayAoYmFzZWQgNS4zLXJjMysgKDMzOTIwZjFlYzViZikpIGhlcmVb
+M106DQo+ID4NCj4gPiBodHRwczovL2dpdGh1Yi5jb20vd2VpbnkyL2xpbnV4LWtlcm5lbC90cmVl
+L2xpbnVzLXJkbWFmc2RheC1iMC12Mw0KPiA+DQo+ID4gSSB0aGluayB0aGUgbW9zdCByZWxldmFu
+dCBwYXRjaCB0byB0aGlzIGNvbnZlcnNhdGlvbiBpczoNCj4gPg0KPiA+IGh0dHBzOi8vZ2l0aHVi
+LmNvbS93ZWlueTIvbGludXgtDQo+IGtlcm5lbC9jb21taXQvNWQzNzc2NTNiYTVjZjExYzNiNzE2
+ZjkwDQo+ID4gNGIwNTdiZWU2NjQxYWFmNg0KPiA+DQo+IA0KPiBvaGhoLi4uY2FuIHlvdSBwbGVh
+c2UgYXZvaWQgdXNpbmcgdGhlIG9sZCBfX3B1dF91c2VyX3BhZ2VzX2RpcnR5KCkNCj4gZnVuY3Rp
+b24/IA0KDQpBZ3JlZWQuLi4gSSBkaWQgbm90IGxpa2UgdGhhdC4gIFBhcnQgb2YgdGhlIHJlYXNv
+biBJIGRpZCBub3QgcG9zdCB0aGlzIGlzIEknbSBzdGlsbCB0cnlpbmcgdG8gZmlndXJlIG91dCB3
+aGF0IGhhcyBsYW5kZWQgYW5kIHdoYXQgSSBjYW4gYW5kIGNhbid0IGRlcGVuZCBvbi4NCg0KRm9y
+IGV4YW1wbGUsIENocmlzdG9waCBILiB3YXMgcHJvcG9zaW5nIGNoYW5nZXMgdG8gc29tZSBvZiB0
+aGUgR1VQIGNhbGxzIHdoaWNoIG1heSBjb25mbGljdC4gIEJ1dCBJJ20gbm90IHN1cmUgaGlzIGNo
+YW5nZXMgYXJlIG1vdmluZyBmb3J3YXJkLiAgU28gcmF0aGVyIHRoYW4gd2FpdGluZyBmb3IgdGhl
+IGR1c3QgdG8gc2V0dGxlIEkgZGVjaWRlZCB0byBzZWUgaG93IGhhcmQgaXQgd291bGQgYmUgdG8g
+Z2V0IHRoaXMgcmViYXNlZCBhZ2FpbnN0IG1haW5saW5lIGFuZCB3b3JraW5nLiAgVHVybnMgb3V0
+IGl0IHdhcyBub3QgdG9vIGhhcmQuDQoNCkkgdGhpbmsgdGhhdCBpcyBiZWNhdXNlLCBhcyB0aW1l
+IGhhcyBtb3ZlZCBvbiBpdCBzZWVtcyB0aGF0LCBmb3Igc29tZSB1c2VycyBzdWNoIGFzIFJETUEs
+IGEgc2ltcGxlIHB1dF91c2VyX3BhZ2UoKSBpcyBub3QgZ29pbmcgdG8gYmUgc3VmZmljaWVudC4g
+IFdlIG5lZWQgc29tZXRoaW5nIGVsc2UgdG8gYWxsb3cgR1VQIHRvIGtlZXAgdHJhY2sgb2YgdGhl
+IGZpbGUgcGlucyBhcyB3ZSBkaXNjdXNzZWQuICBTbyBJJ20gc3RhcnRpbmcgdG8gdGhpbmsgc29t
+ZSBvZiB0aGlzIGNvdWxkIGdvIGluIGF0IHRoZSBzYW1lIHRpbWUuDQoNCj4gSSB0aG91Z2h0IEkn
+ZCBjYXVnaHQgdGhpbmdzIGVhcmx5IGVub3VnaCB0byBnZXQgYXdheSB3aXRoIHRoZQ0KPiByZW5h
+bWUgYW5kIGRlbGV0aW9uIG9mIHRoYXQuIFlvdSBjb3VsZCBlaXRoZXI6DQo+IA0KPiBhKSBvcGVu
+IGNvZGUgYW4gaW1wbGVtZW50YXRpb24gb2YgdmFkZHJfcHV0X3BhZ2VzX2RpcnR5X2xvY2soKSB0
+aGF0DQo+IGRvZXNuJ3QgY2FsbCBhbnkgb2YgdGhlICpwdXRfdXNlcl9wYWdlc19kaXJ0eSooKSB2
+YXJpYW50cywgb3INCj4gDQo+IGIpIGluY2x1ZGUgbXkgZmlyc3QgcGF0Y2ggKCIiKSBhcmUgcGFy
+dCBvZiB5b3VyIHNlcmllcywgb3INCj4gDQo+IGMpIGJhc2UgdGhpcyBvbiBBbmRyZXdzJ3MgdHJl
+ZSwgd2hpY2ggYWxyZWFkeSBoYXMgbWVyZ2VkIGluIG15IGZpcnN0IHBhdGNoLg0KPiANCg0KWWVw
+IEkgY2FuIGRvIHRoaXMuICBJIGRpZCBub3QgcmVhbGl6ZSB0aGF0IEFuZHJldyBoYWQgYWNjZXB0
+ZWQgYW55IG9mIHRoaXMgd29yay4gIEknbGwgY2hlY2sgb3V0IGhpcyB0cmVlLiAgQnV0IEkgZG9u
+J3QgdGhpbmsgaGUgaXMgZ29pbmcgdG8gYWNjZXB0IHRoaXMgc2VyaWVzIHRocm91Z2ggaGlzIHRy
+ZWUuICBTbyB3aGF0IGlzIHRoZSBFVEEgb24gdGhhdCBsYW5kaW5nIGluIExpbnVzJyB0cmVlPw0K
+DQpUbyB0aGF0IHBvaW50IEknbSBzdGlsbCBub3Qgc3VyZSB3aG8gd291bGQgdGFrZSBhbGwgdGhp
+cyBhcyBJIGFtIG5vdyB0b3VjaGluZyBtbSwgcHJvY2ZzLCByZG1hLCBleHQ0LCBhbmQgeGZzLg0K
+DQpJIGp1c3QgdGhvdWdodCBJIHdvdWxkIGNoaW1lIGluIHdpdGggbXkgcHJvZ3Jlc3MgYmVjYXVz
+ZSBJJ20gdG8gYSBwb2ludCB3aGVyZSB0aGluZ3MgYXJlIHdvcmtpbmcgYW5kIHNvIEkgY2FuIHN1
+Ym1pdCB0aGUgY29kZSBidXQgSSdtIG5vdCBzdXJlIHdoYXQgSSBjYW4vc2hvdWxkIGRlcGVuZCBv
+biBsYW5kaW5nLi4uICBBbHNvLCBub3cgdGhhdCAwZGF5IGhhcyBydW4gb3Zlcm5pZ2h0IGl0IGhh
+cyBmb3VuZCBpc3N1ZXMgd2l0aCB0aGlzIHJlYmFzZSBzbyBJIG5lZWQgdG8gY2xlYW4gdGhvc2Ug
+dXAuLi4gIFBlcmhhcHMgSSB3aWxsIGJhc2Ugb24gQW5kcmV3J3MgdHJlZSBwcmlvciB0byBkb2lu
+ZyB0aGF0Li4uDQoNClRoYW5rcywNCklyYQ0KDQo+IA0KPiB0aGFua3MsDQo+IC0tDQo+IEpvaG4g
+SHViYmFyZA0KPiBOVklESUENCg0K
 
