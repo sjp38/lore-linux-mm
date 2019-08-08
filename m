@@ -2,178 +2,179 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CFB40C32751
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 02:47:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D275C32751
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 03:27:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 83AA12089E
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 02:47:03 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="2pId28en"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 83AA12089E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id 197822186A
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 03:27:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 197822186A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 23CF06B000A; Wed,  7 Aug 2019 22:47:03 -0400 (EDT)
+	id A0BC36B0003; Wed,  7 Aug 2019 23:27:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1ED816B000C; Wed,  7 Aug 2019 22:47:03 -0400 (EDT)
+	id 995206B0006; Wed,  7 Aug 2019 23:27:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B43B6B000D; Wed,  7 Aug 2019 22:47:03 -0400 (EDT)
+	id 7E94E6B0007; Wed,  7 Aug 2019 23:27:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f197.google.com (mail-vk1-f197.google.com [209.85.221.197])
-	by kanga.kvack.org (Postfix) with ESMTP id D8FE26B000A
-	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 22:47:02 -0400 (EDT)
-Received: by mail-vk1-f197.google.com with SMTP id y198so39938472vky.9
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 19:47:02 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 459336B0003
+	for <linux-mm@kvack.org>; Wed,  7 Aug 2019 23:27:04 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id w5so56863165pgs.5
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 20:27:04 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=lrRmrH7t2DxXhTipWxRRs5ivdb/74vVU7DqRNEZ410k=;
-        b=UKpW8sdlwlOeoV0+D+HGHdiOFc5gzqw0j7e3LhlPwZwvDlmCeAH+EaJCR+6RT/hbZ9
-         VKi6i+nEvSOGR/6OsnpPiPK6egBKZogziNsEA8Rj+GX97BtdiwaV23xvuzYXb222rDlQ
-         F45o9EiLRGwNiEnR6pRIplgQ//GfBdeLFqFzF8kfW5lY0ZABIq4M1PlySI2oTsCZZJPq
-         fAB7ngzabD31epiSFdOPBkBV5GEfM1XaUv2mrmdSNJKGVvoMjiNI6JVSxYwZjZot7eMM
-         pe+134VcrGEERhbL7yxVhjKgwYmNXaMoD2JYuVdhUYcsOFHVf/IBvHTLZuN8mJk9YefC
-         86tQ==
-X-Gm-Message-State: APjAAAU/nx3lbomN0EiSy/0fkOzX55ioC3ZocPnSI9LkLdYaxHtFXqqG
-	dbnnRu0nQuVzkX5/lHMWZBSRNPfIKsw8rLKmIE5Wu6SpQsfamWTKFh1n2G6qdI1J4W2P519Ol+O
-	hkZ95lntfysNtsHgu5j8WBcTu+BwIA8l6ZapDw6AEgUtqBoW2mbQR6Fk0MqzhCMi0nw==
-X-Received: by 2002:a67:f355:: with SMTP id p21mr8164679vsm.204.1565232422515;
-        Wed, 07 Aug 2019 19:47:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxpQuR9Xzv5iGeTngz7y0Pu1Yl6O5nB0HKkNvGuzjwhUIdrPyBPxbQP8LfiKMfvqoZW4DLX
-X-Received: by 2002:a67:f355:: with SMTP id p21mr8164666vsm.204.1565232422020;
-        Wed, 07 Aug 2019 19:47:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565232422; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:reply-to:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=ONx/jxyWsZmRyfYnFleBGFMIPyzgXzQefflrM1Nbgvc=;
+        b=FzCABdckzF/cvByVRPu3i9Fn5Y5pr0HKgjPXts/r+/ps01Zw6Wbx/0HVAZkgujJHx8
+         f3dPUCj5ceePTrpBMlhvCL661dM3cuJVhLv5phPmzA80gUMsoPKDF62EmiDANA0Fx8M8
+         +Ri07+yp6rZ/sEsCoOCm22RYxfdJBiLO3URVqAa9g4g8c5r/Yt53cFEIvbnliiae15Yq
+         pWjaIoEUzqkVQlHgT7B5wWioiOVtAhLrYSsUEX+6LYoI5JB/4UWJ12Dhp3SJ1BqfYUwy
+         w6uzGjRvG5KLgDUxd5ku8iZx9kjNGPb1SA8p4QoIQdqYXguHmc3cNzenSfY11OvAjVWe
+         e87Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXOWziRRmnukrFbo0m16vRUfkUurg8RXp4R+gANm9xMjSAoagz9
+	RJ8bxSbYxc/aIPPyZV6HTQf5FHCq7dvYD/mf2ulSHZ30nF233eHMXR6TtNBhcHKiW57be1NwH5V
+	tonGavVM8gkEFolmi/puzyXIjVwDYZ+OXf0dwc7hXVeGYkssimm6z3eyOUBjjXZ09cg==
+X-Received: by 2002:aa7:8dd2:: with SMTP id j18mr12794262pfr.88.1565234823909;
+        Wed, 07 Aug 2019 20:27:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw+3BYURBjC1AMsLPVFjax0yNZXxaR16YtHKO4LnbwX2lmLnvJxIGcvY1HbiBXwistL18SR
+X-Received: by 2002:aa7:8dd2:: with SMTP id j18mr12794211pfr.88.1565234822900;
+        Wed, 07 Aug 2019 20:27:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565234822; cv=none;
         d=google.com; s=arc-20160816;
-        b=GoV5VmzbpqclbZS2Mr3zKJ145TKzIpcW6TG/aqKmlyNtvF4qQgmkjfxCKVjXYC4ele
-         tLRxiJwLlULWl3BBFEjm+5eBl8UpB4sJdzDINJs7FoGsiR/O1wKHQI5viOp+C4zdCJJP
-         zId7Uz2uBuJJnG337aq4UfK26D+Ej5uTfgC7Kvj5eQSV+sXjQJS2s+mS4v2KpzkKCq2W
-         rrStVGUs3/K1zIhvBfCHlrc9eHxVBwTl+33LEly1PC91quimlTb9h/AAo+loaJNTIn63
-         vuO3uKxTtGRai0vCkDsjekzNeEJ/o1jxdPEQomjWWTUubcmTNW92o48eOj8w7cGrZkBP
-         zFmA==
+        b=kBtb/DaP8FKC1IMzAal98147zI5Ai+KQfSwn2S22KZvpwXvb8yTZH26xlHqTF3hjDt
+         DfI0paqqF5GXbR1dyAgigRJmbHykAO4Z4DIbiF81/TBSLlhcq/gWG/Sx6CboChlp/rGR
+         LOA6DtaPy86A/9oNwwjWWU3yToqOFYfsW5ygfNMHF5y5O9H2f3cbfPfxmUFjXU39BfM9
+         0kglTf0IfpMePRSOjW9IONwl2mekTzusowoA0nxxXDG8+THAr7m6YH5JhJiFWiqWD6Ag
+         tlJZs/FUQrR4TDlaTAEtM4dfMkz/u2Cas7Iellhosbpvl7ziD2QtWsNoxHoVuUNyitJS
+         6Zlw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=lrRmrH7t2DxXhTipWxRRs5ivdb/74vVU7DqRNEZ410k=;
-        b=y4kMlU/Sa2rB+xAuNY9eJ5+GawPq9NtLm63hIhtfpRLKrP4/s8MDBQv2drdkmQtPLT
-         VnxCIjCcAGrXTphsOEsXMZt9q/k4ltBnto7hKB3VLAU4EqeFgv/zCyj1syEgdamvRfDu
-         /t8Jepkaf+PMDqnnQgPQxqTMgJqqEXWOXX1EHsB656RvbtESdToIdjHQeI3rBwVPN/0Y
-         m2kUIH4FYBApA2KxxlSjQxyvFsqw8xQXhtdhzqAtKhI3zUJrg+ywhFnkaVOYaCnlqacg
-         1ogUcjvInndDS2Z4IIHBmp97ZXh1/RucXXIJX7ZoxweNvCo1MEK9PF/nTTO8eQ4XwP8X
-         cG1Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :reply-to:message-id:subject:cc:to:from:date;
+        bh=ONx/jxyWsZmRyfYnFleBGFMIPyzgXzQefflrM1Nbgvc=;
+        b=IqprDDQW4oEjMpXCdSvOlmbQLclM6fqu8oCvG/wwteVa3pbuDpfVZO6YFswO8zaOtx
+         msF8dCJJoaixVkm/+peV3tP90alaDw1lmf+RFxhDE+mfCfCsIR9/bBeLnEHvw5CMIdAF
+         ym2oupZKvusaSLndb8DmbcUA/+Krwxj1XTM5yHfhQTg/RsdateWKyk8AQ/BwL3/cILAk
+         BQV2m0iZkJX9ABrDUEWaw0K9+rYkbE46uGPA8M1x/7wuujxvIvadeZbgSfp0634koDqD
+         G5DcyuUYMrwSptod0cQWdtMum7+Z8tRI3FycMarZJuVhRkpj905LC62ujc0dryC4do2m
+         9j4A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=2pId28en;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from userp2130.oracle.com (userp2130.oracle.com. [156.151.31.86])
-        by mx.google.com with ESMTPS id o8si18621261ual.62.2019.08.07.19.47.01
+       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga09.intel.com (mga09.intel.com. [134.134.136.24])
+        by mx.google.com with ESMTPS id a1si28308241pgh.570.2019.08.07.20.27.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 07 Aug 2019 19:47:02 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) client-ip=156.151.31.86;
+        Wed, 07 Aug 2019 20:27:02 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 134.134.136.24 as permitted sender) client-ip=134.134.136.24;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@oracle.com header.s=corp-2018-07-02 header.b=2pId28en;
-       spf=pass (google.com: domain of mike.kravetz@oracle.com designates 156.151.31.86 as permitted sender) smtp.mailfrom=mike.kravetz@oracle.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=oracle.com
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x782hvDB102089;
-	Thu, 8 Aug 2019 02:46:54 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=lrRmrH7t2DxXhTipWxRRs5ivdb/74vVU7DqRNEZ410k=;
- b=2pId28en9LJEdW0ne3zijEyIyY48YmF3imXfi6P2+oxCWtdJ6n6EKOllE3HNkXrr5Cgp
- 25iopFMtfd8J0PeGIJtZLoIgdPA2vGVWrxRnsqRfTfcZglqLzSBICsThdvJrL13fq4/T
- aVshbx3FtGdJ0sIGAQwpJ+wJLDwFPgbaZKp0HBsd7bTk7gyQZ4c2Up4Ap4MqZEB+VrpF
- iTmbzXtzX4OkI2a89ev0Qhj94GjIrsftZtwlv+F7/Qt9fszW46aKfRRnKD5t5l45CN7w
- gt7lhpfWpxRuPcCTPjSVX0u3RXC+7j3W1N3okx3TOm6xL2RQGPktKh5qu4Dlq4kpZkqk ew== 
-Received: from aserp3020.oracle.com (aserp3020.oracle.com [141.146.126.70])
-	by userp2130.oracle.com with ESMTP id 2u51pu7u5e-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 08 Aug 2019 02:46:54 +0000
-Received: from pps.filterd (aserp3020.oracle.com [127.0.0.1])
-	by aserp3020.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x782hJ4C173010;
-	Thu, 8 Aug 2019 02:44:53 GMT
-Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
-	by aserp3020.oracle.com with ESMTP id 2u7578hr6f-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Thu, 08 Aug 2019 02:44:53 +0000
-Received: from abhmp0003.oracle.com (abhmp0003.oracle.com [141.146.116.9])
-	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x782iqqv010401;
-	Thu, 8 Aug 2019 02:44:52 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Wed, 07 Aug 2019 19:44:51 -0700
-Subject: Re: [PATCH] hugetlbfs: fix hugetlb page migration/fault race causing
- SIGBUS
-To: =?UTF-8?B?6KOY56iA55+zKOeogOefsyk=?= <xishi.qiuxishi@alibaba-inc.com>,
-        linux-mm <linux-mm@kvack.org>,
-        linux-kernel <linux-kernel@vger.kernel.org>, ltp <ltp@lists.linux.it>
-Cc: Li Wang <liwang@redhat.com>, Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-        Michal Hocko <mhocko@kernel.org>, Cyril Hrubis <chrubis@suse.cz>,
-        Andrew Morton <akpm@linux-foundation.org>
-References: <f7a64f0a-1ae0-4582-a293-b608bc8fed36.xishi.qiuxishi@alibaba-inc.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <5f072c20-2396-48ee-700a-ea7eafc20328@oracle.com>
-Date: Wed, 7 Aug 2019 19:44:47 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 134.134.136.24 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: UNSCANNABLE
+X-Amp-File-Uploaded: False
+Received: from fmsmga002.fm.intel.com ([10.253.24.26])
+  by orsmga102.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 07 Aug 2019 20:27:02 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,360,1559545200"; 
+   d="scan'208";a="203426188"
+Received: from richard.sh.intel.com (HELO localhost) ([10.239.159.54])
+  by fmsmga002.fm.intel.com with ESMTP; 07 Aug 2019 20:27:01 -0700
+Date: Thu, 8 Aug 2019 11:26:38 +0800
+From: Wei Yang <richardw.yang@linux.intel.com>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Wei Yang <richardw.yang@linux.intel.com>,
+	Vlastimil Babka <vbabka@suse.cz>, akpm@linux-foundation.org,
+	kirill.shutemov@linux.intel.com, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/mmap.c: refine data locality of find_vma_prev
+Message-ID: <20190808032638.GA28138@richard>
+Reply-To: Wei Yang <richardw.yang@linux.intel.com>
+References: <20190806081123.22334-1-richardw.yang@linux.intel.com>
+ <3e57ba64-732b-d5be-1ad6-eecc731ef405@suse.cz>
+ <20190807003109.GB24750@richard>
+ <20190807075101.GN11812@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <f7a64f0a-1ae0-4582-a293-b608bc8fed36.xishi.qiuxishi@alibaba-inc.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9342 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908080027
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9342 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908080027
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190807075101.GN11812@dhcp22.suse.cz>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/7/19 7:24 PM, 裘稀石(稀石) wrote:
-> Hi Mike,
-> 
-> Do you mean the similar race is like the following?
-> 
-> migration clearing the pte
->   page fault(before we return error, and now we return 0, then try page fault again, right?)
->     migration writing a migration entry
+On Wed, Aug 07, 2019 at 09:51:01AM +0200, Michal Hocko wrote:
+>On Wed 07-08-19 08:31:09, Wei Yang wrote:
+>> On Tue, Aug 06, 2019 at 11:29:52AM +0200, Vlastimil Babka wrote:
+>> >On 8/6/19 10:11 AM, Wei Yang wrote:
+>> >> When addr is out of the range of the whole rb_tree, pprev will points to
+>> >> the biggest node. find_vma_prev gets is by going through the right most
+>> >
+>> >s/biggest/last/ ? or right-most?
+>> >
+>> >> node of the tree.
+>> >> 
+>> >> Since only the last node is the one it is looking for, it is not
+>> >> necessary to assign pprev to those middle stage nodes. By assigning
+>> >> pprev to the last node directly, it tries to improve the function
+>> >> locality a little.
+>> >
+>> >In the end, it will always write to the cacheline of pprev. The caller has most
+>> >likely have it on stack, so it's already hot, and there's no other CPU stealing
+>> >it. So I don't understand where the improved locality comes from. The compiler
+>> >can also optimize the patched code so the assembly is identical to the previous
+>> >code, or vice versa. Did you check for differences?
+>> 
+>> Vlastimil
+>> 
+>> Thanks for your comment.
+>> 
+>> I believe you get a point. I may not use the word locality. This patch tries
+>> to reduce some unnecessary assignment of pprev.
+>> 
+>> Original code would assign the value on each node during iteration, this is
+>> what I want to reduce.
+>
+>Is there any measurable difference (on micro benchmarks or regular
+>workloads)?
 
-Yes, something like the that.  The change is to takes the page table lock
-to examine the pte before returning.  If the pte is clear when examined
-while holding the lock, an error will be returned as before.  If not clear,
-then we return zero and try again.
+I wrote a test case to compare these two methods, but not find visible
+difference in run time.
 
-This change adds code which is very much like this check further in
-the routine hugetlb_no_page():
+While I found we may leverage rb_last to refine the code a little.
 
-	ptl = huge_pte_lock(h, mm, ptep);
-	size = i_size_read(mapping->host) >> huge_page_shift(h);
-	if (idx >= size)
-		goto backout;
+@@ -2270,12 +2270,9 @@ find_vma_prev(struct mm_struct *mm, unsigned long addr,
+        if (vma) {
+                *pprev = vma->vm_prev;
+        } else {
+-               struct rb_node *rb_node = mm->mm_rb.rb_node;
+-               *pprev = NULL;
+-               while (rb_node) {
+-                       *pprev = rb_entry(rb_node, struct vm_area_struct, vm_rb);
+-                       rb_node = rb_node->rb_right;
+-               }
++               struct rb_node *rb_node = rb_last(&mm->mm_rb);
++               *pprev = !rb_node ? NULL :
++                        rb_entry(rb_node, struct vm_area_struct, vm_rb);
+        }
+        return vma;
 
-	ret = 0;
-	if (!huge_pte_none(huge_ptep_get(ptep)))
-		goto backout;
+Not sure this style would help a little in understanding the code?
+
+>-- 
+>Michal Hocko
+>SUSE Labs
 
 -- 
-Mike Kravetz
+Wei Yang
+Help you, Help me
 
