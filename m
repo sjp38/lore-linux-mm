@@ -2,203 +2,177 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8278C433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:23:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B5455C32756
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:27:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4783F217F4
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:23:13 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 75F022173C
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:27:11 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="Sv3ezScU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4783F217F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="baL8kVkz"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75F022173C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D059F6B0003; Thu,  8 Aug 2019 16:23:12 -0400 (EDT)
+	id 169DD6B0003; Thu,  8 Aug 2019 16:27:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CB67D6B0006; Thu,  8 Aug 2019 16:23:12 -0400 (EDT)
+	id 11BD76B0006; Thu,  8 Aug 2019 16:27:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BA46B6B0007; Thu,  8 Aug 2019 16:23:12 -0400 (EDT)
+	id 009816B0007; Thu,  8 Aug 2019 16:27:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 80DC36B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 16:23:12 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id x10so59849627pfa.23
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 13:23:12 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id C21796B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 16:27:10 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id 191so59817892pfy.20
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 13:27:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=khUis8U74kkcKVpZjn/Mp0bv9eDyEII73MVGVvtvdsQ=;
-        b=JXAax7+daCffvfE5uX/Ef4VLR+K7UjGcJRyFTwAWGZjnkTiZaOmM4axEsfUwp4x7Y6
-         2CSGiSVBImSrQTJ12JtvtOJo0slnjs10Vw/8MXGVvirYVYnGUzR3bE6390gnPTB+Ytq5
-         yXMYcBSX5KpJf0jSsRQPPhJTNgvQP6+SRJfVioUcwCRYKWjUvRrzsUD8aiHntM6wxjMe
-         l00lgl2IbQnXjPCPZ5dl1PIUv9bOm5+aH0Jw4fxIQsLwoIZgg0frZo4AvAZlwZ5M9vtG
-         vsBuo7umzQk/RDT3E94Uco29b87LO7tAY94KG/blKR33K+ctjOjp2tQovTa3AGmWXHcd
-         USIw==
-X-Gm-Message-State: APjAAAUbc5pF3jOhxX9cTpaSaTqlq9Gb1BKw2QllEK0LwghzQNKnG8yr
-	FZEqTCakBajzTh5gFJm5oThM5O3RzoI4HUx4oTBbdXOSfJDw20NowFHW3NmIHDn7AhRBDanhH/2
-	C5gXdLHv8Y7RJItg5UqxydUZczPco7uZUWpDgaxwatCS9D90CC0x/YTzR2lHflcLC1w==
-X-Received: by 2002:a65:49cc:: with SMTP id t12mr13305738pgs.83.1565295791800;
-        Thu, 08 Aug 2019 13:23:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzT+uWR10wt+NcaKrUaziYpBi6K8VR3dgnKFKHc3huk1NtaaLCOYkb7N9jP8jbIl1bCabbd
-X-Received: by 2002:a65:49cc:: with SMTP id t12mr13305698pgs.83.1565295790774;
-        Thu, 08 Aug 2019 13:23:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565295790; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to;
+        bh=WTcQccWDVPotg15phg3zTAF2oauPTn+igOIs1LWZuPo=;
+        b=B/9CMdjN1Q/77E6AATU3p9YWkZTDzVsadHrg1/rDQc8y7XoP+CebaA6m3zCQuzX99l
+         Jb0zSEruJBzNcMeaaqLCg+MrcM8REGUBr6vmoZ8p2TYciSvOhlu3+rEuEr9bBbOLDBu8
+         cbNBFObLHfYrmJSGxR1nMkQsF2MEIjk3gsnOqCmVmWv6Nnk/3arUZKyNT7wV2UTeeHL/
+         tse2UEvfEyZfwobwivehdcfT7ilpXSlwmvne/LrhoNQoA22Z4w4mV7GxFQgDSSVpvMiN
+         zepg7w7EILxIkFfYM4rYOtpdsu4Cd6LvaxM3f9L/2ThcZ98rSNn1uxIl3OuMAvfwR2OQ
+         /NZw==
+X-Gm-Message-State: APjAAAXZTEOTXsXTCvhBLefJTgKrOooKm710HDTPKNyitYMWjBmAbd9v
+	9M0zJl2rScX/9bJLuiKZXjVtFz/IVWQNtUjtxSIf7fUBN+7kbvaDosqXVVFqG/DmwGs8NePms3p
+	rb2nhKEFTpSHWKL4Kirdqti1lsKTqBCQzMZK11mZZ5MKRfti7C4haHnX91xBDVhLb2A==
+X-Received: by 2002:a62:107:: with SMTP id 7mr17644531pfb.4.1565296030411;
+        Thu, 08 Aug 2019 13:27:10 -0700 (PDT)
+X-Received: by 2002:a62:107:: with SMTP id 7mr17644473pfb.4.1565296029649;
+        Thu, 08 Aug 2019 13:27:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565296029; cv=none;
         d=google.com; s=arc-20160816;
-        b=uZ10LL6K+Ir3gRmitZEg13YRv4OMklRQJsKiERt1v8ko0s47LeCxPUEBXqxRETGN8P
-         06hoXYhVobfSg1Y21De9WRWIF67gYsvvTBIFmhU7N3nb9FNRacF4mS8zeirOwNu4oZJq
-         EdwtG2rUAkbEwdofLlj7oZARXWC9w+cjk37mPIMHCAsrLsvdvSL52g2WzAEbXc3rpzgM
-         A23Gjm7Fpx4c+XW2+s5cQQpMMrIzHCPvxQEqkzDGEZerJHCzUoTPKbt43kjNBsuX3ZDe
-         1rwr3sq0NUFcCwyGA51ea/vypAo9NvfTugNggwffppRPf7Hn1EBUCcMOTta8Vj7MqhJB
-         fUfA==
+        b=juvmwWSxevKo5R4fuf9yF05YHE2NoTxjQI/bh0aabuxRIvxjFUUzrD59cQ+yIePA++
+         x2EeY1e9wSTMwtYFO+iaAmIUXDlcANmJirZIeC6ns+SW0ljh82buuCc2eUvHGVqeUyzQ
+         /M6L3/8ouxTCrPjR/+xsaOV5OjiS5sLpbsn15NOzzC1GoX0EijfsvtxK2KNK1SMjY5Wv
+         eBcm3KN3gk61cw2ouJDxCRmxp0vjUJkRJE1xKXJ/ZF9131BrlvzsLuW0Od2F5dhmv+nV
+         /7yaUC45i8SyYQfdhuq6KyOE7hyyKTFlI/X1iDIkt20gub95HwnocizBEcGR/uc26G/5
+         Sw+g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=khUis8U74kkcKVpZjn/Mp0bv9eDyEII73MVGVvtvdsQ=;
-        b=GhFnVTXIueyRu7a3iVwZfjT4NMI2l/lvl4cNbFA8VpwFraw1s1SR3OA/wmJ83tQ6Tt
-         npXqda1j90fyadqdg1mDtTSQzgoirnEUy6DobmF/WdL9t4EgRKam26uWD1oSabWXbRhM
-         /lAvP76Y1LHow6Nn1ImiLsNaiycpQoyJslx9Jn/4Cqi3WR95tmAX8OSJIDRSfKsave88
-         fRpjqf+46nPj6s2EzsWCGeU7k8LfJ0OWfeCSXWTRy+GVZ4GfhmSamq7bO8hzZjP/poQe
-         TxQwinrVP+yH8xv7v1TpcKiagronpLZevMg+fQcVUm34BIBJhcwxlCcoOTd6mAnNG7y2
-         QXVA==
+        h=in-reply-to:content-disposition:mime-version:references:message-id
+         :subject:cc:to:from:date:dkim-signature;
+        bh=WTcQccWDVPotg15phg3zTAF2oauPTn+igOIs1LWZuPo=;
+        b=JA06dGmSx77VO8ISMU2uGgkV5wUL00LoZzy4WCA4a3H0irAvuKybal4dKTv+NE5OBf
+         4wWEaYVJcLQ7ghE7G8sdD2znph2RMc4WDbR5NKpQgM4V2cjnc6J4hY6eQ1XhVBrO+eCF
+         grZ23eGzz7rwC1svGzf0n1w5xrM3UJ1dcCkrJEv7gACHL2mE1CxlIpMghX74+gK01pn5
+         rUqm2rCInunK9FjXue4XkAejS8nhkNxAt/P5DAhI+SmIK2xwzcUCqNtrQ5i2OUQzqewQ
+         Wo57xwN4cVURiRo3Ax4OwWhD8k+cxE4iH+M0Wb24x7jGbyhXAoNLDGBvX3qM3OtaFXfl
+         XyFA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Sv3ezScU;
-       spf=pass (google.com: domain of shuah@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=shuah@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id 21si56029511pfo.138.2019.08.08.13.23.10
+       dkim=pass header.i=@chromium.org header.s=google header.b=baL8kVkz;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id o32sor113649700pld.12.2019.08.08.13.27.09
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 13:23:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of shuah@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Thu, 08 Aug 2019 13:27:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=Sv3ezScU;
-       spf=pass (google.com: domain of shuah@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=shuah@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from [192.168.1.112] (c-24-9-64-241.hsd1.co.comcast.net [24.9.64.241])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 7DE1C2173C;
-	Thu,  8 Aug 2019 20:23:09 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565295790;
-	bh=RHraHwfrbwkREg74Xy9SOBTOzh4EzmM+GX9f7LiI4tg=;
-	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
-	b=Sv3ezScU40/zyzSwPkXgXdl2Zfpk274kLgsFqRrBhADRQrvgV8spmG+hFWG1IoYWT
-	 Pbp2ldUVK7N9APpheUobyrSNhYkO7tImql2TTefGzCTJJ5SKTkMgTlB32mCMLnkk8a
-	 RywI5Y4D5/UX4eBw5YX0L4x6Q7BQPy92DbnCOaC8=
-Subject: Re: [RFC PATCH] hugetlbfs: Add hugetlb_cgroup reservation limits
-To: Mina Almasry <almasrymina@google.com>, mike.kravetz@oracle.com
-Cc: rientjes@google.com, shakeelb@google.com, gthelen@google.com,
- akpm@linux-foundation.org, khalid.aziz@oracle.com,
- linux-kernel@vger.kernel.org, linux-mm@kvack.org,
- linux-kselftest@vger.kernel.org, shuah <shuah@kernel.org>
-References: <20190808194002.226688-1-almasrymina@google.com>
-From: shuah <shuah@kernel.org>
-Message-ID: <528b37c6-3e7a-c6fc-a322-beecb89011a5@kernel.org>
-Date: Thu, 8 Aug 2019 14:23:08 -0600
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@chromium.org header.s=google header.b=baL8kVkz;
+       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=chromium.org; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to;
+        bh=WTcQccWDVPotg15phg3zTAF2oauPTn+igOIs1LWZuPo=;
+        b=baL8kVkzYdf3Yw7iok/ISH9qw6Z5IgHF4JsMSBGfdZmgc/JdCO+HpcWQGGMZ/YHvH6
+         SSVI1kBNX28mBZcYh+JlM/bQag427pRge8EruzV2ieAIq88fFgNsZ3WJqshOscuVs3Iz
+         d3XBgLRYWP/OlBSFKX0cWHM3Fb5cJyhJJWQKs=
+X-Google-Smtp-Source: APXvYqxwm9iB2DDzVLvhxV2ThVMadzVdxUASbdYGfIVkvlE3ECQjJubaoQGdIuoteqU4Z4An/jmJ/g==
+X-Received: by 2002:a17:902:9a85:: with SMTP id w5mr15426653plp.221.1565296029267;
+        Thu, 08 Aug 2019 13:27:09 -0700 (PDT)
+Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
+        by smtp.gmail.com with ESMTPSA id 14sm93977517pfy.40.2019.08.08.13.27.08
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Thu, 08 Aug 2019 13:27:08 -0700 (PDT)
+Date: Thu, 8 Aug 2019 13:27:07 -0700
+From: Kees Cook <keescook@chromium.org>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: syzbot <syzbot+3de312463756f656b47d@syzkaller.appspotmail.com>,
+	allison@lohutok.net, andreyknvl@google.com, cai@lca.pw,
+	gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org, linux-usb@vger.kernel.org,
+	syzkaller-bugs@googlegroups.com, tglx@linutronix.de,
+	Jiri Kosina <jkosina@suse.cz>
+Subject: Re: BUG: bad usercopy in hidraw_ioctl
+Message-ID: <201908081319.E2123D5A@keescook>
+References: <000000000000ce6527058f8bf0d0@google.com>
+ <20190807195821.GD5482@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20190808194002.226688-1-almasrymina@google.com>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190807195821.GD5482@bombadil.infradead.org>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/8/19 1:40 PM, Mina Almasry wrote:
-> Problem:
-> Currently tasks attempting to allocate more hugetlb memory than is available get
-> a failure at mmap/shmget time. This is thanks to Hugetlbfs Reservations [1].
-> However, if a task attempts to allocate hugetlb memory only more than its
-> hugetlb_cgroup limit allows, the kernel will allow the mmap/shmget call,
-> but will SIGBUS the task when it attempts to fault the memory in.
+On Wed, Aug 07, 2019 at 12:58:21PM -0700, Matthew Wilcox wrote:
+> On Wed, Aug 07, 2019 at 12:28:06PM -0700, syzbot wrote:
+> > usercopy: Kernel memory exposure attempt detected from wrapped address
+> > (offset 0, size 0)!
+> > ------------[ cut here ]------------
+> > kernel BUG at mm/usercopy.c:98!
 > 
-> We have developers interested in using hugetlb_cgroups, and they have expressed
-> dissatisfaction regarding this behavior. We'd like to improve this
-> behavior such that tasks violating the hugetlb_cgroup limits get an error on
-> mmap/shmget time, rather than getting SIGBUS'd when they try to fault
-> the excess memory in.
+> This report is confusing because the arguments to usercopy_abort() are wrong.
 > 
-> The underlying problem is that today's hugetlb_cgroup accounting happens
-> at hugetlb memory *fault* time, rather than at *reservation* time.
-> Thus, enforcing the hugetlb_cgroup limit only happens at fault time, and
-> the offending task gets SIGBUS'd.
-> 
-> Proposed Solution:
-> A new page counter named hugetlb.xMB.reservation_[limit|usage]_in_bytes. This
-> counter has slightly different semantics than
-> hugetlb.xMB.[limit|usage]_in_bytes:
-> 
-> - While usage_in_bytes tracks all *faulted* hugetlb memory,
-> reservation_usage_in_bytes tracks all *reserved* hugetlb memory.
-> 
-> - If a task attempts to reserve more memory than limit_in_bytes allows,
-> the kernel will allow it to do so. But if a task attempts to reserve
-> more memory than reservation_limit_in_bytes, the kernel will fail this
-> reservation.
-> 
-> This proposal is implemented in this patch, with tests to verify
-> functionality and show the usage.
-> 
-> Alternatives considered:
-> 1. A new cgroup, instead of only a new page_counter attached to
->     the existing hugetlb_cgroup. Adding a new cgroup seemed like a lot of code
->     duplication with hugetlb_cgroup. Keeping hugetlb related page counters under
->     hugetlb_cgroup seemed cleaner as well.
-> 
-> 2. Instead of adding a new counter, we considered adding a sysctl that modifies
->     the behavior of hugetlb.xMB.[limit|usage]_in_bytes, to do accounting at
->     reservation time rather than fault time. Adding a new page_counter seems
->     better as userspace could, if it wants, choose to enforce different cgroups
->     differently: one via limit_in_bytes, and another via
->     reservation_limit_in_bytes. This could be very useful if you're
->     transitioning how hugetlb memory is partitioned on your system one
->     cgroup at a time, for example. Also, someone may find usage for both
->     limit_in_bytes and reservation_limit_in_bytes concurrently, and this
->     approach gives them the option to do so.
-> 
-> Caveats:
-> 1. This support is implemented for cgroups-v1. I have not tried
->     hugetlb_cgroups with cgroups v2, and AFAICT it's not supported yet.
->     This is largely because we use cgroups-v1 for now. If required, I
->     can add hugetlb_cgroup support to cgroups v2 in this patch or
->     a follow up.
-> 2. Most complicated bit of this patch I believe is: where to store the
->     pointer to the hugetlb_cgroup to uncharge at unreservation time?
->     Normally the cgroup pointers hang off the struct page. But, with
->     hugetlb_cgroup reservations, one task can reserve a specific page and another
->     task may fault it in (I believe), so storing the pointer in struct
->     page is not appropriate. Proposed approach here is to store the pointer in
->     the resv_map. See patch for details.
-> 
-> [1]: https://www.kernel.org/doc/html/latest/vm/hugetlbfs_reserv.html
-> 
-> Signed-off-by: Mina Almasry <almasrymina@google.com>
-> ---
->   include/linux/hugetlb.h                       |  10 +-
->   include/linux/hugetlb_cgroup.h                |  19 +-
->   mm/hugetlb.c                                  | 256 ++++++++--
->   mm/hugetlb_cgroup.c                           | 153 +++++-
+>         /* Reject if object wraps past end of memory. */
+>         if (ptr + n < ptr)
+>                 usercopy_abort("wrapped address", NULL, to_user, 0, ptr + n);
 
-Is there a reason why all these changes are in a single patch?
-I can see these split in at least 2 or 3 patches with the test
-as a separate patch.
+This test actually contains an off-by-one which was recently fixed:
+https://lore.kernel.org/linux-mm/1564509253-23287-1-git-send-email-isaacm@codeaurora.org/
 
-Makes it lot easier to review.
+So, this is actually a false positive if "ptr + n" yields a 0
+(e.g. 0xffffffff + 1 == 0).
 
-thanks,
--- Shuah
+> ptr + n is not 'size', it's what wrapped.  I don't know what 'offset'
+> should be set to, but 'size' should be 'n'.  Presumably we don't want to
+> report 'ptr' because it'll leak a kernel address ... reporting 'n' will
+
+Right, I left offset 0 (this is normally the offset into a reported area
+like a specific kmalloc region, but isn't meaningful here IMO). And I
+left the size as "how far we wrapped". (Which is pretty telling: we
+wrapped 0 bytes ... *cough*.)
+
+> leak a range for a kernel address, but I think that's OK?  Admittedly an
+> attacker can pass in various values for 'n', but it'll be quite noisy
+> and leave a trace in the kernel logs for forensics to find afterwards.
+> 
+> > Call Trace:
+> >  check_bogus_address mm/usercopy.c:151 [inline]
+> >  __check_object_size mm/usercopy.c:260 [inline]
+> >  __check_object_size.cold+0xb2/0xba mm/usercopy.c:250
+> >  check_object_size include/linux/thread_info.h:119 [inline]
+> >  check_copy_size include/linux/thread_info.h:150 [inline]
+> >  copy_to_user include/linux/uaccess.h:151 [inline]
+> >  hidraw_ioctl+0x38c/0xae0 drivers/hid/hidraw.c:392
+> 
+> The root problem would appear to be:
+> 
+>                                 else if (copy_to_user(user_arg + offsetof(
+>                                         struct hidraw_report_descriptor,
+>                                         value[0]),
+>                                         dev->hid->rdesc,
+>                                         min(dev->hid->rsize, len)))
+> 
+> That 'min' should surely be a 'max'?
+> 
+> Jiri, this looks like it was your code back in 2007.
+
+I think this code is correct and the usercopy reporting fix already in
+-mm solves the problem.
+
+-- 
+Kees Cook
 
