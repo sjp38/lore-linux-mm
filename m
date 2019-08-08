@@ -2,189 +2,204 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6F865C0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:21:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E13CC0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:29:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0BD1E2173E
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:21:49 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A290B2173E
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:29:12 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="2ImeMMyb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0BD1E2173E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="KalgEU89"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A290B2173E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 97F326B0007; Thu,  8 Aug 2019 17:21:49 -0400 (EDT)
+	id 1D6926B0007; Thu,  8 Aug 2019 17:29:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 92F0C6B0008; Thu,  8 Aug 2019 17:21:49 -0400 (EDT)
+	id 161926B0008; Thu,  8 Aug 2019 17:29:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7F6806B000A; Thu,  8 Aug 2019 17:21:49 -0400 (EDT)
+	id 001376B000A; Thu,  8 Aug 2019 17:29:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 48BEB6B0007
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 17:21:49 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id h5so58439365pgq.23
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 14:21:49 -0700 (PDT)
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BE5136B0007
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 17:29:11 -0400 (EDT)
+Received: by mail-ot1-f71.google.com with SMTP id v49so64546346otb.6
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 14:29:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=2PSExnZL6PgmjPi41kVQwf4nCMqPmqKLyo2wb4+uXfU=;
-        b=ThdNh/ZG7J2xXXw2y613QJEw4c3xlmPmdad5bi5wYAs2zzx9m2FX95X3LQHWAH2dhj
-         x4EcyGIcwvvYKzPU1u31bRpn0Vg4PLqnOJqgE6vnlroBCv/MHJfjsajgy32VDObtZ7F2
-         32d2lhYEAOi41JJNLpC2Nx0d9/ntE5TIpz6+HCwPD2a/X7C/1XPyEe4pSXmK9XrUWQPc
-         LDOx1RcAzHKGG7U4E2VqcA1wxvzKABg+FzwrypCenuvAI8+vhwQJ/DyyAWsnDjtarnVt
-         iiMi1S+CxNXD5/JHB4cWRa+DGQmU0p/8XWGaZvM7foKQXbVS3N9CCZ2daRkFfAth8OA9
-         rPlQ==
-X-Gm-Message-State: APjAAAU0yY0zsKT8ZTXdhlc4Ixf4vevssLJDMB/ypan8k29DhNdiXOdc
-	ew8E58xJJVenEDwu+hwtrsKrTQzyEmUOBS+P5sllLYGshmeoouv08dWirGPkgg3JZl9d8FPSZI6
-	YIYcRDeKD23PtMql+TGeRo/YX5/dhiNK2uv/t94SGq7wcCLuEfdUEM+4L/2opfO4Xzw==
-X-Received: by 2002:a63:550e:: with SMTP id j14mr12989602pgb.302.1565299308883;
-        Thu, 08 Aug 2019 14:21:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxMJOeap6FNukw2Y9XLDyajBEHdAjvGYqGlwS0NgCQvHl2HfvUV/M5BeIwG0nr3spDCw6I4
-X-Received: by 2002:a63:550e:: with SMTP id j14mr12989571pgb.302.1565299308121;
-        Thu, 08 Aug 2019 14:21:48 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565299308; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=DzaZFkNgePDlVaXLESVKlCNNCGSeU4vRw8is94V5UdA=;
+        b=QtBksVjrwbruqzCfUOcyj6oT4fuez7pcN0qxuxW5U+2R5Oqj0Q0h6dBHCC/3cKE6Zr
+         S0BklPV6h+gFPt5zK+uqaI3bhMqadMcXjHRtePWGrb2Uw9SK04FMZ1Hwy4uMSnpzHA60
+         nYL5Fq4n5jdQN10D86QFueevxlmiGPm7DH+HcA4TVTW+oOLJy7q7Jz0ApEeBz/XNHbrG
+         vSAqbZW/gOEEQd4sKZceWO8pRVmPEGE/XNLbOoP44KUGqNXjm/SmC93/q1LGAg2+b6or
+         023sDziO7DpkTNP2r6IgF3u5atPDXAD09NoFh1ilNJ9QniYrtdLKRNuZbTCUuYNrcgVk
+         FYFg==
+X-Gm-Message-State: APjAAAVP/j6iy9VsscVGtQiDsll/8hE2RGunQWuur6A2FiqEMP+HUQA1
+	8OxWcniiSi1/hN23WA5x8kUZYr7LSIBVi4P4tlWyISUgtIz6P5rMiG72tCMnpPSr+ySddpDeMP4
+	meyy1pQEZwHXAe1wl9WCtHqak0S0mMS9gvJrFxSiWoQ8gM/HhlzxlrLc+A2z4+fn5fg==
+X-Received: by 2002:a05:6830:2148:: with SMTP id r8mr15580134otd.179.1565299751401;
+        Thu, 08 Aug 2019 14:29:11 -0700 (PDT)
+X-Received: by 2002:a05:6830:2148:: with SMTP id r8mr15580095otd.179.1565299750560;
+        Thu, 08 Aug 2019 14:29:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565299750; cv=none;
         d=google.com; s=arc-20160816;
-        b=TafxsYwB0Tr1kxlE0zrZfmTd12Grgl1CPNbiYeOI1O5xru3S1Y0ee0HVlB17m7vMgt
-         c4vZkhyHvk9L7kSDWbi5qYKcTmVskcv7zER45bDPv/Bk2wmdpbvSWcblSqlVJ+fgiEZ4
-         iMZXEx08HD5nyjPpdTy43qPIxAEVSU6e/2nSuieWcPBebleIFFDwsZns57IDZsO+/9TJ
-         c+sVodHEKrD5GjZ65ROScYuJyObWQ1tf6r5Ajn9kPIv3O6FhoFEgSTa4AV3BUMgnZRd4
-         fpH4cGupqqDJbr0xYEq2zwBRql12Gv8ChCBG5FTGehXCW9OKlo1etXunuDcEyR0JtISH
-         bfgA==
+        b=gbLRP7+Yphu2oKCfVh9+8CjVDnAPUpTTBep3okIMjC78lHAVpf44q4POULcjrgLJXw
+         /qlE3VYIrxWvuRrknKVF21uikSvUdEP7IhG3yfvXPUknQcdB/tXTMECtHlB0Dh0qBlFq
+         ml0bZvo+r5bUEXOQQx2BUXpp5/ITdHPLhTRiDL6TYpVzcq0JEaHoiGJ+iSfS3McvMyUj
+         jIkpi+POYqyYY9b+VRk9pvBWQIABmZli2f61/73a9/hTMZLZxMBZ5r6bEWolKlNF9a6l
+         1AXE3izFGGKeAyF+QUbxhe5o7xQBOMrdOCUOtbd+wWNnhgfmqSuuZCOUcS6mLVi1QjWY
+         Du1g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=2PSExnZL6PgmjPi41kVQwf4nCMqPmqKLyo2wb4+uXfU=;
-        b=Oei3v7zjp+lhyKkhk2DScetLGg/wuhljWxjqKuMUYEtXHMpOuARajSRNXoczGF432H
-         BbLPrm8tZe8W8JjQUD+HvkeLnM9cS2mXBdtk1fW01izNAqA+M+R8KSEllbnfP8Deaodv
-         8Gqkkog7cxF1pRkUTal1ZN6XzuovSeR+IvuTtNoBBlXfYVX36Z/S8m2N2sPbD3R8KCzX
-         bYoRVsL+yhGF5cvzjcEQIfH/IR5peG1iAF/lY/sT+xu2wmh2cBbBELDto6x7i7Wp1/zO
-         OgzHsKVWswM4qZ1lZFbHQ9lNMmsQ/66Dpi2eSEilY7dUH3jLZGRLzjFQRGurpOW0hx5z
-         mt7Q==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=DzaZFkNgePDlVaXLESVKlCNNCGSeU4vRw8is94V5UdA=;
+        b=BFzKQPUlLnpGcX+Fv3K1BMQYk9mHdgv2qrGB1peuyoX47Saz9UdthLBXvKAdW+d9/N
+         Bj2v6JwsuE1aMvoXpsUjs0UYnUdBH+BJTcCHaEGd5R1j1fuEBPp1VMR6UeWpoq2i6c2S
+         X2D3VexqYkIqbb76qu2kbrnMgToEqdWNr6yoxJPFKDGECFtfNunD84qV7fqeU5M078Vj
+         OKidrns0McGNQQzTIvekTAVPtWQzaIgfDV8jGaBxOmPy+/O+yRhPfbsz7PNYvkUo5tqN
+         kQB28SzzZ4RtszvPDyRUpm8RVdQkJvjMhaQPcZbMtroYSOpAHaxpMAMGJ5h5JR/oTPmq
+         +cqA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=2ImeMMyb;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id p12si75224997plq.331.2019.08.08.14.21.47
+       dkim=pass header.i=@google.com header.s=20161025 header.b=KalgEU89;
+       spf=pass (google.com: domain of almasrymina@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=almasrymina@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id l184sor40896852oib.119.2019.08.08.14.29.10
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 14:21:48 -0700 (PDT)
-Received-SPF: pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        (Google Transport Security);
+        Thu, 08 Aug 2019 14:29:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of almasrymina@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=2ImeMMyb;
-       spf=pass (google.com: domain of akpm@linux-foundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=akpm@linux-foundation.org
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 6BB582166E;
-	Thu,  8 Aug 2019 21:21:47 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565299307;
-	bh=LgjCrDBOFNjZIGmWfH/ct2Mm4aiB1Es4buMJn30aQvY=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=2ImeMMybV064Z0DxdUeprm+KuyhJO20DaFsupoAvVIlLSqheXfGcf1uuRXh14Sd2p
-	 ga56EsJLL90V5ZbfzYXSkTVMRDVOsVZzV0sYKuee53I+nxBGGQiS+dMEWj0I6g58kM
-	 FTn+JRSENWS2+lhaf+crG46ih3HBKYmNxyVr3cVg=
-Date: Thu, 8 Aug 2019 14:21:46 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: Roman Gushchin <guro@fb.com>
-Cc: <linux-mm@kvack.org>, Michal Hocko <mhocko@kernel.org>, Johannes Weiner
- <hannes@cmpxchg.org>, <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>
-Subject: Re: [PATCH] mm: memcontrol: flush slab vmstats on kmem offlining
-Message-Id: <20190808142146.a328cd673c66d5fdbca26f79@linux-foundation.org>
-In-Reply-To: <20190808203604.3413318-1-guro@fb.com>
-References: <20190808203604.3413318-1-guro@fb.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
-Content-Transfer-Encoding: 7bit
+       dkim=pass header.i=@google.com header.s=20161025 header.b=KalgEU89;
+       spf=pass (google.com: domain of almasrymina@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=almasrymina@google.com;
+       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=DzaZFkNgePDlVaXLESVKlCNNCGSeU4vRw8is94V5UdA=;
+        b=KalgEU890W2v3tdxmH2d7QO3pSxS/bg4+84+pquKaYaO7PNVW3CsGLHZm1QndUrNeZ
+         Kes6GlrYRGfs39qNLpaAgPALwmTqr8BKMMDL5YAXSUayczbCfJxZvC8USF5mL1RKr9Sa
+         eRAaFlqu14/WjkMYqOYUArE0eXX4bUHL0XyNPJl7FJW+2B2PgpuY+2Wdnir2QC1oGtI0
+         dQ41Y0PXBN3BlV82y7AA5w0ORAvn6hNVFoAThakwZ8ytbFoZkjLxwp4YHOk8JYbHk2BI
+         hbfDika9QTq8x7qLymoedawkBjxAXrS54uUhsJGvcAM/+Jd3EOiC5gLCctXcL7jWI7Du
+         +VHQ==
+X-Google-Smtp-Source: APXvYqzoPupi/hlxnLQxtV5HHOP2zFDbWqQf5PEzMQj2ePkR0PAEk3t0ZRroKEvH5zKdgxYIRQ3cyRsINwSRUJIJevY=
+X-Received: by 2002:aca:39c4:: with SMTP id g187mr4300457oia.8.1565299749633;
+ Thu, 08 Aug 2019 14:29:09 -0700 (PDT)
+MIME-Version: 1.0
+References: <20190808194002.226688-1-almasrymina@google.com> <528b37c6-3e7a-c6fc-a322-beecb89011a5@kernel.org>
+In-Reply-To: <528b37c6-3e7a-c6fc-a322-beecb89011a5@kernel.org>
+From: Mina Almasry <almasrymina@google.com>
+Date: Thu, 8 Aug 2019 14:28:58 -0700
+Message-ID: <CAHS8izPosKtqr3nJYEKz-jjG9iuTq_TPqE7yyN+2OQ5Gx8qUGw@mail.gmail.com>
+Subject: Re: [RFC PATCH] hugetlbfs: Add hugetlb_cgroup reservation limits
+To: shuah <shuah@kernel.org>
+Cc: mike.kravetz@oracle.com, David Rientjes <rientjes@google.com>, 
+	Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>, akpm@linux-foundation.org, 
+	khalid.aziz@oracle.com, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, 
+	linux-kselftest@vger.kernel.org
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, 8 Aug 2019 13:36:04 -0700 Roman Gushchin <guro@fb.com> wrote:
+On Thu, Aug 8, 2019 at 1:23 PM shuah <shuah@kernel.org> wrote:
+>
+> On 8/8/19 1:40 PM, Mina Almasry wrote:
+> > Problem:
+> > Currently tasks attempting to allocate more hugetlb memory than is available get
+> > a failure at mmap/shmget time. This is thanks to Hugetlbfs Reservations [1].
+> > However, if a task attempts to allocate hugetlb memory only more than its
+> > hugetlb_cgroup limit allows, the kernel will allow the mmap/shmget call,
+> > but will SIGBUS the task when it attempts to fault the memory in.
+> >
+> > We have developers interested in using hugetlb_cgroups, and they have expressed
+> > dissatisfaction regarding this behavior. We'd like to improve this
+> > behavior such that tasks violating the hugetlb_cgroup limits get an error on
+> > mmap/shmget time, rather than getting SIGBUS'd when they try to fault
+> > the excess memory in.
+> >
+> > The underlying problem is that today's hugetlb_cgroup accounting happens
+> > at hugetlb memory *fault* time, rather than at *reservation* time.
+> > Thus, enforcing the hugetlb_cgroup limit only happens at fault time, and
+> > the offending task gets SIGBUS'd.
+> >
+> > Proposed Solution:
+> > A new page counter named hugetlb.xMB.reservation_[limit|usage]_in_bytes. This
+> > counter has slightly different semantics than
+> > hugetlb.xMB.[limit|usage]_in_bytes:
+> >
+> > - While usage_in_bytes tracks all *faulted* hugetlb memory,
+> > reservation_usage_in_bytes tracks all *reserved* hugetlb memory.
+> >
+> > - If a task attempts to reserve more memory than limit_in_bytes allows,
+> > the kernel will allow it to do so. But if a task attempts to reserve
+> > more memory than reservation_limit_in_bytes, the kernel will fail this
+> > reservation.
+> >
+> > This proposal is implemented in this patch, with tests to verify
+> > functionality and show the usage.
+> >
+> > Alternatives considered:
+> > 1. A new cgroup, instead of only a new page_counter attached to
+> >     the existing hugetlb_cgroup. Adding a new cgroup seemed like a lot of code
+> >     duplication with hugetlb_cgroup. Keeping hugetlb related page counters under
+> >     hugetlb_cgroup seemed cleaner as well.
+> >
+> > 2. Instead of adding a new counter, we considered adding a sysctl that modifies
+> >     the behavior of hugetlb.xMB.[limit|usage]_in_bytes, to do accounting at
+> >     reservation time rather than fault time. Adding a new page_counter seems
+> >     better as userspace could, if it wants, choose to enforce different cgroups
+> >     differently: one via limit_in_bytes, and another via
+> >     reservation_limit_in_bytes. This could be very useful if you're
+> >     transitioning how hugetlb memory is partitioned on your system one
+> >     cgroup at a time, for example. Also, someone may find usage for both
+> >     limit_in_bytes and reservation_limit_in_bytes concurrently, and this
+> >     approach gives them the option to do so.
+> >
+> > Caveats:
+> > 1. This support is implemented for cgroups-v1. I have not tried
+> >     hugetlb_cgroups with cgroups v2, and AFAICT it's not supported yet.
+> >     This is largely because we use cgroups-v1 for now. If required, I
+> >     can add hugetlb_cgroup support to cgroups v2 in this patch or
+> >     a follow up.
+> > 2. Most complicated bit of this patch I believe is: where to store the
+> >     pointer to the hugetlb_cgroup to uncharge at unreservation time?
+> >     Normally the cgroup pointers hang off the struct page. But, with
+> >     hugetlb_cgroup reservations, one task can reserve a specific page and another
+> >     task may fault it in (I believe), so storing the pointer in struct
+> >     page is not appropriate. Proposed approach here is to store the pointer in
+> >     the resv_map. See patch for details.
+> >
+> > [1]: https://www.kernel.org/doc/html/latest/vm/hugetlbfs_reserv.html
+> >
+> > Signed-off-by: Mina Almasry <almasrymina@google.com>
+> > ---
+> >   include/linux/hugetlb.h                       |  10 +-
+> >   include/linux/hugetlb_cgroup.h                |  19 +-
+> >   mm/hugetlb.c                                  | 256 ++++++++--
+> >   mm/hugetlb_cgroup.c                           | 153 +++++-
+>
+> Is there a reason why all these changes are in a single patch?
+> I can see these split in at least 2 or 3 patches with the test
+> as a separate patch.
+>
 
-> I've noticed that the "slab" value in memory.stat is sometimes 0,
-> even if some children memory cgroups have a non-zero "slab" value.
-> The following investigation showed that this is the result
-> of the kmem_cache reparenting in combination with the per-cpu
-> batching of slab vmstats.
-> 
-> At the offlining some vmstat value may leave in the percpu cache,
-> not being propagated upwards by the cgroup hierarchy. It means
-> that stats on ancestor levels are lower than actual. Later when
-> slab pages are released, the precise number of pages is substracted
-> on the parent level, making the value negative. We don't show negative
-> values, 0 is printed instead.
-> 
-> To fix this issue, let's flush percpu slab memcg and lruvec stats
-> on memcg offlining. This guarantees that numbers on all ancestor
-> levels are accurate and match the actual number of outstanding
-> slab pages.
-> 
-
-Looks expensive.  How frequently can these functions be called?
-
-> --- a/mm/memcontrol.c
-> +++ b/mm/memcontrol.c
-> @@ -3412,6 +3412,50 @@ static int memcg_online_kmem(struct mem_cgroup *memcg)
->  	return 0;
->  }
->  
-> +static void memcg_flush_slab_node_stats(struct mem_cgroup *memcg, int node)
-> +{
-> +	struct mem_cgroup_per_node *pn = memcg->nodeinfo[node];
-> +	struct mem_cgroup_per_node *pi;
-> +	unsigned long recl = 0, unrecl = 0;
-> +	int cpu;
-> +
-> +	for_each_possible_cpu(cpu) {
-> +		recl += raw_cpu_read(
-> +			pn->lruvec_stat_cpu->count[NR_SLAB_RECLAIMABLE]);
-> +		unrecl += raw_cpu_read(
-> +			pn->lruvec_stat_cpu->count[NR_SLAB_UNRECLAIMABLE]);
-> +	}
-> +
-> +	for (pi = pn; pi; pi = parent_nodeinfo(pi, node)) {
-> +		atomic_long_add(recl,
-> +				&pi->lruvec_stat[NR_SLAB_RECLAIMABLE]);
-> +		atomic_long_add(unrecl,
-> +				&pi->lruvec_stat[NR_SLAB_UNRECLAIMABLE]);
-> +	}
-> +}
-> +
-> +static void memcg_flush_slab_vmstats(struct mem_cgroup *memcg)
-> +{
-> +	struct mem_cgroup *mi;
-> +	unsigned long recl = 0, unrecl = 0;
-> +	int node, cpu;
-> +
-> +	for_each_possible_cpu(cpu) {
-> +		recl += raw_cpu_read(
-> +			memcg->vmstats_percpu->stat[NR_SLAB_RECLAIMABLE]);
-> +		unrecl += raw_cpu_read(
-> +			memcg->vmstats_percpu->stat[NR_SLAB_UNRECLAIMABLE]);
-> +	}
-> +
-> +	for (mi = memcg; mi; mi = parent_mem_cgroup(mi)) {
-> +		atomic_long_add(recl, &mi->vmstats[NR_SLAB_RECLAIMABLE]);
-> +		atomic_long_add(unrecl, &mi->vmstats[NR_SLAB_UNRECLAIMABLE]);
-> +	}
-> +
-> +	for_each_node(node)
-> +		memcg_flush_slab_node_stats(memcg, node);
-
-This loops across all possible CPUs once for each possible node.  Ouch.
-
-Implementing hotplug handlers in here (which is surprisingly simple)
-brings this down to num_online_nodes * num_online_cpus which is, I
-think, potentially vastly better.
+Only because I was expecting feedback on the approach and alternative
+approaches before an in-detail review. But, no problem; I'll break it
+into smaller patches now.
+> Makes it lot easier to review.
+>
+> thanks,
+> -- Shuah
 
