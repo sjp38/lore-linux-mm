@@ -2,171 +2,130 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7738FC433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 09:20:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 227B1C0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 10:24:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2D2A921881
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 09:20:16 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cogentembedded-com.20150623.gappssmtp.com header.i=@cogentembedded-com.20150623.gappssmtp.com header.b="eGiX9Khh"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2D2A921881
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=cogentembedded.com
+	by mail.kernel.org (Postfix) with ESMTP id C92FA21874
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 10:24:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C92FA21874
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 388086B0003; Thu,  8 Aug 2019 05:20:12 -0400 (EDT)
+	id 2DFCC6B0003; Thu,  8 Aug 2019 06:24:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 35DE06B0006; Thu,  8 Aug 2019 05:20:12 -0400 (EDT)
+	id 290616B0006; Thu,  8 Aug 2019 06:24:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 24CD46B0007; Thu,  8 Aug 2019 05:20:12 -0400 (EDT)
+	id 1A7606B0007; Thu,  8 Aug 2019 06:24:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-lf1-f72.google.com (mail-lf1-f72.google.com [209.85.167.72])
-	by kanga.kvack.org (Postfix) with ESMTP id B391A6B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 05:20:11 -0400 (EDT)
-Received: by mail-lf1-f72.google.com with SMTP id y24so3526160lfh.5
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 02:20:11 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id DCDC36B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 06:24:56 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id l24so44976807wrb.0
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 03:24:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
-         :message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=OCitiiIQARt2srQdTEp8HHKk2MswJS9hy+qm/HN3L5Q=;
-        b=uWZm4qWqF+lOLThfof72VCJbs/bOWO0nLBC/+ooI+Esug1pscgu5olUQYyajallEvA
-         1s0QxnYdLmav0s6GDzohoSc8gHihSBFTJzM/LsDb4J6B/pKp1xw2t+GgAUVScujFtdFS
-         ef1rzx9xvRhx21mLOI3T3TdL6SemlVkNePgTOqxn4cXFUKTV1v+h+8cGH7F2aeC5qp0V
-         yQZRCYG+q+A7BocxVMG1XSo0q+VvzRRTeMQwv5Lmc6T2Oj5vQyLbRxC3lVOOhh7yfrsX
-         6hf9OO8OArbCIxxf0nGPdcdfTmbAdRez7dks98sWlEYp5jfjIiO1US1luR0un7T4y5D0
-         bXBw==
-X-Gm-Message-State: APjAAAVO+t2P6wnX5FWc+RfPYvU7mDuiQNaDzW3z8zlF99WO1JJ2O5nN
-	sVahePGcrcr4U3DT2LqVZCQ1+72JPoOpPUtWdG8GHd99VAvG7dUDFTgKQg1pBwE6KeddstIEEUz
-	QPJsVpB7gw3ZviUY/w/HE2XOe8q7xbvd4TuJsSSn0y8lGKllvsaJZG+lgOzhGY6fwJQ==
-X-Received: by 2002:a2e:7c15:: with SMTP id x21mr7594278ljc.55.1565256011033;
-        Thu, 08 Aug 2019 02:20:11 -0700 (PDT)
-X-Received: by 2002:a2e:7c15:: with SMTP id x21mr7594243ljc.55.1565256010254;
-        Thu, 08 Aug 2019 02:20:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565256010; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=gqMcrLj1gVdJ2hsnWbaulPrTKyA0AE1cZMK6/01FJPg=;
+        b=rJnUCcCRa1ylnzxqjeiG5QUgMe3EoiIvR67ywJ1eIPKiqFMNFQ5QUhGmBAcT0YJNhV
+         H9VnExAU0pT1GYMhZ6NAmNtNBLf+Ew2ltHMS0taHQGBIdi3X38eBF5UhG2Xbc9y7OmXx
+         ne2WSA/AdqYDdWsNtXOZ1PqHQDuScrQLMdJ6fkwB2T+rFOUVTxafSZfUBW44EZ5q0eye
+         f/ssbuucR2lvXqlOtf7TLWK4m2NxkVWzTHvAjs0mjKqBUmnOpWMmNpNukjlGNaz0+oQh
+         uy6+yLX14rkT4TOZsUuDYn+Rz68Z/uWnwOL+pDOh50to8ApiQZBlvF2mzsHpNNnN7/ko
+         GB1Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAXIz2xp9ViDS8QQiom/nKwx+IufhUf4mlxyFJXB3Fhu653nwnAc
+	Ubk/xvPiVmNIahv5tAmwcmrdQ6eb4TyEDti/8SR770blJ6vzjSVXShU+LQDo4AZBZgarBI1MtWD
+	78nWwOf5HdBA6ilG6pu9iWa/dWj13gejtIpb9KRSpHesVOlMKjJxtxH6mRL3124b0FQ==
+X-Received: by 2002:a5d:5647:: with SMTP id j7mr15965571wrw.191.1565259896393;
+        Thu, 08 Aug 2019 03:24:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzbjfrtja9QgxKaxLbvKmLprf3b2fKbit8FdY96CdLmuu+ykp6j+yQJOM7D3LNl5VuK9bjH
+X-Received: by 2002:a5d:5647:: with SMTP id j7mr15965451wrw.191.1565259894991;
+        Thu, 08 Aug 2019 03:24:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565259894; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZiEmNANRdPBJgxFFPTezScV+qiv6ZbVQKkYKDsEhNi01f0RD+KvM1LW0fuRd3sXDgB
-         GqPdjelNRvKI6nZbWFvom17+vKXZUdQodfQWC4edWRpM4k4meBWnMd6FerKRkhosszNF
-         LdDWuDmFVLR3p2n+fAoJUnRcPYhMciXWivBpsXcbxKxWINHDf40gMGpyxCd24Bsm7VJj
-         2XxKB76RscWvl0jiRk/zEwzBJ4xTzqeyEkScrGgdIfFAoLyuQtGgyvkDX28VW4piN6Ip
-         wZsxE64BJxKX/KoZZhj1HO5Ua3jbbRgMHJMXM9ff+h02EbBxGZMWOK9pmRNPB5jLbt73
-         6Q5w==
+        b=gTndvu0xS8PolMIRc29+f4hO7DoHgs/RcfvndCZSUuzdqPr/Cx2f0eXQSqMnHleW2w
+         O7SXYC1wzBM32+79yCovCJxrAsiWUi6pFYDQ48EJLiiCd64T+2AMDb5yoBe/W8d47pGe
+         5fw33la3hSEBQDvuFmMLNt28GU8hgR4OENh2a0babkNXWTijFMCbCpGH5r9Xpzn9XNFG
+         GmYwUnQqanjzVl4VTH/w+XmPQ3zSBGayefrt/8EQapHFJ7xVBPICNVAH/DlPlHZv6XG+
+         k0HczpcqE7Lbwwa2rpUbfL8AnETA4FT8yWTrzTf+mvgDdZ6qjivK1cE+YvtGdlZv5kR5
+         G6sg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject
-         :dkim-signature;
-        bh=OCitiiIQARt2srQdTEp8HHKk2MswJS9hy+qm/HN3L5Q=;
-        b=nDG5agvpjdGX6OCpErTi1cxLbDnQ0IjphWnytMmUpCw82yHlknja2zhko0jKmq/fdn
-         vKz874U/BvNe+HDLhzG1AuR5kLx9Pvohf1lRJpIW4Aa8IjwN77tfJyqIRdVNiWXX3LPx
-         ygNP2fa21WTKito1wv8eiHDA981crgVf08nAqwdUxBZXFBh6W9Gyz8crKm/p8zcYnkSn
-         gTg+KdchHnFL3IG3WG2mvIp471FltL5uVIwGnbNqX783Ty1gnaAmY12ElnWzalk8TZAd
-         Air3hTHPeN+ymFI09X+eSvgxvrh2R/Cm0iUMWb3YHPcVFP5JgMjS+xohkwxV25BNwybD
-         f/0g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=gqMcrLj1gVdJ2hsnWbaulPrTKyA0AE1cZMK6/01FJPg=;
+        b=Z/VAWhnWMCX+1V27HSnbHEGQjpqODyXaFNXj3uQdvIBRflfC4Zz/TtoMFigTUrS5ue
+         XmVoJ22y0JetzBj9UryJ1C5V0vRc9oFTyhZSJ0qPFtNBWwwrc5kZzRGASOKVKFTo2Gdu
+         EyfWqo809JNAm4tbH9w4f97xy9uLCzdMFsI5u0cFHpnqdcU8+NOeg4n/ZkN1VcEub5rr
+         lxx560lCEU70KHFmmyv3neMlsd1xn4NWKNgEN1mGZFpAqfu+LCU9uYhAXwZbeVGHVpwy
+         5jh8j14BpWdv/HiAYnQ+GSp7eyjneNoywEuxVa/Bd1wW41mTRwd3S9mfSYOH634p2M9C
+         gqJQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@cogentembedded-com.20150623.gappssmtp.com header.s=20150623 header.b=eGiX9Khh;
-       spf=pass (google.com: domain of sergei.shtylyov@cogentembedded.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sergei.shtylyov@cogentembedded.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id e81sor49145584ljf.42.2019.08.08.02.20.09
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id m9si1344440wmg.153.2019.08.08.03.24.54
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Aug 2019 02:20:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of sergei.shtylyov@cogentembedded.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
-Authentication-Results: mx.google.com;
-       dkim=pass header.i=@cogentembedded-com.20150623.gappssmtp.com header.s=20150623 header.b=eGiX9Khh;
-       spf=pass (google.com: domain of sergei.shtylyov@cogentembedded.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=sergei.shtylyov@cogentembedded.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cogentembedded-com.20150623.gappssmtp.com; s=20150623;
-        h=subject:to:cc:references:from:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=OCitiiIQARt2srQdTEp8HHKk2MswJS9hy+qm/HN3L5Q=;
-        b=eGiX9Khh6PGwyt3vEDZS5i+7Ttn3dev6cKijGsAKu98PEo2SOHWYpChGzAR8G6rqiH
-         jzgQRh6WatLMuo4AbNf4LAJr20oUT+cZdU/1CJnSqTguKc+Ybw4jmkdw0OadBReXodeF
-         ebkbMHm8MDy0PwD/pEvqEAPbq07rO3qstGtOj2YxInvoyEp2nXA39FzVCr7+4l19jsYI
-         3s9hm6A/4KWKEqwiGw05Tvffpb0A0mj+ayAeSD24M3N45J6I7gHbT2TjJqBsaCxM8sqn
-         rQPLBU1qx5jTkktaKHQLtADroikDfkHoEs6q4//nMMWQlm8Px3F2v3VdsnP0ZIgPpvGb
-         4l2A==
-X-Google-Smtp-Source: APXvYqwAgmAyvFxsvAFzBlQwmsh/xeHT2UOBWqRNNJ6VrtKLtOr+7Myij8Z/3eE0oJPU4/4mQFntnQ==
-X-Received: by 2002:a2e:9685:: with SMTP id q5mr6063276lji.227.1565256009622;
-        Thu, 08 Aug 2019 02:20:09 -0700 (PDT)
-Received: from ?IPv6:2a00:1fa0:8c7:ada9:25b2:24d8:3973:eb87? ([2a00:1fa0:8c7:ada9:25b2:24d8:3973:eb87])
-        by smtp.gmail.com with ESMTPSA id u27sm17024138lfn.87.2019.08.08.02.20.07
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 02:20:08 -0700 (PDT)
-Subject: Re: [PATCH v6 11/14] mips: Adjust brk randomization offset to fit
- generic version
-To: Alexandre Ghiti <alex@ghiti.fr>, Andrew Morton <akpm@linux-foundation.org>
-Cc: Paul Walmsley <paul.walmsley@sifive.com>,
- Luis Chamberlain <mcgrof@kernel.org>, Christoph Hellwig <hch@lst.de>,
- Russell King <linux@armlinux.org.uk>,
- Catalin Marinas <catalin.marinas@arm.com>, Will Deacon
- <will.deacon@arm.com>, Ralf Baechle <ralf@linux-mips.org>,
- Paul Burton <paul.burton@mips.com>, James Hogan <jhogan@kernel.org>,
- Palmer Dabbelt <palmer@sifive.com>, Albert Ou <aou@eecs.berkeley.edu>,
- Alexander Viro <viro@zeniv.linux.org.uk>, Kees Cook <keescook@chromium.org>,
- linux-kernel@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-mips@vger.kernel.org, linux-riscv@lists.infradead.org,
- linux-fsdevel@vger.kernel.org, linux-mm@kvack.org
-References: <20190808061756.19712-1-alex@ghiti.fr>
- <20190808061756.19712-12-alex@ghiti.fr>
-From: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>
-Message-ID: <68ec5cf6-6ba3-68ab-aa01-668b701c642f@cogentembedded.com>
-Date: Thu, 8 Aug 2019 12:19:56 +0300
-User-Agent: Mozilla/5.0 (Windows NT 6.3; WOW64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+        Thu, 08 Aug 2019 03:24:54 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by verein.lst.de (Postfix, from userid 2407)
+	id 3F93F227A81; Thu,  8 Aug 2019 12:24:52 +0200 (CEST)
+Date: Thu, 8 Aug 2019 12:24:52 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: linux-mm@kvack.org, Andrea Arcangeli <aarcange@redhat.com>,
+	Christoph Hellwig <hch@lst.de>, John Hubbard <jhubbard@nvidia.com>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	"Kuehling, Felix" <Felix.Kuehling@amd.com>,
+	Alex Deucher <alexander.deucher@amd.com>,
+	Christian =?iso-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>,
+	"David (ChunMing) Zhou" <David1.Zhou@amd.com>,
+	Dimitri Sivanich <sivanich@sgi.com>,
+	dri-devel@lists.freedesktop.org, amd-gfx@lists.freedesktop.org,
+	linux-kernel@vger.kernel.org, linux-rdma@vger.kernel.org,
+	iommu@lists.linux-foundation.org, intel-gfx@lists.freedesktop.org,
+	Gavin Shan <shangw@linux.vnet.ibm.com>,
+	Andrea Righi <andrea@betterlinux.com>,
+	Jason Gunthorpe <jgg@mellanox.com>,
+	Christoph Hellwig <hch@infradead.org>
+Subject: Re: [PATCH v3 hmm 01/11] mm/mmu_notifiers: hoist
+ do_mmu_notifier_register down_write to the caller
+Message-ID: <20190808102452.GA648@lst.de>
+References: <20190806231548.25242-1-jgg@ziepe.ca> <20190806231548.25242-2-jgg@ziepe.ca>
 MIME-Version: 1.0
-In-Reply-To: <20190808061756.19712-12-alex@ghiti.fr>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190806231548.25242-2-jgg@ziepe.ca>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hello!
-
-On 08.08.2019 9:17, Alexandre Ghiti wrote:
-
-> This commit simply bumps up to 32MB and 1GB the random offset
-> of brk, compared to 8MB and 256MB, for 32bit and 64bit respectively.
+On Tue, Aug 06, 2019 at 08:15:38PM -0300, Jason Gunthorpe wrote:
+> From: Jason Gunthorpe <jgg@mellanox.com>
 > 
-> Suggested-by: Kees Cook <keescook@chromium.org>
-> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
-> Acked-by: Paul Burton <paul.burton@mips.com>
-> Reviewed-by: Kees Cook <keescook@chromium.org>
-> Reviewed-by: Luis Chamberlain <mcgrof@kernel.org>
-> ---
->   arch/mips/mm/mmap.c | 7 ++++---
->   1 file changed, 4 insertions(+), 3 deletions(-)
+> This simplifies the code to not have so many one line functions and extra
+> logic. __mmu_notifier_register() simply becomes the entry point to
+> register the notifier, and the other one calls it under lock.
 > 
-> diff --git a/arch/mips/mm/mmap.c b/arch/mips/mm/mmap.c
-> index a7e84b2e71d7..ff6ab87e9c56 100644
-> --- a/arch/mips/mm/mmap.c
-> +++ b/arch/mips/mm/mmap.c
-[...]
-> @@ -189,11 +190,11 @@ static inline unsigned long brk_rnd(void)
->   	unsigned long rnd = get_random_long();
->   
->   	rnd = rnd << PAGE_SHIFT;
-> -	/* 8MB for 32bit, 256MB for 64bit */
-> +	/* 32MB for 32bit, 1GB for 64bit */
->   	if (TASK_IS_32BIT_ADDR)
-> -		rnd = rnd & 0x7ffffful;
-> +		rnd = rnd & (SZ_32M - 1);
->   	else
-> -		rnd = rnd & 0xffffffful;
-> +		rnd = rnd & (SZ_1G - 1);
+> Also add a lockdep_assert to check that the callers are holding the lock
+> as expected.
+> 
+> Suggested-by: Christoph Hellwig <hch@infradead.org>
+> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
 
-    Why not make these 'rnd &= SZ_* - 1', while at it anyways?
+Looks good:
 
-[...]
-
-MBR, Sergei
+Reviewed-by: Christoph Hellwig <hch@lst.de>
 
