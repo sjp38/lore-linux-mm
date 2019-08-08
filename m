@@ -2,159 +2,175 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9525EC0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 08:13:03 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 601FBC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 08:13:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 55E9A2187F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 08:13:03 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 55E9A2187F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=daenzer.net
+	by mail.kernel.org (Postfix) with ESMTP id 1BC8F21881
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 08:13:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1BC8F21881
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D7D7E6B0003; Thu,  8 Aug 2019 04:13:02 -0400 (EDT)
+	id A6E166B0006; Thu,  8 Aug 2019 04:13:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D2D386B0006; Thu,  8 Aug 2019 04:13:02 -0400 (EDT)
+	id A45D46B0007; Thu,  8 Aug 2019 04:13:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C43286B0007; Thu,  8 Aug 2019 04:13:02 -0400 (EDT)
+	id 90ECF6B0008; Thu,  8 Aug 2019 04:13:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 7BE9E6B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 04:13:02 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id k10so2048109wru.23
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 01:13:02 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 457AC6B0006
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 04:13:52 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id x40so688009edm.4
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 01:13:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=ht+cKz/ZavS5MqjrNKDCdafFyHie5jHNrzKYloHpxhg=;
-        b=nxXlS5pi53mz3Khp8HCkEao5eBDMpiW+lEXjYHaKLTIuODIngMjn1VCN1FQwpPI+Bu
-         peqxybkqDsNN5p0EJhRvpU92qjE6TFi8o+bOwqdOt+lHlWbzF4qjxh2cGoWpG1xh2kiR
-         csaL8spNjwKBHVqcVyYtqxIds586u7Uq4n2Jphh5BctTtYLMwnBJ22gxElbiWlboZu+6
-         ETJOjbF6cSjbObSXnL1CjBvveMrGFQ9MuSv46IxKqnoFHGSSpnDpOZlKw5FXeuQtqE4a
-         YtEEHp3PQxb6iC3lRrKzgkCCa/YRQy7o1lDdISQe9Nvkc0Iz/VtZ1bAYAYglic5xqiDg
-         t7Qw==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
-X-Gm-Message-State: APjAAAXGNFQlIEWYlhRTNSiPsg9Psa/1HsGdO7s26vbUAwPr2gsqOUZ9
-	rt7JnK3tBmceiwETZ7vYAw9iahuGHm45Dcfjgc0DZXPGuM7TrzVmbik6BTcC5QP3c2socdKpuLw
-	NFIp+8FQiRXMI3i0QIXMhCSrox7D8CXE/IpZB4JZgopFOIxHglAZo8AokfdfYaGo=
-X-Received: by 2002:adf:dd88:: with SMTP id x8mr5453346wrl.331.1565251982040;
-        Thu, 08 Aug 2019 01:13:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzBsKKOIx1ZQgfcpAxllEDV9191/p/cAw1R/hDlvLkDowiQ/vlPXZWqxShTRViGvMfSFfHL
-X-Received: by 2002:adf:dd88:: with SMTP id x8mr5453272wrl.331.1565251981407;
-        Thu, 08 Aug 2019 01:13:01 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565251981; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=SfndbGFqkr74wmwGmSuGytivPeXiUPVqQkuWWMBeH30=;
+        b=HiIdtd35ut2Cn7RSQHwjkBOc7KnPdiJdA6FUQVKL0TsTeUpwGOaZD2WV1kpBvJrL7o
+         q4YmfsuEKi7gBwYgrL9P9vxH/yER/rHcu3y8iiMyh7U6Funfr/gW4agfc++IAXBxGG+p
+         WZejYNjc3DgOOL/csYCbguKj2rxb0nyOsLPCP4IuduxGN9oYJber/eG81uFxlBRPAyz/
+         En98BofGYXUhrePzT8c6c8p3rDZRzhotLF6m8FRTtQ4+T4ZlzsZACko6ycykNtQ5hmI9
+         uzxpPbEJJRK3aQcIqy7lspKGXk/2Ao9XnaAoQ9vYFH89QuP1R5jvt1GTrYwZcf6lXvmx
+         Uluw==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAV2Q057wH27gATpN22Yc7AgcY0aWiwoEDz+A1AmsDXhMajL7+Mx
+	v49tnIKRHPrJ4ziMpqUa3EADIs965ywgJzeRy7f7+4PPKJsf1x6cp6IXAQkMaL0F9jnKgNhACwk
+	vyHqlfltLT3fgckVvxvV/TaR7Y/n/rL13I/7Rv5nLOtck67xkUnQpYXb7iOAT7fI=
+X-Received: by 2002:a50:f49a:: with SMTP id s26mr14459901edm.191.1565252031813;
+        Thu, 08 Aug 2019 01:13:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxh2xXo2awkIAtLy0tu4DaToKc/o6K9vfqACyNuOaAvnBExT2KnQZBYc7HevkwXf/uxGq6Z
+X-Received: by 2002:a50:f49a:: with SMTP id s26mr14459865edm.191.1565252031143;
+        Thu, 08 Aug 2019 01:13:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565252031; cv=none;
         d=google.com; s=arc-20160816;
-        b=z/43LRCSHc7gCo3WLPZjGv3UDk09wy0QXhLFd9z/NFGQEJ7dWrFi+NS24W1H9fzvPX
-         gEv4ceBUAoDgfFXyA0K8JBpSXab8alBMK80YYCpL5AmNJRYAJ+HdEm2hzak9sSP7p7cV
-         s7aGyXWZjFPDhOQIfR3shr7Uyl0CSqFu8cpuDqNksVsIO3fCBO5ujQI+KsnNcF9qE8CI
-         LEaE4z1/GyZ9A9glAutZqaegatJmhIoLjVsi6Eg4Rz0ke2BDv1MVN2/ekM1xbUM4sEsT
-         /p9lVCFgEuvCcJPlh3oQ5OCie0cr3AtNkNWClDy378WLc1uJGK18Et3XfZ1HoD8xz5Ok
-         dmXQ==
+        b=mhP0I13JdX3MCnhW2RRsmDKM9lUfzQx6zxUytH20TZS9cRVO2Oc21hnzgA3OvZZji2
+         9dNnBpeLtCdXPruEq1QzPkh+SAQKvoS4uoiIBX6G7oZfHr+8uz6Sl2adknUL1y2auj/5
+         5A7I89FkdsPIRLHIGTpyxHhyn2INZShPNq/B9u5WmNOmVvrxKfUxKaWFNwtJHL/hL8Xa
+         1yfM2L9q4vooFKpHGtM/SyhAci4puXZndXWdRLgaREOLE/nVMxhz+7aIcFvxDe7haSwO
+         oyzqw89/ewJLSeVVdRhEwnDR++Cs7v8+83efuQEZniuDdtw6vE4uZrcMTl/hOoSnB8+i
+         kt+A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=ht+cKz/ZavS5MqjrNKDCdafFyHie5jHNrzKYloHpxhg=;
-        b=XawW7t43zdB78F3RCfgcZi+9V0QRTIuZ5zJUNmzTRM0bz8XIpNfvYL3wdKkK5u+93J
-         zh7JYxBJwifLpUZo8VZ1qe3/pOSaF51t9adTYYyS7kgKACz1HPiMumY9zdUuCVUUp7cc
-         9lMvIQiRu0yzl8y927wlX2TBEieKwLiFhlgUbVbEBrLqDzw62O6vgvR6+oLLBal3LoPD
-         MW69mpQEI2r/3OV+aqekL3Qiqeu/HdHA/JmS38dCVK9VsUIG4+O+Fd1EsPaf3JiKJQ7M
-         e2tktTfnRgO4X50q/l6lMk5vlSCQMRyr8p1kfJDdBeV+5e6LkUHcMuKRk37mMriB9eGw
-         pVJg==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=SfndbGFqkr74wmwGmSuGytivPeXiUPVqQkuWWMBeH30=;
+        b=tQdKcUXnoGUR/AO2OUMj/09dmSnRSzXBOvuuqMfaoHJ0DIcc/f0qdD4TXgKGhzVvCx
+         ZsZkCxQNWHzQRMN5YBBFOQU3WEq3sYKAgpK3IPxJ8gxrNe5Dzzs8B0Kire+vxGHHqVtP
+         R33TqUaq/HZqOPKJF3RLfBQr8br7ew3LdPxnkWYNbOy98db8zttioIWkg5y+dHNqCEvD
+         fnn6oDqPEJRQjfiqrmR5s5wg4LngF+sd69UX5upJQ45seIuLnzfXLZPZthgNSYVlsh18
+         uNc0cUtFNUQK3bI7ofW7PUdzgUz4Uz9wlk0j8VuQGZYNyYkDE26ksV2oDoOBqGGcHeHf
+         oW7g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
-Received: from netline-mail3.netline.ch (mail.netline.ch. [148.251.143.178])
-        by mx.google.com with ESMTP id e4si4421993wrw.104.2019.08.08.01.13.01
-        for <linux-mm@kvack.org>;
-        Thu, 08 Aug 2019 01:13:01 -0700 (PDT)
-Received-SPF: neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) client-ip=148.251.143.178;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id f1si33500290ede.62.2019.08.08.01.13.50
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Aug 2019 01:13:51 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 148.251.143.178 is neither permitted nor denied by best guess record for domain of michel@daenzer.net) smtp.mailfrom=michel@daenzer.net
-Received: from localhost (localhost [127.0.0.1])
-	by netline-mail3.netline.ch (Postfix) with ESMTP id D93432B200C;
-	Thu,  8 Aug 2019 10:13:00 +0200 (CEST)
-X-Virus-Scanned: Debian amavisd-new at netline-mail3.netline.ch
-Received: from netline-mail3.netline.ch ([127.0.0.1])
-	by localhost (netline-mail3.netline.ch [127.0.0.1]) (amavisd-new, port 10024)
-	with LMTP id HMzk0c21TQZi; Thu,  8 Aug 2019 10:13:00 +0200 (CEST)
-Received: from thor (116.245.63.188.dynamic.wline.res.cust.swisscom.ch [188.63.245.116])
-	by netline-mail3.netline.ch (Postfix) with ESMTPSA id 3C3C12AA0BD;
-	Thu,  8 Aug 2019 10:13:00 +0200 (CEST)
-Received: from localhost ([::1])
-	by thor with esmtp (Exim 4.92)
-	(envelope-from <michel@daenzer.net>)
-	id 1hvdXf-0005ZI-Rb; Thu, 08 Aug 2019 10:12:59 +0200
-Subject: Re: The issue with page allocation 5.3 rc1-rc2 (seems drm culprit
- here)
-To: Alex Deucher <alexdeucher@gmail.com>,
- Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
-Cc: Hillf Danton <hdanton@sina.com>, Harry Wentland <harry.wentland@amd.com>,
- Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
- dri-devel <dri-devel@lists.freedesktop.org>,
- Linux Memory Management List <linux-mm@kvack.org>,
- amd-gfx list <amd-gfx@lists.freedesktop.org>,
- "Deucher, Alexander" <Alexander.Deucher@amd.com>,
- Dave Airlie <airlied@gmail.com>, "Koenig, Christian"
- <Christian.Koenig@amd.com>
-References: <20190806014830.7424-1-hdanton@sina.com>
- <CABXGCsMRGRpd9AoJdvZqdpqCP3QzVGzfDPiX=PzVys6QFBLAvA@mail.gmail.com>
- <CADnq5_O08v3_NUZ_zUZJFYwv_tUY7TFFz2GGudqgWEX6nh5LFA@mail.gmail.com>
-From: =?UTF-8?Q?Michel_D=c3=a4nzer?= <michel@daenzer.net>
-Openpgp: preference=signencrypt
-Autocrypt: addr=michel@daenzer.net; prefer-encrypt=mutual; keydata=
- mQGiBDsehS8RBACbsIQEX31aYSIuEKxEnEX82ezMR8z3LG8ktv1KjyNErUX9Pt7AUC7W3W0b
- LUhu8Le8S2va6hi7GfSAifl0ih3k6Bv1Itzgnd+7ZmSrvCN8yGJaHNQfAevAuEboIb+MaVHo
- 9EMJj4ikOcRZCmQWw7evu/D9uQdtkCnRY9iJiAGxbwCguBHtpoGMxDOINCr5UU6qt+m4O+UD
- /355ohBBzzyh49lTj0kTFKr0Ozd20G2FbcqHgfFL1dc1MPyigej2gLga2osu2QY0ObvAGkOu
- WBi3LTY8Zs8uqFGDC4ZAwMPoFy3yzu3ne6T7d/68rJil0QcdQjzzHi6ekqHuhst4a+/+D23h
- Za8MJBEcdOhRhsaDVGAJSFEQB1qLBACOs0xN+XblejO35gsDSVVk8s+FUUw3TSWJBfZa3Imp
- V2U2tBO4qck+wqbHNfdnU/crrsHahjzBjvk8Up7VoY8oT+z03sal2vXEonS279xN2B92Tttr
- AgwosujguFO/7tvzymWC76rDEwue8TsADE11ErjwaBTs8ZXfnN/uAANgPLQjTWljaGVsIERh
- ZW56ZXIgPG1pY2hlbEBkYWVuemVyLm5ldD6IXgQTEQIAHgUCQFXxJgIbAwYLCQgHAwIDFQID
- AxYCAQIeAQIXgAAKCRBaga+OatuyAIrPAJ9ykonXI3oQcX83N2qzCEStLNW47gCeLWm/QiPY
- jqtGUnnSbyuTQfIySkK5AQ0EOx6FRRAEAJZkcvklPwJCgNiw37p0GShKmFGGqf/a3xZZEpjI
- qNxzshFRFneZze4f5LhzbX1/vIm5+ZXsEWympJfZzyCmYPw86QcFxyZflkAxHx9LeD+89Elx
- bw6wT0CcLvSv8ROfU1m8YhGbV6g2zWyLD0/naQGVb8e4FhVKGNY2EEbHgFBrAAMGA/0VktFO
- CxFBdzLQ17RCTwCJ3xpyP4qsLJH0yCoA26rH2zE2RzByhrTFTYZzbFEid3ddGiHOBEL+bO+2
- GNtfiYKmbTkj1tMZJ8L6huKONaVrASFzLvZa2dlc2zja9ZSksKmge5BOTKWgbyepEc5qxSju
- YsYrX5xfLgTZC5abhhztpYhGBBgRAgAGBQI7HoVFAAoJEFqBr45q27IAlscAn2Ufk2d6/3p4
- Cuyz/NX7KpL2dQ8WAJ9UD5JEakhfofed8PSqOM7jOO3LCA==
-Message-ID: <6d5110ab-6539-378d-f643-0a1d4cf0ff73@daenzer.net>
-Date: Thu, 8 Aug 2019 10:12:59 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 68840AFFE;
+	Thu,  8 Aug 2019 08:13:49 +0000 (UTC)
+Date: Thu, 8 Aug 2019 10:00:44 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
+	fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>, kernel-team@android.com,
+	linux-api@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+	Mike Rapoport <rppt@linux.ibm.com>, minchan@kernel.org,
+	namhyung@google.com, paulmck@linux.ibm.com,
+	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
+	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
+	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
+Subject: Re: [PATCH v5 1/6] mm/page_idle: Add per-pid idle page tracking
+ using virtual index
+Message-ID: <20190808080044.GA18351@dhcp22.suse.cz>
+References: <20190807171559.182301-1-joel@joelfernandes.org>
+ <20190807130402.49c9ea8bf144d2f83bfeb353@linux-foundation.org>
+ <20190807204530.GB90900@google.com>
+ <20190807135840.92b852e980a9593fe91fbf59@linux-foundation.org>
+ <20190807213105.GA14622@google.com>
 MIME-Version: 1.0
-In-Reply-To: <CADnq5_O08v3_NUZ_zUZJFYwv_tUY7TFFz2GGudqgWEX6nh5LFA@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-CA
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190807213105.GA14622@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 2019-08-08 7:31 a.m., Alex Deucher wrote:
-> On Wed, Aug 7, 2019 at 11:49 PM Mikhail Gavrilov
-> <mikhail.v.gavrilov@gmail.com> wrote:
->>
->> Unfortunately error "gnome-shell: page allocation failure: order:4,
->> mode:0x40cc0(GFP_KERNEL|__GFP_COMP),
->> nodemask=(null),cpuset=/,mems_allowed=0" still happens even with
->> applying this patch.
+On Wed 07-08-19 17:31:05, Joel Fernandes wrote:
+> On Wed, Aug 07, 2019 at 01:58:40PM -0700, Andrew Morton wrote:
+> > On Wed, 7 Aug 2019 16:45:30 -0400 Joel Fernandes <joel@joelfernandes.org> wrote:
+> > 
+> > > On Wed, Aug 07, 2019 at 01:04:02PM -0700, Andrew Morton wrote:
+> > > > On Wed,  7 Aug 2019 13:15:54 -0400 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
+> > > > 
+> > > > > In Android, we are using this for the heap profiler (heapprofd) which
+> > > > > profiles and pin points code paths which allocates and leaves memory
+> > > > > idle for long periods of time. This method solves the security issue
+> > > > > with userspace learning the PFN, and while at it is also shown to yield
+> > > > > better results than the pagemap lookup, the theory being that the window
+> > > > > where the address space can change is reduced by eliminating the
+> > > > > intermediate pagemap look up stage. In virtual address indexing, the
+> > > > > process's mmap_sem is held for the duration of the access.
+> > > > 
+> > > > So is heapprofd a developer-only thing?  Is heapprofd included in
+> > > > end-user android loads?  If not then, again, wouldn't it be better to
+> > > > make the feature Kconfigurable so that Android developers can enable it
+> > > > during development then disable it for production kernels?
+> > > 
+> > > Almost all of this code is already configurable with
+> > > CONFIG_IDLE_PAGE_TRACKING. If you disable it, then all of this code gets
+> > > disabled.
+> > > 
+> > > Or are you referring to something else that needs to be made configurable?
+> > 
+> > Yes - the 300+ lines of code which this patchset adds!
+> > 
+> > The impacted people will be those who use the existing
+> > idle-page-tracking feature but who will not use the new feature.  I
+> > guess we can assume this set is small...
 > 
-> I think we can just drop the kmalloc altogether.  How about this patch?
+> Yes, I think this set should be small. The code size increase of page_idle.o
+> is from ~1KB to ~2KB. Most of the extra space is consumed by
+> page_idle_proc_generic() function which this patch adds. I don't think adding
+> another CONFIG option to disable this while keeping existing
+> CONFIG_IDLE_PAGE_TRACKING enabled, is worthwhile but I am open to the
+> addition of such an option if anyone feels strongly about it. I believe that
+> once this patch is merged, most like this new interface being added is what
+> will be used more than the old interface (for some of the usecases) so it
+> makes sense to keep it alive with CONFIG_IDLE_PAGE_TRACKING.
 
-Memory allocated by kvz/malloc needs to be freed with kvfree.
-
-
+I would tend to agree with Joel here. The functionality falls into an
+existing IDLE_PAGE_TRACKING config option quite nicely. If there really
+are users who want to save some space and this is standing in the way
+then they can easily add a new config option with some justification so
+the savings are clear. Without that an additional config simply adds to
+the already existing configurability complexity and balkanization.
 -- 
-Earthling Michel Dänzer               |              https://www.amd.com
-Libre software enthusiast             |             Mesa and X developer
+Michal Hocko
+SUSE Labs
 
