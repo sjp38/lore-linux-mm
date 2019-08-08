@@ -2,198 +2,181 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.5 required=3.0 tests=FREEMAIL_FORGED_FROMDOMAIN,
+	FREEMAIL_FROM,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id BCD9AC0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 07:07:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 66FDDC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 07:43:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 80F1A2086D
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 07:07:07 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 80F1A2086D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id E06E02171F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 07:43:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E06E02171F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=sina.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 08D976B0003; Thu,  8 Aug 2019 03:07:07 -0400 (EDT)
+	id 46A3B6B0003; Thu,  8 Aug 2019 03:43:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 03E706B0006; Thu,  8 Aug 2019 03:07:06 -0400 (EDT)
+	id 41B9D6B0006; Thu,  8 Aug 2019 03:43:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E6E716B0007; Thu,  8 Aug 2019 03:07:06 -0400 (EDT)
+	id 2BC496B0007; Thu,  8 Aug 2019 03:43:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 984B36B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 03:07:06 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id f16so44576028wrw.5
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 00:07:06 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id E823A6B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 03:43:10 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id 71so55014527pld.1
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 00:43:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :content-transfer-encoding:in-reply-to:user-agent;
-        bh=Ty0lHwkJORRV3g4Qm1PzmY9XHSFN3x1ox0hXcob6AVQ=;
-        b=l2LBGuQfyKQ8NS1LRI7/ujDJI5sfyRENK8aDeTbGnoiou368VTOUGDzdCHBS4rDAxx
-         ymJidxCvM6xMx5usi2W0Pgp8CMjcBKndQ/j8gTgQbPTepxoAJZqFykIfTRGgqAIFOLvy
-         94zwNDI7oYG4KBIxy/uJF8t+NGNH9WNdpZzW70p2wxxZnwWWCp92l3/EKkVh/9q8uB0D
-         TBqQFP+3GHv3DJV5O3qzaEjRpLU9GlooBSJUMFeeenXRAksAh6puduTz+KVjcB2s3r7N
-         2Ak0nlsVI4Wsq0+YIhy4i8l3xQ6UDphaxd5t6YGP43ME72GEbhq8osPVsTmbQRelm3QT
-         9afw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAUYZdwINB1dlwKLFuJ5Mbr+Re54tNk9dleCShC84jhpH4r7sfYL
-	vKAqw4+c8LzufA6dTrYvFThl3FKpq4KeTi5PCE+nW4jPCs3465cBsJC7L9xX/tBDSnaQTm/vzk7
-	4SQNfmnWAIcIFhMSss3mNJkoIX7bpPEDk9M1r0/L0AKhYVxMLCjJcFw+jkBbgNEtH1Q==
-X-Received: by 2002:a1c:7503:: with SMTP id o3mr2412773wmc.170.1565248025926;
-        Thu, 08 Aug 2019 00:07:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy7z0qWWwL5pMWlpNrDuUjdjUxPUc/nei5leV8xK6rdBNaQk4xBK+jUygnKwjqdGYKEnnHM
-X-Received: by 2002:a1c:7503:: with SMTP id o3mr2412645wmc.170.1565248024447;
-        Thu, 08 Aug 2019 00:07:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565248024; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:mime-version:content-transfer-encoding;
+        bh=J9phvYeL4FEfFLUCKkycdIePfKSt/FXlggKfdJujWns=;
+        b=ed8lSxF+KgF9KOXMFgKUeY2sGR/A5xv7B9i6iNTQ2Njv+KXXcEywFwHX/xZd4fYNZW
+         kHYn+XSS1ksX6cqG+MPZlz9FLKM5R5pnjPr7EIB/mkb+3MfUkGPYQC62/Kfnvz7K1+It
+         J4ELTPYyhSUYICwppn474Rq3vG/TqUY70dy7ZXX4p3riiBcGOuN/6gx+ufknA9E3SIHW
+         qeoT2WFE13AXnWBYML4n+4qKHnhr/ITHws7hyUy6llUBDkXo1B68OLoPPdrINLkI6zht
+         L32hFQqptYV6oHliy9/ELcMiPj7XCZC2UQ5tFyDIecAHmobD5gKP1AkYHqU2u53sMpoS
+         s2Ag==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) smtp.mailfrom=hdanton@sina.com
+X-Gm-Message-State: APjAAAX2rKuCKpZCacvsIoQDVTOmVOp3EMSRZPunab/fqGYmHslEyqu6
+	p3u6ooWDww9AQmgMhY4jv3Joxb1on9rVMNn+4RmVYWowTJCcEbPrkYkRi2vWjReI7CYQbeQQayk
+	okmTO+ie/ZIgrxG16RZm+hKUb6txMPcEzA7POgeF27sicluvq01HYa/cnl6HQdlTYpg==
+X-Received: by 2002:a63:f926:: with SMTP id h38mr11495699pgi.80.1565250190391;
+        Thu, 08 Aug 2019 00:43:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwokH5JU5XUgpkm6yRgat2cXDlatkCcGUQ4KGd9KFwGJBU+cpIqQpAWuxfbH1aRbYu3sBMm
+X-Received: by 2002:a63:f926:: with SMTP id h38mr11495636pgi.80.1565250189420;
+        Thu, 08 Aug 2019 00:43:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565250189; cv=none;
         d=google.com; s=arc-20160816;
-        b=kd5xfydo6/o4bauqS1N/1bX7dmoKY0OKDS4fLpR7cBPlK/Y7AoqCvZjd/AOFATLiQt
-         WrXvwn+wOtytEuUoGEqTAw+wgG00kmgW7ogWKwq4vaG8d+ePpwPAjPWqSZtf0Hxvb545
-         LU2I8tyYNOy22R7JU74vJQKpkGPpVLw/1NmD4kduNUeiZSv+oYx98+NcbGeuMMzbk9v/
-         t5lrGj9BN8wjxl8KBGbh89VVpAOJIOubBFuYmC1xFChizCfMOGtuACAIrDydCEy+r8yf
-         6kF3vKO4lS+oEZRK6l4sUdrGW2yfu5Y/AVey4kuGqDQkr3MGeVJDj1SToQgqecQ8aU1A
-         aOoQ==
+        b=UmAikvANTFzrKZIlgQMJJYLZT2dOse2qPZXLVzWfzJq11GDGoyJcELn4Leow56Gjum
+         9Rdz5QGurpKi5+MEGE8bwz4xIxsybSKHB3EIiXCNHrcl0cO9t0Bs2GtPrwdlR5rWwLNC
+         beDXCROAAMPhcTt/cZ34tMYIlscmAgOW0Yb6RhShl1Rm8/W8kI0zc7YeWD8vNY2c7VF0
+         PVIxySYz3I8Swjo/kQ9Ny62K9hwz4Mb/n8XqiLS1/0TLHmtEDCMEIlrob/s7bcGn3fRY
+         OjlZ62PTF1eGR/zcCLsKhAq5eZgAh79lG3sUGaX0SzX861xWVPp5z06ekhxYaDY4fP9L
+         VRGw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-transfer-encoding
-         :content-disposition:mime-version:references:message-id:subject:cc
-         :to:from:date;
-        bh=Ty0lHwkJORRV3g4Qm1PzmY9XHSFN3x1ox0hXcob6AVQ=;
-        b=TWuxruJ2wuMZOYXssBhPSGVInyCnm4E1U/K4RoeQ0bgIpjlJNcCZ0Yidt88wiU6xY8
-         GeGSFVzjgbkMsMeB5Ju/OhKQZcKmFq/bhHR+sdLJeYC4tgOl4o6llmTrZKgs+ZXSQq/B
-         oVtLpKbcGTc5lujYkT2gcYrhnMxOXx7UjrpBGK6yK0U4q2Vbd47zeiIN1pSZSJTMl/Vk
-         +NKbvL+/rYWmQY1YbySJV5ZtqsM5q6ZMcPqLYQM2GS9kRKLdN6U66vQWkuhdVR66cHLU
-         L6iti2nDt29+vmB9jTLQ7D/LLoYDpyak2LbCDhzSrV3lCalWiszuYe/ZbBaCnw66SfJ9
-         Rd5A==
+        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
+         :to:from;
+        bh=J9phvYeL4FEfFLUCKkycdIePfKSt/FXlggKfdJujWns=;
+        b=l9EaLDJhOBIi3MQzoCdo68KtQJ+PYULwz/1txh99foN3cFFuy8nY9lLybGNYrZ5Wei
+         D4ND9WW2NqKbiP2YG/aAvWFOaqJVsbC3WU9sX/uPuV8j7A5GTBIzzk9JbPd/3ZYxRHmb
+         3OsvGR+DV0b84eQaqAcj7fGhbRARjBnyY8awQslS/HIplC90N0wg9nFoVSKGY7WdP96t
+         rw+U2zR7YCI/xaV7jK0MROBZGD8ZKY8nM8tczeMUUIFGPbhzXKLj7Y6VLIERCTx80FKJ
+         Rq0GAIHQrX216W/QDNn3a642FCbnggG9xkh8s/qLKnjHnMMurh6XntbjB+wLIJGpuPDT
+         A2CA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id s24si88666065wrb.65.2019.08.08.00.07.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 00:07:04 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) smtp.mailfrom=hdanton@sina.com
+Received: from mail3-162.sinamail.sina.com.cn (mail3-162.sinamail.sina.com.cn. [202.108.3.162])
+        by mx.google.com with SMTP id d9si52706272pgv.577.2019.08.08.00.43.08
+        for <linux-mm@kvack.org>;
+        Thu, 08 Aug 2019 00:43:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) client-ip=202.108.3.162;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by verein.lst.de (Postfix, from userid 2407)
-	id 3426E68B02; Thu,  8 Aug 2019 09:07:02 +0200 (CEST)
-Date: Thu, 8 Aug 2019 09:07:01 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Ralph Campbell <rcampbell@nvidia.com>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
-	nouveau@lists.freedesktop.org, Christoph Hellwig <hch@lst.de>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	Ben Skeggs <bskeggs@redhat.com>
-Subject: Re: [PATCH] nouveau/hmm: map pages after migration
-Message-ID: <20190808070701.GC29382@lst.de>
-References: <20190807150214.3629-1-rcampbell@nvidia.com>
+       spf=pass (google.com: domain of hdanton@sina.com designates 202.108.3.162 as permitted sender) smtp.mailfrom=hdanton@sina.com
+Received: from unknown (HELO localhost.localdomain)([114.253.230.179])
+	by sina.com with ESMTP
+	id 5D4BD2870003564E; Thu, 8 Aug 2019 15:43:06 +0800 (CST)
+X-Sender: hdanton@sina.com
+X-Auth-ID: hdanton@sina.com
+X-SMAIL-MID: 30895649291193
+From: Hillf Danton <hdanton@sina.com>
+To: Alex Deucher <alexdeucher@gmail.com>,
+	Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>
+Cc: Dave Airlie <airlied@gmail.com>,
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>,
+	amd-gfx list <amd-gfx@lists.freedesktop.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	dri-devel <dri-devel@lists.freedesktop.org>,
+	"Deucher, Alexander" <Alexander.Deucher@amd.com>,
+	Harry Wentland <harry.wentland@amd.com>,
+	"Koenig, Christian" <Christian.Koenig@amd.com>
+Subject: Re: The issue with page allocation 5.3 rc1-rc2 (seems drm culprit here)
+Date: Thu,  8 Aug 2019 15:42:52 +0800
+Message-Id: <20190808074252.6864-1-hdanton@sina.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
 Content-Transfer-Encoding: 8bit
-In-Reply-To: <20190807150214.3629-1-rcampbell@nvidia.com>
-User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 07, 2019 at 08:02:14AM -0700, Ralph Campbell wrote:
-> When memory is migrated to the GPU it is likely to be accessed by GPU
-> code soon afterwards. Instead of waiting for a GPU fault, map the
-> migrated memory into the GPU page tables with the same access permissions
-> as the source CPU page table entries. This preserves copy on write
-> semantics.
+
+On Thu, 8 Aug 2019 13:32:06 +0800 Alex Deucher wrote:
 > 
-> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
-> Cc: Christoph Hellwig <hch@lst.de>
-> Cc: Jason Gunthorpe <jgg@mellanox.com>
-> Cc: "Jérôme Glisse" <jglisse@redhat.com>
-> Cc: Ben Skeggs <bskeggs@redhat.com>
+> On Wed, Aug 7, 2019 at 11:49 PM Mikhail Gavrilov wrote:
+> >
+> > Unfortunately error "gnome-shell: page allocation failure: order:4,
+> > mode:0x40cc0(GFP_KERNEL|__GFP_COMP),
+> > nodemask=(null),cpuset=/,mems_allowed=0" still happens even with
+> > applying this patch.
+
+Thanks Mikhail.
+
+No surpring to see the warning because of kvmalloc on top of the current
+kmalloc. Any other difference observed?
+
+> I think we can just drop the kmalloc altogether.
+
+Dropping kmalloc altogether OTOH makes the reason for the vmalloc
+fallback IMO, Sir?
+
+> How about this patch?
+> 
+> From: Alex Deucher <alexander.deucher@amd.com>
+> Date: Thu, 8 Aug 2019 00:29:23 -0500
+> Subject: [PATCH] drm/amd/display: use kvmalloc for dc_state
+> 
+> It's large and doesn't need contiguous memory.
+> 
+> Signed-off-by: Alex Deucher <alexander.deucher@amd.com>
 > ---
+
+Looks good to me if with a kvfree added.
+
+>  drivers/gpu/drm/amd/display/dc/core/dc.c | 9 +++++----
+>  1 file changed, 5 insertions(+), 4 deletions(-)
 > 
-> This patch is based on top of Christoph Hellwig's 9 patch series
-> https://lore.kernel.org/linux-mm/20190729234611.GC7171@redhat.com/T/#u
-> "turn the hmm migrate_vma upside down" but without patch 9
-> "mm: remove the unused MIGRATE_PFN_WRITE" and adds a use for the flag.
-
-This looks useful.  I've already dropped that patch for the pending
-resend.
-
->  static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm *drm,
-> -		struct vm_area_struct *vma, unsigned long addr,
-> -		unsigned long src, dma_addr_t *dma_addr)
-> +		struct vm_area_struct *vma, unsigned long src,
-> +		dma_addr_t *dma_addr, u64 *pfn)
-
-I'll pick up the removal of the not needed addr argument for the patch
-introducing nouveau_dmem_migrate_copy_one, thanks,
-
->  static void nouveau_dmem_migrate_chunk(struct migrate_vma *args,
-> -		struct nouveau_drm *drm, dma_addr_t *dma_addrs)
-> +		struct nouveau_drm *drm, dma_addr_t *dma_addrs, u64 *pfns)
->  {
->  	struct nouveau_fence *fence;
->  	unsigned long addr = args->start, nr_dma = 0, i;
+> diff --git a/drivers/gpu/drm/amd/display/dc/core/dc.c b/drivers/gpu/drm/amd/display/dc/core/dc.c
+> index 252b621d93a9..ef780a4e484a 100644
+> --- a/drivers/gpu/drm/amd/display/dc/core/dc.c
+> +++ b/drivers/gpu/drm/amd/display/dc/core/dc.c
+> @@ -23,6 +23,7 @@
+>   */
 >  
->  	for (i = 0; addr < args->end; i++) {
->  		args->dst[i] = nouveau_dmem_migrate_copy_one(drm, args->vma,
-> -				addr, args->src[i], &dma_addrs[nr_dma]);
-> +				args->src[i], &dma_addrs[nr_dma], &pfns[i]);
-
-Nit: I find the &pfns[i] way to pass the argument a little weird to read.
-Why not "pfns + i"?
-
-> +u64 *
-> +nouveau_pfns_alloc(unsigned long npages)
-> +{
-> +	struct nouveau_pfnmap_args *args;
-> +
-> +	args = kzalloc(sizeof(*args) + npages * sizeof(args->p.phys[0]),
-
-Can we use struct_size here?
-
-> +	int ret;
-> +
-> +	if (!svm)
-> +		return;
-> +
-> +	mutex_lock(&svm->mutex);
-> +	svmm = nouveau_find_svmm(svm, mm);
-> +	if (!svmm) {
-> +		mutex_unlock(&svm->mutex);
-> +		return;
-> +	}
-> +	mutex_unlock(&svm->mutex);
-
-Given that nouveau_find_svmm doesn't take any kind of reference, what
-gurantees svmm doesn't go away after dropping the lock?
-
-> @@ -44,5 +49,19 @@ static inline int nouveau_svmm_bind(struct drm_device *device, void *p,
+>  #include <linux/slab.h>
+> +#include <linux/mm.h>
+>  
+>  #include "dm_services.h"
+>  
+> @@ -1183,8 +1184,8 @@ bool dc_post_update_surfaces_to_stream(struct dc *dc)
+>  
+>  struct dc_state *dc_create_state(struct dc *dc)
 >  {
->  	return -ENOSYS;
->  }
-> +
-> +u64 *nouveau_pfns_alloc(unsigned long npages)
-> +{
-> +	return NULL;
-> +}
-> +
-> +void nouveau_pfns_free(u64 *pfns)
-> +{
-> +}
-> +
-> +void nouveau_pfns_map(struct nouveau_drm *drm, struct mm_struct *mm,
-> +		      unsigned long addr, u64 *pfns, unsigned long npages)
-> +{
-> +}
->  #endif /* IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM) */
-
-nouveau_dmem.c and nouveau_svm.c are both built conditional on
-CONFIG_DRM_NOUVEAU_SVM, so there is no need for stubs here.
+> -	struct dc_state *context = kzalloc(sizeof(struct dc_state),
+> -					   GFP_KERNEL);
+> +	struct dc_state *context = kvzalloc(sizeof(struct dc_state),
+> +					    GFP_KERNEL);
+>  
+>  	if (!context)
+>  		return NULL;
+> @@ -1204,11 +1205,11 @@ struct dc_state *dc_create_state(struct dc *dc)
+>  struct dc_state *dc_copy_state(struct dc_state *src_ctx)
+>  {
+>  	int i, j;
+> -	struct dc_state *new_ctx = kmemdup(src_ctx,
+> -			sizeof(struct dc_state), GFP_KERNEL);
+> +	struct dc_state *new_ctx = kvmalloc(sizeof(struct dc_state), GFP_KERNEL);
+>  
+>  	if (!new_ctx)
+>  		return NULL;
+> +	memcpy(new_ctx, src_ctx, sizeof(struct dc_state));
+>  
+>  	for (i = 0; i < MAX_PIPES; i++) {
+>  			struct pipe_ctx *cur_pipe = &new_ctx->res_ctx.pipe_ctx[i];
+> -- 
+> 2.20.1
+> 
 
