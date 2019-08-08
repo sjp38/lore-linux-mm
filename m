@@ -2,204 +2,250 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no
-	autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E13CC0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:29:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BBDFC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:29:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A290B2173E
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:29:12 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 49C43216C8
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:29:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="KalgEU89"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A290B2173E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="MJZge7m/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49C43216C8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1D6926B0007; Thu,  8 Aug 2019 17:29:12 -0400 (EDT)
+	id E81486B0008; Thu,  8 Aug 2019 17:29:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 161926B0008; Thu,  8 Aug 2019 17:29:12 -0400 (EDT)
+	id E0A806B000A; Thu,  8 Aug 2019 17:29:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 001376B000A; Thu,  8 Aug 2019 17:29:11 -0400 (EDT)
+	id CD31D6B000C; Thu,  8 Aug 2019 17:29:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
-	by kanga.kvack.org (Postfix) with ESMTP id BE5136B0007
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 17:29:11 -0400 (EDT)
-Received: by mail-ot1-f71.google.com with SMTP id v49so64546346otb.6
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 14:29:11 -0700 (PDT)
+Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 985DD6B0008
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 17:29:39 -0400 (EDT)
+Received: by mail-pg1-f200.google.com with SMTP id a21so51531156pgv.0
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 14:29:39 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=DzaZFkNgePDlVaXLESVKlCNNCGSeU4vRw8is94V5UdA=;
-        b=QtBksVjrwbruqzCfUOcyj6oT4fuez7pcN0qxuxW5U+2R5Oqj0Q0h6dBHCC/3cKE6Zr
-         S0BklPV6h+gFPt5zK+uqaI3bhMqadMcXjHRtePWGrb2Uw9SK04FMZ1Hwy4uMSnpzHA60
-         nYL5Fq4n5jdQN10D86QFueevxlmiGPm7DH+HcA4TVTW+oOLJy7q7Jz0ApEeBz/XNHbrG
-         vSAqbZW/gOEEQd4sKZceWO8pRVmPEGE/XNLbOoP44KUGqNXjm/SmC93/q1LGAg2+b6or
-         023sDziO7DpkTNP2r6IgF3u5atPDXAD09NoFh1ilNJ9QniYrtdLKRNuZbTCUuYNrcgVk
-         FYFg==
-X-Gm-Message-State: APjAAAVP/j6iy9VsscVGtQiDsll/8hE2RGunQWuur6A2FiqEMP+HUQA1
-	8OxWcniiSi1/hN23WA5x8kUZYr7LSIBVi4P4tlWyISUgtIz6P5rMiG72tCMnpPSr+ySddpDeMP4
-	meyy1pQEZwHXAe1wl9WCtHqak0S0mMS9gvJrFxSiWoQ8gM/HhlzxlrLc+A2z4+fn5fg==
-X-Received: by 2002:a05:6830:2148:: with SMTP id r8mr15580134otd.179.1565299751401;
-        Thu, 08 Aug 2019 14:29:11 -0700 (PDT)
-X-Received: by 2002:a05:6830:2148:: with SMTP id r8mr15580095otd.179.1565299750560;
-        Thu, 08 Aug 2019 14:29:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565299750; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=PhGH3Fz3U6BG9IYzpAywsfQn2QaZDVfO/PlIuALj3rM=;
+        b=tgvdoa0Q1iX5Hopb3aQq9zH33eBUpEWdYfMpFxldFSX+gb42Ra0AShHM1cEewCDD/P
+         H4eN0C9QK+uynrt4jbRY3u6C6w68DF98vPX0xjrQ4bUtRZb4PmP2NceVVTN7xvXisKnE
+         9xVNPQaDqYgLIiedoLw/XTIGVK4m+9hrjoLQb4clIOVgmnZYer7bSEFEQzzo0EIcD9rE
+         QbVKt1G2XPfJSH0PIwp3U3IDq7Kkl8ZWpoOTYlIXBhUKT8xIfWb0pqa6aEFjPntUYFar
+         hRKVdJe5SDzgsNzeK+LajZfbLigK1aOtb6PrCw0lzOyXQz1db4+DjZ7spU9mOvHPoHYY
+         eCcA==
+X-Gm-Message-State: APjAAAVIyL//3i7EgSDrNrpTkvzCaFTsgXUDMzLp01YllfQgqMQs8pOs
+	jK+ypssb/UWfcWZfkZPcb19aadYB+m07pLWxeVo7YUZbF8aASu57PwhUlr1/wLU8YpGtcIvX1Z3
+	LGr/ScGJWCg0vOWH9uTaslSvRCppbbm9OfN2ZvvhvPceXDjrJ/5N4bpBvFBY7yEZAKQ==
+X-Received: by 2002:a63:124a:: with SMTP id 10mr14531264pgs.254.1565299779164;
+        Thu, 08 Aug 2019 14:29:39 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqykpRd6quTT705ZinvWZzWGbFQL20rUGwuS6Y0Jmh4dqBaAapas2hiZWaxqwGVLQO+AqjbY
+X-Received: by 2002:a63:124a:: with SMTP id 10mr14531227pgs.254.1565299778212;
+        Thu, 08 Aug 2019 14:29:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565299778; cv=none;
         d=google.com; s=arc-20160816;
-        b=gbLRP7+Yphu2oKCfVh9+8CjVDnAPUpTTBep3okIMjC78lHAVpf44q4POULcjrgLJXw
-         /qlE3VYIrxWvuRrknKVF21uikSvUdEP7IhG3yfvXPUknQcdB/tXTMECtHlB0Dh0qBlFq
-         ml0bZvo+r5bUEXOQQx2BUXpp5/ITdHPLhTRiDL6TYpVzcq0JEaHoiGJ+iSfS3McvMyUj
-         jIkpi+POYqyYY9b+VRk9pvBWQIABmZli2f61/73a9/hTMZLZxMBZ5r6bEWolKlNF9a6l
-         1AXE3izFGGKeAyF+QUbxhe5o7xQBOMrdOCUOtbd+wWNnhgfmqSuuZCOUcS6mLVi1QjWY
-         Du1g==
+        b=wfT8Ou3JpS9lqf947+5bldcRv34eAazBCmzviJ4zOxk5EOuGdB5WbsW6RPtF3fm+A7
+         sozMxildqebRNcbYobsvJNHcaJc/52sjXmB8rSEYT44SCiUYqlXBcm0tBXRtiBYEQBEp
+         KvxnoKViBkMhmNsZusU5Ss0m4SrkcR+WkBrAwvqHzwyGpSQoWVmIQGE67xp8YoGDryo4
+         0p5lqoDPCOCkC/4qvBdjMnH+69wevflVImtQ7RysCE5EJEAiIo+f98ZG7l+3EcLvywGl
+         hnm4C1DamDlfRYA8W4XfGUbfkhmJzvo1I+TOLUmc+fhZINYpzL0wKmdkcEzVheWUVH3m
+         tBeg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=DzaZFkNgePDlVaXLESVKlCNNCGSeU4vRw8is94V5UdA=;
-        b=BFzKQPUlLnpGcX+Fv3K1BMQYk9mHdgv2qrGB1peuyoX47Saz9UdthLBXvKAdW+d9/N
-         Bj2v6JwsuE1aMvoXpsUjs0UYnUdBH+BJTcCHaEGd5R1j1fuEBPp1VMR6UeWpoq2i6c2S
-         X2D3VexqYkIqbb76qu2kbrnMgToEqdWNr6yoxJPFKDGECFtfNunD84qV7fqeU5M078Vj
-         OKidrns0McGNQQzTIvekTAVPtWQzaIgfDV8jGaBxOmPy+/O+yRhPfbsz7PNYvkUo5tqN
-         kQB28SzzZ4RtszvPDyRUpm8RVdQkJvjMhaQPcZbMtroYSOpAHaxpMAMGJ5h5JR/oTPmq
-         +cqA==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=PhGH3Fz3U6BG9IYzpAywsfQn2QaZDVfO/PlIuALj3rM=;
+        b=aur02uD0MLeE9fJT+FhZBPC1/42w2e7b515yiLPbJFZecFdAGct88xZb7zJimgwCVY
+         DadoagYqwnqqi+Sn2Quu1JxEdMVwB4ZUtdJ6l705cEnOV5AoDmccHfQevCosrt8O58S2
+         OSW6hIQWl49YdnR10tVD6HgYzX+cPjmMLCsHqczd8I0clDUkUculTr2t4HwvUhbjDR8m
+         Aw7y+FvWaXmPivO7XniXkpz2itShwQUXRCDjr/jpcECWsLY+qNOEyd8E5LIYJ7Gkm1Je
+         jmaJRuegBGIXq+ahPUFttjMI1UTGtfzQaoHh4aiXXpmdX9dqT7pXelufZhmTUYzAi09m
+         /2WA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=KalgEU89;
-       spf=pass (google.com: domain of almasrymina@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=almasrymina@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id l184sor40896852oib.119.2019.08.08.14.29.10
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="MJZge7m/";
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
+        by mx.google.com with ESMTPS id cb11si52657877plb.100.2019.08.08.14.29.38
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Aug 2019 14:29:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of almasrymina@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Aug 2019 14:29:38 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=KalgEU89;
-       spf=pass (google.com: domain of almasrymina@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=almasrymina@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=DzaZFkNgePDlVaXLESVKlCNNCGSeU4vRw8is94V5UdA=;
-        b=KalgEU890W2v3tdxmH2d7QO3pSxS/bg4+84+pquKaYaO7PNVW3CsGLHZm1QndUrNeZ
-         Kes6GlrYRGfs39qNLpaAgPALwmTqr8BKMMDL5YAXSUayczbCfJxZvC8USF5mL1RKr9Sa
-         eRAaFlqu14/WjkMYqOYUArE0eXX4bUHL0XyNPJl7FJW+2B2PgpuY+2Wdnir2QC1oGtI0
-         dQ41Y0PXBN3BlV82y7AA5w0ORAvn6hNVFoAThakwZ8ytbFoZkjLxwp4YHOk8JYbHk2BI
-         hbfDika9QTq8x7qLymoedawkBjxAXrS54uUhsJGvcAM/+Jd3EOiC5gLCctXcL7jWI7Du
-         +VHQ==
-X-Google-Smtp-Source: APXvYqzoPupi/hlxnLQxtV5HHOP2zFDbWqQf5PEzMQj2ePkR0PAEk3t0ZRroKEvH5zKdgxYIRQ3cyRsINwSRUJIJevY=
-X-Received: by 2002:aca:39c4:: with SMTP id g187mr4300457oia.8.1565299749633;
- Thu, 08 Aug 2019 14:29:09 -0700 (PDT)
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="MJZge7m/";
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d4c944b0002>; Thu, 08 Aug 2019 14:29:47 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 08 Aug 2019 14:29:37 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 08 Aug 2019 14:29:37 -0700
+Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 8 Aug
+ 2019 21:29:35 +0000
+Subject: Re: [PATCH] nouveau/hmm: map pages after migration
+To: Christoph Hellwig <hch@lst.de>
+CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
+	<amd-gfx@lists.freedesktop.org>, <dri-devel@lists.freedesktop.org>,
+	<nouveau@lists.freedesktop.org>, Jason Gunthorpe <jgg@mellanox.com>,
+	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Ben Skeggs
+	<bskeggs@redhat.com>
+References: <20190807150214.3629-1-rcampbell@nvidia.com>
+ <20190808070701.GC29382@lst.de>
+From: Ralph Campbell <rcampbell@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <0b96a8d8-86b5-3ce0-db95-669963c1f8a7@nvidia.com>
+Date: Thu, 8 Aug 2019 14:29:34 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-References: <20190808194002.226688-1-almasrymina@google.com> <528b37c6-3e7a-c6fc-a322-beecb89011a5@kernel.org>
-In-Reply-To: <528b37c6-3e7a-c6fc-a322-beecb89011a5@kernel.org>
-From: Mina Almasry <almasrymina@google.com>
-Date: Thu, 8 Aug 2019 14:28:58 -0700
-Message-ID: <CAHS8izPosKtqr3nJYEKz-jjG9iuTq_TPqE7yyN+2OQ5Gx8qUGw@mail.gmail.com>
-Subject: Re: [RFC PATCH] hugetlbfs: Add hugetlb_cgroup reservation limits
-To: shuah <shuah@kernel.org>
-Cc: mike.kravetz@oracle.com, David Rientjes <rientjes@google.com>, 
-	Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>, akpm@linux-foundation.org, 
-	khalid.aziz@oracle.com, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, 
-	linux-kselftest@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190808070701.GC29382@lst.de>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1565299787; bh=PhGH3Fz3U6BG9IYzpAywsfQn2QaZDVfO/PlIuALj3rM=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=MJZge7m/9mkhZU4etBnQu2xchsH9bJVmIBhjlhBUSEeMEVfNkuCDij6bxrmYac4g9
+	 9l00U+eic6gmLzXQPVqAn8j019mz/QqxOeYW/JKoLsBdEaVKz9RLkiSkpT8P2/nyQY
+	 dJY3ZCzRLOOHHVCKzT1PdhiSUdG6plqyGdTnWLRTmmvPZ9RbteRLOLtOtrEFZ9RIKB
+	 GzTGB8MM7HtJk/XeAG4akQYZ8yLwq74YHxldhk5dOYfCxGuneF/GePqweBWsMaiObR
+	 Tzk5KikVIGjzbxE8Sq3t0NvbeP7bOgXH/SLMeMxad6ZhJxTHatunatImUt79RWsrWT
+	 66U0nG6r9iVXA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 8, 2019 at 1:23 PM shuah <shuah@kernel.org> wrote:
->
-> On 8/8/19 1:40 PM, Mina Almasry wrote:
-> > Problem:
-> > Currently tasks attempting to allocate more hugetlb memory than is available get
-> > a failure at mmap/shmget time. This is thanks to Hugetlbfs Reservations [1].
-> > However, if a task attempts to allocate hugetlb memory only more than its
-> > hugetlb_cgroup limit allows, the kernel will allow the mmap/shmget call,
-> > but will SIGBUS the task when it attempts to fault the memory in.
-> >
-> > We have developers interested in using hugetlb_cgroups, and they have expressed
-> > dissatisfaction regarding this behavior. We'd like to improve this
-> > behavior such that tasks violating the hugetlb_cgroup limits get an error on
-> > mmap/shmget time, rather than getting SIGBUS'd when they try to fault
-> > the excess memory in.
-> >
-> > The underlying problem is that today's hugetlb_cgroup accounting happens
-> > at hugetlb memory *fault* time, rather than at *reservation* time.
-> > Thus, enforcing the hugetlb_cgroup limit only happens at fault time, and
-> > the offending task gets SIGBUS'd.
-> >
-> > Proposed Solution:
-> > A new page counter named hugetlb.xMB.reservation_[limit|usage]_in_bytes. This
-> > counter has slightly different semantics than
-> > hugetlb.xMB.[limit|usage]_in_bytes:
-> >
-> > - While usage_in_bytes tracks all *faulted* hugetlb memory,
-> > reservation_usage_in_bytes tracks all *reserved* hugetlb memory.
-> >
-> > - If a task attempts to reserve more memory than limit_in_bytes allows,
-> > the kernel will allow it to do so. But if a task attempts to reserve
-> > more memory than reservation_limit_in_bytes, the kernel will fail this
-> > reservation.
-> >
-> > This proposal is implemented in this patch, with tests to verify
-> > functionality and show the usage.
-> >
-> > Alternatives considered:
-> > 1. A new cgroup, instead of only a new page_counter attached to
-> >     the existing hugetlb_cgroup. Adding a new cgroup seemed like a lot of code
-> >     duplication with hugetlb_cgroup. Keeping hugetlb related page counters under
-> >     hugetlb_cgroup seemed cleaner as well.
-> >
-> > 2. Instead of adding a new counter, we considered adding a sysctl that modifies
-> >     the behavior of hugetlb.xMB.[limit|usage]_in_bytes, to do accounting at
-> >     reservation time rather than fault time. Adding a new page_counter seems
-> >     better as userspace could, if it wants, choose to enforce different cgroups
-> >     differently: one via limit_in_bytes, and another via
-> >     reservation_limit_in_bytes. This could be very useful if you're
-> >     transitioning how hugetlb memory is partitioned on your system one
-> >     cgroup at a time, for example. Also, someone may find usage for both
-> >     limit_in_bytes and reservation_limit_in_bytes concurrently, and this
-> >     approach gives them the option to do so.
-> >
-> > Caveats:
-> > 1. This support is implemented for cgroups-v1. I have not tried
-> >     hugetlb_cgroups with cgroups v2, and AFAICT it's not supported yet.
-> >     This is largely because we use cgroups-v1 for now. If required, I
-> >     can add hugetlb_cgroup support to cgroups v2 in this patch or
-> >     a follow up.
-> > 2. Most complicated bit of this patch I believe is: where to store the
-> >     pointer to the hugetlb_cgroup to uncharge at unreservation time?
-> >     Normally the cgroup pointers hang off the struct page. But, with
-> >     hugetlb_cgroup reservations, one task can reserve a specific page and another
-> >     task may fault it in (I believe), so storing the pointer in struct
-> >     page is not appropriate. Proposed approach here is to store the pointer in
-> >     the resv_map. See patch for details.
-> >
-> > [1]: https://www.kernel.org/doc/html/latest/vm/hugetlbfs_reserv.html
-> >
-> > Signed-off-by: Mina Almasry <almasrymina@google.com>
-> > ---
-> >   include/linux/hugetlb.h                       |  10 +-
-> >   include/linux/hugetlb_cgroup.h                |  19 +-
-> >   mm/hugetlb.c                                  | 256 ++++++++--
-> >   mm/hugetlb_cgroup.c                           | 153 +++++-
->
-> Is there a reason why all these changes are in a single patch?
-> I can see these split in at least 2 or 3 patches with the test
-> as a separate patch.
->
 
-Only because I was expecting feedback on the approach and alternative
-approaches before an in-detail review. But, no problem; I'll break it
-into smaller patches now.
-> Makes it lot easier to review.
->
-> thanks,
-> -- Shuah
+On 8/8/19 12:07 AM, Christoph Hellwig wrote:
+> On Wed, Aug 07, 2019 at 08:02:14AM -0700, Ralph Campbell wrote:
+>> When memory is migrated to the GPU it is likely to be accessed by GPU
+>> code soon afterwards. Instead of waiting for a GPU fault, map the
+>> migrated memory into the GPU page tables with the same access permission=
+s
+>> as the source CPU page table entries. This preserves copy on write
+>> semantics.
+>>
+>> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+>> Cc: Christoph Hellwig <hch@lst.de>
+>> Cc: Jason Gunthorpe <jgg@mellanox.com>
+>> Cc: "J=C3=A9r=C3=B4me Glisse" <jglisse@redhat.com>
+>> Cc: Ben Skeggs <bskeggs@redhat.com>
+>> ---
+>>
+>> This patch is based on top of Christoph Hellwig's 9 patch series
+>> https://lore.kernel.org/linux-mm/20190729234611.GC7171@redhat.com/T/#u
+>> "turn the hmm migrate_vma upside down" but without patch 9
+>> "mm: remove the unused MIGRATE_PFN_WRITE" and adds a use for the flag.
+>=20
+> This looks useful.  I've already dropped that patch for the pending
+> resend.
+
+Thanks.
+
+>=20
+>>   static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm =
+*drm,
+>> -		struct vm_area_struct *vma, unsigned long addr,
+>> -		unsigned long src, dma_addr_t *dma_addr)
+>> +		struct vm_area_struct *vma, unsigned long src,
+>> +		dma_addr_t *dma_addr, u64 *pfn)
+>=20
+> I'll pick up the removal of the not needed addr argument for the patch
+> introducing nouveau_dmem_migrate_copy_one, thanks,
+>=20
+>>   static void nouveau_dmem_migrate_chunk(struct migrate_vma *args,
+>> -		struct nouveau_drm *drm, dma_addr_t *dma_addrs)
+>> +		struct nouveau_drm *drm, dma_addr_t *dma_addrs, u64 *pfns)
+>>   {
+>>   	struct nouveau_fence *fence;
+>>   	unsigned long addr =3D args->start, nr_dma =3D 0, i;
+>>  =20
+>>   	for (i =3D 0; addr < args->end; i++) {
+>>   		args->dst[i] =3D nouveau_dmem_migrate_copy_one(drm, args->vma,
+>> -				addr, args->src[i], &dma_addrs[nr_dma]);
+>> +				args->src[i], &dma_addrs[nr_dma], &pfns[i]);
+>=20
+> Nit: I find the &pfns[i] way to pass the argument a little weird to read.
+> Why not "pfns + i"?
+
+OK, will do in v2.
+Should I convert to "dma_addrs + nr_dma" too?
+
+>> +u64 *
+>> +nouveau_pfns_alloc(unsigned long npages)
+>> +{
+>> +	struct nouveau_pfnmap_args *args;
+>> +
+>> +	args =3D kzalloc(sizeof(*args) + npages * sizeof(args->p.phys[0]),
+>=20
+> Can we use struct_size here?
+
+Yes, good suggestion.
+
+>=20
+>> +	int ret;
+>> +
+>> +	if (!svm)
+>> +		return;
+>> +
+>> +	mutex_lock(&svm->mutex);
+>> +	svmm =3D nouveau_find_svmm(svm, mm);
+>> +	if (!svmm) {
+>> +		mutex_unlock(&svm->mutex);
+>> +		return;
+>> +	}
+>> +	mutex_unlock(&svm->mutex);
+>=20
+> Given that nouveau_find_svmm doesn't take any kind of reference, what
+> gurantees svmm doesn't go away after dropping the lock?
+
+I asked Ben and Jerome about this too.
+I'm still looking into it.
+
+>=20
+>> @@ -44,5 +49,19 @@ static inline int nouveau_svmm_bind(struct drm_device=
+ *device, void *p,
+>>   {
+>>   	return -ENOSYS;
+>>   }
+>> +
+>> +u64 *nouveau_pfns_alloc(unsigned long npages)
+>> +{
+>> +	return NULL;
+>> +}
+>> +
+>> +void nouveau_pfns_free(u64 *pfns)
+>> +{
+>> +}
+>> +
+>> +void nouveau_pfns_map(struct nouveau_drm *drm, struct mm_struct *mm,
+>> +		      unsigned long addr, u64 *pfns, unsigned long npages)
+>> +{
+>> +}
+>>   #endif /* IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM) */
+>=20
+> nouveau_dmem.c and nouveau_svm.c are both built conditional on
+> CONFIG_DRM_NOUVEAU_SVM, so there is no need for stubs here.
+>=20
+
+Good point. I'll remove them in v2.
 
