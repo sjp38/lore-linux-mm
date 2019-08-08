@@ -2,223 +2,146 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 01BADC32754
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 06:59:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id BEC3DC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 06:59:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C26A52184E
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 06:59:16 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C26A52184E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id 880F421880
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 06:59:38 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 880F421880
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 464506B0003; Thu,  8 Aug 2019 02:59:16 -0400 (EDT)
+	id 219D06B0006; Thu,  8 Aug 2019 02:59:38 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4140F6B0006; Thu,  8 Aug 2019 02:59:16 -0400 (EDT)
+	id 1C9D96B0007; Thu,  8 Aug 2019 02:59:38 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2DC826B0007; Thu,  8 Aug 2019 02:59:16 -0400 (EDT)
+	id 0BA556B0008; Thu,  8 Aug 2019 02:59:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id D16826B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 02:59:15 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id y23so1196433edo.13
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 23:59:15 -0700 (PDT)
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id B3A956B0006
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 02:59:37 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id l24so44759059wrb.0
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 23:59:37 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=GR+ypBp5ONQHrTrfwOgJfuqY+wie+rfR9gnQqQu2w1o=;
-        b=FBeqqMJCTNqx9VBfK9Ftr6zvP2/4xvCXPrCsSPC1C463F5bWDl4asjk8j5lQWOuaCV
-         mTw+uyy51wem63PsCG5sotQAexAarpgkhBj/UltNazBhdAhlneMs/Qivb4hTMj0rson9
-         R3AFNwmq2ucmBcFOwUxBm70FiHIBZKQK7FdfXrBz51yftw/VZJnum9lQyd5fPGpdsjJe
-         ix4vvo39KmYbPk+ZAz4dUIGpHTQ0sqtb3zDUSlPh+NwagKXKTdua3lBp0Zvs4/VQQ1ay
-         V4/nVPgsHIZ1qofpfhaAHWuYgC6v1ZFjwZ95OgnKRaFgXQAGGcZY0xLNuCcKFWb5CrIM
-         Bbng==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAUS6aUZ2qUYZHZBZyEcc3ryqvYDu0lqxehubgQPZrRdu0dW8Mcr
-	3EbqcnNcVCxIBzU5moK3C1Dc4tJuizrSoN9WdFuU6nk+9W7kudIUjvXPTSQpYSk6436pVzPvx6M
-	r8dMWV3N2t6v3eOSy4dvaO3oTbcDo8bAXDaMyR/8jJ1nfHwsssZcjSEwfLQaOzaqwQg==
-X-Received: by 2002:a17:907:2130:: with SMTP id qo16mr11954680ejb.235.1565247555391;
-        Wed, 07 Aug 2019 23:59:15 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz6sdOMo/WDTWAJ6tLl651TI4l5QBJ5PE0AHOCdoujkdRjdkDtFZURE4zzrWW/NkMWSBuGf
-X-Received: by 2002:a17:907:2130:: with SMTP id qo16mr11954636ejb.235.1565247554470;
-        Wed, 07 Aug 2019 23:59:14 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565247554; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=4PGz37ROPIjgASVITDVN9LnvP6bYDz+C4QCRlM2A9h4=;
+        b=YAEix+wqbfveaagQVrJ1Wa02j0fgeeOhpqrG6CiqaVB17nXGs6jpKsBjULasXdpa4n
+         +5GzK0QLb4dly80LymcEQg+dAkxXWRlfLJ8qgqMJH9EKfCwRCjkr8Wlt2oqc3i9usq6F
+         IpANDsmCJxiWTcL/eGFn9+ip4Zfrlt8Qz09nXYDfPRppnxFqRtI0e1cxi4xVz+O4CExe
+         UAfqF+er52aYb2+AK4M++gxbGiY887oGzJxNqEVyf61AZaCuZgbNnIDXsX1uyA9EzaRv
+         gktPfjkXpRYZx+FKBdYi5ZH+gfq+r8HZsqonT+fflsWKqp3A2ZpdBv0RcHLIqqQVyPFE
+         1I9g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+X-Gm-Message-State: APjAAAVCkqbokyx4l9HqycYQfQqkvOnBDpeH0zjmx3nveSPFIUuTe36/
+	qSgmubvWd8kniKG9DIslKm5E9yA2Z7hoyx5x4lG1L7p2kkXjqu4f/FReAxjYou00XoQPjyap8d6
+	4uZzobqfNEzakGZkYMZCT87UEz6QbUx/9WehLBorbjFxep2UpWiZo8L+dXuvO0X2j3A==
+X-Received: by 2002:a1c:2d8b:: with SMTP id t133mr2399177wmt.57.1565247577312;
+        Wed, 07 Aug 2019 23:59:37 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyvGh4kJnz66jIpy2jYPLBTSC8Onj0D+CCqqL5YB8fGUBMRG2CcHbPo2mJskDevtImzpcuv
+X-Received: by 2002:a1c:2d8b:: with SMTP id t133mr2399110wmt.57.1565247576451;
+        Wed, 07 Aug 2019 23:59:36 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565247576; cv=none;
         d=google.com; s=arc-20160816;
-        b=MbwxwVoUcMIRenFJj9slDfPRF6wv7pXVB1VQRdWF0/4lnjHOsE6fgTXZ6u+zVsTT88
-         tJPdT8O6r4glpuCZ7yB7q5N14q+nq3xkfeguHOzTonh5TX5/A1kq6jCpe2QBnpgl2/sG
-         2UPt7D53Q6ux8UwH0sKSq80EDxl8+b52qjoftehy5ajERaQmf676GMoOpm2dRxOZeOoP
-         a5dj+RWgdgobDG6pbzsJ7z+PdvGVGa/9iFs5tq3rpdBpTFW15ZsIJD2V2WoZPC8r+SZc
-         2poH31xt9XAQT6UK8f1LHpieLN1eN4hYdVfBt4/wtAQe6hVfDw4qFJ+kMhhFEPONpsKV
-         0PZA==
+        b=Ev8jvFZM9xy+5LyA5j51V9C5LBrt7qDW8umVYzaQTO9A6dOMDUjPUI8yfL0BCD810U
+         hpnfH1GnvBQJt+b3eJvogglB2BKBDLyZMvNZBBvvw3uXDxR1d9O3PO2p2q81tdn9p3yh
+         QyRWQPHsWlbECBauMkUbUQQfCjA0sUGTWQVezxWFJtJvAj7M4RkEKXuEs1dPdMdf9biH
+         v7f5bzooqOrmNM204VKGWFPhc9ni6o+wn/wP/xCEZfFMLKMhuh9wDfxhF/VlgPP1CtkF
+         5v2Cm839kfTNshwfbOv0sgNMLGddpVUoCYt+CIty0zIJ6P2MNAAcUR1YivSvPUI3XAuF
+         e+sg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=GR+ypBp5ONQHrTrfwOgJfuqY+wie+rfR9gnQqQu2w1o=;
-        b=TpvYejij33lDD/C3LDgurWCoBfLCNIxg3dTY6sDUhQe+3UQw9t4pRquaANhwFUUdWG
-         rKF0YPxt9wmzAaaZkIaW1ZsxJQ2JYSPFWTpuwNGNFFoK9zHjuv4XnsEmvSz/g7GN2Njl
-         N/gjCrm4mxNbsorTYwkhq+mX5cfIvstvA7MrmtgCxuobI0QXS9ACfCbnPMu7KNZZkL/y
-         yn00pzaMccC0adBqKteDBcnLtqXrhSAHpLPh1Bmx6WQVj3ovYuFHUAEKzRTb97Lb5nyZ
-         1tFaomG5OFMhTXtMrWNcpFXO+j4++dhNeMoX7KazYxI3WDCSqkZbk9TK73QeVqOEY0+H
-         w2hA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=4PGz37ROPIjgASVITDVN9LnvP6bYDz+C4QCRlM2A9h4=;
+        b=qSW9PDBv71cpg6ROel2z2/6A0T831P6XaqBAibtN33nHl6/KZPCscOzqjqpQ7P5Jnd
+         e4bnlnea3FoKoc/2YX+1yJFdI7DGmymLkgTOJReUElg9ZijhvE4pTqo0mfqr7ZJVzLcx
+         uTg72/IGoeEqdp8vvhmWt8sGArGX3sbC7+jUpdUliNFG86Q4Iav0pSCf8WA8IobVmCem
+         lCBo+KfUWWpW0uwIOnawIVuyAeBvEodVvZL5bHaTEK/XNVhtsHxG2I1Ps7Q9Idcu4dUy
+         GPTwsM+LIn/5C+QpyPKAZ+kjfKmPB0W54UdRyZrjG83wjMttrr8tQLjnd5muXwO+5lzq
+         iflw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id s50si40057329edb.270.2019.08.07.23.59.14
-        for <linux-mm@kvack.org>;
-        Wed, 07 Aug 2019 23:59:14 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
+        by mx.google.com with ESMTPS id d8si2341962wrm.74.2019.08.07.23.59.36
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 07 Aug 2019 23:59:36 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 1E449337;
-	Wed,  7 Aug 2019 23:59:13 -0700 (PDT)
-Received: from [10.163.1.243] (unknown [10.163.1.243])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 6A1CF3F706;
-	Thu,  8 Aug 2019 00:01:13 -0700 (PDT)
-Subject: Re: [PATCH] arm64: mm: add missing PTE_SPECIAL in pte_mkdevmap on
- arm64
-To: "Justin He (Arm Technology China)" <Justin.He@arm.com>,
- Catalin Marinas <Catalin.Marinas@arm.com>, Will Deacon <will@kernel.org>,
- Mark Rutland <Mark.Rutland@arm.com>, James Morse <James.Morse@arm.com>
-Cc: Christoffer Dall <Christoffer.Dall@arm.com>,
- Punit Agrawal <punitagrawal@gmail.com>, Qian Cai <cai@lca.pw>,
- Jun Yao <yaojun8558363@gmail.com>, Alex Van Brunt <avanbrunt@nvidia.com>,
- Robin Murphy <Robin.Murphy@arm.com>, Thomas Gleixner <tglx@linutronix.de>,
- "linux-arm-kernel@lists.infradead.org"
- <linux-arm-kernel@lists.infradead.org>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- Dan Williams <dan.j.williams@intel.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
- <jglisse@redhat.com>, Logan Gunthorpe <logang@deltatee.com>,
- Christoph Hellwig <hch@lst.de>
-References: <20190807045851.10772-1-justin.he@arm.com>
- <ce0be561-117c-ef94-6a26-f88c3ba21096@arm.com>
- <DB7PR08MB30823791749E5B083AF167B5F7D70@DB7PR08MB3082.eurprd08.prod.outlook.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <7c950e09-bc34-fa19-8889-598832c97b44@arm.com>
-Date: Thu, 8 Aug 2019 12:28:58 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
+Received: by verein.lst.de (Postfix, from userid 2407)
+	id D398268AEF; Thu,  8 Aug 2019 08:59:33 +0200 (CEST)
+Date: Thu, 8 Aug 2019 08:59:33 +0200
+From: Christoph Hellwig <hch@lst.de>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>, Christoph Hellwig <hch@lst.de>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	Ben Skeggs <bskeggs@redhat.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Ralph Campbell <rcampbell@nvidia.com>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
+	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
+Subject: Re: [PATCH 04/15] mm: remove the pgmap field from struct
+ hmm_vma_walk
+Message-ID: <20190808065933.GA29382@lst.de>
+References: <20190806160554.14046-1-hch@lst.de> <20190806160554.14046-5-hch@lst.de> <20190807174548.GJ1571@mellanox.com> <CAPcyv4hPCuHBLhSJgZZEh0CbuuJNPLFDA3f-79FX5uVOO0yubA@mail.gmail.com>
 MIME-Version: 1.0
-In-Reply-To: <DB7PR08MB30823791749E5B083AF167B5F7D70@DB7PR08MB3082.eurprd08.prod.outlook.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAPcyv4hPCuHBLhSJgZZEh0CbuuJNPLFDA3f-79FX5uVOO0yubA@mail.gmail.com>
+User-Agent: Mutt/1.5.17 (2007-11-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 08/08/2019 11:50 AM, Justin He (Arm Technology China) wrote:
-> Hi Anshuman
-> Thanks for the comments, please see my comments below
+On Wed, Aug 07, 2019 at 11:47:22AM -0700, Dan Williams wrote:
+> > Unrelated to this patch, but what is the point of getting checking
+> > that the pgmap exists for the page and then immediately releasing it?
+> > This code has this pattern in several places.
+> >
+> > It feels racy
 > 
->> -----Original Message-----
->> From: Anshuman Khandual <anshuman.khandual@arm.com>
->> Sent: 2019年8月8日 13:19
->> To: Justin He (Arm Technology China) <Justin.He@arm.com>; Catalin
->> Marinas <Catalin.Marinas@arm.com>; Will Deacon <will@kernel.org>;
->> Mark Rutland <Mark.Rutland@arm.com>; James Morse
->> <James.Morse@arm.com>
->> Cc: Christoffer Dall <Christoffer.Dall@arm.com>; Punit Agrawal
->> <punitagrawal@gmail.com>; Qian Cai <cai@lca.pw>; Jun Yao
->> <yaojun8558363@gmail.com>; Alex Van Brunt <avanbrunt@nvidia.com>;
->> Robin Murphy <Robin.Murphy@arm.com>; Thomas Gleixner
->> <tglx@linutronix.de>; linux-arm-kernel@lists.infradead.org; linux-
->> kernel@vger.kernel.org
->> Subject: Re: [PATCH] arm64: mm: add missing PTE_SPECIAL in
->> pte_mkdevmap on arm64
->>
-> [...]
->>> diff --git a/arch/arm64/include/asm/pgtable.h
->> b/arch/arm64/include/asm/pgtable.h
->>> index 5fdcfe237338..e09760ece844 100644
->>> --- a/arch/arm64/include/asm/pgtable.h
->>> +++ b/arch/arm64/include/asm/pgtable.h
->>> @@ -209,7 +209,7 @@ static inline pmd_t pmd_mkcont(pmd_t pmd)
->>>
->>>  static inline pte_t pte_mkdevmap(pte_t pte)
->>>  {
->>> -	return set_pte_bit(pte, __pgprot(PTE_DEVMAP));
->>> +	return set_pte_bit(pte, __pgprot(PTE_DEVMAP | PTE_SPECIAL));
->>>  }
->>>
->>>  static inline void set_pte(pte_t *ptep, pte_t pte)
->>> @@ -396,7 +396,10 @@ static inline int pmd_protnone(pmd_t pmd)
->>>  #ifdef CONFIG_TRANSPARENT_HUGEPAGE
->>>  #define pmd_devmap(pmd)		pte_devmap(pmd_pte(pmd))
->>>  #endif
->>> -#define pmd_mkdevmap(pmd)
->> 	pte_pmd(pte_mkdevmap(pmd_pte(pmd)))
->>> +static inline pmd_t pmd_mkdevmap(pmd_t pmd)
->>> +{
->>> +	return pte_pmd(set_pte_bit(pmd_pte(pmd),
->> __pgprot(PTE_DEVMAP)));
->>> +}
->>
->> Though I could see other platforms like powerpc and x86 following same
->> approach (DEVMAP + SPECIAL) for pte so that it checks positive for
->> pte_special() but then just DEVMAP for pmd which could never have a
->> pmd_special(). But a more fundamental question is - why should a devmap
->> be a special pte as well ?
+> Agree, not sure what the intent is here. The only other reason call
+> get_dev_pagemap() is to just check in general if the pfn is indeed
+> owned by some ZONE_DEVICE instance, but if the intent is to make sure
+> the device is still attached/enabled that check is invalidated at
+> put_dev_pagemap().
 > 
-> IIUC, special pte bit make things handling easier compare with those arches which
-> have no special bit. The memory codes will regard devmap page as a special one 
-> compared with normal page.
+> If it's the former case, validating ZONE_DEVICE pfns, I imagine we can
+> do something cheaper with a helper that is on the order of the same
+> cost as pfn_valid(). I.e. replace PTE_DEVMAP with a mem_section flag
+> or something similar.
 
-For that we have PTE_DEVMAP on arm64 which differentiates device memory
-entries from others and it should not again need PTE_SPECIAL as well for
-that. We set both bits while creating the entries with pte_mkdevmap()
-and check just one bit PTE_DEVMAP with pte_devmap(). Problem is it will
-also test positive for pte_special() and risks being identified as one.
+The hmm literally never dereferences the pgmap, so validity checking is
+the only explanation for it.
 
-> Devmap page structure can be stored in ram/pmem/none.
-
-That is altogether a different aspect which is handled with vmem_altmap
-during hotplug and nothing to do with how device memory is mapped in the
-page table. I am not sure about "none" though. IIUC unlike traditional
-device pfn all ZONE_DEVICE memory will have struct page backing either
-on system RAM or in the device memory itself.
-
+> > +               /*
+> > +                * We do put_dev_pagemap() here so that we can leverage
+> > +                * get_dev_pagemap() optimization which will not re-take a
+> > +                * reference on a pgmap if we already have one.
+> > +                */
+> > +               if (hmm_vma_walk->pgmap)
+> > +                       put_dev_pagemap(hmm_vma_walk->pgmap);
+> > +
 > 
->>
->> Also in vm_normal_page() why cannot it tests for pte_devmap() before it
->> starts looking for CONFIG_ARCH_HAS_PTE_SPECIAL. Is this the only path
->> for
-> 
-> AFAICT, yes, but it changes to much besides arm codes. 😊
+> Seems ok, but only if the caller is guaranteeing that the range does
+> not span outside of a single pagemap instance. If that guarantee is
+> met why not just have the caller pass in a pinned pagemap? If that
+> guarantee is not met, then I think we're back to your race concern.
 
-If this is the only path for which all platforms have to set PTE_SPECIAL
-in their device mapping, then it should just be fixed in vm_normal_page().
-
-> 
->> which we need to set SPECIAL bit on a devmap pte or there are other paths
->> where this semantics is assumed ?
-> 
-> No idea
-
-Probably something to be asked in the mm community.
-
-1. Why pte_mkdevmap() should set SPECIAL bit for a positive pte_special()
-   check. Why the same mapping be identified as pte_devmap() as well as
-   pte_special().
-
-2. Can pte_devmap() and pte_special() re-ordering at vm_normal_page() will
-   remove this dependency or there are other commons MM paths which assume
-   this behavior ?
-
-+ linux-mm@kvack.org <linux-mm@kvack.org>
-+ Dan Williams <dan.j.williams@intel.com>
-+ Jérôme Glisse <jglisse@redhat.com>
-+ Logan Gunthorpe <logang@deltatee.com>
-+ Christoph Hellwig <hch@lst.de>
+It iterates over multiple ptes in a non-huge pmd.  Is there any kind of
+limitations on different pgmap instances inside a pmd?  I can't think
+of one, so this might actually be a bug.
 
