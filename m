@@ -2,229 +2,132 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-4.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F224CC433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 15:02:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DD135C433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 15:10:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8E0822184E
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 15:02:45 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="T8SEdQkm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8E0822184E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id A638F2184E
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 15:10:11 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A638F2184E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=redhazel.co.uk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E913A6B0003; Thu,  8 Aug 2019 11:02:44 -0400 (EDT)
+	id 404A76B0007; Thu,  8 Aug 2019 11:10:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E41BD6B0006; Thu,  8 Aug 2019 11:02:44 -0400 (EDT)
+	id 3B3F26B0008; Thu,  8 Aug 2019 11:10:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D58366B0007; Thu,  8 Aug 2019 11:02:44 -0400 (EDT)
+	id 2CAB46B000A; Thu,  8 Aug 2019 11:10:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id A2CA16B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 11:02:44 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id 191so59245178pfy.20
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 08:02:44 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id D503F6B0007
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 11:10:10 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id k37so1685662eda.7
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 08:10:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=ExbLywp2n4riKzI1gMtYZu/WQrgrjE4vGU5JEUkphOM=;
-        b=iG3v0ITCVdBNxhdGQA1vAsxbWLoa5qIOTsJbjp8DmN8Bg8z2xV4kJX03biPSW6wALI
-         cd+Ckc23tdvM96ZhnYr1GIZCT+gkbZyJqBnkwshGt2Hm75ENIKqqxnr7MnlV7HqpO/+u
-         VxN2HvBDk5iUdjDy5AwZb64Sq34FCODClcgDqsaLoMrZG3bxB8D8Q1HbGGGf1UfSNakD
-         /DvRAJYYx+8gV4YEqrDiMWz2qFG0HHYsC6uGtpLApCarluX0hAjjP8crOc3p/+0Djna0
-         Kje6APXYxtG30yKDWxiE4UuRk6KHLE4vzzrycabQ7xEftYrYjRQMs8TByup9xlsktH06
-         /EGQ==
-X-Gm-Message-State: APjAAAXqVmf5P1SzgDrdBjnGavl6STNT/X+wme7Ypx1XOg4GmwaPzeCw
-	VZGvBNzWTnH2wTh9sMaM4jcDycnZIAekhydzWWgofsQuv6vl55Q2k9hoUVd3R4ioRCRnxsL09iS
-	LXVJF/lSkIYUxbBzKecNnlkkqz4zXN+xFQe3oh6i3YY0OLrSlUF4Uf0/FcdjLGhaYbA==
-X-Received: by 2002:a62:e716:: with SMTP id s22mr15917694pfh.250.1565276564224;
-        Thu, 08 Aug 2019 08:02:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzFPJ+rRjbJtb48d6zxdS5T024ZRsrEdoMM5/xGfScpkmI3H4ytpiWn5LwhUWR10pHuZ7bh
-X-Received: by 2002:a62:e716:: with SMTP id s22mr15917621pfh.250.1565276563309;
-        Thu, 08 Aug 2019 08:02:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565276563; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date
+         :user-agent:in-reply-to:references:mime-version
+         :content-transfer-encoding:subject:to:cc:from:message-id;
+        bh=ifo/pJmfD7qppS0boNqOksAUn5OSD5K48ZxQ+tkc0CM=;
+        b=Fs4zqFdfhBaZ0e50Vk3u/DM0IvsgaFEsjtd1IfxAOPUdG74dZ5Z7uwKlB0zCOpxDFE
+         eGBhuXztEEkMFP8UgaD6HkVywMwv3y2QbvuIUyFE102HQZt5MD8jpjV3e6kP6hmVF/a2
+         7Ic7lmBE9v91A2RMuu2rMEUChqMcHKZj43MjCsix+EPwvMmnd9hWc2tmj+fvsuwt/0MW
+         NxV9kXFHi0Y7DQVySOSv1vfR7TK6jfrkI4SoD/crjWv1Q7MAWxQvHExB7npIvsha9WDF
+         Q+jCJrw21Z8tET3QqgEyojoZPXQ6PUoGRcUy6vupY3gdtA1sVl52KVn+PAnGjmJHzqab
+         C3GA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ndrw.xf@redhazel.co.uk designates 68.66.241.172 as permitted sender) smtp.mailfrom=ndrw.xf@redhazel.co.uk
+X-Gm-Message-State: APjAAAWPF2s2VqW5hJDsKlREZ9AQLtv0YuNnrFQ1CvOJttY53QAFk84x
+	lnOeAi7DB3Wku7FlwBeERCsHOO1YqZ6CnpKDTK2hb5yNJcMBKEM6LYDH6boHxkThxcnUZ3ikOFv
+	coLtSswzRLf5oOqcH0s9clqpqzr0o8rV/fJ6CY7FBwsml67rJq6NAz3NY0uwebkUQkg==
+X-Received: by 2002:a50:aa14:: with SMTP id o20mr16527670edc.165.1565277010446;
+        Thu, 08 Aug 2019 08:10:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzg6MKUFvBNAqzUdEdu76NVP6zUmth7UYGX1DblRo2Br1lVt6cKFoZZ1tGVfqoKUcyieACI
+X-Received: by 2002:a50:aa14:: with SMTP id o20mr16527600edc.165.1565277009765;
+        Thu, 08 Aug 2019 08:10:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565277009; cv=none;
         d=google.com; s=arc-20160816;
-        b=UKVfmRjAAig+Bog/o7CDvokYNiHWNpgDoMonx0MBPq9FcQ4q/mx+3PIgR3WYWb3SLu
-         xLy05GKUn5ETDs4nqsD8/jtDRM0PQdTJiE/EW+05RcJ/04f6uNikRVYNTik86q8r0kSz
-         UVPx39lyi3bfgPabf8cKR88mkv8HkpyXdKV4HknwEdeX3fg9COSPMGdIzRGjXe/x0Gsm
-         H08Q7W4tJ7fm2QdOna9HKhbsS/zzEw/3ttWK4oj3vLBOfHnrYtom5mvzLoKRJTeQgKvW
-         cSQB660mHKVmOYtKga4yj2Y/zkT2I0pBDPeTbTYcmTCN1gNQbilVHLONBixz402azDHR
-         +q3A==
+        b=jhkUD4cTENPbQCLIjwB0/jMKltvnWiUQAVAhKn1qQAJYwDS72kJxU/x6uoiqal7Cxd
+         QyxPOil5g2nJAqtvliZI24pJwtN/WGIbu4kyeTGDexeSNtCJ2A0fvAKXZ1Koz7Bm2luS
+         8DWogFgQtTn63GPp9mvyhWapcJcbkIn7Jpxj7qvrDdIVoXYqPcemVIInPzRhcEYaXIqA
+         IaHG3NLeko5sLHCMCFhEewx9Fp6UyxdyVdH1zlOv391B5ouqpE6DTfxV6hNC7bziX7sP
+         /au6Axp6GmxZFvdAqhYzapB6/LHzWe5YEAlRxj7MIusWK+RnI7TOXwX/RhkQ26VpPx5e
+         RNHg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=ExbLywp2n4riKzI1gMtYZu/WQrgrjE4vGU5JEUkphOM=;
-        b=EqKtS3dzGB8Un+CggKCyV5V7UeJd4QNTwQxtcETf7zjBgpDUee/usnN1iaHZOmR3X+
-         qE4zlcd5k+08kKSmBX273xLVXsmRiFinOuvWG6ibbFUY6vRYdHOTlG+8P2HF0eISSnwV
-         sdSl0XiV3UWNMCRnDMmz6jEpEmCh1ER6WlhBmqFkCtnSWwi4ZUrBUO0ZdCme5hBBx4iE
-         RAB+8pnJchpFr0wjt4e2ppCkRtHWvqzo6F3s7zbC+LwQWNE3tU5xveV0eAxlxVFpwEAS
-         6yLbisxF5nmhqFNlsDOwYOP92JVn3mtxQ81UjJfGwzECj6GBKaqGtLoQMEa+dVPmZT2r
-         1llA==
+        h=message-id:from:cc:to:subject:content-transfer-encoding
+         :mime-version:references:in-reply-to:user-agent:date;
+        bh=ifo/pJmfD7qppS0boNqOksAUn5OSD5K48ZxQ+tkc0CM=;
+        b=YQRDbk5k6M8CMphwpy6Aa5Bdl9+ITMl+FhK405aUlfPGSuNXcVOR1v82wHS22+hlHU
+         E5XpTYjL7LegSpU7MihoZxWE5vfhoqAU032+TeJtymLSw4Zg95swf3cK3YMmETeEJHeW
+         OOT/2Cr+8sx/fk3dtYPGjNxmgca8keAK9MiiMqbMSS6kIR+RcYadwZg/Z5ra44ygs1Js
+         0tukVGtaXaXD3cOy8BNqBa5ScV+FtzG90YL89aNpEomO17GK6FWXxfV0OYRWZ+SNsnVE
+         +maDVlgoT7w0nN7LJceqedP40PsOGL6XCRTm6krR4hiDQwW+rxKc+PngsV0HJRf4Utos
+         aMug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=T8SEdQkm;
-       spf=pass (google.com: domain of robh+dt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=robh+dt@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id d1si47387409pla.75.2019.08.08.08.02.43
+       spf=pass (google.com: domain of ndrw.xf@redhazel.co.uk designates 68.66.241.172 as permitted sender) smtp.mailfrom=ndrw.xf@redhazel.co.uk
+Received: from vps.redhazel.co.uk ([68.66.241.172])
+        by mx.google.com with ESMTPS id h26si30977372ejx.394.2019.08.08.08.10.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 08:02:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of robh+dt@kernel.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+        Thu, 08 Aug 2019 08:10:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ndrw.xf@redhazel.co.uk designates 68.66.241.172 as permitted sender) client-ip=68.66.241.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=T8SEdQkm;
-       spf=pass (google.com: domain of robh+dt@kernel.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=robh+dt@kernel.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-Received: from mail-qt1-f170.google.com (mail-qt1-f170.google.com [209.85.160.170])
+       spf=pass (google.com: domain of ndrw.xf@redhazel.co.uk designates 68.66.241.172 as permitted sender) smtp.mailfrom=ndrw.xf@redhazel.co.uk
+Received: from [100.121.56.177] (unknown [213.205.240.53])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 9DF5321882
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 15:02:42 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565276562;
-	bh=dyMO+YEym8ib/r3ptFxeHa3pBfgJ53Bab+zG1JtBiD8=;
-	h=References:In-Reply-To:From:Date:Subject:To:Cc:From;
-	b=T8SEdQkmyDZjxpkvg3O5aa5y0IUhZYhli6BHqmZLmfiiG7lkr51b/UqgTFh1RGV+e
-	 MfHwocgqqK6CPBSQL1LeWybLWFp8cKihuFna7gkTOy+M2wAZon7MndaSRynprNtU82
-	 2zgEQWoOZhEBTgp3ROz8ugCpgJEPPuHt0voaKgmo=
-Received: by mail-qt1-f170.google.com with SMTP id x22so19047854qtp.12
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 08:02:42 -0700 (PDT)
-X-Received: by 2002:ac8:7593:: with SMTP id s19mr6019854qtq.136.1565276561735;
- Thu, 08 Aug 2019 08:02:41 -0700 (PDT)
+	by vps.redhazel.co.uk (Postfix) with ESMTPSA id 1A2EB1C02183;
+	Thu,  8 Aug 2019 16:10:09 +0100 (BST)
+Date: Thu, 08 Aug 2019 16:10:07 +0100
+User-Agent: K-9 Mail for Android
+In-Reply-To: <20190808114826.GC18351@dhcp22.suse.cz>
+References: <ce102f29-3adc-d0fd-41ee-e32c1bcd7e8d@suse.cz> <20190805193148.GB4128@cmpxchg.org> <CAJuCfpHhR+9ybt9ENzxMbdVUd_8rJN+zFbDm+5CeE2Desu82Gg@mail.gmail.com> <398f31f3-0353-da0c-fc54-643687bb4774@suse.cz> <20190806142728.GA12107@cmpxchg.org> <20190806143608.GE11812@dhcp22.suse.cz> <CAJuCfpFmOzj-gU1NwoQFmS_pbDKKd2XN=CS1vUV4gKhYCJOUtw@mail.gmail.com> <20190806220150.GA22516@cmpxchg.org> <20190807075927.GO11812@dhcp22.suse.cz> <20190807205138.GA24222@cmpxchg.org> <20190808114826.GC18351@dhcp22.suse.cz>
 MIME-Version: 1.0
-References: <20190731154752.16557-1-nsaenzjulienne@suse.de>
- <20190731154752.16557-4-nsaenzjulienne@suse.de> <CAL_JsqKF5nh3hcdLTG5+6RU3_TnFrNX08vD6qZ8wawoA3WSRpA@mail.gmail.com>
- <2050374ac07e0330e505c4a1637256428adb10c4.camel@suse.de> <CAL_Jsq+LjsRmFg-xaLgpVx3miXN3hid3aD+mgTW__j0SbEFYjQ@mail.gmail.com>
- <12eb3aba207c552e5eb727535e7c4f08673c4c80.camel@suse.de>
-In-Reply-To: <12eb3aba207c552e5eb727535e7c4f08673c4c80.camel@suse.de>
-From: Rob Herring <robh+dt@kernel.org>
-Date: Thu, 8 Aug 2019 09:02:30 -0600
-X-Gmail-Original-Message-ID: <CAL_JsqJS6XBSc8DuK2sJApHtY4nCSFpLezf003YMD75THLHAqg@mail.gmail.com>
-Message-ID: <CAL_JsqJS6XBSc8DuK2sJApHtY4nCSFpLezf003YMD75THLHAqg@mail.gmail.com>
-Subject: Re: [PATCH 3/8] of/fdt: add function to get the SoC wide DMA
- addressable memory size
-To: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
-Cc: Catalin Marinas <catalin.marinas@arm.com>, Will Deacon <will@kernel.org>, 
-	Christoph Hellwig <hch@lst.de>, wahrenst@gmx.net, Marc Zyngier <marc.zyngier@arm.com>, 
-	Robin Murphy <robin.murphy@arm.com>, 
-	"moderated list:ARM/FREESCALE IMX / MXC ARM ARCHITECTURE" <linux-arm-kernel@lists.infradead.org>, devicetree@vger.kernel.org, 
-	Linux IOMMU <iommu@lists.linux-foundation.org>, linux-mm@kvack.org, 
-	Frank Rowand <frowand.list@gmail.com>, phill@raspberryi.org, 
-	Florian Fainelli <f.fainelli@gmail.com>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>, Eric Anholt <eric@anholt.net>, 
-	Matthias Brugger <mbrugger@suse.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Marek Szyprowski <m.szyprowski@samsung.com>, 
-	"moderated list:BROADCOM BCM2835 ARM ARCHITECTURE" <linux-rpi-kernel@lists.infradead.org>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain;
+ charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Subject: Re: Let's talk about the elephant in the room - the Linux kernel's inability to gracefully handle low memory pressure
+To: Michal Hocko <mhocko@kernel.org>,Johannes Weiner <hannes@cmpxchg.org>
+CC: Suren Baghdasaryan <surenb@google.com>,Vlastimil Babka <vbabka@suse.cz>,"Artem S. Tashkinov" <aros@gmx.com>,Andrew Morton <akpm@linux-foundation.org>,LKML <linux-kernel@vger.kernel.org>,linux-mm <linux-mm@kvack.org>
+From: ndrw.xf@redhazel.co.uk
+Message-ID: <806F5696-A8D6-481D-A82F-49DEC1F2B035@redhazel.co.uk>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 6, 2019 at 12:12 PM Nicolas Saenz Julienne
-<nsaenzjulienne@suse.de> wrote:
->
-> Hi Rob,
->
-> On Mon, 2019-08-05 at 13:23 -0600, Rob Herring wrote:
-> > On Mon, Aug 5, 2019 at 10:03 AM Nicolas Saenz Julienne
-> > <nsaenzjulienne@suse.de> wrote:
-> > > Hi Rob,
-> > > Thanks for the review!
-> > >
-> > > On Fri, 2019-08-02 at 11:17 -0600, Rob Herring wrote:
-> > > > On Wed, Jul 31, 2019 at 9:48 AM Nicolas Saenz Julienne
-> > > > <nsaenzjulienne@suse.de> wrote:
-> > > > > Some SoCs might have multiple interconnects each with their own DMA
-> > > > > addressing limitations. This function parses the 'dma-ranges' on each of
-> > > > > them and tries to guess the maximum SoC wide DMA addressable memory
-> > > > > size.
-> > > > >
-> > > > > This is specially useful for arch code in order to properly setup CMA
-> > > > > and memory zones.
-> > > >
-> > > > We already have a way to setup CMA in reserved-memory, so why is this
-> > > > needed for that?
-> > >
-> > > Correct me if I'm wrong but I got the feeling you got the point of the patch
-> > > later on.
-> >
-> > No, for CMA I don't. Can't we already pass a size and location for CMA
-> > region under /reserved-memory. The only advantage here is perhaps the
-> > CMA range could be anywhere in the DMA zone vs. a fixed location.
->
-> Now I get it, sorry I wasn't aware of that interface.
->
-> Still, I'm not convinced it matches RPi's use case as this would hard-code
-> CMA's size. Most people won't care, but for the ones that do, it's nicer to
-> change the value from the kernel command line than editing the dtb.
 
-Sure, I fully agree and am not a fan of the CMA DT overlays I've seen.
 
-> I get that
-> if you need to, for example, reserve some memory for the video to work, it's
-> silly not to hard-code it. Yet due to the board's nature and users base I say
-> it's important to favor flexibility. It would also break compatibility with
-> earlier versions of the board and diverge from the downstream kernel behaviour.
-> Which is a bigger issue than it seems as most users don't always understand
-> which kernel they are running and unknowingly copy configuration options from
-> forums.
+On 8 August 2019 12:48:26 BST, Michal Hocko <mhocko@kernel=2Eorg> wrote:
+>>=20
+>> Per default, the OOM killer will engage after 15 seconds of at least
+>> 80% memory pressure=2E These values are tunable via sysctls
+>> vm=2Ethrashing_oom_period and vm=2Ethrashing_oom_level=2E
 >
-> As I also need to know the DMA addressing limitations to properly configure
-> memory zones and dma-direct. Setting up the proper CMA constraints during the
-> arch's init will be trivial anyway.
+>As I've said earlier I would be somehow more comfortable with a kernel
+>command line/module parameter based tuning because it is less of a
+>stable API and potential future stall detector might be completely
+>independent on PSI and the current metric exported=2E But I can live with
+>that because a period and level sounds quite generic=2E
 
-It was really just commentary on commit text as for CMA alone we have
-a solution already. I agree on the need for zones.
+Would it be possible to reserve a fixed (configurable) amount of RAM for c=
+aches, and trigger OOM killer earlier, before most UI code is evicted from =
+memory? In my use case, I am happy sacrificing e=2Eg=2E 0=2E5GB and kill ru=
+naway tasks _before_ the system freezes=2E Potentially OOM killer would als=
+o work better in such conditions=2E I almost never work at close to full me=
+mory capacity, it's always a single task that goes wrong and brings the sys=
+tem down=2E
 
->
-> > > > IMO, I'd just do:
-> > > >
-> > > > if (of_fdt_machine_is_compatible(blob, "brcm,bcm2711"))
-> > > >     dma_zone_size = XX;
-> > > >
-> > > > 2 lines of code is much easier to maintain than 10s of incomplete code
-> > > > and is clearer who needs this. Maybe if we have dozens of SoCs with
-> > > > this problem we should start parsing dma-ranges.
-> > >
-> > > FYI that's what arm32 is doing at the moment and was my first instinct. But
-> > > it
-> > > seems that arm64 has been able to survive so far without any machine
-> > > specific
-> > > code and I have the feeling Catalin and Will will not be happy about this
-> > > solution. Am I wrong?
-> >
-> > No doubt. I'm fine if the 2 lines live in drivers/of/.
-> >
-> > Note that I'm trying to reduce the number of early_init_dt_scan_*
-> > calls from arch code into the DT code so there's more commonality
-> > across architectures in the early DT scans. So ideally, this can all
-> > be handled under early_init_dt_scan() call.
->
-> How does this look? (I'll split it in two patches and add a comment explaining
-> why dt_dma_zone_size is needed)
->
-> diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
-> index f2444c61a136..1395be40b722 100644
-> --- a/drivers/of/fdt.c
-> +++ b/drivers/of/fdt.c
-> @@ -30,6 +30,8 @@
->
->  #include "of_private.h"
->
-> +u64 dt_dma_zone_size __ro_after_init;
+The problem with PSI sensing is that it works after the fact (after the fr=
+eeze has already occurred)=2E It is not very different from issuing SysRq-f=
+ manually on a frozen system, although it would still be a handy feature fo=
+r batched tasks and remote access=2E=20
 
-Avoiding a call from arch code by just having a variable isn't really
-better. I'd rather see a common, non DT specific variable that can be
-adjusted. Something similar to initrd_start/end. Then the arch code
-doesn't have to care what hardware description code adjusted the
-value.
+Best regards,=20
+ndrw
 
-Rob
 
