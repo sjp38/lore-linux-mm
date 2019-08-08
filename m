@@ -2,893 +2,196 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 296CBC32754
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:14:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 86F77C0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:21:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B9129216C8
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:14:11 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3B4442173E
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:21:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="IwfZdbos"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B9129216C8
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="l5IhY/V8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3B4442173E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6B90A6B000E; Thu,  8 Aug 2019 19:14:11 -0400 (EDT)
+	id D91AE6B0003; Thu,  8 Aug 2019 19:21:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 642A06B0010; Thu,  8 Aug 2019 19:14:11 -0400 (EDT)
+	id D41D56B0006; Thu,  8 Aug 2019 19:21:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4BE116B0266; Thu,  8 Aug 2019 19:14:11 -0400 (EDT)
+	id C572D6B0007; Thu,  8 Aug 2019 19:21:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 03D826B000E
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 19:14:11 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id i27so60124811pfk.12
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 16:14:10 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 942746B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 19:21:47 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id y66so60100430pfb.21
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 16:21:47 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
-         :mime-version:references:subject:from:to:cc;
-        bh=d1cgxA8xN6av5hnFjkPhb8pR5IdstRIAmF2SmgVzr5k=;
-        b=inu7ziNlCBwy7CKZaEdtwutmeQP0NGwvQUMeHfl+QqrO7i5YW92ghCUUEkJPbJuOl6
-         D2HbY6OLVbOwv99Wk2F8b6ldfjpIHZLhwFNhDl3htJVdFmR57mGiwTanRA7B4tMYyd9Y
-         unOXiO/fNAlihO7U7QfWmA7wSuxPlzQmaJdehAjfNbopUBOuCmwfZ1NRuni8dnO0c0fw
-         eTGHP2YEhNj80aXOQzt+fZdXo7MHPLorPk19QmGhPO7wud+9tsERUdRLx6SOkKB+fDk5
-         J/mg43r+SdHQtPEXUHcciR4NI78iv5m+c8sAz1dwUpmIKRtZ+aTt9uAoj/Fi2r/Ky60N
-         3dmw==
-X-Gm-Message-State: APjAAAV0QbsBvWMXHwqUNQfMZqGokuRx4gpWNU1CFzbK+Le/sA0qDrx7
-	TLhB+NGlBKWUTlk/T/HqpEWv5UoIUrqvvBXkJrCdBHsL1qeR1KTFTkbLXV6vuUndTDi0U6oXhur
-	yEEMiUtTGixKm8b/XmtHhPCjJ/hqdXDdWUk9aLlqgQd3op+uI5q+HUyNLoxtmkJUkTw==
-X-Received: by 2002:a17:90a:37e9:: with SMTP id v96mr6328207pjb.10.1565306050564;
-        Thu, 08 Aug 2019 16:14:10 -0700 (PDT)
-X-Received: by 2002:a17:90a:37e9:: with SMTP id v96mr6328113pjb.10.1565306048952;
-        Thu, 08 Aug 2019 16:14:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565306048; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=+5ClyXF4/+matB7j6ropEiCrm63pptXnzihc56YYTPY=;
+        b=puFKMbtP19zLgs222GSURbUR1JpptjKRMI98O4Vufk6VcpJKERvmpKOI+YAHb6OIEI
+         Q2S5t2elIcjMpcPwV/wtlb22USbq1Z4qR7CsWWrvVJS5XAKsYfa2W3IVxaNL1de6d2JF
+         yJiloEmD0vAcXZcFDKVZTDVlhVrW2OysWS0R3KJCH/mPNdbtDxImzPYfMTSYpR3SALM+
+         LfEJdTFA7WEeDbsEfiCaXtLc/CILy8GpMvgB3ZljC1AKkiVTtpCykr730xQFJoOendZY
+         uIGh8hWc0czq4KIuyMw95iUmxwk3sgwp/88fZT20OjzUFJ9zAgp1fut7s98/xcjBjVn2
+         SSxw==
+X-Gm-Message-State: APjAAAUcj6yAfWo0KwY0M5BQ4+f3TlKRLtuJ9hsO5lcYMh9dWuqr5i4/
+	5F33qBL9emgEh6TUKi+6GSVoz+VFzH0+Sz+CoAfx0vkZdDGTvXQ5gaCt6rDtgstuMv5y86w7SI+
+	p7CV0fQenfX9pE5qs4IXwMrjhLEVDuVwMQMnziRdHTkAAHH5mYYXsTNXV/qP6oZu0PQ==
+X-Received: by 2002:a63:e84a:: with SMTP id a10mr15490765pgk.274.1565306507036;
+        Thu, 08 Aug 2019 16:21:47 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy3cl8erteqLRNq9RXWssagxGv0Orq0UZHQWQxgZuHF8yshyzuEUg9MhNRFk6Qtix2kd1gQ
+X-Received: by 2002:a63:e84a:: with SMTP id a10mr15490723pgk.274.1565306506289;
+        Thu, 08 Aug 2019 16:21:46 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565306506; cv=none;
         d=google.com; s=arc-20160816;
-        b=AEGNs3lTQXPw7hhp7b3maEW/qbE8Zijoi0/X6kL7yAATLC1r2eLgQsYzd/bV0OREXO
-         Z056vN0Npg75pwNrsKP5c7iff4g0dg6uh2lmIPqwCFDdjgqhhVFafiZOhIqCTlaVEoPN
-         HMAo8p8bIKIq1EVej8FmCEtVJYoA2xv6Z+IZCa0DuxO5FRvVGuUeHtxyDhpm6YNo8TS/
-         8A95OKOv5U8+wuLMYyaFxuF0Ieahd+kmk5BcqVoWnfyTJwBcnd7MqBhac/dQlgwWB5ij
-         Aq/e79rujnD/E83WW9+UFVq55LTkB34Swh6iY9M/OMkDcCdI115wjWbIX6LMakhivi3f
-         LxRA==
+        b=04n1ULKdn5px8h4qqms/LUvukLX7bOk+XtMEx+h23kmAGNn1BlYRi4ReOBQXnrN049
+         EcU5LvM4+oTrm1JJ8M8iokYBI4kCQBp6v8tjhm5n3FvXQ503HPDvR3ez6rWZx7VTgg0o
+         rgjTnNiefhRR9yqBxobNZj3n9n6sPfZ0+KIjL2QayBVhi6kUOHy5FQaVeSwIvPcRxJvP
+         jBEDiiYtcDhd+yvvWJm7lHHXtfhaTWI3kLd6H48Q7oCLLEzB89HXvT/IG63WgudLfK23
+         vopKJS3CO24XMxRcyiB1Fp6Fcc0OvFDN8Alg/LHbs+hQhHa8jHCm0PzaK1Iaet59zr8Q
+         a0zg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
-         :date:dkim-signature;
-        bh=d1cgxA8xN6av5hnFjkPhb8pR5IdstRIAmF2SmgVzr5k=;
-        b=D6MgfMmd2DE4xTeYbLNLrnRcXhjUZhQk7CSvUwJFFaGG74hRVALC1+RUmF4FJ3YgQc
-         T7BT64NZ6lgWHbPprg2woTE1nyOYXmgdKy+kOU8+46LT3aR1s1Yew8vJJXrNuzl66MJQ
-         7Y1mvCwIC1nDa+QCSOTqhDCptyHYncQyQyb8cbFE/aQNGx5pPvONwqSxSVE4NPnq0y4Z
-         yZ2ymbXBMVx/Ub14ho+R1Xcp77TiPJ2eTDjZnfLwJn11zjg9Jb0j54NGwrxME95GzLTG
-         /CLwq11eSpOiwsLU/W2W1h2bFj9ohQtFB3Yb+KJb4cJJ+r67uEEidezrxgm6xOIYCSzE
-         NtAg==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=+5ClyXF4/+matB7j6ropEiCrm63pptXnzihc56YYTPY=;
+        b=hsGHWMIpfl+4HE84UQmQ/czFbtm1XT5o/LZqBGNR3Bm/Bk7oDbp5WqKR5ZDgDM1VwL
+         /u8EqVMnq77k9MMe+3OedVMG/Nsvx85XdQ4DSeq8lspvQ+zJ6wM04mRRJliA4RjmjH29
+         GzQ+wXdjOESAIOoARV7NpQfa8qbhY4f/ovM0DlRq0ajWu3n+4I8Z47WdQCc4Q9PVCEhT
+         ZD0nSLOVH98q418QjrQkeSpdWPKcUxuOlUS3qdQagurzvYqdFu+396esrYOhpKK3CcCT
+         TIIppVDNlt1f65vn8HRKG+UalQeJXt7vZgWOOmOFuNXwd2ZPDaj9EmbCmIRWF1BLAdUl
+         YNXA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=IwfZdbos;
-       spf=pass (google.com: domain of 3wkxmxqskcd0zklzrqxlhmzfnnfkd.bnlkhmtw-lljuzbj.nqf@flex--almasrymina.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3wKxMXQsKCD0ZklZrqxlhmZfnnfkd.bnlkhmtw-lljuZbj.nqf@flex--almasrymina.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id b28sor66730890pgb.4.2019.08.08.16.14.08
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="l5IhY/V8";
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate16.nvidia.com (hqemgate16.nvidia.com. [216.228.121.65])
+        by mx.google.com with ESMTPS id z61si48225647plb.19.2019.08.08.16.21.46
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Aug 2019 16:14:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3wkxmxqskcd0zklzrqxlhmzfnnfkd.bnlkhmtw-lljuzbj.nqf@flex--almasrymina.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Aug 2019 16:21:46 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) client-ip=216.228.121.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=IwfZdbos;
-       spf=pass (google.com: domain of 3wkxmxqskcd0zklzrqxlhmzfnnfkd.bnlkhmtw-lljuzbj.nqf@flex--almasrymina.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3wKxMXQsKCD0ZklZrqxlhmZfnnfkd.bnlkhmtw-lljuZbj.nqf@flex--almasrymina.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
-         :cc;
-        bh=d1cgxA8xN6av5hnFjkPhb8pR5IdstRIAmF2SmgVzr5k=;
-        b=IwfZdbosMiu95mLiae4AwMODJo4FKPtA4JwD1pSpG1feBJrEYcuyl/qr4podVHGG6U
-         VbpDS9JV/Ome33bFK34i1SN+rOy8JCFcruspgnyoM58PPEv+sfolFpiobFpZ2h9x7jmm
-         RAHTAP31xUqIJn04qM3m8+a73nDofh5SHqgYxyO2fbc5BV+Tqoi9OBgnXP+Ke9d/2r5Y
-         YoWaYwkzdKkRLFzbHVRjZfnmBlvPKu81brxtGnNygGjUlBitVM39dqsVGEf31TTaTYav
-         fgzjJDHh99d8qUrBgK2K2/XKw3IwMy7KndZqfgQrIfzI6hYGrKvr+X+eILaQthrF+/+O
-         8W2A==
-X-Google-Smtp-Source: APXvYqwYzi9jh//Psx9g0OB/k9SlW/17A73AOt+JvBSTeJcG0YgzpaChl+Yv+VirBfKazBqnaM+6BUwBSHUzZHSslw==
-X-Received: by 2002:a63:fc52:: with SMTP id r18mr14828014pgk.378.1565306048234;
- Thu, 08 Aug 2019 16:14:08 -0700 (PDT)
-Date: Thu,  8 Aug 2019 16:13:40 -0700
-In-Reply-To: <20190808231340.53601-1-almasrymina@google.com>
-Message-Id: <20190808231340.53601-6-almasrymina@google.com>
-Mime-Version: 1.0
-References: <20190808231340.53601-1-almasrymina@google.com>
-X-Mailer: git-send-email 2.23.0.rc1.153.gdeed80330f-goog
-Subject: [RFC PATCH v2 5/5] hugetlb_cgroup: Add hugetlb_cgroup reservation tests
-From: Mina Almasry <almasrymina@google.com>
-To: mike.kravetz@oracle.com
-Cc: shuah@kernel.org, almasrymina@google.com, rientjes@google.com, 
-	shakeelb@google.com, gthelen@google.com, akpm@linux-foundation.org, 
-	khalid.aziz@oracle.com, linux-kernel@vger.kernel.org, linux-mm@kvack.org, 
-	linux-kselftest@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b="l5IhY/V8";
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.65 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate16.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d4cae8b0000>; Thu, 08 Aug 2019 16:21:47 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 08 Aug 2019 16:21:45 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 08 Aug 2019 16:21:45 -0700
+Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 8 Aug
+ 2019 23:21:45 +0000
+Subject: Re: [Linux-kernel-mentees][PATCH v4 1/1] sgi-gru: Remove *pte_lookup
+ functions
+To: Bharath Vedartham <linux.bhar@gmail.com>, <arnd@arndb.de>,
+	<gregkh@linuxfoundation.org>, <sivanich@sgi.com>
+CC: <ira.weiny@intel.com>, <jglisse@redhat.com>,
+	<william.kucharski@oracle.com>, <hch@lst.de>, <linux-kernel@vger.kernel.org>,
+	<linux-mm@kvack.org>, <linux-kernel-mentees@lists.linuxfoundation.org>
+References: <1565290555-14126-1-git-send-email-linux.bhar@gmail.com>
+ <1565290555-14126-2-git-send-email-linux.bhar@gmail.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <b659042a-f2c3-df3c-4182-bb7dd5156bc1@nvidia.com>
+Date: Thu, 8 Aug 2019 16:21:44 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
+MIME-Version: 1.0
+In-Reply-To: <1565290555-14126-2-git-send-email-linux.bhar@gmail.com>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1565306507; bh=+5ClyXF4/+matB7j6ropEiCrm63pptXnzihc56YYTPY=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=l5IhY/V8wKpl1V8ijQzYcYptStoxXGnVHOhdeyz+62DluKzAguhVGZiCGRezc95/U
+	 U8C6lT2MUtBedJD6kwr7Jr7y0OfIyp3vjjn8DI1jErn0J4NJeZs9lx6UF3OsV+59PF
+	 l9qKdPDJk9lnGXFf/ud/g8F09AgJn0qSM+zmSFnnYPTfYywdwSxcSAhkZRvLOWY1fO
+	 GdRjyB+IPWpS5D+ip+y8DKkG89yqpP1f/za6Lv89SZGgGtFsR+oiXNE6uljc1cMMJ1
+	 vMRXg4Fs1Odywn1ugGiScfNOrclLqL0LzNz6i4WqKlB6fPKlo6RISUsFSt4Ex1WFaP
+	 DGa3Uuu+Ljl7w==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The tests use both shared and private mapped hugetlb memory, and
-monitors the hugetlb usage counter as well as the hugetlb reservation
-counter. They test different configurations such as hugetlb memory usage
-via hugetlbfs, or MAP_HUGETLB, or shmget/shmat, and with and without
-MAP_POPULATE.
+On 8/8/19 11:55 AM, Bharath Vedartham wrote:
+...
+>  static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
+>  		    int write, int atomic, unsigned long *gpa, int *pageshift)
+>  {
+>  	struct mm_struct *mm = gts->ts_mm;
+>  	struct vm_area_struct *vma;
+>  	unsigned long paddr;
+> -	int ret, ps;
+> +	int ret;
+> +	struct page *page;
+>  
+>  	vma = find_vma(mm, vaddr);
+>  	if (!vma)
+> @@ -263,21 +187,33 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
+>  
+>  	/*
+>  	 * Atomic lookup is faster & usually works even if called in non-atomic
+> -	 * context.
+> +	 * context. get_user_pages_fast does atomic lookup before falling back to
+> +	 * slow gup.
+>  	 */
+>  	rmb();	/* Must/check ms_range_active before loading PTEs */
+> -	ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &ps);
+> -	if (ret) {
+> -		if (atomic)
+> +	if (atomic) {
+> +		ret = __get_user_pages_fast(vaddr, 1, write, &page);
+> +		if (!ret)
+>  			goto upm;
+> -		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
+> +	} else {
+> +		ret = get_user_pages_fast(vaddr, 1, write ? FOLL_WRITE : 0, &page);
+> +		if (!ret)
+>  			goto inval;
+>  	}
+> +
+> +	paddr = page_to_phys(page);
+> +	put_user_page(page);
+> +
+> +	if (unlikely(is_vm_hugetlb_page(vma)))
+> +		*pageshift = HPAGE_SHIFT;
+> +	else
+> +		*pageshift = PAGE_SHIFT;
+> +
+>  	if (is_gru_paddr(paddr))
+>  		goto inval;
+> -	paddr = paddr & ~((1UL << ps) - 1);
+> +	paddr = paddr & ~((1UL << *pageshift) - 1);
+>  	*gpa = uv_soc_phys_ram_to_gpa(paddr);
+> -	*pageshift = ps;
 
----
- tools/testing/selftests/vm/.gitignore         |   1 +
- tools/testing/selftests/vm/Makefile           |   4 +
- .../selftests/vm/charge_reserved_hugetlb.sh   | 438 ++++++++++++++++++
- .../selftests/vm/write_hugetlb_memory.sh      |  22 +
- .../testing/selftests/vm/write_to_hugetlbfs.c | 252 ++++++++++
- 5 files changed, 717 insertions(+)
- create mode 100755 tools/testing/selftests/vm/charge_reserved_hugetlb.sh
- create mode 100644 tools/testing/selftests/vm/write_hugetlb_memory.sh
- create mode 100644 tools/testing/selftests/vm/write_to_hugetlbfs.c
+Why are you no longer setting *pageshift? There are a couple of callers
+that both use this variable.
 
-diff --git a/tools/testing/selftests/vm/.gitignore b/tools/testing/selftests/vm/.gitignore
-index 31b3c98b6d34d..d3bed9407773c 100644
---- a/tools/testing/selftests/vm/.gitignore
-+++ b/tools/testing/selftests/vm/.gitignore
-@@ -14,3 +14,4 @@ virtual_address_range
- gup_benchmark
- va_128TBswitch
- map_fixed_noreplace
-+write_to_hugetlbfs
-diff --git a/tools/testing/selftests/vm/Makefile b/tools/testing/selftests/vm/Makefile
-index 9534dc2bc9295..8d37d5409b52c 100644
---- a/tools/testing/selftests/vm/Makefile
-+++ b/tools/testing/selftests/vm/Makefile
-@@ -18,6 +18,7 @@ TEST_GEN_FILES += transhuge-stress
- TEST_GEN_FILES += userfaultfd
- TEST_GEN_FILES += va_128TBswitch
- TEST_GEN_FILES += virtual_address_range
-+TEST_GEN_FILES += write_to_hugetlbfs
 
- TEST_PROGS := run_vmtests
-
-@@ -29,3 +30,6 @@ include ../lib.mk
- $(OUTPUT)/userfaultfd: LDLIBS += -lpthread
-
- $(OUTPUT)/mlock-random-test: LDLIBS += -lcap
-+
-+# Why does adding $(OUTPUT)/ like above not apply this flag..?
-+write_to_hugetlbfs: CFLAGS += -static
-diff --git a/tools/testing/selftests/vm/charge_reserved_hugetlb.sh b/tools/testing/selftests/vm/charge_reserved_hugetlb.sh
-new file mode 100755
-index 0000000000000..bf0b6dcec9977
---- /dev/null
-+++ b/tools/testing/selftests/vm/charge_reserved_hugetlb.sh
-@@ -0,0 +1,438 @@
-+#!/bin/sh
-+# SPDX-License-Identifier: GPL-2.0
-+
-+set -e
-+
-+cgroup_path=/dev/cgroup/memory
-+if [[ ! -e $cgroup_path ]]; then
-+      mkdir -p $cgroup_path
-+      mount -t cgroup -o hugetlb,memory cgroup $cgroup_path
-+fi
-+
-+cleanup () {
-+	echo $$ > $cgroup_path/tasks
-+
-+	set +e
-+	if [[ "$(pgrep write_to_hugetlbfs)" != "" ]]; then
-+	      kill -2 write_to_hugetlbfs
-+	      # Wait for hugetlbfs memory to get depleted.
-+	      sleep 0.5
-+	fi
-+	set -e
-+
-+	if [[ -e /mnt/huge ]]; then
-+	      rm -rf /mnt/huge/*
-+	      umount /mnt/huge || echo error
-+	      rmdir /mnt/huge
-+	fi
-+	if [[ -e $cgroup_path/hugetlb_cgroup_test ]]; then
-+	      rmdir $cgroup_path/hugetlb_cgroup_test
-+	fi
-+	if [[ -e $cgroup_path/hugetlb_cgroup_test1 ]]; then
-+	      rmdir $cgroup_path/hugetlb_cgroup_test1
-+	fi
-+	if [[ -e $cgroup_path/hugetlb_cgroup_test2 ]]; then
-+	      rmdir $cgroup_path/hugetlb_cgroup_test2
-+	fi
-+	echo 0 > /proc/sys/vm/nr_hugepages
-+	echo CLEANUP DONE
-+}
-+
-+cleanup
-+
-+function expect_equal() {
-+      local expected="$1"
-+      local actual="$2"
-+      local error="$3"
-+
-+      if [[ "$expected" != "$actual" ]]; then
-+	    echo "expected ($expected) != actual ($actual): $3"
-+	    cleanup
-+	    exit 1
-+      fi
-+}
-+
-+function setup_cgroup() {
-+      local name="$1"
-+      local cgroup_limit="$2"
-+      local reservation_limit="$3"
-+
-+      mkdir $cgroup_path/$name
-+
-+      echo writing cgroup limit: "$cgroup_limit"
-+      echo "$cgroup_limit" > $cgroup_path/$name/hugetlb.2MB.limit_in_bytes
-+
-+      echo writing reseravation limit: "$reservation_limit"
-+      echo "$reservation_limit" > \
-+	    $cgroup_path/$name/hugetlb.2MB.reservation_limit_in_bytes
-+}
-+
-+function write_hugetlbfs_and_get_usage() {
-+      local cgroup="$1"
-+      local size="$2"
-+      local populate="$3"
-+      local write="$4"
-+      local path="$5"
-+      local method="$6"
-+      local private="$7"
-+      local expect_failure="$8"
-+
-+      # Function return values.
-+      reservation_failed=0
-+      oom_killed=0
-+      hugetlb_difference=0
-+      reserved_difference=0
-+
-+      local hugetlb_usage=$cgroup_path/$cgroup/hugetlb.2MB.usage_in_bytes
-+      local reserved_usage=$cgroup_path/$cgroup/hugetlb.2MB.reservation_usage_in_bytes
-+
-+      local hugetlb_before=$(cat $hugetlb_usage)
-+      local reserved_before=$(cat $reserved_usage)
-+
-+      echo
-+      echo Starting:
-+      echo hugetlb_usage="$hugetlb_before"
-+      echo reserved_usage="$reserved_before"
-+      echo expect_failure is "$expect_failure"
-+
-+      set +e
-+      if [[ "$method" == "1" ]] || [[ "$method" == 2 ]] || \
-+	    [[ "$private" == "-r" ]] && [[ "$expect_failure" != 1 ]]; then
-+	    bash write_hugetlb_memory.sh "$size" "$populate" "$write" \
-+		  "$cgroup"  "$path" "$method" "$private" "-l" &
-+
-+	    local write_result=$?
-+	    # This sleep is to make sure that the script above has had enough
-+	    # time to do its thing, since it runs in the background. This may
-+	    # cause races...
-+	    sleep 0.5
-+	    echo write_result is $write_result
-+      else
-+	    bash write_hugetlb_memory.sh "$size" "$populate" "$write" \
-+		  "$cgroup"  "$path" "$method" "$private"
-+	    local write_result=$?
-+      fi
-+      set -e
-+
-+      if [[ "$write_result" == 1 ]]; then
-+	    reservation_failed=1
-+      fi
-+
-+      # On linus/master, the above process gets SIGBUS'd on oomkill, with
-+      # return code 135. On earlier kernels, it gets actual oomkill, with return
-+      # code 137, so just check for both conditions incase we're testing against
-+      # an earlier kernel.
-+      if [[ "$write_result" == 135 ]] || [[ "$write_result" == 137 ]]; then
-+	    oom_killed=1
-+      fi
-+
-+      local hugetlb_after=$(cat $hugetlb_usage)
-+      local reserved_after=$(cat $reserved_usage)
-+
-+      echo After write:
-+      echo hugetlb_usage="$hugetlb_after"
-+      echo reserved_usage="$reserved_after"
-+
-+      hugetlb_difference=$(($hugetlb_after - $hugetlb_before))
-+      reserved_difference=$(($reserved_after - $reserved_before))
-+}
-+
-+function cleanup_hugetlb_memory() {
-+      set +e
-+      if [[ "$(pgrep write_to_hugetlbfs)" != "" ]]; then
-+	    echo kiling write_to_hugetlbfs
-+	    killall -2 write_to_hugetlbfs
-+	    # Wait for hugetlbfs memory to get depleted.
-+	    sleep 0.5
-+      fi
-+      set -e
-+
-+      if [[ -e /mnt/huge ]]; then
-+	    rm -rf /mnt/huge/*
-+	      umount /mnt/huge
-+	      rmdir /mnt/huge
-+      fi
-+}
-+
-+function run_test() {
-+      local size="$1"
-+      local populate="$2"
-+      local write="$3"
-+      local cgroup_limit="$4"
-+      local reservation_limit="$5"
-+      local nr_hugepages="$6"
-+      local method="$7"
-+      local private="$8"
-+      local expect_failure="$9"
-+
-+      # Function return values.
-+      hugetlb_difference=0
-+      reserved_difference=0
-+      reservation_failed=0
-+      oom_killed=0
-+
-+      echo nr hugepages = "$nr_hugepages"
-+      echo "$nr_hugepages" > /proc/sys/vm/nr_hugepages
-+
-+      setup_cgroup "hugetlb_cgroup_test" "$cgroup_limit" "$reservation_limit"
-+
-+      mkdir -p /mnt/huge
-+      mount -t hugetlbfs \
-+	    -o pagesize=2M,size=256M none /mnt/huge
-+
-+      write_hugetlbfs_and_get_usage "hugetlb_cgroup_test" "$size" "$populate" \
-+	    "$write" "/mnt/huge/test" "$method" "$private" "$expect_failure"
-+
-+      cleanup_hugetlb_memory
-+
-+      local final_hugetlb=$(cat $cgroup_path/hugetlb_cgroup_test/hugetlb.2MB.usage_in_bytes)
-+      local final_reservation=$(cat $cgroup_path/hugetlb_cgroup_test/hugetlb.2MB.reservation_usage_in_bytes)
-+
-+      expect_equal "0" "$final_hugetlb" "final hugetlb is not zero"
-+      expect_equal "0" "$final_reservation" "final reservation is not zero"
-+}
-+
-+function run_multiple_cgroup_test() {
-+      local size1="$1"
-+      local populate1="$2"
-+      local write1="$3"
-+      local cgroup_limit1="$4"
-+      local reservation_limit1="$5"
-+
-+      local size2="$6"
-+      local populate2="$7"
-+      local write2="$8"
-+      local cgroup_limit2="$9"
-+      local reservation_limit2="${10}"
-+
-+      local nr_hugepages="${11}"
-+      local method="${12}"
-+      local private="${13}"
-+      local expect_failure="${14}"
-+
-+      # Function return values.
-+      hugetlb_difference1=0
-+      reserved_difference1=0
-+      reservation_failed1=0
-+      oom_killed1=0
-+
-+      hugetlb_difference2=0
-+      reserved_difference2=0
-+      reservation_failed2=0
-+      oom_killed2=0
-+
-+
-+      echo nr hugepages = "$nr_hugepages"
-+      echo "$nr_hugepages" > /proc/sys/vm/nr_hugepages
-+
-+      setup_cgroup "hugetlb_cgroup_test1" "$cgroup_limit1" "$reservation_limit1"
-+      setup_cgroup "hugetlb_cgroup_test2" "$cgroup_limit2" "$reservation_limit2"
-+
-+      mkdir -p /mnt/huge
-+      mount -t hugetlbfs \
-+	    -o pagesize=2M,size=256M none /mnt/huge
-+
-+      write_hugetlbfs_and_get_usage "hugetlb_cgroup_test1" "$size1" \
-+	    "$populate1" "$write1" "/mnt/huge/test1" "$method" "$private" \
-+	    "$expect_failure"
-+
-+      hugetlb_difference1=$hugetlb_difference
-+      reserved_difference1=$reserved_difference
-+      reservation_failed1=$reservation_failed
-+      oom_killed1=$oom_killed
-+
-+      local cgroup1_hugetlb_usage=$cgroup_path/hugetlb_cgroup_test1/hugetlb.2MB.usage_in_bytes
-+      local cgroup1_reservation_usage=$cgroup_path/hugetlb_cgroup_test1/hugetlb.2MB.reservation_usage_in_bytes
-+      local cgroup2_hugetlb_usage=$cgroup_path/hugetlb_cgroup_test2/hugetlb.2MB.usage_in_bytes
-+      local cgroup2_reservation_usage=$cgroup_path/hugetlb_cgroup_test2/hugetlb.2MB.reservation_usage_in_bytes
-+
-+      local usage_before_second_write=$(cat $cgroup1_hugetlb_usage)
-+      local reservation_usage_before_second_write=$(cat \
-+	    $cgroup1_reservation_usage)
-+
-+      write_hugetlbfs_and_get_usage "hugetlb_cgroup_test2" "$size2" \
-+	    "$populate2" "$write2" "/mnt/huge/test2" "$method" "$private" \
-+	    "$expect_failure"
-+
-+      hugetlb_difference2=$hugetlb_difference
-+      reserved_difference2=$reserved_difference
-+      reservation_failed2=$reservation_failed
-+      oom_killed2=$oom_killed
-+
-+      expect_equal "$usage_before_second_write" \
-+	    "$(cat $cgroup1_hugetlb_usage)" "Usage changed."
-+      expect_equal "$reservation_usage_before_second_write" \
-+	    "$(cat $cgroup1_reservation_usage)" "Reservation usage changed."
-+
-+      cleanup_hugetlb_memory
-+
-+      local final_hugetlb=$(cat $cgroup1_hugetlb_usage)
-+      local final_reservation=$(cat $cgroup1_reservation_usage)
-+
-+      expect_equal "0" "$final_hugetlb" \
-+	    "hugetlbt_cgroup_test1 final hugetlb is not zero"
-+      expect_equal "0" "$final_reservation" \
-+	    "hugetlbt_cgroup_test1 final reservation is not zero"
-+
-+      local final_hugetlb=$(cat $cgroup2_hugetlb_usage)
-+      local final_reservation=$(cat $cgroup2_reservation_usage)
-+
-+      expect_equal "0" "$final_hugetlb" \
-+	    "hugetlb_cgroup_test2 final hugetlb is not zero"
-+      expect_equal "0" "$final_reservation" \
-+	    "hugetlb_cgroup_test2 final reservation is not zero"
-+}
-+
-+for private in "" "-r" ; do
-+for populate in  "" "-o"; do
-+for method in 0 1 2; do
-+
-+# Skip mmap(MAP_HUGETLB | MAP_SHARED). Doesn't seem to be supported.
-+if [[ "$method" == 1 ]] && [[ "$private" == "" ]]; then
-+      continue
-+fi
-+
-+# Skip populated shmem tests. Doesn't seem to be supported.
-+if [[ "$method" == 2"" ]] && [[ "$populate" == "-o" ]]; then
-+      continue
-+fi
-+
-+cleanup
-+echo
-+echo
-+echo
-+echo Test normal case.
-+echo private=$private, populate=$populate, method=$method
-+run_test $((10 * 1024 * 1024)) "$populate" "" $((20 * 1024 * 1024)) \
-+      $((20 * 1024 * 1024)) 10 "$method" "$private" "0"
-+
-+echo Memory charged to hugtlb=$hugetlb_difference
-+echo Memory charged to reservation=$reserved_difference
-+
-+if [[ "$populate" == "-o" ]]; then
-+      expect_equal "$((10 * 1024 * 1024))" "$hugetlb_difference" \
-+	    "Reserved memory charged to hugetlb cgroup."
-+else
-+      expect_equal "0" "$hugetlb_difference" \
-+	    "Reserved memory charged to hugetlb cgroup."
-+fi
-+
-+expect_equal "$((10 * 1024 * 1024))" "$reserved_difference" \
-+      "Reserved memory not charged to reservation usage."
-+echo 'PASS'
-+
-+cleanup
-+echo
-+echo
-+echo
-+echo Test normal case with write.
-+echo private=$private, populate=$populate, method=$method
-+run_test $((10 * 1024 * 1024)) "$populate" '-w' $((20 * 1024 * 1024)) \
-+      $((20 * 1024 * 1024)) 10 "$method" "$private" "0"
-+
-+echo Memory charged to hugtlb=$hugetlb_difference
-+echo Memory charged to reservation=$reserved_difference
-+
-+expect_equal "$((10 * 1024 * 1024))" "$hugetlb_difference" \
-+      "Reserved memory charged to hugetlb cgroup."
-+expect_equal "$((10 * 1024 * 1024))" "$reserved_difference" \
-+      "Reserved memory not charged to reservation usage."
-+echo 'PASS'
-+
-+
-+cleanup
-+echo
-+echo
-+echo
-+echo Test more than reservation case.
-+echo private=$private, populate=$populate, method=$method
-+run_test "$((10 * 1024 * 1024))" "$populate" '' "$((20 * 1024 * 1024))" \
-+      "$((5 * 1024 * 1024))" "10" "$method" "$private" "1"
-+
-+expect_equal "1" "$reservation_failed" "Reservation succeeded."
-+echo 'PASS'
-+
-+cleanup
-+
-+echo
-+echo
-+echo
-+echo Test more than cgroup limit case.
-+echo private=$private, populate=$populate, method=$method
-+
-+# Not sure if shm memory can be cleaned up when the process gets sigbus'd.
-+if [[ "$method" != 2 ]]; then
-+      run_test $((10 * 1024 * 1024)) "$populate" "-w" $((5 * 1024 * 1024)) \
-+	    $((20 * 1024 * 1024)) 10 "$method" "$private" "1"
-+
-+      expect_equal "1" "$oom_killed" "Not oom killed."
-+fi
-+echo 'PASS'
-+
-+cleanup
-+
-+echo
-+echo
-+echo
-+echo Test normal case, multiple cgroups.
-+echo private=$private, populate=$populate, method=$method
-+run_multiple_cgroup_test "$((6 * 1024 * 1024))" "$populate" "" \
-+      "$((20 * 1024 * 1024))" "$((20 * 1024 * 1024))" "$((10 * 1024 * 1024))" \
-+      "$populate" "" "$((20 * 1024 * 1024))" "$((20 * 1024 * 1024))" "10" \
-+      "$method" "$private" "0"
-+
-+echo Memory charged to hugtlb1=$hugetlb_difference1
-+echo Memory charged to reservation1=$reserved_difference1
-+echo Memory charged to hugtlb2=$hugetlb_difference2
-+echo Memory charged to reservation2=$reserved_difference2
-+
-+expect_equal "$((6 * 1024 * 1024))" "$reserved_difference1" \
-+      "Incorrect reservations charged to cgroup 1."
-+expect_equal "$((10 * 1024 * 1024))" "$reserved_difference2" \
-+      "Incorrect reservation charged to cgroup 2."
-+if [[ "$populate" == "-o" ]]; then
-+      expect_equal "$((6 * 1024 * 1024))" "$hugetlb_difference1" \
-+	    "Incorrect hugetlb charged to cgroup 1."
-+      expect_equal "$((10 * 1024 * 1024))" "$hugetlb_difference2" \
-+	    "Incorrect hugetlb charged to cgroup 2."
-+else
-+      expect_equal "0" "$hugetlb_difference1" \
-+	    "Incorrect hugetlb charged to cgroup 1."
-+      expect_equal "0" "$hugetlb_difference2" \
-+	    "Incorrect hugetlb charged to cgroup 2."
-+fi
-+echo 'PASS'
-+
-+cleanup
-+echo
-+echo
-+echo
-+echo Test normal case with write, multiple cgroups.
-+echo private=$private, populate=$populate, method=$method
-+run_multiple_cgroup_test "$((6 * 1024 * 1024))" "$populate" "-w" \
-+      "$((20 * 1024 * 1024))" "$((20 * 1024 * 1024))" "$((10 * 1024 * 1024))" \
-+      "$populate" "-w" "$((20 * 1024 * 1024))" "$((20 * 1024 * 1024))" "10" \
-+      "$method" "$private" "0"
-+
-+echo Memory charged to hugtlb1=$hugetlb_difference1
-+echo Memory charged to reservation1=$reserved_difference1
-+echo Memory charged to hugtlb2=$hugetlb_difference2
-+echo Memory charged to reservation2=$reserved_difference2
-+
-+expect_equal "$((6 * 1024 * 1024))" "$hugetlb_difference1" \
-+      "Incorrect hugetlb charged to cgroup 1."
-+expect_equal "$((6 * 1024 * 1024))" "$reserved_difference1" \
-+      "Incorrect reservation charged to cgroup 1."
-+expect_equal "$((10 * 1024 * 1024))" "$hugetlb_difference2" \
-+      "Incorrect hugetlb charged to cgroup 2."
-+expect_equal "$((10 * 1024 * 1024))" "$reserved_difference2" \
-+      "Incorrected reservation charged to cgroup 2."
-+
-+echo 'PASS'
-+
-+done # private
-+done # populate
-+done # method
-+
-+umount $cgroup_path
-+rmdir $cgroup_path
-diff --git a/tools/testing/selftests/vm/write_hugetlb_memory.sh b/tools/testing/selftests/vm/write_hugetlb_memory.sh
-new file mode 100644
-index 0000000000000..08f5fa5527cfd
---- /dev/null
-+++ b/tools/testing/selftests/vm/write_hugetlb_memory.sh
-@@ -0,0 +1,22 @@
-+#!/bin/sh
-+# SPDX-License-Identifier: GPL-2.0
-+
-+set -e
-+
-+size=$1
-+populate=$2
-+write=$3
-+cgroup=$4
-+path=$5
-+method=$6
-+private=$7
-+want_sleep=$8
-+
-+echo "Putting task in cgroup '$cgroup'"
-+echo $$ > /dev/cgroup/memory/"$cgroup"/tasks
-+
-+echo "Method is $method"
-+
-+set +e
-+./write_to_hugetlbfs -p "$path" -s "$size" "$write" "$populate" -m "$method" \
-+      "$private" "$want_sleep"
-diff --git a/tools/testing/selftests/vm/write_to_hugetlbfs.c b/tools/testing/selftests/vm/write_to_hugetlbfs.c
-new file mode 100644
-index 0000000000000..f02a897427a97
---- /dev/null
-+++ b/tools/testing/selftests/vm/write_to_hugetlbfs.c
-@@ -0,0 +1,252 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * This program reserves and uses hugetlb memory, supporting a bunch of
-+ * scenorios needed by the charged_reserved_hugetlb.sh test.
-+ */
-+
-+#include <err.h>
-+#include <errno.h>
-+#include <signal.h>
-+#include <stdio.h>
-+#include <stdlib.h>
-+#include <string.h>
-+#include <unistd.h>
-+#include <fcntl.h>
-+#include <sys/types.h>
-+#include <sys/shm.h>
-+#include <sys/stat.h>
-+#include <sys/mman.h>
-+
-+/* Global definitions. */
-+enum method {
-+	HUGETLBFS,
-+	MMAP_MAP_HUGETLB,
-+	SHM,
-+	MAX_METHOD
-+};
-+
-+
-+/* Global variables. */
-+static const char *self;
-+static char *shmaddr;
-+static int shmid;
-+
-+/*
-+ * Show usage and exit.
-+ */
-+static void exit_usage(void)
-+{
-+
-+	printf("Usage: %s -p <path to hugetlbfs file> -s <size to map> "
-+		"[-m <0=hugetlbfs | 1=mmap(MAP_HUGETLB)>] [-l] [-r] "
-+		"[-o] [-w]\n", self);
-+	exit(EXIT_FAILURE);
-+}
-+
-+void sig_handler(int signo)
-+{
-+	printf("Received %d.\n", signo);
-+	if (signo == SIGINT) {
-+		printf("Deleting the memory\n");
-+		if (shmdt((const void *)shmaddr) != 0) {
-+			perror("Detach failure");
-+			shmctl(shmid, IPC_RMID, NULL);
-+			exit(4);
-+		}
-+
-+		shmctl(shmid, IPC_RMID, NULL);
-+		printf("Done deleting the memory\n");
-+	}
-+	exit(2);
-+}
-+
-+int main(int argc, char **argv)
-+{
-+	int fd = 0;
-+	int key = 0;
-+	int *ptr = NULL;
-+	int c = 0;
-+	int size = 0;
-+	char path[256] = "";
-+	enum method method = MAX_METHOD;
-+	int want_sleep = 0, private = 0;
-+	int populate = 0;
-+	int write = 0;
-+
-+	unsigned long i;
-+
-+
-+	if (signal(SIGINT, sig_handler) == SIG_ERR)
-+		err(1, "\ncan't catch SIGINT\n");
-+
-+	/* Parse command-line arguments. */
-+	setvbuf(stdout, NULL, _IONBF, 0);
-+	self = argv[0];
-+
-+	while ((c = getopt(argc, argv, "s:p:m:owlr")) != -1) {
-+		switch (c) {
-+		case 's':
-+			size = atoi(optarg);
-+			break;
-+		case 'p':
-+			strncpy(path, optarg, sizeof(path));
-+			break;
-+		case 'm':
-+			if (atoi(optarg) >= MAX_METHOD) {
-+				errno = EINVAL;
-+				perror("Invalid -m.");
-+				exit_usage();
-+			}
-+			method = atoi(optarg);
-+			break;
-+		case 'o':
-+			populate = 1;
-+			break;
-+		case 'w':
-+			write = 1;
-+			break;
-+		case 'l':
-+			want_sleep = 1;
-+			break;
-+		case 'r':
-+			private = 1;
-+			break;
-+		default:
-+			errno = EINVAL;
-+			perror("Invalid arg");
-+			exit_usage();
-+		}
-+	}
-+
-+	if (strncmp(path, "", sizeof(path)) != 0) {
-+		printf("Writing to this path: %s\n", path);
-+	} else {
-+		errno = EINVAL;
-+		perror("path not found");
-+		exit_usage();
-+	}
-+
-+	if (size != 0) {
-+		printf("Writing this size: %d\n", size);
-+	} else {
-+		errno = EINVAL;
-+		perror("size not found");
-+		exit_usage();
-+	}
-+
-+	if (!populate)
-+		printf("Not populating.\n");
-+	else
-+		printf("Populating.\n");
-+
-+	if (!write)
-+		printf("Not writing to memory.\n");
-+
-+	if (method == MAX_METHOD) {
-+		errno = EINVAL;
-+		perror("-m Invalid");
-+		exit_usage();
-+	} else
-+		printf("Using method=%d\n", method);
-+
-+	if (!private)
-+		printf("Shared mapping.\n");
-+	else
-+		printf("Private mapping.\n");
-+
-+
-+	switch (method) {
-+	case HUGETLBFS:
-+		printf("Allocating using HUGETLBFS.\n");
-+		fd = open(path, O_CREAT | O_RDWR, 0777);
-+		if (fd == -1)
-+			err(1, "Failed to open file.");
-+
-+		ptr = mmap(NULL, size, PROT_READ | PROT_WRITE,
-+			(private ? MAP_PRIVATE : MAP_SHARED) | (populate ?
-+				MAP_POPULATE : 0), fd, 0);
-+
-+		if (ptr == MAP_FAILED) {
-+			close(fd);
-+			err(1, "Error mapping the file");
-+		}
-+		break;
-+	case MMAP_MAP_HUGETLB:
-+		printf("Allocating using MAP_HUGETLB.\n");
-+		ptr = mmap(NULL, size,
-+		PROT_READ | PROT_WRITE,
-+		(private ? (MAP_PRIVATE | MAP_ANONYMOUS) : MAP_SHARED) |
-+		MAP_HUGETLB | (populate ?
-+			MAP_POPULATE : 0),
-+		-1, 0);
-+
-+		if (ptr == MAP_FAILED)
-+			err(1, "mmap");
-+
-+		printf("Returned address is %p\n", ptr);
-+		break;
-+	case SHM:
-+		printf("Allocating using SHM.\n");
-+		shmid = shmget(key, size, SHM_HUGETLB | IPC_CREAT | SHM_R |
-+				SHM_W);
-+		if (shmid < 0) {
-+			shmid = shmget(++key, size, SHM_HUGETLB | IPC_CREAT |
-+					SHM_R | SHM_W);
-+			if (shmid < 0)
-+				err(1, "shmget");
-+
-+		}
-+		printf("shmid: 0x%x, shmget key:%d\n", shmid, key);
-+
-+		shmaddr = shmat(shmid, NULL, 0);
-+		if (shmaddr == (char *)-1) {
-+			perror("Shared memory attach failure");
-+			shmctl(shmid, IPC_RMID, NULL);
-+			exit(2);
-+		}
-+		printf("shmaddr: %p\n", shmaddr);
-+
-+		break;
-+	default:
-+		errno = EINVAL;
-+		err(1, "Invalid method.");
-+	}
-+
-+	if (write) {
-+		printf("Writing to memory.\n");
-+		if (method != SHM) {
-+			memset(ptr, 1, size);
-+		} else {
-+			printf("Starting the writes:\n");
-+			for (i = 0; i < size; i++) {
-+				shmaddr[i] = (char)(i);
-+				if (!(i % (1024 * 1024)))
-+					printf(".");
-+			}
-+			printf("\n");
-+
-+			printf("Starting the Check...");
-+			for (i = 0; i < size; i++)
-+				if (shmaddr[i] != (char)i) {
-+					printf("\nIndex %lu mismatched\n", i);
-+					exit(3);
-+				}
-+			printf("Done.\n");
-+
-+
-+		}
-+	}
-+
-+	if (want_sleep) {
-+		/* Signal to caller that we're done. */
-+		printf("DONE\n");
-+
-+		/* Hold memory until external kill signal is delivered. */
-+		while (1)
-+			sleep(100);
-+	}
-+
-+	close(fd);
-+
-+	return 0;
-+}
---
-2.23.0.rc1.153.gdeed80330f-goog
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
