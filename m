@@ -2,163 +2,201 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6D7A1C0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 14:33:40 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 024E5C0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 14:47:23 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3441E217F4
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 14:33:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="cCOBoICU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3441E217F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id B460C2173E
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 14:47:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B460C2173E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C0DF26B0003; Thu,  8 Aug 2019 10:33:39 -0400 (EDT)
+	id 526F66B0003; Thu,  8 Aug 2019 10:47:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BBF1C6B0006; Thu,  8 Aug 2019 10:33:39 -0400 (EDT)
+	id 4B0346B0006; Thu,  8 Aug 2019 10:47:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A876C6B0007; Thu,  8 Aug 2019 10:33:39 -0400 (EDT)
+	id 329A26B0007; Thu,  8 Aug 2019 10:47:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 5D1B56B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 10:33:39 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id f19so58362062edv.16
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 07:33:39 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id D42526B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 10:47:21 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c31so58441453ede.5
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 07:47:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:reply-to:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=1+hRXOJC+ZDM/4/kVVufU5PRo9dpiWo2Z8YGtmpPW2I=;
-        b=gTr4s3Ij1Aqhfdmqz6LXVsILYmYEfFYGqDd/TRR+DWe6dXhlTTUXmb/aSDJHwRYD1b
-         B6BiiOzXPjCbmBOXSFmSVu3lJF+sOjiVQ+5jRG42klOUxxDHgAX0ZYX2dfp806sq3pUp
-         I4pVMywlQeZwcbtWQ44lb0CgHdTx20spSG7QTfA6LS9At9Xcz9ybj0L+2FJ19BoOB3rz
-         zc3emdTsWvwE3h9OqQZXRi3FKsHzSnDzIEtxQ4hsY2diVAp7x98VhW5+Gu8JDOkG0j+l
-         QiCkhc9B3++SU4KMYLJTjGGID4bkZ0kxrHpgXyhTXS3Mm9fj/2OCxvvvHopT2KzBi7An
-         qolQ==
-X-Gm-Message-State: APjAAAUz9swzDLk0vGqfrVtfdJ+DeYK6aduoBI8fWZVJPQ3KBFqVWC5B
-	8/5MMLiUrz2tfsKVnYGRROdKEkGrVKy7uCsmnK38GqYWL9rrzpv81iWkMcwzQu5Uk2H9h3XGWKl
-	nMDeaSg1JrTWodtamUIj8zGjDxhDXpMvq3wSBRTVexHg/aY1MWYdDcSICfW7ahBJMNw==
-X-Received: by 2002:a50:f70c:: with SMTP id g12mr16386449edn.139.1565274818967;
-        Thu, 08 Aug 2019 07:33:38 -0700 (PDT)
-X-Received: by 2002:a50:f70c:: with SMTP id g12mr16386385edn.139.1565274818262;
-        Thu, 08 Aug 2019 07:33:38 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565274818; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=R5NGuBVivDsAnOnRH0vdD/aaKxMqix3CmXPym/fv4N0=;
+        b=Ma6zGNN3kcWcpBn60Z4xhM7GOhZTxn4XMbhvRwSYWrDacc62LT1dibN6cViRepHMiG
+         9hBxUoWpFLS5pJ6txa25LehygypF25+eeg5Hk8+s+jyMjh549BWq8l5g2p5l1puubXJ9
+         u5euQeAUp6a1KtBits3N7hCSvkcKgcdcl5oxYB2ZrJqL8/sWKb7wzJbs6bFasYwCtQe+
+         g24PyjJC56cBowLmH3I/BIY67/XZn36HHEc4vowJ7RhJV2tB1hnMLJPClP4aHQlbcdOu
+         phfl4WHdSurvyRMa+d7m6gNp6Wh5WTyhC3AEAW3gIrg2x19Bm9XB3j99BYL2d2Y0iAKW
+         Y+2Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAUDKdHhwB1Uuue44O1J2KVUIeQeVn+o9KeV3t8ileZran329vwV
+	/Wy+slTddBkKErUNA/ZOvTbynuAmIJzMkmuhXM250FgzwFspwgH7gnoutrqYWrQ8CueNB5r5KCR
+	gvcn9d6nu5CMmh90PbqCxq2Dud7Y0j26R83mk1islKO+As2m3+acTa1v3HqdvLMdPUA==
+X-Received: by 2002:a17:906:430a:: with SMTP id j10mr13806749ejm.92.1565275641397;
+        Thu, 08 Aug 2019 07:47:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwGM/WKO3+0ChOwot6o4bV1enR/JsiMmbytPW9ovIqCocjEJ1EQh2KVHcfJIolO0LrALf7M
+X-Received: by 2002:a17:906:430a:: with SMTP id j10mr13806676ejm.92.1565275640546;
+        Thu, 08 Aug 2019 07:47:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565275640; cv=none;
         d=google.com; s=arc-20160816;
-        b=lI93ixc/yWkfpSq2iP6Jk3bfuK/W7Dbx2eGyaOeBopvV2N6M4l4pilaqYQDveFEY+6
-         xCMYgVDtfW8l0ZTgGU8dVSip1HXECr1dbu2j/n1DtCeZ8y4HQkctz1Rs3RUN4ebAJf83
-         FxsEsxe+lUm81nCViHZ1v5e6/WtFxYG/SoXF9LWfDguIUM6NaqkK0/5yeHUKhloGYYVq
-         2eXi19obJ+v4/dP4EOO8sVPwhhSv5aQdr2TgBYfTfc9wTxx7dibnnJMvDCw0eGeAKiRF
-         s/ypDtmeJHosuU6rzmRn/RVU6oHSRML0Padb73VTrBT6dWXYIXh1XsGv16x80XMS2QFb
-         4a1g==
+        b=Yowp7VW11Vlxf9L7GzE1S6V6P5oGEcFvXr+FBHiQgVBcAyQYwM2MtWEBrzTlRwP4DN
+         uQH4kQksQKVFR1ZeSbihKsEnYe0KQ5SropA7ZubjU95QqQuGPENZRNv+i2MGQcWoIvUM
+         /ALvHw4dVaHHvC4P50IP6AxUGLACTyDCtzr8bYElLcQsiksPyBQo+rxO94jl95NqkKii
+         WgspFXRFwR4Ibd9q0p/pBUPUu/6R0OaGGg6vLpESsO+2Oab+OdrVtsjCNGgRI/wInYOp
+         3b4bK+PoQwYtnGP0Pmx3P54S4Jed+Brjfg+11/R+nnZJna16jVcGx3F6Hh+qU2svKrgG
+         Epzg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :reply-to:message-id:subject:cc:to:from:date:dkim-signature;
-        bh=1+hRXOJC+ZDM/4/kVVufU5PRo9dpiWo2Z8YGtmpPW2I=;
-        b=oA7Ialpfq7nx8O/tvv3CD2AsIQTTj5vD1AMKar77FUiRR1rafDxHXaU9tYWiC6ZJFZ
-         jyALk9aEgq0nblIH4ForcMkSK/ZFbynlhoTD669KhhfylK2XseWkWq8pcPdGV4pE7tMF
-         hvBMyD7fgq6EO+Q/AkFKz0vhsKmzLj9GtGuxSCTv5PChUw8YEujNz70nxb3oYIlvAScv
-         Fg8pM1DCJAGJrqJ6yNTtUgl0T8mZ1wiv+QgggTIpWAiASJCwmNkyBtLI7ZEWRzL4M3fP
-         4BfcVwDOO0tODXVT2R9QtPXMNlE2HrrgDYT5vA9Q/DXlyc8xxrcDIYlxI1oEMjQw8g8n
-         k3Aw==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=R5NGuBVivDsAnOnRH0vdD/aaKxMqix3CmXPym/fv4N0=;
+        b=xSq7PTnHywzadJCMJYotSAhoVAIHZiP4g/ZxzXBSUQyUu/fBLeTfVEaCYgIYPdM9pm
+         6w3qM+cTUAwrsjOVoE64hc2CSDPRHjkKeG3kT8yI6EoSBc6xSNltIibbeqCzAC8cKfeg
+         QKaa0Z12lNPdVmVTs539NQaPbqlcNyiF7c6OfNIbLUiw2vR63z7vlvceXUEOAGzyEy1N
+         J22RdmH3HCMe0cZ/g0CH8YSlEYpn0ZeJPtt6izRPVmVQ+U3cKlO6kYCWA3fXk9kIrs/Q
+         IthhfBmYzpxAfN0aRC9tF+hu7ymT4iJFHgHIHYpXkDveZjUjfIu+o/8LXSxw9VVyFyd4
+         hZ0w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cCOBoICU;
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id m20sor33220461ejk.32.2019.08.08.07.33.38
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k24si21226574ede.54.2019.08.08.07.47.20
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Aug 2019 07:33:38 -0700 (PDT)
-Received-SPF: pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Aug 2019 07:47:20 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=cCOBoICU;
-       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=1+hRXOJC+ZDM/4/kVVufU5PRo9dpiWo2Z8YGtmpPW2I=;
-        b=cCOBoICU8CNt81EgZopFsi62bJmq0dCGhRRyOBZrHz6x4zgZMVW0I0qIH4tqKn99Ch
-         KCuglEQChTF0oNH1RULG7gBFl9ROMSdkWPvDjWYgtyOrwC7lBeww1a4RHafAsavxSbuz
-         Fm5M+8QkjJbkTLchwoDqDiNyYbvLWr++v5jvUHZn519FGt5V8pAxBJ4xQpWhD/gIuloD
-         XKVlh5ov7P2gm1HzEQ48jtXVuZeHjUX32eyJr6Bqts2hiTE9KbIsnJiV+CpxXmKThH2e
-         wmRBJg1RkKYjzuvNjK7zAtt1JAO3piFKSeZxcWyHrAMwdAXPw6YlB+ETRwL/ZUXfkWia
-         2s4Q==
-X-Google-Smtp-Source: APXvYqw60Qv6BR5nyiLLGJOB6JFXkK8yFSkjUH6a9VxpLPc86WgYOyY4BHMmwi1P9oj0mhGac7YRMA==
-X-Received: by 2002:a17:906:4354:: with SMTP id z20mr13315954ejm.163.1565274817932;
-        Thu, 08 Aug 2019 07:33:37 -0700 (PDT)
-Received: from localhost ([185.92.221.13])
-        by smtp.gmail.com with ESMTPSA id m17sm255658ejc.91.2019.08.08.07.33.37
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 08 Aug 2019 07:33:37 -0700 (PDT)
-Date: Thu, 8 Aug 2019 14:33:36 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-To: Vlastimil Babka <vbabka@suse.cz>
-Cc: Wei Yang <richardw.yang@linux.intel.com>,
-	Michal Hocko <mhocko@kernel.org>, akpm@linux-foundation.org,
-	kirill.shutemov@linux.intel.com, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/mmap.c: refine data locality of find_vma_prev
-Message-ID: <20190808143336.kgq4f6j5gfixtcb4@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20190806081123.22334-1-richardw.yang@linux.intel.com>
- <3e57ba64-732b-d5be-1ad6-eecc731ef405@suse.cz>
- <20190807003109.GB24750@richard>
- <20190807075101.GN11812@dhcp22.suse.cz>
- <20190808032638.GA28138@richard>
- <d4aab7f0-b653-8636-b5a7-97d3291f289d@suse.cz>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id E099EAE34;
+	Thu,  8 Aug 2019 14:47:19 +0000 (UTC)
+Subject: Re: Let's talk about the elephant in the room - the Linux kernel's
+ inability to gracefully handle low memory pressure
+To: Johannes Weiner <hannes@cmpxchg.org>, Michal Hocko <mhocko@kernel.org>
+Cc: Suren Baghdasaryan <surenb@google.com>, "Artem S. Tashkinov"
+ <aros@gmx.com>, Andrew Morton <akpm@linux-foundation.org>,
+ LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
+References: <d9802b6a-949b-b327-c4a6-3dbca485ec20@gmx.com>
+ <ce102f29-3adc-d0fd-41ee-e32c1bcd7e8d@suse.cz>
+ <20190805193148.GB4128@cmpxchg.org>
+ <CAJuCfpHhR+9ybt9ENzxMbdVUd_8rJN+zFbDm+5CeE2Desu82Gg@mail.gmail.com>
+ <398f31f3-0353-da0c-fc54-643687bb4774@suse.cz>
+ <20190806142728.GA12107@cmpxchg.org> <20190806143608.GE11812@dhcp22.suse.cz>
+ <CAJuCfpFmOzj-gU1NwoQFmS_pbDKKd2XN=CS1vUV4gKhYCJOUtw@mail.gmail.com>
+ <20190806220150.GA22516@cmpxchg.org> <20190807075927.GO11812@dhcp22.suse.cz>
+ <20190807205138.GA24222@cmpxchg.org>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <e535fb6a-8af4-3844-34ac-3294eef26ca6@suse.cz>
+Date: Thu, 8 Aug 2019 16:47:18 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <d4aab7f0-b653-8636-b5a7-97d3291f289d@suse.cz>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <20190807205138.GA24222@cmpxchg.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 08, 2019 at 10:49:29AM +0200, Vlastimil Babka wrote:
->On 8/8/19 5:26 AM, Wei Yang wrote:
->> 
->> @@ -2270,12 +2270,9 @@ find_vma_prev(struct mm_struct *mm, unsigned long addr,
->>         if (vma) {
->>                 *pprev = vma->vm_prev;
->>         } else {
->> -               struct rb_node *rb_node = mm->mm_rb.rb_node;
->> -               *pprev = NULL;
->> -               while (rb_node) {
->> -                       *pprev = rb_entry(rb_node, struct vm_area_struct, vm_rb);
->> -                       rb_node = rb_node->rb_right;
->> -               }
->> +               struct rb_node *rb_node = rb_last(&mm->mm_rb);
->> +               *pprev = !rb_node ? NULL :
->> +                        rb_entry(rb_node, struct vm_area_struct, vm_rb);
->>         }
->>         return vma;
->> 
->> Not sure this style would help a little in understanding the code?
->
->Yeah using rb_last() would be nicer than basically repeating its
->implementation, so it's fine as a cleanup without performance implications.
->
+On 8/7/19 10:51 PM, Johannes Weiner wrote:
+> From 9efda85451062dea4ea287a886e515efefeb1545 Mon Sep 17 00:00:00 2001
+> From: Johannes Weiner <hannes@cmpxchg.org>
+> Date: Mon, 5 Aug 2019 13:15:16 -0400
+> Subject: [PATCH] psi: trigger the OOM killer on severe thrashing
 
-Thanks, I would send this version with proper change log.
+Thanks a lot, perhaps finally we are going to eat the elephant ;)
 
->>> -- 
->>> Michal Hocko
->>> SUSE Labs
->> 
+I've tested this by booting with mem=8G and activating browser tabs as
+long as I could. Then initially the system started thrashing and didn't
+recover for minutes. Then I realized sysrq+f is disabled... Fixed that
+up after next reboot, tried lower thresholds, also started monitoring
+/proc/pressure/memory, and found out that after minutes of not being
+able to move the cursor, both avg10 and avg60 shows only around 15 for
+both some and full. Lowered thrashing_oom_level to 10 and (with
+thrashing_oom_period of 5) the thrashing OOM finally started kicking,
+and the system recovered by itself in reasonable time.
 
--- 
-Wei Yang
-Help you, Help me
+So my conclusion is that the patch works, but there's something odd with
+suspiciously low PSI memory values on my system. Any idea how to
+investigate this? Also, does it matter that it's a modern desktop, so
+systemd puts everything into cgroups, and the unified cgroup2 hierarchy
+is also mounted?
+
+Thanks,
+Vlastimil
 
