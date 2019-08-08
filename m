@@ -4,82 +4,84 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A2659C0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 06:27:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 48286C0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 06:29:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6E43B217F4
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 06:27:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6E43B217F4
+	by mail.kernel.org (Postfix) with ESMTP id 0C90F21874
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 06:29:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0C90F21874
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1BCC76B0006; Thu,  8 Aug 2019 02:27:58 -0400 (EDT)
+	id A94DB6B0006; Thu,  8 Aug 2019 02:29:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 16E566B000A; Thu,  8 Aug 2019 02:27:58 -0400 (EDT)
+	id A456D6B000A; Thu,  8 Aug 2019 02:29:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 083FE6B000C; Thu,  8 Aug 2019 02:27:58 -0400 (EDT)
+	id 90E796B000C; Thu,  8 Aug 2019 02:29:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id B175F6B0006
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 02:27:57 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f3so57543475edx.10
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 23:27:57 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 451516B0006
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 02:29:02 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id y3so57559516edm.21
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 23:29:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=nIWYWxti2h+YKJsCHEKPojnLfBDVTb9i7wBNtAUzrEQ=;
-        b=Xc3/nksMVlQfuHu33HMzCMaGq21znoXf/+4VDWXZDzP2mXiBmZQptm0lZ2jqxCawEw
-         ETjjx5lftydQY6D1671ZpVmVZqkxgGORzqfRZVASIUcrXUoZWZh3kSHQ9mkXB3JkHwjk
-         6QioDiDqnJSinK8YhniG3CWyGgmAFJyEaKt9UOGi3gWhb1Z9FxKO4d4paHk+4B2DoyLb
-         Bx++C5Lq/FHH3L/WgV+m/bFLPAOKM2il0/gpoE4CinlTR4xxf8siCjhDYKc0rp/QKcdr
-         uzxg+4dfi3JRDEFalCd68qwuae53cNND2PjKNAnwoF34WyYkqYModqUuc+IT/4Y4SUxi
-         GjyQ==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.178.231 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-X-Gm-Message-State: APjAAAUZ/ZNwnxWG39rxV/qfdHgITkh3CKPHfRNppV7gcyNqOknzDvCM
-	OY7duQQ8HrY4ZkAWR6AFtbzUACpCYoSCQDlLYciw7y0ju82qJc1TL98tWGEp422rZOkL4K01wuV
-	7fDdEMTyhPvj6sr2SIDMotLZmCLh50IyrGbxZBsIUvvuFq42Lhnsb2QKRuanNaDg=
-X-Received: by 2002:a17:906:5446:: with SMTP id d6mr11732286ejp.185.1565245677293;
-        Wed, 07 Aug 2019 23:27:57 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz6dzqajtZRAezKDQNmuve9RCQ4JytQRObNcoa9WCTo0xLV5ABGpgwszdU90+Eh+tAf3C3e
-X-Received: by 2002:a17:906:5446:: with SMTP id d6mr11732254ejp.185.1565245676547;
-        Wed, 07 Aug 2019 23:27:56 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565245676; cv=none;
+        bh=CozSP8ClhxqYRnTVyauC5EuB32xQZZhYjVFYo6YFdyo=;
+        b=FoY0IiLGB1bYx8NiCSWkq7n+dpT6S/Kb8TFTUfNsepCuWxCU7KmbosHMR5pqaZPBaI
+         GHGk8mVNvpqtaB4eaw1MCHyZMdqAe8ITKvMxR0Wk8Zaw+YotDqy/bz+bVZxiq0uvaHIv
+         IsQftsZzeuAmU2k6xc+NJysuKodtryZYQ0rabklWzajx3WSVR/nFvcqXsO2mHLRYYX2+
+         OCFhyG31xDtaBH01sI+Rs/gAPXBwSKco88Nci/+37+kt8emuAp9fIm9VokGDm4wrxz5Z
+         zDFFHr5xTiTF8R9lpNPpULl+CckuFuRo0L4Db2mFgIOJhGTKhTjwEYEU8OnXt9E+eahz
+         On7A==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAUQwCJqKfIK2VW9mnjh2tbrG44mmPf8se1UrXDrYXXvjrihE7Rx
+	v31TDk8F+bdYSQZHzkBViiWWCnPaQe+V71H872TfCqe3WsPqgXxjBflbpDSksKEVW0qdXOfZRg+
+	LCCTxpSEb+mhafHAxmHjnFph/uikXqNplIn+NnxvQN/Qv7sQVtrFWjcTg4BLLEyw=
+X-Received: by 2002:a50:f5f5:: with SMTP id x50mr13667990edm.89.1565245741871;
+        Wed, 07 Aug 2019 23:29:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyF2uaeEPrwm3AbvmJYHgzOyOtuEKxeZNK+WVPrpE1r1AvKzsNsNReg051sx0pHDGy+pzxD
+X-Received: by 2002:a50:f5f5:: with SMTP id x50mr13667950edm.89.1565245741179;
+        Wed, 07 Aug 2019 23:29:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565245741; cv=none;
         d=google.com; s=arc-20160816;
-        b=eZ2LVse7IzkpcZTA4TT1IWFyAOKninqVnKmYq4vlZOVkjr+F12wCk4/IidumisdLgQ
-         lpAESYnI37Mvv7fOFVZKmd6Sf9qjpOOrTpN0kQ7gGbuqmzRxV8qtl0JXRF03DOHUYl96
-         oV8Ag2FgQYZLgcVG4GRmHSmma0ST1J9Fr5lgDKNPNdsWdEO9x7N7c8AwJgpRc0KMGUOg
-         NkW6jnNBU6ym1d7kWsAMEHqA8TNjhXDXT+rIo8w5WJ2Q4n59z8r0sSd9U1/ipAdxqSGM
-         9bscyrMon67DZAjDBJhsSxi+zoolyh0Ss5loYymWdwmObUiEXXOc5819UQtOH6MwlH44
-         y/Zw==
+        b=Jij1u8rHyMeL/LhOP8IKbehQbbeWCk4jVZJrAtB0FRHpCPzl8etBeyvP1Ls8A89TWF
+         aZmxdIev9bgIckW/nScNgGzRUyPwX6zM5W5DbyMfJAf8tFkOybAGjHoOUdfk8g9G0VeE
+         y0G7usFH5y7O38rDfi/3okakkzdQuLxMLxKHqxvU0O4ld/tp7yXfKoFqBeGP68GSw+Gb
+         A0s4NGII8iKHiR3NW0jMhaZtlmw3KqFDlJdLVgCrb07nWMIBL7UBtUS51IYbWqZ/wbXf
+         pk5/A2eRsAZg1qbbb9JC1ZyXA/VxiXUsMOYEqWw1cV1fo6ioi0EgE83mUX/n7+Oo/PuG
+         EktQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=nIWYWxti2h+YKJsCHEKPojnLfBDVTb9i7wBNtAUzrEQ=;
-        b=yiBhV1bdCfGyPhNv8GmkXmkURrdvp2spf+AQwCZYRq5HEB37p10wYFECiv8rSpXZaK
-         KinQeWIx1A81oN0X5PZdgOxI3DMiGbl3//cr2MtCEw3W2Rk5Ulst82xEdfRnEdSszoU7
-         t8vZf7rY/D/zD9HF8wc+feKh0clw+TvtsQtuvs9eK0GUTh9yNdJBG/LRreQQ0WlSOArQ
-         FOUZUM4W0GEvDWZQqgNK9YlHyUy658mqFO/0dLyQaKhcmia9JuDhSp9n+9ww+ge2Fd1I
-         7m1A3MP5BWwjSPLC7eLe3bazvqleAS6yis+B3pmchnTkegsMNoTIoirtMJTQDDItPeTU
-         UijQ==
+        bh=CozSP8ClhxqYRnTVyauC5EuB32xQZZhYjVFYo6YFdyo=;
+        b=uura6PTn8hW5fGJXX3m/v1rRDOZyUcFQHKjlGB9t4jpz0r8Lb12boArjNgrsKU5BJ3
+         ioF/ap/fuRy8YF93EedxJUoMxIdRcCC98bLx4do9CTPyQd1/8Vtjdn/bnOqaDXrJ1C+K
+         EMoZuNT+det6E40dN1yXty17EQuzqQ0wBxu0tnQ3VHUPVylyO8hrKw/IYNCitLZyw+/A
+         XoRWRqoGL8C+qMWHrRugqf5i5t6JzY6rKKjAAT3ECFWQCWgstudUxgTOIL/8Pjx5xEcg
+         s5+QMAbWlw5Xb4IFUaBUQfyzYk4oIwoABtzxgywJQrFcV58TteIb19yhiXYk3D32R1En
+         g5kA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 217.70.178.231 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
-Received: from relay11.mail.gandi.net (relay11.mail.gandi.net. [217.70.178.231])
-        by mx.google.com with ESMTPS id o26si36960896edc.423.2019.08.07.23.27.56
+       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [217.70.183.195])
+        by mx.google.com with ESMTPS id x7si34915645edm.177.2019.08.07.23.29.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Wed, 07 Aug 2019 23:27:56 -0700 (PDT)
-Received-SPF: neutral (google.com: 217.70.178.231 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.178.231;
+        Wed, 07 Aug 2019 23:29:01 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.195;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 217.70.178.231 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 79.86.19.127
 Received: from alex.numericable.fr (127.19.86.79.rev.sfr.net [79.86.19.127])
 	(Authenticated sender: alex@ghiti.fr)
-	by relay11.mail.gandi.net (Postfix) with ESMTPSA id D6A23100005;
-	Thu,  8 Aug 2019 06:27:51 +0000 (UTC)
+	by relay3-d.mail.gandi.net (Postfix) with ESMTPSA id A498660009;
+	Thu,  8 Aug 2019 06:28:56 +0000 (UTC)
 From: Alexandre Ghiti <alex@ghiti.fr>
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Paul Walmsley <paul.walmsley@sifive.com>,
@@ -102,9 +104,9 @@ Cc: Paul Walmsley <paul.walmsley@sifive.com>,
 	linux-fsdevel@vger.kernel.org,
 	linux-mm@kvack.org,
 	Alexandre Ghiti <alex@ghiti.fr>
-Subject: [PATCH v6 09/14] mips: Properly account for stack randomization and stack guard gap
-Date: Thu,  8 Aug 2019 02:17:51 -0400
-Message-Id: <20190808061756.19712-10-alex@ghiti.fr>
+Subject: [PATCH v6 10/14] mips: Use STACK_TOP when computing mmap base address
+Date: Thu,  8 Aug 2019 02:17:52 -0400
+Message-Id: <20190808061756.19712-11-alex@ghiti.fr>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190808061756.19712-1-alex@ghiti.fr>
 References: <20190808061756.19712-1-alex@ghiti.fr>
@@ -116,52 +118,39 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This commit takes care of stack randomization and stack guard gap when
-computing mmap base address and checks if the task asked for randomization.
-
-This fixes the problem uncovered and not fixed for arm here:
-https://lkml.kernel.org/r/20170622200033.25714-1-riel@redhat.com
+mmap base address must be computed wrt stack top address, using TASK_SIZE
+is wrong since STACK_TOP and TASK_SIZE are not equivalent.
 
 Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
 Acked-by: Kees Cook <keescook@chromium.org>
 Acked-by: Paul Burton <paul.burton@mips.com>
 Reviewed-by: Luis Chamberlain <mcgrof@kernel.org>
 ---
- arch/mips/mm/mmap.c | 14 ++++++++++++--
- 1 file changed, 12 insertions(+), 2 deletions(-)
+ arch/mips/mm/mmap.c | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
 
 diff --git a/arch/mips/mm/mmap.c b/arch/mips/mm/mmap.c
-index d79f2b432318..f5c778113384 100644
+index f5c778113384..a7e84b2e71d7 100644
 --- a/arch/mips/mm/mmap.c
 +++ b/arch/mips/mm/mmap.c
-@@ -21,8 +21,9 @@ unsigned long shm_align_mask = PAGE_SIZE - 1;	/* Sane caches */
- EXPORT_SYMBOL(shm_align_mask);
+@@ -22,7 +22,7 @@ EXPORT_SYMBOL(shm_align_mask);
  
  /* gap between mmap and stack */
--#define MIN_GAP (128*1024*1024UL)
--#define MAX_GAP ((TASK_SIZE)/6*5)
-+#define MIN_GAP		(128*1024*1024UL)
-+#define MAX_GAP		((TASK_SIZE)/6*5)
-+#define STACK_RND_MASK	(0x7ff >> (PAGE_SHIFT - 12))
+ #define MIN_GAP		(128*1024*1024UL)
+-#define MAX_GAP		((TASK_SIZE)/6*5)
++#define MAX_GAP		((STACK_TOP)/6*5)
+ #define STACK_RND_MASK	(0x7ff >> (PAGE_SHIFT - 12))
  
  static int mmap_is_legacy(struct rlimit *rlim_stack)
- {
-@@ -38,6 +39,15 @@ static int mmap_is_legacy(struct rlimit *rlim_stack)
- static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
- {
- 	unsigned long gap = rlim_stack->rlim_cur;
-+	unsigned long pad = stack_guard_gap;
-+
-+	/* Account for stack randomization if necessary */
-+	if (current->flags & PF_RANDOMIZE)
-+		pad += (STACK_RND_MASK << PAGE_SHIFT);
-+
-+	/* Values close to RLIM_INFINITY can overflow. */
-+	if (gap + pad > gap)
-+		gap += pad;
+@@ -54,7 +54,7 @@ static unsigned long mmap_base(unsigned long rnd, struct rlimit *rlim_stack)
+ 	else if (gap > MAX_GAP)
+ 		gap = MAX_GAP;
  
- 	if (gap < MIN_GAP)
- 		gap = MIN_GAP;
+-	return PAGE_ALIGN(TASK_SIZE - gap - rnd);
++	return PAGE_ALIGN(STACK_TOP - gap - rnd);
+ }
+ 
+ #define COLOUR_ALIGN(addr, pgoff)				\
 -- 
 2.20.1
 
