@@ -2,135 +2,199 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 64BF3C0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 18:18:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 83497C0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 18:18:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0D5EB21743
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 18:18:30 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 3340621743
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 18:18:53 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="DYL+FtPK"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0D5EB21743
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="Ne1ScLdQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3340621743
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6D3196B0003; Thu,  8 Aug 2019 14:18:30 -0400 (EDT)
+	id D8A4F6B0006; Thu,  8 Aug 2019 14:18:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6837A6B0006; Thu,  8 Aug 2019 14:18:30 -0400 (EDT)
+	id D131C6B0007; Thu,  8 Aug 2019 14:18:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 572B26B0007; Thu,  8 Aug 2019 14:18:30 -0400 (EDT)
+	id BDB196B0008; Thu,  8 Aug 2019 14:18:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 1DE7E6B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 14:18:30 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id 6so59628199pfz.10
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 11:18:30 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 880E16B0006
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 14:18:52 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id g18so55923787plj.19
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 11:18:52 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=XHC/DXG/AsJJpTqq+/d9d6/Y4cRytjPRBDIPDxq1Cy8=;
-        b=n/RGxES/YeUhbCnTxq0WMo81eS08dUxo8yps5LCB2XIJsXz7Wah3yPSowjmzX/4MPB
-         iJmZgw0EAcomWfbXmO4kIUHwC41bq4Gqu8Em5Rp59OtyUNGswZrRXgCf3a2n66bo1aJ0
-         +u1W4fojzWzZ7nxuE5184WBTkbDakfbutcPwtDaOWbT/SetfRPNUIsnbgKC+dNx5Veld
-         NMyqSSjm9MzlQ6c1gBzju7u74oPS/HGZdWaprBxV6vPdYmt4k7z+Vcwpeo+zb3d5DzNE
-         vM8d6OWnMWNlWAb/95mRv+7VHvRhV31831jIyPy/vFzD1w7ks7z6relEfSfbBm4Nc6vj
-         GJSw==
-X-Gm-Message-State: APjAAAUgCMAh8W5q4v4IqEp6ddCT0+UZdHdqdwg2SPhvEaOxsCqipvE+
-	6+hqTqPhWZfXpy471oLEGho5BFS+z252Z3nNjXK3gKKu/lkKY/IXi+8zAvfn8lrXVLKTPz0pPuB
-	5SzAoJp6UXS94ANsJ4m5jJ4ldGpVnoYY1aGp8r4dtqeY6kXnusnwwqkd7htO32E+smA==
-X-Received: by 2002:a17:90a:8d09:: with SMTP id c9mr5411808pjo.131.1565288309505;
-        Thu, 08 Aug 2019 11:18:29 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyqCzY47hMdH6QumPABjHzYyB2q/t379RNGxsxmpGv3HyNkPpiuFB1lKu0Afm6qnFRT1MWt
-X-Received: by 2002:a17:90a:8d09:: with SMTP id c9mr5411758pjo.131.1565288308646;
-        Thu, 08 Aug 2019 11:18:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565288308; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=JXH0z+PATu5ChINAttu0xw8NI7VYrjVhdTogRmB3Q5s=;
+        b=o8nR9iX39tQAZuZVsz2T6l8YFlU8x5dW1gPRK88lq559wui1h+xPA+6gE1Ge3iG9ut
+         WEiWsqOt1hr9qIobvQYdfIINEq+99cfQyGvgBL3dSCJ2ClAslm2xrdNXMP+C+Tm4xlO+
+         Rscj63011Ds5ktemdRMs8RkxUOhDiwtLPPpruvtalV3Nhwwwlu1eL+Vw4b2lzJ4RE2qa
+         tv3YauONsEYWYIo0Nq86bKgBX61rLpJFczd3v603WkltfHuuYD2kk3zzRfO8qSj++PPU
+         Gfrt53m4IkjNvIs4LqgBWTQ0phSqscaCWRUjykApAGXOoZAFC2Ew8v2jex0JCP4Poenr
+         UyxA==
+X-Gm-Message-State: APjAAAX/pxeDkeyXze4icchESHM42mzc03Tarcq/bdBbapBlpC2CyWl4
+	ELMpuZ/14y3z3rFGy8ARFKmifeX4xswQXyyDnmB//xFT+bQMLPAW7lfMuyu8pY/Rp9PIv0FKlXK
+	Dtfj8j8c1qA8CtunAAAa/5xcZwULEedtyqj7r9OzcvI3dV3BjrrQRVO2OEg3Jkg3HCg==
+X-Received: by 2002:a63:1b66:: with SMTP id b38mr13994740pgm.54.1565288332052;
+        Thu, 08 Aug 2019 11:18:52 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqynMz7SIEHcLlh/k7Uy146GQz8jlmvkgtgtKz9UXDAeoiY9LoTDZJ0a20t0j80YDbwHv7S0
+X-Received: by 2002:a63:1b66:: with SMTP id b38mr13994706pgm.54.1565288331205;
+        Thu, 08 Aug 2019 11:18:51 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565288331; cv=none;
         d=google.com; s=arc-20160816;
-        b=BJpIVEAbdI3qrFDuQe98ifXdLQ/7admQBlRwe9bBvRitZ62Ltgxyz5m7gKm/cQopxy
-         Gwwl9N4+8BY80SJqobGzHcYj4JdTrhsDz1MbI+APDXPGeCnTHCnF6+7UB3JEyF4n6blH
-         /Ai6ICvzSCGi+baPpqEMCKbBOClBwu5p7Mydb7EQ/dFWdW4eIX0WCmCPPSwa2x8bVuEy
-         G+Tki+fxwP1EwxgsEj9bb56WuWITLEO4A8nF6r6LhF1rFoZ1X1FAEvvAaudKNVt6RpNa
-         Gfn8OAaqukxMXphJHS8HFlB+kBRtkeOJgfDoHklO4FIWvAphjfl1eCvQdatYQ2chrN0T
-         CBFQ==
+        b=ZP8MS6yTq9VZJ6k4dIdZWOpmj/S40I0C6pQqeDAea7dH6OF8es1BQO3jxgOwkDjeKN
+         AolcRpsLnJg+v0WYYtjkTOmZKZcgXyO+/ETxlm9Cy50X9DwdIt2y2ESyvYSg763VPGGn
+         7IiBHr6Omq7AqG9ghg7374nnirXFmsrUZ8CpenPGiTUjh8fn0z42mJqhw3YuxrmMN3Kk
+         aqrmbqjqAA/viOdPkyDC3v7U4mt5NnkSLAWescoZREaNwKIimNXrhSTzVFTa9nuyPmAZ
+         4237V4Fywvczjr3K0USi8iMpppWqwxIWLit+Xqwmshv3icBwN9o3r8x0g10QO0DsmZBo
+         E85w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=XHC/DXG/AsJJpTqq+/d9d6/Y4cRytjPRBDIPDxq1Cy8=;
-        b=D+baL5kt3XY90tk9STDTp485gnYK+KXlK0kUih1S8yaHfIR5i8zVfo2BS1YZZNnUet
-         8m0NdS44XB7/QouDTaxIag0Y+VqcgOEgdlL5ulC1jKGikVjGUxYo6WmDxDq80RM9ysYl
-         UmVrrZmE+MuYy+3lNuePqZehMj+1nPMTCdzr9+XrbH484uhFBVdY0L8TIhQEHLYeCrZU
-         Cedg7ek4Di+aTT9F14EUceqkF6dHSTvVKiqeAK+pZP67Egnt+xCU8aFJYZWeI+z9xLYN
-         0Cb/8BknjOvF+U6Fn1KCG/jpzRvCDJG/L9QWq1fNsJCAw2WyTEcWd3YzVMYlA1SQMEam
-         7dCw==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=JXH0z+PATu5ChINAttu0xw8NI7VYrjVhdTogRmB3Q5s=;
+        b=aDpsmG48/efKFD3Q2gqYuVByja246yXme8AxWMN1hb6Rezeq+UXyCBTQpn9txm9Z+m
+         hWoajxwraJO/BF8DuTl6y/z/suI5poeTo/os5JXaQR+3vGGhoaOzyAadTBhe5WyzSk8+
+         WufM920piS0P1RgczwPZTSOUKbibjXRHECk7bpnuiOIwS+nQ0hYKzikdk+FjtuvmpuYj
+         oDEPQlB/IPONJ2BqYIPBsVm8e1kjNmYU686VKCjn95f1lilcB9k4WkUKCU5UdXpnmihb
+         gKRupCBAT/5ZVso3yWVtm5sGj1awGgqkDD9NXNTdMgIrxLL1efsNMplsus0OMe8TQtxE
+         iipQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=DYL+FtPK;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id j1si54866596pgb.482.2019.08.08.11.18.28
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Ne1ScLdQ;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id b22si19354247pgw.298.2019.08.08.11.18.51
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Thu, 08 Aug 2019 11:18:28 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Aug 2019 11:18:51 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=DYL+FtPK;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=XHC/DXG/AsJJpTqq+/d9d6/Y4cRytjPRBDIPDxq1Cy8=; b=DYL+FtPKnBxAd1YCNMrIj6xkY
-	eKutNn+BNnoaI3sMq4H+QMbxmgy9VXDqKFZPqganM0B80hcGGXKzySE46O3LFTkiBDmqvBZh2aOUs
-	/iT6efBCnhCEBDnxSyaAb9xiqCJaHm1KkQO8wAY3DUZrlpXceJIRZHphT5Y2dNYWp64JvSCk1OG24
-	wVrehRnbwmRLcsrhP4/2LH7SO23gmhofLVJC/Txjkmyyu1SCALyZwAJ089a3NiUww5OuZL/uENZxm
-	9+ilgWbtvtjDr2GsbzCWKRlM+mz/Jikh65vgXwbLen0E3jqcn9WG0d9ERZsx/7DnfisQGbbP63wyt
-	ZDBzuXLNA==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hvmzX-0005jr-2Q; Thu, 08 Aug 2019 18:18:23 +0000
-Date: Thu, 8 Aug 2019 11:18:22 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Linus Torvalds <torvalds@linux-foundation.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Thomas =?iso-8859-1?Q?Hellstr=F6m?= <thomas@shipmail.org>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Steven Price <steven.price@arm.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [PATCH 3/3] pagewalk: use lockdep_assert_held for locking
- validation
-Message-ID: <20190808181822.GK5482@bombadil.infradead.org>
-References: <20190808154240.9384-1-hch@lst.de>
- <20190808154240.9384-4-hch@lst.de>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=Ne1ScLdQ;
+       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d4c678b0000>; Thu, 08 Aug 2019 11:18:52 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Thu, 08 Aug 2019 11:18:50 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Thu, 08 Aug 2019 11:18:50 -0700
+Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 8 Aug
+ 2019 18:18:49 +0000
+Subject: Re: [PATCH 00/34] put_user_pages(): miscellaneous call sites
+To: "Weiny, Ira" <ira.weiny@intel.com>, Michal Hocko <mhocko@kernel.org>
+CC: Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>, Andrew
+ Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>,
+	"Williams, Dan J" <dan.j.williams@intel.com>, Dave Chinner
+	<david@fromorbit.com>, Dave Hansen <dave.hansen@linux.intel.com>, Jason
+ Gunthorpe <jgg@ziepe.ca>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+	<jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>,
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
+	"ceph-devel@vger.kernel.org" <ceph-devel@vger.kernel.org>,
+	"devel@driverdev.osuosl.org" <devel@driverdev.osuosl.org>,
+	"devel@lists.orangefs.org" <devel@lists.orangefs.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"intel-gfx@lists.freedesktop.org" <intel-gfx@lists.freedesktop.org>,
+	"kvm@vger.kernel.org" <kvm@vger.kernel.org>,
+	"linux-arm-kernel@lists.infradead.org"
+	<linux-arm-kernel@lists.infradead.org>, "linux-block@vger.kernel.org"
+	<linux-block@vger.kernel.org>, "linux-crypto@vger.kernel.org"
+	<linux-crypto@vger.kernel.org>, "linux-fbdev@vger.kernel.org"
+	<linux-fbdev@vger.kernel.org>, "linux-fsdevel@vger.kernel.org"
+	<linux-fsdevel@vger.kernel.org>, "linux-media@vger.kernel.org"
+	<linux-media@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>,
+	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
+	"linux-rpi-kernel@lists.infradead.org"
+	<linux-rpi-kernel@lists.infradead.org>, "linux-xfs@vger.kernel.org"
+	<linux-xfs@vger.kernel.org>, "netdev@vger.kernel.org"
+	<netdev@vger.kernel.org>, "rds-devel@oss.oracle.com"
+	<rds-devel@oss.oracle.com>, "sparclinux@vger.kernel.org"
+	<sparclinux@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>,
+	"xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>
+References: <20190802022005.5117-1-jhubbard@nvidia.com>
+ <20190802091244.GD6461@dhcp22.suse.cz>
+ <20190802124146.GL25064@quack2.suse.cz>
+ <20190802142443.GB5597@bombadil.infradead.org>
+ <20190802145227.GQ25064@quack2.suse.cz>
+ <076e7826-67a5-4829-aae2-2b90f302cebd@nvidia.com>
+ <20190807083726.GA14658@quack2.suse.cz>
+ <20190807084649.GQ11812@dhcp22.suse.cz>
+ <20190808023637.GA1508@iweiny-DESK2.sc.intel.com>
+ <e648a7f3-6a1b-c9ea-1121-7ab69b6b173d@nvidia.com>
+ <2807E5FD2F6FDA4886F6618EAC48510E79E79644@CRSMSX101.amr.corp.intel.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <b1b33292-d929-f9ff-dd75-02828228f35e@nvidia.com>
+Date: Thu, 8 Aug 2019 11:18:49 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190808154240.9384-4-hch@lst.de>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <2807E5FD2F6FDA4886F6618EAC48510E79E79644@CRSMSX101.amr.corp.intel.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1565288332; bh=JXH0z+PATu5ChINAttu0xw8NI7VYrjVhdTogRmB3Q5s=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=Ne1ScLdQ+tu5qOaISiLlk/MzD+D0tWGCUEcW8KATp/99KORz80qhTvSS0MA86k71v
+	 1gG74XZNfpVRbFXyQsXs+wV66Ly/i7Omeym8buU22OwtUh/B674iBCJPOoXFe5hxmV
+	 1e7OUBsDbdwXkl/h4Pjx1eOWT4qAVANZ24jESe93raeMkGLORABLpzcfJ+l/YUvFr/
+	 bUBCYBUk9JXLyxcXRRJ6Qo5DLPNTbuOY1/JVx8JLOWf78tx+O5w4P2ZxYGmo4q53CG
+	 aum+FjJWUhUsxhssDMyUyjXEHRPMBfcGtXYtpdJqmbhfodN4x0QDM6mw3fwyew2GF4
+	 p5OXETBP5SbRg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 08, 2019 at 06:42:40PM +0300, Christoph Hellwig wrote:
-> Use lockdep to check for held locks instead of using home grown
-> asserts.
+On 8/8/19 9:25 AM, Weiny, Ira wrote:
+>>
+>> On 8/7/19 7:36 PM, Ira Weiny wrote:
+>>> On Wed, Aug 07, 2019 at 10:46:49AM +0200, Michal Hocko wrote:
+>>>> On Wed 07-08-19 10:37:26, Jan Kara wrote:
+>>>>> On Fri 02-08-19 12:14:09, John Hubbard wrote:
+>>>>>> On 8/2/19 7:52 AM, Jan Kara wrote:
+>>>>>>> On Fri 02-08-19 07:24:43, Matthew Wilcox wrote:
+>>>>>>>> On Fri, Aug 02, 2019 at 02:41:46PM +0200, Jan Kara wrote:
+>>>>>>>>> On Fri 02-08-19 11:12:44, Michal Hocko wrote:
+>>>>>>>>>> On Thu 01-08-19 19:19:31, john.hubbard@gmail.com wrote:
+>>   [...]
+> Yep I can do this.  I did not realize that Andrew had accepted any of this work.  I'll check out his tree.  But I don't think he is going to accept this series through his tree.  So what is the ETA on that landing in Linus' tree?
 > 
-> @@ -319,7 +319,7 @@ int walk_page_range(struct mm_struct *mm, unsigned long start,
->  	if (!walk.mm)
->  		return -EINVAL;
->  
-> -	VM_BUG_ON_MM(!rwsem_is_locked(&walk.mm->mmap_sem), walk.mm);
-> +	lockdep_assert_held(&walk.mm->mmap_sem);
 
-It occurs to me that this is exactly the pattern that lockdep_pin_lock()
-was designed for.  I'm pretty sure things will go badly if any callee
-unlocks then relocks the lock.
+I'd expect it to go into 5.4, according to my understanding of how
+the release cycles are arranged.
+
+
+> To that point I'm still not sure who would take all this as I am now touching mm, procfs, rdma, ext4, and xfs.
+> 
+> I just thought I would chime in with my progress because I'm to a point where things are working and so I can submit the code but I'm not sure what I can/should depend on landing...  Also, now that 0day has run overnight it has found issues with this rebase so I need to clean those up...  Perhaps I will base on Andrew's tree prior to doing that...
+
+I'm certainly not the right person to answer, but in spite of that, I'd think
+Andrew's tree is a reasonable place for it. Sort of.
+
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
