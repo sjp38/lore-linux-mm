@@ -2,353 +2,203 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D272AC0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 18:33:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4B9C5C433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 18:44:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3712E217F4
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 18:33:07 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id F3F0D217F4
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 18:44:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=arista.com header.i=@arista.com header.b="VEsafay3"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3712E217F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=arista.com
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="lsfCX3zt"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F3F0D217F4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C45AD6B0003; Thu,  8 Aug 2019 14:33:06 -0400 (EDT)
+	id 959A06B0003; Thu,  8 Aug 2019 14:44:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BF7AF6B0006; Thu,  8 Aug 2019 14:33:06 -0400 (EDT)
+	id 9080A6B0006; Thu,  8 Aug 2019 14:44:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ABF256B0007; Thu,  8 Aug 2019 14:33:06 -0400 (EDT)
+	id 7D0596B0007; Thu,  8 Aug 2019 14:44:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 7698F6B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 14:33:06 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id j9so4203349pgk.20
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 11:33:06 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 2B4CE6B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 14:44:33 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id i44so58797374eda.3
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 11:44:33 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:date
-         :message-id:mime-version:content-transfer-encoding;
-        bh=wT3T8uxsvhilc5G/Tu7ixGp1PL3OKIzCeyPA7IhRvw8=;
-        b=li6klYHyLRczIy76dlU+Qq2HGGMi4m69MzEeJQOhTews3EdWHi6uI3YU+fERoC22Pl
-         I/ChXk8VE8bn9hFDlh8DwnakrhB5b2bYwU9vm+pfKuq1rRJxsArrQcJqafXOWZvNVOKa
-         puEP9/iZvdeWDeE4RfiI1jMrbfOAspeV1aVVVT5PjkJhf8knBi390Fu8RAC4PIHwm1OC
-         P8jbaNL9u9IYe8iE97z650HdyVmOs+wHA9N/SIDkBpwdouvLSguzOesNrK0V+8V0kM8E
-         EU78KeUPVEz9xjIRfo7tNnULCHGzLdUVeoKgL23yrzzFIHTVXkLteD7+ZHZ0LCpni7e7
-         5ODw==
-X-Gm-Message-State: APjAAAUCslGog8a82OWTPkaDMhVxBJZGp5qK7k5Q2uulPcfsRSFoE/4U
-	JH+mgZGf67P6QnxA2Zgx1iBXZ8dFPgnmQmxuqcnmUGH/vPk5fiHkAWFYgNya1+4hRruUK12vAsH
-	LMmsTvhVEeM675bvZb+Sd2XyqGFqa8g2HN1Ln/4F6Agb8Ph7432sCIVqSnMCNU1xDQg==
-X-Received: by 2002:a65:620a:: with SMTP id d10mr13793205pgv.8.1565289185950;
-        Thu, 08 Aug 2019 11:33:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzS1rpNo045aJ0GnwRio2PH+v/CRJeioxw5tXYCba4YCGKP6EsKDqaIXMhkhRmU+u3uDY6l
-X-Received: by 2002:a65:620a:: with SMTP id d10mr13793126pgv.8.1565289184783;
-        Thu, 08 Aug 2019 11:33:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565289184; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to;
+        bh=OnD8REJjiUQ09MeUwthsY9J1rWTm5v/HD9eRCPSk++8=;
+        b=P5VlG+hjqwaWBe3Nswl9fYmEIy6gFWXxf4s0OZ2gv8gD7tOKYf3e0/EvxKat1BL723
+         3/tlTVrwICdNVdGl6wJPFAiXA+hHbyhx21hu+EtxKnvor3l576/FMjaRqpHRCN4S60HI
+         ygluAnHrec7VWEmUa6jPm55DHyEHqH64fIa0jfpz3EYxBjiDnjVeOkrzE2bsh6SWiitT
+         BJpiG+5aYms2D0CXCkpBAKRHgR/3XY8dII9p/NUz45dGdlVg9viHqgV6X1FcUdknuPQm
+         hjV+/6yWfRSyfeNgdGc0Qjq26bIqHEHMXeV5HI/VAyDDulmPUaVCrHBawd9O2F4hsB46
+         K51A==
+X-Gm-Message-State: APjAAAXxG2Xafj9ri47viWMTqCtH5Rnv1vJe8LGpJzuKYUVub+ysiC4I
+	mwC787vpw8wHZu/jXvFs3B6JdEhrjF0wEGvyQ9B+5sauOhnlQOm3FMyXvWJ1IOowtkCXNBPh2Kq
+	4tg1yH0zDmo1DhyajOyiXnvQ/+LbmZvN0hNJHIyLElUDr+ONB01OBOCs1k1p+/fI3jg==
+X-Received: by 2002:a17:906:590d:: with SMTP id h13mr14999125ejq.210.1565289872601;
+        Thu, 08 Aug 2019 11:44:32 -0700 (PDT)
+X-Received: by 2002:a17:906:590d:: with SMTP id h13mr14999078ejq.210.1565289871643;
+        Thu, 08 Aug 2019 11:44:31 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565289871; cv=none;
         d=google.com; s=arc-20160816;
-        b=XqfU+36OrwRkSeP3dxTmFnZW5HE8NJX/JuLvtDXNnC7EE746AEyt3271YRyeLyWpOs
-         hGbiWLrazAfG3q4lZ9DWAL3WYnR+Z4yw9vOIOqfaUTzixMsE6c9xBTFlqMHsCyt1nqp4
-         YWB8XLbIYXIDCpjO8s1zQkkfSDrdn/mzNsZbsHvaLKDh860BGrXHL2kwlskdn5LfSCuy
-         RzasDEP6tu+bSIN4+gKCSx+r3aPojrmwSJq0C8o2qdM2tzUuWz/rBZPA9y7qhf8TEKxG
-         2USCu6UpYA12umD4K4NbdKmIiIeTo/EnvS4qAHUCHPrrILFr2sOhYB+cM74+Xl/ePXMi
-         uplQ==
+        b=mosI04iCw1t56IOwqINsXpCe2NbTzi+dEjFEkqcYT5seUzPqf8tUa/SrrU6pUDOTPz
+         lSrN7cqhhXS4QHr/Tvsxu/rt0KSMESatCik1OSXRdQkLcgbmvaKgsxCuuabu+rmj43hJ
+         X0gfqRgKoa13PypPSxdN14Pw1YF21h6oqnIJeEIvgCA5Aw+1zyy96aRWEogwTNuTSkyM
+         OK7PIURpFXDwb3GJPi7TkSEPfDZo0BO6hMt6n6QOC1Q8/n7ZwvDchcWNugZyTR9kUy9+
+         CUprFjxHZXPhMj39FiETLaY01meWVUE63XXX0d9UqeilKYi1LaoATq2ktgD7aC9w4lmf
+         ExSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:message-id:date:subject:cc
-         :to:from:dkim-signature;
-        bh=wT3T8uxsvhilc5G/Tu7ixGp1PL3OKIzCeyPA7IhRvw8=;
-        b=oEwW0NDP7nSIL/dXvAAXHyrRsH6uZ+2KGGEF4CUCqM7z/vzNoN0Ur2Al7m2g2YkfqT
-         i7nokqYUHKJeSAbAL6MMYW3JozVDyVorh8YpjbBnnaiaEWUwsdfRiqN/z1SMkGRLCK11
-         YjNZY+7Na3iJX8/ch05CSGB5eMyU1wf7sm20IkTZyuPurZo8Xhi+Ov/lOduRoFHccITk
-         l/sVK7QK9vxgMpEt+E1v8CavtCXQ2oSVzsAr05KmyC6KLSlus6An24a5OGCthnmPbjKs
-         yWrQ6Mv06KIRXraW9Dm95dWSgJv15XHzXh1SPEMEASxQtZylyR6d+5InrzEG+QgEY/ir
-         a9vA==
+        h=to:subject:message-id:date:from:in-reply-to:references:mime-version
+         :dkim-signature;
+        bh=OnD8REJjiUQ09MeUwthsY9J1rWTm5v/HD9eRCPSk++8=;
+        b=MZ9AXYSuFf7bBTsa3iTgeWANiWItB5rZxVoJ/ye/bCeOSozPpJwc76ealDsDNduwdp
+         lsLYfZ6uvTTTHdes0pJfIasMJXvgSnnFWeU1wgBtgmtMfO9acDMrFuefXwPjArgWFOJ/
+         Us1841picWJOnmu4Jp07/TC3t+QVdHKEeKS5V9yhl0O7UVoe2nGEFB0kI+YMpl9Zn8Xp
+         odtSFwdc20UN9jvruqOnEveHoUpNvB45TX055NHvUaXPx0nEOVpTMl2b73Ybx4KRIcI+
+         nD+/zrqzJY666IqPuiRhRpezU2T7pEfrAf+i/k4U/UzbosJHAH6xebVtcmo9B84zCKpf
+         Phxw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@arista.com header.s=Arista-A header.b=VEsafay3;
-       spf=pass (google.com: domain of echron@arista.com designates 162.210.129.12 as permitted sender) smtp.mailfrom=echron@arista.com;
-       dmarc=pass (p=QUARANTINE sp=REJECT dis=NONE) header.from=arista.com
-Received: from smtp.aristanetworks.com (mx.aristanetworks.com. [162.210.129.12])
-        by mx.google.com with ESMTPS id f26si41099038pfk.81.2019.08.08.11.33.04
+       dkim=pass header.i=@soleen.com header.s=google header.b=lsfCX3zt;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id d23sor32753266ejb.63.2019.08.08.11.44.31
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 11:33:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of echron@arista.com designates 162.210.129.12 as permitted sender) client-ip=162.210.129.12;
+        (Google Transport Security);
+        Thu, 08 Aug 2019 11:44:31 -0700 (PDT)
+Received-SPF: pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@arista.com header.s=Arista-A header.b=VEsafay3;
-       spf=pass (google.com: domain of echron@arista.com designates 162.210.129.12 as permitted sender) smtp.mailfrom=echron@arista.com;
-       dmarc=pass (p=QUARANTINE sp=REJECT dis=NONE) header.from=arista.com
-Received: from smtp.aristanetworks.com (localhost [127.0.0.1])
-	by smtp.aristanetworks.com (Postfix) with ESMTP id 55FA1427D9F;
-	Thu,  8 Aug 2019 11:33:45 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=arista.com;
-	s=Arista-A; t=1565289225;
-	bh=wT3T8uxsvhilc5G/Tu7ixGp1PL3OKIzCeyPA7IhRvw8=;
-	h=From:To:Cc:Subject:Date;
-	b=VEsafay3g9WIqrjD9haNX+x23eCGDrXxTE0V8upopDUlWe/lPcATaM9odkhJ9QR++
-	 Au4D3fSf8h62w9LOzFz2b+d5hjLq5kW84wkHPYnv8ft+lmyQLNcut4TLqIKAWvMp6k
-	 WyuxvBI6odO2aKXsTKpAgYaHAZV+qvckM8nH0t9bvuCn3u+dNYC1tmq8kN9WHdRcA9
-	 ObapSM5RnUH3Wn2aiOL+5vD7W2dG3Ojn1ReRGYCgi+J4k4w3B9nXff0AQnKheJloZc
-	 rMwKUOWhNjpd3jAcZ0stOZLuZ+R10+S8XF0Z1JAtPx/Q9G1BelqEuzHIPj2tHMaMGX
-	 QXFvPLpFF5SgA==
-Received: from egc101.sjc.aristanetworks.com (unknown [172.20.210.50])
-	by smtp.aristanetworks.com (Postfix) with ESMTP id 51E3E427D83;
-	Thu,  8 Aug 2019 11:33:45 -0700 (PDT)
-From: Edward Chron <echron@arista.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: Michal Hocko <mhocko@suse.com>,
-	Roman Gushchin <guro@fb.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	David Rientjes <rientjes@google.com>,
-	Tetsuo Handa <penguin-kernel@I-love.SAKURA.ne.jp>,
-	Shakeel Butt <shakeelb@google.com>,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	colona@arista.com,
-	Edward Chron <echron@arista.com>
-Subject: [PATCH] mm/oom: Add killed process selection information
-Date: Thu,  8 Aug 2019 11:32:47 -0700
-Message-Id: <20190808183247.28206-1-echron@arista.com>
-X-Mailer: git-send-email 2.20.1
+       dkim=pass header.i=@soleen.com header.s=google header.b=lsfCX3zt;
+       spf=pass (google.com: domain of pasha.tatashin@soleen.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=pasha.tatashin@soleen.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=soleen.com; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to;
+        bh=OnD8REJjiUQ09MeUwthsY9J1rWTm5v/HD9eRCPSk++8=;
+        b=lsfCX3ztpMTCzqQ61QI4k4mLGAlSga+SA+JM6MdlUtTurWRbcKyta2HZw3aGr9JkSh
+         lh083Z3RQT+f96/OdGYY7TOTlfAXs/Ct/3S0YbTSDYFzd8i69ZTheFeB3q4VymF/1yuN
+         jqJju+D34kBHkVCSmAsH6IsyvyWSC+HhugcsOldPNvAEue88NIkHWqVWOtBZmSxafItq
+         4ClmEOENGPnKoxSymB55KP6UKk5UPwEq5MZjHjuDDxvtfUq7x0Tim3ajHEehi1BnGAt0
+         4EB3+8c0QNGsSJ9+adK3i80N5672PpkAQIZkxp+VGnC9YbnpQiwunnuyTku/bsdLLn3Y
+         V2YQ==
+X-Google-Smtp-Source: APXvYqzNTM/2itQnnnFi1jbNoHH2r8FhmS0Cb3CycZsD8PIZEFgt7etfdlqdZQ/7cAtXUSR7Ohty4Mg1UyiSLvXGrPI=
+X-Received: by 2002:a17:906:5409:: with SMTP id q9mr15148025ejo.209.1565289871191;
+ Thu, 08 Aug 2019 11:44:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
+References: <20190801152439.11363-1-pasha.tatashin@soleen.com>
+In-Reply-To: <20190801152439.11363-1-pasha.tatashin@soleen.com>
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Date: Thu, 8 Aug 2019 14:44:20 -0400
+Message-ID: <CA+CK2bADiBMEx9cJuXT5fQkBYFZAtxUtc7ZzjrNfEjijPZkPtw@mail.gmail.com>
+Subject: Re: [PATCH v1 0/8] arm64: MMU enabled kexec relocation
+To: Pavel Tatashin <pasha.tatashin@soleen.com>, James Morris <jmorris@namei.org>, 
+	Sasha Levin <sashal@kernel.org>, "Eric W. Biederman" <ebiederm@xmission.com>, 
+	kexec mailing list <kexec@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, will@kernel.org, 
+	Linux ARM <linux-arm-kernel@lists.infradead.org>, Marc Zyngier <marc.zyngier@arm.com>, 
+	James Morse <james.morse@arm.com>, Vladimir Murzin <vladimir.murzin@arm.com>, 
+	Matthias Brugger <matthias.bgg@gmail.com>, Bhupesh Sharma <bhsharma@redhat.com>, 
+	linux-mm <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-For an OOM event: print oomscore, memory pct, oom adjustment of the process
-that OOM kills and the totalpages value in kB (KiB) used in the calculation
-with the OOM killed process message. This is helpful to document why the
-process was selected by OOM at the time of the OOM event.
+Just a friendly reminder, please send your comments on this series.
+It's been a week since I sent out these patches, and no feedback yet.
+Also, I'd appreciate if anyone could test this series on vhe hardware
+with vhe kernel, it does not look like QEMU can emulate it yet
 
-Sample message output:
-Jul 21 20:07:48 yoursystem kernel: Out of memory: Killed process 2826
- (processname) total-vm:1056800kB, anon-rss:1052784kB, file-rss:4kB,
- shmem-rss:0kB memory-usage:3.2% oom_score:1032 oom_score_adj:1000
- total-pages: 32791748kB
+Thank you,
+Pasha
 
-Signed-off-by: Edward Chron <echron@arista.com>
----
- fs/proc/base.c      |  2 +-
- include/linux/oom.h | 18 +++++++++++-
- mm/oom_kill.c       | 67 +++++++++++++++++++++++++++++++++------------
- 3 files changed, 68 insertions(+), 19 deletions(-)
-
-diff --git a/fs/proc/base.c b/fs/proc/base.c
-index ebea9501afb8..41880990e6a8 100644
---- a/fs/proc/base.c
-+++ b/fs/proc/base.c
-@@ -550,7 +550,7 @@ static int proc_oom_score(struct seq_file *m, struct pid_namespace *ns,
- 	unsigned long totalpages = totalram_pages() + total_swap_pages;
- 	unsigned long points = 0;
- 
--	points = oom_badness(task, totalpages) * 1000 / totalpages;
-+	points = oom_badness(task, totalpages, NULL) * 1000 / totalpages;
- 	seq_printf(m, "%lu\n", points);
- 
- 	return 0;
-diff --git a/include/linux/oom.h b/include/linux/oom.h
-index c696c265f019..7f7ab125c21c 100644
---- a/include/linux/oom.h
-+++ b/include/linux/oom.h
-@@ -49,6 +49,8 @@ struct oom_control {
- 	unsigned long totalpages;
- 	struct task_struct *chosen;
- 	unsigned long chosen_points;
-+	unsigned long chosen_mempts;
-+	unsigned long chosen_adj;
- 
- 	/* Used to print the constraint info. */
- 	enum oom_constraint constraint;
-@@ -105,10 +107,24 @@ static inline vm_fault_t check_stable_address_space(struct mm_struct *mm)
- 	return 0;
- }
- 
-+/*
-+ * Optional argument that can be passed to oom_badness in the arg field
-+ *
-+ * Input fields that can be filled in: memcg and nodemask
-+ * Output fields that can be returned: mempts, adj
-+ */
-+struct oom_bad_parms {
-+	struct mem_cgroup *memcg;
-+	const nodemask_t *nodemask;
-+	unsigned long mempts;
-+	long adj;
-+};
-+
- bool __oom_reap_task_mm(struct mm_struct *mm);
- 
- extern unsigned long oom_badness(struct task_struct *p,
--		unsigned long totalpages);
-+				 unsigned long totalpages,
-+				 struct oom_bad_parms *obp);
- 
- extern bool out_of_memory(struct oom_control *oc);
- 
-diff --git a/mm/oom_kill.c b/mm/oom_kill.c
-index eda2e2a0bdc6..0548845dbef8 100644
---- a/mm/oom_kill.c
-+++ b/mm/oom_kill.c
-@@ -42,6 +42,7 @@
- #include <linux/kthread.h>
- #include <linux/init.h>
- #include <linux/mmu_notifier.h>
-+#include <linux/oom.h>
- 
- #include <asm/tlb.h>
- #include "internal.h"
-@@ -195,7 +196,8 @@ static bool is_dump_unreclaim_slabs(void)
-  * predictable as possible.  The goal is to return the highest value for the
-  * task consuming the most memory to avoid subsequent oom failures.
-  */
--unsigned long oom_badness(struct task_struct *p, unsigned long totalpages)
-+unsigned long oom_badness(struct task_struct *p, unsigned long totalpages,
-+			  struct oom_bad_parms *obp)
- {
- 	long points;
- 	long adj;
-@@ -208,15 +210,16 @@ unsigned long oom_badness(struct task_struct *p, unsigned long totalpages)
- 		return 0;
- 
- 	/*
--	 * Do not even consider tasks which are explicitly marked oom
--	 * unkillable or have been already oom reaped or the are in
--	 * the middle of vfork
-+	 * Do not consider tasks which have already been oom reaped or
-+	 * that are in the middle of vfork.
- 	 */
- 	adj = (long)p->signal->oom_score_adj;
--	if (adj == OOM_SCORE_ADJ_MIN ||
--			test_bit(MMF_OOM_SKIP, &p->mm->flags) ||
--			in_vfork(p)) {
-+	if (test_bit(MMF_OOM_SKIP, &p->mm->flags) || in_vfork(p)) {
- 		task_unlock(p);
-+		if (obp != NULL) {
-+			obp->mempts = 0;
-+			obp->adj = adj;
-+		}
- 		return 0;
- 	}
- 
-@@ -228,6 +231,16 @@ unsigned long oom_badness(struct task_struct *p, unsigned long totalpages)
- 		mm_pgtables_bytes(p->mm) / PAGE_SIZE;
- 	task_unlock(p);
- 
-+	/* Also return raw mempts and oom_score_adj along */
-+	if (obp != NULL) {
-+		obp->mempts = points;
-+		obp->adj = adj;
-+	}
-+
-+	/* Unkillable oom task skipped but returns mempts and oom_score_adj */
-+	if (adj == OOM_SCORE_ADJ_MIN)
-+		return 0;
-+
- 	/* Normalize to oom_score_adj units */
- 	adj *= totalpages / 1000;
- 	points += adj;
-@@ -310,6 +323,8 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
- {
- 	struct oom_control *oc = arg;
- 	unsigned long points;
-+	struct oom_bad_parms obp = { .memcg = NULL, .nodemask = oc->nodemask,
-+				     .mempts = 0, .adj = 0 };
- 
- 	if (oom_unkillable_task(task))
- 		goto next;
-@@ -339,7 +354,7 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
- 		goto select;
- 	}
- 
--	points = oom_badness(task, oc->totalpages);
-+	points = oom_badness(task, oc->totalpages, &obp);
- 	if (!points || points < oc->chosen_points)
- 		goto next;
- 
-@@ -349,6 +364,8 @@ static int oom_evaluate_task(struct task_struct *task, void *arg)
- 	get_task_struct(task);
- 	oc->chosen = task;
- 	oc->chosen_points = points;
-+	oc->chosen_mempts = obp.mempts;
-+	oc->chosen_adj = obp.adj;
- next:
- 	return 0;
- abort:
-@@ -375,6 +392,9 @@ static void select_bad_process(struct oom_control *oc)
- 				break;
- 		rcu_read_unlock();
- 	}
-+
-+	oc->chosen_points = oc->chosen_points * 1000 / oc->totalpages;
-+	oc->chosen_mempts = oc->chosen_mempts * 1000 / oc->totalpages;
- }
- 
- static int dump_task(struct task_struct *p, void *arg)
-@@ -853,7 +873,8 @@ static bool task_will_free_mem(struct task_struct *task)
- 	return ret;
- }
- 
--static void __oom_kill_process(struct task_struct *victim, const char *message)
-+static void __oom_kill_process(struct task_struct *victim, const char *message,
-+				struct oom_control *oc)
- {
- 	struct task_struct *p;
- 	struct mm_struct *mm;
-@@ -884,12 +905,24 @@ static void __oom_kill_process(struct task_struct *victim, const char *message)
- 	 */
- 	do_send_sig_info(SIGKILL, SEND_SIG_PRIV, victim, PIDTYPE_TGID);
- 	mark_oom_victim(victim);
--	pr_err("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB\n",
--		message, task_pid_nr(victim), victim->comm,
--		K(victim->mm->total_vm),
--		K(get_mm_counter(victim->mm, MM_ANONPAGES)),
--		K(get_mm_counter(victim->mm, MM_FILEPAGES)),
--		K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
-+
-+	if (oc != NULL && oc->chosen_mempts > 0)
-+		pr_info("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB, memory-usage:%lu.%1lu%% oom_score:%lu oom_score_adj:%ld total-pages: %lukB",
-+			message, task_pid_nr(victim), victim->comm,
-+			K(victim->mm->total_vm),
-+			K(get_mm_counter(victim->mm, MM_ANONPAGES)),
-+			K(get_mm_counter(victim->mm, MM_FILEPAGES)),
-+			K(get_mm_counter(victim->mm, MM_SHMEMPAGES)),
-+			oc->chosen_mempts / 10, oc->chosen_mempts % 10,
-+			oc->chosen_points, oc->chosen_adj, K(oc->totalpages));
-+	else
-+		pr_info("%s: Killed process %d (%s) total-vm:%lukB, anon-rss:%lukB, file-rss:%lukB, shmem-rss:%lukB",
-+			message, task_pid_nr(victim), victim->comm,
-+			K(victim->mm->total_vm),
-+			K(get_mm_counter(victim->mm, MM_ANONPAGES)),
-+			K(get_mm_counter(victim->mm, MM_FILEPAGES)),
-+			K(get_mm_counter(victim->mm, MM_SHMEMPAGES)));
-+
- 	task_unlock(victim);
- 
- 	/*
-@@ -942,7 +975,7 @@ static int oom_kill_memcg_member(struct task_struct *task, void *message)
- 	if (task->signal->oom_score_adj != OOM_SCORE_ADJ_MIN &&
- 	    !is_global_init(task)) {
- 		get_task_struct(task);
--		__oom_kill_process(task, message);
-+		__oom_kill_process(task, message, NULL);
- 	}
- 	return 0;
- }
-@@ -979,7 +1012,7 @@ static void oom_kill_process(struct oom_control *oc, const char *message)
- 	 */
- 	oom_group = mem_cgroup_get_oom_group(victim, oc->memcg);
- 
--	__oom_kill_process(victim, message);
-+	__oom_kill_process(victim, message, oc);
- 
- 	/*
- 	 * If necessary, kill all tasks in the selected memory cgroup.
--- 
-2.20.1
+On Thu, Aug 1, 2019 at 11:24 AM Pavel Tatashin
+<pasha.tatashin@soleen.com> wrote:
+>
+> Enable MMU during kexec relocation in order to improve reboot performance.
+>
+> If kexec functionality is used for a fast system update, with a minimal
+> downtime, the relocation of kernel + initramfs takes a significant portion
+> of reboot.
+>
+> The reason for slow relocation is because it is done without MMU, and thus
+> not benefiting from D-Cache.
+>
+> Performance data
+> ----------------
+> For this experiment, the size of kernel plus initramfs is small, only 25M.
+> If initramfs was larger, than the improvements would be greater, as time
+> spent in relocation is proportional to the size of relocation.
+>
+> Previously:
+> kernel shutdown 0.022131328s
+> relocation      0.440510736s
+> kernel startup  0.294706768s
+>
+> Relocation was taking: 58.2% of reboot time
+>
+> Now:
+> kernel shutdown 0.032066576s
+> relocation      0.022158152s
+> kernel startup  0.296055880s
+>
+> Now: Relocation takes 6.3% of reboot time
+>
+> Total reboot is x2.16 times faster.
+>
+> Previous approaches and discussions
+> -----------------------------------
+> https://lore.kernel.org/lkml/20190709182014.16052-1-pasha.tatashin@soleen.com
+> reserve space for kexec to avoid relocation, involves changes to generic code
+> to optimize a problem that exists on arm64 only:
+>
+> https://lore.kernel.org/lkml/20190716165641.6990-1-pasha.tatashin@soleen.com
+> The first attempt to enable MMU, some bugs that prevented performance
+> improvement. The page tables unnecessary configured idmap for the whole
+> physical space.
+>
+> https://lore.kernel.org/lkml/20190731153857.4045-1-pasha.tatashin@soleen.com
+> No linear copy, bug with EL2 reboots.
+>
+> Pavel Tatashin (8):
+>   kexec: quiet down kexec reboot
+>   arm64, mm: transitional tables
+>   arm64: hibernate: switch to transtional page tables.
+>   kexec: add machine_kexec_post_load()
+>   arm64, kexec: move relocation function setup and clean up
+>   arm64, kexec: add expandable argument to relocation function
+>   arm64, kexec: configure transitional page table for kexec
+>   arm64, kexec: enable MMU during kexec relocation
+>
+>  arch/arm64/Kconfig                     |   4 +
+>  arch/arm64/include/asm/kexec.h         |  51 ++++-
+>  arch/arm64/include/asm/pgtable-hwdef.h |   1 +
+>  arch/arm64/include/asm/trans_table.h   |  68 ++++++
+>  arch/arm64/kernel/asm-offsets.c        |  14 ++
+>  arch/arm64/kernel/cpu-reset.S          |   4 +-
+>  arch/arm64/kernel/cpu-reset.h          |   8 +-
+>  arch/arm64/kernel/hibernate.c          | 261 ++++++-----------------
+>  arch/arm64/kernel/machine_kexec.c      | 199 ++++++++++++++----
+>  arch/arm64/kernel/relocate_kernel.S    | 196 +++++++++---------
+>  arch/arm64/mm/Makefile                 |   1 +
+>  arch/arm64/mm/trans_table.c            | 273 +++++++++++++++++++++++++
+>  kernel/kexec.c                         |   4 +
+>  kernel/kexec_core.c                    |   8 +-
+>  kernel/kexec_file.c                    |   4 +
+>  kernel/kexec_internal.h                |   2 +
+>  16 files changed, 758 insertions(+), 340 deletions(-)
+>  create mode 100644 arch/arm64/include/asm/trans_table.h
+>  create mode 100644 arch/arm64/mm/trans_table.c
+>
+> --
+> 2.22.0
+>
 
