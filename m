@@ -2,238 +2,166 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 67D0EC0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:57:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0859AC0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:58:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1EC8B206C3
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:57:54 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="PkoJ+EDW"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1EC8B206C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id C6AF7206C3
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:58:12 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C6AF7206C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9F3DB6B0003; Thu,  8 Aug 2019 19:57:54 -0400 (EDT)
+	id 622C06B0006; Thu,  8 Aug 2019 19:58:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 97D3B6B0006; Thu,  8 Aug 2019 19:57:54 -0400 (EDT)
+	id 584816B0007; Thu,  8 Aug 2019 19:58:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 81E756B0007; Thu,  8 Aug 2019 19:57:54 -0400 (EDT)
+	id 44C736B0008; Thu,  8 Aug 2019 19:58:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 495D76B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 19:57:54 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id m19so44156632pgv.7
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 16:57:54 -0700 (PDT)
+Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 07AD06B0006
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 19:58:12 -0400 (EDT)
+Received: by mail-pf1-f200.google.com with SMTP id g21so60182581pfb.13
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 16:58:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=ItTlcxLB3OzkqKxPiAlZSVxn8wLR/CcyzAXny5jY54w=;
-        b=fzvLV1C4pcfwd+XdNQWSLN42Ue0JXP/ba8oUdfFj+iQ8UTnFhXaerNkt64uky/xpC3
-         S5T7ep7DP4F90Ajm7sDASc1pAqvalBGJ0Rw9Phf8egyFpq1+ZeWPNw1Vw4Gd23m0nMQZ
-         OIBqq6qqHjYOroVOSby0u8V7IXzzimrG4BX7utNo/sNIlcY7hLw4v7LpQiRcha2B8j1O
-         J/AGbvGIuEOK1xDShtLC7eATQOXKvlkRjckYUkzaF4O73FwkXAosRIt5oSMtvaOTLOSH
-         GM4hdlLkwWJyuquEQphvXpV95Xo7fvpiNxgsyEAFNSEfkHMUHT5DUzG4yCnn/TTdFhwK
-         Z7/Q==
-X-Gm-Message-State: APjAAAWcEwF448E+oXcO5I1Wst/ymeN6A9M+Eqt/kNOS1OAIWILSlhRC
-	Ah8RVuwARe2LseXmAaddHeQdeHYB3T4oHy8k2rAZsnpkcUc/r1lK1+B3N99abfNTeij334teOO7
-	JeRc0UdsD6XZ+O7ZEk4n/rrnGu4HUt7M3sQmzfwCwLW46b1ercC2iv41/sSgJeoqb2w==
-X-Received: by 2002:a17:902:8bc1:: with SMTP id r1mr16312295plo.42.1565308673912;
-        Thu, 08 Aug 2019 16:57:53 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyCcmY4qXXgbMio4vpCzs+Pi3xtjrJsdtFTP8i5Ulq9FcTc4GrUKQXkx6A03vEKKidWLr5+
-X-Received: by 2002:a17:902:8bc1:: with SMTP id r1mr16312247plo.42.1565308673097;
-        Thu, 08 Aug 2019 16:57:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565308673; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references;
+        bh=fLtBJR+XUvKo515sWP4TXVz33Wk85BA8Gby7n7ElHSw=;
+        b=p1Ncy7g/pHbFBcnVR2/BN4JjQ2jyuHDTZ2d8+ILcWWDA20r8uH2F5gzU2IBTeUEI2j
+         bJGHdUVHhjJAJWnPsvho4RZH2TbRmTxUYLPbtUeFaUNCb6uqabkP/+pl2VrzzrC0St8w
+         o4yoji6yKyd4POF9boldKkN+izIbAh8szxJnRaII2K2jslS/K7navsZEMfLu256IOzBQ
+         9VusAmqdcFF1LCX0esMtbahL9wHJNRDcXHEVf9nLEML5oErLlrkM4uaYUGzoGVe9/r7s
+         pV488UqcKxcVCHZ8+3BhIqtaRB8/3suH95PwZXdfIqTQps/2ayvgc4qS2DKlvx4iaBsO
+         836g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Gm-Message-State: APjAAAWI4i2Dzh23A+j/j6Ce+L7JVPyWF15gROJphfeF4o0zGb3EfmRn
+	3NVH8HqCNowFDjf/O3yq/qXx5IkTj6/p5KGV/uVD4iIObrhY7X1FkivxR3UGIv2co5Mm7lkkz/S
+	oeWru1djpJaYZRrlC+UqkdI89o+O0G8k1McjZeMo/vVjZ8CdAIC31/knYAsqelr7ifQ==
+X-Received: by 2002:a63:1b66:: with SMTP id b38mr15076273pgm.54.1565308691566;
+        Thu, 08 Aug 2019 16:58:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxKjgowtk5fnamx25rO2FzoTYtX1N4xL9Umi0XtbWZn0X+JBZja+N2dkz9l4Vjo86xrDoZc
+X-Received: by 2002:a63:1b66:: with SMTP id b38mr15076214pgm.54.1565308690370;
+        Thu, 08 Aug 2019 16:58:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565308690; cv=none;
         d=google.com; s=arc-20160816;
-        b=gpa2dcYFd709jR/mqvNn2WOXIduMyCAUEJlECT4zLvkUvAdjkeexDYIhFDr/g6IZv5
-         hPVHznG0kmLcqV4qFxekETr1S0xCNMq8MCAj6+cgsN3DUoz30nwDVQst3noEyO8Cq15m
-         TfIId2fTv0OvIyNsBAh8KUguTSWJiHV87CorR30H5ZGKp8wCtzoorHjLn7j8FmgtFj42
-         2n7erDFoNTPRosPheBAJumf8WtMBaiQb2SZM5GX5wIG+t/GSRUqLnRpORk7Mum3iJ6oU
-         RmnXikCuu9vaihcmnmfL9WkcnV2mrlbTKDGMlrroP5NBQ614Q7TOx0h11xfcdnbl9HfP
-         nZDQ==
+        b=aDOQ+FMxeBg/D4Eg/S+daOpAlnJQ3MlMtS5TEgHWg1gAJoYyGBo3bzuvEfBcuHSMtm
+         aw0sHab+FuHHBcmilsC+aTMrO27rGMny+CsYRUnGo8YvYgpOmDSfLP2ZaHY20ooNzf8Y
+         Z5w6ZlDdf9NcmTa62FSvfL1a5dYi94dGs4nxfD8cCjr4zQKVdDbdAtL9hWp6LrFJ2+nO
+         Pj7Wm6QPr7JDdiQtDAS7HQbkiyG40DQL7yIb9pnBus+nGNAN82e4+gI3vBJp/sNOxKZ1
+         ukPlUEj3KZ5Gg1+IdGHJyNQpdD1HUnZoGyhIK7LTYAOBaU2twE5c69PXGSlL4rPR/0L4
+         7WiQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=ItTlcxLB3OzkqKxPiAlZSVxn8wLR/CcyzAXny5jY54w=;
-        b=P/K74Nah+flZvcBvTmsEKngP1KB3ltppkSnAdl4Y9VatQnmvZofLQCa0HGE2VKZff5
-         D04zKrlW6nIF+hL9tJACQE7H368akpIOQBFpj8P6Bx8va7+m2kgQhR09ngLyC5LCn6qf
-         lxiQHfrCEntiwott6e9k7cY2J6P4FN31riGExEAzmbJz3wDbZgg1tAfKqoXS9TRnOXa7
-         SVAA3kywMpR0w6IcYIL5xh0+fHSrgQasTfmGvfPbIA6rvug7VfdlAANB4XAADR8SQuKx
-         2WYiL4+kaBVTSwhLE25HlXTCYuL2DMraswVJ8vpj5HFvITe0mqbrdSGH6ZRL80ChDitz
-         kONg==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=fLtBJR+XUvKo515sWP4TXVz33Wk85BA8Gby7n7ElHSw=;
+        b=VYrWhkBPYhcCJuFRX1Dpy4Y87WyUzwbyjXO9tTqRkDsKAUo2Ur5lZc5zYHFdfikTk1
+         JXv/ewsCSR2JGFH0t7ASj/+Nat8BrN5BHGtaaNyvMKDRZR3WvCVRzt7fv2LtP2zjtcgt
+         ksvIVdVQlSqbBfvR4Cl0TbLE0Mu/adC4ousjU2OcQdhPJqA4FTTwq3y/3Ii4cjGvxEZx
+         6X2eN8ZqWjEYGC1siS50I8EUFMzEirf3ggb8jH7nEUaP8c2MGq+sbpla7IrC+nWujuJB
+         76PyY5/+zj77s2JcqormIX1ALeivFCEisLnFKmdjAXaMFFmoEp4QwUfyUqaqu4Q2isRT
+         TRpg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=PkoJ+EDW;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id l64si2950254pjb.93.2019.08.08.16.57.52
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+Received: from out30-131.freemail.mail.aliyun.com (out30-131.freemail.mail.aliyun.com. [115.124.30.131])
+        by mx.google.com with ESMTPS id v1si3085432pjn.79.2019.08.08.16.58.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 16:57:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+        Thu, 08 Aug 2019 16:58:10 -0700 (PDT)
+Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) client-ip=115.124.30.131;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=PkoJ+EDW;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d4cb7020002>; Thu, 08 Aug 2019 16:57:54 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Thu, 08 Aug 2019 16:57:52 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Thu, 08 Aug 2019 16:57:52 -0700
-Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 8 Aug
- 2019 23:57:51 +0000
-Subject: Re: [PATCH 1/3] mm/mlock.c: convert put_page() to put_user_page*()
-To: Ira Weiny <ira.weiny@intel.com>
-CC: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>, Andrew
- Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>,
-	Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse
-	<jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>,
-	<linux-mm@kvack.org>, <linux-fsdevel@vger.kernel.org>, Dan Williams
-	<dan.j.williams@intel.com>, Daniel Black <daniel@linux.ibm.com>, Matthew
- Wilcox <willy@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
-References: <20190805222019.28592-1-jhubbard@nvidia.com>
- <20190805222019.28592-2-jhubbard@nvidia.com>
- <20190807110147.GT11812@dhcp22.suse.cz>
- <01b5ed91-a8f7-6b36-a068-31870c05aad6@nvidia.com>
- <20190808062155.GF11812@dhcp22.suse.cz>
- <875dca95-b037-d0c7-38bc-4b4c4deea2c7@suse.cz>
- <306128f9-8cc6-761b-9b05-578edf6cce56@nvidia.com>
- <d1ecb0d4-ea6a-637d-7029-687b950b783f@nvidia.com>
- <20190808234138.GA15908@iweiny-DESK2.sc.intel.com>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <5713cc2b-b41c-142a-eb52-f5cda999eca7@nvidia.com>
-Date: Thu, 8 Aug 2019 16:57:51 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
-MIME-Version: 1.0
-In-Reply-To: <20190808234138.GA15908@iweiny-DESK2.sc.intel.com>
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1565308674; bh=ItTlcxLB3OzkqKxPiAlZSVxn8wLR/CcyzAXny5jY54w=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=PkoJ+EDWEq2PAabC2cPHA1oueE3YrcKkjoul5TR4Oa1yBcvabjT4+f41IFrkiWh2Z
-	 FMyHHF6xQc3T1CBt7cg1mqsbQ5mtIYUvCL++2XyzG8RuqfLyjoQpj11SZummKWRV/z
-	 XcR8S/Kdg4cmuC0ro638QgTio3qAJoA8sC+XAHtJqsH4Fibn2aZezpl+ol7b0a9c+o
-	 xLyC3/U6MxfnBH6duwZ/owBk7ytCphS6oa+2DMO396CuXm3w0FiJGsC3pHOVlWcHg1
-	 DD1wz2Shd4QjyoRYu/PDeBzxX/9Nf0jaSgifEpzmFnz+2z5iIqzhtWVw9mrQDdUu35
-	 f0aIucgjoeWKw==
+       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.131 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R961e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07486;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TYzn9kn_1565308665;
+Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TYzn9kn_1565308665)
+          by smtp.aliyun-inc.com(127.0.0.1);
+          Fri, 09 Aug 2019 07:58:08 +0800
+From: Yang Shi <yang.shi@linux.alibaba.com>
+To: mhocko@suse.com,
+	kirill.shutemov@linux.intel.com,
+	hannes@cmpxchg.org,
+	vbabka@suse.cz,
+	rientjes@google.com,
+	akpm@linux-foundation.org
+Cc: yang.shi@linux.alibaba.com,
+	linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: [RESEND PATCH 2/2 -mm] mm: account lazy free pages into available memory
+Date: Fri,  9 Aug 2019 07:57:45 +0800
+Message-Id: <1565308665-24747-2-git-send-email-yang.shi@linux.alibaba.com>
+X-Mailer: git-send-email 1.8.3.1
+In-Reply-To: <1565308665-24747-1-git-send-email-yang.shi@linux.alibaba.com>
+References: <1565308665-24747-1-git-send-email-yang.shi@linux.alibaba.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/8/19 4:41 PM, Ira Weiny wrote:
-> On Thu, Aug 08, 2019 at 03:59:15PM -0700, John Hubbard wrote:
->> On 8/8/19 12:20 PM, John Hubbard wrote:
->>> On 8/8/19 4:09 AM, Vlastimil Babka wrote:
->>>> On 8/8/19 8:21 AM, Michal Hocko wrote:
->>>>> On Wed 07-08-19 16:32:08, John Hubbard wrote:
->>>>>> On 8/7/19 4:01 AM, Michal Hocko wrote:
->>>>>>> On Mon 05-08-19 15:20:17, john.hubbard@gmail.com wrote:
+Available memory is one of the most important metrics for memory
+pressure.  Currently, lazy free pages are not accounted into available
+memory, but they are reclaimable actually, like reclaimable slabs.
+
+Accounting lazy free pages into available memory should reflect the real
+memory pressure status, and also would help administrators and/or other
+high level scheduling tools make better decision.
+
+The /proc/meminfo would show more available memory with test which
+creates ~1GB deferred split THP.
+
+Before:
+MemAvailable:   43544272 kB
 ...
->> Oh, and meanwhile, I'm leaning toward a cheap fix: just use gup_fast() instead
->> of get_page(), and also fix the releasing code. So this incremental patch, on
->> top of the existing one, should do it:
->>
->> diff --git a/mm/mlock.c b/mm/mlock.c
->> index b980e6270e8a..2ea272c6fee3 100644
->> --- a/mm/mlock.c
->> +++ b/mm/mlock.c
->> @@ -318,18 +318,14 @@ static void __munlock_pagevec(struct pagevec *pvec, struct zone *zone)
->>                 /*
->>                  * We won't be munlocking this page in the next phase
->>                  * but we still need to release the follow_page_mask()
->> -                * pin. We cannot do it under lru_lock however. If it's
->> -                * the last pin, __page_cache_release() would deadlock.
->> +                * pin.
->>                  */
->> -               pagevec_add(&pvec_putback, pvec->pages[i]);
->> +               put_user_page(pages[i]);
+AnonHugePages:     10240 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+LazyFreePages:   1046528 kB
 
-correction, make that:   
-                   put_user_page(pvec->pages[i]);
+After:
+MemAvailable:   44415124 kB
+...
+AnonHugePages:      6144 kB
+ShmemHugePages:        0 kB
+ShmemPmdMapped:        0 kB
+LazyFreePages:   1046528 kB
 
-(This is not fully tested yet.)
+MADV_FREE pages are not accounted for NR_LAZYFREE since they have been
+put on inactive file LRU and accounted into available memory.
+Accounting here would double account them.
 
->>                 pvec->pages[i] = NULL;
->>         }
->>         __mod_zone_page_state(zone, NR_MLOCK, delta_munlocked);
->>         spin_unlock_irq(&zone->zone_pgdat->lru_lock);
->>  
->> -       /* Now we can release pins of pages that we are not munlocking */
->> -       pagevec_release(&pvec_putback);
->> -
-> 
-> I'm not an expert but this skips a call to lru_add_drain().  Is that ok?
+Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
+---
+ mm/page_alloc.c | 5 +++++
+ 1 file changed, 5 insertions(+)
 
-Yes: unless I'm missing something, there is no reason to go through lru_add_drain
-in this case. These are gup'd pages that are not going to get any further
-processing.
-
-> 
->>         /* Phase 2: page munlock */
->>         for (i = 0; i < nr; i++) {
->>                 struct page *page = pvec->pages[i];
->> @@ -394,6 +390,8 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
->>         start += PAGE_SIZE;
->>         while (start < end) {
->>                 struct page *page = NULL;
->> +               int ret;
->> +
->>                 pte++;
->>                 if (pte_present(*pte))
->>                         page = vm_normal_page(vma, start, *pte);
->> @@ -411,7 +409,13 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
->>                 if (PageTransCompound(page))
->>                         break;
->>  
->> -               get_page(page);
->> +               /*
->> +                * Use get_user_pages_fast(), instead of get_page() so that the
->> +                * releasing code can unconditionally call put_user_page().
->> +                */
->> +               ret = get_user_pages_fast(start, 1, 0, &page);
->> +               if (ret != 1)
->> +                       break;
-> 
-> I like the idea of making this a get/put pair but I'm feeling uneasy about how
-> this is really supposed to work.
-> 
-> For sure the GUP/PUP was supposed to be separate from [get|put]_page.
-> 
-
-Actually, they both take references on the page. And it is absolutely OK to call
-them both on the same page.
-
-But anyway, we're not mixing them up here. If you follow the code paths, either 
-gup or follow_page_mask() is used, and then put_user_page() releases. 
-
-So...you haven't actually pointed to a bug here, right? :)
-
-
-thanks,
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 1f3eba8..d128b4b 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -5074,6 +5074,7 @@ long si_mem_available(void)
+ 	unsigned long wmark_low = 0;
+ 	unsigned long pages[NR_LRU_LISTS];
+ 	unsigned long reclaimable;
++	unsigned long lazyfree;
+ 	struct zone *zone;
+ 	int lru;
+ 
+@@ -5107,6 +5108,10 @@ long si_mem_available(void)
+ 			global_node_page_state(NR_KERNEL_MISC_RECLAIMABLE);
+ 	available += reclaimable - min(reclaimable / 2, wmark_low);
+ 
++	/* Lazyfree pages are reclaimable when memory pressure is hit */
++	lazyfree = global_node_page_state(NR_LAZYFREE);
++	available += lazyfree - min(lazyfree / 2, wmark_low);
++
+ 	if (available < 0)
+ 		available = 0;
+ 	return available;
 -- 
-John Hubbard
-NVIDIA
+1.8.3.1
 
