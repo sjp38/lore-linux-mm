@@ -2,128 +2,159 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7A0DBC0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:56:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 321E4C433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:58:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E5AB2089E
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:56:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E5AB2089E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lst.de
+	by mail.kernel.org (Postfix) with ESMTP id EDE20216C8
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:58:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EDE20216C8
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AEA616B0003; Thu,  8 Aug 2019 17:56:36 -0400 (EDT)
+	id 6F3696B0007; Thu,  8 Aug 2019 17:58:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A9B8D6B0006; Thu,  8 Aug 2019 17:56:36 -0400 (EDT)
+	id 6A1EC6B0008; Thu,  8 Aug 2019 17:58:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 963CD6B0007; Thu,  8 Aug 2019 17:56:36 -0400 (EDT)
+	id 5B91F6B000A; Thu,  8 Aug 2019 17:58:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 47FE16B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 17:56:36 -0400 (EDT)
-Received: by mail-wm1-f71.google.com with SMTP id b67so2144169wmd.0
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 14:56:36 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 262376B0007
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 17:58:08 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id y7so9367132pgq.3
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 14:58:08 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=8sSKvOsFMFew+39sGyYzLjwKOktC5EY6pFQBV7T0DcY=;
-        b=FjhRx+yPSvAhvfTjySFNRL5UBEbJpwPshOr7kuAO+fnhHdfAWBmngx0UUpj7mXR/Tw
-         vgfj6eeIAbI6QG2JIZkzOth1r7vzdGPkhiVXOZfPPmI2otuxMrKRy+O2NKGbJu9g2KtQ
-         jWt4QskiAJCXm6R9LcejKdUj6z9VzwkMcH76bHSDqw6MDTlWk6aB9cgJVIz3px/GW1Gb
-         u683jk4+Rpb3NzDNHHo68mxlf5Ck9hMSZRyBitHeVIqwkanOYJBcu08LG4c8SeAcPlL+
-         KHixN2Yt/K8ePqoUqZpnnhTqi5waN95gNYgvgpytGmk94BgZZI6eK5My+TFLWumfQvDt
-         1kPw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-X-Gm-Message-State: APjAAAVJGOpKuS+Ul4FRi2dfCakWcUOSmfaIBD9rxYII3GD0yYHLtn2C
-	pkHWRrQlRjL7YcNz/nHwQanEPEMIqOz9hWyhbzeEP7sLyjbTWXGIuV9y9RqqJ2wfO+H/Jh1K1o6
-	zzT8y5NdNG80Sb642S4N8XTD4qTXqc25HothhlkVXTUoUhfZG2bgX4ZCz5Mh0W63LTQ==
-X-Received: by 2002:adf:ee87:: with SMTP id b7mr8136889wro.61.1565301395789;
-        Thu, 08 Aug 2019 14:56:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzRByowjtw95FXq4utZZb1WfajKZAKYPHG4DRYjvdEKvxn+6eJ+F88QZL3u6RGLI2ZtGbuU
-X-Received: by 2002:adf:ee87:: with SMTP id b7mr8136867wro.61.1565301395119;
-        Thu, 08 Aug 2019 14:56:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565301395; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:from
+         :to:cc:date:message-id:user-agent:mime-version
+         :content-transfer-encoding;
+        bh=k0+j2laRAGuXurIWOL04i8EKiYLnkk10Qo29z95H0fo=;
+        b=Xr0Ljb8kPdMAvjA/CLUkORwaiQlByeG0ASvruJqtbBGIwNwfm+PuCRvI9oIDp+Uxsv
+         /xP2lUZgcE0MSW1IgEQxd2k7RJ3sFdflyvVBPMrguxNdemt4iJyLNoFv4ClF/huEy4h9
+         VWm5lBFrI38fIwyKEyWBtR4DcUEqaQalv6aB8XVWGR9tO/F4gGQTkkE8qNgWMGTyhoE+
+         zfyKgwVu/6yIkG5lpz4BfIvMUGGPklsemxf4a4CiBsE+VCHS9wyuxByRWOSsjNUnaNPZ
+         z1q/eFKsYMNxx6FkNxds2KeGOvkTrz0XYQPRuUvg36T2CWNdny3bRcWDThMhSoWIxkTd
+         8cZw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAVjc+PkLjgKZdIkqUod/jwuPEzxMr8TH1ohtOGrqiKyS5V7CloZ
+	UG8VRNZ0D/tIRnIesrgLg9IoB6XPu6I2GsCsrgmWyJ+3cyizxLjHHsCoKgELoUeEW8ojnXvRfzS
+	u+WyxlXz8DJnvod+2YWMo8vCOhA6apjuxccr1h2V1vhOIZVAtvCvEUrvnk6uiOZ7oSA==
+X-Received: by 2002:a17:90b:94:: with SMTP id bb20mr6317274pjb.16.1565301487812;
+        Thu, 08 Aug 2019 14:58:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyEWBHgspTsBpB2WlKaQ8J7WWkM9aTNbsja2u+LnIPdyNgqZDZW2NHoqoQz663b56px1C+0
+X-Received: by 2002:a17:90b:94:: with SMTP id bb20mr6317245pjb.16.1565301487047;
+        Thu, 08 Aug 2019 14:58:07 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565301487; cv=none;
         d=google.com; s=arc-20160816;
-        b=UF198GOh0e8cZG0G7k7LMyNfWQ4dAsfErRIT5uQ4kuNa7o+jYP2oUxlN6iMUBNGIfz
-         8+Z0M/SRrk/01NLKJPf7FnClNqbHDAS+SzDuZNz+Lanz7kvJsbfmygHN475LIZN1erVz
-         pCCWN72vJ955zhWztnv4g3OqziX+30MSlWQSwHn5irxUVz11UY2CC35SBrksFShwAj+h
-         Azzp665+gRlISoFBWvENWHH7I/8DNTjJiEmXJuByFx1Be2lxEHCXF4Y5LSmJ8agVnlW7
-         0fhBd66+NL9UL/6kw6lVdpcmBlcWlVNNC0sqhfY8rNwcigMKO1AFOAAk5NY2qv+DSBgL
-         5q9g==
+        b=FdLePPoY3l2YQuIkQmtyORA4N85996lTuaGVGTQRjdVOQv9xGyMtTcALfMA9mZPMod
+         77Twtgr4VxrBDtnQV2srguVQiG2OOR+K7kou4/1NqbPTnMV+XywyR42ge3WYES0UBA2e
+         8qNBMxg1m5Ow+b/2niUy8Aci+4EGTcAPwsvim2d7H8SUOql/14vIi95L2sRevAM7QYLz
+         L3O26mprm/ObVgBfO9T+2KhLCqelgy4mtdL20msQ1YKu7eecVbyvd9V+1ikQZRmkbOcV
+         mcQ2Sri3xkeRApstyVm7It1XATTXToWMIpA6+lmOU8wKi1fLLXOvJkui/Wi+pSBlDrRc
+         8+Cw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=8sSKvOsFMFew+39sGyYzLjwKOktC5EY6pFQBV7T0DcY=;
-        b=vnsDvZm3HsJ7Fl2niW7c+Vbrwmxi6KFMrjUadOv102Mm1olIrhluyb6oaBOS8h15Ze
-         N7blhB4gaEm+ZYBGcNSubefEexdudUhF8xh9GSXMT1g/Qde1nijcNQIfmlWaryDTB0Ri
-         5gGIiKkV0BRmnHLd5NIOpn+ahMWSpbWjRaBDG/QJJbO6ieJ0nPzDtwqYXCXh+SZt4D5d
-         JTCM+GNM4toxkAk+xEgOldDUR5WVK/G5+TMzJV0iNNp+NbbQ8B3ZNrJ1P2tQ2EmjDTKt
-         9L9ydiuBYM4amC2HrEJAO3Oo3I+TVU8NKdCJG3UzmdPf0U1qi1J9mLgQyD6RUQP1nIBk
-         k4lw==
+        h=content-transfer-encoding:mime-version:user-agent:message-id:date
+         :cc:to:from:subject;
+        bh=k0+j2laRAGuXurIWOL04i8EKiYLnkk10Qo29z95H0fo=;
+        b=TumXVOqsS/5uWpM2Fblu2ZlGqfsCM7SQxjuJVAV27v3xuRDjcQrz20lrdb5CRzvL94
+         rb2r8G5f685kJGbMgdle2lEG3hiPae4+9vFHUVDp8CLbMhRlZWbESJgHspvN/EVxX+FR
+         ih5tUc5c/g7c05I+QsZ/xc9rV8D2DxKTRatFzx7Zlgq9NOAWaUvHunfwhWzK7+p8YjgD
+         ydnvModBq2M4X6M1XfEL2nEADjpBEABCbGMGW2+2lY7J1PuMJKevzOMgOEeKQyaMYTOf
+         RhPGv0434f66OUwOzaLfpCEAviteFkyc2ffbC3iVeN/nTktqC6QTRmWrdDJ+FfoLQJLb
+         Itqg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: from verein.lst.de (verein.lst.de. [213.95.11.211])
-        by mx.google.com with ESMTPS id p17si82099717wrw.42.2019.08.08.14.56.34
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
+        by mx.google.com with ESMTPS id v189si52439289pgd.289.2019.08.08.14.58.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 14:56:35 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) client-ip=213.95.11.211;
+        Thu, 08 Aug 2019 14:58:07 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of hch@lst.de designates 213.95.11.211 as permitted sender) smtp.mailfrom=hch@lst.de
-Received: by verein.lst.de (Postfix, from userid 2407)
-	id 7D1DE68B02; Thu,  8 Aug 2019 23:56:32 +0200 (CEST)
-Date: Thu, 8 Aug 2019 23:56:32 +0200
-From: Christoph Hellwig <hch@lst.de>
-To: Linus Torvalds <torvalds@linux-foundation.org>
-Cc: Christoph Hellwig <hch@lst.de>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Thomas =?iso-8859-1?Q?Hellstr=F6m?= <thomas@shipmail.org>,
-	Jerome Glisse <jglisse@redhat.com>,
-	Jason Gunthorpe <jgg@mellanox.com>,
-	Steven Price <steven.price@arm.com>, Linux-MM <linux-mm@kvack.org>,
-	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
-Subject: Re: cleanup the walk_page_range interface
-Message-ID: <20190808215632.GA12773@lst.de>
-References: <20190808154240.9384-1-hch@lst.de> <CAHk-=wh3jZnD3zaYJpW276WL=N0Vgo4KGW8M2pcFymHthwf0Vg@mail.gmail.com>
+       spf=pass (google.com: domain of dan.j.williams@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=dan.j.williams@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 Aug 2019 14:58:06 -0700
+X-IronPort-AV: E=Sophos;i="5.64,363,1559545200"; 
+   d="scan'208";a="169126521"
+Received: from dwillia2-desk3.jf.intel.com (HELO dwillia2-desk3.amr.corp.intel.com) ([10.54.39.16])
+  by orsmga008-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 Aug 2019 14:58:06 -0700
+Subject: [PATCH] mm/memremap: Fix reuse of pgmap instances with internal
+ references
+From: Dan Williams <dan.j.williams@intel.com>
+To: linux-nvdimm@lists.01.org
+Cc: Fan Du <fan.du@intel.com>, Vishal Verma <vishal.l.verma@intel.com>,
+ Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig <hch@lst.de>,
+ Ira Weiny <ira.weiny@intel.com>, Jason Gunthorpe <jgg@mellanox.com>,
+ linux-mm@kvack.org
+Date: Thu, 08 Aug 2019 14:43:49 -0700
+Message-ID: <156530042781.2068700.8733813683117819799.stgit@dwillia2-desk3.amr.corp.intel.com>
+User-Agent: StGit/0.18-2-gc94f
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAHk-=wh3jZnD3zaYJpW276WL=N0Vgo4KGW8M2pcFymHthwf0Vg@mail.gmail.com>
-User-Agent: Mutt/1.5.17 (2007-11-01)
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 08, 2019 at 10:50:37AM -0700, Linus Torvalds wrote:
-> > Note that both Thomas and Steven have series touching this area pending,
-> > and there are a couple consumer in flux too - the hmm tree already
-> > conflicts with this series, and I have potential dma changes on top of
-> > the consumers in Thomas and Steven's series, so we'll probably need a
-> > git tree similar to the hmm one to synchronize these updates.
-> 
-> I'd be willing to just merge this now, if that helps. The conversion
-> is mechanical, and my only slight worry would be that at least for my
-> original patch I didn't build-test the (few) non-x86
-> architecture-specific cases. But I did end up looking at them fairly
-> closely  (basically using some grep/sed scripts to see that the
-> conversions I did matched the same patterns). And your changes look
-> like obvious improvements too where any mistake would have been caught
-> by the compiler.
+Currently, attempts to shutdown and re-enable a device-dax instance
+trigger:
 
-I did cross compile the s390 and powerpc bits, but I do not have an
-openrisc compiler.
+    Missing reference count teardown definition
+    WARNING: CPU: 37 PID: 1608 at mm/memremap.c:211 devm_memremap_pages+0x234/0x850
+    [..]
+    RIP: 0010:devm_memremap_pages+0x234/0x850
+    [..]
+    Call Trace:
+     dev_dax_probe+0x66/0x190 [device_dax]
+     really_probe+0xef/0x390
+     driver_probe_device+0xb4/0x100
+     device_driver_attach+0x4f/0x60
 
-> So I'm not all that worried from a functionality standpoint, and if
-> this will help the next merge window, I'll happily pull now.
+Given that the setup path initializes pgmap->ref, arrange for it to be
+also torn down so devm_memremap_pages() is ready to be called again and
+not be mistaken for the 3rd-party per-cpu-ref case.
 
-That would help with this series vs the others, but not with the other
-series vs each other.
+Fixes: 24917f6b1041 ("memremap: provide an optional internal refcount in struct dev_pagemap")
+Reported-by: Fan Du <fan.du@intel.com>
+Tested-by: Vishal Verma <vishal.l.verma@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@lst.de>
+Cc: Ira Weiny <ira.weiny@intel.com>
+Cc: Jason Gunthorpe <jgg@mellanox.com>
+Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+---
+
+Andrew, I have another dax fix pending, so I'm ok to take this through
+the nvdimm tree, holler if you want it in -mm.
+
+ mm/memremap.c |    6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/mm/memremap.c b/mm/memremap.c
+index 6ee03a816d67..86432650f829 100644
+--- a/mm/memremap.c
++++ b/mm/memremap.c
+@@ -91,6 +91,12 @@ static void dev_pagemap_cleanup(struct dev_pagemap *pgmap)
+ 		wait_for_completion(&pgmap->done);
+ 		percpu_ref_exit(pgmap->ref);
+ 	}
++	/*
++	 * Undo the pgmap ref assignment for the internal case as the
++	 * caller may re-enable the same pgmap.
++	 */
++	if (pgmap->ref == &pgmap->internal_ref)
++		pgmap->ref = NULL;
+ }
+ 
+ static void devm_memremap_pages_release(void *data)
 
