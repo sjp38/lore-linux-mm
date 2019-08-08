@@ -2,249 +2,166 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 05CE7C433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 22:15:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C358DC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 22:21:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9878A2173C
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 22:15:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 772272173E
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 22:21:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=arista.com header.i=@arista.com header.b="Dk+6FJdE"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9878A2173C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=quarantine dis=none) header.from=arista.com
+	dkim=pass (1024-bit key) header.d=shipmail.org header.i=@shipmail.org header.b="Js30zXpc"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 772272173E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shipmail.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 44C636B0007; Thu,  8 Aug 2019 18:15:26 -0400 (EDT)
+	id 0ED5B6B0007; Thu,  8 Aug 2019 18:21:32 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3FEBF6B0008; Thu,  8 Aug 2019 18:15:26 -0400 (EDT)
+	id 075EE6B0008; Thu,  8 Aug 2019 18:21:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2EBD16B000A; Thu,  8 Aug 2019 18:15:26 -0400 (EDT)
+	id E325B6B000A; Thu,  8 Aug 2019 18:21:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 0206F6B0007
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 18:15:26 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id q16so64776076otn.11
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 15:15:25 -0700 (PDT)
+Received: from mail-lf1-f70.google.com (mail-lf1-f70.google.com [209.85.167.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 7C7A76B0007
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 18:21:31 -0400 (EDT)
+Received: by mail-lf1-f70.google.com with SMTP id i12so2917679lfp.1
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 15:21:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=NDuScBkGjT5nSsmn6LtJOvcXlMJwigFAIaUOlNo8VtQ=;
-        b=j0moj/2lCqnr9L6k9uSQhz+RSa4FMY5DbOzfdSKgb6VbaCz2gGhJ0qxOoqFu0zuHD+
-         3M71CfEnIki65PGJi6FmeUOxvVkBUZx3oUrVkj0eAl4vRaQfEy39/WPqWyEschQgIddf
-         m13vvJpokA6fZZEcbmTX0oLiKo5R0bMf3kBqO72+LPbC2yIfYnm2U52E06ZkhnhKkRkO
-         yorv2KjNHhJ6PvFE7A2wsc5f807pT+52mn3P1eQdmaZy/rKfNjfqzlJcuRidViNKF8I4
-         rmqlkazI66v2TEFLeFXynHfJa7m6GjWA8CljdFBtpL6OdbuLk8zE0MNcxNBi8Eb4396P
-         Kb2w==
-X-Gm-Message-State: APjAAAXOp60wlXa7T3c02gdvqpMx4i+pJnkJq86S4Ov/hPV6UTwedH+C
-	XgM2alEknlN7wpE3+5VS7wsevrdO6r5evaAtMRD2QEuBie/yflkl8gcucCtV2tgQS9fowz6eW++
-	raPUIrHPlGEuAU2ZbY3t27F3XivydjQxKoWu3+B+dKeQVlh7HxoD0MSMCxACRkQ5VFGuW1tSvu0
-	63lVhNGCjovV40PIauGV/AKnbyFjLL+gcprpj4IdTVkopXzkn2XbbUUA8YzI2E6iFTkkIICmkUS
-	DkKcZqqim3SML5FygBCTEIJU7yG8fsCPOKhe/vK06f537cOmMM=
-X-Received: by 2002:a02:a1c7:: with SMTP id o7mr19631456jah.26.1565302525593;
-        Thu, 08 Aug 2019 15:15:25 -0700 (PDT)
-X-Received: by 2002:a02:a1c7:: with SMTP id o7mr19631368jah.26.1565302524678;
-        Thu, 08 Aug 2019 15:15:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565302524; cv=none;
+        h=x-gm-message-state:dkim-signature:subject:to:cc:references:from
+         :message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=A+owftgg6ciRMxMAA6PqstMhK9e//nAGDN3c1g//Qyw=;
+        b=G2JgFKPIPFPGarIUaQy7NRagulpXRt8ViOsk9HJWPEWkohLnJRETfQZeQhb+gwU8NI
+         vKGDGcCX+MbWTYoZ28qqohSLUFnmXTR2RvKHap5wcNyAaATeW9zYQOMGvWnLduXhArt8
+         HU9zGRksrSTvToqZVSqhgnf6XxEZywzT/C8CdDcZK+DJdHINx+hdOHggT0MJGMWW8HVH
+         GNTx3T+w2TBXwDP72kLg9s9xF+ksY4/pNRNhFquo8nzzRadp6WBmmlhCso4psh1aImID
+         z9hbr4AxCiwa/4GoZ42YhjgMZawXnC4QqS++Qg7FxZhANDG0p7XeiNhFWPb+uvxRStgf
+         +t0Q==
+X-Gm-Message-State: APjAAAWLNpdtGiBJ/ItWe4NSqU9dQghgLR+12LcKk4JukdmkCBD3qeLt
+	X65BqF3RskuVDr2OUgWesYxOdBiX4DtIhm18iNUPwHG1tKUcpSShgio/T9TSR4me8JyAx24FvpR
+	JjuvEcmLNRKYskYtjHN6bvb5v1NZCk2xYX39q+hxXhCVqRBx5n1ZEkj70lxZFCt2n+Q==
+X-Received: by 2002:ac2:46ea:: with SMTP id q10mr10486532lfo.118.1565302890538;
+        Thu, 08 Aug 2019 15:21:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyx/xchXWbQPOzjqB9Iy921CroG/OoXnBebPh5sFzBlwHQbEWk1gsBr6IsRtT6wpBdOvt05
+X-Received: by 2002:ac2:46ea:: with SMTP id q10mr10486505lfo.118.1565302889738;
+        Thu, 08 Aug 2019 15:21:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565302889; cv=none;
         d=google.com; s=arc-20160816;
-        b=LQcWp/BeDAzMOiNZcA1d91CYjvG5BrB+fCSmiGPj9aqJv6mkQieDzilVjWNpr3QAjO
-         ygrHYsVwU4BehDd6CpgRsXXgdPb+DwQfEipYr8LXUUtfQQfJSy5ilMf/Hl3Br3Q69jpF
-         LV2Z1tcu03h0ij/eqdNryZMqAXlqyBXoIMC3Yp7AVYYeRy7ZQI6dK9BDEzWH2XrAvStK
-         wlGhm/JLvfEoLVg4wce+NCtc4uu7srilTD6Otpm2DTery2I90wDk7jgKgA9MwivCVmPg
-         s6cqCgag10UeY6Z09fSyKfazLcTQv/JS+wrrdrZKaIqcQoakU46vTDUL9Ns+m2Whvlv7
-         gfcQ==
+        b=CSZcLdRJE20GcupRQ6KHnTa+uozKu/+WAzIDJCxVbqgAw63IINSbAA+auwZUd7mf6r
+         ytN10x9Iu1YHeWTxTuH/qPO15fgfIUB4FcnO2tvXhKWOOWFUG6zZLkgYU13jk1peLywR
+         wU3WULsiDvD96aXLbnWlcdWRXkrpcoEpqYKt7UJUzEZcxCmT89JXNr5n4i4lox15t0gn
+         XJbWdoSAhFwhC2HT2VWvYas+Yo1eZy6jP8m2yEM0bDo0GbWv1SHTdXq6FjW7sFRmiJ3l
+         Fge1+XoNEvLbmrjNkXVN1aMPaYMLX8MqATCbiyTc4xP4slYFrT2vlWhuSYjQC4LDb5iE
+         Qw9g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=NDuScBkGjT5nSsmn6LtJOvcXlMJwigFAIaUOlNo8VtQ=;
-        b=CLs5sz6S1Vxg5H6BQXgJgTMEPSnHnslvoE2MkOOk5ESyO4etq/+gsm9VxnELLRYuMU
-         His/fntswkvtBSqFMLMwpvjbxE8e+vKdE5boX5Dduv40rffLOW8OX6hu2hco0xKBCOvz
-         y0CyRCYHF2oITWdfr8dUFzP26p1WQeMMThyzsuJAo4loOJPDpN75koidN6fEvHLqEtfM
-         5Kv+pU01/XA+etgwbbJrJ8w216yai0Mn/H3Jr76dGJJzzZbG0+js2XnpVs44Kr0qlg1s
-         fwgyP8bmNrqaKUDr5d42F3wsDVo76ZTTyFljxsXWwz58feKL5kAw9+Oa7m5uWi2HrC7B
-         N6NA==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject
+         :dkim-signature;
+        bh=A+owftgg6ciRMxMAA6PqstMhK9e//nAGDN3c1g//Qyw=;
+        b=zW7pL++UDio1E6Di4zCC+fimnstxwgxrSXpNDX1PlOEFEVTbTg7ifhv2SXZ9vGySAy
+         +t4FKEPuut3OhQ1bltpN6luUZQiuwenZTRpcJ3ANLd5wn7rLrifmIKTx9AILNSKJDCrt
+         QvZ4+/aSqhdjOdvuEJU8wTbr5tfpFHFoLrMPKEfM42fikYUBT0F6m9M/+JlrB8BOuZHg
+         33jvVK/5TV4VkEvw6C4nuM8+hS7u423ZBHYijlJyAcjqsjUY/AFXSwQb2PeX8MlHXuiR
+         8fujcS3vj0XxF9yMVczYyUlxcm8gIIxx/fzKtwqsuqGwRSya3ym7D2tTetoCT6llPtUE
+         5mDQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@arista.com header.s=googlenew header.b=Dk+6FJdE;
-       spf=pass (google.com: domain of echron@arista.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=echron@arista.com;
-       dmarc=pass (p=QUARANTINE sp=REJECT dis=NONE) header.from=arista.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id r17sor9279598jam.9.2019.08.08.15.15.24
+       dkim=pass (test mode) header.i=@shipmail.org header.s=mail header.b=Js30zXpc;
+       spf=pass (google.com: domain of thomas@shipmail.org designates 79.136.2.40 as permitted sender) smtp.mailfrom=thomas@shipmail.org
+Received: from pio-pvt-msa1.bahnhof.se (pio-pvt-msa1.bahnhof.se. [79.136.2.40])
+        by mx.google.com with ESMTPS id v10si14542204lfd.54.2019.08.08.15.21.27
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Aug 2019 15:15:24 -0700 (PDT)
-Received-SPF: pass (google.com: domain of echron@arista.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 08 Aug 2019 15:21:28 -0700 (PDT)
+Received-SPF: pass (google.com: domain of thomas@shipmail.org designates 79.136.2.40 as permitted sender) client-ip=79.136.2.40;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@arista.com header.s=googlenew header.b=Dk+6FJdE;
-       spf=pass (google.com: domain of echron@arista.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=echron@arista.com;
-       dmarc=pass (p=QUARANTINE sp=REJECT dis=NONE) header.from=arista.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=arista.com; s=googlenew;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=NDuScBkGjT5nSsmn6LtJOvcXlMJwigFAIaUOlNo8VtQ=;
-        b=Dk+6FJdEexeYjR3aFFo2RcNwKRIMuHClL7PiIVO3hopF/LjfhAMdDKKMdvQDGJgK2R
-         Bfzl1ByNxGJ8ndlqV4/G1LPqRmNqcjqKqSPlmSCMXJXct0FhBDdgr/t/dHWbJasr4K8/
-         1JQJJdpNsB2TP4+uaOC/TwiGyhAktGZaoTC3KzJQ+zGTTgVGoUzSFtCHCooxCeCwy0A/
-         cCzuIt21lKPbv/vtBBHrO47ZB+Y0Lu8+Yl9PwjHBKwRFvVLaz4xF3nvYSghdDt6pi5gQ
-         ZkDsQdRSMtv8UFoJ0T6REQL/1OJlGVcVDysofrUaTIsVsfCaM0tRtTwCI/w7XT/NaOCs
-         sv1g==
-X-Google-Smtp-Source: APXvYqxKzTeapIMM3uSrv1CUfmpNqVZPgXYnvHumDVA5DAS8WyMLEqYmtuLYmHYO4EzNz0LU9DhhOCN1zRePlcIPr5Y=
-X-Received: by 2002:a02:c519:: with SMTP id s25mr18744820jam.11.1565302524248;
- Thu, 08 Aug 2019 15:15:24 -0700 (PDT)
+       dkim=pass (test mode) header.i=@shipmail.org header.s=mail header.b=Js30zXpc;
+       spf=pass (google.com: domain of thomas@shipmail.org designates 79.136.2.40 as permitted sender) smtp.mailfrom=thomas@shipmail.org
+Received: from localhost (localhost [127.0.0.1])
+	by pio-pvt-msa1.bahnhof.se (Postfix) with ESMTP id C00AF3F3CA;
+	Fri,  9 Aug 2019 00:21:27 +0200 (CEST)
+Authentication-Results: pio-pvt-msa1.bahnhof.se;
+	dkim=pass (1024-bit key; unprotected) header.d=shipmail.org header.i=@shipmail.org header.b="Js30zXpc";
+	dkim-atps=neutral
+X-Virus-Scanned: Debian amavisd-new at bahnhof.se
+Received: from pio-pvt-msa1.bahnhof.se ([127.0.0.1])
+	by localhost (pio-pvt-msa1.bahnhof.se [127.0.0.1]) (amavisd-new, port 10024)
+	with ESMTP id aL-YyBR6tXjE; Fri,  9 Aug 2019 00:21:26 +0200 (CEST)
+Received: from mail1.shipmail.org (h-205-35.A357.priv.bahnhof.se [155.4.205.35])
+	(Authenticated sender: mb878879)
+	by pio-pvt-msa1.bahnhof.se (Postfix) with ESMTPA id CD18A3F398;
+	Fri,  9 Aug 2019 00:21:25 +0200 (CEST)
+Received: from localhost.localdomain (h-205-35.A357.priv.bahnhof.se [155.4.205.35])
+	by mail1.shipmail.org (Postfix) with ESMTPSA id 16C1136015E;
+	Fri,  9 Aug 2019 00:21:25 +0200 (CEST)
+DKIM-Signature: v=1; a=rsa-sha256; c=simple/simple; d=shipmail.org; s=mail;
+	t=1565302885; bh=RVaCu1C5tAq3VjSBjXkZ1UBuhKLiLy/Tpb94K/nrtEA=;
+	h=Subject:To:Cc:References:From:Date:In-Reply-To:From;
+	b=Js30zXpcy30+ZBx1NEVIkzvBdlmXRihLBZvVid2tt64zg/qVBCw5XIppSy+A4/doJ
+	 S/Q+ly9RkbBXM53IERB8Qzr0uGGHeOvMLz8hKp5L7qJTDmfveaf3yO1s/0j0tOGStZ
+	 5qDimRq6xCm3+fuzaPD+XJtHGufRdRJ3+QCW7L9g=
+Subject: Re: cleanup the walk_page_range interface
+To: Christoph Hellwig <hch@lst.de>,
+ Linus Torvalds <torvalds@linux-foundation.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ Jerome Glisse <jglisse@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>,
+ Steven Price <steven.price@arm.com>, Linux-MM <linux-mm@kvack.org>,
+ Linux List Kernel Mailing <linux-kernel@vger.kernel.org>
+References: <20190808154240.9384-1-hch@lst.de>
+ <CAHk-=wh3jZnD3zaYJpW276WL=N0Vgo4KGW8M2pcFymHthwf0Vg@mail.gmail.com>
+ <20190808215632.GA12773@lst.de>
+From: Thomas Hellstrom <thomas@shipmail.org>
+Message-ID: <c5e7dbac-2d40-60fa-00cc-a275b3aa8373@shipmail.org>
+Date: Fri, 9 Aug 2019 00:21:24 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-References: <20190808183247.28206-1-echron@arista.com> <20190808185119.GF18351@dhcp22.suse.cz>
- <CAM3twVT0_f++p1jkvGuyMYtaYtzgEiaUtb8aYNCmNScirE4=og@mail.gmail.com> <20190808200715.GI18351@dhcp22.suse.cz>
-In-Reply-To: <20190808200715.GI18351@dhcp22.suse.cz>
-From: Edward Chron <echron@arista.com>
-Date: Thu, 8 Aug 2019 15:15:12 -0700
-Message-ID: <CAM3twVS7tqcHmHqjzJqO5DEsxzLfBaYF0FjVP+Jjb1ZS4rA9qA@mail.gmail.com>
-Subject: Re: [PATCH] mm/oom: Add killed process selection information
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>, 
-	Johannes Weiner <hannes@cmpxchg.org>, David Rientjes <rientjes@google.com>, 
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>, Shakeel Butt <shakeelb@google.com>, 
-	linux-mm@kvack.org, linux-kernel@vger.kernel.org, 
-	Ivan Delalande <colona@arista.com>
-Content-Type: text/plain; charset="UTF-8"
-X-CLOUD-SEC-AV-Info: arista,google_mail,monitor
-X-CLOUD-SEC-AV-Sent: true
-X-Gm-Spam: 0
-X-Gm-Phishy: 0
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000014, version=1.2.4
+In-Reply-To: <20190808215632.GA12773@lst.de>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 7bit
+Content-Language: en-US
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In our experience far more (99.9%+) OOM events are not kernel issues,
-they're user task memory issues.
-Properly maintained Linux kernel only rarely have issues.
-So useful information about the killed task, displayed in a manner
-that can be quickly digested, is very helpful.
-But it turns out the totalpages parameter is also critical to make
-sense of what is shown.
-
-So if we report the fooWidget task was using ~15% of memory (I know
-this is just an approximation but it is often an adequate metric) we
-often can tell just from that the number is larger than expected so we
-can start there.
-Even though the % is a ballpark number, if you are familiar with the
-tasks on your system and approximately how much memory you expect them
-to use you can often tell if memory usage is excessive.
-This is not always the case but it is a fair amount of the time.
-So the % of memory field is helpful. But we've found we need totalpages as well.
-The totalpages effects the % of memory the task uses.
-
-You're an OOM expert so I don't need to tell you, but just for
-clarity, that if a system we're expecting to have swap space has it's
-swap diminshed or removed, that can have a significant effect both on
-the available memory and the % of memory/swap the task consumes.
-Just as if you run a task of a fixed memory size on a system with half
-the memory it's % of memory jumps up as does it's oom_score.
-Often we know the Memory Size and how much swap space a system is
-expected to have, printing totalpages allows us to confirm that this
-was in fact the case at the time of the oom event.
-Also the size of totalpages is very important to being to tell
-approximately how much memory/swap, the task was using because we have
-the % and we can quickly get an idea of usage.
-For systems that come in a variety of sizes that is important, the
-percentage number in conjunction with totalpages is essential since
-they are dependent on each other.
-
-With memcg usage increasing, having totalpages readily available is
-even more important because the memory container caps the value and it
-is helpful to know the value that was in use at the time of the oom
-event.
-
-The oom_score tells us how Linux calculated the score for the task,
-the oom_score_adj effects this so it is helpful to have that in
-conjunction with the oom_score.
-If the adjust is high it can tell us that the task was acting as a
-canary and so it's oom_score is high even though it's memory
-utilization can be modest or low.
-In that case we may need more information about what was going on
-because the task selected was not necessarily using much memory.
-But at least we know why it was selected. The kill message with a high
-oom_score_adjust and high oom_score makes that obvious.
-
-Just by adding a few values to the kill message we're often able to
-quickly get an idea of what the cause of an oom event was, or at least
-we have a better idea where to start looking.
-
-Since we're running a business and so are our customers anything we
-can do speed up the triage process saves money and makes people more
-productive, so we find it valuable.
-
-What other justification is needed? Let me know.
-
-Thanks!
-
-P.S.
-
-By the way, just for feedback, the recent reorganization of the OOM
-sections and print output, for those of us that do have to wade
-through OOM output, was appreciated:
-
-commit ef8444ea01d7442652f8e1b8a8b94278cb57eafd    (v5.0-rc1-107^2~63)
-Author: yuzhoujian <yuzhoujian@didichuxing.com>
-Date:   Fri Dec 28 00:36:07 2018 -0800
-
-    mm, oom: reorganize the oom report in dump_header
-
-
-
-On Thu, Aug 8, 2019 at 1:07 PM Michal Hocko <mhocko@kernel.org> wrote:
+On 8/8/19 11:56 PM, Christoph Hellwig wrote:
+> On Thu, Aug 08, 2019 at 10:50:37AM -0700, Linus Torvalds wrote:
+>>> Note that both Thomas and Steven have series touching this area pending,
+>>> and there are a couple consumer in flux too - the hmm tree already
+>>> conflicts with this series, and I have potential dma changes on top of
+>>> the consumers in Thomas and Steven's series, so we'll probably need a
+>>> git tree similar to the hmm one to synchronize these updates.
+>> I'd be willing to just merge this now, if that helps. The conversion
+>> is mechanical, and my only slight worry would be that at least for my
+>> original patch I didn't build-test the (few) non-x86
+>> architecture-specific cases. But I did end up looking at them fairly
+>> closely  (basically using some grep/sed scripts to see that the
+>> conversions I did matched the same patterns). And your changes look
+>> like obvious improvements too where any mistake would have been caught
+>> by the compiler.
+> I did cross compile the s390 and powerpc bits, but I do not have an
+> openrisc compiler.
 >
-> [please do not top-post]
->
-> On Thu 08-08-19 12:21:30, Edward Chron wrote:
-> > It is helpful to the admin that looks at the kill message and records this
-> > information. OOMs can come in bunches.
-> > Knowing how much resource the oom selected process was using at the time of
-> > the OOM event is very useful, these fields document key process and system
-> > memory/swap values and can be quite helpful.
->
-> I do agree and we already print that information. rss with a break down
-> to anonymous, file backed and shmem, is usually a large part of the oom
-> victims foot print. It is not a complete information because there might
-> be a lot of memory hidden by other resource (open files etc.). We do not
-> print that information because it is not considered in the oom
-> selection. It is also not guaranteed to be freed upon the task exit.
->
-> > Also can't you disable printing the oom eligible task list? For systems
-> > with very large numbers of oom eligible processes that would seem to be
-> > very desirable.
->
-> Yes that is indeed the case. But how does the oom_score and
-> oom_score_adj alone without comparing it to other eligible tasks help in
-> isolation?
->
-> [...]
->
-> > I'm not sure that change would be supported upstream but again in our
-> > experience we've found it helpful, since you asked.
->
-> Could you be more specific about how that information is useful except
-> for recording it? I am all for giving an useful information in the OOM
-> report but I would like to hear a sound justification for each
-> additional piece of information.
->
-> E.g. this helped us to understand why the task has been selected - this
-> is usually dump_tasks portion of the report because it gives a picture
-> of what the OOM killer sees when choosing who to kill.
->
-> Then we have the summary to give us an estimation on how much
-> memory will get freed when the victim dies - rss is a very rough
-> estimation. But is a portion of the overal memory or oom_score{_adj}
-> important to print as well? Those are relative values. Say you get
-> memory-usage:10%, oom_score:42 and oom_score_adj:0. What are you going
-> to tell from that information?
-> --
-> Michal Hocko
-> SUSE Labs
+>> So I'm not all that worried from a functionality standpoint, and if
+>> this will help the next merge window, I'll happily pull now.
+> That would help with this series vs the others, but not with the other
+> series vs each other.
+
+Although my series doesn't touch the pagewalk code, it rather borrowed 
+some concepts from it and used for the apply_to_page_range() interface.
+
+The reason being that the pagewalk code requires the mmap_sem to be held 
+(mainly for trans-huge pages and reading the vma->vm_flags if I 
+understand the code correctly). That is fine when you scan the vmas of a 
+process, but the helpers I wrote need to instead scan all vmas pointing 
+into a struct address_space, and taking the mmap_sem for each vma will 
+create lock inversion problems.
+
+/Thomas
+
 
