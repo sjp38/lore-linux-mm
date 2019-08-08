@@ -2,149 +2,152 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DBDBC0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 05:42:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 73F69C0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 05:52:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C4F312089E
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 05:42:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4F312089E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ellerman.id.au
+	by mail.kernel.org (Postfix) with ESMTP id 384F021873
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 05:52:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 384F021873
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5D5D66B0007; Thu,  8 Aug 2019 01:42:44 -0400 (EDT)
+	id CAC436B0003; Thu,  8 Aug 2019 01:52:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 587006B0008; Thu,  8 Aug 2019 01:42:44 -0400 (EDT)
+	id C5C6F6B0006; Thu,  8 Aug 2019 01:52:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 44E2E6B000A; Thu,  8 Aug 2019 01:42:44 -0400 (EDT)
+	id B4BBF6B0007; Thu,  8 Aug 2019 01:52:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 11EC86B0007
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 01:42:44 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id a5so54867354pla.3
-        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 22:42:44 -0700 (PDT)
+Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 829AE6B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 01:52:36 -0400 (EDT)
+Received: by mail-pl1-f198.google.com with SMTP id q11so54779736pll.22
+        for <linux-mm@kvack.org>; Wed, 07 Aug 2019 22:52:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:in-reply-to:references:date:message-id:mime-version;
-        bh=x5gANm5t0wVSKMk+V5nHqsMbOwxFEj90jE/1ngmtkFg=;
-        b=AqG9Xu+IUIPEiyLUSLOKgVx+/Zwt+qapUeNbA86O6h4RPjw0oPT4Rr3NnhAFBatoUv
-         wkAMXFZ7ZCMRJcpCn0ccFyAGVFY8Xyx+blJQbmIxAF31zwF0xhugUsss6KtkKu0UF50J
-         qlQF842/nyd+r6JJPbcl05n0D0aesrysx0zk3h5axC0BkrnSO17SloEC0zTH52Ho3SR1
-         W/zdY91a6dOtoG+bGWQGmwAuYz5thi5bwJOjyJZhYdYmaS/zH89EmbGjfN3Y0ddMUNjo
-         8Cb6mYMUIcsRRic5Qregnk3X7TCRLHc2C3/24TX3JYJv9r5ao4Z/2TvbHUVkNE5T6dru
-         4ViQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mpe@ellerman.id.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=mpe@ellerman.id.au
-X-Gm-Message-State: APjAAAWoy8l5cOH/g7KDWOyUExKzBjpSkdXMZdX37phz7iakkcMN0ypf
-	bL4CD9mFS8b/s12uPFGuuCwNMPqNNqh+/mkSL2NWGx500IbtPsf9Vzp/RB9uBxWcfpZ9VuD4QOw
-	FtOONob/iHQmS/nW/X5iPoOFTvfT0weobdbfveB56LXvIXAQrv1VEnVPm9A5nNC+ZtA==
-X-Received: by 2002:a17:90a:3401:: with SMTP id o1mr2166329pjb.7.1565242963622;
-        Wed, 07 Aug 2019 22:42:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzZg0aldOwsdgx3RguBNKZDA6pqqoNwTtyyn0SznUEVoPWVn+KwuAuvNjQvVj+k3PIgLF0u
-X-Received: by 2002:a17:90a:3401:: with SMTP id o1mr2166280pjb.7.1565242962841;
-        Wed, 07 Aug 2019 22:42:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565242962; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=dzMkON2qhgxuXDp9xv9SOiizlU4XQ1qhVLRlqGAALTI=;
+        b=Ntk0U2uDrPrHy4XeOLQ9lt4C2sihNVaEhdjVsWFtfdaMgogwQYw5Gfn2c3HSA6YjRT
+         v7pJPy8zgxXjBxqqtXw4zby6nHdBRqSkFnsJBTO0t8z5Ep88KUBfWr8zNPms440rJS8r
+         L++rcAuofypSP9R6Z7v8neaARLEKoKKfTn799823v1P9Rcn9ixFei0TCWIMZZKVkapMH
+         PmBzfnPNABA9FdOeHSna1AY5qRUE6YGsRBajDbPp7ohnZSRLR+kGtl76M5auhTVoORSg
+         R7NO91WMAUwYCKuY9ZwpKc+nmLQLnDByciqGMqKNmjx6z5IqVEg5B/MUUv2N+QJf8+gT
+         8G5A==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAXNKwIMnbXfF6b0ujMhKw5giEBY6+rdaO/8bMrfL4cGt8Onu/LN
+	yGM4IHay7itPK1EqSHY/PeASlURj2O0MKtBFhpxvWUpCu0HL5J6u16kCahRQabuA+JJyPgaJX2E
+	ZFplzSFkSmc99bI1WP8UkT6EnYZB6jJUMBdmxFrNY0Xp/RLHZ9TE+MU3pT+qBtEU=
+X-Received: by 2002:a17:90a:d997:: with SMTP id d23mr2142522pjv.84.1565243556227;
+        Wed, 07 Aug 2019 22:52:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwE/RJMHkbx/sBPqozNFk7ZLJuxdrbrcrAQk8PBZ2cadP+GEUQcawarOZobDHPB70hCY5pW
+X-Received: by 2002:a17:90a:d997:: with SMTP id d23mr2142479pjv.84.1565243555503;
+        Wed, 07 Aug 2019 22:52:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565243555; cv=none;
         d=google.com; s=arc-20160816;
-        b=EgriUkXMy4fwKeQPwTvq5oU70xAX9JQ+KIeUDkTH5Wvp01XDPpV5zR6Ebczp87kjCM
-         kXFCreXbxkn0ZkTuyod/Q1NzvRoyM7yMLzLAA0y8rttuGpEUki5g9k97vd8aehS/Glhv
-         +SnKXNS/kqYhTtfd/ivDx3fNcbzBde/GBy408sBsd47QMDhLBwEnUdmLf8AwMU77RgCY
-         N9DuK10LzNMqgSiSPovknOka+Kez3clYzoYLeWv18M5vGjPXy/k9RIstNorJj+quF07O
-         3kK+XGy+QJ7Jyex7riKprQn8DglxvSRATNfu07RPQqBvvbSrZCBF7DU3RP5aqKX7VYx1
-         99rw==
+        b=emDoKp8grxuruhcnm0mjIkyjv0AEW1MgAdx5MwaomkEknR9LgzvtkZ3kW3jahbdDQV
+         UPczxu/tYErUktKe8+aExhNgOOfDSgEDmXyNIYSmByYwt5nPJEw2OEXg97SddI/W/xoT
+         Yrzkpuube7JTbqSWIXvZp4Iqx5GODZzSnqySHnOhvRl4kwqEFe8igP77K3XjZB8PDDJR
+         hMWvdNGA2Mvfa2BWcP5kUMLbP7Ei/vtqREgsnrYrQy41GT2uJZlKAJBupO3HngqLSLGL
+         0xWRFx1EUgjIzXe7g8YxOglMz8OCTR1VaVwvgDA3sNZiMq5kSYmN2DnezA4sT1HzEcrY
+         C48A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:references:in-reply-to:subject:cc:to
-         :from;
-        bh=x5gANm5t0wVSKMk+V5nHqsMbOwxFEj90jE/1ngmtkFg=;
-        b=h2OZ4Lq1wkn0y/YzpeplNfvzih99qB549iBu8/zyx/+yA7u6kOwHldiYQeaskxAJMQ
-         Xc/aYZqG3cixlcK0RgWXqyhaprMiAnfWYLJ4KQdYhMJqkYCHAer5w9X+z7mAupWd0uxu
-         qbz8/9SSW97iuSQJ0k4bgt4LBf7kraIsJ1pXHToaMj4hmIgJUx/N6ulzrbqIRTls4mXk
-         d1P8UgAZn3r4FmkHp2D/u9jLcHWW+R8M6KEbnyyRncmki+a0yMNjpQa8Zr1xJgCjmZC3
-         RK9Mhui2J2ty61xjXiy/B2RziMVaQ4Ly6pFB12yZsQy7e9YaOsBLTvkarssDg6cremA7
-         KYvw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=dzMkON2qhgxuXDp9xv9SOiizlU4XQ1qhVLRlqGAALTI=;
+        b=L4EY98GSKSyu13Lh9RdcpIf00zPqt3jpFgmfhyDSQ3qnvvbLzFHKKbf1iVFI9SkBfi
+         OGRDxTUDaQ/R8H9dc/xRu1yoKK4rtkxHiL2p+MXJIH+w4Hnw7eGcqE4wwXiK6sMNmaRV
+         6u54Ah+dTvDSqKqwA6HfKZL212UQVrahrFNaNqcdPbr3JBHi2/OuqU+ug0CnS6Fy+aja
+         rakSWsALDJUrS+LI23c0wStj45bLIWbFFh4QJ9Wkt1N/cgMKRkfrEFjh0xhXN6ENks0u
+         3Wtgc3DDEd6PKmWSNZv60mLrXW99MYUzB+hhV+GmiXUsEeHej/kXCjSJTRMEcKsJqxZj
+         c2WQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of mpe@ellerman.id.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=mpe@ellerman.id.au
-Received: from ozlabs.org (bilbo.ozlabs.org. [2401:3900:2:1::2])
-        by mx.google.com with ESMTPS id cp10si49193017plb.301.2019.08.07.22.42.42
-        for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Wed, 07 Aug 2019 22:42:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of mpe@ellerman.id.au designates 2401:3900:2:1::2 as permitted sender) client-ip=2401:3900:2:1::2;
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
+        by mx.google.com with ESMTP id a1si1067257pjs.58.2019.08.07.22.52.35
+        for <linux-mm@kvack.org>;
+        Wed, 07 Aug 2019 22:52:35 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of mpe@ellerman.id.au designates 2401:3900:2:1::2 as permitted sender) smtp.mailfrom=mpe@ellerman.id.au
-Received: from authenticated.ozlabs.org (localhost [127.0.0.1])
-	(using TLSv1.3 with cipher TLS_AES_256_GCM_SHA384 (256/256 bits)
-	 key-exchange ECDHE (P-256) server-signature RSA-PSS (4096 bits) server-digest SHA256)
-	(No client certificate requested)
-	by mail.ozlabs.org (Postfix) with ESMTPSA id 463y252c4Xz9sN1;
-	Thu,  8 Aug 2019 15:42:37 +1000 (AEST)
-From: Michael Ellerman <mpe@ellerman.id.au>
-To: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: Christoph Hellwig <hch@infradead.org>, Dan Williams
- <dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave
- Hansen <dave.hansen@linux.intel.com>, Ira Weiny <ira.weiny@intel.com>, Jan
- Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>, =?utf-8?B?SsOpcsO0?=
- =?utf-8?B?bWU=?= Glisse
- <jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>,
- amd-gfx@lists.freedesktop.org, ceph-devel@vger.kernel.org,
- devel@driverdev.osuosl.org, devel@lists.orangefs.org,
- dri-devel@lists.freedesktop.org, intel-gfx@lists.freedesktop.org,
- kvm@vger.kernel.org, linux-arm-kernel@lists.infradead.org,
- linux-block@vger.kernel.org, linux-crypto@vger.kernel.org,
- linux-fbdev@vger.kernel.org, linux-fsdevel@vger.kernel.org,
- linux-media@vger.kernel.org, linux-mm@kvack.org,
- linux-nfs@vger.kernel.org, linux-rdma@vger.kernel.org,
- linux-rpi-kernel@lists.infradead.org, linux-xfs@vger.kernel.org,
- netdev@vger.kernel.org, rds-devel@oss.oracle.com,
- sparclinux@vger.kernel.org, x86@kernel.org,
- xen-devel@lists.xenproject.org, John Hubbard <jhubbard@nvidia.com>,
- Benjamin Herrenschmidt <benh@kernel.crashing.org>, Christoph Hellwig
- <hch@lst.de>, linuxppc-dev@lists.ozlabs.org
-Subject: Re: [PATCH v3 38/41] powerpc: convert put_page() to put_user_page*()
-In-Reply-To: <20190807013340.9706-39-jhubbard@nvidia.com>
-References: <20190807013340.9706-1-jhubbard@nvidia.com> <20190807013340.9706-39-jhubbard@nvidia.com>
-Date: Thu, 08 Aug 2019 15:42:34 +1000
-Message-ID: <87k1botdpx.fsf@concordia.ellerman.id.au>
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
+	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id 26295362962;
+	Thu,  8 Aug 2019 15:52:32 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hvbKf-0000HC-Hf; Thu, 08 Aug 2019 15:51:25 +1000
+Date: Thu, 8 Aug 2019 15:51:25 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Mel Gorman <mgorman@techsingularity.net>
+Cc: Michal Hocko <mhocko@kernel.org>, linux-mm@kvack.org,
+	linux-xfs@vger.kernel.org, Vlastimil Babka <vbabka@suse.cz>
+Subject: Re: [PATCH] [Regression, v5.0] mm: boosted kswapd reclaim b0rks
+ system cache balance
+Message-ID: <20190808055125.GV7777@dread.disaster.area>
+References: <20190807091858.2857-1-david@fromorbit.com>
+ <20190807093056.GS11812@dhcp22.suse.cz>
+ <20190807150316.GL2708@suse.de>
+ <20190807220817.GN7777@dread.disaster.area>
+ <20190807235534.GK2739@techsingularity.net>
+ <20190808003025.GU7777@dread.disaster.area>
 MIME-Version: 1.0
-Content-Type: text/plain
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190808003025.GU7777@dread.disaster.area>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0
+	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=BNQjUj_GC9DrHHjaN18A:9
+	a=CjuIK1q_8ugA:10 a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Hi John,
+On Thu, Aug 08, 2019 at 10:30:25AM +1000, Dave Chinner wrote:
+> On Thu, Aug 08, 2019 at 12:55:34AM +0100, Mel Gorman wrote:
+> > On Thu, Aug 08, 2019 at 08:08:17AM +1000, Dave Chinner wrote:
+> > > On Wed, Aug 07, 2019 at 04:03:16PM +0100, Mel Gorman wrote:
+> > > > On Wed, Aug 07, 2019 at 11:30:56AM +0200, Michal Hocko wrote:
+> > > > The boosting was not intended to target THP specifically -- it was meant
+> > > > to help recover early from any fragmentation-related event for any user
+> > > > that might need it. Hence, it's not tied to THP but even with THP
+> > > > disabled, the boosting will still take effect.
+> > > > 
+> > > > One band-aid would be to disable watermark boosting entirely when THP is
+> > > > disabled but that feels wrong. However, I would be interested in hearing
+> > > > if sysctl vm.watermark_boost_factor=0 has the same effect as your patch.
+> > > 
+> > > <runs test>
+> > > 
+> > > Ok, it still runs it out of page cache, but it doesn't drive page
+> > > cache reclaim as hard once there's none left. The IO patterns are
+> > > less peaky, context switch rates are increased from ~3k/s to 15k/s
+> > > but remain pretty steady.
+> > > 
+> > > Test ran 5s faster and  file rate improved by ~2%. So it's better
+> > > once the page cache is largerly fully reclaimed, but it doesn't
+> > > prevent the page cache from being reclaimed instead of inodes....
+> > > 
+> > 
+> > Ok. Ideally you would also confirm the patch itself works as you want.
+> > It *should* but an actual confirmation would be nice.
+> 
+> Yup, I'll get to that later today.
 
-john.hubbard@gmail.com writes:
-> diff --git a/arch/powerpc/mm/book3s64/iommu_api.c b/arch/powerpc/mm/book3s64/iommu_api.c
-> index b056cae3388b..e126193ba295 100644
-> --- a/arch/powerpc/mm/book3s64/iommu_api.c
-> +++ b/arch/powerpc/mm/book3s64/iommu_api.c
-> @@ -203,6 +202,7 @@ static void mm_iommu_unpin(struct mm_iommu_table_group_mem_t *mem)
->  {
->  	long i;
->  	struct page *page = NULL;
-> +	bool dirty = false;
+Looks good, does what it says on the tin.
 
-I don't think you need that initialisation do you?
+Reviewed-by: Dave Chinner <dchinner@redhat.com>
 
->  	if (!mem->hpas)
->  		return;
-> @@ -215,10 +215,9 @@ static void mm_iommu_unpin(struct mm_iommu_table_group_mem_t *mem)
->  		if (!page)
->  			continue;
->  
-> -		if (mem->hpas[i] & MM_IOMMU_TABLE_GROUP_PAGE_DIRTY)
-> -			SetPageDirty(page);
-> +		dirty = mem->hpas[i] & MM_IOMMU_TABLE_GROUP_PAGE_DIRTY;
-> -		put_page(page);
-> +		put_user_pages_dirty_lock(&page, 1, dirty);
->  		mem->hpas[i] = 0;
->  	}
->  }
-
-cheers
+-- 
+Dave Chinner
+david@fromorbit.com
 
