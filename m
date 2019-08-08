@@ -2,208 +2,374 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 44BFFC0650F
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:42:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E607FC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:10:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EBD9C21743
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 20:42:03 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 8BBA520B7C
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 21:10:20 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=chromium.org header.i=@chromium.org header.b="TsthMIhq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EBD9C21743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=chromium.org
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="DT8VEuxu"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8BBA520B7C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8B2A66B000A; Thu,  8 Aug 2019 16:42:03 -0400 (EDT)
+	id E900A6B0003; Thu,  8 Aug 2019 17:10:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8627C6B000C; Thu,  8 Aug 2019 16:42:03 -0400 (EDT)
+	id E41956B0006; Thu,  8 Aug 2019 17:10:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 750AF6B000D; Thu,  8 Aug 2019 16:42:03 -0400 (EDT)
+	id D56BB6B0007; Thu,  8 Aug 2019 17:10:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 3B1EA6B000A
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 16:42:03 -0400 (EDT)
-Received: by mail-pf1-f199.google.com with SMTP id x10so158734pfn.2
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 13:42:03 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 9ED296B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 17:10:19 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id 145so59920797pfv.18
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 14:10:19 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to;
-        bh=nS7CPtzCVp0ONgQlGgkx7OXPZavZodPDNiD74pSN4ok=;
-        b=JSqNC0qQ3cin5l4YEM8OA9v4COWDeCbMGWZSEMGCOfdMChHLMFdsMqdxrj8x/AjIn9
-         WIwzCxohvcizb3njAmv7Hh2ELmE7WzXPVHit2bU6Guzw3UVPCK396wMc4Cag4r0nfuCU
-         G5+3KjHkBgltFgUt9DAoMgSEE5MUSdHk84I5MSOkVNQBBxaa9GE2PiVqwNPUiYnlDSSk
-         2gTGk5arlELyLNiNkpVm95WqYfJtJuF7uzTdmOe2RvRnu9YV5i4jeAUG8BkbbprZq0Bt
-         XOUiXEmeDdhZnDvFmCzd0lUXKQuP/gP4nykXMF/EOthLMS4y1iZBc+XZnQX6peOIQnAQ
-         Slkg==
-X-Gm-Message-State: APjAAAWAd6NtDkJBmphEcJFU/OxD4FjTlIGf5d6HAoIG60uLdRjPr/jC
-	qjd+dQF0rEhMBOzdoiYmZQ3Sbj6OAbDKvW8d3Fedne7yNMXIyyjacuUW71E84prQ9RYQRf0Cm9I
-	AhV3AgLEYvZysP8Df/6JmSecqHYqNlbOSHfxYoqldUGxhut4j6kAYuH3NwSLY+IzhDg==
-X-Received: by 2002:a62:e806:: with SMTP id c6mr17682266pfi.158.1565296922814;
-        Thu, 08 Aug 2019 13:42:02 -0700 (PDT)
-X-Received: by 2002:a62:e806:: with SMTP id c6mr17682210pfi.158.1565296922009;
-        Thu, 08 Aug 2019 13:42:02 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565296922; cv=none;
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding:dkim-signature;
+        bh=oVBAQyD5xUlq4GMTL3CDo5/mxCgb1o2QAFYUcZwvsVY=;
+        b=OuvXgE8kulG2op28zXE5JAf8v5RX+wl4Zzdtfpm+CYS4Lic9Au8fpsMZz0srPF9wiQ
+         HKbrvWWAxf8z7U2KGQjZaTY2B2WNwEBKI1/szka9trG3c7U3/oXsFARK6J6ag0e3/ZWE
+         8IsPA+20uBakJyEaPAKc3ZOs19vn6FTJpHZ3ue5o37X8WnfrllpFY/rdoe88Rk7Qo1zN
+         id4r9g+1OicsgQnqozFOQ3IZHiE0V9dwTVRdDwXBUNVuy9+tMH0KciH72OAhu5YVWvm4
+         u10bWdDt7R1e8q49YBvwhOGgd8IBMrgDT7eGjgF79cYSl5GSuKu6oyw23Kh8w6MAshED
+         appQ==
+X-Gm-Message-State: APjAAAUAJSmCq5g5AAyo58vFByF/7eMo1hzZU7xkv9n575G3CwjDBDbp
+	/L9x5i9kVxEUXHLt76AVnPlrAy56T9aoNmgjXEuE5ZHHyk/dLKLkAWlkdD04uBfu0+ekSPaYBNm
+	D6Ch3Wh52dwQkuStmnOA1ZwxlSKt/AXpKYYEBW2Waya7/blQ8ZQsN8FTHvETJ1UHuyw==
+X-Received: by 2002:a17:90a:3651:: with SMTP id s75mr5863734pjb.13.1565298619202;
+        Thu, 08 Aug 2019 14:10:19 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxbAl7l5fnZ0K/CWPts1j/aHqyHNzr8aVLnIF2BiXaYlhcjjwbKt8bQdD2Cxnc+uMe3mNdQ
+X-Received: by 2002:a17:90a:3651:: with SMTP id s75mr5863649pjb.13.1565298618084;
+        Thu, 08 Aug 2019 14:10:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565298618; cv=none;
         d=google.com; s=arc-20160816;
-        b=U7c7ZlEQcGvi3xyoIQviYVFD+LPLnGVyXze6Rr3FfQrFDONLCMmO0rC8aIZRBQGdc7
-         ve1qokdA82ODwy/RVGkoQKiQgZzXU6vgYxsmU5TdVqaUJpgpvDmndAU5t3OtLb77gSEG
-         UGh07AFCsAyptxp4gBCVya9XQFOT25NhDfZDxlZMH7LiIn6tfKILAqEFyoVa7pkUEUWe
-         q3SXXkblOTLmg9GqEASosF2bGtIIeXoupipdvr4NWWKF900HL2h/LypoWvbI1dncDrbX
-         ZHgE9dKqv5mI+5HTkci1vZ+rkn5vWXBDx7VAWehtrcWs/w/GAITi79UM/oPiDCzonzxn
-         weOQ==
+        b=h8lVAJ/b5z0hfCUvwfRLWOTOfDEDcPDv/iJfN8AL3UtbP+dGag83k4Mb46lZpzvZYH
+         MNqdxwj+0ZgYZJsMa8FdJ3u2Q8oYGNeMiSTVE3t6Qw6U6+1J5cRxbC2yj0XGZbJ/DoDF
+         WqOFh/08P+Eivdo/3qfnuJ6BFlFQX4GLFrhWhIq0maHsuEDDbGFm5uhTduAitGT6W5r8
+         NSkQQ6VBrr9EFenU+gvs1K++fBnceSOumL2HdvsyFFhfposk863/XFLIzPa9ITvxxPyz
+         W4lb10YQqexUqji0yyLbbOGik5LaU9pM3NVfqGCo6aCKGvZLQdl+bqqBdRe2dt3dMCRM
+         ANkw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=in-reply-to:content-disposition:mime-version:references:message-id
-         :subject:cc:to:from:date:dkim-signature;
-        bh=nS7CPtzCVp0ONgQlGgkx7OXPZavZodPDNiD74pSN4ok=;
-        b=cW+so3Bx9mmx43EIBoLzdVzssSODTJaQCaWprQfdNn+ISTjp5BEub6Gpjy3fmgC+LW
-         di5ICisQHfF6VNNfG0yVDDmM68KvJcMK/q0ERXVX0XlgIYNnUHFlyhp+sqGIvVJ4nBND
-         lrtBMLTqpU2aev095Q7W0G600qS52muhfcO/vJ5wOxXLSrB/A3FD2yqoLDhSEVcTM8sN
-         R+zz+5fdLDPmkb6ZqRlKdVcL2GdpvIWorKTQucltXeE5zMOfk/+yRAkF+aaWbM69OnIF
-         EA5I3lFf+K+vQI6zM5zJ+e+4wMAp8jMZ2Q2gjOxBAFRHT4UWBSjRm1X394CgFTqQTKno
-         wkmQ==
+        h=dkim-signature:content-transfer-encoding:content-language
+         :in-reply-to:mime-version:user-agent:date:message-id:from:references
+         :cc:to:subject;
+        bh=oVBAQyD5xUlq4GMTL3CDo5/mxCgb1o2QAFYUcZwvsVY=;
+        b=L4QA7w/kPSHK7tE4EHmj9rrb0NCleX5LiVpOW+ddwNAS+5EQfam6PzWoKj6jRLq+Rf
+         Rt6jt4YZXMH6kLkfpLS854JiCAEcSC3ntfiZIdlEoQMzhuRLNA6sLCnhl6rerniDMOAx
+         wXpdCmLiH7cOrNmHJleBumMXaROPhua/D9mSP2tUxc8geA7PyPqb9BLgAMGU0EXsDouK
+         O787HoAuR6RQ/4SstAQcaamVkgpiUDIOh/8CAf9djM+VKnhMNUEX07kYmI9+LHvF/BTA
+         Rv5VdVLv4GWFhNo7M7R7JaGhVL9ZlegKb6CZcgyIeClOMVmabvN65b9ucc/TJ6tsPB6k
+         3PAw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=TsthMIhq;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id h71sor67396598pge.80.2019.08.08.13.42.01
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=DT8VEuxu;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
+        by mx.google.com with ESMTPS id p11si55558860pgk.223.2019.08.08.14.10.17
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Thu, 08 Aug 2019 13:42:01 -0700 (PDT)
-Received-SPF: pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Aug 2019 14:10:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@chromium.org header.s=google header.b=TsthMIhq;
-       spf=pass (google.com: domain of keescook@chromium.org designates 209.85.220.65 as permitted sender) smtp.mailfrom=keescook@chromium.org;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=chromium.org
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=chromium.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to;
-        bh=nS7CPtzCVp0ONgQlGgkx7OXPZavZodPDNiD74pSN4ok=;
-        b=TsthMIhqXtbXp4xH+Z2wSZTAZqhudiQe7esQYSq3NqIJCExnewze/88rqQMCne0v0d
-         FN5dRFOqevBvVNOO8AUZEPv3dAUQomTJ83wd9Wr7Y+kJNgX0HKAZzjJBQBi18lQPhP3w
-         ASwqJ7VwHaeLqfgYDU479i5gbC/Pz/daiarWM=
-X-Google-Smtp-Source: APXvYqzXHxnpRFvH9kCf1Uy9J4cWLZwuOKZTZDqgdkWhjibPvjL0xvjuHKfltUtrW/23JO7iytrk3Q==
-X-Received: by 2002:a63:60d1:: with SMTP id u200mr14395334pgb.439.1565296921533;
-        Thu, 08 Aug 2019 13:42:01 -0700 (PDT)
-Received: from www.outflux.net (smtp.outflux.net. [198.145.64.163])
-        by smtp.gmail.com with ESMTPSA id s22sm103042884pfh.107.2019.08.08.13.42.00
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 08 Aug 2019 13:42:00 -0700 (PDT)
-Date: Thu, 8 Aug 2019 13:41:59 -0700
-From: Kees Cook <keescook@chromium.org>
-To: Al Viro <viro@zeniv.linux.org.uk>
-Cc: Matthew Wilcox <willy@infradead.org>,
-	syzbot <syzbot+3de312463756f656b47d@syzkaller.appspotmail.com>,
-	allison@lohutok.net, andreyknvl@google.com, cai@lca.pw,
-	gregkh@linuxfoundation.org, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, linux-usb@vger.kernel.org,
-	syzkaller-bugs@googlegroups.com, tglx@linutronix.de,
-	Jiri Kosina <jkosina@suse.cz>
-Subject: Re: BUG: bad usercopy in hidraw_ioctl
-Message-ID: <201908081330.98485D9@keescook>
-References: <000000000000ce6527058f8bf0d0@google.com>
- <20190807195821.GD5482@bombadil.infradead.org>
- <20190808014925.GL1131@ZenIV.linux.org.uk>
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=DT8VEuxu;
+       spf=pass (google.com: domain of rcampbell@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=rcampbell@nvidia.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d4c8fbb0000>; Thu, 08 Aug 2019 14:10:19 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Thu, 08 Aug 2019 14:10:17 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Thu, 08 Aug 2019 14:10:17 -0700
+Received: from rcampbell-dev.nvidia.com (172.20.13.39) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Thu, 8 Aug
+ 2019 21:10:16 +0000
+Subject: Re: [PATCH 6/9] nouveau: simplify nouveau_dmem_migrate_to_ram
+To: Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+	<jglisse@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs
+	<bskeggs@redhat.com>
+CC: Bharata B Rao <bharata@linux.ibm.com>, Andrew Morton
+	<akpm@linux-foundation.org>, <linux-mm@kvack.org>,
+	<nouveau@lists.freedesktop.org>, <dri-devel@lists.freedesktop.org>,
+	<linux-kernel@vger.kernel.org>
+References: <20190808153346.9061-1-hch@lst.de>
+ <20190808153346.9061-7-hch@lst.de>
+From: Ralph Campbell <rcampbell@nvidia.com>
+X-Nvconfidentiality: public
+Message-ID: <08112ecb-0984-9e32-a463-e731bc014747@nvidia.com>
+Date: Thu, 8 Aug 2019 14:10:15 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190808014925.GL1131@ZenIV.linux.org.uk>
+In-Reply-To: <20190808153346.9061-7-hch@lst.de>
+X-Originating-IP: [172.20.13.39]
+X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1565298619; bh=oVBAQyD5xUlq4GMTL3CDo5/mxCgb1o2QAFYUcZwvsVY=;
+	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=DT8VEuxuGaFlUgwlrCBl+bxMJ34NfECopfGnQdXhLsvMTrSZTI/OVr3RSJRhwwWRJ
+	 w/QzZVbGKkx8yjcEIJYg1Ad+ljBOQOv8jG+ZFgmI7KmKcpt1OvYSee6jAWx8cXp2/d
+	 TXjfEyQaK/wxLWrI62Bn53t1WWNWi7l+8u4Cxw688GJ+8ij5Q7s2d91Tc/RtWWBAIR
+	 nf7+CHObeaDJ6MyhPbtTqKeOd1GJZxtTEF1dqVIfDf5jxnvRx4q1e8vpUlKCPuWnam
+	 w5yYUY5HGGmOskuTBVhHSaJNNsAcSwCjfiInxFUovLczrbBIO2I6r4d0fULpuRG1Mh
+	 JmS0XghUahm8Q==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 08, 2019 at 02:49:25AM +0100, Al Viro wrote:
-> On Wed, Aug 07, 2019 at 12:58:21PM -0700, Matthew Wilcox wrote:
-> > On Wed, Aug 07, 2019 at 12:28:06PM -0700, syzbot wrote:
-> > > usercopy: Kernel memory exposure attempt detected from wrapped address
-> > > (offset 0, size 0)!
-> > > ------------[ cut here ]------------
-> > > kernel BUG at mm/usercopy.c:98!
-> > 
-> > This report is confusing because the arguments to usercopy_abort() are wrong.
-> > 
-> >         /* Reject if object wraps past end of memory. */
-> >         if (ptr + n < ptr)
-> >                 usercopy_abort("wrapped address", NULL, to_user, 0, ptr + n);
 
-(Just to reiterate for this branch of the thread: this is an off-by-one
-false positive already fixed in -mm for -next. However, see below...)
-
-> > 
-> > ptr + n is not 'size', it's what wrapped.  I don't know what 'offset'
-> > should be set to, but 'size' should be 'n'.  Presumably we don't want to
-> > report 'ptr' because it'll leak a kernel address ... reporting 'n' will
-> > leak a range for a kernel address, but I think that's OK?  Admittedly an
-> > attacker can pass in various values for 'n', but it'll be quite noisy
-> > and leave a trace in the kernel logs for forensics to find afterwards.
-> > 
-> > > Call Trace:
-> > >  check_bogus_address mm/usercopy.c:151 [inline]
-> > >  __check_object_size mm/usercopy.c:260 [inline]
-> > >  __check_object_size.cold+0xb2/0xba mm/usercopy.c:250
-> > >  check_object_size include/linux/thread_info.h:119 [inline]
-> > >  check_copy_size include/linux/thread_info.h:150 [inline]
-> > >  copy_to_user include/linux/uaccess.h:151 [inline]
-> > >  hidraw_ioctl+0x38c/0xae0 drivers/hid/hidraw.c:392
-> > 
-> > The root problem would appear to be:
-> > 
-> >                                 else if (copy_to_user(user_arg + offsetof(
-> >                                         struct hidraw_report_descriptor,
-> >                                         value[0]),
-> >                                         dev->hid->rdesc,
-> >                                         min(dev->hid->rsize, len)))
-> > 
-> > That 'min' should surely be a 'max'?
+On 8/8/19 8:33 AM, Christoph Hellwig wrote:
+> Factor the main copy page to ram routine out into a helper that acts on
+> a single page and which doesn't require the nouveau_dmem_fault
+> structure for argument passing.  Also remove the loop over multiple
+> pages as we only handle one at the moment, although the structure of
+> the main worker function makes it relatively easy to add multi page
+> support back if needed in the future.  But at least for now this avoid
+> the needed to dynamically allocate memory for the dma addresses in
+> what is essentially the page fault path.
 > 
-> Surely not.  ->rsize is the amount of data available to copy out; len
-> is the size of buffer supplied by userland to copy into.
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
 
-include/uapi/linux/hid.h:#define HID_MAX_DESCRIPTOR_SIZE 4096
+Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
 
-drivers/hid/hidraw.c:
-                        if (get_user(len, (int __user *)arg))
-                                ret = -EFAULT;
-                        else if (len > HID_MAX_DESCRIPTOR_SIZE - 1)
-                                ret = -EINVAL;
-                        else if (copy_to_user(user_arg + offsetof(
-                                struct hidraw_report_descriptor,
-                                value[0]),
-                                dev->hid->rdesc,
-                                min(dev->hid->rsize, len)))
-                                ret = -EFAULT;
+> ---
+>   drivers/gpu/drm/nouveau/nouveau_dmem.c | 159 +++++++------------------
+>   1 file changed, 40 insertions(+), 119 deletions(-)
+> 
+> diff --git a/drivers/gpu/drm/nouveau/nouveau_dmem.c b/drivers/gpu/drm/nouveau/nouveau_dmem.c
+> index 21052a4aaf69..473195762974 100644
+> --- a/drivers/gpu/drm/nouveau/nouveau_dmem.c
+> +++ b/drivers/gpu/drm/nouveau/nouveau_dmem.c
+> @@ -86,13 +86,6 @@ static inline struct nouveau_dmem *page_to_dmem(struct page *page)
+>   	return container_of(page->pgmap, struct nouveau_dmem, pagemap);
+>   }
+>   
+> -struct nouveau_dmem_fault {
+> -	struct nouveau_drm *drm;
+> -	struct nouveau_fence *fence;
+> -	dma_addr_t *dma;
+> -	unsigned long npages;
+> -};
+> -
+>   struct nouveau_migrate {
+>   	struct vm_area_struct *vma;
+>   	struct nouveau_drm *drm;
+> @@ -146,130 +139,57 @@ static void nouveau_dmem_fence_done(struct nouveau_fence **fence)
+>   	}
+>   }
+>   
+> -static void
+> -nouveau_dmem_fault_alloc_and_copy(struct vm_area_struct *vma,
+> -				  const unsigned long *src_pfns,
+> -				  unsigned long *dst_pfns,
+> -				  unsigned long start,
+> -				  unsigned long end,
+> -				  struct nouveau_dmem_fault *fault)
+> +static vm_fault_t nouveau_dmem_fault_copy_one(struct nouveau_drm *drm,
+> +		struct vm_fault *vmf, struct migrate_vma *args,
+> +		dma_addr_t *dma_addr)
+>   {
+> -	struct nouveau_drm *drm = fault->drm;
+>   	struct device *dev = drm->dev->dev;
+> -	unsigned long addr, i, npages = 0;
+> -	nouveau_migrate_copy_t copy;
+> -	int ret;
+> -
+> +	struct page *dpage, *spage;
+> +	vm_fault_t ret = VM_FAULT_SIGBUS;
 
-The copy size must be less than 4096, which means dev->hid->rdesc is
-allocated at the highest page of memory. That whole space collides with
-the ERR_PTR region which has two bad potential side-effects:
+You can remove this line and return VM_FAULT_SIGBUS in the error path below.
 
-1) something that checks for ERR_PTRs combined with a high allocation
-will think it failed and leak the allocation.
+>   
+> -	/* First allocate new memory */
+> -	for (addr = start, i = 0; addr < end; addr += PAGE_SIZE, i++) {
+> -		struct page *dpage, *spage;
+> -
+> -		dst_pfns[i] = 0;
+> -		spage = migrate_pfn_to_page(src_pfns[i]);
+> -		if (!spage || !(src_pfns[i] & MIGRATE_PFN_MIGRATE))
+> -			continue;
+> -
+> -		dpage = alloc_page_vma(GFP_HIGHUSER, vma, addr);
+> -		if (!dpage) {
+> -			dst_pfns[i] = MIGRATE_PFN_ERROR;
+> -			continue;
+> -		}
+> -		lock_page(dpage);
+> -
+> -		dst_pfns[i] = migrate_pfn(page_to_pfn(dpage)) |
+> -			      MIGRATE_PFN_LOCKED;
+> -		npages++;
+> -	}
+> +	spage = migrate_pfn_to_page(args->src[0]);
+> +	if (!spage || !(args->src[0] & MIGRATE_PFN_MIGRATE))
+> +		return 0;
+>   
+> -	/* Allocate storage for DMA addresses, so we can unmap later. */
+> -	fault->dma = kmalloc(sizeof(*fault->dma) * npages, GFP_KERNEL);
+> -	if (!fault->dma)
+> +	dpage = alloc_page_vma(GFP_HIGHUSER, vmf->vma, vmf->address);
+> +	if (!dpage)
+>   		goto error;
+> +	lock_page(dpage);
+>   
+> -	/* Copy things over */
+> -	copy = drm->dmem->migrate.copy_func;
+> -	for (addr = start, i = 0; addr < end; addr += PAGE_SIZE, i++) {
+> -		struct page *spage, *dpage;
+> -
+> -		dpage = migrate_pfn_to_page(dst_pfns[i]);
+> -		if (!dpage || dst_pfns[i] == MIGRATE_PFN_ERROR)
+> -			continue;
+> -
+> -		spage = migrate_pfn_to_page(src_pfns[i]);
+> -		if (!spage || !(src_pfns[i] & MIGRATE_PFN_MIGRATE)) {
+> -			dst_pfns[i] = MIGRATE_PFN_ERROR;
+> -			__free_page(dpage);
+> -			continue;
+> -		}
+> -
+> -		fault->dma[fault->npages] =
+> -			dma_map_page_attrs(dev, dpage, 0, PAGE_SIZE,
+> -					   PCI_DMA_BIDIRECTIONAL,
+> -					   DMA_ATTR_SKIP_CPU_SYNC);
+> -		if (dma_mapping_error(dev, fault->dma[fault->npages])) {
+> -			dst_pfns[i] = MIGRATE_PFN_ERROR;
+> -			__free_page(dpage);
+> -			continue;
+> -		}
+> +	*dma_addr = dma_map_page(dev, dpage, 0, PAGE_SIZE, DMA_BIDIRECTIONAL);
+> +	if (dma_mapping_error(dev, *dma_addr))
+> +		goto error_free_page;
+>   
+> -		ret = copy(drm, 1, NOUVEAU_APER_HOST,
+> -				fault->dma[fault->npages++],
+> -				NOUVEAU_APER_VRAM,
+> -				nouveau_dmem_page_addr(spage));
+> -		if (ret) {
+> -			dst_pfns[i] = MIGRATE_PFN_ERROR;
+> -			__free_page(dpage);
+> -			continue;
+> -		}
+> -	}
+> +	if (drm->dmem->migrate.copy_func(drm, 1, NOUVEAU_APER_HOST, *dma_addr,
+> +			NOUVEAU_APER_VRAM, nouveau_dmem_page_addr(spage)))
+> +		goto error_dma_unmap;
+>   
+> -	nouveau_fence_new(drm->dmem->migrate.chan, false, &fault->fence);
+> -
+> -	return;
+> +	args->dst[0] = migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
+> +	ret = 0;
 
-2) something that doesn't check ERR_PTRs might try to stomp on an actual
-allocation in that area.
+This needs to be "return 0;" here so that dpage is not unmapped
+while the DMA I/O is in progress. It gets unmapped after the
+call to nouveau_dmem_fence_done() in nouveau_dmem_migrate_to_ram().
 
-How/why is there memory allocated there, I thought it was intentionally
-left unused specifically for ERR_PTR:
+>   
+> +error_dma_unmap:
+> +	dma_unmap_page(dev, *dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
+> +error_free_page:
+> +	__free_page(dpage);
+>   error:
+> -	for (addr = start, i = 0; addr < end; addr += PAGE_SIZE, ++i) {
+> -		struct page *page;
+> -
+> -		if (!dst_pfns[i] || dst_pfns[i] == MIGRATE_PFN_ERROR)
+> -			continue;
+> -
+> -		page = migrate_pfn_to_page(dst_pfns[i]);
+> -		dst_pfns[i] = MIGRATE_PFN_ERROR;
+> -		if (page == NULL)
+> -			continue;
+> -
+> -		__free_page(page);
+> -	}
+> -}
+> -
+> -static void
+> -nouveau_dmem_fault_finalize_and_map(struct nouveau_dmem_fault *fault)
+> -{
+> -	struct nouveau_drm *drm = fault->drm;
+> -
+> -	nouveau_dmem_fence_done(&fault->fence);
+> -
+> -	while (fault->npages--) {
+> -		dma_unmap_page(drm->dev->dev, fault->dma[fault->npages],
+> -			       PAGE_SIZE, PCI_DMA_BIDIRECTIONAL);
+> -	}
+> -	kfree(fault->dma);
+> +	return ret;
 
-Documentation/x86/x86_64/mm.rst:
+	return VM_FAULT_SIGBUS;
 
-     Start addr    | Offset |     End addr     | Size  | VM area description
-  ==========================================================================
-  ...
-  ffffffffffe00000 | -2  MB | ffffffffffffffff |  2 MB | ...unused hole
-
-
-or is this still a real bug with an invalid dev->hid->rdesc which was
-about to fault but usercopy got in the way first?
-
--- 
-Kees Cook
+>   }
+>   
+>   static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
+>   {
+>   	struct nouveau_dmem *dmem = page_to_dmem(vmf->page);
+> -	unsigned long src[1] = {0}, dst[1] = {0};
+> +	struct nouveau_drm *drm = dmem->drm;
+> +	struct nouveau_fence *fence;
+> +	unsigned long src = 0, dst = 0;
+> +	dma_addr_t dma_addr = 0;
+> +	vm_fault_t ret;
+>   	struct migrate_vma args = {
+>   		.vma		= vmf->vma,
+>   		.start		= vmf->address,
+>   		.end		= vmf->address + PAGE_SIZE,
+> -		.src		= src,
+> -		.dst		= dst,
+> +		.src		= &src,
+> +		.dst		= &dst,
+>   	};
+> -	struct nouveau_dmem_fault fault = { .drm = dmem->drm };
+>   
+>   	/*
+>   	 * FIXME what we really want is to find some heuristic to migrate more
+> @@ -281,16 +201,17 @@ static vm_fault_t nouveau_dmem_migrate_to_ram(struct vm_fault *vmf)
+>   	if (!args.cpages)
+>   		return 0;
+>   
+> -	nouveau_dmem_fault_alloc_and_copy(args.vma, src, dst, args.start,
+> -			args.end, &fault);
+> -	migrate_vma_pages(&args);
+> -	nouveau_dmem_fault_finalize_and_map(&fault);
+> +	ret = nouveau_dmem_fault_copy_one(drm, vmf, &args, &dma_addr);
+> +	if (ret || dst == 0)
+> +		goto done;
+>   
+> +	nouveau_fence_new(dmem->migrate.chan, false, &fence);
+> +	migrate_vma_pages(&args);
+> +	nouveau_dmem_fence_done(&fence);
+> +	dma_unmap_page(drm->dev->dev, dma_addr, PAGE_SIZE, DMA_BIDIRECTIONAL);
+> +done:
+>   	migrate_vma_finalize(&args);
+> -	if (dst[0] == MIGRATE_PFN_ERROR)
+> -		return VM_FAULT_SIGBUS;
+> -
+> -	return 0;
+> +	return ret;
+>   }
+>   
+>   static const struct dev_pagemap_ops nouveau_dmem_pagemap_ops = {
+> 
 
