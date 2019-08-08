@@ -2,276 +2,123 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 34EAFC433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 17:30:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06532C0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 17:43:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id E879B217F4
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 17:30:47 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E879B217F4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.de
+	by mail.kernel.org (Postfix) with ESMTP id BF20F2173C
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 17:43:31 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF20F2173C
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9450A6B0005; Thu,  8 Aug 2019 13:30:47 -0400 (EDT)
+	id 69F036B0003; Thu,  8 Aug 2019 13:43:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 91A6F6B0006; Thu,  8 Aug 2019 13:30:47 -0400 (EDT)
+	id 62BB26B0006; Thu,  8 Aug 2019 13:43:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7E3596B0007; Thu,  8 Aug 2019 13:30:47 -0400 (EDT)
+	id 518816B0007; Thu,  8 Aug 2019 13:43:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3321F6B0005
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 13:30:47 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id d27so58653819eda.9
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 10:30:47 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 13FF46B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 13:43:31 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id w25so58611349edu.11
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 10:43:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:message-id
-         :subject:from:to:cc:date:in-reply-to:references:user-agent
-         :mime-version;
-        bh=QGAu8baUX/dwJHptqlxauYxNTuXBD1fNfPWWjfKzsgA=;
-        b=qXg93dzorGvW8fG03D0LlDLTFY5JdACKYiYstSEoy/pYuX30WLkwd5a0hR+AvJ4szH
-         EZ+DJXd8/z/X8s1RG6m2ODADICOM/EtaF0GgJWWS4zUhJPM5SqpaEP+ybjdTtDtPsWn/
-         RVUhSab0+XTpIbg373om6tsTyb7OywkfljAHjwCj4O38Rdbz2kf5tT76wokp2duukU4g
-         Rsk01q3AIsUqBE9dsVTKOnhoy13MyaWIm1bMKl++rH2MchdVmbOVDXlK4nt7bHTtEF0L
-         SdG4uq175SLhWGB4nhwFXWP/ubjJungdaOliA1FP0swthtF2PpheTrU8pbRI2fs7JHV4
-         BxIg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
-X-Gm-Message-State: APjAAAWPMxFhEtlaREldh/TXLLS3x3JKydK4JPSW8DS4OQSg8jfDo5x5
-	X/ZCmZNZdx5GdUqqZscOY0g0sLuk7yLHGKA/xszK6Yn1ZAl/LU1S5kxYnS23hualb+IG2Ph2HLG
-	x4xLP3FxOGb2hlEhAfegsLgxM48XsRZbhZagpRNcDwNgfy+Vt2FW8RhK2dOgDxr23vg==
-X-Received: by 2002:a05:6402:1507:: with SMTP id f7mr17249070edw.94.1565285446641;
-        Thu, 08 Aug 2019 10:30:46 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwCcQ/I7IMqCCNxK7M5khus2j2TnDu8MPD3Q9OcIBM5HTn6HnU6ttqqSFeyadTBxUKXPWbc
-X-Received: by 2002:a05:6402:1507:: with SMTP id f7mr17248970edw.94.1565285445685;
-        Thu, 08 Aug 2019 10:30:45 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565285445; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=rNH82QolQNP9Pv+6bY7Cdvt8l3HvRf6sz/YqpahQXY4=;
+        b=oelhfL852sk7H1++cFDl74JHCpaAotKRQMYgHvhI4/A3NS2uM6c0WeabXEB9x/exs5
+         Q3tBv7SVuVNGhgTflbS7XovF9afFI98o5znOSJIcceoDW2bi9M8YgIAEEJbVuIyzQu1B
+         VHWb1lIWqdDyMHzOUV6CNnftSFpHy12nZ+ur0CPADpWZM2iY7LL/XdS6I2HRLz+ghLe5
+         T5VFYuX53EA+p0DHoXSrACCU/ga7Fkxs07gnDjePF72QdJ+Co3M03vNm5dfasiIHOAIz
+         yldR/b98Y3xWu69O5GnrAlxmfqXVV7oyjV7YGl2i1Rw4hlkWUiZ/EVndpRo0johvW/sT
+         YN8g==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+X-Gm-Message-State: APjAAAXkoc85IRpyacKX7XlJOPxU2dYKGQH+EpgcAhYPs2lz6T8lWKmv
+	kNME9p2TWSkngtu/h3x9bvBhxqZ6JRQYGz2RXHJgiBvPR5kQn56llCZdj8Dfmk4RNKESw60etkg
+	c5egbpBGIKg3siZMLBuNmBMZ7orGWtmXY4EyenSf9tZsFnZw1dJvs0WFs2hBhD6jXRQ==
+X-Received: by 2002:a50:ee0d:: with SMTP id g13mr17288868eds.113.1565286210660;
+        Thu, 08 Aug 2019 10:43:30 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxSSQ3HV8d68BgMkRy1NUxZWQfB6vP0O1sXMteJD5PXt3/6I34WK0JwEO2TEyQX+ZJO1fJL
+X-Received: by 2002:a50:ee0d:: with SMTP id g13mr17288797eds.113.1565286209889;
+        Thu, 08 Aug 2019 10:43:29 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565286209; cv=none;
         d=google.com; s=arc-20160816;
-        b=dE4eWl9jIofFcvXGyeNKmvJrs19YnD8gt9I3j6/GftByYWKVorAS8jU8W31ZvxUftO
-         B/hFl3kGnWO3cQ+pk/dZmLNQI6AieUckmMx7KjkCek6A0bvZsCzQ5s6QCjyqGVmMsfaF
-         m2335knNwaBi+HUb12tPG9RTbccfooAx83aHnCB6IsAe9lfhxsheuWcPEJESsaqYbw1G
-         cgjOQbje5Oi94YJIzrgBhXIf9hAm/EcY0gPAChOyr6i6av20gaHLqkXmYVMD6zA3zvTN
-         jgWxFGCFoWikbZP9YZM16ImW2xr0AE6wSZr04uEs7de5diZCEuZEdMKQvP7BTK836TIm
-         n1yg==
+        b=riIupXxGjGSgKu9TNpvNnz0RLz57NLfXsSsBjOO45WRqGFlyAFWIm2LEmjDi8h2dII
+         3l+OfmWtceDTyxHt1iLppWx24D1mF17K+Ua1lBo/SOD2s8IRvm/6Fsa81PXt+0/A0iz8
+         T3FCEcvd0W/l6FhgjKXy5v1RqZv89Ki5enKRyKhry3Vx2Sjk7r8OBSYpuQlkTrYvMva7
+         /ehexxALGhB5q6aqhW0ATv4ipLP8BZKXCYAJJi0zvIDC+zpp5kY55sHNyTjX35IA+PvD
+         9/b5HkRK63FEQjlA0dyAwD13DyEqXf0c5gcp3goJ0iZV/XaHlWxKtieRJ+TatgXHOVGc
+         1tCA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:user-agent:references:in-reply-to:date:cc:to:from
-         :subject:message-id;
-        bh=QGAu8baUX/dwJHptqlxauYxNTuXBD1fNfPWWjfKzsgA=;
-        b=oU+wwKVYe0H1SRBrKKMjD12kxqWV8bXuRAs1Q6OKkwjW5tRe/RB3VM1Rc+q/p4WwhC
-         Sx8qirBqxJTAkOB+mR6KOb+TzUKvBgLQU6FteFhahmsXukFzArPcq9kT+e9AuqCzThCB
-         5UAPypV7gkME19aB6ryjisQBieDJF9I9yhBcpd/U7Vy1raS7+PUqqQG6bEWYbRZONtH3
-         KdToj/74d+ntm8yFxkhAnvt4DiHtkIYliKSt0ayeLFJtzFG00eD6avqDiJTH6mQRGedn
-         Bfjw1EI3hzltyPxsiwEJ349rTF+c6LO8zfGaTz7cK8A8Xh+1CK2nrKt8LCeJg/YFKmuJ
-         lM4w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=rNH82QolQNP9Pv+6bY7Cdvt8l3HvRf6sz/YqpahQXY4=;
+        b=XSRU24QIWht3FBZaSdvKN74vgqLcVQG+VIUAlQIS370nhkVfdtsW4H7+CKVzl7WhCH
+         plhnP+XyZ6bq2cSg1PaNz8KUxoG2RRHnphBGWBjrIDfNDWDR6FiQN4AlCI9k31bdwURp
+         nwtnUS8cDfSYhuKuWwD8/qGAYxhUxdDYzGOHU6f0DD1wEJ+dYAK5y+TLTcdfkgUpe4hT
+         iUL7TEHNnn9t3DpB2IkLQxfZurfAJNEx/LYWpdPrtnliEKL3HX8Uj35qpOk02RRsoKkv
+         CzIWk5vlB5hN4Mz2qcRxyW3l/wbE1dVJDx8vgIRxLko2yEIBYNAR6t05gOx6ax3chSZg
+         3kIA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id x18si10421935edd.17.2019.08.08.10.30.45
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 10:30:45 -0700 (PDT)
-Received-SPF: pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id c4si34882381edq.280.2019.08.08.10.43.29
+        for <linux-mm@kvack.org>;
+        Thu, 08 Aug 2019 10:43:29 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of nsaenzjulienne@suse.de designates 195.135.220.15 as permitted sender) smtp.mailfrom=nsaenzjulienne@suse.de
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id E72A0AF4C;
-	Thu,  8 Aug 2019 17:30:44 +0000 (UTC)
-Message-ID: <6917ea286e76cb0f3f3bea23552a00d1b2a381de.camel@suse.de>
-Subject: Re: [PATCH 3/8] of/fdt: add function to get the SoC wide DMA
- addressable memory size
-From: Nicolas Saenz Julienne <nsaenzjulienne@suse.de>
-To: Rob Herring <robh+dt@kernel.org>
-Cc: phill@raspberryi.org, devicetree@vger.kernel.org, "moderated
- list:BROADCOM BCM2835 ARM ARCHITECTURE"
- <linux-rpi-kernel@lists.infradead.org>, Florian Fainelli
- <f.fainelli@gmail.com>,  Will Deacon <will@kernel.org>, Eric Anholt
- <eric@anholt.net>, Marc Zyngier <marc.zyngier@arm.com>,  Catalin Marinas
- <catalin.marinas@arm.com>, Frank Rowand <frowand.list@gmail.com>,
- "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
- linux-mm@kvack.org, Linux IOMMU <iommu@lists.linux-foundation.org>,
- Matthias Brugger <mbrugger@suse.com>,  wahrenst@gmx.net, Andrew Morton
- <akpm@linux-foundation.org>, Robin Murphy <robin.murphy@arm.com>, Christoph
- Hellwig <hch@lst.de>, "moderated list:ARM/FREESCALE IMX / MXC ARM
- ARCHITECTURE" <linux-arm-kernel@lists.infradead.org>, Marek Szyprowski
- <m.szyprowski@samsung.com>
-Date: Thu, 08 Aug 2019 19:30:42 +0200
-In-Reply-To: <CAL_JsqJS6XBSc8DuK2sJApHtY4nCSFpLezf003YMD75THLHAqg@mail.gmail.com>
-References: <20190731154752.16557-1-nsaenzjulienne@suse.de>
-	 <20190731154752.16557-4-nsaenzjulienne@suse.de>
-	 <CAL_JsqKF5nh3hcdLTG5+6RU3_TnFrNX08vD6qZ8wawoA3WSRpA@mail.gmail.com>
-	 <2050374ac07e0330e505c4a1637256428adb10c4.camel@suse.de>
-	 <CAL_Jsq+LjsRmFg-xaLgpVx3miXN3hid3aD+mgTW__j0SbEFYjQ@mail.gmail.com>
-	 <12eb3aba207c552e5eb727535e7c4f08673c4c80.camel@suse.de>
-	 <CAL_JsqJS6XBSc8DuK2sJApHtY4nCSFpLezf003YMD75THLHAqg@mail.gmail.com>
-Content-Type: multipart/signed; micalg="pgp-sha256";
-	protocol="application/pgp-signature"; boundary="=-aUnd1sGElH9S49gE7iVL"
-User-Agent: Evolution 3.32.4 
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id EF16815A2;
+	Thu,  8 Aug 2019 10:43:28 -0700 (PDT)
+Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B55B33F575;
+	Thu,  8 Aug 2019 10:43:27 -0700 (PDT)
+Date: Thu, 8 Aug 2019 18:43:25 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+To: Daniel Axtens <dja@axtens.net>
+Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, x86@kernel.org,
+	aryabinin@virtuozzo.com, glider@google.com, luto@kernel.org,
+	linux-kernel@vger.kernel.org, dvyukov@google.com
+Subject: Re: [PATCH v3 1/3] kasan: support backing vmalloc space with real
+ shadow memory
+Message-ID: <20190808174325.GD47131@lakrids.cambridge.arm.com>
+References: <20190731071550.31814-1-dja@axtens.net>
+ <20190731071550.31814-2-dja@axtens.net>
+ <20190808135037.GA47131@lakrids.cambridge.arm.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190808135037.GA47131@lakrids.cambridge.arm.com>
+User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Thu, Aug 08, 2019 at 02:50:37PM +0100, Mark Rutland wrote:
+> Hi Daniel,
+> 
+> This is looking really good!
+> 
+> I spotted a few more things we need to deal with, so I've suggested some
+> (not even compile-tested) code for that below. Mostly that's just error
+> handling, and using helpers to avoid things getting too verbose.
 
---=-aUnd1sGElH9S49gE7iVL
-Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
+FWIW, I had a quick go at that, and I've pushed the (corrected) results
+to my git repo, along with an initial stab at arm64 support (which is
+currently broken):
 
-On Thu, 2019-08-08 at 09:02 -0600, Rob Herring wrote:
-> On Tue, Aug 6, 2019 at 12:12 PM Nicolas Saenz Julienne
-> <nsaenzjulienne@suse.de> wrote:
-> > Hi Rob,
-> >=20
-> > On Mon, 2019-08-05 at 13:23 -0600, Rob Herring wrote:
-> > > On Mon, Aug 5, 2019 at 10:03 AM Nicolas Saenz Julienne
-> > > <nsaenzjulienne@suse.de> wrote:
-> > > > Hi Rob,
-> > > > Thanks for the review!
-> > > >=20
-> > > > On Fri, 2019-08-02 at 11:17 -0600, Rob Herring wrote:
-> > > > > On Wed, Jul 31, 2019 at 9:48 AM Nicolas Saenz Julienne
-> > > > > <nsaenzjulienne@suse.de> wrote:
-> > > > > > Some SoCs might have multiple interconnects each with their own=
- DMA
-> > > > > > addressing limitations. This function parses the 'dma-ranges' o=
-n
-> > > > > > each of
-> > > > > > them and tries to guess the maximum SoC wide DMA addressable me=
-mory
-> > > > > > size.
-> > > > > >=20
-> > > > > > This is specially useful for arch code in order to properly set=
-up
-> > > > > > CMA
-> > > > > > and memory zones.
-> > > > >=20
-> > > > > We already have a way to setup CMA in reserved-memory, so why is =
-this
-> > > > > needed for that?
-> > > >=20
-> > > > Correct me if I'm wrong but I got the feeling you got the point of =
-the
-> > > > patch
-> > > > later on.
-> > >=20
-> > > No, for CMA I don't. Can't we already pass a size and location for CM=
-A
-> > > region under /reserved-memory. The only advantage here is perhaps the
-> > > CMA range could be anywhere in the DMA zone vs. a fixed location.
-> >=20
-> > Now I get it, sorry I wasn't aware of that interface.
-> >=20
-> > Still, I'm not convinced it matches RPi's use case as this would hard-c=
-ode
-> > CMA's size. Most people won't care, but for the ones that do, it's nice=
-r to
-> > change the value from the kernel command line than editing the dtb.
->=20
-> Sure, I fully agree and am not a fan of the CMA DT overlays I've seen.
->=20
-> > I get that
-> > if you need to, for example, reserve some memory for the video to work,=
- it's
-> > silly not to hard-code it. Yet due to the board's nature and users base=
- I
-> > say
-> > it's important to favor flexibility. It would also break compatibility =
-with
-> > earlier versions of the board and diverge from the downstream kernel
-> > behaviour.
-> > Which is a bigger issue than it seems as most users don't always unders=
-tand
-> > which kernel they are running and unknowingly copy configuration option=
-s
-> > from
-> > forums.
-> >=20
-> > As I also need to know the DMA addressing limitations to properly confi=
-gure
-> > memory zones and dma-direct. Setting up the proper CMA constraints duri=
-ng
-> > the
-> > arch's init will be trivial anyway.
->=20
-> It was really just commentary on commit text as for CMA alone we have
-> a solution already. I agree on the need for zones.
+https://git.kernel.org/pub/scm/linux/kernel/git/mark/linux.git/log/?h=kasan/vmalloc
 
-Ok, understood :)
-
-> > > > > IMO, I'd just do:
-> > > > >=20
-> > > > > if (of_fdt_machine_is_compatible(blob, "brcm,bcm2711"))
-> > > > >     dma_zone_size =3D XX;
-> > > > >=20
-> > > > > 2 lines of code is much easier to maintain than 10s of incomplete=
- code
-> > > > > and is clearer who needs this. Maybe if we have dozens of SoCs wi=
-th
-> > > > > this problem we should start parsing dma-ranges.
-> > > >=20
-> > > > FYI that's what arm32 is doing at the moment and was my first insti=
-nct.
-> > > > But
-> > > > it
-> > > > seems that arm64 has been able to survive so far without any machin=
-e
-> > > > specific
-> > > > code and I have the feeling Catalin and Will will not be happy abou=
-t
-> > > > this
-> > > > solution. Am I wrong?
-> > >=20
-> > > No doubt. I'm fine if the 2 lines live in drivers/of/.
-> > >=20
-> > > Note that I'm trying to reduce the number of early_init_dt_scan_*
-> > > calls from arch code into the DT code so there's more commonality
-> > > across architectures in the early DT scans. So ideally, this can all
-> > > be handled under early_init_dt_scan() call.
-> >=20
-> > How does this look? (I'll split it in two patches and add a comment
-> > explaining
-> > why dt_dma_zone_size is needed)
-> >=20
-> > diff --git a/drivers/of/fdt.c b/drivers/of/fdt.c
-> > index f2444c61a136..1395be40b722 100644
-> > --- a/drivers/of/fdt.c
-> > +++ b/drivers/of/fdt.c
-> > @@ -30,6 +30,8 @@
-> >=20
-> >  #include "of_private.h"
-> >=20
-> > +u64 dt_dma_zone_size __ro_after_init;
->=20
-> Avoiding a call from arch code by just having a variable isn't really
-> better. I'd rather see a common, non DT specific variable that can be
-> adjusted. Something similar to initrd_start/end. Then the arch code
-> doesn't have to care what hardware description code adjusted the
-> value.
-
-Way better, I'll update it.
-
-
---=-aUnd1sGElH9S49gE7iVL
-Content-Type: application/pgp-signature; name="signature.asc"
-Content-Description: This is a digitally signed message part
-Content-Transfer-Encoding: 7bit
-
------BEGIN PGP SIGNATURE-----
-
-iQEzBAABCAAdFiEErOkkGDHCg2EbPcGjlfZmHno8x/4FAl1MXEIACgkQlfZmHno8
-x/4I5gf6A+XJGnTIx+91Jp1InIYL3ffBEX7UUGqmhdiznnad0gVF6JWh/Kq6dJyQ
-zkCiCoziJ5AFuNeS3Akpa7psFTnLYsWWaeL+FzWvSvLntp6ti6URyBlx5v4JeKT2
-QaGzJsdWWGEMXA8QIHk309B127xqqgKqFJKnOYubd1h7xdULE11Ht1Ur+mTlkur/
-AEaSkGTAJHap13dIxCnV2cdHt8u/79mL/vDRSCDLmUrJxaOcvQPSDQHIK86j+cBb
-OEzAaU89Ektf1Uq1GI5yjn0gBRcOiPw+TaMlJw4PcPWZN1Lfz8M9lb3+QZOrykTs
-KgzRXlmzYbKR0CO/8rK+dbxSO+x9gg==
-=JXPI
------END PGP SIGNATURE-----
-
---=-aUnd1sGElH9S49gE7iVL--
+Thanks,
+Mark.
 
