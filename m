@@ -3,100 +3,104 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-14.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C48BEC433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:13:53 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B096FC0650F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:14:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 75E492173E
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:13:53 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 5960621773
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:14:00 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="TMFjcZ4v"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 75E492173E
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="b+zT0f9f"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5960621773
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 115C26B0007; Thu,  8 Aug 2019 19:13:53 -0400 (EDT)
+	id F1EA66B0008; Thu,  8 Aug 2019 19:13:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 09E246B0008; Thu,  8 Aug 2019 19:13:53 -0400 (EDT)
+	id EA6DF6B000A; Thu,  8 Aug 2019 19:13:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EA7496B000A; Thu,  8 Aug 2019 19:13:52 -0400 (EDT)
+	id D47B86B000C; Thu,  8 Aug 2019 19:13:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-vk1-f199.google.com (mail-vk1-f199.google.com [209.85.221.199])
-	by kanga.kvack.org (Postfix) with ESMTP id BFF2A6B0007
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 19:13:52 -0400 (EDT)
-Received: by mail-vk1-f199.google.com with SMTP id u202so41176437vku.5
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 16:13:52 -0700 (PDT)
+Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
+	by kanga.kvack.org (Postfix) with ESMTP id AF0246B0008
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 19:13:59 -0400 (EDT)
+Received: by mail-qk1-f199.google.com with SMTP id f22so2864010qkg.0
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 16:13:59 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:message-id:mime-version
-         :subject:from:to:cc;
-        bh=wId29/KRlL3T3iL7X0HyROciU3enoTeQrmaI3uDvplM=;
-        b=sxlSSYaLEqBtTkchpI+hf/a93RHXd548kaP80ukL3Ti+U22wgX6nDWFlBHoIOBY8DP
-         W0SmvADvDKAkGBupdUC4vsNIu2l+1X2CSgrBe/tAwokqgv8u+5yJz2mtjmupcs6+bGIY
-         TeQKaVCvOHP3E4D8PrvU9neC/pUoSMzkRlkyj15fjFYRrFizemLpD8dVhvLCnebhXVrh
-         8pXazHAXwUZqX+h8OCJh3LrLGFxJhhYpuZP7fZsdBMv/beC3jUeu7eOV39qqXSuPzsQh
-         h/Xu9QVGASKB2HSWLmFqwzrxvHBVb7e3wJqI6EztRakAlld2gtkvQ4P7PNlgzk/KW9+M
-         w46Q==
-X-Gm-Message-State: APjAAAXYRt1KECMeuW6dapduWExKPlNVo+XJZt1P1R04Sg3l29IX/mXv
-	rbfW+QmtcZcb8EN/UWOmaPmlr+jFRDMkD0G/nktgLFl+mOPwEPAn7kFHyM6r39Ou4Wkqb73RECp
-	cylHqJSGAYmla2iuNduKtPjQ6+UBOW4qOnpOVOatvZohCNIone67IXPjAp5W+Q6JARg==
-X-Received: by 2002:a67:6282:: with SMTP id w124mr11485133vsb.4.1565306032417;
-        Thu, 08 Aug 2019 16:13:52 -0700 (PDT)
-X-Received: by 2002:a67:6282:: with SMTP id w124mr11485111vsb.4.1565306031681;
-        Thu, 08 Aug 2019 16:13:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565306031; cv=none;
+        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
+         :mime-version:references:subject:from:to:cc;
+        bh=1e5Y+e42KorvbcxGXpQwcEigXZeGV0ULHZdDaD0hvA4=;
+        b=mTQgQroyXFPdDozBxJGxYcr3OdD7NU7MLKyDSS0fXZ5W1OfwLRJ79HNGkVvE/UfaDO
+         rFtyOejXfN6Lx3u40FYqspXVwH7V+mBTcEwiw7DzRh1uRLr0J/5xavVnOcVARf52RqAn
+         TnYupJCQNAxQdDEb939OXZG/QEywftByl7r3VcsT4us7ydj9vv/k+D5A2UjfdzXPKF7h
+         g/jT0AKtekiN8xLgJrn+DytyEV/CHCsJiA7lAo6C/moa8LWkDav6EtRE8VyMTUM8sBUn
+         urGUfcXCFgak9V/Cw8hoJ95KqW6gYcIUNXSPnGz4yPl0tc8yBWAELSrKz96HtKognUyz
+         ww5Q==
+X-Gm-Message-State: APjAAAVqjCx136fJ9/Y4tg8jxpIZUXAT8LifYutFhn20Dn/Our7nq6Cs
+	r1D0zXt8YyZFEFJ4bTvxSll2VggfLGZ4mmPJhFlC3FiEBZ8IAc9Db5yPsuApu5VTABsQsKJlnHR
+	+S6XW7/W9iMylnNh+QIinQwVcqZsCRrqRWiQFHFCM3PdNBEW948PXUyj+dpE0xBq5QQ==
+X-Received: by 2002:a05:620a:5a7:: with SMTP id q7mr16047454qkq.477.1565306039427;
+        Thu, 08 Aug 2019 16:13:59 -0700 (PDT)
+X-Received: by 2002:a05:620a:5a7:: with SMTP id q7mr16047414qkq.477.1565306038697;
+        Thu, 08 Aug 2019 16:13:58 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565306038; cv=none;
         d=google.com; s=arc-20160816;
-        b=Xyic1IUhmuxkpsfEegRbuNwY6fd3tXqyOA6R/1UQl7ryWVSBmcDgpYZrUvV0Sp3PMI
-         NMmdFrg5hmEEmuYbDkgVz7JgDAC+83w3M1WCkwRnXK0VzoyrmPuPpugX8xdXLS66LNOr
-         ik81hY9ETCmFIl1JhbEIHBe/GxFuE0z1gAJBi+bw+CxJiC4dLfPf2t7Y++loNLSsB1MU
-         eWF2Cf8sNqPDf9E7+b1RP0zFgRiV0+eKzMRySaNCUAwlWmzSyrnZBjjgVRRRie4AGIk2
-         sLMgumlH6EtyZ88irCHWxow7F37Kn7ZJKLKrb+N9ot7XCAEs4JOH8rfys/N5MFbPDY56
-         SxwQ==
+        b=WnXfeaiSv8seAhGZ4V00DWqdo/b0FwzGFX+MQQ+fYAq9BaGbsuxjVDRAWzCz4Gqmkp
+         tgX0pxE9L2NspDvI9yewo0V6m4Rpb9ypfu3qr0NQD71qXm5M5yxrVMhBJL1BWsplDxXA
+         5M+AnmPV3/0v+r1ViKdxz3tNCawt2BiFVZgkx1LxFSKuBfg59F2e6Or8sX42VuPt2iKi
+         vVP2+bOOgcWIJPm5wDaA9CSgjrPWSaj2JR52TB6di+KbX5KKXTkr0MUdQzEoobLjLnn7
+         BhDWWY16FCnFjxxvH/VdsQ8PXM0PbqPsTkUSpgSk3EGGnUOH4oHIZS/K4HZ0jEkacs3T
+         LQvA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:mime-version:message-id:date:dkim-signature;
-        bh=wId29/KRlL3T3iL7X0HyROciU3enoTeQrmaI3uDvplM=;
-        b=Opod4V9H39FxEo2S7/cCWt2l2E3GupRIFcu4TmD+kU4zpNDWHweAq5A44W9c9tEG5k
-         SLi4ZASHmeanAt9Ds5GZMm0xgPhZakVV/IauhtX4xdtesm4EA4DqB9QgmCgLNc80hgSx
-         UKeY/9ghrNj41vJRM8ZM7d8OKod2ToGgad/qvRdaqv2ax7YrNtxdQwlfmMAA0APGhhRy
-         TWaCGZG3rF52skyGe0W3soiXjc9lz3A2oOolY0nVZY/wxQdae6KqgMTMT8WfKPi312KU
-         msn0FIqKpPYlxioUz9vWPU1e0Ld4xYvk+NC9Dxuvls/WF7cffVeOCfOmGTHG0Gh4xjoT
-         Ujrw==
+        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
+         :date:dkim-signature;
+        bh=1e5Y+e42KorvbcxGXpQwcEigXZeGV0ULHZdDaD0hvA4=;
+        b=eCnukQq+vvD1x4ViCpcAoP2zjcXya1z1HbMLgTQCEJBMp4EKpoTci6FS4tw/nx8rBi
+         MyMHrxEyKBlMSmMXlMYFFahY0S+4UnT7rMcdrvQhUctqCjnGqhagD/fjUaap/GcwolXW
+         ItXMnZ8fhLCAeJtReOyU5paw9Lz7t4gwyXOpjX17Iru8O0Ui9ikyO75L1qIN8mTN1MyF
+         1NdvM5EeJtzJ1FAI6E0EMPR9STOqS8Cdjj9mcY2BdyecGyjE5KVXQvcdKT6m2+QyX2Ph
+         F7dq+DaLeRXLS6Wi5rAmrPSUuAun2KZBjBgLOoY4D4jfDJpoDV8eehm71aUYwEgw7eCV
+         z4Vg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=TMFjcZ4v;
-       spf=pass (google.com: domain of 3r6xmxqskccwituiazguqviowwotm.kwutqvcf-uusdiks.wzo@flex--almasrymina.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3r6xMXQsKCCwITUIaZgUQVIOWWOTM.KWUTQVcf-UUSdIKS.WZO@flex--almasrymina.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=b+zT0f9f;
+       spf=pass (google.com: domain of 3tqxmxqskcdmpabphgnbxcpvddvat.rdbaxcjm-bbzkprz.dgv@flex--almasrymina.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3tqxMXQsKCDMPabPhgnbXcPVddVaT.RdbaXcjm-bbZkPRZ.dgV@flex--almasrymina.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id 82sor1871633vkm.56.2019.08.08.16.13.51
+        by mx.google.com with SMTPS id f4sor7235673qti.68.2019.08.08.16.13.58
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Thu, 08 Aug 2019 16:13:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3r6xmxqskccwituiazguqviowwotm.kwutqvcf-uusdiks.wzo@flex--almasrymina.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        Thu, 08 Aug 2019 16:13:58 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3tqxmxqskcdmpabphgnbxcpvddvat.rdbaxcjm-bbzkprz.dgv@flex--almasrymina.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=TMFjcZ4v;
-       spf=pass (google.com: domain of 3r6xmxqskccwituiazguqviowwotm.kwutqvcf-uusdiks.wzo@flex--almasrymina.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3r6xMXQsKCCwITUIaZgUQVIOWWOTM.KWUTQVcf-UUSdIKS.WZO@flex--almasrymina.bounces.google.com;
+       dkim=pass header.i=@google.com header.s=20161025 header.b=b+zT0f9f;
+       spf=pass (google.com: domain of 3tqxmxqskcdmpabphgnbxcpvddvat.rdbaxcjm-bbzkprz.dgv@flex--almasrymina.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3tqxMXQsKCDMPabPhgnbXcPVddVaT.RdbaXcjm-bbZkPRZ.dgV@flex--almasrymina.bounces.google.com;
        dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
-        h=date:message-id:mime-version:subject:from:to:cc;
-        bh=wId29/KRlL3T3iL7X0HyROciU3enoTeQrmaI3uDvplM=;
-        b=TMFjcZ4vhBvh4e7isaMSjyShLhjqgNI9SS84mRQBUZq7giQJNsbMV9xB8o589wPJjG
-         ATqzdkESubrtjfyBEvm0HFq7aHibDZTA+VfHQqC1k82g6SeBBy3ZTDPxYWtdtsgA5gb2
-         BaRU8mj248iyCd1JsH8c8z3c/1h2TbfYGpCiSAfmctaAa6DGr8+fhUkhzZc2E+FF0zff
-         4oqJ0+yopnx6PrZt4GfyCNDb5JdmETVvW4BJCoi29CZ8EgWzd2MoiLzfjPs4BA70d/ap
-         1mA4DuppfOGpbfO7bbk50y9t/h43rXMwgeWryuxIKqhcmfIG6gPb9Ygmtl0pwmsfnGk7
-         iD5A==
-X-Google-Smtp-Source: APXvYqzJjnEQKXMAlqlBk6hL4U4b6xmXEzBX0SnBKAOjCUKuT01y6ae1E3MP3SuI38xxfLnqA1lnQNJFkC1pyxj9Hg==
-X-Received: by 2002:a1f:5945:: with SMTP id n66mr6951132vkb.58.1565306031133;
- Thu, 08 Aug 2019 16:13:51 -0700 (PDT)
-Date: Thu,  8 Aug 2019 16:13:35 -0700
-Message-Id: <20190808231340.53601-1-almasrymina@google.com>
+        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
+         :cc;
+        bh=1e5Y+e42KorvbcxGXpQwcEigXZeGV0ULHZdDaD0hvA4=;
+        b=b+zT0f9fu3ULZ0gkfmCIj5ZnufLu5TrTyMwWV6AJcHZSMmCx7vDSJ678HGyeAZNvNR
+         HRmHfd11DfakQ4WibruAurLDZaAKlglidQFRwRel4tJ021LGCoozToPmLIDFt7zHH1OO
+         lsli6SbS7zTH9Mz7jEgwSq3wYd0RJVOM0WEkDUb6HeLaw3d1WT5JQ1gPstZbdXAIjhkT
+         Zk31JWtZT3EoPeJJmuV6/efvk9XKcRoc9S2YhR65FM7YW6fHe5K9v2lNn3b3c6YPzlv6
+         B2F7+oVMu6Kf7+vPrHz/b7G9vi4mbpKh2MPYppFHPiPJAjkAl/4VKB1CUO2o15wdpHSt
+         CuZQ==
+X-Google-Smtp-Source: APXvYqxZsZORtAFxvo/GCCxeazLSDeTloGwWD2nvNdmwV7J3BRRl3Vegc7pnzWtMZdZFgg0hWgmiIgFkIB0uV5GRKw==
+X-Received: by 2002:aed:3461:: with SMTP id w88mr15451018qtd.13.1565306038224;
+ Thu, 08 Aug 2019 16:13:58 -0700 (PDT)
+Date: Thu,  8 Aug 2019 16:13:36 -0700
+In-Reply-To: <20190808231340.53601-1-almasrymina@google.com>
+Message-Id: <20190808231340.53601-2-almasrymina@google.com>
 Mime-Version: 1.0
+References: <20190808231340.53601-1-almasrymina@google.com>
 X-Mailer: git-send-email 2.23.0.rc1.153.gdeed80330f-goog
-Subject: [RFC PATCH v2 0/5] hugetlb_cgroup: Add hugetlb_cgroup reservation limits
+Subject: [RFC PATCH v2 1/5] hugetlb_cgroup: Add hugetlb_cgroup reservation counter
 From: Mina Almasry <almasrymina@google.com>
 To: mike.kravetz@oracle.com
 Cc: shuah@kernel.org, almasrymina@google.com, rientjes@google.com, 
@@ -110,100 +114,227 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Problem:
-Currently tasks attempting to allocate more hugetlb memory than is available get
-a failure at mmap/shmget time. This is thanks to Hugetlbfs Reservations [1].
-However, if a task attempts to allocate hugetlb memory only more than its
-hugetlb_cgroup limit allows, the kernel will allow the mmap/shmget call,
-but will SIGBUS the task when it attempts to fault the memory in.
+These counters will track hugetlb reservations rather than hugetlb
+memory faulted in. This patch only adds the counter, following patches
+add the charging and uncharging of the counter.
+---
+ include/linux/hugetlb.h |  2 +-
+ mm/hugetlb_cgroup.c     | 86 +++++++++++++++++++++++++++++++++++++----
+ 2 files changed, 80 insertions(+), 8 deletions(-)
 
-We have developers interested in using hugetlb_cgroups, and they have expressed
-dissatisfaction regarding this behavior. We'd like to improve this
-behavior such that tasks violating the hugetlb_cgroup limits get an error on
-mmap/shmget time, rather than getting SIGBUS'd when they try to fault
-the excess memory in.
+diff --git a/include/linux/hugetlb.h b/include/linux/hugetlb.h
+index edfca42783192..6777b3013345d 100644
+--- a/include/linux/hugetlb.h
++++ b/include/linux/hugetlb.h
+@@ -340,7 +340,7 @@ struct hstate {
+ 	unsigned int surplus_huge_pages_node[MAX_NUMNODES];
+ #ifdef CONFIG_CGROUP_HUGETLB
+ 	/* cgroup control files */
+-	struct cftype cgroup_files[5];
++	struct cftype cgroup_files[9];
+ #endif
+ 	char name[HSTATE_NAME_LEN];
+ };
+diff --git a/mm/hugetlb_cgroup.c b/mm/hugetlb_cgroup.c
+index 68c2f2f3c05b7..708103663988a 100644
+--- a/mm/hugetlb_cgroup.c
++++ b/mm/hugetlb_cgroup.c
+@@ -25,6 +25,10 @@ struct hugetlb_cgroup {
+ 	 * the counter to account for hugepages from hugetlb.
+ 	 */
+ 	struct page_counter hugepage[HUGE_MAX_HSTATE];
++	/*
++	 * the counter to account for hugepage reservations from hugetlb.
++	 */
++	struct page_counter reserved_hugepage[HUGE_MAX_HSTATE];
+ };
 
-The underlying problem is that today's hugetlb_cgroup accounting happens
-at hugetlb memory *fault* time, rather than at *reservation* time.
-Thus, enforcing the hugetlb_cgroup limit only happens at fault time, and
-the offending task gets SIGBUS'd.
+ #define MEMFILE_PRIVATE(x, val)	(((x) << 16) | (val))
+@@ -33,6 +37,15 @@ struct hugetlb_cgroup {
 
-Proposed Solution:
-A new page counter named hugetlb.xMB.reservation_[limit|usage]_in_bytes. This
-counter has slightly different semantics than
-hugetlb.xMB.[limit|usage]_in_bytes:
+ static struct hugetlb_cgroup *root_h_cgroup __read_mostly;
 
-- While usage_in_bytes tracks all *faulted* hugetlb memory,
-reservation_usage_in_bytes tracks all *reserved* hugetlb memory.
++static inline
++struct page_counter *get_counter(struct hugetlb_cgroup *h_cg, int idx,
++				 bool reserved)
++{
++	if (reserved)
++		return  &h_cg->reserved_hugepage[idx];
++	return &h_cg->hugepage[idx];
++}
++
+ static inline
+ struct hugetlb_cgroup *hugetlb_cgroup_from_css(struct cgroup_subsys_state *s)
+ {
+@@ -256,28 +269,42 @@ void hugetlb_cgroup_uncharge_cgroup(int idx, unsigned long nr_pages,
 
-- If a task attempts to reserve more memory than limit_in_bytes allows,
-the kernel will allow it to do so. But if a task attempts to reserve
-more memory than reservation_limit_in_bytes, the kernel will fail this
-reservation.
+ enum {
+ 	RES_USAGE,
++	RES_RESERVATION_USAGE,
+ 	RES_LIMIT,
++	RES_RESERVATION_LIMIT,
+ 	RES_MAX_USAGE,
++	RES_RESERVATION_MAX_USAGE,
+ 	RES_FAILCNT,
++	RES_RESERVATION_FAILCNT,
+ };
 
-This proposal is implemented in this patch, with tests to verify
-functionality and show the usage.
+ static u64 hugetlb_cgroup_read_u64(struct cgroup_subsys_state *css,
+ 				   struct cftype *cft)
+ {
+ 	struct page_counter *counter;
++	struct page_counter *reserved_counter;
+ 	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(css);
 
-Alternatives considered:
-1. A new cgroup, instead of only a new page_counter attached to
-   the existing hugetlb_cgroup. Adding a new cgroup seemed like a lot of code
-   duplication with hugetlb_cgroup. Keeping hugetlb related page counters under
-   hugetlb_cgroup seemed cleaner as well.
+ 	counter = &h_cg->hugepage[MEMFILE_IDX(cft->private)];
++	reserved_counter = &h_cg->reserved_hugepage[MEMFILE_IDX(cft->private)];
 
-2. Instead of adding a new counter, we considered adding a sysctl that modifies
-   the behavior of hugetlb.xMB.[limit|usage]_in_bytes, to do accounting at
-   reservation time rather than fault time. Adding a new page_counter seems
-   better as userspace could, if it wants, choose to enforce different cgroups
-   differently: one via limit_in_bytes, and another via
-   reservation_limit_in_bytes. This could be very useful if you're
-   transitioning how hugetlb memory is partitioned on your system one
-   cgroup at a time, for example. Also, someone may find usage for both
-   limit_in_bytes and reservation_limit_in_bytes concurrently, and this
-   approach gives them the option to do so.
+ 	switch (MEMFILE_ATTR(cft->private)) {
+ 	case RES_USAGE:
+ 		return (u64)page_counter_read(counter) * PAGE_SIZE;
++	case RES_RESERVATION_USAGE:
++		return (u64)page_counter_read(reserved_counter) * PAGE_SIZE;
+ 	case RES_LIMIT:
+ 		return (u64)counter->max * PAGE_SIZE;
++	case RES_RESERVATION_LIMIT:
++		return (u64)reserved_counter->max * PAGE_SIZE;
+ 	case RES_MAX_USAGE:
+ 		return (u64)counter->watermark * PAGE_SIZE;
++	case RES_RESERVATION_MAX_USAGE:
++		return (u64)reserved_counter->watermark * PAGE_SIZE;
+ 	case RES_FAILCNT:
+ 		return counter->failcnt;
++	case RES_RESERVATION_FAILCNT:
++		return reserved_counter->failcnt;
+ 	default:
+ 		BUG();
+ 	}
+@@ -291,6 +318,7 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
+ 	int ret, idx;
+ 	unsigned long nr_pages;
+ 	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(of_css(of));
++	bool reserved = false;
 
-Caveats:
-1. This support is implemented for cgroups-v1. I have not tried
-   hugetlb_cgroups with cgroups v2, and AFAICT it's not supported yet.
-   This is largely because we use cgroups-v1 for now. If required, I
-   can add hugetlb_cgroup support to cgroups v2 in this patch or
-   a follow up.
-2. Most complicated bit of this patch I believe is: where to store the
-   pointer to the hugetlb_cgroup to uncharge at unreservation time?
-   Normally the cgroup pointers hang off the struct page. But, with
-   hugetlb_cgroup reservations, one task can reserve a specific page and another
-   task may fault it in (I believe), so storing the pointer in struct
-   page is not appropriate. Proposed approach here is to store the pointer in
-   the resv_map. See patch for details.
+ 	if (hugetlb_cgroup_is_root(h_cg)) /* Can't set limit on root */
+ 		return -EINVAL;
+@@ -303,10 +331,16 @@ static ssize_t hugetlb_cgroup_write(struct kernfs_open_file *of,
+ 	idx = MEMFILE_IDX(of_cft(of)->private);
+ 	nr_pages = round_down(nr_pages, 1 << huge_page_order(&hstates[idx]));
 
-Signed-off-by: Mina Almasry <almasrymina@google.com>
++	if (MEMFILE_ATTR(of_cft(of)->private) == RES_RESERVATION_LIMIT) {
++		reserved = true;
++	}
++
+ 	switch (MEMFILE_ATTR(of_cft(of)->private)) {
++	case RES_RESERVATION_LIMIT:
+ 	case RES_LIMIT:
+ 		mutex_lock(&hugetlb_limit_mutex);
+-		ret = page_counter_set_max(&h_cg->hugepage[idx], nr_pages);
++		ret = page_counter_set_max(get_counter(h_cg, idx, reserved),
++					   nr_pages);
+ 		mutex_unlock(&hugetlb_limit_mutex);
+ 		break;
+ 	default:
+@@ -320,18 +354,26 @@ static ssize_t hugetlb_cgroup_reset(struct kernfs_open_file *of,
+ 				    char *buf, size_t nbytes, loff_t off)
+ {
+ 	int ret = 0;
+-	struct page_counter *counter;
++	struct page_counter *counter, *reserved_counter;
+ 	struct hugetlb_cgroup *h_cg = hugetlb_cgroup_from_css(of_css(of));
 
-[1]: https://www.kernel.org/doc/html/latest/vm/hugetlbfs_reserv.html
+ 	counter = &h_cg->hugepage[MEMFILE_IDX(of_cft(of)->private)];
++	reserved_counter = &h_cg->reserved_hugepage[
++		MEMFILE_IDX(of_cft(of)->private)];
 
-Changes in v2:
-- Split the patch into a 5 patch series.
-- Fixed patch subject.
+ 	switch (MEMFILE_ATTR(of_cft(of)->private)) {
+ 	case RES_MAX_USAGE:
+ 		page_counter_reset_watermark(counter);
+ 		break;
++	case RES_RESERVATION_MAX_USAGE:
++		page_counter_reset_watermark(reserved_counter);
++		break;
+ 	case RES_FAILCNT:
+ 		counter->failcnt = 0;
+ 		break;
++	case RES_RESERVATION_FAILCNT:
++		reserved_counter->failcnt = 0;
++		break;
+ 	default:
+ 		ret = -EINVAL;
+ 		break;
+@@ -357,7 +399,7 @@ static void __init __hugetlb_cgroup_file_init(int idx)
+ 	struct hstate *h = &hstates[idx];
 
-Mina Almasry (5):
-  hugetlb_cgroup: Add hugetlb_cgroup reservation counter
-  hugetlb_cgroup: add interface for charge/uncharge hugetlb reservations
-  hugetlb_cgroup: add reservation accounting for private mappings
-  hugetlb_cgroup: add accounting for shared mappings
-  hugetlb_cgroup: Add hugetlb_cgroup reservation tests
+ 	/* format the size */
+-	mem_fmt(buf, 32, huge_page_size(h));
++	mem_fmt(buf, sizeof(buf), huge_page_size(h));
 
- include/linux/hugetlb.h                       |  10 +-
- include/linux/hugetlb_cgroup.h                |  19 +-
- mm/hugetlb.c                                  | 256 ++++++++--
- mm/hugetlb_cgroup.c                           | 153 +++++-
- tools/testing/selftests/vm/.gitignore         |   1 +
- tools/testing/selftests/vm/Makefile           |   4 +
- .../selftests/vm/charge_reserved_hugetlb.sh   | 438 ++++++++++++++++++
- .../selftests/vm/write_hugetlb_memory.sh      |  22 +
- .../testing/selftests/vm/write_to_hugetlbfs.c | 252 ++++++++++
- 9 files changed, 1087 insertions(+), 68 deletions(-)
- create mode 100755 tools/testing/selftests/vm/charge_reserved_hugetlb.sh
- create mode 100644 tools/testing/selftests/vm/write_hugetlb_memory.sh
- create mode 100644 tools/testing/selftests/vm/write_to_hugetlbfs.c
+ 	/* Add the limit file */
+ 	cft = &h->cgroup_files[0];
+@@ -366,28 +408,58 @@ static void __init __hugetlb_cgroup_file_init(int idx)
+ 	cft->read_u64 = hugetlb_cgroup_read_u64;
+ 	cft->write = hugetlb_cgroup_write;
 
+-	/* Add the usage file */
++	/* Add the reservation limit file */
+ 	cft = &h->cgroup_files[1];
++	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.reservation_limit_in_bytes",
++		 buf);
++	cft->private = MEMFILE_PRIVATE(idx, RES_RESERVATION_LIMIT);
++	cft->read_u64 = hugetlb_cgroup_read_u64;
++	cft->write = hugetlb_cgroup_write;
++
++	/* Add the usage file */
++	cft = &h->cgroup_files[2];
+ 	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.usage_in_bytes", buf);
+ 	cft->private = MEMFILE_PRIVATE(idx, RES_USAGE);
+ 	cft->read_u64 = hugetlb_cgroup_read_u64;
+
++	/* Add the reservation usage file */
++	cft = &h->cgroup_files[3];
++	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.reservation_usage_in_bytes",
++			buf);
++	cft->private = MEMFILE_PRIVATE(idx, RES_RESERVATION_USAGE);
++	cft->read_u64 = hugetlb_cgroup_read_u64;
++
+ 	/* Add the MAX usage file */
+-	cft = &h->cgroup_files[2];
++	cft = &h->cgroup_files[4];
+ 	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.max_usage_in_bytes", buf);
+ 	cft->private = MEMFILE_PRIVATE(idx, RES_MAX_USAGE);
+ 	cft->write = hugetlb_cgroup_reset;
+ 	cft->read_u64 = hugetlb_cgroup_read_u64;
+
++	/* Add the MAX reservation usage file */
++	cft = &h->cgroup_files[5];
++	snprintf(cft->name, MAX_CFTYPE_NAME,
++			"%s.reservation_max_usage_in_bytes", buf);
++	cft->private = MEMFILE_PRIVATE(idx, RES_RESERVATION_MAX_USAGE);
++	cft->write = hugetlb_cgroup_reset;
++	cft->read_u64 = hugetlb_cgroup_read_u64;
++
+ 	/* Add the failcntfile */
+-	cft = &h->cgroup_files[3];
++	cft = &h->cgroup_files[6];
+ 	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.failcnt", buf);
+ 	cft->private  = MEMFILE_PRIVATE(idx, RES_FAILCNT);
+ 	cft->write = hugetlb_cgroup_reset;
+ 	cft->read_u64 = hugetlb_cgroup_read_u64;
+
++	/* Add the reservation failcntfile */
++	cft = &h->cgroup_files[7];
++	snprintf(cft->name, MAX_CFTYPE_NAME, "%s.reservation_failcnt", buf);
++	cft->private  = MEMFILE_PRIVATE(idx, RES_FAILCNT);
++	cft->write = hugetlb_cgroup_reset;
++	cft->read_u64 = hugetlb_cgroup_read_u64;
++
+ 	/* NULL terminate the last cft */
+-	cft = &h->cgroup_files[4];
++	cft = &h->cgroup_files[8];
+ 	memset(cft, 0, sizeof(*cft));
+
+ 	WARN_ON(cgroup_add_legacy_cftypes(&hugetlb_cgrp_subsys,
 --
 2.23.0.rc1.153.gdeed80330f-goog
 
