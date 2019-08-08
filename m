@@ -2,174 +2,188 @@ Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CB737C433FF
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 14:11:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0DCCEC433FF
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 14:26:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9446A214C6
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 14:11:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9446A214C6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id B82202171F
+	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 14:26:35 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="RRhMYeIA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B82202171F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 25B086B0007; Thu,  8 Aug 2019 10:11:55 -0400 (EDT)
+	id 61FE26B0007; Thu,  8 Aug 2019 10:26:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 20AF66B0008; Thu,  8 Aug 2019 10:11:55 -0400 (EDT)
+	id 5D1096B0008; Thu,  8 Aug 2019 10:26:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 149946B000A; Thu,  8 Aug 2019 10:11:55 -0400 (EDT)
+	id 498A46B000A; Thu,  8 Aug 2019 10:26:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
-	by kanga.kvack.org (Postfix) with ESMTP id EC32C6B0007
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 10:11:54 -0400 (EDT)
-Received: by mail-qk1-f197.google.com with SMTP id p18so8981656qke.9
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 07:11:54 -0700 (PDT)
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id F3A8B6B0007
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 10:26:34 -0400 (EDT)
+Received: by mail-wr1-f69.google.com with SMTP id j10so2290435wrb.16
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 07:26:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:organization
-         :from:to:cc:subject:mime-version:content-id
-         :content-transfer-encoding:date:message-id;
-        bh=iUeaBtNknoNIuo+MfYBccSjF5YTHu77Rw5kwqTJ56Yk=;
-        b=X5k8lDqpju2EarA1DGworOiCSO7mgTa5RzBdsk1ERvGef+AFgmLaEMz7xpxMpGbvdp
-         zCtWA2H3UvaDB5NgN2hNRWGdmhJq/8H7V1VMrmEpwAl+3BLRRZnxijdb3Y0xJWJnAUm/
-         6wyBlXAaUnZmoCQfabzVgvfcFAe0W136zhtUWCo+asWWRUYP3u69KkupzYN12KZOf2ap
-         w1v8hJJPzhe+C8IKBVFbejBiJAboQro+yeJEW0G+tQdssFHn6CKDyYxdtYfYcZ/gvjpj
-         oDY+N8cMg6rGKd/wDajd8RL8Hnr9kfW0dwgjVAmMomajjN6OGjmUfFb7V70Egkiv504U
-         z+Sg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVQtJ14lTBzq/0zJEptPElY78PsUWQRueqvdhuKJWyiFQRNm5Fj
-	dQeIoWMRCGpwOlwAZqdnxwZknXT6WYk5apxrquUF/DqlnAroofHSueU/vl9B2neEkjNsgrv5SXf
-	jniu81AF1B47p0dmZnpta1TnOP6ob20kSwxZDXqgZ7Ocwe7diiKsnOguqbK52ehMTUw==
-X-Received: by 2002:aed:33e6:: with SMTP id v93mr13412954qtd.157.1565273514663;
-        Thu, 08 Aug 2019 07:11:54 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx7F2FzGBC4jOLpDJFPuXtq72w9xjkaJDLgCqr15ptsXrKkOnsrGhlvpS+pXrp047QpYLhl
-X-Received: by 2002:aed:33e6:: with SMTP id v93mr13412890qtd.157.1565273513892;
-        Thu, 08 Aug 2019 07:11:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565273513; cv=none;
+        h=x-gm-message-state:dkim-signature:mime-version:references
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=fj4z8W6cdsh45vekjTO59hBeNsl3ptwt6rJ4Cmg/whI=;
+        b=nSrexgC806wWmYpeDS9Ue9UdaRgNSn1C/a/cLehNBWjnYJ+NpjfZnnEr1LpzDUcIDy
+         Nl8VnpTeh8DruY9HANXdD2+ZI2cOgJN0dCVGI08HhzVas54IvCQpIV+vGOmoxFX6j2wp
+         6KXUKcYzLEmkYr+5RxeD6wNG7jYFoCOlx9UNB3lvYbxgLkAVQkD29avlJmt5pcfqjZ5O
+         9r06hq75kj2GM64oYTYybq1vyhphSNu/jvpx1aX3H5VBRzTyg/F2wYeUMXwWpeJ8dlyC
+         xz2TtSIf+RPakpH0LNZEf0dYG1HL4XqHKba+1l/UF/4h0ODs9RXda17qOT+zRbXXrOkj
+         nrIA==
+X-Gm-Message-State: APjAAAWopWStXlLoOoBZ3YHDDG1Ky11RysKgYBlkEqg4fAvDttIrKmyR
+	U1Hllx/2f5n2loqRB+4i3pC0HJEAO/HDdAymQoVlmDdzV8cHVdlxeWRXjiVOI7bfpefiKOmaXEr
+	3syASJa0ggBsSONINbOkZOK9jR6gvLmBb0hV3a8DGFtQg1xWfSXuSF1h1vNDZQwnCjw==
+X-Received: by 2002:adf:cd81:: with SMTP id q1mr18014317wrj.16.1565274394488;
+        Thu, 08 Aug 2019 07:26:34 -0700 (PDT)
+X-Received: by 2002:adf:cd81:: with SMTP id q1mr18014174wrj.16.1565274393593;
+        Thu, 08 Aug 2019 07:26:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565274393; cv=none;
         d=google.com; s=arc-20160816;
-        b=mCkQFhU0i1IQvQbrxACIawlug0LB9aCXcwtNgGkEcX7fERvPo8fPZsGC/sMM7aK3/J
-         KUNnGNwzHsVnPJS3DKPGx+fYwE2stfD5dJZerB37TBDEa7+Yg+w/pF5GwTx6tz/EnFNn
-         ofYCPlfA+ImH7dS3x2T28w7dx1YXNjonDRqHaVs2mzBQ97C1Man1Ez76JsdaTF9ekT5o
-         m9sLxoyCZ80j3mtbpFreiC0xrJYRDYxInXyCRGOnlr6QnZSFyRlHuDZYjjsP9XhrQLUr
-         8+K8B3XiKRS0DF8VBqUb+GJ/WlmdEqmw/vVsbtk4zbg2lWHKJ3C04WXl2Y9gNE1uZPxg
-         a2PQ==
+        b=daokLpItAw20TOXT1zySi6DYQD3uewTC7mlL1a5Ftv2f5/Yq0Xz2rozi9Ur5/jI7lh
+         rzsBLpgtmEpCn5NcLGL5v3VTKCqRBNq6TQjRlpUV5+WO5DWQqq+Z0+xP0RWCLsQ62CIB
+         W9dxVztT6YoNY0+lGWIYgY1p3cbUTVYDfKtl3m8qxaDZKzjW1vyZ2JQRefpWEwPsMMWf
+         qK2O9goldRIL0AqTDAR52JRq5uNXLcRQ8u9/KCuyMefP1u4ptViaZXiWVzaz9Toz16Lk
+         OCdJBPmjY6B2rhAG7h9FCeU25mINuEZBx64BPeKA4kkb6/1foX5NQBG6rZ8atWqJap+z
+         IkgA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:content-transfer-encoding:content-id:mime-version
-         :subject:cc:to:from:organization;
-        bh=iUeaBtNknoNIuo+MfYBccSjF5YTHu77Rw5kwqTJ56Yk=;
-        b=GCt7mY2YbmFSFjUjbcX1eLFPJkG/RDd9AIo4WoCBck6jH/Ef/GywrFHmC52vOqkwP1
-         VZFFWpqpRdHVbNbKpnB/6RrJDRyzD+9TUQVUvlF2u3t7RzWjg1vuex4+Wq6gF/lwinj9
-         xRPSqxI/DLHgSIoac38uCtl8YyvHywFmMWh7kn6NoS6XIsGRrT2hXwCqkfA+potEwtr+
-         9i1zjFxCMjc5Za8JTTU6lIkxPmuuoavGXDgHrUpc4Z2HRl6r5EbLRgEIyFNX5ZCDYR6V
-         bh5I9AbHKRltAqSY+d58VyTsLG5OVx33Y8OdZBCDLLAdpKiafneRlvd2vFLB2Az5YvTp
-         j4Kg==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=fj4z8W6cdsh45vekjTO59hBeNsl3ptwt6rJ4Cmg/whI=;
+        b=RwXz9DNaLO40j/bIWg6ex76wI2MAvG3M89zfrzNIX6msZZkBb/GOt+pZm8cCbzFRjZ
+         tPihDfzKyOCmawXiwR0OrMm5BEtI1MgESRtvrdSddrj+Nyy3oioCOHbjxK30mCy6B+1I
+         MFmXONZGbhcR4KT1npOAQzdxFtOxWDn1kJeZwudjtcq1xTiJf9OyuIlXqzM3vCS0vSd8
+         kxsQMhyutW9dgiwAJrPyERLnKPOahOcTN0q7/TbUKW5IFfOiUYT0YCoKu4xjv7TTQHqi
+         expMaIEg2FtVc/N1rv8r7w3AksrwRC74SKsW6Su1GugMrAgxWkvXP/Kk53KihVGQdEf/
+         bUAg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id x7si51540012qkc.224.2019.08.08.07.11.53
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RRhMYeIA;
+       spf=pass (google.com: domain of alexdeucher@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexdeucher@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f41.google.com (mail-sor-f41.google.com. [209.85.220.41])
+        by mx.google.com with SMTPS id l6sor73528885wrm.27.2019.08.08.07.26.33
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 07:11:53 -0700 (PDT)
-Received-SPF: pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Thu, 08 Aug 2019 07:26:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alexdeucher@gmail.com designates 209.85.220.41 as permitted sender) client-ip=209.85.220.41;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of dhowells@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=dhowells@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 0AAE751F0C;
-	Thu,  8 Aug 2019 14:11:53 +0000 (UTC)
-Received: from warthog.procyon.org.uk (ovpn-120-255.rdu2.redhat.com [10.10.120.255])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 5BCD1608AB;
-	Thu,  8 Aug 2019 14:11:52 +0000 (UTC)
-Organization: Red Hat UK Ltd. Registered Address: Red Hat UK Ltd, Amberley
-	Place, 107-111 Peascod Street, Windsor, Berkshire, SI4 1TE, United
-	Kingdom.
-	Registered in England and Wales under Company Registration No. 3798903
-From: David Howells <dhowells@redhat.com>
-To: Christoph Lameter <cl@linux.com>
-cc: dhowells@redhat.com, linux-mm@kvack.org
-Subject: [PATCH] Add a slab corruption tracepoint
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=RRhMYeIA;
+       spf=pass (google.com: domain of alexdeucher@gmail.com designates 209.85.220.41 as permitted sender) smtp.mailfrom=alexdeucher@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=fj4z8W6cdsh45vekjTO59hBeNsl3ptwt6rJ4Cmg/whI=;
+        b=RRhMYeIA7cCQUcGs45JixmTtly34i8plV+jX6oGViZMW4eL2Ijzb1AzcvVEJggHCkM
+         B/TP2QGUWVE9E5bYd4lyzrnf6B6MTxk/tB/T9h5v2ECCq+utUeNQbMSBIW2O+xWY4T29
+         G8aIgsfuSNkjcEDWsSkJvLkBUVIR+F39sZlFvCPgOAFtGn+O9i7lonpqCbBMljV5eGwy
+         r2DrKDVQ/8hhr4E43auR8B9PuN0Vml515UZP4VW9Q4UEaa4cInjOo2snNLRahUyBlcHy
+         CfFitbZ8HKj7EDAbpBzLzpIKRib/oEDwr0j3LC83Ij2YojhZfbQenOo6Pk6AYYAg6wcb
+         7/Ww==
+X-Google-Smtp-Source: APXvYqz8UZ005WObjnpvvUlwMyJ+M+pW0lN58RILDMrzqJs48bBb4psl0QdHA4tRVfPepBkzMTIl6iz4vtMFsvd3YHU=
+X-Received: by 2002:adf:f94a:: with SMTP id q10mr16172298wrr.341.1565274393148;
+ Thu, 08 Aug 2019 07:26:33 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <26517.1565273511.1@warthog.procyon.org.uk>
-Content-Transfer-Encoding: quoted-printable
-Date: Thu, 08 Aug 2019 15:11:51 +0100
-Message-ID: <26518.1565273511@warthog.procyon.org.uk>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Thu, 08 Aug 2019 14:11:53 +0000 (UTC)
+References: <20190806014830.7424-1-hdanton@sina.com> <CABXGCsMRGRpd9AoJdvZqdpqCP3QzVGzfDPiX=PzVys6QFBLAvA@mail.gmail.com>
+ <CADnq5_O08v3_NUZ_zUZJFYwv_tUY7TFFz2GGudqgWEX6nh5LFA@mail.gmail.com> <6d5110ab-6539-378d-f643-0a1d4cf0ff73@daenzer.net>
+In-Reply-To: <6d5110ab-6539-378d-f643-0a1d4cf0ff73@daenzer.net>
+From: Alex Deucher <alexdeucher@gmail.com>
+Date: Thu, 8 Aug 2019 10:26:20 -0400
+Message-ID: <CADnq5_P=gtz_8vNyV7At73PngbNS_-cyAnpd3aKGPUFyrK64EA@mail.gmail.com>
+Subject: Re: The issue with page allocation 5.3 rc1-rc2 (seems drm culprit here)
+To: =?UTF-8?Q?Michel_D=C3=A4nzer?= <michel@daenzer.net>
+Cc: Mikhail Gavrilov <mikhail.v.gavrilov@gmail.com>, Hillf Danton <hdanton@sina.com>, 
+	Dave Airlie <airlied@gmail.com>, 
+	Linux List Kernel Mailing <linux-kernel@vger.kernel.org>, amd-gfx list <amd-gfx@lists.freedesktop.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, dri-devel <dri-devel@lists.freedesktop.org>, 
+	"Deucher, Alexander" <Alexander.Deucher@amd.com>, Harry Wentland <harry.wentland@amd.com>, 
+	"Koenig, Christian" <Christian.Koenig@amd.com>
+Content-Type: multipart/mixed; boundary="0000000000002e1b8c058f9bd85e"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-    =
+--0000000000002e1b8c058f9bd85e
+Content-Type: text/plain; charset="UTF-8"
+Content-Transfer-Encoding: quoted-printable
 
-Add a tracepoint to log slab corruption messages to the trace log also so
-that it's easier to correlate with other trace messages that are being use=
-d
-to track refcounting.
+On Thu, Aug 8, 2019 at 4:13 AM Michel D=C3=A4nzer <michel@daenzer.net> wrot=
+e:
+>
+> On 2019-08-08 7:31 a.m., Alex Deucher wrote:
+> > On Wed, Aug 7, 2019 at 11:49 PM Mikhail Gavrilov
+> > <mikhail.v.gavrilov@gmail.com> wrote:
+> >>
+> >> Unfortunately error "gnome-shell: page allocation failure: order:4,
+> >> mode:0x40cc0(GFP_KERNEL|__GFP_COMP),
+> >> nodemask=3D(null),cpuset=3D/,mems_allowed=3D0" still happens even with
+> >> applying this patch.
+> >
+> > I think we can just drop the kmalloc altogether.  How about this patch?
+>
+> Memory allocated by kvz/malloc needs to be freed with kvfree.
+>
 
-Signed-off-by: David Howells <dhowells@redhat.com>
----
- include/trace/events/kmem.h |   23 +++++++++++++++++++++++
- mm/slab.c                   |    2 ++
- 2 files changed, 25 insertions(+)
+Yup, good catch.  Updated patch attached.
 
-diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-index eb57e3037deb..c96f3b03a6e2 100644
---- a/include/trace/events/kmem.h
-+++ b/include/trace/events/kmem.h
-@@ -315,6 +315,29 @@ TRACE_EVENT(mm_page_alloc_extfrag,
- 		__entry->change_ownership)
- );
- =
+Alex
 
-+TRACE_EVENT(slab_corruption,
-+	TP_PROTO(const char *slab, void *object, unsigned int size, unsigned int=
- offset),
-+
-+	TP_ARGS(slab, object, size, offset),
-+
-+	TP_STRUCT__entry(
-+		__field(	void *,		object		)
-+		__field(	unsigned int,	size		)
-+		__field(	unsigned int,	offset		)
-+		__array(	char,		slab, 16	)
-+	),
-+
-+	TP_fast_assign(
-+		strlcpy(__entry->slab, slab, sizeof(__entry->slab));
-+		__entry->object		=3D object;
-+		__entry->size		=3D size;
-+		__entry->offset		=3D offset;
-+	),
-+
-+	TP_printk("slab=3D%s obj=3D%px size=3D%x off=3D%x",
-+		  __entry->slab, __entry->object, __entry->size, __entry->offset)
-+);
-+
- #endif /* _TRACE_KMEM_H */
- =
+--0000000000002e1b8c058f9bd85e
+Content-Type: text/x-patch; charset="US-ASCII"; 
+	name="0001-drm-amd-display-use-kvmalloc-for-dc_state-v2.patch"
+Content-Disposition: attachment; 
+	filename="0001-drm-amd-display-use-kvmalloc-for-dc_state-v2.patch"
+Content-Transfer-Encoding: base64
+Content-ID: <f_jz2ry4ps0>
+X-Attachment-Id: f_jz2ry4ps0
 
- /* This part must be outside protection */
-diff --git a/mm/slab.c b/mm/slab.c
-index 9df370558e5d..47c5a86e39be 100644
---- a/mm/slab.c
-+++ b/mm/slab.c
-@@ -1527,6 +1527,8 @@ static void check_poison_obj(struct kmem_cache *cach=
-ep, void *objp)
- 				       print_tainted(), cachep->name,
- 				       realobj, size);
- 				print_objinfo(cachep, objp, 0);
-+				trace_slab_corruption(cachep->name, realobj,
-+						      size, i);
- 			}
- 			/* Hexdump the affected line */
- 			i =3D (i / 16) * 16;
+RnJvbSA1YzI3YzI1Y2U3OWFjMmIxOGEzN2JjZDdkYzZmYTBiZDNkODczM2QzIE1vbiBTZXAgMTcg
+MDA6MDA6MDAgMjAwMQpGcm9tOiBBbGV4IERldWNoZXIgPGFsZXhhbmRlci5kZXVjaGVyQGFtZC5j
+b20+CkRhdGU6IFRodSwgOCBBdWcgMjAxOSAwMDoyOToyMyAtMDUwMApTdWJqZWN0OiBbUEFUQ0hd
+IGRybS9hbWQvZGlzcGxheTogdXNlIGt2bWFsbG9jIGZvciBkY19zdGF0ZSAodjIpCgpJdCdzIGxh
+cmdlIGFuZCBkb2Vzbid0IG5lZWQgY29udGlndW91cyBtZW1vcnkuCgp2Mjoga3ZmcmVlIHRoZSBt
+ZW1vcnkuCgpTaWduZWQtb2ZmLWJ5OiBBbGV4IERldWNoZXIgPGFsZXhhbmRlci5kZXVjaGVyQGFt
+ZC5jb20+Ci0tLQogZHJpdmVycy9ncHUvZHJtL2FtZC9kaXNwbGF5L2RjL2NvcmUvZGMuYyB8IDEx
+ICsrKysrKy0tLS0tCiAxIGZpbGUgY2hhbmdlZCwgNiBpbnNlcnRpb25zKCspLCA1IGRlbGV0aW9u
+cygtKQoKZGlmZiAtLWdpdCBhL2RyaXZlcnMvZ3B1L2RybS9hbWQvZGlzcGxheS9kYy9jb3JlL2Rj
+LmMgYi9kcml2ZXJzL2dwdS9kcm0vYW1kL2Rpc3BsYXkvZGMvY29yZS9kYy5jCmluZGV4IDI1MmI2
+MjFkOTNhOS4uMjFmYjdlZTE3YzljIDEwMDY0NAotLS0gYS9kcml2ZXJzL2dwdS9kcm0vYW1kL2Rp
+c3BsYXkvZGMvY29yZS9kYy5jCisrKyBiL2RyaXZlcnMvZ3B1L2RybS9hbWQvZGlzcGxheS9kYy9j
+b3JlL2RjLmMKQEAgLTIzLDYgKzIzLDcgQEAKICAqLwogCiAjaW5jbHVkZSA8bGludXgvc2xhYi5o
+PgorI2luY2x1ZGUgPGxpbnV4L21tLmg+CiAKICNpbmNsdWRlICJkbV9zZXJ2aWNlcy5oIgogCkBA
+IC0xMTgzLDggKzExODQsOCBAQCBib29sIGRjX3Bvc3RfdXBkYXRlX3N1cmZhY2VzX3RvX3N0cmVh
+bShzdHJ1Y3QgZGMgKmRjKQogCiBzdHJ1Y3QgZGNfc3RhdGUgKmRjX2NyZWF0ZV9zdGF0ZShzdHJ1
+Y3QgZGMgKmRjKQogewotCXN0cnVjdCBkY19zdGF0ZSAqY29udGV4dCA9IGt6YWxsb2Moc2l6ZW9m
+KHN0cnVjdCBkY19zdGF0ZSksCi0JCQkJCSAgIEdGUF9LRVJORUwpOworCXN0cnVjdCBkY19zdGF0
+ZSAqY29udGV4dCA9IGt2emFsbG9jKHNpemVvZihzdHJ1Y3QgZGNfc3RhdGUpLAorCQkJCQkgICAg
+R0ZQX0tFUk5FTCk7CiAKIAlpZiAoIWNvbnRleHQpCiAJCXJldHVybiBOVUxMOwpAQCAtMTIwNCwx
+MSArMTIwNSwxMSBAQCBzdHJ1Y3QgZGNfc3RhdGUgKmRjX2NyZWF0ZV9zdGF0ZShzdHJ1Y3QgZGMg
+KmRjKQogc3RydWN0IGRjX3N0YXRlICpkY19jb3B5X3N0YXRlKHN0cnVjdCBkY19zdGF0ZSAqc3Jj
+X2N0eCkKIHsKIAlpbnQgaSwgajsKLQlzdHJ1Y3QgZGNfc3RhdGUgKm5ld19jdHggPSBrbWVtZHVw
+KHNyY19jdHgsCi0JCQlzaXplb2Yoc3RydWN0IGRjX3N0YXRlKSwgR0ZQX0tFUk5FTCk7CisJc3Ry
+dWN0IGRjX3N0YXRlICpuZXdfY3R4ID0ga3ZtYWxsb2Moc2l6ZW9mKHN0cnVjdCBkY19zdGF0ZSks
+IEdGUF9LRVJORUwpOwogCiAJaWYgKCFuZXdfY3R4KQogCQlyZXR1cm4gTlVMTDsKKwltZW1jcHko
+bmV3X2N0eCwgc3JjX2N0eCwgc2l6ZW9mKHN0cnVjdCBkY19zdGF0ZSkpOwogCiAJZm9yIChpID0g
+MDsgaSA8IE1BWF9QSVBFUzsgaSsrKSB7CiAJCQlzdHJ1Y3QgcGlwZV9jdHggKmN1cl9waXBlID0g
+Jm5ld19jdHgtPnJlc19jdHgucGlwZV9jdHhbaV07CkBAIC0xMjQyLDcgKzEyNDMsNyBAQCBzdGF0
+aWMgdm9pZCBkY19zdGF0ZV9mcmVlKHN0cnVjdCBrcmVmICprcmVmKQogewogCXN0cnVjdCBkY19z
+dGF0ZSAqY29udGV4dCA9IGNvbnRhaW5lcl9vZihrcmVmLCBzdHJ1Y3QgZGNfc3RhdGUsIHJlZmNv
+dW50KTsKIAlkY19yZXNvdXJjZV9zdGF0ZV9kZXN0cnVjdChjb250ZXh0KTsKLQlrZnJlZShjb250
+ZXh0KTsKKwlrdmZyZWUoY29udGV4dCk7CiB9CiAKIHZvaWQgZGNfcmVsZWFzZV9zdGF0ZShzdHJ1
+Y3QgZGNfc3RhdGUgKmNvbnRleHQpCi0tIAoyLjIwLjEKCg==
+--0000000000002e1b8c058f9bd85e--
 
