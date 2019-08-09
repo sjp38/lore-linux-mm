@@ -3,176 +3,153 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
+	USER_AGENT_SANE_2 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AB436C31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 13:58:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 65FA6C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 14:12:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 62C46214C6
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 13:58:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62C46214C6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 31DD92171F
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 14:12:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 31DD92171F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0ECEE6B0003; Fri,  9 Aug 2019 09:58:17 -0400 (EDT)
+	id C05F66B0007; Fri,  9 Aug 2019 10:12:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 09E7B6B0006; Fri,  9 Aug 2019 09:58:17 -0400 (EDT)
+	id BB6FD6B0008; Fri,  9 Aug 2019 10:12:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ECE8A6B0007; Fri,  9 Aug 2019 09:58:16 -0400 (EDT)
+	id ACBC26B000A; Fri,  9 Aug 2019 10:12:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 9F1CA6B0003
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 09:58:16 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id m30so1007630eda.11
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 06:58:16 -0700 (PDT)
+Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 7A4206B0007
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 10:12:03 -0400 (EDT)
+Received: by mail-pg1-f198.google.com with SMTP id 28so9314236pgm.12
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 07:12:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=/qUJhYm2MhNMXvXobP3yuKVscY8LCFIljXVP9AOHw5w=;
-        b=Exy6F6Lx2xCmHomonTFf6LMgDSU8ZibGHS93HusPTPRwgaAEFLM2UCXwJzcni1yzTv
-         dSXpP1DhuXBGyy7oUkrVROuNZIZSuuKDW59Jj109H0xzzlhudyre758aQfhaCJAvH0ee
-         rseGYL2CQOzov0BV0MmLBBWaRBbZwXC6dC7jZRPu9RkqtYQ+qDged/byWuxJNcaLQBES
-         aQ6+o+gmO1uoHJv7YFm/BraIMFlQcv0VdNBp1B/qqlb/NK2xwCOgi+lkZcoKo50dr5w6
-         JDicG7bD7eKDAU7YgkLeF440FdeHEtcWHmTfxXd3QCGX8L7NUBz3ftqncRiarR0P9saX
-         N6Ng==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Gm-Message-State: APjAAAWzUtCZVf/5kzrMFxVIDOnGpdP6EPNzzha1Wkq1QOvRzblIBIkt
-	5vhnP5bEMUn3xj8hyJCj5IpUudDuBJKj2UNO3pT8q1RZFdbnXuUVCyD0xfZjbcum+lvwgDDJ5tE
-	HIWan18ZvIyzUfHwYpodJf93G+60tZOYzmFS0jkRItBTjVBrLepY7fBITc4k1T3xU4Q==
-X-Received: by 2002:a50:a784:: with SMTP id i4mr21772732edc.3.1565359096146;
-        Fri, 09 Aug 2019 06:58:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyO2L85P9VCSwZtJM6yWlmPbTsQOFvlrCr4kD1Y2iV47C2VNl6xM8IYroZj6WD6mzDB66Qc
-X-Received: by 2002:a50:a784:: with SMTP id i4mr21772655edc.3.1565359095389;
-        Fri, 09 Aug 2019 06:58:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565359095; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:message-id
+         :subject:from:to:cc:date:in-reply-to:references
+         :content-transfer-encoding:mime-version;
+        bh=c+3bCqxJo39DpqIWFRjrtINk477xyXEJPFLQQV7GifQ=;
+        b=Zhl9jStL6xNeblYIvcF58wDtzGkuLfZHZdiJFtBIOlppXTWUfj0oZ7pgt9X5EpExBM
+         8xvN5PZL3KkGtFH2xwhP1v3xyk5YqA9xNt1SGUeMfqKaj5aAMQ1WTdkl2xybTJlJMTqJ
+         LOswQZaG0oMNeByo+/LhDoLaD2KvFtzgu+9bVrhPEAEMdpTCXiT4hMhdZdSW0Mbm1c+X
+         n1+VHsKI+3o5Q1NGyANnmJWjh1ktD1mIfTgGe6pGz1EVJ6P7F0kQgpU1A5mf75Ev9Mb7
+         n5cRrgrXua6sldQY88SWFhQnfoIHjL5HSGsXBMzqME08mWwjfc17uPyJv7U7daNpYT/m
+         +hIQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
+X-Gm-Message-State: APjAAAUvuxQn6E7gA3zCmbMSRLUT5Rv7wmGwpz/KfW3VRZQSUl5ZCvWQ
+	W5IaJ7BlwtHuP4SvVkMSeILVP7fs/wfqmW9ljze6PmZKJ6SPpgRCtPczeXrp24XS8GkBZl9RzK3
+	ui5vt8bz6qYL4SEaBiU0x2FoqUzHuPOHBHkfljbiw8aNKumrg1TGApho3yzHOGuKp0Q==
+X-Received: by 2002:a65:64c4:: with SMTP id t4mr16468756pgv.298.1565359923061;
+        Fri, 09 Aug 2019 07:12:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxU4wc1p7kvQvgX+/DufU+kg/58WQfetthoi37pVMc4UnVBQM6MXh0PHubi1EBXOj9dc0gq
+X-Received: by 2002:a65:64c4:: with SMTP id t4mr16468701pgv.298.1565359922343;
+        Fri, 09 Aug 2019 07:12:02 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565359922; cv=none;
         d=google.com; s=arc-20160816;
-        b=h8FGf96vDGyjEp3K8CEyGojirEDdpTfdx2Wt+EizlsTDoArfeSPoNxpd16w+fAxCGt
-         TunD6AILCgGuk669ty69I8zrGJVWgY5a3wPCBl8WsAftmX/9/ynhDJUxDsxSOkpINc8Z
-         Dbhl4Mpsm2LBONXYHtlpSSwFeVIUcSjWb8E1eFwQXS8OLUiN79Z6v9lVUECkNrXNj27J
-         TGiAgo7SA+ry+AIPJUbWg6sL7QWecldMYfarG/f4R2p9Ht38rJsB1gwm220gkjPAmbaf
-         hvkaBxRW+cOUDPNmRHTIMfla/3ElY+SKgDluNaxEtM+E+sOgjPf4l3/gAlOpGSynD/h3
-         WJmw==
+        b=X8X0FE0K6DuhBcGtbBuAPiFeMIV4TGazXrf+zqFIEL+TzFBCcwIRPD0UN3mCU9oF3U
+         GkJ08sk7dJKpF/b9HdySI7LxEpy11OgMbKJHvQsjbhhNa6GrdzEnt1jP3uWbGkiP2Pp1
+         s17kc298oxXp1bSWbCqhQIogE+Twj5dVlbBrwP8s6NToJYi1bZAHHJpTiLqJS59hA+qX
+         Edlbkrl4267uXnz7C6eTVAEeb5Bh2VvqJrrdeHqD0OPg3jaDfXReamdSGmsuymbtqi33
+         Lnsw9mtwLvmDKcOYLQIXAAzPZd7MnPh46wdt6kcgKPZccaH2z07mIhrg4GvAInhwxMYp
+         0BLQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=/qUJhYm2MhNMXvXobP3yuKVscY8LCFIljXVP9AOHw5w=;
-        b=K1l817cx3+X6On0KEkqaPts6rY3isYXmuDbY61JtflfgKLqXDkZMsMwcHq7PVXNrgO
-         2xczlN0hJ2WdWYrCL5sl3KYik6VqSjP6hvlt9Or6vItwbgn5gDXCxH4PpPDKYx/mQsI+
-         +reDxy5asT1w4KTzsWVxnO0oRqUhxmHCmrPJCbw0wrcuewIbM0E/flD/+npaMGe4d1/A
-         QvpLFEfRZTP7Lb/izMIBOn2K8etbHi5vE+6j8+FqEGGAfxHX6RBG36AnrooqqNNAsKBj
-         z49nISZZQdOLg+ulYuAtR1g3PjF6lzzuqiH11bEsceNMbd5L4wIMmmKbHVB2qOPl1QOc
-         sdDw==
+        h=mime-version:content-transfer-encoding:references:in-reply-to:date
+         :cc:to:from:subject:message-id;
+        bh=c+3bCqxJo39DpqIWFRjrtINk477xyXEJPFLQQV7GifQ=;
+        b=zRi8XQ2sCcJSTxqS9p9XOjtICdZmBnz92ZLpFFFF5ZI2SSyRJhEBRRB9UKiLQ0O70C
+         GhsKB12fK3BI3rRp3UY/taSKNIjqIuG+Vtb26OJNLi9ug4MpgtPn8KsMO58qOsvJ9A2T
+         hTzPLX3buupDFB++9+XJu61vdftctz8MPw0Q/f5PKUjWgsG5fmyigapmuRAA0ucJXHLb
+         SVakDb+yCDabLl7lYuIkopIEbq1lC/76AhGOVKM0rG1rpRgBye1EmMtvUbAYGhXvVaGb
+         6JmmM2jxrAeFtX+Fp0PR8F2pt9ZDR+gSJDer1Y0/lWFNL8+8dAZ/r7MghYQIe97DhsB7
+         cr/Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id k57si26066783edd.28.2019.08.09.06.58.15
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 06:58:15 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
+Received: from mailgw02.mediatek.com ([210.61.82.184])
+        by mx.google.com with ESMTP id r16si6509120pgh.385.2019.08.09.07.12.01
+        for <linux-mm@kvack.org>;
+        Fri, 09 Aug 2019 07:12:01 -0700 (PDT)
+Received-SPF: pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) client-ip=210.61.82.184;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id C3118ACC2;
-	Fri,  9 Aug 2019 13:58:14 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id E87631E46DD; Fri,  9 Aug 2019 15:58:13 +0200 (CEST)
-Date: Fri, 9 Aug 2019 15:58:13 +0200
-From: Jan Kara <jack@suse.cz>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: John Hubbard <jhubbard@nvidia.com>, Vlastimil Babka <vbabka@suse.cz>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Hellwig <hch@infradead.org>,
-	Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org,
-	Dan Williams <dan.j.williams@intel.com>,
-	Daniel Black <daniel@linux.ibm.com>,
-	Matthew Wilcox <willy@infradead.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>
-Subject: Re: [PATCH 1/3] mm/mlock.c: convert put_page() to put_user_page*()
-Message-ID: <20190809135813.GF17568@quack2.suse.cz>
-References: <20190805222019.28592-1-jhubbard@nvidia.com>
- <20190805222019.28592-2-jhubbard@nvidia.com>
- <20190807110147.GT11812@dhcp22.suse.cz>
- <01b5ed91-a8f7-6b36-a068-31870c05aad6@nvidia.com>
- <20190808062155.GF11812@dhcp22.suse.cz>
- <875dca95-b037-d0c7-38bc-4b4c4deea2c7@suse.cz>
- <306128f9-8cc6-761b-9b05-578edf6cce56@nvidia.com>
- <d1ecb0d4-ea6a-637d-7029-687b950b783f@nvidia.com>
- <420a5039-a79c-3872-38ea-807cedca3b8a@suse.cz>
- <20190809082307.GL18351@dhcp22.suse.cz>
+       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.184 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
+X-UUID: 725620696fd34fab965989687eb53529-20190809
+X-UUID: 725620696fd34fab965989687eb53529-20190809
+Received: from mtkexhb01.mediatek.inc [(172.21.101.102)] by mailgw02.mediatek.com
+	(envelope-from <miles.chen@mediatek.com>)
+	(Cellopoint E-mail Firewall v4.1.10 Build 0707 with TLS)
+	with ESMTP id 735304464; Fri, 09 Aug 2019 22:11:58 +0800
+Received: from mtkcas07.mediatek.inc (172.21.101.84) by
+ mtkmbs07n1.mediatek.inc (172.21.101.16) with Microsoft SMTP Server (TLS) id
+ 15.0.1395.4; Fri, 9 Aug 2019 22:11:58 +0800
+Received: from [172.21.77.33] (172.21.77.33) by mtkcas07.mediatek.inc
+ (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
+ Transport; Fri, 9 Aug 2019 22:11:58 +0800
+Message-ID: <1565359918.12824.20.camel@mtkswgap22>
+Subject: Re: [RFC PATCH v2] mm: slub: print kernel addresses in slub debug
+ messages
+From: Miles Chen <miles.chen@mediatek.com>
+To: Matthew Wilcox <willy@infradead.org>
+CC: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David
+ Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew
+ Morton <akpm@linux-foundation.org>, <linux-mm@kvack.org>,
+	<linux-kernel@vger.kernel.org>, <linux-mediatek@lists.infradead.org>,
+	<wsd_upstream@mediatek.com>, "Tobin C . Harding" <me@tobin.cc>, Kees Cook
+	<keescook@chromium.org>
+Date: Fri, 9 Aug 2019 22:11:58 +0800
+In-Reply-To: <20190809024644.GL5482@bombadil.infradead.org>
+References: <20190809010837.24166-1-miles.chen@mediatek.com>
+	 <20190809024644.GL5482@bombadil.infradead.org>
+Content-Type: text/plain; charset="UTF-8"
+X-Mailer: Evolution 3.2.3-0ubuntu6 
+Content-Transfer-Encoding: 7bit
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190809082307.GL18351@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-MTK: N
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.001192, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 09-08-19 10:23:07, Michal Hocko wrote:
-> On Fri 09-08-19 10:12:48, Vlastimil Babka wrote:
-> > On 8/9/19 12:59 AM, John Hubbard wrote:
-> > >>> That's true. However, I'm not sure munlocking is where the
-> > >>> put_user_page() machinery is intended to be used anyway? These are
-> > >>> short-term pins for struct page manipulation, not e.g. dirtying of page
-> > >>> contents. Reading commit fc1d8e7cca2d I don't think this case falls
-> > >>> within the reasoning there. Perhaps not all GUP users should be
-> > >>> converted to the planned separate GUP tracking, and instead we should
-> > >>> have a GUP/follow_page_mask() variant that keeps using get_page/put_page?
-> > >>>  
-> > >>
-> > >> Interesting. So far, the approach has been to get all the gup callers to
-> > >> release via put_user_page(), but if we add in Jan's and Ira's vaddr_pin_pages()
-> > >> wrapper, then maybe we could leave some sites unconverted.
-> > >>
-> > >> However, in order to do so, we would have to change things so that we have
-> > >> one set of APIs (gup) that do *not* increment a pin count, and another set
-> > >> (vaddr_pin_pages) that do. 
-> > >>
-> > >> Is that where we want to go...?
-> > >>
-> > 
-> > We already have a FOLL_LONGTERM flag, isn't that somehow related? And if
-> > it's not exactly the same thing, perhaps a new gup flag to distinguish
-> > which kind of pinning to use?
+On Thu, 2019-08-08 at 19:46 -0700, Matthew Wilcox wrote:
+> On Fri, Aug 09, 2019 at 09:08:37AM +0800, miles.chen@mediatek.com wrote:
+> > Possible approaches are:
+> > 1. stop printing kernel addresses
+> > 2. print with %pK,
+> > 3. print with %px.
 > 
-> Agreed. This is a shiny example how forcing all existing gup users into
-> the new scheme is subotimal at best. Not the mention the overal
-> fragility mention elsewhere. I dislike the conversion even more now.
+> No.  The point of obscuring kernel addresses is that if the attacker manages to find a way to get the kernel to spit out some debug messages that we shouldn't
+> leak all this extra information.
+
+got it.
 > 
-> Sorry if this was already discussed already but why the new pinning is
-> not bound to FOLL_LONGTERM (ideally hidden by an interface so that users
-> do not have to care about the flag) only?
+> > 4. do nothing
+> 
+> 5. Find something more useful to print.
 
-The new tracking cannot be bound to FOLL_LONGTERM. Anything that gets page
-reference and then touches page data (e.g. direct IO) needs the new kind of
-tracking so that filesystem knows someone is messing with the page data.
-So what John is trying to address is a different (although related) problem
-to someone pinning a page for a long time.
+agree
+> 
+> > INFO: Slab 0x(____ptrval____) objects=25 used=10 fp=0x(____ptrval____)
+> 
+> ... you don't have any randomness on your platform?
 
-In principle, I'm not strongly opposed to a new FOLL flag to determine
-whether a pin or an ordinary page reference will be acquired at least as an
-internal implementation detail inside mm/gup.c. But I would really like to
-discourage new GUP users taking just page reference as the most clueless
-users (drivers) usually need a pin in the sense John implements. So in
-terms of API I'd strongly prefer to deprecate GUP as an API, provide
-vaddr_pin_pages() for drivers to get their buffer pages pinned and then for
-those few users who really know what they are doing (and who are not
-interested in page contents) we can have APIs like follow_page() to get a
-page reference from a virtual address.
+We have randomized base on our platforms.
 
-								Honza
--- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+> But if you have randomness, at least some of these "pointers" are valuable
+> because you can compare them against "pointers" printed by other parts
+> of the kernel.
+
+Understood. Keep current %p, do not leak kernel addresses.
+
+I'll collect more cases and see if we really need some extra
+information. (maybe the @offset in current message is enough)
+
+
+thanks for your comments!
+
+
 
