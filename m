@@ -2,314 +2,236 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 85824C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5ED6CC433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 18418214C6
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:18 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 18418214C6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
+	by mail.kernel.org (Postfix) with ESMTP id 08AEB214C6
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08AEB214C6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id ACBC86B02E4; Fri,  9 Aug 2019 12:02:52 -0400 (EDT)
+	id C2A966B02E9; Fri,  9 Aug 2019 12:03:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AA3C06B02E5; Fri,  9 Aug 2019 12:02:52 -0400 (EDT)
+	id C03236B02EA; Fri,  9 Aug 2019 12:03:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9910C6B02E6; Fri,  9 Aug 2019 12:02:52 -0400 (EDT)
+	id AA2686B02EB; Fri,  9 Aug 2019 12:03:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4B2956B02E4
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:02:52 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id x2so46738747wru.22
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:02:52 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 5EAC26B02E9
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:03:12 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id a5so60560896edx.12
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:03:12 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=f6BvYVYGOA9rPmHw8bpG6rQbrNablAgbg1AUCMttmB8=;
-        b=ULkwHj3r32E/4BOFcsLMPx3xM7xJ9TEC7C1l+xkKp2qXLL6LEvFzmkrBSBu8GjCh7i
-         Yy8WCkoFNVaLdVMORaTNz5s+JbWt+SxneSnDR+4exdL1MTF0byyaP0L2tK+WiYh/SyQr
-         5HvXS53ktWlVTnQXdcQ/2GlJ+TMZc2cm0iZNI7pjmXs5fV6IVlhRtT8tiC7TA0BolIos
-         +5iSkO1nnTw0XzhY1Iw43OvOv21mlSXp5MgbC9+7/c5KdEC0rVOol/UwNnLtFd5L5dCn
-         MJ7jko/1xR2N4rzRallOzLDGKIhwKVUv/M9+qLycOnpRRZJJe8GIn0T3zM0zy1n6Kzbo
-         430w==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAX5VqL39WDU4uHH3+Zff4XRiKM/G07qIaC+31M7eQHiV+bxCyjF
-	CDtSQUOtTjG1K7+8ZgaZt/35GwzvhGUfnd7y7oOwo5XOFq00S3O1r23QQ9JVX+WtWLK612hJqj3
-	UFHvivqYPekxAOsyPKCoYkWBdRe2ehP6RNlfUl4taPeYFm7feI3ubrnx2LtWYMnhNJw==
-X-Received: by 2002:a1c:2314:: with SMTP id j20mr11709465wmj.152.1565366571855;
-        Fri, 09 Aug 2019 09:02:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxmsGVTx/dtN41MSYCDUM/3AwGIuGNMxQgf4sgqye+KQWShMr+Ooi8MTsOXC4V+Yj0tAGf/
-X-Received: by 2002:a1c:2314:: with SMTP id j20mr11699618wmj.152.1565366464713;
-        Fri, 09 Aug 2019 09:01:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366464; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=bKQctIR9RQ3N0yUOd7/19BsHR17UqL4s3TSC6lop2qE=;
+        b=rJsNJQNAIddJQy5RxcHw+gZClLU25uVFKil7efSYao0d146pHM1suVOmYiOHg4iEIK
+         jyZ5KtqtPWaexBiOPtfjZOHNfc7y9CPTTkUV/AWSRXh2NL2WMouxYZ2ISp0pekZgzSVN
+         FDSTVAP3h58oCntv68qGKthjOSW/cV8pMIHRQyH8HywT5FIjakJOeTOQoebTFmb+6Cq+
+         gZmJBNUhmS28N1aPZhJJxMD7ZwBv3jlGxZU7HdmOajxWpcoVTEPAGGD12BLNXbV1vF8E
+         Hd1GCj01havbsv/ejmpCHqCC4wbqVnYgicdZiPlSn5fEaUus4hpF3lSJPb+ya/z2mE7D
+         FQQA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+X-Gm-Message-State: APjAAAVPfifv2u/LKPjplebGFQI24uh8HOhyCEpe9d0JOp1OMLnZl2JR
+	gtjZ6YcyaYW798fcKT++CbY4n4GW7dz0bOIug+RdnejbFpgWCv2wZcqoTrQG4vBv/JFgemaRLFp
+	z7SbRtJ2TTdvvNisGAVD8foC8s8/gecYfk4Rrz8eTAQmqYAoOCVh76chjIvB//2EDGA==
+X-Received: by 2002:a17:906:95d0:: with SMTP id n16mr19162944ejy.116.1565366591923;
+        Fri, 09 Aug 2019 09:03:11 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwYsevigK/YjNw816mqr9nvOZLHMrK5EC97UFCZvt/yvZpbd0biW7GZDxYCGWaG96sTePWP
+X-Received: by 2002:a17:906:95d0:: with SMTP id n16mr19162808ejy.116.1565366590497;
+        Fri, 09 Aug 2019 09:03:10 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565366590; cv=none;
         d=google.com; s=arc-20160816;
-        b=IOH01R9i40NqfyUtQmrTwRWrGUyv73vAizKveid63NLWKFCPe2JVfALj9CtX6U5wOD
-         IKKhXa9KEC+RN6TQ6rCA+2t2200+s55m6ByhbvC2fgXYqGAsBqOs3+OVe4XNt3hhJTy0
-         TqVRFXri8Z/KNFYYNtfH7El0k6RhqUbHh9hAkkqhLAfn5OLzJ4uUm55Lb50Hqvyx1nkA
-         FnoZ1sjv9m5BWvH5eFCqwZSfKgzVMe7fzTgHnGPPl0H8sg4ojKnymIvHjgc7dg44tiG/
-         zFTbTdHpESRjMo8j3cqxNjRK9G2Ko3aHERErJCxmBgF3PYZccfj8NH6h7QzNSrnnVI+p
-         acCg==
+        b=Ie583GBZGkc7UMILlWsbDKXtyisGjk/WmgBrMVRT8g5+8Cv7i5l/BNGq3PZgO84PNo
+         MVjc7xlwyCgr+LV3d84Op8++Pl4TbeIYvH1BNVphxt50MPe3eStgMTy7Fnk4uJqBIomT
+         it6kgEuGhKvzc+rZOt2VxrkZp7Ju6LmTGbTLVZzJqTlYB3x6sV1GRy3/rP3w1SEtS3dq
+         2qhVKEzvcjVlMgujP6J625mvrs/XA+hRp4/88tfxf8oPOt4FNPeczU9HlLTsHlMgCkLB
+         MeiKDR0C9EaRd6zy7kW551j8oK4Caqu5yxBSVPQ7R5Xz1TgYjJHp7gBMheQZlv5Pv5Ra
+         SaUg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=f6BvYVYGOA9rPmHw8bpG6rQbrNablAgbg1AUCMttmB8=;
-        b=OFx9W8HSEgrvVTN+uhOkRW7eGu5mm9UGLIaiBPk2/RqfcFaXTp1nV78WSawSBhrNvn
-         dzQtu84q8rhrnJKJeDN2PVkFLzQfWpXKr4QN/vn/x08xt7E4XM13716OdBe9ZuP4exIU
-         jJfHjHYOpH+HC6HQcG9B2vmOJkOx26QUqgeKQ8ylNvWiUBUCtN5ac7sYRXkWI1gQtrj5
-         XOgeVWt2Ut/HfZOh8vZoXlvtI48jZX2l6dja3E1YYIuVQaBCtKWFtwRA0G1ZD9jn+H50
-         tojxkCFYXCgse6sTsc5YF6lBWmX1amlVqWk+tyqg8CkkMdYHmBdBwU55bTw7A5BwUkFU
-         pHfA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=bKQctIR9RQ3N0yUOd7/19BsHR17UqL4s3TSC6lop2qE=;
+        b=Yik4d5Bp04USv5YIBuhEicc4NgIYvTCAJk9FUJ69IMA1IkSgL9u7rpcZhWy+OwD0cl
+         vjiNEqKMnu3bA5RgxK4UYkPx3M2Hy6egVFluIZfqmfIjad7Lx2KKtFIFRydKOWzqozAG
+         4VMO0mHOFqI0IE5T9cZwoxuBJueqX+Avc0phph30AfqVZSGTdl2uRkgJ+OIE2RhCIEi6
+         58iBvXqsM3qvYHBjLrcv0i+1T4BL9JiqR6VQ5YmbcGVQa6yg02uUq7XLh2/vTDagWVpS
+         BHoR/Tg2vyya3BIwNnfSqK3Qaho2mScxYmO/zE+7/RASBrGNjDpBwL1x0aj3hiHhdEyC
+         iNlw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id i14si87707405wrp.198.2019.08.09.09.01.04
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 09:01:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id gf12si32833772ejb.392.2019.08.09.09.03.09
+        for <linux-mm@kvack.org>;
+        Fri, 09 Aug 2019 09:03:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 178D6305D3F3;
-	Fri,  9 Aug 2019 19:01:04 +0300 (EEST)
-Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id B5DC3305B7A5;
-	Fri,  9 Aug 2019 19:01:02 +0300 (EEST)
-From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
-To: kvm@vger.kernel.org
-Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
-	Paolo Bonzini <pbonzini@redhat.com>,
-	=?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>,
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-	Tamas K Lengyel <tamas@tklengyel.com>,
-	Mathieu Tarral <mathieu.tarral@protonmail.com>,
-	=?UTF-8?q?Samuel=20Laur=C3=A9n?= <samuel.lauren@iki.fi>,
-	Patrick Colp <patrick.colp@oracle.com>,
-	Jan Kiszka <jan.kiszka@siemens.com>,
-	Stefan Hajnoczi <stefanha@redhat.com>,
-	Weijiang Yang <weijiang.yang@intel.com>, Zhang@kvack.org,
-	Yu C <yu.c.zhang@intel.com>,
-	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
-	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v6 29/92] kvm: introspection: add KVMI_CONTROL_EVENTS
-Date: Fri,  9 Aug 2019 18:59:44 +0300
-Message-Id: <20190809160047.8319-30-alazar@bitdefender.com>
-In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
-References: <20190809160047.8319-1-alazar@bitdefender.com>
+       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 979B315A2;
+	Fri,  9 Aug 2019 09:03:08 -0700 (PDT)
+Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C67723F575;
+	Fri,  9 Aug 2019 09:03:03 -0700 (PDT)
+Date: Fri, 9 Aug 2019 17:03:01 +0100
+From: Catalin Marinas <catalin.marinas@arm.com>
+To: Andrey Konovalov <andreyknvl@google.com>,
+	Andrew Morton <akpm@linux-foundation.org>
+Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
+	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
+	linux-media@vger.kernel.org, kvm@vger.kernel.org,
+	linux-kselftest@vger.kernel.org,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will.deacon@arm.com>,
+	Mark Rutland <mark.rutland@arm.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Kees Cook <keescook@chromium.org>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Christian Koenig <Christian.Koenig@amd.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Leon Romanovsky <leon@kernel.org>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
+	Dave Martin <Dave.Martin@arm.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dmitry Vyukov <dvyukov@google.com>,
+	Kostya Serebryany <kcc@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>,
+	Lee Smith <Lee.Smith@arm.com>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
+	Dave Hansen <dave.hansen@intel.com>
+Subject: Re: [PATCH v19 04/15] mm: untag user pointers passed to memory
+ syscalls
+Message-ID: <20190809160301.GB23083@arrakis.emea.arm.com>
+References: <cover.1563904656.git.andreyknvl@google.com>
+ <aaf0c0969d46b2feb9017f3e1b3ef3970b633d91.1563904656.git.andreyknvl@google.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=UTF-8
-Content-Transfer-Encoding: 8bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <aaf0c0969d46b2feb9017f3e1b3ef3970b633d91.1563904656.git.andreyknvl@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Mihai Donțu <mdontu@bitdefender.com>
+On Tue, Jul 23, 2019 at 07:58:41PM +0200, Andrey Konovalov wrote:
+> This patch is a part of a series that extends kernel ABI to allow to pass
+> tagged user pointers (with the top byte set to something else other than
+> 0x00) as syscall arguments.
+> 
+> This patch allows tagged pointers to be passed to the following memory
+> syscalls: get_mempolicy, madvise, mbind, mincore, mlock, mlock2, mprotect,
+> mremap, msync, munlock, move_pages.
+> 
+> The mmap and mremap syscalls do not currently accept tagged addresses.
+> Architectures may interpret the tag as a background colour for the
+> corresponding vma.
+> 
+> Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
+> Reviewed-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
+> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
+> Reviewed-by: Kees Cook <keescook@chromium.org>
+> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
+> ---
+>  mm/madvise.c   | 2 ++
+>  mm/mempolicy.c | 3 +++
+>  mm/migrate.c   | 2 +-
+>  mm/mincore.c   | 2 ++
+>  mm/mlock.c     | 4 ++++
+>  mm/mprotect.c  | 2 ++
+>  mm/mremap.c    | 7 +++++++
+>  mm/msync.c     | 2 ++
+>  8 files changed, 23 insertions(+), 1 deletion(-)
 
-This command enables/disables vCPU introspection events.
+More back and forth discussions on how to specify the exceptions here.
+I'm proposing just dropping the exceptions and folding in the diff
+below.
 
-Signed-off-by: Mihai Donțu <mdontu@bitdefender.com>
-Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
+Andrew, if you prefer a standalone patch instead, please let me know:
+
+------------------8<----------------------------
+From 9a5286acaa638c6a917d96986bf28dad35e24a0c Mon Sep 17 00:00:00 2001
+From: Catalin Marinas <catalin.marinas@arm.com>
+Date: Fri, 9 Aug 2019 14:21:33 +0100
+Subject: [PATCH] fixup! mm: untag user pointers passed to memory syscalls
+
+mmap, mremap, munmap, brk added to the list of syscalls that accept
+tagged pointers.
+
+Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
 ---
- Documentation/virtual/kvm/kvmi.rst | 53 ++++++++++++++++++++++++++++++
- include/uapi/linux/kvmi.h          |  7 ++++
- virt/kvm/kvmi.c                    | 13 ++++++++
- virt/kvm/kvmi_int.h                |  6 +++-
- virt/kvm/kvmi_msg.c                | 24 ++++++++++++++
- 5 files changed, 102 insertions(+), 1 deletion(-)
+ mm/mmap.c   | 5 +++++
+ mm/mremap.c | 6 +-----
+ 2 files changed, 6 insertions(+), 5 deletions(-)
 
-diff --git a/Documentation/virtual/kvm/kvmi.rst b/Documentation/virtual/kvm/kvmi.rst
-index 71897338e85a..957641802cac 100644
---- a/Documentation/virtual/kvm/kvmi.rst
-+++ b/Documentation/virtual/kvm/kvmi.rst
-@@ -456,6 +456,59 @@ Returns the TSC frequency (in HZ) for the specified vCPU if available
- * -KVM_EINVAL - padding is not zero
- * -KVM_EAGAIN - the selected vCPU can't be introspected yet
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 7e8c3e8ae75f..b766b633b7ae 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -201,6 +201,8 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
+ 	bool downgraded = false;
+ 	LIST_HEAD(uf);
  
-+8. KVMI_CONTROL_EVENTS
-+----------------------
++	brk = untagged_addr(brk);
 +
-+:Architectures: all
-+:Versions: >= 1
-+:Parameters:
-+
-+::
-+
-+	struct kvmi_vcpu_hdr;
-+	struct kvmi_control_events {
-+		__u16 event_id;
-+		__u8 enable;
-+		__u8 padding1;
-+		__u32 padding2;
-+	};
-+
-+:Returns:
-+
-+::
-+
-+	struct kvmi_error_code
-+
-+Enables/disables vCPU introspection events. This command can be used with
-+the following events::
-+
-+	KVMI_EVENT_CR
-+	KVMI_EVENT_MSR
-+	KVMI_EVENT_XSETBV
-+	KVMI_EVENT_BREAKPOINT
-+	KVMI_EVENT_HYPERCALL
-+	KVMI_EVENT_PF
-+	KVMI_EVENT_TRAP
-+	KVMI_EVENT_DESCRIPTOR
-+	KVMI_EVENT_SINGLESTEP
-+
-+When an event is enabled, the introspection tool is notified and it
-+must reply with: continue, retry, crash, etc. (see **Events** below).
-+
-+The *KVMI_EVENT_PAUSE_VCPU* event is always allowed,
-+because it is triggered by the *KVMI_PAUSE_VCPU* command.
-+The *KVMI_EVENT_CREATE_VCPU* and *KVMI_EVENT_UNHOOK* events are controlled
-+by the *KVMI_CONTROL_VM_EVENTS* command.
-+
-+:Errors:
-+
-+* -KVM_EINVAL - the selected vCPU is invalid
-+* -KVM_EINVAL - the event ID is invalid
-+* -KVM_EINVAL - padding is not zero
-+* -KVM_EAGAIN - the selected vCPU can't be introspected yet
-+* -KVM_EPERM - the access is restricted by the host
-+* -KVM_EOPNOTSUPP - one the events can't be intercepted in the current setup
-+
- Events
- ======
+ 	if (down_write_killable(&mm->mmap_sem))
+ 		return -EINTR;
  
-diff --git a/include/uapi/linux/kvmi.h b/include/uapi/linux/kvmi.h
-index c56e676ddb2b..934c0610140a 100644
---- a/include/uapi/linux/kvmi.h
-+++ b/include/uapi/linux/kvmi.h
-@@ -120,6 +120,13 @@ struct kvmi_get_vcpu_info_reply {
- 	__u64 tsc_speed;
- };
+@@ -1573,6 +1575,8 @@ unsigned long ksys_mmap_pgoff(unsigned long addr, unsigned long len,
+ 	struct file *file = NULL;
+ 	unsigned long retval;
  
-+struct kvmi_control_events {
-+	__u16 event_id;
-+	__u8 enable;
-+	__u8 padding1;
-+	__u32 padding2;
-+};
++	addr = untagged_addr(addr);
 +
- struct kvmi_control_vm_events {
- 	__u16 event_id;
- 	__u8 enable;
-diff --git a/virt/kvm/kvmi.c b/virt/kvm/kvmi.c
-index 5cbc82b284f4..14963474617e 100644
---- a/virt/kvm/kvmi.c
-+++ b/virt/kvm/kvmi.c
-@@ -969,6 +969,19 @@ void kvmi_handle_requests(struct kvm_vcpu *vcpu)
- 	kvmi_put(vcpu->kvm);
- }
+ 	if (!(flags & MAP_ANONYMOUS)) {
+ 		audit_mmap_fd(fd, flags);
+ 		file = fget(fd);
+@@ -2874,6 +2878,7 @@ EXPORT_SYMBOL(vm_munmap);
  
-+int kvmi_cmd_control_events(struct kvm_vcpu *vcpu, unsigned int event_id,
-+			    bool enable)
-+{
-+	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
-+
-+	if (enable)
-+		set_bit(event_id, ivcpu->ev_mask);
-+	else
-+		clear_bit(event_id, ivcpu->ev_mask);
-+
-+	return 0;
-+}
-+
- int kvmi_cmd_control_vm_events(struct kvmi *ikvm, unsigned int event_id,
- 			       bool enable)
+ SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
  {
-diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
-index d798908d0f70..c0044cae8089 100644
---- a/virt/kvm/kvmi_int.h
-+++ b/virt/kvm/kvmi_int.h
-@@ -95,6 +95,8 @@ struct kvmi_vcpu {
- 	bool reply_waiting;
- 	struct kvmi_vcpu_reply reply;
- 
-+	DECLARE_BITMAP(ev_mask, KVMI_NUM_EVENTS);
-+
- 	struct list_head job_list;
- 	spinlock_t job_lock;
- 
-@@ -131,7 +133,7 @@ struct kvmi_mem_access {
- 
- static inline bool is_event_enabled(struct kvm_vcpu *vcpu, int event)
- {
--	return false; /* TODO */
-+	return test_bit(event, IVCPU(vcpu)->ev_mask);
++	addr = untagged_addr(addr);
+ 	profile_munmap(addr);
+ 	return __vm_munmap(addr, len, true);
  }
+diff --git a/mm/mremap.c b/mm/mremap.c
+index 64c9a3b8be0a..1fc8a29fbe3f 100644
+--- a/mm/mremap.c
++++ b/mm/mremap.c
+@@ -606,12 +606,8 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
+ 	LIST_HEAD(uf_unmap_early);
+ 	LIST_HEAD(uf_unmap);
  
- /* kvmi_msg.c */
-@@ -146,6 +148,8 @@ int kvmi_msg_send_unhook(struct kvmi *ikvm);
- void *kvmi_msg_alloc(void);
- void *kvmi_msg_alloc_check(size_t size);
- void kvmi_msg_free(void *addr);
-+int kvmi_cmd_control_events(struct kvm_vcpu *vcpu, unsigned int event_id,
-+			    bool enable);
- int kvmi_cmd_control_vm_events(struct kvmi *ikvm, unsigned int event_id,
- 			       bool enable);
- int kvmi_run_jobs_and_wait(struct kvm_vcpu *vcpu);
-diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
-index 3372d8c7e74f..a3c67af8674e 100644
---- a/virt/kvm/kvmi_msg.c
-+++ b/virt/kvm/kvmi_msg.c
-@@ -24,6 +24,7 @@ static const char *const msg_IDs[] = {
- 	[KVMI_CHECK_COMMAND]         = "KVMI_CHECK_COMMAND",
- 	[KVMI_CHECK_EVENT]           = "KVMI_CHECK_EVENT",
- 	[KVMI_CONTROL_CMD_RESPONSE]  = "KVMI_CONTROL_CMD_RESPONSE",
-+	[KVMI_CONTROL_EVENTS]        = "KVMI_CONTROL_EVENTS",
- 	[KVMI_CONTROL_VM_EVENTS]     = "KVMI_CONTROL_VM_EVENTS",
- 	[KVMI_EVENT]                 = "KVMI_EVENT",
- 	[KVMI_EVENT_REPLY]           = "KVMI_EVENT_REPLY",
-@@ -403,6 +404,28 @@ static int handle_get_vcpu_info(struct kvm_vcpu *vcpu,
- 	return reply_cb(vcpu, msg, 0, &rpl, sizeof(rpl));
- }
+-	/*
+-	 * Architectures may interpret the tag passed to mmap as a background
+-	 * colour for the corresponding vma. For mremap we don't allow tagged
+-	 * new_addr to preserve similar behaviour to mmap.
+-	 */
+ 	addr = untagged_addr(addr);
++	new_addr = untagged_addr(new_addr);
  
-+static int handle_control_events(struct kvm_vcpu *vcpu,
-+				 const struct kvmi_msg_hdr *msg,
-+				 const void *_req,
-+				 vcpu_reply_fct reply_cb)
-+{
-+	unsigned long known_events = KVMI_KNOWN_VCPU_EVENTS;
-+	const struct kvmi_control_events *req = _req;
-+	struct kvmi *ikvm = IKVM(vcpu->kvm);
-+	int ec;
-+
-+	if (req->padding1 || req->padding2)
-+		ec = -KVM_EINVAL;
-+	else if (!test_bit(req->event_id, &known_events))
-+		ec = -KVM_EINVAL;
-+	else if (!is_event_allowed(ikvm, req->event_id))
-+		ec = -KVM_EPERM;
-+	else
-+		ec = kvmi_cmd_control_events(vcpu, req->event_id, req->enable);
-+
-+	return reply_cb(vcpu, msg, ec, NULL, 0);
-+}
-+
- /*
-  * These commands are executed on the vCPU thread. The receiving thread
-  * passes the messages using a newly allocated 'struct kvmi_vcpu_cmd'
-@@ -412,6 +435,7 @@ static int handle_get_vcpu_info(struct kvm_vcpu *vcpu,
- static int(*const msg_vcpu[])(struct kvm_vcpu *,
- 			      const struct kvmi_msg_hdr *, const void *,
- 			      vcpu_reply_fct) = {
-+	[KVMI_CONTROL_EVENTS]   = handle_control_events,
- 	[KVMI_EVENT_REPLY]      = handle_event_reply,
- 	[KVMI_GET_VCPU_INFO]    = handle_get_vcpu_info,
- };
+ 	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
+ 		return ret;
 
