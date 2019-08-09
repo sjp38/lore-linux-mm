@@ -2,114 +2,129 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2A245C32756
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 05:15:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 024F6C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 05:35:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C56902166E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 05:15:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C56902166E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=davemloft.net
+	by mail.kernel.org (Postfix) with ESMTP id C4B822171F
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 05:35:43 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4B822171F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id EF9626B0005; Fri,  9 Aug 2019 01:15:48 -0400 (EDT)
+	id 489A96B0007; Fri,  9 Aug 2019 01:35:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EA98D6B0006; Fri,  9 Aug 2019 01:15:48 -0400 (EDT)
+	id 43A066B0008; Fri,  9 Aug 2019 01:35:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D98CB6B0007; Fri,  9 Aug 2019 01:15:48 -0400 (EDT)
+	id 3028B6B000A; Fri,  9 Aug 2019 01:35:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id A20866B0005
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 01:15:48 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id d27so59576419eda.9
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 22:15:48 -0700 (PDT)
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 19EAF6B0007
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 01:35:43 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id z2so3939913qkf.2
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 22:35:43 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date
-         :message-id:to:cc:subject:from:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=af3zhdCVdld+saS2hne4MzErwGwKjmQkdqUdjIT/Lf0=;
-        b=ABDE7GALnSQih005ALhFBKIoHNWrfETT6tpZF3bywu7LFYP7sLRiFS4Zbq6FCU8JpQ
-         ULWbxqqqu2J6kJfl437+CZ9B+5cj3qwhGaIn/qA/j/DJfIpS+21o80CpyQxqRp6L2tki
-         xCfYApjeifowrUjChW8KdYq/zmm7WsJApo4ASsOX8M+mSx1pli+qzPHBJ1GBEO0m1Kz3
-         syYc/msRQytbMJocShOeccglD5GGDcMM4hsWkxOlpvbkGImr/t/KD0WUM28Md/nYtPNB
-         9AcqMbZfaqMTudB3BI/LbPaPD3L/ghPolq009rvEAOXY54hKhYqK5VQMJ361wWJ/ga1C
-         L01Q==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-X-Gm-Message-State: APjAAAW88jWF+Abie1z+9BMrAN6HZgoaJpd+bKFQnoak4dF9SbQKE3vW
-	uab/xTcmQy1HTKEp4hz12/owRaDr99gp1siNEUaFdPub/wsM72gux6P0knk+GoRxDQlC4XC0gND
-	1emVmyoyJEjbfUcfJn3Q9gbMhztH58cFSlqlzoWQbEXeuHVzYnKKFryiviucJbNM=
-X-Received: by 2002:a50:f599:: with SMTP id u25mr20298449edm.195.1565327748155;
-        Thu, 08 Aug 2019 22:15:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxE0A/mH28pIvaK3qdInl37s5GGZ/ZdKKQ7sF0HC/xfwKWXkbM0T83b22ceXyPMqCKg91V4
-X-Received: by 2002:a50:f599:: with SMTP id u25mr20298413edm.195.1565327747462;
-        Thu, 08 Aug 2019 22:15:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565327747; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=kowFCnC+sC8EP+VWi7lbv0hOT5p2YHYna9sbHJ8sXRA=;
+        b=mi2Un13qrYi05GG7DjIwFzgaPeFW8ejYHWfBgGc3LfwMc1q/rTiBh0SHSnrdMdRxeG
+         NyQ1fxZuu/id1mXXIjaUN40J1uQaSmZpMEqL9IOG3f9AuCu930FxP7Hk3TjWGkcsO7B7
+         y5jwrKY5Z+fW4NavZ+LANr1kSeAXkCPbZBsffj2TisdGVVxEWhP55dUHJwA4PDOKo5IM
+         W5ahaNVkkvGts0BtdY7pw8jfdBEZ/aa6LlMFlaBCC5yQcodB6oAQC81/kzZ99Rvm3DCU
+         mLnq3IlnJjwMkCXkLqf0qjBqeVsDP+6T7z6o6vae/6/GaJ18a1DqLSLGkncR2j2QW3Ne
+         Pavg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAVxr/4eFjkbl74TEHsS4IkgUlMQyTMt9xk0guuPNSKO3bWq3zCL
+	DxXfBgNegz6pWhMCfDH7OXCtze9GyM1vWpg3BEr6pPjM5bXRWLu/kDQocKZrWeC3m7nnBMCdoYA
+	aaH/zPwImtfvVShVpnzBwkuMe03oqSX+awH4GM/jnOXU8QYyy26R0140XSivoSfflUQ==
+X-Received: by 2002:a05:620a:12c3:: with SMTP id e3mr7598625qkl.165.1565328942881;
+        Thu, 08 Aug 2019 22:35:42 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw/nk07pKDThxK251RUKmy8NITbPMwawKjkJGUNQWYcArB/cnXpoM4VwGNIngpzELDrCzVC
+X-Received: by 2002:a05:620a:12c3:: with SMTP id e3mr7598606qkl.165.1565328942342;
+        Thu, 08 Aug 2019 22:35:42 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565328942; cv=none;
         d=google.com; s=arc-20160816;
-        b=OqrX458eLoryrjAxdbmLD2fP8O1vvBcHEQj0I1UzFdPmutf9J5tLN/OfAwaKEkfO3u
-         tU83bOK8B6XOPaLmAY2n269ZaXMxhep5GX1nXH5sSrD9IF7q6yp8Iq/RDl2qR1iu2020
-         8NwCWzWtbsj9wcMAjVUglkIzuIo5vXaSZSZjZn83LB53e5H/a7zyUw9f6tta5lEd6ven
-         NW0s/7D+lbIzLnmsHFujnhtol1lzqyIgdndTi5JvW4tSvjGeS2z62ebeVzCpSk8/xNQN
-         5HId4rTK4KWU+fGYNJdGWyDS8TE1grMr8pPkABlcS5WWtFwar9M9vIDGnWp+f0MsnGAV
-         YRzw==
+        b=Z/rNbE60FeNSM84qiSJAHe+SFJDK/CpoF3iT1XlnDF96StkupRZP0utV5kyrq6XrED
+         VosPZsQVYjOy1m8edfrpIiKmgiOqds5s8TLg0PsDf/PZ4so44O/3inOflQ1khk/57xT6
+         iGVCaQcoymIOuYMkwVKkpJLV1H6eoHhnXKCVFSB10Dwj5Z+fYO4jpM8Y1TK7ZMpP8PzJ
+         TTPvNyZH2UqxmL9zFWP4POebc3pG9jqRKRZZlgtUUUyNKFv9VyVcOemqw/GkfNmvg/2z
+         0RKtrL3Vl233Yi+GcHWzDhxBzAAzQJySoAzMXMWntroBrI6bvJYpn+hOowyv9Gp9NCYp
+         kYqw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to:from
-         :subject:cc:to:message-id:date;
-        bh=af3zhdCVdld+saS2hne4MzErwGwKjmQkdqUdjIT/Lf0=;
-        b=YMqwFnwksJvGjfQoyj4RaqNCAj5aj3atyG6SkKFp/oHiSNQvA2dgnoMTcWGVAW+QcW
-         IafDd/7A8Dzf87kGPyWqGt151+WoyOkmr2rlaI4aImd/zEN5hBsye55+bL0/lGdy8a/s
-         EGqsbda4ZgA/TpkRcxFNEEUDuPRaw4h9Trm7sLkXt7gmm8MVvAgej3Tq8zULpfze7m/7
-         Gh+WPDaeW2G8h39LMy2suQPzlKkwLhJuBr9a1Wimaz6sFjKWVM2wILwAdqyvfrPNo5TC
-         gefzRDtOKYPgMDCfAlN+qa3cdeb7JwQ3CLX0UVO9qiTnpNYukSCa4CmVa1EgcDRFgR7N
-         G6xQ==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=kowFCnC+sC8EP+VWi7lbv0hOT5p2YHYna9sbHJ8sXRA=;
+        b=apcB5YIhuLZzwimrJix4Biv5+hmngLwG4WrEq/vjrRN8wy47Ymyt+mqLewNwShO86J
+         69+3Obg4A1rRKW0AFFxhsjaUmilIm+FeAlP5k+BW1tJjmoqwFls9e4nCeh7H/vwsZwNC
+         n0S6XPYFxNIL9us1TJDgtP/78Wbv30NH13RXjbKO6WRSO9ER/gWZMSQGWivm5GXsfHNc
+         HTKw69K3Xvg2gmvuhBl7o5S8zwSA74ouPdk6p6FS2rMDJwVyV99AKAPONihTZD18MFhZ
+         55JADxmqujsWk7hegEtH9/cBfdO1uecYdVQ9pxDNCO1ZMIr+1huXefjTh3MQS6/QDFSk
+         MaMQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-Received: from shards.monkeyblade.net (shards.monkeyblade.net. [2620:137:e000::1:9])
-        by mx.google.com with ESMTPS id rh18si2244902ejb.29.2019.08.08.22.15.46
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
+        by mx.google.com with ESMTPS id i14si2494181qki.366.2019.08.08.22.35.42
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 22:15:47 -0700 (PDT)
-Received-SPF: neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) client-ip=2620:137:e000::1:9;
+        Thu, 08 Aug 2019 22:35:42 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 2620:137:e000::1:9 is neither permitted nor denied by best guess record for domain of davem@davemloft.net) smtp.mailfrom=davem@davemloft.net
-Received: from localhost (unknown [IPv6:2601:601:9f80:35cd::d71])
-	(using TLSv1 with cipher AES256-SHA (256/256 bits))
-	(Client did not present a certificate)
-	(Authenticated sender: davem-davemloft)
-	by shards.monkeyblade.net (Postfix) with ESMTPSA id 86E4912651D63;
-	Thu,  8 Aug 2019 22:15:44 -0700 (PDT)
-Date: Thu, 08 Aug 2019 22:15:43 -0700 (PDT)
-Message-Id: <20190808.221543.450194346419371363.davem@davemloft.net>
-To: jasowang@redhat.com
+       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from smtp.corp.redhat.com (int-mx02.intmail.prod.int.phx2.redhat.com [10.5.11.12])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 76B7B8E90C;
+	Fri,  9 Aug 2019 05:35:41 +0000 (UTC)
+Received: from [10.72.12.241] (ovpn-12-241.pek2.redhat.com [10.72.12.241])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 1F54C60BF3;
+	Fri,  9 Aug 2019 05:35:33 +0000 (UTC)
+Subject: Re: [PATCH V4 0/9] Fixes for metadata accelreation
+To: David Miller <davem@davemloft.net>
 Cc: mst@redhat.com, kvm@vger.kernel.org,
  virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
  linux-kernel@vger.kernel.org, linux-mm@kvack.org, jgg@ziepe.ca
-Subject: Re: [PATCH V4 0/9] Fixes for metadata accelreation
-From: David Miller <davem@davemloft.net>
-In-Reply-To: <20190807070617.23716-1-jasowang@redhat.com>
 References: <20190807070617.23716-1-jasowang@redhat.com>
-X-Mailer: Mew version 6.8 on Emacs 26.1
-Mime-Version: 1.0
-Content-Type: Text/Plain; charset=us-ascii
-Content-Transfer-Encoding: 7bit
-X-Greylist: Sender succeeded SMTP AUTH, not delayed by milter-greylist-4.5.12 (shards.monkeyblade.net [149.20.54.216]); Thu, 08 Aug 2019 22:15:44 -0700 (PDT)
+ <20190808.221543.450194346419371363.davem@davemloft.net>
+From: Jason Wang <jasowang@redhat.com>
+Message-ID: <1aaec9aa-7832-35e2-a58d-99bcc2998ce8@redhat.com>
+Date: Fri, 9 Aug 2019 13:35:32 +0800
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
+MIME-Version: 1.0
+In-Reply-To: <20190808.221543.450194346419371363.davem@davemloft.net>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.12
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.26]); Fri, 09 Aug 2019 05:35:41 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Jason Wang <jasowang@redhat.com>
-Date: Wed,  7 Aug 2019 03:06:08 -0400
 
-> This series try to fix several issues introduced by meta data
-> accelreation series. Please review.
- ...
+On 2019/8/9 下午1:15, David Miller wrote:
+> From: Jason Wang <jasowang@redhat.com>
+> Date: Wed,  7 Aug 2019 03:06:08 -0400
+>
+>> This series try to fix several issues introduced by meta data
+>> accelreation series. Please review.
+>   ...
+>
+> My impression is that patch #7 will be changed to use spinlocks so there
+> will be a v5.
+>
 
-My impression is that patch #7 will be changed to use spinlocks so there
-will be a v5.
+Yes. V5 is on the way.
+
+Thanks
 
