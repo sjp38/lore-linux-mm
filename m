@@ -2,83 +2,84 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CD947C32756
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 07:33:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E9FEFC31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 07:34:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9082F2166E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 07:33:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9082F2166E
+	by mail.kernel.org (Postfix) with ESMTP id 9B18B2166E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 07:34:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9B18B2166E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1C0C96B0005; Fri,  9 Aug 2019 03:33:52 -0400 (EDT)
+	id 4A67E6B0006; Fri,  9 Aug 2019 03:34:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 172196B0006; Fri,  9 Aug 2019 03:33:52 -0400 (EDT)
+	id 456466B0007; Fri,  9 Aug 2019 03:34:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 039046B0007; Fri,  9 Aug 2019 03:33:51 -0400 (EDT)
+	id 2F9046B0008; Fri,  9 Aug 2019 03:34:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id A88D36B0005
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 03:33:51 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id 63so664451edy.3
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 00:33:51 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id CE1B76B0006
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 03:34:07 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id c31so59823175ede.5
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 00:34:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=U0zOWSM5kXzgtNQC9x94T80gzHN/MW8QNfwriLBOnSc=;
-        b=eKpyfcp6B92nROd9LCXXT2v7WmtzVOYf7otKxpDvJ70/HFpE43tQsVkGKucisTpzGk
-         4LGxro1QiAybLsDT6oOtoWqvYrpGFZ5PpRMbT3idr1s75MfPPqU5q/xzQlvk6ig3GQSY
-         wbuFlkbD0nH6WMW6U/+YfJJhrq0X/b0Lxf359zqPHHK+RqqTB3t2hTh0BMN6mOP7M29I
-         hvTZGBvXCUI6WyamfZP6NDkaH/AyOttPLLuVONlrSZzbfyqnyn3mKOkh9f0pZw5ZiY2F
-         U5LxarW8420xgYyqaaEqtBHomF8iJkwW3lGam/Hv68AdcR+etS+OJ5asxkW+gQTkeGwm
-         oGvQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAVtbNubg4e0ysg5Fg7Ig3n4jso4SM0uacnY35MFI1yLl5VaICnV
-	pN9qLXP0QfTk+xts9tH+R8TM/mrD7Avbhh6adZvEjPIPxznSy1PlAtuBSGBDBSvTG3oCnLksEHy
-	4aKAyGyjSqw6L3pv3MzcSKyROwvEtKm/qZXJirfdwVhyYFBhPmV+8/T0xFYigZqAyOg==
-X-Received: by 2002:a17:906:1292:: with SMTP id k18mr17375856ejb.146.1565336031200;
-        Fri, 09 Aug 2019 00:33:51 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqynvX8VuZ87xXrwVTif9HzgshytgM5TeDtCMHZgWdXywj4+XCQypmf9N2G6XoAgM0tQd63K
-X-Received: by 2002:a17:906:1292:: with SMTP id k18mr17375814ejb.146.1565336030208;
-        Fri, 09 Aug 2019 00:33:50 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565336030; cv=none;
+         :subject:date:message-id:in-reply-to:references;
+        bh=+6LXybCASzQ7Cahpcwm5fu9+u45TCd1XtlTME53a928=;
+        b=MGiuMpRSOlEUiZVSrabVNvV8PNL7UXF23PFEtUE2CnP4GBVYPL9y6pNTh3xIe0k6ev
+         yVkhq+VZTkpmohEbASaNzf3U+/WxuzwJyBdt2LTivZI1znX2IJYSFhIWheXIe0FcWPcy
+         eORXV43jLxLU+YCOjdmg9llctO6xpwxQ3WzFlBZ92+LF5mh9pXE1VmiPl9T5QoA+Xmlr
+         3XTtugmSLezZ2OK7EWrCUyLdoGhYnFG4VQnWxsu7r6r68UJtFr23Kh9Nz1azrU+snhnN
+         TM7y33bNhMmo+odbvs1OJQIc8AXYCgP6+dq3tyY9lKhKTa8bqsVlQu8I64akvGllmtFI
+         x4zA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAVBdv4lkSmfhuvEI8YUU+u/+XoBG1hezGko3F06JbXwaegr4x5E
+	PyJgAv2BuqhOF6tat6l0YL9FlqKpqbi6Az0w+Fme8HdfvEE9afy0ALCjUvESinbiXjkZnEhnouR
+	mly0GyIywITGGQGZrdCc7F57cFOSlxylGyr03MrxAu14QqdKO5Q0DJ25qdlbuwJuc1A==
+X-Received: by 2002:a17:906:6dd4:: with SMTP id j20mr17186021ejt.173.1565336047299;
+        Fri, 09 Aug 2019 00:34:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxILlZjdDjWjMvic8wvaVYej2rR1IsFEMRGfO8ggEZ2lgBv7JMLJ1m6ojpR4tveWKUU51B4
+X-Received: by 2002:a17:906:6dd4:: with SMTP id j20mr17185932ejt.173.1565336045737;
+        Fri, 09 Aug 2019 00:34:05 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565336045; cv=none;
         d=google.com; s=arc-20160816;
-        b=sEwbx8G1xZYec6T+hMpHXVC9RRvnYwqN3cNkX+3oFKfADtqMCbZiB3Fqj6yTncxcIZ
-         YN/Nm2xvLhIeJAltcM2mK5B1Nk4WgWi6Y0YS5C6hk6OuSVhsZlF7WzUiKfWvkHjSHd2/
-         ZTQoKEsec+FtoCrT5JQOA7dXEL0W4xxJs91VKMoFqv1Y1DuJvzQ0X2Cm/RbADDfOOPC0
-         24AV+p4otCaRo3zNixQsLMNLDkSwLaf4RXuTXEqEsHU25FAdO9N3O3kewF4KaGv4yqQ7
-         bEuVqxcDAp7tJZ/thDW94532V6wI77tvgtJ8N81hPYECOLQOlArjUd5WNcphwlxdBMUj
-         Ee1A==
+        b=tfz4FCp9M9SO2uerzmvykB5o7wUQVbGu2hypcgSHCALtcDM8VciA3YBjAdmZ4ykb7/
+         0j71ibPxb2XANE5qAbPPTSWEZEgafUEznwdxRpoGUj6GWMHn7M+wyqMn4V151tzzu1XH
+         qJafOIhMiRlZPl2FufqxKU9wxGX14IUP0ovv5l342wSdyaBShEM7kPaLZujlMpH57f9o
+         jzdQpAyp8JqrHUB/zw0PHjv8R39XplbmLqK5YPRYGJ3U7tpIMoIvWj25R/TqAmJi2fNX
+         3cTyidoeQrTOI4zs5oZhvu+nSOPkNJL3G0RVcPGdEJsysNVhGmT6x6QHK/3w+JLRL1Kn
+         dRSA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=U0zOWSM5kXzgtNQC9x94T80gzHN/MW8QNfwriLBOnSc=;
-        b=x4DKuEtTNLMvuU+C5W2JCRdJvpt67b7ZczE8oCovhwCz/uD/AELVBF9kGHv/HmrTnY
-         4IKsDLITAAfJHmWdYxKWfelR2bAgTzs0h+w9Zm98OcfBrVb15WxrCMUqZDYl+1DoR4XJ
-         uKbzx/4RgSZev9BMUGJbX9RDWSSyxVOxm7dSAQzI2M8veBYf9+3jiTX3E4fhOLRocL1v
-         GbfYVmnrT/z2B1NAv5ECmgQuPlpKZ03lrKDuzyzim6dnKNOz6mdWujkAmADzV5dy/8ZE
-         zc9jkwqsnO7l28r9ve4vGYkbLtDSpRXRFojR2GFkzVXlEZ0obZCf2OQ0oyzEkA52t91b
-         XZ0w==
+        h=references:in-reply-to:message-id:date:subject:cc:to:from;
+        bh=+6LXybCASzQ7Cahpcwm5fu9+u45TCd1XtlTME53a928=;
+        b=xkZ66zsuCcPDbazTwuP+N1oXTlUL6S6EXQelI5Ayqrpp4t2crutE+6zjTrA+7TN6kF
+         G4ax45SiIUDCVZRV7jvDWGNRSDsj77PDgMzwJrd7JRyV2UrtxHVp4gnJbHVscwUUl295
+         FJr3mhMHDq11ptJJTKKu9sXxK9g/HEYnwd5GuFBOAL2TF+xSahOr6UoaUuVocSeckcEW
+         U0WZb3IlQb18ycJ1DuDnw8iVeMifwQAwqsa9B69+mHRRoCLnN3fwH2/ziYEUHSD/0zMv
+         AyCVHyibaYf2r+BXQBLtRuSmN6ao6VbDkMRYLETFO6tzOzjSjqtOBxY8WQygzxw/zLvL
+         b46w==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id l42si37333555edc.120.2019.08.09.00.33.48
+        by mx.google.com with ESMTP id cx18si31585199ejb.366.2019.08.09.00.34.05
         for <linux-mm@kvack.org>;
-        Fri, 09 Aug 2019 00:33:49 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+        Fri, 09 Aug 2019 00:34:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: best guess record for domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
 Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4D0D0344;
-	Fri,  9 Aug 2019 00:33:48 -0700 (PDT)
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id C6386344;
+	Fri,  9 Aug 2019 00:34:04 -0700 (PDT)
 Received: from p8cg001049571a15.arm.com (unknown [10.163.1.243])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 031723F706;
-	Fri,  9 Aug 2019 00:33:31 -0700 (PDT)
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPA id 033BA3F706;
+	Fri,  9 Aug 2019 00:33:48 -0700 (PDT)
 From: Anshuman Khandual <anshuman.khandual@arm.com>
 To: linux-mm@kvack.org
 Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
@@ -121,65 +122,22 @@ Cc: Anshuman Khandual <anshuman.khandual@arm.com>,
 	sparclinux@vger.kernel.org,
 	x86@kernel.org,
 	linux-kernel@vger.kernel.org
-Subject: [RFC V2 0/1] mm/debug: Add tests for architecture exported page table helpers
-Date: Fri,  9 Aug 2019 13:03:17 +0530
-Message-Id: <1565335998-22553-1-git-send-email-anshuman.khandual@arm.com>
+Subject: [RFC V2 1/1] mm/pgtable/debug: Add test validating architecture page table helpers
+Date: Fri,  9 Aug 2019 13:03:18 +0530
+Message-Id: <1565335998-22553-2-git-send-email-anshuman.khandual@arm.com>
 X-Mailer: git-send-email 2.7.4
+In-Reply-To: <1565335998-22553-1-git-send-email-anshuman.khandual@arm.com>
+References: <1565335998-22553-1-git-send-email-anshuman.khandual@arm.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This series adds a test validation for architecture exported page table
-helpers. Patch in the series adds basic transformation tests at various
-levels of the page table.
-
-This test was originally suggested by Catalin during arm64 THP migration
-RFC discussion earlier. Going forward it can include more specific tests
-with respect to various generic MM functions like THP, HugeTLB etc and
-platform specific tests.
-
-https://lore.kernel.org/linux-mm/20190628102003.GA56463@arrakis.emea.arm.com/
-
-Questions:
-
-Should alloc_gigantic_page() be made available as an interface for general
-use in the kernel. The test module here uses very similar implementation from
-HugeTLB to allocate a PUD aligned memory block. Similar for mm_alloc() which
-needs to be exported through a header.
-
-Testing:
-
-Build and boot tested on arm64 and x86 platforms. While arm64 clears all
-these tests, following errors were reported on x86.
-
-1. WARN_ON(pud_bad(pud)) in pud_populate_tests()
-2. WARN_ON(p4d_bad(p4d)) in p4d_populate_tests()
-
-I would really appreciate if folks can help validate this test on other
-platforms and report back problems if any. Suggestions, comments and
-inputs welcome. Thank you.
-
-Changes in V2:
-
-- Moved test module and it's config from lib/ to mm/
-- Renamed config TEST_ARCH_PGTABLE as DEBUG_ARCH_PGTABLE_TEST
-- Renamed file from test_arch_pgtable.c to arch_pgtable_test.c
-- Added relevant MODULE_DESCRIPTION() and MODULE_AUTHOR() details
-- Dropped loadable module config option
-- Basic tests now use memory blocks with required size and alignment
-- PUD aligned memory block gets allocated with alloc_contig_range()
-- If PUD aligned memory could not be allocated it falls back on PMD aligned
-  memory block from page allocator and pud_* tests are skipped
-- Clear and populate tests now operate on real in memory page table entries
-- Dummy mm_struct gets allocated with mm_alloc()
-- Dummy page table entries get allocated with [pud|pmd|pte]_alloc_[map]()
-- Simplified [p4d|pgd]_basic_tests(), now has random values in the entries
-
-RFC V1:
-
-https://lore.kernel.org/linux-mm/1564037723-26676-1-git-send-email-anshuman.khandual@arm.com/
+This adds a test module which will validate architecture page table helpers
+and accessors regarding compliance with generic MM semantics expectations.
+This will help various architectures in validating changes to the existing
+page table helpers or addition of new ones.
 
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Vlastimil Babka <vbabka@suse.cz>
@@ -221,15 +179,455 @@ Cc: sparclinux@vger.kernel.org
 Cc: x86@kernel.org
 Cc: linux-kernel@vger.kernel.org
 
-Anshuman Khandual (1):
-  mm/pgtable/debug: Add test validating architecture page table helpers
-
+Suggested-by: Catalin Marinas <catalin.marinas@arm.com>
+Signed-off-by: Anshuman Khandual <anshuman.khandual@arm.com>
+---
  mm/Kconfig.debug       |  14 ++
  mm/Makefile            |   1 +
  mm/arch_pgtable_test.c | 400 +++++++++++++++++++++++++++++++++++++++++
  3 files changed, 415 insertions(+)
  create mode 100644 mm/arch_pgtable_test.c
 
+diff --git a/mm/Kconfig.debug b/mm/Kconfig.debug
+index 82b6a20898bd..d3dfbe984d41 100644
+--- a/mm/Kconfig.debug
++++ b/mm/Kconfig.debug
+@@ -115,3 +115,17 @@ config DEBUG_RODATA_TEST
+     depends on STRICT_KERNEL_RWX
+     ---help---
+       This option enables a testcase for the setting rodata read-only.
++
++config DEBUG_ARCH_PGTABLE_TEST
++	bool "Test arch page table helpers for semantics compliance"
++	depends on MMU
++	depends on DEBUG_KERNEL
++	help
++	  This options provides a kernel module which can be used to test
++	  architecture page table helper functions on various platform in
++	  verifying if they comply with expected generic MM semantics. This
++	  will help architectures code in making sure that any changes or
++	  new additions of these helpers will still conform to generic MM
++	  expected semantics.
++
++	  If unsure, say N.
+diff --git a/mm/Makefile b/mm/Makefile
+index 338e528ad436..0e6ac3789ca8 100644
+--- a/mm/Makefile
++++ b/mm/Makefile
+@@ -84,6 +84,7 @@ obj-$(CONFIG_HWPOISON_INJECT) += hwpoison-inject.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK) += kmemleak.o
+ obj-$(CONFIG_DEBUG_KMEMLEAK_TEST) += kmemleak-test.o
+ obj-$(CONFIG_DEBUG_RODATA_TEST) += rodata_test.o
++obj-$(CONFIG_DEBUG_ARCH_PGTABLE_TEST) += arch_pgtable_test.o
+ obj-$(CONFIG_PAGE_OWNER) += page_owner.o
+ obj-$(CONFIG_CLEANCACHE) += cleancache.o
+ obj-$(CONFIG_MEMORY_ISOLATION) += page_isolation.o
+diff --git a/mm/arch_pgtable_test.c b/mm/arch_pgtable_test.c
+new file mode 100644
+index 000000000000..41d6fa78a620
+--- /dev/null
++++ b/mm/arch_pgtable_test.c
+@@ -0,0 +1,400 @@
++// SPDX-License-Identifier: GPL-2.0-only
++/*
++ * This kernel module validates architecture page table helpers &
++ * accessors and helps in verifying their continued compliance with
++ * generic MM semantics.
++ *
++ * Copyright (C) 2019 ARM Ltd.
++ *
++ * Author: Anshuman Khandual <anshuman.khandual@arm.com>
++ */
++#define pr_fmt(fmt) "arch_pgtable_test: %s " fmt, __func__
++
++#include <linux/kernel.h>
++#include <linux/hugetlb.h>
++#include <linux/mm.h>
++#include <linux/mman.h>
++#include <linux/mm_types.h>
++#include <linux/module.h>
++#include <linux/printk.h>
++#include <linux/swap.h>
++#include <linux/swapops.h>
++#include <linux/pfn_t.h>
++#include <linux/gfp.h>
++#include <linux/spinlock.h>
++#include <linux/sched/mm.h>
++#include <asm/pgalloc.h>
++#include <asm/pgtable.h>
++
++/*
++ * Basic operations
++ *
++ * mkold(entry)			= An old and not a young entry
++ * mkyoung(entry)		= A young and not an old entry
++ * mkdirty(entry)		= A dirty and not a clean entry
++ * mkclean(entry)		= A clean and not a dirty entry
++ * mkwrite(entry)		= A write and not a write protected entry
++ * wrprotect(entry)		= A write protected and not a write entry
++ * pxx_bad(entry)		= A mapped and non-table entry
++ * pxx_same(entry1, entry2)	= Both entries hold the exact same value
++ */
++#define VADDR_TEST	(PGDIR_SIZE + PUD_SIZE + PMD_SIZE + PAGE_SIZE)
++#define VMA_TEST_FLAGS	(VM_READ|VM_WRITE|VM_EXEC)
++#define RANDOM_NZVALUE	(0xbe)
++
++static bool pud_aligned;
++
++extern struct mm_struct *mm_alloc(void);
++
++static void pte_basic_tests(struct page *page, pgprot_t prot)
++{
++	pte_t pte = mk_pte(page, prot);
++
++	WARN_ON(!pte_same(pte, pte));
++	WARN_ON(!pte_young(pte_mkyoung(pte)));
++	WARN_ON(!pte_dirty(pte_mkdirty(pte)));
++	WARN_ON(!pte_write(pte_mkwrite(pte)));
++	WARN_ON(pte_young(pte_mkold(pte)));
++	WARN_ON(pte_dirty(pte_mkclean(pte)));
++	WARN_ON(pte_write(pte_wrprotect(pte)));
++}
++
++#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE
++static void pmd_basic_tests(struct page *page, pgprot_t prot)
++{
++	pmd_t pmd = mk_pmd(page, prot);
++
++	WARN_ON(!pmd_same(pmd, pmd));
++	WARN_ON(!pmd_young(pmd_mkyoung(pmd)));
++	WARN_ON(!pmd_dirty(pmd_mkdirty(pmd)));
++	WARN_ON(!pmd_write(pmd_mkwrite(pmd)));
++	WARN_ON(pmd_young(pmd_mkold(pmd)));
++	WARN_ON(pmd_dirty(pmd_mkclean(pmd)));
++	WARN_ON(pmd_write(pmd_wrprotect(pmd)));
++	/*
++	 * A huge page does not point to next level page table
++	 * entry. Hence this must qualify as pmd_bad().
++	 */
++	WARN_ON(!pmd_bad(pmd_mkhuge(pmd)));
++}
++#else
++static void pmd_basic_tests(struct page *page, pgprot_t prot) { }
++#endif
++
++#ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
++static void pud_basic_tests(struct page *page, pgprot_t prot)
++{
++	pud_t pud;
++
++	/*
++	 * Memory block here must be PUD_SIZE aligned. Abort this
++	 * test in case we could not allocate such a memory block.
++	 */
++	if (!pud_aligned) {
++		pr_warn("Could not proceed with PUD tests\n");
++		return;
++	}
++	pud = pfn_pud(page_to_pfn(page), prot);
++
++	WARN_ON(!pud_same(pud, pud));
++	WARN_ON(!pud_young(pud_mkyoung(pud)));
++	WARN_ON(!pud_write(pud_mkwrite(pud)));
++	WARN_ON(pud_write(pud_wrprotect(pud)));
++	WARN_ON(pud_young(pud_mkold(pud)));
++
++#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
++	/*
++	 * A huge page does not point to next level page table
++	 * entry. Hence this must qualify as pud_bad().
++	 */
++	WARN_ON(!pud_bad(pud_mkhuge(pud)));
++#endif
++}
++#else
++static void pud_basic_tests(struct page *page, pgprot_t prot) { }
++#endif
++
++static void p4d_basic_tests(struct page *page, pgprot_t prot)
++{
++	p4d_t p4d;
++
++	memset(&p4d, RANDOM_NZVALUE, sizeof(p4d_t));
++	WARN_ON(!p4d_same(p4d, p4d));
++}
++
++static void pgd_basic_tests(struct page *page, pgprot_t prot)
++{
++	pgd_t pgd;
++
++	memset(&pgd, RANDOM_NZVALUE, sizeof(pgd_t));
++	WARN_ON(!pgd_same(pgd, pgd));
++}
++
++#if !defined(__PAGETABLE_PMD_FOLDED) && !defined(__ARCH_HAS_4LEVEL_HACK)
++static void pud_clear_tests(pud_t *pudp)
++{
++	memset(pudp, RANDOM_NZVALUE, sizeof(pud_t));
++	pud_clear(pudp);
++	WARN_ON(!pud_none(READ_ONCE(*pudp)));
++}
++
++static void pud_populate_tests(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)
++{
++	/*
++	 * This entry points to next level page table page.
++	 * Hence this must not qualify as pud_bad().
++	 */
++	pmd_clear(pmdp);
++	pud_clear(pudp);
++	pud_populate(mm, pudp, pmdp);
++	WARN_ON(pud_bad(READ_ONCE(*pudp)));
++}
++#else
++static void pud_clear_tests(pud_t *pudp) { }
++static void pud_populate_tests(struct mm_struct *mm, pud_t *pudp, pmd_t *pmdp)
++{
++}
++#endif
++
++#if !defined(__PAGETABLE_PUD_FOLDED) && !defined(__ARCH_HAS_5LEVEL_HACK)
++static void p4d_clear_tests(p4d_t *p4dp)
++{
++	memset(p4dp, RANDOM_NZVALUE, sizeof(p4d_t));
++	p4d_clear(p4dp);
++	WARN_ON(!p4d_none(READ_ONCE(*p4dp)));
++}
++
++static void p4d_populate_tests(struct mm_struct *mm, p4d_t *p4dp, pud_t *pudp)
++{
++	/*
++	 * This entry points to next level page table page.
++	 * Hence this must not qualify as p4d_bad().
++	 */
++	pud_clear(pudp);
++	p4d_clear(p4dp);
++	p4d_populate(mm, p4dp, pudp);
++	WARN_ON(p4d_bad(READ_ONCE(*p4dp)));
++}
++#else
++static void p4d_clear_tests(p4d_t *p4dp) { }
++static void p4d_populate_tests(struct mm_struct *mm, p4d_t *p4dp, pud_t *pudp)
++{
++}
++#endif
++
++#ifndef __PAGETABLE_P4D_FOLDED
++static void pgd_clear_tests(pgd_t *pgdp)
++{
++	memset(pgdp, RANDOM_NZVALUE, sizeof(pgd_t));
++	pgd_clear(pgdp);
++	WARN_ON(!pgd_none(READ_ONCE(*pgdp)));
++}
++
++static void pgd_populate_tests(struct mm_struct *mm, pgd_t *pgdp, p4d_t *p4dp)
++{
++	/*
++	 * This entry points to next level page table page.
++	 * Hence this must not qualify as pgd_bad().
++	 */
++	p4d_clear(p4dp);
++	pgd_clear(pgdp);
++	pgd_populate(mm, pgdp, p4dp);
++	WARN_ON(pgd_bad(READ_ONCE(*pgdp)));
++}
++#else
++static void pgd_clear_tests(pgd_t *pgdp) { }
++static void pgd_populate_tests(struct mm_struct *mm, pgd_t *pgdp, p4d_t *p4dp)
++{
++}
++#endif
++
++static void pte_clear_tests(pte_t *ptep)
++{
++	memset(ptep, RANDOM_NZVALUE, sizeof(pte_t));
++	pte_clear(NULL, 0, ptep);
++	WARN_ON(!pte_none(READ_ONCE(*ptep)));
++}
++
++static void pmd_clear_tests(pmd_t *pmdp)
++{
++	memset(pmdp, RANDOM_NZVALUE, sizeof(pmd_t));
++	pmd_clear(pmdp);
++	WARN_ON(!pmd_none(READ_ONCE(*pmdp)));
++}
++
++static void pmd_populate_tests(struct mm_struct *mm, pmd_t *pmdp,
++			       pgtable_t pgtable)
++{
++	/*
++	 * This entry points to next level page table page.
++	 * Hence this must not qualify as pmd_bad().
++	 */
++	pmd_clear(pmdp);
++	pmd_populate(mm, pmdp, pgtable);
++	WARN_ON(pmd_bad(READ_ONCE(*pmdp)));
++}
++
++static bool pfn_range_valid(struct zone *z, unsigned long start_pfn,
++			    unsigned long nr_pages)
++{
++	unsigned long i, end_pfn = start_pfn + nr_pages;
++	struct page *page;
++
++	for (i = start_pfn; i < end_pfn; i++) {
++		if (!pfn_valid(i))
++			return false;
++
++		page = pfn_to_page(i);
++
++		if (page_zone(page) != z)
++			return false;
++
++		if (PageReserved(page))
++			return false;
++
++		if (page_count(page) > 0)
++			return false;
++
++		if (PageHuge(page))
++			return false;
++	}
++	return true;
++}
++
++static struct page *alloc_gigantic_page(nodemask_t *nodemask,
++					int nid, gfp_t gfp_mask, int order)
++{
++	struct zonelist *zonelist;
++	struct zone *zone;
++	struct zoneref *z;
++	enum zone_type zonesel;
++	unsigned long ret, pfn, flags, nr_pages;
++
++	nr_pages = 1UL << order;
++	zonesel = gfp_zone(gfp_mask);
++	zonelist = node_zonelist(nid, gfp_mask);
++	for_each_zone_zonelist_nodemask(zone, z, zonelist, zonesel, nodemask) {
++		spin_lock_irqsave(&zone->lock, flags);
++		pfn = ALIGN(zone->zone_start_pfn, nr_pages);
++		while (zone_spans_pfn(zone, pfn + nr_pages - 1)) {
++			if (pfn_range_valid(zone, pfn, nr_pages)) {
++				spin_unlock_irqrestore(&zone->lock, flags);
++				ret = alloc_contig_range(pfn, pfn + nr_pages,
++							 MIGRATE_MOVABLE,
++							 gfp_mask);
++				if (!ret)
++					return pfn_to_page(pfn);
++				spin_lock_irqsave(&zone->lock, flags);
++			}
++			pfn += nr_pages;
++		}
++		spin_unlock_irqrestore(&zone->lock, flags);
++	}
++	return NULL;
++}
++
++static struct page *alloc_mapped_page(void)
++{
++	gfp_t gfp_mask = GFP_KERNEL | __GFP_ZERO;
++	struct page *page = NULL;
++
++	page = alloc_gigantic_page(&node_states[N_MEMORY], first_memory_node,
++				   gfp_mask, get_order(PUD_SIZE));
++	if (page) {
++		pud_aligned = true;
++		return page;
++	}
++	return alloc_pages(gfp_mask, get_order(PMD_SIZE));
++}
++
++static void free_mapped_page(struct page *page)
++{
++	if (pud_aligned) {
++		unsigned long pfn = page_to_pfn(page);
++
++		free_contig_range(pfn, 1ULL << get_order(PUD_SIZE));
++		return;
++	}
++	free_pages((unsigned long)page_address(page), get_order(PMD_SIZE));
++}
++
++static int __init arch_pgtable_tests_init(void)
++{
++	struct mm_struct *mm;
++	struct page *page;
++	pgd_t *pgdp;
++	p4d_t *p4dp, *saved_p4dp;
++	pud_t *pudp, *saved_pudp;
++	pmd_t *pmdp, *saved_pmdp;
++	pte_t *ptep, *saved_ptep;
++	pgprot_t prot = vm_get_page_prot(VMA_TEST_FLAGS);
++	unsigned long vaddr = VADDR_TEST;
++
++	mm = mm_alloc();
++	if (!mm) {
++		pr_err("mm_struct allocation failed\n");
++		return 1;
++	}
++
++	page = alloc_mapped_page();
++	if (!page) {
++		pr_err("memory allocation failed\n");
++		return 1;
++	}
++
++	pgdp = pgd_offset(mm, vaddr);
++	p4dp = p4d_alloc(mm, pgdp, vaddr);
++	pudp = pud_alloc(mm, p4dp, vaddr);
++	pmdp = pmd_alloc(mm, pudp, vaddr);
++	ptep = pte_alloc_map(mm, pmdp, vaddr);
++
++	/*
++	 * Save all the page table page addresses as the page table
++	 * entries will be used for testing with random or garbage
++	 * values. These saved addresses will be used for freeing
++	 * page table pages.
++	 */
++	saved_p4dp = p4d_offset(pgdp, 0UL);
++	saved_pudp = pud_offset(p4dp, 0UL);
++	saved_pmdp = pmd_offset(pudp, 0UL);
++	saved_ptep = pte_offset_map(pmdp, 0UL);
++
++	pte_basic_tests(page, prot);
++	pmd_basic_tests(page, prot);
++	pud_basic_tests(page, prot);
++	p4d_basic_tests(page, prot);
++	pgd_basic_tests(page, prot);
++
++	pte_clear_tests(ptep);
++	pmd_clear_tests(pmdp);
++	pud_clear_tests(pudp);
++	p4d_clear_tests(p4dp);
++	pgd_clear_tests(pgdp);
++
++	pmd_populate_tests(mm, pmdp, (pgtable_t) page);
++	pud_populate_tests(mm, pudp, pmdp);
++	p4d_populate_tests(mm, p4dp, pudp);
++	pgd_populate_tests(mm, pgdp, p4dp);
++
++	p4d_free(mm, saved_p4dp);
++	pud_free(mm, saved_pudp);
++	pmd_free(mm, saved_pmdp);
++	pte_free(mm, (pgtable_t) virt_to_page(saved_ptep));
++
++	mm_dec_nr_puds(mm);
++	mm_dec_nr_pmds(mm);
++	mm_dec_nr_ptes(mm);
++	__mmdrop(mm);
++
++	free_mapped_page(page);
++	return 0;
++}
++
++static void __exit arch_pgtable_tests_exit(void) { }
++
++module_init(arch_pgtable_tests_init);
++module_exit(arch_pgtable_tests_exit);
++
++MODULE_LICENSE("GPL v2");
++MODULE_AUTHOR("Anshuman Khandual <anshuman.khandual@arm.com>");
++MODULE_DESCRIPTION("Test archicture page table helpers");
 -- 
 2.20.1
 
