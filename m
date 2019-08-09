@@ -6,82 +6,82 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9FDF5C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:00:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AFB8FC433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 364C92089E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:00:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 364C92089E
+	by mail.kernel.org (Postfix) with ESMTP id 4E99E2089E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4E99E2089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 726CB6B000A; Fri,  9 Aug 2019 12:00:56 -0400 (EDT)
+	id B5F0C6B000C; Fri,  9 Aug 2019 12:00:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 660916B000C; Fri,  9 Aug 2019 12:00:56 -0400 (EDT)
+	id AAD156B0269; Fri,  9 Aug 2019 12:00:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 52D9A6B000E; Fri,  9 Aug 2019 12:00:56 -0400 (EDT)
+	id 80D376B0266; Fri,  9 Aug 2019 12:00:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id D6A086B000A
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:00:55 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id v7so46845420wrt.6
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:00:55 -0700 (PDT)
+Received: from mail-wm1-f69.google.com (mail-wm1-f69.google.com [209.85.128.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2D8176B000D
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:00:56 -0400 (EDT)
+Received: by mail-wm1-f69.google.com with SMTP id u19so1066644wmj.0
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:00:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=G6omFgr3glRrqnOiyFZ0Kr0FkKY7plvNBaSQRFGxKaE=;
-        b=YQbqmcqlky1non+Isnlfa5uDky0/fE+lcu9HSSkvZNWFGwejYW4oNx7KBUygnIBAwM
-         bWbAJEMTGWxjUf9Af9Q3lqhf5Wq9dt/xEEsSbdJYu+6/0w4WjHglsmZJ2M8X9WWmpBXk
-         hOkgpa0d0fUeNV4F4yBT+fjK468h5CN/0gf6WDyth44HZi95JDQ/moRiyVxeFDxX/pqU
-         SfDUBHhCZzTysY5uT6PqTx1olLZ+fIGLOMRF+4GFr95f2McMVhDqJue3Htk9XnufItJL
-         HTjYJ93JYnHs0Wlw/id76sEj39ACcmi5y6whDAmQ1piF6m0DVUoeSwZ7TVd4vpiYEuEP
-         QUtg==
+        bh=RaF6F7W1ahZpjcegiQ+z6Xfa2GK7HBnIqM0vUdkfy8A=;
+        b=Tsqegtkrqtfgmpufn20L6OeqUJZ7xJmxfxUqWoxqmAARFtL0Q+j0OVIC1otfCA+k0d
+         /wCc9c2uixuL9UAuMyKEgxxgT+egxqP09wpaROdZL7wdCSzAJ95OhlF+SldqTRwMRO4+
+         FRrqpzZPqAZSHYDMM5IAI05BQnf6oWxxlMPSg5WF1ROXGWvvyBNuwkvRX+LlfHDoUyYe
+         7jAe4pt7g3JL+d+ZlXJz0byrSBMOzLLUXYOHhOSWIFjzxuyOah+5TFg1tqxC2Dzio8Un
+         JU0bzncWTPjK2C+XYMOk3cIwok2qnbQ7fEJ5t4TmrvEy3/j15RDPI2G/OBaQ3EC+wDZJ
+         YHyA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAVRlFEwmZBY3IiGpjkhOZIsberaA6w4rfRRyC1iPTCiOHrPkXJE
-	tChysnuqSB2I5zS5ipddIC8qtjKnYP0qoZ4NxucQjiF/S1HprnV85tdB5hYh9KGLjrVpACy8HGB
-	GLh9vteMvXblz3i2rh3xOsddEgYj9kEdefq1in2th9tbWGrawKKeTKN/fDrbqCFoLBQ==
-X-Received: by 2002:adf:fe4f:: with SMTP id m15mr24721819wrs.36.1565366455392;
+X-Gm-Message-State: APjAAAU6AA8npL1oxijqKskvuNiI6mQqGIMHQzIlUjOpekfkz9pUUSzz
+	LcmdYt4XmRiDeqL88z1f7c35ragKltEFnVBg8vkmSxadbxLiFuZ0AfgHT2EG0LyjjlAb3PIoiiS
+	J70MqfC7hgylem0gnCCaB+zL3V63jKP58WulggJvFgn04y7G5tQZZvyiuKzpkW4HpEg==
+X-Received: by 2002:a5d:460e:: with SMTP id t14mr755993wrq.171.1565366455698;
         Fri, 09 Aug 2019 09:00:55 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwIxysptf82D9v6ojWahB847bm8zrQsihKwu3MQ/bKXVcH+B8CrUghhE0WULGkzoSud7jFy
-X-Received: by 2002:adf:fe4f:: with SMTP id m15mr24721685wrs.36.1565366453916;
-        Fri, 09 Aug 2019 09:00:53 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366453; cv=none;
+X-Google-Smtp-Source: APXvYqxfhbgoSmsVfj1WMQQ6oJntrhrrwdZQcH5TvuNqOEtS0L+S9uauC82WLKN4SVyFu9PHTOx1
+X-Received: by 2002:a5d:460e:: with SMTP id t14mr755888wrq.171.1565366454668;
+        Fri, 09 Aug 2019 09:00:54 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565366454; cv=none;
         d=google.com; s=arc-20160816;
-        b=TfEfx9t91OAHIaWFQGk9Syi3qNHenHQF6W+GUD1XbKTv25KnjliScCCR3FAsB01Xsz
-         3LTPNeuzmJN+bf/lZrm/o+0Rt0Lmor01LNo+MfKYCkSUU0KVH4GZQjyd+jmlEaN95qgk
-         xGijffAfpQrHB1f7vBKAEaoj9rzUxg1FO1oe51K+nXxyJ7wt3CEyj4SAh24f5q2LGgPy
-         zDX71ln8taeun/bi09iuj7AtccXlQU4hn2sJ50wAZqvvG710Sb0J+ChXqNEhSlY2yrV5
-         vsZ+F6yixf+bYuyJNVywtSLtDSEaDHgNnyQSw3GWT2mMjnVLcRB3Ei7Btu1xT00evWdn
-         OStA==
+        b=b5Ezcqw0xPMMWHd/b7SdxPJBnT1pmT942rTQ6ig90w3PIT9+MgIN1akV6lZXC/MxWP
+         D4ReZydk5rjnRsb7aybqiWxdk0vC0d2QrWAHPEUnGbUSfmLWwZAtWPm77J69nm1S8ZNC
+         8iQrKCsD0+dA4sXqcC8VzyAqqbdy1O9Wlpk64HOKYIj2bxgeLfHlZgq314609oPJ95dg
+         rw0SNY95VHde41VDckaOTZJb7n8m/9GvYfMJOy7Vl25TePG+kdOt5YRDE4KOZIrJTPHm
+         wlWIeqm98eZFegQi/xejhKLcG0lcP8kI8oYa+ibrWXE0MHN5LrLtc8YRyMdIa91qBi8O
+         i8Yg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=G6omFgr3glRrqnOiyFZ0Kr0FkKY7plvNBaSQRFGxKaE=;
-        b=VW1yoHeLGHyHSCYmjj+GKmf/0kvsqNKPL4Oo4iQPd5gqQoXW15LH5l+LJMARyZeYc8
-         nL4nGQeIVL5WCPTkN2mRNsX0fkn9pf0JhQ3+PmlOXQfgzskY53ubmViWwT64F3dO4gGh
-         LgZPKy9+haasdFS+ijvzhmhpW+F3Tby48eRBt5gC+Vnb47T8ly8JXKXh23dpZfUym8IK
-         hs8OAjmOCpDVBkpEwRhp8lHYM5AAnogWm+oT9SIYDJBGp6r6qldj4k9xTevAx68H/Ulu
-         kv4FqzzwrGuFFLtHAG4jtLvkTk9Uqxbdz/D2y2XmySN6xUniUJRnizv++U6sPWy2GJc0
-         JwTA==
+        bh=RaF6F7W1ahZpjcegiQ+z6Xfa2GK7HBnIqM0vUdkfy8A=;
+        b=hSpuuQipHgs+WG1ks2LpDlcvutgN0J6bDzqpxpQpLphx3a3r0pZhMa2BUuETxS10Oy
+         Z6frTqmYRwMQC05MVPpIwGpGSbTiNMYvAgfDakqTznahRhK5/SaCYl0slnWn9TxhRpv4
+         6PSm4EdQGiRkeqGLWiVuUTgmyL89RdZG3ipVV8Z1NUYlT1UphZOrZTNgJsWw9+lu9Rlk
+         ExhYp5RYy0EzTOHvwSenDYwUAyqM0vF+Hpst6WrH+cGUegUQUaW1bR7f2pPjpDnhhvj8
+         8HQ0GojBFutZtSZG7t65orfdyZawWQSSiK2zHAeKABjYdtmqLmqFdw9DL77ip8MZEybk
+         VgHQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id v19si70860798wrd.29.2019.08.09.09.00.53
+        by mx.google.com with ESMTPS id w4si85104276wrn.31.2019.08.09.09.00.54
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 09:00:53 -0700 (PDT)
+        Fri, 09 Aug 2019 09:00:54 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 42DA8305D3CF;
-	Fri,  9 Aug 2019 19:00:53 +0300 (EEST)
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 0D891301AB48;
+	Fri,  9 Aug 2019 19:00:54 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id EF259305B7A1;
-	Fri,  9 Aug 2019 19:00:52 +0300 (EEST)
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id BFC3E305B7A4;
+	Fri,  9 Aug 2019 19:00:53 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
@@ -98,9 +98,9 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
 	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v6 03/92] kvm: introspection: add permission access ioctls
-Date: Fri,  9 Aug 2019 18:59:18 +0300
-Message-Id: <20190809160047.8319-4-alazar@bitdefender.com>
+Subject: [RFC PATCH v6 06/92] kvm: introspection: add KVMI_CONTROL_CMD_RESPONSE
+Date: Fri,  9 Aug 2019 18:59:21 +0300
+Message-Id: <20190809160047.8319-7-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -112,290 +112,194 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-KVM_INTROSPECTION_COMMAND and KVM_INTROSPECTION_EVENTS should be used
-by userspace/QEMU to allow access to specific (or all) introspection
-commands and events.
+This command enables/disables the command replies. It is useful when
+the introspection tool send multiple messages with one write() call and
+doesn't have to wait for a reply.
 
-By default, all introspection events and almost all introspection commands
-are disallowed. There are a couple of commands that are always allowed
-(those querying the introspection capabilities).
+IIRC, the speed improvment seen during UnixBench tests in a VM
+introspected through vsock (the introspection tool was running in a
+different VM) was around 5-10%.
 
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- Documentation/virtual/kvm/api.txt | 56 +++++++++++++++++++-
- include/uapi/linux/kvm.h          |  6 +++
- virt/kvm/kvm_main.c               |  6 +++
- virt/kvm/kvmi.c                   | 85 +++++++++++++++++++++++++++++++
- virt/kvm/kvmi_int.h               | 51 +++++++++++++++++++
- 5 files changed, 203 insertions(+), 1 deletion(-)
+ Documentation/virtual/kvm/kvmi.rst | 50 ++++++++++++++++++++++++++
+ include/uapi/linux/kvmi.h          |  7 ++++
+ virt/kvm/kvmi_int.h                |  2 ++
+ virt/kvm/kvmi_msg.c                | 57 ++++++++++++++++++++++++++++++
+ 4 files changed, 116 insertions(+)
 
-diff --git a/Documentation/virtual/kvm/api.txt b/Documentation/virtual/kvm/api.txt
-index 28d4429f9ae9..ea3135d365c7 100644
---- a/Documentation/virtual/kvm/api.txt
-+++ b/Documentation/virtual/kvm/api.txt
-@@ -3889,7 +3889,61 @@ It will fail with -EINVAL if padding is not zero.
- The KVMI version can be retrieved using the KVM_CAP_INTROSPECTION of
- the KVM_CHECK_EXTENSION ioctl() at run-time.
+diff --git a/Documentation/virtual/kvm/kvmi.rst b/Documentation/virtual/kvm/kvmi.rst
+index 0f296e3c4244..82de474d512b 100644
+--- a/Documentation/virtual/kvm/kvmi.rst
++++ b/Documentation/virtual/kvm/kvmi.rst
+@@ -252,3 +252,53 @@ Returns the introspection API version.
  
--4.997 KVM_INTROSPECTION_UNHOOK
-+4.997 KVM_INTROSPECTION_COMMAND
+ This command is always allowed and successful (if the introspection is
+ built in kernel).
 +
-+Capability: KVM_CAP_INTROSPECTION
-+Architectures: x86
-+Type: vm ioctl
-+Parameters: struct kvm_introspection_feature (in)
-+Returns: 0 on success, a negative value on error
++2. KVMI_CONTROL_CMD_RESPONSE
++----------------------------
 +
-+This ioctl is used to allow or disallow introspection commands
-+for the current VM. By default, almost all commands are disallowed
-+except for those used to query the API.
++:Architectures: all
++:Versions: >= 1
++:Parameters:
 +
-+struct kvm_introspection_feature {
-+	__u32 allow;
-+	__s32 id;
-+};
++::
 +
-+If allow is 1, the command specified by id is allowed. If allow is 0,
-+the command is disallowed.
++	struct kvmi_control_cmd_response {
++		__u8 enable;
++		__u8 now;
++		__u16 padding1;
++		__u32 padding2;
++	};
 +
-+Unless set to -1 (meaning all commands), id must be a command ID
-+(e.g. KVMI_GET_VERSION, KVMI_GET_GUEST_INFO etc.)
++:Returns:
 +
-+Errors:
++::
++	struct kvmi_error_code
 +
-+  -EINVAL if the command is unknown
-+  -EPERM if the command can't be disallowed (e.g. KVMI_GET_VERSION)
++Enables or disables the command replies. By default, all commands need
++a reply.
 +
-+4.998 KVM_INTROSPECTION_EVENT
++If `now` is 1, the command reply is enabled/disabled (according to
++`enable`) starting with the current command. For example, `enable=0`
++and `now=1` means that the reply is disabled for this command too,
++while `enable=0` and `now=0` means that a reply will be send for this
++command, but not for the next ones (until enabled back with another
++*KVMI_CONTROL_CMD_RESPONSE*).
 +
-+Capability: KVM_CAP_INTROSPECTION
-+Architectures: x86
-+Type: vm ioctl
-+Parameters: struct kvm_introspection_feature (in)
-+Returns: 0 on success, a negative value on error
++This command is used by the introspection tool to disable the replies
++for commands returning an error code only (eg. *KVMI_SET_REGISTERS*)
++when an error is less likely to happen. For example, the following
++commands can be used to reply to an event with a single `write()` call:
 +
-+This ioctl is used to allow or disallow introspection events
-+for the current VM. By default, all events are disallowed.
++	KVMI_CONTROL_CMD_RESPONSE enable=0 now=1
++	KVMI_SET_REGISTERS vcpu=N
++	KVMI_EVENT_REPLY   vcpu=N
++	KVMI_CONTROL_CMD_RESPONSE enable=1 now=0
 +
-+struct kvm_introspection_feature {
-+	__u32 allow;
-+	__s32 id;
-+};
++While the command reply is disabled:
 +
-+If allow is 1, the event specified by id is allowed. If allow is 0,
-+the event is disallowed.
++* the socket will be closed on any command for which the reply should
++  contain more than just an error code (eg. *KVMI_GET_REGISTERS*)
 +
-+Unless set to -1 (meaning all event), id must be a event ID
-+(e.g. KVMI_EVENT_UNHOOK, KVMI_EVENT_CR, etc.)
-+
-+Errors:
-+
-+  -EINVAL if the event is unknown
-+
-+4.999 KVM_INTROSPECTION_UNHOOK
- 
- Capability: KVM_CAP_INTROSPECTION
- Architectures: x86
-diff --git a/include/uapi/linux/kvm.h b/include/uapi/linux/kvm.h
-index bae37bf37338..2ff05fd123e3 100644
---- a/include/uapi/linux/kvm.h
-+++ b/include/uapi/linux/kvm.h
-@@ -1527,9 +1527,15 @@ struct kvm_introspection {
++* the reply status is ignored for any unsupported/unknown or disallowed
++  commands (and ``struct kvmi_error_code`` will be sent with -KVM_EOPNOTSUPP
++  or -KVM_PERM).
+diff --git a/include/uapi/linux/kvmi.h b/include/uapi/linux/kvmi.h
+index 9574ba0b9565..a1ab39c5b8e0 100644
+--- a/include/uapi/linux/kvmi.h
++++ b/include/uapi/linux/kvmi.h
+@@ -83,4 +83,11 @@ struct kvmi_get_version_reply {
  	__u32 padding;
- 	__u8 uuid[16];
  };
-+struct kvm_introspection_feature {
-+	__u32 allow;
-+	__s32 id;
+ 
++struct kvmi_control_cmd_response {
++	__u8 enable;
++	__u8 now;
++	__u16 padding1;
++	__u32 padding2;
 +};
- #define KVM_INTROSPECTION_HOOK    _IOW(KVMIO, 0xff, struct kvm_introspection)
- #define KVM_INTROSPECTION_UNHOOK  _IO(KVMIO, 0xfe)
- /* write true on force-reset, false otherwise */
-+#define KVM_INTROSPECTION_COMMAND _IOW(KVMIO, 0xfd, struct kvm_introspection_feature)
-+#define KVM_INTROSPECTION_EVENT   _IOW(KVMIO, 0xfc, struct kvm_introspection_feature)
- 
- #define KVM_DEV_ASSIGN_ENABLE_IOMMU	(1 << 0)
- #define KVM_DEV_ASSIGN_PCI_2_3		(1 << 1)
-diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
-index 09a930ac007d..8399b826f2d2 100644
---- a/virt/kvm/kvm_main.c
-+++ b/virt/kvm/kvm_main.c
-@@ -3270,6 +3270,12 @@ static long kvm_vm_ioctl(struct file *filp,
- 	case KVM_INTROSPECTION_HOOK:
- 		r = kvmi_ioctl_hook(kvm, argp);
- 		break;
-+	case KVM_INTROSPECTION_COMMAND:
-+		r = kvmi_ioctl_command(kvm, argp);
-+		break;
-+	case KVM_INTROSPECTION_EVENT:
-+		r = kvmi_ioctl_event(kvm, argp);
-+		break;
- 	case KVM_INTROSPECTION_UNHOOK:
- 		r = kvmi_ioctl_unhook(kvm, arg);
- 		break;
-diff --git a/virt/kvm/kvmi.c b/virt/kvm/kvmi.c
-index 591f6ee22135..dc64f975998f 100644
---- a/virt/kvm/kvmi.c
-+++ b/virt/kvm/kvmi.c
-@@ -169,6 +169,91 @@ int kvmi_ioctl_hook(struct kvm *kvm, void __user *argp)
- 	return kvmi_hook(kvm, &i);
- }
- 
-+static int kvmi_ioctl_get_feature(void __user *argp, bool *allow, int *id,
-+				  unsigned long *bitmask)
-+{
-+	struct kvm_introspection_feature feat;
-+	int all_bits = -1;
 +
-+	if (copy_from_user(&feat, argp, sizeof(feat)))
-+		return -EFAULT;
-+
-+	if (feat.id < 0 && feat.id != all_bits)
-+		return -EINVAL;
-+
-+	*allow = !!(feat.allow & 1);
-+	*id = feat.id;
-+	*bitmask = *id == all_bits ? -1 : BIT(feat.id);
-+
-+	return 0;
-+}
-+
-+static int kvmi_ioctl_feature(struct kvm *kvm,
-+			      bool allow, unsigned long *requested,
-+			      size_t off_dest, unsigned int nbits)
-+{
-+	unsigned long *dest;
-+	struct kvmi *ikvm;
-+
-+	if (bitmap_empty(requested, nbits))
-+		return -EINVAL;
-+
-+	ikvm = kvmi_get(kvm);
-+	if (!ikvm)
-+		return -EFAULT;
-+
-+	dest = (unsigned long *)((char *)ikvm + off_dest);
-+
-+	if (allow)
-+		bitmap_or(dest, dest, requested, nbits);
-+	else
-+		bitmap_andnot(dest, dest, requested, nbits);
-+
-+	kvmi_put(kvm);
-+
-+	return 0;
-+}
-+
-+int kvmi_ioctl_event(struct kvm *kvm, void __user *argp)
-+{
-+	DECLARE_BITMAP(requested, KVMI_NUM_EVENTS);
-+	DECLARE_BITMAP(known, KVMI_NUM_EVENTS);
-+	bool allow;
-+	int err;
-+	int id;
-+
-+	err = kvmi_ioctl_get_feature(argp, &allow, &id, requested);
-+	if (err)
-+		return err;
-+
-+	bitmap_from_u64(known, KVMI_KNOWN_EVENTS);
-+	bitmap_and(requested, requested, known, KVMI_NUM_EVENTS);
-+
-+	return kvmi_ioctl_feature(kvm, allow, requested,
-+				  offsetof(struct kvmi, event_allow_mask),
-+				  KVMI_NUM_EVENTS);
-+}
-+
-+int kvmi_ioctl_command(struct kvm *kvm, void __user *argp)
-+{
-+	DECLARE_BITMAP(requested, KVMI_NUM_COMMANDS);
-+	DECLARE_BITMAP(known, KVMI_NUM_COMMANDS);
-+	bool allow;
-+	int err;
-+	int id;
-+
-+	err = kvmi_ioctl_get_feature(argp, &allow, &id, requested);
-+	if (err)
-+		return err;
-+
-+	bitmap_from_u64(known, KVMI_KNOWN_COMMANDS);
-+	bitmap_and(requested, requested, known, KVMI_NUM_COMMANDS);
-+
-+	return kvmi_ioctl_feature(kvm, allow, requested,
-+				  offsetof(struct kvmi, cmd_allow_mask),
-+				  KVMI_NUM_COMMANDS);
-+}
-+
- void kvmi_create_vm(struct kvm *kvm)
- {
- 	init_completion(&kvm->kvmi_completed);
+ #endif /* _UAPI__LINUX_KVMI_H */
 diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
-index 9bc5205c8714..bd8b539e917a 100644
+index 76119a4b69d8..157f765fb34d 100644
 --- a/virt/kvm/kvmi_int.h
 +++ b/virt/kvm/kvmi_int.h
-@@ -23,6 +23,54 @@
- #define kvmi_err(ikvm, fmt, ...) \
- 	kvm_info("%pU ERROR: " fmt, &ikvm->uuid, ## __VA_ARGS__)
+@@ -85,6 +85,8 @@ struct kvmi {
  
-+#define KVMI_KNOWN_VCPU_EVENTS ( \
-+		BIT(KVMI_EVENT_CR) | \
-+		BIT(KVMI_EVENT_MSR) | \
-+		BIT(KVMI_EVENT_XSETBV) | \
-+		BIT(KVMI_EVENT_BREAKPOINT) | \
-+		BIT(KVMI_EVENT_HYPERCALL) | \
-+		BIT(KVMI_EVENT_PF) | \
-+		BIT(KVMI_EVENT_TRAP) | \
-+		BIT(KVMI_EVENT_DESCRIPTOR) | \
-+		BIT(KVMI_EVENT_PAUSE_VCPU) | \
-+		BIT(KVMI_EVENT_SINGLESTEP))
+ 	DECLARE_BITMAP(cmd_allow_mask, KVMI_NUM_COMMANDS);
+ 	DECLARE_BITMAP(event_allow_mask, KVMI_NUM_EVENTS);
 +
-+#define KVMI_KNOWN_VM_EVENTS ( \
-+		BIT(KVMI_EVENT_CREATE_VCPU) | \
-+		BIT(KVMI_EVENT_UNHOOK))
-+
-+#define KVMI_KNOWN_EVENTS (KVMI_KNOWN_VCPU_EVENTS | KVMI_KNOWN_VM_EVENTS)
-+
-+#define KVMI_KNOWN_COMMANDS ( \
-+		BIT(KVMI_GET_VERSION) | \
-+		BIT(KVMI_CHECK_COMMAND) | \
-+		BIT(KVMI_CHECK_EVENT) | \
-+		BIT(KVMI_GET_GUEST_INFO) | \
-+		BIT(KVMI_PAUSE_VCPU) | \
-+		BIT(KVMI_CONTROL_VM_EVENTS) | \
-+		BIT(KVMI_CONTROL_EVENTS) | \
-+		BIT(KVMI_CONTROL_CR) | \
-+		BIT(KVMI_CONTROL_MSR) | \
-+		BIT(KVMI_CONTROL_VE) | \
-+		BIT(KVMI_GET_REGISTERS) | \
-+		BIT(KVMI_SET_REGISTERS) | \
-+		BIT(KVMI_GET_CPUID) | \
-+		BIT(KVMI_GET_XSAVE) | \
-+		BIT(KVMI_READ_PHYSICAL) | \
-+		BIT(KVMI_WRITE_PHYSICAL) | \
-+		BIT(KVMI_INJECT_EXCEPTION) | \
-+		BIT(KVMI_GET_PAGE_ACCESS) | \
-+		BIT(KVMI_SET_PAGE_ACCESS) | \
-+		BIT(KVMI_GET_MAP_TOKEN) | \
-+		BIT(KVMI_CONTROL_SPP) | \
-+		BIT(KVMI_GET_PAGE_WRITE_BITMAP) | \
-+		BIT(KVMI_SET_PAGE_WRITE_BITMAP) | \
-+		BIT(KVMI_GET_MTRR_TYPE) | \
-+		BIT(KVMI_CONTROL_CMD_RESPONSE) | \
-+		BIT(KVMI_GET_VCPU_INFO))
-+
-+#define KVMI_NUM_COMMANDS KVMI_NEXT_AVAILABLE_COMMAND
-+
- #define IKVM(kvm) ((struct kvmi *)((kvm)->kvmi))
- 
- struct kvmi {
-@@ -32,6 +80,9 @@ struct kvmi {
- 	struct task_struct *recv;
- 
- 	uuid_t uuid;
-+
-+	DECLARE_BITMAP(cmd_allow_mask, KVMI_NUM_COMMANDS);
-+	DECLARE_BITMAP(event_allow_mask, KVMI_NUM_EVENTS);
++	bool cmd_reply_disabled;
  };
  
  /* kvmi_msg.c */
+diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
+index 6fe04de29f7e..ea5c7e23669a 100644
+--- a/virt/kvm/kvmi_msg.c
++++ b/virt/kvm/kvmi_msg.c
+@@ -9,6 +9,7 @@
+ #include "kvmi_int.h"
+ 
+ static const char *const msg_IDs[] = {
++	[KVMI_CONTROL_CMD_RESPONSE]  = "KVMI_CONTROL_CMD_RESPONSE",
+ 	[KVMI_GET_VERSION]           = "KVMI_GET_VERSION",
+ };
+ 
+@@ -130,6 +131,36 @@ static int kvmi_msg_vm_reply(struct kvmi *ikvm,
+ 	return kvmi_msg_reply(ikvm, msg, err, rpl, rpl_size);
+ }
+ 
++static bool kvmi_validate_no_reply(struct kvmi *ikvm,
++				   const struct kvmi_msg_hdr *msg,
++				   size_t rpl_size, int err)
++{
++	if (rpl_size) {
++		kvmi_err(ikvm, "Reply disabled for command %d", msg->id);
++		return false;
++	}
++
++	if (err)
++		kvmi_warn(ikvm, "Error code %d discarded for message id %d\n",
++			  err, msg->id);
++
++	return true;
++}
++
++static int kvmi_msg_vm_maybe_reply(struct kvmi *ikvm,
++				   const struct kvmi_msg_hdr *msg,
++				   int err, const void *rpl,
++				   size_t rpl_size)
++{
++	if (ikvm->cmd_reply_disabled) {
++		if (!kvmi_validate_no_reply(ikvm, msg, rpl_size, err))
++			return -KVM_EINVAL;
++		return 0;
++	}
++
++	return kvmi_msg_vm_reply(ikvm, msg, err, rpl, rpl_size);
++}
++
+ static int handle_get_version(struct kvmi *ikvm,
+ 			      const struct kvmi_msg_hdr *msg, const void *req)
+ {
+@@ -146,11 +177,37 @@ static bool is_command_allowed(struct kvmi *ikvm, int id)
+ 	return test_bit(id, ikvm->cmd_allow_mask);
+ }
+ 
++static int handle_control_cmd_response(struct kvmi *ikvm,
++					const struct kvmi_msg_hdr *msg,
++					const void *_req)
++{
++	const struct kvmi_control_cmd_response *req = _req;
++	bool disabled, now;
++	int err;
++
++	if (req->padding1 || req->padding2)
++		return -KVM_EINVAL;
++
++	disabled = !req->enable;
++	now = (req->now == 1);
++
++	if (now)
++		ikvm->cmd_reply_disabled = disabled;
++
++	err = kvmi_msg_vm_maybe_reply(ikvm, msg, 0, NULL, 0);
++
++	if (!now)
++		ikvm->cmd_reply_disabled = disabled;
++
++	return err;
++}
++
+ /*
+  * These commands are executed on the receiving thread/worker.
+  */
+ static int(*const msg_vm[])(struct kvmi *, const struct kvmi_msg_hdr *,
+ 			    const void *) = {
++	[KVMI_CONTROL_CMD_RESPONSE]  = handle_control_cmd_response,
+ 	[KVMI_GET_VERSION]           = handle_get_version,
+ };
+ 
 
