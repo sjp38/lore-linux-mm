@@ -6,70 +6,70 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 947B9C31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:05:17 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 70F68C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:05:21 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 216D72086A
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:05:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 216D72086A
+	by mail.kernel.org (Postfix) with ESMTP id 1DA5F2086A
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:05:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1DA5F2086A
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 558326B02A9; Fri,  9 Aug 2019 12:01:43 -0400 (EDT)
+	id 87E0F6B02AD; Fri,  9 Aug 2019 12:01:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 355326B02AF; Fri,  9 Aug 2019 12:01:43 -0400 (EDT)
+	id 796226B02AC; Fri,  9 Aug 2019 12:01:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 106AD6B02AC; Fri,  9 Aug 2019 12:01:43 -0400 (EDT)
+	id 3ECCB6B02AE; Fri,  9 Aug 2019 12:01:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id B45766B02AA
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id E481F6B02AD
 	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:42 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id i6so46680311wre.1
+Received: by mail-wr1-f70.google.com with SMTP id s18so5313551wrt.21
         for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=z8ovcsAlXVdT6OIMczphTWF/Lfgm3hyIOp51cnmenDo=;
-        b=N0roR+IEj8f6jpmxItc7opNVR1AXPXa7IAYtM94j3a/iOWAyQ/9poj6FC4sYgJerpb
-         gjk7KOnWw2n31VitETtLb5wWsoPUYS4IkeJcKsvYoHK8c+KY4lR7t0QrQWk9LOMNFuYX
-         x7ifKS3ti0OdS1GnRvDkHHJWtmxvDSjAxo+zH6rVAt5Y47/IboyGsRQIj8T/lB6Pwz/F
-         08JF4iAi5iqfXeW3Yhbasxrc3wfesOm6DEMPMjAQgcIhN/wxl3LfhP9PV8gILlD211KD
-         rYUHY+xNR/y8REffh21fE7I6jdL4kOfB4AhCWhI49NTWhG08vDRckV7YKoFSr/Ceen0g
-         mwyw==
+        bh=Oxz4+BCvX51ppTK6FgQZ5AJIz7jX8ftj9h36pE7LGiQ=;
+        b=hz3yZ+oVTvEA9VDb5psz8kav3evtKyxrgbCzkx6oT7n7u3GxHfKy9QRNR8G8dfb91B
+         VIQfjO5cP1X/kizI5yhLrzRTElEYWQZ9oWqlYOJCA505s8V3gOl1G6rFhvXtZWm09I2y
+         IY7XYSJfZc0o6oblafJjDV9acr9MuxwSZGgqEuvKv54F6K58vDKtIrd0M1X2+llpen3h
+         5oMcaKQSsOwNEoH9nqJmncK6qSqluCiua618XYWDN5DakU07+dm/11LOKF7scFEzozij
+         CsuYbgLQ8aM9t7kycXTD/C9JMdykrF7VVonlpKm1MyM5dmn5HYzvm78DUIgeYI+iXIkb
+         2WUA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAWv4AeN6h4uk61Juz+1V08w+sCV9BQyFarnutQFiAYZFlqIjeSA
-	fTrIM5cfCM40+b3QiMmgymT7I/YWML5DNSHr7QCaQJcZH1WKKEf4Qr0x4HCMYjZDr6RgV6MgwDD
-	jXgfDw8FFij2r4EMwZAebE9GinPqoM+odiZPV0MFlqc6q5Ntz6wMFmSr+0/F76Vj5/g==
-X-Received: by 2002:adf:fc0c:: with SMTP id i12mr23002217wrr.86.1565366502332;
+X-Gm-Message-State: APjAAAXW0Rf5OnwDu2wg7/VVrLZW4HwYPp+fGtn0AQV8SM/fFsdBasOe
+	Z5e2sV6FBOB9G3L8vkWoI0TmoI8Ioe0EQaZ+JbNbRF1DABlwSlKzzLbwW25OSoEJ/9cZocFTaQl
+	VLIWRbLVe00DVE9wS6BXPKa+o0j9DKpvR2df/psN6O/1mFlMukM10mDfDjuAGyQYTYQ==
+X-Received: by 2002:adf:eb0f:: with SMTP id s15mr24572292wrn.324.1565366502518;
         Fri, 09 Aug 2019 09:01:42 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxRj01vTzB0jmulELnVdmpwip1M/o3YQjsWv22vC/AeuklvUg6/qtUwEP57NemkqTQR3vDD
-X-Received: by 2002:adf:fc0c:: with SMTP id i12mr23002136wrr.86.1565366501501;
+X-Google-Smtp-Source: APXvYqzYxKju9bGgdaKrJCyNFFqHa9MSvvLSJ6V6SLRsTwFZ3rQZ5z/a2zwiTKknpGMLgfrMyCEw
+X-Received: by 2002:adf:eb0f:: with SMTP id s15mr24572220wrn.324.1565366501730;
         Fri, 09 Aug 2019 09:01:41 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1565366501; cv=none;
         d=google.com; s=arc-20160816;
-        b=WNM7uWB0ekN3HN/uKegTVX3h+hkyhGGbAwIrpPOXtsIHU4cDAeR/tNcvJX5M4a5pWM
-         sZFUp+P3Gniqeih9XuQigqUPNzX01MGLjapPXrnPNI5nfF0QvMVIoPUtYgtc1lDbbrT9
-         DDOPzfKR0uTfJq2+c7lggKSiL5yL6LCaC15dM8/QsmpqNxtVl2zkDqU0H0KdcMY32Zvk
-         XdtlJ6rdyBDvlWUb5+7ZgkIpv1I1rh7601BlC4n4JxnjzwUMrd388LPYBJ7Z2F0l/vd7
-         bgZyvteYipo/nhqJ9b/5rSWfyXEu4ng5bT83tFJHITvNNgKFcpnfVRyX6oqZx/Zg1lIo
-         362w==
+        b=0azKFL6Gim9Td+WhG9HEXLVPkBtE9mStwM1p4eG2eDlHleBnGhOkAdA3yjrk1gH3Eo
+         ENA++EuwP7CDv1QkUV2/0sTdWQUzNC+C4AxjyCpqjTB6gxXJ2D/xUiSrvE9K6LQFkYK5
+         Z43M3yJxNfhOJ8YAlG9cVfiz2erQ5wKg1sJ7XwkNL6/wvr7lMbPox+yPRHnOkPRZhK3/
+         cAlRx2YM2e789aEWaEn5Zw/IsojG8e1YrbDhdYW5jeFH+6Wth0c8OCstNT1++WYpHyBi
+         1BatNJsbhNBuRjjnQ14DqktwwwfJkoXQi+UATC9HZn+IzFb9bWlKq/QcQePb3bTZ4rry
+         WCNg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=z8ovcsAlXVdT6OIMczphTWF/Lfgm3hyIOp51cnmenDo=;
-        b=wtCFfrD8v1ljmB9TUNHR1CESUcyRedQxq+OpbnyjRGXvu5vqcQ8xg9AKJCYYY3BzKs
-         5tQSNvxHZ19UggYiQ0STbrqjX8MASk5wAnp5HLIMIdWd3O0oi+xXXxtcV7C5rCIdY0VF
-         ZfifyAMIU27t0HddigGIJQhd6eP2zkkSxiygSLjgp+5gvukV7oy3ES+zKhin5rn/I7lP
-         GdyfOCFrspRssd6WawmilLh/IOx4yfmWpSI4L2IH+b0k93QVgMGwd0+fAPR90wRxSS3y
-         ZgwvYpOSOcLfVH8S7XpYZJnghDm+tB5gxv+0yVe7ZHt2zqatebazp3+/25aaluxgViBn
-         yK9w==
+        bh=Oxz4+BCvX51ppTK6FgQZ5AJIz7jX8ftj9h36pE7LGiQ=;
+        b=cyaha/Cy2iuV70cGvChij835QE7rRM0PDoXGB6cFYYtKsns0Srp6TDYHw+EQ/IWsq9
+         Vu6tLXQi8QseA3uKlh7c3z7o7ySkhZaCeS+RH0fFZ3EEdaDHBwQDipC6FcDzkyaEHFNC
+         ixBM7F3AKe6fXoxlw8Gn43Hop4HPWFxtNSUNJ+9mYSdFc4R1QT28wSlaG8dbHNuBcFkI
+         qyx4kxSmPSmXaKJ0V3VXyGkUHkNbULUIK2KKUs4B9kOZwfEmuajfdJ8gnMJRP5HSg8qi
+         FzMHdLomQeNYwjK4Q4FakunYa/eg048FfWA+SG9XkP7J905iPjNS/kSueDICJ38jTOow
+         ifPQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id w8si1988950wmm.53.2019.08.09.09.01.41
+        by mx.google.com with ESMTPS id k3si92081122wru.450.2019.08.09.09.01.41
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 09 Aug 2019 09:01:41 -0700 (PDT)
@@ -77,10 +77,10 @@ Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.1
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id E7B5A3031EC8;
-	Fri,  9 Aug 2019 19:01:40 +0300 (EEST)
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 2FF813031ED5;
+	Fri,  9 Aug 2019 19:01:41 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id 80AB8305B7A0;
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id DE1A9305B7A4;
 	Fri,  9 Aug 2019 19:01:40 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
@@ -98,9 +98,9 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
 	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v6 82/92] kvm: x86: emulate movq r, xmm
-Date: Fri,  9 Aug 2019 19:00:37 +0300
-Message-Id: <20190809160047.8319-83-alazar@bitdefender.com>
+Subject: [RFC PATCH v6 83/92] kvm: x86: emulate movd xmm, m32
+Date: Fri,  9 Aug 2019 19:00:38 +0300
+Message-Id: <20190809160047.8319-84-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -114,68 +114,50 @@ List-ID: <linux-mm.kvack.org>
 
 From: Mihai Donțu <mdontu@bitdefender.com>
 
-This adds support for movq r, xmm. It introduces a new flag (GPRModRM)
-to indicate decode_modrm() that the encoded register is a general purpose
-one.
+This is needed in order to be able to support guest code that uses movd to
+write into pages that are marked for write tracking.
 
 Signed-off-by: Mihai Donțu <mdontu@bitdefender.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- arch/x86/kvm/emulate.c | 15 +++++++++++++--
- 1 file changed, 13 insertions(+), 2 deletions(-)
+ arch/x86/kvm/emulate.c | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
 
 diff --git a/arch/x86/kvm/emulate.c b/arch/x86/kvm/emulate.c
-index 2297955d0934..7c79504e58cd 100644
+index 7c79504e58cd..b42a71653622 100644
 --- a/arch/x86/kvm/emulate.c
 +++ b/arch/x86/kvm/emulate.c
-@@ -172,6 +172,7 @@
- #define NoMod	    ((u64)1 << 47)  /* Mod field is ignored */
- #define Intercept   ((u64)1 << 48)  /* Has valid intercept field */
- #define CheckPerm   ((u64)1 << 49)  /* Has valid check_perm field */
-+#define GPRModRM    ((u64)1 << 50)  /* The ModRM encoded register is a GP one */
- #define PrivUD      ((u64)1 << 51)  /* #UD instead of #GP on CPL > 0 */
- #define NearBranch  ((u64)1 << 52)  /* Near branches */
- #define No16	    ((u64)1 << 53)  /* No 16 bit operand */
-@@ -1197,6 +1198,11 @@ static u8 simd_prefix_to_bytes(const struct x86_emulate_ctxt *ctxt,
+@@ -1203,6 +1203,11 @@ static u8 simd_prefix_to_bytes(const struct x86_emulate_ctxt *ctxt,
  		if (simd_prefix == 0x66)
  			bytes = 8;
  		break;
-+	case 0x6e:
-+		/* movq r/m64, xmm */
++	case 0x7e:
++		/* movd xmm, m32 */
 +		if (simd_prefix == 0x66)
-+			bytes = 8;
++			bytes = 4;
 +		break;
  	default:
  		break;
  	}
-@@ -1262,7 +1268,7 @@ static int decode_modrm(struct x86_emulate_ctxt *ctxt,
- 		op->bytes = (ctxt->d & ByteOp) ? 1 : ctxt->op_bytes;
- 		op->addr.reg = decode_register(ctxt, ctxt->modrm_rm,
- 				ctxt->d & ByteOp);
--		if (ctxt->d & Sse) {
-+		if ((ctxt->d & Sse) && !(ctxt->d & GPRModRM)) {
- 			op->type = OP_XMM;
- 			op->bytes = ctxt->op_bytes;
- 			op->addr.xmm = ctxt->modrm_rm;
-@@ -4546,6 +4552,10 @@ static const struct gprefix pfx_0f_6f_0f_7f = {
- 	I(Mmx, em_mov), I(Sse | Aligned, em_mov), N, I(Sse | Unaligned, em_mov),
+@@ -4564,6 +4569,10 @@ static const struct gprefix pfx_0f_d6 = {
+ 	N, I(0, em_mov), N, N,
  };
  
-+static const struct gprefix pfx_0f_6e_0f_7e = {
-+	N, I(Sse, em_mov), N, N
++static const struct gprefix pfx_0f_7e = {
++	N, I(0, em_mov), N, N,
 +};
 +
- static const struct instr_dual instr_dual_0f_2b = {
- 	I(0, em_mov), N
+ static const struct gprefix pfx_0f_2b = {
+ 	ID(0, &instr_dual_0f_2b), ID(0, &instr_dual_0f_2b), N, N,
  };
-@@ -4807,7 +4817,8 @@ static const struct opcode twobyte_table[256] = {
+@@ -4823,7 +4832,8 @@ static const struct opcode twobyte_table[256] = {
  	N, N, N, N,
  	N, N, N, N,
  	N, N, N, N,
--	N, N, N, GP(SrcMem | DstReg | ModRM | Mov, &pfx_0f_6f_0f_7f),
-+	N, N, GP(SrcMem | DstReg | ModRM | GPRModRM | Mov, &pfx_0f_6e_0f_7e),
-+	GP(SrcMem | DstReg | ModRM | Mov, &pfx_0f_6f_0f_7f),
- 	/* 0x70 - 0x7F */
- 	N, N, N, N,
- 	N, N, N, N,
+-	N, N, N, GP(SrcReg | DstMem | ModRM | Mov, &pfx_0f_6f_0f_7f),
++	N, N, GP(ModRM | SrcReg | DstMem | GPRModRM | Mov | Sse, &pfx_0f_7e),
++	GP(SrcReg | DstMem | ModRM | Mov, &pfx_0f_6f_0f_7f),
+ 	/* 0x80 - 0x8F */
+ 	X16(D(SrcImm | NearBranch)),
+ 	/* 0x90 - 0x9F */
 
