@@ -4,89 +4,88 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0107DC31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 22:59:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E49E3C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 22:59:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A61E5208C4
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 22:59:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A61E5208C4
+	by mail.kernel.org (Postfix) with ESMTP id 97F7C208C4
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 22:59:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 97F7C208C4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8365A6B0270; Fri,  9 Aug 2019 18:59:09 -0400 (EDT)
+	id 721546B0271; Fri,  9 Aug 2019 18:59:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 793FE6B0271; Fri,  9 Aug 2019 18:59:09 -0400 (EDT)
+	id 6AAD16B0272; Fri,  9 Aug 2019 18:59:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 65BF66B0272; Fri,  9 Aug 2019 18:59:09 -0400 (EDT)
+	id 572D66B0273; Fri,  9 Aug 2019 18:59:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f198.google.com (mail-pl1-f198.google.com [209.85.214.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 2E5D36B0270
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 18:59:09 -0400 (EDT)
-Received: by mail-pl1-f198.google.com with SMTP id d6so58198227pls.17
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 15:59:09 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 14AD36B0271
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 18:59:11 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id e25so62414975pfn.5
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 15:59:11 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=vgEDTxmuL9fT10YwzdYGN4d9enkzvhW0KGg81eGf8Sw=;
-        b=j7/5mRJPJzWtTGIOqNddQAdXXM+xzJ/sEM1GYtVuCcSJB55skYPaqwCEPxUM3wRWx9
-         Xp4LSvexQ/CvnL3iZX6G9RsuPIs70GLvqVorXNAsz9DofWqUICdwFyUeiStOzcIbxbf5
-         AwmsKx2lMwRNLSkr5+VzfusbCJnQGFUlWzs/KabOecA8HKuwuZtPzOCZRv6a88jm8wTB
-         80ql5aNgSgupR9L2f7o5PPqziLBPnFwnjr1DjydL1XCAnXdGZc8sfbIaoeHnxQofBpcC
-         KBI2YFjztkxVM+0wda/dEzNQnUB/HzyvMF92oKmcK7Du3NIGdKUWe763NxXCOLrIrMzj
-         kHMg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAX1vhaBFdMILdd3UwuZ/8MYhNU9iotHM7ZJJcGgvYY3utj8Hr5W
-	PldFmVJjhrq7jpeZTmaCPVH/S2cCymQWMyAAxPDgX4BNSFv0PHqmzFJdPjxkZ5AnWC/wSUhLDEb
-	cHamnOhnlS414NlxJVg7qU6reYpjNe2+HSk184K3fTQqd1qIxs/lXI83aL5l95C1Qwg==
-X-Received: by 2002:a17:90a:d3d4:: with SMTP id d20mr12097245pjw.28.1565391548710;
-        Fri, 09 Aug 2019 15:59:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy+P7WD/XmOebkqyz0mFatwZzUQNi11TEiEkU4rrdDPfWT9UIOvzTkiEs/XfvDxrD8prHNr
-X-Received: by 2002:a17:90a:d3d4:: with SMTP id d20mr12097210pjw.28.1565391547772;
-        Fri, 09 Aug 2019 15:59:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565391547; cv=none;
+        bh=86nnNDFin5NGIDuIbZP6nLJ89Qnmc/o+qzx9kACIDco=;
+        b=ElkBeSFK7Hu7D0Vq31glJyJ5FQXZsXhlV0Ybb3tXSUKCxNy04yZZ+DIpFF2cVmn752
+         BJ48nT0V86TWNXZR+bBegtlF6SYI55zCahrKyMww9ZskxTeKUc0Sk4HB6W//HskMfedN
+         Y5n+vaF392zCFfACEl1J1uJq8wZXLKuiVcnhHhDNDR8iJ/6ozIGuWwQ2sG/2l6EnRxSS
+         7Qg4O2K7l2N2MYS2xo1d9hHoin59r5UcexYDtACqa2wYMniBuyw+TGq1FV6H0jzPEbOY
+         6HqQ12EPkMCMrHCAdbh9+jMEMWKQG2jG+TXP96Y37xDRTgPwZwYiuL4iIH1YC8kwg5wS
+         1utA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXc/6SwwJ38y1djw4lveMwUSwF/bO0OkdwL6iIlTgcL9ctPNHg4
+	p3RGOFflbUX5ZLCxhwYSINJoqicWM3/JW/RFO0ZqCUwiGDs1tdg9nos58ggXI88PxqnQYZgisWn
+	8C28qrYlpAaNrMGKNvAwN013cwRWqeCvVC7WtvtWPZl+F0chZUvc2e/FMGBxz5nJjDw==
+X-Received: by 2002:a63:fe15:: with SMTP id p21mr13506393pgh.149.1565391550625;
+        Fri, 09 Aug 2019 15:59:10 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzbaF/ogLgoAnPb5Ga6H+p8GfIyz5pxJYrpu5TKeFuTybG96thFXwBSNmC5jFik6WDRu+hx
+X-Received: by 2002:a63:fe15:: with SMTP id p21mr13506339pgh.149.1565391549240;
+        Fri, 09 Aug 2019 15:59:09 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565391549; cv=none;
         d=google.com; s=arc-20160816;
-        b=n9eKel+5FruNFR4gyeBZtB3eYH/fZ6+owbjqf00tEhwCcQOKiADDz5cEbKMCEDCdPE
-         /tB5HoxPN+YLaDk6Yz17b3DRJzXoU853PS2L9YJg2GT2nQoiz4nKl//Csj9vBDLxIWOT
-         aiBcj0idYYbwnnYfleP1DFXYkvmwd+2IhbJxt0V599hJtfjmoteizDaGYpPpxm63pScC
-         iIFDMLSr3RAkGEwoR0TUv23YuNQr8J4P/WCESGERw66I/2ng4Ac3GoHkIsT1xM9pRj0c
-         FvTfPNXXKEU+RbF2kH5WyAPMoSGXheewGXlMAtJSoFrQRINebFnuDCrb+kJjJTxrbg58
-         lBJA==
+        b=g/1OftbS6Odj6jAHt6SY9CDHM3scTMTK4wT41s5g58ZrxyVv1/zE0/+7bhSLT7Z9ne
+         RD6ICpj1G3jFBvDphIdP7afR0Q2AhH2++LL8DzmSktkZ5Kr3VCLCokxdsOLy+SH+laRE
+         qDxrAcJRL/ni+qGgrIrV/VMKNcuy8njR8Yfhfgt072O5mxfA1u9rX30D4I0V67AQ8NOo
+         Q77bYv+piX/5cKCbPRLReH0WocyF+/ze3ed1QtzQYxS4n8c0AsPz562HFJx9tE49Qlab
+         9BVus9/kK+HaioSDmuGkdEKanuqym2pR0FZE0b9ojlJ/5qXd/F91C7QVVozql24bXBLp
+         yhDw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=vgEDTxmuL9fT10YwzdYGN4d9enkzvhW0KGg81eGf8Sw=;
-        b=DhDvhQhHG14IdLkf0u/q2GiWuqqgJWTA/DYAEYJDoBDEVP/MGR75z+wL6N8+dhV0fW
-         k+i9bZm8hKthlb+oAv4IRZrigAvrEEWOdHKNOjgYIwLJE4X6hG4oyikLlALrgSfWFHLm
-         SGIjaTrW9TE+KIR0jo8hbpsGPG0BeyYpHFfC/gj0607YKE9ug8LHhARbnkQgc/mBkaV8
-         GkdB9/Us7vfh2kJRQAxm13wgTKtY7Whb+sYlyc2Ko7IuVF0az5CKoTPJIPeVzNiu4n+8
-         YvUCWVGVh7KZEgt/EmojeYgAjnUUk+ZwL6hDdjscONBM9Sf7CWZYwLFF9Xhh4MywWo8z
-         CeKg==
+        bh=86nnNDFin5NGIDuIbZP6nLJ89Qnmc/o+qzx9kACIDco=;
+        b=QpdTq4/IS1SYOyjs5HQ0MiP9g3TbwJHAmpCIG9b4Q2HcHQl5FxJGf25v+SQhQB3qV0
+         AfMmv1Zim8lnARTUTDV+WGy2idpg+iSC3d55TA3X2mbWlBl/Q3nGiCMgiOsA778UDJOy
+         rv3cDGCkJwY1Y1gissnx2oo1qe6ujNFkPr/HLv93TkIqffLhtPy3yVTeDCU1+t+nPQIr
+         HpW7EqTns3w56askWtoreqirMt2fFxqEzo4jaCLxxt5C2+44Y9gjuPRrtUR3b8UaaNfO
+         9F68qmPcvh5EuBEiHTXRF/PBBZfW8DGbZSXBTN9uvQhkbE7QQ2gpWtL1Un882hKso0Z6
+         0PfA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id h189si55552068pgc.236.2019.08.09.15.59.07
+Received: from mga02.intel.com (mga02.intel.com. [134.134.136.20])
+        by mx.google.com with ESMTPS id g7si49662014plp.171.2019.08.09.15.59.09
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 15:59:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+        Fri, 09 Aug 2019 15:59:09 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) client-ip=134.134.136.20;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.20 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga005.fm.intel.com ([10.253.24.32])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 15:59:07 -0700
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 15:59:08 -0700
 X-IronPort-AV: E=Sophos;i="5.64,367,1559545200"; 
-   d="scan'208";a="374631601"
+   d="scan'208";a="199539307"
 Received: from iweiny-desk2.sc.intel.com (HELO localhost) ([10.3.52.157])
-  by fmsmga005-auth.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 15:59:07 -0700
+  by fmsmga004-auth.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 15:59:08 -0700
 From: ira.weiny@intel.com
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Jason Gunthorpe <jgg@ziepe.ca>,
@@ -105,9 +104,9 @@ Cc: Jason Gunthorpe <jgg@ziepe.ca>,
 	linux-ext4@vger.kernel.org,
 	linux-mm@kvack.org,
 	Ira Weiny <ira.weiny@intel.com>
-Subject: [RFC PATCH v2 17/19] RDMA/umem: Convert to vaddr_[pin|unpin]* operations.
-Date: Fri,  9 Aug 2019 15:58:31 -0700
-Message-Id: <20190809225833.6657-18-ira.weiny@intel.com>
+Subject: [RFC PATCH v2 18/19] {mm,procfs}: Add display file_pins proc
+Date: Fri,  9 Aug 2019 15:58:32 -0700
+Message-Id: <20190809225833.6657-19-ira.weiny@intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190809225833.6657-1-ira.weiny@intel.com>
 References: <20190809225833.6657-1-ira.weiny@intel.com>
@@ -121,179 +120,271 @@ List-ID: <linux-mm.kvack.org>
 
 From: Ira Weiny <ira.weiny@intel.com>
 
-In order to properly track the pinning information we need to keep a
-vaddr_pin object around.  Store that within the umem object directly.
+Now that we have the file pins information stored add a new procfs entry
+to display them to the user.
 
-The vaddr_pin object allows the GUP code to associate any files it pins
-with the RDMA file descriptor associated with this GUP.
+NOTE output will be dependant on where the file pin is tied to.  Some
+processes may have the pin associated with a file descriptor in which
+case that file is reported as well.
 
-Furthermore, use the vaddr_pin object to store the owning mm while we
-are at it.
+Others are associated directly with the process mm and are reported as
+such.
 
-No references need to be taken on the owing file as the lifetime of that
-object is tied to all the umems being destroyed first.
+For example of a file pinned to an RDMA open context (fd 4) and a file
+pinned to the mm of that process:
+
+4: /dev/infiniband/uverbs0
+   /mnt/pmem/foo
+/mnt/pmem/bar
 
 Signed-off-by: Ira Weiny <ira.weiny@intel.com>
 ---
- drivers/infiniband/core/umem.c     | 26 +++++++++++++++++---------
- drivers/infiniband/core/umem_odp.c | 16 ++++++++--------
- include/rdma/ib_umem.h             |  2 +-
- 3 files changed, 26 insertions(+), 18 deletions(-)
+ fs/proc/base.c | 214 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 214 insertions(+)
 
-diff --git a/drivers/infiniband/core/umem.c b/drivers/infiniband/core/umem.c
-index 965cf9dea71a..a9ce3e3816ef 100644
---- a/drivers/infiniband/core/umem.c
-+++ b/drivers/infiniband/core/umem.c
-@@ -54,7 +54,8 @@ static void __ib_umem_release(struct ib_device *dev, struct ib_umem *umem, int d
+diff --git a/fs/proc/base.c b/fs/proc/base.c
+index ebea9501afb8..f4d219172235 100644
+--- a/fs/proc/base.c
++++ b/fs/proc/base.c
+@@ -2995,6 +2995,7 @@ static int proc_stack_depth(struct seq_file *m, struct pid_namespace *ns,
+  */
+ static const struct file_operations proc_task_operations;
+ static const struct inode_operations proc_task_inode_operations;
++static const struct file_operations proc_pid_file_pins_operations;
  
- 	for_each_sg_page(umem->sg_head.sgl, &sg_iter, umem->sg_nents, 0) {
- 		page = sg_page_iter_page(&sg_iter);
--		put_user_pages_dirty_lock(&page, 1, umem->writable && dirty);
-+		vaddr_unpin_pages_dirty_lock(&page, 1, &umem->vaddr_pin,
-+					     umem->writable && dirty);
- 	}
- 
- 	sg_free_table(&umem->sg_head);
-@@ -243,8 +244,15 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
- 	umem->length     = size;
- 	umem->address    = addr;
- 	umem->writable   = ib_access_writable(access);
--	umem->owning_mm = mm = current->mm;
--	mmgrab(mm);
-+	umem->vaddr_pin.mm = mm = current->mm;
-+	mmgrab(umem->vaddr_pin.mm);
+ static const struct pid_entry tgid_base_stuff[] = {
+ 	DIR("task",       S_IRUGO|S_IXUGO, proc_task_inode_operations, proc_task_operations),
+@@ -3024,6 +3025,7 @@ static const struct pid_entry tgid_base_stuff[] = {
+ 	ONE("stat",       S_IRUGO, proc_tgid_stat),
+ 	ONE("statm",      S_IRUGO, proc_pid_statm),
+ 	REG("maps",       S_IRUGO, proc_pid_maps_operations),
++	REG("file_pins",  S_IRUGO, proc_pid_file_pins_operations),
+ #ifdef CONFIG_NUMA
+ 	REG("numa_maps",  S_IRUGO, proc_pid_numa_maps_operations),
+ #endif
+@@ -3422,6 +3424,7 @@ static const struct pid_entry tid_base_stuff[] = {
+ 	ONE("stat",      S_IRUGO, proc_tid_stat),
+ 	ONE("statm",     S_IRUGO, proc_pid_statm),
+ 	REG("maps",      S_IRUGO, proc_pid_maps_operations),
++	REG("file_pins", S_IRUGO, proc_pid_file_pins_operations),
+ #ifdef CONFIG_PROC_CHILDREN
+ 	REG("children",  S_IRUGO, proc_tid_children_operations),
+ #endif
+@@ -3718,3 +3721,214 @@ void __init set_proc_pid_nlink(void)
+ 	nlink_tid = pid_entry_nlink(tid_base_stuff, ARRAY_SIZE(tid_base_stuff));
+ 	nlink_tgid = pid_entry_nlink(tgid_base_stuff, ARRAY_SIZE(tgid_base_stuff));
+ }
 +
-+	/* No need to get a reference to the core file object here.  The key is
-+	 * that sys_file reference is held by the ufile.  Any duplication of
-+	 * sys_file by the core will keep references active until all those
-+	 * contexts are closed out.  No matter which process hold them open.
-+	 */
-+	umem->vaddr_pin.f_owner = context->ufile->sys_file;
- 
- 	if (access & IB_ACCESS_ON_DEMAND) {
- 		if (WARN_ON_ONCE(!context->invalidate_range)) {
-@@ -292,11 +300,11 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
- 
- 	while (npages) {
- 		down_read(&mm->mmap_sem);
--		ret = get_user_pages(cur_base,
-+		ret = vaddr_pin_pages(cur_base,
- 				     min_t(unsigned long, npages,
- 					   PAGE_SIZE / sizeof (struct page *)),
--				     gup_flags | FOLL_LONGTERM,
--				     page_list, NULL);
-+				     gup_flags,
-+				     page_list, &umem->vaddr_pin);
- 		if (ret < 0) {
- 			up_read(&mm->mmap_sem);
- 			goto umem_release;
-@@ -336,7 +344,7 @@ struct ib_umem *ib_umem_get(struct ib_udata *udata, unsigned long addr,
- 	free_page((unsigned long) page_list);
- umem_kfree:
- 	if (ret) {
--		mmdrop(umem->owning_mm);
-+		mmdrop(umem->vaddr_pin.mm);
- 		kfree(umem);
- 	}
- 	return ret ? ERR_PTR(ret) : umem;
-@@ -345,7 +353,7 @@ EXPORT_SYMBOL(ib_umem_get);
- 
- static void __ib_umem_release_tail(struct ib_umem *umem)
- {
--	mmdrop(umem->owning_mm);
-+	mmdrop(umem->vaddr_pin.mm);
- 	if (umem->is_odp)
- 		kfree(to_ib_umem_odp(umem));
- 	else
-@@ -369,7 +377,7 @@ void ib_umem_release(struct ib_umem *umem)
- 
- 	__ib_umem_release(umem->context->device, umem, 1);
- 
--	atomic64_sub(ib_umem_num_pages(umem), &umem->owning_mm->pinned_vm);
-+	atomic64_sub(ib_umem_num_pages(umem), &umem->vaddr_pin.mm->pinned_vm);
- 	__ib_umem_release_tail(umem);
- }
- EXPORT_SYMBOL(ib_umem_release);
-diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
-index 2a75c6f8d827..53085896d718 100644
---- a/drivers/infiniband/core/umem_odp.c
-+++ b/drivers/infiniband/core/umem_odp.c
-@@ -278,11 +278,11 @@ static int get_per_mm(struct ib_umem_odp *umem_odp)
- 	 */
- 	mutex_lock(&ctx->per_mm_list_lock);
- 	list_for_each_entry(per_mm, &ctx->per_mm_list, ucontext_list) {
--		if (per_mm->mm == umem_odp->umem.owning_mm)
-+		if (per_mm->mm == umem_odp->umem.vaddr_pin.mm)
- 			goto found;
- 	}
- 
--	per_mm = alloc_per_mm(ctx, umem_odp->umem.owning_mm);
-+	per_mm = alloc_per_mm(ctx, umem_odp->umem.vaddr_pin.mm);
- 	if (IS_ERR(per_mm)) {
- 		mutex_unlock(&ctx->per_mm_list_lock);
- 		return PTR_ERR(per_mm);
-@@ -355,8 +355,8 @@ struct ib_umem_odp *ib_alloc_odp_umem(struct ib_umem_odp *root,
- 	umem->writable   = root->umem.writable;
- 	umem->is_odp = 1;
- 	odp_data->per_mm = per_mm;
--	umem->owning_mm  = per_mm->mm;
--	mmgrab(umem->owning_mm);
-+	umem->vaddr_pin.mm  = per_mm->mm;
-+	mmgrab(umem->vaddr_pin.mm);
- 
- 	mutex_init(&odp_data->umem_mutex);
- 	init_completion(&odp_data->notifier_completion);
-@@ -389,7 +389,7 @@ struct ib_umem_odp *ib_alloc_odp_umem(struct ib_umem_odp *root,
- out_page_list:
- 	vfree(odp_data->page_list);
- out_odp_data:
--	mmdrop(umem->owning_mm);
-+	mmdrop(umem->vaddr_pin.mm);
- 	kfree(odp_data);
- 	return ERR_PTR(ret);
- }
-@@ -399,10 +399,10 @@ int ib_umem_odp_get(struct ib_umem_odp *umem_odp, int access)
- {
- 	struct ib_umem *umem = &umem_odp->umem;
- 	/*
--	 * NOTE: This must called in a process context where umem->owning_mm
-+	 * NOTE: This must called in a process context where umem->vaddr_pin.mm
- 	 * == current->mm
- 	 */
--	struct mm_struct *mm = umem->owning_mm;
-+	struct mm_struct *mm = umem->vaddr_pin.mm;
- 	int ret_val;
- 
- 	umem_odp->page_shift = PAGE_SHIFT;
-@@ -581,7 +581,7 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
- 			      unsigned long current_seq)
- {
- 	struct task_struct *owning_process  = NULL;
--	struct mm_struct *owning_mm = umem_odp->umem.owning_mm;
-+	struct mm_struct *owning_mm = umem_odp->umem.vaddr_pin.mm;
- 	struct page       **local_page_list = NULL;
- 	u64 page_mask, off;
- 	int j, k, ret = 0, start_idx, npages = 0;
-diff --git a/include/rdma/ib_umem.h b/include/rdma/ib_umem.h
-index 1052d0d62be7..ab677c799e29 100644
---- a/include/rdma/ib_umem.h
-+++ b/include/rdma/ib_umem.h
-@@ -43,7 +43,6 @@ struct ib_umem_odp;
- 
- struct ib_umem {
- 	struct ib_ucontext     *context;
--	struct mm_struct       *owning_mm;
- 	size_t			length;
- 	unsigned long		address;
- 	u32 writable : 1;
-@@ -52,6 +51,7 @@ struct ib_umem {
- 	struct sg_table sg_head;
- 	int             nmap;
- 	unsigned int    sg_nents;
-+	struct vaddr_pin vaddr_pin;
- };
- 
- /* Returns the offset of the umem start relative to the first page. */
++/**
++ * file_pin information below.
++ */
++
++struct proc_file_pins_private {
++	struct inode *inode;
++	struct task_struct *task;
++	struct mm_struct *mm;
++	struct files_struct *files;
++	unsigned int nr_pins;
++	struct xarray fps;
++} __randomize_layout;
++
++static void release_fp(struct proc_file_pins_private *priv)
++{
++	up_read(&priv->mm->mmap_sem);
++	mmput(priv->mm);
++}
++
++static void print_fd_file_pin(struct seq_file *m, struct file *file,
++			    unsigned long i)
++{
++	struct file_file_pin *fp;
++	struct file_file_pin *tmp;
++
++	if (list_empty_careful(&file->file_pins))
++		return;
++
++	seq_printf(m, "%lu: ", i);
++	seq_file_path(m, file, "\n");
++	seq_putc(m, '\n');
++
++	list_for_each_entry_safe(fp, tmp, &file->file_pins, list) {
++		seq_puts(m, "   ");
++		seq_file_path(m, fp->file, "\n");
++		seq_putc(m, '\n');
++	}
++}
++
++/* We are storing the index's within the FD table for later retrieval */
++static int store_fd(const void *priv , struct file *file, unsigned i)
++{
++	struct proc_file_pins_private *fp_priv;
++
++	/* cast away const... */
++	fp_priv = (struct proc_file_pins_private *)priv;
++
++	if (list_empty_careful(&file->file_pins))
++		return 0;
++
++	/* can't sleep in the iterate of the fd table */
++	xa_store(&fp_priv->fps, fp_priv->nr_pins, xa_mk_value(i), GFP_ATOMIC);
++	fp_priv->nr_pins++;
++
++	return 0;
++}
++
++static void store_mm_pins(struct proc_file_pins_private *priv)
++{
++	struct mm_file_pin *fp;
++	struct mm_file_pin *tmp;
++
++	list_for_each_entry_safe(fp, tmp, &priv->mm->file_pins, list) {
++		xa_store(&priv->fps, priv->nr_pins, fp, GFP_KERNEL);
++		priv->nr_pins++;
++	}
++}
++
++
++static void *fp_start(struct seq_file *m, loff_t *ppos)
++{
++	struct proc_file_pins_private *priv = m->private;
++	unsigned int pos = *ppos;
++
++	priv->task = get_proc_task(priv->inode);
++	if (!priv->task)
++		return ERR_PTR(-ESRCH);
++
++	if (!priv->mm || !mmget_not_zero(priv->mm))
++		return NULL;
++
++	priv->files = get_files_struct(priv->task);
++	down_read(&priv->mm->mmap_sem);
++
++	xa_destroy(&priv->fps);
++	priv->nr_pins = 0;
++
++	/* grab fds of "files" which have pins and store as xa values */
++	if (priv->files)
++		iterate_fd(priv->files, 0, store_fd, priv);
++
++	/* store mm_file_pins as xa entries */
++	store_mm_pins(priv);
++
++	if (pos >= priv->nr_pins) {
++		release_fp(priv);
++		return NULL;
++	}
++
++	return xa_load(&priv->fps, pos);
++}
++
++static void *fp_next(struct seq_file *m, void *v, loff_t *pos)
++{
++	struct proc_file_pins_private *priv = m->private;
++
++	(*pos)++;
++	if ((*pos) >= priv->nr_pins) {
++		release_fp(priv);
++		return NULL;
++	}
++
++	return xa_load(&priv->fps, *pos);
++}
++
++static void fp_stop(struct seq_file *m, void *v)
++{
++	struct proc_file_pins_private *priv = m->private;
++
++	if (v)
++		release_fp(priv);
++
++	if (priv->task) {
++		put_task_struct(priv->task);
++		priv->task = NULL;
++	}
++
++	if (priv->files) {
++		put_files_struct(priv->files);
++		priv->files = NULL;
++	}
++}
++
++static int show_fp(struct seq_file *m, void *v)
++{
++	struct proc_file_pins_private *priv = m->private;
++
++	if (xa_is_value(v)) {
++		struct file *file;
++		unsigned long fd = xa_to_value(v);
++
++		rcu_read_lock();
++		file = fcheck_files(priv->files, fd);
++		if (file)
++			print_fd_file_pin(m, file, fd);
++		rcu_read_unlock();
++	} else {
++		struct mm_file_pin *fp = v;
++
++		seq_puts(m, "mm: ");
++		seq_file_path(m, fp->file, "\n");
++	}
++
++	return 0;
++}
++
++static const struct seq_operations proc_pid_file_pins_op = {
++	.start	= fp_start,
++	.next	= fp_next,
++	.stop	= fp_stop,
++	.show	= show_fp
++};
++
++static int proc_file_pins_open(struct inode *inode, struct file *file)
++{
++	struct proc_file_pins_private *priv = __seq_open_private(file,
++						&proc_pid_file_pins_op,
++						sizeof(*priv));
++
++	if (!priv)
++		return -ENOMEM;
++
++	xa_init(&priv->fps);
++	priv->inode = inode;
++	priv->mm = proc_mem_open(inode, PTRACE_MODE_READ);
++	priv->task = NULL;
++	if (IS_ERR(priv->mm)) {
++		int err = PTR_ERR(priv->mm);
++
++		seq_release_private(inode, file);
++		return err;
++	}
++
++	return 0;
++}
++
++static int proc_file_pins_release(struct inode *inode, struct file *file)
++{
++	struct seq_file *seq = file->private_data;
++	struct proc_file_pins_private *priv = seq->private;
++
++	/* This is for "protection" not sure when these may end up not being
++	 * NULL here... */
++	WARN_ON(priv->files);
++	WARN_ON(priv->task);
++
++	if (priv->mm)
++		mmdrop(priv->mm);
++
++	xa_destroy(&priv->fps);
++
++	return seq_release_private(inode, file);
++}
++
++static const struct file_operations proc_pid_file_pins_operations = {
++	.open		= proc_file_pins_open,
++	.read		= seq_read,
++	.llseek		= seq_lseek,
++	.release	= proc_file_pins_release,
++};
 -- 
 2.20.1
 
