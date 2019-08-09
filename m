@@ -2,257 +2,187 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A8298C31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 17:56:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 18171C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 17:57:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5F6182086D
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 17:56:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5F6182086D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id DBAEC21743
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 17:57:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DBAEC21743
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=techsingularity.net
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1002B6B027D; Fri,  9 Aug 2019 13:56:27 -0400 (EDT)
+	id 82D8C6B027E; Fri,  9 Aug 2019 13:57:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0B10E6B027E; Fri,  9 Aug 2019 13:56:27 -0400 (EDT)
+	id 801FB6B0292; Fri,  9 Aug 2019 13:57:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EE2596B0292; Fri,  9 Aug 2019 13:56:26 -0400 (EDT)
+	id 6F2556B02BB; Fri,  9 Aug 2019 13:57:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f200.google.com (mail-pg1-f200.google.com [209.85.215.200])
-	by kanga.kvack.org (Postfix) with ESMTP id B67EA6B027D
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 13:56:26 -0400 (EDT)
-Received: by mail-pg1-f200.google.com with SMTP id b18so60163858pgg.8
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 10:56:26 -0700 (PDT)
+Received: from mail-wm1-f71.google.com (mail-wm1-f71.google.com [209.85.128.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 237476B027E
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 13:57:10 -0400 (EDT)
+Received: by mail-wm1-f71.google.com with SMTP id c14so1472088wml.5
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 10:57:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:thread-topic:thread-index:date:message-id:references
-         :in-reply-to:accept-language:content-language:dlp-product
-         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
-        bh=ihrdGp0i/eSmctA1BAHL9aDuB9XQq46XMozZ2xpN4QA=;
-        b=itEwGFXdEd3MtfdJx1dmW+ncnNCibIyd4mNrJK05lweaiQKNzw98G4d8j8n4TBQ8iM
-         BecNEDxwQwhRD0b3Ct1eT17J3V3m4G3GOFLg4j197k6BCPrteZaDeStV36b32k4cpYaB
-         YuFyaHILW+2/PpBRp50EWI+H2olre5wSGV+EaketYKguOmiBH9xgh/Tic7Gk/61iaEEk
-         bB+QdNTivW72mwmhTEb/S1EATtIkWNfCXs6aB+CcNp6L2JprcuXyMx2wR/Q2PsLO64rp
-         PElENT5mNhg2+1asr33o7Eccozi268dtenMUrHFU74dPtCJjrDkMgP0i2iAwiqmMTf0U
-         W6WA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWsrQk9s8+umelRAWz0huSH1Ai4/jdsyM2TfM5PqKW/pbhN6Qiz
-	w2vSigiHqCmrRshka04mKqyKRTjQGz8aEq7vPFSyh4cq4zDWRaut+7xcBvfYH4/9znS0K87115r
-	NmdD5X6gdnx8KL1gU7yBINrNYuvY2OBRaSGVA3IN6HcougY//OTe10IYhKwRttz1b3g==
-X-Received: by 2002:aa7:9591:: with SMTP id z17mr22984488pfj.215.1565373386310;
-        Fri, 09 Aug 2019 10:56:26 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzvRL799jIkM1Mb/E6y95084ryFeKAVTIqNZZi+7SSLCRg4karz+vXeMyA4EX7ZcwPaS5fS
-X-Received: by 2002:aa7:9591:: with SMTP id z17mr22984422pfj.215.1565373385396;
-        Fri, 09 Aug 2019 10:56:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565373385; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=tL5tZxLa+RzvMcGkhmFt47LHLw70KZgGHl3uiuIM6xY=;
+        b=LFepOd4E29I818vv4J9rmH+rittOMCy4yL0r1sdCD6qU9M/hmDHrrNeQRNBA4sqWja
+         ANtHEnZunZCFxDoGsRuAZWSk/+m+OySJj/NoCFiNHvKdfKoHPQiaySneyXm/hWVnGtvS
+         KH1/uFcxsTfxbLVFaCNBHbchjECht6Dydko8iWhRfE83DiywgPTSZncxlYXvBIWQ57pu
+         +ZgAO7xQkq6uKZrEKVV4Gpse08ZLlnInSmrJNl9wpaL51ugc2HS49cpqFKqfJW/eOAGN
+         KDtaYQu1xAMVOLC1tvXKCnyxt7ki9UGL0SMwBPMEj4Q40/UjQgflq70ZZGrcQA0ApeOg
+         vteA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.191 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+X-Gm-Message-State: APjAAAWAw4LuQx2bqObndXuHMKoE0qodOi2CJjSIpS9MpTdqxRIyZg7e
+	MfwQUflKEGYpleGUD060hy7lyIuYZe5+f2fPySKb3/YuL0Rol8VUxm7DukT4umfupQFLyEk32nl
+	24Ug4GLXAZwXwXYLsqWtbVbcOmlTK7k/2U69egM+JboJ43ZgmlZsbLuT3KG+kPleuBQ==
+X-Received: by 2002:adf:f481:: with SMTP id l1mr19366278wro.123.1565373429713;
+        Fri, 09 Aug 2019 10:57:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw5OtUIGq/B7Kkab84vsLm3X/3BhXhheoQtNemP0ZN6Vfxd5pnqx9HKIOXHfI+Vg369Ld+p
+X-Received: by 2002:adf:f481:: with SMTP id l1mr19366232wro.123.1565373428925;
+        Fri, 09 Aug 2019 10:57:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565373428; cv=none;
         d=google.com; s=arc-20160816;
-        b=0Vb+BXAATF+u1WafQiQa2MLCSnKLTRk0/nxBDptq+Qqb9sfzcBOUTRMA4GdncEoGZf
-         L0nmaiPtmt21GFcCexlTYDp3DMFQ/TK9nRHGl7sPCIo9AA5Lh9856KEXbkOYhBEIYzGs
-         CQN0KqCpU8D3JiSjIyG7g8R6nDac9O7AQuKA0n7DyHBbOhhxcgOY44EWuT83NWKGZZWA
-         tT8vKSApLDxgZEd/8DhZ4n9AKqyrt6KkSLGl0S+Hmk+HCWqjQ6a4tGH8I4QM+WYDCOow
-         5qbaFyO68xRcICp3D+oUfE96KVK92D1rpEmqes1nvYzVyTbGKfmozqp7yz+RUQf2efN+
-         8iLQ==
+        b=GevtHkcVQQp368X5LEl6giPi5dShlU3d1Axz1yKifJZaizLTDnFWfQHWMtwyQbK329
+         8t5uZ/y7RiJl24BtUHg4CoAfccebSSsRkgy7d/4Tdn5oC/eqqfEE33VLnb/lTDIzQzE2
+         Bb8nY5wAfiyrXzaGngDcW12m+eGKuF5XL4mY/y4wpa/0wQs1TSrM1ocgf6CgEvPYUe3T
+         98UCqKX8qjJxeuEo/t5d/jDEm1VsuzHtDz6cK3SbFJ0MgoPWZYlz0tjdMJ8AO6WSyhF9
+         Ch6REmDngMHDPxlsCCjSHLZKhMgpJA2I3OKk93fFAcEkeDoA/GA2KhPczvMiV8Of/PSV
+         o4TA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
-         :dlp-product:content-language:accept-language:in-reply-to:references
-         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
-        bh=ihrdGp0i/eSmctA1BAHL9aDuB9XQq46XMozZ2xpN4QA=;
-        b=IH5DmfDesSMFgDtO/8ukey806y/MvhrWV6eYQBd/v2QJCwYpabSbBsse3kJGEGBpdC
-         W8Ox6X5Fz+Iu6VKYfGbI5c9e5C0voqhzATGcrmw9ZMd8rrK66IlJUCE46+dLB4wz/TPf
-         +gAJNyAAwqKYUU9g/quXJmAWABCSm2tspVp2tO70X7O43Q6iABZXc1CP0iCf/OV1rymz
-         CJ7RSQbx08yj5NjiM2BZo8edStW/hnyr6O4br49O9cYxS2PxUO180N30ZxJ1Cl03aHS5
-         L+l+Qp5Kyh+NfuwEoYY0W8WV18RUdfjoIYNwRN9Gz//Rp7JN0JDnjQRyn7DiMqWmp5FD
-         kM6g==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=tL5tZxLa+RzvMcGkhmFt47LHLw70KZgGHl3uiuIM6xY=;
+        b=qf2Ik64OcnOMDb1oSgNtcody68UPVCUUDBZLK/eeQ2vxhU4XssytVRa1i9l42KDMcd
+         ebVHlxcNZOt9XeWnjEYFrXn+0KxybWDgYTC30drR2jVexGFN/e5mkvNvH3AJple7cMvR
+         jui0r/p5rdtZyyJV3TOSvwdn93PqJyKjQYym9EjOGQGh/FApp7ZSASrfQodLakmb42qZ
+         8WSOlpieBAbqOISEtXHS1HEcdgoXoys9802ZNN7PRdlvf0Bg52z/UMIyonKA1sYth0u6
+         rIXkfvZceuxLm5CQBPQ1T/CRegM32nHfCDcXselh2ctsbf6QMmYWVQ00paX73gA4c/ue
+         CgBA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga07.intel.com (mga07.intel.com. [134.134.136.100])
-        by mx.google.com with ESMTPS id 144si22703484pgh.176.2019.08.09.10.56.25
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.191 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from outbound-smtp23.blacknight.com (outbound-smtp23.blacknight.com. [81.17.249.191])
+        by mx.google.com with ESMTPS id o137si4376571wme.39.2019.08.09.10.57.08
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 10:56:25 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) client-ip=134.134.136.100;
+        Fri, 09 Aug 2019 10:57:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.191 as permitted sender) client-ip=81.17.249.191;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 134.134.136.100 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 10:56:24 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,366,1559545200"; 
-   d="scan'208";a="350560074"
-Received: from fmsmsx106.amr.corp.intel.com ([10.18.124.204])
-  by orsmga005.jf.intel.com with ESMTP; 09 Aug 2019 10:56:24 -0700
-Received: from crsmsx151.amr.corp.intel.com (172.18.7.86) by
- FMSMSX106.amr.corp.intel.com (10.18.124.204) with Microsoft SMTP Server (TLS)
- id 14.3.439.0; Fri, 9 Aug 2019 10:56:23 -0700
-Received: from crsmsx101.amr.corp.intel.com ([169.254.1.115]) by
- CRSMSX151.amr.corp.intel.com ([169.254.3.186]) with mapi id 14.03.0439.000;
- Fri, 9 Aug 2019 11:56:21 -0600
-From: "Weiny, Ira" <ira.weiny@intel.com>
-To: Jan Kara <jack@suse.cz>
-CC: Michal Hocko <mhocko@kernel.org>, John Hubbard <jhubbard@nvidia.com>,
-	Matthew Wilcox <willy@infradead.org>, "john.hubbard@gmail.com"
-	<john.hubbard@gmail.com>, Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Hellwig <hch@infradead.org>, "Williams, Dan J"
-	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen
-	<dave.hansen@linux.intel.com>, Jason Gunthorpe <jgg@ziepe.ca>,
-	=?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, LKML
-	<linux-kernel@vger.kernel.org>, "amd-gfx@lists.freedesktop.org"
-	<amd-gfx@lists.freedesktop.org>, "ceph-devel@vger.kernel.org"
-	<ceph-devel@vger.kernel.org>, "devel@driverdev.osuosl.org"
-	<devel@driverdev.osuosl.org>, "devel@lists.orangefs.org"
-	<devel@lists.orangefs.org>, "dri-devel@lists.freedesktop.org"
-	<dri-devel@lists.freedesktop.org>, "intel-gfx@lists.freedesktop.org"
-	<intel-gfx@lists.freedesktop.org>, "kvm@vger.kernel.org"
-	<kvm@vger.kernel.org>, "linux-arm-kernel@lists.infradead.org"
-	<linux-arm-kernel@lists.infradead.org>, "linux-block@vger.kernel.org"
-	<linux-block@vger.kernel.org>, "linux-crypto@vger.kernel.org"
-	<linux-crypto@vger.kernel.org>, "linux-fbdev@vger.kernel.org"
-	<linux-fbdev@vger.kernel.org>, "linux-fsdevel@vger.kernel.org"
-	<linux-fsdevel@vger.kernel.org>, "linux-media@vger.kernel.org"
-	<linux-media@vger.kernel.org>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>,
-	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
-	"linux-rpi-kernel@lists.infradead.org"
-	<linux-rpi-kernel@lists.infradead.org>, "linux-xfs@vger.kernel.org"
-	<linux-xfs@vger.kernel.org>, "netdev@vger.kernel.org"
-	<netdev@vger.kernel.org>, "rds-devel@oss.oracle.com"
-	<rds-devel@oss.oracle.com>, "sparclinux@vger.kernel.org"
-	<sparclinux@vger.kernel.org>, "x86@kernel.org" <x86@kernel.org>,
-	"xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>
-Subject: RE: [PATCH 00/34] put_user_pages(): miscellaneous call sites
-Thread-Topic: [PATCH 00/34] put_user_pages(): miscellaneous call sites
-Thread-Index: AQHVSNjU1EYxEMQcyke2Y16AlWiV+abn98YAgAA6ZwCAABzEgIAAB8CAgABJHoCABynCAIAAAqCAgAC1jYCAAmuxgIAANKMg
-Date: Fri, 9 Aug 2019 17:56:20 +0000
-Message-ID: <2807E5FD2F6FDA4886F6618EAC48510E79E7F367@CRSMSX101.amr.corp.intel.com>
-References: <20190802022005.5117-1-jhubbard@nvidia.com>
- <20190802091244.GD6461@dhcp22.suse.cz>
- <20190802124146.GL25064@quack2.suse.cz>
- <20190802142443.GB5597@bombadil.infradead.org>
- <20190802145227.GQ25064@quack2.suse.cz>
- <076e7826-67a5-4829-aae2-2b90f302cebd@nvidia.com>
- <20190807083726.GA14658@quack2.suse.cz>
- <20190807084649.GQ11812@dhcp22.suse.cz>
- <20190808023637.GA1508@iweiny-DESK2.sc.intel.com>
- <20190809083435.GA17568@quack2.suse.cz>
-In-Reply-To: <20190809083435.GA17568@quack2.suse.cz>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiMjgzZWFlNTQtZDMwNC00YTZiLThiNDktMzI0ZWY3MGNjMDdiIiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiY2tWUXpQWXg4RTZvTlVIZFwvOFVSVWNwbCs3V2JDTG5GcHNpZTB3bzRRaEhFUExOQzZXZGtLeFkzNUhuNjVBOEYifQ==
-x-ctpclassification: CTP_NT
-dlp-product: dlpe-windows
-dlp-version: 11.2.0.6
-dlp-reaction: no-action
-x-originating-ip: [172.18.205.10]
-Content-Type: text/plain; charset="iso-8859-1"
-Content-Transfer-Encoding: quoted-printable
+       spf=pass (google.com: domain of mgorman@techsingularity.net designates 81.17.249.191 as permitted sender) smtp.mailfrom=mgorman@techsingularity.net
+Received: from mail.blacknight.com (pemlinmail04.blacknight.ie [81.17.254.17])
+	by outbound-smtp23.blacknight.com (Postfix) with ESMTPS id 84DA4B86DE
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 18:57:08 +0100 (IST)
+Received: (qmail 23304 invoked from network); 9 Aug 2019 17:57:08 -0000
+Received: from unknown (HELO techsingularity.net) (mgorman@techsingularity.net@[84.203.18.93])
+  by 81.17.254.9 with ESMTPSA (AES256-SHA encrypted, authenticated); 9 Aug 2019 17:57:08 -0000
+Date: Fri, 9 Aug 2019 18:57:06 +0100
+From: Mel Gorman <mgorman@techsingularity.net>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Miguel de Dios <migueldedios@google.com>, Wei Wang <wvw@google.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [RFC PATCH] mm: drop mark_page_access from the unmap path
+Message-ID: <20190809175706.GO2739@techsingularity.net>
+References: <20190729082052.GA258885@google.com>
+ <20190729083515.GD9330@dhcp22.suse.cz>
+ <20190730121110.GA184615@google.com>
+ <20190730123237.GR9330@dhcp22.suse.cz>
+ <20190730123935.GB184615@google.com>
+ <20190730125751.GS9330@dhcp22.suse.cz>
+ <20190731054447.GB155569@google.com>
+ <20190731072101.GX9330@dhcp22.suse.cz>
+ <20190806105509.GA94582@google.com>
+ <20190809124305.GQ18351@dhcp22.suse.cz>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-15
+Content-Disposition: inline
+In-Reply-To: <20190809124305.GQ18351@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->=20
-> On Wed 07-08-19 19:36:37, Ira Weiny wrote:
-> > On Wed, Aug 07, 2019 at 10:46:49AM +0200, Michal Hocko wrote:
-> > > > So I think your debug option and my suggested renaming serve a bit
-> > > > different purposes (and thus both make sense). If you do the
-> > > > renaming, you can just grep to see unconverted sites. Also when
-> > > > someone merges new GUP user (unaware of the new rules) while you
-> > > > switch GUP to use pins instead of ordinary references, you'll get
-> > > > compilation error in case of renaming instead of hard to debug
-> > > > refcount leak without the renaming. And such conflict is almost
-> > > > bound to happen given the size of GUP patch set... Also the
-> > > > renaming serves against the "coding inertia" - i.e., GUP is around =
-for
-> ages so people just use it without checking any documentation or comments=
-.
-> > > > After switching how GUP works, what used to be correct isn't
-> > > > anymore so renaming the function serves as a warning that
-> > > > something has really changed.
-> > >
-> > > Fully agreed!
-> >
-> > Ok Prior to this I've been basing all my work for the RDMA/FS DAX
-> > stuff in Johns put_user_pages()...  (Including when I proposed failing
-> > truncate with a lease in June [1])
-> >
-> > However, based on the suggestions in that thread it became clear that
-> > a new interface was going to need to be added to pass in the "RDMA
-> > file" information to GUP to associate file pins with the correct proces=
-ses...
-> >
-> > I have many drawings on my white board with "a whole lot of lines" on
-> > them to make sure that if a process opens a file, mmaps it, pins it
-> > with RDMA, _closes_ it, and ummaps it; that the resulting file pin can
-> > still be traced back to the RDMA context and all the processes which
-> > may have access to it....  No matter where the original context may
-> > have come from.  I believe I have accomplished that.
-> >
-> > Before I go on, I would like to say that the "imbalance" of
-> > get_user_pages() and put_page() bothers me from a purist standpoint...
-> > However, since this discussion cropped up I went ahead and ported my
-> > work to Linus' current master
-> > (5.3-rc3+) and in doing so I only had to steal a bit of Johns code...
-> > Sorry John...  :-(
-> >
-> > I don't have the commit messages all cleaned up and I know there may
-> > be some discussion on these new interfaces but I wanted to throw this
-> > series out there because I think it may be what Jan and Michal are
-> > driving at (or at least in that direction.
-> >
-> > Right now only RDMA and DAX FS's are supported.  Other users of GUP
-> > will still fail on a DAX file and regular files will still be at
-> > risk.[2]
-> >
-> > I've pushed this work (based 5.3-rc3+ (33920f1ec5bf)) here[3]:
-> >
-> > https://github.com/weiny2/linux-kernel/tree/linus-rdmafsdax-b0-v3
-> >
-> > I think the most relevant patch to this conversation is:
-> >
-> > https://github.com/weiny2/linux-
-> kernel/commit/5d377653ba5cf11c3b716f90
-> > 4b057bee6641aaf6
-> >
-> > I stole Jans suggestion for a name as the name I used while
-> > prototyping was pretty bad...  So Thanks Jan...  ;-)
->=20
-> For your function, I'd choose a name like vaddr_pin_leased_pages() so tha=
-t
-> association with a lease is clear from the name :)
+On Fri, Aug 09, 2019 at 02:43:24PM +0200, Michal Hocko wrote:
+> On Tue 06-08-19 19:55:09, Minchan Kim wrote:
+> > On Wed, Jul 31, 2019 at 09:21:01AM +0200, Michal Hocko wrote:
+> > > On Wed 31-07-19 14:44:47, Minchan Kim wrote:
+> [...]
+> > > > As Nick mentioned in the description, without mark_page_accessed in
+> > > > zapping part, repeated mmap + touch + munmap never acticated the page
+> > > > while several read(2) calls easily promote it.
+> > > 
+> > > And is this really a problem? If we refault the same page then the
+> > > refaults detection should catch it no? In other words is the above still
+> > > a problem these days?
+> > 
+> > I admit we have been not fair for them because read(2) syscall pages are
+> > easily promoted regardless of zap timing unlike mmap-based pages.
+> > 
+> > However, if we remove the mark_page_accessed in the zap_pte_range, it
+> > would make them more unfair in that read(2)-accessed pages are easily
+> > promoted while mmap-based page should go through refault to be promoted.
+> 
+> I have really hard time to follow why an unmap special handling is
+> making the overall state more reasonable.
+> 
+> Anyway, let me throw the patch for further discussion. Nick, Mel,
+> Johannes what do you think?
+> 
 
-My gut was to just change this as you suggested.  But the fact is that thes=
-e calls can get used on anonymous pages as well.  So the "leased" semantic =
-may not apply...  OTOH if a file is encountered it will fail the pin...  :-=
-/  I'm going to leave it for now and get the patches submitted to the list.=
-..
+I won't be able to answer follow-ups to this for a while but here is some
+superficial thinking.
 
-> Also I'd choose the
-> counterpart to be vaddr_unpin_leased_page[s](). Especially having put_pag=
-e
-> in the name looks confusing to me...
+Minimally, you should test PageReferenced before setting it like
+mark_page_accessed does to avoid unnecessary atomics.  I know it wasn't
+done that way before but there is no harm in addressing it now.
 
-Ah yes, totally agree with the "pin/unpin" symmetry.  I've changed from "pu=
-t" to "unpin"...
+workingset_activation is necessarily expensive. It could speculatively
+lookup memcg outside the RCU read lock and only acquire it if there is
+something interesting to lookup. Probably not much help though.
 
-Thanks,
-Ira
+Note that losing the potential workingset_activation from the patch
+may have consequences if we are relying on refaults to fix this up. I'm
+undecided as to what degree it matters.
 
->=20
-> 								Honza
->=20
-> --
-> Jan Kara <jack@suse.com>
-> SUSE Labs, CR
+That said, I do agree that the mark_page_accessed on page zapping may
+be overkill given that it can be a very expensive call if the page
+gets activated and it's potentially being called in the zap path at a
+high frequency. It's also not a function that is particularly easy to
+optimise if you want to cover all the cases that matter. It really would
+be preferably to have knowledge of a workload that really cares about
+the activations from mmap/touch/munmap.
+
+mark_page_accessed is a hint, it's known that there are gaps with
+it so we shouldn't pay too much of a cost on information that only
+might be useful. If the system is under no memory pressure because the
+workloads are tuned to fit in memory (e.g. database using direct IO)
+then mark_page_accessed is only cost. We could avoid marking it accessed
+entirely if PF_EXITING given that if a task is exiting, it's not a strong
+indication that the page is of any interest.  Even if the page is heavily
+shared page and one user exits, the other users will keep it referenced
+and prevent reclaim anyway. The benefit is too marginal too.
+
+Given the definite cost of mark_page_accessed in this path and the main
+corner case being tasks that access pages via mmap/touch/munmap (which is
+insanely expensive if done at high frequency), I think it's reasonable to
+rely on SetPageReferenced giving the page another lap of the LRU in most
+cases (the obvious exception being CMA forcing reclaim). That opinion
+might change if there is a known example of a realistic workload that
+would suffer from the lack of explicit activations from teardown context.
+
+-- 
+Mel Gorman
+SUSE Labs
 
