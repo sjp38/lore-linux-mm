@@ -2,178 +2,196 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.0 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9E36AC433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 01:26:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 64F2DC32754
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 02:46:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 58AE5214C6
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 01:26:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id EFAE42171F
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 02:46:55 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="sN/0osHq"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 58AE5214C6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="WaAJIxvx"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EFAE42171F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E924A6B0003; Thu,  8 Aug 2019 21:26:45 -0400 (EDT)
+	id 4E3246B0005; Thu,  8 Aug 2019 22:46:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E1BAE6B0006; Thu,  8 Aug 2019 21:26:45 -0400 (EDT)
+	id 492336B0006; Thu,  8 Aug 2019 22:46:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CE4086B0007; Thu,  8 Aug 2019 21:26:45 -0400 (EDT)
+	id 380186B0007; Thu,  8 Aug 2019 22:46:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 94BC96B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 21:26:45 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id x18so60278597pfj.4
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 18:26:45 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 01F2D6B0005
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 22:46:55 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id e25so60481546pfn.5
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 19:46:54 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=mIo2y95DYwpm5TwfN0ChMwsAj72bzfnkFfj+rLdjqVU=;
-        b=LNQsiuT8JR1ghsKHkDfqO/acVS4ZmU5v3WkYiFzLRZBj6Y4tYJQN2Pv63UhBIHucHY
-         4CyvH5yRSIrYeFCoYZa5TqDYTNajwuIfvg/09icQ5IcSsTlYfZYz3A0AWQPGkeVU16Uy
-         OUlpdlS6FLn0Wdp7MZOGZ4B2W4cqEO1VeP6VYQXhkCx8SO8A+XRQVvk7d25xcCUYc8qq
-         vmLp7osAT6RbnDVV5/U+tFWZDGjF9cL56KMs7Q2PLSN1pxwyh5bDN4OTq/FKJQWAE804
-         /oBsdlnro3s+cm1U398ofN16UwQn/2NFPfxsG71Gmsk+qk5QBVlrmXciu7fh5Uh7fMgL
-         61dw==
-X-Gm-Message-State: APjAAAUukEj/oc5SJp95eo3zQJvlDeSryOvXVvgovUQdEcGkVYra+IBS
-	up6Pq81gKunx03ROUm9E4t6fioC4N4EYMRwsZHj2EiRKILly7fKgCNxq0eY0cDMMIBXL6fYDBVr
-	WCKqGexH+QoOKn0ie9knYlzRuhChyuWzD9AtPgHzZHJOvRDy7jh17MxzuL16y36WUJA==
-X-Received: by 2002:a17:902:9307:: with SMTP id bc7mr15953195plb.183.1565314005278;
-        Thu, 08 Aug 2019 18:26:45 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxHOKm73I32twWRG4Gk8Gq7chR8xTmQL2RaYpjdU5+X2tAWi7I2VbSHN3jnxjis3n+yIAEO
-X-Received: by 2002:a17:902:9307:: with SMTP id bc7mr15953154plb.183.1565314004530;
-        Thu, 08 Aug 2019 18:26:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565314004; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:references:mime-version:content-disposition:in-reply-to
+         :user-agent;
+        bh=k9ysUCj8sFdxJhtdA1rA7e9UmHUPqdKijogVrakBrS8=;
+        b=WrdAxYVOixQJmEtYk/Kxv1cCbRoB41elZqsbpERzBW+F65sGrGi2aELQVg8pI4ycgR
+         GVZo4kD3axkQBJkEUg1CzdssFu/wcQQSu7bXJxJ7kchtgUSrSyC/Y1CjH+CaBx5f1Kkn
+         JYFUAayM/q6bbbJIiRtsbXnvIttB+LhRxdcyHxCw+5CUd0lY/pR/fmYWOyqBjHWVIQfr
+         ZJaHK6/YHQSExfhXiL9GItxW/IGxLXTUuorqHDO8FBWzqf05o6SBQpnCYO1tBwF0UIJh
+         pJXVN1aqC5RSZczXyRi48D/X/RyHMjrzqJP2wdQOw5oJuN5e9lIt+Du8LDH10zv29NbJ
+         2hmw==
+X-Gm-Message-State: APjAAAWFPskGRLPnqliaex5tkBp6xkkF+q0XezafU8nVW8d2ec+OCsor
+	yN8HHuw2QFY//KFgJ0VoNbew24aRW+rzCqPZGAmaxfjJY6PchTapazs0tWnFKXtMCdTQKlUNT3Q
+	/uII/30F26mGSCKs4peMYnV738ZfNPzycGvRyIJCC2CnES6crQDriRncg3pHAZPDfYA==
+X-Received: by 2002:aa7:83ce:: with SMTP id j14mr18634074pfn.55.1565318814538;
+        Thu, 08 Aug 2019 19:46:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzwpOpmVN2VEM9vlenRSGfuW1/6Ws7Juc4aUEvJmGqKcpcY8eLosaNiyG1NgrQARvKGa2fs
+X-Received: by 2002:aa7:83ce:: with SMTP id j14mr18634013pfn.55.1565318813406;
+        Thu, 08 Aug 2019 19:46:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565318813; cv=none;
         d=google.com; s=arc-20160816;
-        b=vhK+nlls2izqwqCMuzjFnl+d005VqrdHpH/XBspf6EShWlR4rNLW3bPfmMIojv/0OB
-         jGpOAy4KRcDVNwNdWfL9AvnUOwNw6VmHyjU8sJCxav2TMW2cuH33HwjypU5wlpZuXJFL
-         DTWXdT98M7M1/CVO6OIwD/sDtsWs56Gdf4qQCArwdHRh6+aREvV7B2eiqv/yoOJHr4qo
-         8y4a6fvMeIu4r//Arus4+6WstXuPvQ/VT547EIM5sC4a12pFfvk9m2B9ABIKfWbG2URk
-         3GtXYkyUZ/ciSFUB4dKLEwF4mkguGDgS4WSOZQ719QcqE7idfUfFP0pPbFZAWZY78dXZ
-         mM/Q==
+        b=cTCbNv5j7y21bBj8OflhYtpEs4fF51IR84aYz4mXiqW+hcXFlub1CjLwHW37J6wNh+
+         cVTn4saqgZlM3JalRGoy3D7GcwapB9b2memm7U/P78Z4SWCkPFk3XMydpIOtNlq+9BSI
+         P3/bFa0ymdgAQ4qLmkwtqI9rd5sp4lhTTGdIkFvxXFz8R4Gr+/rIxrqi2GERe5Xx8TxP
+         1peSQ3Zn0LxrmDCmvVSe2v9W7fTghRW05s6qgxW1yuqLeQbnrpZEI6iMERSVu8M7kOBd
+         nrZL1II/G4iZd65No4jK38lHEdITbk37yNJcaFQv4PZfdy8QqkTsQZUz35DTwWbvwHq4
+         y4DA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=mIo2y95DYwpm5TwfN0ChMwsAj72bzfnkFfj+rLdjqVU=;
-        b=Pt0Bans3o8BXc9viLxLwBBk6u8Vjiw+kCpYZRwOw+Vcv96l4H2/pyxOjk37W6RCi/N
-         kOQJ4lPJ0D+t0eaoI5arDYnvaEyJ8JnK1f7CHz7aHfHyqpcff1do6u4x7OGuSy//t+B/
-         MeZBbOV3GtdI7Evn9KFLvazKPXzxdPySheLQAOAn2SJou6plmlK4CVNnEUy3MyVoL2rZ
-         gWlFYIEXm66CEukFt7DBVJV+Tr8mQo6ziPD2xW2caeyQ4FIjWrjSdsab3nQhrJ/jm9tg
-         A+/jFRuBmjyfqCKpc5tiUtCh9X341/SOvyOpbwBVinxYkDLJ8rKqcaWRnnQX/LqD7uow
-         z57w==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date:dkim-signature;
+        bh=k9ysUCj8sFdxJhtdA1rA7e9UmHUPqdKijogVrakBrS8=;
+        b=X6bAw23cds0to1mCgqp3FB0a81S97fj5V7ug0HDA+DMmutoz9akgG1w9zHIO2Y/2a1
+         u+gGUbFE7OTn4Wj8bh/GQiFXAeaGR+vkvhzrSLJtPKG1zIuvJFpxGnHyEDY5crYTtccM
+         LuzI1ir9THCRRvye6as+Guwuc30lq7LiUxRCX578gFECGe/ncoBp85RZy2yqRCtMe1bD
+         jGYkiPeQRojWsWPQ+C6UtieDTK3ErP67ixAJktztLMwX6l5p5UR2sSvfGZB8FNiFCgnL
+         PwASJBfkw13zEsLRJ/hOnjIpHQ7yb1Ot4l806tdXoh5uCCBLZ/I8SY6vmiC1Ckw4HPy0
+         m1+Q==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b="sN/0osHq";
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id bi3si46579380plb.226.2019.08.08.18.26.44
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WaAJIxvx;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
+        by mx.google.com with ESMTPS id h63si3236303pjb.106.2019.08.08.19.46.53
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 18:26:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Thu, 08 Aug 2019 19:46:53 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b="sN/0osHq";
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d4ccbd50000>; Thu, 08 Aug 2019 18:26:45 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Thu, 08 Aug 2019 18:26:43 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Thu, 08 Aug 2019 18:26:43 -0700
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 9 Aug
- 2019 01:26:42 +0000
-Subject: Re: [PATCH v3 38/41] powerpc: convert put_page() to put_user_page*()
-To: Michael Ellerman <mpe@ellerman.id.au>, Andrew Morton
-	<akpm@linux-foundation.org>
-CC: Christoph Hellwig <hch@infradead.org>, Dan Williams
-	<dan.j.williams@intel.com>, Dave Chinner <david@fromorbit.com>, Dave Hansen
-	<dave.hansen@linux.intel.com>, Ira Weiny <ira.weiny@intel.com>, Jan Kara
-	<jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, LKML
-	<linux-kernel@vger.kernel.org>, <amd-gfx@lists.freedesktop.org>,
-	<ceph-devel@vger.kernel.org>, <devel@driverdev.osuosl.org>,
-	<devel@lists.orangefs.org>, <dri-devel@lists.freedesktop.org>,
-	<intel-gfx@lists.freedesktop.org>, <kvm@vger.kernel.org>,
-	<linux-arm-kernel@lists.infradead.org>, <linux-block@vger.kernel.org>,
-	<linux-crypto@vger.kernel.org>, <linux-fbdev@vger.kernel.org>,
-	<linux-fsdevel@vger.kernel.org>, <linux-media@vger.kernel.org>,
-	<linux-mm@kvack.org>, <linux-nfs@vger.kernel.org>,
-	<linux-rdma@vger.kernel.org>, <linux-rpi-kernel@lists.infradead.org>,
-	<linux-xfs@vger.kernel.org>, <netdev@vger.kernel.org>,
-	<rds-devel@oss.oracle.com>, <sparclinux@vger.kernel.org>, <x86@kernel.org>,
-	<xen-devel@lists.xenproject.org>, Benjamin Herrenschmidt
-	<benh@kernel.crashing.org>, Christoph Hellwig <hch@lst.de>,
-	<linuxppc-dev@lists.ozlabs.org>
-References: <20190807013340.9706-1-jhubbard@nvidia.com>
- <20190807013340.9706-39-jhubbard@nvidia.com>
- <87k1botdpx.fsf@concordia.ellerman.id.au>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <248c9ab2-93cc-6d8b-606d-d85b83e791e5@nvidia.com>
-Date: Thu, 8 Aug 2019 18:26:42 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=WaAJIxvx;
+       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
+	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
+	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
+	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
+	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	 bh=k9ysUCj8sFdxJhtdA1rA7e9UmHUPqdKijogVrakBrS8=; b=WaAJIxvxqLMJwq4r0MuB186tS
+	eB35TdZihw8we7T+6rzfXNcdc1BFrSHTsICCgF9IYxPFMXnH51MOTuYcDuzIEQFJTMbpdZHz7kU4l
+	1gXCVm3zmGNat8g+4gEFOmlEJuABJAdswqsBLhwukirmbwfQV0VJh1UOgKcKX0IHlCnqa9ftb3GN5
+	anKRc6DAtdHrlXV80dZ8UTLKLtWWw6siF34Vuvs30NBWsAIUoDuZlJjPXL5Z3iyVaI9c8MyiBg6a+
+	ZzMgnF9fEFZkYUNsrMbPcS0zzVnVA5rZwBUyx3/flkMtA4BlYIqbgSIAqMmX6Ch8YNSw7wcyQUOQo
+	SWWUHUk+A==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hvuvU-0008Bg-Kn; Fri, 09 Aug 2019 02:46:44 +0000
+Date: Thu, 8 Aug 2019 19:46:44 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: miles.chen@mediatek.com
+Cc: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>,
+	David Rientjes <rientjes@google.com>,
+	Joonsoo Kim <iamjoonsoo.kim@lge.com>,
+	Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, linux-mediatek@lists.infradead.org,
+	wsd_upstream@mediatek.com, "Tobin C . Harding" <me@tobin.cc>,
+	Kees Cook <keescook@chromium.org>
+Subject: Re: [RFC PATCH v2] mm: slub: print kernel addresses in slub debug
+ messages
+Message-ID: <20190809024644.GL5482@bombadil.infradead.org>
+References: <20190809010837.24166-1-miles.chen@mediatek.com>
 MIME-Version: 1.0
-In-Reply-To: <87k1botdpx.fsf@concordia.ellerman.id.au>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL101.nvidia.com (172.20.187.10) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1565314005; bh=mIo2y95DYwpm5TwfN0ChMwsAj72bzfnkFfj+rLdjqVU=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=sN/0osHqfMASG3Gn5uYJsmBevNgkDITrwy5z0XhYDRnSVjTtczC6Zn93vXUVACtgl
-	 zsE5J5OQn1U0e8RQtUv/QuY5iXNoztc7U7xk0b8D/XTbbdQX85oERprBP+FlchEBmH
-	 cDA/Z0zP30Are5EcBXQtJgaAWOYtGMQytxGRabpoiJwuifLVi+3nH2crRLrU8L/jsz
-	 NjANrKoFZE22mpOq52s3fZ9ut+mKAUlAXHfdi2WiqPjr5KVieTASv9oPdSZ5QUx628
-	 sL0qbeXqIPI+CnsO9wdJm+9w+qSRY9+X67MIO8EOa4e3TPJTGVb16/VuBW7YteYrzL
-	 bdoBRcdIA11ng==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190809010837.24166-1-miles.chen@mediatek.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/7/19 10:42 PM, Michael Ellerman wrote:
-> Hi John,
-> 
-> john.hubbard@gmail.com writes:
->> diff --git a/arch/powerpc/mm/book3s64/iommu_api.c b/arch/powerpc/mm/book3s64/iommu_api.c
->> index b056cae3388b..e126193ba295 100644
->> --- a/arch/powerpc/mm/book3s64/iommu_api.c
->> +++ b/arch/powerpc/mm/book3s64/iommu_api.c
->> @@ -203,6 +202,7 @@ static void mm_iommu_unpin(struct mm_iommu_table_group_mem_t *mem)
->>  {
->>  	long i;
->>  	struct page *page = NULL;
->> +	bool dirty = false;
-> 
-> I don't think you need that initialisation do you?
-> 
+On Fri, Aug 09, 2019 at 09:08:37AM +0800, miles.chen@mediatek.com wrote:
+> Possible approaches are:
+> 1. stop printing kernel addresses
+> 2. print with %pK,
+> 3. print with %px.
 
-Nope, it can go. Fixed locally, thanks.
+No.  The point of obscuring kernel addresses is that if the attacker manages to find a way to get the kernel to spit out some debug messages that we shouldn't
+leak all this extra information.
 
-Did you get a chance to look at enough of the other bits to feel comfortable 
-with the patch, overall?
+> 4. do nothing
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+5. Find something more useful to print.
+
+> INFO: Slab 0x(____ptrval____) objects=25 used=10 fp=0x(____ptrval____)
+
+... you don't have any randomness on your platform?
+
+> INFO: Object 0x(____ptrval____) @offset=1408 fp=0x(____ptrval____)
+> Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5
+> Redzone (____ptrval____): bb bb bb bb bb bb bb bb
+> Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
+> Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
+> Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
+> Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
+> ...
+> FIX kmalloc-128: Object at 0x(____ptrval____) not freed
+
+But if you have randomness, at least some of these "pointers" are valuable
+because you can compare them against "pointers" printed by other parts
+of the kernel.
+
+> After this patch:
+> 
+> INFO: Slab 0xffffffbf00f57000 objects=25 used=23 fp=0xffffffc03d5c3500
+> INFO: Object 0xffffffc03d5c3500 @offset=13568 fp=0xffffffc03d5c0800
+> Redzone 00000000: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone 00000010: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone 00000020: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone 00000030: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone 00000040: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone 00000050: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone 00000060: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Redzone 00000070: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
+> Object 00000000: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object 00000010: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object 00000020: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object 00000030: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object 00000040: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object 00000050: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object 00000060: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
+> Object 00000070: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5
+> Redzone 00000000: bb bb bb bb bb bb bb bb
+> Padding 00000000: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
+> Padding 00000010: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
+> Padding 00000020: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
+> Padding 00000030: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
+> ...
+> FIX kmalloc-128: Object at 0xffffffc03d5c3500 not freed
+
+It looks prettier, but I'm not convinced it's more useful.  Unless your
+platform lacks randomness ...
 
