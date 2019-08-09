@@ -6,82 +6,82 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DF8F4C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D90A4C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7DBCA2089E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7DBCA2089E
+	by mail.kernel.org (Postfix) with ESMTP id 7CD2E2089E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7CD2E2089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 776226B0277; Fri,  9 Aug 2019 12:01:02 -0400 (EDT)
+	id AA5666B0273; Fri,  9 Aug 2019 12:01:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6B9426B0274; Fri,  9 Aug 2019 12:01:02 -0400 (EDT)
+	id A7D916B0276; Fri,  9 Aug 2019 12:01:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 492356B0277; Fri,  9 Aug 2019 12:01:02 -0400 (EDT)
+	id 7732E6B0273; Fri,  9 Aug 2019 12:01:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id DFEA76B0273
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:01 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id s18so5312533wrt.21
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:01 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 25AD96B0275
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:02 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id h8so46777917wrb.11
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:02 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=r1S6pzU0/Hk4OFWHO9t0+lm6HUktaigxe8FDAARZhnw=;
-        b=SNZlnNb10N+hvFaRYEEFNEVsgMRio3kTigvL1g0vCllXIAhQo5QuUmN9ibZQSYWEIv
-         YKCcnpdAav7+NfcF2Ivc95G51+Rl0+gmjc0jsTZjHXmXyg6/LUxNO0yMqBHSNf1F140N
-         E28+w9P25IS66UOk1/A4vaCrZ3kfDUf5soyIvKY9E5eWIOcbd7HczTOFv3dgvzjSfqkz
-         PIC7tEOgMgfxzDYVUTl8SOyuEgsF7g18Hpbw3zRkZHj3PUbpcUaCCkW2YJgMXDOJKIzO
-         QuMZsP8P/UL4yoRAPRfwCbFUGgaYUCgjcrZhYKpEJiR4NzG3V0RAJrgnvW5bFkUZN+p9
-         Fs9Q==
+        bh=9BVgq/DnmtOM71Szo8nyUd3ZOSEmtHNG0//NHPf2Kgw=;
+        b=ZwY4gWvsYzY83RU86ryZgsAWLLfGWtB7CZFx6Fbji9m811IFAoDCVWFJesKEfy1Ztf
+         VlEv4DYo7ZjMsJcEGZJBBJSdREk0bNGuHOfRuBCn23Db1WtB1qaV8y3HwRRbueJrSx+G
+         odFOnoMAHKph7YN+hEbKAlv7FlT4xR4Eng1JCtRmkaRc1VlPZFuBa87D2FyqVNvtv4ig
+         +9EVCZX2viQEtyn9oANcRngVfq2iiaVSctkh734Gr+suFL9w1aHw42gcVsiqEm+ceeqX
+         91JLOOkHYIpXRWjbBVqwaqKQCRf5/nS6WKK2TrAYS6/kmoX1DK+MncFsIviD8HiQ1eeK
+         yARA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAVKkf48E4TlnuEyQuAy6zjFMZMxrMFOnxTqBEHykX8O+RL9BAd/
-	Ay5AbSrwJ8NdIyN0LPbaoQU9ko/thb246EqrQxRhXiDNXn+UbsZpkI0kzCCOrPkQcHH05pA29D9
-	l2WZ7et5O5fiS2qFxLcYMIphZAW9zX9RURM10C/Gw2C5/GQg4LkSiAOnlPlKTnwgXiw==
-X-Received: by 2002:a1c:a584:: with SMTP id o126mr11922813wme.147.1565366461474;
+X-Gm-Message-State: APjAAAVui/tSvNXXZiK9YcOw4KDWNji/YCyMkcV899fam2FCp24dsfvf
+	c1SdVgO76BGNMZCmXNCh2gnvTNxrAXXNkfI311uTDfw1TywVuwtB57fQcqg85D78ANN3SZwCngZ
+	f+ey5l7GEG9Icb+xALda4GxNtE3cYPZ1UZ/dvuVyki0yb/5c7sSwzD2b69NjbeIT2rw==
+X-Received: by 2002:a5d:4602:: with SMTP id t2mr24802880wrq.340.1565366461717;
         Fri, 09 Aug 2019 09:01:01 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzZ4b8xfqR6wtiP/41apHeJuzCE+59uzux8qDqpRXoQJj0L3nMPFRjMRcPMGoOZPZanWl2C
-X-Received: by 2002:a1c:a584:: with SMTP id o126mr11922687wme.147.1565366459886;
-        Fri, 09 Aug 2019 09:00:59 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366459; cv=none;
+X-Google-Smtp-Source: APXvYqyx6cG+PJhTjy9/8uM+LykJHTaLbe2O0vQP7Kv18Wi64wnk1cO3SrjlXbzeuWr1tDwF9BU5
+X-Received: by 2002:a5d:4602:: with SMTP id t2mr24802753wrq.340.1565366460345;
+        Fri, 09 Aug 2019 09:01:00 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565366460; cv=none;
         d=google.com; s=arc-20160816;
-        b=L7ymabIT3lKaus81VaqcvLU9b487+O4A0Z5XICAGuejDW4AVeC/4XnDqGSi2Ljpl4T
-         Mpt1eweY+ow7GSiw48TAnVk2MGtaGqWlLDN8rtrgi6dCZC6rr59ha383YgTVAHrPs7Ef
-         YeYUnA7BDZ8e3oYI/lAmDov7ocKgJUB79OEWIWdpOARWtYlGNPfmWX2GfQSffBKGjBZw
-         SDYi+jPFZZf6SuSprfJYrF8bIpJi1xrFfKvlRHebmo1WGqu39aSSpgSVXRiF/Ts3CVLd
-         Qg02H4Q7qmJn66GMPESzSYYSS2n+0LAlLMxToEsF/iFz9XlIUcsKxYdzvSGF82Cu6Evr
-         33SQ==
+        b=WitZL8a8ifAdYGQXDwqwAAXTInqc1IU4JKoe4hktV4+4KOMjsn9kCBg86lXW0bGCNh
+         MxuI/a6l9ocfiIum3x1KOBwuDX7NCCw/mo7KzAcb4NDI7i+jjkrf2UpxUl92ZHK6Clr5
+         tqb5c+DdGAaOr8JEt1uyD4G6txIu7dZj5ICu8ftfeAf290iSeNiHiooDjDeMUQeSi0qO
+         qkVWnBeMKqmqZXAhkkIDw9kbi3Agkr9O/liuzLTXLehSq47b+wpWfUxzwBre+1WCJiHa
+         5hsAgJpSmmLLtuKmzQV8+jo1P4KhtT1T7iswCwSPFIfopeGmKAiKVPCnf2Dgm/wUuFsK
+         q5Mw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=r1S6pzU0/Hk4OFWHO9t0+lm6HUktaigxe8FDAARZhnw=;
-        b=LDb4Dd2IsNdTHcAdDTF8q/diE8qR0cBY9U9e5gS5s2fphaiquvwpxuraKAyOq1QuW4
-         rjfGzy7HM6J/7RXZc+Fg4GywwnoENWeFjw+LzqWSZgEYTLl/gO+WesphXltbJ1cjhzKo
-         MIfULODbFCV6Py1I5jhemwJ6CMAC0c5TZhyYD4bAE+mr5MD3zF/LzIeOLPrdvfvwU8z8
-         q9rN3dWtmWlgIG4sKFRdBrj5y2r/G/PhPriEMPspLLBxx4u7PvYhCy0hg2keQP3qrtWo
-         rT2MNVy/S6JBLKhmzBfmPjgfN+pFX+5Enj+MchjJtMDH8LQVWyEYO9rt4enoI5fDxKzp
-         qh4A==
+        bh=9BVgq/DnmtOM71Szo8nyUd3ZOSEmtHNG0//NHPf2Kgw=;
+        b=wkv611vq1CQLqTw1TdVZWGGjpKsIF/pjObKf9NNFGBoevtGZv+MMxKa4fhV0cWKuyZ
+         UZqiKIpDdoqBFw/J5T8ratRRtwMDjqTpxy4j/sCZdvtLMYrWPYqFz90140+XFGzd5eJV
+         ENsQQa28l0z+1u6IUI8ccEXILcbK28RVg2V00eGftza04E/nO/Zdx0QcOK+ioySv+pG8
+         P2aBk2HnzUb8hFA/22jeorq/5iSgMSj4uBzQVK9SsoCRSYpFEFi+bwbnons6l0yFbSwf
+         GH3oTyvyNda86cuED27k73FQXUcGjfo99OTX07QzqnvDNxqhHcMAiJoEsksaBEHe1MC1
+         gWzQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id h9si87505122wrp.261.2019.08.09.09.00.59
+        by mx.google.com with ESMTPS id t16si4129747wmj.164.2019.08.09.09.00.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 09:00:59 -0700 (PDT)
+        Fri, 09 Aug 2019 09:01:00 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 49B84305D3DC;
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 8A7F3305D3DD;
 	Fri,  9 Aug 2019 19:00:59 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id F37DF305B7A0;
-	Fri,  9 Aug 2019 19:00:58 +0300 (EEST)
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id 4461E305B7A3;
+	Fri,  9 Aug 2019 19:00:59 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
@@ -97,10 +97,11 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Weijiang Yang <weijiang.yang@intel.com>, Zhang@kvack.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
-	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v6 20/92] kvm: introspection: add KVMI_GET_VCPU_INFO
-Date: Fri,  9 Aug 2019 18:59:35 +0300
-Message-Id: <20190809160047.8319-21-alazar@bitdefender.com>
+	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>,
+	Xiao Guangrong <guangrong.xiao@gmail.com>
+Subject: [RFC PATCH v6 21/92] kvm: page track: add track_create_slot() callback
+Date: Fri,  9 Aug 2019 18:59:36 +0300
+Message-Id: <20190809160047.8319-22-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -114,143 +115,89 @@ List-ID: <linux-mm.kvack.org>
 
 From: Mihai Donțu <mdontu@bitdefender.com>
 
-For now, this command returns the TSC frequency (in HZ) for the specified
-vCPU if available (otherwise it returns zero).
+This is used to add page access notifications as soon as a slot appears.
 
+CC: Xiao Guangrong <guangrong.xiao@gmail.com>
 Signed-off-by: Mihai Donțu <mdontu@bitdefender.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- Documentation/virtual/kvm/kvmi.rst | 29 +++++++++++++++++++++++++++++
- arch/x86/kvm/kvmi.c                | 12 ++++++++++++
- include/uapi/linux/kvmi.h          |  4 ++++
- virt/kvm/kvmi_int.h                |  2 ++
- virt/kvm/kvmi_msg.c                | 14 ++++++++++++++
- 5 files changed, 61 insertions(+)
+ arch/x86/include/asm/kvm_page_track.h |  5 ++++-
+ arch/x86/kvm/page_track.c             | 18 ++++++++++++++++--
+ arch/x86/kvm/x86.c                    |  2 +-
+ 3 files changed, 21 insertions(+), 4 deletions(-)
 
-diff --git a/Documentation/virtual/kvm/kvmi.rst b/Documentation/virtual/kvm/kvmi.rst
-index b29cd1b80b4f..71897338e85a 100644
---- a/Documentation/virtual/kvm/kvmi.rst
-+++ b/Documentation/virtual/kvm/kvmi.rst
-@@ -427,6 +427,35 @@ in almost all cases, it must reply with: continue, retry, crash, etc.
- * -KVM_EINVAL - padding is not zero
- * -KVM_EPERM - the access is restricted by the host
+diff --git a/arch/x86/include/asm/kvm_page_track.h b/arch/x86/include/asm/kvm_page_track.h
+index 172f9749dbb2..18a94d180485 100644
+--- a/arch/x86/include/asm/kvm_page_track.h
++++ b/arch/x86/include/asm/kvm_page_track.h
+@@ -34,6 +34,9 @@ struct kvm_page_track_notifier_node {
+ 	 */
+ 	void (*track_write)(struct kvm_vcpu *vcpu, gpa_t gpa, const u8 *new,
+ 			    int bytes, struct kvm_page_track_notifier_node *node);
++	void (*track_create_slot)(struct kvm *kvm, struct kvm_memory_slot *slot,
++				  unsigned long npages,
++				  struct kvm_page_track_notifier_node *node);
+ 	/*
+ 	 * It is called when memory slot is being moved or removed
+ 	 * users can drop write-protection for the pages in that memory slot
+@@ -51,7 +54,7 @@ void kvm_page_track_cleanup(struct kvm *kvm);
  
-+7. KVMI_GET_VCPU_INFO
-+---------------------
-+
-+:Architectures: all
-+:Versions: >= 1
-+:Parameters:
-+
-+::
-+
-+	struct kvmi_vcpu_hdr;
-+
-+:Returns:
-+
-+::
-+
-+	struct kvmi_error_code;
-+	struct kvmi_get_vcpu_info_reply {
-+		__u64 tsc_speed;
-+	};
-+
-+Returns the TSC frequency (in HZ) for the specified vCPU if available
-+(otherwise it returns zero).
-+
-+:Errors:
-+
-+* -KVM_EINVAL - the selected vCPU is invalid
-+* -KVM_EINVAL - padding is not zero
-+* -KVM_EAGAIN - the selected vCPU can't be introspected yet
-+
- Events
- ======
+ void kvm_page_track_free_memslot(struct kvm_memory_slot *free,
+ 				 struct kvm_memory_slot *dont);
+-int kvm_page_track_create_memslot(struct kvm_memory_slot *slot,
++int kvm_page_track_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
+ 				  unsigned long npages);
  
-diff --git a/arch/x86/kvm/kvmi.c b/arch/x86/kvm/kvmi.c
-index 9aecca551673..97c72cdc6fb0 100644
---- a/arch/x86/kvm/kvmi.c
-+++ b/arch/x86/kvm/kvmi.c
-@@ -90,3 +90,15 @@ void kvmi_arch_setup_event(struct kvm_vcpu *vcpu, struct kvmi_event *ev)
- 	ev->arch.mode = kvmi_vcpu_mode(vcpu, &event->sregs);
- 	kvmi_get_msrs(vcpu, event);
- }
-+
-+int kvmi_arch_cmd_get_vcpu_info(struct kvm_vcpu *vcpu,
-+				struct kvmi_get_vcpu_info_reply *rpl)
-+{
-+	if (kvm_has_tsc_control)
-+		rpl->tsc_speed = 1000ul * vcpu->arch.virtual_tsc_khz;
-+	else
-+		rpl->tsc_speed = 0;
-+
-+	return 0;
-+}
-+
-diff --git a/include/uapi/linux/kvmi.h b/include/uapi/linux/kvmi.h
-index ccf2239b5db4..aa5bc909e278 100644
---- a/include/uapi/linux/kvmi.h
-+++ b/include/uapi/linux/kvmi.h
-@@ -112,6 +112,10 @@ struct kvmi_get_guest_info_reply {
- 	__u32 padding[3];
- };
- 
-+struct kvmi_get_vcpu_info_reply {
-+	__u64 tsc_speed;
-+};
-+
- struct kvmi_control_vm_events {
- 	__u16 event_id;
- 	__u8 enable;
-diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
-index c21f0fd5e16c..7cff91bc1acc 100644
---- a/virt/kvm/kvmi_int.h
-+++ b/virt/kvm/kvmi_int.h
-@@ -139,5 +139,7 @@ int kvmi_add_job(struct kvm_vcpu *vcpu,
- 
- /* arch */
- void kvmi_arch_setup_event(struct kvm_vcpu *vcpu, struct kvmi_event *ev);
-+int kvmi_arch_cmd_get_vcpu_info(struct kvm_vcpu *vcpu,
-+				struct kvmi_get_vcpu_info_reply *rpl);
- 
- #endif
-diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
-index 8e8af572a4f4..3372d8c7e74f 100644
---- a/virt/kvm/kvmi_msg.c
-+++ b/virt/kvm/kvmi_msg.c
-@@ -28,6 +28,7 @@ static const char *const msg_IDs[] = {
- 	[KVMI_EVENT]                 = "KVMI_EVENT",
- 	[KVMI_EVENT_REPLY]           = "KVMI_EVENT_REPLY",
- 	[KVMI_GET_GUEST_INFO]        = "KVMI_GET_GUEST_INFO",
-+	[KVMI_GET_VCPU_INFO]         = "KVMI_GET_VCPU_INFO",
- 	[KVMI_GET_VERSION]           = "KVMI_GET_VERSION",
- };
- 
-@@ -390,6 +391,18 @@ static int handle_event_reply(struct kvm_vcpu *vcpu,
- 	return expected->error;
+ void kvm_slot_page_track_add_page(struct kvm *kvm,
+diff --git a/arch/x86/kvm/page_track.c b/arch/x86/kvm/page_track.c
+index 3052a59a3065..db5b906876bb 100644
+--- a/arch/x86/kvm/page_track.c
++++ b/arch/x86/kvm/page_track.c
+@@ -34,10 +34,13 @@ void kvm_page_track_free_memslot(struct kvm_memory_slot *free,
+ 		}
  }
  
-+static int handle_get_vcpu_info(struct kvm_vcpu *vcpu,
-+				const struct kvmi_msg_hdr *msg,
-+				const void *req, vcpu_reply_fct reply_cb)
-+{
-+	struct kvmi_get_vcpu_info_reply rpl;
-+
-+	memset(&rpl, 0, sizeof(rpl));
-+	kvmi_arch_cmd_get_vcpu_info(vcpu, &rpl);
-+
-+	return reply_cb(vcpu, msg, 0, &rpl, sizeof(rpl));
-+}
-+
- /*
-  * These commands are executed on the vCPU thread. The receiving thread
-  * passes the messages using a newly allocated 'struct kvmi_vcpu_cmd'
-@@ -400,6 +413,7 @@ static int(*const msg_vcpu[])(struct kvm_vcpu *,
- 			      const struct kvmi_msg_hdr *, const void *,
- 			      vcpu_reply_fct) = {
- 	[KVMI_EVENT_REPLY]      = handle_event_reply,
-+	[KVMI_GET_VCPU_INFO]    = handle_get_vcpu_info,
- };
+-int kvm_page_track_create_memslot(struct kvm_memory_slot *slot,
++int kvm_page_track_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
+ 				  unsigned long npages)
+ {
+-	int  i;
++	struct kvm_page_track_notifier_head *head;
++	struct kvm_page_track_notifier_node *n;
++	int idx;
++	int i;
  
- static void kvmi_job_vcpu_cmd(struct kvm_vcpu *vcpu, void *_ctx)
+ 	for (i = 0; i < KVM_PAGE_TRACK_MAX; i++) {
+ 		slot->arch.gfn_track[i] =
+@@ -47,6 +50,17 @@ int kvm_page_track_create_memslot(struct kvm_memory_slot *slot,
+ 			goto track_free;
+ 	}
+ 
++	head = &kvm->arch.track_notifier_head;
++
++	if (hlist_empty(&head->track_notifier_list))
++		return 0;
++
++	idx = srcu_read_lock(&head->track_srcu);
++	hlist_for_each_entry_rcu(n, &head->track_notifier_list, node)
++		if (n->track_create_slot)
++			n->track_create_slot(kvm, slot, npages, n);
++	srcu_read_unlock(&head->track_srcu, idx);
++
+ 	return 0;
+ 
+ track_free:
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index 30cf0d162aa8..f66db9473ea3 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -9350,7 +9350,7 @@ int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
+ 		}
+ 	}
+ 
+-	if (kvm_page_track_create_memslot(slot, npages))
++	if (kvm_page_track_create_memslot(kvm, slot, npages))
+ 		goto out_free;
+ 
+ 	return 0;
 
