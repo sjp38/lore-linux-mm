@@ -2,270 +2,172 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 41EB5C31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:41:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B46C5C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:43:39 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 11C642171F
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:41:53 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 11C642171F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 7279E20C01
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:43:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7279E20C01
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9CB056B026E; Fri,  9 Aug 2019 04:41:53 -0400 (EDT)
+	id 116CE6B0008; Fri,  9 Aug 2019 04:43:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 954056B026F; Fri,  9 Aug 2019 04:41:53 -0400 (EDT)
+	id 0C7686B000E; Fri,  9 Aug 2019 04:43:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7CDDE6B0270; Fri,  9 Aug 2019 04:41:53 -0400 (EDT)
+	id ED1356B0010; Fri,  9 Aug 2019 04:43:38 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 42F166B026E
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 04:41:53 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id q1so3698649pgt.2
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 01:41:53 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 9DEA46B0008
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 04:43:38 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id m30so513138eda.11
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 01:43:38 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:in-reply-to:references:mime-version
-         :content-transfer-encoding:message-id;
-        bh=5LuG0HaO2bEKT13rvG09jejP+YLFYU9mB9zquGtlRoc=;
-        b=LaHTHtw6Yh1cmQwDk/OQJZFqVWtmNExNplxsFq//2aIex496/P2kkmy664SD7ePw6z
-         KHIXysumMImUW7XAIOGImEcUkCM8bWYVzANM1B5mGZ9mYTjQXy6ih8SNQUyiKVakcZaL
-         xKJHtfyehBm7eEGFYxfjdSME8HXQfO4xOzslKFYOrKadUUopKe0qG1WPb1HVizU0s2Qj
-         D4XAAfq3asgCqVCswLfag98/+tyAu9Oq1wEAGUFL4MPpDxE2SXSJ4kGWEJ8QHcydC96d
-         bgKPRLDI2EjbTsrqQlNbKljRHlrMcazAdwRIYoVbqwomea0U5pWNodM5Ivaena3Lk+zE
-         W35A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bharata@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=bharata@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAWLr2nlr2UXzzgPQiCZdie4U4vQMKF0D9h1SD3EARNniHjhDkN8
-	3PYVGiPA6a25Ko8g7J7JIcnrN5c8PE0J63fmy2QkRw02pwRq3jrg7cM5B+FU7mcmAeCnYpkxojn
-	jnU4LzEkIG8wAa9HZpwtxMkrg+oPTeVxGaHZJ90E9eYh1FAfKeTJAanRUc9CnYIPQlw==
-X-Received: by 2002:a17:90a:898e:: with SMTP id v14mr8283739pjn.119.1565340112939;
-        Fri, 09 Aug 2019 01:41:52 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyiakDODebaHo4gRljLTeTWiSkH8FxPnNd1B8aiPk1a1wt+Y3jgqC47YpWTKFEpoQ7tcdlV
-X-Received: by 2002:a17:90a:898e:: with SMTP id v14mr8283676pjn.119.1565340111552;
-        Fri, 09 Aug 2019 01:41:51 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565340111; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=SpUt7Y6LhpcRDVu8UknwJ/2cBnANb0jfrfYaWqC13Gc=;
+        b=HDRlru+HgYaEMOSdwsT5rJUVoSlZffAy4Z9xMJE1TmefMml+Qp6RJxVnwxB/cg4u50
+         9IwraCbP4uKhWPeb8xUmBFNbY69T+3nIOgB9t99Fn/+3hyZTrOXJdDUCoqA0GTwgBLOl
+         5K+h72BmHibXgFq2lSqNreeSoTNSNC4Z8xglMWve/364ilCyPSOEroS8g9jwuvkc6X/d
+         2wIhJvpA/0X4vjSVNi3aIK3d+xuU7hb/b+4wCIsikIgfmceVTwoQ+pj+etwXckLG9ChU
+         FvmMZ5zZgbD96z8YlbvR0djcinTBY5NwLTtI3dT37T8TTxjeachtRpe1uuUbrjvHjRrw
+         as+w==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: APjAAAUzDs3XwWAqbAeBo/LadFachoHv/q0Cz7mTHRDwLqR03CGHfSVr
+	V+0X7PAj/6VhatZ+CEwbFOVHgaGKXJM3Wsx+iyBytdcyWc7J+EU5/GQajwqA+yVciYoPX//s+EQ
+	gIZtXH8jCWjm2xYOFe/J+TgJDPiMNP1iNgiye7/7iSsGkdAzVFg71lwGdP/AHYCPxDw==
+X-Received: by 2002:aa7:c24b:: with SMTP id y11mr20897319edo.239.1565340218235;
+        Fri, 09 Aug 2019 01:43:38 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw2Fufu8T7rSQ9Sv0EZsFv/T8rigxetDKLcGgcywrZhvDm5N1Hpnj2vwfJ/8f+IeQjyoJuO
+X-Received: by 2002:aa7:c24b:: with SMTP id y11mr20897257edo.239.1565340217086;
+        Fri, 09 Aug 2019 01:43:37 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565340217; cv=none;
         d=google.com; s=arc-20160816;
-        b=09M1E7bWvB6rSWR4HjQ0Y+ng8+a40o9kxxhp++q34A88Y+9/N89q/xe5bL0cJMgqvm
-         gX/jLs4Emc+sGQVleAkfregEO+g2ToWziIrgQ4OreiiiAkilk9Mdil0CiCVQ8WDURuaV
-         8kRq1nJ8KZHemm+HMc4QI1yRld9m6+DYhpO0tI39QXeZT7Cjq/8c77DGv7IMGK+XM2jd
-         J0KWqSolzrCnR14o7I7+0xO3dK+OBMeW5I82ZQreuQn9n6XFm6rVfGlZOcgQjoHxTNHP
-         JU+QohfNHEBkgd06Rsonab7WJlV9a91Ugs7ZXrSa78hZ4YeApSDWgtWwwgldtpsumCVv
-         sXKg==
+        b=hSJogvfi0hF8QqpYUaZobeEVpRd50eOSu0hg5RBkrKdNLkXEhUa1TZ5IzclC90hZVw
+         JLZ8oF1vNlrDlCdFnKHh/cO+LXrTxg2He7ow1rLvowbWACem4aVMMHfoLgAaXX3Lylsp
+         W5MTlE+I4KtaLWQeO8DJuN6nxWcIS4VeiL51Gr+nF9YkXqy5q7i20FEwBuasDomw/onM
+         3a9WvPQZHCsEPJGQeZy0j8zqzI3gU87KpaeodWeATX0AYFjtzwi0MoGwx6vTAqbkVQiL
+         JRY8ZAyQjN0LhI5T4gzeA0caKs7CDhOqrRCJ5Cqp2RQas6ZzlbQMD3zbZVip6fGRRPPX
+         JpAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:content-transfer-encoding:mime-version:references
-         :in-reply-to:date:subject:cc:to:from;
-        bh=5LuG0HaO2bEKT13rvG09jejP+YLFYU9mB9zquGtlRoc=;
-        b=UxgqjND4d7pq7c5pQs4rcW0LSsgtANP2MkJIl2JgNOX1GqkMnhwXnyVNpCY8qfF6Zy
-         ebTHMq7oYlSmYbbHX8DKOyItvPyXSO8NVGqaDsRZQUo0CMs5/+czHg64uEOM+gXbeEkO
-         FOSlbcgriXmWMu9MryEW5MA3d0Ue08/7CeiiH931vwctVf1DZSMgtoPMlYNX+k0mAQny
-         KWW7iIzMznuHhSTSULakUXxz22FeGQbk3WAxa6su0if2LtFR/LF6nSEltrG+Rsczjnev
-         WkYEc76zO78+Db0atOQ/rRtkUC4lLaP6YdVlF5jtl/SGm25KOM+onvXHJOoRlSaM3Pwk
-         exFw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=SpUt7Y6LhpcRDVu8UknwJ/2cBnANb0jfrfYaWqC13Gc=;
+        b=SoV0jTrhotT+pD9Pl5Dvv0r2ZhUZ7i8N/J+qj4MMG7vjLH/H2o8E4X3by2VsgwZ2TC
+         wxyqloOczyGx4PWCnPStFAFFE5tJk9mmA7qDdagad4BolNBWv8MYx/lCl3uYBa98O9ah
+         sPrz38yadwf9eyff47xP/XCu19NdbXnCle7hSZkc0vppgDwp4uqvs915aEwU4lE73jiH
+         StPwpyWscpMv6WmNX+8vcmM8rav1RkqMoWnYMRaJCAby7EbDhmDaPgm7c6FuKUmiTwcB
+         ayd+KuHXKpsywXfR49zMhK+5bOZTUXA/aUPZBVAdLT3gDg9JI3D4NbJ3SgqkAerqlm3A
+         p8GA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of bharata@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=bharata@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0a-001b2d01.pphosted.com. [148.163.156.1])
-        by mx.google.com with ESMTPS id r8si57480018pgr.243.2019.08.09.01.41.51
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id x34si38116556edm.138.2019.08.09.01.43.36
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 01:41:51 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bharata@linux.ibm.com designates 148.163.156.1 as permitted sender) client-ip=148.163.156.1;
+        Fri, 09 Aug 2019 01:43:37 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of bharata@linux.ibm.com designates 148.163.156.1 as permitted sender) smtp.mailfrom=bharata@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098393.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x798buR0101188
-	for <linux-mm@kvack.org>; Fri, 9 Aug 2019 04:41:51 -0400
-Received: from e06smtp04.uk.ibm.com (e06smtp04.uk.ibm.com [195.75.94.100])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2u94vqhdfe-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Fri, 09 Aug 2019 04:41:29 -0400
-Received: from localhost
-	by e06smtp04.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
-	Fri, 9 Aug 2019 09:41:26 +0100
-Received: from b06avi18878370.portsmouth.uk.ibm.com (9.149.26.194)
-	by e06smtp04.uk.ibm.com (192.168.101.134) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Fri, 9 Aug 2019 09:41:23 +0100
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
-	by b06avi18878370.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x798fLDm25231790
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 9 Aug 2019 08:41:21 GMT
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 58632A4054;
-	Fri,  9 Aug 2019 08:41:21 +0000 (GMT)
-Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 60C61A405C;
-	Fri,  9 Aug 2019 08:41:19 +0000 (GMT)
-Received: from bharata.ibmuc.com (unknown [9.85.95.61])
-	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTP;
-	Fri,  9 Aug 2019 08:41:19 +0000 (GMT)
-From: Bharata B Rao <bharata@linux.ibm.com>
-To: linuxppc-dev@lists.ozlabs.org
-Cc: kvm-ppc@vger.kernel.org, linux-mm@kvack.org, paulus@au1.ibm.com,
-        aneesh.kumar@linux.vnet.ibm.com, jglisse@redhat.com,
-        linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com,
-        cclaudio@linux.ibm.com, hch@lst.de,
-        Bharata B Rao <bharata@linux.ibm.com>
-Subject: [PATCH v6 2/7] kvmppc: Shared pages support for secure guests
-Date: Fri,  9 Aug 2019 14:11:03 +0530
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190809084108.30343-1-bharata@linux.ibm.com>
-References: <20190809084108.30343-1-bharata@linux.ibm.com>
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 689A0AE49;
+	Fri,  9 Aug 2019 08:43:35 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id 89DB71E437E; Fri,  9 Aug 2019 10:43:34 +0200 (CEST)
+Date: Fri, 9 Aug 2019 10:43:34 +0200
+From: Jan Kara <jack@suse.cz>
+To: "Weiny, Ira" <ira.weiny@intel.com>
+Cc: John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@kernel.org>,
+	Jan Kara <jack@suse.cz>, Matthew Wilcox <willy@infradead.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Hellwig <hch@infradead.org>,
+	"Williams, Dan J" <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	LKML <linux-kernel@vger.kernel.org>,
+	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
+	"ceph-devel@vger.kernel.org" <ceph-devel@vger.kernel.org>,
+	"devel@driverdev.osuosl.org" <devel@driverdev.osuosl.org>,
+	"devel@lists.orangefs.org" <devel@lists.orangefs.org>,
+	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
+	"intel-gfx@lists.freedesktop.org" <intel-gfx@lists.freedesktop.org>,
+	"kvm@vger.kernel.org" <kvm@vger.kernel.org>,
+	"linux-arm-kernel@lists.infradead.org" <linux-arm-kernel@lists.infradead.org>,
+	"linux-block@vger.kernel.org" <linux-block@vger.kernel.org>,
+	"linux-crypto@vger.kernel.org" <linux-crypto@vger.kernel.org>,
+	"linux-fbdev@vger.kernel.org" <linux-fbdev@vger.kernel.org>,
+	"linux-fsdevel@vger.kernel.org" <linux-fsdevel@vger.kernel.org>,
+	"linux-media@vger.kernel.org" <linux-media@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>,
+	"linux-nfs@vger.kernel.org" <linux-nfs@vger.kernel.org>,
+	"linux-rdma@vger.kernel.org" <linux-rdma@vger.kernel.org>,
+	"linux-rpi-kernel@lists.infradead.org" <linux-rpi-kernel@lists.infradead.org>,
+	"linux-xfs@vger.kernel.org" <linux-xfs@vger.kernel.org>,
+	"netdev@vger.kernel.org" <netdev@vger.kernel.org>,
+	"rds-devel@oss.oracle.com" <rds-devel@oss.oracle.com>,
+	"sparclinux@vger.kernel.org" <sparclinux@vger.kernel.org>,
+	"x86@kernel.org" <x86@kernel.org>,
+	"xen-devel@lists.xenproject.org" <xen-devel@lists.xenproject.org>
+Subject: Re: [PATCH 00/34] put_user_pages(): miscellaneous call sites
+Message-ID: <20190809084334.GB17568@quack2.suse.cz>
+References: <20190802091244.GD6461@dhcp22.suse.cz>
+ <20190802124146.GL25064@quack2.suse.cz>
+ <20190802142443.GB5597@bombadil.infradead.org>
+ <20190802145227.GQ25064@quack2.suse.cz>
+ <076e7826-67a5-4829-aae2-2b90f302cebd@nvidia.com>
+ <20190807083726.GA14658@quack2.suse.cz>
+ <20190807084649.GQ11812@dhcp22.suse.cz>
+ <20190808023637.GA1508@iweiny-DESK2.sc.intel.com>
+ <e648a7f3-6a1b-c9ea-1121-7ab69b6b173d@nvidia.com>
+ <2807E5FD2F6FDA4886F6618EAC48510E79E79644@CRSMSX101.amr.corp.intel.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-TM-AS-GCONF: 00
-x-cbid: 19080908-0016-0000-0000-0000029CA6A9
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19080908-0017-0000-0000-000032FCADCD
-Message-Id: <20190809084108.30343-3-bharata@linux.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-09_02:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=705 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908090089
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <2807E5FD2F6FDA4886F6618EAC48510E79E79644@CRSMSX101.amr.corp.intel.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-A secure guest will share some of its pages with hypervisor (Eg. virtio
-bounce buffers etc). Support sharing of pages between hypervisor and
-ultravisor.
+On Thu 08-08-19 16:25:04, Weiny, Ira wrote:
+> > I thought I'd caught things early enough to get away with the
+> > rename and deletion of that. You could either:
+> > 
+> > a) open code an implementation of vaddr_put_pages_dirty_lock() that
+> > doesn't call any of the *put_user_pages_dirty*() variants, or
+> > 
+> > b) include my first patch ("") are part of your series, or
+> > 
+> > c) base this on Andrews's tree, which already has merged in my first patch.
+> > 
+> 
+> Yep I can do this.  I did not realize that Andrew had accepted any of
+> this work.  I'll check out his tree.  But I don't think he is going to
+> accept this series through his tree.  So what is the ETA on that landing
+> in Linus' tree?
+> 
+> To that point I'm still not sure who would take all this as I am now
+> touching mm, procfs, rdma, ext4, and xfs.
 
-Once a secure page is converted to shared page, stop tracking that page
-as a device page.
+MM tree would be one candidate for routing but there are other options that
+would make sense as well - Dan's tree, VFS tree, or even I can pickup the
+patches to my tree if needed. But let's worry about the routing after we
+have working and reviewed patches...
 
-Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
----
- arch/powerpc/include/asm/hvcall.h |  3 ++
- arch/powerpc/kvm/book3s_hv_devm.c | 67 +++++++++++++++++++++++++++++--
- 2 files changed, 67 insertions(+), 3 deletions(-)
-
-diff --git a/arch/powerpc/include/asm/hvcall.h b/arch/powerpc/include/asm/hvcall.h
-index 2f6b952deb0f..05b8536f6653 100644
---- a/arch/powerpc/include/asm/hvcall.h
-+++ b/arch/powerpc/include/asm/hvcall.h
-@@ -337,6 +337,9 @@
- #define H_TLB_INVALIDATE	0xF808
- #define H_COPY_TOFROM_GUEST	0xF80C
- 
-+/* Flags for H_SVM_PAGE_IN */
-+#define H_PAGE_IN_SHARED        0x1
-+
- /* Platform-specific hcalls used by the Ultravisor */
- #define H_SVM_PAGE_IN		0xEF00
- #define H_SVM_PAGE_OUT		0xEF04
-diff --git a/arch/powerpc/kvm/book3s_hv_devm.c b/arch/powerpc/kvm/book3s_hv_devm.c
-index 2e6c077bd22e..c9189e58401d 100644
---- a/arch/powerpc/kvm/book3s_hv_devm.c
-+++ b/arch/powerpc/kvm/book3s_hv_devm.c
-@@ -55,6 +55,7 @@ struct kvmppc_devm_page_pvt {
- 	unsigned long *rmap;
- 	unsigned int lpid;
- 	unsigned long gpa;
-+	bool skip_page_out;
- };
- 
- struct kvmppc_devm_copy_args {
-@@ -188,6 +189,54 @@ kvmppc_devm_migrate_alloc_and_copy(struct migrate_vma *mig,
- 	return 0;
- }
- 
-+/*
-+ * Shares the page with HV, thus making it a normal page.
-+ *
-+ * - If the page is already secure, then provision a new page and share
-+ * - If the page is a normal page, share the existing page
-+ *
-+ * In the former case, uses the dev_pagemap_ops migrate_to_ram handler to
-+ * release the device page.
-+ */
-+static unsigned long
-+kvmppc_share_page(struct kvm *kvm, unsigned long gpa, unsigned long page_shift)
-+{
-+
-+	int ret = H_PARAMETER;
-+	struct page *devm_page;
-+	struct kvmppc_devm_page_pvt *pvt;
-+	unsigned long pfn;
-+	unsigned long *rmap;
-+	struct kvm_memory_slot *slot;
-+	unsigned long gfn = gpa >> page_shift;
-+	int srcu_idx;
-+
-+	srcu_idx = srcu_read_lock(&kvm->srcu);
-+	slot = gfn_to_memslot(kvm, gfn);
-+	if (!slot)
-+		goto out;
-+
-+	rmap = &slot->arch.rmap[gfn - slot->base_gfn];
-+	if (kvmppc_is_devm_pfn(*rmap)) {
-+		devm_page = pfn_to_page(*rmap & ~KVMPPC_PFN_DEVM);
-+		pvt = (struct kvmppc_devm_page_pvt *)
-+			devm_page->zone_device_data;
-+		pvt->skip_page_out = true;
-+	}
-+
-+	pfn = gfn_to_pfn(kvm, gpa >> page_shift);
-+	if (is_error_noslot_pfn(pfn))
-+		goto out;
-+
-+	ret = uv_page_in(kvm->arch.lpid, pfn << page_shift, gpa, 0, page_shift);
-+	if (ret == U_SUCCESS)
-+		ret = H_SUCCESS;
-+	kvm_release_pfn_clean(pfn);
-+out:
-+	srcu_read_unlock(&kvm->srcu, srcu_idx);
-+	return ret;
-+}
-+
- /*
-  * Move page from normal memory to secure memory.
-  */
-@@ -209,9 +258,12 @@ kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
- 	if (page_shift != PAGE_SHIFT)
- 		return H_P3;
- 
--	if (flags)
-+	if (flags & ~H_PAGE_IN_SHARED)
- 		return H_P2;
- 
-+	if (flags & H_PAGE_IN_SHARED)
-+		return kvmppc_share_page(kvm, gpa, page_shift);
-+
- 	ret = H_PARAMETER;
- 	down_read(&kvm->mm->mmap_sem);
- 	srcu_idx = srcu_read_lock(&kvm->srcu);
-@@ -279,8 +331,17 @@ kvmppc_devm_fault_migrate_alloc_and_copy(struct migrate_vma *mig)
- 	pvt = (struct kvmppc_devm_page_pvt *)spage->zone_device_data;
- 
- 	pfn = page_to_pfn(dpage);
--	ret = uv_page_out(pvt->lpid, pfn << PAGE_SHIFT,
--			  pvt->gpa, 0, PAGE_SHIFT);
-+
-+	/*
-+	 * This same function is used in two cases:
-+	 * - When HV touches a secure page, for which we do page-out
-+	 * - When a secure page is converted to shared page, we touch
-+	 *   the page to essentially discard the device page. In this
-+	 *   case we skip page-out.
-+	 */
-+	if (!pvt->skip_page_out)
-+		ret = uv_page_out(pvt->lpid, pfn << PAGE_SHIFT,
-+				  pvt->gpa, 0, PAGE_SHIFT);
- 	if (ret == U_SUCCESS)
- 		*mig->dst = migrate_pfn(pfn) | MIGRATE_PFN_LOCKED;
- 	return 0;
+								Honza
 -- 
-2.21.0
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
