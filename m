@@ -4,89 +4,88 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54FBCC32759
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 22:59:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D3BFC433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 22:59:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 16912208C4
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 22:59:15 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 16912208C4
+	by mail.kernel.org (Postfix) with ESMTP id 4ADEF208C4
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 22:59:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4ADEF208C4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F36EC6B026E; Fri,  9 Aug 2019 18:59:06 -0400 (EDT)
+	id 598B76B026F; Fri,  9 Aug 2019 18:59:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EE7D26B026F; Fri,  9 Aug 2019 18:59:06 -0400 (EDT)
+	id 54F1F6B0270; Fri,  9 Aug 2019 18:59:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D3C5B6B0270; Fri,  9 Aug 2019 18:59:06 -0400 (EDT)
+	id 39CDB6B0271; Fri,  9 Aug 2019 18:59:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
-	by kanga.kvack.org (Postfix) with ESMTP id 9AA2F6B026E
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 18:59:06 -0400 (EDT)
-Received: by mail-pf1-f198.google.com with SMTP id d190so62312479pfa.0
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 15:59:06 -0700 (PDT)
+Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 05DD86B026F
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 18:59:08 -0400 (EDT)
+Received: by mail-pf1-f197.google.com with SMTP id g185so118959pfb.13
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 15:59:07 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=YBf7bCSsZFTvPoM1NYxMaQl2NfTT88MOelJjIEo0m6Y=;
-        b=WaW5WKr+SZiyjDif0n0t2W3Qf/K2QCQhPuQ0+gCRPX2ajEq2FNmqqRg1OR7u0ulywy
-         GuMhGfv8p82FEpU6sW7PxsNE/sjSiaVfPCk5Z1dGjJTWm50NRFPBEGThmBHq/MAF1SZZ
-         vz8itvyFen5ogh10z2rq2/2IKqtWFU5Nd8s0APzI5RWNOCh2+lYcG93FrdXawKTLhmdv
-         C2JeZEv1gcDimW9+2/s0fCPuvZDolex7CtwBMdG1cX/XxgGP4fCzwHtREMBo3Ug+MU1a
-         pYg0st2S84DkQ2NQZgj8wG3UW9s9a5xu5HQ74O/0ThckWrwkevBbz169atSyGxXguew/
-         +nag==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWWri8wOxcxaRp5DB/2ypyIqRA2RDyFbPCIDqjnq1d7t/MHV3/I
-	FlEk/d8BuR6AWI7skJB5zGzKq/75W/davYHuL2Zy0IAhRzWDhDDVHTx+++8XG6Xup0rK6Ddj+2H
-	bETOpxMe4w+S3vXTJvvokogqF8VwkrpXyXvJmSlQVcsd8ntp+mPvNqiOnq9zpRiUA4A==
-X-Received: by 2002:a17:902:6847:: with SMTP id f7mr20940565pln.311.1565391546289;
+        bh=KJ855nZTb3U4x3doVTE/WvrCgUCp2cy8KAAWpSqjQoo=;
+        b=Sf4ouxkWi1TWlKiO2KnB1jfJtD4F9ICVy00vZqz39IeLV/6zcggy6ZHb9n+FLPEBfb
+         6cmwPSYSx2Piw70bDgoXN184BDWN63wpDrE6fed2wBzeoZGCdgYRC2yLgCmxciD9BbUA
+         VXEBPSohB6TMpW9AuMGUHyxg1+e04LUyRYosi1WV1NwgQT5F7LtIZ7nklNK4N4OiYHhj
+         Yg6cSvueL68N8QUXITohjMNmN7FKmS/p+NVUpF5Jya7B3McP2AGkt6ABKixFf2UEwDMS
+         OYXiydQCCcaOEk+04VXrMCdZJDTpZsxm/9dKbrmQOgnQ+MWFp/MN9Fz2PEGlsWt6RWsq
+         TRJg==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAXCw82wboysFcNTe5f+p0prFgFmXFDD4gaEDtiu94bCk10QAiNx
+	z/7sRBg2Rp+M7Nj4aWl1knsgk8w3MRk5pZIL9isY+9lAb/oSwwPVVWBtsGzDTvMUzMuNVshYy6o
+	DVXfy+TGhFg2vK5FdOycR8Me6jM8+nqBwyuvMKEcR1zWdeAAOqp9UhnBwcQ1U4ppHvw==
+X-Received: by 2002:aa7:9118:: with SMTP id 24mr23181494pfh.56.1565391547745;
+        Fri, 09 Aug 2019 15:59:07 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy3BWMFID4xtuWbP00hgVZS5UTYdaFHKqZFNg/URcoLtABL5ObcV48tVOH1DJFFqrUQLaMB
+X-Received: by 2002:aa7:9118:: with SMTP id 24mr23181431pfh.56.1565391546650;
         Fri, 09 Aug 2019 15:59:06 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzremvC3hduSRFZjuEehK4Pj1m9Z/IwyTvWSPzFb1llLIZIxkaFJHll4INV1NuKnVL2UGXc
-X-Received: by 2002:a17:902:6847:: with SMTP id f7mr20940529pln.311.1565391545525;
-        Fri, 09 Aug 2019 15:59:05 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565391545; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1565391546; cv=none;
         d=google.com; s=arc-20160816;
-        b=k2tbJRo02dicPIEYaByZyWAFSHh+9EPCKhdALlG07vzlNSFIyG2o4bvX1mKVchkb3W
-         lMlKJCPw8Vehv78ncHI3fs/Jc7k/JBmxuo39Vlsz/F/chOKUkeizKlDIuKUVRtG7QIUc
-         p/etmiO9nNzmaHJC5ONzulHCS9o91KLCZvHk2x13IfQmra0bekncC8jhtYRc+DiP/Hl7
-         o+GFX2rev9xQLX2RElkT+TTMZDAKnZKEZFXAJJPN+I3GVDDFfmNHQ+7EC7QqWMdOgCw6
-         caF6WAb4qTUj4ixgRhTwy2uIIYfIsFQNmWAyyGrh1OB0TQBvhxkHKo1xIujDP3lJLud0
-         6DBA==
+        b=dzRZKYmJ+xf0fKcf4khlROD7jvBkKH5z+Ve7uhAPwE/Gd+Gv346DqyDs4/8Wzoxrcb
+         +6ZfGJH9sXgFMF9ZHHaPBUpKnKmNV2nNfGnh6BFdFCIdAQdjkCuRFcttK17SKSdGKz8H
+         nSOUdBp1Luq91z7WgaoKzqXm7kfpCWESXjX5W0ZBJwnKfdi8XaIidlZ8bQ9WMXaZ7pJq
+         CW3pFmlJuQo5SGBHK8b2W4Srng40EHUWfLmFZSwAEQAT5MMEjogQYQ0NTNR9hab4zIXy
+         jiWOu4B3Z/GWB35ltYsiiEQon+0orjnfkB6O9YoPD/JIzSvGHhhx/VooiO4S48YzqObp
+         0wjw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=YBf7bCSsZFTvPoM1NYxMaQl2NfTT88MOelJjIEo0m6Y=;
-        b=qroeHdRHiziJpmEFMx37ISZh573zxzqDpVmhP7sc9m+nDXdNW096eMGK6WyOCXebgk
-         bDitxDIAQdr8d78H4lCOR8AEM+WzyVEscGUDiG+3Vnz/y/E0Whk3v1nVHhJoZXrF6ort
-         Zb90Ym0VdlgUfcXDW1RnOiNKNcLVnRvrbQ0+/sfeGlM6F5voCBlK6ujTUFAxohxCWDff
-         qYdHaTKCa18E7Sjt3z0B0/3QNQnboGE8XXU5T/qwgAivQ2rvghfum9uiY+HY17RT53Oi
-         F3LQZolNDFLh2FoisDsbm/JSLCvidHImqIeGBWnZJ8JjwyC7hb8wS21+733b5qIkOMwM
-         PgHw==
+        bh=KJ855nZTb3U4x3doVTE/WvrCgUCp2cy8KAAWpSqjQoo=;
+        b=Ono8I+2deInAk+aZKnwk0Lr7La5pOeasfm8TS2D5tG8XwDzE0g7+/8ZzE/sO/xEW1N
+         uTwWjOkOzP4FpUJ5uNYfso9Fnzj0bAAhjWt4CA6QjFUniZD4EHmoXyGk/zj/SVRN3zoB
+         Fh7ks6kWSiJbABsSMAnagJ/38FqVVDlhLYs6e/6Ew7GoylnzlUu48CifRTmEJgZiasbn
+         WJyvPpqzIyS0FIap2fsqdxeqBiqHaTdnMF9pyp5hQuxD/A93FcfutfUD/T+XY+Q8LU1a
+         ePdnIFYgUparMniUblL6xmf4DyawpBu4EL52bMoVeLqgPVDPVO9OoJuC2HbjK3aXRm5+
+         /3qQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
-        by mx.google.com with ESMTPS id i188si56395012pfe.96.2019.08.09.15.59.05
+Received: from mga05.intel.com (mga05.intel.com. [192.55.52.43])
+        by mx.google.com with ESMTPS id r14si54783250pgm.406.2019.08.09.15.59.06
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 15:59:05 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
+        Fri, 09 Aug 2019 15:59:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) client-ip=192.55.52.43;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.43 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga007.fm.intel.com ([10.253.24.52])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 15:59:05 -0700
+Received: from fmsmga006.fm.intel.com ([10.253.24.20])
+  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 15:59:06 -0700
 X-IronPort-AV: E=Sophos;i="5.64,367,1559545200"; 
-   d="scan'208";a="176932450"
+   d="scan'208";a="375343545"
 Received: from iweiny-desk2.sc.intel.com (HELO localhost) ([10.3.52.157])
-  by fmsmga007-auth.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 15:59:04 -0700
+  by fmsmga006-auth.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 15:59:05 -0700
 From: ira.weiny@intel.com
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Jason Gunthorpe <jgg@ziepe.ca>,
@@ -105,9 +104,9 @@ Cc: Jason Gunthorpe <jgg@ziepe.ca>,
 	linux-ext4@vger.kernel.org,
 	linux-mm@kvack.org,
 	Ira Weiny <ira.weiny@intel.com>
-Subject: [RFC PATCH v2 15/19] mm/gup: Introduce vaddr_pin_pages()
-Date: Fri,  9 Aug 2019 15:58:29 -0700
-Message-Id: <20190809225833.6657-16-ira.weiny@intel.com>
+Subject: [RFC PATCH v2 16/19] RDMA/uverbs: Add back pointer to system file object
+Date: Fri,  9 Aug 2019 15:58:30 -0700
+Message-Id: <20190809225833.6657-17-ira.weiny@intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190809225833.6657-1-ira.weiny@intel.com>
 References: <20190809225833.6657-1-ira.weiny@intel.com>
@@ -121,112 +120,42 @@ List-ID: <linux-mm.kvack.org>
 
 From: Ira Weiny <ira.weiny@intel.com>
 
-The addition of FOLL_LONGTERM has taken on additional meaning for CMA
-pages.
+In order for MRs to be tracked against the open verbs context the ufile
+needs to have a pointer to hand to the GUP code.
 
-In addition subsystems such as RDMA require new information to be passed
-to the GUP interface to track file owning information.  As such a simple
-FOLL_LONGTERM flag is no longer sufficient for these users to pin pages.
-
-Introduce a new GUP like call which takes the newly introduced vaddr_pin
-information.  Failure to pass the vaddr_pin object back to a vaddr_put*
-call will result in a failure if pins were created on files during the
-pin operation.
+No references need to be taken as this should be valid for the lifetime
+of the context.
 
 Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-
 ---
-Changes from list:
-	Change to vaddr_put_pages_dirty_lock
-	Change to vaddr_unpin_pages_dirty_lock
+ drivers/infiniband/core/uverbs.h      | 1 +
+ drivers/infiniband/core/uverbs_main.c | 1 +
+ 2 files changed, 2 insertions(+)
 
- include/linux/mm.h |  5 ++++
- mm/gup.c           | 59 ++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 64 insertions(+)
-
-diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 657c947bda49..90c5802866df 100644
---- a/include/linux/mm.h
-+++ b/include/linux/mm.h
-@@ -1603,6 +1603,11 @@ int account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc);
- int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
- 			struct task_struct *task, bool bypass_rlim);
+diff --git a/drivers/infiniband/core/uverbs.h b/drivers/infiniband/core/uverbs.h
+index 1e5aeb39f774..e802ba8c67d6 100644
+--- a/drivers/infiniband/core/uverbs.h
++++ b/drivers/infiniband/core/uverbs.h
+@@ -163,6 +163,7 @@ struct ib_uverbs_file {
+ 	struct page *disassociate_page;
  
-+long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
-+		     unsigned int gup_flags, struct page **pages,
-+		     struct vaddr_pin *vaddr_pin);
-+void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
-+				  struct vaddr_pin *vaddr_pin, bool make_dirty);
- bool mapping_inode_has_layout(struct vaddr_pin *vaddr_pin, struct page *page);
+ 	struct xarray		idr;
++	struct file             *sys_file; /* backpointer to system file object */
+ };
  
- /* Container for pinned pfns / pages */
-diff --git a/mm/gup.c b/mm/gup.c
-index eeaa0ddd08a6..6d23f70d7847 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -2536,3 +2536,62 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
- 	return ret;
- }
- EXPORT_SYMBOL_GPL(get_user_pages_fast);
-+
-+/**
-+ * vaddr_pin_pages pin pages by virtual address and return the pages to the
-+ * user.
-+ *
-+ * @addr, start address
-+ * @nr_pages, number of pages to pin
-+ * @gup_flags, flags to use for the pin
-+ * @pages, array of pages returned
-+ * @vaddr_pin, initalized meta information this pin is to be associated
-+ * with.
-+ *
-+ * NOTE regarding vaddr_pin:
-+ *
-+ * Some callers can share pins via file descriptors to other processes.
-+ * Callers such as this should use the f_owner field of vaddr_pin to indicate
-+ * the file the fd points to.  All other callers should use the mm this pin is
-+ * being made against.  Usually "current->mm".
-+ *
-+ * Expects mmap_sem to be read locked.
-+ */
-+long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
-+		     unsigned int gup_flags, struct page **pages,
-+		     struct vaddr_pin *vaddr_pin)
-+{
-+	long ret;
-+
-+	gup_flags |= FOLL_LONGTERM;
-+
-+	if (!vaddr_pin || (!vaddr_pin->mm && !vaddr_pin->f_owner))
-+		return -EINVAL;
-+
-+	ret = __gup_longterm_locked(current,
-+				    vaddr_pin->mm,
-+				    addr, nr_pages,
-+				    pages, NULL, gup_flags,
-+				    vaddr_pin);
-+	return ret;
-+}
-+EXPORT_SYMBOL(vaddr_pin_pages);
-+
-+/**
-+ * vaddr_unpin_pages_dirty_lock - counterpart to vaddr_pin_pages
-+ *
-+ * @pages, array of pages returned
-+ * @nr_pages, number of pages in pages
-+ * @vaddr_pin, same information passed to vaddr_pin_pages
-+ * @make_dirty: whether to mark the pages dirty
-+ *
-+ * The semantics are similar to put_user_pages_dirty_lock but a vaddr_pin used
-+ * in vaddr_pin_pages should be passed back into this call for propper
-+ * tracking.
-+ */
-+void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
-+				  struct vaddr_pin *vaddr_pin, bool make_dirty)
-+{
-+	__put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, make_dirty);
-+}
-+EXPORT_SYMBOL(vaddr_unpin_pages_dirty_lock);
+ struct ib_uverbs_event {
+diff --git a/drivers/infiniband/core/uverbs_main.c b/drivers/infiniband/core/uverbs_main.c
+index 11c13c1381cf..002c24e0d4db 100644
+--- a/drivers/infiniband/core/uverbs_main.c
++++ b/drivers/infiniband/core/uverbs_main.c
+@@ -1092,6 +1092,7 @@ static int ib_uverbs_open(struct inode *inode, struct file *filp)
+ 	INIT_LIST_HEAD(&file->umaps);
+ 
+ 	filp->private_data = file;
++	file->sys_file = filp;
+ 	list_add_tail(&file->list, &dev->uverbs_file_list);
+ 	mutex_unlock(&dev->lists_mutex);
+ 	srcu_read_unlock(&dev->disassociate_srcu, srcu_key);
 -- 
 2.20.1
 
