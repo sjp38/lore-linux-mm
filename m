@@ -6,70 +6,70 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D0A17C31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CD217C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7742A2089E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7742A2089E
+	by mail.kernel.org (Postfix) with ESMTP id 6BCDE2089E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6BCDE2089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F12326B026D; Fri,  9 Aug 2019 12:01:00 -0400 (EDT)
+	id 2433E6B026F; Fri,  9 Aug 2019 12:01:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EC40E6B0270; Fri,  9 Aug 2019 12:01:00 -0400 (EDT)
+	id 15D3A6B0274; Fri,  9 Aug 2019 12:01:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B17576B026F; Fri,  9 Aug 2019 12:01:00 -0400 (EDT)
+	id DD7086B0272; Fri,  9 Aug 2019 12:01:00 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 4A9E36B026F
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 8AD3F6B026D
 	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:00 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id k10so4065694wru.23
+Received: by mail-wm1-f72.google.com with SMTP id n13so1064814wmi.4
         for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=PGaLYSew8Jfr9ke/l8cNnme6xmXde0bNuA83fL+q+mA=;
-        b=Obzx/F85x8ttunpYjNz4qKx/ez9gh9NIRYgl3Ia+87+R7+5b/6EmdNuP4DV/C34YbR
-         JusMIdw82rEt1NvYiIKy6+q+qb9d5ISjluKHHyAH4Ra3xn61h1vpTcRr/PFizXmlZdrY
-         Jc1mNAl7PWEf/h7xcvLKebip4JHFLopKpqu6cDxpwMp3xW4/lHm0CXdPnuztQe9OTi0w
-         UcJRVHIIgwXrbzPREwGNJ0cWvB0mY6OWVdpvsjAbRqKfd8hhtJlLwiwr8MiLKYuTaHXv
-         qoZdcZIvSykiycvh99+iC2O5u6Nrlj8Mz2vRXqeqSPqVa6+6zKa1ZvGtSmWcn5CUkncp
-         qWrQ==
+        bh=CfiqzuZFOOxdzjJTBwO3zC4LYKKbKm79dnqSAEzx9a4=;
+        b=NLlEcmpr603toO2DZgyJeTlfmMgVCEmiLu6+ccQ9+xoS1M0OQ096ou+8g8+Ks1xahY
+         KtJQyXwKRLWwpBdYrd4rN0hLLeGeWE4lQS6K5NUql15Hg5de2B49s3/0u3iqJbIifXKK
+         Ks+44Urupc2mNEIZD5W+KHZG42F19RIp033iwonVjQg+pm0P8+g8MKcLKWjYAeKauboI
+         LUxNd7e1aQDjQqFpw0igdF8nXgr/Piqt/3vw0zblZqDNmQIQ+/C3d3kK5klQN6XqFRIm
+         1qbmQr3CC0a0skzwJcTF2xmItqK+olKwhRgev9FOr83XKSkWiGOjdDWkb++nO5615oAW
+         Y76A==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAUvWVckpJEja8i3Dp/uIAKGMiwKSzVS4DVkWscav0UZ1+F4O/XG
-	UxTw8nCz4vb1x4Yn3+X3Be3oj1N0uZgJLyvxphjMl3S0N80CnDaticzXWcaXcQBShPypxbzoYqe
-	tJHQz8Kq4GH5rQrEnFD2OZDGum/IuYYM3CYlGZ76Sb/5sUi1f5kgFBsdIJqpkcFujsA==
-X-Received: by 2002:a5d:4492:: with SMTP id j18mr22118338wrq.53.1565366459890;
-        Fri, 09 Aug 2019 09:00:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxoXHKFtFT7qMztoveGT3FAlui7Ei06H3YUUAf2OGqX/MnE7MrfMA2zh6xuNeKuTmF8vfLL
-X-Received: by 2002:a5d:4492:: with SMTP id j18mr22118268wrq.53.1565366459040;
+X-Gm-Message-State: APjAAAUIujBJLzfXDj/JRoGbSSMI8nqRrziys6Y6S4zz1ezEsr1pE+lU
+	FGlSr9zWSGHje68P1g8S8+TQMF/f2M/LbGNHcZzX/O5QX480WfnIPmraydSbrRIJAD1w73zr323
+	R5OUIwrRk448gswQoVX5e8lk7rLa8rfZ8FKsn0KcZ6rDolIF/YrzAzlAarp5Q701Uzg==
+X-Received: by 2002:a5d:4887:: with SMTP id g7mr18760677wrq.164.1565366460155;
+        Fri, 09 Aug 2019 09:01:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxRN4kVuCrV+1O3bc9wpioHPOzaw6M+S1E5nMnsm+mFcuS9/CmnixdSljXk/F61lkL5D+io
+X-Received: by 2002:a5d:4887:: with SMTP id g7mr18760597wrq.164.1565366459244;
         Fri, 09 Aug 2019 09:00:59 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1565366459; cv=none;
         d=google.com; s=arc-20160816;
-        b=fAsamf+1yPP0QzsZzP0SA2xlZRUEFFfwv+8dd7luf7OLDxkA5sTvfLtvVEiutwqRJ0
-         x2B7GI36kpKv1S8xxzwPssHKSjKFO1J1xX2wGK99uLwFQmXHTepYRcldV+Wj1uZXU53j
-         46b6nWbpSysSrMfXM7UmFiYVJCKiV6bw/umskzaByt+v4DSbKmCokyqtmqDyqe6b7lN5
-         XDn6YgsGZgGY1/QjKhbap/Thso+vtH9UEyz1/17lJdWKcbj6oJfBt9rzr6BdYJhqNat9
-         d4HwfUyAJn13ljIX7BoUvxKDb+8xa5UO/+/ohxe3vJUzReQLhqNto/ZZ0xo/TQe77A9W
-         Ka7w==
+        b=dVBydU2psfPR4g5/XPBjMrNH+Tj2ur+i5poOxFv6JUC6udQZRF0f/sAEKCm2v9ddEP
+         uwNtTtPWUjAvzm8IblW/kgGDKTM6Mw+ZWjQm6hzi4P8GwKiGR8LV67iV5La3naqxRs1v
+         SXPWqOMb6QIPMFh8pVeLvfDoLmfxuZgVeMwLsP9RP/iqbnoc1TZFZWJVTF5ZyIbS4PEP
+         fAViOlbvzSq8+DuB2PTMS5Opk/DYJDwJ1P4k/Xya7hSzF93k6t+jHR3qFzkV2nET1m5h
+         Cag5yLO+M3ATKmphY/PMr2xGqYz4S8hG+fuHmHbDTgUfiYmC56u2APIoVctJP9ZRNKXY
+         WVAA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=PGaLYSew8Jfr9ke/l8cNnme6xmXde0bNuA83fL+q+mA=;
-        b=Ff+4gqqm6S4jz+FLoXiJaih3OHm06dP44a5SlhVGpNZF2a9uji03aQlja9Ui+bsa9U
-         i4nEYt3cAOM24sdt3pbaUK8NTIKsMIfbPY21JICoBIJbOqowo700nHBCDwx2Zl08Dlvf
-         IIKHgL4sifxtcGa33aY/VQWSgNdhOPVQvidUJ+kGjry9zJAeszmjjWi+UUN5FQ1hkHmi
-         tfFVLL8wVCPZNHBq6IICS/GmLmSnfGQCmqAWAt4eycff6ouF2EMM2hQT6UYsdWKgaKml
-         X4b1hWB6xza0rLtk4F8qz/HFK5QZ0tgAxSc3r608ALQd5v93kBhwXQwI5JDpjGBcqNf6
-         NW3A==
+        bh=CfiqzuZFOOxdzjJTBwO3zC4LYKKbKm79dnqSAEzx9a4=;
+        b=csUo9K8soI4wkfyQMD5XNcHrYEzMDBPM0k3VWwK9V+1JhO5V/xiUjAkBImABoclqiM
+         5hza2GU4LcP9AbmE7i3FDUeuRP4OhjrIqy1gD2AeoUNZN0hyp4sZdph/sEFa3DREe7QM
+         z7L8JqzJ7taOxu2KBUJBdjr7DO1qbvOdazdZdWLunpCcZgqDizWKfDSYeHG0zQMbHzrt
+         gLcTHox5fy1HL8MhIoDjEdtV9saGOwPjG60Z/mYDwectMmfDT1j3gLENZ3JGlBiCe4BG
+         2hZSlJwmH484Y8UY2RqJn4C3HwqGzm58X0/CGXfa6YF/PttPu/qC9DswpKM8gQbm70ZV
+         iRgg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id y13si8316632wrp.174.2019.08.09.09.00.58
+        by mx.google.com with ESMTPS id e23si4232827wmh.198.2019.08.09.09.00.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 09 Aug 2019 09:00:59 -0700 (PDT)
@@ -77,10 +77,10 @@ Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.1
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 57BB6305D3D8;
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 9792F305D3D9;
 	Fri,  9 Aug 2019 19:00:58 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id 1301E305B7A4;
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id 51651305B7A0;
 	Fri,  9 Aug 2019 19:00:58 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
@@ -98,9 +98,9 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
 	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v6 17/92] kvm: introspection: introduce event actions
-Date: Fri,  9 Aug 2019 18:59:32 +0300
-Message-Id: <20190809160047.8319-18-alazar@bitdefender.com>
+Subject: [RFC PATCH v6 18/92] kvm: introspection: add KVMI_EVENT_UNHOOK
+Date: Fri,  9 Aug 2019 18:59:33 +0300
+Message-Id: <20190809160047.8319-19-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -112,126 +112,148 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Mihai Donțu <mdontu@bitdefender.com>
+In certain situations (when the guest has to be paused, suspended,
+migrated, etc.), userspace/QEMU will use the KVM_INTROSPECTION_UNHOOK
+ioctl in order to trigger the KVMI_EVENT_UNHOOK. If the event is sent
+successfully (the VM has an active introspection channel), userspace
+should delay the action (pause/suspend/...) to give the introspection
+tool the chance to remove its hooks (eg. breakpoints). Once a timeout
+is reached or the introspection tool has closed the socket, QEMU should
+continue with the planned action.
 
-All vCPU event replies contains the action requested by the introspection
-tool, which can be one of the following:
-
-  * KVMI_EVENT_ACTION_CONTINUE
-  * KVMI_EVENT_ACTION_RETRY
-  * KVMI_EVENT_ACTION_CRASH
-
-The CONTINUE action can be seen as "continue with the old KVM code
-path", while the RETRY action as "re-enter guest".
-
-Note: KVMI_EVENT_UNHOOK, a VM event, doesn't have/need a reply.
-
-Suggested-by: Paolo Bonzini <pbonzini@redhat.com>
-Signed-off-by: Mihai Donțu <mdontu@bitdefender.com>
-Co-developed-by: Adalbert Lazăr <alazar@bitdefender.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- Documentation/virtual/kvm/kvmi.rst | 10 ++++++++
- include/uapi/linux/kvmi.h          |  4 +++
- kernel/signal.c                    |  1 +
- virt/kvm/kvmi.c                    | 40 ++++++++++++++++++++++++++++++
- 4 files changed, 55 insertions(+)
+ Documentation/virtual/kvm/kvmi.rst | 20 ++++++++++++++++++
+ virt/kvm/kvmi.c                    | 34 +++++++++++++++++++++++++++++-
+ virt/kvm/kvmi_int.h                |  1 +
+ virt/kvm/kvmi_msg.c                | 20 ++++++++++++++++++
+ 4 files changed, 74 insertions(+), 1 deletion(-)
 
 diff --git a/Documentation/virtual/kvm/kvmi.rst b/Documentation/virtual/kvm/kvmi.rst
-index e7d9a3816e00..1ea4be0d5a45 100644
+index 1ea4be0d5a45..28e1a1c80551 100644
 --- a/Documentation/virtual/kvm/kvmi.rst
 +++ b/Documentation/virtual/kvm/kvmi.rst
-@@ -482,4 +482,14 @@ with two common structures::
- 		__u32 padding2;
- 	};
+@@ -493,3 +493,23 @@ Some of the events accept the KVMI_EVENT_ACTION_RETRY action, to continue
+ by re-entering the guest.
  
-+All events accept the KVMI_EVENT_ACTION_CRASH action, which stops the
-+guest ungracefully but as soon as possible.
-+
-+Most of the events accept the KVMI_EVENT_ACTION_CONTINUE action, which
-+lets the instruction that caused the event to continue (unless specified
-+otherwise).
-+
-+Some of the events accept the KVMI_EVENT_ACTION_RETRY action, to continue
-+by re-entering the guest.
-+
  Specific data can follow these common structures.
-diff --git a/include/uapi/linux/kvmi.h b/include/uapi/linux/kvmi.h
-index dda2ae352611..ccf2239b5db4 100644
---- a/include/uapi/linux/kvmi.h
-+++ b/include/uapi/linux/kvmi.h
-@@ -66,6 +66,10 @@ enum {
- 	KVMI_NUM_EVENTS
- };
- 
-+#define KVMI_EVENT_ACTION_CONTINUE      0
-+#define KVMI_EVENT_ACTION_RETRY         1
-+#define KVMI_EVENT_ACTION_CRASH         2
 +
- #define KVMI_MSG_SIZE (4096 - sizeof(struct kvmi_msg_hdr))
- 
- struct kvmi_msg_hdr {
-diff --git a/kernel/signal.c b/kernel/signal.c
-index 57b7771e20d7..9befbfaaa710 100644
---- a/kernel/signal.c
-+++ b/kernel/signal.c
-@@ -1413,6 +1413,7 @@ int kill_pid_info(int sig, struct kernel_siginfo *info, struct pid *pid)
- 		 */
- 	}
- }
-+EXPORT_SYMBOL(kill_pid_info);
- 
- static int kill_proc_info(int sig, struct kernel_siginfo *info, pid_t pid)
- {
++1. KVMI_EVENT_UNHOOK
++--------------------
++
++:Architecture: all
++:Versions: >= 1
++:Actions: CONTINUE, CRASH
++:Parameters:
++
++::
++
++	struct kvmi_event;
++
++:Returns: none
++
++This event is sent when the device manager (ie. QEMU) has to
++pause/stop/migrate the guest (see **Unhooking**) and the introspection
++has been enabled for this event (see **KVMI_CONTROL_VM_EVENTS**).
++The introspection tool has a chance to unhook and close the KVMI channel
++(signaling that the operation can proceed).
 diff --git a/virt/kvm/kvmi.c b/virt/kvm/kvmi.c
-index 3cc7bb035796..0d3560b74f2d 100644
+index 0d3560b74f2d..7eda49bf65c4 100644
 --- a/virt/kvm/kvmi.c
 +++ b/virt/kvm/kvmi.c
-@@ -511,6 +511,46 @@ void kvmi_destroy_vm(struct kvm *kvm)
- 	wait_for_completion_killable(&kvm->kvmi_completed);
+@@ -644,6 +644,9 @@ int kvmi_cmd_control_vm_events(struct kvmi *ikvm, unsigned int event_id,
+ 
+ static void kvmi_job_abort(struct kvm_vcpu *vcpu, void *ctx)
+ {
++	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
++
++	ivcpu->reply_waiting = false;
  }
  
-+static int kvmi_vcpu_kill(int sig, struct kvm_vcpu *vcpu)
+ static void kvmi_abort_events(struct kvm *kvm)
+@@ -655,6 +658,34 @@ static void kvmi_abort_events(struct kvm *kvm)
+ 		kvmi_add_job(vcpu, kvmi_job_abort, NULL, NULL);
+ }
+ 
++static bool __kvmi_unhook_event(struct kvmi *ikvm)
 +{
-+	int err = -ESRCH;
-+	struct pid *pid;
-+	struct kernel_siginfo siginfo[1] = {};
++	int err;
 +
-+	rcu_read_lock();
-+	pid = rcu_dereference(vcpu->pid);
-+	if (pid)
-+		err = kill_pid_info(sig, siginfo, pid);
-+	rcu_read_unlock();
++	if (!test_bit(KVMI_EVENT_UNHOOK, ikvm->vm_ev_mask))
++		return false;
 +
-+	return err;
++	err = kvmi_msg_send_unhook(ikvm);
++
++	return !err;
 +}
 +
-+static void kvmi_vm_shutdown(struct kvm *kvm)
++static bool kvmi_unhook_event(struct kvm *kvm)
 +{
-+	int i;
-+	struct kvm_vcpu *vcpu;
++	struct kvmi *ikvm;
++	bool ret = true;
 +
-+	kvm_for_each_vcpu(i, vcpu, kvm)
-+		kvmi_vcpu_kill(SIGTERM, vcpu);
++	ikvm = kvmi_get(kvm);
++	if (!ikvm)
++		return false;
++
++	ret = __kvmi_unhook_event(ikvm);
++
++	kvmi_put(kvm);
++
++	return ret;
 +}
 +
-+void kvmi_handle_common_event_actions(struct kvm_vcpu *vcpu, u32 action,
-+				      const char *str)
-+{
-+	struct kvm *kvm = vcpu->kvm;
-+
-+	switch (action) {
-+	case KVMI_EVENT_ACTION_CRASH:
-+		kvmi_vm_shutdown(kvm);
-+		break;
-+
-+	default:
-+		kvmi_err(IKVM(kvm), "Unsupported action %d for event %s\n",
-+			 action, str);
-+	}
-+}
-+
- void kvmi_run_jobs(struct kvm_vcpu *vcpu)
+ int kvmi_ioctl_unhook(struct kvm *kvm, bool force_reset)
  {
- 	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
+ 	struct kvmi *ikvm;
+@@ -664,7 +695,8 @@ int kvmi_ioctl_unhook(struct kvm *kvm, bool force_reset)
+ 	if (!ikvm)
+ 		return -EFAULT;
+ 
+-	kvm_info("TODO: %s force_reset %d", __func__, force_reset);
++	if (!force_reset && !kvmi_unhook_event(kvm))
++		err = -ENOENT;
+ 
+ 	kvmi_put(kvm);
+ 
+diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
+index 70c8ca0343a3..9750a9b9902b 100644
+--- a/virt/kvm/kvmi_int.h
++++ b/virt/kvm/kvmi_int.h
+@@ -123,6 +123,7 @@ bool kvmi_sock_get(struct kvmi *ikvm, int fd);
+ void kvmi_sock_shutdown(struct kvmi *ikvm);
+ void kvmi_sock_put(struct kvmi *ikvm);
+ bool kvmi_msg_process(struct kvmi *ikvm);
++int kvmi_msg_send_unhook(struct kvmi *ikvm);
+ 
+ /* kvmi.c */
+ void *kvmi_msg_alloc(void);
+diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
+index 536034e1bea7..0c7c1e968007 100644
+--- a/virt/kvm/kvmi_msg.c
++++ b/virt/kvm/kvmi_msg.c
+@@ -705,3 +705,23 @@ int kvmi_send_event(struct kvm_vcpu *vcpu, u32 ev_id,
+ 	return err;
+ }
+ 
++int kvmi_msg_send_unhook(struct kvmi *ikvm)
++{
++	struct kvmi_msg_hdr hdr;
++	struct kvmi_event common;
++	struct kvec vec[] = {
++		{.iov_base = &hdr,	.iov_len = sizeof(hdr)	 },
++		{.iov_base = &common,	.iov_len = sizeof(common)},
++	};
++	size_t msg_size = sizeof(hdr) + sizeof(common);
++	size_t n = ARRAY_SIZE(vec);
++
++	memset(&hdr, 0, sizeof(hdr));
++	hdr.id = KVMI_EVENT;
++	hdr.seq = new_seq(ikvm);
++	hdr.size = msg_size - sizeof(hdr);
++
++	kvmi_setup_event_common(&common, KVMI_EVENT_UNHOOK, 0);
++
++	return kvmi_sock_write(ikvm, vec, n, msg_size);
++}
 
