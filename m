@@ -4,88 +4,89 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 104A5C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 22:59:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 54FBCC32759
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 22:59:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B866E21743
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 22:59:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B866E21743
+	by mail.kernel.org (Postfix) with ESMTP id 16912208C4
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 22:59:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 16912208C4
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 01AAC6B026D; Fri,  9 Aug 2019 18:59:06 -0400 (EDT)
+	id F36EC6B026E; Fri,  9 Aug 2019 18:59:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F12E56B026E; Fri,  9 Aug 2019 18:59:05 -0400 (EDT)
+	id EE7D26B026F; Fri,  9 Aug 2019 18:59:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DAE796B026F; Fri,  9 Aug 2019 18:59:05 -0400 (EDT)
+	id D3C5B6B0270; Fri,  9 Aug 2019 18:59:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id A49776B026D
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 18:59:05 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id x19so60559963pgx.1
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 15:59:05 -0700 (PDT)
+Received: from mail-pf1-f198.google.com (mail-pf1-f198.google.com [209.85.210.198])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AA2F6B026E
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 18:59:06 -0400 (EDT)
+Received: by mail-pf1-f198.google.com with SMTP id d190so62312479pfa.0
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 15:59:06 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=nohmS51GXUJzNN3q6yvtJCXnxdHqg5ERGj/5DxVBf84=;
-        b=nGKgqZcvSXSzltIaxP7B6IFdxS3Xwlret/3pXK0eszNN3ndJUbOfDApksN8qeAu536
-         EvbTHEx6L8hglaHAvv8E9sjr6lndH1L7u7+oBL8AgRhoRdc1QIfzIHvYYfyEGrS7kOrj
-         cu0fhdJr7zEkkCnIuZ/xWkTZ+LlhPws+Ie7mLNridqeckyD/4rw+4OAR2s4QkzvvgGWW
-         POr+od9jJiN8aDOEbPgS1d0hDuxAGPmtZ+xs1kCrs8XoquPMby4YrzGGBoR/Gba4ewZN
-         khPXk0HpjMVZuHzv/L+w3VSpBgRElozdNK7BCvk9ZupBV09SjGYaQ9MYFkaRcOwhrng7
-         5TwQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-X-Gm-Message-State: APjAAAWFy65VpQ2Tbw4j/1/rared4VLK/+BJczK2FafE/Y6u9yJ19vuR
-	26yLJLjLeM6nl+sRdQEK4Y6HoRiP84eyTxg34RA2VmUpu3KeE3EnqKjgwjG9xZl/WHbRfM0FXEt
-	EsJpBPnX7c+HiInEIZOBDO6eedhqwmIskU1bsYlIXfqde6GiMiy6zW7yh3l0X0k0d8w==
-X-Received: by 2002:a17:90a:384d:: with SMTP id l13mr11973505pjf.86.1565391545278;
+        bh=YBf7bCSsZFTvPoM1NYxMaQl2NfTT88MOelJjIEo0m6Y=;
+        b=WaW5WKr+SZiyjDif0n0t2W3Qf/K2QCQhPuQ0+gCRPX2ajEq2FNmqqRg1OR7u0ulywy
+         GuMhGfv8p82FEpU6sW7PxsNE/sjSiaVfPCk5Z1dGjJTWm50NRFPBEGThmBHq/MAF1SZZ
+         vz8itvyFen5ogh10z2rq2/2IKqtWFU5Nd8s0APzI5RWNOCh2+lYcG93FrdXawKTLhmdv
+         C2JeZEv1gcDimW9+2/s0fCPuvZDolex7CtwBMdG1cX/XxgGP4fCzwHtREMBo3Ug+MU1a
+         pYg0st2S84DkQ2NQZgj8wG3UW9s9a5xu5HQ74O/0ThckWrwkevBbz169atSyGxXguew/
+         +nag==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAWWri8wOxcxaRp5DB/2ypyIqRA2RDyFbPCIDqjnq1d7t/MHV3/I
+	FlEk/d8BuR6AWI7skJB5zGzKq/75W/davYHuL2Zy0IAhRzWDhDDVHTx+++8XG6Xup0rK6Ddj+2H
+	bETOpxMe4w+S3vXTJvvokogqF8VwkrpXyXvJmSlQVcsd8ntp+mPvNqiOnq9zpRiUA4A==
+X-Received: by 2002:a17:902:6847:: with SMTP id f7mr20940565pln.311.1565391546289;
+        Fri, 09 Aug 2019 15:59:06 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzremvC3hduSRFZjuEehK4Pj1m9Z/IwyTvWSPzFb1llLIZIxkaFJHll4INV1NuKnVL2UGXc
+X-Received: by 2002:a17:902:6847:: with SMTP id f7mr20940529pln.311.1565391545525;
         Fri, 09 Aug 2019 15:59:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxueCBAbJVGygzqT3XEBU7Hq4bgdVFO8mJjfogkYlginceH+b5NxUdZwUwnTOWz1uhgV8Ix
-X-Received: by 2002:a17:90a:384d:: with SMTP id l13mr11973447pjf.86.1565391544204;
-        Fri, 09 Aug 2019 15:59:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565391544; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1565391545; cv=none;
         d=google.com; s=arc-20160816;
-        b=VXFYIKbRo2QcLev47BOKK3TftYJvtF2CLycXj/Flogc2djvEf+WsBjzvBtzr+1GDgd
-         3PZa7KfOOMi/E7e8gEH0c7hUVLz+zCBMK3XOpSpMVqNOcAtnFQNdu/12Iqhr2TNHCJfl
-         X4Y+N6UheOV7dAqwJSq256SYQtEibYyl5MaRqve/CcySJx7TOnb6m/YGFCU+7BwQdW9u
-         bDCTBf7To5p5T3lU38MIMGTzt0vg1HITaojGJYz1IsjJjf8YGVA1Tic85zWYZFpTvaK0
-         2eEEtN/cE7qRcehqILNE4ndaSJFMBonS9C+RzJkhFmfFZc1IRdfWpLZhm0YMOXvSCjqK
-         qq4w==
+        b=k2tbJRo02dicPIEYaByZyWAFSHh+9EPCKhdALlG07vzlNSFIyG2o4bvX1mKVchkb3W
+         lMlKJCPw8Vehv78ncHI3fs/Jc7k/JBmxuo39Vlsz/F/chOKUkeizKlDIuKUVRtG7QIUc
+         p/etmiO9nNzmaHJC5ONzulHCS9o91KLCZvHk2x13IfQmra0bekncC8jhtYRc+DiP/Hl7
+         o+GFX2rev9xQLX2RElkT+TTMZDAKnZKEZFXAJJPN+I3GVDDFfmNHQ+7EC7QqWMdOgCw6
+         caF6WAb4qTUj4ixgRhTwy2uIIYfIsFQNmWAyyGrh1OB0TQBvhxkHKo1xIujDP3lJLud0
+         6DBA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=nohmS51GXUJzNN3q6yvtJCXnxdHqg5ERGj/5DxVBf84=;
-        b=0NyhsUsLOxMFvvM1Xufcq1D0zvKbwiAwWo6iCZDiIW/sSfYe10xN1sRIED75qIaaUp
-         9v81ygDdoKW+o1MH4uPJW+NIuWUZtAC64XnH9LGjKOcAL5/ZL690qox4SSNt6D71IYNA
-         7G5SeqF6hpwYO0quJp6PInD8jxa1vTJ5qwHihJ2E88xr4NG7ONePMLvK4VS2oKQbhH5r
-         +aRDRmVWhqPE2N3ZppzusATTdjC1PrFAcHWiqOBbEDZkPopA9UYrC1heuZpNDtKgFZ4L
-         FBi1uYdRpMDCfC6K4CG1vcEqR0byfp2rpDlOyYeAFj3lXzD0zktFEtd/VxybZRf6UDXN
-         qFgA==
+        bh=YBf7bCSsZFTvPoM1NYxMaQl2NfTT88MOelJjIEo0m6Y=;
+        b=qroeHdRHiziJpmEFMx37ISZh573zxzqDpVmhP7sc9m+nDXdNW096eMGK6WyOCXebgk
+         bDitxDIAQdr8d78H4lCOR8AEM+WzyVEscGUDiG+3Vnz/y/E0Whk3v1nVHhJoZXrF6ort
+         Zb90Ym0VdlgUfcXDW1RnOiNKNcLVnRvrbQ0+/sfeGlM6F5voCBlK6ujTUFAxohxCWDff
+         qYdHaTKCa18E7Sjt3z0B0/3QNQnboGE8XXU5T/qwgAivQ2rvghfum9uiY+HY17RT53Oi
+         F3LQZolNDFLh2FoisDsbm/JSLCvidHImqIeGBWnZJ8JjwyC7hb8wS21+733b5qIkOMwM
+         PgHw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
-Received: from mga14.intel.com (mga14.intel.com. [192.55.52.115])
-        by mx.google.com with ESMTPS id h189si55552068pgc.236.2019.08.09.15.59.04
+Received: from mga17.intel.com (mga17.intel.com. [192.55.52.151])
+        by mx.google.com with ESMTPS id i188si56395012pfe.96.2019.08.09.15.59.05
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 15:59:04 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) client-ip=192.55.52.115;
+        Fri, 09 Aug 2019 15:59:05 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) client-ip=192.55.52.151;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.115 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.151 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from fmsmga008.fm.intel.com ([10.253.24.58])
-  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 15:59:03 -0700
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 15:59:05 -0700
 X-IronPort-AV: E=Sophos;i="5.64,367,1559545200"; 
-   d="scan'208";a="175282026"
+   d="scan'208";a="176932450"
 Received: from iweiny-desk2.sc.intel.com (HELO localhost) ([10.3.52.157])
-  by fmsmga008-auth.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 15:59:03 -0700
+  by fmsmga007-auth.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 15:59:04 -0700
 From: ira.weiny@intel.com
 To: Andrew Morton <akpm@linux-foundation.org>
 Cc: Jason Gunthorpe <jgg@ziepe.ca>,
@@ -104,9 +105,9 @@ Cc: Jason Gunthorpe <jgg@ziepe.ca>,
 	linux-ext4@vger.kernel.org,
 	linux-mm@kvack.org,
 	Ira Weiny <ira.weiny@intel.com>
-Subject: [RFC PATCH v2 14/19] fs/locks: Associate file pins while performing GUP
-Date: Fri,  9 Aug 2019 15:58:28 -0700
-Message-Id: <20190809225833.6657-15-ira.weiny@intel.com>
+Subject: [RFC PATCH v2 15/19] mm/gup: Introduce vaddr_pin_pages()
+Date: Fri,  9 Aug 2019 15:58:29 -0700
+Message-Id: <20190809225833.6657-16-ira.weiny@intel.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190809225833.6657-1-ira.weiny@intel.com>
 References: <20190809225833.6657-1-ira.weiny@intel.com>
@@ -120,391 +121,112 @@ List-ID: <linux-mm.kvack.org>
 
 From: Ira Weiny <ira.weiny@intel.com>
 
-When a file back area is being pinned add the appropriate file pin
-information to the appropriate file or mm owner.  This information can
-then be used by admins to determine who is causing a failure to change
-the layout of a file.
+The addition of FOLL_LONGTERM has taken on additional meaning for CMA
+pages.
+
+In addition subsystems such as RDMA require new information to be passed
+to the GUP interface to track file owning information.  As such a simple
+FOLL_LONGTERM flag is no longer sufficient for these users to pin pages.
+
+Introduce a new GUP like call which takes the newly introduced vaddr_pin
+information.  Failure to pass the vaddr_pin object back to a vaddr_put*
+call will result in a failure if pins were created on files during the
+pin operation.
 
 Signed-off-by: Ira Weiny <ira.weiny@intel.com>
----
- fs/locks.c         | 195 ++++++++++++++++++++++++++++++++++++++++++++-
- include/linux/mm.h |  35 +++++++-
- mm/gup.c           |   8 +-
- mm/huge_memory.c   |   4 +-
- 4 files changed, 230 insertions(+), 12 deletions(-)
 
-diff --git a/fs/locks.c b/fs/locks.c
-index 14892c84844b..02c525446d25 100644
---- a/fs/locks.c
-+++ b/fs/locks.c
-@@ -168,6 +168,7 @@
- #include <linux/pid_namespace.h>
- #include <linux/hashtable.h>
- #include <linux/percpu.h>
-+#include <linux/sched/mm.h>
- 
- #define CREATE_TRACE_POINTS
- #include <trace/events/filelock.h>
-@@ -2972,9 +2973,194 @@ static int __init filelock_init(void)
- }
- core_initcall(filelock_init);
- 
-+static struct file_file_pin *alloc_file_file_pin(struct inode *inode,
-+						 struct file *file)
-+{
-+	struct file_file_pin *fp = kzalloc(sizeof(*fp), GFP_ATOMIC);
-+
-+	if (!fp)
-+		return ERR_PTR(-ENOMEM);
-+
-+	INIT_LIST_HEAD(&fp->list);
-+	kref_init(&fp->ref);
-+	return fp;
-+}
-+
-+static int add_file_pin_to_f_owner(struct vaddr_pin *vaddr_pin,
-+				   struct inode *inode,
-+				   struct file *file)
-+{
-+	struct file_file_pin *fp;
-+
-+	list_for_each_entry(fp, &vaddr_pin->f_owner->file_pins, list) {
-+		if (fp->file == file) {
-+			kref_get(&fp->ref);
-+			return 0;
-+		}
-+	}
-+
-+	fp = alloc_file_file_pin(inode, file);
-+	if (IS_ERR(fp))
-+		return PTR_ERR(fp);
-+
-+	fp->file = get_file(file);
-+	/* NOTE no reference needed here.
-+	 * It is expected that the caller holds a reference to the owner file
-+	 * for the duration of this pin.
-+	 */
-+	fp->f_owner = vaddr_pin->f_owner;
-+
-+	spin_lock(&fp->f_owner->fp_lock);
-+	list_add(&fp->list, &fp->f_owner->file_pins);
-+	spin_unlock(&fp->f_owner->fp_lock);
-+
-+	return 0;
-+}
-+
-+static void release_file_file_pin(struct kref *ref)
-+{
-+	struct file_file_pin *fp = container_of(ref, struct file_file_pin, ref);
-+
-+	spin_lock(&fp->f_owner->fp_lock);
-+	list_del(&fp->list);
-+	spin_unlock(&fp->f_owner->fp_lock);
-+	fput(fp->file);
-+	kfree(fp);
-+}
-+
-+static struct mm_file_pin *alloc_mm_file_pin(struct inode *inode,
-+					     struct file *file)
-+{
-+	struct mm_file_pin *fp = kzalloc(sizeof(*fp), GFP_ATOMIC);
-+
-+	if (!fp)
-+		return ERR_PTR(-ENOMEM);
-+
-+	INIT_LIST_HEAD(&fp->list);
-+	kref_init(&fp->ref);
-+	return fp;
-+}
-+
-+/**
-+ * This object bridges files and the mm struct for the purpose of tracking
-+ * which files have GUP pins on them.
-+ */
-+static int add_file_pin_to_mm(struct vaddr_pin *vaddr_pin, struct inode *inode,
-+			      struct file *file)
-+{
-+	struct mm_file_pin *fp;
-+
-+	list_for_each_entry(fp, &vaddr_pin->mm->file_pins, list) {
-+		if (fp->inode == inode) {
-+			kref_get(&fp->ref);
-+			return 0;
-+		}
-+	}
-+
-+	fp = alloc_mm_file_pin(inode, file);
-+	if (IS_ERR(fp))
-+		return PTR_ERR(fp);
-+
-+	fp->inode = igrab(inode);
-+	if (!fp->inode) {
-+		kfree(fp);
-+		return -EFAULT;
-+	}
-+
-+	fp->file = get_file(file);
-+	fp->mm = vaddr_pin->mm;
-+	mmgrab(fp->mm);
-+
-+	spin_lock(&fp->mm->fp_lock);
-+	list_add(&fp->list, &fp->mm->file_pins);
-+	spin_unlock(&fp->mm->fp_lock);
-+
-+	return 0;
-+}
-+
-+static void release_mm_file_pin(struct kref *ref)
-+{
-+	struct mm_file_pin *fp = container_of(ref, struct mm_file_pin, ref);
-+
-+	spin_lock(&fp->mm->fp_lock);
-+	list_del(&fp->list);
-+	spin_unlock(&fp->mm->fp_lock);
-+
-+	mmdrop(fp->mm);
-+	fput(fp->file);
-+	iput(fp->inode);
-+	kfree(fp);
-+}
-+
-+static void remove_file_file_pin(struct vaddr_pin *vaddr_pin)
-+{
-+	struct file_file_pin *fp;
-+	struct file_file_pin *tmp;
-+
-+	list_for_each_entry_safe(fp, tmp, &vaddr_pin->f_owner->file_pins,
-+				 list) {
-+		kref_put(&fp->ref, release_file_file_pin);
-+	}
-+}
-+
-+static void remove_mm_file_pin(struct vaddr_pin *vaddr_pin,
-+			       struct inode *inode)
-+{
-+	struct mm_file_pin *fp;
-+	struct mm_file_pin *tmp;
-+
-+	list_for_each_entry_safe(fp, tmp, &vaddr_pin->mm->file_pins, list) {
-+		if (fp->inode == inode)
-+			kref_put(&fp->ref, release_mm_file_pin);
-+	}
-+}
-+
-+static bool add_file_pin(struct vaddr_pin *vaddr_pin, struct inode *inode,
-+			 struct file *file)
-+{
-+	bool ret = true;
-+
-+	if (!vaddr_pin || (!vaddr_pin->f_owner && !vaddr_pin->mm))
-+		return false;
-+
-+	if (vaddr_pin->f_owner) {
-+		if (add_file_pin_to_f_owner(vaddr_pin, inode, file))
-+			ret = false;
-+	} else {
-+		if (add_file_pin_to_mm(vaddr_pin, inode, file))
-+			ret = false;
-+	}
-+
-+	return ret;
-+}
-+
-+void mapping_release_file(struct vaddr_pin *vaddr_pin, struct page *page)
-+{
-+	struct inode *inode;
-+
-+	if (WARN_ON(!page) || WARN_ON(!vaddr_pin) ||
-+	    WARN_ON(!vaddr_pin->mm && !vaddr_pin->f_owner))
-+		return;
-+
-+	if (PageAnon(page) ||
-+	    !page->mapping ||
-+	    !page->mapping->host)
-+		return;
-+
-+	inode = page->mapping->host;
-+
-+	if (vaddr_pin->f_owner)
-+		remove_file_file_pin(vaddr_pin);
-+	else
-+		remove_mm_file_pin(vaddr_pin, inode);
-+}
-+EXPORT_SYMBOL_GPL(mapping_release_file);
-+
- /**
-  * mapping_inode_has_layout - ensure a file mapped page has a layout lease
-  * taken
-+ * @vaddr_pin: pin owner information to store with this pin if a proper layout
-+ * is lease is found.
-  * @page: page we are trying to GUP
-  *
-  * This should only be called on DAX pages.  DAX pages which are mapped through
-@@ -2983,9 +3169,12 @@ core_initcall(filelock_init);
-  * This allows the user to opt-into the fact that truncation operations will
-  * fail for the duration of the pin.
-  *
-+ * Also if the proper layout leases are found we store pining information into
-+ * the owner passed in via the vaddr_pin structure.
-+ *
-  * Return true if the page has a LAYOUT lease associated with it's file.
-  */
--bool mapping_inode_has_layout(struct page *page)
-+bool mapping_inode_has_layout(struct vaddr_pin *vaddr_pin, struct page *page)
- {
- 	bool ret = false;
- 	struct inode *inode;
-@@ -3003,12 +3192,12 @@ bool mapping_inode_has_layout(struct page *page)
- 	if (inode->i_flctx &&
- 	    !list_empty_careful(&inode->i_flctx->flc_lease)) {
- 		spin_lock(&inode->i_flctx->flc_lock);
--		ret = false;
- 		list_for_each_entry(fl, &inode->i_flctx->flc_lease, fl_list) {
- 			if (fl->fl_pid == current->tgid &&
- 			    (fl->fl_flags & FL_LAYOUT) &&
- 			    (fl->fl_flags & FL_EXCLUSIVE)) {
--				ret = true;
-+				ret = add_file_pin(vaddr_pin, inode,
-+						   fl->fl_file);
- 				break;
- 			}
- 		}
+---
+Changes from list:
+	Change to vaddr_put_pages_dirty_lock
+	Change to vaddr_unpin_pages_dirty_lock
+
+ include/linux/mm.h |  5 ++++
+ mm/gup.c           | 59 ++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 64 insertions(+)
+
 diff --git a/include/linux/mm.h b/include/linux/mm.h
-index 9d37cafbef9a..657c947bda49 100644
+index 657c947bda49..90c5802866df 100644
 --- a/include/linux/mm.h
 +++ b/include/linux/mm.h
-@@ -981,9 +981,11 @@ struct vaddr_pin {
- };
- 
- #ifdef CONFIG_DEV_PAGEMAP_OPS
-+void mapping_release_file(struct vaddr_pin *vaddr_pin, struct page *page);
- void __put_devmap_managed_page(struct page *page);
- DECLARE_STATIC_KEY_FALSE(devmap_managed_key);
--static inline bool put_devmap_managed_page(struct page *page)
-+
-+static inline bool page_is_devmap_managed(struct page *page)
- {
- 	if (!static_branch_unlikely(&devmap_managed_key))
- 		return false;
-@@ -992,7 +994,6 @@ static inline bool put_devmap_managed_page(struct page *page)
- 	switch (page->pgmap->type) {
- 	case MEMORY_DEVICE_PRIVATE:
- 	case MEMORY_DEVICE_FS_DAX:
--		__put_devmap_managed_page(page);
- 		return true;
- 	default:
- 		break;
-@@ -1000,11 +1001,39 @@ static inline bool put_devmap_managed_page(struct page *page)
- 	return false;
- }
- 
-+static inline bool put_devmap_managed_page(struct page *page)
-+{
-+	bool is_devmap = page_is_devmap_managed(page);
-+	if (is_devmap)
-+		__put_devmap_managed_page(page);
-+	return is_devmap;
-+}
-+
-+static inline bool put_devmap_managed_user_page(struct vaddr_pin *vaddr_pin,
-+						struct page *page)
-+{
-+	bool is_devmap = page_is_devmap_managed(page);
-+
-+	if (is_devmap) {
-+		if (page->pgmap->type == MEMORY_DEVICE_FS_DAX)
-+			mapping_release_file(vaddr_pin, page);
-+
-+		__put_devmap_managed_page(page);
-+	}
-+
-+	return is_devmap;
-+}
-+
- #else /* CONFIG_DEV_PAGEMAP_OPS */
- static inline bool put_devmap_managed_page(struct page *page)
- {
- 	return false;
- }
-+static inline bool put_devmap_managed_user_page(struct vaddr_pin *vaddr_pin,
-+						struct page *page)
-+{
-+	return false;
-+}
- #endif /* CONFIG_DEV_PAGEMAP_OPS */
- 
- static inline bool is_device_private_page(const struct page *page)
-@@ -1574,7 +1603,7 @@ int account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc);
+@@ -1603,6 +1603,11 @@ int account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc);
  int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
  			struct task_struct *task, bool bypass_rlim);
  
--bool mapping_inode_has_layout(struct page *page);
-+bool mapping_inode_has_layout(struct vaddr_pin *vaddr_pin, struct page *page);
++long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
++		     unsigned int gup_flags, struct page **pages,
++		     struct vaddr_pin *vaddr_pin);
++void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
++				  struct vaddr_pin *vaddr_pin, bool make_dirty);
+ bool mapping_inode_has_layout(struct vaddr_pin *vaddr_pin, struct page *page);
  
  /* Container for pinned pfns / pages */
- struct frame_vector {
 diff --git a/mm/gup.c b/mm/gup.c
-index 10cfd30ff668..eeaa0ddd08a6 100644
+index eeaa0ddd08a6..6d23f70d7847 100644
 --- a/mm/gup.c
 +++ b/mm/gup.c
-@@ -34,7 +34,7 @@ static void __put_user_page(struct vaddr_pin *vaddr_pin, struct page *page)
- 	 * page is free and we need to inform the device driver through
- 	 * callback. See include/linux/memremap.h and HMM for details.
- 	 */
--	if (put_devmap_managed_page(page))
-+	if (put_devmap_managed_user_page(vaddr_pin, page))
- 		return;
- 
- 	if (put_page_testzero(page))
-@@ -272,7 +272,7 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
- 
- 		if (unlikely(flags & FOLL_LONGTERM) &&
- 		    (*pgmap)->type == MEMORY_DEVICE_FS_DAX &&
--		    !mapping_inode_has_layout(page)) {
-+		    !mapping_inode_has_layout(ctx->vaddr_pin, page)) {
- 			page = ERR_PTR(-EPERM);
- 			goto out;
- 		}
-@@ -1915,7 +1915,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
- 		if (pte_devmap(pte) &&
- 		    unlikely(flags & FOLL_LONGTERM) &&
- 		    pgmap->type == MEMORY_DEVICE_FS_DAX &&
--		    !mapping_inode_has_layout(head)) {
-+		    !mapping_inode_has_layout(vaddr_pin, head)) {
- 			put_user_page(head);
- 			goto pte_unmap;
- 		}
-@@ -1972,7 +1972,7 @@ static int __gup_device_huge(unsigned long pfn, unsigned long addr,
- 
- 		if (unlikely(flags & FOLL_LONGTERM) &&
- 		    pgmap->type == MEMORY_DEVICE_FS_DAX &&
--		    !mapping_inode_has_layout(page)) {
-+		    !mapping_inode_has_layout(vaddr_pin, page)) {
- 			undo_dev_pagemap(nr, nr_start, pages);
- 			return 0;
- 		}
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 7e09f2f17ed8..2d700e21d4af 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -957,7 +957,7 @@ struct page *follow_devmap_pmd(struct vm_area_struct *vma, unsigned long addr,
- 
- 	if (unlikely(flags & FOLL_LONGTERM) &&
- 	    (*pgmap)->type == MEMORY_DEVICE_FS_DAX &&
--	    !mapping_inode_has_layout(page))
-+	    !mapping_inode_has_layout(ctx->vaddr_pin, page))
- 		return ERR_PTR(-EPERM);
- 
- 	get_page(page);
-@@ -1104,7 +1104,7 @@ struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
- 
- 	if (unlikely(flags & FOLL_LONGTERM) &&
- 	    (*pgmap)->type == MEMORY_DEVICE_FS_DAX &&
--	    !mapping_inode_has_layout(page))
-+	    !mapping_inode_has_layout(ctx->vaddr_pin, page))
- 		return ERR_PTR(-EPERM);
- 
- 	get_page(page);
+@@ -2536,3 +2536,62 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
+ 	return ret;
+ }
+ EXPORT_SYMBOL_GPL(get_user_pages_fast);
++
++/**
++ * vaddr_pin_pages pin pages by virtual address and return the pages to the
++ * user.
++ *
++ * @addr, start address
++ * @nr_pages, number of pages to pin
++ * @gup_flags, flags to use for the pin
++ * @pages, array of pages returned
++ * @vaddr_pin, initalized meta information this pin is to be associated
++ * with.
++ *
++ * NOTE regarding vaddr_pin:
++ *
++ * Some callers can share pins via file descriptors to other processes.
++ * Callers such as this should use the f_owner field of vaddr_pin to indicate
++ * the file the fd points to.  All other callers should use the mm this pin is
++ * being made against.  Usually "current->mm".
++ *
++ * Expects mmap_sem to be read locked.
++ */
++long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
++		     unsigned int gup_flags, struct page **pages,
++		     struct vaddr_pin *vaddr_pin)
++{
++	long ret;
++
++	gup_flags |= FOLL_LONGTERM;
++
++	if (!vaddr_pin || (!vaddr_pin->mm && !vaddr_pin->f_owner))
++		return -EINVAL;
++
++	ret = __gup_longterm_locked(current,
++				    vaddr_pin->mm,
++				    addr, nr_pages,
++				    pages, NULL, gup_flags,
++				    vaddr_pin);
++	return ret;
++}
++EXPORT_SYMBOL(vaddr_pin_pages);
++
++/**
++ * vaddr_unpin_pages_dirty_lock - counterpart to vaddr_pin_pages
++ *
++ * @pages, array of pages returned
++ * @nr_pages, number of pages in pages
++ * @vaddr_pin, same information passed to vaddr_pin_pages
++ * @make_dirty: whether to mark the pages dirty
++ *
++ * The semantics are similar to put_user_pages_dirty_lock but a vaddr_pin used
++ * in vaddr_pin_pages should be passed back into this call for propper
++ * tracking.
++ */
++void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
++				  struct vaddr_pin *vaddr_pin, bool make_dirty)
++{
++	__put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, make_dirty);
++}
++EXPORT_SYMBOL(vaddr_unpin_pages_dirty_lock);
 -- 
 2.20.1
 
