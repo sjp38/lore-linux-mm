@@ -2,191 +2,221 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3AFA9C31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:52:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D690C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:54:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CC770217F4
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:52:49 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="SNwo9M1M"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CC770217F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id E1B8E2171F
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:54:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E1B8E2171F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3535F6B000A; Fri,  9 Aug 2019 05:52:49 -0400 (EDT)
+	id 722D86B000C; Fri,  9 Aug 2019 05:54:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 303C96B000C; Fri,  9 Aug 2019 05:52:49 -0400 (EDT)
+	id 6D2666B000D; Fri,  9 Aug 2019 05:54:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1CC226B000D; Fri,  9 Aug 2019 05:52:49 -0400 (EDT)
+	id 59AE66B000E; Fri,  9 Aug 2019 05:54:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id DA5A36B000A
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 05:52:48 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id x10so1429494pfn.2
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 02:52:48 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 0D41A6B000C
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 05:54:42 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id z2so1005128ede.2
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 02:54:42 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=coff5jRP+4bBeGfReMXie4tO+oyayDQ9HMdvtmpclDQ=;
-        b=eVk+Rz3I3ILv7B/tnsFFIUI7hqDrf8IXoz973m/kRuxw1yz9Rbq0d7moPoxxD3R8Z/
-         uqdyDCEAbk2l7y2Nx0dGtRymoCk7PoLjxWvEpNrlbdsSDOl0eZ1hYoI+0OaH1nLrdN8o
-         nPnElAPg6qD1WZWDtokDPOU5VxZLARPXbxkgzt0IRxqcluRkvtsIHP1J4iefxBzrDX9O
-         uB3ItNKPr5gioN6pN2YV6tiaNNZuucRSIHnJZyERRHEPu7kDdZjSM3LV7Ivypcgy9o9u
-         O5Cyh6NYEOcrcksvKjhPwT++fdw5nTnHjD2gsph0Pxf662oP1KI0Fvja3qg7dr0QnluC
-         oC8Q==
-X-Gm-Message-State: APjAAAWhzIvYA2POdmAUGRWP8/S5C3m7927ABNUYVEiUVwB7p8fWAnae
-	7FLro1i+J+J64FGsIav1/0gdmwWFPJO7v//jmtnLzzl8MScrMmUClUsmc/pajuVBtO6VVWfnGg9
-	mxwmJgGwV1PbpdpinYTNx3ueKUOavTbrEuvQiuJBXVl7yPBLAI3keJnx9PCsiWTO1LQ==
-X-Received: by 2002:a17:902:ac85:: with SMTP id h5mr18381918plr.198.1565344368527;
-        Fri, 09 Aug 2019 02:52:48 -0700 (PDT)
-X-Received: by 2002:a17:902:ac85:: with SMTP id h5mr18381885plr.198.1565344367920;
-        Fri, 09 Aug 2019 02:52:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565344367; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=GwruKyw7mHs3C54oT/QuJsxh7Ksfp9svOQkHJNfLpNk=;
+        b=fv4EXROP8nLuDsftP+y1werVWLsY9jNiWv3ooxBYIPT8JNrcweFeRK09A7VkDE1kqR
+         B29kkmN3a6IQyFL8X0dqzff4LC7s8i8ArteK9exr0CekD6ycSocbO7jvBrAJC0IdNRBm
+         ZF8qMi+eFFlDN9/KCqGfzduT1UdkZcuu0Eccjrup6QenzHUxTQYA1e/O5hCN5VeTCEd2
+         dzD2UO3iytDOIZ9C4YcNLtyBfsZ7fV4Eg5ji+fd0JFV+zDgBr1Kkbm68ADKUviJ99DuF
+         rmcwqo8hps9T+jf4wo+mCHzVMbsQ+LVRu4AQswfayiMIvxvH9BbLw/P820XJXTkJ7Y5x
+         H7hA==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+X-Gm-Message-State: APjAAAVeiVGNzA90l+2Z8YP2/DRe0tdSbIL0onBSFM/HIhSgQll6t0u1
+	LmjFZ5h3XUZY6b3X3fK5Y7MzZI5EgKKtIz45ohPYYR567obiWE7d1qAYIlyILoBtFOlhhlC64zd
+	xueIEwzEdWY1eK0El7g27+xptkVGKWlsvgbVJlS0YJsNPsulOtPsPo9y2+NMTZQs/kA==
+X-Received: by 2002:a50:addc:: with SMTP id b28mr20945656edd.174.1565344481601;
+        Fri, 09 Aug 2019 02:54:41 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxpraLNUTPhINBMjvLdo2WTXCUuazdWWVY3P6q/TJTS4/3hVdzdbwpTj9An/4/Z3ta6DYiF
+X-Received: by 2002:a50:addc:: with SMTP id b28mr20945584edd.174.1565344480289;
+        Fri, 09 Aug 2019 02:54:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565344480; cv=none;
         d=google.com; s=arc-20160816;
-        b=jWQB8cqZ2CPSTqLXLy2JIaSiSZ4LavPKYQPO3dHRMU275pepxMfI7vS6dRRG3/ALe7
-         WEyhZ4FWVWqf4KUx7A4UfM/Ho5ZjUPS7kNlutKSGwe3mEt/QIGyNgU4cRbw5OCC9V/OJ
-         buqnaJlNzWCq7JBNqzRxS/2AAqADH6MAXfrSy2hhYKKllXF1zmpMYuyYEiudVQ+XftKb
-         gAk00dXAYJPSb7WCsZLgkE32HVrfsdM9fRPawHYmvVQA7Q3YoB31dDhwRXbseOspcKsX
-         P+zC9askgfG5DL5i2LdveJVlFPNngmS00peAK9k1wdrcgtAtn2MAKZYNUP5BOV1b/+ug
-         8uJg==
+        b=DHeVUMumbmGd2JWb0RlJVvS4C1r0zGxDPX5MN2D+SvSMknwEOJlINRtKkJBcCay2G4
+         0N2qe63b/EFJHBq7C0nlvdMgKtu01yEak2co6UQad8I4943VooRIUfheaMBA94oaNgOd
+         QbXJG5jB+u0qblFCMO6zeyvgNIdslLZZifqP1hLls6tueUYuUeqBudVHLOTfAnC91Sqp
+         PFzgvRJcx80ByKuPCk1XJTlVpT4VcQarc2882y6Vwm37Kbem09eOLy9yRPM1UCn2wnft
+         QbpXMzVT2T6gakqJvdGHn0UVpJkU6PrED8F0saN+BzRR+QXHc6te11uI407rB2prmlx5
+         zfGQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=coff5jRP+4bBeGfReMXie4tO+oyayDQ9HMdvtmpclDQ=;
-        b=JgepBNArZSGPWtXPihlgA6cySUcIu3zA+5QmekV3Mxe3gwldwIEwnYZiFMFxtJiDgv
-         Kps/ES5K9mC0Ez+QC/q1pzvYaDg6E2kx03xT01HlzLIhZeC4hE/fcYGc1dqstwbE+pDK
-         mx+cd2PXc6expew+6gQ7k14tnmi5ppoMIHRj339MMlWH7gHjKXUqx0SgjSeEw8j+Quto
-         Yjc5Bm4lB/xlHgA3MDTPZtT7IGXTKfUheHug4RUesV/7douXNgFMmBLIXIk6mSJUFSrV
-         FUmdMWuiw08DAd0UtN14/cDtOP36LMOgkuwJx1pPfVeWMqgv8M8K8RbK196yXvLQJtmQ
-         7wjg==
+         :message-id:subject:cc:to:from:date;
+        bh=GwruKyw7mHs3C54oT/QuJsxh7Ksfp9svOQkHJNfLpNk=;
+        b=H+TXOCd8cQLSDidXEA6LvVuu5K8OvNmnd/2Gaq2WG3hyHDXBfoMR+Rc2CgXQhINGyu
+         ahY5ljk6Ty4cWe2eailllH9ZGi0EB/nyZz8RibtBeq7dO87JBwctVDTV8v/+SmtaVwFX
+         Rre93d+VXWX6TepQMsIdajXo42Nx8W0NFyVkXhJ9W6+eZhoYcdnv+AWEDRHoMEEcngZU
+         Gt34tTgv428pANy9nTvbyiI3y1XhQfDgm91pb7Q61+Uf0X74FHinDWKGdQGlucfmV8n2
+         q8Fzz+q8DRqpBT90/a3FTRxes64JJlcpqtN5IpuqAvETAwzNH81WEVJVtHJokfCPH4rd
+         MWZg==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SNwo9M1M;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id a31sor46273284pga.15.2019.08.09.02.52.47
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Aug 2019 02:52:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id pk16si31227922ejb.96.2019.08.09.02.54.39
+        for <linux-mm@kvack.org>;
+        Fri, 09 Aug 2019 02:54:40 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=SNwo9M1M;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=coff5jRP+4bBeGfReMXie4tO+oyayDQ9HMdvtmpclDQ=;
-        b=SNwo9M1MUx6gatXbQ7l9iO1/w+TnVFKCahmmqUAYpyW9H+8n0Cdqfx30RczFbZbRGj
-         bf4EOgN0mZk5UpfmOEHDh9Tqi+85r9Nx5aBsfBeQVn6CWgEA5sJK+u1L8ocrYKIIthNn
-         2F6M14ipEGBeiPzEROFicAyK7hD9eS/vDy9NYueghQjNprsW0sNm7IxHUP7ML9lzMRIH
-         D8m+LDEHZAb3IFfADaHEHE9SI18Ug5QC84E2WuAMCubC9xOKIVg/6C6m6/cA1MrJ6iDp
-         0M2Cu2ZuV6JQ9NroGGxGfIvGnRa51kvggywzGBfPcsxpBtJp4gQpVeeEHXR2l75EPd2T
-         bx7Q==
-X-Google-Smtp-Source: APXvYqwIP7s3exCajcO3pdPQNdIVdIQ8rixRSXZeeayKqB7Lsr3Vn55iMwIIXCcgoE6PDKAdW4jOHg==
-X-Received: by 2002:a65:654d:: with SMTP id a13mr16525591pgw.196.1565344367473;
-        Fri, 09 Aug 2019 02:52:47 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.33])
-        by smtp.gmail.com with ESMTPSA id e24sm7992122pgk.21.2019.08.09.02.52.39
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 02:52:47 -0700 (PDT)
-Date: Fri, 9 Aug 2019 15:22:36 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: arnd@arndb.de, gregkh@linuxfoundation.org, sivanich@sgi.com,
-	ira.weiny@intel.com, jglisse@redhat.com,
-	william.kucharski@oracle.com, hch@lst.de,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-kernel-mentees@lists.linuxfoundation.org
-Subject: Re: [Linux-kernel-mentees][PATCH v4 1/1] sgi-gru: Remove *pte_lookup
- functions
-Message-ID: <20190809095236.GC22457@bharath12345-Inspiron-5559>
-References: <1565290555-14126-1-git-send-email-linux.bhar@gmail.com>
- <1565290555-14126-2-git-send-email-linux.bhar@gmail.com>
- <b659042a-f2c3-df3c-4182-bb7dd5156bc1@nvidia.com>
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 4CFA015A2;
+	Fri,  9 Aug 2019 02:54:39 -0700 (PDT)
+Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 0F7113F575;
+	Fri,  9 Aug 2019 02:54:37 -0700 (PDT)
+Date: Fri, 9 Aug 2019 10:54:35 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+To: Daniel Axtens <dja@axtens.net>
+Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, x86@kernel.org,
+	aryabinin@virtuozzo.com, glider@google.com, luto@kernel.org,
+	linux-kernel@vger.kernel.org, dvyukov@google.com
+Subject: Re: [PATCH v3 1/3] kasan: support backing vmalloc space with real
+ shadow memory
+Message-ID: <20190809095435.GD48423@lakrids.cambridge.arm.com>
+References: <20190731071550.31814-1-dja@axtens.net>
+ <20190731071550.31814-2-dja@axtens.net>
+ <20190808135037.GA47131@lakrids.cambridge.arm.com>
+ <20190808174325.GD47131@lakrids.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <b659042a-f2c3-df3c-4182-bb7dd5156bc1@nvidia.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <20190808174325.GD47131@lakrids.cambridge.arm.com>
+User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 08, 2019 at 04:21:44PM -0700, John Hubbard wrote:
-> On 8/8/19 11:55 AM, Bharath Vedartham wrote:
-> ...
-> >  static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
-> >  		    int write, int atomic, unsigned long *gpa, int *pageshift)
-> >  {
-> >  	struct mm_struct *mm = gts->ts_mm;
-> >  	struct vm_area_struct *vma;
-> >  	unsigned long paddr;
-> > -	int ret, ps;
-> > +	int ret;
-> > +	struct page *page;
-> >  
-> >  	vma = find_vma(mm, vaddr);
-> >  	if (!vma)
-> > @@ -263,21 +187,33 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
-> >  
-> >  	/*
-> >  	 * Atomic lookup is faster & usually works even if called in non-atomic
-> > -	 * context.
-> > +	 * context. get_user_pages_fast does atomic lookup before falling back to
-> > +	 * slow gup.
-> >  	 */
-> >  	rmb();	/* Must/check ms_range_active before loading PTEs */
-> > -	ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &ps);
-> > -	if (ret) {
-> > -		if (atomic)
-> > +	if (atomic) {
-> > +		ret = __get_user_pages_fast(vaddr, 1, write, &page);
-> > +		if (!ret)
-> >  			goto upm;
-> > -		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
-> > +	} else {
-> > +		ret = get_user_pages_fast(vaddr, 1, write ? FOLL_WRITE : 0, &page);
-> > +		if (!ret)
-> >  			goto inval;
-> >  	}
-> > +
-> > +	paddr = page_to_phys(page);
-> > +	put_user_page(page);
-> > +
-> > +	if (unlikely(is_vm_hugetlb_page(vma)))
-> > +		*pageshift = HPAGE_SHIFT;
-> > +	else
-> > +		*pageshift = PAGE_SHIFT;
-> > +
-> >  	if (is_gru_paddr(paddr))
-> >  		goto inval;
-> > -	paddr = paddr & ~((1UL << ps) - 1);
-> > +	paddr = paddr & ~((1UL << *pageshift) - 1);
-> >  	*gpa = uv_soc_phys_ram_to_gpa(paddr);
-> > -	*pageshift = ps;
+On Thu, Aug 08, 2019 at 06:43:25PM +0100, Mark Rutland wrote:
+> On Thu, Aug 08, 2019 at 02:50:37PM +0100, Mark Rutland wrote:
+> > Hi Daniel,
+> > 
+> > This is looking really good!
+> > 
+> > I spotted a few more things we need to deal with, so I've suggested some
+> > (not even compile-tested) code for that below. Mostly that's just error
+> > handling, and using helpers to avoid things getting too verbose.
 > 
-> Why are you no longer setting *pageshift? There are a couple of callers
-> that both use this variable.
-I ll send v5 once your convinced by my argument that ps is not necessary
-to set *pageshift and that *pageshift is being set.
+> FWIW, I had a quick go at that, and I've pushed the (corrected) results
+> to my git repo, along with an initial stab at arm64 support (which is
+> currently broken):
+> 
+> https://git.kernel.org/pub/scm/linux/kernel/git/mark/linux.git/log/?h=kasan/vmalloc
 
-Thank you
-Bharath
-> 
-> thanks,
-> -- 
-> John Hubbard
-> NVIDIA
+I've fixed my arm64 patch now, and that appears to work in basic tests
+(example below), so I'll throw my arm64 Syzkaller instance at that today
+to shake out anything major that we've missed or that I've botched.
+
+I'm very excited to see this!
+
+Are you happy to pick up my modified patch 1 for v4?
+
+Thanks,
+Mark.
+
+# echo STACK_GUARD_PAGE_LEADING > DIRECT 
+[  107.453162] lkdtm: Performing direct entry STACK_GUARD_PAGE_LEADING
+[  107.454672] lkdtm: attempting bad read from page below current stack
+[  107.456672] ==================================================================
+[  107.457929] BUG: KASAN: vmalloc-out-of-bounds in lkdtm_STACK_GUARD_PAGE_LEADING+0x88/0xb4
+[  107.459398] Read of size 1 at addr ffff20001515ffff by task sh/214
+[  107.460864] 
+[  107.461271] CPU: 0 PID: 214 Comm: sh Not tainted 5.3.0-rc3-00004-g84f902ca9396-dirty #7
+[  107.463101] Hardware name: linux,dummy-virt (DT)
+[  107.464407] Call trace:
+[  107.464951]  dump_backtrace+0x0/0x1e8
+[  107.465781]  show_stack+0x14/0x20
+[  107.466824]  dump_stack+0xbc/0xf4
+[  107.467780]  print_address_description+0x60/0x33c
+[  107.469221]  __kasan_report+0x140/0x1a0
+[  107.470388]  kasan_report+0xc/0x18
+[  107.471439]  __asan_load1+0x4c/0x58
+[  107.472428]  lkdtm_STACK_GUARD_PAGE_LEADING+0x88/0xb4
+[  107.473908]  lkdtm_do_action+0x40/0x50
+[  107.475255]  direct_entry+0x128/0x1b0
+[  107.476348]  full_proxy_write+0x90/0xc8
+[  107.477595]  __vfs_write+0x54/0xa8
+[  107.478780]  vfs_write+0xd0/0x230
+[  107.479762]  ksys_write+0xc4/0x170
+[  107.480738]  __arm64_sys_write+0x40/0x50
+[  107.481888]  el0_svc_common.constprop.0+0xc0/0x1c0
+[  107.483240]  el0_svc_handler+0x34/0x88
+[  107.484211]  el0_svc+0x8/0xc
+[  107.484996] 
+[  107.485429] 
+[  107.485895] Memory state around the buggy address:
+[  107.487107]  ffff20001515fe80: f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9
+[  107.489162]  ffff20001515ff00: f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9
+[  107.491157] >ffff20001515ff80: f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9 f9
+[  107.493193]                                                                 ^
+[  107.494973]  ffff200015160000: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+[  107.497103]  ffff200015160080: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+[  107.498795] ==================================================================
+[  107.500495] Disabling lock debugging due to kernel taint
+[  107.503212] Unable to handle kernel paging request at virtual address ffff20001515ffff
+[  107.505177] Mem abort info:
+[  107.505797]   ESR = 0x96000007
+[  107.506554]   Exception class = DABT (current EL), IL = 32 bits
+[  107.508031]   SET = 0, FnV = 0
+[  107.508547]   EA = 0, S1PTW = 0
+[  107.509125] Data abort info:
+[  107.509704]   ISV = 0, ISS = 0x00000007
+[  107.510388]   CM = 0, WnR = 0
+[  107.511089] swapper pgtable: 4k pages, 48-bit VAs, pgdp=0000000041c65000
+[  107.513221] [ffff20001515ffff] pgd=00000000bdfff003, pud=00000000bdffe003, pmd=00000000aa31e003, pte=0000000000000000
+[  107.515915] Internal error: Oops: 96000007 [#1] PREEMPT SMP
+[  107.517295] Modules linked in:
+[  107.518074] CPU: 0 PID: 214 Comm: sh Tainted: G    B             5.3.0-rc3-00004-g84f902ca9396-dirty #7
+[  107.520755] Hardware name: linux,dummy-virt (DT)
+[  107.522208] pstate: 60400005 (nZCv daif +PAN -UAO)
+[  107.523670] pc : lkdtm_STACK_GUARD_PAGE_LEADING+0x88/0xb4
+[  107.525176] lr : lkdtm_STACK_GUARD_PAGE_LEADING+0x88/0xb4
+[  107.526809] sp : ffff200015167b90
+[  107.527856] x29: ffff200015167b90 x28: ffff800002294740 
+[  107.529728] x27: 0000000000000000 x26: 0000000000000000 
+[  107.531523] x25: ffff200015167df0 x24: ffff2000116e8400 
+[  107.533234] x23: ffff200015160000 x22: dfff200000000000 
+[  107.534694] x21: ffff040002a2cf7a x20: ffff2000116e9ee0 
+[  107.536238] x19: 1fffe40002a2cf7a x18: 0000000000000000 
+[  107.537699] x17: 0000000000000000 x16: 0000000000000000 
+[  107.539288] x15: 0000000000000000 x14: 0000000000000000 
+[  107.540584] x13: 0000000000000000 x12: ffff10000d672bb9 
+[  107.541920] x11: 1ffff0000d672bb8 x10: ffff10000d672bb8 
+[  107.543438] x9 : 1ffff0000d672bb8 x8 : dfff200000000000 
+[  107.545008] x7 : ffff10000d672bb9 x6 : ffff80006b395dc0 
+[  107.546570] x5 : 0000000000000001 x4 : dfff200000000000 
+[  107.547936] x3 : ffff20001113274c x2 : 0000000000000007 
+[  107.549121] x1 : eb957a6c7b3ab400 x0 : 0000000000000000 
+[  107.550220] Call trace:
+[  107.551017]  lkdtm_STACK_GUARD_PAGE_LEADING+0x88/0xb4
+[  107.552288]  lkdtm_do_action+0x40/0x50
+[  107.553302]  direct_entry+0x128/0x1b0
+[  107.554290]  full_proxy_write+0x90/0xc8
+[  107.555332]  __vfs_write+0x54/0xa8
+[  107.556278]  vfs_write+0xd0/0x230
+[  107.557000]  ksys_write+0xc4/0x170
+[  107.557834]  __arm64_sys_write+0x40/0x50
+[  107.558980]  el0_svc_common.constprop.0+0xc0/0x1c0
+[  107.560111]  el0_svc_handler+0x34/0x88
+[  107.560936]  el0_svc+0x8/0xc
+[  107.561580] Code: 91140280 97ded9e3 d10006e0 97e4672e (385ff2e1) 
+[  107.563208] ---[ end trace 9e69aa587e1dc0cc ]---
 
