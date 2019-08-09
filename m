@@ -3,85 +3,85 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
 X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
-	autolearn=ham autolearn_force=no version=3.4.0
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 107A5C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:03:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0F785C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:03:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8C0CF2089E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:03:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8C0CF2089E
+	by mail.kernel.org (Postfix) with ESMTP id 9DD3A2089E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:03:21 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9DD3A2089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AA3EE6B028B; Fri,  9 Aug 2019 12:01:20 -0400 (EDT)
+	id 28F106B028C; Fri,  9 Aug 2019 12:01:21 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A7BF76B028C; Fri,  9 Aug 2019 12:01:20 -0400 (EDT)
+	id 217C66B028D; Fri,  9 Aug 2019 12:01:21 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 96E106B028D; Fri,  9 Aug 2019 12:01:20 -0400 (EDT)
+	id 1306B6B028E; Fri,  9 Aug 2019 12:01:21 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 321906B028B
+	by kanga.kvack.org (Postfix) with ESMTP id B97E76B028D
 	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:20 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id f9so46816843wrq.14
+Received: by mail-wr1-f70.google.com with SMTP id v11so4023706wrg.2
         for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:20 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=+t8bGc+DEm851YBsh+1Mr3Pc9OnE9/HEPmHUoF6kTwI=;
-        b=lWMPtKruNi0tq75jdUKfyz/7kbx9L7t0oJmRIVv28L1lsQJ5VScgKk79Rpf96mZ3MG
-         UO8Auy4O1tG7uIceSTMPdZuHUBhM/GuiJGUINizAFopPI4Rd4aKFSor6fBvhNk3kMist
-         PoNuJkhsr96r85sjXEpiEymB0iHLMmGJ8wq7YLJ89010KFhPWhssH0mEHmnckDlkMIZa
-         ii7ztqCq7P7mHfZGHhcUFgrGv6173Gu2hZFeF1Wgacx00YdUw5nVTjH7c//hNssAztoW
-         xlSnOEPHkBhTxYGf8ZAZO32XXx1f9lNwqL6MM105mGWvYXa4xJIS+Qlbt2K977SvOnXH
-         udPg==
+        bh=6tu1vE4ORS7O0Im5/k7kjtVvnuYwO/XuHjstLyxohBM=;
+        b=tTQjiVSLmkcSKTiZ42GyPKG8ab5tCAdLm44QxRDfuFumn5Vdd8YKbXZ2qiybJA+MUX
+         plpcNgmBBL1rbQM/eVTrm7pk8d+GtpB1Q/SZIjZWByysSkcEUgEE7pWHA4F0aZ9dL5Aa
+         06zxIMGMg+2aw3twDnYczIG6TyjOWpuB6H/hpFnW7LJD0Ma1nZb2PKljgusL54WU7lkV
+         5oXoARRBScRqLqbdzj+vXR7cjrY3rXNQ86tCDj4q3gWwLCC3GmDoLScDuGiHfnqeVtM0
+         VHSKbLlb3PdS4plD/QNs0Yt1rh3gS8jiciyM0VkdyYQ7RRPDSFlzgUArrQ1bk0hAPhZV
+         hNNg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAWqMF7zMlN2aAxGcILqtpopHX3tHq26Pc5KAdfTYOn0OGFf3ssm
-	bVgIrkB3jCkL81aP9xcMOx+dquZhG2nPiqrpBepTnLsyFWCa5a36bt5p+raUiLLcBCORRaxvun9
-	jL47Qwnsve9zv/Nbsza0deOt77Fgh9CP7g+frviLuEXqNcX9TOGL4sUYFXolHPkzUjw==
-X-Received: by 2002:a1c:18a:: with SMTP id 132mr11786697wmb.15.1565366479711;
+X-Gm-Message-State: APjAAAW9z0abtdYBNYweIxU2+StxDNleFaaX9JwkFH/0K761BLQt0Q/O
+	GgKkfRvDOrLj+uiA5pKiSonxnAhNzlFnSz50D68yuXS//52z2KzZyd7oTZZYSciVdX81VGZbsfG
+	q/QTKDnXFOX0bPpfQ9ZCPsT3PvGKMArF+9UbFMokdhYWge1UPS05wGSyVjrIgF7G2Qg==
+X-Received: by 2002:a7b:cc81:: with SMTP id p1mr11261614wma.107.1565366480339;
+        Fri, 09 Aug 2019 09:01:20 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxoLOBY2rHQGFVFs3mZgZDcmVw6Gvk4VJ2+QlrDKL0v/VYymk0y+73MKkLgCGPKv7/zxT2i
+X-Received: by 2002:a7b:cc81:: with SMTP id p1mr11261523wma.107.1565366479326;
         Fri, 09 Aug 2019 09:01:19 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwg9PC0AQmq103uBFygkYX+c9MCmI8AIMY2z+UeJXP9TNjXI5ReP/vkttCXKDQj72KtECp1
-X-Received: by 2002:a1c:18a:: with SMTP id 132mr11786539wmb.15.1565366478022;
-        Fri, 09 Aug 2019 09:01:18 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366478; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1565366479; cv=none;
         d=google.com; s=arc-20160816;
-        b=n0YsRd1umUmRhN0+KJDY9zKb20kJecTO5LPA0uMmsFExvFoN0BYzQys6XxZFI0L0T1
-         IfSmXS+q+YcGZFR/JRVUsefFLunGG0UxU1VFZ5qznGCtiu9SZN1s3NaNiTJYQ5lX6kMI
-         nkHtwxVjoYgAJlAv9ARj9myDCoJw+f8JZLzTQi/6DWpGBnrJGZqiDcubXsoPZQ/QVASJ
-         dqQzbKTVpmSOr9hEcea2kQyf7V+4GNe9zqMEYUoVMVAn8Vt3H0P1vSuepMKl29NkdW2g
-         xXVTKMLhgVYqSX5R9QZdrlkgHAdSdKgdBbLdwTOKzdy4WvckxEVpIJQQjGh4FKsopqfH
-         UpYQ==
+        b=q48wxIHAqefNA+jYrZupexZofURo9dfK5oMTVjlq1VkDf+QfKCg4TSbCA+w/GGSWbf
+         yWnw2VNju1VoUV843Ct9FfhzjbHYXAK6lJPQrK3roBQco/NxklfN8cm8+7AWpeDUpfKt
+         /cYDhg75a2L7ThcVuX3D5ctANZ0KvTqVKZesMOUkpySxj03m4oCGqD2P8OtflD5FkgAU
+         8MrqTNqepqCpowgXVuSTCm7cYiV67hEwg3NWDsG5iWrjwLl9sT17cuLsFiUz440QvlYD
+         wQSg6dQmmoiSG+krf/9IXL/eZAMDQ1gaVdZ+8mbwYyS30uzP5l0TIrDCj8/vYAK1lOlT
+         kPGQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=+t8bGc+DEm851YBsh+1Mr3Pc9OnE9/HEPmHUoF6kTwI=;
-        b=p+H6ZzbTK23nowUBxO4lcDbT0GfmZQP0MbwemZ4z+k+dxmuUuJt9QqSspnw2HdlIpN
-         su0Jppp7DrvVEtWXPJNoqC5WWM7+02dKd7mTEiSeSeAxxvCGjDTDGbcRjUTj7CI+Ocp9
-         ZRb6IKU78Izlbanmh4DUYsQg96CEQvphbPLmAIDP8PoRmAxElFBtOT+y5i4bu7+XL8O8
-         t+kY2ty8+rJz59cQ5seoiy3gP9oWjWGXlaD/LJWb5yhy+a6shuZCAN8xDX1RA0jh6XFz
-         fYJT+ggXolm+o7CJ0U/ECCadF5DHYXyNQqjsY+pKFWxh8qCo0kFnnc6Sh7XGwXbx++Ic
-         pu0g==
+        bh=6tu1vE4ORS7O0Im5/k7kjtVvnuYwO/XuHjstLyxohBM=;
+        b=K1s9YrsJOmBOcXztCdwfiBge0YO85BYO28tkPG1HU3KlQ2cTXkBx1MlUGA5XRIlpaW
+         n9rOr2gGGEXE43cKhUHXc9G6pQz7woCPoUhRucGflpTMLCVm9BP7CweClHHut1EHCo/X
+         jhYiAcvDDxI1t2QQHGcihLrn04v0Uy0C8IBA+HRuSsHLWgKJgFE4zZQNUxiyzrzqEcSS
+         kLP/l1ptan2FNLlkYBIHb0HQ3u+cs/Y80BWhjXhZrypkqBBT02PosG3prfGakC4oXgDU
+         a+1xgaJ0p2Q8meltbsFga2tgmvXFtFjNeLp+IWuygVUYPhozFuOT1RWsbIiH3oai6gih
+         DYPQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id r17si88166113wro.143.2019.08.09.09.01.17
+        by mx.google.com with ESMTPS id a14si6323278wru.250.2019.08.09.09.01.19
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 09:01:18 -0700 (PDT)
+        Fri, 09 Aug 2019 09:01:19 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 4C2C2305D347;
-	Fri,  9 Aug 2019 19:01:17 +0300 (EEST)
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id C10A8305D349;
+	Fri,  9 Aug 2019 19:01:18 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id 6E75F305B7A3;
-	Fri,  9 Aug 2019 19:01:16 +0300 (EEST)
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id 77BCD305B7A1;
+	Fri,  9 Aug 2019 19:01:18 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
@@ -98,9 +98,9 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
 	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v6 46/92] kvm: introspection: add KVMI_SET_PAGE_WRITE_BITMAP
-Date: Fri,  9 Aug 2019 19:00:01 +0300
-Message-Id: <20190809160047.8319-47-alazar@bitdefender.com>
+Subject: [RFC PATCH v6 48/92] kvm: add kvm_vcpu_kick_and_wait()
+Date: Fri,  9 Aug 2019 19:00:03 +0300
+Message-Id: <20190809160047.8319-49-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -112,277 +112,48 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This command sets the subpage protection (SPP) write bitmap for an array
-of guest physical addresses of 4KB bytes.
+This function is needed for the KVMI_PAUSE_VCPU command. There are
+cases when it is easier for the introspection tool if it knows that
+the vCPU doesn't run guest code when the command is completed, without
+waiting for the KVMI_EVENT_PAUSE_VCPU event.
 
-Co-developed-by: Yang Weijiang <weijiang.yang@intel.com>
-Signed-off-by: Yang Weijiang <weijiang.yang@intel.com>
-Co-developed-by: Adalbert Lazăr <alazar@bitdefender.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- Documentation/virtual/kvm/kvmi.rst | 66 ++++++++++++++++++++++++++++++
- arch/x86/kvm/kvmi.c                | 30 ++++++++++++++
- include/uapi/linux/kvmi.h          | 13 ++++++
- virt/kvm/kvmi.c                    | 37 +++++++++++++++++
- virt/kvm/kvmi_int.h                |  4 ++
- virt/kvm/kvmi_msg.c                | 13 ++++++
- 6 files changed, 163 insertions(+)
+ include/linux/kvm_host.h |  1 +
+ virt/kvm/kvm_main.c      | 10 ++++++++++
+ 2 files changed, 11 insertions(+)
 
-diff --git a/Documentation/virtual/kvm/kvmi.rst b/Documentation/virtual/kvm/kvmi.rst
-index 2ffb92b0fa71..69557c63ff94 100644
---- a/Documentation/virtual/kvm/kvmi.rst
-+++ b/Documentation/virtual/kvm/kvmi.rst
-@@ -694,6 +694,72 @@ EPT view (0 is primary). On all other hardware it must be zero.
- * -KVM_EAGAIN - the selected vCPU can't be introspected yet
- * -KVM_ENOMEM - not enough memory to allocate the reply
+diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+index ae4106aae16e..09bc06747642 100644
+--- a/include/linux/kvm_host.h
++++ b/include/linux/kvm_host.h
+@@ -738,6 +738,7 @@ void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu);
+ void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu);
+ bool kvm_vcpu_wake_up(struct kvm_vcpu *vcpu);
+ void kvm_vcpu_kick(struct kvm_vcpu *vcpu);
++void kvm_vcpu_kick_and_wait(struct kvm_vcpu *vcpu);
+ int kvm_vcpu_yield_to(struct kvm_vcpu *target);
+ void kvm_vcpu_on_spin(struct kvm_vcpu *vcpu, bool usermode_vcpu_not_eligible);
  
-+13. KVMI_SET_PAGE_WRITE_BITMAP
-+------------------------------
-+
-+:Architectures: x86
-+:Versions: >= 1
-+:Parameters:
-+
-+::
-+
-+	struct kvmi_set_page_write_bitmap {
-+		__u16 view;
-+		__u16 count;
-+		__u32 padding;
-+		struct kvmi_page_write_bitmap_entry entries[0];
-+	};
-+
-+where::
-+
-+	struct kvmi_page_write_bitmap_entry {
-+		__u64 gpa;
-+		__u32 bitmap;
-+		__u32 padding;
-+	};
-+
-+:Returns:
-+
-+::
-+
-+	struct kvmi_error_code;
-+
-+Sets the subpage protection (SPP) write bitmap for an array of ``count``
-+guest physical addresses of 4KB bytes.
-+
-+The command will make the changes starting with the first entry and
-+it will stop on the first error. The introspection tool should handle
-+the rollback.
-+
-+While the *KVMI_SET_PAGE_ACCESS* command can be used to write-protect a
-+4KB page, this command can write-protect 128-bytes subpages inside of a
-+4KB page by setting the corresponding bit to 1 (write allowed) or to 0
-+(write disallowed). For example, to allow write access to the A and B
-+subpages only, the bitmap must be set to::
-+
-+	BIT(A) | BIT(B)
-+
-+A and B must be a number between 0 (first subpage) and 31 (last subpage).
-+
-+Using this command to set all bits to 1 (allow write access for
-+all subpages) will allow write access to the whole 4KB page (like a
-+*KVMI_SET_PAGE_ACCESS* command with the *KVMI_PAGE_ACCESS_W* flag set)
-+and vice versa.
-+
-+Using this command to set any bit to 0 will write-protect the whole 4KB
-+page (like a *KVMI_SET_PAGE_ACCESS* command with the *KVMI_PAGE_ACCESS_W*
-+flag cleared) and allow write access only for subpages with the
-+corresponding bit set to 1.
-+
-+:Errors:
-+
-+* -KVM_EINVAL - the selected SPT view is invalid
-+* -KVM_EOPNOTSUPP - a SPT view was selected but the hardware doesn't support it
-+* -KVM_EOPNOTSUPP - the hardware doesn't support SPP or hasn't been enabled
-+* -KVM_EINVAL - the write access is already allowed for the whole 4KB page
-+* -KVM_EAGAIN - the selected vCPU can't be introspected yet
-+* -KVM_ENOMEM - not enough memory to add the page tracking structures
-+
- Events
- ======
+diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+index 2e11069b9565..5256d7321d0e 100644
+--- a/virt/kvm/kvm_main.c
++++ b/virt/kvm/kvm_main.c
+@@ -2370,6 +2370,16 @@ void kvm_vcpu_kick(struct kvm_vcpu *vcpu)
+ EXPORT_SYMBOL_GPL(kvm_vcpu_kick);
+ #endif /* !CONFIG_S390 */
  
-diff --git a/arch/x86/kvm/kvmi.c b/arch/x86/kvm/kvmi.c
-index 356ec79936b3..fa290fbf1f75 100644
---- a/arch/x86/kvm/kvmi.c
-+++ b/arch/x86/kvm/kvmi.c
-@@ -304,6 +304,36 @@ int kvmi_arch_cmd_set_page_access(struct kvmi *ikvm,
- 	return ec;
- }
- 
-+int kvmi_arch_cmd_set_page_write_bitmap(struct kvmi *ikvm,
-+					const struct kvmi_msg_hdr *msg,
-+					const struct kvmi_set_page_write_bitmap
-+					*req)
++void kvm_vcpu_kick_and_wait(struct kvm_vcpu *vcpu)
 +{
-+	u16 k, n = req->count;
-+	int ec = 0;
++	if (kvm_vcpu_wake_up(vcpu))
++		return;
 +
-+	if (req->padding)
-+		return -KVM_EINVAL;
-+
-+	if (msg->size < sizeof(*req) + req->count * sizeof(req->entries[0]))
-+		return -KVM_EINVAL;
-+
-+	if (!kvmi_spp_enabled(ikvm))
-+		return -KVM_EOPNOTSUPP;
-+
-+	if (req->view != 0)	/* TODO */
-+		return -KVM_EOPNOTSUPP;
-+
-+	for (k = 0; k < n && ec == 0; k++) {
-+		u64 gpa = req->entries[k].gpa;
-+		u32 bitmap = req->entries[k].bitmap;
-+
-+		ec = kvmi_cmd_set_page_write_bitmap(ikvm, gpa, bitmap);
-+	}
-+
-+	return ec;
++	if (kvm_request_needs_ipi(vcpu, KVM_REQUEST_WAIT))
++		smp_call_function_single(vcpu->cpu, ack_flush, NULL, 1);
 +}
++EXPORT_SYMBOL_GPL(kvm_vcpu_kick_and_wait);
 +
- int kvmi_arch_cmd_control_spp(struct kvmi *ikvm)
+ int kvm_vcpu_yield_to(struct kvm_vcpu *target)
  {
- 	return kvm_arch_init_spp(ikvm->kvm);
-diff --git a/include/uapi/linux/kvmi.h b/include/uapi/linux/kvmi.h
-index 19a6a50df96b..0b3139c52a30 100644
---- a/include/uapi/linux/kvmi.h
-+++ b/include/uapi/linux/kvmi.h
-@@ -160,6 +160,19 @@ struct kvmi_get_page_write_bitmap_reply {
- 	__u32 bitmap[0];
- };
- 
-+struct kvmi_page_write_bitmap_entry {
-+	__u64 gpa;
-+	__u32 bitmap;
-+	__u32 padding;
-+};
-+
-+struct kvmi_set_page_write_bitmap {
-+	__u16 view;
-+	__u16 count;
-+	__u32 padding;
-+	struct kvmi_page_write_bitmap_entry entries[0];
-+};
-+
- struct kvmi_get_vcpu_info_reply {
- 	__u64 tsc_speed;
- };
-diff --git a/virt/kvm/kvmi.c b/virt/kvm/kvmi.c
-index 22e233ca474c..d2bebef98d8d 100644
---- a/virt/kvm/kvmi.c
-+++ b/virt/kvm/kvmi.c
-@@ -99,6 +99,24 @@ static int kvmi_set_gfn_access(struct kvm *kvm, gfn_t gfn, u8 access,
- 	m->access = access;
- 	m->write_bitmap = write_bitmap;
- 
-+	/*
-+	 * Only try to set SPP bitmap when the page is writable.
-+	 * Be careful, kvm_mmu_set_subpages() will enable page write-protection
-+	 * by default when set SPP bitmap. If bitmap contains all 1s, it'll
-+	 * make the page writable by default too.
-+	 */
-+	if (!(access & KVMI_PAGE_ACCESS_W) && kvmi_spp_enabled(ikvm)) {
-+		struct kvm_subpage spp_info;
-+
-+		spp_info.base_gfn = gfn;
-+		spp_info.npages = 1;
-+		spp_info.access_map[0] = write_bitmap;
-+
-+		err = kvm_arch_set_subpages(kvm, &spp_info);
-+		if (err)
-+			goto exit;
-+	}
-+
- 	if (radix_tree_preload(GFP_KERNEL)) {
- 		err = -KVM_ENOMEM;
- 		goto exit;
-@@ -1183,6 +1201,25 @@ int kvmi_cmd_set_page_access(struct kvmi *ikvm, u64 gpa, u8 access)
- 	return kvmi_set_gfn_access(ikvm->kvm, gfn, access, write_bitmap);
- }
- 
-+int kvmi_cmd_set_page_write_bitmap(struct kvmi *ikvm, u64 gpa,
-+				   u32 write_bitmap)
-+{
-+	bool write_allowed_for_all;
-+	gfn_t gfn = gpa_to_gfn(gpa);
-+	u32 ignored_write_bitmap;
-+	u8 access;
-+
-+	kvmi_get_gfn_access(ikvm, gfn, &access, &ignored_write_bitmap);
-+
-+	write_allowed_for_all = (write_bitmap == (u32)((1ULL << 32) - 1));
-+	if (write_allowed_for_all)
-+		access |= KVMI_PAGE_ACCESS_W;
-+	else
-+		access &= ~KVMI_PAGE_ACCESS_W;
-+
-+	return kvmi_set_gfn_access(ikvm->kvm, gfn, access, write_bitmap);
-+}
-+
- int kvmi_cmd_control_events(struct kvm_vcpu *vcpu, unsigned int event_id,
- 			    bool enable)
- {
-diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
-index 7243c57be27a..18c00dae0f2f 100644
---- a/virt/kvm/kvmi_int.h
-+++ b/virt/kvm/kvmi_int.h
-@@ -173,6 +173,7 @@ void kvmi_msg_free(void *addr);
- int kvmi_cmd_get_page_access(struct kvmi *ikvm, u64 gpa, u8 *access);
- int kvmi_cmd_set_page_access(struct kvmi *ikvm, u64 gpa, u8 access);
- int kvmi_cmd_get_page_write_bitmap(struct kvmi *ikvm, u64 gpa, u32 *bitmap);
-+int kvmi_cmd_set_page_write_bitmap(struct kvmi *ikvm, u64 gpa, u32 bitmap);
- int kvmi_cmd_control_events(struct kvm_vcpu *vcpu, unsigned int event_id,
- 			    bool enable);
- int kvmi_cmd_control_vm_events(struct kvmi *ikvm, unsigned int event_id,
-@@ -202,6 +203,9 @@ int kvmi_arch_cmd_get_page_write_bitmap(struct kvmi *ikvm,
- 					const struct kvmi_get_page_write_bitmap *req,
- 					struct kvmi_get_page_write_bitmap_reply **dest,
- 					size_t *dest_size);
-+int kvmi_arch_cmd_set_page_write_bitmap(struct kvmi *ikvm,
-+					const struct kvmi_msg_hdr *msg,
-+					const struct kvmi_set_page_write_bitmap *req);
- void kvmi_arch_setup_event(struct kvm_vcpu *vcpu, struct kvmi_event *ev);
- bool kvmi_arch_pf_event(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
- 			u8 access);
-diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
-index eb247ac3e037..f9efb52d49c3 100644
---- a/virt/kvm/kvmi_msg.c
-+++ b/virt/kvm/kvmi_msg.c
-@@ -35,6 +35,7 @@ static const char *const msg_IDs[] = {
- 	[KVMI_GET_VCPU_INFO]         = "KVMI_GET_VCPU_INFO",
- 	[KVMI_GET_VERSION]           = "KVMI_GET_VERSION",
- 	[KVMI_SET_PAGE_ACCESS]       = "KVMI_SET_PAGE_ACCESS",
-+	[KVMI_SET_PAGE_WRITE_BITMAP] = "KVMI_SET_PAGE_WRITE_BITMAP",
- };
- 
- static bool is_known_message(u16 id)
-@@ -400,6 +401,17 @@ static int handle_get_page_write_bitmap(struct kvmi *ikvm,
- 	return err;
- }
- 
-+static int handle_set_page_write_bitmap(struct kvmi *ikvm,
-+					const struct kvmi_msg_hdr *msg,
-+					const void *req)
-+{
-+	int ec;
-+
-+	ec = kvmi_arch_cmd_set_page_write_bitmap(ikvm, msg, req);
-+
-+	return kvmi_msg_vm_maybe_reply(ikvm, msg, ec, NULL, 0);
-+}
-+
- static bool invalid_vcpu_hdr(const struct kvmi_vcpu_hdr *hdr)
- {
- 	return hdr->padding1 || hdr->padding2;
-@@ -420,6 +432,7 @@ static int(*const msg_vm[])(struct kvmi *, const struct kvmi_msg_hdr *,
- 	[KVMI_GET_PAGE_WRITE_BITMAP] = handle_get_page_write_bitmap,
- 	[KVMI_GET_VERSION]           = handle_get_version,
- 	[KVMI_SET_PAGE_ACCESS]       = handle_set_page_access,
-+	[KVMI_SET_PAGE_WRITE_BITMAP] = handle_set_page_write_bitmap,
- };
- 
- static int handle_event_reply(struct kvm_vcpu *vcpu,
+ 	struct pid *pid;
 
