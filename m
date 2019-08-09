@@ -2,262 +2,837 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B1F5C31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:39:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2458BC433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:41:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B41C92171F
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:39:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=virtuozzo.com header.i=@virtuozzo.com header.b="DqRtl3j+"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B41C92171F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=virtuozzo.com
+	by mail.kernel.org (Postfix) with ESMTP id BC5AB20C01
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:41:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC5AB20C01
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5D4D46B0008; Fri,  9 Aug 2019 04:39:22 -0400 (EDT)
+	id 6966C6B000E; Fri,  9 Aug 2019 04:41:29 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5863C6B000D; Fri,  9 Aug 2019 04:39:22 -0400 (EDT)
+	id 61F276B0010; Fri,  9 Aug 2019 04:41:29 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 427E66B000E; Fri,  9 Aug 2019 04:39:22 -0400 (EDT)
+	id 49ABF6B0266; Fri,  9 Aug 2019 04:41:29 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id E259D6B0008
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 04:39:21 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id z2so892380ede.2
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 01:39:21 -0700 (PDT)
+Received: from mail-yb1-f200.google.com (mail-yb1-f200.google.com [209.85.219.200])
+	by kanga.kvack.org (Postfix) with ESMTP id 1CA366B000E
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 04:41:29 -0400 (EDT)
+Received: by mail-yb1-f200.google.com with SMTP id p84so12336854ybc.17
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 01:41:29 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:from:to:cc:subject:thread-topic
-         :thread-index:date:message-id:accept-language:content-language
-         :content-id:content-transfer-encoding:mime-version;
-        bh=jGFKczGLGY0IDl1wy/gVgXZBXb09Ufx5CxdWE6Y8koE=;
-        b=BGHHhjHYJSJAOBJjmnoY/MST21+014l8xjVg1nbzB+6kbVvRRtJNZNSwP3ytG2DdHC
-         cwmBOu1lZV9BYHECY6aMwxsx/w4eUmfqExdepeePsdQPAy0pyeLNUvHmkiePJKyAQCsG
-         IqPRnlSNkjMGeG1Uf3iPERiVYlsEzcgHtrnrtwnMHrT1lCym0ac3QaWZxBpiLV6m44co
-         T4NDw1w/CrjUI7tpVWkXx0seaD/wzORlYTwwd93SzS15ci8q6yUkE50eDH3C/UumX3mX
-         nA/cLwjyZTRRw743W/akYJyXi3f5OvduTAUagLjmi1HBUh+e3sBtMOYEVrTYwyjPspiE
-         L6tg==
-X-Gm-Message-State: APjAAAUgd0VykZ+K2wGbfBq1auyQuD0RbbanUFtntUAmJye2KQoutvxw
-	3q6nTv7zlwwpBMovOhPy5wmQ2B9uoAz+zoAv1RN+/Ii6mJGObaI9QgZNHsbhThC1M+kT0IEn+jr
-	jcCmDE+5jyo2BrIgofrzxsibpfR7h7r/Wy03TNDD7qKviFSzaIvwRlTMzZCJhV1f7yw==
-X-Received: by 2002:a50:ae8f:: with SMTP id e15mr20462787edd.74.1565339961379;
-        Fri, 09 Aug 2019 01:39:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxU0uW26jmgBuJ550wESf//KUlfvHflsjpdAL2aJJHB5SUpZvjzBD0KdUjkSonQ0fxEon7c
-X-Received: by 2002:a50:ae8f:: with SMTP id e15mr20462701edd.74.1565339960063;
-        Fri, 09 Aug 2019 01:39:20 -0700 (PDT)
-ARC-Seal: i=2; a=rsa-sha256; t=1565339960; cv=pass;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:in-reply-to:references:mime-version
+         :content-transfer-encoding:message-id;
+        bh=RFQxAh3utraF5wxoz0usex9oaA1fkhiIy4QmW3Im/M4=;
+        b=VeiXkLEv+caqeQrqEflgcn1+uZZEeFMHCpUF64OMinUYl5h2GW3YWtWrLMCYhSorG3
+         p5BoPP0MjTvmudhKc8Y5H+O4kk48pkj7+BiE4xgr6NcIqy/oT8OkSrcI773OWKJeQyHQ
+         OVhpzp1+Mqf6wp2RrbB4j7qe4VwKHwgKCc58Yna8GpW5XrMZe/ornaq4PefrCF9k8IF+
+         aWTrl5bQkgMS2NZRXajqq9lbXCn9Y/7Jbn21S5cEhIpsU21bUQ+CbWZTrzLSOW7fKbPz
+         mSqjvyQ7pLE4+/De/tZFO1Xot4oxtRAIpmWd8iaRuA6BAquz0a4BJxez/AMKVu1qvhrv
+         WeIQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bharata@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=bharata@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+X-Gm-Message-State: APjAAAX9yPBgdkD9PNWsbrYOeohfKXXGV+kYSW7urc2AQLjE5J2lcpAh
+	/O0637ulCzxz4EGR2pHIe4YSrfA8J2/tFDO0zYuvD/BL8wSjH7Dl96ux5cYm2wA6cLiLfYJ2fIL
+	TtErsyxBE7GAg07cdYttjbcyL0dfQRAAVogOiVJNLA7zPhcwFY7Mj80sZ9TUQbpUDJA==
+X-Received: by 2002:a81:b64e:: with SMTP id h14mr13446925ywk.431.1565340088747;
+        Fri, 09 Aug 2019 01:41:28 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzmCxFUHSmOAZloU7kdSA8ZpBT1HhiKQoMAEguBmr5IPktUrHwyUNktjEmLvcroclEQ4sqq
+X-Received: by 2002:a81:b64e:: with SMTP id h14mr13446868ywk.431.1565340086756;
+        Fri, 09 Aug 2019 01:41:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565340086; cv=none;
         d=google.com; s=arc-20160816;
-        b=tR2yL7Fe3ENrZDjIpHiu3soPucLSw2+gUd7bPrJ6Vu3BD2UkhP+5gXxoHgTXuDN7MG
-         SzCdeoAV7C7KtyHPBrkpTFAGD3TLplCHJLOqZlVo9zKv36aF53rFbk/1voW7biS+d/2U
-         2oc9NNZ8jV8YXGvGdJArZDNdwRWIAh4Qyi7aWq9teYgkFb05bpyt7ZeeaOPfUU0RHRXM
-         jRs872WA8Z/lOs6wqIH4dtD0FC3bdaHmclE2wsQPy2e2cTelGD6apkGBOYP5GbLkYanA
-         CSA1DZLcJVgi0kPmyaXDcca/3SC38A24k82dNKGEYd2nP7VQorsh8OyTNeNqRhHmN07/
-         Va4Q==
-ARC-Message-Signature: i=2; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:content-transfer-encoding:content-id:content-language
-         :accept-language:message-id:date:thread-index:thread-topic:subject
-         :cc:to:from:dkim-signature;
-        bh=jGFKczGLGY0IDl1wy/gVgXZBXb09Ufx5CxdWE6Y8koE=;
-        b=V11ieiBny42fIg1hHwVijbPE6IBP8ABfVdGFs+1MCnSm9IbbCQDpMK/I5qYtrP54h8
-         Q9gsUcMIhP+lAShq4LtyN4McHS1nZ4c2AMcaoi/N+i72tIXERRSewi/bSut5+aWmSdZg
-         ioQY7yAt7KxNLOisxZkD+3tfyR/ybnRvGJ04TpvGvzsGRb6fqbGMPalamz0A77DCcQ5x
-         uZl8gcd+Egtz/fQf++uOdVxrXjv8h051UdhLxjrRX31w7eSSqkiIk/KVDxhbMNNct/1Q
-         kOcZ3pLOPBR69KB3M01hNlYMAtCJFp2a6VtWj0H+mPXPEetNTbzj0GNZ+LM1fLHP5TgB
-         SE0Q==
-ARC-Authentication-Results: i=2; mx.google.com;
-       dkim=pass header.i=@virtuozzo.com header.s=selector1 header.b=DqRtl3j+;
-       arc=pass (i=1 spf=pass spfdomain=virtuozzo.com dkim=pass dkdomain=virtuozzo.com dmarc=pass fromdomain=virtuozzo.com);
-       spf=pass (google.com: domain of ptikhomirov@virtuozzo.com designates 40.107.6.99 as permitted sender) smtp.mailfrom=ptikhomirov@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-Received: from EUR04-DB3-obe.outbound.protection.outlook.com (mail-eopbgr60099.outbound.protection.outlook.com. [40.107.6.99])
-        by mx.google.com with ESMTPS id jp14si33319011ejb.398.2019.08.09.01.39.19
+        b=U1IXarZ/pGU9b2cGSBkvfECIK8g7c414qlaIvc61obspvYO4VoWMgt+0Z+68c6i57A
+         cdA6dfW6Pzu2ZqkYrXLjag7/voyOw7LXQl+DnuW8UmQs79hKN9e7siqxknE2diEc4dcI
+         +UheWAupB4FnyrG/+VpbxuglsRCvS8GIwwRHKm0VrA5Dm8Vi3Ju016cz1Nq0M2yaiPw/
+         dJPgZcsAuH0wSlj/7+KCjxGk/cRGht9Ach9juHQ2acgCxluOLKKDD/J+E/BEvVyeaY8+
+         wRY3XeQIxss20QJUcr/wYqCEFx1UPrhKSG0uqoKdFgmO/T2uLv9/YTsPxZ2O5L+L1ewf
+         rHSA==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=message-id:content-transfer-encoding:mime-version:references
+         :in-reply-to:date:subject:cc:to:from;
+        bh=RFQxAh3utraF5wxoz0usex9oaA1fkhiIy4QmW3Im/M4=;
+        b=cwgvAxUS3SMN6JzrPyx5pnLqfSpNo3AY6XCSyhpOO8u3ZNmv6uBjkR5uOfUTgNx5PL
+         K424nGVX9gZ+XRoLpJqrxyPD58ZtuyHCO0fIXRf+8Edb2bx7T9vdgJdT81RAzuuLmbD/
+         m7s9FaW+HD2Whjq1DuzOt73McIV381wOM/q9sfNXrHKuHq4xniL4uMETK+gBtXky3xuN
+         oLFvg9oXDw1rkRTeg4W+NlCbwz/XslL3nDK9R5eqf7+UiiyGX0lHh6dqqlzLwDa9riBP
+         Vm79Vs09OyuvG/wycKJdZ9U+Wts+h1GnMfTGxS25OGJcPgyoXS/S+xfqEoametjcMv3L
+         Ej7Q==
+ARC-Authentication-Results: i=1; mx.google.com;
+       spf=pass (google.com: domain of bharata@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=bharata@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
+        by mx.google.com with ESMTPS id k71si2739635ywa.291.2019.08.09.01.41.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 01:39:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ptikhomirov@virtuozzo.com designates 40.107.6.99 as permitted sender) client-ip=40.107.6.99;
+        Fri, 09 Aug 2019 01:41:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of bharata@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@virtuozzo.com header.s=selector1 header.b=DqRtl3j+;
-       arc=pass (i=1 spf=pass spfdomain=virtuozzo.com dkim=pass dkdomain=virtuozzo.com dmarc=pass fromdomain=virtuozzo.com);
-       spf=pass (google.com: domain of ptikhomirov@virtuozzo.com designates 40.107.6.99 as permitted sender) smtp.mailfrom=ptikhomirov@virtuozzo.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=virtuozzo.com
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=aLtg67X9fO+9jeDRABesnok959ztUvvA+jIYDPY+AC0vnJkaiL/OeakBMvr4qKg4/EXBQsrgbkdwoOt63Fc8hTQk7BB9R5fwbqS9+jkKl81kIzrhZ/ZtJmwIye8VcXhhE3C6TcIOnNXtOgfOCdhOxc5La4/LXiIrtTzjmf7S9KtiV7XQaXjHEskfuI6y2UfXYPjCFQAoWgQuOGCwEKunjwpFi3HUznRlo4XyOhyKtHO5ycVrCcsx3e1Mxtfg7udG6fhl6pLlR7lTW2OMZMKlXGKMIAKt7ojGygIkJPjocZPxL2OWJvL4+S8mlQxRA06Xjh+uT1knIpvSrvKlXh4i0g==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=jGFKczGLGY0IDl1wy/gVgXZBXb09Ufx5CxdWE6Y8koE=;
- b=HBaYfE9dphNXZOFSFkqHo0oEtq/kO4PbdY1+bPsJFCVvTi1ZWyU5HdPHUZKedsybnUgIfVgLd+iS5AblTwQHpvGKIgJelyiyuKuoXMtQ/r9oOuwS1oPGi/xsn8BMgESBuEhFDDZ72qkqN88todD7yExkxNLtDr+XSrkfT6QuvKIgmGjdg1Lqec25+tNGZYnlRxs8WA3aZ16ldnApw5RAJANdEjyxtHQHjMCoeGysySWb/EG4FZPxaXJxTJQYTp4qKNFWZSDcbgvZoNaSqXRO1EtXfYaN4w6FYy9frWrJAShNB6QAeeu5vZkEiX9wy+tnebmGAM6EoGNk5j9zakwPIQ==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=virtuozzo.com; dmarc=pass action=none
- header.from=virtuozzo.com; dkim=pass header.d=virtuozzo.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=virtuozzo.com;
- s=selector1;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=jGFKczGLGY0IDl1wy/gVgXZBXb09Ufx5CxdWE6Y8koE=;
- b=DqRtl3j+G53Dow1R3Ux2+pDmfaQlI90TFHDVwLhe4D83JxjplYkUEdu79eRj3Rhuv3Dr8u/oT9jLJFZG5G51oO4B4voUAQqbFGpJPWlbN3XlxAyUsjO5FyLDFFhIUaKNuV6aZap8+mwNrUgDlhejM1AEVSxpAKh7nUBRqTI/CvI=
-Received: from AM4PR08MB2788.eurprd08.prod.outlook.com (10.170.126.27) by
- AM4PR08MB2883.eurprd08.prod.outlook.com (10.171.189.30) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2157.14; Fri, 9 Aug 2019 08:39:18 +0000
-Received: from AM4PR08MB2788.eurprd08.prod.outlook.com
- ([fe80::c957:d45:7c68:8f0a]) by AM4PR08MB2788.eurprd08.prod.outlook.com
- ([fe80::c957:d45:7c68:8f0a%3]) with mapi id 15.20.2157.015; Fri, 9 Aug 2019
- 08:39:17 +0000
-From: Pavel Tikhomirov <ptikhomirov@virtuozzo.com>
-To: "linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-kernel@vger.kernel.org"
-	<linux-kernel@vger.kernel.org>
-CC: Christoph Hellwig <hch@lst.de>, Jens Axboe <axboe@kernel.dk>, Andrew
- Morton <akpm@linux-foundation.org>, Dennis Zhou <dennis@kernel.org>, Josef
- Bacik <josef@toxicpanda.com>, Tejun Heo <tj@kernel.org>, Huang Ying
-	<ying.huang@intel.com>, Oleg Nesterov <oleg@redhat.com>, Omar Sandoval
-	<osandov@fb.com>, Pavel Tikhomirov <ptikhomirov@virtuozzo.com>
-Subject: mm/swap: possible problem introduced when replacing REQ_NOIDLE with
- REQ_IDLE
-Thread-Topic: mm/swap: possible problem introduced when replacing REQ_NOIDLE
- with REQ_IDLE
-Thread-Index: AQHVTo3ukbTH214ZGEeZtMz4hCHI7Q==
-Date: Fri, 9 Aug 2019 08:39:17 +0000
-Message-ID: <d5faac47-8a8c-90ff-877d-b793b715ac4d@virtuozzo.com>
-Accept-Language: ru-RU, en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: HE1PR07CA0043.eurprd07.prod.outlook.com
- (2603:10a6:7:66::29) To AM4PR08MB2788.eurprd08.prod.outlook.com
- (2603:10a6:205:10::27)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=ptikhomirov@virtuozzo.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [185.231.240.5]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: e81ff02c-666d-44fc-9bf7-08d71ca51102
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:AM4PR08MB2883;
-x-ms-traffictypediagnostic: AM4PR08MB2883:
-x-ms-exchange-transport-forked: True
-x-microsoft-antispam-prvs:
- <AM4PR08MB2883CFDDD3682256491BB7CEB7D60@AM4PR08MB2883.eurprd08.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:949;
-x-forefront-prvs: 01244308DF
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10019020)(346002)(396003)(136003)(376002)(39850400004)(366004)(51874003)(189003)(199004)(6436002)(186003)(26005)(99286004)(4326008)(54906003)(107886003)(6512007)(386003)(110136005)(6506007)(102836004)(71190400001)(36756003)(8936002)(53936002)(81166006)(71200400001)(81156014)(66066001)(31686004)(2616005)(486006)(316002)(256004)(476003)(52116002)(6486002)(2906002)(66556008)(66946007)(66476007)(5660300002)(478600001)(66446008)(6116002)(7736002)(86362001)(3846002)(31696002)(25786009)(8676002)(305945005)(7416002)(64756008)(2501003)(14454004);DIR:OUT;SFP:1102;SCL:1;SRVR:AM4PR08MB2883;H:AM4PR08MB2788.eurprd08.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: virtuozzo.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- tRPRHqfxo9BPUknZTLzDMeE1VYN/ZexcuyHXFq4ThJ8vodHiAjZGgKak4zJQ6YHatOj0eXKIP9z2rBpCZWEJgTO2jqodyPJOHWR+V+DxiKt5eU4J2hbT1RW+WA8YfBVJx4qBHkA6uTqkQN/ldjxbH+mXJo54vB0xgJm3hWTvlwgtTIPydp34nTVMBAflj115eFcAF5iA2K6Ubg5cylnNQvzk/W+cHWvUH4bjMqcsA15vme1EJpR+e+TtyzkgtyFRexzefjD+NKbqMdn4iFcjE7Lzpo5V2GfOhtTwxEj6FmOQHmGQhNxUSMlzocL3nN/VjM1aDOr+ZaCEKM/zDx2YIgv5sXxetcRtqbQLvL4bhmB7Dl1pTxZlfB/WBNU+lKNjftQT+lF/UCZFtt9cW1zW+o/dd0SKXshrGRuQHrKj9ig=
-Content-Type: text/plain; charset="utf-8"
-Content-ID: <767ABA55F07BCC4B946088BB3D58F95B@eurprd08.prod.outlook.com>
-Content-Transfer-Encoding: base64
+       spf=pass (google.com: domain of bharata@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=bharata@linux.ibm.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
+Received: from pps.filterd (m0098421.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x798bds6146035
+	for <linux-mm@kvack.org>; Fri, 9 Aug 2019 04:41:26 -0400
+Received: from e06smtp05.uk.ibm.com (e06smtp05.uk.ibm.com [195.75.94.101])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2u93qnvge6-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Fri, 09 Aug 2019 04:41:25 -0400
+Received: from localhost
+	by e06smtp05.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
+	Fri, 9 Aug 2019 09:41:23 +0100
+Received: from b06cxnps3075.portsmouth.uk.ibm.com (9.149.109.195)
+	by e06smtp05.uk.ibm.com (192.168.101.135) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Fri, 9 Aug 2019 09:41:20 +0100
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (b06wcsmtp001.portsmouth.uk.ibm.com [9.149.105.160])
+	by b06cxnps3075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x798fJZO61800594
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Fri, 9 Aug 2019 08:41:19 GMT
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 18FDDA405C;
+	Fri,  9 Aug 2019 08:41:19 +0000 (GMT)
+Received: from b06wcsmtp001.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id F3CCBA4054;
+	Fri,  9 Aug 2019 08:41:16 +0000 (GMT)
+Received: from bharata.ibmuc.com (unknown [9.85.95.61])
+	by b06wcsmtp001.portsmouth.uk.ibm.com (Postfix) with ESMTP;
+	Fri,  9 Aug 2019 08:41:16 +0000 (GMT)
+From: Bharata B Rao <bharata@linux.ibm.com>
+To: linuxppc-dev@lists.ozlabs.org
+Cc: kvm-ppc@vger.kernel.org, linux-mm@kvack.org, paulus@au1.ibm.com,
+        aneesh.kumar@linux.vnet.ibm.com, jglisse@redhat.com,
+        linuxram@us.ibm.com, sukadev@linux.vnet.ibm.com,
+        cclaudio@linux.ibm.com, hch@lst.de,
+        Bharata B Rao <bharata@linux.ibm.com>
+Subject: [PATCH v6 1/7] kvmppc: Driver to manage pages of secure guest
+Date: Fri,  9 Aug 2019 14:11:02 +0530
+X-Mailer: git-send-email 2.21.0
+In-Reply-To: <20190809084108.30343-1-bharata@linux.ibm.com>
+References: <20190809084108.30343-1-bharata@linux.ibm.com>
 MIME-Version: 1.0
-X-OriginatorOrg: virtuozzo.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: e81ff02c-666d-44fc-9bf7-08d71ca51102
-X-MS-Exchange-CrossTenant-originalarrivaltime: 09 Aug 2019 08:39:17.8618
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 0bc7f26d-0264-416e-a6fc-8352af79c58f
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: 8rVDEv/wprmCjHlJW9zMhUxwzhmRXw07d1V87bgDghxdlPH+y03lJxgepPd/gKl2sONNAosy6+GK7jK5T6+0lnRuMHikPUlJfBPOevzigQQ=
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: AM4PR08MB2883
+Content-Transfer-Encoding: 8bit
+X-TM-AS-GCONF: 00
+x-cbid: 19080908-0020-0000-0000-0000035DA569
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19080908-0021-0000-0000-000021B2ABF3
+Message-Id: <20190809084108.30343-2-bharata@linux.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-09_02:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=4 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908090089
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-SGksIGFsbC4NCg0KVGhlbiBwb3J0aW5nIHBhdGNoZXMgZnJvbSBtYWluc3RyZWFtIEkndmUgZm91
-bmQgc29tZSBzdHJhbmdlIGNvZGU6DQoNCiA+IGNvbW1pdCBhMmI4MDk2NzJlZTZmY2I0ZDU3NTZl
-YTgxNTcyNWIzZGJhZWE2NTRlDQogPiBBdXRob3I6IENocmlzdG9waCBIZWxsd2lnIDxoY2hAbHN0
-LmRlPg0KID4gRGF0ZTogICBUdWUgTm92IDEgMDc6NDA6MDkgMjAxNiAtMDYwMA0KID4NCiA+ICAg
-ICBibG9jazogcmVwbGFjZSBSRVFfTk9JRExFIHdpdGggUkVRX0lETEUNCiA+DQogPiAgICAgTm9p
-ZGxlIHNob3VsZCBiZSB0aGUgZGVmYXVsdCBmb3Igd3JpdGVzIGFzIHNlZW4gYnkgYWxsIHRoZSBj
-b21wb3VuZHMNCiA+ICAgICBkZWZpbml0aW9ucyBpbiBmcy5oIHVzaW5nIGl0LiAgSW4gZmFjdCBv
-bmx5IGRpcmVjdCBJL08gcmVhbGx5IHNob3VsZA0KID4gICAgIGJlIHVzaW5nIE5PRElMRSwgc28g
-dHVybiB0aGUgd2hvbGUgZmxhZyBhcm91bmQgdG8gZ2V0IHRoZSBkZWZhdWx0cw0KID4gICAgIHJp
-Z2h0LCB3aGljaCB3aWxsIG1ha2Ugb3VyIGxpZmUgbXVjaCBlYXNpZXIgZXNwZWNpYWxseSBvbmNl
-cyB0aGUNCiA+ICAgICBXUklURV8qIGRlZmluZXMgZ28gYXdheS4NCiA+DQogPiAgICAgVGhpcyBh
-c3N1bWVzIGFsbCB0aGUgZXhpc3RpbmcgInJhdyIgdXNlcnMgb2YgUkVRX1NZTkMgZm9yIHdyaXRl
-cw0KID4gICAgIHdhbnQgbm9pZGxlIGJlaGF2aW9yLCB3aGljaCBzZWVtcyB0byBiZSBzcG90IG9u
-IGZyb20gYSBxdWljayBhdWRpdC4NCiA+DQogPiAgICAgU2lnbmVkLW9mZi1ieTogQ2hyaXN0b3Bo
-IEhlbGx3aWcgPGhjaEBsc3QuZGU+DQogPiAgICAgU2lnbmVkLW9mZi1ieTogSmVucyBBeGJvZSA8
-YXhib2VAZmIuY29tPg0KID4NCiA+IGRpZmYgLS1naXQgYS9pbmNsdWRlL2xpbnV4L2ZzLmggYi9p
-bmNsdWRlL2xpbnV4L2ZzLmgNCiA+IGluZGV4IGNjZWRjY2IyOGVjOC4uNDZhNzQyMDk5MTdmIDEw
-MDY0NA0KID4gLS0tIGEvaW5jbHVkZS9saW51eC9mcy5oDQogPiArKysgYi9pbmNsdWRlL2xpbnV4
-L2ZzLmgNCiA+IEBAIC0xOTcsMTEgKzE5NywxMSBAQCB0eXBlZGVmIGludCAoZGlvX2lvZG9uZV90
-KShzdHJ1Y3Qga2lvY2IgKmlvY2IsIA0KbG9mZl90IG9mZnNldCwNCiA+ICAjZGVmaW5lIFdSSVRF
-ICAgICAgICAgICAgICAgICAgUkVRX09QX1dSSVRFDQogPg0KID4gICNkZWZpbmUgUkVBRF9TWU5D
-ICAgICAgICAgICAgICAwDQogPiAtI2RlZmluZSBXUklURV9TWU5DICAgICAgICAgICAgIChSRVFf
-U1lOQyB8IFJFUV9OT0lETEUpDQogPiAtI2RlZmluZSBXUklURV9PRElSRUNUICAgICAgICAgIFJF
-UV9TWU5DDQogPiAtI2RlZmluZSBXUklURV9GTFVTSCAgICAgICAgICAgIChSRVFfTk9JRExFIHwg
-UkVRX1BSRUZMVVNIKQ0KID4gLSNkZWZpbmUgV1JJVEVfRlVBICAgICAgICAgICAgICAoUkVRX05P
-SURMRSB8IFJFUV9GVUEpDQogPiAtI2RlZmluZSBXUklURV9GTFVTSF9GVUEgICAgICAgICAgICAg
-ICAgKFJFUV9OT0lETEUgfCBSRVFfUFJFRkxVU0ggfCANClJFUV9GVUEpDQogPiArI2RlZmluZSBX
-UklURV9TWU5DICAgICAgICAgICAgIFJFUV9TWU5DDQogPiArI2RlZmluZSBXUklURV9PRElSRUNU
-ICAgICAgICAgIChSRVFfU1lOQyB8IFJFUV9JRExFKQ0KID4gKyNkZWZpbmUgV1JJVEVfRkxVU0gg
-ICAgICAgICAgICBSRVFfUFJFRkxVU0gNCiA+ICsjZGVmaW5lIFdSSVRFX0ZVQSAgICAgICAgICAg
-ICAgUkVRX0ZVQQ0KID4gKyNkZWZpbmUgV1JJVEVfRkxVU0hfRlVBICAgICAgICAgICAgICAgIChS
-RVFfUFJFRkxVU0ggfCBSRVFfRlVBKQ0KID4NCiA+ICAvKg0KID4gICAqIEF0dHJpYnV0ZSBmbGFn
-cy4gIFRoZXNlIHNob3VsZCBiZSBvci1lZCB0b2dldGhlciB0byBmaWd1cmUgb3V0IHdoYXQNCg0K
-VGhlIGFib3ZlIGNvbW1pdCBjaGFuZ2VzIHRoZSBtZWFuaW5nIG9mIHRoZSBSRVFfU1lOQyBmbGFn
-LCBiZWZvcmUgdGhlIA0KcGF0Y2ggaXQgd2FzIGVxdWFsIHRvIFdSSVRFX09ESVJFQ1QgYW5kIGFm
-dGVyIHRoZSBwYXRjaCBpdCBpcyBlcXVhbCB0byANCldSSVRFX1NZTkMuIEFuZCB0aHVzIEkgdGhp
-bmsgaXQgYmVjYW1lIHRyZWF0ZWQgZGlmZmVyZW50bHkgKEkgc2VlIG9ubHkgDQpvbmUgcGxhY2Ug
-bGVmdCBpbiB3YnRfc2hvdWxkX3Rocm90dGxlLikuDQoNCkJ1dCBpbiBfX3N3YXBfd3JpdGVwYWdl
-KCkgYm90aCBiZWZvcmUgYW5kIGFmdGVyIHRoZSBtZW50aW9uZWQgcGF0Y2ggd2UgDQpzdGlsbCBw
-YXNzIGEgc2luZ2xlIFJFUV9TWU5DIHdpdGhvdXQgYW55IFJFUV9JRExFL1JFUV9VTklETEU6DQoN
-CiA+IFtzbm9yY2hAc25vcmNoIGxpbnV4XSQgZ2l0IGJsYW1lIA0KYTJiODA5NjcyZWU2ZmNiNGQ1
-NzU2ZWE4MTU3MjViM2RiYWVhNjU0ZV4gbW0vcGFnZV9pby5jIHwgZ3JlcCAtYTUgUkVRX1NZTkMN
-CiA+IF4xZGExNzdlNGMzZjQgKExpbnVzIFRvcnZhbGRzICAgICAgICAyMDA1LTA0LTE2IDE1OjIw
-OjM2IC0wNzAwIDMxOSkgDQogICAgICAgICB1bmxvY2tfcGFnZShwYWdlKTsNCiA+IF4xZGExNzdl
-NGMzZjQgKExpbnVzIFRvcnZhbGRzICAgICAgICAyMDA1LTA0LTE2IDE1OjIwOjM2IC0wNzAwIDMy
-MCkgDQogICAgICAgICByZXQgPSAtRU5PTUVNOw0KID4gXjFkYTE3N2U0YzNmNCAoTGludXMgVG9y
-dmFsZHMgICAgICAgIDIwMDUtMDQtMTYgMTU6MjA6MzYgLTA3MDAgMzIxKSANCiAgICAgICAgIGdv
-dG8gb3V0Ow0KID4gXjFkYTE3N2U0YzNmNCAoTGludXMgVG9ydmFsZHMgICAgICAgIDIwMDUtMDQt
-MTYgMTU6MjA6MzYgLTA3MDAgMzIyKSAgIH0NCiA+IF4xZGExNzdlNGMzZjQgKExpbnVzIFRvcnZh
-bGRzICAgICAgICAyMDA1LTA0LTE2IDE1OjIwOjM2IC0wNzAwIDMyMykgDQppZiAod2JjLT5zeW5j
-X21vZGUgPT0gV0JfU1lOQ19BTEwpDQogPiBiYTEzZTgzZWMzMzRjIChKZW5zIEF4Ym9lICAgICAg
-ICAgICAgMjAxNi0wOC0wMSAwOTozODo0NCAtMDYwMCAzMjQpIA0KICAgICAgICAgYmlvX3NldF9v
-cF9hdHRycyhiaW8sIFJFUV9PUF9XUklURSwgUkVRX1NZTkMpOw0KID4gYmExM2U4M2VjMzM0YyAo
-SmVucyBBeGJvZSAgICAgICAgICAgIDIwMTYtMDgtMDEgMDk6Mzg6NDQgLTA2MDAgMzI1KSANCmVs
-c2UNCiA+IGJhMTNlODNlYzMzNGMgKEplbnMgQXhib2UgICAgICAgICAgICAyMDE2LTA4LTAxIDA5
-OjM4OjQ0IC0wNjAwIDMyNikgDQogICAgICAgICBiaW9fc2V0X29wX2F0dHJzKGJpbywgUkVRX09Q
-X1dSSVRFLCAwKTsNCiA+IGY4ODkxZTVlMWY5M2EgKENocmlzdG9waCBMYW1ldGVyICAgICAyMDA2
-LTA2LTMwIDAxOjU1OjQ1IC0wNzAwIDMyNykgDQpjb3VudF92bV9ldmVudChQU1dQT1VUKTsNCiA+
-IF4xZGExNzdlNGMzZjQgKExpbnVzIFRvcnZhbGRzICAgICAgICAyMDA1LTA0LTE2IDE1OjIwOjM2
-IC0wNzAwIDMyOCkgDQpzZXRfcGFnZV93cml0ZWJhY2socGFnZSk7DQogPiBeMWRhMTc3ZTRjM2Y0
-IChMaW51cyBUb3J2YWxkcyAgICAgICAgMjAwNS0wNC0xNiAxNToyMDozNiAtMDcwMCAzMjkpIA0K
-dW5sb2NrX3BhZ2UocGFnZSk7DQogPiBbc25vcmNoQHNub3JjaCBsaW51eF0kIGdpdCBibGFtZSAN
-CmEyYjgwOTY3MmVlNmZjYjRkNTc1NmVhODE1NzI1YjNkYmFlYTY1NGUgbW0vcGFnZV9pby5jIHwg
-Z3JlcCAtYTUgUkVRX1NZTkMNCiA+IF4xZGExNzdlNGMzZjQgKExpbnVzIFRvcnZhbGRzICAgICAg
-ICAyMDA1LTA0LTE2IDE1OjIwOjM2IC0wNzAwIDMxOSkgDQogICAgICAgICB1bmxvY2tfcGFnZShw
-YWdlKTsNCiA+IF4xZGExNzdlNGMzZjQgKExpbnVzIFRvcnZhbGRzICAgICAgICAyMDA1LTA0LTE2
-IDE1OjIwOjM2IC0wNzAwIDMyMCkgDQogICAgICAgICByZXQgPSAtRU5PTUVNOw0KID4gXjFkYTE3
-N2U0YzNmNCAoTGludXMgVG9ydmFsZHMgICAgICAgIDIwMDUtMDQtMTYgMTU6MjA6MzYgLTA3MDAg
-MzIxKSANCiAgICAgICAgIGdvdG8gb3V0Ow0KID4gXjFkYTE3N2U0YzNmNCAoTGludXMgVG9ydmFs
-ZHMgICAgICAgIDIwMDUtMDQtMTYgMTU6MjA6MzYgLTA3MDAgMzIyKSAgIH0NCiA+IF4xZGExNzdl
-NGMzZjQgKExpbnVzIFRvcnZhbGRzICAgICAgICAyMDA1LTA0LTE2IDE1OjIwOjM2IC0wNzAwIDMy
-MykgDQppZiAod2JjLT5zeW5jX21vZGUgPT0gV0JfU1lOQ19BTEwpDQogPiBiYTEzZTgzZWMzMzRj
-IChKZW5zIEF4Ym9lICAgICAgICAgICAgMjAxNi0wOC0wMSAwOTozODo0NCAtMDYwMCAzMjQpIA0K
-ICAgICAgICAgYmlvX3NldF9vcF9hdHRycyhiaW8sIFJFUV9PUF9XUklURSwgUkVRX1NZTkMpOw0K
-ID4gYmExM2U4M2VjMzM0YyAoSmVucyBBeGJvZSAgICAgICAgICAgIDIwMTYtMDgtMDEgMDk6Mzg6
-NDQgLTA2MDAgMzI1KSANCmVsc2UNCiA+IGJhMTNlODNlYzMzNGMgKEplbnMgQXhib2UgICAgICAg
-ICAgICAyMDE2LTA4LTAxIDA5OjM4OjQ0IC0wNjAwIDMyNikgDQogICAgICAgICBiaW9fc2V0X29w
-X2F0dHJzKGJpbywgUkVRX09QX1dSSVRFLCAwKTsNCiA+IGY4ODkxZTVlMWY5M2EgKENocmlzdG9w
-aCBMYW1ldGVyICAgICAyMDA2LTA2LTMwIDAxOjU1OjQ1IC0wNzAwIDMyNykgDQpjb3VudF92bV9l
-dmVudChQU1dQT1VUKTsNCiA+IF4xZGExNzdlNGMzZjQgKExpbnVzIFRvcnZhbGRzICAgICAgICAy
-MDA1LTA0LTE2IDE1OjIwOjM2IC0wNzAwIDMyOCkgDQpzZXRfcGFnZV93cml0ZWJhY2socGFnZSk7
-DQogPiBeMWRhMTc3ZTRjM2Y0IChMaW51cyBUb3J2YWxkcyAgICAgICAgMjAwNS0wNC0xNiAxNToy
-MDozNiAtMDcwMCAzMjkpIA0KdW5sb2NrX3BhZ2UocGFnZSk7DQoNCkl0IGxvb2tzIGxpa2Ugd2Un
-dmUgY2hhbmdlZCB0aGUgd2F5IGhvdyB3ZSBoYW5kbGUgc3dhcCBwYWdlIHdyaXRlcyBmcm9tIA0K
-Im9kaXJlY3QiIHdheSB0byAicmVndWxhciIgc3luYyB3cml0ZSB3YXksIHRoZXNlIGNhbiBiZSB3
-cm9uZy4gVGhpcyBtYXkgDQphbHNvIGFmZmVjdCBkZXByZWNhdGVkIGNmcSBpby1zY2hlZHVsZXIg
-b24gb2xkZXIga2VybmVscy4NCg0KVGhhbmtzIGluIGFkdmFuY2UgZm9yIGFueSBhZHZpY2Ugb24g
-d2hhdCB0byBkbyB3aXRoIHRoZXNlLCBtYXkgYmUgSSBtaXNzIA0Kc29tZXRoaW5nLg0KDQotLSAN
-CkJlc3QgcmVnYXJkcywgVGlraG9taXJvdiBQYXZlbA0KU29mdHdhcmUgRGV2ZWxvcGVyLCBWaXJ0
-dW96em8uDQo=
+KVMPPC driver to manage page transitions of secure guest
+via H_SVM_PAGE_IN and H_SVM_PAGE_OUT hcalls.
+
+H_SVM_PAGE_IN: Move the content of a normal page to secure page
+H_SVM_PAGE_OUT: Move the content of a secure page to normal page
+
+Private ZONE_DEVICE memory equal to the amount of secure memory
+available in the platform for running secure guests is created
+via a char device. Whenever a page belonging to the guest becomes
+secure, a page from this private device memory is used to
+represent and track that secure page on the HV side. The movement
+of pages between normal and secure memory is done via
+migrate_vma_pages() using UV_PAGE_IN and UV_PAGE_OUT ucalls.
+
+Signed-off-by: Bharata B Rao <bharata@linux.ibm.com>
+---
+ arch/powerpc/include/asm/hvcall.h          |   4 +
+ arch/powerpc/include/asm/kvm_book3s_devm.h |  29 ++
+ arch/powerpc/include/asm/kvm_host.h        |  12 +
+ arch/powerpc/include/asm/ultravisor-api.h  |   2 +
+ arch/powerpc/include/asm/ultravisor.h      |  14 +
+ arch/powerpc/kvm/Makefile                  |   3 +
+ arch/powerpc/kvm/book3s_hv.c               |  19 +
+ arch/powerpc/kvm/book3s_hv_devm.c          | 492 +++++++++++++++++++++
+ 8 files changed, 575 insertions(+)
+ create mode 100644 arch/powerpc/include/asm/kvm_book3s_devm.h
+ create mode 100644 arch/powerpc/kvm/book3s_hv_devm.c
+
+diff --git a/arch/powerpc/include/asm/hvcall.h b/arch/powerpc/include/asm/hvcall.h
+index 463c63a9fcf1..2f6b952deb0f 100644
+--- a/arch/powerpc/include/asm/hvcall.h
++++ b/arch/powerpc/include/asm/hvcall.h
+@@ -337,6 +337,10 @@
+ #define H_TLB_INVALIDATE	0xF808
+ #define H_COPY_TOFROM_GUEST	0xF80C
+ 
++/* Platform-specific hcalls used by the Ultravisor */
++#define H_SVM_PAGE_IN		0xEF00
++#define H_SVM_PAGE_OUT		0xEF04
++
+ /* Values for 2nd argument to H_SET_MODE */
+ #define H_SET_MODE_RESOURCE_SET_CIABR		1
+ #define H_SET_MODE_RESOURCE_SET_DAWR		2
+diff --git a/arch/powerpc/include/asm/kvm_book3s_devm.h b/arch/powerpc/include/asm/kvm_book3s_devm.h
+new file mode 100644
+index 000000000000..21f3de5f2acb
+--- /dev/null
++++ b/arch/powerpc/include/asm/kvm_book3s_devm.h
+@@ -0,0 +1,29 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef __POWERPC_KVM_PPC_HMM_H__
++#define __POWERPC_KVM_PPC_HMM_H__
++
++#ifdef CONFIG_PPC_UV
++extern unsigned long kvmppc_h_svm_page_in(struct kvm *kvm,
++					  unsigned long gra,
++					  unsigned long flags,
++					  unsigned long page_shift);
++extern unsigned long kvmppc_h_svm_page_out(struct kvm *kvm,
++					  unsigned long gra,
++					  unsigned long flags,
++					  unsigned long page_shift);
++#else
++static inline unsigned long
++kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gra,
++		     unsigned long flags, unsigned long page_shift)
++{
++	return H_UNSUPPORTED;
++}
++
++static inline unsigned long
++kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gra,
++		      unsigned long flags, unsigned long page_shift)
++{
++	return H_UNSUPPORTED;
++}
++#endif /* CONFIG_PPC_UV */
++#endif /* __POWERPC_KVM_PPC_HMM_H__ */
+diff --git a/arch/powerpc/include/asm/kvm_host.h b/arch/powerpc/include/asm/kvm_host.h
+index 4bb552d639b8..86bbe607ad7e 100644
+--- a/arch/powerpc/include/asm/kvm_host.h
++++ b/arch/powerpc/include/asm/kvm_host.h
+@@ -849,4 +849,16 @@ static inline void kvm_arch_vcpu_blocking(struct kvm_vcpu *vcpu) {}
+ static inline void kvm_arch_vcpu_unblocking(struct kvm_vcpu *vcpu) {}
+ static inline void kvm_arch_vcpu_block_finish(struct kvm_vcpu *vcpu) {}
+ 
++#ifdef CONFIG_PPC_UV
++extern int kvmppc_devm_init(void);
++extern void kvmppc_devm_free(void);
++#else
++static inline int kvmppc_devm_init(void)
++{
++	return 0;
++}
++
++static inline void kvmppc_devm_free(void) {}
++#endif /* CONFIG_PPC_UV */
++
+ #endif /* __POWERPC_KVM_HOST_H__ */
+diff --git a/arch/powerpc/include/asm/ultravisor-api.h b/arch/powerpc/include/asm/ultravisor-api.h
+index 6a0f9c74f959..1cd1f595fd81 100644
+--- a/arch/powerpc/include/asm/ultravisor-api.h
++++ b/arch/powerpc/include/asm/ultravisor-api.h
+@@ -25,5 +25,7 @@
+ /* opcodes */
+ #define UV_WRITE_PATE			0xF104
+ #define UV_RETURN			0xF11C
++#define UV_PAGE_IN			0xF128
++#define UV_PAGE_OUT			0xF12C
+ 
+ #endif /* _ASM_POWERPC_ULTRAVISOR_API_H */
+diff --git a/arch/powerpc/include/asm/ultravisor.h b/arch/powerpc/include/asm/ultravisor.h
+index 6fe1f365dec8..d668a59e099b 100644
+--- a/arch/powerpc/include/asm/ultravisor.h
++++ b/arch/powerpc/include/asm/ultravisor.h
+@@ -19,4 +19,18 @@ static inline int uv_register_pate(u64 lpid, u64 dw0, u64 dw1)
+ 	return ucall_norets(UV_WRITE_PATE, lpid, dw0, dw1);
+ }
+ 
++static inline int uv_page_in(u64 lpid, u64 src_ra, u64 dst_gpa, u64 flags,
++			     u64 page_shift)
++{
++	return ucall_norets(UV_PAGE_IN, lpid, src_ra, dst_gpa, flags,
++			    page_shift);
++}
++
++static inline int uv_page_out(u64 lpid, u64 dst_ra, u64 src_gpa, u64 flags,
++			      u64 page_shift)
++{
++	return ucall_norets(UV_PAGE_OUT, lpid, dst_ra, src_gpa, flags,
++			    page_shift);
++}
++
+ #endif	/* _ASM_POWERPC_ULTRAVISOR_H */
+diff --git a/arch/powerpc/kvm/Makefile b/arch/powerpc/kvm/Makefile
+index 4c67cc79de7c..16b40590e67c 100644
+--- a/arch/powerpc/kvm/Makefile
++++ b/arch/powerpc/kvm/Makefile
+@@ -71,6 +71,9 @@ kvm-hv-y += \
+ 	book3s_64_mmu_radix.o \
+ 	book3s_hv_nested.o
+ 
++kvm-hv-$(CONFIG_PPC_UV) += \
++	book3s_hv_devm.o
++
+ kvm-hv-$(CONFIG_PPC_TRANSACTIONAL_MEM) += \
+ 	book3s_hv_tm.o
+ 
+diff --git a/arch/powerpc/kvm/book3s_hv.c b/arch/powerpc/kvm/book3s_hv.c
+index ec1804f822af..00b43ee8b693 100644
+--- a/arch/powerpc/kvm/book3s_hv.c
++++ b/arch/powerpc/kvm/book3s_hv.c
+@@ -72,6 +72,8 @@
+ #include <asm/xics.h>
+ #include <asm/xive.h>
+ #include <asm/hw_breakpoint.h>
++#include <asm/kvm_host.h>
++#include <asm/kvm_book3s_devm.h>
+ 
+ #include "book3s.h"
+ 
+@@ -1075,6 +1077,18 @@ int kvmppc_pseries_do_hcall(struct kvm_vcpu *vcpu)
+ 					 kvmppc_get_gpr(vcpu, 5),
+ 					 kvmppc_get_gpr(vcpu, 6));
+ 		break;
++	case H_SVM_PAGE_IN:
++		ret = kvmppc_h_svm_page_in(vcpu->kvm,
++					   kvmppc_get_gpr(vcpu, 4),
++					   kvmppc_get_gpr(vcpu, 5),
++					   kvmppc_get_gpr(vcpu, 6));
++		break;
++	case H_SVM_PAGE_OUT:
++		ret = kvmppc_h_svm_page_out(vcpu->kvm,
++					    kvmppc_get_gpr(vcpu, 4),
++					    kvmppc_get_gpr(vcpu, 5),
++					    kvmppc_get_gpr(vcpu, 6));
++		break;
+ 	default:
+ 		return RESUME_HOST;
+ 	}
+@@ -5510,11 +5524,16 @@ static int kvmppc_book3s_init_hv(void)
+ 			no_mixing_hpt_and_radix = true;
+ 	}
+ 
++	r = kvmppc_devm_init();
++	if (r < 0)
++		pr_err("KVM-HV: kvmppc_devm_init failed %d\n", r);
++
+ 	return r;
+ }
+ 
+ static void kvmppc_book3s_exit_hv(void)
+ {
++	kvmppc_devm_free();
+ 	kvmppc_free_host_rm_ops();
+ 	if (kvmppc_radix_possible())
+ 		kvmppc_radix_exit();
+diff --git a/arch/powerpc/kvm/book3s_hv_devm.c b/arch/powerpc/kvm/book3s_hv_devm.c
+new file mode 100644
+index 000000000000..2e6c077bd22e
+--- /dev/null
++++ b/arch/powerpc/kvm/book3s_hv_devm.c
+@@ -0,0 +1,492 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * Driver to manage page migration between normal and secure
++ * memory.
++ *
++ * Copyright 2018 Bharata B Rao, IBM Corp. <bharata@linux.ibm.com>
++ */
++
++/*
++ * A pseries guest can be run as a secure guest on Ultravisor-enabled
++ * POWER platforms. On such platforms, this driver will be used to manage
++ * the movement of guest pages between the normal memory managed by
++ * hypervisor (HV) and secure memory managed by Ultravisor (UV).
++ *
++ * The page-in or page-out requests from UV will come to HV as hcalls and
++ * HV will call back into UV via uvcalls to satisfy these page requests.
++ *
++ * Private ZONE_DEVICE memory equal to the amount of secure memory
++ * available in the platform for running secure guests is created
++ * via a char device. Whenever a page belonging to the guest becomes
++ * secure, a page from this private device memory is used to
++ * represent and track that secure page on the HV side.
++ *
++ * For each page that gets moved into secure memory, a device PFN is used
++ * on the HV side and migration PTE corresponding to that PFN would be
++ * populated in the QEMU page tables. Device PFNs are stored in the rmap
++ * array. Whenever a guest page becomes secure, device PFN allocated for
++ * the same will be populated in the corresponding slot in the rmap
++ * array. The overloading of rmap array's usage which otherwise is
++ * used primarily by HPT guests means that this feature (secure
++ * guest on PEF platforms) is available only for Radix MMU guests.
++ * Also the same rmap array is used differently by nested HPT guests.
++ * Hence a secure guest can't have nested guests.
++ */
++
++#include <linux/pagemap.h>
++#include <linux/migrate.h>
++#include <linux/kvm_host.h>
++#include <linux/sched/mm.h>
++#include <asm/ultravisor.h>
++
++struct kvmppc_devm_device {
++	struct device dev;
++	dev_t devt;
++	struct dev_pagemap pagemap;
++	unsigned long pfn_first, pfn_last;
++	unsigned long *pfn_bitmap;
++};
++
++
++static struct kvmppc_devm_device kvmppc_devm;
++spinlock_t kvmppc_devm_lock;
++
++struct kvmppc_devm_page_pvt {
++	unsigned long *rmap;
++	unsigned int lpid;
++	unsigned long gpa;
++};
++
++struct kvmppc_devm_copy_args {
++	unsigned long *rmap;
++	unsigned int lpid;
++	unsigned long gpa;
++	unsigned long page_shift;
++};
++
++/*
++ * Bits 60:56 in the rmap entry will be used to identify the
++ * different uses/functions of rmap. This definition with move
++ * to a proper header when all other functions are defined.
++ */
++#define KVMPPC_PFN_DEVM		(0x2ULL << 56)
++
++static inline bool kvmppc_is_devm_pfn(unsigned long pfn)
++{
++	return !!(pfn & KVMPPC_PFN_DEVM);
++}
++
++/*
++ * Get a free device PFN from the pool
++ *
++ * Called when a normal page is moved to secure memory (UV_PAGE_IN). Device
++ * PFN will be used to keep track of the secure page on HV side.
++ *
++ * @rmap here is the slot in the rmap array that corresponds to @gpa.
++ * Thus a non-zero rmap entry indicates that the corresonding guest
++ * page has become secure, and is not mapped on the HV side.
++ *
++ * NOTE: In this and subsequent functions, we pass around and access
++ * individual elements of kvm_memory_slot->arch.rmap[] without any
++ * protection. Should we use lock_rmap() here?
++ */
++static struct page *kvmppc_devm_get_page(unsigned long *rmap,
++					unsigned long gpa, unsigned int lpid)
++{
++	struct page *dpage = NULL;
++	unsigned long bit, devm_pfn;
++	unsigned long nr_pfns = kvmppc_devm.pfn_last -
++				kvmppc_devm.pfn_first;
++	unsigned long flags;
++	struct kvmppc_devm_page_pvt *pvt;
++
++	if (kvmppc_is_devm_pfn(*rmap))
++		return NULL;
++
++	spin_lock_irqsave(&kvmppc_devm_lock, flags);
++	bit = find_first_zero_bit(kvmppc_devm.pfn_bitmap, nr_pfns);
++	if (bit >= nr_pfns)
++		goto out;
++
++	bitmap_set(kvmppc_devm.pfn_bitmap, bit, 1);
++	devm_pfn = bit + kvmppc_devm.pfn_first;
++	dpage = pfn_to_page(devm_pfn);
++
++	if (!trylock_page(dpage))
++		goto out_clear;
++
++	*rmap = devm_pfn | KVMPPC_PFN_DEVM;
++	pvt = kzalloc(sizeof(*pvt), GFP_ATOMIC);
++	if (!pvt)
++		goto out_unlock;
++	pvt->rmap = rmap;
++	pvt->gpa = gpa;
++	pvt->lpid = lpid;
++	dpage->zone_device_data = pvt;
++	spin_unlock_irqrestore(&kvmppc_devm_lock, flags);
++
++	get_page(dpage);
++	return dpage;
++
++out_unlock:
++	unlock_page(dpage);
++out_clear:
++	bitmap_clear(kvmppc_devm.pfn_bitmap,
++		     devm_pfn - kvmppc_devm.pfn_first, 1);
++out:
++	spin_unlock_irqrestore(&kvmppc_devm_lock, flags);
++	return NULL;
++}
++
++/*
++ * Release the device PFN back to the pool
++ *
++ * Gets called when secure page becomes a normal page during UV_PAGE_OUT.
++ */
++static void kvmppc_devm_put_page(struct page *page)
++{
++	unsigned long pfn = page_to_pfn(page);
++	unsigned long flags;
++	struct kvmppc_devm_page_pvt *pvt;
++
++	spin_lock_irqsave(&kvmppc_devm_lock, flags);
++	pvt = (struct kvmppc_devm_page_pvt *)page->zone_device_data;
++	page->zone_device_data = 0;
++
++	bitmap_clear(kvmppc_devm.pfn_bitmap,
++		     pfn - kvmppc_devm.pfn_first, 1);
++	*(pvt->rmap) = 0;
++	spin_unlock_irqrestore(&kvmppc_devm_lock, flags);
++	kfree(pvt);
++}
++
++/*
++ * Alloc a PFN from private device memory pool and copy page from normal
++ * memory to secure memory.
++ */
++static int
++kvmppc_devm_migrate_alloc_and_copy(struct migrate_vma *mig,
++				   struct kvmppc_devm_copy_args *args)
++{
++	struct page *spage = migrate_pfn_to_page(*mig->src);
++	unsigned long pfn = *mig->src >> MIGRATE_PFN_SHIFT;
++	struct page *dpage;
++
++	*mig->dst = 0;
++	if (!spage || !(*mig->src & MIGRATE_PFN_MIGRATE))
++		return 0;
++
++	dpage = kvmppc_devm_get_page(args->rmap, args->gpa, args->lpid);
++	if (!dpage)
++		return -EINVAL;
++
++	if (spage)
++		uv_page_in(args->lpid, pfn << args->page_shift,
++			   args->gpa, 0, args->page_shift);
++
++	*mig->dst = migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
++	return 0;
++}
++
++/*
++ * Move page from normal memory to secure memory.
++ */
++unsigned long
++kvmppc_h_svm_page_in(struct kvm *kvm, unsigned long gpa,
++		     unsigned long flags, unsigned long page_shift)
++{
++	unsigned long addr, end;
++	unsigned long src_pfn, dst_pfn;
++	struct kvmppc_devm_copy_args args;
++	struct migrate_vma mig;
++	struct vm_area_struct *vma;
++	int srcu_idx;
++	unsigned long gfn = gpa >> page_shift;
++	struct kvm_memory_slot *slot;
++	unsigned long *rmap;
++	int ret;
++
++	if (page_shift != PAGE_SHIFT)
++		return H_P3;
++
++	if (flags)
++		return H_P2;
++
++	ret = H_PARAMETER;
++	down_read(&kvm->mm->mmap_sem);
++	srcu_idx = srcu_read_lock(&kvm->srcu);
++	slot = gfn_to_memslot(kvm, gfn);
++	rmap = &slot->arch.rmap[gfn - slot->base_gfn];
++	addr = gfn_to_hva(kvm, gpa >> page_shift);
++	if (kvm_is_error_hva(addr))
++		goto out;
++
++	end = addr + (1UL << page_shift);
++	vma = find_vma_intersection(kvm->mm, addr, end);
++	if (!vma || vma->vm_start > addr || vma->vm_end < end)
++		goto out;
++
++	args.rmap = rmap;
++	args.lpid = kvm->arch.lpid;
++	args.gpa = gpa;
++	args.page_shift = page_shift;
++
++	memset(&mig, 0, sizeof(mig));
++	mig.vma = vma;
++	mig.start = addr;
++	mig.end = end;
++	mig.src = &src_pfn;
++	mig.dst = &dst_pfn;
++
++	if (migrate_vma_setup(&mig))
++		goto out;
++
++	if (kvmppc_devm_migrate_alloc_and_copy(&mig, &args))
++		goto out_finalize;
++
++	migrate_vma_pages(&mig);
++	ret = H_SUCCESS;
++out_finalize:
++	migrate_vma_finalize(&mig);
++out:
++	srcu_read_unlock(&kvm->srcu, srcu_idx);
++	up_read(&kvm->mm->mmap_sem);
++	return ret;
++}
++
++/*
++ * Provision a new page on HV side and copy over the contents
++ * from secure memory.
++ */
++static int
++kvmppc_devm_fault_migrate_alloc_and_copy(struct migrate_vma *mig)
++{
++	struct page *dpage, *spage;
++	struct kvmppc_devm_page_pvt *pvt;
++	unsigned long pfn;
++	int ret = U_SUCCESS;
++
++	spage = migrate_pfn_to_page(*mig->src);
++	if (!spage || !(*mig->src & MIGRATE_PFN_MIGRATE))
++		return 0;
++	if (!is_zone_device_page(spage))
++		return 0;
++
++	dpage = alloc_page_vma(GFP_HIGHUSER, mig->vma, mig->start);
++	if (!dpage)
++		return -EINVAL;
++	lock_page(dpage);
++	pvt = (struct kvmppc_devm_page_pvt *)spage->zone_device_data;
++
++	pfn = page_to_pfn(dpage);
++	ret = uv_page_out(pvt->lpid, pfn << PAGE_SHIFT,
++			  pvt->gpa, 0, PAGE_SHIFT);
++	if (ret == U_SUCCESS)
++		*mig->dst = migrate_pfn(pfn) | MIGRATE_PFN_LOCKED;
++	return 0;
++}
++
++/*
++ * Fault handler callback when HV touches any page that has been
++ * moved to secure memory, we ask UV to give back the page by
++ * issuing a UV_PAGE_OUT uvcall.
++ *
++ * This eventually results in dropping of device PFN and the newly
++ * provisioned page/PFN gets populated in QEMU page tables.
++ */
++static vm_fault_t kvmppc_devm_migrate_to_ram(struct vm_fault *vmf)
++{
++	unsigned long src_pfn, dst_pfn = 0;
++	struct migrate_vma mig;
++	int ret = 0;
++
++	memset(&mig, 0, sizeof(mig));
++	mig.vma = vmf->vma;
++	mig.start = vmf->address;
++	mig.end = vmf->address + PAGE_SIZE;
++	mig.src = &src_pfn;
++	mig.dst = &dst_pfn;
++
++	if (migrate_vma_setup(&mig)) {
++		ret = VM_FAULT_SIGBUS;
++		goto out;
++	}
++
++	if (kvmppc_devm_fault_migrate_alloc_and_copy(&mig)) {
++		ret = VM_FAULT_SIGBUS;
++		goto out_finalize;
++	}
++
++	migrate_vma_pages(&mig);
++out_finalize:
++	migrate_vma_finalize(&mig);
++out:
++	return ret;
++}
++
++static void kvmppc_devm_page_free(struct page *page)
++{
++	kvmppc_devm_put_page(page);
++}
++
++static const struct dev_pagemap_ops kvmppc_devm_ops = {
++	.page_free = kvmppc_devm_page_free,
++	.migrate_to_ram	= kvmppc_devm_migrate_to_ram,
++};
++
++/*
++ * Move page from secure memory to normal memory.
++ */
++unsigned long
++kvmppc_h_svm_page_out(struct kvm *kvm, unsigned long gpa,
++		      unsigned long flags, unsigned long page_shift)
++{
++	struct migrate_vma mig;
++	unsigned long addr, end;
++	struct vm_area_struct *vma;
++	unsigned long src_pfn, dst_pfn = 0;
++	int srcu_idx;
++	int ret;
++
++	if (page_shift != PAGE_SHIFT)
++		return H_P3;
++
++	if (flags)
++		return H_P2;
++
++	ret = H_PARAMETER;
++	down_read(&kvm->mm->mmap_sem);
++	srcu_idx = srcu_read_lock(&kvm->srcu);
++	addr = gfn_to_hva(kvm, gpa >> page_shift);
++	if (kvm_is_error_hva(addr))
++		goto out;
++
++	end = addr + (1UL << page_shift);
++	vma = find_vma_intersection(kvm->mm, addr, end);
++	if (!vma || vma->vm_start > addr || vma->vm_end < end)
++		goto out;
++
++	memset(&mig, 0, sizeof(mig));
++	mig.vma = vma;
++	mig.start = addr;
++	mig.end = end;
++	mig.src = &src_pfn;
++	mig.dst = &dst_pfn;
++	if (migrate_vma_setup(&mig))
++		goto out;
++
++	if (kvmppc_devm_fault_migrate_alloc_and_copy(&mig))
++		goto out_finalize;
++
++	migrate_vma_pages(&mig);
++	ret = H_SUCCESS;
++out_finalize:
++	migrate_vma_finalize(&mig);
++out:
++	srcu_read_unlock(&kvm->srcu, srcu_idx);
++	up_read(&kvm->mm->mmap_sem);
++	return ret;
++}
++
++static u64 kvmppc_get_secmem_size(void)
++{
++	struct device_node *np;
++	int i, len;
++	const __be32 *prop;
++	u64 size = 0;
++
++	np = of_find_node_by_path("/ibm,ultravisor/ibm,uv-firmware");
++	if (!np)
++		goto out;
++
++	prop = of_get_property(np, "secure-memory-ranges", &len);
++	if (!prop)
++		goto out_put;
++
++	for (i = 0; i < len / (sizeof(*prop) * 4); i++)
++		size += of_read_number(prop + (i * 4) + 2, 2);
++
++out_put:
++	of_node_put(np);
++out:
++	return size;
++}
++
++static int kvmppc_devm_pages_init(void)
++{
++	unsigned long nr_pfns = kvmppc_devm.pfn_last -
++				kvmppc_devm.pfn_first;
++
++	kvmppc_devm.pfn_bitmap = kcalloc(BITS_TO_LONGS(nr_pfns),
++				 sizeof(unsigned long), GFP_KERNEL);
++	if (!kvmppc_devm.pfn_bitmap)
++		return -ENOMEM;
++
++	spin_lock_init(&kvmppc_devm_lock);
++
++	return 0;
++}
++
++static void kvmppc_devm_release(struct device *dev)
++{
++	unregister_chrdev_region(kvmppc_devm.devt, 1);
++}
++
++int kvmppc_devm_init(void)
++{
++	int ret = 0;
++	unsigned long size;
++	struct resource *res;
++	void *addr;
++
++	size = kvmppc_get_secmem_size();
++	if (!size) {
++		ret = -ENODEV;
++		goto out;
++	}
++
++	ret = alloc_chrdev_region(&kvmppc_devm.devt, 0, 1,
++				"kvmppc-devm");
++	if (ret)
++		goto out;
++
++	dev_set_name(&kvmppc_devm.dev, "kvmppc_devm_device%d", 0);
++	kvmppc_devm.dev.release = kvmppc_devm_release;
++	device_initialize(&kvmppc_devm.dev);
++	res = devm_request_free_mem_region(&kvmppc_devm.dev,
++		&iomem_resource, size);
++	if (IS_ERR(res)) {
++		ret = PTR_ERR(res);
++		goto out_unregister;
++	}
++
++	kvmppc_devm.pagemap.type = MEMORY_DEVICE_PRIVATE;
++	kvmppc_devm.pagemap.res = *res;
++	kvmppc_devm.pagemap.ops = &kvmppc_devm_ops;
++	addr = devm_memremap_pages(&kvmppc_devm.dev, &kvmppc_devm.pagemap);
++	if (IS_ERR(addr)) {
++		ret = PTR_ERR(addr);
++		goto out_unregister;
++	}
++
++	kvmppc_devm.pfn_first = res->start >> PAGE_SHIFT;
++	kvmppc_devm.pfn_last = kvmppc_devm.pfn_first +
++			(resource_size(res) >> PAGE_SHIFT);
++	ret = kvmppc_devm_pages_init();
++	if (ret < 0)
++		goto out_unregister;
++
++	pr_info("KVMPPC-DEVM: Secure Memory size 0x%lx\n", size);
++	return ret;
++
++out_unregister:
++	put_device(&kvmppc_devm.dev);
++out:
++	return ret;
++}
++
++void kvmppc_devm_free(void)
++{
++	kfree(kvmppc_devm.pfn_bitmap);
++	put_device(&kvmppc_devm.dev);
++}
+-- 
+2.21.0
 
