@@ -6,102 +6,103 @@ X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 90C82C31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 06:40:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DB913C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 06:46:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 352C720C01
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 06:40:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 352C720C01
+	by mail.kernel.org (Postfix) with ESMTP id AB74D20C01
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 06:46:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AB74D20C01
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 962996B0005; Fri,  9 Aug 2019 02:40:36 -0400 (EDT)
+	id 5670D6B0007; Fri,  9 Aug 2019 02:46:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 913656B0006; Fri,  9 Aug 2019 02:40:36 -0400 (EDT)
+	id 4F0736B0008; Fri,  9 Aug 2019 02:46:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 801CB6B0007; Fri,  9 Aug 2019 02:40:36 -0400 (EDT)
+	id 4068F6B000A; Fri,  9 Aug 2019 02:46:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3157C6B0005
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 02:40:36 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id k37so2942543eda.7
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 23:40:36 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id EC86A6B0007
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 02:46:36 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id z2so721385ede.2
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 23:46:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=fnPtn6B8s96HblkvsHqtryue2rYvQNk3t1Ptk1YJ7A4=;
-        b=Xho0kkrNoV0voKY3P1xEHtR8wMe7mGBjYoMBFwUj3OuAEA7DjXkAYqBrMHnT47nF/H
-         OhLIBWlZtY2QP8rnkUxrAOOLa6PVqOzRhlasD6Dlm/Aii8MaUms8hwC6wRKlyYw/MkSO
-         ABMiILxu9aKvHft04JNadyoIGYs109sOkvJzd/Ws4ecLsbN/uNORa1Jq7dnktdtfWwdp
-         ZW7bgM60Rb9YxGh05n6syoCPqp1DrLeHf2ZQNP/WWs5OcuqOGQYxoayYAEVN4xZ/demT
-         1XV42dW0darAv746qbkwh2popMvyoN12AUlZwW37gLIToFva0t+eK1i1Pt2WRESRqJZS
-         d6eA==
+        bh=947QlL07PPoYbdW0VJj6ydRfatc+ZVl3uFshUThc4mc=;
+        b=t874VuKnr2BQpc0MajSr34YGcV7CRGtwiEinZLcIE0TlgdXgafYVd1A3NNrYtA3Zas
+         3FowutK3yixshyDNhCu/jeJQGidzjuCqdxm89XyiQ4SnmP5llAWwaBAwOW/cFpsoSzu2
+         FDJQnwTzK0TVMtPs7XGqrKnBhnDtlA6Vn/63EKp3dGiBn9bpmKRN14OR43vGcZ0hEMBz
+         w0F56mkeb5HgAQsUJFmO99QJ62rs2U7BNovf90htGVDylBjCIYerdpjkFlcLAdmKpryD
+         8K7qCAaZo29uCNP4wu8VYSj+L7PoPrqRukWItuu3MbFDvngi++PeNqgpHa4MEECM6eKh
+         IGlA==
 X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
-X-Gm-Message-State: APjAAAWS7jg8Hjt+gII8ZuovVrNRyW6LCcG8EjztRHzETcLytno4IVpK
-	Eda0TiFOWtDm7m2eRdBqC+HeFqy07x9KaL7ztEhZMay0+v0r+fwhm8YJzw38ssCIEqKyXLPPdgB
-	efy/jWpqQb+hQWEn9rfmkgGjd4znmR0hEzCeDI4XSybd9g13y1DNJTtTCh4wXHZM=
-X-Received: by 2002:aa7:d6d3:: with SMTP id x19mr19940072edr.119.1565332835758;
-        Thu, 08 Aug 2019 23:40:35 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyCH2Y3IjbrVsXVftEthmoQJ8JtDiUNjW6QxNEN1ZXTcgCkTJExzd5bdPea6PRR79jNrSyS
-X-Received: by 2002:aa7:d6d3:: with SMTP id x19mr19940024edr.119.1565332834994;
-        Thu, 08 Aug 2019 23:40:34 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565332834; cv=none;
+X-Gm-Message-State: APjAAAXxJE41zt+8eItom4su0ZUcmYPBqWIh5D52/uzXOT4Nv2lDDaP+
+	KQmadQhMa+6OZLGnJVCPIYmXAJ6egaPWUwZSJX4eoZuK0hlp9akRkwK3PG6VwwcJ98RUgqJ+Igv
+	PZPsN77B4V99X6TrCBny1mqiisSyz+6q5xncy03w6oBYmNjplnuMbGW6G8taTlKM=
+X-Received: by 2002:a17:906:12d7:: with SMTP id l23mr16803596ejb.282.1565333196458;
+        Thu, 08 Aug 2019 23:46:36 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqytbe9HcgZEEeQtc8j99oyO3Z9YuZqvsnRPkq8PS6CKz58CVD/G2Sex9nBSg2fpUPcj8suK
+X-Received: by 2002:a17:906:12d7:: with SMTP id l23mr16803558ejb.282.1565333195768;
+        Thu, 08 Aug 2019 23:46:35 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565333195; cv=none;
         d=google.com; s=arc-20160816;
-        b=U6FtLc03PExru75W1W7Vef1zpdZYITsC+mMtrL3hn4PgCYz7gMT/d13wWNhOBQHUOs
-         SfOhqKMjvTMgl+znd3pxFuc+XM2tYxmLp7uxGnZ6er95cCGMBJTqXLO6DBtUjtCIfsus
-         vG7jyuYGlhTkdhh7cnMfQh70rUSxMWHNHgSQ+9/xG3LgbIpRrD4499ZCylqPwOPs6RCj
-         jQN0x5i34u9Jf6CIGMJmPZmdn4kglbK7GjKFFdoWUdcjI+GrCgDBzV2Zmo8dpkCkGLiF
-         N+gavsldfcr2CKh7Z26iQIBCNXA3il8y/qStc4PS98U023ucsjwYfYUfZCF7ZE6aS8w5
-         Sd2A==
+        b=ydMtXXa6CeptjQ/UYpOffJjApjTK6TFLKMKokBulYkS9TGWLyX7DL/yAHcoP4tPzVK
+         XUHwQHdaLokZHBpW9DA5FaBxAvk80yGnb6QjWE6s1TeT9XNOpVy330h7pVwFj0YmibiO
+         +dq88eg2aFiantGLS4mC6LLSt6N8d49mpryrwhuDUuOw2awO8F1iOAN83N/GuR5aHUnA
+         LblortvlKDBFiY+KWH0ErEKuVwCmB2voYoZjrqDWd0IdFrNsXe3Vt+up3nXxhEig9kEN
+         odwdeYGtqe+h/r5iHKgmMkDJGy/QXYo1RliBNsdICyYYVfZJOs/s3qksxXpoRM+FZAI7
+         S9SA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=fnPtn6B8s96HblkvsHqtryue2rYvQNk3t1Ptk1YJ7A4=;
-        b=WheTML1uW3ARM4tpRFg+S7yz7euJEykl9+lNJ56urVCcpAciDbw/5DkTYHSR8OFHxO
-         qIevyR1xujxZ7MCc7Z6ieq77SsA2vOhODC+N1oBiFHqA16ouA9hnELSmpbVlT2Cy0aaf
-         uM3Aqf4zT2qtaFjtKRcEapPZQks3q3jqSyC0lcs2KHdRG4i9/v4HSxIJVEF56NbVfTX9
-         7G4gR0LcdCFPtHlfpNUXs2jI38XGIlKa7j87HRy1rdAB4ZP8xw9xmEBiruX4Wgaw89a3
-         qu/cC0Fqkg56nbc7YuxcXRwYS8rzjvlMWwXM+Afc70IsfcI3WoRDsHIrWipFj9K+ZRfx
-         XXFw==
+        bh=947QlL07PPoYbdW0VJj6ydRfatc+ZVl3uFshUThc4mc=;
+        b=RwrbfwtNw4HeBLjGjRY59jieRXOPYPs1v6k5apA3uqAxjUOuE5yFZErt7c5j05/dn/
+         C9vSTFFGV+yNvOgGfeODHtEN1e8LSYdWMNOTPTXi46YM9NBrCj21RC5VlsfVXiQ35Xg2
+         OS+LU4MhFsDu8aL/+KSc5a5jUCkoK0TkkdXN9n0Xg+9qR50qLENT48EVtOR8ruu0Blb5
+         /aT+JSjsGnpnumMrVs5BAw8o6tJCKfI8wPnbhPnoqeXfiWYHvxrWQwsfreil4JtHUSZN
+         9hvsEo1iw9Gz51EJDLHvOIO5d2DAtFbEBym2XA//W+ERDmNQrFe/Ly/98NE3Cn66PQQs
+         CS4w==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id z20si31163382ejb.393.2019.08.08.23.40.34
+        by mx.google.com with ESMTPS id b5si35591332edb.259.2019.08.08.23.46.35
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 23:40:34 -0700 (PDT)
+        Thu, 08 Aug 2019 23:46:35 -0700 (PDT)
 Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
        dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id CF531ABD2;
-	Fri,  9 Aug 2019 06:40:33 +0000 (UTC)
-Date: Fri, 9 Aug 2019 08:40:32 +0200
+	by mx1.suse.de (Postfix) with ESMTP id C910BB03B;
+	Fri,  9 Aug 2019 06:46:34 +0000 (UTC)
+Date: Fri, 9 Aug 2019 08:46:33 +0200
 From: Michal Hocko <mhocko@kernel.org>
-To: Edward Chron <echron@arista.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	David Rientjes <rientjes@google.com>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Ivan Delalande <colona@arista.com>
-Subject: Re: [PATCH] mm/oom: Add killed process selection information
-Message-ID: <20190809064032.GJ18351@dhcp22.suse.cz>
-References: <20190808183247.28206-1-echron@arista.com>
- <20190808185119.GF18351@dhcp22.suse.cz>
- <CAM3twVT0_f++p1jkvGuyMYtaYtzgEiaUtb8aYNCmNScirE4=og@mail.gmail.com>
- <20190808200715.GI18351@dhcp22.suse.cz>
- <CAM3twVS7tqcHmHqjzJqO5DEsxzLfBaYF0FjVP+Jjb1ZS4rA9qA@mail.gmail.com>
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, ltp@lists.linux.it,
+	Li Wang <liwang@redhat.com>,
+	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+	Cyril Hrubis <chrubis@suse.cz>, xishi.qiuxishi@alibaba-inc.com
+Subject: Re: [PATCH] hugetlbfs: fix hugetlb page migration/fault race causing
+ SIGBUS
+Message-ID: <20190809064633.GK18351@dhcp22.suse.cz>
+References: <20190808000533.7701-1-mike.kravetz@oracle.com>
+ <20190808074607.GI11812@dhcp22.suse.cz>
+ <20190808074736.GJ11812@dhcp22.suse.cz>
+ <416ee59e-9ae8-f72d-1b26-4d3d31501330@oracle.com>
+ <20190808185313.GG18351@dhcp22.suse.cz>
+ <20190808163928.118f8da4f4289f7c51b8ffd4@linux-foundation.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <CAM3twVS7tqcHmHqjzJqO5DEsxzLfBaYF0FjVP+Jjb1ZS4rA9qA@mail.gmail.com>
+In-Reply-To: <20190808163928.118f8da4f4289f7c51b8ffd4@linux-foundation.org>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -109,58 +110,45 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-[Again, please do not top post - it makes a mess of any longer
-discussion]
+On Thu 08-08-19 16:39:28, Andrew Morton wrote:
+> On Thu, 8 Aug 2019 20:53:13 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+> 
+> > > https://lkml.org/lkml/2019/6/1/165
+> > > 
+> > > Ironic to find that commit message in a stable backport.
+> > > 
+> > > I'm happy to drop the Fixes tag.
+> > 
+> > No, please do not drop the Fixes tag. That is a very _useful_
+> > information. If the stable tree maintainers want to abuse it so be it.
+> > They are responsible for their tree. If you do not think this is a
+> > stable material then fine with me. I tend to agree but that doesn't mean
+> > that we should obfuscate Fixes.
+> 
+> Well, we're responsible for stable trees too.
 
-On Thu 08-08-19 15:15:12, Edward Chron wrote:
-> In our experience far more (99.9%+) OOM events are not kernel issues,
-> they're user task memory issues.
-> Properly maintained Linux kernel only rarely have issues.
-> So useful information about the killed task, displayed in a manner
-> that can be quickly digested, is very helpful.
-> But it turns out the totalpages parameter is also critical to make
-> sense of what is shown.
+We are only responsible as far as to consider whether a patch is worth
+backporting to stable trees and my view is that we are doing that
+responsible. What do stable maintainers do in the end is their business.
 
-We already do print that information (see mem_cgroup_print_oom_meminfo
-resp. show_mem).
+> And yes, I find it
+> irksome.  I/we evaluate *every* fix for -stable inclusion and if I/we
+> decide "no" then dangit, it should be backported.
 
-> So if we report the fooWidget task was using ~15% of memory (I know
-> this is just an approximation but it is often an adequate metric) we
-> often can tell just from that the number is larger than expected so we
-> can start there.
-> Even though the % is a ballpark number, if you are familiar with the
-> tasks on your system and approximately how much memory you expect them
-> to use you can often tell if memory usage is excessive.
-> This is not always the case but it is a fair amount of the time.
-> So the % of memory field is helpful. But we've found we need totalpages as well.
-> The totalpages effects the % of memory the task uses.
+Exactly
 
-Is it too difficult to calculate that % from the data available in the
-existing report? I would expect this would be a quite simple script
-which I would consider a better than changing the kernel code.
+> Maybe we should introduce the Fixes-no-stable: tag.  That should get
+> their attention.
 
-[...]
-> The oom_score tells us how Linux calculated the score for the task,
-> the oom_score_adj effects this so it is helpful to have that in
-> conjunction with the oom_score.
-> If the adjust is high it can tell us that the task was acting as a
-> canary and so it's oom_score is high even though it's memory
-> utilization can be modest or low.
+No please, Fixes shouldn't be really tight to any stable tree rules. It
+is a very useful indication of which commit has introduced bug/problem
+or whatever that the patch follows up to. We in Suse are using this tag
+to evaluate potential fixes as the stable is not reliable. We could live
+with Fixes-no-stable or whatever other name but does it really makes
+sense to complicate the existing state when stable maintainers are doing
+whatever they want anyway? Does a tag like that force AI from selecting
+a patch? I am not really convinced.
 
-I am sorry but I still do not get it. How are you going to use that
-information without seeing other eligible tasks. oom_score is just a
-normalized memory usage + some heuristics potentially (we have given a
-discount to root processes until just recently). So this value only
-makes sense to the kernel oom killer implementation. Note that the
-equation might change in the future (that has happen in the past several
-times) so looking at the value in isolation might be quite misleading.
-
-I can see some point in printing oom_score_adj, though. Seeing biased -
-one way or the other - tasks being selected might confirm the setting is
-reasonable or otherwise (e.g. seeing tasks with negative scores will
-give an indication that they might be not biased enough). Then you can
-go and check the eligible tasks dump and see what happened. So this part
-makes some sense to me.
 -- 
 Michal Hocko
 SUSE Labs
