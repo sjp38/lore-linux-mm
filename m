@@ -2,203 +2,143 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CD615C31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:06:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6758DC31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:10:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 81F7820B7C
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:06:51 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="j8hwcxSP"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81F7820B7C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 3337B2166E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:10:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3337B2166E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 17A0B6B0005; Fri,  9 Aug 2019 05:06:51 -0400 (EDT)
+	id E49466B0005; Fri,  9 Aug 2019 05:10:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1042C6B0006; Fri,  9 Aug 2019 05:06:51 -0400 (EDT)
+	id DF91B6B0006; Fri,  9 Aug 2019 05:10:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EE6BD6B0007; Fri,  9 Aug 2019 05:06:50 -0400 (EDT)
+	id CE7E16B0007; Fri,  9 Aug 2019 05:10:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f198.google.com (mail-pg1-f198.google.com [209.85.215.198])
-	by kanga.kvack.org (Postfix) with ESMTP id B28C26B0005
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 05:06:50 -0400 (EDT)
-Received: by mail-pg1-f198.google.com with SMTP id 30so59362903pgk.16
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 02:06:50 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 7E7426B0005
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 05:10:09 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id a5so59898523edx.12
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 02:10:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
-         :user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding:dkim-signature;
-        bh=xxX6/xlEYYSgAcMbE9OCsum5lhmSqdMBrVqwD/ALhJM=;
-        b=hYW4n3R1fuFTIYqWj8xTZhrMhYyJqAGxjNTBS1tmj+STI+iGtZxJ6eQiCHb4GBuehp
-         8iS51Rfvh9evhWqjkNUa3P9SyjRTLp6VKm2fPMgJOEMcoWsd01zoIH8IcLm50cyyh6nB
-         Uhs+2LYC1xO1VgVkKf8iy9EEYTdkZttK9jsbv4ydTohHixx6zDJgrPEo0hbmS9eewoU8
-         babkQxy0vXaJ42D9HYgpKvsIIrjxOJdtrk4z6QANDFJrjEyWnKnh6pPnhwnE7nhZpvj4
-         IVw6AW8U0w5B7JAQ/UaSWCnqpIJtARduOEHFZl6sHM5+teZ5WeiGTRAR0f7q6MVBOUlt
-         AzgQ==
-X-Gm-Message-State: APjAAAXsGlk9HeLYjkXcFbu37Q0D3bq90s5lYWpLrjab8Kf3yeojVcq8
-	TpAyWE4Q5AOiqXgkObZmYGahTPh22OTQeSVelxxeVWEEw3BKKByO+SHmkBASIWVwrwTFbHUXw4S
-	S2Se+Gt86euAwW06MHx5gVHB26m/S5pt4eAdB3mO5Y6pJu5xtkHlssoV9zba3sv7t7w==
-X-Received: by 2002:a62:2f06:: with SMTP id v6mr20420059pfv.195.1565341610220;
-        Fri, 09 Aug 2019 02:06:50 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzpZzYftsQF/MLqs40iY9ETVESgJJlDTJNV52SGmZx/lhyvgScqMgZJbG+FyIrMKJQ0AL5D
-X-Received: by 2002:a62:2f06:: with SMTP id v6mr20419982pfv.195.1565341609361;
-        Fri, 09 Aug 2019 02:06:49 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565341609; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=G54Zwt+vB8h0+nqggCSrXu0/L6XlohtfmHz2tCBORb8=;
+        b=Zbyclc3YD6XVMD+QwR7wQx2g9hKFHiTQLrtlIJ5u468/qMFPB+cF2BYPpFF6rCdCEU
+         9dC4VozJX9uc3AM6weh48wFDwCPbhzMEdwT0IeBfghC2qQADXZaQMeVx/NIOwoqoV2IA
+         svMcoBTjK6uvsvmX3hyhM6FUTWhsPeMkcHywrm4B5ict6osYFrYMwmQ1mP1IJOBeNDVs
+         9RkIGadpcfe+EHTPjbz0GTTLF2CX857N7d8LTYYLr2gWdDyDD/UY5y7jY/0H3N2RomAz
+         LOoWe1spEMbq8S7xMWwC8s+kb6xEIhpHSo2U7lArIziU+jXYeF1es/WsGaPBJY8z6Vo2
+         grUw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+X-Gm-Message-State: APjAAAWns5xSxGSl7NNevHbn7Kceazg+KNZZCq2SoODcQ9JXN4Ki/xfk
+	hSsp+QIBFVk4oJXWz7NpGX2TEYiqBjN+rXo9yMLlnK27eiN8qqzCZo/AGwIJ6KqmZ8UzO800oxV
+	MmFptwnl+RYtZWGt7H1K1E6OjNEDoKcZMo4fxX0NajBsvWr+eIB+OgnjEZukRMHw8WQ==
+X-Received: by 2002:a17:907:39a:: with SMTP id ss26mr6872696ejb.278.1565341809088;
+        Fri, 09 Aug 2019 02:10:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxKkKBqNzD5bFMIlbv177XIgy0bxmGL2JQ5BRbfFMtscog2aPhzM+fahYxJUvuXnT0qZqzq
+X-Received: by 2002:a17:907:39a:: with SMTP id ss26mr6872652ejb.278.1565341808357;
+        Fri, 09 Aug 2019 02:10:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565341808; cv=none;
         d=google.com; s=arc-20160816;
-        b=YrgKqXYmSYL/qbBIuxGsq1AzJHBVzEUNXi2G/nYeLijUuuB4Fp+VNb1wc6lePFPAF9
-         VhPcCpM/P+21t66ilzze2s9KWxQBhr6pAT+uJsmNndwyxK4aP3lB/om7alF5dHiJ7VbG
-         Z5xBu0ER+97H02jzmiP9wMi8fZlygTUVH8XtkdJwZ+yq4V65qluLzSSYVrkX2msCVCYo
-         5Fj8sfalReakpbX57QbCV0YR7k/LUmvxcjoMG1hZnhvOgDcpsHFZq+0h6Qc7p26fXzyN
-         GzTTCbfaWKHNBhvyNcUCx8AftM3f0VYweeb17/lO8izM1jX59vfAzOhNnSj/7vwxjqGn
-         udDQ==
+        b=ZAAiYlAyzgrOFCb/36Tm8O4KQoYn591CJCI0oSvOlinlNMLkeaxAGECc5peZu4+YeZ
+         RDk0dVuk66QElDQs4MxGvjyLNR8SQfN9qVXjWYZTBYj4sfV+IqH7l0iStbHVZjAFAD3G
+         rHceumK6FYq1N9I5zKuobZUtZ1AwPTINPg+GLFf7AtuQT+xp7wVbQ+WcBZPwqFZBtHhv
+         /NSahRgMcI7bkWzMtiGYlk981zPSLtfNP6lb2WWnUC7WXNkxuinLQCZlsnVd+MMnVecy
+         z6JRYniS6s7V+rn+XQEu9d+1I0059E7COc/CZz3+0wXxx1568lvz2SQ9KF/7R738qrkK
+         Zjcg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=dkim-signature:content-transfer-encoding:content-language
-         :in-reply-to:mime-version:user-agent:date:message-id:from:references
-         :cc:to:subject;
-        bh=xxX6/xlEYYSgAcMbE9OCsum5lhmSqdMBrVqwD/ALhJM=;
-        b=TVdI3wz5QkZIsmUvkO1wmTo3sxZdqs81QK1kPBngQJAjWmhIyY1eGb2kHc+y1XRsxF
-         YTUdcqxzSChZFCQqZmKzVcnvSr6AzJWOH8ERTgN5izXyKlmnIvrCF+j2trj/HdRjUAoQ
-         cD8AB10HjrjEarPALNuOtr+r08vUZTjnxK1PacTMCMdy3Xq36kc6TsME2tZMNoRfi0nZ
-         bW6amwAkdO8FJhfO1gloMegOev9FRwWL0ZoRXwz71jy+abAoOpR7i9+QNkA5Yd1Sh50K
-         VU4n3MbOrYY2TqueClQ7B9qxM07PnPyeCo8m2fwgd2L/WMalSk+EgGRj9HY3lZUrc8ak
-         MlZQ==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=G54Zwt+vB8h0+nqggCSrXu0/L6XlohtfmHz2tCBORb8=;
+        b=qF5BkZDhr9j1LvgryuxPTvGmN9WooXIDTVy/UQC3SkoFV6TI7HCLR52dAWVy4aLTdg
+         iEwqYewrnPFoWRW1YmpeylENM3q305RdGWdR4EP8Xb65jILZHyguV8bAypGVBwFKMwWt
+         f2tTfH8dPedjomi5Hr15c4n7mlX0Pd8rGeB34Yka6qh+2vtoG6ZeHkhZJxcXQci9Pb4z
+         CMC4E9UqBCv9EnOBYCRcjHNMIJlXCAeFC9pP1o0K4kZMe59FuZ2Dky+DqtBpur+QA6sw
+         h4tvmh3YqbASPW1jPRQCFSirqJNMso5ySZHS7n3XQzewid02MK2JyQlbdza2VYjR9kGd
+         UeiQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=j8hwcxSP;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com. [216.228.121.143])
-        by mx.google.com with ESMTPS id 24si42152950pfn.144.2019.08.09.02.06.49
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 02:06:49 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) client-ip=216.228.121.143;
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id mh20si547385ejb.2.2019.08.09.02.10.08
+        for <linux-mm@kvack.org>;
+        Fri, 09 Aug 2019 02:10:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=j8hwcxSP;
-       spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.143 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d4d37aa0000>; Fri, 09 Aug 2019 02:06:50 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate101.nvidia.com (PGP Universal service);
-  Fri, 09 Aug 2019 02:06:48 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate101.nvidia.com on Fri, 09 Aug 2019 02:06:48 -0700
-Received: from [10.2.165.207] (172.20.13.39) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Fri, 9 Aug
- 2019 09:06:48 +0000
-Subject: Re: [PATCH 1/3] mm/mlock.c: convert put_page() to put_user_page*()
-To: Michal Hocko <mhocko@kernel.org>
-CC: Vlastimil Babka <vbabka@suse.cz>, Andrew Morton
-	<akpm@linux-foundation.org>, Christoph Hellwig <hch@infradead.org>, Ira Weiny
-	<ira.weiny@intel.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
-	<jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>, LKML
-	<linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
-	<linux-fsdevel@vger.kernel.org>, Dan Williams <dan.j.williams@intel.com>,
-	Daniel Black <daniel@linux.ibm.com>, Matthew Wilcox <willy@infradead.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>
-References: <20190805222019.28592-1-jhubbard@nvidia.com>
- <20190805222019.28592-2-jhubbard@nvidia.com>
- <20190807110147.GT11812@dhcp22.suse.cz>
- <01b5ed91-a8f7-6b36-a068-31870c05aad6@nvidia.com>
- <20190808062155.GF11812@dhcp22.suse.cz>
- <875dca95-b037-d0c7-38bc-4b4c4deea2c7@suse.cz>
- <306128f9-8cc6-761b-9b05-578edf6cce56@nvidia.com>
- <d1ecb0d4-ea6a-637d-7029-687b950b783f@nvidia.com>
- <420a5039-a79c-3872-38ea-807cedca3b8a@suse.cz>
- <20190809082307.GL18351@dhcp22.suse.cz>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <a83e4449-fc8d-7771-1b78-2fa645fa0772@nvidia.com>
-Date: Fri, 9 Aug 2019 02:05:15 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 8043515A2;
+	Fri,  9 Aug 2019 02:10:07 -0700 (PDT)
+Received: from [10.163.1.243] (unknown [10.163.1.243])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id EE6A33F575;
+	Fri,  9 Aug 2019 02:10:03 -0700 (PDT)
+Subject: Re: [PATCH] mm/sparse: use __nr_to_section(section_nr) to get
+ mem_section
+To: Wei Yang <richardw.yang@linux.intel.com>, akpm@linux-foundation.org,
+ osalvador@suse.de, pasha.tatashin@oracle.com, mhocko@suse.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190809010242.29797-1-richardw.yang@linux.intel.com>
+From: Anshuman Khandual <anshuman.khandual@arm.com>
+Message-ID: <e17278f0-94dc-e0c6-379b-b7694cec3247@arm.com>
+Date: Fri, 9 Aug 2019 14:39:59 +0530
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
+ Thunderbird/52.9.1
 MIME-Version: 1.0
-In-Reply-To: <20190809082307.GL18351@dhcp22.suse.cz>
-X-Originating-IP: [172.20.13.39]
-X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
+In-Reply-To: <20190809010242.29797-1-richardw.yang@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1565341610; bh=xxX6/xlEYYSgAcMbE9OCsum5lhmSqdMBrVqwD/ALhJM=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=j8hwcxSPSQQ7m/nGMO4zcZKB+HyGn4I5hyxPJMAtoSVYP+yUp53r2/hoxLKbOTaEA
-	 Kra5eQySWSmWNcs0Z5HiQTEC7Ds3vYcChlwLJIzcJlJmsU+mQaCJwBGj7s8TY7nU05
-	 eHg2mlZvXbM+TER2CGFyvQ4RFppWB3FLbMYL2SdsktQj253jD3tYmUeyqGT0P5X2FD
-	 RC9Zljztszfi+1P9PBSu30lEHW3IY0JKjLufsqIfLJH5GnPcxPwukZw4pzC/ezvHeU
-	 cADhbvuqEUZCiCTduaINR4cFLGL+WZT+0tDbUSmAou352rwonbnZs4qLfOFGzAp4LX
-	 IRkDPPV7ceQHw==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/9/19 1:23 AM, Michal Hocko wrote:
-> On Fri 09-08-19 10:12:48, Vlastimil Babka wrote:
->> On 8/9/19 12:59 AM, John Hubbard wrote:
->>>>> That's true. However, I'm not sure munlocking is where the
->>>>> put_user_page() machinery is intended to be used anyway? These are
->>>>> short-term pins for struct page manipulation, not e.g. dirtying of page
->>>>> contents. Reading commit fc1d8e7cca2d I don't think this case falls
->>>>> within the reasoning there. Perhaps not all GUP users should be
->>>>> converted to the planned separate GUP tracking, and instead we should
->>>>> have a GUP/follow_page_mask() variant that keeps using get_page/put_page?
->>>>>   
->>>>
->>>> Interesting. So far, the approach has been to get all the gup callers to
->>>> release via put_user_page(), but if we add in Jan's and Ira's vaddr_pin_pages()
->>>> wrapper, then maybe we could leave some sites unconverted.
->>>>
->>>> However, in order to do so, we would have to change things so that we have
->>>> one set of APIs (gup) that do *not* increment a pin count, and another set
->>>> (vaddr_pin_pages) that do.
->>>>
->>>> Is that where we want to go...?
->>>>
->>
->> We already have a FOLL_LONGTERM flag, isn't that somehow related? And if
->> it's not exactly the same thing, perhaps a new gup flag to distinguish
->> which kind of pinning to use?
+
+
+On 08/09/2019 06:32 AM, Wei Yang wrote:
+> __pfn_to_section is defined as __nr_to_section(pfn_to_section_nr(pfn)).
+
+Right.
+
 > 
-> Agreed. This is a shiny example how forcing all existing gup users into
-> the new scheme is subotimal at best. Not the mention the overal
-> fragility mention elsewhere. I dislike the conversion even more now.
+> Since we already get section_nr, it is not necessary to get mem_section
+> from start_pfn. By doing so, we reduce one redundant operation.
 > 
-> Sorry if this was already discussed already but why the new pinning is
-> not bound to FOLL_LONGTERM (ideally hidden by an interface so that users
-> do not have to care about the flag) only?
+> Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
+
+Looks right.
+
+With this applied, memory hot add still works on arm64.
+
+Reviewed-by: Anshuman Khandual <anshuman.khandual@arm.com>
+
+> ---
+>  mm/sparse.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
 > 
-
-Oh, it's been discussed alright, but given how some of the discussions have gone,
-I certainly am not surprised that there are still questions and criticisms!
-Especially since I may have misunderstood some of the points, along the way.
-It's been quite a merry go round. :)
-
-Anyway, what I'm hearing now is: for gup(FOLL_LONGTERM), apply the pinned tracking.
-And therefore only do put_user_page() on pages that were pinned with
-FOLL_LONGTERM. For short term pins, let the locking do what it will:
-things can briefly block and all will be well.
-
-Also, that may or may not come with a wrapper function, courtesy of Jan
-and Ira.
-
-Is that about right? It's late here, but I don't immediately recall any
-problems with doing it that way...
-
-thanks,
--- 
-John Hubbard
-NVIDIA
+> diff --git a/mm/sparse.c b/mm/sparse.c
+> index 72f010d9bff5..95158a148cd1 100644
+> --- a/mm/sparse.c
+> +++ b/mm/sparse.c
+> @@ -867,7 +867,7 @@ int __meminit sparse_add_section(int nid, unsigned long start_pfn,
+>  	 */
+>  	page_init_poison(pfn_to_page(start_pfn), sizeof(struct page) * nr_pages);
+>  
+> -	ms = __pfn_to_section(start_pfn);
+> +	ms = __nr_to_section(section_nr);
+>  	set_section_nid(section_nr, nid);
+>  	section_mark_present(ms);
+>  
+> 
 
