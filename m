@@ -1,334 +1,189 @@
-Return-Path: <SRS0=csuj=WE=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham autolearn_force=no
-	version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 35089C32756
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:58:14 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21C18C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 00:11:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DFDEB206DF
-	for <linux-mm@archiver.kernel.org>; Thu,  8 Aug 2019 23:58:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DFDEB206DF
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
+	by mail.kernel.org (Postfix) with ESMTP id CA6322166E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 00:11:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA6322166E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C16696B0007; Thu,  8 Aug 2019 19:58:12 -0400 (EDT)
+	id 6DCDE6B0003; Thu,  8 Aug 2019 20:11:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA1616B0008; Thu,  8 Aug 2019 19:58:12 -0400 (EDT)
+	id 68CA36B0006; Thu,  8 Aug 2019 20:11:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A40716B000A; Thu,  8 Aug 2019 19:58:12 -0400 (EDT)
+	id 5A3136B0007; Thu,  8 Aug 2019 20:11:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EC676B0008
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 19:58:12 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id j9so4632848pgk.20
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 16:58:12 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 250296B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 20:11:17 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id c9so2354345pgm.18
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 17:11:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id;
-        bh=2vVjmTu1u/7g3USwCeDyIfIi9R6avyNjneeF6t213Kk=;
-        b=rkvIL6LcEH6A8kcNXZKqQVH8Ah4b6VqO6iZO+E4ztoBohZ3h45rV7MKuBW70qKuLF7
-         8n8cMDQ7ahBk2stFTP32o6zMMEBYXjYQbGh5EbZRGe0//s/vNl96BP0yrKPCtStmRC1L
-         KjJvUKhIrle9wi7tqHmwU/RVUbOPeUAnmHCtaMOkj3U1UgWwbXo76lrCw/Q3W5MxCE6K
-         ZkJlHcKFlcnn4eqFnjSOfdihyqIloeBrZiow6hHT2DJsYziygorsOGi6ruWce1yceDo4
-         RC7ud8tjW8clLI5b9JvGYuL9SIjDAYJ484e6YJZ0TP6XW6Et3eaKV/NsWW7PcKaj1H6h
-         jUDg==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Gm-Message-State: APjAAAXiJyxGNModCx8pLJMCI5wy4hOsRM04ViiTuZRlSfcYuTAC24XU
-	zEyWhWssGNfBhOIuxVNGmlL6Md8DLmoJExzMhPyiv7qbM/9cBrcWAO++T0tX1thiqXHG5pK5u5A
-	6F8dGBiz77UhUNRmYXKGe/Rvn8wBQ/GVTHBfRbxyo+MsBdPiFNp3ttv68NRO0/xodng==
-X-Received: by 2002:a63:3009:: with SMTP id w9mr15602329pgw.260.1565308691848;
-        Thu, 08 Aug 2019 16:58:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyODSHClpINCawdam1x66TOsgI+2CeXzdz7LkaGCX0vbt5JXv/bRPu8IUfU/CZCULjYijGG
-X-Received: by 2002:a63:3009:: with SMTP id w9mr15602232pgw.260.1565308690172;
-        Thu, 08 Aug 2019 16:58:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565308690; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=5GBLahA9nxsBGuTHcZQ/Dy5peQcCaISm4DdHxGLFNjc=;
+        b=WECpN0mRDrr/jiURze2O4pdpJkzDw6l5cLJMlRnreCKMpovFEZeWJs4B03rZ+j2i9r
+         v4Y0a2PxCpjoV8Yag7/b9BLnot6zgH6rB2iAZh9ddB/RhDC0xT7tHBxMYG0Q7KpJJbFq
+         FNOPwIJ0iiUmJQFlUfvyZzrokD7Z5Lp8H6j9+HBZIww0qeNeoHdoLnMi8vYn2sMCx4xr
+         WG2AHl04P8phabXSW2e7aY4kIrsEVX2WPKdl5e9lFDyqzX2xF9psOIWCqzSdrXSlfc21
+         UIc34O2fNdwNl+q7up83x9he/b0bpTNO/gL4qQmn92yP+v1qYqjXWVr9fJq4X5FXkQ2x
+         Z+pw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAWTgE1tDESZnE3LB868FAHIXAjzwq+ew9JNfOsC/jKBQM5VZ3m5
+	RcuRzCedM8029UtwPuMKYOreJRJdlixNOx3yi0a68QXf2bzX7+kTPYiS4Wzk8OPzJQpTYw0ZxXS
+	vP11uErrPgap/A2LhCRxJFIh0y6NTgYPmQ47DqBynIUZX4J351njqoZ1icxMYwEA=
+X-Received: by 2002:a63:484a:: with SMTP id x10mr14891079pgk.430.1565309476624;
+        Thu, 08 Aug 2019 17:11:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwA3dONS8xCRI7MZGaDEhBCoCJUiZfn0xL+2JMm+vI+BC3l4PEI1s3wgoiEWW06Onp5VjKA
+X-Received: by 2002:a63:484a:: with SMTP id x10mr14891018pgk.430.1565309475698;
+        Thu, 08 Aug 2019 17:11:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565309475; cv=none;
         d=google.com; s=arc-20160816;
-        b=gzYz/rliVu5IeKujZrgCFYJt9xIfjXAUTiOLpy+tX/0jvvhL0Tf/UN4VojkrTdgwhg
-         IBLXz6rlu9CkTmZ+Q9qvARoLMrXh2JpjmMCba3A2XStlbmH50yRir5cfKcQENlNJKNm5
-         GXTxuAJwAzqjAIuhBa5VlAUOOXizLqHDZJfWEWauPQbMRcNB3mXHvXj28eI8++pigGQo
-         EzUHmiooARCR02ARkXEyK6czNagZ0Fh4gnusJFCv8IBTF153Y+laWjyEsemW4UZr3xG4
-         cqAo59GnchT5fSCyrXXK8ooRwXGDz7W9/Hw4XSEUKJMG2AgjcfvHP2PNr7RKlqKhmAa1
-         XXIQ==
+        b=Bztq73zJkHkRl65ZV15NB50v2FQinupjOZcUGatx+AUKdryqVyhcGp97iQICBd6OHH
+         D4vLJrSWHRvW2AthQ11mSWBTWTNJkMKbmK9tUOYSc5vPmFGAnm70zeWnH7hl9iBapiVP
+         DmJRHVvh4np1CEGeGzCg97QiaNOMu8Y9+bpWyJmUsh5DyVPpo/kEUyHO/Q8bdfngbbKo
+         OUnoRgNmRWM9ym2Hhpi8hhUAiAB1A6ajxirgEF/qNKH6VFuRPxZ8lrVl6MinZveup3DA
+         3EfT1FS6g2uq+hxkj13g8ca1v8FRGuhCnTP2tsPc8kYG9qB8PVkcGhfRzJN2e9vnq2Ri
+         8bTw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=message-id:date:subject:cc:to:from;
-        bh=2vVjmTu1u/7g3USwCeDyIfIi9R6avyNjneeF6t213Kk=;
-        b=nrRVeyQXaH+oOPx66EZXcoJTZS0L++4mH+h1G+Mv9wOnOJguwaiQz+Ti1kueZAw13i
-         wlYNgAh5zD0AGI8CB09Lv/MyzufUC2CH2pL6/Sr8j+3uNyqEsGnlhOhSrOfw7qqOHa/A
-         fHrT7kMlHlw1LbUZuvMHHkGyjTiHTMQTqyp/lyAgrYAEmlbKMDB6uOwRWz0lT35toAWy
-         dDZ1Hlj3eb9o2bKO5UaQyGYpLpizAK6Q/YSJPDC1tfqlclbvBkFVM+ZX19W4wVYvzKzC
-         7q5PSxMs+QOT/Xh0lb9FfgrBjgJhtsXg3BFaMsbSJzWXvOArHF/IJY2DjFKlThNRdTiz
-         /siA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=5GBLahA9nxsBGuTHcZQ/Dy5peQcCaISm4DdHxGLFNjc=;
+        b=K+hDoPOCQ614CgbZzIDeROlp8tMJ4jt8pnETJY4HCbPMMEjcyl3/MPEnfPzypaLzuf
+         OoHYnoivlNcKU/kocXYzNJgGaf54wtIMJ+Igb9nzAzjQut06bh1//PVpdp8UximrunsJ
+         rGh5vmWdJ/7J3Ndqs3FAt59/f3vtAc35TOSY9sankJj/jjQ704blfPwr010hKx1ZCD4h
+         GV15i0tHUuI50gLq7dqgPyRVIm91hCK5PH/GtGDd+2MfLqbxzejl4ZjTIP+vm5wiQjmW
+         /JNDfKozmSceeIz1CmM8fOGl3cXWBMW498NoYuGv1BhMl1IbR27VastAEb7jbdU0ECH6
+         9k8A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-Received: from out30-42.freemail.mail.aliyun.com (out30-42.freemail.mail.aliyun.com. [115.124.30.42])
-        by mx.google.com with ESMTPS id x8si30373276plr.252.2019.08.08.16.58.09
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 16:58:10 -0700 (PDT)
-Received-SPF: pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) client-ip=115.124.30.42;
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au. [211.29.132.246])
+        by mx.google.com with ESMTP id l9si58046141pgm.43.2019.08.08.17.11.15
+        for <linux-mm@kvack.org>;
+        Thu, 08 Aug 2019 17:11:15 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.246;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of yang.shi@linux.alibaba.com designates 115.124.30.42 as permitted sender) smtp.mailfrom=yang.shi@linux.alibaba.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=alibaba.com
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R191e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e01422;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TYzn9kn_1565308665;
-Received: from e19h19392.et15sqa.tbsite.net(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TYzn9kn_1565308665)
-          by smtp.aliyun-inc.com(127.0.0.1);
-          Fri, 09 Aug 2019 07:58:07 +0800
-From: Yang Shi <yang.shi@linux.alibaba.com>
-To: mhocko@suse.com,
-	kirill.shutemov@linux.intel.com,
-	hannes@cmpxchg.org,
-	vbabka@suse.cz,
-	rientjes@google.com,
-	akpm@linux-foundation.org
-Cc: yang.shi@linux.alibaba.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: [RESEND PATCH 1/2 -mm] mm: account lazy free pages separately
-Date: Fri,  9 Aug 2019 07:57:44 +0800
-Message-Id: <1565308665-24747-1-git-send-email-yang.shi@linux.alibaba.com>
-X-Mailer: git-send-email 1.8.3.1
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
+	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id 2D18943F66E;
+	Fri,  9 Aug 2019 10:11:13 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hvsTt-0000ry-Vd; Fri, 09 Aug 2019 10:10:05 +1000
+Date: Fri, 9 Aug 2019 10:10:05 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Brian Foster <bfoster@redhat.com>
+Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH 22/24] xfs: track reclaimable inodes using a LRU list
+Message-ID: <20190809001005.GW7777@dread.disaster.area>
+References: <20190801021752.4986-1-david@fromorbit.com>
+ <20190801021752.4986-23-david@fromorbit.com>
+ <20190808163653.GB24551@bfoster>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190808163653.GB24551@bfoster>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0
+	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=16FmFycsKCjbgrCA0BcA:9
+	a=CjuIK1q_8ugA:10 a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When doing partial unmap to THP, the pages in the affected range would
-be considered to be reclaimable when memory pressure comes in.  And,
-such pages would be put on deferred split queue and get minus from the
-memory statistics (i.e. /proc/meminfo).
+On Thu, Aug 08, 2019 at 12:36:53PM -0400, Brian Foster wrote:
+> On Thu, Aug 01, 2019 at 12:17:50PM +1000, Dave Chinner wrote:
+> > From: Dave Chinner <dchinner@redhat.com>
+> > 
+> > Now that we don't do IO from the inode reclaim code, there is no
+> > need to optimise inode scanning order for optimal IO
+> > characteristics. The AIL takes care of that for us, so now reclaim
+> > can focus on selecting the best inodes to reclaim.
+> > 
+> > Hence we can change the inode reclaim algorithm to a real LRU and
+> > remove the need to use the radix tree to track and walk inodes under
+> > reclaim. This frees up a radix tree bit and simplifies the code that
+> > marks inodes are reclaim candidates. It also simplifies the reclaim
+> > code - we don't need batching anymore and all the reclaim logic
+> > can be added to the LRU isolation callback.
+> > 
+> > Further, we get node aware reclaim at the xfs_inode level, which
+> > should help the per-node reclaim code free relevant inodes faster.
+> > 
+> > We can re-use the VFS inode lru pointers - once the inode has been
+> > reclaimed from the VFS, we can use these pointers ourselves. Hence
+> > we don't need to grow the inode to change the way we index
+> > reclaimable inodes.
+> > 
+> > Start by adding the list_lru tracking in parallel with the existing
+> > reclaim code. This makes it easier to see the LRU infrastructure
+> > separate to the reclaim algorithm changes. Especially the locking
+> > order, which is ip->i_flags_lock -> list_lru lock.
+> > 
+> > Signed-off-by: Dave Chinner <dchinner@redhat.com>
+> > ---
+> >  fs/xfs/xfs_icache.c | 31 +++++++------------------------
+> >  fs/xfs/xfs_icache.h |  1 -
+> >  fs/xfs/xfs_mount.h  |  1 +
+> >  fs/xfs/xfs_super.c  | 31 ++++++++++++++++++++++++-------
+> >  4 files changed, 32 insertions(+), 32 deletions(-)
+> > 
+> ...
+> > diff --git a/fs/xfs/xfs_super.c b/fs/xfs/xfs_super.c
+> > index a59d3a21be5c..b5c4c1b6fd19 100644
+> > --- a/fs/xfs/xfs_super.c
+> > +++ b/fs/xfs/xfs_super.c
+> ...
+> > @@ -1801,7 +1817,8 @@ xfs_fs_nr_cached_objects(
+> >  	/* Paranoia: catch incorrect calls during mount setup or teardown */
+> >  	if (WARN_ON_ONCE(!sb->s_fs_info))
+> >  		return 0;
+> > -	return xfs_reclaim_inodes_count(XFS_M(sb));
+> > +
+> > +	return list_lru_shrink_count(&XFS_M(sb)->m_inode_lru, sc);
+> 
+> Do we not need locking here,
 
-For example, when doing THP split test, /proc/meminfo would show:
+No locking is needed - we have no global lock that protects the
+list_lru that we could use to serialise the count - that would
+completely destroy the scalability advantages the list_lru provide.
+As it is, shrinker counts have always been inherently racy and so we
+don't really care for accuracy anywhere in the shrinker code. Hence
+there is no need to attempt to be accurate here, just like didn't
+attempt to be accurate for the per AG reclaimable inode count
+aggregation that this replaces.
 
-Before put on lazy free list:
-MemTotal:       45288336 kB
-MemFree:        43281376 kB
-MemAvailable:   43254048 kB
-...
-Active(anon):    1096296 kB
-Inactive(anon):     8372 kB
-...
-AnonPages:       1096264 kB
-...
-AnonHugePages:   1056768 kB
+> or are we just skipping it because this
+> apparently maintains a count field and accuracy isn't critical? If the
+> latter, a one liner comment would be useful.
 
-After put on lazy free list:
-MemTotal:       45288336 kB
-MemFree:        43282612 kB
-MemAvailable:   43255284 kB
-...
-Active(anon):    1094228 kB
-Inactive(anon):     8372 kB
-...
-AnonPages:         49668 kB
-...
-AnonHugePages:     10240 kB
+I don't think it needs comments as they would be stating the
+obvious.  We don't have comments explaining this in any other
+shrinker - it's jsut assumed that anyone working with shrinkers
+already knows that the counts are not required to be exactly
+accurate...
 
-The THPs confusingly look disappeared although they are still on LRU if
-you are not familair the tricks done by kernel.
+Cheers,
 
-Accounted the lazy free pages to NR_LAZYFREE, and show them in meminfo
-and other places.  With the change the /proc/meminfo would look like:
-Before put on lazy free list:
-AnonHugePages:   1056768 kB
-ShmemHugePages:        0 kB
-ShmemPmdMapped:        0 kB
-LazyFreePages:         0 kB
-
-After put on lazy free list:
-AnonHugePages:     10240 kB
-ShmemHugePages:        0 kB
-ShmemPmdMapped:        0 kB
-LazyFreePages:   1046528 kB
-
-And, this is also the preparation for the following patch to account
-lazy free pages to available memory.
-
-Here the lazyfree doesn't count MADV_FREE pages since they are not
-actually unmapped until they get reclaimed.  And, they are put on
-inactive file LRU, so they have been accounted for available memory.
-
-Signed-off-by: Yang Shi <yang.shi@linux.alibaba.com>
----
-I'm not quite sure whether LazyFreePages is a good name or not since "Lazyfree"
-is typically referred to MADV_FREE pages.  I could use a more spceific name,
-i.e. "DeferredSplitTHP" since it doesn't account MADV_FREE as explained in the
-commit log.  But, a more general name would be good for including other type
-pages in the future.
-
- Documentation/filesystems/proc.txt | 12 ++++++++----
- drivers/base/node.c                |  3 +++
- fs/proc/meminfo.c                  |  3 +++
- include/linux/mmzone.h             |  1 +
- mm/huge_memory.c                   |  6 ++++++
- mm/page_alloc.c                    |  2 ++
- mm/vmstat.c                        |  1 +
- 7 files changed, 24 insertions(+), 4 deletions(-)
-
-diff --git a/Documentation/filesystems/proc.txt b/Documentation/filesystems/proc.txt
-index 99ca040..8dd09d1 100644
---- a/Documentation/filesystems/proc.txt
-+++ b/Documentation/filesystems/proc.txt
-@@ -917,6 +917,7 @@ HardwareCorrupted:   0 kB
- AnonHugePages:   49152 kB
- ShmemHugePages:      0 kB
- ShmemPmdMapped:      0 kB
-+LazyFreePages:       0 kB
- 
- 
-     MemTotal: Total usable ram (i.e. physical ram minus a few reserved
-@@ -924,12 +925,13 @@ ShmemPmdMapped:      0 kB
-      MemFree: The sum of LowFree+HighFree
- MemAvailable: An estimate of how much memory is available for starting new
-               applications, without swapping. Calculated from MemFree,
--              SReclaimable, the size of the file LRU lists, and the low
--              watermarks in each zone.
-+              SReclaimable, the size of the file LRU lists, LazyFree pages
-+              and the low watermarks in each zone.
-               The estimate takes into account that the system needs some
-               page cache to function well, and that not all reclaimable
--              slab will be reclaimable, due to items being in use. The
--              impact of those factors will vary from system to system.
-+              slab and LazyFree pages will be reclaimable, due to items
-+              being in use. The impact of those factors will vary from
-+              system to system.
-      Buffers: Relatively temporary storage for raw disk blocks
-               shouldn't get tremendously large (20MB or so)
-       Cached: in-memory cache for files read from the disk (the
-@@ -967,6 +969,8 @@ AnonHugePages: Non-file backed huge pages mapped into userspace page tables
- ShmemHugePages: Memory used by shared memory (shmem) and tmpfs allocated
-               with huge pages
- ShmemPmdMapped: Shared memory mapped into userspace with huge pages
-+LazyFreePages: Cleanly freeable pages under memory pressure (i.e. deferred
-+               split THP).
- KReclaimable: Kernel allocations that the kernel will attempt to reclaim
-               under memory pressure. Includes SReclaimable (below), and other
-               direct allocations with a shrinker.
-diff --git a/drivers/base/node.c b/drivers/base/node.c
-index 75b7e6f..9326b4e 100644
---- a/drivers/base/node.c
-+++ b/drivers/base/node.c
-@@ -428,6 +428,7 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       "Node %d ShmemHugePages: %8lu kB\n"
- 		       "Node %d ShmemPmdMapped: %8lu kB\n"
- #endif
-+		       "Node %d LazyFreePages:	%8lu kB\n"
- 			,
- 		       nid, K(node_page_state(pgdat, NR_FILE_DIRTY)),
- 		       nid, K(node_page_state(pgdat, NR_WRITEBACK)),
-@@ -454,6 +455,8 @@ static ssize_t node_read_meminfo(struct device *dev,
- 		       nid, K(node_page_state(pgdat, NR_SHMEM_PMDMAPPED) *
- 				       HPAGE_PMD_NR)
- #endif
-+		       ,
-+		       nid, K(node_page_state(pgdat, NR_LAZYFREE))
- 		       );
- 	n += hugetlb_report_node_meminfo(nid, buf + n);
- 	return n;
-diff --git a/fs/proc/meminfo.c b/fs/proc/meminfo.c
-index 465ea01..d66491a 100644
---- a/fs/proc/meminfo.c
-+++ b/fs/proc/meminfo.c
-@@ -138,6 +138,9 @@ static int meminfo_proc_show(struct seq_file *m, void *v)
- 		    global_node_page_state(NR_SHMEM_PMDMAPPED) * HPAGE_PMD_NR);
- #endif
- 
-+	show_val_kb(m, "LazyFreePages:  ",
-+		    global_node_page_state(NR_LAZYFREE));
-+
- #ifdef CONFIG_CMA
- 	show_val_kb(m, "CmaTotal:       ", totalcma_pages);
- 	show_val_kb(m, "CmaFree:        ",
-diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index d8ec773..4d00b1c 100644
---- a/include/linux/mmzone.h
-+++ b/include/linux/mmzone.h
-@@ -235,6 +235,7 @@ enum node_stat_item {
- 	NR_SHMEM_THPS,
- 	NR_SHMEM_PMDMAPPED,
- 	NR_ANON_THPS,
-+	NR_LAZYFREE,		/* Lazyfree pages, i.e. deferred split THP */
- 	NR_UNSTABLE_NFS,	/* NFS unstable pages */
- 	NR_VMSCAN_WRITE,
- 	NR_VMSCAN_IMMEDIATE,	/* Prioritise for reclaim when writeback ends */
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index c9a596e..a20152f 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -2766,6 +2766,8 @@ int split_huge_page_to_list(struct page *page, struct list_head *list)
- 		if (!list_empty(page_deferred_list(head))) {
- 			ds_queue->split_queue_len--;
- 			list_del(page_deferred_list(head));
-+			__mod_lruvec_page_state(head, NR_LAZYFREE,
-+						-HPAGE_PMD_NR);
- 		}
- 		if (mapping)
- 			__dec_node_page_state(page, NR_SHMEM_THPS);
-@@ -2815,6 +2817,7 @@ void free_transhuge_page(struct page *page)
- 	if (!list_empty(page_deferred_list(page))) {
- 		ds_queue->split_queue_len--;
- 		list_del(page_deferred_list(page));
-+		__mod_lruvec_page_state(page, NR_LAZYFREE, -HPAGE_PMD_NR);
- 	}
- 	spin_unlock_irqrestore(&ds_queue->split_queue_lock, flags);
- 	free_compound_page(page);
-@@ -2846,6 +2849,7 @@ void deferred_split_huge_page(struct page *page)
- 	spin_lock_irqsave(&ds_queue->split_queue_lock, flags);
- 	if (list_empty(page_deferred_list(page))) {
- 		count_vm_event(THP_DEFERRED_SPLIT_PAGE);
-+		__mod_lruvec_page_state(page, NR_LAZYFREE, HPAGE_PMD_NR);
- 		list_add_tail(page_deferred_list(page), &ds_queue->split_queue);
- 		ds_queue->split_queue_len++;
- #ifdef CONFIG_MEMCG
-@@ -2906,6 +2910,8 @@ static unsigned long deferred_split_scan(struct shrinker *shrink,
- 			/* We lost race with put_compound_page() */
- 			list_del_init(page_deferred_list(page));
- 			ds_queue->split_queue_len--;
-+			__mod_lruvec_page_state(page, NR_LAZYFREE,
-+						-HPAGE_PMD_NR);
- 		}
- 		if (!--sc->nr_to_scan)
- 			break;
-diff --git a/mm/page_alloc.c b/mm/page_alloc.c
-index 1d1c5d3..1f3eba8 100644
---- a/mm/page_alloc.c
-+++ b/mm/page_alloc.c
-@@ -5279,6 +5279,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
- 			" shmem_pmdmapped: %lukB"
- 			" anon_thp: %lukB"
- #endif
-+			" lazyfree:%lukB"
- 			" writeback_tmp:%lukB"
- 			" unstable:%lukB"
- 			" all_unreclaimable? %s"
-@@ -5301,6 +5302,7 @@ void show_free_areas(unsigned int filter, nodemask_t *nodemask)
- 					* HPAGE_PMD_NR),
- 			K(node_page_state(pgdat, NR_ANON_THPS) * HPAGE_PMD_NR),
- #endif
-+			K(node_page_state(pgdat, NR_LAZYFREE)),
- 			K(node_page_state(pgdat, NR_WRITEBACK_TEMP)),
- 			K(node_page_state(pgdat, NR_UNSTABLE_NFS)),
- 			pgdat->kswapd_failures >= MAX_RECLAIM_RETRIES ?
-diff --git a/mm/vmstat.c b/mm/vmstat.c
-index fd7e16c..4f6eed5 100644
---- a/mm/vmstat.c
-+++ b/mm/vmstat.c
-@@ -1159,6 +1159,7 @@ int fragmentation_index(struct zone *zone, unsigned int order)
- 	"nr_shmem_hugepages",
- 	"nr_shmem_pmdmapped",
- 	"nr_anon_transparent_hugepages",
-+	"nr_lazyfree",
- 	"nr_unstable",
- 	"nr_vmscan_write",
- 	"nr_vmscan_immediate_reclaim",
+Dave.
 -- 
-1.8.3.1
+Dave Chinner
+david@fromorbit.com
 
