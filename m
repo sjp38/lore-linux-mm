@@ -2,163 +2,105 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E775FC31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:46:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D37EBC433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:57:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7672221881
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:46:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7672221881
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 8DB3D2171F
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:57:22 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DB3D2171F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 1148F6B0008; Fri,  9 Aug 2019 04:46:22 -0400 (EDT)
+	id 26C546B0005; Fri,  9 Aug 2019 04:57:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0C6566B000E; Fri,  9 Aug 2019 04:46:22 -0400 (EDT)
+	id 21E6A6B0006; Fri,  9 Aug 2019 04:57:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ECFBF6B0010; Fri,  9 Aug 2019 04:46:21 -0400 (EDT)
+	id 10CD46B0008; Fri,  9 Aug 2019 04:57:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 9B0E46B0008
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 04:46:21 -0400 (EDT)
-Received: by mail-ed1-f70.google.com with SMTP id b33so59829884edc.17
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 01:46:21 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id B57AB6B0005
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 04:57:21 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id y24so59971057edb.1
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 01:57:21 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:openpgp:autocrypt:message-id:date:user-agent
-         :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=tZuUFQA30O40KuzqAGsFvveX+Yg2HIovGU0dehlVW/I=;
-        b=QHNMlC4yhfoHuNeW/wNH45CsA0zcw8Mu6GEaeSb0kxAbPzxPcjV2LRlH+PnwBJCmA3
-         Q2+kgex9/BCuFLFtje/eEnOrCgKA6+ROBjipnvywh0UKeLYOPw85ySN5AeLkvP+DgUt9
-         Tmi7CvDzyXNsvE9izxLxG0FXQOH4n5JgWEyPqEtcY1nCIdKFfVPb6rQJna2wJWVTP5fv
-         YmcxYC9DrNCnQAwq/959EKIwxdv9aIGWSUSDF0tpMelwCtVRAnpq/yrhN1/CEtITmobW
-         IJ5nESn7R5+qBelw60Sh7fLRnc9r9KhFssyDd8AnLCx/NQnx9uY4ScEj6zZPO/xEFSN7
-         H7vA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAUnAcCKEFbBIFxwCncv1eeLuvh9EgEmYvxeESIkfVKDfg/Zetb9
-	hLh+R1VJ7X2kJu9Gc6EN8C7iHC0X7Lqz3NcTfa2i9UQibe/Lwy1uOpRFcis+g6bB0+Z5SnEbOCJ
-	SvgiO4zsw2kxSuN6wEtE+H6PVBTU+09SVDqZEOKntsxhbM+5DQ+ti7gqPFx7Hyn/XWA==
-X-Received: by 2002:a17:906:b306:: with SMTP id n6mr204529ejz.66.1565340381176;
-        Fri, 09 Aug 2019 01:46:21 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqypXUQ2RrZRCa+3zLgkpACwmFwLuIiVYtZSXDCGpefffiYFILsKpm1eORuvn7bdBKGvVx6D
-X-Received: by 2002:a17:906:b306:: with SMTP id n6mr204491ejz.66.1565340380264;
-        Fri, 09 Aug 2019 01:46:20 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565340380; cv=none;
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-language:content-transfer-encoding;
+        bh=wt7OavJ93EtvrTb8n4MfirECOa5MzqiMFcE9+KCS/7o=;
+        b=nqAJafIwveuKs3Fo6oMBqh12SHmj8O4D5zxj7gqYWPtvCioMq9Z59aYSbmgPAhMfnn
+         U89UDBc6y2QakPTQHe6Cd+08w7cPDV1hagOCZBlYNUMdwhSgdWABFRWEvSvyVA0kpeRt
+         Luh3YxfF8jL1YLovln+AlZWg/nbHjBz1/ERfICn/lMOMgdNKEGDjI4bqRJO4Sv4OsL8U
+         UIPm++cnRWuXfq5F534DkJjtTnslfWUJD5Od3c7+1QgEcvnKzbIfywppcO+pDmmN0IvJ
+         OwZb72zRVeabNedklD8i9nMjAf9oVau0W2Q9T8xGzhYvVcl6oypmxLrd9jo4SvFPzKdx
+         CprQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+X-Gm-Message-State: APjAAAWan7mWpj7ARGfo0bmPWcVZKY9S3C7tEI7ve95kYV0Gz6SZC1/G
+	USE3uo/W0IVZP+3JiLbedFKFrXn7dyxnzt8eh7a0i6fxea/XVDdRSgJQHok48dTTsUeKf5XWl2v
+	FcXF8gmT4T8hrSAPe0tXngBGxpaKwpvqqm/mYyQ3aWoa/T87H7Ele7+/RJxHvplIE1w==
+X-Received: by 2002:a50:92a5:: with SMTP id k34mr20698927eda.90.1565341041273;
+        Fri, 09 Aug 2019 01:57:21 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqz5VUGnnJ8ROpADBoFDLwVXV8cq3uYm26Z5H7Mou8yDf+2NfOo+rATRpyFbmdUp+J1E4iGD
+X-Received: by 2002:a50:92a5:: with SMTP id k34mr20698869eda.90.1565341040417;
+        Fri, 09 Aug 2019 01:57:20 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565341040; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ys7p0qlitCfGeRS5oJTJcV78P0fT/6sUrzfpw7KdW0KkQ3cCN2WlgucKMei1grnexR
-         /S1ZnUWJpjT/srBa7mCMSjASpOOsia97UCHybiERboyogq57vaIR/7dAP0LzdW/8qIM9
-         6v3FatC6yC8cxPtxZ6/ZvXibFDkn99l9BvdVYJVboOWldaA407TbzA7xnOY9VcMVmMRp
-         gGt7IRyqA9rBUCr8qM6j7mD9kRw9ee8wV3fdlh/W5BzJnH1eNqazyKWDr0JM4nCwFuWO
-         1NG/KHuLhdgGeMUjRWtwNsfT0X+qaSalCkjPp1BDvVBY/4WDDcc3QnmIt3FxUM+TX8fH
-         jr8w==
+        b=Axwynd4iSqX1hE2B5ShDIaYzmB5GJzy68A35G3oR27qELAnWdkyn12OYuA3Qa/nW6/
+         6miYIyRpUot7HPf2iiRBOjF8pU2QLTpGh5wCBCg5Bu8fbROpVf1zEZKNSDAA+72fUVHI
+         NfyoniY0R7p7uIeazINfazNrDllDX3OJl/XiJfkwudsl1PrWEzboLQUSfKiQj6hk34Q6
+         dl19k2M2NoEUN7DMBJ5EINDd7ZweWQ3h/aWebeJLUMDAk7okLLODH6XWABc4A0BglLcg
+         F/Qvhv/lEMd2b6XmolLhjfcaLBFe5KwtXV9myQfjdS2YbEQOPHvDSOBltbS2gokKUIsr
+         JVGw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
-         :subject;
-        bh=tZuUFQA30O40KuzqAGsFvveX+Yg2HIovGU0dehlVW/I=;
-        b=D3uSpPgQJ8np0ff9CO5IJiYo49bOSsa5JDJos1SBYReBJVXtTWD8gATCna7txKz5FX
-         mDyT7cHBSjNwp0gDLoT5OHHBBHFr3VU8VPesAkmchKGrElGxgpf1Vmfmn4XAeS7sGvqH
-         hw3sP/znujEu7xaoxgPyHWIzwQN6kaioUbFJ7GAuVAyz1aIv8O9PwJUK99Mz2GUizLT3
-         3Xz0S9QU34ICFJFnaRCYPseju1XP8aoL/Hi8H+ZMRLtfzuwACd/tHS7i/Ybo2dof/4T5
-         YW+D/3VJ7ZxTzM0iw2v8qB0XzlMjqcztclf0/tvo19j0E9IcnJ2mLdlU3eXh6OyVvC85
-         q0MA==
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=wt7OavJ93EtvrTb8n4MfirECOa5MzqiMFcE9+KCS/7o=;
+        b=jAzG0G4peQ1nxZBaOMtUdsxeWQTdc0uOjqc9ep3C3IhOptMyZmVN2qeD+Y3u/wd6cf
+         kbxDzMcSU+q6eJTB8l9lrfnSBXxzwi2Evf74OX7jnYcJ3TzQ65eQQsgkwHz0d1LDhL0k
+         rk/n7flbdmUywH6zNwBm6KlNmlh7mW/hTZQp4tzR/YVeW7P88WwJ74QkcMU7vvEdwgQ8
+         UAuBsZywE6qzoUsTd2gShkuVj6SdaHF4hnO2Og6mbE2gwHATyLozX0aJhocWHm/tR+2u
+         PJkV+u8i5FaizEsYkdKZ1gfTtOERfmAaPcGq8GZUcLokgAZpvCf2HFpdxKKActGpEIZ0
+         pZug==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id g2si34426097edh.299.2019.08.09.01.46.20
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 01:46:20 -0700 (PDT)
-Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
+       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id h4si37543637edb.133.2019.08.09.01.57.20
+        for <linux-mm@kvack.org>;
+        Fri, 09 Aug 2019 01:57:20 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id C5105AF3F;
-	Fri,  9 Aug 2019 08:46:19 +0000 (UTC)
-Subject: Re: [PATCH] mm, vmscan: Do not special-case slab reclaim when
- watermarks are boosted
-To: Mel Gorman <mgorman@techsingularity.net>,
+       spf=pass (google.com: best guess record for domain of steven.price@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=steven.price@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6D0F5344;
+	Fri,  9 Aug 2019 01:57:19 -0700 (PDT)
+Received: from [10.1.196.133] (e112269-lin.cambridge.arm.com [10.1.196.133])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 680393F706;
+	Fri,  9 Aug 2019 01:57:18 -0700 (PDT)
+Subject: Re: [PATCH 2/3] pagewalk: seperate function pointers from iterator
+ data
+To: Christoph Hellwig <hch@lst.de>,
+ Linus Torvalds <torvalds@linux-foundation.org>,
  Andrew Morton <akpm@linux-foundation.org>
-Cc: Dave Chinner <david@fromorbit.com>, Michal Hocko <mhocko@kernel.org>,
- linux-mm@kvack.org, linux-xfs@vger.kernel.org,
- Linux Kernel Mailing List <linux-kernel@vger.kernel.org>
-References: <20190808182946.GM2739@techsingularity.net>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <7c39799f-ce00-e506-ef3b-4cd8fbff643c@suse.cz>
-Date: Fri, 9 Aug 2019 10:46:19 +0200
+Cc: =?UTF-8?Q?Thomas_Hellstr=c3=b6m?= <thomas@shipmail.org>,
+ Jerome Glisse <jglisse@redhat.com>, Jason Gunthorpe <jgg@mellanox.com>,
+ linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190808154240.9384-1-hch@lst.de>
+ <20190808154240.9384-3-hch@lst.de>
+From: Steven Price <steven.price@arm.com>
+Message-ID: <e418faa0-49bf-1bc6-8f77-2849c1b6ae70@arm.com>
+Date: Fri, 9 Aug 2019 09:57:17 +0100
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190808182946.GM2739@techsingularity.net>
-Content-Type: text/plain; charset=iso-8859-15
-Content-Language: en-US
+In-Reply-To: <20190808154240.9384-3-hch@lst.de>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
 Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -166,154 +108,284 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/8/19 8:29 PM, Mel Gorman wrote:
+Subject: s/seperate/separate/
 
-...
+On 08/08/2019 16:42, Christoph Hellwig wrote:
+> The mm_walk structure currently mixed data and code.  Split out the
+> operations vectors into a new mm_walk_ops structure, and while we
+> are changing the API also declare the mm_walk structure inside the
+> walk_page_range and walk_page_vma functions.
+> 
+> Based on patch from Linus Torvalds.
+> 
+> Signed-off-by: Christoph Hellwig <hch@lst.de>
+> ---
+>  arch/openrisc/kernel/dma.c              |  22 +++--
+>  arch/powerpc/mm/book3s64/subpage_prot.c |  10 +-
+>  arch/s390/mm/gmap.c                     |  33 +++----
+>  fs/proc/task_mmu.c                      |  74 +++++++--------
+>  include/linux/pagewalk.h                |  64 +++++++------
+>  mm/hmm.c                                |  40 +++-----
+>  mm/madvise.c                            |  41 +++-----
+>  mm/memcontrol.c                         |  23 +++--
+>  mm/mempolicy.c                          |  15 ++-
+>  mm/migrate.c                            |  15 ++-
+>  mm/mincore.c                            |  15 ++-
+>  mm/mprotect.c                           |  24 ++---
+>  mm/pagewalk.c                           | 118 ++++++++++++++----------
+>  13 files changed, 245 insertions(+), 249 deletions(-)
+> 
 
-> Removing the special casing can still indirectly help fragmentation by
+[...]
+> diff --git a/mm/pagewalk.c b/mm/pagewalk.c
+> index 8a92a961a2ee..28510fc0dde1 100644
+> --- a/mm/pagewalk.c
+> +++ b/mm/pagewalk.c
+> @@ -9,10 +9,11 @@ static int walk_pte_range(pmd_t *pmd, unsigned long addr, unsigned long end,
+>  {
+>  	pte_t *pte;
+>  	int err = 0;
+> +	const struct mm_walk_ops *ops = walk->ops;
+>  
+>  	pte = pte_offset_map(pmd, addr);
+>  	for (;;) {
+> -		err = walk->pte_entry(pte, addr, addr + PAGE_SIZE, walk);
+> +		err = ops->pte_entry(pte, addr, addr + PAGE_SIZE, walk);
+>  		if (err)
+>  		       break;
+>  		addr += PAGE_SIZE;
+> @@ -30,6 +31,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+>  {
+>  	pmd_t *pmd;
+>  	unsigned long next;
+> +	const struct mm_walk_ops *ops = walk->ops;
+>  	int err = 0;
+>  
+>  	pmd = pmd_offset(pud, addr);
+> @@ -37,8 +39,8 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+>  again:
+>  		next = pmd_addr_end(addr, end);
+>  		if (pmd_none(*pmd) || !walk->vma) {
+> -			if (walk->pte_hole)
+> -				err = walk->pte_hole(addr, next, walk);
+> +			if (ops->pte_hole)
+> +				err = ops->pte_hole(addr, next, walk);
+>  			if (err)
+>  				break;
+>  			continue;
+> @@ -47,8 +49,8 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+>  		 * This implies that each ->pmd_entry() handler
+>  		 * needs to know about pmd_trans_huge() pmds
+>  		 */
+> -		if (walk->pmd_entry)
+> -			err = walk->pmd_entry(pmd, addr, next, walk);
+> +		if (ops->pmd_entry)
+> +			err = ops->pmd_entry(pmd, addr, next, walk);
+>  		if (err)
+>  			break;
+>  
+> @@ -56,7 +58,7 @@ static int walk_pmd_range(pud_t *pud, unsigned long addr, unsigned long end,
+>  		 * Check this here so we only break down trans_huge
+>  		 * pages when we _need_ to
+>  		 */
+> -		if (!walk->pte_entry)
+> +		if (!ops->pte_entry)
+>  			continue;
+>  
+>  		split_huge_pmd(walk->vma, pmd, addr);
+> @@ -75,6 +77,7 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
+>  {
+>  	pud_t *pud;
+>  	unsigned long next;
+> +	const struct mm_walk_ops *ops = walk->ops;
+>  	int err = 0;
+>  
+>  	pud = pud_offset(p4d, addr);
+> @@ -82,18 +85,18 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
+>   again:
+>  		next = pud_addr_end(addr, end);
+>  		if (pud_none(*pud) || !walk->vma) {
+> -			if (walk->pte_hole)
+> -				err = walk->pte_hole(addr, next, walk);
+> +			if (ops->pte_hole)
+> +				err = ops->pte_hole(addr, next, walk);
+>  			if (err)
+>  				break;
+>  			continue;
+>  		}
+>  
+> -		if (walk->pud_entry) {
+> +		if (ops->pud_entry) {
+>  			spinlock_t *ptl = pud_trans_huge_lock(pud, walk->vma);
+>  
+>  			if (ptl) {
+> -				err = walk->pud_entry(pud, addr, next, walk);
+> +				err = ops->pud_entry(pud, addr, next, walk);
+>  				spin_unlock(ptl);
+>  				if (err)
+>  					break;
+> @@ -105,7 +108,7 @@ static int walk_pud_range(p4d_t *p4d, unsigned long addr, unsigned long end,
+>  		if (pud_none(*pud))
+>  			goto again;
+>  
+> -		if (walk->pmd_entry || walk->pte_entry)
+> +		if (ops->pmd_entry || ops->pte_entry)
+>  			err = walk_pmd_range(pud, addr, next, walk);
+>  		if (err)
+>  			break;
+> @@ -119,19 +122,20 @@ static int walk_p4d_range(pgd_t *pgd, unsigned long addr, unsigned long end,
+>  {
+>  	p4d_t *p4d;
+>  	unsigned long next;
+> +	const struct mm_walk_ops *ops = walk->ops;
+>  	int err = 0;
+>  
+>  	p4d = p4d_offset(pgd, addr);
+>  	do {
+>  		next = p4d_addr_end(addr, end);
+>  		if (p4d_none_or_clear_bad(p4d)) {
+> -			if (walk->pte_hole)
+> -				err = walk->pte_hole(addr, next, walk);
+> +			if (ops->pte_hole)
+> +				err = ops->pte_hole(addr, next, walk);
+>  			if (err)
+>  				break;
+>  			continue;
+>  		}
+> -		if (walk->pmd_entry || walk->pte_entry)
+> +		if (ops->pmd_entry || ops->pte_entry)
+>  			err = walk_pud_range(p4d, addr, next, walk);
+>  		if (err)
+>  			break;
+> @@ -145,19 +149,20 @@ static int walk_pgd_range(unsigned long addr, unsigned long end,
+>  {
+>  	pgd_t *pgd;
+>  	unsigned long next;
+> +	const struct mm_walk_ops *ops = walk->ops;
+>  	int err = 0;
+>  
+>  	pgd = pgd_offset(walk->mm, addr);
+>  	do {
+>  		next = pgd_addr_end(addr, end);
+>  		if (pgd_none_or_clear_bad(pgd)) {
+> -			if (walk->pte_hole)
+> -				err = walk->pte_hole(addr, next, walk);
+> +			if (ops->pte_hole)
+> +				err = ops->pte_hole(addr, next, walk);
+>  			if (err)
+>  				break;
+>  			continue;
+>  		}
+> -		if (walk->pmd_entry || walk->pte_entry)
+> +		if (ops->pmd_entry || ops->pte_entry)
+>  			err = walk_p4d_range(pgd, addr, next, walk);
+>  		if (err)
+>  			break;
+> @@ -183,6 +188,7 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
+>  	unsigned long hmask = huge_page_mask(h);
+>  	unsigned long sz = huge_page_size(h);
+>  	pte_t *pte;
+> +	const struct mm_walk_ops *ops = walk->ops;
+>  	int err = 0;
+>  
+>  	do {
+> @@ -190,9 +196,9 @@ static int walk_hugetlb_range(unsigned long addr, unsigned long end,
+>  		pte = huge_pte_offset(walk->mm, addr & hmask, sz);
+>  
+>  		if (pte)
+> -			err = walk->hugetlb_entry(pte, hmask, addr, next, walk);
+> -		else if (walk->pte_hole)
+> -			err = walk->pte_hole(addr, next, walk);
+> +			err = ops->hugetlb_entry(pte, hmask, addr, next, walk);
+> +		else if (ops->pte_hole)
+> +			err = ops->pte_hole(addr, next, walk);
+>  
+>  		if (err)
+>  			break;
+> @@ -220,9 +226,10 @@ static int walk_page_test(unsigned long start, unsigned long end,
+>  			struct mm_walk *walk)
+>  {
+>  	struct vm_area_struct *vma = walk->vma;
+> +	const struct mm_walk_ops *ops = walk->ops;
+>  
+> -	if (walk->test_walk)
+> -		return walk->test_walk(start, end, walk);
+> +	if (ops->test_walk)
+> +		return ops->test_walk(start, end, walk);
+>  
+>  	/*
+>  	 * vma(VM_PFNMAP) doesn't have any valid struct pages behind VM_PFNMAP
+> @@ -234,8 +241,8 @@ static int walk_page_test(unsigned long start, unsigned long end,
+>  	 */
+>  	if (vma->vm_flags & VM_PFNMAP) {
+>  		int err = 1;
+> -		if (walk->pte_hole)
+> -			err = walk->pte_hole(start, end, walk);
+> +		if (ops->pte_hole)
+> +			err = ops->pte_hole(start, end, walk);
+>  		return err ? err : 1;
+>  	}
+>  	return 0;
+> @@ -248,7 +255,8 @@ static int __walk_page_range(unsigned long start, unsigned long end,
+>  	struct vm_area_struct *vma = walk->vma;
+>  
+>  	if (vma && is_vm_hugetlb_page(vma)) {
+> -		if (walk->hugetlb_entry)
+> +		const struct mm_walk_ops *ops = walk->ops;
 
-I think you mean e.g. 'against fragmentation'?
+NIT: checkpatch would like a blank line here
 
-> avoiding fragmentation-causing events due to slab allocation as pages
-> from a slab pageblock will have some slab objects freed.  Furthermore,
-> with the special casing, reclaim behaviour is unpredictable as kswapd
-> sometimes examines slab and sometimes does not in a manner that is tricky
-> to tune or analyse.
-> 
-> This patch removes the special casing. The downside is that this is not a
-> universal performance win. Some benchmarks that depend on the residency
-> of data when rereading metadata may see a regression when slab reclaim
-> is restored to its original behaviour. Similarly, some benchmarks that
-> only read-once or write-once may perform better when page reclaim is too
-> aggressive. The primary upside is that slab shrinker is less surprising
-> (arguably more sane but that's a matter of opinion), behaves consistently
-> regardless of the fragmentation state of the system and properly obeys
-> VM sysctls.
-> 
-> A fsmark benchmark configuration was constructed similar to
-> what Dave reported and is codified by the mmtest configuration
-> config-io-fsmark-small-file-stream.  It was evaluated on a 1-socket machine
-> to avoid dealing with NUMA-related issues and the timing of reclaim. The
-> storage was an SSD Samsung Evo and a fresh trimmed XFS filesystem was
-> used for the test data.
-> 
-> This is not an exact replication of Dave's setup. The configuration
-> scales its parameters depending on the memory size of the SUT to behave
-> similarly across machines. The parameters mean the first sample reported
-> by fs_mark is using 50% of RAM which will barely be throttled and look
-> like a big outlier. Dave used fake NUMA to have multiple kswapd instances
-> which I didn't replicate.  Finally, the number of iterations differ from
-> Dave's test as the target disk was not large enough.  While not identical,
-> it should be representative.
-> 
-> fsmark
->                                    5.3.0-rc3              5.3.0-rc3
->                                      vanilla          shrinker-v1r1
-> Min       1-files/sec     4444.80 (   0.00%)     4765.60 (   7.22%)
-> 1st-qrtle 1-files/sec     5005.10 (   0.00%)     5091.70 (   1.73%)
-> 2nd-qrtle 1-files/sec     4917.80 (   0.00%)     4855.60 (  -1.26%)
-> 3rd-qrtle 1-files/sec     4667.40 (   0.00%)     4831.20 (   3.51%)
-> Max-1     1-files/sec    11421.50 (   0.00%)     9999.30 ( -12.45%)
-> Max-5     1-files/sec    11421.50 (   0.00%)     9999.30 ( -12.45%)
-> Max-10    1-files/sec    11421.50 (   0.00%)     9999.30 ( -12.45%)
-> Max-90    1-files/sec     4649.60 (   0.00%)     4780.70 (   2.82%)
-> Max-95    1-files/sec     4491.00 (   0.00%)     4768.20 (   6.17%)
-> Max-99    1-files/sec     4491.00 (   0.00%)     4768.20 (   6.17%)
-> Max       1-files/sec    11421.50 (   0.00%)     9999.30 ( -12.45%)
-> Hmean     1-files/sec     5004.75 (   0.00%)     5075.96 (   1.42%)
-> Stddev    1-files/sec     1778.70 (   0.00%)     1369.66 (  23.00%)
-> CoeffVar  1-files/sec       33.70 (   0.00%)       26.05 (  22.71%)
-> BHmean-99 1-files/sec     5053.72 (   0.00%)     5101.52 (   0.95%)
-> BHmean-95 1-files/sec     5053.72 (   0.00%)     5101.52 (   0.95%)
-> BHmean-90 1-files/sec     5107.05 (   0.00%)     5131.41 (   0.48%)
-> BHmean-75 1-files/sec     5208.45 (   0.00%)     5206.68 (  -0.03%)
-> BHmean-50 1-files/sec     5405.53 (   0.00%)     5381.62 (  -0.44%)
-> BHmean-25 1-files/sec     6179.75 (   0.00%)     6095.14 (  -1.37%)
-> 
->                    5.3.0-rc3   5.3.0-rc3
->                      vanillashrinker-v1r1
-> Duration User         501.82      497.29
-> Duration System      4401.44     4424.08
-> Duration Elapsed     8124.76     8358.05
-> 
-> This is showing a slight skew for the max result representing a
-> large outlier for the 1st, 2nd and 3rd quartile are similar indicating
-> that the bulk of the results show little difference. Note that an
-> earlier version of the fsmark configuration showed a regression but
-> that included more samples taken while memory was still filling.
-> 
-> Note that the elapsed time is higher. Part of this is that the
-> configuration included time to delete all the test files when the test
-> completes -- the test automation handles the possibility of testing fsmark
-> with multiple thread counts. Without the patch, many of these objects
-> would be memory resident which is part of what the patch is addressing.
-> 
-> There are other important observations that justify the patch.
-> 
-> 1. With the vanilla kernel, the number of dirty pages in the system
->    is very low for much of the test. With this patch, dirty pages
->    is generally kept at 10% which matches vm.dirty_background_ratio
->    which is normal expected historical behaviour.
-> 
-> 2. With the vanilla kernel, the ratio of Slab/Pagecache is close to
->    0.95 for much of the test i.e. Slab is being left alone and dominating
->    memory consumption. With the patch applied, the ratio varies between
->    0.35 and 0.45 with the bulk of the measured ratios roughly half way
->    between those values. This is a different balance to what Dave reported
->    but it was at least consistent.
-> 
-> 3. Slabs are scanned throughout the entire test with the patch applied.
->    The vanille kernel has periods with no scan activity and then relatively
->    massive spikes.
-> 
-> 4. Without the patch, kswapd scan rates are very variable. With the patch,
->    the scan rates remain quite stead.
-> 
-> 4. Overall vmstats are closer to normal expectations
-> 
-> 	                                5.3.0-rc3      5.3.0-rc3
-> 	                                  vanilla  shrinker-v1r1
->     Ops Direct pages scanned             99388.00      328410.00
->     Ops Kswapd pages scanned          45382917.00    33451026.00
->     Ops Kswapd pages reclaimed        30869570.00    25239655.00
->     Ops Direct pages reclaimed           74131.00        5830.00
->     Ops Kswapd efficiency %                 68.02          75.45
->     Ops Kswapd velocity                   5585.75        4002.25
->     Ops Page reclaim immediate         1179721.00      430927.00
->     Ops Slabs scanned                 62367361.00    73581394.00
->     Ops Direct inode steals               2103.00        1002.00
->     Ops Kswapd inode steals             570180.00     5183206.00
-> 
-> 	o Vanilla kernel is hitting direct reclaim more frequently,
-> 	  not very much in absolute terms but the fact the patch
-> 	  reduces it is interesting
-> 	o "Page reclaim immediate" in the vanilla kernel indicates
-> 	  dirty pages are being encountered at the tail of the LRU.
-> 	  This is generally bad and means in this case that the LRU
-> 	  is not long enough for dirty pages to be cleaned by the
-> 	  background flush in time. This is much reduced by the
-> 	  patch.
-> 	o With the patch, kswapd is reclaiming 10 times more slab
-> 	  pages than with the vanilla kernel. This is indicative
-> 	  of the watermark boosting over-protecting slab
-> 
-> A more complete set of tests were run that were part of the basis
-> for introducing boosting and while there are some differences, they
-> are well within tolerances.
-> 
-> Bottom line, the special casing kswapd to avoid slab behaviour is
-> unpredictable and can lead to abnormal results for normal workloads. This
-> patch restores the expected behaviour that slab and page cache is
-> balanced consistently for a workload with a steady allocation ratio of
-> slab/pagecache pages. It also means that if there are workloads that
-> favour the preservation of slab over pagecache that it can be tuned via
-> vm.vfs_cache_pressure where as the vanilla kernel effectively ignores
-> the parameter when boosting is active.
-> 
-> Fixes: 1c30844d2dfe ("mm: reclaim small amounts of memory when an external fragmentation event occurs")
-> Signed-off-by: Mel Gorman <mgorman@techsingularity.net>
-> Reviewed-by: Dave Chinner <dchinner@redhat.com>
-> Cc: stable@vger.kernel.org # v5.0+
+> +		if (ops->hugetlb_entry)
+>  			err = walk_hugetlb_range(start, end, walk);
+>  	} else
+>  		err = walk_pgd_range(start, end, walk);
+> @@ -258,11 +266,13 @@ static int __walk_page_range(unsigned long start, unsigned long end,
+>  
+>  /**
+>   * walk_page_range - walk page table with caller specific callbacks
+> - * @start: start address of the virtual address range
+> - * @end: end address of the virtual address range
+> - * @walk: mm_walk structure defining the callbacks and the target address space
+> + * @mm:		mm_struct representing the target process of page table walk
+> + * @start:	start address of the virtual address range
+> + * @end:	end address of the virtual address range
+> + * @ops:	operation to call during the walk
+> + * @private:	private data for callbacks' usage
+>   *
+> - * Recursively walk the page table tree of the process represented by @walk->mm
+> + * Recursively walk the page table tree of the process represented by @mm
+>   * within the virtual address range [@start, @end). During walking, we can do
+>   * some caller-specific works for each entry, by setting up pmd_entry(),
+>   * pte_entry(), and/or hugetlb_entry(). If you don't set up for some of these
 
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
+Missing context:
+>  *
+>  * Before starting to walk page table, some callers want to check whether
+>  * they really want to walk over the current vma, typically by checking
+>  * its vm_flags. walk_page_test() and @walk->test_walk() are used for this
+>  * purpose.
+
+@walk->test_walk() should now be @ops->test_walk()
+
+> @@ -283,42 +293,48 @@ static int __walk_page_range(unsigned long start, unsigned long end,
+>   *
+>   * struct mm_walk keeps current values of some common data like vma and pmd,
+>   * which are useful for the access from callbacks. If you want to pass some
+> - * caller-specific data to callbacks, @walk->private should be helpful.
+> + * caller-specific data to callbacks, @private should be helpful.
+>   *
+>   * Locking:
+>   *   Callers of walk_page_range() and walk_page_vma() should hold
+>   *   @walk->mm->mmap_sem, because these function traverse vma list and/or
+
+s/walk->//
+
+Otherwise looks good - I've rebased my series on it and the initial
+testing is fine. So for the series:
+
+Reviewed-by: Steven Price <steven.price@arm.com>
+
+Thanks,
+
+Steve
 
