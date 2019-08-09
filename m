@@ -2,277 +2,168 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-3.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A3EC4C41514
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 19:42:46 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E4190C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 19:59:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4BC68214C6
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 19:42:46 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9803A20C01
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 19:59:35 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="RJyoyNUY"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4BC68214C6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="UR17JX/N"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9803A20C01
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DA9E76B0003; Fri,  9 Aug 2019 15:42:45 -0400 (EDT)
+	id 314376B0003; Fri,  9 Aug 2019 15:59:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D580F6B0005; Fri,  9 Aug 2019 15:42:45 -0400 (EDT)
+	id 2C48E6B0005; Fri,  9 Aug 2019 15:59:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BF78D6B0010; Fri,  9 Aug 2019 15:42:45 -0400 (EDT)
+	id 1B3446B0010; Fri,  9 Aug 2019 15:59:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f72.google.com (mail-ot1-f72.google.com [209.85.210.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 974786B0003
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 15:42:45 -0400 (EDT)
-Received: by mail-ot1-f72.google.com with SMTP id x5so70782094otb.4
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 12:42:45 -0700 (PDT)
+Received: from mail-ed1-f70.google.com (mail-ed1-f70.google.com [209.85.208.70])
+	by kanga.kvack.org (Postfix) with ESMTP id C387C6B0003
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 15:59:34 -0400 (EDT)
+Received: by mail-ed1-f70.google.com with SMTP id y23so4457094edo.13
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 12:59:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc
-         :content-transfer-encoding;
-        bh=qcpdYAxgZIBIFmbMMN32rTklid76j4wSMwVthTygoNA=;
-        b=uHfX4XsCKsTwVgppFVTZcXFJiqh9gWPeQlONeSfN0LJUXHj7eBLi0G4feoVmwjtdnz
-         ZvfGJu8mXYg5pQDeUJlr5z/wgZcfhS0PnaNCJ2j0B/ryTjuAzgiZkXBslVIhnl7K/x3m
-         cYuvfaPtj16VhCzxw6sEqAn6MQLlmsB2vkK8yHFLDXaEXg6OOnt3yvJu7MnfldDZqrJR
-         /3/M2ZydBHg61QN606wTDpEvZBF7P/jzsAAwiTDKTSU21MZhfyONuoG1ae/kUk90xLS6
-         xI0CTtUAu3RdZ4lk53uxPev1HYVTKchUXakIyVhgZQBFhoO8lm2iioPY3sUNxNWsVn0d
-         X42A==
-X-Gm-Message-State: APjAAAU/McILprPvkmIUZIugnKGLDIknDCB3bcnLYbYdMre2M9MT0ws5
-	aXrLILEqCkW2Q8kKmGTonK7va8wVNcwz1IEGwq8xgNaBSQVVHtmp1mv/lCO7jEvgS/FamKZHqji
-	nb9RpiUbS3tcl0bQbiSqlaXfcwMDguGHhgeNrM/kyOaONLECfyNwJ3jWdE7iHI7gHSw==
-X-Received: by 2002:a9d:6a4d:: with SMTP id h13mr20530445otn.259.1565379765323;
-        Fri, 09 Aug 2019 12:42:45 -0700 (PDT)
-X-Received: by 2002:a9d:6a4d:: with SMTP id h13mr20530402otn.259.1565379764440;
-        Fri, 09 Aug 2019 12:42:44 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565379764; cv=none;
+         :in-reply-to:from:date:message-id:subject:to:cc;
+        bh=AHqEsgDgb5JzggXVfgJe1D/a5UW3aJXppbSuLP37XBs=;
+        b=FMH1J914rDQrnvX9vCks+TIhRzZiDWWL0/CHGWY3f2rBe9JbjVOJlZKd+GBH12mOKB
+         +5xL2QUAXYifUC0CHd6TBYA1QxCp+fjHKxcUbmFtAL2uZmWOu69dfO1Ecmn1B14pbrDu
+         uaeXi/uGuPhKpC1suh5HVltId87CNYS7aiVPgF0+uAdCMfdj2GGMQqDgQ323XwQ/oYUh
+         2V7xAyPbREPyco9uD++o5GtCUAzcFFUnUaZY2A2XSjXPvbHZB7svEFIBj6xrPgeBKDqn
+         j5/V/Q+3Avj104xhNKzZYAX73z/LnsGLxPTgSN08asPuiPoYFaaa4bKWlroqmIZ9G+z7
+         t9MQ==
+X-Gm-Message-State: APjAAAUDVZb3plfbrnVXej+3aYYXh2xbfbqPF0LaorhdisjVesvjuAn5
+	B1LJdOODzcPyQ2B1cGAGd7BVTtAcSRw44ikWv43r4KGaW/9FBi7Zmw7AgzrdbtC/QJjOxZ64dHA
+	Wbo/UfVOsESFFb2Qq1g2sSoMHU7yn4okTjVSCtSQcy54BzR1KUg0r3PdG2m1Un0iejw==
+X-Received: by 2002:a50:8d48:: with SMTP id t8mr10836762edt.200.1565380774367;
+        Fri, 09 Aug 2019 12:59:34 -0700 (PDT)
+X-Received: by 2002:a50:8d48:: with SMTP id t8mr10836712edt.200.1565380773577;
+        Fri, 09 Aug 2019 12:59:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565380773; cv=none;
         d=google.com; s=arc-20160816;
-        b=tu3Twc6dBuFdftz6OyBCykSyGcEnYF33OaNRfx7nVlMZ2CZkMtygh8fB+BY4pbT4ud
-         IHY3xUVvXcn4kV5oK+n4WOtD/aPWT1Vhs/opSq/3EG3v00NZ9ue3SJrd0nw6ag7GYqrv
-         YkFEi35n/gQ3VSN8+Vuk3BfV8GLyXExb+WQQVHZv4KtTppHsrpuWPmh6DiUpCvwjVKDl
-         1MdfxNR8mdYl0wYgl8+Kqi09HZktDZBD4kWtbnFTDRqN+Nq0MxukMjuuiL8u+PJBFg3D
-         PS2pNkPDGEaizLtfWNuVnW3J56BtV7EER6afiM16wEBg0i4JqgFzAqodqL7rd4YWKMsG
-         00FQ==
+        b=wPLjP7yWR8o94EsXWNu3tJDvMFZMD/qcnSTvxGkLDOOJwxruReFghO+SNU9Jpthuyr
+         TacWCM43hLvO+KGIJ7g1/Zl7WBzrX8O1B9CWzNTVMZpeWqhc2zgR9EBF8/IuaCZu/XXh
+         jlaw+Y3AE9ZXwcrKVxm/pBR/vA1M8raOJNfz/CiyJ9xA8F0BgEjNnoAIhpIoW+aLSBx3
+         +VPLEFyhW6v6RY7eChRGAuDcAJn1Ia5LHltjSBkh1notPLU5jHrjKREV6jsw6bXvCuky
+         GUoyyN2mn6mAts+I7Sq4IzvpiKHlWGuz0laBsAB7X9nlpGxWJYNlCQyqRFVxON84oVsG
+         7hTw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:cc:to:subject:message-id:date:from
-         :in-reply-to:references:mime-version:dkim-signature;
-        bh=qcpdYAxgZIBIFmbMMN32rTklid76j4wSMwVthTygoNA=;
-        b=CUeq9a0Tx4yte/0ASgMXf11e7P+ubZNqANV/GHEPNzKvKDgvBDyVIV/ABAaseqMu2j
-         FNaaj2NWBAnmedkeNBQ7Ov2gZGRtJONBBKX4LoOTYiY5Lm7ratKehhXFMzv8ZAWY3y3Q
-         kCEzQkR6yo+m0BC/xFucyIiltJELepW7wjQbFfnQPj3f8qPdnnDKYkuxTGNUG89b3yTB
-         DQJVMGSJII/AVPB3MCTXJRLpN3ci56ef71R2WdG+tesf6/pcjo9V0o8Rx6n/BNSu1v3d
-         UYT67STLSFPR+AkyxPVYaj+IGNKW1IfeG9lMjmp/Rwx4TlbWXYzCsxvN7Imb+3/pSunV
-         HlMA==
+        h=cc:to:subject:message-id:date:from:in-reply-to:references
+         :mime-version:dkim-signature;
+        bh=AHqEsgDgb5JzggXVfgJe1D/a5UW3aJXppbSuLP37XBs=;
+        b=E9jW1a8rNMrqb42sSFBHu3cwZKLJVHZAo/Agum5rwe9YadPbky2mCgXXfOxIYdCQGJ
+         8NN4+rjeIbmklJz4Ix+WhZvC63j78Py5/gEicRLdLNrBK1CDcil3U4Qbloyd+QRFFNtO
+         KmsV8W92h5em5T5CmDr4jme48RA68J2oKGaipTZEguNzNXk0dwAxPTJG40DuGm8sALZc
+         G8w7unFmCK2jszYmZ/mh46G4bfmED9JuCLGWQqf3CzwUa/ofmsZLnmWGmDjl/KbUblnb
+         sXpBtXnFWlp3AbuTtRzbFv0YoGYEPffGEqYc3IFBhN2j0sBq9Kalob53VGrQEW3FyUTB
+         oKTQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=RJyoyNUY;
-       spf=pass (google.com: domain of almasrymina@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=almasrymina@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="UR17JX/N";
+       spf=pass (google.com: domain of matorola@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=matorola@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id 97sor50853890oth.73.2019.08.09.12.42.44
+        by mx.google.com with SMTPS id k21sor34113246ejs.43.2019.08.09.12.59.33
         for <linux-mm@kvack.org>
         (Google Transport Security);
-        Fri, 09 Aug 2019 12:42:44 -0700 (PDT)
-Received-SPF: pass (google.com: domain of almasrymina@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        Fri, 09 Aug 2019 12:59:33 -0700 (PDT)
+Received-SPF: pass (google.com: domain of matorola@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=RJyoyNUY;
-       spf=pass (google.com: domain of almasrymina@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=almasrymina@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b="UR17JX/N";
+       spf=pass (google.com: domain of matorola@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=matorola@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
+        d=gmail.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc:content-transfer-encoding;
-        bh=qcpdYAxgZIBIFmbMMN32rTklid76j4wSMwVthTygoNA=;
-        b=RJyoyNUYqKorBafNZSFufOucWTqHlYU6ePm8PWFu+GIE13hP9XfnH6A+kAksmwCdbe
-         vzGT4xozV8azvINAKFqxf4rjaADZ8DZM/wWdLxQvPQeBvwWfz7ggehshQVNaej9Zot+i
-         Rt0XvJeFEd3rLDrvyYNVd8sa6JGkDdb53e2aNIO3MksGaCcSm1dpCyXndElMclNsoii6
-         hNMrsvjpSCG55N6y4J1ijNIfWOSKA/7ZDT3SG5aHVisGHMqTVkQvdSRaScM1mw2AdFU/
-         DcgWng57kp6L4Z0ypwuM4wWXGABlTGCB4fbDdeYhyGdkbTRzY6NrRHleQxDUMXSjH7iy
-         FqVg==
-X-Google-Smtp-Source: APXvYqzeWQV1n/GSsdfXYaqb9RFi8FCT4BwFakpht1LHgGOeLAHZsXnj3/yOPVvlKxSnNUiKVpK80tad3rbeLviNEyw=
-X-Received: by 2002:a05:6830:1249:: with SMTP id s9mr20222798otp.33.1565379763678;
- Fri, 09 Aug 2019 12:42:43 -0700 (PDT)
+         :cc;
+        bh=AHqEsgDgb5JzggXVfgJe1D/a5UW3aJXppbSuLP37XBs=;
+        b=UR17JX/NbilG4ikKVy/oXcFAzOhqmweKVz+dGvxNjAxtqUl5SWhFuFYzVE+TP8BMzr
+         /3wWPC+QBgk+BfTQpJ8Kbq3+RM0V2Zagx7vEC1in0XQJHg+ZWo9WXEc/f1njls5jOOFi
+         Ma0xpWbqLMFuX3HFTu+Y3+kjmNsk2aQZrnDkKRo/Wa5oLEhhXba5gPFMIt5nPx8T5kpC
+         hlpgIYXYoWwsUey8+XKE2f9rv8IY+i8+s/1Ce60eQ+jCRjqsE4LD/h9OBMuaaZrVj8ev
+         yVay6t75Kik1BCr8A4MjxdCRAdQcAbXVXv48wR4oFL425IvfbU5JgliosnozC0h1loYA
+         FmjA==
+X-Google-Smtp-Source: APXvYqz5a7RO0N9V2+pKGw7IFaG7VrGw1vD109CfGojs8XjLLN259Sjyaymy//2dM1gWI+9NNSyMdh4I+fVa9Rkxjzc=
+X-Received: by 2002:a17:906:318e:: with SMTP id 14mr20172779ejy.85.1565380772979;
+ Fri, 09 Aug 2019 12:59:32 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190808231340.53601-1-almasrymina@google.com> <f0a5afe9-2586-38c9-9a6d-8a2b7b288b50@oracle.com>
-In-Reply-To: <f0a5afe9-2586-38c9-9a6d-8a2b7b288b50@oracle.com>
-From: Mina Almasry <almasrymina@google.com>
-Date: Fri, 9 Aug 2019 12:42:32 -0700
-Message-ID: <CAHS8izOKmaOETBd_545Zex=KFNjYOvf3dCzcMRUEXnnhYCK5bw@mail.gmail.com>
-Subject: Re: [RFC PATCH v2 0/5] hugetlb_cgroup: Add hugetlb_cgroup reservation limits
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: shuah <shuah@kernel.org>, David Rientjes <rientjes@google.com>, 
-	Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>, akpm@linux-foundation.org, 
-	khalid.aziz@oracle.com, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, 
-	linux-kselftest@vger.kernel.org, =?UTF-8?Q?Michal_Koutn=C3=BD?= <mkoutny@suse.com>, 
-	Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, cgroups@vger.kernel.org
+References: <20190625143715.1689-1-hch@lst.de> <20190625143715.1689-10-hch@lst.de>
+ <20190717215956.GA30369@altlinux.org>
+In-Reply-To: <20190717215956.GA30369@altlinux.org>
+From: Anatoly Pugachev <matorola@gmail.com>
+Date: Fri, 9 Aug 2019 22:59:23 +0300
+Message-ID: <CADxRZqy61-JOYSv3xtdeW_wTDqKovqDg2G+a-=LH3w=mrf2zUQ@mail.gmail.com>
+Subject: Re: [PATCH 09/16] sparc64: use the generic get_user_pages_fast code
+To: "Dmitry V. Levin" <ldv@altlinux.org>
+Cc: Christoph Hellwig <hch@lst.de>, Khalid Aziz <khalid.aziz@oracle.com>, 
+	Linus Torvalds <torvalds@linux-foundation.org>, Andrew Morton <akpm@linux-foundation.org>, 
+	"David S. Miller" <davem@davemloft.net>, Sparc kernel list <sparclinux@vger.kernel.org>, linux-mm@kvack.org, 
+	Linux Kernel list <linux-kernel@vger.kernel.org>
 Content-Type: text/plain; charset="UTF-8"
-Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 9, 2019 at 10:54 AM Mike Kravetz <mike.kravetz@oracle.com> wrot=
-e:
->
-> (+CC  Michal Koutn=C3=BD, cgroups@vger.kernel.org, Aneesh Kumar)
->
-> On 8/8/19 4:13 PM, Mina Almasry wrote:
-> > Problem:
-> > Currently tasks attempting to allocate more hugetlb memory than is avai=
-lable get
-> > a failure at mmap/shmget time. This is thanks to Hugetlbfs Reservations=
- [1].
-> > However, if a task attempts to allocate hugetlb memory only more than i=
-ts
-> > hugetlb_cgroup limit allows, the kernel will allow the mmap/shmget call=
-,
-> > but will SIGBUS the task when it attempts to fault the memory in.
+On Thu, Jul 18, 2019 at 12:59 AM Dmitry V. Levin <ldv@altlinux.org> wrote:
+> On Tue, Jun 25, 2019 at 04:37:08PM +0200, Christoph Hellwig wrote:
+> > The sparc64 code is mostly equivalent to the generic one, minus various
+> > bugfixes and two arch overrides that this patch adds to pgtable.h.
 > >
-> > We have developers interested in using hugetlb_cgroups, and they have e=
-xpressed
-> > dissatisfaction regarding this behavior. We'd like to improve this
-> > behavior such that tasks violating the hugetlb_cgroup limits get an err=
-or on
-> > mmap/shmget time, rather than getting SIGBUS'd when they try to fault
-> > the excess memory in.
-> >
-> > The underlying problem is that today's hugetlb_cgroup accounting happen=
-s
-> > at hugetlb memory *fault* time, rather than at *reservation* time.
-> > Thus, enforcing the hugetlb_cgroup limit only happens at fault time, an=
-d
-> > the offending task gets SIGBUS'd.
-> >
-> > Proposed Solution:
-> > A new page counter named hugetlb.xMB.reservation_[limit|usage]_in_bytes=
-. This
-> > counter has slightly different semantics than
-> > hugetlb.xMB.[limit|usage]_in_bytes:
-> >
-> > - While usage_in_bytes tracks all *faulted* hugetlb memory,
-> > reservation_usage_in_bytes tracks all *reserved* hugetlb memory.
-> >
-> > - If a task attempts to reserve more memory than limit_in_bytes allows,
-> > the kernel will allow it to do so. But if a task attempts to reserve
-> > more memory than reservation_limit_in_bytes, the kernel will fail this
-> > reservation.
-> >
-> > This proposal is implemented in this patch, with tests to verify
-> > functionality and show the usage.
+> > Signed-off-by: Christoph Hellwig <hch@lst.de>
+> > Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
+> > ---
+> >  arch/sparc/Kconfig                  |   1 +
+> >  arch/sparc/include/asm/pgtable_64.h |  18 ++
+> >  arch/sparc/mm/Makefile              |   2 +-
+> >  arch/sparc/mm/gup.c                 | 340 ----------------------------
+> >  4 files changed, 20 insertions(+), 341 deletions(-)
+> >  delete mode 100644 arch/sparc/mm/gup.c
 >
-> Thanks for taking on this effort Mina.
->
-No problem! Thanks for reviewing!
+> So this ended up as commit 7b9afb86b6328f10dc2cad9223d7def12d60e505
 
-> Before looking at the details of the code, it might be helpful to discuss
-> the expected semantics of the proposed reservation limits.
->
-> I see you took into account the differences between private and shared
-> mappings.  This is good, as the reservation behavior is different for eac=
-h
-> of these cases.  First let's look at private mappings.
->
-> For private mappings, the reservation usage will be the size of the mappi=
-ng.
-> This should be fairly simple.  As reservations are consumed in the hugetl=
-bfs
-> code, reservations in the resv_map are removed.  I see you have a hook in=
-to
-> region_del.  So, the expectation is that as reservations are consumed the
-> reservation usage will drop for the cgroup.  Correct?
+I've tried to revert this commit on a current master branch , but i'm getting :
 
-I assume by 'reservations are consumed' you mean when a reservation
-goes from just 'reserved' to actually in use (as in the task is
-writing to the hugetlb page or something). If so, then the answer is
-no, that is not correct. When reservations are consumed, the
-reservation usage stays the same. I.e. the reservation usage tracks
-hugetlb memory (reserved + used) you could say. This is 100% the
-intention, as we want to know on mmap time if there is enough 'free'
-(that is unreserved and unused) memory left over in the cgroup to
-satisfy the mmap call.
+linux-2.6$ git show 7b9afb86b632 > /tmp/gup.patch
+linux-2.6$ patch -p1 -R < /tmp/gup.patch
+...
+linux-2.6$ make -j && make -j modules
+...
+  CALL    scripts/atomic/check-atomics.sh
+  CALL    scripts/checksyscalls.sh
+<stdin>:1511:2: warning: #warning syscall clone3 not implemented [-Wcpp]
+  CHK     include/generated/compile.h
+  CHK     include/generated/autoksyms.h
+  GEN     .version
+  CHK     include/generated/compile.h
+  UPD     include/generated/compile.h
+  CC      init/version.o
+  AR      init/built-in.a
+  LD      vmlinux.o
+ld: mm/gup.o: in function `__get_user_pages_fast':
+gup.c:(.text+0x1bc0): multiple definition of `__get_user_pages_fast';
+arch/sparc/mm/gup.o:gup.c:(.text+0x620): first defined here
+ld: mm/gup.o: in function `get_user_pages_fast':
+gup.c:(.text+0x1be0): multiple definition of `get_user_pages_fast';
+arch/sparc/mm/gup.o:gup.c:(.text+0x740): first defined here
+make: *** [Makefile:1060: vmlinux] Error 1
 
-The hooks in region_add and region_del are to account shared mappings
-only. There is a check in those code blocks that makes sure the code
-is only engaged in shared mappings. The commit messages of patches 3/5
-and 4/5 go into more details regarding this.
+Can someone help me to revert this commit? Is it even possible? Since
+it's not only futex strace calls getting killed and producing OOPS,
+even util-linux.git 'make check' hangs machine/LDOM with multiple OOPS
+in logs, while previous (before this commit) kernel passes tests ok
+(and without kernel OOPS). I've already tried to compile current
+master with gcc-6, gcc-7, gcc-8 debian versions, but all produce same
+OOPS.
 
-> The only tricky thing about private mappings is COW because of fork.  Cur=
-rent
-> reservation semantics specify that all reservations stay with the parent.
-> If child faults and can not get page, SIGBUS.  I assume the new reservati=
-on
-> limits will work the same.
->
-
-Although I did not explicitly try it, yes. It should work the same.
-The additional reservation due to the COW will get charged to whatever
-cgroup the fork is in. If the task can't get a page it gets SIGBUS'd.
-If there is not enough room to charge the cgroup it's in, then the
-charge will fail, which I assume will trigger error path that also
-leads to SIGBUS.
-
-> I believe tracking reservations for shared mappings can get quite complic=
-ated.
-> The hugetlbfs reservation code around shared mappings 'works' on the basi=
-s
-> that shared mapping reservations are global.  As a result, reservations a=
-re
-> more associated with the inode than with the task making the reservation.
-
-FWIW, I found it not too bad. And my tests at least don't detect an
-anomaly around shared mappings. The key I think is that I'm tracking
-cgroup to uncharge on the file_region entry inside the resv_map, so we
-know who allocated each file_region entry exactly and we can uncharge
-them when the entry is region_del'd.
-
-> For example, consider a file of size 4 hugetlb pages.
-> Task A maps the first 2 pages, and 2 reservations are taken.  Task B maps
-> all 4 pages, and 2 additional reservations are taken.  I am not really su=
-re
-> of the desired semantics here for reservation limits if A and B are in se=
-parate
-> cgroups.  Should B be charged for 4 or 2 reservations?
-
-Task A's cgroup is charged 2 pages to its reservation usage.
-Task B's cgroup is charged 2 pages to its reservation usage.
-
-This is analogous to how shared memory accounting is done for things
-like tmpfs, and I see no strong reason right now to deviate. I.e. the
-task that made the reservation is charged with it, and others use it
-without getting charged.
-
-> Also in the example above, after both tasks create their mappings suppose
-> Task B faults in the first page.  Does the reservation usage of Task A go
-> down as it originally had the reservation?
->
-
-Reservation usage never goes down when pages are consumed. Yes, I
-would have this problem if I was planning to decrement reservation
-usage when pages are put into use, but, the goal is to find out if
-there is 'free' memory (unreserved + unused) in the cgroup at mmap
-time, so we want a counter that tracks (reserved + used).
-
-> It should also be noted that when hugetlbfs reservations are 'consumed' f=
-or
-> shared mappings there are no changes to the resv_map.  Rather the unmap c=
-ode
-> compares the contents of the page cache to the resv_map to determine how
-> many reservations were actually consumed.  I did not look close enough to
-> determine the code drops reservation usage counts as pages are added to s=
-hared
-> mappings.
-
-I think this concern also goes away if reservation usage doesn't go
-down when pages are consumed, but let me know if you still have
-doubts.
-
-Thanks for taking a look so far!
->
-> --
-> Mike Kravetz
+Thanks.
 
