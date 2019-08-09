@@ -6,82 +6,82 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4BA63C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E8BF9C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CBB2A2086A
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:33 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CBB2A2086A
+	by mail.kernel.org (Postfix) with ESMTP id 94000214C6
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 94000214C6
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E4C106B02EF; Fri,  9 Aug 2019 12:03:28 -0400 (EDT)
+	id 7BC4F6B02F1; Fri,  9 Aug 2019 12:03:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DD6776B02F1; Fri,  9 Aug 2019 12:03:28 -0400 (EDT)
+	id 770DE6B02F3; Fri,  9 Aug 2019 12:03:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C9D8F6B02F2; Fri,  9 Aug 2019 12:03:28 -0400 (EDT)
+	id 685736B02F4; Fri,  9 Aug 2019 12:03:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 760F06B02EF
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:03:28 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id v7so46848973wrt.6
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:03:28 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 1D2C86B02F1
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:03:30 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id r4so47053112wrt.13
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:03:30 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=ij0NfUeV6wRHemVtqm2LKqUO8W9lAytKWIfB6FhKRow=;
-        b=LBpdLAG8QDeaDTyzpdbwXERVNOFKrsC8D7YYAdvosEvUdDI2hhExdxXapANoqzM+UV
-         Tpj5JRbo2Pkue3JfoSDh0m+O09yLXsXwjYCFV3hJ65AMT39gkh1AMf371+VylwbyPGbw
-         CsG3Q0eLZTJVFqc3ZdBJ6RrLGtrC9qXzBgFFNJEuJqCOBgku8gHovhquDtglJxhDYdMw
-         u4yOGLnAweAd3Y5DlCI1rZHDkAytHAxgOenx5N9OpQmwSyhIM1vHD/SADo8ybGnBFEez
-         GPIY63tqgll2LGyM7mZJpDtwC8c2KJK9PsX71VtnCs46yA9xFgbnLYY3RI1qQ9OJa+og
-         AYpA==
+        bh=HO44UFHxKlBoiYBrbotP/lUY1FQi770to4wdeUgIqQM=;
+        b=dVzMrnsr0CE1mLITJLTkXiA5VN+wjTOZRWJMcyslbmqHQ0icgEtRiG0JQYzL+0NRPx
+         1gIevv+lREpNwSh3YFLU/Meuzu/OyX+Rd/ldJpr1IgS8dssnQ56FY/OHiSeg3l7sHLao
+         Zyzoj4GajROoNoCadvvXB2vrKJiLDEThUQCWQA3ZnqWVRvzzpnzL/hpHU23MmJQEYdJz
+         YWjrfmCY5O5pcAOw9RVkEJp2u1fE5d98W1GZKOr9p1jqM9qqNmYoJbMBDDJgnGqkJlNl
+         sr1YpMeaT8JeHgNJdIR+9C4XECERrZY3nU/tcr7gpBAAr01XaZAsm6Sv8n3/RpjgWkXk
+         iC5Q==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAXJak/kjSpB8kCFFHYQ/qRaV/HegKZHPAATRpBI03+IGJSVA/4+
-	sc2adXCUQiQwORJL5lKNfGVPDtsGwdyp0sZ1Re9qIwjc06qYs/3j1ZGjwP/ziSqMufmzGGlocH9
-	3cZ8amY3S7CBneMc+UfFDtcMzkDQbl1spnk9BahJEv+Fr9EKLz6mqC+1I1SebaB0hxQ==
-X-Received: by 2002:adf:b60c:: with SMTP id f12mr25442073wre.231.1565366607993;
-        Fri, 09 Aug 2019 09:03:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqweTZNvMqbka52gLZlnJiE4q0CSxMSsIJnzFxiM6zopBEDuvdO1KGds7UGA0b4dEoaMMFuq
-X-Received: by 2002:adf:b60c:: with SMTP id f12mr25429012wre.231.1565366484213;
-        Fri, 09 Aug 2019 09:01:24 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366484; cv=none;
+X-Gm-Message-State: APjAAAU3qZqlop/Gy0JLAVNQwZUxA3npMet88fhgmVSLMFkPdILUgJhz
+	tRZWhkRa4B2UNwuyD3zmnfW/sJEQd7cAXEfOAtYmeax04qm/1JJPf2q+Gs+rYuwYaUZ03WzYvB5
+	QVNdpVdSbtSgBnCZ2LkKrWzjHXf7uGZalUeRoV/LE8Sm2UNbRb8xhxbkbRB2C3VREqw==
+X-Received: by 2002:a1c:9d53:: with SMTP id g80mr11857118wme.103.1565366609610;
+        Fri, 09 Aug 2019 09:03:29 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyHgOsyOIUPPItSOg5dpkgdlkhW3TOxos3wMRSgWw+vYtkTMjJ7ZtK3LdbcgRm8ZaDOY5yH
+X-Received: by 2002:a1c:9d53:: with SMTP id g80mr11846390wme.103.1565366500797;
+        Fri, 09 Aug 2019 09:01:40 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565366500; cv=none;
         d=google.com; s=arc-20160816;
-        b=eFrPi1rsdnvTqqPK4Ig+SQbZa5Q0jgzfix0tifcDkZEA/O0FBBzQJB4ba8JV8j+Yye
-         LdHbBjECUNl2DjY0Ep3YaGaOrlda1M9cyyCf1gdCjI2Zv/RxWWq90KuzwmU9LPopBvoP
-         B3izMOyk2LcSzsJcy+W1+IORbvPF0NIH8UdcpoLzwk/vR2qYfjwJucMIoLqQCnuCG8VE
-         CDFddUAY/8/eotQV+AexBK0iriZ7xxRPafr9qr9JBcXjeD9YVgZvDLTKrIcbhXAguDub
-         IJT5GsETpuTkX6hx+HNj4F8kyPYRonqtxwscf500s1j1GYO1o8KFQH3brnfPSNuwzsr1
-         wYZw==
+        b=y0uPYdUp9+i9Jr0McIqrr5yHP3AolpTWT97sAaUBYLM0O5GoOqx1CEuAElod5C4gB1
+         4QGNVvSNWqjM5uDbAh350MMQAqp01zyZ0iiMR1hTVQfr2kxp7zqOx2x5KgLs2ZcOI2xB
+         LgpSFyMFDdx566APy6N109Kgqhgq72Bt/8xl+XAInD1KXiPY4Xv/GRzVhurcEfG1z+eQ
+         lGZdKb8idIbtWCpvdKCuomGlsY5PI/SbiO8uv4QNWPl+Udt0mRluqawByO2DbhTjtOPA
+         USeNaKnMIuxrtLJl31OM01lHYeb1WHLge8xtHto3HH+/NEESQ1BE57SdFGxGuzWE6CgJ
+         dVSg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=ij0NfUeV6wRHemVtqm2LKqUO8W9lAytKWIfB6FhKRow=;
-        b=Mu5Izbm9Y5ydBe+zugWY7EWP/c1cbIflRrC7npPo019u4vMD7IvqqQIJwsE0vPu6A5
-         FY0dh2nAg2nskQOXiBhqQG5YK+rWBtHF/X2PtXNQzhC5NKgDWTOQVFSg9AsTdM7gXOfA
-         lhom0031x8GHDzA1ExkUS+j8YCkpOFD1FxOowSnTcTJuAS1Gs/cJUbK+MJyprsIZQ5MI
-         9gLmE5t5VOYCF14+6je+Pyzw+eOmiyeJV45upms21dNdt7udjYP/xHrC2D2GbrzrfUzV
-         Veho5SSQyo5+8flZcSRdR97Tz3gTZtQmVM4Yfcrrij0gx9p84ihCKSSfDhjt2fEsS45P
-         WxVA==
+        bh=HO44UFHxKlBoiYBrbotP/lUY1FQi770to4wdeUgIqQM=;
+        b=NpJAUd5SmyjxJlcjRu5BIvBAEIyBVxIRGpkZPCcaO+Yu7X5vRycj4Gt1jzTvAOnqaR
+         a3zSg50BqYIOhudk4jWRInrZxoF+5cWl29ZbQS+UDukBiZDYQYmHXmJubxs0iIgrKkda
+         Sshq6FC7BamphztspYlDcZOSOSAoFch9NoQGBJ4fm8WRBahTq/aRemFIj3OBMv3IBWdT
+         gZZiWiFj+LrWQbRSrEt1HdiOfodcroY6dOuL2jrsrOayRx7chPBG9xXVBXG+HLHIQpfd
+         X5GKI0dhUEh2ZbVJ5WvNJFVlnEAMwftFE6kn366NJ6FWE8DJ4jj+wBCsJ5vWiU2DWFKC
+         rUxw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id n18si84651307wrp.437.2019.08.09.09.01.24
+        by mx.google.com with ESMTPS id t4si4057746wmt.14.2019.08.09.09.01.40
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 09:01:24 -0700 (PDT)
+        Fri, 09 Aug 2019 09:01:40 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 9723D301AB45;
-	Fri,  9 Aug 2019 19:01:23 +0300 (EEST)
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 3B133305D362;
+	Fri,  9 Aug 2019 19:01:40 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id 3B8DE305B7A3;
-	Fri,  9 Aug 2019 19:01:23 +0300 (EEST)
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id D678C305B7A0;
+	Fri,  9 Aug 2019 19:01:39 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
@@ -98,9 +98,9 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
 	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v6 55/92] kvm: introspection: add KVMI_CONTROL_MSR and KVMI_EVENT_MSR
-Date: Fri,  9 Aug 2019 19:00:10 +0300
-Message-Id: <20190809160047.8319-56-alazar@bitdefender.com>
+Subject: [RFC PATCH v6 80/92] kvm: x86: emulate movss xmm, m32
+Date: Fri,  9 Aug 2019 19:00:35 +0300
+Message-Id: <20190809160047.8319-81-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -114,483 +114,41 @@ List-ID: <linux-mm.kvack.org>
 
 From: Mihai Donțu <mdontu@bitdefender.com>
 
-The KVMI_CONTROL_MSR is used to enable/disable introspection for a
-specific MSR. The KVMI_EVENT_MSR is send when the tracked MSR is going
-to be changed. The introspection tool can respond by allowing the guest
-to continue with normal execution or by discarding the change.
-
-This is meant to prevent malicious changes to MSR-s
-such as MSR_IA32_SYSENTER_EIP.
+This is needed in order to be able to support guest code that uses movss to
+write into pages that are marked for write tracking.
 
 Signed-off-by: Mihai Donțu <mdontu@bitdefender.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- Documentation/virtual/kvm/kvmi.rst |  73 +++++++++++++++++
- arch/x86/include/asm/kvm_host.h    |   4 +
- arch/x86/include/asm/kvmi_host.h   |   6 ++
- arch/x86/include/uapi/asm/kvmi.h   |  18 ++++
- arch/x86/kvm/kvmi.c                | 127 +++++++++++++++++++++++++++++
- arch/x86/kvm/svm.c                 |  15 ++++
- arch/x86/kvm/vmx/vmx.c             |  10 +++
- arch/x86/kvm/x86.c                 |  10 +++
- virt/kvm/kvmi_int.h                |   8 +-
- virt/kvm/kvmi_msg.c                |  13 +++
- 10 files changed, 283 insertions(+), 1 deletion(-)
+ arch/x86/kvm/emulate.c | 8 ++++++--
+ 1 file changed, 6 insertions(+), 2 deletions(-)
 
-diff --git a/Documentation/virtual/kvm/kvmi.rst b/Documentation/virtual/kvm/kvmi.rst
-index 2e6e285c8e2e..c41c3edb0134 100644
---- a/Documentation/virtual/kvm/kvmi.rst
-+++ b/Documentation/virtual/kvm/kvmi.rst
-@@ -1042,6 +1042,45 @@ ID set.
- * -KVM_EINVAL - padding is not zero
- * -KVM_EAGAIN - the selected vCPU can't be introspected yet
+diff --git a/arch/x86/kvm/emulate.c b/arch/x86/kvm/emulate.c
+index 9d38f892beea..b8a412b8b087 100644
+--- a/arch/x86/kvm/emulate.c
++++ b/arch/x86/kvm/emulate.c
+@@ -1184,9 +1184,13 @@ static u8 simd_prefix_to_bytes(const struct x86_emulate_ctxt *ctxt,
  
-+22. KVMI_CONTROL_MSR
-+--------------------
-+
-+:Architectures: x86
-+:Versions: >= 1
-+:Parameters:
-+
-+::
-+
-+	struct kvmi_vcpu_hdr;
-+	struct kvmi_control_msr {
-+		__u8 enable;
-+		__u8 padding1;
-+		__u16 padding2;
-+		__u32 msr;
-+	};
-+
-+:Returns:
-+
-+::
-+
-+	struct kvmi_error_code
-+
-+Enables/disables introspection for a specific MSR and must be used
-+in addition to *KVMI_CONTROL_EVENTS* with the *KVMI_EVENT_MSR* ID set.
-+
-+Currently, only MSRs within the following two ranges are supported. Trying
-+to control events for any other register will fail with -KVM_EINVAL::
-+
-+	0          ... 0x00001fff
-+	0xc0000000 ... 0xc0001fff
-+
-+:Errors:
-+
-+* -KVM_EINVAL - the selected vCPU is invalid
-+* -KVM_EINVAL - the specified MSR is invalid
-+* -KVM_EINVAL - padding is not zero
-+* -KVM_EAGAIN - the selected vCPU can't be introspected yet
-+
- Events
- ======
- 
-@@ -1308,3 +1347,37 @@ register (see **KVMI_CONTROL_EVENTS**).
- ``kvmi_event``, the control register number, the old value and the new value
- are sent to the introspector. The *CONTINUE* action will set the ``new_val``.
- 
-+7. KVMI_EVENT_MSR
-+-----------------
-+
-+:Architectures: x86
-+:Versions: >= 1
-+:Actions: CONTINUE, CRASH
-+:Parameters:
-+
-+::
-+
-+	struct kvmi_event;
-+	struct kvmi_event_msr {
-+		__u32 msr;
-+		__u32 padding;
-+		__u64 old_value;
-+		__u64 new_value;
-+	};
-+
-+:Returns:
-+
-+::
-+
-+	struct kvmi_vcpu_hdr;
-+	struct kvmi_event_reply;
-+	struct kvmi_event_msr_reply {
-+		__u64 new_val;
-+	};
-+
-+This event is sent when a model specific register is going to be changed
-+and the introspection has been enabled for this event and for this specific
-+register (see **KVMI_CONTROL_EVENTS**).
-+
-+``kvmi_event``, the MSR number, the old value and the new value are
-+sent to the introspector. The *CONTINUE* action will set the ``new_val``.
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index 22f08f2732cc..91cd43a7a7bf 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -1013,6 +1013,8 @@ struct kvm_x86_ops {
- 	bool (*has_emulated_msr)(int index);
- 	void (*cpuid_update)(struct kvm_vcpu *vcpu);
- 
-+	void (*msr_intercept)(struct kvm_vcpu *vcpu, unsigned int msr,
-+				bool enable);
- 	void (*cr3_write_exiting)(struct kvm_vcpu *vcpu, bool enable);
- 	bool (*nested_pagefault)(struct kvm_vcpu *vcpu);
- 	bool (*spt_fault)(struct kvm_vcpu *vcpu);
-@@ -1621,6 +1623,8 @@ static inline int kvm_cpu_get_apicid(int mps_cpu)
- #define put_smstate(type, buf, offset, val)                      \
- 	*(type *)((buf) + (offset) - 0x7e00) = val
- 
-+void kvm_arch_msr_intercept(struct kvm_vcpu *vcpu, unsigned int msr,
-+				bool enable);
- bool kvm_mmu_nested_pagefault(struct kvm_vcpu *vcpu);
- bool kvm_spt_fault(struct kvm_vcpu *vcpu);
- void kvm_control_cr3_write_exiting(struct kvm_vcpu *vcpu, bool enable);
-diff --git a/arch/x86/include/asm/kvmi_host.h b/arch/x86/include/asm/kvmi_host.h
-index 83a098dc8939..8285d1eb0db6 100644
---- a/arch/x86/include/asm/kvmi_host.h
-+++ b/arch/x86/include/asm/kvmi_host.h
-@@ -11,11 +11,17 @@ struct kvmi_arch_mem_access {
- 
- #ifdef CONFIG_KVM_INTROSPECTION
- 
-+bool kvmi_msr_event(struct kvm_vcpu *vcpu, struct msr_data *msr);
- bool kvmi_cr_event(struct kvm_vcpu *vcpu, unsigned int cr,
- 		   unsigned long old_value, unsigned long *new_value);
- 
- #else /* CONFIG_KVM_INTROSPECTION */
- 
-+static inline bool kvmi_msr_event(struct kvm_vcpu *vcpu, struct msr_data *msr)
-+{
-+	return true;
-+}
-+
- static inline bool kvmi_cr_event(struct kvm_vcpu *vcpu, unsigned int cr,
- 				 unsigned long old_value,
- 				 unsigned long *new_value)
-diff --git a/arch/x86/include/uapi/asm/kvmi.h b/arch/x86/include/uapi/asm/kvmi.h
-index c983b4bd2c72..08af2eccbdfb 100644
---- a/arch/x86/include/uapi/asm/kvmi.h
-+++ b/arch/x86/include/uapi/asm/kvmi.h
-@@ -79,4 +79,22 @@ struct kvmi_event_cr_reply {
- 	__u64 new_val;
+ 	switch (ctxt->b) {
+ 	case 0x11:
++		/* movss xmm, m32 */
+ 		/* movsd xmm, m64 */
+ 		/* movups xmm, m128 */
+-		if (simd_prefix == 0xf2) {
++		if (simd_prefix == 0xf3) {
++			bytes = 4;
++			break;
++		} else if (simd_prefix == 0xf2) {
+ 			bytes = 8;
+ 			break;
+ 		}
+@@ -4550,7 +4554,7 @@ static const struct gprefix pfx_0f_2b = {
  };
  
-+struct kvmi_control_msr {
-+	__u8 enable;
-+	__u8 padding1;
-+	__u16 padding2;
-+	__u32 msr;
-+};
-+
-+struct kvmi_event_msr {
-+	__u32 msr;
-+	__u32 padding;
-+	__u64 old_value;
-+	__u64 new_value;
-+};
-+
-+struct kvmi_event_msr_reply {
-+	__u64 new_val;
-+};
-+
- #endif /* _UAPI_ASM_X86_KVMI_H */
-diff --git a/arch/x86/kvm/kvmi.c b/arch/x86/kvm/kvmi.c
-index b3cab0db6a70..5dba4f87afef 100644
---- a/arch/x86/kvm/kvmi.c
-+++ b/arch/x86/kvm/kvmi.c
-@@ -9,6 +9,133 @@
- #include <asm/vmx.h>
- #include "../../../virt/kvm/kvmi_int.h"
+ static const struct gprefix pfx_0f_10_0f_11 = {
+-	I(Unaligned, em_mov), I(Unaligned, em_mov), I(Unaligned, em_mov), N,
++	I(Unaligned, em_mov), I(Unaligned, em_mov), I(Unaligned, em_mov), I(Unaligned, em_mov),
+ };
  
-+static unsigned long *msr_mask(struct kvm_vcpu *vcpu, unsigned int *msr)
-+{
-+	switch (*msr) {
-+	case 0 ... 0x1fff:
-+		return IVCPU(vcpu)->msr_mask.low;
-+	case 0xc0000000 ... 0xc0001fff:
-+		*msr &= 0x1fff;
-+		return IVCPU(vcpu)->msr_mask.high;
-+	}
-+
-+	return NULL;
-+}
-+
-+static bool test_msr_mask(struct kvm_vcpu *vcpu, unsigned int msr)
-+{
-+	unsigned long *mask = msr_mask(vcpu, &msr);
-+
-+	if (!mask)
-+		return false;
-+	if (!test_bit(msr, mask))
-+		return false;
-+
-+	return true;
-+}
-+
-+static int msr_control(struct kvm_vcpu *vcpu, unsigned int msr, bool enable)
-+{
-+	unsigned long *mask = msr_mask(vcpu, &msr);
-+
-+	if (!mask)
-+		return -KVM_EINVAL;
-+	if (enable)
-+		set_bit(msr, mask);
-+	else
-+		clear_bit(msr, mask);
-+	return 0;
-+}
-+
-+int kvmi_arch_cmd_control_msr(struct kvm_vcpu *vcpu,
-+			      const struct kvmi_control_msr *req)
-+{
-+	int err;
-+
-+	if (req->padding1 || req->padding2)
-+		return -KVM_EINVAL;
-+
-+	err = msr_control(vcpu, req->msr, req->enable);
-+
-+	if (!err && req->enable)
-+		kvm_arch_msr_intercept(vcpu, req->msr, req->enable);
-+
-+	return err;
-+}
-+
-+static u32 kvmi_send_msr(struct kvm_vcpu *vcpu, u32 msr, u64 old_value,
-+			 u64 new_value, u64 *ret_value)
-+{
-+	struct kvmi_event_msr e = {
-+		.msr = msr,
-+		.old_value = old_value,
-+		.new_value = new_value,
-+	};
-+	struct kvmi_event_msr_reply r;
-+	int err, action;
-+
-+	err = kvmi_send_event(vcpu, KVMI_EVENT_MSR, &e, sizeof(e),
-+			      &r, sizeof(r), &action);
-+	if (err) {
-+		*ret_value = new_value;
-+		return KVMI_EVENT_ACTION_CONTINUE;
-+	}
-+
-+	*ret_value = r.new_val;
-+	return action;
-+}
-+
-+static bool __kvmi_msr_event(struct kvm_vcpu *vcpu, struct msr_data *msr)
-+{
-+	struct msr_data old_msr = {
-+		.host_initiated = true,
-+		.index = msr->index,
-+	};
-+	bool ret = false;
-+	u64 ret_value;
-+	u32 action;
-+
-+	if (!test_msr_mask(vcpu, msr->index))
-+		return true;
-+	if (kvm_get_msr(vcpu, &old_msr))
-+		return true;
-+	if (old_msr.data == msr->data)
-+		return true;
-+
-+	action = kvmi_send_msr(vcpu, msr->index, old_msr.data, msr->data,
-+			       &ret_value);
-+	switch (action) {
-+	case KVMI_EVENT_ACTION_CONTINUE:
-+		msr->data = ret_value;
-+		ret = true;
-+		break;
-+	default:
-+		kvmi_handle_common_event_actions(vcpu, action, "MSR");
-+	}
-+
-+	return ret;
-+}
-+
-+bool kvmi_msr_event(struct kvm_vcpu *vcpu, struct msr_data *msr)
-+{
-+	struct kvmi *ikvm;
-+	bool ret = true;
-+
-+	if (msr->host_initiated)
-+		return true;
-+
-+	ikvm = kvmi_get(vcpu->kvm);
-+	if (!ikvm)
-+		return true;
-+
-+	if (is_event_enabled(vcpu, KVMI_EVENT_MSR))
-+		ret = __kvmi_msr_event(vcpu, msr);
-+
-+	kvmi_put(vcpu->kvm);
-+
-+	return ret;
-+}
-+
- static void *alloc_get_registers_reply(const struct kvmi_msg_hdr *msg,
- 				       const struct kvmi_get_registers *req,
- 				       size_t *rpl_size)
-diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
-index fc78b0052dee..cdb315578979 100644
---- a/arch/x86/kvm/svm.c
-+++ b/arch/x86/kvm/svm.c
-@@ -7098,6 +7098,20 @@ static int nested_enable_evmcs(struct kvm_vcpu *vcpu,
- 	return -ENODEV;
- }
- 
-+static void svm_msr_intercept(struct kvm_vcpu *vcpu, unsigned int msr,
-+				bool enable)
-+{
-+	struct vcpu_svm *svm = to_svm(vcpu);
-+	u32 *msrpm = svm->msrpm;
-+
-+	/*
-+	 * The below code enable or disable the msr interception for both
-+	 * read and write. The best way will be to get here the current
-+	 * bit status for read and send that value as argument.
-+	 */
-+	set_msr_interception(msrpm, msr, enable, enable);
-+}
-+
- static bool svm_nested_pagefault(struct kvm_vcpu *vcpu)
- {
- 	return false;
-@@ -7126,6 +7140,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
- 	.has_emulated_msr = svm_has_emulated_msr,
- 
- 	.cr3_write_exiting = svm_cr3_write_exiting,
-+	.msr_intercept = svm_msr_intercept,
- 	.nested_pagefault = svm_nested_pagefault,
- 	.spt_fault = svm_spt_fault,
- 
-diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
-index 6450c8c44771..0306c7ef3158 100644
---- a/arch/x86/kvm/vmx/vmx.c
-+++ b/arch/x86/kvm/vmx/vmx.c
-@@ -7784,6 +7784,15 @@ static __exit void hardware_unsetup(void)
- 	free_kvm_area();
- }
- 
-+static void vmx_msr_intercept(struct kvm_vcpu *vcpu, unsigned int msr,
-+			      bool enable)
-+{
-+	struct vcpu_vmx *vmx = to_vmx(vcpu);
-+	unsigned long *msr_bitmap = vmx->vmcs01.msr_bitmap;
-+
-+	vmx_set_intercept_for_msr(msr_bitmap, msr, MSR_TYPE_W, enable);
-+}
-+
- static void vmx_cr3_write_exiting(struct kvm_vcpu *vcpu,
- 					 bool enable)
- {
-@@ -7844,6 +7853,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
- 	.cpu_has_accelerated_tpr = report_flexpriority,
- 	.has_emulated_msr = vmx_has_emulated_msr,
- 
-+	.msr_intercept = vmx_msr_intercept,
- 	.cr3_write_exiting = vmx_cr3_write_exiting,
- 	.nested_pagefault = vmx_nested_pagefault,
- 	.spt_fault = vmx_spt_fault,
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 2cd146ccc6ff..ac027471c4f3 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -1319,6 +1319,9 @@ EXPORT_SYMBOL_GPL(kvm_enable_efer_bits);
-  */
- int kvm_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr)
- {
-+	if (!kvmi_msr_event(vcpu, msr))
-+		return 1;
-+
- 	switch (msr->index) {
- 	case MSR_FS_BASE:
- 	case MSR_GS_BASE:
-@@ -10083,6 +10086,13 @@ bool kvm_vector_hashing_enabled(void)
- }
- EXPORT_SYMBOL_GPL(kvm_vector_hashing_enabled);
- 
-+void kvm_arch_msr_intercept(struct kvm_vcpu *vcpu, unsigned int msr,
-+				bool enable)
-+{
-+	kvm_x86_ops->msr_intercept(vcpu, msr, enable);
-+}
-+EXPORT_SYMBOL_GPL(kvm_arch_msr_intercept);
-+
- void kvm_control_cr3_write_exiting(struct kvm_vcpu *vcpu, bool enable)
- {
- 	kvm_x86_ops->cr3_write_exiting(vcpu, enable);
-diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
-index c92be3c2c131..640a78b54947 100644
---- a/virt/kvm/kvmi_int.h
-+++ b/virt/kvm/kvmi_int.h
-@@ -27,7 +27,7 @@
- #define IVCPU(vcpu) ((struct kvmi_vcpu *)((vcpu)->kvmi))
- 
- #define KVMI_NUM_CR 9
--
-+#define KVMI_NUM_MSR 0x2000
- #define KVMI_CTX_DATA_SIZE FIELD_SIZEOF(struct kvmi_event_pf_reply, ctx_data)
- 
- #define KVMI_MSG_SIZE_ALLOC (sizeof(struct kvmi_msg_hdr) + KVMI_MSG_SIZE)
-@@ -120,6 +120,10 @@ struct kvmi_vcpu {
- 
- 	DECLARE_BITMAP(ev_mask, KVMI_NUM_EVENTS);
- 	DECLARE_BITMAP(cr_mask, KVMI_NUM_CR);
-+	struct {
-+		DECLARE_BITMAP(low, KVMI_NUM_MSR);
-+		DECLARE_BITMAP(high, KVMI_NUM_MSR);
-+	} msr_mask;
- 
- 	struct list_head job_list;
- 	spinlock_t job_lock;
-@@ -258,5 +262,7 @@ int kvmi_arch_cmd_inject_exception(struct kvm_vcpu *vcpu, u8 vector,
- 				   u64 address);
- int kvmi_arch_cmd_control_cr(struct kvm_vcpu *vcpu,
- 			     const struct kvmi_control_cr *req);
-+int kvmi_arch_cmd_control_msr(struct kvm_vcpu *vcpu,
-+			      const struct kvmi_control_msr *req);
- 
- #endif
-diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
-index d4f5459722bb..8a8951f13f8e 100644
---- a/virt/kvm/kvmi_msg.c
-+++ b/virt/kvm/kvmi_msg.c
-@@ -26,6 +26,7 @@ static const char *const msg_IDs[] = {
- 	[KVMI_CONTROL_CMD_RESPONSE]  = "KVMI_CONTROL_CMD_RESPONSE",
- 	[KVMI_CONTROL_CR]            = "KVMI_CONTROL_CR",
- 	[KVMI_CONTROL_EVENTS]        = "KVMI_CONTROL_EVENTS",
-+	[KVMI_CONTROL_MSR]           = "KVMI_CONTROL_MSR",
- 	[KVMI_CONTROL_SPP]           = "KVMI_CONTROL_SPP",
- 	[KVMI_CONTROL_VM_EVENTS]     = "KVMI_CONTROL_VM_EVENTS",
- 	[KVMI_EVENT]                 = "KVMI_EVENT",
-@@ -674,6 +675,17 @@ static int handle_control_cr(struct kvm_vcpu *vcpu,
- 	return reply_cb(vcpu, msg, ec, NULL, 0);
- }
- 
-+static int handle_control_msr(struct kvm_vcpu *vcpu,
-+			      const struct kvmi_msg_hdr *msg, const void *req,
-+			      vcpu_reply_fct reply_cb)
-+{
-+	int ec;
-+
-+	ec = kvmi_arch_cmd_control_msr(vcpu, req);
-+
-+	return reply_cb(vcpu, msg, ec, NULL, 0);
-+}
-+
- static int handle_get_cpuid(struct kvm_vcpu *vcpu,
- 			    const struct kvmi_msg_hdr *msg,
- 			    const void *req, vcpu_reply_fct reply_cb)
-@@ -699,6 +711,7 @@ static int(*const msg_vcpu[])(struct kvm_vcpu *,
- 			      vcpu_reply_fct) = {
- 	[KVMI_CONTROL_CR]       = handle_control_cr,
- 	[KVMI_CONTROL_EVENTS]   = handle_control_events,
-+	[KVMI_CONTROL_MSR]      = handle_control_msr,
- 	[KVMI_EVENT_REPLY]      = handle_event_reply,
- 	[KVMI_GET_CPUID]        = handle_get_cpuid,
- 	[KVMI_GET_REGISTERS]    = handle_get_registers,
+ static const struct gprefix pfx_0f_28_0f_29 = {
 
