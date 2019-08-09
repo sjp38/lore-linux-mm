@@ -6,70 +6,70 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0942AC433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:03:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9669AC31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:03:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9CD9320C01
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:03:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9CD9320C01
+	by mail.kernel.org (Postfix) with ESMTP id 46A3E2089E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:03:04 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 46A3E2089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B1AD46B0288; Fri,  9 Aug 2019 12:01:17 -0400 (EDT)
+	id EEA7B6B0287; Fri,  9 Aug 2019 12:01:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ACAD86B028A; Fri,  9 Aug 2019 12:01:17 -0400 (EDT)
+	id E9D606B0289; Fri,  9 Aug 2019 12:01:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 944416B0289; Fri,  9 Aug 2019 12:01:17 -0400 (EDT)
+	id CCBFF6B028B; Fri,  9 Aug 2019 12:01:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 40EE66B0286
+Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A26E6B0287
 	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:17 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id x12so1339603wrw.0
+Received: by mail-wr1-f72.google.com with SMTP id e8so46642774wrw.15
         for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:17 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=s77IzXXMMKjHf68JwnZKHXl1EG4XooBC3s85XD7NB7Q=;
-        b=lkPwbMfWHx9h9itL4C9qZu/cJPvIFFBDLz5qf//dlTR+7EmzeHgLEZ3jUryGfs3wfB
-         ilj4IC6+EMxHf70HdnXN8g5QdUEIgA11Xdrz7UvjYkhNLxyw9uZe65LTZQyro1eMaJLq
-         gcXmb5Ftp/N1srg9gOT79h/1QYuRGMmljid0ALii71E0nanuDx54n9nEROetdJP2lNNp
-         EgRD8r7l0XkmCOARKKgRQsmmajCC33mUP/LEsU5CukzL7qSdF5wtmXsjsuWWGuvwKmxv
-         irPojihp72gBxAHVBgQngc0Q+TYoMwqq9RXVgd5IWQ9BN3vMYIfMggHMRNEwjNAF4mnY
-         WWVA==
+        bh=yquaGfW2+nfmqcdNbDOv/m1HA9hMGeQCbqvynbv34WI=;
+        b=dn/AcbldnfsLdPZXTjh7O7zXqUT8pY66bphxTrOMYk1lj83SuDZok9ncJpqGxOGAEt
+         lTYwTmYVrcJcIp8Iieu7UuYl1VI00K/kF0LTmN6qgimNSzRxgqbH2S1PbgXYCep9zxbx
+         QvxC1+3O9tV2suA45G3aopKbBFehMpcikFG1WEU3Qr7pP71F5GNzk+3CamaAQgG7Q6Mg
+         8x+U9afxS+QAghILc6UaVTsO5+JvFZo+YTdKSuqF3bjSV1TZ9ByvroPKJ828UB9sFNMT
+         64kHOGDGVovRLdI6rrjqoCt2S1HCaBaHCLYky01H3Ez30xKktuFC3n5iE5X2WbEDrKhA
+         +VWw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAXbe2Sa7uGvRTRtpQDD/4q8BlLqiWnXjFkt0U00r5B8NlOuUyDU
-	zkusWK623yvicDXVZG4zAndjzADXx+VPhZAx4TX7djKON6/0qvvraDH0ZHyMeAt80PlN6ECR4Yk
-	7J1fGjYTWI5n1oGAkC3XMZPGx6WVWsz59xS8SlugOEKQEDEwsQ757OrsVHu9ibtX9RA==
-X-Received: by 2002:a5d:48c5:: with SMTP id p5mr15309787wrs.217.1565366476853;
-        Fri, 09 Aug 2019 09:01:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzewiByQIw1dSNu6uTo6Ra+zMhcOZ2J65fLJD0T3/7lXhAutn/BliZjuTQ8cvMXuen1uTPd
-X-Received: by 2002:a5d:48c5:: with SMTP id p5mr15309580wrs.217.1565366474569;
+X-Gm-Message-State: APjAAAXtJWOO6/RC4Mje9iyCuLVi3wBiyn3EctSbkMY4NkuqEAFV89Uk
+	FyKbIJB4i25kz5gnsurA/86lcwx8NSdF3oFyt5AxHm0KWRAJtp8EcdxW5vwreQN9vNq+ZXonwbx
+	BAcTGDR35MYWsdBNbjo6yqlvyhWGACQ5Ujpnk9TMbF7vGXWSLe3rCF2vMd17gMW+lFg==
+X-Received: by 2002:a1c:a909:: with SMTP id s9mr11677676wme.20.1565366477018;
+        Fri, 09 Aug 2019 09:01:17 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzDJ2223+gZu7+0Fb9fbTQRC6Lf0i2B2hsBL22mLVKBtHit7W2YXJvkEpPjL9K92WXF5dYJ
+X-Received: by 2002:a1c:a909:: with SMTP id s9mr11677434wme.20.1565366474158;
         Fri, 09 Aug 2019 09:01:14 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1565366474; cv=none;
         d=google.com; s=arc-20160816;
-        b=qH/iyYRmLsPOVu/MwFSO1m0OpDicukK9/BEYgSfXBeyHb9qVhk/R7IaJyVo6h2bmrv
-         H40EkW3ysvFfZCFms+hT54PP2EXTKgvmNnf6rSraotYpu+uqjqKhRn3EQLheJ571+Yjf
-         TiU6SyVYMSSJXLKTvca0FOkbF6oUeH6xw+j0VuKQDo+lXxPhp/E+ylfhFQOXHoXYOcBi
-         oARD5k6ozbJQejaWZe0PGBD1U15bdYbyri8z9B6gxuz6ashSWFS2o2wvYlMdbberSgTY
-         Vvch15+S9BOoyhhRJDaIe+yhkY6h3+R18MzQ5G6Vdsl6iqz7aHzJ/o5TIQsHSfyksMDM
-         uFag==
+        b=bVSacdJyK4dBVLVkhQtXYuO+2rigaiThNpN81L/0w3hMCWd0UirxBD3gHeekiw9wF5
+         uJocwgSAQgKA7sUtcClEaOFWff+a9l0XZz0zCwr+w8O6NGdbFHz2mp98ahbxOFb8lBT+
+         K9zjbiTMuuVZ/nzUlLGwNQH6VQT/W1vsvZHIaFmxuVq3elsW0UVWPmrhE+qncXLqVKcL
+         N91bZhMFYZ7uHtRuRGBznU1teipD3H2uwST94zZUbxWhyQpU4g8QcWBkMYWWBnHy00Tv
+         U5v2eanJRPfAueYk0QjJCpNptTZOJelOuTpnPr+4E2tz6a/VKLc+mkV/YJG+oU6cburz
+         4EBw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=s77IzXXMMKjHf68JwnZKHXl1EG4XooBC3s85XD7NB7Q=;
-        b=096Rdu4M3Yd/idSzzQdenMRH5LYYxwhHmzS8F/V4VL9B3QfOzEqXBZ9ZTYt7GvvZJP
-         qDXFoQ3QaLql9mCFLOyrSiioKRVXP5SZZmRroFyE8kujYPgWODkjVx+Wa8E76rpplqh1
-         ZINRWPXOTj3Bb3F9nadFBAu22B9JLVjiD86gbHduO/mANkSru4dAr+yEkbclbDBa4hOW
-         F7I63Hu2crzW1ihixsfAg5cu2Kqh/RE2hmBwve8zH5F5YqasaYGRfLUmuW/Vhhn82IEt
-         xuZ4VwIFMiW4sPpi0jMnMoZ6vXrFDWdmRY+7+9wZ2+MqlDYNskgcIiNdFoUtpivVXXfX
-         u6tQ==
+        bh=yquaGfW2+nfmqcdNbDOv/m1HA9hMGeQCbqvynbv34WI=;
+        b=GdrQf9P92kHxkhkulz2KcUYP6nAKzr5PWC9JTK+0QPQMN4NC97dDIe+f8uzY8AgZyD
+         mba9IcY/w2ChI2UiZHPWFONNdS4WZgmYQoDODOtoEiw747bEPkifbu8E2yjFk9yZflbw
+         KefBhaaEmrBlmQXXI3WZjVMk5jw0TLIQqgV8I4hlDB6BixORpxnzbJdFqqWdnh+SYsFX
+         Kf4U4JGDFf0U14JwABRn57jrPZ678Yj+QfjvLhPtcozoZmv2hB47GSrpAIt5qTsMlXTc
+         3g4Q2x3SOYJqx0Z9vL50GJfmEKEvQ77l+GQ8wdsWDiTsA/oTUASIXqhRZ4KULntSIWz7
+         PYdw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id j2si4214815wmk.27.2019.08.09.09.01.14
+        by mx.google.com with ESMTPS id b131si3986237wmc.75.2019.08.09.09.01.13
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 09 Aug 2019 09:01:14 -0700 (PDT)
@@ -77,11 +77,11 @@ Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.1
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id E97213031EB8;
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 932DB3031EB7;
 	Fri,  9 Aug 2019 19:01:13 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id 8EE2C305B7A3;
-	Fri,  9 Aug 2019 19:01:13 +0300 (EEST)
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id 9C12A305B7A9;
+	Fri,  9 Aug 2019 19:01:12 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
@@ -98,9 +98,9 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
 	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v6 43/92] kvm: introspection: add KVMI_CONTROL_SPP
-Date: Fri,  9 Aug 2019 18:59:58 +0300
-Message-Id: <20190809160047.8319-44-alazar@bitdefender.com>
+Subject: [RFC PATCH v6 42/92] KVM: MMU: Handle host memory remapping and reclaim
+Date: Fri,  9 Aug 2019 18:59:57 +0300
+Message-Id: <20190809160047.8319-43-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -112,171 +112,58 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This command enables/disables subpage protection (SPP) for the current VM.
+From: Yang Weijiang <weijiang.yang@intel.com>
 
+Host page swapping/migration may change the translation in
+EPT leaf entry, if the target page is SPP protected,
+re-enable SPP protection in MMU notifier. If SPPT shadow
+page is reclaimed, the level1 pages don't have rmap to clear.
+
+Signed-off-by: Yang Weijiang <weijiang.yang@intel.com>
+Message-Id: <20190717133751.12910-10-weijiang.yang@intel.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- Documentation/virtual/kvm/kvmi.rst | 33 ++++++++++++++++++++++++++++++
- arch/x86/kvm/kvmi.c                |  4 ++++
- include/uapi/linux/kvmi.h          |  7 +++++++
- virt/kvm/kvmi_int.h                |  6 ++++++
- virt/kvm/kvmi_msg.c                | 33 ++++++++++++++++++++++++++++++
- 5 files changed, 83 insertions(+)
+ arch/x86/kvm/mmu.c | 22 ++++++++++++++++++++++
+ 1 file changed, 22 insertions(+)
 
-diff --git a/Documentation/virtual/kvm/kvmi.rst b/Documentation/virtual/kvm/kvmi.rst
-index b64a030507cf..c1d12aaa8633 100644
---- a/Documentation/virtual/kvm/kvmi.rst
-+++ b/Documentation/virtual/kvm/kvmi.rst
-@@ -617,6 +617,39 @@ In order to 'forget' an address, all the access bits ('rwx') must be set.
- * -KVM_EAGAIN - the selected vCPU can't be introspected yet
- * -KVM_ENOMEM - not enough memory to add the page tracking structures
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index 24222e3add91..0b859b1797f6 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -2004,6 +2004,24 @@ static int kvm_set_pte_rmapp(struct kvm *kvm, struct kvm_rmap_head *rmap_head,
+ 			new_spte &= ~PT_WRITABLE_MASK;
+ 			new_spte &= ~SPTE_HOST_WRITEABLE;
  
-+11. KVMI_CONTROL_SPP
-+--------------------
++			/*
++			 * if it's EPT leaf entry and the physical page is
++			 * SPP protected, then re-enable SPP protection for
++			 * the page.
++			 */
++			if (kvm->arch.spp_active &&
++			    level == PT_PAGE_TABLE_LEVEL) {
++				struct kvm_subpage spp_info = {0};
++				int i;
 +
-+:Architectures: x86/intel
-+:Versions: >= 1
-+:Parameters:
++				spp_info.base_gfn = gfn;
++				spp_info.npages = 1;
++				i = kvm_mmu_get_subpages(kvm, &spp_info, true);
++				if (i == 1 &&
++				    spp_info.access_map[0] != FULL_SPP_ACCESS)
++					new_spte |= PT_SPP_MASK;
++			}
 +
-+::
-+
-+	struct kvmi_control_spp {
-+		__u8 enable;
-+		__u8 padding1;
-+		__u16 padding2;
-+		__u32 padding3;
-+	}
-+
-+:Returns:
-+
-+::
-+
-+	struct kvmi_error_code;
-+
-+Enables/disables subpage protection (SPP) for the current VM.
-+
-+If SPP is not enabled, *KVMI_GET_PAGE_WRITE_BITMAP* and
-+*KVMI_SET_PAGE_WRITE_BITMAP* commands will fail.
-+
-+:Errors:
-+
-+* -KVM_EINVAL - padding is not zero
-+* -KVM_EOPNOTSUPP - the hardware doesn't support SPP
-+* -KVM_EOPNOTSUPP - the current implementation can't disable SPP
-+
- Events
- ======
+ 			new_spte = mark_spte_for_access_track(new_spte);
  
-diff --git a/arch/x86/kvm/kvmi.c b/arch/x86/kvm/kvmi.c
-index 3238ef176ad6..01fd218e213c 100644
---- a/arch/x86/kvm/kvmi.c
-+++ b/arch/x86/kvm/kvmi.c
-@@ -260,3 +260,7 @@ int kvmi_arch_cmd_set_page_access(struct kvmi *ikvm,
- 	return ec;
- }
- 
-+int kvmi_arch_cmd_control_spp(struct kvmi *ikvm)
-+{
-+	return kvm_arch_init_spp(ikvm->kvm);
-+}
-diff --git a/include/uapi/linux/kvmi.h b/include/uapi/linux/kvmi.h
-index 2ddbb1fea807..9f2b13718e47 100644
---- a/include/uapi/linux/kvmi.h
-+++ b/include/uapi/linux/kvmi.h
-@@ -142,6 +142,13 @@ struct kvmi_set_page_access {
- 	struct kvmi_page_access_entry entries[0];
- };
- 
-+struct kvmi_control_spp {
-+	__u8 enable;
-+	__u8 padding1;
-+	__u16 padding2;
-+	__u32 padding3;
-+};
-+
- struct kvmi_get_vcpu_info_reply {
- 	__u64 tsc_speed;
- };
-diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
-index c54be93349b7..3f0c7a03b4a1 100644
---- a/virt/kvm/kvmi_int.h
-+++ b/virt/kvm/kvmi_int.h
-@@ -130,6 +130,11 @@ struct kvmi {
- 	DECLARE_BITMAP(event_allow_mask, KVMI_NUM_EVENTS);
- 	DECLARE_BITMAP(vm_ev_mask, KVMI_NUM_EVENTS);
- 
-+	struct {
-+		bool initialized;
-+		atomic_t enabled;
-+	} spp;
-+
- 	bool cmd_reply_disabled;
- };
- 
-@@ -184,6 +189,7 @@ int kvmi_arch_cmd_get_page_access(struct kvmi *ikvm,
- int kvmi_arch_cmd_set_page_access(struct kvmi *ikvm,
- 				  const struct kvmi_msg_hdr *msg,
- 				  const struct kvmi_set_page_access *req);
-+int kvmi_arch_cmd_control_spp(struct kvmi *ikvm);
- void kvmi_arch_setup_event(struct kvm_vcpu *vcpu, struct kvmi_event *ev);
- bool kvmi_arch_pf_event(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
- 			u8 access);
-diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
-index c150e7bdd440..e501a807c8a2 100644
---- a/virt/kvm/kvmi_msg.c
-+++ b/virt/kvm/kvmi_msg.c
-@@ -25,6 +25,7 @@ static const char *const msg_IDs[] = {
- 	[KVMI_CHECK_EVENT]           = "KVMI_CHECK_EVENT",
- 	[KVMI_CONTROL_CMD_RESPONSE]  = "KVMI_CONTROL_CMD_RESPONSE",
- 	[KVMI_CONTROL_EVENTS]        = "KVMI_CONTROL_EVENTS",
-+	[KVMI_CONTROL_SPP]           = "KVMI_CONTROL_SPP",
- 	[KVMI_CONTROL_VM_EVENTS]     = "KVMI_CONTROL_VM_EVENTS",
- 	[KVMI_EVENT]                 = "KVMI_EVENT",
- 	[KVMI_EVENT_REPLY]           = "KVMI_EVENT_REPLY",
-@@ -300,6 +301,37 @@ static int kvmi_get_vcpu(struct kvmi *ikvm, unsigned int vcpu_idx,
- 	return 0;
- }
- 
-+static bool enable_spp(struct kvmi *ikvm)
-+{
-+	if (!ikvm->spp.initialized) {
-+		int err = kvmi_arch_cmd_control_spp(ikvm);
-+
-+		ikvm->spp.initialized = true;
-+
-+		if (!err)
-+			atomic_set(&ikvm->spp.enabled, true);
-+	}
-+
-+	return atomic_read(&ikvm->spp.enabled);
-+}
-+
-+static int handle_control_spp(struct kvmi *ikvm,
-+			      const struct kvmi_msg_hdr *msg,
-+			      const void *_req)
-+{
-+	const struct kvmi_control_spp *req = _req;
-+	int ec;
-+
-+	if (req->padding1 || req->padding2 || req->padding3)
-+		ec = -KVM_EINVAL;
-+	else if (req->enable && enable_spp(ikvm))
-+		ec = 0;
-+	else
-+		ec = -KVM_EOPNOTSUPP;
-+
-+	return kvmi_msg_vm_maybe_reply(ikvm, msg, ec, NULL, 0);
-+}
-+
- static int handle_control_cmd_response(struct kvmi *ikvm,
- 					const struct kvmi_msg_hdr *msg,
- 					const void *_req)
-@@ -364,6 +396,7 @@ static int(*const msg_vm[])(struct kvmi *, const struct kvmi_msg_hdr *,
- 	[KVMI_CHECK_COMMAND]         = handle_check_command,
- 	[KVMI_CHECK_EVENT]           = handle_check_event,
- 	[KVMI_CONTROL_CMD_RESPONSE]  = handle_control_cmd_response,
-+	[KVMI_CONTROL_SPP]           = handle_control_spp,
- 	[KVMI_CONTROL_VM_EVENTS]     = handle_control_vm_events,
- 	[KVMI_GET_GUEST_INFO]        = handle_get_guest_info,
- 	[KVMI_GET_PAGE_ACCESS]       = handle_get_page_access,
+ 			mmu_spte_clear_track_bits(sptep);
+@@ -2905,6 +2923,10 @@ static bool mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
+ 	pte = *spte;
+ 	if (is_shadow_present_pte(pte)) {
+ 		if (is_last_spte(pte, sp->role.level)) {
++			/* SPPT leaf entries don't have rmaps*/
++			if (sp->role.level == PT_PAGE_TABLE_LEVEL &&
++			    is_spp_spte(sp))
++				return true;
+ 			drop_spte(kvm, spte);
+ 			if (is_large_pte(pte))
+ 				--kvm->stat.lpages;
 
