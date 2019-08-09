@@ -6,82 +6,82 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 19E28C31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:02:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5C4B9C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:02:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A5BF42089E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:02:43 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A5BF42089E
+	by mail.kernel.org (Postfix) with ESMTP id F0B0D2089E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:02:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F0B0D2089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 973566B0281; Fri,  9 Aug 2019 12:01:12 -0400 (EDT)
+	id B42F66B0282; Fri,  9 Aug 2019 12:01:13 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8CE666B0282; Fri,  9 Aug 2019 12:01:12 -0400 (EDT)
+	id ACFAB6B0284; Fri,  9 Aug 2019 12:01:13 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 771D56B0283; Fri,  9 Aug 2019 12:01:12 -0400 (EDT)
+	id 945DB6B0285; Fri,  9 Aug 2019 12:01:13 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 2140E6B0281
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:12 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id s18so5312859wrt.21
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:12 -0700 (PDT)
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 450B36B0282
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:13 -0400 (EDT)
+Received: by mail-wr1-f71.google.com with SMTP id e8so46642676wrw.15
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=iE+nE7i9O5YE7enV6edjUWCbEOasLFCccVQauOSpedo=;
-        b=A/n8lJ+BiZ6rNi3JBYIEfFdzrdUHJZxxj7ba3e3Edf2tzSc+2X/t2st2JJmnWWjeU1
-         97Q8KMWy5njsqWI45zjd2kkCzNTb3p8hIz9Vbfdb8BJCL9CjwPxUsEd+4T9zxLgyB8xv
-         ukOFXW/qa8cZ2jXYKFXGdY4i/Q8lrxLoDRN+1VLJXX+7yc1hbuINckowDbkqatW4Fy16
-         Mv38uryMZzdEnRzOLVQEM88qPpC78LO3yt7Hy6JQLSl2oaohCb0IXckCPHIhDZeQRHSW
-         UdEwa0ocZA35XRbwAzs7/8VHWMfcZ/ojYtChnlY2OZG1Xq4exDi+tr+VME/zrMFzSm9J
-         3STA==
+        bh=m+NJgMcH+qSaFGizKvzEHID3VO0ZmLjWT3Z3kbousew=;
+        b=Zx5KQuZBK6H442ceoD/XeDbbIecklnUv5C2SME42axDwB4IOuNwQe6J5wYYpDNqA4v
+         h3Q8kuQxJz38zoTV01MljHMOa0FtjK+BFt8hxdLpYNCvmGquFqdlCp407vvUYPOPln2a
+         hrkKNxgGLZa2MyZyArBscIG7wkEt9kZHEcTVwQ/m5+5x2gESmC1G+x0yyivKQ80qVPGn
+         /b2fIchrUExzBB9n734+asOY2Tr3Ta7+tzPWsuA5beJA4Lc6/2smArwd1Cf5N1BHlC6e
+         KW9sdPwosRnPG8mg+u//qiZo8cg2eXUO8gLA+UGrNmt6u5KHJ5HjLAt7ozvFKxdeXonz
+         wlww==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAU/7RuW4HIGy2rrRmGRGxo8hBHcEHc8VJCKNRBd4666dOu8liSv
-	Ysjhw3IQ2cYRMQJP+wuy1Priysh+r6OmUJRnbNOZ3wZsRaAKuKGW+gPbZnqZj8bc0g2wCk9YnuW
-	RD8gJfRtj33CVzomJidrheaFZYbMkvqjRSUkse7bkIeyvQJn704J8zePCBPGdKZF0wQ==
-X-Received: by 2002:a5d:4e82:: with SMTP id e2mr20134611wru.149.1565366471626;
+X-Gm-Message-State: APjAAAXcf2GvJizRUQCjVxOAveh3K7HL8sZh90fF4MYvup4ylCoxvb1I
+	jU9bVFu5f2VGS6aqRwpbT2TqM/WUB3lp0u1xiSqI3W7cbfG3NBPlvFEaYG43gpDBmkPik66OSfy
+	ZAUeVrHJAPBSain226Cp9crxsQqSxanki5onIkB8SXKf2NIudEn5INjBBLq7kTyVZ+Q==
+X-Received: by 2002:a1c:c542:: with SMTP id v63mr11433740wmf.97.1565366472842;
+        Fri, 09 Aug 2019 09:01:12 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyFu8CwXlDh6g9TfLMebv5X6O4vBLkv5U4ZY7bQU/F7mswS1AnL/Anq9UNYmbBhEdwy3CH5
+X-Received: by 2002:a1c:c542:: with SMTP id v63mr11433595wmf.97.1565366471150;
         Fri, 09 Aug 2019 09:01:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw3cBymi/ktlSfcZJwI+P0+zYdsZAn+XywWqeYN2FDumXfAOrFAHozJh+Im/0oUsJDtBDOF
-X-Received: by 2002:a5d:4e82:: with SMTP id e2mr20134427wru.149.1565366469640;
-        Fri, 09 Aug 2019 09:01:09 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366469; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1565366471; cv=none;
         d=google.com; s=arc-20160816;
-        b=HDA+To8kY6cVqF9VQ87Oih/89jIfUawLw4qqpyafSKXIVTmNSjONne6/WAjv5fnudr
-         EiAxJgf7rAVuC0VTu92mF/9QR+dXPksJ41esfl9/aDE0NCtfr6ZyLTMU4xXBPd8V/KkZ
-         6zbcY5wV/V+GjV9OGur+sIwGkAyHc0QOBlmLscwEclloO26CV/mDqTQmY3ppELlnah4Y
-         7gk0d9djm6XkwetGDr+jpvLcKjygVXNGDXxERKjbAPcdbmPM2Mjj6KswhpmNHLqdsSH/
-         NfyCRqupkvn74zh4bKQc06h7+YXevGQmlunRCVQM7HOkx4tv0NKWGIi5+cQuRJlUggOn
-         ekOQ==
+        b=Lf65ZN4HHrmlPnCy42rEg8XROdv3U9iYwTOwTO3za21qthnBuyx7GiaowIeQ0TegjB
+         QnZFTJF7xp/EkpvBUI+7/TT8wg/q3AC/96C1q9s9LuM+GuYOaUoSOsFliI1HkEnBm4no
+         Pzn/yGg0/WKVgFZ3wQxp1Ghxj8n2Akx/B0/EUpOsVv1XtiWlw2CdVnsTprQNARCkVKp9
+         eT8B54KLzJIBQwz//g1OVLWY7FSM6ktvjLF+Ggg3DVrOjEp+sn/UvXU+KPMBbo7PhvFn
+         tWSxaj5BHeMa3e0segABOd7D540/dwHg1vaQpr5i1MzRhsR+kdL+sMTsBNqDhUQS/Eqp
+         OYaQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=iE+nE7i9O5YE7enV6edjUWCbEOasLFCccVQauOSpedo=;
-        b=sIWtGrdZ9iK+CqJd1sJkriN5aWQrNl7rftJUv+4utj2ErEWtv042fpJdGYpPju0voc
-         v/h5hI1y/z0bcPJW7DthEAecVlibroIxea1Sh8ADi10D9JlCT4oH+ODzSA5gX2e+B/FA
-         R2PFUojatIg8m6FhkfD3Dn524udghtk9CDV3YwVN/2KJU8aAHCLu19Cqy/hQH8kw6YfK
-         3g1Bv5H0yml22oz47sejoEbHFFoLp1YQbOgn/48pOUXaNb5OIe20cx3gOG+5wx3xnsIt
-         PHro7RWFDAYYZISixQK9wIVjK/MZQVj5ucDpAi5dX++mOCkxHNT7RsJa6ZWqzzA9tIBv
-         ysYA==
+        bh=m+NJgMcH+qSaFGizKvzEHID3VO0ZmLjWT3Z3kbousew=;
+        b=xW9g/0KxZwuAZpK8XCqS9priInQ3EJPVaqaKMyXEgW0Ki3mFlshV5HmivTo/hDgEIE
+         I9a6RFXYmNJOgGUFt2VgSfFlsqY6guMuBH9LonUhvzSJDcbCtt7w53EVkQcF/p7vupVI
+         8d913NIwV8VGW+CX7jpCQKHsVpWDPoh/eHMCZlOUfhgnSYjcLG431gFCZGNwSFKOQLGQ
+         aVxUZRdPDa8kwMi2J5nssLr2HXnpz0+xQnxdUjOR9ajznrGLLlYIEwrba53ue6gU7XUw
+         rPOAc61SAiO+UtugshTREAw2oa08etdjKGPQqOQGfrX27FOtQM5hjniCjEdwvqzdU45Z
+         KAMQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id 199si4089142wma.52.2019.08.09.09.01.09
+        by mx.google.com with ESMTPS id x5si4160666wmk.191.2019.08.09.09.01.10
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 09:01:09 -0700 (PDT)
+        Fri, 09 Aug 2019 09:01:11 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 06B94302475F;
-	Fri,  9 Aug 2019 19:01:09 +0300 (EEST)
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 82BAC302478F;
+	Fri,  9 Aug 2019 19:01:10 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id CEB7C305B7A4;
-	Fri,  9 Aug 2019 19:01:07 +0300 (EEST)
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id 3469D305B7A1;
+	Fri,  9 Aug 2019 19:01:10 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
@@ -100,9 +100,9 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>,
 	He Chen <he.chen@linux.intel.com>,
 	Zhang Yi <yi.z.zhang@linux.intel.com>
-Subject: [RFC PATCH v6 38/92] KVM: VMX: Add init/set/get functions for SPP
-Date: Fri,  9 Aug 2019 18:59:53 +0300
-Message-Id: <20190809160047.8319-39-alazar@bitdefender.com>
+Subject: [RFC PATCH v6 40/92] KVM: VMX: Handle SPP induced vmexit and page fault
+Date: Fri,  9 Aug 2019 18:59:55 +0300
+Message-Id: <20190809160047.8319-41-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -116,19 +116,16 @@ List-ID: <linux-mm.kvack.org>
 
 From: Yang Weijiang <weijiang.yang@intel.com>
 
-init_spp() must be called before {get, set}_subpage
-functions, it creates subpage access bitmaps for memory pages
-and issues a KVM request to setup SPPT root pages.
+If write to subpage is not allowed, EPT violation is generated,
+it's propagated to QEMU or VMI to handle.
 
-kvm_mmu_set_subpages() is to enable SPP bit in EPT leaf page
-and setup corresponding SPPT entries. The mmu_lock
-is held before above operation. If it's called in EPT fault and
-SPPT mis-config induced handler, mmu_lock is acquired outside
-the function, otherwise, it's acquired inside it.
+If the target page is SPP protected, however SPPT missing is
+encoutered while traversing with gfn, vmexit is generated so
+that KVM can handle the issue. Any SPPT misconfig will be
+propagated to QEMU or VMI.
 
-kvm_mmu_get_subpages() is used to query access bitmap for
-protected page, it's also used in EPT fault handler to check
-whether the fault EPT page is SPP protected as well.
+A SPP specific bit(11) is added to exit_qualification and a new
+exit reason(66) is introduced for SPP.
 
 Co-developed-by: He Chen <he.chen@linux.intel.com>
 Signed-off-by: He Chen <he.chen@linux.intel.com>
@@ -136,481 +133,199 @@ Co-developed-by: Zhang Yi <yi.z.zhang@linux.intel.com>
 Signed-off-by: Zhang Yi <yi.z.zhang@linux.intel.com>
 Co-developed-by: Yang Weijiang <weijiang.yang@intel.com>
 Signed-off-by: Yang Weijiang <weijiang.yang@intel.com>
-Message-Id: <20190717133751.12910-6-weijiang.yang@intel.com>
+Message-Id: <20190717133751.12910-8-weijiang.yang@intel.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- arch/x86/include/asm/kvm_host.h |  18 ++++
- arch/x86/include/asm/vmx.h      |   2 +
- arch/x86/kvm/mmu.c              | 160 ++++++++++++++++++++++++++++++++
- arch/x86/kvm/vmx/vmx.c          |  48 ++++++++++
- arch/x86/kvm/x86.c              |  57 ++++++++++++
- include/linux/kvm_host.h        |   3 +
- include/uapi/linux/kvm.h        |   9 ++
- 7 files changed, 297 insertions(+)
+ arch/x86/include/asm/vmx.h      |  7 ++++
+ arch/x86/include/uapi/asm/vmx.h |  2 +
+ arch/x86/kvm/mmu.c              | 17 ++++++++
+ arch/x86/kvm/vmx/vmx.c          | 71 +++++++++++++++++++++++++++++++++
+ include/uapi/linux/kvm.h        |  5 +++
+ 5 files changed, 102 insertions(+)
 
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index f0878631b12a..7ee6e1ff5ee9 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -399,8 +399,13 @@ struct kvm_mmu {
- 	void (*invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa);
- 	void (*update_pte)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp,
- 			   u64 *spte, const void *pte);
-+	int (*get_subpages)(struct kvm *kvm, struct kvm_subpage *spp_info);
-+	int (*set_subpages)(struct kvm *kvm, struct kvm_subpage *spp_info);
-+	int (*init_spp)(struct kvm *kvm);
-+
- 	hpa_t root_hpa;
- 	gpa_t root_cr3;
-+	hpa_t sppt_root;
- 	union kvm_mmu_role mmu_role;
- 	u8 root_level;
- 	u8 shadow_root_level;
-@@ -929,6 +934,8 @@ struct kvm_arch {
- 
- 	bool guest_can_read_msr_platform_info;
- 	bool exception_payload_enabled;
-+
-+	bool spp_active;
- };
- 
- struct kvm_vm_stat {
-@@ -1202,6 +1209,11 @@ struct kvm_x86_ops {
- 	int (*nested_enable_evmcs)(struct kvm_vcpu *vcpu,
- 				   uint16_t *vmcs_version);
- 	uint16_t (*nested_get_evmcs_version)(struct kvm_vcpu *vcpu);
-+
-+	bool (*get_spp_status)(void);
-+	int (*get_subpages)(struct kvm *kvm, struct kvm_subpage *spp_info);
-+	int (*set_subpages)(struct kvm *kvm, struct kvm_subpage *spp_info);
-+	int (*init_spp)(struct kvm *kvm);
- };
- 
- struct kvm_arch_async_pf {
-@@ -1420,6 +1432,12 @@ void kvm_mmu_invlpg(struct kvm_vcpu *vcpu, gva_t gva);
- void kvm_mmu_invpcid_gva(struct kvm_vcpu *vcpu, gva_t gva, unsigned long pcid);
- void kvm_mmu_new_cr3(struct kvm_vcpu *vcpu, gpa_t new_cr3, bool skip_tlb_flush);
- 
-+int kvm_mmu_get_subpages(struct kvm *kvm, struct kvm_subpage *spp_info,
-+			 bool mmu_locked);
-+int kvm_mmu_set_subpages(struct kvm *kvm, struct kvm_subpage *spp_info,
-+			 bool mmu_locked);
-+int kvm_mmu_init_spp(struct kvm *kvm);
-+
- void kvm_enable_tdp(void);
- void kvm_disable_tdp(void);
- 
 diff --git a/arch/x86/include/asm/vmx.h b/arch/x86/include/asm/vmx.h
-index a2c9e18e0ad7..6cb05ac07453 100644
+index 6cb05ac07453..11ca64ced578 100644
 --- a/arch/x86/include/asm/vmx.h
 +++ b/arch/x86/include/asm/vmx.h
-@@ -224,6 +224,8 @@ enum vmcs_field {
- 	XSS_EXIT_BITMAP_HIGH            = 0x0000202D,
- 	ENCLS_EXITING_BITMAP		= 0x0000202E,
- 	ENCLS_EXITING_BITMAP_HIGH	= 0x0000202F,
-+	SPPT_POINTER			= 0x00002030,
-+	SPPT_POINTER_HIGH		= 0x00002031,
- 	TSC_MULTIPLIER                  = 0x00002032,
- 	TSC_MULTIPLIER_HIGH             = 0x00002033,
- 	GUEST_PHYSICAL_ADDRESS          = 0x00002400,
+@@ -547,6 +547,13 @@ struct vmx_msr_entry {
+ #define EPT_VIOLATION_EXECUTABLE	(1 << EPT_VIOLATION_EXECUTABLE_BIT)
+ #define EPT_VIOLATION_GVA_TRANSLATED	(1 << EPT_VIOLATION_GVA_TRANSLATED_BIT)
+ 
++/*
++ * Exit Qualifications for SPPT-Induced vmexits
++ */
++#define SPPT_INDUCED_EXIT_TYPE_BIT     11
++#define SPPT_INDUCED_EXIT_TYPE         (1 << SPPT_INDUCED_EXIT_TYPE_BIT)
++#define SPPT_INTR_INFO_UNBLOCK_NMI     INTR_INFO_UNBLOCK_NMI
++
+ /*
+  * VM-instruction error numbers
+  */
+diff --git a/arch/x86/include/uapi/asm/vmx.h b/arch/x86/include/uapi/asm/vmx.h
+index f0b0c90dd398..ac67622bac5a 100644
+--- a/arch/x86/include/uapi/asm/vmx.h
++++ b/arch/x86/include/uapi/asm/vmx.h
+@@ -85,6 +85,7 @@
+ #define EXIT_REASON_PML_FULL            62
+ #define EXIT_REASON_XSAVES              63
+ #define EXIT_REASON_XRSTORS             64
++#define EXIT_REASON_SPP                 66
+ 
+ #define VMX_EXIT_REASONS \
+ 	{ EXIT_REASON_EXCEPTION_NMI,         "EXCEPTION_NMI" }, \
+@@ -141,6 +142,7 @@
+ 	{ EXIT_REASON_ENCLS,                 "ENCLS" }, \
+ 	{ EXIT_REASON_RDSEED,                "RDSEED" }, \
+ 	{ EXIT_REASON_PML_FULL,              "PML_FULL" }, \
++	{ EXIT_REASON_SPP,                   "SPP" }, \
+ 	{ EXIT_REASON_XSAVES,                "XSAVES" }, \
+ 	{ EXIT_REASON_XRSTORS,               "XRSTORS" }
+ 
 diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index f2774bbcfeed..38e79210d010 100644
+index 38e79210d010..d59108a3ebbf 100644
 --- a/arch/x86/kvm/mmu.c
 +++ b/arch/x86/kvm/mmu.c
-@@ -3846,6 +3846,9 @@ void kvm_mmu_free_roots(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
- 		    (mmu->root_level >= PT64_ROOT_4LEVEL || mmu->direct_map)) {
- 			mmu_free_root_page(vcpu->kvm, &mmu->root_hpa,
- 					   &invalid_list);
-+			if (vcpu->kvm->arch.spp_active)
-+				mmu_free_root_page(vcpu->kvm, &mmu->sppt_root,
-+						   &invalid_list);
- 		} else {
- 			for (i = 0; i < 4; ++i)
- 				if (mmu->pae_root[i] != 0)
-@@ -4510,6 +4513,158 @@ int kvm_mmu_setup_spp_structure(struct kvm_vcpu *vcpu,
- 	return ret;
+@@ -3692,6 +3692,19 @@ static bool fast_page_fault(struct kvm_vcpu *vcpu, gva_t gva, int level,
+ 		if ((error_code & PFERR_WRITE_MASK) &&
+ 		    spte_can_locklessly_be_made_writable(spte))
+ 		{
++			/*
++			 * Record write protect fault caused by
++			 * Sub-page Protection, let VMI decide
++			 * the next step.
++			 */
++			if (spte & PT_SPP_MASK) {
++				fault_handled = true;
++				vcpu->run->exit_reason = KVM_EXIT_SPP;
++				vcpu->run->spp.addr = gva;
++				kvm_skip_emulated_instruction(vcpu);
++				break;
++			}
++
+ 			new_spte |= PT_WRITABLE_MASK;
+ 
+ 			/*
+@@ -5880,6 +5893,10 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gva_t cr2, u64 error_code,
+ 		r = vcpu->arch.mmu->page_fault(vcpu, cr2,
+ 					       lower_32_bits(error_code),
+ 					       false);
++
++		if (vcpu->run->exit_reason == KVM_EXIT_SPP)
++			return 0;
++
+ 		WARN_ON(r == RET_PF_INVALID);
+ 	}
+ 
+diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
+index a50dd2b9d438..5d4b61aaff9a 100644
+--- a/arch/x86/kvm/vmx/vmx.c
++++ b/arch/x86/kvm/vmx/vmx.c
+@@ -5335,6 +5335,76 @@ static int handle_monitor(struct kvm_vcpu *vcpu)
+ 	return handle_nop(vcpu);
  }
- EXPORT_SYMBOL_GPL(kvm_mmu_setup_spp_structure);
-+
-+int kvm_mmu_init_spp(struct kvm *kvm)
+ 
++static int handle_spp(struct kvm_vcpu *vcpu)
 +{
-+	int i, ret;
-+	struct kvm_vcpu *vcpu;
-+	int root_level;
-+	struct kvm_mmu_page *ssp_sp;
++	unsigned long exit_qualification;
++	struct kvm_memory_slot *slot;
++	gpa_t gpa;
++	gfn_t gfn;
 +
++	exit_qualification = vmcs_readl(EXIT_QUALIFICATION);
 +
-+	if (!kvm_x86_ops->get_spp_status())
-+	      return -ENODEV;
++	/*
++	 * SPP VM exit happened while executing iret from NMI,
++	 * "blocked by NMI" bit has to be set before next VM entry.
++	 * There are errata that may cause this bit to not be set:
++	 * AAK134, BY25.
++	 */
++	if (!(to_vmx(vcpu)->idt_vectoring_info & VECTORING_INFO_VALID_MASK) &&
++	    (exit_qualification & SPPT_INTR_INFO_UNBLOCK_NMI))
++		vmcs_set_bits(GUEST_INTERRUPTIBILITY_INFO,
++			      GUEST_INTR_STATE_NMI);
 +
-+	if (kvm->arch.spp_active)
-+	      return 0;
++	vcpu->arch.exit_qualification = exit_qualification;
++	if (exit_qualification & SPPT_INDUCED_EXIT_TYPE) {
++		struct kvm_subpage spp_info = {0};
++		int ret;
 +
-+	ret = kvm_subpage_create_bitmaps(kvm);
++		/*
++		 * SPPT missing
++		 * We don't set SPP write access for the corresponding
++		 * GPA, if we haven't setup, we need to construct
++		 * SPP table here.
++		 */
++		pr_info("SPP - SPPT entry missing!\n");
++		gpa = vmcs_read64(GUEST_PHYSICAL_ADDRESS);
++		gfn = gpa >> PAGE_SHIFT;
++		slot = gfn_to_memslot(vcpu->kvm, gfn);
++		if (!slot)
++		      return -EFAULT;
 +
-+	if (ret)
-+	      return ret;
++		/*
++		 * if the target gfn is not protected, but SPPT is
++		 * traversed now, regard this as some kind of fault.
++		 */
++		spp_info.base_gfn = gfn;
++		spp_info.npages = 1;
 +
-+	kvm_for_each_vcpu(i, vcpu, kvm) {
-+		/* prepare caches for SPP setup.*/
-+		mmu_topup_memory_caches(vcpu);
-+		root_level = vcpu->arch.mmu->shadow_root_level;
-+		ssp_sp = kvm_mmu_get_spp_page(vcpu, 0, root_level);
-+		++ssp_sp->root_count;
-+		vcpu->arch.mmu->sppt_root = __pa(ssp_sp->spt);
-+		kvm_make_request(KVM_REQ_LOAD_CR3, vcpu);
++		spin_lock(&(vcpu->kvm->mmu_lock));
++		ret = kvm_mmu_get_subpages(vcpu->kvm, &spp_info, true);
++		if (ret == 1) {
++			kvm_mmu_setup_spp_structure(vcpu,
++				spp_info.access_map[0], gfn);
++		}
++		spin_unlock(&(vcpu->kvm->mmu_lock));
++
++		return 1;
++
 +	}
 +
-+	kvm->arch.spp_active = true;
++	/*
++	 * SPPT Misconfig
++	 * This is probably caused by some mis-configuration in SPPT
++	 * entries, cannot handle it here, escalate the fault to
++	 * emulator.
++	 */
++	WARN_ON(1);
++	vcpu->run->exit_reason = KVM_EXIT_UNKNOWN;
++	vcpu->run->hw.hardware_exit_reason = EXIT_REASON_SPP;
++	pr_alert("SPP - SPPT Misconfiguration!\n");
 +	return 0;
 +}
 +
-+int kvm_mmu_get_subpages(struct kvm *kvm, struct kvm_subpage *spp_info,
-+			 bool mmu_locked)
-+{
-+	u32 *access = spp_info->access_map;
-+	gfn_t gfn = spp_info->base_gfn;
-+	int npages = spp_info->npages;
-+	struct kvm_memory_slot *slot;
-+	int i;
-+	int ret;
-+
-+	if (!kvm->arch.spp_active)
-+	      return -ENODEV;
-+
-+	if (!mmu_locked)
-+	      spin_lock(&kvm->mmu_lock);
-+
-+	for (i = 0; i < npages; i++, gfn++) {
-+		slot = gfn_to_memslot(kvm, gfn);
-+		if (!slot) {
-+			ret = -EFAULT;
-+			goto out_unlock;
-+		}
-+		access[i] = *gfn_to_subpage_wp_info(slot, gfn);
-+	}
-+
-+	ret = i;
-+
-+out_unlock:
-+	if (!mmu_locked)
-+	      spin_unlock(&kvm->mmu_lock);
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(kvm_mmu_get_subpages);
-+
-+int kvm_mmu_set_subpages(struct kvm *kvm, struct kvm_subpage *spp_info,
-+			 bool mmu_locked)
-+{
-+	u32 *access = spp_info->access_map;
-+	gfn_t gfn = spp_info->base_gfn;
-+	int npages = spp_info->npages;
-+	struct kvm_memory_slot *slot;
-+	struct kvm_vcpu *vcpu;
-+	struct kvm_rmap_head *rmap_head;
-+	int i, k;
-+	u32 *wp_map;
-+	int ret = -EFAULT;
-+
-+	if (!kvm->arch.spp_active)
-+		return -ENODEV;
-+
-+	if (!mmu_locked)
-+	      spin_lock(&kvm->mmu_lock);
-+
-+	for (i = 0; i < npages; i++, gfn++) {
-+		slot = gfn_to_memslot(kvm, gfn);
-+		if (!slot)
-+			goto out_unlock;
-+
-+		/*
-+		 * check whether the target 4KB page exists in EPT leaf
-+		 * entries.If it's there, we can setup SPP protection now,
-+		 * otherwise, need to defer it to EPT page fault handler.
-+		 */
-+		rmap_head = __gfn_to_rmap(gfn, PT_PAGE_TABLE_LEVEL, slot);
-+
-+		if (rmap_head->val) {
-+			/*
-+			 * if all subpages are not writable, open SPP bit in
-+			 * EPT leaf entry to enable SPP protection for
-+			 * corresponding page.
-+			 */
-+			if (access[i] != FULL_SPP_ACCESS) {
-+				ret = kvm_mmu_open_subpage_write_protect(kvm,
-+						slot, gfn);
-+
-+				if (ret)
-+					goto out_err;
-+
-+				kvm_for_each_vcpu(k, vcpu, kvm)
-+					kvm_mmu_setup_spp_structure(vcpu,
-+						access[i], gfn);
-+			} else {
-+				ret = kvm_mmu_clear_subpage_write_protect(kvm,
-+						slot, gfn);
-+				if (ret)
-+					goto out_err;
-+			}
-+
-+		} else
-+			pr_info("%s - No ETP entry, gfn = 0x%llx, access = 0x%x.\n", __func__, gfn, access[i]);
-+
-+		/* if this function is called in tdp_page_fault() or
-+		 * spp_handler(), mmu_locked = true, SPP access bitmap
-+		 * is being used, otherwise, it's being stored.
-+		 */
-+		if (!mmu_locked) {
-+			wp_map = gfn_to_subpage_wp_info(slot, gfn);
-+			*wp_map = access[i];
-+		}
-+	}
-+
-+	ret = i;
-+out_err:
-+	if (ret < 0)
-+	      pr_info("SPP-Error, didn't get the gfn:" \
-+		      "%llx from EPT leaf.\n"
-+		      "Current we don't support SPP on" \
-+		      "huge page.\n"
-+		      "Please disable huge page and have" \
-+		      "another try.\n", gfn);
-+out_unlock:
-+	if (!mmu_locked)
-+	      spin_unlock(&kvm->mmu_lock);
-+
-+	return ret;
-+}
-+
- static void nonpaging_init_context(struct kvm_vcpu *vcpu,
- 				   struct kvm_mmu *context)
+ static int handle_invpcid(struct kvm_vcpu *vcpu)
  {
-@@ -5207,6 +5362,9 @@ static void init_kvm_tdp_mmu(struct kvm_vcpu *vcpu)
- 	context->get_cr3 = get_cr3;
- 	context->get_pdptr = kvm_pdptr_read;
- 	context->inject_page_fault = kvm_inject_page_fault;
-+	context->get_subpages = kvm_x86_ops->get_subpages;
-+	context->set_subpages = kvm_x86_ops->set_subpages;
-+	context->init_spp = kvm_x86_ops->init_spp;
- 
- 	if (!is_paging(vcpu)) {
- 		context->nx = false;
-@@ -5403,6 +5561,8 @@ void kvm_init_mmu(struct kvm_vcpu *vcpu, bool reset_roots)
- 		uint i;
- 
- 		vcpu->arch.mmu->root_hpa = INVALID_PAGE;
-+		if (!vcpu->kvm->arch.spp_active)
-+			vcpu->arch.mmu->sppt_root = INVALID_PAGE;
- 
- 		for (i = 0; i < KVM_MMU_NUM_PREV_ROOTS; i++)
- 			vcpu->arch.mmu->prev_roots[i] = KVM_MMU_ROOT_INFO_INVALID;
-diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
-index f94e3defd9cf..a50dd2b9d438 100644
---- a/arch/x86/kvm/vmx/vmx.c
-+++ b/arch/x86/kvm/vmx/vmx.c
-@@ -2853,11 +2853,17 @@ u64 construct_eptp(struct kvm_vcpu *vcpu, unsigned long root_hpa)
- 	return eptp;
- }
- 
-+static inline u64 construct_spptp(unsigned long root_hpa)
-+{
-+	return root_hpa & PAGE_MASK;
-+}
-+
- void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
- {
- 	struct kvm *kvm = vcpu->kvm;
- 	unsigned long guest_cr3;
- 	u64 eptp;
-+	u64 spptp;
- 
- 	guest_cr3 = cr3;
- 	if (enable_ept) {
-@@ -2880,6 +2886,12 @@ void vmx_set_cr3(struct kvm_vcpu *vcpu, unsigned long cr3)
- 		ept_load_pdptrs(vcpu);
- 	}
- 
-+	if (kvm->arch.spp_active && VALID_PAGE(vcpu->arch.mmu->sppt_root)) {
-+		spptp = construct_spptp(vcpu->arch.mmu->sppt_root);
-+		vmcs_write64(SPPT_POINTER, spptp);
-+		vmx_flush_tlb(vcpu, true);
-+	}
-+
- 	vmcs_writel(GUEST_CR3, guest_cr3);
- }
- 
-@@ -5743,6 +5755,9 @@ static void dump_vmcs(void)
- 		pr_err("PostedIntrVec = 0x%02x\n", vmcs_read16(POSTED_INTR_NV));
- 	if ((secondary_exec_control & SECONDARY_EXEC_ENABLE_EPT))
- 		pr_err("EPT pointer = 0x%016llx\n", vmcs_read64(EPT_POINTER));
-+	if ((secondary_exec_control & SECONDARY_EXEC_ENABLE_SPP))
-+		pr_err("SPPT pointer = 0x%016llx\n", vmcs_read64(SPPT_POINTER));
-+
- 	n = vmcs_read32(CR3_TARGET_COUNT);
- 	for (i = 0; i + 1 < n; i += 4)
- 		pr_err("CR3 target%u=%016lx target%u=%016lx\n",
-@@ -7646,6 +7661,12 @@ static __init int hardware_setup(void)
- 		kvm_x86_ops->enable_log_dirty_pt_masked = NULL;
- 	}
- 
-+	if (!spp_supported) {
-+		kvm_x86_ops->get_subpages = NULL;
-+		kvm_x86_ops->set_subpages = NULL;
-+		kvm_x86_ops->init_spp = NULL;
-+	}
-+
- 	if (!cpu_has_vmx_preemption_timer())
- 		kvm_x86_ops->request_immediate_exit = __kvm_request_immediate_exit;
- 
-@@ -7706,6 +7727,28 @@ static bool vmx_spt_fault(struct kvm_vcpu *vcpu)
- 	return (vmx->exit_reason == EXIT_REASON_EPT_VIOLATION);
- }
- 
-+static bool vmx_get_spp_status(void)
-+{
-+	return spp_supported;
-+}
-+
-+static int vmx_get_subpages(struct kvm *kvm,
-+			    struct kvm_subpage *spp_info)
-+{
-+	return kvm_get_subpages(kvm, spp_info);
-+}
-+
-+static int vmx_set_subpages(struct kvm *kvm,
-+			    struct kvm_subpage *spp_info)
-+{
-+	return kvm_set_subpages(kvm, spp_info);
-+}
-+
-+static int vmx_init_spp(struct kvm *kvm)
-+{
-+	return kvm_init_spp(kvm);
-+}
-+
- static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
- 	.cpu_has_kvm_support = cpu_has_kvm_support,
- 	.disabled_by_bios = vmx_disabled_by_bios,
-@@ -7856,6 +7899,11 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
- 	.set_nested_state = NULL,
- 	.get_vmcs12_pages = NULL,
- 	.nested_enable_evmcs = NULL,
-+
-+	.get_spp_status = vmx_get_spp_status,
-+	.get_subpages = vmx_get_subpages,
-+	.set_subpages = vmx_set_subpages,
-+	.init_spp = vmx_init_spp,
- };
- 
- static void vmx_cleanup_l1d_flush(void)
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 2ac1e0aba1fc..b8ae25cb227b 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -4576,6 +4576,61 @@ int kvm_vm_ioctl_enable_cap(struct kvm *kvm,
- 	return r;
- }
- 
-+static int kvm_vm_ioctl_get_subpages(struct kvm *kvm,
-+				     struct kvm_subpage *spp_info)
-+{
-+	return kvm_arch_get_subpages(kvm, spp_info);
-+}
-+
-+static int kvm_vm_ioctl_set_subpages(struct kvm *kvm,
-+				     struct kvm_subpage *spp_info)
-+{
-+	return kvm_arch_set_subpages(kvm, spp_info);
-+}
-+
-+static int kvm_vm_ioctl_init_spp(struct kvm *kvm)
-+{
-+	return kvm_arch_init_spp(kvm);
-+}
-+
-+int kvm_get_subpages(struct kvm *kvm,
-+		     struct kvm_subpage *spp_info)
-+{
-+	int ret;
-+
-+	mutex_lock(&kvm->slots_lock);
-+	ret = kvm_mmu_get_subpages(kvm, spp_info, false);
-+	mutex_unlock(&kvm->slots_lock);
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(kvm_get_subpages);
-+
-+int kvm_set_subpages(struct kvm *kvm,
-+		     struct kvm_subpage *spp_info)
-+{
-+	int ret;
-+
-+	mutex_lock(&kvm->slots_lock);
-+	ret = kvm_mmu_set_subpages(kvm, spp_info, false);
-+	mutex_unlock(&kvm->slots_lock);
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(kvm_set_subpages);
-+
-+int kvm_init_spp(struct kvm *kvm)
-+{
-+	int ret;
-+
-+	mutex_lock(&kvm->slots_lock);
-+	ret = kvm_mmu_init_spp(kvm);
-+	mutex_unlock(&kvm->slots_lock);
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL_GPL(kvm_init_spp);
-+
- long kvm_arch_vm_ioctl(struct file *filp,
- 		       unsigned int ioctl, unsigned long arg)
- {
-@@ -9352,6 +9407,8 @@ void kvm_arch_free_memslot(struct kvm *kvm, struct kvm_memory_slot *free,
- 	}
- 
- 	kvm_page_track_free_memslot(free, dont);
-+	if (kvm->arch.spp_active)
-+	      kvm_subpage_free_memslot(free, dont);
- }
- 
- int kvm_arch_create_memslot(struct kvm *kvm, struct kvm_memory_slot *slot,
-diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-index ca7597e429df..0b9a0f546397 100644
---- a/include/linux/kvm_host.h
-+++ b/include/linux/kvm_host.h
-@@ -834,6 +834,9 @@ int kvm_arch_vcpu_should_kick(struct kvm_vcpu *vcpu);
- 
- struct kvm_mmu_page *kvm_mmu_get_spp_page(struct kvm_vcpu *vcpu,
- 			gfn_t gfn, unsigned int level);
-+int kvm_get_subpages(struct kvm *kvm, struct kvm_subpage *spp_info);
-+int kvm_set_subpages(struct kvm *kvm, struct kvm_subpage *spp_info);
-+int kvm_init_spp(struct kvm *kvm);
- 
- #ifndef __KVM_HAVE_ARCH_VM_ALLOC
- /*
+ 	u32 vmx_instruction_info;
+@@ -5538,6 +5608,7 @@ static int (*kvm_vmx_exit_handlers[])(struct kvm_vcpu *vcpu) = {
+ 	[EXIT_REASON_INVVPID]                 = handle_vmx_instruction,
+ 	[EXIT_REASON_RDRAND]                  = handle_invalid_op,
+ 	[EXIT_REASON_RDSEED]                  = handle_invalid_op,
++	[EXIT_REASON_SPP]                     = handle_spp,
+ 	[EXIT_REASON_XSAVES]                  = handle_xsaves,
+ 	[EXIT_REASON_XRSTORS]                 = handle_xrstors,
+ 	[EXIT_REASON_PML_FULL]		      = handle_pml_full,
 diff --git a/include/uapi/linux/kvm.h b/include/uapi/linux/kvm.h
-index 2ff05fd123e3..ad8f2a3ca72d 100644
+index 86dd57e67539..81f08eec9061 100644
 --- a/include/uapi/linux/kvm.h
 +++ b/include/uapi/linux/kvm.h
-@@ -102,6 +102,15 @@ struct kvm_userspace_memory_region {
- 	__u64 userspace_addr; /* start of the userspace allocated memory */
- };
+@@ -244,6 +244,7 @@ struct kvm_hyperv_exit {
+ #define KVM_EXIT_S390_STSI        25
+ #define KVM_EXIT_IOAPIC_EOI       26
+ #define KVM_EXIT_HYPERV           27
++#define KVM_EXIT_SPP              28
  
-+/* for KVM_SUBPAGES_GET_ACCESS and KVM_SUBPAGES_SET_ACCESS */
-+#define SUBPAGE_MAX_BITMAP   64
-+struct kvm_subpage {
-+	__u64 base_gfn;
-+	__u64 npages;
-+	 /* sub-page write-access bitmap array */
-+	__u32 access_map[SUBPAGE_MAX_BITMAP];
-+};
-+
- /*
-  * The bit 0 ~ bit 15 of kvm_memory_region::flags are visible for userspace,
-  * other bits are reserved for kvm internal use which are defined in
+ /* For KVM_EXIT_INTERNAL_ERROR */
+ /* Emulate instruction failed. */
+@@ -399,6 +400,10 @@ struct kvm_run {
+ 		struct {
+ 			__u8 vector;
+ 		} eoi;
++		/* KVM_EXIT_SPP */
++		struct {
++			__u64 addr;
++		} spp;
+ 		/* KVM_EXIT_HYPERV */
+ 		struct kvm_hyperv_exit hyperv;
+ 		/* Fix the size of the union. */
 
