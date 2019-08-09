@@ -2,86 +2,87 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-4.0 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+	UNWANTED_LANGUAGE_BODY,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DC4DFC433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:04:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 22F20C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:04:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 8A9A42089E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:04:51 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8A9A42089E
+	by mail.kernel.org (Postfix) with ESMTP id 9CBEA2089E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:04:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9CBEA2089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 17D5E6B02A8; Fri,  9 Aug 2019 12:01:41 -0400 (EDT)
+	id 3C8A76B02A5; Fri,  9 Aug 2019 12:01:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1329B6B02A4; Fri,  9 Aug 2019 12:01:41 -0400 (EDT)
+	id 303F16B02AA; Fri,  9 Aug 2019 12:01:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EC1FA6B02A8; Fri,  9 Aug 2019 12:01:40 -0400 (EDT)
+	id F35BC6B02A7; Fri,  9 Aug 2019 12:01:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 9CFD96B02A4
+Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 9FE616B02A5
 	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:40 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id f16so46657131wrw.5
+Received: by mail-wr1-f70.google.com with SMTP id s18so5313511wrt.21
         for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:40 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=iQ+oa5DZ+wUxac2LQrUbLpJ5TnHWOE6r+fiPpWmwTog=;
-        b=fYIIaVEnPlG5wL1QeUcnKgm4kWBfA06Bi/f/Zv5qq+0JNs3Ed2OdExNEq6VrUxP9Pl
-         94CFOMA8D4HhKTds2RP6v1PQBgaR0uRdtzjHX/G0eDc7Gsb26Z1uuDfCTK5wUZ34LgZB
-         m3onWdhocGig6n1B92FX49gEXiwejle57gZCwYjpYXr6DyOgu2XerQ8QJsJc4molbUoZ
-         B9mLqWT4wHMNA/ihqdHn0udDjsjiLqhsqVkU4QX0Bp0lrUB+iPAU5TplVigYEIr8vI7t
-         V7J+WcudQr0Tya3w5qlckXnIhyRKgZJHZaN6cIpuP9pCZ3e5PBgSiqG6NuzVey5jHoXM
-         USTw==
+        bh=O5YEtAVNspzkJWw50Fb5JXomlOuesby91YkEs+JGH8U=;
+        b=tlwIpOci/QhqWx19jZZG0GbUayi47FiqSEDYt6MajaPtaTp6fnLuWo7VaO/4qiUHnO
+         /2/si/VrNxGDEfnwo515ESTCsmOMMJjfloFoiImIeUSIoiaK53M4ov0jc8SgMR/zqS3J
+         Zn4tmpdpA7RP6cbRDa70pChGfy8scC9YKCKKhR9l5KdSyYnSqYfx4AP0sy0jfvDR7dmt
+         qUGGbWqPPj9xnkXhXjlquUvYqsy4TkFy+/6Cy33v0iEMDJ6wGI2jARE8ZIqwIpfoOH1z
+         JaCftOh0OjwO0thtmEPmtvvigGNrdwBIL5vV8WreQ6yqAX1o2mDuxxkCbEur43Yh51nf
+         QyXQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAXvTwN3pYdMtWkKUqc7Y0l6TgI2Jb5lG4fgGJeT2tWmqjgKmb49
-	PnN5RoWoVJ2g+JK3Uwe2uO7j04ZP8J9ArIELDHgP1ADF1syjyijh58cpeRqADF0r62Up4+rr14b
-	pP3ptrVQWgPEVtnjpB0Fyi6TcOes14kIDMvDP6TcHJEZhK0wG8TwLkzxZcckbcKwovQ==
-X-Received: by 2002:a1c:7e85:: with SMTP id z127mr12044447wmc.95.1565366500229;
+X-Gm-Message-State: APjAAAU8c40oz8QnSBYOmpVrx/PO+l3ajVWqxpdwklbab3mnOKKgynd5
+	eTlrKwHxSdKvE1+ShGoNB+2RiPYtBE1Rbhcc1zCWb6JXUBhFGlqkm7R4d+ZHdZJ3JuNLP0OdJdF
+	2hMNi3q7ALM5CI8aMzqSDZ7hyF2yo64Q5X9JOaP1Wtw7I3PqmUPaHWRkHW6Q4rzpo8w==
+X-Received: by 2002:a5d:50c2:: with SMTP id f2mr24575290wrt.106.1565366500156;
         Fri, 09 Aug 2019 09:01:40 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqzVbwsZgaWz59QRfpxoAozXRt5F4Vr4pl+DMfln4umUvy/OvEP1w94dwLWPuav7NPdkiaJy
-X-Received: by 2002:a1c:7e85:: with SMTP id z127mr12044367wmc.95.1565366499278;
-        Fri, 09 Aug 2019 09:01:39 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366499; cv=none;
+X-Google-Smtp-Source: APXvYqxoXYnR3IupsCWCHJAL/Q9wAaTvvWXM+HIpmi0CtD2QxjAS++cm+yaT+CFR/K2ZHngw+fQ7
+X-Received: by 2002:a5d:50c2:: with SMTP id f2mr24575095wrt.106.1565366498213;
+        Fri, 09 Aug 2019 09:01:38 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565366498; cv=none;
         d=google.com; s=arc-20160816;
-        b=jOeOP40XuQrXDzyPVRElZ/p6vFv1j/G+D+oizEOcsT8+M30BsqbYYa1SXEiMFQrtTv
-         AUHw0pcgEFQKdFrf3iOvCH7HiPeP5tcEblbmQWY7ew0NZbKlV1r5R2Vhax+IvvtjXkQC
-         RZxBNyrymOWeLv2wpoQEokoLvGoD/onzPPwsQUnZ4LJbALIOAhAuV7WUTgZqBjXxxLfn
-         HuIws7au11q7hiiNoZdDZo6wsyyczvPAvlob7Gd2M/CY3SstUbZEdvTc1QjkZ1IWcc7E
-         nq7kg9f/I+mizYIUrs/wqkL4bFq1dL6eqI7V1i1c+q1ltxD3mCiIZVUUV0Fn19it2LHz
-         1jXA==
+        b=PyD+BR4iWMplDIHTHz3SPqDaWKkwKMKhwVIUC+bPeLZSaE2AjBMOfz2mY2CqkO7sj9
+         wGfhCGn0TGMC68Sl2WxYyai/CyboVKdr7FQPRAzXceRd9e7puoB981YPHAWuFwY4XS8e
+         WxQ0ESvan9cW9DIai0GSiaB3OVdXLB/dsAyEkrKTlM0RlsKpB6eImPv44gRkPq4gpXKA
+         Fz1W/JH8+Zv4nVMv+Er+nIz3pCTy9y5WkOjxdnj1BRrK8nCtK41oKmITvuEKyeBikedq
+         e2XanRWrqILrUERsO5VOHL8tfnvsX359hcs8jADeRPQG1m84L9yfifzwfyu7L98xDthr
+         Tn8g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=iQ+oa5DZ+wUxac2LQrUbLpJ5TnHWOE6r+fiPpWmwTog=;
-        b=iADdJ0WiW4vuKZ3K+ZGxC8sCZH+vp00/wPxnzC0yRAdK/BHciALVn7h1W3kA2dV9pV
-         cmmT006U8ZLkSXgiXIay3sFJ/KzDMxiE1hTWeTv2MtI+rTYU+uiSDj6vMPq2H82OhCd1
-         LXgAG/rTMVU5bNllwyLRNQA66+aRgefTQggTl30+wi9h4hcOZl/F82Lkq9RpsZAa56ts
-         6nJje3g1KgrLRc1ADryfMp5jqBCrWPPqbCixzYlzJfnZnqg+P4qsnAFJxjpoJFZQzBAa
-         RhactpI7AhfZ3/5ZHcdngTNxv2G9UwbXO9cqeq0CZv3UjcHrqselQHwt52a31tjTDIDB
-         Jhqw==
+        bh=O5YEtAVNspzkJWw50Fb5JXomlOuesby91YkEs+JGH8U=;
+        b=FbtOYqQa+bzHoa4UpNswliSjLTq59Ci40FLzWFPfEdDcNVVQm8RECa7fPY2n4q2V/h
+         USGRLtg6D/hJcsVsHRuf99+xN3SQY6kW8kc2MuhVdJZgeNL8sNnGoQ71iFX2UhVo+PPs
+         TgMsgy+N3UGxRGHYXNJrvOLd8w6QPD+dUa3xcs3xTOXVBrynZpS4OzsIyTQcd8gfWmD4
+         dxi41fvPprjTsjoUJXINVWbmodLvLSPm5DKK0dmSIecXLZRQFQ5gktxr4ou2yES8bQaO
+         vVHCJpXvNE7vaiiJIC4K5GO0IzZMU7lO8neXoUEojHNtv37o2fUZHCLVbRfTYB0YIwX9
+         D4xA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id f4si4267564wml.125.2019.08.09.09.01.39
+        by mx.google.com with ESMTPS id d16si82120947wrn.10.2019.08.09.09.01.38
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 09:01:39 -0700 (PDT)
+        Fri, 09 Aug 2019 09:01:38 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id B0DAB305D35D;
-	Fri,  9 Aug 2019 19:01:38 +0300 (EEST)
-Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id E6041305B7A5;
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 9A916305D35B;
 	Fri,  9 Aug 2019 19:01:37 +0300 (EEST)
+Received: from localhost.localdomain (unknown [89.136.169.210])
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id 53189305B7A0;
+	Fri,  9 Aug 2019 19:01:35 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
@@ -97,10 +98,11 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Weijiang Yang <weijiang.yang@intel.com>, Zhang@kvack.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
-	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v6 75/92] kvm: x86: disable gpa_available optimization in emulator_read_write_onepage()
-Date: Fri,  9 Aug 2019 19:00:30 +0300
-Message-Id: <20190809160047.8319-76-alazar@bitdefender.com>
+	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>,
+	=?UTF-8?q?Mircea=20C=C3=AErjaliu?= <mcirjaliu@bitdefender.com>
+Subject: [RFC PATCH v6 73/92] kvm: introspection: use remote mapping
+Date: Fri,  9 Aug 2019 19:00:28 +0300
+Message-Id: <20190809160047.8319-74-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -112,30 +114,566 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-If the EPT violation was caused by an execute restriction imposed by the
-introspection tool, gpa_available will point to the instruction pointer,
-not the to the read/write location that has to be used to emulate the
-current instruction.
+From: Mircea Cîrjaliu <mcirjaliu@bitdefender.com>
 
-This optimization should be disabled only when the VM is introspected,
-not just because the introspection subsystem is present.
+This commit adds the missing KVMI_GET_MAP_TOKEN command and handle the
+hypercalls used to map/unmap guest pages.
 
+Suggested-by: Paolo Bonzini <pbonzini@redhat.com>
+Signed-off-by: Mircea Cîrjaliu <mcirjaliu@bitdefender.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- arch/x86/kvm/x86.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+ Documentation/virtual/kvm/kvmi.rst |  39 ++++
+ arch/x86/kvm/Makefile              |   2 +-
+ arch/x86/kvm/x86.c                 |   6 +
+ include/linux/kvmi.h               |   3 +
+ virt/kvm/kvmi.c                    |  12 +-
+ virt/kvm/kvmi_int.h                |  10 +
+ virt/kvm/kvmi_mem.c                | 319 +++++++++++++++++++++++++++++
+ virt/kvm/kvmi_msg.c                |  15 ++
+ 8 files changed, 404 insertions(+), 2 deletions(-)
+ create mode 100644 virt/kvm/kvmi_mem.c
 
+diff --git a/Documentation/virtual/kvm/kvmi.rst b/Documentation/virtual/kvm/kvmi.rst
+index 572abab1f6ef..b12e14f14c21 100644
+--- a/Documentation/virtual/kvm/kvmi.rst
++++ b/Documentation/virtual/kvm/kvmi.rst
+@@ -1144,6 +1144,45 @@ Returns the guest memory type for a specific physical address.
+ * -KVM_EINVAL - padding is not zero
+ * -KVM_EAGAIN - the selected vCPU can't be introspected yet
+ 
++25. KVMI_GET_MAP_TOKEN
++----------------------
++
++:Architecture: all
++:Versions: >= 1
++:Parameters: none
++:Returns:
++
++::
++
++	struct kvmi_error_code;
++	struct kvmi_get_map_token_reply {
++		struct kvmi_map_mem_token token;
++	};
++
++Where::
++
++	struct kvmi_map_mem_token {
++		__u64 token[4];
++	};
++
++Requests a token for a memory map operation.
++
++On this command, the host generates a random token to be used (once)
++to map a physical page from the introspected guest. The introspector
++could use the token with the KVM_INTRO_MEM_MAP ioctl (on /dev/kvmmem)
++to map a guest physical page to one of its memory pages. The ioctl,
++in turn, will use the KVM_HC_MEM_MAP hypercall (see hypercalls.txt).
++
++The guest kernel exposing /dev/kvmmem keeps a list with all the mappings
++(to all the guests introspected by the tool) in order to unmap them
++(using the KVM_HC_MEM_UNMAP hypercall) when /dev/kvmmem is closed or on
++demand (using the KVM_INTRO_MEM_UNMAP ioctl).
++
++:Errors:
++
++* -KVM_EAGAIN - too many tokens have accumulated
++* -KVM_ENOMEM - not enough memory to allocate a new token
++
+ Events
+ ======
+ 
+diff --git a/arch/x86/kvm/Makefile b/arch/x86/kvm/Makefile
+index 673cf37c0747..5bea446219ca 100644
+--- a/arch/x86/kvm/Makefile
++++ b/arch/x86/kvm/Makefile
+@@ -7,7 +7,7 @@ KVM := ../../../virt/kvm
+ kvm-y			+= $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o \
+ 				$(KVM)/eventfd.o $(KVM)/irqchip.o $(KVM)/vfio.o
+ kvm-$(CONFIG_KVM_ASYNC_PF)	+= $(KVM)/async_pf.o
+-kvm-$(CONFIG_KVM_INTROSPECTION) += $(KVM)/kvmi.o $(KVM)/kvmi_msg.o kvmi.o
++kvm-$(CONFIG_KVM_INTROSPECTION) += $(KVM)/kvmi.o $(KVM)/kvmi_msg.o $(KVM)/kvmi_mem.o kvmi.o
+ 
+ kvm-y			+= x86.o mmu.o emulate.o i8259.o irq.o lapic.o \
+ 			   i8254.o ioapic.o irq_comm.o cpuid.o pmu.o mtrr.o \
 diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 965c4f0108eb..3975331230b9 100644
+index 06f44ce8ed07..04b1d2916a0a 100644
 --- a/arch/x86/kvm/x86.c
 +++ b/arch/x86/kvm/x86.c
-@@ -5532,7 +5532,7 @@ static int emulator_read_write_onepage(unsigned long addr, void *val,
- 	 * operation using rep will only have the initial GPA from the NPF
- 	 * occurred.
- 	 */
--	if (vcpu->arch.gpa_available &&
-+	if (vcpu->arch.gpa_available && !kvmi_is_present() &&
- 	    emulator_can_use_gpa(ctxt) &&
- 	    (addr & ~PAGE_MASK) == (vcpu->arch.gpa_val & ~PAGE_MASK)) {
- 		gpa = vcpu->arch.gpa_val;
+@@ -7337,6 +7337,12 @@ int kvm_emulate_hypercall(struct kvm_vcpu *vcpu)
+ 		ret = kvm_pv_send_ipi(vcpu->kvm, a0, a1, a2, a3, op_64_bit);
+ 		break;
+ #ifdef CONFIG_KVM_INTROSPECTION
++	case KVM_HC_MEM_MAP:
++		ret = kvmi_host_mem_map(vcpu, (gva_t)a0, (gpa_t)a1, (gpa_t)a2);
++		break;
++	case KVM_HC_MEM_UNMAP:
++		ret = kvmi_host_mem_unmap(vcpu, (gpa_t)a0);
++		break;
+ 	case KVM_HC_XEN_HVM_OP:
+ 		ret = 0;
+ 		if (!kvmi_hypercall_event(vcpu))
+diff --git a/include/linux/kvmi.h b/include/linux/kvmi.h
+index 10cd6c6412d2..dd980fb0ebcd 100644
+--- a/include/linux/kvmi.h
++++ b/include/linux/kvmi.h
+@@ -24,6 +24,9 @@ bool kvmi_descriptor_event(struct kvm_vcpu *vcpu, u8 descriptor, u8 write);
+ bool kvmi_tracked_gfn(struct kvm_vcpu *vcpu, gfn_t gfn);
+ bool kvmi_single_step(struct kvm_vcpu *vcpu, gpa_t gpa, int *emulation_type);
+ void kvmi_handle_requests(struct kvm_vcpu *vcpu);
++int kvmi_host_mem_map(struct kvm_vcpu *vcpu, gva_t tkn_gva,
++			     gpa_t req_gpa, gpa_t map_gpa);
++int kvmi_host_mem_unmap(struct kvm_vcpu *vcpu, gpa_t map_gpa);
+ void kvmi_stop_ss(struct kvm_vcpu *vcpu);
+ bool kvmi_vcpu_enabled_ss(struct kvm_vcpu *vcpu);
+ void kvmi_init_emulate(struct kvm_vcpu *vcpu);
+diff --git a/virt/kvm/kvmi.c b/virt/kvm/kvmi.c
+index ca146ffec061..157f3a401d64 100644
+--- a/virt/kvm/kvmi.c
++++ b/virt/kvm/kvmi.c
+@@ -10,6 +10,7 @@
+ #include "kvmi_int.h"
+ #include <linux/kthread.h>
+ #include <linux/bitmap.h>
++#include <linux/remote_mapping.h>
+ 
+ #define MAX_PAUSE_REQUESTS 1001
+ 
+@@ -320,11 +321,13 @@ static int kvmi_cache_create(void)
+ 
+ int kvmi_init(void)
+ {
++	kvmi_mem_init();
+ 	return kvmi_cache_create();
+ }
+ 
+ void kvmi_uninit(void)
+ {
++	kvmi_mem_exit();
+ 	kvmi_cache_destroy();
+ }
+ 
+@@ -1647,6 +1650,11 @@ int kvmi_cmd_write_physical(struct kvm *kvm, u64 gpa, u64 size, const void *buf)
+ 	return 0;
+ }
+ 
++int kvmi_cmd_alloc_token(struct kvm *kvm, struct kvmi_map_mem_token *token)
++{
++	return kvmi_mem_generate_token(kvm, token);
++}
++
+ int kvmi_cmd_control_events(struct kvm_vcpu *vcpu, unsigned int event_id,
+ 			    bool enable)
+ {
+@@ -2015,7 +2023,9 @@ int kvmi_ioctl_unhook(struct kvm *kvm, bool force_reset)
+ 	if (!ikvm)
+ 		return -EFAULT;
+ 
+-	if (!force_reset && !kvmi_unhook_event(kvm))
++	if (force_reset)
++		mm_remote_reset();
++	else if (!kvmi_unhook_event(kvm))
+ 		err = -ENOENT;
+ 
+ 	kvmi_put(kvm);
+diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
+index c96fa2b1e9b7..2432377d6371 100644
+--- a/virt/kvm/kvmi_int.h
++++ b/virt/kvm/kvmi_int.h
+@@ -148,6 +148,8 @@ struct kvmi {
+ 	struct task_struct *recv;
+ 	atomic_t ev_seq;
+ 
++	atomic_t num_tokens;
++
+ 	uuid_t uuid;
+ 
+ 	DECLARE_BITMAP(cmd_allow_mask, KVMI_NUM_COMMANDS);
+@@ -229,7 +231,9 @@ int kvmi_cmd_control_events(struct kvm_vcpu *vcpu, unsigned int event_id,
+ 			    bool enable);
+ int kvmi_cmd_control_vm_events(struct kvmi *ikvm, unsigned int event_id,
+ 			       bool enable);
++int kvmi_cmd_alloc_token(struct kvm *kvm, struct kvmi_map_mem_token *token);
+ int kvmi_cmd_pause_vcpu(struct kvm_vcpu *vcpu, bool wait);
++unsigned long gfn_to_hva_safe(struct kvm *kvm, gfn_t gfn);
+ struct kvmi * __must_check kvmi_get(struct kvm *kvm);
+ void kvmi_put(struct kvm *kvm);
+ int kvmi_run_jobs_and_wait(struct kvm_vcpu *vcpu);
+@@ -298,4 +302,10 @@ int kvmi_arch_cmd_control_msr(struct kvm_vcpu *vcpu,
+ 			      const struct kvmi_control_msr *req);
+ int kvmi_arch_cmd_get_mtrr_type(struct kvm_vcpu *vcpu, u64 gpa, u8 *type);
+ 
++/* kvmi_mem.c */
++void kvmi_mem_init(void);
++void kvmi_mem_exit(void);
++int kvmi_mem_generate_token(struct kvm *kvm, struct kvmi_map_mem_token *token);
++void kvmi_clear_vm_tokens(struct kvm *kvm);
++
+ #endif
+diff --git a/virt/kvm/kvmi_mem.c b/virt/kvm/kvmi_mem.c
+new file mode 100644
+index 000000000000..6244add60062
+--- /dev/null
++++ b/virt/kvm/kvmi_mem.c
+@@ -0,0 +1,319 @@
++// SPDX-License-Identifier: GPL-2.0
++/*
++ * KVM introspection memory mapping implementation
++ *
++ * Copyright (C) 2017-2019 Bitdefender S.R.L.
++ *
++ * Author:
++ *   Mircea Cirjaliu <mcirjaliu@bitdefender.com>
++ */
++
++#include <linux/kernel.h>
++#include <linux/kvm_host.h>
++#include <linux/list.h>
++#include <linux/slab.h>
++#include <linux/pagemap.h>
++#include <linux/spinlock.h>
++#include <linux/printk.h>
++#include <linux/random.h>
++#include <linux/kvmi.h>
++#include <linux/ktime.h>
++#include <linux/hrtimer.h>
++#include <linux/workqueue.h>
++#include <linux/remote_mapping.h>
++
++#include <uapi/linux/kvmi.h>
++
++#include "kvmi_int.h"
++
++#define KVMI_MEM_MAX_TOKENS 8
++#define KVMI_MEM_TOKEN_TIMEOUT 3
++#define TOKEN_TIMEOUT_NSEC (KVMI_MEM_TOKEN_TIMEOUT * NSEC_PER_SEC)
++
++static struct list_head token_list;
++static spinlock_t token_lock;
++static struct hrtimer token_timer;
++static struct work_struct token_work;
++
++struct token_entry {
++	struct list_head token_list;
++	struct kvmi_map_mem_token token;
++	struct kvm *kvm;
++	ktime_t timestamp;
++};
++
++void kvmi_clear_vm_tokens(struct kvm *kvm)
++{
++	struct token_entry *cur, *next;
++	struct kvmi *ikvm = IKVM(kvm);
++	struct list_head temp;
++
++	INIT_LIST_HEAD(&temp);
++
++	spin_lock(&token_lock);
++	list_for_each_entry_safe(cur, next, &token_list, token_list) {
++		if (cur->kvm == kvm) {
++			atomic_dec(&ikvm->num_tokens);
++
++			list_del(&cur->token_list);
++			list_add(&cur->token_list, &temp);
++		}
++	}
++	spin_unlock(&token_lock);
++
++	/* freeing a KVM may sleep */
++	list_for_each_entry_safe(cur, next, &temp, token_list) {
++		kvm_put_kvm(cur->kvm);
++		kfree(cur);
++	}
++}
++
++static void token_timeout_work(struct work_struct *work)
++{
++	struct token_entry *cur, *next;
++	ktime_t now = ktime_get();
++	struct kvmi *ikvm;
++	struct list_head temp;
++
++	INIT_LIST_HEAD(&temp);
++
++	spin_lock(&token_lock);
++	list_for_each_entry_safe(cur, next, &token_list, token_list)
++		if (ktime_sub(now, cur->timestamp) > TOKEN_TIMEOUT_NSEC) {
++			ikvm = kvmi_get(cur->kvm);
++			if (ikvm) {
++				atomic_dec(&ikvm->num_tokens);
++				kvmi_put(cur->kvm);
++			}
++
++			list_del(&cur->token_list);
++			list_add(&cur->token_list, &temp);
++		}
++	spin_unlock(&token_lock);
++
++	if (!list_empty(&temp))
++		kvm_info("kvmi: token(s) timed out\n");
++
++	/* freeing a KVM may sleep */
++	list_for_each_entry_safe(cur, next, &temp, token_list) {
++		kvm_put_kvm(cur->kvm);
++		kfree(cur);
++	}
++}
++
++static enum hrtimer_restart token_timer_fn(struct hrtimer *timer)
++{
++	schedule_work(&token_work);
++
++	hrtimer_add_expires_ns(timer, NSEC_PER_SEC);
++	return HRTIMER_RESTART;
++}
++
++int kvmi_mem_generate_token(struct kvm *kvm, struct kvmi_map_mem_token *token)
++{
++	struct kvmi *ikvm;
++	struct token_entry *tep;
++
++	/* too many tokens have accumulated, retry later */
++	ikvm = IKVM(kvm);
++	if (atomic_read(&ikvm->num_tokens) > KVMI_MEM_MAX_TOKENS)
++		return -KVM_EAGAIN;
++
++	print_hex_dump_debug("kvmi: new token ", DUMP_PREFIX_NONE,
++			     32, 1, token, sizeof(*token), false);
++
++	tep = kmalloc(sizeof(*tep), GFP_KERNEL);
++	if (tep == NULL)
++		return -KVM_ENOMEM;
++
++	/* pin KVM so it won't go away while we wait for HC */
++	kvm_get_kvm(kvm);
++	get_random_bytes(token, sizeof(*token));
++	atomic_inc(&ikvm->num_tokens);
++
++	/* init token entry */
++	INIT_LIST_HEAD(&tep->token_list);
++	memcpy(&tep->token, token, sizeof(*token));
++	tep->kvm = kvm;
++	tep->timestamp = ktime_get();
++
++	/* add to list */
++	spin_lock(&token_lock);
++	list_add_tail(&tep->token_list, &token_list);
++	spin_unlock(&token_lock);
++
++	return 0;
++}
++
++static struct kvm *find_machine_at(struct kvm_vcpu *vcpu, gva_t tkn_gva)
++{
++	long result;
++	gpa_t tkn_gpa;
++	struct kvmi_map_mem_token token;
++	struct list_head *cur;
++	struct token_entry *tep, *found = NULL;
++	struct kvm *target_kvm = NULL;
++	struct kvmi *ikvm;
++
++	/* machine token is passed as pointer */
++	tkn_gpa = kvm_mmu_gva_to_gpa_system(vcpu, tkn_gva, 0, NULL);
++	if (tkn_gpa == UNMAPPED_GVA)
++		return NULL;
++
++	/* copy token to local address space */
++	result = kvm_read_guest(vcpu->kvm, tkn_gpa, &token, sizeof(token));
++	if (IS_ERR_VALUE(result)) {
++		kvm_err("kvmi: failed copying token from user\n");
++		return ERR_PTR(result);
++	}
++
++	/* consume token & find the VM */
++	spin_lock(&token_lock);
++	list_for_each(cur, &token_list) {
++		tep = list_entry(cur, struct token_entry, token_list);
++
++		if (!memcmp(&token, &tep->token, sizeof(token))) {
++			list_del(&tep->token_list);
++			found = tep;
++			break;
++		}
++	}
++	spin_unlock(&token_lock);
++
++	if (found != NULL) {
++		target_kvm = found->kvm;
++		kfree(found);
++
++		ikvm = kvmi_get(target_kvm);
++		if (ikvm) {
++			atomic_dec(&ikvm->num_tokens);
++			kvmi_put(target_kvm);
++		}
++	}
++
++	return target_kvm;
++}
++
++
++int kvmi_host_mem_map(struct kvm_vcpu *vcpu, gva_t tkn_gva,
++		      gpa_t req_gpa, gpa_t map_gpa)
++{
++	int result = 0;
++	struct kvm *target_kvm;
++
++	gfn_t req_gfn;
++	hva_t req_hva;
++	struct mm_struct *req_mm;
++
++	gfn_t map_gfn;
++	hva_t map_hva;
++
++	kvm_debug("kvmi: mapping request req_gpa %016llx, map_gpa %016llx\n",
++		  req_gpa, map_gpa);
++
++	/* get the struct kvm * corresponding to the token */
++	target_kvm = find_machine_at(vcpu, tkn_gva);
++	if (IS_ERR_VALUE(target_kvm)) {
++		return PTR_ERR(target_kvm);
++	} else if (target_kvm == NULL) {
++		kvm_err("kvmi: unable to find target machine\n");
++		return -KVM_ENOENT;
++	}
++	req_mm = target_kvm->mm;
++
++	/* translate source addresses */
++	req_gfn = gpa_to_gfn(req_gpa);
++	req_hva = gfn_to_hva_safe(target_kvm, req_gfn);
++	if (kvm_is_error_hva(req_hva)) {
++		kvm_err("kvmi: invalid req_gpa %016llx\n", req_gpa);
++		result = -KVM_EFAULT;
++		goto out;
++	}
++
++	kvm_debug("kvmi: req_gpa %016llx -> req_hva %016lx\n",
++		  req_gpa, req_hva);
++
++	/* translate destination addresses */
++	map_gfn = gpa_to_gfn(map_gpa);
++	map_hva = gfn_to_hva_safe(vcpu->kvm, map_gfn);
++	if (kvm_is_error_hva(map_hva)) {
++		kvm_err("kvmi: invalid map_gpa %016llx\n", map_gpa);
++		result = -KVM_EFAULT;
++		goto out;
++	}
++
++	kvm_debug("kvmi: map_gpa %016llx -> map_hva %016lx\n",
++		map_gpa, map_hva);
++
++	/* actually do the mapping */
++	result = mm_remote_map(req_mm, req_hva, map_hva);
++	if (IS_ERR_VALUE((long)result)) {
++		if (result == -EBUSY)
++			kvm_debug("kvmi: mapping of req_gpa %016llx failed: %d.\n",
++				req_gpa, result);
++		else
++			kvm_err("kvmi: mapping of req_gpa %016llx failed: %d.\n",
++				req_gpa, result);
++		goto out;
++	}
++
++	/* all fine */
++	kvm_debug("kvmi: mapping of req_gpa %016llx successful\n", req_gpa);
++
++out:
++	kvm_put_kvm(target_kvm);
++
++	return result;
++}
++
++int kvmi_host_mem_unmap(struct kvm_vcpu *vcpu, gpa_t map_gpa)
++{
++	gfn_t map_gfn;
++	hva_t map_hva;
++	int result;
++
++	kvm_debug("kvmi: unmapping request for map_gpa %016llx\n", map_gpa);
++
++	/* convert GPA -> HVA */
++	map_gfn = gpa_to_gfn(map_gpa);
++	map_hva = gfn_to_hva_safe(vcpu->kvm, map_gfn);
++	if (kvm_is_error_hva(map_hva)) {
++		result = -KVM_EFAULT;
++		kvm_err("kvmi: invalid map_gpa %016llx\n", map_gpa);
++		goto out;
++	}
++
++	kvm_debug("kvmi: map_gpa %016llx -> map_hva %016lx\n",
++		map_gpa, map_hva);
++
++	/* actually do the unmapping */
++	result = mm_remote_unmap(map_hva);
++	if (IS_ERR_VALUE((long)result))
++		goto out;
++
++	kvm_debug("kvmi: unmapping of map_gpa %016llx successful\n", map_gpa);
++
++out:
++	return result;
++}
++
++void kvmi_mem_init(void)
++{
++	ktime_t expire;
++
++	INIT_LIST_HEAD(&token_list);
++	spin_lock_init(&token_lock);
++	INIT_WORK(&token_work, token_timeout_work);
++
++	hrtimer_init(&token_timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
++	token_timer.function = token_timer_fn;
++	expire = ktime_add_ns(ktime_get(), NSEC_PER_SEC);
++	hrtimer_start(&token_timer, expire, HRTIMER_MODE_ABS);
++
++	kvm_info("kvmi: initialized host memory introspection\n");
++}
++
++void kvmi_mem_exit(void)
++{
++	hrtimer_cancel(&token_timer);
++}
+diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
+index 3e381f95b686..a5f87aafa237 100644
+--- a/virt/kvm/kvmi_msg.c
++++ b/virt/kvm/kvmi_msg.c
+@@ -33,6 +33,7 @@ static const char *const msg_IDs[] = {
+ 	[KVMI_EVENT_REPLY]           = "KVMI_EVENT_REPLY",
+ 	[KVMI_GET_CPUID]             = "KVMI_GET_CPUID",
+ 	[KVMI_GET_GUEST_INFO]        = "KVMI_GET_GUEST_INFO",
++	[KVMI_GET_MAP_TOKEN]         = "KVMI_GET_MAP_TOKEN",
+ 	[KVMI_GET_MTRR_TYPE]         = "KVMI_GET_MTRR_TYPE",
+ 	[KVMI_GET_PAGE_ACCESS]       = "KVMI_GET_PAGE_ACCESS",
+ 	[KVMI_GET_PAGE_WRITE_BITMAP] = "KVMI_GET_PAGE_WRITE_BITMAP",
+@@ -352,6 +353,19 @@ static int handle_write_physical(struct kvmi *ikvm,
+ 	return kvmi_msg_vm_maybe_reply(ikvm, msg, ec, NULL, 0);
+ }
+ 
++static int handle_get_map_token(struct kvmi *ikvm,
++				const struct kvmi_msg_hdr *msg,
++				const void *_req)
++{
++	struct kvmi_get_map_token_reply rpl;
++	int ec;
++
++	memset(&rpl, 0, sizeof(rpl));
++	ec = kvmi_cmd_alloc_token(ikvm->kvm, &rpl.token);
++
++	return kvmi_msg_vm_maybe_reply(ikvm, msg, ec, &rpl, sizeof(rpl));
++}
++
+ static bool enable_spp(struct kvmi *ikvm)
+ {
+ 	if (!ikvm->spp.initialized) {
+@@ -524,6 +538,7 @@ static int(*const msg_vm[])(struct kvmi *, const struct kvmi_msg_hdr *,
+ 	[KVMI_CONTROL_SPP]           = handle_control_spp,
+ 	[KVMI_CONTROL_VM_EVENTS]     = handle_control_vm_events,
+ 	[KVMI_GET_GUEST_INFO]        = handle_get_guest_info,
++	[KVMI_GET_MAP_TOKEN]         = handle_get_map_token,
+ 	[KVMI_GET_PAGE_ACCESS]       = handle_get_page_access,
+ 	[KVMI_GET_PAGE_WRITE_BITMAP] = handle_get_page_write_bitmap,
+ 	[KVMI_GET_VERSION]           = handle_get_version,
 
