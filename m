@@ -2,172 +2,184 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A5F1BC32756
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:18:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 29AD1C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:28:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 69E8B21882
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:18:23 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="guBuS1Zb"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69E8B21882
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
+	by mail.kernel.org (Postfix) with ESMTP id E191520C01
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:28:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E191520C01
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F2D5F6B0005; Fri,  9 Aug 2019 05:18:22 -0400 (EDT)
+	id 785A16B0007; Fri,  9 Aug 2019 05:28:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EDDF16B0006; Fri,  9 Aug 2019 05:18:22 -0400 (EDT)
+	id 735396B0008; Fri,  9 Aug 2019 05:28:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D7DB66B0007; Fri,  9 Aug 2019 05:18:22 -0400 (EDT)
+	id 5FC0C6B000A; Fri,  9 Aug 2019 05:28:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E7E76B0005
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 05:18:22 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id x1so14622877plm.9
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 02:18:22 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 108206B0007
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 05:28:10 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id c31so59998374ede.5
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 02:28:10 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=+QGcWpSN/BRAudpaX/T2TeWXiisetAXH4pLxoBWqAjY=;
-        b=hiUOZbZL0LToC2OlqTefc7IAjfYaZQRTRhlDFXWTAGNz5UBeOolvejhmWuZKANnZI6
-         iGk9zZiLApB4LrdLjIwT83gYBW9s4XBrD6tVGcLDS+vxH/YrBcyf43orenuNtipvmQ7C
-         sWSzVX3lIj6TBA0R2Aux6dZ9bTcxD/vcK3jsboGfrO47d6gj9EWOkUwyR5Qq6hUnTjj8
-         Ky+WojoYrcxVOtjOv1BJ2bEmrr2tR1zqUq/FOGZRZY6BBsoY2FOkkYkjLtnObFqU6Tqr
-         qXgXvvUPh988+SqcqBi8FhM/QvMzsGYgNczSK0p+5s0i0Y3wtVelkmkV0QgLdtN4j2Mm
-         4fQw==
-X-Gm-Message-State: APjAAAUeKNX6o++Hgwrq6z3wvyA4lM8pOtd6MOVFwqsqpm1l7WtB/Vex
-	ldJie6WTxUcZoIsOLZGiHswZ9vGJEQUoFylhPlyFiLtw+UQIF+w/mJywzg4xS7NbEYGGl4wQ7Ox
-	GN9uMHiQLppOBRikakHjE9XDyy1kt/xAVFz+gbdQMAFzOKnzrYc5rnT66MEKcNTS9xw==
-X-Received: by 2002:a65:5b8e:: with SMTP id i14mr16556009pgr.188.1565342302117;
-        Fri, 09 Aug 2019 02:18:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqygHcjA+O0blyvepFgCC2Na5zSPeZohNQp3texgUJDyHs7Xk/3EKrzV9t9ClNsdGlYWppjT
-X-Received: by 2002:a65:5b8e:: with SMTP id i14mr16555954pgr.188.1565342301162;
-        Fri, 09 Aug 2019 02:18:21 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565342301; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=aptc2LF/zzqfCq3WoHKiATpIya7Ph+iVegpzlEO9b8E=;
+        b=kssWZeW6ZmaogF/fx/up7TJZhqWoswozolFny5VMCmXtbaaQYAS2io+oOezj2zzdgI
+         hamU1xj6OspMpWxDd1DhnwLImT637eVqR0qKyQ2RG8A1kfuJTfR/C/FEkkliZ922DssA
+         CccWkdiIs17EqI9SY7Bspn3HTFIxXEtTUpJTq4V0oI/fb8QV5cPa4Pd2yq77CeEzBLJm
+         xQjjHjHA7J/J6+2bXK0a5CC68KF8ks8cdRnTkMYNuhNLb1vt+6R9XgBTdHA+nnOvZ/eE
+         POGP4yVH1aCNVgK6QW7+feiLS75P5gCqFfUoojulftjLqa2ueKa91udpWhEdFowBsZ8o
+         Acjw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+X-Gm-Message-State: APjAAAV4Z88e0gSZOS2+ZclU6V9OaYYduycblVkwRuQRnPx1tbH3d/2r
+	4T17Bmg/PGCCz0qY1ibtH5DelbQqckOm7R0Cw2HKNUHub6ShI3q9nRMzFbURZWBsbME/AqV5cSm
+	iYEOGI27IeYf4uP8Gij4R5PE7432+F71zYcPRRHIK5a7Lt61I+u2EP5QwtZw5BsRFTA==
+X-Received: by 2002:aa7:d30d:: with SMTP id p13mr21100458edq.292.1565342889642;
+        Fri, 09 Aug 2019 02:28:09 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwe45G/BmyoH9E2H1afgQjShT7No/TyO3iYHUEgILQUcaFZhlU5WV5Dd2VwyqR3bzEOHN3G
+X-Received: by 2002:aa7:d30d:: with SMTP id p13mr21100420edq.292.1565342888886;
+        Fri, 09 Aug 2019 02:28:08 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565342888; cv=none;
         d=google.com; s=arc-20160816;
-        b=iMwipmXOin0CzqxVTiZLZfLIXBTC/hxbyFzlnv2oEAo19h61QyYR6X0zuZG6EZ8Z9e
-         tqi8zHMYwOlJC0hm8b4B6zAZCukF0F7T76hTanCX6Z1nf9a+7btlvaB+FOsv4zqcEg5j
-         iAfoyLzhpRh+Vc+L14fP3uZfAN7JlfG4sEpHV3vlqMEtHuAkCQBBnQdjgI5AJE1FH4uN
-         Qzjb0Nvsv++F/c1bduEFUm/chAHtTYr724KlNc4FC7su9K7yNOKxXAyleyX+j5CSRgCr
-         8Q9tV3arDWY7e+ckOGBst3VqGDv6FRPDcsAHLFijy1jURgcoeHvAxs1RIRLGyoAKQhC2
-         i4xA==
+        b=bBeDDg4hW41gqIdF4gjCWcBYsIto2WE74faUaLbNVp7bK71bIXQJecgq6YDPawHQtx
+         TDq0xUu8dxK5UWHxtI0JWI0s5LSRPO7YUoIBpJUVx5hznPx+JZ+cWJO7PHY1JKxFiK8q
+         UJV0bDVhzK066qsv2W688ecRwPpLn6LzgSPn3pcCN6IPdNwMXJn1htQkeleiluhXaDKG
+         kBBVuFNYt3i9O3GIkv/M6Nm76qc7CM5q63i5SeoA4pZMoERvh2nEpwwcSU6GyVD8IdNG
+         qXFR+xycUqf0XAzb6bxJim6Eq6HR3YO/Ly6s9neEab3Ssid/rmwx2SRPu5/ZwQn886j2
+         hQ9Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=+QGcWpSN/BRAudpaX/T2TeWXiisetAXH4pLxoBWqAjY=;
-        b=DqSDYVlaEgRdyimMLt4HexShQL4aybi3RCXDw7+IjF71V54Bj6NSjna0CPJkF2i56w
-         pBhEOJsau4xjB6Dp+ZhqFReMie/NDdOwa5q6egKrec4PwaXl7U4tIAF2B/GU6cZfllb7
-         H8uhhezBp+bsjFtU3Dt+LDimIWPOGnwt7noiobuWnOaXJA2CF/3D4IoKtH8JGm8vV3Pl
-         FOWPdrXLnEPp/rB6xZdPql02RiccYmkSrLyObGA2mOac5GBLCSpfo91uT/4mb2FGWyxz
-         M/SJNuwOtWbSwj0sIU3slmrbSuImc+wYTHWqVznvsRIdFg367ci33Ib47i95WjhcH94X
-         zASg==
+         :message-id:subject:cc:to:from:date;
+        bh=aptc2LF/zzqfCq3WoHKiATpIya7Ph+iVegpzlEO9b8E=;
+        b=GUcb4c2PTbqVT5sd6WS3g/Ck68q+0kIhTjMMC8nsuEPsWK6tz9eUptuGT7qiC0+f1q
+         Sxa9RsvAJ+/s7W7OMV/G8xW+1iziRwoEmFJ1H/gEX6iiwZZI9tli/0DmsDBjiDskZ05R
+         d2Ccy6LU/v9s8Bq9dkIV7WyWZ9UXThKsiXFVB94g4umOFYzNmLsiXg4ckBg4oxnUBH3D
+         HUMZi+/bx/wC9VVvrOyja6P1ItdFQDguQmc3xW6MHPKbwBHv6iETQ+lE8sEmzKWmck/Q
+         MaCpKnX6pQzc26kp6faAYdtIvvC4N8e8KZ+ivtyXaSfPKN7+YMiiOjdYRQOhCLsZSCBD
+         yKXA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=guBuS1Zb;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from mail.kernel.org (mail.kernel.org. [198.145.29.99])
-        by mx.google.com with ESMTPS id m2si48779584pls.391.2019.08.09.02.18.21
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 02:18:21 -0700 (PDT)
-Received-SPF: pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) client-ip=198.145.29.99;
+       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id g18si33293242ejw.180.2019.08.09.02.28.08
+        for <linux-mm@kvack.org>;
+        Fri, 09 Aug 2019 02:28:08 -0700 (PDT)
+Received-SPF: pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@kernel.org header.s=default header.b=guBuS1Zb;
-       spf=pass (google.com: domain of gregkh@linuxfoundation.org designates 198.145.29.99 as permitted sender) smtp.mailfrom=gregkh@linuxfoundation.org
-Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 53BA421783;
-	Fri,  9 Aug 2019 09:18:20 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565342300;
-	bh=vDFk0iDv4uhF/mh6uYPLsEe3xs+segrrcnOWuXxQKms=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=guBuS1ZbRdjlgZXkIRMxo5T/SU/GeSbZSxdnKSL6erjXVJ68Ixg5GfFw48ZcAQDUJ
-	 vTZF38S2BSeNjyyySFS+ew1qhyVgLU9/0UnNyatr/Z0JcgoD0Fmx/FRLRvGYhvhSGK
-	 go/RU2KVvB6UqqPtB9Y439Cv67wUAgDcPXYyT1DU=
-Date: Fri, 9 Aug 2019 10:55:45 +0200
-From: Greg KH <gregkh@linuxfoundation.org>
-To: Kees Cook <keescook@chromium.org>
-Cc: syzbot <syzbot+45b2f40f0778cfa7634e@syzkaller.appspotmail.com>,
-	Michael Hund <mhund@ld-didactic.de>, akpm@linux-foundation.org,
-	andreyknvl@google.com, cai@lca.pw, linux-kernel@vger.kernel.org,
-	linux-mm@kvack.org, linux-usb@vger.kernel.org,
-	syzkaller-bugs@googlegroups.com, tglx@linutronix.de
-Subject: Re: BUG: bad usercopy in ld_usb_read
-Message-ID: <20190809085545.GB21320@kroah.com>
-References: <0000000000005c056c058f9a5437@google.com>
- <20190808124654.GB32144@kroah.com>
- <201908081604.D1203D408@keescook>
+       spf=pass (google.com: domain of dave.martin@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=Dave.Martin@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D4D7415A2;
+	Fri,  9 Aug 2019 02:28:07 -0700 (PDT)
+Received: from arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id EA7C43F575;
+	Fri,  9 Aug 2019 02:28:02 -0700 (PDT)
+Date: Fri, 9 Aug 2019 10:28:00 +0100
+From: Dave Martin <Dave.Martin@arm.com>
+To: Catalin Marinas <catalin.marinas@arm.com>
+Cc: Kees Cook <keescook@chromium.org>, Mark Rutland <mark.rutland@arm.com>,
+	kvm@vger.kernel.org, Christian Koenig <Christian.Koenig@amd.com>,
+	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
+	Will Deacon <will.deacon@arm.com>, dri-devel@lists.freedesktop.org,
+	Kostya Serebryany <kcc@google.com>,
+	Khalid Aziz <khalid.aziz@oracle.com>, Lee Smith <Lee.Smith@arm.com>,
+	"open list:KERNEL SELFTEST FRAMEWORK" <linux-kselftest@vger.kernel.org>,
+	Vincenzo Frascino <vincenzo.frascino@arm.com>,
+	Will Deacon <will@kernel.org>,
+	Jacob Bramley <Jacob.Bramley@arm.com>,
+	Leon Romanovsky <leon@kernel.org>, linux-rdma@vger.kernel.org,
+	amd-gfx@lists.freedesktop.org,
+	Christoph Hellwig <hch@infradead.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>, Dmitry Vyukov <dvyukov@google.com>,
+	Evgeniy Stepanov <eugenis@google.com>, linux-media@vger.kernel.org,
+	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
+	Andrey Konovalov <andreyknvl@google.com>,
+	Kevin Brodsky <kevin.brodsky@arm.com>,
+	Alex Williamson <alex.williamson@redhat.com>,
+	Mauro Carvalho Chehab <mchehab@kernel.org>,
+	Linux ARM <linux-arm-kernel@lists.infradead.org>,
+	Linux Memory Management List <linux-mm@kvack.org>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	Felix Kuehling <Felix.Kuehling@amd.com>,
+	Dave Hansen <dave.hansen@intel.com>,
+	LKML <linux-kernel@vger.kernel.org>,
+	Jens Wiklander <jens.wiklander@linaro.org>,
+	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
+	Alexander Deucher <Alexander.Deucher@amd.com>,
+	Andrew Morton <akpm@linux-foundation.org>, enh <enh@google.com>,
+	Robin Murphy <robin.murphy@arm.com>,
+	Yishai Hadas <yishaih@mellanox.com>,
+	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>
+Subject: Re: [PATCH v19 00/15] arm64: untag user pointers passed to the kernel
+Message-ID: <20190809092758.GK10425@arm.com>
+References: <CAAeHK+yc0D_nd7nTRsY4=qcSx+eQR0VLut3uXMf4NEiE-VpeCw@mail.gmail.com>
+ <20190724140212.qzvbcx5j2gi5lcoj@willie-the-truck>
+ <CAAeHK+xXzdQHpVXL7f1T2Ef2P7GwFmDMSaBH4VG8fT3=c_OnjQ@mail.gmail.com>
+ <20190724142059.GC21234@fuggles.cambridge.arm.com>
+ <20190806171335.4dzjex5asoertaob@willie-the-truck>
+ <CAAeHK+zF01mxU+PkEYLkoVu-ZZM6jNfL_OwMJKRwLr-sdU4Myg@mail.gmail.com>
+ <201908081410.C16D2BD@keescook>
+ <20190808153300.09d3eb80772515f0ea062833@linux-foundation.org>
+ <201908081608.A4F6711@keescook>
+ <20190809090016.GA23083@arrakis.emea.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <201908081604.D1203D408@keescook>
-User-Agent: Mutt/1.12.1 (2019-06-15)
+In-Reply-To: <20190809090016.GA23083@arrakis.emea.arm.com>
+User-Agent: Mutt/1.5.23 (2014-03-12)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 08, 2019 at 04:06:32PM -0700, Kees Cook wrote:
-> On Thu, Aug 08, 2019 at 02:46:54PM +0200, Greg KH wrote:
-> > On Thu, Aug 08, 2019 at 05:38:06AM -0700, syzbot wrote:
-> > > Hello,
+On Fri, Aug 09, 2019 at 10:00:17AM +0100, Catalin Marinas wrote:
+> On Thu, Aug 08, 2019 at 04:09:04PM -0700, Kees Cook wrote:
+> > On Thu, Aug 08, 2019 at 03:33:00PM -0700, Andrew Morton wrote:
+> > > On Thu, 8 Aug 2019 14:12:19 -0700 Kees Cook <keescook@chromium.org> wrote:
 > > > 
-> > > syzbot found the following crash on:
+> > > > > The ones that are left are the mm ones: 4, 5, 6, 7 and 8.
+> > > > > 
+> > > > > Andrew, could you take a look and give your Acked-by or pick them up directly?
+> > > > 
+> > > > Given the subsystem Acks, it seems like 3-10 and 12 could all just go
+> > > > via Andrew? I hope he agrees. :)
 > > > 
-> > > HEAD commit:    e96407b4 usb-fuzzer: main usb gadget fuzzer driver
-> > > git tree:       https://github.com/google/kasan.git usb-fuzzer
-> > > console output: https://syzkaller.appspot.com/x/log.txt?x=13aeaece600000
-> > > kernel config:  https://syzkaller.appspot.com/x/.config?x=cfa2c18fb6a8068e
-> > > dashboard link: https://syzkaller.appspot.com/bug?extid=45b2f40f0778cfa7634e
-> > > compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+> > > I'll grab everything that has not yet appeared in linux-next.  If more
+> > > of these patches appear in linux-next I'll drop those as well.
 > > > 
-> > > Unfortunately, I don't have any reproducer for this crash yet.
-> > > 
-> > > IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> > > Reported-by: syzbot+45b2f40f0778cfa7634e@syzkaller.appspotmail.com
-> > > 
-> > > ldusb 6-1:0.124: Read buffer overflow, -131383996186150 bytes dropped
+> > > The review discussion against " [PATCH v19 02/15] arm64: Introduce
+> > > prctl() options to control the tagged user addresses ABI" has petered
+> > > out inconclusively.  prctl() vs arch_prctl().
 > > 
-> > That's a funny number :)
-> > 
-> > Nice overflow found, I see you are now starting to fuzz the char device
-> > nodes of usb drivers...
-> > 
-> > Michael, care to fix this up?
+> > I've always disliked arch_prctl() existing at all. Given that tagging is
+> > likely to be a multi-architectural feature, it seems like the controls
+> > should live in prctl() to me.
 > 
-> This looks like the length in the read-from-device buffer is unchecked:
+> It took a bit of grep'ing to figure out what Dave H meant by
+> arch_prctl(). It's an x86-specific syscall which we do not have on arm64
+> (and possibly any other architecture). Actually, we don't have any arm64
+> specific syscalls, only the generic unistd.h, hence the confusion. For
+> other arm64-specific prctls like SVE we used the generic sys_prctl() and
+> I can see x86 not being consistent either (PR_MPX_ENABLE_MANAGEMENT).
 > 
->         /* actual_buffer contains actual_length + interrupt_in_buffer */
->         actual_buffer = (size_t *)(dev->ring_buffer + dev->ring_tail * (sizeof(size_t)+dev->interrupt_in_endpoint_size));
->         bytes_to_read = min(count, *actual_buffer);
->         if (bytes_to_read < *actual_buffer)
->                 dev_warn(&dev->intf->dev, "Read buffer overflow, %zd bytes dropped\n",
->                          *actual_buffer-bytes_to_read);
-> 
->         /* copy one interrupt_in_buffer from ring_buffer into userspace */
->         if (copy_to_user(buffer, actual_buffer+1, bytes_to_read)) {
->                 retval = -EFAULT;
->                 goto unlock_exit;
->         }
-> 
-> I assume what's stored at actual_buffer is bogus and needs validation
-> somewhere before it's actually used. (If not here, maybe where ever the
-> write into the buffer originally happens?)
+> In general I disagree with adding any arm64-specific syscalls but in
+> this instance it can't even be justified. I'd rather see some clean-up
+> similar to arch_ptrace/ptrace_request than introducing new syscall
+> numbers (but as I suggested in my reply to Dave, that's for another
+> patch series).
 
-I think it should be verified here, as that's when it is parsed.  The
-data is written to the buffer in ld_usb_interrupt_in_callback() but it
-does not "know" how to parse it at that location.
+I had a go at refactoring this a while ago, but it fell by the wayside.
 
-thanks,
+I can try to resurrect it if it's still considered worthwhile.
 
-greg k-h
+Cheers
+---Dave
 
