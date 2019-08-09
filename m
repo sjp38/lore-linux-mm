@@ -2,258 +2,258 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.7 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	UNPARSEABLE_RELAY,URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 653B5C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 01:08:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id B4309C0650F
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 01:21:35 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 190BC2166E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 01:08:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 190BC2166E
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id 6B4C72166E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 01:21:35 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6B4C72166E
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B6C2C6B0003; Thu,  8 Aug 2019 21:08:44 -0400 (EDT)
+	id 1516B6B0003; Thu,  8 Aug 2019 21:21:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B1CF26B0006; Thu,  8 Aug 2019 21:08:44 -0400 (EDT)
+	id 1019B6B0006; Thu,  8 Aug 2019 21:21:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9E4476B0007; Thu,  8 Aug 2019 21:08:44 -0400 (EDT)
+	id F0B276B0007; Thu,  8 Aug 2019 21:21:34 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 63AE26B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 21:08:44 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id y9so56483127plp.12
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 18:08:44 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id BA9CF6B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 21:21:34 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id g21so60327278pfb.13
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 18:21:34 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:mime-version;
-        bh=MoAOmSO/ag8dc1h6fGhZHEEUcxTS+Lm1W2JgsC2KnqM=;
-        b=fqJuDXmb+GYw/PsAB/oCP4HZfmb89HzYFgsuVFW9+3mS5/OCYcACVUuHDYXR1MTLFO
-         JgtnGbMlNRAcyhaAsktUeW3yGpoMLxwS3vqEyTVoifSop8stGL4JwErAE1n1oZtt1fIc
-         lxhC2D1Aljz1PWUaWJ4JG2YPP3gfR323R6qPi4ZfUHSWelY2VF/kBGo10tPZpov6Zdbb
-         cSS6SpU/2hC9Q4hNrbnqN2Fi3D5cSUlyEdqGwcl1g2hgWPdxHDUP0x05j7zJiRWQF2mP
-         wVcNSSu4zmX/VnUDFHL6L2mf9RtWYr5gNOuEofnzVb1BHigl8kTV6RUANMQNdb2qnle3
-         0ueA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-X-Gm-Message-State: APjAAAW7NB5+noHSGds9b/n8sO+NOoICOWOqqdXcpsE2plo1a4gnmkQi
-	wCdOZ6vHdCa6+CwI1hjD0F/7QnGRFv5uoTK17W7/kj7lROTzQxvXuaSZ4EW96RSHYkOF+SFmftx
-	p0B9DpHTyYdIWRCW4DBu5BfJhrAsQd5EqEJ9OSTs42fihuet3S4ATvvfnikQdscMeoA==
-X-Received: by 2002:a17:902:e287:: with SMTP id cf7mr16490746plb.32.1565312924037;
-        Thu, 08 Aug 2019 18:08:44 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwzYFcOqBcMFrnxZ01MvX2vLn1SS/R9QMq+nnHpYTVuEk2CM+4kzCyOWywyOwmzNTDoIjQy
-X-Received: by 2002:a17:902:e287:: with SMTP id cf7mr16490663plb.32.1565312922763;
-        Thu, 08 Aug 2019 18:08:42 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565312922; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=n7minW+hgDVIGt3HL/oRf7ObT2ddjLCOVJSij+5oXSc=;
+        b=O0rI7MePYyl9gtxIZhrWQ6no1yIqJRXkOt/2l0SJ0HiLTSr5eVHzK7hCb3taWfgF87
+         JwN+djCpYIYAJLiLY4XYjy6MVmdRi4MyDA4NWuY0KU/MhdSdZDa5rRCU6MW+ZIMHt0EC
+         GRPuY8wpap5LzoqXtOd+trdYypsEgtvw2irzXw/Qzlft4PjDxETkQ8qbUnIsugdg7Vie
+         AxcI9EAMmQJGVzjQEa8171Lai+hrO7UNuJUny5QXFtGns6HKnjl2vPmLz+rmgtMYHbFL
+         95olv0ipzT6UGhmSGuPUpZjeT99wQoO09iEQwZPDOdIUX8XcRj5vMA6tLgsbeSiEubP8
+         hD9A==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAXRTUYZnjjD0tbccpANZ2EQ+BQM0/UDeleXUiJVWuVzipLWlgMT
+	aESH6wHpKjCkHEhs8vQlnYVmaMZAF74FhKaeHlSM19EMl08sQMuHnZRCHEiFb9gtYYUhrwdc6lC
+	zz/rKmdi6Q4G2mUAWkmjuSRFUO3y8/jllonGjtjV+U/B8z9dwp5MrDz4yR6Vsmbc=
+X-Received: by 2002:a65:68d9:: with SMTP id k25mr15325459pgt.337.1565313694260;
+        Thu, 08 Aug 2019 18:21:34 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyoi6OPiKeM+4IcI0kNOIcPsYhQ2f0ZB9mgQ5JOeM6q7XZfJptebRX8bxJ3n84GRI1aPEFr
+X-Received: by 2002:a65:68d9:: with SMTP id k25mr15325401pgt.337.1565313693040;
+        Thu, 08 Aug 2019 18:21:33 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565313693; cv=none;
         d=google.com; s=arc-20160816;
-        b=TEQDBJBWaNRC9sstxr4Fx8dDOJavs8S78UlROZjKTz6iqlXM69RUrr9FSuTDcA2cSh
-         eK17F9PVzhDVtgiHLnrVrU0wP71PQB86sbyQgqJTkGxX3MWmw77dvbS6EQSG+Z6PU3Zu
-         +8PiqFaPz5ZhQTvC2AjaJW0zehdnjhgA/+WEZ94hqUxuxA3n2TNPXtf7ki2T4jBvIQBN
-         dXp4wXJu+Lh7v3jG2w1dZSlPuNfacVl2ucxE7AfYOE99gUNeEEBjkHHVPrpAFpDkaCL9
-         i+D3GtxFf5c+7XYtaD2hQtCh37udwu4Uo6UD8Dacw4RnuYXFDi/+bGL0ejhQCUc6qGtY
-         gUfQ==
+        b=Duv0QP204FabguPBAz6aMqrNXMoYsEWv1/pZz9DzSEJ17qzUnpxHLYpJxKqZPGJuUq
+         YRNQGy6gPLr+AuOYmwDt6jciqmnEy9IO12Bw0llfEdbN3owCXVswoK1p7wuO1R6Czns0
+         BXRgeaVzv9ze3XBdFk9TF2rmDZg3fqF1YDMZ4gB487nKk72TaGMRGBWPouq6LZ7EqH9w
+         zw8YOdaGgWvUujiA6x0SjubVIZ/qCVBToneHV0nAKvXAeGhlVmpCRSA3PXRC7gGOYIFv
+         Ooa/Zhjd+NmWlUiBTDOpUwhGNuYcJegMOeRUZn1dccv4duqu48TnTfsiWl5rINBRJpeF
+         Fbwg==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=mime-version:message-id:date:subject:cc:to:from;
-        bh=MoAOmSO/ag8dc1h6fGhZHEEUcxTS+Lm1W2JgsC2KnqM=;
-        b=YMMIN6HbyxNGgBoydvMp1XfpDhbsKlWOxOyagYOHNBLtOaV7/vyYIWFc6r+T/Vk1EJ
-         SOo9NrrdCpvmRByHnkDeSjWvJrHtsm6YKJ7AM4VW8tbuJWugNN3zoFDr8viyTlMa9gzz
-         vdp4by0Ou52orisWAzT5ka47vb0pPuVem5I7UfghZj15plRfepz/fdJXq4Fr78XPXZ6P
-         trp32fHwfJdPmtKRlNmGPRwpoFpY609RcHmxodBfFJk23k2e44KzB5RZvzWQfwIWuzOu
-         JUvbpVlxL1+JhIR3PpKqG6QPwamkq5ropyXuVEYdvkwP4XWy+gvNkFnmVrgBG8dcOTmL
-         cuiA==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=n7minW+hgDVIGt3HL/oRf7ObT2ddjLCOVJSij+5oXSc=;
+        b=wSlJs5CdOioGlJzVR0KVJPF1cDUYg7aoP47roh/VYosLIybOsa+eB0yRa8RdHMmOUa
+         8uKbr8BKUwzx1/XFXOYDI2vWDpypP6d58qmoEyTpxIbgqFW05nsOQaG3GGcg+6cq4pim
+         6QNsnToiPZQv2c9nmY82KORTfJMIHW+aEFzxi4k5ymoLirTOvRy5zuVxZnnYsLDn4/e9
+         5jEl3su20hAMSfeuLJJwm1JV2Zji54Wd2cj4bOXtm5FSS0LOkBqigaivvzRql0tp0HRL
+         KSjijfBiYlnqp0nxgfgNNkSfbsAFHcP0CzJEE5J48f2HvK6JHyzMrGiXD3BdZQNpwd8s
+         DpoQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-Received: from mailgw01.mediatek.com ([210.61.82.183])
-        by mx.google.com with ESMTP id s7si48600063plr.95.2019.08.08.18.08.42
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au. [211.29.132.246])
+        by mx.google.com with ESMTP id w21si46786938plq.91.2019.08.08.18.21.32
         for <linux-mm@kvack.org>;
-        Thu, 08 Aug 2019 18:08:42 -0700 (PDT)
-Received-SPF: pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) client-ip=210.61.82.183;
+        Thu, 08 Aug 2019 18:21:32 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.246;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of miles.chen@mediatek.com designates 210.61.82.183 as permitted sender) smtp.mailfrom=miles.chen@mediatek.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=mediatek.com
-X-UUID: ce082dbf4911436bb8c5323e45215de2-20190809
-X-UUID: ce082dbf4911436bb8c5323e45215de2-20190809
-Received: from mtkcas07.mediatek.inc [(172.21.101.84)] by mailgw01.mediatek.com
-	(envelope-from <miles.chen@mediatek.com>)
-	(Cellopoint E-mail Firewall v4.1.10 Build 0707 with TLS)
-	with ESMTP id 1689208884; Fri, 09 Aug 2019 09:08:37 +0800
-Received: from mtkcas08.mediatek.inc (172.21.101.126) by
- mtkmbs06n1.mediatek.inc (172.21.101.129) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Fri, 9 Aug 2019 09:08:37 +0800
-Received: from mtksdccf07.mediatek.inc (172.21.84.99) by mtkcas08.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Fri, 9 Aug 2019 09:08:37 +0800
-From: <miles.chen@mediatek.com>
-To: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David
- Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew
- Morton <akpm@linux-foundation.org>
-CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
-	<linux-mediatek@lists.infradead.org>, <wsd_upstream@mediatek.com>, Miles Chen
-	<miles.chen@mediatek.com>, "Tobin C . Harding" <me@tobin.cc>, Kees Cook
-	<keescook@chromium.org>
-Subject: [RFC PATCH v2] mm: slub: print kernel addresses in slub debug messages
-Date: Fri, 9 Aug 2019 09:08:37 +0800
-Message-ID: <20190809010837.24166-1-miles.chen@mediatek.com>
-X-Mailer: git-send-email 2.18.0
+       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
+	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id 562CF43FBAC;
+	Fri,  9 Aug 2019 11:21:30 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hvtZu-0001Es-VU; Fri, 09 Aug 2019 11:20:22 +1000
+Date: Fri, 9 Aug 2019 11:20:22 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Brian Foster <bfoster@redhat.com>
+Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH 23/24] xfs: reclaim inodes from the LRU
+Message-ID: <20190809012022.GX7777@dread.disaster.area>
+References: <20190801021752.4986-1-david@fromorbit.com>
+ <20190801021752.4986-24-david@fromorbit.com>
+ <20190808163905.GC24551@bfoster>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-MTK: N
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190808163905.GC24551@bfoster>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0
+	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=eh5rXm9NgLMs59rXgwYA:9
+	a=CjuIK1q_8ugA:10 a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Miles Chen <miles.chen@mediatek.com>
+On Thu, Aug 08, 2019 at 12:39:05PM -0400, Brian Foster wrote:
+> On Thu, Aug 01, 2019 at 12:17:51PM +1000, Dave Chinner wrote:
+> > From: Dave Chinner <dchinner@redhat.com>
+> > 
+> > Replace the AG radix tree walking reclaim code with a list_lru
+> > walker, giving us both node-aware and memcg-aware inode reclaim
+> > at the XFS level. This requires adding an inode isolation function to
+> > determine if the inode can be reclaim, and a list walker to
+> > dispose of the inodes that were isolated.
+> > 
+> > We want the isolation function to be non-blocking. If we can't
+> > grab an inode then we either skip it or rotate it. If it's clean
+> > then we skip it, if it's dirty then we rotate to give it time to be
+> 
+> Do you mean we remove it if it's clean?
 
-This RFC patch is sent to discuss the printing address with %p issue.
+No, I mean if we can't grab it and it's clean, then we just skip it,
+leaving it at the head of the LRU for the next scanner to
+immediately try to reclaim it. If it's dirty, we rotate it so that
+time passes before we try to reclaim it again in the hope that it is
+already clean by the time we've scanned through the entire LRU...
 
-Since commit ad67b74d2469d9b8 ("printk: hash addresses printed with %p"),
-%p gives obfuscated addresses now. When CONFIG_SLUB_DEBUG=y, it is still
-useful to get real virtual addresses.
+> > +++ b/fs/xfs/xfs_super.c
+> ...
+> > @@ -1810,23 +1811,58 @@ xfs_fs_mount(
+> >  }
+> >  
+> >  static long
+> > -xfs_fs_nr_cached_objects(
+> > +xfs_fs_free_cached_objects(
+> >  	struct super_block	*sb,
+> >  	struct shrink_control	*sc)
+> >  {
+> > -	/* Paranoia: catch incorrect calls during mount setup or teardown */
+> > -	if (WARN_ON_ONCE(!sb->s_fs_info))
+> > -		return 0;
+> > +	struct xfs_mount	*mp = XFS_M(sb);
+> > +        struct xfs_ireclaim_args ra;
+> 
+> ^ whitespace damage
 
-Possible approaches are:
-1. stop printing kernel addresses
-2. print with %pK,
-3. print with %px.
-4. do nothing
+Already fixed.
 
-This patch takes %px approach and shows the output here.
-(%px will causes checkpatch warnings, let us ignore the warning here to
-have the discussion). Also, use DUMP_PREFIX_OFFSET instead of
-DUMP_PREFIX_ADDRESS.
+> > +	long freed;
+> >  
+> > -	return list_lru_shrink_count(&XFS_M(sb)->m_inode_lru, sc);
+> > +	INIT_LIST_HEAD(&ra.freeable);
+> > +	ra.lowest_lsn = NULLCOMMITLSN;
+> > +	ra.dirty_skipped = 0;
+> > +
+> > +	freed = list_lru_shrink_walk(&mp->m_inode_lru, sc,
+> > +					xfs_inode_reclaim_isolate, &ra);
+> 
+> This is more related to the locking discussion on the earlier patch, but
+> this looks like it has more similar serialization to the example patch I
+> posted than the one without locking at all. IIUC, this walk has an
+> internal lock per node lru that is held across the walk and passed into
+> the callback. We never cycle it, so for any given node we only allow one
+> reclaimer through here at a time.
 
-Before this patch:
+That's not a guarantee that list_lru gives us. It could drop it's
+internal lock at any time during that walk and we would be
+blissfully unaware that it has done this. And at that point, the
+reclaim context is completely unaware that other reclaim contexts
+may be scanning the same LRU at the same time and are interleaving
+with it.
 
-INFO: Slab 0x(____ptrval____) objects=25 used=10 fp=0x(____ptrval____)
-INFO: Object 0x(____ptrval____) @offset=1408 fp=0x(____ptrval____)
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object (____ptrval____): 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5
-Redzone (____ptrval____): bb bb bb bb bb bb bb bb
-Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-Padding (____ptrval____): 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-...
-FIX kmalloc-128: Object at 0x(____ptrval____) not freed
+And, really, that does not matter one iota. If multiple scanners are
+interleaving, the reclaim traversal order and the decisions made are
+no different from what a single reclaimer does.  i.e. we just don't
+have to care if reclaim contexts interleave or not, because they
+will not repeat work that has already been done unnecessarily.
+That's one of the reasons for moving to IO-less LRU ordered reclaim
+- it removes all the gross hacks we've had to implement to guarantee
+reclaim scanning progress in one nice neat package of generic
+infrastructure.
 
-After this patch:
+> That seems to be Ok given we don't do much in the isolation handler, the
+> lock isn't held across the dispose sequence and we're still batching in
+> the shrinker core on top of that. We're still serialized over the lru
+> fixups such that concurrent reclaimers aren't processing the same
+> inodes, however.
 
-INFO: Slab 0xffffffbf00f57000 objects=25 used=23 fp=0xffffffc03d5c3500
-INFO: Object 0xffffffc03d5c3500 @offset=13568 fp=0xffffffc03d5c0800
-Redzone 00000000: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000010: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000020: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000030: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000040: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000050: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000060: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Redzone 00000070: bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb bb
-Object 00000000: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000010: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000020: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000030: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000040: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000050: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000060: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b
-Object 00000070: 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b 6b a5
-Redzone 00000000: bb bb bb bb bb bb bb bb
-Padding 00000000: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-Padding 00000010: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-Padding 00000020: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-Padding 00000030: 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a 5a
-...
-FIX kmalloc-128: Object at 0xffffffc03d5c3500 not freed
+The only thing that we may need here is need_resched() checks if it
+turns out that holding a lock for 1024 items to be scanned proved to
+be too long to hold on to a single CPU. If we do that we'd cycle the
+LRU lock and return RETRY or RETRY_REMOVE, hence enabling reclaimers
+more finer-grained interleaving....
 
-Cc: Christoph Lameter <cl@linux.com>
-Cc: Pekka Enberg <penberg@kernel.org>
-Cc: David Rientjes <rientjes@google.com>
-Cc: Joonsoo Kim <iamjoonsoo.kim@lge.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Tobin C. Harding <me@tobin.cc>
-Cc: Kees Cook <keescook@chromium.org>
-Signed-off-by: Miles Chen <miles.chen@mediatek.com>
----
- mm/slub.c | 12 ++++++------
- 1 file changed, 6 insertions(+), 6 deletions(-)
+> BTW I got a lockdep splat[1] for some reason on a straight mount/unmount
+> cycle with this patch.
+....
+> [   39.030519]  lock_acquire+0x90/0x170
+> [   39.031170]  ? xfs_ilock+0xd2/0x280 [xfs]
+> [   39.031603]  down_write_nested+0x4f/0xb0
+> [   39.032064]  ? xfs_ilock+0xd2/0x280 [xfs]
+> [   39.032684]  ? xfs_dispose_inodes+0x124/0x320 [xfs]
+> [   39.033575]  xfs_ilock+0xd2/0x280 [xfs]
+> [   39.034058]  xfs_dispose_inodes+0x124/0x320 [xfs]
 
-diff --git a/mm/slub.c b/mm/slub.c
-index 8834563cdb4b..bc1fb8e81557 100644
---- a/mm/slub.c
-+++ b/mm/slub.c
-@@ -528,7 +528,7 @@ static void print_section(char *level, char *text, u8 *addr,
- 			  unsigned int length)
- {
- 	metadata_access_enable();
--	print_hex_dump(level, text, DUMP_PREFIX_ADDRESS, 16, 1, addr,
-+	print_hex_dump(level, text, DUMP_PREFIX_OFFSET, 16, 1, addr,
- 			length, 1);
- 	metadata_access_disable();
- }
-@@ -611,7 +611,7 @@ static void print_tracking(struct kmem_cache *s, void *object)
- 
- static void print_page_info(struct page *page)
- {
--	pr_err("INFO: Slab 0x%p objects=%u used=%u fp=0x%p flags=0x%04lx\n",
-+	pr_err("INFO: Slab 0x%px objects=%u used=%u fp=0x%px flags=0x%04lx\n",
- 	       page, page->objects, page->inuse, page->freelist, page->flags);
- 
- }
-@@ -653,7 +653,7 @@ static void print_trailer(struct kmem_cache *s, struct page *page, u8 *p)
- 
- 	print_page_info(page);
- 
--	pr_err("INFO: Object 0x%p @offset=%tu fp=0x%p\n\n",
-+	pr_err("INFO: Object 0x%px @offset=%tu fp=0x%px\n\n",
- 	       p, p - addr, get_freepointer(s, p));
- 
- 	if (s->flags & SLAB_RED_ZONE)
-@@ -991,7 +991,7 @@ static void trace(struct kmem_cache *s, struct page *page, void *object,
- 								int alloc)
- {
- 	if (s->flags & SLAB_TRACE) {
--		pr_info("TRACE %s %s 0x%p inuse=%d fp=0x%p\n",
-+		pr_info("TRACE %s %s 0x%px inuse=%d fp=0x%p\n",
- 			s->name,
- 			alloc ? "alloc" : "free",
- 			object, page->inuse,
-@@ -1212,7 +1212,7 @@ static noinline int free_debug_processing(
- 	slab_unlock(page);
- 	spin_unlock_irqrestore(&n->list_lock, flags);
- 	if (!ret)
--		slab_fix(s, "Object at 0x%p not freed", object);
-+		slab_fix(s, "Object at 0x%px not freed", object);
- 	return ret;
- }
- 
-@@ -3693,7 +3693,7 @@ static void list_slab_objects(struct kmem_cache *s, struct page *page,
- 	for_each_object(p, s, addr, page->objects) {
- 
- 		if (!test_bit(slab_index(p, s, addr), map)) {
--			pr_err("INFO: Object 0x%p @offset=%tu\n", p, p - addr);
-+			pr_err("INFO: Object 0x%px @offset=%tu\n", p, p - addr);
- 			print_tracking(s, p);
- 		}
- 	}
+False positive, AFAICT. It's complaining about the final xfs_ilock()
+call we do before freeing the inode because we have other inodes
+locked. I don't think this can deadlock because the inodes under
+reclaim should not be usable by anyone else at this point because
+they have the I_RECLAIM flag set.
+
+I did notice this - I added a XXX comment I added to the case being
+complained about to note I needed to resolve this locking issue.
+
++        * Here we do an (almost) spurious inode lock in order to coordinate
++        * with inode cache radix tree lookups.  This is because the lookup
++        * can reference the inodes in the cache without taking references.
++        *
++        * We make that OK here by ensuring that we wait until the inode is
++        * unlocked after the lookup before we go ahead and free it. 
++        * unlocked after the lookup before we go ahead and free it. 
++        *
++        * XXX: need to check this is still true. Not sure it is.
+         */
+
+I added that last line in this patch. In more detail....
+
+The comment is suggesting that we need to take the ILOCK to
+co-ordinate with RCU protected lookups in progress before we RCU
+free the inode. That's waht RCU is supposed to do, so I'm not at all
+sure what this is actually serialising against any more.
+
+i.e. any racing radix tree lookup from this point in time is going
+to see the XFS_IRECLAIM flag and ip->i_ino == 0 while under the
+rcu_read_lock, and they will go try again after dropping all lock
+context and waiting for a bit. The inode may remain visibile until
+the next rcu grace period expires, but all lookups will abort long
+before the get anywhere near the ILOCK. And once the RCU grace
+period expires, lookups will be locked out by the rcu_read_lock(),
+the raidx tree moves to a state where the removal of the inode is
+guaranteed visibile to all CPUs, and then the object is freed.
+
+So the ILOCK should have no part in lookup serialisation, and I need
+to go look at the history of the code to determine where and why
+this was added, and whether the condition it protects against is
+still a valid concern or not....
+
+Cheers,
+
+Dave.
 -- 
-2.18.0
+Dave Chinner
+david@fromorbit.com
 
