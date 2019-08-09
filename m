@@ -2,188 +2,143 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 21C18C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 00:11:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 21198C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 00:19:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id CA6322166E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 00:11:17 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA6322166E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
+	by mail.kernel.org (Postfix) with ESMTP id DC66F2166E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 00:19:55 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC66F2166E
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6DCDE6B0003; Thu,  8 Aug 2019 20:11:17 -0400 (EDT)
+	id 6FE046B0003; Thu,  8 Aug 2019 20:19:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 68CA36B0006; Thu,  8 Aug 2019 20:11:17 -0400 (EDT)
+	id 6AE646B0006; Thu,  8 Aug 2019 20:19:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5A3136B0007; Thu,  8 Aug 2019 20:11:17 -0400 (EDT)
+	id 5CD196B0007; Thu,  8 Aug 2019 20:19:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 250296B0003
-	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 20:11:17 -0400 (EDT)
-Received: by mail-pg1-f197.google.com with SMTP id c9so2354345pgm.18
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 17:11:17 -0700 (PDT)
+Received: from mail-pl1-f199.google.com (mail-pl1-f199.google.com [209.85.214.199])
+	by kanga.kvack.org (Postfix) with ESMTP id 2778B6B0003
+	for <linux-mm@kvack.org>; Thu,  8 Aug 2019 20:19:55 -0400 (EDT)
+Received: by mail-pl1-f199.google.com with SMTP id 71so56424692pld.1
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 17:19:55 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=5GBLahA9nxsBGuTHcZQ/Dy5peQcCaISm4DdHxGLFNjc=;
-        b=WECpN0mRDrr/jiURze2O4pdpJkzDw6l5cLJMlRnreCKMpovFEZeWJs4B03rZ+j2i9r
-         v4Y0a2PxCpjoV8Yag7/b9BLnot6zgH6rB2iAZh9ddB/RhDC0xT7tHBxMYG0Q7KpJJbFq
-         FNOPwIJ0iiUmJQFlUfvyZzrokD7Z5Lp8H6j9+HBZIww0qeNeoHdoLnMi8vYn2sMCx4xr
-         WG2AHl04P8phabXSW2e7aY4kIrsEVX2WPKdl5e9lFDyqzX2xF9psOIWCqzSdrXSlfc21
-         UIc34O2fNdwNl+q7up83x9he/b0bpTNO/gL4qQmn92yP+v1qYqjXWVr9fJq4X5FXkQ2x
-         Z+pw==
-X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-X-Gm-Message-State: APjAAAWTgE1tDESZnE3LB868FAHIXAjzwq+ew9JNfOsC/jKBQM5VZ3m5
-	RcuRzCedM8029UtwPuMKYOreJRJdlixNOx3yi0a68QXf2bzX7+kTPYiS4Wzk8OPzJQpTYw0ZxXS
-	vP11uErrPgap/A2LhCRxJFIh0y6NTgYPmQ47DqBynIUZX4J351njqoZ1icxMYwEA=
-X-Received: by 2002:a63:484a:: with SMTP id x10mr14891079pgk.430.1565309476624;
-        Thu, 08 Aug 2019 17:11:16 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwA3dONS8xCRI7MZGaDEhBCoCJUiZfn0xL+2JMm+vI+BC3l4PEI1s3wgoiEWW06Onp5VjKA
-X-Received: by 2002:a63:484a:: with SMTP id x10mr14891018pgk.430.1565309475698;
-        Thu, 08 Aug 2019 17:11:15 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565309475; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id;
+        bh=9IxSCGNP7YnWW08jgcgzec4ZRDn59yn7Kohgyr8xIg8=;
+        b=j8TH1sGIqmxML27/GLalmFzAp6VxqXSsGIrKYOcVAg+BVUkKqmC2S4f1ATIHCL8IFK
+         JQipLlMI1RIQU0Yk7S0zWaXOmgJa048dRCMeGRDIrUzrzEv/UU/SqAwHVY6K4JgZgz2n
+         nMeBZt4i0L5d58nah12QlsskZx01V1qj1luadvKKDYcA444kBXrDeI8KZplpVl3hi2ub
+         FHYtuk7ZOKlR6FO/nQBk5Jx9NHYnF00FL2m4hCSxoSdtsrK1OGl1ztVxNtHervnWcMms
+         8MMDHdmpwcW3gt2Xgn7xf77Gx0i0bVpHrERjg/TV9TH+27LAN59YM6nVH/muCrJJ0Ryg
+         zSxw==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAUL1nA/yDBn4kekvtwxC0nvx+FwFFnbSksrlg1Z7XQyn/RmuMYp
+	OXe2lJLPsbp99UXjsMdWBWIwjwIP4hLCdEhqV7p7pdD/SNwCbjmkbtpclcNNkzpm2rQc8lBBIvv
+	tGJHDInO1mEKlcUKjludFrcgIWrZ6kcPQ0oZb9dy6sM0y5A78jHrhqA32EtHYLkq1ZA==
+X-Received: by 2002:a65:6891:: with SMTP id e17mr15328065pgt.305.1565309994770;
+        Thu, 08 Aug 2019 17:19:54 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxABKFMziL9p20VFzqTrcuLLDPBjBDXwrKoptuEQKG4zAtC5c6pUjJmXy2pLbqTE6Tbi1F0
+X-Received: by 2002:a65:6891:: with SMTP id e17mr15328005pgt.305.1565309993835;
+        Thu, 08 Aug 2019 17:19:53 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565309993; cv=none;
         d=google.com; s=arc-20160816;
-        b=Bztq73zJkHkRl65ZV15NB50v2FQinupjOZcUGatx+AUKdryqVyhcGp97iQICBd6OHH
-         D4vLJrSWHRvW2AthQ11mSWBTWTNJkMKbmK9tUOYSc5vPmFGAnm70zeWnH7hl9iBapiVP
-         DmJRHVvh4np1CEGeGzCg97QiaNOMu8Y9+bpWyJmUsh5DyVPpo/kEUyHO/Q8bdfngbbKo
-         OUnoRgNmRWM9ym2Hhpi8hhUAiAB1A6ajxirgEF/qNKH6VFuRPxZ8lrVl6MinZveup3DA
-         3EfT1FS6g2uq+hxkj13g8ca1v8FRGuhCnTP2tsPc8kYG9qB8PVkcGhfRzJN2e9vnq2Ri
-         8bTw==
+        b=r9BMc2CwEDdNh2rvhiddJP355IROkIyJpXzP8GZUhlBHqUcGt/ESLqaS7nW1DNyMJ8
+         MSUah3rVPyJrgPH79JKfNwQNJGlebhaXxoUzLJjM0EndbvzCUXq/LdCvQAPVEmCTSVmn
+         jfrzvZSOiJyDy7eB2qvnr1rXVrlMeD+TRW7iI+ha4BgN5d6N76NPHEIbyyjkyHSeIXgc
+         rD9x5R1CbtscgEFThlyY4tMeTEaiIevw3xYygB8o942sKwK2JTV3UMHUiUYg6zj87cxY
+         PmgA6H9Jl1xegUJsKybHBf+FVV/CEMrowTb/mGiA8O5br3wrsLt6kCmZg9sePTkoztc1
+         3Icw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=5GBLahA9nxsBGuTHcZQ/Dy5peQcCaISm4DdHxGLFNjc=;
-        b=K+hDoPOCQ614CgbZzIDeROlp8tMJ4jt8pnETJY4HCbPMMEjcyl3/MPEnfPzypaLzuf
-         OoHYnoivlNcKU/kocXYzNJgGaf54wtIMJ+Igb9nzAzjQut06bh1//PVpdp8UximrunsJ
-         rGh5vmWdJ/7J3Ndqs3FAt59/f3vtAc35TOSY9sankJj/jjQ704blfPwr010hKx1ZCD4h
-         GV15i0tHUuI50gLq7dqgPyRVIm91hCK5PH/GtGDd+2MfLqbxzejl4ZjTIP+vm5wiQjmW
-         /JNDfKozmSceeIz1CmM8fOGl3cXWBMW498NoYuGv1BhMl1IbR27VastAEb7jbdU0ECH6
-         9k8A==
+        h=message-id:date:subject:cc:to:from;
+        bh=9IxSCGNP7YnWW08jgcgzec4ZRDn59yn7Kohgyr8xIg8=;
+        b=jvvvxFWd8uQeqPdEiKVnI3QkYNFVh/QlYWI0vhdttjQqatTC/n1ItmI/sF5wXhbHQ7
+         zR08PvwT0nbv+RBRVSTNiqLcNoJk1WUwDFhB6xzdxuzkuhLqTax/NrFCRfRrFmW3Muwp
+         vcOvN0m9esgO4iQtIaqegBfBLyFE/EkXyurwNAWiuClcY5D71PBV+l/K4qhDm0GxFr7i
+         7sypiM0IQIkK2GMazyvB92aJ5EpX8IWORPJZ4pgfhN8HkDRDCxljKchohF9mbEmp+n/I
+         /z9KXrDw7L1r81FyF4O9+tJn5w4ktkMZcJwATGjSnAqWz2DswNgwd6PneyGq8j+QRoQg
+         R8uQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au. [211.29.132.246])
-        by mx.google.com with ESMTP id l9si58046141pgm.43.2019.08.08.17.11.15
-        for <linux-mm@kvack.org>;
-        Thu, 08 Aug 2019 17:11:15 -0700 (PDT)
-Received-SPF: neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.246;
+       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga06.intel.com (mga06.intel.com. [134.134.136.31])
+        by mx.google.com with ESMTPS id q13si16705560pgt.232.2019.08.08.17.19.53
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Thu, 08 Aug 2019 17:19:53 -0700 (PDT)
+Received-SPF: pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 134.134.136.31 as permitted sender) client-ip=134.134.136.31;
 Authentication-Results: mx.google.com;
-       spf=neutral (google.com: 211.29.132.246 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
-Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
-	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id 2D18943F66E;
-	Fri,  9 Aug 2019 10:11:13 +1000 (AEST)
-Received: from dave by dread.disaster.area with local (Exim 4.92)
-	(envelope-from <david@fromorbit.com>)
-	id 1hvsTt-0000ry-Vd; Fri, 09 Aug 2019 10:10:05 +1000
-Date: Fri, 9 Aug 2019 10:10:05 +1000
-From: Dave Chinner <david@fromorbit.com>
-To: Brian Foster <bfoster@redhat.com>
-Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH 22/24] xfs: track reclaimable inodes using a LRU list
-Message-ID: <20190809001005.GW7777@dread.disaster.area>
-References: <20190801021752.4986-1-david@fromorbit.com>
- <20190801021752.4986-23-david@fromorbit.com>
- <20190808163653.GB24551@bfoster>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190808163653.GB24551@bfoster>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Optus-CM-Score: 0
-X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0
-	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
-	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
-	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=16FmFycsKCjbgrCA0BcA:9
-	a=CjuIK1q_8ugA:10 a=biEYGPWJfzWAr4FL6Ov7:22
+       spf=pass (google.com: best guess record for domain of richardw.yang@linux.intel.com designates 134.134.136.31 as permitted sender) smtp.mailfrom=richardw.yang@linux.intel.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 08 Aug 2019 17:19:53 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,363,1559545200"; 
+   d="scan'208";a="169158764"
+Received: from richard.sh.intel.com (HELO localhost) ([10.239.159.54])
+  by orsmga008.jf.intel.com with ESMTP; 08 Aug 2019 17:19:51 -0700
+From: Wei Yang <richardw.yang@linux.intel.com>
+To: akpm@linux-foundation.org,
+	mhocko@suse.com,
+	vbabka@suse.cz,
+	kirill.shutemov@linux.intel.com
+Cc: linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org,
+	Wei Yang <richardw.yang@linux.intel.com>
+Subject: [PATCH v2] mm/mmap.c: refine find_vma_prev with rb_last
+Date: Fri,  9 Aug 2019 08:19:28 +0800
+Message-Id: <20190809001928.4950-1-richardw.yang@linux.intel.com>
+X-Mailer: git-send-email 2.17.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 08, 2019 at 12:36:53PM -0400, Brian Foster wrote:
-> On Thu, Aug 01, 2019 at 12:17:50PM +1000, Dave Chinner wrote:
-> > From: Dave Chinner <dchinner@redhat.com>
-> > 
-> > Now that we don't do IO from the inode reclaim code, there is no
-> > need to optimise inode scanning order for optimal IO
-> > characteristics. The AIL takes care of that for us, so now reclaim
-> > can focus on selecting the best inodes to reclaim.
-> > 
-> > Hence we can change the inode reclaim algorithm to a real LRU and
-> > remove the need to use the radix tree to track and walk inodes under
-> > reclaim. This frees up a radix tree bit and simplifies the code that
-> > marks inodes are reclaim candidates. It also simplifies the reclaim
-> > code - we don't need batching anymore and all the reclaim logic
-> > can be added to the LRU isolation callback.
-> > 
-> > Further, we get node aware reclaim at the xfs_inode level, which
-> > should help the per-node reclaim code free relevant inodes faster.
-> > 
-> > We can re-use the VFS inode lru pointers - once the inode has been
-> > reclaimed from the VFS, we can use these pointers ourselves. Hence
-> > we don't need to grow the inode to change the way we index
-> > reclaimable inodes.
-> > 
-> > Start by adding the list_lru tracking in parallel with the existing
-> > reclaim code. This makes it easier to see the LRU infrastructure
-> > separate to the reclaim algorithm changes. Especially the locking
-> > order, which is ip->i_flags_lock -> list_lru lock.
-> > 
-> > Signed-off-by: Dave Chinner <dchinner@redhat.com>
-> > ---
-> >  fs/xfs/xfs_icache.c | 31 +++++++------------------------
-> >  fs/xfs/xfs_icache.h |  1 -
-> >  fs/xfs/xfs_mount.h  |  1 +
-> >  fs/xfs/xfs_super.c  | 31 ++++++++++++++++++++++++-------
-> >  4 files changed, 32 insertions(+), 32 deletions(-)
-> > 
-> ...
-> > diff --git a/fs/xfs/xfs_super.c b/fs/xfs/xfs_super.c
-> > index a59d3a21be5c..b5c4c1b6fd19 100644
-> > --- a/fs/xfs/xfs_super.c
-> > +++ b/fs/xfs/xfs_super.c
-> ...
-> > @@ -1801,7 +1817,8 @@ xfs_fs_nr_cached_objects(
-> >  	/* Paranoia: catch incorrect calls during mount setup or teardown */
-> >  	if (WARN_ON_ONCE(!sb->s_fs_info))
-> >  		return 0;
-> > -	return xfs_reclaim_inodes_count(XFS_M(sb));
-> > +
-> > +	return list_lru_shrink_count(&XFS_M(sb)->m_inode_lru, sc);
-> 
-> Do we not need locking here,
+When addr is out of the range of the whole rb_tree, pprev will points to
+the right-most node. rb_tree facility already provides a helper
+function, rb_last, to do this task. We can leverage this instead of
+re-implement it.
 
-No locking is needed - we have no global lock that protects the
-list_lru that we could use to serialise the count - that would
-completely destroy the scalability advantages the list_lru provide.
-As it is, shrinker counts have always been inherently racy and so we
-don't really care for accuracy anywhere in the shrinker code. Hence
-there is no need to attempt to be accurate here, just like didn't
-attempt to be accurate for the per AG reclaimable inode count
-aggregation that this replaces.
+This patch refines find_vma_prev with rb_last to make it a little nicer
+to read.
 
-> or are we just skipping it because this
-> apparently maintains a count field and accuracy isn't critical? If the
-> latter, a one liner comment would be useful.
+Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
 
-I don't think it needs comments as they would be stating the
-obvious.  We don't have comments explaining this in any other
-shrinker - it's jsut assumed that anyone working with shrinkers
-already knows that the counts are not required to be exactly
-accurate...
+---
+v2: leverage rb_last
+---
+ mm/mmap.c | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
 
-Cheers,
-
-Dave.
+diff --git a/mm/mmap.c b/mm/mmap.c
+index 7e8c3e8ae75f..f7ed0afb994c 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -2270,12 +2270,9 @@ find_vma_prev(struct mm_struct *mm, unsigned long addr,
+ 	if (vma) {
+ 		*pprev = vma->vm_prev;
+ 	} else {
+-		struct rb_node *rb_node = mm->mm_rb.rb_node;
+-		*pprev = NULL;
+-		while (rb_node) {
+-			*pprev = rb_entry(rb_node, struct vm_area_struct, vm_rb);
+-			rb_node = rb_node->rb_right;
+-		}
++		struct rb_node *rb_node = rb_last(&mm->mm_rb);
++		*pprev = !rb_node ? NULL :
++			 rb_entry(rb_node, struct vm_area_struct, vm_rb);
+ 	}
+ 	return vma;
+ }
 -- 
-Dave Chinner
-david@fromorbit.com
+2.17.1
 
