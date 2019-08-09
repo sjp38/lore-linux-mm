@@ -6,81 +6,81 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DABA0C31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:02:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A1FBC433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:02:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 836A82089E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:02:13 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 836A82089E
+	by mail.kernel.org (Postfix) with ESMTP id F01DB2089E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:02:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F01DB2089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5534F6B0279; Fri,  9 Aug 2019 12:01:06 -0400 (EDT)
+	id 8838B6B027A; Fri,  9 Aug 2019 12:01:06 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3A1EC6B027B; Fri,  9 Aug 2019 12:01:06 -0400 (EDT)
+	id 85B766B027B; Fri,  9 Aug 2019 12:01:06 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 267986B027C; Fri,  9 Aug 2019 12:01:06 -0400 (EDT)
+	id 7006C6B027D; Fri,  9 Aug 2019 12:01:06 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
-	by kanga.kvack.org (Postfix) with ESMTP id CC6E36B0279
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id F03316B027A
 	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:05 -0400 (EDT)
-Received: by mail-wr1-f71.google.com with SMTP id p13so46735080wru.17
+Received: by mail-wm1-f70.google.com with SMTP id u13so1064105wmm.2
         for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=JfimiJGSRZ74FoKM+QfROHdJ/FvId7S7A6jJ2ymcvPc=;
-        b=IntPekZ8eyO+cD1K4SlFcXEwnJlfZBmMrxqjczTYPrXnZomL0cDKcPqI7DQJt0gDGd
-         aGoeDdchO35pxNi7+L6ev5WjLgfI+fInQkjk3lCamsD1lxz6+l1sKm5Y7evOdn68O4RI
-         SuBIDru8XRvOwjOTF6TrMADBGV1oDrgIxNyhtIyYq/j7a/4OitdeCc5/MqvvhBVOav7n
-         tL4k8Q0ijtbqwoMcRWOJxgrrTRKvvDPLr8Rf5B6gRV+pTQ0WmV6OTHPETyG4u4A5VQp/
-         9yxCgYPJTZXnrJRIh+fjSAMmg3qdAkXrymcWH0RCLBpqXrGr+P8Sf19sTWR8txF6d7EQ
-         Vw3g==
+        bh=qy34Vy4K1KZXwwomkPBBvLBBAY+/UvLxonO7Ta9tRqc=;
+        b=jnlGoDBy5iR7Q2a8o6cEN+bwKwNun1X0ASdezgWPHAV2Kv3lahBZ1QuJNFZ8GtmMKn
+         jFsQK09U9Mk2agWf3a1lHVmynth/HG+ZN7CYW1Nkp6e2cndLFXeln8VIDaXiUK+6louh
+         797mv6a+gQ9+sEUmTlGx245YDK2JVecBqq1bo2T53YLKT+t0bADUHquQauY8drfFonA/
+         m6T7OYkWXvmzQK0nq9iA+r4zVyDnoOHR8rHjr2Y6gvgK19g87UJy/c4G/15OrZCUk2qG
+         spBYTFEsWKsmbJ2M2Hw7HH2eM/GWEjFST7VsN07uBP5dO/OOW0kiBXcDkLs7POVTDOMA
+         YtZg==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAWkhhEQxW1x36wyWVIE675noMipokZq0J1a/d0LOZamt8dQfY3n
-	hXWZpg9vAYxv3FhJbLGmNojlWt1/C7K4Un121vWc9i5Dfvcm/pvkeUKDGqh6rvzjXG69tMuv8eu
-	tJpQ5LwofpAuDOJZnn0dJvq2yitOj9Etbbp+0dQk6jjXLqyuVOy6GWk5pPo2l6rp2GA==
-X-Received: by 2002:a5d:4a45:: with SMTP id v5mr17068983wrs.108.1565366465432;
+X-Gm-Message-State: APjAAAW3MNN4B2fY1egv4Qk9pXa511bz0hA2boDNL2EubMVw/2lW+1AK
+	fHApxydOnMbME8eQ6rdJRrCS2f083L/3m8iRq5j8DOhBUqX01DntW0oefGSm2X9rddJ4YJH6aOs
+	DjdTOekMXaoHvUX8PlqMiP2vE1Sl9IyIkEYnfTJW0k2ovmUX2DRSj6iRUFVdRJAdm+A==
+X-Received: by 2002:a5d:4e02:: with SMTP id p2mr24641319wrt.182.1565366465526;
         Fri, 09 Aug 2019 09:01:05 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqz/1cgJAT0TpA2rge7wZiHVAAsXRH00hiF6HHWLa3qCeurjlFC24P7wmLjuXUECUjhLE1Lt
-X-Received: by 2002:a5d:4a45:: with SMTP id v5mr17068889wrs.108.1565366464480;
-        Fri, 09 Aug 2019 09:01:04 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366464; cv=none;
+X-Google-Smtp-Source: APXvYqzL6RfVL9LtpsSBRbuOzjRKHoZA8WoFGijFnwbk9CzzEs+MUgTwqLouqKMMw3SOpYuQr4IQ
+X-Received: by 2002:a5d:4e02:: with SMTP id p2mr24641082wrt.182.1565366463208;
+        Fri, 09 Aug 2019 09:01:03 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565366463; cv=none;
         d=google.com; s=arc-20160816;
-        b=0YpZc75GAA81EgfVi4A20Zd7cVHgfrNcquBygJFFWwui275co5w5/UafkOi+TlwhK3
-         SK1mzA9jiJMRaOpnC+Q7b8Zv7aYrmjQbo2dX+Jm9vwmfjcBz+KGGphcbxHR3S4WnP4iU
-         G6If1pDQlsQInjxwqupicgHzdlR6dTFR84ijQG8i7bV6gCAM6AKolZZNnVB5YzEGrmBZ
-         /q0ufdpPa4TzUoT/4nRFq/hWi0Fm48vEeJ3ZpX2r2FCZbo6dtxbXdd/aLX2xYx3AoBj+
-         oT6mDzaE4dJjuwVEovGMqEV9yLMIFnl2qr9uoTIWipqOcSphbcTZVNjmoArIS+j6Ipi1
-         z28A==
+        b=OuwfTNin0dkZDQE7FrkDR5KqhKbzCeed0uWfo2cYhhr/xqaPTe05tb81/0Y0TJo+xO
+         0I5R+xETTBzpIeMt5hyayHKk1i3TedTbgVdCgfWiL4cb8e4TbtjWku3/gB314eAvNRIz
+         X9RoiF7q+vAIHCzOsnLr7R3ET7U10tDbDHd5LLpp47VfrjDNpf1S2Jcyn/Hu2zEV7st4
+         Ct9Vu6K+VZQJUMq6yxYmM+t2OHqPia3jmdLd9MunI/qYtHxzdouNf5nS6gmyrMiAkyDY
+         pFPFmsiNOxjJg0nZEiuRKj8FaC6B7kQLJVsNe+8Vd+hEzZoWTDAPVjfVUHiyaWCxlbts
+         Xn5g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=JfimiJGSRZ74FoKM+QfROHdJ/FvId7S7A6jJ2ymcvPc=;
-        b=onfviubmnjoC11vmby8fDrVg6SKES2eTuCPXgNWB+n9SsDtfzBQoFCZB5PmeKfb2nk
-         9LxhFmzRfwJE6wTAqnMZkFJoV6BisdwHZ2I72Wg/jUPtYZLnDkZ3HAf7UNhYaA3XsYde
-         vZvbHM0Y1FDUQwntmzVwTMSSRtT3a4Ebh8QK/f4whCD4q/703VSCSOv5Ru07kzrDSNnw
-         PajTp6gq8HZpM6lZVGoSs3Mn/kE9337Wp0RtdclXvDVLwMkSAOA6ajlIj63SqrK6KmBB
-         XuKjxaJq0DQ5BrnV9NDhvoCY5FUPO03SLetm5ztSs0C++Ae4+ehL6ayH0CekWFu3p9Aj
-         MJ2A==
+        bh=qy34Vy4K1KZXwwomkPBBvLBBAY+/UvLxonO7Ta9tRqc=;
+        b=Gdd5488n3zuAdt7Su1ZyjkZv5nunJRX/hS8c/cGbP7O1WldjmrLMg7cBbT7239sqTD
+         igS114z+5PcZ907VVBg6rhBf0PSqdlSxFQQI2/r4ZuopYLLdwEuAIDjHhNAYSCJR8sIa
+         ByzLbgbtWa6v0vZufalJwU3FTluV61TrDscpIw5hZ8qZYJZflg2zMG4aOOCXqlXJ35kp
+         bhJrfRETN8/H/knjJUGxX7JAPgoE0EEo6xFTSJKN91F0pqE82mH4uB1HEZt0y1bSbKnb
+         HYNJwwsae9Gzkei2LguPhm+l0hAnfFv+PGZyOKWeFK8r572iKnBUWoLI18yUmIQXKbEh
+         1duA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id d8si82301285wrr.138.2019.08.09.09.01.04
+        by mx.google.com with ESMTPS id f2si89538546wrv.378.2019.08.09.09.01.02
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 09:01:04 -0700 (PDT)
+        Fri, 09 Aug 2019 09:01:03 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id DE002305D3E1;
-	Fri,  9 Aug 2019 19:01:03 +0300 (EEST)
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 7549D305D3E0;
+	Fri,  9 Aug 2019 19:01:02 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id C1A4A305B7A0;
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id 4B1D9305B7A1;
 	Fri,  9 Aug 2019 19:01:01 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
@@ -98,10 +98,11 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
 	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>,
-	Sean Christopherson <sean.j.christopherson@intel.com>
-Subject: [RFC PATCH v6 28/92] kvm: x86: consult the page tracking from kvm_mmu_get_page() and __direct_map()
-Date: Fri,  9 Aug 2019 18:59:43 +0300
-Message-Id: <20190809160047.8319-29-alazar@bitdefender.com>
+	=?UTF-8?q?Nicu=C8=99or=20C=C3=AE=C8=9Bu?= <ncitu@bitdefender.com>,
+	Marian Rotariu <marian.c.rotariu@gmail.com>
+Subject: [RFC PATCH v6 27/92] kvm: introspection: use page track
+Date: Fri,  9 Aug 2019 18:59:42 +0300
+Message-Id: <20190809160047.8319-28-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -115,62 +116,537 @@ List-ID: <linux-mm.kvack.org>
 
 From: Mihai Donțu <mdontu@bitdefender.com>
 
-KVM doesn't normally need to keep track that closely to page access bits,
-however for the introspection subsystem this is essential.
+From preread, prewrite and preexec callbacks we will send the
+KVMI_EVENT_PF events caused by access rights enforced by the introspection
+tool.
 
-Suggested-by: Paolo Bonzini <pbonzini@redhat.com>
-Link: https://marc.info/?l=kvm&m=149804987417131&w=2
-CC: Sean Christopherson <sean.j.christopherson@intel.com>
 Signed-off-by: Mihai Donțu <mdontu@bitdefender.com>
+Co-developed-by: Nicușor Cîțu <ncitu@bitdefender.com>
+Signed-off-by: Nicușor Cîțu <ncitu@bitdefender.com>
+Co-developed-by: Marian Rotariu <marian.c.rotariu@gmail.com>
+Signed-off-by: Marian Rotariu <marian.c.rotariu@gmail.com>
+Co-developed-by: Adalbert Lazăr <alazar@bitdefender.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- arch/x86/kvm/mmu.c | 21 +++++++++++++++++++--
- 1 file changed, 19 insertions(+), 2 deletions(-)
+ arch/x86/include/asm/kvmi_host.h |  12 ++
+ arch/x86/kvm/kvmi.c              |  45 +++++
+ include/uapi/linux/kvmi.h        |   4 +
+ virt/kvm/kvmi.c                  | 293 ++++++++++++++++++++++++++++++-
+ virt/kvm/kvmi_int.h              |  21 +++
+ 5 files changed, 374 insertions(+), 1 deletion(-)
+ create mode 100644 arch/x86/include/asm/kvmi_host.h
 
-diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index 9eaf6cc776a9..810e3e5bd575 100644
---- a/arch/x86/kvm/mmu.c
-+++ b/arch/x86/kvm/mmu.c
-@@ -2491,6 +2491,20 @@ static void clear_sp_write_flooding_count(u64 *spte)
- 	__clear_sp_write_flooding_count(sp);
+diff --git a/arch/x86/include/asm/kvmi_host.h b/arch/x86/include/asm/kvmi_host.h
+new file mode 100644
+index 000000000000..7ab6dd71a0c2
+--- /dev/null
++++ b/arch/x86/include/asm/kvmi_host.h
+@@ -0,0 +1,12 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _ASM_X86_KVMI_HOST_H
++#define _ASM_X86_KVMI_HOST_H
++
++#include <asm/kvm_host.h>
++#include <asm/kvm_page_track.h>
++
++struct kvmi_arch_mem_access {
++	unsigned long active[KVM_PAGE_TRACK_MAX][BITS_TO_LONGS(KVM_MEM_SLOTS_NUM)];
++};
++
++#endif /* _ASM_X86_KVMI_HOST_H */
+diff --git a/arch/x86/kvm/kvmi.c b/arch/x86/kvm/kvmi.c
+index 97c72cdc6fb0..d7b9201582b4 100644
+--- a/arch/x86/kvm/kvmi.c
++++ b/arch/x86/kvm/kvmi.c
+@@ -91,6 +91,12 @@ void kvmi_arch_setup_event(struct kvm_vcpu *vcpu, struct kvmi_event *ev)
+ 	kvmi_get_msrs(vcpu, event);
  }
  
-+static unsigned int kvm_mmu_page_track_acc(struct kvm_vcpu *vcpu, gfn_t gfn,
-+					   unsigned int acc)
++bool kvmi_arch_pf_event(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
++			u8 access)
 +{
-+	if (kvm_page_track_is_active(vcpu, gfn, KVM_PAGE_TRACK_PREREAD))
-+		acc &= ~ACC_USER_MASK;
-+	if (kvm_page_track_is_active(vcpu, gfn, KVM_PAGE_TRACK_PREWRITE) ||
-+	    kvm_page_track_is_active(vcpu, gfn, KVM_PAGE_TRACK_WRITE))
-+		acc &= ~ACC_WRITE_MASK;
-+	if (kvm_page_track_is_active(vcpu, gfn, KVM_PAGE_TRACK_PREEXEC))
-+		acc &= ~ACC_EXEC_MASK;
-+
-+	return acc;
++	return KVMI_EVENT_ACTION_CONTINUE; /* TODO */
 +}
 +
- static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
- 					     gfn_t gfn,
- 					     gva_t gaddr,
-@@ -2511,7 +2525,7 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
- 	role.direct = direct;
- 	if (role.direct)
- 		role.cr4_pae = 0;
--	role.access = access;
-+	role.access = kvm_mmu_page_track_acc(vcpu, gfn, access);
- 	if (!vcpu->arch.mmu->direct_map
- 	    && vcpu->arch.mmu->root_level <= PT32_ROOT_LEVEL) {
- 		quadrant = gaddr >> (PAGE_SHIFT + (PT64_PT_BITS * level));
-@@ -3234,7 +3248,10 @@ static int __direct_map(struct kvm_vcpu *vcpu, int write, int map_writable,
+ int kvmi_arch_cmd_get_vcpu_info(struct kvm_vcpu *vcpu,
+ 				struct kvmi_get_vcpu_info_reply *rpl)
+ {
+@@ -102,3 +108,42 @@ int kvmi_arch_cmd_get_vcpu_info(struct kvm_vcpu *vcpu,
+ 	return 0;
+ }
  
- 	for_each_shadow_entry(vcpu, (u64)gfn << PAGE_SHIFT, iterator) {
- 		if (iterator.level == level) {
--			emulate = mmu_set_spte(vcpu, iterator.sptep, ACC_ALL,
-+			unsigned int acc = kvm_mmu_page_track_acc(vcpu, gfn,
-+								  ACC_ALL);
++static const struct {
++	unsigned int allow_bit;
++	enum kvm_page_track_mode track_mode;
++} track_modes[] = {
++	{ KVMI_PAGE_ACCESS_R, KVM_PAGE_TRACK_PREREAD },
++	{ KVMI_PAGE_ACCESS_W, KVM_PAGE_TRACK_PREWRITE },
++	{ KVMI_PAGE_ACCESS_X, KVM_PAGE_TRACK_PREEXEC },
++};
 +
-+			emulate = mmu_set_spte(vcpu, iterator.sptep, acc,
- 					       write, level, gfn, pfn, prefault,
- 					       map_writable);
- 			direct_pte_prefetch(vcpu, iterator.sptep);
++void kvmi_arch_update_page_tracking(struct kvm *kvm,
++				    struct kvm_memory_slot *slot,
++				    struct kvmi_mem_access *m)
++{
++	struct kvmi_arch_mem_access *arch = &m->arch;
++	int i;
++
++	if (!slot) {
++		slot = gfn_to_memslot(kvm, m->gfn);
++		if (!slot)
++			return;
++	}
++
++	for (i = 0; i < ARRAY_SIZE(track_modes); i++) {
++		unsigned int allow_bit = track_modes[i].allow_bit;
++		enum kvm_page_track_mode mode = track_modes[i].track_mode;
++		bool slot_tracked = test_bit(slot->id, arch->active[mode]);
++
++		if (m->access & allow_bit) {
++			if (slot_tracked) {
++				kvm_slot_page_track_remove_page(kvm, slot,
++								m->gfn, mode);
++				clear_bit(slot->id, arch->active[mode]);
++			}
++		} else if (!slot_tracked) {
++			kvm_slot_page_track_add_page(kvm, slot, m->gfn, mode);
++			set_bit(slot->id, arch->active[mode]);
++		}
++	}
++}
+diff --git a/include/uapi/linux/kvmi.h b/include/uapi/linux/kvmi.h
+index aa5bc909e278..c56e676ddb2b 100644
+--- a/include/uapi/linux/kvmi.h
++++ b/include/uapi/linux/kvmi.h
+@@ -70,6 +70,10 @@ enum {
+ #define KVMI_EVENT_ACTION_RETRY         1
+ #define KVMI_EVENT_ACTION_CRASH         2
+ 
++#define KVMI_PAGE_ACCESS_R (1 << 0)
++#define KVMI_PAGE_ACCESS_W (1 << 1)
++#define KVMI_PAGE_ACCESS_X (1 << 2)
++
+ #define KVMI_MSG_SIZE (4096 - sizeof(struct kvmi_msg_hdr))
+ 
+ struct kvmi_msg_hdr {
+diff --git a/virt/kvm/kvmi.c b/virt/kvm/kvmi.c
+index d0d9adf5b6ed..5cbc82b284f4 100644
+--- a/virt/kvm/kvmi.c
++++ b/virt/kvm/kvmi.c
+@@ -11,10 +11,27 @@
+ #include <linux/bitmap.h>
+ 
+ static struct kmem_cache *msg_cache;
++static struct kmem_cache *radix_cache;
+ static struct kmem_cache *job_cache;
+ 
+ static bool kvmi_create_vcpu_event(struct kvm_vcpu *vcpu);
+ static void kvmi_abort_events(struct kvm *kvm);
++static bool kvmi_track_preread(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
++	u8 *new, int bytes, struct kvm_page_track_notifier_node *node,
++	bool *data_ready);
++static bool kvmi_track_prewrite(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
++	const u8 *new, int bytes, struct kvm_page_track_notifier_node *node);
++static bool kvmi_track_preexec(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
++	struct kvm_page_track_notifier_node *node);
++static void kvmi_track_create_slot(struct kvm *kvm,
++	struct kvm_memory_slot *slot, unsigned long npages,
++	struct kvm_page_track_notifier_node *node);
++static void kvmi_track_flush_slot(struct kvm *kvm, struct kvm_memory_slot *slot,
++	struct kvm_page_track_notifier_node *node);
++
++static const u8 full_access  =	KVMI_PAGE_ACCESS_R |
++				KVMI_PAGE_ACCESS_W |
++				KVMI_PAGE_ACCESS_X;
+ 
+ void *kvmi_msg_alloc(void)
+ {
+@@ -34,23 +51,96 @@ void kvmi_msg_free(void *addr)
+ 		kmem_cache_free(msg_cache, addr);
+ }
+ 
++static struct kvmi_mem_access *__kvmi_get_gfn_access(struct kvmi *ikvm,
++						     const gfn_t gfn)
++{
++	return radix_tree_lookup(&ikvm->access_tree, gfn);
++}
++
++static int kvmi_get_gfn_access(struct kvmi *ikvm, const gfn_t gfn,
++			       u8 *access)
++{
++	struct kvmi_mem_access *m;
++
++	*access = full_access;
++
++	read_lock(&ikvm->access_tree_lock);
++	m = __kvmi_get_gfn_access(ikvm, gfn);
++	if (m)
++		*access = m->access;
++	read_unlock(&ikvm->access_tree_lock);
++
++	return m ? 0 : -1;
++}
++
++static bool kvmi_restricted_access(struct kvmi *ikvm, gpa_t gpa, u8 access)
++{
++	u8 allowed_access;
++	int err;
++
++	err = kvmi_get_gfn_access(ikvm, gpa_to_gfn(gpa), &allowed_access);
++
++	if (err)
++		return false;
++
++	/*
++	 * We want to be notified only for violations involving access
++	 * bits that we've specifically cleared
++	 */
++	if ((~allowed_access) & access)
++		return true;
++
++	return false;
++}
++
++static void kvmi_clear_mem_access(struct kvm *kvm)
++{
++	void **slot;
++	struct radix_tree_iter iter;
++	struct kvmi *ikvm = IKVM(kvm);
++	int idx;
++
++	idx = srcu_read_lock(&kvm->srcu);
++	spin_lock(&kvm->mmu_lock);
++	write_lock(&ikvm->access_tree_lock);
++
++	radix_tree_for_each_slot(slot, &ikvm->access_tree, &iter, 0) {
++		struct kvmi_mem_access *m = *slot;
++
++		m->access = full_access;
++		kvmi_arch_update_page_tracking(kvm, NULL, m);
++
++		radix_tree_iter_delete(&ikvm->access_tree, &iter, slot);
++		kmem_cache_free(radix_cache, m);
++	}
++
++	write_unlock(&ikvm->access_tree_lock);
++	spin_unlock(&kvm->mmu_lock);
++	srcu_read_unlock(&kvm->srcu, idx);
++}
++
+ static void kvmi_cache_destroy(void)
+ {
+ 	kmem_cache_destroy(msg_cache);
+ 	msg_cache = NULL;
++	kmem_cache_destroy(radix_cache);
++	radix_cache = NULL;
+ 	kmem_cache_destroy(job_cache);
+ 	job_cache = NULL;
+ }
+ 
+ static int kvmi_cache_create(void)
+ {
++	radix_cache = kmem_cache_create("kvmi_radix_tree",
++					sizeof(struct kvmi_mem_access),
++					0, SLAB_ACCOUNT, NULL);
+ 	job_cache = kmem_cache_create("kvmi_job",
+ 				      sizeof(struct kvmi_job),
+ 				      0, SLAB_ACCOUNT, NULL);
+ 	msg_cache = kmem_cache_create("kvmi_msg", KVMI_MSG_SIZE_ALLOC,
+ 				      4096, SLAB_ACCOUNT, NULL);
+ 
+-	if (!msg_cache || !job_cache) {
++	if (!msg_cache || !radix_cache || !job_cache) {
+ 		kvmi_cache_destroy();
+ 
+ 		return -1;
+@@ -77,6 +167,10 @@ static bool alloc_kvmi(struct kvm *kvm, const struct kvm_introspection *qemu)
+ 	if (!ikvm)
+ 		return false;
+ 
++	/* see comments of radix_tree_preload() - no direct reclaim */
++	INIT_RADIX_TREE(&ikvm->access_tree, GFP_KERNEL & ~__GFP_DIRECT_RECLAIM);
++	rwlock_init(&ikvm->access_tree_lock);
++
+ 	atomic_set(&ikvm->ev_seq, 0);
+ 
+ 	set_bit(KVMI_GET_VERSION, ikvm->cmd_allow_mask);
+@@ -85,6 +179,12 @@ static bool alloc_kvmi(struct kvm *kvm, const struct kvm_introspection *qemu)
+ 
+ 	memcpy(&ikvm->uuid, &qemu->uuid, sizeof(ikvm->uuid));
+ 
++	ikvm->kptn_node.track_preread = kvmi_track_preread;
++	ikvm->kptn_node.track_prewrite = kvmi_track_prewrite;
++	ikvm->kptn_node.track_preexec = kvmi_track_preexec;
++	ikvm->kptn_node.track_create_slot = kvmi_track_create_slot;
++	ikvm->kptn_node.track_flush_slot = kvmi_track_flush_slot;
++
+ 	ikvm->kvm = kvm;
+ 	kvm->kvmi = ikvm;
+ 
+@@ -276,6 +376,179 @@ void kvmi_vcpu_uninit(struct kvm_vcpu *vcpu)
+ 	vcpu->kvmi = NULL;
+ }
+ 
++static bool is_pf_of_interest(struct kvm_vcpu *vcpu, gpa_t gpa, u8 access)
++{
++	struct kvm *kvm = vcpu->kvm;
++
++	if (kvm_mmu_nested_pagefault(vcpu))
++		return false;
++
++	/* Have we shown interest in this page? */
++	return kvmi_restricted_access(IKVM(kvm), gpa, access);
++}
++
++static bool __kvmi_track_preread(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
++	u8 *new, int bytes, struct kvm_page_track_notifier_node *node,
++	bool *data_ready)
++{
++	bool ret;
++
++	if (!is_pf_of_interest(vcpu, gpa, KVMI_PAGE_ACCESS_R))
++		return true;
++
++	ret = kvmi_arch_pf_event(vcpu, gpa, gva, KVMI_PAGE_ACCESS_R);
++
++	return ret;
++}
++
++static bool kvmi_track_preread(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
++	u8 *new, int bytes, struct kvm_page_track_notifier_node *node,
++	bool *data_ready)
++{
++	struct kvmi *ikvm;
++	bool ret = true;
++
++	ikvm = kvmi_get(vcpu->kvm);
++	if (!ikvm)
++		return true;
++
++	if (is_event_enabled(vcpu, KVMI_EVENT_PF))
++		ret = __kvmi_track_preread(vcpu, gpa, gva, new, bytes, node,
++					   data_ready);
++
++	kvmi_put(vcpu->kvm);
++
++	return ret;
++}
++
++static bool __kvmi_track_prewrite(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
++	const u8 *new, int bytes,
++	struct kvm_page_track_notifier_node *node)
++{
++	if (!is_pf_of_interest(vcpu, gpa, KVMI_PAGE_ACCESS_W))
++		return true;
++
++	return kvmi_arch_pf_event(vcpu, gpa, gva, KVMI_PAGE_ACCESS_W);
++}
++
++static bool kvmi_track_prewrite(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
++	const u8 *new, int bytes,
++	struct kvm_page_track_notifier_node *node)
++{
++	struct kvmi *ikvm;
++	bool ret = true;
++
++	ikvm = kvmi_get(vcpu->kvm);
++	if (!ikvm)
++		return true;
++
++	if (is_event_enabled(vcpu, KVMI_EVENT_PF))
++		ret = __kvmi_track_prewrite(vcpu, gpa, gva, new, bytes, node);
++
++	kvmi_put(vcpu->kvm);
++
++	return ret;
++}
++
++static bool __kvmi_track_preexec(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
++	struct kvm_page_track_notifier_node *node)
++{
++	if (!is_pf_of_interest(vcpu, gpa, KVMI_PAGE_ACCESS_X))
++		return true;
++
++	return kvmi_arch_pf_event(vcpu, gpa, gva, KVMI_PAGE_ACCESS_X);
++}
++
++static bool kvmi_track_preexec(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
++	struct kvm_page_track_notifier_node *node)
++{
++	struct kvmi *ikvm;
++	bool ret = true;
++
++	ikvm = kvmi_get(vcpu->kvm);
++	if (!ikvm)
++		return true;
++
++	if (is_event_enabled(vcpu, KVMI_EVENT_PF))
++		ret = __kvmi_track_preexec(vcpu, gpa, gva, node);
++
++	kvmi_put(vcpu->kvm);
++
++	return ret;
++}
++
++static void kvmi_track_create_slot(struct kvm *kvm,
++	struct kvm_memory_slot *slot,
++	unsigned long npages,
++	struct kvm_page_track_notifier_node *node)
++{
++	struct kvmi *ikvm;
++	gfn_t start = slot->base_gfn;
++	const gfn_t end = start + npages;
++	int idx;
++
++	ikvm = kvmi_get(kvm);
++	if (!ikvm)
++		return;
++
++	idx = srcu_read_lock(&kvm->srcu);
++	spin_lock(&kvm->mmu_lock);
++	read_lock(&ikvm->access_tree_lock);
++
++	while (start < end) {
++		struct kvmi_mem_access *m;
++
++		m = __kvmi_get_gfn_access(ikvm, start);
++		if (m)
++			kvmi_arch_update_page_tracking(kvm, slot, m);
++		start++;
++	}
++
++	read_unlock(&ikvm->access_tree_lock);
++	spin_unlock(&kvm->mmu_lock);
++	srcu_read_unlock(&kvm->srcu, idx);
++
++	kvmi_put(kvm);
++}
++
++static void kvmi_track_flush_slot(struct kvm *kvm, struct kvm_memory_slot *slot,
++	struct kvm_page_track_notifier_node *node)
++{
++	struct kvmi *ikvm;
++	gfn_t start = slot->base_gfn;
++	const gfn_t end = start + slot->npages;
++	int idx;
++
++	ikvm = kvmi_get(kvm);
++	if (!ikvm)
++		return;
++
++	idx = srcu_read_lock(&kvm->srcu);
++	spin_lock(&kvm->mmu_lock);
++	write_lock(&ikvm->access_tree_lock);
++
++	while (start < end) {
++		struct kvmi_mem_access *m;
++
++		m = __kvmi_get_gfn_access(ikvm, start);
++		if (m) {
++			u8 prev_access = m->access;
++
++			m->access = full_access;
++			kvmi_arch_update_page_tracking(kvm, slot, m);
++			m->access = prev_access;
++		}
++
++		start++;
++	}
++
++	write_unlock(&ikvm->access_tree_lock);
++	spin_unlock(&kvm->mmu_lock);
++	srcu_read_unlock(&kvm->srcu, idx);
++
++	kvmi_put(kvm);
++}
++
+ static void kvmi_end_introspection(struct kvmi *ikvm)
+ {
+ 	struct kvm *kvm = ikvm->kvm;
+@@ -290,6 +563,22 @@ static void kvmi_end_introspection(struct kvmi *ikvm)
+ 	 */
+ 	kvmi_abort_events(kvm);
+ 
++	/*
++	 * This may sleep on synchronize_srcu() so it's not allowed to be
++	 * called under kvmi_put().
++	 * Also synchronize_srcu() may deadlock on (page tracking) read-side
++	 * regions that are waiting for reply to events, so must be called
++	 * after kvmi_abort_events().
++	 */
++	kvm_page_track_unregister_notifier(kvm, &ikvm->kptn_node);
++
++	/*
++	 * This function uses kvm->mmu_lock so it's not allowed to be
++	 * called under kvmi_put(). It can reach a deadlock if called
++	 * from kvm_mmu_load -> kvmi_tracked_gfn -> kvmi_put.
++	 */
++	kvmi_clear_mem_access(kvm);
++
+ 	/*
+ 	 * At this moment the socket is shut down, no more commands will come
+ 	 * from the introspector, and the only way into the introspection is
+@@ -351,6 +640,8 @@ int kvmi_hook(struct kvm *kvm, const struct kvm_introspection *qemu)
+ 		goto err_alloc;
+ 	}
+ 
++	kvm_page_track_register_notifier(kvm, &ikvm->kptn_node);
++
+ 	/*
+ 	 * Make sure all the KVM/KVMI structures are linked and no pointer
+ 	 * is read as NULL after the reference count has been set.
+diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
+index 7cff91bc1acc..d798908d0f70 100644
+--- a/virt/kvm/kvmi_int.h
++++ b/virt/kvm/kvmi_int.h
+@@ -6,6 +6,7 @@
+ #include <linux/kvm_host.h>
+ 
+ #include <uapi/linux/kvmi.h>
++#include <asm/kvmi_host.h>
+ 
+ #define kvmi_debug(ikvm, fmt, ...) \
+ 	kvm_debug("%pU " fmt, &ikvm->uuid, ## __VA_ARGS__)
+@@ -104,6 +105,10 @@ struct kvmi_vcpu {
+ 
+ struct kvmi {
+ 	struct kvm *kvm;
++	struct kvm_page_track_notifier_node kptn_node;
++
++	struct radix_tree_root access_tree;
++	rwlock_t access_tree_lock;
+ 
+ 	struct socket *sock;
+ 	struct task_struct *recv;
+@@ -118,6 +123,17 @@ struct kvmi {
+ 	bool cmd_reply_disabled;
+ };
+ 
++struct kvmi_mem_access {
++	gfn_t gfn;
++	u8 access;
++	struct kvmi_arch_mem_access arch;
++};
++
++static inline bool is_event_enabled(struct kvm_vcpu *vcpu, int event)
++{
++	return false; /* TODO */
++}
++
+ /* kvmi_msg.c */
+ bool kvmi_sock_get(struct kvmi *ikvm, int fd);
+ void kvmi_sock_shutdown(struct kvmi *ikvm);
+@@ -138,7 +154,12 @@ int kvmi_add_job(struct kvm_vcpu *vcpu,
+ 		 void *ctx, void (*free_fct)(void *ctx));
+ 
+ /* arch */
++void kvmi_arch_update_page_tracking(struct kvm *kvm,
++				    struct kvm_memory_slot *slot,
++				    struct kvmi_mem_access *m);
+ void kvmi_arch_setup_event(struct kvm_vcpu *vcpu, struct kvmi_event *ev);
++bool kvmi_arch_pf_event(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
++			u8 access);
+ int kvmi_arch_cmd_get_vcpu_info(struct kvm_vcpu *vcpu,
+ 				struct kvmi_get_vcpu_info_reply *rpl);
+ 
 
