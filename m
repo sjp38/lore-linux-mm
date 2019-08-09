@@ -2,236 +2,437 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5ED6CC433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 71561C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:26 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 08AEB214C6
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08AEB214C6
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id F1F062085B
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F1F062085B
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C2A966B02E9; Fri,  9 Aug 2019 12:03:12 -0400 (EDT)
+	id B8D8D6B02EC; Fri,  9 Aug 2019 12:03:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C03236B02EA; Fri,  9 Aug 2019 12:03:12 -0400 (EDT)
+	id B3F1E6B02ED; Fri,  9 Aug 2019 12:03:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AA2686B02EB; Fri,  9 Aug 2019 12:03:12 -0400 (EDT)
+	id A2F836B02EE; Fri,  9 Aug 2019 12:03:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 5EAC26B02E9
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:03:12 -0400 (EDT)
-Received: by mail-ed1-f72.google.com with SMTP id a5so60560896edx.12
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:03:12 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 51FE46B02EC
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:03:24 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id l16so1451857wmg.2
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:03:24 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:date:from:to
-         :cc:subject:message-id:references:mime-version:content-disposition
-         :in-reply-to:user-agent;
-        bh=bKQctIR9RQ3N0yUOd7/19BsHR17UqL4s3TSC6lop2qE=;
-        b=rJsNJQNAIddJQy5RxcHw+gZClLU25uVFKil7efSYao0d146pHM1suVOmYiOHg4iEIK
-         jyZ5KtqtPWaexBiOPtfjZOHNfc7y9CPTTkUV/AWSRXh2NL2WMouxYZ2ISp0pekZgzSVN
-         FDSTVAP3h58oCntv68qGKthjOSW/cV8pMIHRQyH8HywT5FIjakJOeTOQoebTFmb+6Cq+
-         gZmJBNUhmS28N1aPZhJJxMD7ZwBv3jlGxZU7HdmOajxWpcoVTEPAGGD12BLNXbV1vF8E
-         Hd1GCj01havbsv/ejmpCHqCC4wbqVnYgicdZiPlSn5fEaUus4hpF3lSJPb+ya/z2mE7D
-         FQQA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-X-Gm-Message-State: APjAAAVPfifv2u/LKPjplebGFQI24uh8HOhyCEpe9d0JOp1OMLnZl2JR
-	gtjZ6YcyaYW798fcKT++CbY4n4GW7dz0bOIug+RdnejbFpgWCv2wZcqoTrQG4vBv/JFgemaRLFp
-	z7SbRtJ2TTdvvNisGAVD8foC8s8/gecYfk4Rrz8eTAQmqYAoOCVh76chjIvB//2EDGA==
-X-Received: by 2002:a17:906:95d0:: with SMTP id n16mr19162944ejy.116.1565366591923;
-        Fri, 09 Aug 2019 09:03:11 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwYsevigK/YjNw816mqr9nvOZLHMrK5EC97UFCZvt/yvZpbd0biW7GZDxYCGWaG96sTePWP
-X-Received: by 2002:a17:906:95d0:: with SMTP id n16mr19162808ejy.116.1565366590497;
-        Fri, 09 Aug 2019 09:03:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366590; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:date:message-id:in-reply-to:references:mime-version
+         :content-transfer-encoding;
+        bh=QkhPHmDRDm9xz6GVeVMZJK2nYW4a7RE6/ZIT/O9pC1s=;
+        b=VCLspdiyorkhqb4Gc1dchU7PF2dQK8udEVwHQBYyzUuHbzVwmKLmtceQzh9qROK867
+         LZzVBl+iS3Aol9Y7NxSwQZg8YIVM1JcCU6HsUw+5IQn3T8rswMcktz08HM7w8FGn6seD
+         aiUuGyPfZT7FN/EnTwN54BMDBTg/7TeerS0YsdY7Rak5Ul0Z75au4Q5i0hVCk+VrdPTI
+         XAnY5fBvde+MtegqcAyljs8Ued35hpvgy+rHD88pCqdJ+J0RMd9W0ZMWeuWOD2A4Vi1k
+         NMPKIOhQilP4Q03LTFwnP5fU/3X7Uhk0d5Wv+2fByLh5AKCMvsxhGV87+VCC1VsC8+kW
+         vsSQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
+X-Gm-Message-State: APjAAAUIHLEJKNENJ2o2EXs2F+qaw6FAx/h8SzGkfrUFpMr/YXzO++UQ
+	7DNCenjQ85U5PPu1PUwCoPKCFGeTso+gOcgZ87J0mkcpnliy3tL2yvLjaW4QbnkgyCrPh04Ublv
+	4MuSri58KNyZvnvYww7EXiESa+WbAqiQ9qfVugylF7s6vQQ7KZl5uq+ztC0/1to7MmQ==
+X-Received: by 2002:adf:a348:: with SMTP id d8mr12870366wrb.235.1565366603893;
+        Fri, 09 Aug 2019 09:03:23 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqysm17OnKufzw9c8LIGv0PlUpS7zJl6DQKWE+hEOrVSrn2H6B1jmy6ILohUFDgAquIHEwkg
+X-Received: by 2002:adf:a348:: with SMTP id d8mr12857122wrb.235.1565366479144;
+        Fri, 09 Aug 2019 09:01:19 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565366479; cv=none;
         d=google.com; s=arc-20160816;
-        b=Ie583GBZGkc7UMILlWsbDKXtyisGjk/WmgBrMVRT8g5+8Cv7i5l/BNGq3PZgO84PNo
-         MVjc7xlwyCgr+LV3d84Op8++Pl4TbeIYvH1BNVphxt50MPe3eStgMTy7Fnk4uJqBIomT
-         it6kgEuGhKvzc+rZOt2VxrkZp7Ju6LmTGbTLVZzJqTlYB3x6sV1GRy3/rP3w1SEtS3dq
-         2qhVKEzvcjVlMgujP6J625mvrs/XA+hRp4/88tfxf8oPOt4FNPeczU9HlLTsHlMgCkLB
-         MeiKDR0C9EaRd6zy7kW551j8oK4Caqu5yxBSVPQ7R5Xz1TgYjJHp7gBMheQZlv5Pv5Ra
-         SaUg==
+        b=YFVNTH0aecEUVfyGd+CFWWs74oc/HWUmwhwrkdG24dnpQBRIlTWcW0ecxwnyunLzh0
+         d7C9Wk9ogny2GamdFbXnvbk9zbDKvYdgtUh8R3rXxb7AdcBb/0N4MXh4aALT6an04kYw
+         VzUW0GSbZOPlCTSeZmqw+mlb8tEEF7yXs6Hq+Cmoo1n2Vc09IL2HW0aI4z/vQHJs3Quq
+         DIXxlIUB8faEPcPiQFrSGCMJD6mpNF/3J0dUIVMltQGFQYTISyMCAJdf0wPE9PANsNMk
+         /iGr9RLAGw8pxkRaitvxU51akR86YnqZskDqKrbOjZECD+kNEv1FZXiqH/3lLIYzs/GA
+         bynQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date;
-        bh=bKQctIR9RQ3N0yUOd7/19BsHR17UqL4s3TSC6lop2qE=;
-        b=Yik4d5Bp04USv5YIBuhEicc4NgIYvTCAJk9FUJ69IMA1IkSgL9u7rpcZhWy+OwD0cl
-         vjiNEqKMnu3bA5RgxK4UYkPx3M2Hy6egVFluIZfqmfIjad7Lx2KKtFIFRydKOWzqozAG
-         4VMO0mHOFqI0IE5T9cZwoxuBJueqX+Avc0phph30AfqVZSGTdl2uRkgJ+OIE2RhCIEi6
-         58iBvXqsM3qvYHBjLrcv0i+1T4BL9JiqR6VQ5YmbcGVQa6yg02uUq7XLh2/vTDagWVpS
-         BHoR/Tg2vyya3BIwNnfSqK3Qaho2mScxYmO/zE+7/RASBrGNjDpBwL1x0aj3hiHhdEyC
-         iNlw==
+        h=content-transfer-encoding:mime-version:references:in-reply-to
+         :message-id:date:subject:cc:to:from;
+        bh=QkhPHmDRDm9xz6GVeVMZJK2nYW4a7RE6/ZIT/O9pC1s=;
+        b=twMRsbk9IDS+E5/moxJWK/H2ind0Ri3N8oxV2Mtes2GguYGVuZnf/06jHOvmLOOKUj
+         AAJ2dFF9yNZRn3U4AaJPwYpDS/y9mUn6u6Tp3Wb2sA57idDYGslm2WrRYynRcZnDoHWF
+         KLE4K41wAI2odW8YVVGnu14jRuRbf7FAYvXdOTNFggG2QMhDKQiyJGy3dZiZKEgniCKE
+         co2PXk0xY3kCDDJfx6S0WdO7o+zbbSioZDusN1iHV8GNrM3RfG26MPO7TEyZqer9aenx
+         QDdT28R4bBnaSMtXW87I/0NuDsdXYZkqoTRsEZlGQ/bi4m2eKEvlbeXOUdMWchA3ioGZ
+         BkEw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id gf12si32833772ejb.392.2019.08.09.09.03.09
-        for <linux-mm@kvack.org>;
-        Fri, 09 Aug 2019 09:03:09 -0700 (PDT)
-Received-SPF: pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
+Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
+        by mx.google.com with ESMTPS id a10si4305435wrr.429.2019.08.09.09.01.18
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Aug 2019 09:01:19 -0700 (PDT)
+Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of catalin.marinas@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=catalin.marinas@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 979B315A2;
-	Fri,  9 Aug 2019 09:03:08 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id C67723F575;
-	Fri,  9 Aug 2019 09:03:03 -0700 (PDT)
-Date: Fri, 9 Aug 2019 17:03:01 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Andrey Konovalov <andreyknvl@google.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-arm-kernel@lists.infradead.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, amd-gfx@lists.freedesktop.org,
-	dri-devel@lists.freedesktop.org, linux-rdma@vger.kernel.org,
-	linux-media@vger.kernel.org, kvm@vger.kernel.org,
-	linux-kselftest@vger.kernel.org,
-	Vincenzo Frascino <vincenzo.frascino@arm.com>,
-	Will Deacon <will.deacon@arm.com>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Kees Cook <keescook@chromium.org>,
-	Yishai Hadas <yishaih@mellanox.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Alexander Deucher <Alexander.Deucher@amd.com>,
-	Christian Koenig <Christian.Koenig@amd.com>,
-	Mauro Carvalho Chehab <mchehab@kernel.org>,
-	Jens Wiklander <jens.wiklander@linaro.org>,
-	Alex Williamson <alex.williamson@redhat.com>,
-	Leon Romanovsky <leon@kernel.org>,
-	Luc Van Oostenryck <luc.vanoostenryck@gmail.com>,
-	Dave Martin <Dave.Martin@arm.com>,
-	Khalid Aziz <khalid.aziz@oracle.com>, enh <enh@google.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dmitry Vyukov <dvyukov@google.com>,
-	Kostya Serebryany <kcc@google.com>,
-	Evgeniy Stepanov <eugenis@google.com>,
-	Lee Smith <Lee.Smith@arm.com>,
-	Ramana Radhakrishnan <Ramana.Radhakrishnan@arm.com>,
-	Jacob Bramley <Jacob.Bramley@arm.com>,
-	Ruben Ayrapetyan <Ruben.Ayrapetyan@arm.com>,
-	Robin Murphy <robin.murphy@arm.com>,
-	Kevin Brodsky <kevin.brodsky@arm.com>,
-	Szabolcs Nagy <Szabolcs.Nagy@arm.com>,
-	Dave Hansen <dave.hansen@intel.com>
-Subject: Re: [PATCH v19 04/15] mm: untag user pointers passed to memory
- syscalls
-Message-ID: <20190809160301.GB23083@arrakis.emea.arm.com>
-References: <cover.1563904656.git.andreyknvl@google.com>
- <aaf0c0969d46b2feb9017f3e1b3ef3970b633d91.1563904656.git.andreyknvl@google.com>
+       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
+Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 7BFAD305D348;
+	Fri,  9 Aug 2019 19:01:18 +0300 (EEST)
+Received: from localhost.localdomain (unknown [89.136.169.210])
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id 3571E305B7A9;
+	Fri,  9 Aug 2019 19:01:17 +0300 (EEST)
+From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
+To: kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	=?UTF-8?q?Radim=20Kr=C4=8Dm=C3=A1=C5=99?= <rkrcmar@redhat.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Tamas K Lengyel <tamas@tklengyel.com>,
+	Mathieu Tarral <mathieu.tarral@protonmail.com>,
+	=?UTF-8?q?Samuel=20Laur=C3=A9n?= <samuel.lauren@iki.fi>,
+	Patrick Colp <patrick.colp@oracle.com>,
+	Jan Kiszka <jan.kiszka@siemens.com>,
+	Stefan Hajnoczi <stefanha@redhat.com>,
+	Weijiang Yang <weijiang.yang@intel.com>, Zhang@kvack.org,
+	Yu C <yu.c.zhang@intel.com>,
+	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
+	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
+Subject: [RFC PATCH v6 47/92] kvm: introspection: add KVMI_READ_PHYSICAL and KVMI_WRITE_PHYSICAL
+Date: Fri,  9 Aug 2019 19:00:02 +0300
+Message-Id: <20190809160047.8319-48-alazar@bitdefender.com>
+In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
+References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <aaf0c0969d46b2feb9017f3e1b3ef3970b633d91.1563904656.git.andreyknvl@google.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Jul 23, 2019 at 07:58:41PM +0200, Andrey Konovalov wrote:
-> This patch is a part of a series that extends kernel ABI to allow to pass
-> tagged user pointers (with the top byte set to something else other than
-> 0x00) as syscall arguments.
-> 
-> This patch allows tagged pointers to be passed to the following memory
-> syscalls: get_mempolicy, madvise, mbind, mincore, mlock, mlock2, mprotect,
-> mremap, msync, munlock, move_pages.
-> 
-> The mmap and mremap syscalls do not currently accept tagged addresses.
-> Architectures may interpret the tag as a background colour for the
-> corresponding vma.
-> 
-> Reviewed-by: Khalid Aziz <khalid.aziz@oracle.com>
-> Reviewed-by: Vincenzo Frascino <vincenzo.frascino@arm.com>
-> Reviewed-by: Catalin Marinas <catalin.marinas@arm.com>
-> Reviewed-by: Kees Cook <keescook@chromium.org>
-> Signed-off-by: Andrey Konovalov <andreyknvl@google.com>
-> ---
->  mm/madvise.c   | 2 ++
->  mm/mempolicy.c | 3 +++
->  mm/migrate.c   | 2 +-
->  mm/mincore.c   | 2 ++
->  mm/mlock.c     | 4 ++++
->  mm/mprotect.c  | 2 ++
->  mm/mremap.c    | 7 +++++++
->  mm/msync.c     | 2 ++
->  8 files changed, 23 insertions(+), 1 deletion(-)
+From: Mihai Donțu <mdontu@bitdefender.com>
 
-More back and forth discussions on how to specify the exceptions here.
-I'm proposing just dropping the exceptions and folding in the diff
-below.
+These commands allows the introspection tool to read/write from/to the
+guest memory.
 
-Andrew, if you prefer a standalone patch instead, please let me know:
-
-------------------8<----------------------------
-From 9a5286acaa638c6a917d96986bf28dad35e24a0c Mon Sep 17 00:00:00 2001
-From: Catalin Marinas <catalin.marinas@arm.com>
-Date: Fri, 9 Aug 2019 14:21:33 +0100
-Subject: [PATCH] fixup! mm: untag user pointers passed to memory syscalls
-
-mmap, mremap, munmap, brk added to the list of syscalls that accept
-tagged pointers.
-
-Signed-off-by: Catalin Marinas <catalin.marinas@arm.com>
+Signed-off-by: Mihai Donțu <mdontu@bitdefender.com>
+Co-developed-by: Adalbert Lazăr <alazar@bitdefender.com>
+Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- mm/mmap.c   | 5 +++++
- mm/mremap.c | 6 +-----
- 2 files changed, 6 insertions(+), 5 deletions(-)
+ Documentation/virtual/kvm/kvmi.rst |  60 ++++++++++++++++
+ include/uapi/linux/kvmi.h          |  11 +++
+ virt/kvm/kvmi.c                    | 107 +++++++++++++++++++++++++++++
+ virt/kvm/kvmi_int.h                |   7 ++
+ virt/kvm/kvmi_msg.c                |  42 +++++++++++
+ 5 files changed, 227 insertions(+)
 
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 7e8c3e8ae75f..b766b633b7ae 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -201,6 +201,8 @@ SYSCALL_DEFINE1(brk, unsigned long, brk)
- 	bool downgraded = false;
- 	LIST_HEAD(uf);
+diff --git a/Documentation/virtual/kvm/kvmi.rst b/Documentation/virtual/kvm/kvmi.rst
+index 69557c63ff94..eef32107837a 100644
+--- a/Documentation/virtual/kvm/kvmi.rst
++++ b/Documentation/virtual/kvm/kvmi.rst
+@@ -760,6 +760,66 @@ corresponding bit set to 1.
+ * -KVM_EAGAIN - the selected vCPU can't be introspected yet
+ * -KVM_ENOMEM - not enough memory to add the page tracking structures
  
-+	brk = untagged_addr(brk);
++14. KVMI_READ_PHYSICAL
++----------------------
 +
- 	if (down_write_killable(&mm->mmap_sem))
- 		return -EINTR;
- 
-@@ -1573,6 +1575,8 @@ unsigned long ksys_mmap_pgoff(unsigned long addr, unsigned long len,
- 	struct file *file = NULL;
- 	unsigned long retval;
- 
-+	addr = untagged_addr(addr);
++:Architectures: all
++:Versions: >= 1
++:Parameters:
 +
- 	if (!(flags & MAP_ANONYMOUS)) {
- 		audit_mmap_fd(fd, flags);
- 		file = fget(fd);
-@@ -2874,6 +2878,7 @@ EXPORT_SYMBOL(vm_munmap);
++::
++
++	struct kvmi_read_physical {
++		__u64 gpa;
++		__u64 size;
++	};
++
++:Returns:
++
++::
++
++	struct kvmi_error_code;
++	__u8 data[0];
++
++Reads from the guest memory.
++
++Currently, the size must be non-zero and the read must be restricted to
++one page (offset + size <= PAGE_SIZE).
++
++:Errors:
++
++* -KVM_EINVAL - the specified gpa is invalid
++
++15. KVMI_WRITE_PHYSICAL
++-----------------------
++
++:Architectures: all
++:Versions: >= 1
++:Parameters:
++
++::
++
++	struct kvmi_write_physical {
++		__u64 gpa;
++		__u64 size;
++		__u8  data[0];
++	};
++
++:Returns:
++
++::
++
++	struct kvmi_error_code
++
++Writes into the guest memory.
++
++Currently, the size must be non-zero and the write must be restricted to
++one page (offset + size <= PAGE_SIZE).
++
++:Errors:
++
++* -KVM_EINVAL - the specified gpa is invalid
++
+ Events
+ ======
  
- SYSCALL_DEFINE2(munmap, unsigned long, addr, size_t, len)
- {
-+	addr = untagged_addr(addr);
- 	profile_munmap(addr);
- 	return __vm_munmap(addr, len, true);
+diff --git a/include/uapi/linux/kvmi.h b/include/uapi/linux/kvmi.h
+index 0b3139c52a30..be3f066f314e 100644
+--- a/include/uapi/linux/kvmi.h
++++ b/include/uapi/linux/kvmi.h
+@@ -191,6 +191,17 @@ struct kvmi_control_vm_events {
+ 	__u32 padding2;
+ };
+ 
++struct kvmi_read_physical {
++	__u64 gpa;
++	__u64 size;
++};
++
++struct kvmi_write_physical {
++	__u64 gpa;
++	__u64 size;
++	__u8  data[0];
++};
++
+ struct kvmi_vcpu_hdr {
+ 	__u16 vcpu;
+ 	__u16 padding1;
+diff --git a/virt/kvm/kvmi.c b/virt/kvm/kvmi.c
+index d2bebef98d8d..a84eb150e116 100644
+--- a/virt/kvm/kvmi.c
++++ b/virt/kvm/kvmi.c
+@@ -5,6 +5,7 @@
+  * Copyright (C) 2017-2019 Bitdefender S.R.L.
+  *
+  */
++#include <linux/mmu_context.h>
+ #include <uapi/linux/kvmi.h>
+ #include "kvmi_int.h"
+ #include <linux/kthread.h>
+@@ -1220,6 +1221,112 @@ int kvmi_cmd_set_page_write_bitmap(struct kvmi *ikvm, u64 gpa,
+ 	return kvmi_set_gfn_access(ikvm->kvm, gfn, access, write_bitmap);
  }
-diff --git a/mm/mremap.c b/mm/mremap.c
-index 64c9a3b8be0a..1fc8a29fbe3f 100644
---- a/mm/mremap.c
-+++ b/mm/mremap.c
-@@ -606,12 +606,8 @@ SYSCALL_DEFINE5(mremap, unsigned long, addr, unsigned long, old_len,
- 	LIST_HEAD(uf_unmap_early);
- 	LIST_HEAD(uf_unmap);
  
--	/*
--	 * Architectures may interpret the tag passed to mmap as a background
--	 * colour for the corresponding vma. For mremap we don't allow tagged
--	 * new_addr to preserve similar behaviour to mmap.
--	 */
- 	addr = untagged_addr(addr);
-+	new_addr = untagged_addr(new_addr);
++unsigned long gfn_to_hva_safe(struct kvm *kvm, gfn_t gfn)
++{
++	unsigned long hva;
++	int srcu_idx;
++
++	srcu_idx = srcu_read_lock(&kvm->srcu);
++	hva = gfn_to_hva(kvm, gfn);
++	srcu_read_unlock(&kvm->srcu, srcu_idx);
++
++	return hva;
++}
++
++static long get_user_pages_remote_unlocked(struct mm_struct *mm,
++	unsigned long start,
++	unsigned long nr_pages,
++	unsigned int gup_flags,
++	struct page **pages)
++{
++	long ret;
++	struct task_struct *tsk = NULL;
++	struct vm_area_struct **vmas = NULL;
++	int locked = 1;
++
++	down_read(&mm->mmap_sem);
++	ret = get_user_pages_remote(tsk, mm, start, nr_pages, gup_flags,
++		pages, vmas, &locked);
++	if (locked)
++		up_read(&mm->mmap_sem);
++	return ret;
++}
++
++static void *get_page_ptr(struct kvm *kvm, gpa_t gpa, struct page **page,
++			  bool write)
++{
++	unsigned int flags = write ? FOLL_WRITE : 0;
++	unsigned long hva;
++
++	*page = NULL;
++
++	hva = gfn_to_hva_safe(kvm, gpa_to_gfn(gpa));
++
++	if (kvm_is_error_hva(hva)) {
++		kvmi_err(IKVM(kvm), "Invalid gpa %llx\n", gpa);
++		return NULL;
++	}
++
++	if (get_user_pages_remote_unlocked(kvm->mm, hva, 1, flags, page) != 1) {
++		kvmi_err(IKVM(kvm),
++			 "Failed to get the page for hva %lx gpa %llx\n",
++			 hva, gpa);
++		return NULL;
++	}
++
++	return kmap_atomic(*page);
++}
++
++static void put_page_ptr(void *ptr, struct page *page)
++{
++	if (ptr)
++		kunmap_atomic(ptr);
++	if (page)
++		put_page(page);
++}
++
++int kvmi_cmd_read_physical(struct kvm *kvm, u64 gpa, u64 size, int(*send)(
++	struct kvmi *, const struct kvmi_msg_hdr *,
++	int err, const void *buf, size_t),
++	const struct kvmi_msg_hdr *ctx)
++{
++	int err, ec = 0;
++	struct page *page = NULL;
++	void *ptr_page = NULL, *ptr = NULL;
++	size_t ptr_size = 0;
++
++	ptr_page = get_page_ptr(kvm, gpa, &page, false);
++	if (!ptr_page) {
++		ec = -KVM_EINVAL;
++		goto out;
++	}
++
++	ptr = ptr_page + (gpa & ~PAGE_MASK);
++	ptr_size = size;
++
++out:
++	err = send(IKVM(kvm), ctx, ec, ptr, ptr_size);
++
++	put_page_ptr(ptr_page, page);
++	return err;
++}
++
++int kvmi_cmd_write_physical(struct kvm *kvm, u64 gpa, u64 size, const void *buf)
++{
++	struct page *page;
++	void *ptr;
++
++	ptr = get_page_ptr(kvm, gpa, &page, true);
++	if (!ptr)
++		return -KVM_EINVAL;
++
++	memcpy(ptr + (gpa & ~PAGE_MASK), buf, size);
++
++	put_page_ptr(ptr, page);
++
++	return 0;
++}
++
+ int kvmi_cmd_control_events(struct kvm_vcpu *vcpu, unsigned int event_id,
+ 			    bool enable)
+ {
+diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
+index 18c00dae0f2f..7bdff70d4309 100644
+--- a/virt/kvm/kvmi_int.h
++++ b/virt/kvm/kvmi_int.h
+@@ -174,6 +174,13 @@ int kvmi_cmd_get_page_access(struct kvmi *ikvm, u64 gpa, u8 *access);
+ int kvmi_cmd_set_page_access(struct kvmi *ikvm, u64 gpa, u8 access);
+ int kvmi_cmd_get_page_write_bitmap(struct kvmi *ikvm, u64 gpa, u32 *bitmap);
+ int kvmi_cmd_set_page_write_bitmap(struct kvmi *ikvm, u64 gpa, u32 bitmap);
++int kvmi_cmd_read_physical(struct kvm *kvm, u64 gpa, u64 size,
++			   int (*send)(struct kvmi *,
++					const struct kvmi_msg_hdr*,
++					int err, const void *buf, size_t),
++			   const struct kvmi_msg_hdr *ctx);
++int kvmi_cmd_write_physical(struct kvm *kvm, u64 gpa, u64 size,
++			    const void *buf);
+ int kvmi_cmd_control_events(struct kvm_vcpu *vcpu, unsigned int event_id,
+ 			    bool enable);
+ int kvmi_cmd_control_vm_events(struct kvmi *ikvm, unsigned int event_id,
+diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
+index f9efb52d49c3..9c20a9cfda42 100644
+--- a/virt/kvm/kvmi_msg.c
++++ b/virt/kvm/kvmi_msg.c
+@@ -34,8 +34,10 @@ static const char *const msg_IDs[] = {
+ 	[KVMI_GET_PAGE_WRITE_BITMAP] = "KVMI_GET_PAGE_WRITE_BITMAP",
+ 	[KVMI_GET_VCPU_INFO]         = "KVMI_GET_VCPU_INFO",
+ 	[KVMI_GET_VERSION]           = "KVMI_GET_VERSION",
++	[KVMI_READ_PHYSICAL]         = "KVMI_READ_PHYSICAL",
+ 	[KVMI_SET_PAGE_ACCESS]       = "KVMI_SET_PAGE_ACCESS",
+ 	[KVMI_SET_PAGE_WRITE_BITMAP] = "KVMI_SET_PAGE_WRITE_BITMAP",
++	[KVMI_WRITE_PHYSICAL]        = "KVMI_WRITE_PHYSICAL",
+ };
  
- 	if (flags & ~(MREMAP_FIXED | MREMAP_MAYMOVE))
- 		return ret;
+ static bool is_known_message(u16 id)
+@@ -303,6 +305,44 @@ static int kvmi_get_vcpu(struct kvmi *ikvm, unsigned int vcpu_idx,
+ 	return 0;
+ }
+ 
++static bool invalid_page_access(u64 gpa, u64 size)
++{
++	u64 off = gpa & ~PAGE_MASK;
++
++	return (size == 0 || size > PAGE_SIZE || off + size > PAGE_SIZE);
++}
++
++static int handle_read_physical(struct kvmi *ikvm,
++				const struct kvmi_msg_hdr *msg,
++				const void *_req)
++{
++	const struct kvmi_read_physical *req = _req;
++
++	if (invalid_page_access(req->gpa, req->size))
++		return -EINVAL;
++
++	return kvmi_cmd_read_physical(ikvm->kvm, req->gpa, req->size,
++				      kvmi_msg_vm_maybe_reply, msg);
++}
++
++static int handle_write_physical(struct kvmi *ikvm,
++				 const struct kvmi_msg_hdr *msg,
++				 const void *_req)
++{
++	const struct kvmi_write_physical *req = _req;
++	int ec;
++
++	if (invalid_page_access(req->gpa, req->size))
++		return -EINVAL;
++
++	if (msg->size < sizeof(*req) + req->size)
++		return -EINVAL;
++
++	ec = kvmi_cmd_write_physical(ikvm->kvm, req->gpa, req->size, req->data);
++
++	return kvmi_msg_vm_maybe_reply(ikvm, msg, ec, NULL, 0);
++}
++
+ static bool enable_spp(struct kvmi *ikvm)
+ {
+ 	if (!ikvm->spp.initialized) {
+@@ -431,8 +471,10 @@ static int(*const msg_vm[])(struct kvmi *, const struct kvmi_msg_hdr *,
+ 	[KVMI_GET_PAGE_ACCESS]       = handle_get_page_access,
+ 	[KVMI_GET_PAGE_WRITE_BITMAP] = handle_get_page_write_bitmap,
+ 	[KVMI_GET_VERSION]           = handle_get_version,
++	[KVMI_READ_PHYSICAL]         = handle_read_physical,
+ 	[KVMI_SET_PAGE_ACCESS]       = handle_set_page_access,
+ 	[KVMI_SET_PAGE_WRITE_BITMAP] = handle_set_page_write_bitmap,
++	[KVMI_WRITE_PHYSICAL]        = handle_write_physical,
+ };
+ 
+ static int handle_event_reply(struct kvm_vcpu *vcpu,
 
