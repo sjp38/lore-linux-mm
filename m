@@ -6,70 +6,70 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DDF69C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1434FC433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7D2DD2089E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7D2DD2089E
+	by mail.kernel.org (Postfix) with ESMTP id AF0E92089E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:15 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AF0E92089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A357F6B0269; Fri,  9 Aug 2019 12:00:57 -0400 (EDT)
+	id C6ED56B000E; Fri,  9 Aug 2019 12:00:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8A9B06B000E; Fri,  9 Aug 2019 12:00:57 -0400 (EDT)
+	id A31086B000D; Fri,  9 Aug 2019 12:00:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 51F2A6B0269; Fri,  9 Aug 2019 12:00:57 -0400 (EDT)
+	id 6B9E06B0266; Fri,  9 Aug 2019 12:00:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id EA0176B000E
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E92706B000D
 	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:00:56 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id e6so46640647wrv.20
+Received: by mail-wm1-f72.google.com with SMTP id 21so1448256wmj.4
         for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:00:56 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=PxAl2ay/WZndf3MUVVim+vjyHHH3w/V1qSzjjfQlgNk=;
-        b=Jjl4tWBf1S+uHTxDZfiiIoMiKhKOt/vcjsq9lZCq6W5Z6MyOd+Tj1y0n0itd3l5l7b
-         7kIBttpcZYpx1PJ/FtOYnt1otHBHZesFd/O0YonjUJvgOTiLRW2WY3UcicSP7KIKqYy3
-         IJvQWlnfvozJ66q4Qn0AsDohW5mBWqpRTS/plJ1ptdbajWnXf+i65pQ1gKoylK111LvS
-         8FmMq5MCcq9sAlxH19V23KZrseF6ewiA828LHmzPd+yOhYOMAle4l3sCd+RjVP68WBzg
-         gxRzUZ2bkMEr24iF9kpx2GZQPLV8xS7NceGUKu29nC/iD1JC9YPtjlsAx2PpLTGqZpx7
-         AoSw==
+        bh=5ej265kFxOPzM8Q/7TbuGm4q/UWbLN48p6d9XnuhRkY=;
+        b=VubpJCETtUJXHXJwUpReYG3SVVaW6w/mLnj5YI+1Z/cGAZpDmsnhiXiQaL39JU1po1
+         cmpNo3hqaNP9Pe+MO1sHQQjfFeUGiwdtMkFClPKpZbO8UstYdSvefaFtWx3K/t5wZlp1
+         KqRhUlpUKrwiHEhrNdH40/WcOWcFHb6SDX2Pg1VpiMUFTWtL/4H274CqI3te+xa4Hhuy
+         +16zP0qkyBc6PQLoZxPY5jdyUSwmCuUHCh9V8NY1T9JHv4gj5xNAgVG4RuZOgkHISSqS
+         75I7tJObXB22fMzRHBAR21UWw9XaZ8iiVsI03xuluNQKMbJG1fxUkawwQ0WsNZjc4WMY
+         c1Pw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAWr1Pp3CaPrYnc+iQj0h6oB/Q9HEGYVP7PZj88A9BMVgQ42ttSK
-	u/eryYo0fJ7FTq8e+VuzfBVWxqonhNsJGLtolK2UIvGkuK3bNz+aGSC8s5QevhjLqaVzd8G5bDR
-	vBIEIOxMHFongfoWmGrV14a5Zfs9n8Ukt1nDdayBoLTwC8iSvL8SdsBdJV5ly7Ujr6g==
-X-Received: by 2002:a5d:51c1:: with SMTP id n1mr24649829wrv.254.1565366456528;
+X-Gm-Message-State: APjAAAW2G6jgcAVPmuO8PpIRwyENzI9Tmu0awNOf/CKawNkEiEqTLqYy
+	P0MmCGm2YrssR2lz4xiiyUzRdcQrjWbYVUSglbPU+OPLDSftIPSkGTh9cG3Eovii++B3hmkfEBL
+	8QZc0HGN/xw8lzRFRkL2xrkBRlKggQfa5BjgueCYhkg7OqdvfkT0BIG1mD53rJ0GlBA==
+X-Received: by 2002:a1c:8185:: with SMTP id c127mr11747396wmd.126.1565366456482;
         Fri, 09 Aug 2019 09:00:56 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqx1hJC5tFVWOLjM2kDuWd7z59RlI/+NaAizgBZq90sajwVGGIxtz7Iq7XyziaYR2FpMoKID
-X-Received: by 2002:a5d:51c1:: with SMTP id n1mr24649729wrv.254.1565366455562;
+X-Google-Smtp-Source: APXvYqx2PqQ4aBL2lmJNUIeFKfGaHVwLGfL2z9nLLHHNZy9YOGL4Npp0jlfG/9iirusMnqs7saeT
+X-Received: by 2002:a1c:8185:: with SMTP id c127mr11747301wmd.126.1565366455243;
         Fri, 09 Aug 2019 09:00:55 -0700 (PDT)
 ARC-Seal: i=1; a=rsa-sha256; t=1565366455; cv=none;
         d=google.com; s=arc-20160816;
-        b=cuUCMa3w4nYs8NV8t5r0FrBuGjx5mzJL/AK3Rlvq3ykusjYR6+NVrTpPACNovblmhu
-         Gk8uu0p9zZcOeQFTG/BakpbY2UYKvpTZe0MUttAYmW/h/hT/2n7M5sNxRoZqBhQnMNfM
-         cLppTS4qfQc1GU1wO03UQVpfL6ZOSfoKrDV/q9hvvFKPu5SfFmKorsBkfoIO+S+GFIXM
-         02AdKovXkpJMM4xkpQRcvwtqAA9iEq4pvhCtV6yDXJ3PuaJg2juUp/BbI7FTy9OL3m+y
-         WsMSU0hytAj4XtF13cE2Ah27l5ck8twFQXdtfTFvQKneadLUNSvmmVoXoaVWlnh4Tm3q
-         8dnw==
+        b=0rKhn6LyPpWgZ1VEPikRJeQLmoadH47WO/Uk+/navADaIr/MPa7LDAcf5JVJyqz4EX
+         nVMNRUFq5f5FcbBMrJlY/POEXkWGhMg4cJZFm8Yr2cwalRBJ9ArfjgY2iEe6TYlAbReE
+         Mt0ZFcWOcKsmaw2VAL8D1S/qinVbSIpiW1A8rhg13kOybwYxj9vW5Z7i5DNATTWsIsiU
+         B/rXvloAh9lXxfMLcDvZZ/3qDTn/G5LNErCTZ0ellb+PqHV5pTtbiVVwuaHsEDUw7P+f
+         CY5TrfYKwc00iDxBArk5s86rfGJqGktFGokYDEATRIkTBXww7yaQC6Myi9Ei80JQuyZR
+         Q5uA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=PxAl2ay/WZndf3MUVVim+vjyHHH3w/V1qSzjjfQlgNk=;
-        b=KX7Z45F3D5vbfIxc95gVAfCTCYZOqDm6RH6v2dgQpaZecmPyxtHT7ouTcAbfCh0hIO
-         Ur5WokwHx1WrA36TU4p4r/UdMyOYKMBt8paNq86wwuzEGMDStWUx3Sf6jgBvAFmaDhRf
-         uB450i6hfZ8ZpKiECJIiiU+KeJpvHlRBsZtu74v+KllC0ParXB1hJc0twGg7u6i6D6NG
-         fz1N6tt9wf/9GKDH21Du7KnHWqqeQPygV9ttPNiDE1E7nnL/U4etcREuxpKewRc14+Zh
-         11GNIo2DwXO5mNxP9JzvcXywBlJxlHZGhKkM5XoPNOx94/sdAmedP0cC5n+4HITRQNdR
-         eaPA==
+        bh=5ej265kFxOPzM8Q/7TbuGm4q/UWbLN48p6d9XnuhRkY=;
+        b=hwDBFrr79tWPRx9AdgGFI0FSadib3EC5c2HYepls1pvLU8H3qdADAYKf3lkpxBNNKE
+         bB8n8Kl/LglnKv1+wNq3jeYAkeKi2eKsgjSwQhAhqFRdKpV210TD+fq6yPOWnWCKne02
+         5RPnMqLAxaNycfYblG34Nc1hzGRbYH9tv/SCmi1JpNhsHljs/mfRcigyIizoAN+WKzvo
+         90inAbIZmco2IATvx6Sff7uiLiCztCAxQ0FjYcUOgGW5l6XbqtJZvzpcgcPAAuofAwap
+         IuJKBa9VqJ17JWgr126Jt9sTK1B07b2cX0doRHP5lM0uuZ2HlrvqKuLEBLouZ/UBtEZR
+         f4Vg==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id v74si4434460wmf.17.2019.08.09.09.00.55
+        by mx.google.com with ESMTPS id v17si8013050wro.188.2019.08.09.09.00.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
         Fri, 09 Aug 2019 09:00:55 -0700 (PDT)
@@ -77,10 +77,10 @@ Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.1
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id E5A0C301AB4A;
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id A06B1301AB49;
 	Fri,  9 Aug 2019 19:00:54 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id A705D305B7A0;
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id 5C80F305B7A3;
 	Fri,  9 Aug 2019 19:00:54 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
@@ -98,9 +98,9 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
 	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v6 09/92] kvm: introspection: add KVMI_GET_GUEST_INFO
-Date: Fri,  9 Aug 2019 18:59:24 +0300
-Message-Id: <20190809160047.8319-10-alazar@bitdefender.com>
+Subject: [RFC PATCH v6 08/92] kvm: introspection: add KVMI_CHECK_COMMAND and KVMI_CHECK_EVENT
+Date: Fri,  9 Aug 2019 18:59:23 +0300
+Message-Id: <20190809160047.8319-9-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -112,95 +112,210 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Mihai Donțu <mdontu@bitdefender.com>
+These commands can be used by the introspection tool to check what
+introspection commands and events are supported (by KVMi) and allowed
+(by userspace/QEMU).
 
-For now, this command returns only the number of online vCPUs.
+The introspection tool will get one of the following error codes:
+  * -KVM_EOPNOTSUPP (unsupported command/event)
+  * -KVM_PERM (disallowed command/event)
+  * -KVM_EINVAL (the padding space, used for future extensions,
+                 is not zero)
+  * 0 (the command/event is supported and allowed)
 
-Signed-off-by: Mihai Donțu <mdontu@bitdefender.com>
+These commands can be seen as an alternative method to KVMI_GET_VERSION
+in checking if the introspection supports a specific command/event.
+
+As with the KVMI_GET_VERSION command, these commands can never be
+disallowed by userspace/QEMU.
+
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- Documentation/virtual/kvm/kvmi.rst | 18 ++++++++++++++++++
- include/uapi/linux/kvmi.h          |  5 +++++
- virt/kvm/kvmi_msg.c                | 14 ++++++++++++++
- 3 files changed, 37 insertions(+)
+ Documentation/virtual/kvm/kvmi.rst | 60 ++++++++++++++++++++++++++++++
+ include/uapi/linux/kvmi.h          | 12 ++++++
+ virt/kvm/kvmi.c                    |  8 +++-
+ virt/kvm/kvmi_msg.c                | 38 +++++++++++++++++++
+ 4 files changed, 117 insertions(+), 1 deletion(-)
 
 diff --git a/Documentation/virtual/kvm/kvmi.rst b/Documentation/virtual/kvm/kvmi.rst
-index 61cf69aa5d07..2fbe7c28e4f1 100644
+index 82de474d512b..61cf69aa5d07 100644
 --- a/Documentation/virtual/kvm/kvmi.rst
 +++ b/Documentation/virtual/kvm/kvmi.rst
-@@ -362,3 +362,21 @@ This command is always allowed.
- 
- * -KVM_PERM - the event specified by ``id`` is disallowed
- * -KVM_EINVAL - padding is not zero
+@@ -302,3 +302,63 @@ While the command reply is disabled:
+ * the reply status is ignored for any unsupported/unknown or disallowed
+   commands (and ``struct kvmi_error_code`` will be sent with -KVM_EOPNOTSUPP
+   or -KVM_PERM).
 +
-+5. KVMI_GET_GUEST_INFO
-+----------------------
++3. KVMI_CHECK_COMMAND
++---------------------
 +
 +:Architectures: all
 +:Versions: >= 1
-+:Parameters:: none
++:Parameters:
++
++::
++
++	struct kvmi_check_command {
++		__u16 id;
++		__u16 padding1;
++		__u32 padding2;
++	};
++
 +:Returns:
 +
 +::
 +
 +	struct kvmi_error_code;
-+	struct kvmi_get_guest_info_reply {
-+		__u32 vcpu_count;
-+		__u32 padding[3];
++
++Checks if the command specified by ``id`` is allowed.
++
++This command is always allowed.
++
++:Errors:
++
++* -KVM_PERM - the command specified by ``id`` is disallowed
++* -KVM_EINVAL - padding is not zero
++
++4. KVMI_CHECK_EVENT
++-------------------
++
++:Architectures: all
++:Versions: >= 1
++:Parameters:
++
++::
++
++	struct kvmi_check_event {
++		__u16 id;
++		__u16 padding1;
++		__u32 padding2;
 +	};
 +
-+Returns the number of online vCPUs.
++:Returns:
++
++::
++
++	struct kvmi_error_code;
++
++Checks if the event specified by ``id`` is allowed.
++
++This command is always allowed.
++
++:Errors:
++
++* -KVM_PERM - the event specified by ``id`` is disallowed
++* -KVM_EINVAL - padding is not zero
 diff --git a/include/uapi/linux/kvmi.h b/include/uapi/linux/kvmi.h
-index 7390303371c9..367c8ec28f75 100644
+index a1ab39c5b8e0..7390303371c9 100644
 --- a/include/uapi/linux/kvmi.h
 +++ b/include/uapi/linux/kvmi.h
-@@ -102,4 +102,9 @@ struct kvmi_check_event {
+@@ -90,4 +90,16 @@ struct kvmi_control_cmd_response {
  	__u32 padding2;
  };
  
-+struct kvmi_get_guest_info_reply {
-+	__u32 vcpu_count;
-+	__u32 padding[3];
++struct kvmi_check_command {
++	__u16 id;
++	__u16 padding1;
++	__u32 padding2;
++};
++
++struct kvmi_check_event {
++	__u16 id;
++	__u16 padding1;
++	__u32 padding2;
 +};
 +
  #endif /* _UAPI__LINUX_KVMI_H */
+diff --git a/virt/kvm/kvmi.c b/virt/kvm/kvmi.c
+index d5b6af21564e..dc1bb8326763 100644
+--- a/virt/kvm/kvmi.c
++++ b/virt/kvm/kvmi.c
+@@ -69,6 +69,8 @@ static bool alloc_kvmi(struct kvm *kvm, const struct kvm_introspection *qemu)
+ 		return false;
+ 
+ 	set_bit(KVMI_GET_VERSION, ikvm->cmd_allow_mask);
++	set_bit(KVMI_CHECK_COMMAND, ikvm->cmd_allow_mask);
++	set_bit(KVMI_CHECK_EVENT, ikvm->cmd_allow_mask);
+ 
+ 	memcpy(&ikvm->uuid, &qemu->uuid, sizeof(ikvm->uuid));
+ 
+@@ -295,10 +297,14 @@ int kvmi_ioctl_command(struct kvm *kvm, void __user *argp)
+ 	if (!allow) {
+ 		DECLARE_BITMAP(always_allowed, KVMI_NUM_COMMANDS);
+ 
+-		if (id == KVMI_GET_VERSION)
++		if (id == KVMI_GET_VERSION
++				|| id == KVMI_CHECK_COMMAND
++				|| id == KVMI_CHECK_EVENT)
+ 			return -EPERM;
+ 
+ 		set_bit(KVMI_GET_VERSION, always_allowed);
++		set_bit(KVMI_CHECK_COMMAND, always_allowed);
++		set_bit(KVMI_CHECK_EVENT, always_allowed);
+ 
+ 		bitmap_andnot(requested, requested, always_allowed,
+ 			      KVMI_NUM_COMMANDS);
 diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
-index e24996611e3a..cf8a120b0eae 100644
+index 2237a6ed25f6..e24996611e3a 100644
 --- a/virt/kvm/kvmi_msg.c
 +++ b/virt/kvm/kvmi_msg.c
-@@ -12,6 +12,7 @@ static const char *const msg_IDs[] = {
- 	[KVMI_CHECK_COMMAND]         = "KVMI_CHECK_COMMAND",
- 	[KVMI_CHECK_EVENT]           = "KVMI_CHECK_EVENT",
+@@ -9,6 +9,8 @@
+ #include "kvmi_int.h"
+ 
+ static const char *const msg_IDs[] = {
++	[KVMI_CHECK_COMMAND]         = "KVMI_CHECK_COMMAND",
++	[KVMI_CHECK_EVENT]           = "KVMI_CHECK_EVENT",
  	[KVMI_CONTROL_CMD_RESPONSE]  = "KVMI_CONTROL_CMD_RESPONSE",
-+	[KVMI_GET_GUEST_INFO]        = "KVMI_GET_GUEST_INFO",
  	[KVMI_GET_VERSION]           = "KVMI_GET_VERSION",
  };
- 
-@@ -213,6 +214,18 @@ static int handle_check_event(struct kvmi *ikvm,
- 	return kvmi_msg_vm_maybe_reply(ikvm, msg, ec, NULL, 0);
+@@ -177,6 +179,40 @@ static bool is_command_allowed(struct kvmi *ikvm, int id)
+ 	return test_bit(id, ikvm->cmd_allow_mask);
  }
  
-+static int handle_get_guest_info(struct kvmi *ikvm,
-+				 const struct kvmi_msg_hdr *msg,
-+				 const void *req)
++static int handle_check_command(struct kvmi *ikvm,
++				const struct kvmi_msg_hdr *msg,
++				const void *_req)
 +{
-+	struct kvmi_get_guest_info_reply rpl;
++	const struct kvmi_check_command *req = _req;
++	int ec = 0;
 +
-+	memset(&rpl, 0, sizeof(rpl));
-+	rpl.vcpu_count = atomic_read(&ikvm->kvm->online_vcpus);
++	if (req->padding1 || req->padding2)
++		ec = -KVM_EINVAL;
++	else if (!is_command_allowed(ikvm, req->id))
++		ec = -KVM_EPERM;
 +
-+	return kvmi_msg_vm_maybe_reply(ikvm, msg, 0, &rpl, sizeof(rpl));
++	return kvmi_msg_vm_maybe_reply(ikvm, msg, ec, NULL, 0);
++}
++
++static bool is_event_allowed(struct kvmi *ikvm, int id)
++{
++	return test_bit(id, ikvm->event_allow_mask);
++}
++
++static int handle_check_event(struct kvmi *ikvm,
++			      const struct kvmi_msg_hdr *msg, const void *_req)
++{
++	const struct kvmi_check_event *req = _req;
++	int ec = 0;
++
++	if (req->padding1 || req->padding2)
++		ec = -KVM_EINVAL;
++	else if (!is_event_allowed(ikvm, req->id))
++		ec = -KVM_EPERM;
++
++	return kvmi_msg_vm_maybe_reply(ikvm, msg, ec, NULL, 0);
 +}
 +
  static int handle_control_cmd_response(struct kvmi *ikvm,
  					const struct kvmi_msg_hdr *msg,
  					const void *_req)
-@@ -246,6 +259,7 @@ static int(*const msg_vm[])(struct kvmi *, const struct kvmi_msg_hdr *,
- 	[KVMI_CHECK_COMMAND]         = handle_check_command,
- 	[KVMI_CHECK_EVENT]           = handle_check_event,
+@@ -207,6 +243,8 @@ static int handle_control_cmd_response(struct kvmi *ikvm,
+  */
+ static int(*const msg_vm[])(struct kvmi *, const struct kvmi_msg_hdr *,
+ 			    const void *) = {
++	[KVMI_CHECK_COMMAND]         = handle_check_command,
++	[KVMI_CHECK_EVENT]           = handle_check_event,
  	[KVMI_CONTROL_CMD_RESPONSE]  = handle_control_cmd_response,
-+	[KVMI_GET_GUEST_INFO]        = handle_get_guest_info,
  	[KVMI_GET_VERSION]           = handle_get_version,
  };
- 
 
