@@ -2,179 +2,170 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9D993C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 12:57:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 989F5C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 13:46:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6A9A821773
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 12:57:45 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6A9A821773
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 325DE21783
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 13:46:29 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="a4W0NpB7"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 325DE21783
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 36A376B000C; Fri,  9 Aug 2019 08:57:44 -0400 (EDT)
+	id 9328B6B0003; Fri,  9 Aug 2019 09:46:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 2C9556B000D; Fri,  9 Aug 2019 08:57:44 -0400 (EDT)
+	id 8BB396B0006; Fri,  9 Aug 2019 09:46:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0A63F6B000E; Fri,  9 Aug 2019 08:57:44 -0400 (EDT)
+	id 784256B0007; Fri,  9 Aug 2019 09:46:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id DCABE6B000C
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 08:57:43 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id x1so85576206qkn.6
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 05:57:43 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id 289CE6B0003
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 09:46:28 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id b33so60299114edc.17
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 06:46:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=rCBTggVDR/vexQzmfUI07D4bXf04XmrVsz5pXgYzCyc=;
-        b=Wa6reoVr+HfZopyfZWLELHYnbXRSlrv7H2hHXulEJR92L+41e46IoLe+efYxUHfuUM
-         zoaoBAZpVampP2cE4T2HCedpocyBx2WBs6SfERrIEV1nlNpue4v06g+rVjZUKPpWUurP
-         O5n57+HRwmg3IWRbGlcx9rCO+qGUQpitigSMi9K2abDV0v5DvKo5+9pngvdr4e2LlfLk
-         ZltnzogjcMoeAcSH/hvQGkSR9XVewZRxeXpiHsotJ6qiQIHzUkVSHqdz+PB5b5+gwBWX
-         kI2k2e6VlSEQOwwQ0N4lO8Gk1Lc4Zwzt/uZtk25luR4Aqncrcs+YUKoqDV1qT8Zv/NAj
-         R7/A==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAXTqfVcmLafl7dWKXpoT8gNlUoUGhGQQiNXJGOrTXPdQg3J0ov9
-	RKoiKcK2aBo93NdF5+XkoiQxZsTMnQRWMlZe/+Xk+sASPBAist/JoIKy1V/dgy/X+gtgy3BswiD
-	bJfT2aOqv7G8K9Kg//XLq+Ob6ydl5yi9SJn7UpAtwfgWDZN1RkEo/HknEBuknLLA8hg==
-X-Received: by 2002:ae9:c313:: with SMTP id n19mr5888047qkg.324.1565355463711;
-        Fri, 09 Aug 2019 05:57:43 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy4FtWwxsJetJovRy13K456OBWH6HI4aYxVnxlQPHaGticlzpLwj7qmvLcKg+931sbhOofK
-X-Received: by 2002:ae9:c313:: with SMTP id n19mr5888023qkg.324.1565355463231;
-        Fri, 09 Aug 2019 05:57:43 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565355463; cv=none;
+        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
+         :message-id:reply-to:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=LyignUp7I1w3k1JhRB7hSSaZmUScIlvleAzqEtH71gA=;
+        b=gVfokerTvunp5DwKtXvoIQj70XM5mctWk2FHSDegg1dSTSHJYC8pyzvX+S1fFNAiUp
+         W8IGXlHbvg6j+nQ8kWJL7MwRtJIp1jqfaK7XVt3W/vSnKo8d+V55xWKGKkwr7lm77J47
+         nd+LlhOjf6Oh0PmCkTZL7qqMwj06d7vh7ndOM2k1b0X+e9p5+XmhC+H2MSFV7jrzWDmu
+         PYrZQIRCjw7f+XkkGB3+pLSFvDUiX1qGTdF93+biH2nVIXwqsxDUMT6Gzqc/JastvBFU
+         IX6D46VmI3X+4hsCrJgxVG7F7kVnWwq2fdjFBgCqrWztQuX5fNo1Hii891NgQwecXJHu
+         wE8A==
+X-Gm-Message-State: APjAAAX8LbZe2TMetwxyMid7N7gvoRZZ88nARJK8HbtaiSRTn6PkbU7m
+	+cwSw1nGkRd4XegW65Wv0zQvYY2JbTQaDzLnOqN52lmCmh6S/qgYUWLcrV0K4tLcUEO2dmByvdi
+	6VCNC68KUVzfM+rpc2eEn02d35wDbbKwUAZOCZfmsZXhcUCLB2quXH9p5RvvghbJTRw==
+X-Received: by 2002:a17:906:4894:: with SMTP id v20mr17833072ejq.120.1565358387544;
+        Fri, 09 Aug 2019 06:46:27 -0700 (PDT)
+X-Received: by 2002:a17:906:4894:: with SMTP id v20mr17832998ejq.120.1565358386615;
+        Fri, 09 Aug 2019 06:46:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565358386; cv=none;
         d=google.com; s=arc-20160816;
-        b=yoA0+wLTuS9m96S6/MTZwMaSEWrQNmkUVDsi35tFZwK3EzRsHnHqxXzzGBEeYAYlDG
-         Ut3QiAmwvn4BbrXorCfmqlUsciHxTVIvcWKxfvm62VBQN4fG6QjRluQsWCImm9sSs7Ml
-         L89aCGIuMq1g/O1XwqoCpOpY9HW+qL59dgt+fpvO5ZESOEfx8hX9OWzjXUFy3P+ZkCFw
-         2pV2aaBHt6zq1nj+CK94eN30Yw5QDGM0eBjv15cns796OR6ddpYWjfIv98lfeZk7e1wl
-         5EkpdLHzBYzzjHcnveO4yyDNL4UUOLNgavhHM2cRtcupgL63TuLmBVntN0jT2sjo2P4s
-         gYLw==
+        b=B4IIL1KIjrfJLgfZW0/bdBOohyhWyWCtzqcYnTVtjbkl2l9ku0sctICSUvaKqAcZ4k
+         71UdL0UVc7VG0fFIokdJovXWXNfWvUilZIO837tLqRyxZxENg8zQsn/C97jnmZ9900XP
+         RF+VsftSLriFqhqct+DKWJI19O6R9uuBv3Hd0DjJHdMLjc2sp5Ok4aVdOl6E3+iocJE/
+         QhrnB7xXpR+rAzqEVFdwbmzvDqUYVmRDsisvjeN+16pf/dqqLDMGgFV1y+RDjiaAYkjB
+         3w7aGkavTT/k34BSsJAO+4WdDobjM+P0FE3ut8UHVxXx6eB5V/mKohdjEN+MbUbWq/g4
+         u2dQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=rCBTggVDR/vexQzmfUI07D4bXf04XmrVsz5pXgYzCyc=;
-        b=Jwhvz/pWVhNEdvg8G60feyvxnTGGC3JYMfOSgm7/AmEijFO5BgeEBZ30c90Da67iHL
-         MsrsgC6Js+Fa9jvJ/T06+qzSFg4EkZi4qJKhJCpFa1y83FrKzvCOrZnuh5fBrTRs/YrU
-         LnifxtW+CHAVHOUCaz3vvQ6nJZiBbpkFzBXZNbFhRhKGB+6iVpX+3zOw1pa6v0vqKMVV
-         WAL29J88is12svDJ66myYPTtIAAiin1Q5VUQt1Qh7nhiySVlEc/rK6wJuuob/vP9EPDL
-         tHfev67kprr9E1/ZN8V6/jD2wMJVJGd9WVZdN/uYxO8UP61kcKZnjKNGFLfFm8td2HNw
-         Xr8Q==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :reply-to:message-id:subject:cc:to:from:date:dkim-signature;
+        bh=LyignUp7I1w3k1JhRB7hSSaZmUScIlvleAzqEtH71gA=;
+        b=MeTPc2nqNiwYejvN5FLd7XM8iweG+aXWApn/kNlxS8GEAfjpkMSmmN2S4U26LAyzPq
+         TxWxprBAxoDl9yC6DLNxLnLjq3Pr8eA2HhqwaJYStdgkM6JjYpJGmfxxr2DSQbKYo643
+         1kVZZkjROOlIcA4BteeF5+QTuVywcaUuBVLFY8WP7CUvRwe+gMw7nbACH2TnZHG2G+C9
+         VgpnfY2FrpKW6B30v3l45+rrb9GTK9KYVNIOkU0suutIQTCF53JWnhTABn+87s+IvctU
+         PP5V+pi5QXX2kwO/nge+uCvxhDGAbi1sHYZ4lTJTA0m3b43Dl0qi7CT8lYWbaHoz/oQl
+         32ZQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id d4si6158252qkk.268.2019.08.09.05.57.43
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=a4W0NpB7;
+       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c4sor81998488edn.29.2019.08.09.06.46.26
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 05:57:43 -0700 (PDT)
-Received-SPF: pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        (Google Transport Security);
+        Fri, 09 Aug 2019 06:46:26 -0700 (PDT)
+Received-SPF: pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of david@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=david@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 7BAD965F37;
-	Fri,  9 Aug 2019 12:57:42 +0000 (UTC)
-Received: from t460s.redhat.com (ovpn-117-120.ams2.redhat.com [10.36.117.120])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id CFFFA5D6A0;
-	Fri,  9 Aug 2019 12:57:40 +0000 (UTC)
-From: David Hildenbrand <david@redhat.com>
-To: linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org,
-	David Hildenbrand <david@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Oscar Salvador <osalvador@suse.de>,
-	Michal Hocko <mhocko@suse.com>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: [PATCH v1 4/4] mm/memory_hotplug: online_pages cannot be 0 in online_pages()
-Date: Fri,  9 Aug 2019 14:57:01 +0200
-Message-Id: <20190809125701.3316-5-david@redhat.com>
-In-Reply-To: <20190809125701.3316-1-david@redhat.com>
-References: <20190809125701.3316-1-david@redhat.com>
+       dkim=pass header.i=@gmail.com header.s=20161025 header.b=a4W0NpB7;
+       spf=pass (google.com: domain of richard.weiyang@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=richard.weiyang@gmail.com;
+       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=LyignUp7I1w3k1JhRB7hSSaZmUScIlvleAzqEtH71gA=;
+        b=a4W0NpB7Ky7ZNvyTrbh1FeBLRkzD3aPh58RS1Yx4bs/BVTnp45+DINWMGfkbq8hq7Q
+         Y3Z4bdj5hgCTeGW+PRshMaXOMxfFs+yMLbXwPTZLqJTcO/dIrpBRkUNMwIYuvyefgxLE
+         ghaZnnGxRRWhYKHkI/uJzl52jBCmY6GTaX4J6IMtYXbQlVLgECyZntsud91yKcOGxjq1
+         ATUWqTH0gQtzKxNRtGFOYFydwjEzo49N/C0g2sw3KGDcPT84ORGadNZJiyoF1tdgy86l
+         pT+EYQrZCc/tezrHEA9IExUAHvjCjPlw9d1k0TydyGhC6W7edZj2zop9pkCTsz+j9sKa
+         GMoQ==
+X-Google-Smtp-Source: APXvYqxaz13nFHHrpZp/JtkeyPbtXPvJTVD23pHrWjqDjJb17ei5Rg0+DU4QM5tQfP2jLc7hWf/1lw==
+X-Received: by 2002:aa7:ccd6:: with SMTP id y22mr21987171edt.274.1565358386098;
+        Fri, 09 Aug 2019 06:46:26 -0700 (PDT)
+Received: from localhost ([185.92.221.13])
+        by smtp.gmail.com with ESMTPSA id c15sm16018545ejs.17.2019.08.09.06.46.25
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 09 Aug 2019 06:46:25 -0700 (PDT)
+Date: Fri, 9 Aug 2019 13:46:24 +0000
+From: Wei Yang <richard.weiyang@gmail.com>
+To: Anshuman Khandual <anshuman.khandual@arm.com>
+Cc: Wei Yang <richardw.yang@linux.intel.com>, akpm@linux-foundation.org,
+	osalvador@suse.de, pasha.tatashin@oracle.com, mhocko@suse.com,
+	linux-mm@kvack.org, linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/sparse: use __nr_to_section(section_nr) to get
+ mem_section
+Message-ID: <20190809134624.htv6jws7hphs4tvz@master>
+Reply-To: Wei Yang <richard.weiyang@gmail.com>
+References: <20190809010242.29797-1-richardw.yang@linux.intel.com>
+ <e17278f0-94dc-e0c6-379b-b7694cec3247@arm.com>
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Fri, 09 Aug 2019 12:57:42 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <e17278f0-94dc-e0c6-379b-b7694cec3247@arm.com>
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-walk_system_ram_range() will fail with -EINVAL in case
-online_pages_range() was never called (== no resource applicable in the
-range). Otherwise, we will always call online_pages_range() with
-nr_pages > 0 and, therefore, have online_pages > 0.
+On Fri, Aug 09, 2019 at 02:39:59PM +0530, Anshuman Khandual wrote:
+>
+>
+>On 08/09/2019 06:32 AM, Wei Yang wrote:
+>> __pfn_to_section is defined as __nr_to_section(pfn_to_section_nr(pfn)).
+>
+>Right.
+>
+>> 
+>> Since we already get section_nr, it is not necessary to get mem_section
+>> from start_pfn. By doing so, we reduce one redundant operation.
+>> 
+>> Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
+>
+>Looks right.
+>
+>With this applied, memory hot add still works on arm64.
 
-Remove that special handling.
+Thanks for your test.
 
-Cc: Andrew Morton <akpm@linux-foundation.org>
-Cc: Oscar Salvador <osalvador@suse.de>
-Cc: Michal Hocko <mhocko@suse.com>
-Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-Cc: Dan Williams <dan.j.williams@intel.com>
-Signed-off-by: David Hildenbrand <david@redhat.com>
----
- mm/memory_hotplug.c | 22 +++++++++-------------
- 1 file changed, 9 insertions(+), 13 deletions(-)
+>
+>Reviewed-by: Anshuman Khandual <anshuman.khandual@arm.com>
+>
+>> ---
+>>  mm/sparse.c | 2 +-
+>>  1 file changed, 1 insertion(+), 1 deletion(-)
+>> 
+>> diff --git a/mm/sparse.c b/mm/sparse.c
+>> index 72f010d9bff5..95158a148cd1 100644
+>> --- a/mm/sparse.c
+>> +++ b/mm/sparse.c
+>> @@ -867,7 +867,7 @@ int __meminit sparse_add_section(int nid, unsigned long start_pfn,
+>>  	 */
+>>  	page_init_poison(pfn_to_page(start_pfn), sizeof(struct page) * nr_pages);
+>>  
+>> -	ms = __pfn_to_section(start_pfn);
+>> +	ms = __nr_to_section(section_nr);
+>>  	set_section_nid(section_nr, nid);
+>>  	section_mark_present(ms);
+>>  
+>> 
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 87f85597a19e..07e72fe17495 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -854,6 +854,7 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 	ret = walk_system_ram_range(pfn, nr_pages, &onlined_pages,
- 		online_pages_range);
- 	if (ret) {
-+		/* not a single memory resource was applicable */
- 		if (need_zonelists_rebuild)
- 			zone_pcp_reset(zone);
- 		goto failed_addition;
-@@ -867,27 +868,22 @@ int __ref online_pages(unsigned long pfn, unsigned long nr_pages, int online_typ
- 
- 	shuffle_zone(zone);
- 
--	if (onlined_pages) {
--		node_states_set_node(nid, &arg);
--		if (need_zonelists_rebuild)
--			build_all_zonelists(NULL);
--		else
--			zone_pcp_update(zone);
--	}
-+	node_states_set_node(nid, &arg);
-+	if (need_zonelists_rebuild)
-+		build_all_zonelists(NULL);
-+	else
-+		zone_pcp_update(zone);
- 
- 	init_per_zone_wmark_min();
- 
--	if (onlined_pages) {
--		kswapd_run(nid);
--		kcompactd_run(nid);
--	}
-+	kswapd_run(nid);
-+	kcompactd_run(nid);
- 
- 	vm_total_pages = nr_free_pagecache_pages();
- 
- 	writeback_set_ratelimit();
- 
--	if (onlined_pages)
--		memory_notify(MEM_ONLINE, &arg);
-+	memory_notify(MEM_ONLINE, &arg);
- 	mem_hotplug_done();
- 	return 0;
- 
 -- 
-2.21.0
+Wei Yang
+Help you, Help me
 
