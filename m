@@ -2,417 +2,211 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E47D5C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 07:45:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D150C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:03:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 971D02086A
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 07:45:49 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 971D02086A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 0834F21883
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:03:23 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0834F21883
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 478A46B000A; Fri,  9 Aug 2019 03:45:49 -0400 (EDT)
+	id 8D5CB6B0005; Fri,  9 Aug 2019 04:03:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 404676B000C; Fri,  9 Aug 2019 03:45:49 -0400 (EDT)
+	id 886196B0006; Fri,  9 Aug 2019 04:03:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 27E7B6B000D; Fri,  9 Aug 2019 03:45:49 -0400 (EDT)
+	id 74EF36B0007; Fri,  9 Aug 2019 04:03:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-yb1-f198.google.com (mail-yb1-f198.google.com [209.85.219.198])
-	by kanga.kvack.org (Postfix) with ESMTP id EAC016B000A
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 03:45:48 -0400 (EDT)
-Received: by mail-yb1-f198.google.com with SMTP id k5so12855884ybo.8
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 00:45:48 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 2ACAC6B0005
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 04:03:23 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id x40so2753430edm.4
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 01:03:23 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references:mime-version
-         :content-transfer-encoding;
-        bh=7nMwPOELRuL1JjTfUknD5ZJvglW+NvUCwU0Q6CSgFo8=;
-        b=OjBnWkbjVvB1NSGk2uwGDjTUdmXc5Y+RU5WFQR1pbYZ46S6tooA2caClE/b6843BKV
-         nc/2Eb8Qgte6OyhBUrvp6uHGojMIDR9ZKsDxZeagwOb5E9IP1uz8e71h2jPBv43P8S2x
-         XEAkt5gQtRUaI0TDNjnQyZW3B9Ki18C9k/Nglk7jcIBNqjMalD/jWhWCWArvs0Xl7HVc
-         9N5wBOQAJ3gmR1lRGtQyuZwY4RLoMvFqGeDiomNva0mQ/0a95t5E4dts30MZSMKkAttf
-         n0LTvfRuhVY1XKoSaVueu1qXysNg7td6Hpyz6xbFCBX5NsTonMSU6kUofB9Fomd7vBxH
-         84PA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-X-Gm-Message-State: APjAAAVRwSd1Bc8b+p5UX+bShSYVgYFNWgozgmTplXjMujFkAmUYjEoi
-	xuKHW5Dl7U1pf+JCRIvn3seaAU9X+nOeel/DMw4Az2TUtu1qSusjxpzgwEyAh3kdTbVFmWSt7uW
-	OTkZpsm72rqkyNGAWr6MRW7fSYdaB29iZk6SLIc2uKTMe1sGg9s90+iurBGMW3fMCZg==
-X-Received: by 2002:a0d:d557:: with SMTP id x84mr7528257ywd.455.1565336748683;
-        Fri, 09 Aug 2019 00:45:48 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxGP1zQW9nTsxENDT947o3njrh6gm9Qj2jvXYX7o43T18KO33GfR0xNPCSwvIHDjkt7N9ge
-X-Received: by 2002:a0d:d557:: with SMTP id x84mr7528224ywd.455.1565336747598;
-        Fri, 09 Aug 2019 00:45:47 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565336747; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:openpgp:autocrypt:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=ivvYrg1S1MrdZ0f5ckJQSyVecwLhLMvtVBMX/96P/t4=;
+        b=qfU33aoSVs9UCIO5CXDqOlYU5ucPkXDDWhTflQ33bCEmcNZHSTMTWKhfzD5PbE4fY1
+         +V4J/VZexXb9lgRLH2Z02MJrWjTke56VEZWNNM59E3V1rTLZXqfWtWxsQv+u7+copFRg
+         y+GneOY4pIosC75rCDLnn9eyliWG6PUQ8ecSYiITDHmOdrThCmVbqAL3WiIeTd9aQTlT
+         KCzhY4G45CWhQ5YRXsXnt4sTylAdRK6jHAekqERCuY0JReVMG67HiEEtqqo0dmoIWe3O
+         /9IBcpmpITqTFfxnHhLQKpasInnM3GfAx9PZXkz12smg1ckNZEwqQO2MtYHJpZkEE8+x
+         fRCQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Gm-Message-State: APjAAAXvVF9ywYi9cWmTDuooA1oiMXOWdZsWE+PU+rzS65DRLrCbotJr
+	9TRKgVRSW0cpuLEFzg9Ky/fWSrtrdfSdACOQsc2ZGpSTmX8nIX/aBCrbarG85kb8BKOSSESV0LI
+	EiCSGiQtGnavjJVQu/aKSVLZRjxHUb51FOkyOZBllp+2jVffHMGAKfP0AvPJ0CrNLeA==
+X-Received: by 2002:a50:ac1a:: with SMTP id v26mr1524715edc.131.1565337802752;
+        Fri, 09 Aug 2019 01:03:22 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxxfJbcKEpmWboE0hgNiOTVNY3FMAzUfGWaAXfC8UmlD/o8sUXlsVPlwQCjcdtJ2sadUTmQ
+X-Received: by 2002:a50:ac1a:: with SMTP id v26mr1524672edc.131.1565337802130;
+        Fri, 09 Aug 2019 01:03:22 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565337802; cv=none;
         d=google.com; s=arc-20160816;
-        b=FN3xsYjChHeZ0gnfp8fcu4B1iu1NrounpXumkUkWIflHI80WrnUovIl9HlRZFOH5aC
-         uqaONHot17QAzUDTLWmR1oAtfhGawU+eOiZ6lV43KEj/2+2KtRTXAwySWRzMhCHfiB7u
-         bQi2ho6oYzPDmmVEGu7jyb1Q0bGCzrDTQ/076MOtLd7M4e2t99gqr4WT6YNxQmzG9j4S
-         8X/kHPNvimmLgM/r9SaLa8PU/H74exVdiRpi/GD4kz2LBL/ODqmoykFnxGBCJbVdDS7Q
-         dwjbA6BFL62rNNtUV+Kz5vdJokGYS8zbdcuumaud34L2Yg46ZPQCmrWIbhsFwaMWmvJ0
-         jrFA==
+        b=trNHT98KLYOw5RBHZgjVi2h80dG0gPeiWcH7PQ/1XQu1Fm5cJjggaCqjJi8jv970Bt
+         fttv8dJgog39+RtDSaenFBMRpeFWCGh9rXmgPuQKwPdMsFkR8tmxB22ExABtIWX/6xHA
+         foI1IlY0JEcIzwBOX1lgvqDjeRC+igVIN6D9fzTBF1hpdsoUuscxSwv1gZKEwhFngXRq
+         NxA82N0V7o/onpKAxVO4rIw0nLHgD9MztClL2p+K03peTJXB0TJ2E5YoCTW0KuqaYWsd
+         0a3hrpDajjqTqMcUFr7UBv5h08+IaYDUZI+kl8PjaNjEunuKxZKh1+ApDjESCHG8GKhB
+         SjIw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:mime-version:references:in-reply-to
-         :message-id:date:subject:cc:to:from;
-        bh=7nMwPOELRuL1JjTfUknD5ZJvglW+NvUCwU0Q6CSgFo8=;
-        b=h4Y3Wkum5K1uIMmvIaNuoslapqZaxC0JNsIA6Veq1ZvlhrRzBxOPx1F+TsobsKtsyk
-         MuVavIedf1XJOMlX2nalUasEqiT/eTFuslPq1MktDL1aJOj4PlLuMNII70RuERZzHi70
-         pqs+biHU2KEkN/pNbXpDij+P0b6f+5g33+PJUknWQ764u3B5zkQxtWMqu305mNyAMp9W
-         NTJbl4wglYFOV2pW8KeZFY+yOEsLGEIKeYTB2FEzEdwjVU27Y7m/gAmuypr8M589piKg
-         lwOfMs9qMJwtLr+ICkZv8a3xGPuIVZVsKHUBfe/8xqCoMUrms7owfDCaQPqzTwZbuKOF
-         iNeg==
+        h=content-transfer-encoding:content-language:in-reply-to:mime-version
+         :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
+         :subject;
+        bh=ivvYrg1S1MrdZ0f5ckJQSyVecwLhLMvtVBMX/96P/t4=;
+        b=CUN2fgM5PT0QKUqLbfELcCOv+o4MRRPLyZI6YbX1mFNX/oFYUfJytMc2zVXTtkIzwl
+         qG/NZYT5UT4onV4D/GvctFSkqmDLEgBfCTEwmnzVd25QL+0/XgLSnnQqKQU6Z3BHrkto
+         N6vsR59zpKu2rKXjekLaZgfakcIGSkSjlSuGf6iJ9kNskdiASKAsi+M9WB0PUumS8/uY
+         OgMmxC15CvG8Vs2N8Y7VWxvTxAYA+aEq6sGhBNPQwbUAtxtNcYChA2akKFtsvmPg12Rc
+         J89c36IU7ZMKREI3+DozvcQxgKftDEMgRdjP2BdzdT8DfDzBPZbgW58lEvHJp07G0oxA
+         t8cQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com. [148.163.158.5])
-        by mx.google.com with ESMTPS id f132si26783688ybf.393.2019.08.09.00.45.47
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id b35si36390690eda.123.2019.08.09.01.03.21
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 00:45:47 -0700 (PDT)
-Received-SPF: pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) client-ip=148.163.158.5;
+        Fri, 09 Aug 2019 01:03:22 -0700 (PDT)
+Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of aneesh.kumar@linux.ibm.com designates 148.163.158.5 as permitted sender) smtp.mailfrom=aneesh.kumar@linux.ibm.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=ibm.com
-Received: from pps.filterd (m0098420.ppops.net [127.0.0.1])
-	by mx0b-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x797i6ce101665;
-	Fri, 9 Aug 2019 03:45:46 -0400
-Received: from ppma04dal.us.ibm.com (7a.29.35a9.ip4.static.sl-reverse.com [169.53.41.122])
-	by mx0b-001b2d01.pphosted.com with ESMTP id 2u91gxpka9-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Fri, 09 Aug 2019 03:45:46 -0400
-Received: from pps.filterd (ppma04dal.us.ibm.com [127.0.0.1])
-	by ppma04dal.us.ibm.com (8.16.0.27/8.16.0.27) with SMTP id x797hcKG012256;
-	Fri, 9 Aug 2019 07:45:45 GMT
-Received: from b03cxnp08027.gho.boulder.ibm.com (b03cxnp08027.gho.boulder.ibm.com [9.17.130.19])
-	by ppma04dal.us.ibm.com with ESMTP id 2u51w7cqks-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=NOT);
-	Fri, 09 Aug 2019 07:45:45 +0000
-Received: from b03ledav003.gho.boulder.ibm.com (b03ledav003.gho.boulder.ibm.com [9.17.130.234])
-	by b03cxnp08027.gho.boulder.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x797jh4T34996624
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Fri, 9 Aug 2019 07:45:43 GMT
-Received: from b03ledav003.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id B421F6A04D;
-	Fri,  9 Aug 2019 07:45:43 +0000 (GMT)
-Received: from b03ledav003.gho.boulder.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id B7F0A6A051;
-	Fri,  9 Aug 2019 07:45:41 +0000 (GMT)
-Received: from skywalker.ibmuc.com (unknown [9.199.36.73])
-	by b03ledav003.gho.boulder.ibm.com (Postfix) with ESMTP;
-	Fri,  9 Aug 2019 07:45:41 +0000 (GMT)
-From: "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-To: dan.j.williams@intel.com
-Cc: linux-nvdimm@lists.01.org, linux-mm@kvack.org,
-        linuxppc-dev@lists.ozlabs.org,
-        "Aneesh Kumar K.V" <aneesh.kumar@linux.ibm.com>
-Subject: [PATCH v5 4/4] mm/nvdimm: Pick the right alignment default when creating dax devices
-Date: Fri,  9 Aug 2019 13:15:20 +0530
-Message-Id: <20190809074520.27115-5-aneesh.kumar@linux.ibm.com>
-X-Mailer: git-send-email 2.21.0
-In-Reply-To: <20190809074520.27115-1-aneesh.kumar@linux.ibm.com>
-References: <20190809074520.27115-1-aneesh.kumar@linux.ibm.com>
+       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 67869AECD;
+	Fri,  9 Aug 2019 08:03:21 +0000 (UTC)
+Subject: Re: [PATCH v2] mm/mmap.c: refine find_vma_prev with rb_last
+To: Wei Yang <richardw.yang@linux.intel.com>, akpm@linux-foundation.org,
+ mhocko@suse.com, kirill.shutemov@linux.intel.com
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <20190809001928.4950-1-richardw.yang@linux.intel.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ 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
+Message-ID: <d47ee469-8ff6-d212-9c4b-242079e281e8@suse.cz>
+Date: Fri, 9 Aug 2019 10:03:20 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Transfer-Encoding: 8bit
-X-TM-AS-GCONF: 00
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-09_02:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=1 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=999 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908090080
+In-Reply-To: <20190809001928.4950-1-richardw.yang@linux.intel.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Allow arch to provide the supported alignments and use hugepage alignment only
-if we support hugepage. Right now we depend on compile time configs whereas this
-patch switch this to runtime discovery.
+On 8/9/19 2:19 AM, Wei Yang wrote:
+> When addr is out of the range of the whole rb_tree, pprev will points to
+> the right-most node. rb_tree facility already provides a helper
+> function, rb_last, to do this task. We can leverage this instead of
+> re-implement it.
+> 
+> This patch refines find_vma_prev with rb_last to make it a little nicer
+> to read.
+> 
+> Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
 
-Architectures like ppc64 can have THP enabled in code, but then can have
-hugepage size disabled by the hypervisor. This allows us to create dax devices
-with PAGE_SIZE alignment in this case.
+Acked-by: Vlastimil Babka <vbabka@suse.cz>
 
-Existing dax namespace with alignment larger than PAGE_SIZE will fail to
-initialize in this specific case. We still allow fsdax namespace initialization.
+Nit below:
 
-With respect to identifying whether to enable hugepage fault for a dax device,
-if THP is enabled during compile, we default to taking hugepage fault and in dax
-fault handler if we find the fault size > alignment we retry with PAGE_SIZE
-fault size.
+> ---
+> v2: leverage rb_last
+> ---
+>  mm/mmap.c | 9 +++------
+>  1 file changed, 3 insertions(+), 6 deletions(-)
+> 
+> diff --git a/mm/mmap.c b/mm/mmap.c
+> index 7e8c3e8ae75f..f7ed0afb994c 100644
+> --- a/mm/mmap.c
+> +++ b/mm/mmap.c
+> @@ -2270,12 +2270,9 @@ find_vma_prev(struct mm_struct *mm, unsigned long addr,
+>  	if (vma) {
+>  		*pprev = vma->vm_prev;
+>  	} else {
+> -		struct rb_node *rb_node = mm->mm_rb.rb_node;
+> -		*pprev = NULL;
+> -		while (rb_node) {
+> -			*pprev = rb_entry(rb_node, struct vm_area_struct, vm_rb);
+> -			rb_node = rb_node->rb_right;
+> -		}
+> +		struct rb_node *rb_node = rb_last(&mm->mm_rb);
+> +		*pprev = !rb_node ? NULL :
+> +			 rb_entry(rb_node, struct vm_area_struct, vm_rb);
 
-This also addresses the below failure scenario on ppc64
+It's perhaps more common to write it like:
+*pprev = rb_node ? rb_entry(rb_node, struct vm_area_struct, vm_rb) : NULL;
 
-ndctl create-namespace --mode=devdax  | grep align
- "align":16777216,
- "align":16777216
-
-cat /sys/devices/ndbus0/region0/dax0.0/supported_alignments
- 65536 16777216
-
-daxio.static-debug  -z -o /dev/dax0.0
-  Bus error (core dumped)
-
-  $ dmesg | tail
-   lpar: Failed hash pte insert with error -4
-   hash-mmu: mm: Hashing failure ! EA=0x7fff17000000 access=0x8000000000000006 current=daxio
-   hash-mmu:     trap=0x300 vsid=0x22cb7a3 ssize=1 base psize=2 psize 10 pte=0xc000000501002b86
-   daxio[3860]: bus error (7) at 7fff17000000 nip 7fff973c007c lr 7fff973bff34 code 2 in libpmem.so.1.0.0[7fff973b0000+20000]
-   daxio[3860]: code: 792945e4 7d494b78 e95f0098 7d494b78 f93f00a0 4800012c e93f0088 f93f0120
-   daxio[3860]: code: e93f00a0 f93f0128 e93f0120 e95f0128 <f9490000> e93f0088 39290008 f93f0110
-
-The failure was due to guest kernel using wrong page size.
-
-The namespaces created with 16M alignment will appear as below on a config with
-16M page size disabled.
-
-$ ndctl list -Ni
-[
-  {
-    "dev":"namespace0.1",
-    "mode":"fsdax",
-    "map":"dev",
-    "size":5351931904,
-    "uuid":"fc6e9667-461a-4718-82b4-69b24570bddb",
-    "align":16777216,
-    "blockdev":"pmem0.1",
-    "supported_alignments":[
-      65536
-    ]
-  },
-  {
-    "dev":"namespace0.0",
-    "mode":"fsdax",    <==== devdax 16M alignment marked disabled.
-    "map":"mem",
-    "size":5368709120,
-    "uuid":"a4bdf81a-f2ee-4bc6-91db-7b87eddd0484",
-    "state":"disabled"
-  }
-]
-
-Signed-off-by: Aneesh Kumar K.V <aneesh.kumar@linux.ibm.com>
----
- arch/powerpc/include/asm/libnvdimm.h |  9 ++++++++
- arch/powerpc/mm/Makefile             |  1 +
- arch/powerpc/mm/nvdimm.c             | 34 ++++++++++++++++++++++++++++
- arch/x86/include/asm/libnvdimm.h     | 19 ++++++++++++++++
- drivers/nvdimm/nd.h                  |  6 -----
- drivers/nvdimm/pfn_devs.c            | 32 +++++++++++++++++++++++++-
- include/linux/huge_mm.h              |  7 +++++-
- 7 files changed, 100 insertions(+), 8 deletions(-)
- create mode 100644 arch/powerpc/include/asm/libnvdimm.h
- create mode 100644 arch/powerpc/mm/nvdimm.c
- create mode 100644 arch/x86/include/asm/libnvdimm.h
-
-diff --git a/arch/powerpc/include/asm/libnvdimm.h b/arch/powerpc/include/asm/libnvdimm.h
-new file mode 100644
-index 000000000000..d35fd7f48603
---- /dev/null
-+++ b/arch/powerpc/include/asm/libnvdimm.h
-@@ -0,0 +1,9 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+#ifndef _ASM_POWERPC_LIBNVDIMM_H
-+#define _ASM_POWERPC_LIBNVDIMM_H
-+
-+#define nd_pfn_supported_alignments nd_pfn_supported_alignments
-+extern unsigned long *nd_pfn_supported_alignments(void);
-+extern unsigned long nd_pfn_default_alignment(void);
-+
-+#endif
-diff --git a/arch/powerpc/mm/Makefile b/arch/powerpc/mm/Makefile
-index 0f499db315d6..42e4a399ba5d 100644
---- a/arch/powerpc/mm/Makefile
-+++ b/arch/powerpc/mm/Makefile
-@@ -20,3 +20,4 @@ obj-$(CONFIG_HIGHMEM)		+= highmem.o
- obj-$(CONFIG_PPC_COPRO_BASE)	+= copro_fault.o
- obj-$(CONFIG_PPC_PTDUMP)	+= ptdump/
- obj-$(CONFIG_KASAN)		+= kasan/
-+obj-$(CONFIG_NVDIMM_PFN)		+= nvdimm.o
-diff --git a/arch/powerpc/mm/nvdimm.c b/arch/powerpc/mm/nvdimm.c
-new file mode 100644
-index 000000000000..a29a4510715e
---- /dev/null
-+++ b/arch/powerpc/mm/nvdimm.c
-@@ -0,0 +1,34 @@
-+// SPDX-License-Identifier: GPL-2.0
-+
-+#include <asm/pgtable.h>
-+#include <asm/page.h>
-+
-+#include <linux/mm.h>
-+/*
-+ * We support only pte and pmd mappings for now.
-+ */
-+const unsigned long *nd_pfn_supported_alignments(void)
-+{
-+	static unsigned long supported_alignments[3];
-+
-+	supported_alignments[0] = PAGE_SIZE;
-+
-+	if (has_transparent_hugepage())
-+		supported_alignments[1] = HPAGE_PMD_SIZE;
-+	else
-+		supported_alignments[1] = 0;
-+
-+	supported_alignments[2] = 0;
-+	return supported_alignments;
-+}
-+
-+/*
-+ * Use pmd mapping if supported as default alignment
-+ */
-+unsigned long nd_pfn_default_alignment(void)
-+{
-+
-+	if (has_transparent_hugepage())
-+		return HPAGE_PMD_SIZE;
-+	return PAGE_SIZE;
-+}
-diff --git a/arch/x86/include/asm/libnvdimm.h b/arch/x86/include/asm/libnvdimm.h
-new file mode 100644
-index 000000000000..3d5361db9164
---- /dev/null
-+++ b/arch/x86/include/asm/libnvdimm.h
-@@ -0,0 +1,19 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+#ifndef _ASM_X86_LIBNVDIMM_H
-+#define _ASM_X86_LIBNVDIMM_H
-+
-+static inline unsigned long nd_pfn_default_alignment(void)
-+{
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+	return HPAGE_PMD_SIZE;
-+#else
-+	return PAGE_SIZE;
-+#endif
-+}
-+
-+static inline unsigned long nd_altmap_align_size(unsigned long nd_align)
-+{
-+	return PMD_SIZE;
-+}
-+
-+#endif
-diff --git a/drivers/nvdimm/nd.h b/drivers/nvdimm/nd.h
-index 1b9955651379..5d095a19ff2c 100644
---- a/drivers/nvdimm/nd.h
-+++ b/drivers/nvdimm/nd.h
-@@ -289,12 +289,6 @@ static inline struct device *nd_btt_create(struct nd_region *nd_region)
- struct nd_pfn *to_nd_pfn(struct device *dev);
- #if IS_ENABLED(CONFIG_NVDIMM_PFN)
- 
--#ifdef CONFIG_TRANSPARENT_HUGEPAGE
--#define PFN_DEFAULT_ALIGNMENT HPAGE_PMD_SIZE
--#else
--#define PFN_DEFAULT_ALIGNMENT PAGE_SIZE
--#endif
--
- int nd_pfn_probe(struct device *dev, struct nd_namespace_common *ndns);
- bool is_nd_pfn(struct device *dev);
- struct device *nd_pfn_create(struct nd_region *nd_region);
-diff --git a/drivers/nvdimm/pfn_devs.c b/drivers/nvdimm/pfn_devs.c
-index c1d9be609322..f43d1baa6f33 100644
---- a/drivers/nvdimm/pfn_devs.c
-+++ b/drivers/nvdimm/pfn_devs.c
-@@ -10,6 +10,7 @@
- #include <linux/slab.h>
- #include <linux/fs.h>
- #include <linux/mm.h>
-+#include <asm/libnvdimm.h>
- #include "nd-core.h"
- #include "pfn.h"
- #include "nd.h"
-@@ -103,6 +104,8 @@ static ssize_t align_show(struct device *dev,
- 	return sprintf(buf, "%ld\n", nd_pfn->align);
- }
- 
-+#ifndef nd_pfn_supported_alignments
-+#define nd_pfn_supported_alignments nd_pfn_supported_alignments
- static const unsigned long *nd_pfn_supported_alignments(void)
- {
- 	/*
-@@ -125,6 +128,7 @@ static const unsigned long *nd_pfn_supported_alignments(void)
- 
- 	return data;
- }
-+#endif
- 
- static ssize_t align_store(struct device *dev,
- 		struct device_attribute *attr, const char *buf, size_t len)
-@@ -302,7 +306,7 @@ struct device *nd_pfn_devinit(struct nd_pfn *nd_pfn,
- 		return NULL;
- 
- 	nd_pfn->mode = PFN_MODE_NONE;
--	nd_pfn->align = PFN_DEFAULT_ALIGNMENT;
-+	nd_pfn->align = nd_pfn_default_alignment();
- 	dev = &nd_pfn->dev;
- 	device_initialize(&nd_pfn->dev);
- 	if (ndns && !__nd_attach_ndns(&nd_pfn->dev, ndns, &nd_pfn->ndns)) {
-@@ -412,6 +416,20 @@ static int nd_pfn_clear_memmap_errors(struct nd_pfn *nd_pfn)
- 	return 0;
- }
- 
-+static bool nd_supported_alignment(unsigned long align)
-+{
-+	int i;
-+	const unsigned long *supported = nd_pfn_supported_alignments();
-+
-+	if (align == 0)
-+		return false;
-+
-+	for (i = 0; supported[i]; i++)
-+		if (align == supported[i])
-+			return true;
-+	return false;
-+}
-+
- /**
-  * nd_pfn_validate - read and validate info-block
-  * @nd_pfn: fsdax namespace runtime state / properties
-@@ -498,6 +516,18 @@ int nd_pfn_validate(struct nd_pfn *nd_pfn, const char *sig)
- 		return -EOPNOTSUPP;
- 	}
- 
-+	/*
-+	 * Check whether the we support the alignment. For Dax if the
-+	 * superblock alignment is not matching, we won't initialize
-+	 * the device.
-+	 */
-+	if (!nd_supported_alignment(align) &&
-+	    !memcmp(pfn_sb->signature, DAX_SIG, PFN_SIG_LEN)) {
-+		dev_err(&nd_pfn->dev, "init failed, alignment mismatch: "
-+			"%ld:%ld\n", nd_pfn->align, align);
-+		return -EOPNOTSUPP;
-+	}
-+
- 	if (!nd_pfn->uuid) {
- 		/*
- 		 * When probing a namepace via nd_pfn_probe() the uuid
-diff --git a/include/linux/huge_mm.h b/include/linux/huge_mm.h
-index 45ede62aa85b..4fa91f9bd0da 100644
---- a/include/linux/huge_mm.h
-+++ b/include/linux/huge_mm.h
-@@ -108,7 +108,12 @@ static inline bool __transparent_hugepage_enabled(struct vm_area_struct *vma)
- 
- 	if (transparent_hugepage_flags & (1 << TRANSPARENT_HUGEPAGE_FLAG))
- 		return true;
--
-+	/*
-+	 * For dax let's try to do hugepage fault always. If we don't support
-+	 * hugepages we will not have enabled namespaces with hugepage alignment.
-+	 * This also means we try to handle hugepage fault on device with
-+	 * smaller alignment. But for then we will return with VM_FAULT_FALLBACK
-+	 */
- 	if (vma_is_dax(vma))
- 		return true;
- 
--- 
-2.21.0
+>  	}
+>  	return vma;
+>  }
+> 
 
