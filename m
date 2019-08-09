@@ -6,82 +6,82 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B1CAFC433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D6E41C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:51 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4451721743
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4451721743
+	by mail.kernel.org (Postfix) with ESMTP id 70C522089E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:01:51 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 70C522089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7227D6B0270; Fri,  9 Aug 2019 12:01:01 -0400 (EDT)
+	id 1F51C6B0272; Fri,  9 Aug 2019 12:01:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6D6EF6B0273; Fri,  9 Aug 2019 12:01:01 -0400 (EDT)
+	id 12F6A6B0274; Fri,  9 Aug 2019 12:01:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 578EA6B0272; Fri,  9 Aug 2019 12:01:01 -0400 (EDT)
+	id 0428D6B0275; Fri,  9 Aug 2019 12:01:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id E48DD6B0273
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:00 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id a5so39084015wrt.3
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:00 -0700 (PDT)
+Received: from mail-wm1-f72.google.com (mail-wm1-f72.google.com [209.85.128.72])
+	by kanga.kvack.org (Postfix) with ESMTP id A77196B0272
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:01 -0400 (EDT)
+Received: by mail-wm1-f72.google.com with SMTP id c14so1411104wml.5
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:01 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=cdRgLAIXkuchvbwbEmlT4y0DZFx82RWxxbDMca5TtZk=;
-        b=maaPRopVnea3nBBBItE0t4wiwaOubtggVM42868jH/AoWwW9h5iaoMCC4McVqYnquT
-         5FfnUHjs/jMRnUELPRpx/gRBQQkorEIzKDUjtTa6hVna6E8E/B81xJFor0NDi7Yv3voc
-         ujGcQS+MmVr9eeMdkclmIpT7eGrSYYW5etIf4WaaqW2/Uy3zXjd7ha5sdBfjaDB9w5k7
-         pSeOpMcM4hWqNwFzhK6luHGLpACf7hR64wyKCqPo4aY1qLOH8imNI4HQFAbwjbbg5HH+
-         AYLIbI7zAFm5l/PolN6fN4wrSkK+iKHb9fIAQHHfhCAI70OhHYn8BfuBh4Gvcg+of2JE
-         rYrA==
+        bh=wo+pz1RlCIidxkw5/fraiu80jBJWqzzn04cQCaE7Zi4=;
+        b=PF//CcCeOW0chUAN2miQpE0vSA00VQnOVw5KSECfHsdugsLzeG3pOh28UPMrW7EaAB
+         QjkmM2zbOqtGLoxAo5lTTFwhvfKI40cOGSRDsy4DLTFhLaCzLakTl7ugNOTet0lOt+F0
+         XFXWQ+ovwgi9qVMl7mBfeF0mpucU4QQKu99Adbg+HH19m/KKdsQiHHc+5n82k1quYpjT
+         eiWB7PPl2TY6cTIrYlhuVQzeFCMhkVgpy08GS9fvbzoTs2AjIHIQ/ZhNmN5xZq63G9L1
+         UwPWg4qCxAi25uaSKQs6bL8b8PhjCL1tzQ8mpmLnmAcmuqoTSPLAV/S13dd9/FDhAX4I
+         Sqnw==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAVY/JyYghdAXyZZOxCmRC0iskrCM83v2NmPhA2vOZoFw3QNuFpt
-	MXSMLN3kTOKZjT1iQdDXoE/Am5JpI63JnOLYw6/oHd5kTaJyCEntHuWBxFX6fuz8MfXfPUKIlM7
-	pO37DhdyaTROVPzp68uv4vre9ozoAHdwaJBMlX9BnMjdpg39mwkxaVBNwSRDxq+sMSw==
-X-Received: by 2002:adf:eac5:: with SMTP id o5mr12223580wrn.140.1565366460459;
-        Fri, 09 Aug 2019 09:01:00 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwnFjv7XsuNZN79Ih0cV+1m8vnGoTqr+uXIPMQeIYZMsbDS3pdE1MZq0ZoXlywnCw5vqj6i
-X-Received: by 2002:adf:eac5:: with SMTP id o5mr12223434wrn.140.1565366458782;
-        Fri, 09 Aug 2019 09:00:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366458; cv=none;
+X-Gm-Message-State: APjAAAWzciSUuXjoHQ/+cHzSUIczLeuuuWnv9uCz3rVp8G8z8oA1aSpb
+	wJ5H/PZKgzGXqzhs5i6kQgsOe6256GITiusyFAhQFugHh7A8VF3Oh7AFi7dL2DiV6hguodNuG7o
+	sWzgF1ovXL1q3ozKqHuNyKIm2zFzc7rLhQBy3sveAgIzvutXYYmLxrpcqZVRl30ZwLw==
+X-Received: by 2002:a05:600c:ce:: with SMTP id u14mr11545507wmm.5.1565366461240;
+        Fri, 09 Aug 2019 09:01:01 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqzSOsIm3Cr/reSGHlPolIukvdofb/UieXsOa8R1sdQjFTwXO4eBxXUpa7IUUOfaLwA7/n32
+X-Received: by 2002:a05:600c:ce:: with SMTP id u14mr11545385wmm.5.1565366459619;
+        Fri, 09 Aug 2019 09:00:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565366459; cv=none;
         d=google.com; s=arc-20160816;
-        b=WNzKe+tbEaGAChn832wN+6ZC8h0dd9rIN0OcZPrKG0trDBFXurD7LJteiNFVaZ+/9g
-         ikLn8Nd/1wq3i1wpOhZwZyC3MzJKyAYcmhwx67jC79t0pFTpnh1aAxUDoOIZ6F3S/Fsk
-         qyhp2DDkNVuZKLBvXw6tV7xISZlb35VcZdvPPROseQm1uIH5xqhhmgftNu96D3wXvEed
-         KiR+ZcyUWRHGr0bP1dGq4/uHsbuGsYGWLvD732Wr9WEZWnbk2Xm3hZPytj9U9BFvRLxq
-         otEhMIsGe3hfkKgkdFSd36yoGp/JUpyOkICjWTbu/mEpABBg8ymqz4UmiD2ml2emEW9W
-         B5ig==
+        b=PrOsR4637bIDotm8mkKZT1YNydWYjWwZWQUThnMETDpfzRnEUXvXXpz6rPXJeZWf6t
+         uU7/SKDKMZonFkWqIMw2Ffx5ldwNmK8IEcfppwKeQUO7bYDOCnLLY3kl1NzC+c03PZ4r
+         sYaD1CVvdds8Emfqg3lJ64g4KS5EtpNZFcPSkcId2f66RO8taoceXeVTIBmYJHbYMRtN
+         NAqyv407GrKiw+ej0wvmShDBRcgHWvXLguNpYot60Cqd1YPd3MNTzkktluPmh//FD7LC
+         C2e1iiyu7EUUeC0DQEXK/eakLA418YvxVWVAZge51zxj/lN+KgBjJZsxTGcYVA56G+n7
+         dXFA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=cdRgLAIXkuchvbwbEmlT4y0DZFx82RWxxbDMca5TtZk=;
-        b=eYlD+iRQSrScXXRFcvwkJC92M8/e0BN367mVLFu4gtU4MV96PxTH20HviIXhDr8qm4
-         ZYDHVQ39rqDui8vA2sVF9qMTUw0imwjpqXjb5ypAsVopSZqVNLgemK+O95vBEvX7lgE5
-         50sCKkxGMUwMxYm152cb8goIhKrHwHkB/lTSaYZmRw0M4kWv/dwC8E8VBQh8WvstgmpZ
-         MWpFOKHyLnjiLP+7Ak3Z5CihTgVe41iM7clbbXlHQHKRo+Ldk/F4j4BPxtuAE4H51hvN
-         Bo1tMCSEb+G59rS/7tl0IE5DdUYGM7u67+9yUPpBUzd3ihctzyENzP8WdongOREI1+yB
-         Fd+Q==
+        bh=wo+pz1RlCIidxkw5/fraiu80jBJWqzzn04cQCaE7Zi4=;
+        b=Cg6O6+l/A68WOSN0nxfg0rc55Bvs+vXxniOhpMzcjq3Zbl+cjnZyeQpIj3estrLDjz
+         NcXPR/w/Alw7/Xbp6xuS5lEiOMvBHRHccz92uHNq5MC2HQowEbg5absR6ALBJfujbQAm
+         Y+G9K/sm/XUc8rkk5KzMyWlO/K5LfQtrLbSNa3guZrY3wVFX8MvYqIX0IQpeXPcQG7l4
+         PrxOxgvp5vOSsQp7DWweLuCgeEnuMTUjObPnA0aXO4PDWCd5XARkRpZb6Zm5A+OSdlg1
+         mjg1dnPeXvynWzrd0T/nXIJkyoXPB2k99pQs0YkRs3eBjTLE3cUiGxJStgAY/sf8d5+R
+         WqtQ==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id x20si77455289wrd.352.2019.08.09.09.00.58
+        by mx.google.com with ESMTPS id a70si4102434wma.62.2019.08.09.09.00.59
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 09:00:58 -0700 (PDT)
+        Fri, 09 Aug 2019 09:00:59 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 19B73305D3D7;
-	Fri,  9 Aug 2019 19:00:58 +0300 (EEST)
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 075DE305D3DA;
+	Fri,  9 Aug 2019 19:00:59 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id B3315305B7A3;
-	Fri,  9 Aug 2019 19:00:57 +0300 (EEST)
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id 92936305B7A5;
+	Fri,  9 Aug 2019 19:00:58 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
@@ -97,10 +97,11 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Weijiang Yang <weijiang.yang@intel.com>, Zhang@kvack.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
-	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v6 16/92] kvm: introspection: handle events and event replies
-Date: Fri,  9 Aug 2019 18:59:31 +0300
-Message-Id: <20190809160047.8319-17-alazar@bitdefender.com>
+	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>,
+	=?UTF-8?q?Mircea=20C=C3=AErjaliu?= <mcirjaliu@bitdefender.com>
+Subject: [RFC PATCH v6 19/92] kvm: introspection: add KVMI_EVENT_CREATE_VCPU
+Date: Fri,  9 Aug 2019 18:59:34 +0300
+Message-Id: <20190809160047.8319-20-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -112,586 +113,167 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Mihai Donțu <mdontu@bitdefender.com>
+From: Mircea Cîrjaliu <mcirjaliu@bitdefender.com>
 
-All events are sent by the vCPU thread, which will handle any
-introspection command while waiting for the reply.
+This event is sent when a vCPU is ready to be introspected.
 
-The event reply messages contain a common strucure (kvmi_vcpu_hdr), as
-any vCPU related command, which allows the receiving worker to dispatch
-the reply as it does with any other introspection command sent for a
-specific vCPU.
-
-The kernel side will gracefully handle commands coming from an
-introspection tool compiled with older or newer versions of KVMI API.
-However, it will only accept smaller replies (coming from older versions),
-but not the bigger/newer ones (this should make the kernel code simpler).
-
-TODO: Not quite true. An event reply has a common part (kvmi_event_reply)
-and an event specific part (eg. the new value for MSR x). If the common
-part is smaller, the event will be rejected.
-
-The code from handle_event_reply():
-
-	common = sizeof(struct kvmi_vcpu_hdr) + sizeof(*reply);
-	if (unlikely(msg->size < common))
-		goto out;
-
-should be changed to
-
-	min_common = sizeof(struct kvmi_vcpu_hdr) + offsetof(reply...)
-	if (unlikely(msg->size < min_common))
-		goto out;
-
-Signed-off-by: Mihai Donțu <mdontu@bitdefender.com>
+Signed-off-by: Mircea Cîrjaliu <mcirjaliu@bitdefender.com>
 Co-developed-by: Adalbert Lazăr <alazar@bitdefender.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- Documentation/virtual/kvm/kvmi.rst |  56 +++++++++++++
- arch/x86/include/uapi/asm/kvmi.h   |  29 +++++++
- arch/x86/kvm/Makefile              |   2 +-
- arch/x86/kvm/kvmi.c                |  92 ++++++++++++++++++++
- arch/x86/kvm/x86.c                 |  10 +++
- include/linux/kvm_host.h           |   3 +
- include/uapi/linux/kvmi.h          |  16 ++++
- virt/kvm/kvmi.c                    |  15 ++++
- virt/kvm/kvmi_int.h                |  16 ++++
- virt/kvm/kvmi_msg.c                | 129 +++++++++++++++++++++++++++++
- 10 files changed, 367 insertions(+), 1 deletion(-)
- create mode 100644 arch/x86/include/uapi/asm/kvmi.h
- create mode 100644 arch/x86/kvm/kvmi.c
+ Documentation/virtual/kvm/kvmi.rst | 23 +++++++++++++++
+ virt/kvm/kvmi.c                    | 47 ++++++++++++++++++++++++++++++
+ virt/kvm/kvmi_int.h                |  1 +
+ virt/kvm/kvmi_msg.c                | 12 ++++++++
+ 4 files changed, 83 insertions(+)
 
 diff --git a/Documentation/virtual/kvm/kvmi.rst b/Documentation/virtual/kvm/kvmi.rst
-index 7f3c4f8fce63..e7d9a3816e00 100644
+index 28e1a1c80551..b29cd1b80b4f 100644
 --- a/Documentation/virtual/kvm/kvmi.rst
 +++ b/Documentation/virtual/kvm/kvmi.rst
-@@ -427,3 +427,59 @@ in almost all cases, it must reply with: continue, retry, crash, etc.
- * -KVM_EINVAL - padding is not zero
- * -KVM_EPERM - the access is restricted by the host
- 
-+Events
-+======
+@@ -513,3 +513,26 @@ pause/stop/migrate the guest (see **Unhooking**) and the introspection
+ has been enabled for this event (see **KVMI_CONTROL_VM_EVENTS**).
+ The introspection tool has a chance to unhook and close the KVMI channel
+ (signaling that the operation can proceed).
 +
-+All vCPU events are sent using the *KVMI_EVENT* message id. No event
-+will be sent unless explicitly enabled with a *KVMI_CONTROL_EVENTS*
-+or a *KVMI_CONTROL_VM_EVENTS* command or requested, as it is the case
-+with the *KVMI_EVENT_PAUSE_VCPU* event (see **KVMI_PAUSE_VCPU**).
++2. KVMI_EVENT_CREATE_VCPU
++-------------------------
 +
-+There is one VM event, *KVMI_EVENT_UNHOOK*, which doesn't have a reply,
-+but shares the kvmi_event structure, for consistency with the vCPU events.
++:Architectures: all
++:Versions: >= 1
++:Actions: CONTINUE, CRASH
++:Parameters:
 +
-+The message data begins with a common structure, having the size of the
-+structure, the vCPU index and the event id::
++::
 +
-+	struct kvmi_event {
-+		__u16 size;
-+		__u16 vcpu;
-+		__u8 event;
-+		__u8 padding[3];
-+		struct kvmi_event_arch arch;
-+	}
++	struct kvmi_event;
 +
-+On x86 the structure looks like this::
++:Returns:
 +
-+	struct kvmi_event_arch {
-+		__u8 mode;
-+		__u8 padding[7];
-+		struct kvm_regs regs;
-+		struct kvm_sregs sregs;
-+		struct {
-+			__u64 sysenter_cs;
-+			__u64 sysenter_esp;
-+			__u64 sysenter_eip;
-+			__u64 efer;
-+			__u64 star;
-+			__u64 lstar;
-+			__u64 cstar;
-+			__u64 pat;
-+			__u64 shadow_gs;
-+		} msrs;
-+	};
-+
-+It contains information about the vCPU state at the time of the event.
-+
-+The reply to events have the *KVMI_EVENT_REPLY* message id and begins
-+with two common structures::
++::
 +
 +	struct kvmi_vcpu_hdr;
-+	struct kvmi_event_reply {
-+		__u8 action;
-+		__u8 event;
-+		__u16 padding1;
-+		__u32 padding2;
-+	};
++	struct kvmi_event_reply;
 +
-+Specific data can follow these common structures.
-diff --git a/arch/x86/include/uapi/asm/kvmi.h b/arch/x86/include/uapi/asm/kvmi.h
-new file mode 100644
-index 000000000000..551f9ed1ed9c
---- /dev/null
-+++ b/arch/x86/include/uapi/asm/kvmi.h
-@@ -0,0 +1,29 @@
-+/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
-+#ifndef _UAPI_ASM_X86_KVMI_H
-+#define _UAPI_ASM_X86_KVMI_H
++This event is sent when a new vCPU is created and the introspection has
++been enabled for this event (see *KVMI_CONTROL_VM_EVENTS*).
 +
-+/*
-+ * KVM introspection - x86 specific structures and definitions
-+ */
-+
-+#include <asm/kvm.h>
-+
-+struct kvmi_event_arch {
-+	__u8 mode;		/* 2, 4 or 8 */
-+	__u8 padding[7];
-+	struct kvm_regs regs;
-+	struct kvm_sregs sregs;
-+	struct {
-+		__u64 sysenter_cs;
-+		__u64 sysenter_esp;
-+		__u64 sysenter_eip;
-+		__u64 efer;
-+		__u64 star;
-+		__u64 lstar;
-+		__u64 cstar;
-+		__u64 pat;
-+		__u64 shadow_gs;
-+	} msrs;
-+};
-+
-+#endif /* _UAPI_ASM_X86_KVMI_H */
-diff --git a/arch/x86/kvm/Makefile b/arch/x86/kvm/Makefile
-index 0963e475dbe9..673cf37c0747 100644
---- a/arch/x86/kvm/Makefile
-+++ b/arch/x86/kvm/Makefile
-@@ -7,7 +7,7 @@ KVM := ../../../virt/kvm
- kvm-y			+= $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o \
- 				$(KVM)/eventfd.o $(KVM)/irqchip.o $(KVM)/vfio.o
- kvm-$(CONFIG_KVM_ASYNC_PF)	+= $(KVM)/async_pf.o
--kvm-$(CONFIG_KVM_INTROSPECTION) += $(KVM)/kvmi.o $(KVM)/kvmi_msg.o
-+kvm-$(CONFIG_KVM_INTROSPECTION) += $(KVM)/kvmi.o $(KVM)/kvmi_msg.o kvmi.o
- 
- kvm-y			+= x86.o mmu.o emulate.o i8259.o irq.o lapic.o \
- 			   i8254.o ioapic.o irq_comm.o cpuid.o pmu.o mtrr.o \
-diff --git a/arch/x86/kvm/kvmi.c b/arch/x86/kvm/kvmi.c
-new file mode 100644
-index 000000000000..9aecca551673
---- /dev/null
-+++ b/arch/x86/kvm/kvmi.c
-@@ -0,0 +1,92 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * KVM introspection - x86
-+ *
-+ * Copyright (C) 2019 Bitdefender S.R.L.
-+ */
-+#include "x86.h"
-+#include "../../../virt/kvm/kvmi_int.h"
-+
-+/*
-+ * TODO: this can be done from userspace.
-+ *   - all these registers are sent with struct kvmi_event_arch
-+ *   - userspace can request MSR_EFER with KVMI_GET_REGISTERS
-+ */
-+static unsigned int kvmi_vcpu_mode(const struct kvm_vcpu *vcpu,
-+				   const struct kvm_sregs *sregs)
-+{
-+	unsigned int mode = 0;
-+
-+	if (is_long_mode((struct kvm_vcpu *) vcpu)) {
-+		if (sregs->cs.l)
-+			mode = 8;
-+		else if (!sregs->cs.db)
-+			mode = 2;
-+		else
-+			mode = 4;
-+	} else if (sregs->cr0 & X86_CR0_PE) {
-+		if (!sregs->cs.db)
-+			mode = 2;
-+		else
-+			mode = 4;
-+	} else if (!sregs->cs.db) {
-+		mode = 2;
-+	} else {
-+		mode = 4;
-+	}
-+
-+	return mode;
-+}
-+
-+static void kvmi_get_msrs(struct kvm_vcpu *vcpu, struct kvmi_event_arch *event)
-+{
-+	struct msr_data msr;
-+
-+	msr.host_initiated = true;
-+
-+	msr.index = MSR_IA32_SYSENTER_CS;
-+	kvm_get_msr(vcpu, &msr);
-+	event->msrs.sysenter_cs = msr.data;
-+
-+	msr.index = MSR_IA32_SYSENTER_ESP;
-+	kvm_get_msr(vcpu, &msr);
-+	event->msrs.sysenter_esp = msr.data;
-+
-+	msr.index = MSR_IA32_SYSENTER_EIP;
-+	kvm_get_msr(vcpu, &msr);
-+	event->msrs.sysenter_eip = msr.data;
-+
-+	msr.index = MSR_EFER;
-+	kvm_get_msr(vcpu, &msr);
-+	event->msrs.efer = msr.data;
-+
-+	msr.index = MSR_STAR;
-+	kvm_get_msr(vcpu, &msr);
-+	event->msrs.star = msr.data;
-+
-+	msr.index = MSR_LSTAR;
-+	kvm_get_msr(vcpu, &msr);
-+	event->msrs.lstar = msr.data;
-+
-+	msr.index = MSR_CSTAR;
-+	kvm_get_msr(vcpu, &msr);
-+	event->msrs.cstar = msr.data;
-+
-+	msr.index = MSR_IA32_CR_PAT;
-+	kvm_get_msr(vcpu, &msr);
-+	event->msrs.pat = msr.data;
-+
-+	msr.index = MSR_KERNEL_GS_BASE;
-+	kvm_get_msr(vcpu, &msr);
-+	event->msrs.shadow_gs = msr.data;
-+}
-+
-+void kvmi_arch_setup_event(struct kvm_vcpu *vcpu, struct kvmi_event *ev)
-+{
-+	struct kvmi_event_arch *event = &ev->arch;
-+
-+	kvm_arch_vcpu_get_regs(vcpu, &event->regs);
-+	kvm_arch_vcpu_get_sregs(vcpu, &event->sregs);
-+	ev->arch.mode = kvmi_vcpu_mode(vcpu, &event->sregs);
-+	kvmi_get_msrs(vcpu, event);
-+}
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index adbdb1ceb618..30cf0d162aa8 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -8244,6 +8244,11 @@ int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
- 	return 0;
- }
- 
-+void kvm_arch_vcpu_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
-+{
-+	__get_regs(vcpu, regs);
-+}
-+
- static void __set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
- {
- 	vcpu->arch.emulate_regs_need_sync_from_vcpu = true;
-@@ -8339,6 +8344,11 @@ int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
- 	return 0;
- }
- 
-+void kvm_arch_vcpu_get_sregs(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
-+{
-+	__get_sregs(vcpu, sregs);
-+}
-+
- int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
- 				    struct kvm_mp_state *mp_state)
- {
-diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
-index 1ec04384fad3..e876921938b6 100644
---- a/include/linux/kvm_host.h
-+++ b/include/linux/kvm_host.h
-@@ -788,9 +788,12 @@ int kvm_arch_vcpu_ioctl_translate(struct kvm_vcpu *vcpu,
- 				    struct kvm_translation *tr);
- 
- int kvm_arch_vcpu_ioctl_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs);
-+void kvm_arch_vcpu_get_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs);
- int kvm_arch_vcpu_ioctl_set_regs(struct kvm_vcpu *vcpu, struct kvm_regs *regs);
- int kvm_arch_vcpu_ioctl_get_sregs(struct kvm_vcpu *vcpu,
- 				  struct kvm_sregs *sregs);
-+void kvm_arch_vcpu_get_sregs(struct kvm_vcpu *vcpu,
-+				  struct kvm_sregs *sregs);
- int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
- 				  struct kvm_sregs *sregs);
- int kvm_arch_vcpu_ioctl_get_mpstate(struct kvm_vcpu *vcpu,
-diff --git a/include/uapi/linux/kvmi.h b/include/uapi/linux/kvmi.h
-index 29452da818e3..dda2ae352611 100644
---- a/include/uapi/linux/kvmi.h
-+++ b/include/uapi/linux/kvmi.h
-@@ -8,6 +8,7 @@
- 
- #include <linux/kernel.h>
- #include <linux/types.h>
-+#include <asm/kvmi.h>
- 
- #define KVMI_VERSION 0x00000001
- 
-@@ -120,4 +121,19 @@ struct kvmi_vcpu_hdr {
- 	__u32 padding2;
- };
- 
-+struct kvmi_event {
-+	__u16 size;
-+	__u16 vcpu;
-+	__u8 event;
-+	__u8 padding[3];
-+	struct kvmi_event_arch arch;
-+};
-+
-+struct kvmi_event_reply {
-+	__u8 action;
-+	__u8 event;
-+	__u16 padding1;
-+	__u32 padding2;
-+};
-+
- #endif /* _UAPI__LINUX_KVMI_H */
 diff --git a/virt/kvm/kvmi.c b/virt/kvm/kvmi.c
-index 3c884dc0e38c..3cc7bb035796 100644
+index 7eda49bf65c4..d0d9adf5b6ed 100644
 --- a/virt/kvm/kvmi.c
 +++ b/virt/kvm/kvmi.c
-@@ -76,6 +76,8 @@ static bool alloc_kvmi(struct kvm *kvm, const struct kvm_introspection *qemu)
- 	if (!ikvm)
- 		return false;
+@@ -13,6 +13,7 @@
+ static struct kmem_cache *msg_cache;
+ static struct kmem_cache *job_cache;
  
-+	atomic_set(&ikvm->ev_seq, 0);
++static bool kvmi_create_vcpu_event(struct kvm_vcpu *vcpu);
+ static void kvmi_abort_events(struct kvm *kvm);
+ 
+ void *kvmi_msg_alloc(void)
+@@ -150,6 +151,11 @@ static struct kvmi_job *kvmi_pull_job(struct kvmi_vcpu *ivcpu)
+ 	return job;
+ }
+ 
++static void kvmi_job_create_vcpu(struct kvm_vcpu *vcpu, void *ctx)
++{
++	kvmi_create_vcpu_event(vcpu);
++}
 +
- 	set_bit(KVMI_GET_VERSION, ikvm->cmd_allow_mask);
- 	set_bit(KVMI_CHECK_COMMAND, ikvm->cmd_allow_mask);
- 	set_bit(KVMI_CHECK_EVENT, ikvm->cmd_allow_mask);
-@@ -520,10 +522,20 @@ void kvmi_run_jobs(struct kvm_vcpu *vcpu)
+ static bool alloc_ivcpu(struct kvm_vcpu *vcpu)
+ {
+ 	struct kvmi_vcpu *ivcpu;
+@@ -245,6 +251,9 @@ int kvmi_vcpu_init(struct kvm_vcpu *vcpu)
+ 		goto out;
+ 	}
+ 
++	if (kvmi_add_job(vcpu, kvmi_job_create_vcpu, NULL, NULL))
++		ret = -ENOMEM;
++
+ out:
+ 	kvmi_put(vcpu->kvm);
+ 
+@@ -330,6 +339,10 @@ int kvmi_hook(struct kvm *kvm, const struct kvm_introspection *qemu)
+ 			err = -ENOMEM;
+ 			goto err_alloc;
+ 		}
++		if (kvmi_add_job(vcpu, kvmi_job_create_vcpu, NULL, NULL)) {
++			err = -ENOMEM;
++			goto err_alloc;
++		}
+ 	}
+ 
+ 	/* interact with other kernel components after structure allocation */
+@@ -551,6 +564,40 @@ void kvmi_handle_common_event_actions(struct kvm_vcpu *vcpu, u32 action,
  	}
  }
  
-+static bool need_to_wait(struct kvm_vcpu *vcpu)
++static bool __kvmi_create_vcpu_event(struct kvm_vcpu *vcpu)
 +{
-+	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
++	u32 action;
++	bool ret = false;
 +
-+	return ivcpu->reply_waiting;
++	action = kvmi_msg_send_create_vcpu(vcpu);
++	switch (action) {
++	case KVMI_EVENT_ACTION_CONTINUE:
++		ret = true;
++		break;
++	default:
++		kvmi_handle_common_event_actions(vcpu, action, "CREATE");
++	}
++
++	return ret;
 +}
 +
- static bool done_waiting(struct kvm_vcpu *vcpu)
- {
- 	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
- 
-+	if (!need_to_wait(vcpu))
++static bool kvmi_create_vcpu_event(struct kvm_vcpu *vcpu)
++{
++	struct kvmi *ikvm;
++	bool ret = true;
++
++	ikvm = kvmi_get(vcpu->kvm);
++	if (!ikvm)
 +		return true;
 +
- 	return !list_empty(&ivcpu->job_list);
- }
- 
-@@ -552,6 +564,9 @@ int kvmi_run_jobs_and_wait(struct kvm_vcpu *vcpu)
- 			break;
- 		}
- 
-+		if (!need_to_wait(vcpu))
-+			break;
++	if (test_bit(KVMI_EVENT_CREATE_VCPU, ikvm->vm_ev_mask))
++		ret = __kvmi_create_vcpu_event(vcpu);
 +
- 		kvmi_add_job(vcpu, kvmi_job_wait, NULL, NULL);
- 	}
- 
++	kvmi_put(vcpu->kvm);
++
++	return ret;
++}
++
+ void kvmi_run_jobs(struct kvm_vcpu *vcpu)
+ {
+ 	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
 diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
-index 33ea05cb99af..70c8ca0343a3 100644
+index 9750a9b9902b..c21f0fd5e16c 100644
 --- a/virt/kvm/kvmi_int.h
 +++ b/virt/kvm/kvmi_int.h
-@@ -82,7 +82,18 @@ struct kvmi_job {
- 	void (*free_fct)(void *ctx);
- };
+@@ -123,6 +123,7 @@ bool kvmi_sock_get(struct kvmi *ikvm, int fd);
+ void kvmi_sock_shutdown(struct kvmi *ikvm);
+ void kvmi_sock_put(struct kvmi *ikvm);
+ bool kvmi_msg_process(struct kvmi *ikvm);
++u32 kvmi_msg_send_create_vcpu(struct kvm_vcpu *vcpu);
+ int kvmi_msg_send_unhook(struct kvmi *ikvm);
  
-+struct kvmi_vcpu_reply {
-+	int error;
-+	int action;
-+	u32 seq;
-+	void *data;
-+	size_t size;
-+};
-+
- struct kvmi_vcpu {
-+	bool reply_waiting;
-+	struct kvmi_vcpu_reply reply;
-+
- 	struct list_head job_list;
- 	spinlock_t job_lock;
- 
-@@ -96,6 +107,7 @@ struct kvmi {
- 
- 	struct socket *sock;
- 	struct task_struct *recv;
-+	atomic_t ev_seq;
- 
- 	uuid_t uuid;
- 
-@@ -118,8 +130,12 @@ void *kvmi_msg_alloc_check(size_t size);
- void kvmi_msg_free(void *addr);
- int kvmi_cmd_control_vm_events(struct kvmi *ikvm, unsigned int event_id,
- 			       bool enable);
-+int kvmi_run_jobs_and_wait(struct kvm_vcpu *vcpu);
- int kvmi_add_job(struct kvm_vcpu *vcpu,
- 		 void (*fct)(struct kvm_vcpu *vcpu, void *ctx),
- 		 void *ctx, void (*free_fct)(void *ctx));
- 
-+/* arch */
-+void kvmi_arch_setup_event(struct kvm_vcpu *vcpu, struct kvmi_event *ev);
-+
- #endif
+ /* kvmi.c */
 diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
-index 2728e6870d47..536034e1bea7 100644
+index 0c7c1e968007..8e8af572a4f4 100644
 --- a/virt/kvm/kvmi_msg.c
 +++ b/virt/kvm/kvmi_msg.c
-@@ -25,6 +25,8 @@ static const char *const msg_IDs[] = {
- 	[KVMI_CHECK_EVENT]           = "KVMI_CHECK_EVENT",
- 	[KVMI_CONTROL_CMD_RESPONSE]  = "KVMI_CONTROL_CMD_RESPONSE",
- 	[KVMI_CONTROL_VM_EVENTS]     = "KVMI_CONTROL_VM_EVENTS",
-+	[KVMI_EVENT]                 = "KVMI_EVENT",
-+	[KVMI_EVENT_REPLY]           = "KVMI_EVENT_REPLY",
- 	[KVMI_GET_GUEST_INFO]        = "KVMI_GET_GUEST_INFO",
- 	[KVMI_GET_VERSION]           = "KVMI_GET_VERSION",
- };
-@@ -337,6 +339,57 @@ static int(*const msg_vm[])(struct kvmi *, const struct kvmi_msg_hdr *,
- 	[KVMI_GET_VERSION]           = handle_get_version,
- };
+@@ -725,3 +725,15 @@ int kvmi_msg_send_unhook(struct kvmi *ikvm)
  
-+static int handle_event_reply(struct kvm_vcpu *vcpu,
-+			      const struct kvmi_msg_hdr *msg, const void *rpl,
-+			      vcpu_reply_fct reply_cb)
-+{
-+	const struct kvmi_event_reply *reply = rpl;
-+	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
-+	struct kvmi *ikvm = IKVM(vcpu->kvm);
-+	struct kvmi_vcpu_reply *expected = &ivcpu->reply;
-+	size_t useful, received, common;
-+
-+	if (unlikely(msg->seq != expected->seq))
-+		goto out;
-+
-+	common = sizeof(struct kvmi_vcpu_hdr) + sizeof(*reply);
-+	if (unlikely(msg->size < common))
-+		goto out;
-+
-+	if (unlikely(reply->padding1 || reply->padding2))
-+		goto out;
-+
-+	received = msg->size - common;
-+	/* Don't accept newer/bigger structures */
-+	if (unlikely(received > expected->size))
-+		goto out;
-+
-+	useful = min(received, expected->size);
-+	if (useful)
-+		memcpy(expected->data, reply + 1, useful);
-+
-+	if (useful < expected->size)
-+		memset((char *)expected->data + useful, 0,
-+			expected->size - useful);
-+
-+	expected->action = reply->action;
-+	expected->error = 0;
-+
-+out:
-+
-+	if (unlikely(expected->error))
-+		kvmi_err(ikvm, "Invalid event %d/%d reply seq %x/%x size %u min %zu expected %zu padding %u,%u\n",
-+			 reply->event, reply->action,
-+			 msg->seq, expected->seq,
-+			 msg->size, common,
-+			 common + expected->size,
-+			 reply->padding1,
-+			 reply->padding2);
-+
-+	ivcpu->reply_waiting = false;
-+	return expected->error;
-+}
-+
- /*
-  * These commands are executed on the vCPU thread. The receiving thread
-  * passes the messages using a newly allocated 'struct kvmi_vcpu_cmd'
-@@ -346,6 +399,7 @@ static int(*const msg_vm[])(struct kvmi *, const struct kvmi_msg_hdr *,
- static int(*const msg_vcpu[])(struct kvm_vcpu *,
- 			      const struct kvmi_msg_hdr *, const void *,
- 			      vcpu_reply_fct) = {
-+	[KVMI_EVENT_REPLY]      = handle_event_reply,
- };
- 
- static void kvmi_job_vcpu_cmd(struct kvm_vcpu *vcpu, void *_ctx)
-@@ -576,3 +630,78 @@ bool kvmi_msg_process(struct kvmi *ikvm)
- 
- 	return err == 0;
+ 	return kvmi_sock_write(ikvm, vec, n, msg_size);
  }
 +
-+static void kvmi_setup_event_common(struct kvmi_event *ev, u32 ev_id,
-+				    unsigned short vcpu_idx)
++u32 kvmi_msg_send_create_vcpu(struct kvm_vcpu *vcpu)
 +{
-+	memset(ev, 0, sizeof(*ev));
++	int err, action;
 +
-+	ev->vcpu = vcpu_idx;
-+	ev->event = ev_id;
-+	ev->size = sizeof(*ev);
-+}
-+
-+static void kvmi_setup_event(struct kvm_vcpu *vcpu, struct kvmi_event *ev,
-+			     u32 ev_id)
-+{
-+	kvmi_setup_event_common(ev, ev_id, kvm_vcpu_get_idx(vcpu));
-+	kvmi_arch_setup_event(vcpu, ev);
-+}
-+
-+static inline u32 new_seq(struct kvmi *ikvm)
-+{
-+	return atomic_inc_return(&ikvm->ev_seq);
-+}
-+
-+int kvmi_send_event(struct kvm_vcpu *vcpu, u32 ev_id,
-+		    void *ev, size_t ev_size,
-+		    void *rpl, size_t rpl_size, int *action)
-+{
-+	struct kvmi_msg_hdr hdr;
-+	struct kvmi_event common;
-+	struct kvec vec[] = {
-+		{.iov_base = &hdr,	.iov_len = sizeof(hdr)	 },
-+		{.iov_base = &common,	.iov_len = sizeof(common)},
-+		{.iov_base = ev,	.iov_len = ev_size	 },
-+	};
-+	size_t msg_size = sizeof(hdr) + sizeof(common) + ev_size;
-+	size_t n = ev_size ? ARRAY_SIZE(vec) : ARRAY_SIZE(vec)-1;
-+	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
-+	struct kvmi *ikvm = IKVM(vcpu->kvm);
-+	int err;
-+
-+	memset(&hdr, 0, sizeof(hdr));
-+	hdr.id = KVMI_EVENT;
-+	hdr.seq = new_seq(ikvm);
-+	hdr.size = msg_size - sizeof(hdr);
-+
-+	kvmi_setup_event(vcpu, &common, ev_id);
-+
-+	memset(&ivcpu->reply, 0, sizeof(ivcpu->reply));
-+
-+	ivcpu->reply.seq = hdr.seq;
-+	ivcpu->reply.data = rpl;
-+	ivcpu->reply.size = rpl_size;
-+	ivcpu->reply.error = -EINTR;
-+
-+	err = kvmi_sock_write(ikvm, vec, n, msg_size);
++	err = kvmi_send_event(vcpu, KVMI_EVENT_CREATE_VCPU, NULL, 0,
++			      NULL, 0, &action);
 +	if (err)
-+		goto out;
++		return KVMI_EVENT_ACTION_CONTINUE;
 +
-+	ivcpu->reply_waiting = true;
-+	err = kvmi_run_jobs_and_wait(vcpu);
-+	if (err)
-+		goto out;
-+
-+	err = ivcpu->reply.error;
-+	if (err)
-+		goto out;
-+
-+	*action = ivcpu->reply.action;
-+
-+out:
-+	if (err)
-+		kvmi_sock_shutdown(ikvm);
-+	return err;
++	return action;
 +}
-+
 
