@@ -6,82 +6,82 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D9506C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:04:25 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8F51EC433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:04:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 605482089E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:04:25 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 605482089E
+	by mail.kernel.org (Postfix) with ESMTP id 2C7182089E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:04:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2C7182089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 947C96B029C; Fri,  9 Aug 2019 12:01:31 -0400 (EDT)
+	id E9BCD6B0299; Fri,  9 Aug 2019 12:01:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 8CFB06B029E; Fri,  9 Aug 2019 12:01:31 -0400 (EDT)
+	id E27FB6B029D; Fri,  9 Aug 2019 12:01:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 749BB6B029D; Fri,  9 Aug 2019 12:01:31 -0400 (EDT)
+	id C2F516B029E; Fri,  9 Aug 2019 12:01:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 170C36B0299
+Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 89BC66B0299
 	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:31 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id e8so46643054wrw.15
+Received: by mail-wr1-f69.google.com with SMTP id t10so1728286wrn.10
         for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:31 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=vqdbcVGUEVnhgZ0sIMNrTjnqzY9Wtfva/EsS2dDif8Y=;
-        b=K4N7vqgphAqv6mOCKh9mfiPM7mW0Gk8Bh6jCujhefGMAw3yRyYwwAUAIaKLsj2S5L8
-         sWTnTgaoGwM2h9rSC/vlb2UJd46++uUMdDd+RX7T/5k2g2td+Nfcwa5+ILZLU1SALEIC
-         bNGsU115vkyU6i/lQyeGgGxB10IvNMJcwEdPFqPNZWqkzK0CpGGpLUcXeOwQA6Os86gj
-         IyHq1QONDgSEnJHv5Hq62cr6pk0GI4LtNHAJFcytnQJ/vuaXZo5ppq7koEgoyrHNAIN5
-         wPToAWNqx+ojK2A0n3WnOpOPeZvGannyXdYH+y9/T9FrjMi0viBcu10aPSeslVKOk5Nv
-         pQzw==
+        bh=dFDd51/iRhglx+TerHt82UXln26Dp7TInCnSwh6yaL4=;
+        b=AHEQfv1idfjppeFDYyd2v2jHNyWjGkMMOQINsSX4jMim1bQa2BCtpDph0qKJ3Ltu7e
+         kFQzTy1XLCOLYvhunEw9kjD0e23cz66nR0Qk6E00gc6CrxipU/HsJsIu2cwOs7fu9zjX
+         wCcGZ4oHAuq+tnVlcqIbMU53wOB9YOle6Ed+naSRzjN06bzL+ZFvZ3YDyB9wM34ATvyQ
+         b+lzemOeB0v/kF0CJcPvp8O2dsi70ligJH0aHjGsb2823qeoGLA+Qpa7ovbZuto12h15
+         HvGvwwmfG0PLgQywEAacwlL3eyjWVzrakCZcnMXd0xH9Z0+39dC0b1ZHdEAauCLyI8bG
+         ckEQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAVwlkKLuIkp+srG2tGPjA6K0IyaJPqPRirZTOG+FMPFtFIm3k1K
-	xVwjsPsRqpXiESghFJ++tukqmcNdfm35MZoZcTu3RH9t7zCj95615+v3tsUHZe5i84TFVYDElp4
-	NYKq6vUsGw6mQ4vpEGCum5OHF974UyKrKF174Ot1QJrN0Q978y1rycghNTZyN7bd09A==
-X-Received: by 2002:a1c:7f93:: with SMTP id a141mr11705267wmd.131.1565366490596;
+X-Gm-Message-State: APjAAAVZTjxqgzHRx6Ch5PEev3mrZVOVCQjr8018NO+i0QrWJD9DewRq
+	UlOszvQfbqX2FbtxuCdZIkLk+PIaRJC2IE6IYLN77o3eKGxWx4qB6g850bXNTY9s97zSoqhUeai
+	qEG0c3XYZKTMv9Fbi7yV1Ydy3Lke83lTfq6F7gk1Pdw3/nCQzP8Vn6/7Hj9ojMTM+8Q==
+X-Received: by 2002:adf:aa85:: with SMTP id h5mr14735389wrc.329.1565366491127;
+        Fri, 09 Aug 2019 09:01:31 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqy8g20nDpaxB2Qtnp/0fud8ap+UJ2KQaWSjb03XbjgYoTB4/esTjh/LdLUN8+/JU0k83IWk
+X-Received: by 2002:adf:aa85:: with SMTP id h5mr14735298wrc.329.1565366490127;
         Fri, 09 Aug 2019 09:01:30 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwk5N14zUN+8Ro1Uahqr0CTpu9+e+odeUh7p2N6CBz+FAEbzqSOIGHrB4Qa6m1iV6g0xQOx
-X-Received: by 2002:a1c:7f93:: with SMTP id a141mr11705133wmd.131.1565366488980;
-        Fri, 09 Aug 2019 09:01:28 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366488; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1565366490; cv=none;
         d=google.com; s=arc-20160816;
-        b=U4Mq0UCkrae4F6XCfuRPHwCMJFJ1owy4Hmr4bdwKfbywILaAHQErfO9B+0BThfya5M
-         TahjQ6Ra4cz4+5zHzI3ZcmaddYWWcvNlHIarXHjZj/kSgjwnCBXUC4i8zht6XyIOg31+
-         0PV1uxAg1k3NP1pF79JnxbhrGgc8C6Lv2GLTd3YdPfyuXeh8sGoBk2FeIHyj83sFS0O0
-         GjRMh2LT+5NEstvRSLyhHrPnOLR/3EV7dq+j31bniNG4bR8p1jky21RCgbd2Su+b3Ll9
-         oIPA9dhzbSWYMRjFFhgM6Wc0W+xruSOL35iynFFDni7xwI3852pBanByX7SncsFxczgV
-         LpEg==
+        b=XdBAhBU2K1WaUx24a3FBHIsLV3a+3Y7wi6xh+2o66YXlCDFGm952XRvYP1Cgw/Qt1r
+         3w7l4c8g1tJhGKNkdpkF0S5TLRnzpVuzyMlCx1kq7Ln6KojsmgWmz1xrMCf6clyjKGir
+         wMWlFb8ofHnN7f/scVGkWwZt8JxowqmykMs2ustGKO6QTzM8ClGWF/oWLSFDotdg6oIK
+         SHEoO7JuUXN14jUSRSJs1MIlbzOOY3xX47ZorO+3i1VzLttpstbYoKqQXCeTsHGleUck
+         uhwyZxIlCK57/GLBsDw6YQm9GIoEigpMXCF8DILBuY/I4fzHxuVlDaxSu1kSI1ZGC3dr
+         A/5w==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=vqdbcVGUEVnhgZ0sIMNrTjnqzY9Wtfva/EsS2dDif8Y=;
-        b=bazWgXZpzLL+UTAAq3XH7RlUSw4VIb+vUUlWiYiMNbAtDK+dKiS6df1lwkRjKGiemD
-         qGlxV0wU9DCHEZ46VsSdF08Pr1hrdx1eXG82WpZO3Ab7r4t5+RpR3bYxskROtaGCVYf7
-         Ph+naSSHe9Cxj4Wg5Aym7AEGVjo1sJJoGT0bJU/Z1C2pvlRbtiPYAau4L9HcIVaQTT0k
-         jVwqcViTrT44vvjdoI/eEa8BMgPNAV4WwgarFnPOELrwBX/5sbSpBy8uqh8T5JgwAoQ2
-         /Iaj9/ZvhXZXnzVNs56sQI50Dkge7HkVanWH37n/Kddfxtuoop+w32vgtvzmXPwNT8Br
-         gJzQ==
+        bh=dFDd51/iRhglx+TerHt82UXln26Dp7TInCnSwh6yaL4=;
+        b=YrQbyFi/VV5oZkVIR00cqN0NfyfroeiUjA0stC/vHzdaLBoYaeZsT/pbz6cuqj3iLP
+         c6hOGMT/SLUosI87RgSWp5esHsl7lLDi1tB3GBudZnXvP5RBRLTjTdHQgPLkvgC6HrZx
+         fPCV1BOMwQFqcRxPkW4ulwtECeyjpdoSjn0TzMxwoUkVblzYckUuS5iLwXKb1lbzXL5Z
+         Jj7GhccE24k2etoChwbUZa8R4m4H4+rgrMCaC9rOBquh60oGAHJpDDKYsQ15FaBgbUE3
+         EJ8aTvcxSpAZyCoUUzRIHOwbCDv/rhDHkP03f8ItluCJj6DkO8NZPDHqQEpwGldJxIQe
+         D5vA==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id 92si1297343wrd.420.2019.08.09.09.01.28
+        by mx.google.com with ESMTPS id f11si4271348wmg.84.2019.08.09.09.01.29
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 09:01:28 -0700 (PDT)
+        Fri, 09 Aug 2019 09:01:30 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 5E318305D355;
-	Fri,  9 Aug 2019 19:01:28 +0300 (EEST)
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 80E2D305D357;
+	Fri,  9 Aug 2019 19:01:29 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id 40116305B7A5;
-	Fri,  9 Aug 2019 19:01:27 +0300 (EEST)
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id 9DD82305B7A1;
+	Fri,  9 Aug 2019 19:01:28 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
@@ -97,14 +97,10 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Weijiang Yang <weijiang.yang@intel.com>, Zhang@kvack.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
-	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>,
-	=?UTF-8?q?Nicu=C8=99or=20C=C3=AE=C8=9Bu?= <ncitu@bitdefender.com>,
-	Jim Mattson <jmattson@google.com>,
-	Sean Christopherson <sean.j.christopherson@intel.com>,
-	Joerg Roedel <joro@8bytes.org>
-Subject: [RFC PATCH v6 64/92] kvm: introspection: add single-stepping
-Date: Fri,  9 Aug 2019 19:00:19 +0300
-Message-Id: <20190809160047.8319-65-alazar@bitdefender.com>
+	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
+Subject: [RFC PATCH v6 66/92] kvm: introspection: add custom input when single-stepping a vCPU
+Date: Fri,  9 Aug 2019 19:00:21 +0300
+Message-Id: <20190809160047.8319-67-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -116,485 +112,186 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Nicușor Cîțu <ncitu@bitdefender.com>
+The introspection tool can respond to a KVMI_EVENT_PF event with custom
+input for the current instruction. This input is used to trick the guest
+software into believing it has read certain data, in order to hide the
+content of certain memory areas (eg. hide injected code from integrity
+checkers). There are cases when this can happen while the vCPU has to
+be single stepped, Either the current instruction is not supported by
+the KVM emulator or the introspection tool requested single-stepping.
 
-This would be used either if the introspection tool request it as a
-reply to a KVMI_EVENT_PF event or to cope with instructions that cannot
-be handled by the x86 emulator during the handling of a VMEXIT. In
-these situations, all other vCPU-s are kicked and held, the EPT-based
-protection is removed and the guest is single stepped by the vCPU that
-triggered the initial VMEXIT. Upon completion the EPT-base protection
-is reinstalled and all vCPU-s all allowed to return to the guest.
+This patch saves the old data, write the custom input, start the single
+stepping and restore the old data.
 
-This is a rather slow workaround that kicks in occasionally. In the
-future, the most frequently single-stepped instructions should be added
-to the emulator (usually, stores to and from memory - SSE/AVX).
-
-For the moment it works only on Intel.
-
-CC: Jim Mattson <jmattson@google.com>
-CC: Sean Christopherson <sean.j.christopherson@intel.com>
-CC: Joerg Roedel <joro@8bytes.org>
-Signed-off-by: Nicușor Cîțu <ncitu@bitdefender.com>
-Co-developed-by: Mihai Donțu <mdontu@bitdefender.com>
-Signed-off-by: Mihai Donțu <mdontu@bitdefender.com>
-Co-developed-by: Adalbert Lazăr <alazar@bitdefender.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- arch/x86/include/asm/kvm_host.h |   3 +
- arch/x86/kvm/kvmi.c             |  47 ++++++++++-
- arch/x86/kvm/svm.c              |   5 ++
- arch/x86/kvm/vmx/vmx.c          |  17 ++++
- arch/x86/kvm/x86.c              |  19 +++++
- include/linux/kvmi.h            |   4 +
- virt/kvm/kvmi.c                 | 145 +++++++++++++++++++++++++++++++-
- virt/kvm/kvmi_int.h             |  16 ++++
- 8 files changed, 253 insertions(+), 3 deletions(-)
+ virt/kvm/kvmi.c     | 119 ++++++++++++++++++++++++++++++++++++++++++++
+ virt/kvm/kvmi_int.h |   3 ++
+ 2 files changed, 122 insertions(+)
 
-diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
-index ad36a5fc2048..60e2c298d469 100644
---- a/arch/x86/include/asm/kvm_host.h
-+++ b/arch/x86/include/asm/kvm_host.h
-@@ -1016,6 +1016,7 @@ struct kvm_x86_ops {
- 	void (*msr_intercept)(struct kvm_vcpu *vcpu, unsigned int msr,
- 				bool enable);
- 	bool (*desc_intercept)(struct kvm_vcpu *vcpu, bool enable);
-+	void (*set_mtf)(struct kvm_vcpu *vcpu, bool enable);
- 	void (*cr3_write_exiting)(struct kvm_vcpu *vcpu, bool enable);
- 	bool (*nested_pagefault)(struct kvm_vcpu *vcpu);
- 	bool (*spt_fault)(struct kvm_vcpu *vcpu);
-@@ -1628,6 +1629,8 @@ void kvm_arch_msr_intercept(struct kvm_vcpu *vcpu, unsigned int msr,
- 				bool enable);
- bool kvm_mmu_nested_pagefault(struct kvm_vcpu *vcpu);
- bool kvm_spt_fault(struct kvm_vcpu *vcpu);
-+void kvm_set_mtf(struct kvm_vcpu *vcpu, bool enable);
-+void kvm_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask);
- void kvm_control_cr3_write_exiting(struct kvm_vcpu *vcpu, bool enable);
- 
- #endif /* _ASM_X86_KVM_HOST_H */
-diff --git a/arch/x86/kvm/kvmi.c b/arch/x86/kvm/kvmi.c
-index 04cac5b8a4d0..f0ab4bd9eb37 100644
---- a/arch/x86/kvm/kvmi.c
-+++ b/arch/x86/kvm/kvmi.c
-@@ -520,7 +520,6 @@ bool kvmi_arch_pf_event(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
- 	u32 ctx_size;
- 	u64 ctx_addr;
- 	u32 action;
--	bool singlestep_ignored;
- 	bool ret = false;
- 
- 	if (!kvm_spt_fault(vcpu))
-@@ -533,7 +532,7 @@ bool kvmi_arch_pf_event(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
- 	if (ivcpu->effective_rep_complete)
- 		return true;
- 
--	action = kvmi_msg_send_pf(vcpu, gpa, gva, access, &singlestep_ignored,
-+	action = kvmi_msg_send_pf(vcpu, gpa, gva, access, &ivcpu->ss_requested,
- 				  &ivcpu->rep_complete, &ctx_addr,
- 				  ivcpu->ctx_data, &ctx_size);
- 
-@@ -547,6 +546,8 @@ bool kvmi_arch_pf_event(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
- 		ret = true;
- 		break;
- 	case KVMI_EVENT_ACTION_RETRY:
-+		if (ivcpu->ss_requested && !kvmi_start_ss(vcpu, gpa, access))
-+			ret = true;
- 		break;
- 	default:
- 		kvmi_handle_common_event_actions(vcpu, action, "PF");
-@@ -758,6 +759,48 @@ int kvmi_arch_cmd_control_cr(struct kvm_vcpu *vcpu,
- 	return 0;
- }
- 
-+void kvmi_arch_start_single_step(struct kvm_vcpu *vcpu)
-+{
-+	kvm_set_mtf(vcpu, true);
-+
-+	/*
-+	 * Set block by STI only if the RFLAGS.IF = 1.
-+	 * Blocking by both STI and MOV/POP SS is not possible.
-+	 */
-+	if (kvm_arch_interrupt_allowed(vcpu))
-+		kvm_set_interrupt_shadow(vcpu, KVM_X86_SHADOW_INT_STI);
-+
-+}
-+
-+void kvmi_arch_stop_single_step(struct kvm_vcpu *vcpu)
-+{
-+	kvm_set_mtf(vcpu, false);
-+	/*
-+	 * The blocking by STI is cleared after the guest
-+	 * executes one instruction or incurs an exception.
-+	 * However we migh stop the SS before entering to guest,
-+	 * so be sure we are clearing the STI blocking.
-+	 */
-+	kvm_set_interrupt_shadow(vcpu, 0);
-+}
-+
-+u8 kvmi_arch_relax_page_access(u8 old, u8 new)
-+{
-+	u8 ret = old | new;
-+
-+	/*
-+	 * An SPTE entry with just the -wx bits set can trigger a
-+	 * misconfiguration error from the hardware, as it's the case
-+	 * for x86 where this access mode is used to mark I/O memory.
-+	 * Thus, we make sure that -wx accesses are translated to rwx.
-+	 */
-+	if ((ret & (KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X)) ==
-+	    (KVMI_PAGE_ACCESS_W | KVMI_PAGE_ACCESS_X))
-+		ret |= KVMI_PAGE_ACCESS_R;
-+
-+	return ret;
-+}
-+
- static const struct {
- 	unsigned int allow_bit;
- 	enum kvm_page_track_mode track_mode;
-diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
-index b178b8900660..3481c0247680 100644
---- a/arch/x86/kvm/svm.c
-+++ b/arch/x86/kvm/svm.c
-@@ -7183,6 +7183,10 @@ static bool svm_spt_fault(struct kvm_vcpu *vcpu)
- 	return (svm->vmcb->control.exit_code == SVM_EXIT_NPF);
- }
- 
-+static void svm_set_mtf(struct kvm_vcpu *vcpu, bool enable)
-+{
-+}
-+
- static void svm_cr3_write_exiting(struct kvm_vcpu *vcpu, bool enable)
- {
- }
-@@ -7225,6 +7229,7 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
- 	.cpu_has_accelerated_tpr = svm_cpu_has_accelerated_tpr,
- 	.has_emulated_msr = svm_has_emulated_msr,
- 
-+	.set_mtf = svm_set_mtf,
- 	.cr3_write_exiting = svm_cr3_write_exiting,
- 	.msr_intercept = svm_msr_intercept,
- 	.desc_intercept = svm_desc_intercept,
-diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
-index 7d1e341b51ad..f0369d0574dc 100644
---- a/arch/x86/kvm/vmx/vmx.c
-+++ b/arch/x86/kvm/vmx/vmx.c
-@@ -5384,6 +5384,7 @@ static int handle_invalid_op(struct kvm_vcpu *vcpu)
- 
- static int handle_monitor_trap(struct kvm_vcpu *vcpu)
- {
-+	kvmi_stop_ss(vcpu);
- 	return 1;
- }
- 
-@@ -5992,6 +5993,11 @@ static int vmx_handle_exit(struct kvm_vcpu *vcpu)
- 		}
- 	}
- 
-+	if (kvmi_vcpu_enabled_ss(vcpu)
-+			&& exit_reason != EXIT_REASON_EPT_VIOLATION
-+			&& exit_reason != EXIT_REASON_MONITOR_TRAP_FLAG)
-+		kvmi_stop_ss(vcpu);
-+
- 	if (exit_reason < kvm_vmx_max_exit_handlers
- 	    && kvm_vmx_exit_handlers[exit_reason])
- 		return kvm_vmx_exit_handlers[exit_reason](vcpu);
-@@ -7842,6 +7848,16 @@ static __exit void hardware_unsetup(void)
- 	free_kvm_area();
- }
- 
-+static void vmx_set_mtf(struct kvm_vcpu *vcpu, bool enable)
-+{
-+	if (enable)
-+		vmcs_set_bits(CPU_BASED_VM_EXEC_CONTROL,
-+			      CPU_BASED_MONITOR_TRAP_FLAG);
-+	else
-+		vmcs_clear_bits(CPU_BASED_VM_EXEC_CONTROL,
-+				CPU_BASED_MONITOR_TRAP_FLAG);
-+}
-+
- static void vmx_msr_intercept(struct kvm_vcpu *vcpu, unsigned int msr,
- 			      bool enable)
- {
-@@ -7927,6 +7943,7 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
- 	.cpu_has_accelerated_tpr = report_flexpriority,
- 	.has_emulated_msr = vmx_has_emulated_msr,
- 
-+	.set_mtf = vmx_set_mtf,
- 	.msr_intercept = vmx_msr_intercept,
- 	.cr3_write_exiting = vmx_cr3_write_exiting,
- 	.desc_intercept = vmx_desc_intercept,
-diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
-index 38aaddadb93a..65855340249a 100644
---- a/arch/x86/kvm/x86.c
-+++ b/arch/x86/kvm/x86.c
-@@ -7358,6 +7358,13 @@ static int inject_pending_event(struct kvm_vcpu *vcpu, bool req_int_win)
- {
- 	int r;
- 
-+	if (kvmi_vcpu_enabled_ss(vcpu))
-+		/*
-+		 * We cannot inject events during single-stepping.
-+		 * Try again later.
-+		 */
-+		return -1;
-+
- 	/* try to reinject previous events if any */
- 
- 	if (vcpu->arch.exception.injected)
-@@ -10134,6 +10141,18 @@ void kvm_control_cr3_write_exiting(struct kvm_vcpu *vcpu, bool enable)
- }
- EXPORT_SYMBOL(kvm_control_cr3_write_exiting);
- 
-+void kvm_set_mtf(struct kvm_vcpu *vcpu, bool enable)
-+{
-+	kvm_x86_ops->set_mtf(vcpu, enable);
-+}
-+EXPORT_SYMBOL(kvm_set_mtf);
-+
-+void kvm_set_interrupt_shadow(struct kvm_vcpu *vcpu, int mask)
-+{
-+	kvm_x86_ops->set_interrupt_shadow(vcpu, mask);
-+}
-+EXPORT_SYMBOL(kvm_set_interrupt_shadow);
-+
- bool kvm_spt_fault(struct kvm_vcpu *vcpu)
- {
- 	return kvm_x86_ops->spt_fault(vcpu);
-diff --git a/include/linux/kvmi.h b/include/linux/kvmi.h
-index 5d162b9e67f2..1dc90284dc3a 100644
---- a/include/linux/kvmi.h
-+++ b/include/linux/kvmi.h
-@@ -22,6 +22,8 @@ bool kvmi_queue_exception(struct kvm_vcpu *vcpu);
- void kvmi_trap_event(struct kvm_vcpu *vcpu);
- bool kvmi_descriptor_event(struct kvm_vcpu *vcpu, u8 descriptor, u8 write);
- void kvmi_handle_requests(struct kvm_vcpu *vcpu);
-+void kvmi_stop_ss(struct kvm_vcpu *vcpu);
-+bool kvmi_vcpu_enabled_ss(struct kvm_vcpu *vcpu);
- void kvmi_init_emulate(struct kvm_vcpu *vcpu);
- void kvmi_activate_rep_complete(struct kvm_vcpu *vcpu);
- bool kvmi_bp_intercepted(struct kvm_vcpu *vcpu, u32 dbg);
-@@ -44,6 +46,8 @@ static inline void kvmi_handle_requests(struct kvm_vcpu *vcpu) { }
- static inline bool kvmi_hypercall_event(struct kvm_vcpu *vcpu) { return false; }
- static inline bool kvmi_queue_exception(struct kvm_vcpu *vcpu) { return true; }
- static inline void kvmi_trap_event(struct kvm_vcpu *vcpu) { }
-+static inline void kvmi_stop_ss(struct kvm_vcpu *vcpu) { }
-+static inline bool kvmi_vcpu_enabled_ss(struct kvm_vcpu *vcpu) { return false; }
- static inline void kvmi_init_emulate(struct kvm_vcpu *vcpu) { }
- static inline void kvmi_activate_rep_complete(struct kvm_vcpu *vcpu) { }
- static inline bool kvmi_bp_intercepted(struct kvm_vcpu *vcpu, u32 dbg)
 diff --git a/virt/kvm/kvmi.c b/virt/kvm/kvmi.c
-index d47a725a4045..a3a5af9080a9 100644
+index 3dfedf3ae739..06dc23f40ded 100644
 --- a/virt/kvm/kvmi.c
 +++ b/virt/kvm/kvmi.c
-@@ -1260,11 +1260,19 @@ void kvmi_run_jobs(struct kvm_vcpu *vcpu)
- 	}
- }
- 
-+static bool need_to_wait_for_ss(struct kvm_vcpu *vcpu)
-+{
-+	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
-+	struct kvmi *ikvm = IKVM(vcpu->kvm);
-+
-+	return atomic_read(&ikvm->ss_active) && !ivcpu->ss_owner;
-+}
-+
- static bool need_to_wait(struct kvm_vcpu *vcpu)
- {
- 	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
- 
--	return ivcpu->reply_waiting;
-+	return ivcpu->reply_waiting || need_to_wait_for_ss(vcpu);
- }
- 
- static bool done_waiting(struct kvm_vcpu *vcpu)
-@@ -1572,6 +1580,141 @@ int kvmi_cmd_pause_vcpu(struct kvm_vcpu *vcpu, bool wait)
+@@ -1618,6 +1618,116 @@ int kvmi_cmd_pause_vcpu(struct kvm_vcpu *vcpu, bool wait)
  	return 0;
  }
  
-+void kvmi_stop_ss(struct kvm_vcpu *vcpu)
++static int write_custom_data_to_page(struct kvm_vcpu *vcpu, gva_t gva,
++					u8 *backup, size_t bytes)
 +{
-+	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
-+	struct kvm *kvm = vcpu->kvm;
-+	struct kvmi *ikvm;
-+	int i;
++	u8 *ptr_page, *ptr;
++	struct page *page;
++	gpa_t gpa;
 +
-+	ikvm = kvmi_get(kvm);
-+	if (!ikvm)
++	gpa = kvm_mmu_gva_to_gpa_system(vcpu, gva, NULL);
++	if (gpa == UNMAPPED_GVA)
++		return -KVM_EINVAL;
++
++	ptr_page = get_page_ptr(vcpu->kvm, gpa, &page, true);
++	if (!ptr_page)
++		return -KVM_EINVAL;
++
++	ptr = ptr_page + (gpa & ~PAGE_MASK);
++
++	memcpy(backup, ptr, bytes);
++	use_custom_input(vcpu, gva, ptr, bytes);
++
++	put_page_ptr(ptr_page, page);
++
++	return 0;
++}
++
++static int write_custom_data(struct kvm_vcpu *vcpu)
++{
++	struct kvmi *ikvm = IKVM(vcpu->kvm);
++	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
++	size_t bytes = ivcpu->ctx_size;
++	gva_t gva = ivcpu->ctx_addr;
++	u8 *backup;
++
++	if (ikvm->ss_custom_size)
++		return 0;
++
++	if (!bytes)
++		return 0;
++
++	backup = ikvm->ss_custom_data;
++
++	while (bytes) {
++		size_t offset = gva & ~PAGE_MASK;
++		size_t chunk = min(bytes, PAGE_SIZE - offset);
++
++		if (write_custom_data_to_page(vcpu, gva, backup, chunk))
++			return -KVM_EINVAL;
++
++		bytes -= chunk;
++		backup += chunk;
++		gva += chunk;
++		ikvm->ss_custom_size += chunk;
++	}
++
++	return 0;
++}
++
++static int restore_backup_data_to_page(struct kvm_vcpu *vcpu, gva_t gva,
++					u8 *src, size_t bytes)
++{
++	u8 *ptr_page, *ptr;
++	struct page *page;
++	gpa_t gpa;
++
++	gpa = kvm_mmu_gva_to_gpa_system(vcpu, gva, NULL);
++	if (gpa == UNMAPPED_GVA)
++		return -KVM_EINVAL;
++
++	ptr_page = get_page_ptr(vcpu->kvm, gpa, &page, true);
++	if (!ptr_page)
++		return -KVM_EINVAL;
++
++	ptr = ptr_page + (gpa & ~PAGE_MASK);
++
++	memcpy(ptr, src, bytes);
++
++	put_page_ptr(ptr_page, page);
++
++	return 0;
++}
++
++static void restore_backup_data(struct kvm_vcpu *vcpu)
++{
++	struct kvmi *ikvm = IKVM(vcpu->kvm);
++	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
++	size_t bytes = ikvm->ss_custom_size;
++	gva_t gva = ivcpu->ctx_addr;
++	u8 *backup;
++
++	if (!bytes)
 +		return;
 +
-+	if (unlikely(!ivcpu->ss_owner)) {
-+		kvmi_warn(ikvm, "%s\n", __func__);
-+		goto out;
-+	}
++	backup = ikvm->ss_custom_data;
 +
-+	for (i = ikvm->ss_level; i--;)
-+		kvmi_set_gfn_access(kvm,
-+				    ikvm->ss_context[i].gfn,
-+				    ikvm->ss_context[i].old_access,
-+				    ikvm->ss_context[i].old_write_bitmap);
++	while (bytes) {
++		size_t offset = gva & ~PAGE_MASK;
++		size_t chunk = min(bytes, PAGE_SIZE - offset);
 +
-+	ikvm->ss_level = 0;
-+
-+	kvmi_arch_stop_single_step(vcpu);
-+
-+	atomic_set(&ikvm->ss_active, false);
-+	/*
-+	 * Make ss_active update visible
-+	 * before resuming all the other vCPUs.
-+	 */
-+	smp_mb__after_atomic();
-+	kvm_make_all_cpus_request(kvm, 0);
-+
-+	ivcpu->ss_owner = false;
-+
-+out:
-+	kvmi_put(kvm);
-+}
-+EXPORT_SYMBOL(kvmi_stop_ss);
-+
-+static bool kvmi_acquire_ss(struct kvm_vcpu *vcpu)
-+{
-+	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
-+	struct kvmi *ikvm = IKVM(vcpu->kvm);
-+
-+	if (ivcpu->ss_owner)
-+		return true;
-+
-+	if (atomic_cmpxchg(&ikvm->ss_active, false, true) != false)
-+		return false;
-+
-+	kvm_make_all_cpus_request(vcpu->kvm, KVM_REQ_INTROSPECTION |
-+						KVM_REQUEST_WAIT);
-+
-+	ivcpu->ss_owner = true;
-+
-+	return true;
-+}
-+
-+static bool kvmi_run_ss(struct kvm_vcpu *vcpu, gpa_t gpa, u8 access)
-+{
-+	struct kvmi *ikvm = IKVM(vcpu->kvm);
-+	u8 old_access, new_access;
-+	u32 old_write_bitmap;
-+	gfn_t gfn = gpa_to_gfn(gpa);
-+	int err;
-+
-+	kvmi_arch_start_single_step(vcpu);
-+
-+	err = kvmi_get_gfn_access(ikvm, gfn, &old_access, &old_write_bitmap);
-+	/* likely was removed from radix tree due to rwx */
-+	if (err) {
-+		kvmi_warn(ikvm, "%s: gfn 0x%llx not found in the radix tree\n",
-+			  __func__, gfn);
-+		return true;
-+	}
-+
-+	if (ikvm->ss_level == SINGLE_STEP_MAX_DEPTH - 1) {
-+		kvmi_err(ikvm, "single step limit reached\n");
-+		return false;
-+	}
-+
-+	ikvm->ss_context[ikvm->ss_level].gfn = gfn;
-+	ikvm->ss_context[ikvm->ss_level].old_access = old_access;
-+	ikvm->ss_context[ikvm->ss_level].old_write_bitmap = old_write_bitmap;
-+	ikvm->ss_level++;
-+
-+	new_access = kvmi_arch_relax_page_access(old_access, access);
-+
-+	kvmi_set_gfn_access(vcpu->kvm, gfn, new_access, old_write_bitmap);
-+
-+	return true;
-+}
-+
-+bool kvmi_start_ss(struct kvm_vcpu *vcpu, gpa_t gpa, u8 access)
-+{
-+	bool ret = false;
-+
-+	while (!kvmi_acquire_ss(vcpu)) {
-+		int err = kvmi_run_jobs_and_wait(vcpu);
-+
-+		if (err) {
-+			kvmi_err(IKVM(vcpu->kvm), "kvmi_acquire_ss() has failed\n");
++		if (restore_backup_data_to_page(vcpu, gva, backup, chunk))
 +			goto out;
-+		}
++
++		bytes -= chunk;
++		backup += chunk;
++		gva += chunk;
 +	}
 +
-+	if (kvmi_run_ss(vcpu, gpa, access))
-+		ret = true;
-+	else
-+		kvmi_stop_ss(vcpu);
-+
 +out:
-+	return ret;
++	ikvm->ss_custom_size = 0;
 +}
 +
-+bool kvmi_vcpu_enabled_ss(struct kvm_vcpu *vcpu)
-+{
-+	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
-+	struct kvmi *ikvm;
-+	bool ret;
-+
-+	ikvm = kvmi_get(vcpu->kvm);
-+	if (!ikvm)
-+		return false;
-+
-+	ret = ivcpu->ss_owner;
-+
-+	kvmi_put(vcpu->kvm);
-+
-+	return ret;
-+}
-+EXPORT_SYMBOL(kvmi_vcpu_enabled_ss);
-+
- static void kvmi_job_abort(struct kvm_vcpu *vcpu, void *ctx)
+ void kvmi_stop_ss(struct kvm_vcpu *vcpu)
  {
  	struct kvmi_vcpu *ivcpu = IVCPU(vcpu);
+@@ -1642,6 +1752,8 @@ void kvmi_stop_ss(struct kvm_vcpu *vcpu)
+ 
+ 	ikvm->ss_level = 0;
+ 
++	restore_backup_data(vcpu);
++
+ 	kvmi_arch_stop_single_step(vcpu);
+ 
+ 	atomic_set(&ikvm->ss_active, false);
+@@ -1676,6 +1788,7 @@ static bool kvmi_acquire_ss(struct kvm_vcpu *vcpu)
+ 						KVM_REQUEST_WAIT);
+ 
+ 	ivcpu->ss_owner = true;
++	ikvm->ss_custom_size = 0;
+ 
+ 	return true;
+ }
+@@ -1690,6 +1803,12 @@ static bool kvmi_run_ss(struct kvm_vcpu *vcpu, gpa_t gpa, u8 access)
+ 
+ 	kvmi_arch_start_single_step(vcpu);
+ 
++	err = write_custom_data(vcpu);
++	if (err) {
++		kvmi_err(ikvm, "writing custom data failed, err %d\n", err);
++		return false;
++	}
++
+ 	err = kvmi_get_gfn_access(ikvm, gfn, &old_access, &old_write_bitmap);
+ 	/* likely was removed from radix tree due to rwx */
+ 	if (err) {
 diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
-index d7f9858d3e97..1550fe33ed48 100644
+index 1550fe33ed48..5485529db06b 100644
 --- a/virt/kvm/kvmi_int.h
 +++ b/virt/kvm/kvmi_int.h
-@@ -126,6 +126,9 @@ struct kvmi_vcpu {
- 		DECLARE_BITMAP(high, KVMI_NUM_MSR);
- 	} msr_mask;
+@@ -160,6 +160,9 @@ struct kvmi {
+ 		u8 old_access;
+ 		u32 old_write_bitmap;
+ 	} ss_context[SINGLE_STEP_MAX_DEPTH];
++	u8 ss_custom_data[KVMI_CTX_DATA_SIZE];
++	size_t ss_custom_size;
++	gpa_t ss_custom_addr;
+ 	u8 ss_level;
+ 	atomic_t ss_active;
  
-+	bool ss_owner;
-+	bool ss_requested;
-+
- 	struct list_head job_list;
- 	spinlock_t job_lock;
- 
-@@ -151,6 +154,15 @@ struct kvmi {
- 	DECLARE_BITMAP(event_allow_mask, KVMI_NUM_EVENTS);
- 	DECLARE_BITMAP(vm_ev_mask, KVMI_NUM_EVENTS);
- 
-+#define SINGLE_STEP_MAX_DEPTH 8
-+	struct {
-+		gfn_t gfn;
-+		u8 old_access;
-+		u32 old_write_bitmap;
-+	} ss_context[SINGLE_STEP_MAX_DEPTH];
-+	u8 ss_level;
-+	atomic_t ss_active;
-+
- 	struct {
- 		bool initialized;
- 		atomic_t enabled;
-@@ -224,6 +236,7 @@ int kvmi_add_job(struct kvm_vcpu *vcpu,
- 		 void *ctx, void (*free_fct)(void *ctx));
- void kvmi_handle_common_event_actions(struct kvm_vcpu *vcpu, u32 action,
- 				      const char *str);
-+bool kvmi_start_ss(struct kvm_vcpu *vcpu, gpa_t gpa, u8 access);
- 
- /* arch */
- void kvmi_arch_update_page_tracking(struct kvm *kvm,
-@@ -274,6 +287,9 @@ int kvmi_arch_cmd_inject_exception(struct kvm_vcpu *vcpu, u8 vector,
- 				   u64 address);
- int kvmi_arch_cmd_control_cr(struct kvm_vcpu *vcpu,
- 			     const struct kvmi_control_cr *req);
-+void kvmi_arch_start_single_step(struct kvm_vcpu *vcpu);
-+void kvmi_arch_stop_single_step(struct kvm_vcpu *vcpu);
-+u8 kvmi_arch_relax_page_access(u8 old, u8 new);
- int kvmi_arch_cmd_control_msr(struct kvm_vcpu *vcpu,
- 			      const struct kvmi_control_msr *req);
- int kvmi_arch_cmd_get_mtrr_type(struct kvm_vcpu *vcpu, u64 gpa, u8 *type);
 
