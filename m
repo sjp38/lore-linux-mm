@@ -2,186 +2,166 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0B22DC31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 05:49:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 90C82C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 06:40:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BC5D221743
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 05:49:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BC5D221743
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 352C720C01
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 06:40:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 352C720C01
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6CB2F6B0269; Fri,  9 Aug 2019 01:49:37 -0400 (EDT)
+	id 962996B0005; Fri,  9 Aug 2019 02:40:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 67AF56B026A; Fri,  9 Aug 2019 01:49:37 -0400 (EDT)
+	id 913656B0006; Fri,  9 Aug 2019 02:40:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 569886B026B; Fri,  9 Aug 2019 01:49:37 -0400 (EDT)
+	id 801CB6B0007; Fri,  9 Aug 2019 02:40:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qt1-f197.google.com (mail-qt1-f197.google.com [209.85.160.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 33DB36B0269
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 01:49:37 -0400 (EDT)
-Received: by mail-qt1-f197.google.com with SMTP id t5so87652996qtd.21
-        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 22:49:37 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 3157C6B0005
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 02:40:36 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id k37so2942543eda.7
+        for <linux-mm@kvack.org>; Thu, 08 Aug 2019 23:40:36 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:from:to:cc
-         :subject:date:message-id:in-reply-to:references;
-        bh=GwEBtSZWPDxK4om7nakiiAS3FtL3tCJnZqvdYC99I0E=;
-        b=kbNKlPkAvlZVtFgKYHOuNX3maQ9FM4TscWtYQK96GnLpgzn9tstw2OGB4py6YtMdbT
-         NHkzlfCK0ujqpB1RdF/gPtEnRTEBxMMTwruiol+WwZRHGLNBo6GrIPbJepPRE/3fdCko
-         iKIf1SM2zP5w+iHlrp3bgD2sTNmD2lybmbg3UXh00psIdcksnqxFC6E1XBplwS7GeJVl
-         ZEFV3PrtCg4++K7zSL8kddmXw/uwIPngJEPi0jjlY/fYYJZZGGGxy8My03Jo5jIYL1AN
-         UoDQOoGsEcMDIQ56HRBVTJGmyaR4/A4RGTUP81Gv08jfG+Xmm9Wq3/fzCzXol0cjRr/E
-         dOCA==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAUUFkCLBjRy38p9DC8gwzESWgcYUtkB449+3XUAsUAeV3stXDWe
-	+7Dxzjmnvu7QHyf0zcTJ3ssA3DJrPMcFOH7EvGxKBp7UrmbBCKMO2F4NWg6eOx1iOLN/QjZCKSr
-	t45jDvwZvmidMrte6KhBrzpvLMr1UEBq0Ng+rFpjRxdjPIdRpCnuKi4AtSrheHnKUgA==
-X-Received: by 2002:a37:7643:: with SMTP id r64mr16091124qkc.467.1565329777012;
-        Thu, 08 Aug 2019 22:49:37 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqw6PxMjLcY3ySZ9CMdlQQgmjW0QfVj5ke8zhD9v3C7gTDIzPfvuq6puN3C91AZfWJwb2UJa
-X-Received: by 2002:a37:7643:: with SMTP id r64mr16091098qkc.467.1565329776428;
-        Thu, 08 Aug 2019 22:49:36 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565329776; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=fnPtn6B8s96HblkvsHqtryue2rYvQNk3t1Ptk1YJ7A4=;
+        b=Xho0kkrNoV0voKY3P1xEHtR8wMe7mGBjYoMBFwUj3OuAEA7DjXkAYqBrMHnT47nF/H
+         OhLIBWlZtY2QP8rnkUxrAOOLa6PVqOzRhlasD6Dlm/Aii8MaUms8hwC6wRKlyYw/MkSO
+         ABMiILxu9aKvHft04JNadyoIGYs109sOkvJzd/Ws4ecLsbN/uNORa1Jq7dnktdtfWwdp
+         ZW7bgM60Rb9YxGh05n6syoCPqp1DrLeHf2ZQNP/WWs5OcuqOGQYxoayYAEVN4xZ/demT
+         1XV42dW0darAv746qbkwh2popMvyoN12AUlZwW37gLIToFva0t+eK1i1Pt2WRESRqJZS
+         d6eA==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAWS7jg8Hjt+gII8ZuovVrNRyW6LCcG8EjztRHzETcLytno4IVpK
+	Eda0TiFOWtDm7m2eRdBqC+HeFqy07x9KaL7ztEhZMay0+v0r+fwhm8YJzw38ssCIEqKyXLPPdgB
+	efy/jWpqQb+hQWEn9rfmkgGjd4znmR0hEzCeDI4XSybd9g13y1DNJTtTCh4wXHZM=
+X-Received: by 2002:aa7:d6d3:: with SMTP id x19mr19940072edr.119.1565332835758;
+        Thu, 08 Aug 2019 23:40:35 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyCH2Y3IjbrVsXVftEthmoQJ8JtDiUNjW6QxNEN1ZXTcgCkTJExzd5bdPea6PRR79jNrSyS
+X-Received: by 2002:aa7:d6d3:: with SMTP id x19mr19940024edr.119.1565332834994;
+        Thu, 08 Aug 2019 23:40:34 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565332834; cv=none;
         d=google.com; s=arc-20160816;
-        b=qPd8uuv773wPx/M3N6q/F9Hc7Bs3OSIstHWKGRR9lQAjF2ZX8dWNDK8Gyj+bphB8hk
-         s1W41tcqShkLbPQm42Izw9FGslWxXA1CclBs0THLLV9pThxGGmRftPmupHtp+rYyySqm
-         g7U7xBkjh895DHkFel6zm/fHSReiNUr8bwTJZKexJuXavf23ttBeInbyErl51R9gzLBz
-         yxRfeDp9pXe92vDduVlVfWny8Kw/Lb/KM+Xe6x4YTld1iL6BvSEFbTwpC0c7fvpi2aCx
-         f6Hr1F6JSf/dt1YpZTcp0wkQdybAG3iR/qpe6S+ko8plLLdStzKzbiiLB5AKzDfHPe0K
-         wnNQ==
+        b=U6FtLc03PExru75W1W7Vef1zpdZYITsC+mMtrL3hn4PgCYz7gMT/d13wWNhOBQHUOs
+         SfOhqKMjvTMgl+znd3pxFuc+XM2tYxmLp7uxGnZ6er95cCGMBJTqXLO6DBtUjtCIfsus
+         vG7jyuYGlhTkdhh7cnMfQh70rUSxMWHNHgSQ+9/xG3LgbIpRrD4499ZCylqPwOPs6RCj
+         jQN0x5i34u9Jf6CIGMJmPZmdn4kglbK7GjKFFdoWUdcjI+GrCgDBzV2Zmo8dpkCkGLiF
+         N+gavsldfcr2CKh7Z26iQIBCNXA3il8y/qStc4PS98U023ucsjwYfYUfZCF7ZE6aS8w5
+         Sd2A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=references:in-reply-to:message-id:date:subject:cc:to:from;
-        bh=GwEBtSZWPDxK4om7nakiiAS3FtL3tCJnZqvdYC99I0E=;
-        b=ecOvqljC2CpRX4t5034J7G7lX7L5wX9cBGFVcSYL2GkRptGhYq9R1wjQZ+K0pBtbm+
-         l5akkQksW7XpQE0jOosb8BEfiNdLR1r/mhGNcvuwftDelyruT0bJ+NzD9AEbj28WjuES
-         VtXn47z8qxwwhb1MoamWBKqtUEdBTVulYlCZrBP+pt8wdkaxQbtebC6NvG4KGn0ieumH
-         qdLKxfwj1WvfGtNNwsc4wvpH25ZJpMN6nao0YjVXBKfyxGOjhM6/6Q2RFnLBjt/p+gAv
-         efGJB2tzbt63g9jn0GhljYlumWg4o+7IEzhTwT2OIpUHhYnXyjy0tIRZRmaXGZOhmDMX
-         cQSw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=fnPtn6B8s96HblkvsHqtryue2rYvQNk3t1Ptk1YJ7A4=;
+        b=WheTML1uW3ARM4tpRFg+S7yz7euJEykl9+lNJ56urVCcpAciDbw/5DkTYHSR8OFHxO
+         qIevyR1xujxZ7MCc7Z6ieq77SsA2vOhODC+N1oBiFHqA16ouA9hnELSmpbVlT2Cy0aaf
+         uM3Aqf4zT2qtaFjtKRcEapPZQks3q3jqSyC0lcs2KHdRG4i9/v4HSxIJVEF56NbVfTX9
+         7G4gR0LcdCFPtHlfpNUXs2jI38XGIlKa7j87HRy1rdAB4ZP8xw9xmEBiruX4Wgaw89a3
+         qu/cC0Fqkg56nbc7YuxcXRwYS8rzjvlMWwXM+Afc70IsfcI3WoRDsHIrWipFj9K+ZRfx
+         XXFw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id w6si53559738qkc.123.2019.08.08.22.49.36
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id z20si31163382ejb.393.2019.08.08.23.40.34
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Thu, 08 Aug 2019 22:49:36 -0700 (PDT)
-Received-SPF: pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+        Thu, 08 Aug 2019 23:40:34 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of jasowang@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=jasowang@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id A097D300C768;
-	Fri,  9 Aug 2019 05:49:35 +0000 (UTC)
-Received: from hp-dl380pg8-01.lab.eng.pek2.redhat.com (hp-dl380pg8-01.lab.eng.pek2.redhat.com [10.73.8.10])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 184825D9CC;
-	Fri,  9 Aug 2019 05:49:32 +0000 (UTC)
-From: Jason Wang <jasowang@redhat.com>
-To: mst@redhat.com,
-	kvm@vger.kernel.org,
-	virtualization@lists.linux-foundation.org,
-	netdev@vger.kernel.org,
-	linux-kernel@vger.kernel.org
-Cc: linux-mm@kvack.org,
-	jgg@ziepe.ca,
-	Jason Wang <jasowang@redhat.com>
-Subject: [PATCH V5 9/9] vhost: do not return -EAGAIN for non blocking invalidation too early
-Date: Fri,  9 Aug 2019 01:48:51 -0400
-Message-Id: <20190809054851.20118-10-jasowang@redhat.com>
-In-Reply-To: <20190809054851.20118-1-jasowang@redhat.com>
-References: <20190809054851.20118-1-jasowang@redhat.com>
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Fri, 09 Aug 2019 05:49:35 +0000 (UTC)
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id CF531ABD2;
+	Fri,  9 Aug 2019 06:40:33 +0000 (UTC)
+Date: Fri, 9 Aug 2019 08:40:32 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Edward Chron <echron@arista.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
+	Johannes Weiner <hannes@cmpxchg.org>,
+	David Rientjes <rientjes@google.com>,
+	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
+	Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, Ivan Delalande <colona@arista.com>
+Subject: Re: [PATCH] mm/oom: Add killed process selection information
+Message-ID: <20190809064032.GJ18351@dhcp22.suse.cz>
+References: <20190808183247.28206-1-echron@arista.com>
+ <20190808185119.GF18351@dhcp22.suse.cz>
+ <CAM3twVT0_f++p1jkvGuyMYtaYtzgEiaUtb8aYNCmNScirE4=og@mail.gmail.com>
+ <20190808200715.GI18351@dhcp22.suse.cz>
+ <CAM3twVS7tqcHmHqjzJqO5DEsxzLfBaYF0FjVP+Jjb1ZS4rA9qA@mail.gmail.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <CAM3twVS7tqcHmHqjzJqO5DEsxzLfBaYF0FjVP+Jjb1ZS4rA9qA@mail.gmail.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Instead of returning -EAGAIN unconditionally, we'd better do that only
-we're sure the range is overlapped with the metadata area.
+[Again, please do not top post - it makes a mess of any longer
+discussion]
 
-Reported-by: Jason Gunthorpe <jgg@ziepe.ca>
-Fixes: 7f466032dc9e ("vhost: access vq metadata through kernel virtual address")
-Signed-off-by: Jason Wang <jasowang@redhat.com>
----
- drivers/vhost/vhost.c | 32 +++++++++++++++++++-------------
- 1 file changed, 19 insertions(+), 13 deletions(-)
+On Thu 08-08-19 15:15:12, Edward Chron wrote:
+> In our experience far more (99.9%+) OOM events are not kernel issues,
+> they're user task memory issues.
+> Properly maintained Linux kernel only rarely have issues.
+> So useful information about the killed task, displayed in a manner
+> that can be quickly digested, is very helpful.
+> But it turns out the totalpages parameter is also critical to make
+> sense of what is shown.
 
-diff --git a/drivers/vhost/vhost.c b/drivers/vhost/vhost.c
-index d8863aaaf0f6..f98155f28f02 100644
---- a/drivers/vhost/vhost.c
-+++ b/drivers/vhost/vhost.c
-@@ -371,16 +371,19 @@ static void inline vhost_vq_access_map_end(struct vhost_virtqueue *vq)
- 	spin_unlock(&vq->mmu_lock);
- }
- 
--static void vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
--				      int index,
--				      unsigned long start,
--				      unsigned long end)
-+static int vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
-+				     int index,
-+				     unsigned long start,
-+				     unsigned long end,
-+				     bool blockable)
- {
- 	struct vhost_uaddr *uaddr = &vq->uaddrs[index];
- 	struct vhost_map *map;
- 
- 	if (!vhost_map_range_overlap(uaddr, start, end))
--		return;
-+		return 0;
-+	else if (!blockable)
-+		return -EAGAIN;
- 
- 	spin_lock(&vq->mmu_lock);
- 	++vq->invalidate_count;
-@@ -394,6 +397,8 @@ static void vhost_invalidate_vq_start(struct vhost_virtqueue *vq,
- 		vhost_set_map_dirty(vq, map, index);
- 		vhost_map_unprefetch(map);
- 	}
-+
-+	return 0;
- }
- 
- static void vhost_invalidate_vq_end(struct vhost_virtqueue *vq,
-@@ -414,18 +419,19 @@ static int vhost_invalidate_range_start(struct mmu_notifier *mn,
- {
- 	struct vhost_dev *dev = container_of(mn, struct vhost_dev,
- 					     mmu_notifier);
--	int i, j;
--
--	if (!mmu_notifier_range_blockable(range))
--		return -EAGAIN;
-+	bool blockable = mmu_notifier_range_blockable(range);
-+	int i, j, ret;
- 
- 	for (i = 0; i < dev->nvqs; i++) {
- 		struct vhost_virtqueue *vq = dev->vqs[i];
- 
--		for (j = 0; j < VHOST_NUM_ADDRS; j++)
--			vhost_invalidate_vq_start(vq, j,
--						  range->start,
--						  range->end);
-+		for (j = 0; j < VHOST_NUM_ADDRS; j++) {
-+			ret = vhost_invalidate_vq_start(vq, j,
-+							range->start,
-+							range->end, blockable);
-+			if (ret)
-+				return ret;
-+		}
- 	}
- 
- 	return 0;
+We already do print that information (see mem_cgroup_print_oom_meminfo
+resp. show_mem).
+
+> So if we report the fooWidget task was using ~15% of memory (I know
+> this is just an approximation but it is often an adequate metric) we
+> often can tell just from that the number is larger than expected so we
+> can start there.
+> Even though the % is a ballpark number, if you are familiar with the
+> tasks on your system and approximately how much memory you expect them
+> to use you can often tell if memory usage is excessive.
+> This is not always the case but it is a fair amount of the time.
+> So the % of memory field is helpful. But we've found we need totalpages as well.
+> The totalpages effects the % of memory the task uses.
+
+Is it too difficult to calculate that % from the data available in the
+existing report? I would expect this would be a quite simple script
+which I would consider a better than changing the kernel code.
+
+[...]
+> The oom_score tells us how Linux calculated the score for the task,
+> the oom_score_adj effects this so it is helpful to have that in
+> conjunction with the oom_score.
+> If the adjust is high it can tell us that the task was acting as a
+> canary and so it's oom_score is high even though it's memory
+> utilization can be modest or low.
+
+I am sorry but I still do not get it. How are you going to use that
+information without seeing other eligible tasks. oom_score is just a
+normalized memory usage + some heuristics potentially (we have given a
+discount to root processes until just recently). So this value only
+makes sense to the kernel oom killer implementation. Note that the
+equation might change in the future (that has happen in the past several
+times) so looking at the value in isolation might be quite misleading.
+
+I can see some point in printing oom_score_adj, though. Seeing biased -
+one way or the other - tasks being selected might confirm the setting is
+reasonable or otherwise (e.g. seeing tasks with negative scores will
+give an indication that they might be not biased enough). Then you can
+go and check the eligible tasks dump and see what happened. So this part
+makes some sense to me.
 -- 
-2.18.1
+Michal Hocko
+SUSE Labs
 
