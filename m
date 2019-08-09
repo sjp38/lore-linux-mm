@@ -2,143 +2,185 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6758DC31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:10:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E90EAC433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:16:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3337B2166E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:10:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3337B2166E
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id B570121743
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:16:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B570121743
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E49466B0005; Fri,  9 Aug 2019 05:10:09 -0400 (EDT)
+	id 2D3136B0005; Fri,  9 Aug 2019 05:16:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DF91B6B0006; Fri,  9 Aug 2019 05:10:09 -0400 (EDT)
+	id 25C486B0006; Fri,  9 Aug 2019 05:16:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CE7E16B0007; Fri,  9 Aug 2019 05:10:09 -0400 (EDT)
+	id 0FCF56B0007; Fri,  9 Aug 2019 05:16:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
-	by kanga.kvack.org (Postfix) with ESMTP id 7E7426B0005
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 05:10:09 -0400 (EDT)
-Received: by mail-ed1-f71.google.com with SMTP id a5so59898523edx.12
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 02:10:09 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id B02C86B0005
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 05:16:16 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id k22so59948529ede.0
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 02:16:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-language:content-transfer-encoding;
-        bh=G54Zwt+vB8h0+nqggCSrXu0/L6XlohtfmHz2tCBORb8=;
-        b=Zbyclc3YD6XVMD+QwR7wQx2g9hKFHiTQLrtlIJ5u468/qMFPB+cF2BYPpFF6rCdCEU
-         9dC4VozJX9uc3AM6weh48wFDwCPbhzMEdwT0IeBfghC2qQADXZaQMeVx/NIOwoqoV2IA
-         svMcoBTjK6uvsvmX3hyhM6FUTWhsPeMkcHywrm4B5ict6osYFrYMwmQ1mP1IJOBeNDVs
-         9RkIGadpcfe+EHTPjbz0GTTLF2CX857N7d8LTYYLr2gWdDyDD/UY5y7jY/0H3N2RomAz
-         LOoWe1spEMbq8S7xMWwC8s+kb6xEIhpHSo2U7lArIziU+jXYeF1es/WsGaPBJY8z6Vo2
-         grUw==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-X-Gm-Message-State: APjAAAWns5xSxGSl7NNevHbn7Kceazg+KNZZCq2SoODcQ9JXN4Ki/xfk
-	hSsp+QIBFVk4oJXWz7NpGX2TEYiqBjN+rXo9yMLlnK27eiN8qqzCZo/AGwIJ6KqmZ8UzO800oxV
-	MmFptwnl+RYtZWGt7H1K1E6OjNEDoKcZMo4fxX0NajBsvWr+eIB+OgnjEZukRMHw8WQ==
-X-Received: by 2002:a17:907:39a:: with SMTP id ss26mr6872696ejb.278.1565341809088;
-        Fri, 09 Aug 2019 02:10:09 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxKkKBqNzD5bFMIlbv177XIgy0bxmGL2JQ5BRbfFMtscog2aPhzM+fahYxJUvuXnT0qZqzq
-X-Received: by 2002:a17:907:39a:: with SMTP id ss26mr6872652ejb.278.1565341808357;
-        Fri, 09 Aug 2019 02:10:08 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565341808; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=MA1fK0KtLP5wo+bM1c0XFXmTq958i6JcPGSsXrTh1nY=;
+        b=aDXCEN/A/mmMQlW2LYWwoEvJQElpoI5NzwFyjCHmo3y9KcmBMeyEThO9p/tpxUjAH1
+         zypZjEhxqRH5yArWwOcIajEVRTKz3zad3xzMCuBGxYCOfL/PCb33DgMIK+raeYALFw1E
+         5dzlRLS/k4yT3bH4iqVyCNOojB6uDqmIz2NIk83dxl0zUQil17qUCkP2bi88gv+9/ykM
+         4stq9B/x+OAAIUI9U1stL27osAoRvP7E6Cc6aSigCNk53mnziLvg/DWnswcy8OwPkU/5
+         vLkVjBX4koePbfQIevWEb3stdd/QpHSs088xpp+oo7SM1Ues7AOBXIQGtpGu8wk7lV7f
+         reuQ==
+X-Original-Authentication-Results: mx.google.com;       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Gm-Message-State: APjAAAUz2FkhcqpDj98T1U7Fps5hgJM+KlCZYKOtx1nVtL7PioDlXBKM
+	pXj8sDe36RBCZDIyXeVSHYeE4+f95HaknUawyt+p8SmBqGDWzXdjPyDK9wHV3uyCjMGvRbTAgMt
+	AMzAxPhxcJUTM3Lg1j+R+zF+KpWn0QTQlN47TY+7sveqziLChcTm0gp7EycynOhc=
+X-Received: by 2002:a50:f599:: with SMTP id u25mr21132397edm.195.1565342176271;
+        Fri, 09 Aug 2019 02:16:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwWbW82kx+5u3Zh9iIZHTWGiys46qK3Z8EMtzrHWfjMylgo7YeDPT3PnWeabcYqg/3bh8IW
+X-Received: by 2002:a50:f599:: with SMTP id u25mr21132347edm.195.1565342175571;
+        Fri, 09 Aug 2019 02:16:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565342175; cv=none;
         d=google.com; s=arc-20160816;
-        b=ZAAiYlAyzgrOFCb/36Tm8O4KQoYn591CJCI0oSvOlinlNMLkeaxAGECc5peZu4+YeZ
-         RDk0dVuk66QElDQs4MxGvjyLNR8SQfN9qVXjWYZTBYj4sfV+IqH7l0iStbHVZjAFAD3G
-         rHceumK6FYq1N9I5zKuobZUtZ1AwPTINPg+GLFf7AtuQT+xp7wVbQ+WcBZPwqFZBtHhv
-         /NSahRgMcI7bkWzMtiGYlk981zPSLtfNP6lb2WWnUC7WXNkxuinLQCZlsnVd+MMnVecy
-         z6JRYniS6s7V+rn+XQEu9d+1I0059E7COc/CZz3+0wXxx1568lvz2SQ9KF/7R738qrkK
-         Zjcg==
+        b=xc9TcScJtIauWC/hG0M4HmyOpEOB5lEYE5K8hkRrCmPTjlN0tQukaU4U/lvJmEP/4Y
+         FYy/1acdwP1x2VGZOR90gED3I3roteqUnaIZInGzXD/ytglgKBWysqx8dLC6yO2BjBtB
+         7ZFJCBoDTUN2YGgJ6iSmZg17FOhnob7nAqJ4zYZCrO3Ql/8MNdQ9wwVS5PkUgSlUEkJH
+         ENhK1Br5dBcd2Yba04ZtyTT7ATK9O+EZSxr5uVuJmk8Bjy8v6uH8TCCnhVvWPiZ6xp5k
+         2xzdAL6Fp+5MaHtKR+ZrELgJh9SNbwZJyMCgrMl72Y4oZX1aJI0nGU/5JSyJORjGyKtq
+         tSyw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-transfer-encoding:content-language:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=G54Zwt+vB8h0+nqggCSrXu0/L6XlohtfmHz2tCBORb8=;
-        b=qF5BkZDhr9j1LvgryuxPTvGmN9WooXIDTVy/UQC3SkoFV6TI7HCLR52dAWVy4aLTdg
-         iEwqYewrnPFoWRW1YmpeylENM3q305RdGWdR4EP8Xb65jILZHyguV8bAypGVBwFKMwWt
-         f2tTfH8dPedjomi5Hr15c4n7mlX0Pd8rGeB34Yka6qh+2vtoG6ZeHkhZJxcXQci9Pb4z
-         CMC4E9UqBCv9EnOBYCRcjHNMIJlXCAeFC9pP1o0K4kZMe59FuZ2Dky+DqtBpur+QA6sw
-         h4tvmh3YqbASPW1jPRQCFSirqJNMso5ySZHS7n3XQzewid02MK2JyQlbdza2VYjR9kGd
-         UeiQ==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=MA1fK0KtLP5wo+bM1c0XFXmTq958i6JcPGSsXrTh1nY=;
+        b=c+4597wCdmiUEm6R48oPyXQavpFUpSvOl5d9dyoYKESQwMdD3kLxbeIKPTt+s+kvrj
+         h63TX01wE2PgINSJwTmTnj3tKUJ/NIeVZ7fFspUepyXEpcXYLZeKDAxFdQNcFqd8uCEx
+         t+Cj+jcUAm9tves6nY3j51CLZBM5zw013uEPniJMxNWVNbknRzVv1bteDoRGoRnk3Jju
+         YbpmKI2yXMhkpGvq7Z4JYY96GOAw25ngvsq+bEMkzNr9jcf4/s1nOnwF5nYtDFMnnv/F
+         izbmB4ztHtj8FhtjX8lNk2kB/a06mKqi0UXPh1rJfI2vOF4xSbK7xxyyVJd5aqkihOH4
+         amYA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
-        by mx.google.com with ESMTP id mh20si547385ejb.2.2019.08.09.02.10.08
-        for <linux-mm@kvack.org>;
-        Fri, 09 Aug 2019 02:10:08 -0700 (PDT)
-Received-SPF: pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id 47si40205979edu.294.2019.08.09.02.16.15
+        for <linux-mm@kvack.org>
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Aug 2019 02:16:15 -0700 (PDT)
+Received-SPF: softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of anshuman.khandual@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=anshuman.khandual@arm.com
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 8043515A2;
-	Fri,  9 Aug 2019 02:10:07 -0700 (PDT)
-Received: from [10.163.1.243] (unknown [10.163.1.243])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id EE6A33F575;
-	Fri,  9 Aug 2019 02:10:03 -0700 (PDT)
-Subject: Re: [PATCH] mm/sparse: use __nr_to_section(section_nr) to get
- mem_section
-To: Wei Yang <richardw.yang@linux.intel.com>, akpm@linux-foundation.org,
- osalvador@suse.de, pasha.tatashin@oracle.com, mhocko@suse.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <20190809010242.29797-1-richardw.yang@linux.intel.com>
-From: Anshuman Khandual <anshuman.khandual@arm.com>
-Message-ID: <e17278f0-94dc-e0c6-379b-b7694cec3247@arm.com>
-Date: Fri, 9 Aug 2019 14:39:59 +0530
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:52.0) Gecko/20100101
- Thunderbird/52.9.1
+       spf=softfail (google.com: domain of transitioning mhocko@kernel.org does not designate 195.135.220.15 as permitted sender) smtp.mailfrom=mhocko@kernel.org;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=kernel.org
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id EAA78B011;
+	Fri,  9 Aug 2019 09:16:14 +0000 (UTC)
+Date: Fri, 9 Aug 2019 11:16:14 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: John Hubbard <jhubbard@nvidia.com>
+Cc: Vlastimil Babka <vbabka@suse.cz>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Hellwig <hch@infradead.org>,
+	Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org,
+	Dan Williams <dan.j.williams@intel.com>,
+	Daniel Black <daniel@linux.ibm.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>
+Subject: Re: [PATCH 1/3] mm/mlock.c: convert put_page() to put_user_page*()
+Message-ID: <20190809091614.GO18351@dhcp22.suse.cz>
+References: <20190805222019.28592-2-jhubbard@nvidia.com>
+ <20190807110147.GT11812@dhcp22.suse.cz>
+ <01b5ed91-a8f7-6b36-a068-31870c05aad6@nvidia.com>
+ <20190808062155.GF11812@dhcp22.suse.cz>
+ <875dca95-b037-d0c7-38bc-4b4c4deea2c7@suse.cz>
+ <306128f9-8cc6-761b-9b05-578edf6cce56@nvidia.com>
+ <d1ecb0d4-ea6a-637d-7029-687b950b783f@nvidia.com>
+ <420a5039-a79c-3872-38ea-807cedca3b8a@suse.cz>
+ <20190809082307.GL18351@dhcp22.suse.cz>
+ <a83e4449-fc8d-7771-1b78-2fa645fa0772@nvidia.com>
 MIME-Version: 1.0
-In-Reply-To: <20190809010242.29797-1-richardw.yang@linux.intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <a83e4449-fc8d-7771-1b78-2fa645fa0772@nvidia.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-
-On 08/09/2019 06:32 AM, Wei Yang wrote:
-> __pfn_to_section is defined as __nr_to_section(pfn_to_section_nr(pfn)).
-
-Right.
-
+On Fri 09-08-19 02:05:15, John Hubbard wrote:
+> On 8/9/19 1:23 AM, Michal Hocko wrote:
+> > On Fri 09-08-19 10:12:48, Vlastimil Babka wrote:
+> > > On 8/9/19 12:59 AM, John Hubbard wrote:
+> > > > > > That's true. However, I'm not sure munlocking is where the
+> > > > > > put_user_page() machinery is intended to be used anyway? These are
+> > > > > > short-term pins for struct page manipulation, not e.g. dirtying of page
+> > > > > > contents. Reading commit fc1d8e7cca2d I don't think this case falls
+> > > > > > within the reasoning there. Perhaps not all GUP users should be
+> > > > > > converted to the planned separate GUP tracking, and instead we should
+> > > > > > have a GUP/follow_page_mask() variant that keeps using get_page/put_page?
+> > > > > 
+> > > > > Interesting. So far, the approach has been to get all the gup callers to
+> > > > > release via put_user_page(), but if we add in Jan's and Ira's vaddr_pin_pages()
+> > > > > wrapper, then maybe we could leave some sites unconverted.
+> > > > > 
+> > > > > However, in order to do so, we would have to change things so that we have
+> > > > > one set of APIs (gup) that do *not* increment a pin count, and another set
+> > > > > (vaddr_pin_pages) that do.
+> > > > > 
+> > > > > Is that where we want to go...?
+> > > > > 
+> > > 
+> > > We already have a FOLL_LONGTERM flag, isn't that somehow related? And if
+> > > it's not exactly the same thing, perhaps a new gup flag to distinguish
+> > > which kind of pinning to use?
+> > 
+> > Agreed. This is a shiny example how forcing all existing gup users into
+> > the new scheme is subotimal at best. Not the mention the overal
+> > fragility mention elsewhere. I dislike the conversion even more now.
+> > 
+> > Sorry if this was already discussed already but why the new pinning is
+> > not bound to FOLL_LONGTERM (ideally hidden by an interface so that users
+> > do not have to care about the flag) only?
+> > 
 > 
-> Since we already get section_nr, it is not necessary to get mem_section
-> from start_pfn. By doing so, we reduce one redundant operation.
+> Oh, it's been discussed alright, but given how some of the discussions have gone,
+> I certainly am not surprised that there are still questions and criticisms!
+> Especially since I may have misunderstood some of the points, along the way.
+> It's been quite a merry go round. :)
+
+Yeah, I've tried to follow them but just gave up at some point.
+
+> Anyway, what I'm hearing now is: for gup(FOLL_LONGTERM), apply the pinned tracking.
+> And therefore only do put_user_page() on pages that were pinned with
+> FOLL_LONGTERM. For short term pins, let the locking do what it will:
+> things can briefly block and all will be well.
 > 
-> Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
-
-Looks right.
-
-With this applied, memory hot add still works on arm64.
-
-Reviewed-by: Anshuman Khandual <anshuman.khandual@arm.com>
-
-> ---
->  mm/sparse.c | 2 +-
->  1 file changed, 1 insertion(+), 1 deletion(-)
+> Also, that may or may not come with a wrapper function, courtesy of Jan
+> and Ira.
 > 
-> diff --git a/mm/sparse.c b/mm/sparse.c
-> index 72f010d9bff5..95158a148cd1 100644
-> --- a/mm/sparse.c
-> +++ b/mm/sparse.c
-> @@ -867,7 +867,7 @@ int __meminit sparse_add_section(int nid, unsigned long start_pfn,
->  	 */
->  	page_init_poison(pfn_to_page(start_pfn), sizeof(struct page) * nr_pages);
->  
-> -	ms = __pfn_to_section(start_pfn);
-> +	ms = __nr_to_section(section_nr);
->  	set_section_nid(section_nr, nid);
->  	section_mark_present(ms);
->  
-> 
+> Is that about right? It's late here, but I don't immediately recall any
+> problems with doing it that way...
+
+Yes that makes more sense to me. Whoever needs that tracking should
+opt-in for it. Otherwise you just risk problems like the one discussed
+in the mlock path (because we do a strange stuff in the name of
+performance) and a never ending whack a mole where new users do not
+follow the new API usage and that results in all sorts of weird issues.
+
+Thanks!
+-- 
+Michal Hocko
+SUSE Labs
 
