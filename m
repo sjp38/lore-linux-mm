@@ -2,199 +2,195 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 453C7C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:44:19 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1440BC31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:44:46 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EAF5C2171F
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:44:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="Uj3D0+T2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EAF5C2171F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id A32E321743
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 09:44:45 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A32E321743
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ghiti.fr
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 88AC26B0005; Fri,  9 Aug 2019 05:44:18 -0400 (EDT)
+	id 52F6A6B0006; Fri,  9 Aug 2019 05:44:45 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 83AA86B0006; Fri,  9 Aug 2019 05:44:18 -0400 (EDT)
+	id 4DF686B0007; Fri,  9 Aug 2019 05:44:45 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 728886B0007; Fri,  9 Aug 2019 05:44:18 -0400 (EDT)
+	id 3F5016B0008; Fri,  9 Aug 2019 05:44:45 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pl1-f200.google.com (mail-pl1-f200.google.com [209.85.214.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C7CA6B0005
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 05:44:18 -0400 (EDT)
-Received: by mail-pl1-f200.google.com with SMTP id m2so8137306pll.18
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 02:44:18 -0700 (PDT)
+Received: from mail-ed1-f71.google.com (mail-ed1-f71.google.com [209.85.208.71])
+	by kanga.kvack.org (Postfix) with ESMTP id E582D6B0006
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 05:44:44 -0400 (EDT)
+Received: by mail-ed1-f71.google.com with SMTP id z2so990834ede.2
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 02:44:44 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=0MjjxEATeDSohSUdPgCn+0npRclOTNWQmeqagttLXsE=;
-        b=grRmgJC5inJ4Bqz8r6FWRBLe8un40z/ruHrN6ZXhBlbLvFz9Ax4NKHNG1s16M+dAI4
-         G0x0mPL4zoWhcsYHCJN/utZhugxdigLwPRxL3JQJPlGL/VVZTId3nE5uTSblRahlQcMb
-         jCwK21V2SigOHTbspkTCa661mzmSWecj/MyaZ9brf6LKxu+q1RXN1Wu1ABP/wyJSvJxu
-         tK3mrCDhxi9xoRkPMWRrUftiH26MKG02/vA+Rgr97qUU6oU3ic0QNtZ8vPR+F6Rq2h/h
-         WrVl7Kl9CnNrFbouPrFo84MDWgF9jMx116uPNANqI4OiaBqq6Fpk8Ahup9kmlQKoThAt
-         yPww==
-X-Gm-Message-State: APjAAAVdiYkknSficZHQ93sFxXzaTP7Jevo0oWpjbx4RREiBiexJ6mVn
-	LdJEFtrAXN4tIXWUX4vdRkhJQ3tlzV/qUAV2KLA5BkLA+DstiWvZNbNK7hzOHlqWSnpvTtUdR0q
-	r/W0MZkmdY/oeAITG8lLVuTQ7PVLaCSlOlMrkJkfVgtplUN4VddlmnVux+t6MOUvv5g==
-X-Received: by 2002:aa7:83c7:: with SMTP id j7mr3534895pfn.59.1565343857928;
-        Fri, 09 Aug 2019 02:44:17 -0700 (PDT)
-X-Received: by 2002:aa7:83c7:: with SMTP id j7mr3534835pfn.59.1565343857230;
-        Fri, 09 Aug 2019 02:44:17 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565343857; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
+         :references:from:message-id:date:user-agent:mime-version:in-reply-to
+         :content-transfer-encoding:content-language;
+        bh=7Zz+dekQVz+t60cfPAWXHDt673zqelsbIxrG4v8rxXU=;
+        b=PWUyyvPiWg43+178mY4Y0h+79yV7/v8rnEawctRQdDcBxAYCcZ3fIFESyrVIaefce5
+         +u2ad20rxFpZkSIj9MBHSRiuwmqg2uOScDwZy395HE69tQ4srLtwTTDaMTdNTW8wqEQK
+         TN9yDCUoVhe8kltX5zfJHa3QH7BFa66TMZe9bJOC8I3MvXhM5zNUuEI76hS5D+sdPkcS
+         k1VAmKYjbWM/je2yVL+PD4aMxvqpVcFT6t8MY9WkQA+7oCtqZeZi9OdvLe5iyjPOQQLX
+         9dBtTG9vE2y4iGvcUBL8IUYFQB22fZTV5ei4Ih0h8X1lkiQ7TNBG6Q/za0PC4vvlxY4T
+         kaCw==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Gm-Message-State: APjAAAWr7PLJFLnwvy3EJ20PcvLya4frtQ/M41Joq6X9e2UPRHI7TwE4
+	pCyt+SJ+6nZbX5sSMcz6DGCaImcVOJ+l4FKdhWDGpQVBf2zDU/mawNmiim+pUUB4SnqABc/1HoK
+	D2xUI0W7wWYNtLvvh/bS5ZkNS0Nd2q1aoXHysrN2CVxUzYxW9/u9/ZpS08aHhd4M=
+X-Received: by 2002:a17:906:8409:: with SMTP id n9mr17274494ejx.128.1565343884486;
+        Fri, 09 Aug 2019 02:44:44 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwTABTVR1Z1J01O+vViFpoNPTKBuhkAGeQcfuVv1cNNAC0DL1SEAmr1prZ7wBIRBPx2EzPD
+X-Received: by 2002:a17:906:8409:: with SMTP id n9mr17274452ejx.128.1565343883492;
+        Fri, 09 Aug 2019 02:44:43 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565343883; cv=none;
         d=google.com; s=arc-20160816;
-        b=H5WuL936hHjAtWmxblwk9wtladAssHapcE67RBjVsz7fXHxw5LZQlN7aWfl8MmFset
-         MME8scP8TZ5qbGGG0hNyzhQl5Pwh74R2CvxnDTb+kQe925xsci32A+ivPcKoz/Me7fTO
-         HL83692pab2PLk7xJHGNvYEXrN+63xBZpFs3mQS1bSAV1/vwbkHszvA8dRHFr+Uxq1qt
-         Zr3JiJ7FBs0l1mS++VXAmPDiRBQn/QuqOHkn+0k3zMpZhZcgTLydG2z36P2whijuJvtk
-         J7TrMkueHwOb+RnFxiQLHwgMsn8OsHU3jmouQqNmpCCc29R/S4L7UVci3gbMd9kokL4S
-         r2Yg==
+        b=hFeQkxAr9aPznB1/3ousJxRMqKg2GxplrjKDvwQCTVAK59f5QSx1n/Vf2XCOWsprdP
+         YsWNLIHFW6HKQXAEHYjsxpONl8rHfdTCoNO68jS0L9K461f2w6mwdG7eyCr8wMKfVOxT
+         AuI8xuRLKH2IbCOwK4+ZMqaz7ELEFRMnLObwS9l1wmM+qMgWWIOopp043yHsfnETFHPh
+         fnUSiwCMQgF6rFh3VoUHEPAXUTv5H5JFKzAyJuc0rT6nR8MvZmeD4spQnTZjHIdYjUSX
+         sH7hRv01ytfbYUUk5bB11z+lmu/VZ1kDozbfBWEFCpQ2l5eg6mOgL3Hl0DtOXvEwF3E+
+         KR1A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=0MjjxEATeDSohSUdPgCn+0npRclOTNWQmeqagttLXsE=;
-        b=GPtclY3yE81R++AAasjicWpvtl550w3IjbxLlDTjmODqpLuHr1km4LtPLE3uUxDA/O
-         n8P/EIIAD01jmyAkCltQbqjrmpGEr64BvLEZQcrt9wh9yaMQqVp49bduRnrG8+oIaDxX
-         UlMezpvvaASBu2dWqJY8Nm+TFveNPfGRZOacsiqmBtM79DH23gR7MyiA1HgbMlLnl3p3
-         03ReIKt1idK0n6gsE8Lt5GCuoFSkLZN4/WJaFg5LJxpcaQu/WgBKLdtNT2yl5RqHwl4U
-         1rdnjnjT0fvc3tWblE/9eo8n6Cvgal6UVxsDy/9Q8Wm2fmBfvbF7DY/rXtTQci5oPV+5
-         IqOw==
+        h=content-language:content-transfer-encoding:in-reply-to:mime-version
+         :user-agent:date:message-id:from:references:cc:to:subject;
+        bh=7Zz+dekQVz+t60cfPAWXHDt673zqelsbIxrG4v8rxXU=;
+        b=JZD1dKaB9yfaOmcUPqmam75Gn1qy0Urr1PF21VlRJPOueX22gbgR2Y3z9thqBKxrya
+         AZEICW13SHz9RMYa5D6/HP3Cr6aFI313Z38cojn69KfVtXmcUHez2cPrmCImC7rCGKjK
+         LeWZpgdtJhdVaXxhi5i51YviNB4wH5nZDnXFxS6D0xzglZeElpRBXZJhAgqpJCyGWsqc
+         5L+0RAWY1YbMcb3LptU1AI2D3PNkSpm0zTa1/ba3MhFn0Po4z38uJ5IE4i3Y5UP+d6kZ
+         QANETBIHheSJlbyQv5DhBh7/B/mPGQ+Lc7YmfjBpClQyf1iumufLUEf71ivL1MMb4PCB
+         EB8g==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Uj3D0+T2;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id g18sor78098774pfo.60.2019.08.09.02.44.17
+       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+Received: from relay3-d.mail.gandi.net (relay3-d.mail.gandi.net. [217.70.183.195])
+        by mx.google.com with ESMTPS id e42si38087869edd.289.2019.08.09.02.44.43
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Aug 2019 02:44:17 -0700 (PDT)
-Received-SPF: pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Fri, 09 Aug 2019 02:44:43 -0700 (PDT)
+Received-SPF: neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) client-ip=217.70.183.195;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@gmail.com header.s=20161025 header.b=Uj3D0+T2;
-       spf=pass (google.com: domain of linux.bhar@gmail.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=linux.bhar@gmail.com;
-       dmarc=pass (p=NONE sp=QUARANTINE dis=NONE) header.from=gmail.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=0MjjxEATeDSohSUdPgCn+0npRclOTNWQmeqagttLXsE=;
-        b=Uj3D0+T2IeTt2j8R9IQoWagucl2E8dAmOFplTadmEtycTdbXiM6UlavYMVIWRj02Cw
-         4nSjNZnzwBdIAEkY38minKr8sYfOUzw8/WLlP8ed8SLzlIhwkZoWRaa1hLLX0HTNpU3l
-         +C0O3IoWFhNMlGSkYFNWh5qqg1YWt7jHjjNwXnsLsenEtvNuAmN6uAW6tETi5HZkGIZL
-         DrOB+8THq13ltaU/8cqB9++tw1zvfEiBQBoX3Cw1iovi0VSPgY9Yvc4UinD0eWP8t6hd
-         ZwvocRvxWFkXtMq3PNSgz9fy8Uktwgue1HOdo+jRr7RaMf3sRku+Hwvkpoi4PR5Myd9g
-         ufQw==
-X-Google-Smtp-Source: APXvYqwKbvHj8qkjrkEYqfdwuA24Q1Iov787Zkesjq5b/OE+ycYpMk/fRKyoJ/9LftbwlyAmci+LfQ==
-X-Received: by 2002:aa7:9254:: with SMTP id 20mr21121887pfp.212.1565343856824;
-        Fri, 09 Aug 2019 02:44:16 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.33])
-        by smtp.gmail.com with ESMTPSA id e9sm2925944pfh.155.2019.08.09.02.44.10
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 02:44:16 -0700 (PDT)
-Date: Fri, 9 Aug 2019 15:14:06 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: John Hubbard <jhubbard@nvidia.com>
-Cc: arnd@arndb.de, gregkh@linuxfoundation.org, sivanich@sgi.com,
-	ira.weiny@intel.com, jglisse@redhat.com,
-	william.kucharski@oracle.com, hch@lst.de,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-kernel-mentees@lists.linuxfoundation.org
-Subject: Re: [Linux-kernel-mentees][PATCH v4 1/1] sgi-gru: Remove *pte_lookup
- functions
-Message-ID: <20190809094406.GA22457@bharath12345-Inspiron-5559>
-References: <1565290555-14126-1-git-send-email-linux.bhar@gmail.com>
- <1565290555-14126-2-git-send-email-linux.bhar@gmail.com>
- <b659042a-f2c3-df3c-4182-bb7dd5156bc1@nvidia.com>
+       spf=neutral (google.com: 217.70.183.195 is neither permitted nor denied by best guess record for domain of alex@ghiti.fr) smtp.mailfrom=alex@ghiti.fr
+X-Originating-IP: 81.250.144.103
+Received: from [10.30.1.20] (lneuilly-657-1-5-103.w81-250.abo.wanadoo.fr [81.250.144.103])
+	(Authenticated sender: alex@ghiti.fr)
+	by relay3-d.mail.gandi.net (Postfix) with ESMTPSA id 5865C6000D;
+	Fri,  9 Aug 2019 09:44:39 +0000 (UTC)
+Subject: Re: [PATCH v6 09/14] mips: Properly account for stack randomization
+ and stack guard gap
+To: Sergei Shtylyov <sergei.shtylyov@cogentembedded.com>,
+ Andrew Morton <akpm@linux-foundation.org>
+Cc: Albert Ou <aou@eecs.berkeley.edu>, Kees Cook <keescook@chromium.org>,
+ linux-mm@kvack.org, Catalin Marinas <catalin.marinas@arm.com>,
+ Palmer Dabbelt <palmer@sifive.com>, Will Deacon <will.deacon@arm.com>,
+ Russell King <linux@armlinux.org.uk>, Ralf Baechle <ralf@linux-mips.org>,
+ linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+ Luis Chamberlain <mcgrof@kernel.org>, Paul Burton <paul.burton@mips.com>,
+ Paul Walmsley <paul.walmsley@sifive.com>, James Hogan <jhogan@kernel.org>,
+ linux-riscv@lists.infradead.org, linux-mips@vger.kernel.org,
+ Christoph Hellwig <hch@lst.de>, linux-arm-kernel@lists.infradead.org,
+ Alexander Viro <viro@zeniv.linux.org.uk>
+References: <20190808061756.19712-1-alex@ghiti.fr>
+ <20190808061756.19712-10-alex@ghiti.fr>
+ <bd67507e-8a5b-34b5-1a33-5500bbb724b2@cogentembedded.com>
+From: Alexandre Ghiti <alex@ghiti.fr>
+Message-ID: <91e31484-b268-2c90-1dd1-98cec349af6c@ghiti.fr>
+Date: Fri, 9 Aug 2019 11:44:38 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <b659042a-f2c3-df3c-4182-bb7dd5156bc1@nvidia.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <bd67507e-8a5b-34b5-1a33-5500bbb724b2@cogentembedded.com>
+Content-Type: text/plain; charset=utf-8; format=flowed
+Content-Transfer-Encoding: 8bit
+Content-Language: fr
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 08, 2019 at 04:21:44PM -0700, John Hubbard wrote:
-> On 8/8/19 11:55 AM, Bharath Vedartham wrote:
-> ...
-> >  static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
-> >  		    int write, int atomic, unsigned long *gpa, int *pageshift)
-> >  {
-> >  	struct mm_struct *mm = gts->ts_mm;
-> >  	struct vm_area_struct *vma;
-> >  	unsigned long paddr;
-> > -	int ret, ps;
-> > +	int ret;
-> > +	struct page *page;
-> >  
-> >  	vma = find_vma(mm, vaddr);
-> >  	if (!vma)
-> > @@ -263,21 +187,33 @@ static int gru_vtop(struct gru_thread_state *gts, unsigned long vaddr,
-> >  
-> >  	/*
-> >  	 * Atomic lookup is faster & usually works even if called in non-atomic
-> > -	 * context.
-> > +	 * context. get_user_pages_fast does atomic lookup before falling back to
-> > +	 * slow gup.
-> >  	 */
-> >  	rmb();	/* Must/check ms_range_active before loading PTEs */
-> > -	ret = atomic_pte_lookup(vma, vaddr, write, &paddr, &ps);
-> > -	if (ret) {
-> > -		if (atomic)
-> > +	if (atomic) {
-> > +		ret = __get_user_pages_fast(vaddr, 1, write, &page);
-> > +		if (!ret)
-> >  			goto upm;
-> > -		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
-> > +	} else {
-> > +		ret = get_user_pages_fast(vaddr, 1, write ? FOLL_WRITE : 0, &page);
-> > +		if (!ret)
-> >  			goto inval;
-> >  	}
-> > +
-> > +	paddr = page_to_phys(page);
-> > +	put_user_page(page);
-> > +
-> > +	if (unlikely(is_vm_hugetlb_page(vma)))
-> > +		*pageshift = HPAGE_SHIFT;
-> > +	else
-> > +		*pageshift = PAGE_SHIFT;
-> > +
-> >  	if (is_gru_paddr(paddr))
-> >  		goto inval;
-> > -	paddr = paddr & ~((1UL << ps) - 1);
-> > +	paddr = paddr & ~((1UL << *pageshift) - 1);
-> >  	*gpa = uv_soc_phys_ram_to_gpa(paddr);
-> > -	*pageshift = ps;
-> 
-> Why are you no longer setting *pageshift? There are a couple of callers
-> that both use this variable.
-Hi John,
+On 8/8/19 11:16 AM, Sergei Shtylyov wrote:
+> Hello!
+>
+> On 08.08.2019 9:17, Alexandre Ghiti wrote:
+>
+>> This commit takes care of stack randomization and stack guard gap when
+>> computing mmap base address and checks if the task asked for 
+>> randomization.
+>>
+>> This fixes the problem uncovered and not fixed for arm here:
+>> https://lkml.kernel.org/r/20170622200033.25714-1-riel@redhat.com
+>>
+>> Signed-off-by: Alexandre Ghiti <alex@ghiti.fr>
+>> Acked-by: Kees Cook <keescook@chromium.org>
+>> Acked-by: Paul Burton <paul.burton@mips.com>
+>> Reviewed-by: Luis Chamberlain <mcgrof@kernel.org>
+>> ---
+>>   arch/mips/mm/mmap.c | 14 ++++++++++++--
+>>   1 file changed, 12 insertions(+), 2 deletions(-)
+>>
+>> diff --git a/arch/mips/mm/mmap.c b/arch/mips/mm/mmap.c
+>> index d79f2b432318..f5c778113384 100644
+>> --- a/arch/mips/mm/mmap.c
+>> +++ b/arch/mips/mm/mmap.c
+>> @@ -21,8 +21,9 @@ unsigned long shm_align_mask = PAGE_SIZE - 1;    /* 
+>> Sane caches */
+>>   EXPORT_SYMBOL(shm_align_mask);
+>>     /* gap between mmap and stack */
+>> -#define MIN_GAP (128*1024*1024UL)
+>> -#define MAX_GAP ((TASK_SIZE)/6*5)
+>> +#define MIN_GAP        (128*1024*1024UL)
+>> +#define MAX_GAP        ((TASK_SIZE)/6*5)
+>
+>    Could add spaces around *, while touching this anyway? And parens
+> around TASK_SIZE shouldn't be needed...
+>
 
-I did set *pageshift. The if statement above sets *pageshift. ps was
-used to retrive the pageshift value when the pte_lookup functions were
-present. ps was passed by reference to those functions and set by them.
-But here since we are trying to remove those functions, we don't need ps
-and we directly set *pageshift to HPAGE_SHIFT or PAGE_SHIFT based on the
-type of vma. 
+I did not fix checkpatch warnings here since this code gets removed 
+afterwards.
 
-Hope this clears things up?
 
-Thank you
-Bharath
-> 
-> thanks,
-> -- 
-> John Hubbard
-> NVIDIA
+>> +#define STACK_RND_MASK    (0x7ff >> (PAGE_SHIFT - 12))
+>>     static int mmap_is_legacy(struct rlimit *rlim_stack)
+>>   {
+>> @@ -38,6 +39,15 @@ static int mmap_is_legacy(struct rlimit *rlim_stack)
+>>   static unsigned long mmap_base(unsigned long rnd, struct rlimit 
+>> *rlim_stack)
+>>   {
+>>       unsigned long gap = rlim_stack->rlim_cur;
+>> +    unsigned long pad = stack_guard_gap;
+>> +
+>> +    /* Account for stack randomization if necessary */
+>> +    if (current->flags & PF_RANDOMIZE)
+>> +        pad += (STACK_RND_MASK << PAGE_SHIFT);
+>
+>    Parens not needed here.
+
+
+Belt and braces approach here as I'm never sure about priorities.
+
+Thanks for your time,
+
+Alex
+
+
+>
+>> +
+>> +    /* Values close to RLIM_INFINITY can overflow. */
+>> +    if (gap + pad > gap)
+>> +        gap += pad;
+>>         if (gap < MIN_GAP)
+>>           gap = MIN_GAP;
+>>
+>
+>
+> _______________________________________________
+> linux-riscv mailing list
+> linux-riscv@lists.infradead.org
+> http://lists.infradead.org/mailman/listinfo/linux-riscv
 
