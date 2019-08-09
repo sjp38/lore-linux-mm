@@ -2,271 +2,221 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-17.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,
-	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 802C1C31E40
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 18:18:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 06F1FC32756
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 18:22:15 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 39C7C20B7C
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 18:18:44 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="rP5d8uUt"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 39C7C20B7C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id B4E1920C01
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 18:22:14 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B4E1920C01
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C86D66B0007; Fri,  9 Aug 2019 14:18:43 -0400 (EDT)
+	id 531B26B0003; Fri,  9 Aug 2019 14:22:14 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C37476B000C; Fri,  9 Aug 2019 14:18:43 -0400 (EDT)
+	id 4E26E6B0007; Fri,  9 Aug 2019 14:22:14 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AFF4A6B0010; Fri,  9 Aug 2019 14:18:43 -0400 (EDT)
+	id 3D15C6B000C; Fri,  9 Aug 2019 14:22:14 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-pg1-f199.google.com (mail-pg1-f199.google.com [209.85.215.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 781AE6B0007
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 14:18:43 -0400 (EDT)
-Received: by mail-pg1-f199.google.com with SMTP id h5so60207668pgq.23
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 11:18:43 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 059406B0003
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 14:22:14 -0400 (EDT)
+Received: by mail-pg1-f199.google.com with SMTP id y7so11098975pgq.3
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 11:22:13 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:in-reply-to:message-id
-         :mime-version:references:subject:from:to:cc;
-        bh=vCc93vaFXwMRZ3fSZ6FSA2GqVkDbS0j1jfgTmaZ8aBc=;
-        b=M57QzghdzjVnDqI6QdtU6+EC+KzfJyUrt6jAX1O4VUlk+TvdQxDF4KInXaCfqqYNXg
-         m8vHMFBiEO5tKnfzweucqJg6GXdIxTir0Z23cxV/K4MfiA0WawaJvEvad89HlrWjXY5U
-         +sArxUD09KGzjdgE7mO+Y3EIQ3us73GZx/d1CcgY9VnZMXPs8A4Oaczz1h0TBk7UERjp
-         awVxgGQ6CFo/R81oyGA2qcVh2a2F8ac2kGysd9A/YQI4XLoro7hhpZWoDcTYZjeP5Q2v
-         dUoMM6fN58df0FjcwVC48KmHgxqM7NF5fIa2Z+wWDCg5cDhV3a9tva2hm0ZdpPKFKwtG
-         QD0A==
-X-Gm-Message-State: APjAAAUDgijIrxgFigtVcfn2dTXPtB0Uvb+KGPg7130+DgjWhiaAyp+w
-	ql+qtqZFsEPReJjvID+C5c8fI/7fUI6diiDQ/lTE41aiCHL7zSP/eLkxsv4EF08BIy8spKSO9MN
-	PV2NVom4N6U3SAosGfPWBqh3j7dAETLL7S5ktl1D53RctR2x+GnOOKKS/k5gcJo18lA==
-X-Received: by 2002:a63:381d:: with SMTP id f29mr19122892pga.101.1565374722922;
-        Fri, 09 Aug 2019 11:18:42 -0700 (PDT)
-X-Received: by 2002:a63:381d:: with SMTP id f29mr19122831pga.101.1565374721897;
-        Fri, 09 Aug 2019 11:18:41 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565374721; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:from:to:cc
+         :subject:thread-topic:thread-index:date:message-id:references
+         :in-reply-to:accept-language:content-language:dlp-product
+         :dlp-version:dlp-reaction:content-transfer-encoding:mime-version;
+        bh=LcV6V5yP+7/bxImRCG+SePtZnNFP4Ut8SFKw3Wlj1Ss=;
+        b=gN7m5HIDtub5nCu1xYhegTHDc6V439tN/E9PJJx16nQf69YhxSmT7U04CRGDdlAPKq
+         nrUAS7ijdkYzOWLRZy8uw2ixfMr9wMntzfXx5i7JckGKXRAVvbeLkVrYZwa+/+e8hxlL
+         y+Bc7fI9UlkfdhKC/QBQ5zKsyYJU1g5hvOne6BMTQ5yOyJ0Dqgm65G5M1ZbgzJTRLG6L
+         ptSwSKjufFBuLFDj8Gw3Kyuzvy29kK8NOLE5pEHYkrZu30eaKxMEreUqZmQ9laBBpqu6
+         4anr6CWC3gPJCw1tYXgRrD6Jk+c70BOtt9O/VY8mL4KP1pLrn2mNnxdWz9g2RmWDXTri
+         97gQ==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Gm-Message-State: APjAAAU43SW8MYRHSZtdtnbvry5CeJJTTcDjIqGrgdSmTjthqlHNAamx
+	3zAl7UBxIa82SOLf51rhiQ78sndN3v0XEAsG8Z6azvS1sP91x/xHD287KkiOd5J2G1qnJyh2WQs
+	7h3HB7LkErIRltp7d7r0fSs6Kk3ZQ9cN3ZOFC8vVolcVzRDzwI+9Em2zyo+gcneW5RQ==
+X-Received: by 2002:a17:902:223:: with SMTP id 32mr4315337plc.220.1565374933637;
+        Fri, 09 Aug 2019 11:22:13 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyIv3NNWIDkU6bO3F0hEahMBTyDwvS2krw/I9qxB0b5miiePSXwWXbMPbqNoL/mJG3LxRbK
+X-Received: by 2002:a17:902:223:: with SMTP id 32mr4315294plc.220.1565374932754;
+        Fri, 09 Aug 2019 11:22:12 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565374932; cv=none;
         d=google.com; s=arc-20160816;
-        b=Bm2b801EDdc/cw6uUGG5UJa+PG+DSIjn3eYvOw93s3vYWc8BeHDO8bg6+o0gkUZnko
-         PGwuBzH2RMpwALurV1lt18IiZ+9t6UKWUdvLFSrqlCRChnAwy4huuoF9RCj0giiVfihf
-         M0Bl0PT+EsnCJAmk6IJRtez0Fz4VTjPZnnnMiA6rYOWWxQ0U0z26D9bQ/KirUQSIlgVX
-         oUqpKG9koEAmm+M8bLgO6wbzIXZU1rqvh6+DOcYQyICbhjzx1Ne60Kzwh4rcWiRctOBe
-         R2/oegpA++VSi6wyp+OFADpIQDomWruJWRjF+X93uQxnD0TfE7Rgf19fU9R3rPdRaqdm
-         FpEQ==
+        b=YMcg5r4uMcOd+bmKAn+9PCx2tKqMK4PyPlJEMmKJ46tOdhZQMOqJpyzosg9HIFi11o
+         neKyQfCZAB+TPWmbFjP4EDLeiTniM7czOL8/bspry+H0k3BhBX/fBMpTNy+nXarzergy
+         PX4k5rotZnyxLPfUaZD5s5WzuS/lYBtk/WK9wpwD51cxZydT5LnKPU5SLQMF0rWRdy9R
+         JvgB9qXJepxDW5Gu7B31syo7hQ6Pogj5dZvK+XsmQOyOJkq8YSICcS+ECH7K78KARR05
+         alTyskOtzOnqI3WYY34LQwmPDwjLn8cIN6dttLHYRESdW2hFBj3NMB90e3dovrIAriiC
+         q3mQ==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:from:subject:references:mime-version:message-id:in-reply-to
-         :date:dkim-signature;
-        bh=vCc93vaFXwMRZ3fSZ6FSA2GqVkDbS0j1jfgTmaZ8aBc=;
-        b=OUjCAkiVuMRN4dn/baOzCGckM46lWUH2XypX9r7OM2Ze+JtS4hQIyk+x0IqO+keVhq
-         DkY/E7HkforilHWTwbE1yZWX0bWCBry9cGzGZbWoxT6gxh+7NLc+Fo9bUMHz8bqEDEzK
-         /vq4b3A8gtihEvUtxAe/p7sMLUXi4e9vsiy0BsvuGLqiSnNBHsTAmZg9u7LHxg02S5Uc
-         jiOkqtVGwixXjKkBFfIXeF0US64Ju1tneTmdYffXas0IUomUNEr/hsr+6Gkfw6jN5esF
-         fp8vJobUTVVI6JFyGk7OcAGR+LRv5VnkQN/ulBVPPs+T997nABcyQjGbbPXd9Rmx/1/O
-         MQRQ==
+        h=mime-version:content-transfer-encoding:dlp-reaction:dlp-version
+         :dlp-product:content-language:accept-language:in-reply-to:references
+         :message-id:date:thread-index:thread-topic:subject:cc:to:from;
+        bh=LcV6V5yP+7/bxImRCG+SePtZnNFP4Ut8SFKw3Wlj1Ss=;
+        b=gPlbm+1mD3sdYWa99rZZfnmIdhilgjUHEOs0Pu8V1troXbggmAfJEjrLVv3DGwryUh
+         OyTsL+L7XXltCJI1taheEwC+mDNE97zBI7AT2YQyvUOjzIo821vSE+Zq9Gh/aWuSpHU9
+         vYH3Jo6Fop7BVmnoh0VjtNWNKN/LbWxts8GoVVY2Z0WvQX/a2sLUdJccdQKmXxH0O0PE
+         hMgdtZWc84G1Ueqqut2JTscjhUNqP6vFo/3OC0zHjnX/vye/djlm7xJVuz2bGiIlHGsi
+         5M7lk4h81YznLm+lrNq1Rl52TehVSwofjCVtkyzflge5RMeXQUCiYD32rOcvolx9b4l9
+         gIUQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=rP5d8uUt;
-       spf=pass (google.com: domain of 3ablnxqokcjob8hls5olhmaiiaf8.6igfchor-ggep46e.ila@flex--henryburns.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3AblNXQoKCJoB8HLS5OLHMAIIAF8.6IGFCHOR-GGEP46E.ILA@flex--henryburns.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])
-        by mx.google.com with SMTPS id l13sor69802808pgq.30.2019.08.09.11.18.41
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+Received: from mga04.intel.com (mga04.intel.com. [192.55.52.120])
+        by mx.google.com with ESMTPS id bx21si4830237pjb.21.2019.08.09.11.22.12
         for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Fri, 09 Aug 2019 11:18:41 -0700 (PDT)
-Received-SPF: pass (google.com: domain of 3ablnxqokcjob8hls5olhmaiiaf8.6igfchor-ggep46e.ila@flex--henryburns.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Aug 2019 11:22:12 -0700 (PDT)
+Received-SPF: pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) client-ip=192.55.52.120;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=rP5d8uUt;
-       spf=pass (google.com: domain of 3ablnxqokcjob8hls5olhmaiiaf8.6igfchor-ggep46e.ila@flex--henryburns.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3AblNXQoKCJoB8HLS5OLHMAIIAF8.6IGFCHOR-GGEP46E.ILA@flex--henryburns.bounces.google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
-         :cc;
-        bh=vCc93vaFXwMRZ3fSZ6FSA2GqVkDbS0j1jfgTmaZ8aBc=;
-        b=rP5d8uUtgyhIBDjs3pOQIuKA7CqPkZD87wr6U31d5zfiCN3+zpqMplqHMlAAaxJv5Y
-         mtLjOGMMCHDiDW4eRm5ZqTb8YJp+nUsl6X/dXmaQ6YKC99OzzbfXbosMyYikyKx+YxMK
-         WddcEWcZjamXOX0SzMHQLdh6BYQBctAuMgDwUuBx680TIuZbqFChFDUmuzsNIgJUX4V1
-         RnVJoLfKEjC50m/1xX+078kcG9btrDBeIVgagoOHFJ/JTOZdPj65IWvBOIniw94xrSA6
-         8LmhqGentKO3nOnsG63CBC0FeconSn075YP0D8gwkVY5TLhtdAab5zV1IozxKfU/txpL
-         c6Nw==
-X-Google-Smtp-Source: APXvYqyg54n0lDkaOi6YoNCD+Q2chFnQmSkX+NV/dn8iBvhAgc9UN9MRDpw/360/Y3bVmdFJO7zx9N1Mqe5obIpC
-X-Received: by 2002:a63:e807:: with SMTP id s7mr18031604pgh.194.1565374721199;
- Fri, 09 Aug 2019 11:18:41 -0700 (PDT)
-Date: Fri,  9 Aug 2019 11:17:51 -0700
-In-Reply-To: <20190809181751.219326-1-henryburns@google.com>
-Message-Id: <20190809181751.219326-2-henryburns@google.com>
-Mime-Version: 1.0
-References: <20190809181751.219326-1-henryburns@google.com>
-X-Mailer: git-send-email 2.23.0.rc1.153.gdeed80330f-goog
-Subject: [PATCH 2/2 v2] mm/zsmalloc.c: Fix race condition in zs_destroy_pool
-From: Henry Burns <henryburns@google.com>
-To: Minchan Kim <minchan@kernel.org>, Nitin Gupta <ngupta@vflare.org>
-Cc: Sergey Senozhatsky <sergey.senozhatsky.work@gmail.com>, Shakeel Butt <shakeelb@google.com>, 
-	Jonathan Adams <jwadams@google.com>, HenryBurns <henrywolfeburns@gmail.com>, linux-mm@kvack.org, 
-	linux-kernel@vger.kernel.org, Henry Burns <henryburns@google.com>
-Content-Type: text/plain; charset="UTF-8"
+       spf=pass (google.com: domain of ira.weiny@intel.com designates 192.55.52.120 as permitted sender) smtp.mailfrom=ira.weiny@intel.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=intel.com
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by fmsmga104.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 09 Aug 2019 11:22:11 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,366,1559545200"; 
+   d="scan'208";a="186739728"
+Received: from fmsmsx103.amr.corp.intel.com ([10.18.124.201])
+  by orsmga002.jf.intel.com with ESMTP; 09 Aug 2019 11:22:10 -0700
+Received: from fmsmsx102.amr.corp.intel.com (10.18.124.200) by
+ FMSMSX103.amr.corp.intel.com (10.18.124.201) with Microsoft SMTP Server (TLS)
+ id 14.3.439.0; Fri, 9 Aug 2019 11:22:10 -0700
+Received: from crsmsx103.amr.corp.intel.com (172.18.63.31) by
+ FMSMSX102.amr.corp.intel.com (10.18.124.200) with Microsoft SMTP Server (TLS)
+ id 14.3.439.0; Fri, 9 Aug 2019 11:22:10 -0700
+Received: from crsmsx101.amr.corp.intel.com ([169.254.1.115]) by
+ CRSMSX103.amr.corp.intel.com ([169.254.4.51]) with mapi id 14.03.0439.000;
+ Fri, 9 Aug 2019 12:22:08 -0600
+From: "Weiny, Ira" <ira.weiny@intel.com>
+To: John Hubbard <jhubbard@nvidia.com>
+CC: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>,
+	"Andrew Morton" <akpm@linux-foundation.org>, Christoph Hellwig
+	<hch@infradead.org>, Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
+	Jerome Glisse <jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>,
+	"linux-mm@kvack.org" <linux-mm@kvack.org>, "linux-fsdevel@vger.kernel.org"
+	<linux-fsdevel@vger.kernel.org>, "Williams, Dan J"
+	<dan.j.williams@intel.com>, Daniel Black <daniel@linux.ibm.com>, "Matthew
+ Wilcox" <willy@infradead.org>, Mike Kravetz <mike.kravetz@oracle.com>
+Subject: RE: [PATCH 1/3] mm/mlock.c: convert put_page() to put_user_page*()
+Thread-Topic: [PATCH 1/3] mm/mlock.c: convert put_page() to put_user_page*()
+Thread-Index: AQHVS9wAqKeuPoXzZkyLXp0tqoyMNKbv6+CAgADRpQCAAHJ+gIAAUE4AgACJIACAAD05gP//ln8AgAB54ICAAM5HUA==
+Date: Fri, 9 Aug 2019 18:22:07 +0000
+Message-ID: <2807E5FD2F6FDA4886F6618EAC48510E79E7F453@CRSMSX101.amr.corp.intel.com>
+References: <20190805222019.28592-1-jhubbard@nvidia.com>
+ <20190805222019.28592-2-jhubbard@nvidia.com>
+ <20190807110147.GT11812@dhcp22.suse.cz>
+ <01b5ed91-a8f7-6b36-a068-31870c05aad6@nvidia.com>
+ <20190808062155.GF11812@dhcp22.suse.cz>
+ <875dca95-b037-d0c7-38bc-4b4c4deea2c7@suse.cz>
+ <306128f9-8cc6-761b-9b05-578edf6cce56@nvidia.com>
+ <d1ecb0d4-ea6a-637d-7029-687b950b783f@nvidia.com>
+ <20190808234138.GA15908@iweiny-DESK2.sc.intel.com>
+ <5713cc2b-b41c-142a-eb52-f5cda999eca7@nvidia.com>
+In-Reply-To: <5713cc2b-b41c-142a-eb52-f5cda999eca7@nvidia.com>
+Accept-Language: en-US
+Content-Language: en-US
+X-MS-Has-Attach:
+X-MS-TNEF-Correlator:
+x-titus-metadata-40: eyJDYXRlZ29yeUxhYmVscyI6IiIsIk1ldGFkYXRhIjp7Im5zIjoiaHR0cDpcL1wvd3d3LnRpdHVzLmNvbVwvbnNcL0ludGVsMyIsImlkIjoiYmYwZDM5MDEtOTVmNS00YzJjLTk3OTMtNTgzN2EzOWFmOWE2IiwicHJvcHMiOlt7Im4iOiJDVFBDbGFzc2lmaWNhdGlvbiIsInZhbHMiOlt7InZhbHVlIjoiQ1RQX05UIn1dfV19LCJTdWJqZWN0TGFiZWxzIjpbXSwiVE1DVmVyc2lvbiI6IjE3LjEwLjE4MDQuNDkiLCJUcnVzdGVkTGFiZWxIYXNoIjoiSHhuMlcydnYrT1htcHFmMllmYkFuREc0YU1BRVRSdHVlUjUxU0hydDk4SVZtY3dPYUZKdVloWUFCM0NQVVZYTiJ9
+x-ctpclassification: CTP_NT
+dlp-product: dlpe-windows
+dlp-version: 11.2.0.6
+dlp-reaction: no-action
+x-originating-ip: [172.18.205.10]
+Content-Type: text/plain; charset="utf-8"
+Content-Transfer-Encoding: base64
+MIME-Version: 1.0
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-In zs_destroy_pool() we call flush_work(&pool->free_work). However, we
-have no guarantee that migration isn't happening in the background
-at that time.
-
-Since migration can't directly free pages, it relies on free_work
-being scheduled to free the pages.  But there's nothing preventing an
-in-progress migrate from queuing the work *after*
-zs_unregister_migration() has called flush_work().  Which would mean
-pages still pointing at the inode when we free it.
-
-Since we know at destroy time all objects should be free, no new
-migrations can come in (since zs_page_isolate() fails for fully-free
-zspages).  This means it is sufficient to track a "# isolated zspages"
-count by class, and have the destroy logic ensure all such pages have
-drained before proceeding.  Keeping that state under the class
-spinlock keeps the logic straightforward.
-
-Fixes: 48b4800a1c6a ("zsmalloc: page migration support")
-Signed-off-by: Henry Burns <henryburns@google.com>
----
- Changelog since v1:
- - Changed the class level isolated count to a pool level isolated count
-   (of zspages). Also added a pool level flag for when destruction
-   starts and a memory barrier to ensure this flag has global
-   visibility.
-
- mm/zsmalloc.c | 61 +++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 59 insertions(+), 2 deletions(-)
-
-diff --git a/mm/zsmalloc.c b/mm/zsmalloc.c
-index 5105b9b66653..08def3a0d200 100644
---- a/mm/zsmalloc.c
-+++ b/mm/zsmalloc.c
-@@ -54,6 +54,7 @@
- #include <linux/mount.h>
- #include <linux/pseudo_fs.h>
- #include <linux/migrate.h>
-+#include <linux/wait.h>
- #include <linux/pagemap.h>
- #include <linux/fs.h>
- 
-@@ -268,6 +269,10 @@ struct zs_pool {
- #ifdef CONFIG_COMPACTION
- 	struct inode *inode;
- 	struct work_struct free_work;
-+	/* A wait queue for when migration races with async_free_zspage() */
-+	struct wait_queue_head migration_wait;
-+	atomic_long_t isolated_pages;
-+	bool destroying;
- #endif
- };
- 
-@@ -1874,6 +1879,19 @@ static void putback_zspage_deferred(struct zs_pool *pool,
- 
- }
- 
-+static inline void zs_pool_dec_isolated(struct zs_pool *pool)
-+{
-+	VM_BUG_ON(atomic_long_read(&pool->isolated_pages) <= 0);
-+	atomic_long_dec(&pool->isolated_pages);
-+	/*
-+	 * There's no possibility of racing, since wait_for_isolated_drain()
-+	 * checks the isolated count under &class->lock after enqueuing
-+	 * on migration_wait.
-+	 */
-+	if (atomic_long_read(&pool->isolated_pages) == 0 && pool->destroying)
-+		wake_up_all(&pool->migration_wait);
-+}
-+
- static void replace_sub_page(struct size_class *class, struct zspage *zspage,
- 				struct page *newpage, struct page *oldpage)
- {
-@@ -1943,6 +1961,7 @@ static bool zs_page_isolate(struct page *page, isolate_mode_t mode)
- 	 */
- 	if (!list_empty(&zspage->list) && !is_zspage_isolated(zspage)) {
- 		get_zspage_mapping(zspage, &class_idx, &fullness);
-+		atomic_long_inc(&pool->isolated_pages);
- 		remove_zspage(class, zspage, fullness);
- 	}
- 
-@@ -2042,8 +2061,16 @@ static int zs_page_migrate(struct address_space *mapping, struct page *newpage,
- 	 * Page migration is done so let's putback isolated zspage to
- 	 * the list if @page is final isolated subpage in the zspage.
- 	 */
--	if (!is_zspage_isolated(zspage))
-+	if (!is_zspage_isolated(zspage)) {
-+		/*
-+		 * We cannot race with zs_destroy_pool() here because we wait
-+		 * for isolation to hit zero before we start destroying.
-+		 * Also, we ensure that everyone can see pool->destroying before
-+		 * we start waiting.
-+		 */
- 		putback_zspage_deferred(pool, class, zspage);
-+		zs_pool_dec_isolated(pool);
-+	}
- 
- 	reset_page(page);
- 	put_page(page);
-@@ -2094,8 +2121,8 @@ static void zs_page_putback(struct page *page)
- 		 * so let's defer.
- 		 */
- 		putback_zspage_deferred(pool, class, zspage);
-+		zs_pool_dec_isolated(pool);
- 	}
--
- 	spin_unlock(&class->lock);
- }
- 
-@@ -2118,8 +2145,36 @@ static int zs_register_migration(struct zs_pool *pool)
- 	return 0;
- }
- 
-+static bool pool_isolated_are_drained(struct zs_pool *pool)
-+{
-+	return atomic_long_read(&pool->isolated_pages) == 0;
-+}
-+
-+/* Function for resolving migration */
-+static void wait_for_isolated_drain(struct zs_pool *pool)
-+{
-+
-+	/*
-+	 * We're in the process of destroying the pool, so there are no
-+	 * active allocations. zs_page_isolate() fails for completely free
-+	 * zspages, so we need only wait for the zs_pool's isolated
-+	 * count to hit zero.
-+	 */
-+	wait_event(pool->migration_wait,
-+		   pool_isolated_are_drained(pool));
-+}
-+
- static void zs_unregister_migration(struct zs_pool *pool)
- {
-+	pool->destroying = true;
-+	/*
-+	 * We need a memory barrier here to ensure global visibility of
-+	 * pool->destroying. Thus pool->isolated pages will either be 0 in which
-+	 * case we don't care, or it will be > 0 and pool->destroying will
-+	 * ensure that we wake up once isolation hits 0.
-+	 */
-+	smp_mb();
-+	wait_for_isolated_drain(pool); /* This can block */
- 	flush_work(&pool->free_work);
- 	iput(pool->inode);
- }
-@@ -2357,6 +2412,8 @@ struct zs_pool *zs_create_pool(const char *name)
- 	if (!pool->name)
- 		goto err;
- 
-+	init_waitqueue_head(&pool->migration_wait);
-+
- 	if (create_cache(pool))
- 		goto err;
- 
--- 
-2.23.0.rc1.153.gdeed80330f-goog
+PiANCj4gT24gOC84LzE5IDQ6NDEgUE0sIElyYSBXZWlueSB3cm90ZToNCj4gPiBPbiBUaHUsIEF1
+ZyAwOCwgMjAxOSBhdCAwMzo1OToxNVBNIC0wNzAwLCBKb2huIEh1YmJhcmQgd3JvdGU6DQo+ID4+
+IE9uIDgvOC8xOSAxMjoyMCBQTSwgSm9obiBIdWJiYXJkIHdyb3RlOg0KPiA+Pj4gT24gOC84LzE5
+IDQ6MDkgQU0sIFZsYXN0aW1pbCBCYWJrYSB3cm90ZToNCj4gPj4+PiBPbiA4LzgvMTkgODoyMSBB
+TSwgTWljaGFsIEhvY2tvIHdyb3RlOg0KPiA+Pj4+PiBPbiBXZWQgMDctMDgtMTkgMTY6MzI6MDgs
+IEpvaG4gSHViYmFyZCB3cm90ZToNCj4gPj4+Pj4+IE9uIDgvNy8xOSA0OjAxIEFNLCBNaWNoYWwg
+SG9ja28gd3JvdGU6DQo+ID4+Pj4+Pj4gT24gTW9uIDA1LTA4LTE5IDE1OjIwOjE3LCBqb2huLmh1
+YmJhcmRAZ21haWwuY29tIHdyb3RlOg0KPiAuLi4NCj4gPj4gT2gsIGFuZCBtZWFud2hpbGUsIEkn
+bSBsZWFuaW5nIHRvd2FyZCBhIGNoZWFwIGZpeDoganVzdCB1c2UNCj4gPj4gZ3VwX2Zhc3QoKSBp
+bnN0ZWFkIG9mIGdldF9wYWdlKCksIGFuZCBhbHNvIGZpeCB0aGUgcmVsZWFzaW5nIGNvZGUuIFNv
+DQo+ID4+IHRoaXMgaW5jcmVtZW50YWwgcGF0Y2gsIG9uIHRvcCBvZiB0aGUgZXhpc3Rpbmcgb25l
+LCBzaG91bGQgZG8gaXQ6DQo+ID4+DQo+ID4+IGRpZmYgLS1naXQgYS9tbS9tbG9jay5jIGIvbW0v
+bWxvY2suYw0KPiA+PiBpbmRleCBiOTgwZTYyNzBlOGEuLjJlYTI3MmM2ZmVlMyAxMDA2NDQNCj4g
+Pj4gLS0tIGEvbW0vbWxvY2suYw0KPiA+PiArKysgYi9tbS9tbG9jay5jDQo+ID4+IEBAIC0zMTgs
+MTggKzMxOCwxNCBAQCBzdGF0aWMgdm9pZCBfX211bmxvY2tfcGFnZXZlYyhzdHJ1Y3QgcGFnZXZl
+Yw0KPiAqcHZlYywgc3RydWN0IHpvbmUgKnpvbmUpDQo+ID4+ICAgICAgICAgICAgICAgICAvKg0K
+PiA+PiAgICAgICAgICAgICAgICAgICogV2Ugd29uJ3QgYmUgbXVubG9ja2luZyB0aGlzIHBhZ2Ug
+aW4gdGhlIG5leHQgcGhhc2UNCj4gPj4gICAgICAgICAgICAgICAgICAqIGJ1dCB3ZSBzdGlsbCBu
+ZWVkIHRvIHJlbGVhc2UgdGhlIGZvbGxvd19wYWdlX21hc2soKQ0KPiA+PiAtICAgICAgICAgICAg
+ICAgICogcGluLiBXZSBjYW5ub3QgZG8gaXQgdW5kZXIgbHJ1X2xvY2sgaG93ZXZlci4gSWYgaXQn
+cw0KPiA+PiAtICAgICAgICAgICAgICAgICogdGhlIGxhc3QgcGluLCBfX3BhZ2VfY2FjaGVfcmVs
+ZWFzZSgpIHdvdWxkIGRlYWRsb2NrLg0KPiA+PiArICAgICAgICAgICAgICAgICogcGluLg0KPiA+
+PiAgICAgICAgICAgICAgICAgICovDQo+ID4+IC0gICAgICAgICAgICAgICBwYWdldmVjX2FkZCgm
+cHZlY19wdXRiYWNrLCBwdmVjLT5wYWdlc1tpXSk7DQo+ID4+ICsgICAgICAgICAgICAgICBwdXRf
+dXNlcl9wYWdlKHBhZ2VzW2ldKTsNCj4gDQo+IGNvcnJlY3Rpb24sIG1ha2UgdGhhdDoNCj4gICAg
+ICAgICAgICAgICAgICAgIHB1dF91c2VyX3BhZ2UocHZlYy0+cGFnZXNbaV0pOw0KPiANCj4gKFRo
+aXMgaXMgbm90IGZ1bGx5IHRlc3RlZCB5ZXQuKQ0KPiANCj4gPj4gICAgICAgICAgICAgICAgIHB2
+ZWMtPnBhZ2VzW2ldID0gTlVMTDsNCj4gPj4gICAgICAgICB9DQo+ID4+ICAgICAgICAgX19tb2Rf
+em9uZV9wYWdlX3N0YXRlKHpvbmUsIE5SX01MT0NLLCBkZWx0YV9tdW5sb2NrZWQpOw0KPiA+PiAg
+ICAgICAgIHNwaW5fdW5sb2NrX2lycSgmem9uZS0+em9uZV9wZ2RhdC0+bHJ1X2xvY2spOw0KPiA+
+Pg0KPiA+PiAtICAgICAgIC8qIE5vdyB3ZSBjYW4gcmVsZWFzZSBwaW5zIG9mIHBhZ2VzIHRoYXQg
+d2UgYXJlIG5vdCBtdW5sb2NraW5nICovDQo+ID4+IC0gICAgICAgcGFnZXZlY19yZWxlYXNlKCZw
+dmVjX3B1dGJhY2spOw0KPiA+PiAtDQo+ID4NCj4gPiBJJ20gbm90IGFuIGV4cGVydCBidXQgdGhp
+cyBza2lwcyBhIGNhbGwgdG8gbHJ1X2FkZF9kcmFpbigpLiAgSXMgdGhhdCBvaz8NCj4gDQo+IFll
+czogdW5sZXNzIEknbSBtaXNzaW5nIHNvbWV0aGluZywgdGhlcmUgaXMgbm8gcmVhc29uIHRvIGdv
+IHRocm91Z2gNCj4gbHJ1X2FkZF9kcmFpbiBpbiB0aGlzIGNhc2UuIFRoZXNlIGFyZSBndXAnZCBw
+YWdlcyB0aGF0IGFyZSBub3QgZ29pbmcgdG8gZ2V0DQo+IGFueSBmdXJ0aGVyIHByb2Nlc3Npbmcu
+DQo+IA0KPiA+DQo+ID4+ICAgICAgICAgLyogUGhhc2UgMjogcGFnZSBtdW5sb2NrICovDQo+ID4+
+ICAgICAgICAgZm9yIChpID0gMDsgaSA8IG5yOyBpKyspIHsNCj4gPj4gICAgICAgICAgICAgICAg
+IHN0cnVjdCBwYWdlICpwYWdlID0gcHZlYy0+cGFnZXNbaV07IEBAIC0zOTQsNiArMzkwLDgNCj4g
+Pj4gQEAgc3RhdGljIHVuc2lnbmVkIGxvbmcgX19tdW5sb2NrX3BhZ2V2ZWNfZmlsbChzdHJ1Y3Qg
+cGFnZXZlYyAqcHZlYywNCj4gPj4gICAgICAgICBzdGFydCArPSBQQUdFX1NJWkU7DQo+ID4+ICAg
+ICAgICAgd2hpbGUgKHN0YXJ0IDwgZW5kKSB7DQo+ID4+ICAgICAgICAgICAgICAgICBzdHJ1Y3Qg
+cGFnZSAqcGFnZSA9IE5VTEw7DQo+ID4+ICsgICAgICAgICAgICAgICBpbnQgcmV0Ow0KPiA+PiAr
+DQo+ID4+ICAgICAgICAgICAgICAgICBwdGUrKzsNCj4gPj4gICAgICAgICAgICAgICAgIGlmIChw
+dGVfcHJlc2VudCgqcHRlKSkNCj4gPj4gICAgICAgICAgICAgICAgICAgICAgICAgcGFnZSA9IHZt
+X25vcm1hbF9wYWdlKHZtYSwgc3RhcnQsICpwdGUpOyBAQA0KPiA+PiAtNDExLDcgKzQwOSwxMyBA
+QCBzdGF0aWMgdW5zaWduZWQgbG9uZyBfX211bmxvY2tfcGFnZXZlY19maWxsKHN0cnVjdA0KPiBw
+YWdldmVjICpwdmVjLA0KPiA+PiAgICAgICAgICAgICAgICAgaWYgKFBhZ2VUcmFuc0NvbXBvdW5k
+KHBhZ2UpKQ0KPiA+PiAgICAgICAgICAgICAgICAgICAgICAgICBicmVhazsNCj4gPj4NCj4gPj4g
+LSAgICAgICAgICAgICAgIGdldF9wYWdlKHBhZ2UpOw0KPiA+PiArICAgICAgICAgICAgICAgLyoN
+Cj4gPj4gKyAgICAgICAgICAgICAgICAqIFVzZSBnZXRfdXNlcl9wYWdlc19mYXN0KCksIGluc3Rl
+YWQgb2YgZ2V0X3BhZ2UoKSBzbyB0aGF0IHRoZQ0KPiA+PiArICAgICAgICAgICAgICAgICogcmVs
+ZWFzaW5nIGNvZGUgY2FuIHVuY29uZGl0aW9uYWxseSBjYWxsIHB1dF91c2VyX3BhZ2UoKS4NCj4g
+Pj4gKyAgICAgICAgICAgICAgICAqLw0KPiA+PiArICAgICAgICAgICAgICAgcmV0ID0gZ2V0X3Vz
+ZXJfcGFnZXNfZmFzdChzdGFydCwgMSwgMCwgJnBhZ2UpOw0KPiA+PiArICAgICAgICAgICAgICAg
+aWYgKHJldCAhPSAxKQ0KPiA+PiArICAgICAgICAgICAgICAgICAgICAgICBicmVhazsNCj4gPg0K
+PiA+IEkgbGlrZSB0aGUgaWRlYSBvZiBtYWtpbmcgdGhpcyBhIGdldC9wdXQgcGFpciBidXQgSSdt
+IGZlZWxpbmcgdW5lYXN5DQo+ID4gYWJvdXQgaG93IHRoaXMgaXMgcmVhbGx5IHN1cHBvc2VkIHRv
+IHdvcmsuDQo+ID4NCj4gPiBGb3Igc3VyZSB0aGUgR1VQL1BVUCB3YXMgc3VwcG9zZWQgdG8gYmUg
+c2VwYXJhdGUgZnJvbSBbZ2V0fHB1dF1fcGFnZS4NCj4gPg0KPiANCj4gQWN0dWFsbHksIHRoZXkg
+Ym90aCB0YWtlIHJlZmVyZW5jZXMgb24gdGhlIHBhZ2UuIEFuZCBpdCBpcyBhYnNvbHV0ZWx5IE9L
+IHRvIGNhbGwNCj4gdGhlbSBib3RoIG9uIHRoZSBzYW1lIHBhZ2UuDQo+IA0KPiBCdXQgYW55d2F5
+LCB3ZSdyZSBub3QgbWl4aW5nIHRoZW0gdXAgaGVyZS4gSWYgeW91IGZvbGxvdyB0aGUgY29kZSBw
+YXRocywNCj4gZWl0aGVyIGd1cCBvciBmb2xsb3dfcGFnZV9tYXNrKCkgaXMgdXNlZCwgYW5kIHRo
+ZW4gcHV0X3VzZXJfcGFnZSgpDQo+IHJlbGVhc2VzLg0KPiANCj4gU28uLi55b3UgaGF2ZW4ndCBh
+Y3R1YWxseSBwb2ludGVkIHRvIGEgYnVnIGhlcmUsIHJpZ2h0PyA6KQ0KDQpOby4uLiAgbm8gYnVn
+Lg0KDQpzb3JyeSB0aGlzIHdhcyBqdXN0IGEgZ2VuZXJhbCBjb21tZW50IG9uIHNlbWFudGljcy4g
+IEJ1dCBpbiBrZWVwaW5nIHdpdGggdGhlIHNlbWFudGljcyBkaXNjdXNzaW9uIGl0IGlzIGZ1cnRo
+ZXIgY29uZnVzaW5nIHRoYXQgZm9sbG93X3BhZ2VfbWFzaygpIGlzIGFsc28gbWl4ZWQgaW4gaGVy
+ZS4uLg0KDQpXaGljaCBpcyB3aGVyZSBteSBjb21tZW50IHdhcyBkcml2aW5nIHRvd2FyZC4gIElm
+IHlvdSBjYWxsIEdVUCB0aGVyZSBzaG91bGQgYmUgYSBQVVAuICBHZXRfcGFnZS9wdXRfcGFnZS4u
+LiAgZm9sbG93X3BhZ2UvdW5mb2xsb3dfcGFnZS4uLiAgPz8/ICA7LSkgIE9rIG5vdyBJJ20gb2Zm
+IHRoZSByYWlscy4uLiAgYnV0IHRoYXQgd2FzIHRoZSBwb2ludC4uLg0KDQpJIHRoaW5rIEphbiBh
+bmQgTWljaGFsIGFyZSBvbnRvIHNvbWV0aGluZyBoZXJlIFdSVCBpbnRlcm5hbCB2cyBleHRlcm5h
+bCBpbnRlcmZhY2VzLg0KDQpJcmENCg0K
 
