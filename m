@@ -2,173 +2,177 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7EE32C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 13:52:12 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AB436C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 13:58:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2FCC92171F
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 13:52:12 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="DCezGss2"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2FCC92171F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	by mail.kernel.org (Postfix) with ESMTP id 62C46214C6
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 13:58:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62C46214C6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B78976B0003; Fri,  9 Aug 2019 09:52:11 -0400 (EDT)
+	id 0ECEE6B0003; Fri,  9 Aug 2019 09:58:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id B29076B0006; Fri,  9 Aug 2019 09:52:11 -0400 (EDT)
+	id 09E7B6B0006; Fri,  9 Aug 2019 09:58:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9F09E6B0007; Fri,  9 Aug 2019 09:52:11 -0400 (EDT)
+	id ECE8A6B0007; Fri,  9 Aug 2019 09:58:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f200.google.com (mail-pf1-f200.google.com [209.85.210.200])
-	by kanga.kvack.org (Postfix) with ESMTP id 6B7546B0003
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 09:52:11 -0400 (EDT)
-Received: by mail-pf1-f200.google.com with SMTP id j22so61440343pfe.11
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 06:52:11 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id 9F1CA6B0003
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 09:58:16 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id m30so1007630eda.11
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 06:58:16 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:date:from:to:cc:subject
-         :message-id:references:mime-version:content-disposition:in-reply-to
-         :user-agent;
-        bh=EreDrMASgymCoOwex2lDSh6PBVp8vwwZo8lBW7Dx+AU=;
-        b=LxGR0nxwRNpRghKOvUzomRYPxtqlJfaRh1IAkVAP8boqWreYJg7iReRTp/ra53CAlT
-         KM1rl3qyp4hd6G7TgPecc8085n6uBN+IOTElpI5Kp/bsB1PsBLarDPnwy00/GjtGIWeT
-         niry/QL5tkFkwCI05wIxBjxANWlhsGZwyckwwThxjJVnmq7SLXBZTKgiBvbEVVPM4l8Y
-         O4ObpmuvrjEjU4dVxMxYORtlzA5HN45zUXfSRxIeqH30i1RUJ3LJaxXFxsYpV5gPi0tQ
-         MRyHngjKasVotVDqJOO1mWedYRsIohTbbxofioB7SNdRnGvmVu0/VAaZbWC7PwLCTU5W
-         HCog==
-X-Gm-Message-State: APjAAAX3K5ggaqRJjEOHvP3f9KxKib34S3fDSty1Yf/4Yc5xcj+4/fHp
-	MhlGIMP8q5VQs0yCFXJamDwTD/ZCVKPbLGV9FkS5uKCfH7uizuHjw61iUqXQSrpYW2MnPX7bn1L
-	QM+LPgtCJCtU8cm69HsmMh/VKEXwmDgtK3v1+PZGrMVQOAL3i8pSgA9zyxQOqQJ6nMA==
-X-Received: by 2002:a17:90a:9bca:: with SMTP id b10mr9515955pjw.90.1565358730967;
-        Fri, 09 Aug 2019 06:52:10 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqyq4SDWzkLC8BDX68C/2jqcmJxtvtyj1llPFWRV0NTgIxY9xvlc1aL7Ppf0YCpPJAALQdll
-X-Received: by 2002:a17:90a:9bca:: with SMTP id b10mr9515897pjw.90.1565358730097;
-        Fri, 09 Aug 2019 06:52:10 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565358730; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=/qUJhYm2MhNMXvXobP3yuKVscY8LCFIljXVP9AOHw5w=;
+        b=Exy6F6Lx2xCmHomonTFf6LMgDSU8ZibGHS93HusPTPRwgaAEFLM2UCXwJzcni1yzTv
+         dSXpP1DhuXBGyy7oUkrVROuNZIZSuuKDW59Jj109H0xzzlhudyre758aQfhaCJAvH0ee
+         rseGYL2CQOzov0BV0MmLBBWaRBbZwXC6dC7jZRPu9RkqtYQ+qDged/byWuxJNcaLQBES
+         aQ6+o+gmO1uoHJv7YFm/BraIMFlQcv0VdNBp1B/qqlb/NK2xwCOgi+lkZcoKo50dr5w6
+         JDicG7bD7eKDAU7YgkLeF440FdeHEtcWHmTfxXd3QCGX8L7NUBz3ftqncRiarR0P9saX
+         N6Ng==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Gm-Message-State: APjAAAWzUtCZVf/5kzrMFxVIDOnGpdP6EPNzzha1Wkq1QOvRzblIBIkt
+	5vhnP5bEMUn3xj8hyJCj5IpUudDuBJKj2UNO3pT8q1RZFdbnXuUVCyD0xfZjbcum+lvwgDDJ5tE
+	HIWan18ZvIyzUfHwYpodJf93G+60tZOYzmFS0jkRItBTjVBrLepY7fBITc4k1T3xU4Q==
+X-Received: by 2002:a50:a784:: with SMTP id i4mr21772732edc.3.1565359096146;
+        Fri, 09 Aug 2019 06:58:16 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqyO2L85P9VCSwZtJM6yWlmPbTsQOFvlrCr4kD1Y2iV47C2VNl6xM8IYroZj6WD6mzDB66Qc
+X-Received: by 2002:a50:a784:: with SMTP id i4mr21772655edc.3.1565359095389;
+        Fri, 09 Aug 2019 06:58:15 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565359095; cv=none;
         d=google.com; s=arc-20160816;
-        b=NB68swUBe0P4DgmWApVtpcghqL2gKl1v0gP7VGOpQexrW65Etds5lDD7FV5wytf+my
-         RduwIsZO2Zf5beqXNKLggbDDqyVDy7CUzoE9s+qyjuP3HJ7ErQBkd7AsizVCfoRf7jpL
-         6RuFYcbT78grhKQVSGS31oOdZRwQ55CGGahQObvY+kyWL/cVXEa88rJv4lZ4jCyBZlxp
-         vfyYqUkr1LRoGh8p7QtIrB3TQ7bXx9ebIUBd0q6QvG9sy3fFDt+xwBHw3aSQpGPMmpTX
-         qh09BuqteqNeYx93geRjxg08AkKwN+1O9HFsg7Pv2k8bd0g6rRWsILRURxBPaFxur4JS
-         U+1A==
+        b=h8FGf96vDGyjEp3K8CEyGojirEDdpTfdx2Wt+EizlsTDoArfeSPoNxpd16w+fAxCGt
+         TunD6AILCgGuk669ty69I8zrGJVWgY5a3wPCBl8WsAftmX/9/ynhDJUxDsxSOkpINc8Z
+         Dbhl4Mpsm2LBONXYHtlpSSwFeVIUcSjWb8E1eFwQXS8OLUiN79Z6v9lVUECkNrXNj27J
+         TGiAgo7SA+ry+AIPJUbWg6sL7QWecldMYfarG/f4R2p9Ht38rJsB1gwm220gkjPAmbaf
+         hvkaBxRW+cOUDPNmRHTIMfla/3ElY+SKgDluNaxEtM+E+sOgjPf4l3/gAlOpGSynD/h3
+         WJmw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
-         :message-id:subject:cc:to:from:date:dkim-signature;
-        bh=EreDrMASgymCoOwex2lDSh6PBVp8vwwZo8lBW7Dx+AU=;
-        b=shoCb/8zILKNKRNUKtupbhk2G+7cli1/7J8xu2+bM3KAB0KnCoz8HWthGJ3W2XMX+X
-         TRMpYvi/rtc6Q+9dBPze0KKUFDXeO5iKoCZMOG8S3Kic23IuvylvbvdVPH3kxElKGNXN
-         /r3yBxbyfDEChOh91UnfFxv37glnJxqwfcs0cJgfkLuXq2OlIQmMgX06wrBaf6ul+6Vi
-         YbOG0njcy2G8wwLUizsTdQsBYwJOXnyd8ms/P1QONrhHqT1IQ0XfdJ7xTGotdUx8zt40
-         N6t8cCAB+jNFFZ8729nK07+2n2e3iv0XLhtCIbWAu86FmBkNfJ1JXEgrhhbDs6XosKM1
-         s2wg==
+         :message-id:subject:cc:to:from:date;
+        bh=/qUJhYm2MhNMXvXobP3yuKVscY8LCFIljXVP9AOHw5w=;
+        b=K1l817cx3+X6On0KEkqaPts6rY3isYXmuDbY61JtflfgKLqXDkZMsMwcHq7PVXNrgO
+         2xczlN0hJ2WdWYrCL5sl3KYik6VqSjP6hvlt9Or6vItwbgn5gDXCxH4PpPDKYx/mQsI+
+         +reDxy5asT1w4KTzsWVxnO0oRqUhxmHCmrPJCbw0wrcuewIbM0E/flD/+npaMGe4d1/A
+         QvpLFEfRZTP7Lb/izMIBOn2K8etbHi5vE+6j8+FqEGGAfxHX6RBG36AnrooqqNNAsKBj
+         z49nISZZQdOLg+ulYuAtR1g3PjF6lzzuqiH11bEsceNMbd5L4wIMmmKbHVB2qOPl1QOc
+         sdDw==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=DCezGss2;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-Received: from bombadil.infradead.org (bombadil.infradead.org. [2607:7c80:54:e::133])
-        by mx.google.com with ESMTPS id a21si57304310pfl.167.2019.08.09.06.52.09
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
+        by mx.google.com with ESMTPS id k57si26066783edd.28.2019.08.09.06.58.15
         for <linux-mm@kvack.org>
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Fri, 09 Aug 2019 06:52:09 -0700 (PDT)
-Received-SPF: pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) client-ip=2607:7c80:54:e::133;
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Fri, 09 Aug 2019 06:58:15 -0700 (PDT)
+Received-SPF: pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@infradead.org header.s=bombadil.20170209 header.b=DCezGss2;
-       spf=pass (google.com: best guess record for domain of willy@infradead.org designates 2607:7c80:54:e::133 as permitted sender) smtp.mailfrom=willy@infradead.org
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Type:MIME-Version
-	:References:Message-ID:Subject:Cc:To:From:Date:Sender:Reply-To:
-	Content-Transfer-Encoding:Content-ID:Content-Description:Resent-Date:
-	Resent-From:Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:
-	List-Help:List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	 bh=EreDrMASgymCoOwex2lDSh6PBVp8vwwZo8lBW7Dx+AU=; b=DCezGss28UrQwdHuY2bFdI4p4
-	S1IQudbzVnxD+07DxZGKpMaIkZjBN26Cdg8l2/Fs8GMFEeX1pJqh0qZAiUghQaE6El6M1XDplTDve
-	EJJcjL9sO79CkY0k30aJUEJAymr58OsH+p8EsukYG7F9sRPnn0G8pCmZVLattID9zhXymV5yWXtFQ
-	ciqngFSM0ntk8BRdLo5xQ4zieBSWsCrkihQ+/ft5+CPIVKlVlUX+N97pCSyIU0MATtJ4kwuaN/o18
-	WCkKlxmfNm5M1Hch5V2lnDpS3brZehU45KR0NW0dNC4+r+Ph0RyNwH7KE6Q/WHvIQU+odBuHV4vuK
-	lstsiJ0Mg==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hw5JK-0002PQ-U7; Fri, 09 Aug 2019 13:52:02 +0000
-Date: Fri, 9 Aug 2019 06:52:02 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Anshuman Khandual <anshuman.khandual@arm.com>
-Cc: linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	Vlastimil Babka <vbabka@suse.cz>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Mike Rapoport <rppt@linux.vnet.ibm.com>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
+       spf=pass (google.com: domain of jack@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=jack@suse.cz
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id C3118ACC2;
+	Fri,  9 Aug 2019 13:58:14 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id E87631E46DD; Fri,  9 Aug 2019 15:58:13 +0200 (CEST)
+Date: Fri, 9 Aug 2019 15:58:13 +0200
+From: Jan Kara <jack@suse.cz>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: John Hubbard <jhubbard@nvidia.com>, Vlastimil Babka <vbabka@suse.cz>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Hellwig <hch@infradead.org>,
+	Ira Weiny <ira.weiny@intel.com>, Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@ziepe.ca>, Jerome Glisse <jglisse@redhat.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org,
 	Dan Williams <dan.j.williams@intel.com>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Michal Hocko <mhocko@kernel.org>,
-	Mark Rutland <mark.rutland@arm.com>,
-	Mark Brown <broonie@kernel.org>,
-	Steven Price <Steven.Price@arm.com>,
-	Ard Biesheuvel <ard.biesheuvel@linaro.org>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Kees Cook <keescook@chromium.org>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	Sri Krishna chowdary <schowdary@nvidia.com>,
-	Dave Hansen <dave.hansen@intel.com>,
-	Russell King - ARM Linux <linux@armlinux.org.uk>,
-	Michael Ellerman <mpe@ellerman.id.au>,
-	Paul Mackerras <paulus@samba.org>,
-	Martin Schwidefsky <schwidefsky@de.ibm.com>,
-	Heiko Carstens <heiko.carstens@de.ibm.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Vineet Gupta <vgupta@synopsys.com>, James Hogan <jhogan@kernel.org>,
-	Paul Burton <paul.burton@mips.com>,
-	Ralf Baechle <ralf@linux-mips.org>,
-	linux-snps-arc@lists.infradead.org, linux-mips@vger.kernel.org,
-	linux-arm-kernel@lists.infradead.org, linux-ia64@vger.kernel.org,
-	linuxppc-dev@lists.ozlabs.org, linux-s390@vger.kernel.org,
-	linux-sh@vger.kernel.org, sparclinux@vger.kernel.org,
-	x86@kernel.org, linux-kernel@vger.kernel.org
-Subject: Re: [RFC V2 0/1] mm/debug: Add tests for architecture exported page
- table helpers
-Message-ID: <20190809135202.GN5482@bombadil.infradead.org>
-References: <1565335998-22553-1-git-send-email-anshuman.khandual@arm.com>
- <20190809101632.GM5482@bombadil.infradead.org>
- <a5aab7ff-f7fd-9cc1-6e37-e4185eee65ac@arm.com>
+	Daniel Black <daniel@linux.ibm.com>,
+	Matthew Wilcox <willy@infradead.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>
+Subject: Re: [PATCH 1/3] mm/mlock.c: convert put_page() to put_user_page*()
+Message-ID: <20190809135813.GF17568@quack2.suse.cz>
+References: <20190805222019.28592-1-jhubbard@nvidia.com>
+ <20190805222019.28592-2-jhubbard@nvidia.com>
+ <20190807110147.GT11812@dhcp22.suse.cz>
+ <01b5ed91-a8f7-6b36-a068-31870c05aad6@nvidia.com>
+ <20190808062155.GF11812@dhcp22.suse.cz>
+ <875dca95-b037-d0c7-38bc-4b4c4deea2c7@suse.cz>
+ <306128f9-8cc6-761b-9b05-578edf6cce56@nvidia.com>
+ <d1ecb0d4-ea6a-637d-7029-687b950b783f@nvidia.com>
+ <420a5039-a79c-3872-38ea-807cedca3b8a@suse.cz>
+ <20190809082307.GL18351@dhcp22.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <a5aab7ff-f7fd-9cc1-6e37-e4185eee65ac@arm.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
+In-Reply-To: <20190809082307.GL18351@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 09, 2019 at 04:05:07PM +0530, Anshuman Khandual wrote:
-> On 08/09/2019 03:46 PM, Matthew Wilcox wrote:
-> > On Fri, Aug 09, 2019 at 01:03:17PM +0530, Anshuman Khandual wrote:
-> >> Should alloc_gigantic_page() be made available as an interface for general
-> >> use in the kernel. The test module here uses very similar implementation from
-> >> HugeTLB to allocate a PUD aligned memory block. Similar for mm_alloc() which
-> >> needs to be exported through a header.
+On Fri 09-08-19 10:23:07, Michal Hocko wrote:
+> On Fri 09-08-19 10:12:48, Vlastimil Babka wrote:
+> > On 8/9/19 12:59 AM, John Hubbard wrote:
+> > >>> That's true. However, I'm not sure munlocking is where the
+> > >>> put_user_page() machinery is intended to be used anyway? These are
+> > >>> short-term pins for struct page manipulation, not e.g. dirtying of page
+> > >>> contents. Reading commit fc1d8e7cca2d I don't think this case falls
+> > >>> within the reasoning there. Perhaps not all GUP users should be
+> > >>> converted to the planned separate GUP tracking, and instead we should
+> > >>> have a GUP/follow_page_mask() variant that keeps using get_page/put_page?
+> > >>>  
+> > >>
+> > >> Interesting. So far, the approach has been to get all the gup callers to
+> > >> release via put_user_page(), but if we add in Jan's and Ira's vaddr_pin_pages()
+> > >> wrapper, then maybe we could leave some sites unconverted.
+> > >>
+> > >> However, in order to do so, we would have to change things so that we have
+> > >> one set of APIs (gup) that do *not* increment a pin count, and another set
+> > >> (vaddr_pin_pages) that do. 
+> > >>
+> > >> Is that where we want to go...?
+> > >>
 > > 
-> > Why are you allocating memory at all instead of just using some
-> > known-to-exist PFNs like I suggested?
+> > We already have a FOLL_LONGTERM flag, isn't that somehow related? And if
+> > it's not exactly the same thing, perhaps a new gup flag to distinguish
+> > which kind of pinning to use?
 > 
-> We needed PFN to be PUD aligned for pfn_pud() and PMD aligned for mk_pmd().
-> Now walking the kernel page table for a known symbol like kernel_init()
+> Agreed. This is a shiny example how forcing all existing gup users into
+> the new scheme is subotimal at best. Not the mention the overal
+> fragility mention elsewhere. I dislike the conversion even more now.
+> 
+> Sorry if this was already discussed already but why the new pinning is
+> not bound to FOLL_LONGTERM (ideally hidden by an interface so that users
+> do not have to care about the flag) only?
 
-I didn't say to walk the kernel page table.  I said to call virt_to_pfn()
-for a known symbol like kernel_init().
+The new tracking cannot be bound to FOLL_LONGTERM. Anything that gets page
+reference and then touches page data (e.g. direct IO) needs the new kind of
+tracking so that filesystem knows someone is messing with the page data.
+So what John is trying to address is a different (although related) problem
+to someone pinning a page for a long time.
 
-> as you had suggested earlier we might encounter page table page entries at PMD
-> and PUD which might not be PMD or PUD aligned respectively. It seemed to me
-> that alignment requirement is applicable only for mk_pmd() and pfn_pud()
-> which create large mappings at those levels but that requirement does not
-> exist for page table pages pointing to next level. Is not that correct ? Or
-> I am missing something here ?
+In principle, I'm not strongly opposed to a new FOLL flag to determine
+whether a pin or an ordinary page reference will be acquired at least as an
+internal implementation detail inside mm/gup.c. But I would really like to
+discourage new GUP users taking just page reference as the most clueless
+users (drivers) usually need a pin in the sense John implements. So in
+terms of API I'd strongly prefer to deprecate GUP as an API, provide
+vaddr_pin_pages() for drivers to get their buffer pages pinned and then for
+those few users who really know what they are doing (and who are not
+interested in page contents) we can have APIs like follow_page() to get a
+page reference from a virtual address.
 
-Just clear the bottom bits off the PFN until you get a PMD or PUD aligned
-PFN.  It's really not hard.
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
