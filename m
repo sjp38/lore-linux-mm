@@ -6,82 +6,82 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 484BBC433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:03:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 85E87C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:04:01 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DC2D32089E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:03:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC2D32089E
+	by mail.kernel.org (Postfix) with ESMTP id 287402089E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:04:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 287402089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 26E726B0294; Fri,  9 Aug 2019 12:01:28 -0400 (EDT)
+	id 796776B0293; Fri,  9 Aug 2019 12:01:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1A6116B0296; Fri,  9 Aug 2019 12:01:28 -0400 (EDT)
+	id 74B6C6B0295; Fri,  9 Aug 2019 12:01:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 094B36B0295; Fri,  9 Aug 2019 12:01:27 -0400 (EDT)
+	id 6354E6B0297; Fri,  9 Aug 2019 12:01:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
 Received: from mail-wr1-f70.google.com (mail-wr1-f70.google.com [209.85.221.70])
-	by kanga.kvack.org (Postfix) with ESMTP id A83676B0293
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:27 -0400 (EDT)
-Received: by mail-wr1-f70.google.com with SMTP id b1so46834805wru.4
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:27 -0700 (PDT)
+	by kanga.kvack.org (Postfix) with ESMTP id 162BF6B0293
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:28 -0400 (EDT)
+Received: by mail-wr1-f70.google.com with SMTP id j10so3893175wrb.16
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:28 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=ort1TBH1VSGPj7+xCWexdM+iz5s6O9TDHYbWNwaAOJc=;
-        b=DtGXPM1CoEZVmmDDjXYrqUjmYsWwGI3VhPG8OSXvAX3vxjbasJ8b0N7eAQy+9o25jR
-         5f/LlQzyp4A+sUJzIEGCSD7XkP6k3G92x7LiJwm9+JaTWezvc1C253CSsZZ6+wErfRtS
-         JDdtzgfOWDg9qEP86/3tiXz5TBaqSUWexermJQzR+yHC7qy/IIIUm8lP3ffWpletNUlq
-         aA2fwt100IwvPd/fT6gfzYpxNnP7w5/gNFWCmqk51LtK3A/BLiXcJktFV37DcmhFwBsq
-         EAq0zkQMSipSgTvH0/crXK/msLsHULXvWTKsu6UHoPvLD0Zov0MP39ep4WldeT8s2n8m
-         Egeg==
+        bh=DiQE1S1ZZkQXnne2PNnTbedvnTzw0WiHKgWhPeB5E7M=;
+        b=P1NT4rpWYlpfolcMAxlCLL60fi0GhJatn8z0SjwokjdbIF1pN559Y2eSrZYRduJa8E
+         s5RzDaXTu4ItVHMgxcWJEgrggJC/qNoBcRv0/VU7Tqf1cA02UbapwpsZ0Jc9TMr8JW0Q
+         8FO5P/NL3Q2brPFVxB9S9sYaclcj9eDApPKbTNOGFj2SzZnE6hErSPb/nOUX8S/3pUTV
+         mLs4G8qb2ffFnJHlD0/3zbzrsfg2zWPXxNshMdIC5jqg/T6vrTYmrepl7fy5MB4xbI6b
+         KJ/0/XmAlF/J72n7Pokn/UB05EYq8jeYzpCUG6k9DUzgHtLZLb7BFSZftTOnbx51hSII
+         dJsQ==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAXl0jXAtJGGnX/jkGq5xFSdaM8SYOeTBQz3oSw/7Ur4PtdGYRkk
-	nxrb1y0kTKyjaEkEsfky6ONxBrAcyg7IWYl6vGbji6UHOB30whVsY+8H6x1mhXwww5t2aoHw98c
-	/kOPIpQfA6cjcisdqTJpgiiuvrwR0EjYtHKaMvofzUyszi85Jy9D1iVhBNtY/opVlAg==
-X-Received: by 2002:a5d:6307:: with SMTP id i7mr12074267wru.144.1565366487269;
+X-Gm-Message-State: APjAAAVFQm1j8w0r8FVAlv4R0joZphcDxcwZ/39umr4Wf/xrEe6dsLZZ
+	Hvf9HG9I0c/wLmEjs55iXREOkx0B4yh+oHwvnzcSrpgTe7ZCvHt56RN4AOVa7gV35e/J+misV/c
+	RGjRas6qF3FMnyQol8Ue/htPUC0N0/cg7t9ea0tfKC1LayMDOJyU4wKSixNYkvannuA==
+X-Received: by 2002:adf:dd0f:: with SMTP id a15mr7475048wrm.265.1565366487677;
         Fri, 09 Aug 2019 09:01:27 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxfbilKSoJy6B8oD1PHUs4BMe0MEMe1Q65eo2T/adYRHqfhBwQ4h3sHMKe1xBbv15+FRDb4
-X-Received: by 2002:a5d:6307:: with SMTP id i7mr12074132wru.144.1565366485785;
-        Fri, 09 Aug 2019 09:01:25 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366485; cv=none;
+X-Google-Smtp-Source: APXvYqyEHF6KF+jog7uu+WTLDUSfeq6S0LYhxbsz27RCxfdvvfXBuAf/TLzU8Vz8MqArBqeuZEK6
+X-Received: by 2002:adf:dd0f:: with SMTP id a15mr7474978wrm.265.1565366486784;
+        Fri, 09 Aug 2019 09:01:26 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565366486; cv=none;
         d=google.com; s=arc-20160816;
-        b=i/ukF0m+g9hucXXtoxukh+d8oj2+SCTdBrDSqi8hJ7um0V62Y5J9RNgKC+xW9E28zE
-         CXDHvZBztl7ykByqChjZNGGvgLq8pieyPA3YPeUMPLYGJ6xyj1tFeqcETNIK82PXuXUW
-         EWI0L8qaT79+50OtieApzskcbK374Mr7/MB6akFlmylnO+Jtcu69cisv2rb6Lj6aHJ7b
-         jo1K6g5E33oSJqclBXvalG+v6xQNGJEhvFdzpPBYTUlHIMgavmlZXj0J5zMQgARsIPG/
-         ypxCe9/+6jg3S6gP0AEqaGEOQGcjwuTN10xcuElhzxxR5Gv7BT2RKBYtyEjGQmlQ55mA
-         OOGw==
+        b=FFz/n871KpKOJFxAVbhwXkqL5I9TpA8GJZYlrWzbAr5+uBXkB9/iUip78Sr5Ss4Jtt
+         jj+Nb8u89AouqK1jmZVk6I5lT7ca4YxJBsn1cOqY8UJGo18jFxB2/hq7Uq6+lqFrdKfr
+         eQr5ySvxLUdC8drh+c34t22KRJDwkgB68++yJV5sywAfMmJ2LRMJnk46Kf7kDnX4gOYQ
+         daOfSgFZrSam7FnZwpBSxjfg4FpvFrnmwWmj0J5EEalij2FYqdCh0rpqFX/DZSwKK6KH
+         UU6tuYqtp/hZEeXaxD8wp4dwH3rQ/rv/TNitG9lpYg39yd/4vjVoK/tDOO/wbqiKHfZb
+         +6ag==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=ort1TBH1VSGPj7+xCWexdM+iz5s6O9TDHYbWNwaAOJc=;
-        b=FikLykJjPa+mGNXvQ2F0hAT71LyYUgXhTbBtx01t/km5KWxIEwKzOnK/qtxh6MC13S
-         LtTctFayS4d0eBjiKEHnR+JA5WhHnc/nwEA0bwIZ43Dj1+hGJyGUEvaaIjIIA+Ln73+p
-         lAI15sK3dXcfpAue+CuIRzpbtY1VSZStmfyWjTIk6/LJuWmeDnnga8BBeoDUbSwZSgkU
-         pWqBc5xWU7rVDsHrWkGq5UIGKIE5YYmJS+QyvQmTgeqDtjp+wMlcrqC5kjFWzytXv2Ul
-         43r9+uHDpnI2/EqN3Dzw/dhMlgn2PHrrMBCEyeJkQB5uh46+Ebd4w2XpM2/hWN70PNt2
-         VbWw==
+        bh=DiQE1S1ZZkQXnne2PNnTbedvnTzw0WiHKgWhPeB5E7M=;
+        b=uyN4J4F50HabtM9s6VRM00aLBsZQz2fz10NKMGYxwW58F8AbeIIVDwmV7Ncyh3Sqfg
+         Z3ZbOO1djEan8I9AONFHlNaJTL4wy7kOve/tlDz32lrO0JQcTXmYaoJRCi3xUfdZKhoR
+         t+RPNJieAwg1uQ4M0nSxb42qChjkV7qRkgfkRLBYfDc/kmR+lG5XITJzu24acwaGsWvO
+         xby3KIANB3bcu8V+hFWdkQm0YH7+Y+e3qo3NbKAgL5aKFicxcZe+oOjBT9q0EkwGKQvz
+         DEGvH7OMdkSZdsRF3/abd84acTMSm3c1RuaXx21I6a3S9nnw+dAy1XmUoQg+8VMsMZ5U
+         bphw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id i12si68105975wrs.152.2019.08.09.09.01.25
+        by mx.google.com with ESMTPS id h7si1459194wmc.110.2019.08.09.09.01.26
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 09:01:25 -0700 (PDT)
+        Fri, 09 Aug 2019 09:01:26 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 3017E3031EBD;
-	Fri,  9 Aug 2019 19:01:25 +0300 (EEST)
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 3B25D305D351;
+	Fri,  9 Aug 2019 19:01:26 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id C3273305B7A0;
-	Fri,  9 Aug 2019 19:01:24 +0300 (EEST)
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id D37A5305B7A0;
+	Fri,  9 Aug 2019 19:01:25 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
@@ -97,11 +97,10 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Weijiang Yang <weijiang.yang@intel.com>, Zhang@kvack.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
-	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>,
-	=?UTF-8?q?Nicu=C8=99or=20C=C3=AE=C8=9Bu?= <ncitu@bitdefender.com>
-Subject: [RFC PATCH v6 58/92] kvm: introspection: add KVMI_GET_MTRR_TYPE
-Date: Fri,  9 Aug 2019 19:00:13 +0300
-Message-Id: <20190809160047.8319-59-alazar@bitdefender.com>
+	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
+Subject: [RFC PATCH v6 60/92] kvm: x86: add kvm_arch_vcpu_set_guest_debug()
+Date: Fri,  9 Aug 2019 19:00:15 +0300
+Message-Id: <20190809160047.8319-61-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -113,149 +112,69 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: Mihai Donțu <mdontu@bitdefender.com>
+This function is need in order to intercept breakpoints and send
+KVMI_EVENT_BREAKPOINT events to the introspection tool.
 
-This command returns the memory type for a guest physical address.
-
-Signed-off-by: Mihai Donțu <mdontu@bitdefender.com>
-Co-developed-by: Nicușor Cîțu <ncitu@bitdefender.com>
-Signed-off-by: Nicușor Cîțu <ncitu@bitdefender.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- Documentation/virtual/kvm/kvmi.rst | 32 ++++++++++++++++++++++++++++++
- arch/x86/include/uapi/asm/kvmi.h   |  9 +++++++++
- arch/x86/kvm/kvmi.c                |  7 +++++++
- virt/kvm/kvmi_int.h                |  1 +
- virt/kvm/kvmi_msg.c                | 17 ++++++++++++++++
- 5 files changed, 66 insertions(+)
+ arch/x86/kvm/x86.c       | 18 +++++++++++++-----
+ include/linux/kvm_host.h |  2 ++
+ 2 files changed, 15 insertions(+), 5 deletions(-)
 
-diff --git a/Documentation/virtual/kvm/kvmi.rst b/Documentation/virtual/kvm/kvmi.rst
-index c43ea1b33a51..e58f0e22f188 100644
---- a/Documentation/virtual/kvm/kvmi.rst
-+++ b/Documentation/virtual/kvm/kvmi.rst
-@@ -1112,6 +1112,38 @@ the buffer size from the message size.
- * -KVM_EAGAIN - the selected vCPU can't be introspected yet
- * -KVM_ENOMEM - not enough memory to allocate the reply
- 
-+24. KVMI_GET_MTRR_TYPE
-+----------------------
-+
-+:Architecture: x86
-+:Versions: >= 1
-+:Parameters:
-+
-+::
-+
-+	struct kvmi_vcpu_hdr;
-+	struct kvmi_get_mtrr_type {
-+		__u64 gpa;
-+	};
-+
-+:Returns:
-+
-+::
-+
-+	struct kvmi_error_code;
-+	struct kvmi_get_mtrr_type_reply {
-+		__u8 type;
-+		__u8 padding[7];
-+	};
-+
-+Returns the guest memory type for a specific physical address.
-+
-+:Errors:
-+
-+* -KVM_EINVAL - the selected vCPU is invalid
-+* -KVM_EINVAL - padding is not zero
-+* -KVM_EAGAIN - the selected vCPU can't be introspected yet
-+
- Events
- ======
- 
-diff --git a/arch/x86/include/uapi/asm/kvmi.h b/arch/x86/include/uapi/asm/kvmi.h
-index a3fcb1ef8404..c3c96e6e2a26 100644
---- a/arch/x86/include/uapi/asm/kvmi.h
-+++ b/arch/x86/include/uapi/asm/kvmi.h
-@@ -101,4 +101,13 @@ struct kvmi_get_xsave_reply {
- 	__u32 region[0];
- };
- 
-+struct kvmi_get_mtrr_type {
-+	__u64 gpa;
-+};
-+
-+struct kvmi_get_mtrr_type_reply {
-+	__u8 type;
-+	__u8 padding[7];
-+};
-+
- #endif /* _UAPI_ASM_X86_KVMI_H */
-diff --git a/arch/x86/kvm/kvmi.c b/arch/x86/kvm/kvmi.c
-index 078d714b59d5..0114ed66f4f3 100644
---- a/arch/x86/kvm/kvmi.c
-+++ b/arch/x86/kvm/kvmi.c
-@@ -811,3 +811,10 @@ int kvmi_arch_cmd_get_xsave(struct kvm_vcpu *vcpu,
- 
- 	return 0;
- }
-+
-+int kvmi_arch_cmd_get_mtrr_type(struct kvm_vcpu *vcpu, u64 gpa, u8 *type)
-+{
-+	*type = kvm_mtrr_get_guest_memory_type(vcpu, gpa_to_gfn(gpa));
-+
-+	return 0;
-+}
-diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
-index 1a705cba4776..ac2e13787f01 100644
---- a/virt/kvm/kvmi_int.h
-+++ b/virt/kvm/kvmi_int.h
-@@ -267,5 +267,6 @@ int kvmi_arch_cmd_control_cr(struct kvm_vcpu *vcpu,
- 			     const struct kvmi_control_cr *req);
- int kvmi_arch_cmd_control_msr(struct kvm_vcpu *vcpu,
- 			      const struct kvmi_control_msr *req);
-+int kvmi_arch_cmd_get_mtrr_type(struct kvm_vcpu *vcpu, u64 gpa, u8 *type);
- 
- #endif
-diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
-index 6bc18b7973cf..ee54d92b07ec 100644
---- a/virt/kvm/kvmi_msg.c
-+++ b/virt/kvm/kvmi_msg.c
-@@ -33,6 +33,7 @@ static const char *const msg_IDs[] = {
- 	[KVMI_EVENT_REPLY]           = "KVMI_EVENT_REPLY",
- 	[KVMI_GET_CPUID]             = "KVMI_GET_CPUID",
- 	[KVMI_GET_GUEST_INFO]        = "KVMI_GET_GUEST_INFO",
-+	[KVMI_GET_MTRR_TYPE]         = "KVMI_GET_MTRR_TYPE",
- 	[KVMI_GET_PAGE_ACCESS]       = "KVMI_GET_PAGE_ACCESS",
- 	[KVMI_GET_PAGE_WRITE_BITMAP] = "KVMI_GET_PAGE_WRITE_BITMAP",
- 	[KVMI_GET_REGISTERS]         = "KVMI_GET_REGISTERS",
-@@ -701,6 +702,21 @@ static int handle_get_cpuid(struct kvm_vcpu *vcpu,
- 	return reply_cb(vcpu, msg, ec, &rpl, sizeof(rpl));
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index 278a286ba262..e633f297e86d 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -8747,14 +8747,12 @@ int kvm_arch_vcpu_ioctl_set_sregs(struct kvm_vcpu *vcpu,
+ 	return ret;
  }
  
-+static int handle_get_mtrr_type(struct kvm_vcpu *vcpu,
-+				const struct kvmi_msg_hdr *msg,
-+				const void *_req, vcpu_reply_fct reply_cb)
+-int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
+-					struct kvm_guest_debug *dbg)
++int kvm_arch_vcpu_set_guest_debug(struct kvm_vcpu *vcpu,
++				  struct kvm_guest_debug *dbg)
+ {
+ 	unsigned long rflags;
+ 	int i, r;
+ 
+-	vcpu_load(vcpu);
+-
+ 	if (dbg->control & (KVM_GUESTDBG_INJECT_DB | KVM_GUESTDBG_INJECT_BP)) {
+ 		r = -EBUSY;
+ 		if (vcpu->arch.exception.pending)
+@@ -8800,10 +8798,20 @@ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
+ 	r = 0;
+ 
+ out:
+-	vcpu_put(vcpu);
+ 	return r;
+ }
+ 
++int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
++					struct kvm_guest_debug *dbg)
 +{
-+	const struct kvmi_get_mtrr_type *req = _req;
-+	struct kvmi_get_mtrr_type_reply rpl;
-+	int ec;
++	int ret;
 +
-+	memset(&rpl, 0, sizeof(rpl));
-+
-+	ec = kvmi_arch_cmd_get_mtrr_type(vcpu, req->gpa, &rpl.type);
-+
-+	return reply_cb(vcpu, msg, ec, &rpl, sizeof(rpl));
++	vcpu_load(vcpu);
++	ret = kvm_arch_vcpu_set_guest_debug(vcpu, dbg);
++	vcpu_put(vcpu);
++	return ret;
 +}
 +
- static int handle_get_xsave(struct kvm_vcpu *vcpu,
- 			    const struct kvmi_msg_hdr *msg, const void *req,
- 			    vcpu_reply_fct reply_cb)
-@@ -730,6 +746,7 @@ static int(*const msg_vcpu[])(struct kvm_vcpu *,
- 	[KVMI_CONTROL_MSR]      = handle_control_msr,
- 	[KVMI_EVENT_REPLY]      = handle_event_reply,
- 	[KVMI_GET_CPUID]        = handle_get_cpuid,
-+	[KVMI_GET_MTRR_TYPE]    = handle_get_mtrr_type,
- 	[KVMI_GET_REGISTERS]    = handle_get_registers,
- 	[KVMI_GET_VCPU_INFO]    = handle_get_vcpu_info,
- 	[KVMI_GET_XSAVE]        = handle_get_xsave,
+ /*
+  * Translate a guest virtual address to a guest physical address.
+  */
+diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+index 3aad3b96107b..691c24598b4d 100644
+--- a/include/linux/kvm_host.h
++++ b/include/linux/kvm_host.h
+@@ -804,6 +804,8 @@ int kvm_arch_vcpu_ioctl_set_mpstate(struct kvm_vcpu *vcpu,
+ 				    struct kvm_mp_state *mp_state);
+ int kvm_arch_vcpu_ioctl_set_guest_debug(struct kvm_vcpu *vcpu,
+ 					struct kvm_guest_debug *dbg);
++int kvm_arch_vcpu_set_guest_debug(struct kvm_vcpu *vcpu,
++				  struct kvm_guest_debug *dbg);
+ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu, struct kvm_run *kvm_run);
+ void kvm_vcpu_ioctl_x86_get_xsave(struct kvm_vcpu *vcpu,
+ 				  struct kvm_xsave *guest_xsave);
 
