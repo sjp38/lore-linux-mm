@@ -2,284 +2,195 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B8C36C32756
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 12:36:37 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 914F0C32756
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 12:37:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5E478208C3
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 12:36:37 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5E478208C3
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 50723214C6
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 12:37:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50723214C6
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DFBFE6B0007; Fri,  9 Aug 2019 08:36:36 -0400 (EDT)
+	id F0C316B0007; Fri,  9 Aug 2019 08:37:51 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D84A96B0008; Fri,  9 Aug 2019 08:36:36 -0400 (EDT)
+	id EBC3E6B0008; Fri,  9 Aug 2019 08:37:51 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C25C36B000A; Fri,  9 Aug 2019 08:36:36 -0400 (EDT)
+	id D36E36B000A; Fri,  9 Aug 2019 08:37:51 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-qk1-f199.google.com (mail-qk1-f199.google.com [209.85.222.199])
-	by kanga.kvack.org (Postfix) with ESMTP id 9C93E6B0007
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 08:36:36 -0400 (EDT)
-Received: by mail-qk1-f199.google.com with SMTP id f22so4442301qkg.0
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 05:36:36 -0700 (PDT)
+Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 8213C6B0007
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 08:37:51 -0400 (EDT)
+Received: by mail-ed1-f69.google.com with SMTP id d27so60224894eda.9
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 05:37:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:date:from:to
          :cc:subject:message-id:references:mime-version:content-disposition
          :in-reply-to:user-agent;
-        bh=eL/9r8r23FGaTFakUGk3zjPExwDUdxEJvNSrujv0ruE=;
-        b=YL0Xn3JYTkKfsiTh9+pcVPd1uQ6P7O1wnrEFmVWQAj+ypkV5LRalqaXTbS7XD/wu/F
-         bQZefk20hYgNM5QzY5OgMXQqs0J3ate2uoTdAfjJSURSUOMODwgr/nyhZZp8HSACv2pe
-         eIewHzp0AWHEi/QytXTBSgao1fMq0ugO3nQ4qRINHo+cZoW6nvO1bbSM40jvcCTutJk5
-         NmWemULmDLtbqPElt7O87KdMzNzqTnBIagUdveh4Bv+Xc6e2dNNMCK4aKqY1nvl9pZ7O
-         CGOLb2FAClteldrQenG7RZ0vSJJhAenlJ5V8kZWUeD3fowjObxZDVCiuNzCsa5kZLWWa
-         rC1g==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-X-Gm-Message-State: APjAAAVtmy/E0osRGWZxM03kVKTrXR03WUQotQI82LqzZ7EKioMlhWmU
-	IhRSrG0OF7nTYpFCFBfRbcJlXklnyIH7EuObzuLYCJ1HAjB3z62QDtZp/r41kpSB6J5qrQoaUe6
-	ET0y6VD+K8Ly7eYFD4r56H2bTf1Wxtb4AwISkQDZeZV7oRYBxWHr8O+ieinPPxMlxzQ==
-X-Received: by 2002:ac8:5491:: with SMTP id h17mr12585161qtq.227.1565354196362;
-        Fri, 09 Aug 2019 05:36:36 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwPf9lSFRieTH2CHH8LNpSgbdtypnjcs5C3y0nI5jMrIGAUboB9Tnl5xeAzakTmmYOOBRtD
-X-Received: by 2002:ac8:5491:: with SMTP id h17mr12585108qtq.227.1565354195488;
-        Fri, 09 Aug 2019 05:36:35 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565354195; cv=none;
+        bh=XdCTuKRi/cDaELo87hK/o8ea88inhbHFfAajS7lpSSY=;
+        b=V2snIs9lD8k6odDpfejL250QCOBZbieYWXkYIZhQbceeE4SdvtqUN+XMFkFDG3mU7s
+         J0C9m8W2VGrXQnDQ1U9RS/I9xW69ipuXiQ+eMZQiG1u3dTJ9HIsJwrbTe//2KRkHsjhB
+         pUAgMUo6z6cmZ1MZHwUi0rXuZR/rVUZeo3Q+cEwBHgOOEFFhDBycqSboV/2UQjWqvvbd
+         rxI2h8SKRUHNFYtEWtMOh2BDVYXzWu2ROU9aNbG6520H+nUe0nzMPMCf3Pv8EU3RpKog
+         iqRUc24ZR+ok1ie+du8nadf8byzzWO1exqp3k3W4M9MRMUmXykJGabSG+ftlGm0WDKqj
+         ve4Q==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+X-Gm-Message-State: APjAAAUI+zGXdEOWqCSX5dx9/6ux4Yre38G/ThfuMODhJ6HxdRZJ+iCA
+	vEIS/siPVWZOITcxezLFItTjgU7tPkUR33MefUGcKLfbq0bYacnM2ZPG6o26xcTuqrAN3kJxZT7
+	7Z5lnch11aSlnhx+0SmJMIetraALnwpUo/j1itlrobbJKFGsYNyGYfwqpzM2XRGUPLA==
+X-Received: by 2002:a17:906:2510:: with SMTP id i16mr18197944ejb.130.1565354271094;
+        Fri, 09 Aug 2019 05:37:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxm/DpxEllCvdYBA3cxZDYfPe6knnljiL+/TiSDy/14FOGinukuosrBSfSGMUGn78spEZet
+X-Received: by 2002:a17:906:2510:: with SMTP id i16mr18197893ejb.130.1565354270256;
+        Fri, 09 Aug 2019 05:37:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565354270; cv=none;
         d=google.com; s=arc-20160816;
-        b=TM6LgO0MEhDvu6A2v3Bvy7Wxf0Q9/Wsrx5XGuZVla9SyCkIqJgIPVhAbAvmCmTM8Jc
-         6rE63iUxnjuXxoSnlT/q+jdZjWKD+VG4jR0HsZiXyD+1k/toJHzYVHXXDkHmH3mNAWKX
-         sTia+Ie8bHH9jMIL9XekK49n7uU9mJJt3gVK4hpbW3mAo87l47wunPSYVNjBZUaQOvRf
-         ZbbUhcoG570ZKNg57+n0n05ReHhr1LgfTFD6GkFvQGdV2D2dDPfE0KzFTVBO4+YGRGOs
-         GFKq+HqC88W6kPeyWSYFVUZ+iZAtutdV1noMdv8EY8Tn9iEG25xG24/aHGfyioHPKRiU
-         lXVg==
+        b=fRhjBCiV1TuTVzdgtUnY0w58pgWAbk6FuGPHEdveDuxrfM6MOfapOKws8CJ2AxGgNB
+         aMJ1VS0kpGU7Kym2XQ9lOgTfAhWIp9iu/hxibbnyvXRvhnTQtO3UGjBgYujh7cyv60qk
+         lb6If8sZS2lsq7QF090lNNwP1ncVLxhQnpZ54H/c+ehRvPTo9cWmpOY3O8nQnQKljg+a
+         jU4CrN+MDAMR74MIzcmqm4bZu+DSN9/YpqJ2lJzfYdSQSgypZatQOIrXH+wWHqoZSIaD
+         PhGbQmUdVpTqCZBBYdM0uVNeZXE+d8dpHIG5mASvdFBs/JTjk7D0i0RndWm8nGwN+P+J
+         ru6A==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=user-agent:in-reply-to:content-disposition:mime-version:references
          :message-id:subject:cc:to:from:date;
-        bh=eL/9r8r23FGaTFakUGk3zjPExwDUdxEJvNSrujv0ruE=;
-        b=Wkbs8Ww53kDO6DYuBmELp60Y3HowtNnDUklRRQ+UEd5BDL3/VXt4TWn8xaCYOtQZqA
-         cXRdZ103uKM6hkRtM738BN8hDTbLIXjWd1LiX8xuY+3JYsRpd1cG7IHNIXzDYdFvagIu
-         5z9piGZpyYA1K4iMGEGu/hPeUewRzL6bIo6VxSn8GxjpB1F0dUU0S7a1NAWnZoXoUj+m
-         QEq7DsLxKz7Z5NYlh8vg/OdLErige67cGNQZfOhguh0AGDNVHKHu/YSRGoT/XN22uUTn
-         a+1W5Q0Ru7+1U9suvfbHeZw8daWA6Uh65mbbkGoYYof7jtMcNNu/ywjGGhjbpoYXy4jB
-         yNSw==
+        bh=XdCTuKRi/cDaELo87hK/o8ea88inhbHFfAajS7lpSSY=;
+        b=b1NgN3eA0PDGv9NhFrgGGb21OyziAuRslwxfKzEPtKgq3zd3W++21CFYBgdcHN+2vI
+         VcMWD22M4kNsYRR6TSih9X0swu2FnjHV0e6vDUb6frQwhtysGvH+pC4jLhRXROtrhSGy
+         gsflhyfMDbtm/jXME80FQe0Cvi+gGVVMPEM/pjhsBQljkx17iFgUZJXbld9FlwmbT7zG
+         117FrzEoQM3dIsXndKlgpScJerPR1T8amKKaiINxn21sAhTD1WiZLP1Z0ZjB78eqRywe
+         SpMyqqzYqHy3u2tDAb24VI2w4eTwWEr+yL6QquWqaLNHuUyXUX0a2qZoKPoBEWnmHu5c
+         Hm0A==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from mx1.redhat.com (mx1.redhat.com. [209.132.183.28])
-        by mx.google.com with ESMTPS id n12si53043903qkk.143.2019.08.09.05.36.35
-        for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 05:36:35 -0700 (PDT)
-Received-SPF: pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) client-ip=209.132.183.28;
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from foss.arm.com (foss.arm.com. [217.140.110.172])
+        by mx.google.com with ESMTP id h2si29033942ejj.0.2019.08.09.05.37.49
+        for <linux-mm@kvack.org>;
+        Fri, 09 Aug 2019 05:37:50 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) client-ip=217.140.110.172;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of bfoster@redhat.com designates 209.132.183.28 as permitted sender) smtp.mailfrom=bfoster@redhat.com;
-       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id B4BDC6378;
-	Fri,  9 Aug 2019 12:36:34 +0000 (UTC)
-Received: from bfoster (dhcp-41-2.bos.redhat.com [10.18.41.2])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id 3676A194B9;
-	Fri,  9 Aug 2019 12:36:34 +0000 (UTC)
-Date: Fri, 9 Aug 2019 08:36:32 -0400
-From: Brian Foster <bfoster@redhat.com>
-To: Dave Chinner <david@fromorbit.com>
-Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org
-Subject: Re: [PATCH 23/24] xfs: reclaim inodes from the LRU
-Message-ID: <20190809123632.GA29669@bfoster>
-References: <20190801021752.4986-1-david@fromorbit.com>
- <20190801021752.4986-24-david@fromorbit.com>
- <20190808163905.GC24551@bfoster>
- <20190809012022.GX7777@dread.disaster.area>
+       spf=pass (google.com: domain of mark.rutland@arm.com designates 217.140.110.172 as permitted sender) smtp.mailfrom=mark.rutland@arm.com
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id 6739D1596;
+	Fri,  9 Aug 2019 05:37:49 -0700 (PDT)
+Received: from lakrids.cambridge.arm.com (usa-sjc-imap-foss1.foss.arm.com [10.121.207.14])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 2EBDE3F706;
+	Fri,  9 Aug 2019 05:37:48 -0700 (PDT)
+Date: Fri, 9 Aug 2019 13:37:46 +0100
+From: Mark Rutland <mark.rutland@arm.com>
+To: Daniel Axtens <dja@axtens.net>
+Cc: kasan-dev@googlegroups.com, linux-mm@kvack.org, x86@kernel.org,
+	aryabinin@virtuozzo.com, glider@google.com, luto@kernel.org,
+	linux-kernel@vger.kernel.org, dvyukov@google.com
+Subject: Re: [PATCH v3 1/3] kasan: support backing vmalloc space with real
+ shadow memory
+Message-ID: <20190809123745.GG48423@lakrids.cambridge.arm.com>
+References: <20190731071550.31814-1-dja@axtens.net>
+ <20190731071550.31814-2-dja@axtens.net>
+ <20190808135037.GA47131@lakrids.cambridge.arm.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190809012022.GX7777@dread.disaster.area>
-User-Agent: Mutt/1.12.0 (2019-05-25)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Fri, 09 Aug 2019 12:36:34 +0000 (UTC)
+In-Reply-To: <20190808135037.GA47131@lakrids.cambridge.arm.com>
+User-Agent: Mutt/1.11.1+11 (2f07cb52) (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 09, 2019 at 11:20:22AM +1000, Dave Chinner wrote:
-> On Thu, Aug 08, 2019 at 12:39:05PM -0400, Brian Foster wrote:
-> > On Thu, Aug 01, 2019 at 12:17:51PM +1000, Dave Chinner wrote:
-> > > From: Dave Chinner <dchinner@redhat.com>
-> > > 
-> > > Replace the AG radix tree walking reclaim code with a list_lru
-> > > walker, giving us both node-aware and memcg-aware inode reclaim
-> > > at the XFS level. This requires adding an inode isolation function to
-> > > determine if the inode can be reclaim, and a list walker to
-> > > dispose of the inodes that were isolated.
-> > > 
-> > > We want the isolation function to be non-blocking. If we can't
-> > > grab an inode then we either skip it or rotate it. If it's clean
-> > > then we skip it, if it's dirty then we rotate to give it time to be
-> > 
-> > Do you mean we remove it if it's clean?
-> 
-> No, I mean if we can't grab it and it's clean, then we just skip it,
-> leaving it at the head of the LRU for the next scanner to
-> immediately try to reclaim it. If it's dirty, we rotate it so that
-> time passes before we try to reclaim it again in the hope that it is
-> already clean by the time we've scanned through the entire LRU...
-> 
+On Thu, Aug 08, 2019 at 02:50:37PM +0100, Mark Rutland wrote:
+> From looking at this for a while, there are a few more things we should
+> sort out:
+ 
+> * We can use the split pmd locks (used by both x86 and arm64) to
+>   minimize contention on the init_mm ptl. As apply_to_page_range()
+>   doesn't pass the corresponding pmd in, we'll have to re-walk the table
+>   in the callback, but I suspect that's better than having all vmalloc
+>   operations contend on the same ptl.
 
-Ah, Ok. That could probably be worded more explicitly. E.g.:
+Just to point out: I was wrong about this. We don't initialise the split
+pmd locks for the kernel page tables, so we have to use the init_mm ptl.
 
-"If we can't grab an inode, we skip it if it is clean or rotate it if
-dirty. Dirty inode rotation gives the inode time to be cleaned before
-it's scanned again. ..."
+I've fixed that up in my kasan/vmalloc branch as below, which works for
+me on arm64 (with another patch to prevent arm64 from using early shadow
+for the vmalloc area).
 
-> > > +++ b/fs/xfs/xfs_super.c
-> > ...
-> > > @@ -1810,23 +1811,58 @@ xfs_fs_mount(
-...
-> > > +	long freed;
-> > >  
-> > > -	return list_lru_shrink_count(&XFS_M(sb)->m_inode_lru, sc);
-> > > +	INIT_LIST_HEAD(&ra.freeable);
-> > > +	ra.lowest_lsn = NULLCOMMITLSN;
-> > > +	ra.dirty_skipped = 0;
-> > > +
-> > > +	freed = list_lru_shrink_walk(&mp->m_inode_lru, sc,
-> > > +					xfs_inode_reclaim_isolate, &ra);
-> > 
-> > This is more related to the locking discussion on the earlier patch, but
-> > this looks like it has more similar serialization to the example patch I
-> > posted than the one without locking at all. IIUC, this walk has an
-> > internal lock per node lru that is held across the walk and passed into
-> > the callback. We never cycle it, so for any given node we only allow one
-> > reclaimer through here at a time.
-> 
-> That's not a guarantee that list_lru gives us. It could drop it's
-> internal lock at any time during that walk and we would be
-> blissfully unaware that it has done this. And at that point, the
-> reclaim context is completely unaware that other reclaim contexts
-> may be scanning the same LRU at the same time and are interleaving
-> with it.
-> 
+Thanks,
+Mark.
 
-What is not a guarantee? I'm not following your point here. I suppose it
-technically could drop the lock, but then it would have to restart the
-iteration and wouldn't exactly provide predictable batching capability
-to users.
+----
 
-This internal lock protects the integrity of the list from external
-adds/removes, etc., but it's also passed into the callback so of course
-it can be cycled at any point. The callback just has to notify the
-caller to restart the walk. E.g., from __list_lru_walk_one():
+static int kasan_populate_vmalloc_pte(pte_t *ptep, unsigned long addr, void *unused)
+{
+	unsigned long page;
+	pte_t pte;
 
-        /*
-         * The lru lock has been dropped, our list traversal is
-         * now invalid and so we have to restart from scratch.
-         */
+	if (likely(!pte_none(*ptep)))
+		return 0;
 
-> And, really, that does not matter one iota. If multiple scanners are
-> interleaving, the reclaim traversal order and the decisions made are
-> no different from what a single reclaimer does.  i.e. we just don't
-> have to care if reclaim contexts interleave or not, because they
-> will not repeat work that has already been done unnecessarily.
-> That's one of the reasons for moving to IO-less LRU ordered reclaim
-> - it removes all the gross hacks we've had to implement to guarantee
-> reclaim scanning progress in one nice neat package of generic
-> infrastructure.
-> 
+	page = __get_free_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
 
-Yes, exactly. The difference I'm pointing out is that with the earlier
-patch that drops locking from the perag based scan mechanism, the
-interleaving of multiple reclaim scanners over the same range is not
-exactly the same as a single reclaimer. That sort of behavior is the
-intent of the example patch I appended to change the locking instead of
-remove it.
+	memset((void *)page, KASAN_VMALLOC_INVALID, PAGE_SIZE);
+	pte = pfn_pte(PFN_DOWN(__pa(page)), PAGE_KERNEL);
 
-> > That seems to be Ok given we don't do much in the isolation handler, the
-> > lock isn't held across the dispose sequence and we're still batching in
-> > the shrinker core on top of that. We're still serialized over the lru
-> > fixups such that concurrent reclaimers aren't processing the same
-> > inodes, however.
-> 
-> The only thing that we may need here is need_resched() checks if it
-> turns out that holding a lock for 1024 items to be scanned proved to
-> be too long to hold on to a single CPU. If we do that we'd cycle the
-> LRU lock and return RETRY or RETRY_REMOVE, hence enabling reclaimers
-> more finer-grained interleaving....
-> 
+	/*
+	 * Ensure poisoning is visible before the shadow is made visible
+	 * to other CPUs.
+	 */
+	smp_wmb();
 
-Sure, with the caveat that we restart the traversal..
+	spin_lock(&init_mm.page_table_lock);
+	if (likely(pte_none(*ptep))) {
+		set_pte_at(&init_mm, addr, ptep, pte);
+		page = 0;
+	}
+	spin_unlock(&init_mm.page_table_lock);
+	if (page)
+		free_page(page);
+	return 0;
+}
 
-> > BTW I got a lockdep splat[1] for some reason on a straight mount/unmount
-> > cycle with this patch.
-> ....
-> > [   39.030519]  lock_acquire+0x90/0x170
-> > [   39.031170]  ? xfs_ilock+0xd2/0x280 [xfs]
-> > [   39.031603]  down_write_nested+0x4f/0xb0
-> > [   39.032064]  ? xfs_ilock+0xd2/0x280 [xfs]
-> > [   39.032684]  ? xfs_dispose_inodes+0x124/0x320 [xfs]
-> > [   39.033575]  xfs_ilock+0xd2/0x280 [xfs]
-> > [   39.034058]  xfs_dispose_inodes+0x124/0x320 [xfs]
-> 
-> False positive, AFAICT. It's complaining about the final xfs_ilock()
-> call we do before freeing the inode because we have other inodes
-> locked. I don't think this can deadlock because the inodes under
-> reclaim should not be usable by anyone else at this point because
-> they have the I_RECLAIM flag set.
-> 
+int kasan_populate_vmalloc(unsigned long requested_size, struct vm_struct *area)
+{
+	unsigned long shadow_start, shadow_end;
+	int ret;
 
-Ok. The code looked sane to me at a glance, but lockdep tends to confuse
-the hell out of me.
+	shadow_start = (unsigned long)kasan_mem_to_shadow(area->addr);
+	shadow_start = ALIGN_DOWN(shadow_start, PAGE_SIZE);
+	shadow_end = (unsigned long)kasan_mem_to_shadow(area->addr + area->size),
+	shadow_end = ALIGN(shadow_end, PAGE_SIZE);
 
-Brian
+	ret = apply_to_page_range(&init_mm, shadow_start,
+				  shadow_end - shadow_start,
+				  kasan_populate_vmalloc_pte, NULL);
+	if (ret)
+		return ret;
 
-> I did notice this - I added a XXX comment I added to the case being
-> complained about to note I needed to resolve this locking issue.
-> 
-> +        * Here we do an (almost) spurious inode lock in order to coordinate
-> +        * with inode cache radix tree lookups.  This is because the lookup
-> +        * can reference the inodes in the cache without taking references.
-> +        *
-> +        * We make that OK here by ensuring that we wait until the inode is
-> +        * unlocked after the lookup before we go ahead and free it. 
-> +        * unlocked after the lookup before we go ahead and free it. 
-> +        *
-> +        * XXX: need to check this is still true. Not sure it is.
->          */
-> 
-> I added that last line in this patch. In more detail....
-> 
-> The comment is suggesting that we need to take the ILOCK to
-> co-ordinate with RCU protected lookups in progress before we RCU
-> free the inode. That's waht RCU is supposed to do, so I'm not at all
-> sure what this is actually serialising against any more.
-> 
-> i.e. any racing radix tree lookup from this point in time is going
-> to see the XFS_IRECLAIM flag and ip->i_ino == 0 while under the
-> rcu_read_lock, and they will go try again after dropping all lock
-> context and waiting for a bit. The inode may remain visibile until
-> the next rcu grace period expires, but all lookups will abort long
-> before the get anywhere near the ILOCK. And once the RCU grace
-> period expires, lookups will be locked out by the rcu_read_lock(),
-> the raidx tree moves to a state where the removal of the inode is
-> guaranteed visibile to all CPUs, and then the object is freed.
-> 
-> So the ILOCK should have no part in lookup serialisation, and I need
-> to go look at the history of the code to determine where and why
-> this was added, and whether the condition it protects against is
-> still a valid concern or not....
-> 
-> Cheers,
-> 
-> Dave.
-> -- 
-> Dave Chinner
-> david@fromorbit.com
+	kasan_unpoison_shadow(area->addr, requested_size);
+
+	/*
+	 * We have to poison the remainder of the allocation each time, not
+	 * just when the shadow page is first allocated, because vmalloc may
+	 * reuse addresses, and an early large allocation would cause us to
+	 * miss OOBs in future smaller allocations.
+	 *
+	 * The alternative is to poison the shadow on vfree()/vunmap(). We
+	 * don't because the unmapping the virtual addresses should be
+	 * sufficient to find most UAFs.
+	 */
+	requested_size = round_up(requested_size, KASAN_SHADOW_SCALE_SIZE);
+	kasan_poison_shadow(area->addr + requested_size,
+			    area->size - requested_size,
+			    KASAN_VMALLOC_INVALID);
+
+	return 0;
+}
 
