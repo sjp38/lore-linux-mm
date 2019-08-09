@@ -2,90 +2,103 @@ Return-Path: <SRS0=XQg4=WF=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 4D150C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:03:24 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 11065C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:12:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0834F21883
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:03:23 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0834F21883
+	by mail.kernel.org (Postfix) with ESMTP id C472020B7C
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 08:12:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C472020B7C
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8D5CB6B0005; Fri,  9 Aug 2019 04:03:23 -0400 (EDT)
+	id 59B046B0005; Fri,  9 Aug 2019 04:12:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 886196B0006; Fri,  9 Aug 2019 04:03:23 -0400 (EDT)
+	id 54D526B0006; Fri,  9 Aug 2019 04:12:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 74EF36B0007; Fri,  9 Aug 2019 04:03:23 -0400 (EDT)
+	id 413A46B0007; Fri,  9 Aug 2019 04:12:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 2ACAC6B0005
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 04:03:23 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id x40so2753430edm.4
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 01:03:23 -0700 (PDT)
+Received: from mail-ed1-f72.google.com (mail-ed1-f72.google.com [209.85.208.72])
+	by kanga.kvack.org (Postfix) with ESMTP id E71FF6B0005
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 04:12:51 -0400 (EDT)
+Received: by mail-ed1-f72.google.com with SMTP id k37so3081114eda.7
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 01:12:51 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:subject:to:cc
          :references:from:openpgp:autocrypt:message-id:date:user-agent
          :mime-version:in-reply-to:content-language:content-transfer-encoding;
-        bh=ivvYrg1S1MrdZ0f5ckJQSyVecwLhLMvtVBMX/96P/t4=;
-        b=qfU33aoSVs9UCIO5CXDqOlYU5ucPkXDDWhTflQ33bCEmcNZHSTMTWKhfzD5PbE4fY1
-         +V4J/VZexXb9lgRLH2Z02MJrWjTke56VEZWNNM59E3V1rTLZXqfWtWxsQv+u7+copFRg
-         y+GneOY4pIosC75rCDLnn9eyliWG6PUQ8ecSYiITDHmOdrThCmVbqAL3WiIeTd9aQTlT
-         KCzhY4G45CWhQ5YRXsXnt4sTylAdRK6jHAekqERCuY0JReVMG67HiEEtqqo0dmoIWe3O
-         /9IBcpmpITqTFfxnHhLQKpasInnM3GfAx9PZXkz12smg1ckNZEwqQO2MtYHJpZkEE8+x
-         fRCQ==
+        bh=XUvyotqe3fQ7dhcA47fXsABRFPA8wA61EZCSfXXG8EE=;
+        b=dMNCET84Z7bJ2G70x6aK9yVUSNKf/x0WclR9x8uC2C8AYBUdQLEy8UE0CXhi6rYPiA
+         uDhky5v4hFwgRQIktwF0YP3YXE9xKkLzNFFUJZrvcU2PIbrUGTJ/7nlKpbZHfAxTAZqn
+         rn3kIhmJNs7vcOI9rxW7lE/x/a636pgecizxZK2pgzjPUehD0YvHFYzpFR7Jz1iwQsax
+         YZxmTQeKGpYh25NJ5brntXhtPBKUeDKtumoiqRxSvIS2RjZylbmQGzw+oI3NkswgxVKc
+         ZAX6EpBNNp91wGXIXkaJIjpW2+QEyKW90pcHW+rXdInGQ2CJhMVwXvjhBhQ9KSxoPA1Y
+         sHRA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
-X-Gm-Message-State: APjAAAXvVF9ywYi9cWmTDuooA1oiMXOWdZsWE+PU+rzS65DRLrCbotJr
-	9TRKgVRSW0cpuLEFzg9Ky/fWSrtrdfSdACOQsc2ZGpSTmX8nIX/aBCrbarG85kb8BKOSSESV0LI
-	EiCSGiQtGnavjJVQu/aKSVLZRjxHUb51FOkyOZBllp+2jVffHMGAKfP0AvPJ0CrNLeA==
-X-Received: by 2002:a50:ac1a:: with SMTP id v26mr1524715edc.131.1565337802752;
-        Fri, 09 Aug 2019 01:03:22 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqxxfJbcKEpmWboE0hgNiOTVNY3FMAzUfGWaAXfC8UmlD/o8sUXlsVPlwQCjcdtJ2sadUTmQ
-X-Received: by 2002:a50:ac1a:: with SMTP id v26mr1524672edc.131.1565337802130;
-        Fri, 09 Aug 2019 01:03:22 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565337802; cv=none;
+X-Gm-Message-State: APjAAAWIBpgLtt5+J5UC1+Hm5dWPILg8EUrJ61nVXLB2nkKnCYXMOH6E
+	E581woW5lXteIDBKfsilDdIuoFY9m9iHNElJJ+N3RrPyDiS28hSuvgYV5R2MlhJKMYEr+gPzgBe
+	ApUMH7HdNsjfmBtH1EN4bb978X6pk5VM7LJY3f4/TJqiiD24zHhuxCtvXEW+wg+3ddg==
+X-Received: by 2002:a50:f4d8:: with SMTP id v24mr20764901edm.166.1565338371498;
+        Fri, 09 Aug 2019 01:12:51 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqwxr0S8WB4t85QONZ4zoHwpMamlbjH6S71eZJ77cpnx4Xwbw1+naA7oDI6R4ukHuxi4+YPw
+X-Received: by 2002:a50:f4d8:: with SMTP id v24mr20764866edm.166.1565338370802;
+        Fri, 09 Aug 2019 01:12:50 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565338370; cv=none;
         d=google.com; s=arc-20160816;
-        b=trNHT98KLYOw5RBHZgjVi2h80dG0gPeiWcH7PQ/1XQu1Fm5cJjggaCqjJi8jv970Bt
-         fttv8dJgog39+RtDSaenFBMRpeFWCGh9rXmgPuQKwPdMsFkR8tmxB22ExABtIWX/6xHA
-         foI1IlY0JEcIzwBOX1lgvqDjeRC+igVIN6D9fzTBF1hpdsoUuscxSwv1gZKEwhFngXRq
-         NxA82N0V7o/onpKAxVO4rIw0nLHgD9MztClL2p+K03peTJXB0TJ2E5YoCTW0KuqaYWsd
-         0a3hrpDajjqTqMcUFr7UBv5h08+IaYDUZI+kl8PjaNjEunuKxZKh1+ApDjESCHG8GKhB
-         SjIw==
+        b=BaGgRClErHEfDMXrSewUv0vQSi1vi+5ub7gsTIIfUjG4bgRCZ2KKDy/2V0qNcLT88f
+         DQW9IG8CGIYmJjCQzq693xwydjE9fq2Yd3M16m6pPNYd5PdfTa2gxMyumkg7hxfL2mrZ
+         CJ+4oAHnm3Kzj0K5ms0+TQ5CcyliOEomiDl4dCA+RkVtHC/1YzpVnFNQx4UhAEYW+0gK
+         X0YCBOh9fPKCdwLIPXi6ZG7BNsfRSGPazNaS9izlvhdHuM3eRQQ4p+LkQCEeqX89lWRw
+         ou+edQVO3B4YqzhbVD1120UfAhPg888FK62BpvKcvJYragQjGbCHfLElV9lrs6SsGyFc
+         z89Q==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:content-language:in-reply-to:mime-version
          :user-agent:date:message-id:autocrypt:openpgp:from:references:cc:to
          :subject;
-        bh=ivvYrg1S1MrdZ0f5ckJQSyVecwLhLMvtVBMX/96P/t4=;
-        b=CUN2fgM5PT0QKUqLbfELcCOv+o4MRRPLyZI6YbX1mFNX/oFYUfJytMc2zVXTtkIzwl
-         qG/NZYT5UT4onV4D/GvctFSkqmDLEgBfCTEwmnzVd25QL+0/XgLSnnQqKQU6Z3BHrkto
-         N6vsR59zpKu2rKXjekLaZgfakcIGSkSjlSuGf6iJ9kNskdiASKAsi+M9WB0PUumS8/uY
-         OgMmxC15CvG8Vs2N8Y7VWxvTxAYA+aEq6sGhBNPQwbUAtxtNcYChA2akKFtsvmPg12Rc
-         J89c36IU7ZMKREI3+DozvcQxgKftDEMgRdjP2BdzdT8DfDzBPZbgW58lEvHJp07G0oxA
-         t8cQ==
+        bh=XUvyotqe3fQ7dhcA47fXsABRFPA8wA61EZCSfXXG8EE=;
+        b=OwWCkC17L3KoJ4q/Ad5Rdw7p3D7TG35wY5ViC9gUN1yRAJPUZ7G/XuS9aqJx9+1ZOg
+         HUn2YpxZM0kUIAhJn8Kz7aeVfIxZ0KtrqYpsdtVj81D0Z+moXC5kp1LdZZAXAZh7U6kR
+         ciLh/1AOukM26AlHW9a26JRD4e6s+vLVvQJBG33tm4XHFSXeJ6XZ8p6mX5p97k7eUo7v
+         EcbBaAHNXZXeFBFbA+7M66Vy5J2e9JIm9lzIgAzEIG6fcRu5KOv36cjKEeHDe9xZf6+H
+         9A2bE1cFq2Ul+3bYBf3AB7iOBn3obF3gXd86Gd5F7HdafnqKuRhN7R1J36C/Y2ND62un
+         e4Uw==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 Received: from mx1.suse.de (mx2.suse.de. [195.135.220.15])
-        by mx.google.com with ESMTPS id b35si36390690eda.123.2019.08.09.01.03.21
+        by mx.google.com with ESMTPS id p12si36884176eda.385.2019.08.09.01.12.50
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 01:03:22 -0700 (PDT)
+        Fri, 09 Aug 2019 01:12:50 -0700 (PDT)
 Received-SPF: pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) client-ip=195.135.220.15;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of vbabka@suse.cz designates 195.135.220.15 as permitted sender) smtp.mailfrom=vbabka@suse.cz
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 67869AECD;
-	Fri,  9 Aug 2019 08:03:21 +0000 (UTC)
-Subject: Re: [PATCH v2] mm/mmap.c: refine find_vma_prev with rb_last
-To: Wei Yang <richardw.yang@linux.intel.com>, akpm@linux-foundation.org,
- mhocko@suse.com, kirill.shutemov@linux.intel.com
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org
-References: <20190809001928.4950-1-richardw.yang@linux.intel.com>
+	by mx1.suse.de (Postfix) with ESMTP id C4131AF61;
+	Fri,  9 Aug 2019 08:12:49 +0000 (UTC)
+Subject: Re: [PATCH 1/3] mm/mlock.c: convert put_page() to put_user_page*()
+To: John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+ Christoph Hellwig <hch@infradead.org>, Ira Weiny <ira.weiny@intel.com>,
+ Jan Kara <jack@suse.cz>, Jason Gunthorpe <jgg@ziepe.ca>,
+ Jerome Glisse <jglisse@redhat.com>, LKML <linux-kernel@vger.kernel.org>,
+ linux-mm@kvack.org, linux-fsdevel@vger.kernel.org,
+ Dan Williams <dan.j.williams@intel.com>, Daniel Black
+ <daniel@linux.ibm.com>, Matthew Wilcox <willy@infradead.org>,
+ Mike Kravetz <mike.kravetz@oracle.com>
+References: <20190805222019.28592-1-jhubbard@nvidia.com>
+ <20190805222019.28592-2-jhubbard@nvidia.com>
+ <20190807110147.GT11812@dhcp22.suse.cz>
+ <01b5ed91-a8f7-6b36-a068-31870c05aad6@nvidia.com>
+ <20190808062155.GF11812@dhcp22.suse.cz>
+ <875dca95-b037-d0c7-38bc-4b4c4deea2c7@suse.cz>
+ <306128f9-8cc6-761b-9b05-578edf6cce56@nvidia.com>
+ <d1ecb0d4-ea6a-637d-7029-687b950b783f@nvidia.com>
 From: Vlastimil Babka <vbabka@suse.cz>
 Openpgp: preference=signencrypt
 Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
@@ -148,12 +161,12 @@ Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
  5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
  hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
  Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
-Message-ID: <d47ee469-8ff6-d212-9c4b-242079e281e8@suse.cz>
-Date: Fri, 9 Aug 2019 10:03:20 +0200
+Message-ID: <420a5039-a79c-3872-38ea-807cedca3b8a@suse.cz>
+Date: Fri, 9 Aug 2019 10:12:48 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190809001928.4950-1-richardw.yang@linux.intel.com>
+In-Reply-To: <d1ecb0d4-ea6a-637d-7029-687b950b783f@nvidia.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -163,50 +176,60 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/9/19 2:19 AM, Wei Yang wrote:
-> When addr is out of the range of the whole rb_tree, pprev will points to
-> the right-most node. rb_tree facility already provides a helper
-> function, rb_last, to do this task. We can leverage this instead of
-> re-implement it.
+On 8/9/19 12:59 AM, John Hubbard wrote:
+>>> That's true. However, I'm not sure munlocking is where the
+>>> put_user_page() machinery is intended to be used anyway? These are
+>>> short-term pins for struct page manipulation, not e.g. dirtying of page
+>>> contents. Reading commit fc1d8e7cca2d I don't think this case falls
+>>> within the reasoning there. Perhaps not all GUP users should be
+>>> converted to the planned separate GUP tracking, and instead we should
+>>> have a GUP/follow_page_mask() variant that keeps using get_page/put_page?
+>>>  
+>>
+>> Interesting. So far, the approach has been to get all the gup callers to
+>> release via put_user_page(), but if we add in Jan's and Ira's vaddr_pin_pages()
+>> wrapper, then maybe we could leave some sites unconverted.
+>>
+>> However, in order to do so, we would have to change things so that we have
+>> one set of APIs (gup) that do *not* increment a pin count, and another set
+>> (vaddr_pin_pages) that do. 
+>>
+>> Is that where we want to go...?
+>>
+
+We already have a FOLL_LONGTERM flag, isn't that somehow related? And if
+it's not exactly the same thing, perhaps a new gup flag to distinguish
+which kind of pinning to use?
+
+> Oh, and meanwhile, I'm leaning toward a cheap fix: just use gup_fast() instead
+> of get_page(), and also fix the releasing code. So this incremental patch, on
+> top of the existing one, should do it:
 > 
-> This patch refines find_vma_prev with rb_last to make it a little nicer
-> to read.
+...
+> @@ -411,7 +409,13 @@ static unsigned long __munlock_pagevec_fill(struct pagevec *pvec,
+>                 if (PageTransCompound(page))
+>                         break;
+>  
+> -               get_page(page);
+> +               /*
+> +                * Use get_user_pages_fast(), instead of get_page() so that the
+> +                * releasing code can unconditionally call put_user_page().
+> +                */
+> +               ret = get_user_pages_fast(start, 1, 0, &page);
+
+Um the whole reason of __munlock_pagevec_fill() was to avoid the full
+page walk cost, which made a 14% difference, see 7a8010cd3627 ("mm:
+munlock: manual pte walk in fast path instead of follow_page_mask()")
+Replacing simple get_page() with page walk to satisfy API requirements
+seems rather suboptimal to me.
+
+> +               if (ret != 1)
+> +                       break;
+>                 /*
+>                  * Increase the address that will be returned *before* the
+>                  * eventual break due to pvec becoming full by adding the page
 > 
-> Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
-
-Acked-by: Vlastimil Babka <vbabka@suse.cz>
-
-Nit below:
-
-> ---
-> v2: leverage rb_last
-> ---
->  mm/mmap.c | 9 +++------
->  1 file changed, 3 insertions(+), 6 deletions(-)
 > 
-> diff --git a/mm/mmap.c b/mm/mmap.c
-> index 7e8c3e8ae75f..f7ed0afb994c 100644
-> --- a/mm/mmap.c
-> +++ b/mm/mmap.c
-> @@ -2270,12 +2270,9 @@ find_vma_prev(struct mm_struct *mm, unsigned long addr,
->  	if (vma) {
->  		*pprev = vma->vm_prev;
->  	} else {
-> -		struct rb_node *rb_node = mm->mm_rb.rb_node;
-> -		*pprev = NULL;
-> -		while (rb_node) {
-> -			*pprev = rb_entry(rb_node, struct vm_area_struct, vm_rb);
-> -			rb_node = rb_node->rb_right;
-> -		}
-> +		struct rb_node *rb_node = rb_last(&mm->mm_rb);
-> +		*pprev = !rb_node ? NULL :
-> +			 rb_entry(rb_node, struct vm_area_struct, vm_rb);
-
-It's perhaps more common to write it like:
-*pprev = rb_node ? rb_entry(rb_node, struct vm_area_struct, vm_rb) : NULL;
-
->  	}
->  	return vma;
->  }
+> thanks,
 > 
 
