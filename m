@@ -6,82 +6,82 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E3EA5C433FF
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:02:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9B749C31E40
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:02:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 79B772089E
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:02:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 79B772089E
+	by mail.kernel.org (Postfix) with ESMTP id 415F92089E
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:02:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 415F92089E
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B1D1C6B0276; Fri,  9 Aug 2019 12:01:03 -0400 (EDT)
+	id 3ED276B0278; Fri,  9 Aug 2019 12:01:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A7DF36B0278; Fri,  9 Aug 2019 12:01:03 -0400 (EDT)
+	id 39EF56B0279; Fri,  9 Aug 2019 12:01:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8F4E06B0279; Fri,  9 Aug 2019 12:01:03 -0400 (EDT)
+	id 217E96B027A; Fri,  9 Aug 2019 12:01:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f69.google.com (mail-wr1-f69.google.com [209.85.221.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 3C52D6B0276
+Received: from mail-wr1-f71.google.com (mail-wr1-f71.google.com [209.85.221.71])
+	by kanga.kvack.org (Postfix) with ESMTP id BEF986B0279
 	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:01:03 -0400 (EDT)
-Received: by mail-wr1-f69.google.com with SMTP id x12so1339219wrw.0
+Received: by mail-wr1-f71.google.com with SMTP id e6so46640827wrv.20
         for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:01:03 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=ZOyS+PwN0o96D16GYIDjVQX2lYltkfelfuVse3R5jyE=;
-        b=Shc3qGU35E9Cdi9ESQHICuj0rtT+ic3OgoBTML0ghxpdCSTVe2qqPr7cdS8JVhu8PZ
-         UXcytebwsIAnCnPatH5BvH8+xoVA4Zavok6bdmzsrufmg65RSBVRG6peghIulz8zHIKo
-         Gzc12bxRfGvUv5qdv2eiMfJ5kkG4KBeDkPR9covABdsyueVcMVI/BBrD0LrsNTz52iI6
-         EKeluLtMz/4XhXEAylpK2eWdBsH/gcVlGUK7VDAzUt0yQnGhDgRtLTKf94HDX0bqi0ru
-         83Cl1teQy8VY456cB+2ZDSXcyj29YX01U8hUXCr7RvQ8XPQ4x5yqO6R3DRc31TrNUG2E
-         VT5w==
+        bh=gAIrs+HdpcxGOz+h2e7r46T79tbEj3TIwmtyPYJW7Xw=;
+        b=FZJHLvzhCQUyXbOsxggeebTgJGz8D65BttkZ68yIt7Q444Yu6+1xuFuYVxTM5Yf6xG
+         BdH6fjgmT2okYDtm4EO6cq9eL8TyMeo5wadjWew8lH+JnAnTP2KQ8NKceeUiPNuOJ5L8
+         1tcpLrcEmefV7UMy1IPse0yXs8bjIhnMx3HaDG2X3P6/xsZz2lvoqKfDrXyNauQUGFxk
+         1nPkfafMrOwvTfCwl7gu/FjJIhokPgN6cYhvgIgGeMZsgJ3uGnu5oSWLnMKnQNLarxtL
+         g5zqf6J1peBy7R/Byk0OZkoxuMbRXM9P0B9J1iJAqamuofckmObE8VJLaZI++I5wMwRL
+         lmoA==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAUh0EGwzuAtamavMl8sKsqQYbB3+cShcjMDMkRz8QVevEABuuOX
-	0RLR4XY3SeBCNDupoWJnLuc2Cohh18ZhVwnThJ5UFmz+OyCFCtDgcUg2aAHSGQ6UEv23p0hbMSF
-	ilqTh/prYRElC+2rPIuvgNf+XFQWwTcJqRnDVZ08Uwn3R4PZ6KX3vO/rvSSQ6f+mh3g==
-X-Received: by 2002:a1c:5a56:: with SMTP id o83mr11537218wmb.103.1565366462744;
+X-Gm-Message-State: APjAAAWkKCQiQylXTZO1TNLjUm/axBGQFu4zrVFRzJNO1tVQhQwR5WY4
+	sQdnFiAnnFwVZ2v8xARbE8nCqWRj/zYRpNU2k5DBTeQAE+el+8NtjjWA4VDWnqE6zcRha5xoZhm
+	+eUY7UsovYy3OqkGeP+eiyEGDWzEB1W1IiirAh6CLCcejkiAKvEGdRhe62OLjlhK9rQ==
+X-Received: by 2002:adf:ce05:: with SMTP id p5mr24705042wrn.197.1565366463323;
+        Fri, 09 Aug 2019 09:01:03 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxiOKBntuHO4srshmNyuXOhYrqHR3j3/v55JOCz7yWns3bOpwxzUL7yHmEGO3N8+EqgiyAH
+X-Received: by 2002:adf:ce05:: with SMTP id p5mr24704927wrn.197.1565366462064;
         Fri, 09 Aug 2019 09:01:02 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqy4M4olwh7mLRM5R2+J5gfMaCLS7H9uKba/NAJRpR/QOwuhCYeH3FpD9Ez4ETkceSr3sqf5
-X-Received: by 2002:a1c:5a56:: with SMTP id o83mr11537060wmb.103.1565366460889;
-        Fri, 09 Aug 2019 09:01:00 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366460; cv=none;
+ARC-Seal: i=1; a=rsa-sha256; t=1565366462; cv=none;
         d=google.com; s=arc-20160816;
-        b=hgq4FmfMtVtLCYzZj3PHjPcOz5uI1h1jog8NYm+RQhYrw4CjMdXBSTe16+8oY1a+kc
-         nVEZ9fd46skCZ4eox7J2TrpNUY96zD+r+jwJ5LLUvLciZxI7CxtY4sd6RMKBY3kxz4L8
-         CDIP1WQ0b1tekiCps3IishBA/8qj6GECXP9wjYCfCoW9aeOzdMWmgrJR4AeBtSQNnCL5
-         IehSa7BEgqQ9VI8dzEcn8JdHrljIFoC+tcVS+RhLzqM2sk8d14ITYPFQhLAWVLRMWXSB
-         yvv1l+To4zOQaJO1UAA06P8egU8PdgqMa7ZJgBarQySwHB+mO4oEK4ilwaHrV825UdKT
-         Qv8A==
+        b=tjQiiI88bMRpEgxjmORe/UBnewYOmVdeEPnk4yVv6WvVig1rGD9xF62VA8Ojdy0O1q
+         QZv8huR+vmpBGb7DVibT9fBZ1RjN2AbS27zxs1ZCgNK30YtSnUsj0HhQuRpezi02PBK6
+         6M8EhaDzyPUcpROX1ubGdEIMkA5Ba5gIY+2Yz+s+787PB1mIUn1Hfy3qX+VDdFe43ZNx
+         DMMTtZ1pt3sxKcA2FSdHw+JncKuylkFSY/WoiIUOV4J7wJx7R4o8g1SceD4/+VFQDX9Q
+         7E+WCJE7DBQ3Foqq/2sbvrIbyHyBH6/5QcZ5RmBU4q8Mm4LDwRlvDbK9y1vCpyaMaVa8
+         DCBw==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=ZOyS+PwN0o96D16GYIDjVQX2lYltkfelfuVse3R5jyE=;
-        b=LbeRu0B0D5jnm7jXgyOLoEXeFTRSBciJbNjz8afWtJ+mwluq+dSLvHNy19eifo7YGN
-         NlQjdukARCTrIasMFVHy5OroVYo30MFQTDOKTte9ZieoXu/w7ZjkFCt12W1mLHnas7Gb
-         d0lGovUSmjcJqITmNx1NxScvEuydLSLvoxzuFjkNoFGtAA/CwANID+cvSQEgnWhob1ej
-         k6GKC/BN4UuNXvIjq7ZwYEMbEUtxJswMgMAs3+YaPLAc1k7xeRvJgXcysz7BR0PRhVZU
-         n1nAy1mSO4X9LiXm71X6yWwq7YXvaLPDmShwHu33bAbX6WBFMMx6EIfhlsYef5mSzrt0
-         q7bw==
+        bh=gAIrs+HdpcxGOz+h2e7r46T79tbEj3TIwmtyPYJW7Xw=;
+        b=dngF1pfo8OT4U1ZTIQwrV27LQkjid0Nhw8RHlKLy5dOvV1MC/NjEDLavhnTib/pc3R
+         J84RjG/Dfflj4w+nFmuxTpwcz52/JrRTiIYkHLVhSyT44vPIfrnAu/bqhlCu897Jbp+s
+         bmaEA0IuqlhtdHAPMf1rE3B0Z4j6/Nmr54TgkI+OO1oOum+DAD196pPslk7NGw8bUVsz
+         4f0ahoMUmQG9mAuqwWBFf9h4kihYOsU1/PFso6Kz45Smt5xA/EFwkAfyre/5KPYsrqKs
+         HT4MKQrti47l39yxmDEaRF8pZnNW8s8anLAy11zsyS1L66VTOm13DwOiestoyqtQ0AVj
+         wS8Q==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id v7si90031094wrd.283.2019.08.09.09.01.00
+        by mx.google.com with ESMTPS id c6si86401123wrm.290.2019.08.09.09.01.01
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 09:01:00 -0700 (PDT)
+        Fri, 09 Aug 2019 09:01:02 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 46210301ACC1;
-	Fri,  9 Aug 2019 19:01:00 +0300 (EEST)
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 517C2305D3DF;
+	Fri,  9 Aug 2019 19:01:01 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id CA4D7305B7A3;
-	Fri,  9 Aug 2019 19:00:59 +0300 (EEST)
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id DF0E8305B7A4;
+	Fri,  9 Aug 2019 19:01:00 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
@@ -98,11 +98,10 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
 	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>,
-	Xiao Guangrong <guangrong.xiao@gmail.com>,
-	Sean Christopherson <sean.j.christopherson@intel.com>
-Subject: [RFC PATCH v6 23/92] kvm: page track: add support for preread, prewrite and preexec
-Date: Fri,  9 Aug 2019 18:59:38 +0300
-Message-Id: <20190809160047.8319-24-alazar@bitdefender.com>
+	=?UTF-8?q?Nicu=C8=99or=20C=C3=AE=C8=9Bu?= <ncitu@bitdefender.com>
+Subject: [RFC PATCH v6 26/92] kvm: x86: add kvm_mmu_nested_pagefault()
+Date: Fri,  9 Aug 2019 18:59:41 +0300
+Message-Id: <20190809160047.8319-27-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -116,373 +115,102 @@ List-ID: <linux-mm.kvack.org>
 
 From: Mihai Donțu <mdontu@bitdefender.com>
 
-These callbacks return a boolean value. If false, the emulation should
-stop and the instruction should be reexecuted in guest. The preread
-callback can return the bytes needed by the read operation.
+This is needed to filter #PF introspection events.
 
-CC: Xiao Guangrong <guangrong.xiao@gmail.com>
-CC: Sean Christopherson <sean.j.christopherson@intel.com>
 Signed-off-by: Mihai Donțu <mdontu@bitdefender.com>
+Co-developed-by: Nicușor Cîțu <ncitu@bitdefender.com>
+Signed-off-by: Nicușor Cîțu <ncitu@bitdefender.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- arch/x86/include/asm/kvm_page_track.h |  19 +++-
- arch/x86/kvm/mmu.c                    |  81 +++++++++++++++++
- arch/x86/kvm/mmu.h                    |   4 +
- arch/x86/kvm/page_track.c             | 123 ++++++++++++++++++++++++--
- 4 files changed, 217 insertions(+), 10 deletions(-)
+ arch/x86/include/asm/kvm_host.h | 4 ++++
+ arch/x86/kvm/mmu.c              | 5 +++++
+ arch/x86/kvm/svm.c              | 7 +++++++
+ arch/x86/kvm/vmx/vmx.c          | 9 +++++++++
+ 4 files changed, 25 insertions(+)
 
-diff --git a/arch/x86/include/asm/kvm_page_track.h b/arch/x86/include/asm/kvm_page_track.h
-index 0492a85f3a44..a431e5e1e5cb 100644
---- a/arch/x86/include/asm/kvm_page_track.h
-+++ b/arch/x86/include/asm/kvm_page_track.h
-@@ -3,7 +3,10 @@
- #define _ASM_X86_KVM_PAGE_TRACK_H
+diff --git a/arch/x86/include/asm/kvm_host.h b/arch/x86/include/asm/kvm_host.h
+index 2d6bde6fa59f..7da1137a2b82 100644
+--- a/arch/x86/include/asm/kvm_host.h
++++ b/arch/x86/include/asm/kvm_host.h
+@@ -1004,6 +1004,8 @@ struct kvm_x86_ops {
+ 	bool (*has_emulated_msr)(int index);
+ 	void (*cpuid_update)(struct kvm_vcpu *vcpu);
  
- enum kvm_page_track_mode {
-+	KVM_PAGE_TRACK_PREREAD,
-+	KVM_PAGE_TRACK_PREWRITE,
- 	KVM_PAGE_TRACK_WRITE,
-+	KVM_PAGE_TRACK_PREEXEC,
- 	KVM_PAGE_TRACK_MAX,
- };
++	bool (*nested_pagefault)(struct kvm_vcpu *vcpu);
++
+ 	struct kvm *(*vm_alloc)(void);
+ 	void (*vm_free)(struct kvm *);
+ 	int (*vm_init)(struct kvm *kvm);
+@@ -1593,4 +1595,6 @@ static inline int kvm_cpu_get_apicid(int mps_cpu)
+ #define put_smstate(type, buf, offset, val)                      \
+ 	*(type *)((buf) + (offset) - 0x7e00) = val
  
-@@ -22,6 +25,13 @@ struct kvm_page_track_notifier_head {
- struct kvm_page_track_notifier_node {
- 	struct hlist_node node;
- 
-+	bool (*track_preread)(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
-+			      u8 *new, int bytes,
-+			      struct kvm_page_track_notifier_node *node,
-+			      bool *data_ready);
-+	bool (*track_prewrite)(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
-+			       const u8 *new, int bytes,
-+			       struct kvm_page_track_notifier_node *node);
- 	/*
- 	 * It is called when guest is writing the write-tracked page
- 	 * and write emulation is finished at that time.
-@@ -35,12 +45,14 @@ struct kvm_page_track_notifier_node {
- 	void (*track_write)(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
- 			    const u8 *new, int bytes,
- 			    struct kvm_page_track_notifier_node *node);
-+	bool (*track_preexec)(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
-+			      struct kvm_page_track_notifier_node *node);
- 	void (*track_create_slot)(struct kvm *kvm, struct kvm_memory_slot *slot,
- 				  unsigned long npages,
- 				  struct kvm_page_track_notifier_node *node);
- 	/*
- 	 * It is called when memory slot is being moved or removed
--	 * users can drop write-protection for the pages in that memory slot
-+	 * users can drop active protection for the pages in that memory slot
- 	 *
- 	 * @kvm: the kvm where memory slot being moved or removed
- 	 * @slot: the memory slot being moved or removed
-@@ -73,7 +85,12 @@ kvm_page_track_register_notifier(struct kvm *kvm,
- void
- kvm_page_track_unregister_notifier(struct kvm *kvm,
- 				   struct kvm_page_track_notifier_node *n);
-+bool kvm_page_track_preread(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
-+			    u8 *new, int bytes, bool *data_ready);
-+bool kvm_page_track_prewrite(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
-+			     const u8 *new, int bytes);
- void kvm_page_track_write(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
- 			  const u8 *new, int bytes);
-+bool kvm_page_track_preexec(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva);
- void kvm_page_track_flush_slot(struct kvm *kvm, struct kvm_memory_slot *slot);
- #endif
++bool kvm_mmu_nested_pagefault(struct kvm_vcpu *vcpu);
++
+ #endif /* _ASM_X86_KVM_HOST_H */
 diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
-index 9898d863b6b6..a86b165cf6dd 100644
+index ff053f17b8c2..9eaf6cc776a9 100644
 --- a/arch/x86/kvm/mmu.c
 +++ b/arch/x86/kvm/mmu.c
-@@ -1523,6 +1523,31 @@ static bool spte_write_protect(u64 *sptep, bool pt_protect)
- 	return mmu_spte_update(sptep, spte);
+@@ -6169,3 +6169,8 @@ void kvm_mmu_module_exit(void)
+ 	unregister_shrinker(&mmu_shrinker);
+ 	mmu_audit_disable();
+ }
++
++bool kvm_mmu_nested_pagefault(struct kvm_vcpu *vcpu)
++{
++	return kvm_x86_ops->nested_pagefault(vcpu);
++}
+diff --git a/arch/x86/kvm/svm.c b/arch/x86/kvm/svm.c
+index f13a3a24d360..3c099c56099c 100644
+--- a/arch/x86/kvm/svm.c
++++ b/arch/x86/kvm/svm.c
+@@ -7098,6 +7098,11 @@ static int nested_enable_evmcs(struct kvm_vcpu *vcpu,
+ 	return -ENODEV;
  }
  
-+static bool spte_read_protect(u64 *sptep)
++static bool svm_nested_pagefault(struct kvm_vcpu *vcpu)
 +{
-+	u64 spte = *sptep;
-+	bool exec_only_supported = (shadow_present_mask == 0ull);
-+
-+	rmap_printk("rmap_read_protect: spte %p %llx\n", sptep, *sptep);
-+
-+	WARN_ON_ONCE(!exec_only_supported);
-+
-+	spte = spte & ~(PT_WRITABLE_MASK | PT_PRESENT_MASK);
-+
-+	return mmu_spte_update(sptep, spte);
++	return false;
 +}
 +
-+static bool spte_exec_protect(u64 *sptep)
-+{
-+	u64 spte = *sptep;
+ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
+ 	.cpu_has_kvm_support = has_svm,
+ 	.disabled_by_bios = is_disabled,
+@@ -7109,6 +7114,8 @@ static struct kvm_x86_ops svm_x86_ops __ro_after_init = {
+ 	.cpu_has_accelerated_tpr = svm_cpu_has_accelerated_tpr,
+ 	.has_emulated_msr = svm_has_emulated_msr,
+ 
++	.nested_pagefault = svm_nested_pagefault,
 +
-+	rmap_printk("rmap_exec_protect: spte %p %llx\n", sptep, *sptep);
-+
-+	spte = spte & ~PT_USER_MASK;
-+
-+	return mmu_spte_update(sptep, spte);
-+}
-+
- static bool __rmap_write_protect(struct kvm *kvm,
- 				 struct kvm_rmap_head *rmap_head,
- 				 bool pt_protect)
-@@ -1537,6 +1562,32 @@ static bool __rmap_write_protect(struct kvm *kvm,
- 	return flush;
+ 	.vcpu_create = svm_create_vcpu,
+ 	.vcpu_free = svm_free_vcpu,
+ 	.vcpu_reset = svm_vcpu_reset,
+diff --git a/arch/x86/kvm/vmx/vmx.c b/arch/x86/kvm/vmx/vmx.c
+index 30a6bcd735ec..e10ee8fd1c67 100644
+--- a/arch/x86/kvm/vmx/vmx.c
++++ b/arch/x86/kvm/vmx/vmx.c
+@@ -7682,6 +7682,13 @@ static __exit void hardware_unsetup(void)
+ 	free_kvm_area();
  }
  
-+static bool __rmap_read_protect(struct kvm *kvm,
-+				struct kvm_rmap_head *rmap_head)
++static bool vmx_nested_pagefault(struct kvm_vcpu *vcpu)
 +{
-+	u64 *sptep;
-+	struct rmap_iterator iter;
-+	bool flush = false;
-+
-+	for_each_rmap_spte(rmap_head, &iter, sptep)
-+		flush |= spte_read_protect(sptep);
-+
-+	return flush;
++	if (vcpu->arch.exit_qualification & EPT_VIOLATION_GVA_TRANSLATED)
++		return false;
++	return true;
 +}
 +
-+static bool __rmap_exec_protect(struct kvm *kvm,
-+				struct kvm_rmap_head *rmap_head)
-+{
-+	u64 *sptep;
-+	struct rmap_iterator iter;
-+	bool flush = false;
-+
-+	for_each_rmap_spte(rmap_head, &iter, sptep)
-+		flush |= spte_exec_protect(sptep);
-+
-+	return flush;
-+}
-+
- static bool spte_clear_dirty(u64 *sptep)
- {
- 	u64 spte = *sptep;
-@@ -1707,6 +1758,36 @@ bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
- 	return write_protected;
- }
+ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
+ 	.cpu_has_kvm_support = cpu_has_kvm_support,
+ 	.disabled_by_bios = vmx_disabled_by_bios,
+@@ -7693,6 +7700,8 @@ static struct kvm_x86_ops vmx_x86_ops __ro_after_init = {
+ 	.cpu_has_accelerated_tpr = report_flexpriority,
+ 	.has_emulated_msr = vmx_has_emulated_msr,
  
-+bool kvm_mmu_slot_gfn_read_protect(struct kvm *kvm,
-+				   struct kvm_memory_slot *slot, u64 gfn)
-+{
-+	struct kvm_rmap_head *rmap_head;
-+	int i;
-+	bool read_protected = false;
++	.nested_pagefault = vmx_nested_pagefault,
 +
-+	for (i = PT_PAGE_TABLE_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
-+		rmap_head = __gfn_to_rmap(gfn, i, slot);
-+		read_protected |= __rmap_read_protect(kvm, rmap_head);
-+	}
-+
-+	return read_protected;
-+}
-+
-+bool kvm_mmu_slot_gfn_exec_protect(struct kvm *kvm,
-+				   struct kvm_memory_slot *slot, u64 gfn)
-+{
-+	struct kvm_rmap_head *rmap_head;
-+	int i;
-+	bool exec_protected = false;
-+
-+	for (i = PT_PAGE_TABLE_LEVEL; i <= PT_MAX_HUGEPAGE_LEVEL; ++i) {
-+		rmap_head = __gfn_to_rmap(gfn, i, slot);
-+		exec_protected |= __rmap_exec_protect(kvm, rmap_head);
-+	}
-+
-+	return exec_protected;
-+}
-+
- static bool rmap_write_protect(struct kvm_vcpu *vcpu, u64 gfn)
- {
- 	struct kvm_memory_slot *slot;
-diff --git a/arch/x86/kvm/mmu.h b/arch/x86/kvm/mmu.h
-index c7b333147c4a..45948dabe0b6 100644
---- a/arch/x86/kvm/mmu.h
-+++ b/arch/x86/kvm/mmu.h
-@@ -210,5 +210,9 @@ void kvm_mmu_gfn_disallow_lpage(struct kvm_memory_slot *slot, gfn_t gfn);
- void kvm_mmu_gfn_allow_lpage(struct kvm_memory_slot *slot, gfn_t gfn);
- bool kvm_mmu_slot_gfn_write_protect(struct kvm *kvm,
- 				    struct kvm_memory_slot *slot, u64 gfn);
-+bool kvm_mmu_slot_gfn_read_protect(struct kvm *kvm,
-+				   struct kvm_memory_slot *slot, u64 gfn);
-+bool kvm_mmu_slot_gfn_exec_protect(struct kvm *kvm,
-+				   struct kvm_memory_slot *slot, u64 gfn);
- int kvm_arch_write_log_dirty(struct kvm_vcpu *vcpu);
- #endif
-diff --git a/arch/x86/kvm/page_track.c b/arch/x86/kvm/page_track.c
-index ff7defb4a1d2..fc792939a05c 100644
---- a/arch/x86/kvm/page_track.c
-+++ b/arch/x86/kvm/page_track.c
-@@ -1,5 +1,5 @@
- /*
-- * Support KVM gust page tracking
-+ * Support KVM guest page tracking
-  *
-  * This feature allows us to track page access in guest. Currently, only
-  * write access is tracked.
-@@ -101,7 +101,7 @@ static void update_gfn_track(struct kvm_memory_slot *slot, gfn_t gfn,
-  * @kvm: the guest instance we are interested in.
-  * @slot: the @gfn belongs to.
-  * @gfn: the guest page.
-- * @mode: tracking mode, currently only write track is supported.
-+ * @mode: tracking mode.
-  */
- void kvm_slot_page_track_add_page(struct kvm *kvm,
- 				  struct kvm_memory_slot *slot, gfn_t gfn,
-@@ -119,9 +119,16 @@ void kvm_slot_page_track_add_page(struct kvm *kvm,
- 	 */
- 	kvm_mmu_gfn_disallow_lpage(slot, gfn);
- 
--	if (mode == KVM_PAGE_TRACK_WRITE)
-+	if (mode == KVM_PAGE_TRACK_PREWRITE || mode == KVM_PAGE_TRACK_WRITE) {
- 		if (kvm_mmu_slot_gfn_write_protect(kvm, slot, gfn))
- 			kvm_flush_remote_tlbs(kvm);
-+	} else if (mode == KVM_PAGE_TRACK_PREREAD) {
-+		if (kvm_mmu_slot_gfn_read_protect(kvm, slot, gfn))
-+			kvm_flush_remote_tlbs(kvm);
-+	} else if (mode == KVM_PAGE_TRACK_PREEXEC) {
-+		if (kvm_mmu_slot_gfn_exec_protect(kvm, slot, gfn))
-+			kvm_flush_remote_tlbs(kvm);
-+	}
- }
- EXPORT_SYMBOL_GPL(kvm_slot_page_track_add_page);
- 
-@@ -136,7 +143,7 @@ EXPORT_SYMBOL_GPL(kvm_slot_page_track_add_page);
-  * @kvm: the guest instance we are interested in.
-  * @slot: the @gfn belongs to.
-  * @gfn: the guest page.
-- * @mode: tracking mode, currently only write track is supported.
-+ * @mode: tracking mode.
-  */
- void kvm_slot_page_track_remove_page(struct kvm *kvm,
- 				     struct kvm_memory_slot *slot, gfn_t gfn,
-@@ -229,12 +236,81 @@ kvm_page_track_unregister_notifier(struct kvm *kvm,
- }
- EXPORT_SYMBOL_GPL(kvm_page_track_unregister_notifier);
- 
-+/*
-+ * Notify the node that a read access is about to happen. Returning false
-+ * doesn't stop the other nodes from being called, but it will stop
-+ * the emulation.
-+ *
-+ * The node should figure out if the written page is the one that the node
-+ * is interested in by itself.
-+ *
-+ * The nodes will always be in conflict if they track the same page:
-+ * - accepting a read won't guarantee that the next node will not override
-+ *   the data (filling new/bytes and setting data_ready)
-+ * - filling new/bytes with custom data won't guarantee that the next node
-+ *   will not override that
-+ */
-+bool kvm_page_track_preread(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
-+			    u8 *new, int bytes, bool *data_ready)
-+{
-+	struct kvm_page_track_notifier_head *head;
-+	struct kvm_page_track_notifier_node *n;
-+	int idx;
-+	bool ret = true;
-+
-+	*data_ready = false;
-+
-+	head = &vcpu->kvm->arch.track_notifier_head;
-+
-+	if (hlist_empty(&head->track_notifier_list))
-+		return ret;
-+
-+	idx = srcu_read_lock(&head->track_srcu);
-+	hlist_for_each_entry_rcu(n, &head->track_notifier_list, node)
-+		if (n->track_preread)
-+			if (!n->track_preread(vcpu, gpa, gva, new, bytes, n,
-+					       data_ready))
-+				ret = false;
-+	srcu_read_unlock(&head->track_srcu, idx);
-+	return ret;
-+}
-+
-+/*
-+ * Notify the node that a write access is about to happen. Returning false
-+ * doesn't stop the other nodes from being called, but it will stop
-+ * the emulation.
-+ *
-+ * The node should figure out if the written page is the one that the node
-+ * is interested in by itself.
-+ */
-+bool kvm_page_track_prewrite(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
-+			     const u8 *new, int bytes)
-+{
-+	struct kvm_page_track_notifier_head *head;
-+	struct kvm_page_track_notifier_node *n;
-+	int idx;
-+	bool ret = true;
-+
-+	head = &vcpu->kvm->arch.track_notifier_head;
-+
-+	if (hlist_empty(&head->track_notifier_list))
-+		return ret;
-+
-+	idx = srcu_read_lock(&head->track_srcu);
-+	hlist_for_each_entry_rcu(n, &head->track_notifier_list, node)
-+		if (n->track_prewrite)
-+			if (!n->track_prewrite(vcpu, gpa, gva, new, bytes, n))
-+				ret = false;
-+	srcu_read_unlock(&head->track_srcu, idx);
-+	return ret;
-+}
-+
- /*
-  * Notify the node that write access is intercepted and write emulation is
-  * finished at this time.
-  *
-- * The node should figure out if the written page is the one that node is
-- * interested in by itself.
-+ * The node should figure out if the written page is the one that the node
-+ * is interested in by itself.
-  */
- void kvm_page_track_write(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
- 			  const u8 *new, int bytes)
-@@ -255,12 +331,41 @@ void kvm_page_track_write(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
- 	srcu_read_unlock(&head->track_srcu, idx);
- }
- 
-+/*
-+ * Notify the node that an instruction is about to be executed.
-+ * Returning false doesn't stop the other nodes from being called,
-+ * but it will stop the emulation with X86EMUL_RETRY_INSTR.
-+ *
-+ * The node should figure out if the written page is the one that the node
-+ * is interested in by itself.
-+ */
-+bool kvm_page_track_preexec(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva)
-+{
-+	struct kvm_page_track_notifier_head *head;
-+	struct kvm_page_track_notifier_node *n;
-+	int idx;
-+	bool ret = true;
-+
-+	head = &vcpu->kvm->arch.track_notifier_head;
-+
-+	if (hlist_empty(&head->track_notifier_list))
-+		return ret;
-+
-+	idx = srcu_read_lock(&head->track_srcu);
-+	hlist_for_each_entry_rcu(n, &head->track_notifier_list, node)
-+		if (n->track_preexec)
-+			if (!n->track_preexec(vcpu, gpa, gva, n))
-+				ret = false;
-+	srcu_read_unlock(&head->track_srcu, idx);
-+	return ret;
-+}
-+
- /*
-  * Notify the node that memory slot is being removed or moved so that it can
-- * drop write-protection for the pages in the memory slot.
-+ * drop active protection for the pages in the memory slot.
-  *
-- * The node should figure out it has any write-protected pages in this slot
-- * by itself.
-+ * The node should figure out if the written page is the one that the node
-+ * is interested in by itself.
-  */
- void kvm_page_track_flush_slot(struct kvm *kvm, struct kvm_memory_slot *slot)
- {
+ 	.vm_init = vmx_vm_init,
+ 	.vm_alloc = vmx_vm_alloc,
+ 	.vm_free = vmx_vm_free,
 
