@@ -6,82 +6,82 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 322F0C41514
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DA456C433FF
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BF4BF214C6
-	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BF4BF214C6
+	by mail.kernel.org (Postfix) with ESMTP id 60830214C6
+	for <linux-mm@archiver.kernel.org>; Fri,  9 Aug 2019 16:06:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60830214C6
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 266CD6B02DA; Fri,  9 Aug 2019 12:02:32 -0400 (EDT)
+	id 96C876B02DE; Fri,  9 Aug 2019 12:02:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 21CE26B02DC; Fri,  9 Aug 2019 12:02:32 -0400 (EDT)
+	id 945B46B02DF; Fri,  9 Aug 2019 12:02:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id EE8E26B02DD; Fri,  9 Aug 2019 12:02:31 -0400 (EDT)
+	id 7BD086B02E0; Fri,  9 Aug 2019 12:02:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-wr1-f72.google.com (mail-wr1-f72.google.com [209.85.221.72])
-	by kanga.kvack.org (Postfix) with ESMTP id 8F99A6B02DA
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:02:31 -0400 (EDT)
-Received: by mail-wr1-f72.google.com with SMTP id v11so4025325wrg.2
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:02:31 -0700 (PDT)
+Received: from mail-wm1-f70.google.com (mail-wm1-f70.google.com [209.85.128.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 26FE86B02DE
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 12:02:46 -0400 (EDT)
+Received: by mail-wm1-f70.google.com with SMTP id u17so1064778wmd.6
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 09:02:46 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-original-authentication-results:x-gm-message-state:from:to:cc
          :subject:date:message-id:in-reply-to:references:mime-version
          :content-transfer-encoding;
-        bh=sjplyAM4BOjpyd8CZ8L+3sE7JvUagqycKa3bgiNu+gY=;
-        b=s2E4OcnIKO3TZuun44em61YCxed9SI/HsVB5bg/X4e9lf9E0IXyWdMz8G74Wy18fCT
-         u2Ix+Hwr96cc3bwYX8VY7oW1S4IlFWSPi3L3EkMCWw1kkkK4YijrhXbAe5dqLWPo+DIE
-         bffmLYEhofDEsS7bo2PjXL2EREHiyaqowm+bLAFlDwRqLwd5BjurPDDAAveyiur1/erq
-         ipzCQyjmGKLnFi3KLEVeKsR2lar5eBJC5U1zlcsfaM1eHJw832gVs6IZE5kZ1JYZz5X7
-         JXwQfbj094I+aF4QgB2nTgryO3tIHOxjnr5jzDcVbl60iOncthDP3+EABMIBDdYajjq3
-         HSHQ==
+        bh=m1u3dAUowG1bwENfLOMXjLL+1YYWL00ZFb4YmpqEHzs=;
+        b=kWQDwdAXC2t/Iws/EhaeKT/hY/WRxR5Nb/iVg8UgVbRlocdrmXNJZfqo1BqWWno9Jf
+         H8GJeZbvYwF4e3tqp1i7Y1BQVSuKOf8SGnfWwbNOxr0SDPxDAgYMqD5HR5XUNgX23YEi
+         FYtWb6pNTu+woQ1rlJpuRD0DSc/544W5IcnlWXDNiH/3ZJc90KbKI9mBWNSjcD8ZDYwG
+         501RrQ/Ey7+hjVEf+3MBLBkOPomor+zNw/UyDCXS9uCJ8Xnao/BHesi26zfj0e60wVmk
+         jurnOPzlRXvSesH1SG6j/c+gtdy5UPqpHtcm4U0Qo/lc08subC0ZwEsEi+Er7mBwVXFR
+         OI/Q==
 X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
-X-Gm-Message-State: APjAAAW4q76LWSCfAIueSIuKSxaOHkzbj8SXguBmPILjuxaVI4yI1iwA
-	HJzNF8jdvYckrzObEAkWzPeZR+VQnaDzfOeD2Qxnvx3Lk4j5eK84up9U62Td+j3xVr8Z0NN4GwJ
-	TT8hrSngsDMLJ/m4p8xtXqkH9mD8JwUvRxlD96Wu2byIdtsE7X/cwmKwuzvnNndlZVQ==
-X-Received: by 2002:a1c:61d4:: with SMTP id v203mr10559653wmb.164.1565366551107;
-        Fri, 09 Aug 2019 09:02:31 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqylL4YkVEIlAKvc+HOuv9n8RoMhBJY6gi4p3ybExaragocultwJWkQW9x+Y7i3s+bWPeGx3
-X-Received: by 2002:a1c:61d4:: with SMTP id v203mr10550586wmb.164.1565366454243;
-        Fri, 09 Aug 2019 09:00:54 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565366454; cv=none;
+X-Gm-Message-State: APjAAAWl+bZvV1tp7L6sjGMp9sRuvrxXOdkqsi8ezxrfrPNlTw8LktFu
+	JiWNnM1DVDW0PA0YiQjutQLXdvl8094xWMChAfBTHKsRfKR2TVOfMbfuz/N8DeyqgkIlXxEEXeg
+	tiBUjvMzy8/Za0T7QkNXQ15Mc3n3TzXVPAa+8yJCXWkHD4pRF59r/RKxhnm5vVjq8Aw==
+X-Received: by 2002:adf:9b9d:: with SMTP id d29mr2229788wrc.132.1565366565730;
+        Fri, 09 Aug 2019 09:02:45 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqznvW/tS17MHVpjQc27iUdqRF/ZWtnkKBLVdgZ7g3Xbc9ElSVxYRmtjm/u1dXiSpSibh7/B
+X-Received: by 2002:adf:9b9d:: with SMTP id d29mr2219417wrc.132.1565366461106;
+        Fri, 09 Aug 2019 09:01:01 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565366461; cv=none;
         d=google.com; s=arc-20160816;
-        b=sR8m5545NWqFRP6n9z2yzvIIDrZ3A01yaHbgHpSM0MIzhI2Zo4Qh4hYzLsveaDJAMt
-         nQ25s0FwfyDCnCxhpYyBvNSCZerMA7De2mKAOk3OkOVAy9/+9BMGIFF8AJvSJIrqCliJ
-         lWCxmBRMkFA2uar4g0gdzd5Y6q2tjhEmR8sco3Tr8g4nw0Gck39vl1t7qzauB8PdICu3
-         Ky5JD4hYKqjf7kiLsIIZJZUv1zh3yHpujh7NoORg2BNCQBpSQytjzVeXYDL8Z8WmQnVq
-         Gu+bxtXzeZbJ5TvhmP7i4+xriAfSdg8FFT0022VJaLxQe7uoUqCAazBgcs7zbAjD0A8p
-         9yUw==
+        b=qjoU6xAJPBKCutMFh4/v0+duBuxyy+Ax5JegDRcboAlzVPk7Al4w6iSuZqzQXVGFgB
+         HK2qLRB3XTyWurZ8btLk0gBVYfMFj+IRr8Zi08ZIFIevX1tKmgCYSInZRNF0ySDdxlqo
+         DqaeurxLSSfnb3qpRk2RknbxFpUcPFqY13kP/rhu27sFDW7iEUreSyqcfIJMiZbbXcq2
+         44BCPBosQooEVy7N58MKB+shrYxGUaQETA7j47Q4jClOTf2al74Ecadxe4p3sweiCH0v
+         7xwu20PRR+6Y67CE3NVip+x5wQqMtO7ExSMDnxIRdS5VZ9ZODdbYGlBZoXjWnPkKwvNH
+         2zWA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=content-transfer-encoding:mime-version:references:in-reply-to
          :message-id:date:subject:cc:to:from;
-        bh=sjplyAM4BOjpyd8CZ8L+3sE7JvUagqycKa3bgiNu+gY=;
-        b=SG+yPsKePm/hB7Krhm/e0TsoF7EugJtygpCzCl2jhleIKYejaPe/08H0KGop/jAgOs
-         ToqCn8qrGEdyqp5XhB/Fgn9T5ug/LJYuySmSIA9Tj3LkxdsLblr8JH1eX0tTE4opBZm6
-         A6N3d4JOw61f4e2xA6dwD1HAyRvpwNh5h/kg94Ze0JUYiT2FhF0Sv4zNhPcS1HjaopwI
-         3TaFJcJq7Ig4hVXQ/Qf6D04Uxk6MD00Kn6os++WqJxaxZ5YxNfviEBshOBzc+mRs8vUv
-         nukQEnk2OvrWsRwzG6PKXMNyQmAJ4cQPOFRXo4kl+hZ8NnKnTcU9i561Z2NHFg7MIVvo
-         AO1g==
+        bh=m1u3dAUowG1bwENfLOMXjLL+1YYWL00ZFb4YmpqEHzs=;
+        b=VH60NsyYY9rKKF6fXwnHo8X6Neqes6uUnaqB2NGsg8nJuf154MJMuEFkJxaF+7K3nx
+         o+jM/zfDeiixd0ZQZXh4TzC/r4BnE9igFH4jdWf+RLAJ+J+/rKnF7zr5Ze1R5WBGe1o3
+         tHL5VEyu3YaJ8+nEv/dZBJISq8y/fCG97gLCbhYSnxXdWQgineUqS5BfCiBmlukGzLUc
+         D9xx8b7cVllCAMMUBZQXz0drrdABqyl6QgAaSI0/758DTr6KjYErbOIX28t4NIjsG03M
+         /iCNn8wcmSFKmbLAOhPPHwSDIitZ2mjUADiZWUDUYLWPAgcOqDCLAcCElGrzXv8Zff2R
+         Krug==
 ARC-Authentication-Results: i=1; mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com. [91.199.104.161])
-        by mx.google.com with ESMTPS id s133si4083379wme.79.2019.08.09.09.00.54
+        by mx.google.com with ESMTPS id t11si6901013wrv.312.2019.08.09.09.01.00
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 09:00:54 -0700 (PDT)
+        Fri, 09 Aug 2019 09:01:01 -0700 (PDT)
 Received-SPF: pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) client-ip=91.199.104.161;
 Authentication-Results: mx.google.com;
        spf=pass (google.com: domain of alazar@bitdefender.com designates 91.199.104.161 as permitted sender) smtp.mailfrom=alazar@bitdefender.com
 Received: from smtp.bitdefender.com (smtp02.buh.bitdefender.net [10.17.80.76])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 8379A301AB43;
-	Fri,  9 Aug 2019 19:00:53 +0300 (EEST)
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 7FAAD301ACC2;
+	Fri,  9 Aug 2019 19:01:00 +0300 (EEST)
 Received: from localhost.localdomain (unknown [89.136.169.210])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id 43B2A305B7A3;
-	Fri,  9 Aug 2019 19:00:53 +0300 (EEST)
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id 341AA305B7A0;
+	Fri,  9 Aug 2019 19:01:00 +0300 (EEST)
 From: =?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
 To: kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
@@ -97,10 +97,12 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
 	Weijiang Yang <weijiang.yang@intel.com>, Zhang@kvack.org,
 	Yu C <yu.c.zhang@intel.com>,
 	=?UTF-8?q?Mihai=20Don=C8=9Bu?= <mdontu@bitdefender.com>,
-	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>
-Subject: [RFC PATCH v6 04/92] kvm: introspection: add the read/dispatch message function
-Date: Fri,  9 Aug 2019 18:59:19 +0300
-Message-Id: <20190809160047.8319-5-alazar@bitdefender.com>
+	=?UTF-8?q?Adalbert=20Laz=C4=83r?= <alazar@bitdefender.com>,
+	Sean Christopherson <sean.j.christopherson@intel.com>,
+	Joerg Roedel <joro@8bytes.org>
+Subject: [RFC PATCH v6 24/92] kvm: x86: wire in the preread/prewrite/preexec page trackers
+Date: Fri,  9 Aug 2019 18:59:39 +0300
+Message-Id: <20190809160047.8319-25-alazar@bitdefender.com>
 In-Reply-To: <20190809160047.8319-1-alazar@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
 MIME-Version: 1.0
@@ -112,495 +114,253 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Based on the common header used by all messages (struct kvmi_msg_hdr),
-the worker will read/validate all messages, execute the VM introspection
-commands (eg. KVMI_GET_GUEST_INFO) and dispatch to vCPUs the vCPU
-introspection commands (eg. KVMI_GET_REGISTERS) and the replies to
-vCPU events. The vCPU threads will reply to vCPU introspection commands
-without the help of the receiving worker.
+From: Mihai Donțu <mdontu@bitdefender.com>
 
-Because of the command header (struct kvmi_error_code) used in any
-command reply, this worker could respond to any unsupported/disallowed
-command with an error code.
+These are needed by the introspection subsystem.
 
-This thread will end when the socket is closed (signaled by userspace/QEMU
-or the introspection tool) or on the first API error (eg. wrong message
-size).
-
+CC: Sean Christopherson <sean.j.christopherson@intel.com>
+CC: Joerg Roedel <joro@8bytes.org>
+Signed-off-by: Mihai Donțu <mdontu@bitdefender.com>
 Signed-off-by: Adalbert Lazăr <alazar@bitdefender.com>
 ---
- Documentation/virtual/kvm/kvmi.rst |  86 +++++++++++
- include/uapi/linux/kvmi.h          |  13 ++
- virt/kvm/kvmi.c                    |  43 +++++-
- virt/kvm/kvmi_int.h                |   7 +
- virt/kvm/kvmi_msg.c                | 240 ++++++++++++++++++++++++++++-
- 5 files changed, 386 insertions(+), 3 deletions(-)
+ arch/x86/include/asm/kvm_emulate.h |  1 +
+ arch/x86/kvm/emulate.c             | 10 +++++-
+ arch/x86/kvm/mmu.c                 | 37 ++++++++++++++-------
+ arch/x86/kvm/x86.c                 | 52 ++++++++++++++++++++++++------
+ 4 files changed, 79 insertions(+), 21 deletions(-)
 
-diff --git a/Documentation/virtual/kvm/kvmi.rst b/Documentation/virtual/kvm/kvmi.rst
-index 47b7c36d334a..1d4a1dcd7d2f 100644
---- a/Documentation/virtual/kvm/kvmi.rst
-+++ b/Documentation/virtual/kvm/kvmi.rst
-@@ -64,6 +64,85 @@ used on that guest. Obviously, whether the guest can really continue
- normal execution depends on whether the introspection tool has made any
- modifications that require an active KVMI channel.
+diff --git a/arch/x86/include/asm/kvm_emulate.h b/arch/x86/include/asm/kvm_emulate.h
+index 93c4bf598fb0..97cb592687cb 100644
+--- a/arch/x86/include/asm/kvm_emulate.h
++++ b/arch/x86/include/asm/kvm_emulate.h
+@@ -444,6 +444,7 @@ bool x86_page_table_writing_insn(struct x86_emulate_ctxt *ctxt);
+ #define EMULATION_OK 0
+ #define EMULATION_RESTART 1
+ #define EMULATION_INTERCEPTED 2
++#define EMULATION_RETRY_INSTR 3
+ void init_decode_cache(struct x86_emulate_ctxt *ctxt);
+ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt);
+ int emulator_task_switch(struct x86_emulate_ctxt *ctxt,
+diff --git a/arch/x86/kvm/emulate.c b/arch/x86/kvm/emulate.c
+index c338984c850d..34431cf31f74 100644
+--- a/arch/x86/kvm/emulate.c
++++ b/arch/x86/kvm/emulate.c
+@@ -5366,7 +5366,12 @@ int x86_decode_insn(struct x86_emulate_ctxt *ctxt, void *insn, int insn_len)
+ 					ctxt->memopp->addr.mem.ea + ctxt->_eip);
  
-+All messages (commands or events) have a common header::
-+
-+	struct kvmi_msg_hdr {
-+		__u16 id;
-+		__u16 size;
-+		__u32 seq;
-+	};
-+
-+The replies have the same header, with the sequence number (``seq``)
-+and message id (``id``) matching the command/event.
-+
-+After ``kvmi_msg_hdr``, ``id`` specific data of ``size`` bytes will
-+follow.
-+
-+The message header and its data must be sent with one ``sendmsg()`` call
-+to the socket. This simplifies the receiver loop and avoids
-+the reconstruction of messages on the other side.
-+
-+The wire protocol uses the host native byte-order. The introspection tool
-+must check this during the handshake and do the necessary conversion.
-+
-+A command reply begins with::
-+
-+	struct kvmi_error_code {
-+		__s32 err;
-+		__u32 padding;
-+	}
-+
-+followed by the command specific data if the error code ``err`` is zero.
-+
-+The error code -KVM_EOPNOTSUPP is returned for unsupported commands.
-+
-+The error code -KVM_EPERM is returned for disallowed commands (see **Hooking**).
-+
-+The error code is related to the message processing, including unsupported
-+commands. For all the other errors (incomplete messages, wrong sequence
-+numbers, socket errors etc.) the socket will be closed. The device
-+manager should reconnect.
-+
-+While all commands will have a reply as soon as possible, the replies
-+to events will probably be delayed until a set of (new) commands will
-+complete::
-+
-+   Host kernel               Tool
-+   -----------               ----
-+   event 1 ->
-+                             <- command 1
-+   command 1 reply ->
-+                             <- command 2
-+   command 2 reply ->
-+                             <- event 1 reply
-+
-+If both ends send a message at the same time::
-+
-+   Host kernel               Tool
-+   -----------               ----
-+   event X ->                <- command X
-+
-+the host kernel will reply to 'command X', regardless of the receive time
-+(before or after the 'event X' was sent).
-+
-+As it can be seen below, the wire protocol specifies occasional padding. This
-+is to permit working with the data by directly using C structures or to round
-+the structure size to a multiple of 8 bytes (64bit) to improve the copy
-+operations that happen during ``recvmsg()`` or ``sendmsg()``. The members
-+should have the native alignment of the host (4 bytes on x86). All padding
-+must be initialized with zero otherwise the respective commands will fail
-+with -KVM_EINVAL.
-+
-+To describe the commands/events, we reuse some conventions from api.txt:
-+
-+  - Architectures: which instruction set architectures provide this command/event
-+
-+  - Versions: which versions provide this command/event
-+
-+  - Parameters: incoming message data
-+
-+  - Returns: outgoing/reply message data
-+
- Handshake
- ---------
- 
-@@ -99,6 +178,13 @@ commands/events) to KVM, and forget about it. It will be notified by
- KVM when the introspection tool closes the file handle (in case of
- errors), and should reinitiate the handshake.
- 
-+Once the file handle reaches KVM, the introspection tool should use
-+the *KVMI_GET_VERSION* command to get the API version and/or
-+the *KVMI_CHECK_COMMAND* and *KVMI_CHECK_EVENTS* commands to see which
-+commands/events are allowed for this guest. The error code -KVM_EPERM
-+will be returned if the introspection tool uses a command or enables an
-+event which is disallowed.
-+
- Unhooking
- ---------
- 
-diff --git a/include/uapi/linux/kvmi.h b/include/uapi/linux/kvmi.h
-index dbf63ad0862f..6c7600ed4564 100644
---- a/include/uapi/linux/kvmi.h
-+++ b/include/uapi/linux/kvmi.h
-@@ -65,4 +65,17 @@ enum {
- 	KVMI_NUM_EVENTS
- };
- 
-+#define KVMI_MSG_SIZE (4096 - sizeof(struct kvmi_msg_hdr))
-+
-+struct kvmi_msg_hdr {
-+	__u16 id;
-+	__u16 size;
-+	__u32 seq;
-+};
-+
-+struct kvmi_error_code {
-+	__s32 err;
-+	__u32 padding;
-+};
-+
- #endif /* _UAPI__LINUX_KVMI_H */
-diff --git a/virt/kvm/kvmi.c b/virt/kvm/kvmi.c
-index dc64f975998f..afa31748d7f4 100644
---- a/virt/kvm/kvmi.c
-+++ b/virt/kvm/kvmi.c
-@@ -10,13 +10,54 @@
- #include <linux/kthread.h>
- #include <linux/bitmap.h>
- 
--int kvmi_init(void)
-+static struct kmem_cache *msg_cache;
-+
-+void *kvmi_msg_alloc(void)
-+{
-+	return kmem_cache_zalloc(msg_cache, GFP_KERNEL);
-+}
-+
-+void *kvmi_msg_alloc_check(size_t size)
-+{
-+	if (size > KVMI_MSG_SIZE_ALLOC)
-+		return NULL;
-+	return kvmi_msg_alloc();
-+}
-+
-+void kvmi_msg_free(void *addr)
-+{
-+	if (addr)
-+		kmem_cache_free(msg_cache, addr);
-+}
-+
-+static void kvmi_cache_destroy(void)
- {
-+	kmem_cache_destroy(msg_cache);
-+	msg_cache = NULL;
-+}
-+
-+static int kvmi_cache_create(void)
-+{
-+	msg_cache = kmem_cache_create("kvmi_msg", KVMI_MSG_SIZE_ALLOC,
-+				      4096, SLAB_ACCOUNT, NULL);
-+
-+	if (!msg_cache) {
-+		kvmi_cache_destroy();
-+
-+		return -1;
-+	}
-+
- 	return 0;
+ done:
+-	return (rc != X86EMUL_CONTINUE) ? EMULATION_FAILED : EMULATION_OK;
++	if (rc == X86EMUL_RETRY_INSTR)
++		return EMULATION_RETRY_INSTR;
++	else if (rc == X86EMUL_CONTINUE)
++		return EMULATION_OK;
++	else
++		return EMULATION_FAILED;
  }
  
-+int kvmi_init(void)
-+{
-+	return kvmi_cache_create();
+ bool x86_page_table_writing_insn(struct x86_emulate_ctxt *ctxt)
+@@ -5736,6 +5741,9 @@ int x86_emulate_insn(struct x86_emulate_ctxt *ctxt)
+ 	if (rc == X86EMUL_INTERCEPTED)
+ 		return EMULATION_INTERCEPTED;
+ 
++	if (rc == X86EMUL_RETRY_INSTR)
++		return EMULATION_RETRY_INSTR;
++
+ 	if (rc == X86EMUL_CONTINUE)
+ 		writeback_registers(ctxt);
+ 
+diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+index a86b165cf6dd..ff053f17b8c2 100644
+--- a/arch/x86/kvm/mmu.c
++++ b/arch/x86/kvm/mmu.c
+@@ -1111,9 +1111,13 @@ static void account_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
+ 	slot = __gfn_to_memslot(slots, gfn);
+ 
+ 	/* the non-leaf shadow pages are keeping readonly. */
+-	if (sp->role.level > PT_PAGE_TABLE_LEVEL)
+-		return kvm_slot_page_track_add_page(kvm, slot, gfn,
+-						    KVM_PAGE_TRACK_WRITE);
++	if (sp->role.level > PT_PAGE_TABLE_LEVEL) {
++		kvm_slot_page_track_add_page(kvm, slot, gfn,
++					     KVM_PAGE_TRACK_PREWRITE);
++		kvm_slot_page_track_add_page(kvm, slot, gfn,
++					     KVM_PAGE_TRACK_WRITE);
++		return;
++	}
+ 
+ 	kvm_mmu_gfn_disallow_lpage(slot, gfn);
+ }
+@@ -1128,9 +1132,13 @@ static void unaccount_shadowed(struct kvm *kvm, struct kvm_mmu_page *sp)
+ 	gfn = sp->gfn;
+ 	slots = kvm_memslots_for_spte_role(kvm, sp->role);
+ 	slot = __gfn_to_memslot(slots, gfn);
+-	if (sp->role.level > PT_PAGE_TABLE_LEVEL)
+-		return kvm_slot_page_track_remove_page(kvm, slot, gfn,
+-						       KVM_PAGE_TRACK_WRITE);
++	if (sp->role.level > PT_PAGE_TABLE_LEVEL) {
++		kvm_slot_page_track_remove_page(kvm, slot, gfn,
++						KVM_PAGE_TRACK_PREWRITE);
++		kvm_slot_page_track_remove_page(kvm, slot, gfn,
++						KVM_PAGE_TRACK_WRITE);
++		return;
++	}
+ 
+ 	kvm_mmu_gfn_allow_lpage(slot, gfn);
+ }
+@@ -2884,7 +2892,8 @@ static bool mmu_need_write_protect(struct kvm_vcpu *vcpu, gfn_t gfn,
+ {
+ 	struct kvm_mmu_page *sp;
+ 
+-	if (kvm_page_track_is_active(vcpu, gfn, KVM_PAGE_TRACK_WRITE))
++	if (kvm_page_track_is_active(vcpu, gfn, KVM_PAGE_TRACK_PREWRITE) ||
++	    kvm_page_track_is_active(vcpu, gfn, KVM_PAGE_TRACK_WRITE))
+ 		return true;
+ 
+ 	for_each_gfn_indirect_valid_sp(vcpu->kvm, sp, gfn) {
+@@ -4006,15 +4015,21 @@ static bool page_fault_handle_page_track(struct kvm_vcpu *vcpu,
+ 	if (unlikely(error_code & PFERR_RSVD_MASK))
+ 		return false;
+ 
+-	if (!(error_code & PFERR_PRESENT_MASK) ||
+-	      !(error_code & PFERR_WRITE_MASK))
++	if (!(error_code & PFERR_PRESENT_MASK))
+ 		return false;
+ 
+ 	/*
+-	 * guest is writing the page which is write tracked which can
++	 * guest is reading/writing/fetching the page which is
++	 * read/write/execute tracked which can
+ 	 * not be fixed by page fault handler.
+ 	 */
+-	if (kvm_page_track_is_active(vcpu, gfn, KVM_PAGE_TRACK_WRITE))
++	if (((error_code & PFERR_USER_MASK)
++		&& kvm_page_track_is_active(vcpu, gfn, KVM_PAGE_TRACK_PREREAD))
++	    || ((error_code & PFERR_WRITE_MASK)
++		&& (kvm_page_track_is_active(vcpu, gfn, KVM_PAGE_TRACK_PREWRITE)
++		 || kvm_page_track_is_active(vcpu, gfn, KVM_PAGE_TRACK_WRITE)))
++	    || ((error_code & PFERR_FETCH_MASK)
++		&& kvm_page_track_is_active(vcpu, gfn, KVM_PAGE_TRACK_PREEXEC)))
+ 		return true;
+ 
+ 	return false;
+diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+index d3d159986243..7aef002be551 100644
+--- a/arch/x86/kvm/x86.c
++++ b/arch/x86/kvm/x86.c
+@@ -5065,6 +5065,7 @@ static int kvm_read_guest_virt_helper(gva_t addr, void *val, unsigned int bytes,
+ {
+ 	void *data = val;
+ 	int r = X86EMUL_CONTINUE;
++	bool data_ready;
+ 
+ 	while (bytes) {
+ 		gpa_t gpa = vcpu->arch.walk_mmu->gva_to_gpa(vcpu, addr, access,
+@@ -5075,6 +5076,13 @@ static int kvm_read_guest_virt_helper(gva_t addr, void *val, unsigned int bytes,
+ 
+ 		if (gpa == UNMAPPED_GVA)
+ 			return X86EMUL_PROPAGATE_FAULT;
++		if (!kvm_page_track_preread(vcpu, gpa, addr, data, toread,
++						&data_ready))
++			return X86EMUL_RETRY_INSTR;
++		if (data_ready) {
++			WARN_ON(toread > bytes); /* TODO */
++			return X86EMUL_CONTINUE;
++		}
+ 		ret = kvm_vcpu_read_guest_page(vcpu, gpa >> PAGE_SHIFT, data,
+ 					       offset, toread);
+ 		if (ret < 0) {
+@@ -5106,6 +5114,9 @@ static int kvm_fetch_guest_virt(struct x86_emulate_ctxt *ctxt,
+ 	if (unlikely(gpa == UNMAPPED_GVA))
+ 		return X86EMUL_PROPAGATE_FAULT;
+ 
++	if (!kvm_page_track_preexec(vcpu, gpa, addr))
++		return X86EMUL_RETRY_INSTR;
++
+ 	offset = addr & (PAGE_SIZE-1);
+ 	if (WARN_ON(offset + bytes > PAGE_SIZE))
+ 		bytes = (unsigned)PAGE_SIZE - offset;
+@@ -5284,13 +5295,26 @@ static int vcpu_mmio_gva_to_gpa(struct kvm_vcpu *vcpu, unsigned long gva,
+ int emulator_write_phys(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
+ 			const void *val, int bytes)
+ {
+-	int ret;
+-
+-	ret = kvm_vcpu_write_guest(vcpu, gpa, val, bytes);
+-	if (ret < 0)
+-		return 0;
++	if (!kvm_page_track_prewrite(vcpu, gpa, gva, val, bytes))
++		return X86EMUL_RETRY_INSTR;
++	if (kvm_vcpu_write_guest(vcpu, gpa, val, bytes) < 0)
++		return X86EMUL_UNHANDLEABLE;
+ 	kvm_page_track_write(vcpu, gpa, gva, val, bytes);
+-	return 1;
++	return X86EMUL_CONTINUE;
 +}
 +
- void kvmi_uninit(void)
- {
-+	kvmi_cache_destroy();
++static int emulator_read_phys(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
++			      void *val, int bytes)
++{
++	bool data_ready;
++
++	if (!kvm_page_track_preread(vcpu, gpa, gva, val, bytes, &data_ready))
++		return X86EMUL_RETRY_INSTR;
++	if (data_ready)
++		return X86EMUL_CONTINUE;
++	if (kvm_vcpu_read_guest(vcpu, gpa, val, bytes) < 0)
++		return X86EMUL_UNHANDLEABLE;
++	return X86EMUL_CONTINUE;
  }
  
- static bool alloc_kvmi(struct kvm *kvm, const struct kvm_introspection *qemu)
-diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
-index bd8b539e917a..76119a4b69d8 100644
---- a/virt/kvm/kvmi_int.h
-+++ b/virt/kvm/kvmi_int.h
-@@ -23,6 +23,8 @@
- #define kvmi_err(ikvm, fmt, ...) \
- 	kvm_info("%pU ERROR: " fmt, &ikvm->uuid, ## __VA_ARGS__)
- 
-+#define KVMI_MSG_SIZE_ALLOC (sizeof(struct kvmi_msg_hdr) + KVMI_MSG_SIZE)
-+
- #define KVMI_KNOWN_VCPU_EVENTS ( \
- 		BIT(KVMI_EVENT_CR) | \
- 		BIT(KVMI_EVENT_MSR) | \
-@@ -91,4 +93,9 @@ void kvmi_sock_shutdown(struct kvmi *ikvm);
- void kvmi_sock_put(struct kvmi *ikvm);
- bool kvmi_msg_process(struct kvmi *ikvm);
- 
-+/* kvmi.c */
-+void *kvmi_msg_alloc(void);
-+void *kvmi_msg_alloc_check(size_t size);
-+void kvmi_msg_free(void *addr);
-+
- #endif
-diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
-index 4de012eafb6d..af6bc47dc031 100644
---- a/virt/kvm/kvmi_msg.c
-+++ b/virt/kvm/kvmi_msg.c
-@@ -8,6 +8,19 @@
- #include <linux/net.h>
- #include "kvmi_int.h"
- 
-+static const char *const msg_IDs[] = {
-+};
-+
-+static bool is_known_message(u16 id)
-+{
-+	return id < ARRAY_SIZE(msg_IDs) && msg_IDs[id];
-+}
-+
-+static const char *id2str(u16 id)
-+{
-+	return is_known_message(id) ? msg_IDs[id] : "unknown";
-+}
-+
- bool kvmi_sock_get(struct kvmi *ikvm, int fd)
+ struct read_write_emulator_ops {
+@@ -5320,7 +5344,7 @@ static int read_prepare(struct kvm_vcpu *vcpu, void *val, int bytes)
+ static int read_emulate(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
+ 			void *val, int bytes)
  {
- 	struct socket *sock;
-@@ -35,8 +48,231 @@ void kvmi_sock_shutdown(struct kvmi *ikvm)
- 	kernel_sock_shutdown(ikvm->sock, SHUT_RDWR);
+-	return !kvm_vcpu_read_guest(vcpu, gpa, val, bytes);
++	return emulator_read_phys(vcpu, gpa, gva, val, bytes);
  }
  
-+static int kvmi_sock_read(struct kvmi *ikvm, void *buf, size_t size)
-+{
-+	struct kvec i = {
-+		.iov_base = buf,
-+		.iov_len = size,
-+	};
-+	struct msghdr m = { };
-+	int rc;
-+
-+	rc = kernel_recvmsg(ikvm->sock, &m, &i, 1, size, MSG_WAITALL);
-+
-+	if (rc > 0)
-+		print_hex_dump_debug("read: ", DUMP_PREFIX_NONE, 32, 1,
-+					buf, rc, false);
-+
-+	if (unlikely(rc != size)) {
-+		if (rc >= 0)
-+			rc = -EPIPE;
-+		else
-+			kvmi_err(ikvm, "kernel_recvmsg: %d\n", rc);
-+		return rc;
+ static int write_emulate(struct kvm_vcpu *vcpu, gpa_t gpa, gva_t gva,
+@@ -5395,8 +5419,11 @@ static int emulator_read_write_onepage(unsigned long addr, void *val,
+ 			return X86EMUL_PROPAGATE_FAULT;
+ 	}
+ 
+-	if (!ret && ops->read_write_emulate(vcpu, gpa, addr, val, bytes))
+-		return X86EMUL_CONTINUE;
++	if (!ret) {
++		ret = ops->read_write_emulate(vcpu, gpa, addr, val, bytes);
++		if (ret == X86EMUL_CONTINUE || ret == X86EMUL_RETRY_INSTR)
++			return ret;
 +	}
+ 
+ 	/*
+ 	 * Is this MMIO handled locally?
+@@ -5531,6 +5558,9 @@ static int emulator_cmpxchg_emulated(struct x86_emulate_ctxt *ctxt,
+ 	if (is_error_page(page))
+ 		goto emul_write;
+ 
++	if (!kvm_page_track_prewrite(vcpu, gpa, addr, new, bytes))
++		return X86EMUL_RETRY_INSTR;
 +
-+	return 0;
-+}
-+
-+static int kvmi_sock_write(struct kvmi *ikvm, struct kvec *i, size_t n,
-+			   size_t size)
-+{
-+	struct msghdr m = { };
-+	int rc, k;
-+
-+	rc = kernel_sendmsg(ikvm->sock, &m, i, n, size);
-+
-+	if (rc > 0)
-+		for (k = 0; k < n; k++)
-+			print_hex_dump_debug("write: ", DUMP_PREFIX_NONE, 32, 1,
-+					i[k].iov_base, i[k].iov_len, false);
-+
-+	if (unlikely(rc != size)) {
-+		kvmi_err(ikvm, "kernel_sendmsg: %d\n", rc);
-+		if (rc >= 0)
-+			rc = -EPIPE;
-+		return rc;
-+	}
-+
-+	return 0;
-+}
-+
-+static int kvmi_msg_reply(struct kvmi *ikvm,
-+			  const struct kvmi_msg_hdr *msg, int err,
-+			  const void *rpl, size_t rpl_size)
-+{
-+	struct kvmi_error_code ec;
-+	struct kvmi_msg_hdr h;
-+	struct kvec vec[3] = {
-+		{ .iov_base = &h, .iov_len = sizeof(h) },
-+		{ .iov_base = &ec, .iov_len = sizeof(ec) },
-+		{ .iov_base = (void *)rpl, .iov_len = rpl_size },
-+	};
-+	size_t size = sizeof(h) + sizeof(ec) + (err ? 0 : rpl_size);
-+	size_t n = err ? ARRAY_SIZE(vec) - 1 : ARRAY_SIZE(vec);
-+
-+	memset(&h, 0, sizeof(h));
-+	h.id = msg->id;
-+	h.seq = msg->seq;
-+	h.size = size - sizeof(h);
-+
-+	memset(&ec, 0, sizeof(ec));
-+	ec.err = err;
-+
-+	return kvmi_sock_write(ikvm, vec, n, size);
-+}
-+
-+static int kvmi_msg_vm_reply(struct kvmi *ikvm,
-+			     const struct kvmi_msg_hdr *msg, int err,
-+			     const void *rpl, size_t rpl_size)
-+{
-+	return kvmi_msg_reply(ikvm, msg, err, rpl, rpl_size);
-+}
-+
-+static bool is_command_allowed(struct kvmi *ikvm, int id)
-+{
-+	return test_bit(id, ikvm->cmd_allow_mask);
-+}
-+
-+/*
-+ * These commands are executed on the receiving thread/worker.
-+ */
-+static int(*const msg_vm[])(struct kvmi *, const struct kvmi_msg_hdr *,
-+			    const void *) = {
-+};
-+
-+static bool is_vm_message(u16 id)
-+{
-+	return id < ARRAY_SIZE(msg_vm) && !!msg_vm[id];
-+}
-+
-+static bool is_unsupported_message(u16 id)
-+{
-+	bool supported;
-+
-+	supported = is_known_message(id) && is_vm_message(id);
-+
-+	return !supported;
-+}
-+
-+static int kvmi_consume_bytes(struct kvmi *ikvm, size_t bytes)
-+{
-+	size_t to_read;
-+	u8 buf[1024];
-+	int err = 0;
-+
-+	while (bytes && !err) {
-+		to_read = min(bytes, sizeof(buf));
-+
-+		err = kvmi_sock_read(ikvm, buf, to_read);
-+
-+		bytes -= to_read;
-+	}
-+
-+	return err;
-+}
-+
-+static struct kvmi_msg_hdr *kvmi_msg_recv(struct kvmi *ikvm, bool *unsupported)
-+{
-+	struct kvmi_msg_hdr *msg;
-+	int err;
-+
-+	*unsupported = false;
-+
-+	msg = kvmi_msg_alloc();
-+	if (!msg)
-+		goto out_err;
-+
-+	err = kvmi_sock_read(ikvm, msg, sizeof(*msg));
-+	if (err)
-+		goto out_err;
-+
-+	if (msg->size > KVMI_MSG_SIZE)
-+		goto out_err_msg;
-+
-+	if (is_unsupported_message(msg->id)) {
-+		if (msg->size && kvmi_consume_bytes(ikvm, msg->size) < 0)
-+			goto out_err_msg;
-+
-+		*unsupported = true;
-+		return msg;
-+	}
-+
-+	if (msg->size && kvmi_sock_read(ikvm, msg + 1, msg->size) < 0)
-+		goto out_err_msg;
-+
-+	return msg;
-+
-+out_err_msg:
-+	kvmi_err(ikvm, "%s id %u (%s) size %u\n",
-+		 __func__, msg->id, id2str(msg->id), msg->size);
-+
-+out_err:
-+	kvmi_msg_free(msg);
-+
-+	return NULL;
-+}
-+
-+static int kvmi_msg_dispatch_vm_cmd(struct kvmi *ikvm,
-+				    const struct kvmi_msg_hdr *msg)
-+{
-+	return msg_vm[msg->id](ikvm, msg, msg + 1);
-+}
-+
-+static int kvmi_msg_dispatch(struct kvmi *ikvm,
-+			     struct kvmi_msg_hdr *msg, bool *queued)
-+{
-+	int err;
-+
-+	err = kvmi_msg_dispatch_vm_cmd(ikvm, msg);
-+
-+	if (err)
-+		kvmi_err(ikvm, "%s: msg id: %u (%s), err: %d\n", __func__,
-+			 msg->id, id2str(msg->id), err);
-+
-+	return err;
-+}
-+
-+static bool is_message_allowed(struct kvmi *ikvm, __u16 id)
-+{
-+	if (id == KVMI_EVENT_REPLY)
-+		return true;
-+
-+	/*
-+	 * Some commands (eg.pause) request events that might be
-+	 * disallowed. The command is allowed here, but the function
-+	 * handling the command will return -KVM_EPERM if the event
-+	 * is disallowed.
-+	 */
-+	return is_command_allowed(ikvm, id);
-+}
-+
- bool kvmi_msg_process(struct kvmi *ikvm)
- {
--	kvmi_info(ikvm, "TODO: %s", __func__);
--	return false;
-+	struct kvmi_msg_hdr *msg;
-+	bool queued = false;
-+	bool unsupported;
-+	int err = -1;
-+
-+	msg = kvmi_msg_recv(ikvm, &unsupported);
-+	if (!msg)
-+		goto out;
-+
-+	if (unsupported) {
-+		err = kvmi_msg_vm_reply(ikvm, msg, -KVM_EOPNOTSUPP, NULL, 0);
-+		goto out;
-+	}
-+
-+	if (!is_message_allowed(ikvm, msg->id)) {
-+		err = kvmi_msg_vm_reply(ikvm, msg, -KVM_EPERM, NULL, 0);
-+		goto out;
-+	}
-+
-+	err = kvmi_msg_dispatch(ikvm, msg, &queued);
-+
-+out:
-+	if (!queued)
-+		kvmi_msg_free(msg);
-+
-+	return err == 0;
- }
+ 	kaddr = kmap_atomic(page);
+ 	kaddr += offset_in_page(gpa);
+ 	switch (bytes) {
+@@ -6416,6 +6446,8 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
+ 
+ 		trace_kvm_emulate_insn_start(vcpu);
+ 		++vcpu->stat.insn_emulation;
++		if (r == EMULATION_RETRY_INSTR)
++			return EMULATE_DONE;
+ 		if (r != EMULATION_OK)  {
+ 			if (emulation_type & EMULTYPE_TRAP_UD)
+ 				return EMULATE_FAIL;
+@@ -6457,6 +6489,8 @@ int x86_emulate_instruction(struct kvm_vcpu *vcpu,
+ 
+ 	r = x86_emulate_insn(ctxt);
+ 
++	if (r == EMULATION_RETRY_INSTR)
++		return EMULATE_DONE;
+ 	if (r == EMULATION_INTERCEPTED)
+ 		return EMULATE_DONE;
+ 
 
