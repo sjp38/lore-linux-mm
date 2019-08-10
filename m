@@ -5,96 +5,95 @@ X-Spam-Level:
 X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
 	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 633A0C433FF
-	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 00:07:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 69E8EC31E40
+	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 00:09:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 0A2062166E
-	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 00:07:00 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 18E8220C01
+	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 00:09:57 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="P4Y3ZDhi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0A2062166E
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="bpL5Ee4v"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 18E8220C01
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 89B016B0006; Fri,  9 Aug 2019 20:07:00 -0400 (EDT)
+	id 95A276B0005; Fri,  9 Aug 2019 20:09:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 84B356B0007; Fri,  9 Aug 2019 20:07:00 -0400 (EDT)
+	id 90A956B0006; Fri,  9 Aug 2019 20:09:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 6EC046B0008; Fri,  9 Aug 2019 20:07:00 -0400 (EDT)
+	id 7D3086B0007; Fri,  9 Aug 2019 20:09:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-pf1-f197.google.com (mail-pf1-f197.google.com [209.85.210.197])
-	by kanga.kvack.org (Postfix) with ESMTP id 368AB6B0006
-	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 20:07:00 -0400 (EDT)
-Received: by mail-pf1-f197.google.com with SMTP id u21so62477316pfn.15
-        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 17:07:00 -0700 (PDT)
+Received: from mail-pg1-f197.google.com (mail-pg1-f197.google.com [209.85.215.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 42D436B0005
+	for <linux-mm@kvack.org>; Fri,  9 Aug 2019 20:09:57 -0400 (EDT)
+Received: by mail-pg1-f197.google.com with SMTP id w5so60649845pgs.5
+        for <linux-mm@kvack.org>; Fri, 09 Aug 2019 17:09:57 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:subject:to:cc:references:from:message-id:date
          :user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding:dkim-signature;
-        bh=Cy1zdJSEqwoFmqaSThScUQztNmSg0xcFlEeyeXrzPSw=;
-        b=jpgWQutitrKAJazTkGA2ztPgPb1sa++QSZ3DNRlTacjOUm2CcZjRUcGsAkmTRoWj53
-         dtaz51H/8lh23N5DVtCbAQ/j/NIBXcDNlLLHBPhFpGAj4WDUExFJaZgydzjU02lA5VWD
-         diHQtSeHC2sxTs1NVG6phvtTb2B82KFQ1FkHEqv2/Vm9YTDjHt1PeHLC0hKFS9ED/zBB
-         mGk6EOBkFXuXEvMJ6S7JikapJqQZYy3bzsqhDkllSlsCbqjvVgU1JfTXEd1oJXbJ0MGL
-         fwarruH4ckiyoPwnFsjyQLQPBMlFNMgJ+C+w9Rcgc8f+uQbB9JKX8Xzq9oUK/oic31wX
-         dahg==
-X-Gm-Message-State: APjAAAWI4vKWkv4turGAXUV5PUzHhAkbgCdnIjAfVDE4Vk+A7uCV30F7
-	387l8gOazlS5YS6e9oW6FY3Os1exJWzUnwVLVveATcjOOxR9VKCBQJ0Nx+IV55fVth+1tTB6eI9
-	vO+e06OQvRxUgF7X+PyGDF4qHy5bacAh1477q4htqZUx1DRTaXeUZaOzf3ezRjarhSw==
-X-Received: by 2002:a63:714a:: with SMTP id b10mr20498268pgn.25.1565395619781;
-        Fri, 09 Aug 2019 17:06:59 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwBz90OxB0GM1np0d7rRsuPKrYbQnI9J45QEbVvEMo+heLPyg7T5ln29dYtcC8dDp0O8GqL
-X-Received: by 2002:a63:714a:: with SMTP id b10mr20498186pgn.25.1565395618453;
-        Fri, 09 Aug 2019 17:06:58 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565395618; cv=none;
+        bh=6gNuzZAjPm1drI86ijnE4uQ1M9Dnne0kRHnh1Jmmh9I=;
+        b=Tosy4o/+rSQrpUx4tQmXNxBRtUIqI47YMHT92RnPfeQPq51ACu/grKBUSAjhli43zP
+         wJ/iadMNkJ80Ko+Xk6wlEr+734Fdto522LvXEjGF4Zo1vrD6uxZRe9lYoVKtCeV1NBJX
+         3Ugx6pnlZJ3ryp+Xw6CULM/YARcx7jRrAdUwozg0FZUYEmYcNX1Z6NaAl8AAdzIyCUFd
+         7gXhnvEAireCYDJoAR8jctKUsFMb1d2n9NVfd2dwqovFxD7ttok9Yr4LqvdztE0zR+s9
+         vDjMMNM4/Hz2G9Xi4Phi1mVnfDmn60InKGkMpl0qlsppApXG7dwrah2B5drrJ8dfZKFs
+         y+Dw==
+X-Gm-Message-State: APjAAAXT9P9JvjIAtcT5OPZEFzMyhfTtD10mmYA5uKfM0OW1dY6Kbwse
+	X6mYm0c4TCr0+Yqp7/308Xp4CP/b+8ubsRZnlXrZ3LqvLpkA0PmKIKQIrlsYhhNWhh9zq1BYhbA
+	IpEEa6hacUApRHAYXNbFkOhyJPAaeNJ2mmqWCTlFoQtpzSu7oYTyD00P3Zt2Q9J3Txg==
+X-Received: by 2002:aa7:9dcd:: with SMTP id g13mr24795782pfq.204.1565395796923;
+        Fri, 09 Aug 2019 17:09:56 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqw9NnAh2xE+3KoJV6h60TzWUX8eqBrjDwUD1CRRd2q3L/r8deWd8Ee1TqYPj5Ui+C7CrOjr
+X-Received: by 2002:aa7:9dcd:: with SMTP id g13mr24795715pfq.204.1565395796069;
+        Fri, 09 Aug 2019 17:09:56 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565395796; cv=none;
         d=google.com; s=arc-20160816;
-        b=vdrEKulombKGMWuH611z0FlxWufNOKHOKSp69rKa+3zx8qQvHAMusADkOpkb7tYCVV
-         n6hRe+2sOJ8ZDVsMrKyO/5/RrnIDDmr34zITFuhGgTPf8r2KEJ8A7Lh8IrkQ9w/3Wflc
-         p97JWuE5c/tMQeLtRBi93nskQRc9sqcTH5+tUU0Sy7oOmE6hVLS1xDbqiRJ1X4TO2/Hf
-         qJgEgtbduCLhCAu8fZxVaoEhDsq/QMppAlB0CGtpSp4s72Vz6kDov96csIMKVQ2207ng
-         myQYM1YvGiK2OXdSD1x7bQRipIfwbOLXqzMbuGBYqSegGR95Db5cRETkxW62jO55HJhd
-         f5zw==
+        b=Ug2eAJmlBgZU09ADHlPz1F8I0Oqe04D5EUtxFJjUvDYuhbIJ2FvfpnPiypqENytOkv
+         NRFoTkoZygHiCk6cjHaEG+ZoEkOKZ+YBM3UBvpGDhOI9/l4Cxk9Wxi7gNbHge3UgYzDv
+         uNtQ/YwQ5m6bxM3/AGzl+ldcPRS1gJB5jg6lxxAsGjzAh7Rwm/aDekenVxPKLvxwaMgo
+         BvZBvY5ZfvuVwIhunQJt+vhnC4dccYTmoDfkk3+TeGj/6EwsS/aMoOGx+esagMx2TAKc
+         IBXrc+ooTI+IHQ4os0SGWkKeu/tszJiMpp4CsC4PkskEzgJ97+lCPNvjfZTzAXTTbYLB
+         zO+g==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
         h=dkim-signature:content-transfer-encoding:content-language
          :in-reply-to:mime-version:user-agent:date:message-id:from:references
          :cc:to:subject;
-        bh=Cy1zdJSEqwoFmqaSThScUQztNmSg0xcFlEeyeXrzPSw=;
-        b=WuZ85NNo/hv2/SCjrFQ4lPXxj8F4TpHgWopr3VchDWNHHK4O0NQSfVE+dH9rhnZLlX
-         W36SfvEz38MEoINQKul23lQDmdDKxu/t835nr7h9KqwEafi3svmfrjpsadQAg/S6arGn
-         0d+9RCUsSXh3iwotvjIHa+7ARhnnD9zKg8kAJFPFn0DAMtq7oQruzSZqCLvKFx6j/iuc
-         dS2PoDydiq5RkYVaheFzNv2TFojRje22a0K4zMm96NrndA/TnpQVSsLkSsz8n34+aJuO
-         p5OcQiMZuRTpvWp3BfKltdzT7nW+M/zcRVPO+r8e8f9LeTN1eex41s/gHBevv4nujVrm
-         5AUw==
+        bh=6gNuzZAjPm1drI86ijnE4uQ1M9Dnne0kRHnh1Jmmh9I=;
+        b=hL+Q9sbhW7E0Ik3WGlh/RomgjoOnYvMQbVZ4KZjhHr+OlNTEMJhSiVaJ1QeBD2SCQP
+         ceZCPcBN1XCxrhSFJbeG8t6rI5G/ju6KX++C6RGG+sRRkEBrsKEaPVBV7Fh8I82Sq1wt
+         tYOj4RPWCW/9FwFTW6mLqkAPhD97VTOEFcwfrZsBE16+NlZhXfoOtXi8unTHNRfuLL5d
+         p3Ddp/IpHyIwUwBtg0lhA1s6BAVTx7yNXImc6XGbyZodmnOTshBqB8eXkaY9gQRfT7JX
+         0stMkInY5Jt3PtnCOrgn80njIbWiVOEs6h9JugjwQp1X2NWarsjGkWZeTyafZ47AR9B2
+         0ogQ==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=P4Y3ZDhi;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=bpL5Ee4v;
        spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
 Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com. [216.228.121.64])
-        by mx.google.com with ESMTPS id n9si54518415pgq.240.2019.08.09.17.06.58
+        by mx.google.com with ESMTPS id s66si60386042pfs.120.2019.08.09.17.09.55
         for <linux-mm@kvack.org>
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Fri, 09 Aug 2019 17:06:58 -0700 (PDT)
+        Fri, 09 Aug 2019 17:09:56 -0700 (PDT)
 Received-SPF: pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) client-ip=216.228.121.64;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@nvidia.com header.s=n1 header.b=P4Y3ZDhi;
+       dkim=pass header.i=@nvidia.com header.s=n1 header.b=bpL5Ee4v;
        spf=pass (google.com: domain of jhubbard@nvidia.com designates 216.228.121.64 as permitted sender) smtp.mailfrom=jhubbard@nvidia.com;
        dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=nvidia.com
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d4e0aac0000>; Fri, 09 Aug 2019 17:07:08 -0700
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d4e0b5d0000>; Fri, 09 Aug 2019 17:10:06 -0700
 Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Fri, 09 Aug 2019 17:06:57 -0700
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Fri, 09 Aug 2019 17:09:55 -0700
 X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Fri, 09 Aug 2019 17:06:57 -0700
+	by hqpgpgate101.nvidia.com on Fri, 09 Aug 2019 17:09:55 -0700
 Received: from [10.110.48.28] (172.20.13.39) by HQMAIL107.nvidia.com
  (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Sat, 10 Aug
- 2019 00:06:57 +0000
-Subject: Re: [RFC PATCH v2 10/19] mm/gup: Pass a NULL vaddr_pin through GUP
- fast
+ 2019 00:09:55 +0000
+Subject: Re: [RFC PATCH v2 15/19] mm/gup: Introduce vaddr_pin_pages()
 To: <ira.weiny@intel.com>, Andrew Morton <akpm@linux-foundation.org>
 CC: Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>,
 	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>, Theodore Ts'o
@@ -104,15 +103,15 @@ CC: Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>,
 	<linux-fsdevel@vger.kernel.org>, <linux-nvdimm@lists.01.org>,
 	<linux-ext4@vger.kernel.org>, <linux-mm@kvack.org>
 References: <20190809225833.6657-1-ira.weiny@intel.com>
- <20190809225833.6657-11-ira.weiny@intel.com>
-From: John Hubbard <jhubbard@nvidia.com>
+ <20190809225833.6657-16-ira.weiny@intel.com>
 X-Nvconfidentiality: public
-Message-ID: <8b3cdb1b-863c-b904-edb5-0f7b35038fdf@nvidia.com>
-Date: Fri, 9 Aug 2019 17:06:57 -0700
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <6ed26a08-4371-9dc1-09eb-7b8a4689d93b@nvidia.com>
+Date: Fri, 9 Aug 2019 17:09:54 -0700
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190809225833.6657-11-ira.weiny@intel.com>
+In-Reply-To: <20190809225833.6657-16-ira.weiny@intel.com>
 X-Originating-IP: [172.20.13.39]
 X-ClientProxiedBy: HQMAIL107.nvidia.com (172.20.187.13) To
  HQMAIL107.nvidia.com (172.20.187.13)
@@ -120,17 +119,17 @@ Content-Type: text/plain; charset="utf-8"
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1565395628; bh=Cy1zdJSEqwoFmqaSThScUQztNmSg0xcFlEeyeXrzPSw=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
+	t=1565395806; bh=6gNuzZAjPm1drI86ijnE4uQ1M9Dnne0kRHnh1Jmmh9I=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
 	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
 	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
 	 Content-Transfer-Encoding;
-	b=P4Y3ZDhiJjHcGxAywNBs2eKVTUoFGEhA9Arh8zru3uY0gREK0eEPAv5G+sn4KFS5I
-	 mq+G1pPBSkaaqKg9Ar8MmvUf3ktvgBeuCIfqC22uKLN8NkyYskKoB7LkrEpTdtj9ie
-	 QW3k6GODwUpZOzs9K65RDKHhyCsAnLzpTxaZyt5LYqqSmAMQm2DsOnocxdOMCEuufm
-	 S92A5gwM4CMdk4mFIVatj9lQwRjz4T12twW3kHBW48zM3oCWwf6LfFd7QAmW3pGQl0
-	 nEEOUt1PZzygXDpyX66jzHDn7obVo7Fth1CDX+KbpJgLIc8nEgjU0kKSMiA5f8usAK
-	 e12cg3hpYVjag==
+	b=bpL5Ee4vSwNJx48EaIgEa1vW54C9BYxOuHJZXR2g0DimV8Jbzh9FRHk15PHeXZMt7
+	 3/XIvkM/NZxoMCLKXrSswHltiMKCAoppMwLtn2BNcmUd0Lw2sUJvyJyIaxd/yXSjd3
+	 LaYgfDzJsY3KevnitA9y+5kH//XcswK9sOikrJXKW9xfdNJxmtenjCD/AWehvcHIik
+	 y5CZMfyYhk4QKlqgr+QjwyqQWwWhf7J8xk1xm0vY75awN4I9ewl+//BoHKekZfNLOK
+	 ZxUnp+fBKdqhMrKGLYc8mXDRC+MO6XRKOuvv/2u6Q8pmbWfnTuoDHXlQnv60eq+LZw
+	 O5Ypby3VqT9Wg==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -140,261 +139,143 @@ List-ID: <linux-mm.kvack.org>
 On 8/9/19 3:58 PM, ira.weiny@intel.com wrote:
 > From: Ira Weiny <ira.weiny@intel.com>
 > 
-> Internally GUP fast needs to know that fast users will not support file
-> pins.  Pass NULL for vaddr_pin through the fast call stack so that the
-> pin code can return an error if it encounters file backed memory within
-> the address range.
+> The addition of FOLL_LONGTERM has taken on additional meaning for CMA
+> pages.
+> 
+> In addition subsystems such as RDMA require new information to be passed
+> to the GUP interface to track file owning information.  As such a simple
+> FOLL_LONGTERM flag is no longer sufficient for these users to pin pages.
+> 
+> Introduce a new GUP like call which takes the newly introduced vaddr_pin
+> information.  Failure to pass the vaddr_pin object back to a vaddr_put*
+> call will result in a failure if pins were created on files during the
+> pin operation.
+> 
+> Signed-off-by: Ira Weiny <ira.weiny@intel.com>
+> 
+> ---
+> Changes from list:
+> 	Change to vaddr_put_pages_dirty_lock
+> 	Change to vaddr_unpin_pages_dirty_lock
+> 
+>  include/linux/mm.h |  5 ++++
+>  mm/gup.c           | 59 ++++++++++++++++++++++++++++++++++++++++++++++
+>  2 files changed, 64 insertions(+)
+> 
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 657c947bda49..90c5802866df 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1603,6 +1603,11 @@ int account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc);
+>  int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
+>  			struct task_struct *task, bool bypass_rlim);
+>  
+> +long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
+> +		     unsigned int gup_flags, struct page **pages,
+> +		     struct vaddr_pin *vaddr_pin);
+> +void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
+> +				  struct vaddr_pin *vaddr_pin, bool make_dirty);
+
+Hi Ira,
+
+OK, the API seems fine to me, anyway. :)
+
+A bit more below...
+
+>  bool mapping_inode_has_layout(struct vaddr_pin *vaddr_pin, struct page *page);
+>  
+>  /* Container for pinned pfns / pages */
+> diff --git a/mm/gup.c b/mm/gup.c
+> index eeaa0ddd08a6..6d23f70d7847 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -2536,3 +2536,62 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
+>  	return ret;
+>  }
+>  EXPORT_SYMBOL_GPL(get_user_pages_fast);
+> +
+> +/**
+> + * vaddr_pin_pages pin pages by virtual address and return the pages to the
+> + * user.
+> + *
+> + * @addr, start address
+
+What's with the commas? I thought kernel-doc wants colons, like this, right?
+
+@addr: start address
+
+
+> + * @nr_pages, number of pages to pin
+> + * @gup_flags, flags to use for the pin
+> + * @pages, array of pages returned
+> + * @vaddr_pin, initalized meta information this pin is to be associated
+> + * with.
+> + *
+> + * NOTE regarding vaddr_pin:
+> + *
+> + * Some callers can share pins via file descriptors to other processes.
+> + * Callers such as this should use the f_owner field of vaddr_pin to indicate
+> + * the file the fd points to.  All other callers should use the mm this pin is
+> + * being made against.  Usually "current->mm".
+> + *
+> + * Expects mmap_sem to be read locked.
+> + */
+> +long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
+> +		     unsigned int gup_flags, struct page **pages,
+> +		     struct vaddr_pin *vaddr_pin)
+> +{
+> +	long ret;
+> +
+> +	gup_flags |= FOLL_LONGTERM;
+
+
+Is now the right time to introduce and use FOLL_PIN? If not, then I can always
+add it on top of this later, as part of gup-tracking patches. But you did point
+out that FOLL_LONGTERM is taking on additional meaning, and so maybe it's better
+to split that meaning up right from the start.
+
+
+> +
+> +	if (!vaddr_pin || (!vaddr_pin->mm && !vaddr_pin->f_owner))
+> +		return -EINVAL;
+> +
+> +	ret = __gup_longterm_locked(current,
+> +				    vaddr_pin->mm,
+> +				    addr, nr_pages,
+> +				    pages, NULL, gup_flags,
+> +				    vaddr_pin);
+> +	return ret;
+> +}
+> +EXPORT_SYMBOL(vaddr_pin_pages);
+> +
+> +/**
+> + * vaddr_unpin_pages_dirty_lock - counterpart to vaddr_pin_pages
+> + *
+> + * @pages, array of pages returned
+> + * @nr_pages, number of pages in pages
+> + * @vaddr_pin, same information passed to vaddr_pin_pages
+> + * @make_dirty: whether to mark the pages dirty
+> + *
+> + * The semantics are similar to put_user_pages_dirty_lock but a vaddr_pin used
+> + * in vaddr_pin_pages should be passed back into this call for propper
+
+Typo:
+                                                                  proper
+
+> + * tracking.
+> + */
+> +void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
+> +				  struct vaddr_pin *vaddr_pin, bool make_dirty)
+> +{
+> +	__put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, make_dirty);
+> +}
+> +EXPORT_SYMBOL(vaddr_unpin_pages_dirty_lock);
 > 
 
-Reviewed-by: John Hubbard <jhubbard@nvidia.com>
+OK, whew, I'm glad to see the updated _dirty_lock() API used here. :)
 
 thanks,
 -- 
 John Hubbard
 NVIDIA
-
-> Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-> ---
->  mm/gup.c | 65 ++++++++++++++++++++++++++++++++++----------------------
->  1 file changed, 40 insertions(+), 25 deletions(-)
-> 
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 7a449500f0a6..504af3e9a942 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -1813,7 +1813,8 @@ static inline struct page *try_get_compound_head(struct page *page, int refs)
->  
->  #ifdef CONFIG_ARCH_HAS_PTE_SPECIAL
->  static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
-> -			 unsigned int flags, struct page **pages, int *nr)
-> +			 unsigned int flags, struct page **pages, int *nr,
-> +			 struct vaddr_pin *vaddr_pin)
->  {
->  	struct dev_pagemap *pgmap = NULL;
->  	int nr_start = *nr, ret = 0;
-> @@ -1894,7 +1895,8 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
->   * useful to have gup_huge_pmd even if we can't operate on ptes.
->   */
->  static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
-> -			 unsigned int flags, struct page **pages, int *nr)
-> +			 unsigned int flags, struct page **pages, int *nr,
-> +			 struct vaddr_pin *vaddr_pin)
->  {
->  	return 0;
->  }
-> @@ -1903,7 +1905,7 @@ static int gup_pte_range(pmd_t pmd, unsigned long addr, unsigned long end,
->  #if defined(CONFIG_ARCH_HAS_PTE_DEVMAP) && defined(CONFIG_TRANSPARENT_HUGEPAGE)
->  static int __gup_device_huge(unsigned long pfn, unsigned long addr,
->  		unsigned long end, struct page **pages, int *nr,
-> -		unsigned int flags)
-> +		unsigned int flags, struct vaddr_pin *vaddr_pin)
->  {
->  	int nr_start = *nr;
->  	struct dev_pagemap *pgmap = NULL;
-> @@ -1938,13 +1940,14 @@ static int __gup_device_huge(unsigned long pfn, unsigned long addr,
->  
->  static int __gup_device_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
->  		unsigned long end, struct page **pages, int *nr,
-> -		unsigned int flags)
-> +		unsigned int flags, struct vaddr_pin *vaddr_pin)
->  {
->  	unsigned long fault_pfn;
->  	int nr_start = *nr;
->  
->  	fault_pfn = pmd_pfn(orig) + ((addr & ~PMD_MASK) >> PAGE_SHIFT);
-> -	if (!__gup_device_huge(fault_pfn, addr, end, pages, nr, flags))
-> +	if (!__gup_device_huge(fault_pfn, addr, end, pages, nr, flags,
-> +			       vaddr_pin))
->  		return 0;
->  
->  	if (unlikely(pmd_val(orig) != pmd_val(*pmdp))) {
-> @@ -1957,13 +1960,14 @@ static int __gup_device_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
->  
->  static int __gup_device_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
->  		unsigned long end, struct page **pages, int *nr,
-> -		unsigned int flags)
-> +		unsigned int flags, struct vaddr_pin *vaddr_pin)
->  {
->  	unsigned long fault_pfn;
->  	int nr_start = *nr;
->  
->  	fault_pfn = pud_pfn(orig) + ((addr & ~PUD_MASK) >> PAGE_SHIFT);
-> -	if (!__gup_device_huge(fault_pfn, addr, end, pages, nr, flags))
-> +	if (!__gup_device_huge(fault_pfn, addr, end, pages, nr, flags,
-> +			       vaddr_pin))
->  		return 0;
->  
->  	if (unlikely(pud_val(orig) != pud_val(*pudp))) {
-> @@ -1975,7 +1979,7 @@ static int __gup_device_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
->  #else
->  static int __gup_device_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
->  		unsigned long end, struct page **pages, int *nr,
-> -		unsigned int flags)
-> +		unsigned int flags, struct vaddr_pin *vaddr_pin)
->  {
->  	BUILD_BUG();
->  	return 0;
-> @@ -1983,7 +1987,7 @@ static int __gup_device_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
->  
->  static int __gup_device_huge_pud(pud_t pud, pud_t *pudp, unsigned long addr,
->  		unsigned long end, struct page **pages, int *nr,
-> -		unsigned int flags)
-> +		unsigned int flags, struct vaddr_pin *vaddr_pin)
->  {
->  	BUILD_BUG();
->  	return 0;
-> @@ -2075,7 +2079,8 @@ static inline int gup_huge_pd(hugepd_t hugepd, unsigned long addr,
->  #endif /* CONFIG_ARCH_HAS_HUGEPD */
->  
->  static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
-> -		unsigned long end, unsigned int flags, struct page **pages, int *nr)
-> +		unsigned long end, unsigned int flags, struct page **pages,
-> +		int *nr, struct vaddr_pin *vaddr_pin)
->  {
->  	struct page *head, *page;
->  	int refs;
-> @@ -2087,7 +2092,7 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
->  		if (unlikely(flags & FOLL_LONGTERM))
->  			return 0;
->  		return __gup_device_huge_pmd(orig, pmdp, addr, end, pages, nr,
-> -					     flags);
-> +					     flags, vaddr_pin);
->  	}
->  
->  	refs = 0;
-> @@ -2117,7 +2122,8 @@ static int gup_huge_pmd(pmd_t orig, pmd_t *pmdp, unsigned long addr,
->  }
->  
->  static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
-> -		unsigned long end, unsigned int flags, struct page **pages, int *nr)
-> +		unsigned long end, unsigned int flags, struct page **pages, int *nr,
-> +		struct vaddr_pin *vaddr_pin)
->  {
->  	struct page *head, *page;
->  	int refs;
-> @@ -2129,7 +2135,7 @@ static int gup_huge_pud(pud_t orig, pud_t *pudp, unsigned long addr,
->  		if (unlikely(flags & FOLL_LONGTERM))
->  			return 0;
->  		return __gup_device_huge_pud(orig, pudp, addr, end, pages, nr,
-> -					     flags);
-> +					     flags, vaddr_pin);
->  	}
->  
->  	refs = 0;
-> @@ -2196,7 +2202,8 @@ static int gup_huge_pgd(pgd_t orig, pgd_t *pgdp, unsigned long addr,
->  }
->  
->  static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
-> -		unsigned int flags, struct page **pages, int *nr)
-> +		unsigned int flags, struct page **pages, int *nr,
-> +		struct vaddr_pin *vaddr_pin)
->  {
->  	unsigned long next;
->  	pmd_t *pmdp;
-> @@ -2220,7 +2227,7 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
->  				return 0;
->  
->  			if (!gup_huge_pmd(pmd, pmdp, addr, next, flags,
-> -				pages, nr))
-> +				pages, nr, vaddr_pin))
->  				return 0;
->  
->  		} else if (unlikely(is_hugepd(__hugepd(pmd_val(pmd))))) {
-> @@ -2231,7 +2238,8 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
->  			if (!gup_huge_pd(__hugepd(pmd_val(pmd)), addr,
->  					 PMD_SHIFT, next, flags, pages, nr))
->  				return 0;
-> -		} else if (!gup_pte_range(pmd, addr, next, flags, pages, nr))
-> +		} else if (!gup_pte_range(pmd, addr, next, flags, pages, nr,
-> +					  vaddr_pin))
->  			return 0;
->  	} while (pmdp++, addr = next, addr != end);
->  
-> @@ -2239,7 +2247,8 @@ static int gup_pmd_range(pud_t pud, unsigned long addr, unsigned long end,
->  }
->  
->  static int gup_pud_range(p4d_t p4d, unsigned long addr, unsigned long end,
-> -			 unsigned int flags, struct page **pages, int *nr)
-> +			 unsigned int flags, struct page **pages, int *nr,
-> +			 struct vaddr_pin *vaddr_pin)
->  {
->  	unsigned long next;
->  	pud_t *pudp;
-> @@ -2253,13 +2262,14 @@ static int gup_pud_range(p4d_t p4d, unsigned long addr, unsigned long end,
->  			return 0;
->  		if (unlikely(pud_huge(pud))) {
->  			if (!gup_huge_pud(pud, pudp, addr, next, flags,
-> -					  pages, nr))
-> +					  pages, nr, vaddr_pin))
->  				return 0;
->  		} else if (unlikely(is_hugepd(__hugepd(pud_val(pud))))) {
->  			if (!gup_huge_pd(__hugepd(pud_val(pud)), addr,
->  					 PUD_SHIFT, next, flags, pages, nr))
->  				return 0;
-> -		} else if (!gup_pmd_range(pud, addr, next, flags, pages, nr))
-> +		} else if (!gup_pmd_range(pud, addr, next, flags, pages, nr,
-> +					  vaddr_pin))
->  			return 0;
->  	} while (pudp++, addr = next, addr != end);
->  
-> @@ -2267,7 +2277,8 @@ static int gup_pud_range(p4d_t p4d, unsigned long addr, unsigned long end,
->  }
->  
->  static int gup_p4d_range(pgd_t pgd, unsigned long addr, unsigned long end,
-> -			 unsigned int flags, struct page **pages, int *nr)
-> +			 unsigned int flags, struct page **pages, int *nr,
-> +			 struct vaddr_pin *vaddr_pin)
->  {
->  	unsigned long next;
->  	p4d_t *p4dp;
-> @@ -2284,7 +2295,8 @@ static int gup_p4d_range(pgd_t pgd, unsigned long addr, unsigned long end,
->  			if (!gup_huge_pd(__hugepd(p4d_val(p4d)), addr,
->  					 P4D_SHIFT, next, flags, pages, nr))
->  				return 0;
-> -		} else if (!gup_pud_range(p4d, addr, next, flags, pages, nr))
-> +		} else if (!gup_pud_range(p4d, addr, next, flags, pages, nr,
-> +					  vaddr_pin))
->  			return 0;
->  	} while (p4dp++, addr = next, addr != end);
->  
-> @@ -2292,7 +2304,8 @@ static int gup_p4d_range(pgd_t pgd, unsigned long addr, unsigned long end,
->  }
->  
->  static void gup_pgd_range(unsigned long addr, unsigned long end,
-> -		unsigned int flags, struct page **pages, int *nr)
-> +		unsigned int flags, struct page **pages, int *nr,
-> +		struct vaddr_pin *vaddr_pin)
->  {
->  	unsigned long next;
->  	pgd_t *pgdp;
-> @@ -2312,7 +2325,8 @@ static void gup_pgd_range(unsigned long addr, unsigned long end,
->  			if (!gup_huge_pd(__hugepd(pgd_val(pgd)), addr,
->  					 PGDIR_SHIFT, next, flags, pages, nr))
->  				return;
-> -		} else if (!gup_p4d_range(pgd, addr, next, flags, pages, nr))
-> +		} else if (!gup_p4d_range(pgd, addr, next, flags, pages, nr,
-> +					  vaddr_pin))
->  			return;
->  	} while (pgdp++, addr = next, addr != end);
->  }
-> @@ -2374,7 +2388,8 @@ int __get_user_pages_fast(unsigned long start, int nr_pages, int write,
->  	if (IS_ENABLED(CONFIG_HAVE_FAST_GUP) &&
->  	    gup_fast_permitted(start, end)) {
->  		local_irq_save(flags);
-> -		gup_pgd_range(start, end, write ? FOLL_WRITE : 0, pages, &nr);
-> +		gup_pgd_range(start, end, write ? FOLL_WRITE : 0, pages, &nr,
-> +			      NULL);
->  		local_irq_restore(flags);
->  	}
->  
-> @@ -2445,7 +2460,7 @@ int get_user_pages_fast(unsigned long start, int nr_pages,
->  	if (IS_ENABLED(CONFIG_HAVE_FAST_GUP) &&
->  	    gup_fast_permitted(start, end)) {
->  		local_irq_disable();
-> -		gup_pgd_range(addr, end, gup_flags, pages, &nr);
-> +		gup_pgd_range(addr, end, gup_flags, pages, &nr, NULL);
->  		local_irq_enable();
->  		ret = nr;
->  	}
-> 
 
