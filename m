@@ -2,180 +2,1085 @@ Return-Path: <SRS0=GuKW=WG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.4 required=3.0 tests=FROM_LOCAL_HEX,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CB64CC32756
-	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 12:34:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DBA93C433FF
+	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 13:58:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 69BDD21743
-	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 12:34:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 69BDD21743
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=redhazel.co.uk
+	by mail.kernel.org (Postfix) with ESMTP id 38BDC218A2
+	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 13:58:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 38BDC218A2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D96BB6B0005; Sat, 10 Aug 2019 08:34:09 -0400 (EDT)
+	id 9ACC56B0007; Sat, 10 Aug 2019 09:58:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D46AE6B0006; Sat, 10 Aug 2019 08:34:09 -0400 (EDT)
+	id 95D256B0008; Sat, 10 Aug 2019 09:58:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C10966B0007; Sat, 10 Aug 2019 08:34:09 -0400 (EDT)
+	id 824A36B000A; Sat, 10 Aug 2019 09:58:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ed1-f69.google.com (mail-ed1-f69.google.com [209.85.208.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 752906B0005
-	for <linux-mm@kvack.org>; Sat, 10 Aug 2019 08:34:09 -0400 (EDT)
-Received: by mail-ed1-f69.google.com with SMTP id f3so61774907edx.10
-        for <linux-mm@kvack.org>; Sat, 10 Aug 2019 05:34:09 -0700 (PDT)
+Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 3E5626B0007
+	for <linux-mm@kvack.org>; Sat, 10 Aug 2019 09:58:09 -0400 (EDT)
+Received: by mail-ot1-f70.google.com with SMTP id l7so75019375otj.16
+        for <linux-mm@kvack.org>; Sat, 10 Aug 2019 06:58:09 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-original-authentication-results:x-gm-message-state:subject:to:cc
-         :references:from:message-id:date:user-agent:mime-version:in-reply-to
-         :content-transfer-encoding:content-language;
-        bh=dQxLGgdX1gN7CDmeSmzhpSVESsW4Ramh6sEzCpgFrHM=;
-        b=fxBtAWDYmoWJQzQoKs9fIVe2NY72omR9E3c+iq1PYMgBdm7/xXboXNzDB7ya27TNOW
-         WMymwKGcQPrsl6MXdAS7MbTzOwuKrawiEBbCxArPr6Qml7fcqo5igMbC+9U5/OEnb68f
-         Ve8R1mUd9RNGwL37d18D9QE4ocsSTKQzU/w/wLwFGwlVej1Pn/R1SqCplBAzs9CLSlLX
-         9wiLzfUkhM5b3nHUBM5Fqg/mAuA2knd2Qw/GukhOAHI398l2sq+2mDqqq0xC9L4584tV
-         0B5tzAKuS5A4BmixxHPBYy42+qy2EG67qkoarLMtKryFRk5Yx4fqEXV6nc6gNUIhRNsd
-         FeeQ==
-X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of ndrw.xf@redhazel.co.uk designates 68.66.241.172 as permitted sender) smtp.mailfrom=ndrw.xf@redhazel.co.uk
-X-Gm-Message-State: APjAAAUB12sWN1UoZofdPi36MbbKOjEZr9Ex0T6eorBPTYKUD+QAJi9t
-	A62Yd5LjvGfq7T1GYE20n0IsnoDQRqvejuRTEegJOooH6C4GhaGxoZNAt6gDuet2vztZawnJX6x
-	FhrcDMbhxsA1fenjqjslGUUBo/67PpfatzGmXiS7HIu/S9kQWFflvNp2pStKXVcN4Cw==
-X-Received: by 2002:a17:906:2111:: with SMTP id 17mr22445642ejt.75.1565440448965;
-        Sat, 10 Aug 2019 05:34:08 -0700 (PDT)
-X-Google-Smtp-Source: APXvYqwLqp0MdrJq2XWzrc4T1y2uXApG5uTZb+HuTUJ3fsSADS8Yn7kPicCdyWsFuYqlEyytuIhF
-X-Received: by 2002:a17:906:2111:: with SMTP id 17mr22445581ejt.75.1565440447880;
-        Sat, 10 Aug 2019 05:34:07 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565440447; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:mime-version
+         :date:message-id:subject:from:to;
+        bh=uc3VNp+TewZPyZ3FkDnqWeSl30hYHGj/clkPLdXhPfY=;
+        b=SzDLnDaK/AUGET7xBM0HRBMq3cUlmHBUFdHbuz4HaxCXNVvVvd8cOgFBRB6fqHz7Yg
+         FXsOEF/bvuKDkVz7hkAhEThgum0He45hT8c7AegThfJ1w1MYWRG76bK0gzjWVusH+get
+         m5F7gNhNzNU36DJec8q9dR5nzIyL0r6sKHwiBjJ8sghTBfx+RDY3kxy8giTJBX38W6eJ
+         3KrMuriM9Fsrfub+7PJj+7mLEbJGFXIigpqJ7299mVjF5Q/S+C8IowUwegpMYoHS/qnd
+         aByZQm96AUnRppt8XEJWdRZHKxy9fvwZLAJZlDIi2c72z3tW6z4rY3MBdvDFqL1F40Bv
+         WD4A==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of 3bs1oxqkbadujpqbrccvirggzu.xffxcvljvitfekvek.tfd@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3bs1OXQkbADUjpqbRccViRggZU.XffXcVljViTfekVek.Tfd@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Gm-Message-State: APjAAAWIIp0jvd1MZs0+93Fa4z9SPCNMGSe/uIIbMt+TVDWjQzcsOcVi
+	ZYl/rIVJAsjPiF+xCyPhTJw7v01J1Oyl3rPpXURSMG5pTNqtzHJau5cpV++RSsTAcNrfY066RdA
+	tz6XGHuajmIxFfuBWIz/FEDUJNVBHJd/IO4FRrHDA3c8khohXrpA0RtTMyqD9Gh0=
+X-Received: by 2002:a6b:e511:: with SMTP id y17mr12435962ioc.228.1565445488835;
+        Sat, 10 Aug 2019 06:58:08 -0700 (PDT)
+X-Received: by 2002:a6b:e511:: with SMTP id y17mr12435815ioc.228.1565445486596;
+        Sat, 10 Aug 2019 06:58:06 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565445486; cv=none;
         d=google.com; s=arc-20160816;
-        b=MMpqYZAMeauiJE3qbWmBCreVhdlxVDQBv1ISmgUq+zxwOie+oaQmVzPWKp94zrYUTR
-         OnI3uLvoHD3i6rj91YRXg7sM6ytYHN6K4wZg1swVoJSsG+NDMArDhAoYBD5aBR3BangN
-         xXBwYzyjOoF7HCTJvi83BQUt0DCAXLLtw5lETk8BYHgo51D+20uPMsZ3+k+ndTLOc6CZ
-         0qwxAK/IdgkYikae8dVw0z7+zIYzC6qHWpl0ehArjQOih0Ycp4JHkWbtyQ68wT8FxTHC
-         C9uqL3IxN3Vk8uNFLpzsnRPxUeoW2RuBhe2eKPa5tC8qjexECweEuBvP05h6/V5Kl95c
-         5i8w==
+        b=pDZ6rUkXgh3qxw5m/tCh4ZfybQraJcIlfMZNrfRz8E+9FJPr9nNPWx+W1zI47zo4NE
+         IL22HwHznbaeoi/VBDcEZ+Uv9AkuXXiHTJMOmf0YSWYbetCxpKQUkf1zkq7PFOl4kA+V
+         Bzmv3navqkzB1NoTFhinSAVzYWkCB2p3YDQ5tY5WYUOMtenh3cYMKkizHNToAr//8KaG
+         eNT7Lko6dpc2LiANa7twDZBcWPMw0smnv2rPpaSyw6WYclgub6ZRbabC0NIXJdT6bp/7
+         DJa8ffgNaU37x4YJvtnYz7r2FGkTntEfc9b8qkJ+SpxxxdgRCUnztnE2kkJdKdp4tPjm
+         7iVA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=content-language:content-transfer-encoding:in-reply-to:mime-version
-         :user-agent:date:message-id:from:references:cc:to:subject;
-        bh=dQxLGgdX1gN7CDmeSmzhpSVESsW4Ramh6sEzCpgFrHM=;
-        b=yGaiSXOgF/asY+uDmni4vfxDtrcxh6j72b/kw0UiN2wNifZGk6VN+RMro80PaNnac0
-         YqxV/R2t6vGLHu9LIXyNdcjNFQAl57+0bZPP8hmYeoDi9uec9NL3cD4AZf2FSXCdBqFy
-         iM2WvzekgJyF0cX1PVYvjiF/Y+j710T07AZhVuebHB0ntIThhDknEgEyn4iOXnuTvwRw
-         nzMTFyZ0YZ3Ht6oJEeGpHsBKQRw7Bi2ZdBWw0QGyqywSdhyjO+aBHCDOrnZGoPWD3T+M
-         cnWBR0KbwYHUm3QU+PJmX8hK+HeZCKFRC2AZAxsyXbCTaJ1chNg1y9hjpskFI9DkJnSp
-         3iCA==
+        h=to:from:subject:message-id:date:mime-version;
+        bh=uc3VNp+TewZPyZ3FkDnqWeSl30hYHGj/clkPLdXhPfY=;
+        b=m/TUrc5RgOPYL2GPBde586HtG+32Cr5yqXMpOhl8BrsfndLOBibP0Ssey1ps7HYtoU
+         kgpiZwQujmDiGK3l7YvKlOmll0+uBurUn0Qva3nv/JJ00LEqt7h73fNumQE2taNGNWa7
+         lDG8mwtwvoyxiJ3dFKNK3pw3tTiRiHLLjxcLDKxiHDgtyBzK856pgCYkqLX/fhUfyvRo
+         VnZrGNMXGlwwj4o4I4goKNE3NInDXFADRnj5f/YJQ3+ANSRKISHkwqVOgpXIZ8OyzNz9
+         HJnILFTlpJtSglLfP8KcdzhF/2X1WX0CSP5/+i/EvdWpM8oaDuUOMWoDm6PmKi+GO5j9
+         IOBA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       spf=pass (google.com: domain of ndrw.xf@redhazel.co.uk designates 68.66.241.172 as permitted sender) smtp.mailfrom=ndrw.xf@redhazel.co.uk
-Received: from vps.redhazel.co.uk ([68.66.241.172])
-        by mx.google.com with ESMTPS id w26si793397eda.364.2019.08.10.05.34.07
+       spf=pass (google.com: domain of 3bs1oxqkbadujpqbrccvirggzu.xffxcvljvitfekvek.tfd@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3bs1OXQkbADUjpqbRccViRggZU.XffXcVljViTfekVek.Tfd@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+Received: from mail-sor-f69.google.com (mail-sor-f69.google.com. [209.85.220.69])
+        by mx.google.com with SMTPS id g184sor7438146iof.120.2019.08.10.06.58.06
         for <linux-mm@kvack.org>
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sat, 10 Aug 2019 05:34:07 -0700 (PDT)
-Received-SPF: pass (google.com: domain of ndrw.xf@redhazel.co.uk designates 68.66.241.172 as permitted sender) client-ip=68.66.241.172;
+        (Google Transport Security);
+        Sat, 10 Aug 2019 06:58:06 -0700 (PDT)
+Received-SPF: pass (google.com: domain of 3bs1oxqkbadujpqbrccvirggzu.xffxcvljvitfekvek.tfd@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) client-ip=209.85.220.69;
 Authentication-Results: mx.google.com;
-       spf=pass (google.com: domain of ndrw.xf@redhazel.co.uk designates 68.66.241.172 as permitted sender) smtp.mailfrom=ndrw.xf@redhazel.co.uk
-Received: from [192.168.1.66] (unknown [212.159.68.143])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES128-GCM-SHA256 (128/128 bits))
-	(No client certificate requested)
-	by vps.redhazel.co.uk (Postfix) with ESMTPSA id 063771C000AA;
-	Sat, 10 Aug 2019 13:34:07 +0100 (BST)
-Subject: Re: Let's talk about the elephant in the room - the Linux kernel's
- inability to gracefully handle low memory pressure
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Johannes Weiner <hannes@cmpxchg.org>,
- Suren Baghdasaryan <surenb@google.com>, Vlastimil Babka <vbabka@suse.cz>,
- "Artem S. Tashkinov" <aros@gmx.com>,
- Andrew Morton <akpm@linux-foundation.org>,
- LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>
-References: <20190807075927.GO11812@dhcp22.suse.cz>
- <20190807205138.GA24222@cmpxchg.org> <20190808114826.GC18351@dhcp22.suse.cz>
- <806F5696-A8D6-481D-A82F-49DEC1F2B035@redhazel.co.uk>
- <20190808163228.GE18351@dhcp22.suse.cz>
- <5FBB0A26-0CFE-4B88-A4F2-6A42E3377EDB@redhazel.co.uk>
- <20190808185925.GH18351@dhcp22.suse.cz>
- <08e5d007-a41a-e322-5631-b89978b9cc20@redhazel.co.uk>
- <20190809085748.GN18351@dhcp22.suse.cz>
- <cdb392ee-e192-c136-41cb-48d9e4e4bf47@redhazel.co.uk>
- <20190809105016.GP18351@dhcp22.suse.cz>
-From: ndrw <ndrw.xf@redhazel.co.uk>
-Message-ID: <33407eca-3c05-5900-0353-761db62feeea@redhazel.co.uk>
-Date: Sat, 10 Aug 2019 13:34:06 +0100
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+       spf=pass (google.com: domain of 3bs1oxqkbadujpqbrccvirggzu.xffxcvljvitfekvek.tfd@m3kw2wvrgufz5godrsrytgd7.apphosting.bounces.google.com designates 209.85.220.69 as permitted sender) smtp.mailfrom=3bs1OXQkbADUjpqbRccViRggZU.XffXcVljViTfekVek.Tfd@M3KW2WVRGUFZ5GODRSRYTGD7.apphosting.bounces.google.com;
+       dmarc=fail (p=NONE sp=NONE dis=NONE) header.from=appspotmail.com
+X-Google-Smtp-Source: APXvYqyGCl4kLh2+OaYOuFKclw2UGl4pIYQBsbqEh0+Y9y58s40+a6DTfdIyqtv7lJMA+V6l7OTbmZ5eLRe78gLsQzExM3k/RQdf
 MIME-Version: 1.0
-In-Reply-To: <20190809105016.GP18351@dhcp22.suse.cz>
-Content-Type: text/plain; charset=utf-8; format=flowed
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
+X-Received: by 2002:a6b:3bc9:: with SMTP id i192mr14555228ioa.33.1565445486039;
+ Sat, 10 Aug 2019 06:58:06 -0700 (PDT)
+Date: Sat, 10 Aug 2019 06:58:06 -0700
+X-Google-Appengine-App-Id: s~syzkaller
+X-Google-Appengine-App-Id-Alias: syzkaller
+Message-ID: <0000000000001c9515058fc3ae44@google.com>
+Subject: memory leak in blkdev_direct_IO
+From: syzbot <syzbot+c6eabdef44048c808a74@syzkaller.appspotmail.com>
+To: akpm@linux-foundation.org, baijiaju1990@gmail.com, 
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, 
+	rientjes@google.com, rppt@linux.ibm.com, syzkaller-bugs@googlegroups.com
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 09/08/2019 11:50, Michal Hocko wrote:
-> We try to protect low amount of cache. Have a look at get_scan_count
-> function. But the exact amount of the cache to be protected is really
-> hard to know wihtout a crystal ball or understanding of the workload.
-> The kernel doesn't have neither of the two.
+Hello,
 
-Thank you. I'm familiarizing myself with the code. Is there anyone I 
-could discuss some details with? I don't want to create too much noise here.
+syzbot found the following crash on:
 
-For example, are file pages created by mmaping files and are anon page 
-exclusively allocated on heap (RW data)? If so, where do "streaming IO" 
-pages belong to?
+HEAD commit:    0eb0ce0a Merge tag 'spi-fix-v5.3-rc3' of git://git.kernel...
+git tree:       upstream
+console output: https://syzkaller.appspot.com/x/log.txt?x=10cc073a600000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=39113f5c48aea971
+dashboard link: https://syzkaller.appspot.com/bug?extid=c6eabdef44048c808a74
+compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=14561df6600000
+C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=14ee029a600000
 
-> We have been thinking about this problem for a long time and couldn't
-> come up with anything much better than we have now. PSI is the most recent
-> improvement in that area. If you have better ideas then patches are
-> always welcome.
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+c6eabdef44048c808a74@syzkaller.appspotmail.com
 
-In general, I found there are very few user accessible knobs for 
-adjusting caching, especially in the pre-OOM phase. On the other hand, 
-swapping, dirty page caching, have many options or can even be disabled 
-completely.
+BUG: memory leak
+unreferenced object 0xffff888110e63300 (size 256):
+   comm "syz-executor817", pid 7066, jiffies 4294944591 (age 29.380s)
+   hex dump (first 32 bytes):
+     80 77 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .wM.............
+     02 00 00 00 1b 51 49 ad 00 00 00 00 00 00 00 00  .....QI.........
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
-For example, I would like to try disabling/limiting eviction of some/all 
-file pages (for example exec pages) akin to disabling swapping, but 
-there is no such mechanism. Yes, there would likely be problems with 
-large RO mmapped files that would need to be addressed, but in many 
-applications users would be interested in having such options.
+BUG: memory leak
+unreferenced object 0xffff888110c60f00 (size 256):
+   comm "syz-executor817", pid 7076, jiffies 4294944620 (age 29.090s)
+   hex dump (first 32 bytes):
+     40 7b 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  @{M.............
+     02 00 00 00 fb ff ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
-Adjusting how aggressive/conservative the system should be with the OOM 
-killer also falls into this category.
+BUG: memory leak
+unreferenced object 0xffff888111d24800 (size 256):
+   comm "syz-executor817", pid 7084, jiffies 4294944640 (age 28.900s)
+   hex dump (first 32 bytes):
+     c0 73 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .sM.............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
->> [OOM killer accuracy]
-> That is a completely orthogonal problem, I am afraid. So far we have
-> been discussing _when_ to trigger OOM killer. This is _who_ to kill. I
-> haven't heard any recent examples that the victim selection would be way
-> off and killing something obviously incorrect.
+BUG: memory leak
+unreferenced object 0xffff888110e63200 (size 256):
+   comm "syz-executor817", pid 7085, jiffies 4294944644 (age 28.860s)
+   hex dump (first 32 bytes):
+     80 4a 8c 10 81 88 ff ff 00 00 00 01 00 00 00 00  .J..............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
-You are right. I've assumed earlyoom is more accurate because of OOM 
-killer performing better on a system that isn't stalled yet (perhaps it 
-does). But actually, earlyoom doesn't trigger OOM killer at all:
+BUG: memory leak
+unreferenced object 0xffff888110e63300 (size 256):
+   comm "syz-executor817", pid 7066, jiffies 4294944591 (age 29.460s)
+   hex dump (first 32 bytes):
+     80 77 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .wM.............
+     02 00 00 00 1b 51 49 ad 00 00 00 00 00 00 00 00  .....QI.........
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
-https://github.com/rfjakob/earlyoom#why-not-trigger-the-kernel-oom-killer
+BUG: memory leak
+unreferenced object 0xffff888110c60f00 (size 256):
+   comm "syz-executor817", pid 7076, jiffies 4294944620 (age 29.170s)
+   hex dump (first 32 bytes):
+     40 7b 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  @{M.............
+     02 00 00 00 fb ff ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
-Apparently some applications (chrome and electron-based tools) set their 
-oom_score_adj incorrectly - this matches my observations of OOM killer 
-behavior:
+BUG: memory leak
+unreferenced object 0xffff888111d24800 (size 256):
+   comm "syz-executor817", pid 7084, jiffies 4294944640 (age 28.970s)
+   hex dump (first 32 bytes):
+     c0 73 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .sM.............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
-https://bugs.chromium.org/p/chromium/issues/detail?id=333617
+BUG: memory leak
+unreferenced object 0xffff888110e63200 (size 256):
+   comm "syz-executor817", pid 7085, jiffies 4294944644 (age 28.930s)
+   hex dump (first 32 bytes):
+     80 4a 8c 10 81 88 ff ff 00 00 00 01 00 00 00 00  .J..............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
-> Something that other people can play with to reproduce the issue would
-> be more than welcome.
+BUG: memory leak
+unreferenced object 0xffff888110e63300 (size 256):
+   comm "syz-executor817", pid 7066, jiffies 4294944591 (age 29.530s)
+   hex dump (first 32 bytes):
+     80 77 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .wM.............
+     02 00 00 00 1b 51 49 ad 00 00 00 00 00 00 00 00  .....QI.........
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
-This is the script I used. It reliably reproduces the issue: 
-https://github.com/ndrw6/import_postcodes/blob/master/import_postcodes.py 
-but it has quite a few dependencies, needs some input data and, in 
-general, does a lot more than just fill up the memory. I will try to 
-come up with something simpler.
+BUG: memory leak
+unreferenced object 0xffff888110c60f00 (size 256):
+   comm "syz-executor817", pid 7076, jiffies 4294944620 (age 29.240s)
+   hex dump (first 32 bytes):
+     40 7b 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  @{M.............
+     02 00 00 00 fb ff ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
-Best regards,
+BUG: memory leak
+unreferenced object 0xffff888111d24800 (size 256):
+   comm "syz-executor817", pid 7084, jiffies 4294944640 (age 29.040s)
+   hex dump (first 32 bytes):
+     c0 73 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .sM.............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
-ndrw
+BUG: memory leak
+unreferenced object 0xffff888110e63200 (size 256):
+   comm "syz-executor817", pid 7085, jiffies 4294944644 (age 29.000s)
+   hex dump (first 32 bytes):
+     80 4a 8c 10 81 88 ff ff 00 00 00 01 00 00 00 00  .J..............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
 
+BUG: memory leak
+unreferenced object 0xffff888110e63300 (size 256):
+   comm "syz-executor817", pid 7066, jiffies 4294944591 (age 29.600s)
+   hex dump (first 32 bytes):
+     80 77 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .wM.............
+     02 00 00 00 1b 51 49 ad 00 00 00 00 00 00 00 00  .....QI.........
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110c60f00 (size 256):
+   comm "syz-executor817", pid 7076, jiffies 4294944620 (age 29.310s)
+   hex dump (first 32 bytes):
+     40 7b 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  @{M.............
+     02 00 00 00 fb ff ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888111d24800 (size 256):
+   comm "syz-executor817", pid 7084, jiffies 4294944640 (age 29.110s)
+   hex dump (first 32 bytes):
+     c0 73 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .sM.............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110e63200 (size 256):
+   comm "syz-executor817", pid 7085, jiffies 4294944644 (age 29.070s)
+   hex dump (first 32 bytes):
+     80 4a 8c 10 81 88 ff ff 00 00 00 01 00 00 00 00  .J..............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110e63300 (size 256):
+   comm "syz-executor817", pid 7066, jiffies 4294944591 (age 29.670s)
+   hex dump (first 32 bytes):
+     80 77 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .wM.............
+     02 00 00 00 1b 51 49 ad 00 00 00 00 00 00 00 00  .....QI.........
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110c60f00 (size 256):
+   comm "syz-executor817", pid 7076, jiffies 4294944620 (age 29.380s)
+   hex dump (first 32 bytes):
+     40 7b 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  @{M.............
+     02 00 00 00 fb ff ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888111d24800 (size 256):
+   comm "syz-executor817", pid 7084, jiffies 4294944640 (age 29.180s)
+   hex dump (first 32 bytes):
+     c0 73 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .sM.............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110e63200 (size 256):
+   comm "syz-executor817", pid 7085, jiffies 4294944644 (age 29.140s)
+   hex dump (first 32 bytes):
+     80 4a 8c 10 81 88 ff ff 00 00 00 01 00 00 00 00  .J..............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110e63300 (size 256):
+   comm "syz-executor817", pid 7066, jiffies 4294944591 (age 29.740s)
+   hex dump (first 32 bytes):
+     80 77 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .wM.............
+     02 00 00 00 1b 51 49 ad 00 00 00 00 00 00 00 00  .....QI.........
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110c60f00 (size 256):
+   comm "syz-executor817", pid 7076, jiffies 4294944620 (age 29.450s)
+   hex dump (first 32 bytes):
+     40 7b 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  @{M.............
+     02 00 00 00 fb ff ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888111d24800 (size 256):
+   comm "syz-executor817", pid 7084, jiffies 4294944640 (age 29.260s)
+   hex dump (first 32 bytes):
+     c0 73 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .sM.............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110e63200 (size 256):
+   comm "syz-executor817", pid 7085, jiffies 4294944644 (age 29.220s)
+   hex dump (first 32 bytes):
+     80 4a 8c 10 81 88 ff ff 00 00 00 01 00 00 00 00  .J..............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110e63300 (size 256):
+   comm "syz-executor817", pid 7066, jiffies 4294944591 (age 29.820s)
+   hex dump (first 32 bytes):
+     80 77 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .wM.............
+     02 00 00 00 1b 51 49 ad 00 00 00 00 00 00 00 00  .....QI.........
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110c60f00 (size 256):
+   comm "syz-executor817", pid 7076, jiffies 4294944620 (age 29.530s)
+   hex dump (first 32 bytes):
+     40 7b 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  @{M.............
+     02 00 00 00 fb ff ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888111d24800 (size 256):
+   comm "syz-executor817", pid 7084, jiffies 4294944640 (age 29.330s)
+   hex dump (first 32 bytes):
+     c0 73 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .sM.............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110e63200 (size 256):
+   comm "syz-executor817", pid 7085, jiffies 4294944644 (age 29.290s)
+   hex dump (first 32 bytes):
+     80 4a 8c 10 81 88 ff ff 00 00 00 01 00 00 00 00  .J..............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110e63300 (size 256):
+   comm "syz-executor817", pid 7066, jiffies 4294944591 (age 29.890s)
+   hex dump (first 32 bytes):
+     80 77 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .wM.............
+     02 00 00 00 1b 51 49 ad 00 00 00 00 00 00 00 00  .....QI.........
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110c60f00 (size 256):
+   comm "syz-executor817", pid 7076, jiffies 4294944620 (age 29.600s)
+   hex dump (first 32 bytes):
+     40 7b 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  @{M.............
+     02 00 00 00 fb ff ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888111d24800 (size 256):
+   comm "syz-executor817", pid 7084, jiffies 4294944640 (age 29.400s)
+   hex dump (first 32 bytes):
+     c0 73 4d 15 81 88 ff ff 00 00 00 01 00 00 00 00  .sM.............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+BUG: memory leak
+unreferenced object 0xffff888110e63200 (size 256):
+   comm "syz-executor817", pid 7085, jiffies 4294944644 (age 29.360s)
+   hex dump (first 32 bytes):
+     80 4a 8c 10 81 88 ff ff 00 00 00 01 00 00 00 00  .J..............
+     02 00 00 00 83 88 ff ff 00 00 00 00 00 00 00 00  ................
+   backtrace:
+     [<00000000206002d6>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000206002d6>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000206002d6>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000206002d6>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<0000000057b30867>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000d1a36e4f>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<000000003b11a2ab>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<0000000027ae1ad1>] __blkdev_direct_IO fs/block_dev.c:363 [inline]
+     [<0000000027ae1ad1>] blkdev_direct_IO+0x148/0x730 fs/block_dev.c:519
+     [<000000002a9323a7>] generic_file_read_iter+0xe9/0xff0 mm/filemap.c:2323
+     [<000000006b5d1606>] blkdev_read_iter+0x55/0x80 fs/block_dev.c:2047
+     [<000000006a628b40>] call_read_iter include/linux/fs.h:1864 [inline]
+     [<000000006a628b40>] aio_read+0xe1/0x180 fs/aio.c:1543
+     [<000000002a2e309e>] __io_submit_one fs/aio.c:1813 [inline]
+     [<000000002a2e309e>] io_submit_one+0x5bb/0xe50 fs/aio.c:1862
+     [<00000000104bc919>] __do_sys_io_submit fs/aio.c:1921 [inline]
+     [<00000000104bc919>] __se_sys_io_submit fs/aio.c:1891 [inline]
+     [<00000000104bc919>] __x64_sys_io_submit+0xac/0x1e0 fs/aio.c:1891
+     [<0000000012cff7e6>] do_syscall_64+0x76/0x1a0  
+arch/x86/entry/common.c:296
+     [<00000000ee90ac70>] entry_SYSCALL_64_after_hwframe+0x44/0xa9
+
+
+
+---
+This bug is generated by a bot. It may contain errors.
+See https://goo.gl/tpsmEJ for more information about syzbot.
+syzbot engineers can be reached at syzkaller@googlegroups.com.
+
+syzbot will keep track of this bug report. See:
+https://goo.gl/tpsmEJ#status for how to communicate with syzbot.
+syzbot can test patches for this bug, for details see:
+https://goo.gl/tpsmEJ#testing-patches
 
