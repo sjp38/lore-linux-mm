@@ -2,160 +2,126 @@ Return-Path: <SRS0=GuKW=WG=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7B14EC32751
-	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 18:58:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1F9B8C433FF
+	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 19:12:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 177552086A
-	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 18:58:40 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="XNvddTvu";
-	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="3mM++sKZ"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 177552086A
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
+	by mail.kernel.org (Postfix) with ESMTP id D8CD1208C3
+	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 19:12:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D8CD1208C3
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7BC2B6B0003; Sat, 10 Aug 2019 14:58:40 -0400 (EDT)
+	id 5B48C6B0003; Sat, 10 Aug 2019 15:12:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 76CEF6B0005; Sat, 10 Aug 2019 14:58:40 -0400 (EDT)
+	id 5661C6B0005; Sat, 10 Aug 2019 15:12:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 65C616B0006; Sat, 10 Aug 2019 14:58:40 -0400 (EDT)
+	id 453746B0006; Sat, 10 Aug 2019 15:12:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0188.hostedemail.com [216.40.44.188])
-	by kanga.kvack.org (Postfix) with ESMTP id 442AA6B0003
-	for <linux-mm@kvack.org>; Sat, 10 Aug 2019 14:58:40 -0400 (EDT)
-Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id DDF985009
-	for <linux-mm@kvack.org>; Sat, 10 Aug 2019 18:58:39 +0000 (UTC)
-X-FDA: 75807429558.12.joke66_4b8f8aa3a6f12
-X-HE-Tag: joke66_4b8f8aa3a6f12
-X-Filterd-Recvd-Size: 6780
-Received: from userp2130.oracle.com (userp2130.oracle.com [156.151.31.86])
-	by imf02.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sat, 10 Aug 2019 18:58:39 +0000 (UTC)
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7AIwZRj138068;
-	Sat, 10 Aug 2019 18:58:35 GMT
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2019-08-05;
- bh=9Kvou7nXU35uL9YTviEvgLeoRHiA9PhMGEANGocDyTQ=;
- b=XNvddTvuSX42e9Bx6XI7qBNi6FdGuvw6eDcxPeN1dZEeq398Lg9ds1v+NBkz33ekJe7f
- fIM9MI37VDjrDEZ7ka8s6VqIAYkBiC8m3excUvNRWdOz3HHednTY8cGbC7qn5NREF2bt
- IQfOH+SlafYp/lSVcpqDrBlNJyWhgDQVemijSe6Bo66M8bLn2LGNADzuVHtw+X/AGbLg
- vuciZKPpFoZWMZKv8ku19r8PGX8d1tFOkcKhGrH+yVlPU7stAkAwLu8RZ4gBxwu4HHGG
- Rc8SrS3AoCaT2avj1b3lcls2SbKsOgUTfNvDH+gb82fw0vdGII7tbTq8+rSIRbZYdu5Y DA== 
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
- references : from : message-id : date : mime-version : in-reply-to :
- content-type : content-transfer-encoding; s=corp-2018-07-02;
- bh=9Kvou7nXU35uL9YTviEvgLeoRHiA9PhMGEANGocDyTQ=;
- b=3mM++sKZGEyvNYSdOX/GSKo+KkyrsMOPKlb50IE2wtVkX6sFZCl2HcNZWU1pwukw3ivo
- 9rtXp7iVHNXLcJn37OiVJkv4+pyl7Dq3kP6q7IVQ5qdvvmFCGsCNb5C5zdqdXxONWRl2
- lMaZ74cOjZRtavVOkLDUuAyJg3GjoW6ESf3l1dYGT96/giNjl/+A85CIH9gwSOEjbl1w
- XQCyDoPaK/iwrp1Ik8j/iySHQBuHf0ElT8DAu8xa9zmdJ9qiMKuqYyyfUraV9OPHdah9
- ufZyfnyLaF4ohL6FMEo+TVqwVsG7XyXhP1w/MevZI5OpPsRrKQViJG1MCgWlQcnGAGQY UA== 
-Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by userp2130.oracle.com with ESMTP id 2u9nbt1tw6-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sat, 10 Aug 2019 18:58:34 +0000
-Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7AIwUvE096682;
-	Sat, 10 Aug 2019 18:58:31 GMT
-Received: from userv0121.oracle.com (userv0121.oracle.com [156.151.31.72])
-	by aserp3030.oracle.com with ESMTP id 2u9m08xu25-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Sat, 10 Aug 2019 18:58:30 +0000
-Received: from abhmp0016.oracle.com (abhmp0016.oracle.com [141.146.116.22])
-	by userv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x7AIwJjt024062;
-	Sat, 10 Aug 2019 18:58:19 GMT
-Received: from [192.168.1.222] (/71.63.128.209)
-	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Sat, 10 Aug 2019 11:58:19 -0700
-Subject: Re: [RFC PATCH v2 0/5] hugetlb_cgroup: Add hugetlb_cgroup reservation
- limits
-To: Mina Almasry <almasrymina@google.com>
-Cc: shuah <shuah@kernel.org>, David Rientjes <rientjes@google.com>,
-        Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>,
-        akpm@linux-foundation.org, khalid.aziz@oracle.com,
-        open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-        linux-kselftest@vger.kernel.org,
-        =?UTF-8?Q?Michal_Koutn=c3=bd?=
- <mkoutny@suse.com>,
-        Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>,
-        cgroups@vger.kernel.org
-References: <20190808231340.53601-1-almasrymina@google.com>
- <f0a5afe9-2586-38c9-9a6d-8a2b7b288b50@oracle.com>
- <CAHS8izOKmaOETBd_545Zex=KFNjYOvf3dCzcMRUEXnnhYCK5bw@mail.gmail.com>
-From: Mike Kravetz <mike.kravetz@oracle.com>
-Message-ID: <71a29844-7367-44c4-23be-eff26ac80467@oracle.com>
-Date: Sat, 10 Aug 2019 11:58:17 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+Received: from mail-qk1-f197.google.com (mail-qk1-f197.google.com [209.85.222.197])
+	by kanga.kvack.org (Postfix) with ESMTP id 250E66B0003
+	for <linux-mm@kvack.org>; Sat, 10 Aug 2019 15:12:19 -0400 (EDT)
+Received: by mail-qk1-f197.google.com with SMTP id n190so89418335qkd.5
+        for <linux-mm@kvack.org>; Sat, 10 Aug 2019 12:12:19 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :content-transfer-encoding:in-reply-to;
+        bh=tOm/MfXC722ZZDGZkYyy/bxra5b24Gt/HS1+G7EfviI=;
+        b=h43bUqDF0LmoIBpT2hj5O9RsWVw3JtgHdQReef+ahjWJeEpBGN8KFU36/9mKhjYBGs
+         3dQ7bPFCXImcCP2VuR3O0aSdtZsQ0yKmml561vT80GZSkJY6vy4QaLlW7r3lYZKaiEld
+         sKEWzmdKqlNI1MHuMWcvv1xU/l/bjzLbM5duK80ymvv8wMpD24zDJ+niZFW0kI2qv6Vr
+         Qpey8UNtIm2ioTAgGIJCkbPUdGW3pUHK08DcSs9HSvld00dF8vQ9AclYr2149CrxjPLn
+         9aAu8KdxcG1u7wVIEwTMmdy+xwca7zgmBzRRXKZtVVke/1c9KlHonslL5vAm3cxINTkf
+         g1Ww==
+X-Original-Authentication-Results: mx.google.com;       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Gm-Message-State: APjAAAXLGO2wjeYXIPux7z1wKxCTFopAsWYET3VSSs9+HTh6Fsus8lTV
+	y/MuJfkwrqEWYm0wg0w+kuthkf5ZKKbey+eRjooCncFhBTKks5JENMYOYAWGpKcJi3mcBPpS1p0
+	0rjcZ/gjFBvhDhw92K96lamKiC14BXMCwVaEpXVXKKBGCae8ex2bPz6GdUzDW37JISw==
+X-Received: by 2002:a37:48c7:: with SMTP id v190mr24452638qka.350.1565464338936;
+        Sat, 10 Aug 2019 12:12:18 -0700 (PDT)
+X-Received: by 2002:a37:48c7:: with SMTP id v190mr24452596qka.350.1565464338408;
+        Sat, 10 Aug 2019 12:12:18 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565464338; cv=none;
+        d=google.com; s=arc-20160816;
+        b=CL0W8HBofe75qQu6om/Ymz3ixc2EPEdmPy6QGYvHCctPWBvS06+JRXd/QTLEaCCodL
+         ZH9zDA+AQk/viZmL1oRwO1zZxDFBBbyGRybso84TxAb5d8xggwf1Z6/NGjlwZ454pfJE
+         W2msb1S4CM9OdJPR22Np/sW9PR/bx8VrF/HlEbdnwR7eHR6YoaS5cqgYPRgEWGyuKDJH
+         oY1Pug4N6ngcKfZdP52E7X+sc6RFoHR47styMrpegfmaH2R4KabXM/rBSuBfc4L6DAB5
+         Ab+uN14yex17jZD+JGpQEztudHwYaApvJWp28/bBIws4XQTzKDzKBpt58aekom5Hkof/
+         0Ocg==
+ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
+        h=in-reply-to:content-transfer-encoding:content-disposition
+         :mime-version:references:message-id:subject:cc:to:from:date;
+        bh=tOm/MfXC722ZZDGZkYyy/bxra5b24Gt/HS1+G7EfviI=;
+        b=K832eNgF+4IafnWGi5Pe+fbHNc4BtBxsmw75anppme389P6hYCTd7xJejdDrFaEwOA
+         SI94O9cxwJzvLcYmZQbfiVuHPGAGd625Ez5oMsfRH6mch3tYrl0lch3eeLLc8ahBbG3P
+         Y28bBkttDBuTe/IXIpal6gf0h2RymMtL5f0/uKtq1VSGJ4wI/B96w1Oa73DDqDtsZzfo
+         sFR7b/sx6RaOUURJduxN/r0sMtDU5zr7VJBQ9rs5+TYx5CyTsGluJQWIXkYSJtqyMgzy
+         8JR9ittlFWV7y39Ytbb9Uf43BqKBC2ONwOkXA/XNWVUr5teXgfCP3yPWuGW4vfjvwqqL
+         bQKw==
+ARC-Authentication-Results: i=1; mx.google.com;
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
+        by mx.google.com with SMTPS id c5sor3711472qkg.108.2019.08.10.12.12.18
+        for <linux-mm@kvack.org>
+        (Google Transport Security);
+        Sat, 10 Aug 2019 12:12:18 -0700 (PDT)
+Received-SPF: pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+Authentication-Results: mx.google.com;
+       spf=pass (google.com: domain of mst@redhat.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=mst@redhat.com;
+       dmarc=pass (p=NONE sp=NONE dis=NONE) header.from=redhat.com
+X-Google-Smtp-Source: APXvYqy9zmxhh9QafC0RnwL+m0pBIJpGi6lXzl9adS3Ij5sGenWXNRYs/XzZWBUSfehxs1JFSId7lA==
+X-Received: by 2002:a37:516:: with SMTP id 22mr23794866qkf.308.1565464338086;
+        Sat, 10 Aug 2019 12:12:18 -0700 (PDT)
+Received: from redhat.com (bzq-79-181-91-42.red.bezeqint.net. [79.181.91.42])
+        by smtp.gmail.com with ESMTPSA id q17sm40074395qtl.13.2019.08.10.12.12.14
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Sat, 10 Aug 2019 12:12:16 -0700 (PDT)
+Date: Sat, 10 Aug 2019 15:12:11 -0400
+From: "Michael S. Tsirkin" <mst@redhat.com>
+To: Jason Wang <jasowang@redhat.com>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>, kvm@vger.kernel.org,
+	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH V5 0/9] Fixes for vhost metadata acceleration
+Message-ID: <20190810150611-mutt-send-email-mst@kernel.org>
+References: <20190807070617.23716-1-jasowang@redhat.com>
+ <20190807070617.23716-8-jasowang@redhat.com>
+ <20190807120738.GB1557@ziepe.ca>
+ <ba5f375f-435a-91fd-7fca-bfab0915594b@redhat.com>
+ <1000f8a3-19a9-0383-61e5-ba08ddc9fcba@redhat.com>
 MIME-Version: 1.0
-In-Reply-To: <CAHS8izOKmaOETBd_545Zex=KFNjYOvf3dCzcMRUEXnnhYCK5bw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9345 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=0 malwarescore=0
- phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
- adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
- engine=8.0.1-1906280000 definitions=main-1908100211
-X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9345 signatures=668685
-X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=0 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
- lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
- classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
- definitions=main-1908100211
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+Content-Transfer-Encoding: 8bit
+In-Reply-To: <1000f8a3-19a9-0383-61e5-ba08ddc9fcba@redhat.com>
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/9/19 12:42 PM, Mina Almasry wrote:
-> On Fri, Aug 9, 2019 at 10:54 AM Mike Kravetz <mike.kravetz@oracle.com> wrote:
->> On 8/8/19 4:13 PM, Mina Almasry wrote:
->>> Problem:
->>> Currently tasks attempting to allocate more hugetlb memory than is available get
->>> a failure at mmap/shmget time. This is thanks to Hugetlbfs Reservations [1].
->>> However, if a task attempts to allocate hugetlb memory only more than its
->>> hugetlb_cgroup limit allows, the kernel will allow the mmap/shmget call,
->>> but will SIGBUS the task when it attempts to fault the memory in.
-<snip>
->> I believe tracking reservations for shared mappings can get quite complicated.
->> The hugetlbfs reservation code around shared mappings 'works' on the basis
->> that shared mapping reservations are global.  As a result, reservations are
->> more associated with the inode than with the task making the reservation.
-> 
-> FWIW, I found it not too bad. And my tests at least don't detect an
-> anomaly around shared mappings. The key I think is that I'm tracking
-> cgroup to uncharge on the file_region entry inside the resv_map, so we
-> know who allocated each file_region entry exactly and we can uncharge
-> them when the entry is region_del'd.
-> 
->> For example, consider a file of size 4 hugetlb pages.
->> Task A maps the first 2 pages, and 2 reservations are taken.  Task B maps
->> all 4 pages, and 2 additional reservations are taken.  I am not really sure
->> of the desired semantics here for reservation limits if A and B are in separate
->> cgroups.  Should B be charged for 4 or 2 reservations?
-> 
-> Task A's cgroup is charged 2 pages to its reservation usage.
-> Task B's cgroup is charged 2 pages to its reservation usage.
+On Thu, Aug 08, 2019 at 08:54:54PM +0800, Jason Wang wrote:
+> I don't have any objection to convert  to spinlock() but just want to
+> know if any case that the above smp_mb() + counter looks good to you?
 
-OK,
-Suppose Task B's cgroup allowed 2 huge pages reservation and 2 huge pages
-allocation.  The mmap would succeed, but Task B could potentially need to
-allocate more than 2 huge pages.  So, when faulting in more than 2 huge
-pages B would get a SIGBUS.  Correct?  Or, am I missing something?
+So how about we try this:
+- revert the original patch for this release
+- new safe patch with a spinlock for the next release
+- whatever improvements we can come up with on top
 
-Perhaps reservation charge should always be the same as map size/maximum
-allocation size?
+Thoughts?
+
+Because I think this needs much more scrutiny than we can
+give an incremental patch.
+
 -- 
-Mike Kravetz
+MST
 
