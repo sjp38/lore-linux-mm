@@ -8,68 +8,68 @@ X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 84DB5C0650F
-	for <linux-mm@archiver.kernel.org>; Sun, 11 Aug 2019 18:46:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A70FBC0650F
+	for <linux-mm@archiver.kernel.org>; Sun, 11 Aug 2019 18:46:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 43DBB2054F
-	for <linux-mm@archiver.kernel.org>; Sun, 11 Aug 2019 18:46:29 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 6E04A2054F
+	for <linux-mm@archiver.kernel.org>; Sun, 11 Aug 2019 18:46:32 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="FUL8J4xo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 43DBB2054F
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="OS4OCsP8"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6E04A2054F
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AE2626B0005; Sun, 11 Aug 2019 14:46:28 -0400 (EDT)
+	id 8BE4B6B0006; Sun, 11 Aug 2019 14:46:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A6A336B0006; Sun, 11 Aug 2019 14:46:28 -0400 (EDT)
+	id 86F9D6B0008; Sun, 11 Aug 2019 14:46:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8E3036B0008; Sun, 11 Aug 2019 14:46:28 -0400 (EDT)
+	id 70FF96B000A; Sun, 11 Aug 2019 14:46:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0050.hostedemail.com [216.40.44.50])
-	by kanga.kvack.org (Postfix) with ESMTP id 6ACE06B0005
-	for <linux-mm@kvack.org>; Sun, 11 Aug 2019 14:46:28 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 21670180AD7C1
-	for <linux-mm@kvack.org>; Sun, 11 Aug 2019 18:46:28 +0000 (UTC)
-X-FDA: 75811027656.10.slope45_1b48b72365620
-X-HE-Tag: slope45_1b48b72365620
-X-Filterd-Recvd-Size: 7930
-Received: from mail-lj1-f195.google.com (mail-lj1-f195.google.com [209.85.208.195])
-	by imf33.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Sun, 11 Aug 2019 18:46:27 +0000 (UTC)
-Received: by mail-lj1-f195.google.com with SMTP id d24so96419987ljg.8
-        for <linux-mm@kvack.org>; Sun, 11 Aug 2019 11:46:27 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0117.hostedemail.com [216.40.44.117])
+	by kanga.kvack.org (Postfix) with ESMTP id 50EBD6B0006
+	for <linux-mm@kvack.org>; Sun, 11 Aug 2019 14:46:30 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id F16FA2DFE
+	for <linux-mm@kvack.org>; Sun, 11 Aug 2019 18:46:29 +0000 (UTC)
+X-FDA: 75811027698.27.shelf71_1b97375d72862
+X-HE-Tag: shelf71_1b97375d72862
+X-Filterd-Recvd-Size: 5216
+Received: from mail-lj1-f193.google.com (mail-lj1-f193.google.com [209.85.208.193])
+	by imf08.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Sun, 11 Aug 2019 18:46:29 +0000 (UTC)
+Received: by mail-lj1-f193.google.com with SMTP id k18so96414384ljc.11
+        for <linux-mm@kvack.org>; Sun, 11 Aug 2019 11:46:29 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=gmail.com; s=20161025;
         h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=aELALDrW+i7a5BlA42yQNpA9Z5Hpp50rNx+gjusAsXA=;
-        b=FUL8J4xo9QZASNM+Q7L0aom2WHHhWfOxknUEy5OCnQtrPp5he5ltWr2I5kKtWCn0Dl
-         vZbzkU09dMuu+vgVh23QERoxSS+hfSt2FN6Y2994xh7u6J8+VHjPpUITALSYyZvWmB73
-         TYQY33HI0vOk7xIJWLgaQDxCD5+TqTMyWSUPC1zcMfRlmn/bvMwfAnoUzJkXYiv6rDtx
-         mGeIAmngp97FIufCmJpDAHRfvAbNghmzxq27XVb9nV3yLsJu7SfyAlzgY4rkLxRZS+tg
-         jZTxrzZoDvZvyyjXnwqUOdtOVKOxac4FmC26rS5Hi+MKICsgyCVoJSP8QbC+FQwgeZnY
-         PrLQ==
+        bh=sHzzzA2xQ402RWvU0Hu0IKz3pQGvFb+F2/QvqTcdhf8=;
+        b=OS4OCsP8BenhY51p8Ak6rLYx4nCshsn6TVflf7rjLCbw1BgGGoFNcGyLh2d1XIwIv3
+         CqpNm2hBHMWtealt8suXi5VqYKlCHgoBK3yIWBcTQ6d1Bxx9+U/B8WITXCMCVwauWKgv
+         M1jUOKF46HqhGVZuPcW+n5HesWClcxctftF/m4cU+uusN1I5uyeOPgH/l2Bvea0mbZmb
+         xZwTCqBcTbL5PwVPiSZksFX56bxzIg02REWywzbZWohvsfAs1N2/yAYi0HbTEjVtH2Zu
+         IU/cJK3SEA2GPlbZa0WPk3svaJ+z6tVRWVjuktLxxIeB5fOaBkj+Np+rll68+9+uxmyn
+         xKSQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
          :references;
-        bh=aELALDrW+i7a5BlA42yQNpA9Z5Hpp50rNx+gjusAsXA=;
-        b=hjFITZ2uQ8cmPfu4TCdXyBbVLyBqzD/0DwOsjvHVW0GbvMsel9B1tCCsOlclupb7mU
-         gsWJGxr3Dx9hNie/p6m4BEOMA5q/Z7gzWfhvQHptc3Kl247wkxlknxUdhPZcrTUfxNQK
-         s6xuFE/fROS9JkXtXsD7roKwKCTrfij/OcoRBnNHU5DGRscQFM2UmwMMUs32Em5lc0QR
-         b5wehGPchiMfqGLyQYx5CgbzNgPkT1Sld1ToUUpu2mLECZGdgYy1IwaKrqJ8ScmCpGf7
-         Ae8n/QE4EMIgOyIZr8sYoraVOvywbfZUBeZxi3tp/m0FZFCHsBUgfAR9ZMmwEZBEeTIQ
-         QxrQ==
-X-Gm-Message-State: APjAAAVQ3F3mitFZyq5HMmxlEZFt9h3us3m1CISoKhtoCKKuQEpNqlPs
-	XiEWy3HKGZc77N7Ec8obUKw=
-X-Google-Smtp-Source: APXvYqzV7uvQZkB42sv9VY5S2uvnnjKPAkIogU2XzLdf03r5HvBHjMVJe7p/oDRn2InPXImKzId+4A==
-X-Received: by 2002:a2e:9f02:: with SMTP id u2mr1933631ljk.4.1565549186050;
-        Sun, 11 Aug 2019 11:46:26 -0700 (PDT)
+        bh=sHzzzA2xQ402RWvU0Hu0IKz3pQGvFb+F2/QvqTcdhf8=;
+        b=NJ2Dgr5JskYHbomUeS/1W8YFjHrhxyENiCl0qO0gAKw6S18MDMbE0k8ykU+PLSPWlX
+         fF4owLLLviiumnoG+I+I5IGZ6RVSxW1GqaCYNOAJOkz5urk+yLyY1tb0z1q9oydcVoEu
+         of+MwnQ2hUbNiqa2k9DFPtdnIi6oKl1DqDWYvRMX3ezge9S5xeVUFJiCoLw2z4XsoEOY
+         GuaQg9KTx7AVu72H5Zv/EGWtDCHhjfqfZhyPo4fAVqTm2BXRCwq/ndQyUdRg3logXhhB
+         sVTZRZZe7tLOaC48IdtpgKUDXqf/7Uu8J9F4g+CSHCHR1/EbGjfj6UN4MrOHJQChznuU
+         IMjQ==
+X-Gm-Message-State: APjAAAXIy+saYk76/KkGlVb+8F5FbuOydVZBsVrDFlEwG2Iqz2XnDuTh
+	a5PPaL/fJZ/0Yw50XNUXSA0=
+X-Google-Smtp-Source: APXvYqxOFPiSBzpEvwA4o0KKqFwesdC+LHIdPwuhVDpto0/o8yY2Owf8hxw72k10f1rYMVkEyjEzwA==
+X-Received: by 2002:a2e:9d8a:: with SMTP id c10mr16554929ljj.147.1565549188182;
+        Sun, 11 Aug 2019 11:46:28 -0700 (PDT)
 Received: from localhost.localdomain ([37.212.199.11])
-        by smtp.gmail.com with ESMTPSA id t66sm1536425lje.66.2019.08.11.11.46.24
+        by smtp.gmail.com with ESMTPSA id t66sm1536425lje.66.2019.08.11.11.46.26
         (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Sun, 11 Aug 2019 11:46:25 -0700 (PDT)
+        Sun, 11 Aug 2019 11:46:27 -0700 (PDT)
 From: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
 To: Andrew Morton <akpm@linux-foundation.org>,
 	Michel Lespinasse <walken@google.com>
@@ -83,9 +83,9 @@ Cc: linux-mm@kvack.org,
 	Matthew Wilcox <willy@infradead.org>,
 	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>,
 	Steven Rostedt <rostedt@goodmis.org>
-Subject: [PATCH 1/2] augmented rbtree: use max3() in the *_compute_max() function
-Date: Sun, 11 Aug 2019 20:46:12 +0200
-Message-Id: <20190811184613.20463-2-urezki@gmail.com>
+Subject: [PATCH 2/2] mm/vmalloc: use generated callback to populate subtree_max_size
+Date: Sun, 11 Aug 2019 20:46:13 +0200
+Message-Id: <20190811184613.20463-3-urezki@gmail.com>
 X-Mailer: git-send-email 2.11.0
 In-Reply-To: <20190811184613.20463-1-urezki@gmail.com>
 References: <20190811184613.20463-1-urezki@gmail.com>
@@ -95,121 +95,67 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Recently there was introduced RB_DECLARE_CALLBACKS_MAX template.
-One of the callback, to be more specific *_compute_max(), calculates
-a maximum scalar value of node against its left/right sub-tree.
+RB_DECLARE_CALLBACKS_MAX defines its own callback to update the
+augmented subtree information after a node is modified. It makes
+sense to use it instead of our own propagate implementation.
 
-To simplify the code and improve readability we can switch and
-make use of max3() macro that makes the code more transparent.
+Apart of that, in case of using generated callback we can eliminate
+compute_subtree_max_size() function and get rid of duplication.
 
 Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
 ---
- include/linux/rbtree_augmented.h       | 40 +++++++++++++++++-----------------
- tools/include/linux/rbtree_augmented.h | 40 +++++++++++++++++-----------------
- 2 files changed, 40 insertions(+), 40 deletions(-)
+ mm/vmalloc.c | 31 +------------------------------
+ 1 file changed, 1 insertion(+), 30 deletions(-)
 
-diff --git a/include/linux/rbtree_augmented.h b/include/linux/rbtree_augmented.h
-index fdd421b8d9ae..fb29d6627646 100644
---- a/include/linux/rbtree_augmented.h
-+++ b/include/linux/rbtree_augmented.h
-@@ -119,26 +119,26 @@ RBSTATIC const struct rb_augment_callbacks RBNAME = {			\
+diff --git a/mm/vmalloc.c b/mm/vmalloc.c
+index b8101030f79e..e03444598ae1 100644
+--- a/mm/vmalloc.c
++++ b/mm/vmalloc.c
+@@ -385,17 +385,6 @@ get_subtree_max_size(struct rb_node *node)
+ 	return va ? va->subtree_max_size : 0;
+ }
  
- #define RB_DECLARE_CALLBACKS_MAX(RBSTATIC, RBNAME, RBSTRUCT, RBFIELD,	      \
- 				 RBTYPE, RBAUGMENTED, RBCOMPUTE)	      \
--static inline bool RBNAME ## _compute_max(RBSTRUCT *node, bool exit)	      \
--{									      \
--	RBSTRUCT *child;						      \
--	RBTYPE max = RBCOMPUTE(node);					      \
--	if (node->RBFIELD.rb_left) {					      \
--		child = rb_entry(node->RBFIELD.rb_left, RBSTRUCT, RBFIELD);   \
--		if (child->RBAUGMENTED > max)				      \
--			max = child->RBAUGMENTED;			      \
--	}								      \
--	if (node->RBFIELD.rb_right) {					      \
--		child = rb_entry(node->RBFIELD.rb_right, RBSTRUCT, RBFIELD);  \
--		if (child->RBAUGMENTED > max)				      \
--			max = child->RBAUGMENTED;			      \
--	}								      \
--	if (exit && node->RBAUGMENTED == max)				      \
--		return true;						      \
--	node->RBAUGMENTED = max;					      \
--	return false;							      \
--}									      \
--RB_DECLARE_CALLBACKS(RBSTATIC, RBNAME,					      \
-+static inline RBTYPE RBNAME ## _get_max(struct rb_node *node)		    \
-+{									    \
-+	RBSTRUCT *tmp;							    \
-+									    \
-+	tmp = rb_entry_safe(node, RBSTRUCT, RBFIELD);			    \
-+	return tmp ? tmp->RBAUGMENTED : 0;				    \
-+}									    \
-+									    \
-+static inline bool RBNAME ## _compute_max(RBSTRUCT *node, bool exit)	    \
-+{									    \
-+	RBTYPE max = max3(RBCOMPUTE(node),				    \
-+		RBNAME ## _get_max(node->RBFIELD.rb_left),		    \
-+		RBNAME ## _get_max(node->RBFIELD.rb_right));		    \
-+									    \
-+	if (exit && node->RBAUGMENTED == max)				    \
-+		return true;						    \
-+	node->RBAUGMENTED = max;					    \
-+	return false;							    \
-+}									    \
-+RB_DECLARE_CALLBACKS(RBSTATIC, RBNAME,					    \
- 		     RBSTRUCT, RBFIELD, RBAUGMENTED, RBNAME ## _compute_max)
+-/*
+- * Gets called when remove the node and rotate.
+- */
+-static __always_inline unsigned long
+-compute_subtree_max_size(struct vmap_area *va)
+-{
+-	return max3(va_size(va),
+-		get_subtree_max_size(va->rb_node.rb_left),
+-		get_subtree_max_size(va->rb_node.rb_right));
+-}
+-
+ RB_DECLARE_CALLBACKS_MAX(static, free_vmap_area_rb_augment_cb,
+ 	struct vmap_area, rb_node, unsigned long, subtree_max_size, va_size)
  
+@@ -623,25 +612,7 @@ augment_tree_propagate_check(struct rb_node *n)
+ static __always_inline void
+ augment_tree_propagate_from(struct vmap_area *va)
+ {
+-	struct rb_node *node = &va->rb_node;
+-	unsigned long new_va_sub_max_size;
+-
+-	while (node) {
+-		va = rb_entry(node, struct vmap_area, rb_node);
+-		new_va_sub_max_size = compute_subtree_max_size(va);
+-
+-		/*
+-		 * If the newly calculated maximum available size of the
+-		 * subtree is equal to the current one, then it means that
+-		 * the tree is propagated correctly. So we have to stop at
+-		 * this point to save cycles.
+-		 */
+-		if (va->subtree_max_size == new_va_sub_max_size)
+-			break;
+-
+-		va->subtree_max_size = new_va_sub_max_size;
+-		node = rb_parent(&va->rb_node);
+-	}
++	free_vmap_area_rb_augment_cb_propagate(&va->rb_node, NULL);
  
-diff --git a/tools/include/linux/rbtree_augmented.h b/tools/include/linux/rbtree_augmented.h
-index 381aa948610d..3b8284479e98 100644
---- a/tools/include/linux/rbtree_augmented.h
-+++ b/tools/include/linux/rbtree_augmented.h
-@@ -121,26 +121,26 @@ RBSTATIC const struct rb_augment_callbacks RBNAME = {			\
- 
- #define RB_DECLARE_CALLBACKS_MAX(RBSTATIC, RBNAME, RBSTRUCT, RBFIELD,	      \
- 				 RBTYPE, RBAUGMENTED, RBCOMPUTE)	      \
--static inline bool RBNAME ## _compute_max(RBSTRUCT *node, bool exit)	      \
--{									      \
--	RBSTRUCT *child;						      \
--	RBTYPE max = RBCOMPUTE(node);					      \
--	if (node->RBFIELD.rb_left) {					      \
--		child = rb_entry(node->RBFIELD.rb_left, RBSTRUCT, RBFIELD);   \
--		if (child->RBAUGMENTED > max)				      \
--			max = child->RBAUGMENTED;			      \
--	}								      \
--	if (node->RBFIELD.rb_right) {					      \
--		child = rb_entry(node->RBFIELD.rb_right, RBSTRUCT, RBFIELD);  \
--		if (child->RBAUGMENTED > max)				      \
--			max = child->RBAUGMENTED;			      \
--	}								      \
--	if (exit && node->RBAUGMENTED == max)				      \
--		return true;						      \
--	node->RBAUGMENTED = max;					      \
--	return false;							      \
--}									      \
--RB_DECLARE_CALLBACKS(RBSTATIC, RBNAME,					      \
-+static inline RBTYPE RBNAME ## _get_max(struct rb_node *node)		    \
-+{									    \
-+	RBSTRUCT *tmp;							    \
-+									    \
-+	tmp = rb_entry_safe(node, RBSTRUCT, RBFIELD);			    \
-+	return tmp ? tmp->RBAUGMENTED : 0;				    \
-+}									    \
-+									    \
-+static inline bool RBNAME ## _compute_max(RBSTRUCT *node, bool exit)	    \
-+{									    \
-+	RBTYPE max = max3(RBCOMPUTE(node),				    \
-+		RBNAME ## _get_max(node->RBFIELD.rb_left),		    \
-+		RBNAME ## _get_max(node->RBFIELD.rb_right));		    \
-+									    \
-+	if (exit && node->RBAUGMENTED == max)				    \
-+		return true;						    \
-+	node->RBAUGMENTED = max;					    \
-+	return false;							    \
-+}									    \
-+RB_DECLARE_CALLBACKS(RBSTATIC, RBNAME,					    \
- 		     RBSTRUCT, RBFIELD, RBAUGMENTED, RBNAME ## _compute_max)
- 
- 
+ #if DEBUG_AUGMENT_PROPAGATE_CHECK
+ 	augment_tree_propagate_check(free_vmap_area_root.rb_node);
 -- 
 2.11.0
 
