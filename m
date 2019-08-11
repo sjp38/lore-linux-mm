@@ -1,222 +1,269 @@
-Return-Path: <SRS0=GuKW=WG=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=C2dt=WH=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1D847C433FF
-	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 22:01:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5275BC32751
+	for <linux-mm@archiver.kernel.org>; Sun, 11 Aug 2019 02:19:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BD28F20B7C
-	for <linux-mm@archiver.kernel.org>; Sat, 10 Aug 2019 22:01:15 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="NUcrHdVO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD28F20B7C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	by mail.kernel.org (Postfix) with ESMTP id DF2BB208C2
+	for <linux-mm@archiver.kernel.org>; Sun, 11 Aug 2019 02:19:01 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DF2BB208C2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 425B76B0003; Sat, 10 Aug 2019 18:01:15 -0400 (EDT)
+	id 49B4A6B0003; Sat, 10 Aug 2019 22:19:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3D55A6B0005; Sat, 10 Aug 2019 18:01:15 -0400 (EDT)
+	id 44D096B0005; Sat, 10 Aug 2019 22:19:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 29F896B0006; Sat, 10 Aug 2019 18:01:15 -0400 (EDT)
+	id 33C486B0006; Sat, 10 Aug 2019 22:19:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from mail-ot1-f70.google.com (mail-ot1-f70.google.com [209.85.210.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 022516B0003
-	for <linux-mm@kvack.org>; Sat, 10 Aug 2019 18:01:15 -0400 (EDT)
-Received: by mail-ot1-f70.google.com with SMTP id a17so76740198otd.19
-        for <linux-mm@kvack.org>; Sat, 10 Aug 2019 15:01:14 -0700 (PDT)
+Received: from mail-pf1-f199.google.com (mail-pf1-f199.google.com [209.85.210.199])
+	by kanga.kvack.org (Postfix) with ESMTP id EF4F46B0003
+	for <linux-mm@kvack.org>; Sat, 10 Aug 2019 22:19:00 -0400 (EDT)
+Received: by mail-pf1-f199.google.com with SMTP id j22so64051675pfe.11
+        for <linux-mm@kvack.org>; Sat, 10 Aug 2019 19:19:00 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:dkim-signature:mime-version:references
-         :in-reply-to:from:date:message-id:subject:to:cc;
-        bh=CKSBDb3n2Zw/j8kWgy95XapjnDr9kx+5JJx/IJIa8C8=;
-        b=JUDTYvODZSkNyz5BRjIWHJmRJs36AF6oQovoCFmBxZbBUiDB/Z+XJwAIrlTnBf7V3O
-         B5kH9ozTYgrODlAnPn5GCoj6MzIuHt7crYjqPhQwl7JW+Uq3DkVlcnXrFyGkIwdPQLkX
-         cmVlMx+lMdUt0sW3iD85rciBaKt/D6jMtWfgTwVwTaTO+cLv05pFKuYOLbUrtENw0h29
-         IceeJ5ddGnnHtTmnR6Vg6q3P6xrg95YgyuFBtVOEwTjFibxfQCx7vNE7dXv73/fLCsy4
-         f4MfZdOUhhTRAg0YL5KD4Zdg4EElE6Yg8zHiqoSo1EH1KjGF/0hebg+/xbiDh8S52HbK
-         0Mow==
-X-Gm-Message-State: APjAAAVhnxPRL6WfGaNjeeZ9GJrb/n7TUvl0KXGVKzm0NlZ4yqa02Psr
-	03gcVkKBRNZVmNLtECHzy1Zif1LsxAMkdZr1Y1Yq/pvhp/HSjhdKV/LFmS88tfvQf3XTexQK4Jb
-	s6o2NiTV7JbtmMuDO5JrA6qnD5WJtZk2Phf6obJIvJkbMF3Q9zYBjLBRZiw/q34mFDQ==
-X-Received: by 2002:a9d:7383:: with SMTP id j3mr12336631otk.74.1565474474623;
-        Sat, 10 Aug 2019 15:01:14 -0700 (PDT)
-X-Received: by 2002:a9d:7383:: with SMTP id j3mr12336559otk.74.1565474473656;
-        Sat, 10 Aug 2019 15:01:13 -0700 (PDT)
-ARC-Seal: i=1; a=rsa-sha256; t=1565474473; cv=none;
+        h=x-original-authentication-results:x-gm-message-state:date:from:to
+         :cc:subject:message-id:references:mime-version:content-disposition
+         :in-reply-to:user-agent;
+        bh=SNtC2+gSkWSzzxlubuBQQGr7Hw+zNxhPQ3TuHXgBDek=;
+        b=lzri+rV4CzMZXKRFxfkWjdI6szmkka2uhtz2TRl2JKZ9u7FhBtOcZ3PiPEWllXpWau
+         HIFDLpl2MrKOX06bdckYLWONHWULmnGY5EnrKZ8fsAKQaovf26VIh3fFMi2KR9FRECtO
+         35Bz8B1BybAQM90uGCzk71K2mFfWfiR1KrlJ8bfm7ertthnAfDOPkDQDsdQJssX41xDH
+         hbBz675XKvlSj3L56JH5XwmgrpUZgxn1dTuOspgeeS7CmGaiBQoWqnGTSkjPC3OEJIuu
+         A68JdH8+xPs8i9hV1v40w4MDaMQCYg7zyvd2+OWvj8RTvuLuT2YiGTJ1OP7eiYRI7PTc
+         6R1g==
+X-Original-Authentication-Results: mx.google.com;       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+X-Gm-Message-State: APjAAAV1Inx4Seyf6doKYsTKiuc0kxdHJAcdE2uu/LzKSmfsxj8H02Iv
+	8Jr+LHC2V+OqePQjnCWprQzk8cPdI3NUvgpav+ZKbOyDKAQwJ9tvTfjpDZaXSnQF2t2ORPNfMuH
+	5hbSuIzWf6Fdi/FzKmlMmYvu/aZLIdbmsU/+bco1s1IlqCBQun5mWhg8B7f252Lc=
+X-Received: by 2002:a17:902:8543:: with SMTP id d3mr19666446plo.80.1565489940596;
+        Sat, 10 Aug 2019 19:19:00 -0700 (PDT)
+X-Google-Smtp-Source: APXvYqxwtv1l6gtdqfnf41ONB6KBG/KurDbyhj6sYR0dsZHL/L+QPgm/YI1iSnblirp3DGWDTyRR
+X-Received: by 2002:a17:902:8543:: with SMTP id d3mr19666391plo.80.1565489939440;
+        Sat, 10 Aug 2019 19:18:59 -0700 (PDT)
+ARC-Seal: i=1; a=rsa-sha256; t=1565489939; cv=none;
         d=google.com; s=arc-20160816;
-        b=n//9n41BmCLxrEREvnBGAopPYkKgy/r7HMBG5AnW2KaVG1cjVfoP6BNzAK828VR60D
-         fHN5GAJop+xjS7pnkaLkN+DUisV0btj90wCDR6sfDv7H8u220oJdLNUDC+DwPcIMh4fl
-         f5w9IiQYsQbKpcdhTOeK6JpSAh89WmUfpVuZrQ+AhX1o1X3E0idUHwxjLsHudfRr1NUb
-         xtWgW23ZqBUSeLpVlmf66F+pbLr9d3YrJiUjsDNHrzbiBYnhWdlrzodkrKhU7AEPNLIk
-         DivolQ1Qpj3298bg1X4AZsi8VNq2tTfw3cDKyr0cxm2d+qWs47LJFZ5e5qTAjxFO8L+L
-         xsyw==
+        b=Gk9nZbHN0n+CBNht7KNBau8adMmur53xSbbg1QlMe41pvRkjXLiNt/zhUrG2nVP0Qo
+         m+8SMy9moY6zqsfNgN6sxRu3XfbkhykuB+f0RIqFdm+WOHFzQPVtp8I4H74TpKkN4+IJ
+         ukeswKIzmEUsZ36jwZZd8jycLqeLu/L6tw14wQvbsstBDQ48iq+0f3Jva60da3OXzgdt
+         54N/XzsWBmD3OUfdk6NR2+6MWVn7dkLOGXwqRNNgPaard6+vQ3Q8uvoLyS8/J8bkurC3
+         nMjnT8e/IV0J8h4cTf6LiubB0t199MzNDcXeFzjIEpDaTRqlDjZvhxQurgv1VTlxk7f4
+         ReiA==
 ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20160816;
-        h=cc:to:subject:message-id:date:from:in-reply-to:references
-         :mime-version:dkim-signature;
-        bh=CKSBDb3n2Zw/j8kWgy95XapjnDr9kx+5JJx/IJIa8C8=;
-        b=DyUYKDElG+Ygs2IDZKUn6ta+QnEv6zxCLFxXfWt8OxLv8hAkcyRSpgym0TQe0YCdam
-         Bj0tSgbGFXDfSdQvD+d6yOdNrkaP0GmQw0yfStQiIvHIPwNohYA/THn4QiEs6KLAJfWm
-         EfafiCBL5JGR4glikMYxyCSPBLAOvCVWI61T1F5Ps1vDkIKl0bY9dqbdHdQkary34T0P
-         ApF+0YWyzBAUboFL7eFHNCTViqH9vV1BIvTyKWbrUtiQCzpUx1WqIr9o1jrFxNAWGHGw
-         8O3jZ8xo0kLBxWEDNZFaZQ4hx0OJD8VqktvDqYCRu+iCIcpfFNv+vUxBRpRgq1Emgazf
-         LKNw==
+        h=user-agent:in-reply-to:content-disposition:mime-version:references
+         :message-id:subject:cc:to:from:date;
+        bh=SNtC2+gSkWSzzxlubuBQQGr7Hw+zNxhPQ3TuHXgBDek=;
+        b=Weh2amCKb8uRyojdXrX5SHF04p/mCaTFFNyQUcz5qNPwu26agsGVg5pbPTe6mSQPu9
+         QTF/gG//qMdCMMpzd0Agho4GMbHPwsqhrha++t2EY1NfpFSyOHahWc/YYXxptQ0ByBYp
+         4c7l3+pbWpRzHNcgEaYPv2riktxJJ0/2GI6S30E10MtdCGOjifeVsUFPiKGFXTxCNlHL
+         6+en+oiMy2MOHMm2dXk4B++pfuhyU75wm81pPq1sBuLSAFfxkDqoPmdojxaMP8ZkLJr5
+         +q1WRhYyzAtjalsHB2ON+8SQvPpNLNYJJIp5iot/8rwmqM4s8fl6upVrIrlMm2egW8S5
+         vspA==
 ARC-Authentication-Results: i=1; mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=NUcrHdVO;
-       spf=pass (google.com: domain of almasrymina@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=almasrymina@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-Received: from mail-sor-f65.google.com (mail-sor-f65.google.com. [209.85.220.65])
-        by mx.google.com with SMTPS id u71sor46108797oif.93.2019.08.10.15.01.13
-        for <linux-mm@kvack.org>
-        (Google Transport Security);
-        Sat, 10 Aug 2019 15:01:13 -0700 (PDT)
-Received-SPF: pass (google.com: domain of almasrymina@google.com designates 209.85.220.65 as permitted sender) client-ip=209.85.220.65;
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from mail105.syd.optusnet.com.au (mail105.syd.optusnet.com.au. [211.29.132.249])
+        by mx.google.com with ESMTP id u29si1853865pgm.325.2019.08.10.19.18.58
+        for <linux-mm@kvack.org>;
+        Sat, 10 Aug 2019 19:18:59 -0700 (PDT)
+Received-SPF: neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) client-ip=211.29.132.249;
 Authentication-Results: mx.google.com;
-       dkim=pass header.i=@google.com header.s=20161025 header.b=NUcrHdVO;
-       spf=pass (google.com: domain of almasrymina@google.com designates 209.85.220.65 as permitted sender) smtp.mailfrom=almasrymina@google.com;
-       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=CKSBDb3n2Zw/j8kWgy95XapjnDr9kx+5JJx/IJIa8C8=;
-        b=NUcrHdVOutsZBY/9WFTG0qmyK4Pv+ynw61exCRXGPu4QidGG4QRnMuzfvhUu4CTm5+
-         LBz0d2+yyKpuXU/u8m58dPJXV2KpiikkKgNrk8yy5Kmgq+wXhz9UU7aU3uPtKXzrFPl4
-         Uu49ni8D5+tQwgLiVAZ7tIN2GsoxkxtYVSDWeGaim9N80nxj3cpnVNFWTUINaec9HC2w
-         sZIG+ZnSKDOwLQ44s4Fx7hqoFAOqHPCHKUSGuypcc88/J9Cuh0bOK5RjjClR4OYtXXX1
-         XNTB//O3ZxXOb8ugK43J+tV03Ay3CYIoqDeLg2wTgRn14F/4Mrz1bSvxeIKsvExmUbXQ
-         rvyw==
-X-Google-Smtp-Source: APXvYqz0uGRd+OhDQQzhvps5/ie3QYUxGJ4pkAuGl0z6CDhEr4NK2GSI4SjZWju6OEg2EGL2jIXdS1whMQ9aB6RYVjA=
-X-Received: by 2002:aca:190b:: with SMTP id l11mr11116656oii.67.1565474472697;
- Sat, 10 Aug 2019 15:01:12 -0700 (PDT)
+       spf=neutral (google.com: 211.29.132.249 is neither permitted nor denied by best guess record for domain of david@fromorbit.com) smtp.mailfrom=david@fromorbit.com
+Received: from dread.disaster.area (pa49-181-167-148.pa.nsw.optusnet.com.au [49.181.167.148])
+	by mail105.syd.optusnet.com.au (Postfix) with ESMTPS id A751D365B77;
+	Sun, 11 Aug 2019 12:18:54 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hwdQZ-000318-Gl; Sun, 11 Aug 2019 12:17:47 +1000
+Date: Sun, 11 Aug 2019 12:17:47 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Brian Foster <bfoster@redhat.com>
+Cc: linux-xfs@vger.kernel.org, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org
+Subject: Re: [PATCH 23/24] xfs: reclaim inodes from the LRU
+Message-ID: <20190811021747.GE7777@dread.disaster.area>
+References: <20190801021752.4986-1-david@fromorbit.com>
+ <20190801021752.4986-24-david@fromorbit.com>
+ <20190808163905.GC24551@bfoster>
+ <20190809012022.GX7777@dread.disaster.area>
+ <20190809123632.GA29669@bfoster>
 MIME-Version: 1.0
-References: <20190808231340.53601-1-almasrymina@google.com>
- <f0a5afe9-2586-38c9-9a6d-8a2b7b288b50@oracle.com> <CAHS8izOKmaOETBd_545Zex=KFNjYOvf3dCzcMRUEXnnhYCK5bw@mail.gmail.com>
- <71a29844-7367-44c4-23be-eff26ac80467@oracle.com>
-In-Reply-To: <71a29844-7367-44c4-23be-eff26ac80467@oracle.com>
-From: Mina Almasry <almasrymina@google.com>
-Date: Sat, 10 Aug 2019 15:01:01 -0700
-Message-ID: <CAHS8izPGhHS+=qnf7Vy=C8kXQ=7v7XH3uEVitrW6ARRYU6iDdg@mail.gmail.com>
-Subject: Re: [RFC PATCH v2 0/5] hugetlb_cgroup: Add hugetlb_cgroup reservation limits
-To: Mike Kravetz <mike.kravetz@oracle.com>
-Cc: shuah <shuah@kernel.org>, David Rientjes <rientjes@google.com>, 
-	Shakeel Butt <shakeelb@google.com>, Greg Thelen <gthelen@google.com>, akpm@linux-foundation.org, 
-	khalid.aziz@oracle.com, open list <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, 
-	linux-kselftest@vger.kernel.org, =?UTF-8?Q?Michal_Koutn=C3=BD?= <mkoutny@suse.com>, 
-	Aneesh Kumar <aneesh.kumar@linux.vnet.ibm.com>, cgroups@vger.kernel.org
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190809123632.GA29669@bfoster>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=P6RKvmIu c=1 sm=1 tr=0
+	a=gu9DDhuZhshYSb5Zs/lkOA==:117 a=gu9DDhuZhshYSb5Zs/lkOA==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=20KFwNOVAAAA:8 a=7-415B0cAAAA:8 a=yfrmvxV0w3xqykQ9w7EA:9
+	a=d944y8aNix33yYBO:21 a=wEbLebVyk9Hl3MQ3:21 a=CjuIK1q_8ugA:10
+	a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 10, 2019 at 11:58 AM Mike Kravetz <mike.kravetz@oracle.com> wrote:
->
-> On 8/9/19 12:42 PM, Mina Almasry wrote:
-> > On Fri, Aug 9, 2019 at 10:54 AM Mike Kravetz <mike.kravetz@oracle.com> wrote:
-> >> On 8/8/19 4:13 PM, Mina Almasry wrote:
-> >>> Problem:
-> >>> Currently tasks attempting to allocate more hugetlb memory than is available get
-> >>> a failure at mmap/shmget time. This is thanks to Hugetlbfs Reservations [1].
-> >>> However, if a task attempts to allocate hugetlb memory only more than its
-> >>> hugetlb_cgroup limit allows, the kernel will allow the mmap/shmget call,
-> >>> but will SIGBUS the task when it attempts to fault the memory in.
-> <snip>
-> >> I believe tracking reservations for shared mappings can get quite complicated.
-> >> The hugetlbfs reservation code around shared mappings 'works' on the basis
-> >> that shared mapping reservations are global.  As a result, reservations are
-> >> more associated with the inode than with the task making the reservation.
-> >
-> > FWIW, I found it not too bad. And my tests at least don't detect an
-> > anomaly around shared mappings. The key I think is that I'm tracking
-> > cgroup to uncharge on the file_region entry inside the resv_map, so we
-> > know who allocated each file_region entry exactly and we can uncharge
-> > them when the entry is region_del'd.
-> >
-> >> For example, consider a file of size 4 hugetlb pages.
-> >> Task A maps the first 2 pages, and 2 reservations are taken.  Task B maps
-> >> all 4 pages, and 2 additional reservations are taken.  I am not really sure
-> >> of the desired semantics here for reservation limits if A and B are in separate
-> >> cgroups.  Should B be charged for 4 or 2 reservations?
-> >
-> > Task A's cgroup is charged 2 pages to its reservation usage.
-> > Task B's cgroup is charged 2 pages to its reservation usage.
->
-> OK,
-> Suppose Task B's cgroup allowed 2 huge pages reservation and 2 huge pages
-> allocation.  The mmap would succeed, but Task B could potentially need to
-> allocate more than 2 huge pages.  So, when faulting in more than 2 huge
-> pages B would get a SIGBUS.  Correct?  Or, am I missing something?
->
-> Perhaps reservation charge should always be the same as map size/maximum
-> allocation size?
+On Fri, Aug 09, 2019 at 08:36:32AM -0400, Brian Foster wrote:
+> On Fri, Aug 09, 2019 at 11:20:22AM +1000, Dave Chinner wrote:
+> > On Thu, Aug 08, 2019 at 12:39:05PM -0400, Brian Foster wrote:
+> > > On Thu, Aug 01, 2019 at 12:17:51PM +1000, Dave Chinner wrote:
+> > > > From: Dave Chinner <dchinner@redhat.com>
+> > > > 
+> > > > Replace the AG radix tree walking reclaim code with a list_lru
+> > > > walker, giving us both node-aware and memcg-aware inode reclaim
+> > > > at the XFS level. This requires adding an inode isolation function to
+> > > > determine if the inode can be reclaim, and a list walker to
+> > > > dispose of the inodes that were isolated.
+> > > > 
+> > > > We want the isolation function to be non-blocking. If we can't
+> > > > grab an inode then we either skip it or rotate it. If it's clean
+> > > > then we skip it, if it's dirty then we rotate to give it time to be
+> > > 
+> > > Do you mean we remove it if it's clean?
+> > 
+> > No, I mean if we can't grab it and it's clean, then we just skip it,
+> > leaving it at the head of the LRU for the next scanner to
+> > immediately try to reclaim it. If it's dirty, we rotate it so that
+> > time passes before we try to reclaim it again in the hope that it is
+> > already clean by the time we've scanned through the entire LRU...
+> > 
+> 
+> Ah, Ok. That could probably be worded more explicitly. E.g.:
+> 
+> "If we can't grab an inode, we skip it if it is clean or rotate it if
+> dirty. Dirty inode rotation gives the inode time to be cleaned before
+> it's scanned again. ..."
 
-I'm thinking this would work similar to how other shared memory like
-tmpfs is accounted for right now. I.e. if a task conducts an operation
-that causes memory to be allocated then that task is charged for that
-memory, and if another task uses memory that has already been
-allocated and charged by another task, then it can use the memory
-without being charged.
+*nod*
 
-So in case of hugetlb memory, if a task is mmaping memory that causes
-a new reservation to be made, and new entries to be created in the
-resv_map for the shared mapping, then that task gets charged. If the
-task is mmaping memory that is already reserved or faulted, then it
-reserves or faults it without getting charged.
+> > > > +++ b/fs/xfs/xfs_super.c
+> > > ...
+> > > > @@ -1810,23 +1811,58 @@ xfs_fs_mount(
+> ...
+> > > > +	long freed;
+> > > >  
+> > > > -	return list_lru_shrink_count(&XFS_M(sb)->m_inode_lru, sc);
+> > > > +	INIT_LIST_HEAD(&ra.freeable);
+> > > > +	ra.lowest_lsn = NULLCOMMITLSN;
+> > > > +	ra.dirty_skipped = 0;
+> > > > +
+> > > > +	freed = list_lru_shrink_walk(&mp->m_inode_lru, sc,
+> > > > +					xfs_inode_reclaim_isolate, &ra);
+> > > 
+> > > This is more related to the locking discussion on the earlier patch, but
+> > > this looks like it has more similar serialization to the example patch I
+> > > posted than the one without locking at all. IIUC, this walk has an
+> > > internal lock per node lru that is held across the walk and passed into
+> > > the callback. We never cycle it, so for any given node we only allow one
+> > > reclaimer through here at a time.
+> > 
+> > That's not a guarantee that list_lru gives us. It could drop it's
+> > internal lock at any time during that walk and we would be
+> > blissfully unaware that it has done this. And at that point, the
+> > reclaim context is completely unaware that other reclaim contexts
+> > may be scanning the same LRU at the same time and are interleaving
+> > with it.
+> > 
+> 
+> What is not a guarantee? I'm not following your point here. I suppose it
+> technically could drop the lock, but then it would have to restart the
+> iteration and wouldn't exactly provide predictable batching capability
+> to users.
 
-In the example above, in chronological order:
-- Task A mmaps 2 hugetlb pages, gets charged 2 hugetlb reservations.
-- Task B mmaps 4 hugetlb pages, gets charged only 2 hugetlb
-reservations because the first 2 are charged already and can be used
-without incurring a charge.
-- Task B accesses 4 hugetlb pages, gets charged *4* hugetlb faults,
-since none of the 4 pages are faulted in yet. If the task is only
-allowed 2 hugetlb page faults then it will actually get a SIGBUS.
-- Task A accesses 4 hugetlb pages, gets charged no faults, since all
-the hugetlb faults is charged to Task B.
+There is no guarantee that the list_lru_shrink_walk() provides a
+single list walker at a time or that it provides predictable
+batching capability to users.
 
-So, yes, I can see a scenario where userspace still gets SIGBUS'd, but
-I think that's fine because:
-1. Notice that the SIGBUS is due to the faulting limit, and not the
-reservation limit, so we're not regressing the status quo per say.
-Folks using the fault limit today understand the SIGBUS risk.
-2. the way I expect folks to use this is to use 'reservation limits'
-to partition the available hugetlb memory on the machine using it and
-forgo using the existing fault limits. Using both at the same time I
-think would be a superuser feature for folks that really know what
-they are doing, and understand the risk of SIGBUS that comes with
-using the existing fault limits.
-3. I expect userspace to in general handle this correctly because
-there are similar challenges with all shared memory and accounting of
-it, even in tmpfs, I think.
+> This internal lock protects the integrity of the list from external
+> adds/removes, etc., but it's also passed into the callback so of course
+> it can be cycled at any point. The callback just has to notify the
+> caller to restart the walk. E.g., from __list_lru_walk_one():
+> 
+>         /*
+>          * The lru lock has been dropped, our list traversal is
+>          * now invalid and so we have to restart from scratch.
+>          */
 
-I would not like to charge the full reservation to every process that
-does the mmap. Think of this, much more common scenario: Task A and B
-are supposed to collaborate on a 10 hugetlb pages of data. Task B
-should not access any hugetlb memory other than the memory it is
-working on with Task A, so:
+As the designer and author of the list_lru code, I do know how it
+works. I also know exactly what this problem this behaviour was
+intended to solve, because I had to solve it to meet the
+requirements I had for the infrastructure.
 
-1. Task A is put in a cgroup with 10 hugetlb pages reservation limit.
-2. Task B is put in a cgroup with 0 hugetlb pages of reservation limit.
-3. Task A mmaps 10 hugetlb pages of hugetlb memory, and notifies Task
-B that it is done.
-4. Task B, due to programmer error, tries to mmap hugetlb memory
-beyond what Task A set up for it, it gets denied at mmap time by the
-cgroup reservation limit.
-5. Task B mmaps the same 10 hugetlb pages of memory and starts working
-on them. The mmap succeeds because Task B is not charged anything.
+The isolation walk lock batching currently done is an optimisation
+to minimise lru lock contention - it amortise the cost of getting
+the lock over a substantial batch of work. If we drop the lock on
+every item we try to isolate - my initial implementations did this -
+then the lru lock thrashes badly against concurrent inserts and
+deletes and scalability is not much better than the global lock it
+was replacing.
 
-If we were charging the full reservation to both Tasks A and B, then
-both A and B would have be in cgroups that allow 10 pages of hugetlb
-reservations, and the mmap in step 4 would succeed, and we
-accidentally overcommitted the amount of hugetlb memory available.
+IOWs, the behaviour we have now is a result of lock contention
+optimisation to meet scalability requirements, not because of some
+"predictable batching" requirement. If we were to rework the
+traversal mechanism such that the lru lock was not necessary to
+protect the state of the LRU list across the batch of isolate
+callbacks, then we'd get the scalability we need but we'd completely
+change the concurrency behaviour. The list would still do LRU
+reclaim, and the isolate functions still work exactly as tehy
+currently do (i.e. they work on just the item passed to them) but
+we'd have concurrent reclaim contexts isolating items on the same
+LRU concurrently rather than being serialised. And that's perfectly
+fine, because the isolate/dispose architecture just doesn't care
+how the items on the LRU are isolated for disposal.....
 
-> --
-> Mike Kravetz
+What I'm trying to say is that the "isolation batching" we have is
+not desirable but it is necessary, and we because that's internal to
+the list_lru implementation, we can change that behaviour however
+we want and it won't affect the subsystems that own the objects
+being reclaimed. They still just get handed a list of items to
+dispose, and they all come from the reclaim end of the LRU list...
+
+Indeed, the new XFS inode shrinker is not dependent on any specific
+batching order, it's not dependent on isolation being serialised,
+and it's not dependent on the lru_lock being held across the
+isolation function. IOWs, it's set up just right to take advantage
+of any increases in isolation concurrency that the list_lru
+infrastructure could provide...
+
+> > > That seems to be Ok given we don't do much in the isolation handler, the
+> > > lock isn't held across the dispose sequence and we're still batching in
+> > > the shrinker core on top of that. We're still serialized over the lru
+> > > fixups such that concurrent reclaimers aren't processing the same
+> > > inodes, however.
+> > 
+> > The only thing that we may need here is need_resched() checks if it
+> > turns out that holding a lock for 1024 items to be scanned proved to
+> > be too long to hold on to a single CPU. If we do that we'd cycle the
+> > LRU lock and return RETRY or RETRY_REMOVE, hence enabling reclaimers
+> > more finer-grained interleaving....
+> > 
+> 
+> Sure, with the caveat that we restart the traversal..
+
+Which only re-traverses the inodes we skipped because they were
+locked at the time. IOWs, Skipping inodes is rare because if it is
+in reclaim then the only things that can be contending is a radix
+tree lookup in progress or an inode clustering operation
+(write/free) in progress. Either way, they will be relatively rare
+and very short term lock holds, so if we have to restart the scan
+after dropping the lru lock then it's likely we'll restart at next
+inode in line for reclaim, anyway....
+
+Hence I don't think having to restart a traversal would really
+matter all that much....
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
