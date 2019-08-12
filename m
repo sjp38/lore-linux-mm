@@ -2,131 +2,133 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_GIT
-	autolearn=unavailable autolearn_force=no version=3.4.0
+	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B068CC31E40
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 12:44:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 04F07C433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 13:00:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 570EC208C2
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 12:44:42 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id BD03620679
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 13:00:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=linaro.org header.i=@linaro.org header.b="CZL/I2MF"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 570EC208C2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linaro.org
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="LV/5e5bv"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BD03620679
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A9B4D6B0003; Mon, 12 Aug 2019 08:44:41 -0400 (EDT)
+	id 5AE626B0003; Mon, 12 Aug 2019 09:00:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A25446B0005; Mon, 12 Aug 2019 08:44:41 -0400 (EDT)
+	id 55E5C6B0005; Mon, 12 Aug 2019 09:00:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8ECEC6B0006; Mon, 12 Aug 2019 08:44:41 -0400 (EDT)
+	id 4749D6B0006; Mon, 12 Aug 2019 09:00:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0171.hostedemail.com [216.40.44.171])
-	by kanga.kvack.org (Postfix) with ESMTP id 66FE76B0003
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 08:44:41 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 1564F180AD7C1
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 12:44:41 +0000 (UTC)
-X-FDA: 75813744762.18.stage01_801ea164b1553
-X-HE-Tag: stage01_801ea164b1553
-X-Filterd-Recvd-Size: 4174
-Received: from mail-lj1-f193.google.com (mail-lj1-f193.google.com [209.85.208.193])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 12:44:40 +0000 (UTC)
-Received: by mail-lj1-f193.google.com with SMTP id z17so9711024ljz.0
-        for <linux-mm@kvack.org>; Mon, 12 Aug 2019 05:44:40 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0058.hostedemail.com [216.40.44.58])
+	by kanga.kvack.org (Postfix) with ESMTP id 26AAB6B0003
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 09:00:42 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id D34682C34
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 13:00:41 +0000 (UTC)
+X-FDA: 75813785082.28.son93_7a7282a3ccd1c
+X-HE-Tag: son93_7a7282a3ccd1c
+X-Filterd-Recvd-Size: 4725
+Received: from mail-qt1-f193.google.com (mail-qt1-f193.google.com [209.85.160.193])
+	by imf30.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 13:00:41 +0000 (UTC)
+Received: by mail-qt1-f193.google.com with SMTP id u34so3345748qte.2
+        for <linux-mm@kvack.org>; Mon, 12 Aug 2019 06:00:41 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=linaro.org; s=google;
-        h=from:to:cc:subject:date:message-id:in-reply-to:references;
-        bh=CzrTbiHopzrJu+YLYHoIsujt53sT7XN4YE3jA26/XGg=;
-        b=CZL/I2MFhnHG7WsGfil0Lhj0/vUbG22b1Ey4JJ+4mOZyN1TTt0k7l4o5BUszI4UGSt
-         1n6tFYW9r96cIcKCqEuEC/X0AeIYX4H3btbse/XxA6HbmKV6iGxNC4/567RVUaDZR3nC
-         HaBGbThoAuqSmKQ7S0HRYvg4C1CynhZlxF5TTej5/B6iJps7QKNTM4USoP9kAw899Z8y
-         njUfwG3frFnuvYBLJG70NZ9gAM/sazFT3OtdhJd6YwKSg4tw6mibwBU/2nf6qJlB+PYs
-         nEdfm2RkSbLQDJX7Q+RXVjY0XgH2jzOz2zIp+b1IMwxFfO6/cYmvcAAZd1PeK0vVqpsO
-         voQQ==
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=v27wNdJ2y4fYwnlNFEt6zNAiJxMsGAli8ivaPg3wc1M=;
+        b=LV/5e5bv9v8c9I7DK/4tP8vVkAv6ndU5JI38qUo1+2B1jfGlrpI06NbB/wUkGmGyeD
+         KY3vx+BUEfWjNcT2jjwpyELSCXp7i7rhZc2KX9VIhPMNn4kdIu0t67lAdfyU9nekK3/L
+         3MP+wXH4WlzFyTZrxx9Nd58XuCITcoHJXYChWbVPAs14UWUvJfZCxKp6aHXHdcIEep4x
+         r+prD4FcMDTQq1FtSuu4IHqp4tIQ7RstC8NDn1Eia7VGs9b5kzm5e4WhAMu4VOynEmb3
+         TrkDaFXVCw6fu3HohAu2/SmzPW7CoZVyBc26hhltk64h6IL73zahCzWzhawOMhGp4fqS
+         1wtg==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id:in-reply-to
-         :references;
-        bh=CzrTbiHopzrJu+YLYHoIsujt53sT7XN4YE3jA26/XGg=;
-        b=g19BOJEMRmIqqh8NY6kFx8rS3GNHyJqZcunrClLY0KT4I/wBgcHgu+MN49Z3H1z+dm
-         vOz5vZrs/biAxFSw+HKgc47NWTni8/pdBP5YbhlEpfGu42KGgW9ZE7mpG9YLUyGzIXsM
-         xBmx8+GvwfX1Q15PWMoxaOahYxYhgjBZwzI9BZh/wsWfCVvsm6pIyYDqjEQuMTzwYKBB
-         M3Vu00BjwOrUjrfwf0EfrMjzOkLcEAvyZBMqv4PRR6yFCS9DuuQCqj9vP4HxGYMzDYVn
-         43bHMXOThKYex85Y68EpdqPdZik+cosauq+b4A39bZIRSDsaxj4n4WRhlJLt5W+BMgyz
-         PUmA==
-X-Gm-Message-State: APjAAAUU2EFJ+BFxwvZyXppzxJygnkRhyVrg0TkrHqQdQ+T73WU802Em
-	I3ToXWB65AKf2MVEFvxNwispyQ==
-X-Google-Smtp-Source: APXvYqwamKoAxWVn0ZtiV6XAfXemkV1C3L3E5zzwIiIeJc4CgQilmql9PxxJQosy2E9Ep5TEcoG4/g==
-X-Received: by 2002:a2e:1459:: with SMTP id 25mr18650455lju.153.1565613878719;
-        Mon, 12 Aug 2019 05:44:38 -0700 (PDT)
-Received: from localhost.localdomain (168-200-94-178.pool.ukrtel.net. [178.94.200.168])
-        by smtp.gmail.com with ESMTPSA id y25sm23432747lja.45.2019.08.12.05.44.37
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Mon, 12 Aug 2019 05:44:38 -0700 (PDT)
-From: Ivan Khoronzhuk <ivan.khoronzhuk@linaro.org>
-To: bjorn.topel@intel.com,
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=v27wNdJ2y4fYwnlNFEt6zNAiJxMsGAli8ivaPg3wc1M=;
+        b=T4FRuDvK+UoptgcZL/vNAPuOTizdasTwyOXSbp2z9Wbqo2/3aBQMplCsh6RpwZGYUI
+         0i8S7/3B+10tC/md1Mk6bBgEQOGvLpk9uIjgBh0TRJ8b0NXTN/Zoui8zGVHfj/p/FH63
+         qW3SIS0xtvgnIZ9LVi6M57Rgd+T+ZoqU2N5fKG7UHGyqoTfyBr5j7kBFO3422pagJwBc
+         9c17DkgO3sk7oDYRgsqxdWJxTSv91nzBoBrH3XRc6LwdkcaPM2pOzn0dBHog14PnItz+
+         azkoeJFiXll996cN98kEjC7oD9zvEaXnuRlD5+cA1bQxeNOBmIe+ky3Rioo1wCd1O/yp
+         066g==
+X-Gm-Message-State: APjAAAUDZ7ecz5HwuATaZBot+1E3d55/fVVT1BkcMkWYcmf1+SJtkRYo
+	wvcmnkFFNbTZiFSoVPfise6vsg==
+X-Google-Smtp-Source: APXvYqyQID2HK/cSNFy0j5AldC0D5f58clAE4+2HeEw+kkaB2zL8GXSnMyU9v7OrdqZd4L0OHplsYg==
+X-Received: by 2002:ac8:6c48:: with SMTP id z8mr18986870qtu.58.1565614840799;
+        Mon, 12 Aug 2019 06:00:40 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id m27sm52693265qtu.31.2019.08.12.06.00.40
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Mon, 12 Aug 2019 06:00:40 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hx9wG-0007QV-0U; Mon, 12 Aug 2019 10:00:40 -0300
+Date: Mon, 12 Aug 2019 10:00:40 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: ira.weiny@intel.com
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
+	Theodore Ts'o <tytso@mit.edu>, John Hubbard <jhubbard@nvidia.com>,
+	Michal Hocko <mhocko@suse.com>, Dave Chinner <david@fromorbit.com>,
+	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
 	linux-mm@kvack.org
-Cc: xdp-newbies@vger.kernel.org,
-	netdev@vger.kernel.org,
-	bpf@vger.kernel.org,
-	linux-kernel@vger.kernel.org,
-	akpm@linux-foundation.org,
-	ast@kernel.org,
-	magnus.karlsson@intel.com,
-	Ivan Khoronzhuk <ivan.khoronzhuk@linaro.org>
-Subject: [PATCH v2 bpf-next] mm: mmap: increase sockets maximum memory size pgoff for 32bits
-Date: Mon, 12 Aug 2019 15:43:26 +0300
-Message-Id: <20190812124326.32146-1-ivan.khoronzhuk@linaro.org>
-X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190812113429.2488-1-ivan.khoronzhuk@linaro.org>
-References: <20190812113429.2488-1-ivan.khoronzhuk@linaro.org>
+Subject: Re: [RFC PATCH v2 16/19] RDMA/uverbs: Add back pointer to system
+ file object
+Message-ID: <20190812130039.GD24457@ziepe.ca>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+ <20190809225833.6657-17-ira.weiny@intel.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190809225833.6657-17-ira.weiny@intel.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-The AF_XDP sockets umem mapping interface uses XDP_UMEM_PGOFF_FILL_RING
-and XDP_UMEM_PGOFF_COMPLETION_RING offsets. The offsets seems like are
-established already and are part of configuration interface.
+On Fri, Aug 09, 2019 at 03:58:30PM -0700, ira.weiny@intel.com wrote:
+> From: Ira Weiny <ira.weiny@intel.com>
+> 
+> In order for MRs to be tracked against the open verbs context the ufile
+> needs to have a pointer to hand to the GUP code.
+> 
+> No references need to be taken as this should be valid for the lifetime
+> of the context.
+> 
+> Signed-off-by: Ira Weiny <ira.weiny@intel.com>
+>  drivers/infiniband/core/uverbs.h      | 1 +
+>  drivers/infiniband/core/uverbs_main.c | 1 +
+>  2 files changed, 2 insertions(+)
+> 
+> diff --git a/drivers/infiniband/core/uverbs.h b/drivers/infiniband/core/uverbs.h
+> index 1e5aeb39f774..e802ba8c67d6 100644
+> +++ b/drivers/infiniband/core/uverbs.h
+> @@ -163,6 +163,7 @@ struct ib_uverbs_file {
+>  	struct page *disassociate_page;
+>  
+>  	struct xarray		idr;
+> +	struct file             *sys_file; /* backpointer to system file object */
+>  };
 
-But for 32-bit systems, while AF_XDP socket configuration, the values
-are to large to pass maximum allowed file size verification.
-The offsets can be tuned ofc, but instead of changing existent
-interface - extend max allowed file size for sockets.
+The 'struct file' has a lifetime strictly shorter than the
+ib_uverbs_file, which is kref'd on its own lifetime. Having a back
+pointer like this is confouding as it will be invalid for some of the
+lifetime of the struct.
 
-Signed-off-by: Ivan Khoronzhuk <ivan.khoronzhuk@linaro.org>
----
-
-Based on bpf-next/master
-
-v2..v1:
-	removed not necessarily #ifdev as ULL and UL for 64 has same size
-
- mm/mmap.c | 3 +++
- 1 file changed, 3 insertions(+)
-
-diff --git a/mm/mmap.c b/mm/mmap.c
-index 7e8c3e8ae75f..578f52812361 100644
---- a/mm/mmap.c
-+++ b/mm/mmap.c
-@@ -1358,6 +1358,9 @@ static inline u64 file_mmap_size_max(struct file *file, struct inode *inode)
- 	if (S_ISBLK(inode->i_mode))
- 		return MAX_LFS_FILESIZE;
- 
-+	if (S_ISSOCK(inode->i_mode))
-+		return MAX_LFS_FILESIZE;
-+
- 	/* Special "we do even unsigned file positions" case */
- 	if (file->f_mode & FMODE_UNSIGNED_OFFSET)
- 		return 0;
--- 
-2.17.1
-
+Jason
 
