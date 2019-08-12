@@ -2,96 +2,107 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,URIBL_BLOCKED,
-	USER_AGENT_SANE_2 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id EDFCEC433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 08:24:59 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C8B9C433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 08:45:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B96802087B
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 08:24:59 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B96802087B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mediatek.com
+	by mail.kernel.org (Postfix) with ESMTP id 1291E20820
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 08:45:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1291E20820
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6F4816B0005; Mon, 12 Aug 2019 04:24:59 -0400 (EDT)
+	id 6BD506B0003; Mon, 12 Aug 2019 04:45:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 6A4ED6B0006; Mon, 12 Aug 2019 04:24:59 -0400 (EDT)
+	id 66EFE6B0005; Mon, 12 Aug 2019 04:45:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5E2996B0008; Mon, 12 Aug 2019 04:24:59 -0400 (EDT)
+	id 584DB6B0006; Mon, 12 Aug 2019 04:45:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0136.hostedemail.com [216.40.44.136])
-	by kanga.kvack.org (Postfix) with ESMTP id 3AB276B0005
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 04:24:59 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id D8EEC8248AA3
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 08:24:58 +0000 (UTC)
-X-FDA: 75813090276.03.help49_2b4818a8bf755
-X-HE-Tag: help49_2b4818a8bf755
-X-Filterd-Recvd-Size: 2772
-Received: from mailgw01.mediatek.com (unknown [210.61.82.183])
-	by imf41.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 08:24:57 +0000 (UTC)
-X-UUID: e2401d4e653c481e87b5cab55e7c4c14-20190812
-X-UUID: e2401d4e653c481e87b5cab55e7c4c14-20190812
-Received: from mtkcas08.mediatek.inc [(172.21.101.126)] by mailgw01.mediatek.com
-	(envelope-from <miles.chen@mediatek.com>)
-	(Cellopoint E-mail Firewall v4.1.10 Build 0707 with TLS)
-	with ESMTP id 2145448533; Mon, 12 Aug 2019 16:24:48 +0800
-Received: from mtkcas07.mediatek.inc (172.21.101.84) by
- mtkmbs07n2.mediatek.inc (172.21.101.141) with Microsoft SMTP Server (TLS) id
- 15.0.1395.4; Mon, 12 Aug 2019 16:24:48 +0800
-Received: from [172.21.77.33] (172.21.77.33) by mtkcas07.mediatek.inc
- (172.21.101.73) with Microsoft SMTP Server id 15.0.1395.4 via Frontend
- Transport; Mon, 12 Aug 2019 16:24:48 +0800
-Message-ID: <1565598290.5872.6.camel@mtkswgap22>
-Subject: Re: [RFC PATCH v2] mm: slub: print kernel addresses in slub debug
- messages
-From: Miles Chen <miles.chen@mediatek.com>
-To: Matthew Wilcox <willy@infradead.org>
-CC: Christoph Lameter <cl@linux.com>, Pekka Enberg <penberg@kernel.org>, David
- Rientjes <rientjes@google.com>, Joonsoo Kim <iamjoonsoo.kim@lge.com>, Andrew
- Morton <akpm@linux-foundation.org>, <linux-mm@kvack.org>,
-	<linux-kernel@vger.kernel.org>, <linux-mediatek@lists.infradead.org>,
-	<wsd_upstream@mediatek.com>, "Tobin C . Harding" <me@tobin.cc>, Kees Cook
-	<keescook@chromium.org>
-Date: Mon, 12 Aug 2019 16:24:50 +0800
-In-Reply-To: <20190809142617.GO5482@bombadil.infradead.org>
-References: <20190809010837.24166-1-miles.chen@mediatek.com>
-	 <20190809024644.GL5482@bombadil.infradead.org>
-	 <1565359918.12824.20.camel@mtkswgap22>
-	 <20190809142617.GO5482@bombadil.infradead.org>
-Content-Type: text/plain; charset="UTF-8"
-X-Mailer: Evolution 3.2.3-0ubuntu6 
-Content-Transfer-Encoding: 7bit
+Received: from forelay.hostedemail.com (smtprelay0181.hostedemail.com [216.40.44.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 347766B0003
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 04:45:28 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id E80F5482F
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 08:45:27 +0000 (UTC)
+X-FDA: 75813141894.21.news05_4cc6a1ffd8f59
+X-HE-Tag: news05_4cc6a1ffd8f59
+X-Filterd-Recvd-Size: 3215
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf21.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 08:45:27 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id C4681AD46;
+	Mon, 12 Aug 2019 08:45:25 +0000 (UTC)
+Date: Mon, 12 Aug 2019 10:45:24 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Sasha Levin <sashal@kernel.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, ltp@lists.linux.it,
+	Li Wang <liwang@redhat.com>,
+	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+	Cyril Hrubis <chrubis@suse.cz>, xishi.qiuxishi@alibaba-inc.com
+Subject: Re: [PATCH] hugetlbfs: fix hugetlb page migration/fault race causing
+ SIGBUS
+Message-ID: <20190812084524.GC5117@dhcp22.suse.cz>
+References: <20190808000533.7701-1-mike.kravetz@oracle.com>
+ <20190808074607.GI11812@dhcp22.suse.cz>
+ <20190808074736.GJ11812@dhcp22.suse.cz>
+ <416ee59e-9ae8-f72d-1b26-4d3d31501330@oracle.com>
+ <20190808185313.GG18351@dhcp22.suse.cz>
+ <20190808163928.118f8da4f4289f7c51b8ffd4@linux-foundation.org>
+ <20190809064633.GK18351@dhcp22.suse.cz>
+ <20190809151718.d285cd1f6d0f1cf02cb93dc8@linux-foundation.org>
+ <20190811234614.GZ17747@sasha-vm>
 MIME-Version: 1.0
-X-MTK: N
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000002, version=1.2.4
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190811234614.GZ17747@sasha-vm>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 2019-08-09 at 07:26 -0700, Matthew Wilcox wrote:
-> On Fri, Aug 09, 2019 at 10:11:58PM +0800, Miles Chen wrote:
-> > On Thu, 2019-08-08 at 19:46 -0700, Matthew Wilcox wrote:
-> > > On Fri, Aug 09, 2019 at 09:08:37AM +0800, miles.chen@mediatek.com wrote:
-> > > > INFO: Slab 0x(____ptrval____) objects=25 used=10 fp=0x(____ptrval____)
-> > > 
-> > > ... you don't have any randomness on your platform?
+On Sun 11-08-19 19:46:14, Sasha Levin wrote:
+> On Fri, Aug 09, 2019 at 03:17:18PM -0700, Andrew Morton wrote:
+> > On Fri, 9 Aug 2019 08:46:33 +0200 Michal Hocko <mhocko@kernel.org> wrote:
 > > 
-> > We have randomized base on our platforms.
+> > > > Maybe we should introduce the Fixes-no-stable: tag.  That should get
+> > > > their attention.
+> > > 
+> > > No please, Fixes shouldn't be really tight to any stable tree rules. It
+> > > is a very useful indication of which commit has introduced bug/problem
+> > > or whatever that the patch follows up to. We in Suse are using this tag
+> > > to evaluate potential fixes as the stable is not reliable. We could live
+> > > with Fixes-no-stable or whatever other name but does it really makes
+> > > sense to complicate the existing state when stable maintainers are doing
+> > > whatever they want anyway? Does a tag like that force AI from selecting
+> > > a patch? I am not really convinced.
+> > 
+> > It should work if we ask stable trees maintainers not to backport
+> > such patches.
+> > 
+> > Sasha, please don't backport patches which are marked Fixes-no-stable:
+> > and which lack a cc:stable tag.
 > 
-> Look at initialize_ptr_random().  If you have randomness, then you
-> get a siphash_1u32() of the address.  With no randomness, you get this
-> ___ptrval___ string instead.
-> 
-You are right. There is no randomness in this platform. (I ran my test
-code on Qemu with no randomness)
+> I'll add it to my filter, thank you!
 
+I would really prefer to stick with Fixes: tag and stable only picking
+up cc: stable patches. I really hate to see workarounds for sensible
+workflows (marking the Fixes) just because we are trying to hide
+something from stable maintainers. Seriously, if stable maintainers have
+a different idea about what should be backported, it is their call. They
+are the ones to deal with regressions and the backporting effort in
+those cases of disagreement.
 
-thanks again
-
+-- 
+Michal Hocko
+SUSE Labs
 
