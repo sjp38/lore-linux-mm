@@ -2,124 +2,99 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 95307C32750
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 21:20:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 956F3C433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 21:29:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4B8A0206C2
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 21:20:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="i3VfG8jw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B8A0206C2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 5A4012075B
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 21:29:29 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5A4012075B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id F33FA6B0005; Mon, 12 Aug 2019 17:20:21 -0400 (EDT)
+	id EB7826B0003; Mon, 12 Aug 2019 17:29:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id EE3D96B0006; Mon, 12 Aug 2019 17:20:21 -0400 (EDT)
+	id E67EB6B0005; Mon, 12 Aug 2019 17:29:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id DD2DE6B0007; Mon, 12 Aug 2019 17:20:21 -0400 (EDT)
+	id D56256B0006; Mon, 12 Aug 2019 17:29:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0043.hostedemail.com [216.40.44.43])
-	by kanga.kvack.org (Postfix) with ESMTP id B4CFA6B0005
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 17:20:21 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 60FAC181AC9AE
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 21:20:21 +0000 (UTC)
-X-FDA: 75815044242.04.start00_776ffc8bbb340
-X-HE-Tag: start00_776ffc8bbb340
-X-Filterd-Recvd-Size: 4062
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com [216.228.121.64])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 21:20:20 +0000 (UTC)
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d51d81e0001>; Mon, 12 Aug 2019 14:20:30 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Mon, 12 Aug 2019 14:20:19 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Mon, 12 Aug 2019 14:20:19 -0700
-Received: from MacBook-Pro-10.local (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 12 Aug
- 2019 21:20:16 +0000
-Subject: Re: [RFC PATCH v2 15/19] mm/gup: Introduce vaddr_pin_pages()
-To: Ira Weiny <ira.weiny@intel.com>
-CC: Andrew Morton <akpm@linux-foundation.org>, Jason Gunthorpe <jgg@ziepe.ca>,
-	Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox
-	<willy@infradead.org>, Jan Kara <jack@suse.cz>, Theodore Ts'o
-	<tytso@mit.edu>, Michal Hocko <mhocko@suse.com>, Dave Chinner
-	<david@fromorbit.com>, <linux-xfs@vger.kernel.org>,
-	<linux-rdma@vger.kernel.org>, <linux-kernel@vger.kernel.org>,
-	<linux-fsdevel@vger.kernel.org>, <linux-nvdimm@lists.01.org>,
-	<linux-ext4@vger.kernel.org>, <linux-mm@kvack.org>
-References: <20190809225833.6657-1-ira.weiny@intel.com>
- <20190809225833.6657-16-ira.weiny@intel.com>
- <6ed26a08-4371-9dc1-09eb-7b8a4689d93b@nvidia.com>
- <20190812210013.GC20634@iweiny-DESK2.sc.intel.com>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <b4e15390-701d-c6e9-564c-04e6a3effd50@nvidia.com>
-Date: Mon, 12 Aug 2019 14:20:14 -0700
-User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.14; rv:60.0)
- Gecko/20100101 Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0192.hostedemail.com [216.40.44.192])
+	by kanga.kvack.org (Postfix) with ESMTP id AD1D46B0003
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 17:29:28 -0400 (EDT)
+Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 4BC11180AD7C1
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 21:29:28 +0000 (UTC)
+X-FDA: 75815067216.24.ant39_357135b4e912d
+X-HE-Tag: ant39_357135b4e912d
+X-Filterd-Recvd-Size: 3015
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf14.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 21:29:27 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id CBB40C05AA57;
+	Mon, 12 Aug 2019 21:29:25 +0000 (UTC)
+Received: from segfault.boston.devel.redhat.com (segfault.boston.devel.redhat.com [10.19.60.26])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 233026A225;
+	Mon, 12 Aug 2019 21:29:24 +0000 (UTC)
+From: Jeff Moyer <jmoyer@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm <linux-nvdimm@lists.01.org>,  Linux MM <linux-mm@kvack.org>,  Jason Gunthorpe <jgg@mellanox.com>,  Andrew Morton <akpm@linux-foundation.org>,  Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH] mm/memremap: Fix reuse of pgmap instances with internal references
+References: <156530042781.2068700.8733813683117819799.stgit@dwillia2-desk3.amr.corp.intel.com>
+	<x49blwuidqn.fsf@segfault.boston.devel.redhat.com>
+	<CAPcyv4jZWbBUrig3wnE+VGptMEv3fHeRJbRhmMncQwkjLUbvxg@mail.gmail.com>
+X-PGP-KeyID: 1F78E1B4
+X-PGP-CertKey: F6FE 280D 8293 F72C 65FD  5A58 1FF8 A7CA 1F78 E1B4
+Date: Mon, 12 Aug 2019 17:29:24 -0400
+In-Reply-To: <CAPcyv4jZWbBUrig3wnE+VGptMEv3fHeRJbRhmMncQwkjLUbvxg@mail.gmail.com>
+	(Dan Williams's message of "Mon, 12 Aug 2019 09:44:10 -0700")
+Message-ID: <x49ftm6gjij.fsf@segfault.boston.devel.redhat.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-In-Reply-To: <20190812210013.GC20634@iweiny-DESK2.sc.intel.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1565644830; bh=JroT/x6S1SiN0zFyCuj22OCuZxP8/vKF5Bd4ngANWFg=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=i3VfG8jwOmXxQPogIwZ3sMCwfa3CGn1sVpvN5L89ZpC8daRGO/R9vtPcQ47P9mJKh
-	 RafMQn1lyj28wP20RL4bwfklVqGKlcfPAph9NXoIwgiQdHwPgcKbnROYw10gmdDVRB
-	 1aS4zaWboi6HStNT7Yrmu295QTNK0j6K5HIrCLRwR8jCgH/8n6x020QR0zeCSySUVY
-	 VAXLG041hhDzAzbF3ygoB+7XO9fFnjFaejfE1ChOqzhEU5/hswkEAbHCgQ7dScaDdG
-	 w+6XfT+PtAoSQVM3gP/Vv3ydQrcAmDn+XK4KuZZlDuKzgjlPJSCpn8JEDKzDbcX5Uy
-	 UcyfVCRj6Jjvg==
+Content-Type: text/plain
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.32]); Mon, 12 Aug 2019 21:29:25 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/12/19 2:00 PM, Ira Weiny wrote:
-> On Fri, Aug 09, 2019 at 05:09:54PM -0700, John Hubbard wrote:
->> On 8/9/19 3:58 PM, ira.weiny@intel.com wrote:
->>> From: Ira Weiny <ira.weiny@intel.com>
-...
-> 
-> At one point I wanted to (and had in my tree) a new flag but I went away from
-> it.  Prior to the discussion on mlock last week I did not think we needed it.
-> But I'm ok to add it back in.
-> 
-> I was not ignoring the idea for this RFC I just wanted to get this out there
-> for people to see.  I see that you threw out a couple of patches which add this
-> flag in.
-> 
-> FWIW, I think it would be good to differentiate between an indefinite pinned
-> page vs a referenced "gotten" page.
-> 
-> What you and I have been working on is the former.  So it would be easy to
-> change your refcounting patches to simply key off of FOLL_PIN.
-> 
-> Would you like me to add in your FOLL_PIN patches to this series?
+Dan Williams <dan.j.williams@intel.com> writes:
 
-Sure, that would be perfect. They don't make any sense on their own, and
-it's all part of the same design idea.
+> On Mon, Aug 12, 2019 at 8:51 AM Jeff Moyer <jmoyer@redhat.com> wrote:
+>>
+>> Dan Williams <dan.j.williams@intel.com> writes:
+>>
+>> > Currently, attempts to shutdown and re-enable a device-dax instance
+>> > trigger:
+>>
+>> What does "shutdown and re-enable" translate to?  If I disable and
+>> re-enable a device-dax namespace, I don't see this behavior.
+>
+> I was not seeing this either until I made sure I was in 'bus" device model mode.
+>
+> # cat /etc/modprobe.d/daxctl.conf
+> blacklist dax_pmem_compat
+> alias nd:t7* dax_pmem
+>
+> # make TESTS="daxctl-devices.sh" check -j 40 2>out
+>
+> # dmesg | grep WARN.*devm
+> [  225.588651] WARNING: CPU: 10 PID: 9103 at mm/memremap.c:211
+> devm_memremap_pages+0x234/0x850
+> [  225.679828] WARNING: CPU: 10 PID: 9103 at mm/memremap.c:211
+> devm_memremap_pages+0x234/0x850
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+Ah, you see this when reconfiguring the device.  So, the lifetime of the
+pgmap is tied to the character device, which doesn't get torn down.  The
+fix looks good to me, and tests out fine.
+
+Reviewed-by: Jeff Moyer <jmoyer@redhat.com>
 
