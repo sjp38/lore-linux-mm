@@ -2,184 +2,114 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-13.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E1332C31E40
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 12:06:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 28DB4C31E40
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 12:11:49 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A60F2208C2
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 12:06:22 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id D79D720651
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 12:11:48 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="uJEt2ROV"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A60F2208C2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="kG4XT2lK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D79D720651
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 38CB86B0003; Mon, 12 Aug 2019 08:06:22 -0400 (EDT)
+	id 6E36B6B0003; Mon, 12 Aug 2019 08:11:48 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 33DD56B0005; Mon, 12 Aug 2019 08:06:22 -0400 (EDT)
+	id 694F76B0005; Mon, 12 Aug 2019 08:11:48 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 22CA56B0006; Mon, 12 Aug 2019 08:06:22 -0400 (EDT)
+	id 583246B0006; Mon, 12 Aug 2019 08:11:48 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0082.hostedemail.com [216.40.44.82])
-	by kanga.kvack.org (Postfix) with ESMTP id F2AFD6B0003
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 08:06:21 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 92979440E
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 12:06:21 +0000 (UTC)
-X-FDA: 75813648162.24.side19_548e18fc3c328
-X-HE-Tag: side19_548e18fc3c328
-X-Filterd-Recvd-Size: 7943
-Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com [209.85.215.195])
-	by imf18.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 12:06:20 +0000 (UTC)
-Received: by mail-pg1-f195.google.com with SMTP id n9so43149395pgc.1
-        for <linux-mm@kvack.org>; Mon, 12 Aug 2019 05:06:20 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0209.hostedemail.com [216.40.44.209])
+	by kanga.kvack.org (Postfix) with ESMTP id 316B96B0003
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 08:11:48 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id CE83B180AD7C1
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 12:11:47 +0000 (UTC)
+X-FDA: 75813661854.11.toad12_84099dbd7ee36
+X-HE-Tag: toad12_84099dbd7ee36
+X-Filterd-Recvd-Size: 3921
+Received: from mail-ed1-f65.google.com (mail-ed1-f65.google.com [209.85.208.65])
+	by imf04.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 12:11:47 +0000 (UTC)
+Received: by mail-ed1-f65.google.com with SMTP id h13so621009edq.10
+        for <linux-mm@kvack.org>; Mon, 12 Aug 2019 05:11:47 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=sgx0vew/l/5gv4406bm2WvE+6I0CHR07hqlrz86Z3sc=;
-        b=uJEt2ROVPd1UqcXIH8AZcEWJe2gU2l2WikWj/lTXEu5TAQO5UI7HxMZhSjWGSNpSM/
-         kD67Pst1Dyzx7qbYrLXSvu+Mr08ddVTHrPLPkSReXtjEyuOfJ2szasvJY7Q1juthSE+O
-         ZN5d5+3WpJ8VQexHVYk2PQhh6erlNiX5z9RVYgbCQIuL3cODpt1V8Jl+vCfCixh/0O7E
-         92/TSySWGPp9zO0p00eOTgQmAdQTHS88ikyrRrA73j948ugOl+8ULRHL2jU6SZXLcic4
-         YmfbiWs7shR+wQkLf29qMOFftl73S3yAhgbTADzXO1DxWuSyQjH0/iK3D3AGpyYzODyS
-         j5vw==
+        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=hujPz5MzKCPbinmOqr53v4vBoAK56yuLqnChSDEz9qA=;
+        b=kG4XT2lKey+4eCUsbMw608+JUTWj1lxYAaeWUpvWhAU4mfmvKO1+mJ2RbJ/TTwzVWz
+         EosPGa6L2PH3pvSfpx2JB3jPONr6bQWPR8QPHlKo7gBcN5HJgvlFlZkahclBPmY5SPza
+         u9cvzhY3lYXcLrHIpUBRonwmDzBcOdQxD8gYB019tPz4aEzzNpPnkmP9BbhoChr5mPzG
+         Qb+3Y9e3MgNaPVnkEkafCYsctwGpOnfIdg90xtn6RsEvJbL5V5x/iyZa/eWrEg7UY7Cl
+         b44oBsJHgNUel8LwWzX1ouV8n4wDh8pr89cI5bGwPB29mD6ThSDApXkIpV5tWesvpRxj
+         YZFQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=sgx0vew/l/5gv4406bm2WvE+6I0CHR07hqlrz86Z3sc=;
-        b=f9eacsxvwrbnz3vS4fgIaYubrdAvflyQA5lG4fhWMNmgM02Woqy9w4Z5O7sJJj+YjK
-         7R8QNEhII9zUxio7OTFRmuw0awjxaplk8RnCTpCy4qHfvPJXYtE8uKldrbyQoKXnHSve
-         /WYasGDQwENzta7onAwmIYGuuevt9v8hXh2iZM6I9700Fr/a6xkAay6P9BCfCFdL7AJE
-         Osej46fbdISCeWKNPwg5AlWJF0gYE8TVyeKlu57nE/P+Hwpav/EqYvfYBFz6ytpvvuHy
-         4FDXwZQtN8bUMWCmf3zzIYnnpKLcUmTdegYRbpNx8Iz99QkiWCKjoDoAMJhXQ2oEW24M
-         iAqw==
-X-Gm-Message-State: APjAAAWT9tLYHB/Aal3bhbFH22fSLxrUZhZYPzOKsrrIPzTaeEoqPA30
-	0vMNphAlTZTE6ZE9pyMESVsiIAPYgJ8AFCB+vacTpg==
-X-Google-Smtp-Source: APXvYqzdCQuAop5oRPu4EMtfBSPg2dydPnlQBeJzj9Fz8EdqkN3nC2NN4tp/bM/cPBx2GTfWFoh9z4egZLpy0FJbn4E=
-X-Received: by 2002:aa7:86c6:: with SMTP id h6mr35801985pfo.51.1565611579482;
- Mon, 12 Aug 2019 05:06:19 -0700 (PDT)
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=hujPz5MzKCPbinmOqr53v4vBoAK56yuLqnChSDEz9qA=;
+        b=YvZX89MGJMcN7FtMGplV9E9uqBAC+mQkY10X/RLsBYpYTOmOa2qjaSiX27zAvcK8Ck
+         +4FzdhK/pE2dw7HNMTsA1Q7x205p784F5q7xgMKf5sYwl5iE39qbF/d3TOto8kRM5xEf
+         a2TLIJZRFzUQtaJmBExMthJaARjAikkJbj9rGHyvY35Iq7VyGNGHMVIphDmXgja5hlpH
+         c4KnyDisWNCQ8fXMrRxXLmsqhlvNw7tepXMkyqcTW9WDAveOAP1doax4Tb100Sxf2YkQ
+         JIC133lyAbK1gkHXILvs+PWQ60ceRs+uZpT7U8JgxyryCJoF7+Y3d/t0FthNJsWdS9Lv
+         G+oQ==
+X-Gm-Message-State: APjAAAVtfVYBFqEmRdopFJCNcR7Bo2oJ9+uHoYvkJoEMHbmWe0oUPwsO
+	+/htI1c7A/fHb1BZ48ugK7yLLw==
+X-Google-Smtp-Source: APXvYqwghgOTyS9rkCUVPgJV5+8qxWl9q0SIGpjg1BJW8yOQj7jdU3JnAfDL4hy0NKzKdkKqkGV/sw==
+X-Received: by 2002:a17:906:e088:: with SMTP id gh8mr6556500ejb.117.1565611905926;
+        Mon, 12 Aug 2019 05:11:45 -0700 (PDT)
+Received: from box.localdomain ([86.57.175.117])
+        by smtp.gmail.com with ESMTPSA id x11sm17492035eju.26.2019.08.12.05.11.44
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Mon, 12 Aug 2019 05:11:45 -0700 (PDT)
+Received: by box.localdomain (Postfix, from userid 1000)
+	id DC616100854; Mon, 12 Aug 2019 15:11:44 +0300 (+03)
+Date: Mon, 12 Aug 2019 15:11:44 +0300
+From: "Kirill A. Shutemov" <kirill@shutemov.name>
+To: Song Liu <songliubraving@fb.com>
+Cc: Oleg Nesterov <oleg@redhat.com>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	Linux MM <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Matthew Wilcox <matthew.wilcox@oracle.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Kernel Team <Kernel-team@fb.com>,
+	William Kucharski <william.kucharski@oracle.com>,
+	"srikar@linux.vnet.ibm.com" <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v12 5/6] khugepaged: enable collapse pmd for pte-mapped
+ THP
+Message-ID: <20190812121144.f46abvpg6lvxwwzs@box>
+References: <20190807233729.3899352-1-songliubraving@fb.com>
+ <20190807233729.3899352-6-songliubraving@fb.com>
+ <20190808163303.GB7934@redhat.com>
+ <770B3C29-CE8F-4228-8992-3C6E2B5487B6@fb.com>
+ <20190809152404.GA21489@redhat.com>
+ <3B09235E-5CF7-4982-B8E6-114C52196BE5@fb.com>
+ <4D8B8397-5107-456B-91FC-4911F255AE11@fb.com>
 MIME-Version: 1.0
-References: <0000000000005c056c058f9a5437@google.com>
-In-Reply-To: <0000000000005c056c058f9a5437@google.com>
-From: Andrey Konovalov <andreyknvl@google.com>
-Date: Mon, 12 Aug 2019 14:06:08 +0200
-Message-ID: <CAAeHK+wcAgqNvEO_S_EXgdvhBN2qkQbPii8XVT_7UVnS1WaB6g@mail.gmail.com>
-Subject: Re: BUG: bad usercopy in ld_usb_read
-To: syzbot <syzbot+45b2f40f0778cfa7634e@syzkaller.appspotmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Qian Cai <cai@lca.pw>, 
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
-	LKML <linux-kernel@vger.kernel.org>, 
-	Linux Memory Management List <linux-mm@kvack.org>, USB list <linux-usb@vger.kernel.org>, 
-	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Thomas Gleixner <tglx@linutronix.de>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <4D8B8397-5107-456B-91FC-4911F255AE11@fb.com>
+User-Agent: NeoMutt/20180716
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 8, 2019 at 2:38 PM syzbot
-<syzbot+45b2f40f0778cfa7634e@syzkaller.appspotmail.com> wrote:
->
-> Hello,
->
-> syzbot found the following crash on:
->
-> HEAD commit:    e96407b4 usb-fuzzer: main usb gadget fuzzer driver
-> git tree:       https://github.com/google/kasan.git usb-fuzzer
-> console output: https://syzkaller.appspot.com/x/log.txt?x=13aeaece600000
-> kernel config:  https://syzkaller.appspot.com/x/.config?x=cfa2c18fb6a8068e
-> dashboard link: https://syzkaller.appspot.com/bug?extid=45b2f40f0778cfa7634e
-> compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
->
-> Unfortunately, I don't have any reproducer for this crash yet.
->
-> IMPORTANT: if you fix the bug, please add the following tag to the commit:
-> Reported-by: syzbot+45b2f40f0778cfa7634e@syzkaller.appspotmail.com
->
-> ldusb 6-1:0.124: Read buffer overflow, -131383996186150 bytes dropped
-> usercopy: Kernel memory exposure attempt detected from SLUB
-> object 'kmalloc-2k' (offset 8, size 65062)!
-> ------------[ cut here ]------------
-> kernel BUG at mm/usercopy.c:98!
-> invalid opcode: 0000 [#1] SMP KASAN
-> CPU: 0 PID: 15185 Comm: syz-executor.2 Not tainted 5.3.0-rc2+ #25
-> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
-> Google 01/01/2011
-> RIP: 0010:usercopy_abort+0xb9/0xbb mm/usercopy.c:98
-> Code: e8 c1 f7 d6 ff 49 89 d9 4d 89 e8 4c 89 e1 41 56 48 89 ee 48 c7 c7 e0
-> f3 cd 85 ff 74 24 08 41 57 48 8b 54 24 20 e8 15 98 c1 ff <0f> 0b e8 95 f7
-> d6 ff e8 80 9f fd ff 8b 54 24 04 49 89 d8 4c 89 e1
-> RSP: 0018:ffff8881ccb3fc38 EFLAGS: 00010286
-> RAX: 0000000000000067 RBX: ffffffff86a659d4 RCX: 0000000000000000
-> RDX: 0000000000000000 RSI: ffffffff8128a0fd RDI: ffffed1039967f79
-> RBP: ffffffff85cdf2c0 R08: 0000000000000067 R09: fffffbfff11acdaa
-> R10: fffffbfff11acda9 R11: ffffffff88d66d4f R12: ffffffff86a696e8
-> R13: ffffffff85cdf180 R14: 000000000000fe26 R15: ffffffff85cdf140
-> FS:  00007ff6daf91700(0000) GS:ffff8881db200000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 00007f1de6600000 CR3: 00000001ca554000 CR4: 00000000001406f0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
-> Call Trace:
->   __check_heap_object+0xdd/0x110 mm/slub.c:3914
->   check_heap_object mm/usercopy.c:234 [inline]
->   __check_object_size mm/usercopy.c:280 [inline]
->   __check_object_size+0x32d/0x39b mm/usercopy.c:250
->   check_object_size include/linux/thread_info.h:119 [inline]
->   check_copy_size include/linux/thread_info.h:150 [inline]
->   copy_to_user include/linux/uaccess.h:151 [inline]
->   ld_usb_read+0x304/0x780 drivers/usb/misc/ldusb.c:495
+On Fri, Aug 09, 2019 at 06:01:18PM +0000, Song Liu wrote:
+> +		if (pte_none(*pte) || !pte_present(*pte))
+> +			continue;
 
-#syz dup: KASAN: use-after-free Read in ld_usb_release
+You don't need to check both. Present is never none.
 
->   __vfs_read+0x76/0x100 fs/read_write.c:425
->   vfs_read+0x1ea/0x430 fs/read_write.c:461
->   ksys_read+0x1e8/0x250 fs/read_write.c:587
->   do_syscall_64+0xb7/0x580 arch/x86/entry/common.c:296
->   entry_SYSCALL_64_after_hwframe+0x49/0xbe
-> RIP: 0033:0x459829
-> Code: fd b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7
-> 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff
-> ff 0f 83 cb b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00
-> RSP: 002b:00007ff6daf90c78 EFLAGS: 00000246 ORIG_RAX: 0000000000000000
-> RAX: ffffffffffffffda RBX: 0000000000000003 RCX: 0000000000459829
-> RDX: 000000000000fe26 RSI: 00000000200000c0 RDI: 0000000000000003
-> RBP: 000000000075bf20 R08: 0000000000000000 R09: 0000000000000000
-> R10: 0000000000000000 R11: 0000000000000246 R12: 00007ff6daf916d4
-> R13: 00000000004c6c73 R14: 00000000004dbee8 R15: 00000000ffffffff
-> Modules linked in:
-> ---[ end trace 4fe8dba032d24ceb ]---
-> RIP: 0010:usercopy_abort+0xb9/0xbb mm/usercopy.c:98
-> Code: e8 c1 f7 d6 ff 49 89 d9 4d 89 e8 4c 89 e1 41 56 48 89 ee 48 c7 c7 e0
-> f3 cd 85 ff 74 24 08 41 57 48 8b 54 24 20 e8 15 98 c1 ff <0f> 0b e8 95 f7
-> d6 ff e8 80 9f fd ff 8b 54 24 04 49 89 d8 4c 89 e1
-> RSP: 0018:ffff8881ccb3fc38 EFLAGS: 00010286
-> RAX: 0000000000000067 RBX: ffffffff86a659d4 RCX: 0000000000000000
-> RDX: 0000000000000000 RSI: ffffffff8128a0fd RDI: ffffed1039967f79
-> RBP: ffffffff85cdf2c0 R08: 0000000000000067 R09: fffffbfff11acdaa
-> R10: fffffbfff11acda9 R11: ffffffff88d66d4f R12: ffffffff86a696e8
-> R13: ffffffff85cdf180 R14: 000000000000fe26 R15: ffffffff85cdf140
-> FS:  00007ff6daf91700(0000) GS:ffff8881db200000(0000) knlGS:0000000000000000
-> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
-> CR2: 00007f1de6600000 CR3: 00000001ca554000 CR4: 00000000001406f0
-> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
-> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
->
->
-> ---
-> This bug is generated by a bot. It may contain errors.
-> See https://goo.gl/tpsmEJ for more information about syzbot.
-> syzbot engineers can be reached at syzkaller@googlegroups.com.
->
-> syzbot will keep track of this bug report. See:
-> https://goo.gl/tpsmEJ#status for how to communicate with syzbot.
+-- 
+ Kirill A. Shutemov
 
