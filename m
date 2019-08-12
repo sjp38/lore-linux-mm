@@ -2,227 +2,163 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 56528C31E40
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 22:21:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5C6E3C433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 22:24:24 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 08977206A2
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 22:21:54 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 1B97C2075B
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 22:24:23 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="lDBMVyRn"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 08977206A2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="x0gRCKA2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B97C2075B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id AC0526B0003; Mon, 12 Aug 2019 18:21:53 -0400 (EDT)
+	id 9AD076B0003; Mon, 12 Aug 2019 18:24:23 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A4A3D6B0005; Mon, 12 Aug 2019 18:21:53 -0400 (EDT)
+	id 95DD56B0005; Mon, 12 Aug 2019 18:24:23 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 910516B0006; Mon, 12 Aug 2019 18:21:53 -0400 (EDT)
+	id 824686B0006; Mon, 12 Aug 2019 18:24:23 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0213.hostedemail.com [216.40.44.213])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A48E6B0003
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 18:21:53 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 08BDD180AD7C1
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 22:21:53 +0000 (UTC)
-X-FDA: 75815199306.26.toys36_4a8e6967ca854
-X-HE-Tag: toys36_4a8e6967ca854
-X-Filterd-Recvd-Size: 7915
-Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com [216.228.121.143])
-	by imf18.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 22:21:52 +0000 (UTC)
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d51e6800000>; Mon, 12 Aug 2019 15:21:52 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Mon, 12 Aug 2019 15:21:50 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Mon, 12 Aug 2019 15:21:50 -0700
-Received: from [10.110.48.28] (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 12 Aug
- 2019 22:21:50 +0000
-Subject: Re: [RFC PATCH 2/2] mm/gup: introduce vaddr_pin_pages_remote()
-To: Ira Weiny <ira.weiny@intel.com>
-CC: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig
-	<hch@infradead.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner
-	<david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
-	<jgg@ziepe.ca>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, LKML
-	<linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
-	<linux-fsdevel@vger.kernel.org>, <linux-rdma@vger.kernel.org>
-References: <20190812015044.26176-1-jhubbard@nvidia.com>
- <20190812015044.26176-3-jhubbard@nvidia.com>
- <20190812220340.GA26305@iweiny-DESK2.sc.intel.com>
-From: John Hubbard <jhubbard@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <0b66c1f8-c694-7971-b2d3-e1dd53a0f103@nvidia.com>
-Date: Mon, 12 Aug 2019 15:21:49 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0061.hostedemail.com [216.40.44.61])
+	by kanga.kvack.org (Postfix) with ESMTP id 5BE6D6B0003
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 18:24:23 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id BDDED3D15
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 22:24:22 +0000 (UTC)
+X-FDA: 75815205564.27.roof19_605c67574404a
+X-HE-Tag: roof19_605c67574404a
+X-Filterd-Recvd-Size: 5725
+Received: from mail-ot1-f68.google.com (mail-ot1-f68.google.com [209.85.210.68])
+	by imf37.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 22:24:22 +0000 (UTC)
+Received: by mail-ot1-f68.google.com with SMTP id q20so12183472otl.0
+        for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:24:21 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=intel-com.20150623.gappssmtp.com; s=20150623;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=FD1szyxYIZRFxBXLh6OsEaGEchmLGdiUNjpQeITxC5M=;
+        b=x0gRCKA2MXc6jwpdoG/TD2IO5bNpn+KvoJBHqbuTFvYsphI9ZOW3AsLFTvGTGaBcYf
+         RXeEQjAS7obV+BaMTdZMP8wgP9cCdfivoRhOSSJlo1Z5CZcFaW9WRf5Nbz2vuEwz9BHO
+         CTPVnpm6p1Svao0hA1gPSbLM8aO2CgSELXaqp4B3NEVb2TYyFBGnZyWvtKuElCmEg9Y9
+         2684+SERAdl0y8BhILj5oAWGrfdVI2IqGuBac1Xq6S8MrelSVVIf8h5B+ZX8xtZ+Y4j8
+         0cIiaBzKvNv833gjthAES+x42kYGE7WEjgb+I7K5IyHz3cyOXJYFYRXUt4EGdLKdJPuu
+         QMeA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=FD1szyxYIZRFxBXLh6OsEaGEchmLGdiUNjpQeITxC5M=;
+        b=rW5mQ7JxbnEtV9sMwjg0IDpA7lK/8sDLbU+gtbvkA/Gs0vHxJQ+cp25Hc7il58h8q9
+         bkyP8HCtumTnbKnRS0K7zEa3Zk5V/zV44ubULf92CsCrEOq7w7UpNQMl9Ym7km2p1EYv
+         ENbr2UvLvSFX2Rx+U+QaGMTRRmK0O0z5iz7sudMLmgrndyVvkIXT5jW9ccBM4/E9THq+
+         CL0P8TgkYRoq4x9v5JEo129MGze5LhKxa9kH1JFHalSj5qWI7b0dOTiljgcjEVUCJDWy
+         SpvRyliv74KuxZfohYQErEA9+JBLhaUo2uNxahJI3rqiy6o0tT66N6B0lDhnSXN/sB9J
+         BZ6w==
+X-Gm-Message-State: APjAAAXXZ6yIjoAqJlKoo3e1QyKprBPb9yrI4m4ftzOLU3L3gC6mLzpP
+	JraeuKbOtCmKktSmBosaYe22q2iZ2PdfsQgQ55yzVw==
+X-Google-Smtp-Source: APXvYqyTjBOGgU/+dTdLpyuKWrW67Z3rfVh/4MI7eXiUUJ6wgK016/SnhTUKO42pQZXtyuBZxQKUvdSL/kBmh0RvuUc=
+X-Received: by 2002:aca:be43:: with SMTP id o64mr912541oif.149.1565648660956;
+ Mon, 12 Aug 2019 15:24:20 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190812220340.GA26305@iweiny-DESK2.sc.intel.com>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL104.nvidia.com (172.18.146.11) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1565648512; bh=uQPl7D4DEl8AVSuP+2Fq2Helx9cv9AvXMSaieCMT7oA=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=lDBMVyRnFKunGUOR/0vpLpZtJOa9QH7VEGqfPR59AhGyeeukIzGUoz9b2kBImVw7H
-	 y8cnr9Sd//+TBEcrXo9JyNphHRFzRQgJ85myw2lNi+kM6UpUUnytx9+GhUeXP9FKZ3
-	 RgoJQNeEGGMUnduEAVPhVoM3HZX/ST0NXgedIKw8OttfofCcgaRwxUvU0yjmLHTOzG
-	 m5CZ8Z7yajenjJDzRcT7W+lJF+01cDcxKn2xWig68moCWvUMubbCMJ6xnFNn5c/Kga
-	 oo7WH7P6nyLqX/egqMWZyT9SX3Cawy0d9q4Ay6DRQakwmqgJWdNqonVaHWGMH2xGSU
-	 8GUs/eRg3PT6Q==
+References: <20190812213158.22097.30576.stgit@localhost.localdomain> <20190812213324.22097.30886.stgit@localhost.localdomain>
+In-Reply-To: <20190812213324.22097.30886.stgit@localhost.localdomain>
+From: Dan Williams <dan.j.williams@intel.com>
+Date: Mon, 12 Aug 2019 15:24:09 -0700
+Message-ID: <CAPcyv4jEvPL3qQffDsJxKxkCJLo19FN=gd4+LtZ1FnARCr5wBw@mail.gmail.com>
+Subject: Re: [PATCH v5 1/6] mm: Adjust shuffle code to allow for future coalescing
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: nitesh@redhat.com, KVM list <kvm@vger.kernel.org>, 
+	"Michael S. Tsirkin" <mst@redhat.com>, David Hildenbrand <david@redhat.com>, Dave Hansen <dave.hansen@intel.com>, 
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>, Matthew Wilcox <willy@infradead.org>, 
+	Michal Hocko <mhocko@kernel.org>, Linux MM <linux-mm@kvack.org>, 
+	Andrew Morton <akpm@linux-foundation.org>, virtio-dev@lists.oasis-open.org, 
+	Oscar Salvador <osalvador@suse.de>, yang.zhang.wz@gmail.com, 
+	Pankaj Gupta <pagupta@redhat.com>, Rik van Riel <riel@surriel.com>, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, lcapitulino@redhat.com, 
+	"Wang, Wei W" <wei.w.wang@intel.com>, Andrea Arcangeli <aarcange@redhat.com>, 
+	Paolo Bonzini <pbonzini@redhat.com>, Alexander Duyck <alexander.h.duyck@linux.intel.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/12/19 3:03 PM, Ira Weiny wrote:
-> On Sun, Aug 11, 2019 at 06:50:44PM -0700, john.hubbard@gmail.com wrote:
->> From: John Hubbard <jhubbard@nvidia.com>
-...
->> +/**
->> + * vaddr_pin_pages pin pages by virtual address and return the pages to the
-> 
-> vaddr_pin_pages_remote
-> 
-> Fixed in my tree.
+On Mon, Aug 12, 2019 at 2:33 PM Alexander Duyck
+<alexander.duyck@gmail.com> wrote:
+>
+> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+>
+> This patch is meant to move the head/tail adding logic out of the shuffle
 
+s/This patch is meant to move/Move/
 
-thanks. :)
+> code and into the __free_one_page function since ultimately that is where
+> it is really needed anyway. By doing this we should be able to reduce the
+> overhead
 
+Is the overhead benefit observable? I would expect the overhead of
+get_random_u64() dominates.
 
-> 
->> + * user.
->> + *
->> + * @tsk:	the task_struct to use for page fault accounting, or
->> + *		NULL if faults are not to be recorded.
->> + * @mm:		mm_struct of target mm
->> + * @addr:	start address
->> + * @nr_pages:	number of pages to pin
->> + * @gup_flags:	flags to use for the pin
->> + * @pages:	array of pages returned
->> + * @vaddr_pin:	initialized meta information this pin is to be associated
->> + * with.
->> + *
->> + * This is the "vaddr_pin_pages" corresponding variant to
->> + * get_user_pages_remote(), but with FOLL_PIN semantics: the implementation sets
->> + * FOLL_PIN. That, in turn, means that the pages must ultimately be released
->> + * by put_user_page().
->> + */
->> +long vaddr_pin_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
->> +			    unsigned long start, unsigned long nr_pages,
->> +			    unsigned int gup_flags, struct page **pages,
->> +			    struct vm_area_struct **vmas, int *locked,
->> +			    struct vaddr_pin *vaddr_pin)
->> +{
->> +	gup_flags |= FOLL_TOUCH | FOLL_REMOTE | FOLL_PIN;
->> +
->> +	return __get_user_pages_locked(tsk, mm, start, nr_pages, pages, vmas,
->> +				       locked, gup_flags, vaddr_pin);
->> +}
->> +EXPORT_SYMBOL(vaddr_pin_pages_remote);
->> +
->>  /**
->>   * vaddr_unpin_pages_dirty_lock - counterpart to vaddr_pin_pages
->>   *
->> @@ -2536,3 +2568,21 @@ void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
->>  	__put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, make_dirty);
->>  }
->>  EXPORT_SYMBOL(vaddr_unpin_pages_dirty_lock);
->> +
->> +/**
->> + * vaddr_unpin_pages - simple, non-dirtying counterpart to vaddr_pin_pages
->> + *
->> + * @pages: array of pages returned
->> + * @nr_pages: number of pages in pages
->> + * @vaddr_pin: same information passed to vaddr_pin_pages
->> + *
->> + * Like vaddr_unpin_pages_dirty_lock, but for non-dirty pages. Useful in putting
->> + * back pages in an error case: they were never made dirty.
->> + */
->> +void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
->> +		       struct vaddr_pin *vaddr_pin)
->> +{
->> +	__put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, false);
->> +}
->> +EXPORT_SYMBOL(vaddr_unpin_pages);
-> 
-> Rather than have another wrapping call why don't we just do this?  Would it be
-> so bad to just have to specify false for make_dirty?
+> and can consolidate all of the list addition bits in one spot.
 
-Sure, passing in false for make_dirty is fine, and in fact, there may even be
-error cases I've forgotten about that *want* to dirty the page. 
+This sounds the better argument.
 
-I thought about these variants, and realized that we don't generally need to 
-say "lock" anymore, because we're going to forcibly use set_page_dirty_lock 
-(rather than set_page_dirty) in this part of the code. And a shorter name 
-is nice. Since you've dropped both "_dirty" and "_lock" from the function 
-name, it's still nice and short even though we pass in make_dirty as an arg.
-
-So that's a long-winded, "the API below looks good to me". :)
-
-> 
-> 
-> diff --git a/mm/gup.c b/mm/gup.c
-> index e77b250c1307..ca660a5e8206 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -2540,7 +2540,7 @@ long vaddr_pin_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
->  EXPORT_SYMBOL(vaddr_pin_pages_remote);
->  
->  /**
-> - * vaddr_unpin_pages_dirty_lock - counterpart to vaddr_pin_pages
-> + * vaddr_unpin_pages - counterpart to vaddr_pin_pages
->   *
->   * @pages: array of pages returned
->   * @nr_pages: number of pages in pages
-> @@ -2551,26 +2551,9 @@ EXPORT_SYMBOL(vaddr_pin_pages_remote);
->   * in vaddr_pin_pages should be passed back into this call for proper
->   * tracking.
->   */
-> -void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
-> -                                 struct vaddr_pin *vaddr_pin, bool make_dirty)
-> +void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
-> +                      struct vaddr_pin *vaddr_pin, bool make_dirty)
->  {
->         __put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, make_dirty);
+[..]
+> diff --git a/mm/shuffle.h b/mm/shuffle.h
+> index 777a257a0d2f..add763cc0995 100644
+> --- a/mm/shuffle.h
+> +++ b/mm/shuffle.h
+> @@ -3,6 +3,7 @@
+>  #ifndef _MM_SHUFFLE_H
+>  #define _MM_SHUFFLE_H
+>  #include <linux/jump_label.h>
+> +#include <linux/random.h>
+>
+>  /*
+>   * SHUFFLE_ENABLE is called from the command line enabling path, or by
+> @@ -43,6 +44,32 @@ static inline bool is_shuffle_order(int order)
+>                 return false;
+>         return order >= SHUFFLE_ORDER;
 >  }
->  EXPORT_SYMBOL(vaddr_unpin_pages_dirty_lock);
-> -
-> -/**
-> - * vaddr_unpin_pages - simple, non-dirtying counterpart to vaddr_pin_pages
-> - *
-> - * @pages: array of pages returned
-> - * @nr_pages: number of pages in pages
-> - * @vaddr_pin: same information passed to vaddr_pin_pages
-> - *
-> - * Like vaddr_unpin_pages_dirty_lock, but for non-dirty pages. Useful in putting
-> - * back pages in an error case: they were never made dirty.
-> - */
-> -void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
-> -                      struct vaddr_pin *vaddr_pin)
-> -{
-> -       __put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, false);
-> -}
-> -EXPORT_SYMBOL(vaddr_unpin_pages);
-> 
+> +
+> +static inline bool shuffle_add_to_tail(void)
+> +{
+> +       static u64 rand;
+> +       static u8 rand_bits;
+> +       u64 rand_old;
+> +
+> +       /*
+> +        * The lack of locking is deliberate. If 2 threads race to
+> +        * update the rand state it just adds to the entropy.
+> +        */
+> +       if (rand_bits-- == 0) {
+> +               rand_bits = 64;
+> +               rand = get_random_u64();
+> +       }
+> +
+> +       /*
+> +        * Test highest order bit while shifting our random value. This
+> +        * should result in us testing for the carry flag following the
+> +        * shift.
+> +        */
+> +       rand_old = rand;
+> +       rand <<= 1;
+> +
+> +       return rand < rand_old;
+> +}
 
-thanks,
--- 
-John Hubbard
-NVIDIA
+This function seems too involved to be a static inline and I believe
+each compilation unit that might call this routine gets it's own copy
+of 'rand' and 'rand_bits' when the original expectation is that they
+are global. How about leave this bit to mm/shuffle.c and rename it
+coin_flip(), or something more generic, since it does not
+'add_to_tail'? The 'add_to_tail' action is something the caller
+decides.
 
