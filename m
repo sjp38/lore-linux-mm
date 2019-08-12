@@ -2,276 +2,149 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.6 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id AED6CC31E40
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:26:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 703C4C433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:33:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 5BD842070C
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:26:57 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BD842070C
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2F1532085A
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:33:31 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="e8BegBER"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2F1532085A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0ACD86B0003; Mon, 12 Aug 2019 11:26:57 -0400 (EDT)
+	id AE1346B0003; Mon, 12 Aug 2019 11:33:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 05D676B0005; Mon, 12 Aug 2019 11:26:57 -0400 (EDT)
+	id A91D06B0005; Mon, 12 Aug 2019 11:33:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E67586B0006; Mon, 12 Aug 2019 11:26:56 -0400 (EDT)
+	id 9A72C6B0006; Mon, 12 Aug 2019 11:33:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0116.hostedemail.com [216.40.44.116])
-	by kanga.kvack.org (Postfix) with ESMTP id BF8066B0003
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 11:26:56 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 5D5C552AA
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:26:56 +0000 (UTC)
-X-FDA: 75814153632.22.heat80_599f6347a2e50
-X-HE-Tag: heat80_599f6347a2e50
-X-Filterd-Recvd-Size: 10605
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf48.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:26:55 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+Received: from forelay.hostedemail.com (smtprelay0110.hostedemail.com [216.40.44.110])
+	by kanga.kvack.org (Postfix) with ESMTP id 731C76B0003
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 11:33:30 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 230F02C34
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:33:30 +0000 (UTC)
+X-FDA: 75814170180.20.rings08_164da9bf0944
+X-HE-Tag: rings08_164da9bf0944
+X-Filterd-Recvd-Size: 5263
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by imf01.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:33:29 +0000 (UTC)
+Received: from localhost (c-73-47-72-35.hsd1.nh.comcast.net [73.47.72.35])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 9EA7E3023081;
-	Mon, 12 Aug 2019 15:26:54 +0000 (UTC)
-Received: from [10.18.17.163] (dhcp-17-163.bos.redhat.com [10.18.17.163])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id C17E9646B0;
-	Mon, 12 Aug 2019 15:26:39 +0000 (UTC)
-Subject: Re: [QEMU Patch 2/2] virtio-balloon: support for handling page
- reporting
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
- linux-mm <linux-mm@kvack.org>, virtio-dev@lists.oasis-open.org,
- Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com,
- pagupta@redhat.com, wei.w.wang@intel.com,
- Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
- David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>,
- dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>,
- john.starks@microsoft.com, Dave Hansen <dave.hansen@intel.com>,
- Michal Hocko <mhocko@suse.com>, cohuck@redhat.com
-References: <20190812131235.27244-1-nitesh@redhat.com>
- <20190812131357.27312-1-nitesh@redhat.com>
- <20190812131357.27312-2-nitesh@redhat.com>
- <CAKgT0Uc8kGwX8VwU2b51qVuh2z5eZQ6XhSnYMryTVa_pKHCvew@mail.gmail.com>
-From: Nitesh Narayan Lal <nitesh@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- VujM7c/b4pps
-Organization: Red Hat Inc,
-Message-ID: <101649ae-58d4-76ee-91f3-42ac1c145c46@redhat.com>
-Date: Mon, 12 Aug 2019 11:26:38 -0400
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.6.1
+	by mail.kernel.org (Postfix) with ESMTPSA id 2A56B20842;
+	Mon, 12 Aug 2019 15:33:28 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1565624008;
+	bh=QtfQ78Bnjj9j6GAMKkCbTh3I+CsGlnBb8q2o4h3Zh7c=;
+	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
+	b=e8BegBER7yTbxIT/bYQSs8dCHdrpvdJz0W3VZcE8SP3XJ3o4kkUl9VdM8ZVLYYLH8
+	 VJ6dH7MkUQ4E0OudYaA2pGQyATkVuNf2zmreph3KVSNKJZ30DbsRsiCYcjIZmuf2jD
+	 6LewvgKi7OlexmQY7n0nUhxtUH8aZP65luN64uBY=
+Date: Mon, 12 Aug 2019 11:33:26 -0400
+From: Sasha Levin <sashal@kernel.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Vlastimil Babka <vbabka@suse.cz>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org, ltp@lists.linux.it,
+	Li Wang <liwang@redhat.com>,
+	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
+	Cyril Hrubis <chrubis@suse.cz>, xishi.qiuxishi@alibaba-inc.com
+Subject: Re: [PATCH] hugetlbfs: fix hugetlb page migration/fault race causing
+ SIGBUS
+Message-ID: <20190812153326.GB17747@sasha-vm>
+References: <20190808074736.GJ11812@dhcp22.suse.cz>
+ <416ee59e-9ae8-f72d-1b26-4d3d31501330@oracle.com>
+ <20190808185313.GG18351@dhcp22.suse.cz>
+ <20190808163928.118f8da4f4289f7c51b8ffd4@linux-foundation.org>
+ <20190809064633.GK18351@dhcp22.suse.cz>
+ <20190809151718.d285cd1f6d0f1cf02cb93dc8@linux-foundation.org>
+ <20190811234614.GZ17747@sasha-vm>
+ <20190812084524.GC5117@dhcp22.suse.cz>
+ <39b59001-55c1-a98b-75df-3a5dcec74504@suse.cz>
+ <20190812132226.GI5117@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0Uc8kGwX8VwU2b51qVuh2z5eZQ6XhSnYMryTVa_pKHCvew@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: quoted-printable
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Mon, 12 Aug 2019 15:26:54 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii; format=flowed
+Content-Disposition: inline
+In-Reply-To: <20190812132226.GI5117@dhcp22.suse.cz>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-
-On 8/12/19 11:18 AM, Alexander Duyck wrote:
-> On Mon, Aug 12, 2019 at 6:14 AM Nitesh Narayan Lal <nitesh@redhat.com> =
-wrote:
->> Page reporting is a feature which enables the virtual machine to repor=
-t
->> chunk of free pages to the hypervisor.
->> This patch enables QEMU to process these reports from the VM and disca=
-rd the
->> unused memory range.
+On Mon, Aug 12, 2019 at 03:22:26PM +0200, Michal Hocko wrote:
+>On Mon 12-08-19 15:14:12, Vlastimil Babka wrote:
+>> On 8/12/19 10:45 AM, Michal Hocko wrote:
+>> > On Sun 11-08-19 19:46:14, Sasha Levin wrote:
+>> >> On Fri, Aug 09, 2019 at 03:17:18PM -0700, Andrew Morton wrote:
+>> >>> On Fri, 9 Aug 2019 08:46:33 +0200 Michal Hocko <mhocko@kernel.org> wrote:
+>> >>>
+>> >>> It should work if we ask stable trees maintainers not to backport
+>> >>> such patches.
+>> >>>
+>> >>> Sasha, please don't backport patches which are marked Fixes-no-stable:
+>> >>> and which lack a cc:stable tag.
+>> >>
+>> >> I'll add it to my filter, thank you!
+>> >
+>> > I would really prefer to stick with Fixes: tag and stable only picking
+>> > up cc: stable patches. I really hate to see workarounds for sensible
+>> > workflows (marking the Fixes) just because we are trying to hide
+>> > something from stable maintainers. Seriously, if stable maintainers have
+>> > a different idea about what should be backported, it is their call. They
+>> > are the ones to deal with regressions and the backporting effort in
+>> > those cases of disagreement.
 >>
->> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
->> ---
->>  hw/virtio/virtio-balloon.c         | 41 +++++++++++++++++++++++++++++=
-+
->>  include/hw/virtio/virtio-balloon.h |  2 +-
->>  2 files changed, 42 insertions(+), 1 deletion(-)
->>
->> diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
->> index 25de154307..1132e47ee0 100644
->> --- a/hw/virtio/virtio-balloon.c
->> +++ b/hw/virtio/virtio-balloon.c
->> @@ -320,6 +320,39 @@ static void balloon_stats_set_poll_interval(Objec=
-t *obj, Visitor *v,
->>      balloon_stats_change_timer(s, 0);
->>  }
->>
->> +static void virtio_balloon_handle_reporting(VirtIODevice *vdev, VirtQ=
-ueue *vq)
->> +{
->> +    VirtQueueElement *elem;
->> +
->> +    while ((elem =3D virtqueue_pop(vq, sizeof(VirtQueueElement)))) {
->> +        unsigned int i;
->> +
->> +        for (i =3D 0; i < elem->in_num; i++) {
->> +            void *gaddr =3D elem->in_sg[i].iov_base;
->> +            size_t size =3D elem->in_sg[i].iov_len;
->> +            ram_addr_t ram_offset;
->> +            size_t rb_page_size;
->> +           RAMBlock *rb;
->> +
->> +            if (qemu_balloon_is_inhibited())
->> +                continue;
->> +
->> +            rb =3D qemu_ram_block_from_host(gaddr, false, &ram_offset=
-);
->> +            rb_page_size =3D qemu_ram_pagesize(rb);
->> +
->> +            /* For now we will simply ignore unaligned memory regions=
- */
->> +            if ((ram_offset | size) & (rb_page_size - 1))
->> +                continue;
->> +
->> +            ram_block_discard_range(rb, ram_offset, size);
->> +        }
->> +
->> +        virtqueue_push(vq, elem, 0);
->> +        virtio_notify(vdev, vq);
->> +        g_free(elem);
->> +    }
->> +}
->> +
-> No offense, but I am a bit annoyed.
-
-None taken at all.
-
->  If you are going to copy my code
-> you should at least keep up with the fixes.
-
-
-Yeah I did refer to your code and just because the quality of your code i=
-s
-better than what I posted earlier and there is quite a lot for me to lear=
-n from it.
-
-
-> stuff to handle the poison value. If you are going to just duplicate
-> my setup you might as well have just pulled the QEMU patches from the
-> last submission I did. Then this would have at least has the fix for
-> the page poisoning.
+>> +1 on not replacing Fixes: tag with some other name, as there might be
+>> automation (not just at SUSE) relying on it.
+>> As a compromise, we can use something else to convey the "maintainers
+>> really don't recommend a stable backport", that Sasha can add to his filter.
+>> Perhaps counter-intuitively, but it could even look like this:
+>> Cc: stable@vger.kernel.org # not recommended at all by maintainer
 >
+>I thought that absence of the Cc is the indication :P. Anyway, I really
+>do not understand why should we bother, really. I have tried to explain
+>that stable maintainers should follow Cc: stable because we bother to
+>consider that part and we are quite good at not forgetting (Thanks
+>Andrew for persistence). Sasha has told me that MM will be blacklisted
+>from automagic selection procedure.
 
-The only reason I didn't include the poison change as I still need to und=
-erstand
-them.
-I have this mentioned in my cover-email.
+I'll add mm/ to the ignore list for AUTOSEL patches.
 
+>I really do not know much more we can do and I really have strong doubts
+>we should care at all. What is the worst that can happen? A potentially
+>dangerous commit gets to the stable tree and that blows up? That is
+>something that is something inherent when relying on AI and
+>aplies-it-must-be-ok workflow.
 
->  Also it wouldn't hurt to mention that you are
-> basing it off of the patch set I submitted since it hasn't been
-> accepted yet.
+The issue I see here is that there's no way to validate the patches that
+go in mm/. I'd happily run whatever test suite you use to validate these
+patches, but it doesn't exist.
 
+I can run xfstests for fs/, I can run blktests for block/, I can run
+kselftests for quite a few other subsystems in the kernel. What can I
+run for mm?
 
-My bad!! This I will surely do from next time.
+I'd be happy to run whatever validation/regression suite for mm/ you
+would suggest.
 
->
->>  static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueu=
-e *vq)
->>  {
->>      VirtIOBalloon *s =3D VIRTIO_BALLOON(vdev);
->> @@ -792,6 +825,12 @@ static void virtio_balloon_device_realize(DeviceS=
-tate *dev, Error **errp)
->>      s->dvq =3D virtio_add_queue(vdev, 128, virtio_balloon_handle_outp=
-ut);
->>      s->svq =3D virtio_add_queue(vdev, 128, virtio_balloon_receive_sta=
-ts);
->>
->> +    if (virtio_has_feature(s->host_features,
->> +                           VIRTIO_BALLOON_F_REPORTING)) {
->> +        s->reporting_vq =3D virtio_add_queue(vdev, 16,
->> +                                          virtio_balloon_handle_repor=
-ting);
->> +    }
->> +
->>      if (virtio_has_feature(s->host_features,
->>                             VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
->>          s->free_page_vq =3D virtio_add_queue(vdev, VIRTQUEUE_MAX_SIZE=
-,
->> @@ -912,6 +951,8 @@ static Property virtio_balloon_properties[] =3D {
->>       * is disabled, resulting in QEMU 3.1 migration incompatibility. =
- This
->>       * property retains this quirk for QEMU 4.1 machine types.
->>       */
->> +    DEFINE_PROP_BIT("free-page-reporting", VirtIOBalloon, host_featur=
-es,
->> +                    VIRTIO_BALLOON_F_REPORTING, true),
->>      DEFINE_PROP_BOOL("qemu-4-0-config-size", VirtIOBalloon,
->>                       qemu_4_0_config_size, false),
->>      DEFINE_PROP_LINK("iothread", VirtIOBalloon, iothread, TYPE_IOTHRE=
-AD,
->> diff --git a/include/hw/virtio/virtio-balloon.h b/include/hw/virtio/vi=
-rtio-balloon.h
->> index d1c968d237..15a05e6435 100644
->> --- a/include/hw/virtio/virtio-balloon.h
->> +++ b/include/hw/virtio/virtio-balloon.h
->> @@ -42,7 +42,7 @@ enum virtio_balloon_free_page_report_status {
->>
->>  typedef struct VirtIOBalloon {
->>      VirtIODevice parent_obj;
->> -    VirtQueue *ivq, *dvq, *svq, *free_page_vq;
->> +    VirtQueue *ivq, *dvq, *svq, *free_page_vq, *reporting_vq;
->>      uint32_t free_page_report_status;
->>      uint32_t num_pages;
->>      uint32_t actual;
->> --
->> 2.21.0
->> q
---=20
-Thanks
-Nitesh
+I've heard the "every patch is a snowflake" story quite a few times, and
+I understand that most mm/ patches are complex, but we agree that
+manually testing every patch isn't scalable, right? Even for patches
+that mm/ tags for stable, are they actually tested on every stable tree?
+How is it different from the "aplies-it-must-be-ok workflow"?
 
+--
+Thanks,
+Sasha
 
