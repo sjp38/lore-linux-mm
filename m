@@ -2,281 +2,377 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-17.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT,
+	USER_IN_DEF_DKIM_WL autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CA07C32750
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 22:03:49 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CC2C5C433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 22:14:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DCD782067D
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 22:03:48 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DCD782067D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 492202070C
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 22:14:37 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="iXjwC9Y2"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 492202070C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 662F26B0006; Mon, 12 Aug 2019 18:03:48 -0400 (EDT)
+	id B13CF6B0003; Mon, 12 Aug 2019 18:14:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5EB5D6B0007; Mon, 12 Aug 2019 18:03:48 -0400 (EDT)
+	id AC4806B0005; Mon, 12 Aug 2019 18:14:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 48AA56B0008; Mon, 12 Aug 2019 18:03:48 -0400 (EDT)
+	id 9B2986B0006; Mon, 12 Aug 2019 18:14:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0079.hostedemail.com [216.40.44.79])
-	by kanga.kvack.org (Postfix) with ESMTP id 224C46B0006
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 18:03:48 -0400 (EDT)
-Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id BF59E180AD7C1
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 22:03:47 +0000 (UTC)
-X-FDA: 75815153694.03.snail35_3e1bab9962e00
-X-HE-Tag: snail35_3e1bab9962e00
-X-Filterd-Recvd-Size: 9911
-Received: from mga17.intel.com (mga17.intel.com [192.55.52.151])
-	by imf30.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 22:03:46 +0000 (UTC)
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga008.fm.intel.com ([10.253.24.58])
-  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Aug 2019 15:03:44 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,379,1559545200"; 
-   d="scan'208";a="176019166"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga008.fm.intel.com with ESMTP; 12 Aug 2019 15:03:44 -0700
-Date: Mon, 12 Aug 2019 15:03:41 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: john.hubbard@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org, linux-rdma@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>
-Subject: Re: [RFC PATCH 2/2] mm/gup: introduce vaddr_pin_pages_remote()
-Message-ID: <20190812220340.GA26305@iweiny-DESK2.sc.intel.com>
-References: <20190812015044.26176-1-jhubbard@nvidia.com>
- <20190812015044.26176-3-jhubbard@nvidia.com>
-MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190812015044.26176-3-jhubbard@nvidia.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+Received: from forelay.hostedemail.com (smtprelay0202.hostedemail.com [216.40.44.202])
+	by kanga.kvack.org (Postfix) with ESMTP id 754896B0003
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 18:14:36 -0400 (EDT)
+Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 1B970180AD7C1
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 22:14:36 +0000 (UTC)
+X-FDA: 75815180952.14.vein72_b009092e5113
+X-HE-Tag: vein72_b009092e5113
+X-Filterd-Recvd-Size: 12211
+Received: from mail-qk1-f202.google.com (mail-qk1-f202.google.com [209.85.222.202])
+	by imf22.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 22:14:35 +0000 (UTC)
+Received: by mail-qk1-f202.google.com with SMTP id n190so94664279qkd.5
+        for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:14:35 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=date:in-reply-to:message-id:mime-version:references:subject:from:to
+         :cc;
+        bh=YzrsGQWJ9vf69SNd20htWu1bd7T+J/M+qkSI3MhX4Ko=;
+        b=iXjwC9Y27Pyh6en1ZnbDa1fykedsqhqOp1ZdMaRwYKA/BsVXNK4LjdCxOffkRdq2EA
+         p4q1VdnEwfp5vDbFLEexJXk/E8jf1pXAfnuxWa7bUkgUKxKUWVIXx8futJWOKsg5tgRi
+         t3ooQZ078lhn4jxx4pd7k6bEFrYpxJB1vanwsyLajRwYh9MRqaPPoUqrp0+b51qB5KWG
+         5bbGA9QKKBMkyjzSjzupOYaoshw/SLswq48o083JipcVXn1lS53QSdbDbanb29/BjTB4
+         Pl+Db5fwFXJs/xvuUfU7Y55JbRGSZ7WjYmHSJ7BJWzCoa3kDYU9wZg6PUxYsxS4G5HSq
+         snhQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:in-reply-to:message-id:mime-version
+         :references:subject:from:to:cc;
+        bh=YzrsGQWJ9vf69SNd20htWu1bd7T+J/M+qkSI3MhX4Ko=;
+        b=bwyq+mNsrzdHGaY8zpumYsqNExhtJZngB1eVepN4OlkpBNKCQcJelqjxGdsQlNaTLt
+         5jWl/m9hVB4Xu9HjcVn270iGNwiBy6Rl4mPOexlEa7QlsqflyRbYP1OAVdEYi3AmPQoI
+         vch8PnqVKrFrKQqF0/phdRNuR/cA325Pm2hYHcBvos7oH3ksg+VGsejav2+D+aX+TrA9
+         lmtSNRYYTJZG4ekHECtnrnzYPfsN/o64GSg39tBRnSYdqy83WMCpdokTNcUUFIOzLTPk
+         Nwxeq1f+maNxrKoVb7aipsVg6Q5zjh9eZ2tpiwTEBSEwGvz91LafWkOu1Ya0qBIz4Spp
+         ze5A==
+X-Gm-Message-State: APjAAAVLCvMeIpV9oIDV0cTnbaZC/MHPAF1HDZcVwfQUubP7RqVCC5XF
+	MeFlACKyfa9YJOEuycxBlp80k3za/w==
+X-Google-Smtp-Source: APXvYqwItN2fhw3RZGfjP0FGuB7HJ+AD1Ro7BeqFi9haqdm/rxaIb60UELBKJiM5gqgLIKQSChRdRnAO0w==
+X-Received: by 2002:a05:620a:1f0:: with SMTP id x16mr20622958qkn.11.1565648074752;
+ Mon, 12 Aug 2019 15:14:34 -0700 (PDT)
+Date: Mon, 12 Aug 2019 15:14:16 -0700
+In-Reply-To: <20190812214711.83710-1-nhuck@google.com>
+Message-Id: <20190812221416.139678-1-nhuck@google.com>
+Mime-Version: 1.0
+References: <20190812214711.83710-1-nhuck@google.com>
+X-Mailer: git-send-email 2.23.0.rc1.153.gdeed80330f-goog
+Subject: [PATCH v2] kbuild: Change fallthrough comments to attributes
+From: Nathan Huckleberry <nhuck@google.com>
+To: yamada.masahiro@socionext.com, michal.lkml@markovi.net
+Cc: linux-kbuild@vger.kernel.org, linux-kernel@vger.kernel.org, 
+	linux-mm@kvack.org, clang-built-linux@googlegroups.com, 
+	Nathan Huckleberry <nhuck@google.com>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 11, 2019 at 06:50:44PM -0700, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
-> 
-> This is the "vaddr_pin_pages" corresponding variant to
-> get_user_pages_remote(), but with FOLL_PIN semantics: the implementation
-> sets FOLL_PIN. That, in turn, means that the pages must ultimately be
-> released by put_user_page*()--typically, via vaddr_unpin_pages*().
-> 
-> Note that the put_user_page*() requirement won't be truly
-> required until all of the call sites have been converted, and
-> the tracking of pages is actually activated.
-> 
-> Also introduce vaddr_unpin_pages(), in order to have a simpler
-> call for the error handling cases.
-> 
-> Use both of these new calls in the Infiniband drive, replacing
-> get_user_pages_remote() and put_user_pages().
-> 
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-> ---
->  drivers/infiniband/core/umem_odp.c | 15 +++++----
->  include/linux/mm.h                 |  7 +++++
->  mm/gup.c                           | 50 ++++++++++++++++++++++++++++++
->  3 files changed, 66 insertions(+), 6 deletions(-)
-> 
-> diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
-> index 53085896d718..fdff034a8a30 100644
-> --- a/drivers/infiniband/core/umem_odp.c
-> +++ b/drivers/infiniband/core/umem_odp.c
-> @@ -534,7 +534,7 @@ static int ib_umem_odp_map_dma_single_page(
->  	}
->  
->  out:
-> -	put_user_page(page);
-> +	vaddr_unpin_pages(&page, 1, &umem_odp->umem.vaddr_pin);
->  
->  	if (remove_existing_mapping) {
->  		ib_umem_notifier_start_account(umem_odp);
-> @@ -635,9 +635,10 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
->  		 * complex (and doesn't gain us much performance in most use
->  		 * cases).
->  		 */
-> -		npages = get_user_pages_remote(owning_process, owning_mm,
-> +		npages = vaddr_pin_pages_remote(owning_process, owning_mm,
->  				user_virt, gup_num_pages,
-> -				flags, local_page_list, NULL, NULL);
-> +				flags, local_page_list, NULL, NULL,
-> +				&umem_odp->umem.vaddr_pin);
->  		up_read(&owning_mm->mmap_sem);
->  
->  		if (npages < 0) {
-> @@ -657,7 +658,8 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
->  					ret = -EFAULT;
->  					break;
->  				}
-> -				put_user_page(local_page_list[j]);
-> +				vaddr_unpin_pages(&local_page_list[j], 1,
-> +						  &umem_odp->umem.vaddr_pin);
->  				continue;
->  			}
->  
-> @@ -684,8 +686,9 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
->  			 * ib_umem_odp_map_dma_single_page().
->  			 */
->  			if (npages - (j + 1) > 0)
-> -				put_user_pages(&local_page_list[j+1],
-> -					       npages - (j + 1));
-> +				vaddr_unpin_pages(&local_page_list[j+1],
-> +						  npages - (j + 1),
-> +						  &umem_odp->umem.vaddr_pin);
->  			break;
->  		}
->  	}
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 61b616cd9243..2bd76ad8787e 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1606,6 +1606,13 @@ int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
->  long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
->  		     unsigned int gup_flags, struct page **pages,
->  		     struct vaddr_pin *vaddr_pin);
-> +long vaddr_pin_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
-> +			    unsigned long start, unsigned long nr_pages,
-> +			    unsigned int gup_flags, struct page **pages,
-> +			    struct vm_area_struct **vmas, int *locked,
-> +			    struct vaddr_pin *vaddr_pin);
-> +void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
-> +		       struct vaddr_pin *vaddr_pin);
->  void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
->  				  struct vaddr_pin *vaddr_pin, bool make_dirty);
->  bool mapping_inode_has_layout(struct vaddr_pin *vaddr_pin, struct page *page);
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 85f09958fbdc..bb95adfaf9b6 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -2518,6 +2518,38 @@ long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
->  }
->  EXPORT_SYMBOL(vaddr_pin_pages);
->  
-> +/**
-> + * vaddr_pin_pages pin pages by virtual address and return the pages to the
+Clang does not support the use of comments to label
+intentional fallthrough. This patch replaces some uses
+of comments to attributesto cut down a significant number
+of warnings on clang (from ~50000 to ~200). Only comments
+in commonly used header files have been replaced.
 
-vaddr_pin_pages_remote
+Since there is still quite a bit of noise, this
+patch moves -Wimplicit-fallthrough to
+Makefile.extrawarn if you are compiling with
+clang.
 
-Fixed in my tree.
+Signed-off-by: Nathan Huckleberry <nhuck@google.com>
+---
+ Makefile                            |  4 ++
+ include/linux/compiler_attributes.h |  4 ++
+ include/linux/jhash.h               | 60 +++++++++++++++++++++--------
+ include/linux/mm.h                  |  9 +++--
+ include/linux/signal.h              | 14 ++++---
+ include/linux/skbuff.h              | 12 +++---
+ lib/zstd/bitstream.h                | 10 ++---
+ scripts/Makefile.extrawarn          |  3 ++
+ 8 files changed, 81 insertions(+), 35 deletions(-)
 
-> + * user.
-> + *
-> + * @tsk:	the task_struct to use for page fault accounting, or
-> + *		NULL if faults are not to be recorded.
-> + * @mm:		mm_struct of target mm
-> + * @addr:	start address
-> + * @nr_pages:	number of pages to pin
-> + * @gup_flags:	flags to use for the pin
-> + * @pages:	array of pages returned
-> + * @vaddr_pin:	initialized meta information this pin is to be associated
-> + * with.
-> + *
-> + * This is the "vaddr_pin_pages" corresponding variant to
-> + * get_user_pages_remote(), but with FOLL_PIN semantics: the implementation sets
-> + * FOLL_PIN. That, in turn, means that the pages must ultimately be released
-> + * by put_user_page().
-> + */
-> +long vaddr_pin_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
-> +			    unsigned long start, unsigned long nr_pages,
-> +			    unsigned int gup_flags, struct page **pages,
-> +			    struct vm_area_struct **vmas, int *locked,
-> +			    struct vaddr_pin *vaddr_pin)
-> +{
-> +	gup_flags |= FOLL_TOUCH | FOLL_REMOTE | FOLL_PIN;
-> +
-> +	return __get_user_pages_locked(tsk, mm, start, nr_pages, pages, vmas,
-> +				       locked, gup_flags, vaddr_pin);
-> +}
-> +EXPORT_SYMBOL(vaddr_pin_pages_remote);
-> +
->  /**
->   * vaddr_unpin_pages_dirty_lock - counterpart to vaddr_pin_pages
->   *
-> @@ -2536,3 +2568,21 @@ void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
->  	__put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, make_dirty);
->  }
->  EXPORT_SYMBOL(vaddr_unpin_pages_dirty_lock);
-> +
-> +/**
-> + * vaddr_unpin_pages - simple, non-dirtying counterpart to vaddr_pin_pages
-> + *
-> + * @pages: array of pages returned
-> + * @nr_pages: number of pages in pages
-> + * @vaddr_pin: same information passed to vaddr_pin_pages
-> + *
-> + * Like vaddr_unpin_pages_dirty_lock, but for non-dirty pages. Useful in putting
-> + * back pages in an error case: they were never made dirty.
-> + */
-> +void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
-> +		       struct vaddr_pin *vaddr_pin)
-> +{
-> +	__put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, false);
-> +}
-> +EXPORT_SYMBOL(vaddr_unpin_pages);
-
-Rather than have another wrapping call why don't we just do this?  Would it be
-so bad to just have to specify false for make_dirty?
-
-
-diff --git a/mm/gup.c b/mm/gup.c
-index e77b250c1307..ca660a5e8206 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -2540,7 +2540,7 @@ long vaddr_pin_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
- EXPORT_SYMBOL(vaddr_pin_pages_remote);
+diff --git a/Makefile b/Makefile
+index 1b23f95db176..93b9744e66a2 100644
+--- a/Makefile
++++ b/Makefile
+@@ -846,7 +846,11 @@ NOSTDINC_FLAGS += -nostdinc -isystem $(shell $(CC) -print-file-name=include)
+ KBUILD_CFLAGS += -Wdeclaration-after-statement
  
- /**
-- * vaddr_unpin_pages_dirty_lock - counterpart to vaddr_pin_pages
-+ * vaddr_unpin_pages - counterpart to vaddr_pin_pages
-  *
-  * @pages: array of pages returned
-  * @nr_pages: number of pages in pages
-@@ -2551,26 +2551,9 @@ EXPORT_SYMBOL(vaddr_pin_pages_remote);
-  * in vaddr_pin_pages should be passed back into this call for proper
-  * tracking.
+ # Warn about unmarked fall-throughs in switch statement.
++# If the compiler is clang, this warning is only enabled if W=1 in
++# Makefile.extrawarn
++ifndef CONFIG_CC_IS_CLANG
+ KBUILD_CFLAGS += $(call cc-option,-Wimplicit-fallthrough,)
++endif
+ 
+ # Variable Length Arrays (VLAs) should not be used anywhere in the kernel
+ KBUILD_CFLAGS += -Wvla
+diff --git a/include/linux/compiler_attributes.h b/include/linux/compiler_attributes.h
+index 6b318efd8a74..86c26bc0ace5 100644
+--- a/include/linux/compiler_attributes.h
++++ b/include/linux/compiler_attributes.h
+@@ -253,4 +253,8 @@
   */
--void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
--                                 struct vaddr_pin *vaddr_pin, bool make_dirty)
-+void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
-+                      struct vaddr_pin *vaddr_pin, bool make_dirty)
- {
-        __put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, make_dirty);
+ #define __weak                          __attribute__((__weak__))
+ 
++#if __has_attribute(fallthrough)
++#define __fallthrough                   __attribute__((fallthrough))
++#endif
++
+ #endif /* __LINUX_COMPILER_ATTRIBUTES_H */
+diff --git a/include/linux/jhash.h b/include/linux/jhash.h
+index ba2f6a9776b6..1d21e3f32823 100644
+--- a/include/linux/jhash.h
++++ b/include/linux/jhash.h
+@@ -86,19 +86,43 @@ static inline u32 jhash(const void *key, u32 length, u32 initval)
+ 	}
+ 	/* Last block: affect all 32 bits of (c) */
+ 	switch (length) {
+-	case 12: c += (u32)k[11]<<24;	/* fall through */
+-	case 11: c += (u32)k[10]<<16;	/* fall through */
+-	case 10: c += (u32)k[9]<<8;	/* fall through */
+-	case 9:  c += k[8];		/* fall through */
+-	case 8:  b += (u32)k[7]<<24;	/* fall through */
+-	case 7:  b += (u32)k[6]<<16;	/* fall through */
+-	case 6:  b += (u32)k[5]<<8;	/* fall through */
+-	case 5:  b += k[4];		/* fall through */
+-	case 4:  a += (u32)k[3]<<24;	/* fall through */
+-	case 3:  a += (u32)k[2]<<16;	/* fall through */
+-	case 2:  a += (u32)k[1]<<8;	/* fall through */
+-	case 1:  a += k[0];
++	case 12:
++		c += (u32)k[11]<<24;
++		__fallthrough;
++	case 11:
++		c += (u32)k[10]<<16;
++		__fallthrough;
++	case 10:
++		c += (u32)k[9]<<8;
++		__fallthrough;
++	case 9:
++		c += k[8];
++		__fallthrough;
++	case 8:
++		b += (u32)k[7]<<24;
++		__fallthrough;
++	case 7:
++		b += (u32)k[6]<<16;
++		__fallthrough;
++	case 6:
++		b += (u32)k[5]<<8;
++		__fallthrough;
++	case 5:
++		b += k[4];
++		__fallthrough;
++	case 4:
++		a += (u32)k[3]<<24;
++		__fallthrough;
++	case 3:
++		a += (u32)k[2]<<16;
++		__fallthrough;
++	case 2:
++		a += (u32)k[1]<<8;
++		__fallthrough;
++	case 1:
++		a += k[0];
+ 		 __jhash_final(a, b, c);
++		break;
+ 	case 0: /* Nothing left to add */
+ 		break;
+ 	}
+@@ -132,10 +156,16 @@ static inline u32 jhash2(const u32 *k, u32 length, u32 initval)
+ 
+ 	/* Handle the last 3 u32's */
+ 	switch (length) {
+-	case 3: c += k[2];	/* fall through */
+-	case 2: b += k[1];	/* fall through */
+-	case 1: a += k[0];
++	case 3:
++		c += k[2];
++		__fallthrough;
++	case 2:
++		b += k[1];
++		__fallthrough;
++	case 1:
++		a += k[0];
+ 		__jhash_final(a, b, c);
++		break;
+ 	case 0:	/* Nothing left to add */
+ 		break;
+ 	}
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index 0334ca97c584..7acb131e287f 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -158,11 +158,14 @@ static inline void __mm_zero_struct_page(struct page *page)
+ 
+ 	switch (sizeof(struct page)) {
+ 	case 80:
+-		_pp[9] = 0;	/* fallthrough */
++		_pp[9] = 0;
++		__fallthrough;
+ 	case 72:
+-		_pp[8] = 0;	/* fallthrough */
++		_pp[8] = 0;
++		__fallthrough;
+ 	case 64:
+-		_pp[7] = 0;	/* fallthrough */
++		_pp[7] = 0;
++		__fallthrough;
+ 	case 56:
+ 		_pp[6] = 0;
+ 		_pp[5] = 0;
+diff --git a/include/linux/signal.h b/include/linux/signal.h
+index b5d99482d3fe..fb750e87566f 100644
+--- a/include/linux/signal.h
++++ b/include/linux/signal.h
+@@ -129,11 +129,11 @@ static inline void name(sigset_t *r, const sigset_t *a, const sigset_t *b) \
+ 		b3 = b->sig[3]; b2 = b->sig[2];				\
+ 		r->sig[3] = op(a3, b3);					\
+ 		r->sig[2] = op(a2, b2);					\
+-		/* fall through */					\
++		__fallthrough;						\
+ 	case 2:								\
+ 		a1 = a->sig[1]; b1 = b->sig[1];				\
+ 		r->sig[1] = op(a1, b1);					\
+-		/* fall through */					\
++		__fallthrough;						\
+ 	case 1:								\
+ 		a0 = a->sig[0]; b0 = b->sig[0];				\
+ 		r->sig[0] = op(a0, b0);					\
+@@ -163,9 +163,9 @@ static inline void name(sigset_t *set)					\
+ 	switch (_NSIG_WORDS) {						\
+ 	case 4:	set->sig[3] = op(set->sig[3]);				\
+ 		set->sig[2] = op(set->sig[2]);				\
+-		/* fall through */					\
++		__fallthrough;				\
+ 	case 2:	set->sig[1] = op(set->sig[1]);				\
+-		/* fall through */					\
++		__fallthrough;				\
+ 	case 1:	set->sig[0] = op(set->sig[0]);				\
+ 		    break;						\
+ 	default:							\
+@@ -186,7 +186,7 @@ static inline void sigemptyset(sigset_t *set)
+ 		memset(set, 0, sizeof(sigset_t));
+ 		break;
+ 	case 2: set->sig[1] = 0;
+-		/* fall through */
++		__fallthrough;
+ 	case 1:	set->sig[0] = 0;
+ 		break;
+ 	}
+@@ -199,7 +199,7 @@ static inline void sigfillset(sigset_t *set)
+ 		memset(set, -1, sizeof(sigset_t));
+ 		break;
+ 	case 2: set->sig[1] = -1;
+-		/* fall through */
++		__fallthrough;
+ 	case 1:	set->sig[0] = -1;
+ 		break;
+ 	}
+@@ -230,6 +230,7 @@ static inline void siginitset(sigset_t *set, unsigned long mask)
+ 		memset(&set->sig[1], 0, sizeof(long)*(_NSIG_WORDS-1));
+ 		break;
+ 	case 2: set->sig[1] = 0;
++		__fallthrough;
+ 	case 1: ;
+ 	}
  }
- EXPORT_SYMBOL(vaddr_unpin_pages_dirty_lock);
--
--/**
-- * vaddr_unpin_pages - simple, non-dirtying counterpart to vaddr_pin_pages
-- *
-- * @pages: array of pages returned
-- * @nr_pages: number of pages in pages
-- * @vaddr_pin: same information passed to vaddr_pin_pages
-- *
-- * Like vaddr_unpin_pages_dirty_lock, but for non-dirty pages. Useful in putting
-- * back pages in an error case: they were never made dirty.
-- */
--void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
--                      struct vaddr_pin *vaddr_pin)
--{
--       __put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, false);
--}
--EXPORT_SYMBOL(vaddr_unpin_pages);
+@@ -242,6 +243,7 @@ static inline void siginitsetinv(sigset_t *set, unsigned long mask)
+ 		memset(&set->sig[1], -1, sizeof(long)*(_NSIG_WORDS-1));
+ 		break;
+ 	case 2: set->sig[1] = -1;
++		__fallthrough;
+ 	case 1: ;
+ 	}
+ }
+diff --git a/include/linux/skbuff.h b/include/linux/skbuff.h
+index d8af86d995d6..1b7d3cf81dd8 100644
+--- a/include/linux/skbuff.h
++++ b/include/linux/skbuff.h
+@@ -3639,19 +3639,19 @@ static inline bool __skb_metadata_differs(const struct sk_buff *skb_a,
+ #define __it(x, op) (x -= sizeof(u##op))
+ #define __it_diff(a, b, op) (*(u##op *)__it(a, op)) ^ (*(u##op *)__it(b, op))
+ 	case 32: diffs |= __it_diff(a, b, 64);
+-		 /* fall through */
++		__fallthrough;
+ 	case 24: diffs |= __it_diff(a, b, 64);
+-		 /* fall through */
++		__fallthrough;
+ 	case 16: diffs |= __it_diff(a, b, 64);
+-		 /* fall through */
++		__fallthrough;
+ 	case  8: diffs |= __it_diff(a, b, 64);
+ 		break;
+ 	case 28: diffs |= __it_diff(a, b, 64);
+-		 /* fall through */
++		__fallthrough;
+ 	case 20: diffs |= __it_diff(a, b, 64);
+-		 /* fall through */
++		__fallthrough;
+ 	case 12: diffs |= __it_diff(a, b, 64);
+-		 /* fall through */
++		__fallthrough;
+ 	case  4: diffs |= __it_diff(a, b, 32);
+ 		break;
+ 	}
+diff --git a/lib/zstd/bitstream.h b/lib/zstd/bitstream.h
+index 3a49784d5c61..36c9aeafd801 100644
+--- a/lib/zstd/bitstream.h
++++ b/lib/zstd/bitstream.h
+@@ -259,15 +259,15 @@ ZSTD_STATIC size_t BIT_initDStream(BIT_DStream_t *bitD, const void *srcBuffer, s
+ 		bitD->bitContainer = *(const BYTE *)(bitD->start);
+ 		switch (srcSize) {
+ 		case 7: bitD->bitContainer += (size_t)(((const BYTE *)(srcBuffer))[6]) << (sizeof(bitD->bitContainer) * 8 - 16);
+-			/* fall through */
++			__fallthrough;
+ 		case 6: bitD->bitContainer += (size_t)(((const BYTE *)(srcBuffer))[5]) << (sizeof(bitD->bitContainer) * 8 - 24);
+-			/* fall through */
++			__fallthrough;
+ 		case 5: bitD->bitContainer += (size_t)(((const BYTE *)(srcBuffer))[4]) << (sizeof(bitD->bitContainer) * 8 - 32);
+-			/* fall through */
++			__fallthrough;
+ 		case 4: bitD->bitContainer += (size_t)(((const BYTE *)(srcBuffer))[3]) << 24;
+-			/* fall through */
++			__fallthrough;
+ 		case 3: bitD->bitContainer += (size_t)(((const BYTE *)(srcBuffer))[2]) << 16;
+-			/* fall through */
++			__fallthrough;
+ 		case 2: bitD->bitContainer += (size_t)(((const BYTE *)(srcBuffer))[1]) << 8;
+ 		default:;
+ 		}
+diff --git a/scripts/Makefile.extrawarn b/scripts/Makefile.extrawarn
+index a74ce2e3c33e..e12359d69bb7 100644
+--- a/scripts/Makefile.extrawarn
++++ b/scripts/Makefile.extrawarn
+@@ -30,6 +30,9 @@ warning-1 += $(call cc-option, -Wunused-but-set-variable)
+ warning-1 += $(call cc-option, -Wunused-const-variable)
+ warning-1 += $(call cc-option, -Wpacked-not-aligned)
+ warning-1 += $(call cc-option, -Wstringop-truncation)
++ifdef CONFIG_CC_IS_CLANG
++KBUILD_CFLAGS += $(call cc-option,-Wimplicit-fallthrough,)
++endif
+ # The following turn off the warnings enabled by -Wextra
+ warning-1 += -Wno-missing-field-initializers
+ warning-1 += -Wno-sign-compare
+-- 
+2.23.0.rc1.153.gdeed80330f-goog
+
 
