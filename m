@@ -2,159 +2,154 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=unavailable
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E3F0CC31E40
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 17:56:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 83CA9C433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 18:05:56 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9FBA020842
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 17:56:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="aT1+Cp+K"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9FBA020842
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 4D7CB20663
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 18:05:56 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4D7CB20663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 213326B0005; Mon, 12 Aug 2019 13:56:18 -0400 (EDT)
+	id DCCA26B0008; Mon, 12 Aug 2019 14:05:55 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1C3076B0007; Mon, 12 Aug 2019 13:56:18 -0400 (EDT)
+	id D7F076B000A; Mon, 12 Aug 2019 14:05:55 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0B45D6B0008; Mon, 12 Aug 2019 13:56:18 -0400 (EDT)
+	id C6B076B000C; Mon, 12 Aug 2019 14:05:55 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0177.hostedemail.com [216.40.44.177])
-	by kanga.kvack.org (Postfix) with ESMTP id DF0626B0005
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 13:56:17 -0400 (EDT)
-Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 7FCAA8248AA1
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 17:56:17 +0000 (UTC)
-X-FDA: 75814529994.25.hole01_53f6ee3eb455a
-X-HE-Tag: hole01_53f6ee3eb455a
-X-Filterd-Recvd-Size: 5931
-Received: from mail-qt1-f195.google.com (mail-qt1-f195.google.com [209.85.160.195])
-	by imf10.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 17:56:16 +0000 (UTC)
-Received: by mail-qt1-f195.google.com with SMTP id t12so15111330qtp.9
-        for <linux-mm@kvack.org>; Mon, 12 Aug 2019 10:56:16 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=YeHGfRcz7/xDdQu045YPZqSeRdWuIL5U3pex4BeV6Co=;
-        b=aT1+Cp+KGWQyozFDowVXklkNZVi/kM9KamsNgl23DUo+IJyNPad8EzXuoAG7s3f5bf
-         bOSW7DhNODTjMskeg1DRPDb4g7NB2wX2AWkHQuyR0cct0HrdnZzak9aU8g7CHTL0qHoO
-         IKZcX3vXDSq/u24mEPYpzVVHpbOB2TSRpMchVGlB+vxEwN6TXEtwOQ8uYyw5P8+cz9Hd
-         j1BzALymBU6a7rw2q7wWcxOSnVbjWppZ0IMW4+9rMtyvhB+q0F08Mu3PWUPEGDQxvNfD
-         RqDlAaDfsxyO370w/XugHLZnyfoDs8iN8igYYDuAHaeRZtKy3Zg+yOMKiyalzWN131uL
-         Eqkw==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=YeHGfRcz7/xDdQu045YPZqSeRdWuIL5U3pex4BeV6Co=;
-        b=kTEyQYXPr6gmkfBvLUqAIUS+hXeCnShs8cCTfUXlTxa160/BKmhhAHirOVHAXlHslg
-         lfcWuGxmaI1h8ihO5qZGMh5VCplFZV6dxkNcONVQ+P5ETJk4LT7kXTGkk2pTqHSXwkfs
-         C60Or6t8Wyqha4lc/CiyLIUX60hzzpdW9pljD+SCZ0Jwqgfhik4/14wVE7bIPTUD8lRr
-         CDV6tOz5KCHpmu8821xBeYgh8+c7f4xdm5xd5nlA3QKJ9spSmFc+Ff9pInpbBa87dtRp
-         JNjY5a+CWyy/4dfSswnRWmK1UTsMxklrKivMOwcvKlBRl7yFMRFAhqsprIGbfmdGn/+K
-         CmsQ==
-X-Gm-Message-State: APjAAAXouDXTdXND8jI9vBynDiQpYXhfZp2LHJUpyqxzDVT2lxV5fTJ1
-	r0iM/sl+jq9g2Uud/KocSLS3YQ==
-X-Google-Smtp-Source: APXvYqx5MBD9MG64lV9iZUYWN/EeNo5U4lzvE+q4eQc5jVQAxZ4QmzhDKvfOk+m1tNY0/uiYKcLUcw==
-X-Received: by 2002:ac8:43c4:: with SMTP id w4mr15414493qtn.238.1565632576300;
-        Mon, 12 Aug 2019 10:56:16 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id r15sm5883158qtp.94.2019.08.12.10.56.15
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Mon, 12 Aug 2019 10:56:15 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hxEYJ-0004LN-Ev; Mon, 12 Aug 2019 14:56:15 -0300
-Date: Mon, 12 Aug 2019 14:56:15 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Ira Weiny <ira.weiny@intel.com>
+Received: from forelay.hostedemail.com (smtprelay0044.hostedemail.com [216.40.44.44])
+	by kanga.kvack.org (Postfix) with ESMTP id A4D936B0008
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 14:05:55 -0400 (EDT)
+Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 3A62C181AC9B4
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 18:05:55 +0000 (UTC)
+X-FDA: 75814554270.04.plot94_16533154df95d
+X-HE-Tag: plot94_16533154df95d
+X-Filterd-Recvd-Size: 4819
+Received: from mga17.intel.com (mga17.intel.com [192.55.52.151])
+	by imf17.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 18:05:53 +0000 (UTC)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga007.fm.intel.com ([10.253.24.52])
+  by fmsmga107.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Aug 2019 11:05:51 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,378,1559545200"; 
+   d="scan'208";a="177558391"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga007.fm.intel.com with ESMTP; 12 Aug 2019 11:05:51 -0700
+Date: Mon, 12 Aug 2019 11:05:51 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Dave Chinner <david@fromorbit.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
 	Dan Williams <dan.j.williams@intel.com>,
 	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
 	Theodore Ts'o <tytso@mit.edu>, John Hubbard <jhubbard@nvidia.com>,
-	Michal Hocko <mhocko@suse.com>, Dave Chinner <david@fromorbit.com>,
-	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [RFC PATCH v2 16/19] RDMA/uverbs: Add back pointer to system
- file object
-Message-ID: <20190812175615.GI24457@ziepe.ca>
+	Michal Hocko <mhocko@suse.com>, linux-xfs@vger.kernel.org,
+	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org,
+	linux-ext4@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 07/19] fs/xfs: Teach xfs to use new
+ dax_layout_busy_page()
+Message-ID: <20190812180551.GC19746@iweiny-DESK2.sc.intel.com>
 References: <20190809225833.6657-1-ira.weiny@intel.com>
- <20190809225833.6657-17-ira.weiny@intel.com>
- <20190812130039.GD24457@ziepe.ca>
- <20190812172826.GA19746@iweiny-DESK2.sc.intel.com>
+ <20190809225833.6657-8-ira.weiny@intel.com>
+ <20190809233037.GB7777@dread.disaster.area>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190812172826.GA19746@iweiny-DESK2.sc.intel.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190809233037.GB7777@dread.disaster.area>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 12, 2019 at 10:28:27AM -0700, Ira Weiny wrote:
-> On Mon, Aug 12, 2019 at 10:00:40AM -0300, Jason Gunthorpe wrote:
-> > On Fri, Aug 09, 2019 at 03:58:30PM -0700, ira.weiny@intel.com wrote:
-> > > From: Ira Weiny <ira.weiny@intel.com>
-> > > 
-> > > In order for MRs to be tracked against the open verbs context the ufile
-> > > needs to have a pointer to hand to the GUP code.
-> > > 
-> > > No references need to be taken as this should be valid for the lifetime
-> > > of the context.
-> > > 
-> > > Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-> > >  drivers/infiniband/core/uverbs.h      | 1 +
-> > >  drivers/infiniband/core/uverbs_main.c | 1 +
-> > >  2 files changed, 2 insertions(+)
-> > > 
-> > > diff --git a/drivers/infiniband/core/uverbs.h b/drivers/infiniband/core/uverbs.h
-> > > index 1e5aeb39f774..e802ba8c67d6 100644
-> > > +++ b/drivers/infiniband/core/uverbs.h
-> > > @@ -163,6 +163,7 @@ struct ib_uverbs_file {
-> > >  	struct page *disassociate_page;
-> > >  
-> > >  	struct xarray		idr;
-> > > +	struct file             *sys_file; /* backpointer to system file object */
-> > >  };
+On Sat, Aug 10, 2019 at 09:30:37AM +1000, Dave Chinner wrote:
+> On Fri, Aug 09, 2019 at 03:58:21PM -0700, ira.weiny@intel.com wrote:
+> > From: Ira Weiny <ira.weiny@intel.com>
 > > 
-> > The 'struct file' has a lifetime strictly shorter than the
-> > ib_uverbs_file, which is kref'd on its own lifetime. Having a back
-> > pointer like this is confouding as it will be invalid for some of the
-> > lifetime of the struct.
+> > dax_layout_busy_page() can now operate on a sub-range of the
+> > address_space provided.
+> > 
+> > Have xfs specify the sub range to dax_layout_busy_page()
 > 
-> Ah...  ok.  I really thought it was the other way around.
+> Hmmm. I've got patches that change all these XFS interfaces to
+> support range locks. I'm not sure the way the ranges are passed here
+> is the best way to do it, and I suspect they aren't correct in some
+> cases, either....
 > 
-> __fput() should not call ib_uverbs_close() until the last reference on struct
-> file is released...  What holds references to struct ib_uverbs_file past that?
-
-Child fds hold onto the internal ib_uverbs_file until they are closed
-
-> Perhaps I need to add this (untested)?
+> > diff --git a/fs/xfs/xfs_iops.c b/fs/xfs/xfs_iops.c
+> > index ff3c1fae5357..f0de5486f6c1 100644
+> > --- a/fs/xfs/xfs_iops.c
+> > +++ b/fs/xfs/xfs_iops.c
+> > @@ -1042,10 +1042,16 @@ xfs_vn_setattr(
+> >  		xfs_ilock(ip, XFS_MMAPLOCK_EXCL);
+> >  		iolock = XFS_IOLOCK_EXCL | XFS_MMAPLOCK_EXCL;
+> >  
+> > -		error = xfs_break_layouts(inode, &iolock, BREAK_UNMAP);
+> > -		if (error) {
+> > -			xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
+> > -			return error;
+> > +		if (iattr->ia_size < inode->i_size) {
+> > +			loff_t                  off = iattr->ia_size;
+> > +			loff_t                  len = inode->i_size - iattr->ia_size;
+> > +
+> > +			error = xfs_break_layouts(inode, &iolock, off, len,
+> > +						  BREAK_UNMAP);
+> > +			if (error) {
+> > +				xfs_iunlock(ip, XFS_MMAPLOCK_EXCL);
+> > +				return error;
+> > +			}
 > 
-> diff --git a/drivers/infiniband/core/uverbs_main.c
-> b/drivers/infiniband/core/uverbs_main.c
-> index f628f9e4c09f..654e774d9cf2 100644
-> +++ b/drivers/infiniband/core/uverbs_main.c
-> @@ -1125,6 +1125,8 @@ static int ib_uverbs_close(struct inode *inode, struct file *filp)
->         list_del_init(&file->list);
->         mutex_unlock(&file->device->lists_mutex);
->  
-> +       file->sys_file = NULL;
+> This isn't right - truncate up still needs to break the layout on
+> the last filesystem block of the file,
 
-Now this has unlocked updates to that data.. you'd need some lock and
-get not zero pattern
+I'm not following this?  From a user perspective they can't have done anything
+with the data beyond the EOF.  So isn't it safe to allow EOF to grow without
+changing the layout of that last block?
 
-Jason
+> and truncate down needs to
+> extend to "maximum file offset" because we remove all extents beyond
+> EOF on a truncate down.
+
+Ok, I was trying to allow a user to extend the file without conflicts if they
+were to have a pin on the 'beginning' of the original file.  This sounds like
+you are saying that a layout lease must be dropped to do that?  In some ways I
+think I understand what you are driving at and I think I see how I may have
+been playing "fast and loose" with the strictness of the layout lease.  But
+from a user perspective if there is a part of the file which "does not exist"
+(beyond EOF) does it matter that the layout there may change?
+
+> 
+> i.e. when we use preallocation, the extent map extends beyond EOF,
+> and layout leases need to be able to extend beyond the current EOF
+> to allow the lease owner to do extending writes, extending truncate,
+> preallocation beyond EOF, etc safely without having to get a new
+> lease to cover the new region in the extended file...
+
+I'm not following this.  What determines when preallocation is done?
+
+Forgive my ignorance on file systems but how can we have a layout for every
+file which is "maximum file offset" for every file even if a file is only 1
+page long?
+
+Thanks,
+Ira
+
+> 
+> Cheers,
+> 
+> Dave.
+> -- 
+> Dave Chinner
+> david@fromorbit.com
 
