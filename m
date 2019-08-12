@@ -2,117 +2,276 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A5E56C31E40
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:21:52 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AED6CC31E40
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:26:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6F70F20665
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:21:52 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F70F20665
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
+	by mail.kernel.org (Postfix) with ESMTP id 5BD842070C
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:26:57 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5BD842070C
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 237486B000E; Mon, 12 Aug 2019 11:21:52 -0400 (EDT)
+	id 0ACD86B0003; Mon, 12 Aug 2019 11:26:57 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1C1396B0010; Mon, 12 Aug 2019 11:21:52 -0400 (EDT)
+	id 05D676B0005; Mon, 12 Aug 2019 11:26:57 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0AFFB6B0266; Mon, 12 Aug 2019 11:21:52 -0400 (EDT)
+	id E67586B0006; Mon, 12 Aug 2019 11:26:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0164.hostedemail.com [216.40.44.164])
-	by kanga.kvack.org (Postfix) with ESMTP id D8A1F6B000E
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 11:21:51 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 86B86180AD7C3
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:21:51 +0000 (UTC)
-X-FDA: 75814140822.07.ball08_2d4762359f661
-X-HE-Tag: ball08_2d4762359f661
-X-Filterd-Recvd-Size: 4141
-Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
-	by imf41.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:21:51 +0000 (UTC)
-Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
-	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7CElYTF121330
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 10:51:09 -0400
-Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
-	by mx0a-001b2d01.pphosted.com with ESMTP id 2ub9f12bcc-1
-	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 10:51:08 -0400
-Received: from localhost
-	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
-	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
-	Mon, 12 Aug 2019 15:51:06 +0100
-Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
-	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
-	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
-	Mon, 12 Aug 2019 15:51:03 +0100
-Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
-	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7CEp23F51904690
-	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Mon, 12 Aug 2019 14:51:02 GMT
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 77A5F11C066;
-	Mon, 12 Aug 2019 14:51:02 +0000 (GMT)
-Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
-	by IMSVA (Postfix) with ESMTP id 2C6D311C04A;
-	Mon, 12 Aug 2019 14:51:01 +0000 (GMT)
-Received: from in.ibm.com (unknown [9.85.87.231])
-	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
-	Mon, 12 Aug 2019 14:51:01 +0000 (GMT)
-Date: Mon, 12 Aug 2019 20:20:58 +0530
-From: Bharata B Rao <bharata@linux.ibm.com>
-To: Christoph Hellwig <hch@lst.de>
-Cc: Dan Williams <dan.j.williams@intel.com>,
-        Jason Gunthorpe <jgg@mellanox.com>,
-        Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-        linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org
-Subject: Re: [PATCH 5/5] memremap: provide a not device managed memremap_pages
-Reply-To: bharata@linux.ibm.com
-References: <20190811081247.22111-1-hch@lst.de>
- <20190811081247.22111-6-hch@lst.de>
+Received: from forelay.hostedemail.com (smtprelay0116.hostedemail.com [216.40.44.116])
+	by kanga.kvack.org (Postfix) with ESMTP id BF8066B0003
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 11:26:56 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 5D5C552AA
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:26:56 +0000 (UTC)
+X-FDA: 75814153632.22.heat80_599f6347a2e50
+X-HE-Tag: heat80_599f6347a2e50
+X-Filterd-Recvd-Size: 10605
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf48.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:26:55 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 9EA7E3023081;
+	Mon, 12 Aug 2019 15:26:54 +0000 (UTC)
+Received: from [10.18.17.163] (dhcp-17-163.bos.redhat.com [10.18.17.163])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id C17E9646B0;
+	Mon, 12 Aug 2019 15:26:39 +0000 (UTC)
+Subject: Re: [QEMU Patch 2/2] virtio-balloon: support for handling page
+ reporting
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>, virtio-dev@lists.oasis-open.org,
+ Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com,
+ pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>,
+ dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>,
+ john.starks@microsoft.com, Dave Hansen <dave.hansen@intel.com>,
+ Michal Hocko <mhocko@suse.com>, cohuck@redhat.com
+References: <20190812131235.27244-1-nitesh@redhat.com>
+ <20190812131357.27312-1-nitesh@redhat.com>
+ <20190812131357.27312-2-nitesh@redhat.com>
+ <CAKgT0Uc8kGwX8VwU2b51qVuh2z5eZQ6XhSnYMryTVa_pKHCvew@mail.gmail.com>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ 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
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <101649ae-58d4-76ee-91f3-42ac1c145c46@redhat.com>
+Date: Mon, 12 Aug 2019 11:26:38 -0400
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190811081247.22111-6-hch@lst.de>
-User-Agent: Mutt/1.12.0 (2019-05-25)
-X-TM-AS-GCONF: 00
-x-cbid: 19081214-4275-0000-0000-000003583F34
-X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
-x-cbparentid: 19081214-4276-0000-0000-0000386A4BE6
-Message-Id: <20190812145058.GA16950@in.ibm.com>
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-12_06:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=663 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908120166
+In-Reply-To: <CAKgT0Uc8kGwX8VwU2b51qVuh2z5eZQ6XhSnYMryTVa_pKHCvew@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
+Content-Language: en-US
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.45]); Mon, 12 Aug 2019 15:26:54 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 11, 2019 at 10:12:47AM +0200, Christoph Hellwig wrote:
-> The kvmppc ultravisor code wants a device private memory pool that is
-> system wide and not attached to a device.  Instead of faking up one
-> provide a low-level memremap_pages for it.  Note that this function is
-> not exported, and doesn't have a cleanup routine associated with it to
-> discourage use from more driver like users.
 
-The kvmppc secure pages management code will be part of kvm-hv which
-can be built as module too. So it would require memremap_pages() to be
-exported.
+On 8/12/19 11:18 AM, Alexander Duyck wrote:
+> On Mon, Aug 12, 2019 at 6:14 AM Nitesh Narayan Lal <nitesh@redhat.com> =
+wrote:
+>> Page reporting is a feature which enables the virtual machine to repor=
+t
+>> chunk of free pages to the hypervisor.
+>> This patch enables QEMU to process these reports from the VM and disca=
+rd the
+>> unused memory range.
+>>
+>> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
+>> ---
+>>  hw/virtio/virtio-balloon.c         | 41 +++++++++++++++++++++++++++++=
++
+>>  include/hw/virtio/virtio-balloon.h |  2 +-
+>>  2 files changed, 42 insertions(+), 1 deletion(-)
+>>
+>> diff --git a/hw/virtio/virtio-balloon.c b/hw/virtio/virtio-balloon.c
+>> index 25de154307..1132e47ee0 100644
+>> --- a/hw/virtio/virtio-balloon.c
+>> +++ b/hw/virtio/virtio-balloon.c
+>> @@ -320,6 +320,39 @@ static void balloon_stats_set_poll_interval(Objec=
+t *obj, Visitor *v,
+>>      balloon_stats_change_timer(s, 0);
+>>  }
+>>
+>> +static void virtio_balloon_handle_reporting(VirtIODevice *vdev, VirtQ=
+ueue *vq)
+>> +{
+>> +    VirtQueueElement *elem;
+>> +
+>> +    while ((elem =3D virtqueue_pop(vq, sizeof(VirtQueueElement)))) {
+>> +        unsigned int i;
+>> +
+>> +        for (i =3D 0; i < elem->in_num; i++) {
+>> +            void *gaddr =3D elem->in_sg[i].iov_base;
+>> +            size_t size =3D elem->in_sg[i].iov_len;
+>> +            ram_addr_t ram_offset;
+>> +            size_t rb_page_size;
+>> +           RAMBlock *rb;
+>> +
+>> +            if (qemu_balloon_is_inhibited())
+>> +                continue;
+>> +
+>> +            rb =3D qemu_ram_block_from_host(gaddr, false, &ram_offset=
+);
+>> +            rb_page_size =3D qemu_ram_pagesize(rb);
+>> +
+>> +            /* For now we will simply ignore unaligned memory regions=
+ */
+>> +            if ((ram_offset | size) & (rb_page_size - 1))
+>> +                continue;
+>> +
+>> +            ram_block_discard_range(rb, ram_offset, size);
+>> +        }
+>> +
+>> +        virtqueue_push(vq, elem, 0);
+>> +        virtio_notify(vdev, vq);
+>> +        g_free(elem);
+>> +    }
+>> +}
+>> +
+> No offense, but I am a bit annoyed.
 
-Additionally, non-dev version of the cleanup routine
-devm_memremap_pages_release() or equivalent would also be requried.
-With device being present, put_device() used to take care of this
-cleanup.
+None taken at all.
 
-Regards,
-Bharata.
+>  If you are going to copy my code
+> you should at least keep up with the fixes.
+
+
+Yeah I did refer to your code and just because the quality of your code i=
+s
+better than what I posted earlier and there is quite a lot for me to lear=
+n from it.
+
+
+> stuff to handle the poison value. If you are going to just duplicate
+> my setup you might as well have just pulled the QEMU patches from the
+> last submission I did. Then this would have at least has the fix for
+> the page poisoning.
+>
+
+The only reason I didn't include the poison change as I still need to und=
+erstand
+them.
+I have this mentioned in my cover-email.
+
+
+>  Also it wouldn't hurt to mention that you are
+> basing it off of the patch set I submitted since it hasn't been
+> accepted yet.
+
+
+My bad!! This I will surely do from next time.
+
+>
+>>  static void virtio_balloon_handle_output(VirtIODevice *vdev, VirtQueu=
+e *vq)
+>>  {
+>>      VirtIOBalloon *s =3D VIRTIO_BALLOON(vdev);
+>> @@ -792,6 +825,12 @@ static void virtio_balloon_device_realize(DeviceS=
+tate *dev, Error **errp)
+>>      s->dvq =3D virtio_add_queue(vdev, 128, virtio_balloon_handle_outp=
+ut);
+>>      s->svq =3D virtio_add_queue(vdev, 128, virtio_balloon_receive_sta=
+ts);
+>>
+>> +    if (virtio_has_feature(s->host_features,
+>> +                           VIRTIO_BALLOON_F_REPORTING)) {
+>> +        s->reporting_vq =3D virtio_add_queue(vdev, 16,
+>> +                                          virtio_balloon_handle_repor=
+ting);
+>> +    }
+>> +
+>>      if (virtio_has_feature(s->host_features,
+>>                             VIRTIO_BALLOON_F_FREE_PAGE_HINT)) {
+>>          s->free_page_vq =3D virtio_add_queue(vdev, VIRTQUEUE_MAX_SIZE=
+,
+>> @@ -912,6 +951,8 @@ static Property virtio_balloon_properties[] =3D {
+>>       * is disabled, resulting in QEMU 3.1 migration incompatibility. =
+ This
+>>       * property retains this quirk for QEMU 4.1 machine types.
+>>       */
+>> +    DEFINE_PROP_BIT("free-page-reporting", VirtIOBalloon, host_featur=
+es,
+>> +                    VIRTIO_BALLOON_F_REPORTING, true),
+>>      DEFINE_PROP_BOOL("qemu-4-0-config-size", VirtIOBalloon,
+>>                       qemu_4_0_config_size, false),
+>>      DEFINE_PROP_LINK("iothread", VirtIOBalloon, iothread, TYPE_IOTHRE=
+AD,
+>> diff --git a/include/hw/virtio/virtio-balloon.h b/include/hw/virtio/vi=
+rtio-balloon.h
+>> index d1c968d237..15a05e6435 100644
+>> --- a/include/hw/virtio/virtio-balloon.h
+>> +++ b/include/hw/virtio/virtio-balloon.h
+>> @@ -42,7 +42,7 @@ enum virtio_balloon_free_page_report_status {
+>>
+>>  typedef struct VirtIOBalloon {
+>>      VirtIODevice parent_obj;
+>> -    VirtQueue *ivq, *dvq, *svq, *free_page_vq;
+>> +    VirtQueue *ivq, *dvq, *svq, *free_page_vq, *reporting_vq;
+>>      uint32_t free_page_report_status;
+>>      uint32_t num_pages;
+>>      uint32_t actual;
+>> --
+>> 2.21.0
+>> q
+--=20
+Thanks
+Nitesh
 
 
