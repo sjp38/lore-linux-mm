@@ -7,72 +7,72 @@ X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
 	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 56101C433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 00:39:39 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DBAC6C0650F
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 01:37:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D4A9020874
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 00:39:38 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 9539B2084D
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 01:37:44 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="IKqPzlkB"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D4A9020874
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="SZiO6DEO"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9539B2084D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 431446B0005; Sun, 11 Aug 2019 20:39:38 -0400 (EDT)
+	id 230436B0003; Sun, 11 Aug 2019 21:37:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 3E1A36B0006; Sun, 11 Aug 2019 20:39:38 -0400 (EDT)
+	id 1E1736B0005; Sun, 11 Aug 2019 21:37:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 2D0FD6B0007; Sun, 11 Aug 2019 20:39:38 -0400 (EDT)
+	id 0A8B56B0006; Sun, 11 Aug 2019 21:37:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0137.hostedemail.com [216.40.44.137])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BD206B0005
-	for <linux-mm@kvack.org>; Sun, 11 Aug 2019 20:39:38 -0400 (EDT)
-Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id A35C6282B
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 00:39:37 +0000 (UTC)
-X-FDA: 75811917594.20.dirt00_36e6e519fe949
-X-HE-Tag: dirt00_36e6e519fe949
-X-Filterd-Recvd-Size: 3534
-Received: from mail-ua1-f67.google.com (mail-ua1-f67.google.com [209.85.222.67])
-	by imf11.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 00:39:37 +0000 (UTC)
-Received: by mail-ua1-f67.google.com with SMTP id 34so1925849uar.8
-        for <linux-mm@kvack.org>; Sun, 11 Aug 2019 17:39:37 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0059.hostedemail.com [216.40.44.59])
+	by kanga.kvack.org (Postfix) with ESMTP id DC6106B0003
+	for <linux-mm@kvack.org>; Sun, 11 Aug 2019 21:37:43 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 86638181AC9B4
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 01:37:43 +0000 (UTC)
+X-FDA: 75812064006.29.park03_7d9eb68c5b00b
+X-HE-Tag: park03_7d9eb68c5b00b
+X-Filterd-Recvd-Size: 4681
+Received: from mail-vs1-f65.google.com (mail-vs1-f65.google.com [209.85.217.65])
+	by imf38.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 01:37:43 +0000 (UTC)
+Received: by mail-vs1-f65.google.com with SMTP id c7so1251584vse.11
+        for <linux-mm@kvack.org>; Sun, 11 Aug 2019 18:37:43 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=google.com; s=20161025;
         h=mime-version:references:in-reply-to:from:date:message-id:subject:to
          :cc;
-        bh=6K0DvhL9RJkMUKWGy9bBRNsMSDRRIMczdHWxj2ZlOLY=;
-        b=IKqPzlkBpTxY+A47jneyPgFuefY8XtvBtZMXnqH7VkTU2q0nJcG3iIRUuKxPVzsVSJ
-         qaquyNCY/6XJ7D82HonO4EBmwolNEFZ0EKXfqOGLmnfrGtGIpfHMNqIlMKefsCRAFSqZ
-         JoExbp3p4N4WfyaHmR6RVo8ExwftKr4w/E5HNtfOeBbT3xa+aoWI8ruwrdtCuWimPd7I
-         V3y+2iKeKtWpb4vFKx67OmWGvsA4thlgxbOSxsJnlK/b/PEdRHBI7Ylo+rUgOPHJMOjh
-         BmhzmtoZeu51qfUhDBUGVzA8g+COBbey3b1/Z7KDSww6AYJInUYcnDhyf5zz4TAnOhqH
-         Un5Q==
+        bh=2LvnTipJZhZIUoRbWH0WQTQrByqAr4V2iqODb0EELto=;
+        b=SZiO6DEOIuyIhDHVG+GnlEin+uNFqKBQipgtk36IXhXF1wSZzH4nnCKhrLWOSlpIRO
+         q5pzayzwz5vRvu90mtASG4006WIp47vBQvOex/05Py76sArBAEfJbX+E9g/k7pEJttu7
+         NbNu3WpFyjx9+q3+IUMCoU/wL+Qjl4VAcRsj9TSpD1+lghCVx+59zJkpF6mSMskDjRk9
+         XOgSue0Fh84YKh7QuLx46d+rHY+y7byVzs5sdi6/Lg5yYhoPRX9p6r2rokgieZslHFvY
+         57vbYtPb7tkEuXOS9YcJbostJENVMDO2mt/cBcJuiUuVDanqsAFr8mQ2C4kY2A0NE21x
+         6/Fw==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:mime-version:references:in-reply-to:from:date
          :message-id:subject:to:cc;
-        bh=6K0DvhL9RJkMUKWGy9bBRNsMSDRRIMczdHWxj2ZlOLY=;
-        b=HtHz6QrxCJ52Q8bQSqh1AOLDq345MvMacrSGOZEQzunJXaxkPBQeKMFrqPBdjqBdO4
-         0Zmy3q2KdlMGJAWWrxdn0m+nXfiLjWmxt3v/+Nl5e8z+dVRI46u+ixifjYM1vaOsEZrI
-         PUnZM7TqWBG58D7h8VTje8qpYxCqvsfKQIGNlGAN7W4zvFphmJ8xNdJ2lbVb8kQ0vCwN
-         v7zMbxZNbhiv8bw1i5m1QMPA3kvN9NT3FxsDacA789z2egBsYh5RuvHukO/iNRHE2rvJ
-         DpN5yiADlh9DyOtj9VZaIYiGSYdLMc8JftirmbM+FnRgUE51QvjeADP/STyVdlAid6c1
-         bDvA==
-X-Gm-Message-State: APjAAAVeRMUm0JAaqoEY7DQjKSwSw1Cgb9PzvAfJpP9KIaKUq6iusRYw
-	PO4uSN7INl4AcnbseXWCMDofZnxf/O51E3lPhDSnBQ==
-X-Google-Smtp-Source: APXvYqxvKmRyM1n6aAxPB7BHyG0ztTWG0OjK+dcEQcs9gVLd7ek1DWS6G6ppS8xScBCLvhhXvUQFgbNQHh9Vv1eg9D0=
-X-Received: by 2002:ab0:7618:: with SMTP id o24mr18290583uap.39.1565570376227;
- Sun, 11 Aug 2019 17:39:36 -0700 (PDT)
+        bh=2LvnTipJZhZIUoRbWH0WQTQrByqAr4V2iqODb0EELto=;
+        b=s7zMduefV86sKjtSic3YeidKun7K8vq5iQGQ0II/B9w6WcTmLS1iFJzwECi3wdVJs/
+         Mhw34xBURyA/xmc2XagZ18teZMMpie7sOv5IYMeaIA9AsmuY+MrTliQNU2aMny373gNt
+         hjqGxvY/CkRT3eOGU4xQlVtCCGvAHItfOlpDymweuN5CX4XQ8kQ0fIyhBgfgZtF62Rmc
+         zN0tjUCzoLVsrgH4SXzjk00pgXEnCWmTmWXrpnQgwI26S38SB8QuvoLW9NnTywdKzMmz
+         yWY7uKJS4USSTxBKQPyJIzGq/vx4G+RansQzH3JetRVVpuNtl7K1J5GQuHbxHbCFt8jm
+         1MtQ==
+X-Gm-Message-State: APjAAAUcaficFgws2r5LC5yqxFYlf47Zb6ecDsqE6sP7BoFsoUgmcydv
+	5tw1O7vctQeIvivgrrR84QciwlGkFMQL1IRKTqqWEw==
+X-Google-Smtp-Source: APXvYqyXrQBmouu5GDDT5m91pjiFtd39uZBKfcErjB7T8vaeySN7FBJrwBC4os/PtCmiK1g2TAsdryg5ahnIiPnj/is=
+X-Received: by 2002:a67:3251:: with SMTP id y78mr11021809vsy.39.1565573862229;
+ Sun, 11 Aug 2019 18:37:42 -0700 (PDT)
 MIME-Version: 1.0
-References: <20190811184613.20463-1-urezki@gmail.com> <20190811184613.20463-3-urezki@gmail.com>
-In-Reply-To: <20190811184613.20463-3-urezki@gmail.com>
+References: <20190811184613.20463-1-urezki@gmail.com> <20190811184613.20463-2-urezki@gmail.com>
+In-Reply-To: <20190811184613.20463-2-urezki@gmail.com>
 From: Michel Lespinasse <walken@google.com>
-Date: Sun, 11 Aug 2019 17:39:23 -0700
-Message-ID: <CANN689Hh-Pr-3r9HD7w=FcNGfj_E7-9HVsHu3J9gZts_DYug8A@mail.gmail.com>
-Subject: Re: [PATCH 2/2] mm/vmalloc: use generated callback to populate subtree_max_size
+Date: Sun, 11 Aug 2019 18:37:30 -0700
+Message-ID: <CANN689GT3CorHHegQBFR8tiVPqv5XAb2oYLCEbjB=tBhkO2PCw@mail.gmail.com>
+Subject: Re: [PATCH 1/2] augmented rbtree: use max3() in the *_compute_max() function
 To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, 
 	LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, 
@@ -88,16 +88,38 @@ List-ID: <linux-mm.kvack.org>
 
 On Sun, Aug 11, 2019 at 11:46 AM Uladzislau Rezki (Sony)
 <urezki@gmail.com> wrote:
-> RB_DECLARE_CALLBACKS_MAX defines its own callback to update the
-> augmented subtree information after a node is modified. It makes
-> sense to use it instead of our own propagate implementation.
 >
-> Apart of that, in case of using generated callback we can eliminate
-> compute_subtree_max_size() function and get rid of duplication.
+> Recently there was introduced RB_DECLARE_CALLBACKS_MAX template.
+> One of the callback, to be more specific *_compute_max(), calculates
+> a maximum scalar value of node against its left/right sub-tree.
+>
+> To simplify the code and improve readability we can switch and
+> make use of max3() macro that makes the code more transparent.
 >
 > Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
 
-Reviewed-by: Michel Lespinasse <walken@google.com>
+Thanks. The change is correct but I think I prefer it the "before"
+version. My reasons are:
 
-Love it. Thanks a lot for the cleanup!
+- I don't have a strong style preference either way - it's the same
+amount of code either way, admittedly more modular in your proposal,
+but also with more indirection (compute_max refers to get_max and
+max3). The indirection doesn't hinder readability but IMO it makes it
+harder to be confident that the compiler will generate quality code,
+compared to the "before" approach which just lays down all the pieces
+in a linear way.
+
+- A quick check shows that the proposed change generates larger code
+for mm/interval_tree.o:
+   2757       0       0    2757     ac5 mm/interval_tree.o
+   2533       0       0    2533     9e5 mm/interval_tree.o.orig
+  This does not happen for every RB_DECLARE_CALLBACKS_MAX use,
+lib/interval_tree.o in particular seems to be fine. But it does go
+towards my gut feeling that the change trusts the compiler/optimizer
+more than I want to.
+
+- Slight loss of generality. The "before" code only assumes that the
+RBAUGMENTED field can be compared using "<" ; the "after" code also
+assumes that the minimum value is 0. While this covers the current
+uses, I would prefer not to have that limitation.
 
