@@ -2,145 +2,214 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8A726C31E40
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 13:07:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 72DCFC31E40
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 13:13:13 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 52086216F4
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 13:07:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 52086216F4
+	by mail.kernel.org (Postfix) with ESMTP id 402A620842
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 13:13:13 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 402A620842
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D23296B0003; Mon, 12 Aug 2019 09:07:05 -0400 (EDT)
+	id CA8FF6B0003; Mon, 12 Aug 2019 09:13:12 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CD4826B0005; Mon, 12 Aug 2019 09:07:05 -0400 (EDT)
+	id C5AF56B0005; Mon, 12 Aug 2019 09:13:12 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BC2286B0006; Mon, 12 Aug 2019 09:07:05 -0400 (EDT)
+	id B48786B0006; Mon, 12 Aug 2019 09:13:12 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0214.hostedemail.com [216.40.44.214])
-	by kanga.kvack.org (Postfix) with ESMTP id 966546B0003
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 09:07:05 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 3979B1EE6
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 13:07:05 +0000 (UTC)
-X-FDA: 75813801210.18.tub63_20a763df0eb31
-X-HE-Tag: tub63_20a763df0eb31
-X-Filterd-Recvd-Size: 4139
+Received: from forelay.hostedemail.com (smtprelay0139.hostedemail.com [216.40.44.139])
+	by kanga.kvack.org (Postfix) with ESMTP id 8D0216B0003
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 09:13:12 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 2498C4405
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 13:13:12 +0000 (UTC)
+X-FDA: 75813816624.23.toes53_560bd4bf46f1e
+X-HE-Tag: toes53_560bd4bf46f1e
+X-Filterd-Recvd-Size: 6751
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf19.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 13:07:04 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	by imf42.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 13:13:11 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id DDE87300895B;
-	Mon, 12 Aug 2019 13:07:02 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.136])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 048676FDA5;
-	Mon, 12 Aug 2019 13:07:00 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Mon, 12 Aug 2019 15:07:02 +0200 (CEST)
-Date: Mon, 12 Aug 2019 15:06:59 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: Song Liu <songliubraving@fb.com>
-Cc: Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Matthew Wilcox <matthew.wilcox@oracle.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Kernel Team <Kernel-team@fb.com>,
-	William Kucharski <william.kucharski@oracle.com>,
-	"srikar@linux.vnet.ibm.com" <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v12 5/6] khugepaged: enable collapse pmd for pte-mapped
- THP
-Message-ID: <20190812130659.GA31560@redhat.com>
-References: <20190807233729.3899352-1-songliubraving@fb.com>
- <20190807233729.3899352-6-songliubraving@fb.com>
- <20190808163303.GB7934@redhat.com>
- <770B3C29-CE8F-4228-8992-3C6E2B5487B6@fb.com>
- <20190809152404.GA21489@redhat.com>
- <3B09235E-5CF7-4982-B8E6-114C52196BE5@fb.com>
- <4D8B8397-5107-456B-91FC-4911F255AE11@fb.com>
+	by mx1.redhat.com (Postfix) with ESMTPS id 00B46300C22C;
+	Mon, 12 Aug 2019 13:13:10 +0000 (UTC)
+Received: from virtlab605.virt.lab.eng.bos.redhat.com (virtlab605.virt.lab.eng.bos.redhat.com [10.19.152.201])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 8D85E5D6A0;
+	Mon, 12 Aug 2019 13:13:05 +0000 (UTC)
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+To: kvm@vger.kernel.org,
+	linux-kernel@vger.kernel.org,
+	linux-mm@kvack.org,
+	virtio-dev@lists.oasis-open.org,
+	pbonzini@redhat.com,
+	lcapitulino@redhat.com,
+	pagupta@redhat.com,
+	wei.w.wang@intel.com,
+	yang.zhang.wz@gmail.com,
+	riel@surriel.com,
+	david@redhat.com,
+	mst@redhat.com,
+	dodgen@google.com,
+	konrad.wilk@oracle.com,
+	dhildenb@redhat.com,
+	aarcange@redhat.com,
+	alexander.duyck@gmail.com,
+	john.starks@microsoft.com,
+	dave.hansen@intel.com,
+	mhocko@suse.com,
+	cohuck@redhat.com
+Subject: [RFC][PATCH v12 0/2] mm: Support for page reporting
+Date: Mon, 12 Aug 2019 09:12:33 -0400
+Message-Id: <20190812131235.27244-1-nitesh@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <4D8B8397-5107-456B-91FC-4911F255AE11@fb.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.48]); Mon, 12 Aug 2019 13:07:03 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.46]); Mon, 12 Aug 2019 13:13:10 +0000 (UTC)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 08/09, Song Liu wrote:
->
-> +void collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long addr)
-> +{
-> +	unsigned long haddr = addr & HPAGE_PMD_MASK;
-> +	struct vm_area_struct *vma = find_vma(mm, haddr);
-> +	struct page *hpage = NULL;
-> +	pmd_t *pmd, _pmd;
-> +	spinlock_t *ptl;
-> +	int count = 0;
-> +	int i;
-> +
-> +	if (!vma || !vma->vm_file ||
-> +	    vma->vm_start > haddr || vma->vm_end < haddr + HPAGE_PMD_SIZE)
-> +		return;
-> +
-> +	/*
-> +	 * This vm_flags may not have VM_HUGEPAGE if the page was not
-> +	 * collapsed by this mm. But we can still collapse if the page is
-> +	 * the valid THP. Add extra VM_HUGEPAGE so hugepage_vma_check()
-> +	 * will not fail the vma for missing VM_HUGEPAGE
-> +	 */
-> +	if (!hugepage_vma_check(vma, vma->vm_flags | VM_HUGEPAGE))
-> +		return;
-> +
-> +	pmd = mm_find_pmd(mm, haddr);
-> +	if (!pmd)
-> +		return;
-> +
-> +	/* step 1: check all mapped PTEs are to the right huge page */
-> +	for (i = 0, addr = haddr; i < HPAGE_PMD_NR; i++, addr += PAGE_SIZE) {
-> +		pte_t *pte = pte_offset_map(pmd, addr);
-> +		struct page *page;
-> +
-> +		if (pte_none(*pte) || !pte_present(*pte))
-> +			continue;
+This patch series proposes an efficient mechanism for reporting free memo=
+ry
+from a guest to its hypervisor. It especially enables guests with no page=
+ cache
+(e.g., nvdimm, virtio-pmem) or with small page caches (e.g., ram > disk) =
+to
+rapidly hand back free memory to the hypervisor.
+This approach has a minimal impact on the existing core-mm infrastructure=
+.
 
-		if (!pte_present(*pte))
-			return;
+This approach tracks all freed pages of the order MAX_ORDER - 2 in bitmap=
+s.
+A new hook after buddy merging is used to set the bits in the bitmap for =
+a freed=20
+page. Each set bit is cleared after they are processed/checked for
+re-allocation.
+Bitmaps are stored on a per-zone basis and are protected by the zone lock=
+. A
+workqueue asynchronously processes the bitmaps as soon as a pre-defined m=
+emory
+threshold is met, trying to isolate and report pages that are still free.
+The isolated pages are stored in a scatterlist and are reported via
+virtio-balloon, which is responsible for sending batched pages to the
+hypervisor. Once the hypervisor processed the reporting request, the isol=
+ated
+pages are returned back to the buddy.
+The thershold which defines the number of pages which will be isolated an=
+d
+reported to the hypervisor at a time is currently hardcoded to 16 in the =
+guest.
 
-you can't simply flush pmd if this page is swapped out.
+Benefit analysis:
+Number of 5 GB guests (each touching 4 to 5 GB memory) that can be launch=
+ed on a
+15 GB single NUMA system without using swap space in the host.
 
-> +
-> +		page = vm_normal_page(vma, addr, *pte);
-> +
-> +		if (!page || !PageCompound(page))
-> +			return;
-> +
-> +		if (!hpage) {
-> +			hpage = compound_head(page);
-> +			/*
-> +			 * The mapping of the THP should not change.
-> +			 *
-> +			 * Note that uprobe may change the page table,
+	    Guest kernel-->	Unmodified		with v12 page reporting
+	Number of guests-->	    2				7
 
-Not only uprobe can cow the page. Debugger can do. Or mmap(PROT_WRITE, MAP_PRIVATE).
+Conclusion: In a page-reporting enabled kernel, the guest is able to repo=
+rt
+most of its unused memory back to the host. Due to this on the same host,=
+ I was
+able to launch 7 guests without touching any swap compared to 2 which wer=
+e
+launched with an unmodified kernel.
 
-uprobe() is "special" because it a) it works with a foreign mm and b)
-it can't stop the process which uses this mm. Otherwise it could simply
-update the page returned by get_user_pages_remote(FOLL_FORCE), just we
-would need to add FOLL_WRITE and if we do this we do not even need SPLIT,
-that is why, say, __access_remote_vm() works without SPLIT.
+Performance Analysis:
+In order to measure the performance impact of this patch-series over an
+unmodified kernel, I am using will-it-scale/page_fault1 on a 30 GB, 24 vc=
+pus
+single NUMA guest which is affined to a single node in the host. Over sev=
+eral
+runs, I observed that with this patch-series there is a degradation of ar=
+ound
+1-3% for certain cases. This degradation could be a result of page-zeroin=
+g
+overhead which comes with every page-fault in the guest.
+I also tried this test on a 2 NUMA node host running page reporting
+enabled 60GB guest also having 2 NUMA nodes and 24 vcpus. I observed a si=
+milar
+degradation of around 1-3% in most of the cases.
+For certain cases, the variability even with an unmodified kernel was aro=
+und
+4-6% with every fresh boot. I will continue to investigate this further t=
+o find
+the reason behind it.
 
-Oleg.
+Ongoing work-items:
+* I have a working prototype for supporting memory hotplug/hotremove with=
+ page
+  reporting. However, it still requires more testing and fixes specifical=
+ly on
+  the hotremove side.
+  Right now, for any memory hotplug or hotremove request bitmap or its
+  respective fields are not changed. Hence, memory added via hotplug is n=
+ot
+  tracked in the bitmap. Similarly, removed memory is not reported to the
+  hypervisor by using an online memory check.=20
+* I will also have to look into the details about how to handle page pois=
+oning
+  scenarios and test with directly assigned devices.
+
+
+Changes from v11:
+https://lkml.org/lkml/2019/7/10/742
+* Moved the fields required to manage bitmap of free pages to 'struct zon=
+e'.
+* Replaced the list which was used to hold and report the free pages with
+  scatterlist.
+* Tried to fix the anti-kernel patterns and improve overall code quality.
+* Fixed a few bugs in the code which were reported in the last posting.
+* Moved to use MADV_DONTNEED from MADV_FREE.
+* Replaced page hinting in favor of page reporting.
+* Addressed other comments which I received in the last posting.=09
+
+
+Changes from v10:
+https://lkml.org/lkml/2019/6/3/943
+* Added logic to take care of multiple NUMA nodes scenarios.
+* Simplified the logic for reporting isolated pages to the host. (Eg. rep=
+laced
+  dynamically allocated arrays with static ones, introduced wait event in=
+stead
+  of the loop in order to wait for a response from the host)
+* Added a mutex to prevent race condition when page reporting is enabled =
+by
+  multiple drivers.
+* Simplified the logic responsible for decrementing free page counter for=
+ each
+  zone.
+* Simplified code structuring/naming.
+=20
+--
+
+Nitesh Narayan Lal (2):
+  mm: page_reporting: core infrastructure
+  virtio-balloon: interface to support free page reporting
+
+ drivers/virtio/Kconfig              |   1 +
+ drivers/virtio/virtio_balloon.c     |  64 +++++-
+ include/linux/mmzone.h              |  11 +
+ include/linux/page_reporting.h      |  63 ++++++
+ include/uapi/linux/virtio_balloon.h |   1 +
+ mm/Kconfig                          |   6 +
+ mm/Makefile                         |   1 +
+ mm/page_alloc.c                     |  42 +++-
+ mm/page_reporting.c                 | 332 ++++++++++++++++++++++++++++
+ 9 files changed, 513 insertions(+), 8 deletions(-)
+ create mode 100644 include/linux/page_reporting.h
+ create mode 100644 mm/page_reporting.c
+
+--=20
+
 
 
