@@ -2,124 +2,141 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-11.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_IN_DEF_DKIM_WL autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-3.3 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
+	DKIM_INVALID,DKIM_SIGNED,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DBAC6C0650F
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 01:37:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 49F35C433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 01:50:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9539B2084D
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 01:37:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E44FA20880
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 01:50:58 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="SZiO6DEO"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9539B2084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="J3n5ZKeo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E44FA20880
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 230436B0003; Sun, 11 Aug 2019 21:37:44 -0400 (EDT)
+	id 5D1306B0003; Sun, 11 Aug 2019 21:50:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1E1736B0005; Sun, 11 Aug 2019 21:37:44 -0400 (EDT)
+	id 57FCB6B0005; Sun, 11 Aug 2019 21:50:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0A8B56B0006; Sun, 11 Aug 2019 21:37:44 -0400 (EDT)
+	id 421706B0006; Sun, 11 Aug 2019 21:50:58 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0059.hostedemail.com [216.40.44.59])
-	by kanga.kvack.org (Postfix) with ESMTP id DC6106B0003
-	for <linux-mm@kvack.org>; Sun, 11 Aug 2019 21:37:43 -0400 (EDT)
-Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 86638181AC9B4
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 01:37:43 +0000 (UTC)
-X-FDA: 75812064006.29.park03_7d9eb68c5b00b
-X-HE-Tag: park03_7d9eb68c5b00b
-X-Filterd-Recvd-Size: 4681
-Received: from mail-vs1-f65.google.com (mail-vs1-f65.google.com [209.85.217.65])
-	by imf38.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 01:37:43 +0000 (UTC)
-Received: by mail-vs1-f65.google.com with SMTP id c7so1251584vse.11
-        for <linux-mm@kvack.org>; Sun, 11 Aug 2019 18:37:43 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0158.hostedemail.com [216.40.44.158])
+	by kanga.kvack.org (Postfix) with ESMTP id 193126B0003
+	for <linux-mm@kvack.org>; Sun, 11 Aug 2019 21:50:58 -0400 (EDT)
+Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id AC3B28248AA1
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 01:50:57 +0000 (UTC)
+X-FDA: 75812097354.19.desk36_5fa4b8e71a253
+X-HE-Tag: desk36_5fa4b8e71a253
+X-Filterd-Recvd-Size: 4485
+Received: from mail-pf1-f193.google.com (mail-pf1-f193.google.com [209.85.210.193])
+	by imf11.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 01:50:57 +0000 (UTC)
+Received: by mail-pf1-f193.google.com with SMTP id 196so1762485pfz.8
+        for <linux-mm@kvack.org>; Sun, 11 Aug 2019 18:50:56 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=2LvnTipJZhZIUoRbWH0WQTQrByqAr4V2iqODb0EELto=;
-        b=SZiO6DEOIuyIhDHVG+GnlEin+uNFqKBQipgtk36IXhXF1wSZzH4nnCKhrLWOSlpIRO
-         q5pzayzwz5vRvu90mtASG4006WIp47vBQvOex/05Py76sArBAEfJbX+E9g/k7pEJttu7
-         NbNu3WpFyjx9+q3+IUMCoU/wL+Qjl4VAcRsj9TSpD1+lghCVx+59zJkpF6mSMskDjRk9
-         XOgSue0Fh84YKh7QuLx46d+rHY+y7byVzs5sdi6/Lg5yYhoPRX9p6r2rokgieZslHFvY
-         57vbYtPb7tkEuXOS9YcJbostJENVMDO2mt/cBcJuiUuVDanqsAFr8mQ2C4kY2A0NE21x
-         6/Fw==
+        d=gmail.com; s=20161025;
+        h=from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=pfaVFzFF0GvUkP+csExf9mRMYKLakGIqocXWtOijWcs=;
+        b=J3n5ZKeoQQ0bmNJgluv6gAytDIfBo9heugCs0XBMhVCrev0LMMnqqYvHMPS/Cr0eBt
+         gctxUlCPGnoXwjK2CwzgVvi28Wb22MRLlEhA2lKWros6W4HEdEFgJOn/NBCaUfYs2Th8
+         uPiE4ZxUz27VerKWtltJreVV1o5cNvwgiQmm2L4fmmkncjkGTaspegF0sY5rCwFaz1Bj
+         NmwHks4rnhNi7uAo/lBpxeuM3ZbiuZQc8DkW7I1xNK4QRa1pZCMUjYzqmjrptEEwb9Fi
+         DfhQnMHmRrF6nz3dpmgznKvjSD+eNOrb0yEq+WeDxCYjBjqUNCYLFdD0M1uwwALX4eRZ
+         OSMA==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=2LvnTipJZhZIUoRbWH0WQTQrByqAr4V2iqODb0EELto=;
-        b=s7zMduefV86sKjtSic3YeidKun7K8vq5iQGQ0II/B9w6WcTmLS1iFJzwECi3wdVJs/
-         Mhw34xBURyA/xmc2XagZ18teZMMpie7sOv5IYMeaIA9AsmuY+MrTliQNU2aMny373gNt
-         hjqGxvY/CkRT3eOGU4xQlVtCCGvAHItfOlpDymweuN5CX4XQ8kQ0fIyhBgfgZtF62Rmc
-         zN0tjUCzoLVsrgH4SXzjk00pgXEnCWmTmWXrpnQgwI26S38SB8QuvoLW9NnTywdKzMmz
-         yWY7uKJS4USSTxBKQPyJIzGq/vx4G+RansQzH3JetRVVpuNtl7K1J5GQuHbxHbCFt8jm
-         1MtQ==
-X-Gm-Message-State: APjAAAUcaficFgws2r5LC5yqxFYlf47Zb6ecDsqE6sP7BoFsoUgmcydv
-	5tw1O7vctQeIvivgrrR84QciwlGkFMQL1IRKTqqWEw==
-X-Google-Smtp-Source: APXvYqyXrQBmouu5GDDT5m91pjiFtd39uZBKfcErjB7T8vaeySN7FBJrwBC4os/PtCmiK1g2TAsdryg5ahnIiPnj/is=
-X-Received: by 2002:a67:3251:: with SMTP id y78mr11021809vsy.39.1565573862229;
- Sun, 11 Aug 2019 18:37:42 -0700 (PDT)
+        h=x-gm-message-state:from:to:cc:subject:date:message-id:mime-version
+         :content-transfer-encoding;
+        bh=pfaVFzFF0GvUkP+csExf9mRMYKLakGIqocXWtOijWcs=;
+        b=PVSC+VSU3ehxHr5j+PqXTUSyDbkfxHxUlYf81kVXl7dmUWtYWWlaVqip9U1QCWaSRk
+         3KrGzhjnRB871AkJgha/Ei91tC6QhQRLJtUBPrN/xSjqyxZXTpaqpGjAkuhvTvm+Edcb
+         CoM6xRag6RNegHgLtfnIa0Q+agQjKAkCCOASY1xzLHZNkipEk6aS9xhljL5L5X55Q6xJ
+         Od019rGzffvwPSCHaK2KWm0E+9EWJxf0H6ymOHd/lJpXCTxttDuJLRxdUiKKjLkTRbMq
+         dmeVzU1qEFs8itHPYosUxadG8jHeMnSm+DkDvzrdpB5KQPFqSPI1mx+4OKgcXnrp3bfg
+         7sZQ==
+X-Gm-Message-State: APjAAAX2GZiOyjZy15joAiI9i6kF1SgXvPsXP/EOvqEkmnhrYrBWniQX
+	6iBTldJzWhp/RcFQnuAQ5go=
+X-Google-Smtp-Source: APXvYqwiGohojGGhDnygsE9A4cyzbEHPkz9fH4ggMXoJfzmaJzcdAgT3McHJiakV36cLDMyvSwP/zg==
+X-Received: by 2002:a65:44cc:: with SMTP id g12mr27761338pgs.409.1565574656022;
+        Sun, 11 Aug 2019 18:50:56 -0700 (PDT)
+Received: from blueforge.nvidia.com (searspoint.nvidia.com. [216.228.112.21])
+        by smtp.gmail.com with ESMTPSA id j20sm100062363pfr.113.2019.08.11.18.50.55
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Sun, 11 Aug 2019 18:50:55 -0700 (PDT)
+From: john.hubbard@gmail.com
+X-Google-Original-From: jhubbard@nvidia.com
+To: Andrew Morton <akpm@linux-foundation.org>
+Cc: Christoph Hellwig <hch@infradead.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>,
+	Ira Weiny <ira.weiny@intel.com>,
+	Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	=?UTF-8?q?J=C3=A9r=C3=B4me=20Glisse?= <jglisse@redhat.com>,
+	LKML <linux-kernel@vger.kernel.org>,
+	linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org,
+	linux-rdma@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: [RFC PATCH 0/2] mm/gup: introduce vaddr_pin_pages_remote(), FOLL_PIN
+Date: Sun, 11 Aug 2019 18:50:42 -0700
+Message-Id: <20190812015044.26176-1-jhubbard@nvidia.com>
+X-Mailer: git-send-email 2.22.0
 MIME-Version: 1.0
-References: <20190811184613.20463-1-urezki@gmail.com> <20190811184613.20463-2-urezki@gmail.com>
-In-Reply-To: <20190811184613.20463-2-urezki@gmail.com>
-From: Michel Lespinasse <walken@google.com>
-Date: Sun, 11 Aug 2019 18:37:30 -0700
-Message-ID: <CANN689GT3CorHHegQBFR8tiVPqv5XAb2oYLCEbjB=tBhkO2PCw@mail.gmail.com>
-Subject: Re: [PATCH 1/2] augmented rbtree: use max3() in the *_compute_max() function
-To: "Uladzislau Rezki (Sony)" <urezki@gmail.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm <linux-mm@kvack.org>, 
-	LKML <linux-kernel@vger.kernel.org>, Peter Zijlstra <peterz@infradead.org>, 
-	Roman Gushchin <guro@fb.com>, Hillf Danton <hdanton@sina.com>, Michal Hocko <mhocko@suse.com>, 
-	Matthew Wilcox <willy@infradead.org>, 
-	Oleksiy Avramchenko <oleksiy.avramchenko@sonymobile.com>, Steven Rostedt <rostedt@goodmis.org>
-Content-Type: text/plain; charset="UTF-8"
+X-NVConfidentiality: public
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 11, 2019 at 11:46 AM Uladzislau Rezki (Sony)
-<urezki@gmail.com> wrote:
->
-> Recently there was introduced RB_DECLARE_CALLBACKS_MAX template.
-> One of the callback, to be more specific *_compute_max(), calculates
-> a maximum scalar value of node against its left/right sub-tree.
->
-> To simplify the code and improve readability we can switch and
-> make use of max3() macro that makes the code more transparent.
->
-> Signed-off-by: Uladzislau Rezki (Sony) <urezki@gmail.com>
+From: John Hubbard <jhubbard@nvidia.com>
 
-Thanks. The change is correct but I think I prefer it the "before"
-version. My reasons are:
+Hi,
 
-- I don't have a strong style preference either way - it's the same
-amount of code either way, admittedly more modular in your proposal,
-but also with more indirection (compute_max refers to get_max and
-max3). The indirection doesn't hinder readability but IMO it makes it
-harder to be confident that the compiler will generate quality code,
-compared to the "before" approach which just lays down all the pieces
-in a linear way.
+Dave Chinner's head didn't seem to explode...much, when he saw Ira's
+series, so I optimistically started taking it from there...this builds on
+top of Ira's patchset that he just sent out:
 
-- A quick check shows that the proposed change generates larger code
-for mm/interval_tree.o:
-   2757       0       0    2757     ac5 mm/interval_tree.o
-   2533       0       0    2533     9e5 mm/interval_tree.o.orig
-  This does not happen for every RB_DECLARE_CALLBACKS_MAX use,
-lib/interval_tree.o in particular seems to be fine. But it does go
-towards my gut feeling that the change trusts the compiler/optimizer
-more than I want to.
+  "[RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002   ;-)" [=
+1]
 
-- Slight loss of generality. The "before" code only assumes that the
-RBAUGMENTED field can be compared using "<" ; the "after" code also
-assumes that the minimum value is 0. While this covers the current
-uses, I would prefer not to have that limitation.
+...which in turn is based on the latest -mmotm.
+
+If Ira's series and this one are both acceptable, then
+
+    a) I'll rework the 41-patch "put_user_pages(): miscellaneous call
+       sites" series, and
+
+    b) note that this will take rather longer and will be quite a bit mor=
+e
+       intrusive for each call site (but it's worth it), due to the
+       need to plumb the owning struct file* all the way down to the gup(=
+)
+       call. whew.
+
+[1] https://lore.kernel.org/r/20190809225833.6657-1-ira.weiny@intel.com
+
+[2] https://lore.kernel.org/r/20190807013340.9706-1-jhubbard@nvidia.com
+
+John Hubbard (2):
+  mm/gup: introduce FOLL_PIN flag for get_user_pages()
+  mm/gup: introduce vaddr_pin_pages_remote()
+
+ drivers/infiniband/core/umem_odp.c | 15 ++++----
+ include/linux/mm.h                 |  8 +++++
+ mm/gup.c                           | 55 +++++++++++++++++++++++++++++-
+ 3 files changed, 71 insertions(+), 7 deletions(-)
+
+--=20
+2.22.0
+
 
