@@ -6,114 +6,72 @@ X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
 	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8CBC0C433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 20:05:29 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5EB5CC433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 20:21:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 49B10208C2
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 20:05:29 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 49B10208C2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 0903820679
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 20:21:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0903820679
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D96A86B0005; Mon, 12 Aug 2019 16:05:28 -0400 (EDT)
+	id 8F69E6B0003; Mon, 12 Aug 2019 16:21:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D48AD6B0006; Mon, 12 Aug 2019 16:05:28 -0400 (EDT)
+	id 8A8636B0005; Mon, 12 Aug 2019 16:21:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C0F0E6B0007; Mon, 12 Aug 2019 16:05:28 -0400 (EDT)
+	id 796696B0006; Mon, 12 Aug 2019 16:21:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0228.hostedemail.com [216.40.44.228])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E4966B0005
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 16:05:28 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 0AE898248AA1
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 20:05:28 +0000 (UTC)
-X-FDA: 75814855536.18.scent41_2f8e88ed7955f
-X-HE-Tag: scent41_2f8e88ed7955f
-X-Filterd-Recvd-Size: 10586
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf16.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 20:05:26 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id B27CBC0022F1;
-	Mon, 12 Aug 2019 20:05:25 +0000 (UTC)
-Received: from [10.36.116.42] (ovpn-116-42.ams2.redhat.com [10.36.116.42])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 78F061000182;
-	Mon, 12 Aug 2019 20:05:15 +0000 (UTC)
-Subject: Re: [RFC][Patch v12 1/2] mm: page_reporting: core infrastructure
-To: Alexander Duyck <alexander.duyck@gmail.com>,
- Nitesh Narayan Lal <nitesh@redhat.com>
-Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
- linux-mm <linux-mm@kvack.org>, virtio-dev@lists.oasis-open.org,
- Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com,
- pagupta@redhat.com, wei.w.wang@intel.com,
- Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
- "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com,
- Andrea Arcangeli <aarcange@redhat.com>, john.starks@microsoft.com,
- Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>,
- cohuck@redhat.com
-References: <20190812131235.27244-1-nitesh@redhat.com>
- <20190812131235.27244-2-nitesh@redhat.com>
- <CAKgT0UcSabyrO=jUwq10KpJKLSuzorHDnKAGrtWVigKVgvD-6Q@mail.gmail.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <ca362045-9668-18ff-39b0-de91fa72e73c@redhat.com>
-Date: Mon, 12 Aug 2019 22:05:14 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+Received: from forelay.hostedemail.com (smtprelay0002.hostedemail.com [216.40.44.2])
+	by kanga.kvack.org (Postfix) with ESMTP id 51E6E6B0003
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 16:21:17 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 064D62DF0
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 20:21:17 +0000 (UTC)
+X-FDA: 75814895394.22.cast54_282e5271fe72f
+X-HE-Tag: cast54_282e5271fe72f
+X-Filterd-Recvd-Size: 12820
+Received: from mga06.intel.com (mga06.intel.com [134.134.136.31])
+	by imf37.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 20:21:15 +0000 (UTC)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga002.fm.intel.com ([10.253.24.26])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Aug 2019 13:20:31 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,378,1559545200"; 
+   d="scan'208";a="204848918"
+Received: from sjchrist-coffee.jf.intel.com (HELO linux.intel.com) ([10.54.74.41])
+  by fmsmga002.fm.intel.com with ESMTP; 12 Aug 2019 13:20:30 -0700
+Date: Mon, 12 Aug 2019 13:20:30 -0700
+From: Sean Christopherson <sean.j.christopherson@intel.com>
+To: Adalbert =?utf-8?B?TGF6xINy?= <alazar@bitdefender.com>
+Cc: kvm@vger.kernel.org, linux-mm@kvack.org,
+	virtualization@lists.linux-foundation.org,
+	Paolo Bonzini <pbonzini@redhat.com>,
+	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Tamas K Lengyel <tamas@tklengyel.com>,
+	Mathieu Tarral <mathieu.tarral@protonmail.com>,
+	Samuel =?iso-8859-1?Q?Laur=E9n?= <samuel.lauren@iki.fi>,
+	Patrick Colp <patrick.colp@oracle.com>,
+	Jan Kiszka <jan.kiszka@siemens.com>,
+	Stefan Hajnoczi <stefanha@redhat.com>,
+	Weijiang Yang <weijiang.yang@intel.com>, Zhang@vger.kernel.org,
+	Yu C <yu.c.zhang@intel.com>,
+	Mihai =?utf-8?B?RG9uyJt1?= <mdontu@bitdefender.com>,
+	Mircea =?iso-8859-1?Q?C=EErjaliu?= <mcirjaliu@bitdefender.com>
+Subject: Re: [RFC PATCH v6 01/92] kvm: introduce KVMI (VM introspection
+ subsystem)
+Message-ID: <20190812202030.GB1437@linux.intel.com>
+References: <20190809160047.8319-1-alazar@bitdefender.com>
+ <20190809160047.8319-2-alazar@bitdefender.com>
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0UcSabyrO=jUwq10KpJKLSuzorHDnKAGrtWVigKVgvD-6Q@mail.gmail.com>
 Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Mon, 12 Aug 2019 20:05:25 +0000 (UTC)
+Content-Disposition: inline
+In-Reply-To: <20190809160047.8319-2-alazar@bitdefender.com>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -121,137 +79,371 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
->> ---
->>  include/linux/mmzone.h         |  11 ++
->>  include/linux/page_reporting.h |  63 +++++++
->>  mm/Kconfig                     |   6 +
->>  mm/Makefile                    |   1 +
->>  mm/page_alloc.c                |  42 ++++-
->>  mm/page_reporting.c            | 332 ++++++++++++++++++++++++++++++++=
-+
->>  6 files changed, 448 insertions(+), 7 deletions(-)
->>  create mode 100644 include/linux/page_reporting.h
->>  create mode 100644 mm/page_reporting.c
->>
->> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
->> index d77d717c620c..ba5f5b508f25 100644
->> --- a/include/linux/mmzone.h
->> +++ b/include/linux/mmzone.h
->> @@ -559,6 +559,17 @@ struct zone {
->>         /* Zone statistics */
->>         atomic_long_t           vm_stat[NR_VM_ZONE_STAT_ITEMS];
->>         atomic_long_t           vm_numa_stat[NR_VM_NUMA_STAT_ITEMS];
->> +#ifdef CONFIG_PAGE_REPORTING
->> +       /* Pointer to the bitmap in PAGE_REPORTING_MIN_ORDER granulari=
-ty */
->> +       unsigned long *bitmap;
->> +       /* Preserve start and end PFN in case they change due to hotpl=
-ug */
->> +       unsigned long base_pfn;
->> +       unsigned long end_pfn;
->> +       /* Free pages of granularity PAGE_REPORTING_MIN_ORDER */
->> +       atomic_t free_pages;
->> +       /* Number of bits required in the bitmap */
->> +       unsigned long nbits;
->> +#endif
->>  } ____cacheline_internodealigned_in_smp;
->=20
-> Okay, so the original thing this patch set had going for it was that
-> it was non-invasive. However, now you are adding a bunch of stuff to
-> the zone. That kind of loses the non-invasive argument for this patch
-> set compared to mine.
->=20
+On Fri, Aug 09, 2019 at 06:59:16PM +0300, Adalbert Laz=C4=83r wrote:
+> diff --git a/arch/x86/kvm/Kconfig b/arch/x86/kvm/Kconfig
+> index 72fa955f4a15..f70a6a1b6814 100644
+> --- a/arch/x86/kvm/Kconfig
+> +++ b/arch/x86/kvm/Kconfig
+> @@ -96,6 +96,13 @@ config KVM_MMU_AUDIT
+>  	 This option adds a R/W kVM module parameter 'mmu_audit', which allow=
+s
+>  	 auditing of KVM MMU events at runtime.
+> =20
+> +config KVM_INTROSPECTION
+> +	bool "VM Introspection"
+> +	depends on KVM && (KVM_INTEL || KVM_AMD)
+> +	help
+> +	 This option enables functions to control the execution of VM-s, quer=
+y
+> +	 the state of the vCPU-s (GPR-s, MSR-s etc.).
 
-Adding something to "struct zone" is certainly less invasive than core
-buddy modifications, just saying (I agree that this is suboptimal. I
-would have guessed that all that's needed is a pointer to some private
-structure here). However, the migratetype thingy below looks fishy to me.
+This does a lot more than enable functions, it allows userspace to do all
+of these things *while the VM is running*.  Everything above can already
+be done by userspace.
 
-> If we are going to continue further with this patch set then it might
-> be worth looking into dynamically allocating the space you need for
-> this block. At a minimum you could probably look at making the bitmap
-> an RCU based setup so you could define the base and end along with the
-> bitmap. It would probably help to resolve the hotplug issues you still
-> need to address.
+The "-s" syntax is difficult to read and unnecessary, e.g. at first I
+thought VM-s was referring to a new subsystem or feature introduced by
+introspection.  VMs, vCPUs, GPRs, MSRs, etc...
 
-Yeah, I guess that makes sense.
+> +
+>  # OK, it's a little counter-intuitive to do this, but it puts it neatl=
+y under
+>  # the virtualization menu.
+>  source "drivers/vhost/Kconfig"
+> diff --git a/arch/x86/kvm/Makefile b/arch/x86/kvm/Makefile
+> index 31ecf7a76d5a..312597bd47c7 100644
+> --- a/arch/x86/kvm/Makefile
+> +++ b/arch/x86/kvm/Makefile
+> @@ -7,6 +7,7 @@ KVM :=3D ../../../virt/kvm
+>  kvm-y			+=3D $(KVM)/kvm_main.o $(KVM)/coalesced_mmio.o \
+>  				$(KVM)/eventfd.o $(KVM)/irqchip.o $(KVM)/vfio.o
+>  kvm-$(CONFIG_KVM_ASYNC_PF)	+=3D $(KVM)/async_pf.o
+> +kvm-$(CONFIG_KVM_INTROSPECTION) +=3D $(KVM)/kvmi.o
+> =20
+>  kvm-y			+=3D x86.o mmu.o emulate.o i8259.o irq.o lapic.o \
+>  			   i8254.o ioapic.o irq_comm.o cpuid.o pmu.o mtrr.o \
+> diff --git a/include/linux/kvm_host.h b/include/linux/kvm_host.h
+> index c38cc5eb7e73..582b0187f5a4 100644
+> --- a/include/linux/kvm_host.h
+> +++ b/include/linux/kvm_host.h
+> @@ -455,6 +455,10 @@ struct kvm {
+>  	struct srcu_struct srcu;
+>  	struct srcu_struct irq_srcu;
+>  	pid_t userspace_pid;
+> +
+> +	struct completion kvmi_completed;
+> +	refcount_t kvmi_ref;
 
-[...]
->> +
->> +static int process_free_page(struct page *page,
->> +                            struct page_reporting_config *phconf, int=
- count)
->> +{
->> +       int mt, order, ret =3D 0;
->> +
->> +       mt =3D get_pageblock_migratetype(page);
->> +       order =3D page_private(page);
->> +       ret =3D __isolate_free_page(page, order);
->> +
+The refcounting approach seems a bit backwards, and AFAICT is driven by
+implementing unhook via a message, which also seems backwards.  I assume
+hook and unhook are relatively rare events and not performance critical,
+so make those the restricted/slow flows, e.g. force userspace to quiesce
+the VM by making unhook() mutually exclusive with every vcpu ioctl() and
+maybe anything that takes kvm->lock.=20
 
-I just started looking into the wonderful world of
-isolation/compaction/migration.
+Then kvmi_ioctl_unhook() can use thread_stop() and kvmi_recv() just needs
+to check kthread_should_stop().
 
-I don't think saving/restoring the migratetype is correct here. AFAIK,
-MOVABLE/UNMOVABLE/RECLAIMABLE is just a hint, doesn't mean that e.g.,
-movable pages and up in UNMOVABLE or ordinary kernel allocations on
-MOVABLE. So that shouldn't be an issue - I guess.
+That way kvmi doesn't need to be refcounted since it's guaranteed to be
+alive if the pointer is non-null.  Eliminating the refcounting will clean
+up a lot of the code by eliminating calls to kvmi_{get,put}(), e.g.
+wrappers like kvmi_breakpoint_event() just check vcpu->kvmi, or maybe
+even get dropped altogether.
 
-1. You should never allocate something that is no
-MOVABLE/UNMOVABLE/RECLAIMABLE. Especially not, if you have ISOLATE or
-CMA here. There should at least be a !is_migrate_isolate_page() check
-somewhere
+> +	void *kvmi;
 
-2. set_migratetype_isolate() takes the zone lock, so to avoid racing
-with isolation code, you have to hold the zone lock. Your code seems to
-do that, so at least you cannot race against isolation.
+Why is this a void*?  Just forward declare struct kvmi in kvmi.h.
 
-3. You could end up temporarily allocating something in the
-ZONE_MOVABLE. The pages you allocate are, however, not movable. There
-would have to be a way to make alloc_contig_range()/offlining code
-properly wait until the pages have been processed. Not sure about the
-real implications, though - too many details in the code (I wonder if
-Alex' series has a way of dealing with that)
+IMO this should be 'struct kvm_introspection *introspection', similar to
+'struct kvm_vcpu_arch arch' and 'struct kvm_vmx'.  Ditto for the vCPU
+flavor.  Local variables could be kvmi+vcpui, kvm_i+vcpu_i, or maybe
+a more long form if someone can come up with a good abbreviation?
 
-When you restore the migratetype, you could suddenly overwrite e.g.,
-ISOLATE, which feels wrong.
+Using 'ikvm' as the local variable name when everything else refers to
+introspection as 'kvmi' is especially funky.
 
-[...]
-> So as per your comments in the cover page, the two functions above
-> should also probably be plugged into the zone resizing logic somewhere
-> so if a zone is resized the bitmap is adjusted.
->=20
->> +/**
->> + * zone_reporting_init - For each zone initializes the page reporting=
- fields
->> + * and allocates the respective bitmap.
->> + *
->> + * This function returns 0 on successful initialization, -ENOMEM othe=
-rwise.
->> + */
->> +static int zone_reporting_init(void)
->> +{
->> +       struct zone *zone;
->> +       int ret;
->> +
->> +       for_each_populated_zone(zone) {
->> +#ifdef CONFIG_ZONE_DEVICE
->> +               /* we can not report pages which are not in the buddy =
+>  };
+> =20
+>  #define kvm_err(fmt, ...) \
+> diff --git a/include/linux/kvmi.h b/include/linux/kvmi.h
+> new file mode 100644
+> index 000000000000..e36de3f9f3de
+> --- /dev/null
+> +++ b/include/linux/kvmi.h
+> @@ -0,0 +1,23 @@
+> +/* SPDX-License-Identifier: GPL-2.0 */
+> +#ifndef __KVMI_H__
+> +#define __KVMI_H__
+> +
+> +#define kvmi_is_present() IS_ENABLED(CONFIG_KVM_INTROSPECTION)
+
+Peeking forward a few patches, introspection should have a module param.
+The code is also inconsistent in its usage of kvmi_is_present() versus
+#ifdef CONFIG_KVM_INTROSPECTION.
+
+And maybe kvm_is_instrospection_enabled() so that the gating function has
+a more descriptive name for first-time readers?
+
+> +
+> +#ifdef CONFIG_KVM_INTROSPECTION
+> +
+> +int kvmi_init(void);
+> +void kvmi_uninit(void);
+> +void kvmi_create_vm(struct kvm *kvm);
+> +void kvmi_destroy_vm(struct kvm *kvm);
+> +
+> +#else
+> +
+> +static inline int kvmi_init(void) { return 0; }
+> +static inline void kvmi_uninit(void) { }
+> +static inline void kvmi_create_vm(struct kvm *kvm) { }
+> +static inline void kvmi_destroy_vm(struct kvm *kvm) { }
+> +
+> +#endif /* CONFIG_KVM_INTROSPECTION */
+> +
+> +#endif
+> diff --git a/include/uapi/linux/kvmi.h b/include/uapi/linux/kvmi.h
+> new file mode 100644
+> index 000000000000..dbf63ad0862f
+> --- /dev/null
+> +++ b/include/uapi/linux/kvmi.h
+> @@ -0,0 +1,68 @@
+> +/* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
+> +#ifndef _UAPI__LINUX_KVMI_H
+> +#define _UAPI__LINUX_KVMI_H
+> +
+> +/*
+> + * KVMI structures and definitions
+> + */
+> +
+> +#include <linux/kernel.h>
+> +#include <linux/types.h>
+> +
+> +#define KVMI_VERSION 0x00000001
+> +
+> +enum {
+> +	KVMI_EVENT_REPLY           =3D 0,
+> +	KVMI_EVENT                 =3D 1,
+> +
+> +	KVMI_FIRST_COMMAND         =3D 2,
+> +
+> +	KVMI_GET_VERSION           =3D 2,
+> +	KVMI_CHECK_COMMAND         =3D 3,
+> +	KVMI_CHECK_EVENT           =3D 4,
+> +	KVMI_GET_GUEST_INFO        =3D 5,
+> +	KVMI_GET_VCPU_INFO         =3D 6,
+> +	KVMI_PAUSE_VCPU            =3D 7,
+> +	KVMI_CONTROL_VM_EVENTS     =3D 8,
+> +	KVMI_CONTROL_EVENTS        =3D 9,
+> +	KVMI_CONTROL_CR            =3D 10,
+> +	KVMI_CONTROL_MSR           =3D 11,
+> +	KVMI_CONTROL_VE            =3D 12,
+> +	KVMI_GET_REGISTERS         =3D 13,
+> +	KVMI_SET_REGISTERS         =3D 14,
+> +	KVMI_GET_CPUID             =3D 15,
+> +	KVMI_GET_XSAVE             =3D 16,
+> +	KVMI_READ_PHYSICAL         =3D 17,
+> +	KVMI_WRITE_PHYSICAL        =3D 18,
+> +	KVMI_INJECT_EXCEPTION      =3D 19,
+> +	KVMI_GET_PAGE_ACCESS       =3D 20,
+> +	KVMI_SET_PAGE_ACCESS       =3D 21,
+> +	KVMI_GET_MAP_TOKEN         =3D 22,
+> +	KVMI_GET_MTRR_TYPE         =3D 23,
+> +	KVMI_CONTROL_SPP           =3D 24,
+> +	KVMI_GET_PAGE_WRITE_BITMAP =3D 25,
+> +	KVMI_SET_PAGE_WRITE_BITMAP =3D 26,
+> +	KVMI_CONTROL_CMD_RESPONSE  =3D 27,
+
+Each command should be introduced along with the patch that adds the
+associated functionality.
+
+It'd be helpful to incorporate the scope of the command in the name,
+e.g. VM vs. vCPU.
+
+Why are VM and vCPU commands smushed together?
+
+> +
+> +	KVMI_NEXT_AVAILABLE_COMMAND,
+
+Why not KVMI_NR_COMMANDS or KVM_NUM_COMMANDS?  At least be consistent
+between COMMANDS and EVENTS below.
+
+> +
+> +};
+> +
+> +enum {
+> +	KVMI_EVENT_UNHOOK      =3D 0,
+> +	KVMI_EVENT_CR	       =3D 1,
+> +	KVMI_EVENT_MSR	       =3D 2,
+> +	KVMI_EVENT_XSETBV      =3D 3,
+> +	KVMI_EVENT_BREAKPOINT  =3D 4,
+> +	KVMI_EVENT_HYPERCALL   =3D 5,
+> +	KVMI_EVENT_PF	       =3D 6,
+> +	KVMI_EVENT_TRAP	       =3D 7,
+> +	KVMI_EVENT_DESCRIPTOR  =3D 8,
+> +	KVMI_EVENT_CREATE_VCPU =3D 9,
+> +	KVMI_EVENT_PAUSE_VCPU  =3D 10,
+> +	KVMI_EVENT_SINGLESTEP  =3D 11,
+> +
+> +	KVMI_NUM_EVENTS
+> +};
+> +
+> +#endif /* _UAPI__LINUX_KVMI_H */
+> diff --git a/virt/kvm/kvm_main.c b/virt/kvm/kvm_main.c
+> index 585845203db8..90e432d225ab 100644
+> --- a/virt/kvm/kvm_main.c
+> +++ b/virt/kvm/kvm_main.c
+> @@ -51,6 +51,7 @@
+>  #include <linux/slab.h>
+>  #include <linux/sort.h>
+>  #include <linux/bsearch.h>
+> +#include <linux/kvmi.h>
+> =20
+>  #include <asm/processor.h>
+>  #include <asm/io.h>
+> @@ -680,6 +681,8 @@ static struct kvm *kvm_create_vm(unsigned long type=
+)
+>  	if (r)
+>  		goto out_err;
+> =20
+> +	kvmi_create_vm(kvm);
+> +
+>  	spin_lock(&kvm_lock);
+>  	list_add(&kvm->vm_list, &vm_list);
+>  	spin_unlock(&kvm_lock);
+> @@ -725,6 +728,7 @@ static void kvm_destroy_vm(struct kvm *kvm)
+>  	int i;
+>  	struct mm_struct *mm =3D kvm->mm;
+> =20
+> +	kvmi_destroy_vm(kvm);
+>  	kvm_uevent_notify_change(KVM_EVENT_DESTROY_VM, kvm);
+>  	kvm_destroy_vm_debugfs(kvm);
+>  	kvm_arch_sync_events(kvm);
+> @@ -1556,7 +1560,7 @@ static int hva_to_pfn_remapped(struct vm_area_str=
+uct *vma,
+>  	 * Whoever called remap_pfn_range is also going to call e.g.
+>  	 * unmap_mapping_range before the underlying pages are freed,
+>  	 * causing a call to our MMU notifier.
+> -	 */=20
+> +	 */
+
+Spurious whitespace change.
+
+>  	kvm_get_pfn(pfn);
+> =20
+>  	*p_pfn =3D pfn;
+> @@ -4204,6 +4208,9 @@ int kvm_init(void *opaque, unsigned vcpu_size, un=
+signed vcpu_align,
+>  	r =3D kvm_vfio_ops_init();
+>  	WARN_ON(r);
+> =20
+> +	r =3D kvmi_init();
+> +	WARN_ON(r);
+
+Leftover development/debugging crud.
+
+> +
+>  	return 0;
+> =20
+>  out_unreg:
+> @@ -4229,6 +4236,7 @@ EXPORT_SYMBOL_GPL(kvm_init);
+> =20
+>  void kvm_exit(void)
+>  {
+> +	kvmi_uninit();
+>  	debugfs_remove_recursive(kvm_debugfs_dir);
+>  	misc_deregister(&kvm_dev);
+>  	kmem_cache_destroy(kvm_vcpu_cache);
+> diff --git a/virt/kvm/kvmi.c b/virt/kvm/kvmi.c
+> new file mode 100644
+> index 000000000000..20638743bd03
+> --- /dev/null
+> +++ b/virt/kvm/kvmi.c
+> @@ -0,0 +1,64 @@
+> +// SPDX-License-Identifier: GPL-2.0
+> +/*
+> + * KVM introspection
+> + *
+> + * Copyright (C) 2017-2019 Bitdefender S.R.L.
+> + *
+> + */
+> +#include <uapi/linux/kvmi.h>
+> +#include "kvmi_int.h"
+> +
+> +int kvmi_init(void)
+> +{
+> +	return 0;
+> +}
+> +
+> +void kvmi_uninit(void)
+> +{
+> +}
+> +
+> +struct kvmi * __must_check kvmi_get(struct kvm *kvm)
+> +{
+> +	if (refcount_inc_not_zero(&kvm->kvmi_ref))
+> +		return kvm->kvmi;
+> +
+> +	return NULL;
+> +}
+> +
+> +static void kvmi_destroy(struct kvm *kvm)
+> +{
+> +}
+> +
+> +static void kvmi_release(struct kvm *kvm)
+> +{
+> +	kvmi_destroy(kvm);
+> +
+> +	complete(&kvm->kvmi_completed);
+> +}
+> +
+> +/* This function may be called from atomic context and must not sleep =
 */
->> +               if (zone_idx(zone) =3D=3D ZONE_DEVICE)
->> +                       continue;
->> +#endif
->=20
-> I'm pretty sure this isn't needed since I don't think the ZONE_DEVICE
-> zone will be considered "populated".
->=20
-I think you are right (although it's confusing, we will have present
-sections part of a zone but the zone has no present_pages - screams like
-a re factoring - leftover from ZONE_DEVICE introduction).
+> +void kvmi_put(struct kvm *kvm)
+> +{
+> +	if (refcount_dec_and_test(&kvm->kvmi_ref))
+> +		kvmi_release(kvm);
+> +}
+> +
+> +void kvmi_create_vm(struct kvm *kvm)
+> +{
+> +	init_completion(&kvm->kvmi_completed);
+> +	complete(&kvm->kvmi_completed);
 
---=20
+Pretty sure you don't want to be calling complete() here.
 
-Thanks,
-
-David / dhildenb
+> +}
+> +
+> +void kvmi_destroy_vm(struct kvm *kvm)
+> +{
+> +	struct kvmi *ikvm;
+> +
+> +	ikvm =3D kvmi_get(kvm);
+> +	if (!ikvm)
+> +		return;
+> +
+> +	kvmi_put(kvm);
+> +
+> +	/* wait for introspection resources to be released */
+> +	wait_for_completion_killable(&kvm->kvmi_completed);
+> +}
+> diff --git a/virt/kvm/kvmi_int.h b/virt/kvm/kvmi_int.h
+> new file mode 100644
+> index 000000000000..ac23ad6fc4df
+> --- /dev/null
+> +++ b/virt/kvm/kvmi_int.h
+> @@ -0,0 +1,12 @@
+> +/* SPDX-License-Identifier: GPL-2.0 */
+> +#ifndef __KVMI_INT_H__
+> +#define __KVMI_INT_H__
+> +
+> +#include <linux/kvm_host.h>
+> +
+> +#define IKVM(kvm) ((struct kvmi *)((kvm)->kvmi))
+> +
+> +struct kvmi {
+> +};
+> +
+> +#endif
 
