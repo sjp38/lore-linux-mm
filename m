@@ -2,246 +2,184 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-13.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3AAA4C433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 11:43:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id E1332C31E40
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 12:06:22 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DFB6720684
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 11:43:01 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DFB6720684
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id A60F2208C2
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 12:06:22 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="uJEt2ROV"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A60F2208C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7E4636B0006; Mon, 12 Aug 2019 07:43:01 -0400 (EDT)
+	id 38CB86B0003; Mon, 12 Aug 2019 08:06:22 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 794C16B0008; Mon, 12 Aug 2019 07:43:01 -0400 (EDT)
+	id 33DD56B0005; Mon, 12 Aug 2019 08:06:22 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 683436B000A; Mon, 12 Aug 2019 07:43:01 -0400 (EDT)
+	id 22CA56B0006; Mon, 12 Aug 2019 08:06:22 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0215.hostedemail.com [216.40.44.215])
-	by kanga.kvack.org (Postfix) with ESMTP id 46A4A6B0006
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 07:43:01 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id EA3E38248AA5
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 11:43:00 +0000 (UTC)
-X-FDA: 75813589320.17.rate15_1a42ee95a8e1d
-X-HE-Tag: rate15_1a42ee95a8e1d
-X-Filterd-Recvd-Size: 10059
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf12.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 11:43:00 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id BA11AAF98;
-	Mon, 12 Aug 2019 11:42:58 +0000 (UTC)
-Date: Mon, 12 Aug 2019 13:42:56 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Edward Chron <echron@arista.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>, Roman Gushchin <guro@fb.com>,
-	Johannes Weiner <hannes@cmpxchg.org>,
-	David Rientjes <rientjes@google.com>,
-	Tetsuo Handa <penguin-kernel@i-love.sakura.ne.jp>,
-	Shakeel Butt <shakeelb@google.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, Ivan Delalande <colona@arista.com>
-Subject: Re: [PATCH] mm/oom: Add killed process selection information
-Message-ID: <20190812114256.GG5117@dhcp22.suse.cz>
-References: <20190808183247.28206-1-echron@arista.com>
- <20190808185119.GF18351@dhcp22.suse.cz>
- <CAM3twVT0_f++p1jkvGuyMYtaYtzgEiaUtb8aYNCmNScirE4=og@mail.gmail.com>
- <20190808200715.GI18351@dhcp22.suse.cz>
- <CAM3twVS7tqcHmHqjzJqO5DEsxzLfBaYF0FjVP+Jjb1ZS4rA9qA@mail.gmail.com>
- <20190809064032.GJ18351@dhcp22.suse.cz>
- <CAM3twVRCTLdn+Lhcr+4ZdY3nYVvXFe1O19UR9H121W34H=oV7g@mail.gmail.com>
+Received: from forelay.hostedemail.com (smtprelay0082.hostedemail.com [216.40.44.82])
+	by kanga.kvack.org (Postfix) with ESMTP id F2AFD6B0003
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 08:06:21 -0400 (EDT)
+Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 92979440E
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 12:06:21 +0000 (UTC)
+X-FDA: 75813648162.24.side19_548e18fc3c328
+X-HE-Tag: side19_548e18fc3c328
+X-Filterd-Recvd-Size: 7943
+Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com [209.85.215.195])
+	by imf18.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 12:06:20 +0000 (UTC)
+Received: by mail-pg1-f195.google.com with SMTP id n9so43149395pgc.1
+        for <linux-mm@kvack.org>; Mon, 12 Aug 2019 05:06:20 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=sgx0vew/l/5gv4406bm2WvE+6I0CHR07hqlrz86Z3sc=;
+        b=uJEt2ROVPd1UqcXIH8AZcEWJe2gU2l2WikWj/lTXEu5TAQO5UI7HxMZhSjWGSNpSM/
+         kD67Pst1Dyzx7qbYrLXSvu+Mr08ddVTHrPLPkSReXtjEyuOfJ2szasvJY7Q1juthSE+O
+         ZN5d5+3WpJ8VQexHVYk2PQhh6erlNiX5z9RVYgbCQIuL3cODpt1V8Jl+vCfCixh/0O7E
+         92/TSySWGPp9zO0p00eOTgQmAdQTHS88ikyrRrA73j948ugOl+8ULRHL2jU6SZXLcic4
+         YmfbiWs7shR+wQkLf29qMOFftl73S3yAhgbTADzXO1DxWuSyQjH0/iK3D3AGpyYzODyS
+         j5vw==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=sgx0vew/l/5gv4406bm2WvE+6I0CHR07hqlrz86Z3sc=;
+        b=f9eacsxvwrbnz3vS4fgIaYubrdAvflyQA5lG4fhWMNmgM02Woqy9w4Z5O7sJJj+YjK
+         7R8QNEhII9zUxio7OTFRmuw0awjxaplk8RnCTpCy4qHfvPJXYtE8uKldrbyQoKXnHSve
+         /WYasGDQwENzta7onAwmIYGuuevt9v8hXh2iZM6I9700Fr/a6xkAay6P9BCfCFdL7AJE
+         Osej46fbdISCeWKNPwg5AlWJF0gYE8TVyeKlu57nE/P+Hwpav/EqYvfYBFz6ytpvvuHy
+         4FDXwZQtN8bUMWCmf3zzIYnnpKLcUmTdegYRbpNx8Iz99QkiWCKjoDoAMJhXQ2oEW24M
+         iAqw==
+X-Gm-Message-State: APjAAAWT9tLYHB/Aal3bhbFH22fSLxrUZhZYPzOKsrrIPzTaeEoqPA30
+	0vMNphAlTZTE6ZE9pyMESVsiIAPYgJ8AFCB+vacTpg==
+X-Google-Smtp-Source: APXvYqzdCQuAop5oRPu4EMtfBSPg2dydPnlQBeJzj9Fz8EdqkN3nC2NN4tp/bM/cPBx2GTfWFoh9z4egZLpy0FJbn4E=
+X-Received: by 2002:aa7:86c6:: with SMTP id h6mr35801985pfo.51.1565611579482;
+ Mon, 12 Aug 2019 05:06:19 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <CAM3twVRCTLdn+Lhcr+4ZdY3nYVvXFe1O19UR9H121W34H=oV7g@mail.gmail.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+References: <0000000000005c056c058f9a5437@google.com>
+In-Reply-To: <0000000000005c056c058f9a5437@google.com>
+From: Andrey Konovalov <andreyknvl@google.com>
+Date: Mon, 12 Aug 2019 14:06:08 +0200
+Message-ID: <CAAeHK+wcAgqNvEO_S_EXgdvhBN2qkQbPii8XVT_7UVnS1WaB6g@mail.gmail.com>
+Subject: Re: BUG: bad usercopy in ld_usb_read
+To: syzbot <syzbot+45b2f40f0778cfa7634e@syzkaller.appspotmail.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Qian Cai <cai@lca.pw>, 
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>, Kees Cook <keescook@chromium.org>, 
+	LKML <linux-kernel@vger.kernel.org>, 
+	Linux Memory Management List <linux-mm@kvack.org>, USB list <linux-usb@vger.kernel.org>, 
+	syzkaller-bugs <syzkaller-bugs@googlegroups.com>, Thomas Gleixner <tglx@linutronix.de>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 09-08-19 15:15:18, Edward Chron wrote:
-[...]
-> So it is optimal if you only have to go and find the correct log and search
-> or run your script(s) when you absolutely need to, not on every OOM event.
+On Thu, Aug 8, 2019 at 2:38 PM syzbot
+<syzbot+45b2f40f0778cfa7634e@syzkaller.appspotmail.com> wrote:
+>
+> Hello,
+>
+> syzbot found the following crash on:
+>
+> HEAD commit:    e96407b4 usb-fuzzer: main usb gadget fuzzer driver
+> git tree:       https://github.com/google/kasan.git usb-fuzzer
+> console output: https://syzkaller.appspot.com/x/log.txt?x=13aeaece600000
+> kernel config:  https://syzkaller.appspot.com/x/.config?x=cfa2c18fb6a8068e
+> dashboard link: https://syzkaller.appspot.com/bug?extid=45b2f40f0778cfa7634e
+> compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+>
+> Unfortunately, I don't have any reproducer for this crash yet.
+>
+> IMPORTANT: if you fix the bug, please add the following tag to the commit:
+> Reported-by: syzbot+45b2f40f0778cfa7634e@syzkaller.appspotmail.com
+>
+> ldusb 6-1:0.124: Read buffer overflow, -131383996186150 bytes dropped
+> usercopy: Kernel memory exposure attempt detected from SLUB
+> object 'kmalloc-2k' (offset 8, size 65062)!
+> ------------[ cut here ]------------
+> kernel BUG at mm/usercopy.c:98!
+> invalid opcode: 0000 [#1] SMP KASAN
+> CPU: 0 PID: 15185 Comm: syz-executor.2 Not tainted 5.3.0-rc2+ #25
+> Hardware name: Google Google Compute Engine/Google Compute Engine, BIOS
+> Google 01/01/2011
+> RIP: 0010:usercopy_abort+0xb9/0xbb mm/usercopy.c:98
+> Code: e8 c1 f7 d6 ff 49 89 d9 4d 89 e8 4c 89 e1 41 56 48 89 ee 48 c7 c7 e0
+> f3 cd 85 ff 74 24 08 41 57 48 8b 54 24 20 e8 15 98 c1 ff <0f> 0b e8 95 f7
+> d6 ff e8 80 9f fd ff 8b 54 24 04 49 89 d8 4c 89 e1
+> RSP: 0018:ffff8881ccb3fc38 EFLAGS: 00010286
+> RAX: 0000000000000067 RBX: ffffffff86a659d4 RCX: 0000000000000000
+> RDX: 0000000000000000 RSI: ffffffff8128a0fd RDI: ffffed1039967f79
+> RBP: ffffffff85cdf2c0 R08: 0000000000000067 R09: fffffbfff11acdaa
+> R10: fffffbfff11acda9 R11: ffffffff88d66d4f R12: ffffffff86a696e8
+> R13: ffffffff85cdf180 R14: 000000000000fe26 R15: ffffffff85cdf140
+> FS:  00007ff6daf91700(0000) GS:ffff8881db200000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f1de6600000 CR3: 00000001ca554000 CR4: 00000000001406f0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+> Call Trace:
+>   __check_heap_object+0xdd/0x110 mm/slub.c:3914
+>   check_heap_object mm/usercopy.c:234 [inline]
+>   __check_object_size mm/usercopy.c:280 [inline]
+>   __check_object_size+0x32d/0x39b mm/usercopy.c:250
+>   check_object_size include/linux/thread_info.h:119 [inline]
+>   check_copy_size include/linux/thread_info.h:150 [inline]
+>   copy_to_user include/linux/uaccess.h:151 [inline]
+>   ld_usb_read+0x304/0x780 drivers/usb/misc/ldusb.c:495
 
-OK, understood.
+#syz dup: KASAN: use-after-free Read in ld_usb_release
 
-> That is the whole point of triage and triage is easier when you have
-> relevant information to decide which events require action and with what
-> priority.
-> 
-> The OOM Killed message is the one message that we have go to
-> the console and or is sent as SNMP alert to the Admin to let the
-> Admin know that a server or switch has suffered a low memory OOM
-> event.
-> 
-> Maybe a few examples would be helpful to show why the few extra
-> bits of information would be helpful in such an environment.
-> 
-> For example if we see serverA and serverB are taking oom events
-> with the fooWidget being killed, something along the lines of
-> the following you will get message likes this:
-> 
-> Jul 21 20:07:48 serverA kernel: Out of memory: Killed process 2826
->  (fooWidget) total-vm:10493400kB, anon-rss:10492996kB, file-rss:128kB,
->  shmem-rss:0kB memory-usage:32.0% oom_score: 320 oom_score_adj:0
->  total-pages: 32791748kB
-> 
-> Jul 21 20:13:51 serverB kernel: Out of memory: Killed process 2911
->  (fooWidget) total-vm:11149196kB, anon-rss:11148508kB, file-rss:128kB,
->  shmem-rss:0kB memory-usage:34.0% oom_score: 340 oom_score_adj:0
->  total-pages: 32791748kB
-> 
-> It is often possible to recognize that fooWidget is using more memory than
-> expected on those systems and you can act on that possibly without ever
-> having to hunt down the log and run a script or otherwise analyze the
-> log. The % of memory and memory size can often be helpful to understand
-> if the numbers look reasonable or not. Maybe the application was updated
-> on just the those systems which explains why we don't see issues on the
-> other servers running that application, possible application memory leak.
-
-This is all quite vague and requires a lot of guessing. Also your
-trained guess eye might easily get confused for constrained OOMs (e.g.
-due to NUMA or memcg). So I am not really sold to the percentage idea.
-And likewise the oom_score.
-
-[...]
-
-> You can also imagine that if for example systemd-udev gets OOM killed,
-> well that should really grab your attention:
-> 
-> Jul 21 20:08:11 serverX kernel: Out of memory: Killed process 2911
->  (systemd-udevd) total-vm:83128kB, anon-rss:80520kB, file-rss:128kB,
->  shmem-rss:0kB memory-usage:0.1% oom_score: 1001 oom_score_adj:1000
->  total-pages: 8312512kB
-> 
-> Here we see an obvious issue: systemd-udevd is a critical system app
-> and it should not have an oom_score_adj: 1000 that clearly has been changed
-> it should be -1000.
-
-I do agree here. As I've said in the previous email oom_score_adj indeed
-has some value, and this is a nice example of that. So I am completely
-fine with a patch that adds this part to the changelog.
-
-[...]
-> > > The oom_score tells us how Linux calculated the score for the task,
-> > > the oom_score_adj effects this so it is helpful to have that in
-> > > conjunction with the oom_score.
-> > > If the adjust is high it can tell us that the task was acting as a
-> > > canary and so it's oom_score is high even though it's memory
-> > > utilization can be modest or low.
-> >
-> > I am sorry but I still do not get it. How are you going to use that
-> > information without seeing other eligible tasks. oom_score is just a
-> > normalized memory usage + some heuristics potentially (we have given a
-> > discount to root processes until just recently). So this value only
-> > makes sense to the kernel oom killer implementation. Note that the
-> > equation might change in the future (that has happen in the past several
-> > times) so looking at the value in isolation might be quite misleading.
-> 
-> We've been through the change where oom_scores went from -17 to 16
-> to -1000 to 1000. This was the change David Rientjes from Google made
-> back around 2010.
-> 
-> This was not a problem for us then and if you change again in the future
-> (though the current implementation seems quite reasonable) it shouldn't
-> be an issue for us going forward or for anyone else that can use the
-> additional information in the OOM Kill message we're proposing.
-
-While I appreciate that you are flexible enough to cope with those
-changes there are other users which might be less so and there is a
-strong "no regressions" rule which might get us into the corner so we
-are trying hard to not export to much of an internal information so that
-userspace doesn't start depending on them.
-
-[...]
-
-> Now what about the oom_score value changing that you mentioned?
-> What if you toss David's OOM Kill algorithm for a new algorithm?
-> That could happen. What happens to the message and how do we
-> tell things have changed?
-> 
-> A different oom_score requires a different oom adjustment variable.
-> I hope we can agree on that and history supports this.
-
-The idea is that we would have to try to fit oom_score_adj semantic into
-a new algoritm and -1000..1000 value range would be hopefully good
-enough. That doesn't really dictate the internal calculation of the
-badness, if such a theretical alg. would use at all.
-
-> As you recall when David's algorithm was brought in, the Kernel OOM
-> team took good care of us. They added a new adjustment value:
-> oom_score_adj. As you'll recall the previous oom adjustment variable
-> was oom_adj. To keep user level code from breaking the Kernel OOM
-> developers provided a conversion so that if your application set
-> oom_adj = -17 the Linux OOM code internally set oom_score_adj = -1000.
-> They had a conversion that handled all the values. Eventually the
-> deprecated oom_adj field was removed, but it was around for several years.
-
-Yes, the scaling just happened to work back then.
-
-[...]
-
-> Further, you export oom_score through the /proc/pid/oom_score
-> interface. How the score is calculated could change but it is
-> accessible. It's accessible for a reason, it's useful to know how
-> the OOM algorithm scores a task and that can be used to help
-> set appropriate oom adjustment values. This because what the
-> oom_score means is in fact well documented. It needs to.
-> Otherwise, the oom adjustment value becomes impossible to
-> use intelligently. Thanks to David Rientjes et al for making this so.
-
-The point I am trying to push through is that the score (exported via
-proc or displayed via dump_tasks) is valuable only as far as you have a
-meaningful comparision to make - aka compare to scores of other tasks.
-The value on its own cannot tell you really much without a deep
-understanding of how it is calculated. And I absolutely do not want
-userspace to hardcode that alg. and rely on it being stable. You really
-do not need this internal knowledge when comparing scores of different
-tasks, though so it is quite safe and robust from future changes.
-
-We have made those mistakes when exporting way to much internal details
-to userspace in the past and got burnt.
- 
-> One of the really nice design points of David Rientjes implementation
-> is that it is very straight forward to use and understand. So hopefully
-> if there is a change in the future it's to something that is just as easy
-> to use and to understand.
-> 
-> >
-> > I can see some point in printing oom_score_adj, though. Seeing biased -
-> > one way or the other - tasks being selected might confirm the setting is
-> > reasonable or otherwise (e.g. seeing tasks with negative scores will
-> > give an indication that they might be not biased enough). Then you can
-> > go and check the eligible tasks dump and see what happened. So this part
-> > makes some sense to me.
-> 
-> Agreed, the oom_score_adj is sorely needed and should be included.
-
-I am willing to ack a patch to add oom_score_adj on the grounds that
-this information is helpful to pinpoint misconfigurations and it is not
-generally available when dump_tasks is disabled.
-
-> In Summary:
-> ----------------
-> I hope I have presented a reasonable enough argument for the proposed
-> additional parameters.
-
-I am not convinced on oom_score and percentage part because score on its
-own is an implementation detail that makes sense when comparing tasks
-but on on its own and percentage might be even confusing as explained
-above.
-
-Thanks for your detailed information!
--- 
-Michal Hocko
-SUSE Labs
+>   __vfs_read+0x76/0x100 fs/read_write.c:425
+>   vfs_read+0x1ea/0x430 fs/read_write.c:461
+>   ksys_read+0x1e8/0x250 fs/read_write.c:587
+>   do_syscall_64+0xb7/0x580 arch/x86/entry/common.c:296
+>   entry_SYSCALL_64_after_hwframe+0x49/0xbe
+> RIP: 0033:0x459829
+> Code: fd b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7
+> 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff
+> ff 0f 83 cb b7 fb ff c3 66 2e 0f 1f 84 00 00 00 00
+> RSP: 002b:00007ff6daf90c78 EFLAGS: 00000246 ORIG_RAX: 0000000000000000
+> RAX: ffffffffffffffda RBX: 0000000000000003 RCX: 0000000000459829
+> RDX: 000000000000fe26 RSI: 00000000200000c0 RDI: 0000000000000003
+> RBP: 000000000075bf20 R08: 0000000000000000 R09: 0000000000000000
+> R10: 0000000000000000 R11: 0000000000000246 R12: 00007ff6daf916d4
+> R13: 00000000004c6c73 R14: 00000000004dbee8 R15: 00000000ffffffff
+> Modules linked in:
+> ---[ end trace 4fe8dba032d24ceb ]---
+> RIP: 0010:usercopy_abort+0xb9/0xbb mm/usercopy.c:98
+> Code: e8 c1 f7 d6 ff 49 89 d9 4d 89 e8 4c 89 e1 41 56 48 89 ee 48 c7 c7 e0
+> f3 cd 85 ff 74 24 08 41 57 48 8b 54 24 20 e8 15 98 c1 ff <0f> 0b e8 95 f7
+> d6 ff e8 80 9f fd ff 8b 54 24 04 49 89 d8 4c 89 e1
+> RSP: 0018:ffff8881ccb3fc38 EFLAGS: 00010286
+> RAX: 0000000000000067 RBX: ffffffff86a659d4 RCX: 0000000000000000
+> RDX: 0000000000000000 RSI: ffffffff8128a0fd RDI: ffffed1039967f79
+> RBP: ffffffff85cdf2c0 R08: 0000000000000067 R09: fffffbfff11acdaa
+> R10: fffffbfff11acda9 R11: ffffffff88d66d4f R12: ffffffff86a696e8
+> R13: ffffffff85cdf180 R14: 000000000000fe26 R15: ffffffff85cdf140
+> FS:  00007ff6daf91700(0000) GS:ffff8881db200000(0000) knlGS:0000000000000000
+> CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+> CR2: 00007f1de6600000 CR3: 00000001ca554000 CR4: 00000000001406f0
+> DR0: 0000000000000000 DR1: 0000000000000000 DR2: 0000000000000000
+> DR3: 0000000000000000 DR6: 00000000fffe0ff0 DR7: 0000000000000400
+>
+>
+> ---
+> This bug is generated by a bot. It may contain errors.
+> See https://goo.gl/tpsmEJ for more information about syzbot.
+> syzbot engineers can be reached at syzkaller@googlegroups.com.
+>
+> syzbot will keep track of this bug report. See:
+> https://goo.gl/tpsmEJ#status for how to communicate with syzbot.
 
