@@ -7,45 +7,44 @@ X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06A25C433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 21:00:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 4DF91C31E40
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 21:01:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B97A32173B
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 21:00:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B97A32173B
+	by mail.kernel.org (Postfix) with ESMTP id 0CE172085A
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 21:01:20 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 0CE172085A
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 46CE46B0003; Mon, 12 Aug 2019 17:00:44 -0400 (EDT)
+	id B70CA6B0005; Mon, 12 Aug 2019 17:01:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 41D4E6B0005; Mon, 12 Aug 2019 17:00:44 -0400 (EDT)
+	id B21A76B0006; Mon, 12 Aug 2019 17:01:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 333486B0006; Mon, 12 Aug 2019 17:00:44 -0400 (EDT)
+	id A106A6B0007; Mon, 12 Aug 2019 17:01:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0093.hostedemail.com [216.40.44.93])
-	by kanga.kvack.org (Postfix) with ESMTP id 143766B0003
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 17:00:44 -0400 (EDT)
-Received: from smtpin02.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id AD569180AD7C1
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 21:00:43 +0000 (UTC)
-X-FDA: 75814994766.02.ant76_5d6b110fc730f
-X-HE-Tag: ant76_5d6b110fc730f
-X-Filterd-Recvd-Size: 7776
-Received: from mga02.intel.com (mga02.intel.com [134.134.136.20])
-	by imf26.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 21:00:41 +0000 (UTC)
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
+Received: from forelay.hostedemail.com (smtprelay0037.hostedemail.com [216.40.44.37])
+	by kanga.kvack.org (Postfix) with ESMTP id 8340C6B0005
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 17:01:19 -0400 (EDT)
+Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 03BC3181AC9AE
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 21:01:19 +0000 (UTC)
+X-FDA: 75814996278.29.sheet59_62bc994c75129
+X-HE-Tag: sheet59_62bc994c75129
+X-Filterd-Recvd-Size: 4820
+Received: from mga03.intel.com (mga03.intel.com [134.134.136.65])
+	by imf39.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 21:01:18 +0000 (UTC)
+X-Amp-Result: UNSCANNABLE
 X-Amp-File-Uploaded: False
-Received: from orsmga003.jf.intel.com ([10.7.209.27])
-  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Aug 2019 14:00:15 -0700
+Received: from fmsmga008.fm.intel.com ([10.253.24.58])
+  by orsmga103.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Aug 2019 14:01:17 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.64,378,1559545200"; 
-   d="scan'208";a="178466009"
+   d="scan'208";a="176002236"
 Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga003.jf.intel.com with ESMTP; 12 Aug 2019 14:00:14 -0700
-Date: Mon, 12 Aug 2019 14:00:14 -0700
+  by fmsmga008.fm.intel.com with ESMTP; 12 Aug 2019 14:01:17 -0700
+Date: Mon, 12 Aug 2019 14:01:17 -0700
 From: Ira Weiny <ira.weiny@intel.com>
 To: John Hubbard <jhubbard@nvidia.com>
 Cc: Andrew Morton <akpm@linux-foundation.org>,
@@ -58,14 +57,14 @@ Cc: Andrew Morton <akpm@linux-foundation.org>,
 	linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org,
 	linux-ext4@vger.kernel.org, linux-mm@kvack.org
 Subject: Re: [RFC PATCH v2 15/19] mm/gup: Introduce vaddr_pin_pages()
-Message-ID: <20190812210013.GC20634@iweiny-DESK2.sc.intel.com>
+Message-ID: <20190812210116.GD20634@iweiny-DESK2.sc.intel.com>
 References: <20190809225833.6657-1-ira.weiny@intel.com>
  <20190809225833.6657-16-ira.weiny@intel.com>
- <6ed26a08-4371-9dc1-09eb-7b8a4689d93b@nvidia.com>
+ <88d82639-c0b2-0b35-1919-999a8438031c@nvidia.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <6ed26a08-4371-9dc1-09eb-7b8a4689d93b@nvidia.com>
+In-Reply-To: <88d82639-c0b2-0b35-1919-999a8438031c@nvidia.com>
 User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -73,7 +72,7 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, Aug 09, 2019 at 05:09:54PM -0700, John Hubbard wrote:
+On Sun, Aug 11, 2019 at 04:07:23PM -0700, John Hubbard wrote:
 > On 8/9/19 3:58 PM, ira.weiny@intel.com wrote:
 > > From: Ira Weiny <ira.weiny@intel.com>
 > > 
@@ -91,6 +90,14 @@ On Fri, Aug 09, 2019 at 05:09:54PM -0700, John Hubbard wrote:
 > > 
 > > Signed-off-by: Ira Weiny <ira.weiny@intel.com>
 > > 
+> 
+> I'm creating a new call site conversion series, to replace the 
+> "put_user_pages(): miscellaneous call sites" series. This uses
+> vaddr_pin_pages*() where appropriate. So it's based on your series here.
+> 
+> btw, while doing that, I noticed one more typo while re-reading some of the comments. 
+> Thought you probably want to collect them all for the next spin. Below...
+> 
 > > ---
 > > Changes from list:
 > > 	Change to vaddr_put_pages_dirty_lock
@@ -113,13 +120,6 @@ On Fri, Aug 09, 2019 at 05:09:54PM -0700, John Hubbard wrote:
 > > +		     struct vaddr_pin *vaddr_pin);
 > > +void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
 > > +				  struct vaddr_pin *vaddr_pin, bool make_dirty);
-> 
-> Hi Ira,
-> 
-> OK, the API seems fine to me, anyway. :)
-> 
-> A bit more below...
-> 
 > >  bool mapping_inode_has_layout(struct vaddr_pin *vaddr_pin, struct page *page);
 > >  
 > >  /* Container for pinned pfns / pages */
@@ -137,110 +137,18 @@ On Fri, Aug 09, 2019 at 05:09:54PM -0700, John Hubbard wrote:
 > > + * user.
 > > + *
 > > + * @addr, start address
-> 
-> What's with the commas? I thought kernel-doc wants colons, like this, right?
-> 
-> @addr: start address
-
-:-/  I don't know.
-
-Fixed.
-
-> 
-> 
 > > + * @nr_pages, number of pages to pin
 > > + * @gup_flags, flags to use for the pin
 > > + * @pages, array of pages returned
 > > + * @vaddr_pin, initalized meta information this pin is to be associated
-> > + * with.
-> > + *
-> > + * NOTE regarding vaddr_pin:
-> > + *
-> > + * Some callers can share pins via file descriptors to other processes.
-> > + * Callers such as this should use the f_owner field of vaddr_pin to indicate
-> > + * the file the fd points to.  All other callers should use the mm this pin is
-> > + * being made against.  Usually "current->mm".
-> > + *
-> > + * Expects mmap_sem to be read locked.
-> > + */
-> > +long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
-> > +		     unsigned int gup_flags, struct page **pages,
-> > +		     struct vaddr_pin *vaddr_pin)
-> > +{
-> > +	long ret;
-> > +
-> > +	gup_flags |= FOLL_LONGTERM;
-> 
-> 
-> Is now the right time to introduce and use FOLL_PIN? If not, then I can always
-> add it on top of this later, as part of gup-tracking patches. But you did point
-> out that FOLL_LONGTERM is taking on additional meaning, and so maybe it's better
-> to split that meaning up right from the start.
-> 
-
-At one point I wanted to (and had in my tree) a new flag but I went away from
-it.  Prior to the discussion on mlock last week I did not think we needed it.
-But I'm ok to add it back in.
-
-I was not ignoring the idea for this RFC I just wanted to get this out there
-for people to see.  I see that you threw out a couple of patches which add this
-flag in.
-
-FWIW, I think it would be good to differentiate between an indefinite pinned
-page vs a referenced "gotten" page.
-
-What you and I have been working on is the former.  So it would be easy to
-change your refcounting patches to simply key off of FOLL_PIN.
-
-Would you like me to add in your FOLL_PIN patches to this series?
-
-> 
-> > +
-> > +	if (!vaddr_pin || (!vaddr_pin->mm && !vaddr_pin->f_owner))
-> > +		return -EINVAL;
-> > +
-> > +	ret = __gup_longterm_locked(current,
-> > +				    vaddr_pin->mm,
-> > +				    addr, nr_pages,
-> > +				    pages, NULL, gup_flags,
-> > +				    vaddr_pin);
-> > +	return ret;
-> > +}
-> > +EXPORT_SYMBOL(vaddr_pin_pages);
-> > +
-> > +/**
-> > + * vaddr_unpin_pages_dirty_lock - counterpart to vaddr_pin_pages
-> > + *
-> > + * @pages, array of pages returned
-> > + * @nr_pages, number of pages in pages
-> > + * @vaddr_pin, same information passed to vaddr_pin_pages
-> > + * @make_dirty: whether to mark the pages dirty
-> > + *
-> > + * The semantics are similar to put_user_pages_dirty_lock but a vaddr_pin used
-> > + * in vaddr_pin_pages should be passed back into this call for propper
 > 
 > Typo:
-                                                                   proper
-Fixed.
+>                   initialized
 
-> 
-> > + * tracking.
-> > + */
-> > +void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
-> > +				  struct vaddr_pin *vaddr_pin, bool make_dirty)
-> > +{
-> > +	__put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, make_dirty);
-> > +}
-> > +EXPORT_SYMBOL(vaddr_unpin_pages_dirty_lock);
-> > 
-> 
-> OK, whew, I'm glad to see the updated _dirty_lock() API used here. :)
-
-Yea this was pretty easy to change during the rebase.  Again I'm kind of
-floating these quickly at this point.  So sorry about the nits...
-
+Thanks fixed.
 Ira
 
+> 
 > 
 > thanks,
 > -- 
