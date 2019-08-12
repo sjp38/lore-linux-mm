@@ -2,88 +2,118 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5263EC31E40
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 19:42:38 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 31C77C32750
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 20:04:28 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1106020663
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 19:42:37 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="AejkOoxo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1106020663
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 8DAB92085A
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 20:04:27 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 8DAB92085A
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A26076B0006; Mon, 12 Aug 2019 15:42:37 -0400 (EDT)
+	id D96FC6B0003; Mon, 12 Aug 2019 16:04:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9D6FE6B0007; Mon, 12 Aug 2019 15:42:37 -0400 (EDT)
+	id D47C26B0005; Mon, 12 Aug 2019 16:04:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8ECF46B0008; Mon, 12 Aug 2019 15:42:37 -0400 (EDT)
+	id C0FFF6B0006; Mon, 12 Aug 2019 16:04:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0051.hostedemail.com [216.40.44.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 6E90B6B0006
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:42:37 -0400 (EDT)
-Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 2BF3145AA
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 19:42:37 +0000 (UTC)
-X-FDA: 75814797954.16.team87_8aeaf7570ad25
-X-HE-Tag: team87_8aeaf7570ad25
-X-Filterd-Recvd-Size: 3588
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com [216.228.121.64])
-	by imf31.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 19:42:34 +0000 (UTC)
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d51c1340002>; Mon, 12 Aug 2019 12:42:44 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Mon, 12 Aug 2019 12:42:33 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Mon, 12 Aug 2019 12:42:33 -0700
-Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Mon, 12 Aug
- 2019 19:42:30 +0000
-Subject: Re: [PATCH] nouveau/hmm: map pages after migration
-To: Christoph Hellwig <hch@lst.de>
-CC: <linux-mm@kvack.org>, <linux-kernel@vger.kernel.org>,
-	<amd-gfx@lists.freedesktop.org>, <dri-devel@lists.freedesktop.org>,
-	<nouveau@lists.freedesktop.org>, Jason Gunthorpe <jgg@mellanox.com>,
-	=?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, Ben Skeggs
-	<bskeggs@redhat.com>
-References: <20190807150214.3629-1-rcampbell@nvidia.com>
- <20190808070701.GC29382@lst.de>
- <0b96a8d8-86b5-3ce0-db95-669963c1f8a7@nvidia.com>
- <20190810111308.GB26349@lst.de>
-From: Ralph Campbell <rcampbell@nvidia.com>
-X-Nvconfidentiality: public
-Message-ID: <1a84e6b6-31e6-6955-509f-9883f4a7a322@nvidia.com>
-Date: Mon, 12 Aug 2019 12:42:30 -0700
+Received: from forelay.hostedemail.com (smtprelay0248.hostedemail.com [216.40.44.248])
+	by kanga.kvack.org (Postfix) with ESMTP id 895F46B0003
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 16:04:26 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 3AB0F181AC9AE
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 20:04:26 +0000 (UTC)
+X-FDA: 75814852932.21.mom56_269545382a33e
+X-HE-Tag: mom56_269545382a33e
+X-Filterd-Recvd-Size: 33746
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf07.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 20:04:24 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 88978182D;
+	Mon, 12 Aug 2019 20:04:23 +0000 (UTC)
+Received: from [10.18.17.163] (dhcp-17-163.bos.redhat.com [10.18.17.163])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id ACE7F4D711;
+	Mon, 12 Aug 2019 20:04:09 +0000 (UTC)
+Subject: Re: [RFC][Patch v12 1/2] mm: page_reporting: core infrastructure
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
+ linux-mm <linux-mm@kvack.org>, virtio-dev@lists.oasis-open.org,
+ Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com,
+ pagupta@redhat.com, wei.w.wang@intel.com,
+ Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
+ David Hildenbrand <david@redhat.com>, "Michael S. Tsirkin" <mst@redhat.com>,
+ dodgen@google.com, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ dhildenb@redhat.com, Andrea Arcangeli <aarcange@redhat.com>,
+ john.starks@microsoft.com, Dave Hansen <dave.hansen@intel.com>,
+ Michal Hocko <mhocko@suse.com>, cohuck@redhat.com
+References: <20190812131235.27244-1-nitesh@redhat.com>
+ <20190812131235.27244-2-nitesh@redhat.com>
+ <CAKgT0UcSabyrO=jUwq10KpJKLSuzorHDnKAGrtWVigKVgvD-6Q@mail.gmail.com>
+From: Nitesh Narayan Lal <nitesh@redhat.com>
+Openpgp: preference=signencrypt
+Autocrypt: addr=nitesh@redhat.com; prefer-encrypt=mutual; keydata=
+ mQINBFl4pQoBEADT/nXR2JOfsCjDgYmE2qonSGjkM1g8S6p9UWD+bf7YEAYYYzZsLtbilFTe
+ z4nL4AV6VJmC7dBIlTi3Mj2eymD/2dkKP6UXlliWkq67feVg1KG+4UIp89lFW7v5Y8Muw3Fm
+ uQbFvxyhN8n3tmhRe+ScWsndSBDxYOZgkbCSIfNPdZrHcnOLfA7xMJZeRCjqUpwhIjxQdFA7
+ n0s0KZ2cHIsemtBM8b2WXSQG9CjqAJHVkDhrBWKThDRF7k80oiJdEQlTEiVhaEDURXq+2XmG
+ jpCnvRQDb28EJSsQlNEAzwzHMeplddfB0vCg9fRk/kOBMDBtGsTvNT9OYUZD+7jaf0gvBvBB
+ lbKmmMMX7uJB+ejY7bnw6ePNrVPErWyfHzR5WYrIFUtgoR3LigKnw5apzc7UIV9G8uiIcZEn
+ C+QJCK43jgnkPcSmwVPztcrkbC84g1K5v2Dxh9amXKLBA1/i+CAY8JWMTepsFohIFMXNLj+B
+ RJoOcR4HGYXZ6CAJa3Glu3mCmYqHTOKwezJTAvmsCLd3W7WxOGF8BbBjVaPjcZfavOvkin0u
+ DaFvhAmrzN6lL0msY17JCZo046z8oAqkyvEflFbC0S1R/POzehKrzQ1RFRD3/YzzlhmIowkM
+ BpTqNBeHEzQAlIhQuyu1ugmQtfsYYq6FPmWMRfFPes/4JUU/PQARAQABtCVOaXRlc2ggTmFy
+ YXlhbiBMYWwgPG5pbGFsQHJlZGhhdC5jb20+iQI9BBMBCAAnBQJZeKUKAhsjBQkJZgGABQsJ
+ CAcCBhUICQoLAgQWAgMBAh4BAheAAAoJEKOGQNwGMqM56lEP/A2KMs/pu0URcVk/kqVwcBhU
+ SnvB8DP3lDWDnmVrAkFEOnPX7GTbactQ41wF/xwjwmEmTzLrMRZpkqz2y9mV0hWHjqoXbOCS
+ 6RwK3ri5e2ThIPoGxFLt6TrMHgCRwm8YuOSJ97o+uohCTN8pmQ86KMUrDNwMqRkeTRW9wWIQ
+ EdDqW44VwelnyPwcmWHBNNb1Kd8j3xKlHtnS45vc6WuoKxYRBTQOwI/5uFpDZtZ1a5kq9Ak/
+ MOPDDZpd84rqd+IvgMw5z4a5QlkvOTpScD21G3gjmtTEtyfahltyDK/5i8IaQC3YiXJCrqxE
+ r7/4JMZeOYiKpE9iZMtS90t4wBgbVTqAGH1nE/ifZVAUcCtycD0f3egX9CHe45Ad4fsF3edQ
+ ESa5tZAogiA4Hc/yQpnnf43a3aQ67XPOJXxS0Qptzu4vfF9h7kTKYWSrVesOU3QKYbjEAf95
+ NewF9FhAlYqYrwIwnuAZ8TdXVDYt7Z3z506//sf6zoRwYIDA8RDqFGRuPMXUsoUnf/KKPrtR
+ ceLcSUP/JCNiYbf1/QtW8S6Ca/4qJFXQHp0knqJPGmwuFHsarSdpvZQ9qpxD3FnuPyo64S2N
+ Dfq8TAeifNp2pAmPY2PAHQ3nOmKgMG8Gn5QiORvMUGzSz8Lo31LW58NdBKbh6bci5+t/HE0H
+ pnyVf5xhNC/FuQINBFl4pQoBEACr+MgxWHUP76oNNYjRiNDhaIVtnPRqxiZ9v4H5FPxJy9UD
+ Bqr54rifr1E+K+yYNPt/Po43vVL2cAyfyI/LVLlhiY4yH6T1n+Di/hSkkviCaf13gczuvgz4
+ KVYLwojU8+naJUsiCJw01MjO3pg9GQ+47HgsnRjCdNmmHiUQqksMIfd8k3reO9SUNlEmDDNB
+ XuSzkHjE5y/R/6p8uXaVpiKPfHoULjNRWaFc3d2JGmxJpBdpYnajoz61m7XJlgwl/B5Ql/6B
+ dHGaX3VHxOZsfRfugwYF9CkrPbyO5PK7yJ5vaiWre7aQ9bmCtXAomvF1q3/qRwZp77k6i9R3
+ tWfXjZDOQokw0u6d6DYJ0Vkfcwheg2i/Mf/epQl7Pf846G3PgSnyVK6cRwerBl5a68w7xqVU
+ 4KgAh0DePjtDcbcXsKRT9D63cfyfrNE+ea4i0SVik6+N4nAj1HbzWHTk2KIxTsJXypibOKFX
+ 2VykltxutR1sUfZBYMkfU4PogE7NjVEU7KtuCOSAkYzIWrZNEQrxYkxHLJsWruhSYNRsqVBy
+ KvY6JAsq/i5yhVd5JKKU8wIOgSwC9P6mXYRgwPyfg15GZpnw+Fpey4bCDkT5fMOaCcS+vSU1
+ UaFmC4Ogzpe2BW2DOaPU5Ik99zUFNn6cRmOOXArrryjFlLT5oSOe4IposgWzdwARAQABiQIl
+ BBgBCAAPBQJZeKUKAhsMBQkJZgGAAAoJEKOGQNwGMqM5ELoP/jj9d9gF1Al4+9bngUlYohYu
+ 0sxyZo9IZ7Yb7cHuJzOMqfgoP4tydP4QCuyd9Q2OHHL5AL4VFNb8SvqAxxYSPuDJTI3JZwI7
+ d8JTPKwpulMSUaJE8ZH9n8A/+sdC3CAD4QafVBcCcbFe1jifHmQRdDrvHV9Es14QVAOTZhnJ
+ vweENyHEIxkpLsyUUDuVypIo6y/Cws+EBCWt27BJi9GH/EOTB0wb+2ghCs/i3h8a+bi+bS7L
+ FCCm/AxIqxRurh2UySn0P/2+2eZvneJ1/uTgfxnjeSlwQJ1BWzMAdAHQO1/lnbyZgEZEtUZJ
+ x9d9ASekTtJjBMKJXAw7GbB2dAA/QmbA+Q+Xuamzm/1imigz6L6sOt2n/X/SSc33w8RJUyor
+ SvAIoG/zU2Y76pKTgbpQqMDmkmNYFMLcAukpvC4ki3Sf086TdMgkjqtnpTkEElMSFJC8npXv
+ 3QnGGOIfFug/qs8z03DLPBz9VYS26jiiN7QIJVpeeEdN/LKnaz5LO+h5kNAyj44qdF2T2AiF
+ HxnZnxO5JNP5uISQH3FjxxGxJkdJ8jKzZV7aT37sC+Rp0o3KNc+GXTR+GSVq87Xfuhx0LRST
+ NK9ZhT0+qkiN7npFLtNtbzwqaqceq3XhafmCiw8xrtzCnlB/C4SiBr/93Ip4kihXJ0EuHSLn
+ VujM7c/b4pps
+Organization: Red Hat Inc,
+Message-ID: <b5d4ee25-ae3e-f012-d7f2-7a27d7bbcc54@redhat.com>
+Date: Mon, 12 Aug 2019 16:04:08 -0400
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+ Thunderbird/60.6.1
 MIME-Version: 1.0
-In-Reply-To: <20190810111308.GB26349@lst.de>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
+In-Reply-To: <CAKgT0UcSabyrO=jUwq10KpJKLSuzorHDnKAGrtWVigKVgvD-6Q@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1565638964; bh=OU8IJv/lYjVdyGsKoyblYg4ib4y7MVh+DIjHamncxq8=;
-	h=X-PGP-Universal:Subject:To:CC:References:From:X-Nvconfidentiality:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=AejkOoxomaGMhLpZ3pIIkspkKl7sO550hrdwKO5/NA8faapWC8ktyg1xgZmGlUyIT
-	 E8+aD/Eyq4DXtfObw2wb1IDfF5rGaB9SY6L/edDp+qrtiD/VZn2zqviiDYtoL2w5RT
-	 G2oreIveRctBxGW5KoLgroNOd1BXtk46jBCX4G5NkjDRbfvrDjsc6GOcIcGt2oLG0z
-	 UngAn/Ys1zlFjY6Xwh+/SSpg1UNR5ybYE1cK2qp/6NKJvinEEPJHRCwvguTZlofaqS
-	 Pfo7VmGAYM9odOp4MO2GNNvVxTKI+kTKn1BcDsQmcysGiShtWpFpnDFVSIWPomC38i
-	 YRYBbJfX49njg==
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Mon, 12 Aug 2019 20:04:23 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
@@ -91,24 +121,828 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 
-On 8/10/19 4:13 AM, Christoph Hellwig wrote:
-> On something vaguely related to this patch:
-> 
-> You use the NVIF_VMM_PFNMAP_V0_V* defines from nvif/if000c.h, which are
-> a little odd as we only ever set these bits, but they also don't seem
-> to appear to be in values that are directly fed to the hardware.
-> 
-> On the other hand mmu/vmm.h defines a set of NVIF_VMM_PFNMAP_V0_*
+On 8/12/19 2:47 PM, Alexander Duyck wrote:
+> On Mon, Aug 12, 2019 at 6:13 AM Nitesh Narayan Lal <nitesh@redhat.com> =
+wrote:
+>> This patch introduces the core infrastructure for free page reporting =
+in
+>> virtual environments. It enables the kernel to track the free pages wh=
+ich
+>> can be reported to its hypervisor so that the hypervisor could
+>> free and reuse that memory as per its requirement.
+>>
+>> While the pages are getting processed in the hypervisor (e.g.,
+>> via MADV_DONTNEED), the guest must not use them, otherwise, data loss
+>> would be possible. To avoid such a situation, these pages are
+>> temporarily removed from the buddy. The amount of pages removed
+>> temporarily from the buddy is governed by the backend(virtio-balloon
+>> in our case).
+>>
+>> To efficiently identify free pages that can to be reported to the
+>> hypervisor, bitmaps in a coarse granularity are used. Only fairly big
+>> chunks are reported to the hypervisor - especially, to not break up TH=
+P
+>> in the hypervisor - "MAX_ORDER - 2" on x86, and to save space. The bit=
+s
+>> in the bitmap are an indication whether a page *might* be free, not a
+>> guarantee. A new hook after buddy merging sets the bits.
+>>
+>> Bitmaps are stored per zone, protected by the zone lock. A workqueue
+>> asynchronously processes the bitmaps, trying to isolate and report pag=
+es
+>> that are still free. The backend (virtio-balloon) is responsible for
+>> reporting these batched pages to the host synchronously. Once reportin=
+g/
+>> freeing is complete, isolated pages are returned back to the buddy.
+>>
+>> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
+> So if I understand correctly the hotplug support for this is still not
+> included correct?=20
 
-Yes, I see NVKM_VMM_PFN_*
 
-> constants with similar names and identical values, and those are used
-> in mmu/vmmgp100.c and what appears to finally do the low-level dma
-> mapping and talking to the hardware.  Are these two sets of constants
-> supposed to be the same?  Are the actual hardware values or just a
-> driver internal interface?
+That is correct, I have it as an ongoing-item in my cover-email.
+In case, we decide to go with this approach do you think it is a blocker?=
 
-It looks a bit odd to me too.
-I don't really know the structure/history of nouveau.
-Perhaps Ben Skeggs can shed more light on your question.
+
+
+> I assume that is the case since I don't see any
+> logic for zone resizing.
+>
+> Also I don't see how this dealt with the sparse issue that was pointed
+> out earlier. Specifically how would you deal with a zone that has a
+> wide range between the base and the end and a huge gap somewhere
+> in-between?
+
+It doesn't. However, considering we are tracking page on order of (MAX_OR=
+DER -
+2) I don't think the loss will be significant.
+In any case, this is certainly a drawback of this approach and I should a=
+dd this
+in my cover.
+The one thing which I did change in this version is that now I started
+maintaining bitmap for each zone.
+
+>
+>> ---
+>>  include/linux/mmzone.h         |  11 ++
+>>  include/linux/page_reporting.h |  63 +++++++
+>>  mm/Kconfig                     |   6 +
+>>  mm/Makefile                    |   1 +
+>>  mm/page_alloc.c                |  42 ++++-
+>>  mm/page_reporting.c            | 332 ++++++++++++++++++++++++++++++++=
++
+>>  6 files changed, 448 insertions(+), 7 deletions(-)
+>>  create mode 100644 include/linux/page_reporting.h
+>>  create mode 100644 mm/page_reporting.c
+>>
+>> diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+>> index d77d717c620c..ba5f5b508f25 100644
+>> --- a/include/linux/mmzone.h
+>> +++ b/include/linux/mmzone.h
+>> @@ -559,6 +559,17 @@ struct zone {
+>>         /* Zone statistics */
+>>         atomic_long_t           vm_stat[NR_VM_ZONE_STAT_ITEMS];
+>>         atomic_long_t           vm_numa_stat[NR_VM_NUMA_STAT_ITEMS];
+>> +#ifdef CONFIG_PAGE_REPORTING
+>> +       /* Pointer to the bitmap in PAGE_REPORTING_MIN_ORDER granulari=
+ty */
+>> +       unsigned long *bitmap;
+>> +       /* Preserve start and end PFN in case they change due to hotpl=
+ug */
+>> +       unsigned long base_pfn;
+>> +       unsigned long end_pfn;
+>> +       /* Free pages of granularity PAGE_REPORTING_MIN_ORDER */
+>> +       atomic_t free_pages;
+>> +       /* Number of bits required in the bitmap */
+>> +       unsigned long nbits;
+>> +#endif
+>>  } ____cacheline_internodealigned_in_smp;
+> Okay, so the original thing this patch set had going for it was that
+> it was non-invasive. However, now you are adding a bunch of stuff to
+> the zone. That kind of loses the non-invasive argument for this patch
+> set compared to mine.
+
+I think it is fair to add that it not as invasive as yours. :) (But that =
+has its
+own pros and cons)
+In any case, I do understand your point.
+
+>
+>
+> If we are going to continue further with this patch set then it might
+> be worth looking into dynamically allocating the space you need for
+> this block.
+
+Not sure if I understood this part. Dynamic allocation for the structure =
+which
+you are suggesting below?
+
+
+>  At a minimum you could probably look at making the bitmap
+> an RCU based setup so you could define the base and end along with the
+> bitmap. It would probably help to resolve the hotplug issues you still
+> need to address.
+
+
+Thanks for the suggestion. I will look into it.
+
+
+>
+>>  enum pgdat_flags {
+>> diff --git a/include/linux/page_reporting.h b/include/linux/page_repor=
+ting.h
+>> new file mode 100644
+>> index 000000000000..37a39589939d
+>> --- /dev/null
+>> +++ b/include/linux/page_reporting.h
+>> @@ -0,0 +1,63 @@
+>> +/* SPDX-License-Identifier: GPL-2.0 */
+>> +#ifndef _LINUX_PAGE_REPORTING_H
+>> +#define _LINUX_PAGE_REPORTING_H
+>> +
+>> +#define PAGE_REPORTING_MIN_ORDER               (MAX_ORDER - 2)
+>> +#define PAGE_REPORTING_MAX_PAGES               16
+>> +
+>> +#ifdef CONFIG_PAGE_REPORTING
+>> +struct page_reporting_config {
+>> +       /* function to hint batch of isolated pages */
+>> +       void (*report)(struct page_reporting_config *phconf,
+>> +                      unsigned int num_pages);
+>> +
+>> +       /* scatterlist to hold the isolated pages to be hinted */
+>> +       struct scatterlist *sg;
+>> +
+>> +       /*
+>> +        * Maxmimum pages that are going to be hinted to the hyperviso=
+r at a
+>> +        * time of granularity >=3D PAGE_REPORTING_MIN_ORDER.
+>> +        */
+>> +       int max_pages;
+>> +
+>> +       /* work object to process page reporting rqeuests */
+>> +       struct work_struct reporting_work;
+>> +
+>> +       /* tracks the number of reporting request processed at a time =
+*/
+>> +       atomic_t refcnt;
+>> +};
+>> +
+>> +void __page_reporting_enqueue(struct page *page);
+>> +void __return_isolated_page(struct zone *zone, struct page *page);
+>> +void set_pageblock_migratetype(struct page *page, int migratetype);
+>> +
+>> +/**
+>> + * page_reporting_enqueue - checks the eligibility of the freed page =
+based on
+>> + * its order for further page reporting processing.
+>> + * @page: page which has been freed.
+>> + * @order: order for the the free page.
+>> + */
+>> +static inline void page_reporting_enqueue(struct page *page, int orde=
+r)
+>> +{
+>> +       if (order < PAGE_REPORTING_MIN_ORDER)
+>> +               return;
+>> +       __page_reporting_enqueue(page);
+>> +}
+>> +
+>> +int page_reporting_enable(struct page_reporting_config *phconf);
+>> +void page_reporting_disable(struct page_reporting_config *phconf);
+>> +#else
+>> +static inline void page_reporting_enqueue(struct page *page, int orde=
+r)
+>> +{
+>> +}
+>> +
+>> +static inline int page_reporting_enable(struct page_reporting_config =
+*phconf)
+>> +{
+>> +       return -EOPNOTSUPP;
+>> +}
+>> +
+>> +static inline void page_reporting_disable(struct page_reporting_confi=
+g *phconf)
+>> +{
+>> +}
+>> +#endif /* CONFIG_PAGE_REPORTING */
+>> +#endif /* _LINUX_PAGE_REPORTING_H */
+>> diff --git a/mm/Kconfig b/mm/Kconfig
+>> index 56cec636a1fc..6a35a9dad350 100644
+>> --- a/mm/Kconfig
+>> +++ b/mm/Kconfig
+>> @@ -736,4 +736,10 @@ config ARCH_HAS_PTE_SPECIAL
+>>  config ARCH_HAS_HUGEPD
+>>         bool
+>>
+>> +# PAGE_REPORTING will allow the guest to report the free pages to the=
+
+>> +# host in fixed chunks as soon as a fixed threshold is reached.
+>> +config PAGE_REPORTING
+>> +       bool
+>> +       def_bool n
+>> +       depends on X86_64
+>>  endmenu
+>> diff --git a/mm/Makefile b/mm/Makefile
+>> index 338e528ad436..6a32cdfa61c2 100644
+>> --- a/mm/Makefile
+>> +++ b/mm/Makefile
+>> @@ -104,3 +104,4 @@ obj-$(CONFIG_HARDENED_USERCOPY) +=3D usercopy.o
+>>  obj-$(CONFIG_PERCPU_STATS) +=3D percpu-stats.o
+>>  obj-$(CONFIG_HMM_MIRROR) +=3D hmm.o
+>>  obj-$(CONFIG_MEMFD_CREATE) +=3D memfd.o
+>> +obj-$(CONFIG_PAGE_REPORTING) +=3D page_reporting.o
+>> diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+>> index 272c6de1bf4e..aa7c89d50c85 100644
+>> --- a/mm/page_alloc.c
+>> +++ b/mm/page_alloc.c
+>> @@ -68,6 +68,7 @@
+>>  #include <linux/lockdep.h>
+>>  #include <linux/nmi.h>
+>>  #include <linux/psi.h>
+>> +#include <linux/page_reporting.h>
+>>
+>>  #include <asm/sections.h>
+>>  #include <asm/tlbflush.h>
+>> @@ -903,7 +904,7 @@ compaction_capture(struct capture_control *capc, s=
+truct page *page,
+>>  static inline void __free_one_page(struct page *page,
+>>                 unsigned long pfn,
+>>                 struct zone *zone, unsigned int order,
+>> -               int migratetype)
+>> +               int migratetype, bool needs_reporting)
+>>  {
+>>         unsigned long combined_pfn;
+>>         unsigned long uninitialized_var(buddy_pfn);
+>> @@ -1006,7 +1007,8 @@ static inline void __free_one_page(struct page *=
+page,
+>>                                 migratetype);
+>>         else
+>>                 add_to_free_area(page, &zone->free_area[order], migrat=
+etype);
+>> -
+>> +       if (needs_reporting)
+>> +               page_reporting_enqueue(page, order);
+>>  }
+>>
+>>  /*
+>> @@ -1317,7 +1319,7 @@ static void free_pcppages_bulk(struct zone *zone=
+, int count,
+>>                 if (unlikely(isolated_pageblocks))
+>>                         mt =3D get_pageblock_migratetype(page);
+>>
+>> -               __free_one_page(page, page_to_pfn(page), zone, 0, mt);=
+
+>> +               __free_one_page(page, page_to_pfn(page), zone, 0, mt, =
+true);
+>>                 trace_mm_page_pcpu_drain(page, 0, mt);
+>>         }
+>>         spin_unlock(&zone->lock);
+>> @@ -1326,14 +1328,14 @@ static void free_pcppages_bulk(struct zone *zo=
+ne, int count,
+>>  static void free_one_page(struct zone *zone,
+>>                                 struct page *page, unsigned long pfn,
+>>                                 unsigned int order,
+>> -                               int migratetype)
+>> +                               int migratetype, bool needs_reporting)=
+
+>>  {
+>>         spin_lock(&zone->lock);
+>>         if (unlikely(has_isolate_pageblock(zone) ||
+>>                 is_migrate_isolate(migratetype))) {
+>>                 migratetype =3D get_pfnblock_migratetype(page, pfn);
+>>         }
+>> -       __free_one_page(page, pfn, zone, order, migratetype);
+>> +       __free_one_page(page, pfn, zone, order, migratetype, needs_rep=
+orting);
+>>         spin_unlock(&zone->lock);
+>>  }
+>>
+>> @@ -1423,7 +1425,7 @@ static void __free_pages_ok(struct page *page, u=
+nsigned int order)
+>>         migratetype =3D get_pfnblock_migratetype(page, pfn);
+>>         local_irq_save(flags);
+>>         __count_vm_events(PGFREE, 1 << order);
+>> -       free_one_page(page_zone(page), page, pfn, order, migratetype);=
+
+>> +       free_one_page(page_zone(page), page, pfn, order, migratetype, =
+true);
+>>         local_irq_restore(flags);
+>>  }
+>>
+>> @@ -2197,6 +2199,32 @@ struct page *__rmqueue_smallest(struct zone *zo=
+ne, unsigned int order,
+>>         return NULL;
+>>  }
+>>
+>> +#ifdef CONFIG_PAGE_REPORTING
+>> +/**
+>> + * return_isolated_page - returns a reported page back to the buddy.
+>> + * @zone: zone from where the page was isolated.
+>> + * @page: page which will be returned.
+>> + */
+>> +void __return_isolated_page(struct zone *zone, struct page *page)
+>> +{
+>> +       unsigned int order, mt;
+>> +       unsigned long pfn;
+>> +
+>> +       /* zone lock should be held when this function is called */
+>> +       lockdep_assert_held(&zone->lock);
+>> +
+>> +       mt =3D get_pageblock_migratetype(page);
+>> +       pfn =3D page_to_pfn(page);
+>> +
+>> +       if (unlikely(has_isolate_pageblock(zone) || is_migrate_isolate=
+(mt)))
+>> +               mt =3D get_pfnblock_migratetype(page, pfn);
+>> +
+>> +       order =3D page_private(page);
+>> +       set_page_private(page, 0);
+>> +
+>> +       __free_one_page(page, pfn, zone, order, mt, false);
+>> +}
+>> +#endif /* CONFIG_PAGE_REPORTING */
+>>
+>>  /*
+>>   * This array describes the order lists are fallen back to when
+>> @@ -3041,7 +3069,7 @@ static void free_unref_page_commit(struct page *=
+page, unsigned long pfn)
+>>          */
+>>         if (migratetype >=3D MIGRATE_PCPTYPES) {
+>>                 if (unlikely(is_migrate_isolate(migratetype))) {
+>> -                       free_one_page(zone, page, pfn, 0, migratetype)=
+;
+>> +                       free_one_page(zone, page, pfn, 0, migratetype,=
+ true);
+>>                         return;
+>>                 }
+>>                 migratetype =3D MIGRATE_MOVABLE;
+>> diff --git a/mm/page_reporting.c b/mm/page_reporting.c
+>> new file mode 100644
+>> index 000000000000..4ee2c172cd9a
+>> --- /dev/null
+>> +++ b/mm/page_reporting.c
+>> @@ -0,0 +1,332 @@
+>> +// SPDX-License-Identifier: GPL-2.0
+>> +/*
+>> + * Page reporting core infrastructure to enable a VM to report free p=
+ages to its
+>> + * hypervisor.
+>> + *
+>> + * Copyright Red Hat, Inc. 2019
+>> + *
+>> + * Author(s): Nitesh Narayan Lal <nitesh@redhat.com>
+>> + */
+>> +
+>> +#include <linux/mm.h>
+>> +#include <linux/slab.h>
+>> +#include <linux/page_reporting.h>
+>> +#include <linux/scatterlist.h>
+>> +#include "internal.h"
+>> +
+>> +static struct page_reporting_config __rcu *page_reporting_conf __read=
+_mostly;
+>> +static DEFINE_MUTEX(page_reporting_mutex);
+>> +
+>> +static inline unsigned long pfn_to_bit(struct page *page, struct zone=
+ *zone)
+>> +{
+>> +       unsigned long bitnr;
+>> +
+>> +       bitnr =3D (page_to_pfn(page) - zone->base_pfn) >>
+>> +               PAGE_REPORTING_MIN_ORDER;
+>> +
+>> +       return bitnr;
+>> +}
+>> +
+>> +static void return_isolated_page(struct zone *zone,
+>> +                                struct page_reporting_config *phconf)=
+
+>> +{
+>> +       struct scatterlist *sg =3D phconf->sg;
+>> +
+>> +       spin_lock(&zone->lock);
+>> +       do {
+>> +               __return_isolated_page(zone, sg_page(sg));
+>> +       } while (!sg_is_last(sg++));
+>> +       spin_unlock(&zone->lock);
+>> +}
+>> +
+>> +static void bitmap_set_bit(struct page *page, struct zone *zone)
+>> +{
+>> +       unsigned long bitnr =3D 0;
+>> +
+>> +       /* zone lock should be held when this function is called */
+>> +       lockdep_assert_held(&zone->lock);
+>> +
+> So why does the zone lock need to be held? What could you possibly
+> race against? If nothing else it might make more sense to look at
+> moving the bitmap, base, end, and length values into one RCU
+> allocation structure so that you could do without the requirement of
+> the zone lock to manipulate the bitmap.
+
+
+Makes sense to me.
+
+
+>> +       bitnr =3D pfn_to_bit(page, zone);
+>> +       /* set bit if it is not already set and is a valid bit */
+>> +       if (zone->bitmap && bitnr < zone->nbits &&
+>> +           !test_and_set_bit(bitnr, zone->bitmap))
+>> +               atomic_inc(&zone->free_pages);
+>> +}
+>> +
+>> +static int process_free_page(struct page *page,
+>> +                            struct page_reporting_config *phconf, int=
+ count)
+>> +{
+>> +       int mt, order, ret =3D 0;
+>> +
+>> +       mt =3D get_pageblock_migratetype(page);
+>> +       order =3D page_private(page);
+>> +       ret =3D __isolate_free_page(page, order);
+>> +
+>> +       if (ret) {
+>> +               /*
+>> +                * Preserving order and migratetype for reuse while
+>> +                * releasing the pages back to the buddy.
+>> +                */
+>> +               set_pageblock_migratetype(page, mt);
+>> +               set_page_private(page, order);
+>> +
+>> +               sg_set_page(&phconf->sg[count++], page,
+>> +                           PAGE_SIZE << order, 0);
+>> +       }
+>> +
+>> +       return count;
+>> +}
+>> +
+>> +/**
+>> + * scan_zone_bitmap - scans the bitmap for the requested zone.
+>> + * @phconf: page reporting configuration object initialized by the ba=
+ckend.
+>> + * @zone: zone for which page reporting is requested.
+>> + *
+>> + * For every page marked in the bitmap it checks if it is still free =
+if so it
+>> + * isolates and adds them to a scatterlist. As soon as the number of =
+isolated
+>> + * pages reach the threshold set by the backend, they are reported to=
+ the
+>> + * hypervisor by the backend. Once the hypervisor responds after proc=
+essing
+>> + * they are returned back to the buddy for reuse.
+>> + */
+>> +static void scan_zone_bitmap(struct page_reporting_config *phconf,
+>> +                            struct zone *zone)
+>> +{
+>> +       unsigned long setbit;
+>> +       struct page *page;
+>> +       int count =3D 0;
+>> +
+>> +       sg_init_table(phconf->sg, phconf->max_pages);
+>> +
+>> +       for_each_set_bit(setbit, zone->bitmap, zone->nbits) {
+>> +               /* Process only if the page is still online */
+>> +               page =3D pfn_to_online_page((setbit << PAGE_REPORTING_=
+MIN_ORDER) +
+>> +                                         zone->base_pfn);
+>> +               if (!page)
+>> +                       continue;
+>> +
+> Shouldn't you be clearing the bit and dropping the reference to
+> free_pages before you move on to the next bit? Otherwise you are going
+> to be stuck with those aren't you?
+
+
++1. Thanks for pointing this out.
+
+
+>> +               spin_lock(&zone->lock);
+>> +
+>> +               /* Ensure page is still free and can be processed */
+>> +               if (PageBuddy(page) && page_private(page) >=3D
+>> +                   PAGE_REPORTING_MIN_ORDER)
+>> +                       count =3D process_free_page(page, phconf, coun=
+t);
+>> +
+>> +               spin_unlock(&zone->lock);
+> So I kind of wonder just how much overhead you are taking for bouncing
+> the zone lock once per page here. Especially since it can result in
+> you not actually making any progress since the page may have already
+> been reallocated.
+
+
+Any suggestion about how can I see the overhead involved here?
+
+
+>> +               /* Page has been processed, adjust its bit and zone co=
+unter */
+>> +               clear_bit(setbit, zone->bitmap);
+>> +               atomic_dec(&zone->free_pages);
+> So earlier you were setting this bit and required that the zone->lock
+> be held while doing so. Here you are clearing it without any
+> zone->lock being held.
+
+
+I should have held the zone->lock here while clearing the bit.
+
+
+>
+>> +               if (count =3D=3D phconf->max_pages) {
+>> +                       /* Report isolated pages to the hypervisor */
+>> +                       phconf->report(phconf, count);
+>> +
+>> +                       /* Return processed pages back to the buddy */=
+
+>> +                       return_isolated_page(zone, phconf);
+>> +
+>> +                       /* Reset for next reporting */
+>> +                       sg_init_table(phconf->sg, phconf->max_pages);
+>> +                       count =3D 0;
+>> +               }
+>> +       }
+>> +       /*
+>> +        * If the number of isolated pages does not meet the max_pages=
+
+>> +        * threshold, we would still prefer to report them as we have =
+already
+>> +        * isolated them.
+>> +        */
+>> +       if (count) {
+>> +               sg_mark_end(&phconf->sg[count - 1]);
+>> +               phconf->report(phconf, count);
+>> +
+>> +               return_isolated_page(zone, phconf);
+>> +       }
+>> +}
+>> +
+>> +/**
+>> + * page_reporting_wq - checks the number of free_pages in all the zon=
+es and
+>> + * invokes a request to scan the respective bitmap if free_pages reac=
+hes or
+>> + * exceeds the threshold specified by the backend.
+>> + */
+>> +static void page_reporting_wq(struct work_struct *work)
+>> +{
+>> +       struct page_reporting_config *phconf =3D
+>> +               container_of(work, struct page_reporting_config,
+>> +                            reporting_work);
+>> +       struct zone *zone;
+>> +
+>> +       for_each_populated_zone(zone) {
+>> +               if (atomic_read(&zone->free_pages) >=3D phconf->max_pa=
+ges)
+>> +                       scan_zone_bitmap(phconf, zone);
+>> +       }
+>> +       /*
+>> +        * We have processed all the zones, we can process new page re=
+porting
+>> +        * request now.
+>> +        */
+>> +       atomic_set(&phconf->refcnt, 0);
+> It doesn't make sense to reset the refcnt once you have made a single p=
+ass.
+>
+>> +}
+>> +
+>> +/**
+>> + * __page_reporting_enqueue - tracks the freed page in the respective=
+ zone's
+>> + * bitmap and enqueues a new page reporting job to the workqueue if p=
+ossible.
+>> + */
+>> +void __page_reporting_enqueue(struct page *page)
+>> +{
+>> +       struct page_reporting_config *phconf;
+>> +       struct zone *zone;
+>> +
+>> +       rcu_read_lock();
+>> +       /*
+>> +        * We should not process this page if either page reporting is=
+ not
+>> +        * yet completely enabled or it has been disabled by the backe=
+nd.
+>> +        */
+>> +       phconf =3D rcu_dereference(page_reporting_conf);
+>> +       if (!phconf)
+>> +               return;
+>> +
+>> +       zone =3D page_zone(page);
+>> +       bitmap_set_bit(page, zone);
+>> +
+>> +       /*
+>> +        * We should not enqueue a job if a previously enqueued report=
+ing work
+>> +        * is in progress or we don't have enough free pages in the zo=
+ne.
+>> +        */
+>> +       if (atomic_read(&zone->free_pages) >=3D phconf->max_pages &&
+>> +           !atomic_cmpxchg(&phconf->refcnt, 0, 1))
+> This doesn't make any sense to me. Why are you only incrementing the
+> refcount if it is zero? Combining this with the assignment above, this
+> isn't really a refcnt. It is just an oversized bitflag.
+>
+
+The reason why I have this here is that at a time I only want a single re=
+quest
+to be en-queued.
+Now, every time free_page threshold for any zone is met I am checking eac=
+h zone
+for possible reporting.
+
+I think there are two change required here:
+1. rename this flag.
+2. use refcnt to actually track the usage of page_hinting_config object s=
+eparately.
+
+> Also I am pretty sure this results in the opportunity to miss pages
+> because there is nothing to prevent you from possibly missing a ton of
+> pages you could hint on if a large number of pages are pushed out all
+> at once and then the system goes idle in terms of memory allocation
+> and freeing.
+
+I have failed to reproduce this kind of situation.
+I have a test app which simply allocates large memory chunk, touches it a=
+nd then
+exits. In this case, I get most of the memory back.
+
+
+>
+>> +               schedule_work(&phconf->reporting_work);
+>> +
+>> +       rcu_read_unlock();
+>> +}
+>> +
+>> +/**
+>> + * zone_reporting_cleanup - resets the page reporting fields and free=
+ the
+>> + * bitmap for all the initialized zones.
+>> + */
+>> +static void zone_reporting_cleanup(void)
+>> +{
+>> +       struct zone *zone;
+>> +
+>> +       for_each_populated_zone(zone) {
+>> +               /*
+>> +                * Bitmap may not be allocated for all the zones if th=
+e
+>> +                * initialization fails before reaching to the last on=
+e.
+>> +                */
+>> +               if (!zone->bitmap)
+>> +                       continue;
+>> +               bitmap_free(zone->bitmap);
+>> +               zone->bitmap =3D NULL;
+>> +               atomic_set(&zone->free_pages, 0);
+>> +       }
+>> +}
+>> +
+>> +static int zone_bitmap_alloc(struct zone *zone)
+>> +{
+>> +       unsigned long bitmap_size, pages;
+>> +
+>> +       pages =3D zone->end_pfn - zone->base_pfn;
+>> +       bitmap_size =3D (pages >> PAGE_REPORTING_MIN_ORDER) + 1;
+>> +
+>> +       if (!bitmap_size)
+>> +               return 0;
+>> +
+>> +       zone->bitmap =3D bitmap_zalloc(bitmap_size, GFP_KERNEL);
+>> +       if (!zone->bitmap)
+>> +               return -ENOMEM;
+>> +
+>> +       zone->nbits =3D bitmap_size;
+>> +
+>> +       return 0;
+>> +}
+>> +
+> So as per your comments in the cover page, the two functions above
+> should also probably be plugged into the zone resizing logic somewhere
+> so if a zone is resized the bitmap is adjusted.
+
+
+I think the right way will be to have a common interface which could be c=
+alled
+here and in memory hotplug/unplug case.
+Right now, in my prototype, I have a different functions which adjusts th=
+e size
+of the bitmap based on the memory notifier action.
+
+
+>
+>> +/**
+>> + * zone_reporting_init - For each zone initializes the page reporting=
+ fields
+>> + * and allocates the respective bitmap.
+>> + *
+>> + * This function returns 0 on successful initialization, -ENOMEM othe=
+rwise.
+>> + */
+>> +static int zone_reporting_init(void)
+>> +{
+>> +       struct zone *zone;
+>> +       int ret;
+>> +
+>> +       for_each_populated_zone(zone) {
+>> +#ifdef CONFIG_ZONE_DEVICE
+>> +               /* we can not report pages which are not in the buddy =
+*/
+>> +               if (zone_idx(zone) =3D=3D ZONE_DEVICE)
+>> +                       continue;
+>> +#endif
+> I'm pretty sure this isn't needed since I don't think the ZONE_DEVICE
+> zone will be considered "populated".
+
+
+hmm, I was not aware of it. I will dig in more about it.
+
+
+>
+>> +               spin_lock(&zone->lock);
+>> +               zone->base_pfn =3D zone->zone_start_pfn;
+>> +               zone->end_pfn =3D zone_end_pfn(zone);
+>> +               spin_unlock(&zone->lock);
+>> +
+>> +               ret =3D zone_bitmap_alloc(zone);
+>> +               if (ret < 0) {
+>> +                       zone_reporting_cleanup();
+>> +                       return ret;
+>> +               }
+>> +       }
+>> +
+>> +       return 0;
+>> +}
+>> +
+>> +void page_reporting_disable(struct page_reporting_config *phconf)
+>> +{
+>> +       mutex_lock(&page_reporting_mutex);
+>> +
+>> +       if (rcu_access_pointer(page_reporting_conf) !=3D phconf)
+>> +               return;
+>> +
+>> +       RCU_INIT_POINTER(page_reporting_conf, NULL);
+>> +       synchronize_rcu();
+>> +
+>> +       /* Cancel any pending reporting request */
+>> +       cancel_work_sync(&phconf->reporting_work);
+>> +
+>> +       /* Free the scatterlist used for isolated pages */
+>> +       kfree(phconf->sg);
+>> +       phconf->sg =3D NULL;
+>> +
+>> +       /* Cleanup the bitmaps and old tracking data */
+>> +       zone_reporting_cleanup();
+>> +
+>> +       mutex_unlock(&page_reporting_mutex);
+>> +}
+>> +EXPORT_SYMBOL_GPL(page_reporting_disable);
+>> +
+>> +int page_reporting_enable(struct page_reporting_config *phconf)
+>> +{
+>> +       int ret =3D 0;
+>> +
+>> +       mutex_lock(&page_reporting_mutex);
+>> +
+>> +       /* check if someone is already using page reporting*/
+>> +       if (rcu_access_pointer(page_reporting_conf)) {
+>> +               ret =3D -EBUSY;
+>> +               goto out;
+>> +       }
+>> +
+>> +       /* allocate scatterlist to hold isolated pages */
+>> +       phconf->sg =3D kcalloc(phconf->max_pages, sizeof(*phconf->sg),=
+
+>> +                            GFP_KERNEL);
+>> +       if (!phconf->sg) {
+>> +               ret =3D -ENOMEM;
+>> +               goto out;
+>> +       }
+>> +
+>> +       /* initialize each zone's fields required for page reporting *=
+/
+>> +       ret =3D zone_reporting_init();
+>> +       if (ret < 0) {
+>> +               kfree(phconf->sg);
+>> +               goto out;
+>> +       }
+>> +
+>> +       atomic_set(&phconf->refcnt, 0);
+>> +       INIT_WORK(&phconf->reporting_work, page_reporting_wq);
+>> +
+>> +       /* assign the configuration object provided by the backend */
+>> +       rcu_assign_pointer(page_reporting_conf, phconf);
+>> +
+>> +out:
+>> +       mutex_unlock(&page_reporting_mutex);
+>> +       return ret;
+>> +}
+>> +EXPORT_SYMBOL_GPL(page_reporting_enable);
+>> --
+>> 2.21.0
+>>
+--=20
+Thanks
+Nitesh
+
 
