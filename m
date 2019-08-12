@@ -2,188 +2,223 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1A3BBC433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:03:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 306EAC32750
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:07:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C4F05208C2
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:03:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C4F05208C2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id D976820665
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:07:31 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="mUXTUC7C"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D976820665
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6647D6B000A; Mon, 12 Aug 2019 11:03:32 -0400 (EDT)
+	id 612E06B000D; Mon, 12 Aug 2019 11:07:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 614426B000C; Mon, 12 Aug 2019 11:03:32 -0400 (EDT)
+	id 5C3656B000E; Mon, 12 Aug 2019 11:07:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 502B86B000D; Mon, 12 Aug 2019 11:03:32 -0400 (EDT)
+	id 4B1D86B0010; Mon, 12 Aug 2019 11:07:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0026.hostedemail.com [216.40.44.26])
-	by kanga.kvack.org (Postfix) with ESMTP id 2EDBF6B000A
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 11:03:32 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id D47B5180AD7C1
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:03:31 +0000 (UTC)
-X-FDA: 75814094622.06.dad68_1ea75f2c9f02b
-X-HE-Tag: dad68_1ea75f2c9f02b
-X-Filterd-Recvd-Size: 7701
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf46.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:03:30 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 14069AC6E;
-	Mon, 12 Aug 2019 15:03:29 +0000 (UTC)
-Subject: Re: [PATCH] Add a slab corruption tracepoint
-To: David Howells <dhowells@redhat.com>, Christoph Lameter <cl@linux.com>
-Cc: linux-mm@kvack.org
-References: <26518.1565273511@warthog.procyon.org.uk>
-From: Vlastimil Babka <vbabka@suse.cz>
-Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <2b20bc62-d09c-d340-4f13-e20a850f4d47@suse.cz>
-Date: Mon, 12 Aug 2019 17:03:28 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0183.hostedemail.com [216.40.44.183])
+	by kanga.kvack.org (Postfix) with ESMTP id 251726B000D
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 11:07:31 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id C0F54180AD7C1
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:07:30 +0000 (UTC)
+X-FDA: 75814104660.30.voice00_417e8da9cf65d
+X-HE-Tag: voice00_417e8da9cf65d
+X-Filterd-Recvd-Size: 9859
+Received: from mail-pf1-f195.google.com (mail-pf1-f195.google.com [209.85.210.195])
+	by imf04.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:07:29 +0000 (UTC)
+Received: by mail-pf1-f195.google.com with SMTP id b13so49832364pfo.1
+        for <linux-mm@kvack.org>; Mon, 12 Aug 2019 08:07:29 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=FfJCpjysQVbS87yDleV9efBJ62H70bVd8lRpyhmGjiA=;
+        b=mUXTUC7CkMBCbbdOgWd22eOoshLbMwoFMoQp4tY2RQgykV8jAxvOkDHlG90thkP0F2
+         Lh63qquLYhRU43BqWJtg/mZWx0933vd1hoWixjmZyv2RbLGrHQEVr8QnOKuVcgstRLl4
+         pDP3R2EByEFiYfXTDQbBG4sgYerLUH7/EGHZmqzhi7ifawDhF6MugPaY4v3BAV8v6mLy
+         q9EY11iwePPr9MJFAOcEaxFqa7ZHV0oTl0wezEUIm2mYoGkFyY5uwAKHO8vOWACR3bFT
+         FDbDRUay8rQkx/TrMOUuFwLrxIRD3bU+qVN+BmxcFqIdvXDNCPI1Dz2NoLfStDc+ULVA
+         FzXA==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=FfJCpjysQVbS87yDleV9efBJ62H70bVd8lRpyhmGjiA=;
+        b=dASkXApA55EPiWkMFr1avEZujmLfBbaC6QeFd0aXKgvQOTK5RgKiVVnZcN0guLQTjH
+         AWR7WSjmErig+bcnxE67v6uu9Wd59Ek9p0I/vj0DAaQT44eZfBNyKu/jg3uXo1IPfNcW
+         X+eOvUVg855NjQ2O7yoyQUke315uIp6Mi9uukS25zEpTpDaIDKc8gIKbaaxsYOVqE7uB
+         aPEmxX80Stz3fcV6IhTV/fwEZUrrl9dXNZRS+W2bKCRC+nLqOZjmPco0tPRb/WHDxMHG
+         Jg1s8RHRI4rCGahH3xU1POQ3upi4Rnl9/uMWnYx5V6C/Ktb5tZnmlywXydnRHiJWphIj
+         Qj9g==
+X-Gm-Message-State: APjAAAWHTnJ9Id7vfLgn5AhKKeXhw3iLd2TtM8Fr6txSnT/46L5e84WX
+	OhWSOORABtE/OJwQAE9h9OadgiMH88Y=
+X-Google-Smtp-Source: APXvYqyFnO5i7orfiNCFIgJ8d4gkhfqZkqY3IMYxdxP0CAlBa1w7YwP0CoonnHUoO6Y/TBeiqGg9EA==
+X-Received: by 2002:a63:c64b:: with SMTP id x11mr30441310pgg.319.1565622448538;
+        Mon, 12 Aug 2019 08:07:28 -0700 (PDT)
+Received: from localhost ([2620:10d:c091:500::5810])
+        by smtp.gmail.com with ESMTPSA id e6sm6079914pfl.37.2019.08.12.08.07.27
+        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
+        Mon, 12 Aug 2019 08:07:27 -0700 (PDT)
+Date: Mon, 12 Aug 2019 11:07:25 -0400
+From: Johannes Weiner <hannes@cmpxchg.org>
+To: Michal Hocko <mhocko@kernel.org>
+Cc: Minchan Kim <minchan@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Miguel de Dios <migueldedios@google.com>, Wei Wang <wvw@google.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [RFC PATCH] mm: drop mark_page_access from the unmap path
+Message-ID: <20190812150725.GA3684@cmpxchg.org>
+References: <20190730121110.GA184615@google.com>
+ <20190730123237.GR9330@dhcp22.suse.cz>
+ <20190730123935.GB184615@google.com>
+ <20190730125751.GS9330@dhcp22.suse.cz>
+ <20190731054447.GB155569@google.com>
+ <20190731072101.GX9330@dhcp22.suse.cz>
+ <20190806105509.GA94582@google.com>
+ <20190809124305.GQ18351@dhcp22.suse.cz>
+ <20190809183424.GA22347@cmpxchg.org>
+ <20190812080947.GA5117@dhcp22.suse.cz>
 MIME-Version: 1.0
-In-Reply-To: <26518.1565273511@warthog.procyon.org.uk>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190812080947.GA5117@dhcp22.suse.cz>
+User-Agent: Mutt/1.12.0 (2019-05-25)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/8/19 4:11 PM, David Howells wrote:
->     
-> Add a tracepoint to log slab corruption messages to the trace log also so
-> that it's easier to correlate with other trace messages that are being used
-> to track refcounting.
+On Mon, Aug 12, 2019 at 10:09:47AM +0200, Michal Hocko wrote:
+> On Fri 09-08-19 14:34:24, Johannes Weiner wrote:
+> > On Fri, Aug 09, 2019 at 02:43:24PM +0200, Michal Hocko wrote:
+> > > On Tue 06-08-19 19:55:09, Minchan Kim wrote:
+> > > > On Wed, Jul 31, 2019 at 09:21:01AM +0200, Michal Hocko wrote:
+> > > > > On Wed 31-07-19 14:44:47, Minchan Kim wrote:
+> > > [...]
+> > > > > > As Nick mentioned in the description, without mark_page_accessed in
+> > > > > > zapping part, repeated mmap + touch + munmap never acticated the page
+> > > > > > while several read(2) calls easily promote it.
+> > > > > 
+> > > > > And is this really a problem? If we refault the same page then the
+> > > > > refaults detection should catch it no? In other words is the above still
+> > > > > a problem these days?
+> > > > 
+> > > > I admit we have been not fair for them because read(2) syscall pages are
+> > > > easily promoted regardless of zap timing unlike mmap-based pages.
+> > > > 
+> > > > However, if we remove the mark_page_accessed in the zap_pte_range, it
+> > > > would make them more unfair in that read(2)-accessed pages are easily
+> > > > promoted while mmap-based page should go through refault to be promoted.
+> > > 
+> > > I have really hard time to follow why an unmap special handling is
+> > > making the overall state more reasonable.
+> > > 
+> > > Anyway, let me throw the patch for further discussion. Nick, Mel,
+> > > Johannes what do you think?
+> > > 
+> > > From 3821c2e66347a2141358cabdc6224d9990276fec Mon Sep 17 00:00:00 2001
+> > > From: Michal Hocko <mhocko@suse.com>
+> > > Date: Fri, 9 Aug 2019 14:29:59 +0200
+> > > Subject: [PATCH] mm: drop mark_page_access from the unmap path
+> > > 
+> > > Minchan has noticed that mark_page_access can take quite some time
+> > > during unmap:
+> > > : I had a time to benchmark it via adding some trace_printk hooks between
+> > > : pte_offset_map_lock and pte_unmap_unlock in zap_pte_range. The testing
+> > > : device is 2018 premium mobile device.
+> > > :
+> > > : I can get 2ms delay rather easily to release 2M(ie, 512 pages) when the
+> > > : task runs on little core even though it doesn't have any IPI and LRU
+> > > : lock contention. It's already too heavy.
+> > > :
+> > > : If I remove activate_page, 35-40% overhead of zap_pte_range is gone
+> > > : so most of overhead(about 0.7ms) comes from activate_page via
+> > > : mark_page_accessed. Thus, if there are LRU contention, that 0.7ms could
+> > > : accumulate up to several ms.
+> > > 
+> > > bf3f3bc5e734 ("mm: don't mark_page_accessed in fault path") has replaced
+> > > SetPageReferenced by mark_page_accessed arguing that the former is not
+> > > sufficient when mark_page_accessed is removed from the fault path
+> > > because it doesn't promote page to the active list. It is true that a
+> > > page that is mapped by a single process might not get promoted even when
+> > > referenced if the reclaim checks it after the unmap but does that matter
+> > > that much? Can we cosider the page hot if there are no other
+> > > users? Moreover we do have workingset detection in place since then and
+> > > so a next refault would activate the page if it was really hot one.
+> > 
+> > I do think the pages can be very hot. Think of short-lived executables
+> > and their libraries. Like shell commands. When they run a few times or
+> > periodically, they should be promoted to the active list and not have
+> > to compete with streaming IO on the inactive list - the PG_referenced
+> > doesn't really help them there, see page_check_references().
 > 
-> Signed-off-by: David Howells <dhowells@redhat.com>
-
-Shouldn't that include SLUB? I'm surprised to see SLAB used for
-debugging refcounting these days, as the SLUB debugging features are
-vastly superior, while SLAB ones are being sometimes found to be broken
-for years and removed.
-
-> ---
->  include/trace/events/kmem.h |   23 +++++++++++++++++++++++
->  mm/slab.c                   |    2 ++
->  2 files changed, 25 insertions(+)
+> Yeah, I am aware of that. We do rely on more processes to map the page
+> which I've tried to explain in the changelog.
 > 
-> diff --git a/include/trace/events/kmem.h b/include/trace/events/kmem.h
-> index eb57e3037deb..c96f3b03a6e2 100644
-> --- a/include/trace/events/kmem.h
-> +++ b/include/trace/events/kmem.h
-> @@ -315,6 +315,29 @@ TRACE_EVENT(mm_page_alloc_extfrag,
->  		__entry->change_ownership)
->  );
->  
-> +TRACE_EVENT(slab_corruption,
-> +	TP_PROTO(const char *slab, void *object, unsigned int size, unsigned int offset),
-> +
-> +	TP_ARGS(slab, object, size, offset),
-> +
-> +	TP_STRUCT__entry(
-> +		__field(	void *,		object		)
-> +		__field(	unsigned int,	size		)
-> +		__field(	unsigned int,	offset		)
-> +		__array(	char,		slab, 16	)
-> +	),
-> +
-> +	TP_fast_assign(
-> +		strlcpy(__entry->slab, slab, sizeof(__entry->slab));
-> +		__entry->object		= object;
-> +		__entry->size		= size;
-> +		__entry->offset		= offset;
-> +	),
-> +
-> +	TP_printk("slab=%s obj=%px size=%x off=%x",
-> +		  __entry->slab, __entry->object, __entry->size, __entry->offset)
-> +);
-> +
->  #endif /* _TRACE_KMEM_H */
->  
->  /* This part must be outside protection */
-> diff --git a/mm/slab.c b/mm/slab.c
-> index 9df370558e5d..47c5a86e39be 100644
-> --- a/mm/slab.c
-> +++ b/mm/slab.c
-> @@ -1527,6 +1527,8 @@ static void check_poison_obj(struct kmem_cache *cachep, void *objp)
->  				       print_tainted(), cachep->name,
->  				       realobj, size);
->  				print_objinfo(cachep, objp, 0);
-> +				trace_slab_corruption(cachep->name, realobj,
-> +						      size, i);
->  			}
->  			/* Hexdump the affected line */
->  			i = (i / 16) * 16;
-> 
+> Btw. can we promote PageReferenced pages with zero mapcount? I am
+> throwing that more as an idea because I haven't really thought that
+> through yet.
 
+That flag implements a second-chance policy, see this commit:
+
+commit 645747462435d84c6c6a64269ed49cc3015f753d
+Author: Johannes Weiner <hannes@cmpxchg.org>
+Date:   Fri Mar 5 13:42:22 2010 -0800
+
+    vmscan: detect mapped file pages used only once
+
+We had an application that would checksum large files using mmapped IO
+to avoid double buffering. The VM used to activate mapped cache
+directly, and it trashed the actual workingset.
+
+In response I added support for use-once mapped pages using this flag.
+SetPageReferenced signals the VM that we're not sure about the page
+yet and give it another round trip on the LRU.
+
+If you activate on this flag, it would restore the initial problem of
+use-once pages trashing the workingset.
+
+> > Maybe the refaults will be fine - but latency expectations around
+> > mapped page cache certainly are a lot higher than unmapped cache.
+> >
+> > So I'm a bit reluctant about this patch. If Minchan can be happy with
+> > the lock batching, I'd prefer that.
+> 
+> Yes, it seems that the regular lock drop&relock helps in Minchan's case
+> but this is a kind of change that might have other subtle side effects.
+> E.g. will-it-scale has noticed a regression [1], likely because the
+> critical section is shorter and the overal throughput of the operation
+> decreases. Now, the w-i-s is an artificial benchmark so I wouldn't lose
+> much sleep over it normally but we have already seen real regressions
+> when the locking pattern has changed in the past so I would by a bit
+> cautious.
+
+I'm much more concerned about fundamentally changing the aging policy
+of mapped page cache then about the lock breaking scheme. With locking
+we worry about CPU effects; with aging we worry about additional IO.
+
+> As I've said, this RFC is mostly to open a discussion. I would really
+> like to weigh the overhead of mark_page_accessed and potential scenario
+> when refaults would be visible in practice. I can imagine that a short
+> lived statically linked applications have higher chance of being the
+> only user unlike libraries which are often being mapped via several
+> ptes. But the main problem to evaluate this is that there are many other
+> external factors to trigger the worst case.
+
+We can discuss the pros and cons, but ultimately we simply need to
+test it against real workloads to see if changing the promotion rules
+regresses the amount of paging we do in practice.
 
