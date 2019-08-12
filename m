@@ -2,154 +2,241 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B0FD8C31E40
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 23:38:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 298FCC433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 23:50:20 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6EBBA20679
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 23:38:02 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="MIb4O3Hi"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6EBBA20679
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id D7CA420679
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 23:50:19 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D7CA420679
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 0C5046B0003; Mon, 12 Aug 2019 19:38:02 -0400 (EDT)
+	id 5C44C6B0003; Mon, 12 Aug 2019 19:50:19 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 07A256B0005; Mon, 12 Aug 2019 19:38:01 -0400 (EDT)
+	id 574F46B0005; Mon, 12 Aug 2019 19:50:19 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E30CC6B0006; Mon, 12 Aug 2019 19:38:01 -0400 (EDT)
+	id 43BC66B0006; Mon, 12 Aug 2019 19:50:19 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0024.hostedemail.com [216.40.44.24])
-	by kanga.kvack.org (Postfix) with ESMTP id C41D86B0003
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 19:38:01 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 7072552A2
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 23:38:01 +0000 (UTC)
-X-FDA: 75815391162.30.dad89_bcb916a33234
-X-HE-Tag: dad89_bcb916a33234
-X-Filterd-Recvd-Size: 4813
-Received: from mx0a-00082601.pphosted.com (mx0b-00082601.pphosted.com [67.231.153.30])
-	by imf33.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 23:38:00 +0000 (UTC)
-Received: from pps.filterd (m0001303.ppops.net [127.0.0.1])
-	by m0001303.ppops.net (8.16.0.27/8.16.0.27) with SMTP id x7CNb71k012878
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 16:38:00 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : mime-version : content-type; s=facebook;
- bh=tVey46Cm3zNCRvto/Hdvva3sak33TFnvfc8h7R+vI7Y=;
- b=MIb4O3Hiizwuwf7yUFUwxnzEV0yRBP7LlCmdkJ4WjeH6zOD2N2xgbpAqrmByyq87MEgS
- 6VaEboh9wxtdU7GQRgWDuMjDoALxE7LMmWSRlfjzIUVf7HmEXItNYzx/LLH0sV/dD6sS
- S8Ab7T2UnHEnjTZbHMFPfX0QtLYwLZn4JO4= 
-Received: from mail.thefacebook.com (mailout.thefacebook.com [199.201.64.23])
-	by m0001303.ppops.net with ESMTP id 2ubbbpstum-1
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-SHA384 bits=256 verify=NOT)
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 16:38:00 -0700
-Received: from mx-out.facebook.com (2620:10d:c081:10::13) by
- mail.thefacebook.com (2620:10d:c081:35::128) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA) id 15.1.1713.5;
- Mon, 12 Aug 2019 16:37:58 -0700
-Received: by devvm2643.prn2.facebook.com (Postfix, from userid 111017)
-	id 86A9E164048AD; Mon, 12 Aug 2019 16:37:56 -0700 (PDT)
-Smtp-Origin-Hostprefix: devvm
-From: Roman Gushchin <guro@fb.com>
-Smtp-Origin-Hostname: devvm2643.prn2.facebook.com
-To: Andrew Morton <akpm@linux-foundation.org>, <linux-mm@kvack.org>
-CC: Michal Hocko <mhocko@kernel.org>, Johannes Weiner <hannes@cmpxchg.org>,
-        <linux-kernel@vger.kernel.org>, <kernel-team@fb.com>,
-        Roman Gushchin
-	<guro@fb.com>
-Smtp-Origin-Cluster: prn2c23
-Subject: [PATCH] mm: memcontrol: flush percpu vmevents before releasing memcg
-Date: Mon, 12 Aug 2019 16:37:54 -0700
-Message-ID: <20190812233754.2570543-1-guro@fb.com>
-X-Mailer: git-send-email 2.17.1
-X-FB-Internal: Safe
+Received: from forelay.hostedemail.com (smtprelay0070.hostedemail.com [216.40.44.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 1E2396B0003
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 19:50:19 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id C8FF2181AC9AE
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 23:50:18 +0000 (UTC)
+X-FDA: 75815422116.13.blood96_770af6feeaa4a
+X-HE-Tag: blood96_770af6feeaa4a
+X-Filterd-Recvd-Size: 8368
+Received: from mga18.intel.com (mga18.intel.com [134.134.136.126])
+	by imf11.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 23:50:17 +0000 (UTC)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga004.fm.intel.com ([10.253.24.48])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Aug 2019 16:49:50 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,379,1559545200"; 
+   d="scan'208";a="200305528"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga004.fm.intel.com with ESMTP; 12 Aug 2019 16:49:50 -0700
+Date: Mon, 12 Aug 2019 16:49:50 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: john.hubbard@gmail.com
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Christoph Hellwig <hch@infradead.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
+	linux-fsdevel@vger.kernel.org, linux-rdma@vger.kernel.org,
+	John Hubbard <jhubbard@nvidia.com>
+Subject: Re: [RFC PATCH 2/2] mm/gup: introduce vaddr_pin_pages_remote()
+Message-ID: <20190812234950.GA6455@iweiny-DESK2.sc.intel.com>
+References: <20190812015044.26176-1-jhubbard@nvidia.com>
+ <20190812015044.26176-3-jhubbard@nvidia.com>
 MIME-Version: 1.0
-Content-Type: text/plain
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-12_09:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=2 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=884 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908120232
-X-FB-Internal: deliver
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190812015044.26176-3-jhubbard@nvidia.com>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Similar to vmstats, percpu caching of local vmevents leads to an
-accumulation of errors on non-leaf levels. This happens because
-some leftovers may remain in percpu caches, so that they are
-never propagated up by the cgroup tree and just disappear into
-nonexistence with on releasing of the memory cgroup.
+On Sun, Aug 11, 2019 at 06:50:44PM -0700, john.hubbard@gmail.com wrote:
+> From: John Hubbard <jhubbard@nvidia.com>
+> 
+> This is the "vaddr_pin_pages" corresponding variant to
+> get_user_pages_remote(), but with FOLL_PIN semantics: the implementation
+> sets FOLL_PIN. That, in turn, means that the pages must ultimately be
+> released by put_user_page*()--typically, via vaddr_unpin_pages*().
+> 
+> Note that the put_user_page*() requirement won't be truly
+> required until all of the call sites have been converted, and
+> the tracking of pages is actually activated.
+> 
+> Also introduce vaddr_unpin_pages(), in order to have a simpler
+> call for the error handling cases.
+> 
+> Use both of these new calls in the Infiniband drive, replacing
+> get_user_pages_remote() and put_user_pages().
+> 
+> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
+> ---
+>  drivers/infiniband/core/umem_odp.c | 15 +++++----
+>  include/linux/mm.h                 |  7 +++++
+>  mm/gup.c                           | 50 ++++++++++++++++++++++++++++++
+>  3 files changed, 66 insertions(+), 6 deletions(-)
+> 
+> diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
+> index 53085896d718..fdff034a8a30 100644
+> --- a/drivers/infiniband/core/umem_odp.c
+> +++ b/drivers/infiniband/core/umem_odp.c
+> @@ -534,7 +534,7 @@ static int ib_umem_odp_map_dma_single_page(
+>  	}
+>  
+>  out:
+> -	put_user_page(page);
+> +	vaddr_unpin_pages(&page, 1, &umem_odp->umem.vaddr_pin);
+>  
+>  	if (remove_existing_mapping) {
+>  		ib_umem_notifier_start_account(umem_odp);
+> @@ -635,9 +635,10 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
+>  		 * complex (and doesn't gain us much performance in most use
+>  		 * cases).
+>  		 */
+> -		npages = get_user_pages_remote(owning_process, owning_mm,
+> +		npages = vaddr_pin_pages_remote(owning_process, owning_mm,
+>  				user_virt, gup_num_pages,
+> -				flags, local_page_list, NULL, NULL);
+> +				flags, local_page_list, NULL, NULL,
+> +				&umem_odp->umem.vaddr_pin);
 
-To fix this issue let's accumulate and propagate percpu vmevents
-values before releasing the memory cgroup similar to what we're
-doing with vmstats.
+Thinking about this part of the patch... is this pin really necessary?  This
+code is not doing a long term pin.  The page just needs a reference while we
+map it into the devices page tables.  Once that is done we should get notifiers
+if anything changes and we can adjust.  right?
 
-Since on cpu hotplug we do flush percpu vmstats anyway, we can
-iterate only over online cpus.
+Ira
 
-Fixes: 42a300353577 ("mm: memcontrol: fix recursive statistics correctness & scalabilty")
-Signed-off-by: Roman Gushchin <guro@fb.com>
-Cc: Johannes Weiner <hannes@cmpxchg.org>
----
- mm/memcontrol.c | 22 +++++++++++++++++++++-
- 1 file changed, 21 insertions(+), 1 deletion(-)
-
-diff --git a/mm/memcontrol.c b/mm/memcontrol.c
-index 6d2427abcc0c..249187907339 100644
---- a/mm/memcontrol.c
-+++ b/mm/memcontrol.c
-@@ -3459,6 +3459,25 @@ static void memcg_flush_percpu_vmstats(struct mem_cgroup *memcg, bool slab_only)
- 	}
- }
- 
-+static void memcg_flush_percpu_vmevents(struct mem_cgroup *memcg)
-+{
-+	unsigned long events[NR_VM_EVENT_ITEMS];
-+	struct mem_cgroup *mi;
-+	int cpu, i;
-+
-+	for (i = 0; i < NR_VM_EVENT_ITEMS; i++)
-+		events[i] = 0;
-+
-+	for_each_online_cpu(cpu)
-+		for (i = 0; i < NR_VM_EVENT_ITEMS; i++)
-+			events[i] += raw_cpu_read(
-+				memcg->vmstats_percpu->events[i]);
-+
-+	for (mi = memcg; mi; mi = parent_mem_cgroup(mi))
-+		for (i = 0; i < NR_VM_EVENT_ITEMS; i++)
-+			atomic_long_add(events[i], &mi->vmevents[i]);
-+}
-+
- static void memcg_offline_kmem(struct mem_cgroup *memcg)
- {
- 	struct cgroup_subsys_state *css;
-@@ -4860,10 +4879,11 @@ static void __mem_cgroup_free(struct mem_cgroup *memcg)
- 	int node;
- 
- 	/*
--	 * Flush percpu vmstats to guarantee the value correctness
-+	 * Flush percpu vmstats and vmevents to guarantee the value correctness
- 	 * on parent's and all ancestor levels.
- 	 */
- 	memcg_flush_percpu_vmstats(memcg, false);
-+	memcg_flush_percpu_vmevents(memcg);
- 	for_each_node(node)
- 		free_mem_cgroup_per_node_info(memcg, node);
- 	free_percpu(memcg->vmstats_percpu);
--- 
-2.21.0
-
+>  		up_read(&owning_mm->mmap_sem);
+>  
+>  		if (npages < 0) {
+> @@ -657,7 +658,8 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
+>  					ret = -EFAULT;
+>  					break;
+>  				}
+> -				put_user_page(local_page_list[j]);
+> +				vaddr_unpin_pages(&local_page_list[j], 1,
+> +						  &umem_odp->umem.vaddr_pin);
+>  				continue;
+>  			}
+>  
+> @@ -684,8 +686,9 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
+>  			 * ib_umem_odp_map_dma_single_page().
+>  			 */
+>  			if (npages - (j + 1) > 0)
+> -				put_user_pages(&local_page_list[j+1],
+> -					       npages - (j + 1));
+> +				vaddr_unpin_pages(&local_page_list[j+1],
+> +						  npages - (j + 1),
+> +						  &umem_odp->umem.vaddr_pin);
+>  			break;
+>  		}
+>  	}
+> diff --git a/include/linux/mm.h b/include/linux/mm.h
+> index 61b616cd9243..2bd76ad8787e 100644
+> --- a/include/linux/mm.h
+> +++ b/include/linux/mm.h
+> @@ -1606,6 +1606,13 @@ int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
+>  long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
+>  		     unsigned int gup_flags, struct page **pages,
+>  		     struct vaddr_pin *vaddr_pin);
+> +long vaddr_pin_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
+> +			    unsigned long start, unsigned long nr_pages,
+> +			    unsigned int gup_flags, struct page **pages,
+> +			    struct vm_area_struct **vmas, int *locked,
+> +			    struct vaddr_pin *vaddr_pin);
+> +void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
+> +		       struct vaddr_pin *vaddr_pin);
+>  void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
+>  				  struct vaddr_pin *vaddr_pin, bool make_dirty);
+>  bool mapping_inode_has_layout(struct vaddr_pin *vaddr_pin, struct page *page);
+> diff --git a/mm/gup.c b/mm/gup.c
+> index 85f09958fbdc..bb95adfaf9b6 100644
+> --- a/mm/gup.c
+> +++ b/mm/gup.c
+> @@ -2518,6 +2518,38 @@ long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
+>  }
+>  EXPORT_SYMBOL(vaddr_pin_pages);
+>  
+> +/**
+> + * vaddr_pin_pages pin pages by virtual address and return the pages to the
+> + * user.
+> + *
+> + * @tsk:	the task_struct to use for page fault accounting, or
+> + *		NULL if faults are not to be recorded.
+> + * @mm:		mm_struct of target mm
+> + * @addr:	start address
+> + * @nr_pages:	number of pages to pin
+> + * @gup_flags:	flags to use for the pin
+> + * @pages:	array of pages returned
+> + * @vaddr_pin:	initialized meta information this pin is to be associated
+> + * with.
+> + *
+> + * This is the "vaddr_pin_pages" corresponding variant to
+> + * get_user_pages_remote(), but with FOLL_PIN semantics: the implementation sets
+> + * FOLL_PIN. That, in turn, means that the pages must ultimately be released
+> + * by put_user_page().
+> + */
+> +long vaddr_pin_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
+> +			    unsigned long start, unsigned long nr_pages,
+> +			    unsigned int gup_flags, struct page **pages,
+> +			    struct vm_area_struct **vmas, int *locked,
+> +			    struct vaddr_pin *vaddr_pin)
+> +{
+> +	gup_flags |= FOLL_TOUCH | FOLL_REMOTE | FOLL_PIN;
+> +
+> +	return __get_user_pages_locked(tsk, mm, start, nr_pages, pages, vmas,
+> +				       locked, gup_flags, vaddr_pin);
+> +}
+> +EXPORT_SYMBOL(vaddr_pin_pages_remote);
+> +
+>  /**
+>   * vaddr_unpin_pages_dirty_lock - counterpart to vaddr_pin_pages
+>   *
+> @@ -2536,3 +2568,21 @@ void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
+>  	__put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, make_dirty);
+>  }
+>  EXPORT_SYMBOL(vaddr_unpin_pages_dirty_lock);
+> +
+> +/**
+> + * vaddr_unpin_pages - simple, non-dirtying counterpart to vaddr_pin_pages
+> + *
+> + * @pages: array of pages returned
+> + * @nr_pages: number of pages in pages
+> + * @vaddr_pin: same information passed to vaddr_pin_pages
+> + *
+> + * Like vaddr_unpin_pages_dirty_lock, but for non-dirty pages. Useful in putting
+> + * back pages in an error case: they were never made dirty.
+> + */
+> +void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
+> +		       struct vaddr_pin *vaddr_pin)
+> +{
+> +	__put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, false);
+> +}
+> +EXPORT_SYMBOL(vaddr_unpin_pages);
+> +
+> -- 
+> 2.22.0
+> 
 
