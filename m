@@ -2,126 +2,117 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 617B8C31E40
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:20:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id A5E56C31E40
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:21:52 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2006120665
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:20:56 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="W1JJqGlN"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2006120665
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 6F70F20665
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:21:52 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6F70F20665
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.ibm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B11AD6B0007; Mon, 12 Aug 2019 11:20:55 -0400 (EDT)
+	id 237486B000E; Mon, 12 Aug 2019 11:21:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AC2366B000E; Mon, 12 Aug 2019 11:20:55 -0400 (EDT)
+	id 1C1396B0010; Mon, 12 Aug 2019 11:21:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9D9786B0010; Mon, 12 Aug 2019 11:20:55 -0400 (EDT)
+	id 0AFFB6B0266; Mon, 12 Aug 2019 11:21:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0102.hostedemail.com [216.40.44.102])
-	by kanga.kvack.org (Postfix) with ESMTP id 7DF7C6B0007
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 11:20:55 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 2F56E281A
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:20:55 +0000 (UTC)
-X-FDA: 75814138470.14.table68_2514b73193e21
-X-HE-Tag: table68_2514b73193e21
-X-Filterd-Recvd-Size: 4580
-Received: from mail-ot1-f67.google.com (mail-ot1-f67.google.com [209.85.210.67])
-	by imf28.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:20:54 +0000 (UTC)
-Received: by mail-ot1-f67.google.com with SMTP id r20so10317106ota.5
-        for <linux-mm@kvack.org>; Mon, 12 Aug 2019 08:20:54 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=y942T0sqUtRFxvyP+0sjKx+0c1PT5SZ2qa8t2fKDAFs=;
-        b=W1JJqGlN7ks0BxXMoB5/KNFf0nROJKOybkqJ3cMs4ab0iL75KVUafriWVN/E2cXEcY
-         O3K1ggu/sQaRj/xiNZ9O7MVWaLBiZMFdO/1MnRO6Vk7ME3/5peR5kdpkxJuB5oyachfk
-         8A1p9DZAF9gn9rQq4QW/RoiO9zf46h9rMAh9Ngv1G3Mxc8W8iKJU1rZhENWpQoBn1MkR
-         q/rd7cfqkWyzM2uJ71cL67Hm2hPCH/+QkjFnruZEGUER+hIwreqxsfn5TzbhXzuO8BZc
-         qd8my03dztvuYLIviS608mRiHqNoxRJ2sL4KscopZRh1NZJKF6FXfZ2kl0V6Z2nAkT5k
-         67PQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=y942T0sqUtRFxvyP+0sjKx+0c1PT5SZ2qa8t2fKDAFs=;
-        b=cYL0HFgHhK1Ee6omlGRtHjWKiIaq/Sm9CkPbD1tl4QgK6s2Vo5MVYchOJZuBRj9O02
-         uxCcdTugEsreuFziXeVayZytbcd30IyaZ2MCDtIsObjCuHroN0iQ2GeKdiRtTmuM8KVX
-         38/dg+HM/oHZ1LeoBa04j6sWiXodIH7n8bk1Dsqyqz0hUYyvetjEbgxwvjMVwYLy6UiV
-         q711LEOUKs/pNY9Pge/GkN6SEeiMEQ3sjcVVZ6+Ri75/sWJ+fWqzC63XzaCf8zP6oZQH
-         eO19zi4PgzKkVAF2bVkZpwwe4tgDSQmz8NaxeqaN9SDhejvMFEd5jdTK0R98AurZIDJX
-         SNng==
-X-Gm-Message-State: APjAAAUepXBE8mssVBFAjWbd1xPk7abW1RoKxp/pGUS9ZCtxCGho9DLf
-	xce8JP+xneomFrPY/LUQG7uLa76tFHSSwXOVV18=
-X-Google-Smtp-Source: APXvYqy9RJAJ67fbKLDTn0LncfVL9ev90bkQOYTqrem2KxlTH8J/PW8bomoaqWAAmMVPPE6mcs7yIw7PbWL3Dvd97d4=
-X-Received: by 2002:a5e:8c11:: with SMTP id n17mr33490391ioj.64.1565623253892;
- Mon, 12 Aug 2019 08:20:53 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0164.hostedemail.com [216.40.44.164])
+	by kanga.kvack.org (Postfix) with ESMTP id D8A1F6B000E
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 11:21:51 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 86B86180AD7C3
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:21:51 +0000 (UTC)
+X-FDA: 75814140822.07.ball08_2d4762359f661
+X-HE-Tag: ball08_2d4762359f661
+X-Filterd-Recvd-Size: 4141
+Received: from mx0a-001b2d01.pphosted.com (mx0b-001b2d01.pphosted.com [148.163.158.5])
+	by imf41.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:21:51 +0000 (UTC)
+Received: from pps.filterd (m0098417.ppops.net [127.0.0.1])
+	by mx0a-001b2d01.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7CElYTF121330
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 10:51:09 -0400
+Received: from e06smtp01.uk.ibm.com (e06smtp01.uk.ibm.com [195.75.94.97])
+	by mx0a-001b2d01.pphosted.com with ESMTP id 2ub9f12bcc-1
+	(version=TLSv1.2 cipher=AES256-GCM-SHA384 bits=256 verify=NOT)
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 10:51:08 -0400
+Received: from localhost
+	by e06smtp01.uk.ibm.com with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted
+	for <linux-mm@kvack.org> from <bharata@linux.ibm.com>;
+	Mon, 12 Aug 2019 15:51:06 +0100
+Received: from b06cxnps4075.portsmouth.uk.ibm.com (9.149.109.197)
+	by e06smtp01.uk.ibm.com (192.168.101.131) with IBM ESMTP SMTP Gateway: Authorized Use Only! Violators will be prosecuted;
+	(version=TLSv1/SSLv3 cipher=AES256-GCM-SHA384 bits=256/256)
+	Mon, 12 Aug 2019 15:51:03 +0100
+Received: from d06av25.portsmouth.uk.ibm.com (d06av25.portsmouth.uk.ibm.com [9.149.105.61])
+	by b06cxnps4075.portsmouth.uk.ibm.com (8.14.9/8.14.9/NCO v10.0) with ESMTP id x7CEp23F51904690
+	(version=TLSv1/SSLv3 cipher=DHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Mon, 12 Aug 2019 14:51:02 GMT
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 77A5F11C066;
+	Mon, 12 Aug 2019 14:51:02 +0000 (GMT)
+Received: from d06av25.portsmouth.uk.ibm.com (unknown [127.0.0.1])
+	by IMSVA (Postfix) with ESMTP id 2C6D311C04A;
+	Mon, 12 Aug 2019 14:51:01 +0000 (GMT)
+Received: from in.ibm.com (unknown [9.85.87.231])
+	by d06av25.portsmouth.uk.ibm.com (Postfix) with ESMTPS;
+	Mon, 12 Aug 2019 14:51:01 +0000 (GMT)
+Date: Mon, 12 Aug 2019 20:20:58 +0530
+From: Bharata B Rao <bharata@linux.ibm.com>
+To: Christoph Hellwig <hch@lst.de>
+Cc: Dan Williams <dan.j.williams@intel.com>,
+        Jason Gunthorpe <jgg@mellanox.com>,
+        Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+        linux-kernel@vger.kernel.org, linux-nvdimm@lists.01.org
+Subject: Re: [PATCH 5/5] memremap: provide a not device managed memremap_pages
+Reply-To: bharata@linux.ibm.com
+References: <20190811081247.22111-1-hch@lst.de>
+ <20190811081247.22111-6-hch@lst.de>
 MIME-Version: 1.0
-References: <20190807224037.6891.53512.stgit@localhost.localdomain>
- <20190807224219.6891.25387.stgit@localhost.localdomain> <20190812055054-mutt-send-email-mst@kernel.org>
-In-Reply-To: <20190812055054-mutt-send-email-mst@kernel.org>
-From: Alexander Duyck <alexander.duyck@gmail.com>
-Date: Mon, 12 Aug 2019 08:20:43 -0700
-Message-ID: <CAKgT0Ucr7GKWsP5sxSbDTtW_7puSqwXDM7y_ZD8i2zNrKNScEw@mail.gmail.com>
-Subject: Re: [PATCH v4 6/6] virtio-balloon: Add support for providing unused
- page reports to host
-To: "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
-	David Hildenbrand <david@redhat.com>, Dave Hansen <dave.hansen@intel.com>, 
-	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
-	Andrew Morton <akpm@linux-foundation.org>, Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com, 
-	Rik van Riel <riel@surriel.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, 
-	Matthew Wilcox <willy@infradead.org>, lcapitulino@redhat.com, wei.w.wang@intel.com, 
-	Andrea Arcangeli <aarcange@redhat.com>, Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com, 
-	Alexander Duyck <alexander.h.duyck@linux.intel.com>
-Content-Type: text/plain; charset="UTF-8"
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190811081247.22111-6-hch@lst.de>
+User-Agent: Mutt/1.12.0 (2019-05-25)
+X-TM-AS-GCONF: 00
+x-cbid: 19081214-4275-0000-0000-000003583F34
+X-IBM-AV-DETECTION: SAVI=unused REMOTE=unused XFE=unused
+x-cbparentid: 19081214-4276-0000-0000-0000386A4BE6
+Message-Id: <20190812145058.GA16950@in.ibm.com>
+X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-12_06:,,
+ signatures=0
+X-Proofpoint-Spam-Details: rule=outbound_notspam policy=outbound score=0 priorityscore=1501
+ malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
+ clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
+ mlxlogscore=663 adultscore=0 classifier=spam adjust=0 reason=mlx
+ scancount=1 engine=8.0.1-1906280000 definitions=main-1908120166
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 12, 2019 at 2:53 AM Michael S. Tsirkin <mst@redhat.com> wrote:
->
-> On Wed, Aug 07, 2019 at 03:42:19PM -0700, Alexander Duyck wrote:
-> > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+On Sun, Aug 11, 2019 at 10:12:47AM +0200, Christoph Hellwig wrote:
+> The kvmppc ultravisor code wants a device private memory pool that is
+> system wide and not attached to a device.  Instead of faking up one
+> provide a low-level memremap_pages for it.  Note that this function is
+> not exported, and doesn't have a cleanup routine associated with it to
+> discourage use from more driver like users.
 
-<snip>
+The kvmppc secure pages management code will be part of kvm-hv which
+can be built as module too. So it would require memremap_pages() to be
+exported.
 
-> > --- a/include/uapi/linux/virtio_balloon.h
-> > +++ b/include/uapi/linux/virtio_balloon.h
-> > @@ -36,6 +36,7 @@
-> >  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM      2 /* Deflate balloon on OOM */
-> >  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT      3 /* VQ to report free pages */
-> >  #define VIRTIO_BALLOON_F_PAGE_POISON 4 /* Guest is using page poisoning */
-> > +#define VIRTIO_BALLOON_F_REPORTING   5 /* Page reporting virtqueue */
-> >
-> >  /* Size of a PFN in the balloon interface. */
-> >  #define VIRTIO_BALLOON_PFN_SHIFT 12
->
-> Just a small comment: same as any feature bit,
-> or indeed any host/guest interface changes, please
-> CC virtio-dev on any changes to this UAPI file.
-> We must maintain these in the central place in the spec,
-> otherwise we run a risk of conflicts.
->
+Additionally, non-dev version of the cleanup routine
+devm_memremap_pages_release() or equivalent would also be requried.
+With device being present, put_device() used to take care of this
+cleanup.
 
-Okay, other than that if I resubmit with the virtio-dev list added to
-you thing this patch set is ready to be acked and pulled into either
-the virtio or mm tree assuming there is no other significant feedback
-that comes in?
+Regards,
+Bharata.
 
-Thanks.
-
-- Alex
 
