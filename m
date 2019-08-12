@@ -2,167 +2,130 @@ Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CDF0BC433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:50:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0B7FDC433FF
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:51:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9BEC420679
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:50:11 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9BEC420679
+	by mail.kernel.org (Postfix) with ESMTP id C438B20679
+	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 15:51:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C438B20679
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 35BC36B0003; Mon, 12 Aug 2019 11:50:11 -0400 (EDT)
+	id 6193B6B0006; Mon, 12 Aug 2019 11:51:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 30B756B0005; Mon, 12 Aug 2019 11:50:11 -0400 (EDT)
+	id 5CA0A6B0007; Mon, 12 Aug 2019 11:51:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1FB0E6B0006; Mon, 12 Aug 2019 11:50:11 -0400 (EDT)
+	id 4B8826B0008; Mon, 12 Aug 2019 11:51:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0059.hostedemail.com [216.40.44.59])
-	by kanga.kvack.org (Postfix) with ESMTP id EDF7B6B0003
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 11:50:10 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id A3396125C
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:50:10 +0000 (UTC)
-X-FDA: 75814212180.06.able88_17460a032d63
-X-HE-Tag: able88_17460a032d63
-X-Filterd-Recvd-Size: 7199
+Received: from forelay.hostedemail.com (smtprelay0242.hostedemail.com [216.40.44.242])
+	by kanga.kvack.org (Postfix) with ESMTP id 2A0FF6B0006
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 11:51:16 -0400 (EDT)
+Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id BF0A28248AA2
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:51:15 +0000 (UTC)
+X-FDA: 75814214910.10.wood04_af9227d0924c
+X-HE-Tag: wood04_af9227d0924c
+X-Filterd-Recvd-Size: 3986
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf45.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:50:09 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx08.intmail.prod.int.phx2.redhat.com [10.5.11.23])
+	by imf24.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 15:51:15 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 072C23D956;
-	Mon, 12 Aug 2019 15:50:09 +0000 (UTC)
-Received: from [10.36.117.7] (ovpn-117-7.ams2.redhat.com [10.36.117.7])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id ED0EA261BB;
-	Mon, 12 Aug 2019 15:49:56 +0000 (UTC)
-Subject: Re: [PATCH v4 6/6] virtio-balloon: Add support for providing unused
- page reports to host
-To: Alexander Duyck <alexander.duyck@gmail.com>,
- "Michael S. Tsirkin" <mst@redhat.com>
-Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>,
- Dave Hansen <dave.hansen@intel.com>, LKML <linux-kernel@vger.kernel.org>,
- linux-mm <linux-mm@kvack.org>, Andrew Morton <akpm@linux-foundation.org>,
- Yang Zhang <yang.zhang.wz@gmail.com>, pagupta@redhat.com,
- Rik van Riel <riel@surriel.com>,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- Matthew Wilcox <willy@infradead.org>, lcapitulino@redhat.com,
- wei.w.wang@intel.com, Andrea Arcangeli <aarcange@redhat.com>,
- Paolo Bonzini <pbonzini@redhat.com>, dan.j.williams@intel.com,
- Alexander Duyck <alexander.h.duyck@linux.intel.com>,
- Michal Hocko <mhocko@kernel.org>, Oscar Salvador <osalvador@suse.de>
-References: <20190807224037.6891.53512.stgit@localhost.localdomain>
- <20190807224219.6891.25387.stgit@localhost.localdomain>
- <20190812055054-mutt-send-email-mst@kernel.org>
- <CAKgT0Ucr7GKWsP5sxSbDTtW_7puSqwXDM7y_ZD8i2zNrKNScEw@mail.gmail.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- xsFNBFXLn5EBEAC+zYvAFJxCBY9Tr1xZgcESmxVNI/0ffzE/ZQOiHJl6mGkmA1R7/uUpiCjJ
- dBrn+lhhOYjjNefFQou6478faXE6o2AhmebqT4KiQoUQFV4R7y1KMEKoSyy8hQaK1umALTdL
- QZLQMzNE74ap+GDK0wnacPQFpcG1AE9RMq3aeErY5tujekBS32jfC/7AnH7I0v1v1TbbK3Gp
- XNeiN4QroO+5qaSr0ID2sz5jtBLRb15RMre27E1ImpaIv2Jw8NJgW0k/D1RyKCwaTsgRdwuK
- Kx/Y91XuSBdz0uOyU/S8kM1+ag0wvsGlpBVxRR/xw/E8M7TEwuCZQArqqTCmkG6HGcXFT0V9
- PXFNNgV5jXMQRwU0O/ztJIQqsE5LsUomE//bLwzj9IVsaQpKDqW6TAPjcdBDPLHvriq7kGjt
- WhVhdl0qEYB8lkBEU7V2Yb+SYhmhpDrti9Fq1EsmhiHSkxJcGREoMK/63r9WLZYI3+4W2rAc
- UucZa4OT27U5ZISjNg3Ev0rxU5UH2/pT4wJCfxwocmqaRr6UYmrtZmND89X0KigoFD/XSeVv
- jwBRNjPAubK9/k5NoRrYqztM9W6sJqrH8+UWZ1Idd/DdmogJh0gNC0+N42Za9yBRURfIdKSb
- B3JfpUqcWwE7vUaYrHG1nw54pLUoPG6sAA7Mehl3nd4pZUALHwARAQABzSREYXZpZCBIaWxk
- ZW5icmFuZCA8ZGF2aWRAcmVkaGF0LmNvbT7CwX4EEwECACgFAljj9eoCGwMFCQlmAYAGCwkI
- BwMCBhUIAgkKCwQWAgMBAh4BAheAAAoJEE3eEPcA/4Na5IIP/3T/FIQMxIfNzZshIq687qgG
- 8UbspuE/YSUDdv7r5szYTK6KPTlqN8NAcSfheywbuYD9A4ZeSBWD3/NAVUdrCaRP2IvFyELj
- xoMvfJccbq45BxzgEspg/bVahNbyuBpLBVjVWwRtFCUEXkyazksSv8pdTMAs9IucChvFmmq3
- jJ2vlaz9lYt/lxN246fIVceckPMiUveimngvXZw21VOAhfQ+/sofXF8JCFv2mFcBDoa7eYob
- s0FLpmqFaeNRHAlzMWgSsP80qx5nWWEvRLdKWi533N2vC/EyunN3HcBwVrXH4hxRBMco3jvM
- m8VKLKao9wKj82qSivUnkPIwsAGNPdFoPbgghCQiBjBe6A75Z2xHFrzo7t1jg7nQfIyNC7ez
- MZBJ59sqA9EDMEJPlLNIeJmqslXPjmMFnE7Mby/+335WJYDulsRybN+W5rLT5aMvhC6x6POK
- z55fMNKrMASCzBJum2Fwjf/VnuGRYkhKCqqZ8gJ3OvmR50tInDV2jZ1DQgc3i550T5JDpToh
- dPBxZocIhzg+MBSRDXcJmHOx/7nQm3iQ6iLuwmXsRC6f5FbFefk9EjuTKcLMvBsEx+2DEx0E
- UnmJ4hVg7u1PQ+2Oy+Lh/opK/BDiqlQ8Pz2jiXv5xkECvr/3Sv59hlOCZMOaiLTTjtOIU7Tq
- 7ut6OL64oAq+zsFNBFXLn5EBEADn1959INH2cwYJv0tsxf5MUCghCj/CA/lc/LMthqQ773ga
- uB9mN+F1rE9cyyXb6jyOGn+GUjMbnq1o121Vm0+neKHUCBtHyseBfDXHA6m4B3mUTWo13nid
- 0e4AM71r0DS8+KYh6zvweLX/LL5kQS9GQeT+QNroXcC1NzWbitts6TZ+IrPOwT1hfB4WNC+X
- 2n4AzDqp3+ILiVST2DT4VBc11Gz6jijpC/KI5Al8ZDhRwG47LUiuQmt3yqrmN63V9wzaPhC+
- xbwIsNZlLUvuRnmBPkTJwwrFRZvwu5GPHNndBjVpAfaSTOfppyKBTccu2AXJXWAE1Xjh6GOC
- 8mlFjZwLxWFqdPHR1n2aPVgoiTLk34LR/bXO+e0GpzFXT7enwyvFFFyAS0Nk1q/7EChPcbRb
- hJqEBpRNZemxmg55zC3GLvgLKd5A09MOM2BrMea+l0FUR+PuTenh2YmnmLRTro6eZ/qYwWkC
- u8FFIw4pT0OUDMyLgi+GI1aMpVogTZJ70FgV0pUAlpmrzk/bLbRkF3TwgucpyPtcpmQtTkWS
- gDS50QG9DR/1As3LLLcNkwJBZzBG6PWbvcOyrwMQUF1nl4SSPV0LLH63+BrrHasfJzxKXzqg
- rW28CTAE2x8qi7e/6M/+XXhrsMYG+uaViM7n2je3qKe7ofum3s4vq7oFCPsOgwARAQABwsFl
- BBgBAgAPBQJVy5+RAhsMBQkJZgGAAAoJEE3eEPcA/4NagOsP/jPoIBb/iXVbM+fmSHOjEshl
- KMwEl/m5iLj3iHnHPVLBUWrXPdS7iQijJA/VLxjnFknhaS60hkUNWexDMxVVP/6lbOrs4bDZ
- NEWDMktAeqJaFtxackPszlcpRVkAs6Msn9tu8hlvB517pyUgvuD7ZS9gGOMmYwFQDyytpepo
- YApVV00P0u3AaE0Cj/o71STqGJKZxcVhPaZ+LR+UCBZOyKfEyq+ZN311VpOJZ1IvTExf+S/5
- lqnciDtbO3I4Wq0ArLX1gs1q1XlXLaVaA3yVqeC8E7kOchDNinD3hJS4OX0e1gdsx/e6COvy
- qNg5aL5n0Kl4fcVqM0LdIhsubVs4eiNCa5XMSYpXmVi3HAuFyg9dN+x8thSwI836FoMASwOl
- C7tHsTjnSGufB+D7F7ZBT61BffNBBIm1KdMxcxqLUVXpBQHHlGkbwI+3Ye+nE6HmZH7IwLwV
- W+Ajl7oYF+jeKaH4DZFtgLYGLtZ1LDwKPjX7VAsa4Yx7S5+EBAaZGxK510MjIx6SGrZWBrrV
- TEvdV00F2MnQoeXKzD7O4WFbL55hhyGgfWTHwZ457iN9SgYi1JLPqWkZB0JRXIEtjd4JEQcx
- +8Umfre0Xt4713VxMygW0PnQt5aSQdMD58jHFxTk092mU+yIHj5LeYgvwSgZN4airXk5yRXl
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <ddb2c4a9-c515-617f-770a-90625c08c829@redhat.com>
-Date: Mon, 12 Aug 2019 17:49:56 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+	by mx1.redhat.com (Postfix) with ESMTPS id 6CFC24E93D;
+	Mon, 12 Aug 2019 15:51:14 +0000 (UTC)
+Received: from segfault.boston.devel.redhat.com (segfault.boston.devel.redhat.com [10.19.60.26])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id AFD0162671;
+	Mon, 12 Aug 2019 15:51:13 +0000 (UTC)
+From: Jeff Moyer <jmoyer@redhat.com>
+To: Dan Williams <dan.j.williams@intel.com>
+Cc: linux-nvdimm@lists.01.org,  linux-mm@kvack.org,  Jason Gunthorpe <jgg@mellanox.com>,  Andrew Morton <akpm@linux-foundation.org>,  Christoph Hellwig <hch@lst.de>
+Subject: Re: [PATCH] mm/memremap: Fix reuse of pgmap instances with internal references
+References: <156530042781.2068700.8733813683117819799.stgit@dwillia2-desk3.amr.corp.intel.com>
+X-PGP-KeyID: 1F78E1B4
+X-PGP-CertKey: F6FE 280D 8293 F72C 65FD  5A58 1FF8 A7CA 1F78 E1B4
+Date: Mon, 12 Aug 2019 11:51:12 -0400
+In-Reply-To: <156530042781.2068700.8733813683117819799.stgit@dwillia2-desk3.amr.corp.intel.com>
+	(Dan Williams's message of "Thu, 08 Aug 2019 14:43:49 -0700")
+Message-ID: <x49blwuidqn.fsf@segfault.boston.devel.redhat.com>
+User-Agent: Gnus/5.13 (Gnus v5.13) Emacs/26.1 (gnu/linux)
 MIME-Version: 1.0
-In-Reply-To: <CAKgT0Ucr7GKWsP5sxSbDTtW_7puSqwXDM7y_ZD8i2zNrKNScEw@mail.gmail.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.23
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Mon, 12 Aug 2019 15:50:09 +0000 (UTC)
+Content-Type: text/plain
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Mon, 12 Aug 2019 15:51:14 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 12.08.19 17:20, Alexander Duyck wrote:
-> On Mon, Aug 12, 2019 at 2:53 AM Michael S. Tsirkin <mst@redhat.com> wrote:
->>
->> On Wed, Aug 07, 2019 at 03:42:19PM -0700, Alexander Duyck wrote:
->>> From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
-> 
-> <snip>
-> 
->>> --- a/include/uapi/linux/virtio_balloon.h
->>> +++ b/include/uapi/linux/virtio_balloon.h
->>> @@ -36,6 +36,7 @@
->>>  #define VIRTIO_BALLOON_F_DEFLATE_ON_OOM      2 /* Deflate balloon on OOM */
->>>  #define VIRTIO_BALLOON_F_FREE_PAGE_HINT      3 /* VQ to report free pages */
->>>  #define VIRTIO_BALLOON_F_PAGE_POISON 4 /* Guest is using page poisoning */
->>> +#define VIRTIO_BALLOON_F_REPORTING   5 /* Page reporting virtqueue */
->>>
->>>  /* Size of a PFN in the balloon interface. */
->>>  #define VIRTIO_BALLOON_PFN_SHIFT 12
->>
->> Just a small comment: same as any feature bit,
->> or indeed any host/guest interface changes, please
->> CC virtio-dev on any changes to this UAPI file.
->> We must maintain these in the central place in the spec,
->> otherwise we run a risk of conflicts.
->>
-> 
-> Okay, other than that if I resubmit with the virtio-dev list added to
-> you thing this patch set is ready to be acked and pulled into either
-> the virtio or mm tree assuming there is no other significant feedback
-> that comes in?
-> 
+Dan Williams <dan.j.williams@intel.com> writes:
 
-I want to take a detailed look at the mm bits (might take a bit but I
-don't see a need to rush). I am fine with the page flag we are using.
-Hope some other mm people (cc'ing Michal and Oscar) can have a look.
+> Currently, attempts to shutdown and re-enable a device-dax instance
+> trigger:
 
--- 
+What does "shutdown and re-enable" translate to?  If I disable and
+re-enable a device-dax namespace, I don't see this behavior.
 
-Thanks,
+-Jeff
 
-David / dhildenb
+>
+>     Missing reference count teardown definition
+>     WARNING: CPU: 37 PID: 1608 at mm/memremap.c:211 devm_memremap_pages+0x234/0x850
+>     [..]
+>     RIP: 0010:devm_memremap_pages+0x234/0x850
+>     [..]
+>     Call Trace:
+>      dev_dax_probe+0x66/0x190 [device_dax]
+>      really_probe+0xef/0x390
+>      driver_probe_device+0xb4/0x100
+>      device_driver_attach+0x4f/0x60
+>
+> Given that the setup path initializes pgmap->ref, arrange for it to be
+> also torn down so devm_memremap_pages() is ready to be called again and
+> not be mistaken for the 3rd-party per-cpu-ref case.
+>
+> Fixes: 24917f6b1041 ("memremap: provide an optional internal refcount in struct dev_pagemap")
+> Reported-by: Fan Du <fan.du@intel.com>
+> Tested-by: Vishal Verma <vishal.l.verma@intel.com>
+> Cc: Andrew Morton <akpm@linux-foundation.org>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Ira Weiny <ira.weiny@intel.com>
+> Cc: Jason Gunthorpe <jgg@mellanox.com>
+> Signed-off-by: Dan Williams <dan.j.williams@intel.com>
+> ---
+>
+> Andrew, I have another dax fix pending, so I'm ok to take this through
+> the nvdimm tree, holler if you want it in -mm.
+>
+>  mm/memremap.c |    6 ++++++
+>  1 file changed, 6 insertions(+)
+>
+> diff --git a/mm/memremap.c b/mm/memremap.c
+> index 6ee03a816d67..86432650f829 100644
+> --- a/mm/memremap.c
+> +++ b/mm/memremap.c
+> @@ -91,6 +91,12 @@ static void dev_pagemap_cleanup(struct dev_pagemap *pgmap)
+>  		wait_for_completion(&pgmap->done);
+>  		percpu_ref_exit(pgmap->ref);
+>  	}
+> +	/*
+> +	 * Undo the pgmap ref assignment for the internal case as the
+> +	 * caller may re-enable the same pgmap.
+> +	 */
+> +	if (pgmap->ref == &pgmap->internal_ref)
+> +		pgmap->ref = NULL;
+>  }
+>  
+>  static void devm_memremap_pages_release(void *data)
+>
+> _______________________________________________
+> Linux-nvdimm mailing list
+> Linux-nvdimm@lists.01.org
+> https://lists.01.org/mailman/listinfo/linux-nvdimm
 
