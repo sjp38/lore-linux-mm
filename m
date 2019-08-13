@@ -2,175 +2,410 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id E48E9C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:47:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id EFEC3C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:58:59 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 938EB206C2
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:47:44 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=fb.com header.i=@fb.com header.b="RGA0D3VW";
-	dkim=pass (1024-bit key) header.d=fb.onmicrosoft.com header.i=@fb.onmicrosoft.com header.b="PcJGkN2/"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 938EB206C2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=fb.com
+	by mail.kernel.org (Postfix) with ESMTP id 9F62A2070D
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:58:59 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9F62A2070D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B45A6B0008; Tue, 13 Aug 2019 17:47:44 -0400 (EDT)
+	id 30FDC6B026D; Tue, 13 Aug 2019 17:58:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 366296B000E; Tue, 13 Aug 2019 17:47:44 -0400 (EDT)
+	id 2C1C86B026E; Tue, 13 Aug 2019 17:58:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 22DED6B0010; Tue, 13 Aug 2019 17:47:44 -0400 (EDT)
+	id 1880D6B0270; Tue, 13 Aug 2019 17:58:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0246.hostedemail.com [216.40.44.246])
-	by kanga.kvack.org (Postfix) with ESMTP id 004416B0008
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:47:43 -0400 (EDT)
-Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 86B8018DF
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:47:43 +0000 (UTC)
-X-FDA: 75818742006.12.fork09_7d92df921dd5c
-X-HE-Tag: fork09_7d92df921dd5c
-X-Filterd-Recvd-Size: 9073
-Received: from mx0b-00082601.pphosted.com (mx0b-00082601.pphosted.com [67.231.153.30])
-	by imf38.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:47:42 +0000 (UTC)
-Received: from pps.filterd (m0109331.ppops.net [127.0.0.1])
-	by mx0a-00082601.pphosted.com (8.16.0.27/8.16.0.27) with SMTP id x7DLleWq006164;
-	Tue, 13 Aug 2019 14:47:40 -0700
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.com; h=from : to : cc : subject
- : date : message-id : references : in-reply-to : content-type : content-id
- : content-transfer-encoding : mime-version; s=facebook;
- bh=x3UWO+LBB6O0hTYfEASivfqkFHYJbO2Lt4ssFr3OqOE=;
- b=RGA0D3VWGY1FwfS8IO7LeMuTboCJJDhyOWNDa7YZa7xXbLoAxEnjoUFUOaxVbyRRgc70
- C7J6zbTOGHRP6MN6pZaid0OrX7CSe54eX5qFEEyVHjnkAm3CkemoOrPBgXnjNc+QuXoU
- 5Cc2oHAec3y7+dUU9bwmnX5Jx7nxkm5p8Aw= 
-Received: from maileast.thefacebook.com ([163.114.130.16])
-	by mx0a-00082601.pphosted.com with ESMTP id 2uc0t6s9py-2
-	(version=TLSv1.2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128 verify=NOT);
-	Tue, 13 Aug 2019 14:47:40 -0700
-Received: from ash-exhub103.TheFacebook.com (2620:10d:c0a8:82::c) by
- ash-exhub103.TheFacebook.com (2620:10d:c0a8:82::c) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256) id
- 15.1.1713.5; Tue, 13 Aug 2019 14:47:37 -0700
-Received: from NAM03-CO1-obe.outbound.protection.outlook.com (100.104.31.183)
- by o365-in.thefacebook.com (100.104.35.174) with Microsoft SMTP Server
- (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256) id 15.1.1713.5
- via Frontend Transport; Tue, 13 Aug 2019 14:47:37 -0700
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=PrBkv2ya+oozEGdKaorBXP0qfynmUyhGOQRmrR7bMZOVoVjwo6hkliE81MoCH0wT/7yoNM2/6aEnk1PeNjyYLhyYlvXyKBkE//ONrq7Y+uYzNz1RcnC5t1dtZCJjQAeytFENr/o/H7gAk+vkXT3CEF7SplF05VXhqxY5uxL8kir0ea+Zz65P7HQDGVyDX7d/JhDzLHCHRvM6qZVo944RqzLTuYrktEqn2pOcAy+YHvbyRqHv8DA380nSuT0ZXzKWWogAYsR8AGSm126lky32rqjI0qvhjypjlSSxsdwFz1A1qoCgI4asP5zcVcsyXRZXYGCy699XTIXamWvRX7odGg==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=x3UWO+LBB6O0hTYfEASivfqkFHYJbO2Lt4ssFr3OqOE=;
- b=UjrLMy9jOD79sk7LBK6DKy1JxFbItJhuNd1hzZjENJXDmXgqDzIjrKkC8Jt+UgsYZMWjCZJ8BcK9TXLgOoZQINQICwb0SrCYouXJiBfVN+dV4ujaRT6tHE+CvHCPV3rS/tY5yk9VbCPrv09WeCBTmbesnUx2uUB8dOSN6/gbWTlFOn/FultSwcHCT6QXL6f569VozGUPtQPWno/sdkv1UdtRQ3Lb6KSwFPnzeaa98xkzRiAlqkuwrZdmrJO/vNRbT2prOjfrWnUNzCmVPqoi+JseK8BzkJm1iNsqzhNn+dvyPa+uniTpunyv74KJ5Oo0RafC95epsTWdHdimNB7hGQ==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=fb.com; dmarc=pass action=none header.from=fb.com; dkim=pass
- header.d=fb.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=fb.onmicrosoft.com;
- s=selector2-fb-onmicrosoft-com;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=x3UWO+LBB6O0hTYfEASivfqkFHYJbO2Lt4ssFr3OqOE=;
- b=PcJGkN2/uh6nAXyYDNyHJank00xUQM3b7nliIYgQKyehByzD6pn+ztkFkTc2w9tIx02h5uH/ZrP4UrPl6ZnHP0N5bFlbr2I3GQAn6xo0IaNkg7TBvkLdGFgjAQkDZ8Ew4xsKreW8NBRP7mcumAxfAP28rP0cuMKGAVjy/Y7zRC8=
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com (20.179.161.152) by
- DM6PR15MB2620.namprd15.prod.outlook.com (20.179.161.93) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2157.20; Tue, 13 Aug 2019 21:47:35 +0000
-Received: from DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::d1fc:b5c5:59a1:bd7e]) by DM6PR15MB2635.namprd15.prod.outlook.com
- ([fe80::d1fc:b5c5:59a1:bd7e%3]) with mapi id 15.20.2157.022; Tue, 13 Aug 2019
- 21:47:35 +0000
-From: Roman Gushchin <guro@fb.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-CC: "linux-mm@kvack.org" <linux-mm@kvack.org>,
-        Michal Hocko
-	<mhocko@kernel.org>,
-        Johannes Weiner <hannes@cmpxchg.org>,
-        "linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>,
-        Kernel Team
-	<Kernel-team@fb.com>,
-        "stable@vger.kernel.org" <stable@vger.kernel.org>
-Subject: Re: [PATCH] mm: memcontrol: flush percpu vmevents before releasing
- memcg
-Thread-Topic: [PATCH] mm: memcontrol: flush percpu vmevents before releasing
- memcg
-Thread-Index: AQHVUWcJo041kAovIUqPQ99aFT9BKqb5mhOAgAAEiYA=
-Date: Tue, 13 Aug 2019 21:47:35 +0000
-Message-ID: <20190813214731.GB20632@tower.DHCP.thefacebook.com>
-References: <20190812233754.2570543-1-guro@fb.com>
- <20190813143117.885bef5929813445ef39fa61@linux-foundation.org>
-In-Reply-To: <20190813143117.885bef5929813445ef39fa61@linux-foundation.org>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach: 
-X-MS-TNEF-Correlator: 
-x-clientproxiedby: MW2PR16CA0016.namprd16.prod.outlook.com (2603:10b6:907::29)
- To DM6PR15MB2635.namprd15.prod.outlook.com (2603:10b6:5:1a6::24)
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [2620:10d:c090:200::1f63]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: ad6b0a52-885e-4828-c597-08d72037da26
-x-microsoft-antispam: BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(2017052603328)(7193020);SRVR:DM6PR15MB2620;
-x-ms-traffictypediagnostic: DM6PR15MB2620:
-x-ms-exchange-transport-forked: True
-x-microsoft-antispam-prvs: <DM6PR15MB26207C1E587E7E1A820A28D6BED20@DM6PR15MB2620.namprd15.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:8882;
-x-forefront-prvs: 01283822F8
-x-forefront-antispam-report: SFV:NSPM;SFS:(10019020)(396003)(376002)(39860400002)(346002)(366004)(136003)(189003)(52314003)(199004)(6436002)(6916009)(478600001)(6486002)(66476007)(229853002)(52116002)(186003)(102836004)(6506007)(8936002)(4326008)(386003)(66446008)(2906002)(64756008)(66946007)(7736002)(6246003)(14454004)(446003)(46003)(476003)(486006)(11346002)(6116002)(66556008)(76176011)(9686003)(8676002)(54906003)(71190400001)(5660300002)(316002)(33656002)(1076003)(25786009)(256004)(4744005)(305945005)(99286004)(71200400001)(86362001)(81156014)(81166006)(6512007)(53936002);DIR:OUT;SFP:1102;SCL:1;SRVR:DM6PR15MB2620;H:DM6PR15MB2635.namprd15.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: fb.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info: AoKrMjp1mi18SrBkvNmzL7zbopmDWI9xJtOt90nmWFs9NmIQ0rdUQud8h5QqXauKjEMXXV5Sp8axw1vaGVBiy5WSCJwkpYtlhM61h6JPQJGip6tbivSsE4sBR6pOwOgDX3PjAT33vCkgXP8l10RriQkTmxp9Lqt2beWUClXKG60hMC5wsBbaGWmSEbFsrOqlcFDtIe/hRoV75LTrmTCAT+fephzesvDccZv8UimngqCz1LbfEuyLTKwd2b06fB+95f7FMRKBd1D13wNofJSsBNH7MDd1Uzj6xywsgNeoek486Y9eO/4xDxI3Ew4DbP2KHRSghznMeR/pJyeXgi/qVwkCA+z3AAYAvYatGMsCckUMm/NlZpi9ANc0Nq9bNePb8bn7Hgqy73vcRd7SZZjG0b3ED0k0IbZNBqMzoPCcDoA=
-Content-Type: text/plain; charset="us-ascii"
-Content-ID: <FF10EAA14CB20F40918937449AAD0EE5@namprd15.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0077.hostedemail.com [216.40.44.77])
+	by kanga.kvack.org (Postfix) with ESMTP id ECC2B6B026D
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:58:58 -0400 (EDT)
+Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 95BCA180AD7C1
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:58:58 +0000 (UTC)
+X-FDA: 75818770356.15.rest61_4e441ef0b1e2a
+X-HE-Tag: rest61_4e441ef0b1e2a
+X-Filterd-Recvd-Size: 12634
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf50.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:58:57 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 94BE013A82;
+	Tue, 13 Aug 2019 21:58:56 +0000 (UTC)
+Received: from redhat.com (ovpn-120-92.rdu2.redhat.com [10.10.120.92])
+	by smtp.corp.redhat.com (Postfix) with ESMTPS id 950DC82E54;
+	Tue, 13 Aug 2019 21:58:54 +0000 (UTC)
+Date: Tue, 13 Aug 2019 17:58:52 -0400
+From: Jerome Glisse <jglisse@redhat.com>
+To: Ralph Campbell <rcampbell@nvidia.com>
+Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+	amd-gfx@lists.freedesktop.org, dri-devel@lists.freedesktop.org,
+	nouveau@lists.freedesktop.org, Christoph Hellwig <hch@lst.de>,
+	Jason Gunthorpe <jgg@mellanox.com>, Ben Skeggs <bskeggs@redhat.com>
+Subject: Re: [PATCH] nouveau/hmm: map pages after migration
+Message-ID: <20190813215852.GA9823@redhat.com>
+References: <20190807150214.3629-1-rcampbell@nvidia.com>
 MIME-Version: 1.0
-X-MS-Exchange-CrossTenant-Network-Message-Id: ad6b0a52-885e-4828-c597-08d72037da26
-X-MS-Exchange-CrossTenant-originalarrivaltime: 13 Aug 2019 21:47:35.3267
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: 8ae927fe-1255-47a7-a2af-5f3a069daaa2
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: HHxUzls8Ee3DmxjbT7OI7b59LBttVmVMskQC5x/uxHT3+l+38eNTuFjzjWSeCDyp
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: DM6PR15MB2620
-X-OriginatorOrg: fb.com
-X-Proofpoint-Virus-Version: vendor=fsecure engine=2.50.10434:,, definitions=2019-08-13_06:,,
- signatures=0
-X-Proofpoint-Spam-Details: rule=fb_default_notspam policy=fb_default score=0 priorityscore=1501
- malwarescore=0 suspectscore=0 phishscore=0 bulkscore=0 spamscore=0
- clxscore=1015 lowpriorityscore=0 mlxscore=0 impostorscore=0
- mlxlogscore=588 adultscore=0 classifier=spam adjust=0 reason=mlx
- scancount=1 engine=8.0.1-1906280000 definitions=main-1908130204
-X-FB-Internal: deliver
+Content-Type: text/plain; charset=iso-8859-1
+Content-Disposition: inline
+In-Reply-To: <20190807150214.3629-1-rcampbell@nvidia.com>
+User-Agent: Mutt/1.12.1 (2019-06-15)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Tue, 13 Aug 2019 21:58:56 +0000 (UTC)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 13, 2019 at 02:31:17PM -0700, Andrew Morton wrote:
-> On Mon, 12 Aug 2019 16:37:54 -0700 Roman Gushchin <guro@fb.com> wrote:
+On Wed, Aug 07, 2019 at 08:02:14AM -0700, Ralph Campbell wrote:
+> When memory is migrated to the GPU it is likely to be accessed by GPU
+> code soon afterwards. Instead of waiting for a GPU fault, map the
+> migrated memory into the GPU page tables with the same access permissio=
+ns
+> as the source CPU page table entries. This preserves copy on write
+> semantics.
 >=20
-> > Similar to vmstats, percpu caching of local vmevents leads to an
-> > accumulation of errors on non-leaf levels. This happens because
-> > some leftovers may remain in percpu caches, so that they are
-> > never propagated up by the cgroup tree and just disappear into
-> > nonexistence with on releasing of the memory cgroup.
-> >=20
-> > To fix this issue let's accumulate and propagate percpu vmevents
-> > values before releasing the memory cgroup similar to what we're
-> > doing with vmstats.
-> >=20
-> > Since on cpu hotplug we do flush percpu vmstats anyway, we can
-> > iterate only over online cpus.
-> >=20
-> > Fixes: 42a300353577 ("mm: memcontrol: fix recursive statistics correctn=
-ess & scalabilty")
->=20
-> No cc:stable?
->=20
+> Signed-off-by: Ralph Campbell <rcampbell@nvidia.com>
+> Cc: Christoph Hellwig <hch@lst.de>
+> Cc: Jason Gunthorpe <jgg@mellanox.com>
+> Cc: "J=E9r=F4me Glisse" <jglisse@redhat.com>
+> Cc: Ben Skeggs <bskeggs@redhat.com>
 
-Here too, cc:stable is definitely missing. Adding now. Thanks!
+Sorry for delay i am swamp, couple issues:
+    - nouveau_pfns_map() is never call, it should be call after
+      the dma copy is done (iirc it is lacking proper fencing
+      so that would need to be implemented first)
+
+    - the migrate ioctl is disconnected from the svm part and
+      thus we would need first to implement svm reference counting
+      and take a reference at begining of migration process and
+      release it at the end ie struct nouveau_svmm needs refcounting
+      of some sort. I let Ben decides what he likes best for that.
+
+    - i rather not have an extra pfns array, i am pretty sure we
+      can directly feed what we get from the dma array to the svm
+      code to update the GPU page table
+
+Observation that can be delayed to latter patches:
+    - i do not think we want to map directly if the dma engine
+      is queue up and thus if the fence will take time to signal
+
+      This is why i did not implement this in the first place.
+      Maybe using a workqueue to schedule a pre-fill of the GPU
+      page table and wakeup the workqueue with the fence notify
+      event.
+
+
+> ---
+>=20
+> This patch is based on top of Christoph Hellwig's 9 patch series
+> https://lore.kernel.org/linux-mm/20190729234611.GC7171@redhat.com/T/#u
+> "turn the hmm migrate_vma upside down" but without patch 9
+> "mm: remove the unused MIGRATE_PFN_WRITE" and adds a use for the flag.
+>=20
+>=20
+>  drivers/gpu/drm/nouveau/nouveau_dmem.c | 45 +++++++++-----
+>  drivers/gpu/drm/nouveau/nouveau_svm.c  | 86 ++++++++++++++++++++++++++
+>  drivers/gpu/drm/nouveau/nouveau_svm.h  | 19 ++++++
+>  3 files changed, 133 insertions(+), 17 deletions(-)
+>=20
+> diff --git a/drivers/gpu/drm/nouveau/nouveau_dmem.c b/drivers/gpu/drm/n=
+ouveau/nouveau_dmem.c
+> index ef9de82b0744..c83e6f118817 100644
+> --- a/drivers/gpu/drm/nouveau/nouveau_dmem.c
+> +++ b/drivers/gpu/drm/nouveau/nouveau_dmem.c
+> @@ -25,11 +25,13 @@
+>  #include "nouveau_dma.h"
+>  #include "nouveau_mem.h"
+>  #include "nouveau_bo.h"
+> +#include "nouveau_svm.h"
+> =20
+>  #include <nvif/class.h>
+>  #include <nvif/object.h>
+>  #include <nvif/if500b.h>
+>  #include <nvif/if900b.h>
+> +#include <nvif/if000c.h>
+> =20
+>  #include <linux/sched/mm.h>
+>  #include <linux/hmm.h>
+> @@ -560,11 +562,12 @@ nouveau_dmem_init(struct nouveau_drm *drm)
+>  }
+> =20
+>  static unsigned long nouveau_dmem_migrate_copy_one(struct nouveau_drm =
+*drm,
+> -		struct vm_area_struct *vma, unsigned long addr,
+> -		unsigned long src, dma_addr_t *dma_addr)
+> +		struct vm_area_struct *vma, unsigned long src,
+> +		dma_addr_t *dma_addr, u64 *pfn)
+>  {
+>  	struct device *dev =3D drm->dev->dev;
+>  	struct page *dpage, *spage;
+> +	unsigned long paddr;
+> =20
+>  	spage =3D migrate_pfn_to_page(src);
+>  	if (!spage || !(src & MIGRATE_PFN_MIGRATE))
+> @@ -572,17 +575,21 @@ static unsigned long nouveau_dmem_migrate_copy_on=
+e(struct nouveau_drm *drm,
+> =20
+>  	dpage =3D nouveau_dmem_page_alloc_locked(drm);
+>  	if (!dpage)
+> -		return 0;
+> +		goto out;
+> =20
+>  	*dma_addr =3D dma_map_page(dev, spage, 0, PAGE_SIZE, DMA_BIDIRECTIONA=
+L);
+>  	if (dma_mapping_error(dev, *dma_addr))
+>  		goto out_free_page;
+> =20
+> +	paddr =3D nouveau_dmem_page_addr(dpage);
+>  	if (drm->dmem->migrate.copy_func(drm, 1, NOUVEAU_APER_VRAM,
+> -			nouveau_dmem_page_addr(dpage), NOUVEAU_APER_HOST,
+> -			*dma_addr))
+> +			paddr, NOUVEAU_APER_HOST, *dma_addr))
+>  		goto out_dma_unmap;
+> =20
+> +	*pfn =3D NVIF_VMM_PFNMAP_V0_V | NVIF_VMM_PFNMAP_V0_VRAM |
+> +		((paddr >> PAGE_SHIFT) << NVIF_VMM_PFNMAP_V0_ADDR_SHIFT);
+> +	if (src & MIGRATE_PFN_WRITE)
+> +		*pfn |=3D NVIF_VMM_PFNMAP_V0_W;
+>  	return migrate_pfn(page_to_pfn(dpage)) | MIGRATE_PFN_LOCKED;
+> =20
+>  out_dma_unmap:
+> @@ -590,18 +597,19 @@ static unsigned long nouveau_dmem_migrate_copy_on=
+e(struct nouveau_drm *drm,
+>  out_free_page:
+>  	nouveau_dmem_page_free_locked(drm, dpage);
+>  out:
+> +	*pfn =3D NVIF_VMM_PFNMAP_V0_NONE;
+>  	return 0;
+>  }
+> =20
+>  static void nouveau_dmem_migrate_chunk(struct migrate_vma *args,
+> -		struct nouveau_drm *drm, dma_addr_t *dma_addrs)
+> +		struct nouveau_drm *drm, dma_addr_t *dma_addrs, u64 *pfns)
+>  {
+>  	struct nouveau_fence *fence;
+>  	unsigned long addr =3D args->start, nr_dma =3D 0, i;
+> =20
+>  	for (i =3D 0; addr < args->end; i++) {
+>  		args->dst[i] =3D nouveau_dmem_migrate_copy_one(drm, args->vma,
+> -				addr, args->src[i], &dma_addrs[nr_dma]);
+> +				args->src[i], &dma_addrs[nr_dma], &pfns[i]);
+>  		if (args->dst[i])
+>  			nr_dma++;
+>  		addr +=3D PAGE_SIZE;
+> @@ -615,10 +623,6 @@ static void nouveau_dmem_migrate_chunk(struct migr=
+ate_vma *args,
+>  		dma_unmap_page(drm->dev->dev, dma_addrs[nr_dma], PAGE_SIZE,
+>  				DMA_BIDIRECTIONAL);
+>  	}
+> -	/*
+> -	 * FIXME optimization: update GPU page table to point to newly migrat=
+ed
+> -	 * memory.
+> -	 */
+>  	migrate_vma_finalize(args);
+>  }
+> =20
+> @@ -631,11 +635,12 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
+>  	unsigned long npages =3D (end - start) >> PAGE_SHIFT;
+>  	unsigned long max =3D min(SG_MAX_SINGLE_ALLOC, npages);
+>  	dma_addr_t *dma_addrs;
+> +	u64 *pfns;
+>  	struct migrate_vma args =3D {
+>  		.vma		=3D vma,
+>  		.start		=3D start,
+>  	};
+> -	unsigned long c, i;
+> +	unsigned long i;
+>  	int ret =3D -ENOMEM;
+> =20
+>  	args.src =3D kcalloc(max, sizeof(args.src), GFP_KERNEL);
+> @@ -649,19 +654,25 @@ nouveau_dmem_migrate_vma(struct nouveau_drm *drm,
+>  	if (!dma_addrs)
+>  		goto out_free_dst;
+> =20
+> -	for (i =3D 0; i < npages; i +=3D c) {
+> -		c =3D min(SG_MAX_SINGLE_ALLOC, npages);
+> -		args.end =3D start + (c << PAGE_SHIFT);
+> +	pfns =3D nouveau_pfns_alloc(max);
+> +	if (!pfns)
+> +		goto out_free_dma;
+> +
+> +	for (i =3D 0; i < npages; i +=3D max) {
+> +		args.end =3D start + (max << PAGE_SHIFT);
+>  		ret =3D migrate_vma_setup(&args);
+>  		if (ret)
+> -			goto out_free_dma;
+> +			goto out_free_pfns;
+> =20
+>  		if (args.cpages)
+> -			nouveau_dmem_migrate_chunk(&args, drm, dma_addrs);
+> +			nouveau_dmem_migrate_chunk(&args, drm, dma_addrs,
+> +						   pfns);
+>  		args.start =3D args.end;
+>  	}
+> =20
+>  	ret =3D 0;
+> +out_free_pfns:
+> +	nouveau_pfns_free(pfns);
+>  out_free_dma:
+>  	kfree(dma_addrs);
+>  out_free_dst:
+> diff --git a/drivers/gpu/drm/nouveau/nouveau_svm.c b/drivers/gpu/drm/no=
+uveau/nouveau_svm.c
+> index a74530b5a523..3e6d7f226576 100644
+> --- a/drivers/gpu/drm/nouveau/nouveau_svm.c
+> +++ b/drivers/gpu/drm/nouveau/nouveau_svm.c
+> @@ -70,6 +70,12 @@ struct nouveau_svm {
+>  #define SVM_DBG(s,f,a...) NV_DEBUG((s)->drm, "svm: "f"\n", ##a)
+>  #define SVM_ERR(s,f,a...) NV_WARN((s)->drm, "svm: "f"\n", ##a)
+> =20
+> +struct nouveau_pfnmap_args {
+> +	struct nvif_ioctl_v0 i;
+> +	struct nvif_ioctl_mthd_v0 m;
+> +	struct nvif_vmm_pfnmap_v0 p;
+> +};
+> +
+>  struct nouveau_ivmm {
+>  	struct nouveau_svmm *svmm;
+>  	u64 inst;
+> @@ -734,6 +740,86 @@ nouveau_svm_fault(struct nvif_notify *notify)
+>  	return NVIF_NOTIFY_KEEP;
+>  }
+> =20
+> +static inline struct nouveau_pfnmap_args *
+> +nouveau_pfns_to_args(void *pfns)
+> +{
+> +	struct nvif_vmm_pfnmap_v0 *p =3D
+> +		container_of(pfns, struct nvif_vmm_pfnmap_v0, phys);
+> +
+> +	return container_of(p, struct nouveau_pfnmap_args, p);
+> +}
+> +
+> +u64 *
+> +nouveau_pfns_alloc(unsigned long npages)
+> +{
+> +	struct nouveau_pfnmap_args *args;
+> +
+> +	args =3D kzalloc(sizeof(*args) + npages * sizeof(args->p.phys[0]),
+> +			GFP_KERNEL);
+> +	if (!args)
+> +		return NULL;
+> +
+> +	args->i.type =3D NVIF_IOCTL_V0_MTHD;
+> +	args->m.method =3D NVIF_VMM_V0_PFNMAP;
+> +	args->p.page =3D PAGE_SHIFT;
+> +
+> +	return args->p.phys;
+> +}
+> +
+> +void
+> +nouveau_pfns_free(u64 *pfns)
+> +{
+> +	struct nouveau_pfnmap_args *args =3D nouveau_pfns_to_args(pfns);
+> +
+> +	kfree(args);
+> +}
+> +
+> +static struct nouveau_svmm *
+> +nouveau_find_svmm(struct nouveau_svm *svm, struct mm_struct *mm)
+> +{
+> +	struct nouveau_ivmm *ivmm;
+> +
+> +	list_for_each_entry(ivmm, &svm->inst, head) {
+> +		if (ivmm->svmm->mm =3D=3D mm)
+> +			return ivmm->svmm;
+> +	}
+> +	return NULL;
+> +}
+> +
+> +void
+> +nouveau_pfns_map(struct nouveau_drm *drm, struct mm_struct *mm,
+> +		 unsigned long addr, u64 *pfns, unsigned long npages)
+> +{
+> +	struct nouveau_svm *svm =3D drm->svm;
+> +	struct nouveau_svmm *svmm;
+> +	struct nouveau_pfnmap_args *args;
+> +	int ret;
+> +
+> +	if (!svm)
+> +		return;
+> +
+> +	mutex_lock(&svm->mutex);
+> +	svmm =3D nouveau_find_svmm(svm, mm);
+> +	if (!svmm) {
+> +		mutex_unlock(&svm->mutex);
+> +		return;
+> +	}
+> +	mutex_unlock(&svm->mutex);
+> +
+> +	args =3D nouveau_pfns_to_args(pfns);
+> +	args->p.addr =3D addr;
+> +	args->p.size =3D npages << PAGE_SHIFT;
+> +
+> +	mutex_lock(&svmm->mutex);
+> +
+> +	svmm->vmm->vmm.object.client->super =3D true;
+> +	ret =3D nvif_object_ioctl(&svmm->vmm->vmm.object, args, sizeof(*args)=
+ +
+> +				npages * sizeof(args->p.phys[0]), NULL);
+> +	svmm->vmm->vmm.object.client->super =3D false;
+> +
+> +	mutex_unlock(&svmm->mutex);
+> +}
+> +
+>  static void
+>  nouveau_svm_fault_buffer_fini(struct nouveau_svm *svm, int id)
+>  {
+> diff --git a/drivers/gpu/drm/nouveau/nouveau_svm.h b/drivers/gpu/drm/no=
+uveau/nouveau_svm.h
+> index e839d8189461..c00c177e51ed 100644
+> --- a/drivers/gpu/drm/nouveau/nouveau_svm.h
+> +++ b/drivers/gpu/drm/nouveau/nouveau_svm.h
+> @@ -18,6 +18,11 @@ void nouveau_svmm_fini(struct nouveau_svmm **);
+>  int nouveau_svmm_join(struct nouveau_svmm *, u64 inst);
+>  void nouveau_svmm_part(struct nouveau_svmm *, u64 inst);
+>  int nouveau_svmm_bind(struct drm_device *, void *, struct drm_file *);
+> +
+> +u64 *nouveau_pfns_alloc(unsigned long npages);
+> +void nouveau_pfns_free(u64 *pfns);
+> +void nouveau_pfns_map(struct nouveau_drm *drm, struct mm_struct *mm,
+> +		      unsigned long addr, u64 *pfns, unsigned long npages);
+>  #else /* IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM) */
+>  static inline void nouveau_svm_init(struct nouveau_drm *drm) {}
+>  static inline void nouveau_svm_fini(struct nouveau_drm *drm) {}
+> @@ -44,5 +49,19 @@ static inline int nouveau_svmm_bind(struct drm_devic=
+e *device, void *p,
+>  {
+>  	return -ENOSYS;
+>  }
+> +
+> +u64 *nouveau_pfns_alloc(unsigned long npages)
+> +{
+> +	return NULL;
+> +}
+> +
+> +void nouveau_pfns_free(u64 *pfns)
+> +{
+> +}
+> +
+> +void nouveau_pfns_map(struct nouveau_drm *drm, struct mm_struct *mm,
+> +		      unsigned long addr, u64 *pfns, unsigned long npages)
+> +{
+> +}
+>  #endif /* IS_ENABLED(CONFIG_DRM_NOUVEAU_SVM) */
+>  #endif
+> --=20
+> 2.20.1
+>=20
 
