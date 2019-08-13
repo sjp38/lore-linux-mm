@@ -4,43 +4,44 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EEAAC41514
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:04:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 91981C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:04:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 60EE620840
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:04:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60EE620840
+	by mail.kernel.org (Postfix) with ESMTP id 5C14220842
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:04:10 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5C14220842
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8985B6B02A6; Tue, 13 Aug 2019 17:03:44 -0400 (EDT)
+	id B544E6B029D; Tue, 13 Aug 2019 17:03:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7ACBB6B029D; Tue, 13 Aug 2019 17:03:44 -0400 (EDT)
+	id 896546B02A1; Tue, 13 Aug 2019 17:03:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3BA236B029D; Tue, 13 Aug 2019 17:03:44 -0400 (EDT)
+	id 737756B02A7; Tue, 13 Aug 2019 17:03:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0143.hostedemail.com [216.40.44.143])
-	by kanga.kvack.org (Postfix) with ESMTP id DB07F6B02A0
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:03:43 -0400 (EDT)
-Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 87CBC55F98
+Received: from forelay.hostedemail.com (smtprelay0083.hostedemail.com [216.40.44.83])
+	by kanga.kvack.org (Postfix) with ESMTP id 309176B02A0
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:03:44 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id CAB27181AC9B4
 	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:03:43 +0000 (UTC)
-X-FDA: 75818631126.18.crate76_2070959672427
-X-HE-Tag: crate76_2070959672427
-X-Filterd-Recvd-Size: 4406
+X-FDA: 75818631126.21.basin66_207b2b2d52137
+X-HE-Tag: basin66_207b2b2d52137
+X-Filterd-Recvd-Size: 4484
 Received: from mga06.intel.com (mga06.intel.com [134.134.136.31])
-	by imf02.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:03:42 +0000 (UTC)
+	by imf22.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:03:43 +0000 (UTC)
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 14:03:40 -0700
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 14:03:41 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.64,382,1559545200"; 
-   d="scan'208";a="194275982"
+   d="scan'208";a="194275985"
 Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
   by fmsmga001.fm.intel.com with ESMTP; 13 Aug 2019 14:03:40 -0700
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
@@ -75,9 +76,9 @@ To: x86@kernel.org,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v8 07/14] x86/cet/ibt: Add ENDBR to op-code-map
-Date: Tue, 13 Aug 2019 13:53:52 -0700
-Message-Id: <20190813205359.12196-8-yu-cheng.yu@intel.com>
+Subject: [PATCH v8 08/14] x86/vdso: Insert endbr32/endbr64 to vDSO
+Date: Tue, 13 Aug 2019 13:53:53 -0700
+Message-Id: <20190813205359.12196-9-yu-cheng.yu@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190813205359.12196-1-yu-cheng.yu@intel.com>
 References: <20190813205359.12196-1-yu-cheng.yu@intel.com>
@@ -87,79 +88,69 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Add control transfer terminating instructions:
+From: "H.J. Lu" <hjl.tools@gmail.com>
 
-ENDBR64/ENDBR32:
-    Mark a valid 64/32-bit control transfer endpoint.
+When Intel indirect branch tracking is enabled, functions in vDSO which
+may be called indirectly must have endbr32 or endbr64 as the first
+instruction.  Compiler must support -fcf-protection=branch so that it
+can be used to compile vDSO.
 
+Acked-by: Andy Lutomirski <luto@kernel.org>
+Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/lib/x86-opcode-map.txt               | 13 +++++++++++--
- tools/objtool/arch/x86/lib/x86-opcode-map.txt | 13 +++++++++++--
- 2 files changed, 22 insertions(+), 4 deletions(-)
+ arch/x86/entry/vdso/Makefile          | 12 +++++++++++-
+ arch/x86/entry/vdso/vdso-layout.lds.S |  1 +
+ 2 files changed, 12 insertions(+), 1 deletion(-)
 
-diff --git a/arch/x86/lib/x86-opcode-map.txt b/arch/x86/lib/x86-opcode-map.txt
-index c5e825d44766..fbc53481bc59 100644
---- a/arch/x86/lib/x86-opcode-map.txt
-+++ b/arch/x86/lib/x86-opcode-map.txt
-@@ -620,7 +620,16 @@ ea: SAVEPREVSSP (f3)
- # Skip 0xeb-0xff
- EndTable
+diff --git a/arch/x86/entry/vdso/Makefile b/arch/x86/entry/vdso/Makefile
+index 8df549138193..1e6a95881e73 100644
+--- a/arch/x86/entry/vdso/Makefile
++++ b/arch/x86/entry/vdso/Makefile
+@@ -114,13 +114,17 @@ vobjx32s := $(foreach F,$(vobjx32s-y),$(obj)/$F)
  
--Table: 3-byte opcode 2 (0x0f 0x38)
-+Table: 3-byte opcode 2 (0x0f 0x1e)
-+Referrer:
-+AVXcode:
-+# Skip 0x00-0xf9
-+fa: ENDBR64 (f3)
-+fb: ENDBR32 (f3)
-+#skip 0xfc-0xff
-+EndTable
+ # Convert 64bit object file to x32 for x32 vDSO.
+ quiet_cmd_x32 = X32     $@
+-      cmd_x32 = $(OBJCOPY) -O elf32-x86-64 $< $@
++      cmd_x32 = $(OBJCOPY) -R .note.gnu.property -O elf32-x86-64 $< $@
+ 
+ $(obj)/%-x32.o: $(obj)/%.o FORCE
+ 	$(call if_changed,x32)
+ 
+ targets += vdsox32.lds $(vobjx32s-y)
+ 
++ifdef CONFIG_X86_INTEL_BRANCH_TRACKING_USER
++    $(obj)/vclock_gettime.o $(obj)/vgetcpu.o $(obj)/vdso32/vclock_gettime.o: KBUILD_CFLAGS += -fcf-protection=branch
++endif
 +
-+Table: 3-byte opcode 3 (0x0f 0x38)
- Referrer: 3-byte escape 1
- AVXcode: 2
- # 0x0f 0x38 0x00-0x0f
-@@ -804,7 +813,7 @@ f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v) | WRSS Pq,Qq
- f7: BEXTR Gy,Ey,By (v) | SHLX Gy,Ey,By (66),(v) | SARX Gy,Ey,By (F3),(v) | SHRX Gy,Ey,By (F2),(v)
- EndTable
+ $(obj)/%.so: OBJCOPYFLAGS := -S
+ $(obj)/%.so: $(obj)/%.so.dbg FORCE
+ 	$(call if_changed,objcopy)
+@@ -178,6 +182,12 @@ quiet_cmd_vdso = VDSO    $@
  
--Table: 3-byte opcode 3 (0x0f 0x3a)
-+Table: 3-byte opcode 4 (0x0f 0x3a)
- Referrer: 3-byte escape 2
- AVXcode: 3
- # 0x0f 0x3a 0x00-0xff
-diff --git a/tools/objtool/arch/x86/lib/x86-opcode-map.txt b/tools/objtool/arch/x86/lib/x86-opcode-map.txt
-index c5e825d44766..fbc53481bc59 100644
---- a/tools/objtool/arch/x86/lib/x86-opcode-map.txt
-+++ b/tools/objtool/arch/x86/lib/x86-opcode-map.txt
-@@ -620,7 +620,16 @@ ea: SAVEPREVSSP (f3)
- # Skip 0xeb-0xff
- EndTable
+ VDSO_LDFLAGS = -shared --hash-style=both --build-id \
+ 	$(call ld-option, --eh-frame-hdr) -Bsymbolic
++ifdef CONFIG_X86_INTEL_BRANCH_TRACKING_USER
++  VDSO_LDFLAGS += $(call ldoption, -z$(comma)ibt)
++endif
++ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
++  VDSO_LDFLAGS += $(call ldoption, -z$(comma)shstk)
++endif
+ GCOV_PROFILE := n
  
--Table: 3-byte opcode 2 (0x0f 0x38)
-+Table: 3-byte opcode 2 (0x0f 0x1e)
-+Referrer:
-+AVXcode:
-+# Skip 0x00-0xf9
-+fa: ENDBR64 (f3)
-+fb: ENDBR32 (f3)
-+#skip 0xfc-0xff
-+EndTable
-+
-+Table: 3-byte opcode 3 (0x0f 0x38)
- Referrer: 3-byte escape 1
- AVXcode: 2
- # 0x0f 0x38 0x00-0x0f
-@@ -804,7 +813,7 @@ f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v) | WRSS Pq,Qq
- f7: BEXTR Gy,Ey,By (v) | SHLX Gy,Ey,By (66),(v) | SARX Gy,Ey,By (F3),(v) | SHRX Gy,Ey,By (F2),(v)
- EndTable
+ quiet_cmd_vdso_and_check = VDSO    $@
+diff --git a/arch/x86/entry/vdso/vdso-layout.lds.S b/arch/x86/entry/vdso/vdso-layout.lds.S
+index 93c6dc7812d0..3fea2ce318bc 100644
+--- a/arch/x86/entry/vdso/vdso-layout.lds.S
++++ b/arch/x86/entry/vdso/vdso-layout.lds.S
+@@ -52,6 +52,7 @@ SECTIONS
+ 		*(.gnu.linkonce.b.*)
+ 	}						:text
  
--Table: 3-byte opcode 3 (0x0f 0x3a)
-+Table: 3-byte opcode 4 (0x0f 0x3a)
- Referrer: 3-byte escape 2
- AVXcode: 3
- # 0x0f 0x3a 0x00-0xff
++	.note.gnu.property : { *(.note.gnu.property) }	:text	:note
+ 	.note		: { *(.note.*) }		:text	:note
+ 
+ 	.eh_frame_hdr	: { *(.eh_frame_hdr) }		:text	:eh_frame_hdr
 -- 
 2.17.1
 
