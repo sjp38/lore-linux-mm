@@ -1,242 +1,139 @@
-Return-Path: <SRS0=TLXr=WI=kvack.org=owner-linux-mm@kernel.org>
+Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 298FCC433FF
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 23:50:20 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9C931C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 00:09:06 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D7CA420679
-	for <linux-mm@archiver.kernel.org>; Mon, 12 Aug 2019 23:50:19 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D7CA420679
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 58C96207E0
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 00:09:06 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="fabDrYOK"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 58C96207E0
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5C44C6B0003; Mon, 12 Aug 2019 19:50:19 -0400 (EDT)
+	id E41BD6B0005; Mon, 12 Aug 2019 20:09:05 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 574F46B0005; Mon, 12 Aug 2019 19:50:19 -0400 (EDT)
+	id DF29D6B0006; Mon, 12 Aug 2019 20:09:05 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 43BC66B0006; Mon, 12 Aug 2019 19:50:19 -0400 (EDT)
+	id D077D6B0007; Mon, 12 Aug 2019 20:09:05 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0070.hostedemail.com [216.40.44.70])
-	by kanga.kvack.org (Postfix) with ESMTP id 1E2396B0003
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 19:50:19 -0400 (EDT)
+Received: from forelay.hostedemail.com (smtprelay0241.hostedemail.com [216.40.44.241])
+	by kanga.kvack.org (Postfix) with ESMTP id A9DD66B0005
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 20:09:05 -0400 (EDT)
 Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id C8FF2181AC9AE
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 23:50:18 +0000 (UTC)
-X-FDA: 75815422116.13.blood96_770af6feeaa4a
-X-HE-Tag: blood96_770af6feeaa4a
-X-Filterd-Recvd-Size: 8368
-Received: from mga18.intel.com (mga18.intel.com [134.134.136.126])
-	by imf11.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 23:50:17 +0000 (UTC)
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from fmsmga004.fm.intel.com ([10.253.24.48])
-  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Aug 2019 16:49:50 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,379,1559545200"; 
-   d="scan'208";a="200305528"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by fmsmga004.fm.intel.com with ESMTP; 12 Aug 2019 16:49:50 -0700
-Date: Mon, 12 Aug 2019 16:49:50 -0700
-From: Ira Weiny <ira.weiny@intel.com>
-To: john.hubbard@gmail.com
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>, Jan Kara <jack@suse.cz>,
-	Jason Gunthorpe <jgg@ziepe.ca>,
-	=?iso-8859-1?B?Suly9G1l?= Glisse <jglisse@redhat.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org, linux-rdma@vger.kernel.org,
-	John Hubbard <jhubbard@nvidia.com>
+	by forelay05.hostedemail.com (Postfix) with SMTP id 55D5F181AC9B6
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 00:09:05 +0000 (UTC)
+X-FDA: 75815469450.13.head60_897b4fddf212b
+X-HE-Tag: head60_897b4fddf212b
+X-Filterd-Recvd-Size: 4686
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com [216.228.121.143])
+	by imf34.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 00:09:04 +0000 (UTC)
+Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d51ffa10000>; Mon, 12 Aug 2019 17:09:05 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate102.nvidia.com (PGP Universal service);
+  Mon, 12 Aug 2019 17:09:03 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate102.nvidia.com on Mon, 12 Aug 2019 17:09:03 -0700
+Received: from [10.2.165.207] (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Tue, 13 Aug
+ 2019 00:09:02 +0000
 Subject: Re: [RFC PATCH 2/2] mm/gup: introduce vaddr_pin_pages_remote()
-Message-ID: <20190812234950.GA6455@iweiny-DESK2.sc.intel.com>
+To: Ira Weiny <ira.weiny@intel.com>
+CC: Andrew Morton <akpm@linux-foundation.org>, Christoph Hellwig
+	<hch@infradead.org>, Dan Williams <dan.j.williams@intel.com>, Dave Chinner
+	<david@fromorbit.com>, Jan Kara <jack@suse.cz>, Jason Gunthorpe
+	<jgg@ziepe.ca>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, LKML
+	<linux-kernel@vger.kernel.org>, <linux-mm@kvack.org>,
+	<linux-fsdevel@vger.kernel.org>, <linux-rdma@vger.kernel.org>
 References: <20190812015044.26176-1-jhubbard@nvidia.com>
  <20190812015044.26176-3-jhubbard@nvidia.com>
+ <20190812234950.GA6455@iweiny-DESK2.sc.intel.com>
+X-Nvconfidentiality: public
+From: John Hubbard <jhubbard@nvidia.com>
+Message-ID: <38d2ff2f-4a69-e8bd-8f7c-41f1dbd80fae@nvidia.com>
+Date: Mon, 12 Aug 2019 17:07:32 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190812015044.26176-3-jhubbard@nvidia.com>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+In-Reply-To: <20190812234950.GA6455@iweiny-DESK2.sc.intel.com>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1565654945; bh=/wUWIK2KCWN+EdOxtD3Lx3ieNzAYWw6oiQTfkMzs1z4=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=fabDrYOKwUNPuchzbriK5AMZnZocxegfpaGb1YYxCqXZ4wtcHIpx96Odw5k4ICzzT
+	 iZpl3veS/CAV9dLRwYMRBkNIHfdxLkUfpXyqIoX7MnrHx9s6pT4udv1r1a/a5c/3h5
+	 tZHPEp/ZLWCUEqqdJKpiANdAJLbkVzkBAV3TndttzDMnleK2AIW2H4b2DkINQlezTT
+	 BY2P2+pn0RTBJfIR0Wmogyu9RLO4dLaugR7l4KAw9fjioVlORt5yAHDM2QgWHJyzK5
+	 1JQeOscC3TwaeYqzJdN7IzLWb1tfFJadyhCYQA7OwMUGp3YXh4J32EZuea9IBQ1jgA
+	 GWeSN2C/h30cw==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sun, Aug 11, 2019 at 06:50:44PM -0700, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
+On 8/12/19 4:49 PM, Ira Weiny wrote:
+> On Sun, Aug 11, 2019 at 06:50:44PM -0700, john.hubbard@gmail.com wrote:
+>> From: John Hubbard <jhubbard@nvidia.com>
+...
+>> diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
+>> index 53085896d718..fdff034a8a30 100644
+>> --- a/drivers/infiniband/core/umem_odp.c
+>> +++ b/drivers/infiniband/core/umem_odp.c
+>> @@ -534,7 +534,7 @@ static int ib_umem_odp_map_dma_single_page(
+>>   	}
+>>   
+>>   out:
+>> -	put_user_page(page);
+>> +	vaddr_unpin_pages(&page, 1, &umem_odp->umem.vaddr_pin);
+>>   
+>>   	if (remove_existing_mapping) {
+>>   		ib_umem_notifier_start_account(umem_odp);
+>> @@ -635,9 +635,10 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
+>>   		 * complex (and doesn't gain us much performance in most use
+>>   		 * cases).
+>>   		 */
+>> -		npages = get_user_pages_remote(owning_process, owning_mm,
+>> +		npages = vaddr_pin_pages_remote(owning_process, owning_mm,
+>>   				user_virt, gup_num_pages,
+>> -				flags, local_page_list, NULL, NULL);
+>> +				flags, local_page_list, NULL, NULL,
+>> +				&umem_odp->umem.vaddr_pin);
 > 
-> This is the "vaddr_pin_pages" corresponding variant to
-> get_user_pages_remote(), but with FOLL_PIN semantics: the implementation
-> sets FOLL_PIN. That, in turn, means that the pages must ultimately be
-> released by put_user_page*()--typically, via vaddr_unpin_pages*().
+> Thinking about this part of the patch... is this pin really necessary?  This
+> code is not doing a long term pin.  The page just needs a reference while we
+> map it into the devices page tables.  Once that is done we should get notifiers
+> if anything changes and we can adjust.  right?
 > 
-> Note that the put_user_page*() requirement won't be truly
-> required until all of the call sites have been converted, and
-> the tracking of pages is actually activated.
-> 
-> Also introduce vaddr_unpin_pages(), in order to have a simpler
-> call for the error handling cases.
-> 
-> Use both of these new calls in the Infiniband drive, replacing
-> get_user_pages_remote() and put_user_pages().
-> 
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-> ---
->  drivers/infiniband/core/umem_odp.c | 15 +++++----
->  include/linux/mm.h                 |  7 +++++
->  mm/gup.c                           | 50 ++++++++++++++++++++++++++++++
->  3 files changed, 66 insertions(+), 6 deletions(-)
-> 
-> diff --git a/drivers/infiniband/core/umem_odp.c b/drivers/infiniband/core/umem_odp.c
-> index 53085896d718..fdff034a8a30 100644
-> --- a/drivers/infiniband/core/umem_odp.c
-> +++ b/drivers/infiniband/core/umem_odp.c
-> @@ -534,7 +534,7 @@ static int ib_umem_odp_map_dma_single_page(
->  	}
->  
->  out:
-> -	put_user_page(page);
-> +	vaddr_unpin_pages(&page, 1, &umem_odp->umem.vaddr_pin);
->  
->  	if (remove_existing_mapping) {
->  		ib_umem_notifier_start_account(umem_odp);
-> @@ -635,9 +635,10 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
->  		 * complex (and doesn't gain us much performance in most use
->  		 * cases).
->  		 */
-> -		npages = get_user_pages_remote(owning_process, owning_mm,
-> +		npages = vaddr_pin_pages_remote(owning_process, owning_mm,
->  				user_virt, gup_num_pages,
-> -				flags, local_page_list, NULL, NULL);
-> +				flags, local_page_list, NULL, NULL,
-> +				&umem_odp->umem.vaddr_pin);
 
-Thinking about this part of the patch... is this pin really necessary?  This
-code is not doing a long term pin.  The page just needs a reference while we
-map it into the devices page tables.  Once that is done we should get notifiers
-if anything changes and we can adjust.  right?
+OK, now it's a little interesting: the FOLL_PIN is necessary, but maybe not
+FOLL_LONGTERM. Illustrating once again that it's actually necessary to allow
+these flags to vary independently.
 
-Ira
+And that leads to another API refinement idea: let's set FOLL_PIN within the
+vaddr_pin_pages*() wrappers, and set FOLL_LONGTER in the *callers* of those
+wrappers, yes?
 
->  		up_read(&owning_mm->mmap_sem);
->  
->  		if (npages < 0) {
-> @@ -657,7 +658,8 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
->  					ret = -EFAULT;
->  					break;
->  				}
-> -				put_user_page(local_page_list[j]);
-> +				vaddr_unpin_pages(&local_page_list[j], 1,
-> +						  &umem_odp->umem.vaddr_pin);
->  				continue;
->  			}
->  
-> @@ -684,8 +686,9 @@ int ib_umem_odp_map_dma_pages(struct ib_umem_odp *umem_odp, u64 user_virt,
->  			 * ib_umem_odp_map_dma_single_page().
->  			 */
->  			if (npages - (j + 1) > 0)
-> -				put_user_pages(&local_page_list[j+1],
-> -					       npages - (j + 1));
-> +				vaddr_unpin_pages(&local_page_list[j+1],
-> +						  npages - (j + 1),
-> +						  &umem_odp->umem.vaddr_pin);
->  			break;
->  		}
->  	}
-> diff --git a/include/linux/mm.h b/include/linux/mm.h
-> index 61b616cd9243..2bd76ad8787e 100644
-> --- a/include/linux/mm.h
-> +++ b/include/linux/mm.h
-> @@ -1606,6 +1606,13 @@ int __account_locked_vm(struct mm_struct *mm, unsigned long pages, bool inc,
->  long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
->  		     unsigned int gup_flags, struct page **pages,
->  		     struct vaddr_pin *vaddr_pin);
-> +long vaddr_pin_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
-> +			    unsigned long start, unsigned long nr_pages,
-> +			    unsigned int gup_flags, struct page **pages,
-> +			    struct vm_area_struct **vmas, int *locked,
-> +			    struct vaddr_pin *vaddr_pin);
-> +void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
-> +		       struct vaddr_pin *vaddr_pin);
->  void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
->  				  struct vaddr_pin *vaddr_pin, bool make_dirty);
->  bool mapping_inode_has_layout(struct vaddr_pin *vaddr_pin, struct page *page);
-> diff --git a/mm/gup.c b/mm/gup.c
-> index 85f09958fbdc..bb95adfaf9b6 100644
-> --- a/mm/gup.c
-> +++ b/mm/gup.c
-> @@ -2518,6 +2518,38 @@ long vaddr_pin_pages(unsigned long addr, unsigned long nr_pages,
->  }
->  EXPORT_SYMBOL(vaddr_pin_pages);
->  
-> +/**
-> + * vaddr_pin_pages pin pages by virtual address and return the pages to the
-> + * user.
-> + *
-> + * @tsk:	the task_struct to use for page fault accounting, or
-> + *		NULL if faults are not to be recorded.
-> + * @mm:		mm_struct of target mm
-> + * @addr:	start address
-> + * @nr_pages:	number of pages to pin
-> + * @gup_flags:	flags to use for the pin
-> + * @pages:	array of pages returned
-> + * @vaddr_pin:	initialized meta information this pin is to be associated
-> + * with.
-> + *
-> + * This is the "vaddr_pin_pages" corresponding variant to
-> + * get_user_pages_remote(), but with FOLL_PIN semantics: the implementation sets
-> + * FOLL_PIN. That, in turn, means that the pages must ultimately be released
-> + * by put_user_page().
-> + */
-> +long vaddr_pin_pages_remote(struct task_struct *tsk, struct mm_struct *mm,
-> +			    unsigned long start, unsigned long nr_pages,
-> +			    unsigned int gup_flags, struct page **pages,
-> +			    struct vm_area_struct **vmas, int *locked,
-> +			    struct vaddr_pin *vaddr_pin)
-> +{
-> +	gup_flags |= FOLL_TOUCH | FOLL_REMOTE | FOLL_PIN;
-> +
-> +	return __get_user_pages_locked(tsk, mm, start, nr_pages, pages, vmas,
-> +				       locked, gup_flags, vaddr_pin);
-> +}
-> +EXPORT_SYMBOL(vaddr_pin_pages_remote);
-> +
->  /**
->   * vaddr_unpin_pages_dirty_lock - counterpart to vaddr_pin_pages
->   *
-> @@ -2536,3 +2568,21 @@ void vaddr_unpin_pages_dirty_lock(struct page **pages, unsigned long nr_pages,
->  	__put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, make_dirty);
->  }
->  EXPORT_SYMBOL(vaddr_unpin_pages_dirty_lock);
-> +
-> +/**
-> + * vaddr_unpin_pages - simple, non-dirtying counterpart to vaddr_pin_pages
-> + *
-> + * @pages: array of pages returned
-> + * @nr_pages: number of pages in pages
-> + * @vaddr_pin: same information passed to vaddr_pin_pages
-> + *
-> + * Like vaddr_unpin_pages_dirty_lock, but for non-dirty pages. Useful in putting
-> + * back pages in an error case: they were never made dirty.
-> + */
-> +void vaddr_unpin_pages(struct page **pages, unsigned long nr_pages,
-> +		       struct vaddr_pin *vaddr_pin)
-> +{
-> +	__put_user_pages_dirty_lock(vaddr_pin, pages, nr_pages, false);
-> +}
-> +EXPORT_SYMBOL(vaddr_unpin_pages);
-> +
-> -- 
-> 2.22.0
-> 
+thanks,
+-- 
+John Hubbard
+NVIDIA
 
