@@ -6,115 +6,82 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C9D44C32750
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 08:23:54 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C9A3FC32753
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 08:26:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 651AB20663
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 08:23:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 651AB20663
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id 9610220663
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 08:26:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9610220663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E2FAC6B0005; Tue, 13 Aug 2019 04:23:53 -0400 (EDT)
+	id 2943B6B0005; Tue, 13 Aug 2019 04:26:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DB9B46B0006; Tue, 13 Aug 2019 04:23:53 -0400 (EDT)
+	id 244C26B0006; Tue, 13 Aug 2019 04:26:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C58EF6B0007; Tue, 13 Aug 2019 04:23:53 -0400 (EDT)
+	id 136BB6B0007; Tue, 13 Aug 2019 04:26:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0103.hostedemail.com [216.40.44.103])
-	by kanga.kvack.org (Postfix) with ESMTP id 9E2196B0005
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 04:23:53 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 3FC1A40D9
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:23:53 +0000 (UTC)
-X-FDA: 75816716346.10.route75_5c0d15491ff58
-X-HE-Tag: route75_5c0d15491ff58
-X-Filterd-Recvd-Size: 7244
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf06.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:23:52 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id DBBFAAD54;
-	Tue, 13 Aug 2019 08:23:50 +0000 (UTC)
-Subject: Re: Memory compaction and mlockall()
-To: Sebastian Andrzej Siewior <bigeasy@linutronix.de>
-Cc: Yang Shi <shy828301@gmail.com>, Linux MM <linux-mm@kvack.org>,
- Thomas Gleixner <tglx@linutronix.de>
-References: <20190710144138.qyn4tuttdq6h7kqx@linutronix.de>
- <CAHbLzkpME1oT2=-TNPm9S_iZ2nkGsY6AXo7iVgDUhg8WysDpZw@mail.gmail.com>
- <20190711094324.ninnmarx5r3amz4p@linutronix.de>
- <77c839c3-7d7d-9b98-5c3d-ad5fd65274b1@suse.cz>
- <20190812155411.hpfweuao7uudw5my@linutronix.de>
-From: Vlastimil Babka <vbabka@suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0038.hostedemail.com [216.40.44.38])
+	by kanga.kvack.org (Postfix) with ESMTP id E1F306B0005
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 04:26:34 -0400 (EDT)
+Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 90EBC180AD7C1
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:26:34 +0000 (UTC)
+X-FDA: 75816723108.12.crow55_738d32e747b17
+X-HE-Tag: crow55_738d32e747b17
+X-Filterd-Recvd-Size: 3877
+Received: from mail-wr1-f66.google.com (mail-wr1-f66.google.com [209.85.221.66])
+	by imf18.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:26:33 +0000 (UTC)
+Received: by mail-wr1-f66.google.com with SMTP id t16so16804029wra.6
+        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 01:26:33 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:subject:to:cc:references:from:openpgp:message-id
+         :date:user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=xxqnQ+CnehHQ/Z2KjoSVBMjf9aqW8bf9s9y55Oqxpus=;
+        b=EG7KXGtjhiGYWoWUZYma2sWBsb1dFjYjCYFTJtpat1fYHaJdm8xzc8PLhn1v0iI7lZ
+         cjwoUcSKGXg6opBiZMVNb7F5uci3krX5pOBwBnLSiWpld8yHdYhOt8AOepqkSPn3H+Iv
+         2s0OlNR7EwTvGOZtZjuQRUxhuI6ST4nSY8lzfVfDen8XBsqsQ3gbZD+hTYYPvgRw0Q+4
+         1wn+Nczpq0LvbQjPtgX+C9hlQT0HFYwsVkwAi5VB0QNn1HzHX2ogiqNfiUK9rl4k7pS4
+         a/FvEITepMzYbNizXvrG9haknd8IbsDpWRIsoiLYwumun8OrF0YnPuJ7+Yl0+yeY+1D+
+         Pj8Q==
+X-Gm-Message-State: APjAAAVmK0N0vCaBLHBFUusZXtlTY/8qBVmsi+Uc6pCCD9SjSQd9c0uP
+	hRTfPYtKzvjXio5G1GKNbtR6uw==
+X-Google-Smtp-Source: APXvYqz4uFItaxiCcQv78nTDKp0pJqOC6D9k/pJKcDrE7Ren7xe2XjGO7pxUM1GtjA16i5a4LjG6iw==
+X-Received: by 2002:adf:dec8:: with SMTP id i8mr3468071wrn.217.1565684792723;
+        Tue, 13 Aug 2019 01:26:32 -0700 (PDT)
+Received: from ?IPv6:2001:b07:6468:f312:5d12:7fa9:fb2d:7edb? ([2001:b07:6468:f312:5d12:7fa9:fb2d:7edb])
+        by smtp.gmail.com with ESMTPSA id y7sm595385wmm.19.2019.08.13.01.26.31
+        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Aug 2019 01:26:32 -0700 (PDT)
+Subject: Re: [RFC PATCH v6 14/92] kvm: introspection: handle introspection
+ commands before returning to guest
+To: =?UTF-8?Q?Adalbert_Laz=c4=83r?= <alazar@bitdefender.com>,
+ kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
+ =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ Tamas K Lengyel <tamas@tklengyel.com>,
+ Mathieu Tarral <mathieu.tarral@protonmail.com>,
+ =?UTF-8?Q?Samuel_Laur=c3=a9n?= <samuel.lauren@iki.fi>,
+ Patrick Colp <patrick.colp@oracle.com>, Jan Kiszka <jan.kiszka@siemens.com>,
+ Stefan Hajnoczi <stefanha@redhat.com>,
+ Weijiang Yang <weijiang.yang@intel.com>, Yu C Zhang <yu.c.zhang@intel.com>,
+ =?UTF-8?Q?Mihai_Don=c8=9bu?= <mdontu@bitdefender.com>,
+ =?UTF-8?Q?Mircea_C=c3=aerjaliu?= <mcirjaliu@bitdefender.com>
+References: <20190809160047.8319-1-alazar@bitdefender.com>
+ <20190809160047.8319-15-alazar@bitdefender.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
 Openpgp: preference=signencrypt
-Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
- 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
-Message-ID: <f6159e12-f682-f2e2-f50e-1afc644ddd5f@suse.cz>
-Date: Tue, 13 Aug 2019 10:23:50 +0200
+Message-ID: <645d86f5-67f6-f5d3-3fbb-5ee9898a7ef8@redhat.com>
+Date: Tue, 13 Aug 2019 10:26:29 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190812155411.hpfweuao7uudw5my@linutronix.de>
+In-Reply-To: <20190809160047.8319-15-alazar@bitdefender.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: quoted-printable
@@ -124,45 +91,35 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 8/12/19 5:54 PM, Sebastian Andrzej Siewior wrote:
-> On 2019-08-12 16:59:00 [+0200], Vlastimil Babka wrote:
->> I would say that enabled is a better default wrt benefits for the
->> majority of systems. This was assuming that mlock() is primarily used =
-to
->> prevent sensitive data (crypto keys) from hitting swap, not to give
->> latency guarantees. You could perhaps argue that enabling PREEMPT_RT
->> might change the default, but it's somewhat subtle.
->=20
-> A different behaviour depending on PREEMPT_RT is bad.=20
-> From the mlock(2) page:
->=20
-> |NOTES
-> |
-> |Memory locking has two main applications: real-time algorithms and
-> |high-security data processing. Real-time applications require determin=
-istic
-> |timing, and, like scheduling, paging is one major cause of unexpected =
-program
-> |execution delays. =E2=80=A6
-> |
-> |Real-time processes that are using mlockall() to prevent delays on pag=
-e faults
-> |should reserve enough locked stack pages before entering the time-crit=
-ical
-> |section, so that no page fault can be caused by function calls. =E2=80=
-=A6
+On 09/08/19 17:59, Adalbert Laz=C4=83r wrote:
+> +			prepare_to_swait_exclusive(&vcpu->wq, &wait,
+> +						   TASK_INTERRUPTIBLE);
+> +
+> +			if (kvm_vcpu_check_block(vcpu) < 0)
+> +				break;
+> +
+> +			waited =3D true;
+> +			schedule();
+> +
+> +			if (kvm_check_request(KVM_REQ_INTROSPECTION, vcpu)) {
+> +				do_kvmi_work =3D true;
+> +				break;
+> +			}
+> +		}
+> =20
+> -		waited =3D true;
+> -		schedule();
+> +		finish_swait(&vcpu->wq, &wait);
+> +
+> +		if (do_kvmi_work)
+> +			kvmi_handle_requests(vcpu);
+> +		else
+> +			break;
+>  	}
 
-Ah, I see, so it is documented for time-critical stuff.
+Is this needed?  Or can it just go back to KVM_RUN and handle
+KVM_REQ_INTROSPECTION there (in which case it would be basically
+premature optimization)?
 
-> So if we are not going to revert that, then I would need to update man
-> page to reflect that we now have an additional knob to consider in orde=
-r
-> to disable page faults on mlock()ed pages.
-
-If we're going to update man page, then there's also auto NUMA balancing
-that can cause minor faults and migrations, AFAIK.
-
-> Sebastian
->=20
-
+Paolo
 
