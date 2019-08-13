@@ -2,111 +2,146 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-1.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	SUBJ_ALL_CAPS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 54115C32750
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 11:24:16 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 67EB1C32757
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 11:47:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 181F020673
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 11:24:16 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 2CBBA2067D
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 11:47:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="VBhkUStR"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 181F020673
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="QCZ4PvH+"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CBBA2067D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9FDF66B0007; Tue, 13 Aug 2019 07:24:15 -0400 (EDT)
+	id B73406B0005; Tue, 13 Aug 2019 07:47:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9ADCD6B0008; Tue, 13 Aug 2019 07:24:15 -0400 (EDT)
+	id B249A6B0006; Tue, 13 Aug 2019 07:47:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8C40A6B000A; Tue, 13 Aug 2019 07:24:15 -0400 (EDT)
+	id A11426B0007; Tue, 13 Aug 2019 07:47:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0223.hostedemail.com [216.40.44.223])
-	by kanga.kvack.org (Postfix) with ESMTP id 6A83C6B0007
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 07:24:15 -0400 (EDT)
+Received: from forelay.hostedemail.com (smtprelay0152.hostedemail.com [216.40.44.152])
+	by kanga.kvack.org (Postfix) with ESMTP id 7B8A16B0005
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 07:47:09 -0400 (EDT)
 Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 08E3C180AD7C3
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:24:15 +0000 (UTC)
-X-FDA: 75817170870.01.baby43_41fe126b9fb39
-X-HE-Tag: baby43_41fe126b9fb39
-X-Filterd-Recvd-Size: 3520
-Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
-	by imf49.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:24:13 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
-	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Transfer-Encoding
-	:Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
-	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
-	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
-	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
-	bh=K5gbxcQPxrQYgws2hBkB1SH1ZLrBAecYkptVmkU/CGk=; b=VBhkUStRQ4A8I1CFq/DgEvG8QK
-	mabjskg5FBYy57JI09/XJ+irmmluQEyFn85/SuN/45HNd3U/QuZsVBL+T1q44y1YuhmwXhFeFOIid
-	5+TJqYzbYBR4TAQdkn+yPCLlhGjXlAQ8gSeXgktbYEHsVXCJu8vfkH90LYiZ3gbC2jrirPL9ZU49S
-	/bvRIf8M2YA5toVEmvi1MpyRuNiS+3/VfzBQLmxvSpGFqj7t8TBqpby1yVIj97hYNPOiRJd/2Xg35
-	YvvqIbffdEJSygJyMOOoqy74tKwa9u0wy1prWkxOhDCrSmHHMkfHeNaDXuascaWKuA3U2Y6cCpTEG
-	zW2hQB3Q==;
-Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
-	id 1hxUuO-0006tv-Eu; Tue, 13 Aug 2019 11:24:08 +0000
-Date: Tue, 13 Aug 2019 04:24:08 -0700
-From: Matthew Wilcox <willy@infradead.org>
-To: Paolo Bonzini <pbonzini@redhat.com>
-Cc: Adalbert =?utf-8?B?TGF6xINy?= <alazar@bitdefender.com>,
-	kvm@vger.kernel.org, linux-mm@kvack.org,
-	virtualization@lists.linux-foundation.org,
-	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
-	Tamas K Lengyel <tamas@tklengyel.com>,
-	Mathieu Tarral <mathieu.tarral@protonmail.com>,
-	Samuel =?iso-8859-1?Q?Laur=E9n?= <samuel.lauren@iki.fi>,
-	Patrick Colp <patrick.colp@oracle.com>,
-	Jan Kiszka <jan.kiszka@siemens.com>,
-	Stefan Hajnoczi <stefanha@redhat.com>,
-	Weijiang Yang <weijiang.yang@intel.com>, Zhang@kvack.org,
-	Yu C <yu.c.zhang@intel.com>,
-	Mihai =?utf-8?B?RG9uyJt1?= <mdontu@bitdefender.com>,
-	Mircea =?iso-8859-1?Q?C=EErjaliu?= <mcirjaliu@bitdefender.com>
-Subject: Re: DANGER WILL ROBINSON, DANGER
-Message-ID: <20190813112408.GC5307@bombadil.infradead.org>
-References: <20190809160047.8319-1-alazar@bitdefender.com>
- <20190809160047.8319-72-alazar@bitdefender.com>
- <20190809162444.GP5482@bombadil.infradead.org>
- <ae0d274c-96b1-3ac9-67f2-f31fd7bbdcee@redhat.com>
+	by forelay03.hostedemail.com (Postfix) with SMTP id 143DD8248AA1
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:47:09 +0000 (UTC)
+X-FDA: 75817228578.01.scale82_78902c41d7a4e
+X-HE-Tag: scale82_78902c41d7a4e
+X-Filterd-Recvd-Size: 5342
+Received: from mail-qt1-f195.google.com (mail-qt1-f195.google.com [209.85.160.195])
+	by imf46.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:47:08 +0000 (UTC)
+Received: by mail-qt1-f195.google.com with SMTP id l9so105906201qtu.6
+        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 04:47:08 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=ziepe.ca; s=google;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=A5jSIc/RY/hZ7f+bEkMhOVRTEXKJZMsh3LcoJICOYZA=;
+        b=QCZ4PvH+HERINAIC/rIX57CfHFpykExOSCWoiRBdSClOqTC5WAYKVE/wNtLd1ZCdXb
+         KZp5v/22WAqZ0EMeHD9gQcL9jjBHQrauhwB1tY41cMyXOMQcHirf3q33hSp3+J4vow0U
+         GPXzEq3gqF2wrMV1Rw/sgqnEqIShtnXpz04NN7ACpnW2Kb2z/8KWS7MN/hESlyb75tlS
+         YMQH3uuf6z8f1q/jLKcYyFLyOZd7D+SDwoKD8lO4RahnM5opPz9OKgrwrp/X5BI8wvMd
+         OzyT60/eIe57jrf+8q2zyLqpHM8YRV9JQevqDnSiRM5+NRuM8rm/DiPdBJOWMMsLftQz
+         b4GQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=A5jSIc/RY/hZ7f+bEkMhOVRTEXKJZMsh3LcoJICOYZA=;
+        b=fn34xxC2b96NpDQLk/o7mVgVOmmPEsfZk6jrcIguWDVuU3sRv4pk88eqwZ2A+wJwE2
+         ndVrzsV1++g19sUYT1DwK2bPUfzvZ1L/IBUZE3+GjFxitdY3tKkedoR5hMHGLu+bRji3
+         v9WV5K9h1rLMXPYRL7+G0/0s2b1WmJV0LzMKArUcvTlCX9A/5N7OQt6RhcuXYW95BCz2
+         3GGwT6Pmbzk2sXleU5N2HIALScn+YhWTmXZJ2PQlAPMMwUOIh2lD4OJ7EfKL0ph2JvPM
+         Ra4ygwaREqhwZ+YvqLkU0K9JnUIhvZ3sIkicP3LuN1Tx/TIcG/GW4agQirRKo1Lf1+ZA
+         4RYg==
+X-Gm-Message-State: APjAAAUI9wdFgN90TPjAvDjV74VxSD9j/zsAHvHSbb3UnOHbxzPZAmxh
+	rNZ16IijUpH9N29t22OjI/Jcug==
+X-Google-Smtp-Source: APXvYqxNaQQNPStukKuBzbe7ho0VUZGNKPG9lP34sc9j+nxvDvhp77mkTMuiRQNU50cP5mt/nBqv4g==
+X-Received: by 2002:ac8:3f86:: with SMTP id d6mr30794575qtk.346.1565696827682;
+        Tue, 13 Aug 2019 04:47:07 -0700 (PDT)
+Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
+        by smtp.gmail.com with ESMTPSA id 67sm47417797qkh.108.2019.08.13.04.47.06
+        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
+        Tue, 13 Aug 2019 04:47:07 -0700 (PDT)
+Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
+	(envelope-from <jgg@ziepe.ca>)
+	id 1hxVGc-0007jx-3A; Tue, 13 Aug 2019 08:47:06 -0300
+Date: Tue, 13 Aug 2019 08:47:06 -0300
+From: Jason Gunthorpe <jgg@ziepe.ca>
+To: Ira Weiny <ira.weiny@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
+	Theodore Ts'o <tytso@mit.edu>, John Hubbard <jhubbard@nvidia.com>,
+	Michal Hocko <mhocko@suse.com>, Dave Chinner <david@fromorbit.com>,
+	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 15/19] mm/gup: Introduce vaddr_pin_pages()
+Message-ID: <20190813114706.GA29508@ziepe.ca>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+ <20190809225833.6657-16-ira.weiny@intel.com>
+ <20190812122814.GC24457@ziepe.ca>
+ <20190812214854.GF20634@iweiny-DESK2.sc.intel.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=utf-8
+Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <ae0d274c-96b1-3ac9-67f2-f31fd7bbdcee@redhat.com>
-User-Agent: Mutt/1.11.4 (2019-03-13)
-Content-Transfer-Encoding: quoted-printable
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.001469, version=1.2.4
+In-Reply-To: <20190812214854.GF20634@iweiny-DESK2.sc.intel.com>
+User-Agent: Mutt/1.9.4 (2018-02-28)
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 13, 2019 at 11:29:07AM +0200, Paolo Bonzini wrote:
-> On 09/08/19 18:24, Matthew Wilcox wrote:
-> > On Fri, Aug 09, 2019 at 07:00:26PM +0300, Adalbert Laz=C4=83r wrote:
-> >> +++ b/include/linux/page-flags.h
-> >> @@ -417,8 +417,10 @@ PAGEFLAG(Idle, idle, PF_ANY)
-> >>   */
-> >>  #define PAGE_MAPPING_ANON	0x1
-> >>  #define PAGE_MAPPING_MOVABLE	0x2
-> >> +#define PAGE_MAPPING_REMOTE	0x4
-> > Uh.  How do you know page->mapping would otherwise have bit 2 clear?
-> > Who's guaranteeing that?
-> >=20
-> > This is an awfully big patch to the memory management code, buried in
-> > the middle of a gigantic series which almost guarantees nobody would
-> > look at it.  I call shenanigans.
->=20
-> Are you calling shenanigans on the patch submitter (which is gratuitous=
-)
-> or on the KVM maintainers/reviewers?
+On Mon, Aug 12, 2019 at 02:48:55PM -0700, Ira Weiny wrote:
+> On Mon, Aug 12, 2019 at 09:28:14AM -0300, Jason Gunthorpe wrote:
+> > On Fri, Aug 09, 2019 at 03:58:29PM -0700, ira.weiny@intel.com wrote:
+> > > From: Ira Weiny <ira.weiny@intel.com>
+> > > 
+> > > The addition of FOLL_LONGTERM has taken on additional meaning for CMA
+> > > pages.
+> > > 
+> > > In addition subsystems such as RDMA require new information to be passed
+> > > to the GUP interface to track file owning information.  As such a simple
+> > > FOLL_LONGTERM flag is no longer sufficient for these users to pin pages.
+> > > 
+> > > Introduce a new GUP like call which takes the newly introduced vaddr_pin
+> > > information.  Failure to pass the vaddr_pin object back to a vaddr_put*
+> > > call will result in a failure if pins were created on files during the
+> > > pin operation.
+> > 
+> > Is this a 'vaddr' in the traditional sense, ie does it work with
+> > something returned by valloc?
+> 
+> ...or malloc in user space, yes.  I think the idea is that it is a user virtual
+> address.
 
-On the patch submitter, of course.  How can I possibly be criticising you
-for something you didn't do?
+valloc is a kernel call
 
+> So I'm open to suggestions.  Jan gave me this one, so I figured it was safer to
+> suggest it...
+
+Should have the word user in it, imho
+
+> > I also wish GUP like functions took in a 'void __user *' instead of
+> > the unsigned long to make this clear :\
+> 
+> Not a bad idea.  But I only see a couple of call sites who actually use a 'void
+> __user *' to pass into GUP...  :-/
+> 
+> For RDMA the address is _never_ a 'void __user *' AFAICS.
+
+That is actually a bug, converting from u64 to a 'user VA' needs to go
+through u64_to_user_ptr().
+
+Jason
 
