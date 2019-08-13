@@ -2,102 +2,94 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
+	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CF96DC433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 11:48:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 0E3DCC32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 11:57:11 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 83EC12067D
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 11:48:45 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id A759B20844
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 11:57:10 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="D9yc6YFG"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 83EC12067D
+	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="ap0SmPcZ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A759B20844
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 223736B0005; Tue, 13 Aug 2019 07:48:45 -0400 (EDT)
+	id 1F5786B0005; Tue, 13 Aug 2019 07:57:10 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1D3656B0006; Tue, 13 Aug 2019 07:48:45 -0400 (EDT)
+	id 1A61E6B0006; Tue, 13 Aug 2019 07:57:10 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0C3956B0007; Tue, 13 Aug 2019 07:48:45 -0400 (EDT)
+	id 095AA6B0007; Tue, 13 Aug 2019 07:57:10 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0108.hostedemail.com [216.40.44.108])
-	by kanga.kvack.org (Postfix) with ESMTP id DE5E56B0005
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 07:48:44 -0400 (EDT)
-Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 6870655FAC
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:48:44 +0000 (UTC)
-X-FDA: 75817232568.22.wash05_8677973193d35
-X-HE-Tag: wash05_8677973193d35
-X-Filterd-Recvd-Size: 6276
-Received: from mail-qt1-f195.google.com (mail-qt1-f195.google.com [209.85.160.195])
-	by imf39.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:48:43 +0000 (UTC)
-Received: by mail-qt1-f195.google.com with SMTP id b11so6195909qtp.10
-        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 04:48:43 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0165.hostedemail.com [216.40.44.165])
+	by kanga.kvack.org (Postfix) with ESMTP id DB6AE6B0005
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 07:57:09 -0400 (EDT)
+Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 7F6CB52AB
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:57:09 +0000 (UTC)
+X-FDA: 75817253778.10.leg64_3e7333573fd00
+X-HE-Tag: leg64_3e7333573fd00
+X-Filterd-Recvd-Size: 4101
+Received: from mail-qt1-f196.google.com (mail-qt1-f196.google.com [209.85.160.196])
+	by imf35.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:57:09 +0000 (UTC)
+Received: by mail-qt1-f196.google.com with SMTP id t12so17416594qtp.9
+        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 04:57:08 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=ziepe.ca; s=google;
         h=date:from:to:cc:subject:message-id:references:mime-version
          :content-disposition:in-reply-to:user-agent;
-        bh=Zt45e40hCF0YCbbLZ0aQGoNlrA/sQl/2BzKPlIDcczo=;
-        b=D9yc6YFGEplkH0AEJkqbv5QQ/YqFFErgaOhlLwwyajnLxYCmzuYuYjTPu5K8IzHc7W
-         EHziDWuZnP0EJUoJorsIB/Vle5Jq4HW1ZePpJfpxeJ3PiL6g9IJgSG7a6i4U9+NgvGWa
-         Ai92AkBB6qVdNZzDPFs/+bpyxdePG4eiTSYai6xHFsXo6eqanU0phpcPPEHhvrx1/xET
-         /OrVUPcq3jLH3XTfzYOI9j16wl1cGoll9zeKlcNrafKlJBFPS3Xu3jF23bvmZsNJxEuE
-         b6+41/KGpH+t1xSORBP9OYFknrdMrMYelZfdaoojCQpOYGYaQ11oiLC8AtSSDLjOlbXi
-         Q++A==
+        bh=RPb0NU5H2rzwjdvr45r58ZWni2Zoy4JljRGSpgnMMr4=;
+        b=ap0SmPcZPZ6NNFvNyFkpypRbg36yi8bdsTd4/F6gQQqPPgiM5IjDvTKZEGGxca8l8F
+         u5EQEn7sEyhGruMuB7cjg3kUgzh9Cv/quO6ECF3rbawY4hb6Yw2dyN9iU6PgCvTDOCh0
+         xsYZVNW0ajla3uTLaTh6ZCITFtrsONP4+81D6sumJLjqzxf2snBDmJYrwx6qXccYld+H
+         swJwSMjlc5QmHizDCiZoTu8O5ptOxdiKgiKAZ9i3JGi/jhbj1siIrzDAKpRTStg72MQw
+         /hWyMVuaK40viEpVJr1GXiLhMU2L4bLITv7lm7rfgwRXFHTHOxuSU5tATEjLqz3Rmkx9
+         LONQ==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:date:from:to:cc:subject:message-id:references
          :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=Zt45e40hCF0YCbbLZ0aQGoNlrA/sQl/2BzKPlIDcczo=;
-        b=C+Wg+l13h8XSHeQCJqtV42X7nkpLuJG4vF9Lm+XcwLvCOLcWOa8q+KGtWVtMbzGeYg
-         6EqEeDyhxI8kcKRVGUohvwtXcMOAbY/tmob6vsH8xVOTBMsPiye1xg8unlF76dCAl48b
-         YyW2LDaVJSnOB2PdL/lGiih4krKFQbUL7BeAlDZJfRXDBtceYb2zq48h3i0VTnRj2JIW
-         +VbUWY1sf8qD1gzhod1Va1AWSje8TdCAeHT/skC3wQV7j8WbEdL0c0cdVqY7fRWSdbs4
-         4tVxuya1Ps+ULprAl9l8cyJRwI7nGBwRgL4z5tTabXRi2IeieceuPYPrLkdmAz3eTcOV
-         gHhw==
-X-Gm-Message-State: APjAAAVpr+1h0iDAeB/hG4uWmTMy1/ZhuQcDnBlsJ6wE+VHc/oYIPnfC
-	kIe15XHYqXDiKSbT27JoiSs2aw==
-X-Google-Smtp-Source: APXvYqw4TQlyWpH+GsoO+iiZQsGjdJlFsSEd7xLsZ4WRKAsozWVqNJgjFHJHWU5rc/t0VYgJHvE8mg==
-X-Received: by 2002:a0c:ae35:: with SMTP id y50mr33835040qvc.204.1565696923435;
-        Tue, 13 Aug 2019 04:48:43 -0700 (PDT)
+        bh=RPb0NU5H2rzwjdvr45r58ZWni2Zoy4JljRGSpgnMMr4=;
+        b=Qy2Zni45pM6FNSgZM1yBLGYskzXdcOzH938hhWZVyPYXnxpHPNod6G18Ell109tOA7
+         JkzwD1HaJKhaBGvJ3c31f9P9lnd0/l91qXaNreVFbZ2o1VrFP/8BJuYRrF3cJ2EHUcGF
+         f4q9nWWUXIcvSn1P377RNhnQiCj8qfbxgXY+Pvnjv6yw2eZYsCM/FmukslhVTrIUH4sU
+         7nEQJcPRU8N+Kp13FyVsYulsnnD8yDsO8yidRmW+GQszCcj8ZEpWv489hOuLNTdLcEHK
+         hFYeQGNfWBbAzCUZJMuLS6HxUNySZsetjiwzoYqQYGGY42Jp/dkCN3tOPaADEF+1Ogce
+         uCmA==
+X-Gm-Message-State: APjAAAWmK4sxb/ayzWUd4Z2dH1mZ6om3+4XRRO29yILIMeg2XpIvPryq
+	wjvW35NYFZtHcxHElEHCT96FRw==
+X-Google-Smtp-Source: APXvYqyQLbr3IuoVdbXppS/ZGOesGhtgbHcYTwB9ezrUQfPYFcx2A9k+2h1mf3jK0ev1zMtBSQ9gpg==
+X-Received: by 2002:a0c:f193:: with SMTP id m19mr33863324qvl.20.1565697428498;
+        Tue, 13 Aug 2019 04:57:08 -0700 (PDT)
 Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id m38sm12868061qta.43.2019.08.13.04.48.42
+        by smtp.gmail.com with ESMTPSA id r4sm69930362qta.93.2019.08.13.04.57.07
         (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 13 Aug 2019 04:48:42 -0700 (PDT)
+        Tue, 13 Aug 2019 04:57:07 -0700 (PDT)
 Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
 	(envelope-from <jgg@ziepe.ca>)
-	id 1hxVIA-0007l2-Ec; Tue, 13 Aug 2019 08:48:42 -0300
-Date: Tue, 13 Aug 2019 08:48:42 -0300
+	id 1hxVQJ-0007sn-HH; Tue, 13 Aug 2019 08:57:07 -0300
+Date: Tue, 13 Aug 2019 08:57:07 -0300
 From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Ira Weiny <ira.weiny@intel.com>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
-	Theodore Ts'o <tytso@mit.edu>, John Hubbard <jhubbard@nvidia.com>,
-	Michal Hocko <mhocko@suse.com>, Dave Chinner <david@fromorbit.com>,
-	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [RFC PATCH v2 16/19] RDMA/uverbs: Add back pointer to system
- file object
-Message-ID: <20190813114842.GB29508@ziepe.ca>
-References: <20190809225833.6657-1-ira.weiny@intel.com>
- <20190809225833.6657-17-ira.weiny@intel.com>
- <20190812130039.GD24457@ziepe.ca>
- <20190812172826.GA19746@iweiny-DESK2.sc.intel.com>
- <20190812175615.GI24457@ziepe.ca>
- <20190812211537.GE20634@iweiny-DESK2.sc.intel.com>
+To: Jason Wang <jasowang@redhat.com>
+Cc: "Michael S. Tsirkin" <mst@redhat.com>, kvm@vger.kernel.org,
+	virtualization@lists.linux-foundation.org, netdev@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [PATCH V5 0/9] Fixes for vhost metadata acceleration
+Message-ID: <20190813115707.GC29508@ziepe.ca>
+References: <20190809054851.20118-1-jasowang@redhat.com>
+ <20190810134948-mutt-send-email-mst@kernel.org>
+ <360a3b91-1ac5-84c0-d34b-a4243fa748c4@redhat.com>
+ <20190812054429-mutt-send-email-mst@kernel.org>
+ <20190812130252.GE24457@ziepe.ca>
+ <9a9641fe-b48f-f32a-eecc-af9c2f4fbe0e@redhat.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190812211537.GE20634@iweiny-DESK2.sc.intel.com>
+In-Reply-To: <9a9641fe-b48f-f32a-eecc-af9c2f4fbe0e@redhat.com>
 User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -105,61 +97,23 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 12, 2019 at 02:15:37PM -0700, Ira Weiny wrote:
-> On Mon, Aug 12, 2019 at 02:56:15PM -0300, Jason Gunthorpe wrote:
-> > On Mon, Aug 12, 2019 at 10:28:27AM -0700, Ira Weiny wrote:
-> > > On Mon, Aug 12, 2019 at 10:00:40AM -0300, Jason Gunthorpe wrote:
-> > > > On Fri, Aug 09, 2019 at 03:58:30PM -0700, ira.weiny@intel.com wrote:
-> > > > > From: Ira Weiny <ira.weiny@intel.com>
-> > > > > 
-> > > > > In order for MRs to be tracked against the open verbs context the ufile
-> > > > > needs to have a pointer to hand to the GUP code.
-> > > > > 
-> > > > > No references need to be taken as this should be valid for the lifetime
-> > > > > of the context.
-> > > > > 
-> > > > > Signed-off-by: Ira Weiny <ira.weiny@intel.com>
-> > > > >  drivers/infiniband/core/uverbs.h      | 1 +
-> > > > >  drivers/infiniband/core/uverbs_main.c | 1 +
-> > > > >  2 files changed, 2 insertions(+)
-> > > > > 
-> > > > > diff --git a/drivers/infiniband/core/uverbs.h b/drivers/infiniband/core/uverbs.h
-> > > > > index 1e5aeb39f774..e802ba8c67d6 100644
-> > > > > +++ b/drivers/infiniband/core/uverbs.h
-> > > > > @@ -163,6 +163,7 @@ struct ib_uverbs_file {
-> > > > >  	struct page *disassociate_page;
-> > > > >  
-> > > > >  	struct xarray		idr;
-> > > > > +	struct file             *sys_file; /* backpointer to system file object */
-> > > > >  };
-> > > > 
-> > > > The 'struct file' has a lifetime strictly shorter than the
-> > > > ib_uverbs_file, which is kref'd on its own lifetime. Having a back
-> > > > pointer like this is confouding as it will be invalid for some of the
-> > > > lifetime of the struct.
-> > > 
-> > > Ah...  ok.  I really thought it was the other way around.
-> > > 
-> > > __fput() should not call ib_uverbs_close() until the last reference on struct
-> > > file is released...  What holds references to struct ib_uverbs_file past that?
-> > 
-> > Child fds hold onto the internal ib_uverbs_file until they are closed
-> 
-> The FDs hold the struct file, don't they?
+On Tue, Aug 13, 2019 at 04:31:07PM +0800, Jason Wang wrote:
 
-Only dups, there are other 'child' FDs we can create
+> What kind of issues do you see? Spinlock is to synchronize GUP with MMU
+> notifier in this series.
 
-> > Now this has unlocked updates to that data.. you'd need some lock and
-> > get not zero pattern
-> 
-> You can't call "get" here because I'm 99% sure we only get here when struct
-> file has no references left...
+A GUP that can't sleep can't pagefault which makes it a really weird
+pattern
 
-Nope, like I said the other FDs hold the uverbs_file independent of
-the struct file it is related too. 
+> Btw, back to the original question. May I know why synchronize_rcu() is not
+> suitable? Consider:
 
-This is why having a back pointer like this is so ugly, it creates a
-reference counting cycle
+We already went over this. You'd need to determine it doesn't somehow
+deadlock the mm on reclaim paths. Maybe it is OK, the rcq_gq_wq is
+marked WQ_MEM_RECLAIM at least..
+
+I also think Michael was concerned about the latency spikes a long RCU
+delay would cause.
 
 Jason
 
