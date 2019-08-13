@@ -2,184 +2,187 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9565BC433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 15:05:43 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D92B2C32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 15:19:57 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 43A63205F4
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 15:05:43 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 709F72084D
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 15:19:57 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=shutemov-name.20150623.gappssmtp.com header.i=@shutemov-name.20150623.gappssmtp.com header.b="CoHvU737"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 43A63205F4
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=shutemov.name
+	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Fk1Dc/CH"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 709F72084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E102E6B0006; Tue, 13 Aug 2019 11:05:42 -0400 (EDT)
+	id D69E46B0005; Tue, 13 Aug 2019 11:19:56 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DC1066B0007; Tue, 13 Aug 2019 11:05:42 -0400 (EDT)
+	id D1AB66B0006; Tue, 13 Aug 2019 11:19:56 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C888F6B0008; Tue, 13 Aug 2019 11:05:42 -0400 (EDT)
+	id C311B6B0007; Tue, 13 Aug 2019 11:19:56 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0130.hostedemail.com [216.40.44.130])
-	by kanga.kvack.org (Postfix) with ESMTP id A55C66B0006
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:05:42 -0400 (EDT)
-Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 5E6578248AA2
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 15:05:42 +0000 (UTC)
-X-FDA: 75817728924.13.sea63_6be85034f2f16
-X-HE-Tag: sea63_6be85034f2f16
-X-Filterd-Recvd-Size: 6821
-Received: from mail-ed1-f66.google.com (mail-ed1-f66.google.com [209.85.208.66])
-	by imf43.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 15:05:41 +0000 (UTC)
-Received: by mail-ed1-f66.google.com with SMTP id e16so13960944edv.6
-        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:05:41 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0116.hostedemail.com [216.40.44.116])
+	by kanga.kvack.org (Postfix) with ESMTP id A1F986B0005
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:19:56 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 50275180AD7C1
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 15:19:56 +0000 (UTC)
+X-FDA: 75817764792.07.color82_56b6931097e54
+X-HE-Tag: color82_56b6931097e54
+X-Filterd-Recvd-Size: 9008
+Received: from mail-ot1-f68.google.com (mail-ot1-f68.google.com [209.85.210.68])
+	by imf20.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 15:19:55 +0000 (UTC)
+Received: by mail-ot1-f68.google.com with SMTP id m24so20893548otp.12
+        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:19:55 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=shutemov-name.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=YBSl0CajXoJyFM4Tub0QYu+W5pFIdDgKxAj7ER66uso=;
-        b=CoHvU737VmfI3oyKN9MCpGf41kCR7rP/pY9yfa23wZpIf0qFmlKeUvc5sSqdX5B4WR
-         GzWCwDjS9Yua8l4RxBlV7wJMf45Yh1LGwk6LBE0I2YpAPeUKTrEr8erv6VvUcJFdj+J9
-         AjmmzsfmiTSjvY4Gi91rG3IEc0RHtxXgsiyEITtEoH9C3NCjAKzWoeDOpWLzBCPJ3I/q
-         sYP86EKwkl5LHY2z7PJ6LejarajSyhSWLOCxt3cbTMblW8Z6NGSUFx2qXFi+T7pHTHWa
-         K0Lu0IunLkAZpkYPM4J2kS9STY2Q2RfUnhxAgKndQLFkYHfSgec0+IdcyZE7Oh9HxYkS
-         abiw==
+        d=google.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=Xuo82W680vfMqA0vjhlKyKy1WIhwCKADAN98TM3xDdg=;
+        b=Fk1Dc/CHcXCvYiOTomqNv0zmBWlrR9D+HqfO1gKyIHgLJslb1kPNyTxNdjV/YBUBJl
+         VFi0gheINDE48llBE2R/v8PcAapA7TsC2L+tCszHNHE8BMiAnBfyvQ3BeTgrrG7hYJgx
+         iOSqRSx60Yi9S8YNoRsU2dXtmT+3WKOrOLCBZVm2uGQjNhhfdJmo6IhY7kn+guA1GqKN
+         P/52/JmahNx9K5WuoSrr7/eJLCbdpHYrCDZ9QSF668dGyyLDrs9fygFj+BF+S3srrQam
+         srUSgjROBxIq/WxIap+N60Qa6mvdP78oyd3ewOyWuiQkmhYhuq3HD/pCdrVZCjxmnkl7
+         u1Ng==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=YBSl0CajXoJyFM4Tub0QYu+W5pFIdDgKxAj7ER66uso=;
-        b=rikXjJH5LV5NyM+I/eXiobD3HW21G9gClyKvzLzueldP5UqNtb9XXoXbQhm3oYfqKQ
-         qoryW04CfV8JS3hJtdJ2OWYLoCPEr9AK0Jl75pjPBAu27o0X/xzhNWyWeGMluzqFhev1
-         1A507pahhtNICVT8NHfJJMxzy2oqMUSnlJjdZ4YdBiQWZGrg7TXSJE2Dk9sQM/Lm+jjc
-         bEqyeA9k28JIIaJmnmMn5BUaVmXq576Qs1YA7G3tl8lxQtJobDBd4zrWBjQYv1AKUkoj
-         qGG87FEWfSPwNG2SaPiy4hUSDpmp28+xIYrREaXsAhHw1e38Aihs4Ia9eIV/MOh/V6xN
-         DfUg==
-X-Gm-Message-State: APjAAAV4h91W1oqRckWle+3OwCGtmpuTSvNNEKaONyPd9AcLPuUKi3CC
-	IJn+H1rUMOgsUDqZ1kpi4o1Z9w==
-X-Google-Smtp-Source: APXvYqwO45W8ArYTmQ7sk2TTXpXhzScDUzYYDs7QsdxWgDQpeMS0VNgTre2qyBnj9dzT2yH0zd4cuw==
-X-Received: by 2002:aa7:d1c7:: with SMTP id g7mr3540552edp.227.1565708740258;
-        Tue, 13 Aug 2019 08:05:40 -0700 (PDT)
-Received: from box.localdomain ([86.57.175.117])
-        by smtp.gmail.com with ESMTPSA id w13sm17886231eji.22.2019.08.13.08.05.39
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Aug 2019 08:05:39 -0700 (PDT)
-Received: by box.localdomain (Postfix, from userid 1000)
-	id 812BE100854; Tue, 13 Aug 2019 18:05:39 +0300 (+03)
-Date: Tue, 13 Aug 2019 18:05:39 +0300
-From: "Kirill A. Shutemov" <kirill@shutemov.name>
-To: Oleg Nesterov <oleg@redhat.com>
-Cc: Song Liu <songliubraving@fb.com>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Matthew Wilcox <matthew.wilcox@oracle.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Kernel Team <Kernel-team@fb.com>,
-	William Kucharski <william.kucharski@oracle.com>,
-	"srikar@linux.vnet.ibm.com" <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v12 5/6] khugepaged: enable collapse pmd for pte-mapped
- THP
-Message-ID: <20190813150539.ciai477wk2cratvc@box>
-References: <20190808163303.GB7934@redhat.com>
- <770B3C29-CE8F-4228-8992-3C6E2B5487B6@fb.com>
- <20190809152404.GA21489@redhat.com>
- <3B09235E-5CF7-4982-B8E6-114C52196BE5@fb.com>
- <4D8B8397-5107-456B-91FC-4911F255AE11@fb.com>
- <20190812121144.f46abvpg6lvxwwzs@box>
- <20190812132257.GB31560@redhat.com>
- <20190812144045.tkvipsyit3nccvuk@box>
- <20190813133034.GA6971@redhat.com>
- <20190813140552.GB6971@redhat.com>
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=Xuo82W680vfMqA0vjhlKyKy1WIhwCKADAN98TM3xDdg=;
+        b=gAheVAYBCDsiJ3P0tpI8ntuLI2Ky3ysK7CsWDoJ8Xy3q9ZxHNdGVbHB3KxpchS0yNR
+         zdRQWuuzh7aTmsD49OIKXogyhoW/syPVIbq+GH9QAjqt8+CEXm3Nzqh9Wb8wnXHe4t0j
+         BeAtuDH6h4S5eJf5JhT4opmrKBWby0D5i/UhTOXJiEblEhRnTANWtUMQ6/VX5lVE9RcM
+         MuyhAsIbe5ueChLbWWcBDfRz9zRgp1wSUQTAVwLu4K2IcVLnRp/f/rRAOf597oci7gm4
+         Mf0Ew6aefVoMx+i8r0rVblQhQkNjIk1ng3lGrwT2YDQYDFakIvlKUKn/X1fGvDBzY5Mh
+         O6RQ==
+X-Gm-Message-State: APjAAAUCszBTywMy7GQnwKVa8GAVrIuqyHyrOxFilR71z37rpwMSsGeT
+	/GGKurQ1ubHPRaWUFKjdp59BebPASYNUMXrY2I56WQ==
+X-Google-Smtp-Source: APXvYqxcZF4gU1ub1LLFg/qKp1ZrFgTQMzOSzMW6cWHW1kLXjABD4Sai5Y205ckHfgZ5NHx4tWUFsQyWBTGBmxzQkL4=
+X-Received: by 2002:aca:3dd7:: with SMTP id k206mr1661128oia.47.1565709594369;
+ Tue, 13 Aug 2019 08:19:54 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190813140552.GB6971@redhat.com>
-User-Agent: NeoMutt/20180716
+References: <20190807171559.182301-1-joel@joelfernandes.org>
+ <CAG48ez0ysprvRiENhBkLeV9YPTN_MB18rbu2HDa2jsWo5FYR8g@mail.gmail.com>
+ <20190813100856.GF17933@dhcp22.suse.cz> <20190813142527.GD258732@google.com>
+In-Reply-To: <20190813142527.GD258732@google.com>
+From: Jann Horn <jannh@google.com>
+Date: Tue, 13 Aug 2019 17:19:27 +0200
+Message-ID: <CAG48ez2shpP+WMRRJxM_za-701aoc5+i6ZrdpQ8CzjsjEzEsOA@mail.gmail.com>
+Subject: Re: [PATCH v5 1/6] mm/page_idle: Add per-pid idle page tracking using
+ virtual index
+To: Joel Fernandes <joel@joelfernandes.org>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>
+Cc: Michal Hocko <mhocko@kernel.org>, kernel list <linux-kernel@vger.kernel.org>, 
+	Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, 
+	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>, 
+	Catalin Marinas <catalin.marinas@arm.com>, Christian Hansen <chansen3@cisco.com>, 
+	Daniel Colascione <dancol@google.com>, fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>, 
+	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, 
+	kernel-team <kernel-team@android.com>, Linux API <linux-api@vger.kernel.org>, 
+	linux-doc@vger.kernel.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, 
+	Linux-MM <linux-mm@kvack.org>, Mike Rapoport <rppt@linux.ibm.com>, 
+	Minchan Kim <minchan@kernel.org>, namhyung@google.com, 
+	"Paul E. McKenney" <paulmck@linux.ibm.com>, Robin Murphy <robin.murphy@arm.com>, 
+	Roman Gushchin <guro@fb.com>, Stephen Rothwell <sfr@canb.auug.org.au>, 
+	Suren Baghdasaryan <surenb@google.com>, Thomas Gleixner <tglx@linutronix.de>, Todd Kjos <tkjos@google.com>, 
+	Vladimir Davydov <vdavydov.dev@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 13, 2019 at 04:05:53PM +0200, Oleg Nesterov wrote:
-> On 08/13, Oleg Nesterov wrote:
-> >
-> > On 08/12, Kirill A. Shutemov wrote:
+On Tue, Aug 13, 2019 at 4:25 PM Joel Fernandes <joel@joelfernandes.org> wrote:
+> On Tue, Aug 13, 2019 at 12:08:56PM +0200, Michal Hocko wrote:
+> > On Mon 12-08-19 20:14:38, Jann Horn wrote:
+> > > On Wed, Aug 7, 2019 at 7:16 PM Joel Fernandes (Google)
+> > > <joel@joelfernandes.org> wrote:
+> > > > The page_idle tracking feature currently requires looking up the pagemap
+> > > > for a process followed by interacting with /sys/kernel/mm/page_idle.
+> > > > Looking up PFN from pagemap in Android devices is not supported by
+> > > > unprivileged process and requires SYS_ADMIN and gives 0 for the PFN.
+> > > >
+> > > > This patch adds support to directly interact with page_idle tracking at
+> > > > the PID level by introducing a /proc/<pid>/page_idle file.  It follows
+> > > > the exact same semantics as the global /sys/kernel/mm/page_idle, but now
+> > > > looking up PFN through pagemap is not needed since the interface uses
+> > > > virtual frame numbers, and at the same time also does not require
+> > > > SYS_ADMIN.
+> > > >
+> > > > In Android, we are using this for the heap profiler (heapprofd) which
+> > > > profiles and pin points code paths which allocates and leaves memory
+> > > > idle for long periods of time. This method solves the security issue
+> > > > with userspace learning the PFN, and while at it is also shown to yield
+> > > > better results than the pagemap lookup, the theory being that the window
+> > > > where the address space can change is reduced by eliminating the
+> > > > intermediate pagemap look up stage. In virtual address indexing, the
+> > > > process's mmap_sem is held for the duration of the access.
 > > >
-> > > On Mon, Aug 12, 2019 at 03:22:58PM +0200, Oleg Nesterov wrote:
-> > > > On 08/12, Kirill A. Shutemov wrote:
-> > > > >
-> > > > > On Fri, Aug 09, 2019 at 06:01:18PM +0000, Song Liu wrote:
-> > > > > > +		if (pte_none(*pte) || !pte_present(*pte))
-> > > > > > +			continue;
-> > > > >
-> > > > > You don't need to check both. Present is never none.
-> > > >
-> > > > Agreed.
-> > > >
-> > > > Kirill, while you are here, shouldn't retract_page_tables() check
-> > > > vma->anon_vma (and probably do mm_find_pmd) under vm_mm->mmap_sem?
-> > > >
-> > > > Can't it race with, say, do_cow_fault?
-> > >
-> > > vma->anon_vma can race, but it doesn't matter. False-negative is fine.
-> > > It's attempt to avoid taking mmap_sem where it can be not productive.
+> > > What happens when you use this interface on shared pages, like memory
+> > > inherited from the zygote, library file mappings and so on? If two
+> > > profilers ran concurrently for two different processes that both map
+> > > the same libraries, would they end up messing up each other's data?
 > >
-> > I guess I misunderstood the purpose of this check or your answer...
+> > Yup PageIdle state is shared. That is the page_idle semantic even now
+> > IIRC.
+>
+> Yes, that's right. This patch doesn't change that semantic. Idle page
+> tracking at the core is a global procedure which is based on pages that can
+> be shared.
+>
+> One of the usecases of the heap profiler is to enable profiling of pages that
+> are shared between zygote and any processes that are forked. In this case,
+> I am told by our team working on the heap profiler, that the monitoring of
+> shared pages will help.
+>
+> > > Can this be used to observe which library pages other processes are
+> > > accessing, even if you don't have access to those processes, as long
+> > > as you can map the same libraries? I realize that there are already a
+> > > bunch of ways to do that with side channels and such; but if you're
+> > > adding an interface that allows this by design, it seems to me like
+> > > something that should be gated behind some sort of privilege check.
 > >
-> > Let me reword my question. Why can retract_page_tables() safely do
-> > pmdp_collapse_flush(vma) without additional checks similar to what
-> > collapse_pte_mapped_thp() does?
-> >
-> > I thought that retract_page_tables() checks vma->anon_vma to ensure that
-> > this vma doesn't have a cow'ed PageAnon() page. And I still can't understand
-> > why can't it race with __handle_mm_fault() paths.
+> > Hmm, you need to be priviledged to get the pfn now and without that you
+> > cannot get to any page so the new interface is weakening the rules.
+> > Maybe we should limit setting the idle state to processes with the write
+> > status. Or do you think that even observing idle status is useful for
+> > practical side channel attacks? If yes, is that a problem of the
+> > profiler which does potentially dangerous things?
+>
+> The heap profiler is currently unprivileged. Would it help the concern Jann
+> raised, if the new interface was limited to only anonymous private/shared
+> pages and not to file pages? Or, is this even a real concern?
 
-vma->anon_vma check is a cheap way to exclude MAP_PRIVATE mappings that
-got written from userspace. My thinking was that these VMAs are not worth
-investing down_write(mmap_sem) as PMD-mapping is likely to be split later.
-(It's totally made up reasoning, I don't have numbers to back it up).
++Daniel Gruss in case he wants to provide some more detail; he has
+been involved in a lot of the public research around this topic.
 
-vma->anon_vma can be set up after the check but before taking mmap_sem.
-But page lock would prevent establishing any new ptes of the page, so we
-are safe.
+It is a bit of a concern when code that wasn't hardened as rigorously
+as cryptographic library code operates on secret values.
+A paper was published this year that abused mincore() in combination
+with tricks for flushing the page cache to obtain information about
+when shared read-only memory was accessed:
+<https://arxiv.org/pdf/1901.01161.pdf>. In response to that, the
+semantics of mincore() were changed to prevent that information from
+leaking (see commit 134fca9063ad4851de767d1768180e5dede9a881).
 
-An alternative would be drop the check, but check that page table is clear
-before calling pmdp_collapse_flush() under ptl. It has higher chance to
-recover THP for the VMA, but has higher cost too.
+On the other hand, an attacker could also use things like cache timing
+attacks instead of abusing operating system features; that is more
+hardware-specific, but it has a higher spatial granularity (typically
+64 bytes instead of 4096 bytes). Timing-granularity-wise, I'm not sure
+whether the proposed interface would be more or less bad than existing
+cache side-channels on common architectures. There are papers that
+demonstrate things like being able to distinguish some classes of
+keyboard keys from others on an Android phone:
+<https://www.usenix.org/system/files/conference/usenixsecurity16/sec16_paper_lipp.pdf>
 
-I don't know which way is better, so I've chosen which is easier to
-implement.
-
-> >
-> > Suppose that shmem_file was mmaped with PROT_READ|WRITE, MAP_PRIVATE.
-> > To simplify, suppose that a non-THP page was already faulted in,
-> > pte_present() == T.
-> >
-> > Userspace writes to this page.
-> >
-> > Why __handle_mm_fault()->handle_pte_fault()->do_wp_page()->wp_page_copy()
-> > can not cow this page and update pte after the vma->anon_vma chech and
-> > before down_write_trylock(mmap_sem) ?
-> 
-> OK, probably this is impossible, collapse_shmem() does unmap_mapping_pages(),
-> so handle_pte_fault() will call shmem_fault() which iiuc should block in
-> find_lock_entry() because new_page is locked, and thus down_write_trylock()
-> can't succeed.
-
-You've got it right.
-
-> Nevermind, I am sure I missed something. Perhaps you can update the comments
-> to make this more clear.
-
-Let me see first that my explanation makes sense :P
-
--- 
- Kirill A. Shutemov
+I don't think limiting it to anonymous pages is necessarily enough to
+completely solve this; in a normal Linux environment, it might be good
+enough, but on Android, I'm worried about the CoW private memory from
+the zygote.
 
