@@ -2,104 +2,113 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C294DC433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:41:04 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1A182C32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:48:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 81A612063F
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:41:04 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 81A612063F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
+	by mail.kernel.org (Postfix) with ESMTP id B64B020679
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:48:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B64B020679
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ACULAB.COM
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2D0CD6B0005; Tue, 13 Aug 2019 05:41:04 -0400 (EDT)
+	id 3B54B6B0005; Tue, 13 Aug 2019 05:48:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 259C36B0006; Tue, 13 Aug 2019 05:41:04 -0400 (EDT)
+	id 365956B0006; Tue, 13 Aug 2019 05:48:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 1487C6B0007; Tue, 13 Aug 2019 05:41:04 -0400 (EDT)
+	id 27B5F6B0007; Tue, 13 Aug 2019 05:48:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0129.hostedemail.com [216.40.44.129])
-	by kanga.kvack.org (Postfix) with ESMTP id E1CBB6B0005
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 05:41:03 -0400 (EDT)
-Received: from smtpin09.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 8B3C228DD1
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:41:03 +0000 (UTC)
-X-FDA: 75816910806.09.drain51_263ad5385453f
-X-HE-Tag: drain51_263ad5385453f
-X-Filterd-Recvd-Size: 2796
-Received: from foss.arm.com (foss.arm.com [217.140.110.172])
-	by imf06.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:41:02 +0000 (UTC)
-Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
-	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id B882D1570;
-	Tue, 13 Aug 2019 02:41:01 -0700 (PDT)
-Received: from arrakis.emea.arm.com (arrakis.cambridge.arm.com [10.1.196.78])
-	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id B39863F706;
-	Tue, 13 Aug 2019 02:41:00 -0700 (PDT)
-Date: Tue, 13 Aug 2019 10:40:58 +0100
-From: Catalin Marinas <catalin.marinas@arm.com>
-To: Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-mm@kvack.org, linux-kernel@vger.kernel.org,
-	Michal Hocko <mhocko@kernel.org>,
-	Matthew Wilcox <willy@infradead.org>, Qian Cai <cai@lca.pw>
-Subject: Re: [PATCH v3 0/3] mm: kmemleak: Use a memory pool for kmemleak
- object allocations
-Message-ID: <20190813094058.GG62772@arrakis.emea.arm.com>
-References: <20190812160642.52134-1-catalin.marinas@arm.com>
- <20190812140730.71dd7f35d568b4d8530f8908@linux-foundation.org>
+Received: from forelay.hostedemail.com (smtprelay0191.hostedemail.com [216.40.44.191])
+	by kanga.kvack.org (Postfix) with ESMTP id 06F696B0005
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 05:48:07 -0400 (EDT)
+Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 6CC1F181AC9B4
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:48:07 +0000 (UTC)
+X-FDA: 75816928614.15.north60_63f2598af6c36
+X-HE-Tag: north60_63f2598af6c36
+X-Filterd-Recvd-Size: 3299
+Received: from eu-smtp-delivery-151.mimecast.com (eu-smtp-delivery-151.mimecast.com [207.82.80.151])
+	by imf45.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:48:06 +0000 (UTC)
+Received: from AcuMS.aculab.com (156.67.243.126 [156.67.243.126]) (Using
+ TLS) by relay.mimecast.com with ESMTP id
+ uk-mta-150-kKZsyMR6MtydRYGBEb95CQ-1; Tue, 13 Aug 2019 10:48:02 +0100
+Received: from AcuMS.Aculab.com (fd9f:af1c:a25b:0:43c:695e:880f:8750) by
+ AcuMS.aculab.com (fd9f:af1c:a25b:0:43c:695e:880f:8750) with Microsoft SMTP
+ Server (TLS) id 15.0.1347.2; Tue, 13 Aug 2019 10:48:01 +0100
+Received: from AcuMS.Aculab.com ([fe80::43c:695e:880f:8750]) by
+ AcuMS.aculab.com ([fe80::43c:695e:880f:8750%12]) with mapi id 15.00.1347.000;
+ Tue, 13 Aug 2019 10:48:01 +0100
+From: David Laight <David.Laight@ACULAB.COM>
+To: 'Joe Perches' <joe@perches.com>, Nathan Chancellor
+	<natechancellor@gmail.com>, Nick Desaulniers <ndesaulniers@google.com>
+CC: Nathan Huckleberry <nhuck@google.com>, Masahiro Yamada
+	<yamada.masahiro@socionext.com>, Michal Marek <michal.lkml@markovi.net>,
+	Linux Kbuild mailing list <linux-kbuild@vger.kernel.org>, LKML
+	<linux-kernel@vger.kernel.org>, Linux Memory Management List
+	<linux-mm@kvack.org>, clang-built-linux <clang-built-linux@googlegroups.com>,
+	"Gustavo A. R. Silva" <gustavo@embeddedor.com>
+Subject: RE: [PATCH v2] kbuild: Change fallthrough comments to attributes
+Thread-Topic: [PATCH v2] kbuild: Change fallthrough comments to attributes
+Thread-Index: AQHVUaVgEyLklNacm0CAPm1TaF5b6ab40/BA
+Date: Tue, 13 Aug 2019 09:48:01 +0000
+Message-ID: <85e25647ae404bf38bc008ea914e08b3@AcuMS.aculab.com>
+References: <20190812214711.83710-1-nhuck@google.com>
+         <20190812221416.139678-1-nhuck@google.com>
+         <814c1b19141022946d3e0f7e24d69658d7a512e4.camel@perches.com>
+         <CAKwvOdnpXqoQDmHVRCh0qX=Yh-8UpEWJ0C3S=syn1KN8rB3OGQ@mail.gmail.com>
+         <20190813063327.GA46858@archlinux-threadripper>
+ <3078e553a777976655f72718d088791363544caa.camel@perches.com>
+In-Reply-To: <3078e553a777976655f72718d088791363544caa.camel@perches.com>
+Accept-Language: en-GB, en-US
+Content-Language: en-US
+X-MS-Has-Attach: 
+X-MS-TNEF-Correlator: 
+x-ms-exchange-transport-fromentityheader: Hosted
+x-originating-ip: [10.202.205.107]
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190812140730.71dd7f35d568b4d8530f8908@linux-foundation.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
+X-MC-Unique: kKZsyMR6MtydRYGBEb95CQ-1
+X-Mimecast-Spam-Score: 0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: quoted-printable
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.000002, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 12, 2019 at 02:07:30PM -0700, Andrew Morton wrote:
-> On Mon, 12 Aug 2019 17:06:39 +0100 Catalin Marinas <catalin.marinas@arm.com> wrote:
-> 
-> > Following the discussions on v2 of this patch(set) [1], this series
-> > takes slightly different approach:
-> > 
-> > - it implements its own simple memory pool that does not rely on the
-> >   slab allocator
-> > 
-> > - drops the early log buffer logic entirely since it can now allocate
-> >   metadata from the memory pool directly before kmemleak is fully
-> >   initialised
-> > 
-> > - CONFIG_DEBUG_KMEMLEAK_EARLY_LOG_SIZE option is renamed to
-> >   CONFIG_DEBUG_KMEMLEAK_MEM_POOL_SIZE
-> > 
-> > - moves the kmemleak_init() call earlier (mm_init())
-> > 
-> > - to avoid a separate memory pool for struct scan_area, it makes the
-> >   tool robust when such allocations fail as scan areas are rather an
-> >   optimisation
-> > 
-> > [1] http://lkml.kernel.org/r/20190727132334.9184-1-catalin.marinas@arm.com
-> 
-> Using the term "memory pool" is a little unfortunate, but better than
-> using "mempool"!
+From: Joe Perches
+> Sent: 13 August 2019 08:05
+...
+> The afs ones seem to be because the last comment in the block
+> is not the fallthrough, but a description of the next case;
+>=20
+> e.g.: from fs/afs/fsclient.c:
+>=20
+> =09=09/* extract the volume name */
+> =09case 3:
+> =09=09_debug("extract volname");
 
-I agree, it could have been more inspired. What about "metadata pool"
-(together with function name updates etc.)? Happy to send a v4.
+I'd change those to:
+=09case 3:  /* extract the volume name */
 
-> The changelog doesn't answer the very first question: why not use
-> mempools.  Please send along a paragraph which explains this decision.
+Then the /* fall through */ would be fine.
 
-I posted one in reply to the patch where the changelog should be
-updated.
+The /* FALLTHROUGH */ comment has been valid C syntax (for lint)
+for over 40 years.
+IMHO since C compilers are now doing all the checks that lint used
+to do, it should be using the same syntax.
+Both the [[]] and attribute forms look horrid.
 
-Thanks.
+=09David
 
--- 
-Catalin
+-
+Registered Address Lakeside, Bramley Road, Mount Farm, Milton Keynes, MK1 1=
+PT, UK
+Registration No: 1397386 (Wales)
+
 
