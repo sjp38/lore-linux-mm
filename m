@@ -2,340 +2,630 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.8 required=3.0 tests=DKIM_ADSP_CUSTOM_MED,
-	DKIM_INVALID,DKIM_SIGNED,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5D92BC32750
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 17:23:15 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id AFF76C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 17:35:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 161C520663
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 17:23:15 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="VtwUJ1g0"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 161C520663
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 4A01020840
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 17:35:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4A01020840
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A75CB6B0006; Tue, 13 Aug 2019 13:23:14 -0400 (EDT)
+	id B56C06B0005; Tue, 13 Aug 2019 13:35:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A26E56B0007; Tue, 13 Aug 2019 13:23:14 -0400 (EDT)
+	id B0B6C6B0006; Tue, 13 Aug 2019 13:35:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 8EFA56B0008; Tue, 13 Aug 2019 13:23:14 -0400 (EDT)
+	id 9F6EF6B0007; Tue, 13 Aug 2019 13:35:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0086.hostedemail.com [216.40.44.86])
-	by kanga.kvack.org (Postfix) with ESMTP id 6EB6A6B0006
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 13:23:14 -0400 (EDT)
-Received: from smtpin24.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 2543C181AC9BA
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:23:14 +0000 (UTC)
-X-FDA: 75818075508.24.grade51_908fbcdd76e1b
-X-HE-Tag: grade51_908fbcdd76e1b
-X-Filterd-Recvd-Size: 11081
-Received: from mail-pf1-f196.google.com (mail-pf1-f196.google.com [209.85.210.196])
-	by imf15.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:23:13 +0000 (UTC)
-Received: by mail-pf1-f196.google.com with SMTP id 129so5064834pfa.4
-        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 10:23:13 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:content-transfer-encoding:in-reply-to
-         :user-agent;
-        bh=if9i7zh0Qit/yKhgw7AU3xUn9wMFS6+DPvFYQ9IzgUM=;
-        b=VtwUJ1g07ZQGByWFKuFyL++/c5nvno1F4aqLKJsYQmfBbQ5MTGe71PomB52/lhGyX8
-         uFNnn55FnmpYekD06mwP82wA498ldCCstGkbdaamkBCd03VpR1Cdf2g9o8C8AXT+lK7Z
-         KUOTBBk75tdbOXLAxSmE6tNsIAiAQzMozIj7Z/sRUFBSmEPytowcgm7Cd5wsbJtckLvU
-         rgOGzjR2hjix3JREkZz33D+kHPb8P1RCjZ2aWsn2x+8x8s6ABhsu7kssG9ScCIDr9Xlr
-         34Ox28ouhz+EwKjuBgKJ6btSZssQtWmp/y4Qmguw5rovtIF0DD/I4NiGpogBjG0bDnzA
-         Y1sQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:content-transfer-encoding
-         :in-reply-to:user-agent;
-        bh=if9i7zh0Qit/yKhgw7AU3xUn9wMFS6+DPvFYQ9IzgUM=;
-        b=T99dS6PmQiXHnxvkSjWZVv4U+crVAsj/zCAk2K9jlzccTIELdf3tn+aJI4MqJHMmmE
-         twDTDS8ulI/oaG19cY1V7z/iU7Um5csk7HMxx9MALHn39xv0V8lm4TGmBY6b33vnY71s
-         VCE1bXEyPaEFOGCy8y3kAhiASRASN5QrTPRNW8shF8JxG+KS8NpiEpadD6k7e6s46Ijo
-         Tvo72gDj8KBJbaHeLQr+H0jXZ0GyoBTy1KP0jWWqw+wVqmDIUmeHZQ5VS8OyzTowriOm
-         pSqI7Ihws4CeKq4Zr5hXsXtGyhkAZuLbzzy+dXDRrxu+ifo7cJTPwSTAGWg4MFI/bXkx
-         ohIA==
-X-Gm-Message-State: APjAAAWoNLivVRvnfJ1TfQi9LvM/crVbkK7WlS+ZfCDPBmS+jGm3ifKI
-	26qVACI8E4xFvIeHgvFrSlw=
-X-Google-Smtp-Source: APXvYqwn4i2MuuhDE5aBojeK0YnwZSTVlstqtU4zNM2IkkD6QM4+wPBwPpEmI9B/lSG2uWedifx5Xg==
-X-Received: by 2002:a17:90a:71ca:: with SMTP id m10mr3264191pjs.27.1565716992214;
-        Tue, 13 Aug 2019 10:23:12 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.34])
-        by smtp.gmail.com with ESMTPSA id 203sm15071517pfz.107.2019.08.13.10.23.06
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Aug 2019 10:23:11 -0700 (PDT)
-Date: Tue, 13 Aug 2019 22:53:01 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: Dimitri Sivanich <sivanich@hpe.com>
-Cc: jhubbard@nvidia.com, gregkh@linuxfoundation.org, arnd@arndb.de,
-	ira.weiny@intel.com, jglisse@redhat.com,
-	william.kucharski@oracle.com, hch@lst.de,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-kernel-mentees@lists.linuxfoundation.org
-Subject: Re: [Linux-kernel-mentees][PATCH v5 1/1] sgi-gru: Remove *pte_lookup
- functions, Convert to get_user_page*()
-Message-ID: <20190813172301.GA10228@bharath12345-Inspiron-5559>
-References: <1565379497-29266-1-git-send-email-linux.bhar@gmail.com>
- <1565379497-29266-2-git-send-email-linux.bhar@gmail.com>
- <20190813145029.GA32451@hpe.com>
+Received: from forelay.hostedemail.com (smtprelay0213.hostedemail.com [216.40.44.213])
+	by kanga.kvack.org (Postfix) with ESMTP id 725AA6B0005
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 13:35:35 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 22C2E181AC9AE
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:35:35 +0000 (UTC)
+X-FDA: 75818106630.05.lift71_6ad21c7f05036
+X-HE-Tag: lift71_6ad21c7f05036
+X-Filterd-Recvd-Size: 25806
+Received: from mga01.intel.com (mga01.intel.com [192.55.52.88])
+	by imf29.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:35:33 +0000 (UTC)
+X-Amp-Result: SKIPPED(no attachment in message)
+X-Amp-File-Uploaded: False
+Received: from orsmga008.jf.intel.com ([10.7.209.65])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 10:35:32 -0700
+X-IronPort-AV: E=Sophos;i="5.64,382,1559545200"; 
+   d="scan'208";a="170466575"
+Received: from ahduyck-desk1.jf.intel.com ([10.7.198.76])
+  by orsmga008-auth.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 10:35:32 -0700
+Message-ID: <712cc03ea69fcd59080291b5832adddf39d20cd3.camel@linux.intel.com>
+Subject: Re: [PATCH v5 4/6] mm: Introduce Reported pages
+From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+To: David Hildenbrand <david@redhat.com>, Alexander Duyck
+ <alexander.duyck@gmail.com>, nitesh@redhat.com, kvm@vger.kernel.org, 
+ mst@redhat.com, dave.hansen@intel.com, linux-kernel@vger.kernel.org, 
+ willy@infradead.org, mhocko@kernel.org, linux-mm@kvack.org, 
+ akpm@linux-foundation.org, virtio-dev@lists.oasis-open.org,
+ osalvador@suse.de
+Cc: yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com, 
+	konrad.wilk@oracle.com, lcapitulino@redhat.com, wei.w.wang@intel.com, 
+	aarcange@redhat.com, pbonzini@redhat.com, dan.j.williams@intel.com
+Date: Tue, 13 Aug 2019 10:35:32 -0700
+In-Reply-To: <222cbe8f-90c5-5437-4a77-9926cacc398f@redhat.com>
+References: <20190812213158.22097.30576.stgit@localhost.localdomain>
+	 <20190812213344.22097.86213.stgit@localhost.localdomain>
+	 <222cbe8f-90c5-5437-4a77-9926cacc398f@redhat.com>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.30.5 (3.30.5-1.fc29) 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <20190813145029.GA32451@hpe.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-Content-Transfer-Encoding: quoted-printable
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 13, 2019 at 09:50:29AM -0500, Dimitri Sivanich wrote:
-> Bharath,
->=20
-> I do not believe that __get_user_pages_fast will work for the atomic ca=
-se, as
-> there is no guarantee that the 'current->mm' will be the correct one fo=
-r the
-> process in question, as the process might have moved away from the cpu =
-that is
-> handling interrupts for it's context.
-So what your saying is, there may be cases where current->mm !=3D gts->ts=
-_mm
-right? __get_user_pages_fast and get_user_pages do assume current->mm.
-
-These changes were inspired a bit from kvm. In kvm/kvm_main.c,
-hva_to_pfn_fast uses __get_user_pages_fast. THe comment above the
-function states it runs in atomic context.
-
-Just curious, get_user_pages also uses current->mm. Do you think that is
-also an issue?=20
-
-Do you feel using get_user_pages_remote would be a better idea? We can
-specify the mm_struct in get_user_pages_remote?
-
-Thank you
-Bharath
-> On Sat, Aug 10, 2019 at 01:08:17AM +0530, Bharath Vedartham wrote:
-> > For pages that were retained via get_user_pages*(), release those pag=
-es
-> > via the new put_user_page*() routines, instead of via put_page() or
-> > release_pages().
-> >=20
-> > This is part a tree-wide conversion, as described in commit fc1d8e7cc=
-a2d
-> > ("mm: introduce put_user_page*(), placeholder versions").
-> >=20
-> > As part of this conversion, the *pte_lookup functions can be removed =
-and
-> > be easily replaced with get_user_pages_fast() functions. In the case =
-of
-> > atomic lookup, __get_user_pages_fast() is used, because it does not f=
-all
-> > back to the slow path: get_user_pages(). get_user_pages_fast(), on th=
-e other
-> > hand, first calls __get_user_pages_fast(), but then falls back to the
-> > slow path if __get_user_pages_fast() fails.
-> >=20
-> > Also: remove unnecessary CONFIG_HUGETLB ifdefs.
-> >=20
-> > Cc: Ira Weiny <ira.weiny@intel.com>
-> > Cc: John Hubbard <jhubbard@nvidia.com>
-> > Cc: J=E9r=F4me Glisse <jglisse@redhat.com>
-> > Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> > Cc: Dimitri Sivanich <sivanich@sgi.com>
-> > Cc: Arnd Bergmann <arnd@arndb.de>
-> > Cc: William Kucharski <william.kucharski@oracle.com>
-> > Cc: Christoph Hellwig <hch@lst.de>
-> > Cc: linux-kernel@vger.kernel.org
-> > Cc: linux-mm@kvack.org
-> > Cc: linux-kernel-mentees@lists.linuxfoundation.org
-> > Reviewed-by: Ira Weiny <ira.weiny@intel.com>
-> > Reviewed-by: John Hubbard <jhubbard@nvidia.com>
-> > Reviewed-by: William Kucharski <william.kucharski@oracle.com>
-> > Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
+On Tue, 2019-08-13 at 10:07 +0200, David Hildenbrand wrote:
+> On 12.08.19 23:33, Alexander Duyck wrote:
+> > From: Alexander Duyck <alexander.h.duyck@linux.intel.com>
+> > 
+> > In order to pave the way for free page reporting in virtualized
+> > environments we will need a way to get pages out of the free lists and
+> > identify those pages after they have been returned. To accomplish this,
+> > this patch adds the concept of a Reported Buddy, which is essentially
+> > meant to just be the Uptodate flag used in conjunction with the Buddy
+> > page type.
+> > 
+> > It adds a set of pointers we shall call "boundary" which represents the
+> > upper boundary between the unreported and reported pages. The general idea
+> > is that in order for a page to cross from one side of the boundary to the
+> > other it will need to go through the reporting process. Ultimately a
+> > free_list has been fully processed when the boundary has been moved from
+> > the tail all they way up to occupying the first entry in the list.
+> > 
+> > Doing this we should be able to make certain that we keep the reported
+> > pages as one contiguous block in each free list. This will allow us to
+> > efficiently manipulate the free lists whenever we need to go in and start
+> > sending reports to the hypervisor that there are new pages that have been
+> > freed and are no longer in use.
+> > 
+> > An added advantage to this approach is that we should be reducing the
+> > overall memory footprint of the guest as it will be more likely to recycle
+> > warm pages versus trying to allocate the reported pages that were likely
+> > evicted from the guest memory.
+> > 
+> > Since we will only be reporting one zone at a time we keep the boundary
+> > limited to being defined for just the zone we are currently reporting pages
+> > from. Doing this we can keep the number of additional pointers needed quite
+> > small. To flag that the boundaries are in place we use a single bit
+> > in the zone to indicate that reporting and the boundaries are active.
+> > 
+> > The determination of when to start reporting is based on the tracking of
+> > the number of free pages in a given area versus the number of reported
+> > pages in that area. We keep track of the number of reported pages per
+> > free_area in a separate zone specific area. We do this to avoid modifying
+> > the free_area structure as this can lead to false sharing for the highest
+> > order with the zone lock which leads to a noticeable performance
+> > degradation.
+> > 
+> > Signed-off-by: Alexander Duyck <alexander.h.duyck@linux.intel.com>
 > > ---
-> > This is a fold of the 3 patches in the v2 patch series.
-> > The review tags were given to the individual patches.
-> >=20
-> > Changes since v3
-> > 	- Used gup flags in get_user_pages_fast rather than
-> > 	boolean flags.
-> > Changes since v4
-> > 	- Updated changelog according to John Hubbard.
-> > ---
-> >  drivers/misc/sgi-gru/grufault.c | 112 +++++++++---------------------=
-----------
-> >  1 file changed, 24 insertions(+), 88 deletions(-)
-> >=20
-> > diff --git a/drivers/misc/sgi-gru/grufault.c b/drivers/misc/sgi-gru/g=
-rufault.c
-> > index 4b713a8..304e9c5 100644
-> > --- a/drivers/misc/sgi-gru/grufault.c
-> > +++ b/drivers/misc/sgi-gru/grufault.c
-> > @@ -166,96 +166,20 @@ static void get_clear_fault_map(struct gru_stat=
-e *gru,
+> >  include/linux/mmzone.h         |   40 +++++
+> >  include/linux/page-flags.h     |   11 +
+> >  include/linux/page_reporting.h |  138 ++++++++++++++++++
+> >  mm/Kconfig                     |    5 +
+> >  mm/Makefile                    |    1 
+> >  mm/memory_hotplug.c            |    1 
+> >  mm/page_alloc.c                |  136 +++++++++++++++++-
+> >  mm/page_reporting.c            |  308 ++++++++++++++++++++++++++++++++++++++++
+> >  8 files changed, 632 insertions(+), 8 deletions(-)
+> >  create mode 100644 include/linux/page_reporting.h
+> >  create mode 100644 mm/page_reporting.c
+> > 
+> > diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
+> > index 2f2b6f968ed3..b8ed926552b1 100644
+> > --- a/include/linux/mmzone.h
+> > +++ b/include/linux/mmzone.h
+> > @@ -462,6 +462,14 @@ struct zone {
+> >  	seqlock_t		span_seqlock;
+> >  #endif
+> >  
+> > +#ifdef CONFIG_PAGE_REPORTING
+> > +	/*
+> > +	 * Pointer to reported page tracking statistics array. The size of
+> > +	 * the array is MAX_ORDER - PAGE_REPORTING_MIN_ORDER. NULL when
+> > +	 * unused page reporting is not present.
+> > +	 */
+> > +	unsigned long		*reported_pages;
+> > +#endif
+> >  	int initialized;
+> >  
+> >  	/* Write-intensive fields used from the page allocator */
+> > @@ -537,6 +545,14 @@ enum zone_flags {
+> >  	ZONE_BOOSTED_WATERMARK,		/* zone recently boosted watermarks.
+> >  					 * Cleared when kswapd is woken.
+> >  					 */
+> > +	ZONE_PAGE_REPORTING_REQUESTED,	/* zone enabled page reporting and has
+> > +					 * requested flushing the data out of
+> > +					 * higher order pages.
+> > +					 */
+> > +	ZONE_PAGE_REPORTING_ACTIVE,	/* zone enabled page reporting and is
+> > +					 * activly flushing the data out of
+> > +					 * higher order pages.
+> > +					 */
+> >  };
+> >  
+> >  static inline unsigned long zone_managed_pages(struct zone *zone)
+> > @@ -757,6 +773,8 @@ static inline bool pgdat_is_empty(pg_data_t *pgdat)
+> >  	return !pgdat->node_start_pfn && !pgdat->node_spanned_pages;
 > >  }
-> > =20
-> >  /*
-> > - * Atomic (interrupt context) & non-atomic (user context) functions =
-to
-> > - * convert a vaddr into a physical address. The size of the page
-> > - * is returned in pageshift.
-> > - * 	returns:
-> > - * 		  0 - successful
-> > - * 		< 0 - error code
-> > - * 		  1 - (atomic only) try again in non-atomic context
-> > - */
-> > -static int non_atomic_pte_lookup(struct vm_area_struct *vma,
-> > -				 unsigned long vaddr, int write,
-> > -				 unsigned long *paddr, int *pageshift)
-> > -{
-> > -	struct page *page;
-> > -
-> > -#ifdef CONFIG_HUGETLB_PAGE
-> > -	*pageshift =3D is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
-> > -#else
-> > -	*pageshift =3D PAGE_SHIFT;
-> > -#endif
-> > -	if (get_user_pages(vaddr, 1, write ? FOLL_WRITE : 0, &page, NULL) <=
-=3D 0)
-> > -		return -EFAULT;
-> > -	*paddr =3D page_to_phys(page);
-> > -	put_page(page);
-> > -	return 0;
-> > -}
-> > -
-> > -/*
-> > - * atomic_pte_lookup
-> > + * mmap_sem is already helod on entry to this function. This guarant=
-ees
-> > + * existence of the page tables.
-> >   *
-> > - * Convert a user virtual address to a physical address
-> >   * Only supports Intel large pages (2MB only) on x86_64.
-> > - *	ZZZ - hugepage support is incomplete
-> > - *
-> > - * NOTE: mmap_sem is already held on entry to this function. This
-> > - * guarantees existence of the page tables.
-> > + *	ZZZ - hugepage support is incomplete.
-> >   */
-> > -static int atomic_pte_lookup(struct vm_area_struct *vma, unsigned lo=
-ng vaddr,
-> > -	int write, unsigned long *paddr, int *pageshift)
-> > -{
-> > -	pgd_t *pgdp;
-> > -	p4d_t *p4dp;
-> > -	pud_t *pudp;
-> > -	pmd_t *pmdp;
-> > -	pte_t pte;
-> > -
-> > -	pgdp =3D pgd_offset(vma->vm_mm, vaddr);
-> > -	if (unlikely(pgd_none(*pgdp)))
-> > -		goto err;
-> > -
-> > -	p4dp =3D p4d_offset(pgdp, vaddr);
-> > -	if (unlikely(p4d_none(*p4dp)))
-> > -		goto err;
-> > -
-> > -	pudp =3D pud_offset(p4dp, vaddr);
-> > -	if (unlikely(pud_none(*pudp)))
-> > -		goto err;
-> > -
-> > -	pmdp =3D pmd_offset(pudp, vaddr);
-> > -	if (unlikely(pmd_none(*pmdp)))
-> > -		goto err;
-> > -#ifdef CONFIG_X86_64
-> > -	if (unlikely(pmd_large(*pmdp)))
-> > -		pte =3D *(pte_t *) pmdp;
-> > -	else
-> > -#endif
-> > -		pte =3D *pte_offset_kernel(pmdp, vaddr);
-> > -
-> > -	if (unlikely(!pte_present(pte) ||
-> > -		     (write && (!pte_write(pte) || !pte_dirty(pte)))))
-> > -		return 1;
-> > -
-> > -	*paddr =3D pte_pfn(pte) << PAGE_SHIFT;
-> > -#ifdef CONFIG_HUGETLB_PAGE
-> > -	*pageshift =3D is_vm_hugetlb_page(vma) ? HPAGE_SHIFT : PAGE_SHIFT;
-> > -#else
-> > -	*pageshift =3D PAGE_SHIFT;
-> > -#endif
-> > -	return 0;
-> > -
-> > -err:
-> > -	return 1;
-> > -}
-> > -
-> >  static int gru_vtop(struct gru_thread_state *gts, unsigned long vadd=
-r,
-> >  		    int write, int atomic, unsigned long *gpa, int *pageshift)
+> >  
+> > +#include <linux/page_reporting.h>
+> > +
+> >  /* Used for pages not on another list */
+> >  static inline void add_to_free_list(struct page *page, struct zone *zone,
+> >  				    unsigned int order, int migratetype)
+> > @@ -771,10 +789,16 @@ static inline void add_to_free_list(struct page *page, struct zone *zone,
+> >  static inline void add_to_free_list_tail(struct page *page, struct zone *zone,
+> >  					 unsigned int order, int migratetype)
 > >  {
-> >  	struct mm_struct *mm =3D gts->ts_mm;
-> >  	struct vm_area_struct *vma;
-> >  	unsigned long paddr;
-> > -	int ret, ps;
-> > +	int ret;
-> > +	struct page *page;
-> > =20
-> >  	vma =3D find_vma(mm, vaddr);
-> >  	if (!vma)
-> > @@ -263,21 +187,33 @@ static int gru_vtop(struct gru_thread_state *gt=
-s, unsigned long vaddr,
-> > =20
-> >  	/*
-> >  	 * Atomic lookup is faster & usually works even if called in non-at=
-omic
-> > -	 * context.
-> > +	 * context. get_user_pages_fast does atomic lookup before falling b=
-ack to
-> > +	 * slow gup.
-> >  	 */
-> >  	rmb();	/* Must/check ms_range_active before loading PTEs */
-> > -	ret =3D atomic_pte_lookup(vma, vaddr, write, &paddr, &ps);
-> > -	if (ret) {
-> > -		if (atomic)
-> > +	if (atomic) {
-> > +		ret =3D __get_user_pages_fast(vaddr, 1, write, &page);
-> > +		if (!ret)
-> >  			goto upm;
-> > -		if (non_atomic_pte_lookup(vma, vaddr, write, &paddr, &ps))
-> > +	} else {
-> > +		ret =3D get_user_pages_fast(vaddr, 1, write ? FOLL_WRITE : 0, &pag=
-e);
-> > +		if (!ret)
-> >  			goto inval;
+> > -	struct free_area *area = &zone->free_area[order];
+> > +	struct list_head *tail = get_unreported_tail(zone, order, migratetype);
+> >  
+> > -	list_add_tail(&page->lru, &area->free_list[migratetype]);
+> > -	area->nr_free++;
+> > +	/*
+> > +	 * To prevent the unreported pages from being interleaved with the
+> > +	 * reported ones while we are actively processing pages we will use
+> > +	 * the head of the reported pages to determine the tail of the free
+> > +	 * list.
+> > +	 */
+> > +	list_add_tail(&page->lru, tail);
+> > +	zone->free_area[order].nr_free++;
+> >  }
+> >  
+> >  /* Used for pages which are on another list */
+> > @@ -783,12 +807,22 @@ static inline void move_to_free_list(struct page *page, struct zone *zone,
+> >  {
+> >  	struct free_area *area = &zone->free_area[order];
+> >  
+> > +	/*
+> > +	 * Clear Hinted flag, if present, to avoid placing reported pages
+> > +	 * at the top of the free_list. It is cheaper to just process this
+> > +	 * page again than to walk around a page that is already reported.
+> > +	 */
+> > +	clear_page_reported(page, zone);
+> > +
+> >  	list_move(&page->lru, &area->free_list[migratetype]);
+> >  }
+> >  
+> >  static inline void del_page_from_free_list(struct page *page, struct zone *zone,
+> >  					   unsigned int order)
+> >  {
+> > +	/* Clear Reported flag, if present, before resetting page type */
+> > +	clear_page_reported(page, zone);
+> > +
+> >  	list_del(&page->lru);
+> >  	__ClearPageBuddy(page);
+> >  	set_page_private(page, 0);
+> > diff --git a/include/linux/page-flags.h b/include/linux/page-flags.h
+> > index f91cb8898ff0..759a3b3956f2 100644
+> > --- a/include/linux/page-flags.h
+> > +++ b/include/linux/page-flags.h
+> > @@ -163,6 +163,9 @@ enum pageflags {
+> >  
+> >  	/* non-lru isolated movable page */
+> >  	PG_isolated = PG_reclaim,
+> > +
+> > +	/* Buddy pages. Used to track which pages have been reported */
+> > +	PG_reported = PG_uptodate,
+> >  };
+> >  
+> >  #ifndef __GENERATING_BOUNDS_H
+> > @@ -432,6 +435,14 @@ static inline bool set_hwpoison_free_buddy_page(struct page *page)
+> >  #endif
+> >  
+> >  /*
+> > + * PageReported() is used to track reported free pages within the Buddy
+> > + * allocator. We can use the non-atomic version of the test and set
+> > + * operations as both should be shielded with the zone lock to prevent
+> > + * any possible races on the setting or clearing of the bit.
+> > + */
+> > +__PAGEFLAG(Reported, reported, PF_NO_COMPOUND)
+> > +
+> > +/*
+> >   * On an anonymous page mapped into a user virtual memory area,
+> >   * page->mapping points to its anon_vma, not to a struct address_space;
+> >   * with the PAGE_MAPPING_ANON bit set to distinguish it.  See rmap.h.
+> > diff --git a/include/linux/page_reporting.h b/include/linux/page_reporting.h
+> > new file mode 100644
+> > index 000000000000..498bde6ea764
+> > --- /dev/null
+> > +++ b/include/linux/page_reporting.h
+> > @@ -0,0 +1,138 @@
+> > +/* SPDX-License-Identifier: GPL-2.0 */
+> > +#ifndef _LINUX_PAGE_REPORTING_H
+> > +#define _LINUX_PAGE_REPORTING_H
+> > +
+> > +#include <linux/mmzone.h>
+> > +#include <linux/jump_label.h>
+> > +#include <linux/pageblock-flags.h>
+> > +#include <asm/pgtable_types.h>
+> > +
+> > +#define PAGE_REPORTING_MIN_ORDER	pageblock_order
+> > +#define PAGE_REPORTING_HWM		32
+> > +
+> > +#ifdef CONFIG_PAGE_REPORTING
+> > +struct page_reporting_dev_info {
+> > +	/* function that alters pages to make them "reported" */
+> > +	void (*report)(struct page_reporting_dev_info *phdev,
+> > +		       unsigned int nents);
+> > +
+> > +	/* scatterlist containing pages to be processed */
+> > +	struct scatterlist *sg;
+> > +
+> > +	/*
+> > +	 * Upper limit on the number of pages that the react function
+> > +	 * expects to be placed into the batch list to be processed.
+> > +	 */
+> > +	unsigned long capacity;
+> > +
+> > +	/* work struct for processing reports */
+> > +	struct delayed_work work;
+> > +
+> > +	/*
+> > +	 * The number of zones requesting reporting, plus one additional if
+> > +	 * processing thread is active.
+> > +	 */
+> > +	atomic_t refcnt;
+> > +};
+> > +
+> > +extern struct static_key page_reporting_notify_enabled;
+> > +
+> > +/* Boundary functions */
+> > +struct list_head *__page_reporting_get_boundary(unsigned int order,
+> > +						int migratetype);
+> > +void page_reporting_del_from_boundary(struct page *page, struct zone *zone);
+> > +void page_reporting_add_to_boundary(struct page *page, struct zone *zone,
+> > +				    int migratetype);
+> > +
+> > +/* Hinted page accessors, defined in page_alloc.c */
+> > +struct page *get_unreported_page(struct zone *zone, unsigned int order,
+> > +				 int migratetype);
+> > +void put_reported_page(struct zone *zone, struct page *page);
+> > +
+> > +void __page_reporting_request(struct zone *zone);
+> > +void __page_reporting_free_stats(struct zone *zone);
+> > +
+> > +/* Tear-down and bring-up for page reporting devices */
+> > +void page_reporting_shutdown(struct page_reporting_dev_info *phdev);
+> > +int page_reporting_startup(struct page_reporting_dev_info *phdev);
+> > +#endif /* CONFIG_PAGE_REPORTING */
+> > +
+> > +static inline struct list_head *
+> > +get_unreported_tail(struct zone *zone, unsigned int order, int migratetype)
+> > +{
+> > +#ifdef CONFIG_PAGE_REPORTING
+> > +	if (order >= PAGE_REPORTING_MIN_ORDER &&
+> > +	    test_bit(ZONE_PAGE_REPORTING_ACTIVE, &zone->flags))
+> > +		return __page_reporting_get_boundary(order, migratetype);
+> > +#endif
+> > +	return &zone->free_area[order].free_list[migratetype];
+> > +}
+> > +
+> > +static inline void clear_page_reported(struct page *page,
+> > +				     struct zone *zone)
+> > +{
+> > +#ifdef CONFIG_PAGE_REPORTING
+> > +	if (likely(!PageReported(page)))
+> > +		return;
+> > +
+> > +	/* push boundary back if we removed the upper boundary */
+> > +	if (test_bit(ZONE_PAGE_REPORTING_ACTIVE, &zone->flags))
+> > +		page_reporting_del_from_boundary(page, zone);
+> > +
+> > +	__ClearPageReported(page);
+> > +
+> > +	/* page_private will contain the page order, so just use it directly */
+> > +	zone->reported_pages[page_private(page) - PAGE_REPORTING_MIN_ORDER]--;
+> > +#endif
+> > +}
+> > +
+> > +/* Free reported_pages and reset reported page tracking count to 0 */
+> > +static inline void page_reporting_reset(struct zone *zone)
+> > +{
+> > +#ifdef CONFIG_PAGE_REPORTING
+> > +	if (zone->reported_pages)
+> > +		__page_reporting_free_stats(zone);
+> > +#endif
+> > +}
+> > +
+> > +/**
+> > + * page_reporting_notify_free - Free page notification to start page processing
+> > + * @zone: Pointer to current zone of last page processed
+> > + * @order: Order of last page added to zone
+> > + *
+> > + * This function is meant to act as a screener for __page_reporting_request
+> > + * which will determine if a give zone has crossed over the high-water mark
+> > + * that will justify us beginning page treatment. If we have crossed that
+> > + * threshold then it will start the process of pulling some pages and
+> > + * placing them in the batch list for treatment.
+> > + */
+> > +static inline void page_reporting_notify_free(struct zone *zone, int order)
+> > +{
+> > +#ifdef CONFIG_PAGE_REPORTING
+> > +	unsigned long nr_reported;
+> > +
+> > +	/* Called from hot path in __free_one_page() */
+> > +	if (!static_key_false(&page_reporting_notify_enabled))
+> > +		return;
+> > +
+> > +	/* Limit notifications only to higher order pages */
+> > +	if (order < PAGE_REPORTING_MIN_ORDER)
+> > +		return;
+> > +
+> > +	/* Do not bother with tests if we have already requested reporting */
+> > +	if (test_bit(ZONE_PAGE_REPORTING_REQUESTED, &zone->flags))
+> > +		return;
+> > +
+> > +	/* If reported_pages is not populated, assume 0 */
+> > +	nr_reported = zone->reported_pages ?
+> > +		    zone->reported_pages[order - PAGE_REPORTING_MIN_ORDER] : 0;
+> > +
+> > +	/* Only request it if we have enough to begin the page reporting */
+> > +	if (zone->free_area[order].nr_free < nr_reported + PAGE_REPORTING_HWM)
+> > +		return;
+> > +
+> > +	/* This is slow, but should be called very rarely */
+> > +	__page_reporting_request(zone);
+> > +#endif
+> > +}
+> > +#endif /*_LINUX_PAGE_REPORTING_H */
+> > diff --git a/mm/Kconfig b/mm/Kconfig
+> > index 1c9698509273..daa8c45e2af4 100644
+> > --- a/mm/Kconfig
+> > +++ b/mm/Kconfig
+> > @@ -237,6 +237,11 @@ config COMPACTION
+> >            linux-mm@kvack.org.
+> >  
+> >  #
+> > +# support for unused page reporting
+> > +config PAGE_REPORTING
+> > +	bool
+> > +
+> > +#
+> >  # support for page migration
+> >  #
+> >  config MIGRATION
+> > diff --git a/mm/Makefile b/mm/Makefile
+> > index d0b295c3b764..1e17ba0ed2f0 100644
+> > --- a/mm/Makefile
+> > +++ b/mm/Makefile
+> > @@ -105,3 +105,4 @@ obj-$(CONFIG_PERCPU_STATS) += percpu-stats.o
+> >  obj-$(CONFIG_ZONE_DEVICE) += memremap.o
+> >  obj-$(CONFIG_HMM_MIRROR) += hmm.o
+> >  obj-$(CONFIG_MEMFD_CREATE) += memfd.o
+> > +obj-$(CONFIG_PAGE_REPORTING) += page_reporting.o
+> > diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
+> > index 5b8811945bbb..bd40beac293b 100644
+> > --- a/mm/memory_hotplug.c
+> > +++ b/mm/memory_hotplug.c
+> > @@ -1612,6 +1612,7 @@ static int __ref __offline_pages(unsigned long start_pfn,
+> >  	if (!populated_zone(zone)) {
+> >  		zone_pcp_reset(zone);
+> >  		build_all_zonelists(NULL);
+> > +		page_reporting_reset(zone);
+> >  	} else
+> >  		zone_pcp_update(zone);
+> >  
+> > diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+> > index 4b5812c3800e..d0d3fb12ba54 100644
+> > --- a/mm/page_alloc.c
+> > +++ b/mm/page_alloc.c
+> > @@ -68,6 +68,7 @@
+> >  #include <linux/lockdep.h>
+> >  #include <linux/nmi.h>
+> >  #include <linux/psi.h>
+> > +#include <linux/page_reporting.h>
+> >  
+> >  #include <asm/sections.h>
+> >  #include <asm/tlbflush.h>
+> > @@ -915,7 +916,7 @@ static inline struct capture_control *task_capc(struct zone *zone)
+> >  static inline void __free_one_page(struct page *page,
+> >  		unsigned long pfn,
+> >  		struct zone *zone, unsigned int order,
+> > -		int migratetype)
+> > +		int migratetype, bool reported)
+> >  {
+> >  	struct capture_control *capc = task_capc(zone);
+> >  	unsigned long uninitialized_var(buddy_pfn);
+> > @@ -990,11 +991,20 @@ static inline void __free_one_page(struct page *page,
+> >  done_merging:
+> >  	set_page_order(page, order);
+> >  
+> > -	if (is_shuffle_order(order) ? shuffle_add_to_tail() :
+> > -	    buddy_merge_likely(pfn, buddy_pfn, page, order))
+> > +	if (reported ||
+> > +	    (is_shuffle_order(order) ? shuffle_add_to_tail() :
+> > +	     buddy_merge_likely(pfn, buddy_pfn, page, order)))
+> >  		add_to_free_list_tail(page, zone, order, migratetype);
+> >  	else
+> >  		add_to_free_list(page, zone, order, migratetype);
+> > +
+> > +	/*
+> > +	 * No need to notify on a reported page as the total count of
+> > +	 * unreported pages will not have increased since we have essentially
+> > +	 * merged the reported page with one or more unreported pages.
+> > +	 */
+> > +	if (!reported)
+> > +		page_reporting_notify_free(zone, order);
+> >  }
+> >  
+> >  /*
+> > @@ -1305,7 +1315,7 @@ static void free_pcppages_bulk(struct zone *zone, int count,
+> >  		if (unlikely(isolated_pageblocks))
+> >  			mt = get_pageblock_migratetype(page);
+> >  
+> > -		__free_one_page(page, page_to_pfn(page), zone, 0, mt);
+> > +		__free_one_page(page, page_to_pfn(page), zone, 0, mt, false);
+> >  		trace_mm_page_pcpu_drain(page, 0, mt);
 > >  	}
+> >  	spin_unlock(&zone->lock);
+> > @@ -1321,7 +1331,7 @@ static void free_one_page(struct zone *zone,
+> >  		is_migrate_isolate(migratetype))) {
+> >  		migratetype = get_pfnblock_migratetype(page, pfn);
+> >  	}
+> > -	__free_one_page(page, pfn, zone, order, migratetype);
+> > +	__free_one_page(page, pfn, zone, order, migratetype, false);
+> >  	spin_unlock(&zone->lock);
+> >  }
+> >  
+> > @@ -2183,6 +2193,122 @@ struct page *__rmqueue_smallest(struct zone *zone, unsigned int order,
+> >  	return NULL;
+> >  }
+> >  
+> > +#ifdef CONFIG_PAGE_REPORTING
+> > +/**
+> > + * get_unreported_page - Pull an unreported page from the free_list
+> > + * @zone: Zone to draw pages from
+> > + * @order: Order to draw pages from
+> > + * @mt: Migratetype to draw pages from
+> > + *
+> > + * This function will obtain a page from the free list. It will start by
+> > + * attempting to pull from the tail of the free list and if that is already
+> > + * reported on it will instead pull the head if that is unreported.
+> > + *
+> > + * The page will have the migrate type and order stored in the page
+> > + * metadata. While being processed the page will not be avaialble for
+> > + * allocation.
+> > + *
+> > + * Return: page pointer if raw page found, otherwise NULL
+> > + */
+> > +struct page *get_unreported_page(struct zone *zone, unsigned int order, int mt)
+> > +{
+> > +	struct list_head *tail = get_unreported_tail(zone, order, mt);
+> > +	struct free_area *area = &(zone->free_area[order]);
+> > +	struct list_head *list = &area->free_list[mt];
+> > +	struct page *page;
 > > +
-> > +	paddr =3D page_to_phys(page);
-> > +	put_user_page(page);
+> > +	/* zone lock should be held when this function is called */
+> > +	lockdep_assert_held(&zone->lock);
 > > +
-> > +	if (unlikely(is_vm_hugetlb_page(vma)))
-> > +		*pageshift =3D HPAGE_SHIFT;
-> > +	else
-> > +		*pageshift =3D PAGE_SHIFT;
+> > +	/* Find a page of the appropriate size in the preferred list */
+> > +	page = list_last_entry(tail, struct page, lru);
+> > +	list_for_each_entry_from_reverse(page, list, lru) {
+> > +		/* If we entered this loop then the "raw" list isn't empty */
 > > +
-> >  	if (is_gru_paddr(paddr))
-> >  		goto inval;
-> > -	paddr =3D paddr & ~((1UL << ps) - 1);
-> > +	paddr =3D paddr & ~((1UL << *pageshift) - 1);
-> >  	*gpa =3D uv_soc_phys_ram_to_gpa(paddr);
-> > -	*pageshift =3D ps;
+> > +		/* If the page is reported try the head of the list */
+> > +		if (PageReported(page)) {
+> > +			page = list_first_entry(list, struct page, lru);
 > > +
-> >  	return VTOP_SUCCESS;
-> > =20
-> >  inval:
-> > --=20
-> > 2.7.4
-> >=20
+> > +			/*
+> > +			 * If both the head and tail are reported then reset
+> > +			 * the boundary so that we read as an empty list
+> > +			 * next time and bail out.
+> > +			 */
+> > +			if (PageReported(page)) {
+> > +				page_reporting_add_to_boundary(page, zone, mt);
+> > +				break;
+> > +			}
+> > +		}
+> > +
+> > +		del_page_from_free_list(page, zone, order);
+> > +
+> > +		/* record migratetype and order within page */
+> > +		set_pcppage_migratetype(page, mt);
+> > +		set_page_private(page, order);
+> 
+> Can you elaborate why you (similar to Nitesh) have to save/restore the
+> migratetype? I can't yet follow why that is necessary. You could simply
+> set it to MOVABLE (like e.g., undo_isolate_page_range() would do via
+> alloc_contig_range()). If a pageblock is completely free, it might even
+> make sense to set it to MOVABLE.
+> 
+> (mainly wondering if this is required here and what the rational is)
+
+It was mostly a "put it back where I found it" type of logic. I suppose I
+could probably just come back and read the migratetype out of the pfnblock
+and return it there. Is that what you are thinking? If so I can probably
+look at doing that instead, assuming there are no issues with that.
+
+> Now a theoretical issue:
+> 
+> You are allocating pages from all zones, including the MOVABLE zone. The
+> pages are currently unmovable (however, only temporarily allocated).
+
+In my mind they aren't in too different of a state from pages that have
+had their reference count dropped to 0 by something like __free_pages, but
+haven't yet reached the function __free_pages_ok.
+
+The general idea is that they should be in this state for a very short-
+lived period of time. They are essentially free pages that just haven't
+made it back into the buddy allocator.
+
+> del_page_from_free_area() will clear PG_buddy, and leave the refcount of
+> the page set to zero (!). has_unmovable_pages() will skip any pages
+> either on the MOVABLE zone or with a refcount of zero. So all pages that
+> are being reported are detected as movable. The isolation of allocated
+> pages will work - which is not bad, but I wonder what the implications are.
+
+So as per my comment above I am fairly certain this isn't a new state that
+my code has introduced. In fact isolate_movable_page() calls out the case
+in the comments at the start of the function. Specifically it states:
+        /*
+         * Avoid burning cycles with pages that are yet under __free_pages(),
+         * or just got freed under us.
+         *
+         * In case we 'win' a race for a movable page being freed under us and
+         * raise its refcount preventing __free_pages() from doing its job
+         * the put_page() at the end of this block will take care of
+         * release this page, thus avoiding a nasty leakage.
+         */
+        if (unlikely(!get_page_unless_zero(page)))
+                goto out;
+
+So it would seem like this case is already handled. I am assuming the fact
+that the migrate type for the pfnblock was set to isolate before we got
+here would mean that when I call put_reported_page the final result will
+be that the page is placed into the freelist for the isolate migratetype.
+
+> As far as I can follow, alloc_contig_range() ->
+> __alloc_contig_migrate_range() -> isolate_migratepages_range() ->
+> isolate_migratepages_block() will choke on these pages ((!PageLRU(page)
+> -> !__PageMovable(page) -> fail), essentially making
+> alloc_contig_range() range fail. Same could apply to offline_pages().
+> 
+> I would have thought that there has to be something like a
+> reported_pages_drain_all(), that waits until all reports are over (or
+> even signals to the hypervisor to abort reporting). As the pages are
+> isolated, they won't be allocated for reporting again.
+
+The thing is I only have 16 pages at most sitting in the scatterlist. In
+most cases the response should be quick enough that by the time I could
+make a request to abort reporting it would have likely already completed.
+
+Also, unless there is already a ton of memory churn then we probably
+wouldn't need to worry about page reporting really causing too much of an
+issue. Specifically the way I structured the logic was that we only pull
+out up to 16 pages at a time. What should happen is that we will continue
+to build a list of "reported" pages in the free_list until we start
+bumping up against the allocator, in that case the allocator should start
+pulling reported pages and we will stop reporting with hopefully enough
+"reported" pages built up that it can allocate out of those until the last
+16 or fewer reported pages are returned to the free_list.
+
+> I have not yet understood completely the way all the details work. I am
+> currently looking into using alloc_contig_range() in a different
+> context, which would co-exist with free-page-reporting.
+
+I am pretty sure the two can "play well" together, even in their current
+form. One thing I could look at doing would be to skip a page if the
+migratetype of the pfnblock indicates that it is an isolate block. I would
+essentially have to pull it out of the free_list I am working with and
+drop it into the MIGRATE_ISOLATE freelist.
+
 
