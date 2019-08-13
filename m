@@ -2,263 +2,151 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.6 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 06247C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 23:02:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 74657C32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 23:14:50 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B6A472054F
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 23:02:27 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B6A472054F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 290C420663
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 23:14:50 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="YCRnu82X"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 290C420663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6163E6B0270; Tue, 13 Aug 2019 19:02:27 -0400 (EDT)
+	id B3BDF6B000D; Tue, 13 Aug 2019 19:14:49 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5C5FD6B0271; Tue, 13 Aug 2019 19:02:27 -0400 (EDT)
+	id AECF46B000E; Tue, 13 Aug 2019 19:14:49 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4B5C26B0272; Tue, 13 Aug 2019 19:02:27 -0400 (EDT)
+	id 9DAB26B0010; Tue, 13 Aug 2019 19:14:49 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0009.hostedemail.com [216.40.44.9])
-	by kanga.kvack.org (Postfix) with ESMTP id 2BB626B0270
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 19:02:27 -0400 (EDT)
-Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id C5DD3181AC9B4
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 23:02:26 +0000 (UTC)
-X-FDA: 75818930292.14.neck73_3242fd11a002b
-X-HE-Tag: neck73_3242fd11a002b
-X-Filterd-Recvd-Size: 9804
-Received: from mga05.intel.com (mga05.intel.com [192.55.52.43])
-	by imf08.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 23:02:25 +0000 (UTC)
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from orsmga001.jf.intel.com ([10.7.209.18])
-  by fmsmga105.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 16:02:23 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,382,1559545200"; 
-   d="scan'208";a="260271269"
-Received: from ray.jf.intel.com (HELO [10.7.201.140]) ([10.7.201.140])
-  by orsmga001.jf.intel.com with ESMTP; 13 Aug 2019 16:02:22 -0700
-Subject: Re: [PATCH v8 11/27] x86/mm: Introduce _PAGE_DIRTY_SW
-To: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org,
- "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
- Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
- Andy Lutomirski <luto@amacapital.net>, Balbir Singh <bsingharora@gmail.com>,
- Borislav Petkov <bp@alien8.de>, Cyrill Gorcunov <gorcunov@gmail.com>,
- Dave Hansen <dave.hansen@linux.intel.com>,
- Eugene Syromiatnikov <esyr@redhat.com>, Florian Weimer <fweimer@redhat.com>,
- "H.J. Lu" <hjl.tools@gmail.com>, Jann Horn <jannh@google.com>,
- Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
- Mike Kravetz <mike.kravetz@oracle.com>, Nadav Amit <nadav.amit@gmail.com>,
- Oleg Nesterov <oleg@redhat.com>, Pavel Machek <pavel@ucw.cz>,
- Peter Zijlstra <peterz@infradead.org>, Randy Dunlap <rdunlap@infradead.org>,
- "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
- Dave Martin <Dave.Martin@arm.com>
-References: <20190813205225.12032-1-yu-cheng.yu@intel.com>
- <20190813205225.12032-12-yu-cheng.yu@intel.com>
-From: Dave Hansen <dave.hansen@intel.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=dave.hansen@intel.com; keydata=
- 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
-Message-ID: <dac2d62b-9045-4767-87dd-eac12e7abafd@intel.com>
-Date: Tue, 13 Aug 2019 16:02:22 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0249.hostedemail.com [216.40.44.249])
+	by kanga.kvack.org (Postfix) with ESMTP id 763886B000D
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 19:14:49 -0400 (EDT)
+Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 27F3F127B
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 23:14:49 +0000 (UTC)
+X-FDA: 75818961498.16.game22_ce72b2bc124d
+X-HE-Tag: game22_ce72b2bc124d
+X-Filterd-Recvd-Size: 6226
+Received: from mail-ot1-f65.google.com (mail-ot1-f65.google.com [209.85.210.65])
+	by imf09.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 23:14:48 +0000 (UTC)
+Received: by mail-ot1-f65.google.com with SMTP id j7so33320337ota.9
+        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 16:14:48 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
+         :cc;
+        bh=JfCDYzsbmylRyo21gErMd6dmJhyO/WKByIVYuR2+KCQ=;
+        b=YCRnu82XB51HlJE2bJ2ABN473mPpLvpS1+D+gsZKtfSqkAJWl3J2febSoofC9HVlXv
+         4UpKKuTsjLtc1nCxNACdSMt3GbSMoAADzqfWfvprYprmroYb2/7aES+50BLjnvqQfy84
+         tIvgdL3DxiC5tA9xy1j6FgdZO36ONJYh3B0dzA6NruPx7pfaxtmyeYfORBHPPG5qaY7Y
+         V6FScNDv12Fk33JzrJibueWFzllWA54+7utXKTBA7N9RDlGjTyJv+y/gRE3jLlJ2bAsj
+         UoBEEIKUHtdsSUrYob4u0uXuKBOduX1bCx+nWrKKzk+d/qLtb/KPiIHuG5azLupljFK5
+         YB2w==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to:cc;
+        bh=JfCDYzsbmylRyo21gErMd6dmJhyO/WKByIVYuR2+KCQ=;
+        b=Iy85UHprKjeFXQRB6j8O3/vUeif0xLkquVnBMmZygJgW+ObBPtkeOXywac91kt7Dwh
+         KCybGpR7Az+wCMaH77Kz4wZIgKONFdEY5FzfXF7K7TV5TPLKawXPXSoyGFrCBuz7cEHi
+         rJeJFPMxPG9zUT9OgZr9JWRywM4QDTHWzLX3/5XTDg58UHg8KhpEh4KJlyUNdufR8Vth
+         poPWIj9V7LDnoT2zzqxB1SBQhPnYpy/q6Id4xPd2XZ8immRcYJSwFj9OaIw5Cqxucb4n
+         /NqDe+dJnilINPEzhDucpYIeO+HQPfJYpzyfGICZHEU0qRMgQDyU50H9f0Kood3mQUyR
+         /Piw==
+X-Gm-Message-State: APjAAAU+xglvZKR9v52jmTXiAnCix2BfyHumAgCOkGhTgmdO23eth+PP
+	L+GhNGivSBGJALcVHLnKZlypqph5n1F7ZuS2TYc=
+X-Google-Smtp-Source: APXvYqwLI2Fib9qI+Djp/FJahaxKBV2uh7K8EoSHkO2am5+Zd+BprsaBzWmlkQ135bmDf66SvtJqCocH0IsUZ14QZ88=
+X-Received: by 2002:a5e:8c11:: with SMTP id n17mr5577226ioj.64.1565738087631;
+ Tue, 13 Aug 2019 16:14:47 -0700 (PDT)
 MIME-Version: 1.0
-In-Reply-To: <20190813205225.12032-12-yu-cheng.yu@intel.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+References: <20190812131235.27244-1-nitesh@redhat.com> <20190812131235.27244-2-nitesh@redhat.com>
+ <CAKgT0UcSabyrO=jUwq10KpJKLSuzorHDnKAGrtWVigKVgvD-6Q@mail.gmail.com>
+ <ca362045-9668-18ff-39b0-de91fa72e73c@redhat.com> <d39504c9-93bd-b8f7-e119-84baac5a42d4@redhat.com>
+ <32f61f87-6205-5001-866c-a84e20fc9d85@redhat.com>
+In-Reply-To: <32f61f87-6205-5001-866c-a84e20fc9d85@redhat.com>
+From: Alexander Duyck <alexander.duyck@gmail.com>
+Date: Tue, 13 Aug 2019 16:14:36 -0700
+Message-ID: <CAKgT0UfaaHrEaS2wsbdTuzCdCtSrM4Tx79w=dP8HPEnq+T7rtQ@mail.gmail.com>
+Subject: Re: [RFC][Patch v12 1/2] mm: page_reporting: core infrastructure
+To: David Hildenbrand <david@redhat.com>
+Cc: Nitesh Narayan Lal <nitesh@redhat.com>, kvm list <kvm@vger.kernel.org>, 
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>, 
+	virtio-dev@lists.oasis-open.org, Paolo Bonzini <pbonzini@redhat.com>, 
+	lcapitulino@redhat.com, Pankaj Gupta <pagupta@redhat.com>, 
+	"Wang, Wei W" <wei.w.wang@intel.com>, Yang Zhang <yang.zhang.wz@gmail.com>, 
+	Rik van Riel <riel@surriel.com>, "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com, 
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com, 
+	Andrea Arcangeli <aarcange@redhat.com>, john.starks@microsoft.com, 
+	Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>, cohuck@redhat.com
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-> +#if defined(CONFIG_X86_INTEL_SHADOW_STACK_USER)
-> +static inline pte_t pte_move_flags(pte_t pte, pteval_t from, pteval_t =
-to)
-> +{
-> +	if (pte_flags(pte) & from)
-> +		pte =3D pte_set_flags(pte_clear_flags(pte, from), to);
-> +	return pte;
+On Tue, Aug 13, 2019 at 3:34 AM David Hildenbrand <david@redhat.com> wrote:
+>
+> >>>> +static int process_free_page(struct page *page,
+> >>>> +                            struct page_reporting_config *phconf, int count)
+> >>>> +{
+> >>>> +       int mt, order, ret = 0;
+> >>>> +
+> >>>> +       mt = get_pageblock_migratetype(page);
+> >>>> +       order = page_private(page);
+> >>>> +       ret = __isolate_free_page(page, order);
+> >>>> +
+> >> I just started looking into the wonderful world of
+> >> isolation/compaction/migration.
+> >>
+> >> I don't think saving/restoring the migratetype is correct here. AFAIK,
+> >> MOVABLE/UNMOVABLE/RECLAIMABLE is just a hint, doesn't mean that e.g.,
+> >> movable pages and up in UNMOVABLE or ordinary kernel allocations on
+> >> MOVABLE. So that shouldn't be an issue - I guess.
+> >>
+> >> 1. You should never allocate something that is no
+> >> MOVABLE/UNMOVABLE/RECLAIMABLE. Especially not, if you have ISOLATE or
+> >> CMA here. There should at least be a !is_migrate_isolate_page() check
+> >> somewhere
+> >>
+> >> 2. set_migratetype_isolate() takes the zone lock, so to avoid racing
+> >> with isolation code, you have to hold the zone lock. Your code seems to
+> >> do that, so at least you cannot race against isolation.
+> >>
+> >> 3. You could end up temporarily allocating something in the
+> >> ZONE_MOVABLE. The pages you allocate are, however, not movable. There
+> >> would have to be a way to make alloc_contig_range()/offlining code
+> >> properly wait until the pages have been processed. Not sure about the
+> >> real implications, though - too many details in the code (I wonder if
+> >> Alex' series has a way of dealing with that)
+> >>
+> >> When you restore the migratetype, you could suddenly overwrite e.g.,
+> >> ISOLATE, which feels wrong.
+> >
+> >
+> > I was triggering an occasional CPU stall bug earlier, with saving and restoring
+> > the migratetype I was able to fix it.
+> > But I will further look into this to figure out if it is really required.
+> >
+>
+> You should especially look into handling isolated/cma pages. Maybe that
+> was the original issue. Alex seems to have added that in his latest
+> series (skipping isolated/cma pageblocks completely) as well.
 
-Why is this conditional on the compile option and not a runtime check?
-
-> +}
-> +#else
-> +static inline pte_t pte_move_flags(pte_t pte, pteval_t from, pteval_t =
-to)
-> +{
-> +	return pte;
-> +}
-> +#endif
-
-Why do we need this function?  It's not mentioned in the changelog or
-commented.
-
->  static inline pte_t pte_mkclean(pte_t pte)
->  {
-> -	return pte_clear_flags(pte, _PAGE_DIRTY);
-> +	return pte_clear_flags(pte, _PAGE_DIRTY_BITS);
->  }
-> =20
->  static inline pte_t pte_mkold(pte_t pte)
-> @@ -322,6 +336,7 @@ static inline pte_t pte_mkold(pte_t pte)
-> =20
->  static inline pte_t pte_wrprotect(pte_t pte)
->  {
-> +	pte =3D pte_move_flags(pte, _PAGE_DIRTY_HW, _PAGE_DIRTY_SW);
->  	return pte_clear_flags(pte, _PAGE_RW);
->  }
-
-Please comment what this is doing and why.
-
-> @@ -332,9 +347,24 @@ static inline pte_t pte_mkexec(pte_t pte)
-> =20
->  static inline pte_t pte_mkdirty(pte_t pte)
->  {
-> +	pteval_t dirty =3D (!IS_ENABLED(CONFIG_X86_INTEL_SHADOW_STACK_USER) |=
-|
-> +			   pte_write(pte)) ? _PAGE_DIRTY_HW:_PAGE_DIRTY_SW;
-
-This is *really* hard for me to read and parse.  How about:
-
-	pte_t dirty =3D _PAGE_DIRTY_HW;
-
-	/*
-	 * When Shadow Stacks are enabled, read-only PTEs can
-	 * not have the hardware dirty bit set and must use
-	 * the software bit.
-	 */
-	if (IS_ENABLED(CONFIG_X86_INTEL_SHADOW_STACK_USER) &&
-	    !pte_write(pte))
-		dirty =3D _PAGE_DIRTY_SW;
-
-
-> +	return pte_set_flags(pte, dirty | _PAGE_SOFT_DIRTY);
-> +}
-> +
-> +#ifdef CONFIG_ARCH_HAS_SHSTK
-> +static inline pte_t pte_mkdirty_shstk(pte_t pte)
-> +{
-> +	pte =3D pte_clear_flags(pte, _PAGE_DIRTY_SW);
->  	return pte_set_flags(pte, _PAGE_DIRTY_HW | _PAGE_SOFT_DIRTY);
->  }
-
-Why does the _PAGE_DIRTY_SW *HAVE* to be cleared on shstk pages?
-
-> +static inline bool pte_dirty_hw(pte_t pte)
-> +{
-> +	return pte_flags(pte) & _PAGE_DIRTY_HW;
-> +}
-> +#endif
-
-Why are these #ifdef'd?
-
->  static inline pte_t pte_mkyoung(pte_t pte)
->  {
->  	return pte_set_flags(pte, _PAGE_ACCESSED);
-> @@ -342,6 +372,7 @@ static inline pte_t pte_mkyoung(pte_t pte)
-> =20
->  static inline pte_t pte_mkwrite(pte_t pte)
->  {
-> +	pte =3D pte_move_flags(pte, _PAGE_DIRTY_SW, _PAGE_DIRTY_HW);
->  	return pte_set_flags(pte, _PAGE_RW);
->  }
-
-It also isn't clear to me why this *must* move bits here.  Its doubly
-unclear why you would need to do this on systems when shadow stacks are
-compiled in but disabled.
-
-<snip>
-
-Same comments for pmds and puds.
-
-> -
->  /* mprotect needs to preserve PAT bits when updating vm_page_prot */
->  #define pgprot_modify pgprot_modify
->  static inline pgprot_t pgprot_modify(pgprot_t oldprot, pgprot_t newpro=
-t)
-> @@ -1178,6 +1254,19 @@ static inline int pmd_write(pmd_t pmd)
->  	return pmd_flags(pmd) & _PAGE_RW;
->  }
-> =20
-> +static inline pmd_t pmd_modify(pmd_t pmd, pgprot_t newprot)
-> +{
-> +	pmdval_t val =3D pmd_val(pmd), oldval =3D val;
-> +
-> +	val &=3D _HPAGE_CHG_MASK;
-> +	val |=3D check_pgprot(newprot) & ~_HPAGE_CHG_MASK;
-> +	val =3D flip_protnone_guard(oldval, val, PHYSICAL_PMD_PAGE_MASK);
-> +	if ((pmd_write(pmd) && !(pgprot_val(newprot) & _PAGE_RW)))
-> +		return pmd_move_flags(__pmd(val), _PAGE_DIRTY_HW,
-> +				      _PAGE_DIRTY_SW);
-> +	return __pmd(val);
-> +}
-
-Why was this function moved?  This makes it really hard to review what
-you changed
-
-I'm going to stop reading this code now.  It needs a lot more care and
-feeding to make it reviewable.  Please go back, double-check your
-changelogs and flesh them out, then please try to make the code more
-readable and understandable by commenting it.
-
-Please take all of the compile-time checks and ask yourself whether they
-need to be or *can* be runtime checks.  Consider what the overhead is of
-non-shadowstack systems running shadowstack-required code.
-
-Please also reconcile the supervisor XSAVE portion of your patches with
-the ones that Fenghua has been sending around.  I've given quite a bit
-of feedback to improve those.  Please consolidate and agree on a common
-set of patches with him.
+So as far as skipping isolated pageblocks, I get the reason for
+skipping isolated, but why would we need to skip CMA? I had made the
+change I did based on comments you had made earlier. But while working
+on some of the changes to address isolation better and looking over
+several spots in the code it seems like CMA is already being used as
+an allocation fallback for MIGRATE_MOVABLE. If that is the case
+wouldn't it make sense to allow pulling pages and reporting them while
+they are in the free_list?
 
