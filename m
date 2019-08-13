@@ -2,137 +2,173 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B9FBBC433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 14:05:58 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1B963C32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 14:14:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 7EB8D2084D
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 14:05:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7EB8D2084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id CA36C20844
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 14:14:37 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org CA36C20844
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 390A36B0007; Tue, 13 Aug 2019 10:05:58 -0400 (EDT)
+	id 61F6F6B0003; Tue, 13 Aug 2019 10:14:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 369A96B0008; Tue, 13 Aug 2019 10:05:58 -0400 (EDT)
+	id 5D0626B0006; Tue, 13 Aug 2019 10:14:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 208646B000A; Tue, 13 Aug 2019 10:05:58 -0400 (EDT)
+	id 4BEB96B0007; Tue, 13 Aug 2019 10:14:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0047.hostedemail.com [216.40.44.47])
-	by kanga.kvack.org (Postfix) with ESMTP id EC34A6B0007
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 10:05:57 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id A7FA6181AC9BF
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 14:05:57 +0000 (UTC)
-X-FDA: 75817578354.07.spade60_16dd304535b16
-X-HE-Tag: spade60_16dd304535b16
-X-Filterd-Recvd-Size: 4289
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf24.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 14:05:57 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx07.intmail.prod.int.phx2.redhat.com [10.5.11.22])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id EA76930860C6;
-	Tue, 13 Aug 2019 14:05:55 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.136])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 03BC71000324;
-	Tue, 13 Aug 2019 14:05:53 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Tue, 13 Aug 2019 16:05:55 +0200 (CEST)
-Date: Tue, 13 Aug 2019 16:05:53 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: "Kirill A. Shutemov" <kirill@shutemov.name>
-Cc: Song Liu <songliubraving@fb.com>,
-	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
-	Linux MM <linux-mm@kvack.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Matthew Wilcox <matthew.wilcox@oracle.com>,
-	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
-	Kernel Team <Kernel-team@fb.com>,
-	William Kucharski <william.kucharski@oracle.com>,
-	"srikar@linux.vnet.ibm.com" <srikar@linux.vnet.ibm.com>
-Subject: Re: [PATCH v12 5/6] khugepaged: enable collapse pmd for pte-mapped
- THP
-Message-ID: <20190813140552.GB6971@redhat.com>
-References: <20190807233729.3899352-6-songliubraving@fb.com>
- <20190808163303.GB7934@redhat.com>
- <770B3C29-CE8F-4228-8992-3C6E2B5487B6@fb.com>
- <20190809152404.GA21489@redhat.com>
- <3B09235E-5CF7-4982-B8E6-114C52196BE5@fb.com>
- <4D8B8397-5107-456B-91FC-4911F255AE11@fb.com>
- <20190812121144.f46abvpg6lvxwwzs@box>
- <20190812132257.GB31560@redhat.com>
- <20190812144045.tkvipsyit3nccvuk@box>
- <20190813133034.GA6971@redhat.com>
+Received: from forelay.hostedemail.com (smtprelay0206.hostedemail.com [216.40.44.206])
+	by kanga.kvack.org (Postfix) with ESMTP id 2699D6B0003
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 10:14:37 -0400 (EDT)
+Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id B5DB640C6
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 14:14:36 +0000 (UTC)
+X-FDA: 75817600152.26.story87_626700cf07523
+X-HE-Tag: story87_626700cf07523
+X-Filterd-Recvd-Size: 7451
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf41.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 14:14:36 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 3F341AC26;
+	Tue, 13 Aug 2019 14:14:34 +0000 (UTC)
+Date: Tue, 13 Aug 2019 16:14:32 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-kernel@vger.kernel.org,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
+	fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>, kernel-team@android.com,
+	linux-api@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+	Mike Rapoport <rppt@linux.ibm.com>, minchan@kernel.org,
+	namhyung@google.com, paulmck@linux.ibm.com,
+	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
+	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
+	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
+Subject: Re: [PATCH v5 1/6] mm/page_idle: Add per-pid idle page tracking
+ using virtual index
+Message-ID: <20190813141432.GL17933@dhcp22.suse.cz>
+References: <20190807171559.182301-1-joel@joelfernandes.org>
+ <20190807130402.49c9ea8bf144d2f83bfeb353@linux-foundation.org>
+ <20190807204530.GB90900@google.com>
+ <20190807135840.92b852e980a9593fe91fbf59@linux-foundation.org>
+ <20190807213105.GA14622@google.com>
+ <20190808080044.GA18351@dhcp22.suse.cz>
+ <20190812145620.GB224541@google.com>
+ <20190813091430.GE17933@dhcp22.suse.cz>
+ <20190813135152.GC258732@google.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190813133034.GA6971@redhat.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.84 on 10.5.11.22
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.44]); Tue, 13 Aug 2019 14:05:56 +0000 (UTC)
+In-Reply-To: <20190813135152.GC258732@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 08/13, Oleg Nesterov wrote:
->
-> On 08/12, Kirill A. Shutemov wrote:
-> >
-> > On Mon, Aug 12, 2019 at 03:22:58PM +0200, Oleg Nesterov wrote:
-> > > On 08/12, Kirill A. Shutemov wrote:
-> > > >
-> > > > On Fri, Aug 09, 2019 at 06:01:18PM +0000, Song Liu wrote:
-> > > > > +		if (pte_none(*pte) || !pte_present(*pte))
-> > > > > +			continue;
-> > > >
-> > > > You don't need to check both. Present is never none.
-> > >
-> > > Agreed.
-> > >
-> > > Kirill, while you are here, shouldn't retract_page_tables() check
-> > > vma->anon_vma (and probably do mm_find_pmd) under vm_mm->mmap_sem?
-> > >
-> > > Can't it race with, say, do_cow_fault?
-> >
-> > vma->anon_vma can race, but it doesn't matter. False-negative is fine.
-> > It's attempt to avoid taking mmap_sem where it can be not productive.
->
-> I guess I misunderstood the purpose of this check or your answer...
->
-> Let me reword my question. Why can retract_page_tables() safely do
-> pmdp_collapse_flush(vma) without additional checks similar to what
-> collapse_pte_mapped_thp() does?
->
-> I thought that retract_page_tables() checks vma->anon_vma to ensure that
-> this vma doesn't have a cow'ed PageAnon() page. And I still can't understand
-> why can't it race with __handle_mm_fault() paths.
->
-> Suppose that shmem_file was mmaped with PROT_READ|WRITE, MAP_PRIVATE.
-> To simplify, suppose that a non-THP page was already faulted in,
-> pte_present() == T.
->
-> Userspace writes to this page.
->
-> Why __handle_mm_fault()->handle_pte_fault()->do_wp_page()->wp_page_copy()
-> can not cow this page and update pte after the vma->anon_vma chech and
-> before down_write_trylock(mmap_sem) ?
+On Tue 13-08-19 09:51:52, Joel Fernandes wrote:
+> On Tue, Aug 13, 2019 at 11:14:30AM +0200, Michal Hocko wrote:
+> > On Mon 12-08-19 10:56:20, Joel Fernandes wrote:
+> > > On Thu, Aug 08, 2019 at 10:00:44AM +0200, Michal Hocko wrote:
+> > > > On Wed 07-08-19 17:31:05, Joel Fernandes wrote:
+> > > > > On Wed, Aug 07, 2019 at 01:58:40PM -0700, Andrew Morton wrote:
+> > > > > > On Wed, 7 Aug 2019 16:45:30 -0400 Joel Fernandes <joel@joelfernandes.org> wrote:
+> > > > > > 
+> > > > > > > On Wed, Aug 07, 2019 at 01:04:02PM -0700, Andrew Morton wrote:
+> > > > > > > > On Wed,  7 Aug 2019 13:15:54 -0400 "Joel Fernandes (Google)" <joel@joelfernandes.org> wrote:
+> > > > > > > > 
+> > > > > > > > > In Android, we are using this for the heap profiler (heapprofd) which
+> > > > > > > > > profiles and pin points code paths which allocates and leaves memory
+> > > > > > > > > idle for long periods of time. This method solves the security issue
+> > > > > > > > > with userspace learning the PFN, and while at it is also shown to yield
+> > > > > > > > > better results than the pagemap lookup, the theory being that the window
+> > > > > > > > > where the address space can change is reduced by eliminating the
+> > > > > > > > > intermediate pagemap look up stage. In virtual address indexing, the
+> > > > > > > > > process's mmap_sem is held for the duration of the access.
+> > > > > > > > 
+> > > > > > > > So is heapprofd a developer-only thing?  Is heapprofd included in
+> > > > > > > > end-user android loads?  If not then, again, wouldn't it be better to
+> > > > > > > > make the feature Kconfigurable so that Android developers can enable it
+> > > > > > > > during development then disable it for production kernels?
+> > > > > > > 
+> > > > > > > Almost all of this code is already configurable with
+> > > > > > > CONFIG_IDLE_PAGE_TRACKING. If you disable it, then all of this code gets
+> > > > > > > disabled.
+> > > > > > > 
+> > > > > > > Or are you referring to something else that needs to be made configurable?
+> > > > > > 
+> > > > > > Yes - the 300+ lines of code which this patchset adds!
+> > > > > > 
+> > > > > > The impacted people will be those who use the existing
+> > > > > > idle-page-tracking feature but who will not use the new feature.  I
+> > > > > > guess we can assume this set is small...
+> > > > > 
+> > > > > Yes, I think this set should be small. The code size increase of page_idle.o
+> > > > > is from ~1KB to ~2KB. Most of the extra space is consumed by
+> > > > > page_idle_proc_generic() function which this patch adds. I don't think adding
+> > > > > another CONFIG option to disable this while keeping existing
+> > > > > CONFIG_IDLE_PAGE_TRACKING enabled, is worthwhile but I am open to the
+> > > > > addition of such an option if anyone feels strongly about it. I believe that
+> > > > > once this patch is merged, most like this new interface being added is what
+> > > > > will be used more than the old interface (for some of the usecases) so it
+> > > > > makes sense to keep it alive with CONFIG_IDLE_PAGE_TRACKING.
+> > > > 
+> > > > I would tend to agree with Joel here. The functionality falls into an
+> > > > existing IDLE_PAGE_TRACKING config option quite nicely. If there really
+> > > > are users who want to save some space and this is standing in the way
+> > > > then they can easily add a new config option with some justification so
+> > > > the savings are clear. Without that an additional config simply adds to
+> > > > the already existing configurability complexity and balkanization.
+> > > 
+> > > Michal, Andrew, Minchan,
+> > > 
+> > > Would you have any other review comments on the v5 series? This is just a new
+> > > interface that does not disrupt existing users of the older page-idle
+> > > tracking, so as such it is a safe change (as in, doesn't change existing
+> > > functionality except for the draining bug fix).
+> > 
+> > I hope to find some more time to finish the review but let me point out
+> > that "it's new it is regression safe" is not really a great argument for
+> > a new user visible API.
+> 
+> Actually, I think you misunderstood me and took it out of context. I never
+> intended to say "it is regression safe". I meant to say it is "low risk", as
+> in that in all likelihood should not be hurting *existing users* of the *old
+> interface*. Also as you know, it has been tested.
 
-OK, probably this is impossible, collapse_shmem() does unmap_mapping_pages(),
-so handle_pte_fault() will call shmem_fault() which iiuc should block in
-find_lock_entry() because new_page is locked, and thus down_write_trylock()
-can't succeed.
+Yeah, misreading on my end.
 
-Nevermind, I am sure I missed something. Perhaps you can update the comments
-to make this more clear.
+> > If the API is flawed then this is likely going
+> > to kick us later and will be hard to fix. I am still not convinced about
+> > the swap part of the thing TBH.
+> 
+> Ok, then let us discuss it. As I mentioned before, without this we lose the
+> access information due to MADVISE or swapping. Minchan and Konstantin both
+> suggested it that's why I also added it (other than me also realizing that it
+> is neeed).
 
-Oleg.
+I have described my concerns about the general idle bit behavior after
+unmapping pointing to discrepancy with !anon pages. And I believe those
+haven't been addressed yet. Besides that I am still not seeing any
+description of the usecase that would suffer from the lack of the
+functionality in changelogs.
 
+-- 
+Michal Hocko
+SUSE Labs
 
