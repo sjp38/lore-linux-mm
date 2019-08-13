@@ -6,33 +6,33 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 9BAACC32753
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:04:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 9EEAAC41514
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:04:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 68F4A20840
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:04:06 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 68F4A20840
+	by mail.kernel.org (Postfix) with ESMTP id 60EE620840
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:04:08 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 60EE620840
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3BAB46B02A4; Tue, 13 Aug 2019 17:03:44 -0400 (EDT)
+	id 8985B6B02A6; Tue, 13 Aug 2019 17:03:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 257F26B02A1; Tue, 13 Aug 2019 17:03:44 -0400 (EDT)
+	id 7ACBB6B029D; Tue, 13 Aug 2019 17:03:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 036676B02A4; Tue, 13 Aug 2019 17:03:43 -0400 (EDT)
+	id 3BA236B029D; Tue, 13 Aug 2019 17:03:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0211.hostedemail.com [216.40.44.211])
-	by kanga.kvack.org (Postfix) with ESMTP id AA16D6B029D
+Received: from forelay.hostedemail.com (smtprelay0143.hostedemail.com [216.40.44.143])
+	by kanga.kvack.org (Postfix) with ESMTP id DB07F6B02A0
 	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:03:43 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 517642C34
+Received: from smtpin18.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 87CBC55F98
 	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:03:43 +0000 (UTC)
-X-FDA: 75818631126.26.year03_206dddc91bd24
-X-HE-Tag: year03_206dddc91bd24
-X-Filterd-Recvd-Size: 3829
+X-FDA: 75818631126.18.crate76_2070959672427
+X-HE-Tag: crate76_2070959672427
+X-Filterd-Recvd-Size: 4406
 Received: from mga06.intel.com (mga06.intel.com [134.134.136.31])
-	by imf14.hostedemail.com (Postfix) with ESMTP
+	by imf02.hostedemail.com (Postfix) with ESMTP
 	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:03:42 +0000 (UTC)
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
@@ -40,7 +40,7 @@ Received: from fmsmga001.fm.intel.com ([10.253.24.23])
   by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 14:03:40 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.64,382,1559545200"; 
-   d="scan'208";a="194275979"
+   d="scan'208";a="194275982"
 Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
   by fmsmga001.fm.intel.com with ESMTP; 13 Aug 2019 14:03:40 -0700
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
@@ -75,9 +75,9 @@ To: x86@kernel.org,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v8 06/14] x86/cet/ibt: Add arch_prctl functions for IBT
-Date: Tue, 13 Aug 2019 13:53:51 -0700
-Message-Id: <20190813205359.12196-7-yu-cheng.yu@intel.com>
+Subject: [PATCH v8 07/14] x86/cet/ibt: Add ENDBR to op-code-map
+Date: Tue, 13 Aug 2019 13:53:52 -0700
+Message-Id: <20190813205359.12196-8-yu-cheng.yu@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190813205359.12196-1-yu-cheng.yu@intel.com>
 References: <20190813205359.12196-1-yu-cheng.yu@intel.com>
@@ -87,52 +87,79 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-From: "H.J. Lu" <hjl.tools@gmail.com>
+Add control transfer terminating instructions:
 
-Update ARCH_X86_CET_STATUS and ARCH_X86_CET_DISABLE to include
-Indirect Branch Tracking features.
+ENDBR64/ENDBR32:
+    Mark a valid 64/32-bit control transfer endpoint.
 
-Signed-off-by: H.J. Lu <hjl.tools@gmail.com>
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/include/uapi/asm/prctl.h | 2 ++
- arch/x86/kernel/cet_prctl.c       | 4 ++++
- 2 files changed, 6 insertions(+)
+ arch/x86/lib/x86-opcode-map.txt               | 13 +++++++++++--
+ tools/objtool/arch/x86/lib/x86-opcode-map.txt | 13 +++++++++++--
+ 2 files changed, 22 insertions(+), 4 deletions(-)
 
-diff --git a/arch/x86/include/uapi/asm/prctl.h b/arch/x86/include/uapi/asm/prctl.h
-index d962f0ec9ccf..02243127dcf6 100644
---- a/arch/x86/include/uapi/asm/prctl.h
-+++ b/arch/x86/include/uapi/asm/prctl.h
-@@ -18,5 +18,7 @@
- #define ARCH_X86_CET_DISABLE		0x3002
- #define ARCH_X86_CET_LOCK		0x3003
- #define ARCH_X86_CET_ALLOC_SHSTK	0x3004
-+#define ARCH_X86_CET_GET_LEGACY_BITMAP	0x3005 /* deprecated */
-+#define ARCH_X86_CET_SET_LEGACY_BITMAP	0x3006 /* deprecated */
+diff --git a/arch/x86/lib/x86-opcode-map.txt b/arch/x86/lib/x86-opcode-map.txt
+index c5e825d44766..fbc53481bc59 100644
+--- a/arch/x86/lib/x86-opcode-map.txt
++++ b/arch/x86/lib/x86-opcode-map.txt
+@@ -620,7 +620,16 @@ ea: SAVEPREVSSP (f3)
+ # Skip 0xeb-0xff
+ EndTable
  
- #endif /* _ASM_X86_PRCTL_H */
-diff --git a/arch/x86/kernel/cet_prctl.c b/arch/x86/kernel/cet_prctl.c
-index 9c9d4262b07e..09d8c4ea935c 100644
---- a/arch/x86/kernel/cet_prctl.c
-+++ b/arch/x86/kernel/cet_prctl.c
-@@ -20,6 +20,8 @@ static int handle_get_status(unsigned long arg2)
+-Table: 3-byte opcode 2 (0x0f 0x38)
++Table: 3-byte opcode 2 (0x0f 0x1e)
++Referrer:
++AVXcode:
++# Skip 0x00-0xf9
++fa: ENDBR64 (f3)
++fb: ENDBR32 (f3)
++#skip 0xfc-0xff
++EndTable
++
++Table: 3-byte opcode 3 (0x0f 0x38)
+ Referrer: 3-byte escape 1
+ AVXcode: 2
+ # 0x0f 0x38 0x00-0x0f
+@@ -804,7 +813,7 @@ f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v) | WRSS Pq,Qq
+ f7: BEXTR Gy,Ey,By (v) | SHLX Gy,Ey,By (66),(v) | SARX Gy,Ey,By (F3),(v) | SHRX Gy,Ey,By (F2),(v)
+ EndTable
  
- 	if (current->thread.cet.shstk_enabled)
- 		features |= GNU_PROPERTY_X86_FEATURE_1_SHSTK;
-+	if (current->thread.cet.ibt_enabled)
-+		features |= GNU_PROPERTY_X86_FEATURE_1_IBT;
+-Table: 3-byte opcode 3 (0x0f 0x3a)
++Table: 3-byte opcode 4 (0x0f 0x3a)
+ Referrer: 3-byte escape 2
+ AVXcode: 3
+ # 0x0f 0x3a 0x00-0xff
+diff --git a/tools/objtool/arch/x86/lib/x86-opcode-map.txt b/tools/objtool/arch/x86/lib/x86-opcode-map.txt
+index c5e825d44766..fbc53481bc59 100644
+--- a/tools/objtool/arch/x86/lib/x86-opcode-map.txt
++++ b/tools/objtool/arch/x86/lib/x86-opcode-map.txt
+@@ -620,7 +620,16 @@ ea: SAVEPREVSSP (f3)
+ # Skip 0xeb-0xff
+ EndTable
  
- 	shstk_base = current->thread.cet.shstk_base;
- 	shstk_size = current->thread.cet.shstk_size;
-@@ -69,6 +71,8 @@ int prctl_cet(int option, unsigned long arg2)
- 			return -EPERM;
- 		if (arg2 & GNU_PROPERTY_X86_FEATURE_1_SHSTK)
- 			cet_disable_free_shstk(current);
-+		if (arg2 & GNU_PROPERTY_X86_FEATURE_1_IBT)
-+			cet_disable_ibt();
+-Table: 3-byte opcode 2 (0x0f 0x38)
++Table: 3-byte opcode 2 (0x0f 0x1e)
++Referrer:
++AVXcode:
++# Skip 0x00-0xf9
++fa: ENDBR64 (f3)
++fb: ENDBR32 (f3)
++#skip 0xfc-0xff
++EndTable
++
++Table: 3-byte opcode 3 (0x0f 0x38)
+ Referrer: 3-byte escape 1
+ AVXcode: 2
+ # 0x0f 0x38 0x00-0x0f
+@@ -804,7 +813,7 @@ f6: ADCX Gy,Ey (66) | ADOX Gy,Ey (F3) | MULX By,Gy,rDX,Ey (F2),(v) | WRSS Pq,Qq
+ f7: BEXTR Gy,Ey,By (v) | SHLX Gy,Ey,By (66),(v) | SARX Gy,Ey,By (F3),(v) | SHRX Gy,Ey,By (F2),(v)
+ EndTable
  
- 		return 0;
- 
+-Table: 3-byte opcode 3 (0x0f 0x3a)
++Table: 3-byte opcode 4 (0x0f 0x3a)
+ Referrer: 3-byte escape 2
+ AVXcode: 3
+ # 0x0f 0x3a 0x00-0xff
 -- 
 2.17.1
 
