@@ -4,55 +4,56 @@ X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 X-Spam-Level: 
 X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
+	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7039BC31E40
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 02:07:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 19879C31E40
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 03:27:47 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3C01D20673
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 02:07:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3C01D20673
+	by mail.kernel.org (Postfix) with ESMTP id BEA4420843
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 03:27:46 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BEA4420843
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C88646B0007; Mon, 12 Aug 2019 22:07:07 -0400 (EDT)
+	id 2B10F6B0005; Mon, 12 Aug 2019 23:27:46 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id C129F6B000C; Mon, 12 Aug 2019 22:07:07 -0400 (EDT)
+	id 2618E6B0006; Mon, 12 Aug 2019 23:27:46 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AD9976B000D; Mon, 12 Aug 2019 22:07:07 -0400 (EDT)
+	id 1770F6B0007; Mon, 12 Aug 2019 23:27:46 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0125.hostedemail.com [216.40.44.125])
-	by kanga.kvack.org (Postfix) with ESMTP id 806C66B0007
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 22:07:07 -0400 (EDT)
-Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id ED873180AD7C1
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 02:07:06 +0000 (UTC)
-X-FDA: 75815766852.15.eyes61_3d370e7aa715
-X-HE-Tag: eyes61_3d370e7aa715
-X-Filterd-Recvd-Size: 2951
-Received: from mga07.intel.com (mga07.intel.com [134.134.136.100])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 02:07:06 +0000 (UTC)
+Received: from forelay.hostedemail.com (smtprelay0217.hostedemail.com [216.40.44.217])
+	by kanga.kvack.org (Postfix) with ESMTP id E52146B0005
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 23:27:45 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 8B76D180AD7C1
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 03:27:45 +0000 (UTC)
+X-FDA: 75815970090.07.slave69_7de177b70823d
+X-HE-Tag: slave69_7de177b70823d
+X-Filterd-Recvd-Size: 3686
+Received: from mga02.intel.com (mga02.intel.com [134.134.136.20])
+	by imf43.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 03:27:44 +0000 (UTC)
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
-Received: from orsmga004.jf.intel.com ([10.7.209.38])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Aug 2019 19:07:04 -0700
+Received: from orsmga002.jf.intel.com ([10.7.209.21])
+  by orsmga101.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Aug 2019 20:27:43 -0700
 X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,379,1559545200"; 
-   d="scan'208";a="327539466"
+X-IronPort-AV: E=Sophos;i="5.64,380,1559545200"; 
+   d="scan'208";a="187646012"
 Received: from richard.sh.intel.com (HELO localhost) ([10.239.159.54])
-  by orsmga004.jf.intel.com with ESMTP; 12 Aug 2019 19:07:02 -0700
+  by orsmga002.jf.intel.com with ESMTP; 12 Aug 2019 20:27:42 -0700
 From: Wei Yang <richardw.yang@linux.intel.com>
 To: akpm@linux-foundation.org,
-	osalvador@suse.de,
-	mhocko@suse.com
+	mgorman@techsingularity.net,
+	vbabka@suse.cz
 Cc: linux-mm@kvack.org,
 	linux-kernel@vger.kernel.org,
 	Wei Yang <richardw.yang@linux.intel.com>
-Subject: [PATCH] mm/hotplug: prevent memory leak when reuse pgdat
-Date: Tue, 13 Aug 2019 10:06:08 +0800
-Message-Id: <20190813020608.10194-1-richardw.yang@linux.intel.com>
+Subject: [PATCH] mm/mmap.c: rb_parent is not necessary in __vma_link_list
+Date: Tue, 13 Aug 2019 11:26:56 +0800
+Message-Id: <20190813032656.16625-1-richardw.yang@linux.intel.com>
 X-Mailer: git-send-email 2.17.1
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -60,58 +61,88 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When offline a node in try_offline_node, pgdat is not released. So that
-pgdat could be reused in hotadd_new_pgdat. While we re-allocate
-pgdat->per_cpu_nodestats if this pgdat is reused.
+Now we use rb_parent to get next, while this is not necessary.
 
-This patch prevents the memory leak by just allocate per_cpu_nodestats
-when it is a new pgdat.
+When prev is NULL, this means vma should be the first element in the
+list. Then next should be current first one (mm->mmap), no matter
+whether we have parent or not.
 
-NOTE: This is not tested since I didn't manage to create a case to
-offline a whole node. If my analysis is not correct, please let me know.
+After removing it, the code shows the beauty of symmetry.
 
 Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
 ---
- mm/memory_hotplug.c | 10 +++++++++-
- 1 file changed, 9 insertions(+), 1 deletion(-)
+ mm/internal.h | 2 +-
+ mm/mmap.c     | 2 +-
+ mm/nommu.c    | 2 +-
+ mm/util.c     | 8 ++------
+ 4 files changed, 5 insertions(+), 9 deletions(-)
 
-diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index c73f09913165..efaf9e6f580a 100644
---- a/mm/memory_hotplug.c
-+++ b/mm/memory_hotplug.c
-@@ -933,8 +933,11 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
- 		if (!pgdat)
- 			return NULL;
+diff --git a/mm/internal.h b/mm/internal.h
+index e32390802fd3..41a49574acc3 100644
+--- a/mm/internal.h
++++ b/mm/internal.h
+@@ -290,7 +290,7 @@ static inline bool is_data_mapping(vm_flags_t flags)
  
-+		pgdat->per_cpu_nodestats =
-+			alloc_percpu(struct per_cpu_nodestat);
- 		arch_refresh_nodedata(nid, pgdat);
+ /* mm/util.c */
+ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+-		struct vm_area_struct *prev, struct rb_node *rb_parent);
++		struct vm_area_struct *prev);
+ 
+ #ifdef CONFIG_MMU
+ extern long populate_vma_page_range(struct vm_area_struct *vma,
+diff --git a/mm/mmap.c b/mm/mmap.c
+index f7ed0afb994c..b8072630766f 100644
+--- a/mm/mmap.c
++++ b/mm/mmap.c
+@@ -632,7 +632,7 @@ __vma_link(struct mm_struct *mm, struct vm_area_struct *vma,
+ 	struct vm_area_struct *prev, struct rb_node **rb_link,
+ 	struct rb_node *rb_parent)
+ {
+-	__vma_link_list(mm, vma, prev, rb_parent);
++	__vma_link_list(mm, vma, prev);
+ 	__vma_link_rb(mm, vma, rb_link, rb_parent);
+ }
+ 
+diff --git a/mm/nommu.c b/mm/nommu.c
+index fed1b6e9c89b..12a66fbeb988 100644
+--- a/mm/nommu.c
++++ b/mm/nommu.c
+@@ -637,7 +637,7 @@ static void add_vma_to_mm(struct mm_struct *mm, struct vm_area_struct *vma)
+ 	if (rb_prev)
+ 		prev = rb_entry(rb_prev, struct vm_area_struct, vm_rb);
+ 
+-	__vma_link_list(mm, vma, prev, parent);
++	__vma_link_list(mm, vma, prev);
+ }
+ 
+ /*
+diff --git a/mm/util.c b/mm/util.c
+index e6351a80f248..80632db29247 100644
+--- a/mm/util.c
++++ b/mm/util.c
+@@ -264,7 +264,7 @@ void *memdup_user_nul(const void __user *src, size_t len)
+ EXPORT_SYMBOL(memdup_user_nul);
+ 
+ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+-		struct vm_area_struct *prev, struct rb_node *rb_parent)
++		struct vm_area_struct *prev)
+ {
+ 	struct vm_area_struct *next;
+ 
+@@ -273,12 +273,8 @@ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+ 		next = prev->vm_next;
+ 		prev->vm_next = vma;
  	} else {
-+		int cpu;
- 		/*
- 		 * Reset the nr_zones, order and classzone_idx before reuse.
- 		 * Note that kswapd will init kswapd_classzone_idx properly
-@@ -943,6 +946,12 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
- 		pgdat->nr_zones = 0;
- 		pgdat->kswapd_order = 0;
- 		pgdat->kswapd_classzone_idx = 0;
-+		for_each_online_cpu(cpu) {
-+			struct per_cpu_nodestat *p;
-+
-+			p = per_cpu_ptr(pgdat->per_cpu_nodestats, cpu);
-+			memset(p, 0, sizeof(*p));
-+		}
++		next = mm->mmap;
+ 		mm->mmap = vma;
+-		if (rb_parent)
+-			next = rb_entry(rb_parent,
+-					struct vm_area_struct, vm_rb);
+-		else
+-			next = NULL;
  	}
- 
- 	/* we can use NODE_DATA(nid) from here */
-@@ -952,7 +961,6 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
- 
- 	/* init node's zones as empty zones, we don't have any present pages.*/
- 	free_area_init_core_hotplug(nid);
--	pgdat->per_cpu_nodestats = alloc_percpu(struct per_cpu_nodestat);
- 
- 	/*
- 	 * The node we allocated has no zone fallback lists. For avoiding
+ 	vma->vm_next = next;
+ 	if (next)
 -- 
 2.17.1
 
