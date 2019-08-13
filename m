@@ -7,75 +7,75 @@ X-Spam-Status: No, score=-9.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_GIT autolearn=ham
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1E7AFC433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 01:40:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 34058C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 01:42:41 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 890A3206A2
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 01:40:44 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C7089206A2
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 01:42:40 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="oS74yJ1H";
-	dkim=fail reason="signature verification failed" (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="nofqohuo"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 890A3206A2
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="bUnixvT+";
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="tfCtR3Jo"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C7089206A2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D12CB6B0005; Mon, 12 Aug 2019 21:40:43 -0400 (EDT)
+	id 6F7BF6B0007; Mon, 12 Aug 2019 21:42:40 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id CC3806B0006; Mon, 12 Aug 2019 21:40:43 -0400 (EDT)
+	id 680936B0008; Mon, 12 Aug 2019 21:42:40 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B8AD76B0007; Mon, 12 Aug 2019 21:40:43 -0400 (EDT)
+	id 522EC6B000A; Mon, 12 Aug 2019 21:42:40 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0004.hostedemail.com [216.40.44.4])
-	by kanga.kvack.org (Postfix) with ESMTP id 8C6986B0005
-	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 21:40:43 -0400 (EDT)
-Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 2F31B37E1
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 01:40:43 +0000 (UTC)
-X-FDA: 75815700366.29.toad33_4065bb53e0955
-X-HE-Tag: toad33_4065bb53e0955
-X-Filterd-Recvd-Size: 17353
-Received: from userp2130.oracle.com (userp2130.oracle.com [156.151.31.86])
-	by imf30.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 01:40:42 +0000 (UTC)
-Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
-	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7D1delh194811;
-	Tue, 13 Aug 2019 01:40:35 GMT
+Received: from forelay.hostedemail.com (smtprelay0070.hostedemail.com [216.40.44.70])
+	by kanga.kvack.org (Postfix) with ESMTP id 23A2E6B0007
+	for <linux-mm@kvack.org>; Mon, 12 Aug 2019 21:42:40 -0400 (EDT)
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id C1DDC181AC9B4
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 01:42:39 +0000 (UTC)
+X-FDA: 75815705238.13.brain81_515bd36b3d80d
+X-HE-Tag: brain81_515bd36b3d80d
+X-Filterd-Recvd-Size: 14552
+Received: from userp2120.oracle.com (userp2120.oracle.com [156.151.31.85])
+	by imf35.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 01:42:38 +0000 (UTC)
+Received: from pps.filterd (userp2120.oracle.com [127.0.0.1])
+	by userp2120.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7D1cr3q011095;
+	Tue, 13 Aug 2019 01:42:34 GMT
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references : mime-version :
  content-transfer-encoding; s=corp-2019-08-05;
- bh=W7olyqMEnKkatUqz1lQyWN3evuwwaasu9s6VIUHKsQ8=;
- b=oS74yJ1HzTk3k/0/Vx4Au/r7pQfcRQF50hVFvrj9hNF1IXD/SVOyKYVth8cm0WEweqlT
- pZCBVObu4sI/NtzZIYrOtuLCdfFcZhEpcNkcTjRWQY+z3d4RGBOaN7tgtYz8WlVk3JHG
- bRYQXSwgsQiMgB3PkDH5n0ZdbTwAer7rwwb/rufiBcLWy4wSS3SYL8YPfNdDmo9BP1Cd
- nxBQo7cWyWsd2FL+2HrgBiBDpAni2sIazP9In364iLzA1SIDjQ8eKPpta/ffEkMTAaiJ
- 3CDp04RpryX9wF/trwtqWhJXHE51TXf+p0Fn9VIfnliEHGg5uUkmnbb/oPXFlNs3dLsG hw== 
+ bh=AWrIfLdhfDA8NCFcIQD/AQqNushc7mLII+SffaCbHoU=;
+ b=bUnixvT+jMV9WCUoG1ZoDTfqyZye4pD4HfX0SKc8NDIoAVyXOrhIjI3Y7qk3Wzb9+ueJ
+ pCizaqZPgmBlZ6zotywnfH2c81NJ4pZH/ju7sP8hK5iXfQD1QrJNUj1jrRfe4ckzoxGX
+ aJruVeJIg/YMwa0Vve6/NgtccPYXuNGS+PBFSOHVJJitDhUxhdtyYUyXoCIzqFlJjUVh
+ BPmQUxj02vI3d6gLgwZzDYQp0uWOsO5e+XLM2ZQ76ImQRjo2KAGT1or+/UNDLLpGnQsp
+ oEv3aq5P6k0fz8fQLGcgA12QScLuzrkd6BASwg9zT0pX8r5lYuvv262gagFyggYCeD4F NA== 
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=from : to : cc :
  subject : date : message-id : in-reply-to : references : mime-version :
  content-transfer-encoding; s=corp-2018-07-02;
- bh=W7olyqMEnKkatUqz1lQyWN3evuwwaasu9s6VIUHKsQ8=;
- b=nofqohuov3BP+Cc9QNke9ajQeTqL8hus5PbtpQG5mUay3H1CIzmwiqXxqJtkPZ6qV9WU
- Qy4cTX5nFYkCmdMGoNQV+LRI85AJYQM/TQTvyOMy4BgFgTNTaZpSxywR8qbp5B/dkcvC
- 97kqr/mWN4DkpGjbcI4g3E1h5ZDzMSkcArPeV+uvgki6uDLp5CUitHhkwOttY8D1jBvk
- 3SbXBq/x50GrfMHHelCMEcIeA5dmv6FNk05NhsUk5qqMwJFkGBLJeXeYbQGX+HITFyE2
- Ev/6YBhlk++rZKJbpfxp0nIQ2GOVIsoA5HC9M62/rAlB3fmMJnPrAcKtMVicP6WWmswh 4Q== 
-Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
-	by userp2130.oracle.com with ESMTP id 2u9nbtb1gp-1
+ bh=AWrIfLdhfDA8NCFcIQD/AQqNushc7mLII+SffaCbHoU=;
+ b=tfCtR3JoM8K6hOhyodo3w4a953AfO/DFhLiuSD2FYGw93/gk5275PiPnKQ3mzKtd75fn
+ 5iW8oE9k8+49yEjeVQqgS36n8afjmK5v1K+AlzBb58vDFMEV76XZzNUd+BvtDVHJBK7w
+ +DJE29O1IGT+GxYbiEOIY+Oa0sCJWwEUWC2YTC7HC4TfZ6FeS8CtlVokddj+ZdarrsBP
+ mLKiIr/2k+c0MYJqOtgjG5H8E8qU8ndyrXLq/EtNmkDiOoEcGRBk04EY+Rk8JyOVelfE
+ fCljOpG8Yx+1BrYtWJL1kIkWMk8AJ4ZJhkykvf80+zTppMpKJcNouux6NnpMx5doWbNy KQ== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by userp2120.oracle.com with ESMTP id 2u9pjqax59-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
-	Tue, 13 Aug 2019 01:40:35 +0000
-Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
-	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7D1cZPR138460;
+	Tue, 13 Aug 2019 01:42:34 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7D1cWd6058167;
 	Tue, 13 Aug 2019 01:40:34 GMT
-Received: from userv0122.oracle.com (userv0122.oracle.com [156.151.31.75])
-	by aserp3030.oracle.com with ESMTP id 2u9m0asa3d-1
+Received: from aserv0122.oracle.com (aserv0122.oracle.com [141.146.126.236])
+	by userp3030.oracle.com with ESMTP id 2u9k1vw1nv-1
 	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
 	Tue, 13 Aug 2019 01:40:34 +0000
 Received: from abhmp0010.oracle.com (abhmp0010.oracle.com [141.146.116.16])
-	by userv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x7D1eUDM014871;
-	Tue, 13 Aug 2019 01:40:30 GMT
+	by aserv0122.oracle.com (8.14.4/8.14.4) with ESMTP id x7D1eWAm005147;
+	Tue, 13 Aug 2019 01:40:32 GMT
 Received: from concerto.internal (/10.154.133.246)
 	by default (Oracle Beehive Gateway v4.0)
-	with ESMTP ; Mon, 12 Aug 2019 18:40:29 -0700
+	with ESMTP ; Mon, 12 Aug 2019 18:40:31 -0700
 From: Khalid Aziz <khalid.aziz@oracle.com>
 To: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net,
         mhocko@suse.com, dan.j.williams@intel.com
@@ -86,9 +86,9 @@ Cc: Khalid Aziz <khalid.aziz@oracle.com>, osalvador@suse.de,
         linux-kernel-mentees@lists.linuxfoundation.org,
         linux-kernel@vger.kernel.org, Bharath Vedartham <linux.bhar@gmail.com>,
         Vandana BN <bnvandana@gmail.com>
-Subject: [RFC PATCH 1/2] mm: Add trend based prediction algorithm for memory usage
-Date: Mon, 12 Aug 2019 19:40:11 -0600
-Message-Id: <20190813014012.30232-2-khalid.aziz@oracle.com>
+Subject: [RFC PATCH 2/2] mm/vmscan: Add fragmentation and page starvation prediction to kswapd
+Date: Mon, 12 Aug 2019 19:40:12 -0600
+Message-Id: <20190813014012.30232-3-khalid.aziz@oracle.com>
 X-Mailer: git-send-email 2.20.1
 In-Reply-To: <20190813014012.30232-1-khalid.aziz@oracle.com>
 References: <20190813014012.30232-1-khalid.aziz@oracle.com>
@@ -100,7 +100,7 @@ X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 ma
  engine=8.0.1-1906280000 definitions=main-1908130015
 X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9347 signatures=668685
 X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
- suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
  lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
  classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
  definitions=main-1908130015
@@ -111,387 +111,330 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-Direct page reclamation and compaction have high and unpredictable
-latency costs for applications. This patch adds code to predict if
-system is about to run out of free memory by watching the historical
-memory consumption trends. It computes a best fit line to this
-historical data using method of least squares. it can then compute if
-system will run out of memory if the current trend continues.
-Historical data is held in a new data structure lsq_struct for each
-zone and each order within the zone. Size of the window for historical
-data is given by LSQ_LOOKBACK.
+This patch adds proactive memory reclamation to kswapd using the
+free page exhaustion/fragmentation prediction based upon memory
+consumption trend. It uses the least squares fit algorithm introduced
+earlier for this prediction. A new function node_trend_analysis()
+iterates through all zones and updates trend data in the lookback
+window for least square fit algorithm. At the same time it flags any
+zones that have potential for exhaustion/fragmentation by setting
+ZONE_POTENTIAL_FRAG flag.
+
+prepare_kswapd_sleep() calls node_trend_analysis() to check if the
+node has potential exhaustion/fragmentation. If so, kswapd will
+continue reclamataion. balance_pgdat has been modified to take
+potential fragmentation into account when deciding when to wake
+kcompactd up. Any zones that have potential severe fragmentation get
+watermark boosted to reclaim and compact free pages proactively.
 
 Signed-off-by: Khalid Aziz <khalid.aziz@oracle.com>
 Signed-off-by: Bharath Vedartham <linux.bhar@gmail.com>
-Reviewed-by: Vandana BN <bnvandana@gmail.com>
+Tested-by: Vandana BN <bnvandana@gmail.com>
 ---
- include/linux/mmzone.h |  34 +++++
- mm/Makefile            |   2 +-
- mm/lsq.c               | 273 +++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 308 insertions(+), 1 deletion(-)
- create mode 100644 mm/lsq.c
+ include/linux/mmzone.h |  38 ++++++++++++++
+ mm/page_alloc.c        |  27 ----------
+ mm/vmscan.c            | 116 ++++++++++++++++++++++++++++++++++++++---
+ 3 files changed, 148 insertions(+), 33 deletions(-)
 
 diff --git a/include/linux/mmzone.h b/include/linux/mmzone.h
-index d77d717c620c..9a0e5cab7171 100644
+index 9a0e5cab7171..a523476b5ce1 100644
 --- a/include/linux/mmzone.h
 +++ b/include/linux/mmzone.h
-@@ -355,6 +355,38 @@ struct per_cpu_nodestat {
+@@ -587,6 +587,12 @@ struct zone {
 =20
- #endif /* !__GENERATING_BOUNDS.H */
+ 	bool			contiguous;
 =20
-+/*
-+ * Size of lookback window for the free memory exhaustion prediction
-+ * algorithm. Keep it to less than 16 to keep data manageable
-+ */
-+#define LSQ_LOOKBACK 8
++	/*
++	 * Structures to use for memory consumption prediction for
++	 * each order
++	 */
++	struct lsq_struct	mem_prediction[MAX_ORDER];
 +
-+/*
-+ * How far forward to look when determining if memory exhaustion would
-+ * become an issue.
-+ */
-+extern unsigned long mempredict_threshold;
-+
-+/*
-+ * Structure to keep track of current values required to compute the bes=
-t
-+ * fit line using method of least squares
-+ */
-+struct lsq_struct {
-+	bool ready;
-+	int next;
-+	u64 x[LSQ_LOOKBACK];
-+	unsigned long y[LSQ_LOOKBACK];
-+};
-+
-+struct frag_info {
-+	unsigned long free_pages;
-+	unsigned long time;
-+};
-+
-+/* Possile bits to be set by mem_predict in its return value */
-+#define MEMPREDICT_RECLAIM	0x01
-+#define MEMPREDICT_COMPACT	0x02
-+
- enum zone_type {
- #ifdef CONFIG_ZONE_DMA
- 	/*
-@@ -581,6 +613,8 @@ enum zone_flags {
+ 	ZONE_PADDING(_pad3_)
+ 	/* Zone statistics */
+ 	atomic_long_t		vm_stat[NR_VM_ZONE_STAT_ITEMS];
+@@ -611,6 +617,9 @@ enum zone_flags {
+ 	ZONE_BOOSTED_WATERMARK,		/* zone recently boosted watermarks.
+ 					 * Cleared when kswapd is woken.
  					 */
++	ZONE_POTENTIAL_FRAG,		/* zone detected with a potential
++					 * external fragmentation event.
++					 */
  };
 =20
-+extern int mem_predict(struct frag_info *frag_vec, struct zone *zone);
-+
- static inline unsigned long zone_managed_pages(struct zone *zone)
- {
- 	return (unsigned long)atomic_long_read(&zone->managed_pages);
-diff --git a/mm/Makefile b/mm/Makefile
-index 338e528ad436..fb7b3c19dd13 100644
---- a/mm/Makefile
-+++ b/mm/Makefile
-@@ -39,7 +39,7 @@ obj-y			:=3D filemap.o mempool.o oom_kill.o fadvise.o \
- 			   mm_init.o mmu_context.o percpu.o slab_common.o \
- 			   compaction.o vmacache.o \
- 			   interval_tree.o list_lru.o workingset.o \
--			   debug.o gup.o $(mmu-y)
-+			   debug.o gup.o lsq.o $(mmu-y)
+ extern int mem_predict(struct frag_info *frag_vec, struct zone *zone);
+@@ -1130,6 +1139,35 @@ static inline struct zoneref *first_zones_zonelist=
+(struct zonelist *zonelist,
+ #define for_each_zone_zonelist(zone, z, zlist, highidx) \
+ 	for_each_zone_zonelist_nodemask(zone, z, zlist, highidx, NULL)
 =20
- # Give 'page_alloc' its own module-parameter namespace
- page-alloc-y :=3D page_alloc.o
-diff --git a/mm/lsq.c b/mm/lsq.c
-new file mode 100644
-index 000000000000..6005a2b2f44d
---- /dev/null
-+++ b/mm/lsq.c
-@@ -0,0 +1,273 @@
-+// SPDX-License-Identifier: GPL-2.0
-+/*
-+ * lsq.c: Provide a prediction on whether free memory exhaustion is
-+ *	imminent or not by using a best fit line based upon method of
-+ *	least squares. Best fit line is based upon recent historical
-+ *	data. This historical data forms the lookback window for the
-+ *	algorithm.
-+ *
-+ *
-+ * Author: Robert Harris
-+ * Author: Khalid Aziz <khalid.aziz@oracle.com>
-+ *
-+ * Copyright (c) 2019, Oracle and/or its affiliates. All rights reserved=
-.
-+ * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
-+ *
-+ * This code is free software; you can redistribute it and/or modify it
-+ * under the terms of the GNU General Public License version 2 only, as
-+ * published by the Free Software Foundation.
-+ *
-+ * This code is distributed in the hope that it will be useful, but WITH=
-OUT
-+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
-+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License
-+ * version 2 for more details (a copy is included in the LICENSE file th=
-at
-+ * accompanied this code).
-+ *
-+ * Please contact Oracle, 500 Oracle Parkway, Redwood Shores, CA 94065 U=
-SA
-+ * or visit www.oracle.com if you need additional information or have an=
-y
-+ * questions.
-+ *
-+ */
++extern int watermark_boost_factor;
 +
-+#include <linux/mm.h>
-+#include <linux/mmzone.h>
-+#include <linux/math64.h>
-+
-+/*
-+ * How far forward to look when determining if fragmentation would
-+ * become an issue. The unit for this is same as the unit for the
-+ * x-axis of graph where sample points for memory utilization are being
-+ * plotted. We start with a default value of 1000 units but can tweak it
-+ * dynamically to get better prediction results. With data points for
-+ * memory being gathered with granularity of milliseconds, this translat=
-es
-+ * to a look ahead of 1 second. If system is 1 second away from severe
-+ * fragmentation, start compaction now to avoid direct comapction.
-+ */
-+unsigned long mempredict_threshold =3D 1000;
-+
-+/*
-+ * Threshold for number of free pages that should trigger reclamation,
-+ * expressed as percentage of total number of pages
-+ */
-+#define MEMRECLAMATION_THRESHOLD	20
-+
-+/*
-+ * This function inserts the given value into the list of most recently =
-seen
-+ * data and returns the parameters, m and c, of a straight line of the f=
-orm
-+ * y =3D (mx/100) + c that, according to the the method of least squares
-+ * fits them best. This implementation looks at just the last few data p=
-oints
-+ * (lookback window) which allows for fixed amount of storage required f=
-or
-+ * data points and a nearly fixed time to calculate best fit line. Using
-+ * line equation of the form y=3D(mx/100)+c instead of y=3Dmx+c allows u=
-s to
-+ * avoid floating point operations since m can be fractional often.
-+ */
-+static int
-+lsq_fit(struct lsq_struct *lsq, unsigned long new_y, u64 new_x,
-+	long long *m, long long *c)
++static inline void boost_watermark(struct zone *zone)
 +{
-+	u64 sigma_x, sigma_y;
-+	u64 sigma_xy, sigma_xx;
-+	long long slope_divisor;
-+	int i, next;
-+	u64 x_offset;
++	unsigned long max_boost;
 +
-+	next =3D lsq->next++;
-+	lsq->x[next] =3D new_x;
-+	lsq->y[next] =3D new_y;
++	if (!watermark_boost_factor)
++		return;
 +
-+	if (lsq->next =3D=3D LSQ_LOOKBACK) {
-+		lsq->next =3D 0;
-+		/*
-+		 * Lookback window is fill which means a reasonable
-+		 * best fit line can be computed. Flag enough data
-+		 * is available in lookback window now.
-+		 */
-+		lsq->ready =3D true;
++	max_boost =3D mult_frac(zone->_watermark[WMARK_HIGH],
++			watermark_boost_factor, 10000);
++
++	/*
++	 * high watermark may be uninitialised if fragmentation occurs
++	 * very early in boot so do not boost. We do not fall
++	 * through and boost by pageblock_nr_pages as failing
++	 * allocations that early means that reclaim is not going
++	 * to help and it may even be impossible to reclaim the
++	 * boosted watermark resulting in a hang.
++	 */
++	if (!max_boost)
++		return;
++
++	max_boost =3D max(pageblock_nr_pages, max_boost);
++
++	zone->watermark_boost =3D min(zone->watermark_boost + pageblock_nr_page=
+s,
++		max_boost);
++}
++
+ #ifdef CONFIG_SPARSEMEM
+ #include <asm/sparsemem.h>
+ #endif
+diff --git a/mm/page_alloc.c b/mm/page_alloc.c
+index 272c6de1bf4e..1b4e6ba16f1c 100644
+--- a/mm/page_alloc.c
++++ b/mm/page_alloc.c
+@@ -2351,33 +2351,6 @@ static bool can_steal_fallback(unsigned int order,=
+ int start_mt)
+ 	return false;
+ }
+=20
+-static inline void boost_watermark(struct zone *zone)
+-{
+-	unsigned long max_boost;
+-
+-	if (!watermark_boost_factor)
+-		return;
+-
+-	max_boost =3D mult_frac(zone->_watermark[WMARK_HIGH],
+-			watermark_boost_factor, 10000);
+-
+-	/*
+-	 * high watermark may be uninitialised if fragmentation occurs
+-	 * very early in boot so do not boost. We do not fall
+-	 * through and boost by pageblock_nr_pages as failing
+-	 * allocations that early means that reclaim is not going
+-	 * to help and it may even be impossible to reclaim the
+-	 * boosted watermark resulting in a hang.
+-	 */
+-	if (!max_boost)
+-		return;
+-
+-	max_boost =3D max(pageblock_nr_pages, max_boost);
+-
+-	zone->watermark_boost =3D min(zone->watermark_boost + pageblock_nr_page=
+s,
+-		max_boost);
+-}
+-
+ /*
+  * This function implements actual steal behaviour. If order is large en=
+ough,
+  * we can steal whole pageblock. If not, we first move freepages in this
+diff --git a/mm/vmscan.c b/mm/vmscan.c
+index 44df66a98f2a..b9cf6658c83d 100644
+--- a/mm/vmscan.c
++++ b/mm/vmscan.c
+@@ -51,6 +51,7 @@
+ #include <linux/printk.h>
+ #include <linux/dax.h>
+ #include <linux/psi.h>
++#include <linux/jiffies.h>
+=20
+ #include <asm/tlbflush.h>
+ #include <asm/div64.h>
+@@ -3397,14 +3398,82 @@ static void clear_pgdat_congested(pg_data_t *pgda=
+t)
+ 	clear_bit(PGDAT_WRITEBACK, &pgdat->flags);
+ }
+=20
++/*
++ * Update  trend data and perform trend analysis for a zone to foresee
++ * a low memory or severe fragmentation event
++ */
++static int zone_trend_analysis(struct zone *zone)
++{
++	struct frag_info frag_vec[MAX_ORDER];
++	int order, result;
++	unsigned long total_free_pages;
++	unsigned long curr_free_pages;
++
++	total_free_pages =3D frag_vec[0].free_pages =3D 0;
++	for (order =3D 0; order < MAX_ORDER; order++) {
++		curr_free_pages =3D zone->free_area[order].nr_free << order;
++		total_free_pages +=3D curr_free_pages;
++
++		if (order < MAX_ORDER - 1) {
++			frag_vec[order + 1].free_pages =3D
++				frag_vec[order].free_pages + curr_free_pages;
++			frag_vec[order + 1].time =3D
++				jiffies64_to_msecs(get_jiffies_64()
++				- INITIAL_JIFFIES);
++		}
 +	}
++	frag_vec[0].free_pages =3D total_free_pages;
++	frag_vec[0].time =3D frag_vec[MAX_ORDER - 1].time;
 +
-+	/*
-+	 * If lookback window is not full, do not continue with
-+	 * computing slope and intercept of best fit line.
-+	 */
-+	if (!lsq->ready)
-+		return -1;
++	result =3D mem_predict(frag_vec, zone);
 +
-+	/*
-+	 * If lookback window is full, compute slope and intercept
-+	 * for the best fit line. In the process of computing those, we need
-+	 * to compute squares of values along x-axis. Sqaure values can be
-+	 * large enough to overflow 64-bits if they are large enough to
-+	 * begin with. To solve this problem, transform the line on
-+	 * x-axis so the first point falls at x=3D0. Since lsq->x is a
-+	 * circular buffer, lsq->next points to the oldest entry in this
-+	 * buffer.
-+	 */
-+	x_offset =3D lsq->x[lsq->next];
-+	for (i =3D 0; i < LSQ_LOOKBACK; i++)
-+		lsq->x[i] -=3D x_offset;
-+
-+	/*
-+	 * Lookback window is full. Compute slope and intercept
-+	 * for the best fit line
-+	 */
-+	sigma_x =3D sigma_y =3D sigma_xy =3D sigma_xx =3D 0;
-+	for (i =3D 0; i < LSQ_LOOKBACK; i++) {
-+		sigma_x +=3D lsq->x[i];
-+		sigma_y +=3D lsq->y[i];
-+		sigma_xy +=3D (lsq->x[i] * lsq->y[i]);
-+		sigma_xx +=3D (lsq->x[i] * lsq->x[i]);
-+	}
-+
-+	/*
-+	 * guard against divide-by-zero
-+	 */
-+	slope_divisor =3D LSQ_LOOKBACK * sigma_xx - sigma_x * sigma_x;
-+	if (slope_divisor =3D=3D 0)
-+		return -1;
-+	*m =3D div64_s64(((LSQ_LOOKBACK * sigma_xy - sigma_x * sigma_y) * 100),
-+			slope_divisor);
-+
-+	*c =3D div64_long((sigma_y - *m * sigma_x), LSQ_LOOKBACK);
-+
-+	/*
-+	 * Restore original values for x-axis
-+	 */
-+	for (i =3D 0; i < LSQ_LOOKBACK; ++i)
-+		lsq->x[i] +=3D x_offset;
-+
-+	return 0;
++	return result;
 +}
 +
 +/*
-+ * This function determines whether it is necessary to begin
-+ * reclamation/compaction now in order to avert exhaustion of any of the
-+ * free lists.
-+ *
-+ * Its basis is a simple model in which the total free memory, f_T, is
-+ * consumed at a constant rate, R_T, i.e.
-+ *
-+ *	f_T(t) =3D R_T * t + f_T(0)
-+ *
-+ * For any given order, o > 0, members of subordinate lists constitute
-+ * fragmented free memory, f_f(o): the blocks are notionally free but
-+ * they are unavailable for allocation. The fragmented free memory is
-+ * also assumed to behave linearly and in the absence of compaction is
-+ * given by
-+ *
-+ *	f_f(o, t) =3D R_f(o) t + f_f(o, 0)
-+ *
-+ * Order 0 function represents current trend line for total free pages
-+ * instead.
-+ *
-+ * It is assumed that all allocations will be made from contiguous
-+ * memory meaning that, under net memory pressure and with no change in
-+ * fragmentation, f_T will become equal to f_f and subsequent allocation=
-s
-+ * will stall in either direct compaction or reclaim. Preemptive compact=
-ion
-+ * will delay the onset of exhaustion but, to be useful, must begin earl=
-y
-+ * enough and must proceed at a sufficient rate.
-+ *
-+ * On each invocation, this function obtains estimates for the
-+ * parameters f_T(0), R_T, f_f(o, 0) and R_f(o). Using the best fit
-+ * line, it then determines if reclamation or compaction should be start=
-ed
-+ * now to avert free pages exhaustion or severe fragmentation. Return va=
-lue
-+ * is a set of bits which represent which condition has been observed -
-+ * potential free memory exhaustion, and potential severe fragmentation.
++ * Perform trend analysis for memory usage for each zone in the node to
++ * detect potential upcoming low memory or fragmented memory conditions
 + */
-+int mem_predict(struct frag_info *frag_vec, struct zone *zone)
++static int node_trend_analysis(pg_data_t *pgdat, int classzone_idx)
 +{
-+	int order, retval =3D 0;
-+	long long m[MAX_ORDER];
-+	long long c[MAX_ORDER];
-+	bool is_ready =3D true;
-+	long long x_cross;
-+	struct lsq_struct *lsq =3D zone->mem_prediction;
++	struct zone *zone =3D NULL;
++	int i, retval =3D 0;
 +
-+	/*
-+	 * Compute the trend line for fragmentation on each order page.
-+	 * For order 0 pages, it will be a trend line showing rate
-+	 * of consumption of pages. For higher order pages, trend line
-+	 * shows loss/gain of pages of that order. When the trend line
-+	 * for example for order n pages intersects with trend line for
-+	 * total free pages, it means all available pages are of order
-+	 * (n-1) or lower and there is 100% fragmentation of order n
-+	 * pages. Kernel must compact pages at this point to gain
-+	 * new order n pages.
-+	 */
-+	for (order =3D 0; order < MAX_ORDER; order++) {
-+		if (lsq_fit(&lsq[order], frag_vec[order].free_pages,
-+				frag_vec[order].time, &m[order],
-+				&c[order]) =3D=3D -1)
-+			is_ready =3D false;
-+	}
++	for (i =3D 0; i <=3D classzone_idx; i++) {
++		int zoneval;
 +
-+	if (!is_ready)
-+		return 0;
++		zone =3D pgdat->node_zones + i;
 +
-+	/*
-+	 * Trend line for each order page is available now. If the trend
-+	 * line for overall free pages is trending upwards (positive
-+	 * slope), there is no need to reclaim pages but there may be
-+	 * need to compact pages if system is running out of contiguous pages
-+	 * for higher orders.
-+	 */
-+	if (m[0] >=3D 0) {
-+		for (order =3D 1; order < MAX_ORDER; order++) {
-+			/*
-+			 * If lines are parallel, then they never intersect.
-+			 */
-+			if (m[0] =3D=3D m[order])
-+				continue;
-+			/*
-+			 * Find the point of intersection of the two lines.
-+			 * The point of intersection represents 100%
-+			 * fragmentation for this order.
-+			 */
-+			x_cross =3D div64_s64(((c[0] - c[order]) * 100),
-+					(m[order] - m[0]));
-+
-+			/*
-+			 * If they intersect anytime soon in the future
-+			 * or intersected recently in the past, then it
-+			 * is time for compaction and there is no need
-+			 * to continue evaluating remaining order pages
-+			 *
-+			 * TODO: Instead of a fixed time threshold,
-+			 * track compaction rate on the system and compute
-+			 * how soon should compaction be started with the
-+			 * current compaction rate to avoid direct
-+			 * compaction
-+			 */
-+			if ((x_cross < mempredict_threshold) &&
-+				(x_cross > -mempredict_threshold)) {
-+				retval |=3D MEMPREDICT_COMPACT;
-+				return retval;
-+			}
-+		}
-+	} else {
-+		unsigned long threshold;
++		if (!managed_zone(zone))
++			continue;
 +
 +		/*
-+		 * Trend line for overall free pages is showing a
-+		 * negative trend. Check if less than threshold
-+		 * pages are free. If so, start reclamation now to stave
-+		 * off memory exhaustion
-+		 *
-+		 * TODO: This is not the best way to use trend analysis.
-+		 * The right way to determine if it is time to start
-+		 * reclamation to avoid memory exhaustion is to compute
-+		 * how far away is exhaustion (least square fit
-+		 * line can provide that) and what is the average rate of
-+		 * memory reclamation. Using those two rates, compute how
-+		 * far in advance of exhaustion should reclamation be
-+		 * started to avoid exhaustion. This can be done after
-+		 * additional code has been added to keep track of current
-+		 * rate of reclamation.
++		 * Check if trend analysis shows potential fragmentation
++		 * in near future
 +		 */
-+		threshold =3D (zone_managed_pages(zone)*MEMRECLAMATION_THRESHOLD)
-+				/100;
-+		if (frag_vec[0].free_pages < threshold)
-+			retval |=3D MEMPREDICT_RECLAIM;
++		zoneval =3D zone_trend_analysis(zone);
++		if (zoneval & MEMPREDICT_COMPACT)
++			set_bit(ZONE_POTENTIAL_FRAG, &zone->flags);
++		if (zoneval & MEMPREDICT_RECLAIM)
++			boost_watermark(zone);
++		retval |=3D zoneval;
 +	}
 +
 +	return retval;
 +}
++
+ /*
+  * Prepare kswapd for sleeping. This verifies that there are no processe=
+s
+  * waiting in throttle_direct_reclaim() and that watermarks have been me=
+t.
++ * It also checks if this node could have a potential external fragmenta=
+tion
++ * event which could lead to direct reclaim/compaction stalls.
+  *
+  * Returns true if kswapd is ready to sleep
+  */
+ static bool prepare_kswapd_sleep(pg_data_t *pgdat, int order, int classz=
+one_idx)
+ {
++	int retval;
++
+ 	/*
+ 	 * The throttled processes are normally woken up in balance_pgdat() as
+ 	 * soon as allow_direct_reclaim() is true. But there is a potential
+@@ -3425,6 +3494,21 @@ static bool prepare_kswapd_sleep(pg_data_t *pgdat,=
+ int order, int classzone_idx)
+ 	if (pgdat->kswapd_failures >=3D MAX_RECLAIM_RETRIES)
+ 		return true;
+=20
++	/*
++	 * Check whether this node could have a potential memory
++	 * exhaustion in near future. If trend analysis shows such
++	 * an event occurring, don't allow kswapd to sleep so
++	 * reclamation starts now to prevent memory exhaustion. If
++	 * trend analysis shows no impending memory exhaustion but
++	 * shows impending severe fragmentation, return true to
++	 * wake up kcompactd.
++	 */
++	retval =3D node_trend_analysis(pgdat, classzone_idx);
++	if (retval & MEMPREDICT_RECLAIM)
++		return false;
++	if (retval & MEMPREDICT_COMPACT)
++		return true;
++
+ 	if (pgdat_balanced(pgdat, order, classzone_idx)) {
+ 		clear_pgdat_congested(pgdat);
+ 		return true;
+@@ -3498,6 +3582,8 @@ static int balance_pgdat(pg_data_t *pgdat, int orde=
+r, int classzone_idx)
+ 	unsigned long nr_boost_reclaim;
+ 	unsigned long zone_boosts[MAX_NR_ZONES] =3D { 0, };
+ 	bool boosted;
++	bool potential_frag =3D 0;
++	bool need_compact;
+ 	struct zone *zone;
+ 	struct scan_control sc =3D {
+ 		.gfp_mask =3D GFP_KERNEL,
+@@ -3524,9 +3610,27 @@ static int balance_pgdat(pg_data_t *pgdat, int ord=
+er, int classzone_idx)
+=20
+ 		nr_boost_reclaim +=3D zone->watermark_boost;
+ 		zone_boosts[i] =3D zone->watermark_boost;
++
++		/*
++		 * Check if any of the zones could have a potential
++		 * fragmentation event.
++		 */
++		if (test_bit(ZONE_POTENTIAL_FRAG, &zone->flags)) {
++			potential_frag =3D 1;
++			clear_bit(ZONE_POTENTIAL_FRAG, &zone->flags);
++		}
+ 	}
+ 	boosted =3D nr_boost_reclaim;
+=20
++	/*
++	 * If kswapd is woken up because of watermark boosting or forced
++	 * to run another balance_pgdat run because it detected an
++	 * external fragmentation event, run compaction after
++	 * reclaiming some pages. need_compact is true if such compaction
++	 * is required.
++	 */
++	need_compact =3D boosted || potential_frag;
++
+ restart:
+ 	sc.priority =3D DEF_PRIORITY;
+ 	do {
+@@ -3645,7 +3749,6 @@ static int balance_pgdat(pg_data_t *pgdat, int orde=
+r, int classzone_idx)
+ 		 */
+ 		nr_reclaimed =3D sc.nr_reclaimed - nr_reclaimed;
+ 		nr_boost_reclaim -=3D min(nr_boost_reclaim, nr_reclaimed);
+-
+ 		/*
+ 		 * If reclaim made no progress for a boost, stop reclaim as
+ 		 * IO cannot be queued and it could be an infinite loop in
+@@ -3676,13 +3779,14 @@ static int balance_pgdat(pg_data_t *pgdat, int or=
+der, int classzone_idx)
+ 			zone->watermark_boost -=3D min(zone->watermark_boost, zone_boosts[i])=
+;
+ 			spin_unlock_irqrestore(&zone->lock, flags);
+ 		}
++	}
+=20
+-		/*
+-		 * As there is now likely space, wakeup kcompact to defragment
+-		 * pageblocks.
+-		 */
++	/*
++	 * As there is now likely space, wakeup kcompactd to defragment
++	 * pageblocks.
++	 */
++	if (need_compact)
+ 		wakeup_kcompactd(pgdat, pageblock_order, classzone_idx);
+-	}
+=20
+ 	snapshot_refaults(NULL, pgdat);
+ 	__fs_reclaim_release();
 --=20
 2.20.1
 
