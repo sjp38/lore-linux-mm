@@ -2,123 +2,131 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 1CD17C32750
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 05:24:00 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 980BCC32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 05:26:03 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id D53F320651
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 05:23:58 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D53F320651
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=i2se.com
+	by mail.kernel.org (Postfix) with ESMTP id 64CC420651
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 05:26:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 64CC420651
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9D26F6B0005; Tue, 13 Aug 2019 01:23:58 -0400 (EDT)
+	id 368076B0005; Tue, 13 Aug 2019 01:26:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 982596B0006; Tue, 13 Aug 2019 01:23:58 -0400 (EDT)
+	id 31B8F6B0006; Tue, 13 Aug 2019 01:26:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 870F96B0007; Tue, 13 Aug 2019 01:23:58 -0400 (EDT)
+	id 1B9FF6B0007; Tue, 13 Aug 2019 01:26:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0195.hostedemail.com [216.40.44.195])
-	by kanga.kvack.org (Postfix) with ESMTP id 619896B0005
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 01:23:58 -0400 (EDT)
-Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 03EA952DA
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 05:23:58 +0000 (UTC)
-X-FDA: 75816262956.16.hen49_79dab8b42cf30
-X-HE-Tag: hen49_79dab8b42cf30
-X-Filterd-Recvd-Size: 4638
-Received: from mout.kundenserver.de (mout.kundenserver.de [217.72.192.73])
-	by imf15.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 05:23:57 +0000 (UTC)
-Received: from [192.168.178.60] ([109.104.47.130]) by mrelayeu.kundenserver.de
- (mreue107 [212.227.15.183]) with ESMTPSA (Nemesis) id
- 1MPGiR-1hevT50O45-00PbYR; Tue, 13 Aug 2019 07:23:46 +0200
-Subject: Re: [PATCH v2 15/34] staging/vc04_services: convert put_page() to
- put_user_page*()
-To: john.hubbard@gmail.com, Andrew Morton <akpm@linux-foundation.org>
-Cc: linux-fbdev@vger.kernel.org, Jan Kara <jack@suse.cz>,
- kvm@vger.kernel.org, Dave Hansen <dave.hansen@linux.intel.com>,
- Dave Chinner <david@fromorbit.com>, dri-devel@lists.freedesktop.org,
- linux-mm@kvack.org, sparclinux@vger.kernel.org,
- Ira Weiny <ira.weiny@intel.com>, ceph-devel@vger.kernel.org,
- devel@driverdev.osuosl.org, rds-devel@oss.oracle.com,
- linux-rdma@vger.kernel.org, Suniel Mahesh <sunil.m@techveda.org>,
- x86@kernel.org, amd-gfx@lists.freedesktop.org,
- Christoph Hellwig <hch@infradead.org>, Jason Gunthorpe <jgg@ziepe.ca>,
- Mihaela Muraru <mihaela.muraru21@gmail.com>, xen-devel@lists.xenproject.org,
- devel@lists.orangefs.org, linux-media@vger.kernel.org,
- John Hubbard <jhubbard@nvidia.com>, intel-gfx@lists.freedesktop.org,
- Kishore KP <kishore.p@techveda.org>, linux-block@vger.kernel.org,
- =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>,
- linux-rpi-kernel@lists.infradead.org, Dan Williams
- <dan.j.williams@intel.com>, Sidong Yang <realwakka@gmail.com>,
- linux-arm-kernel@lists.infradead.org, linux-nfs@vger.kernel.org,
- Eric Anholt <eric@anholt.net>, netdev@vger.kernel.org,
- LKML <linux-kernel@vger.kernel.org>, linux-xfs@vger.kernel.org,
- linux-crypto@vger.kernel.org, Greg Kroah-Hartman
- <gregkh@linuxfoundation.org>, linux-fsdevel@vger.kernel.org,
- Al Viro <viro@zeniv.linux.org.uk>
-References: <20190804224915.28669-1-jhubbard@nvidia.com>
- <20190804224915.28669-16-jhubbard@nvidia.com>
-From: Stefan Wahren <stefan.wahren@i2se.com>
-Message-ID: <f92a9b35-072c-a452-3248-ded047a9ee7e@i2se.com>
-Date: Tue, 13 Aug 2019 07:23:36 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0010.hostedemail.com [216.40.44.10])
+	by kanga.kvack.org (Postfix) with ESMTP id EF6946B0005
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 01:26:01 -0400 (EDT)
+Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 9E63D180AD7C1
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 05:26:01 +0000 (UTC)
+X-FDA: 75816268122.06.top48_8bdbdaa849d54
+X-HE-Tag: top48_8bdbdaa849d54
+X-Filterd-Recvd-Size: 3253
+Received: from mga14.intel.com (mga14.intel.com [192.55.52.115])
+	by imf30.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 05:26:00 +0000 (UTC)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga006.fm.intel.com ([10.253.24.20])
+  by fmsmga103.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 12 Aug 2019 22:25:59 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,380,1559545200"; 
+   d="scan'208";a="376185850"
+Received: from richard.sh.intel.com (HELO localhost) ([10.239.159.54])
+  by fmsmga006.fm.intel.com with ESMTP; 12 Aug 2019 22:25:59 -0700
+Date: Tue, 13 Aug 2019 13:25:34 +0800
+From: Wei Yang <richardw.yang@linux.intel.com>
+To: Matthew Wilcox <willy@infradead.org>
+Cc: Wei Yang <richardw.yang@linux.intel.com>, akpm@linux-foundation.org,
+	mgorman@techsingularity.net, vbabka@suse.cz, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [PATCH] mm/mmap.c: rb_parent is not necessary in __vma_link_list
+Message-ID: <20190813052534.GA17131@richard>
+Reply-To: Wei Yang <richardw.yang@linux.intel.com>
+References: <20190813032656.16625-1-richardw.yang@linux.intel.com>
+ <20190813033958.GB5307@bombadil.infradead.org>
 MIME-Version: 1.0
-In-Reply-To: <20190804224915.28669-16-jhubbard@nvidia.com>
-Content-Type: text/plain; charset=utf-8
-Content-Transfer-Encoding: 7bit
-Content-Language: en-US
-X-Provags-ID: V03:K1:WLtnGHSdIdsSOgSCw9gLWN/He07a3vhG8P/jw9q/ZsKCLbsJUeS
- 5llVNlt7KE/tvHn+5EOmDYYv4pX1cHVWKOXHtrw4HQWAHuCkTohFsgxlEY0fExapDm8vR8t
- zVIsUr/Bms6Kvxj5sCY8IbKiNL01LBum+j6x95pPZHXG9iG9KDUI7QIiVK2/58tc3NB1jnX
- y7VHJG/KIA+fGCfAbINIQ==
-X-UI-Out-Filterresults: notjunk:1;V03:K0:e2tiG/LoUCE=:MfCllk8c06iYHLUWJWcKAL
- cdQ1fi1ypP4tC6pu8XAt4M+fU5mGlkjM5ziFPw9nAP5+ICbjFLhxsiDLATVpll3xwUgna69cS
- Ev9bpFgmBYRqbHsiOVM335kNgAU19xY/LXN/GzEuigzotpDhc5IdC4FGsNTdqmIYi0Bx4dgCw
- bLM/SrMXG40Mg1UArtxdqWQvHnINj7yK6JacwPswBAo33CV5S5U4U1PS67DpEMKA7dX0oduGb
- 5fQtkN1kvCZEg2/ekJnnb+PAR6KRS8Eu0zqK7cwQwWxs+nxHFNvcdfFolT7waPuKj24rhpnjW
- ZntPcErm15w8EJ72vFuARtCUk4Lh4jU+zYNtoDE6B8RJqr/+yxycmwEDucEbNXrujkaPH72RU
- fWCHjlXjsJS29DRMlBs91cqiKMaK/ktbzSpegz+iLEJq/HkDuPh/jiz/b8w2crkMXTYEXfcIb
- WqkuI5hHrAdEh99xa/X99FupD8F6iZ52Pv/g2glNHL9WlKL41btCn/KodqBqy/glIqHZeYzq2
- SXjRol/t4oy36qgSCQmUGiCt1lssYLkBWOzcxjui5lZUL2V9O7wn91tHl7G+DbqjQzgMyVtBP
- 60iHHkwkWe3su3M3o+o4m8sWd9OG5XIToU/4cSDhBQohrRIKKqoUbXAyCJH96bxaYdq/zseIf
- oMsHaN/31pBaLs6MtsAa2tu5PRj9qlBX5kso+Y5up4mj5gl7CfIWyGwpM4gPWtVKv1En5k3ZR
- HR/0MJ6spaP8P86u5+VALfxj2aM5bbcj+ZVczoVE2BIVl4lPQEesVoHHwFc=
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190813033958.GB5307@bombadil.infradead.org>
+User-Agent: Mutt/1.9.4 (2018-02-28)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 05.08.19 00:48, john.hubbard@gmail.com wrote:
-> From: John Hubbard <jhubbard@nvidia.com>
+On Mon, Aug 12, 2019 at 08:39:58PM -0700, Matthew Wilcox wrote:
+>On Tue, Aug 13, 2019 at 11:26:56AM +0800, Wei Yang wrote:
+>> Now we use rb_parent to get next, while this is not necessary.
+>> 
+>> When prev is NULL, this means vma should be the first element in the
+>> list. Then next should be current first one (mm->mmap), no matter
+>> whether we have parent or not.
+>> 
+>> After removing it, the code shows the beauty of symmetry.
 >
-> For pages that were retained via get_user_pages*(), release those pages
-> via the new put_user_page*() routines, instead of via put_page() or
-> release_pages().
+>Uhh ... did you test this?
 >
-> This is part a tree-wide conversion, as described in commit fc1d8e7cca2d
-> ("mm: introduce put_user_page*(), placeholder versions").
+
+I reboot successfully with this patch.
+
+>> @@ -273,12 +273,8 @@ void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
+>>  		next = prev->vm_next;
+>>  		prev->vm_next = vma;
+>>  	} else {
+>> +		next = mm->mmap;
+>>  		mm->mmap = vma;
+>> -		if (rb_parent)
+>> -			next = rb_entry(rb_parent,
+>> -					struct vm_area_struct, vm_rb);
+>> -		else
+>> -			next = NULL;
+>>  	}
 >
-> Acked-by: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
+>The full context is:
 >
-> Cc: Eric Anholt <eric@anholt.net>
-> Cc: Stefan Wahren <stefan.wahren@i2se.com>
-> Cc: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-> Cc: Mihaela Muraru <mihaela.muraru21@gmail.com>
-> Cc: Suniel Mahesh <sunil.m@techveda.org>
-> Cc: Al Viro <viro@zeniv.linux.org.uk>
-> Cc: Sidong Yang <realwakka@gmail.com>
-> Cc: Kishore KP <kishore.p@techveda.org>
-> Cc: linux-rpi-kernel@lists.infradead.org
-> Cc: linux-arm-kernel@lists.infradead.org
-> Cc: devel@driverdev.osuosl.org
-> Signed-off-by: John Hubbard <jhubbard@nvidia.com>
-Acked-by: Stefan Wahren <stefan.wahren@i2se.com>
+>        if (prev) {
+>                next = prev->vm_next;
+>                prev->vm_next = vma;
+>        } else {
+>                mm->mmap = vma;
+>                if (rb_parent)
+>                        next = rb_entry(rb_parent,
+>                                        struct vm_area_struct, vm_rb);
+>                else
+>                        next = NULL;
+>        }
+>
+>Let's imagine we have a small tree with three ranges in it.
+>
+>A: 5-7
+>B: 8-10
+>C: 11-13
+>
+>I would imagine an rbtree for this case has B at the top with A
+>to its left and B to its right.
+>
+>Now we're going to add range D at 3-4.  'next' should clearly be range A.
+>It will have NULL prev.  Your code is going to make 'B' next, not A.
+>Right?
+
+mm->mmap is not the rb_root.
+
+mm->mmap is the first element in the ordered list, if my understanding is
+correct.
+
+-- 
+Wei Yang
+Help you, Help me
 
