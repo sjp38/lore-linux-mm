@@ -2,174 +2,156 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.7 required=3.0 tests=FROM_EXCESS_BASE64,
+	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED autolearn=ham autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A9A5C32750
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 14:25:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 29AC1C32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 14:33:04 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1F58620844
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 14:25:32 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=joelfernandes.org header.i=@joelfernandes.org header.b="C6Wd4yxw"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1F58620844
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=joelfernandes.org
+	by mail.kernel.org (Postfix) with ESMTP id E98932067D
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 14:33:03 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E98932067D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C0CCE6B0006; Tue, 13 Aug 2019 10:25:31 -0400 (EDT)
+	id 639DC6B0003; Tue, 13 Aug 2019 10:33:03 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BBBF56B0007; Tue, 13 Aug 2019 10:25:31 -0400 (EDT)
+	id 611F26B0006; Tue, 13 Aug 2019 10:33:03 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AABA46B0008; Tue, 13 Aug 2019 10:25:31 -0400 (EDT)
+	id 526956B0007; Tue, 13 Aug 2019 10:33:03 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0151.hostedemail.com [216.40.44.151])
-	by kanga.kvack.org (Postfix) with ESMTP id 885136B0006
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 10:25:31 -0400 (EDT)
-Received: from smtpin06.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 39C388248AA2
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 14:25:31 +0000 (UTC)
-X-FDA: 75817627662.06.tail00_301f050d3c13a
-X-HE-Tag: tail00_301f050d3c13a
-X-Filterd-Recvd-Size: 7446
-Received: from mail-pl1-f194.google.com (mail-pl1-f194.google.com [209.85.214.194])
-	by imf38.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 14:25:30 +0000 (UTC)
-Received: by mail-pl1-f194.google.com with SMTP id g4so2873833plo.3
-        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 07:25:30 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=joelfernandes.org; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=cgcBlbXGFsc/om+/smWu+Pn0e+PGsj2TzOvbc6+E86U=;
-        b=C6Wd4yxwaQCT0SiFrDTxUSIkFQODTgQV7PQEXI9kmvPnDsR4HFuL/kHGspte6crI3X
-         niIRYHkysNGFVRaeTjgdQiq57VbO4gQEWfnYaaLSFYY8xqxSoVaRN0B+Y/u0fOLI71aG
-         /pLkgNgZK3s+44ARW92U42yPDfe33KSorJnyE=
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=cgcBlbXGFsc/om+/smWu+Pn0e+PGsj2TzOvbc6+E86U=;
-        b=MLZgLJuoTIwkTVVCF7xNy2c4WM2fULzi0mXTdMqhX0ICoT51vS9WVM6AP7U6RHHtEQ
-         zHm6k2t+JUrBgw+Cro0bDCHrMmiqSmcLx1cIQVAowNAgiHjy6aSkezX75CDphuv8aCI0
-         6WnK1StxmzKMVfPLXTVUPiKc0tXLD5eStSau2MPLcICKdEcU0FMDG5NvA8PtuQdZD001
-         iDZ4qw0+6+vriFq54+t6ucuwk5EWdxY71uH+lRbxkoyfVCxvy3IcJvsJU1aCJryCv6/t
-         VXNNvmdWtxwgV9zIHVrSeb5fcbA3Qqo4QnasQEQBdpt7ZiU9O6GAwYlFnpf/Ja5XySMM
-         871g==
-X-Gm-Message-State: APjAAAXv+8Q4AJG6f3jcZ1ENKrtz2xrX8qKaagvefs596NsXdK0l5ORD
-	xWVaxWZnrx6NIRItncVhITUS1g==
-X-Google-Smtp-Source: APXvYqwTcTitvpJ7cl19fmHfaEht6G7+vMW1EpqZcjp3DkM9u+O42KKZEWe7yKNHPpAxz/5bAy17gQ==
-X-Received: by 2002:a17:902:a508:: with SMTP id s8mr14691501plq.280.1565706329107;
-        Tue, 13 Aug 2019 07:25:29 -0700 (PDT)
-Received: from localhost ([2620:15c:6:12:9c46:e0da:efbf:69cc])
-        by smtp.gmail.com with ESMTPSA id r137sm24048741pfc.145.2019.08.13.07.25.27
-        (version=TLS1_3 cipher=AEAD-AES256-GCM-SHA384 bits=256/256);
-        Tue, 13 Aug 2019 07:25:28 -0700 (PDT)
-Date: Tue, 13 Aug 2019 10:25:27 -0400
-From: Joel Fernandes <joel@joelfernandes.org>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Jann Horn <jannh@google.com>,
-	kernel list <linux-kernel@vger.kernel.org>,
-	Alexey Dobriyan <adobriyan@gmail.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
-	Catalin Marinas <catalin.marinas@arm.com>,
-	Christian Hansen <chansen3@cisco.com>,
-	Daniel Colascione <dancol@google.com>, fmayer@google.com,
-	"H. Peter Anvin" <hpa@zytor.com>, Ingo Molnar <mingo@redhat.com>,
-	Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>,
-	kernel-team <kernel-team@android.com>,
-	Linux API <linux-api@vger.kernel.org>, linux-doc@vger.kernel.org,
-	linux-fsdevel <linux-fsdevel@vger.kernel.org>,
-	Linux-MM <linux-mm@kvack.org>, Mike Rapoport <rppt@linux.ibm.com>,
-	Minchan Kim <minchan@kernel.org>, namhyung@google.com,
-	"Paul E. McKenney" <paulmck@linux.ibm.com>,
-	Robin Murphy <robin.murphy@arm.com>, Roman Gushchin <guro@fb.com>,
-	Stephen Rothwell <sfr@canb.auug.org.au>,
-	Suren Baghdasaryan <surenb@google.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Todd Kjos <tkjos@google.com>,
-	Vladimir Davydov <vdavydov.dev@gmail.com>,
-	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
-Subject: Re: [PATCH v5 1/6] mm/page_idle: Add per-pid idle page tracking
- using virtual index
-Message-ID: <20190813142527.GD258732@google.com>
-References: <20190807171559.182301-1-joel@joelfernandes.org>
- <CAG48ez0ysprvRiENhBkLeV9YPTN_MB18rbu2HDa2jsWo5FYR8g@mail.gmail.com>
- <20190813100856.GF17933@dhcp22.suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0001.hostedemail.com [216.40.44.1])
+	by kanga.kvack.org (Postfix) with ESMTP id 2C8736B0003
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 10:33:03 -0400 (EDT)
+Received: from smtpin03.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id C37A6180AD7C3
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 14:33:02 +0000 (UTC)
+X-FDA: 75817646604.03.skin77_71d75ddb3e149
+X-HE-Tag: skin77_71d75ddb3e149
+X-Filterd-Recvd-Size: 4757
+Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com [91.199.104.161])
+	by imf03.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 14:33:02 +0000 (UTC)
+Received: from smtp.bitdefender.com (smtp01.buh.bitdefender.com [10.17.80.75])
+	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id E90CD30644BA;
+	Tue, 13 Aug 2019 17:33:00 +0300 (EEST)
+Received: from localhost (unknown [195.210.4.22])
+	by smtp.bitdefender.com (Postfix) with ESMTPSA id D233E304BD70;
+	Tue, 13 Aug 2019 17:33:00 +0300 (EEST)
+From: Adalbert =?iso-8859-2?b?TGF643I=?= <alazar@bitdefender.com>
+Subject: Re: [RFC PATCH v6 75/92] kvm: x86: disable gpa_available optimization
+ in emulator_read_write_onepage()
+To: Paolo Bonzini <pbonzini@redhat.com>, kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
+	Radim =?iso-8859-2?b?S3LobeH4?= <rkrcmar@redhat.com>, Konrad Rzeszutek Wilk
+	<konrad.wilk@oracle.com>, Tamas K Lengyel <tamas@tklengyel.com>,
+	Mathieu Tarral <mathieu.tarral@protonmail.com>,
+	Samuel =?iso-8859-1?q?Laur=E9n?= <samuel.lauren@iki.fi>, Patrick Colp
+	<patrick.colp@oracle.com>, Jan Kiszka <jan.kiszka@siemens.com>,
+	Stefan Hajnoczi <stefanha@redhat.com>, Weijiang Yang
+	<weijiang.yang@intel.com>, Yu C Zhang <yu.c.zhang@intel.com>,
+	Mihai =?UTF-8?b?RG9uyJt1?= <mdontu@bitdefender.com>
+In-Reply-To: <eb748e05-8289-0c05-6907-b6c898f6080b@redhat.com>
+References: <20190809160047.8319-1-alazar@bitdefender.com>
+	<20190809160047.8319-76-alazar@bitdefender.com>
+	<eb748e05-8289-0c05-6907-b6c898f6080b@redhat.com>
+Date: Tue, 13 Aug 2019 17:33:27 +0300
+Message-ID: <1565706807.E3E4656eC.28420.@15f23d3a749365d981e968181cce585d2dcb3ffa>
+Content-Type: text/plain; charset="utf-8"
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190813100856.GF17933@dhcp22.suse.cz>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 13, 2019 at 12:08:56PM +0200, Michal Hocko wrote:
-> On Mon 12-08-19 20:14:38, Jann Horn wrote:
-> > On Wed, Aug 7, 2019 at 7:16 PM Joel Fernandes (Google)
-> > <joel@joelfernandes.org> wrote:
-> > > The page_idle tracking feature currently requires looking up the pagemap
-> > > for a process followed by interacting with /sys/kernel/mm/page_idle.
-> > > Looking up PFN from pagemap in Android devices is not supported by
-> > > unprivileged process and requires SYS_ADMIN and gives 0 for the PFN.
-> > >
-> > > This patch adds support to directly interact with page_idle tracking at
-> > > the PID level by introducing a /proc/<pid>/page_idle file.  It follows
-> > > the exact same semantics as the global /sys/kernel/mm/page_idle, but now
-> > > looking up PFN through pagemap is not needed since the interface uses
-> > > virtual frame numbers, and at the same time also does not require
-> > > SYS_ADMIN.
-> > >
-> > > In Android, we are using this for the heap profiler (heapprofd) which
-> > > profiles and pin points code paths which allocates and leaves memory
-> > > idle for long periods of time. This method solves the security issue
-> > > with userspace learning the PFN, and while at it is also shown to yield
-> > > better results than the pagemap lookup, the theory being that the window
-> > > where the address space can change is reduced by eliminating the
-> > > intermediate pagemap look up stage. In virtual address indexing, the
-> > > process's mmap_sem is held for the duration of the access.
-> > 
-> > What happens when you use this interface on shared pages, like memory
-> > inherited from the zygote, library file mappings and so on? If two
-> > profilers ran concurrently for two different processes that both map
-> > the same libraries, would they end up messing up each other's data?
-> 
-> Yup PageIdle state is shared. That is the page_idle semantic even now
-> IIRC.
+On Tue, 13 Aug 2019 10:47:34 +0200, Paolo Bonzini <pbonzini@redhat.com> w=
+rote:
+> On 09/08/19 18:00, Adalbert Laz=C4=83r wrote:
+> > If the EPT violation was caused by an execute restriction imposed by =
+the
+> > introspection tool, gpa_available will point to the instruction point=
+er,
+> > not the to the read/write location that has to be used to emulate the
+> > current instruction.
+> >=20
+> > This optimization should be disabled only when the VM is introspected=
+,
+> > not just because the introspection subsystem is present.
+> >=20
+> > Signed-off-by: Adalbert Laz=C4=83r <alazar@bitdefender.com>
+>=20
+> The right thing to do is to not set gpa_available for fetch failures in=
+=20
+> kvm_mmu_page_fault instead:
+>=20
+> diff --git a/arch/x86/kvm/mmu.c b/arch/x86/kvm/mmu.c
+> index 24843cf49579..1bdca40fa831 100644
+> --- a/arch/x86/kvm/mmu.c
+> +++ b/arch/x86/kvm/mmu.c
+> @@ -5364,8 +5364,12 @@ int kvm_mmu_page_fault(struct kvm_vcpu *vcpu, gv=
+a_t cr2, u64 error_code,
+>  	enum emulation_result er;
+>  	bool direct =3D vcpu->arch.mmu->direct_map;
+> =20
+> -	/* With shadow page tables, fault_address contains a GVA or nGPA.  */
+> -	if (vcpu->arch.mmu->direct_map) {
+> +	/*
+> +	 * With shadow page tables, fault_address contains a GVA or nGPA.
+> +	 * On a fetch fault, fault_address contains the instruction pointer.
+> +	 */
+> +	if (vcpu->arch.mmu->direct_map &&
+> +	    likely(!(error_code & PFERR_FETCH_MASK)) {
+>  		vcpu->arch.gpa_available =3D true;
+>  		vcpu->arch.gpa_val =3D cr2;
+>  	}
+>=20
+>=20
+> Paolo
+>=20
+> > ---
+> >  arch/x86/kvm/x86.c | 2 +-
+> >  1 file changed, 1 insertion(+), 1 deletion(-)
+> >=20
+> > diff --git a/arch/x86/kvm/x86.c b/arch/x86/kvm/x86.c
+> > index 965c4f0108eb..3975331230b9 100644
+> > --- a/arch/x86/kvm/x86.c
+> > +++ b/arch/x86/kvm/x86.c
+> > @@ -5532,7 +5532,7 @@ static int emulator_read_write_onepage(unsigned=
+ long addr, void *val,
+> >  	 * operation using rep will only have the initial GPA from the NPF
+> >  	 * occurred.
+> >  	 */
+> > -	if (vcpu->arch.gpa_available &&
+> > +	if (vcpu->arch.gpa_available && !kvmi_is_present() &&
+> >  	    emulator_can_use_gpa(ctxt) &&
+> >  	    (addr & ~PAGE_MASK) =3D=3D (vcpu->arch.gpa_val & ~PAGE_MASK)) {
+> >  		gpa =3D vcpu->arch.gpa_val;
+> >=20
+>=20
 
-Yes, that's right. This patch doesn't change that semantic. Idle page
-tracking at the core is a global procedure which is based on pages that can
-be shared.
+Sure, but I think we'll have to extend the check.
 
-One of the usecases of the heap profiler is to enable profiling of pages that
-are shared between zygote and any processes that are forked. In this case,
-I am told by our team working on the heap profiler, that the monitoring of
-shared pages will help.
+Searching the logs I've found:
 
-> > Can this be used to observe which library pages other processes are
-> > accessing, even if you don't have access to those processes, as long
-> > as you can map the same libraries? I realize that there are already a
-> > bunch of ways to do that with side channels and such; but if you're
-> > adding an interface that allows this by design, it seems to me like
-> > something that should be gated behind some sort of privilege check.
-> 
-> Hmm, you need to be priviledged to get the pfn now and without that you
-> cannot get to any page so the new interface is weakening the rules.
-> Maybe we should limit setting the idle state to processes with the write
-> status. Or do you think that even observing idle status is useful for
-> practical side channel attacks? If yes, is that a problem of the
-> profiler which does potentially dangerous things?
+    kvm/x86: re-translate broken translation that caused EPT violation
+   =20
+    Signed-off-by: Mircea Cirjaliu <mcirjaliu@bitdefender.com>
 
-The heap profiler is currently unprivileged. Would it help the concern Jann
-raised, if the new interface was limited to only anonymous private/shared
-pages and not to file pages? Or, is this even a real concern?
+ arch/x86/kvm/x86.c | 1 +
+ 1 file changed, 1 insertion(+)
 
-thanks,
-
- - Joel
-
+/home/b/kvmi@9cad844~1/arch/x86/kvm/x86.c:4757,4762 - /home/b/kvmi@9cad84=
+4/arch/x86/kvm/x86.c:4757,4763
+  	 */
+  	if (vcpu->arch.gpa_available &&
+  	    emulator_can_use_gpa(ctxt) &&
++ 	    (vcpu->arch.error_code & PFERR_GUEST_FINAL_MASK) &&
+  	    (addr & ~PAGE_MASK) =3D=3D (vcpu->arch.gpa_val & ~PAGE_MASK)) {
+  		gpa =3D vcpu->arch.gpa_val;
+  		ret =3D vcpu_is_mmio_gpa(vcpu, addr, gpa, write);
 
