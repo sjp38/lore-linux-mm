@@ -2,104 +2,117 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id F068AC433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 08:43:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8FEE3C32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 08:44:00 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9EDA220679
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 08:43:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9EDA220679
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id 584BE20679
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 08:44:00 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 584BE20679
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 015066B0005; Tue, 13 Aug 2019 04:43:22 -0400 (EDT)
+	id E1FEF6B0006; Tue, 13 Aug 2019 04:43:59 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id F088F6B0006; Tue, 13 Aug 2019 04:43:21 -0400 (EDT)
+	id DCFB16B0007; Tue, 13 Aug 2019 04:43:59 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id E1E376B0007; Tue, 13 Aug 2019 04:43:21 -0400 (EDT)
+	id CE5036B0008; Tue, 13 Aug 2019 04:43:59 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0023.hostedemail.com [216.40.44.23])
-	by kanga.kvack.org (Postfix) with ESMTP id C08ED6B0005
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 04:43:21 -0400 (EDT)
-Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 7A70C21FA
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:43:21 +0000 (UTC)
-X-FDA: 75816765402.17.fly01_74959bd37902f
-X-HE-Tag: fly01_74959bd37902f
-X-Filterd-Recvd-Size: 3056
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf37.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:43:21 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 53120AB92;
-	Tue, 13 Aug 2019 08:43:19 +0000 (UTC)
-Date: Tue, 13 Aug 2019 10:43:17 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Sasha Levin <sashal@kernel.org>
-Cc: Vlastimil Babka <vbabka@suse.cz>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org, ltp@lists.linux.it,
-	Li Wang <liwang@redhat.com>,
-	Naoya Horiguchi <n-horiguchi@ah.jp.nec.com>,
-	Cyril Hrubis <chrubis@suse.cz>, xishi.qiuxishi@alibaba-inc.com
-Subject: Re: [PATCH] hugetlbfs: fix hugetlb page migration/fault race causing
- SIGBUS
-Message-ID: <20190813084317.GD17933@dhcp22.suse.cz>
-References: <416ee59e-9ae8-f72d-1b26-4d3d31501330@oracle.com>
- <20190808185313.GG18351@dhcp22.suse.cz>
- <20190808163928.118f8da4f4289f7c51b8ffd4@linux-foundation.org>
- <20190809064633.GK18351@dhcp22.suse.cz>
- <20190809151718.d285cd1f6d0f1cf02cb93dc8@linux-foundation.org>
- <20190811234614.GZ17747@sasha-vm>
- <20190812084524.GC5117@dhcp22.suse.cz>
- <39b59001-55c1-a98b-75df-3a5dcec74504@suse.cz>
- <20190812132226.GI5117@dhcp22.suse.cz>
- <20190812153326.GB17747@sasha-vm>
+Received: from forelay.hostedemail.com (smtprelay0108.hostedemail.com [216.40.44.108])
+	by kanga.kvack.org (Postfix) with ESMTP id AB8546B0006
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 04:43:59 -0400 (EDT)
+Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 58C1F181AC9AE
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:43:59 +0000 (UTC)
+X-FDA: 75816766998.07.wood09_7a14e54372049
+X-HE-Tag: wood09_7a14e54372049
+X-Filterd-Recvd-Size: 3574
+Received: from mail-wr1-f67.google.com (mail-wr1-f67.google.com [209.85.221.67])
+	by imf41.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:43:58 +0000 (UTC)
+Received: by mail-wr1-f67.google.com with SMTP id k2so21123678wrq.2
+        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 01:43:58 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:subject:to:cc:references:from:openpgp:message-id
+         :date:user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=QrW7dS2ds3pbrdiGP+Xfw3R+Xx+cVjaMWqFORv9YS00=;
+        b=k03W7h7TbH031P4gjgYhwjkGqUUmDhLz0fsG8axxSisjiMrK1h4Yqo+LxmbAObheST
+         XMHmVe6/AEmfoLjmg9pEd9YjwzNjOJxS3g5L8dM3wwyeH5tGq//nS9gkKABSBpSANC9n
+         RsDKj5V78mV9GTMw86RES/O/AGqZODTiwyfoeRAG4AAbpgpnLdaZbsg7OzbIBATRQEoo
+         to2Ku/3djeVW0F/LHrms6Z2z1TQRzUsnYQCOJoGcjZmJDntp0BfaBsStDM/G6K6KTiJA
+         emKePJVeiNZhHojraWvArwEFDNYrz33G3ZzOfy9n6vdBBiFImCdp7fZLeoNCnDJO1RSJ
+         h3LQ==
+X-Gm-Message-State: APjAAAWqYZ3+9W+QzPOU78TOQVLeaJ5et953d5uUdpo95I/tm1tkwif0
+	hOhkHBg2yn6dZDlkMhL2zeMpbg==
+X-Google-Smtp-Source: APXvYqxuWhc1YpCqxMrLLcWkuQ8VY9K/YArqTGXAb48mAXYstqGvOVyemZekybg0GEAvyY/bBnxajA==
+X-Received: by 2002:a5d:4e06:: with SMTP id p6mr21211891wrt.336.1565685837546;
+        Tue, 13 Aug 2019 01:43:57 -0700 (PDT)
+Received: from [192.168.10.150] ([93.56.166.5])
+        by smtp.gmail.com with ESMTPSA id g14sm16821663wrb.38.2019.08.13.01.43.53
+        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Aug 2019 01:43:56 -0700 (PDT)
+Subject: Re: [RFC PATCH v6 13/92] kvm: introspection: make the vCPU wait even
+ when its jobs list is empty
+To: =?UTF-8?Q?Adalbert_Laz=c4=83r?= <alazar@bitdefender.com>,
+ kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
+ =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ Tamas K Lengyel <tamas@tklengyel.com>,
+ Mathieu Tarral <mathieu.tarral@protonmail.com>,
+ =?UTF-8?Q?Samuel_Laur=c3=a9n?= <samuel.lauren@iki.fi>,
+ Patrick Colp <patrick.colp@oracle.com>, Jan Kiszka <jan.kiszka@siemens.com>,
+ Stefan Hajnoczi <stefanha@redhat.com>,
+ Weijiang Yang <weijiang.yang@intel.com>, Yu C Zhang <yu.c.zhang@intel.com>,
+ =?UTF-8?Q?Mihai_Don=c8=9bu?= <mdontu@bitdefender.com>
+References: <20190809160047.8319-1-alazar@bitdefender.com>
+ <20190809160047.8319-14-alazar@bitdefender.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Openpgp: preference=signencrypt
+Message-ID: <c82b509a-86a7-6c2c-943e-f78a02e6efb1@redhat.com>
+Date: Tue, 13 Aug 2019 10:43:52 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190812153326.GB17747@sasha-vm>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190809160047.8319-14-alazar@bitdefender.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 12-08-19 11:33:26, Sasha Levin wrote:
-[...]
-> I'd be happy to run whatever validation/regression suite for mm/ you
-> would suggest.
+On 09/08/19 17:59, Adalbert Laz=C4=83r wrote:
+> +void kvmi_handle_requests(struct kvm_vcpu *vcpu)
+> +{
+> +	struct kvmi *ikvm;
+> +
+> +	ikvm =3D kvmi_get(vcpu->kvm);
+> +	if (!ikvm)
+> +		return;
+> +
+> +	for (;;) {
+> +		int err =3D kvmi_run_jobs_and_wait(vcpu);
+> +
+> +		if (err)
+> +			break;
+> +	}
+> +
+> +	kvmi_put(vcpu->kvm);
+> +}
+> +
 
-You would have to develop one first and I am afraid that won't be really
-simple and useful.
+Using kvmi_run_jobs_and_wait from two places (here and kvmi_send_event)
+is very confusing.  Does kvmi_handle_requests need to do this, or can it
+just use kvmi_run_jobs?
 
-> I've heard the "every patch is a snowflake" story quite a few times, and
-> I understand that most mm/ patches are complex, but we agree that
-> manually testing every patch isn't scalable, right? Even for patches
-> that mm/ tags for stable, are they actually tested on every stable tree?
-> How is it different from the "aplies-it-must-be-ok workflow"?
-
-There is a human brain put in and process each patch to make sure that
-the change makes sense and we won't break none of many workloads that
-people care about. Even if you run your patch throug mm tests which is
-by far the most comprehensive test suite I know of we do regress from
-time to time. We simply do not have a realistic testing coverage becuase
-workload differ quite a lot and they are not really trivial to isolate
-to a self contained test case. A lot of functionality doesn't have a
-direct interface to test for because it triggers when the system gets
-into some state.
-
-Ideal? Not at all and I am happy to hear some better ideas. Until then
-we simply have to rely on gut feeling and understanding of the code
-and experience from workloads we have seen in the past.
--- 
-Michal Hocko
-SUSE Labs
+Paolo
 
