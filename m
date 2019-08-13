@@ -2,149 +2,146 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E36DC32750
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 08:48:07 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1CC32C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 08:55:27 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1B490206C2
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 08:48:06 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="YExtdyLD"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1B490206C2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linuxfoundation.org
+	by mail.kernel.org (Postfix) with ESMTP id DDBBC2063F
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 08:55:26 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DDBBC2063F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9D5FB6B0007; Tue, 13 Aug 2019 04:48:06 -0400 (EDT)
+	id 711D46B0005; Tue, 13 Aug 2019 04:55:26 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 987696B0008; Tue, 13 Aug 2019 04:48:06 -0400 (EDT)
+	id 6C23B6B0006; Tue, 13 Aug 2019 04:55:26 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 84E5D6B000A; Tue, 13 Aug 2019 04:48:06 -0400 (EDT)
+	id 5D8736B0007; Tue, 13 Aug 2019 04:55:26 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0082.hostedemail.com [216.40.44.82])
-	by kanga.kvack.org (Postfix) with ESMTP id 65E7D6B0007
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 04:48:06 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 0D2C88248AA2
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:48:06 +0000 (UTC)
-X-FDA: 75816777372.30.mask42_c71d50fe100d
-X-HE-Tag: mask42_c71d50fe100d
-X-Filterd-Recvd-Size: 5289
-Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf07.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:48:05 +0000 (UTC)
-Received: from localhost (83-86-89-107.cable.dynamic.v4.ziggo.nl [83.86.89.107])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 4E6C720679;
-	Tue, 13 Aug 2019 08:48:03 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565686084;
-	bh=dgkNfsoGvEEUqkSMoKhZo00QGi0KOqUYD1qh2seiDX0=;
-	h=Date:From:To:Cc:Subject:References:In-Reply-To:From;
-	b=YExtdyLDmV5g6i2jgGccJIQ9lpJD2qunpsOWx/skQdmvZBvdutmEsdbbDFgUnYiW9
-	 lXvB0C/oMwnRrAFZnyypCC3r55bOvbM5/MOv8GxdUmBrJYIbb3l/0Xsrf+14ZRwh2E
-	 PJJHiAbOF9zt2xlZLKfEtULVL5ySMo91nAG/3xII=
-Date: Tue, 13 Aug 2019 10:48:01 +0200
-From: Greg Kroah-Hartman <gregkh@linuxfoundation.org>
-To: Mark Salyzyn <salyzyn@android.com>
-Cc: linux-kernel@vger.kernel.org, kernel-team@android.com,
-	Stephen Smalley <sds@tycho.nsa.gov>,
-	linux-security-module@vger.kernel.org, stable@vger.kernel.org,
-	Eric Van Hensbergen <ericvh@gmail.com>,
-	Latchesar Ionkov <lucho@ionkov.net>,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	David Howells <dhowells@redhat.com>, Chris Mason <clm@fb.com>,
-	Josef Bacik <josef@toxicpanda.com>, David Sterba <dsterba@suse.com>,
-	Jeff Layton <jlayton@kernel.org>, Sage Weil <sage@redhat.com>,
-	Ilya Dryomov <idryomov@gmail.com>, Steve French <sfrench@samba.org>,
-	Tyler Hicks <tyhicks@canonical.com>, Jan Kara <jack@suse.com>,
-	Theodore Ts'o <tytso@mit.edu>,
-	Andreas Dilger <adilger.kernel@dilger.ca>,
-	Jaegeuk Kim <jaegeuk@kernel.org>, Chao Yu <yuchao0@huawei.com>,
-	Miklos Szeredi <miklos@szeredi.hu>,
-	Bob Peterson <rpeterso@redhat.com>,
-	Andreas Gruenbacher <agruenba@redhat.com>,
-	David Woodhouse <dwmw2@infradead.org>,
-	Richard Weinberger <richard@nod.at>,
-	Dave Kleikamp <shaggy@kernel.org>, Tejun Heo <tj@kernel.org>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Anna Schumaker <anna.schumaker@netapp.com>,
-	Mark Fasheh <mark@fasheh.com>, Joel Becker <jlbec@evilplan.org>,
-	Joseph Qi <joseph.qi@linux.alibaba.com>,
-	Mike Marshall <hubcap@omnibond.com>,
-	Martin Brandenburg <martin@omnibond.com>,
-	Alexander Viro <viro@zeniv.linux.org.uk>,
-	Phillip Lougher <phillip@squashfs.org.uk>,
-	"Darrick J. Wong" <darrick.wong@oracle.com>,
-	linux-xfs@vger.kernel.org, Hugh Dickins <hughd@google.com>,
-	"David S. Miller" <davem@davemloft.net>,
-	Serge Hallyn <serge@hallyn.com>, James Morris <jmorris@namei.org>,
-	Mimi Zohar <zohar@linux.ibm.com>, Paul Moore <paul@paul-moore.com>,
-	Eric Paris <eparis@parisplace.org>,
-	Casey Schaufler <casey@schaufler-ca.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Vyacheslav Dubeyko <slava@dubeyko.com>,
-	Ernesto =?iso-8859-1?Q?A=2E_Fern=E1ndez?= <ernesto.mnd.fernandez@gmail.com>,
-	Mathieu Malaterre <malat@debian.org>,
-	v9fs-developer@lists.sourceforge.net, linux-afs@lists.infradead.org,
-	linux-btrfs@vger.kernel.org, ceph-devel@vger.kernel.org,
-	linux-cifs@vger.kernel.org, samba-technical@lists.samba.org,
-	ecryptfs@vger.kernel.org, linux-ext4@vger.kernel.org,
-	linux-f2fs-devel@lists.sourceforge.net,
-	linux-fsdevel@vger.kernel.org, cluster-devel@redhat.com,
-	linux-mtd@lists.infradead.org, jfs-discussion@lists.sourceforge.net,
-	linux-nfs@vger.kernel.org, ocfs2-devel@oss.oracle.com,
-	devel@lists.orangefs.org, linux-unionfs@vger.kernel.org,
-	reiserfs-devel@vger.kernel.org, linux-mm@kvack.org,
-	netdev@vger.kernel.org, linux-integrity@vger.kernel.org,
-	selinux@vger.kernel.org
-Subject: Re: [PATCH] Add flags option to get xattr method paired to
- __vfs_getxattr
-Message-ID: <20190813084801.GA972@kroah.com>
-References: <20190812193320.200472-1-salyzyn@android.com>
+Received: from forelay.hostedemail.com (smtprelay0221.hostedemail.com [216.40.44.221])
+	by kanga.kvack.org (Postfix) with ESMTP id 3D9086B0005
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 04:55:26 -0400 (EDT)
+Received: from smtpin11.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id D4CC362C0
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:55:25 +0000 (UTC)
+X-FDA: 75816795810.11.vest35_4c7a65522392d
+X-HE-Tag: vest35_4c7a65522392d
+X-Filterd-Recvd-Size: 4304
+Received: from mail-wm1-f66.google.com (mail-wm1-f66.google.com [209.85.128.66])
+	by imf38.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:55:25 +0000 (UTC)
+Received: by mail-wm1-f66.google.com with SMTP id v19so737708wmj.5
+        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 01:55:25 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:subject:to:cc:references:from:openpgp:message-id
+         :date:user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=sPUyfB4muaIr59fd4usHXqxooogTzwXwDuPC1t7ce04=;
+        b=OtrFMzq4E5Ze8sIYD+L39pOWq4CAKa34vEffLL693XgfORfYu+rQLX+eyfnyepUl7h
+         DXcgmIIeg+h4V4ogxyxV8WgHHR9JLjxSdgebUpFkb1RASZlcO/mmR56wesBFWXSRhzYe
+         KT/EU7QBlcQHmOrd0cvqQPqTNU1feHJbw0k0nH0iYRKMTU3rV+fGyv6OWLFqfvubk2m9
+         jzTztq2HXH6S9w8PXYNmNBm8HmU9nqzFmUJEUKEzFz5hmLM1SP+IgOpQGa7r4smYURPC
+         GH0q/8QwyePkKrjtGDxwFqar2bV5cWmK4I+6qZyvUXdJ4Z7JTSLU/LAJnhiVK1UeFC6O
+         viUw==
+X-Gm-Message-State: APjAAAXaerEkKa+dL4spQB7BXu/0BTfEC+vczfccEeayqoTnCi+Uu8h/
+	HQhTB6bzoC/QS1Gca9GN++B69g==
+X-Google-Smtp-Source: APXvYqxbrJjpte7v8LCdT4TY1BMezIoEu72MDVQxtXaSnj9GyHSbv3Go1giiz3C/PIGfATdRGc3mYg==
+X-Received: by 2002:a05:600c:2292:: with SMTP id 18mr1851704wmf.156.1565686524175;
+        Tue, 13 Aug 2019 01:55:24 -0700 (PDT)
+Received: from [192.168.10.150] ([93.56.166.5])
+        by smtp.gmail.com with ESMTPSA id n14sm212546507wra.75.2019.08.13.01.55.22
+        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
+        Tue, 13 Aug 2019 01:55:23 -0700 (PDT)
+Subject: Re: [RFC PATCH v6 16/92] kvm: introspection: handle events and event
+ replies
+To: =?UTF-8?Q?Adalbert_Laz=c4=83r?= <alazar@bitdefender.com>,
+ kvm@vger.kernel.org
+Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
+ =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+ Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+ Tamas K Lengyel <tamas@tklengyel.com>,
+ Mathieu Tarral <mathieu.tarral@protonmail.com>,
+ =?UTF-8?Q?Samuel_Laur=c3=a9n?= <samuel.lauren@iki.fi>,
+ Patrick Colp <patrick.colp@oracle.com>, Jan Kiszka <jan.kiszka@siemens.com>,
+ Stefan Hajnoczi <stefanha@redhat.com>,
+ Weijiang Yang <weijiang.yang@intel.com>, Yu C Zhang <yu.c.zhang@intel.com>,
+ =?UTF-8?Q?Mihai_Don=c8=9bu?= <mdontu@bitdefender.com>
+References: <20190809160047.8319-1-alazar@bitdefender.com>
+ <20190809160047.8319-17-alazar@bitdefender.com>
+From: Paolo Bonzini <pbonzini@redhat.com>
+Openpgp: preference=signencrypt
+Message-ID: <08325b3b-3af9-382b-7c0f-8410e8fcb545@redhat.com>
+Date: Tue, 13 Aug 2019 10:55:21 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190812193320.200472-1-salyzyn@android.com>
-User-Agent: Mutt/1.12.1 (2019-06-15)
+In-Reply-To: <20190809160047.8319-17-alazar@bitdefender.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon, Aug 12, 2019 at 12:32:49PM -0700, Mark Salyzyn wrote:
-> --- a/include/linux/xattr.h
-> +++ b/include/linux/xattr.h
-> @@ -30,10 +30,10 @@ struct xattr_handler {
->  	const char *prefix;
->  	int flags;      /* fs private flags */
->  	bool (*list)(struct dentry *dentry);
-> -	int (*get)(const struct xattr_handler *, struct dentry *dentry,
-> +	int (*get)(const struct xattr_handler *handler, struct dentry *dentry,
->  		   struct inode *inode, const char *name, void *buffer,
-> -		   size_t size);
-> -	int (*set)(const struct xattr_handler *, struct dentry *dentry,
-> +		   size_t size, int flags);
-> +	int (*set)(const struct xattr_handler *handler, struct dentry *dentry,
->  		   struct inode *inode, const char *name, const void *buffer,
->  		   size_t size, int flags);
+On 09/08/19 17:59, Adalbert Laz=C4=83r wrote:
+>=20
+> +			 reply->padding2);
+> +
+> +	ivcpu->reply_waiting =3D false;
+> +	return expected->error;
+> +}
+> +
+>  /*
 
-Wow, 7 arguments.  Isn't there some nice rule of thumb that says once
-you get more then 5, a function becomes impossible to understand?
+Is this missing a wakeup?
 
-Surely this could be a structure passed in here somehow, that way when
-you add the 8th argument in the future, you don't have to change
-everything yet again?  :)
+> =20
+> +static bool need_to_wait(struct kvm_vcpu *vcpu)
+> +{
+> +	struct kvmi_vcpu *ivcpu =3D IVCPU(vcpu);
+> +
+> +	return ivcpu->reply_waiting;
+> +}
+> +
 
-I don't have anything concrete to offer as a replacement fix for this,
-but to me this just feels really wrong...
+Do you actually need this function?  It seems to me that everywhere you
+call it you already have an ivcpu, so you can just access the field.
 
-thanks,
+Also, "reply_waiting" means "there is a reply that is waiting".  What
+you mean is "waiting_for_reply".
 
-greg k-h
+The overall structure of the jobs code is confusing.  The same function
+kvm_run_jobs_and_wait is an infinite loop before and gets a "break"
+later.  It is also not clear why kvmi_job_wait is called through a job.
+ Can you have instead just kvm_run_jobs in KVM_REQ_INTROSPECTION, and
+something like this instead when sending an event:
+
+int kvmi_wait_for_reply(struct kvm_vcpu *vcpu)
+{
+	struct kvmi_vcpu *ivcpu =3D IVCPU(vcpu);
+
+	while (ivcpu->waiting_for_reply) {
+		kvmi_run_jobs(vcpu);
+
+		err =3D swait_event_killable(*wq,
+				!ivcpu->waiting_for_reply ||
+				!list_empty(&ivcpu->job_list));
+
+		if (err)
+			return -EINTR;
+	}
+
+	return 0;
+}
+
+?
+
+Paolo
 
