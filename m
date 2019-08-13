@@ -7,43 +7,43 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
 	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id A8F21C32750
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:03:28 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 02919C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:03:31 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6800720843
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:03:28 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6800720843
+	by mail.kernel.org (Postfix) with ESMTP id A54DE2070D
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:03:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A54DE2070D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B66EA6B0274; Tue, 13 Aug 2019 17:03:02 -0400 (EDT)
+	id ED8EB6B0276; Tue, 13 Aug 2019 17:03:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A96B76B0279; Tue, 13 Aug 2019 17:03:02 -0400 (EDT)
+	id E8B4C6B0277; Tue, 13 Aug 2019 17:03:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7D8796B0278; Tue, 13 Aug 2019 17:03:02 -0400 (EDT)
+	id D08926B0278; Tue, 13 Aug 2019 17:03:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0013.hostedemail.com [216.40.44.13])
-	by kanga.kvack.org (Postfix) with ESMTP id 484976B0276
+Received: from forelay.hostedemail.com (smtprelay0204.hostedemail.com [216.40.44.204])
+	by kanga.kvack.org (Postfix) with ESMTP id 8C1C86B0276
 	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:03:02 -0400 (EDT)
-Received: from smtpin26.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id D731053B3
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:03:01 +0000 (UTC)
-X-FDA: 75818629362.26.ants02_1a5d79099c05e
-X-HE-Tag: ants02_1a5d79099c05e
-X-Filterd-Recvd-Size: 6847
+Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 28E5C6121
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:03:02 +0000 (UTC)
+X-FDA: 75818629404.13.feet72_1a6ba3c411b46
+X-HE-Tag: feet72_1a6ba3c411b46
+X-Filterd-Recvd-Size: 11817
 Received: from mga12.intel.com (mga12.intel.com [192.55.52.136])
-	by imf36.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:03:00 +0000 (UTC)
+	by imf29.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:03:01 +0000 (UTC)
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 14:02:56 -0700
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 14:03:00 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.64,382,1559545200"; 
-   d="scan'208";a="187901438"
+   d="scan'208";a="187901457"
 Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
-  by orsmga002.jf.intel.com with ESMTP; 13 Aug 2019 14:02:54 -0700
+  by orsmga002.jf.intel.com with ESMTP; 13 Aug 2019 14:02:58 -0700
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
 To: x86@kernel.org,
 	"H. Peter Anvin" <hpa@zytor.com>,
@@ -76,9 +76,9 @@ To: x86@kernel.org,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v8 17/27] mm: Update can_follow_write_pte/pmd for shadow stack
-Date: Tue, 13 Aug 2019 13:52:15 -0700
-Message-Id: <20190813205225.12032-18-yu-cheng.yu@intel.com>
+Subject: [PATCH v8 19/27] x86/cet/shstk: User-mode shadow stack support
+Date: Tue, 13 Aug 2019 13:52:17 -0700
+Message-Id: <20190813205225.12032-20-yu-cheng.yu@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190813205225.12032-1-yu-cheng.yu@intel.com>
 References: <20190813205225.12032-1-yu-cheng.yu@intel.com>
@@ -88,137 +88,336 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-can_follow_write_pte/pmd look for the (RO & DIRTY) PTE/PMD to
-verify an exclusive RO page still exists after a broken COW.
-
-A shadow stack PTE is RO & PAGE_DIRTY_SW when it is shared,
-otherwise RO & PAGE_DIRTY_HW.
-
-Introduce pte_exclusive() and pmd_exclusive() to also verify a
-shadow stack PTE is exclusive.
-
-Also rename can_follow_write_pte/pmd() to can_follow_write() to
-make their meaning clear; i.e. "Can we write to the page?", not
-"Is the PTE writable?"
+This patch adds basic shadow stack enabling/disabling routines.
+A task's shadow stack is allocated from memory with VM_SHSTK flag set
+and read-only protection.  It has a fixed size of RLIMIT_STACK.
 
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/mm/pgtable.c         | 18 ++++++++++++++++++
- include/asm-generic/pgtable.h | 12 ++++++++++++
- mm/gup.c                      |  8 +++++---
- mm/huge_memory.c              |  8 +++++---
- 4 files changed, 40 insertions(+), 6 deletions(-)
+ arch/x86/include/asm/cet.h                    |  34 +++++
+ arch/x86/include/asm/disabled-features.h      |   8 +-
+ arch/x86/include/asm/processor.h              |   5 +
+ arch/x86/kernel/Makefile                      |   2 +
+ arch/x86/kernel/cet.c                         | 116 ++++++++++++++++++
+ arch/x86/kernel/cpu/common.c                  |  25 ++++
+ arch/x86/kernel/process.c                     |   1 +
+ .../arch/x86/include/asm/disabled-features.h  |   8 +-
+ 8 files changed, 197 insertions(+), 2 deletions(-)
+ create mode 100644 arch/x86/include/asm/cet.h
+ create mode 100644 arch/x86/kernel/cet.c
 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 6f3959ca2a08..326715fd0c50 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -898,4 +898,22 @@ inline bool arch_copy_pte_mapping(vm_flags_t vm_flags)
- {
- 	return (vm_flags & VM_SHSTK);
- }
+diff --git a/arch/x86/include/asm/cet.h b/arch/x86/include/asm/cet.h
+new file mode 100644
+index 000000000000..c952a2ec65fe
+--- /dev/null
++++ b/arch/x86/include/asm/cet.h
+@@ -0,0 +1,34 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++#ifndef _ASM_X86_CET_H
++#define _ASM_X86_CET_H
 +
-+inline bool pte_exclusive(pte_t pte, struct vm_area_struct *vma)
-+{
-+	if (vma->vm_flags & VM_SHSTK)
-+		return pte_dirty_hw(pte);
-+	else
-+		return pte_dirty(pte);
-+}
++#ifndef __ASSEMBLY__
++#include <linux/types.h>
 +
-+#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-+inline bool pmd_exclusive(pmd_t pmd, struct vm_area_struct *vma)
-+{
-+	if (vma->vm_flags & VM_SHSTK)
-+		return pmd_dirty_hw(pmd);
-+	else
-+		return pmd_dirty(pmd);
-+}
-+#endif /* CONFIG_TRANSPARENT_HUGEPAGE */
- #endif /* CONFIG_X86_INTEL_SHADOW_STACK_USER */
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 438ce73b57ea..b58f40525ebc 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -1203,10 +1203,22 @@ static inline bool arch_copy_pte_mapping(vm_flags_t vm_flags)
- {
- 	return false;
- }
++struct task_struct;
++/*
++ * Per-thread CET status
++ */
++struct cet_status {
++	unsigned long	shstk_base;
++	unsigned long	shstk_size;
++	unsigned int	shstk_enabled:1;
++};
 +
-+static inline bool pte_exclusive(pte_t pte, struct vm_area_struct *vma)
-+{
-+	return pte_dirty(pte);
-+}
++#ifdef CONFIG_X86_INTEL_CET
++int cet_setup_shstk(void);
++void cet_disable_shstk(void);
++void cet_disable_free_shstk(struct task_struct *p);
++#else
++static inline int cet_setup_shstk(void) { return -EINVAL; }
++static inline void cet_disable_shstk(void) {}
++static inline void cet_disable_free_shstk(struct task_struct *p) {}
++#endif
 +
-+static inline bool pmd_exclusive(pmd_t pmd, struct vm_area_struct *vma)
-+{
-+	return pmd_dirty(pmd);
-+}
- #else
- pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma);
- pmd_t pmd_set_vma_features(pmd_t pmd, struct vm_area_struct *vma);
- bool arch_copy_pte_mapping(vm_flags_t vm_flags);
-+bool pte_exclusive(pte_t pte, struct vm_area_struct *vma);
-+bool pmd_exclusive(pmd_t pmd, struct vm_area_struct *vma);
++#define cpu_x86_cet_enabled() \
++	(cpu_feature_enabled(X86_FEATURE_SHSTK) || \
++	 cpu_feature_enabled(X86_FEATURE_IBT))
++
++#endif /* __ASSEMBLY__ */
++
++#endif /* _ASM_X86_CET_H */
+diff --git a/arch/x86/include/asm/disabled-features.h b/arch/x86/include/asm/disabled-features.h
+index a5ea841cc6d2..06323ebed643 100644
+--- a/arch/x86/include/asm/disabled-features.h
++++ b/arch/x86/include/asm/disabled-features.h
+@@ -62,6 +62,12 @@
+ # define DISABLE_PTI		(1 << (X86_FEATURE_PTI & 31))
  #endif
  
- #endif /* _ASM_GENERIC_PGTABLE_H */
-diff --git a/mm/gup.c b/mm/gup.c
-index 98f13ab37bac..d7b298c5f6cb 100644
---- a/mm/gup.c
-+++ b/mm/gup.c
-@@ -179,10 +179,12 @@ static int follow_pfn_pte(struct vm_area_struct *vma, unsigned long address,
-  * FOLL_FORCE can write to even unwritable pte's, but only
-  * after we've gone through a COW cycle and they are dirty.
++#ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
++#define DISABLE_SHSTK	0
++#else
++#define DISABLE_SHSTK	(1<<(X86_FEATURE_SHSTK & 31))
++#endif
++
+ /*
+  * Make sure to add features to the correct mask
   */
--static inline bool can_follow_write_pte(pte_t pte, unsigned int flags)
-+static inline bool can_follow_write(pte_t pte, unsigned int flags,
-+				    struct vm_area_struct *vma)
- {
- 	return pte_write(pte) ||
--		((flags & FOLL_FORCE) && (flags & FOLL_COW) && pte_dirty(pte));
-+		((flags & FOLL_FORCE) && (flags & FOLL_COW) &&
-+		 pte_exclusive(pte, vma));
- }
+@@ -81,7 +87,7 @@
+ #define DISABLED_MASK13	0
+ #define DISABLED_MASK14	0
+ #define DISABLED_MASK15	0
+-#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE|DISABLE_LA57|DISABLE_UMIP)
++#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE|DISABLE_LA57|DISABLE_UMIP|DISABLE_SHSTK)
+ #define DISABLED_MASK17	0
+ #define DISABLED_MASK18	0
+ #define DISABLED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 19)
+diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
+index 6e0a3b43d027..0f9bc7fd1351 100644
+--- a/arch/x86/include/asm/processor.h
++++ b/arch/x86/include/asm/processor.h
+@@ -24,6 +24,7 @@ struct vm86;
+ #include <asm/special_insns.h>
+ #include <asm/fpu/types.h>
+ #include <asm/unwind_hints.h>
++#include <asm/cet.h>
  
- static struct page *follow_page_pte(struct vm_area_struct *vma,
-@@ -220,7 +222,7 @@ static struct page *follow_page_pte(struct vm_area_struct *vma,
- 	}
- 	if ((flags & FOLL_NUMA) && pte_protnone(pte))
- 		goto no_page;
--	if ((flags & FOLL_WRITE) && !can_follow_write_pte(pte, flags)) {
-+	if ((flags & FOLL_WRITE) && !can_follow_write(pte, flags, vma)) {
- 		pte_unmap_unlock(ptep, ptl);
- 		return NULL;
- 	}
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 39d66c628121..947eb0121671 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -1444,10 +1444,12 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
-  * FOLL_FORCE can write to even unwritable pmd's, but only
-  * after we've gone through a COW cycle and they are dirty.
+ #include <linux/personality.h>
+ #include <linux/cache.h>
+@@ -490,6 +491,10 @@ struct thread_struct {
+ 	unsigned int		sig_on_uaccess_err:1;
+ 	unsigned int		uaccess_err:1;	/* uaccess failed */
+ 
++#ifdef CONFIG_X86_INTEL_CET
++	struct cet_status	cet;
++#endif
++
+ 	/* Floating point and extended processor state */
+ 	struct fpu		fpu;
+ 	/*
+diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
+index 3578ad248bc9..c7d918a87cac 100644
+--- a/arch/x86/kernel/Makefile
++++ b/arch/x86/kernel/Makefile
+@@ -140,6 +140,8 @@ obj-$(CONFIG_UNWINDER_ORC)		+= unwind_orc.o
+ obj-$(CONFIG_UNWINDER_FRAME_POINTER)	+= unwind_frame.o
+ obj-$(CONFIG_UNWINDER_GUESS)		+= unwind_guess.o
+ 
++obj-$(CONFIG_X86_INTEL_CET)		+= cet.o
++
+ ###
+ # 64 bit specific files
+ ifeq ($(CONFIG_X86_64),y)
+diff --git a/arch/x86/kernel/cet.c b/arch/x86/kernel/cet.c
+new file mode 100644
+index 000000000000..5e7af0cc75f9
+--- /dev/null
++++ b/arch/x86/kernel/cet.c
+@@ -0,0 +1,116 @@
++/* SPDX-License-Identifier: GPL-2.0 */
++/*
++ * cet.c - Control-flow Enforcement (CET)
++ *
++ * Copyright (c) 2018, Intel Corporation.
++ * Yu-cheng Yu <yu-cheng.yu@intel.com>
++ */
++
++#include <linux/types.h>
++#include <linux/mm.h>
++#include <linux/mman.h>
++#include <linux/slab.h>
++#include <linux/uaccess.h>
++#include <linux/sched/signal.h>
++#include <linux/compat.h>
++#include <asm/msr.h>
++#include <asm/user.h>
++#include <asm/fpu/internal.h>
++#include <asm/fpu/xstate.h>
++#include <asm/fpu/types.h>
++#include <asm/cet.h>
++
++static int set_shstk_ptr(unsigned long addr)
++{
++	u64 r;
++
++	if (!cpu_feature_enabled(X86_FEATURE_SHSTK))
++		return -1;
++
++	if ((addr >= TASK_SIZE_MAX) || (!IS_ALIGNED(addr, 4)))
++		return -1;
++
++	modify_fpu_regs_begin();
++	rdmsrl(MSR_IA32_U_CET, r);
++	wrmsrl(MSR_IA32_PL3_SSP, addr);
++	wrmsrl(MSR_IA32_U_CET, r | MSR_IA32_CET_SHSTK_EN);
++	modify_fpu_regs_end();
++	return 0;
++}
++
++static unsigned long get_shstk_addr(void)
++{
++	unsigned long ptr;
++
++	if (!current->thread.cet.shstk_enabled)
++		return 0;
++
++	modify_fpu_regs_begin();
++	rdmsrl(MSR_IA32_PL3_SSP, ptr);
++	modify_fpu_regs_end();
++	return ptr;
++}
++
++int cet_setup_shstk(void)
++{
++	unsigned long addr, size;
++
++	if (!cpu_feature_enabled(X86_FEATURE_SHSTK))
++		return -EOPNOTSUPP;
++
++	size = rlimit(RLIMIT_STACK);
++	addr = do_mmap_locked(NULL, 0, size, PROT_READ,
++			      MAP_ANONYMOUS | MAP_PRIVATE, VM_SHSTK, NULL);
++
++	/*
++	 * Return actual error from do_mmap().
++	 */
++	if (addr >= TASK_SIZE_MAX)
++		return addr;
++
++	set_shstk_ptr(addr + size - sizeof(u64));
++	current->thread.cet.shstk_base = addr;
++	current->thread.cet.shstk_size = size;
++	current->thread.cet.shstk_enabled = 1;
++	return 0;
++}
++
++void cet_disable_shstk(void)
++{
++	u64 r;
++
++	if (!cpu_feature_enabled(X86_FEATURE_SHSTK))
++		return;
++
++	modify_fpu_regs_begin();
++	rdmsrl(MSR_IA32_U_CET, r);
++	r &= ~(MSR_IA32_CET_SHSTK_EN);
++	wrmsrl(MSR_IA32_U_CET, r);
++	wrmsrl(MSR_IA32_PL3_SSP, 0);
++	modify_fpu_regs_end();
++	current->thread.cet.shstk_enabled = 0;
++}
++
++void cet_disable_free_shstk(struct task_struct *tsk)
++{
++	if (!cpu_feature_enabled(X86_FEATURE_SHSTK) ||
++	    !tsk->thread.cet.shstk_enabled)
++		return;
++
++	if (tsk->mm && (tsk == current))
++		cet_disable_shstk();
++
++	/*
++	 * Free only when tsk is current or shares mm
++	 * with current but has its own shstk.
++	 */
++	if (tsk->mm && (tsk->mm == current->mm) &&
++	    (tsk->thread.cet.shstk_base)) {
++		vm_munmap(tsk->thread.cet.shstk_base,
++			  tsk->thread.cet.shstk_size);
++		tsk->thread.cet.shstk_base = 0;
++		tsk->thread.cet.shstk_size = 0;
++	}
++
++	tsk->thread.cet.shstk_enabled = 0;
++}
+diff --git a/arch/x86/kernel/cpu/common.c b/arch/x86/kernel/cpu/common.c
+index f125bf7ecb6f..d3addbd3f4d4 100644
+--- a/arch/x86/kernel/cpu/common.c
++++ b/arch/x86/kernel/cpu/common.c
+@@ -53,6 +53,7 @@
+ #include <asm/microcode_intel.h>
+ #include <asm/intel-family.h>
+ #include <asm/cpu_device_id.h>
++#include <asm/cet.h>
+ 
+ #ifdef CONFIG_X86_LOCAL_APIC
+ #include <asm/uv/uv.h>
+@@ -488,6 +489,29 @@ static __init int setup_disable_pku(char *arg)
+ __setup("nopku", setup_disable_pku);
+ #endif /* CONFIG_X86_64 */
+ 
++static __always_inline void setup_cet(struct cpuinfo_x86 *c)
++{
++	if (cpu_x86_cet_enabled())
++		cr4_set_bits(X86_CR4_CET);
++}
++
++#ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
++static __init int setup_disable_shstk(char *s)
++{
++	/* require an exact match without trailing characters */
++	if (s[0] != '\0')
++		return 0;
++
++	if (!boot_cpu_has(X86_FEATURE_SHSTK))
++		return 1;
++
++	setup_clear_cpu_cap(X86_FEATURE_SHSTK);
++	pr_info("x86: 'no_cet_shstk' specified, disabling Shadow Stack\n");
++	return 1;
++}
++__setup("no_cet_shstk", setup_disable_shstk);
++#endif
++
+ /*
+  * Some CPU features depend on higher CPUID levels, which may not always
+  * be available due to CPUID level capping or broken virtualization
+@@ -1481,6 +1505,7 @@ static void identify_cpu(struct cpuinfo_x86 *c)
+ 	x86_init_rdrand(c);
+ 	x86_init_cache_qos(c);
+ 	setup_pku(c);
++	setup_cet(c);
+ 
+ 	/*
+ 	 * Clear/Set all flags overridden by options, need do it
+diff --git a/arch/x86/kernel/process.c b/arch/x86/kernel/process.c
+index d360bf4d696b..a4deb79b1089 100644
+--- a/arch/x86/kernel/process.c
++++ b/arch/x86/kernel/process.c
+@@ -42,6 +42,7 @@
+ #include <asm/prctl.h>
+ #include <asm/spec-ctrl.h>
+ #include <asm/proto.h>
++#include <asm/cet.h>
+ 
+ #include "process.h"
+ 
+diff --git a/tools/arch/x86/include/asm/disabled-features.h b/tools/arch/x86/include/asm/disabled-features.h
+index a5ea841cc6d2..06323ebed643 100644
+--- a/tools/arch/x86/include/asm/disabled-features.h
++++ b/tools/arch/x86/include/asm/disabled-features.h
+@@ -62,6 +62,12 @@
+ # define DISABLE_PTI		(1 << (X86_FEATURE_PTI & 31))
+ #endif
+ 
++#ifdef CONFIG_X86_INTEL_SHADOW_STACK_USER
++#define DISABLE_SHSTK	0
++#else
++#define DISABLE_SHSTK	(1<<(X86_FEATURE_SHSTK & 31))
++#endif
++
+ /*
+  * Make sure to add features to the correct mask
   */
--static inline bool can_follow_write_pmd(pmd_t pmd, unsigned int flags)
-+static inline bool can_follow_write(pmd_t pmd, unsigned int flags,
-+				    struct vm_area_struct *vma)
- {
- 	return pmd_write(pmd) ||
--	       ((flags & FOLL_FORCE) && (flags & FOLL_COW) && pmd_dirty(pmd));
-+	       ((flags & FOLL_FORCE) && (flags & FOLL_COW) &&
-+		pmd_exclusive(pmd, vma));
- }
- 
- struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
-@@ -1460,7 +1462,7 @@ struct page *follow_trans_huge_pmd(struct vm_area_struct *vma,
- 
- 	assert_spin_locked(pmd_lockptr(mm, pmd));
- 
--	if (flags & FOLL_WRITE && !can_follow_write_pmd(*pmd, flags))
-+	if (flags & FOLL_WRITE && !can_follow_write(*pmd, flags, vma))
- 		goto out;
- 
- 	/* Avoid dumping huge zero page */
+@@ -81,7 +87,7 @@
+ #define DISABLED_MASK13	0
+ #define DISABLED_MASK14	0
+ #define DISABLED_MASK15	0
+-#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE|DISABLE_LA57|DISABLE_UMIP)
++#define DISABLED_MASK16	(DISABLE_PKU|DISABLE_OSPKE|DISABLE_LA57|DISABLE_UMIP|DISABLE_SHSTK)
+ #define DISABLED_MASK17	0
+ #define DISABLED_MASK18	0
+ #define DISABLED_MASK_CHECK BUILD_BUG_ON_ZERO(NCAPINTS != 19)
 -- 
 2.17.1
 
