@@ -2,231 +2,211 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-7.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7178AC32750
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:07:05 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 15F9FC32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:08:17 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1FDF52063F
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:07:05 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1FDF52063F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id A755920679
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:08:16 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A755920679
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=huawei.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C39396B000A; Tue, 13 Aug 2019 05:07:04 -0400 (EDT)
+	id 3D33D6B000D; Tue, 13 Aug 2019 05:08:16 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BC3C86B000C; Tue, 13 Aug 2019 05:07:04 -0400 (EDT)
+	id 385036B000E; Tue, 13 Aug 2019 05:08:16 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A89926B000D; Tue, 13 Aug 2019 05:07:04 -0400 (EDT)
+	id 29ABD6B0010; Tue, 13 Aug 2019 05:08:16 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0177.hostedemail.com [216.40.44.177])
-	by kanga.kvack.org (Postfix) with ESMTP id 8118A6B000A
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 05:07:04 -0400 (EDT)
-Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 29BE7180AD7C3
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:07:04 +0000 (UTC)
-X-FDA: 75816825168.23.smell80_207751497c261
-X-HE-Tag: smell80_207751497c261
-X-Filterd-Recvd-Size: 11110
-Received: from mga06.intel.com (mga06.intel.com [134.134.136.31])
-	by imf28.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:07:02 +0000 (UTC)
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga005.jf.intel.com ([10.7.209.41])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 01:39:06 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,380,1559545200"; 
-   d="gz'50?scan'50,208,50";a="351472355"
-Received: from lkp-server01.sh.intel.com (HELO lkp-server01) ([10.239.97.150])
-  by orsmga005.jf.intel.com with ESMTP; 13 Aug 2019 01:39:01 -0700
-Received: from kbuild by lkp-server01 with local (Exim 4.89)
-	(envelope-from <lkp@intel.com>)
-	id 1hxSKb-0001DL-BA; Tue, 13 Aug 2019 16:39:01 +0800
-Date: Tue, 13 Aug 2019 16:39:00 +0800
-From: kbuild test robot <lkp@intel.com>
-To: Alexander Duyck <alexander.duyck@gmail.com>
-Cc: kbuild-all@01.org, nitesh@redhat.com, kvm@vger.kernel.org,
-	mst@redhat.com, david@redhat.com, dave.hansen@intel.com,
-	linux-kernel@vger.kernel.org, willy@infradead.org,
-	mhocko@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org,
-	virtio-dev@lists.oasis-open.org, osalvador@suse.de,
-	yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
-	konrad.wilk@oracle.com, lcapitulino@redhat.com,
-	wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com,
-	dan.j.williams@intel.com, alexander.h.duyck@linux.intel.com
-Subject: Re: [PATCH v5 4/6] mm: Introduce Reported pages
-Message-ID: <201908131654.NqyZiEQm%lkp@intel.com>
-References: <20190812213344.22097.86213.stgit@localhost.localdomain>
+Received: from forelay.hostedemail.com (smtprelay0143.hostedemail.com [216.40.44.143])
+	by kanga.kvack.org (Postfix) with ESMTP id 02DB46B000D
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 05:08:15 -0400 (EDT)
+Received: from smtpin27.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 9B669180AD801
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:08:15 +0000 (UTC)
+X-FDA: 75816828150.27.mark13_2ad5cec04fc06
+X-HE-Tag: mark13_2ad5cec04fc06
+X-Filterd-Recvd-Size: 12170
+Received: from huawei.com (szxga05-in.huawei.com [45.249.212.191])
+	by imf04.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:08:14 +0000 (UTC)
+Received: from DGGEMS401-HUB.china.huawei.com (unknown [172.30.72.59])
+	by Forcepoint Email with ESMTP id 1BA99C68DE6B44D23AC4;
+	Tue, 13 Aug 2019 17:08:10 +0800 (CST)
+Received: from [127.0.0.1] (10.133.217.137) by DGGEMS401-HUB.china.huawei.com
+ (10.3.19.201) with Microsoft SMTP Server id 14.3.439.0; Tue, 13 Aug 2019
+ 17:08:05 +0800
+CC: Andrea Arcangeli <aarcange@redhat.com>, Oleg Nesterov <oleg@redhat.com>,
+	Peter Xu <peterx@redhat.com>, Mike Rapoport <rppt@linux.ibm.com>, Jann Horn
+	<jannh@google.com>, Jason Gunthorpe <jgg@mellanox.com>, Michal Hocko
+	<mhocko@suse.com>, Andrew Morton <akpm@linux-foundation.org>
+From: Kefeng Wang <wangkefeng.wang@huawei.com>
+Subject: [BUG] kernel BUG at fs/userfaultfd.c:385 after 04f5866e41fb
+To: linux-mm <linux-mm@kvack.org>
+Message-ID: <d4583416-5e4a-95e7-a08a-32bf2c9a95fb@huawei.com>
+Date: Tue, 13 Aug 2019 17:08:05 +0800
+User-Agent: Mozilla/5.0 (Windows NT 6.1; WOW64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
 MIME-Version: 1.0
-Content-Type: multipart/mixed; boundary="2lwoaplyqgzmgqg6"
-Content-Disposition: inline
-In-Reply-To: <20190812213344.22097.86213.stgit@localhost.localdomain>
-X-Patchwork-Hint: ignore
-User-Agent: NeoMutt/20170113 (1.7.2)
+Content-Type: text/plain; charset="utf-8"
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Originating-IP: [10.133.217.137]
+X-CFilter-Loop: Reflected
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+Hi Andrea Arcangeli and all,
 
---2lwoaplyqgzmgqg6
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
+There is a BUG after apply patch "04f5866e41fb coredump: fix race condition between mmget_not_zero()/get_task_mm() and core dumping".
+The following is reproducer and panic log, could anyone check it?
 
-Hi Alexander,
+Syzkaller reproducer:
+# {Threaded:true Collide:true Repeat:false RepeatTimes:0 Procs:1 Sandbox:none Fault:false FaultCall:-1 FaultNth:0 EnableTun:true EnableNetDev:true EnableNetReset:false EnableCgroups:false EnableBinfmtMisc:true EnableCloseFds:true UseTmpDir:true HandleSegv:true Repro:false Trace:false}
+r0 = userfaultfd(0x80800)
+ioctl$UFFDIO_API(r0, 0xc018aa3f, &(0x7f0000000200))
+ioctl$UFFDIO_REGISTER(r0, 0xc020aa00, &(0x7f0000000080)={{&(0x7f0000ff2000/0xe000)=nil, 0xe000}, 0x1})
+ioctl$UFFDIO_COPY(r0, 0xc028aa03, 0x0)
+ioctl$UFFDIO_COPY(r0, 0xc028aa03, &(0x7f0000000000)={&(0x7f0000ffc000/0x3000)=nil, &(0x7f0000ffd000/0x2000)=nil, 0x3000})
+syz_execute_func(&(0x7f00000000c0)="4134de984013e80f059532058300000071f3c4e18dd1ce5a65460f18320ce0b9977d8f64360f6e54e3a50fe53ff30fb837c42195dc42eddb8f087ca2a4d2c4017b708fa878c3e600f3266440d9a200000000c4016c5bdd7d0867dfe07f00f20f2b5f0009404cc442c102282cf2f20f51e22ef2e1291010f2262ef045814cb39700000000f32e3ef0fe05922f79a4000030470f3b58c1312fe7460f50ce0502338d00858526660f346253f6010f0f801d000000470f0f2c0a90c7c7df84feefff3636260fe02c98c8b8fcfc81fc51720a40400e700064660f71e70d2e0f57dfe819d0253f3ecaf06ad647608c41ffc42249bccb430f9bc8b7a042420f8d0042171e0f95ca9f7f921000d9fac4a27d5a1fc4a37961309de9000000003171460fc4d303c466410fd6389dc4426c456300c4233d4c922d92abf90ac6c34df30f5ee50909430f3a15e7776f6e866b0fdfdfc482797841cf6ffc842d9b9a516dc2e52ef2ac2636f20f114832d46231bffd4834eaeac4237d09d0003766420f160182c4a37d047882007f108f2808a6e68fc401505d6a82635d1467440fc7ba0c000000d4c482359652745300")
+poll(&(0x7f00000000c0)=[{}], 0x1, 0x0)
 
-Thank you for the patch! Yet something to improve:
+./syz-execprog -executor=./syz-executor -repeat=0 -procs=16 -cover=0 repofile
 
-[auto build test ERROR on linus/master]
-[cannot apply to v5.3-rc4]
-[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
 
-url:    https://github.com/0day-ci/linux/commits/Alexander-Duyck/mm-virtio-Provide-support-for-unused-page-reporting/20190813-150543
-config: riscv-tinyconfig (attached as .config)
-compiler: riscv64-linux-gcc (GCC) 7.4.0
-reproduce:
-        wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
-        chmod +x ~/bin/make.cross
-        # save the attached .config to linux build tree
-        GCC_VERSION=7.4.0 make.cross ARCH=riscv 
+[   74.783362] invalid opcode: 0000 [#1] SMP PTI
+[   74.783740] ------------[ cut here ]------------
+[   74.784430] CPU: 5 PID: 12803 Comm: syz-executor.15 Not tainted 5.3.0-rc4 #15
+[   74.785831] kernel BUG at ../fs/userfaultfd.c:385!
+[   74.787906] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1ubuntu1 04/01/2014
+[   74.787916] RIP: 0010:handle_userfault+0x615/0x6b0
+[   74.793714] Code: c3 e9 ed fc ff ff 48 39 84 24 a0 00 00 00 0f 85 1a fe ff ff e9 69 fe ff ff e8 f7 28 d8 ff 0f 0b 0f 0b 0f 0b 90 e9 71 fa ff ff <0f> 0b bd 00 01 00 00 e9 29 fa ff ff a8 08 75 49 48 c7 c7 e0 1a e5
+[   74.793716] RSP: 0018:ffffc9000853b9a0 EFLAGS: 00010287
+[   74.793719] RAX: ffff88842b685708 RBX: ffffc9000853baa8 RCX: 00000000ebeaed2d
+[   74.793720] RDX: 0000000000000100 RSI: 0000000000000200 RDI: ffffc9000853baa8
+[   74.793721] RBP: ffff88841b29afe8 R08: ffff88841bdb8cb8 R09: 00000000fffffff0
+[   74.793723] R10: 0000000000000000 R11: 0000000000000000 R12: ffff88841f6b2400
+[   74.793724] R13: ffff88841b6e6900 R14: ffff888107d0f000 R15: ffff88842b685708
+[   74.793726] FS:  00007f662e18f700(0000) GS:ffff88842fa80000(0000) knlGS:0000000000000000
+[   74.793728] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   74.793729] CR2: 0000000020ffd000 CR3: 000000041b3aa006 CR4: 00000000000206e0
+[   74.793734] Call Trace:
+[   74.793741]  ? __lock_acquire+0x44a/0x10d0
+[   74.793749]  ? find_held_lock+0x31/0xa0
+[   74.793755]  ? __handle_mm_fault+0xfc2/0x1140
+[   74.827705]  __handle_mm_fault+0xfcf/0x1140
+[   74.827714]  handle_mm_fault+0x18d/0x390
+[   74.830599]  ? handle_mm_fault+0x46/0x390
+[   74.830604]  __do_page_fault+0x250/0x4e0
+[   74.830609]  do_page_fault+0x31/0x210
+[   74.830635]  async_page_fault+0x43/0x50
+[   74.836532] RIP: 0010:copy_user_handle_tail+0x2/0x10
+[   74.836534] Code: c3 0f 1f 80 00 00 00 00 66 66 90 83 fa 40 0f 82 70 ff ff ff 89 d1 f3 a4 31 c0 66 66 90 c3 66 2e 0f 1f 84 00 00 00 00 00 89 d1 <f3> a4 89 c8 66 66 90 c3 66 0f 1f 44 00 00 66 66 90 83 fa 08 0f 82
+[   74.836536] RSP: 0018:ffffc9000853bcc0 EFLAGS: 00010246
+[   74.836538] RAX: 0000000020ffe000 RBX: 0000000020ffd000 RCX: 0000000000001000
+[   74.836539] RDX: 0000000000001000 RSI: 0000000020ffd000 RDI: ffff8884216d0000
+[   74.836541] RBP: 0000000000001000 R08: 0000000000000001 R09: 0000000000000000
+[   74.853625] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8884216d0000
+[   74.853627] R13: ffff88841ba56838 R14: ffff88841bdb8000 R15: fffffffffffffffe
+[   74.853654]  _copy_from_user+0x69/0xa0
+[   74.859716]  mcopy_atomic+0x80f/0xc30
+[   74.859719]  ? find_held_lock+0x31/0xa0
+[   74.859728]  userfaultfd_ioctl+0x2f6/0x1290
+[   74.859749]  ? __lock_acquire+0x44a/0x10d0
+[   74.864385]  ? __lock_acquire+0x44a/0x10d0
+[   74.864393]  do_vfs_ioctl+0xa6/0x6f0
+[   74.864401]  ksys_ioctl+0x60/0x90
+[   74.867616]  __x64_sys_ioctl+0x16/0x20
+[   74.867622]  do_syscall_64+0x5a/0x270
+[   74.867625]  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+[   74.867629] RIP: 0033:0x458c59
+[   74.872142] Code: ad b8 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff ff 0f 83 7b b8 fb ff c3 66 2e 0f 1f 84 00 00 00 00
+[   74.872144] RSP: 002b:00007f662e18ec78 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+[   74.872146] RAX: ffffffffffffffda RBX: 0000000000000003 RCX: 0000000000458c59
+[   74.872148] RDX: 0000000020000000 RSI: 00000000c028aa03 RDI: 0000000000000003
+[   74.872149] RBP: 000000000073c040 R08: 0000000000000000 R09: 0000000000000000
+[   74.872151] R10: 0000000000000000 R11: 0000000000000246 R12: 00007f662e18f6d4
+[   74.872152] R13: 00000000004c34cf R14: 00000000004d6958 R15: 00000000ffffffff
+[   74.872159] Modules linked in:
+[   74.894123] Dumping ftrace buffer:
+[   74.894141]    (ftrace buffer empty)
+[   74.894173] invalid opcode: 0000 [#2] SMP PTI
+[   74.894205] ---[ end trace 046fbc99545d7cd2 ]---
+[   74.894209] RIP: 0010:handle_userfault+0x615/0x6b0
+[   74.894211] Code: c3 e9 ed fc ff ff 48 39 84 24 a0 00 00 00 0f 85 1a fe ff ff e9 69 fe ff ff e8 f7 28 d8 ff 0f 0b 0f 0b 0f 0b 90 e9 71 fa ff ff <0f> 0b bd 00 01 00 00 e9 29 fa ff ff a8 08 75 49 48 c7 c7 e0 1a e5
+[   74.894212] RSP: 0018:ffffc9000853b9a0 EFLAGS: 00010287
+[   74.894215] RAX: ffff88842b685708 RBX: ffffc9000853baa8 RCX: 00000000ebeaed2d
+[   74.894216] RDX: 0000000000000100 RSI: 0000000000000200 RDI: ffffc9000853baa8
+[   74.894217] RBP: ffff88841b29afe8 R08: ffff88841bdb8cb8 R09: 00000000fffffff0
+[   74.894219] R10: 0000000000000000 R11: 0000000000000000 R12: ffff88841f6b2400
+[   74.894220] R13: ffff88841b6e6900 R14: ffff888107d0f000 R15: ffff88842b685708
+[   74.894222] FS:  00007f662e18f700(0000) GS:ffff88842fa80000(0000) knlGS:0000000000000000
+[   74.894224] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   74.894225] CR2: 0000000020ffd000 CR3: 000000041b3aa006 CR4: 00000000000206e0
+[   74.894229] Kernel panic - not syncing: Fatal exception
+[   74.925215] CPU: 0 PID: 12801 Comm: syz-executor.12 Tainted: G      D           5.3.0-rc4-nocordump #15
+[   74.927904] Hardware name: QEMU Standard PC (i440FX + PIIX, 1996), BIOS 1.10.2-1ubuntu1 04/01/2014
+[   74.930520] RIP: 0010:handle_userfault+0x615/0x6b0
+[   74.931725] Code: c3 e9 ed fc ff ff 48 39 84 24 a0 00 00 00 0f 85 1a fe ff ff e9 69 fe ff ff e8 f7 28 d8 ff 0f 0b 0f 0b 0f 0b 90 e9 71 fa ff ff <0f> 0b bd 00 01 00 00 e9 29 fa ff ff a8 08 75 49 48 c7 c7 e0 1a e5
+[   74.935662] RSP: 0018:ffffc9000852b9a0 EFLAGS: 00010287
+[   74.936776] RAX: ffff88841b6d5190 RBX: ffffc9000852baa8 RCX: 0000000000000000
+[   74.938282] RDX: 0000000000000100 RSI: 0000000000000200 RDI: ffffc9000852baa8
+[   74.939796] RBP: ffff88841b2fafe8 R08: 0000000000000000 R09: 0000000000000000
+[   74.941292] R10: 0000000000000000 R11: 0000000000000000 R12: ffff888427672400
+[   74.942793] R13: ffff88841b6e6000 R14: ffff888107d0f000 R15: ffff88841b6d5190
+[   74.944295] FS:  00007fa9e620e700(0000) GS:ffff88842f800000(0000) knlGS:0000000000000000
+[   74.945989] CS:  0010 DS: 0000 ES: 0000 CR0: 0000000080050033
+[   74.947205] CR2: 0000000020ffd000 CR3: 000000041b2ac003 CR4: 00000000000206f0
+[   74.948701] Call Trace:
+[   74.949237]  ? __lock_acquire+0x44a/0x10d0
+[   74.950116]  ? __update_load_avg_se+0x1ed/0x2a0
+[   74.951088]  ? __handle_mm_fault+0xe54/0x1140
+[   74.952017]  __handle_mm_fault+0xfcf/0x1140
+[   74.952911]  handle_mm_fault+0x18d/0x390
+[   74.953750]  ? handle_mm_fault+0x46/0x390
+[   74.954610]  __do_page_fault+0x250/0x4e0
+[   74.955463]  do_page_fault+0x31/0x210
+[   74.956250]  async_page_fault+0x43/0x50
+[   74.957072] RIP: 0010:copy_user_handle_tail+0x2/0x10
+[   74.958118] Code: c3 0f 1f 80 00 00 00 00 66 66 90 83 fa 40 0f 82 70 ff ff ff 89 d1 f3 a4 31 c0 66 66 90 c3 66 2e 0f 1f 84 00 00 00 00 00 89 d1 <f3> a4 89 c8 66 66 90 c3 66 0f 1f 44 00 00 66 66 90 83 fa 08 0f 82
+[   74.962044] RSP: 0018:ffffc9000852bcc0 EFLAGS: 00010246
+[   74.963164] RAX: 0000000020ffe000 RBX: 0000000020ffd000 RCX: 0000000000001000
+[   74.964663] RDX: 0000000000001000 RSI: 0000000020ffd000 RDI: ffff8884216cf000
+[   74.966164] RBP: 0000000000001000 R08: 0000000000000001 R09: 0000000000000000
+[   74.967680] R10: 0000000000000000 R11: 0000000000000000 R12: ffff8884216cf000
+[   74.969176] R13: ffff88841bd9c838 R14: ffff88841b879f00 R15: fffffffffffffffe
+[   74.970685]  _copy_from_user+0x69/0xa0
+[   74.971498]  mcopy_atomic+0x80f/0xc30
+[   74.972288]  ? find_held_lock+0x31/0xa0
+[   74.973117]  userfaultfd_ioctl+0x2f6/0x1290
+[   74.974011]  ? __lock_acquire+0x44a/0x10d0
+[   74.974895]  ? __lock_acquire+0x44a/0x10d0
+[   74.975774]  do_vfs_ioctl+0xa6/0x6f0
+[   74.976545]  ksys_ioctl+0x60/0x90
+[   74.977262]  __x64_sys_ioctl+0x16/0x20
+[   74.978068]  do_syscall_64+0x5a/0x270
+[   74.978867]  entry_SYSCALL_64_after_hwframe+0x49/0xbe
+[   74.979925] RIP: 0033:0x458c59
+[   74.980582] Code: ad b8 fb ff c3 66 2e 0f 1f 84 00 00 00 00 00 66 90 48 89 f8 48 89 f7 48 89 d6 48 89 ca 4d 89 c2 4d 89 c8 4c 8b 4c 24 08 0f 05 <48> 3d 01 f0 ff ff 0f 83 7b b8 fb ff c3 66 2e 0f 1f 84 00 00 00 00
+[   74.984467] RSP: 002b:00007fa9e620dc78 EFLAGS: 00000246 ORIG_RAX: 0000000000000010
+[   74.986047] RAX: ffffffffffffffda RBX: 0000000000000003 RCX: 0000000000458c59
+[   74.987552] RDX: 0000000020000000 RSI: 00000000c028aa03 RDI: 0000000000000003
+[   74.989052] RBP: 000000000073c040 R08: 0000000000000000 R09: 0000000000000000
+[   74.990545] R10: 0000000000000000 R11: 0000000000000246 R12: 00007fa9e620e6d4
+[   74.992058] R13: 00000000004c34cf R14: 00000000004d6958 R15: 00000000ffffffff
+[   74.993560] Modules linked in:
+[   74.994217] Dumping ftrace buffer:
+[   74.994952]    (ftrace buffer empty)
+[   74.995753] Dumping ftrace buffer:
+[   74.996496]    (ftrace buffer empty)
+[   74.997253] Kernel Offset: disabled
+[   74.997995] Rebooting in 86400 seconds..
 
-If you fix the issue, kindly add following tag
-Reported-by: kbuild test robot <lkp@intel.com>
-
-All errors (new ones prefixed by >>):
-
-   In file included from include/linux/mmzone.h:774:0,
-                    from include/linux/gfp.h:6,
-                    from include/linux/umh.h:4,
-                    from include/linux/kmod.h:9,
-                    from include/linux/module.h:13,
-                    from init/main.c:17:
->> include/linux/page_reporting.h:8:10: fatal error: asm/pgtable_types.h: No such file or directory
-    #include <asm/pgtable_types.h>
-             ^~~~~~~~~~~~~~~~~~~~~
-   compilation terminated.
-
-vim +8 include/linux/page_reporting.h
-
-     4	
-     5	#include <linux/mmzone.h>
-     6	#include <linux/jump_label.h>
-     7	#include <linux/pageblock-flags.h>
-   > 8	#include <asm/pgtable_types.h>
-     9	
-
----
-0-DAY kernel test infrastructure                Open Source Technology Center
-https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
-
---2lwoaplyqgzmgqg6
-Content-Type: application/gzip
-Content-Disposition: attachment; filename=".config.gz"
-Content-Transfer-Encoding: base64
-
-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
-
---2lwoaplyqgzmgqg6--
 
