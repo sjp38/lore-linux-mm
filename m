@@ -2,176 +2,148 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0D3BCC32750
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 10:45:33 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7D4D8C32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 10:51:48 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C23CF20840
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 10:45:32 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C23CF20840
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 2CF9920673
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 10:51:48 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2CF9920673
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 5D4CC6B0005; Tue, 13 Aug 2019 06:45:32 -0400 (EDT)
+	id A3DD86B0005; Tue, 13 Aug 2019 06:51:47 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 587106B0006; Tue, 13 Aug 2019 06:45:32 -0400 (EDT)
+	id 9C6916B0006; Tue, 13 Aug 2019 06:51:47 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 472AC6B0007; Tue, 13 Aug 2019 06:45:32 -0400 (EDT)
+	id 88D636B0007; Tue, 13 Aug 2019 06:51:47 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0151.hostedemail.com [216.40.44.151])
-	by kanga.kvack.org (Postfix) with ESMTP id 2176C6B0005
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 06:45:32 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id BB6254421
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 10:45:31 +0000 (UTC)
-X-FDA: 75817073262.08.thumb42_131e255ab2d50
-X-HE-Tag: thumb42_131e255ab2d50
-X-Filterd-Recvd-Size: 7353
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf19.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 10:45:31 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx04.intmail.prod.int.phx2.redhat.com [10.5.11.14])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 5275230EA180;
-	Tue, 13 Aug 2019 10:45:30 +0000 (UTC)
-Received: from [10.36.117.2] (ovpn-117-2.ams2.redhat.com [10.36.117.2])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id 47BEE80FDB;
-	Tue, 13 Aug 2019 10:45:05 +0000 (UTC)
-Subject: Re: [RFC][Patch v12 1/2] mm: page_reporting: core infrastructure
-To: Nitesh Narayan Lal <nitesh@redhat.com>,
- Alexander Duyck <alexander.duyck@gmail.com>
-Cc: kvm list <kvm@vger.kernel.org>, LKML <linux-kernel@vger.kernel.org>,
- linux-mm <linux-mm@kvack.org>, virtio-dev@lists.oasis-open.org,
- Paolo Bonzini <pbonzini@redhat.com>, lcapitulino@redhat.com,
- pagupta@redhat.com, wei.w.wang@intel.com,
- Yang Zhang <yang.zhang.wz@gmail.com>, Rik van Riel <riel@surriel.com>,
- "Michael S. Tsirkin" <mst@redhat.com>, dodgen@google.com,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, dhildenb@redhat.com,
- Andrea Arcangeli <aarcange@redhat.com>, john.starks@microsoft.com,
- Dave Hansen <dave.hansen@intel.com>, Michal Hocko <mhocko@suse.com>,
- cohuck@redhat.com
-References: <20190812131235.27244-1-nitesh@redhat.com>
- <20190812131235.27244-2-nitesh@redhat.com>
- <CAKgT0UcSabyrO=jUwq10KpJKLSuzorHDnKAGrtWVigKVgvD-6Q@mail.gmail.com>
- <ca362045-9668-18ff-39b0-de91fa72e73c@redhat.com>
- <d39504c9-93bd-b8f7-e119-84baac5a42d4@redhat.com>
- <32f61f87-6205-5001-866c-a84e20fc9d85@redhat.com>
- <53fb1343-3b18-a566-aaa5-90a1d99d7333@redhat.com>
-From: David Hildenbrand <david@redhat.com>
-Openpgp: preference=signencrypt
-Autocrypt: addr=david@redhat.com; prefer-encrypt=mutual; keydata=
- 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
- SE+xAvmumFBY
-Organization: Red Hat GmbH
-Message-ID: <8735a3a0-e1aa-e64d-af67-5cca3ae2c529@redhat.com>
-Date: Tue, 13 Aug 2019 12:44:35 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.2
+Received: from forelay.hostedemail.com (smtprelay0210.hostedemail.com [216.40.44.210])
+	by kanga.kvack.org (Postfix) with ESMTP id 62E0C6B0005
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 06:51:47 -0400 (EDT)
+Received: from smtpin22.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id EBBD945B4
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 10:51:46 +0000 (UTC)
+X-FDA: 75817089012.22.oven23_49b5bab89590e
+X-HE-Tag: oven23_49b5bab89590e
+X-Filterd-Recvd-Size: 5033
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf17.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 10:51:46 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id A7B68AD7F;
+	Tue, 13 Aug 2019 10:51:44 +0000 (UTC)
+Date: Tue, 13 Aug 2019 12:51:43 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Minchan Kim <minchan@kernel.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	LKML <linux-kernel@vger.kernel.org>, linux-mm <linux-mm@kvack.org>,
+	Miguel de Dios <migueldedios@google.com>, Wei Wang <wvw@google.com>,
+	Mel Gorman <mgorman@techsingularity.net>,
+	Nicholas Piggin <npiggin@gmail.com>
+Subject: Re: [RFC PATCH] mm: drop mark_page_access from the unmap path
+Message-ID: <20190813105143.GG17933@dhcp22.suse.cz>
+References: <20190730123237.GR9330@dhcp22.suse.cz>
+ <20190730123935.GB184615@google.com>
+ <20190730125751.GS9330@dhcp22.suse.cz>
+ <20190731054447.GB155569@google.com>
+ <20190731072101.GX9330@dhcp22.suse.cz>
+ <20190806105509.GA94582@google.com>
+ <20190809124305.GQ18351@dhcp22.suse.cz>
+ <20190809183424.GA22347@cmpxchg.org>
+ <20190812080947.GA5117@dhcp22.suse.cz>
+ <20190812150725.GA3684@cmpxchg.org>
 MIME-Version: 1.0
-In-Reply-To: <53fb1343-3b18-a566-aaa5-90a1d99d7333@redhat.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.14
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Tue, 13 Aug 2019 10:45:30 +0000 (UTC)
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190812150725.GA3684@cmpxchg.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 13.08.19 12:42, Nitesh Narayan Lal wrote:
+On Mon 12-08-19 11:07:25, Johannes Weiner wrote:
+> On Mon, Aug 12, 2019 at 10:09:47AM +0200, Michal Hocko wrote:
+[...]
+> > Btw. can we promote PageReferenced pages with zero mapcount? I am
+> > throwing that more as an idea because I haven't really thought that
+> > through yet.
 > 
-> On 8/13/19 6:34 AM, David Hildenbrand wrote:
->>>>>> +static int process_free_page(struct page *page,
->>>>>> +                            struct page_reporting_config *phconf, int count)
->>>>>> +{
->>>>>> +       int mt, order, ret = 0;
-> [...]
->>>>>> +/**
->>>>>> + * zone_reporting_init - For each zone initializes the page reporting fields
->>>>>> + * and allocates the respective bitmap.
->>>>>> + *
->>>>>> + * This function returns 0 on successful initialization, -ENOMEM otherwise.
->>>>>> + */
->>>>>> +static int zone_reporting_init(void)
->>>>>> +{
->>>>>> +       struct zone *zone;
->>>>>> +       int ret;
->>>>>> +
->>>>>> +       for_each_populated_zone(zone) {
->>>>>> +#ifdef CONFIG_ZONE_DEVICE
->>>>>> +               /* we can not report pages which are not in the buddy */
->>>>>> +               if (zone_idx(zone) == ZONE_DEVICE)
->>>>>> +                       continue;
->>>>>> +#endif
->>>>> I'm pretty sure this isn't needed since I don't think the ZONE_DEVICE
->>>>> zone will be considered "populated".
->>>>>
->>>> I think you are right (although it's confusing, we will have present
->>>> sections part of a zone but the zone has no present_pages - screams like
->>>> a re factoring - leftover from ZONE_DEVICE introduction).
->>>
->>> I think in that case it is safe to have this check here.
->>> What do you guys suggest?
->> If it's not needed, I'd say drop it (eventually add a comment).
+> That flag implements a second-chance policy, see this commit:
 > 
+> commit 645747462435d84c6c6a64269ed49cc3015f753d
+> Author: Johannes Weiner <hannes@cmpxchg.org>
+> Date:   Fri Mar 5 13:42:22 2010 -0800
 > 
-> Comment to mention that we do not expect a zone with non-buddy page to be
-> initialized here?
+>     vmscan: detect mapped file pages used only once
+> 
+> We had an application that would checksum large files using mmapped IO
+> to avoid double buffering. The VM used to activate mapped cache
+> directly, and it trashed the actual workingset.
+> 
+> In response I added support for use-once mapped pages using this flag.
+> SetPageReferenced signals the VM that we're not sure about the page
+> yet and give it another round trip on the LRU.
+> 
+> If you activate on this flag, it would restore the initial problem of
+> use-once pages trashing the workingset.
 
-Something along these lines, or something like
+You are right of course. I should have realized that! We really need
+another piece of information to store to the struct page or maybe xarray
+to reflect that.
+ 
+> > > Maybe the refaults will be fine - but latency expectations around
+> > > mapped page cache certainly are a lot higher than unmapped cache.
+> > >
+> > > So I'm a bit reluctant about this patch. If Minchan can be happy with
+> > > the lock batching, I'd prefer that.
+> > 
+> > Yes, it seems that the regular lock drop&relock helps in Minchan's case
+> > but this is a kind of change that might have other subtle side effects.
+> > E.g. will-it-scale has noticed a regression [1], likely because the
+> > critical section is shorter and the overal throughput of the operation
+> > decreases. Now, the w-i-s is an artificial benchmark so I wouldn't lose
+> > much sleep over it normally but we have already seen real regressions
+> > when the locking pattern has changed in the past so I would by a bit
+> > cautious.
+> 
+> I'm much more concerned about fundamentally changing the aging policy
+> of mapped page cache then about the lock breaking scheme. With locking
+> we worry about CPU effects; with aging we worry about additional IO.
 
-/* ZONE_DEVICE is never considered populated */
+But the later is observable and debuggable little bit easier IMHO.
+People are quite used to watch for major faults from my experience
+as that is an easy metric to compare.
+ 
+> > As I've said, this RFC is mostly to open a discussion. I would really
+> > like to weigh the overhead of mark_page_accessed and potential scenario
+> > when refaults would be visible in practice. I can imagine that a short
+> > lived statically linked applications have higher chance of being the
+> > only user unlike libraries which are often being mapped via several
+> > ptes. But the main problem to evaluate this is that there are many other
+> > external factors to trigger the worst case.
+> 
+> We can discuss the pros and cons, but ultimately we simply need to
+> test it against real workloads to see if changing the promotion rules
+> regresses the amount of paging we do in practice.
+
+Agreed. Do you see other option than to try it out and revert if we see
+regressions? We would get a workload description which would be helpful
+for future regression testing when touching this area. We can start
+slower and keep it in linux-next for a release cycle to catch any
+fallouts early.
+
+Thoughts?
 
 -- 
-
-Thanks,
-
-David / dhildenb
+Michal Hocko
+SUSE Labs
 
