@@ -2,172 +2,201 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1 autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id ECF15C32750
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 13:13:18 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DE49C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 13:29:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id AFE9120844
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 13:13:18 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="LbiMr+LU"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org AFE9120844
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 19DF220578
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 13:29:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19DF220578
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3B6926B0005; Tue, 13 Aug 2019 09:13:18 -0400 (EDT)
+	id A62ED6B0003; Tue, 13 Aug 2019 09:29:41 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 366E96B0006; Tue, 13 Aug 2019 09:13:18 -0400 (EDT)
+	id A13276B0006; Tue, 13 Aug 2019 09:29:41 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 255C16B0007; Tue, 13 Aug 2019 09:13:18 -0400 (EDT)
+	id 9287B6B0007; Tue, 13 Aug 2019 09:29:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0051.hostedemail.com [216.40.44.51])
-	by kanga.kvack.org (Postfix) with ESMTP id F2CE76B0005
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:13:17 -0400 (EDT)
-Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 6DB6E2C6D
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 13:13:17 +0000 (UTC)
-X-FDA: 75817445634.12.veil86_910fb26f0242f
-X-HE-Tag: veil86_910fb26f0242f
-X-Filterd-Recvd-Size: 5655
-Received: from mail-ed1-f66.google.com (mail-ed1-f66.google.com [209.85.208.66])
-	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 13:13:16 +0000 (UTC)
-Received: by mail-ed1-f66.google.com with SMTP id r12so4033575edo.5
-        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 06:13:16 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:reply-to:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=ubTbMeSv2M83GvfRwkB/P+VL404uyP8HpfpedP/OoAY=;
-        b=LbiMr+LUmaZQrw0UyPVfcE20C2rhk/qkyZVK+3mYVCagAEE8U/paBXrjyllhdz6qtK
-         Wzyo4uPi6N3fin0E1mVY9if56H4zb9YiKT42Fw945pXhXBVv8S0YTiidT67x5mLUlNDf
-         g9b3ExT+UD6gq0KpgfVTPNpdEYLQUgk6xdw1mGSodufjLObjZ8vlHlJcOkuIqQRHQs2h
-         i5tMQILnrg1tWoOOFbCbnBec0cRn2C0XZDoQpYkUbEh1S7kiLV6VU2k6/2ERXkSFxH+s
-         +jkQs/sxXRCPpGZ0782kYlorhUlcaFR7Hnm3JOSxGlLlFVSUG0SKHT6NxMTgWJKS5Sbj
-         1vSA==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:reply-to
-         :references:mime-version:content-disposition:in-reply-to:user-agent;
-        bh=ubTbMeSv2M83GvfRwkB/P+VL404uyP8HpfpedP/OoAY=;
-        b=TvqmMLwfcokvWNj324bgATCQK0X+zgCr26VzL2Et/4k2WvI7iiprmdF87Q7a6H/XTo
-         8+EIbKDva65H5KouygswIGwd3DRMTZS9yFznC6KlcxQ+SiSh/l6kc+sIGhygJOdl2HJJ
-         lRcAYzNplEQE02Rs128FDpq5A8QTUYbDcTyvhcODvXaVh6OoeejduCHRFfvFdQ+3Qdh3
-         Be2DowLpFpoahVFcjousy9soBiKpBygZ2WwYxL84OsesngRGBPY1/aOTHvseqt1FcwHg
-         S9jTK3hLuo+FmLd7I34eAPZ8hrj23OdjlXnWMuhlbgiNXln/F1Wjo5nt2y5YL1v2di1W
-         s+Ig==
-X-Gm-Message-State: APjAAAWJIPdQK6VMiX0haSCAtFvEELm+N4hI/EZug6HYnW7MJk47U9rt
-	jYZVlF5B80NVmO+oW659db8=
-X-Google-Smtp-Source: APXvYqwdvW3aE7k5RgRuOYmrOfG36rPCpQtWz80XoYTilWeyUOHf94znm2sC9lo7U0BNc43D3/8rag==
-X-Received: by 2002:a50:f285:: with SMTP id f5mr29025998edm.109.1565701995522;
-        Tue, 13 Aug 2019 06:13:15 -0700 (PDT)
-Received: from localhost ([185.92.221.13])
-        by smtp.gmail.com with ESMTPSA id z9sm3562897edd.18.2019.08.13.06.13.14
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Tue, 13 Aug 2019 06:13:14 -0700 (PDT)
-Date: Tue, 13 Aug 2019 13:13:12 +0000
-From: Wei Yang <richard.weiyang@gmail.com>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: Wei Yang <richardw.yang@linux.intel.com>, akpm@linux-foundation.org,
-	osalvador@suse.de, linux-mm@kvack.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH] mm/hotplug: prevent memory leak when reuse pgdat
-Message-ID: <20190813131312.l4pzy7ornmc4a5yj@master>
-Reply-To: Wei Yang <richard.weiyang@gmail.com>
-References: <20190813020608.10194-1-richardw.yang@linux.intel.com>
- <20190813075707.GA17933@dhcp22.suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0201.hostedemail.com [216.40.44.201])
+	by kanga.kvack.org (Postfix) with ESMTP id 6C0F06B0003
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:29:41 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 1313155F96
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 13:29:41 +0000 (UTC)
+X-FDA: 75817486962.05.flesh06_8eb0b5a64422c
+X-HE-Tag: flesh06_8eb0b5a64422c
+X-Filterd-Recvd-Size: 7245
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf20.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 13:29:40 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 118D9AEF1;
+	Tue, 13 Aug 2019 13:29:39 +0000 (UTC)
+Date: Tue, 13 Aug 2019 15:29:38 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-team@fb.com
+Subject: Re: [PATCH] mm: vmscan: do not share cgroup iteration between
+ reclaimers
+Message-ID: <20190813132938.GJ17933@dhcp22.suse.cz>
+References: <20190812192316.13615-1-hannes@cmpxchg.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190813075707.GA17933@dhcp22.suse.cz>
-User-Agent: NeoMutt/20170113 (1.7.2)
+In-Reply-To: <20190812192316.13615-1-hannes@cmpxchg.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 13, 2019 at 09:57:07AM +0200, Michal Hocko wrote:
->On Tue 13-08-19 10:06:08, Wei Yang wrote:
->> When offline a node in try_offline_node, pgdat is not released. So that
->> pgdat could be reused in hotadd_new_pgdat. While we re-allocate
->> pgdat->per_cpu_nodestats if this pgdat is reused.
->> 
->> This patch prevents the memory leak by just allocate per_cpu_nodestats
->> when it is a new pgdat.
->
->Yes this makes sense! I was slightly confused why we haven't initialized
->the allocated pcp area because __alloc_percpu does GFP_KERNEL without
->__GFP_ZERO but then I've just found out that the zeroying is done
->regardless. A bit unexpected...
->
->> NOTE: This is not tested since I didn't manage to create a case to
->> offline a whole node. If my analysis is not correct, please let me know.
->> 
->> Signed-off-by: Wei Yang <richardw.yang@linux.intel.com>
->
->Acked-by: Michal Hocko <mhocko@suse.com>
->
->Thanks!
->
+On Mon 12-08-19 15:23:16, Johannes Weiner wrote:
+> One of our services observed a high rate of cgroup OOM kills in the
+> presence of large amounts of clean cache. Debugging showed that the
+> culprit is the shared cgroup iteration in page reclaim.
+> 
+> Under high allocation concurrency, multiple threads enter reclaim at
+> the same time. Fearing overreclaim when we first switched from the
+> single global LRU to cgrouped LRU lists, we introduced a shared
+> iteration state for reclaim invocations - whether 1 or 20 reclaimers
+> are active concurrently, we only walk the cgroup tree once: the 1st
+> reclaimer reclaims the first cgroup, the second the second one etc.
+> With more reclaimers than cgroups, we start another walk from the top.
+> 
+> This sounded reasonable at the time, but the problem is that reclaim
+> concurrency doesn't scale with allocation concurrency. As reclaim
+> concurrency increases, the amount of memory individual reclaimers get
+> to scan gets smaller and smaller. Individual reclaimers may only see
+> one cgroup per cycle, and that may not have much reclaimable
+> memory. We see individual reclaimers declare OOM when there is plenty
+> of reclaimable memory available in cgroups they didn't visit.
+> 
+> This patch does away with the shared iterator, and every reclaimer is
+> allowed to scan the full cgroup tree and see all of reclaimable
+> memory, just like it would on a non-cgrouped system. This way, when
+> OOM is declared, we know that the reclaimer actually had a chance.
+> 
+> To still maintain fairness in reclaim pressure, disallow cgroup
+> reclaim from bailing out of the tree walk early. Kswapd and regular
+> direct reclaim already don't bail, so it's not clear why limit reclaim
+> would have to, especially since it only walks subtrees to begin with.
 
-Thanks :-)
+The code does bail out on any direct reclaim - be it limit or page
+allocator triggered. Check the !current_is_kswapd part of the condition.
 
->> ---
->>  mm/memory_hotplug.c | 10 +++++++++-
->>  1 file changed, 9 insertions(+), 1 deletion(-)
->> 
->> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
->> index c73f09913165..efaf9e6f580a 100644
->> --- a/mm/memory_hotplug.c
->> +++ b/mm/memory_hotplug.c
->> @@ -933,8 +933,11 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
->>  		if (!pgdat)
->>  			return NULL;
->>  
->> +		pgdat->per_cpu_nodestats =
->> +			alloc_percpu(struct per_cpu_nodestat);
->>  		arch_refresh_nodedata(nid, pgdat);
->>  	} else {
->> +		int cpu;
->>  		/*
->>  		 * Reset the nr_zones, order and classzone_idx before reuse.
->>  		 * Note that kswapd will init kswapd_classzone_idx properly
->> @@ -943,6 +946,12 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
->>  		pgdat->nr_zones = 0;
->>  		pgdat->kswapd_order = 0;
->>  		pgdat->kswapd_classzone_idx = 0;
->> +		for_each_online_cpu(cpu) {
->> +			struct per_cpu_nodestat *p;
->> +
->> +			p = per_cpu_ptr(pgdat->per_cpu_nodestats, cpu);
->> +			memset(p, 0, sizeof(*p));
->> +		}
->>  	}
->>  
->>  	/* we can use NODE_DATA(nid) from here */
->> @@ -952,7 +961,6 @@ static pg_data_t __ref *hotadd_new_pgdat(int nid, u64 start)
->>  
->>  	/* init node's zones as empty zones, we don't have any present pages.*/
->>  	free_area_init_core_hotplug(nid);
->> -	pgdat->per_cpu_nodestats = alloc_percpu(struct per_cpu_nodestat);
->>  
->>  	/*
->>  	 * The node we allocated has no zone fallback lists. For avoiding
->> -- 
->> 2.17.1
->> 
->
->-- 
->Michal Hocko
->SUSE Labs
+> This change completely eliminates the OOM kills on our service, while
+> showing no signs of overreclaim - no increased scan rates, %sys time,
+> or abrupt free memory spikes. I tested across 100 machines that have
+> 64G of RAM and host about 300 cgroups each.
+
+What is the usual direct reclaim involvement on those machines?
+
+> [ It's possible overreclaim never was a *practical* issue to begin
+>   with - it was simply a concern we had on the mailing lists at the
+>   time, with no real data to back it up. But we have also added more
+>   bail-out conditions deeper inside reclaim (e.g. the proportional
+>   exit in shrink_node_memcg) since. Regardless, now we have data that
+>   suggests full walks are more reliable and scale just fine. ]
+
+I do not see how shrink_node_memcg bail out helps here. We do scan up-to
+SWAP_CLUSTER_MAX pages for each LRU at least once. So we are getting to
+nr_memcgs_with_pages multiplier with the patch applied in the worst case.
+
+How much that matters is another question and it depends on the
+number of cgroups and the rate the direct reclaim happens. I do not
+remember exact numbers but even walking a very large memcg tree was
+noticeable.
+
+For the over reclaim part SWAP_CLUSTER_MAX is a relatively small number
+so even hundreds of memcgs on a "reasonably" sized system shouldn't be
+really observable (we are talking about 7MB per reclaim per reclaimer on
+1k memcgs with pages). This would get worse with many reclaimers. Maybe
+we will need something like the regular direct reclaim throttling of
+mmemcg limit reclaim as well in the future.
+
+That being said, I do agree that the oom side of the coin is causing
+real troubles and it is a real problem to be addressed first. Especially with
+cgroup v2 where we have likely more memcgs without any pages because
+inner nodes do not have any tasks and direct charges which makes some
+reclaimers hit memcgs without pages more likely.
+
+Let's see whether we see regression due to over-reclaim. 
+
+> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
+
+With the direct reclaim bail out reference fixed - unless I am wrong
+there of course
+
+Acked-by: Michal Hocko <mhocko@suse.com>
+
+It is sad to see this piece of fun not being used after that many years
+of bugs here and there and all the lockless fun but this is the life
+;)
+
+> ---
+>  mm/vmscan.c | 22 ++--------------------
+>  1 file changed, 2 insertions(+), 20 deletions(-)
+> 
+> diff --git a/mm/vmscan.c b/mm/vmscan.c
+> index dbdc46a84f63..b2f10fa49c88 100644
+> --- a/mm/vmscan.c
+> +++ b/mm/vmscan.c
+> @@ -2667,10 +2667,6 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+>  
+>  	do {
+>  		struct mem_cgroup *root = sc->target_mem_cgroup;
+> -		struct mem_cgroup_reclaim_cookie reclaim = {
+> -			.pgdat = pgdat,
+> -			.priority = sc->priority,
+> -		};
+>  		unsigned long node_lru_pages = 0;
+>  		struct mem_cgroup *memcg;
+>  
+> @@ -2679,7 +2675,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+>  		nr_reclaimed = sc->nr_reclaimed;
+>  		nr_scanned = sc->nr_scanned;
+>  
+> -		memcg = mem_cgroup_iter(root, NULL, &reclaim);
+> +		memcg = mem_cgroup_iter(root, NULL, NULL);
+>  		do {
+>  			unsigned long lru_pages;
+>  			unsigned long reclaimed;
+> @@ -2724,21 +2720,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
+>  				   sc->nr_scanned - scanned,
+>  				   sc->nr_reclaimed - reclaimed);
+>  
+> -			/*
+> -			 * Kswapd have to scan all memory cgroups to fulfill
+> -			 * the overall scan target for the node.
+> -			 *
+> -			 * Limit reclaim, on the other hand, only cares about
+> -			 * nr_to_reclaim pages to be reclaimed and it will
+> -			 * retry with decreasing priority if one round over the
+> -			 * whole hierarchy is not sufficient.
+> -			 */
+> -			if (!current_is_kswapd() &&
+> -					sc->nr_reclaimed >= sc->nr_to_reclaim) {
+> -				mem_cgroup_iter_break(root, memcg);
+> -				break;
+> -			}
+> -		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
+> +		} while ((memcg = mem_cgroup_iter(root, memcg, NULL)));
+>  
+>  		if (reclaim_state) {
+>  			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
+> -- 
+> 2.22.0
 
 -- 
-Wei Yang
-Help you, Help me
+Michal Hocko
+SUSE Labs
 
