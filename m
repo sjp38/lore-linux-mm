@@ -2,111 +2,231 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,MENTIONS_GIT_HOSTING,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 3C43FC32750
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:06:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7178AC32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:07:05 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F1E682063F
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:06:55 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F1E682063F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 1FDF52063F
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:07:05 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1FDF52063F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9EF0A6B0007; Tue, 13 Aug 2019 05:06:55 -0400 (EDT)
+	id C39396B000A; Tue, 13 Aug 2019 05:07:04 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 97AA86B0008; Tue, 13 Aug 2019 05:06:55 -0400 (EDT)
+	id BC3C86B000C; Tue, 13 Aug 2019 05:07:04 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 818886B000A; Tue, 13 Aug 2019 05:06:55 -0400 (EDT)
+	id A89926B000D; Tue, 13 Aug 2019 05:07:04 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0051.hostedemail.com [216.40.44.51])
-	by kanga.kvack.org (Postfix) with ESMTP id 59D026B0007
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 05:06:55 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id E949F8E7F
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:06:54 +0000 (UTC)
-X-FDA: 75816824748.04.coach64_1f3b7a47c6e05
-X-HE-Tag: coach64_1f3b7a47c6e05
-X-Filterd-Recvd-Size: 3763
-Received: from mail-wr1-f68.google.com (mail-wr1-f68.google.com [209.85.221.68])
-	by imf25.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:06:54 +0000 (UTC)
-Received: by mail-wr1-f68.google.com with SMTP id z1so107032332wru.13
-        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 02:06:54 -0700 (PDT)
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:openpgp:message-id
-         :date:user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=MRboZnkOwIqMqx46t0ZQ9zepiSGdc691QK9w7wR1ygw=;
-        b=JzLfqpbOi8TQNm4LhTv1Kds/fulocMJ5/BgtRIe8d4EsypaDTgdjbj/HbkqJnkf3Ic
-         eD/XKaOPf8i7Ap74gnqH3ndGIAtPPYcosLfOIDuCoEuH5xXXZH/9o7oPYW0gNr2kiS96
-         DCRNm+4v/zIn8Mpg75JBAWRi/Pw8uiDX/mbw1fcc8aPzlEL87pDTAepHIhwP0FEDEhGW
-         hxB7lz04QVMsbBREn1a8/7I64IJWSnGjOkq0ZqJAklUL0YA+USfKFewAyV/SDYar7b2o
-         RPAmYc6Hxj70fSkkC9TQ8Lxf2PHWpytKaGN2hWYh8eags8jECaMQQKtnAt0dDlszNN/R
-         1m9w==
-X-Gm-Message-State: APjAAAUAO9wYeqhKx2IBCSBI6ynaSr1CppNtPXcvFpARkjHsaUUYgK/W
-	7CrprpeI0mV4AhvUeE2YSDVrCg==
-X-Google-Smtp-Source: APXvYqweK6uM1R3qYisV+zwsl38ikaVzEXE80NEPe0UggCtqMVhBk6tbs9HWluPuTVYiwrckbrYbsA==
-X-Received: by 2002:adf:aa8d:: with SMTP id h13mr39037899wrc.307.1565687213313;
-        Tue, 13 Aug 2019 02:06:53 -0700 (PDT)
-Received: from [192.168.10.150] ([93.56.166.5])
-        by smtp.gmail.com with ESMTPSA id a17sm677722wmm.47.2019.08.13.02.06.51
-        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Aug 2019 02:06:52 -0700 (PDT)
-Subject: Re: [RFC PATCH v6 27/92] kvm: introspection: use page track
-To: =?UTF-8?Q?Adalbert_Laz=c4=83r?= <alazar@bitdefender.com>,
- kvm@vger.kernel.org
-Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
- =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- Tamas K Lengyel <tamas@tklengyel.com>,
- Mathieu Tarral <mathieu.tarral@protonmail.com>,
- =?UTF-8?Q?Samuel_Laur=c3=a9n?= <samuel.lauren@iki.fi>,
- Patrick Colp <patrick.colp@oracle.com>, Jan Kiszka <jan.kiszka@siemens.com>,
- Stefan Hajnoczi <stefanha@redhat.com>,
- Weijiang Yang <weijiang.yang@intel.com>, Yu C Zhang <yu.c.zhang@intel.com>,
- =?UTF-8?Q?Mihai_Don=c8=9bu?= <mdontu@bitdefender.com>,
- =?UTF-8?B?TmljdciZb3IgQ8OuyJt1?= <ncitu@bitdefender.com>,
- Marian Rotariu <marian.c.rotariu@gmail.com>
-References: <20190809160047.8319-1-alazar@bitdefender.com>
- <20190809160047.8319-28-alazar@bitdefender.com>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Openpgp: preference=signencrypt
-Message-ID: <0e6703cd-2d0b-ccd2-c353-c5f5de659837@redhat.com>
-Date: Tue, 13 Aug 2019 11:06:50 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0177.hostedemail.com [216.40.44.177])
+	by kanga.kvack.org (Postfix) with ESMTP id 8118A6B000A
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 05:07:04 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 29BE7180AD7C3
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:07:04 +0000 (UTC)
+X-FDA: 75816825168.23.smell80_207751497c261
+X-HE-Tag: smell80_207751497c261
+X-Filterd-Recvd-Size: 11110
+Received: from mga06.intel.com (mga06.intel.com [134.134.136.31])
+	by imf28.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:07:02 +0000 (UTC)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 01:39:06 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,380,1559545200"; 
+   d="gz'50?scan'50,208,50";a="351472355"
+Received: from lkp-server01.sh.intel.com (HELO lkp-server01) ([10.239.97.150])
+  by orsmga005.jf.intel.com with ESMTP; 13 Aug 2019 01:39:01 -0700
+Received: from kbuild by lkp-server01 with local (Exim 4.89)
+	(envelope-from <lkp@intel.com>)
+	id 1hxSKb-0001DL-BA; Tue, 13 Aug 2019 16:39:01 +0800
+Date: Tue, 13 Aug 2019 16:39:00 +0800
+From: kbuild test robot <lkp@intel.com>
+To: Alexander Duyck <alexander.duyck@gmail.com>
+Cc: kbuild-all@01.org, nitesh@redhat.com, kvm@vger.kernel.org,
+	mst@redhat.com, david@redhat.com, dave.hansen@intel.com,
+	linux-kernel@vger.kernel.org, willy@infradead.org,
+	mhocko@kernel.org, linux-mm@kvack.org, akpm@linux-foundation.org,
+	virtio-dev@lists.oasis-open.org, osalvador@suse.de,
+	yang.zhang.wz@gmail.com, pagupta@redhat.com, riel@surriel.com,
+	konrad.wilk@oracle.com, lcapitulino@redhat.com,
+	wei.w.wang@intel.com, aarcange@redhat.com, pbonzini@redhat.com,
+	dan.j.williams@intel.com, alexander.h.duyck@linux.intel.com
+Subject: Re: [PATCH v5 4/6] mm: Introduce Reported pages
+Message-ID: <201908131654.NqyZiEQm%lkp@intel.com>
+References: <20190812213344.22097.86213.stgit@localhost.localdomain>
 MIME-Version: 1.0
-In-Reply-To: <20190809160047.8319-28-alazar@bitdefender.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+Content-Type: multipart/mixed; boundary="2lwoaplyqgzmgqg6"
+Content-Disposition: inline
+In-Reply-To: <20190812213344.22097.86213.stgit@localhost.localdomain>
+X-Patchwork-Hint: ignore
+User-Agent: NeoMutt/20170113 (1.7.2)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 09/08/19 17:59, Adalbert Laz=C4=83r wrote:
-> +
-> +	/*
-> +	 * This function uses kvm->mmu_lock so it's not allowed to be
-> +	 * called under kvmi_put(). It can reach a deadlock if called
-> +	 * from kvm_mmu_load -> kvmi_tracked_gfn -> kvmi_put.
-> +	 */
-> +	kvmi_clear_mem_access(kvm);
 
-kvmi_tracked_gfn does not exist yet.
+--2lwoaplyqgzmgqg6
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
 
-More in general, this comment says why you are calling this here, but it
-says nothing about the split of responsibility between
-kvmi_end_introspection and kvmi_release.  Please add a comment for this
-as soon as you add kvmi_end_introspection (which according to my earlier
-review should be patch 1).
+Hi Alexander,
 
-Paolo
+Thank you for the patch! Yet something to improve:
+
+[auto build test ERROR on linus/master]
+[cannot apply to v5.3-rc4]
+[if your patch is applied to the wrong git tree, please drop us a note to help improve the system]
+
+url:    https://github.com/0day-ci/linux/commits/Alexander-Duyck/mm-virtio-Provide-support-for-unused-page-reporting/20190813-150543
+config: riscv-tinyconfig (attached as .config)
+compiler: riscv64-linux-gcc (GCC) 7.4.0
+reproduce:
+        wget https://raw.githubusercontent.com/intel/lkp-tests/master/sbin/make.cross -O ~/bin/make.cross
+        chmod +x ~/bin/make.cross
+        # save the attached .config to linux build tree
+        GCC_VERSION=7.4.0 make.cross ARCH=riscv 
+
+If you fix the issue, kindly add following tag
+Reported-by: kbuild test robot <lkp@intel.com>
+
+All errors (new ones prefixed by >>):
+
+   In file included from include/linux/mmzone.h:774:0,
+                    from include/linux/gfp.h:6,
+                    from include/linux/umh.h:4,
+                    from include/linux/kmod.h:9,
+                    from include/linux/module.h:13,
+                    from init/main.c:17:
+>> include/linux/page_reporting.h:8:10: fatal error: asm/pgtable_types.h: No such file or directory
+    #include <asm/pgtable_types.h>
+             ^~~~~~~~~~~~~~~~~~~~~
+   compilation terminated.
+
+vim +8 include/linux/page_reporting.h
+
+     4	
+     5	#include <linux/mmzone.h>
+     6	#include <linux/jump_label.h>
+     7	#include <linux/pageblock-flags.h>
+   > 8	#include <asm/pgtable_types.h>
+     9	
+
+---
+0-DAY kernel test infrastructure                Open Source Technology Center
+https://lists.01.org/pipermail/kbuild-all                   Intel Corporation
+
+--2lwoaplyqgzmgqg6
+Content-Type: application/gzip
+Content-Disposition: attachment; filename=".config.gz"
+Content-Transfer-Encoding: base64
+
+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
+
+--2lwoaplyqgzmgqg6--
 
