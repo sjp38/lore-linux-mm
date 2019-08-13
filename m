@@ -6,43 +6,43 @@ X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED,USER_AGENT_GIT autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id DFF48C32753
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:03:22 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id DB130C32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:03:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A34EB2070D
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:03:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A34EB2070D
+	by mail.kernel.org (Postfix) with ESMTP id A878820840
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:03:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A878820840
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC67E6B0273; Tue, 13 Aug 2019 17:03:01 -0400 (EDT)
+	id 90CE26B0275; Tue, 13 Aug 2019 17:03:02 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D51C06B0274; Tue, 13 Aug 2019 17:03:01 -0400 (EDT)
+	id 899E46B0274; Tue, 13 Aug 2019 17:03:02 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id BF1186B0275; Tue, 13 Aug 2019 17:03:01 -0400 (EDT)
+	id 5403B6B0277; Tue, 13 Aug 2019 17:03:02 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0227.hostedemail.com [216.40.44.227])
-	by kanga.kvack.org (Postfix) with ESMTP id 937D66B0274
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:03:01 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 3F403611C
+Received: from forelay.hostedemail.com (smtprelay0088.hostedemail.com [216.40.44.88])
+	by kanga.kvack.org (Postfix) with ESMTP id 243DB6B0275
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:03:02 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id B6CEA180AD801
 	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:03:01 +0000 (UTC)
-X-FDA: 75818629362.07.sack12_1a4a8f739e241
-X-HE-Tag: sack12_1a4a8f739e241
-X-Filterd-Recvd-Size: 5711
+X-FDA: 75818629362.28.train25_1a5c9a02e1007
+X-HE-Tag: train25_1a5c9a02e1007
+X-Filterd-Recvd-Size: 3400
 Received: from mga12.intel.com (mga12.intel.com [192.55.52.136])
-	by imf29.hostedemail.com (Postfix) with ESMTP
+	by imf22.hostedemail.com (Postfix) with ESMTP
 	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:03:00 +0000 (UTC)
 X-Amp-Result: SKIPPED(no attachment in message)
 X-Amp-File-Uploaded: False
 Received: from orsmga002.jf.intel.com ([10.7.209.21])
-  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 14:02:54 -0700
+  by fmsmga106.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 14:02:58 -0700
 X-ExtLoop1: 1
 X-IronPort-AV: E=Sophos;i="5.64,382,1559545200"; 
-   d="scan'208";a="187901433"
+   d="scan'208";a="187901444"
 Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
-  by orsmga002.jf.intel.com with ESMTP; 13 Aug 2019 14:02:53 -0700
+  by orsmga002.jf.intel.com with ESMTP; 13 Aug 2019 14:02:56 -0700
 From: Yu-cheng Yu <yu-cheng.yu@intel.com>
 To: x86@kernel.org,
 	"H. Peter Anvin" <hpa@zytor.com>,
@@ -75,9 +75,9 @@ To: x86@kernel.org,
 	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
 	Dave Martin <Dave.Martin@arm.com>
 Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v8 16/27] mm: Handle THP/HugeTLB shadow stack page fault
-Date: Tue, 13 Aug 2019 13:52:14 -0700
-Message-Id: <20190813205225.12032-17-yu-cheng.yu@intel.com>
+Subject: [PATCH v8 18/27] mm: Introduce do_mmap_locked()
+Date: Tue, 13 Aug 2019 13:52:16 -0700
+Message-Id: <20190813205225.12032-19-yu-cheng.yu@intel.com>
 X-Mailer: git-send-email 2.17.1
 In-Reply-To: <20190813205225.12032-1-yu-cheng.yu@intel.com>
 References: <20190813205225.12032-1-yu-cheng.yu@intel.com>
@@ -87,98 +87,43 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-This patch implements THP shadow stack (SHSTK) copying in the same
-way as in the previous patch for regular PTE.
-
-In copy_huge_pmd(), clear the dirty bit from the PMD to cause a page
-fault upon the next SHSTK access to the PMD.  At that time, fix the
-PMD and copy/re-use the page.
+There are a few places that need do_mmap() with mm->mmap_sem held.
+Create an in-line function for that.
 
 Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
 ---
- arch/x86/mm/pgtable.c         | 8 ++++++++
- include/asm-generic/pgtable.h | 6 ++++++
- mm/huge_memory.c              | 4 ++++
- 3 files changed, 18 insertions(+)
+ include/linux/mm.h | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
 
-diff --git a/arch/x86/mm/pgtable.c b/arch/x86/mm/pgtable.c
-index 0c10d0c5e329..6f3959ca2a08 100644
---- a/arch/x86/mm/pgtable.c
-+++ b/arch/x86/mm/pgtable.c
-@@ -886,6 +886,14 @@ inline pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma)
- 		return pte;
- }
- 
-+inline pmd_t pmd_set_vma_features(pmd_t pmd, struct vm_area_struct *vma)
-+{
-+	if (vma->vm_flags & VM_SHSTK)
-+		return pmd_mkdirty_shstk(pmd);
-+	else
-+		return pmd;
-+}
-+
- inline bool arch_copy_pte_mapping(vm_flags_t vm_flags)
- {
- 	return (vm_flags & VM_SHSTK);
-diff --git a/include/asm-generic/pgtable.h b/include/asm-generic/pgtable.h
-index 89b0fa132f1f..438ce73b57ea 100644
---- a/include/asm-generic/pgtable.h
-+++ b/include/asm-generic/pgtable.h
-@@ -1194,12 +1194,18 @@ static inline pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma)
- 	return pte;
- }
- 
-+static inline pmd_t pmd_set_vma_features(pmd_t pmd, struct vm_area_struct *vma)
-+{
-+	return pmd;
-+}
-+
- static inline bool arch_copy_pte_mapping(vm_flags_t vm_flags)
- {
- 	return false;
- }
- #else
- pte_t pte_set_vma_features(pte_t pte, struct vm_area_struct *vma);
-+pmd_t pmd_set_vma_features(pmd_t pmd, struct vm_area_struct *vma);
- bool arch_copy_pte_mapping(vm_flags_t vm_flags);
+diff --git a/include/linux/mm.h b/include/linux/mm.h
+index bc58585014c9..275c385f53c6 100644
+--- a/include/linux/mm.h
++++ b/include/linux/mm.h
+@@ -2394,6 +2394,24 @@ static inline void mm_populate(unsigned long addr, unsigned long len)
+ static inline void mm_populate(unsigned long addr, unsigned long len) {}
  #endif
  
-diff --git a/mm/huge_memory.c b/mm/huge_memory.c
-index 1334ede667a8..39d66c628121 100644
---- a/mm/huge_memory.c
-+++ b/mm/huge_memory.c
-@@ -611,6 +611,7 @@ static vm_fault_t __do_huge_pmd_anonymous_page(struct vm_fault *vmf,
- 
- 		entry = mk_huge_pmd(page, vma->vm_page_prot);
- 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-+		entry = pmd_set_vma_features(entry, vma);
- 		page_add_new_anon_rmap(page, vma, haddr, true);
- 		mem_cgroup_commit_charge(page, memcg, false, true);
- 		lru_cache_add_active_or_unevictable(page, vma);
-@@ -1253,6 +1254,7 @@ static vm_fault_t do_huge_pmd_wp_page_fallback(struct vm_fault *vmf,
- 		pte_t entry;
- 		entry = mk_pte(pages[i], vma->vm_page_prot);
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
-+		entry = pte_set_vma_features(entry, vma);
- 		memcg = (void *)page_private(pages[i]);
- 		set_page_private(pages[i], 0);
- 		page_add_new_anon_rmap(pages[i], vmf->vma, haddr, false);
-@@ -1335,6 +1337,7 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
- 		pmd_t entry;
- 		entry = pmd_mkyoung(orig_pmd);
- 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-+		entry = pmd_set_vma_features(entry, vma);
- 		if (pmdp_set_access_flags(vma, haddr, vmf->pmd, entry,  1))
- 			update_mmu_cache_pmd(vma, vmf->address, vmf->pmd);
- 		ret |= VM_FAULT_WRITE;
-@@ -1407,6 +1410,7 @@ vm_fault_t do_huge_pmd_wp_page(struct vm_fault *vmf, pmd_t orig_pmd)
- 		pmd_t entry;
- 		entry = mk_huge_pmd(new_page, vma->vm_page_prot);
- 		entry = maybe_pmd_mkwrite(pmd_mkdirty(entry), vma);
-+		entry = pmd_set_vma_features(entry, vma);
- 		pmdp_huge_clear_flush_notify(vma, haddr, vmf->pmd);
- 		page_add_new_anon_rmap(new_page, vma, haddr, true);
- 		mem_cgroup_commit_charge(new_page, memcg, false, true);
++static inline unsigned long do_mmap_locked(struct file *file,
++	unsigned long addr, unsigned long len, unsigned long prot,
++	unsigned long flags, vm_flags_t vm_flags, struct list_head *uf)
++{
++	struct mm_struct *mm = current->mm;
++	unsigned long populate;
++
++	down_write(&mm->mmap_sem);
++	addr = do_mmap(file, addr, len, prot, flags, vm_flags, 0,
++		       &populate, uf);
++	up_write(&mm->mmap_sem);
++
++	if (populate)
++		mm_populate(addr, populate);
++
++	return addr;
++}
++
+ /* These take the mm semaphore themselves */
+ extern int __must_check vm_brk(unsigned long, unsigned long);
+ extern int __must_check vm_brk_flags(unsigned long, unsigned long, unsigned long);
 -- 
 2.17.1
 
