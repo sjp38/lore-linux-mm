@@ -2,134 +2,189 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=ham
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 10142C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 23:49:34 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C8B68C32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 23:54:42 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BE02F20665
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 23:49:33 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 73E8620840
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 23:54:42 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=amacapital-net.20150623.gappssmtp.com header.i=@amacapital-net.20150623.gappssmtp.com header.b="Wt6ztQ2X"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BE02F20665
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=amacapital.net
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="C/hffB2/"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 73E8620840
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 66AAC6B000D; Tue, 13 Aug 2019 19:49:33 -0400 (EDT)
+	id 1366A6B000D; Tue, 13 Aug 2019 19:54:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 619916B000E; Tue, 13 Aug 2019 19:49:33 -0400 (EDT)
+	id 0E6966B000E; Tue, 13 Aug 2019 19:54:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5089B6B0010; Tue, 13 Aug 2019 19:49:33 -0400 (EDT)
+	id F3EFF6B0010; Tue, 13 Aug 2019 19:54:41 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0081.hostedemail.com [216.40.44.81])
-	by kanga.kvack.org (Postfix) with ESMTP id 2923C6B000D
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 19:49:33 -0400 (EDT)
-Received: from smtpin29.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id CA0AF180AD7C1
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 23:49:32 +0000 (UTC)
-X-FDA: 75819048984.29.tree84_19189f3c7b048
-X-HE-Tag: tree84_19189f3c7b048
-X-Filterd-Recvd-Size: 5053
-Received: from mail-pl1-f194.google.com (mail-pl1-f194.google.com [209.85.214.194])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 23:49:32 +0000 (UTC)
-Received: by mail-pl1-f194.google.com with SMTP id bj8so2907690plb.4
-        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 16:49:32 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=amacapital-net.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=yL2GiSxONyR1+wf+cPEJ785qgYB8kzY/mss0H7pGC9M=;
-        b=Wt6ztQ2X+fWJO0FTPgcX9A+51Mq8+dTZ9Ad+A3iCM8ClCkHgqKWJ2Drcvb3RRKr7tY
-         erf0TC5YpqS2Portj7ZVBheih5czwyWoynvvG+OcmmO4kYKcTGfe2f3XrwTEAsq4mi21
-         F50sQEzYTRfQKIDH+vxbJVarJg8gOG8ti6o2Fc+g1ZQKwAv93sQYllOrj4oWJ0zUPD+X
-         OhZHWL3rBvb7RYeJg5DrjtfulYBGFzk0abwLsjlwIA2YbLnzPETAHKm0OIYnmu8wnuCN
-         S6zZGySHxEitvDXRzvENqoZpHDohSYEySTt2GO05uL68b4/lXRsTldj/46PsM5r7KGQH
-         nhyg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:subject:from:in-reply-to:date:cc
-         :content-transfer-encoding:message-id:references:to;
-        bh=yL2GiSxONyR1+wf+cPEJ785qgYB8kzY/mss0H7pGC9M=;
-        b=Ka2oActh7uKX1hnviOCdwvfMMReb/am+5lkCSllHDf79BspqfHKv5RFBfanfPqF2X3
-         GiT3ZLDXNj8jGvO0J5vlrS8S8BcUY8LQ4EW9yE+AUwBH1EshPGFOb2aebMfvheGi3hgm
-         4cJiLm26TUkxB+2pnKr1sG/BUJepbxRX+InSSPkmmp9eNqKi3QUbxGWnQ/cmQ3HRNPgq
-         wTQFZeO2aWiOsX5VQJdmH0gATLj5tCdnVdODF3NzmT0GvjioUUnwZAoRsLBEgNevME93
-         c/9eDGbRpcRlAmcVjAqtVM23Cd1cVmn7QnFIvONn/3lpJpRuUvCRrVfx2g41jx4fZDQt
-         2FTg==
-X-Gm-Message-State: APjAAAXjf8Gtl4njb21HDLAxvQ4esGoS07dCokXZ8FxT9GN8s76CGe+g
-	TVU2Y//vbZbYVXTO5eLqrsgBqw==
-X-Google-Smtp-Source: APXvYqziYoxNMLaC/s1uQ9IVzw788DhInlAx7eBm4/seDB4Szhev8YYMyLyUEb33esQFu71+edIwvw==
-X-Received: by 2002:a17:902:2ac7:: with SMTP id j65mr40372077plb.242.1565740171253;
-        Tue, 13 Aug 2019 16:49:31 -0700 (PDT)
-Received: from ?IPv6:2601:646:c200:1ef2:6cf1:fbba:cb42:db60? ([2601:646:c200:1ef2:6cf1:fbba:cb42:db60])
-        by smtp.gmail.com with ESMTPSA id bt18sm3110564pjb.1.2019.08.13.16.49.30
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Aug 2019 16:49:30 -0700 (PDT)
-Content-Type: text/plain;
-	charset=utf-8
-Mime-Version: 1.0 (1.0)
-Subject: Re: [PATCH v8 11/27] x86/mm: Introduce _PAGE_DIRTY_SW
-From: Andy Lutomirski <luto@amacapital.net>
-X-Mailer: iPhone Mail (16G77)
-In-Reply-To: <dac2d62b-9045-4767-87dd-eac12e7abafd@intel.com>
-Date: Tue, 13 Aug 2019 16:49:29 -0700
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>, x86@kernel.org,
- "H. Peter Anvin" <hpa@zytor.com>, Thomas Gleixner <tglx@linutronix.de>,
- Ingo Molnar <mingo@redhat.com>, linux-kernel@vger.kernel.org,
- linux-doc@vger.kernel.org, linux-mm@kvack.org, linux-arch@vger.kernel.org,
- linux-api@vger.kernel.org, Arnd Bergmann <arnd@arndb.de>,
- Balbir Singh <bsingharora@gmail.com>, Borislav Petkov <bp@alien8.de>,
- Cyrill Gorcunov <gorcunov@gmail.com>,
- Dave Hansen <dave.hansen@linux.intel.com>,
- Eugene Syromiatnikov <esyr@redhat.com>,
- Florian Weimer <fweimer@redhat.com>, "H.J. Lu" <hjl.tools@gmail.com>,
- Jann Horn <jannh@google.com>, Jonathan Corbet <corbet@lwn.net>,
- Kees Cook <keescook@chromium.org>, Mike Kravetz <mike.kravetz@oracle.com>,
- Nadav Amit <nadav.amit@gmail.com>, Oleg Nesterov <oleg@redhat.com>,
- Pavel Machek <pavel@ucw.cz>, Peter Zijlstra <peterz@infradead.org>,
- Randy Dunlap <rdunlap@infradead.org>,
- "Ravi V. Shankar" <ravi.v.shankar@intel.com>,
- Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
- Dave Martin <Dave.Martin@arm.com>
-Content-Transfer-Encoding: quoted-printable
-Message-Id: <08A983E6-7B9C-4BDF-887A-F57734FADC9E@amacapital.net>
-References: <20190813205225.12032-1-yu-cheng.yu@intel.com> <20190813205225.12032-12-yu-cheng.yu@intel.com> <dac2d62b-9045-4767-87dd-eac12e7abafd@intel.com>
-To: Dave Hansen <dave.hansen@intel.com>
+Received: from forelay.hostedemail.com (smtprelay0145.hostedemail.com [216.40.44.145])
+	by kanga.kvack.org (Postfix) with ESMTP id D2D326B000D
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 19:54:41 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 73891180AD7C1
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 23:54:41 +0000 (UTC)
+X-FDA: 75819061962.25.sky90_45fab98011c2f
+X-HE-Tag: sky90_45fab98011c2f
+X-Filterd-Recvd-Size: 6751
+Received: from userp2130.oracle.com (userp2130.oracle.com [156.151.31.86])
+	by imf35.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 23:54:40 +0000 (UTC)
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7DNs0ej159246;
+	Tue, 13 Aug 2019 23:54:37 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2019-08-05;
+ bh=8uoxkmua1OS2X8xhxw5mu7ScJfwZNdN5PSdmlkbyv8g=;
+ b=C/hffB2/CGhrbY+ybbD2RdOJshB9uPQiYKhfH3UFDwszzYTQ66/GGB6XygmPp4PIwbVx
+ bwHxOm4r/8KGxtRF8fItyF+Jy3nnc3Y29khBpxZlHY1GpfBLlQBOg85UTcwv1sHj+qSx
+ azxMUtwbXSZWoJY/+gqDW5xJVuA04mg/gY2bOqdVedOjwV3swFgnyqGx4q37R476ZRTA
+ MSiDd0TjLE39DhY4aQFKpsO988HPK2Nunhrx13KDNSSdYCLR5847XoABJDa4mLMY4atA
+ 9kN4JZoJ6NtmGzbYtVv7dn79wantwW0ksPQalJ4VxXYiUfkmTum5rtCNjMt7Ula7zTkT lw== 
+Received: from aserp3030.oracle.com (aserp3030.oracle.com [141.146.126.71])
+	by userp2130.oracle.com with ESMTP id 2u9nbthcfy-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 13 Aug 2019 23:54:37 +0000
+Received: from pps.filterd (aserp3030.oracle.com [127.0.0.1])
+	by aserp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7DNqqOF165505;
+	Tue, 13 Aug 2019 23:54:36 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by aserp3030.oracle.com with ESMTP id 2ubwrgk88d-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 13 Aug 2019 23:54:36 +0000
+Received: from abhmp0007.oracle.com (abhmp0007.oracle.com [141.146.116.13])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x7DNsZpC025046;
+	Tue, 13 Aug 2019 23:54:35 GMT
+Received: from [192.168.1.222] (/71.63.128.209)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 13 Aug 2019 16:54:35 -0700
+Subject: Re: [RFC PATCH v2 4/5] hugetlb_cgroup: Add accounting for shared
+ mappings
+To: Mina Almasry <almasrymina@google.com>
+Cc: shuah@kernel.org, rientjes@google.com, shakeelb@google.com,
+        gthelen@google.com, akpm@linux-foundation.org, khalid.aziz@oracle.com,
+        linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+        linux-kselftest@vger.kernel.org
+References: <20190808231340.53601-1-almasrymina@google.com>
+ <20190808231340.53601-5-almasrymina@google.com>
+From: Mike Kravetz <mike.kravetz@oracle.com>
+Message-ID: <47cfc50d-bea3-0247-247e-888d2942f134@oracle.com>
+Date: Tue, 13 Aug 2019 16:54:33 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
+MIME-Version: 1.0
+In-Reply-To: <20190808231340.53601-5-almasrymina@google.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9348 signatures=668684
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1908130227
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9348 signatures=668684
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1015
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1908130227
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On 8/8/19 4:13 PM, Mina Almasry wrote:
+> For shared mappings, the pointer to the hugetlb_cgroup to uncharge lives
+> in the resv_map entries, in file_region->reservation_counter.
+> 
+> When a file_region entry is added to the resv_map via region_add, we
+> also charge the appropriate hugetlb_cgroup and put the pointer to that
+> in file_region->reservation_counter. This is slightly delicate since we
+> need to not modify the resv_map until we know that charging the
+> reservation has succeeded. If charging doesn't succeed, we report the
+> error to the caller, so that the kernel fails the reservation.
 
-On Aug 13, 2019, at 4:02 PM, Dave Hansen <dave.hansen@intel.com> wrote:
+I wish we did not need to modify these region_() routines as they are
+already difficult to understand.  However, I see no other way with the
+desired semantics.
 
->>=20
->> static inline pte_t pte_mkwrite(pte_t pte)
->> {
->> +    pte =3D pte_move_flags(pte, _PAGE_DIRTY_SW, _PAGE_DIRTY_HW);
->>    return pte_set_flags(pte, _PAGE_RW);
->> }
->=20
-> It also isn't clear to me why this *must* move bits here.  Its doubly
-> unclear why you would need to do this on systems when shadow stacks are
-> compiled in but disabled.
+> On region_del, which is when the hugetlb memory is unreserved, we delete
+> the file_region entry in the resv_map, but also uncharge the
+> file_region->reservation_counter.
+> 
+> ---
+>  mm/hugetlb.c | 208 +++++++++++++++++++++++++++++++++++++++++----------
+>  1 file changed, 170 insertions(+), 38 deletions(-)
+> 
+> diff --git a/mm/hugetlb.c b/mm/hugetlb.c
+> index 235996aef6618..d76e3137110ab 100644
+> --- a/mm/hugetlb.c
+> +++ b/mm/hugetlb.c
+> @@ -242,8 +242,72 @@ struct file_region {
+>  	struct list_head link;
+>  	long from;
+>  	long to;
+> +#ifdef CONFIG_CGROUP_HUGETLB
+> +	/*
+> +	 * On shared mappings, each reserved region appears as a struct
+> +	 * file_region in resv_map. These fields hold the info needed to
+> +	 * uncharge each reservation.
+> +	 */
+> +	struct page_counter *reservation_counter;
+> +	unsigned long pages_per_hpage;
+> +#endif
+>  };
+> 
+> +/* Must be called with resv->lock held. Calling this with dry_run == true will
+> + * count the number of pages added but will not modify the linked list.
+> + */
+> +static long consume_regions_we_overlap_with(struct file_region *rg,
+> +		struct list_head *head, long f, long *t,
+> +		struct hugetlb_cgroup *h_cg,
+> +		struct hstate *h,
+> +		bool dry_run)
+> +{
+> +	long add = 0;
+> +	struct file_region *trg = NULL, *nrg = NULL;
+> +
+> +	/* Consume any regions we now overlap with. */
+> +	nrg = rg;
+> +	list_for_each_entry_safe(rg, trg, rg->link.prev, link) {
+> +		if (&rg->link == head)
+> +			break;
+> +		if (rg->from > *t)
+> +			break;
+> +
+> +		/* If this area reaches higher then extend our area to
+> +		 * include it completely.  If this is not the first area
+> +		 * which we intend to reuse, free it.
+> +		 */
+> +		if (rg->to > *t)
+> +			*t = rg->to;
+> +		if (rg != nrg) {
+> +			/* Decrement return value by the deleted range.
+> +			 * Another range will span this area so that by
+> +			 * end of routine add will be >= zero
+> +			 */
+> +			add -= (rg->to - rg->from);
+> +			if (!dry_run) {
+> +				list_del(&rg->link);
+> +				kfree(rg);
 
-Why is it conditional at all?  ISTM, in x86, RO+dirty has been effectively r=
-epurposed. To avoid having extra things that can conditionally break, I thin=
-k this code should be unconditional.=20
+Is it possible that the region struct we are deleting pointed to
+a reservation_counter?  Perhaps even for another cgroup?
+Just concerned with the way regions are coalesced that we may be
+deleting counters.
 
-That being said, I=E2=80=99m not at all sure that pte_mkwrite on a shadow st=
-ack page makes any sense.
-
-> <snip>
->=20
-> Same comments for pmds and puds.
-
-Wasn=E2=80=99t Kirill working on a rework if the whole page table system to j=
-ust have integer page table levels?=
+-- 
+Mike Kravetz
 
