@@ -2,105 +2,111 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.2 required=3.0 tests=FROM_EXCESS_BASE64,
+X-Spam-Status: No, score=-1.6 required=3.0 tests=DKIM_INVALID,DKIM_SIGNED,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	SUBJ_ALL_CAPS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+	SUBJ_ALL_CAPS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2BDA3C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 11:01:13 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 54115C32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 11:24:16 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EA3E92067D
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 11:01:12 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EA3E92067D
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=bitdefender.com
+	by mail.kernel.org (Postfix) with ESMTP id 181F020673
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 11:24:16 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=fail reason="signature verification failed" (2048-bit key) header.d=infradead.org header.i=@infradead.org header.b="VBhkUStR"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 181F020673
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=infradead.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 8136D6B0005; Tue, 13 Aug 2019 07:01:12 -0400 (EDT)
+	id 9FDF66B0007; Tue, 13 Aug 2019 07:24:15 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 7C3276B0006; Tue, 13 Aug 2019 07:01:12 -0400 (EDT)
+	id 9ADCD6B0008; Tue, 13 Aug 2019 07:24:15 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 68BCD6B0007; Tue, 13 Aug 2019 07:01:12 -0400 (EDT)
+	id 8C40A6B000A; Tue, 13 Aug 2019 07:24:15 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0158.hostedemail.com [216.40.44.158])
-	by kanga.kvack.org (Postfix) with ESMTP id 3F6B96B0005
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 07:01:12 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id DBE10181AC9AE
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:01:11 +0000 (UTC)
-X-FDA: 75817112742.04.dress14_a645035c9d3f
-X-HE-Tag: dress14_a645035c9d3f
-X-Filterd-Recvd-Size: 3170
-Received: from mx01.bbu.dsd.mx.bitdefender.com (mx01.bbu.dsd.mx.bitdefender.com [91.199.104.161])
-	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:01:11 +0000 (UTC)
-Received: from smtp.bitdefender.com (smtp01.buh.bitdefender.com [10.17.80.75])
-	by mx01.bbu.dsd.mx.bitdefender.com (Postfix) with ESMTPS id 0684E30644BA;
-	Tue, 13 Aug 2019 14:01:09 +0300 (EEST)
-Received: from localhost (unknown [195.210.4.22])
-	by smtp.bitdefender.com (Postfix) with ESMTPSA id DD06730BFDC3;
-	Tue, 13 Aug 2019 14:01:08 +0300 (EEST)
-From: Adalbert =?iso-8859-2?b?TGF643I=?= <alazar@bitdefender.com>
+Received: from forelay.hostedemail.com (smtprelay0223.hostedemail.com [216.40.44.223])
+	by kanga.kvack.org (Postfix) with ESMTP id 6A83C6B0007
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 07:24:15 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 08E3C180AD7C3
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:24:15 +0000 (UTC)
+X-FDA: 75817170870.01.baby43_41fe126b9fb39
+X-HE-Tag: baby43_41fe126b9fb39
+X-Filterd-Recvd-Size: 3520
+Received: from bombadil.infradead.org (bombadil.infradead.org [198.137.202.133])
+	by imf49.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:24:13 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; q=dns/txt; c=relaxed/relaxed;
+	d=infradead.org; s=bombadil.20170209; h=In-Reply-To:Content-Transfer-Encoding
+	:Content-Type:MIME-Version:References:Message-ID:Subject:Cc:To:From:Date:
+	Sender:Reply-To:Content-ID:Content-Description:Resent-Date:Resent-From:
+	Resent-Sender:Resent-To:Resent-Cc:Resent-Message-ID:List-Id:List-Help:
+	List-Unsubscribe:List-Subscribe:List-Post:List-Owner:List-Archive;
+	bh=K5gbxcQPxrQYgws2hBkB1SH1ZLrBAecYkptVmkU/CGk=; b=VBhkUStRQ4A8I1CFq/DgEvG8QK
+	mabjskg5FBYy57JI09/XJ+irmmluQEyFn85/SuN/45HNd3U/QuZsVBL+T1q44y1YuhmwXhFeFOIid
+	5+TJqYzbYBR4TAQdkn+yPCLlhGjXlAQ8gSeXgktbYEHsVXCJu8vfkH90LYiZ3gbC2jrirPL9ZU49S
+	/bvRIf8M2YA5toVEmvi1MpyRuNiS+3/VfzBQLmxvSpGFqj7t8TBqpby1yVIj97hYNPOiRJd/2Xg35
+	YvvqIbffdEJSygJyMOOoqy74tKwa9u0wy1prWkxOhDCrSmHHMkfHeNaDXuascaWKuA3U2Y6cCpTEG
+	zW2hQB3Q==;
+Received: from willy by bombadil.infradead.org with local (Exim 4.92 #3 (Red Hat Linux))
+	id 1hxUuO-0006tv-Eu; Tue, 13 Aug 2019 11:24:08 +0000
+Date: Tue, 13 Aug 2019 04:24:08 -0700
+From: Matthew Wilcox <willy@infradead.org>
+To: Paolo Bonzini <pbonzini@redhat.com>
+Cc: Adalbert =?utf-8?B?TGF6xINy?= <alazar@bitdefender.com>,
+	kvm@vger.kernel.org, linux-mm@kvack.org,
+	virtualization@lists.linux-foundation.org,
+	Radim =?utf-8?B?S3LEjW3DocWZ?= <rkrcmar@redhat.com>,
+	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
+	Tamas K Lengyel <tamas@tklengyel.com>,
+	Mathieu Tarral <mathieu.tarral@protonmail.com>,
+	Samuel =?iso-8859-1?Q?Laur=E9n?= <samuel.lauren@iki.fi>,
+	Patrick Colp <patrick.colp@oracle.com>,
+	Jan Kiszka <jan.kiszka@siemens.com>,
+	Stefan Hajnoczi <stefanha@redhat.com>,
+	Weijiang Yang <weijiang.yang@intel.com>, Zhang@kvack.org,
+	Yu C <yu.c.zhang@intel.com>,
+	Mihai =?utf-8?B?RG9uyJt1?= <mdontu@bitdefender.com>,
+	Mircea =?iso-8859-1?Q?C=EErjaliu?= <mcirjaliu@bitdefender.com>
 Subject: Re: DANGER WILL ROBINSON, DANGER
-To: Matthew Wilcox <willy@infradead.org>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org,
-	virtualization@lists.linux-foundation.org, Paolo Bonzini
-	<pbonzini@redhat.com>, Radim =?iso-8859-2?b?S3LobeH4?= <rkrcmar@redhat.com>,
-	Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>, Tamas K Lengyel
-	<tamas@tklengyel.com>, Mathieu Tarral <mathieu.tarral@protonmail.com>,
-	Samuel =?iso-8859-1?q?Laur=E9n?= <samuel.lauren@iki.fi>, Patrick Colp
-	<patrick.colp@oracle.com>, Jan Kiszka <jan.kiszka@siemens.com>,
-	Stefan Hajnoczi <stefanha@redhat.com>, Weijiang Yang
-	<weijiang.yang@intel.com>, Yu C <yu.c.zhang@intel.com>,
-	Mihai =?UTF-8?b?RG9uyJt1?= <mdontu@bitdefender.com>,
-	Mircea =?iso-8859-1?q?C=EErjaliu?= <mcirjaliu@bitdefender.com>
-In-Reply-To: <20190809162444.GP5482@bombadil.infradead.org>
+Message-ID: <20190813112408.GC5307@bombadil.infradead.org>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
-	<20190809160047.8319-72-alazar@bitdefender.com>
-	<20190809162444.GP5482@bombadil.infradead.org>
-Date: Tue, 13 Aug 2019 14:01:35 +0300
-Message-ID: <1565694095.D172a51.28640.@15f23d3a749365d981e968181cce585d2dcb3ffa>
-Content-Type: text/plain; charset="utf-8"
+ <20190809160047.8319-72-alazar@bitdefender.com>
+ <20190809162444.GP5482@bombadil.infradead.org>
+ <ae0d274c-96b1-3ac9-67f2-f31fd7bbdcee@redhat.com>
 MIME-Version: 1.0
+Content-Type: text/plain; charset=utf-8
+Content-Disposition: inline
+In-Reply-To: <ae0d274c-96b1-3ac9-67f2-f31fd7bbdcee@redhat.com>
+User-Agent: Mutt/1.11.4 (2019-03-13)
 Content-Transfer-Encoding: quoted-printable
-X-Bogosity: Ham, tests=bogofilter, spamicity=0.000831, version=1.2.4
+X-Bogosity: Ham, tests=bogofilter, spamicity=0.001469, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri, 9 Aug 2019 09:24:44 -0700, Matthew Wilcox <willy@infradead.org> w=
-rote:
-> On Fri, Aug 09, 2019 at 07:00:26PM +0300, Adalbert Laz=C4=83r wrote:
-> > +++ b/include/linux/page-flags.h
-> > @@ -417,8 +417,10 @@ PAGEFLAG(Idle, idle, PF_ANY)
-> >   */
-> >  #define PAGE_MAPPING_ANON	0x1
-> >  #define PAGE_MAPPING_MOVABLE	0x2
-> > +#define PAGE_MAPPING_REMOTE	0x4
+On Tue, Aug 13, 2019 at 11:29:07AM +0200, Paolo Bonzini wrote:
+> On 09/08/19 18:24, Matthew Wilcox wrote:
+> > On Fri, Aug 09, 2019 at 07:00:26PM +0300, Adalbert Laz=C4=83r wrote:
+> >> +++ b/include/linux/page-flags.h
+> >> @@ -417,8 +417,10 @@ PAGEFLAG(Idle, idle, PF_ANY)
+> >>   */
+> >>  #define PAGE_MAPPING_ANON	0x1
+> >>  #define PAGE_MAPPING_MOVABLE	0x2
+> >> +#define PAGE_MAPPING_REMOTE	0x4
+> > Uh.  How do you know page->mapping would otherwise have bit 2 clear?
+> > Who's guaranteeing that?
+> >=20
+> > This is an awfully big patch to the memory management code, buried in
+> > the middle of a gigantic series which almost guarantees nobody would
+> > look at it.  I call shenanigans.
 >=20
-> Uh.  How do you know page->mapping would otherwise have bit 2 clear?
-> Who's guaranteeing that?
->=20
-> This is an awfully big patch to the memory management code, buried in
-> the middle of a gigantic series which almost guarantees nobody would
-> look at it.  I call shenanigans.
->=20
-> > @@ -1021,7 +1022,7 @@ void page_move_anon_rmap(struct page *page, str=
-uct vm_area_struct *vma)
-> >   * __page_set_anon_rmap - set up new anonymous rmap
-> >   * @page:	Page or Hugepage to add to rmap
-> >   * @vma:	VM area to add page to.
-> > - * @address:	User virtual address of the mapping=09
-> > + * @address:	User virtual address of the mapping
->=20
-> And mixing in fluff changes like this is a real no-no.  Try again.
->=20
+> Are you calling shenanigans on the patch submitter (which is gratuitous=
+)
+> or on the KVM maintainers/reviewers?
 
-No bad intentions, just overzealous.
-I didn't want to hide anything from our patches.
-Once we advance with the introspection patches related to KVM we'll be
-back with the remote mapping patch, split and cleaned.
+On the patch submitter, of course.  How can I possibly be criticising you
+for something you didn't do?
 
-Thanks
 
