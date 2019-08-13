@@ -2,477 +2,899 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED,USER_AGENT_GIT autolearn=unavailable autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-0.4 required=3.0 tests=FROM_LOCAL_HEX,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 0082FC433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:04:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id ACA13C32750
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:08:09 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id A26262070D
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:04:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org A26262070D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 3FE8A206C2
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 21:08:09 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3FE8A206C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=syzkaller.appspotmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DA69E6B02AD; Tue, 13 Aug 2019 17:03:47 -0400 (EDT)
+	id DC1EC6B0007; Tue, 13 Aug 2019 17:08:08 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D2AC96B02AF; Tue, 13 Aug 2019 17:03:47 -0400 (EDT)
+	id D714E6B0008; Tue, 13 Aug 2019 17:08:08 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id B30BA6B02B1; Tue, 13 Aug 2019 17:03:47 -0400 (EDT)
+	id C61616B000E; Tue, 13 Aug 2019 17:08:08 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0046.hostedemail.com [216.40.44.46])
-	by kanga.kvack.org (Postfix) with ESMTP id 7EB8B6B02AD
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:03:47 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 24A64180AD7C1
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:03:47 +0000 (UTC)
-X-FDA: 75818631294.08.hall48_20f452c5ad442
-X-HE-Tag: hall48_20f452c5ad442
-X-Filterd-Recvd-Size: 13402
-Received: from mga06.intel.com (mga06.intel.com [134.134.136.31])
-	by imf22.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:03:46 +0000 (UTC)
-X-Amp-Result: SKIPPED(no attachment in message)
-X-Amp-File-Uploaded: False
-Received: from fmsmga001.fm.intel.com ([10.253.24.23])
-  by orsmga104.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 14:03:43 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,382,1559545200"; 
-   d="scan'208";a="194276008"
-Received: from yyu32-desk1.sc.intel.com ([10.144.153.205])
-  by fmsmga001.fm.intel.com with ESMTP; 13 Aug 2019 14:03:42 -0700
-From: Yu-cheng Yu <yu-cheng.yu@intel.com>
-To: x86@kernel.org,
-	"H. Peter Anvin" <hpa@zytor.com>,
-	Thomas Gleixner <tglx@linutronix.de>,
-	Ingo Molnar <mingo@redhat.com>,
-	linux-kernel@vger.kernel.org,
-	linux-doc@vger.kernel.org,
-	linux-mm@kvack.org,
-	linux-arch@vger.kernel.org,
-	linux-api@vger.kernel.org,
-	Arnd Bergmann <arnd@arndb.de>,
-	Andy Lutomirski <luto@amacapital.net>,
-	Balbir Singh <bsingharora@gmail.com>,
-	Borislav Petkov <bp@alien8.de>,
-	Cyrill Gorcunov <gorcunov@gmail.com>,
-	Dave Hansen <dave.hansen@linux.intel.com>,
-	Eugene Syromiatnikov <esyr@redhat.com>,
-	Florian Weimer <fweimer@redhat.com>,
-	"H.J. Lu" <hjl.tools@gmail.com>,
-	Jann Horn <jannh@google.com>,
-	Jonathan Corbet <corbet@lwn.net>,
-	Kees Cook <keescook@chromium.org>,
-	Mike Kravetz <mike.kravetz@oracle.com>,
-	Nadav Amit <nadav.amit@gmail.com>,
-	Oleg Nesterov <oleg@redhat.com>,
-	Pavel Machek <pavel@ucw.cz>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	"Ravi V. Shankar" <ravi.v.shankar@intel.com>,
-	Vedvyas Shanbhogue <vedvyas.shanbhogue@intel.com>,
-	Dave Martin <Dave.Martin@arm.com>
-Cc: Yu-cheng Yu <yu-cheng.yu@intel.com>
-Subject: [PATCH v8 14/14] Introduce arch_prctl(ARCH_X86_CET_MARK_LEGACY_CODE)
-Date: Tue, 13 Aug 2019 13:53:59 -0700
-Message-Id: <20190813205359.12196-15-yu-cheng.yu@intel.com>
-X-Mailer: git-send-email 2.17.1
-In-Reply-To: <20190813205359.12196-1-yu-cheng.yu@intel.com>
-References: <20190813205359.12196-1-yu-cheng.yu@intel.com>
+Received: from forelay.hostedemail.com (smtprelay0090.hostedemail.com [216.40.44.90])
+	by kanga.kvack.org (Postfix) with ESMTP id 952BA6B0007
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:08:08 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay05.hostedemail.com (Postfix) with SMTP id 34580181AC9AE
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:08:08 +0000 (UTC)
+X-FDA: 75818642256.01.ray94_46e838f22a93a
+X-HE-Tag: ray94_46e838f22a93a
+X-Filterd-Recvd-Size: 49082
+Received: from mail-ot1-f71.google.com (mail-ot1-f71.google.com [209.85.210.71])
+	by imf05.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 21:08:07 +0000 (UTC)
+Received: by mail-ot1-f71.google.com with SMTP id 88so14107343otc.19
+        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 14:08:07 -0700 (PDT)
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:mime-version:date:message-id:subject:from:to;
+        bh=mCvcXc2rClVVP29gxTet4gxy92I90eC1AEZNFxdO40I=;
+        b=kFAEWp3WQbzsdvwEnHbiWmbHbKyPNLOEBqscST0MkOjwytxaldllNIeOibrzaN+bSu
+         HHuxi6yiLEwY/wu/6kLn/y3+FOPeKaHJVCyQZSFzJZmgVpN6aaxGfTkIc6DsXJnJKndl
+         kCGiAPbmuKzt5vf/YIaUdbJgXw/YvpoFkhnQXU1hI5sw6BCg3EdxhdJHEHMhW00rpbXx
+         M3K3VpchaskmqeW1Os4CSJQoEIMjwqXykikTdHznHSllL+eB8FqcuL335xSwkdvcDh6T
+         aekWjAuD3UGe+6aX2YUHtA7p4DletLv3wus/8BkyupmIjPS2DXDvwaaSsdixE1txzEqm
+         2ZQQ==
+X-Gm-Message-State: APjAAAVjdnGbZ/StkJ0gcNpRmSstVdM/KnIY97/4Bmgfa0Yr+wyK98FJ
+	3rpi7CgCRJsok7VgfZVqgA+5LkneBqcSVTiWuD7vQISSnZhp
+X-Google-Smtp-Source: APXvYqz0S9DUOiX+LxngFnA8kSoOw62sD4BX3kqFTwNERIr0M7U4Yn05DRwqD7VJPVXLKUMC221+YhKN9BQwrZ1bQPex4fspFiJP
+MIME-Version: 1.0
+X-Received: by 2002:a5d:888d:: with SMTP id d13mr2909822ioo.135.1565730486477;
+ Tue, 13 Aug 2019 14:08:06 -0700 (PDT)
+Date: Tue, 13 Aug 2019 14:08:06 -0700
+X-Google-Appengine-App-Id: s~syzkaller
+X-Google-Appengine-App-Id-Alias: syzkaller
+Message-ID: <00000000000075fa50059006098c@google.com>
+Subject: memory leak in bio_clone_fast
+From: syzbot <syzbot+0265846a0cb9a0547905@syzkaller.appspotmail.com>
+To: akpm@linux-foundation.org, baijiaju1990@gmail.com, 
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org, mhocko@suse.com, 
+	rppt@linux.ibm.com, syzkaller-bugs@googlegroups.com, willy@infradead.org
+Content-Type: text/plain; charset="UTF-8"; format=flowed; delsp=yes
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-When CET Indirect Branch Tracking (IBT) is enabled, the processor expects
-every branch target is an ENDBR instruction, or the target's address is
-marked as legacy in the legacy code bitmap.  The bitmap covers the whole
-user-mode address space (TASK_SIZE_MAX for 64-bit, TASK_SIZE for IA32),
-and each bit represents one page of linear address range.  The bitmap is
-located at the topmost address: (TASK_SIZE - IBT_BITMAP_SIZE).
+Hello,
 
-It is allocated only when the first time ARCH_X86_MARK_LEGACY_CODE
-is called from an application.
+syzbot found the following crash on:
 
-The IBT bitmap is visiable from user-mode, but not writable.
+HEAD commit:    d45331b0 Linux 5.3-rc4
+git tree:       upstream
+console output: https://syzkaller.appspot.com/x/log.txt?x=1651e6d2600000
+kernel config:  https://syzkaller.appspot.com/x/.config?x=6c5e70dcab57c6af
+dashboard link: https://syzkaller.appspot.com/bug?extid=0265846a0cb9a0547905
+compiler:       gcc (GCC) 9.0.0 20181231 (experimental)
+syz repro:      https://syzkaller.appspot.com/x/repro.syz?x=12c9c336600000
+C reproducer:   https://syzkaller.appspot.com/x/repro.c?x=1766156a600000
 
-Introduce:
+IMPORTANT: if you fix the bug, please add the following tag to the commit:
+Reported-by: syzbot+0265846a0cb9a0547905@syzkaller.appspotmail.com
 
-arch_prctl(ARCH_X86_CET_MARK_LEGACY_CODE, unsigned long *buf)
-    Mark an address range as IBT legacy code.
+executing program
+executing program
+executing program
+executing program
+BUG: memory leak
+unreferenced object 0xffff8881226da6c0 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 15.840s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
 
-    *buf: starting linear address
-    *(buf + 1): size of the legacy code
-    *(buf + 2): set (1); clear (0)
+BUG: memory leak
+unreferenced object 0xffff8881226da600 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 15.840s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
 
-Signed-off-by: Yu-cheng Yu <yu-cheng.yu@intel.com>
+BUG: memory leak
+unreferenced object 0xffff8881226da540 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 15.840s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da6c0 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 16.750s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da600 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 16.750s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da540 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 16.750s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da6c0 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 17.650s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da600 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 17.650s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da540 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 17.650s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da6c0 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 18.550s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da600 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 18.550s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da540 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 18.550s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da6c0 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 19.450s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da600 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 19.450s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da540 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 19.450s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da6c0 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 19.510s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da600 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 19.510s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da540 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 19.510s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da6c0 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 19.560s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da600 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 19.560s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+BUG: memory leak
+unreferenced object 0xffff8881226da540 (size 192):
+   comm "syz-executor332", pid 6977, jiffies 4294941214 (age 19.560s)
+   hex dump (first 32 bytes):
+     00 00 00 00 00 00 00 00 00 f0 bc 28 81 88 ff ff  ...........(....
+     01 c8 60 00 02 0b 00 00 00 00 00 00 00 00 00 00  ..`.............
+   backtrace:
+     [<00000000b06a638e>] kmemleak_alloc_recursive  
+include/linux/kmemleak.h:43 [inline]
+     [<00000000b06a638e>] slab_post_alloc_hook mm/slab.h:522 [inline]
+     [<00000000b06a638e>] slab_alloc mm/slab.c:3319 [inline]
+     [<00000000b06a638e>] kmem_cache_alloc+0x13f/0x2c0 mm/slab.c:3483
+     [<00000000950a289d>] mempool_alloc_slab+0x1e/0x30 mm/mempool.c:513
+     [<00000000bfcc27e2>] mempool_alloc+0x64/0x1b0 mm/mempool.c:393
+     [<00000000cdf95a4a>] bio_alloc_bioset+0x180/0x2c0 block/bio.c:477
+     [<00000000b239bb68>] bio_clone_fast+0x25/0x90 block/bio.c:609
+     [<000000005d58c2dc>] bio_split+0x4a/0xd0 block/bio.c:1856
+     [<00000000ab943734>] blk_bio_segment_split block/blk-merge.c:250  
+[inline]
+     [<00000000ab943734>] __blk_queue_split+0x355/0x730 block/blk-merge.c:272
+     [<00000000e702c0ac>] blk_mq_make_request+0xb0/0x890 block/blk-mq.c:1943
+     [<000000003c89773a>] generic_make_request block/blk-core.c:1052 [inline]
+     [<000000003c89773a>] generic_make_request+0xf6/0x4a0  
+block/blk-core.c:994
+     [<00000000a4dcaf78>] submit_bio+0x5a/0x1e0 block/blk-core.c:1163
+     [<000000003e1ce7f8>] __blkdev_direct_IO fs/block_dev.c:459 [inline]
+     [<000000003e1ce7f8>] blkdev_direct_IO+0x2b3/0x6d0 fs/block_dev.c:515
+     [<0000000087ec76a4>] generic_file_direct_write+0xb0/0x1a0  
+mm/filemap.c:3230
+     [<00000000ff259b44>] __generic_file_write_iter+0xec/0x230  
+mm/filemap.c:3413
+     [<00000000223d9b6c>] blkdev_write_iter fs/block_dev.c:2026 [inline]
+     [<00000000223d9b6c>] blkdev_write_iter+0xbe/0x160 fs/block_dev.c:2003
+     [<000000003c4a5c94>] call_write_iter include/linux/fs.h:1870 [inline]
+     [<000000003c4a5c94>] aio_write+0x10b/0x1d0 fs/aio.c:1583
+     [<00000000581f0c84>] __io_submit_one fs/aio.c:1815 [inline]
+     [<00000000581f0c84>] io_submit_one+0x59b/0xe50 fs/aio.c:1862
+
+
+
 ---
- arch/x86/include/asm/cet.h        |   3 +
- arch/x86/include/asm/processor.h  |  13 +-
- arch/x86/include/uapi/asm/prctl.h |   1 +
- arch/x86/kernel/Makefile          |   2 +-
- arch/x86/kernel/cet_bitmap.c      | 210 ++++++++++++++++++++++++++++++
- arch/x86/kernel/cet_prctl.c       |  15 +++
- mm/memory.c                       |   8 ++
- 7 files changed, 250 insertions(+), 2 deletions(-)
- create mode 100644 arch/x86/kernel/cet_bitmap.c
+This bug is generated by a bot. It may contain errors.
+See https://goo.gl/tpsmEJ for more information about syzbot.
+syzbot engineers can be reached at syzkaller@googlegroups.com.
 
-diff --git a/arch/x86/include/asm/cet.h b/arch/x86/include/asm/cet.h
-index 2561efe081ad..d5f693d082b0 100644
---- a/arch/x86/include/asm/cet.h
-+++ b/arch/x86/include/asm/cet.h
-@@ -4,6 +4,7 @@
- 
- #ifndef __ASSEMBLY__
- #include <linux/types.h>
-+#include <asm/processor.h>
- 
- struct task_struct;
- struct sc_ext;
-@@ -30,6 +31,7 @@ void cet_disable_free_shstk(struct task_struct *p);
- int cet_restore_signal(bool ia32, struct sc_ext *sc);
- int cet_setup_signal(bool ia32, unsigned long rstor, struct sc_ext *sc);
- int cet_setup_ibt(void);
-+int cet_mark_legacy_code(unsigned long addr, unsigned long size, unsigned long set);
- void cet_disable_ibt(void);
- #else
- static inline int prctl_cet(int option, unsigned long arg2) { return -EINVAL; }
-@@ -42,6 +44,7 @@ static inline int cet_restore_signal(bool ia32, struct sc_ext *sc) { return -EIN
- static inline int cet_setup_signal(bool ia32, unsigned long rstor,
- 				   struct sc_ext *sc) { return -EINVAL; }
- static inline int cet_setup_ibt(void) { return -EINVAL; }
-+static inline int cet_mark_legacy_code(unsigned long addr, unsigned long size, unsigned long set) { return -EINVAL; }
- static inline void cet_disable_ibt(void) {}
- #endif
- 
-diff --git a/arch/x86/include/asm/processor.h b/arch/x86/include/asm/processor.h
-index 0f9bc7fd1351..af3bdd545a55 100644
---- a/arch/x86/include/asm/processor.h
-+++ b/arch/x86/include/asm/processor.h
-@@ -888,7 +888,18 @@ static inline void spin_lock_prefetch(const void *x)
- #define TASK_SIZE_OF(child)	((test_tsk_thread_flag(child, TIF_ADDR32)) ? \
- 					IA32_PAGE_OFFSET : TASK_SIZE_MAX)
- 
--#define STACK_TOP		TASK_SIZE_LOW
-+#define MMAP_MAX		(unsigned long)(test_thread_flag(TIF_ADDR32) ? \
-+					TASK_SIZE : TASK_SIZE_MAX)
-+
-+#define IBT_BITMAP_SIZE		(round_up(MMAP_MAX, PAGE_SIZE * BITS_PER_BYTE) / \
-+					(PAGE_SIZE * BITS_PER_BYTE))
-+
-+#define IBT_BITMAP_ADDR		(TASK_SIZE - IBT_BITMAP_SIZE)
-+
-+#define STACK_TOP		(TASK_SIZE_LOW < IBT_BITMAP_ADDR - PAGE_SIZE ? \
-+					TASK_SIZE_LOW : \
-+					IBT_BITMAP_ADDR - PAGE_SIZE)
-+
- #define STACK_TOP_MAX		TASK_SIZE_MAX
- 
- #define INIT_THREAD  {						\
-diff --git a/arch/x86/include/uapi/asm/prctl.h b/arch/x86/include/uapi/asm/prctl.h
-index 02243127dcf6..da39d4bde4e1 100644
---- a/arch/x86/include/uapi/asm/prctl.h
-+++ b/arch/x86/include/uapi/asm/prctl.h
-@@ -20,5 +20,6 @@
- #define ARCH_X86_CET_ALLOC_SHSTK	0x3004
- #define ARCH_X86_CET_GET_LEGACY_BITMAP	0x3005 /* deprecated */
- #define ARCH_X86_CET_SET_LEGACY_BITMAP	0x3006 /* deprecated */
-+#define ARCH_X86_CET_MARK_LEGACY_CODE	0x3007
- 
- #endif /* _ASM_X86_PRCTL_H */
-diff --git a/arch/x86/kernel/Makefile b/arch/x86/kernel/Makefile
-index 311829335521..228906364513 100644
---- a/arch/x86/kernel/Makefile
-+++ b/arch/x86/kernel/Makefile
-@@ -140,7 +140,7 @@ obj-$(CONFIG_UNWINDER_ORC)		+= unwind_orc.o
- obj-$(CONFIG_UNWINDER_FRAME_POINTER)	+= unwind_frame.o
- obj-$(CONFIG_UNWINDER_GUESS)		+= unwind_guess.o
- 
--obj-$(CONFIG_X86_INTEL_CET)		+= cet.o cet_prctl.o
-+obj-$(CONFIG_X86_INTEL_CET)		+= cet.o cet_prctl.o cet_bitmap.o
- 
- ###
- # 64 bit specific files
-diff --git a/arch/x86/kernel/cet_bitmap.c b/arch/x86/kernel/cet_bitmap.c
-new file mode 100644
-index 000000000000..25eb441eb094
---- /dev/null
-+++ b/arch/x86/kernel/cet_bitmap.c
-@@ -0,0 +1,210 @@
-+/* SPDX-License-Identifier: GPL-2.0 */
-+
-+#include <linux/bits.h>
-+#include <linux/err.h>
-+#include <linux/memcontrol.h>
-+#include <linux/mm.h>
-+#include <linux/mman.h>
-+#include <linux/oom.h>
-+#include <linux/pagemap.h>
-+#include <linux/rmap.h>
-+#include <linux/swap.h>
-+#include <asm/cet.h>
-+#include <asm/fpu/internal.h>
-+
-+/*
-+ * For read fault, provide the zero page.  For write fault coming from
-+ * get_user_pages(), clear the page already allocated.
-+ */
-+static vm_fault_t bitmap_fault(const struct vm_special_mapping *sm,
-+			       struct vm_area_struct *vma, struct vm_fault *vmf)
-+{
-+	if (!(vmf->flags & FAULT_FLAG_WRITE)) {
-+		vmf->page = ZERO_PAGE(vmf->address);
-+		return 0;
-+	} else {
-+		vm_fault_t r;
-+
-+		if (!vmf->cow_page)
-+			return VM_FAULT_ERROR;
-+
-+		clear_user_highpage(vmf->cow_page, vmf->address);
-+		__SetPageUptodate(vmf->cow_page);
-+		r = finish_fault(vmf);
-+		return r ? r : VM_FAULT_DONE_COW;
-+	}
-+}
-+
-+static int bitmap_mremap(const struct vm_special_mapping *sm,
-+			 struct vm_area_struct *vma)
-+{
-+	return -EINVAL;
-+}
-+
-+static const struct vm_special_mapping bitmap_mapping = {
-+	.name	= "[ibt_bitmap]",
-+	.fault	= bitmap_fault,
-+	.mremap	= bitmap_mremap,
-+};
-+
-+static int alloc_bitmap(void)
-+{
-+	struct mm_struct *mm = current->mm;
-+	struct vm_area_struct *vma;
-+	u64 msr_ia32_u_cet;
-+	int r = 0;
-+
-+	if (down_write_killable(&mm->mmap_sem))
-+		return -EINTR;
-+
-+	vma = _install_special_mapping(mm, IBT_BITMAP_ADDR, IBT_BITMAP_SIZE,
-+				       VM_READ | VM_MAYREAD | VM_MAYWRITE,
-+				       &bitmap_mapping);
-+
-+	if (IS_ERR(vma))
-+		r = PTR_ERR(vma);
-+
-+	up_write(&mm->mmap_sem);
-+
-+	if (r)
-+		return r;
-+
-+	current->thread.cet.ibt_bitmap_used = 1;
-+
-+	modify_fpu_regs_begin();
-+	rdmsrl(MSR_IA32_U_CET, msr_ia32_u_cet);
-+	msr_ia32_u_cet |= (MSR_IA32_CET_LEG_IW_EN | IBT_BITMAP_ADDR);
-+	wrmsrl(MSR_IA32_U_CET, msr_ia32_u_cet);
-+	modify_fpu_regs_end();
-+	return 0;
-+}
-+
-+/*
-+ * Set bits in the IBT legacy code bitmap, which is read-only user memory.
-+ */
-+static int set_bits(unsigned long start_bit, unsigned long end_bit,
-+		    unsigned long set)
-+{
-+	unsigned long start_ul, end_ul, nr_ul;
-+	unsigned long start_ul_addr, tmp_addr, len;
-+	int i, j;
-+
-+	start_ul = start_bit / BITS_PER_LONG;
-+	end_ul = end_bit / BITS_PER_LONG;
-+	i = start_bit % BITS_PER_LONG;
-+	j = end_bit % BITS_PER_LONG;
-+
-+	start_ul_addr = IBT_BITMAP_ADDR + start_ul * sizeof(0UL);
-+	nr_ul = end_ul - start_ul + 1;
-+
-+	tmp_addr = start_ul_addr;
-+	len = nr_ul * sizeof(0UL);
-+
-+	down_read(&current->mm->mmap_sem);
-+	while (len) {
-+		unsigned long *first, *last, mask, bytes;
-+		int ret, offset;
-+		void *kern_page_addr;
-+		struct page *page = NULL;
-+
-+		ret = get_user_pages(tmp_addr, 1, FOLL_WRITE | FOLL_FORCE,
-+				     &page, NULL);
-+
-+		if (ret <= 0) {
-+			up_read(&current->mm->mmap_sem);
-+			return ret;
-+		}
-+
-+		kern_page_addr = kmap(page);
-+
-+		bytes = len;
-+		offset = tmp_addr & (PAGE_SIZE - 1);
-+
-+		/* Is end_ul in this page? */
-+		if (bytes > (PAGE_SIZE - offset)) {
-+			bytes = PAGE_SIZE - offset;
-+			last = NULL;
-+		} else {
-+			last = (unsigned long *)(kern_page_addr + offset + bytes) - 1;
-+		}
-+
-+		/* Is start_ul in this page? */
-+		if (tmp_addr == start_ul_addr)
-+			first = (unsigned long *)(kern_page_addr + offset);
-+		else
-+			first = NULL;
-+
-+		if (nr_ul == 1) {
-+			mask = GENMASK(j, i);
-+
-+			if (set)
-+				*first |= mask;
-+			else
-+				*first &= ~mask;
-+		} else {
-+			if (first) {
-+				mask = GENMASK(BITS_PER_LONG - 1, i);
-+
-+				if (set)
-+					*first |= mask;
-+				else
-+					*first &= ~mask;
-+			}
-+
-+			if (last) {
-+				mask = GENMASK(j, 0);
-+
-+				if (set)
-+					*last |= mask;
-+				else
-+					*last &= ~mask;
-+			}
-+
-+			if (nr_ul > 2) {
-+				void *p = kern_page_addr + offset;
-+				int cnt = bytes;
-+
-+				if (first) {
-+					p += sizeof(*first);
-+					cnt -= sizeof(*first);
-+				}
-+
-+				if (last)
-+					cnt -= sizeof(*last);
-+
-+				if (set)
-+					memset(p, 0xff, cnt);
-+				else
-+					memset(p, 0, cnt);
-+			}
-+		}
-+
-+		set_page_dirty_lock(page);
-+		kunmap(page);
-+		put_page(page);
-+
-+		len -= bytes;
-+		tmp_addr += bytes;
-+	}
-+	up_read(&current->mm->mmap_sem);
-+	return 0;
-+}
-+
-+int cet_mark_legacy_code(unsigned long addr, unsigned long size, unsigned long set)
-+{
-+	int r;
-+
-+	if (!current->thread.cet.ibt_enabled)
-+		return -EINVAL;
-+
-+	if ((addr >= IBT_BITMAP_ADDR) || (addr + size > IBT_BITMAP_ADDR))
-+		return -EINVAL;
-+
-+	if (!current->thread.cet.ibt_bitmap_used) {
-+		r = alloc_bitmap();
-+		if (r)
-+			return r;
-+	}
-+
-+	return set_bits(addr / PAGE_SIZE, (addr + size - 1) / PAGE_SIZE, set);
-+}
-diff --git a/arch/x86/kernel/cet_prctl.c b/arch/x86/kernel/cet_prctl.c
-index 09d8c4ea935c..eec5baf8b0da 100644
---- a/arch/x86/kernel/cet_prctl.c
-+++ b/arch/x86/kernel/cet_prctl.c
-@@ -57,6 +57,18 @@ static int handle_alloc_shstk(unsigned long arg2)
- 	return 0;
- }
- 
-+static int handle_mark_legacy_code(unsigned long arg2)
-+{
-+	unsigned long addr, size, set;
-+
-+	if (get_user(addr, (unsigned long __user *)arg2) ||
-+	    get_user(size, (unsigned long __user *)arg2 + 1) ||
-+	    get_user(set, (unsigned long __user *)arg2 + 2))
-+		return -EFAULT;
-+
-+	return cet_mark_legacy_code(addr, size, set);
-+}
-+
- int prctl_cet(int option, unsigned long arg2)
- {
- 	if (!cpu_x86_cet_enabled())
-@@ -83,6 +95,9 @@ int prctl_cet(int option, unsigned long arg2)
- 	case ARCH_X86_CET_ALLOC_SHSTK:
- 		return handle_alloc_shstk(arg2);
- 
-+	case ARCH_X86_CET_MARK_LEGACY_CODE:
-+		return handle_mark_legacy_code(arg2);
-+
- 	default:
- 		return -EINVAL;
- 	}
-diff --git a/mm/memory.c b/mm/memory.c
-index be93a73b5152..75076f727be0 100644
---- a/mm/memory.c
-+++ b/mm/memory.c
-@@ -3290,6 +3290,12 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
- 
- 	flush_icache_page(vma, page);
- 	entry = mk_pte(page, vma->vm_page_prot);
-+
-+	if (is_zero_pfn(pte_pfn(entry))) {
-+		entry = pte_mkspecial(entry);
-+		goto alloc_set_pte_out;
-+	}
-+
- 	if (write)
- 		entry = maybe_mkwrite(pte_mkdirty(entry), vma);
- 	/* copy-on-write page */
-@@ -3302,6 +3308,8 @@ vm_fault_t alloc_set_pte(struct vm_fault *vmf, struct mem_cgroup *memcg,
- 		inc_mm_counter_fast(vma->vm_mm, mm_counter_file(page));
- 		page_add_file_rmap(page, false);
- 	}
-+
-+alloc_set_pte_out:
- 	set_pte_at(vma->vm_mm, vmf->address, vmf->pte, entry);
- 
- 	/* no need to invalidate: a not-present page won't be cached */
--- 
-2.17.1
-
+syzbot will keep track of this bug report. See:
+https://goo.gl/tpsmEJ#status for how to communicate with syzbot.
+syzbot can test patches for this bug, for details see:
+https://goo.gl/tpsmEJ#testing-patches
 
