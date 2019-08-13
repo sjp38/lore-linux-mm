@@ -2,155 +2,138 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id B37FBC433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 17:46:31 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 35B31C433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 17:46:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 6D7F020840
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 17:46:31 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=cmpxchg-org.20150623.gappssmtp.com header.i=@cmpxchg-org.20150623.gappssmtp.com header.b="j6j9cc3o"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 6D7F020840
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=cmpxchg.org
+	by mail.kernel.org (Postfix) with ESMTP id EDC892067D
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 17:46:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EDC892067D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 140976B0005; Tue, 13 Aug 2019 13:46:31 -0400 (EDT)
+	id 9CA5C6B0006; Tue, 13 Aug 2019 13:46:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 0EEB56B0006; Tue, 13 Aug 2019 13:46:31 -0400 (EDT)
+	id 97AB56B0007; Tue, 13 Aug 2019 13:46:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id F1FD26B0007; Tue, 13 Aug 2019 13:46:30 -0400 (EDT)
+	id 868E76B0008; Tue, 13 Aug 2019 13:46:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0123.hostedemail.com [216.40.44.123])
-	by kanga.kvack.org (Postfix) with ESMTP id D30376B0005
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 13:46:30 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 877898248AA1
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:46:30 +0000 (UTC)
-X-FDA: 75818134140.28.ball05_38b974bb63f16
-X-HE-Tag: ball05_38b974bb63f16
-X-Filterd-Recvd-Size: 6375
-Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com [209.85.215.195])
-	by imf50.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:46:29 +0000 (UTC)
-Received: by mail-pg1-f195.google.com with SMTP id k3so606062pgb.10
-        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 10:46:29 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=cmpxchg-org.20150623.gappssmtp.com; s=20150623;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=mXGH6sfF5Mv8489pO8HNMnvL4N6Kj76jRZqkd1Btows=;
-        b=j6j9cc3oeGRVjeb4q1mX5UvZe7oyDjzfb402Fg+7HhPoR8ZZ6I+HCu+AQE3gq0eDDd
-         5SBPUQaw2UJReVDDVyXNzMhXDX6rSNUrGZEzebEzR3mC+q1snggT0oxh7Uly5MzYNf5r
-         yJLjMHsZJW7MI2LqKKAA1/VIg6caDPkH/ibZtIg4WtRiccYwshL2Lm7PbBhc9gdSlBBi
-         BZoO7hz6wHRCK6BnX9Ew8PkGymJjUq48Of9zE+Aq9pDUvh2e/I/OMBDu85QL/WNz3rPv
-         lyKbsxEcKoQzkyqDhiw2oQOo/gaNSd8BdY6gFL1sHjdu/3qsLd9O7/r4sNtlcfFs2fOa
-         62CQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=mXGH6sfF5Mv8489pO8HNMnvL4N6Kj76jRZqkd1Btows=;
-        b=koX5Op29Hiw3VuEsQOKzSW6rOLK7SOZeOngFIhT3U6NzCattV6FatUNi6/SqsrFqBQ
-         UgVmk1n7YtXgdpaGK8p5S57SryZRWXVq0pUfzEsEWrGKFIeFT4/9BlG5u0+eU/UCuP6m
-         UPxlN1glW8pONakB1CZZcC0uwFT53yF3QWgP6sPRQvZXa8My73On5h159iFazuvGAvcA
-         tt7x75VmoEaDlzBFDfSRCuzGyoCqAscsAuXngwtSgjC0AKUoODtaB0aNO94GMn6tRJEG
-         3InBvJHqwBfs45H9kf0HRL8yM8urFsDh0GgRRayhWzdBQzOiccV6lAdo0blkTLMiyZ9s
-         d6rA==
-X-Gm-Message-State: APjAAAUbyHjlNkUTssl4dAIkNFzaMEH8r0Lgukuoez9Q3Ek8c/BAqWj8
-	6Qw36er1pMskU1z+L7eA0o9YGw==
-X-Google-Smtp-Source: APXvYqyIrpmWgiXBiK3PDYma3AbBRu7FLdOh0ZmeN1sG7QioNu25fJleeVa7zulYpZwXNMNhBdfcVQ==
-X-Received: by 2002:a17:90b:d8f:: with SMTP id bg15mr3266929pjb.65.1565718388234;
-        Tue, 13 Aug 2019 10:46:28 -0700 (PDT)
-Received: from localhost ([2620:10d:c091:500::2:674])
-        by smtp.gmail.com with ESMTPSA id g11sm9780395pfh.121.2019.08.13.10.46.26
-        (version=TLS1_3 cipher=TLS_AES_256_GCM_SHA384 bits=256/256);
-        Tue, 13 Aug 2019 10:46:27 -0700 (PDT)
-Date: Tue, 13 Aug 2019 13:46:25 -0400
-From: Johannes Weiner <hannes@cmpxchg.org>
-To: Dave Chinner <david@fromorbit.com>
-Cc: Jens Axboe <axboe@kernel.dk>, Andrew Morton <akpm@linux-foundation.org>,
-	linux-mm@kvack.org, linux-btrfs@vger.kernel.org,
-	linux-ext4@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org
-Subject: Re: [PATCH RESEND] block: annotate refault stalls from IO submission
-Message-ID: <20190813174625.GA21982@cmpxchg.org>
-References: <20190808190300.GA9067@cmpxchg.org>
- <20190809221248.GK7689@dread.disaster.area>
+Received: from forelay.hostedemail.com (smtprelay0151.hostedemail.com [216.40.44.151])
+	by kanga.kvack.org (Postfix) with ESMTP id 67FDA6B0006
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 13:46:39 -0400 (EDT)
+Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 274612C1E
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:46:39 +0000 (UTC)
+X-FDA: 75818134518.16.place64_39f3e68f44153
+X-HE-Tag: place64_39f3e68f44153
+X-Filterd-Recvd-Size: 3996
+Received: from mga01.intel.com (mga01.intel.com [192.55.52.88])
+	by imf27.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 17:46:38 +0000 (UTC)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from orsmga005.jf.intel.com ([10.7.209.41])
+  by fmsmga101.fm.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 13 Aug 2019 10:46:36 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,382,1559545200"; 
+   d="scan'208";a="351604440"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by orsmga005.jf.intel.com with ESMTP; 13 Aug 2019 10:46:35 -0700
+Date: Tue, 13 Aug 2019 10:46:35 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jason Gunthorpe <jgg@ziepe.ca>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
+	Theodore Ts'o <tytso@mit.edu>, John Hubbard <jhubbard@nvidia.com>,
+	Michal Hocko <mhocko@suse.com>, Dave Chinner <david@fromorbit.com>,
+	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
+	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
+	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
+	linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 15/19] mm/gup: Introduce vaddr_pin_pages()
+Message-ID: <20190813174635.GC11882@iweiny-DESK2.sc.intel.com>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+ <20190809225833.6657-16-ira.weiny@intel.com>
+ <20190812122814.GC24457@ziepe.ca>
+ <20190812214854.GF20634@iweiny-DESK2.sc.intel.com>
+ <20190813114706.GA29508@ziepe.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190809221248.GK7689@dread.disaster.area>
-User-Agent: Mutt/1.12.0 (2019-05-25)
+In-Reply-To: <20190813114706.GA29508@ziepe.ca>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Sat, Aug 10, 2019 at 08:12:48AM +1000, Dave Chinner wrote:
-> On Thu, Aug 08, 2019 at 03:03:00PM -0400, Johannes Weiner wrote:
-> > psi tracks the time tasks wait for refaulting pages to become
-> > uptodate, but it does not track the time spent submitting the IO. The
-> > submission part can be significant if backing storage is contended or
-> > when cgroup throttling (io.latency) is in effect - a lot of time is
-> 
-> Or the wbt is throttling.
-> 
-> > spent in submit_bio(). In that case, we underreport memory pressure.
+On Tue, Aug 13, 2019 at 08:47:06AM -0300, Jason Gunthorpe wrote:
+> On Mon, Aug 12, 2019 at 02:48:55PM -0700, Ira Weiny wrote:
+> > On Mon, Aug 12, 2019 at 09:28:14AM -0300, Jason Gunthorpe wrote:
+> > > On Fri, Aug 09, 2019 at 03:58:29PM -0700, ira.weiny@intel.com wrote:
+> > > > From: Ira Weiny <ira.weiny@intel.com>
+> > > > 
+> > > > The addition of FOLL_LONGTERM has taken on additional meaning for CMA
+> > > > pages.
+> > > > 
+> > > > In addition subsystems such as RDMA require new information to be passed
+> > > > to the GUP interface to track file owning information.  As such a simple
+> > > > FOLL_LONGTERM flag is no longer sufficient for these users to pin pages.
+> > > > 
+> > > > Introduce a new GUP like call which takes the newly introduced vaddr_pin
+> > > > information.  Failure to pass the vaddr_pin object back to a vaddr_put*
+> > > > call will result in a failure if pins were created on files during the
+> > > > pin operation.
+> > > 
+> > > Is this a 'vaddr' in the traditional sense, ie does it work with
+> > > something returned by valloc?
 > > 
-> > Annotate submit_bio() to account submission time as memory stall when
-> > the bio is reading userspace workingset pages.
+> > ...or malloc in user space, yes.  I think the idea is that it is a user virtual
+> > address.
 > 
-> PAtch looks fine to me, but it raises another question w.r.t. IO
-> stalls and reclaim pressure feedback to the vm: how do we make use
-> of the pressure stall infrastructure to track inode cache pressure
-> and stalls?
+> valloc is a kernel call
+
+Oh...  I thought you meant this: https://linux.die.net/man/3/valloc
+
 > 
-> With the congestion_wait() and wait_iff_congested() being entire
-> non-functional for block devices since 5.0, there is no IO load
-> based feedback going into memory reclaim from shrinkers that might
-> require IO to free objects before they can be reclaimed. This is
-> directly analogous to page reclaim writing back dirty pages from
-> the LRU, and as I understand it one of things the PSI is supposed
-> to be tracking.
->
-> Lots of workloads create inode cache pressure and often it can
-> dominate the time spent in memory reclaim, so it would seem to me
-> that having PSI only track/calculate pressure and stalls from LRU
-> pages misses a fair chunk of the memory pressure and reclaim stalls
-> that can be occurring.
+> > So I'm open to suggestions.  Jan gave me this one, so I figured it was safer to
+> > suggest it...
+> 
+> Should have the word user in it, imho
 
-psi already tracks the entire reclaim operation. So if reclaim calls
-into the shrinker and the shrinker scans inodes, initiates IO, or even
-waits on IO, that time is accounted for as memory pressure stalling.
+Fair enough...
 
-If you can think of asynchronous events that are initiated from
-reclaim but cause indirect stalls in other contexts, contexts which
-can clearly link the stall back to reclaim activity, we can annotate
-them using psi_memstall_enter() / psi_memstall_leave().
+user_addr_pin_pages(void __user * addr, ...) ?
 
-In that vein, what would be great to have is be a distinction between
-read stalls on dentries/inodes that have never been touched before
-versus those that have been recently reclaimed - analogous to cold
-page faults vs refaults.
+uaddr_pin_pages(void __user * addr, ...) ?
 
-It would help psi, sure, but more importantly it would help us better
-balance pressure between filesystem metadata and the data pages. We
-would be able to tell the difference between a `find /' and actual
-thrashing, where hot inodes are getting kicked out and reloaded
-repeatedly - and we could backfeed that pressure to the LRU pages to
-allow the metadata caches to grow as needed.
+I think I like uaddr...
 
-For example, it could make sense to swap out a couple of completely
-unused anonymous pages if it means we could hold the metadata
-workingset fully in memory. But right now we cannot do that, because
-we cannot risk swapping just because somebody runs find /.
+> 
+> > > I also wish GUP like functions took in a 'void __user *' instead of
+> > > the unsigned long to make this clear :\
+> > 
+> > Not a bad idea.  But I only see a couple of call sites who actually use a 'void
+> > __user *' to pass into GUP...  :-/
+> > 
+> > For RDMA the address is _never_ a 'void __user *' AFAICS.
+> 
+> That is actually a bug, converting from u64 to a 'user VA' needs to go
+> through u64_to_user_ptr().
 
-I have semi-seriously talked to Josef about this before, but it wasn't
-quite obvious where we could track non-residency or eviction
-information for inodes, dentries etc. Maybe you have an idea?
+Fair enough.
+
+But there are a lot of call sites throughout the kernel who have the same
+bug...  I'm ok with forcing u64_to_user_ptr() to use this new call if others
+are.
+
+Ira
+
 
