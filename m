@@ -2,187 +2,157 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_MED,DKIM_SIGNED,
+X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_IN_DEF_DKIM_WL autolearn=no
-	autolearn_force=no version=3.4.0
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D92B2C32750
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 15:19:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2724EC433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 15:23:10 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 709F72084D
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 15:19:57 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id DC95520663
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 15:23:09 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=google.com header.i=@google.com header.b="Fk1Dc/CH"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 709F72084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=reject dis=none) header.from=google.com
+	dkim=pass (2048-bit key) header.d=oracle.com header.i=@oracle.com header.b="Cl10+Swp"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DC95520663
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=oracle.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id D69E46B0005; Tue, 13 Aug 2019 11:19:56 -0400 (EDT)
+	id 725A36B0005; Tue, 13 Aug 2019 11:23:09 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D1AB66B0006; Tue, 13 Aug 2019 11:19:56 -0400 (EDT)
+	id 6D6136B0006; Tue, 13 Aug 2019 11:23:09 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C311B6B0007; Tue, 13 Aug 2019 11:19:56 -0400 (EDT)
+	id 5C61B6B0007; Tue, 13 Aug 2019 11:23:09 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0116.hostedemail.com [216.40.44.116])
-	by kanga.kvack.org (Postfix) with ESMTP id A1F986B0005
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:19:56 -0400 (EDT)
-Received: from smtpin07.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 50275180AD7C1
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 15:19:56 +0000 (UTC)
-X-FDA: 75817764792.07.color82_56b6931097e54
-X-HE-Tag: color82_56b6931097e54
-X-Filterd-Recvd-Size: 9008
-Received: from mail-ot1-f68.google.com (mail-ot1-f68.google.com [209.85.210.68])
-	by imf20.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 15:19:55 +0000 (UTC)
-Received: by mail-ot1-f68.google.com with SMTP id m24so20893548otp.12
-        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 08:19:55 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=google.com; s=20161025;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=Xuo82W680vfMqA0vjhlKyKy1WIhwCKADAN98TM3xDdg=;
-        b=Fk1Dc/CHcXCvYiOTomqNv0zmBWlrR9D+HqfO1gKyIHgLJslb1kPNyTxNdjV/YBUBJl
-         VFi0gheINDE48llBE2R/v8PcAapA7TsC2L+tCszHNHE8BMiAnBfyvQ3BeTgrrG7hYJgx
-         iOSqRSx60Yi9S8YNoRsU2dXtmT+3WKOrOLCBZVm2uGQjNhhfdJmo6IhY7kn+guA1GqKN
-         P/52/JmahNx9K5WuoSrr7/eJLCbdpHYrCDZ9QSF668dGyyLDrs9fygFj+BF+S3srrQam
-         srUSgjROBxIq/WxIap+N60Qa6mvdP78oyd3ewOyWuiQkmhYhuq3HD/pCdrVZCjxmnkl7
-         u1Ng==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=Xuo82W680vfMqA0vjhlKyKy1WIhwCKADAN98TM3xDdg=;
-        b=gAheVAYBCDsiJ3P0tpI8ntuLI2Ky3ysK7CsWDoJ8Xy3q9ZxHNdGVbHB3KxpchS0yNR
-         zdRQWuuzh7aTmsD49OIKXogyhoW/syPVIbq+GH9QAjqt8+CEXm3Nzqh9Wb8wnXHe4t0j
-         BeAtuDH6h4S5eJf5JhT4opmrKBWby0D5i/UhTOXJiEblEhRnTANWtUMQ6/VX5lVE9RcM
-         MuyhAsIbe5ueChLbWWcBDfRz9zRgp1wSUQTAVwLu4K2IcVLnRp/f/rRAOf597oci7gm4
-         Mf0Ew6aefVoMx+i8r0rVblQhQkNjIk1ng3lGrwT2YDQYDFakIvlKUKn/X1fGvDBzY5Mh
-         O6RQ==
-X-Gm-Message-State: APjAAAUCszBTywMy7GQnwKVa8GAVrIuqyHyrOxFilR71z37rpwMSsGeT
-	/GGKurQ1ubHPRaWUFKjdp59BebPASYNUMXrY2I56WQ==
-X-Google-Smtp-Source: APXvYqxcZF4gU1ub1LLFg/qKp1ZrFgTQMzOSzMW6cWHW1kLXjABD4Sai5Y205ckHfgZ5NHx4tWUFsQyWBTGBmxzQkL4=
-X-Received: by 2002:aca:3dd7:: with SMTP id k206mr1661128oia.47.1565709594369;
- Tue, 13 Aug 2019 08:19:54 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0025.hostedemail.com [216.40.44.25])
+	by kanga.kvack.org (Postfix) with ESMTP id 354176B0005
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 11:23:09 -0400 (EDT)
+Received: from smtpin15.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id DF4864859
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 15:23:08 +0000 (UTC)
+X-FDA: 75817772856.15.silk40_72b6ddb57494c
+X-HE-Tag: silk40_72b6ddb57494c
+X-Filterd-Recvd-Size: 6159
+Received: from userp2130.oracle.com (userp2130.oracle.com [156.151.31.86])
+	by imf12.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 15:23:08 +0000 (UTC)
+Received: from pps.filterd (userp2130.oracle.com [127.0.0.1])
+	by userp2130.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7DFE7tL113127;
+	Tue, 13 Aug 2019 15:23:02 GMT
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=oracle.com; h=subject : to : cc :
+ references : from : message-id : date : mime-version : in-reply-to :
+ content-type : content-transfer-encoding; s=corp-2019-08-05;
+ bh=3lnMfPd7Gg7c53hK0P9zvawMvp/Er2oWH5wXpSpk/1A=;
+ b=Cl10+SwpcauJ7sUnCom+B5Q1g20dzgbrM+XPg6v26kQrDGDYKCuEh+8gpq0t/aL9k4oN
+ z0LM6r5u2R92SS5vkyS39wcDrFw6OCDd9owxpunhIXJys23Vg2CV1YN0mAD0zN7nZCX+
+ zAz8x2b4VWT7Eb2HeeLdAf7Li0LFW4wOX0LUXfNGO5RFXvuviY8jHhBCI2R3cHbE8Qhp
+ vAexMpBNPsRRS0k8HEYoSRfZOTjBSUXU76PUil5AyyBTtJ0mXJGUSEhIi2YYqllpXPG5
+ ImwOsiqTFpEjXHi6C4SwXfSMMJPVZETaW0GBjfB74UJ18HduP1WEd0Nr7nfsZzjyX3Zc jw== 
+Received: from userp3030.oracle.com (userp3030.oracle.com [156.151.31.80])
+	by userp2130.oracle.com with ESMTP id 2u9nbtf2y4-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 13 Aug 2019 15:23:02 +0000
+Received: from pps.filterd (userp3030.oracle.com [127.0.0.1])
+	by userp3030.oracle.com (8.16.0.27/8.16.0.27) with SMTP id x7DFDS0K029285;
+	Tue, 13 Aug 2019 15:21:01 GMT
+Received: from aserv0121.oracle.com (aserv0121.oracle.com [141.146.126.235])
+	by userp3030.oracle.com with ESMTP id 2ubwqrwbdq-1
+	(version=TLSv1.2 cipher=ECDHE-RSA-AES256-GCM-SHA384 bits=256 verify=OK);
+	Tue, 13 Aug 2019 15:21:01 +0000
+Received: from abhmp0009.oracle.com (abhmp0009.oracle.com [141.146.116.15])
+	by aserv0121.oracle.com (8.14.4/8.13.8) with ESMTP id x7DFKtnY024258;
+	Tue, 13 Aug 2019 15:20:55 GMT
+Received: from [10.65.155.174] (/10.65.155.174)
+	by default (Oracle Beehive Gateway v4.0)
+	with ESMTP ; Tue, 13 Aug 2019 08:20:54 -0700
+Subject: Re: [RFC PATCH 0/2] Add predictive memory reclamation and compaction
+To: Michal Hocko <mhocko@kernel.org>
+Cc: akpm@linux-foundation.org, vbabka@suse.cz, mgorman@techsingularity.net,
+        dan.j.williams@intel.com, osalvador@suse.de, richard.weiyang@gmail.com,
+        hannes@cmpxchg.org, arunks@codeaurora.org, rppt@linux.vnet.ibm.com,
+        jgg@ziepe.ca, amir73il@gmail.com, alexander.h.duyck@linux.intel.com,
+        linux-mm@kvack.org, linux-kernel-mentees@lists.linuxfoundation.org,
+        linux-kernel@vger.kernel.org
+References: <20190813014012.30232-1-khalid.aziz@oracle.com>
+ <20190813140553.GK17933@dhcp22.suse.cz>
+From: Khalid Aziz <khalid.aziz@oracle.com>
+Organization: Oracle Corp
+Message-ID: <3cb0af00-f091-2f3e-d6cc-73a5171e6eda@oracle.com>
+Date: Tue, 13 Aug 2019 09:20:51 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-References: <20190807171559.182301-1-joel@joelfernandes.org>
- <CAG48ez0ysprvRiENhBkLeV9YPTN_MB18rbu2HDa2jsWo5FYR8g@mail.gmail.com>
- <20190813100856.GF17933@dhcp22.suse.cz> <20190813142527.GD258732@google.com>
-In-Reply-To: <20190813142527.GD258732@google.com>
-From: Jann Horn <jannh@google.com>
-Date: Tue, 13 Aug 2019 17:19:27 +0200
-Message-ID: <CAG48ez2shpP+WMRRJxM_za-701aoc5+i6ZrdpQ8CzjsjEzEsOA@mail.gmail.com>
-Subject: Re: [PATCH v5 1/6] mm/page_idle: Add per-pid idle page tracking using
- virtual index
-To: Joel Fernandes <joel@joelfernandes.org>, Daniel Gruss <daniel.gruss@iaik.tugraz.at>
-Cc: Michal Hocko <mhocko@kernel.org>, kernel list <linux-kernel@vger.kernel.org>, 
-	Alexey Dobriyan <adobriyan@gmail.com>, Andrew Morton <akpm@linux-foundation.org>, 
-	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>, 
-	Catalin Marinas <catalin.marinas@arm.com>, Christian Hansen <chansen3@cisco.com>, 
-	Daniel Colascione <dancol@google.com>, fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>, 
-	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>, Kees Cook <keescook@chromium.org>, 
-	kernel-team <kernel-team@android.com>, Linux API <linux-api@vger.kernel.org>, 
-	linux-doc@vger.kernel.org, linux-fsdevel <linux-fsdevel@vger.kernel.org>, 
-	Linux-MM <linux-mm@kvack.org>, Mike Rapoport <rppt@linux.ibm.com>, 
-	Minchan Kim <minchan@kernel.org>, namhyung@google.com, 
-	"Paul E. McKenney" <paulmck@linux.ibm.com>, Robin Murphy <robin.murphy@arm.com>, 
-	Roman Gushchin <guro@fb.com>, Stephen Rothwell <sfr@canb.auug.org.au>, 
-	Suren Baghdasaryan <surenb@google.com>, Thomas Gleixner <tglx@linutronix.de>, Todd Kjos <tkjos@google.com>, 
-	Vladimir Davydov <vdavydov.dev@gmail.com>, Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190813140553.GK17933@dhcp22.suse.cz>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: quoted-printable
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9348 signatures=668684
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 suspectscore=2 malwarescore=0
+ phishscore=0 bulkscore=0 spamscore=0 mlxscore=0 mlxlogscore=999
+ adultscore=0 classifier=spam adjust=0 reason=mlx scancount=1
+ engine=8.0.1-1906280000 definitions=main-1908130158
+X-Proofpoint-Virus-Version: vendor=nai engine=6000 definitions=9348 signatures=668684
+X-Proofpoint-Spam-Details: rule=notspam policy=default score=0 priorityscore=1501 malwarescore=0
+ suspectscore=2 phishscore=0 bulkscore=0 spamscore=0 clxscore=1011
+ lowpriorityscore=0 mlxscore=0 impostorscore=0 mlxlogscore=999 adultscore=0
+ classifier=spam adjust=0 reason=mlx scancount=1 engine=8.0.1-1906280000
+ definitions=main-1908130158
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue, Aug 13, 2019 at 4:25 PM Joel Fernandes <joel@joelfernandes.org> wrote:
-> On Tue, Aug 13, 2019 at 12:08:56PM +0200, Michal Hocko wrote:
-> > On Mon 12-08-19 20:14:38, Jann Horn wrote:
-> > > On Wed, Aug 7, 2019 at 7:16 PM Joel Fernandes (Google)
-> > > <joel@joelfernandes.org> wrote:
-> > > > The page_idle tracking feature currently requires looking up the pagemap
-> > > > for a process followed by interacting with /sys/kernel/mm/page_idle.
-> > > > Looking up PFN from pagemap in Android devices is not supported by
-> > > > unprivileged process and requires SYS_ADMIN and gives 0 for the PFN.
-> > > >
-> > > > This patch adds support to directly interact with page_idle tracking at
-> > > > the PID level by introducing a /proc/<pid>/page_idle file.  It follows
-> > > > the exact same semantics as the global /sys/kernel/mm/page_idle, but now
-> > > > looking up PFN through pagemap is not needed since the interface uses
-> > > > virtual frame numbers, and at the same time also does not require
-> > > > SYS_ADMIN.
-> > > >
-> > > > In Android, we are using this for the heap profiler (heapprofd) which
-> > > > profiles and pin points code paths which allocates and leaves memory
-> > > > idle for long periods of time. This method solves the security issue
-> > > > with userspace learning the PFN, and while at it is also shown to yield
-> > > > better results than the pagemap lookup, the theory being that the window
-> > > > where the address space can change is reduced by eliminating the
-> > > > intermediate pagemap look up stage. In virtual address indexing, the
-> > > > process's mmap_sem is held for the duration of the access.
-> > >
-> > > What happens when you use this interface on shared pages, like memory
-> > > inherited from the zygote, library file mappings and so on? If two
-> > > profilers ran concurrently for two different processes that both map
-> > > the same libraries, would they end up messing up each other's data?
-> >
-> > Yup PageIdle state is shared. That is the page_idle semantic even now
-> > IIRC.
->
-> Yes, that's right. This patch doesn't change that semantic. Idle page
-> tracking at the core is a global procedure which is based on pages that can
-> be shared.
->
-> One of the usecases of the heap profiler is to enable profiling of pages that
-> are shared between zygote and any processes that are forked. In this case,
-> I am told by our team working on the heap profiler, that the monitoring of
-> shared pages will help.
->
-> > > Can this be used to observe which library pages other processes are
-> > > accessing, even if you don't have access to those processes, as long
-> > > as you can map the same libraries? I realize that there are already a
-> > > bunch of ways to do that with side channels and such; but if you're
-> > > adding an interface that allows this by design, it seems to me like
-> > > something that should be gated behind some sort of privilege check.
-> >
-> > Hmm, you need to be priviledged to get the pfn now and without that you
-> > cannot get to any page so the new interface is weakening the rules.
-> > Maybe we should limit setting the idle state to processes with the write
-> > status. Or do you think that even observing idle status is useful for
-> > practical side channel attacks? If yes, is that a problem of the
-> > profiler which does potentially dangerous things?
->
-> The heap profiler is currently unprivileged. Would it help the concern Jann
-> raised, if the new interface was limited to only anonymous private/shared
-> pages and not to file pages? Or, is this even a real concern?
+On 8/13/19 8:05 AM, Michal Hocko wrote:
+> On Mon 12-08-19 19:40:10, Khalid Aziz wrote:
+> [...]
+>> Patch 1 adds code to maintain a sliding lookback window of (time, numb=
+er
+>> of free pages) points which can be updated continuously and adds code =
+to
+>> compute best fit line across these points. It also adds code to use th=
+e
+>> best fit lines to determine if kernel must start reclamation or
+>> compaction.
+>>
+>> Patch 2 adds code to collect data points on free pages of various orde=
+rs
+>> at different points in time, uses code in patch 1 to update sliding
+>> lookback window with these points and kicks off reclamation or
+>> compaction based upon the results it gets.
+>=20
+> An important piece of information missing in your description is why
+> do we need to keep that logic in the kernel. In other words, we have
+> the background reclaim that acts on a wmark range and those are tunable=
 
-+Daniel Gruss in case he wants to provide some more detail; he has
-been involved in a lot of the public research around this topic.
+> from the userspace. The primary point of this background reclaim is to
+> keep balance and prevent from direct reclaim. Why cannot you implement
+> this or any other dynamic trend watching watchdog and tune watermarks
+> accordingly? Something similar applies to kcompactd although we might b=
+e
+> lacking a good interface.
+>=20
 
-It is a bit of a concern when code that wasn't hardened as rigorously
-as cryptographic library code operates on secret values.
-A paper was published this year that abused mincore() in combination
-with tricks for flushing the page cache to obtain information about
-when shared read-only memory was accessed:
-<https://arxiv.org/pdf/1901.01161.pdf>. In response to that, the
-semantics of mincore() were changed to prevent that information from
-leaking (see commit 134fca9063ad4851de767d1768180e5dede9a881).
+Hi Michal,
 
-On the other hand, an attacker could also use things like cache timing
-attacks instead of abusing operating system features; that is more
-hardware-specific, but it has a higher spatial granularity (typically
-64 bytes instead of 4096 bytes). Timing-granularity-wise, I'm not sure
-whether the proposed interface would be more or less bad than existing
-cache side-channels on common architectures. There are papers that
-demonstrate things like being able to distinguish some classes of
-keyboard keys from others on an Android phone:
-<https://www.usenix.org/system/files/conference/usenixsecurity16/sec16_paper_lipp.pdf>
+That is a very good question. As a matter of fact the initial prototype
+to assess the feasibility of this approach was written in userspace for
+a very limited application. We wrote the initial prototype to monitor
+fragmentation and used /sys/devices/system/node/node*/compact to trigger
+compaction. The prototype demonstrated this approach has merits.
 
-I don't think limiting it to anonymous pages is necessarily enough to
-completely solve this; in a normal Linux environment, it might be good
-enough, but on Android, I'm worried about the CoW private memory from
-the zygote.
+The primary reason to implement this logic in the kernel is to make the
+kernel self-tuning. The more knobs we have externally, the more complex
+it becomes to tune the kernel externally. If we can make the kernel
+self-tuning, we can actually eliminate external knobs and simplify
+kernel admin. Inspite of availability of tuning knobs and large number
+of tuning guides for databases and cloud platforms, allocation stalls is
+a routinely occurring problem on customer deployments. A best fit line
+algorithm shows immeasurable impact on system performance yet provides
+measurable improvement and room for further refinement. Makes sense?
+
+Thanks,
+Khalid
+
 
