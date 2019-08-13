@@ -2,63 +2,63 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D543BC433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:15:44 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 1003DC433FF
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:16:08 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 99ACB20843
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:15:44 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 99ACB20843
+	by mail.kernel.org (Postfix) with ESMTP id C3C1020679
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 09:16:07 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C3C1020679
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 4DFAB6B026B; Tue, 13 Aug 2019 05:15:44 -0400 (EDT)
+	id 74FCC6B026C; Tue, 13 Aug 2019 05:16:07 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 468C86B026C; Tue, 13 Aug 2019 05:15:44 -0400 (EDT)
+	id 6D9696B026D; Tue, 13 Aug 2019 05:16:07 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 3304D6B026D; Tue, 13 Aug 2019 05:15:44 -0400 (EDT)
+	id 5C8646B026E; Tue, 13 Aug 2019 05:16:07 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0003.hostedemail.com [216.40.44.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 0BF436B026B
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 05:15:44 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id A6752181AC9AE
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:15:43 +0000 (UTC)
-X-FDA: 75816846966.05.bite18_6c2b7ba423c26
-X-HE-Tag: bite18_6c2b7ba423c26
-X-Filterd-Recvd-Size: 4289
-Received: from mail-wr1-f67.google.com (mail-wr1-f67.google.com [209.85.221.67])
-	by imf49.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:15:43 +0000 (UTC)
-Received: by mail-wr1-f67.google.com with SMTP id k2so21209793wrq.2
-        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 02:15:43 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0149.hostedemail.com [216.40.44.149])
+	by kanga.kvack.org (Postfix) with ESMTP id 351176B026C
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 05:16:07 -0400 (EDT)
+Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id D1F62180AD7C1
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:16:06 +0000 (UTC)
+X-FDA: 75816847932.12.hat77_6f7c8fb200a36
+X-HE-Tag: hat77_6f7c8fb200a36
+X-Filterd-Recvd-Size: 4284
+Received: from mail-wm1-f67.google.com (mail-wm1-f67.google.com [209.85.128.67])
+	by imf18.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:16:05 +0000 (UTC)
+Received: by mail-wm1-f67.google.com with SMTP id f72so791945wmf.5
+        for <linux-mm@kvack.org>; Tue, 13 Aug 2019 02:16:05 -0700 (PDT)
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
         h=x-gm-message-state:subject:to:cc:references:from:openpgp:message-id
          :date:user-agent:mime-version:in-reply-to:content-language
          :content-transfer-encoding;
-        bh=q7bgqMdQ4an3+fW9pjXHTss4SNTSFngzufR2wW+436s=;
-        b=oC9nyl5WrPI0mUxTLlLLMoD4+N/Fk8j10tMgQRDDZ+bzDA001OQswzkfs0O7lo8FEO
-         8uh5HpNfhx6ky065unA9agZFkz9G9Fp66BiplO4OwLtSPOIYYWPopw9Enwjb6wrPJ/an
-         /7dhCXy+sglRiJfLEt9hMVgypMKL7nOWdwFIFLAZkl0QKJ8EX9wbGE9m+fKF27NfTKXp
-         CYFTQksQbl+/t6TNm0m9+o+gYdOvz4KPUoJ6QxLjzZO4LNEG8eyeN9wOV6WJt2G8xcwA
-         Uvda+g7stJ70dSuEXuflxlCBUSuhPwhLPQq2d4GVbbZSRwkCYHePYsMTb9tT1WEkmEWw
-         SfKw==
-X-Gm-Message-State: APjAAAUdnu/s6CMTIKLf9vALGWoJ8+ZY0Q+Dr5H5WrX+iT6sGopmFXYA
-	mXNTivZFnEEJwUtuGgkUZTiJ/w==
-X-Google-Smtp-Source: APXvYqxstOWD8uGBtXH2sZT96q5cW3boODxMOIYCbZ+H7TsBnLr+a/3ZIecGYglK7JULc1kUyTstKQ==
-X-Received: by 2002:adf:dc0f:: with SMTP id t15mr25505581wri.50.1565687742155;
-        Tue, 13 Aug 2019 02:15:42 -0700 (PDT)
+        bh=rJyEXL/9pmUa8F8Nq9N9p+VTELu7g73JrfbMzEYtsqw=;
+        b=kPFSYaV5ocBxzJadPWH/NgvSVOTi2Ps6GgtLwHly932QzKnRar/9UqeiCYGyMLjw/W
+         +TZYupVXJwunyrREMByH664oH1BmiWPx4QexHR13zucI/ERLcKgZGmfY2bRnHp0ZYF5Y
+         9YJPVE/VtDF/wBsJI9kt4tnNkcbyM26KWrc6k3KK6pHsjHKDFtZVEHy92yftLTcFU2Er
+         S9MvHS89zovoASJaRKxdHzLqzEZdEDRqd6D6jTOrrcwil6FluUEaFS71bYzJy8PgZlWS
+         xRB1+WC5JBCFQQ08HD+oSwIz3HGpg+z7Iw0GRoLoRZXUr98ighGTg4W1380W0Q3j5HPk
+         ycYQ==
+X-Gm-Message-State: APjAAAXABsRP73+twMjAOho6k+qaleBaaosV968q6PilvVkmXEg0iQDA
+	hIZGOXUJhBd130CHINHUm3Wasg==
+X-Google-Smtp-Source: APXvYqwm309us5aZi/frD8eACHl5aijviV3HAVkqCeaBNsVD1mdnoZLmf1PImPsBNT+r6Tg0wB86fA==
+X-Received: by 2002:a7b:cf0b:: with SMTP id l11mr2056631wmg.143.1565687764702;
+        Tue, 13 Aug 2019 02:16:04 -0700 (PDT)
 Received: from [192.168.10.150] ([93.56.166.5])
-        by smtp.gmail.com with ESMTPSA id w5sm914921wmm.43.2019.08.13.02.15.40
+        by smtp.gmail.com with ESMTPSA id c15sm59116320wrb.80.2019.08.13.02.16.03
         (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Tue, 13 Aug 2019 02:15:41 -0700 (PDT)
-Subject: Re: [RFC PATCH v6 06/92] kvm: introspection: add
- KVMI_CONTROL_CMD_RESPONSE
+        Tue, 13 Aug 2019 02:16:04 -0700 (PDT)
+Subject: Re: [RFC PATCH v6 07/92] kvm: introspection: honor the reply option
+ when handling the KVMI_GET_VERSION command
 To: =?UTF-8?Q?Adalbert_Laz=c4=83r?= <alazar@bitdefender.com>,
  kvm@vger.kernel.org
 Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
@@ -72,15 +72,15 @@ Cc: linux-mm@kvack.org, virtualization@lists.linux-foundation.org,
  Weijiang Yang <weijiang.yang@intel.com>, Yu C Zhang <yu.c.zhang@intel.com>,
  =?UTF-8?Q?Mihai_Don=c8=9bu?= <mdontu@bitdefender.com>
 References: <20190809160047.8319-1-alazar@bitdefender.com>
- <20190809160047.8319-7-alazar@bitdefender.com>
+ <20190809160047.8319-8-alazar@bitdefender.com>
 From: Paolo Bonzini <pbonzini@redhat.com>
 Openpgp: preference=signencrypt
-Message-ID: <e8f59b08-734a-2ce1-ae28-3cc9d90c0bcb@redhat.com>
-Date: Tue, 13 Aug 2019 11:15:34 +0200
+Message-ID: <a5cdbbd4-6f25-a0a5-054e-5810b5828a48@redhat.com>
+Date: Tue, 13 Aug 2019 11:16:01 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <20190809160047.8319-7-alazar@bitdefender.com>
+In-Reply-To: <20190809160047.8319-8-alazar@bitdefender.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: quoted-printable
@@ -91,36 +91,39 @@ X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
 On 09/08/19 17:59, Adalbert Laz=C4=83r wrote:
-> +If `now` is 1, the command reply is enabled/disabled (according to
-> +`enable`) starting with the current command. For example, `enable=3D0`
-> +and `now=3D1` means that the reply is disabled for this command too,
-> +while `enable=3D0` and `now=3D0` means that a reply will be send for t=
-his
-> +command, but not for the next ones (until enabled back with another
-> +*KVMI_CONTROL_CMD_RESPONSE*).
-> +
-> +This command is used by the introspection tool to disable the replies
-> +for commands returning an error code only (eg. *KVMI_SET_REGISTERS*)
-> +when an error is less likely to happen. For example, the following
-> +commands can be used to reply to an event with a single `write()` call=
-:
-> +
-> +	KVMI_CONTROL_CMD_RESPONSE enable=3D0 now=3D1
-> +	KVMI_SET_REGISTERS vcpu=3DN
-> +	KVMI_EVENT_REPLY   vcpu=3DN
-> +	KVMI_CONTROL_CMD_RESPONSE enable=3D1 now=3D0
+> Obviously, the KVMI_GET_VERSION command must not be used when the comma=
+nd
+> reply is disabled by a previous KVMI_CONTROL_CMD_RESPONSE command.
+>=20
+> This commit changes the code path in order to check the reply option
+> (enabled/disabled) before trying to reply to this command. If the comma=
+nd
+> reply is disabled it will return an error to the caller. In the end, th=
+e
+> receiving worker will finish and the introspection socket will be close=
+d.
+>=20
+> Signed-off-by: Adalbert Laz=C4=83r <alazar@bitdefender.com>
+> ---
+>  virt/kvm/kvmi_msg.c | 2 +-
+>  1 file changed, 1 insertion(+), 1 deletion(-)
+>=20
+> diff --git a/virt/kvm/kvmi_msg.c b/virt/kvm/kvmi_msg.c
+> index ea5c7e23669a..2237a6ed25f6 100644
+> --- a/virt/kvm/kvmi_msg.c
+> +++ b/virt/kvm/kvmi_msg.c
+> @@ -169,7 +169,7 @@ static int handle_get_version(struct kvmi *ikvm,
+>  	memset(&rpl, 0, sizeof(rpl));
+>  	rpl.version =3D KVMI_VERSION;
+> =20
+> -	return kvmi_msg_vm_reply(ikvm, msg, 0, &rpl, sizeof(rpl));
+> +	return kvmi_msg_vm_maybe_reply(ikvm, msg, 0, &rpl, sizeof(rpl));
+>  }
+> =20
+>  static bool is_command_allowed(struct kvmi *ikvm, int id)
+>=20
 
-I don't understand the usage.  Is there any case where you want now =3D=3D=
- 1
-actually?  Can you just say that KVMI_CONTROL_CMD_RESPONSE never has a
-reply, or to make now=3D=3Denable?
-
-> +	if (err)
-> +		kvmi_warn(ikvm, "Error code %d discarded for message id %d\n",
-> +			  err, msg->id);
-> +
-
-Would it make sense to even close the socket if there is an error?
+Go ahead and squash this in the previous patch.
 
 Paolo
 
