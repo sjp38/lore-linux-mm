@@ -2,201 +2,127 @@ Return-Path: <SRS0=aN9C=WJ=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DE49C433FF
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 13:29:42 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2F770C32753
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 13:30:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 19DF220578
-	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 13:29:42 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 19DF220578
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
+	by mail.kernel.org (Postfix) with ESMTP id F16632084D
+	for <linux-mm@archiver.kernel.org>; Tue, 13 Aug 2019 13:30:39 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F16632084D
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id A62ED6B0003; Tue, 13 Aug 2019 09:29:41 -0400 (EDT)
+	id 88C0E6B0006; Tue, 13 Aug 2019 09:30:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id A13276B0006; Tue, 13 Aug 2019 09:29:41 -0400 (EDT)
+	id 83BCD6B0007; Tue, 13 Aug 2019 09:30:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9287B6B0007; Tue, 13 Aug 2019 09:29:41 -0400 (EDT)
+	id 72B7F6B0008; Tue, 13 Aug 2019 09:30:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0201.hostedemail.com [216.40.44.201])
-	by kanga.kvack.org (Postfix) with ESMTP id 6C0F06B0003
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:29:41 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id 1313155F96
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 13:29:41 +0000 (UTC)
-X-FDA: 75817486962.05.flesh06_8eb0b5a64422c
-X-HE-Tag: flesh06_8eb0b5a64422c
-X-Filterd-Recvd-Size: 7245
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf20.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 13:29:40 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 118D9AEF1;
-	Tue, 13 Aug 2019 13:29:39 +0000 (UTC)
-Date: Tue, 13 Aug 2019 15:29:38 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Johannes Weiner <hannes@cmpxchg.org>
-Cc: Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
-	cgroups@vger.kernel.org, linux-kernel@vger.kernel.org,
-	kernel-team@fb.com
-Subject: Re: [PATCH] mm: vmscan: do not share cgroup iteration between
- reclaimers
-Message-ID: <20190813132938.GJ17933@dhcp22.suse.cz>
-References: <20190812192316.13615-1-hannes@cmpxchg.org>
+Received: from forelay.hostedemail.com (smtprelay0221.hostedemail.com [216.40.44.221])
+	by kanga.kvack.org (Postfix) with ESMTP id 51E7D6B0006
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 09:30:39 -0400 (EDT)
+Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 1041855F96
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 13:30:39 +0000 (UTC)
+X-FDA: 75817489398.04.snail37_5a03c0bb872a
+X-HE-Tag: snail37_5a03c0bb872a
+X-Filterd-Recvd-Size: 3841
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf31.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Tue, 13 Aug 2019 13:30:38 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx03.intmail.prod.int.phx2.redhat.com [10.5.11.13])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 341AC30EA182;
+	Tue, 13 Aug 2019 13:30:37 +0000 (UTC)
+Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.136])
+	by smtp.corp.redhat.com (Postfix) with SMTP id 3CC49608A5;
+	Tue, 13 Aug 2019 13:30:35 +0000 (UTC)
+Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
+	oleg@redhat.com; Tue, 13 Aug 2019 15:30:36 +0200 (CEST)
+Date: Tue, 13 Aug 2019 15:30:34 +0200
+From: Oleg Nesterov <oleg@redhat.com>
+To: "Kirill A. Shutemov" <kirill@shutemov.name>
+Cc: Song Liu <songliubraving@fb.com>,
+	Linux Kernel Mailing List <linux-kernel@vger.kernel.org>,
+	Linux MM <linux-mm@kvack.org>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Matthew Wilcox <matthew.wilcox@oracle.com>,
+	"Kirill A. Shutemov" <kirill.shutemov@linux.intel.com>,
+	Kernel Team <Kernel-team@fb.com>,
+	William Kucharski <william.kucharski@oracle.com>,
+	"srikar@linux.vnet.ibm.com" <srikar@linux.vnet.ibm.com>
+Subject: Re: [PATCH v12 5/6] khugepaged: enable collapse pmd for pte-mapped
+ THP
+Message-ID: <20190813133034.GA6971@redhat.com>
+References: <20190807233729.3899352-1-songliubraving@fb.com>
+ <20190807233729.3899352-6-songliubraving@fb.com>
+ <20190808163303.GB7934@redhat.com>
+ <770B3C29-CE8F-4228-8992-3C6E2B5487B6@fb.com>
+ <20190809152404.GA21489@redhat.com>
+ <3B09235E-5CF7-4982-B8E6-114C52196BE5@fb.com>
+ <4D8B8397-5107-456B-91FC-4911F255AE11@fb.com>
+ <20190812121144.f46abvpg6lvxwwzs@box>
+ <20190812132257.GB31560@redhat.com>
+ <20190812144045.tkvipsyit3nccvuk@box>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190812192316.13615-1-hannes@cmpxchg.org>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+In-Reply-To: <20190812144045.tkvipsyit3nccvuk@box>
+User-Agent: Mutt/1.5.24 (2015-08-30)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.13
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.40]); Tue, 13 Aug 2019 13:30:37 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 12-08-19 15:23:16, Johannes Weiner wrote:
-> One of our services observed a high rate of cgroup OOM kills in the
-> presence of large amounts of clean cache. Debugging showed that the
-> culprit is the shared cgroup iteration in page reclaim.
-> 
-> Under high allocation concurrency, multiple threads enter reclaim at
-> the same time. Fearing overreclaim when we first switched from the
-> single global LRU to cgrouped LRU lists, we introduced a shared
-> iteration state for reclaim invocations - whether 1 or 20 reclaimers
-> are active concurrently, we only walk the cgroup tree once: the 1st
-> reclaimer reclaims the first cgroup, the second the second one etc.
-> With more reclaimers than cgroups, we start another walk from the top.
-> 
-> This sounded reasonable at the time, but the problem is that reclaim
-> concurrency doesn't scale with allocation concurrency. As reclaim
-> concurrency increases, the amount of memory individual reclaimers get
-> to scan gets smaller and smaller. Individual reclaimers may only see
-> one cgroup per cycle, and that may not have much reclaimable
-> memory. We see individual reclaimers declare OOM when there is plenty
-> of reclaimable memory available in cgroups they didn't visit.
-> 
-> This patch does away with the shared iterator, and every reclaimer is
-> allowed to scan the full cgroup tree and see all of reclaimable
-> memory, just like it would on a non-cgrouped system. This way, when
-> OOM is declared, we know that the reclaimer actually had a chance.
-> 
-> To still maintain fairness in reclaim pressure, disallow cgroup
-> reclaim from bailing out of the tree walk early. Kswapd and regular
-> direct reclaim already don't bail, so it's not clear why limit reclaim
-> would have to, especially since it only walks subtrees to begin with.
+On 08/12, Kirill A. Shutemov wrote:
+>
+> On Mon, Aug 12, 2019 at 03:22:58PM +0200, Oleg Nesterov wrote:
+> > On 08/12, Kirill A. Shutemov wrote:
+> > >
+> > > On Fri, Aug 09, 2019 at 06:01:18PM +0000, Song Liu wrote:
+> > > > +		if (pte_none(*pte) || !pte_present(*pte))
+> > > > +			continue;
+> > >
+> > > You don't need to check both. Present is never none.
+> >
+> > Agreed.
+> >
+> > Kirill, while you are here, shouldn't retract_page_tables() check
+> > vma->anon_vma (and probably do mm_find_pmd) under vm_mm->mmap_sem?
+> >
+> > Can't it race with, say, do_cow_fault?
+>
+> vma->anon_vma can race, but it doesn't matter. False-negative is fine.
+> It's attempt to avoid taking mmap_sem where it can be not productive.
 
-The code does bail out on any direct reclaim - be it limit or page
-allocator triggered. Check the !current_is_kswapd part of the condition.
+I guess I misunderstood the purpose of this check or your answer...
 
-> This change completely eliminates the OOM kills on our service, while
-> showing no signs of overreclaim - no increased scan rates, %sys time,
-> or abrupt free memory spikes. I tested across 100 machines that have
-> 64G of RAM and host about 300 cgroups each.
+Let me reword my question. Why can retract_page_tables() safely do
+pmdp_collapse_flush(vma) without additional checks similar to what
+collapse_pte_mapped_thp() does?
 
-What is the usual direct reclaim involvement on those machines?
+I thought that retract_page_tables() checks vma->anon_vma to ensure that
+this vma doesn't have a cow'ed PageAnon() page. And I still can't understand
+why can't it race with __handle_mm_fault() paths.
 
-> [ It's possible overreclaim never was a *practical* issue to begin
->   with - it was simply a concern we had on the mailing lists at the
->   time, with no real data to back it up. But we have also added more
->   bail-out conditions deeper inside reclaim (e.g. the proportional
->   exit in shrink_node_memcg) since. Regardless, now we have data that
->   suggests full walks are more reliable and scale just fine. ]
+Suppose that shmem_file was mmaped with PROT_READ|WRITE, MAP_PRIVATE.
+To simplify, suppose that a non-THP page was already faulted in,
+pte_present() == T.
 
-I do not see how shrink_node_memcg bail out helps here. We do scan up-to
-SWAP_CLUSTER_MAX pages for each LRU at least once. So we are getting to
-nr_memcgs_with_pages multiplier with the patch applied in the worst case.
+Userspace writes to this page.
 
-How much that matters is another question and it depends on the
-number of cgroups and the rate the direct reclaim happens. I do not
-remember exact numbers but even walking a very large memcg tree was
-noticeable.
+Why __handle_mm_fault()->handle_pte_fault()->do_wp_page()->wp_page_copy()
+can not cow this page and update pte after the vma->anon_vma chech and
+before down_write_trylock(mmap_sem) ?
 
-For the over reclaim part SWAP_CLUSTER_MAX is a relatively small number
-so even hundreds of memcgs on a "reasonably" sized system shouldn't be
-really observable (we are talking about 7MB per reclaim per reclaimer on
-1k memcgs with pages). This would get worse with many reclaimers. Maybe
-we will need something like the regular direct reclaim throttling of
-mmemcg limit reclaim as well in the future.
+Oleg.
 
-That being said, I do agree that the oom side of the coin is causing
-real troubles and it is a real problem to be addressed first. Especially with
-cgroup v2 where we have likely more memcgs without any pages because
-inner nodes do not have any tasks and direct charges which makes some
-reclaimers hit memcgs without pages more likely.
-
-Let's see whether we see regression due to over-reclaim. 
-
-> Signed-off-by: Johannes Weiner <hannes@cmpxchg.org>
-
-With the direct reclaim bail out reference fixed - unless I am wrong
-there of course
-
-Acked-by: Michal Hocko <mhocko@suse.com>
-
-It is sad to see this piece of fun not being used after that many years
-of bugs here and there and all the lockless fun but this is the life
-;)
-
-> ---
->  mm/vmscan.c | 22 ++--------------------
->  1 file changed, 2 insertions(+), 20 deletions(-)
-> 
-> diff --git a/mm/vmscan.c b/mm/vmscan.c
-> index dbdc46a84f63..b2f10fa49c88 100644
-> --- a/mm/vmscan.c
-> +++ b/mm/vmscan.c
-> @@ -2667,10 +2667,6 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
->  
->  	do {
->  		struct mem_cgroup *root = sc->target_mem_cgroup;
-> -		struct mem_cgroup_reclaim_cookie reclaim = {
-> -			.pgdat = pgdat,
-> -			.priority = sc->priority,
-> -		};
->  		unsigned long node_lru_pages = 0;
->  		struct mem_cgroup *memcg;
->  
-> @@ -2679,7 +2675,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
->  		nr_reclaimed = sc->nr_reclaimed;
->  		nr_scanned = sc->nr_scanned;
->  
-> -		memcg = mem_cgroup_iter(root, NULL, &reclaim);
-> +		memcg = mem_cgroup_iter(root, NULL, NULL);
->  		do {
->  			unsigned long lru_pages;
->  			unsigned long reclaimed;
-> @@ -2724,21 +2720,7 @@ static bool shrink_node(pg_data_t *pgdat, struct scan_control *sc)
->  				   sc->nr_scanned - scanned,
->  				   sc->nr_reclaimed - reclaimed);
->  
-> -			/*
-> -			 * Kswapd have to scan all memory cgroups to fulfill
-> -			 * the overall scan target for the node.
-> -			 *
-> -			 * Limit reclaim, on the other hand, only cares about
-> -			 * nr_to_reclaim pages to be reclaimed and it will
-> -			 * retry with decreasing priority if one round over the
-> -			 * whole hierarchy is not sufficient.
-> -			 */
-> -			if (!current_is_kswapd() &&
-> -					sc->nr_reclaimed >= sc->nr_to_reclaim) {
-> -				mem_cgroup_iter_break(root, memcg);
-> -				break;
-> -			}
-> -		} while ((memcg = mem_cgroup_iter(root, memcg, &reclaim)));
-> +		} while ((memcg = mem_cgroup_iter(root, memcg, NULL)));
->  
->  		if (reclaim_state) {
->  			sc->nr_reclaimed += reclaim_state->reclaimed_slab;
-> -- 
-> 2.22.0
-
--- 
-Michal Hocko
-SUSE Labs
 
