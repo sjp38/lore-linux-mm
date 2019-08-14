@@ -6,89 +6,57 @@ X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
 	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2D08BC32753
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 12:53:51 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8D351C433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 12:55:58 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id EE6D420679
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 12:53:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org EE6D420679
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 5D070206C2
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 12:55:58 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 5D070206C2
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 77D7B6B0008; Wed, 14 Aug 2019 08:53:50 -0400 (EDT)
+	id 09DE76B0008; Wed, 14 Aug 2019 08:55:58 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 705E16B000A; Wed, 14 Aug 2019 08:53:50 -0400 (EDT)
+	id 04EE06B000A; Wed, 14 Aug 2019 08:55:58 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 5A71D6B000C; Wed, 14 Aug 2019 08:53:50 -0400 (EDT)
+	id ECD546B000C; Wed, 14 Aug 2019 08:55:57 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0089.hostedemail.com [216.40.44.89])
-	by kanga.kvack.org (Postfix) with ESMTP id 360286B0008
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 08:53:50 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id D8063180AD801
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 12:53:49 +0000 (UTC)
-X-FDA: 75821025378.30.chain77_2163f11149b13
-X-HE-Tag: chain77_2163f11149b13
-X-Filterd-Recvd-Size: 3903
-Received: from mail-wm1-f67.google.com (mail-wm1-f67.google.com [209.85.128.67])
-	by imf28.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 12:53:49 +0000 (UTC)
-Received: by mail-wm1-f67.google.com with SMTP id i63so4358717wmg.4
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2019 05:53:49 -0700 (PDT)
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:openpgp:message-id
-         :date:user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=w/9WmrcXj+WSf8mG3UP1CEm5oCxjeGmdpSMvc0IgVzQ=;
-        b=Erykp7pxvCdxs7kdlRXgYlJFy301t8pPf+se6mDsIteHPedQSXbAu3gRbu9qO4msOR
-         ImVAwUBfFeBjlJ/AlL5ik4lUMRUK6dDQCk9oYRQQEvtzMi7JTPD6ROL8xfR1RD+I/bJS
-         2DeMXZZWheJ0EQLqjO89q3sb0DfPWL4/OT6NcOeGUSpCkLufuefm0f3MEYMnOWnT87KW
-         qmdlVcps+vXjrH1Ry0/0jEeXYZ/4Bl2wo6/Kz3UVGn4YdnfJHnNdO2HVhJocC35kirlD
-         MaIF+h0SM2uPcf60KxDK2AG0MIHrWDts1ZSFjj4UYVJuwtLCwwNQXGvcG5vxCIMsdqGj
-         Tc0A==
-X-Gm-Message-State: APjAAAUsfUW+v6taJ/S89TndQu3SfHSetYe5O/HlkT+VVPsA2zJ5mAzx
-	lGuihGI4v+xAM2UUiixXeIz+bg==
-X-Google-Smtp-Source: APXvYqzEPFLFieg69AnBNaGIyKSm/YC4cyNCjZwla3TXgTG28lqZ11s6Gsx1a538xj5khmA4ksXdvw==
-X-Received: by 2002:a1c:c018:: with SMTP id q24mr8315429wmf.162.1565787228293;
-        Wed, 14 Aug 2019 05:53:48 -0700 (PDT)
-Received: from [192.168.10.150] ([93.56.166.5])
-        by smtp.gmail.com with ESMTPSA id d19sm28086256wrb.7.2019.08.14.05.53.46
-        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Aug 2019 05:53:47 -0700 (PDT)
-Subject: Re: [RFC PATCH v6 64/92] kvm: introspection: add single-stepping
-To: Nicusor CITU <ncitu@bitdefender.com>,
- Sean Christopherson <sean.j.christopherson@intel.com>,
- =?UTF-8?Q?Adalbert_Laz=c4=83r?= <alazar@bitdefender.com>
-Cc: "kvm@vger.kernel.org" <kvm@vger.kernel.org>,
- "linux-mm@kvack.org" <linux-mm@kvack.org>,
- "virtualization@lists.linux-foundation.org"
- <virtualization@lists.linux-foundation.org>,
- =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?= <rkrcmar@redhat.com>,
- Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- Tamas K Lengyel <tamas@tklengyel.com>,
- Mathieu Tarral <mathieu.tarral@protonmail.com>,
- =?UTF-8?Q?Samuel_Laur=c3=a9n?= <samuel.lauren@iki.fi>,
- Patrick Colp <patrick.colp@oracle.com>, Jan Kiszka <jan.kiszka@siemens.com>,
- Stefan Hajnoczi <stefanha@redhat.com>,
- Weijiang Yang <weijiang.yang@intel.com>,
- "Zhang@linux.intel.com" <Zhang@linux.intel.com>, Yu C
- <yu.c.zhang@intel.com>, =?UTF-8?Q?Mihai_Don=c8=9bu?=
- <mdontu@bitdefender.com>, Jim Mattson <jmattson@google.com>,
- Joerg Roedel <joro@8bytes.org>
-References: <20190809160047.8319-1-alazar@bitdefender.com>
- <20190809160047.8319-65-alazar@bitdefender.com>
- <20190812205038.GC1437@linux.intel.com>
- <f03ff5fbba2a06cd45d5bebb46da4416bc58e968.camel@bitdefender.com>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Openpgp: preference=signencrypt
-Message-ID: <5851eb00-3d00-1213-99cb-7bab2da3ba89@redhat.com>
-Date: Wed, 14 Aug 2019 14:53:46 +0200
+Received: from forelay.hostedemail.com (smtprelay0028.hostedemail.com [216.40.44.28])
+	by kanga.kvack.org (Postfix) with ESMTP id CA4366B0008
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 08:55:57 -0400 (EDT)
+Received: from smtpin20.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 765B53AA9
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 12:55:57 +0000 (UTC)
+X-FDA: 75821030754.20.fifth72_33f8623917255
+X-HE-Tag: fifth72_33f8623917255
+X-Filterd-Recvd-Size: 3231
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf13.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 12:55:56 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 82919AC64;
+	Wed, 14 Aug 2019 12:55:55 +0000 (UTC)
+Subject: Re: [RESEND PATCH 1/2 -mm] mm: account lazy free pages separately
+To: Yang Shi <yang.shi@linux.alibaba.com>, Michal Hocko <mhocko@kernel.org>
+Cc: kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, rientjes@google.com,
+ akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org
+References: <1565308665-24747-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190809083216.GM18351@dhcp22.suse.cz>
+ <1a3c4185-c7ab-8d6f-8191-77dce02025a7@linux.alibaba.com>
+ <20190809180238.GS18351@dhcp22.suse.cz>
+ <79c90f6b-fcac-02e1-015a-0eaa4eafdf7d@linux.alibaba.com>
+ <fb1f4958-5147-2fab-531f-d234806c2f37@linux.alibaba.com>
+ <20190812093430.GD5117@dhcp22.suse.cz>
+ <297aefa2-ba64-cb91-d2c8-733054db01a3@linux.alibaba.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Message-ID: <9d2e63c4-ebb6-1f14-b8fb-b39f2f67d916@suse.cz>
+Date: Wed, 14 Aug 2019 14:55:54 +0200
 User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
  Thunderbird/60.8.0
 MIME-Version: 1.0
-In-Reply-To: <f03ff5fbba2a06cd45d5bebb46da4416bc58e968.camel@bitdefender.com>
+In-Reply-To: <297aefa2-ba64-cb91-d2c8-733054db01a3@linux.alibaba.com>
 Content-Type: text/plain; charset=utf-8
 Content-Language: en-US
 Content-Transfer-Encoding: 7bit
@@ -98,16 +66,33 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 14/08/19 14:36, Nicusor CITU wrote:
-> Thank you for signaling this. This piece of code is leftover from the
-> initial attempt to make single step running.
-> Based on latest results, we do not actually need to change
-> interruptibility during the singlestep. It is enough to enable the MTF
-> and just suppress any interrupt injection (if any) before leaving the
-> vcpu entering in guest.
+On 8/12/19 7:00 PM, Yang Shi wrote:
+>> I can see that memcg rss size was the primary problem David was looking
+>> at. But MemAvailable will not help with that, right? Moreover is
 > 
+> Yes, but David actually would like to have memcg MemAvailable (the 
+> accounter like the global one), which should be counted like the global 
+> one and should account per memcg deferred split THP properly.
+> 
+>> accounting the full THP correct? What if subpages are still mapped?
+> 
+> "Deferred split" definitely doesn't mean they are free. When memory 
+> pressure is hit, they would be split, then the unmapped normal pages 
+> would be freed. So, when calculating MemAvailable, they are not 
+> accounted 100%, but like "available += lazyfree - min(lazyfree / 2, 
+> wmark_low)", just like how page cache is accounted.
+> 
+> We could get more accurate account, i.e. checking each sub page's 
+> mapcount when accounting, but it may change before shrinker start 
+> scanning. So, just use the ballpark estimation to trade off the 
+> complexity for accurate accounting.
 
-This is exactly what testcases are for...
-
-Paolo
+If we know the mapcounts in the moment the deferred split is initiated (I
+suppose there has to be a iteration over all subpages already?), we could get
+the exact number to adjust the counter with, and also store the number somewhere
+(e.g. a unused field in first/second tail page, I think we already do that for
+something). Then in the shrinker we just read that number to adjust the counter
+back. Then we can ignore the subpage mapping changes before shrinking happens,
+they shouldn't change the situation significantly, and importantly we we will be
+safe from counter imbalance thanks to the stored number.
 
