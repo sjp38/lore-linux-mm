@@ -2,115 +2,145 @@ Return-Path: <SRS0=g7KO=WK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-9.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_GIT autolearn=ham
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5BFBCC32753
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 18:33:11 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 901ECC32753
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 18:37:02 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 1E3C72133F
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 18:33:11 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=lca.pw header.i=@lca.pw header.b="QEFYliYm"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 1E3C72133F
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=lca.pw
+	by mail.kernel.org (Postfix) with ESMTP id 62A7C2133F
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 18:37:02 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 62A7C2133F
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B3B5B6B0005; Wed, 14 Aug 2019 14:33:10 -0400 (EDT)
+	id D0B036B0005; Wed, 14 Aug 2019 14:37:01 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id AC2E86B0007; Wed, 14 Aug 2019 14:33:10 -0400 (EDT)
+	id CBBF86B0008; Wed, 14 Aug 2019 14:37:01 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 98B276B0008; Wed, 14 Aug 2019 14:33:10 -0400 (EDT)
+	id B5CE46B0007; Wed, 14 Aug 2019 14:37:01 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0136.hostedemail.com [216.40.44.136])
-	by kanga.kvack.org (Postfix) with ESMTP id 6F0BD6B0005
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 14:33:10 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id 0EBA5181AC9AE
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 18:33:10 +0000 (UTC)
-X-FDA: 75821880540.10.crook91_55cecc2d19807
-X-HE-Tag: crook91_55cecc2d19807
-X-Filterd-Recvd-Size: 3584
-Received: from mail-qt1-f172.google.com (mail-qt1-f172.google.com [209.85.160.172])
-	by imf26.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 18:33:09 +0000 (UTC)
-Received: by mail-qt1-f172.google.com with SMTP id i4so2747677qtj.8
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:33:09 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=lca.pw; s=google;
-        h=from:to:cc:subject:date:message-id;
-        bh=a7VsLFWMqOK5QBGftp4DGOIRVxFfDzWSvXbi6s9WXSY=;
-        b=QEFYliYmrCuKePZfglkjulUgR6y+rScw4FXOVaQO6wi+jp/Ip4hmRTbR9lmogQKKFO
-         AY4NToD66LZNT0QxOwsKFhoxVtBglCZF3VdZPlROqs+MlnSsq+i3ZDOq7TbtzNT9yYzw
-         yknOdkrphpep7i7E1MLD15yEiRbNiq5owflBseNX4oBf0RKk0I9hJAufGdBEoqDa22Lo
-         qa4vayt60S0tEd2Gji4vY/tdWDsF2HuVxATy4tEOkFzYv7DngjLaQpEZDJbcjN2rVP0p
-         hDtheDGN10dnOgqHRJU+DIQGwCawqIDZXRyz6sLvbtFxfljjNHuFOgCvc59lBWK61jdu
-         P8Bg==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:from:to:cc:subject:date:message-id;
-        bh=a7VsLFWMqOK5QBGftp4DGOIRVxFfDzWSvXbi6s9WXSY=;
-        b=cY4HkDVKuu3fM5X6fYCn+J/yu4f0M0fQYOQvvm4LbzYeLgi+ydvdMeHxEM3dATRVH1
-         YATno38pFprGyJ/Q9c7KzTahZGNH9+XnRUp2cAT0GAEnIlY0//aMr1J6kCPHuFP4lepA
-         lOAiszbuFr0nC3dyG5cqYcdRUMAV1s6LIj/iMJcGmW9MAwJobK/ZkKB3+zoa6GHEXoYS
-         aGtU9+ubIOE6hrPGqbZh9sbdS1+cSTmK13Jqg2GnuvgAwvOpgA/noFgZ1M5XL7o+0E16
-         xGs1Ihhw/styqvncyRpfDG93M+ZuJyURnkOo4D95OcbyBcWublxDT1+djc8KGLoHNeob
-         Trmw==
-X-Gm-Message-State: APjAAAV+c263/1uApjjPOFtQaTQMnDS8GijM/9fvpP1ojislSnNipGfi
-	gmR0lBIa+ibwIdt6k92WirMFXLRH0bA=
-X-Google-Smtp-Source: APXvYqwMuwKyYCpL2+otD6j1gk/bschN93ksmfQMvwSAUNE6ackQhWxes3MQ8TV5Ong8ZOe1hAjGVQ==
-X-Received: by 2002:a0c:d981:: with SMTP id y1mr867094qvj.104.1565807588862;
-        Wed, 14 Aug 2019 11:33:08 -0700 (PDT)
-Received: from qcai.nay.com (nat-pool-bos-t.redhat.com. [66.187.233.206])
-        by smtp.gmail.com with ESMTPSA id w1sm226000qte.36.2019.08.14.11.33.07
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Aug 2019 11:33:08 -0700 (PDT)
-From: Qian Cai <cai@lca.pw>
-To: akpm@linux-foundation.org
-Cc: catalin.marinas@arm.com,
-	linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org,
-	Qian Cai <cai@lca.pw>
-Subject: [PATCH -next] mm/kmemleak: increase the max mem pool to 1M
-Date: Wed, 14 Aug 2019 14:32:52 -0400
-Message-Id: <1565807572-26041-1-git-send-email-cai@lca.pw>
-X-Mailer: git-send-email 1.8.3.1
+Received: from forelay.hostedemail.com (smtprelay0003.hostedemail.com [216.40.44.3])
+	by kanga.kvack.org (Postfix) with ESMTP id 8DABE6B0003
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 14:37:01 -0400 (EDT)
+Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 3A798482F
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 18:37:01 +0000 (UTC)
+X-FDA: 75821890242.16.trick65_776e733af4910
+X-HE-Tag: trick65_776e733af4910
+X-Filterd-Recvd-Size: 5526
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf34.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 18:37:00 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id D8BC2AC6E;
+	Wed, 14 Aug 2019 18:36:58 +0000 (UTC)
+Date: Wed, 14 Aug 2019 20:36:57 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Joel Fernandes <joel@joelfernandes.org>
+Cc: khlebnikov@yandex-team.ru, linux-kernel@vger.kernel.org,
+	Minchan Kim <minchan@kernel.org>,
+	Alexey Dobriyan <adobriyan@gmail.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Borislav Petkov <bp@alien8.de>, Brendan Gregg <bgregg@netflix.com>,
+	Catalin Marinas <catalin.marinas@arm.com>,
+	Christian Hansen <chansen3@cisco.com>, dancol@google.com,
+	fmayer@google.com, "H. Peter Anvin" <hpa@zytor.com>,
+	Ingo Molnar <mingo@redhat.com>, Jonathan Corbet <corbet@lwn.net>,
+	Kees Cook <keescook@chromium.org>, kernel-team@android.com,
+	linux-api@vger.kernel.org, linux-doc@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-mm@kvack.org,
+	Mike Rapoport <rppt@linux.ibm.com>, namhyung@google.com,
+	paulmck@linux.ibm.com, Robin Murphy <robin.murphy@arm.com>,
+	Roman Gushchin <guro@fb.com>,
+	Stephen Rothwell <sfr@canb.auug.org.au>, surenb@google.com,
+	Thomas Gleixner <tglx@linutronix.de>, tkjos@google.com,
+	Vladimir Davydov <vdavydov.dev@gmail.com>,
+	Vlastimil Babka <vbabka@suse.cz>, Will Deacon <will@kernel.org>
+Subject: Re: [PATCH v5 2/6] mm/page_idle: Add support for handling swapped
+ PG_Idle pages
+Message-ID: <20190814183657.GK17933@dhcp22.suse.cz>
+References: <20190807171559.182301-1-joel@joelfernandes.org>
+ <20190807171559.182301-2-joel@joelfernandes.org>
+ <20190813150450.GN17933@dhcp22.suse.cz>
+ <20190813153659.GD14622@google.com>
+ <20190814080531.GP17933@dhcp22.suse.cz>
+ <20190814163203.GB59398@google.com>
+MIME-Version: 1.0
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190814163203.GB59398@google.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-There are some machines with slow disk and fast CPUs. When they are
-under memory pressure, it could take a long time to swap before the OOM
-kicks in to free up some memory. As the results, it needs a large
-mem pool for kmemleak or suffering from higher chance of a kmemleak
-metadata allocation failure. 524288 proves to be the good number for all
-architectures here. Increase the upper bound to 1M to leave some room
-for the future.
+On Wed 14-08-19 12:32:03, Joel Fernandes wrote:
+> On Wed, Aug 14, 2019 at 10:05:31AM +0200, Michal Hocko wrote:
+> > On Tue 13-08-19 11:36:59, Joel Fernandes wrote:
+> > > On Tue, Aug 13, 2019 at 05:04:50PM +0200, Michal Hocko wrote:
+> > > > On Wed 07-08-19 13:15:55, Joel Fernandes (Google) wrote:
+> > > > > Idle page tracking currently does not work well in the following
+> > > > > scenario:
+> > > > >  1. mark page-A idle which was present at that time.
+> > > > >  2. run workload
+> > > > >  3. page-A is not touched by workload
+> > > > >  4. *sudden* memory pressure happen so finally page A is finally swapped out
+> > > > >  5. now see the page A - it appears as if it was accessed (pte unmapped
+> > > > >     so idle bit not set in output) - but it's incorrect.
+> > > > > 
+> > > > > To fix this, we store the idle information into a new idle bit of the
+> > > > > swap PTE during swapping of anonymous pages.
+> > > > >
+> > > > > Also in the future, madvise extensions will allow a system process
+> > > > > manager (like Android's ActivityManager) to swap pages out of a process
+> > > > > that it knows will be cold. To an external process like a heap profiler
+> > > > > that is doing idle tracking on another process, this procedure will
+> > > > > interfere with the idle page tracking similar to the above steps.
+> > > > 
+> > > > This could be solved by checking the !present/swapped out pages
+> > > > right? Whoever decided to put the page out to the swap just made it
+> > > > idle effectively.  So the monitor can make some educated guess for
+> > > > tracking. If that is fundamentally not possible then please describe
+> > > > why.
+> > > 
+> > > But the monitoring process (profiler) does not have control over the 'whoever
+> > > made it effectively idle' process.
+> > 
+> > Why does that matter? Whether it is a global/memcg reclaim or somebody
+> > calling MADV_PAGEOUT or whatever it is a decision to make the page not
+> > hot. Sure you could argue that a missing idle bit on swap entries might
+> > mean that the swap out decision was pre-mature/sub-optimal/wrong but is
+> > this the aim of the interface?
+> > 
+> > > As you said it will be a guess, it will not be accurate.
+> > 
+> > Yes and the point I am trying to make is that having some space and not
+> > giving a guarantee sounds like a safer option for this interface because
+> 
+> I do see your point of view, but jJust because a future (and possibly not
+> going to happen) usecase which you mentioned as pte reclaim, makes you feel
+> that userspace may be subject to inaccuracies anyway, doesn't mean we should
+> make everything inaccurate..  We already know idle page tracking is not
+> completely accurate. But that doesn't mean we miss out on the opportunity to
+> make the "non pte-reclaim" usecase inaccurate as well. 
 
-Signed-off-by: Qian Cai <cai@lca.pw>
----
- lib/Kconfig.debug | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
+Just keep in mind that you will add more burden to future features
+because they would have to somehow overcome this user visible behavior
+and we will get to the usual question - Is this going to break
+something that relies on the idle bit being stable?
 
-diff --git a/lib/Kconfig.debug b/lib/Kconfig.debug
-index e80a745a11e2..d962c72a8bb5 100644
---- a/lib/Kconfig.debug
-+++ b/lib/Kconfig.debug
-@@ -595,7 +595,7 @@ config DEBUG_KMEMLEAK
- config DEBUG_KMEMLEAK_MEM_POOL_SIZE
- 	int "Kmemleak memory pool size"
- 	depends on DEBUG_KMEMLEAK
--	range 200 40000
-+	range 200 1000000
- 	default 16000
- 	help
- 	  Kmemleak must track all the memory allocations to avoid
+> IMO, we should do our best for today, and not hypothesize. How likely is pte
+> reclaim and is there a thread to describe that direction?
+
+Not that I am aware of now but with large NVDIMM mapped files I can see
+that this will get more and more interesting.
 -- 
-1.8.3.1
-
+Michal Hocko
+SUSE Labs
 
