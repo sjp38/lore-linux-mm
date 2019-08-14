@@ -2,102 +2,426 @@ Return-Path: <SRS0=g7KO=WK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,
+	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2299CC433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 21:01:32 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 61358C32753
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 21:20:37 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id C879E20651
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 21:01:31 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id E0355214C6
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 21:20:36 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="pi6KnQed"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C879E20651
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
+	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="EOIv4DTJ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E0355214C6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 525C16B0005; Wed, 14 Aug 2019 17:01:31 -0400 (EDT)
+	id 342F86B0003; Wed, 14 Aug 2019 17:20:36 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4AECA6B0006; Wed, 14 Aug 2019 17:01:31 -0400 (EDT)
+	id 2F3116B0006; Wed, 14 Aug 2019 17:20:36 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 39DBD6B0007; Wed, 14 Aug 2019 17:01:31 -0400 (EDT)
+	id 1BB4D6B0007; Wed, 14 Aug 2019 17:20:36 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0054.hostedemail.com [216.40.44.54])
-	by kanga.kvack.org (Postfix) with ESMTP id 12F376B0005
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 17:01:31 -0400 (EDT)
-Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 95D508248AA2
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 21:01:30 +0000 (UTC)
-X-FDA: 75822254340.05.grade86_47590b473032b
-X-HE-Tag: grade86_47590b473032b
-X-Filterd-Recvd-Size: 2923
-Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf14.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 21:01:30 +0000 (UTC)
-Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
-	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
-	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id CFD9E20651;
-	Wed, 14 Aug 2019 20:56:08 +0000 (UTC)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565816169;
-	bh=/47vrJUcPnKmlW6QGCuX38MeKmclx+u9kcMLBRaqbs4=;
-	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=pi6KnQedP5wNrNC9WqJkX3iCMipQiegirC5UJ923ryfPZa6rrSPNcrL5FvjWNzJXe
-	 uEFWtt5gQsv862Iv7+Ak1EKlQ+6njDmiCuKvxWLGmoM9pJ6Yd4U9QopjJbdgxB9+VC
-	 biiBIGKf53FEg32rV49NF8iWU1PTqPGbKbe77Sa0=
-Date: Wed, 14 Aug 2019 13:56:08 -0700
-From: Andrew Morton <akpm@linux-foundation.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Arun KS
- <arunks@codeaurora.org>, Oscar Salvador <osalvador@suse.de>, Michal Hocko
- <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@soleen.com>, Dan Williams
- <dan.j.williams@intel.com>
-Subject: Re: [PATCH v2 4/5] mm/memory_hotplug: Make sure the pfn is aligned
- to the order when onlining
-Message-Id: <20190814135608.a449ca5a75cd700e077a8d23@linux-foundation.org>
-In-Reply-To: <20190814154109.3448-5-david@redhat.com>
-References: <20190814154109.3448-1-david@redhat.com>
-	<20190814154109.3448-5-david@redhat.com>
-X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
-Mime-Version: 1.0
-Content-Type: text/plain; charset=US-ASCII
+Received: from forelay.hostedemail.com (smtprelay0159.hostedemail.com [216.40.44.159])
+	by kanga.kvack.org (Postfix) with ESMTP id D629B6B0003
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 17:20:35 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 8D2CA8248AA2
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 21:20:35 +0000 (UTC)
+X-FDA: 75822302430.25.horn92_5c5e3c7340643
+X-HE-Tag: horn92_5c5e3c7340643
+X-Filterd-Recvd-Size: 15080
+Received: from hqemgate14.nvidia.com (hqemgate14.nvidia.com [216.228.121.143])
+	by imf18.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 21:20:34 +0000 (UTC)
+Received: from hqpgpgate101.nvidia.com (Not Verified[216.228.121.13]) by hqemgate14.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
+	id <B5d547b230000>; Wed, 14 Aug 2019 14:20:35 -0700
+Received: from hqmail.nvidia.com ([172.20.161.6])
+  by hqpgpgate101.nvidia.com (PGP Universal service);
+  Wed, 14 Aug 2019 14:20:33 -0700
+X-PGP-Universal: processed;
+	by hqpgpgate101.nvidia.com on Wed, 14 Aug 2019 14:20:33 -0700
+Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL107.nvidia.com
+ (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 14 Aug
+ 2019 21:20:32 +0000
+Subject: Re: [PATCH v3 hmm 03/11] mm/mmu_notifiers: add a get/put scheme for
+ the registration
+To: Jason Gunthorpe <jgg@ziepe.ca>, <linux-mm@kvack.org>
+CC: Andrea Arcangeli <aarcange@redhat.com>, Christoph Hellwig <hch@lst.de>,
+	John Hubbard <jhubbard@nvidia.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
+	<jglisse@redhat.com>, "Kuehling, Felix" <Felix.Kuehling@amd.com>, "Alex
+ Deucher" <alexander.deucher@amd.com>, =?UTF-8?Q?Christian_K=c3=b6nig?=
+	<christian.koenig@amd.com>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>,
+	Dimitri Sivanich <sivanich@sgi.com>, <dri-devel@lists.freedesktop.org>,
+	<amd-gfx@lists.freedesktop.org>, <linux-kernel@vger.kernel.org>,
+	<linux-rdma@vger.kernel.org>, <iommu@lists.linux-foundation.org>,
+	<intel-gfx@lists.freedesktop.org>, Gavin Shan <shangw@linux.vnet.ibm.com>,
+	Andrea Righi <andrea@betterlinux.com>, Jason Gunthorpe <jgg@mellanox.com>,
+	Christoph Hellwig <hch@infradead.org>
+References: <20190806231548.25242-1-jgg@ziepe.ca>
+ <20190806231548.25242-4-jgg@ziepe.ca>
+X-Nvconfidentiality: public
+From: Ralph Campbell <rcampbell@nvidia.com>
+Message-ID: <0a23adb8-b827-cd90-503e-bfa84166c67e@nvidia.com>
+Date: Wed, 14 Aug 2019 14:20:31 -0700
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.0
+MIME-Version: 1.0
+In-Reply-To: <20190806231548.25242-4-jgg@ziepe.ca>
+X-Originating-IP: [10.124.1.5]
+X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
+ HQMAIL107.nvidia.com (172.20.187.13)
+Content-Type: text/plain; charset="utf-8"; format=flowed
+Content-Language: en-US
 Content-Transfer-Encoding: 7bit
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
+	t=1565817635; bh=7OCMNAz4kjek+/81HtdyqfLdRerNt7gJqZQ4Qne52lg=;
+	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
+	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
+	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
+	 Content-Transfer-Encoding;
+	b=EOIv4DTJn8jZudgokayR+GYl1EOeCIQHooKpkbcgJB4vkLSxjQ9d39IX4h5BMVwUf
+	 bFZ5snH5CJPHtTh6SSbZNce/7dp38DijAM/U8YN+14Gjt0lYd3DfvZwwugYwBOfpPH
+	 GheFSPyNDYdEhXVjhKs0jmNTTFEbuEZJ3IdefBAsE+ZmNH9oFHxaANX1QENpP7KoD3
+	 MYeAGog5Dt8ukXxAD+HZb68jVptbfXU7Lu1DdGqad07hnpZe7H+H5BlqK5LPsDBEtU
+	 46lWIb9BOL0o16abMvl7UQ/p6YNYoBKJ7tid+FXzvvPNXay4uIjcAXB28zI0zkOoiX
+	 MFFYiDmIotyvA==
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Aug 2019 17:41:08 +0200 David Hildenbrand <david@redhat.com> wrote:
 
-> Commit a9cd410a3d29 ("mm/page_alloc.c: memory hotplug: free pages as higher
-> order") assumed that any PFN we get via memory resources is aligned to
-> to MAX_ORDER - 1, I am not convinced that is always true. Let's play safe,
-> check the alignment and fallback to single pages.
+On 8/6/19 4:15 PM, Jason Gunthorpe wrote:
+> From: Jason Gunthorpe <jgg@mellanox.com>
 > 
-> ...
->
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -646,6 +646,9 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
->  	 */
->  	for (pfn = start_pfn; pfn < end_pfn; pfn += 1ul << order) {
->  		order = min(MAX_ORDER - 1, get_order(PFN_PHYS(end_pfn - pfn)));
-> +		/* __free_pages_core() wants pfns to be aligned to the order */
-> +		if (unlikely(!IS_ALIGNED(pfn, 1ul << order)))
-> +			order = 0;
->  		(*online_page_callback)(pfn_to_page(pfn), order);
->  	}
+> Many places in the kernel have a flow where userspace will create some
+> object and that object will need to connect to the subsystem's
+> mmu_notifier subscription for the duration of its lifetime.
+> 
+> In this case the subsystem is usually tracking multiple mm_structs and it
+> is difficult to keep track of what struct mmu_notifier's have been
+> allocated for what mm's.
+> 
+> Since this has been open coded in a variety of exciting ways, provide core
+> functionality to do this safely.
+> 
+> This approach uses the strct mmu_notifier_ops * as a key to determine if
 
-We aren't sure if this occurs, but if it does, we silently handle it.
+s/strct/struct
 
-It seems a reasonable defensive thing to do, but should we add a
-WARN_ON_ONCE() so that we get to find out about it?  If we get such a
-report then we can remove the WARN_ON_ONCE() and add an illuminating
-comment.
+> the subsystem has a notifier registered on the mm or not. If there is a
+> registration then the existing notifier struct is returned, otherwise the
+> ops->alloc_notifiers() is used to create a new per-subsystem notifier for
+> the mm.
+> 
+> The destroy side incorporates an async call_srcu based destruction which
+> will avoid bugs in the callers such as commit 6d7c3cde93c1 ("mm/hmm: fix
+> use after free with struct hmm in the mmu notifiers").
+> 
+> Since we are inside the mmu notifier core locking is fairly simple, the
+> allocation uses the same approach as for mmu_notifier_mm, the write side
+> of the mmap_sem makes everything deterministic and we only need to do
+> hlist_add_head_rcu() under the mm_take_all_locks(). The new users count
+> and the discoverability in the hlist is fully serialized by the
+> mmu_notifier_mm->lock.
+> 
+> Co-developed-by: Christoph Hellwig <hch@infradead.org>
+> Signed-off-by: Christoph Hellwig <hch@infradead.org>
+> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
 
+Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
 
+> ---
+>   include/linux/mmu_notifier.h |  35 ++++++++
+>   mm/mmu_notifier.c            | 156 +++++++++++++++++++++++++++++++++--
+>   2 files changed, 185 insertions(+), 6 deletions(-)
+> 
+> diff --git a/include/linux/mmu_notifier.h b/include/linux/mmu_notifier.h
+> index b6c004bd9f6ad9..31aa971315a142 100644
+> --- a/include/linux/mmu_notifier.h
+> +++ b/include/linux/mmu_notifier.h
+> @@ -211,6 +211,19 @@ struct mmu_notifier_ops {
+>   	 */
+>   	void (*invalidate_range)(struct mmu_notifier *mn, struct mm_struct *mm,
+>   				 unsigned long start, unsigned long end);
+> +
+> +	/*
+> +	 * These callbacks are used with the get/put interface to manage the
+> +	 * lifetime of the mmu_notifier memory. alloc_notifier() returns a new
+> +	 * notifier for use with the mm.
+> +	 *
+> +	 * free_notifier() is only called after the mmu_notifier has been
+> +	 * fully put, calls to any ops callback are prevented and no ops
+> +	 * callbacks are currently running. It is called from a SRCU callback
+> +	 * and cannot sleep.
+> +	 */
+> +	struct mmu_notifier *(*alloc_notifier)(struct mm_struct *mm);
+> +	void (*free_notifier)(struct mmu_notifier *mn);
+>   };
+>   
+>   /*
+> @@ -227,6 +240,9 @@ struct mmu_notifier_ops {
+>   struct mmu_notifier {
+>   	struct hlist_node hlist;
+>   	const struct mmu_notifier_ops *ops;
+> +	struct mm_struct *mm;
+> +	struct rcu_head rcu;
+> +	unsigned int users;
+>   };
+>   
+>   static inline int mm_has_notifiers(struct mm_struct *mm)
+> @@ -234,6 +250,21 @@ static inline int mm_has_notifiers(struct mm_struct *mm)
+>   	return unlikely(mm->mmu_notifier_mm);
+>   }
+>   
+> +struct mmu_notifier *mmu_notifier_get_locked(const struct mmu_notifier_ops *ops,
+> +					     struct mm_struct *mm);
+> +static inline struct mmu_notifier *
+> +mmu_notifier_get(const struct mmu_notifier_ops *ops, struct mm_struct *mm)
+> +{
+> +	struct mmu_notifier *ret;
+> +
+> +	down_write(&mm->mmap_sem);
+> +	ret = mmu_notifier_get_locked(ops, mm);
+> +	up_write(&mm->mmap_sem);
+> +	return ret;
+> +}
+> +void mmu_notifier_put(struct mmu_notifier *mn);
+> +void mmu_notifier_synchronize(void);
+> +
+>   extern int mmu_notifier_register(struct mmu_notifier *mn,
+>   				 struct mm_struct *mm);
+>   extern int __mmu_notifier_register(struct mmu_notifier *mn,
+> @@ -581,6 +612,10 @@ static inline void mmu_notifier_mm_destroy(struct mm_struct *mm)
+>   #define pudp_huge_clear_flush_notify pudp_huge_clear_flush
+>   #define set_pte_at_notify set_pte_at
+>   
+> +static inline void mmu_notifier_synchronize(void)
+> +{
+> +}
+> +
+>   #endif /* CONFIG_MMU_NOTIFIER */
+>   
+>   #endif /* _LINUX_MMU_NOTIFIER_H */
+> diff --git a/mm/mmu_notifier.c b/mm/mmu_notifier.c
+> index 696810f632ade1..4a770b5211b71d 100644
+> --- a/mm/mmu_notifier.c
+> +++ b/mm/mmu_notifier.c
+> @@ -248,6 +248,9 @@ int __mmu_notifier_register(struct mmu_notifier *mn, struct mm_struct *mm)
+>   	lockdep_assert_held_write(&mm->mmap_sem);
+>   	BUG_ON(atomic_read(&mm->mm_users) <= 0);
+>   
+> +	mn->mm = mm;
+> +	mn->users = 1;
+> +
+>   	if (!mm->mmu_notifier_mm) {
+>   		/*
+>   		 * kmalloc cannot be called under mm_take_all_locks(), but we
+> @@ -295,18 +298,24 @@ int __mmu_notifier_register(struct mmu_notifier *mn, struct mm_struct *mm)
+>   }
+>   EXPORT_SYMBOL_GPL(__mmu_notifier_register);
+>   
+> -/*
+> +/**
+> + * mmu_notifier_register - Register a notifier on a mm
+> + * @mn: The notifier to attach
+> + * @mm : The mm to attach the notifier to
+
+Why the space before the colon?
+I know, super tiny nit.
+
+> + *
+>    * Must not hold mmap_sem nor any other VM related lock when calling
+>    * this registration function. Must also ensure mm_users can't go down
+>    * to zero while this runs to avoid races with mmu_notifier_release,
+>    * so mm has to be current->mm or the mm should be pinned safely such
+>    * as with get_task_mm(). If the mm is not current->mm, the mm_users
+>    * pin should be released by calling mmput after mmu_notifier_register
+> - * returns. mmu_notifier_unregister must be always called to
+> - * unregister the notifier. mm_count is automatically pinned to allow
+> - * mmu_notifier_unregister to safely run at any time later, before or
+> - * after exit_mmap. ->release will always be called before exit_mmap
+> - * frees the pages.
+> + * returns.
+> + *
+> + * mmu_notifier_unregister() or mmu_notifier_put() must be always called to
+> + * unregister the notifier.
+> + *
+> + * While the caller has a mmu_notifer get the mm pointer will remain valid,
+
+s/mmu_notifer/mmu_notifier
+Maybe "While the caller has a mmu_notifier, the mn->mm pointer will 
+remain valid,"
+
+> + * and can be converted to an active mm pointer via mmget_not_zero().
+>    */
+>   int mmu_notifier_register(struct mmu_notifier *mn, struct mm_struct *mm)
+>   {
+> @@ -319,6 +328,72 @@ int mmu_notifier_register(struct mmu_notifier *mn, struct mm_struct *mm)
+>   }
+>   EXPORT_SYMBOL_GPL(mmu_notifier_register);
+>   
+> +static struct mmu_notifier *
+> +find_get_mmu_notifier(struct mm_struct *mm, const struct mmu_notifier_ops *ops)
+> +{
+> +	struct mmu_notifier *mn;
+> +
+> +	spin_lock(&mm->mmu_notifier_mm->lock);
+> +	hlist_for_each_entry_rcu (mn, &mm->mmu_notifier_mm->list, hlist) {
+> +		if (mn->ops != ops)
+> +			continue;
+> +
+> +		if (likely(mn->users != UINT_MAX))
+> +			mn->users++;
+> +		else
+> +			mn = ERR_PTR(-EOVERFLOW);
+> +		spin_unlock(&mm->mmu_notifier_mm->lock);
+> +		return mn;
+> +	}
+> +	spin_unlock(&mm->mmu_notifier_mm->lock);
+> +	return NULL;
+> +}
+> +
+> +/**
+> + * mmu_notifier_get_locked - Return the single struct mmu_notifier for
+> + *                           the mm & ops
+> + * @ops: The operations struct being subscribe with
+> + * @mm : The mm to attach notifiers too
+> + *
+> + * This function either allocates a new mmu_notifier via
+> + * ops->alloc_notifier(), or returns an already existing notifier on the
+> + * list. The value of the ops pointer is used to determine when two notifiers
+> + * are the same.
+> + *
+> + * Each call to mmu_notifier_get() must be paired with a caller to
+
+s/caller/call
+
+> + * mmu_notifier_put(). The caller must hold the write side of mm->mmap_sem.
+> + *
+> + * While the caller has a mmu_notifer get the mm pointer will remain valid,
+
+same as "mmu_notifer" above.
+
+> + * and can be converted to an active mm pointer via mmget_not_zero().
+> + */
+> +struct mmu_notifier *mmu_notifier_get_locked(const struct mmu_notifier_ops *ops,
+> +					     struct mm_struct *mm)
+> +{
+> +	struct mmu_notifier *mn;
+> +	int ret;
+> +
+> +	lockdep_assert_held_write(&mm->mmap_sem);
+> +
+> +	if (mm->mmu_notifier_mm) {
+> +		mn = find_get_mmu_notifier(mm, ops);
+> +		if (mn)
+> +			return mn;
+> +	}
+> +
+> +	mn = ops->alloc_notifier(mm);
+> +	if (IS_ERR(mn))
+> +		return mn;
+> +	mn->ops = ops;
+> +	ret = __mmu_notifier_register(mn, mm);
+> +	if (ret)
+> +		goto out_free;
+> +	return mn;
+> +out_free:
+> +	mn->ops->free_notifier(mn);
+> +	return ERR_PTR(ret);
+> +}
+> +EXPORT_SYMBOL_GPL(mmu_notifier_get_locked);
+> +
+>   /* this is called after the last mmu_notifier_unregister() returned */
+>   void __mmu_notifier_mm_destroy(struct mm_struct *mm)
+>   {
+> @@ -397,6 +472,75 @@ void mmu_notifier_unregister_no_release(struct mmu_notifier *mn,
+>   }
+>   EXPORT_SYMBOL_GPL(mmu_notifier_unregister_no_release);
+>   
+> +static void mmu_notifier_free_rcu(struct rcu_head *rcu)
+> +{
+> +	struct mmu_notifier *mn = container_of(rcu, struct mmu_notifier, rcu);
+> +	struct mm_struct *mm = mn->mm;
+> +
+> +	mn->ops->free_notifier(mn);
+> +	/* Pairs with the get in __mmu_notifier_register() */
+> +	mmdrop(mm);
+> +}
+> +
+> +/**
+> + * mmu_notifier_put - Release the reference on the notifier
+> + * @mn: The notifier to act on
+> + *
+> + * This function must be paired with each mmu_notifier_get(), it releases the
+> + * reference obtained by the get. If this is the last reference then process
+> + * to free the notifier will be run asynchronously.
+> + *
+> + * Unlike mmu_notifier_unregister() the get/put flow only calls ops->release
+> + * when the mm_struct is destroyed. Instead free_notifier is always called to
+> + * release any resources held by the user.
+> + *
+> + * As ops->release is not guaranteed to be called, the user must ensure that
+> + * all sptes are dropped, and no new sptes can be established before
+> + * mmu_notifier_put() is called.
+> + *
+> + * This function can be called from the ops->release callback, however the
+> + * caller must still ensure it is called pairwise with mmu_notifier_get().
+> + *
+> + * Modules calling this function must call mmu_notifier_module_unload() in
+
+I think you mean mmu_notifier_synchronize().
+
+> + * their __exit functions to ensure the async work is completed.
+> + */
+> +void mmu_notifier_put(struct mmu_notifier *mn)
+> +{
+> +	struct mm_struct *mm = mn->mm;
+> +
+> +	spin_lock(&mm->mmu_notifier_mm->lock);
+> +	if (WARN_ON(!mn->users) || --mn->users)
+> +		goto out_unlock;
+> +	hlist_del_init_rcu(&mn->hlist);
+> +	spin_unlock(&mm->mmu_notifier_mm->lock);
+> +
+> +	call_srcu(&srcu, &mn->rcu, mmu_notifier_free_rcu);
+> +	return;
+> +
+> +out_unlock:
+> +	spin_unlock(&mm->mmu_notifier_mm->lock);
+> +}
+> +EXPORT_SYMBOL_GPL(mmu_notifier_put);
+> +
+> +/**
+> + * mmu_notifier_synchronize - Ensure all mmu_notifiers are freed
+> + *
+> + * This function ensures that all outsanding async SRU work from
+
+s/outsanding/outstanding
+
+> + * mmu_notifier_put() is completed. After it returns any mmu_notifier_ops
+> + * associated with an unused mmu_notifier will no longer be called.
+> + *
+> + * Before using the caller must ensure that all of its mmu_notifiers have been
+> + * fully released via mmu_notifier_put().
+> + *
+> + * Modules using the mmu_notifier_put() API should call this in their __exit
+> + * function to avoid module unloading races.
+> + */
+> +void mmu_notifier_synchronize(void)
+> +{
+> +	synchronize_srcu(&srcu);
+> +}
+> +EXPORT_SYMBOL_GPL(mmu_notifier_synchronize);
+> +
+>   bool
+>   mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *range)
+>   {
+> 
 
