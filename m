@@ -2,115 +2,111 @@ Return-Path: <SRS0=g7KO=WK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-2.3 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C650C32753
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 14:48:41 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3E101C41517
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 14:50:38 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3013F208C2
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 14:48:41 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id 043352084F
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 14:50:37 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=intel-com.20150623.gappssmtp.com header.i=@intel-com.20150623.gappssmtp.com header.b="VGmsuSut"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3013F208C2
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	dkim=pass (2048-bit key) header.d=kernel-dk.20150623.gappssmtp.com header.i=@kernel-dk.20150623.gappssmtp.com header.b="lXrxUu2G"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 043352084F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=kernel.dk
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C2E4C6B0007; Wed, 14 Aug 2019 10:48:40 -0400 (EDT)
+	id 834586B0007; Wed, 14 Aug 2019 10:50:37 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BDEFB6B000A; Wed, 14 Aug 2019 10:48:40 -0400 (EDT)
+	id 7E64D6B000A; Wed, 14 Aug 2019 10:50:37 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id ACF036B000C; Wed, 14 Aug 2019 10:48:40 -0400 (EDT)
+	id 6FBB76B000C; Wed, 14 Aug 2019 10:50:37 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0063.hostedemail.com [216.40.44.63])
-	by kanga.kvack.org (Postfix) with ESMTP id 8A3356B0007
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 10:48:40 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 2B2FA180AD7C3
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 14:48:40 +0000 (UTC)
-X-FDA: 75821314800.04.meat57_115a76d26183a
-X-HE-Tag: meat57_115a76d26183a
-X-Filterd-Recvd-Size: 4576
-Received: from mail-ot1-f68.google.com (mail-ot1-f68.google.com [209.85.210.68])
-	by imf08.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 14:48:39 +0000 (UTC)
-Received: by mail-ot1-f68.google.com with SMTP id m24so29944062otp.12
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2019 07:48:38 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0164.hostedemail.com [216.40.44.164])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DE456B0007
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 10:50:37 -0400 (EDT)
+Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id F12818248AA1
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 14:50:36 +0000 (UTC)
+X-FDA: 75821319672.25.push21_226b562245f3a
+X-HE-Tag: push21_226b562245f3a
+X-Filterd-Recvd-Size: 3824
+Received: from mail-ot1-f65.google.com (mail-ot1-f65.google.com [209.85.210.65])
+	by imf14.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 14:50:36 +0000 (UTC)
+Received: by mail-ot1-f65.google.com with SMTP id m24so29960895otp.12
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2019 07:50:36 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=intel-com.20150623.gappssmtp.com; s=20150623;
-        h=mime-version:references:in-reply-to:from:date:message-id:subject:to
-         :cc;
-        bh=TuidyYaeRyKNuzkufRgN6Ec9LRr2Ifgbce3UwZKDqAk=;
-        b=VGmsuSutDmh/CjlBsd4sxqgbi8um+dCHzh+K0g76f30mKTKa4vnjEUi5IghOvDT2TU
-         IiuduD1hp/FbpMVaMr/e7wBsaqMWdJ6XHtQ/1mBsBItSP4Wnk6xfU27TabVrZ7CxNxNQ
-         xk36x4tWlqqM3zgQ+imkzsVY04ipeNiKK+QA1YnFVauQbb2Je88bjQTJ7UYiJXdobeSQ
-         8yXovyKKvS5GfjCCiA8ng2LVaXxNaFUycGFOD1MJp5B3wtPnD6SMS1YSM8AN/j0ewy4K
-         946ksv8AZDHbxIlpfzizsK/Ykelqs/5V6AZKhURom457TIKDaqNjmkxGJQw/75l6BLCF
-         rGkA==
+        d=kernel-dk.20150623.gappssmtp.com; s=20150623;
+        h=subject:to:cc:references:from:message-id:date:user-agent
+         :mime-version:in-reply-to:content-language:content-transfer-encoding;
+        bh=cWx0cFqnOpCViIJ4tMHIiuLTvCAxlz9fs3eE3H38dRE=;
+        b=lXrxUu2GbQ/3WBKNQg6bGoE9vwtRUCP4SFYSH0scEDD89DaRziNNmLBjE0vttmjUe/
+         O4oi/JbfzfFG5Xw+9gyej9xa8Hxo6VT5l/5Uhu6Ny65juAt0JRUAzvszKia3iSP6nh2r
+         cE0Ny9xPzGSah2fDAN6DN8EjpM8B6mh5i7nhJfiWPFDueWS5tsen90BhvNf8os6QfOaB
+         R9wxOqDAIO9Yz9t6d1bMDRQ3gDdzZeohh4mmfilwhiOUUe/mDlQ6e3WFeK9AEwQGx/YF
+         rY1tFBsimehN69v0SOIHFcLiMcb9eRNPzSfZvNrcyjLsWDG+3r2rJKdeGRUyQs6JW23U
+         vFbA==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
-         :message-id:subject:to:cc;
-        bh=TuidyYaeRyKNuzkufRgN6Ec9LRr2Ifgbce3UwZKDqAk=;
-        b=PSAM3kr4rWKAJm4v4l6GPyVfD0sHQq2Vnu4E8rQczAPCdZBx5y2XS8xuVFz78NUYE8
-         SUlXiXwEkz5wlZzbEgGsVc8H5MSYPqoTnB+1E4+V+L+iSkARnM2wY0IFjU9fdyOOetej
-         rImF9vv333HTSg8Jm08xGDuJ8Q7+jtfzyqpRE6X8ZAkJLQ7Wnxn/YF+Ahnm5zj/1syR9
-         NzCGa3jjbxVybR6k5yf2733C9ytJFVjm6YtCEXUt75zCS6aVh+s6U2fNQeelm4K+tSOT
-         AbXKS4U8cb7euHZ7IqNurVJZEcNMepWP6n6rxm5fCDEYC9N+cY0djdRMbGxabGUJjMKz
-         yBpQ==
-X-Gm-Message-State: APjAAAUoyP53gZTN7XqSyncTv/aVYjOhUmXozKQR17cND1yDTdIeKcHS
-	f7UGL74i3Y4ZjTHdMj0pO8TBnzio1IW5U+KUATvwDg==
-X-Google-Smtp-Source: APXvYqz7zm4exw86gTxj/ItuLHdqDfdPZkzMbuPMtbbm6xwrB+umcFhlOUSiQC4HRsH79R5rtenZdkZ3lrgt5XcFI70=
-X-Received: by 2002:a9d:6b96:: with SMTP id b22mr2732383otq.363.1565794118373;
- Wed, 14 Aug 2019 07:48:38 -0700 (PDT)
+        h=x-gm-message-state:subject:to:cc:references:from:message-id:date
+         :user-agent:mime-version:in-reply-to:content-language
+         :content-transfer-encoding;
+        bh=cWx0cFqnOpCViIJ4tMHIiuLTvCAxlz9fs3eE3H38dRE=;
+        b=FjNtRx48CkdMJcy9CXL/VE18l5A6j2pq6S8/n26WQw8k3uVRb9XLrNkphNdvCP48gJ
+         E80BeWfzfZzF0i7+Y8wC4HMpituJugBLqoNqZ8fv0K5lFYmBl5sOhI6eNG1kEZgC+edw
+         3FPa116apMULnku/x/pTnTrJ53fVOWcWZzhjJ0kSIOedG9n6OmfJ+IYlnHjtK/le6Rzn
+         OlRF7Hww6Wc52bCy1R0HtS858lzSbChgMYx9Lo1FUQMYM3ksP5ECfrV8xFD3oxdYTuZg
+         ya7QX+DO4xNMMVvuzJXs/pstIbDrcJWzgCWzCs9cGtEJn1GzTDCGhVW7lm5DDH/AMSu2
+         uI5g==
+X-Gm-Message-State: APjAAAXnD2TtQizAdRQMHpB2jocg7VE5OnK+mXO8SExNtkxt7MaF5jBe
+	TuYs1KRM9iTL/jVPW+g+TF6lkw==
+X-Google-Smtp-Source: APXvYqzQoRGPHjcNHC/V15omIqsc2Ze631e9qimSe/1ZAhI9YzS7mHKxHhdIL75MIuw/sd9unwIaTQ==
+X-Received: by 2002:a5e:834d:: with SMTP id y13mr288968iom.79.1565794234700;
+        Wed, 14 Aug 2019 07:50:34 -0700 (PDT)
+Received: from [192.168.1.50] ([65.144.74.34])
+        by smtp.gmail.com with ESMTPSA id e22sm101663iog.2.2019.08.14.07.50.32
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Aug 2019 07:50:33 -0700 (PDT)
+Subject: Re: [PATCH RESEND] block: annotate refault stalls from IO submission
+To: Johannes Weiner <hannes@cmpxchg.org>
+Cc: Dave Chinner <david@fromorbit.com>,
+ Andrew Morton <akpm@linux-foundation.org>, linux-mm@kvack.org,
+ linux-btrfs@vger.kernel.org, linux-ext4@vger.kernel.org,
+ linux-fsdevel@vger.kernel.org, linux-block@vger.kernel.org,
+ linux-kernel@vger.kernel.org
+References: <20190808190300.GA9067@cmpxchg.org>
+From: Jens Axboe <axboe@kernel.dk>
+Message-ID: <4ad47b61-e917-16cc-95a0-18e070b6b4e0@kernel.dk>
+Date: Wed, 14 Aug 2019 08:50:32 -0600
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-References: <20190806160554.14046-1-hch@lst.de> <20190806160554.14046-5-hch@lst.de>
- <20190807174548.GJ1571@mellanox.com> <CAPcyv4hPCuHBLhSJgZZEh0CbuuJNPLFDA3f-79FX5uVOO0yubA@mail.gmail.com>
- <20190808065933.GA29382@lst.de> <CAPcyv4hMUzw8vyXFRPe2pdwef0npbMm9tx9wiZ9MWkHGhH1V6w@mail.gmail.com>
- <20190814073854.GA27249@lst.de> <20190814132746.GE13756@mellanox.com>
-In-Reply-To: <20190814132746.GE13756@mellanox.com>
-From: Dan Williams <dan.j.williams@intel.com>
-Date: Wed, 14 Aug 2019 07:48:28 -0700
-Message-ID: <CAPcyv4g8usp8prJ+1bMtyV1xuedp5FKErBp-N8+KzR=rJ-v0QQ@mail.gmail.com>
-Subject: Re: [PATCH 04/15] mm: remove the pgmap field from struct hmm_vma_walk
-To: Jason Gunthorpe <jgg@mellanox.com>
-Cc: Christoph Hellwig <hch@lst.de>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?= <jglisse@redhat.com>, 
-	Ben Skeggs <bskeggs@redhat.com>, Felix Kuehling <Felix.Kuehling@amd.com>, 
-	Ralph Campbell <rcampbell@nvidia.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>, 
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>, 
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>, 
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>, 
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Content-Type: text/plain; charset="UTF-8"
+In-Reply-To: <20190808190300.GA9067@cmpxchg.org>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-US
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 14, 2019 at 6:28 AM Jason Gunthorpe <jgg@mellanox.com> wrote:
->
-> On Wed, Aug 14, 2019 at 09:38:54AM +0200, Christoph Hellwig wrote:
-> > On Tue, Aug 13, 2019 at 06:36:33PM -0700, Dan Williams wrote:
-> > > Section alignment constraints somewhat save us here. The only example
-> > > I can think of a PMD not containing a uniform pgmap association for
-> > > each pte is the case when the pgmap overlaps normal dram, i.e. shares
-> > > the same 'struct memory_section' for a given span. Otherwise, distinct
-> > > pgmaps arrange to manage their own exclusive sections (and now
-> > > subsections as of v5.3). Otherwise the implementation could not
-> > > guarantee different mapping lifetimes.
-> > >
-> > > That said, this seems to want a better mechanism to determine "pfn is
-> > > ZONE_DEVICE".
-> >
-> > So I guess this patch is fine for now, and once you provide a better
-> > mechanism we can switch over to it?
->
-> What about the version I sent to just get rid of all the strange
-> put_dev_pagemaps while scanning? Odds are good we will work with only
-> a single pagemap, so it makes some sense to cache it once we find it?
+On 8/8/19 1:03 PM, Johannes Weiner wrote:
+> psi tracks the time tasks wait for refaulting pages to become
+> uptodate, but it does not track the time spent submitting the IO. The
+> submission part can be significant if backing storage is contended or
+> when cgroup throttling (io.latency) is in effect - a lot of time is
+> spent in submit_bio(). In that case, we underreport memory pressure.
+> 
+> Annotate submit_bio() to account submission time as memory stall when
+> the bio is reading userspace workingset pages.
 
-Yes, if the scan is over a single pmd then caching it makes sense.
+Applied for 5.4.
+
+-- 
+Jens Axboe
+
 
