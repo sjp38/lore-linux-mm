@@ -2,178 +2,165 @@ Return-Path: <SRS0=g7KO=WK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
+	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 7BBE2C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 17:50:50 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id C608EC32757
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 18:00:45 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 4B725216F4
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 17:50:50 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4B725216F4
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
+	by mail.kernel.org (Postfix) with ESMTP id 751BB214C6
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 18:00:45 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="txtm+14G"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 751BB214C6
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DCAA26B0003; Wed, 14 Aug 2019 13:50:49 -0400 (EDT)
+	id DC3826B0003; Wed, 14 Aug 2019 14:00:44 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D54546B0005; Wed, 14 Aug 2019 13:50:49 -0400 (EDT)
+	id D74016B0005; Wed, 14 Aug 2019 14:00:44 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C1AE46B0007; Wed, 14 Aug 2019 13:50:49 -0400 (EDT)
+	id C62F76B0007; Wed, 14 Aug 2019 14:00:44 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0003.hostedemail.com [216.40.44.3])
-	by kanga.kvack.org (Postfix) with ESMTP id 9EF916B0003
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 13:50:49 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 5D3B3180AD7C1
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 17:50:49 +0000 (UTC)
-X-FDA: 75821773818.08.lock45_7071411d9948
-X-HE-Tag: lock45_7071411d9948
-X-Filterd-Recvd-Size: 6686
-Received: from mga07.intel.com (mga07.intel.com [134.134.136.100])
-	by imf28.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 17:50:48 +0000 (UTC)
-X-Amp-Result: UNKNOWN
-X-Amp-Original-Verdict: FILE UNKNOWN
-X-Amp-File-Uploaded: False
-Received: from orsmga006.jf.intel.com ([10.7.209.51])
-  by orsmga105.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Aug 2019 10:50:46 -0700
-X-ExtLoop1: 1
-X-IronPort-AV: E=Sophos;i="5.64,386,1559545200"; 
-   d="scan'208";a="181636379"
-Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
-  by orsmga006.jf.intel.com with ESMTP; 14 Aug 2019 10:50:45 -0700
-Date: Wed, 14 Aug 2019 10:50:45 -0700
-From: Ira Weiny <ira.weiny@intel.com>
+Received: from forelay.hostedemail.com (smtprelay0081.hostedemail.com [216.40.44.81])
+	by kanga.kvack.org (Postfix) with ESMTP id A45DF6B0003
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 14:00:44 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 5EEB26118
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 18:00:44 +0000 (UTC)
+X-FDA: 75821798808.30.curve32_5dadbb2d5c92a
+X-HE-Tag: curve32_5dadbb2d5c92a
+X-Filterd-Recvd-Size: 6384
+Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com [209.85.215.195])
+	by imf01.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 18:00:43 +0000 (UTC)
+Received: by mail-pg1-f195.google.com with SMTP id n190so12655735pgn.0
+        for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:00:43 -0700 (PDT)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=gmail.com; s=20161025;
+        h=date:from:to:cc:subject:message-id:references:mime-version
+         :content-disposition:in-reply-to:user-agent;
+        bh=dOMdAe6AqeWQZHyQVAAMCKAQHRACwZHKY6wC0SFV1+U=;
+        b=txtm+14GF2FCSoDvBp13P47mYXIYr8VsHkaLQ9+qzdynxVrPmEdrI3/VF89cQ40aHO
+         oxgSbC3sqrQqx4xtNgEWud9V7Y4Dwtgcs6TVrtMZcHWviQjqMfZK0m7rwk7t1BmWhL7L
+         jWgqAFWfDcXmgPVogpvNZ1QoXmGGaF/uugJYIukTmXWp8cMQSuxBrfSLITM80ysXXMT3
+         oWiTb+hlXjbV3rib2xR5s/FAWi4i3cAD/CvYQEfnRmwJ2sSeajSsXWxylBCiLmiZ4aPT
+         c1/PlQHMFj3pkkIDK6pLYs3vrH9UYO5JkL3zkEzOVg8YFl/aVm51r/jjD2V+EuNOMKgA
+         PQhQ==
+X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
+        d=1e100.net; s=20161025;
+        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
+         :mime-version:content-disposition:in-reply-to:user-agent;
+        bh=dOMdAe6AqeWQZHyQVAAMCKAQHRACwZHKY6wC0SFV1+U=;
+        b=IhXzATjxsldsJXyJgF8frQF0cDDkRDpBse160sMIEEZ01m9A5hRL7JWaAJQoYHOnTg
+         +nbVgRCKJPbaWgFXSkbvGiBpvNIWV8RgJQBjOTEcvfaxjm4BE07Mf+Bp99YOSg615NCo
+         opTbDp1AS4p2dFYRRMWj/FbRG4xp0mxd9uuVrx+HIX8yP3bE3HCT6EGkJJzWqI36eLKV
+         2xCMvdF2qj+edwJ0dapdtnJ8OlLhl7St9SWpxW29SHQvh2qf9LBfr7mXxKu+OE3vIa/q
+         OKlDeF9VldTM1Tpi7t8/Lb/0aS8tYFdUCZzNEty0EFK4oKBUW4eaL8a0DgTR3XFCdR6u
+         VmiA==
+X-Gm-Message-State: APjAAAU/tzfjPMWVMBL4kfBCEdljkdOVcJhnRbA1QrNkRXW3hBfTB3zM
+	h1ellm9Jx1iVrHNTYV5KgD8=
+X-Google-Smtp-Source: APXvYqwQ2VCcn8bkJMBj4iGZSuOaB8ioPvLpamL0svo5YO/TVOQJzbQnplGw8s1N9sXKwpH97HUlUA==
+X-Received: by 2002:a17:90a:fe01:: with SMTP id ck1mr866293pjb.89.1565805642428;
+        Wed, 14 Aug 2019 11:00:42 -0700 (PDT)
+Received: from bharath12345-Inspiron-5559 ([103.110.42.36])
+        by smtp.gmail.com with ESMTPSA id x25sm527942pfa.90.2019.08.14.11.00.35
+        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
+        Wed, 14 Aug 2019 11:00:41 -0700 (PDT)
+Date: Wed, 14 Aug 2019 23:30:31 +0530
+From: Bharath Vedartham <linux.bhar@gmail.com>
 To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Andrew Morton <akpm@linux-foundation.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
-	Theodore Ts'o <tytso@mit.edu>, John Hubbard <jhubbard@nvidia.com>,
-	Michal Hocko <mhocko@suse.com>, Dave Chinner <david@fromorbit.com>,
-	linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org,
-	linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org,
-	linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org,
-	linux-mm@kvack.org
-Subject: Re: [RFC PATCH v2 16/19] RDMA/uverbs: Add back pointer to system
- file object
-Message-ID: <20190814175045.GA31490@iweiny-DESK2.sc.intel.com>
-References: <20190809225833.6657-17-ira.weiny@intel.com>
- <20190812130039.GD24457@ziepe.ca>
- <20190812172826.GA19746@iweiny-DESK2.sc.intel.com>
- <20190812175615.GI24457@ziepe.ca>
- <20190812211537.GE20634@iweiny-DESK2.sc.intel.com>
- <20190813114842.GB29508@ziepe.ca>
- <20190813174142.GB11882@iweiny-DESK2.sc.intel.com>
- <20190813180022.GF29508@ziepe.ca>
- <20190813203858.GA12695@iweiny-DESK2.sc.intel.com>
- <20190814122308.GB13770@ziepe.ca>
+Cc: Dimitri Sivanich <sivanich@hpe.com>, jhubbard@nvidia.com,
+	gregkh@linuxfoundation.org, arnd@arndb.de, ira.weiny@intel.com,
+	jglisse@redhat.com, william.kucharski@oracle.com, hch@lst.de,
+	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+	linux-kernel-mentees@lists.linuxfoundation.org
+Subject: Re: [Linux-kernel-mentees][PATCH v5 1/1] sgi-gru: Remove *pte_lookup
+ functions, Convert to get_user_page*()
+Message-ID: <20190814180031.GB5121@bharath12345-Inspiron-5559>
+References: <1565379497-29266-1-git-send-email-linux.bhar@gmail.com>
+ <1565379497-29266-2-git-send-email-linux.bhar@gmail.com>
+ <20190813145029.GA32451@hpe.com>
+ <20190813172301.GA10228@bharath12345-Inspiron-5559>
+ <20190813181938.GA4196@hpe.com>
+ <20190814173034.GA5121@bharath12345-Inspiron-5559>
+ <20190814173830.GC13770@ziepe.ca>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190814122308.GB13770@ziepe.ca>
-User-Agent: Mutt/1.11.1 (2018-12-01)
+In-Reply-To: <20190814173830.GC13770@ziepe.ca>
+User-Agent: Mutt/1.5.24 (2015-08-30)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 14, 2019 at 09:23:08AM -0300, Jason Gunthorpe wrote:
-> On Tue, Aug 13, 2019 at 01:38:59PM -0700, Ira Weiny wrote:
-> > On Tue, Aug 13, 2019 at 03:00:22PM -0300, Jason Gunthorpe wrote:
-> > > On Tue, Aug 13, 2019 at 10:41:42AM -0700, Ira Weiny wrote:
+On Wed, Aug 14, 2019 at 02:38:30PM -0300, Jason Gunthorpe wrote:
+> On Wed, Aug 14, 2019 at 11:00:34PM +0530, Bharath Vedartham wrote:
+> > On Tue, Aug 13, 2019 at 01:19:38PM -0500, Dimitri Sivanich wrote:
+> > > On Tue, Aug 13, 2019 at 10:53:01PM +0530, Bharath Vedartham wrote:
+> > > > On Tue, Aug 13, 2019 at 09:50:29AM -0500, Dimitri Sivanich wrote:
+> > > > > Bharath,
+> > > > > 
+> > > > > I do not believe that __get_user_pages_fast will work for the atomic case, as
+> > > > > there is no guarantee that the 'current->mm' will be the correct one for the
+> > > > > process in question, as the process might have moved away from the cpu that is
+> > > > > handling interrupts for it's context.
+> > > > So what your saying is, there may be cases where current->mm != gts->ts_mm
+> > > > right? __get_user_pages_fast and get_user_pages do assume current->mm.
 > > > 
-> > > > And I was pretty sure uverbs_destroy_ufile_hw() would take care of (or ensure
-> > > > that some other thread is) destroying all the MR's we have associated with this
-> > > > FD.
+> > > Correct, in the case of atomic context.
 > > > 
-> > > fd's can't be revoked, so destroy_ufile_hw() can't touch them. It
-> > > deletes any underlying HW resources, but the FD persists.
+> > > > 
+> > > > These changes were inspired a bit from kvm. In kvm/kvm_main.c,
+> > > > hva_to_pfn_fast uses __get_user_pages_fast. THe comment above the
+> > > > function states it runs in atomic context.
+> > > > 
+> > > > Just curious, get_user_pages also uses current->mm. Do you think that is
+> > > > also an issue? 
+> > > 
+> > > Not in non-atomic context.  Notice that it is currently done that way.
+> > > 
+> > > > 
+> > > > Do you feel using get_user_pages_remote would be a better idea? We can
+> > > > specify the mm_struct in get_user_pages_remote?
+> > > 
+> > > From that standpoint maybe, but is it safe in interrupt context?
+> > Hmm.. The gup maintainers seemed fine with the code..
 > > 
-> > I misspoke.  I should have said associated with this "context".  And of course
-> > uverbs_destroy_ufile_hw() does not touch the FD.  What I mean is that the
-> > struct file which had file_pins hanging off of it would be getting its file
-> > pins destroyed by uverbs_destroy_ufile_hw().  Therefore we don't need the FD
-> > after uverbs_destroy_ufile_hw() is done.
+> > Now this is only an issue if gru_vtop can be executed in an interrupt
+> > context. 
 > > 
-> > But since it does not block it may be that the struct file is gone before the
-> > MR is actually destroyed.  Which means I think the GUP code would blow up in
-> > that case...  :-(
+> > get_user_pages_remote is not valid in an interrupt context(if CONFIG_MMU
+> > is set). If we follow the function, in __get_user_pages, cond_resched()
+> > is called which definitly confirms that we can't run this function in an
+> > interrupt context. 
+> > 
+> > I think we might need some advice from the gup maintainers here.
+> > Note that the comment on the function __get_user_pages_fast states that
+> > __get_user_pages_fast is IRQ-safe.
 > 
-> Oh, yes, that is true, you also can't rely on the struct file living
-> longer than the HW objects either, that isn't how the lifetime model
-> works.
+> vhost is doing some approach where they switch current to the target
+> then call __get_user_pages_fast in an IRQ context, that might be a
+> reasonable pattern
 > 
-> If GUP consumes the struct file it must allow the struct file to be
-> deleted before the GUP pin is released.
-
-I may have to think about this a bit.  But I'm starting to lean toward my
-callback method as a solution...
-
+> If this is a regular occurance we should probably add a
+> get_atomic_user_pages_remote() to make the pattern clear.
 > 
-> > The drivers could provide some generic object (in RDMA this could be the
-> > uverbs_attr_bundle) which represents their "context".
-> 
-> For RDMA the obvious context is the struct ib_mr *
+> Jason
 
-Not really, but maybe.  See below regarding tracking this across processes.
+That makes sense. get_atomic_user_pages_remote() should not be hard to
+write. AFAIKS __get_user_pages_fast is special_cased for current, we
+could probably just add a new parameter of the mm_struct to the page
+table walking code in gup.c
 
-> 
-> > But for the procfs interface, that context then needs to be associated with any
-> > file which points to it...  For RDMA, or any other "FD based pin mechanism", it
-> > would be up to the driver to "install" a procfs handler into any struct file
-> > which _may_ point to this context.  (before _or_ after memory pins).
-> 
-> Is this all just for debugging? Seems like a lot of complication just
-> to print a string
+But till then I think we can approach this by the way vhost approaches
+this problem by switching current to the target. 
 
-No, this is a requirement to allow an admin to determine why their truncates
-may be failing.  As per our discussion here:
-
-https://lkml.org/lkml/2019/6/7/982
-
-Looking back at the thread apparently no one confirmed my question (assertion).
-But no one objected to it either!  :-D  From that post:
-
-	"... if we can keep track of who has the pins in lsof can we agree no
-	process needs to be SIGKILL'ed?  Admins can do this on their own
-	"killing" if they really need to stop the use of these files, right?"
-
-This is what I am trying to do here is ensure that no matter what the user
-does.  Fork, munmap, SCM_RIGHTS, close (on any FD), the underlying pin is
-associated to any process which has access to those pins and is holding
-references to those pages.  Then any user of the system who gets a failing
-truncate can figure out which processes are holding this up.
-
-> 
-> Generally, I think you'd be better to associate things with the
-> mm_struct not some struct file... The whole design is simpler as GUP
-> already has the mm_struct.
-
-I wish I _could_ do that...  And for some simple users I do that.  This is why
-rdma_pin has the option to track against mm_struct _OR_ struct file.
-
-At first it seemed like carrying over the mm_struct info during fork would
-work...  but then there is SCM_RIGHTS where one can share the RDMA context with
-any "random" process...  AFAICS struct file has no concept of mm_struct (nor
-should it) so the dup for SCM_RIGHTS processing would not be able to do this.
-A further complication was that when the RDMA FD is dup'ed the RDMA subsystem
-does not know about it...  So it was not straight forward to have the RDMA
-subsystem do this either.  Not to mention that would be yet another
-complication the drivers would have to deal with...  I think you had similar
-issues which lead to the use of an "owning_mm" in the umem object.  So while
-_some_ mm_struct is held it may not be visible to the user since that mm_struct
-may belong to a process which is gone... Or even if not gone, killing it would not
-fully remove the pin...
-
-So keeping this tracked against struct file works (and seemed straight forward)
-no matter where/how the RDMA FD is shared...  Even with the complication above
-I still think it is easier to do this way.
-
-If I am missing something WRT the mm_struct "I'm all ears".
-
-Ira
-
+Thank you
+Bharath
 
