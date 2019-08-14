@@ -6,42 +6,42 @@ X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
 	URIBL_BLOCKED autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 317F4C32753
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 15:41:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 3674EC32753
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 15:41:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F40752084D
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 15:41:22 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F40752084D
+	by mail.kernel.org (Postfix) with ESMTP id F052F2084D
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 15:41:24 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F052F2084D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 6D6EB6B0007; Wed, 14 Aug 2019 11:41:22 -0400 (EDT)
+	id 96FBE6B000D; Wed, 14 Aug 2019 11:41:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 68C896B000D; Wed, 14 Aug 2019 11:41:22 -0400 (EDT)
+	id 8D2C26B000E; Wed, 14 Aug 2019 11:41:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 577856B000E; Wed, 14 Aug 2019 11:41:22 -0400 (EDT)
+	id 777876B0010; Wed, 14 Aug 2019 11:41:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0080.hostedemail.com [216.40.44.80])
-	by kanga.kvack.org (Postfix) with ESMTP id 30AFC6B0007
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:41:22 -0400 (EDT)
-Received: from smtpin12.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id CB6ED180AD801
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 15:41:21 +0000 (UTC)
-X-FDA: 75821447562.12.cup15_28f414dfd9d07
-X-HE-Tag: cup15_28f414dfd9d07
-X-Filterd-Recvd-Size: 3069
+Received: from forelay.hostedemail.com (smtprelay0047.hostedemail.com [216.40.44.47])
+	by kanga.kvack.org (Postfix) with ESMTP id 4A7F16B000D
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:41:24 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 009B852DA
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 15:41:23 +0000 (UTC)
+X-FDA: 75821447688.05.dad56_294580d95cb1a
+X-HE-Tag: dad56_294580d95cb1a
+X-Filterd-Recvd-Size: 3709
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf49.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 15:41:21 +0000 (UTC)
+	by imf29.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 15:41:23 +0000 (UTC)
 Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 540D2C069B52;
-	Wed, 14 Aug 2019 15:41:20 +0000 (UTC)
+	by mx1.redhat.com (Postfix) with ESMTPS id 506C13CA0D;
+	Wed, 14 Aug 2019 15:41:22 +0000 (UTC)
 Received: from t460s.redhat.com (ovpn-116-49.ams2.redhat.com [10.36.116.49])
-	by smtp.corp.redhat.com (Postfix) with ESMTP id A720080693;
-	Wed, 14 Aug 2019 15:41:18 +0000 (UTC)
+	by smtp.corp.redhat.com (Postfix) with ESMTP id A660880A27;
+	Wed, 14 Aug 2019 15:41:20 +0000 (UTC)
 From: David Hildenbrand <david@redhat.com>
 To: linux-kernel@vger.kernel.org
 Cc: linux-mm@kvack.org,
@@ -51,14 +51,14 @@ Cc: linux-mm@kvack.org,
 	Michal Hocko <mhocko@suse.com>,
 	Pavel Tatashin <pasha.tatashin@soleen.com>,
 	Dan Williams <dan.j.williams@intel.com>
-Subject: [PATCH v2 2/5] mm/memory_hotplug: Drop PageReserved() check in online_pages_range()
-Date: Wed, 14 Aug 2019 17:41:06 +0200
-Message-Id: <20190814154109.3448-3-david@redhat.com>
+Subject: [PATCH v2 3/5] mm/memory_hotplug: Simplify online_pages_range()
+Date: Wed, 14 Aug 2019 17:41:07 +0200
+Message-Id: <20190814154109.3448-4-david@redhat.com>
 In-Reply-To: <20190814154109.3448-1-david@redhat.com>
 References: <20190814154109.3448-1-david@redhat.com>
 MIME-Version: 1.0
 X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Wed, 14 Aug 2019 15:41:20 +0000 (UTC)
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.39]); Wed, 14 Aug 2019 15:41:22 +0000 (UTC)
 Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -66,17 +66,8 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-move_pfn_range_to_zone() will set all pages to PG_reserved via
-memmap_init_zone(). The only way a page could no longer be reserved
-would be if a MEM_GOING_ONLINE notifier would clear PG_reserved - which
-is not done (the online_page callback is used for that purpose by
-e.g., Hyper-V instead). walk_system_ram_range() will never call
-online_pages_range() with duplicate PFNs, so drop the PageReserved() chec=
-k.
-
-This seems to be a leftover from ancient times where the memmap was
-initialized when adding memory and we wanted to check for already
-onlined memory.
+online_pages always corresponds to nr_pages. Simplify the code, getting
+rid of online_pages_blocks(). Add some comments.
 
 Cc: Andrew Morton <akpm@linux-foundation.org>
 Cc: Oscar Salvador <osalvador@suse.de>
@@ -85,25 +76,64 @@ Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
 Cc: Dan Williams <dan.j.williams@intel.com>
 Signed-off-by: David Hildenbrand <david@redhat.com>
 ---
- mm/memory_hotplug.c | 4 +---
- 1 file changed, 1 insertion(+), 3 deletions(-)
+ mm/memory_hotplug.c | 36 ++++++++++++++++--------------------
+ 1 file changed, 16 insertions(+), 20 deletions(-)
 
 diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-index 3706a137d880..10ad970f3f14 100644
+index 10ad970f3f14..63b1775f7cf8 100644
 --- a/mm/memory_hotplug.c
 +++ b/mm/memory_hotplug.c
-@@ -653,9 +653,7 @@ static int online_pages_range(unsigned long start_pfn=
-, unsigned long nr_pages,
- {
- 	unsigned long onlined_pages =3D *(unsigned long *)arg;
+@@ -632,31 +632,27 @@ static void generic_online_page(struct page *page, =
+unsigned int order)
+ #endif
+ }
 =20
--	if (PageReserved(pfn_to_page(start_pfn)))
--		onlined_pages +=3D online_pages_blocks(start_pfn, nr_pages);
+-static int online_pages_blocks(unsigned long start, unsigned long nr_pag=
+es)
+-{
+-	unsigned long end =3D start + nr_pages;
+-	int order, onlined_pages =3D 0;
 -
-+	onlined_pages +=3D online_pages_blocks(start_pfn, nr_pages);
- 	online_mem_sections(start_pfn, start_pfn + nr_pages);
+-	while (start < end) {
+-		order =3D min(MAX_ORDER - 1,
+-			get_order(PFN_PHYS(end) - PFN_PHYS(start)));
+-		(*online_page_callback)(pfn_to_page(start), order);
+-
+-		onlined_pages +=3D (1UL << order);
+-		start +=3D (1UL << order);
+-	}
+-	return onlined_pages;
+-}
+-
+ static int online_pages_range(unsigned long start_pfn, unsigned long nr_=
+pages,
+ 			void *arg)
+ {
+-	unsigned long onlined_pages =3D *(unsigned long *)arg;
++	const unsigned long end_pfn =3D start_pfn + nr_pages;
++	unsigned long pfn;
++	int order;
++
++	/*
++	 * Online the pages. The callback might decide to keep some pages
++	 * PG_reserved (to add them to the buddy later), but we still account
++	 * them as being online/belonging to this zone ("present").
++	 */
++	for (pfn =3D start_pfn; pfn < end_pfn; pfn +=3D 1ul << order) {
++		order =3D min(MAX_ORDER - 1, get_order(PFN_PHYS(end_pfn - pfn)));
++		(*online_page_callback)(pfn_to_page(pfn), order);
++	}
 =20
- 	*(unsigned long *)arg =3D onlined_pages;
+-	onlined_pages +=3D online_pages_blocks(start_pfn, nr_pages);
+-	online_mem_sections(start_pfn, start_pfn + nr_pages);
++	/* mark all involved sections as online */
++	online_mem_sections(start_pfn, end_pfn);
+=20
+-	*(unsigned long *)arg =3D onlined_pages;
++	*(unsigned long *)arg +=3D nr_pages;
+ 	return 0;
+ }
+=20
 --=20
 2.21.0
 
