@@ -2,142 +2,155 @@ Return-Path: <SRS0=g7KO=WK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
-	version=3.4.0
+X-Spam-Status: No, score=-1.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
+	URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CBD6C32753
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 11:08:55 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B5B2C32753
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 11:21:40 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id F159F2083B
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 11:08:54 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F159F2083B
+	by mail.kernel.org (Postfix) with ESMTP id 529BB208C2
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 11:21:40 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="GoyIEeuy"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 529BB208C2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 7F3EE6B0005; Wed, 14 Aug 2019 07:08:54 -0400 (EDT)
+	id D8EDE6B0005; Wed, 14 Aug 2019 07:21:39 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 77DCA6B0006; Wed, 14 Aug 2019 07:08:54 -0400 (EDT)
+	id D3FA26B0006; Wed, 14 Aug 2019 07:21:39 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 66B256B0007; Wed, 14 Aug 2019 07:08:54 -0400 (EDT)
+	id C2DAF6B0007; Wed, 14 Aug 2019 07:21:39 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0069.hostedemail.com [216.40.44.69])
-	by kanga.kvack.org (Postfix) with ESMTP id 408606B0005
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 07:08:54 -0400 (EDT)
-Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay02.hostedemail.com (Postfix) with SMTP id C6BE645BA
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:08:53 +0000 (UTC)
-X-FDA: 75820760946.21.wish17_87d07d20c693b
-X-HE-Tag: wish17_87d07d20c693b
-X-Filterd-Recvd-Size: 5175
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf41.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:08:53 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id D4950AF9F;
-	Wed, 14 Aug 2019 11:08:51 +0000 (UTC)
-Date: Wed, 14 Aug 2019 13:08:50 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: Yang Shi <yang.shi@linux.alibaba.com>
-Cc: kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, vbabka@suse.cz,
-	rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org,
-	linux-kernel@vger.kernel.org
-Subject: Re: [RESEND PATCH 1/2 -mm] mm: account lazy free pages separately
-Message-ID: <20190814110850.GT17933@dhcp22.suse.cz>
-References: <1565308665-24747-1-git-send-email-yang.shi@linux.alibaba.com>
- <20190809083216.GM18351@dhcp22.suse.cz>
- <1a3c4185-c7ab-8d6f-8191-77dce02025a7@linux.alibaba.com>
- <20190809180238.GS18351@dhcp22.suse.cz>
- <79c90f6b-fcac-02e1-015a-0eaa4eafdf7d@linux.alibaba.com>
- <fb1f4958-5147-2fab-531f-d234806c2f37@linux.alibaba.com>
- <20190812093430.GD5117@dhcp22.suse.cz>
- <297aefa2-ba64-cb91-d2c8-733054db01a3@linux.alibaba.com>
+Received: from forelay.hostedemail.com (smtprelay0186.hostedemail.com [216.40.44.186])
+	by kanga.kvack.org (Postfix) with ESMTP id A05AD6B0005
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 07:21:39 -0400 (EDT)
+Received: from smtpin14.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 497E41EF3
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:21:39 +0000 (UTC)
+X-FDA: 75820793118.14.tree12_65b0f2877f22d
+X-HE-Tag: tree12_65b0f2877f22d
+X-Filterd-Recvd-Size: 5574
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by imf42.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:21:38 +0000 (UTC)
+Received: from tleilax.poochiereds.net (68-20-15-154.lightspeed.rlghnc.sbcglobal.net [68.20.15.154])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id EBA7C2083B;
+	Wed, 14 Aug 2019 11:21:35 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1565781697;
+	bh=lKWyQhJZrTeR2mP8gMp1Sv43C4kaU0ItcD8UjHsGR64=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=GoyIEeuy2aBMsczZxEjc418vIh6+C2Y2j1zEoa7vlM8xwuZ9K4Lx8mUTo+P3ENh3z
+	 i4MieExVH35FpkJHKYrGnkalqrRJH19Pu0e79zbx70z//5lRJAjmuuStGEMPll9gj8
+	 tcxu2X2I5qV6B/uj35CVsKOn4wUIaS2xvX5qVcac=
+Message-ID: <1ba29bfa22f82e6d880ab31c3835047f3353f05a.camel@kernel.org>
+Subject: Re: [RFC PATCH v2 01/19] fs/locks: Export F_LAYOUT lease to user
+ space
+From: Jeff Layton <jlayton@kernel.org>
+To: Dave Chinner <david@fromorbit.com>, Ira Weiny <ira.weiny@intel.com>
+Cc: Andrew Morton <akpm@linux-foundation.org>, Jason Gunthorpe
+ <jgg@ziepe.ca>,  Dan Williams <dan.j.williams@intel.com>, Matthew Wilcox
+ <willy@infradead.org>, Jan Kara <jack@suse.cz>,  Theodore Ts'o
+ <tytso@mit.edu>, John Hubbard <jhubbard@nvidia.com>, Michal Hocko
+ <mhocko@suse.com>, linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org, 
+ linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, 
+ linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org
+Date: Wed, 14 Aug 2019 07:21:34 -0400
+In-Reply-To: <20190814080547.GJ6129@dread.disaster.area>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+	 <20190809225833.6657-2-ira.weiny@intel.com>
+	 <20190809235231.GC7777@dread.disaster.area>
+	 <20190812173626.GB19746@iweiny-DESK2.sc.intel.com>
+	 <20190814080547.GJ6129@dread.disaster.area>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.32.4 (3.32.4-1.fc30) 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <297aefa2-ba64-cb91-d2c8-733054db01a3@linux.alibaba.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Mon 12-08-19 10:00:17, Yang Shi wrote:
-> 
-> 
-> On 8/12/19 2:34 AM, Michal Hocko wrote:
-> > On Fri 09-08-19 16:54:43, Yang Shi wrote:
+On Wed, 2019-08-14 at 18:05 +1000, Dave Chinner wrote:
+> On Mon, Aug 12, 2019 at 10:36:26AM -0700, Ira Weiny wrote:
+> > On Sat, Aug 10, 2019 at 09:52:31AM +1000, Dave Chinner wrote:
+> > > On Fri, Aug 09, 2019 at 03:58:15PM -0700, ira.weiny@intel.com wrote:
+> > > > +	/*
+> > > > +	 * NOTE on F_LAYOUT lease
+> > > > +	 *
+> > > > +	 * LAYOUT lease types are taken on files which the user knows that
+> > > > +	 * they will be pinning in memory for some indeterminate amount of
+> > > > +	 * time.
 > > > 
-> > > On 8/9/19 11:26 AM, Yang Shi wrote:
-> > > > 
-> > > > On 8/9/19 11:02 AM, Michal Hocko wrote:
-> > [...]
-> > > > > I have to study the code some more but is there any reason why those
-> > > > > pages are not accounted as proper THPs anymore? Sure they are partially
-> > > > > unmaped but they are still THPs so why cannot we keep them accounted
-> > > > > like that. Having a new counter to reflect that sounds like papering
-> > > > > over the problem to me. But as I've said I might be missing something
-> > > > > important here.
-> > > > I think we could keep those pages accounted for NR_ANON_THPS since they
-> > > > are still THP although they are unmapped as you mentioned if we just
-> > > > want to fix the improper accounting.
-> > > By double checking what NR_ANON_THPS really means,
-> > > Documentation/filesystems/proc.txt says "Non-file backed huge pages mapped
-> > > into userspace page tables". Then it makes some sense to dec NR_ANON_THPS
-> > > when removing rmap even though they are still THPs.
-> > > 
-> > > I don't think we would like to change the definition, if so a new counter
-> > > may make more sense.
-> > Yes, changing NR_ANON_THPS semantic sounds like a bad idea. Let
-> > me try whether I understand the problem. So we have some THP in
-> > limbo waiting for them to be split and unmapped parts to be freed,
-> > right? I can see that page_remove_anon_compound_rmap does correctly
-> > decrement NR_ANON_MAPPED for sub pages that are no longer mapped by
-> > anybody. LRU pages seem to be accounted properly as well.  As you've
-> > said NR_ANON_THPS reflects the number of THPs mapped and that should be
-> > reflecting the reality already IIUC.
+> > > Indeed, layout leases have nothing to do with pinning of memory.
 > > 
-> > So the only problem seems to be that deferred THP might aggregate a lot
-> > of immediately freeable memory (if none of the subpages are mapped) and
-> > that can confuse MemAvailable because it doesn't know about the fact.
-> > Has an skewed counter resulted in a user observable behavior/failures?
+> > Yep, Fair enough.  I'll rework the comment.
+> > 
+> > > That's something an application taht uses layout leases might do,
+> > > but it largely irrelevant to the functionality layout leases
+> > > provide. What needs to be done here is explain what the layout lease
+> > > API actually guarantees w.r.t. the physical file layout, not what
+> > > some application is going to do with a lease. e.g.
+> > > 
+> > > 	The layout lease F_RDLCK guarantees that the holder will be
+> > > 	notified that the physical file layout is about to be
+> > > 	changed, and that it needs to release any resources it has
+> > > 	over the range of this lease, drop the lease and then
+> > > 	request it again to wait for the kernel to finish whatever
+> > > 	it is doing on that range.
+> > > 
+> > > 	The layout lease F_RDLCK also allows the holder to modify
+> > > 	the physical layout of the file. If an operation from the
+> > > 	lease holder occurs that would modify the layout, that lease
+> > > 	holder does not get notification that a change will occur,
+> > > 	but it will block until all other F_RDLCK leases have been
+> > > 	released by their holders before going ahead.
+> > > 
+> > > 	If there is a F_WRLCK lease held on the file, then a F_RDLCK
+> > > 	holder will fail any operation that may modify the physical
+> > > 	layout of the file. F_WRLCK provides exclusive physical
+> > > 	modification access to the holder, guaranteeing nothing else
+> > > 	will change the layout of the file while it holds the lease.
+> > > 
+> > > 	The F_WRLCK holder can change the physical layout of the
+> > > 	file if it so desires, this will block while F_RDLCK holders
+> > > 	are notified and release their leases before the
+> > > 	modification will take place.
+> > > 
+> > > We need to define the semantics we expose to userspace first.....
+
+Absolutely.
+
+> > 
+> > Agreed.  I believe I have implemented the semantics you describe above.  Do I
+> > have your permission to use your verbiage as part of reworking the comment and
+> > commit message?
 > 
-> No. But the skewed counter may make big difference for a big scale cluster.
-> The MemAvailable is an important factor for cluster scheduler to determine
-> the capacity.
-
-But MemAvailable is a very rough estimation. Is relying on it really a
-good measure? I mean there is a lot of reclaimable memory that is not
-reflected there (some fs. internal data structures, networking buffers
-etc.)
-
-[...]
-
-> > accounting the full THP correct? What if subpages are still mapped?
+> Of course. :)
 > 
-> "Deferred split" definitely doesn't mean they are free. When memory pressure
-> is hit, they would be split, then the unmapped normal pages would be freed.
-> So, when calculating MemAvailable, they are not accounted 100%, but like
-> "available += lazyfree - min(lazyfree / 2, wmark_low)", just like how page
-> cache is accounted.
+> Cheers,
+> 
 
-Then this is even more dubious IMHO.
+I'll review this in more detail soon, but subsequent postings of the set
+should probably also go to linux-api mailing list. This is a significant
+API change. It might not also hurt to get the glibc folks involved here
+too since you'll probably want to add the constants to the headers there
+as well.
 
-> We could get more accurate account, i.e. checking each sub page's mapcount
-> when accounting, but it may change before shrinker start scanning. So, just
-> use the ballpark estimation to trade off the complexity for accurate
-> accounting.
+Finally, consider going ahead and drafting a patch to the fcntl(2)
+manpage if you think you have the API mostly nailed down. This API is a
+little counterintuitive (i.e. you can change the layout with an F_RDLCK
+lease), so it will need to be very clearly documented. I've also found
+that when creating a new API, documenting it tends to help highlight its
+warts and areas where the behavior is not clearly defined.
 
-I do not see much point in fixing up one particular counter when there
-is a whole lot that is even not considered. I would rather live with the
-fact that MemAvailable is only very rough estimate then whack a mole on
-any memory consumer that is freeable directly or indirectly via memory
-reclaim. Because this is likely to be always subtly broken and only
-visible under very specific workloads so there is no way to test for it.
 -- 
-Michal Hocko
-SUSE Labs
+Jeff Layton <jlayton@kernel.org>
+
 
