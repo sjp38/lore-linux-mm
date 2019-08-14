@@ -2,117 +2,180 @@ Return-Path: <SRS0=g7KO=WK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8953EC32753
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 10:37:56 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D2690C433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 11:00:30 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 50F252084D
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 10:37:56 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 50F252084D
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 9EA26206C1
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 11:00:30 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9EA26206C1
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E4D8F6B0005; Wed, 14 Aug 2019 06:37:55 -0400 (EDT)
+	id 2538D6B0005; Wed, 14 Aug 2019 07:00:30 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id DFEAB6B0006; Wed, 14 Aug 2019 06:37:55 -0400 (EDT)
+	id 1DF536B0006; Wed, 14 Aug 2019 07:00:30 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id CED416B0007; Wed, 14 Aug 2019 06:37:55 -0400 (EDT)
+	id 0A51F6B0007; Wed, 14 Aug 2019 07:00:30 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0102.hostedemail.com [216.40.44.102])
-	by kanga.kvack.org (Postfix) with ESMTP id AD4A06B0005
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 06:37:55 -0400 (EDT)
-Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 543EB18C9
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 10:37:55 +0000 (UTC)
-X-FDA: 75820682910.10.bird95_ad187fa63e03
-X-HE-Tag: bird95_ad187fa63e03
-X-Filterd-Recvd-Size: 4198
-Received: from mail-wr1-f65.google.com (mail-wr1-f65.google.com [209.85.221.65])
-	by imf14.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 10:37:54 +0000 (UTC)
-Received: by mail-wr1-f65.google.com with SMTP id b16so13899898wrq.9
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2019 03:37:54 -0700 (PDT)
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:subject:to:cc:references:from:openpgp:message-id
-         :date:user-agent:mime-version:in-reply-to:content-language
-         :content-transfer-encoding;
-        bh=oVgEV1g/UPelVsZcKcw9nOSje8rWLBWULtBtVoDSjso=;
-        b=QS1AqVYvq60Ww60u+CMlSUq1Fza3uVN1zB699K0p99rDuO3XMjtrbUUaI92hieddmo
-         AGEdGmn4+RDA746U34lnlql+zgOxG3mbR4vrRYIFhtP9NhG2ZBPu8moffL4HfzrFkYL3
-         axf7eUPBW2UxBuOJq2Kgh5dOnYNGpG88TRXGx2NiQFsR27uuk2mwk+unTQKNrlTeeVRd
-         /+1Nrkg1NMDZdIgO3I+pjU6eamEfAjO0nAyVvIYOzq+KT0TBFB4+c4GUeUI0XdWQtJ6d
-         Hr2WdO/54mr/133h87STqcs9NRALISJRyAar3AQmwyGqYfgOYgUQ9prYjFbjyDp7Oo6U
-         85BA==
-X-Gm-Message-State: APjAAAX6LKREPOfUv64XltFhMJ7bds/fBplHTbHM5AYwfAhB0t0Nuifo
-	a/8hQNJHKAIq7dhNgbntDAiLWw==
-X-Google-Smtp-Source: APXvYqxPmIpqR9ZiKdjUNFmTa5cEt4XtlN46WXuRKyGyJO3GD/9oZYwpSywYiNiWytLJB09hSTpO/w==
-X-Received: by 2002:adf:ed4a:: with SMTP id u10mr55236024wro.284.1565779072995;
-        Wed, 14 Aug 2019 03:37:52 -0700 (PDT)
-Received: from ?IPv6:2001:b07:6468:f312:2cae:66cd:dd43:92d9? ([2001:b07:6468:f312:2cae:66cd:dd43:92d9])
-        by smtp.gmail.com with ESMTPSA id a17sm2983732wmm.47.2019.08.14.03.37.51
-        (version=TLS1_3 cipher=AEAD-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Aug 2019 03:37:52 -0700 (PDT)
-Subject: Re: [RFC PATCH v6 01/92] kvm: introduce KVMI (VM introspection
- subsystem)
-To: =?UTF-8?Q?Adalbert_Laz=c4=83r?= <alazar@bitdefender.com>,
- Sean Christopherson <sean.j.christopherson@intel.com>
-Cc: kvm@vger.kernel.org, linux-mm@kvack.org,
- virtualization@lists.linux-foundation.org, =?UTF-8?B?UmFkaW0gS3LEjW3DocWZ?=
- <rkrcmar@redhat.com>, Konrad Rzeszutek Wilk <konrad.wilk@oracle.com>,
- Tamas K Lengyel <tamas@tklengyel.com>,
- Mathieu Tarral <mathieu.tarral@protonmail.com>,
- =?UTF-8?Q?Samuel_Laur=c3=a9n?= <samuel.lauren@iki.fi>,
- Patrick Colp <patrick.colp@oracle.com>, Jan Kiszka <jan.kiszka@siemens.com>,
- Stefan Hajnoczi <stefanha@redhat.com>,
- Weijiang Yang <weijiang.yang@intel.com>, Zhang@vger.kernel.org,
- Yu C <yu.c.zhang@intel.com>, =?UTF-8?Q?Mihai_Don=c8=9bu?=
- <mdontu@bitdefender.com>, =?UTF-8?Q?Mircea_C=c3=aerjaliu?=
- <mcirjaliu@bitdefender.com>
-References: <20190809160047.8319-1-alazar@bitdefender.com>
- <20190809160047.8319-2-alazar@bitdefender.com>
- <20190812202030.GB1437@linux.intel.com>
- <5d52a5ae.1c69fb81.5c260.1573SMTPIN_ADDED_BROKEN@mx.google.com>
- <5fa6bd89-9d02-22cd-24a8-479abaa4f788@redhat.com>
- <20190813150128.GB13991@linux.intel.com>
- <5d53d8d1.1c69fb81.7d32.0bedSMTPIN_ADDED_BROKEN@mx.google.com>
-From: Paolo Bonzini <pbonzini@redhat.com>
-Openpgp: preference=signencrypt
-Message-ID: <e00a35b2-74ca-41b8-77a0-2cd37f55a8b6@redhat.com>
-Date: Wed, 14 Aug 2019 12:37:50 +0200
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.8.0
+Received: from forelay.hostedemail.com (smtprelay0241.hostedemail.com [216.40.44.241])
+	by kanga.kvack.org (Postfix) with ESMTP id D7CC46B0005
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 07:00:29 -0400 (EDT)
+Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 8178A4859
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:00:29 +0000 (UTC)
+X-FDA: 75820739778.28.form25_3e6f0ecc17b1b
+X-HE-Tag: form25_3e6f0ecc17b1b
+X-Filterd-Recvd-Size: 6172
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf37.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:00:28 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 3537FADEF;
+	Wed, 14 Aug 2019 11:00:26 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id 81D741E4200; Wed, 14 Aug 2019 13:00:22 +0200 (CEST)
+Date: Wed, 14 Aug 2019 13:00:22 +0200
+From: Jan Kara <jack@suse.cz>
+To: Mark Salyzyn <salyzyn@android.com>
+Cc: linux-kernel@vger.kernel.org, kernel-team@android.com,
+	Tyler Hicks <tyhicks@canonical.com>,
+	Dominique Martinet <asmadeus@codewreck.org>,
+	"David S. Miller" <davem@davemloft.net>,
+	Mathieu Malaterre <malat@debian.org>,
+	Andreas Dilger <adilger.kernel@dilger.ca>,
+	devel@driverdev.osuosl.org, Vyacheslav Dubeyko <slava@dubeyko.com>,
+	Joel Becker <jlbec@evilplan.org>, Mark Fasheh <mark@fasheh.com>,
+	Chris Mason <clm@fb.com>, Artem Bityutskiy <dedekind1@gmail.com>,
+	Eric Van Hensbergen <ericvh@gmail.com>,
+	Ernesto =?iso-8859-1?Q?A=2E_Fern=E1ndez?= <ernesto.mnd.fernandez@gmail.com>,
+	Ilya Dryomov <idryomov@gmail.com>, Hugh Dickins <hughd@google.com>,
+	Serge Hallyn <serge@hallyn.com>,
+	Trond Myklebust <trond.myklebust@hammerspace.com>,
+	Gao Xiang <gaoxiang25@huawei.com>, Chao Yu <yuchao0@huawei.com>,
+	David Woodhouse <dwmw2@infradead.org>,
+	Adrian Hunter <adrian.hunter@intel.com>,
+	Latchesar Ionkov <lucho@ionkov.net>,
+	Jaegeuk Kim <jaegeuk@kernel.org>, Jeff Layton <jlayton@kernel.org>,
+	Dave Kleikamp <shaggy@kernel.org>, Tejun Heo <tj@kernel.org>,
+	linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
+	Joseph Qi <joseph.qi@linux.alibaba.com>,
+	Mimi Zohar <zohar@linux.ibm.com>,
+	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
+	linux-afs@lists.infradead.org, linux-mtd@lists.infradead.org,
+	devel@lists.orangefs.org, linux-erofs@lists.ozlabs.org,
+	samba-technical@lists.samba.org,
+	jfs-discussion@lists.sourceforge.net,
+	linux-f2fs-devel@lists.sourceforge.net,
+	v9fs-developer@lists.sourceforge.net, Theodore Ts'o <tytso@mit.edu>,
+	James Morris <jmorris@namei.org>,
+	Anna Schumaker <anna.schumaker@netapp.com>,
+	Richard Weinberger <richard@nod.at>,
+	Mike Marshall <hubcap@omnibond.com>,
+	Martin Brandenburg <martin@omnibond.com>,
+	"Darrick J. Wong" <darrick.wong@oracle.com>,
+	ocfs2-devel@oss.oracle.com, Eric Paris <eparis@parisplace.org>,
+	Paul Moore <paul@paul-moore.com>,
+	Andreas Gruenbacher <agruenba@redhat.com>, cluster-devel@redhat.com,
+	David Howells <dhowells@redhat.com>,
+	Bob Peterson <rpeterso@redhat.com>, Sage Weil <sage@redhat.com>,
+	Steve French <sfrench@samba.org>,
+	Casey Schaufler <casey@schaufler-ca.com>,
+	Phillip Lougher <phillip@squashfs.org.uk>,
+	David Sterba <dsterba@suse.com>, Jan Kara <jack@suse.com>,
+	Miklos Szeredi <miklos@szeredi.hu>,
+	Josef Bacik <josef@toxicpanda.com>,
+	Stephen Smalley <sds@tycho.nsa.gov>, ceph-devel@vger.kernel.org,
+	ecryptfs@vger.kernel.org, linux-btrfs@vger.kernel.org,
+	linux-cifs@vger.kernel.org, linux-ext4@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-integrity@vger.kernel.org,
+	linux-nfs@vger.kernel.org, linux-security-module@vger.kernel.org,
+	linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org,
+	netdev@vger.kernel.org, reiserfs-devel@vger.kernel.org,
+	selinux@vger.kernel.org, stable@vger.kernel.org,
+	Alexander Viro <viro@zeniv.linux.org.uk>
+Subject: Re: [PATCH v2] Add flags option to get xattr method paired to
+ __vfs_getxattr
+Message-ID: <20190814110022.GB26273@quack2.suse.cz>
+References: <20190813145527.26289-1-salyzyn@android.com>
 MIME-Version: 1.0
-In-Reply-To: <5d53d8d1.1c69fb81.7d32.0bedSMTPIN_ADDED_BROKEN@mx.google.com>
-Content-Type: text/plain; charset=utf-8
-Content-Language: en-US
-Content-Transfer-Encoding: quoted-printable
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <20190813145527.26289-1-salyzyn@android.com>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 14/08/19 11:48, Adalbert Laz=C4=83r wrote:
->> Why does closing the socket require destroying the kvmi object?  E.g. =
-can
->> it be marked as defunct or whatever and only fully removed on a synchr=
-onous
->> unhook from userspace?  Re-hooking could either require said unhook, o=
-r
->> maybe reuse the existing kvmi object with a new socket.
-> Will it be better to have the following ioctls?
->=20
->   - hook (alloc kvmi and kvmi_vcpu structs)
->   - notify_imminent_unhook (send the KVMI_EVENT_UNHOOK event)
->   - unhook (free kvmi and kvmi_vcpu structs)
+On Tue 13-08-19 07:55:06, Mark Salyzyn wrote:
+...
+> diff --git a/fs/xattr.c b/fs/xattr.c
+> index 90dd78f0eb27..71f887518d6f 100644
+> --- a/fs/xattr.c
+> +++ b/fs/xattr.c
+...
+>  ssize_t
+>  __vfs_getxattr(struct dentry *dentry, struct inode *inode, const char *name,
+> -	       void *value, size_t size)
+> +	       void *value, size_t size, int flags)
+>  {
+>  	const struct xattr_handler *handler;
+> -
+> -	handler = xattr_resolve_name(inode, &name);
+> -	if (IS_ERR(handler))
+> -		return PTR_ERR(handler);
+> -	if (!handler->get)
+> -		return -EOPNOTSUPP;
+> -	return handler->get(handler, dentry, inode, name, value, size);
+> -}
+> -EXPORT_SYMBOL(__vfs_getxattr);
+> -
+> -ssize_t
+> -vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_t size)
+> -{
+> -	struct inode *inode = dentry->d_inode;
+>  	int error;
+>  
+> +	if (flags & XATTR_NOSECURITY)
+> +		goto nolsm;
 
-Yeah, that is nice also because it leaves the timeout policy to
-userspace.  (BTW, please change references to QEMU to "userspace").
+Hum, is it OK for XATTR_NOSECURITY to skip even the xattr_permission()
+check? I understand that for reads of security xattrs it actually does not
+matter in practice but conceptually that seems wrong to me as
+XATTR_NOSECURITY is supposed to skip just security-module checks to avoid
+recursion AFAIU.
 
-Paolo
+> diff --git a/include/uapi/linux/xattr.h b/include/uapi/linux/xattr.h
+> index c1395b5bd432..1216d777d210 100644
+> --- a/include/uapi/linux/xattr.h
+> +++ b/include/uapi/linux/xattr.h
+> @@ -17,8 +17,9 @@
+>  #if __UAPI_DEF_XATTR
+>  #define __USE_KERNEL_XATTR_DEFS
+>  
+> -#define XATTR_CREATE	0x1	/* set value, fail if attr already exists */
+> -#define XATTR_REPLACE	0x2	/* set value, fail if attr does not exist */
+> +#define XATTR_CREATE	 0x1	/* set value, fail if attr already exists */
+> +#define XATTR_REPLACE	 0x2	/* set value, fail if attr does not exist */
+> +#define XATTR_NOSECURITY 0x4	/* get value, do not involve security check */
+>  #endif
+
+It seems confusing to export XATTR_NOSECURITY definition to userspace when
+that is kernel-internal flag. I'd just define it in include/linux/xattr.h
+somewhere from the top of flags space (like 0x40000000).
+
+Otherwise the patch looks OK to me (cannot really comment on the security
+module aspect of this whole thing though).
+
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
