@@ -2,158 +2,105 @@ Return-Path: <SRS0=g7KO=WK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
-	autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-0.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5E499C32753
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 15:41:10 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 27F2CC32753
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 15:41:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 28C242084D
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 15:41:10 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 28C242084D
+	by mail.kernel.org (Postfix) with ESMTP id E8B862084D
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 15:41:17 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org E8B862084D
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id B1C606B0003; Wed, 14 Aug 2019 11:41:09 -0400 (EDT)
+	id 8D24B6B0005; Wed, 14 Aug 2019 11:41:17 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id ACC616B0005; Wed, 14 Aug 2019 11:41:09 -0400 (EDT)
+	id 883846B0006; Wed, 14 Aug 2019 11:41:17 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 9E2026B0006; Wed, 14 Aug 2019 11:41:09 -0400 (EDT)
+	id 798EB6B0007; Wed, 14 Aug 2019 11:41:17 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0116.hostedemail.com [216.40.44.116])
-	by kanga.kvack.org (Postfix) with ESMTP id 7B9596B0003
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:41:09 -0400 (EDT)
-Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 1DB98180AD7C1
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 15:41:09 +0000 (UTC)
-X-FDA: 75821447058.23.guide51_27169e362dc4c
-X-HE-Tag: guide51_27169e362dc4c
-X-Filterd-Recvd-Size: 5608
+Received: from forelay.hostedemail.com (smtprelay0242.hostedemail.com [216.40.44.242])
+	by kanga.kvack.org (Postfix) with ESMTP id 561786B0005
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:41:17 -0400 (EDT)
+Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 086E08248AA9
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 15:41:17 +0000 (UTC)
+X-FDA: 75821447394.04.tent75_28478fa01092c
+X-HE-Tag: tent75_28478fa01092c
+X-Filterd-Recvd-Size: 2921
 Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf24.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 15:41:08 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx06.intmail.prod.int.phx2.redhat.com [10.5.11.16])
+	by imf08.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 15:41:16 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
 	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
 	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 494382F3669;
-	Wed, 14 Aug 2019 15:41:07 +0000 (UTC)
-Received: from dhcp-27-174.brq.redhat.com (unknown [10.43.17.136])
-	by smtp.corp.redhat.com (Postfix) with SMTP id 504554CE;
-	Wed, 14 Aug 2019 15:41:03 +0000 (UTC)
-Received: by dhcp-27-174.brq.redhat.com (nbSMTP-1.00) for uid 1000
-	oleg@redhat.com; Wed, 14 Aug 2019 17:41:06 +0200 (CEST)
-Date: Wed, 14 Aug 2019 17:41:02 +0200
-From: Oleg Nesterov <oleg@redhat.com>
-To: Kefeng Wang <wangkefeng.wang@huawei.com>
-Cc: Michal Hocko <mhocko@suse.com>, linux-mm <linux-mm@kvack.org>,
-	Andrea Arcangeli <aarcange@redhat.com>,
-	Peter Xu <peterx@redhat.com>, Mike Rapoport <rppt@linux.ibm.com>,
-	Jann Horn <jannh@google.com>, Jason Gunthorpe <jgg@mellanox.com>,
-	Andrew Morton <akpm@linux-foundation.org>
-Subject: Re: [BUG] kernel BUG at fs/userfaultfd.c:385 after 04f5866e41fb
-Message-ID: <20190814154101.GF11595@redhat.com>
-References: <d4583416-5e4a-95e7-a08a-32bf2c9a95fb@huawei.com>
- <20190814135351.GY17933@dhcp22.suse.cz>
- <7e0e4254-17f4-5f07-e9af-097c4162041a@huawei.com>
- <20190814151049.GD11595@redhat.com>
+	by mx1.redhat.com (Postfix) with ESMTPS id 7F76A51EF3;
+	Wed, 14 Aug 2019 15:41:15 +0000 (UTC)
+Received: from t460s.redhat.com (ovpn-116-49.ams2.redhat.com [10.36.116.49])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 1B9418069C;
+	Wed, 14 Aug 2019 15:41:09 +0000 (UTC)
+From: David Hildenbrand <david@redhat.com>
+To: linux-kernel@vger.kernel.org
+Cc: linux-mm@kvack.org,
+	David Hildenbrand <david@redhat.com>,
+	Andrew Morton <akpm@linux-foundation.org>,
+	Arun KS <arunks@codeaurora.org>,
+	Bjorn Helgaas <bhelgaas@google.com>,
+	Borislav Petkov <bp@suse.de>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Dave Hansen <dave.hansen@linux.intel.com>,
+	Ingo Molnar <mingo@kernel.org>,
+	Michal Hocko <mhocko@suse.com>,
+	Nadav Amit <namit@vmware.com>,
+	Oscar Salvador <osalvador@suse.de>,
+	Pavel Tatashin <pasha.tatashin@soleen.com>,
+	Wei Yang <richardw.yang@linux.intel.com>
+Subject: [PATCH v2 0/5] mm/memory_hotplug: online_pages() cleanups
+Date: Wed, 14 Aug 2019 17:41:04 +0200
+Message-Id: <20190814154109.3448-1-david@redhat.com>
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190814151049.GD11595@redhat.com>
-User-Agent: Mutt/1.5.24 (2015-08-30)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.16
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.29]); Wed, 14 Aug 2019 15:41:07 +0000 (UTC)
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.30]); Wed, 14 Aug 2019 15:41:15 +0000 (UTC)
+Content-Transfer-Encoding: quoted-printable
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On 08/14, Oleg Nesterov wrote:
->
-> On 08/14, Kefeng Wang wrote:
-> >
-> > On 2019/8/14 21:53, Michal Hocko wrote:
-> > > On Tue 13-08-19 17:08:05, Kefeng Wang wrote:
-> > >>
-> > >> Syzkaller reproducer:
-> > >> # {Threaded:true Collide:true Repeat:false RepeatTimes:0 Procs:1 Sandbox:none Fault:false FaultCall:-1 FaultNth:0 EnableTun:true EnableNetDev:true EnableNetReset:false EnableCgroups:false EnableBinfmtMisc:true EnableCloseFds:true UseTmpDir:true HandleSegv:true Repro:false Trace:false}
-> > >> r0 = userfaultfd(0x80800)
-> > >> ioctl$UFFDIO_API(r0, 0xc018aa3f, &(0x7f0000000200))
-> > >> ioctl$UFFDIO_REGISTER(r0, 0xc020aa00, &(0x7f0000000080)={{&(0x7f0000ff2000/0xe000)=nil, 0xe000}, 0x1})
-> > >> ioctl$UFFDIO_COPY(r0, 0xc028aa03, 0x0)
-> > >> ioctl$UFFDIO_COPY(r0, 0xc028aa03, &(0x7f0000000000)={&(0x7f0000ffc000/0x3000)=nil, &(0x7f0000ffd000/0x2000)=nil, 0x3000})
-> > >> syz_execute_func(&(0x7f00000000c0)="4134de984013e80f059532058300000071f3c4e18dd1ce5a65460f18320ce0b9977d8f64360f6e54e3a50fe53ff30fb837c42195dc42eddb8f087ca2a4d2c4017b708fa878c3e600f3266440d9a200000000c4016c5bdd7d0867dfe07f00f20f2b5f0009404cc442c102282cf2f20f51e22ef2e1291010f2262ef045814cb39700000000f32e3ef0fe05922f79a4000030470f3b58c1312fe7460f50ce0502338d00858526660f346253f6010f0f801d000000470f0f2c0a90c7c7df84feefff3636260fe02c98c8b8fcfc81fc51720a40400e700064660f71e70d2e0f57dfe819d0253f3ecaf06ad647608c41ffc42249bccb430f9bc8b7a042420f8d0042171e0f95ca9f7f921000d9fac4a27d5a1fc4a37961309de9000000003171460fc4d303c466410fd6389dc4426c456300c4233d4c922d92abf90ac6c34df30f5ee50909430f3a15e7776f6e866b0fdfdfc482797841cf6ffc842d9b9a516dc2e52ef2ac2636f20f114832d46231bffd4834eaeac4237d09d0003766420f160182c4a37d047882007f108f2808a6e68fc401505d6a82635d1467440fc7ba0c000000d4c482359652745300")
-> > >> poll(&(0x7f00000000c0)=[{}], 0x1, 0x0)
-> > >
-> > > Is there any way to decypher the above?
-> >
-> > no, I also want to know the way :(
->
-> perhaps you can run it under strace?
->
-> I am wondering if "goto skip_mm" in userfaultfd_release() is correct...
-> shouldn't it clear VM_UFFD_* and reset vm_userfaultfd_ctx.ctx even if
-> !mmget_still_valid ?
+Some cleanups (+ one fix for a special case) in the context of
+online_pages(). Hope I am not missing something obvious. Did a sanity tes=
+t
+with DIMMs only.
 
-Heh, I didn't notice you too mentioned userfaultfd_release() in your email.
-can you try the patch below?
+v1 -> v2:
+- "mm/memory_hotplug: Handle unaligned start and nr_pages in
+   online_pages_blocks()"
+-- Turned into "mm/memory_hotplug: make sure the pfn is aligned to the
+		order when onlining"
+-- Dropped the "nr_pages not an order of two" condition for now as
+   requested by Michal, but kept a simplified alignment check
+- "mm/memory_hotplug: Drop PageReserved() check in online_pages_range()"
+-- Split out from "mm/memory_hotplug: Simplify online_pages_range()"
+- "mm/memory_hotplug: Simplify online_pages_range()"
+-- Modified due to the other changes
 
-Oleg.
+David Hildenbrand (5):
+  resource: Use PFN_UP / PFN_DOWN in walk_system_ram_range()
+  mm/memory_hotplug: Drop PageReserved() check in online_pages_range()
+  mm/memory_hotplug: Simplify online_pages_range()
+  mm/memory_hotplug: Make sure the pfn is aligned to the order when
+    onlining
+  mm/memory_hotplug: online_pages cannot be 0 in online_pages()
 
+ kernel/resource.c   |  4 +--
+ mm/memory_hotplug.c | 61 ++++++++++++++++++++-------------------------
+ 2 files changed, 29 insertions(+), 36 deletions(-)
 
---- a/fs/userfaultfd.c
-+++ b/fs/userfaultfd.c
-@@ -880,6 +880,7 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
- 	/* len == 0 means wake all */
- 	struct userfaultfd_wake_range range = { .len = 0, };
- 	unsigned long new_flags;
-+	bool xxx;
- 
- 	WRITE_ONCE(ctx->released, true);
- 
-@@ -895,8 +896,7 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
- 	 * taking the mmap_sem for writing.
- 	 */
- 	down_write(&mm->mmap_sem);
--	if (!mmget_still_valid(mm))
--		goto skip_mm;
-+	xxx = mmget_still_valid(mm);
- 	prev = NULL;
- 	for (vma = mm->mmap; vma; vma = vma->vm_next) {
- 		cond_resched();
-@@ -907,19 +907,20 @@ static int userfaultfd_release(struct inode *inode, struct file *file)
- 			continue;
- 		}
- 		new_flags = vma->vm_flags & ~(VM_UFFD_MISSING | VM_UFFD_WP);
--		prev = vma_merge(mm, prev, vma->vm_start, vma->vm_end,
--				 new_flags, vma->anon_vma,
--				 vma->vm_file, vma->vm_pgoff,
--				 vma_policy(vma),
--				 NULL_VM_UFFD_CTX);
--		if (prev)
--			vma = prev;
--		else
--			prev = vma;
-+		if (xxx) {
-+			prev = vma_merge(mm, prev, vma->vm_start, vma->vm_end,
-+					 new_flags, vma->anon_vma,
-+					 vma->vm_file, vma->vm_pgoff,
-+					 vma_policy(vma),
-+					 NULL_VM_UFFD_CTX);
-+			if (prev)
-+				vma = prev;
-+			else
-+				prev = vma;
-+		}
- 		vma->vm_flags = new_flags;
- 		vma->vm_userfaultfd_ctx = NULL_VM_UFFD_CTX;
- 	}
--skip_mm:
- 	up_write(&mm->mmap_sem);
- 	mmput(mm);
- wakeup:
+--=20
+2.21.0
 
 
