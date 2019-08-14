@@ -2,225 +2,212 @@ Return-Path: <SRS0=g7KO=WK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-3.9 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,INCLUDES_PATCH,MAILING_LIST_MULTI,
-	SPF_HELO_NONE,SPF_PASS autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-6.8 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS
+	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 26B88C32753
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 13:27:57 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id D496EC32753
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 13:42:36 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id BEDF5206C1
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 13:27:56 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=Mellanox.com header.i=@Mellanox.com header.b="REGzqX53"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org BEDF5206C1
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=mellanox.com
+	by mail.kernel.org (Postfix) with ESMTP id 7F865206C2
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 13:42:36 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 7F865206C2
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 541206B0003; Wed, 14 Aug 2019 09:27:56 -0400 (EDT)
+	id CD6A96B0003; Wed, 14 Aug 2019 09:42:35 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4C9806B0005; Wed, 14 Aug 2019 09:27:56 -0400 (EDT)
+	id C87806B0005; Wed, 14 Aug 2019 09:42:35 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 369706B0006; Wed, 14 Aug 2019 09:27:56 -0400 (EDT)
+	id B9E6B6B0006; Wed, 14 Aug 2019 09:42:35 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0142.hostedemail.com [216.40.44.142])
-	by kanga.kvack.org (Postfix) with ESMTP id 05BD66B0003
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 09:27:55 -0400 (EDT)
-Received: from smtpin04.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 9FC4A33C4
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 13:27:55 +0000 (UTC)
-X-FDA: 75821111310.04.cream67_27f5f3410d95c
-X-HE-Tag: cream67_27f5f3410d95c
-X-Filterd-Recvd-Size: 9987
-Received: from EUR01-HE1-obe.outbound.protection.outlook.com (mail-eopbgr130075.outbound.protection.outlook.com [40.107.13.75])
-	by imf27.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 13:27:54 +0000 (UTC)
-ARC-Seal: i=1; a=rsa-sha256; s=arcselector9901; d=microsoft.com; cv=none;
- b=R0dhX0lPYPL82ZsdcaXS7JDcikD9zKYnnxrRdomTvS6hIdmWyd0AAligDJxWX2BacpOWdKWn8a/KgTVSdeJC38wi15eTfH0N9v00nk2FDLI1772jpB483qdORm6jjoLYUAvSEFUR8VC7rYoIH7K41j42JwldzeKUdOcTKBZfB2+Eisvpo+xqQQshzWJipxd2DtO//sdBsRtMiMjw10q59xsNHFsa7YCsVQGtNAkYWogRyLkKKt66fXkRkX9cKNVer0zajNDVho8+HqbIkF4xsEpPXnRliuSn+/cgUirK5H3If3LikoqWer/xJ96SrHR7tWbilmjctejvIbWkK8k/1Q==
-ARC-Message-Signature: i=1; a=rsa-sha256; c=relaxed/relaxed; d=microsoft.com;
- s=arcselector9901;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=aXtUnfBm/RmYoAdAhMp7g7aP3a+4ZFnCVZuMBoG+XJA=;
- b=faW9BtYTMouOQOLJ0ZOzoc2bXUx/NPgHX+Bwgx5sXGA0dABPzMA46LModighAG4WNJU5CN8CdPo5RFoSfVwVkKNLy4Ak34cAtIkxE24Mc006excaj2d/ydRrA+yGs7vetWdVprykgtyrVpY/yAAzdQJvix+TAKcs08XsxuNghnYQPkmG0DuSadeE/3bCtS46GHtl5bOmjsBIJETJ6NTSrqx24acSKihkkC+Z27Fuu3CKwf31ZVS1lvk2PZNy8I81dkvIw7PUvAQxcgo+jzwtPelg/hcspcTyK2GEy1NVjOIDrB194Z54Kbet/zrvZN8ANv2Fv0Q2TjTYvHduhHLXXQ==
-ARC-Authentication-Results: i=1; mx.microsoft.com 1; spf=pass
- smtp.mailfrom=mellanox.com; dmarc=pass action=none header.from=mellanox.com;
- dkim=pass header.d=mellanox.com; arc=none
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=Mellanox.com;
- s=selector2;
- h=From:Date:Subject:Message-ID:Content-Type:MIME-Version:X-MS-Exchange-SenderADCheck;
- bh=aXtUnfBm/RmYoAdAhMp7g7aP3a+4ZFnCVZuMBoG+XJA=;
- b=REGzqX535jrPExQjR5xop/jXEm/IxuOijqgwwc6zKwXToowceUci3aqLFuamW3LKc5fuXmgXx7d4HKFSCMjRshfW1mIexxsZmXS/+/RHMyqI0LSrzEuhcVTONQSyBo4gt1cH9naEiTOXcyN4tF9J+rNFx7ieP/xDF5aZOIxvUU0=
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com (10.171.182.144) by
- VI1PR05MB4543.eurprd05.prod.outlook.com (20.176.3.20) with Microsoft SMTP
- Server (version=TLS1_2, cipher=TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384) id
- 15.20.2157.20; Wed, 14 Aug 2019 13:27:51 +0000
-Received: from VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::1d6:9c67:ea2d:38a7]) by VI1PR05MB4141.eurprd05.prod.outlook.com
- ([fe80::1d6:9c67:ea2d:38a7%6]) with mapi id 15.20.2157.022; Wed, 14 Aug 2019
- 13:27:51 +0000
-From: Jason Gunthorpe <jgg@mellanox.com>
-To: Christoph Hellwig <hch@lst.de>
-CC: Dan Williams <dan.j.williams@intel.com>,
-	=?iso-8859-1?Q?J=E9r=F4me_Glisse?= <jglisse@redhat.com>, Ben Skeggs
-	<bskeggs@redhat.com>, Felix Kuehling <Felix.Kuehling@amd.com>, Ralph Campbell
-	<rcampbell@nvidia.com>, "linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 04/15] mm: remove the pgmap field from struct hmm_vma_walk
-Thread-Topic: [PATCH 04/15] mm: remove the pgmap field from struct
- hmm_vma_walk
-Thread-Index:
- AQHVTHDc5B4IgstYQk6yBJaVfn8xGqbv9wIAgAARNACAAMySgIAJE76AgABlPQCAAGF5AA==
-Date: Wed, 14 Aug 2019 13:27:50 +0000
-Message-ID: <20190814132746.GE13756@mellanox.com>
-References: <20190806160554.14046-1-hch@lst.de>
- <20190806160554.14046-5-hch@lst.de> <20190807174548.GJ1571@mellanox.com>
- <CAPcyv4hPCuHBLhSJgZZEh0CbuuJNPLFDA3f-79FX5uVOO0yubA@mail.gmail.com>
- <20190808065933.GA29382@lst.de>
- <CAPcyv4hMUzw8vyXFRPe2pdwef0npbMm9tx9wiZ9MWkHGhH1V6w@mail.gmail.com>
- <20190814073854.GA27249@lst.de>
-In-Reply-To: <20190814073854.GA27249@lst.de>
-Accept-Language: en-US
-Content-Language: en-US
-X-MS-Has-Attach:
-X-MS-TNEF-Correlator:
-x-clientproxiedby: QB1PR01CA0025.CANPRD01.PROD.OUTLOOK.COM
- (2603:10b6:c00:2d::38) To VI1PR05MB4141.eurprd05.prod.outlook.com
- (2603:10a6:803:4d::16)
-authentication-results: spf=none (sender IP is )
- smtp.mailfrom=jgg@mellanox.com; 
-x-ms-exchange-messagesentrepresentingtype: 1
-x-originating-ip: [156.34.55.100]
-x-ms-publictraffictype: Email
-x-ms-office365-filtering-correlation-id: 4cc061f5-56ad-4773-7c58-08d720bb3481
-x-ms-office365-filtering-ht: Tenant
-x-microsoft-antispam:
- BCL:0;PCL:0;RULEID:(2390118)(7020095)(4652040)(8989299)(4534185)(4627221)(201703031133081)(201702281549075)(8990200)(5600148)(711020)(4605104)(1401327)(4618075)(2017052603328)(7193020);SRVR:VI1PR05MB4543;
-x-ms-traffictypediagnostic: VI1PR05MB4543:
-x-microsoft-antispam-prvs:
- <VI1PR05MB4543101E2F4E883967CA67AACFAD0@VI1PR05MB4543.eurprd05.prod.outlook.com>
-x-ms-oob-tlc-oobclassifiers: OLM:7691;
-x-forefront-prvs: 01294F875B
-x-forefront-antispam-report:
- SFV:NSPM;SFS:(10009020)(4636009)(366004)(376002)(396003)(39860400002)(136003)(346002)(189003)(199004)(6116002)(33656002)(7416002)(86362001)(11346002)(6916009)(2616005)(5660300002)(8676002)(476003)(14454004)(6246003)(7736002)(25786009)(54906003)(1076003)(26005)(102836004)(3846002)(66066001)(316002)(186003)(8936002)(305945005)(81166006)(2906002)(478600001)(52116002)(6512007)(76176011)(99286004)(71190400001)(6436002)(229853002)(71200400001)(256004)(446003)(66446008)(66556008)(386003)(6486002)(6506007)(66476007)(64756008)(486006)(36756003)(4326008)(81156014)(66946007)(53936002);DIR:OUT;SFP:1101;SCL:1;SRVR:VI1PR05MB4543;H:VI1PR05MB4141.eurprd05.prod.outlook.com;FPR:;SPF:None;LANG:en;PTR:InfoNoRecords;MX:1;A:1;
-received-spf: None (protection.outlook.com: mellanox.com does not designate
- permitted sender hosts)
-x-ms-exchange-senderadcheck: 1
-x-microsoft-antispam-message-info:
- Vs9ITQhDo95Y04P7vJSqSGZG48VlfvfPENlCo1dwgbyOptbvw1pd2E1mK3POI+WEgDsqmUBS4RMZInyDX3g62MvJ16dEjM+owZnp17xkqnaVeKjELYMDp0KjC7FTz+1/xPuOF5qdDQiRHBBkcTBvl3bPKQGJHWkOGSICXO3U41R+fsyeueZt4AF/iVe9KGEh0B1WnyYvp3NNJGE1Jc4rFHAUK0uexqgFjSt/RtrBRXiaTfDoNZ2i3mR2GxGhND+T7rH/3P+RptLFNJtizlvJ+NzM+nRyKAaL5ii04o9jSIu+QNPEKqd6F+Qe6O1wSgaWM6Sz/eAeeLMvhLnh+gfKuTU8jVQ775LxRCSTRTxrWXGDXvu0o5tzQI2BKBW7YP6DtNfNJrMs8A2j+PCaBvHcUN7bDO1EAdnJAKQaypE2Zps=
-x-ms-exchange-transport-forked: True
-Content-Type: text/plain; charset="iso-8859-1"
-Content-ID: <EF42566A523CE142A2EFF155B9958285@eurprd05.prod.outlook.com>
-Content-Transfer-Encoding: quoted-printable
+Received: from forelay.hostedemail.com (smtprelay0018.hostedemail.com [216.40.44.18])
+	by kanga.kvack.org (Postfix) with ESMTP id 9AF006B0003
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 09:42:35 -0400 (EDT)
+Received: from smtpin01.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 4C9A58248AA1
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 13:42:35 +0000 (UTC)
+X-FDA: 75821148270.01.coil32_16838b08a3501
+X-HE-Tag: coil32_16838b08a3501
+X-Filterd-Recvd-Size: 7622
+Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
+	by imf09.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 13:42:34 +0000 (UTC)
+Received: from smtp.corp.redhat.com (int-mx05.intmail.prod.int.phx2.redhat.com [10.5.11.15])
+	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
+	(No client certificate requested)
+	by mx1.redhat.com (Postfix) with ESMTPS id 254B2C06511B;
+	Wed, 14 Aug 2019 13:42:33 +0000 (UTC)
+Received: from gondolin (dhcp-192-232.str.redhat.com [10.33.192.232])
+	by smtp.corp.redhat.com (Postfix) with ESMTP id 440A083286;
+	Wed, 14 Aug 2019 13:42:19 +0000 (UTC)
+Date: Wed, 14 Aug 2019 15:42:17 +0200
+From: Cornelia Huck <cohuck@redhat.com>
+To: Nitesh Narayan Lal <nitesh@redhat.com>
+Cc: kvm@vger.kernel.org, linux-kernel@vger.kernel.org, linux-mm@kvack.org,
+ virtio-dev@lists.oasis-open.org, pbonzini@redhat.com,
+ lcapitulino@redhat.com, pagupta@redhat.com, wei.w.wang@intel.com,
+ yang.zhang.wz@gmail.com, riel@surriel.com, david@redhat.com,
+ mst@redhat.com, dodgen@google.com, konrad.wilk@oracle.com,
+ dhildenb@redhat.com, aarcange@redhat.com, alexander.duyck@gmail.com,
+ john.starks@microsoft.com, dave.hansen@intel.com, mhocko@suse.com
+Subject: Re: [RFC][Patch v12 2/2] virtio-balloon: interface to support free
+ page reporting
+Message-ID: <20190814154217.4a4e2ee1.cohuck@redhat.com>
+In-Reply-To: <c23f02b1-4bda-7dc6-9e28-4bad0a16cde6@redhat.com>
+References: <20190812131235.27244-1-nitesh@redhat.com>
+	<20190812131235.27244-3-nitesh@redhat.com>
+	<20190814122949.4946f438.cohuck@redhat.com>
+	<c23f02b1-4bda-7dc6-9e28-4bad0a16cde6@redhat.com>
+Organization: Red Hat GmbH
 MIME-Version: 1.0
-X-OriginatorOrg: Mellanox.com
-X-MS-Exchange-CrossTenant-Network-Message-Id: 4cc061f5-56ad-4773-7c58-08d720bb3481
-X-MS-Exchange-CrossTenant-originalarrivaltime: 14 Aug 2019 13:27:50.9468
- (UTC)
-X-MS-Exchange-CrossTenant-fromentityheader: Hosted
-X-MS-Exchange-CrossTenant-id: a652971c-7d2e-4d9b-a6a4-d149256f461b
-X-MS-Exchange-CrossTenant-mailboxtype: HOSTED
-X-MS-Exchange-CrossTenant-userprincipalname: IMnZjJw4rXdPNRe7707GHxiF1SFEJxFKOQBVTYGk2VFuwM9F8tUpkMTyYxiO1iPafyZWUOCAlqhQrz4SzCWVzg==
-X-MS-Exchange-Transport-CrossTenantHeadersStamped: VI1PR05MB4543
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+X-Scanned-By: MIMEDefang 2.79 on 10.5.11.15
+X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.31]); Wed, 14 Aug 2019 13:42:33 +0000 (UTC)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 14, 2019 at 09:38:54AM +0200, Christoph Hellwig wrote:
-> On Tue, Aug 13, 2019 at 06:36:33PM -0700, Dan Williams wrote:
-> > Section alignment constraints somewhat save us here. The only example
-> > I can think of a PMD not containing a uniform pgmap association for
-> > each pte is the case when the pgmap overlaps normal dram, i.e. shares
-> > the same 'struct memory_section' for a given span. Otherwise, distinct
-> > pgmaps arrange to manage their own exclusive sections (and now
-> > subsections as of v5.3). Otherwise the implementation could not
-> > guarantee different mapping lifetimes.
-> >=20
-> > That said, this seems to want a better mechanism to determine "pfn is
-> > ZONE_DEVICE".
->=20
-> So I guess this patch is fine for now, and once you provide a better
-> mechanism we can switch over to it?
+On Wed, 14 Aug 2019 07:47:40 -0400
+Nitesh Narayan Lal <nitesh@redhat.com> wrote:
 
-What about the version I sent to just get rid of all the strange
-put_dev_pagemaps while scanning? Odds are good we will work with only
-a single pagemap, so it makes some sense to cache it once we find it?
+> On 8/14/19 6:29 AM, Cornelia Huck wrote:
+> > On Mon, 12 Aug 2019 09:12:35 -0400
+> > Nitesh Narayan Lal <nitesh@redhat.com> wrote:
+> >  
+> >> Enables the kernel to negotiate VIRTIO_BALLOON_F_REPORTING feature with
+> >> the host. If it is available and page_reporting_flag is set to true,
+> >> page_reporting is enabled and its callback is configured along with
+> >> the max_pages count which indicates the maximum number of pages that
+> >> can be isolated and reported at a time. Currently, only free pages of
+> >> order >= (MAX_ORDER - 2) are reported. To prevent any false OOM
+> >> max_pages count is set to 16.
+> >>
+> >> By default page_reporting feature is enabled and gets loaded as soon
+> >> as the virtio-balloon driver is loaded. However, it could be disabled
+> >> by writing the page_reporting_flag which is a virtio-balloon parameter.
+> >>
+> >> Signed-off-by: Nitesh Narayan Lal <nitesh@redhat.com>
+> >> ---
+> >>  drivers/virtio/Kconfig              |  1 +
+> >>  drivers/virtio/virtio_balloon.c     | 64 ++++++++++++++++++++++++++++-
+> >>  include/uapi/linux/virtio_balloon.h |  1 +
+> >>  3 files changed, 65 insertions(+), 1 deletion(-)
+> >>
+> >> diff --git a/drivers/virtio/virtio_balloon.c b/drivers/virtio/virtio_balloon.c
+> >> index 226fbb995fb0..defec00d4ee2 100644
+> >> --- a/drivers/virtio/virtio_balloon.c
+> >> +++ b/drivers/virtio/virtio_balloon.c  
+> > (...)
+> >  
+> >> +static void virtballoon_page_reporting_setup(struct virtio_balloon *vb)
+> >> +{
+> >> +	struct device *dev = &vb->vdev->dev;
+> >> +	int err;
+> >> +
+> >> +	vb->page_reporting_conf.report = virtballoon_report_pages;
+> >> +	vb->page_reporting_conf.max_pages = PAGE_REPORTING_MAX_PAGES;
+> >> +	err = page_reporting_enable(&vb->page_reporting_conf);
+> >> +	if (err < 0) {
+> >> +		dev_err(dev, "Failed to enable reporting, err = %d\n", err);
+> >> +		page_reporting_flag = false;  
+> > Should we clear the feature bit in this case as well?  
+> 
+> I think yes.
 
-diff --git a/mm/hmm.c b/mm/hmm.c
-index 9a908902e4cc38..4e30128c23a505 100644
---- a/mm/hmm.c
-+++ b/mm/hmm.c
-@@ -497,10 +497,6 @@ static int hmm_vma_handle_pmd(struct mm_walk *walk,
- 		}
- 		pfns[i] =3D hmm_device_entry_from_pfn(range, pfn) | cpu_flags;
- 	}
--	if (hmm_vma_walk->pgmap) {
--		put_dev_pagemap(hmm_vma_walk->pgmap);
--		hmm_vma_walk->pgmap =3D NULL;
--	}
- 	hmm_vma_walk->last =3D end;
- 	return 0;
- #else
-@@ -604,10 +600,6 @@ static int hmm_vma_handle_pte(struct mm_walk *walk, un=
-signed long addr,
- 	return 0;
-=20
- fault:
--	if (hmm_vma_walk->pgmap) {
--		put_dev_pagemap(hmm_vma_walk->pgmap);
--		hmm_vma_walk->pgmap =3D NULL;
--	}
- 	pte_unmap(ptep);
- 	/* Fault any virtual address we were asked to fault */
- 	return hmm_vma_walk_hole_(addr, end, fault, write_fault, walk);
-@@ -690,16 +682,6 @@ static int hmm_vma_walk_pmd(pmd_t *pmdp,
- 			return r;
- 		}
- 	}
--	if (hmm_vma_walk->pgmap) {
--		/*
--		 * We do put_dev_pagemap() here and not in hmm_vma_handle_pte()
--		 * so that we can leverage get_dev_pagemap() optimization which
--		 * will not re-take a reference on a pgmap if we already have
--		 * one.
--		 */
--		put_dev_pagemap(hmm_vma_walk->pgmap);
--		hmm_vma_walk->pgmap =3D NULL;
--	}
- 	pte_unmap(ptep - 1);
-=20
- 	hmm_vma_walk->last =3D addr;
-@@ -751,10 +733,6 @@ static int hmm_vma_walk_pud(pud_t *pudp,
- 			pfns[i] =3D hmm_device_entry_from_pfn(range, pfn) |
- 				  cpu_flags;
- 		}
--		if (hmm_vma_walk->pgmap) {
--			put_dev_pagemap(hmm_vma_walk->pgmap);
--			hmm_vma_walk->pgmap =3D NULL;
--		}
- 		hmm_vma_walk->last =3D end;
- 		return 0;
- 	}
-@@ -1026,6 +1004,14 @@ long hmm_range_fault(struct hmm_range *range, unsign=
-ed int flags)
- 			/* Keep trying while the range is valid. */
- 		} while (ret =3D=3D -EBUSY && range->valid);
-=20
-+		/*
-+		 * We do put_dev_pagemap() here so that we can leverage
-+		 * get_dev_pagemap() optimization which will not re-take a
-+		 * reference on a pgmap if we already have one.
-+		 */
-+		if (hmm_vma_walk->pgmap)
-+			put_dev_pagemap(hmm_vma_walk->pgmap);
-+
- 		if (ret) {
- 			unsigned long i;
-=20
+Eww, I didn't recall that we don't call the ->probe callback until
+after feature negotiation has finished, so scratch that particular idea.
 
+For what reasons may page_reporting_enable() fail? Does it make sense
+to fail probing the device in that case? And does it make sense to
+re-try later (i.e. leave page_reporting_flag set)?
+
+> If I am not wrong then in a case where page reporting setup fails for some
+> reason and at a later point the user wants to re-enable it then for that balloon
+> driver has to be reloaded.
+> Which would mean re-negotiation of the feature bit.
+
+Re-negotiation actually already happens if a driver is unbound and
+rebound.
+
+> 
+> >  
+> >> +		vb->page_reporting_conf.report = NULL;
+> >> +		vb->page_reporting_conf.max_pages = 0;
+> >> +		return;
+> >> +	}
+> >> +}
+> >> +
+> >>  static void set_page_pfns(struct virtio_balloon *vb,
+> >>  			  __virtio32 pfns[], struct page *page)
+> >>  {
+> >> @@ -476,6 +524,7 @@ static int init_vqs(struct virtio_balloon *vb)
+> >>  	names[VIRTIO_BALLOON_VQ_DEFLATE] = "deflate";
+> >>  	names[VIRTIO_BALLOON_VQ_STATS] = NULL;
+> >>  	names[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
+> >> +	names[VIRTIO_BALLOON_VQ_REPORTING] = NULL;
+> >>  
+> >>  	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+> >>  		names[VIRTIO_BALLOON_VQ_STATS] = "stats";
+> >> @@ -487,11 +536,18 @@ static int init_vqs(struct virtio_balloon *vb)
+> >>  		callbacks[VIRTIO_BALLOON_VQ_FREE_PAGE] = NULL;
+> >>  	}
+> >>  
+> >> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING)) {
+> >> +		names[VIRTIO_BALLOON_VQ_REPORTING] = "reporting_vq";
+> >> +		callbacks[VIRTIO_BALLOON_VQ_REPORTING] = balloon_ack;  
+> > Do we even want to try to set up the reporting queue if reporting has
+> > been disabled via module parameter? Might make more sense to not even
+> > negotiate the feature bit in that case.  
+> 
+> True.
+> I think this should be replaced with something like (page_reporting_flag &&
+> virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING)).
+
+Yes.
+
+Is page_reporting_flag supposed to be changeable on the fly? The only
+way to really turn off the feature bit from the driver is to not pass
+in the feature in the features table; we could provide two different
+tables depending on the flag if it were static.
+
+> 
+> >  
+> >> +	}
+> >>  	err = vb->vdev->config->find_vqs(vb->vdev, VIRTIO_BALLOON_VQ_MAX,
+> >>  					 vqs, callbacks, names, NULL, NULL);
+> >>  	if (err)
+> >>  		return err;
+> >>  
+> >> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING))
+> >> +		vb->reporting_vq = vqs[VIRTIO_BALLOON_VQ_REPORTING];
+> >> +
+> >>  	vb->inflate_vq = vqs[VIRTIO_BALLOON_VQ_INFLATE];
+> >>  	vb->deflate_vq = vqs[VIRTIO_BALLOON_VQ_DEFLATE];
+> >>  	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_STATS_VQ)) {
+> >> @@ -924,6 +980,9 @@ static int virtballoon_probe(struct virtio_device *vdev)
+> >>  		if (err)
+> >>  			goto out_del_balloon_wq;
+> >>  	}
+> >> +	if (virtio_has_feature(vb->vdev, VIRTIO_BALLOON_F_REPORTING) &&
+> >> +	    page_reporting_flag)
+> >> +		virtballoon_page_reporting_setup(vb);  
+> > In that case, you'd only need to check for the feature bit here.  
+> 
+> Why is that?
+> I think both the checks should be present here as we need both the conditions to
+> be true to enable page reporting.
+
+Yeah, because we can't clear the feature bit if the flag is not set.
+
+> However, the order should be reversed because of the reason you mentioned earlier.
+> 
+> >  
+> >>  	virtio_device_ready(vdev);
+> >>  
+> >>  	if (towards_target(vb))
 
