@@ -6,68 +6,61 @@ X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
 	DKIM_VALID,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
 	SPF_PASS autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 5DB23C32759
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 20:46:02 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2299CC433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 21:01:32 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 2010721744
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 20:46:01 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id C879E20651
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 21:01:31 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="C8M74AF9"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 2010721744
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="pi6KnQed"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org C879E20651
 Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=linux-foundation.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 9C7856B0003; Wed, 14 Aug 2019 16:46:01 -0400 (EDT)
+	id 525C16B0005; Wed, 14 Aug 2019 17:01:31 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 975C66B0005; Wed, 14 Aug 2019 16:46:01 -0400 (EDT)
+	id 4AECA6B0006; Wed, 14 Aug 2019 17:01:31 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 88B536B000A; Wed, 14 Aug 2019 16:46:01 -0400 (EDT)
+	id 39DBD6B0007; Wed, 14 Aug 2019 17:01:31 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0066.hostedemail.com [216.40.44.66])
-	by kanga.kvack.org (Postfix) with ESMTP id 662516B0003
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 16:46:01 -0400 (EDT)
-Received: from smtpin16.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 1B162180AD7C1
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 20:46:01 +0000 (UTC)
-X-FDA: 75822215322.16.beds53_519871b3aa213
-X-HE-Tag: beds53_519871b3aa213
-X-Filterd-Recvd-Size: 3655
+Received: from forelay.hostedemail.com (smtprelay0054.hostedemail.com [216.40.44.54])
+	by kanga.kvack.org (Postfix) with ESMTP id 12F376B0005
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 17:01:31 -0400 (EDT)
+Received: from smtpin05.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay03.hostedemail.com (Postfix) with SMTP id 95D508248AA2
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 21:01:30 +0000 (UTC)
+X-FDA: 75822254340.05.grade86_47590b473032b
+X-HE-Tag: grade86_47590b473032b
+X-Filterd-Recvd-Size: 2923
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by imf03.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 20:46:00 +0000 (UTC)
+	by imf14.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 21:01:30 +0000 (UTC)
 Received: from localhost.localdomain (c-73-223-200-170.hsd1.ca.comcast.net [73.223.200.170])
 	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
 	(No client certificate requested)
-	by mail.kernel.org (Postfix) with ESMTPSA id 9B1AC216F4;
-	Wed, 14 Aug 2019 20:45:58 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTPSA id CFD9E20651;
+	Wed, 14 Aug 2019 20:56:08 +0000 (UTC)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
-	s=default; t=1565815559;
-	bh=EZBLwiP0N1eStQ84ag5nDU6Qw/MvJKG//W915vWDF64=;
+	s=default; t=1565816169;
+	bh=/47vrJUcPnKmlW6QGCuX38MeKmclx+u9kcMLBRaqbs4=;
 	h=Date:From:To:Cc:Subject:In-Reply-To:References:From;
-	b=C8M74AF9gR0yIHtwYXvV9mYooDdtRaEbsAeu6xdcjm7MiFRBUgOgksIa9IbyRynX1
-	 8CovqClt4Zok7omZXMvrQ3krCm6iGcZ0/itlgYZhj1RoQID2VjQjF4gGY4TQptnckQ
-	 TYHTpL4yrQVOBgTIBym0nVj3v8+ixtaD2yCXXF1c=
-Date: Wed, 14 Aug 2019 13:45:58 -0700
+	b=pi6KnQedP5wNrNC9WqJkX3iCMipQiegirC5UJ923ryfPZa6rrSPNcrL5FvjWNzJXe
+	 uEFWtt5gQsv862Iv7+Ak1EKlQ+6njDmiCuKvxWLGmoM9pJ6Yd4U9QopjJbdgxB9+VC
+	 biiBIGKf53FEg32rV49NF8iWU1PTqPGbKbe77Sa0=
+Date: Wed, 14 Aug 2019 13:56:08 -0700
 From: Andrew Morton <akpm@linux-foundation.org>
-To: Daniel Vetter <daniel.vetter@ffwll.ch>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org, DRI Development
- <dri-devel@lists.freedesktop.org>, Intel Graphics Development
- <intel-gfx@lists.freedesktop.org>, Jason Gunthorpe <jgg@ziepe.ca>, Peter
- Zijlstra <peterz@infradead.org>, Ingo Molnar <mingo@redhat.com>, Michal
- Hocko <mhocko@suse.com>, David Rientjes <rientjes@google.com>, Christian
- =?ISO-8859-1?Q?K=F6nig?= <christian.koenig@amd.com>, =?ISO-8859-1?Q?J=E9r?=
- =?ISO-8859-1?Q?=F4me?= Glisse <jglisse@redhat.com>, Masahiro Yamada
- <yamada.masahiro@socionext.com>, Wei Wang <wvw@google.com>, Andy Shevchenko
- <andriy.shevchenko@linux.intel.com>, Thomas Gleixner <tglx@linutronix.de>,
- Jann Horn <jannh@google.com>, Feng Tang <feng.tang@intel.com>, Kees Cook
- <keescook@chromium.org>, Randy Dunlap <rdunlap@infradead.org>, Daniel
- Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
-Message-Id: <20190814134558.fe659b1a9a169c0150c3e57c@linux-foundation.org>
-In-Reply-To: <20190814202027.18735-3-daniel.vetter@ffwll.ch>
-References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
-	<20190814202027.18735-3-daniel.vetter@ffwll.ch>
+To: David Hildenbrand <david@redhat.com>
+Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org, Arun KS
+ <arunks@codeaurora.org>, Oscar Salvador <osalvador@suse.de>, Michal Hocko
+ <mhocko@suse.com>, Pavel Tatashin <pasha.tatashin@soleen.com>, Dan Williams
+ <dan.j.williams@intel.com>
+Subject: Re: [PATCH v2 4/5] mm/memory_hotplug: Make sure the pfn is aligned
+ to the order when onlining
+Message-Id: <20190814135608.a449ca5a75cd700e077a8d23@linux-foundation.org>
+In-Reply-To: <20190814154109.3448-5-david@redhat.com>
+References: <20190814154109.3448-1-david@redhat.com>
+	<20190814154109.3448-5-david@redhat.com>
 X-Mailer: Sylpheed 3.5.1 (GTK+ 2.24.31; x86_64-pc-linux-gnu)
 Mime-Version: 1.0
 Content-Type: text/plain; charset=US-ASCII
@@ -78,32 +71,33 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, 14 Aug 2019 22:20:24 +0200 Daniel Vetter <daniel.vetter@ffwll.ch> wrote:
+On Wed, 14 Aug 2019 17:41:08 +0200 David Hildenbrand <david@redhat.com> wrote:
 
-> In some special cases we must not block, but there's not a
-> spinlock, preempt-off, irqs-off or similar critical section already
-> that arms the might_sleep() debug checks. Add a non_block_start/end()
-> pair to annotate these.
+> Commit a9cd410a3d29 ("mm/page_alloc.c: memory hotplug: free pages as higher
+> order") assumed that any PFN we get via memory resources is aligned to
+> to MAX_ORDER - 1, I am not convinced that is always true. Let's play safe,
+> check the alignment and fallback to single pages.
 > 
-> This will be used in the oom paths of mmu-notifiers, where blocking is
-> not allowed to make sure there's forward progress. Quoting Michal:
-> 
-> "The notifier is called from quite a restricted context - oom_reaper -
-> which shouldn't depend on any locks or sleepable conditionals. The code
-> should be swift as well but we mostly do care about it to make a forward
-> progress. Checking for sleepable context is the best thing we could come
-> up with that would describe these demands at least partially."
-> 
-> Peter also asked whether we want to catch spinlocks on top, but Michal
-> said those are less of a problem because spinlocks can't have an
-> indirect dependency upon the page allocator and hence close the loop
-> with the oom reaper.
+> ...
+>
+> --- a/mm/memory_hotplug.c
+> +++ b/mm/memory_hotplug.c
+> @@ -646,6 +646,9 @@ static int online_pages_range(unsigned long start_pfn, unsigned long nr_pages,
+>  	 */
+>  	for (pfn = start_pfn; pfn < end_pfn; pfn += 1ul << order) {
+>  		order = min(MAX_ORDER - 1, get_order(PFN_PHYS(end_pfn - pfn)));
+> +		/* __free_pages_core() wants pfns to be aligned to the order */
+> +		if (unlikely(!IS_ALIGNED(pfn, 1ul << order)))
+> +			order = 0;
+>  		(*online_page_callback)(pfn_to_page(pfn), order);
+>  	}
 
-I continue to struggle with this.  It introduces a new kernel state
-"running preemptibly but must not call schedule()".  How does this make
-any sense?
+We aren't sure if this occurs, but if it does, we silently handle it.
 
-Perhaps a much, much more detailed description of the oom_reaper
-situation would help out.
+It seems a reasonable defensive thing to do, but should we add a
+WARN_ON_ONCE() so that we get to find out about it?  If we get such a
+report then we can remove the WARN_ON_ONCE() and add an illuminating
+comment.
+
 
 
