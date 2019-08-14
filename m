@@ -2,110 +2,203 @@ Return-Path: <SRS0=g7KO=WK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-8.5 required=3.0 tests=INCLUDES_PATCH,
-	MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-7.1 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
+	DKIM_VALID,DKIM_VALID_AU,INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,
+	SPF_HELO_NONE,SPF_PASS autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id CBE62C32753
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 14:08:08 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 299ACC433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 14:15:12 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9C835206C1
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 14:08:08 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9C835206C1
+	by mail.kernel.org (Postfix) with ESMTP id D35C5214C6
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 14:15:11 +0000 (UTC)
+Authentication-Results: mail.kernel.org;
+	dkim=pass (1024-bit key) header.d=kernel.org header.i=@kernel.org header.b="YmMNPxPA"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org D35C5214C6
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 3742C6B0006; Wed, 14 Aug 2019 10:08:08 -0400 (EDT)
+	id 73E9F6B000A; Wed, 14 Aug 2019 10:15:11 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 324A76B0007; Wed, 14 Aug 2019 10:08:08 -0400 (EDT)
+	id 6EFB66B000C; Wed, 14 Aug 2019 10:15:11 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 213E66B000A; Wed, 14 Aug 2019 10:08:08 -0400 (EDT)
+	id 6048B6B000D; Wed, 14 Aug 2019 10:15:11 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0137.hostedemail.com [216.40.44.137])
-	by kanga.kvack.org (Postfix) with ESMTP id 009D16B0006
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 10:08:07 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 950DF3AB7
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 14:08:07 +0000 (UTC)
-X-FDA: 75821212614.08.store60_63fa68880e70f
-X-HE-Tag: store60_63fa68880e70f
-X-Filterd-Recvd-Size: 2958
-Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf41.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 14:08:06 +0000 (UTC)
-X-Virus-Scanned: by amavisd-new at test-mx.suse.de
-Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 8A6B0ADCC;
-	Wed, 14 Aug 2019 14:08:05 +0000 (UTC)
-Date: Wed, 14 Aug 2019 16:08:05 +0200
-From: Michal Hocko <mhocko@kernel.org>
-To: David Hildenbrand <david@redhat.com>
-Cc: linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	Arun KS <arunks@codeaurora.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Oscar Salvador <osalvador@suse.de>,
-	Pavel Tatashin <pasha.tatashin@soleen.com>,
-	Dan Williams <dan.j.williams@intel.com>
-Subject: Re: [PATCH v1 2/4] mm/memory_hotplug: Handle unaligned start and
- nr_pages in online_pages_blocks()
-Message-ID: <20190814140805.GA17933@dhcp22.suse.cz>
-References: <20190809125701.3316-1-david@redhat.com>
- <20190809125701.3316-3-david@redhat.com>
+Received: from forelay.hostedemail.com (smtprelay0026.hostedemail.com [216.40.44.26])
+	by kanga.kvack.org (Postfix) with ESMTP id 3B0B26B000A
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 10:15:11 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id D8ECC2C81
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 14:15:10 +0000 (UTC)
+X-FDA: 75821230380.30.able04_100f9c0a58224
+X-HE-Tag: able04_100f9c0a58224
+X-Filterd-Recvd-Size: 6751
+Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
+	by imf01.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 14:15:10 +0000 (UTC)
+Received: from tleilax.poochiereds.net (68-20-15-154.lightspeed.rlghnc.sbcglobal.net [68.20.15.154])
+	(using TLSv1.2 with cipher ECDHE-RSA-AES256-GCM-SHA384 (256/256 bits))
+	(No client certificate requested)
+	by mail.kernel.org (Postfix) with ESMTPSA id F11AF2133F;
+	Wed, 14 Aug 2019 14:15:07 +0000 (UTC)
+DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/simple; d=kernel.org;
+	s=default; t=1565792109;
+	bh=kburXRh82xHoH2ULBf4qbUaBruG20vqIvfvEbFcltJY=;
+	h=Subject:From:To:Cc:Date:In-Reply-To:References:From;
+	b=YmMNPxPAWp25eQhuqgZ4ltWhMxF28BvGB5vskr14XqYVCQZZ96TVxfUdULrpt9Fg0
+	 60trd+Jkb520pjcYaqrosDqW5ftToo6hZAXtZVmiRfDVvso+e6i9CkZS/dVjFp3R2p
+	 sxNd0hLUe0BkrhCT6Rwkhd2HlJfkAotXSoeuAaW0=
+Message-ID: <fde2959db776616008fc5d31df700f5d7d899433.camel@kernel.org>
+Subject: Re: [RFC PATCH v2 02/19] fs/locks: Add Exclusive flag to user
+ Layout lease
+From: Jeff Layton <jlayton@kernel.org>
+To: ira.weiny@intel.com, Andrew Morton <akpm@linux-foundation.org>
+Cc: Jason Gunthorpe <jgg@ziepe.ca>, Dan Williams <dan.j.williams@intel.com>,
+  Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>, Theodore
+ Ts'o <tytso@mit.edu>, John Hubbard <jhubbard@nvidia.com>, Michal Hocko
+ <mhocko@suse.com>, Dave Chinner <david@fromorbit.com>,
+ linux-xfs@vger.kernel.org, linux-rdma@vger.kernel.org, 
+ linux-kernel@vger.kernel.org, linux-fsdevel@vger.kernel.org, 
+ linux-nvdimm@lists.01.org, linux-ext4@vger.kernel.org, linux-mm@kvack.org
+Date: Wed, 14 Aug 2019 10:15:06 -0400
+In-Reply-To: <20190809225833.6657-3-ira.weiny@intel.com>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+	 <20190809225833.6657-3-ira.weiny@intel.com>
+Content-Type: text/plain; charset="UTF-8"
+User-Agent: Evolution 3.32.4 (3.32.4-1.fc30) 
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190809125701.3316-3-david@redhat.com>
-User-Agent: Mutt/1.10.1 (2018-07-13)
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Fri 09-08-19 14:56:59, David Hildenbrand wrote:
-> Take care of nr_pages not being a power of two and start not being
-> properly aligned. Essentially, what walk_system_ram_range() could provide
-> to us. get_order() will round-up in case it's not a power of two.
+On Fri, 2019-08-09 at 15:58 -0700, ira.weiny@intel.com wrote:
+> From: Ira Weiny <ira.weiny@intel.com>
 > 
-> This should only apply to memory blocks that contain strange memory
-> resources (especially with holes), not to ordinary DIMMs.
-
-I would really like to see an example of such setup before making the
-code hard to read. Because I am not really sure something like that
-exists at all.
-
-> Fixes: a9cd410a3d29 ("mm/page_alloc.c: memory hotplug: free pages as higher order")
-> Cc: Arun KS <arunks@codeaurora.org>
-> Cc: Andrew Morton <akpm@linux-foundation.org>
-> Cc: Oscar Salvador <osalvador@suse.de>
-> Cc: Michal Hocko <mhocko@suse.com>
-> Cc: Pavel Tatashin <pasha.tatashin@soleen.com>
-> Cc: Dan Williams <dan.j.williams@intel.com>
-> Signed-off-by: David Hildenbrand <david@redhat.com>
+> Add an exclusive lease flag which indicates that the layout mechanism
+> can not be broken.
+> 
+> Exclusive layout leases allow the file system to know that pages may be
+> GUP pined and that attempts to change the layout, ie truncate, should be
+> failed.
+> 
+> A process which attempts to break it's own exclusive lease gets an
+> EDEADLOCK return to help determine that this is likely a programming bug
+> vs someone else holding a resource.
+> 
+> Signed-off-by: Ira Weiny <ira.weiny@intel.com>
 > ---
->  mm/memory_hotplug.c | 4 ++++
->  1 file changed, 4 insertions(+)
+>  fs/locks.c                       | 23 +++++++++++++++++++++--
+>  include/linux/fs.h               |  1 +
+>  include/uapi/asm-generic/fcntl.h |  2 ++
+>  3 files changed, 24 insertions(+), 2 deletions(-)
 > 
-> diff --git a/mm/memory_hotplug.c b/mm/memory_hotplug.c
-> index 3706a137d880..2abd938c8c45 100644
-> --- a/mm/memory_hotplug.c
-> +++ b/mm/memory_hotplug.c
-> @@ -640,6 +640,10 @@ static int online_pages_blocks(unsigned long start, unsigned long nr_pages)
->  	while (start < end) {
->  		order = min(MAX_ORDER - 1,
->  			get_order(PFN_PHYS(end) - PFN_PHYS(start)));
-> +		/* make sure the PFN is aligned and we don't exceed the range */
-> +		while (!IS_ALIGNED(start, 1ul << order) ||
-> +		       (1ul << order) > end - start)
-> +			order--;
->  		(*online_page_callback)(pfn_to_page(start), order);
+> diff --git a/fs/locks.c b/fs/locks.c
+> index ad17c6ffca06..0c7359cdab92 100644
+> --- a/fs/locks.c
+> +++ b/fs/locks.c
+> @@ -626,6 +626,8 @@ static int lease_init(struct file *filp, long type, unsigned int flags,
+>  	fl->fl_flags = FL_LEASE;
+>  	if (flags & FL_LAYOUT)
+>  		fl->fl_flags |= FL_LAYOUT;
+> +	if (flags & FL_EXCLUSIVE)
+> +		fl->fl_flags |= FL_EXCLUSIVE;
+>  	fl->fl_start = 0;
+>  	fl->fl_end = OFFSET_MAX;
+>  	fl->fl_ops = NULL;
+> @@ -1619,6 +1621,14 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
+>  	list_for_each_entry_safe(fl, tmp, &ctx->flc_lease, fl_list) {
+>  		if (!leases_conflict(fl, new_fl))
+>  			continue;
+> +		if (fl->fl_flags & FL_EXCLUSIVE) {
+> +			error = -ETXTBSY;
+> +			if (new_fl->fl_pid == fl->fl_pid) {
+> +				error = -EDEADLOCK;
+> +				goto out;
+> +			}
+> +			continue;
+> +		}
+>  		if (want_write) {
+>  			if (fl->fl_flags & FL_UNLOCK_PENDING)
+>  				continue;
+> @@ -1634,6 +1644,13 @@ int __break_lease(struct inode *inode, unsigned int mode, unsigned int type)
+>  			locks_delete_lock_ctx(fl, &dispose);
+>  	}
 >  
->  		onlined_pages += (1UL << order);
-> -- 
-> 2.21.0
+> +	/* We differentiate between -EDEADLOCK and -ETXTBSY so the above loop
+> +	 * continues with -ETXTBSY looking for a potential deadlock instead.
+> +	 * If deadlock is not found go ahead and return -ETXTBSY.
+> +	 */
+> +	if (error == -ETXTBSY)
+> +		goto out;
+> +
+>  	if (list_empty(&ctx->flc_lease))
+>  		goto out;
+>  
+> @@ -2044,9 +2061,11 @@ static int do_fcntl_add_lease(unsigned int fd, struct file *filp, long arg)
+>  	 * to revoke the lease in break_layout()  And this is done by using
+>  	 * F_WRLCK in the break code.
+>  	 */
+> -	if (arg == F_LAYOUT) {
+> +	if ((arg & F_LAYOUT) == F_LAYOUT) {
+> +		if ((arg & F_EXCLUSIVE) == F_EXCLUSIVE)
+> +			flags |= FL_EXCLUSIVE;
+>  		arg = F_RDLCK;
+> -		flags = FL_LAYOUT;
+> +		flags |= FL_LAYOUT;
+>  	}
+>  
+>  	fl = lease_alloc(filp, arg, flags);
+> diff --git a/include/linux/fs.h b/include/linux/fs.h
+> index dd60d5be9886..2e41ce547913 100644
+> --- a/include/linux/fs.h
+> +++ b/include/linux/fs.h
+> @@ -1005,6 +1005,7 @@ static inline struct file *get_file(struct file *f)
+>  #define FL_UNLOCK_PENDING	512 /* Lease is being broken */
+>  #define FL_OFDLCK	1024	/* lock is "owned" by struct file */
+>  #define FL_LAYOUT	2048	/* outstanding pNFS layout or user held pin */
+> +#define FL_EXCLUSIVE	4096	/* Layout lease is exclusive */
+>  
+>  #define FL_CLOSE_POSIX (FL_POSIX | FL_CLOSE)
+>  
+> diff --git a/include/uapi/asm-generic/fcntl.h b/include/uapi/asm-generic/fcntl.h
+> index baddd54f3031..88b175ceccbc 100644
+> --- a/include/uapi/asm-generic/fcntl.h
+> +++ b/include/uapi/asm-generic/fcntl.h
+> @@ -176,6 +176,8 @@ struct f_owner_ex {
+>  
+>  #define F_LAYOUT	16      /* layout lease to allow longterm pins such as
+>  				   RDMA */
+> +#define F_EXCLUSIVE	32      /* layout lease is exclusive */
+> +				/* FIXME or shoudl this be F_EXLCK??? */
+>  
+>  /* operations for bsd flock(), also used by the kernel implementation */
+>  #define LOCK_SH		1	/* shared lock */
+
+This interface just seems weird to me. The existing F_*LCK values aren't
+really set up to be flags, but are enumerated values (even if there are
+some gaps on some arches). For instance, on parisc and sparc:
+
+/* for posix fcntl() and lockf() */
+#define F_RDLCK         01
+#define F_WRLCK         02
+#define F_UNLCK         03
+
+While your new flag values are well above these values, it's still a bit
+sketchy to do what you're proposing from a cross-platform interface
+standpoint.
+
+I think this would be a lot cleaner if you weren't overloading the
+F_SETLEASE command with new flags, and instead added new
+F_SETLAYOUT/F_GETLAYOUT cmd values.
+
+You'd then be free to define a new set of "arg" values for use with
+layouts, and there's be a clear distinction interface-wise between
+setting a layout and a lease.
 
 -- 
-Michal Hocko
-SUSE Labs
+Jeff Layton <jlayton@kernel.org>
+
 
