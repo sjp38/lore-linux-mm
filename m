@@ -2,109 +2,127 @@ Return-Path: <SRS0=g7KO=WK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.4 required=3.0 tests=DKIMWL_WL_HIGH,DKIM_SIGNED,
-	DKIM_VALID,DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,
-	SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+X-Spam-Status: No, score=-5.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1
 	autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 68F65C32757
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 21:53:48 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 46C9BC433FF
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 21:57:44 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 211A82133F
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 21:53:48 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=nvidia.com header.i=@nvidia.com header.b="DuHQyhEk"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 211A82133F
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=nvidia.com
+	by mail.kernel.org (Postfix) with ESMTP id 135062133F
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 21:57:44 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 135062133F
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=fromorbit.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id C50916B0005; Wed, 14 Aug 2019 17:53:47 -0400 (EDT)
+	id B8A156B0003; Wed, 14 Aug 2019 17:57:43 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BDA9F6B0006; Wed, 14 Aug 2019 17:53:47 -0400 (EDT)
+	id B3AE66B0005; Wed, 14 Aug 2019 17:57:43 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id AC8DF6B0007; Wed, 14 Aug 2019 17:53:47 -0400 (EDT)
+	id A51BE6B0007; Wed, 14 Aug 2019 17:57:43 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0158.hostedemail.com [216.40.44.158])
-	by kanga.kvack.org (Postfix) with ESMTP id 890D56B0005
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 17:53:47 -0400 (EDT)
-Received: from smtpin25.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 4BCB53A82
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 21:53:47 +0000 (UTC)
-X-FDA: 75822386094.25.coal85_5b344a21bca3e
-X-HE-Tag: coal85_5b344a21bca3e
-X-Filterd-Recvd-Size: 3527
-Received: from hqemgate15.nvidia.com (hqemgate15.nvidia.com [216.228.121.64])
-	by imf35.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 21:53:46 +0000 (UTC)
-Received: from hqpgpgate102.nvidia.com (Not Verified[216.228.121.13]) by hqemgate15.nvidia.com (using TLS: TLSv1.2, DES-CBC3-SHA)
-	id <B5d5482f40000>; Wed, 14 Aug 2019 14:53:56 -0700
-Received: from hqmail.nvidia.com ([172.20.161.6])
-  by hqpgpgate102.nvidia.com (PGP Universal service);
-  Wed, 14 Aug 2019 14:53:45 -0700
-X-PGP-Universal: processed;
-	by hqpgpgate102.nvidia.com on Wed, 14 Aug 2019 14:53:45 -0700
-Received: from rcampbell-dev.nvidia.com (10.124.1.5) by HQMAIL107.nvidia.com
- (172.20.187.13) with Microsoft SMTP Server (TLS) id 15.0.1473.3; Wed, 14 Aug
- 2019 21:53:42 +0000
-Subject: Re: [PATCH v3 hmm 11/11] mm/mmu_notifiers: remove
- unregister_no_release
-To: Jason Gunthorpe <jgg@ziepe.ca>, <linux-mm@kvack.org>
-CC: Andrea Arcangeli <aarcange@redhat.com>, Christoph Hellwig <hch@lst.de>,
-	John Hubbard <jhubbard@nvidia.com>, =?UTF-8?B?SsOpcsO0bWUgR2xpc3Nl?=
-	<jglisse@redhat.com>, "Kuehling, Felix" <Felix.Kuehling@amd.com>, "Alex
- Deucher" <alexander.deucher@amd.com>, =?UTF-8?Q?Christian_K=c3=b6nig?=
-	<christian.koenig@amd.com>, "David (ChunMing) Zhou" <David1.Zhou@amd.com>,
-	Dimitri Sivanich <sivanich@sgi.com>, <dri-devel@lists.freedesktop.org>,
-	<amd-gfx@lists.freedesktop.org>, <linux-kernel@vger.kernel.org>,
-	<linux-rdma@vger.kernel.org>, <iommu@lists.linux-foundation.org>,
-	<intel-gfx@lists.freedesktop.org>, Gavin Shan <shangw@linux.vnet.ibm.com>,
-	Andrea Righi <andrea@betterlinux.com>, Jason Gunthorpe <jgg@mellanox.com>
-References: <20190806231548.25242-1-jgg@ziepe.ca>
- <20190806231548.25242-12-jgg@ziepe.ca>
-X-Nvconfidentiality: public
-From: Ralph Campbell <rcampbell@nvidia.com>
-Message-ID: <84b35625-9877-0f35-155a-2d5ee1af4108@nvidia.com>
-Date: Wed, 14 Aug 2019 14:53:42 -0700
-User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
- Thunderbird/60.7.0
+Received: from forelay.hostedemail.com (smtprelay0145.hostedemail.com [216.40.44.145])
+	by kanga.kvack.org (Postfix) with ESMTP id 841656B0003
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 17:57:43 -0400 (EDT)
+Received: from smtpin17.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 2731845B4
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 21:57:43 +0000 (UTC)
+X-FDA: 75822396006.17.war00_7d8699872e805
+X-HE-Tag: war00_7d8699872e805
+X-Filterd-Recvd-Size: 4116
+Received: from mail104.syd.optusnet.com.au (mail104.syd.optusnet.com.au [211.29.132.246])
+	by imf20.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 21:57:42 +0000 (UTC)
+Received: from dread.disaster.area (pa49-195-190-67.pa.nsw.optusnet.com.au [49.195.190.67])
+	by mail104.syd.optusnet.com.au (Postfix) with ESMTPS id 800D843DB39;
+	Thu, 15 Aug 2019 07:57:37 +1000 (AEST)
+Received: from dave by dread.disaster.area with local (Exim 4.92)
+	(envelope-from <david@fromorbit.com>)
+	id 1hy1Fu-0006Ca-2B; Thu, 15 Aug 2019 07:56:30 +1000
+Date: Thu, 15 Aug 2019 07:56:30 +1000
+From: Dave Chinner <david@fromorbit.com>
+To: Jeff Layton <jlayton@kernel.org>
+Cc: ira.weiny@intel.com, Andrew Morton <akpm@linux-foundation.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Jan Kara <jack@suse.cz>,
+	Theodore Ts'o <tytso@mit.edu>, John Hubbard <jhubbard@nvidia.com>,
+	Michal Hocko <mhocko@suse.com>, linux-xfs@vger.kernel.org,
+	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org,
+	linux-ext4@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 02/19] fs/locks: Add Exclusive flag to user Layout
+ lease
+Message-ID: <20190814215630.GQ6129@dread.disaster.area>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+ <20190809225833.6657-3-ira.weiny@intel.com>
+ <fde2959db776616008fc5d31df700f5d7d899433.camel@kernel.org>
 MIME-Version: 1.0
-In-Reply-To: <20190806231548.25242-12-jgg@ziepe.ca>
-X-Originating-IP: [10.124.1.5]
-X-ClientProxiedBy: HQMAIL105.nvidia.com (172.20.187.12) To
- HQMAIL107.nvidia.com (172.20.187.13)
-Content-Type: text/plain; charset="utf-8"; format=flowed
-Content-Language: en-US
-Content-Transfer-Encoding: 7bit
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed; d=nvidia.com; s=n1;
-	t=1565819636; bh=jn8qPKX3vGj+tzC7jfWRezHMQaQX7LZbuyruFud4LQQ=;
-	h=X-PGP-Universal:Subject:To:CC:References:X-Nvconfidentiality:From:
-	 Message-ID:Date:User-Agent:MIME-Version:In-Reply-To:
-	 X-Originating-IP:X-ClientProxiedBy:Content-Type:Content-Language:
-	 Content-Transfer-Encoding;
-	b=DuHQyhEkn2nVu3F9JE1Jqs394XgDiOloB/DupeDvogYw6EVbMONwcehm4ND30nlJe
-	 coLB6ipCN1oIyc4w1mqCCYewK+PC5YV9u55ueYp2oaHr/1plVEnMB9PP5+CTSD2S+f
-	 /EwXD2xqdd7b1DugwUAbPGKM94w9rldbIHus7fAOpSWXDg6bOvnb9bZD9px5zT4R9w
-	 fNKaAnXFzpPWTG2T38iLy/xRORGPkKKaDbUB4Y5JUU/eQRUnl/o4i6ggHqZCwIPAQU
-	 XR1OQDE52UPDPt8SmWG+WQaZO6Cc6+YdybR1YFmKROUzj521DapTNnEGLy+4532Itg
-	 +dCm77lSoXV4A==
+Content-Type: text/plain; charset=us-ascii
+Content-Disposition: inline
+In-Reply-To: <fde2959db776616008fc5d31df700f5d7d899433.camel@kernel.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
+X-Optus-CM-Score: 0
+X-Optus-CM-Analysis: v=2.2 cv=FNpr/6gs c=1 sm=1 tr=0
+	a=TR82T6zjGmBjdfWdGgpkDw==:117 a=TR82T6zjGmBjdfWdGgpkDw==:17
+	a=jpOVt7BSZ2e4Z31A5e1TngXxSK0=:19 a=kj9zAlcOel0A:10 a=FmdZ9Uzk2mMA:10
+	a=QyXUC8HyAAAA:8 a=7-415B0cAAAA:8 a=qa3ElbQomqnm_qv8Y-cA:9
+	a=CjuIK1q_8ugA:10 a=biEYGPWJfzWAr4FL6Ov7:22
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
+On Wed, Aug 14, 2019 at 10:15:06AM -0400, Jeff Layton wrote:
+> On Fri, 2019-08-09 at 15:58 -0700, ira.weiny@intel.com wrote:
+> > From: Ira Weiny <ira.weiny@intel.com>
+> > 
+> > Add an exclusive lease flag which indicates that the layout mechanism
+> > can not be broken.
+> > 
+> > Exclusive layout leases allow the file system to know that pages may be
+> > GUP pined and that attempts to change the layout, ie truncate, should be
+> > failed.
+> > 
+> > A process which attempts to break it's own exclusive lease gets an
+> > EDEADLOCK return to help determine that this is likely a programming bug
+> > vs someone else holding a resource.
+.....
+> > diff --git a/include/uapi/asm-generic/fcntl.h b/include/uapi/asm-generic/fcntl.h
+> > index baddd54f3031..88b175ceccbc 100644
+> > --- a/include/uapi/asm-generic/fcntl.h
+> > +++ b/include/uapi/asm-generic/fcntl.h
+> > @@ -176,6 +176,8 @@ struct f_owner_ex {
+> >  
+> >  #define F_LAYOUT	16      /* layout lease to allow longterm pins such as
+> >  				   RDMA */
+> > +#define F_EXCLUSIVE	32      /* layout lease is exclusive */
+> > +				/* FIXME or shoudl this be F_EXLCK??? */
+> >  
+> >  /* operations for bsd flock(), also used by the kernel implementation */
+> >  #define LOCK_SH		1	/* shared lock */
+> 
+> This interface just seems weird to me. The existing F_*LCK values aren't
+> really set up to be flags, but are enumerated values (even if there are
+> some gaps on some arches). For instance, on parisc and sparc:
 
-On 8/6/19 4:15 PM, Jason Gunthorpe wrote:
-> From: Jason Gunthorpe <jgg@mellanox.com>
-> 
-> mmu_notifier_unregister_no_release() and mmu_notifier_call_srcu() no
-> longer have any users, they have all been converted to use
-> mmu_notifier_put().
-> 
-> So delete this difficult to use interface.
-> 
-> Signed-off-by: Jason Gunthorpe <jgg@mellanox.com>
+I don't think we need to worry about this - the F_WRLCK version of
+the layout lease should have these exclusive access semantics (i.e
+other ops fail rather than block waiting for lease recall) and hence
+the API shouldn't need a new flag to specify them.
 
-Reviewed-by: Ralph Campbell <rcampbell@nvidia.com>
+i.e. the primary difference between F_RDLCK and F_WRLCK layout
+leases is that the F_RDLCK is a shared, co-operative lease model
+where only delays in operations will be seen, while F_WRLCK is a
+"guarantee exclusive access and I don't care what it breaks"
+model... :)
+
+Cheers,
+
+Dave.
+-- 
+Dave Chinner
+david@fromorbit.com
 
