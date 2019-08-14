@@ -2,165 +2,185 @@ Return-Path: <SRS0=g7KO=WK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.1 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,FREEMAIL_FORGED_FROMDOMAIN,FREEMAIL_FROM,
-	HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,
-	USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
+	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id C608EC32757
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 18:00:45 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 7AA1EC32753
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 18:08:53 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 751BB214C6
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 18:00:45 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=gmail.com header.i=@gmail.com header.b="txtm+14G"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 751BB214C6
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=gmail.com
+	by mail.kernel.org (Postfix) with ESMTP id 4CF1E206C1
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 18:08:53 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 4CF1E206C1
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=intel.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id DC3826B0003; Wed, 14 Aug 2019 14:00:44 -0400 (EDT)
+	id DBC7A6B0003; Wed, 14 Aug 2019 14:08:52 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id D74016B0005; Wed, 14 Aug 2019 14:00:44 -0400 (EDT)
+	id D6D6A6B0005; Wed, 14 Aug 2019 14:08:52 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id C62F76B0007; Wed, 14 Aug 2019 14:00:44 -0400 (EDT)
+	id C83376B0007; Wed, 14 Aug 2019 14:08:52 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0081.hostedemail.com [216.40.44.81])
-	by kanga.kvack.org (Postfix) with ESMTP id A45DF6B0003
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 14:00:44 -0400 (EDT)
-Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 5EEB26118
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 18:00:44 +0000 (UTC)
-X-FDA: 75821798808.30.curve32_5dadbb2d5c92a
-X-HE-Tag: curve32_5dadbb2d5c92a
-X-Filterd-Recvd-Size: 6384
-Received: from mail-pg1-f195.google.com (mail-pg1-f195.google.com [209.85.215.195])
-	by imf01.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 18:00:43 +0000 (UTC)
-Received: by mail-pg1-f195.google.com with SMTP id n190so12655735pgn.0
-        for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:00:43 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=gmail.com; s=20161025;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=dOMdAe6AqeWQZHyQVAAMCKAQHRACwZHKY6wC0SFV1+U=;
-        b=txtm+14GF2FCSoDvBp13P47mYXIYr8VsHkaLQ9+qzdynxVrPmEdrI3/VF89cQ40aHO
-         oxgSbC3sqrQqx4xtNgEWud9V7Y4Dwtgcs6TVrtMZcHWviQjqMfZK0m7rwk7t1BmWhL7L
-         jWgqAFWfDcXmgPVogpvNZ1QoXmGGaF/uugJYIukTmXWp8cMQSuxBrfSLITM80ysXXMT3
-         oWiTb+hlXjbV3rib2xR5s/FAWi4i3cAD/CvYQEfnRmwJ2sSeajSsXWxylBCiLmiZ4aPT
-         c1/PlQHMFj3pkkIDK6pLYs3vrH9UYO5JkL3zkEzOVg8YFl/aVm51r/jjD2V+EuNOMKgA
-         PQhQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=dOMdAe6AqeWQZHyQVAAMCKAQHRACwZHKY6wC0SFV1+U=;
-        b=IhXzATjxsldsJXyJgF8frQF0cDDkRDpBse160sMIEEZ01m9A5hRL7JWaAJQoYHOnTg
-         +nbVgRCKJPbaWgFXSkbvGiBpvNIWV8RgJQBjOTEcvfaxjm4BE07Mf+Bp99YOSg615NCo
-         opTbDp1AS4p2dFYRRMWj/FbRG4xp0mxd9uuVrx+HIX8yP3bE3HCT6EGkJJzWqI36eLKV
-         2xCMvdF2qj+edwJ0dapdtnJ8OlLhl7St9SWpxW29SHQvh2qf9LBfr7mXxKu+OE3vIa/q
-         OKlDeF9VldTM1Tpi7t8/Lb/0aS8tYFdUCZzNEty0EFK4oKBUW4eaL8a0DgTR3XFCdR6u
-         VmiA==
-X-Gm-Message-State: APjAAAU/tzfjPMWVMBL4kfBCEdljkdOVcJhnRbA1QrNkRXW3hBfTB3zM
-	h1ellm9Jx1iVrHNTYV5KgD8=
-X-Google-Smtp-Source: APXvYqwQ2VCcn8bkJMBj4iGZSuOaB8ioPvLpamL0svo5YO/TVOQJzbQnplGw8s1N9sXKwpH97HUlUA==
-X-Received: by 2002:a17:90a:fe01:: with SMTP id ck1mr866293pjb.89.1565805642428;
-        Wed, 14 Aug 2019 11:00:42 -0700 (PDT)
-Received: from bharath12345-Inspiron-5559 ([103.110.42.36])
-        by smtp.gmail.com with ESMTPSA id x25sm527942pfa.90.2019.08.14.11.00.35
-        (version=TLS1_2 cipher=ECDHE-RSA-AES128-GCM-SHA256 bits=128/128);
-        Wed, 14 Aug 2019 11:00:41 -0700 (PDT)
-Date: Wed, 14 Aug 2019 23:30:31 +0530
-From: Bharath Vedartham <linux.bhar@gmail.com>
-To: Jason Gunthorpe <jgg@ziepe.ca>
-Cc: Dimitri Sivanich <sivanich@hpe.com>, jhubbard@nvidia.com,
-	gregkh@linuxfoundation.org, arnd@arndb.de, ira.weiny@intel.com,
-	jglisse@redhat.com, william.kucharski@oracle.com, hch@lst.de,
-	linux-kernel@vger.kernel.org, linux-mm@kvack.org,
-	linux-kernel-mentees@lists.linuxfoundation.org
-Subject: Re: [Linux-kernel-mentees][PATCH v5 1/1] sgi-gru: Remove *pte_lookup
- functions, Convert to get_user_page*()
-Message-ID: <20190814180031.GB5121@bharath12345-Inspiron-5559>
-References: <1565379497-29266-1-git-send-email-linux.bhar@gmail.com>
- <1565379497-29266-2-git-send-email-linux.bhar@gmail.com>
- <20190813145029.GA32451@hpe.com>
- <20190813172301.GA10228@bharath12345-Inspiron-5559>
- <20190813181938.GA4196@hpe.com>
- <20190814173034.GA5121@bharath12345-Inspiron-5559>
- <20190814173830.GC13770@ziepe.ca>
+Received: from forelay.hostedemail.com (smtprelay0208.hostedemail.com [216.40.44.208])
+	by kanga.kvack.org (Postfix) with ESMTP id A50466B0003
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 14:08:52 -0400 (EDT)
+Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id 6149D40E1
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 18:08:52 +0000 (UTC)
+X-FDA: 75821819304.23.pot46_131194ec8b91f
+X-HE-Tag: pot46_131194ec8b91f
+X-Filterd-Recvd-Size: 6125
+Received: from mga18.intel.com (mga18.intel.com [134.134.136.126])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 18:08:50 +0000 (UTC)
+X-Amp-Result: UNKNOWN
+X-Amp-Original-Verdict: FILE UNKNOWN
+X-Amp-File-Uploaded: False
+Received: from fmsmga005.fm.intel.com ([10.253.24.32])
+  by orsmga106.jf.intel.com with ESMTP/TLS/DHE-RSA-AES256-GCM-SHA384; 14 Aug 2019 11:08:49 -0700
+X-ExtLoop1: 1
+X-IronPort-AV: E=Sophos;i="5.64,386,1559545200"; 
+   d="scan'208";a="376130035"
+Received: from iweiny-desk2.sc.intel.com ([10.3.52.157])
+  by fmsmga005.fm.intel.com with ESMTP; 14 Aug 2019 11:08:49 -0700
+Date: Wed, 14 Aug 2019 11:08:49 -0700
+From: Ira Weiny <ira.weiny@intel.com>
+To: Jan Kara <jack@suse.cz>
+Cc: Andrew Morton <akpm@linux-foundation.org>,
+	Jason Gunthorpe <jgg@ziepe.ca>,
+	Dan Williams <dan.j.williams@intel.com>,
+	Matthew Wilcox <willy@infradead.org>, Theodore Ts'o <tytso@mit.edu>,
+	John Hubbard <jhubbard@nvidia.com>, Michal Hocko <mhocko@suse.com>,
+	Dave Chinner <david@fromorbit.com>, linux-xfs@vger.kernel.org,
+	linux-rdma@vger.kernel.org, linux-kernel@vger.kernel.org,
+	linux-fsdevel@vger.kernel.org, linux-nvdimm@lists.01.org,
+	linux-ext4@vger.kernel.org, linux-mm@kvack.org
+Subject: Re: [RFC PATCH v2 00/19] RDMA/FS DAX truncate proposal V1,000,002 ;-)
+Message-ID: <20190814180848.GB31490@iweiny-DESK2.sc.intel.com>
+References: <20190809225833.6657-1-ira.weiny@intel.com>
+ <20190814101714.GA26273@quack2.suse.cz>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190814173830.GC13770@ziepe.ca>
-User-Agent: Mutt/1.5.24 (2015-08-30)
+In-Reply-To: <20190814101714.GA26273@quack2.suse.cz>
+User-Agent: Mutt/1.11.1 (2018-12-01)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 14, 2019 at 02:38:30PM -0300, Jason Gunthorpe wrote:
-> On Wed, Aug 14, 2019 at 11:00:34PM +0530, Bharath Vedartham wrote:
-> > On Tue, Aug 13, 2019 at 01:19:38PM -0500, Dimitri Sivanich wrote:
-> > > On Tue, Aug 13, 2019 at 10:53:01PM +0530, Bharath Vedartham wrote:
-> > > > On Tue, Aug 13, 2019 at 09:50:29AM -0500, Dimitri Sivanich wrote:
-> > > > > Bharath,
-> > > > > 
-> > > > > I do not believe that __get_user_pages_fast will work for the atomic case, as
-> > > > > there is no guarantee that the 'current->mm' will be the correct one for the
-> > > > > process in question, as the process might have moved away from the cpu that is
-> > > > > handling interrupts for it's context.
-> > > > So what your saying is, there may be cases where current->mm != gts->ts_mm
-> > > > right? __get_user_pages_fast and get_user_pages do assume current->mm.
-> > > 
-> > > Correct, in the case of atomic context.
-> > > 
-> > > > 
-> > > > These changes were inspired a bit from kvm. In kvm/kvm_main.c,
-> > > > hva_to_pfn_fast uses __get_user_pages_fast. THe comment above the
-> > > > function states it runs in atomic context.
-> > > > 
-> > > > Just curious, get_user_pages also uses current->mm. Do you think that is
-> > > > also an issue? 
-> > > 
-> > > Not in non-atomic context.  Notice that it is currently done that way.
-> > > 
-> > > > 
-> > > > Do you feel using get_user_pages_remote would be a better idea? We can
-> > > > specify the mm_struct in get_user_pages_remote?
-> > > 
-> > > From that standpoint maybe, but is it safe in interrupt context?
-> > Hmm.. The gup maintainers seemed fine with the code..
-> > 
-> > Now this is only an issue if gru_vtop can be executed in an interrupt
-> > context. 
-> > 
-> > get_user_pages_remote is not valid in an interrupt context(if CONFIG_MMU
-> > is set). If we follow the function, in __get_user_pages, cond_resched()
-> > is called which definitly confirms that we can't run this function in an
-> > interrupt context. 
-> > 
-> > I think we might need some advice from the gup maintainers here.
-> > Note that the comment on the function __get_user_pages_fast states that
-> > __get_user_pages_fast is IRQ-safe.
+On Wed, Aug 14, 2019 at 12:17:14PM +0200, Jan Kara wrote:
+> Hello!
 > 
-> vhost is doing some approach where they switch current to the target
-> then call __get_user_pages_fast in an IRQ context, that might be a
-> reasonable pattern
+> On Fri 09-08-19 15:58:14, ira.weiny@intel.com wrote:
+> > Pre-requisites
+> > ==============
+> > 	Based on mmotm tree.
+> > 
+> > Based on the feedback from LSFmm, the LWN article, the RFC series since
+> > then, and a ton of scenarios I've worked in my mind and/or tested...[1]
+> > 
+> > Solution summary
+> > ================
+> > 
+> > The real issue is that there is no use case for a user to have RDMA pinn'ed
+> > memory which is then truncated.  So really any solution we present which:
+> > 
+> > A) Prevents file system corruption or data leaks
+> > ...and...
+> > B) Informs the user that they did something wrong
+> > 
+> > Should be an acceptable solution.
+> > 
+> > Because this is slightly new behavior.  And because this is going to be
+> > specific to DAX (because of the lack of a page cache) we have made the user
+> > "opt in" to this behavior.
+> > 
+> > The following patches implement the following solution.
+> > 
+> > 0) Registrations to Device DAX char devs are not affected
+> > 
+> > 1) The user has to opt in to allowing page pins on a file with an exclusive
+> >    layout lease.  Both exclusive and layout lease flags are user visible now.
+> > 
+> > 2) page pins will fail if the lease is not active when the file back page is
+> >    encountered.
+> > 
+> > 3) Any truncate or hole punch operation on a pinned DAX page will fail.
 > 
-> If this is a regular occurance we should probably add a
-> get_atomic_user_pages_remote() to make the pattern clear.
+> So I didn't fully grok the patch set yet but by "pinned DAX page" do you
+> mean a page which has corresponding file_pin covering it? Or do you mean a
+> page which has pincount increased? If the first then I'd rephrase this to
+> be less ambiguous, if the second then I think it is wrong. 
+
+I mean the second.  but by "fail" I mean hang.  Right now the "normal" page
+pincount processing will hang the truncate.  Given the discussion with John H
+we can make this a bit better if we use something like FOLL_PIN and the page
+count bias to indicate this type of pin.  Then I could fail the truncate
+outright.  but that is not done yet.
+
+so... I used the word "fail" to be a bit more vague as the final implementation
+may return ETXTBUSY or hang as noted.
+
 > 
-> Jason
+> > 4) The user has the option of holding the lease or releasing it.  If they
+> >    release it no other pin calls will work on the file.
+> 
+> Last time we spoke the plan was that the lease is kept while the pages are
+> pinned (and an attempt to release the lease would block until the pages are
+> unpinned). That also makes it clear that the *lease* is what is making
+> truncate and hole punch fail with ETXTBUSY and the file_pin structure is
+> just an implementation detail how the existence is efficiently tracked (and
+> what keeps the backing file for the pages open so that the lease does not
+> get auto-destroyed). Why did you change this?
 
-That makes sense. get_atomic_user_pages_remote() should not be hard to
-write. AFAIKS __get_user_pages_fast is special_cased for current, we
-could probably just add a new parameter of the mm_struct to the page
-table walking code in gup.c
+closing the file _and_ unmaping it will cause the lease to be released
+regardless of if we allow this or not.
 
-But till then I think we can approach this by the way vhost approaches
-this problem by switching current to the target. 
+As we discussed preventing the close seemed intractable.
 
-Thank you
-Bharath
+I thought about failing the munmap but that seemed wrong as well.  But more
+importantly AFAIK RDMA can pass its memory pins to other processes via FD
+passing...  This means that one could pin this memory, pass it to another
+process and exit.  The file lease on the pin'ed file is lost.
+
+The file lease is just a key to get the memory pin.  Once unlocked the procfs
+tracking keeps track of where that pin goes and which processes need to be
+killed to get rid of it.
+
+> 
+> > 5) Closing the file is ok.
+> > 
+> > 6) Unmapping the file is ok
+> > 
+> > 7) Pins against the files are tracked back to an owning file or an owning mm
+> >    depending on the internal subsystem needs.  With RDMA there is an owning
+> >    file which is related to the pined file.
+> > 
+> > 8) Only RDMA is currently supported
+> 
+> If you currently only need "owning file" variant in your patch set, then
+> I'd just implement that and leave "owning mm" variant for later if it
+> proves to be necessary. The things are complex enough as is...
+
+I can do that...  I was trying to get io_uring working as well with the
+owning_mm but I should save that for later.
+
+> 
+> > 9) Truncation of pages which are not actively pinned nor covered by a lease
+> >    will succeed.
+> 
+> Otherwise I like the design.
+
+Thanks,
+Ira
+
+> 
+> 								Honza
+> 
+> -- 
+> Jan Kara <jack@suse.com>
+> SUSE Labs, CR
 
