@@ -2,111 +2,62 @@ Return-Path: <SRS0=g7KO=WK=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-5.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	INCLUDES_PATCH,MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,
-	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.5 required=3.0 tests=MAILING_LIST_MULTI,
+	SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no
+	version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id D2690C433FF
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 11:00:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 2CBD6C32753
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 11:08:55 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 9EA26206C1
-	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 11:00:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9EA26206C1
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
+	by mail.kernel.org (Postfix) with ESMTP id F159F2083B
+	for <linux-mm@archiver.kernel.org>; Wed, 14 Aug 2019 11:08:54 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org F159F2083B
+Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=kernel.org
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 2538D6B0005; Wed, 14 Aug 2019 07:00:30 -0400 (EDT)
+	id 7F3EE6B0005; Wed, 14 Aug 2019 07:08:54 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 1DF536B0006; Wed, 14 Aug 2019 07:00:30 -0400 (EDT)
+	id 77DCA6B0006; Wed, 14 Aug 2019 07:08:54 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 0A51F6B0007; Wed, 14 Aug 2019 07:00:30 -0400 (EDT)
+	id 66B256B0007; Wed, 14 Aug 2019 07:08:54 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0241.hostedemail.com [216.40.44.241])
-	by kanga.kvack.org (Postfix) with ESMTP id D7CC46B0005
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 07:00:29 -0400 (EDT)
-Received: from smtpin28.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay04.hostedemail.com (Postfix) with SMTP id 8178A4859
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:00:29 +0000 (UTC)
-X-FDA: 75820739778.28.form25_3e6f0ecc17b1b
-X-HE-Tag: form25_3e6f0ecc17b1b
-X-Filterd-Recvd-Size: 6172
+Received: from forelay.hostedemail.com (smtprelay0069.hostedemail.com [216.40.44.69])
+	by kanga.kvack.org (Postfix) with ESMTP id 408606B0005
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 07:08:54 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay02.hostedemail.com (Postfix) with SMTP id C6BE645BA
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:08:53 +0000 (UTC)
+X-FDA: 75820760946.21.wish17_87d07d20c693b
+X-HE-Tag: wish17_87d07d20c693b
+X-Filterd-Recvd-Size: 5175
 Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
-	by imf37.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:00:28 +0000 (UTC)
+	by imf41.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Wed, 14 Aug 2019 11:08:53 +0000 (UTC)
 X-Virus-Scanned: by amavisd-new at test-mx.suse.de
 Received: from relay2.suse.de (unknown [195.135.220.254])
-	by mx1.suse.de (Postfix) with ESMTP id 3537FADEF;
-	Wed, 14 Aug 2019 11:00:26 +0000 (UTC)
-Received: by quack2.suse.cz (Postfix, from userid 1000)
-	id 81D741E4200; Wed, 14 Aug 2019 13:00:22 +0200 (CEST)
-Date: Wed, 14 Aug 2019 13:00:22 +0200
-From: Jan Kara <jack@suse.cz>
-To: Mark Salyzyn <salyzyn@android.com>
-Cc: linux-kernel@vger.kernel.org, kernel-team@android.com,
-	Tyler Hicks <tyhicks@canonical.com>,
-	Dominique Martinet <asmadeus@codewreck.org>,
-	"David S. Miller" <davem@davemloft.net>,
-	Mathieu Malaterre <malat@debian.org>,
-	Andreas Dilger <adilger.kernel@dilger.ca>,
-	devel@driverdev.osuosl.org, Vyacheslav Dubeyko <slava@dubeyko.com>,
-	Joel Becker <jlbec@evilplan.org>, Mark Fasheh <mark@fasheh.com>,
-	Chris Mason <clm@fb.com>, Artem Bityutskiy <dedekind1@gmail.com>,
-	Eric Van Hensbergen <ericvh@gmail.com>,
-	Ernesto =?iso-8859-1?Q?A=2E_Fern=E1ndez?= <ernesto.mnd.fernandez@gmail.com>,
-	Ilya Dryomov <idryomov@gmail.com>, Hugh Dickins <hughd@google.com>,
-	Serge Hallyn <serge@hallyn.com>,
-	Trond Myklebust <trond.myklebust@hammerspace.com>,
-	Gao Xiang <gaoxiang25@huawei.com>, Chao Yu <yuchao0@huawei.com>,
-	David Woodhouse <dwmw2@infradead.org>,
-	Adrian Hunter <adrian.hunter@intel.com>,
-	Latchesar Ionkov <lucho@ionkov.net>,
-	Jaegeuk Kim <jaegeuk@kernel.org>, Jeff Layton <jlayton@kernel.org>,
-	Dave Kleikamp <shaggy@kernel.org>, Tejun Heo <tj@kernel.org>,
-	linux-mm@kvack.org, Andrew Morton <akpm@linux-foundation.org>,
-	Joseph Qi <joseph.qi@linux.alibaba.com>,
-	Mimi Zohar <zohar@linux.ibm.com>,
-	Greg Kroah-Hartman <gregkh@linuxfoundation.org>,
-	linux-afs@lists.infradead.org, linux-mtd@lists.infradead.org,
-	devel@lists.orangefs.org, linux-erofs@lists.ozlabs.org,
-	samba-technical@lists.samba.org,
-	jfs-discussion@lists.sourceforge.net,
-	linux-f2fs-devel@lists.sourceforge.net,
-	v9fs-developer@lists.sourceforge.net, Theodore Ts'o <tytso@mit.edu>,
-	James Morris <jmorris@namei.org>,
-	Anna Schumaker <anna.schumaker@netapp.com>,
-	Richard Weinberger <richard@nod.at>,
-	Mike Marshall <hubcap@omnibond.com>,
-	Martin Brandenburg <martin@omnibond.com>,
-	"Darrick J. Wong" <darrick.wong@oracle.com>,
-	ocfs2-devel@oss.oracle.com, Eric Paris <eparis@parisplace.org>,
-	Paul Moore <paul@paul-moore.com>,
-	Andreas Gruenbacher <agruenba@redhat.com>, cluster-devel@redhat.com,
-	David Howells <dhowells@redhat.com>,
-	Bob Peterson <rpeterso@redhat.com>, Sage Weil <sage@redhat.com>,
-	Steve French <sfrench@samba.org>,
-	Casey Schaufler <casey@schaufler-ca.com>,
-	Phillip Lougher <phillip@squashfs.org.uk>,
-	David Sterba <dsterba@suse.com>, Jan Kara <jack@suse.com>,
-	Miklos Szeredi <miklos@szeredi.hu>,
-	Josef Bacik <josef@toxicpanda.com>,
-	Stephen Smalley <sds@tycho.nsa.gov>, ceph-devel@vger.kernel.org,
-	ecryptfs@vger.kernel.org, linux-btrfs@vger.kernel.org,
-	linux-cifs@vger.kernel.org, linux-ext4@vger.kernel.org,
-	linux-fsdevel@vger.kernel.org, linux-integrity@vger.kernel.org,
-	linux-nfs@vger.kernel.org, linux-security-module@vger.kernel.org,
-	linux-unionfs@vger.kernel.org, linux-xfs@vger.kernel.org,
-	netdev@vger.kernel.org, reiserfs-devel@vger.kernel.org,
-	selinux@vger.kernel.org, stable@vger.kernel.org,
-	Alexander Viro <viro@zeniv.linux.org.uk>
-Subject: Re: [PATCH v2] Add flags option to get xattr method paired to
- __vfs_getxattr
-Message-ID: <20190814110022.GB26273@quack2.suse.cz>
-References: <20190813145527.26289-1-salyzyn@android.com>
+	by mx1.suse.de (Postfix) with ESMTP id D4950AF9F;
+	Wed, 14 Aug 2019 11:08:51 +0000 (UTC)
+Date: Wed, 14 Aug 2019 13:08:50 +0200
+From: Michal Hocko <mhocko@kernel.org>
+To: Yang Shi <yang.shi@linux.alibaba.com>
+Cc: kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, vbabka@suse.cz,
+	rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org,
+	linux-kernel@vger.kernel.org
+Subject: Re: [RESEND PATCH 1/2 -mm] mm: account lazy free pages separately
+Message-ID: <20190814110850.GT17933@dhcp22.suse.cz>
+References: <1565308665-24747-1-git-send-email-yang.shi@linux.alibaba.com>
+ <20190809083216.GM18351@dhcp22.suse.cz>
+ <1a3c4185-c7ab-8d6f-8191-77dce02025a7@linux.alibaba.com>
+ <20190809180238.GS18351@dhcp22.suse.cz>
+ <79c90f6b-fcac-02e1-015a-0eaa4eafdf7d@linux.alibaba.com>
+ <fb1f4958-5147-2fab-531f-d234806c2f37@linux.alibaba.com>
+ <20190812093430.GD5117@dhcp22.suse.cz>
+ <297aefa2-ba64-cb91-d2c8-733054db01a3@linux.alibaba.com>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190813145527.26289-1-salyzyn@android.com>
+In-Reply-To: <297aefa2-ba64-cb91-d2c8-733054db01a3@linux.alibaba.com>
 User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
@@ -114,68 +65,79 @@ Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Tue 13-08-19 07:55:06, Mark Salyzyn wrote:
-...
-> diff --git a/fs/xattr.c b/fs/xattr.c
-> index 90dd78f0eb27..71f887518d6f 100644
-> --- a/fs/xattr.c
-> +++ b/fs/xattr.c
-...
->  ssize_t
->  __vfs_getxattr(struct dentry *dentry, struct inode *inode, const char *name,
-> -	       void *value, size_t size)
-> +	       void *value, size_t size, int flags)
->  {
->  	const struct xattr_handler *handler;
-> -
-> -	handler = xattr_resolve_name(inode, &name);
-> -	if (IS_ERR(handler))
-> -		return PTR_ERR(handler);
-> -	if (!handler->get)
-> -		return -EOPNOTSUPP;
-> -	return handler->get(handler, dentry, inode, name, value, size);
-> -}
-> -EXPORT_SYMBOL(__vfs_getxattr);
-> -
-> -ssize_t
-> -vfs_getxattr(struct dentry *dentry, const char *name, void *value, size_t size)
-> -{
-> -	struct inode *inode = dentry->d_inode;
->  	int error;
->  
-> +	if (flags & XATTR_NOSECURITY)
-> +		goto nolsm;
+On Mon 12-08-19 10:00:17, Yang Shi wrote:
+> 
+> 
+> On 8/12/19 2:34 AM, Michal Hocko wrote:
+> > On Fri 09-08-19 16:54:43, Yang Shi wrote:
+> > > 
+> > > On 8/9/19 11:26 AM, Yang Shi wrote:
+> > > > 
+> > > > On 8/9/19 11:02 AM, Michal Hocko wrote:
+> > [...]
+> > > > > I have to study the code some more but is there any reason why those
+> > > > > pages are not accounted as proper THPs anymore? Sure they are partially
+> > > > > unmaped but they are still THPs so why cannot we keep them accounted
+> > > > > like that. Having a new counter to reflect that sounds like papering
+> > > > > over the problem to me. But as I've said I might be missing something
+> > > > > important here.
+> > > > I think we could keep those pages accounted for NR_ANON_THPS since they
+> > > > are still THP although they are unmapped as you mentioned if we just
+> > > > want to fix the improper accounting.
+> > > By double checking what NR_ANON_THPS really means,
+> > > Documentation/filesystems/proc.txt says "Non-file backed huge pages mapped
+> > > into userspace page tables". Then it makes some sense to dec NR_ANON_THPS
+> > > when removing rmap even though they are still THPs.
+> > > 
+> > > I don't think we would like to change the definition, if so a new counter
+> > > may make more sense.
+> > Yes, changing NR_ANON_THPS semantic sounds like a bad idea. Let
+> > me try whether I understand the problem. So we have some THP in
+> > limbo waiting for them to be split and unmapped parts to be freed,
+> > right? I can see that page_remove_anon_compound_rmap does correctly
+> > decrement NR_ANON_MAPPED for sub pages that are no longer mapped by
+> > anybody. LRU pages seem to be accounted properly as well.  As you've
+> > said NR_ANON_THPS reflects the number of THPs mapped and that should be
+> > reflecting the reality already IIUC.
+> > 
+> > So the only problem seems to be that deferred THP might aggregate a lot
+> > of immediately freeable memory (if none of the subpages are mapped) and
+> > that can confuse MemAvailable because it doesn't know about the fact.
+> > Has an skewed counter resulted in a user observable behavior/failures?
+> 
+> No. But the skewed counter may make big difference for a big scale cluster.
+> The MemAvailable is an important factor for cluster scheduler to determine
+> the capacity.
 
-Hum, is it OK for XATTR_NOSECURITY to skip even the xattr_permission()
-check? I understand that for reads of security xattrs it actually does not
-matter in practice but conceptually that seems wrong to me as
-XATTR_NOSECURITY is supposed to skip just security-module checks to avoid
-recursion AFAIU.
+But MemAvailable is a very rough estimation. Is relying on it really a
+good measure? I mean there is a lot of reclaimable memory that is not
+reflected there (some fs. internal data structures, networking buffers
+etc.)
 
-> diff --git a/include/uapi/linux/xattr.h b/include/uapi/linux/xattr.h
-> index c1395b5bd432..1216d777d210 100644
-> --- a/include/uapi/linux/xattr.h
-> +++ b/include/uapi/linux/xattr.h
-> @@ -17,8 +17,9 @@
->  #if __UAPI_DEF_XATTR
->  #define __USE_KERNEL_XATTR_DEFS
->  
-> -#define XATTR_CREATE	0x1	/* set value, fail if attr already exists */
-> -#define XATTR_REPLACE	0x2	/* set value, fail if attr does not exist */
-> +#define XATTR_CREATE	 0x1	/* set value, fail if attr already exists */
-> +#define XATTR_REPLACE	 0x2	/* set value, fail if attr does not exist */
-> +#define XATTR_NOSECURITY 0x4	/* get value, do not involve security check */
->  #endif
+[...]
 
-It seems confusing to export XATTR_NOSECURITY definition to userspace when
-that is kernel-internal flag. I'd just define it in include/linux/xattr.h
-somewhere from the top of flags space (like 0x40000000).
+> > accounting the full THP correct? What if subpages are still mapped?
+> 
+> "Deferred split" definitely doesn't mean they are free. When memory pressure
+> is hit, they would be split, then the unmapped normal pages would be freed.
+> So, when calculating MemAvailable, they are not accounted 100%, but like
+> "available += lazyfree - min(lazyfree / 2, wmark_low)", just like how page
+> cache is accounted.
 
-Otherwise the patch looks OK to me (cannot really comment on the security
-module aspect of this whole thing though).
+Then this is even more dubious IMHO.
 
-								Honza
+> We could get more accurate account, i.e. checking each sub page's mapcount
+> when accounting, but it may change before shrinker start scanning. So, just
+> use the ballpark estimation to trade off the complexity for accurate
+> accounting.
+
+I do not see much point in fixing up one particular counter when there
+is a whole lot that is even not considered. I would rather live with the
+fact that MemAvailable is only very rough estimate then whack a mole on
+any memory consumer that is freeable directly or indirectly via memory
+reclaim. Because this is likely to be always subtly broken and only
+visible under very specific workloads so there is no way to test for it.
 -- 
-Jan Kara <jack@suse.com>
-SUSE Labs, CR
+Michal Hocko
+SUSE Labs
 
