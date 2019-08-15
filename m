@@ -6,59 +6,56 @@ X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
 	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,UNPARSEABLE_RELAY,USER_AGENT_SANE_1
 	autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 325D3C31E40
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 04:52:01 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 89FE1C31E40
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 04:53:43 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id DA1AC2067D
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 04:52:00 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org DA1AC2067D
+	by mail.kernel.org (Postfix) with ESMTP id 59550208C2
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 04:53:42 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 59550208C2
 Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=linux.alibaba.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 488146B0003; Thu, 15 Aug 2019 00:52:00 -0400 (EDT)
+	id 262D26B0007; Thu, 15 Aug 2019 00:53:42 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 4395D6B0005; Thu, 15 Aug 2019 00:52:00 -0400 (EDT)
+	id 1EBE76B0008; Thu, 15 Aug 2019 00:53:42 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 34E9B6B0007; Thu, 15 Aug 2019 00:52:00 -0400 (EDT)
+	id 0B3786B000A; Thu, 15 Aug 2019 00:53:42 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0026.hostedemail.com [216.40.44.26])
-	by kanga.kvack.org (Postfix) with ESMTP id 1465F6B0003
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:52:00 -0400 (EDT)
+Received: from forelay.hostedemail.com (smtprelay0142.hostedemail.com [216.40.44.142])
+	by kanga.kvack.org (Postfix) with ESMTP id D7D9D6B0007
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 00:53:41 -0400 (EDT)
 Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id A47B8181AC9AE
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 04:51:59 +0000 (UTC)
-X-FDA: 75823439958.19.walk28_6881e4b98b70b
-X-HE-Tag: walk28_6881e4b98b70b
-X-Filterd-Recvd-Size: 6107
-Received: from out30-44.freemail.mail.aliyun.com (out30-44.freemail.mail.aliyun.com [115.124.30.44])
-	by imf26.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 04:51:57 +0000 (UTC)
-X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R141e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e01422;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=8;SR=0;TI=SMTPD_---0TZWDJRR_1565844709;
-Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TZWDJRR_1565844709)
+	by forelay05.hostedemail.com (Postfix) with SMTP id 49243181AC9AE
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 04:53:41 +0000 (UTC)
+X-FDA: 75823444242.19.magic77_776559f2cbf56
+X-HE-Tag: magic77_776559f2cbf56
+X-Filterd-Recvd-Size: 3204
+Received: from out30-54.freemail.mail.aliyun.com (out30-54.freemail.mail.aliyun.com [115.124.30.54])
+	by imf05.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 04:53:40 +0000 (UTC)
+X-Alimail-AntiSpam:AC=PASS;BC=-1|-1;BR=01201311R581e4;CH=green;DM=||false|;FP=0|-1|-1|-1|0|-1|-1|-1;HT=e01e07487;MF=yang.shi@linux.alibaba.com;NM=1;PH=DS;RN=9;SR=0;TI=SMTPD_---0TZWJOlV_1565844812;
+Received: from US-143344MP.local(mailfrom:yang.shi@linux.alibaba.com fp:SMTPD_---0TZWJOlV_1565844812)
           by smtp.aliyun-inc.com(127.0.0.1);
-          Thu, 15 Aug 2019 12:51:52 +0800
+          Thu, 15 Aug 2019 12:53:36 +0800
 Subject: Re: [RESEND PATCH 1/2 -mm] mm: account lazy free pages separately
-To: Michal Hocko <mhocko@kernel.org>
-Cc: kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, vbabka@suse.cz,
- rientjes@google.com, akpm@linux-foundation.org, linux-mm@kvack.org,
- linux-kernel@vger.kernel.org
+To: Vlastimil Babka <vbabka@suse.cz>, Michal Hocko <mhocko@kernel.org>
+Cc: kirill.shutemov@linux.intel.com, hannes@cmpxchg.org, rientjes@google.com,
+ akpm@linux-foundation.org, linux-mm@kvack.org, linux-kernel@vger.kernel.org,
+ Linux API <linux-api@vger.kernel.org>
 References: <1565308665-24747-1-git-send-email-yang.shi@linux.alibaba.com>
  <20190809083216.GM18351@dhcp22.suse.cz>
  <1a3c4185-c7ab-8d6f-8191-77dce02025a7@linux.alibaba.com>
  <20190809180238.GS18351@dhcp22.suse.cz>
  <79c90f6b-fcac-02e1-015a-0eaa4eafdf7d@linux.alibaba.com>
- <fb1f4958-5147-2fab-531f-d234806c2f37@linux.alibaba.com>
- <20190812093430.GD5117@dhcp22.suse.cz>
- <297aefa2-ba64-cb91-d2c8-733054db01a3@linux.alibaba.com>
- <20190814110850.GT17933@dhcp22.suse.cz>
+ <564a0860-94f1-6301-5527-5c2272931d8b@suse.cz>
 From: Yang Shi <yang.shi@linux.alibaba.com>
-Message-ID: <a8005ff4-4749-8c71-ee4e-7ebda5c49de6@linux.alibaba.com>
-Date: Wed, 14 Aug 2019 21:51:47 -0700
+Message-ID: <96bd67c0-e53e-9802-a461-19ce47bba021@linux.alibaba.com>
+Date: Wed, 14 Aug 2019 21:53:30 -0700
 User-Agent: Mozilla/5.0 (Macintosh; Intel Mac OS X 10.12; rv:52.0)
  Gecko/20100101 Thunderbird/52.7.0
 MIME-Version: 1.0
-In-Reply-To: <20190814110850.GT17933@dhcp22.suse.cz>
+In-Reply-To: <564a0860-94f1-6301-5527-5c2272931d8b@suse.cz>
 Content-Type: text/plain; charset=utf-8; format=flowed
 Content-Transfer-Encoding: 7bit
 Content-Language: en-US
@@ -70,83 +67,36 @@ List-ID: <linux-mm.kvack.org>
 
 
 
-On 8/14/19 4:08 AM, Michal Hocko wrote:
-> On Mon 12-08-19 10:00:17, Yang Shi wrote:
+On 8/14/19 5:49 AM, Vlastimil Babka wrote:
+> On 8/9/19 8:26 PM, Yang Shi wrote:
+>> Here the new counter is introduced for patch 2/2 to account deferred
+>> split THPs into available memory since NR_ANON_THPS may contain
+>> non-deferred split THPs.
 >>
->> On 8/12/19 2:34 AM, Michal Hocko wrote:
->>> On Fri 09-08-19 16:54:43, Yang Shi wrote:
->>>> On 8/9/19 11:26 AM, Yang Shi wrote:
->>>>> On 8/9/19 11:02 AM, Michal Hocko wrote:
->>> [...]
->>>>>> I have to study the code some more but is there any reason why those
->>>>>> pages are not accounted as proper THPs anymore? Sure they are partially
->>>>>> unmaped but they are still THPs so why cannot we keep them accounted
->>>>>> like that. Having a new counter to reflect that sounds like papering
->>>>>> over the problem to me. But as I've said I might be missing something
->>>>>> important here.
->>>>> I think we could keep those pages accounted for NR_ANON_THPS since they
->>>>> are still THP although they are unmapped as you mentioned if we just
->>>>> want to fix the improper accounting.
->>>> By double checking what NR_ANON_THPS really means,
->>>> Documentation/filesystems/proc.txt says "Non-file backed huge pages mapped
->>>> into userspace page tables". Then it makes some sense to dec NR_ANON_THPS
->>>> when removing rmap even though they are still THPs.
->>>>
->>>> I don't think we would like to change the definition, if so a new counter
->>>> may make more sense.
->>> Yes, changing NR_ANON_THPS semantic sounds like a bad idea. Let
->>> me try whether I understand the problem. So we have some THP in
->>> limbo waiting for them to be split and unmapped parts to be freed,
->>> right? I can see that page_remove_anon_compound_rmap does correctly
->>> decrement NR_ANON_MAPPED for sub pages that are no longer mapped by
->>> anybody. LRU pages seem to be accounted properly as well.  As you've
->>> said NR_ANON_THPS reflects the number of THPs mapped and that should be
->>> reflecting the reality already IIUC.
->>>
->>> So the only problem seems to be that deferred THP might aggregate a lot
->>> of immediately freeable memory (if none of the subpages are mapped) and
->>> that can confuse MemAvailable because it doesn't know about the fact.
->>> Has an skewed counter resulted in a user observable behavior/failures?
->> No. But the skewed counter may make big difference for a big scale cluster.
->> The MemAvailable is an important factor for cluster scheduler to determine
->> the capacity.
-> But MemAvailable is a very rough estimation. Is relying on it really a
-> good measure? I mean there is a lot of reclaimable memory that is not
-> reflected there (some fs. internal data structures, networking buffers
-> etc.)
+>> I could use an internal counter for deferred split THPs, but if it is
+>> accounted by mod_node_page_state, why not just show it in /proc/meminfo?
+> The answer to "Why not" is that it becomes part of userspace API (btw this
+> patchset should have CC'd linux-api@ - please do for further iterations) and
+> even if the implementation detail of deferred splitting might change in the
+> future, we'll basically have to keep the counter (even with 0 value) in
+> /proc/meminfo forever.
+>
+> Also, quite recently we have added the following counter:
+>
+> KReclaimable: Kernel allocations that the kernel will attempt to reclaim
+>                under memory pressure. Includes SReclaimable (below), and other
+>                direct allocations with a shrinker.
+>
+> Although THP allocations are not exactly "kernel allocations", once they are
+> unmapped, they are in fact kernel-only, so IMHO it wouldn't be a big stretch to
+> add the lazy THP pages there?
 
-Yes, I agree there are other freeable objects not accounted into 
-MemAvailable. Their size depends on the workload. But, deferred split 
-THPs seems more common with the common workloads. A simple run with 
-MariaDB test of mmtest shows it could generate over fifteen thousand 
-deferred split THPs (accumulated around 30G in one hour run, 75% of 40G 
-memory for my VM). So, it may be worth accounting deferred split THPs in 
-MemAvailable.
+Thanks a lot for the suggestion. I agree it may be a good fit. Hope 
+"kernel allocations" not cause confusion. But, we can explain in the 
+documentation.
 
 >
-> [...]
->
->>> accounting the full THP correct? What if subpages are still mapped?
->> "Deferred split" definitely doesn't mean they are free. When memory pressure
->> is hit, they would be split, then the unmapped normal pages would be freed.
->> So, when calculating MemAvailable, they are not accounted 100%, but like
->> "available += lazyfree - min(lazyfree / 2, wmark_low)", just like how page
->> cache is accounted.
-> Then this is even more dubious IMHO.
->
->> We could get more accurate account, i.e. checking each sub page's mapcount
->> when accounting, but it may change before shrinker start scanning. So, just
->> use the ballpark estimation to trade off the complexity for accurate
->> accounting.
-> I do not see much point in fixing up one particular counter when there
-> is a whole lot that is even not considered. I would rather live with the
-> fact that MemAvailable is only very rough estimate then whack a mole on
-> any memory consumer that is freeable directly or indirectly via memory
-> reclaim. Because this is likely to be always subtly broken and only
-> visible under very specific workloads so there is no way to test for it.
-
-I saw Vlastimil suggested KReclaimable, it seems a good fit. If so we 
-don't need create a new counter anymore.
-
+>> Or we fix NR_ANON_THPS and show deferred split THPs in /proc/meminfo?
+>>
 
 
