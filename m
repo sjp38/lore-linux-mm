@@ -2,207 +2,536 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=ham autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 6C3ADC3A59C
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:12:23 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 6A21DC3A589
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:32:29 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 221B6208C2
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:12:22 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="XeuqQCC7"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 221B6208C2
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 18CD4206C1
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:32:28 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 18CD4206C1
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 999B06B028A; Thu, 15 Aug 2019 10:12:22 -0400 (EDT)
+	id 964526B028D; Thu, 15 Aug 2019 10:32:28 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 9232A6B028C; Thu, 15 Aug 2019 10:12:22 -0400 (EDT)
+	id 913D26B028E; Thu, 15 Aug 2019 10:32:28 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 7EA1D6B028D; Thu, 15 Aug 2019 10:12:22 -0400 (EDT)
+	id 7B42F6B028F; Thu, 15 Aug 2019 10:32:28 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0049.hostedemail.com [216.40.44.49])
-	by kanga.kvack.org (Postfix) with ESMTP id 550196B028A
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:12:22 -0400 (EDT)
-Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay05.hostedemail.com (Postfix) with SMTP id E18F5181AC9AE
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:12:21 +0000 (UTC)
-X-FDA: 75824852082.08.dolls64_31ab26b747b47
-X-HE-Tag: dolls64_31ab26b747b47
-X-Filterd-Recvd-Size: 8507
-Received: from mail-qk1-f193.google.com (mail-qk1-f193.google.com [209.85.222.193])
-	by imf48.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:12:21 +0000 (UTC)
-Received: by mail-qk1-f193.google.com with SMTP id m2so1878676qki.12
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 07:12:21 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=x9tHuYoDj493ySsdiocBgo6BvbYr3tE408m35OPfD4Q=;
-        b=XeuqQCC74y0Tv1RcnQ+QEVxSfwBYVcbFQBv+jHQag9nVoOXYoudI2lsh2oUCEAr39H
-         sOBQIHpCJGpf7SZDnsCbABopShyqJF2q2pi6SScyiS2HfIeCvK099//uePU5aMlLfWT6
-         9rT/cI5D9uxh84+vzkj7b39A9JCbigiI8u5l63sz2xgiIZS4oQhkLKvvXrLyOi/jHouS
-         FHbctFaUe8dq9V6Xp87qmVqN+IWfrjgvVxMfluoX3mjYCvUeczlqt9UvXBmeMyoUR00/
-         t5fYmPRvwnODhoTvJWr3AELdv5sIvrNPS63oJojBRQ8h+bdOj03joAvRyD4cBFwQn3n0
-         vq0g==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=x9tHuYoDj493ySsdiocBgo6BvbYr3tE408m35OPfD4Q=;
-        b=P52fSThkFXb6OvRXkhjRksNmGB2fUoEFo527XXcFwsRJT+Ujq7G0P9p6IVA//Npwpj
-         lerpkCHTALcdYFpYUvJyiSqkz+95psykLt4bCksuQZeLnlSr90O/bzGHAhRcYyp8Bt3P
-         D/r4qfbvTYx3fk0LuQbeKLRHNkjJJQsYVcM3Kg9x7W3LTC9JOoVB7hseYBVbUdaARRNi
-         6lFYP6e7aLKviUAC4tdQRQmYm4iCTAzCOQ3KoNqR8JN8PLwWRxYRwI1FAEasRUMOR995
-         EFH7j3djEtIxiFAwP054HNOudXaR0cu61/d/b7OFltB2G0bRJWbDPGyF/ZBuf6A4mVPD
-         Us1A==
-X-Gm-Message-State: APjAAAX8Mom+4bb6acbrQ4V0RoQRPyfzZFKtz0QFxUiZT5fUC8AsNwvo
-	DkGzZo7aIlztPJIYFKrtgA0Kbw==
-X-Google-Smtp-Source: APXvYqz16XhS3FDKKD5LBLAsMVIBRO6xvZ5cmQP2Rz9DeNPuZ4bmBJXLkXIkrLSg+KeUbMTyo0lWcg==
-X-Received: by 2002:ae9:f812:: with SMTP id x18mr4132770qkh.290.1565878340460;
-        Thu, 15 Aug 2019 07:12:20 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id o201sm1475995qka.14.2019.08.15.07.12.19
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 15 Aug 2019 07:12:20 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hyGUF-0004xm-IP; Thu, 15 Aug 2019 11:12:19 -0300
-Date: Thu, 15 Aug 2019 11:12:19 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Michal Hocko <mhocko@kernel.org>
-Cc: LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	David Rientjes <rientjes@google.com>,
-	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Wei Wang <wvw@google.com>,
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
-	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	Daniel Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
-Message-ID: <20190815141219.GF21596@ziepe.ca>
-References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
- <20190814202027.18735-3-daniel.vetter@ffwll.ch>
- <20190814235805.GB11200@ziepe.ca>
- <20190815065829.GA7444@phenom.ffwll.local>
- <20190815122344.GA21596@ziepe.ca>
- <20190815132127.GI9477@dhcp22.suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0112.hostedemail.com [216.40.44.112])
+	by kanga.kvack.org (Postfix) with ESMTP id 4DE706B028D
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:32:28 -0400 (EDT)
+Received: from smtpin30.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id AD0C745D8
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:32:27 +0000 (UTC)
+X-FDA: 75824902734.30.debt41_4f9396613fd28
+X-HE-Tag: debt41_4f9396613fd28
+X-Filterd-Recvd-Size: 20159
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf10.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:32:26 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id D9414AEE5;
+	Thu, 15 Aug 2019 14:32:24 +0000 (UTC)
+Subject: Re: [Bug 204407] New: Bad page state in process Xorg
+To: Petr Vandrovec <petr@vandrovec.name>, Matthew Wilcox <willy@infradead.org>
+Cc: Qian Cai <cai@lca.pw>, Andrew Morton <akpm@linux-foundation.org>,
+ bugzilla-daemon@bugzilla.kernel.org,
+ Christian Koenig <christian.koenig@amd.com>, Huang Rui <ray.huang@amd.com>,
+ David Airlie <airlied@linux.ie>, Daniel Vetter <daniel@ffwll.ch>,
+ dri-devel@lists.freedesktop.org, linux-mm@kvack.org
+References: <bug-204407-27@https.bugzilla.kernel.org/>
+ <20190802132306.e945f4420bc2dcddd8d34f75@linux-foundation.org>
+ <20190802203344.GD5597@bombadil.infradead.org>
+ <1564780650.11067.50.camel@lca.pw>
+ <20190802225939.GE5597@bombadil.infradead.org>
+ <CA+i2_Dc-VrOUk8EVThwAE5HZ1-zFqONuW8Gojv+16UPsAqoM1Q@mail.gmail.com>
+From: Vlastimil Babka <vbabka@suse.cz>
+Openpgp: preference=signencrypt
+Autocrypt: addr=vbabka@suse.cz; prefer-encrypt=mutual; keydata=
+ mQINBFZdmxYBEADsw/SiUSjB0dM+vSh95UkgcHjzEVBlby/Fg+g42O7LAEkCYXi/vvq31JTB
+ KxRWDHX0R2tgpFDXHnzZcQywawu8eSq0LxzxFNYMvtB7sV1pxYwej2qx9B75qW2plBs+7+YB
+ 87tMFA+u+L4Z5xAzIimfLD5EKC56kJ1CsXlM8S/LHcmdD9Ctkn3trYDNnat0eoAcfPIP2OZ+
+ 9oe9IF/R28zmh0ifLXyJQQz5ofdj4bPf8ecEW0rhcqHfTD8k4yK0xxt3xW+6Exqp9n9bydiy
+ tcSAw/TahjW6yrA+6JhSBv1v2tIm+itQc073zjSX8OFL51qQVzRFr7H2UQG33lw2QrvHRXqD
+ Ot7ViKam7v0Ho9wEWiQOOZlHItOOXFphWb2yq3nzrKe45oWoSgkxKb97MVsQ+q2SYjJRBBH4
+ 8qKhphADYxkIP6yut/eaj9ImvRUZZRi0DTc8xfnvHGTjKbJzC2xpFcY0DQbZzuwsIZ8OPJCc
+ LM4S7mT25NE5kUTG/TKQCk922vRdGVMoLA7dIQrgXnRXtyT61sg8PG4wcfOnuWf8577aXP1x
+ 6mzw3/jh3F+oSBHb/GcLC7mvWreJifUL2gEdssGfXhGWBo6zLS3qhgtwjay0Jl+kza1lo+Cv
+ BB2T79D4WGdDuVa4eOrQ02TxqGN7G0Biz5ZLRSFzQSQwLn8fbwARAQABtCBWbGFzdGltaWwg
+ QmFia2EgPHZiYWJrYUBzdXNlLmN6PokCVAQTAQoAPgIbAwULCQgHAwUVCgkICwUWAgMBAAIe
+ AQIXgBYhBKlA1DSZLC6OmRA9UCJPp+fMgqZkBQJcbbyGBQkH8VTqAAoJECJPp+fMgqZkpGoP
+ /1jhVihakxw1d67kFhPgjWrbzaeAYOJu7Oi79D8BL8Vr5dmNPygbpGpJaCHACWp+10KXj9yz
+ fWABs01KMHnZsAIUytVsQv35DMMDzgwVmnoEIRBhisMYOQlH2bBn/dqBjtnhs7zTL4xtqEcF
+ 1hoUFEByMOey7gm79utTk09hQE/Zo2x0Ikk98sSIKBETDCl4mkRVRlxPFl4O/w8dSaE4eczH
+ LrKezaFiZOv6S1MUKVKzHInonrCqCNbXAHIeZa3JcXCYj1wWAjOt9R3NqcWsBGjFbkgoKMGD
+ usiGabetmQjXNlVzyOYdAdrbpVRNVnaL91sB2j8LRD74snKsV0Wzwt90YHxDQ5z3M75YoIdl
+ byTKu3BUuqZxkQ/emEuxZ7aRJ1Zw7cKo/IVqjWaQ1SSBDbZ8FAUPpHJxLdGxPRN8Pfw8blKY
+ 8mvLJKoF6i9T6+EmlyzxqzOFhcc4X5ig5uQoOjTIq6zhLO+nqVZvUDd2Kz9LMOCYb516cwS/
+ Enpi0TcZ5ZobtLqEaL4rupjcJG418HFQ1qxC95u5FfNki+YTmu6ZLXy+1/9BDsPuZBOKYpUm
+ 3HWSnCS8J5Ny4SSwfYPH/JrtberWTcCP/8BHmoSpS/3oL3RxrZRRVnPHFzQC6L1oKvIuyXYF
+ rkybPXYbmNHN+jTD3X8nRqo+4Qhmu6SHi3VquQENBFsZNQwBCACuowprHNSHhPBKxaBX7qOv
+ KAGCmAVhK0eleElKy0sCkFghTenu1sA9AV4okL84qZ9gzaEoVkgbIbDgRbKY2MGvgKxXm+kY
+ n8tmCejKoeyVcn9Xs0K5aUZiDz4Ll9VPTiXdf8YcjDgeP6/l4kHb4uSW4Aa9ds0xgt0gP1Xb
+ AMwBlK19YvTDZV5u3YVoGkZhspfQqLLtBKSt3FuxTCU7hxCInQd3FHGJT/IIrvm07oDO2Y8J
+ DXWHGJ9cK49bBGmK9B4ajsbe5GxtSKFccu8BciNluF+BqbrIiM0upJq5Xqj4y+Xjrpwqm4/M
+ ScBsV0Po7qdeqv0pEFIXKj7IgO/d4W2bABEBAAGJA3IEGAEKACYWIQSpQNQ0mSwujpkQPVAi
+ T6fnzIKmZAUCWxk1DAIbAgUJA8JnAAFACRAiT6fnzIKmZMB0IAQZAQoAHRYhBKZ2GgCcqNxn
+ k0Sx9r6Fd25170XjBQJbGTUMAAoJEL6Fd25170XjDBUH/2jQ7a8g+FC2qBYxU/aCAVAVY0NE
+ YuABL4LJ5+iWwmqUh0V9+lU88Cv4/G8fWwU+hBykSXhZXNQ5QJxyR7KWGy7LiPi7Cvovu+1c
+ 9Z9HIDNd4u7bxGKMpn19U12ATUBHAlvphzluVvXsJ23ES/F1c59d7IrgOnxqIcXxr9dcaJ2K
+ k9VP3TfrjP3g98OKtSsyH0xMu0MCeyewf1piXyukFRRMKIErfThhmNnLiDbaVy6biCLx408L
+ Mo4cCvEvqGKgRwyckVyo3JuhqreFeIKBOE1iHvf3x4LU8cIHdjhDP9Wf6ws1XNqIvve7oV+w
+ B56YWoalm1rq00yUbs2RoGcXmtX1JQ//aR/paSuLGLIb3ecPB88rvEXPsizrhYUzbe1TTkKc
+ 4a4XwW4wdc6pRPVFMdd5idQOKdeBk7NdCZXNzoieFntyPpAq+DveK01xcBoXQ2UktIFIsXey
+ uSNdLd5m5lf7/3f0BtaY//f9grm363NUb9KBsTSnv6Vx7Co0DWaxgC3MFSUhxzBzkJNty+2d
+ 10jvtwOWzUN+74uXGRYSq5WefQWqqQNnx+IDb4h81NmpIY/X0PqZrapNockj3WHvpbeVFAJ0
+ 9MRzYP3x8e5OuEuJfkNnAbwRGkDy98nXW6fKeemREjr8DWfXLKFWroJzkbAVmeIL0pjXATxr
+ +tj5JC0uvMrrXefUhXTo0SNoTsuO/OsAKOcVsV/RHHTwCDR2e3W8mOlA3QbYXsscgjghbuLh
+ J3oTRrOQa8tUXWqcd5A0+QPo5aaMHIK0UAthZsry5EmCY3BrbXUJlt+23E93hXQvfcsmfi0N
+ rNh81eknLLWRYvMOsrbIqEHdZBT4FHHiGjnck6EYx/8F5BAZSodRVEAgXyC8IQJ+UVa02QM5
+ D2VL8zRXZ6+wARKjgSrW+duohn535rG/ypd0ctLoXS6dDrFokwTQ2xrJiLbHp9G+noNTHSan
+ ExaRzyLbvmblh3AAznb68cWmM3WVkceWACUalsoTLKF1sGrrIBj5updkKkzbKOq5gcC5AQ0E
+ Wxk1NQEIAJ9B+lKxYlnKL5IehF1XJfknqsjuiRzj5vnvVrtFcPlSFL12VVFVUC2tT0A1Iuo9
+ NAoZXEeuoPf1dLDyHErrWnDyn3SmDgb83eK5YS/K363RLEMOQKWcawPJGGVTIRZgUSgGusKL
+ NuZqE5TCqQls0x/OPljufs4gk7E1GQEgE6M90Xbp0w/r0HB49BqjUzwByut7H2wAdiNAbJWZ
+ F5GNUS2/2IbgOhOychHdqYpWTqyLgRpf+atqkmpIJwFRVhQUfwztuybgJLGJ6vmh/LyNMRr8
+ J++SqkpOFMwJA81kpjuGR7moSrUIGTbDGFfjxmskQV/W/c25Xc6KaCwXah3OJ40AEQEAAYkC
+ PAQYAQoAJhYhBKlA1DSZLC6OmRA9UCJPp+fMgqZkBQJbGTU1AhsMBQkDwmcAAAoJECJPp+fM
+ gqZkPN4P/Ra4NbETHRj5/fM1fjtngt4dKeX/6McUPDIRuc58B6FuCQxtk7sX3ELs+1+w3eSV
+ rHI5cOFRSdgw/iKwwBix8D4Qq0cnympZ622KJL2wpTPRLlNaFLoe5PkoORAjVxLGplvQIlhg
+ miljQ3R63ty3+MZfkSVsYITlVkYlHaSwP2t8g7yTVa+q8ZAx0NT9uGWc/1Sg8j/uoPGrctml
+ hFNGBTYyPq6mGW9jqaQ8en3ZmmJyw3CHwxZ5FZQ5qc55xgshKiy8jEtxh+dgB9d8zE/S/UGI
+ E99N/q+kEKSgSMQMJ/CYPHQJVTi4YHh1yq/qTkHRX+ortrF5VEeDJDv+SljNStIxUdroPD29
+ 2ijoaMFTAU+uBtE14UP5F+LWdmRdEGS1Ah1NwooL27uAFllTDQxDhg/+LJ/TqB8ZuidOIy1B
+ xVKRSg3I2m+DUTVqBy7Lixo73hnW69kSjtqCeamY/NSu6LNP+b0wAOKhwz9hBEwEHLp05+mj
+ 5ZFJyfGsOiNUcMoO/17FO4EBxSDP3FDLllpuzlFD7SXkfJaMWYmXIlO0jLzdfwfcnDzBbPwO
+ hBM8hvtsyq8lq8vJOxv6XD6xcTtj5Az8t2JjdUX6SF9hxJpwhBU0wrCoGDkWp4Bbv6jnF7zP
+ Nzftr4l8RuJoywDIiJpdaNpSlXKpj/K6KrnyAI/joYc7
+Message-ID: <45258da8-2ce7-68c2-1ba0-84f6c0e634b1@suse.cz>
+Date: Thu, 15 Aug 2019 16:32:23 +0200
+User-Agent: Mozilla/5.0 (X11; Linux x86_64; rv:60.0) Gecko/20100101
+ Thunderbird/60.8.0
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190815132127.GI9477@dhcp22.suse.cz>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <CA+i2_Dc-VrOUk8EVThwAE5HZ1-zFqONuW8Gojv+16UPsAqoM1Q@mail.gmail.com>
+Content-Type: multipart/mixed;
+ boundary="------------F75BE80D724DEE18C4FE2B15"
+Content-Language: en-US
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 15, 2019 at 03:21:27PM +0200, Michal Hocko wrote:
-> On Thu 15-08-19 09:23:44, Jason Gunthorpe wrote:
-> > On Thu, Aug 15, 2019 at 08:58:29AM +0200, Daniel Vetter wrote:
-> > > On Wed, Aug 14, 2019 at 08:58:05PM -0300, Jason Gunthorpe wrote:
-> > > > On Wed, Aug 14, 2019 at 10:20:24PM +0200, Daniel Vetter wrote:
-> > > > > In some special cases we must not block, but there's not a
-> > > > > spinlock, preempt-off, irqs-off or similar critical section already
-> > > > > that arms the might_sleep() debug checks. Add a non_block_start/end()
-> > > > > pair to annotate these.
-> > > > > 
-> > > > > This will be used in the oom paths of mmu-notifiers, where blocking is
-> > > > > not allowed to make sure there's forward progress. Quoting Michal:
-> > > > > 
-> > > > > "The notifier is called from quite a restricted context - oom_reaper -
-> > > > > which shouldn't depend on any locks or sleepable conditionals. The code
-> > > > > should be swift as well but we mostly do care about it to make a forward
-> > > > > progress. Checking for sleepable context is the best thing we could come
-> > > > > up with that would describe these demands at least partially."
-> > > > 
-> > > > But this describes fs_reclaim_acquire() - is there some reason we are
-> > > > conflating fs_reclaim with non-sleeping?
-> > > 
-> > > No idea why you tie this into fs_reclaim. We can definitly sleep in there,
-> > > and for e.g. kswapd (which also wraps everything in fs_reclaim) we're
-> > > event supposed to I thought. To make sure we can get at the last bit of
-> > > memory by flushing all the queues and waiting for everything to be cleaned
-> > > out.
-> > 
-> > AFAIK the point of fs_reclaim is to prevent "indirect dependency upon
-> > the page allocator" ie a justification that was given this !blockable
-> > stuff.
-> > 
-> > For instance:
-> > 
-> >   fs_reclaim_acquire()
-> >   kmalloc(GFP_KERNEL) <- lock dep assertion
-> > 
-> > And further, Michal's concern about indirectness through locks is also
-> > handled by lockdep:
-> > 
-> >        CPU0                                 CPU1
-> >                                         mutex_lock()
-> >                                         kmalloc(GFP_KERNEL)
-> >                                         mutex_unlock()
-> >   fs_reclaim_acquire()
-> >   mutex_lock() <- lock dep assertion
-> > 
-> > In other words, to prevent recursion into the page allocator you use
-> > fs_reclaim_acquire(), and lockdep verfies it in its usual robust way.
-> 
-> fs_reclaim_acquire is about FS/IO recursions IIUC. We are talking about
-> any !GFP_NOWAIT allocation context here and any {in}direct dependency on
-> it. 
+This is a multi-part message in MIME format.
+--------------F75BE80D724DEE18C4FE2B15
+Content-Type: text/plain; charset=utf-8
+Content-Transfer-Encoding: quoted-printable
 
-AFAIK 'GFP_NOWAIT' is characterized by the lack of __GFP_FS and
-__GFP_DIRECT_RECLAIM..
+On 8/3/19 1:29 AM, Petr Vandrovec wrote:
+> On Fri, Aug 2, 2019, 3:59 PM Matthew Wilcox <willy@infradead.org
+> <mailto:willy@infradead.org>> wrote:
+>=20
+>     That doesn't help because we call reset_page_owner() in the free
+>     page path.
+>=20
+>     We could turn on tracing because we call trace_mm_page_free() in th=
+is
+>     path.=C2=A0 That requires the reporter to be able to reproduce the =
+problem,
+>     and it's not clear to me whether this is a "happened once" or "ever=
+y
+>     time I do this, it happens" problem.
+>=20
+>=20
+> It happened on 3 of the boots with that kernel.=C2=A0 4th time box eith=
+er
+> spontaneously rebooted when X started, or watchdog restarted box shortl=
+y
+> after starting X server.
+>=20
+> So I believe I should be able to reproduce it with additional patches o=
+r
+> extra flags enabled.
 
-This matches the existing test in __need_fs_reclaim() - so if you are
-OK with GFP_NOFS, aka __GFP_IO which triggers try_to_compact_pages(),
-allocations during OOM, then I think fs_reclaim already matches what
-you described?
+Does the issue still happen with rc4? Could you apply the 3 attached
+patches (work in progress), configure-enable CONFIG_DEBUG_PAGEALLOC and
+CONFIG_PAGE_OWNER and boot kernel with debug_pagealloc=3Don page_owner=3D=
+on
+parameters? That should print stacktraces of allocation and first
+freeing (assuming this is a double free).
 
-> Whether fs_reclaim_acquire can be reused for that I do not know
-> because I am not familiar with the lockdep machinery enough
+Vlastimil
 
-Well, if fs_reclaim is not already testing the flags you want, then we
-could add another lockdep map that does. The basic principle is the
-same, if you want to detect and prevent recursion into the allocator
-under certain GFP flags then then AFAIK lockdep is the best tool we
-have.
 
-> No, non-blocking is a very coarse approximation of what we really need.
-> But it should give us even a stronger condition. Essentially any sleep
-> other than a preemption shouldn't be allowed in that context.
+--------------F75BE80D724DEE18C4FE2B15
+Content-Type: text/x-patch;
+ name="0001-mm-page_owner-record-page-owner-for-each-subpage.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename*0="0001-mm-page_owner-record-page-owner-for-each-subpage.patch"
 
-But it is a nonsense API to give the driver invalidate_range_start,
-the blocking alternative to the non-blocking invalidate_range and then
-demand it to be non-blocking.
+From 5b4c46cb1d7a8bca3e8d98433b19e60b28fb5796 Mon Sep 17 00:00:00 2001
+From: Vlastimil Babka <vbabka@suse.cz>
+Date: Thu, 15 Aug 2019 14:06:50 +0200
+Subject: [PATCH 1/3] mm, page_owner: record page owner for each subpage
 
-Inspecting the code, no drivers are actually able to progress their
-side in non-blocking mode.
+Currently, page owner info is only recorded for the first page of a high-order
+allocation, and copied to tail pages in the event of a split page. With the
+plan to keep previous owner info after freeing the page, it would be benefical
+to record page owner for each subpage upon allocation. This increases the
+overhead for high orders, but that should be acceptable for a debugging option.
 
-The best we got was drivers tested the VA range and returned success
-if they had no interest. Which is a big win to be sure, but it looks
-like getting any more is not really posssible.
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/page_owner.c | 33 +++++++++++++++++++++------------
+ 1 file changed, 21 insertions(+), 12 deletions(-)
 
-However, we could (probably even should) make the drivers fs_reclaim
-safe.
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index addcbb2ae4e4..695cd5fdf7fd 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -154,18 +154,23 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
+ 	return handle;
+ }
+ 
+-static inline void __set_page_owner_handle(struct page_ext *page_ext,
+-	depot_stack_handle_t handle, unsigned int order, gfp_t gfp_mask)
++static inline void __set_page_owner_handle(struct page *page,
++	struct page_ext *page_ext, depot_stack_handle_t handle,
++	unsigned int order, gfp_t gfp_mask)
+ {
+ 	struct page_owner *page_owner;
++	int i;
+ 
+-	page_owner = get_page_owner(page_ext);
+-	page_owner->handle = handle;
+-	page_owner->order = order;
+-	page_owner->gfp_mask = gfp_mask;
+-	page_owner->last_migrate_reason = -1;
++	for (i = 0; i < (1 << order); i++) {
++		page_owner = get_page_owner(page_ext);
++		page_owner->handle = handle;
++		page_owner->order = order;
++		page_owner->gfp_mask = gfp_mask;
++		page_owner->last_migrate_reason = -1;
++		__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
+ 
+-	__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
++		page_ext = lookup_page_ext(page + i);
++	}
+ }
+ 
+ noinline void __set_page_owner(struct page *page, unsigned int order,
+@@ -178,7 +183,7 @@ noinline void __set_page_owner(struct page *page, unsigned int order,
+ 		return;
+ 
+ 	handle = save_stack(gfp_mask);
+-	__set_page_owner_handle(page_ext, handle, order, gfp_mask);
++	__set_page_owner_handle(page, page_ext, handle, order, gfp_mask);
+ }
+ 
+ void __set_page_owner_migrate_reason(struct page *page, int reason)
+@@ -204,8 +209,11 @@ void __split_page_owner(struct page *page, unsigned int order)
+ 
+ 	page_owner = get_page_owner(page_ext);
+ 	page_owner->order = 0;
+-	for (i = 1; i < (1 << order); i++)
+-		__copy_page_owner(page, page + i);
++	for (i = 1; i < (1 << order); i++) {
++		page_ext = lookup_page_ext(page + i);
++		page_owner = get_page_owner(page_ext);
++		page_owner->order = 0;
++	}
+ }
+ 
+ void __copy_page_owner(struct page *oldpage, struct page *newpage)
+@@ -562,7 +570,8 @@ static void init_pages_in_zone(pg_data_t *pgdat, struct zone *zone)
+ 				continue;
+ 
+ 			/* Found early allocated page */
+-			__set_page_owner_handle(page_ext, early_handle, 0, 0);
++			__set_page_owner_handle(page, page_ext, early_handle,
++						0, 0);
+ 			count++;
+ 		}
+ 		cond_resched();
+-- 
+2.22.0
 
-If that is enough to guarantee progress of OOM, then lets consider
-something like using current_gfp_context() to force PF_MEMALLOC_NOFS
-allocation behavior on the driver callback and lockdep to try and keep
-pushing on the the debugging, and dropping !blocking.
 
-Jason
+--------------F75BE80D724DEE18C4FE2B15
+Content-Type: text/x-patch;
+ name="0002-mm-page_owner-keep-owner-info-when-freeing-the-page.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename*0="0002-mm-page_owner-keep-owner-info-when-freeing-the-page.pat";
+ filename*1="ch"
+
+From 063f233cc154819bb39a005726260496eea12265 Mon Sep 17 00:00:00 2001
+From: Vlastimil Babka <vbabka@suse.cz>
+Date: Thu, 15 Aug 2019 14:48:54 +0200
+Subject: [PATCH 2/3] mm, page_owner: keep owner info when freeing the page
+
+For debugging purposes it might be useful to keep the owner info even after
+page has been freed and include it in e.g. dump_page() when detecting a bad
+page state. For that, change the PAGE_EXT_OWNER flag meaning to "page owner
+info has been set at least once" and add new PAGE_EXT_OWNER_ACTIVE for tracking
+whether page is supposed to be currently allocated or free. Adjust dump_page()
+and page_owner file printing accordingly.
+
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ include/linux/page_ext.h |  1 +
+ mm/page_owner.c          | 38 +++++++++++++++++++++++++-------------
+ 2 files changed, 26 insertions(+), 13 deletions(-)
+
+diff --git a/include/linux/page_ext.h b/include/linux/page_ext.h
+index 09592951725c..682fd465df06 100644
+--- a/include/linux/page_ext.h
++++ b/include/linux/page_ext.h
+@@ -18,6 +18,7 @@ struct page_ext_operations {
+ 
+ enum page_ext_flags {
+ 	PAGE_EXT_OWNER,
++	PAGE_EXT_OWNER_ACTIVE,
+ #if defined(CONFIG_IDLE_PAGE_TRACKING) && !defined(CONFIG_64BIT)
+ 	PAGE_EXT_YOUNG,
+ 	PAGE_EXT_IDLE,
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index 695cd5fdf7fd..c4c33d569f4d 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -111,7 +111,7 @@ void __reset_page_owner(struct page *page, unsigned int order)
+ 		page_ext = lookup_page_ext(page + i);
+ 		if (unlikely(!page_ext))
+ 			continue;
+-		__clear_bit(PAGE_EXT_OWNER, &page_ext->flags);
++		__clear_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags);
+ 	}
+ }
+ 
+@@ -168,6 +168,7 @@ static inline void __set_page_owner_handle(struct page *page,
+ 		page_owner->gfp_mask = gfp_mask;
+ 		page_owner->last_migrate_reason = -1;
+ 		__set_bit(PAGE_EXT_OWNER, &page_ext->flags);
++		__set_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags);
+ 
+ 		page_ext = lookup_page_ext(page + i);
+ 	}
+@@ -243,6 +244,7 @@ void __copy_page_owner(struct page *oldpage, struct page *newpage)
+ 	 * the new page, which will be freed.
+ 	 */
+ 	__set_bit(PAGE_EXT_OWNER, &new_ext->flags);
++	__set_bit(PAGE_EXT_OWNER_ACTIVE, &new_ext->flags);
+ }
+ 
+ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
+@@ -302,7 +304,7 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
+ 			if (unlikely(!page_ext))
+ 				continue;
+ 
+-			if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
++			if (!test_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags))
+ 				continue;
+ 
+ 			page_owner = get_page_owner(page_ext);
+@@ -331,7 +333,7 @@ void pagetypeinfo_showmixedcount_print(struct seq_file *m,
+ static ssize_t
+ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+ 		struct page *page, struct page_owner *page_owner,
+-		depot_stack_handle_t handle)
++		depot_stack_handle_t handle, bool page_active)
+ {
+ 	int ret, pageblock_mt, page_mt;
+ 	unsigned long *entries;
+@@ -344,7 +346,9 @@ print_page_owner(char __user *buf, size_t count, unsigned long pfn,
+ 		return -ENOMEM;
+ 
+ 	ret = snprintf(kbuf, count,
+-			"Page allocated via order %u, mask %#x(%pGg)\n",
++			"%s via order %u, mask %#x(%pGg)\n",
++			page_active ? "Page allocated" :
++				      "Free page previously allocated",
+ 			page_owner->order, page_owner->gfp_mask,
+ 			&page_owner->gfp_mask);
+ 
+@@ -413,21 +417,26 @@ void __dump_page_owner(struct page *page)
+ 	mt = gfpflags_to_migratetype(gfp_mask);
+ 
+ 	if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags)) {
+-		pr_alert("page_owner info is not active (free page?)\n");
++		pr_alert("page_owner info is not present (never set?)\n");
+ 		return;
+ 	}
+ 
++	if (test_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags))
++		pr_alert("page_owner tracks the page as allocated\n");
++	else
++		pr_alert("page_owner tracks the page as freed\n");
++
++	pr_alert("page last allocated via order %u, migratetype %s, gfp_mask %#x(%pGg)\n",
++		 page_owner->order, migratetype_names[mt], gfp_mask, &gfp_mask);
++
+ 	handle = READ_ONCE(page_owner->handle);
+ 	if (!handle) {
+-		pr_alert("page_owner info is not active (free page?)\n");
+-		return;
++		pr_alert("page_owner allocation stack trace missing\n");
++	} else {
++		nr_entries = stack_depot_fetch(handle, &entries);
++		stack_trace_print(entries, nr_entries, 0);
+ 	}
+ 
+-	nr_entries = stack_depot_fetch(handle, &entries);
+-	pr_alert("page allocated via order %u, migratetype %s, gfp_mask %#x(%pGg)\n",
+-		 page_owner->order, migratetype_names[mt], gfp_mask, &gfp_mask);
+-	stack_trace_print(entries, nr_entries, 0);
+-
+ 	if (page_owner->last_migrate_reason != -1)
+ 		pr_alert("page has been migrated, last migrate reason: %s\n",
+ 			migrate_reason_names[page_owner->last_migrate_reason]);
+@@ -441,6 +450,7 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+ 	struct page_ext *page_ext;
+ 	struct page_owner *page_owner;
+ 	depot_stack_handle_t handle;
++	bool page_active;
+ 
+ 	if (!static_branch_unlikely(&page_owner_inited))
+ 		return -EINVAL;
+@@ -489,6 +499,8 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+ 		if (!test_bit(PAGE_EXT_OWNER, &page_ext->flags))
+ 			continue;
+ 
++		page_active = test_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags);
++
+ 		page_owner = get_page_owner(page_ext);
+ 
+ 		/*
+@@ -503,7 +515,7 @@ read_page_owner(struct file *file, char __user *buf, size_t count, loff_t *ppos)
+ 		*ppos = (pfn - min_low_pfn) + 1;
+ 
+ 		return print_page_owner(buf, count, pfn, page,
+-				page_owner, handle);
++				page_owner, handle, page_active);
+ 	}
+ 
+ 	return 0;
+-- 
+2.22.0
+
+
+--------------F75BE80D724DEE18C4FE2B15
+Content-Type: text/x-patch;
+ name="0003-mm-page_owner-debug_pagealloc-save-freeing-stack-tra.patch"
+Content-Transfer-Encoding: 7bit
+Content-Disposition: inline;
+ filename*0="0003-mm-page_owner-debug_pagealloc-save-freeing-stack-tra.pa";
+ filename*1="tch"
+
+From 4df89531903b8f0a056d3ec7f21825d0a22df355 Mon Sep 17 00:00:00 2001
+From: Vlastimil Babka <vbabka@suse.cz>
+Date: Thu, 15 Aug 2019 16:28:14 +0200
+Subject: [PATCH 3/3] mm, page_owner, debug_pagealloc: save freeing stack trace
+
+Signed-off-by: Vlastimil Babka <vbabka@suse.cz>
+---
+ mm/page_owner.c | 53 +++++++++++++++++++++++++++++++++++++------------
+ 1 file changed, 40 insertions(+), 13 deletions(-)
+
+diff --git a/mm/page_owner.c b/mm/page_owner.c
+index c4c33d569f4d..f2eccea86210 100644
+--- a/mm/page_owner.c
++++ b/mm/page_owner.c
+@@ -24,6 +24,9 @@ struct page_owner {
+ 	short last_migrate_reason;
+ 	gfp_t gfp_mask;
+ 	depot_stack_handle_t handle;
++#ifdef CONFIG_DEBUG_PAGEALLOC
++	depot_stack_handle_t free_handle;
++#endif
+ };
+ 
+ static bool page_owner_disabled = true;
+@@ -102,19 +105,6 @@ static inline struct page_owner *get_page_owner(struct page_ext *page_ext)
+ 	return (void *)page_ext + page_owner_ops.offset;
+ }
+ 
+-void __reset_page_owner(struct page *page, unsigned int order)
+-{
+-	int i;
+-	struct page_ext *page_ext;
+-
+-	for (i = 0; i < (1 << order); i++) {
+-		page_ext = lookup_page_ext(page + i);
+-		if (unlikely(!page_ext))
+-			continue;
+-		__clear_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags);
+-	}
+-}
+-
+ static inline bool check_recursive_alloc(unsigned long *entries,
+ 					 unsigned int nr_entries,
+ 					 unsigned long ip)
+@@ -154,6 +144,32 @@ static noinline depot_stack_handle_t save_stack(gfp_t flags)
+ 	return handle;
+ }
+ 
++void __reset_page_owner(struct page *page, unsigned int order)
++{
++	int i;
++	struct page_ext *page_ext;
++#ifdef CONFIG_DEBUG_PAGEALLOC
++	depot_stack_handle_t handle = 0;
++	struct page_owner *page_owner;
++
++	if (debug_pagealloc_enabled())
++		handle = save_stack(GFP_NOWAIT | __GFP_NOWARN);
++#endif
++
++	for (i = 0; i < (1 << order); i++) {
++		page_ext = lookup_page_ext(page + i);
++		if (unlikely(!page_ext))
++			continue;
++		__clear_bit(PAGE_EXT_OWNER_ACTIVE, &page_ext->flags);
++#ifdef CONFIG_DEBUG_PAGEALLOC
++		if (debug_pagealloc_enabled()) {
++			page_owner = get_page_owner(page_ext);
++			page_owner->free_handle = handle;
++		}
++#endif
++	}
++}
++
+ static inline void __set_page_owner_handle(struct page *page,
+ 	struct page_ext *page_ext, depot_stack_handle_t handle,
+ 	unsigned int order, gfp_t gfp_mask)
+@@ -437,6 +453,17 @@ void __dump_page_owner(struct page *page)
+ 		stack_trace_print(entries, nr_entries, 0);
+ 	}
+ 
++#ifdef CONFIG_DEBUG_PAGEALLOC
++	handle = READ_ONCE(page_owner->free_handle);
++	if (!handle) {
++		pr_alert("page_owner free stack trace missing\n");
++	} else {
++		nr_entries = stack_depot_fetch(handle, &entries);
++		pr_alert("page last free stack trace:\n");
++		stack_trace_print(entries, nr_entries, 0);
++	}
++#endif
++
+ 	if (page_owner->last_migrate_reason != -1)
+ 		pr_alert("page has been migrated, last migrate reason: %s\n",
+ 			migrate_reason_names[page_owner->last_migrate_reason]);
+-- 
+2.22.0
+
+
+--------------F75BE80D724DEE18C4FE2B15--
 
