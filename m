@@ -2,198 +2,187 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
+X-Spam-Status: No, score=-0.8 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
 	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+	SPF_PASS,URIBL_BLOCKED autolearn=no autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 952C8C3A59B
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:16:27 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 46071C3A589
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:16:34 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 3040A21783
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:16:26 +0000 (UTC)
+	by mail.kernel.org (Postfix) with ESMTP id ED7E1205F4
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 17:16:33 +0000 (UTC)
 Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="LyKrHHML"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 3040A21783
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	dkim=pass (2048-bit key) header.d=soleen.com header.i=@soleen.com header.b="pKHPfBNQ"
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org ED7E1205F4
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=soleen.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id BF75A6B02DB; Thu, 15 Aug 2019 13:16:25 -0400 (EDT)
+	id 8C1556B02DC; Thu, 15 Aug 2019 13:16:33 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id BA7686B02DC; Thu, 15 Aug 2019 13:16:25 -0400 (EDT)
+	id 8732C6B02DD; Thu, 15 Aug 2019 13:16:33 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id A94B76B02DD; Thu, 15 Aug 2019 13:16:25 -0400 (EDT)
+	id 73AB96B02DE; Thu, 15 Aug 2019 13:16:33 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0132.hostedemail.com [216.40.44.132])
-	by kanga.kvack.org (Postfix) with ESMTP id 837316B02DB
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:16:25 -0400 (EDT)
-Received: from smtpin13.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 2F78E8248AAD
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:16:25 +0000 (UTC)
-X-FDA: 75825315930.13.stage08_37fa75fc3e359
-X-HE-Tag: stage08_37fa75fc3e359
-X-Filterd-Recvd-Size: 8229
-Received: from mail-qt1-f196.google.com (mail-qt1-f196.google.com [209.85.160.196])
-	by imf14.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:16:24 +0000 (UTC)
-Received: by mail-qt1-f196.google.com with SMTP id t12so3085794qtp.9
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:16:24 -0700 (PDT)
+Received: from forelay.hostedemail.com (smtprelay0181.hostedemail.com [216.40.44.181])
+	by kanga.kvack.org (Postfix) with ESMTP id 53E6D6B02DC
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 13:16:33 -0400 (EDT)
+Received: from smtpin21.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 0CB98180AD802
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:16:33 +0000 (UTC)
+X-FDA: 75825316266.21.angle34_391abc2c2e604
+X-HE-Tag: angle34_391abc2c2e604
+X-Filterd-Recvd-Size: 7134
+Received: from mail-ed1-f67.google.com (mail-ed1-f67.google.com [209.85.208.67])
+	by imf36.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 17:16:32 +0000 (UTC)
+Received: by mail-ed1-f67.google.com with SMTP id x19so2681721eda.12
+        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:16:32 -0700 (PDT)
 DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=bWQUZxVbgX8q+7/XNaaPkBz6uudNI37srtiH/YJRLMA=;
-        b=LyKrHHML5qsAHOuu+3liATWbTb6DyVTWCsOvlxwJdwkXlE0Lc7JX8x425zP9bIasr/
-         z234649hCY9AqF83cc5SAoIRaIGSRUwvwesHrGgGC/flGkruF6oA300ue/onshbs0F/i
-         avAkH6M1hqae7FbSfWx+SXEeVdRgVe8bp9cLBXMdWZAUwtclZPY109M3LnNxQRmTehbp
-         A7+xYYueXtM+21QPDvDrdSYFg/+07W6wRbHEVPua8v1p5B4JKdw3uruExAedVopc4WP7
-         Joi5pFjarqFpfyVffxS7kdZQFyZ5RbTa72w3H2Rr5rdf2MgdFsBu794ulKvyqyrX+GuO
-         iHvQ==
+        d=soleen.com; s=google;
+        h=mime-version:references:in-reply-to:from:date:message-id:subject:to;
+        bh=HvH/9QkJPpLkWxDBArczHr4uoHoZvdo767/gla+0Cq4=;
+        b=pKHPfBNQUfx3iIaUdBEjdoQBnwVE33BsffdbfdtS4c7cz0NChF2ssj7n0oUNYvLBml
+         1GW7C9tC38qeN54CAe2livGh5ZgyPHx1kBuk/IvtFXrnFpJB8Ek/GI0NZfSHqLaPD9oi
+         2UtsZ5gQknSqtRiljMnlxI6c8SaAZBr3tZ3nhrRXJUZrIF7INC4o3B2dXzMQTBEzum7c
+         jLOY3vrE7M080p/0Pboi6nDaUWr6lRajGfmDoPJJol5qFQmqtvJbODsLpb22T2hQaxvL
+         NgnhaiHSKPHsKDlHk1m/gx0MjaiOiKCkfxPxDFJOO4hcsmg0h7rmTCnKZY6RTOJVN9Jc
+         fE/g==
 X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
         d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=bWQUZxVbgX8q+7/XNaaPkBz6uudNI37srtiH/YJRLMA=;
-        b=NNabi1K3wK13ZdLlW3pVogOlReCvG0dvP3T8HdffQ8A0eWb3+/lTTlpDASWxdzaJJq
-         vXfyP/FN93zLljFWoedqacug1WAmMVNuDlSYx6Svh8f0lIhT2nEmtbtoCpsu7g6o8DW9
-         /7E9i8QBS0ey+rQODJ2N02vBjOEgjuJNo4sCsyIjFamQEHfeJEIFWx0+e5E9vYoqhTom
-         HUCId30yonn7IdyfduVBanhVO7d35NkvWszsoPdXbcb5tThWofI5sOTbgkZJHZy0Gurd
-         PCn8VEE3qBJHVM8za/5jmL0Uj/vZJR0vpzkcjj0pwOXD76im0in99yet8d+RL51slSey
-         L1cw==
-X-Gm-Message-State: APjAAAUzCaYfkuSd3gBCB3kENnzZYBsVhIxIT3YgkNVvz+X4eHOPe3oC
-	/qtSglilsQacHuzzh3V38XAiPg==
-X-Google-Smtp-Source: APXvYqzhMs0H6HOINgldm0wqFeedn0yeVMbyJrKiVDfNKdY5nOzLsfj8OD4YZcVQ3nL9Fvat5g8RJg==
-X-Received: by 2002:a0c:9d0d:: with SMTP id m13mr4071346qvf.174.1565889383869;
-        Thu, 15 Aug 2019 10:16:23 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id l11sm1685225qtr.11.2019.08.15.10.16.23
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 15 Aug 2019 10:16:23 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hyJMM-0006lb-QQ; Thu, 15 Aug 2019 14:16:22 -0300
-Date: Thu, 15 Aug 2019 14:16:22 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Jerome Glisse <jglisse@redhat.com>
-Cc: Daniel Vetter <daniel.vetter@ffwll.ch>,
-	Michal Hocko <mhocko@kernel.org>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	LKML <linux-kernel@vger.kernel.org>, Linux MM <linux-mm@kvack.org>,
-	DRI Development <dri-devel@lists.freedesktop.org>,
-	Intel Graphics Development <intel-gfx@lists.freedesktop.org>,
-	Peter Zijlstra <peterz@infradead.org>,
-	Ingo Molnar <mingo@redhat.com>,
-	David Rientjes <rientjes@google.com>,
-	Christian =?utf-8?B?S8O2bmln?= <christian.koenig@amd.com>,
-	Masahiro Yamada <yamada.masahiro@socionext.com>,
-	Wei Wang <wvw@google.com>,
-	Andy Shevchenko <andriy.shevchenko@linux.intel.com>,
-	Thomas Gleixner <tglx@linutronix.de>, Jann Horn <jannh@google.com>,
-	Feng Tang <feng.tang@intel.com>, Kees Cook <keescook@chromium.org>,
-	Randy Dunlap <rdunlap@infradead.org>,
-	Daniel Vetter <daniel.vetter@intel.com>
-Subject: Re: [PATCH 2/5] kernel.h: Add non_block_start/end()
-Message-ID: <20190815171622.GL21596@ziepe.ca>
-References: <20190814202027.18735-1-daniel.vetter@ffwll.ch>
- <20190814202027.18735-3-daniel.vetter@ffwll.ch>
- <20190814134558.fe659b1a9a169c0150c3e57c@linux-foundation.org>
- <20190815084429.GE9477@dhcp22.suse.cz>
- <20190815130415.GD21596@ziepe.ca>
- <CAKMK7uE9zdmBuvxa788ONYky=46GN=5Up34mKDmsJMkir4x7MQ@mail.gmail.com>
- <20190815143759.GG21596@ziepe.ca>
- <CAKMK7uEJQ6mPQaOWbT_6M+55T-dCVbsOxFnMC6KzLAMQNa-RGg@mail.gmail.com>
- <20190815151028.GJ21596@ziepe.ca>
- <20190815163238.GA30781@redhat.com>
+        h=x-gm-message-state:mime-version:references:in-reply-to:from:date
+         :message-id:subject:to;
+        bh=HvH/9QkJPpLkWxDBArczHr4uoHoZvdo767/gla+0Cq4=;
+        b=fO7jbxVxbXCQVUuBBscUmBOezKy+D+OZHEM3dLJfQJcu2ziDUf3mx6zFeaVWOyr3kL
+         iLyZZY4VwAQA/koN2Ej2H+hr39F1/xgjAXIMHFYlgIYsxaMZRr9xNU0AW07BFz3OOQFz
+         6s5hGEh2dHzsHOq7jzcJyYjDDZJZ7SmmULrzGs3ZbKMxmFnU2gWGqY+DnBflRZ1jyhkp
+         sxhs83ia4a4Uo+QgT9djIJvtUYcITG9UyCW9hEEKEsxqwewguFGJoAWfHJy0K3XV1gtq
+         lyUOuneYAF8K/ShfU3wGU9veMMJqE0+ZM3RcgbFR7AMGzTRo/hPAefdzVPywlnAPoWIs
+         BHBQ==
+X-Gm-Message-State: APjAAAUr3Nyo0mu4vLNBfv8CsGFuJq3uh9PVcqRf+HULX6VSteOto4t1
+	1dWzofxy0WBk7rEUBtaYmmT+xGg7aubgbyCWZtSIcIwG
+X-Google-Smtp-Source: APXvYqxjQMegw/1NCxtxkMv+zw0eXzahg5VKDPdm64IBjqfvOgF3V96t+tXb8M/4zCohVqTP+H/B/YvKeSv6kTxEdbs=
+X-Received: by 2002:aa7:d48c:: with SMTP id b12mr6512796edr.170.1565889391108;
+ Thu, 15 Aug 2019 10:16:31 -0700 (PDT)
 MIME-Version: 1.0
-Content-Type: text/plain; charset=us-ascii
-Content-Disposition: inline
-In-Reply-To: <20190815163238.GA30781@redhat.com>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+References: <20190801152439.11363-1-pasha.tatashin@soleen.com> <CA+CK2bADiBMEx9cJuXT5fQkBYFZAtxUtc7ZzjrNfEjijPZkPtw@mail.gmail.com>
+In-Reply-To: <CA+CK2bADiBMEx9cJuXT5fQkBYFZAtxUtc7ZzjrNfEjijPZkPtw@mail.gmail.com>
+From: Pavel Tatashin <pasha.tatashin@soleen.com>
+Date: Thu, 15 Aug 2019 13:16:20 -0400
+Message-ID: <CA+CK2bD6e2WGxuPG+jX8c_qyHNZOC=8NZ-wVZXQuMS2ncBNndg@mail.gmail.com>
+Subject: Re: [PATCH v1 0/8] arm64: MMU enabled kexec relocation
+To: Pavel Tatashin <pasha.tatashin@soleen.com>, James Morris <jmorris@namei.org>, 
+	Sasha Levin <sashal@kernel.org>, "Eric W. Biederman" <ebiederm@xmission.com>, 
+	kexec mailing list <kexec@lists.infradead.org>, LKML <linux-kernel@vger.kernel.org>, 
+	Jonathan Corbet <corbet@lwn.net>, Catalin Marinas <catalin.marinas@arm.com>, will@kernel.org, 
+	Linux ARM <linux-arm-kernel@lists.infradead.org>, Marc Zyngier <marc.zyngier@arm.com>, 
+	James Morse <james.morse@arm.com>, Vladimir Murzin <vladimir.murzin@arm.com>, 
+	Matthias Brugger <matthias.bgg@gmail.com>, Bhupesh Sharma <bhsharma@redhat.com>, 
+	linux-mm <linux-mm@kvack.org>
+Content-Type: text/plain; charset="UTF-8"
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 15, 2019 at 12:32:38PM -0400, Jerome Glisse wrote:
-> On Thu, Aug 15, 2019 at 12:10:28PM -0300, Jason Gunthorpe wrote:
-> > On Thu, Aug 15, 2019 at 04:43:38PM +0200, Daniel Vetter wrote:
-> > 
-> > > You have to wait for the gpu to finnish current processing in
-> > > invalidate_range_start. Otherwise there's no point to any of this
-> > > really. So the wait_event/dma_fence_wait are unavoidable really.
-> > 
-> > I don't envy your task :|
-> > 
-> > But, what you describe sure sounds like a 'registration cache' model,
-> > not the 'shadow pte' model of coherency.
-> > 
-> > The key difference is that a regirstationcache is allowed to become
-> > incoherent with the VMA's because it holds page pins. It is a
-> > programming bug in userspace to change VA mappings via mmap/munmap/etc
-> > while the device is working on that VA, but it does not harm system
-> > integrity because of the page pin.
-> > 
-> > The cache ensures that each initiated operation sees a DMA setup that
-> > matches the current VA map when the operation is initiated and allows
-> > expensive device DMA setups to be re-used.
-> > 
-> > A 'shadow pte' model (ie hmm) *really* needs device support to
-> > directly block DMA access - ie trigger 'device page fault'. ie the
-> > invalidate_start should inform the device to enter a fault mode and
-> > that is it.  If the device can't do that, then the driver probably
-> > shouldn't persue this level of coherency. The driver would quickly get
-> > into the messy locking problems like dma_fence_wait from a notifier.
-> 
-> I think here we do not agree on the hardware requirement. For GPU
-> we will always need to be able to wait for some GPU fence from inside
-> the notifier callback, there is just no way around that for many of
-> the GPUs today (i do not see any indication of that changing).
+Hi,
 
-I didn't say you couldn't wait, I was trying to say that the wait
-should only be contigent on the HW itself. Ie you can wait on a GPU
-page table lock, and you can wait on a GPU page table flush completion
-via IRQ.
+It is been two weeks, and no review activity yet. Please help with
+reviewing this work.
 
-What is troubling is to wait till some other thread gets a GPU command
-completion and decr's a kref on the DMA buffer - which kinda looks
-like what this dma_fence() stuff is all about. A driver like that
-would have to be super careful to ensure consistent forward progress
-toward dma ref == 0 when the system is under reclaim. 
+Thank you,
+Pasha
 
-ie by running it's entire IRQ flow under fs_reclaim locking.
-
-> associated with the mm_struct. In all GPU driver so far it is a short
-> lived lock and nothing blocking is done while holding it (it is just
-> about updating page table directory really wether it is filling it or
-> clearing it).
-
-The main blocking I expect in a shadow PTE flow is waiting for the HW
-to complete invalidations of its PTE cache.
-
-> > It is important to identify what model you are going for as defining a
-> > 'registration cache' coherence expectation allows the driver to skip
-> > blocking in invalidate_range_start. All it does is invalidate the
-> > cache so that future operations pick up the new VA mapping.
-> > 
-> > Intel's HFI RDMA driver uses this model extensively, and I think it is
-> > well proven, within some limitations of course.
-> > 
-> > At least, 'registration cache' is the only use model I know of where
-> > it is acceptable to skip invalidate_range_end.
-> 
-> Here GPU are not in the registration cache model, i know it might looks
-> like it because of GUP but GUP was use just because hmm did not exist
-> at the time.
-
-It is not because of GUP, it is because of the lack of
-invalidate_range_end. A driver cannot correctly implement the SPTE
-model without invalidate_range_end, even if it holds the page pins via
-GUP.
-
-So, I've been assuming the few drivers without invalidate_range_end
-are trying to do registration caching, rather than assuming they are
-broken.
-
-Jason
+On Thu, Aug 8, 2019 at 2:44 PM Pavel Tatashin <pasha.tatashin@soleen.com> wrote:
+>
+> Just a friendly reminder, please send your comments on this series.
+> It's been a week since I sent out these patches, and no feedback yet.
+> Also, I'd appreciate if anyone could test this series on vhe hardware
+> with vhe kernel, it does not look like QEMU can emulate it yet
+>
+> Thank you,
+> Pasha
+>
+> On Thu, Aug 1, 2019 at 11:24 AM Pavel Tatashin
+> <pasha.tatashin@soleen.com> wrote:
+> >
+> > Enable MMU during kexec relocation in order to improve reboot performance.
+> >
+> > If kexec functionality is used for a fast system update, with a minimal
+> > downtime, the relocation of kernel + initramfs takes a significant portion
+> > of reboot.
+> >
+> > The reason for slow relocation is because it is done without MMU, and thus
+> > not benefiting from D-Cache.
+> >
+> > Performance data
+> > ----------------
+> > For this experiment, the size of kernel plus initramfs is small, only 25M.
+> > If initramfs was larger, than the improvements would be greater, as time
+> > spent in relocation is proportional to the size of relocation.
+> >
+> > Previously:
+> > kernel shutdown 0.022131328s
+> > relocation      0.440510736s
+> > kernel startup  0.294706768s
+> >
+> > Relocation was taking: 58.2% of reboot time
+> >
+> > Now:
+> > kernel shutdown 0.032066576s
+> > relocation      0.022158152s
+> > kernel startup  0.296055880s
+> >
+> > Now: Relocation takes 6.3% of reboot time
+> >
+> > Total reboot is x2.16 times faster.
+> >
+> > Previous approaches and discussions
+> > -----------------------------------
+> > https://lore.kernel.org/lkml/20190709182014.16052-1-pasha.tatashin@soleen.com
+> > reserve space for kexec to avoid relocation, involves changes to generic code
+> > to optimize a problem that exists on arm64 only:
+> >
+> > https://lore.kernel.org/lkml/20190716165641.6990-1-pasha.tatashin@soleen.com
+> > The first attempt to enable MMU, some bugs that prevented performance
+> > improvement. The page tables unnecessary configured idmap for the whole
+> > physical space.
+> >
+> > https://lore.kernel.org/lkml/20190731153857.4045-1-pasha.tatashin@soleen.com
+> > No linear copy, bug with EL2 reboots.
+> >
+> > Pavel Tatashin (8):
+> >   kexec: quiet down kexec reboot
+> >   arm64, mm: transitional tables
+> >   arm64: hibernate: switch to transtional page tables.
+> >   kexec: add machine_kexec_post_load()
+> >   arm64, kexec: move relocation function setup and clean up
+> >   arm64, kexec: add expandable argument to relocation function
+> >   arm64, kexec: configure transitional page table for kexec
+> >   arm64, kexec: enable MMU during kexec relocation
+> >
+> >  arch/arm64/Kconfig                     |   4 +
+> >  arch/arm64/include/asm/kexec.h         |  51 ++++-
+> >  arch/arm64/include/asm/pgtable-hwdef.h |   1 +
+> >  arch/arm64/include/asm/trans_table.h   |  68 ++++++
+> >  arch/arm64/kernel/asm-offsets.c        |  14 ++
+> >  arch/arm64/kernel/cpu-reset.S          |   4 +-
+> >  arch/arm64/kernel/cpu-reset.h          |   8 +-
+> >  arch/arm64/kernel/hibernate.c          | 261 ++++++-----------------
+> >  arch/arm64/kernel/machine_kexec.c      | 199 ++++++++++++++----
+> >  arch/arm64/kernel/relocate_kernel.S    | 196 +++++++++---------
+> >  arch/arm64/mm/Makefile                 |   1 +
+> >  arch/arm64/mm/trans_table.c            | 273 +++++++++++++++++++++++++
+> >  kernel/kexec.c                         |   4 +
+> >  kernel/kexec_core.c                    |   8 +-
+> >  kernel/kexec_file.c                    |   4 +
+> >  kernel/kexec_internal.h                |   2 +
+> >  16 files changed, 758 insertions(+), 340 deletions(-)
+> >  create mode 100644 arch/arm64/include/asm/trans_table.h
+> >  create mode 100644 arch/arm64/mm/trans_table.c
+> >
+> > --
+> > 2.22.0
+> >
 
