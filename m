@@ -2,126 +2,136 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.4 required=3.0 tests=DKIM_SIGNED,DKIM_VALID,
-	DKIM_VALID_AU,HEADER_FROM_DIFFERENT_DOMAINS,MAILING_LIST_MULTI,SPF_HELO_NONE,
-	SPF_PASS,USER_AGENT_SANE_1 autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-8.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	INCLUDES_PATCH,MAILING_LIST_MULTI,SIGNED_OFF_BY,SPF_HELO_NONE,SPF_PASS,
+	USER_AGENT_SANE_1 autolearn=unavailable autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 04C82C3A589
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:51:06 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id 8675DC41514
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:54:25 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id B380920656
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:51:05 +0000 (UTC)
-Authentication-Results: mail.kernel.org;
-	dkim=pass (2048-bit key) header.d=ziepe.ca header.i=@ziepe.ca header.b="dU2EhV+6"
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org B380920656
-Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=ziepe.ca
+	by mail.kernel.org (Postfix) with ESMTP id 553E22067D
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 14:54:25 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 553E22067D
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=suse.cz
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id 620EA6B0298; Thu, 15 Aug 2019 10:51:05 -0400 (EDT)
+	id E0E126B029B; Thu, 15 Aug 2019 10:54:24 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id 5D18C6B029A; Thu, 15 Aug 2019 10:51:05 -0400 (EDT)
+	id DBFAF6B029C; Thu, 15 Aug 2019 10:54:24 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id 4C0996B029B; Thu, 15 Aug 2019 10:51:05 -0400 (EDT)
+	id CDD096B029D; Thu, 15 Aug 2019 10:54:24 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0117.hostedemail.com [216.40.44.117])
-	by kanga.kvack.org (Postfix) with ESMTP id 2A2096B0298
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:51:05 -0400 (EDT)
-Received: from smtpin23.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay03.hostedemail.com (Postfix) with SMTP id 5F3E48248AAB
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:51:04 +0000 (UTC)
-X-FDA: 75824949648.23.soda65_60a104cd0594f
-X-HE-Tag: soda65_60a104cd0594f
-X-Filterd-Recvd-Size: 4655
-Received: from mail-qk1-f194.google.com (mail-qk1-f194.google.com [209.85.222.194])
-	by imf37.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:51:03 +0000 (UTC)
-Received: by mail-qk1-f194.google.com with SMTP id m10so2095064qkk.1
-        for <linux-mm@kvack.org>; Thu, 15 Aug 2019 07:51:03 -0700 (PDT)
-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=ziepe.ca; s=google;
-        h=date:from:to:cc:subject:message-id:references:mime-version
-         :content-disposition:in-reply-to:user-agent;
-        bh=z90nPpYO8UuUUSb9IN8rKS3L0KsgC8zXmObZdfo6ctQ=;
-        b=dU2EhV+6EWSs1MNrZJWfU76DaiGX5NQgWL4uohTv/GZxgH6FeggKTIKZ+d/6xxWmB5
-         Uq7EirJG422MX6svb2pK3O0rmVD5upXZhrC0obDyAVUsClwMUccie10LZ+VusUXs6G5t
-         Cfxm7G3duJErwOwTzL6wlTMWxPvhXqi0t55/HXZYJ0ksP5CllSxCeRSJEwA3qeLb3Mw+
-         H9tQF6/hs2KVjejIpKYI3tuEWzOasQMSO5OrPdyS6Tf6gZNSrPhr0d7BWVqY895GeZU7
-         3vhMlzFvKziDCq6pld4ycFVFRE1zOEJ/X+8kNMBCMNIgJ/nYLqTQqzhkO3QmO9Oxi/p7
-         z4xQ==
-X-Google-DKIM-Signature: v=1; a=rsa-sha256; c=relaxed/relaxed;
-        d=1e100.net; s=20161025;
-        h=x-gm-message-state:date:from:to:cc:subject:message-id:references
-         :mime-version:content-disposition:in-reply-to:user-agent;
-        bh=z90nPpYO8UuUUSb9IN8rKS3L0KsgC8zXmObZdfo6ctQ=;
-        b=JBlIR1uSp5bS6+RNMVB2hpAxNWQNtdvh6/742jBbzp1tvKOTFsLQ48ITN08HBsXnT6
-         ki6DjMLzVR6Olwe6L2AVLpX0KWg7/A31I1Lxdw2WcjRDcO+AhbDwtL6af6K6v58p2uKC
-         7hBIeRO+JJzpr2QI5KlqRveT9zw7qbgvmrzFM6fBsAMzUQjG3x4U0GQNKuPL/xxLU6pu
-         zj9M8kYZfvSKwaRuveDtzSOBAyRd158ayxL9J9YsHIHPng8XXjdK/+QCOZhMYySDfcLb
-         queaP1W58iVJlelNOiwrXJ+DJyIm5/lXIv1Tk3D/vw5TuZG4PB1KY6jO8fALoj0kDXfc
-         72bw==
-X-Gm-Message-State: APjAAAVDTY4A2iZyKY9WPq4rpYgUZwxgCvMwOlmEddvlj4enXHYzDdkB
-	KUZ99LXaYzybj9c27GUMJxF6xSaAJxY=
-X-Google-Smtp-Source: APXvYqyMHfwmFKSYVNb8WeeauLH7Hep/WJZ+jheCJjAwrLvMcjUnfX6gEreyk5eeamBSEzYzpviglQ==
-X-Received: by 2002:a05:620a:71a:: with SMTP id 26mr4357407qkc.374.1565880663323;
-        Thu, 15 Aug 2019 07:51:03 -0700 (PDT)
-Received: from ziepe.ca (hlfxns017vw-156-34-55-100.dhcp-dynamic.fibreop.ns.bellaliant.net. [156.34.55.100])
-        by smtp.gmail.com with ESMTPSA id e15sm805595qtr.51.2019.08.15.07.51.02
-        (version=TLS1_2 cipher=ECDHE-RSA-CHACHA20-POLY1305 bits=256/256);
-        Thu, 15 Aug 2019 07:51:02 -0700 (PDT)
-Received: from jgg by mlx.ziepe.ca with local (Exim 4.90_1)
-	(envelope-from <jgg@ziepe.ca>)
-	id 1hyH5i-0005L9-BH; Thu, 15 Aug 2019 11:51:02 -0300
-Date: Thu, 15 Aug 2019 11:51:02 -0300
-From: Jason Gunthorpe <jgg@ziepe.ca>
-To: Jan Kara <jack@suse.cz>
-Cc: John Hubbard <jhubbard@nvidia.com>, Ira Weiny <ira.weiny@intel.com>,
-	Andrew Morton <akpm@linux-foundation.org>,
-	Christoph Hellwig <hch@infradead.org>,
-	Dan Williams <dan.j.williams@intel.com>,
-	Dave Chinner <david@fromorbit.com>,
-	=?utf-8?B?SsOpcsO0bWU=?= Glisse <jglisse@redhat.com>,
-	LKML <linux-kernel@vger.kernel.org>, linux-mm@kvack.org,
-	linux-fsdevel@vger.kernel.org, linux-rdma@vger.kernel.org
-Subject: Re: [RFC PATCH 2/2] mm/gup: introduce vaddr_pin_pages_remote()
-Message-ID: <20190815145102.GH21596@ziepe.ca>
-References: <20190812234950.GA6455@iweiny-DESK2.sc.intel.com>
- <38d2ff2f-4a69-e8bd-8f7c-41f1dbd80fae@nvidia.com>
- <20190813210857.GB12695@iweiny-DESK2.sc.intel.com>
- <a1044a0d-059c-f347-bd68-38be8478bf20@nvidia.com>
- <90e5cd11-fb34-6913-351b-a5cc6e24d85d@nvidia.com>
- <20190814234959.GA463@iweiny-DESK2.sc.intel.com>
- <2cbdf599-2226-99ae-b4d5-8909a0a1eadf@nvidia.com>
- <ac834ac6-39bd-6df9-fca4-70b9520b6c34@nvidia.com>
- <20190815132622.GG14313@quack2.suse.cz>
- <20190815133510.GA21302@quack2.suse.cz>
+Received: from forelay.hostedemail.com (smtprelay0112.hostedemail.com [216.40.44.112])
+	by kanga.kvack.org (Postfix) with ESMTP id B04706B029B
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 10:54:24 -0400 (EDT)
+Received: from smtpin10.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay01.hostedemail.com (Postfix) with SMTP id 53958180AD801
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:54:24 +0000 (UTC)
+X-FDA: 75824958048.10.tiger14_7db9120fea73f
+X-HE-Tag: tiger14_7db9120fea73f
+X-Filterd-Recvd-Size: 3735
+Received: from mx1.suse.de (mx2.suse.de [195.135.220.15])
+	by imf34.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:54:23 +0000 (UTC)
+X-Virus-Scanned: by amavisd-new at test-mx.suse.de
+Received: from relay2.suse.de (unknown [195.135.220.254])
+	by mx1.suse.de (Postfix) with ESMTP id 704C7ABB1;
+	Thu, 15 Aug 2019 14:54:22 +0000 (UTC)
+Received: by quack2.suse.cz (Postfix, from userid 1000)
+	id E34F51E4200; Thu, 15 Aug 2019 16:54:21 +0200 (CEST)
+Date: Thu, 15 Aug 2019 16:54:21 +0200
+From: Jan Kara <jack@suse.cz>
+To: Tejun Heo <tj@kernel.org>
+Cc: axboe@kernel.dk, jack@suse.cz, hannes@cmpxchg.org, mhocko@kernel.org,
+	vdavydov.dev@gmail.com, cgroups@vger.kernel.org, linux-mm@kvack.org,
+	linux-block@vger.kernel.org, linux-kernel@vger.kernel.org,
+	kernel-team@fb.com, guro@fb.com, akpm@linux-foundation.org
+Subject: Re: [PATCH 3/4] writeback, memcg: Implement cgroup_writeback_by_id()
+Message-ID: <20190815145421.GN14313@quack2.suse.cz>
+References: <20190803140155.181190-1-tj@kernel.org>
+ <20190803140155.181190-4-tj@kernel.org>
 MIME-Version: 1.0
 Content-Type: text/plain; charset=us-ascii
 Content-Disposition: inline
-In-Reply-To: <20190815133510.GA21302@quack2.suse.cz>
-User-Agent: Mutt/1.9.4 (2018-02-28)
+In-Reply-To: <20190803140155.181190-4-tj@kernel.org>
+User-Agent: Mutt/1.10.1 (2018-07-13)
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Thu, Aug 15, 2019 at 03:35:10PM +0200, Jan Kara wrote:
-
-> > 3) ODP case - GUP references to pages serving as DMA buffers, MMU notifiers
-> >    used to synchronize with page_mkclean() and munmap() => normal page
-> >    references are fine.
+On Sat 03-08-19 07:01:54, Tejun Heo wrote:
+> Implement cgroup_writeback_by_id() which initiates cgroup writeback
+> from bdi and memcg IDs.  This will be used by memcg foreign inode
+> flushing.
 > 
-> I want to add that I'd like to convert users in cases 1) and 2) from using
-> GUP to using differently named function. Users in case 3) can stay as they
-> are for now although ultimately I'd like to denote such use cases in a
-> special way as well...
+> Signed-off-by: Tejun Heo <tj@kernel.org>
+> ---
+>  fs/fs-writeback.c         | 64 +++++++++++++++++++++++++++++++++++++++
+>  include/linux/writeback.h |  4 +++
+>  2 files changed, 68 insertions(+)
+> 
+> diff --git a/fs/fs-writeback.c b/fs/fs-writeback.c
+> index 6129debdc938..5c79d7acefdb 100644
+> --- a/fs/fs-writeback.c
+> +++ b/fs/fs-writeback.c
+> @@ -880,6 +880,70 @@ static void bdi_split_work_to_wbs(struct backing_dev_info *bdi,
+>  		wb_put(last_wb);
+>  }
+>  
+> +/**
+> + * cgroup_writeback_by_id - initiate cgroup writeback from bdi and memcg IDs
+> + * @bdi_id: target bdi id
+> + * @memcg_id: target memcg css id
+> + * @nr_pages: number of pages to write
+> + * @reason: reason why some writeback work initiated
+> + * @done: target wb_completion
+> + *
+> + * Initiate flush of the bdi_writeback identified by @bdi_id and @memcg_id
+> + * with the specified parameters.
+> + */
+> +int cgroup_writeback_by_id(u64 bdi_id, int memcg_id, unsigned long nr,
+> +			   enum wb_reason reason, struct wb_completion *done)
+> +{
+> +	struct backing_dev_info *bdi;
+> +	struct cgroup_subsys_state *memcg_css;
+> +	struct bdi_writeback *wb;
+> +	struct wb_writeback_work *work;
+> +	int ret;
+> +
+> +	/* lookup bdi and memcg */
+> +	bdi = bdi_get_by_id(bdi_id);
+> +	if (!bdi)
+> +		return -ENOENT;
+> +
+> +	rcu_read_lock();
+> +	memcg_css = css_from_id(memcg_id, &memory_cgrp_subsys);
+> +	if (memcg_css && !css_tryget(memcg_css))
+> +		memcg_css = NULL;
+> +	rcu_read_unlock();
+> +	if (!memcg_css) {
+> +		ret = -ENOENT;
+> +		goto out_bdi_put;
+> +	}
+> +
+> +	/* and find the associated wb */
+> +	wb = wb_get_create(bdi, memcg_css, GFP_NOWAIT | __GFP_NOWARN);
+> +	if (!wb) {
+> +		ret = -ENOMEM;
+> +		goto out_css_put;
+> +	}
 
-3) users also want a special function and path, right now it is called
-hmm_range_fault() but perhaps it would be good to harmonize it more
-with the GUP infrastructure?
+One more thought: You don't want the "_create" part here, do you? If
+there's any point in writing back using this wb, it must be attached to
+some inode and thus it must exist. In the normal case wb_get_create() will
+just fetch the reference and be done with it but when you feed garbage into
+this function due to id going stale or frn structures getting corrupted due
+to concurrent access, you can be creating bogus wb structures in bdi...
 
-I'm not quite sure what the best plan for that is yet.
-
-Jason
+								Honza
+-- 
+Jan Kara <jack@suse.com>
+SUSE Labs, CR
 
