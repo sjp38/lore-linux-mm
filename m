@@ -2,121 +2,155 @@ Return-Path: <SRS0=30+Z=WL=kvack.org=owner-linux-mm@kernel.org>
 X-Spam-Checker-Version: SpamAssassin 3.4.0 (2014-02-07) on
 	aws-us-west-2-korg-lkml-1.web.codeaurora.org
 X-Spam-Level: 
-X-Spam-Status: No, score=-2.2 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
-	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,URIBL_BLOCKED,USER_AGENT_SANE_1
-	autolearn=no autolearn_force=no version=3.4.0
+X-Spam-Status: No, score=-2.3 required=3.0 tests=HEADER_FROM_DIFFERENT_DOMAINS,
+	MAILING_LIST_MULTI,SPF_HELO_NONE,SPF_PASS,USER_AGENT_SANE_1 autolearn=no
+	autolearn_force=no version=3.4.0
 Received: from mail.kernel.org (mail.kernel.org [198.145.29.99])
-	by smtp.lore.kernel.org (Postfix) with ESMTP id 8B678C3A59C
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:03:30 +0000 (UTC)
+	by smtp.lore.kernel.org (Postfix) with ESMTP id CEB6DC3A589
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:11:18 +0000 (UTC)
 Received: from kanga.kvack.org (kanga.kvack.org [205.233.56.17])
-	by mail.kernel.org (Postfix) with ESMTP id 57C432083B
-	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:03:30 +0000 (UTC)
-DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 57C432083B
-Authentication-Results: mail.kernel.org; dmarc=fail (p=none dis=none) header.from=redhat.com
+	by mail.kernel.org (Postfix) with ESMTP id 9E3312064A
+	for <linux-mm@archiver.kernel.org>; Thu, 15 Aug 2019 18:11:18 +0000 (UTC)
+DMARC-Filter: OpenDMARC Filter v1.3.2 mail.kernel.org 9E3312064A
+Authentication-Results: mail.kernel.org; dmarc=none (p=none dis=none) header.from=arm.com
 Authentication-Results: mail.kernel.org; spf=pass smtp.mailfrom=owner-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix)
-	id E6A706B0302; Thu, 15 Aug 2019 14:03:29 -0400 (EDT)
+	id 208166B0304; Thu, 15 Aug 2019 14:11:18 -0400 (EDT)
 Received: by kanga.kvack.org (Postfix, from userid 40)
-	id E1C0E6B0304; Thu, 15 Aug 2019 14:03:29 -0400 (EDT)
+	id 1BB1F6B0306; Thu, 15 Aug 2019 14:11:18 -0400 (EDT)
 X-Delivered-To: int-list-linux-mm@kvack.org
 Received: by kanga.kvack.org (Postfix, from userid 63042)
-	id D32A56B0305; Thu, 15 Aug 2019 14:03:29 -0400 (EDT)
+	id 0CEFF6B0307; Thu, 15 Aug 2019 14:11:18 -0400 (EDT)
 X-Delivered-To: linux-mm@kvack.org
-Received: from forelay.hostedemail.com (smtprelay0231.hostedemail.com [216.40.44.231])
-	by kanga.kvack.org (Postfix) with ESMTP id B216F6B0302
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:03:29 -0400 (EDT)
-Received: from smtpin19.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
-	by forelay01.hostedemail.com (Postfix) with SMTP id 57948180AD802
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:03:29 +0000 (UTC)
-X-FDA: 75825434538.19.laugh30_1e6ba7497001f
-X-HE-Tag: laugh30_1e6ba7497001f
-X-Filterd-Recvd-Size: 3911
-Received: from mx1.redhat.com (mx1.redhat.com [209.132.183.28])
-	by imf04.hostedemail.com (Postfix) with ESMTP
-	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:03:28 +0000 (UTC)
-Received: from smtp.corp.redhat.com (int-mx01.intmail.prod.int.phx2.redhat.com [10.5.11.11])
-	(using TLSv1.2 with cipher AECDH-AES256-SHA (256/256 bits))
-	(No client certificate requested)
-	by mx1.redhat.com (Postfix) with ESMTPS id 161762A09AF;
-	Thu, 15 Aug 2019 18:03:28 +0000 (UTC)
-Received: from redhat.com (unknown [10.20.6.178])
-	by smtp.corp.redhat.com (Postfix) with ESMTPS id F1A13600CD;
-	Thu, 15 Aug 2019 18:03:26 +0000 (UTC)
-Date: Thu, 15 Aug 2019 14:03:25 -0400
-From: Jerome Glisse <jglisse@redhat.com>
-To: Dan Williams <dan.j.williams@intel.com>
-Cc: Jason Gunthorpe <jgg@mellanox.com>, Christoph Hellwig <hch@lst.de>,
-	Ben Skeggs <bskeggs@redhat.com>,
-	Felix Kuehling <Felix.Kuehling@amd.com>,
-	Ralph Campbell <rcampbell@nvidia.com>,
-	"linux-mm@kvack.org" <linux-mm@kvack.org>,
-	"nouveau@lists.freedesktop.org" <nouveau@lists.freedesktop.org>,
-	"dri-devel@lists.freedesktop.org" <dri-devel@lists.freedesktop.org>,
-	"amd-gfx@lists.freedesktop.org" <amd-gfx@lists.freedesktop.org>,
-	"linux-kernel@vger.kernel.org" <linux-kernel@vger.kernel.org>
-Subject: Re: [PATCH 04/15] mm: remove the pgmap field from struct hmm_vma_walk
-Message-ID: <20190815180325.GA4920@redhat.com>
-References: <20190806160554.14046-1-hch@lst.de>
- <20190806160554.14046-5-hch@lst.de>
- <20190807174548.GJ1571@mellanox.com>
- <CAPcyv4hPCuHBLhSJgZZEh0CbuuJNPLFDA3f-79FX5uVOO0yubA@mail.gmail.com>
- <20190808065933.GA29382@lst.de>
- <CAPcyv4hMUzw8vyXFRPe2pdwef0npbMm9tx9wiZ9MWkHGhH1V6w@mail.gmail.com>
- <20190814073854.GA27249@lst.de>
- <20190814132746.GE13756@mellanox.com>
- <CAPcyv4g8usp8prJ+1bMtyV1xuedp5FKErBp-N8+KzR=rJ-v0QQ@mail.gmail.com>
+Received: from forelay.hostedemail.com (smtprelay0104.hostedemail.com [216.40.44.104])
+	by kanga.kvack.org (Postfix) with ESMTP id DF7D46B0304
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 14:11:17 -0400 (EDT)
+Received: from smtpin08.hostedemail.com (10.5.19.251.rfc1918.com [10.5.19.251])
+	by forelay04.hostedemail.com (Postfix) with SMTP id 8874F6111
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:11:17 +0000 (UTC)
+X-FDA: 75825454194.08.roll51_623f477e68d52
+X-HE-Tag: roll51_623f477e68d52
+X-Filterd-Recvd-Size: 4848
+Received: from foss.arm.com (foss.arm.com [217.140.110.172])
+	by imf47.hostedemail.com (Postfix) with ESMTP
+	for <linux-mm@kvack.org>; Thu, 15 Aug 2019 18:11:14 +0000 (UTC)
+Received: from usa-sjc-imap-foss1.foss.arm.com (unknown [10.121.207.14])
+	by usa-sjc-mx-foss1.foss.arm.com (Postfix) with ESMTP id D3CB928;
+	Thu, 15 Aug 2019 11:11:13 -0700 (PDT)
+Received: from [10.1.196.105] (eglon.cambridge.arm.com [10.1.196.105])
+	by usa-sjc-imap-foss1.foss.arm.com (Postfix) with ESMTPSA id 1058F3F694;
+	Thu, 15 Aug 2019 11:11:11 -0700 (PDT)
+Subject: Re: [PATCH v1 0/8] arm64: MMU enabled kexec relocation
+To: Pavel Tatashin <pasha.tatashin@soleen.com>
+References: <20190801152439.11363-1-pasha.tatashin@soleen.com>
+ <CA+CK2bADiBMEx9cJuXT5fQkBYFZAtxUtc7ZzjrNfEjijPZkPtw@mail.gmail.com>
+From: James Morse <james.morse@arm.com>
+Cc: James Morris <jmorris@namei.org>, Sasha Levin <sashal@kernel.org>,
+ "Eric W. Biederman" <ebiederm@xmission.com>,
+ kexec mailing list <kexec@lists.infradead.org>,
+ LKML <linux-kernel@vger.kernel.org>, Jonathan Corbet <corbet@lwn.net>,
+ Catalin Marinas <catalin.marinas@arm.com>, will@kernel.org,
+ Linux ARM <linux-arm-kernel@lists.infradead.org>,
+ Marc Zyngier <marc.zyngier@arm.com>,
+ Vladimir Murzin <vladimir.murzin@arm.com>,
+ Matthias Brugger <matthias.bgg@gmail.com>,
+ Bhupesh Sharma <bhsharma@redhat.com>, linux-mm <linux-mm@kvack.org>
+Message-ID: <ba8a2519-ed95-2518-d0e8-66e8e0c14ff5@arm.com>
+Date: Thu, 15 Aug 2019 19:11:10 +0100
+User-Agent: Mozilla/5.0 (X11; Linux aarch64; rv:60.0) Gecko/20100101
+ Thunderbird/60.7.2
 MIME-Version: 1.0
-Content-Type: text/plain; charset=iso-8859-1
-Content-Disposition: inline
-In-Reply-To: <CAPcyv4g8usp8prJ+1bMtyV1xuedp5FKErBp-N8+KzR=rJ-v0QQ@mail.gmail.com>
-User-Agent: Mutt/1.11.3 (2019-02-01)
-X-Scanned-By: MIMEDefang 2.79 on 10.5.11.11
-X-Greylist: Sender IP whitelisted, not delayed by milter-greylist-4.5.16 (mx1.redhat.com [10.5.110.38]); Thu, 15 Aug 2019 18:03:28 +0000 (UTC)
-Content-Transfer-Encoding: quoted-printable
+In-Reply-To: <CA+CK2bADiBMEx9cJuXT5fQkBYFZAtxUtc7ZzjrNfEjijPZkPtw@mail.gmail.com>
+Content-Type: text/plain; charset=utf-8
+Content-Language: en-GB
+Content-Transfer-Encoding: 7bit
 X-Bogosity: Ham, tests=bogofilter, spamicity=0.000000, version=1.2.4
 Sender: owner-linux-mm@kvack.org
 Precedence: bulk
 X-Loop: owner-majordomo@kvack.org
 List-ID: <linux-mm.kvack.org>
 
-On Wed, Aug 14, 2019 at 07:48:28AM -0700, Dan Williams wrote:
-> On Wed, Aug 14, 2019 at 6:28 AM Jason Gunthorpe <jgg@mellanox.com> wrot=
-e:
-> >
-> > On Wed, Aug 14, 2019 at 09:38:54AM +0200, Christoph Hellwig wrote:
-> > > On Tue, Aug 13, 2019 at 06:36:33PM -0700, Dan Williams wrote:
-> > > > Section alignment constraints somewhat save us here. The only exa=
-mple
-> > > > I can think of a PMD not containing a uniform pgmap association f=
-or
-> > > > each pte is the case when the pgmap overlaps normal dram, i.e. sh=
-ares
-> > > > the same 'struct memory_section' for a given span. Otherwise, dis=
-tinct
-> > > > pgmaps arrange to manage their own exclusive sections (and now
-> > > > subsections as of v5.3). Otherwise the implementation could not
-> > > > guarantee different mapping lifetimes.
-> > > >
-> > > > That said, this seems to want a better mechanism to determine "pf=
-n is
-> > > > ZONE_DEVICE".
-> > >
-> > > So I guess this patch is fine for now, and once you provide a bette=
-r
-> > > mechanism we can switch over to it?
-> >
-> > What about the version I sent to just get rid of all the strange
-> > put_dev_pagemaps while scanning? Odds are good we will work with only
-> > a single pagemap, so it makes some sense to cache it once we find it?
->=20
-> Yes, if the scan is over a single pmd then caching it makes sense.
+Hi Pavel,
 
-Quite frankly an easier an better solution is to remove the pagemap
-lookup as HMM user abide by mmu notifier it means we will not make
-use or dereference the struct page so that we are safe from any
-racing hotunplug of dax memory (as long as device driver using hmm
-do not have a bug).
+On 08/08/2019 19:44, Pavel Tatashin wrote:
+> Just a friendly reminder, please send your comments on this series.
 
-Cheers,
-J=E9r=F4me
+(Please don't top-post)
+
+
+> It's been a week since I sent out these patches, and no feedback yet.
+
+A week is not a lot of time, people are busy, go to conferences, some even dare to take
+holiday!
+
+
+> Also, I'd appreciate if anyone could test this series on vhe hardware
+> with vhe kernel, it does not look like QEMU can emulate it yet
+
+This locks up during resume from hibernate on my AMD Seattle, a regular v8.0 machine.
+
+
+Please try and build the series to reduce review time. What you have here is an all-new
+page-table generation API, which you switch hibernate and kexec too. This is effectively a
+new implementation of hibernate and kexec. There are three things here that need review.
+
+You have a regression in your all-new implementation of hibernate. It took six months (and
+lots of review) to get the existing code right, please don't rip it out if there is
+nothing wrong with it.
+
+
+Instead, please just move the hibernate copy_page_tables() code, and then wire kexec up.
+You shouldn't need to change anything in the copy_page_tables() code as the linear map is
+the same in both cases.
+
+
+It looks like you are creating the page tables just after the kexec:segments have been
+loaded. This will go horribly wrong if anything changes between then and kexec time. (e.g.
+memory you've got mapped gets hot-removed).
+This needs to be done as late as possible, so we don't waste memory, and the world can't
+change around us. Reboot notifiers run before kexec, can't we do the memory-allocation there?
+
+
+> On Thu, Aug 1, 2019 at 11:24 AM Pavel Tatashin
+> <pasha.tatashin@soleen.com> wrote:
+>>
+>> Enable MMU during kexec relocation in order to improve reboot performance.
+>>
+>> If kexec functionality is used for a fast system update, with a minimal
+>> downtime, the relocation of kernel + initramfs takes a significant portion
+>> of reboot.
+>>
+>> The reason for slow relocation is because it is done without MMU, and thus
+>> not benefiting from D-Cache.
+>>
+>> Performance data
+>> ----------------
+>> For this experiment, the size of kernel plus initramfs is small, only 25M.
+>> If initramfs was larger, than the improvements would be greater, as time
+>> spent in relocation is proportional to the size of relocation.
+>>
+>> Previously:
+>> kernel shutdown 0.022131328s
+>> relocation      0.440510736s
+>> kernel startup  0.294706768s
+>>
+>> Relocation was taking: 58.2% of reboot time
+>>
+>> Now:
+>> kernel shutdown 0.032066576s
+>> relocation      0.022158152s
+>> kernel startup  0.296055880s
+>>
+>> Now: Relocation takes 6.3% of reboot time
+>>
+>> Total reboot is x2.16 times faster.
+
+When I first saw these numbers they were ~'0.29s', which I wrongly assumed was 29 seconds.
+Savings in milliseconds, for _reboot_ is a hard sell. I'm hoping that on the machines that
+take minutes to kexec we'll get numbers that make this change more convincing.
+
+
+Thanks,
+
+James
 
